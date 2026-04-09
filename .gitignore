@@ -29,6 +29,12 @@ examples/exp*/
 *.wav
 *.jsonl
 
+# Node/Turborepo/Bun
+node_modules/
+.turbo/
+bun.lock
+bun.lockb
+
 # Generated logs and binaries
 *.log
 cloudflared
