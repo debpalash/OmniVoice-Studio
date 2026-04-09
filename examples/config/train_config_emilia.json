@@ -1,0 +1,39 @@
+{
+    "llm_name_or_path": "Qwen/Qwen3-0.6B",
+    "audio_vocab_size": 1025,
+    "audio_mask_id": 1024,
+    "num_audio_codebook": 8,
+
+    "audio_codebook_weights": [8, 8, 6, 6, 4, 4, 2, 2],
+    "drop_cond_ratio": 0.1,
+    "prompt_ratio_range": [0.0, 0.3],
+    "mask_ratio_range": [0.0, 1.0],
+    "language_ratio": 0.0,
+    "use_pinyin_ratio": 0.0,
+    "instruct_ratio": 0.0,
+    "only_instruct_ratio": 0.0,
+
+    "resume_from_checkpoint": null,
+    "init_from_checkpoint": null,
+
+    "learning_rate": 1e-4,
+    "weight_decay": 0.01,
+    "max_grad_norm": 1.0,
+    "steps": 300000,
+    "seed": 42,
+    "warmup_type": "ratio",
+    "warmup_ratio": 0.03,
+    "warmup_steps": 0,
+
+    "batch_tokens": 8192,
+    "gradient_accumulation_steps": 1,
+    "num_workers": 4,
+
+    "mixed_precision": "bf16",
+    "allow_tf32": true,
+
+    "logging_steps": 100,
+    "eval_steps": 1000,
+    "save_steps": 10000,
+    "keep_last_n_checkpoints": -1
+}

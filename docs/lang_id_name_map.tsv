@@ -1,0 +1,647 @@
+language_id	language_name	iso_639_3_id	train_data_duration
+aae	Arbëreshë Albanian	aae	6.11
+aal	Afade	aal	10.19
+aao	Algerian Saharan Arabic	aao	2.02
+ab	Abkhazian	abk	57.27
+abb	Bankon	abb	11.2
+abn	Abua	abn	10.27
+abr	Abron	abr	9.22
+abs	Ambonese Malay	abs	10.03
+abv	Baharna Arabic	abv	10.41
+acm	Mesopotamian Arabic	acm	3.78
+acw	Hijazi Arabic	acw	22.32
+acx	Omani Arabic	acx	22.03
+adf	Dhofari Arabic	adf	0.31
+adx	Amdo Tibetan	adx	56.94
+ady	Adyghe	ady	32.6
+aeb	Tunisian Arabic	aeb	21.63
+aec	Saidi Arabic	aec	9.28
+af	Afrikaans	afr	4.4
+afb	Gulf Arabic	afb	98.55
+afo	Eloyi	afo	11.21
+ahl	Igo	ahl	9.22
+ahs	Ashe	ahs	10.62
+ajg	Aja (Benin)	ajg	5.63
+aju	Judeo-Moroccan Arabic	aju	7.21
+ala	Alago	ala	11.04
+aln	Gheg Albanian	aln	3.92
+alo	Larike-Wakasihu	alo	9.97
+am	Amharic	amh	12.83
+amu	Guerrero Amuzgo	amu	10.1
+an	Aragonese	arg	16.4
+anc	Ngas	anc	10.14
+ank	Goemai	ank	10.0
+anp	Angika	anp	10.65
+anw	Anaang	anw	9.65
+aom	Ömie	aom	8.19
+apc	Levantine Arabic	apc	15.65
+apd	Sudanese Arabic	apd	9.93
+arb	Standard Arabic	arb	1483.53
+arq	Algerian Arabic	arq	9.64
+ars	Najdi Arabic	ars	203.54
+ary	Moroccan Arabic	ary	104.67
+arz	Egyptian Arabic	arz	23.23
+as	Assamese	asm	270.85
+ast	Asturian	ast	8.48
+avl	Eastern Egyptian Bedawi Arabic	avl	1.86
+awo	Awak	awo	10.22
+ayl	Libyan Arabic	ayl	20.13
+ayp	North Mesopotamian Arabic	ayp	10.92
+az	Azerbaijani	aze	9.84
+ba	Bashkir	bak	249.1
+bag	Tuki	bag	10.97
+bas	Basa (Cameroon)	bas	10.66
+bax	Bamun	bax	10.24
+bba	Baatonum	bba	10.53
+bbj	Ghomálá'	bbj	7.32
+bbl	Bats	bbl	11.22
+bbu	Kulung (Nigeria)	bbu	10.39
+bce	Bamenyam	bce	9.9
+bci	Baoulé	bci	10.21
+bcs	Kohumono	bcs	10.45
+bcy	Bacama	bcy	9.94
+bda	Bayot	bda	9.47
+bde	Bade	bde	9.89
+bdm	Buduma	bdm	10.17
+be	Belarusian	bel	1809.43
+beb	Bebele	beb	7.52
+bew	Betawi	bew	11.15
+bfd	Bafut	bfd	9.03
+bft	Balti	bft	16.28
+bg	Bulgarian	bul	2190.76
+bgp	Eastern Balochi	bgp	10.98
+bhb	Bhili	bhb	9.98
+bhh	Bukharic	bhh	11.38
+bho	Bhojpuri	bho	10.05
+bhp	Bima	bhp	10.67
+bhr	Bara Malagasy	bhr	12.14
+bjj	Kanauji	bjj	11.01
+bjk	Barok	bjk	10.16
+bjn	Banjar	bjn	11.68
+bjt	Balanta-Ganja	bjt	9.41
+bkh	Bakoko	bkh	6.0
+bkm	Kom (Cameroon)	bkm	10.76
+bky	Bokyi	bky	9.85
+bmm	Northern Betsimisaraka Malagasy	bmm	19.12
+bmq	Bomu	bmq	10.68
+bn	Bengali	ben	271.76
+bnm	Batanga	bnm	15.01
+bnn	Bunun	bnn	9.26
+bns	Bundeli	bns	10.88
+bo	Tibetan	bod	82.27
+bou	Bondei	bou	9.98
+bqg	Bago-Kusuntu	bqg	8.86
+br	Breton	bre	25.48
+bra	Braj	bra	10.68
+brh	Brahui	brh	19.89
+bri	Mokpwe	bri	7.53
+brx	Bodo	brx	231.57
+bs	Bosnian	bos	690.73
+bsh	Kati	bsh	8.77
+bsj	Bangwinji	bsj	10.0
+bsk	Burushaski	bsk	9.14
+btm	Batak Mandailing	btm	11.09
+btv	Bateri	btv	9.8
+bug	Buginese	bug	11.09
+bum	Bulu (Cameroon)	bum	9.06
+buo	Terei	buo	9.48
+bux	Boghom	bux	10.48
+bwr	Bura-Pabir	bwr	10.4
+bxf	Bilur	bxf	10.84
+byc	Ubaghara	byc	11.11
+bys	Burak	bys	9.92
+byv	Medumba	byv	10.95
+byx	Qaqet	byx	9.79
+bzc	Southern Betsimisaraka Malagasy	bzc	17.45
+bzw	Basa (Nigeria)	bzw	10.27
+ca	Catalan	cat	3358.6
+ccg	Samba Daka	ccg	10.11
+ceb	Cebuano	ceb	12.17
+cen	Cen	cen	9.85
+cfa	Dijim-Bwilim	cfa	10.32
+cgg	Chiga	cgg	10.84
+chq	Quiotepec Chinantec	chq	9.76
+cjk	Chokwe	cjk	11.01
+ckb	Central Kurdish	ckb	137.52
+ckl	Cibak	ckl	10.91
+ckr	Kairak	ckr	10.51
+cky	Cakfem-Mushere	cky	8.96
+cnh	Hakha Chin	cnh	2.24
+cpy	South Ucayali Ashéninka	cpy	9.15
+cs	Czech	ces	148.13
+cte	Tepinapa Chinantec	cte	9.54
+ctl	Tlacoatzintepec Chinantec	ctl	10.04
+cut	Teutila Cuicatec	cut	8.04
+cux	Tepeuxila Cuicatec	cux	7.83
+cv	Chuvash	chv	23.96
+cy	Welsh	cym	131.21
+da	Danish	dan	1665.98
+dag	Dagbani	dag	10.14
+dar	Dargwa	dar	1.22
+dav	Taita	dav	9.12
+dbd	Dadiya	dbd	9.61
+dcc	Deccan	dcc	10.38
+de	German	deu	21927.13
+deg	Degema	deg	11.07
+dgh	Dghwede	dgh	9.95
+dgo	Dogri	dgo	117.04
+dje	Zarma	dje	10.72
+dmk	Domaaki	dmk	6.38
+dml	Dameli	dml	9.18
+dru	Rukai	dru	9.26
+dty	Dotyali	dty	10.85
+dua	Duala	dua	12.13
+dv	Dhivehi	div	38.61
+dyu	Dyula	dyu	0.34
+dzg	Dazaga	dzg	9.96
+ebr	Ebrié	ebr	1.5
+ebu	Embu	ebu	9.81
+ego	Eggon	ego	9.95
+eiv	Askopan	eiv	10.44
+eko	Koti	eko	8.15
+ekr	Yace	ekr	10.76
+el	Greek	ell	2412.54
+elm	Eleme	elm	11.27
+en	English	eng	206061.1
+eo	Esperanto	epo	1396.64
+es	Spanish	spa	27559.74
+esu	Central Yupik	esu	2.18
+et	Estonian	est	960.37
+eto	Eton (Cameroon)	eto	7.43
+ets	Yekhee	ets	10.11
+etu	Ejagham	etu	10.3
+eu	Basque	eus	479.86
+ewo	Ewondo	ewo	12.71
+ext	Extremaduran	ext	13.59
+eyo	Keiyo	eyo	9.24
+fa	Persian	fas	366.07
+fan	Fang (Equatorial Guinea)	fan	3.51
+fat	Fanti	fat	11.38
+ff	Fulah	ful	13.84
+ffm	Maasina Fulfulde	ffm	10.46
+fi	Finnish	fin	468.62
+fia	Nobiin	fia	9.96
+fil	Filipino	fil	7.71
+fip	Fipa	fip	10.55
+fkk	Kirya-Konzəl	fkk	9.98
+fmp	Fe'fe'	fmp	9.86
+fr	French	fra	23675.32
+fub	Adamawa Fulfulde	fub	13.12
+fuc	Pulaar	fuc	14.77
+fue	Borgu Fulfulde	fue	20.1
+fuf	Pular	fuf	13.77
+fuh	Western Niger Fulfulde	fuh	9.69
+fui	Bagirmi Fulfulde	fui	15.04
+fuq	Central-Eastern Niger Fulfulde	fuq	9.28
+fuv	Nigerian Fulfulde	fuv	9.97
+fy	Western Frisian	fry	70.41
+ga	Irish	gle	21.4
+gbm	Garhwali	gbm	19.14
+gbr	Gbagyi	gbr	12.12
+gby	Gbari	gby	12.59
+gcc	Mali	gcc	9.87
+gdf	Guduf-Gava	gdf	12.21
+gej	Gen	gej	5.39
+ges	Geser-Gorom	ges	10.08
+ggg	Gurgula	ggg	7.12
+gid	Gidar	gid	10.06
+gig	Goaria	gig	9.41
+giz	South Giziga	giz	10.03
+gjk	Kachi Koli	gjk	20.83
+gju	Gujari	gju	8.66
+gl	Galician	glg	208.81
+glw	Glavda	glw	10.51
+gn	Guarani	grn	4.06
+gol	Gola	gol	9.26
+gom	Goan Konkani	gom	9.82
+gsl	Gusilay	gsl	10.0
+gu	Gujarati	guj	91.18
+gui	Eastern Bolivian Guaraní	gui	22.72
+gur	Farefare	gur	9.24
+guz	Gusii	guz	9.5
+gv	Manx	glv	10.07
+gwc	Gawri	gwc	10.83
+gwe	Gweno	gwe	8.87
+gwt	Gawar-Bati	gwt	12.16
+gya	Northwest Gbaya	gya	8.45
+gyz	Geji	gyz	10.49
+ha	Hausa	hau	17.75
+hah	Hahon	hah	9.64
+hao	Hakö	hao	8.56
+haw	Hawaiian	haw	11.79
+haz	Hazaragi	haz	9.69
+hbb	Huba	hbb	10.7
+he	Hebrew	heb	13.4
+hem	Hemba	hem	9.53
+hi	Hindi	hin	117.17
+hia	Lamang	hia	11.07
+hkk	Hunjara-Kaina Ke	hkk	8.69
+hla	Halia	hla	9.86
+hno	Northern Hindko	hno	20.04
+hoj	Hadothi	hoj	10.08
+hr	Croatian	hrv	2795.31
+hsb	Upper Sorbian	hsb	2.71
+ht	Haitian	hat	0.04
+hu	Hungarian	hun	255.83
+hue	San Francisco Del Mar Huave	hue	9.45
+hul	Hula	hul	10.33
+hux	Nüpode Huitoto	hux	9.04
+hwo	Hwana	hwo	11.23
+hy	Armenian	hye	42.15
+hz	Herero	her	9.59
+ia	Interlingua (International Auxiliary Language Association)	ina	13.48
+ibb	Ibibio	ibb	7.38
+id	Indonesian	ind	6327.87
+ida	Idakho-Isukha-Tiriki	ida	9.31
+idu	Idoma	idu	11.16
+ig	Igbo	ibo	13.69
+ijc	Izon	ijc	9.95
+ijn	Kalabari	ijn	11.04
+ik	Inupiaq	ipk	2.11
+ikw	Ikwere	ikw	10.0
+is	Icelandic	isl	647.29
+ish	Esan	ish	10.05
+iso	Isoko	iso	10.33
+it	Italian	ita	9402.46
+its	Isekiri	its	11.85
+itw	Ito	itw	9.19
+itz	Itzá	itz	7.08
+ja	Japanese	jpn	36914.4
+jal	Yalahatan	jal	11.18
+jax	Jambi Malay	jax	10.29
+jgo	Ngomba	jgo	10.15
+jmx	Western Juxtlahuaca Mixtec	jmx	10.01
+jns	Jaunsari	jns	11.25
+jqr	Jaqaru	jqr	9.32
+juk	Wapan	juk	10.22
+juo	Jiba	juo	10.43
+jv	Javanese	jav	11.19
+ka	Georgian	kat	156.96
+kab	Kabyle	kab	529.52
+kai	Karekare	kai	10.52
+kaj	Jju	kaj	10.16
+kam	Kamba	kam	14.72
+kbd	Kabardian	kbd	108.35
+kbl	Kanembu	kbl	10.19
+kbt	Abadi	kbt	9.73
+kcq	Kamo	kcq	10.49
+kdh	Tem	kdh	4.07
+kea	Kabuverdianu	kea	10.51
+keu	Akebu	keu	9.1
+kfe	Kota (India)	kfe	10.25
+kfk	Kinnauri	kfk	10.32
+kfp	Korwa	kfp	11.87
+khg	Khams Tibetan	khg	6.38
+khw	Khowar	khw	15.55
+kj	Kuanyama	kua	9.88
+kjc	Coastal Konjo	kjc	10.18
+kjk	Highland Konjo	kjk	10.21
+kk	Kazakh	kaz	1537.29
+kln	Kalenjin	kln	40.42
+kls	Kalasha	kls	9.11
+km	Khmer	khm	7.1
+kmr	Northern Kurdish	kmr	69.59
+kmy	Koma	kmy	10.28
+kn	Kannada	kan	128.06
+kna	Dera (Nigeria)	kna	11.91
+knn	Konkani	knn	112.83
+ko	Korean	kor	8609.28
+kol	Kol (Papua New Guinea)	kol	9.95
+koo	Konzo	koo	13.23
+kpo	Ikposo	kpo	7.83
+kqo	Eastern Krahn	kqo	9.28
+ks	Kashmiri	kas	110.42
+ksd	Kuanua	ksd	9.91
+ksf	Bafia	ksf	16.43
+kto	Kuot	kto	9.77
+kuh	Kushi	kuh	10.35
+kvx	Parkari Koli	kvx	11.04
+kw	Cornish	cor	12.15
+kwm	Kwambi	kwm	9.9
+kxp	Wadiyara Koli	kxp	20.0
+ky	Kirghiz	kir	46.63
+kyx	Rapoisi	kyx	9.17
+lag	Rangi	lag	9.47
+lb	Luxembourgish	ltz	8.46
+lcm	Tungag	lcm	9.77
+ldb	Dũya	ldb	11.31
+lg	Ganda	lug	447.82
+lij	Ligurian	lij	15.97
+lir	Liberian English	lir	10.26
+lkb	Kabras	lkb	9.99
+lla	Lala-Roba	lla	10.38
+ln	Lingala	lin	17.99
+lnu	Longuda	lnu	10.46
+lo	Lao	lao	7.63
+loa	Loloda	loa	9.31
+lrk	Loarki	lrk	10.5
+lss	Lasi	lss	6.53
+lt	Lithuanian	lit	2629.45
+ltg	Latgalian	ltg	27.23
+lto	Tsotso	lto	9.77
+lua	Luba-Lulua	lua	8.47
+luo	Luo	luo	36.17
+lus	Lushai	lus	20.24
+lv	Latvian	lav	1441.58
+lwg	Wanga	lwg	9.36
+mab	Yutanduchi Mixtec	mab	9.26
+maf	Mafa	maf	9.97
+mai	Maithili	mai	131.37
+mau	Huautla Mazatec	mau	6.39
+max	North Moluccan Malay	max	9.43
+mbo	Mbo (Cameroon)	mbo	9.51
+mcf	Matsés	mcf	9.61
+mcn	Masana	mcn	10.09
+mcx	Mpiemo	mcx	9.88
+mdd	Mbum	mdd	9.82
+mde	Maba (Chad)	mde	9.5
+mdf	Moksha	mdf	0.47
+mek	Mekeo	mek	9.18
+mer	Meru	mer	9.89
+meu	Motu	meu	9.88
+mfm	Marghi South	mfm	10.05
+mfn	Cross River Mbembe	mfn	10.03
+mfo	Mbe	mfo	10.24
+mfv	Mandjak	mfv	9.55
+mgg	Mpumpong	mgg	4.94
+mgi	Lijili	mgi	10.89
+mhk	Mungaka	mhk	7.53
+mhr	Eastern Mari	mhr	272.31
+mi	Maori	mri	18.02
+mig	San Miguel El Grande Mixtec	mig	9.66
+miu	Cacaloxtepec Mixtec	miu	9.18
+mk	Macedonian	mkd	27.21
+mkf	Miya	mkf	10.16
+mki	Dhatki	mki	8.83
+ml	Malayalam	mal	166.57
+mlq	Western Maninkakan	mlq	9.83
+mn	Mongolian	mon	269.08
+mne	Naba	mne	10.37
+mni	Manipuri	mni	44.46
+mqy	Manggarai	mqy	10.5
+mr	Marathi	mar	156.71
+mrj	Western Mari	mrj	32.26
+mrr	Maria (India)	mrr	11.0
+mrt	Marghi Central	mrt	10.36
+ms	Malay	msa	9.57
+mse	Musey	mse	7.21
+msh	Masikoro Malagasy	msh	14.16
+msw	Mansoanka	msw	9.32
+mt	Maltese	mlt	630.29
+mtr	Mewari	mtr	10.58
+mtu	Tututepec Mixtec	mtu	10.13
+mtx	Tidaá Mixtec	mtx	9.09
+mua	Mundang	mua	9.2
+mug	Musgu	mug	4.74
+mui	Musi	mui	10.52
+mve	Marwari (Pakistan)	mve	9.96
+mvy	Indus Kohistani	mvy	21.64
+mxs	Huitepec Mixtec	mxs	9.64
+mxu	Mada (Cameroon)	mxu	12.0
+mxy	Southeastern Nochixtlán Mixtec	mxy	9.48
+my	Burmese	mya	12.14
+myv	Erzya	myv	3.1
+mzl	Mazatlán Mixe	mzl	10.05
+nal	Nalik	nal	10.33
+nan	Min Nan Chinese	nan	17.55
+nap	Neapolitan	nap	9.97
+nb	Norwegian Bokmål	nob	12.7
+nbh	Ngamo	nbh	10.04
+ncf	Notsi	ncf	9.84
+nco	Sibe	nco	9.96
+ncx	Central Puebla Nahuatl	ncx	9.86
+ndi	Samba Leko	ndi	11.27
+ng	Ndonga	ndo	9.08
+ngi	Ngizim	ngi	10.06
+nhg	Tetelcingo Nahuatl	nhg	8.92
+nhi	Zacatlán-Ahuacatlán-Tepetzintla Nahuatl	nhi	0.05
+nhn	Central Nahuatl	nhn	9.51
+nhq	Huaxcaleca Nahuatl	nhq	5.07
+nja	Nzanyi	nja	10.02
+nl	Dutch	nld	2264.13
+nla	Ngombale	nla	8.79
+nlv	Orizaba Nahuatl	nlv	11.42
+nmg	Kwasio	nmg	10.39
+nmz	Nawdm	nmz	6.3
+nn	Norwegian Nynorsk	nno	1.54
+nnh	Ngiemboon	nnh	16.15
+no	Norwegian	nor	3849.8
+noe	Nimadi	noe	11.12
+npi	Nepali	npi	171.5
+nso	Pedi	nso	12.64
+ny	Chichewa	nya	10.8
+nyu	Nyungwe	nyu	8.98
+oc	Occitan	oci	16.8
+odk	Od	odk	20.26
+odu	Odual	odu	10.57
+ogo	Khana	ogo	10.51
+om	Oromo	orm	6.6
+orc	Orma	orc	22.01
+oru	Ormuri	oru	16.74
+ory	Odia	ory	144.81
+os	Iron Ossetic	oss	1.38
+pa	Panjabi	pan	147.37
+pbs	Central Pame	pbs	9.69
+pbt	Southern Pashto	pbt	11.6
+pbu	Northern Pashto	pbu	11.03
+pcm	Nigerian Pidgin	pcm	11.04
+pex	Petats	pex	10.2
+phl	Phalura	phl	20.69
+phr	Pahari-Potwari	phr	24.03
+pip	Pero	pip	9.85
+piy	Piya-Kwonci	piy	10.38
+pko	Pökoot	pko	10.4
+pl	Polish	pol	911.68
+plk	Kohistani Shina	plk	12.75
+plt	Plateau Malagasy	plt	19.39
+pmq	Northern Pame	pmq	10.24
+pms	Piemontese	pms	16.01
+pmy	Papuan Malay	pmy	10.17
+pnb	Western Panjabi	pnb	10.0
+poc	Poqomam	poc	9.63
+poe	San Juan Atzingo Popoloca	poe	10.01
+pow	San Felipe Otlaltepec Popoloca	pow	8.84
+prq	Ashéninka Perené	prq	7.16
+ps	Pushto	pus	88.62
+pst	Central Pashto	pst	11.4
+pt	Portuguese	por	16855.05
+pua	Western Highland Purepecha	pua	10.17
+pwn	Paiwan	pwn	13.76
+qug	Chimborazo Highland Quichua	qug	10.12
+qum	Sipacapense	qum	9.37
+qup	Southern Pastaza Quechua	qup	11.13
+qur	Yanahuanca Pasco Quechua	qur	9.95
+qus	Santiago del Estero Quichua	qus	9.55
+quv	Sacapulteco	quv	8.9
+qux	Yauyos Quechua	qux	9.35
+quy	Ayacucho Quechua	quy	0.05
+qva	Ambo-Pasco Quechua	qva	9.59
+qvi	Imbabura Highland Quichua	qvi	11.0
+qvj	Loja Highland Quichua	qvj	10.59
+qvl	Cajatambo North Lima Quechua	qvl	9.95
+qwa	Corongo Ancash Quechua	qwa	9.72
+qws	Sihuas Ancash Quechua	qws	10.18
+qxa	Chiquián Ancash Quechua	qxa	9.99
+qxp	Puno Quechua	qxp	9.81
+qxt	Santa Ana de Tusi Pasco Quechua	qxt	10.05
+qxu	Arequipa-La Unión Quechua	qxu	10.12
+qxw	Jauja Wanca Quechua	qxw	11.42
+rag	Logooli	rag	9.39
+rm	Romansh	roh	9.21
+ro	Romanian	ron	70.23
+rob	Tae'	rob	9.02
+rof	Rombo	rof	18.9
+roo	Rotokas	roo	9.07
+rth	Ratahan	rth	9.34
+ru	Russian	rus	20338.5
+rup	Macedo-Romanian	rup	0.02
+rw	Kinyarwanda	kin	2021.66
+sa	Sanskrit	san	84.44
+sah	Yakut	sah	16.08
+sat	Santali	sat	98.37
+sau	Saleman	sau	10.53
+say	Saya	say	10.02
+sbn	Sindhi Bhil	sbn	10.53
+sc	Sardinian	srd	2.77
+scl	Shina	scl	9.84
+scn	Sicilian	scn	13.35
+sd	Sindhi	snd	46.27
+sei	Seri	sei	9.81
+shu	Chadian Arabic	shu	2.29
+si	Sinhala	sin	11.98
+sip	Sikkimese	sip	10.07
+siw	Siwai	siw	10.47
+sjr	Siar-Lak	sjr	9.87
+sk	Slovak	slk	2478.46
+skg	Sakalava Malagasy	skg	9.02
+skr	Saraiki	skr	4.13
+sl	Slovenian	slv	1172.61
+sn	Shona	sna	9.96
+snc	Sinaugoro	snc	10.38
+snk	Soninke	snk	10.04
+so	Somali	som	13.22
+sol	Solos	sol	9.95
+sps	Saposa	sps	9.81
+sq	Albanian	sqi	8.59
+sr	Serbian	srp	1855.33
+src	Logudorese Sardinian	src	10.67
+sro	Campidanese Sardinian	sro	10.16
+ssi	Sansi	ssi	10.47
+ste	Liana-Seti	ste	10.43
+sua	Sulka	sua	10.12
+sv	Swedish	swe	2453.14
+sva	Svan	sva	15.11
+sw	Swahili	swa	418.41
+szy	Sakizaya	szy	11.47
+ta	Tamil	tam	423.09
+tan	Tangale	tan	10.14
+tar	Central Tarahumara	tar	9.73
+tay	Atayal	tay	7.02
+tbf	Mandara	tbf	10.01
+tcf	Malinaltepec Me'phaa	tcf	9.04
+tcy	Tulu	tcy	11.72
+tdn	Tondano	tdn	9.14
+tdx	Tandroy-Mahafaly Malagasy	tdx	3.81
+te	Telugu	tel	230.21
+tg	Tajik	tgk	9.23
+tgc	Tigak	tgc	9.71
+th	Thai	tha	10499.77
+the	Chitwania Tharu	the	10.06
+thq	Kochila Tharu	thq	10.28
+thr	Rana Tharu	thr	9.99
+thv	Tahaggart Tamahaq	thv	4.25
+ti	Tigrinya	tir	0.08
+tig	Tigre	tig	7.49
+tio	Teop	tio	9.85
+tk	Turkmen	tuk	2.86
+tkg	Tesaka Malagasy	tkg	17.86
+tkt	Kathoriya Tharu	tkt	10.64
+tli	Tlingit	tli	0.41
+tlp	Filomena Mata-Coahuitlán Totonac	tlp	11.35
+tn	Tswana	tsn	4.24
+tok	Toki Pona	tok	13.51
+tpl	Tlacoapa Me'phaa	tpl	9.28
+tpz	Tinputz	tpz	9.33
+tqp	Tomoip	tqp	10.1
+tr	Turkish	tur	125.36
+trp	Kok Borok	trp	10.74
+trq	San Martín Itunyoso Triqui	trq	8.29
+trv	Sediq	trv	7.77
+trw	Torwali	trw	14.98
+tt	Tatar	tat	30.03
+ttj	Tooro	ttj	10.31
+ttr	Tera	ttr	9.89
+ttu	Torau	ttu	9.87
+tui	Tupuri	tui	9.26
+tul	Tula	tul	9.79
+tuq	Tedaga	tuq	10.0
+tuv	Turkana	tuv	10.17
+tuy	Tugen	tuy	8.79
+tvo	Tidore	tvo	10.31
+tvu	Tunen	tvu	9.85
+tw	Twi	twi	0.25
+twu	Termanu	twu	11.45
+txs	Tonsea	txs	9.32
+txy	Tanosy Malagasy	txy	12.07
+udl	Wuzlam	udl	9.23
+ug	Uighur	uig	428.77
+uk	Ukrainian	ukr	1851.97
+uki	Kui (India)	uki	10.77
+umb	Umbundu	umb	10.59
+ur	Urdu	urd	211.27
+ush	Ushojo	ush	6.36
+uz	Uzbek	uzb	115.28
+uzn	Northern Uzbek	uzn	15.23
+vai	Vai	vai	8.76
+var	Huarijio	var	9.28
+ver	Mom Jango	ver	10.93
+vi	Vietnamese	vie	8481.98
+vmc	Juxtlahuaca Mixtec	vmc	9.43
+vmj	Ixtayutla Mixtec	vmj	10.17
+vmm	Mitlatongo Mixtec	vmm	9.95
+vmp	Soyaltepec Mazatec	vmp	10.17
+vmz	Mazatlán Mazatec	vmz	9.82
+vot	Votic	vot	0.1
+vro	Võro	vro	15.66
+wbl	Wakhi	wbl	11.67
+wci	Waci Gbe	wci	8.02
+weo	Wemale	weo	9.09
+wes	Cameroon Pidgin	wes	10.06
+wja	Waja	wja	10.22
+wji	Warji	wji	11.39
+wo	Wolof	wol	8.71
+wof	Gambian Wolof	wof	9.46
+xh	Xhosa	xho	13.35
+xhe	Khetrani	xhe	9.4
+xka	Kalkoti	xka	8.0
+xmf	Mingrelian	xmf	11.47
+xmv	Antankarana Malagasy	xmv	17.9
+xmw	Tsimihety Malagasy	xmw	11.53
+xpe	Liberia Kpelle	xpe	9.5
+xti	Sinicahua Mixtec	xti	9.5
+xtu	Cuyamecalco Mixtec	xtu	9.4
+yaq	Yaqui	yaq	9.93
+yav	Yangben	yav	8.7
+yay	Agwagwune	yay	8.26
+ydd	Eastern Yiddish	ydd	18.43
+ydg	Yidgha	ydg	9.89
+yer	Tarok	yer	10.08
+yes	Nyankpa	yes	10.26
+yi	Yiddish	yid	1.81
+yo	Yoruba	yor	15.66
+yue	Cantonese	yue	13302.38
+zga	Kinga	zga	9.5
+zgh	Standard Moroccan Tamazight	zgh	1.19
+zh	Chinese	cmn	111343.3
+zoc	Copainalá Zoque	zoc	10.07
+zoh	Chimalapa Zoque	zoh	9.35
+zor	Rayón Zoque	zor	9.04
+zpv	Chichicapan Zapotec	zpv	9.85
+zpy	Mazaltepec Zapotec	zpy	9.47
+ztg	Xanaguía Zapotec	ztg	9.86
+ztn	Santa Catarina Albarradas Zapotec	ztn	10.02
+ztp	Loxicha Zapotec	ztp	9.62
+zts	Tilquiapan Zapotec	zts	9.33
+ztu	Güilá Zapotec	ztu	9.17
+zu	Zulu	zul	14.83
+zza	Zaza	zza	1.52

@@ -1,0 +1,36 @@
+{
+    "train": 
+    [
+        {
+            "language_id": "en",
+            "manifest_path": [
+                "data/emilia/tokens/emilia_en_train/data.lst"
+            ],
+            "repeat": 1
+        },
+        {
+            "language_id": "zh",
+            "manifest_path": [
+                 "data/emilia/tokens/emilia_zh_train/data.lst"
+            ],
+            "repeat": 1
+        }
+    ],
+    "dev":
+    [
+        {
+            "language_id": "en",
+            "manifest_path": [
+                 "data/emilia/tokens/emilia_en_dev/data.lst"
+            ],
+            "repeat": 1
+        },
+        {
+            "language_id": "zh",
+            "manifest_path": [
+                 "data/emilia/tokens/emilia_zh_dev/data.lst"
+            ],
+            "repeat": 1
+        }
+    ]
+}
