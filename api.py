@@ -307,6 +307,19 @@ def list_dub_history():
     conn.close()
     return [dict(r) for r in rows]
 
+@app.delete("/dub/history")
+def clear_dub_history():
+    conn = _get_db()
+    conn.execute("DELETE FROM dub_history")
+    conn.commit()
+    conn.close()
+    for item in os.listdir(DUB_DIR):
+        p = os.path.join(DUB_DIR, item)
+        if os.path.isdir(p):
+            import shutil
+            shutil.rmtree(p)
+    return {"cleared": True}
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # TTS GENERATION

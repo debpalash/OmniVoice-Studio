@@ -836,7 +836,7 @@ function App() {
         )}
         
         {(history.length + dubHistory.length) > 0 && (
-          <button onClick={async () => { if (confirm("Clear all history?")) { await fetch(`${API}/history`, {method:'DELETE'}); await loadHistory(); await loadDubHistory(); }}}
+          <button onClick={async () => { if (confirm("Clear all history?")) { await fetch(`${API}/history`, {method:'DELETE'}); await fetch(`${API}/dub/history`, {method:'DELETE'}); await loadHistory(); await loadDubHistory(); }}}
             style={{width:'100%', marginTop:10, padding:5, background:'rgba(251,73,52,0.1)', border:'1px solid rgba(251,73,52,0.3)', borderRadius:6, color:'#fb4934', cursor:'pointer', fontSize:'0.75rem'}}>
             Clear History
           </button>
