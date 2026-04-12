@@ -7,7 +7,7 @@
     "dev": "turbo run dev //#dev:api",
     "build": "turbo run build",
     "start": "turbo run start",
-    "dev:api": ".venv/bin/uvicorn api:app --host 0.0.0.0 --port 8000 --reload"
+    "dev:api": "uv run uvicorn api:app --host 0.0.0.0 --port 8000 --reload"
   },
   "workspaces": [
     "frontend"
