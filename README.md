@@ -17,11 +17,13 @@ OmniVoice Studio is a local, full-stack application built for fast, high-quality
 
 1. Make sure `ffmpeg` is installed on your system.
 2. Install [Bun](https://bun.sh/) if you don't have it.
-3. Clone and run:
+3. Install [uv](https://docs.astral.sh/uv/getting-started/installation/) if you don't have it.
+4. Clone and run:
 
 ```bash
-git clone https://github.com/k2-fsa/OmniVoice.git
-cd OmniVoice
+git clone https://github.com/debpalash/OmniVoice-Studio.git
+cd OmniVoice-Studio
+uv sync
 bun install
 bun dev
 ```
