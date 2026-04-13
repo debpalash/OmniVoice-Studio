@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './index.css';
+import WaveformTimeline from './components/WaveformTimeline';
 import { Toaster, toast } from 'react-hot-toast';
 import ALL_LANGUAGES from './languages.json';
 import { 
   Sparkles, Fingerprint, Wand2, SlidersHorizontal, UserSquare2, ShieldCheck, 
   Download as DownloadIcon, History, Command, Globe, Volume2, UploadCloud, 
   Settings2, ChevronDown, ChevronUp, Play, Search, Film, Trash2,
-  FileText, Loader, Check, AlertCircle, Plus, User, Save, Languages, Headphones
+  FileText, Loader, Check, AlertCircle, Plus, User, Save, Languages, Headphones,
+  FolderOpen, FolderPlus, Pencil, Clock, Lock, Unlock, Mic, MicOff, Square
 } from 'lucide-react';
 
 const TAGS = [
@@ -77,7 +79,8 @@ function formatTime(s) {
 }
 
 function App() {
-  const [mode, setMode] = useState('design');
+  const [uiScale, setUiScale] = useState(1);
+  const [mode, setMode] = useState('launchpad');
   const [text, setText] = useState('');
   const [refAudio, setRefAudio] = useState(null);
   const [refText, setRefText] = useState('');
@@ -112,6 +115,15 @@ function App() {
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [showSaveProfile, setShowSaveProfile] = useState(false);
   const [profileName, setProfileName] = useState('');
+  const [showAllProjects, setShowAllProjects] = useState(false);
+
+  // ═══ MIC RECORDING ═══
+  const [isRecording, setIsRecording] = useState(false);
+  const [isCleaning, setIsCleaning] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const recordingChunksRef = useRef([]);
+  const recordingTimerRef = useRef(null);
 
   // ═══ DUB STATE ═══
   const [dubJobId, setDubJobId] = useState(null);
@@ -126,6 +138,7 @@ function App() {
   const [dubDuration, setDubDuration] = useState(0);
   const [dubError, setDubError] = useState('');
   const [dubVideoFile, setDubVideoFile] = useState(null);
+  const [dubLocalBlobUrl, setDubLocalBlobUrl] = useState(null);
   const [dubTracks, setDubTracks] = useState([]);
   const [dubTranscript, setDubTranscript] = useState('');
   const [showTranscript, setShowTranscript] = useState(false);
@@ -134,6 +147,14 @@ function App() {
   const [dubHistory, setDubHistory] = useState([]);
   const [preserveBg, setPreserveBg] = useState(true);
   const [makeDefaultTrack, setMakeDefaultTrack] = useState(true);
+  const [transcribeStart, setTranscribeStart] = useState(null);
+  const [transcribeElapsed, setTranscribeElapsed] = useState(0);
+
+  // ═══ STUDIO PROJECTS ═══
+  const [studioProjects, setStudioProjects] = useState([]);
+  const [activeProjectId, setActiveProjectId] = useState(null);
+  const [activeProjectName, setActiveProjectName] = useState('');
+  const [sidebarTab, setSidebarTab] = useState('projects'); // 'projects' | 'history'
 
   // ── LOAD DATA FROM SERVER ──
   const [sysStats, setSysStats] = useState(null);
@@ -171,13 +192,22 @@ function App() {
     } catch (e) {}
   }, []);
 
+  const loadProjects = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/projects`);
+      if (res.ok) setStudioProjects(await res.json());
+    } catch (e) {}
+  }, []);
+
   useEffect(() => {
     loadProfiles();
     loadHistory();
     loadDubHistory();
+    loadProjects();
     // Restore local UI state
     try {
       const saved = JSON.parse(localStorage.getItem('omni_ui') || '{}');
+      if (saved.uiScale) setUiScale(saved.uiScale);
       if (saved.text) setText(saved.text);
       if (saved.mode) setMode(saved.mode);
       if (saved.vdStates) setVdStates(saved.vdStates);
@@ -197,11 +227,11 @@ function App() {
 
   useEffect(() => {
     localStorage.setItem('omni_ui', JSON.stringify({
-      text, mode, vdStates, language,
+      uiScale, text, mode, vdStates, language,
       dubJobId, dubFilename, dubDuration, dubSegments, 
       dubLang, dubLangCode, dubTracks, dubStep, dubTranscript
     }));
-  }, [text, mode, vdStates, language, dubJobId, dubFilename, dubDuration, dubSegments, dubLang, dubLangCode, dubTracks, dubStep, dubTranscript]);
+  }, [uiScale, text, mode, vdStates, language, dubJobId, dubFilename, dubDuration, dubSegments, dubLang, dubLangCode, dubTracks, dubStep, dubTranscript]);
 
   // ── TTS ──
   const insertTag = (tag) => {
@@ -248,16 +278,24 @@ function App() {
         }
         if (instruct) formData.append("instruct", instruct);
       } else {
+        // Design mode: generate a random seed for reproducibility
+        const designSeed = Math.floor(Math.random() * 2147483647);
+        formData.append("seed", designSeed);
         const parts = Object.values(vdStates).filter(v => v !== 'Auto');
         if (instruct.trim()) parts.push(instruct.trim());
         const finalInstruct = parts.join(', ');
         if (finalInstruct) formData.append("instruct", finalInstruct);
+        // If a design profile is selected, pass it so backend can use its locked audio
+        if (selectedProfile) {
+          formData.append("profile_id", selectedProfile);
+        }
       }
 
       const response = await fetch(`${API}/generate`, { method: "POST", body: formData });
       if (!response.ok) throw new Error(await response.text());
-      // Refresh history from server
+      // Refresh history from server and explicitly switch to history tab automatically so user can see it
       await loadHistory();
+      setSidebarTab('history');
     } catch (err) {
       toast.error("Error: " + err.message);
     } finally {
@@ -285,7 +323,7 @@ function App() {
   };
 
   const handleDeleteProfile = async (id) => {
-    if (!confirm("Delete this voice profile?")) return;
+
     await fetch(`${API}/profiles/${id}`, { method: "DELETE" });
     if (selectedProfile === id) setSelectedProfile(null);
     await loadProfiles();
@@ -296,6 +334,130 @@ function App() {
     setRefText(profile.ref_text || '');
     setInstruct(profile.instruct || '');
     if (profile.language && profile.language !== 'Auto') setLanguage(profile.language);
+  };
+
+  const handleSaveHistoryAsProfile = async (item) => {
+    try {
+      const pName = `Voice ${new Date().toLocaleTimeString('en', {hour:'2-digit', minute:'2-digit'})} — ${(item.mode||'design').toUpperCase()}`;
+      
+      const response = await fetch(`${API}/audio/${item.audio_path}`);
+      if (!response.ok) throw new Error("Audio not found");
+      const blob = await response.blob();
+      const file = new File([blob], item.audio_path, { type: "audio/wav" });
+
+      const formData = new FormData();
+      formData.append("name", pName);
+      formData.append("ref_audio", file);
+      const extractedText = item.text ? (item.text.length > 50 ? item.text.substring(0, 50) : item.text) : "";
+      formData.append("ref_text", extractedText);
+      formData.append("instruct", item.instruct || "");
+      formData.append("language", item.language || "Auto");
+      if (item.seed !== undefined && item.seed !== null) {
+        formData.append("seed", item.seed);
+      }
+
+      const res = await fetch(`${API}/profiles`, { method: "POST", body: formData });
+      if (!res.ok) throw new Error(await res.text());
+      toast.success("Voice saved to profiles!");
+      await loadProfiles();
+    } catch (e) {
+      toast.error(e.message || "Failed to save voice profile");
+    }
+  };
+
+  const handleLockProfile = async (profileId, historyId, seed) => {
+    try {
+      const formData = new FormData();
+      formData.append("history_id", historyId);
+      if (seed !== null && seed !== undefined) formData.append("seed", seed);
+      const res = await fetch(`${API}/profiles/${profileId}/lock`, { method: "POST", body: formData });
+      if (!res.ok) throw new Error(await res.text());
+      toast.success("🔒 Voice locked! Identity is now consistent across all generations.");
+      await loadProfiles();
+    } catch (e) {
+      toast.error(e.message || "Failed to lock profile");
+    }
+  };
+
+  const handleUnlockProfile = async (profileId) => {
+    try {
+      const res = await fetch(`${API}/profiles/${profileId}/unlock`, { method: "POST" });
+      if (!res.ok) throw new Error(await res.text());
+      toast.success("🎨 Voice unlocked. Generations will vary again.");
+      await loadProfiles();
+    } catch (e) {
+      toast.error(e.message || "Failed to unlock profile");
+    }
+  };
+
+  // ═══ MIC RECORDING ═══
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+      mediaRecorderRef.current = mediaRecorder;
+      recordingChunksRef.current = [];
+      setRecordingTime(0);
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordingChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        clearInterval(recordingTimerRef.current);
+        stream.getTracks().forEach(t => t.stop());
+
+        const blob = new Blob(recordingChunksRef.current, { type: 'audio/webm' });
+        if (blob.size < 1000) {
+          toast.error("Recording too short");
+          return;
+        }
+
+        // Send to backend for denoising
+        setIsCleaning(true);
+        try {
+          const formData = new FormData();
+          formData.append("audio", blob, "recording.webm");
+          const res = await fetch(`${API}/clean-audio`, { method: "POST", body: formData });
+          if (!res.ok) throw new Error(await res.text());
+
+          const cleanBlob = await res.blob();
+          const cleanFilename = res.headers.get("X-Clean-Filename") || "recording_clean.wav";
+          const cleanFile = new File([cleanBlob], cleanFilename, { type: "audio/wav" });
+
+          setRefAudio(cleanFile);
+          setSelectedProfile(null);
+          toast.success("🎙️ Recording cleaned & loaded!");
+        } catch (e) {
+          // Fallback: use raw recording without denoising
+          const rawFile = new File([blob], "recording.webm", { type: "audio/webm" });
+          setRefAudio(rawFile);
+          setSelectedProfile(null);
+          toast.success("Recording loaded (raw — denoising unavailable)");
+        } finally {
+          setIsCleaning(false);
+        }
+      };
+
+      mediaRecorder.start(250); // Collect chunks every 250ms
+      setIsRecording(true);
+
+      // Timer
+      const st = Date.now();
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(((Date.now() - st) / 1000).toFixed(1));
+      }, 100);
+
+    } catch (e) {
+      toast.error("Microphone access denied");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
   };
 
   // ═══ DUB WORKFLOW ═══
@@ -310,14 +472,23 @@ function App() {
       const data = await res.json();
       setDubJobId(data.job_id); setDubFilename(data.filename); setDubDuration(data.duration);
       setDubStep('transcribing');
+      setTranscribeStart(Date.now());
       const tRes = await fetch(`${API}/dub/transcribe/${data.job_id}`, { method: "POST" });
       if (!tRes.ok) throw new Error(await tRes.text());
       const tData = await tRes.json();
       setDubSegments(tData.segments.map((s, i) => ({ ...s, id: i })));
       setDubTranscript(tData.full_transcript || '');
+      setTranscribeStart(null);
       setDubStep('editing');
-    } catch (err) { setDubError(err.message); setDubStep('idle'); }
+    } catch (err) { setDubError(err.message); setDubStep('idle'); setTranscribeStart(null); }
   };
+
+  // Transcription elapsed timer
+  useEffect(() => {
+    if (!transcribeStart) { setTranscribeElapsed(0); return; }
+    const iv = setInterval(() => setTranscribeElapsed(Math.floor((Date.now() - transcribeStart) / 1000)), 500);
+    return () => clearInterval(iv);
+  }, [transcribeStart]);
 
   // ── AUTO-TRANSLATE ──
   const handleTranslateAll = async () => {
@@ -347,10 +518,24 @@ function App() {
     setDubError('');
     try {
       const body = {
-        segments: dubSegments.map(s => ({
-          start: s.start, end: s.end, text: s.text,
-          instruct: s.instruct || '', profile_id: s.profile_id || '',
-        })),
+        segments: dubSegments.map(s => {
+          let fin_prof = s.profile_id || '';
+          let fin_inst = s.instruct || '';
+          if (fin_prof.startsWith('preset:')) {
+            const pr = PRESETS.find(p => p.id === fin_prof.replace('preset:', ''));
+            if (pr) {
+              const parts = Object.values(pr.attrs).filter(v => v !== 'Auto');
+              if (fin_inst.trim()) parts.push(fin_inst.trim());
+              fin_inst = parts.join(', ');
+            }
+            fin_prof = '';
+          }
+          return {
+            start: s.start, end: s.end, text: s.text,
+            instruct: fin_inst, profile_id: fin_prof,
+            speed: s.speed || undefined,
+          };
+        }),
         language: dubLang === 'Auto' ? 'Auto' : dubLang,
         language_code: dubLangCode,
         instruct: dubInstruct,
@@ -400,6 +585,89 @@ function App() {
     setDubDuration(0); setDubError(''); setDubVideoFile(null); setDubTracks([]);
     setDubProgress({ current: 0, total: 0, text: '' }); setDubTranscript(''); setShowTranscript(false);
     setPreviewAudios({});
+    setDubLocalBlobUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
+    setActiveProjectId(null); setActiveProjectName('');
+  };
+
+  // ═══ STUDIO PROJECT CRUD ═══
+  const saveProject = async () => {
+    if (dubStep === 'idle') {
+      toast.error("Please click 'Upload & Transcribe' first so the video is processed on the server before saving.");
+      return;
+    }
+    const name = activeProjectName || dubFilename || `Project ${new Date().toLocaleString()}`;
+    const statePayload = {
+      name,
+      video_path: dubFilename || null,
+      duration: dubDuration || null,
+      state: {
+        dubJobId, dubFilename, dubDuration, dubSegments,
+        dubLang, dubLangCode, dubInstruct, dubTracks,
+        dubStep, dubTranscript, preserveBg, makeDefaultTrack,
+      },
+    };
+    try {
+      let res;
+      if (activeProjectId) {
+        res = await fetch(`${API}/projects/${activeProjectId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(statePayload),
+        });
+      } else {
+        res = await fetch(`${API}/projects`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(statePayload),
+        });
+      }
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setActiveProjectId(data.id);
+      setActiveProjectName(name);
+      toast.success(activeProjectId ? 'Project saved' : 'Project created');
+      loadProjects();
+    } catch (err) {
+      toast.error('Save failed: ' + err.message);
+    }
+  };
+
+  const loadProject = async (project) => {
+    try {
+      const res = await fetch(`${API}/projects/${project.id}`);
+      if (!res.ok) throw new Error('Failed to load project');
+      const data = await res.json();
+      const s = data.state || {};
+      setMode('dub');
+      setActiveProjectId(data.id);
+      setActiveProjectName(data.name);
+      setDubJobId(s.dubJobId || null);
+      setDubFilename(s.dubFilename || data.video_path || '');
+      setDubDuration(s.dubDuration || data.duration || 0);
+      setDubSegments(s.dubSegments || []);
+      setDubLang(s.dubLang || 'Auto');
+      setDubLangCode(s.dubLangCode || 'en');
+      setDubInstruct(s.dubInstruct || '');
+      setDubTracks(s.dubTracks || []);
+      setDubTranscript(s.dubTranscript || '');
+      setPreserveBg(s.preserveBg !== undefined ? s.preserveBg : true);
+      setMakeDefaultTrack(s.makeDefaultTrack !== undefined ? s.makeDefaultTrack : true);
+      setDubStep(s.dubStep === 'done' ? 'done' : (s.dubSegments?.length ? 'editing' : 'idle'));
+      toast.success(`Opened: ${data.name}`);
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const deleteProject = async (projectId, e) => {
+    e.stopPropagation();
+
+    try {
+      await fetch(`${API}/projects/${projectId}`, { method: 'DELETE' });
+      if (activeProjectId === projectId) {
+        setActiveProjectId(null); setActiveProjectName('');
+      }
+      loadProjects();
+      toast.success('Project deleted');
+    } catch (err) { toast.error(err.message); }
   };
 
   const restoreDubHistory = (item) => {
@@ -421,227 +689,617 @@ function App() {
     }
   };
 
+  const deleteHistory = async (id, type) => {
+
+    try {
+      const endpoint = type === 'dub' ? `${API}/dub/history/${id}` : `${API}/history/${id}`;
+      await fetch(endpoint, { method: 'DELETE' });
+      if (type === 'dub') {
+        loadDubHistory();
+      } else {
+        loadHistory();
+      }
+      toast.success('History item deleted');
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   const filteredLangs = langSearch ? ALL_LANGUAGES.filter(l => l.toLowerCase().includes(langSearch.toLowerCase())) : ALL_LANGUAGES;
   const filteredDubLangs = dubLangSearch ? ALL_LANGUAGES.filter(l => l.toLowerCase().includes(dubLangSearch.toLowerCase())) : ALL_LANGUAGES;
 
   return (
-    <div className="app-container">
+    <div className="app-container" style={{ zoom: uiScale }}>
       <Toaster position="top-center" toastOptions={{
-        style: { background: 'rgba(40,40,40,0.8)', backdropFilter: 'blur(10px)', color: '#ebdbb2', border: '1px solid rgba(255,255,255,0.1)' },
+        style: { background: 'rgba(40,40,40,0.9)', backdropFilter: 'blur(10px)', color: '#ebdbb2', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.72rem', padding: '4px 8px' },
         error: { iconTheme: { primary: '#fb4934', secondary: '#fff' } },
         success: { iconTheme: { primary: '#b8bb26', secondary: '#fff' } }
       }}/>
-      <div className="main-content">
-        <div className="header-area" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-            <ShieldCheck color="#d3869b" size={24}/>
-            <div>
-              <h1>OmniVoice Studio</h1>
-              <p>646 languages · Clone · Design · Video Dubbing</p>
+      <div className="header-area" style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px', overflowX:'auto', paddingBottom:'8px', paddingTop:'4px', gridColumn: '1 / -1'}}>
+        <div style={{display:'flex', alignItems:'center', gap:'16px'}}>
+          <div style={{display:'flex', alignItems:'center', gap:'8px', flexShrink:0}}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d3869b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}>
+              <circle cx="12" cy="12" r="10" opacity="0.2" fill="#d3869b"/>
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v12" />
+              <path d="M8 9v6" />
+              <path d="M16 9v6" />
+            </svg>
+            <div style={{whiteSpace:'nowrap', display:'flex', flexDirection:'column', justifyContent:'center'}}>
+              <h1 style={{fontSize:'1.05rem', margin:0, lineHeight:'1', paddingBottom:'3px'}}>OmniVoice Studio</h1>
+              <span style={{fontSize:'0.55rem', color:'var(--text-secondary)', lineHeight:'1'}}>646 languages · Clone · Design · Dub</span>
             </div>
           </div>
+
+          <div className="tabs" style={{marginBottom: 0, flexShrink: 0, minWidth: '220px'}}>
+            <button className={`tab ${mode === 'launchpad' ? 'active' : ''}`} style={{whiteSpace:'nowrap'}} onClick={() => setMode('launchpad')}><Globe size={11}/> Launchpad</button>
+            <button className={`tab ${mode === 'clone' ? 'active' : ''}`} style={{whiteSpace:'nowrap'}} onClick={() => setMode('clone')}><Fingerprint size={11}/> Clone</button>
+            <button className={`tab ${mode === 'design' ? 'active' : ''}`} style={{whiteSpace:'nowrap'}} onClick={() => setMode('design')}><Wand2 size={11}/> Design</button>
+            <button className={`tab ${mode === 'dub' ? 'active' : ''}`} style={{whiteSpace:'nowrap'}} onClick={() => setMode('dub')}><Film size={11}/> Dub</button>
+          </div>
+        </div>
+        <div style={{display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0}}>
+          <div style={{display:'flex', gap:1, background:'rgba(0,0,0,0.3)', padding:2, borderRadius:4, border:'1px solid rgba(255,255,255,0.04)', flexShrink:0}}>
+            <button onClick={() => setUiScale(1)} style={{fontSize:'0.58rem', padding:'1px 4px', border:'none', borderRadius:3, cursor:'pointer', background: uiScale === 1 ? 'rgba(255,255,255,0.1)' : 'transparent', color: uiScale === 1 ? '#fff' : '#a89984', whiteSpace:'nowrap'}}>Small</button>
+            <button onClick={() => setUiScale(1.3)} style={{fontSize:'0.58rem', padding:'1px 4px', border:'none', borderRadius:3, cursor:'pointer', background: uiScale === 1.3 ? 'rgba(255,255,255,0.1)' : 'transparent', color: uiScale === 1.3 ? '#fff' : '#a89984', whiteSpace:'nowrap'}}>Normal</button>
+            <button onClick={() => setUiScale(1.5)} style={{fontSize:'0.58rem', padding:'1px 4px', border:'none', borderRadius:3, cursor:'pointer', background: uiScale === 1.5 ? 'rgba(255,255,255,0.1)' : 'transparent', color: uiScale === 1.5 ? '#fff' : '#a89984', whiteSpace:'nowrap'}}>Max</button>
+          </div>
           {sysStats && (
-            <div style={{display: 'flex', gap: '16px', fontSize: '0.75rem', color: '#a89984', background: 'rgba(0,0,0,0.3)', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)'}}>
-              <div style={{display: 'flex', flexDirection: 'column'}}>
-                <span style={{fontWeight: 600, color: '#ebdbb2'}}>RAM: {sysStats.ram.toFixed(1)} / {sysStats.total_ram.toFixed(1)} GB</span>
-                <span>CPU: {sysStats.cpu.toFixed(1)}%</span>
-              </div>
-              <div style={{display: 'flex', flexDirection: 'column', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '16px'}}>
-                <span style={{fontWeight: 600, color: sysStats.gpu_active ? '#8ec07c' : '#ebdbb2'}}>
-                  GPU VRAM: {sysStats.vram.toFixed(1)} GB
-                </span>
-                <span>Status: {sysStats.gpu_active ? <span style={{color: '#8ec07c'}}>Active</span> : 'Idle'}</span>
-              </div>
+            <div style={{display:'flex', gap:'6px', fontSize:'0.55rem', color:'#a89984', background:'rgba(0,0,0,0.3)', padding:'2px 6px', borderRadius:'4px', border:'1px solid rgba(255,255,255,0.04)', whiteSpace:'nowrap', flexShrink:0}}>
+              <span><b style={{color:'#ebdbb2', fontWeight:600}}>RAM</b> {sysStats.ram.toFixed(1)}/{sysStats.total_ram.toFixed(0)}G</span>
+              <span><b style={{color:'#ebdbb2', fontWeight:600}}>CPU</b> {sysStats.cpu.toFixed(0)}%</span>
+              <span style={{borderLeft:'1px solid rgba(255,255,255,0.08)', paddingLeft:6}}>
+                <b style={{color: sysStats.gpu_active ? '#8ec07c' : '#ebdbb2', fontWeight:600}}>VRAM</b> {sysStats.vram.toFixed(1)}G
+                {sysStats.gpu_active && <span style={{color:'#8ec07c', marginLeft:3}}>●</span>}
+              </span>
             </div>
           )}
         </div>
+      </div>
 
-        <div className="tabs">
-          <button className={`tab ${mode === 'clone' ? 'active' : ''}`} onClick={() => setMode('clone')}><Fingerprint size={14}/> Clone</button>
-          <button className={`tab ${mode === 'design' ? 'active' : ''}`} onClick={() => setMode('design')}><Wand2 size={14}/> Design</button>
-          <button className={`tab ${mode === 'dub' ? 'active' : ''}`} onClick={() => setMode('dub')}><Film size={14}/> Dub</button>
-        </div>
+      <div className="main-content">
 
-        {/* ═══ DUB TAB ═══ */}
-        {mode === 'dub' ? (
-          <div>
-            {dubStep === 'idle' && (
-              <div className="glass-panel">
-                <div className="label-row"><Film className="label-icon" size={16}/> Upload Video for Dubbing</div>
-                <label htmlFor="video-upload" className="file-drag" style={{minHeight:80}}>
-                  <UploadCloud color="#a89984" size={24}/>
-                  <p>{dubVideoFile ? <span style={{color:'#ebdbb2'}}>{dubVideoFile.name} ({(dubVideoFile.size/1024/1024).toFixed(1)} MB)</span> : "MP4 / MOV / MKV / WEBM"}</p>
-                </label>
-                <input type="file" accept="video/*" onChange={e => setDubVideoFile(e.target.files[0])} style={{display:'none'}} id="video-upload"/>
-                <button className="btn-primary" onClick={handleDubUpload} disabled={!dubVideoFile}><UploadCloud size={16}/> Upload & Extract Audio</button>
-              </div>
-            )}
-
-            {(dubStep === 'uploading' || dubStep === 'transcribing') && (
-              <div className="glass-panel" style={{textAlign:'center', padding:32}}>
-                <Loader className="spinner" size={28} color="#d3869b"/>
-                <p style={{marginTop:8, color:'#ebdbb2'}}>{dubStep === 'uploading' ? 'Extracting audio...' : 'Transcribing with Whisper...'}</p>
-              </div>
-            )}
-
-            {(dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done') && (
+        {/* ═══ LAUNCHPAD TAB ═══ */}
+        {mode === 'launchpad' ? (
+          <div className="glass-panel" style={{flex:1, display:'flex', flexDirection:'column', overflowY:'auto'}}>
+            <div style={{padding:'20px 30px', borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
+              <h2 style={{margin:0, fontSize:'1.4rem', display:'flex', alignItems:'center', gap:'10px'}}><Globe color="#ebdbb2"/> Unified Workspace</h2>
+              <p style={{margin:'4px 0 0 0', color:'#a89984', fontSize:'0.85rem'}}>Select a cloned voice, design preset, or dubbing project to load into the studio.</p>
+            </div>
+            
+            <div style={{flex:1, padding:'30px', display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:'30px'}}>
+              {/* Clone Voices */}
               <div>
-                <div className="glass-panel">
-                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8}}>
-                    <div className="label-row" style={{marginBottom:0}}>
-                      <FileText className="label-icon" size={14}/> {dubFilename} ({formatTime(dubDuration)}) — {dubSegments.length} segments
-                    </div>
-                    <button onClick={resetDub} style={{background:'none', border:'1px solid rgba(251,73,52,0.3)', color:'#fb4934', fontSize:'0.7rem', padding:'2px 8px', borderRadius:4, cursor:'pointer'}}>Reset</button>
-                  </div>
-
-                  {/* Full Transcript */}
-                  {dubTranscript && (
-                    <div style={{marginBottom:8}}>
-                      <div className="override-toggle" onClick={() => setShowTranscript(!showTranscript)} style={{marginTop:0}}>
-                        <span><FileText size={14} style={{verticalAlign:'middle', marginRight:4}}/> Full Transcript</span>
-                        {showTranscript ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
+                <h3 style={{fontSize:'1rem', color:'#d3869b', marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px'}}><Fingerprint size={16}/> Cloned Voices ({profiles.filter(p => !p.instruct).length})</h3>
+                <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+                  {profiles.filter(p => !p.instruct).length === 0 ? <p style={{fontSize:'0.85rem', color:'#665c54'}}>No models.</p> : profiles.filter(p => !p.instruct).map(p => (
+                    <div key={p.id} className="history-item" style={{margin:0, borderLeft:'3px solid #d3869b', padding:'12px'}}>
+                      <div style={{fontSize:'0.9rem', fontWeight:600}}>{p.name}</div>
+                      <div style={{fontSize:'0.7rem', color:'#a89984', marginTop:'4px'}}>{p.ref_audio_path}</div>
+                      <div style={{display:'flex', gap:'8px', marginTop:'10px'}}>
+                        <button onClick={() => { setMode('clone'); handleSelectProfile(p); }} style={{fontSize:'0.75rem', padding:'4px 12px', borderRadius:'4px', background:'rgba(255,255,255,0.05)', color:'#ebdbb2', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer'}}>Open inside Clone</button>
                       </div>
-                      {showTranscript && (
-                        <div style={{background:'rgba(0,0,0,0.15)', border:'1px solid rgba(255,255,255,0.05)', borderTop:'none', borderRadius:'0 0 8px 8px', padding:10, fontSize:'0.8rem', color:'var(--text-secondary)', lineHeight:1.6, maxHeight:150, overflowY:'auto'}}>
-                          {dubTranscript}
-                        </div>
-                      )}
                     </div>
-                  )}
+                  ))}
+                </div>
+              </div>
 
-                  <div className="grid-3" style={{marginBottom:8}}>
-                    <div>
-                      <div className="label-row"><Globe className="label-icon" size={12}/> Target Language</div>
-                      <select className="input-base" value={dubLang} onChange={e => setDubLang(e.target.value)}>
-                        {filteredDubLangs.map(l => <option key={l} value={l}>{l}</option>)}
-                      </select>
+              {/* Designed Voices */}
+              <div>
+                <h3 style={{fontSize:'1rem', color:'#8ec07c', marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px'}}><Wand2 size={16}/> Designed Voices ({profiles.filter(p => !!p.instruct).length})</h3>
+                <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+                  {profiles.filter(p => !!p.instruct).length === 0 ? <p style={{fontSize:'0.85rem', color:'#665c54'}}>No models.</p> : profiles.filter(p => !!p.instruct).map(p => (
+                    <div key={p.id} className="history-item" style={{margin:0, borderLeft: `3px solid ${p.is_locked ? '#b8bb26' : '#8ec07c'}`, padding:'12px'}}>
+                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                        <div style={{fontSize:'0.9rem', fontWeight:600}}>{p.name}</div>
+                        {p.is_locked ? (
+                          <span style={{fontSize:'0.6rem', padding:'1px 6px', borderRadius:4, background:'rgba(184,187,38,0.2)', color:'#b8bb26', display:'flex', alignItems:'center', gap:3}}><Lock size={9}/> LOCKED</span>
+                        ) : (
+                          <span style={{fontSize:'0.6rem', padding:'1px 6px', borderRadius:4, background:'rgba(142,192,124,0.15)', color:'#8ec07c'}}>DESIGN</span>
+                        )}
+                      </div>
+                      <div style={{fontSize:'0.7rem', color:'#a89984', fontStyle:'italic', marginTop:'4px'}}>{p.instruct}</div>
+                      <div style={{display:'flex', gap:'8px', marginTop:'10px'}}>
+                        <button onClick={() => { setMode('design'); handleSelectProfile(p); }} style={{fontSize:'0.75rem', padding:'4px 12px', borderRadius:'4px', background:'rgba(255,255,255,0.05)', color:'#ebdbb2', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer'}}>Open inside Design</button>
+                        {p.is_locked && (
+                          <button onClick={() => handleUnlockProfile(p.id)} style={{fontSize:'0.75rem', padding:'4px 12px', borderRadius:'4px', background:'rgba(184,187,38,0.1)', border:'1px solid rgba(184,187,38,0.2)', color:'#b8bb26', cursor:'pointer', display:'flex', alignItems:'center', gap:4}}>
+                            <Unlock size={11}/> Unlock
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <div className="label-row">ISO Code (YouTube)</div>
-                      <select className="input-base" value={dubLangCode} onChange={e => setDubLangCode(e.target.value)}>
-                        {LANG_CODES.map(lc => <option key={lc.code} value={lc.code}>{lc.code} — {lc.label}</option>)}
-                      </select>
+                  ))}
+                </div>
+              </div>
+
+              {/* Studio Projects */}
+              <div>
+                <h3 style={{fontSize:'1rem', color:'#fe8019', marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px'}}><Film size={16}/> Dubbing Projects ({studioProjects.length})</h3>
+                <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+                  {studioProjects.length === 0 ? <p style={{fontSize:'0.85rem', color:'#665c54'}}>No projects.</p> : studioProjects.map(proj => (
+                    <div key={proj.id} className="history-item" style={{margin:0, borderLeft:'3px solid #fe8019', padding:'12px'}}>
+                      <div style={{fontSize:'0.9rem', fontWeight:600}}>{proj.name}</div>
+                      <div style={{fontSize:'0.7rem', color:'#a89984', marginTop:'4px'}}>{proj.video_path || "Audio Only"}</div>
+                      <div style={{display:'flex', gap:'8px', marginTop:'10px'}}>
+                        <button onClick={() => { setMode('dub'); loadProject(proj.id); }} style={{fontSize:'0.75rem', padding:'4px 12px', borderRadius:'4px', background:'rgba(255,255,255,0.05)', color:'#ebdbb2', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer'}}>Open inside Studio</button>
+                      </div>
                     </div>
-                    <div>
-                      <div className="label-row"><UserSquare2 className="label-icon" size={12}/> Voice Style</div>
-                      <input className="input-base" placeholder="e.g. female, young adult" value={dubInstruct} onChange={e => setDubInstruct(e.target.value)}/>
-                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : mode === 'dub' ? (
+          <div style={{flex:1, display:'flex', flexDirection:'column', minHeight:0}}>
+            {/* ── Idle: show full editor skeleton with drop zone ── */}
+            {!(dubJobId && (dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done')) && (
+              <div style={{flex:1, display:'flex', flexDirection:'column', minHeight:0}}>
+                {/* Header bar (matches editing layout) */}
+                <div className="glass-panel" style={{padding:'4px 8px', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0}}>
+                  <div className="label-row" style={{marginBottom:0}}>
+                    <Film className="label-icon" size={11}/> <span style={{fontWeight:600}}>{dubVideoFile ? dubVideoFile.name : 'Video Dubbing Studio'}</span>
+                    {dubVideoFile && <span style={{color:'#a89984', fontWeight:400}}> · {(dubVideoFile.size/1024/1024).toFixed(1)} MB</span>}
+                    {activeProjectName && <span style={{color:'#b8bb26', marginLeft:6}}>— {activeProjectName}</span>}
                   </div>
-
-                  {/* Translate All button */}
-                  <div style={{display:'flex', gap:8, marginBottom:8}}>
-                    <button onClick={handleTranslateAll} disabled={isTranslating || !dubSegments.length}
-                      style={{flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'6px 12px', background:'rgba(131,165,152,0.15)', border:'1px solid rgba(131,165,152,0.3)', color:'#83a598', borderRadius:6, cursor:'pointer', fontSize:'0.8rem', fontWeight:500}}>
-                      {isTranslating ? <Loader className="spinner" size={12}/> : <Languages size={14}/>}
-                      {isTranslating ? 'Translating...' : `Translate All → ${LANG_CODES.find(l=>l.code===dubLangCode)?.label || dubLangCode}`}
+                  <div style={{display:'flex', gap:4, alignItems:'center'}}>
+                    <button disabled style={{background:'none', border:'1px solid rgba(184,187,38,0.15)', color:'#665c54', fontSize:'0.62rem', padding:'2px 6px', borderRadius:3, cursor:'default', display:'flex', alignItems:'center', gap:3}}>
+                      <Save size={9}/> Save
                     </button>
-                  </div>
-
-                  <div className="segment-table">
-                    <div className="segment-header">
-                      <span style={{width:70}}>Time</span>
-                      <span style={{flex:1}}>Text</span>
-                      <span style={{width:120}}>Voice</span>
-                      <span style={{width:60}}></span>
-                    </div>
-                    {dubSegments.map((seg, idx) => (
-                      <div key={seg.id} className={`segment-row ${dubStep === 'generating' && dubProgress.current === idx + 1 ? 'segment-active' : ''} ${dubStep === 'generating' && dubProgress.current > idx + 1 ? 'segment-done' : ''}`}>
-                        <span className="segment-time">{formatTime(seg.start)}–{formatTime(seg.end)}</span>
-                        <input className="input-base segment-input" value={seg.text}
-                          onChange={e => setDubSegments(dubSegments.map(s => s.id===seg.id ? {...s, text:e.target.value} : s))}
-                          disabled={dubStep === 'generating'}/>
-                        <select className="input-base" style={{width:120, fontSize:'0.7rem', padding:'2px 4px'}}
-                          value={seg.profile_id || ''}
-                          onChange={e => setDubSegments(dubSegments.map(s => s.id===seg.id ? {...s, profile_id:e.target.value} : s))}
-                          disabled={dubStep === 'generating'}>
-                          <option value="">Default</option>
-                          {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
-                        <div style={{display:'flex', gap:2, width:60}}>
-                          {dubStep === 'done' && (
-                            <button className="segment-play" title="Preview" onClick={() => {
-                              const audio = new Audio(`${API}/dub/preview/${dubJobId}/${idx}`);
-                              audio.play();
-                              setPreviewAudios({...previewAudios, [idx]: audio});
-                            }}><Headphones size={11}/></button>
-                          )}
-                          <button className="segment-del" onClick={() => setDubSegments(dubSegments.filter(s => s.id !== seg.id))} disabled={dubStep === 'generating'}><Trash2 size={11}/></button>
-                        </div>
-                      </div>
-                    ))}
+                    <button disabled style={{background:'none', border:'1px solid rgba(251,73,52,0.12)', color:'#665c54', fontSize:'0.62rem', padding:'2px 6px', borderRadius:3, cursor:'default'}}>Reset</button>
                   </div>
                 </div>
 
-                <div className="glass-panel">
-                  {dubStep === 'generating' && (
-                    <div style={{marginBottom:10}}>
-                      <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.8rem', marginBottom:4}}>
-                        <span><Sparkles className="spinner" size={12} style={{verticalAlign:'middle', marginRight:4}}/> Dubbing {dubProgress.current}/{dubProgress.total}</span>
-                        <span className="history-time">{dubProgress.text}</span>
+                {/* ═══ SPLIT LAYOUT skeleton ═══ */}
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, flex:1, minHeight:0}}>
+
+                  {/* LEFT: Video area as drop zone / waveform placeholder */}
+                  <div className="glass-panel" style={{marginBottom:0, overflow:'hidden', display:'flex', flexDirection:'column'}}>
+                    {dubVideoFile ? (
+                      <>
+                        <WaveformTimeline
+                          audioSrc={dubLocalBlobUrl}
+                          videoSrc={dubLocalBlobUrl}
+                          segments={[]}
+                          onSegmentsChange={() => {}}
+                          disabled={true}
+                          overlayContent={
+                            dubStep === 'uploading' ? (
+                              <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:8}}>
+                                <Loader className="spinner" size={20} color="#d3869b"/>
+                                <span style={{color:'#ebdbb2', fontWeight:500, fontSize:'0.85rem'}}>Extracting audio…</span>
+                              </div>
+                            ) : dubStep === 'transcribing' ? (
+                              <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:10, width:'100%'}}>
+                                <div style={{display:'flex', alignItems:'center', gap:8}}>
+                                  <Loader className="spinner" size={18} color="#d3869b"/>
+                                  <span style={{color:'#ebdbb2', fontWeight:500, fontSize:'0.85rem'}}>Transcribing with Whisper…</span>
+                                </div>
+                                <div style={{display:'flex', gap:14, fontSize:'0.78rem', color:'#a89984'}}>
+                                  <span>⏱ {Math.floor(transcribeElapsed/60)}:{String(transcribeElapsed%60).padStart(2,'0')} elapsed</span>
+                                  {dubDuration > 0 && (() => {
+                                    const est = Math.max(10, Math.ceil(dubDuration/60)*3+8);
+                                    return <span>~{Math.max(0, est - transcribeElapsed)}s remaining</span>;
+                                  })()}
+                                </div>
+                                {dubDuration > 0 && (
+                                  <div className="progress-container" style={{width:'80%', maxWidth:340}}>
+                                    <div className="progress-fill" style={{
+                                      width:`${Math.min(95,(transcribeElapsed/Math.max(10,Math.ceil(dubDuration/60)*3+8))*100)}%`
+                                    }}/>
+                                  </div>
+                                )}
+                              </div>
+                            ) : null
+                          }
+                        />
+                        {/* Action row */}
+                        <div style={{display:'flex', gap:8, marginTop:8, alignItems:'center'}}>
+                          <label htmlFor="video-upload" style={{
+                            display:'flex', alignItems:'center', gap:6, padding:'6px 12px',
+                            background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)',
+                            borderRadius:6, cursor:'pointer', fontSize:'0.8rem', color:'#a89984',
+                          }}>
+                            <Film size={13}/> Change file
+                          </label>
+                          <button className="btn-primary" style={{flex:1, marginTop:0}}
+                            onClick={handleDubUpload}
+                            disabled={dubStep === 'uploading' || dubStep === 'transcribing'}>
+                            {dubStep === 'uploading' || dubStep === 'transcribing'
+                              ? <><Loader className="spinner" size={14}/> Processing…</>
+                              : <><Sparkles size={14}/> Upload &amp; Transcribe</>}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      /* Empty video drop zone that fills the panel */
+                      <label htmlFor="video-upload" style={{
+                        flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+                        gap:14, cursor:'pointer', border:'2px dashed rgba(255,255,255,0.06)',
+                        borderRadius:8, transition:'all 0.3s', margin:4,
+                      }}
+                      onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor='#d3869b'; e.currentTarget.style.background='rgba(211,134,155,0.05)'; }}
+                      onDragLeave={e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.06)'; e.currentTarget.style.background='transparent'; }}
+                      onDrop={e => {
+                        e.preventDefault();
+                        e.currentTarget.style.borderColor='rgba(255,255,255,0.06)';
+                        e.currentTarget.style.background='transparent';
+                        const file = e.dataTransfer.files[0];
+                        if (file && file.type.startsWith('video/')) {
+                          setDubVideoFile(file);
+                          setDubStep('idle');
+                          setDubLocalBlobUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
+                        }
+                      }}>
+                        <div style={{width:60, height:60, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(211,134,155,0.06)', border:'1px solid rgba(211,134,155,0.1)'}}>
+                          <UploadCloud color="#d3869b" size={28}/>
+                        </div>
+                        <div style={{textAlign:'center'}}>
+                          <div style={{fontSize:'0.9rem', color:'#ebdbb2', fontWeight:500, marginBottom:4}}>Drop video here</div>
+                          <div style={{fontSize:'0.7rem', color:'#665c54'}}>MP4 · MOV · MKV · WEBM</div>
+                        </div>
+                      </label>
+                    )}
+
+                    <input type="file" accept="video/*" id="video-upload" style={{display:'none'}}
+                      onChange={e => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        setDubVideoFile(file);
+                        setDubStep('idle');
+                        setDubLocalBlobUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
+                      }}/>
+
+                    {/* Ghost cast row */}
+                    <div style={{marginTop:4, padding:'3px 6px', background:'rgba(255,255,255,0.015)', borderRadius:4, border:'1px solid rgba(255,255,255,0.03)'}}>
+                      <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                        <span style={{fontSize:'0.62rem', color:'#504945', fontWeight:600}}>CAST</span>
+                        <span style={{fontSize:'0.62rem', color:'#504945'}}>Speaker 1:</span>
+                        <span style={{fontSize:'0.62rem', color:'#504945', padding:'1px 4px', background:'rgba(255,255,255,0.02)', borderRadius:2}}>Default</span>
                       </div>
-                      <div className="progress-container"><div className="progress-fill" style={{width: `${dubProgress.total ? (dubProgress.current / dubProgress.total) * 100 : 0}%`}}></div></div>
                     </div>
-                  )}
-                  {dubStep === 'done' && (
-                    <div style={{display:'flex', alignItems:'center', gap:6, marginBottom:10, padding:6, background:'rgba(142,192,124,0.1)', border:'1px solid rgba(142,192,124,0.3)', borderRadius:6}}>
-                      <Check size={14} color="#8ec07c"/>
-                      <span style={{color:'#8ec07c', fontSize:'0.8rem'}}>Done! Tracks: {dubTracks.join(', ')}</span>
+                  </div>
+
+                  {/* RIGHT: Ghost settings + segment table */}
+                  <div className="glass-panel" style={{marginBottom:0, display:'flex', flexDirection:'column', overflow:'hidden'}}>
+                    {/* Settings row (disabled) */}
+                    <div style={{display:'flex', gap:4, marginBottom:4, flexWrap:'wrap', alignItems:'flex-end', opacity:0.4}}>
+                      <div style={{flex:1, minWidth:90}}>
+                        <div className="label-row"><Globe className="label-icon" size={9}/> Language</div>
+                        <select className="input-base" disabled style={{fontSize:'0.65rem'}}>
+                          <option>Auto</option>
+                        </select>
+                      </div>
+                      <div style={{flex:1, minWidth:80}}>
+                        <div className="label-row">ISO Code</div>
+                        <select className="input-base" disabled style={{fontSize:'0.65rem'}}>
+                          <option>en — English</option>
+                        </select>
+                      </div>
+                      <div style={{flex:1, minWidth:90}}>
+                        <div className="label-row"><UserSquare2 className="label-icon" size={9}/> Style</div>
+                        <input className="input-base" disabled placeholder="e.g. female" style={{fontSize:'0.65rem'}}/>
+                      </div>
+                      <button disabled style={{padding:'3px 8px', background:'rgba(131,165,152,0.08)', border:'1px solid rgba(131,165,152,0.12)', color:'#504945', borderRadius:4, fontSize:'0.62rem', display:'flex', alignItems:'center', gap:3, whiteSpace:'nowrap'}}>
+                        <Languages size={10}/> Translate All
+                      </button>
+                    </div>
+
+                    {/* Ghost transcript toggle */}
+                    <div style={{marginBottom:4}}>
+                      <div className="override-toggle" style={{marginTop:0, padding:'2px 6px', fontSize:'0.65rem', opacity:0.3, cursor:'default'}}>
+                        <span><FileText size={10} style={{verticalAlign:'middle', marginRight:3}}/> Transcript</span>
+                        <ChevronDown size={10}/>
+                      </div>
+                    </div>
+
+                    {/* Ghost segment table */}
+                    <div className="segment-table" style={{flex:1, maxHeight:'none', overflowY:'auto', minHeight:0}}>
+                      <div className="segment-header">
+                        <span style={{width:55}}>Time</span>
+                        <span style={{width:50}}>Spkr</span>
+                        <span style={{flex:1}}>Text</span>
+                        <span style={{width:90}}>Voice</span>
+                        <span style={{width:40}}></span>
+                      </div>
+                      {/* Placeholder ghost rows */}
+                      {[1,2,3,4,5,6,7,8].map(i => (
+                        <div key={i} className="segment-row" style={{opacity: 0.15 + (0.04 * (8-i))}}>
+                          <span className="segment-time" style={{width:55}}>0:00.0–0:00.0</span>
+                          <span style={{width:50, fontSize:'0.58rem', color:'#504945'}}>Speaker 1</span>
+                          <div style={{flex:1, height:18, background:'rgba(255,255,255,0.03)', borderRadius:3}}/>
+                          <span style={{width:90, fontSize:'0.6rem', color:'#504945'}}>Default</span>
+                          <div style={{display:'flex', gap:1, width:40}}>
+                            <span className="segment-del" style={{opacity:0.3}}><Trash2 size={9}/></span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ═══ Ghost footer bar ═══ */}
+                <div className="glass-panel" style={{padding:'4px 8px', flexShrink:0}}>
+                  <div style={{display:'flex', gap:4}}>
+                    <button className="btn-primary" disabled style={{marginTop:0, flex:1, padding:'4px 8px', fontSize:'0.7rem', opacity:0.4}}>
+                      <Play size={11}/> Generate Dub
+                    </button>
+                    <button className="btn-primary" disabled style={{marginTop:0, flex:1, padding:'4px 8px', fontSize:'0.7rem', opacity:0.4}}>
+                      <DownloadIcon size={11}/> MP4
+                    </button>
+                    <button className="btn-primary" disabled style={{marginTop:0, flex:1, padding:'4px 8px', fontSize:'0.7rem', opacity:0.4}}>
+                      <Volume2 size={11}/> WAV
+                    </button>
+                    <button className="btn-primary" disabled style={{marginTop:0, flex:1, padding:'4px 8px', fontSize:'0.7rem', opacity:0.4}}>
+                      <FileText size={11}/> SRT
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── After transcription: side-by-side editor ── */}
+            {dubJobId && (dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done') && (
+              <div style={{flex:1, display:'flex', flexDirection:'column', minHeight:0}}>
+                {/* Header bar */}
+                <div className="glass-panel" style={{padding:'4px 8px', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0}}>
+                  <div className="label-row" style={{marginBottom:0}}>
+                    <FileText className="label-icon" size={11}/> <span style={{fontWeight:600}}>{dubFilename}</span>
+                    <span style={{color:'#a89984', fontWeight:400}}> · {formatTime(dubDuration)} · {dubSegments.length} segs</span>
+                    {activeProjectName && <span style={{color:'#b8bb26', marginLeft:6}}>— {activeProjectName}</span>}
+                  </div>
+                  <div style={{display:'flex', gap:4, alignItems:'center'}}>
+                    <button onClick={saveProject} style={{background:'none', border:'1px solid rgba(184,187,38,0.3)', color:'#b8bb26', fontSize:'0.62rem', padding:'2px 6px', borderRadius:3, cursor:'pointer', display:'flex', alignItems:'center', gap:3}}>
+                      <Save size={9}/> Save
+                    </button>
+                    <button onClick={resetDub} style={{background:'none', border:'1px solid rgba(251,73,52,0.25)', color:'#fb4934', fontSize:'0.62rem', padding:'2px 6px', borderRadius:3, cursor:'pointer'}}>Reset</button>
+                  </div>
+                </div>
+
+                {/* ═══ SPLIT LAYOUT: Waveform | Segments ═══ */}
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, flex:1, minHeight:0}}>
+
+                  {/* LEFT: Waveform + Video */}
+                  <div className="glass-panel" style={{marginBottom:0, overflow:'hidden', display:'flex', flexDirection:'column'}}>
+                    <WaveformTimeline
+                      audioSrc={`${API}/dub/audio/${dubJobId}`}
+                      videoSrc={`${API}/dub/media/${dubJobId}`}
+                      segments={dubSegments}
+                      onSegmentsChange={setDubSegments}
+                      disabled={dubStep === 'generating'}
+                      overlayContent={dubStep === 'generating' ? (
+                        <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:6, width:'100%'}}>
+                          <div style={{display:'flex', alignItems:'center', gap:6}}>
+                            <Sparkles className="spinner" size={14} color="#d3869b"/>
+                            <span style={{color:'#ebdbb2', fontWeight:500, fontSize:'0.72rem'}}>
+                              Dubbing {dubProgress.current}/{dubProgress.total}…
+                            </span>
+                          </div>
+                          <div className="progress-container" style={{width:'80%', maxWidth:240}}>
+                            <div className="progress-fill" style={{
+                              width:`${dubProgress.total ? (dubProgress.current/dubProgress.total)*100 : 0}%`
+                            }}/>
+                          </div>
+                          {dubProgress.text && <span style={{fontSize:'0.65rem', color:'#a89984'}}>{dubProgress.text}</span>}
+                        </div>
+                      ) : null}
+                    />
+
+                    {/* Cast Diarization — compact inline */}
+                    {dubSegments.some(s => s.speaker_id) && (
+                      <div style={{marginTop:4, padding:'3px 6px', background:'rgba(255,255,255,0.02)', borderRadius:4, border:'1px solid rgba(255,255,255,0.04)'}}>
+                      <div style={{display:'flex', gap:8, alignItems:'center', flexWrap:'wrap'}}>
+                          <span style={{fontSize:'0.62rem', color:'#a89984', fontWeight:600}} title="Assign a voice profile to each speaker detected in the video">SPEAKER VOICES</span>
+                          {[...new Set(dubSegments.map(s => s.speaker_id).filter(Boolean))].map(spk => (
+                            <div key={spk} style={{display:'flex', alignItems:'center', gap:3}}>
+                              <span style={{fontSize:'0.62rem', color:'#ebdbb2'}}>{spk}:</span>
+                              <select className="input-base" style={{width:100, padding:'1px 4px', fontSize:'0.62rem'}}
+                                value={dubSegments.find(s => s.speaker_id === spk)?.profile_id || ''}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setDubSegments(dubSegments.map(s => s.speaker_id === spk ? { ...s, profile_id: val } : s));
+                                }}>
+                                <option value="">Default</option>
+                                {profiles.length > 0 && (
+                                  <optgroup label="Clone Profiles">
+                                    {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                  </optgroup>
+                                )}
+                                {PRESETS.length > 0 && (
+                                  <optgroup label="Design Presets">
+                                    {PRESETS.map(p => <option key={p.id} value={`preset:${p.id}`}>{p.name}</option>)}
+                                  </optgroup>
+                                )}
+                              </select>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* RIGHT: Settings + Segment Table */}
+                  <div className="glass-panel" style={{marginBottom:0, display:'flex', flexDirection:'column', overflow:'hidden'}}>
+                    {/* Compact settings row */}
+                    <div style={{display:'flex', gap:4, marginBottom:4, flexWrap:'wrap', alignItems:'flex-end'}}>
+                      <div style={{flex:1, minWidth:90}}>
+                        <div className="label-row"><Globe className="label-icon" size={9}/> Language</div>
+                        <select className="input-base" value={dubLang} onChange={e => setDubLang(e.target.value)} style={{fontSize:'0.65rem'}}>
+                          {filteredDubLangs.map(l => <option key={l} value={l}>{l}</option>)}
+                        </select>
+                      </div>
+                      <div style={{flex:1, minWidth:80}}>
+                        <div className="label-row">ISO Code</div>
+                        <select className="input-base" value={dubLangCode} onChange={e => setDubLangCode(e.target.value)} style={{fontSize:'0.65rem'}}>
+                          {LANG_CODES.map(lc => <option key={lc.code} value={lc.code}>{lc.code} — {lc.label}</option>)}
+                        </select>
+                      </div>
+                      <div style={{flex:1, minWidth:90}}>
+                        <div className="label-row"><UserSquare2 className="label-icon" size={9}/> Style</div>
+                        <input className="input-base" placeholder="e.g. female" value={dubInstruct} onChange={e => setDubInstruct(e.target.value)} style={{fontSize:'0.65rem'}}/>
+                      </div>
+                      <button onClick={handleTranslateAll} disabled={isTranslating || !dubSegments.length}
+                        style={{padding:'3px 8px', background:'rgba(131,165,152,0.12)', border:'1px solid rgba(131,165,152,0.25)', color:'#83a598', borderRadius:4, cursor:'pointer', fontSize:'0.62rem', fontWeight:500, display:'flex', alignItems:'center', gap:3, whiteSpace:'nowrap'}}>
+                        {isTranslating ? <Loader className="spinner" size={9}/> : <Languages size={10}/>}
+                        {isTranslating ? 'Translating…' : 'Translate All'}
+                      </button>
+                    </div>
+
+                    {/* Full transcript toggle */}
+                    {dubTranscript && (
+                      <div style={{marginBottom:4}}>
+                        <div className="override-toggle" onClick={() => setShowTranscript(!showTranscript)} style={{marginTop:0, padding:'2px 6px', fontSize:'0.65rem'}}>
+                          <span><FileText size={10} style={{verticalAlign:'middle', marginRight:3}}/> Transcript</span>
+                          {showTranscript ? <ChevronUp size={10}/> : <ChevronDown size={10}/>}
+                        </div>
+                        {showTranscript && (
+                          <div style={{background:'rgba(0,0,0,0.15)', border:'1px solid rgba(255,255,255,0.04)', borderTop:'none', borderRadius:'0 0 4px 4px', padding:6, fontSize:'0.65rem', color:'var(--text-secondary)', lineHeight:1.5, maxHeight:80, overflowY:'auto'}}>
+                            {dubTranscript}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Apply voice to all segments */}
+                    {dubSegments.length > 0 && profiles.length > 0 && (
+                      <div style={{display:'flex', alignItems:'center', gap:6, marginBottom:4, padding:'3px 6px', background:'rgba(142,192,124,0.06)', border:'1px solid rgba(142,192,124,0.12)', borderRadius:4}}>
+                        <User size={10} color="#8ec07c"/>
+                        <span style={{fontSize:'0.62rem', color:'#8ec07c', fontWeight:600, whiteSpace:'nowrap'}}>Apply Voice to All:</span>
+                        <select className="input-base" style={{flex:1, fontSize:'0.62rem', padding:'2px 4px'}}
+                          value=""
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (val === '__reset__') {
+                              setDubSegments(dubSegments.map(s => ({ ...s, profile_id: '' })));
+                            } else if (val) {
+                              setDubSegments(dubSegments.map(s => ({ ...s, profile_id: val })));
+                            }
+                          }}>
+                          <option value="">— Select profile —</option>
+                          <option value="__reset__">⊘ Default (reset all)</option>
+                          {profiles.filter(p => !p.instruct).length > 0 && (
+                            <optgroup label="Clone Profiles">
+                              {profiles.filter(p => !p.instruct).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </optgroup>
+                          )}
+                          {profiles.filter(p => !!p.instruct).length > 0 && (
+                            <optgroup label="Designed Voices">
+                              {profiles.filter(p => !!p.instruct).map(p => <option key={p.id} value={p.id}>{p.name}{p.is_locked ? ' 🔒' : ''}</option>)}
+                            </optgroup>
+                          )}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Segment table — fills remaining space */}
+                    <div className="segment-table" style={{flex:1, maxHeight:'none', overflowY:'auto', minHeight:0}}>
+                      <div className="segment-header">
+                        <span style={{width:55}}>Time</span>
+                        <span style={{width:50}}>Spkr</span>
+                        <span style={{flex:1}}>Text</span>
+                        <span style={{width:90}}>Voice</span>
+                        <span style={{width:40}}></span>
+                      </div>
+                      {dubSegments.map((seg, idx) => (
+                        <div key={seg.id} className={`segment-row ${dubStep==='generating'&&dubProgress.current===idx+1?'segment-active':''} ${dubStep==='generating'&&dubProgress.current>idx+1?'segment-done':''}`}>
+                          <span className="segment-time" style={{width:55}}>
+                            {formatTime(seg.start)}–{formatTime(seg.end)}
+                            {seg.speed && seg.speed !== 1.0 && (
+                              <span style={{fontSize:'0.55rem', color: seg.speed > 1 ? '#d3869b' : '#8ec07c', marginLeft:2}}>
+                                {seg.speed.toFixed(2)}x
+                              </span>
+                            )}
+                          </span>
+                          <span style={{width:50, fontSize:'0.58rem', color:'#a89984'}}>{seg.speaker_id || ''}</span>
+                          <input className="input-base segment-input" value={seg.text}
+                            onChange={e => setDubSegments(dubSegments.map(s => s.id===seg.id?{...s,text:e.target.value}:s))}
+                            disabled={dubStep==='generating'}/>
+                          <select className="input-base" style={{width:90, fontSize:'0.6rem', padding:'1px 3px'}}
+                            value={seg.profile_id||''} disabled={dubStep==='generating'}
+                            onChange={e => setDubSegments(dubSegments.map(s => s.id===seg.id?{...s,profile_id:e.target.value}:s))}>
+                            <option value="">Default</option>
+                            {profiles.length > 0 && (
+                              <optgroup label="Clone Profiles">
+                                {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                              </optgroup>
+                            )}
+                            {PRESETS.length > 0 && (
+                              <optgroup label="Design Presets">
+                                {PRESETS.map(p => <option key={p.id} value={`preset:${p.id}`}>{p.name}</option>)}
+                              </optgroup>
+                            )}
+                          </select>
+                          <div style={{display:'flex', gap:1, width:40}}>
+                            {dubStep==='done' && (
+                              <button className="segment-play" title="Preview" onClick={() => {
+                                const a = new Audio(`${API}/dub/preview/${dubJobId}/${idx}`);
+                                a.play(); setPreviewAudios({...previewAudios,[idx]:a});
+                              }}><Headphones size={9}/></button>
+                            )}
+                            <button className="segment-del" disabled={dubStep==='generating'}
+                              onClick={() => setDubSegments(dubSegments.filter(s=>s.id!==seg.id))}><Trash2 size={9}/></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ═══ Actions footer bar ═══ */}
+                <div className="glass-panel" style={{padding:'4px 8px', flexShrink:0}}>
+                  {dubStep==='done' && (
+                    <div style={{display:'flex', alignItems:'center', gap:4, marginBottom:4, padding:'3px 6px', background:'rgba(142,192,124,0.08)', border:'1px solid rgba(142,192,124,0.2)', borderRadius:4}}>
+                      <Check size={10} color="#8ec07c"/>
+                      <span style={{color:'#8ec07c', fontSize:'0.65rem'}}>Done! Tracks: {dubTracks.join(', ')}</span>
+                      <div style={{marginLeft:'auto', display:'flex', alignItems:'center', gap:8, fontSize:'0.62rem', color:'#a89984'}}>
+                        <label style={{display:'flex', alignItems:'center', gap:3, cursor:'pointer'}}>
+                          <input type="checkbox" checked={preserveBg} onChange={e => setPreserveBg(e.target.checked)} style={{cursor:'pointer'}}/> Mix BG Audio
+                        </label>
+                        <label style={{display:'flex', alignItems:'center', gap:3, cursor:'pointer'}}>
+                          <input type="checkbox" checked={makeDefaultTrack} onChange={e => setMakeDefaultTrack(e.target.checked)} style={{cursor:'pointer'}}/> Default Track
+                        </label>
+                      </div>
                     </div>
                   )}
                   {dubError && (
-                    <div style={{marginBottom:10, padding:6, background:'rgba(251,73,52,0.1)', border:'1px solid rgba(251,73,52,0.3)', borderRadius:6}}>
-                      <span style={{color:'#fb4934', fontSize:'0.7rem'}}>{dubError}</span>
+                    <div style={{marginBottom:4, padding:'3px 6px', background:'rgba(251,73,52,0.08)', border:'1px solid rgba(251,73,52,0.2)', borderRadius:4}}>
+                      <span style={{color:'#fb4934', fontSize:'0.62rem'}}>{dubError}</span>
                     </div>
                   )}
-                  <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:6}}>
-                    <button className="btn-primary" onClick={handleDubGenerate} disabled={dubStep==='generating'||!dubSegments.length} style={{marginTop:0}}>
-                      {dubStep==='generating' ? <Sparkles className="spinner" size={14}/> : <Play size={14}/>}
-                      {dubStep==='generating' ? 'Dubbing...' : 'Generate Dub Track'}
+                  <div style={{display:'flex', gap:4}}>
+                    <button className="btn-primary" style={{marginTop:0, flex:1, padding:'4px 8px', fontSize:'0.7rem'}} onClick={handleDubGenerate} disabled={dubStep==='generating'||!dubSegments.length}>
+                      {dubStep==='generating' ? <><Sparkles className="spinner" size={11}/> Dubbing…</> : <><Play size={11}/> Generate Dub</>}
                     </button>
-                    <button className="btn-primary" onClick={handleDubDownload} disabled={dubStep!=='done'}
-                      style={{marginTop:0, background: dubStep==='done' ? 'linear-gradient(135deg,#8ec07c,#689d6a)' : undefined}}>
-                      <DownloadIcon size={14}/> YouTube-Ready MP4
+                    <button className="btn-primary" style={{marginTop:0, flex:1, padding:'4px 8px', fontSize:'0.7rem', background:dubStep==='done'?'linear-gradient(135deg,#8ec07c,#689d6a)':undefined}}
+                      onClick={handleDubDownload} disabled={dubStep!=='done'}>
+                      <DownloadIcon size={11}/> MP4
                     </button>
-                    <button className="btn-primary" onClick={handleDubAudioDownload}
-                      disabled={dubStep!=='done'}
-                      style={{marginTop:0, background: dubStep==='done' ? 'linear-gradient(135deg,#83a598,#458588)' : undefined}}>
-                      <Volume2 size={14}/> Audio Only (WAV)
+                    <button className="btn-primary" style={{marginTop:0, flex:1, padding:'4px 8px', fontSize:'0.7rem', background:dubStep==='done'?'linear-gradient(135deg,#83a598,#458588)':undefined}}
+                      onClick={handleDubAudioDownload} disabled={dubStep!=='done'}>
+                      <Volume2 size={11}/> WAV
                     </button>
-                    <button className="btn-primary" onClick={() => triggerDownload(`${API}/dub/srt/${dubJobId}/subtitles.srt`, 'subtitles.srt')}
-                      disabled={!dubSegments.length}
-                      style={{marginTop:0, background: dubSegments.length ? 'linear-gradient(135deg,#d3869b,#b16286)' : undefined}}>
-                      <FileText size={14}/> SRT Subtitles
+                    <button className="btn-primary" style={{marginTop:0, flex:1, padding:'4px 8px', fontSize:'0.7rem', background:dubSegments.length?'linear-gradient(135deg,#d3869b,#b16286)':undefined}}
+                      onClick={() => triggerDownload(`${API}/dub/srt/${dubJobId}/subtitles.srt`, 'subtitles.srt')} disabled={!dubSegments.length}>
+                      <FileText size={11}/> SRT
                     </button>
                   </div>
-                  {dubStep === 'done' && (
-                    <div style={{marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center'}}>
-                      <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
-                        <input type="checkbox" id="preserveBgCheck" checked={preserveBg} onChange={e => setPreserveBg(e.target.checked)} style={{cursor: 'pointer'}} />
-                        <label htmlFor="preserveBgCheck" style={{fontSize: '0.8rem', color: '#a89984', cursor: 'pointer'}}>Mix with Original Background Audio</label>
-                      </div>
-                      <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
-                        <input type="checkbox" id="defaultTrackCheck" checked={makeDefaultTrack} onChange={e => setMakeDefaultTrack(e.target.checked)} style={{cursor: 'pointer'}} />
-                        <label htmlFor="defaultTrackCheck" style={{fontSize: '0.8rem', color: '#a89984', cursor: 'pointer'}}>Make Dubbed Audio the Default Track</label>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <>
+
+          <div style={{flex:1, display:'flex', flexDirection:'column', minHeight:0}}>
             {/* ═══ CLONE / DESIGN ═══ */}
-            <div className="glass-panel">
+            <div className="glass-panel" style={{flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0}}>
               <div className="label-row"><Command className="label-icon" size={14}/> Prompt</div>
               {mode === 'design' && (
                 <div className="preset-grid">
                   {PRESETS.map(p => <button key={p.id} className="preset-btn" onClick={() => applyPreset(p)}>{p.name}</button>)}
                 </div>
               )}
-              <textarea ref={textAreaRef} className="input-base" rows={4}
+              <textarea ref={textAreaRef} className="input-base" style={{flex: 1, resize: 'none', minHeight: 60, marginBottom: '6px'}}
                 placeholder="Type script here..." value={text} onChange={e => setText(e.target.value)}/>
-              <div className="tags-container">
+              <div className="tags-container" style={{marginBottom: '6px'}}>
                 {TAGS.map(tag => <button key={tag} className="tag-btn" onClick={() => insertTag(tag)}>{tag}</button>)}
                 <button className="tag-btn" style={{borderColor:'#b8bb26', color:'#b8bb26'}} onClick={() => insertTag('[B EY1 S]')}>[CMU]</button>
               </div>
@@ -667,7 +1325,7 @@ function App() {
               </div>
             </div>
 
-            <div className="glass-panel">
+            <div className="glass-panel" style={{flexShrink: 0}}>
               {mode === 'clone' ? (
                 <div>
                   <div className="label-row"><Volume2 className="label-icon" size={14}/> Voice Source</div>
@@ -693,11 +1351,44 @@ function App() {
 
                   {!selectedProfile && (
                     <>
-                      <label htmlFor="audio-upload" className="file-drag">
-                        <UploadCloud color="#a89984" size={18}/>
-                        <p>{refAudio ? <span style={{color:'#ebdbb2'}}>{refAudio.name}</span> : "Select WAV / MP3"}</p>
-                      </label>
-                      <input type="file" accept="audio/*" onChange={e => { setRefAudio(e.target.files[0]); setSelectedProfile(null); }} style={{display:'none'}} id="audio-upload" />
+                      <div style={{display:'flex', gap:'8px', alignItems:'stretch'}}>
+                        <label htmlFor="audio-upload" className="file-drag" style={{padding: '6px', flex:1}}>
+                          <UploadCloud color="#a89984" size={18}/>
+                          <p>{refAudio ? <span style={{color:'#ebdbb2'}}>{refAudio.name}</span> : "Select WAV / MP3"}</p>
+                        </label>
+                        <input type="file" accept="audio/*" onChange={e => { setRefAudio(e.target.files[0]); setSelectedProfile(null); }} style={{display:'none'}} id="audio-upload" />
+
+                        {/* Mic Record Button */}
+                        {isCleaning ? (
+                          <div style={{display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'8px 16px', background:'rgba(184,187,38,0.1)', border:'1px solid rgba(184,187,38,0.2)', borderRadius:8, gap:4, minWidth:70}}>
+                            <Loader size={18} color="#b8bb26" style={{animation:'spin 1s linear infinite'}}/>
+                            <span style={{fontSize:'0.6rem', color:'#b8bb26'}}>Cleaning...</span>
+                          </div>
+                        ) : isRecording ? (
+                          <button onClick={stopRecording} style={{
+                            display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4,
+                            padding:'8px 16px', background:'rgba(251,73,52,0.15)', border:'2px solid #fb4934',
+                            borderRadius:8, cursor:'pointer', color:'#fb4934', minWidth:70,
+                            animation:'pulse 1s ease-in-out infinite',
+                          }}>
+                            <Square size={18} fill="#fb4934"/>
+                            <span style={{fontSize:'0.65rem', fontWeight:600}}>{recordingTime}s</span>
+                          </button>
+                        ) : (
+                          <button onClick={startRecording} style={{
+                            display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4,
+                            padding:'8px 16px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.1)',
+                            borderRadius:8, cursor:'pointer', color:'#a89984', minWidth:70,
+                            transition:'all 0.2s',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor='#fb4934'; e.currentTarget.style.color='#fb4934'; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.1)'; e.currentTarget.style.color='#a89984'; }}
+                          title="Record your voice for cloning">
+                            <Mic size={18}/>
+                            <span style={{fontSize:'0.6rem'}}>Record</span>
+                          </button>
+                        )}
+                      </div>
                     </>
                   )}
 
@@ -774,72 +1465,224 @@ function App() {
               </button>
               {isGenerating && <div className="progress-container"><div className="progress-fill" style={{width: `${Math.min((generationTime/8)*100,95)}%`}}></div></div>}
             </div>
-          </>
+          </div>
         )}
       </div>
 
       {/* ── SIDEBAR ── */}
       <div className="glass-panel history-panel">
-        <div className="label-row" style={{marginBottom:10}}><History size={14} color="#fb4934"/> <span style={{fontWeight:600}}>Activity ({history.length + dubHistory.length})</span></div>
-        <div style={{fontSize:'0.7rem', color:'var(--text-secondary)', marginBottom:8}}>Stored in SQLite · Local disk</div>
-        
-        {(history.length + dubHistory.length) === 0 ? (
-          <p style={{color:'var(--text-secondary)', fontSize:'0.8rem', textAlign:'center'}}>Outputs appear here.</p>
-        ) : (
-          <>
-            {/* Dub history */}
-            {dubHistory.map(item => (
-              <div key={`dub-${item.id}`} className="history-item clickable-history" onClick={() => restoreDubHistory(item)}>
-                <div className="history-header">
-                  <div className="history-badge" style={{background:'rgba(131,165,152,0.15)', color:'#83a598'}}>
-                    <Film size={10}/> DUB
-                  </div>
-                  <div className="history-time">{item.segments_count} segs</div>
-                </div>
-                <div style={{fontSize:'0.75rem', color:'var(--text-primary)', marginBottom:2}}>
-                  {item.filename}
-                </div>
-                <div style={{display:'flex', gap:4, flexWrap:'wrap', marginBottom:2}}>
-                  <span style={{fontSize:'0.65rem', padding:'1px 6px', background:'rgba(131,165,152,0.15)', color:'#83a598', borderRadius:4}}>
-                    {item.language} ({item.language_code})
-                  </span>
-                  <span style={{fontSize:'0.65rem', color:'var(--text-secondary)'}}>
-                    {Math.round(item.duration)}s
-                  </span>
-                </div>
-                {item.tracks && (
-                  <div style={{fontSize:'0.65rem', color:'#d3869b'}}>Tracks: {JSON.parse(item.tracks || '[]').join(', ')}</div>
-                )}
-              </div>
-            ))}
+        <div style={{display:'flex', borderBottom:'1px solid var(--glass-border)', background:'rgba(0,0,0,0.2)'}}>
+          <button onClick={() => setSidebarTab('projects')} style={{
+            flex:1, padding:'6px 0', fontSize:'0.75rem', fontWeight:600, cursor:'pointer', border:'none',
+            background: sidebarTab === 'projects' ? 'rgba(184,187,38,0.2)' : 'rgba(0,0,0,0.15)',
+            color: sidebarTab === 'projects' ? '#b8bb26' : '#a89984',
+            whiteSpace: 'nowrap'
+          }}><FolderOpen size={12} style={{verticalAlign:'middle', marginRight:4}}/> 
+            Projects ({mode === 'dub' ? studioProjects.length : (mode === 'clone' ? profiles.filter(p => !p.instruct).length : profiles.filter(p => !!p.instruct).length)})
+          </button>
+          <button onClick={() => setSidebarTab('history')} style={{
+            flex:1, padding:'6px 0', fontSize:'0.75rem', fontWeight:600, cursor:'pointer', border:'none',
+            background: sidebarTab === 'history' ? 'rgba(211,134,155,0.2)' : 'rgba(0,0,0,0.15)',
+            color: sidebarTab === 'history' ? '#d3869b' : '#a89984',
+            whiteSpace: 'nowrap'
+          }}><History size={12} style={{verticalAlign:'middle', marginRight:4}}/> 
+            History ({history.length + dubHistory.length})
+          </button>
+        </div>
 
-            {/* Clone/Design history */}
-            {history.map(item => (
-              <div key={item.id} className="history-item">
-                <div className="history-header">
-                  <div className="history-badge">
-                    {item.mode === 'clone' ? <Fingerprint size={10}/> : <Wand2 size={10}/>} {(item.mode||'').toUpperCase()}
-                  </div>
-                  {item.generation_time && <div className="history-time">{item.generation_time}s</div>}
-                </div>
-                {item.language && item.language !== 'Auto' && <div style={{fontSize:'0.65rem', color:'#83a598', marginBottom:4}}>{item.language}</div>}
-                <div className="history-text" title={item.text}>{item.text}</div>
-                {item.audio_path && <audio controls src={`${API}/audio/${item.audio_path}`} />}
-                {item.audio_path && (
-                  <a href={`${API}/audio/${item.audio_path}`} download style={{marginTop:4, display:'inline-flex', alignItems:'center', gap:4, color:'#d3869b', textDecoration:'none', fontSize:'0.8rem'}}>
-                    <DownloadIcon size={12}/> Export
-                  </a>
+        {/* ── PROJECTS TAB ── */}
+        {sidebarTab === 'projects' && (
+          <>
+
+            {/* Save current work as dub project button (only in dub mode) */}
+            {mode === 'dub' && (dubStep !== 'idle' || dubVideoFile) && (
+              <button onClick={saveProject} style={{
+                width:'100%', marginBottom:10, padding:'7px 12px', display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+                background: activeProjectId ? 'rgba(184,187,38,0.15)' : 'rgba(131,165,152,0.15)',
+                border: `1px solid ${activeProjectId ? 'rgba(184,187,38,0.35)' : 'rgba(131,165,152,0.3)'}`,
+                borderRadius:6, cursor:'pointer', fontSize:'0.78rem', fontWeight:500,
+                color: activeProjectId ? '#b8bb26' : '#83a598',
+              }}>
+                <Save size={13}/> {activeProjectId ? 'Save Dub Project' : 'Save as New Dub Project'}
+              </button>
+            )}
+
+            <div style={{fontSize:'0.68rem', color:'var(--text-secondary)', marginBottom:8}}>
+              {mode === 'dub' ? 'Studio Projects (Dubbing)' : (mode === 'clone' ? 'Voice Clones (Audio)' : 'Designed Voices (Synthetic)')}
+            </div>
+
+            {mode === 'dub' && (
+              <>
+                {studioProjects.length === 0 ? (
+                  <p style={{color:'var(--text-secondary)', fontSize:'0.8rem', textAlign:'center', padding:'20px 0'}}>No saved dub projects yet.<br/>Upload a video and click Save.</p>
+                ) : (
+                  studioProjects.map(proj => (
+                    <div key={proj.id} className={`history-item ${activeProjectId === proj.id ? 'project-active' : ''}`} style={{position:'relative'}}>
+                      <div className="history-header">
+                        <div className="history-badge" style={{background: activeProjectId === proj.id ? 'rgba(184,187,38,0.2)' : 'rgba(131,165,152,0.15)', color: activeProjectId === proj.id ? '#b8bb26' : '#83a598'}}>
+                          <Film size={10}/> DUB PROJECT
+                        </div>
+                      </div>
+                      <div style={{fontSize:'0.78rem', color:'var(--text-primary)', marginBottom:2, fontWeight:500}}>
+                        {proj.name}
+                      </div>
+                      <div style={{display:'flex', gap:6, fontSize:'0.65rem', color:'var(--text-secondary)'}}>
+                        {proj.duration && <span>{Math.round(proj.duration)}s</span>}
+                        {proj.video_path && <span>· {proj.video_path}</span>}
+                      </div>
+                      <div style={{fontSize:'0.6rem', color:'#665c54', marginTop:2}}>
+                        <Clock size={9} style={{verticalAlign:'middle', marginRight:3}}/>
+                        {new Date(proj.updated_at * 1000).toLocaleString()}
+                      </div>
+                      <div style={{display:'flex', gap:'6px', marginTop:'8px'}}>
+                        <button onClick={() => loadProject(proj.id)} style={{flex:1, padding:'4px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', color:'#ebdbb2', borderRadius:'4px', fontSize:'0.7rem', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', gap:'4px'}}>
+                          <FolderOpen size={10}/> Load
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); deleteProject(proj.id); }} style={{padding:'4px 8px', background:'rgba(251,73,52,0.1)', border:'1px solid rgba(251,73,52,0.2)', color:'#fb4934', borderRadius:'4px', fontSize:'0.7rem', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', flexShrink:0}}>
+                          <Trash2 size={10}/>
+                        </button>
+                      </div>
+                    </div>
+                  ))
                 )}
-              </div>
-            ))}
+              </>
+            )}
+
+            {(mode === 'clone' || mode === 'design') && (
+              <>
+                {(mode === 'clone' ? profiles.filter(p => !p.instruct) : profiles.filter(p => !!p.instruct)).length === 0 ? (
+                  <p style={{color:'var(--text-secondary)', fontSize:'0.8rem', textAlign:'center', padding:'20px 0'}}>
+                    No saved {mode === 'clone' ? 'cloned profiles' : 'designed voices'} yet.
+                  </p>
+                ) : (
+                  (mode === 'clone' ? profiles.filter(p => !p.instruct) : profiles.filter(p => !!p.instruct)).map(proj => (
+                    <div key={proj.id} className={`history-item ${selectedProfile === proj.id ? 'project-active' : ''}`} style={{position:'relative', borderLeft: proj.is_locked ? '2px solid #b8bb26' : undefined}}>
+                      <div className="history-header">
+                        <div className="history-badge" style={{background: proj.is_locked ? 'rgba(184,187,38,0.2)' : 'rgba(142,192,124,0.15)', color: proj.is_locked ? '#b8bb26' : '#8ec07c'}}>
+                          {proj.is_locked ? <Lock size={10}/> : (mode === 'clone' ? <Fingerprint size={10}/> : <Wand2 size={10}/>)} {proj.is_locked ? 'LOCKED' : (mode === 'clone' ? 'CLONE' : 'DESIGN')}
+                        </div>
+                        {proj.is_locked && (
+                          <div style={{fontSize:'0.55rem', color:'#b8bb26', fontStyle:'italic'}}>Consistent</div>
+                        )}
+                      </div>
+                      <div style={{fontSize:'0.78rem', color:'var(--text-primary)', marginBottom:2, fontWeight:500}}>
+                        {proj.name}
+                      </div>
+                      {proj.instruct && <div style={{fontSize:'0.6rem', color:'#a89984', fontStyle:'italic', marginBottom:2}}>{proj.instruct}</div>}
+                      <div style={{display:'flex', gap:'6px', marginTop:'8px'}}>
+                         <button onClick={() => {
+                           const a = new Audio(`${API}/profiles/${proj.id}/audio`);
+                           a.play().catch(() => toast.error('No audio available'));
+                         }} style={{padding:'4px 8px', background:'rgba(211,134,155,0.1)', border:'1px solid rgba(211,134,155,0.2)', color:'#d3869b', borderRadius:'4px', fontSize:'0.7rem', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', flexShrink:0}} title="Preview voice">
+                           <Play size={10}/>
+                         </button>
+                         <button onClick={() => handleSelectProfile(proj)} style={{flex:1, padding:'4px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', color:'#ebdbb2', borderRadius:'4px', fontSize:'0.7rem', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', gap:'4px'}}>
+                           <FolderOpen size={10}/> Select
+                         </button>
+                         {proj.is_locked && (
+                           <button onClick={(e) => { e.stopPropagation(); handleUnlockProfile(proj.id); }} style={{padding:'4px 8px', background:'rgba(184,187,38,0.1)', border:'1px solid rgba(184,187,38,0.2)', color:'#b8bb26', borderRadius:'4px', fontSize:'0.7rem', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', gap:'2px', flexShrink:0}} title="Unlock: voice will vary between generations">
+                             <Unlock size={10}/>
+                           </button>
+                         )}
+                         <button onClick={(e) => { e.stopPropagation(); handleDeleteProfile(proj.id); }} style={{padding:'4px 8px', background:'rgba(251,73,52,0.1)', border:'1px solid rgba(251,73,52,0.2)', color:'#fb4934', borderRadius:'4px', fontSize:'0.7rem', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', flexShrink:0}}>
+                           <Trash2 size={10}/>
+                         </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </>
+            )}
           </>
         )}
-        
-        {(history.length + dubHistory.length) > 0 && (
-          <button onClick={async () => { if (confirm("Clear all history?")) { await fetch(`${API}/history`, {method:'DELETE'}); await fetch(`${API}/dub/history`, {method:'DELETE'}); await loadHistory(); await loadDubHistory(); }}}
-            style={{width:'100%', marginTop:10, padding:5, background:'rgba(251,73,52,0.1)', border:'1px solid rgba(251,73,52,0.3)', borderRadius:6, color:'#fb4934', cursor:'pointer', fontSize:'0.75rem'}}>
-            Clear History
-          </button>
+
+        {/* ── HISTORY TAB ── */}
+        {sidebarTab === 'history' && (
+          <>
+            <div style={{fontSize:'0.68rem', color:'var(--text-secondary)', marginBottom:8}}>Generation history · Stored in SQLite</div>
+            {(history.length + dubHistory.length) === 0 ? (
+              <p style={{color:'var(--text-secondary)', fontSize:'0.8rem', textAlign:'center'}}>Outputs appear here.</p>
+            ) : (
+              <>
+                {/* Dub history */}
+                {dubHistory.map(item => (
+                  <div key={`dub-${item.id}`} className="history-item">
+                    <div className="history-header">
+                      <div className="history-badge" style={{background:'rgba(131,165,152,0.15)', color:'#83a598'}}>
+                        <Film size={10}/> DUB
+                      </div>
+                      <div className="history-time">{item.segments_count} segs</div>
+                    </div>
+                    <div style={{fontSize:'0.75rem', color:'var(--text-primary)', marginBottom:2}}>
+                      {item.filename}
+                    </div>
+                    <div style={{display:'flex', gap:4, flexWrap:'wrap', marginBottom:2}}>
+                      <span style={{fontSize:'0.65rem', padding:'1px 6px', background:'rgba(131,165,152,0.15)', color:'#83a598', borderRadius:4}}>
+                        {item.language} ({item.language_code})
+                      </span>
+                      <span style={{fontSize:'0.65rem', color:'var(--text-secondary)'}}>
+                        {Math.round(item.duration)}s
+                      </span>
+                    </div>
+
+                    <div style={{display:'flex', gap:'6px', marginTop:'8px'}}>
+                      <button onClick={() => restoreDubHistory(item)} style={{flex:1, padding:'4px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', color:'#ebdbb2', borderRadius:'4px', fontSize:'0.7rem', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', gap:'4px'}}>
+                        <FolderOpen size={10}/> Load
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); deleteHistory(item.id, 'dub'); }} style={{padding:'4px 8px', background:'rgba(251,73,52,0.1)', border:'1px solid rgba(251,73,52,0.2)', color:'#fb4934', borderRadius:'4px', fontSize:'0.7rem', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', flexShrink:0}}>
+                        <Trash2 size={10}/>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Clone/Design history */}
+                {history.map(item => (
+                  <div key={item.id} className="history-item">
+                    <div className="history-header">
+                      <div className="history-badge">
+                        {item.mode === 'clone' ? <Fingerprint size={10}/> : <Wand2 size={10}/>} {(item.mode||'').toUpperCase()}
+                      </div>
+                      {item.generation_time && <div className="history-time">{item.generation_time}s</div>}
+                    </div>
+                    {item.language && item.language !== 'Auto' && <div style={{fontSize:'0.65rem', color:'#83a598', marginBottom:4}}>{item.language}</div>}
+                    {item.seed && <div style={{fontSize:'0.55rem', color:'#665c54', marginBottom:2}}>seed: {item.seed}</div>}
+                    <div className="history-text" title={item.text}>{item.text}</div>
+                    {item.audio_path && <audio controls src={`${API}/audio/${item.audio_path}`} />}
+                    {item.audio_path && (
+                      <div style={{display:'flex', gap:'6px', marginTop:'8px', flexWrap:'wrap'}}>
+                        <button onClick={() => handleSaveHistoryAsProfile(item)} style={{flex:1, padding:'4px', background:'rgba(142,192,124,0.1)', border:'1px solid rgba(142,192,124,0.2)', color:'#8ec07c', borderRadius:'4px', fontSize:'0.7rem', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', gap:'4px', whiteSpace:'nowrap'}}>
+                          <Save size={10}/> Save Profile
+                        </button>
+                        {/* Lock Voice: only for items that have an associated profile */}
+                        {item.profile_id && (
+                          <button onClick={() => handleLockProfile(item.profile_id, item.id, item.seed)} style={{padding:'4px 8px', background:'rgba(184,187,38,0.1)', border:'1px solid rgba(184,187,38,0.2)', color:'#b8bb26', borderRadius:'4px', fontSize:'0.7rem', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', gap:'3px', whiteSpace:'nowrap'}} title="Lock this exact voice identity for consistent regeneration">
+                            <Lock size={10}/> Lock
+                          </button>
+                        )}
+                        <a href={`${API}/audio/${item.audio_path}`} download style={{padding:'4px 8px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', color:'#ebdbb2', borderRadius:'4px', fontSize:'0.7rem', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', gap:'4px', textDecoration:'none'}}>
+                          <DownloadIcon size={10}/>
+                        </a>
+                        <button onClick={() => restoreHistory(item)} style={{padding:'4px 8px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', color:'#ebdbb2', borderRadius:'4px', fontSize:'0.7rem', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', gap:'4px'}}>
+                          <FolderOpen size={10}/>
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); deleteHistory(item.id, 'synth'); }} style={{padding:'4px 8px', background:'rgba(251,73,52,0.1)', border:'1px solid rgba(251,73,52,0.2)', color:'#fb4934', borderRadius:'4px', fontSize:'0.7rem', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', flexShrink:0}}>
+                          <Trash2 size={10}/>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+            
+            {(history.length + dubHistory.length) > 0 && (
+              <button onClick={async () => { await fetch(`${API}/history`, {method:'DELETE'}); await fetch(`${API}/dub/history`, {method:'DELETE'}); await loadHistory(); await loadDubHistory(); toast.success('History cleared'); }}
+                style={{width:'100%', marginTop:10, padding:5, background:'rgba(251,73,52,0.1)', border:'1px solid rgba(251,73,52,0.3)', borderRadius:6, color:'#fb4934', cursor:'pointer', fontSize:'0.75rem'}}>
+                Clear History
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>

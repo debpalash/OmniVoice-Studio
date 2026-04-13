@@ -79,6 +79,9 @@ def _init_db():
             ref_text TEXT DEFAULT '',
             instruct TEXT DEFAULT '',
             language TEXT DEFAULT 'Auto',
+            locked_audio_path TEXT DEFAULT '',
+            seed INTEGER DEFAULT NULL,
+            is_locked INTEGER DEFAULT 0,
             created_at REAL
         );
         CREATE TABLE IF NOT EXISTS generation_history (
@@ -91,6 +94,7 @@ def _init_db():
             audio_path TEXT,
             duration_seconds REAL,
             generation_time REAL,
+            seed INTEGER DEFAULT NULL,
             created_at REAL,
             FOREIGN KEY (profile_id) REFERENCES voice_profiles(id)
         );
@@ -105,7 +109,31 @@ def _init_db():
             job_data TEXT,
             created_at REAL
         );
+        CREATE TABLE IF NOT EXISTS studio_projects (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            video_path TEXT,
+            audio_path TEXT,
+            duration REAL,
+            state_json TEXT,
+            created_at REAL,
+            updated_at REAL
+        );
     """)
+    # Safe migrations for existing databases
+    for col, typedef in [
+        ("locked_audio_path", "TEXT DEFAULT ''"),
+        ("seed", "INTEGER DEFAULT NULL"),
+        ("is_locked", "INTEGER DEFAULT 0"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE voice_profiles ADD COLUMN {col} {typedef}")
+        except Exception:
+            pass  # Column already exists
+    try:
+        conn.execute("ALTER TABLE generation_history ADD COLUMN seed INTEGER DEFAULT NULL")
+    except Exception:
+        pass
     conn.commit()
     conn.close()
 
@@ -203,20 +231,26 @@ def get_sys_info():
 
     try:
         if is_mac:
-            vram = torch.mps.current_allocated() / (1024**3)
+            # PyTorch MPS uses current_allocated_memory / driver_allocated_memory
+            alloc = getattr(torch.mps, "current_allocated_memory", None)
+            driver = getattr(torch.mps, "driver_allocated_memory", None)
+            if driver:
+                vram = driver() / (1024**3)
+            elif alloc:
+                vram = alloc() / (1024**3)
         elif is_cuda:
             vram = torch.cuda.memory_allocated() / (1024**3)
     except Exception:
-        pass # Graceful fallback if unsupported PyTorch backend version
+        pass
         
-    if vram > 0.1:
+    if vram > 0.01:
         gpu_active = True
 
     return {
         "cpu": psutil.cpu_percent(interval=0.1),
         "ram": psutil.virtual_memory().used / (1024**3),
         "total_ram": psutil.virtual_memory().total / (1024**3),
-        "vram": vram,
+        "vram": round(vram, 2),
         "gpu_active": gpu_active
     }
 
@@ -239,6 +273,7 @@ async def create_profile(
     ref_text: str = Form(""),
     instruct: str = Form(""),
     language: str = Form("Auto"),
+    seed: Optional[int] = Form(None),
 ):
     profile_id = str(uuid.uuid4())[:8]
     ext = os.path.splitext(ref_audio.filename or ".wav")[1]
@@ -250,8 +285,8 @@ async def create_profile(
 
     conn = _get_db()
     conn.execute(
-        "INSERT INTO voice_profiles (id, name, ref_audio_path, ref_text, instruct, language, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (profile_id, name, audio_filename, ref_text, instruct, language, time.time())
+        "INSERT INTO voice_profiles (id, name, ref_audio_path, ref_text, instruct, language, seed, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (profile_id, name, audio_filename, ref_text, instruct, language, seed, time.time())
     )
     conn.commit()
     conn.close()
@@ -259,18 +294,171 @@ async def create_profile(
     return {"id": profile_id, "name": name}
 
 
+@app.get("/profiles/{profile_id}/audio")
+def get_profile_audio(profile_id: str):
+    """Serve the reference audio for a voice profile (for preview/playback)."""
+    conn = _get_db()
+    row = conn.execute("SELECT ref_audio_path, locked_audio_path FROM voice_profiles WHERE id=?", (profile_id,)).fetchone()
+    conn.close()
+    if not row:
+        return Response("Profile not found", status_code=404)
+    # Prefer locked audio, fall back to ref audio
+    audio_file = row["locked_audio_path"] or row["ref_audio_path"]
+    if not audio_file:
+        return Response("No audio available", status_code=404)
+    audio_path = os.path.join(VOICES_DIR, audio_file)
+    if not os.path.exists(audio_path):
+        return Response("Audio file missing", status_code=404)
+    return FileResponse(audio_path, media_type="audio/wav")
+
+@app.post("/profiles/{profile_id}/lock")
+async def lock_profile(
+    profile_id: str,
+    history_id: str = Form(...),
+    seed: Optional[int] = Form(None),
+):
+    """Lock a voice profile by anchoring it to a specific generation's audio.
+    This converts a stochastic Design voice into a deterministic Clone-like voice."""
+    conn = _get_db()
+    profile = conn.execute("SELECT * FROM voice_profiles WHERE id=?", (profile_id,)).fetchone()
+    if not profile:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    history = conn.execute("SELECT * FROM generation_history WHERE id=?", (history_id,)).fetchone()
+    if not history or not history["audio_path"]:
+        conn.close()
+        raise HTTPException(status_code=404, detail="History item not found or has no audio")
+
+    # Copy the generation's audio into the voices directory as the locked reference
+    src_path = os.path.join(OUTPUTS_DIR, history["audio_path"])
+    if not os.path.exists(src_path):
+        conn.close()
+        raise HTTPException(status_code=404, detail="Audio file not found on disk")
+
+    locked_filename = f"{profile_id}_locked.wav"
+    locked_path = os.path.join(VOICES_DIR, locked_filename)
+    import shutil
+    shutil.copy2(src_path, locked_path)
+
+    # Also store the ref_text from the history item for better clone quality
+    ref_text = history["text"][:100] if history["text"] else ""
+
+    conn.execute(
+        "UPDATE voice_profiles SET locked_audio_path=?, seed=?, is_locked=1, ref_text=? WHERE id=?",
+        (locked_filename, seed, ref_text, profile_id)
+    )
+    conn.commit()
+    conn.close()
+    return {"locked": True, "profile_id": profile_id, "locked_audio_path": locked_filename}
+
+
+@app.post("/profiles/{profile_id}/unlock")
+async def unlock_profile(profile_id: str):
+    """Unlock a voice profile, reverting it to stochastic Design mode."""
+    conn = _get_db()
+    profile = conn.execute("SELECT * FROM voice_profiles WHERE id=?", (profile_id,)).fetchone()
+    if not profile:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    # Remove the locked audio file from disk
+    if profile["locked_audio_path"]:
+        locked_path = os.path.join(VOICES_DIR, profile["locked_audio_path"])
+        if os.path.exists(locked_path):
+            os.remove(locked_path)
+
+    conn.execute(
+        "UPDATE voice_profiles SET locked_audio_path='', seed=NULL, is_locked=0 WHERE id=?",
+        (profile_id,)
+    )
+    conn.commit()
+    conn.close()
+    return {"unlocked": True, "profile_id": profile_id}
+
+
 @app.delete("/profiles/{profile_id}")
 def delete_profile(profile_id: str):
     conn = _get_db()
-    row = conn.execute("SELECT ref_audio_path FROM voice_profiles WHERE id=?", (profile_id,)).fetchone()
-    if row and row["ref_audio_path"]:
-        path = os.path.join(VOICES_DIR, row["ref_audio_path"])
-        if os.path.exists(path):
-            os.remove(path)
+    row = conn.execute("SELECT ref_audio_path, locked_audio_path FROM voice_profiles WHERE id=?", (profile_id,)).fetchone()
+    if row:
+        for col in ["ref_audio_path", "locked_audio_path"]:
+            if row[col]:
+                path = os.path.join(VOICES_DIR, row[col])
+                if os.path.exists(path):
+                    os.remove(path)
     conn.execute("DELETE FROM voice_profiles WHERE id=?", (profile_id,))
     conn.commit()
     conn.close()
     return {"deleted": profile_id}
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# AUDIO CLEANING (Denoise mic recordings for cloning)
+# ═══════════════════════════════════════════════════════════════════════
+
+@app.post("/clean-audio")
+async def clean_audio(audio: UploadFile = File(...)):
+    """Accept a raw mic recording, run demucs vocal isolation, return clean WAV."""
+    clean_id = str(uuid.uuid4())[:8]
+    tmp_dir = os.path.join(OUTPUTS_DIR, f"_clean_{clean_id}")
+    os.makedirs(tmp_dir, exist_ok=True)
+
+    # Save uploaded audio to a temp WAV
+    raw_path = os.path.join(tmp_dir, "raw.wav")
+    with open(raw_path, "wb") as f:
+        f.write(await audio.read())
+
+    # Convert to proper WAV format with ffmpeg (in case browser sends webm/ogg)
+    converted_path = os.path.join(tmp_dir, "converted.wav")
+    ffmpeg = _find_ffmpeg()
+    proc = await asyncio.create_subprocess_exec(
+        ffmpeg, "-y", "-i", raw_path, "-ar", "24000", "-ac", "1", converted_path,
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+    )
+    _, stderr = await proc.communicate()
+    if proc.returncode != 0:
+        # Fallback: use raw file directly
+        converted_path = raw_path
+
+    # Run demucs to isolate vocals
+    clean_path = converted_path  # Fallback if demucs fails
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "uv", "run", "demucs", "--two-stems", "vocals", "-n", "htdemucs",
+            "-d", get_best_device(), converted_path, "-o", tmp_dir,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode == 0:
+            demucs_out = os.path.join(tmp_dir, "htdemucs", "converted")
+            vocals_file = os.path.join(demucs_out, "vocals.wav")
+            if os.path.exists(vocals_file):
+                clean_path = vocals_file
+    except Exception as e:
+        logger.warning(f"Demucs failed for mic audio, using raw: {e}")
+
+    # Save final cleaned audio to outputs dir
+    clean_filename = f"mic_{clean_id}.wav"
+    final_path = os.path.join(OUTPUTS_DIR, clean_filename)
+
+    # Re-encode to ensure proper WAV format
+    proc = await asyncio.create_subprocess_exec(
+        ffmpeg, "-y", "-i", clean_path, "-ar", "24000", "-ac", "1", final_path,
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+    )
+    await proc.communicate()
+    if not os.path.exists(final_path):
+        import shutil
+        shutil.copy2(clean_path, final_path)
+
+    # Clean up temp dir
+    import shutil
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    # Return the cleaned WAV
+    return FileResponse(final_path, media_type="audio/wav", filename=clean_filename,
+                        headers={"X-Clean-Filename": clean_filename})
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -299,6 +487,19 @@ def clear_history():
     conn.close()
     return {"cleared": True}
 
+@app.delete("/history/{history_id}")
+def delete_single_history(history_id: int):
+    conn = _get_db()
+    row = conn.execute("SELECT audio_path FROM generation_history WHERE id=?", (history_id,)).fetchone()
+    if row and row["audio_path"]:
+        p = os.path.join(OUTPUTS_DIR, row["audio_path"])
+        if os.path.exists(p):
+            os.remove(p)
+    conn.execute("DELETE FROM generation_history WHERE id=?", (history_id,))
+    conn.commit()
+    conn.close()
+    return {"deleted": True}
+
 
 @app.get("/dub/history")
 def list_dub_history():
@@ -319,6 +520,14 @@ def clear_dub_history():
             import shutil
             shutil.rmtree(p)
     return {"cleared": True}
+
+@app.delete("/dub/history/{history_id}")
+def delete_single_dub_history(history_id: int):
+    conn = _get_db()
+    conn.execute("DELETE FROM dub_history WHERE id=?", (history_id,))
+    conn.commit()
+    conn.close()
+    return {"deleted": True}
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -361,11 +570,13 @@ async def generate_speech(
     position_temperature: float = Form(5.0),
     class_temperature: float = Form(0.0),
     profile_id: Optional[str] = Form(None),
+    seed: Optional[int] = Form(None),
 ):
     _model = await get_model()
 
     ref_audio_path = None
     cleanup_ref = False
+    used_seed = seed
 
     # Load from voice profile if specified
     if profile_id:
@@ -373,11 +584,28 @@ async def generate_speech(
         row = conn.execute("SELECT * FROM voice_profiles WHERE id=?", (profile_id,)).fetchone()
         conn.close()
         if row:
-            ref_audio_path = os.path.join(VOICES_DIR, row["ref_audio_path"])
-            if not ref_text:
-                ref_text = row["ref_text"]
-            if not instruct:
-                instruct = row["instruct"]
+            # If the profile is LOCKED, use the locked audio as ref_audio (clone path)
+            # This is the key to voice consistency — the locked audio anchors the identity
+            if row["is_locked"] and row["locked_audio_path"]:
+                ref_audio_path = os.path.join(VOICES_DIR, row["locked_audio_path"])
+                if not ref_text:
+                    ref_text = row["ref_text"]
+                # Still pass instruct for style control on top of the locked voice
+                if not instruct:
+                    instruct = row["instruct"]
+                # Use the profile's saved seed for maximum determinism
+                if used_seed is None and row["seed"] is not None:
+                    used_seed = row["seed"]
+            elif row["ref_audio_path"]:
+                ref_audio_path = os.path.join(VOICES_DIR, row["ref_audio_path"])
+                if not ref_text:
+                    ref_text = row["ref_text"]
+                if not instruct:
+                    instruct = row["instruct"]
+            else:
+                # Design profile without lock — just use instruct
+                if not instruct:
+                    instruct = row["instruct"]
             if not language or language == "Auto":
                 language = row["language"] if row["language"] != "Auto" else None
     elif ref_audio is not None:
@@ -388,6 +616,10 @@ async def generate_speech(
                 cleanup_ref = True
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+
+    # Set deterministic seed if provided — makes Gumbel noise reproducible
+    if used_seed is not None:
+        torch.manual_seed(used_seed)
 
     start_time = time.time()
     try:
@@ -411,10 +643,10 @@ async def generate_speech(
 
         conn = _get_db()
         conn.execute(
-            "INSERT INTO generation_history (id, text, mode, language, instruct, profile_id, audio_path, duration_seconds, generation_time, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO generation_history (id, text, mode, language, instruct, profile_id, audio_path, duration_seconds, generation_time, seed, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             (audio_id, text[:200], "clone" if ref_audio_path else "design",
              language or "Auto", instruct or "", profile_id or "",
-             audio_filename, audio_dur, gen_time, time.time())
+             audio_filename, audio_dur, gen_time, used_seed, time.time())
         )
         conn.commit()
         conn.close()
@@ -425,7 +657,12 @@ async def generate_speech(
         buffer.seek(0)
         return Response(
             content=buffer.read(), media_type="audio/wav",
-            headers={"X-Audio-Id": audio_id, "X-Gen-Time": str(gen_time), "X-Audio-Path": audio_filename}
+            headers={
+                "X-Audio-Id": audio_id,
+                "X-Gen-Time": str(gen_time),
+                "X-Audio-Path": audio_filename,
+                "X-Seed": str(used_seed) if used_seed is not None else "",
+            }
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Inference failed: {str(e)}")
@@ -562,7 +799,7 @@ async def dub_transcribe(job_id: str):
             audio_np = audio_np.mean(axis=1)
         audio_input = {"array": audio_np, "sampling_rate": sr}
 
-        bs = 16 if torch.cuda.is_available() else (8 if torch.backends.mps.is_available() else 4)
+        bs = 16 if torch.cuda.is_available() else (2 if torch.backends.mps.is_available() else 1)
 
         # Use chunk-level timestamps
         result = _model._asr_pipe(
@@ -610,6 +847,19 @@ async def dub_transcribe(job_id: str):
                         t += sent_dur
         else:
             segments.append({"start": 0.0, "end": job["duration"], "text": result.get("text", "").strip()})
+        # Apply basic Diarization (Heuristic fallback / pyannote skeleton)
+        # If segments have gaps > 1.2s, assume natural speaker alternation or same speaker.
+        # For a true production deployment, plug pyannote.audio pipeline here guarded by HF_TOKEN.
+        current_speaker_idx = 1
+        last_end = 0.0
+        
+        for i, s in enumerate(segments):
+            if i > 0 and (s["start"] - last_end) > 1.2:
+                # Toggle speaker on significant silence gaps for multi-speaker simulation
+                current_speaker_idx = 2 if current_speaker_idx == 1 else 1
+            s["speaker_id"] = f"Speaker {current_speaker_idx}"
+            s["id"] = str(uuid.uuid4())[:8] # assign fresh ID
+            last_end = s["end"]
 
         # Store full transcript
         job["full_transcript"] = " ".join(s["text"] for s in segments)
@@ -620,14 +870,19 @@ async def dub_transcribe(job_id: str):
 
         return segments
 
-    loop = asyncio.get_event_loop()
-    segments = await loop.run_in_executor(_gpu_pool, _transcribe)
-    job["segments"] = segments
-    return {
-        "job_id": job_id,
-        "segments": segments,
-        "full_transcript": job.get("full_transcript", ""),
-    }
+    try:
+        loop = asyncio.get_event_loop()
+        segments_result = await loop.run_in_executor(_gpu_pool, _transcribe)
+        job["segments"] = segments_result
+        return {
+            "job_id": job_id,
+            "segments": segments_result,
+            "full_transcript": job.get("full_transcript", ""),
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 class DubSegment(BaseModel):
@@ -636,6 +891,8 @@ class DubSegment(BaseModel):
     text: str
     instruct: str = ""       # Per-segment voice override
     profile_id: str = ""     # Per-segment voice profile
+    speed: Optional[float] = None
+
 
 
 class DubRequest(BaseModel):
@@ -674,16 +931,38 @@ async def dub_generate(job_id: str, req: DubRequest):
             def _gen(text, lang, instruct_str, dur_s, nstep, cfg, spd, profile_id=None):
                 ref_audio = None
                 ref_text = None
+                used_seed = None
+
                 # Load per-segment voice profile if specified
                 if profile_id:
                     conn = _get_db()
                     row = conn.execute("SELECT * FROM voice_profiles WHERE id=?", (profile_id,)).fetchone()
                     conn.close()
                     if row:
-                        ref_audio = os.path.join(VOICES_DIR, row["ref_audio_path"])
-                        ref_text = row["ref_text"]
+                        if row["is_locked"] and row["locked_audio_path"]:
+                            # Locked voice: Use anchor audio & transcript
+                            ref_audio = os.path.join(VOICES_DIR, row["locked_audio_path"])
+                            ref_text = row["ref_text"]
+                            used_seed = row["seed"]
+                        elif row["instruct"] and not row["is_locked"]:
+                            # UNLOCKED Design voice (personality):
+                            # DO NOT pass ref_audio/ref_text (the test words from creation),
+                            # because short dub segments cause F5-TTS to leak the test words into output.
+                            # Instead, we just pass the personality instruct and the seed (if any)
+                            # to get a seamless zero-shot personality locking.
+                            used_seed = row["seed"] 
+                        else:
+                            # Pure Clone voice (no instruct)
+                            ref_audio = os.path.join(VOICES_DIR, row["ref_audio_path"])
+                            ref_text = row["ref_text"]
+                            used_seed = row["seed"]
+                            
                         if not instruct_str:
                             instruct_str = row["instruct"]
+
+                if used_seed is not None:
+                    torch.manual_seed(used_seed)
+
                 return _model.generate(
                     text=text, language=lang if lang != "Auto" else None,
                     ref_audio=ref_audio, ref_text=ref_text,
@@ -692,16 +971,17 @@ async def dub_generate(job_id: str, req: DubRequest):
                     speed=spd, denoise=True, postprocess_output=True,
                 )[0]
 
-            # Use per-segment instruct/profile if set, otherwise fall back to request-level
+            # Use per-segment parameters if set, otherwise fall back to request-level
             seg_instruct = seg.instruct or req.instruct
             seg_profile = seg.profile_id or None
+            seg_speed = seg.speed if hasattr(seg, 'speed') and seg.speed is not None else req.speed
 
             loop = asyncio.get_event_loop()
             try:
                 audio_tensor = await loop.run_in_executor(
                     _gpu_pool, _gen,
                     seg.text, req.language, seg_instruct, seg_duration,
-                    req.num_step, req.guidance_scale, req.speed, seg_profile,
+                    req.num_step, req.guidance_scale, seg_speed, seg_profile,
                 )
                 # Save individual segment WAV for preview
                 seg_wav_path = os.path.join(DUB_DIR, job_id, f"seg_{i}.wav")
@@ -877,37 +1157,59 @@ class TranslateRequest(BaseModel):
 @app.post("/dub/translate")
 async def dub_translate(req: TranslateRequest):
     """Translate all segment texts to the target language using Google Translate."""
-    from deep_translator import GoogleTranslator
+    try:
+        from deep_translator import GoogleTranslator
 
-    lang_code = TRANSLATE_CODES.get(req.target_lang, req.target_lang)
-    loop = asyncio.get_event_loop()
-    from deep_translator import GoogleTranslator
+        lang_code = TRANSLATE_CODES.get(req.target_lang, req.target_lang)
+        loop = asyncio.get_event_loop()
 
-    def _translate_single(seg):
-        try:
-            # We instantiate translator inside the function because some translators aren't thread-safe
-            translator = GoogleTranslator(source="auto", target=lang_code)
-            translated = translator.translate(seg["text"])
-            return {"id": seg["id"], "text": translated or seg["text"]}
-        except Exception as e:
-            return {"id": seg["id"], "text": seg["text"], "error": str(e)}
+        def _translate_single(seg):
+            try:
+                translator = GoogleTranslator(source="auto", target=lang_code)
+                translated = translator.translate(seg["text"])
+                return {"id": seg["id"], "text": translated or seg["text"]}
+            except Exception as e:
+                return {"id": seg["id"], "text": seg["text"], "error": str(e)}
 
-    # Run translations concurrently using the dedicated CPU/Network pool
-    tasks = [
-        loop.run_in_executor(_cpu_pool, _translate_single, seg) 
-        for seg in req.segments
-    ]
-    translated = await asyncio.gather(*tasks)
+        tasks = [
+            loop.run_in_executor(_cpu_pool, _translate_single, seg) 
+            for seg in req.segments
+        ]
+        translated = await asyncio.gather(*tasks)
+        translated.sort(key=lambda x: str(x["id"]))
 
-    # Re-sort to maintain original order since gather returns in order anyway, but just in case
-    translated.sort(key=lambda x: x["id"])
-
-    return {"translated": translated, "target_lang": req.target_lang}
+        return {"translated": translated, "target_lang": req.target_lang}
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# SEGMENT PREVIEW
+# SEGMENT PREVIEW & MEDIA
 # ═══════════════════════════════════════════════════════════════════════
+
+@app.get("/dub/media/{job_id}")
+async def dub_get_media(job_id: str):
+    """Return the original video file for timeline preview streaming."""
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if not os.path.exists(job["video_path"]):
+        raise HTTPException(status_code=404, detail="Media file not found")
+    return FileResponse(job["video_path"])
+
+
+@app.get("/dub/audio/{job_id}")
+async def dub_get_audio(job_id: str):
+    """Return extracted audio.wav for waveform rendering (lighter than full video)."""
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    audio = job.get("audio_path")
+    if not audio or not os.path.exists(audio):
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    return FileResponse(audio, media_type="audio/wav")
+
 
 @app.get("/dub/preview/{job_id}/{segment_index}")
 async def dub_preview_segment(job_id: str, segment_index: int):
@@ -1025,6 +1327,86 @@ async def dub_export_srt(job_id: str):
             "Content-Disposition": f'attachment; filename="subtitles_{base_name}.srt"',
         },
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# STUDIO PROJECTS — Save / Load / List / Delete
+# ═══════════════════════════════════════════════════════════════════════
+
+class ProjectSaveRequest(BaseModel):
+    name: str
+    video_path: Optional[str] = None
+    audio_path: Optional[str] = None
+    duration: Optional[float] = None
+    state: dict  # Full JSON blob: segments, settings, tracks, etc.
+
+
+@app.get("/projects")
+async def list_projects():
+    conn = _get_db()
+    rows = conn.execute(
+        "SELECT id, name, video_path, duration, created_at, updated_at FROM studio_projects ORDER BY updated_at DESC"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.get("/projects/{project_id}")
+async def get_project(project_id: str):
+    conn = _get_db()
+    row = conn.execute("SELECT * FROM studio_projects WHERE id=?", (project_id,)).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Project not found")
+    result = dict(row)
+    if result.get("state_json"):
+        try:
+            result["state"] = json.loads(result["state_json"])
+        except Exception:
+            result["state"] = {}
+    else:
+        result["state"] = {}
+    return result
+
+
+@app.post("/projects")
+async def create_project(req: ProjectSaveRequest):
+    project_id = str(uuid.uuid4())[:8]
+    now = time.time()
+    conn = _get_db()
+    conn.execute(
+        "INSERT INTO studio_projects (id, name, video_path, audio_path, duration, state_json, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)",
+        (project_id, req.name, req.video_path, req.audio_path, req.duration, json.dumps(req.state), now, now),
+    )
+    conn.commit()
+    conn.close()
+    return {"id": project_id, "name": req.name, "created_at": now}
+
+
+@app.put("/projects/{project_id}")
+async def update_project(project_id: str, req: ProjectSaveRequest):
+    conn = _get_db()
+    row = conn.execute("SELECT id FROM studio_projects WHERE id=?", (project_id,)).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Project not found")
+    now = time.time()
+    conn.execute(
+        "UPDATE studio_projects SET name=?, video_path=?, audio_path=?, duration=?, state_json=?, updated_at=? WHERE id=?",
+        (req.name, req.video_path, req.audio_path, req.duration, json.dumps(req.state), now, project_id),
+    )
+    conn.commit()
+    conn.close()
+    return {"id": project_id, "name": req.name, "updated_at": now}
+
+
+@app.delete("/projects/{project_id}")
+async def delete_project(project_id: str):
+    conn = _get_db()
+    conn.execute("DELETE FROM studio_projects WHERE id=?", (project_id,))
+    conn.commit()
+    conn.close()
+    return {"deleted": project_id}
 
 
 if __name__ == "__main__":

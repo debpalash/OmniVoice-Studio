@@ -1,0 +1,281 @@
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import WaveSurfer from 'wavesurfer.js';
+import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
+import { Play, Pause, ZoomIn, ZoomOut, SkipBack, Loader } from 'lucide-react';
+
+const REGION_COLORS = [
+  'rgba(211,134,155,0.3)',
+  'rgba(131,165,152,0.3)',
+  'rgba(184,187,38,0.3)',
+  'rgba(250,189,47,0.3)',
+  'rgba(142,192,124,0.3)',
+  'rgba(254,128,25,0.3)',
+  'rgba(104,157,106,0.3)',
+];
+
+/**
+ * WaveformTimeline
+ *
+ * Props:
+ *   audioSrc       – URL / blob URL for audio (used as WaveSurfer media + waveform source)
+ *   videoSrc       – URL / blob URL for the video preview (optional, shown above waveform)
+ *   segments       – Array<{ id, start, end, text }>
+ *   onSegmentsChange – (fn) => void  (receives a setter-style function)
+ *   disabled       – locks drag/resize of regions
+ *   overlayContent – React node rendered as a translucent overlay on the waveform
+ */
+export default function WaveformTimeline({
+  audioSrc,
+  videoSrc,
+  segments = [],
+  onSegmentsChange,
+  disabled = false,
+  overlayContent,
+}) {
+  const waveContainerRef = useRef(null);  // div WaveSurfer draws into
+  const videoContainerRef = useRef(null); // div we imperatively append the <video> into
+  const wsRef         = useRef(null);
+  const regionsRef    = useRef(null);
+  const isDraggingRef = useRef(false);
+  const lastFpRef     = useRef(null);
+
+  const [ready,       setReady]       = useState(false);
+  const [loadError,   setLoadError]   = useState(false);
+  const [isPlaying,   setIsPlaying]   = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration,    setDuration]    = useState(0);
+  const [zoom,        setZoom]        = useState(50);
+
+  // ── Core init — only re-runs when src changes ───────────────────────────────
+  useEffect(() => {
+    if (!waveContainerRef.current || !audioSrc) return;
+
+    setReady(false);
+    setLoadError(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setIsPlaying(false);
+
+    // ── 1. Create the video element imperatively (stable, no React re-renders) ──
+    let videoEl = null;
+    if (videoSrc && videoContainerRef.current) {
+      videoContainerRef.current.innerHTML = ''; // clear any previous
+      videoEl = document.createElement('video');
+      videoEl.src = videoSrc;
+      videoEl.muted = false;
+      videoEl.playsInline = true;
+      videoEl.preload = 'metadata';
+      videoEl.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;display:block;';
+      videoContainerRef.current.appendChild(videoEl);
+    }
+
+    // ── 2. Create the media element WaveSurfer will control ──────────────────
+    //    Use <video> if we have one (it has audio), otherwise <audio>.
+    //    This avoids two media elements fighting each other.
+    const mediaEl = videoEl ?? (() => {
+      const a = document.createElement('audio');
+      a.src = audioSrc;
+      a.preload = 'auto';
+      return a;
+    })();
+    // For the audio-only case (server WAV), also set src on the media element
+    if (!videoEl) {
+      mediaEl.src = audioSrc;
+    }
+
+    // ── 3. Init WaveSurfer with that single media element ────────────────────
+    const regions = RegionsPlugin.create();
+    regionsRef.current = regions;
+    lastFpRef.current  = null;
+
+    const ws = WaveSurfer.create({
+      container:     waveContainerRef.current,
+      waveColor:     'rgba(168,153,132,0.45)',
+      progressColor: 'rgba(211,134,155,0.75)',
+      cursorColor:   '#d3869b',
+      cursorWidth:   2,
+      height:        64,
+      barWidth:      2,
+      barGap:        1,
+      barRadius:     2,
+      normalize:     true,
+      media:         mediaEl,   // single source of truth — no sync conflicts
+      plugins:       [regions],
+    });
+
+    ws.on('ready',      ()  => { setDuration(ws.getDuration()); setReady(true); });
+    ws.on('error',      ()  => setLoadError(true));
+    ws.on('timeupdate', (t) => setCurrentTime(t));
+    ws.on('play',       ()  => setIsPlaying(true));
+    ws.on('pause',      ()  => setIsPlaying(false));
+    ws.on('finish',     ()  => setIsPlaying(false));
+
+    regions.on('region-updated', (region) => {
+      const segId = parseInt(region.id.replace('seg-', ''), 10);
+      if (isNaN(segId) || !onSegmentsChange) return;
+      isDraggingRef.current = true;
+      onSegmentsChange(prev =>
+        (Array.isArray(prev) ? prev : []).map(s => {
+          if (s.id !== segId) return s;
+          
+          // Store the very first original duration so successive drags compound correctly
+          const origDur = s.original_duration || (s.end - s.start);
+          const newStart = +region.start.toFixed(2);
+          const newEnd = +region.end.toFixed(2);
+          const newDuration = newEnd - newStart;
+          
+          // Speed = (original spoken duration) / (new target duration defined by UI region width)
+          const newSpeed = newDuration > 0 ? +(origDur / newDuration).toFixed(2) : 1.0;
+
+          return { 
+            ...s, 
+            start: newStart, 
+            end: newEnd, 
+            speed: newSpeed, 
+            original_duration: origDur 
+          };
+        })
+      );
+      requestAnimationFrame(() => { isDraggingRef.current = false; });
+    });
+
+    regions.on('region-clicked', (region, e) => {
+      e.stopPropagation();
+      region.play();
+    });
+
+    wsRef.current = ws;
+
+    return () => {
+      try { ws.destroy(); } catch (_) {}
+      wsRef.current      = null;
+      regionsRef.current = null;
+      // Clear the imperatively-created video element
+      if (videoContainerRef.current) videoContainerRef.current.innerHTML = '';
+      setReady(false);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioSrc, videoSrc]);
+
+  // ── Zoom ────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (wsRef.current && ready) wsRef.current.zoom(zoom);
+  }, [zoom, ready]);
+
+  // ── Sync regions — skips when dragging or fingerprint unchanged ─────────────
+  const fingerprint = useMemo(
+    () => segments.map(s => `${s.id}:${s.start}:${s.end}`).join('|'),
+    [segments]
+  );
+
+  useEffect(() => {
+    if (!regionsRef.current || !ready || isDraggingRef.current) return;
+    if (lastFpRef.current === fingerprint) return;
+    lastFpRef.current = fingerprint;
+
+    regionsRef.current.clearRegions();
+    segments.forEach((seg, i) => {
+      regionsRef.current.addRegion({
+        id:      `seg-${seg.id}`,
+        start:   seg.start,
+        end:     seg.end,
+        color:   REGION_COLORS[i % REGION_COLORS.length],
+        drag:    !disabled,
+        resize:  !disabled,
+        content: seg.text?.length > 32 ? seg.text.slice(0, 30) + '…' : (seg.text || ''),
+      });
+    });
+  }, [fingerprint, ready, disabled, segments]);
+
+  const togglePlay = useCallback(() => wsRef.current?.playPause(), []);
+  const seekTo     = useCallback((t) => { wsRef.current?.setTime(t); }, []);
+
+  const fmt = (t) => {
+    const m = Math.floor(t / 60);
+    const s = (t % 60).toFixed(1);
+    return `${m}:${s.padStart(4, '0')}`;
+  };
+
+  // ── Error fallback ──────────────────────────────────────────────────────────
+  if (loadError) {
+    return (
+      <div className="waveform-timeline">
+        <div style={{
+          display:'flex', alignItems:'center', justifyContent:'center',
+          padding:8, background:'rgba(0,0,0,0.15)', borderRadius:4,
+          border:'1px solid rgba(255,255,255,0.04)', color:'#a89984', fontSize:'0.7rem',
+        }}>
+          ⚠ Could not load audio from this file
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="waveform-timeline" style={{display:'flex', flexDirection:'column', flex:1, minHeight:0}}>
+      {/* Video + Waveform stacked vertically */}
+      <div style={{display:'flex', flexDirection:'column', gap:4, flex:1, minHeight:0}}>
+        {/* Video preview column */}
+        {videoSrc && (
+          <div
+            ref={videoContainerRef}
+            style={{
+              flex:1, minHeight:0, background:'#000', borderRadius:4, overflow:'hidden',
+              border:'1px solid rgba(255,255,255,0.05)', display: 'flex'
+            }}
+          />
+        )}
+
+        {/* Waveform column */}
+        <div style={{position:'relative', overflow:'hidden', flexShrink:0}}>
+          <div
+            ref={waveContainerRef}
+            className="waveform-container"
+            style={{height:'100%', minHeight:60, borderRadius:4, width:'100%', overflow:'hidden'}}
+          />
+
+          {/* Loading shimmer */}
+          {!ready && !loadError && (
+            <div style={{
+              position:'absolute', inset:0, display:'flex', alignItems:'center',
+              justifyContent:'center', background:'rgba(0,0,0,0.45)',
+              borderRadius:4, zIndex:3, gap:6,
+            }}>
+              <Loader className="spinner" size={12} color="#d3869b"/>
+              <span style={{fontSize:'0.65rem', color:'#a89984'}}>Loading waveform…</span>
+            </div>
+          )}
+
+          {/* Overlay slot — transcription / dubbing progress */}
+          {overlayContent && (
+            <div style={{
+              position:'absolute', inset:0, borderRadius:4, zIndex:4,
+              background:'rgba(29,32,33,0.85)', backdropFilter:'blur(3px)',
+              display:'flex', flexDirection:'column', alignItems:'center',
+              justifyContent:'center', gap:6, padding:8,
+            }}>
+              {overlayContent}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="waveform-controls" style={{flexShrink:0, marginTop:3}}>
+        <div className="waveform-controls-left">
+          <button className="waveform-btn" onClick={() => seekTo(0)} title="Restart"><SkipBack size={11}/></button>
+          <button className="waveform-btn waveform-btn-play" onClick={togglePlay} disabled={!ready}>
+            {isPlaying ? <Pause size={11}/> : <Play size={11}/>}
+          </button>
+          <span className="waveform-time">{fmt(currentTime)} / {fmt(duration)}</span>
+        </div>
+        <div className="waveform-controls-right">
+          <button className="waveform-btn" onClick={() => setZoom(z => Math.max(10, z - 20))}><ZoomOut size={11}/></button>
+          <input type="range" min="10" max="300" value={zoom}
+            onChange={e => setZoom(Number(e.target.value))} className="waveform-zoom-slider"/>
+          <button className="waveform-btn" onClick={() => setZoom(z => Math.min(300, z + 20))}><ZoomIn size={11}/></button>
+        </div>
+      </div>
+    </div>
+  );
+}

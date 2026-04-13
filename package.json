@@ -13,6 +13,6 @@
     "frontend"
   ],
   "devDependencies": {
-    "turbo": "^2.9.5"
+    "turbo": "^2.9.6"
   }
 }
