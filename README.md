@@ -13,7 +13,7 @@
 <br/>
 
 <div align="center">
-  <img src="pics/omnivoice_studio_1.png" alt="OmniVoice Studio Design Interface" width="100%"/>
+  <img src="pics/image.png" alt="OmniVoice Studio Design Interface" width="100%"/>
   <br/>
   <i>High-density Voice Design & Cloning workspace.</i>
 </div>
@@ -24,18 +24,16 @@ Local, full-stack voice generation and cinematic dubbing. **No API keys. No clou
 
 ## ✨ Features
 
-- 🎬 **Video Dubbing** — transcribe, translate, re-voice, and mux back into MP4 dynamically.
+- 🎬 **Video Dubbing** — transcribe, translate, re-voice, and mux back into MP4 with selective track export.
 - 🎧 **Vocal Isolation** — built-in `demucs` automatically splits speech from music, keeping original background audio perfectly preserved.
 - 🧬 **Voice Cloning & Design** — Clone specific voices from just a 3-second audio clip, or design completely new studio profiles with tags like `female, british accent, excited`.
 - ⚡ **Cross-Platform Native Execution** — Auto-detects and accelerates inference using Apple Silicon (MPS), NVIDIA (CUDA), AMD (ROCm), or standard CPU.
+- 🔊 **Per-Segment Mixing** — Fine-grained volume/gain control per dubbed segment (0–200%) for broadcast-quality audio balancing.
+- ⌨️ **Keyboard-Driven Workflow** — `⌘+Enter` to generate, `⌘+S` to save, `⌘+Z`/`⌘+Shift+Z` for undo/redo.
+- 📡 **Live Model Telemetry** — Real-time CPU/RAM/VRAM stats + model warm-up indicator (idle → loading → ready).
 
 <br/>
 
-<div align="center">
-  <img src="pics/omnivoice_studio_2.png" alt="OmniVoice Studio Dubbing Interface" width="100%"/>
-  <br/>
-  <i>The timeline-based cinematic dubbing studio.</i>
-</div>
 
 ## 🚀 Getting Started
 
@@ -81,18 +79,43 @@ The studio is highly functional today, but we are aggressively expanding. Watch 
 - [x] Targeted multi-speaker diarization — auto-assign unique voice profiles per active speaker.
 - [x] Studio project persistence — save, load, and cache multi-track projects seamlessly via local SQLite.
 - [x] Production SRT/VTT subtitle export packaged alongside the dubbed `.mp4` video output.
+- [x] Selective track export — choose exactly which language tracks (Original, DE, ES, etc.) to include in final MP4.
+- [x] Per-segment volume/gain control with real-time mixing (0–200%).
+- [x] Undo/redo system for all segment edits with 50-action history depth.
+- [x] Keyboard shortcuts: `⌘+Enter` generate, `⌘+S` save, `⌘+Z`/`⌘+Shift+Z` undo/redo.
+- [x] Drag-and-drop file uploads for both video and clone audio sources.
+- [x] Model warm-up indicator with live status pill (idle/loading/ready).
+- [x] Confirmation dialogs for all destructive actions (delete project/history/profile).
+- [x] UI preferences persistence (sidebar state, zoom, active tab) across sessions.
+- [x] Polished glassmorphism design system with micro-animations, focus rings, and custom scrollbars.
 
 ### 🔨 Upcoming Features
-- [ ] **Native Desktop Applications** — Dedicated client apps for **macOS, Windows, and Linux** to entirely bypass CLI execution requirements.
+- [ ] **Real Speaker Diarization** — ML-based diarization via pyannote.audio for true multi-speaker identification.
+- [ ] **Streaming TTS** — Real-time audio streaming during generation instead of blocking.
+- [ ] **A/B Voice Comparison** — Side-by-side voice audition for casting decisions.
+- [ ] **Scene-Aware Dubbing** — FFmpeg scene detection to auto-split segments at visual cuts.
+- [ ] **Lip-Sync Scoring** — Analyze dubbed audio duration against original speaker timing.
 - [ ] **Batch Processing** — Queue folders full of media to be processed seamlessly overnight.
-- [ ] **Micro-Tuning Interface** — Rapidly fine-tune models to capture micro-expressions with minimal extra reference data.
-- [ ] **Frame-Perfect Lip-Sync Generation** — Align dynamic phoneme synthesis directly to detected on-screen human mouth movement.
-- [ ] **Universal Voice Plugin System** — Decouple the backend to allow bringing your own TTS engines (like XTTS, Bark, etc.).
+- [ ] **Native Desktop Applications** — Dedicated client apps for macOS, Windows, and Linux.
+- [ ] **EBU R128 Loudness Normalization** — Broadcast-standard loudness matching for exported audio.
 - [ ] **One-Click Deployment** — Docker image packages engineered for zero-config GPU passthrough.
 
 ---
 
 ## 📝 Changelog
+
+### v1.2.0 — The Production Polish Update
+
+- **Selective Track Export:** Choose exactly which audio tracks to include in the final MP4. Uncheck Original, keep only German — get a single-track export. Full per-track checkbox UI with dynamic FFmpeg stream index remapping.
+- **Undo/Redo System:** Full `⌘+Z` / `⌘+Shift+Z` undo/redo for all segment edits (text, voice, volume, delete). 50-action deep history stack.
+- **Per-Segment Volume Control:** Inline gain slider (0–200%) per segment row in the dub table. Backend applies gain during audio assembly with safe clamping.
+- **Keyboard Shortcuts:** `⌘+Enter` to generate, `⌘+S` to save project. Browser default overrides prevented.
+- **Model Status Indicator:** Live status pill in the header showing model warm-up state (idle → loading → ready). New `/model/status` backend endpoint.
+- **Drag-and-Drop Everywhere:** Video upload already supported drop — now clone audio upload does too, with pink highlight on hover.
+- **Confirmation Dialogs:** All destructive actions (delete project, profile, history item, clear all history) now require confirmation.
+- **Session Persistence:** Sidebar collapsed state, active tab, and zoom level now persist across browser sessions via localStorage.
+- **CSS Design System Overhaul:** Anti-aliased text, input focus glow rings, button hover shimmer, progress bar shimmer animation, fade-in on history items, selection color branding, Firefox scrollbar support, `tabular-nums` for timestamp columns.
+- **AudioContext Pooling:** `playPing()` synthesis notification reuses a single AudioContext instead of creating one per call (browsers cap at ~6).
 
 ### v1.1.0 — The Cinematic Studio Update
 

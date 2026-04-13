@@ -217,6 +217,21 @@ app.add_middleware(
 app.mount("/audio", StaticFiles(directory=OUTPUTS_DIR), name="audio")
 app.mount("/voice_audio", StaticFiles(directory=VOICES_DIR), name="voice_audio")
 # ═══════════════════════════════════════════════════════════════════════
+# MODEL STATUS
+# ═══════════════════════════════════════════════════════════════════════
+
+@app.get("/model/status")
+def model_status():
+    """Report model loading state for frontend warm-up indicators."""
+    is_loaded = model is not None
+    is_loading = _model_lock.locked() if hasattr(_model_lock, 'locked') else False
+    return {
+        "loaded": is_loaded,
+        "loading": is_loading,
+        "status": "loading" if is_loading else ("ready" if is_loaded else "idle"),
+    }
+
+# ═══════════════════════════════════════════════════════════════════════
 # SYSTEM STATS
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -892,6 +907,7 @@ class DubSegment(BaseModel):
     instruct: str = ""       # Per-segment voice override
     profile_id: str = ""     # Per-segment voice profile
     speed: Optional[float] = None
+    gain: Optional[float] = None  # Per-segment volume (0.0 - 2.0, default 1.0)
 
 
 
@@ -998,11 +1014,15 @@ async def dub_generate(job_id: str, req: DubRequest):
         total_samples = int(job["duration"] * sr)
         full_audio = torch.zeros(1, total_samples)
 
-        for start, end, wav, _ in all_segment_wavs:
+        for i, (start, end, wav, _) in enumerate(all_segment_wavs):
             s = int(start * sr)
-            wl = wav.shape[-1]
+            # Apply per-segment gain
+            seg_gain = req.segments[i].gain if req.segments[i].gain is not None else 1.0
+            seg_gain = max(0.0, min(2.0, seg_gain))  # Clamp 0-2x
+            adjusted = wav * seg_gain
+            wl = adjusted.shape[-1]
             e = min(s + wl, total_samples)
-            full_audio[:, s:e] = wav[:, :e - s]
+            full_audio[:, s:e] = adjusted[:, :e - s]
 
         # Save this dubbed track with the language code
         lang_code = req.language_code or "und"

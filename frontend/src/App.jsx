@@ -184,14 +184,50 @@ function App() {
   const [isSidebarProjectsCollapsed, setIsSidebarProjectsCollapsed] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
+  // ── UNDO / REDO ──
+  const undoStack = useRef([]);
+  const redoStack = useRef([]);
+  const pushUndo = (segments) => {
+    undoStack.current.push(JSON.stringify(segments));
+    if (undoStack.current.length > 50) undoStack.current.shift();
+    redoStack.current = []; // clear redo on new edit
+  };
+  const undo = () => {
+    if (undoStack.current.length === 0) return;
+    redoStack.current.push(JSON.stringify(dubSegments));
+    const prev = JSON.parse(undoStack.current.pop());
+    setDubSegments(prev);
+  };
+  const redo = () => {
+    if (redoStack.current.length === 0) return;
+    undoStack.current.push(JSON.stringify(dubSegments));
+    const next = JSON.parse(redoStack.current.pop());
+    setDubSegments(next);
+  };
+  // Wrap setDubSegments calls that are user-edits with undo tracking
+  const editSegments = (newSegs) => {
+    pushUndo(dubSegments);
+    setDubSegments(newSegs);
+  };
+
+  // ── MODEL STATUS ──
+  const [modelStatus, setModelStatus] = useState('idle'); // 'idle' | 'loading' | 'ready'
+
   // ── LOAD DATA FROM SERVER ──
   const [sysStats, setSysStats] = useState(null);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch(`${API}/sysinfo`);
-        if (res.ok) setSysStats(await res.json());
+        const [sysRes, modelRes] = await Promise.all([
+          fetch(`${API}/sysinfo`),
+          fetch(`${API}/model/status`),
+        ]);
+        if (sysRes.ok) setSysStats(await sysRes.json());
+        if (modelRes.ok) {
+          const ms = await modelRes.json();
+          setModelStatus(ms.status);
+        }
       } catch (e) {}
     };
     fetchStats();
@@ -281,6 +317,18 @@ function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
         if (mode === 'dub') saveProject();
+        return;
+      }
+      // ⌘+Z → Undo
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+      // ⌘+Shift+Z → Redo
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        redo();
         return;
       }
     };
@@ -680,6 +728,7 @@ function App() {
             start: s.start, end: s.end, text: s.text,
             instruct: fin_inst, profile_id: fin_prof,
             speed: s.speed || undefined,
+            gain: s.gain !== undefined && s.gain !== 1.0 ? s.gain : undefined,
           };
         }),
         language: dubLang === 'Auto' ? 'Auto' : dubLang,
@@ -918,12 +967,23 @@ function App() {
             <button onClick={() => setUiScale(1.5)} style={{fontSize:'0.58rem', padding:'1px 4px', border:'none', borderRadius:3, cursor:'pointer', background: uiScale === 1.5 ? 'rgba(255,255,255,0.1)' : 'transparent', color: uiScale === 1.5 ? '#fff' : '#a89984', whiteSpace:'nowrap'}}>Max</button>
           </div>
           {sysStats && (
-            <div style={{display:'flex', gap:'6px', fontSize:'0.55rem', color:'#a89984', background:'rgba(0,0,0,0.3)', padding:'2px 6px', borderRadius:'4px', border:'1px solid rgba(255,255,255,0.04)', whiteSpace:'nowrap', flexShrink:0}}>
+            <div style={{display:'flex', gap:'6px', fontSize:'0.55rem', color:'#a89984', background:'rgba(0,0,0,0.3)', padding:'2px 6px', borderRadius:'4px', border:'1px solid rgba(255,255,255,0.04)', whiteSpace:'nowrap', flexShrink:0, alignItems:'center'}}>
               <span><b style={{color:'#ebdbb2', fontWeight:600}}>RAM</b> {sysStats.ram.toFixed(1)}/{sysStats.total_ram.toFixed(0)}G</span>
               <span><b style={{color:'#ebdbb2', fontWeight:600}}>CPU</b> {sysStats.cpu.toFixed(0)}%</span>
               <span style={{borderLeft:'1px solid rgba(255,255,255,0.08)', paddingLeft:6}}>
                 <b style={{color: sysStats.gpu_active ? '#8ec07c' : '#ebdbb2', fontWeight:600}}>VRAM</b> {sysStats.vram.toFixed(1)}G
                 {sysStats.gpu_active && <span style={{color:'#8ec07c', marginLeft:3}}>●</span>}
+              </span>
+              <span style={{borderLeft:'1px solid rgba(255,255,255,0.08)', paddingLeft:6, display:'flex', alignItems:'center', gap:3}}>
+                <span style={{
+                  width:6, height:6, borderRadius:'50%', display:'inline-block',
+                  background: modelStatus === 'ready' ? '#8ec07c' : modelStatus === 'loading' ? '#fabd2f' : '#665c54',
+                  boxShadow: modelStatus === 'loading' ? '0 0 6px rgba(250,189,47,0.5)' : modelStatus === 'ready' ? '0 0 4px rgba(142,192,124,0.4)' : 'none',
+                  animation: modelStatus === 'loading' ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                }}/>
+                <span style={{color: modelStatus === 'ready' ? '#8ec07c' : modelStatus === 'loading' ? '#fabd2f' : '#665c54'}}>
+                  {modelStatus === 'ready' ? 'Model Ready' : modelStatus === 'loading' ? 'Loading…' : 'Model Idle'}
+                </span>
               </span>
             </div>
           )}
@@ -1403,6 +1463,7 @@ function App() {
                         <span style={{width:50}}>Spkr</span>
                         <span style={{flex:1}}>Text</span>
                         <span style={{width:90}}>Voice</span>
+                        <span style={{width:30}} title="Volume (0-200%)">Vol</span>
                         <span style={{width:40}}></span>
                       </div>
                       {dubSegments.map((seg, idx) => (
@@ -1417,11 +1478,11 @@ function App() {
                           </span>
                           <span style={{width:50, fontSize:'0.58rem', color:'#a89984'}}>{seg.speaker_id || ''}</span>
                           <input className="input-base segment-input" value={seg.text}
-                            onChange={e => setDubSegments(dubSegments.map(s => s.id===seg.id?{...s,text:e.target.value}:s))}
+                            onChange={e => editSegments(dubSegments.map(s => s.id===seg.id?{...s,text:e.target.value}:s))}
                             disabled={dubStep==='generating'}/>
                           <select className="input-base" style={{width:90, fontSize:'0.6rem', padding:'1px 3px'}}
                             value={seg.profile_id||''} disabled={dubStep==='generating'}
-                            onChange={e => setDubSegments(dubSegments.map(s => s.id===seg.id?{...s,profile_id:e.target.value}:s))}>
+                            onChange={e => editSegments(dubSegments.map(s => s.id===seg.id?{...s,profile_id:e.target.value}:s))}>
                             <option value="">Default</option>
                             {profiles.length > 0 && (
                               <optgroup label="Clone Profiles">
@@ -1434,12 +1495,17 @@ function App() {
                               </optgroup>
                             )}
                           </select>
+                          <input type="range" min="0" max="200" value={Math.round((seg.gain ?? 1.0) * 100)} title={`${Math.round((seg.gain ?? 1.0) * 100)}%`}
+                            disabled={dubStep==='generating'}
+                            onChange={e => editSegments(dubSegments.map(s => s.id===seg.id?{...s,gain:Number(e.target.value)/100}:s))}
+                            style={{width:30, height:2, padding:0, margin:0, accentColor: (seg.gain ?? 1.0) > 1.2 ? '#fb4934' : (seg.gain ?? 1.0) < 0.5 ? '#83a598' : '#a89984'}}
+                          />
                           <div style={{display:'flex', gap:1, width:40}}>
                             <button className="segment-play" disabled={dubStep==='generating'} title="Live Preview" onClick={(e) => handleSegmentPreview(seg, e)}>
                               {segmentPreviewLoading === seg.id ? <Loader className="spinner" size={9}/> : <Headphones size={9}/>}
                             </button>
                             <button className="segment-del" disabled={dubStep==='generating'}
-                              onClick={() => setDubSegments(dubSegments.filter(s=>s.id!==seg.id))}><Trash2 size={9}/></button>
+                              onClick={() => editSegments(dubSegments.filter(s=>s.id!==seg.id))}><Trash2 size={9}/></button>
                           </div>
                         </div>
                       ))}
@@ -1578,11 +1644,19 @@ function App() {
                   {!selectedProfile && (
                     <>
                       <div style={{display:'flex', gap:'8px', alignItems:'stretch'}}>
-                        <label htmlFor="audio-upload" className="file-drag" style={{padding: '6px', flex:1}}>
-                          <UploadCloud color="#a89984" size={18}/>
-                          <p>{refAudio ? <span style={{color:'#ebdbb2'}}>{refAudio.name}</span> : "Select WAV / MP3"}</p>
-                        </label>
                         <input type="file" accept="audio/*" onChange={e => { setRefAudio(e.target.files[0]); setSelectedProfile(null); }} style={{display:'none'}} id="audio-upload" />
+                        <label htmlFor="audio-upload" className="file-drag" style={{padding: '6px', flex:1}}
+                          onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor='#d3869b'; e.currentTarget.style.background='rgba(211,134,155,0.05)'; }}
+                          onDragLeave={e => { e.currentTarget.style.borderColor=''; e.currentTarget.style.background=''; }}
+                          onDrop={e => {
+                            e.preventDefault();
+                            e.currentTarget.style.borderColor=''; e.currentTarget.style.background='';
+                            const file = e.dataTransfer.files[0];
+                            if (file && file.type.startsWith('audio/')) { setRefAudio(file); setSelectedProfile(null); }
+                          }}>
+                          <UploadCloud color="#a89984" size={18}/>
+                          <p>{refAudio ? <span style={{color:'#ebdbb2'}}>{refAudio.name}</span> : "Drop audio or click · WAV / MP3"}</p>
+                        </label>
 
                         {/* Mic Record Button */}
                         {isCleaning ? (
