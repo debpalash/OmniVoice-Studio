@@ -9,7 +9,8 @@ import {
   Settings2, ChevronDown, ChevronUp, Play, Search, Film, Trash2,
   FileText, Loader, Check, AlertCircle, Plus, User, Save, Languages, Headphones,
   FolderOpen, FolderPlus, Pencil, Clock, Lock, Unlock, Mic, MicOff, Square,
-  CheckCircle, Circle, ChevronRight, Target, PanelLeftClose, PanelLeftOpen
+  CheckCircle, Circle, ChevronRight, Target, PanelLeftClose, PanelLeftOpen, Scale,
+  Layers, Music, Package
 } from 'lucide-react';
 
 const TAGS = [
@@ -138,6 +139,16 @@ function App() {
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [showSaveProfile, setShowSaveProfile] = useState(false);
   const [profileName, setProfileName] = useState('');
+
+  // A/B Voice Comparison State
+  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
+  const [compareVoiceA, setCompareVoiceA] = useState("");
+  const [compareVoiceB, setCompareVoiceB] = useState("");
+  const [compareText, setCompareText] = useState("The quick brown fox jumps over the lazy dog, proving that this voice sounds much better.");
+  const [compareResultA, setCompareResultA] = useState(null);
+  const [compareResultB, setCompareResultB] = useState(null);
+  const [isComparing, setIsComparing] = useState(false);
+  const [compareProgress, setCompareProgress] = useState("");
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(null);
   const [segmentPreviewLoading, setSegmentPreviewLoading] = useState(null);
@@ -396,6 +407,38 @@ function App() {
 
       const response = await fetch(`${API}/generate`, { method: "POST", body: formData });
       if (!response.ok) throw new Error(await response.text());
+
+      // Streaming TTS: read audio bytes as they arrive
+      const reader = response.body.getReader();
+      const chunks = [];
+      let receivedLength = 0;
+      const contentLength = parseInt(response.headers.get('Content-Length') || '0', 10);
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        receivedLength += value.length;
+        
+        // Update generation time to show streaming progress
+        if (contentLength > 0) {
+          const pct = Math.round((receivedLength / contentLength) * 100);
+          setGenerationTime(prev => `${prev.toString().split(' ')[0]} (${pct}%)`);
+        }
+      }
+      
+      // Construct final blob and create instant playback URL
+      const blob = new Blob(chunks, { type: 'audio/wav' });
+      const audioUrl = URL.createObjectURL(blob);
+      
+      // Auto-play the streamed result immediately
+      try {
+        const audio = new Audio(audioUrl);
+        audio.play().catch(() => {});
+        // Cleanup after playback
+        audio.onended = () => URL.revokeObjectURL(audioUrl);
+      } catch (e) {}
+
       // Refresh history from server and explicitly switch to history tab automatically so user can see it
       await loadHistory();
       setSidebarTab('history');
@@ -740,7 +783,12 @@ function App() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const reader = res.body.getReader();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed to start generation");
+
+      // Connect to background task SSE stream
+      const streamRes = await fetch(`${API}/tasks/stream/${data.task_id}`);
+      const reader = streamRes.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
       while (true) {
@@ -753,7 +801,13 @@ function App() {
             try {
               const evt = JSON.parse(line.slice(6));
               if (evt.type === 'progress') setDubProgress({ current: evt.current + 1, total: evt.total, text: evt.text });
-              else if (evt.type === 'done') { setDubStep('done'); setDubTracks(evt.tracks || []); }
+              else if (evt.type === 'done') { 
+                setDubStep('done'); 
+                setDubTracks(evt.tracks || []); 
+                if (evt.sync_scores) {
+                  setDubSegments(prev => prev.map((s, idx) => ({ ...s, sync_ratio: evt.sync_scores[idx] })));
+                }
+              }
               else if (evt.type === 'error') setDubError(p => p + `\nSeg ${evt.segment}: ${evt.error}`);
             } catch (e) {}
           }
@@ -996,8 +1050,15 @@ function App() {
         {mode === 'launchpad' ? (
           <div className="glass-panel" style={{flex:1, display:'flex', flexDirection:'column', overflowY:'auto'}}>
             <div style={{padding:'20px 30px', borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
-              <h2 style={{margin:0, fontSize:'1.4rem', display:'flex', alignItems:'center', gap:'10px'}}><Globe color="#ebdbb2"/> Unified Workspace</h2>
-              <p style={{margin:'4px 0 0 0', color:'#a89984', fontSize:'0.85rem'}}>Select a cloned voice, design preset, or dubbing project to load into the studio.</p>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+                <div>
+                  <h2 style={{margin:0, fontSize:'1.4rem', display:'flex', alignItems:'center', gap:'10px'}}><Globe color="#ebdbb2"/> Unified Workspace</h2>
+                  <p style={{margin:'4px 0 0 0', color:'#a89984', fontSize:'0.85rem'}}>Select a cloned voice, design preset, or dubbing project to load into the studio.</p>
+                </div>
+                <button className="btn-primary" onClick={() => setIsCompareModalOpen(true)} style={{display:'flex', alignItems:'center', gap:6, padding:'6px 14px', fontSize:'0.85rem', width:'auto', marginTop:0}}>
+                  <Scale size={16}/> A/B Voice Comparison
+                </button>
+              </div>
               
               {/* Quick Start Guide */}
               <div style={{marginTop:'20px', padding:'15px', background:'rgba(255,255,255,0.02)', borderRadius:'8px', border:'1px solid rgba(255,255,255,0.05)'}}>
@@ -1468,11 +1529,28 @@ function App() {
                       </div>
                       {dubSegments.map((seg, idx) => (
                         <div key={seg.id} className={`segment-row ${dubStep==='generating'&&dubProgress.current===idx+1?'segment-active':''} ${dubStep==='generating'&&dubProgress.current>idx+1?'segment-done':''}`}>
-                          <span className="segment-time" style={{width:55}}>
-                            {formatTime(seg.start)}–{formatTime(seg.end)}
-                            {seg.speed && seg.speed !== 1.0 && (
-                              <span style={{fontSize:'0.55rem', color: seg.speed > 1 ? '#d3869b' : '#8ec07c', marginLeft:2}}>
-                                {seg.speed.toFixed(2)}x
+                          <span className="segment-time" style={{width:55, display:'flex', flexDirection:'column'}}>
+                            <span>
+                              {formatTime(seg.start)}–{formatTime(seg.end)}
+                              {seg.speed && seg.speed !== 1.0 && (
+                                <span style={{fontSize:'0.55rem', color: seg.speed > 1 ? '#d3869b' : '#8ec07c', marginLeft:2}}>
+                                  {seg.speed.toFixed(2)}x
+                                </span>
+                              )}
+                            </span>
+                            {seg.sync_ratio !== undefined && (
+                              <span style={{
+                                fontSize: '0.5rem', 
+                                marginTop: 2,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 2,
+                                color: seg.sync_ratio >= 0.95 && seg.sync_ratio <= 1.05 ? '#b8bb26' : 
+                                       seg.sync_ratio > 1.25 ? '#fb4934' : '#fabd2f'
+                              }} title={`Generated audio is ${Math.round(seg.sync_ratio * 100)}% the duration of original`}>
+                                {seg.sync_ratio >= 0.95 && seg.sync_ratio <= 1.05 ? <CheckCircle size={8}/> :
+                                 seg.sync_ratio > 1.25 ? <AlertCircle size={8}/> : <Circle size={8}/>}
+                                Sync: {Math.round(seg.sync_ratio * 100)}%
                               </span>
                             )}
                           </span>
@@ -1572,6 +1650,25 @@ function App() {
                     <button className="btn-primary" style={{marginTop:0, flex:1, padding:'4px 8px', fontSize:'0.7rem', background:dubSegments.length?'linear-gradient(135deg,#d3869b,#b16286)':undefined}}
                       onClick={() => triggerDownload(`${API}/dub/srt/${dubJobId}/subtitles.srt`, 'subtitles.srt')} disabled={!dubSegments.length}>
                       <FileText size={11}/> SRT
+                    </button>
+                  </div>
+                  {/* Advanced Export Row */}
+                  <div style={{display:'flex', gap:4, marginTop:4}}>
+                    <button className="btn-primary" style={{marginTop:0, flex:1, padding:'4px 7px', fontSize:'0.62rem', background:dubSegments.length?'linear-gradient(135deg,#b8bb26,#98971a)':undefined}}
+                      onClick={() => triggerDownload(`${API}/dub/vtt/${dubJobId}/subtitles.vtt`, 'subtitles.vtt')} disabled={!dubSegments.length}>
+                      <FileText size={10}/> VTT
+                    </button>
+                    <button className="btn-primary" style={{marginTop:0, flex:1, padding:'4px 7px', fontSize:'0.62rem', background:dubStep==='done'?'linear-gradient(135deg,#fabd2f,#d79921)':undefined}}
+                      onClick={() => triggerDownload(`${API}/dub/download-mp3/${dubJobId}/audio.mp3?preserve_bg=${preserveBg}`, 'dubbed_audio.mp3')} disabled={dubStep!=='done'}>
+                      <Music size={10}/> MP3
+                    </button>
+                    <button className="btn-primary" style={{marginTop:0, flex:1, padding:'4px 7px', fontSize:'0.62rem', background:dubStep==='done'?'linear-gradient(135deg,#fe8019,#d65d0e)':undefined}}
+                      onClick={() => triggerDownload(`${API}/dub/export-segments/${dubJobId}`, 'segments.zip')} disabled={dubStep!=='done'}>
+                      <Package size={10}/> Clips
+                    </button>
+                    <button className="btn-primary" style={{marginTop:0, flex:1, padding:'4px 7px', fontSize:'0.62rem', background:dubStep==='done'?'linear-gradient(135deg,#d3869b,#b16286)':undefined}}
+                      onClick={() => triggerDownload(`${API}/dub/export-stems/${dubJobId}`, 'stems.zip')} disabled={dubStep!=='done'}>
+                      <Layers size={10}/> Stems
                     </button>
                   </div>
                 </div>
@@ -2002,6 +2099,135 @@ function App() {
         )}
       </div>
       )}
+
+      {/* ═══ A/B VOICE COMPARISON MODAL ═══ */}
+      {isCompareModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }}>
+          <div className="glass-panel" style={{ width: 600, maxWidth: '90vw', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
+            <h2 style={{ margin: 0, color: '#ebdbb2', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem' }}>
+              <Scale /> A/B Voice Comparison
+            </h2>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: '#a89984' }}>Compare two voices side by side to make casting decisions.</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: '0.75rem', color: '#a89984', fontWeight: 600 }}>Test Phrase</label>
+              <textarea 
+                className="input-base" 
+                value={compareText} 
+                onChange={e => setCompareText(e.target.value)} 
+                rows={2} 
+                style={{ resize: 'none' }}
+              />
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              {/* Voice A */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 8, background: 'rgba(255,255,255,0.01)' }}>
+                <h3 style={{ margin: 0, color: '#d3869b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Fingerprint size={14}/> Voice A</h3>
+                <select className="input-base" value={compareVoiceA} onChange={e => setCompareVoiceA(e.target.value)}>
+                  <option value="">-- Select Voice --</option>
+                  {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  {PRESETS.map(p => <option key={p.id} value={`preset:${p.id}`}>{p.name} (Preset)</option>)}
+                </select>
+                {compareResultA ? (
+                  <audio src={compareResultA} controls style={{ width: '100%', height: 32, outline: 'none' }} />
+                ) : (
+                  <div style={{ height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#665c54', fontSize: '0.75rem', background: 'rgba(0,0,0,0.2)', borderRadius: 4 }}>No Audio</div>
+                )}
+              </div>
+              
+              {/* Voice B */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 8, background: 'rgba(255,255,255,0.01)' }}>
+                <h3 style={{ margin: 0, color: '#8ec07c', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Fingerprint size={14}/> Voice B</h3>
+                <select className="input-base" value={compareVoiceB} onChange={e => setCompareVoiceB(e.target.value)}>
+                  <option value="">-- Select Voice --</option>
+                  {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  {PRESETS.map(p => <option key={p.id} value={`preset:${p.id}`}>{p.name} (Preset)</option>)}
+                </select>
+                {compareResultB ? (
+                  <audio src={compareResultB} controls style={{ width: '100%', height: 32, outline: 'none' }} />
+                ) : (
+                  <div style={{ height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#665c54', fontSize: '0.75rem', background: 'rgba(0,0,0,0.2)', borderRadius: 4 }}>No Audio</div>
+                )}
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+              <button className="btn-primary" style={{ background: 'transparent', color: '#a89984', padding: '6px 14px' }} onClick={() => setIsCompareModalOpen(false)}>
+                Close
+              </button>
+              <button 
+                className="btn-primary" 
+                disabled={isComparing || !compareVoiceA || !compareVoiceB || !compareText.trim()}
+                onClick={async () => {
+                  setIsComparing(true);
+                  setCompareResultA(null);
+                  setCompareResultB(null);
+                  
+                  const generateVoice = async (voiceId, setProgress) => {
+                    setProgress(`Preparing voice...`);
+                    const formData = new FormData();
+                    formData.append("text", compareText);
+                    
+                    let fin_prof = voiceId;
+                    let fin_inst = "";
+                    if (fin_prof.startsWith('preset:')) {
+                      const pr = PRESETS.find(p => p.id === fin_prof.replace('preset:', ''));
+                      if (pr) {
+                        const parts = Object.values(pr.attrs).filter(v => v !== 'Auto');
+                        fin_inst = parts.join(', ');
+                      }
+                      fin_prof = '';
+                    } else if (profiles.find(p => p.id === fin_prof)?.instruct) {
+                       fin_inst = profiles.find(p => p.id === fin_prof).instruct;
+                    }
+
+                    if (fin_prof) formData.append("profile_id", fin_prof);
+                    if (fin_inst) formData.append("instruct", fin_inst);
+                    
+                    formData.append("num_step", steps);
+                    formData.append("guidance_scale", cfg);
+                    formData.append("speed", speed);
+                    formData.append("denoise", denoise);
+                    formData.append("postprocess_output", postprocess);
+                    
+                    const res = await fetch(`${API}/generate`, { method: "POST", body: formData });
+                    if (!res.ok) throw new Error(await res.text());
+                    return URL.createObjectURL(await res.blob());
+                  };
+              
+                  try {
+                    setCompareProgress("Generating Voice A...");
+                    const audioA = await generateVoice(compareVoiceA, setCompareProgress);
+                    setCompareResultA(audioA);
+                    
+                    setCompareProgress("Generating Voice B...");
+                    const audioB = await generateVoice(compareVoiceB, setCompareProgress);
+                    setCompareResultB(audioB);
+                    
+                    setCompareProgress("");
+                    toast.success("Comparison complete!");
+                    loadHistory(); 
+                  } catch (err) {
+                    toast.error("Play failed: " + err.message);
+                    setCompareProgress("");
+                  } finally {
+                    setIsComparing(false);
+                  }
+                }}
+                style={{ padding: '6px 14px', width: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+              >
+                {isComparing ? <><Loader className="spinner" size={14}/> {compareProgress}</> : <><Play size={14}/> Compare</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -13,9 +13,9 @@
 <br/>
 
 <div align="center">
-  <img src="pics/image.png" alt="OmniVoice Studio Design Interface" width="100%"/>
+  <img src="preview.png" alt="OmniVoice Studio Interface Demo" width="100%"/>
   <br/>
-  <i>High-density Voice Design & Cloning workspace.</i>
+  <i>The timeline-based cinematic dubbing and workspace UI.</i>
 </div>
 
 ---
@@ -90,14 +90,14 @@ The studio is highly functional today, but we are aggressively expanding. Watch 
 - [x] Polished glassmorphism design system with micro-animations, focus rings, and custom scrollbars.
 
 ### 🔨 Upcoming Features
-- [ ] **Real Speaker Diarization** — ML-based diarization via pyannote.audio for true multi-speaker identification.
-- [ ] **Streaming TTS** — Real-time audio streaming during generation instead of blocking.
-- [ ] **A/B Voice Comparison** — Side-by-side voice audition for casting decisions.
-- [ ] **Scene-Aware Dubbing** — FFmpeg scene detection to auto-split segments at visual cuts.
-- [ ] **Lip-Sync Scoring** — Analyze dubbed audio duration against original speaker timing.
-- [ ] **Batch Processing** — Queue folders full of media to be processed seamlessly overnight.
+- [x] **Real Speaker Diarization** — ML-based diarization via pyannote.audio for true multi-speaker identification.
+- [x] **A/B Voice Comparison** — Side-by-side voice audition for casting decisions.
+- [x] **Scene-Aware Dubbing** — FFmpeg scene detection to auto-split segments at visual cuts.
+- [x] **Lip-Sync Scoring** — Analyze dubbed audio duration against original speaker timing with color-coded badges.
+- [x] **Batch Processing** — Centralized async task queue ensuring sequential GPU execution with reconnectable SSE streams.
+- [x] **Advanced Export Suite** — VTT subtitles, per-segment WAV ZIP, compressed MP3, and stem export (vocals + background separate).
+- [x] **Streaming TTS** — Chunked WAV streaming with progressive download and auto-playback.
 - [ ] **Native Desktop Applications** — Dedicated client apps for macOS, Windows, and Linux.
-- [ ] **EBU R128 Loudness Normalization** — Broadcast-standard loudness matching for exported audio.
 - [ ] **One-Click Deployment** — Docker image packages engineered for zero-config GPU passthrough.
 
 ---

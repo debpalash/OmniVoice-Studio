@@ -59,6 +59,72 @@ _dub_jobs = {}
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# ASYNC BATCH TASK MANAGER
+# ═══════════════════════════════════════════════════════════════════════
+
+class TaskManager:
+    def __init__(self):
+        self.queue = None
+        self.active_tasks = {}
+        
+    def _init_queue(self):
+        if self.queue is None:
+            self.queue = asyncio.Queue()
+
+    async def add_task(self, task_id, task_type, func, *args, **kwargs):
+        self._init_queue()
+        task_obj = {
+            "status": "pending",
+            "type": task_type,
+            "created_at": time.time(),
+            "history": [],
+            "listeners": [],
+            "error": None
+        }
+        self.active_tasks[task_id] = task_obj
+        await self.queue.put((task_id, func, args, kwargs))
+
+    async def _push_event(self, task_id, event_str):
+        if task_id not in self.active_tasks: return
+        t = self.active_tasks[task_id]
+        if event_str is not None:
+            t["history"].append(event_str)
+        for q in t["listeners"]:
+            await q.put(event_str)
+
+    async def worker(self):
+        self._init_queue()
+        while True:
+            task_id, func, args, kwargs = await self.queue.get()
+            t = self.active_tasks.get(task_id)
+            if not t:
+                self.queue.task_done()
+                continue
+                
+            t["status"] = "running"
+            try:
+                import inspect
+                res = func(*args, **kwargs)
+                if inspect.isasyncgen(res):
+                    async for update in res:
+                        await self._push_event(task_id, update)
+                elif inspect.iscoroutine(res):
+                    await res
+                t["status"] = "done"
+            except Exception as e:
+                t["status"] = "failed"
+                t["error"] = str(e)
+                try:
+                    await self._push_event(task_id, f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n")
+                except: pass
+            finally:
+                await self._push_event(task_id, None) # EOF
+                self.queue.task_done()
+
+task_manager = TaskManager()
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # SQLITE DATABASE
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -198,8 +264,10 @@ async def _idle_worker():
 async def lifespan(app: FastAPI):
     _init_db()
     idle_task = asyncio.create_task(_idle_worker())
+    worker_task = asyncio.create_task(task_manager.worker())
     yield
     idle_task.cancel()
+    worker_task.cancel()
 
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -666,17 +734,27 @@ async def generate_speech(
         conn.commit()
         conn.close()
 
-        # Also return the WAV bytes for immediate playback
+        # Stream WAV bytes in chunks for progressive playback
         buffer = io.BytesIO()
         torchaudio.save(buffer, audio_tensor, model.sampling_rate, format="wav")
         buffer.seek(0)
-        return Response(
-            content=buffer.read(), media_type="audio/wav",
+        wav_bytes = buffer.read()
+
+        async def _stream_wav():
+            chunk_size = 16384  # 16KB chunks for smooth streaming
+            for i in range(0, len(wav_bytes), chunk_size):
+                yield wav_bytes[i:i + chunk_size]
+
+        return StreamingResponse(
+            _stream_wav(),
+            media_type="audio/wav",
             headers={
                 "X-Audio-Id": audio_id,
                 "X-Gen-Time": str(gen_time),
                 "X-Audio-Path": audio_filename,
                 "X-Seed": str(used_seed) if used_seed is not None else "",
+                "X-Audio-Duration": str(audio_dur),
+                "Content-Length": str(len(wav_bytes)),
             }
         )
     except Exception as e:
@@ -689,6 +767,28 @@ async def generate_speech(
 # ═══════════════════════════════════════════════════════════════════════
 # VIDEO DUBBING PIPELINE
 # ═══════════════════════════════════════════════════════════════════════
+
+_diar_pipeline = None
+
+def _get_diarization_pipeline():
+    global _diar_pipeline
+    hf_token = os.environ.get("HF_TOKEN")
+    if not hf_token:
+        return None
+    if _diar_pipeline is not None:
+        return _diar_pipeline
+    try:
+        import torch
+        from pyannote.audio import Pipeline
+        logger.info("Loading Pyannote Diarization Pipeline...")
+        _diar_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", use_auth_token=hf_token)
+        if torch.cuda.is_available():
+            _diar_pipeline.to(torch.device("cuda"))
+        logger.info("Pyannote Diarization Pipeline loaded successfully.")
+        return _diar_pipeline
+    except Exception as e:
+        logger.error(f"Failed to load Pyannote pipeline: {e}")
+        return None
 
 def _find_ffmpeg():
     for path in ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "ffmpeg"]:
@@ -743,32 +843,50 @@ async def dub_upload(video: UploadFile = File(...)):
     except Exception:
         dur = 0.0
 
-    # Run demucs to isolate vocals vs background music
     vocals_path = os.path.join(job_dir, "vocals.wav")
     no_vocals_path = os.path.join(job_dir, "no_vocals.wav")
-    try:
-        # Run demucs CLI asynchronously to strictly output 2 stems
-        proc = await asyncio.create_subprocess_exec(
-            "uv", "run", "demucs", "--two-stems", "vocals", "-n", "htdemucs", "-d", get_best_device(),
-            audio_path, "-o", job_dir,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-        )
-        _, stderr = await proc.communicate()
-        if proc.returncode != 0:
-            raise Exception(stderr.decode())
-        
-        # Demucs creates an output structure: htdemucs/audio/vocals.wav
-        demucs_out = os.path.join(job_dir, "htdemucs", "audio")
-        if os.path.exists(os.path.join(demucs_out, "vocals.wav")):
-            import shutil
-            shutil.move(os.path.join(demucs_out, "vocals.wav"), vocals_path)
-            shutil.move(os.path.join(demucs_out, "no_vocals.wav"), no_vocals_path)
-            # Remove demucs temp dir
-            shutil.rmtree(os.path.join(job_dir, "htdemucs"))
-    except Exception as e:
-        logger.warning(f"Demucs failed, falling back to mixed audio. {e}")
-        vocals_path = audio_path
-        no_vocals_path = None
+    scene_cuts = []
+
+    async def run_demucs():
+        nonlocal vocals_path, no_vocals_path
+        try:
+            # Run demucs CLI asynchronously to strictly output 2 stems
+            proc = await asyncio.create_subprocess_exec(
+                "uv", "run", "demucs", "--two-stems", "vocals", "-n", "htdemucs", "-d", get_best_device(),
+                audio_path, "-o", job_dir,
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
+            _, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                raise Exception(stderr.decode())
+            
+            # Demucs creates an output structure: htdemucs/audio/vocals.wav
+            demucs_out = os.path.join(job_dir, "htdemucs", "audio")
+            if os.path.exists(os.path.join(demucs_out, "vocals.wav")):
+                import shutil
+                shutil.move(os.path.join(demucs_out, "vocals.wav"), vocals_path)
+                shutil.move(os.path.join(demucs_out, "no_vocals.wav"), no_vocals_path)
+                shutil.rmtree(os.path.join(job_dir, "htdemucs"))
+        except Exception as e:
+            logger.warning(f"Demucs failed, falling back to mixed audio. {e}")
+            vocals_path = audio_path
+            no_vocals_path = None
+
+    async def run_scene_detection():
+        nonlocal scene_cuts
+        try:
+            scene_proc = await asyncio.create_subprocess_exec(
+                ffmpeg, "-i", video_path, "-filter:v", "select='gt(scene,0.3)',showinfo", "-f", "null", "-",
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
+            _, stderr_scene = await scene_proc.communicate()
+            import re
+            matches = re.finditer(r"pts_time:([\d\.]+)", stderr_scene.decode())
+            scene_cuts = [float(m.group(1)) for m in matches]
+        except Exception as e:
+            logger.warning(f"Scene detection failed: {e}")
+
+    await asyncio.gather(run_demucs(), run_scene_detection())
 
     _dub_jobs[job_id] = {
         "video_path": video_path, 
@@ -777,6 +895,7 @@ async def dub_upload(video: UploadFile = File(...)):
         "no_vocals_path": no_vocals_path,
         "duration": dur, "filename": video.filename,
         "segments": None, "dubbed_tracks": {},
+        "scene_cuts": scene_cuts,
     }
     return {"job_id": job_id, "duration": round(dur, 2), "filename": video.filename}
 
@@ -862,19 +981,88 @@ async def dub_transcribe(job_id: str):
                         t += sent_dur
         else:
             segments.append({"start": 0.0, "end": job["duration"], "text": result.get("text", "").strip()})
-        # Apply basic Diarization (Heuristic fallback / pyannote skeleton)
-        # If segments have gaps > 1.2s, assume natural speaker alternation or same speaker.
-        # For a true production deployment, plug pyannote.audio pipeline here guarded by HF_TOKEN.
-        current_speaker_idx = 1
-        last_end = 0.0
+        # Apply Diarization (pyannote.audio if HF_TOKEN is set, else Heuristic fallback)
+        diar_pipe = _get_diarization_pipeline()
         
-        for i, s in enumerate(segments):
-            if i > 0 and (s["start"] - last_end) > 1.2:
-                # Toggle speaker on significant silence gaps for multi-speaker simulation
-                current_speaker_idx = 2 if current_speaker_idx == 1 else 1
-            s["speaker_id"] = f"Speaker {current_speaker_idx}"
-            s["id"] = str(uuid.uuid4())[:8] # assign fresh ID
-            last_end = s["end"]
+        if diar_pipe:
+            try:
+                asr_audio_target = job.get("vocals_path", job.get("audio_path"))
+                diarization = diar_pipe(asr_audio_target)
+                
+                for s in segments:
+                    seg_mid = (s["start"] + s["end"]) / 2.0
+                    assigned_speaker = "Speaker 1"
+                    for turn, _, speaker in diarization.itertracks(yield_label=True):
+                        if turn.start <= seg_mid <= turn.end:
+                            # Map pyannote generic "SPEAKER_00" to "Speaker 1"
+                            speaker_idx = int(speaker.split("_")[-1]) + 1
+                            assigned_speaker = f"Speaker {speaker_idx}"
+                            break
+                    s["speaker_id"] = assigned_speaker
+                    s["id"] = str(uuid.uuid4())[:8] # assign fresh ID
+            except Exception as e:
+                logger.error(f"Pyannote diarization failed during inference: {e}. Falling back to heuristic.")
+                diar_pipe = None
+
+        if not diar_pipe:
+            # Fallback heuristic
+            current_speaker_idx = 1
+            last_end = 0.0
+            
+            for i, s in enumerate(segments):
+                if i > 0 and (s["start"] - last_end) > 1.2:
+                    current_speaker_idx = 2 if current_speaker_idx == 1 else 1
+                s["speaker_id"] = f"Speaker {current_speaker_idx}"
+                s["id"] = str(uuid.uuid4())[:8] # assign fresh ID
+                last_end = s["end"]
+
+        # --- SCENE-AWARE DUBBING ---
+        scene_cuts = job.get("scene_cuts", [])
+        if scene_cuts:
+            sorted_cuts = sorted(scene_cuts)
+            new_segments = []
+            for s in segments:
+                s_start = s["start"]
+                s_end = s["end"]
+                valid_cuts = [c for c in sorted_cuts if c > s_start + 0.2 and c < s_end - 0.2]
+                
+                if not valid_cuts:
+                    new_segments.append(s)
+                else:
+                    curr_start = s_start
+                    curr_text = s["text"]
+                    total_dur = s_end - s_start
+                    
+                    for cut in valid_cuts:
+                        ratio = (cut - curr_start) / max(total_dur, 0.01)
+                        split_idx = int(len(curr_text) * ratio)
+                        # Avoid splitting words exactly in half if possible
+                        space_idx = curr_text.rfind(' ', 0, split_idx + 5)
+                        if space_idx != -1 and space_idx > split_idx - 10:
+                            split_idx = space_idx
+                            
+                        part_text = curr_text[:split_idx].strip()
+                        curr_text = curr_text[split_idx:].strip()
+                        
+                        if part_text:
+                            new_seg = dict(s)
+                            new_seg["start"] = round(curr_start, 2)
+                            new_seg["end"] = round(cut, 2)
+                            new_seg["text"] = part_text
+                            new_seg["id"] = str(uuid.uuid4())[:8]
+                            new_segments.append(new_seg)
+                            
+                        curr_start = cut
+                        total_dur = s_end - curr_start
+                        
+                    if curr_text:
+                        new_seg = dict(s)
+                        new_seg["start"] = round(curr_start, 2)
+                        new_seg["end"] = round(s_end, 2)
+                        new_seg["text"] = curr_text
+                        new_seg["id"] = str(uuid.uuid4())[:8]
+                        new_segments.append(new_seg)
+            segments = new_segments
 
         # Store full transcript
         job["full_transcript"] = " ".join(s["text"] for s in segments)
@@ -923,7 +1111,7 @@ class DubRequest(BaseModel):
 
 @app.post("/dub/generate/{job_id}")
 async def dub_generate(job_id: str, req: DubRequest):
-    """Generate TTS per segment. Returns SSE progress stream."""
+    """Adds a dub generation job to the async batch task pool."""
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -933,6 +1121,7 @@ async def dub_generate(job_id: str, req: DubRequest):
     async def _stream():
         total = len(req.segments)
         all_segment_wavs = []
+        sync_scores = []
 
         for i, seg in enumerate(req.segments):
             yield f"data: {json.dumps({'type': 'progress', 'current': i, 'total': total, 'text': seg.text[:50]})}\n\n"
@@ -942,6 +1131,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                 sr = _model.sampling_rate
                 silence = torch.zeros(1, int(seg_duration * sr))
                 all_segment_wavs.append((seg.start, seg.end, silence, sr))
+                sync_scores.append(1.0)
                 continue
 
             def _gen(text, lang, instruct_str, dur_s, nstep, cfg, spd, profile_id=None):
@@ -999,6 +1189,12 @@ async def dub_generate(job_id: str, req: DubRequest):
                     seg.text, req.language, seg_instruct, seg_duration,
                     req.num_step, req.guidance_scale, seg_speed, seg_profile,
                 )
+                
+                # Calculate lip-sync score natively from tensor
+                generated_dur = audio_tensor.shape[-1] / _model.sampling_rate
+                sync_ratio = round(generated_dur / max(seg_duration, 0.01), 3)
+                sync_scores.append(sync_ratio)
+
                 # Save individual segment WAV for preview
                 seg_wav_path = os.path.join(DUB_DIR, job_id, f"seg_{i}.wav")
                 torchaudio.save(seg_wav_path, audio_tensor, _model.sampling_rate)
@@ -1007,6 +1203,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                 yield f"data: {json.dumps({'type': 'error', 'segment': i, 'error': str(e)})}\n\n"
                 sr = _model.sampling_rate
                 all_segment_wavs.append((seg.start, seg.end, torch.zeros(1, int(seg_duration * sr)), sr))
+                sync_scores.append(1.0)
 
         yield f"data: {json.dumps({'type': 'assembling'})}\n\n"
 
@@ -1048,9 +1245,39 @@ async def dub_generate(job_id: str, req: DubRequest):
         except Exception as e:
             logger.error(f"Failed to save dub history: {e}")
 
-        yield f"data: {json.dumps({'type': 'done', 'segments_processed': total, 'language_code': lang_code, 'tracks': list(job['dubbed_tracks'].keys())})}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'segments_processed': total, 'language_code': lang_code, 'tracks': list(job['dubbed_tracks'].keys()), 'sync_scores': sync_scores})}\n\n"
 
-    return StreamingResponse(_stream(), media_type="text/event-stream")
+    task_id = f"dub_{job_id}_{int(time.time())}"
+    await task_manager.add_task(task_id, "dub_generate", _stream)
+    return {"task_id": task_id}
+    
+@app.get("/tasks/stream/{task_id}")
+async def stream_task(task_id: str):
+    """Universal Server-Sent Event stream for background tasks."""
+    if task_id not in task_manager.active_tasks:
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    async def _reader():
+        t = task_manager.active_tasks[task_id]
+        q = asyncio.Queue()
+        t["listeners"].append(q)
+        
+        try:
+            for evt in t["history"]:
+                yield evt
+                
+            if t["status"] in ("done", "failed"):
+                return
+                
+            while True:
+                evt = await q.get()
+                if evt is None:
+                    break
+                yield evt
+        finally:
+            t["listeners"].remove(q)
+
+    return StreamingResponse(_reader(), media_type="text/event-stream")
 
 
 @app.get("/dub/tracks/{job_id}")
@@ -1376,6 +1603,207 @@ async def dub_export_srt(job_id: str):
         media_type="text/plain",
         headers={
             "Content-Disposition": f'attachment; filename="subtitles_{base_name}.srt"',
+        },
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# VTT SUBTITLE EXPORT
+# ═══════════════════════════════════════════════════════════════════════
+
+def _format_vtt_time(seconds):
+    """Format seconds as VTT timestamp: HH:MM:SS.mmm"""
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    ms = int((seconds % 1) * 1000)
+    return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
+
+
+@app.get("/dub/vtt/{job_id}")
+@app.get("/dub/vtt/{job_id}/{filename}")
+async def dub_export_vtt(job_id: str):
+    """Export transcript segments as a WebVTT subtitle file."""
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    segments = job.get("segments", [])
+    if not segments:
+        raise HTTPException(status_code=400, detail="No transcript segments available")
+
+    vtt_lines = ["WEBVTT", ""]
+    for i, seg in enumerate(segments):
+        start_ts = _format_vtt_time(seg["start"])
+        end_ts = _format_vtt_time(seg["end"])
+        vtt_lines.append(str(i + 1))
+        vtt_lines.append(f"{start_ts} --> {end_ts}")
+        vtt_lines.append(seg["text"])
+        vtt_lines.append("")
+
+    vtt_content = "\n".join(vtt_lines)
+    base_name = os.path.splitext(job.get('filename', 'video'))[0]
+    return Response(
+        content=vtt_content,
+        media_type="text/vtt",
+        headers={
+            "Content-Disposition": f'attachment; filename="subtitles_{base_name}.vtt"',
+        },
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# PER-SEGMENT WAV ZIP EXPORT
+# ═══════════════════════════════════════════════════════════════════════
+
+@app.get("/dub/export-segments/{job_id}")
+async def dub_export_segments_zip(job_id: str):
+    """Export individually named WAV files for each dubbed segment as a ZIP archive."""
+    import zipfile
+
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    segments = job.get("segments", [])
+    if not segments:
+        raise HTTPException(status_code=400, detail="No segments available")
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for i, seg in enumerate(segments):
+            seg_path = os.path.join(DUB_DIR, job_id, f"seg_{i}.wav")
+            if os.path.exists(seg_path):
+                speaker = seg.get("speaker_id", "Speaker1").replace(" ", "")
+                start_str = f"{seg['start']:.2f}"
+                end_str = f"{seg['end']:.2f}"
+                arc_name = f"{i+1:03d}_{start_str}-{end_str}_{speaker}.wav"
+                zf.write(seg_path, arc_name)
+
+    zip_buffer.seek(0)
+    base_name = os.path.splitext(job.get('filename', 'video'))[0]
+    safe_name = ''.join(c for c in base_name if c.isalnum() or c in '-_ ').strip() or 'segments'
+    return Response(
+        content=zip_buffer.read(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="segments_{safe_name}.zip"',
+        },
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# MP3 AUDIO EXPORT
+# ═══════════════════════════════════════════════════════════════════════
+
+@app.get("/dub/download-mp3/{job_id}")
+@app.get("/dub/download-mp3/{job_id}/{filename}")
+async def dub_download_mp3(job_id: str, lang: str = Query(None), preserve_bg: bool = Query(True)):
+    """Export dubbed audio as compressed MP3 (192kbps). ~10x smaller than WAV."""
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    tracks = job.get("dubbed_tracks", {})
+    if lang and lang in tracks:
+        wav_path = tracks[lang]["path"]
+    elif tracks:
+        wav_path = list(tracks.values())[0]["path"]
+    else:
+        raise HTTPException(status_code=400, detail="No dubbed audio track generated yet")
+
+    if not os.path.exists(wav_path):
+        raise HTTPException(status_code=404, detail="Audio file not found")
+
+    lang_label = lang or list(tracks.keys())[0]
+    ffmpeg = _find_ffmpeg()
+
+    # Optionally mix with background audio first
+    source_path = wav_path
+    bg_audio = job.get("no_vocals_path") if preserve_bg else None
+    if bg_audio and os.path.exists(bg_audio):
+        mixed_path = os.path.join(DUB_DIR, job_id, f"mixed_mp3_{lang_label}.wav")
+        cmd_mix = [
+            ffmpeg, "-i", bg_audio, "-i", wav_path,
+            "-filter_complex", "[0:a][1:a]amix=inputs=2:duration=longest:dropout_transition=2:weights=0.8 1.2[aout]",
+            "-map", "[aout]", "-c:a", "pcm_s16le", "-y", mixed_path
+        ]
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd_mix, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
+            _, stderr = await proc.communicate()
+            if proc.returncode == 0:
+                source_path = mixed_path
+        except Exception as e:
+            logger.error(f"Failed to mix audio for MP3: {e}")
+
+    # Convert to MP3
+    mp3_path = os.path.join(DUB_DIR, job_id, f"dubbed_{lang_label}.mp3")
+    cmd = [ffmpeg, "-i", source_path, "-codec:a", "libmp3lame", "-b:a", "192k", "-y", mp3_path]
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise Exception(stderr.decode())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"MP3 encoding failed: {str(e)}")
+
+    base_name = os.path.splitext(job.get('filename', 'audio'))[0]
+    safe_name = ''.join(c for c in base_name if c.isalnum() or c in '-_ ').strip() or 'audio'
+    dl_name = f"dubbed_{lang_label}_{safe_name}.mp3"
+    return FileResponse(
+        mp3_path, media_type="audio/mpeg",
+        headers={"Content-Disposition": f'attachment; filename="{dl_name}"'},
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# STEM EXPORT (Vocals + Background Separate)
+# ═══════════════════════════════════════════════════════════════════════
+
+@app.get("/dub/export-stems/{job_id}")
+async def dub_export_stems(job_id: str, lang: str = Query(None)):
+    """Export dubbed vocals and original background as separate WAV files in a ZIP."""
+    import zipfile
+
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    tracks = job.get("dubbed_tracks", {})
+    if not tracks:
+        raise HTTPException(status_code=400, detail="No dubbed tracks generated yet")
+
+    if lang and lang in tracks:
+        vocals_path = tracks[lang]["path"]
+        lang_label = lang
+    elif tracks:
+        first_key = list(tracks.keys())[0]
+        vocals_path = tracks[first_key]["path"]
+        lang_label = first_key
+    else:
+        raise HTTPException(status_code=400, detail="No dubbed audio track")
+
+    bg_path = job.get("no_vocals_path")
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        if os.path.exists(vocals_path):
+            zf.write(vocals_path, f"vocals_dubbed_{lang_label}.wav")
+        if bg_path and os.path.exists(bg_path):
+            zf.write(bg_path, "background_original.wav")
+
+    zip_buffer.seek(0)
+    base_name = os.path.splitext(job.get('filename', 'video'))[0]
+    safe_name = ''.join(c for c in base_name if c.isalnum() or c in '-_ ').strip() or 'stems'
+    return Response(
+        content=zip_buffer.read(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="stems_{safe_name}.zip"',
         },
     )
 

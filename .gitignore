@@ -43,3 +43,4 @@ cloudflared.tgz
 # Data directories and sqlite db
 omnivoice_data/
 *.db
+demo_recording.webp

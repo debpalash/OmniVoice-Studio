@@ -41,6 +41,7 @@ dependencies = [
     "numpy",
     "soundfile",
     "psutil>=7.2.2",
+    "pyannote-audio>=4.0.4",
 ]
 
 [project.optional-dependencies]
@@ -105,3 +106,10 @@ include = ["omnivoice"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["omnivoice"]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.3.0",
+]
