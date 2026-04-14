@@ -2101,33 +2101,30 @@ function App() {
       {/* ── SIDEBAR ── */}
       {
         <div className="glass-panel history-panel" style={{display:'flex', flexDirection:'column'}}>
-          <div style={{display:'flex', gap:0, padding:0, borderBottom:'1px solid var(--glass-border)', background:'rgba(0,0,0,0.2)', flexShrink:0, flexDirection: isSidebarCollapsed ? 'column' : 'row'}}>
+          <div style={{display:'flex', gap:6, padding:'6px 8px', borderBottom:'1px solid var(--glass-border)', background:'rgba(0,0,0,0.15)', flexShrink:0, flexDirection: isSidebarCollapsed ? 'column' : 'row', justifyContent: 'center'}}>
             <button onClick={() => setSidebarTab('projects')} style={{
-              flex:1, padding: isSidebarCollapsed ? '6px 0' : '4px 0', fontSize:'0.65rem', fontWeight:700, cursor:'pointer', borderLeft:'none', borderRight: isSidebarCollapsed ? 'none' : '1px solid rgba(255,255,255,0.06)', borderTop:'none',
-              borderBottom: sidebarTab === 'projects' ? '2px solid #b8bb26' : '2px solid transparent',
-              background: sidebarTab === 'projects' ? 'rgba(184,187,38,0.08)' : 'transparent',
-              color: sidebarTab === 'projects' ? '#b8bb26' : '#7c6f64',
-              borderRadius:0, whiteSpace:'nowrap', transition:'all 0.15s ease', overflow:'hidden', display:'flex', justifyContent:'center', alignItems:'center', gap:3, letterSpacing:'0.02em'
-            }} title="Projects"><FolderOpen size={11}/> 
-              {!isSidebarCollapsed && <><strong>Projects</strong> <span style={{opacity:0.6, fontWeight:400}}>·</span> <span style={{fontWeight:400}}>{mode === 'dub' ? studioProjects.length : (mode === 'clone' ? profiles.filter(p => !p.instruct).length : profiles.filter(p => !!p.instruct).length)}</span></>}
+              flex:1, height: '26px', maxWidth: isSidebarCollapsed ? '100%' : '60px', cursor:'pointer', border:'1px solid',
+              borderColor: sidebarTab === 'projects' ? 'rgba(184,187,38,0.35)' : 'rgba(255,255,255,0.06)',
+              background: sidebarTab === 'projects' ? 'rgba(184,187,38,0.15)' : 'rgba(0,0,0,0.2)',
+              color: sidebarTab === 'projects' ? '#b8bb26' : '#a89984',
+              borderRadius:6, transition:'all 0.2s ease', display:'flex', justifyContent:'center', alignItems:'center'
+            }} title={`Projects (${mode === 'dub' ? studioProjects.length : (mode === 'clone' ? profiles.filter(p => !p.instruct).length : profiles.filter(p => !!p.instruct).length)})`}><FolderOpen size={13}/>
             </button>
             <button onClick={() => setSidebarTab('history')} style={{
-              flex:1, padding: isSidebarCollapsed ? '6px 0' : '4px 0', fontSize:'0.65rem', fontWeight:700, cursor:'pointer', borderLeft:'none', borderRight: isSidebarCollapsed ? 'none' : '1px solid rgba(255,255,255,0.06)', borderTop:'none',
-              borderBottom: sidebarTab === 'history' ? '2px solid #d3869b' : '2px solid transparent',
-              background: sidebarTab === 'history' ? 'rgba(211,134,155,0.08)' : 'transparent',
-              color: sidebarTab === 'history' ? '#d3869b' : '#7c6f64',
-              borderRadius:0, whiteSpace:'nowrap', transition:'all 0.15s ease', overflow:'hidden', display:'flex', justifyContent:'center', alignItems:'center', gap:3, letterSpacing:'0.02em'
-            }} title="History"><History size={11}/> 
-              {!isSidebarCollapsed && <><strong>History</strong> <span style={{opacity:0.6, fontWeight:400}}>·</span> <span style={{fontWeight:400}}>{history.length + dubHistory.length}</span></>}
+              flex:1, height: '26px', maxWidth: isSidebarCollapsed ? '100%' : '60px', cursor:'pointer', border:'1px solid',
+              borderColor: sidebarTab === 'history' ? 'rgba(211,134,155,0.35)' : 'rgba(255,255,255,0.06)',
+              background: sidebarTab === 'history' ? 'rgba(211,134,155,0.15)' : 'rgba(0,0,0,0.2)',
+              color: sidebarTab === 'history' ? '#d3869b' : '#a89984',
+              borderRadius:6, transition:'all 0.2s ease', display:'flex', justifyContent:'center', alignItems:'center'
+            }} title={`History (${history.length + dubHistory.length})`}><History size={13}/>
             </button>
             <button onClick={() => setSidebarTab('downloads')} style={{
-              flex:1, padding: isSidebarCollapsed ? '6px 0' : '4px 0', fontSize:'0.65rem', fontWeight:700, cursor:'pointer', border:'none', borderTop:'none',
-              borderBottom: sidebarTab === 'downloads' ? '2px solid #8ec07c' : '2px solid transparent',
-              background: sidebarTab === 'downloads' ? 'rgba(142,192,124,0.08)' : 'transparent',
-              color: sidebarTab === 'downloads' ? '#8ec07c' : '#7c6f64',
-              borderRadius:0, whiteSpace:'nowrap', transition:'all 0.15s ease', overflow:'hidden', display:'flex', justifyContent:'center', alignItems:'center', gap:3, letterSpacing:'0.02em'
-            }} title="Downloads"><DownloadCloud size={11}/> 
-              {!isSidebarCollapsed && <><strong>Exports</strong> <span style={{opacity:0.6, fontWeight:400}}>·</span> <span style={{fontWeight:400}}>{exportHistory.length}</span></>}
+              flex:1, height: '26px', maxWidth: isSidebarCollapsed ? '100%' : '60px', cursor:'pointer', border:'1px solid',
+              borderColor: sidebarTab === 'downloads' ? 'rgba(142,192,124,0.35)' : 'rgba(255,255,255,0.06)',
+              background: sidebarTab === 'downloads' ? 'rgba(142,192,124,0.15)' : 'rgba(0,0,0,0.2)',
+              color: sidebarTab === 'downloads' ? '#8ec07c' : '#a89984',
+              borderRadius:6, transition:'all 0.2s ease', display:'flex', justifyContent:'center', alignItems:'center'
+            }} title={`Exports (${exportHistory.length})`}><DownloadCloud size={13}/>
             </button>
           </div>
 
