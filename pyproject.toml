@@ -44,6 +44,9 @@ dependencies = [
     "pyannote-audio>=4.0.4",
     "pyinstaller>=6.19.0",
     "imageio-ffmpeg>=0.6.0",
+    "pedalboard>=0.9.14",
+    "mlx-whisper>=0.2.1",
+    "demucs>=4.0.1",
 ]
 
 [project.optional-dependencies]

@@ -59,7 +59,15 @@ export default function WaveformTimeline({
     // ── 1. Create the video element imperatively (stable, no React re-renders) ──
     let videoEl = null;
     if (videoSrc && videoContainerRef.current) {
-      videoContainerRef.current.innerHTML = ''; // clear any previous
+      // Remove prior children + detach listeners explicitly to avoid leaks.
+      const c = videoContainerRef.current;
+      while (c.firstChild) {
+        const child = c.firstChild;
+        if (child.tagName === 'VIDEO' || child.tagName === 'AUDIO') {
+          try { child.pause(); child.removeAttribute('src'); child.load?.(); } catch (_) {}
+        }
+        c.removeChild(child);
+      }
       videoEl = document.createElement('video');
       videoEl.src = videoSrc;
       videoEl.muted = false;
@@ -117,29 +125,26 @@ export default function WaveformTimeline({
         return; // Ignore React cleanup aborts
       }
 
-      // If WaveSurfer failed to decode the `<video>` stream (e.g. .mov container on MacOS),
-      // we manually fetch the companion `audioSrc` (.wav), decode it, and supply raw peaks.
-      if (audioSrc && audioSrc !== videoSrc) {
+      // If WaveSurfer failed to decode the media element stream (e.g. 404, .mov on MacOS, or pure .wav files failing to emit peaks),
+      // we manually fetch the companion `audioSrc`, decode it, and supply raw peaks.
+      if (audioSrc) {
         fetch(audioSrc)
-          .then(res => res.arrayBuffer())
+          .then(res => {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.arrayBuffer();
+          })
           .then(buffer => {
             const actx = new (window.AudioContext || window.webkitAudioContext)();
             return actx.decodeAudioData(buffer);
           })
           .then(audioBuffer => {
              const channelData = audioBuffer.getChannelData(0);
-             // Load the peaks without mutating the `<video>` element's src!
              ws.load(undefined, [channelData], audioBuffer.duration);
           })
           .catch((decodeErr) => {
             console.error('Audio decode fallback failed:', decodeErr);
             setLoadError(true);
           });
-      } else if (audioSrc && audioSrc.startsWith('blob:')) {
-        fetch(audioSrc)
-          .then(r => r.blob())
-          .then(blob => ws.loadBlob(blob))
-          .catch(() => setLoadError(true));
       } else {
         setLoadError(true);
       }
@@ -185,8 +190,17 @@ export default function WaveformTimeline({
       try { ws.destroy(); } catch (_) {}
       wsRef.current      = null;
       regionsRef.current = null;
-      // Clear the imperatively-created video element
-      if (videoContainerRef.current) videoContainerRef.current.innerHTML = '';
+      // Clear the imperatively-created video element (release src so browser frees decoder)
+      const c = videoContainerRef.current;
+      if (c) {
+        while (c.firstChild) {
+          const child = c.firstChild;
+          if (child.tagName === 'VIDEO' || child.tagName === 'AUDIO') {
+            try { child.pause(); child.removeAttribute('src'); child.load?.(); } catch (_) {}
+          }
+          c.removeChild(child);
+        }
+      }
       setReady(false);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps

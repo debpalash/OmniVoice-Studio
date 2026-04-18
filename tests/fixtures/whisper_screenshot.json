@@ -1,0 +1,24 @@
+{
+  "language": "en",
+  "text": "Most hiring team much time on the Same screening same shortlisting and again. So we built Yupc You can create in templates yourse Then you schedule intervie The AI then runs the interview while it After that, you ge stru c tured report with Try Yupcha if",
+  "chunks": [
+    {"text": "Most hiring team", "timestamp": [0.0, 1.2]},
+    {"text": "much time on the", "timestamp": [1.2, 2.1]},
+    {"text": "Same screening", "timestamp": [2.1, 3.0]},
+    {"text": "same shortlisting", "timestamp": [3.0, 4.4]},
+    {"text": "and again.", "timestamp": [4.4, 5.2]},
+    {"text": "So we built Yupc", "timestamp": [5.2, 6.6]},
+    {"text": "You can create in", "timestamp": [6.6, 7.9]},
+    {"text": "templates yourse", "timestamp": [7.9, 9.0]},
+    {"text": "Then you", "timestamp": [9.0, 9.7]},
+    {"text": "schedule intervie", "timestamp": [9.7, 11.0]},
+    {"text": "The AI", "timestamp": [11.0, 11.7]},
+    {"text": "then runs the", "timestamp": [11.7, 12.6]},
+    {"text": "interview while it", "timestamp": [12.6, 13.9]},
+    {"text": "After that, you ge", "timestamp": [13.9, 15.1]},
+    {"text": "stru", "timestamp": [15.1, 15.3]},
+    {"text": "c", "timestamp": [15.3, 15.4]},
+    {"text": "tured report with", "timestamp": [15.4, 16.7]},
+    {"text": "Try Yupcha if", "timestamp": [16.7, 17.9]}
+  ]
+}

@@ -8,7 +8,7 @@
     "desktop": "turbo run desktop //#dev:api",
     "build": "turbo run build",
     "start": "turbo run start",
-    "dev:api": "uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload"
+    "dev:api": "uv run uvicorn main:app --app-dir backend --host 0.0.0.0 --port 8000 --reload"
   },
   "workspaces": [
     "frontend"

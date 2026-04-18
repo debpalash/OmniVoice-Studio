@@ -37,10 +37,22 @@ bun.lockb
 
 # Generated logs and binaries
 *.log
+crash_log.txt
 cloudflared
 cloudflared.tgz
+
+# Root-level ad-hoc test scripts (should live in /tests)
+/test_crash.py
+/test_mock.py
+/test_pyannote.py
+/test_server.py
+/test_whisper.py
 
 # Data directories and sqlite db
 omnivoice_data/
 *.db
 demo_recording.webp
+
+# Local archives / reference clones
+omnivoice.zip
+/research/

@@ -1,0 +1,11 @@
+{
+  "language": "en",
+  "text": "Hello, my name is Alice. I work at a company in Boston. We build software for hospitals. It is complex but rewarding work. Thanks for listening today.",
+  "chunks": [
+    {"text": "Hello, my name is Alice.", "timestamp": [0.0, 2.5]},
+    {"text": "I work at a company in Boston.", "timestamp": [2.5, 5.5]},
+    {"text": "We build software for hospitals.", "timestamp": [5.5, 8.5]},
+    {"text": "It is complex but rewarding work.", "timestamp": [8.5, 11.5]},
+    {"text": "Thanks for listening today.", "timestamp": [11.5, 14.0]}
+  ]
+}
