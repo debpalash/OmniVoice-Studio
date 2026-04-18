@@ -348,13 +348,30 @@ async def dub_upload(video: UploadFile = File(...), job_id: Optional[str] = Form
             except Exception as e:
                 logger.warning(f"Scene detection failed: {e}")
 
-        await asyncio.gather(run_demucs(), run_scene_detection())
+        async def run_thumbnail():
+            thumb_path = os.path.join(job_dir, "thumb.jpg")
+            # Pick a frame ~1s in (or 10% mark for short videos), scale to 320px wide.
+            offset = max(0.5, min(1.5, dur * 0.1)) if dur else 1.0
+            try:
+                await _run_proc([
+                    ffmpeg, "-y", "-ss", f"{offset:.2f}", "-i", video_path,
+                    "-vframes", "1", "-vf", "scale=320:-2",
+                    "-q:v", "4", thumb_path,
+                ], timeout=30.0)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.warning(f"Thumbnail extraction failed: {e}")
 
+        await asyncio.gather(run_demucs(), run_scene_detection(), run_thumbnail())
+
+        thumb_path = os.path.join(job_dir, "thumb.jpg")
         _dub_jobs[job_id] = {
             "video_path": video_path,
             "audio_path": audio_path,
             "vocals_path": vocals_path,
             "no_vocals_path": no_vocals_path,
+            "thumb_path": thumb_path if os.path.exists(thumb_path) else None,
             "duration": dur, "filename": video.filename,
             "segments": None, "dubbed_tracks": {},
             "scene_cuts": scene_cuts,
@@ -484,6 +501,9 @@ async def dub_transcribe_stream(job_id: str):
             chunk_segs = assign_speakers_heuristic(chunk_segs)
             for s in chunk_segs:
                 s["id"] = f"s{next_seg_id:05x}"
+                # Preserve pristine transcript so later translations can re-run from source
+                # instead of compounding on previously-translated text.
+                s["text_original"] = s.get("text", "")
                 next_seg_id += 1
             all_segments.extend(chunk_segs)
             yield _sse_event("segments", {
@@ -605,6 +625,8 @@ async def dub_transcribe(job_id: str):
         else:
             segments = assign_speakers_heuristic(segments)
 
+        for s in segments:
+            s.setdefault("text_original", s.get("text", ""))
         job["full_transcript"] = " ".join(s["text"] for s in segments)
 
         if torch.backends.mps.is_available():

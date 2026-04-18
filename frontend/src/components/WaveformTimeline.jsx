@@ -72,8 +72,22 @@ export default function WaveformTimeline({
       videoEl.src = videoSrc;
       videoEl.muted = false;
       videoEl.playsInline = true;
-      videoEl.preload = 'metadata';
+      // Load enough data to paint first frame as thumbnail preview.
+      videoEl.preload = 'auto';
       videoEl.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;display:block;';
+      // Decode and show the first frame as a thumbnail.
+      // WebKit won't paint a frame until currentTime is set past 0.
+      const showFirstFrame = () => {
+        try {
+          if (videoEl.currentTime === 0 && isFinite(videoEl.duration) && videoEl.duration > 0) {
+            // Seek to the earliest decodable frame.
+            videoEl.currentTime = Math.min(0.1, videoEl.duration * 0.01);
+          }
+        } catch (_) { /* ignore */ }
+      };
+      videoEl.addEventListener('loadedmetadata', showFirstFrame, { once: true });
+      // Fallback if loadedmetadata already fired before listener attached (cached).
+      if (videoEl.readyState >= 1) showFirstFrame();
       videoContainerRef.current.appendChild(videoEl);
     }
 

@@ -17,6 +17,7 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-hot-toast": "^2.6.0",
+    "react-window": "^2.2.7",
     "wavesurfer.js": "^7.12.6"
   },
   "devDependencies": {

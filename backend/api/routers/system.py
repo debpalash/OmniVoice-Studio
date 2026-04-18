@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 import torch
 import shutil
 
-from core.config import OUTPUTS_DIR
+from core.config import OUTPUTS_DIR, DATA_DIR, CRASH_LOG_PATH, IDLE_TIMEOUT_SECONDS
 from services.model_manager import get_model_status, get_best_device
 from services.ffmpeg_utils import find_ffmpeg, run_ffmpeg
 
@@ -20,6 +20,91 @@ logger = logging.getLogger("omnivoice.api")
 def model_status():
     """Report model loading state for frontend warm-up indicators."""
     return get_model_status()
+
+
+@router.get("/system/info")
+def system_info():
+    """Settings page system info — model, tokens, data dir, timeout."""
+    return {
+        "data_dir": DATA_DIR,
+        "outputs_dir": OUTPUTS_DIR,
+        "crash_log_path": CRASH_LOG_PATH,
+        "idle_timeout_seconds": IDLE_TIMEOUT_SECONDS,
+        "model_checkpoint": os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice"),
+        "asr_model": os.environ.get("ASR_MODEL", "mlx-community/whisper-large-v3-mlx"),
+        "translate_provider": os.environ.get("TRANSLATE_PROVIDER", "google"),
+        "has_hf_token": bool(os.environ.get("HF_TOKEN")),
+        "device": get_best_device(),
+        "python": sys.version.split()[0],
+        "platform": sys.platform,
+    }
+
+
+@router.get("/system/logs")
+def system_logs(tail: int = 200):
+    """Tail the crash log file (last N lines). Safe: bounded read."""
+    try:
+        tail = max(10, min(2000, int(tail)))
+    except Exception:
+        tail = 200
+    if not os.path.exists(CRASH_LOG_PATH):
+        return {"lines": [], "path": CRASH_LOG_PATH, "exists": False}
+    try:
+        # Read file then keep last N lines — crash logs are small in practice.
+        with open(CRASH_LOG_PATH, "r", encoding="utf-8", errors="replace") as f:
+            all_lines = f.readlines()
+        sliced = all_lines[-tail:]
+        return {"lines": sliced, "path": CRASH_LOG_PATH, "exists": True, "total_lines": len(all_lines)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/system/logs/tauri")
+def system_logs_tauri(tail: int = 200):
+    """Tail the Tauri (webview host) log if present. Paths per platform."""
+    try:
+        tail = max(10, min(2000, int(tail)))
+    except Exception:
+        tail = 200
+    # Probable Tauri log locations — bundle identifier usually mirrors product name.
+    candidates = []
+    home = os.path.expanduser("~")
+    if sys.platform == "darwin":
+        candidates += [
+            os.path.join(home, "Library/Logs/com.omnivoice.studio/OmniVoice.log"),
+            os.path.join(home, "Library/Logs/OmniVoice/OmniVoice.log"),
+            os.path.join(home, "Library/Logs/com.tauri.dev/OmniVoice.log"),
+        ]
+    elif sys.platform.startswith("linux"):
+        candidates += [
+            os.path.join(home, ".local/share/com.omnivoice.studio/logs/OmniVoice.log"),
+            os.path.join(home, ".config/com.omnivoice.studio/logs/OmniVoice.log"),
+        ]
+    elif sys.platform.startswith("win"):
+        candidates += [
+            os.path.join(os.environ.get("APPDATA", home), "com.omnivoice.studio", "logs", "OmniVoice.log"),
+        ]
+    for p in candidates:
+        if os.path.exists(p):
+            try:
+                with open(p, "r", encoding="utf-8", errors="replace") as f:
+                    all_lines = f.readlines()
+                return {"lines": all_lines[-tail:], "path": p, "exists": True, "total_lines": len(all_lines)}
+            except Exception as e:
+                return {"lines": [], "path": p, "exists": True, "error": str(e)}
+    return {"lines": [], "path": None, "exists": False, "candidates": candidates}
+
+
+@router.post("/system/logs/clear")
+def clear_system_logs():
+    if os.path.exists(CRASH_LOG_PATH):
+        try:
+            with open(CRASH_LOG_PATH, "w") as f:
+                f.truncate(0)
+            return {"cleared": True}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    return {"cleared": False}
 
 @router.get("/sysinfo")
 def get_sys_info():

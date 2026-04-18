@@ -569,10 +569,13 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
         ref={containerRef}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
+        className="audio-trimmer"
         style={{
-          background: '#1d2021', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12,
-          padding: 16, width: 'min(920px, 100%)', display: 'flex', flexDirection: 'column', gap: 10,
-          outline: 'none', boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          background: 'linear-gradient(160deg, rgba(47,41,39,0.98), rgba(38,33,31,0.98))',
+          border: '1px solid rgba(243,165,182,0.18)',
+          borderRadius: '18px 22px 16px 24px / 20px 16px 22px 18px',
+          padding: 18, width: 'min(920px, 100%)', display: 'flex', flexDirection: 'column', gap: 10,
+          outline: 'none', boxShadow: '0 20px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(243,165,182,0.08)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

@@ -230,6 +230,18 @@ async def dub_get_media(job_id: str):
         raise HTTPException(status_code=404, detail="Media file not found")
     return FileResponse(job["video_path"])
 
+@router.get("/dub/thumb/{job_id}")
+async def dub_get_thumb(job_id: str):
+    """Serve the extracted dub video thumbnail (jpg). 404 if not generated."""
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    # Resolve under DUB_DIR to prevent traversal.
+    thumb = os.path.join(DUB_DIR, job_id, "thumb.jpg")
+    if not os.path.exists(thumb):
+        raise HTTPException(status_code=404, detail="Thumbnail not available")
+    return FileResponse(thumb, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=3600"})
+
 @router.get("/dub/audio/{job_id}")
 async def dub_get_audio(job_id: str):
     job = _get_job(job_id)

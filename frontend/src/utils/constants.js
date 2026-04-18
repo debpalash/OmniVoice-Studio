@@ -1,0 +1,48 @@
+export const POPULAR_LANGS = [
+  'English', 'Spanish', 'French', 'German', 'Italian', 'Portuguese',
+  'Russian', 'Chinese', 'Japanese', 'Korean', 'Arabic', 'Hindi',
+];
+
+export const POPULAR_ISO = [
+  'en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh', 'ja', 'ko', 'ar', 'hi',
+];
+
+export const TAGS = [
+  '[laughter]', '[sigh]', '[confirmation-en]', '[question-en]',
+  '[question-ah]', '[question-oh]', '[question-ei]', '[question-yi]',
+  '[surprise-ah]', '[surprise-oh]', '[surprise-wa]', '[surprise-yo]',
+  '[dissatisfaction-hnn]',
+];
+
+export const CATEGORIES = {
+  Gender: ['Auto', 'male', 'female'],
+  Age: ['Auto', 'child', 'teenager', 'young adult', 'middle-aged', 'elderly'],
+  Pitch: ['Auto', 'very low pitch', 'low pitch', 'moderate pitch', 'high pitch', 'very high pitch'],
+  Style: ['Auto', 'whisper'],
+  EnglishAccent: [
+    'Auto', 'american accent', 'british accent', 'australian accent', 'canadian accent',
+    'indian accent', 'chinese accent', 'korean accent', 'japanese accent',
+    'portuguese accent', 'russian accent',
+  ],
+  ChineseDialect: [
+    'Auto', '河南话', '陕西话', '四川话', '贵州话', '云南话', '桂林话',
+    '济南话', '石家庄话', '甘肃话', '宁夏话', '青岛话', '东北话',
+  ],
+};
+
+export const PRESETS = [
+  { id: 'narrator', name: '🎙️ Authoritative', tags: '',
+    attrs: { Gender: 'male', Age: 'middle-aged', Pitch: 'low pitch', Style: 'Auto', EnglishAccent: 'british accent', ChineseDialect: 'Auto' } },
+  { id: 'excited_child', name: '🧒 Excited Child', tags: '[laughter] ',
+    attrs: { Gender: 'Auto', Age: 'child', Pitch: 'high pitch', Style: 'Auto', EnglishAccent: 'Auto', ChineseDialect: 'Auto' } },
+  { id: 'anxious_whisper', name: '🤫 Whisper', tags: '[question-en] ',
+    attrs: { Gender: 'Auto', Age: 'young adult', Pitch: 'Auto', Style: 'whisper', EnglishAccent: 'Auto', ChineseDialect: 'Auto' } },
+  { id: 'surprised_woman', name: '😲 Surprised', tags: '[surprise-wa] ',
+    attrs: { Gender: 'female', Age: 'young adult', Pitch: 'high pitch', Style: 'Auto', EnglishAccent: 'Auto', ChineseDialect: 'Auto' } },
+  { id: 'elderly_story', name: '👴 Elder', tags: '[sigh] ',
+    attrs: { Gender: 'male', Age: 'elderly', Pitch: 'very low pitch', Style: 'Auto', EnglishAccent: 'Auto', ChineseDialect: 'Auto' } },
+  { id: 'sichuan', name: '🌶️ 四川话', tags: '',
+    attrs: { Gender: 'female', Age: 'young adult', Pitch: 'moderate pitch', Style: 'Auto', EnglishAccent: 'Auto', ChineseDialect: '四川话' } },
+];
+
+export const CLONE_MAX_SECONDS = 15;
