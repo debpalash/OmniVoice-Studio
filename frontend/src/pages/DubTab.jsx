@@ -79,7 +79,7 @@ export default function DubTab(props) {
           </div>
 
           {/* SPLIT LAYOUT skeleton */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, flex: 1, minHeight: 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: dubVideoFile ? '1fr 1fr' : '1fr', gap: 6, flex: 1, minHeight: 0 }}>
             {/* LEFT */}
             <div className="studio-panel" style={{ marginBottom: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               {dubVideoFile ? (
@@ -180,7 +180,8 @@ export default function DubTab(props) {
               </div>
             </div>
 
-            {/* RIGHT: Ghost settings + segment table */}
+            {/* RIGHT: Ghost settings + segment table (only when video loaded) */}
+            {dubVideoFile ? (
             <div className="studio-panel" style={{ marginBottom: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div style={{ display: 'flex', gap: 4, marginBottom: 4, flexWrap: 'wrap', alignItems: 'flex-end', opacity: 0.4 }}>
                 <div style={{ flex: 1, minWidth: 90 }}>
@@ -230,6 +231,7 @@ export default function DubTab(props) {
                 ))}
               </div>
             </div>
+            ) : null}
           </div>
 
           {/* Ghost footer */}

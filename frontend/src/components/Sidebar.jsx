@@ -305,7 +305,9 @@ export default function Sidebar(props) {
                       <span className="history-meta">{item.segments_count} segs · {Math.round(item.duration || 0)}s</span>
                     </div>
                     <div className="history-title">{item.filename}</div>
-                    <div className="history-subtitle">{item.language} ({item.language_code})</div>
+                    <div className="history-subtitle">
+                      {[item.language, item.language_code].filter(v => v && v !== 'und' && v !== 'Auto').join(' · ') || 'Auto'}
+                    </div>
                     <div className="history-actions">
                       <button className="history-action-btn accent" onClick={(e) => { e.stopPropagation(); restoreDubHistory(item); }}>
                         <FolderOpen size={10} /> Open
