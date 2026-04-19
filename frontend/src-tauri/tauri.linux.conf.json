@@ -1,0 +1,11 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "bundle": {
+    "targets": ["appimage", "deb", "rpm"],
+    "linux": {
+      "deb": {
+        "depends": ["ffmpeg", "libwebkit2gtk-4.1-0"]
+      }
+    }
+  }
+}

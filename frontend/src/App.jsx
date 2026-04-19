@@ -10,8 +10,10 @@ const DubTab = lazy(() => import('./pages/DubTab'));
 const Sidebar = lazy(() => import('./components/Sidebar'));
 const CompareModal = lazy(() => import('./components/CompareModal'));
 const Settings = lazy(() => import('./pages/Settings'));
+const KeyboardCheatsheet = lazy(() => import('./components/KeyboardCheatsheet'));
 import Header from './components/Header';
 import NavRail from './components/NavRail';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const LazyFallback = () => <div style={{ padding: 12, color: '#6b6657', fontSize: '0.7rem' }}>Loading…</div>;
 
@@ -148,6 +150,21 @@ function App() {
   const [navRailSide, setNavRailSide] = useState(() => {
     try { return localStorage.getItem('omnivoice.navRailSide') || 'left'; } catch { return 'left'; }
   });
+  const [showCheatsheet, setShowCheatsheet] = useState(false);
+
+  // Global '?' → open cheatsheet
+  useEffect(() => {
+    const h = (e) => {
+      const t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault();
+        setShowCheatsheet(v => !v);
+      }
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, []);
   const flipNavRailSide = useCallback(() => {
     setNavRailSide(prev => {
       const next = prev === 'left' ? 'right' : 'left';
@@ -1476,10 +1493,13 @@ function App() {
 
         {/* ═══ LAUNCHPAD TAB ═══ */}
         {mode === 'settings' ? (
-          <Suspense fallback={<LazyFallback />}>
-            <Settings />
-          </Suspense>
+          <ErrorBoundary name="settings">
+            <Suspense fallback={<LazyFallback />}>
+              <Settings />
+            </Suspense>
+          </ErrorBoundary>
         ) : mode === 'launchpad' ? (
+          <ErrorBoundary name="launchpad">
           <Suspense fallback={<LazyFallback />}>
             <Launchpad
               profiles={profiles}
@@ -1491,7 +1511,9 @@ function App() {
               loadProject={loadProject}
             />
           </Suspense>
+          </ErrorBoundary>
         ) : mode === 'dub' ? (
+          <ErrorBoundary name="dub">
           <Suspense fallback={<LazyFallback />}>
             <DubTab
               dubJobId={dubJobId} dubStep={dubStep} dubVideoFile={dubVideoFile}
@@ -1536,7 +1558,9 @@ function App() {
               bulkDeleteSelected={bulkDeleteSelected}
             />
           </Suspense>
+          </ErrorBoundary>
         ) : (
+          <ErrorBoundary name="clone-design">
           <Suspense fallback={<LazyFallback />}>
             <CloneDesignTab
               mode={mode}
@@ -1574,6 +1598,7 @@ function App() {
               ingestRefAudio={ingestRefAudio}
             />
           </Suspense>
+          </ErrorBoundary>
         )}
       </div>
 
@@ -1633,6 +1658,13 @@ function App() {
             fileToMediaUrl={fileToMediaUrl}
             loadHistory={loadHistory}
           />
+        </Suspense>
+      )}
+
+      {/* ═══ KEYBOARD CHEATSHEET ( ? ) ═══ */}
+      {showCheatsheet && (
+        <Suspense fallback={null}>
+          <KeyboardCheatsheet open={showCheatsheet} onClose={() => setShowCheatsheet(false)} />
         </Suspense>
       )}
 

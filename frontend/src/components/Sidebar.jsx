@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   FolderOpen, History, DownloadCloud, Film, Save, ChevronDown, ChevronUp,
   Fingerprint, Wand2, Lock, Unlock, Trash2, Check, Clock, Play, Loader,
-  Download as DownloadIcon, Volume2,
+  Download as DownloadIcon, Volume2, Search, X,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { API } from '../api/client';
@@ -43,6 +43,25 @@ export default function Sidebar(props) {
     deleteHistory,
     loadHistory, loadDubHistory,
   } = props;
+
+  const [sbQuery, setSbQuery] = useState('');
+  const qLower = sbQuery.trim().toLowerCase();
+  const matchesSearch = (s) => !qLower || (s || '').toLowerCase().includes(qLower);
+  const filteredProjects = useMemo(() => studioProjects.filter(p =>
+    matchesSearch(p.name) || matchesSearch(p.video_path)
+  ), [studioProjects, qLower]);
+  const filteredProfiles = useMemo(() => profiles.filter(p =>
+    matchesSearch(p.name) || matchesSearch(p.instruct)
+  ), [profiles, qLower]);
+  const filteredHistory = useMemo(() => history.filter(i =>
+    matchesSearch(i.text) || matchesSearch(i.language) || matchesSearch(String(i.seed))
+  ), [history, qLower]);
+  const filteredDubHistory = useMemo(() => dubHistory.filter(i =>
+    matchesSearch(i.filename) || matchesSearch(i.language) || matchesSearch(i.language_code)
+  ), [dubHistory, qLower]);
+  const filteredExport = useMemo(() => exportHistory.filter(i =>
+    matchesSearch(i.filename) || matchesSearch(i.destination_path)
+  ), [exportHistory, qLower]);
 
   const handleClearHistory = async () => {
     if (!confirm(`Clear all ${history.length + dubHistory.length} history items? This cannot be undone.`)) return;
@@ -104,6 +123,30 @@ export default function Sidebar(props) {
         )}
       </div>
 
+      {!isSidebarCollapsed && (
+        <div style={{ padding: '6px 8px 2px 8px', flexShrink: 0 }}>
+          <div style={{ position: 'relative' }}>
+            <Search size={10} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#6b6657' }} />
+            <input
+              className="input-base"
+              placeholder="Search…"
+              value={sbQuery}
+              onChange={(e) => setSbQuery(e.target.value)}
+              style={{ width: '100%', fontSize: '0.68rem', padding: '4px 22px 4px 22px', borderRadius: 999 }}
+            />
+            {sbQuery ? (
+              <button
+                onClick={() => setSbQuery('')}
+                style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6b6657', cursor: 'pointer' }}
+                title="Clear"
+              >
+                <X size={10} />
+              </button>
+            ) : null}
+          </div>
+        </div>
+      )}
+
       <div style={{ flex: 1, overflowY: 'auto', padding: isSidebarCollapsed ? '8px 4px' : '8px', display: 'flex', flexDirection: 'column', alignItems: isSidebarCollapsed ? 'center' : 'stretch', gap: isSidebarCollapsed ? 8 : 0 }}>
         {/* ── PROJECTS TAB ── */}
         {sidebarTab === 'projects' && (
@@ -144,14 +187,14 @@ export default function Sidebar(props) {
               <>
                 {mode === 'dub' && (
                   <>
-                    {studioProjects.length === 0 ? (
+                    {filteredProjects.length === 0 ? (
                       <div style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '24px 12px' }}>
                         <Film size={28} style={{ opacity: 0.3, marginBottom: 8 }} />
                         <p style={{ fontSize: '0.78rem', margin: 0, marginBottom: 4 }}>No saved dub projects</p>
                         <p style={{ fontSize: '0.62rem', margin: 0, opacity: 0.6 }}>Upload a video and click Save to keep your work.</p>
                       </div>
                     ) : (
-                      studioProjects.map(proj => (
+                      filteredProjects.map(proj => (
                         <div key={proj.id}
                           className={`history-item ${activeProjectId === proj.id ? 'project-active' : ''}`}
                           style={{ '--row-accent': '#83a598' }}
@@ -186,14 +229,14 @@ export default function Sidebar(props) {
 
                 {(mode === 'clone' || mode === 'design') && (
                   <>
-                    {(mode === 'clone' ? profiles.filter(p => !p.instruct) : profiles.filter(p => !!p.instruct)).length === 0 ? (
+                    {filteredProfiles.filter(p => mode === "clone" ? !p.instruct : !!p.instruct).length === 0 ? (
                       <div style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '24px 12px' }}>
                         {mode === 'clone' ? <Fingerprint size={28} style={{ opacity: 0.3, marginBottom: 8 }} /> : <Wand2 size={28} style={{ opacity: 0.3, marginBottom: 8 }} />}
                         <p style={{ fontSize: '0.78rem', margin: 0, marginBottom: 4 }}>No {mode === 'clone' ? 'voice clones' : 'designed voices'} yet</p>
                         <p style={{ fontSize: '0.62rem', margin: 0, opacity: 0.6 }}>{mode === 'clone' ? 'Record or upload audio, then click Save as Voice Profile.' : 'Generate a voice and save it from History.'}</p>
                       </div>
                     ) : (
-                      (mode === 'clone' ? profiles.filter(p => !p.instruct) : profiles.filter(p => !!p.instruct)).map(proj => {
+                      (mode === 'clone' ? filteredProfiles.filter(p => !p.instruct) : filteredProfiles.filter(p => !!p.instruct)).map(proj => {
                         const accent = proj.is_locked ? '#b8bb26' : (mode === 'clone' ? '#d3869b' : '#8ec07c');
                         const KindIcon = proj.is_locked ? Lock : (mode === 'clone' ? Fingerprint : Wand2);
                         return (
@@ -236,7 +279,7 @@ export default function Sidebar(props) {
               </>
             )}
 
-            {isSidebarCollapsed && mode === 'dub' && studioProjects.map(proj => (
+            {isSidebarCollapsed && mode === 'dub' && filteredProjects.map(proj => (
               <div key={proj.id} title={`Load: ${proj.name}`} onClick={() => loadProject(proj.id)}
                 style={{
                   width: '34px', height: '34px', flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'center',
@@ -257,7 +300,7 @@ export default function Sidebar(props) {
               </div>
             ))}
 
-            {isSidebarCollapsed && (mode === 'clone' || mode === 'design') && (mode === 'clone' ? profiles.filter(p => !p.instruct) : profiles.filter(p => !!p.instruct)).map(proj => (
+            {isSidebarCollapsed && (mode === 'clone' || mode === 'design') && (mode === 'clone' ? filteredProfiles.filter(p => !p.instruct) : filteredProfiles.filter(p => !!p.instruct)).map(proj => (
               <div key={proj.id} title={`Select: ${proj.name}`} onClick={() => handleSelectProfile(proj)}
                 style={{
                   width: '34px', height: '34px', flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'center',
@@ -293,7 +336,7 @@ export default function Sidebar(props) {
               </div>
             ) : (
               <>
-                {!isSidebarCollapsed && dubHistory.map(item => (
+                {!isSidebarCollapsed && filteredDubHistory.map(item => (
                   <div key={`dub-${item.id}`} className="history-item"
                     style={{ '--row-accent': '#83a598' }}
                     onClick={() => restoreDubHistory(item)}
@@ -319,7 +362,7 @@ export default function Sidebar(props) {
                   </div>
                 ))}
 
-                {!isSidebarCollapsed && history.map(item => {
+                {!isSidebarCollapsed && filteredHistory.map(item => {
                   const accent = item.mode === 'clone' ? '#d3869b' : '#b8bb26';
                   const KindIcon = item.mode === 'clone' ? Fingerprint : Wand2;
                   return (
@@ -377,14 +420,14 @@ export default function Sidebar(props) {
               </>
             )}
 
-            {isSidebarCollapsed && dubHistory.map(item => (
+            {isSidebarCollapsed && filteredDubHistory.map(item => (
               <div key={`dub-${item.id}`} title={`Dub: ${item.filename}`} onClick={() => restoreDubHistory(item)}
                 style={{ width: '32px', height: '32px', flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '6px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid transparent', color: '#83a598' }}>
                 <Film size={14} />
               </div>
             ))}
 
-            {isSidebarCollapsed && history.map(item => (
+            {isSidebarCollapsed && filteredHistory.map(item => (
               <div key={item.id} title={`${item.mode || 'history'}: ${item.text}`} onClick={() => restoreHistory(item)}
                 style={{ width: '32px', height: '32px', flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '6px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid transparent', color: item.mode === 'clone' ? '#d3869b' : '#b8bb26' }}>
                 {item.mode === 'clone' ? <Fingerprint size={14} /> : <Wand2 size={14} />}
@@ -412,7 +455,7 @@ export default function Sidebar(props) {
               </div>
             ) : (
               <>
-                {!isSidebarCollapsed && exportHistory.map(item => {
+                {!isSidebarCollapsed && filteredExport.map(item => {
                   const pathParts = item.destination_path.split(/[\\/]/);
                   const parentFolder = pathParts.length > 1 ? pathParts[pathParts.length - 2] : '…';
                   const accent = item.mode === 'audio' ? '#83a598' : '#8ec07c';
@@ -439,7 +482,7 @@ export default function Sidebar(props) {
                   );
                 })}
 
-                {isSidebarCollapsed && exportHistory.map(item => (
+                {isSidebarCollapsed && filteredExport.map(item => (
                   <div key={item.id} title={`Exported: ${item.filename}\nClick to open folder`}
                     onClick={() => revealInFolder(item.destination_path)}
                     style={{ width: '32px', height: '32px', flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '6px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid transparent', color: item.mode === 'audio' ? '#83a598' : '#8ec07c' }}
