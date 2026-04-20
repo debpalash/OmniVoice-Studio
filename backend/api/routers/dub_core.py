@@ -4,6 +4,7 @@ import sys
 import uuid
 import json
 import time
+import hashlib
 import asyncio
 import logging
 import shutil
@@ -39,6 +40,60 @@ _active_procs: dict[str, list] = {}
 _active_procs_lock = threading.Lock()
 
 _DUB_DIR_REAL = os.path.realpath(DUB_DIR)
+
+_HASH_BUF_SIZE = 1 << 18  # 256 KB chunks for hashing
+
+
+def _compute_file_hash(path: str) -> str:
+    """SHA-256 digest of a file, streamed in 256 KB chunks."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while True:
+            chunk = f.read(_HASH_BUF_SIZE)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _find_cached_job(content_hash: str, exclude_job_id: str) -> Optional[dict]:
+    """Look up a previous job with the same content hash that has completed artifacts.
+
+    Returns {job_dir, vocals_path, no_vocals_path, scene_cuts, thumb_path, duration}
+    if a usable cache exists, else None.
+    """
+    if not content_hash:
+        return None
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT id, job_data FROM dub_history WHERE content_hash=? AND id!=? ORDER BY created_at DESC LIMIT 5",
+            (content_hash, exclude_job_id),
+        ).fetchall()
+    finally:
+        conn.close()
+    for row in rows:
+        try:
+            job = json.loads(row["job_data"])
+        except (json.JSONDecodeError, TypeError):
+            continue
+        cached_dir = _safe_job_dir(row["id"])
+        if not cached_dir or not os.path.isdir(cached_dir):
+            continue
+        # Check that the heavy artifacts actually exist on disk
+        vocals = job.get("vocals_path") or os.path.join(cached_dir, "vocals.wav")
+        if not os.path.isfile(vocals):
+            continue
+        return {
+            "job_dir": cached_dir,
+            "job_id": row["id"],
+            "vocals_path": vocals,
+            "no_vocals_path": job.get("no_vocals_path"),
+            "scene_cuts": job.get("scene_cuts") or [],
+            "thumb_path": job.get("thumb_path"),
+            "duration": job.get("duration", 0.0),
+        }
+    return None
 
 
 def _safe_job_dir(job_id: str) -> Optional[str]:
@@ -96,7 +151,7 @@ def _get_job(job_id: str):
             logger.error("Failed to decode dub_history.job_data for %s: %s", job_id, e)
     return None
 
-def _save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0):
+def _save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0, content_hash: str = ""):
     """Persist dub job state to SQLite so it survives restarts."""
     try:
         segments = job.get("segments") or []
@@ -104,18 +159,19 @@ def _save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0)
         with db_conn() as conn:
             conn.execute(
                 """INSERT INTO dub_history
-                   (id, filename, duration, segments_count, language, language_code, tracks, job_data, created_at)
-                   VALUES (?,?,?,?,?,?,?,?,?)
+                   (id, filename, duration, segments_count, language, language_code, tracks, job_data, content_hash, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)
                    ON CONFLICT(id) DO UPDATE SET
                      filename=excluded.filename,
                      duration=excluded.duration,
                      segments_count=excluded.segments_count,
                      tracks=excluded.tracks,
-                     job_data=excluded.job_data""",
+                     job_data=excluded.job_data,
+                     content_hash=CASE WHEN excluded.content_hash != '' THEN excluded.content_hash ELSE dub_history.content_hash END""",
                 (job_id, filename or job.get("filename", ""),
                  duration or job.get("duration", 0.0),
                  len(segments), job.get("language", ""), job.get("language_code", ""),
-                 json.dumps(tracks), json.dumps(job, default=str), time.time()),
+                 json.dumps(tracks), json.dumps(job, default=str), content_hash or "", time.time()),
             )
     except Exception as e:
         logger.error("Failed to persist dub job %s: %s", job_id, e)
@@ -356,84 +412,131 @@ async def _ingest_gen(job_id: str, job_dir: str, source: dict, filename_hint: Op
         except Exception:
             dur = 0.0
 
-        # Persist partial job so media/audio endpoints resolve even before Demucs finishes.
-        partial = {
-            "video_path": video_path,
-            "audio_path": audio_path,
-            "vocals_path": audio_path,  # fallback until demucs completes
-            "no_vocals_path": None,
-            "thumb_path": None,
-            "duration": dur,
-            "filename": filename,
-            "segments": None,
-            "dubbed_tracks": {},
-            "scene_cuts": [],
-        }
-        _dub_jobs[job_id] = partial
-        _save_job(job_id, partial, filename, dur)
-        yield _prep_event("extract_done", job_id=job_id, duration=round(dur, 2), filename=filename)
+        # ── Content-hash cache: skip demucs + scene if same file was processed before ──
+        content_hash = await asyncio.to_thread(_compute_file_hash, audio_path)
+        cached = _find_cached_job(content_hash, job_id)
+        if cached:
+            logger.info("Cache hit for job %s (hash %s) → reusing artifacts from %s", job_id, content_hash[:12], cached["job_id"])
+            vocals_path = os.path.join(job_dir, "vocals.wav")
+            no_vocals_path = os.path.join(job_dir, "no_vocals.wav")
+            thumb_path = os.path.join(job_dir, "thumb.jpg")
 
-        vocals_path = os.path.join(job_dir, "vocals.wav")
-        no_vocals_path = os.path.join(job_dir, "no_vocals.wav")
-        scene_cuts: list = []
+            # Copy cached artifacts into this job's directory
+            if cached["vocals_path"] and os.path.isfile(cached["vocals_path"]):
+                shutil.copy2(cached["vocals_path"], vocals_path)
+            else:
+                vocals_path = audio_path  # fallback
+            if cached["no_vocals_path"] and os.path.isfile(cached["no_vocals_path"]):
+                shutil.copy2(cached["no_vocals_path"], no_vocals_path)
+            else:
+                no_vocals_path = None
+            if cached["thumb_path"] and os.path.isfile(cached["thumb_path"]):
+                shutil.copy2(cached["thumb_path"], thumb_path)
+            else:
+                thumb_path = None
 
-        yield _prep_event("demucs_start")
-        try:
-            demucs_cmd = [sys.executable, "-m", "demucs.separate",
-                          "--two-stems", "vocals", "-n", "htdemucs", "-d", get_best_device(),
-                          audio_path, "-o", job_dir]
-            p, _, stderr = await _run_proc(demucs_cmd, timeout=1800.0)
-            if p.returncode != 0:
-                raise Exception(stderr.decode(errors="replace")[:500])
-            demucs_out = os.path.join(job_dir, "htdemucs", "audio")
-            if os.path.exists(os.path.join(demucs_out, "vocals.wav")):
-                shutil.move(os.path.join(demucs_out, "vocals.wav"), vocals_path)
-                shutil.move(os.path.join(demucs_out, "no_vocals.wav"), no_vocals_path)
-                shutil.rmtree(os.path.join(job_dir, "htdemucs"), ignore_errors=True)
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            logger.warning("Demucs failed for %s, falling back to mixed audio: %s", job_id, e)
-            vocals_path = audio_path
-            no_vocals_path = None
-        yield _prep_event("demucs_done", has_bg=bool(no_vocals_path and os.path.exists(no_vocals_path)))
+            scene_cuts = cached["scene_cuts"] or []
 
-        yield _prep_event("scene_start")
-        try:
-            p, _, stderr_scene = await _run_proc([
-                ffmpeg, "-i", video_path, "-filter:v",
-                "select='gt(scene,0.3)',showinfo", "-f", "null", "-",
-            ], timeout=600.0)
-            import re
-            matches = re.finditer(r"pts_time:([\d\.]+)", stderr_scene.decode(errors="replace"))
-            scene_cuts = [float(m.group(1)) for m in matches]
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            logger.warning("Scene detection failed for %s: %s", job_id, e)
-        yield _prep_event("scene_done", count=len(scene_cuts))
+            full_job = {
+                "video_path": video_path,
+                "audio_path": audio_path,
+                "vocals_path": vocals_path,
+                "no_vocals_path": no_vocals_path,
+                "thumb_path": thumb_path if thumb_path and os.path.exists(thumb_path) else None,
+                "duration": dur,
+                "filename": filename,
+                "segments": None,
+                "dubbed_tracks": {},
+                "scene_cuts": scene_cuts,
+            }
+            _dub_jobs[job_id] = full_job
+            _save_job(job_id, full_job, filename, dur, content_hash)
+            yield _prep_event("extract_done", job_id=job_id, duration=round(dur, 2), filename=filename)
+            yield _prep_event("cached", has_bg=bool(no_vocals_path and os.path.exists(no_vocals_path)),
+                              scene_count=len(scene_cuts))
+            yield _prep_event("ready", job_id=job_id, duration=round(dur, 2), filename=filename)
 
-        thumb_path = os.path.join(job_dir, "thumb.jpg")
-        offset = max(0.5, min(1.5, dur * 0.1)) if dur else 1.0
-        try:
-            await _run_proc([
-                ffmpeg, "-y", "-ss", f"{offset:.2f}", "-i", video_path,
-                "-vframes", "1", "-vf", "scale=320:-2",
-                "-q:v", "4", thumb_path,
-            ], timeout=30.0)
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            logger.warning("Thumbnail extraction failed for %s: %s", job_id, e)
+        else:
+            # ── Full pipeline: extract → demucs → scene → thumbnail ──
 
-        _dub_jobs[job_id].update({
-            "vocals_path": vocals_path,
-            "no_vocals_path": no_vocals_path,
-            "thumb_path": thumb_path if os.path.exists(thumb_path) else None,
-            "scene_cuts": scene_cuts,
-        })
-        _save_job(job_id, _dub_jobs[job_id], filename, dur)
-        yield _prep_event("ready", job_id=job_id, duration=round(dur, 2), filename=filename)
+            # Persist partial job so media/audio endpoints resolve even before Demucs finishes.
+            partial = {
+                "video_path": video_path,
+                "audio_path": audio_path,
+                "vocals_path": audio_path,  # fallback until demucs completes
+                "no_vocals_path": None,
+                "thumb_path": None,
+                "duration": dur,
+                "filename": filename,
+                "segments": None,
+                "dubbed_tracks": {},
+                "scene_cuts": [],
+            }
+            _dub_jobs[job_id] = partial
+            _save_job(job_id, partial, filename, dur, content_hash)
+            yield _prep_event("extract_done", job_id=job_id, duration=round(dur, 2), filename=filename)
+
+            vocals_path = os.path.join(job_dir, "vocals.wav")
+            no_vocals_path = os.path.join(job_dir, "no_vocals.wav")
+            scene_cuts: list = []
+
+            yield _prep_event("demucs_start")
+            try:
+                demucs_cmd = [sys.executable, "-m", "demucs.separate",
+                              "--two-stems", "vocals", "-n", "htdemucs", "-d", get_best_device(),
+                              audio_path, "-o", job_dir]
+                p, _, stderr = await _run_proc(demucs_cmd, timeout=1800.0)
+                if p.returncode != 0:
+                    raise Exception(stderr.decode(errors="replace")[:500])
+                demucs_out = os.path.join(job_dir, "htdemucs", "audio")
+                if os.path.exists(os.path.join(demucs_out, "vocals.wav")):
+                    shutil.move(os.path.join(demucs_out, "vocals.wav"), vocals_path)
+                    shutil.move(os.path.join(demucs_out, "no_vocals.wav"), no_vocals_path)
+                    shutil.rmtree(os.path.join(job_dir, "htdemucs"), ignore_errors=True)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.warning("Demucs failed for %s, falling back to mixed audio: %s", job_id, e)
+                vocals_path = audio_path
+                no_vocals_path = None
+            yield _prep_event("demucs_done", has_bg=bool(no_vocals_path and os.path.exists(no_vocals_path)))
+
+            yield _prep_event("scene_start")
+            try:
+                p, _, stderr_scene = await _run_proc([
+                    ffmpeg, "-i", video_path, "-filter:v",
+                    "select='gt(scene,0.3)',showinfo", "-f", "null", "-",
+                ], timeout=600.0)
+                import re
+                matches = re.finditer(r"pts_time:([\d\.]+)", stderr_scene.decode(errors="replace"))
+                scene_cuts = [float(m.group(1)) for m in matches]
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.warning("Scene detection failed for %s: %s", job_id, e)
+            yield _prep_event("scene_done", count=len(scene_cuts))
+
+            thumb_path = os.path.join(job_dir, "thumb.jpg")
+            offset = max(0.5, min(1.5, dur * 0.1)) if dur else 1.0
+            try:
+                await _run_proc([
+                    ffmpeg, "-y", "-ss", f"{offset:.2f}", "-i", video_path,
+                    "-vframes", "1", "-vf", "scale=320:-2",
+                    "-q:v", "4", thumb_path,
+                ], timeout=30.0)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.warning("Thumbnail extraction failed for %s: %s", job_id, e)
+
+            _dub_jobs[job_id].update({
+                "vocals_path": vocals_path,
+                "no_vocals_path": no_vocals_path,
+                "thumb_path": thumb_path if os.path.exists(thumb_path) else None,
+                "scene_cuts": scene_cuts,
+            })
+            _save_job(job_id, _dub_jobs[job_id], filename, dur, content_hash)
+            yield _prep_event("ready", job_id=job_id, duration=round(dur, 2), filename=filename)
 
     except asyncio.CancelledError:
         logger.info("Dub prep cancelled for job %s; killing subprocesses and cleaning up", job_id)

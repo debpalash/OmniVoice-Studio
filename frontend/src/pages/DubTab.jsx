@@ -90,7 +90,7 @@ export default function DubTab(props) {
           </div>
 
           {/* SPLIT LAYOUT skeleton */}
-          <div style={{ display: 'grid', gridTemplateColumns: dubVideoFile ? '1fr 1fr' : '1fr', gap: 6, flex: 1, minHeight: 0 }}>
+          <div className="dub-split-grid" style={{ display: 'grid', gridTemplateColumns: dubVideoFile ? '1fr 1fr' : '1fr', gap: 6, flex: 1, minHeight: 0 }}>
             {/* LEFT */}
             <div className="studio-panel" style={{ marginBottom: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               {dubVideoFile ? (
@@ -111,18 +111,24 @@ export default function DubTab(props) {
                               extract: 'Extracting audio…',
                               demucs: 'Separating vocals / music (Demucs)…',
                               scene: 'Detecting scene cuts…',
+                              cached: '⚡ Using cached results…',
                             })[dubPrepStage] || 'Preparing…'}
                           </span>
                           <div style={{ display: 'flex', gap: 4, fontSize: '0.65rem', color: '#665c54' }}>
-                            {['download','extract','demucs','scene'].map(s => (
+                            {(dubPrepStage === 'cached' ? ['download','extract','cached'] : ['download','extract','demucs','scene']).map(s => (
                               <span key={s} style={{
                                 padding: '1px 6px', borderRadius: 2,
-                                background: dubPrepStage === s ? 'rgba(211,134,155,0.2)' : 'rgba(255,255,255,0.03)',
-                                color: dubPrepStage === s ? '#d3869b' : '#504945',
-                                border: `1px solid ${dubPrepStage === s ? 'rgba(211,134,155,0.3)' : 'rgba(255,255,255,0.05)'}`,
-                              }}>{s}</span>
+                                background: dubPrepStage === s ? (s === 'cached' ? 'rgba(142,192,124,0.2)' : 'rgba(211,134,155,0.2)') : 'rgba(255,255,255,0.03)',
+                                color: dubPrepStage === s ? (s === 'cached' ? '#8ec07c' : '#d3869b') : '#504945',
+                                border: `1px solid ${dubPrepStage === s ? (s === 'cached' ? 'rgba(142,192,124,0.3)' : 'rgba(211,134,155,0.3)') : 'rgba(255,255,255,0.05)'}`,
+                              }}>{s === 'cached' ? '⚡ cached' : s}</span>
                             ))}
                           </div>
+                          {dubPrepStage === 'demucs' && (
+                            <span style={{ fontSize: '0.62rem', color: '#665c54', maxWidth: 320, textAlign: 'center' }}>
+                              Demucs can take several minutes on long videos. Long audio = longer wait.
+                            </span>
+                          )}
                           <button onClick={handleDubAbort} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: 'rgba(251,73,52,0.15)', border: '1px solid rgba(251,73,52,0.4)', color: '#fb4934', borderRadius: 6, fontSize: '0.75rem', cursor: 'pointer' }}>
                             <Square size={11} /> Stop
                           </button>
@@ -174,17 +180,18 @@ export default function DubTab(props) {
                       extract: 'Extracting audio…',
                       demucs: 'Separating vocals / music (Demucs)…',
                       scene: 'Detecting scene cuts…',
+                      cached: '⚡ Using cached results…',
                     })[dubPrepStage] || 'Preparing…'}
                   </span>
                   <div style={{ display: 'flex', gap: 4, fontSize: '0.65rem', color: '#665c54' }}>
-                    {['download','extract','demucs','scene'].map(s => (
+                    {(dubPrepStage === 'cached' ? ['download','extract','cached'] : ['download','extract','demucs','scene']).map(s => (
                       <span key={s} style={{
                         padding: '2px 8px', borderRadius: 3,
-                        background: dubPrepStage === s ? 'rgba(211,134,155,0.2)' : 'rgba(255,255,255,0.03)',
-                        color: dubPrepStage === s ? '#d3869b' : '#504945',
-                        border: `1px solid ${dubPrepStage === s ? 'rgba(211,134,155,0.3)' : 'rgba(255,255,255,0.05)'}`,
+                        background: dubPrepStage === s ? (s === 'cached' ? 'rgba(142,192,124,0.2)' : 'rgba(211,134,155,0.2)') : 'rgba(255,255,255,0.03)',
+                        color: dubPrepStage === s ? (s === 'cached' ? '#8ec07c' : '#d3869b') : '#504945',
+                        border: `1px solid ${dubPrepStage === s ? (s === 'cached' ? 'rgba(142,192,124,0.3)' : 'rgba(211,134,155,0.3)') : 'rgba(255,255,255,0.05)'}`,
                         fontWeight: dubPrepStage === s ? 600 : 400,
-                      }}>{s}</span>
+                      }}>{s === 'cached' ? '⚡ cached' : s}</span>
                     ))}
                   </div>
                   {dubPrepStage === 'demucs' && (
@@ -360,7 +367,7 @@ export default function DubTab(props) {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, flex: 1, minHeight: 0 }}>
+          <div className="dub-split-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, flex: 1, minHeight: 0 }}>
             {/* LEFT: Waveform + Video */}
             <div className="studio-panel" style={{ marginBottom: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               {hasDubbedTrack && (
@@ -447,7 +454,7 @@ export default function DubTab(props) {
 
             {/* RIGHT: Settings + Segment Table */}
             <div className="studio-panel" style={{ marginBottom: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 4, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div className="dub-settings-bar" style={{ display: 'flex', gap: 4, marginBottom: 4, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                 <div style={{ flex: 1, minWidth: 90 }}>
                   <div className="label-row"><Globe className="label-icon" size={9} /> Language</div>
                   <SearchableSelect
@@ -652,7 +659,7 @@ export default function DubTab(props) {
                 ))}
               </div>
             )}
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div className="dub-footer-btns" style={{ display: 'flex', gap: 4 }}>
               {dubStep === 'stopping' ? (
                 <button className="btn-primary" disabled style={{ marginTop: 0, flex: 1, padding: '4px 8px', fontSize: '0.7rem', background: 'linear-gradient(135deg,#504945,#3c3836)', opacity: 0.8 }}>
                   <Loader className="spinner" size={9} /> Stopping…
@@ -680,7 +687,7 @@ export default function DubTab(props) {
                 <FileText size={11} /> SRT
               </button>
             </div>
-            <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+            <div className="dub-footer-btns" style={{ display: 'flex', gap: 4, marginTop: 4 }}>
               <button className="btn-primary" style={{ marginTop: 0, flex: 1, padding: '4px 7px', fontSize: '0.62rem', background: dubSegments.length ? 'linear-gradient(135deg,#b8bb26,#98971a)' : undefined }}
                 onClick={() => triggerDownload(`${API}/dub/vtt/${dubJobId}/subtitles.vtt`, 'subtitles.vtt')} disabled={!dubSegments.length}>
                 <FileText size={10} /> VTT

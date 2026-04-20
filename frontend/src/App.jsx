@@ -25,7 +25,7 @@ import {
 import { LANG_CODES } from './utils/languages';
 import { formatTime, probeAudioDuration } from './utils/format';
 import { API } from './api/client';
-import { sysinfo as apiSysinfo, modelStatus as apiModelStatus, cleanAudio as apiCleanAudio } from './api/system';
+import { sysinfo as apiSysinfo, modelStatus as apiModelStatus, cleanAudio as apiCleanAudio, flushMemory as apiFlushMemory } from './api/system';
 import { listProfiles, createProfile, deleteProfile as apiDeleteProfile, lockProfile, unlockProfile } from './api/profiles';
 import { listHistory, clearHistory, generateSpeech, audioUrlWithCacheBust } from './api/generate';
 import { listProjects, saveProject, loadProject as apiLoadProject, deleteProject as apiDeleteProject } from './api/projects';
@@ -487,11 +487,24 @@ function App() {
   useEffect(() => {
     let interval = null;
     let cancelled = false;
+    let lastCpu = -1, lastRam = -1, lastVram = -1, lastModelSt = '';
     const fetchStats = async () => {
       try {
         const [sys, ms] = await Promise.all([apiSysinfo(), apiModelStatus()]);
-        if (sys) setSysStats(sys);
-        if (ms) setModelStatus(ms.status);
+        if (sys) {
+          // Only update state if values actually changed (avoids re-rendering entire tree)
+          const cpu = Math.round(sys.cpu);
+          const ram = Math.round(sys.ram * 10);
+          const vram = Math.round(sys.vram * 10);
+          if (cpu !== lastCpu || ram !== lastRam || vram !== lastVram) {
+            lastCpu = cpu; lastRam = ram; lastVram = vram;
+            setSysStats(sys);
+          }
+        }
+        if (ms && ms.status !== lastModelSt) {
+          lastModelSt = ms.status;
+          setModelStatus(ms.status);
+        }
         return true;
       } catch (e) { return false; }
     };
@@ -500,7 +513,7 @@ function App() {
       while (!cancelled) {
         const ok = await fetchStats();
         if (ok) {
-          if (!cancelled) interval = setInterval(fetchStats, 2000);
+          if (!cancelled) interval = setInterval(fetchStats, 4000);
           return;
         }
         await new Promise(r => setTimeout(r, 1500));
@@ -1066,6 +1079,7 @@ function App() {
         case 'demucs_done': break;
         case 'scene_start': setDubPrepStage('scene'); break;
         case 'scene_done': break;
+        case 'cached': setDubPrepStage('cached'); break;
         case 'ready':
           close();
           ctrl.signal.removeEventListener('abort', onAbort);
@@ -1593,6 +1607,12 @@ function App() {
         sysStats={sysStats} modelStatus={modelStatus}
         doubleClickMaximize={doubleClickMaximize}
         activeProjectName={activeProjectName}
+        onFlushMemory={async (unloadModel) => {
+          try {
+            const r = await apiFlushMemory(unloadModel);
+            toast.success(`Flushed — RAM ${r.ram_after}G · VRAM ${r.vram_after}G${r.unloaded_model ? ' · model unloaded' : ''}`);
+          } catch (e) { toast.error('Flush failed: ' + e.message); }
+        }}
       />
 
       <NavRail mode={mode} setMode={setMode} side={navRailSide} onFlipSide={flipNavRailSide} />

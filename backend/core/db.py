@@ -71,6 +71,7 @@ _BASE_SCHEMA = """
         language_code TEXT,
         tracks TEXT DEFAULT '[]',
         job_data TEXT,
+        content_hash TEXT DEFAULT '',
         created_at REAL
     );
     CREATE TABLE IF NOT EXISTS studio_projects (
@@ -99,6 +100,7 @@ _ALLOWED_MIGRATIONS = {
     ("voice_profiles", "seed"),
     ("voice_profiles", "is_locked"),
     ("generation_history", "seed"),
+    ("dub_history", "content_hash"),
 }
 
 
@@ -124,7 +126,10 @@ def _migrate(conn, current: int) -> int:
         _add_column_if_missing(conn, "voice_profiles", "is_locked", "INTEGER DEFAULT 0")
         _add_column_if_missing(conn, "generation_history", "seed", "INTEGER DEFAULT NULL")
         current = 1
-    # Future migrations: if current < 2: ...; current = 2
+    if current < 2:
+        _add_column_if_missing(conn, "dub_history", "content_hash", "TEXT DEFAULT ''")
+        current = 2
+    # Future migrations: if current < 3: ...; current = 3
     return current
 
 

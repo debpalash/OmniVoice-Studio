@@ -28,3 +28,7 @@ export async function systemLogsTauri(tail = 300) {
 export async function clearSystemLogs() {
   return apiPost('/system/logs/clear');
 }
+
+export async function flushMemory(unloadModel = false) {
+  return apiPost(`/system/flush-memory?unload_model=${unloadModel}`);
+}

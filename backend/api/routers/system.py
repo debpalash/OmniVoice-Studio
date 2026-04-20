@@ -16,6 +16,12 @@ from services.ffmpeg_utils import find_ffmpeg, run_ffmpeg
 router = APIRouter()
 logger = logging.getLogger("omnivoice.api")
 
+# Cache device checks at module load — they don't change at runtime
+_is_mac = hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
+_is_cuda = torch.cuda.is_available()
+# Prime psutil's internal CPU counter so the first non-blocking call returns useful data
+psutil.cpu_percent(interval=None)
+
 @router.get("/model/status")
 def model_status():
     """Report model loading state for frontend warm-up indicators."""
@@ -110,19 +116,16 @@ def clear_system_logs():
 def get_sys_info():
     vram = 0.0
     gpu_active = False
-    
-    is_mac = hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
-    is_cuda = torch.cuda.is_available()
 
     try:
-        if is_mac:
+        if _is_mac:
             alloc = getattr(torch.mps, "current_allocated_memory", None)
             driver = getattr(torch.mps, "driver_allocated_memory", None)
             if driver:
                 vram = driver() / (1024**3)
             elif alloc:
                 vram = alloc() / (1024**3)
-        elif is_cuda:
+        elif _is_cuda:
             vram = torch.cuda.memory_allocated() / (1024**3)
     except Exception:
         pass
@@ -130,12 +133,59 @@ def get_sys_info():
     if vram > 0.01:
         gpu_active = True
 
+    vm = psutil.virtual_memory()
     return {
-        "cpu": psutil.cpu_percent(interval=0.1),
-        "ram": psutil.virtual_memory().used / (1024**3),
-        "total_ram": psutil.virtual_memory().total / (1024**3),
+        "cpu": psutil.cpu_percent(interval=None),
+        "ram": vm.used / (1024**3),
+        "total_ram": vm.total / (1024**3),
         "vram": round(vram, 2),
         "gpu_active": gpu_active
+    }
+
+@router.post("/system/flush-memory")
+async def flush_memory(unload_model: bool = False):
+    """Aggressively release RAM/VRAM by clearing caches and running GC.
+
+    When unload_model=true, the TTS model is fully unloaded and will be
+    re-loaded lazily on the next generation request.
+    """
+    import gc
+    from services.model_manager import free_vram, model as _current_model
+
+    freed_model = False
+    if unload_model:
+        import services.model_manager as mm
+        async with mm._model_lock:
+            if mm.model is not None:
+                mm.model = None
+                freed_model = True
+
+    # Multi-pass GC to break reference cycles
+    gc.collect(generation=2)
+    gc.collect(generation=1)
+    gc.collect(generation=0)
+
+    free_vram()
+
+    # Snapshot after flush
+    vram_after = 0.0
+    try:
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            driver = getattr(torch.mps, "driver_allocated_memory", None)
+            if driver:
+                vram_after = driver() / (1024**3)
+        elif torch.cuda.is_available():
+            vram_after = torch.cuda.memory_allocated() / (1024**3)
+    except Exception:
+        pass
+
+    ram_after = psutil.virtual_memory().used / (1024**3)
+
+    return {
+        "flushed": True,
+        "unloaded_model": freed_model,
+        "ram_after": round(ram_after, 2),
+        "vram_after": round(vram_after, 2),
     }
 
 @router.post("/clean-audio")

@@ -25,3 +25,6 @@ tauri = { version = "2.10.3", features = ["macos-private-api", "protocol-asset"]
 tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-window-state = "2.0.0"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

@@ -137,8 +137,20 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; margin: 0; }
 .app-container > .main-content > * { position: relative; z-index: 1; }
 .app-container > div { min-width: 0; }
 
+/* ≤1100: auto-collapse sidebar, keep nav + main */
 @media (max-width: 1100px) {
-  .app-container { grid-template-columns: minmax(0, 1fr); }
+  .app-container { grid-template-columns: 48px minmax(0, 1fr); }
+  .app-container > .history-panel { display: none; }
+  .app-container > .main-content { grid-column: 2; }
+  .app-container.rail-right { grid-template-columns: minmax(0, 1fr) 48px; }
+  .app-container.rail-right > .main-content { grid-column: 1; }
+}
+
+/* ≤600: hide nav rail too, full-width main */
+@media (max-width: 600px) {
+  .app-container { grid-template-columns: minmax(0, 1fr) !important; }
+  .app-container > .nav-rail { display: none; }
+  .app-container > .main-content { grid-column: 1 !important; }
 }
 
 /* ═══ PANELS — warm glass matching launchpad ═══ */
@@ -251,18 +263,22 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; margin: 0; }
   .hq-view-project { display: none; }
 }
 
-/* ≤1080: drop stats pill (RAM/CPU/VRAM) */
+/* ≤1080: hide RAM/CPU text, keep VRAM + status + flush */
 @media (max-width: 1080px) {
-  .header-area [style*="RAM"] { display: none !important; }
+  .hq-stats > span:nth-child(1),
+  .hq-stats > span:nth-child(2) { display: none; }
 }
 
-/* ≤960: shrink breadcrumb, drop S/M/L scale picker */
+/* ≤960: shrink breadcrumb, hide S/M/L scale picker */
 @media (max-width: 960px) {
   .hq-view-title { padding: 4px 10px; gap: 5px; }
   .hq-view-label { font-size: 0.78rem; }
-  .header-area [title="S"], .header-area [title="M"], .header-area [title="L"] { display: none; }
-  /* Hide whole scale pill group */
-  .header-area > div:last-child > div:first-child { display: none; }
+  .hq-scale { display: none; }
+}
+
+/* ≤850: hide stats pill entirely */
+@media (max-width: 850px) {
+  .hq-stats { display: none !important; }
 }
 
 /* ≤820: drop pulsing dot + shrink logo */
@@ -273,6 +289,13 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; margin: 0; }
 /* ≤720: hide logo wordmark, keep icon only */
 @media (max-width: 720px) {
   .header-area > div:nth-child(2) span { display: none; }
+}
+
+/* ≤600: minimal header — just breadcrumb label */
+@media (max-width: 600px) {
+  .header-area { padding-left: 12px; padding-right: 4px; }
+  .header-area > div:nth-child(2) { display: none; }
+  .hq-view-title { padding: 3px 8px; }
 }
 
 /* Prevent clusters overlapping: clip content inside grid cells */
@@ -1704,3 +1727,131 @@ div[role="dialog"].audio-trimmer {
 }
 
 
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE — make every component adapt to viewport width
+   ════════════════════════════════════════════════════════════ */
+
+/* ── DubTab + CloneDesignTab split grids → single column ── */
+@media (max-width: 1000px) {
+  .dub-split-grid {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto 1fr !important;
+  }
+  .clone-split-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .clone-split-grid .studio-column:first-child {
+    max-height: 45vh;
+  }
+}
+
+/* ── Grid utilities collapse ── */
+@media (max-width: 700px) {
+  .grid-2 { grid-template-columns: 1fr !important; }
+  .grid-3 { grid-template-columns: 1fr 1fr !important; }
+}
+@media (max-width: 500px) {
+  .grid-3 { grid-template-columns: 1fr !important; }
+  .grid-4 { grid-template-columns: 1fr 1fr !important; }
+}
+
+/* ── Launchpad ── */
+@media (max-width: 900px) {
+  .lp-hero { padding: 24px 20px 16px; }
+  .lp-hero h1 { font-size: 1.8rem; }
+  .lp-hero p { font-size: 0.85rem; }
+  .lp-actions { padding: 0 20px 16px; gap: 12px; flex-wrap: wrap; }
+  .lp-action-card { min-width: 0; flex: 1 1 200px; padding: 14px 12px; }
+  .lp-action-card:nth-child(1),
+  .lp-action-card:nth-child(2),
+  .lp-action-card:nth-child(3) { transform: none; }
+  .lp-section { padding: 0 20px 24px; }
+}
+@media (max-width: 640px) {
+  .lp-hero h1 { font-size: 1.4rem; }
+  .lp-hero p { font-size: 0.78rem; max-width: 100%; }
+  .lp-actions { flex-direction: column; padding: 0 12px 12px; }
+  .lp-action-card { min-height: auto; padding: 12px 10px; }
+  .lp-action-card h3 { font-size: 0.88rem; }
+  .lp-action-card .card-desc { font-size: 0.68rem; -webkit-line-clamp: 2; }
+  .lp-action-card .card-icon { width: 28px; height: 28px; }
+  .lp-section { padding: 0 12px 16px; }
+}
+
+/* ── Studio panels — tighter on small screens ── */
+@media (max-width: 800px) {
+  .studio-panel { padding: 10px 10px; }
+  .studio-panel .label-row { font-size: 0.68rem; }
+}
+@media (max-width: 600px) {
+  .studio-panel { padding: 8px 6px; }
+}
+
+/* ── DubTab settings bar wrap ── */
+@media (max-width: 900px) {
+  .dub-settings-bar {
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+  .dub-settings-bar > div { min-width: 0 !important; width: 100%; }
+}
+
+/* ── DubTab footer buttons — wrap on narrow ── */
+@media (max-width: 800px) {
+  .dub-footer-btns {
+    flex-wrap: wrap !important;
+  }
+  .dub-footer-btns .btn-primary {
+    min-width: 80px;
+    flex: 1 1 calc(50% - 4px) !important;
+  }
+}
+@media (max-width: 500px) {
+  .dub-footer-btns .btn-primary {
+    flex: 1 1 100% !important;
+  }
+}
+
+/* ── Segment table — tighter columns ── */
+@media (max-width: 800px) {
+  .segment-time { width: 45px !important; font-size: 0.58rem !important; }
+  .segment-row { padding: 2px 4px; }
+  .segment-header { padding: 2px 4px; font-size: 0.58rem; }
+}
+
+/* ── Waveform timeline — reduce height on small screens ── */
+@media (max-width: 800px) {
+  .waveform-container { height: 60px !important; }
+}
+
+/* ── Tabs — scroll instead of squish on narrow ── */
+@media (max-width: 600px) {
+  .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tab { flex: 0 0 auto; padding: 5px 10px; font-size: 0.65rem; }
+}
+
+/* ── Preset grid — 2 columns on narrow ── */
+@media (max-width: 700px) {
+  .preset-grid { grid-template-columns: 1fr 1fr !important; }
+}
+@media (max-width: 500px) {
+  .preset-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── Chip groups — wrap gracefully ── */
+.chip-group { flex-wrap: wrap; }
+
+/* ── Compare modal — stack on narrow ── */
+@media (max-width: 800px) {
+  .compare-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── General: prevent horizontal overflow everywhere ── */
+@media (max-width: 600px) {
+  body { font-size: 11px; }
+  .btn-primary { font-size: 0.7rem; padding: 5px 8px; }
+  .input-base { font-size: 0.7rem; }
+  select.input-base { font-size: 0.7rem; }
+}

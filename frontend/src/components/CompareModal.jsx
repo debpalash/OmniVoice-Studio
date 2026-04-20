@@ -94,7 +94,7 @@ export default function CompareModal({
           <textarea className="input-base" value={compareText} onChange={e => setCompareText(e.target.value)} rows={2} style={{ resize: 'none' }} />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        <div className="compare-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 8, background: 'rgba(255,255,255,0.01)' }}>
             <h3 style={{ margin: 0, color: '#d3869b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Fingerprint size={14} /> Voice A</h3>
             <select className="input-base" value={compareVoiceA} onChange={e => setCompareVoiceA(e.target.value)}>

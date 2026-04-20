@@ -35,6 +35,7 @@ export default function WaveformTimeline({
   const waveContainerRef = useRef(null);  // div WaveSurfer draws into
   const videoContainerRef = useRef(null); // div we imperatively append the <video> into
   const wsRef         = useRef(null);
+  const mediaElRef    = useRef(null);  // fallback: direct media element if WaveSurfer unavailable
   const regionsRef    = useRef(null);
   const isDraggingRef = useRef(false);
   const lastFpRef     = useRef(null);
@@ -105,26 +106,46 @@ export default function WaveformTimeline({
       mediaEl.src = audioSrc;
     }
     mediaEl.crossOrigin = 'anonymous'; // helps in sandboxed WebViews
+    mediaElRef.current = mediaEl;       // keep ref for fallback play/pause
 
     // ── 3. Init WaveSurfer with that single media element ────────────────────
     const regions = RegionsPlugin.create();
     regionsRef.current = regions;
     lastFpRef.current  = null;
 
-    const ws = WaveSurfer.create({
-      container:     waveContainerRef.current,
-      waveColor:     'rgba(168,153,132,0.45)',
-      progressColor: 'rgba(211,134,155,0.75)',
-      cursorColor:   '#d3869b',
-      cursorWidth:   2,
-      height:        64,
-      barWidth:      2,
-      barGap:        1,
-      barRadius:     2,
-      normalize:     true,
-      media:         mediaEl,   // single source of truth — no sync conflicts
-      plugins:       [regions],
-    });
+    let ws;
+    try {
+      ws = WaveSurfer.create({
+        container:     waveContainerRef.current,
+        waveColor:     'rgba(168,153,132,0.45)',
+        progressColor: 'rgba(211,134,155,0.75)',
+        cursorColor:   '#d3869b',
+        cursorWidth:   2,
+        height:        64,
+        barWidth:      2,
+        barGap:        1,
+        barRadius:     2,
+        normalize:     true,
+        media:         mediaEl,   // single source of truth — no sync conflicts
+        plugins:       [regions],
+      });
+    } catch (initErr) {
+      console.warn('WaveSurfer init failed (WebKit restriction?):', initErr);
+      // Still allow media element to function for video playback
+      // Wire native events so play button and time display work
+      const waitMeta = () => {
+        setDuration(mediaEl.duration || 0);
+        setReady(true);
+      };
+      if (mediaEl.readyState >= 1) waitMeta();
+      else mediaEl.addEventListener('loadedmetadata', waitMeta, { once: true });
+      mediaEl.addEventListener('timeupdate', () => setCurrentTime(mediaEl.currentTime));
+      mediaEl.addEventListener('play',  () => setIsPlaying(true));
+      mediaEl.addEventListener('pause', () => setIsPlaying(false));
+      mediaEl.addEventListener('ended', () => setIsPlaying(false));
+      wsRef.current = null;
+      return;
+    }
 
     ws.on('ready',      ()  => { setDuration(ws.getDuration()); setReady(true); });
     ws.on('timeupdate', (t) => setCurrentTime(t));
@@ -135,8 +156,20 @@ export default function WaveformTimeline({
     // Handle errors (like Safari refusing to decode .mov in WebAudio)
     ws.on('error', (err) => {
       const errStr = typeof err === 'string' ? err.toLowerCase() : (err?.message || '').toLowerCase();
-      if ((err?.name === 'AbortError') || errStr.includes('abort')) {
+      const errName = err?.name || '';
+      if (errName === 'AbortError' || errStr.includes('abort')) {
         return; // Ignore React cleanup aborts
+      }
+      // WebKit NotSupportedError — skip decode, load with empty peaks so media element still works
+      if (errName === 'NotSupportedError' || errStr.includes('not supported')) {
+        console.warn('WebKit audio decode not supported, using media element directly');
+        try {
+          const emptyPeaks = new Float32Array(1000).fill(0);
+          ws.load(undefined, [emptyPeaks], mediaEl.duration || 60);
+        } catch (_) {
+          setReady(true);
+        }
+        return;
       }
 
       // If WaveSurfer failed to decode the media element stream (e.g. 404, .mov on MacOS, or pure .wav files failing to emit peaks),
@@ -156,8 +189,14 @@ export default function WaveformTimeline({
              ws.load(undefined, [channelData], audioBuffer.duration);
           })
           .catch((decodeErr) => {
-            console.error('Audio decode fallback failed:', decodeErr);
-            setLoadError(true);
+            console.warn('Audio decode fallback failed, loading with empty peaks:', decodeErr);
+            // Last resort — show flat waveform but keep media element playback working
+            try {
+              const emptyPeaks = new Float32Array(1000).fill(0);
+              ws.load(undefined, [emptyPeaks], mediaEl.duration || 60);
+            } catch (_) {
+              setLoadError(true);
+            }
           });
       } else {
         setLoadError(true);
@@ -195,7 +234,7 @@ export default function WaveformTimeline({
 
     regions.on('region-clicked', (region, e) => {
       e.stopPropagation();
-      region.play();
+      try { region.play(); } catch (_) { /* WebKit may reject */ }
     });
 
     wsRef.current = ws;
@@ -203,6 +242,7 @@ export default function WaveformTimeline({
     return () => {
       try { ws.destroy(); } catch (_) {}
       wsRef.current      = null;
+      mediaElRef.current = null;
       regionsRef.current = null;
       // Clear the imperatively-created video element (release src so browser frees decoder)
       const c = videoContainerRef.current;
@@ -250,8 +290,26 @@ export default function WaveformTimeline({
     });
   }, [fingerprint, ready, disabled, segments]);
 
-  const togglePlay = useCallback(() => wsRef.current?.playPause(), []);
-  const seekTo     = useCallback((t) => { wsRef.current?.setTime(t); }, []);
+  const togglePlay = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.playPause();
+    } else if (mediaElRef.current) {
+      // Fallback: control the native media element directly
+      const el = mediaElRef.current;
+      if (el.paused) {
+        el.play().catch(() => {});
+      } else {
+        el.pause();
+      }
+    }
+  }, []);
+  const seekTo = useCallback((t) => {
+    if (wsRef.current) {
+      wsRef.current.setTime(t);
+    } else if (mediaElRef.current) {
+      mediaElRef.current.currentTime = t;
+    }
+  }, []);
 
   const fmt = (t) => {
     const m = Math.floor(t / 60);

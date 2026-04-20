@@ -44,7 +44,7 @@ export default function CloneDesignTab(props) {
   } = props;
 
   return (
-    <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 6, minHeight: 0 }}>
+    <div className="clone-split-grid" style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 6, minHeight: 0 }}>
 
       {/* ═══ LEFT COLUMN: prompt + language/steps ═══ */}
       <div className="studio-column">

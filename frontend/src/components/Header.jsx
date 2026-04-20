@@ -1,5 +1,5 @@
-import React from 'react';
-import { Globe, Fingerprint, Wand2, Film, RefreshCw, Settings2, ChevronRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Globe, Fingerprint, Wand2, Film, RefreshCw, Settings2, ChevronRight, Zap } from 'lucide-react';
 
 const VIEW_META = {
   launchpad: { label: 'Launchpad',       Icon: Globe,       accent: '#f3a5b6', kicker: 'Studio' },
@@ -30,8 +30,9 @@ function WaveBars({ color = '#f3a5b6', active }) {
 
 export default function Header({
   mode, setMode, uiScale, setUiScale, sysStats, modelStatus, doubleClickMaximize,
-  activeProjectName,
+  activeProjectName, onFlushMemory,
 }) {
+  const [flushing, setFlushing] = useState(false);
   const view = VIEW_META[mode] || VIEW_META.launchpad;
   const ViewIcon = view.Icon;
   return (
@@ -40,7 +41,7 @@ export default function Header({
       data-tauri-drag-region
       onDoubleClick={doubleClickMaximize}
       style={{
-        display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center',
+        display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center',
         gridColumn: '1 / -1', gridRow: '1', cursor: 'default', paddingRight: '8px',
       }}
     >
@@ -100,7 +101,7 @@ export default function Header({
       {/* Right: wave + UI scale + sys stats */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', justifySelf: 'end', minWidth: 0, overflow: 'hidden' }}>
         <WaveBars color={view.accent} active={modelStatus === 'ready' || modelStatus === 'loading'} />
-        <div style={{ display: 'flex', gap: 2, background: 'rgba(0,0,0,0.28)', padding: 3, borderRadius: 999, border: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
+        <div className="hq-scale" style={{ display: 'flex', gap: 2, background: 'rgba(0,0,0,0.28)', padding: 3, borderRadius: 999, border: '1px solid rgba(255,255,255,0.05)', flexShrink: 1 }}>
           {[{ v: 1, l: 'S' }, { v: 1.3, l: 'M' }, { v: 1.5, l: 'L' }].map(({ v, l }) => (
             <button
               key={l}
@@ -119,7 +120,7 @@ export default function Header({
           ))}
         </div>
         {sysStats && (
-          <div style={{ display: 'flex', gap: '8px', fontFamily: 'Nunito, sans-serif', fontSize: '0.58rem', color: '#7c6f64', background: 'rgba(0,0,0,0.28)', padding: '3px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.05)', whiteSpace: 'nowrap', flexShrink: 0, alignItems: 'center' }}>
+          <div className="hq-stats" style={{ display: 'flex', gap: '8px', fontFamily: 'Nunito, sans-serif', fontSize: '0.58rem', color: '#7c6f64', background: 'rgba(0,0,0,0.28)', padding: '3px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.05)', whiteSpace: 'nowrap', flexShrink: 1, alignItems: 'center', overflow: 'hidden' }}>
             <span><b style={{ color: '#a89984', fontWeight: 500 }}>RAM</b> {sysStats.ram.toFixed(1)}/{sysStats.total_ram.toFixed(0)}G</span>
             <span><b style={{ color: '#a89984', fontWeight: 500 }}>CPU</b> {sysStats.cpu.toFixed(0)}%</span>
             <span style={{ borderLeft: '1px solid rgba(255,255,255,0.06)', paddingLeft: 5 }}>
@@ -138,6 +139,28 @@ export default function Header({
                 {modelStatus === 'ready' ? 'Ready' : modelStatus === 'loading' ? 'Loading…' : 'Idle'}
               </span>
             </span>
+            {onFlushMemory && (
+              <button
+                title="Flush RAM/VRAM caches. Alt+Click to also unload model."
+                disabled={flushing}
+                onClick={async (e) => {
+                  setFlushing(true);
+                  try { await onFlushMemory(e.altKey); } finally { setFlushing(false); }
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 2, padding: '1px 6px',
+                  background: flushing ? 'rgba(250,189,47,0.15)' : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${flushing ? 'rgba(250,189,47,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                  borderRadius: 999, cursor: flushing ? 'wait' : 'pointer',
+                  color: flushing ? '#fabd2f' : '#7c6f64', fontSize: '0.55rem', fontWeight: 700,
+                  fontFamily: 'Nunito, sans-serif', transition: 'all 0.15s ease',
+                  marginLeft: 2,
+                }}
+              >
+                <Zap size={8} style={flushing ? { animation: 'pulse 0.8s ease-in-out infinite' } : {}} />
+                {flushing ? '…' : 'Flush'}
+              </button>
+            )}
           </div>
         )}
       </div>
