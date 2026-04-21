@@ -71,3 +71,4 @@ examples/data*
 examples/download*
 examples/exp*/
 omnivoice.zip
+frontend/src-tauri/binaries/ffmpeg
