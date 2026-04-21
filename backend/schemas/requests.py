@@ -32,6 +32,22 @@ class DubRequest(BaseModel):
     num_step: int = 16
     guidance_scale: float = 2.0
     speed: float = 1.0
+    # Phase 4.1 — partial regen. Parallel lists by index with `segments`.
+    # When `regen_only` is set, only listed segment ids re-run TTS; others
+    # reuse their on-disk seg_N.wav. `segment_ids` lets the client bind
+    # each segment to a stable id across regen cycles.
+    segment_ids: Optional[List[str]] = None
+    regen_only: Optional[List[str]] = None
+    # Fast-preview mode for interactive edits. When true, TTS runs at
+    # num_step=8 (~2× faster, ~10-20% quality drop). Client is responsible
+    # for re-rendering preview segs at full quality before final export.
+    preview: Optional[bool] = False
+    # How to handle segs whose TTS audio is longer than its slot (the
+    # "ghost lang" overlap bug otherwise). Options:
+    #   "time_stretch" — phase-vocoder stretch to fit, preserves pitch (default).
+    #   "trim"         — hard-clip to slot length + fade out (cheap, may cut mid-word).
+    #   "off"          — no fit; mix layers with += (legacy behaviour, may overlap).
+    slot_fit: Optional[str] = "time_stretch"
 
 class TranslateSegment(BaseModel):
     id: str
@@ -44,6 +60,8 @@ class TranslateRequest(BaseModel):
     provider: Optional[str] = None
     source_lang: Optional[str] = None  # ISO 639-1; overrides job detection
     job_id: Optional[str] = None  # Dub job id, used to resolve detected source_lang
+    quality: Optional[str] = "fast"  # "fast" (one-shot) | "cinematic" (reflect → adapt)
+    glossary: Optional[List[dict]] = None  # [{"source": "...", "target": "...", "note": "..."}]
 
 class DubIngestUrlRequest(BaseModel):
     url: str

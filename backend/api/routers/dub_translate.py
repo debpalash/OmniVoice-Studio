@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from schemas.requests import TranslateRequest
 from services.model_manager import _cpu_pool, _gpu_pool
+from services.translator import cinematic_available, cinematic_refine_many
 from api.routers.dub_core import _get_job
 
 router = APIRouter()
@@ -263,7 +264,115 @@ async def dub_translate(req: TranslateRequest):
         translated = await asyncio.gather(*tasks)
         translated.sort(key=lambda x: str(x["id"]))
 
-        return {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang}
+        return await _maybe_cinematic(
+            translated, req, src_lang, loop,
+        )
     except Exception as e:
         import traceback; traceback.print_exc()
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+async def _maybe_cinematic(translated, req, src_lang, loop):
+    """If quality=cinematic and a usable LLM is configured, run REFLECT+ADAPT.
+    Otherwise return Fast-mode shape unchanged.
+    """
+    quality = (getattr(req, "quality", None) or "fast").lower()
+    base = {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang, "quality_used": "fast"}
+
+    if quality != "cinematic":
+        return base
+
+    if not cinematic_available():
+        logger.warning("cinematic requested but no LLM configured — returning Fast result.")
+        base["cinematic_skipped"] = "no-llm-configured"
+        return base
+
+    # Build a map from id → original segment (to fetch source text + direction).
+    source_by_id: dict[str, str] = {str(s.id): s.text for s in req.segments}
+    directions: dict[str, str] = {
+        str(s.id): s.direction
+        for s in req.segments
+        if getattr(s, "direction", None)
+    }
+    pairs = []
+    passthrough_index = {}
+    for i, row in enumerate(translated):
+        seg_id = str(row["id"])
+        literal = row.get("text", "") or ""
+        if row.get("error") or not literal.strip():
+            passthrough_index[seg_id] = row  # keep as-is, LLM won't help
+            continue
+        pairs.append((seg_id, source_by_id.get(seg_id, ""), literal))
+
+    if not pairs:
+        return base
+
+    refined = await cinematic_refine_many(
+        pairs,
+        source_lang=src_lang,
+        target_lang=req.target_lang,
+        glossary=req.glossary,
+        directions=directions,
+        executor=_cpu_pool,
+    )
+    refined_by_id = {r["id"]: r for r in refined}
+
+    # Phase 4.4 — speech-rate fit pass. Segment boundaries aren't in the
+    # translate request (by design — translator is boundary-agnostic), so we
+    # only run it when the caller supplied `slot_seconds` on each segment.
+    # The frontend populates this for Cinematic calls from the edit view.
+    slots_by_id = {
+        str(s.id): getattr(s, "slot_seconds", None)
+        for s in req.segments
+        if getattr(s, "slot_seconds", None)
+    }
+
+    merged = []
+    for row in translated:
+        seg_id = str(row["id"])
+        if seg_id in passthrough_index:
+            merged.append(row)
+            continue
+        r = refined_by_id.get(seg_id)
+        if r is None:
+            merged.append(row)
+            continue
+        out = {
+            "id": row["id"],
+            "text": r["text"],
+            "literal": r["literal"],
+            "critique": r.get("critique", ""),
+        }
+        if r.get("error"):
+            out["error"] = r["error"]
+
+        # Optional slot-fit pass — only when the caller asked for cinematic
+        # *and* provided a slot. Runs best-effort; no-LLM or mid-loop failure
+        # just leaves the cinematic text untouched.
+        slot = slots_by_id.get(seg_id)
+        if slot and out["text"]:
+            try:
+                from services.speech_rate import adjust_for_slot
+                fit = await asyncio.to_thread(
+                    adjust_for_slot,
+                    out["text"],
+                    slot_seconds=float(slot),
+                    target_lang=req.target_lang,
+                    source_text=source_by_id.get(seg_id),
+                )
+                if fit.get("text"):
+                    out["text"] = fit["text"]
+                out["rate_ratio"] = fit.get("rate_ratio")
+                if fit.get("error"):
+                    out["rate_error"] = fit["error"]
+            except Exception as e:
+                logger.warning("rate-fit skipped for %s: %s", seg_id, e)
+
+        merged.append(out)
+
+    return {
+        "translated": merged,
+        "target_lang": req.target_lang,
+        "source_lang": src_lang,
+        "quality_used": "cinematic",
+    }

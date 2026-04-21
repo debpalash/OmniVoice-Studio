@@ -8,42 +8,40 @@ import {
 import { Download as Download } from 'lucide-react';
 import SearchableSelect from '../components/SearchableSelect';
 import WaveformTimeline from '../components/WaveformTimeline';
+import CheckpointBanner from '../components/CheckpointBanner';
+import { useAppStore } from '../store';
 import ALL_LANGUAGES from '../languages.json';
 import { POPULAR_LANGS, POPULAR_ISO, PRESETS } from '../utils/constants';
 import { LANG_CODES } from '../utils/languages';
 import { formatTime } from '../utils/format';
 import { API } from '../api/client';
-import { Button, Segmented, Badge, Progress } from '../ui';
+import { Button, Segmented, Badge, Progress, Menu } from '../ui';
+import GlossaryPanel from '../components/GlossaryPanel';
 import './DubTab.css';
 
 const DubSegmentTable = lazy(() => import('../components/DubSegmentTable'));
 
 const LazyFallback = () => (
-  <div style={{ padding: 12, color: '#6b6657', fontSize: '0.7rem' }}>Loading…</div>
+  <div className="dub-lazy-fallback">Loading…</div>
 );
 
 export default function DubTab(props) {
   const {
-    // State
-    dubJobId, dubStep, dubPrepStage, dubVideoFile, dubFilename, dubDuration, dubSegments, dubTranscript,
-    dubLang, dubLangCode, dubInstruct, dubTracks, dubError, dubProgress, dubLocalBlobUrl,
-    activeProjectName,
-    isSidebarCollapsed, setIsSidebarCollapsed,
+    // Props that stay prop-threaded: non-serialisable state + handlers that
+    // close over App.jsx's scope (uploads, SSE wiring, project CRUD, etc.).
+    dubVideoFile, dubLocalBlobUrl,
     transcribeElapsed, translateProvider, setTranslateProvider,
-    isTranslating,
-    preserveBg, setPreserveBg, defaultTrack, setDefaultTrack,
-    exportTracks, setExportTracks,
     showTranscript, setShowTranscript,
+    onGlossaryChange,
     profiles,
     segmentPreviewLoading,
     selectedSegIds,
-    // Setters
-    setDubVideoFile, setDubStep, setDubLocalBlobUrl, setDubSegments,
-    setDubLang, setDubLangCode, setDubInstruct,
-    // Handlers
+    setDubVideoFile, setDubLocalBlobUrl,
     handleDubAbort, handleDubUpload, handleDubIngestUrl, handleDubStop, handleDubGenerate,
-    handleDubDownload, handleDubAudioDownload,
-    handleSegmentPreview, handleTranslateAll, handleCleanupSegments,
+    handleDubDownload, handleDubAudioDownload, handleAudioExport,
+    speakerClones = {},
+    handleSegmentPreview, onDirectSegment, handleTranslateAll, handleCleanupSegments,
+    incrementalPlan,
     triggerDownload, fileToMediaUrl,
     editSegments, saveProject, resetDub,
     segmentEditField, segmentDelete, segmentRestoreOriginal, segmentSplit, segmentMerge,
@@ -51,9 +49,76 @@ export default function DubTab(props) {
     bulkApplyToSelected, bulkDeleteSelected,
   } = props;
 
+  // ── Store reads (Phase 2.2) — drop ~30 props from the App.jsx contract.
+  const dubJobId          = useAppStore(s => s.dubJobId);
+  const dubStep           = useAppStore(s => s.dubStep);
+  const setDubStep        = useAppStore(s => s.setDubStep);
+  const dubPrepStage      = useAppStore(s => s.dubPrepStage);
+  const dubFilename       = useAppStore(s => s.dubFilename);
+  const dubDuration       = useAppStore(s => s.dubDuration);
+  const dubSegments       = useAppStore(s => s.dubSegments);
+  const setDubSegments    = useAppStore(s => s.setDubSegments);
+  const dubTranscript     = useAppStore(s => s.dubTranscript);
+  const dubLang           = useAppStore(s => s.dubLang);
+  const setDubLang        = useAppStore(s => s.setDubLang);
+  const dubLangCode       = useAppStore(s => s.dubLangCode);
+  const setDubLangCode    = useAppStore(s => s.setDubLangCode);
+  const dubInstruct       = useAppStore(s => s.dubInstruct);
+  const setDubInstruct    = useAppStore(s => s.setDubInstruct);
+  const dubTracks         = useAppStore(s => s.dubTracks);
+  const dubError          = useAppStore(s => s.dubError);
+  const dubProgress       = useAppStore(s => s.dubProgress);
+  const isTranslating     = useAppStore(s => s.isTranslating);
+  const preserveBg        = useAppStore(s => s.preserveBg);
+  const setPreserveBg     = useAppStore(s => s.setPreserveBg);
+  const defaultTrack      = useAppStore(s => s.defaultTrack);
+  const setDefaultTrack   = useAppStore(s => s.setDefaultTrack);
+  const exportTracks      = useAppStore(s => s.exportTracks);
+  const setExportTracks   = useAppStore(s => s.setExportTracks);
+  const activeProjectName = useAppStore(s => s.activeProjectName);
+  const isSidebarCollapsed = useAppStore(s => s.isSidebarCollapsed);
+  const setIsSidebarCollapsed = useAppStore(s => s.setIsSidebarCollapsed);
+  const translateQuality    = useAppStore(s => s.translateQuality);
+  const setTranslateQuality = useAppStore(s => s.setTranslateQuality);
+  const dualSubs            = useAppStore(s => s.dualSubs);
+  const setDualSubs         = useAppStore(s => s.setDualSubs);
+
   const showIdleSkeleton = !(dubJobId && (dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done'));
   const [ingestUrl, setIngestUrl] = useState('');
   const [previewMode, setPreviewMode] = useState('original'); // 'original' | 'dubbed'
+
+  // Collapse secondary settings (Language/ISO/Style/Engine/Quality) into an
+  // accordion. Once the user has translated, the row's job is done; show a
+  // one-line summary instead of the full 5-col grid.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const hasAnyTranslation = dubSegments.some(s => s.text_original && s.text_original !== s.text);
+
+  // Glossary: hide behind a chip when empty, auto-open once terms exist.
+  const glossaryTermCount = useAppStore(s => s.glossaryTerms.length);
+  const [glossaryOpen, setGlossaryOpen] = useState(false);
+  const glossaryVisible = glossaryOpen || glossaryTermCount > 0;
+
+  // Phase 4.3 — between-stage checkpoint banner.
+  const reviewMode = useAppStore(s => s.reviewMode);
+  const [dismissedStages, setDismissedStages] = useState(() => new Set());
+  const hasTranslations = dubSegments.some(s => s.text_original && s.text_original !== s.text);
+  const checkpointStage =
+    dubStep === 'editing' && !hasTranslations ? 'asr'
+    : dubStep === 'editing' && hasTranslations ? 'translate'
+    : dubStep === 'done' ? 'done'
+    : null;
+  const showCheckpoint = reviewMode === 'on' && checkpointStage && !dismissedStages.has(checkpointStage);
+  const onCheckpointContinue = () => {
+    if (checkpointStage === 'asr') handleTranslateAll?.();
+    else if (checkpointStage === 'translate') handleDubGenerate?.();
+  };
+  const onCheckpointDismiss = () => {
+    setDismissedStages(prev => {
+      const next = new Set(prev);
+      if (checkpointStage) next.add(checkpointStage);
+      return next;
+    });
+  };
   const onIngestUrl = () => {
     if (!ingestUrl.trim() || !handleDubIngestUrl) return;
     handleDubIngestUrl(ingestUrl.trim());
@@ -65,12 +130,12 @@ export default function DubTab(props) {
     : `${API}/dub/media/${dubJobId}`;
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+    <div className="dub-col">
       {/* ── Idle: show full editor skeleton with drop zone ── */}
       {showIdleSkeleton && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <div className="dub-col">
           {/* Header bar */}
-          <div className="studio-panel dub-head">
+          <div className="dub-head">
             <div className="label-row dub-head__title">
               <Button
                 variant="icon"
@@ -84,7 +149,9 @@ export default function DubTab(props) {
               <Film className="label-icon" size={11} />
               <span className="dub-head__filename">{dubVideoFile ? dubVideoFile.name : 'Video Dubbing Studio'}</span>
               {dubVideoFile && <span className="dub-head__meta">· {(dubVideoFile.size / 1024 / 1024).toFixed(1)} MB</span>}
-              {activeProjectName && <span className="dub-head__project">— {activeProjectName}</span>}
+              {activeProjectName && activeProjectName !== dubFilename && (
+                <span className="dub-head__project">— {activeProjectName}</span>
+              )}
             </div>
             <div className="dub-head__actions">
               <Button variant="subtle" size="sm" disabled leading={<Save size={9} />}>Save</Button>
@@ -93,9 +160,9 @@ export default function DubTab(props) {
           </div>
 
           {/* SPLIT LAYOUT skeleton */}
-          <div className="dub-split-grid" style={{ display: 'grid', gridTemplateColumns: dubVideoFile ? '1fr 1fr' : '1fr', gap: 6, flex: 1, minHeight: 0 }}>
+          <div className={`dub-split-grid ${dubVideoFile ? 'dub-split-2' : 'dub-split-1'}`}>
             {/* LEFT */}
-            <div className="studio-panel" style={{ marginBottom: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div className="studio-panel dub-panel-col">
               {dubVideoFile ? (
                 <>
                   <WaveformTimeline
@@ -116,11 +183,11 @@ export default function DubTab(props) {
                       ) : null
                     }
                   />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
-                    <label htmlFor="video-upload" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem', color: '#a89984' }}>
+                  <div className="dub-change-row">
+                    <label htmlFor="video-upload" className="dub-idle-upload-label">
                       <Film size={13} /> Change file
                     </label>
-                    <button className="btn-primary" style={{ flex: 1, marginTop: 0 }}
+                    <button className="btn-primary dub-change-row__cta"
                       onClick={handleDubUpload}
                       disabled={dubStep === 'uploading' || dubStep === 'transcribing'}>
                       {dubStep === 'uploading' || dubStep === 'transcribing'
@@ -132,13 +199,12 @@ export default function DubTab(props) {
               ) : dubStep === 'uploading' ? (
                 <PrepOverlay stage={dubPrepStage} onAbort={handleDubAbort} large />
               ) : (
-                <label htmlFor="video-upload" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, cursor: 'pointer', border: '2px dashed rgba(255,255,255,0.06)', borderRadius: 8, transition: 'all 0.3s', margin: 4 }}
-                  onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#d3869b'; e.currentTarget.style.background = 'rgba(211,134,155,0.05)'; }}
-                  onDragLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.background = 'transparent'; }}
+                <label htmlFor="video-upload" className="dub-idle-drop"
+                  onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('is-dragging'); }}
+                  onDragLeave={e => { e.currentTarget.classList.remove('is-dragging'); }}
                   onDrop={e => {
                     e.preventDefault();
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
-                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.classList.remove('is-dragging');
                     const file = e.dataTransfer.files[0];
                     if (file && file.type.startsWith('video/')) {
                       setDubVideoFile(file);
@@ -146,15 +212,15 @@ export default function DubTab(props) {
                       fileToMediaUrl(file, null).then(urls => setDubLocalBlobUrl(urls));
                     }
                   }}>
-                  <div style={{ width: 60, height: 60, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(211,134,155,0.06)', border: '1px solid rgba(211,134,155,0.1)' }}>
+                  <div className="dub-idle-drop__puck">
                     <UploadCloud color="#d3869b" size={28} />
                   </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.9rem', color: '#ebdbb2', fontWeight: 500, marginBottom: 4 }}>Drop video here</div>
-                    <div style={{ fontSize: '0.7rem', color: '#665c54' }}>MP4 · MOV · MKV · WEBM</div>
+                  <div className="dub-idle-drop__lines">
+                    <div className="dub-idle-drop__title">Drop video here</div>
+                    <div className="dub-idle-drop__sub">MP4 · MOV · MKV · WEBM</div>
                   </div>
                   <div
-                    style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '6px 10px', marginTop: 10, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, width: 'min(420px, 80%)' }}
+                    className="dub-ingest-row"
                     onClick={e => e.preventDefault()}
                   >
                     <Link2 size={13} color="#a89984" />
@@ -165,13 +231,13 @@ export default function DubTab(props) {
                       onChange={e => setIngestUrl(e.target.value)}
                       onClick={e => { e.preventDefault(); e.stopPropagation(); }}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); onIngestUrl(); } }}
-                      style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#ebdbb2', fontSize: '0.75rem' }}
+                      className="dub-ingest-row__input"
                     />
                     <button
                       type="button"
                       onClick={e => { e.preventDefault(); e.stopPropagation(); onIngestUrl(); }}
                       disabled={!ingestUrl.trim()}
-                      style={{ padding: '3px 10px', background: ingestUrl.trim() ? 'rgba(211,134,155,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${ingestUrl.trim() ? 'rgba(211,134,155,0.3)' : 'rgba(255,255,255,0.06)'}`, color: ingestUrl.trim() ? '#d3869b' : '#665c54', borderRadius: 4, fontSize: '0.7rem', cursor: ingestUrl.trim() ? 'pointer' : 'default' }}
+                      className={`dub-ingest-row__cta ${ingestUrl.trim() ? 'is-ready' : ''}`}
                     >
                       Ingest
                     </button>
@@ -179,7 +245,7 @@ export default function DubTab(props) {
                 </label>
               )}
 
-              <input type="file" accept="video/*" id="video-upload" style={{ display: 'none' }}
+              <input type="file" accept="video/*" id="video-upload" className="dub-hidden-file"
                 onChange={e => {
                   const file = e.target.files[0];
                   if (!file) return;
@@ -188,61 +254,61 @@ export default function DubTab(props) {
                   setDubLocalBlobUrl(prev => { fileToMediaUrl(file, prev).then(urls => setDubLocalBlobUrl(urls)); return prev; });
                 }} />
 
-              <div style={{ marginTop: 4, padding: '3px 6px', background: 'rgba(255,255,255,0.015)', borderRadius: 4, border: '1px solid rgba(255,255,255,0.03)' }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.62rem', color: '#504945', fontWeight: 600 }}>CAST</span>
-                  <span style={{ fontSize: '0.62rem', color: '#504945' }}>Speaker 1:</span>
-                  <span style={{ fontSize: '0.62rem', color: '#504945', padding: '1px 4px', background: 'rgba(255,255,255,0.02)', borderRadius: 2 }}>Default</span>
+              <div className="dub-cast dub-cast--muted">
+                <div className="dub-cast__row">
+                  <span className="dub-cast__kicker">CAST</span>
+                  <span className="dub-cast__label">Speaker 1:</span>
+                  <span className="dub-cast--muted__chip">Default</span>
                 </div>
               </div>
             </div>
 
             {/* RIGHT: Ghost settings + segment table (only when video loaded) */}
             {dubVideoFile ? (
-            <div className="studio-panel" style={{ marginBottom: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 4, flexWrap: 'wrap', alignItems: 'flex-end', opacity: 0.4 }}>
-                <div style={{ flex: 1, minWidth: 90 }}>
+            <div className="studio-panel dub-panel-col">
+              <div className="dub-skel-settings">
+                <div className="dub-skel-field">
                   <div className="label-row"><Globe className="label-icon" size={9} /> Language</div>
-                  <select className="input-base" disabled style={{ fontSize: '0.65rem' }}>
+                  <select className="input-base input-base--xs" disabled>
                     <option>Auto</option>
                   </select>
                 </div>
-                <div style={{ flex: 1, minWidth: 80 }}>
+                <div className="dub-skel-field--sm">
                   <div className="label-row">ISO Code</div>
-                  <select className="input-base" disabled style={{ fontSize: '0.65rem' }}>
+                  <select className="input-base input-base--xs" disabled>
                     <option>en — English</option>
                   </select>
                 </div>
-                <div style={{ flex: 1, minWidth: 90 }}>
+                <div className="dub-skel-field">
                   <div className="label-row"><UserSquare2 className="label-icon" size={9} /> Style</div>
-                  <input className="input-base" disabled placeholder="e.g. female" style={{ fontSize: '0.65rem' }} />
+                  <input className="input-base input-base--xs" disabled placeholder="e.g. female" />
                 </div>
-                <button disabled style={{ padding: '3px 8px', background: 'rgba(131,165,152,0.08)', border: '1px solid rgba(131,165,152,0.12)', color: '#504945', borderRadius: 4, fontSize: '0.62rem', display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap' }}>
+                <button disabled className="dub-skel-translate-btn">
                   <Languages size={10} /> Translate All
                 </button>
               </div>
-              <div style={{ marginBottom: 4 }}>
-                <div className="override-toggle" style={{ marginTop: 0, padding: '2px 6px', fontSize: '0.65rem', opacity: 0.3, cursor: 'default' }}>
-                  <span><FileText size={10} style={{ verticalAlign: 'middle', marginRight: 3 }} /> Transcript</span>
+              <div className="dub-skel-transcript-toggle">
+                <div className="override-toggle dub-skel-transcript-toggle__inner">
+                  <span><FileText size={10} className="dub-inline-icon" /> Transcript</span>
                   <ChevronDown size={10} />
                 </div>
               </div>
-              <div className="segment-table" style={{ flex: 1, maxHeight: 'none', overflowY: 'auto', minHeight: 0 }}>
+              <div className="segment-table dub-skel-table">
                 <div className="segment-header">
-                  <span style={{ width: 55 }}>Time</span>
-                  <span style={{ width: 50 }}>Spkr</span>
-                  <span style={{ flex: 1 }}>Text</span>
-                  <span style={{ width: 90 }}>Voice</span>
-                  <span style={{ width: 40 }}></span>
+                  <span className="dub-skel-header-time">Time</span>
+                  <span className="dub-skel-header-spkr">Spkr</span>
+                  <span className="dub-skel-header-text">Text</span>
+                  <span className="dub-skel-header-voice">Voice</span>
+                  <span className="dub-skel-header-acts"></span>
                 </div>
                 {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
                   <div key={i} className="segment-row" style={{ opacity: 0.15 + (0.04 * (8 - i)) }}>
-                    <span className="segment-time" style={{ width: 55 }}>0:00.0–0:00.0</span>
-                    <span style={{ width: 50, fontSize: '0.58rem', color: '#504945' }}>Speaker 1</span>
-                    <div style={{ flex: 1, height: 18, background: 'rgba(255,255,255,0.03)', borderRadius: 3 }} />
-                    <span style={{ width: 90, fontSize: '0.6rem', color: '#504945' }}>Default</span>
-                    <div style={{ display: 'flex', gap: 1, width: 40 }}>
-                      <span className="segment-del" style={{ opacity: 0.3 }}><Trash2 size={9} /></span>
+                    <span className="segment-time dub-skel-cell-time">0:00.0–0:00.0</span>
+                    <span className="dub-skel-cell-spkr">Speaker 1</span>
+                    <div className="dub-skel-cell-text" />
+                    <span className="dub-skel-cell-voice">Default</span>
+                    <div className="dub-skel-cell-acts">
+                      <span className="segment-del dub-skel-cell-acts__icon"><Trash2 size={9} /></span>
                     </div>
                   </div>
                 ))}
@@ -252,18 +318,18 @@ export default function DubTab(props) {
           </div>
 
           {/* Ghost footer */}
-          <div className="studio-panel" style={{ padding: '4px 8px', flexShrink: 0 }}>
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button className="btn-primary" disabled style={{ marginTop: 0, flex: 1, padding: '4px 8px', fontSize: '0.7rem', opacity: 0.4 }}>
+          <div className="studio-panel dub-ghost-footer">
+            <div className="dub-skel-gen-row">
+              <button className="btn-primary dub-skel-gen-btn" disabled>
                 <Play size={11} /> Generate Dub
               </button>
-              <button className="btn-primary" disabled style={{ marginTop: 0, flex: 1, padding: '4px 8px', fontSize: '0.7rem', opacity: 0.4 }}>
+              <button className="btn-primary dub-skel-gen-btn" disabled>
                 <Download size={11} /> MP4
               </button>
-              <button className="btn-primary" disabled style={{ marginTop: 0, flex: 1, padding: '4px 8px', fontSize: '0.7rem', opacity: 0.4 }}>
+              <button className="btn-primary dub-skel-gen-btn" disabled>
                 <Volume2 size={11} /> WAV
               </button>
-              <button className="btn-primary" disabled style={{ marginTop: 0, flex: 1, padding: '4px 8px', fontSize: '0.7rem', opacity: 0.4 }}>
+              <button className="btn-primary dub-skel-gen-btn" disabled>
                 <FileText size={11} /> SRT
               </button>
             </div>
@@ -273,8 +339,8 @@ export default function DubTab(props) {
 
       {/* ── After transcription: side-by-side editor ── */}
       {dubJobId && (dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done') && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <div className="studio-panel dub-head">
+        <div className="dub-col">
+          <div className="dub-head">
             <div className="label-row dub-head__title">
               <Button
                 variant="icon"
@@ -288,7 +354,9 @@ export default function DubTab(props) {
               <FileText className="label-icon" size={11} />
               <span className="dub-head__filename">{dubFilename}</span>
               <span className="dub-head__meta">· {formatTime(dubDuration)} · {dubSegments.length} segs</span>
-              {activeProjectName && <span className="dub-head__project">— {activeProjectName}</span>}
+              {activeProjectName && activeProjectName !== dubFilename && (
+                <span className="dub-head__project">— {activeProjectName}</span>
+              )}
             </div>
             <div className="dub-head__actions">
               <Button variant="subtle" size="sm" onClick={saveProject} leading={<Save size={9} />}>Save</Button>
@@ -296,9 +364,9 @@ export default function DubTab(props) {
             </div>
           </div>
 
-          <div className="dub-split-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, flex: 1, minHeight: 0 }}>
+          <div className="dub-split-grid dub-split-2">
             {/* LEFT: Waveform + Video */}
-            <div className="studio-panel" style={{ marginBottom: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div className="studio-panel dub-panel-col">
               {hasDubbedTrack && (
                 <div className="dub-preview-toggle">
                   <span className="dub-preview-toggle__kicker">Preview</span>
@@ -324,102 +392,175 @@ export default function DubTab(props) {
                 onSegmentsChange={setDubSegments}
                 disabled={dubStep === 'generating' || dubStep === 'stopping'}
                 overlayContent={(dubStep === 'generating' || dubStep === 'stopping') ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div className="dub-gen-overlay">
+                    <div className="dub-gen-overlay__head">
                       {dubStep === 'stopping' ? <Loader className="spinner" size={14} color="#a89984" /> : <Sparkles className="spinner" size={14} color="#d3869b" />}
-                      <span style={{ color: dubStep === 'stopping' ? '#a89984' : '#ebdbb2', fontWeight: 500, fontSize: '0.72rem' }}>
+                      <span className={`dub-gen-overlay__title ${dubStep === 'stopping' ? 'is-stopping' : ''}`}>
                         {dubStep === 'stopping' ? 'Stopping…' : `Dubbing ${dubProgress.current}/${dubProgress.total}…`}
                       </span>
                     </div>
                     {dubStep === 'generating' && (
                       <>
-                        <div style={{ width: '80%', maxWidth: 240 }}>
+                        <div className="dub-gen-overlay__bar">
                           <Progress
                             value={dubProgress.total ? (dubProgress.current / dubProgress.total) * 100 : 0}
                             tone="brand"
                             size="sm"
                           />
                         </div>
-                        {dubProgress.text && <span style={{ fontSize: '0.65rem', color: '#a89984' }}>{dubProgress.text}</span>}
+                        {dubProgress.text && <span className="dub-gen-overlay__text">{dubProgress.text}</span>}
                       </>
                     )}
                   </div>
                 ) : null}
               />
 
-              {/* Cast Diarization */}
+              {/* Cast — per-speaker voice assignment. When the auto-clone
+                  extractor found a usable passage per speaker (≥5s from the
+                  isolated vocals), that option becomes first-class in the
+                  dropdown. It's also pre-selected on the segments so "new
+                  language = same speaker's voice" works by default. */}
               {dubSegments.some(s => s.speaker_id) && (
-                <div style={{ marginTop: 4, padding: '3px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.62rem', color: '#a89984', fontWeight: 600 }} title="Assign a voice profile to each speaker detected in the video">SPEAKER VOICES</span>
-                    {[...new Set(dubSegments.map(s => s.speaker_id).filter(Boolean))].map(spk => (
-                      <div key={spk} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <span style={{ fontSize: '0.62rem', color: '#ebdbb2' }}>{spk}:</span>
-                        <select className="input-base" style={{ width: 100, padding: '1px 4px', fontSize: '0.62rem' }}
-                          value={dubSegments.find(s => s.speaker_id === spk)?.profile_id || ''}
-                          onChange={e => {
-                            const val = e.target.value;
-                            setDubSegments(dubSegments.map(s => s.speaker_id === spk ? { ...s, profile_id: val } : s));
-                          }}>
-                          <option value="">Default</option>
-                          {profiles.length > 0 && (
-                            <optgroup label="Clone Profiles">
-                              {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </optgroup>
-                          )}
-                          {PRESETS.length > 0 && (
-                            <optgroup label="Design Presets">
-                              {PRESETS.map(p => <option key={p.id} value={`preset:${p.id}`}>{p.name}</option>)}
-                            </optgroup>
-                          )}
-                        </select>
-                      </div>
-                    ))}
+                <div className="dub-cast">
+                  <div className="dub-cast__row">
+                    <span className="dub-cast__kicker" title="Assign a voice to each detected speaker. Cross-lingual clones keep the same speaker identity in a new language.">CAST</span>
+                    {[...new Set(dubSegments.map(s => s.speaker_id).filter(Boolean))].map(spk => {
+                      const autoId = `auto:${(spk || '').toLowerCase().replace(/\s+/g, '_')}`;
+                      const clone = speakerClones[spk];
+                      return (
+                        <div key={spk} className="dub-cast__pair">
+                          <span className="dub-cast__label">{spk}:</span>
+                          <select className="input-base dub-cast__select"
+                            value={dubSegments.find(s => s.speaker_id === spk)?.profile_id || ''}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setDubSegments(dubSegments.map(s => s.speaker_id === spk ? { ...s, profile_id: val } : s));
+                            }}>
+                            {clone && (
+                              <option value={autoId}>🎤 From video · {clone.duration.toFixed(1)}s</option>
+                            )}
+                            <option value="">Default</option>
+                            {profiles.length > 0 && (
+                              <optgroup label="Clone Profiles">
+                                {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                              </optgroup>
+                            )}
+                            {PRESETS.length > 0 && (
+                              <optgroup label="Design Presets">
+                                {PRESETS.map(p => <option key={p.id} value={`preset:${p.id}`}>{p.name}</option>)}
+                              </optgroup>
+                            )}
+                          </select>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
             </div>
 
             {/* RIGHT: Settings + Segment Table */}
-            <div className="studio-panel" style={{ marginBottom: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div className="dub-settings-bar" style={{ display: 'flex', gap: 4, marginBottom: 4, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <div style={{ flex: 1, minWidth: 90 }}>
+            <div className="studio-panel dub-panel-col">
+              {/* Collapsed: one-line summary + Translate All. Expanded: full grid. */}
+              {!settingsOpen && (
+                <div className="dub-settings-summary">
+                  <button
+                    type="button"
+                    className="dub-settings-summary__trigger"
+                    onClick={() => setSettingsOpen(true)}
+                    title="Edit translation settings"
+                  >
+                    <ChevronDown size={10} />
+                    <span><strong>{dubLang}</strong> · {dubLangCode} · {translateQuality} · {translateProvider}</span>
+                    {dubInstruct && <span className="dub-settings-summary__style">style: {dubInstruct}</span>}
+                  </button>
+                  <Button
+                    variant="subtle" size="sm"
+                    onClick={handleTranslateAll}
+                    disabled={isTranslating || !dubSegments.length}
+                    loading={isTranslating}
+                    leading={!isTranslating && <Languages size={10} />}
+                  >
+                    {isTranslating ? 'Translating…' : hasAnyTranslation ? 'Re-translate' : 'Translate All'}
+                  </Button>
+                  <Button
+                    variant="subtle" size="sm"
+                    onClick={handleCleanupSegments}
+                    disabled={!dubSegments.length || !dubJobId}
+                    title="Merge tiny fragments and adjacent short segments"
+                    leading={<Wand2 size={10} />}
+                  >
+                    Clean Up
+                  </Button>
+                </div>
+              )}
+              {settingsOpen && (
+              <div className="dub-settings-bar">
+                <button
+                  type="button"
+                  className="dub-settings-summary__trigger dub-settings-close"
+                  onClick={() => setSettingsOpen(false)}
+                  title="Collapse translation settings"
+                >
+                  <ChevronUp size={10} />
+                </button>
+                <div className="dub-skel-field">
                   <div className="label-row"><Globe className="label-icon" size={9} /> Language</div>
-                  <SearchableSelect
-                    size="sm"
+                  <select
+                    className="input-base dub-cast__select"
                     value={dubLang}
-                    options={ALL_LANGUAGES}
-                    popular={POPULAR_LANGS}
-                    recentsKey="omnivoice.recents.dubLang"
-                    onChange={(lang) => {
+                    onChange={(e) => {
+                      const lang = e.target.value;
                       setDubLang(lang);
                       const match = LANG_CODES.find(lc => lc.label.toLowerCase() === lang.toLowerCase());
                       if (match) setDubLangCode(match.code);
                     }}
-                  />
+                  >
+                    <optgroup label="Popular">
+                      {POPULAR_LANGS.map(l => <option key={`p-${l}`} value={l}>{l}</option>)}
+                    </optgroup>
+                    <optgroup label="All languages">
+                      {ALL_LANGUAGES
+                        .filter(l => !POPULAR_LANGS.includes(l))
+                        .map(l => <option key={l} value={l}>{l}</option>)}
+                    </optgroup>
+                  </select>
                 </div>
-                <div style={{ flex: 1, minWidth: 80 }}>
+                <div className="dub-skel-field--sm">
                   <div className="label-row">ISO Code</div>
-                  <SearchableSelect
-                    size="sm"
+                  <select
+                    className="input-base dub-cast__select"
                     value={dubLangCode}
-                    options={LANG_CODES.map(lc => ({ value: lc.code, label: `${lc.code} — ${lc.label}` }))}
-                    popular={POPULAR_ISO}
-                    recentsKey="omnivoice.recents.dubIso"
-                    onChange={setDubLangCode}
-                  />
+                    onChange={(e) => setDubLangCode(e.target.value)}
+                  >
+                    {LANG_CODES.map(lc => (
+                      <option key={lc.code} value={lc.code}>{lc.code} — {lc.label}</option>
+                    ))}
+                  </select>
                 </div>
-                <div style={{ flex: 1, minWidth: 90 }}>
+                <div className="dub-skel-field">
                   <div className="label-row"><UserSquare2 className="label-icon" size={9} /> Style</div>
-                  <input className="input-base" placeholder="e.g. female" value={dubInstruct} onChange={e => setDubInstruct(e.target.value)} style={{ fontSize: '0.65rem' }} />
+                  <input className="input-base input-base--xs" placeholder="e.g. female" value={dubInstruct} onChange={e => setDubInstruct(e.target.value)} />
                 </div>
-                <div style={{ flex: 1, minWidth: 90 }}>
+                <div className="dub-skel-field">
                   <div className="label-row">Engine</div>
-                  <select className="input-base" value={translateProvider} onChange={e => setTranslateProvider(e.target.value)} style={{ fontSize: '0.65rem', padding: '5px 8px' }}>
+                  <select className="input-base dub-engine-select" value={translateProvider} onChange={e => setTranslateProvider(e.target.value)}>
                     {[{ id: 'argos', name: 'Argos (Fast Local)' }, { id: 'nllb', name: 'NLLB (Heavy Local)' }, { id: 'google', name: 'Google (Online)' }, { id: 'openai', name: 'OpenAI (LLM)' }].map(p => (
                       <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>
+                </div>
+                <div className="dub-quality-field">
+                  <div className="label-row" title="Cinematic = 3-step LLM refinement (translate → reflect → adapt). Needs an LLM configured.">Quality</div>
+                  <Segmented
+                    size="sm"
+                    value={translateQuality}
+                    onChange={setTranslateQuality}
+                    items={[
+                      { value: 'fast',      label: 'Fast' },
+                      { value: 'cinematic', label: 'Cinematic' },
+                    ]}
+                  />
                 </div>
                 <Button
                   variant="subtle" size="sm"
@@ -448,55 +589,54 @@ export default function DubTab(props) {
                   Clean Up
                 </Button>
               </div>
+              )}
 
               {dubTranscript && (
-                <div style={{ marginBottom: 4 }}>
-                  <div className="override-toggle" onClick={() => setShowTranscript(!showTranscript)} style={{ marginTop: 0, padding: '2px 6px', fontSize: '0.65rem' }}>
-                    <span><FileText size={10} style={{ verticalAlign: 'middle', marginRight: 3 }} /> Transcript</span>
+                <div className="dub-transcript-toggle-wrap">
+                  <div className="override-toggle dub-transcript-toggle__inner" onClick={() => setShowTranscript(!showTranscript)}>
+                    <span><FileText size={10} className="dub-inline-icon" /> Transcript</span>
                     {showTranscript ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                   </div>
                   {showTranscript && (
-                    <div style={{ background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.04)', borderTop: 'none', borderRadius: '0 0 4px 4px', padding: 6, fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: 1.5, maxHeight: 80, overflowY: 'auto' }}>
+                    <div className="dub-transcript-body">
                       {dubTranscript}
                     </div>
                   )}
                 </div>
               )}
 
-              {dubSegments.length > 0 && profiles.length > 0 && (
-                <div className="dub-bulk-row dub-bulk-row--apply">
-                  <User size={10} color="#8ec07c" />
-                  <span className="dub-bulk-row__label-success">Apply Voice to All:</span>
-                  <select className="input-base" style={{ flex: 1, fontSize: '0.62rem', padding: '2px 4px' }}
-                    value=""
-                    onChange={e => {
-                      const val = e.target.value;
-                      if (val === '__reset__') {
-                        setDubSegments(dubSegments.map(s => ({ ...s, profile_id: '' })));
-                      } else if (val) {
-                        setDubSegments(dubSegments.map(s => ({ ...s, profile_id: val })));
-                      }
-                    }}>
-                    <option value="">— Select profile —</option>
-                    <option value="__reset__">⊘ Default (reset all)</option>
-                    {profiles.filter(p => !p.instruct).length > 0 && (
-                      <optgroup label="Clone Profiles">
-                        {profiles.filter(p => !p.instruct).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </optgroup>
-                    )}
-                    {profiles.filter(p => !!p.instruct).length > 0 && (
-                      <optgroup label="Designed Voices">
-                        {profiles.filter(p => !!p.instruct).map(p => <option key={p.id} value={p.id}>{p.name}{p.is_locked ? ' 🔒' : ''}</option>)}
-                      </optgroup>
-                    )}
-                  </select>
+              {/* Phase 1.3 — Project glossary. Hidden behind a chip until
+                  the user wants it (or terms already exist). */}
+              {dubJobId && !glossaryVisible && (
+                <button
+                  type="button"
+                  className="dub-glossary-chip"
+                  onClick={() => setGlossaryOpen(true)}
+                  title="Pin translations for recurring terms (names, brand words, jargon)"
+                >
+                  + Glossary (0)
+                </button>
+              )}
+              {dubJobId && glossaryVisible && (
+                <div className="dub-glossary-wrap">
+                  <GlossaryPanel
+                    projectId={dubJobId}
+                    sourceLang={dubLangCode && dubLang ? (dubLang.slice(0, 2).toLowerCase() || 'en') : 'en'}
+                    targetLang={dubLangCode}
+                    segments={dubSegments}
+                    onChange={onGlossaryChange}
+                  />
                 </div>
               )}
+
+              {/* "Apply Voice to All" row removed 2026-04-21 — redundant
+                  with the CAST strip in the left column, which does the same
+                  thing per-speaker (and handles the multi-speaker case cleanly). */}
 
               {selectedSegIds.size > 0 && (
                 <div className="dub-bulk-row dub-bulk-row--select">
                   <span className="dub-bulk-row__label-brand">{selectedSegIds.size} selected</span>
-                  <select className="input-base" style={{ fontSize: '0.62rem', padding: '2px 4px', minWidth: 100 }}
+                  <select className="input-base dub-bulk-select dub-bulk-select--voice"
                     value="" onChange={(e) => { const v = e.target.value; if (v === '__clear__') bulkApplyToSelected({ profile_id: '' }); else if (v) bulkApplyToSelected({ profile_id: v }); }}>
                     <option value="">Set voice…</option>
                     <option value="__clear__">⊘ Default</option>
@@ -511,15 +651,25 @@ export default function DubTab(props) {
                       </optgroup>
                     )}
                   </select>
-                  <select className="input-base" style={{ fontSize: '0.62rem', padding: '2px 4px', width: 90 }}
+                  <select className="input-base dub-bulk-select dub-bulk-select--lang"
                     value="" onChange={(e) => { if (e.target.value === '__def__') bulkApplyToSelected({ target_lang: null }); else if (e.target.value) bulkApplyToSelected({ target_lang: e.target.value }); }}>
                     <option value="">Set lang…</option>
                     <option value="__def__">(Default)</option>
                     {LANG_CODES.map(lc => <option key={lc.code} value={lc.code}>{lc.code.toUpperCase()}</option>)}
                   </select>
                   <Button variant="danger" size="sm" onClick={bulkDeleteSelected}>Delete</Button>
-                  <Button variant="ghost"  size="sm" onClick={clearSegSelection} style={{ marginLeft: 'auto' }}>Clear</Button>
+                  <Button variant="ghost"  size="sm" onClick={clearSegSelection} className="dub-bulk-row__clear">Clear</Button>
                 </div>
+              )}
+
+              {showCheckpoint && (
+                <CheckpointBanner
+                  stage={checkpointStage}
+                  count={dubSegments.length}
+                  onContinue={checkpointStage === 'done' ? null : onCheckpointContinue}
+                  onDismiss={onCheckpointDismiss}
+                  continueLoading={isTranslating}
+                />
               )}
 
               <Suspense fallback={<LazyFallback />}>
@@ -537,6 +687,7 @@ export default function DubTab(props) {
                   onDelete={segmentDelete}
                   onRestore={segmentRestoreOriginal}
                   onPreview={handleSegmentPreview}
+                  onDirect={onDirectSegment}
                   onSplit={segmentSplit}
                   onMerge={segmentMerge}
                 />
@@ -545,12 +696,22 @@ export default function DubTab(props) {
           </div>
 
           {/* Actions footer */}
-          <div className="studio-panel" style={{ padding: '4px 8px', flexShrink: 0 }}>
+          <div className="studio-panel dub-footer-panel">
             {dubStep === 'done' && (
               <div className="dub-footer-banner">
                 <Badge tone="success">
                   <Check size={11} /> Done! Tracks: {dubTracks.join(', ')}
                 </Badge>
+                {incrementalPlan && incrementalPlan.stale?.length > 0 && (
+                  <Badge tone="warn" className="dub-footer-banner__badge-gap">
+                    {incrementalPlan.stale.length} segment{incrementalPlan.stale.length === 1 ? '' : 's'} changed since last generate
+                  </Badge>
+                )}
+                {incrementalPlan && incrementalPlan.stale?.length === 0 && incrementalPlan.fresh?.length > 0 && (
+                  <Badge tone="neutral" className="dub-footer-banner__badge-gap">
+                    all {incrementalPlan.fresh.length} segments up to date
+                  </Badge>
+                )}
               </div>
             )}
             {dubError && (
@@ -561,13 +722,16 @@ export default function DubTab(props) {
               </div>
             )}
             <div className="dub-outputs-row">
-              <span style={{ fontWeight: 600, color: 'var(--color-fg)' }}>Output Options:</span>
+              <span className="dub-outputs-title-strong">Output Options:</span>
               <label>
                 <input type="checkbox" checked={preserveBg} onChange={e => setPreserveBg(e.target.checked)} /> Mix BG Audio
               </label>
+              <label title="Export subtitles with translated text on top and original italicised underneath.">
+                <input type="checkbox" checked={!!dualSubs} onChange={e => setDualSubs(e.target.checked)} /> Dual subtitles
+              </label>
               <label>
                 Default Track:
-                <select className="input-base" value={defaultTrack} onChange={e => setDefaultTrack(e.target.value)} style={{ fontSize: '0.6rem', padding: '2px 4px', width: '120px' }}>
+                <select className="input-base dub-outputs-default" value={defaultTrack} onChange={e => setDefaultTrack(e.target.value)}>
                   <option value="original">Original</option>
                   {dubLangCode && <option value={dubLangCode}>{dubLangCode} (Selected Dub)</option>}
                   {dubTracks.filter(t => t !== dubLangCode).map(t => (
@@ -591,37 +755,53 @@ export default function DubTab(props) {
                 ))}
               </div>
             )}
-            <div className="dub-footer-btns" style={{ display: 'flex', gap: 4 }}>
+            <div className="dub-footer-btns">
               {dubStep === 'stopping' ? (
                 <FooterBtn tone="stopping" disabled icon={<Loader className="spinner" size={9} />} label="Stopping…" />
               ) : dubStep === 'generating' ? (
                 <FooterBtn tone="danger" onClick={handleDubStop} icon={<Square size={9} />}
                   label={`Stop (${dubProgress.current}/${dubProgress.total})`} />
               ) : (
-                <FooterBtn tone={dubSegments.length ? 'idle' : 'idle'} onClick={handleDubGenerate}
-                  disabled={!dubSegments.length} icon={<Play size={11} />} label="Generate Dub" />
+                <>
+                  <FooterBtn tone={dubSegments.length ? 'idle' : 'idle'} onClick={() => handleDubGenerate()}
+                    disabled={!dubSegments.length} icon={<Play size={11} />} label="Generate Dub" />
+                  {dubStep === 'done' && incrementalPlan && incrementalPlan.stale?.length > 0 && (
+                    <FooterBtn
+                      tone="pink"
+                      onClick={() => handleDubGenerate({ regenOnly: incrementalPlan.stale, preview: true })}
+                      icon={<Play size={11} />}
+                      label={`Regen ${incrementalPlan.stale.length} changed`}
+                    />
+                  )}
+                </>
               )}
-              <FooterBtn tone={dubStep === 'done' ? 'green' : 'idle'} disabled={dubStep !== 'done'}
-                onClick={handleDubDownload} icon={<Download size={11} />} label="MP4" />
-              <FooterBtn tone={dubStep === 'done' ? 'blue' : 'idle'} disabled={dubStep !== 'done'}
-                onClick={handleDubAudioDownload} icon={<Volume2 size={11} />} label="WAV" />
-              <FooterBtn tone={dubSegments.length ? 'pink' : 'idle'} disabled={!dubSegments.length}
-                onClick={() => triggerDownload(`${API}/dub/srt/${dubJobId}/subtitles.srt`, 'subtitles.srt')}
-                icon={<FileText size={11} />} label="SRT" />
-            </div>
-            <div className="dub-footer-btns" style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-              <FooterBtn sm tone={dubSegments.length ? 'lime' : 'idle'} disabled={!dubSegments.length}
-                onClick={() => triggerDownload(`${API}/dub/vtt/${dubJobId}/subtitles.vtt`, 'subtitles.vtt')}
-                icon={<FileText size={10} />} label="VTT" />
-              <FooterBtn sm tone={dubStep === 'done' ? 'amber' : 'idle'} disabled={dubStep !== 'done'}
-                onClick={() => triggerDownload(`${API}/dub/download-mp3/${dubJobId}/audio.mp3?preserve_bg=${preserveBg}`, 'dubbed_audio.mp3')}
-                icon={<Music size={10} />} label="MP3" />
-              <FooterBtn sm tone={dubStep === 'done' ? 'orange' : 'idle'} disabled={dubStep !== 'done'}
-                onClick={() => triggerDownload(`${API}/dub/export-segments/${dubJobId}`, 'segments.zip')}
-                icon={<Package size={10} />} label="Clips" />
-              <FooterBtn sm tone={dubStep === 'done' ? 'pink' : 'idle'} disabled={dubStep !== 'done'}
-                onClick={() => triggerDownload(`${API}/dub/export-stems/${dubJobId}`, 'stems.zip')}
-                icon={<Layers size={10} />} label="Stems" />
+              <Menu
+                placement="top-end"
+                disabled={dubStep !== 'done' && !dubSegments.length}
+                items={[
+                  { id: 'mp4',   label: 'MP4 (video + dubbed audio)', icon: Download, disabled: dubStep !== 'done', onSelect: handleDubDownload },
+                  { id: 'wav',   label: 'WAV (audio only)',           icon: Volume2,  disabled: dubStep !== 'done', onSelect: handleDubAudioDownload },
+                  'separator',
+                  { id: 'srt',   label: dualSubs ? 'SRT ✦ (dual subtitles)' : 'SRT (subtitles)', icon: FileText, disabled: !dubSegments.length,
+                    onSelect: () => triggerDownload(`${API}/dub/srt/${dubJobId}/subtitles.srt?dual=${dualSubs ? 1 : 0}`, dualSubs ? 'subtitles_dual.srt' : 'subtitles.srt') },
+                  { id: 'vtt',   label: dualSubs ? 'VTT ✦ (dual subtitles)' : 'VTT (subtitles)', icon: FileText, disabled: !dubSegments.length,
+                    onSelect: () => triggerDownload(`${API}/dub/vtt/${dubJobId}/subtitles.vtt?dual=${dualSubs ? 1 : 0}`, dualSubs ? 'subtitles_dual.vtt' : 'subtitles.vtt') },
+                  'separator',
+                  { id: 'mp3',   label: 'MP3 (compressed audio)',     icon: Music,    disabled: dubStep !== 'done',
+                    onSelect: () => handleAudioExport(`${API}/dub/download-mp3/${dubJobId}/audio.mp3?preserve_bg=${preserveBg}`, 'dubbed_audio.mp3') },
+                  { id: 'clips', label: 'Clips zip (per-segment WAVs)', icon: Package, disabled: dubStep !== 'done',
+                    onSelect: () => handleAudioExport(`${API}/dub/export-segments/${dubJobId}`, 'segments.zip') },
+                  { id: 'stems', label: 'Stems zip (vocals + BG)',     icon: Layers,   disabled: dubStep !== 'done',
+                    onSelect: () => handleAudioExport(`${API}/dub/export-stems/${dubJobId}`, 'stems.zip') },
+                ]}
+              >
+                <FooterBtn
+                  tone={dubStep === 'done' ? 'green' : 'idle'}
+                  disabled={dubStep !== 'done' && !dubSegments.length}
+                  icon={<Download size={11} />}
+                  label="Export ▾"
+                />
+              </Menu>
             </div>
           </div>
         </div>

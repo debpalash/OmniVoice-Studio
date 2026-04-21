@@ -5,11 +5,19 @@ import shutil
 from typing import Optional
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException
 from fastapi.responses import FileResponse, Response
+from pydantic import BaseModel
 
-from core.db import get_db
+from core.db import get_db, db_conn
 from core.config import VOICES_DIR, OUTPUTS_DIR
 
 router = APIRouter()
+
+
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    ref_text: Optional[str] = None
+    instruct: Optional[str] = None
+    language: Optional[str] = None
 
 @router.get("/profiles")
 def list_profiles():
@@ -44,6 +52,102 @@ async def create_profile(
     conn.close()
     return {"id": profile_id, "name": name}
 
+@router.get("/profiles/{profile_id}")
+def get_profile(profile_id: str):
+    """Full profile record for the voice profile page."""
+    with db_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM voice_profiles WHERE id = ?", (profile_id,),
+        ).fetchone()
+    if not row:
+        raise HTTPException(
+            status_code=404,
+            detail="That voice profile doesn't exist. It may have been deleted from another tab.",
+        )
+    return dict(row)
+
+
+@router.put("/profiles/{profile_id}")
+def update_profile(profile_id: str, patch: ProfileUpdate):
+    """Partial update — only fields set on the payload are changed."""
+    fields = []
+    params = []
+    for col in ("name", "ref_text", "instruct", "language"):
+        val = getattr(patch, col)
+        if val is None:
+            continue
+        if col == "name" and not val.strip():
+            raise HTTPException(status_code=400, detail="A voice profile needs a name.")
+        fields.append(f"{col} = ?")
+        params.append(val.strip() if col in ("name", "language") else val)
+    if not fields:
+        raise HTTPException(
+            status_code=400,
+            detail="PUT /profiles/{id} body contained no editable fields. Include at least one of: name, language, instruct, description.",
+        )
+    params.append(profile_id)
+    with db_conn() as conn:
+        cur = conn.execute(
+            f"UPDATE voice_profiles SET {', '.join(fields)} WHERE id = ?",
+            params,
+        )
+        if cur.rowcount == 0:
+            raise HTTPException(
+                status_code=404,
+                detail="That voice profile doesn't exist. It may have been deleted from another tab.",
+            )
+        row = conn.execute(
+            "SELECT * FROM voice_profiles WHERE id = ?", (profile_id,),
+        ).fetchone()
+    return dict(row)
+
+
+@router.get("/profiles/{profile_id}/usage")
+def get_profile_usage(profile_id: str):
+    """Where has this voice been used? Synth-history + segment counts per project."""
+    with db_conn() as conn:
+        synth_rows = conn.execute(
+            "SELECT id, text, audio_path, created_at, generation_time "
+            "FROM generation_history WHERE profile_id = ? "
+            "ORDER BY created_at DESC LIMIT 20",
+            (profile_id,),
+        ).fetchall()
+        synth_total = conn.execute(
+            "SELECT COUNT(*) AS n FROM generation_history WHERE profile_id = ?",
+            (profile_id,),
+        ).fetchone()["n"]
+
+    # Dub project usage is harder — profile_id lives inside state_json.segments[].profile_id.
+    # We scan the persisted state blob; for tens of projects this is fine.
+    import json
+    project_hits: list[dict] = []
+    with db_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, name, updated_at, state_json FROM studio_projects ORDER BY updated_at DESC"
+        ).fetchall()
+    for r in rows:
+        try:
+            state = json.loads(r["state_json"] or "{}")
+        except Exception:
+            continue
+        segs = state.get("segments") or []
+        n = sum(1 for s in segs if s.get("profile_id") == profile_id)
+        if n:
+            project_hits.append({
+                "project_id": r["id"],
+                "project_name": r["name"],
+                "segment_count": n,
+                "updated_at": r["updated_at"],
+            })
+
+    return {
+        "synth_recent": [dict(r) for r in synth_rows],
+        "synth_total": synth_total,
+        "projects": project_hits,
+        "project_total_segments": sum(p["segment_count"] for p in project_hits),
+    }
+
+
 @router.get("/profiles/{profile_id}/audio")
 def get_profile_audio(profile_id: str):
     conn = get_db()
@@ -69,7 +173,10 @@ async def lock_profile(
     profile = conn.execute("SELECT * FROM voice_profiles WHERE id=?", (profile_id,)).fetchone()
     if not profile:
         conn.close()
-        raise HTTPException(status_code=404, detail="Profile not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Voice profile not found. It may have been deleted from another window — refresh the sidebar to see the current list.",
+        )
 
     history = conn.execute("SELECT * FROM generation_history WHERE id=?", (history_id,)).fetchone()
     if not history or not history["audio_path"]:
@@ -101,7 +208,10 @@ async def unlock_profile(profile_id: str):
     profile = conn.execute("SELECT * FROM voice_profiles WHERE id=?", (profile_id,)).fetchone()
     if not profile:
         conn.close()
-        raise HTTPException(status_code=404, detail="Profile not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Voice profile not found. It may have been deleted from another window — refresh the sidebar to see the current list.",
+        )
 
     if profile["locked_audio_path"]:
         locked_path = os.path.join(VOICES_DIR, profile["locked_audio_path"])

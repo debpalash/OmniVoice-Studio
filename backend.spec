@@ -1,38 +1,79 @@
 # -*- mode: python ; coding: utf-8 -*-
+# PyInstaller spec for OmniVoice Studio backend.
+#
+# Produces a one-folder bundle at dist/omnivoice-backend/ that Tauri launches
+# as a sidecar binary. Kept intentionally permissive with collect_all(...)
+# on the heavy ML deps because PyInstaller's static analysis misses their
+# runtime-imported submodules, C extensions, and data files.
+#
+# Run:  uv run pyinstaller backend.spec --noconfirm --clean
 from PyInstaller.utils.hooks import collect_data_files, collect_all
 
 datas = []
 binaries = []
 hiddenimports = [
-    'uvicorn', 'fastapi', 'torch', 'torchaudio', 'pydub', 'soundfile',
-    'multipart', 'uuid', 'onnxruntime', 'scipy', 'numpy'
+    # Web stack
+    'uvicorn', 'uvicorn.logging', 'uvicorn.loops', 'uvicorn.loops.auto',
+    'uvicorn.protocols', 'uvicorn.protocols.http', 'uvicorn.protocols.http.auto',
+    'uvicorn.protocols.websockets', 'uvicorn.protocols.websockets.auto',
+    'uvicorn.lifespan', 'uvicorn.lifespan.on',
+    'fastapi', 'fastapi.responses', 'starlette',
+    'multipart',
+
+    # Core
+    'uuid', 'asyncio',
+
+    # Audio / ML
+    'torch', 'torchaudio', 'soundfile', 'scipy', 'numpy',
+    'numpy.random._pickle',
+
+    # Pipeline
+    'yt_dlp', 'demucs', 'demucs.separate',
+
+    # OmniVoice's own package
+    'omnivoice', 'omnivoice.models', 'omnivoice.models.omnivoice',
+
+    # MLX Whisper on Apple Silicon (primary ASR path)
+    'mlx', 'mlx_whisper',
 ]
 
-tmp_ret = collect_all('torch')
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
+# The nuclear option on heavy ML libs — pull every submodule, C ext, and
+# data file. Cost: bigger bundle. Benefit: we don't ship a binary that
+# ImportErrors the first time a user hits a code path.
+for pkg in ('torch', 'torchaudio', 'soundfile', 'scipy', 'numpy',
+            'omnivoice', 'mlx', 'mlx_whisper', 'demucs', 'yt_dlp',
+            'fastapi', 'uvicorn'):
+    try:
+        tmp_datas, tmp_binaries, tmp_hidden = collect_all(pkg)
+        datas += tmp_datas
+        binaries += tmp_binaries
+        hiddenimports += tmp_hidden
+    except Exception as e:  # noqa: BLE001
+        print(f"[backend.spec] collect_all({pkg!r}) skipped: {e}")
 
-tmp_ret = collect_all('torchaudio')
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
-
-tmp_ret = collect_all('cosyvoice')
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
+# Include the backend's own modules as data so imports like
+# `api.routers.dub_generate` resolve inside the frozen bundle.
+datas += [
+    ('backend/api', 'api'),
+    ('backend/core', 'core'),
+    ('backend/services', 'services'),
+    ('backend/schemas', 'schemas'),
+    ('backend/migrations', 'migrations'),
+]
 
 a = Analysis(
     ['backend/main.py'],
-    pathex=['.'],
+    pathex=['backend', '.'],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=[
+        # Desktop-only bloat we don't need inside the frozen backend.
+        'tkinter', 'matplotlib', 'PIL.ImageQt', 'PyQt5', 'PyQt6',
+    ],
     noarchive=False,
     optimize=0,
 )
@@ -47,7 +88,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,              # UPX often corrupts ML native libs — disabled.
     console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -60,7 +101,7 @@ coll = COLLECT(
     a.binaries,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     name='omnivoice-backend',
 )

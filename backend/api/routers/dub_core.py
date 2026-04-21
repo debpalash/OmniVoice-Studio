@@ -4,12 +4,10 @@ import sys
 import uuid
 import json
 import time
-import hashlib
 import asyncio
 import logging
 import shutil
 import subprocess
-import threading
 import soundfile as sf
 import torch
 import torchaudio
@@ -30,151 +28,32 @@ from services.segmentation import (
     assign_speakers_heuristic,
     clean_up_segments,
 )
+from services import dub_pipeline
 
 router = APIRouter()
 logger = logging.getLogger("omnivoice.api")
 
-_dub_jobs = {}
-# Tracks live subprocesses per job so POST /dub/abort/{job_id} can terminate them.
-_active_procs: dict[str, list] = {}
-_active_procs_lock = threading.Lock()
+# ── Legacy-name aliases to services/dub_pipeline.py ────────────────────────
+# Phase 2.4 moved the business logic into a service. Other routers
+# (dub_generate, dub_translate, dub_export) + internal call sites below still
+# reference the `_get_job` / `_save_job` / `_active_procs` names; those
+# aliases let the transition happen without a repo-wide rename pass.
+#
+# New code should import from `services.dub_pipeline` directly. Aliases can
+# disappear once every caller updates.
+_dub_jobs           = dub_pipeline._dub_jobs
+_active_procs       = dub_pipeline._active_procs
+_active_procs_lock  = dub_pipeline._active_procs_lock
+_DUB_DIR_REAL       = dub_pipeline._DUB_DIR_REAL
 
-_DUB_DIR_REAL = os.path.realpath(DUB_DIR)
-
-_HASH_BUF_SIZE = 1 << 18  # 256 KB chunks for hashing
-
-
-def _compute_file_hash(path: str) -> str:
-    """SHA-256 digest of a file, streamed in 256 KB chunks."""
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        while True:
-            chunk = f.read(_HASH_BUF_SIZE)
-            if not chunk:
-                break
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def _find_cached_job(content_hash: str, exclude_job_id: str) -> Optional[dict]:
-    """Look up a previous job with the same content hash that has completed artifacts.
-
-    Returns {job_dir, vocals_path, no_vocals_path, scene_cuts, thumb_path, duration}
-    if a usable cache exists, else None.
-    """
-    if not content_hash:
-        return None
-    conn = get_db()
-    try:
-        rows = conn.execute(
-            "SELECT id, job_data FROM dub_history WHERE content_hash=? AND id!=? ORDER BY created_at DESC LIMIT 5",
-            (content_hash, exclude_job_id),
-        ).fetchall()
-    finally:
-        conn.close()
-    for row in rows:
-        try:
-            job = json.loads(row["job_data"])
-        except (json.JSONDecodeError, TypeError):
-            continue
-        cached_dir = _safe_job_dir(row["id"])
-        if not cached_dir or not os.path.isdir(cached_dir):
-            continue
-        # Check that the heavy artifacts actually exist on disk
-        vocals = job.get("vocals_path") or os.path.join(cached_dir, "vocals.wav")
-        if not os.path.isfile(vocals):
-            continue
-        return {
-            "job_dir": cached_dir,
-            "job_id": row["id"],
-            "vocals_path": vocals,
-            "no_vocals_path": job.get("no_vocals_path"),
-            "scene_cuts": job.get("scene_cuts") or [],
-            "thumb_path": job.get("thumb_path"),
-            "duration": job.get("duration", 0.0),
-        }
-    return None
-
-
-def _safe_job_dir(job_id: str) -> Optional[str]:
-    """Resolve a job directory under DUB_DIR, rejecting traversal."""
-    if not job_id or "/" in job_id or "\\" in job_id or job_id in (".", ".."):
-        return None
-    candidate = os.path.realpath(os.path.join(DUB_DIR, job_id))
-    if not candidate.startswith(_DUB_DIR_REAL + os.sep):
-        return None
-    return candidate
-
-
-def _register_proc(job_id: str, proc):
-    with _active_procs_lock:
-        _active_procs.setdefault(job_id, []).append(proc)
-
-
-def _unregister_proc(job_id: str, proc):
-    with _active_procs_lock:
-        lst = _active_procs.get(job_id)
-        if lst and proc in lst:
-            lst.remove(proc)
-        if lst is not None and not lst:
-            _active_procs.pop(job_id, None)
-
-
-def _kill_job_procs(job_id: str):
-    with _active_procs_lock:
-        procs = list(_active_procs.get(job_id, []))
-    for proc in procs:
-        try:
-            if proc.returncode is None:
-                proc.kill()
-        except ProcessLookupError:
-            pass
-        except Exception as e:
-            logger.warning("Failed to kill subprocess for %s: %s", job_id, e)
-    with _active_procs_lock:
-        _active_procs.pop(job_id, None)
-
-def _get_job(job_id: str):
-    if job_id in _dub_jobs:
-        return _dub_jobs[job_id]
-    conn = get_db()
-    try:
-        row = conn.execute("SELECT job_data FROM dub_history WHERE id=?", (job_id,)).fetchone()
-    finally:
-        conn.close()
-    if row and row["job_data"]:
-        try:
-            job = json.loads(row["job_data"])
-            _dub_jobs[job_id] = job
-            return job
-        except json.JSONDecodeError as e:
-            logger.error("Failed to decode dub_history.job_data for %s: %s", job_id, e)
-    return None
-
-def _save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0, content_hash: str = ""):
-    """Persist dub job state to SQLite so it survives restarts."""
-    try:
-        segments = job.get("segments") or []
-        tracks = list((job.get("dubbed_tracks") or {}).keys())
-        with db_conn() as conn:
-            conn.execute(
-                """INSERT INTO dub_history
-                   (id, filename, duration, segments_count, language, language_code, tracks, job_data, content_hash, created_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?)
-                   ON CONFLICT(id) DO UPDATE SET
-                     filename=excluded.filename,
-                     duration=excluded.duration,
-                     segments_count=excluded.segments_count,
-                     tracks=excluded.tracks,
-                     job_data=excluded.job_data,
-                     content_hash=CASE WHEN excluded.content_hash != '' THEN excluded.content_hash ELSE dub_history.content_hash END""",
-                (job_id, filename or job.get("filename", ""),
-                 duration or job.get("duration", 0.0),
-                 len(segments), job.get("language", ""), job.get("language_code", ""),
-                 json.dumps(tracks), json.dumps(job, default=str), content_hash or "", time.time()),
-            )
-    except Exception as e:
-        logger.error("Failed to persist dub job %s: %s", job_id, e)
+_compute_file_hash = dub_pipeline.compute_file_hash
+_find_cached_job   = dub_pipeline.find_cached_job
+_safe_job_dir      = dub_pipeline.safe_job_dir
+_register_proc     = dub_pipeline.register_proc
+_unregister_proc   = dub_pipeline.unregister_proc
+_kill_job_procs    = dub_pipeline.kill_job_procs
+_get_job           = dub_pipeline.get_job
+_save_job          = dub_pipeline.save_job
 
 @router.post("/dub/cleanup-segments/{job_id}")
 def dub_cleanup_segments(job_id: str):
@@ -293,263 +172,11 @@ async def preview_serve(filename: str):
     }
     return FileResponse(path, media_type=media_types.get(ext, "application/octet-stream"))
 
-def _run_proc_factory(job_id: str):
-    """Return an async _run_proc helper bound to a job_id (for subprocess tracking)."""
-    async def _run_proc(cmd, timeout: float = 900.0):
-        async with _get_semaphore():
-            p = await _spawn_with_retry(
-                cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            _register_proc(job_id, p)
-            try:
-                try:
-                    stdout, stderr = await asyncio.wait_for(p.communicate(), timeout=timeout)
-                except asyncio.TimeoutError:
-                    try:
-                        p.kill()
-                    except ProcessLookupError:
-                        pass
-                    try:
-                        await asyncio.wait_for(p.wait(), timeout=5.0)
-                    except asyncio.TimeoutError:
-                        pass
-                    raise HTTPException(status_code=504, detail=f"subprocess timed out after {timeout}s")
-                return p, stdout, stderr
-            finally:
-                _unregister_proc(job_id, p)
-                if p.returncode is None:
-                    try:
-                        p.kill()
-                    except ProcessLookupError:
-                        pass
-                    try:
-                        await asyncio.wait_for(p.wait(), timeout=5.0)
-                    except asyncio.TimeoutError:
-                        pass
-    return _run_proc
-
-
-def _prep_event(event_type: str, **fields) -> str:
-    payload = {"type": event_type, **fields}
-    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
-
-
-def _yt_download_sync(url: str, job_dir: str) -> tuple[str, str]:
-    """Blocking yt-dlp download. Returns (video_path, title)."""
-    import yt_dlp
-    outtmpl = os.path.join(job_dir, "original.%(ext)s")
-    ydl_opts = {
-        "outtmpl": outtmpl,
-        "format": "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b",
-        "merge_output_format": "mp4",
-        "noplaylist": True,
-        "quiet": True,
-        "no_warnings": True,
-        "restrictfilenames": True,
-        "socket_timeout": 30,
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        path = ydl.prepare_filename(info)
-        root, _ = os.path.splitext(path)
-        mp4 = root + ".mp4"
-        if os.path.exists(mp4):
-            return mp4, info.get("title") or os.path.basename(mp4)
-        return path, info.get("title") or os.path.basename(path)
-
-
-async def _ingest_gen(job_id: str, job_dir: str, source: dict, filename_hint: Optional[str] = None):
-    """Async generator: emit SSE events per processing stage.
-
-    Stages: download_start, download_done, extract_start, extract_done, demucs_start,
-    demucs_done, scene_start, scene_done, ready (terminal), error (terminal), cancelled.
-
-    After extract_done the job is queryable via /dub/audio, /dub/media, /dub/thumb.
-    After demucs_done, /dub/download and /dub/preview-video work with bg mix.
-    """
-    try:
-        if source.get("kind") == "url":
-            url = source["url"]
-            yield _prep_event("download_start", url=url)
-            try:
-                video_path, title = await asyncio.to_thread(_yt_download_sync, url, job_dir)
-            except Exception as e:
-                yield _prep_event("error", stage="download", error=str(e)[:300])
-                shutil.rmtree(job_dir, ignore_errors=True)
-                return
-            filename = title or os.path.basename(video_path)
-            try:
-                size = os.path.getsize(video_path)
-            except OSError:
-                size = 0
-            yield _prep_event("download_done", title=title, size=size, filename=filename)
-        else:
-            video_path = source["path"]
-            filename = filename_hint or os.path.basename(video_path)
-
-        audio_path = os.path.join(job_dir, "audio.wav")
-        ffmpeg = find_ffmpeg()
-        _run_proc = _run_proc_factory(job_id)
-
-        yield _prep_event("extract_start")
-        try:
-            p, _, stderr = await _run_proc([
-                ffmpeg, "-i", video_path, "-vn", "-acodec", "pcm_s16le",
-                "-ar", "16000", "-ac", "1", audio_path, "-y",
-            ])
-            if p.returncode != 0:
-                raise Exception(stderr.decode(errors="replace")[:500])
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            yield _prep_event("error", stage="extract", error=str(e)[:300])
-            return
-
-        try:
-            dur = float(sf.info(audio_path).frames) / float(sf.info(audio_path).samplerate)
-        except Exception:
-            dur = 0.0
-
-        # ── Content-hash cache: skip demucs + scene if same file was processed before ──
-        content_hash = await asyncio.to_thread(_compute_file_hash, audio_path)
-        cached = _find_cached_job(content_hash, job_id)
-        if cached:
-            logger.info("Cache hit for job %s (hash %s) → reusing artifacts from %s", job_id, content_hash[:12], cached["job_id"])
-            vocals_path = os.path.join(job_dir, "vocals.wav")
-            no_vocals_path = os.path.join(job_dir, "no_vocals.wav")
-            thumb_path = os.path.join(job_dir, "thumb.jpg")
-
-            # Copy cached artifacts into this job's directory
-            if cached["vocals_path"] and os.path.isfile(cached["vocals_path"]):
-                shutil.copy2(cached["vocals_path"], vocals_path)
-            else:
-                vocals_path = audio_path  # fallback
-            if cached["no_vocals_path"] and os.path.isfile(cached["no_vocals_path"]):
-                shutil.copy2(cached["no_vocals_path"], no_vocals_path)
-            else:
-                no_vocals_path = None
-            if cached["thumb_path"] and os.path.isfile(cached["thumb_path"]):
-                shutil.copy2(cached["thumb_path"], thumb_path)
-            else:
-                thumb_path = None
-
-            scene_cuts = cached["scene_cuts"] or []
-
-            full_job = {
-                "video_path": video_path,
-                "audio_path": audio_path,
-                "vocals_path": vocals_path,
-                "no_vocals_path": no_vocals_path,
-                "thumb_path": thumb_path if thumb_path and os.path.exists(thumb_path) else None,
-                "duration": dur,
-                "filename": filename,
-                "segments": None,
-                "dubbed_tracks": {},
-                "scene_cuts": scene_cuts,
-            }
-            _dub_jobs[job_id] = full_job
-            _save_job(job_id, full_job, filename, dur, content_hash)
-            yield _prep_event("extract_done", job_id=job_id, duration=round(dur, 2), filename=filename)
-            yield _prep_event("cached", has_bg=bool(no_vocals_path and os.path.exists(no_vocals_path)),
-                              scene_count=len(scene_cuts))
-            yield _prep_event("ready", job_id=job_id, duration=round(dur, 2), filename=filename)
-
-        else:
-            # ── Full pipeline: extract → demucs → scene → thumbnail ──
-
-            # Persist partial job so media/audio endpoints resolve even before Demucs finishes.
-            partial = {
-                "video_path": video_path,
-                "audio_path": audio_path,
-                "vocals_path": audio_path,  # fallback until demucs completes
-                "no_vocals_path": None,
-                "thumb_path": None,
-                "duration": dur,
-                "filename": filename,
-                "segments": None,
-                "dubbed_tracks": {},
-                "scene_cuts": [],
-            }
-            _dub_jobs[job_id] = partial
-            _save_job(job_id, partial, filename, dur, content_hash)
-            yield _prep_event("extract_done", job_id=job_id, duration=round(dur, 2), filename=filename)
-
-            vocals_path = os.path.join(job_dir, "vocals.wav")
-            no_vocals_path = os.path.join(job_dir, "no_vocals.wav")
-            scene_cuts: list = []
-
-            yield _prep_event("demucs_start")
-            try:
-                demucs_cmd = [sys.executable, "-m", "demucs.separate",
-                              "--two-stems", "vocals", "-n", "htdemucs", "-d", get_best_device(),
-                              audio_path, "-o", job_dir]
-                p, _, stderr = await _run_proc(demucs_cmd, timeout=1800.0)
-                if p.returncode != 0:
-                    raise Exception(stderr.decode(errors="replace")[:500])
-                demucs_out = os.path.join(job_dir, "htdemucs", "audio")
-                if os.path.exists(os.path.join(demucs_out, "vocals.wav")):
-                    shutil.move(os.path.join(demucs_out, "vocals.wav"), vocals_path)
-                    shutil.move(os.path.join(demucs_out, "no_vocals.wav"), no_vocals_path)
-                    shutil.rmtree(os.path.join(job_dir, "htdemucs"), ignore_errors=True)
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:
-                logger.warning("Demucs failed for %s, falling back to mixed audio: %s", job_id, e)
-                vocals_path = audio_path
-                no_vocals_path = None
-            yield _prep_event("demucs_done", has_bg=bool(no_vocals_path and os.path.exists(no_vocals_path)))
-
-            yield _prep_event("scene_start")
-            try:
-                p, _, stderr_scene = await _run_proc([
-                    ffmpeg, "-i", video_path, "-filter:v",
-                    "select='gt(scene,0.3)',showinfo", "-f", "null", "-",
-                ], timeout=600.0)
-                import re
-                matches = re.finditer(r"pts_time:([\d\.]+)", stderr_scene.decode(errors="replace"))
-                scene_cuts = [float(m.group(1)) for m in matches]
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:
-                logger.warning("Scene detection failed for %s: %s", job_id, e)
-            yield _prep_event("scene_done", count=len(scene_cuts))
-
-            thumb_path = os.path.join(job_dir, "thumb.jpg")
-            offset = max(0.5, min(1.5, dur * 0.1)) if dur else 1.0
-            try:
-                await _run_proc([
-                    ffmpeg, "-y", "-ss", f"{offset:.2f}", "-i", video_path,
-                    "-vframes", "1", "-vf", "scale=320:-2",
-                    "-q:v", "4", thumb_path,
-                ], timeout=30.0)
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:
-                logger.warning("Thumbnail extraction failed for %s: %s", job_id, e)
-
-            _dub_jobs[job_id].update({
-                "vocals_path": vocals_path,
-                "no_vocals_path": no_vocals_path,
-                "thumb_path": thumb_path if os.path.exists(thumb_path) else None,
-                "scene_cuts": scene_cuts,
-            })
-            _save_job(job_id, _dub_jobs[job_id], filename, dur, content_hash)
-            yield _prep_event("ready", job_id=job_id, duration=round(dur, 2), filename=filename)
-
-    except asyncio.CancelledError:
-        logger.info("Dub prep cancelled for job %s; killing subprocesses and cleaning up", job_id)
-        _kill_job_procs(job_id)
-        try:
-            shutil.rmtree(job_dir, ignore_errors=True)
-        finally:
-            _dub_jobs.pop(job_id, None)
-        yield _prep_event("cancelled")
-        raise
-    finally:
-        with _active_procs_lock:
-            _active_procs.pop(job_id, None)
+# ── Legacy aliases for the extracted ingest pipeline (Phase 2.4 finish) ────
+_run_proc_factory = dub_pipeline.run_proc_factory
+_yt_download_sync = dub_pipeline.yt_download_sync
+_prep_event       = dub_pipeline.prep_event
+_ingest_gen       = dub_pipeline.ingest_pipeline
 
 
 @router.post("/dub/upload")
@@ -563,7 +190,10 @@ async def dub_upload(video: UploadFile = File(...), job_id: Optional[str] = Form
     job_id = job_id or str(uuid.uuid4())[:8]
     job_dir = _safe_job_dir(job_id)
     if job_dir is None:
-        raise HTTPException(status_code=400, detail="invalid job_id")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid job_id. Must be alphanumeric + hyphens/underscores only, ≤64 chars. Generate a fresh job_id or omit it to auto-create one.",
+        )
     os.makedirs(job_dir, exist_ok=True)
 
     ext = os.path.splitext(video.filename or "video.mp4")[1]
@@ -594,17 +224,26 @@ async def dub_ingest_url(req: DubIngestUrlRequest):
     """
     url = (req.url or "").strip()
     if not url or not (url.startswith("http://") or url.startswith("https://")):
-        raise HTTPException(status_code=400, detail="invalid url")
+        raise HTTPException(
+            status_code=400,
+            detail="URL must start with http:// or https://. Paste a full video link (e.g. https://youtube.com/watch?v=…) or drop a local file instead.",
+        )
 
     try:
         import yt_dlp  # noqa: F401
     except ImportError:
-        raise HTTPException(status_code=500, detail="yt-dlp not installed")
+        raise HTTPException(
+            status_code=500,
+            detail="URL ingest needs yt-dlp, but it isn't installed. Install it (`pip install yt-dlp`) and restart the server — or drop a local video file instead.",
+        )
 
     job_id = req.job_id or str(uuid.uuid4())[:8]
     job_dir = _safe_job_dir(job_id)
     if job_dir is None:
-        raise HTTPException(status_code=400, detail="invalid job_id")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid job_id. Must be alphanumeric + hyphens/underscores only, ≤64 chars. Generate a fresh job_id or omit it to auto-create one.",
+        )
     os.makedirs(job_dir, exist_ok=True)
 
     task_id = f"prep_{job_id}"
@@ -622,8 +261,8 @@ async def dub_ingest_url(req: DubIngestUrlRequest):
 TRANSCRIBE_CHUNK_S = float(os.environ.get("OMNIVOICE_TRANSCRIBE_CHUNK_S", "30.0"))
 
 
-def _sse_event(event: str, payload) -> bytes:
-    return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n".encode("utf-8")
+_sse_event = dub_pipeline.sse_event
+_prep_event_helper = dub_pipeline.prep_event  # alias; we keep the module-local _prep_event below for the inline one-liner shape
 
 
 @router.get("/dub/transcribe-stream/{job_id}")
@@ -634,7 +273,10 @@ async def dub_transcribe_stream(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
     _model = await get_model()
     if _model._asr_pipe is None:
-        raise HTTPException(status_code=503, detail="ASR not loaded")
+        raise HTTPException(
+            status_code=503,
+            detail="ASR (speech recognition) isn't loaded yet. The model is still warming up or Whisper failed to initialise — check Settings → Models for status, or restart the server if 'Idle' persists.",
+        )
 
     asr_audio_target = job.get("vocals_path")
     if not asr_audio_target or not os.path.exists(asr_audio_target):
@@ -726,6 +368,13 @@ async def dub_transcribe_stream(job_id: str):
                 detected_lang = part["language"]
             chunk_segs = segment_transcript(part, duration=t1, scene_cuts=scene_cuts)
             chunk_segs = assign_speakers_heuristic(chunk_segs)
+            # Note: the Netflix subtitle CPS splitter (`segment_for_subtitles`)
+            # used to run here but it's a *reading-speed* rule (17 CPS ceiling)
+            # masquerading as segmentation. Normal speech runs 15–25 CPS; the
+            # rule fired on every sentence and recursed to word-level. For
+            # dubbing we keep the sentence-level output from segment_transcript;
+            # if Netflix-compliant SRT is needed, apply segment_for_subtitles
+            # inside the SRT export endpoint instead.
             for s in chunk_segs:
                 s["id"] = f"s{next_seg_id:05x}"
                 # Preserve pristine transcript so later translations can re-run from source
@@ -756,6 +405,32 @@ async def dub_transcribe_stream(job_id: str):
 
         final_segs = await loop.run_in_executor(_gpu_pool, _diarize)
         job["segments"] = final_segs
+
+        # Auto-speaker-clone: sample each detected speaker's voice from the
+        # Demucs-isolated vocals track and assign `auto:speaker_N` as the
+        # default profile for their segments. This is what lets a user add a
+        # new target language and have the ORIGINAL speaker speak it — the
+        # central pro-grade dubbing promise.
+        try:
+            from services.speaker_clone import extract_speaker_clones, auto_profile_id
+            vocals_for_clone = job.get("vocals_path") or asr_audio_target
+            clones = await loop.run_in_executor(
+                _cpu_pool, extract_speaker_clones,
+                vocals_for_clone, final_segs, os.path.dirname(vocals_for_clone),
+            )
+            if clones:
+                job["speaker_clones"] = clones
+                # Default each segment's profile_id to its speaker's auto-clone,
+                # but only if the user hasn't already assigned something.
+                for s in final_segs:
+                    if s.get("profile_id"):
+                        continue
+                    spk = s.get("speaker_id") or "Speaker 1"
+                    if spk in clones:
+                        s["profile_id"] = auto_profile_id(spk)
+        except Exception as e:
+            logger.warning("speaker_clone extraction skipped: %s", e)
+
         job["source_lang"] = ((detected_lang or "en").split("_")[0][:2] or "en").lower()
         job["full_transcript"] = " ".join(s.get("text", "") for s in final_segs)
         _save_job(job_id, job)
@@ -768,6 +443,7 @@ async def dub_transcribe_stream(job_id: str):
             "segments": final_segs,
             "source_lang": job["source_lang"],
             "full_transcript": job["full_transcript"],
+            "speaker_clones": job.get("speaker_clones", {}),
         })
         yield _sse_event("done", {})
 
@@ -788,7 +464,10 @@ async def dub_transcribe(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
     _model = await get_model()
     if _model._asr_pipe is None:
-        raise HTTPException(status_code=503, detail="ASR not loaded")
+        raise HTTPException(
+            status_code=503,
+            detail="ASR (speech recognition) isn't loaded yet. The model is still warming up or Whisper failed to initialise — check Settings → Models for status, or restart the server if 'Idle' persists.",
+        )
 
     def _transcribe():
         import re
@@ -851,6 +530,12 @@ async def dub_transcribe(job_id: str):
                 segments = assign_speakers_heuristic(segments)
         else:
             segments = assign_speakers_heuristic(segments)
+
+        # Previously ran `segment_for_subtitles(segments)` here. Removed 2026-04-21 —
+        # that splitter enforces Netflix's 17 CPS reading-speed ceiling which
+        # trips on normal speech (15–25 CPS) and recurses to word-level.
+        # For dubbing, keep the sentence-level output. Apply subtitle rules at
+        # SRT export time only.
 
         for s in segments:
             s.setdefault("text_original", s.get("text", ""))

@@ -103,7 +103,13 @@ def system_logs(tail: int = 200):
         lines, total = _tail_file(path, tail)
         return {"lines": lines, "path": path, "exists": True, "total_lines": total}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # The log file exists but we can't read it — usually a permission
+        # issue or the file got truncated mid-read. Point the user at the
+        # path so they can inspect or delete manually.
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not read log at {path}: {e}. Check file permissions or delete it manually.",
+        )
 
 
 @router.get("/system/logs/tauri")
@@ -135,7 +141,10 @@ def clear_system_logs():
                     f.truncate(0)
                 cleared_any = True
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"{p}: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Could not clear log at {p}: {e}. The file may be open in another process or read-only — close tailing tools and retry.",
+                )
     return {"cleared": cleared_any}
 
 

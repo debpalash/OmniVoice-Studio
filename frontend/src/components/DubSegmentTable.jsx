@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { List } from 'react-window';
 import DubSegmentRow from './DubSegmentRow';
 import { Table, Select } from '../ui';
@@ -20,11 +20,28 @@ const COLUMNS = [
 export default function DubSegmentTable({
   segments, profiles, dubStep, dubProgress, previewLoadingId,
   selectedIds, onSelect, onSelectAll, onClearSelection,
-  onEditField, onDelete, onRestore, onPreview, onSplit, onMerge,
+  onEditField, onDelete, onRestore, onPreview, onSplit, onMerge, onDirect,
 }) {
   const disabled = dubStep === 'generating' || dubStep === 'stopping';
   const [query, setQuery] = useState('');
   const [speakerFilter, setSpeakerFilter] = useState('');
+
+  // react-window v2 needs a concrete height prop — CSS 100 % doesn't cut it.
+  // Measure the body container and pass its height explicitly so the list
+  // renders every row that fits, not just a default-sized window.
+  const bodyRef = useRef(null);
+  const [bodyHeight, setBodyHeight] = useState(0);
+  useLayoutEffect(() => {
+    if (!bodyRef.current) return;
+    const measure = () => {
+      const h = bodyRef.current?.clientHeight || 0;
+      setBodyHeight((prev) => (Math.abs(prev - h) > 1 ? h : prev));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(bodyRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   const speakers = useMemo(() => {
     const s = new Set(segments.map(x => x.speaker_id).filter(Boolean));
@@ -50,12 +67,12 @@ export default function DubSegmentTable({
 
   const rowProps = useMemo(() => ({
     filtered, profiles, disabled, dubStep, dubProgress, previewLoadingId,
-    selectedIds, onSelect, onEditField, onDelete, onRestore, onPreview, onSplit, onMerge,
+    selectedIds, onSelect, onEditField, onDelete, onRestore, onPreview, onSplit, onMerge, onDirect,
     segments,
   }), [filtered, profiles, disabled, dubStep, dubProgress, previewLoadingId,
-      selectedIds, onSelect, onEditField, onDelete, onRestore, onPreview, onSplit, onMerge, segments]);
+      selectedIds, onSelect, onEditField, onDelete, onRestore, onPreview, onSplit, onMerge, onDirect, segments]);
 
-  const Row = useCallback(({ index, style, filtered: fl, profiles: profs, disabled: dis, dubProgress: prog, dubStep: step, previewLoadingId: previewId, selectedIds: sel, onSelect: pick, onEditField: edit, onDelete: del, onRestore: rest, onPreview: prev, onSplit: split, onMerge: merge, segments: segs }) => {
+  const Row = useCallback(({ index, style, filtered: fl, profiles: profs, disabled: dis, dubProgress: prog, dubStep: step, previewLoadingId: previewId, selectedIds: sel, onSelect: pick, onEditField: edit, onDelete: del, onRestore: rest, onPreview: prev, onSplit: split, onMerge: merge, onDirect: direct, segments: segs }) => {
     const seg = fl[index];
     if (!seg) return null;
     const absoluteIndex = segs.indexOf(seg);
@@ -71,7 +88,7 @@ export default function DubSegmentTable({
         canMerge={canMerge}
         profiles={profs}
         onEditField={edit} onDelete={del} onRestore={rest} onPreview={prev}
-        onSelect={pick} onSplit={split} onMerge={merge}
+        onSelect={pick} onSplit={split} onMerge={merge} onDirect={direct}
       />
     );
   }, []);
@@ -120,15 +137,17 @@ export default function DubSegmentTable({
         }
       />
 
-      <div className="dub-segment-table__body">
-        <List
-          rowCount={filtered.length}
-          rowHeight={rowHeight}
-          rowComponent={Row}
-          rowProps={rowProps}
-          overscanCount={6}
-          style={{ height: '100%', width: '100%' }}
-        />
+      <div className="dub-segment-table__body" ref={bodyRef}>
+        {bodyHeight > 0 && (
+          <List
+            rowCount={filtered.length}
+            rowHeight={rowHeight}
+            rowComponent={Row}
+            rowProps={rowProps}
+            overscanCount={6}
+            style={{ height: bodyHeight, width: '100%' }}
+          />
+        )}
       </div>
     </Table>
   );

@@ -1,12 +1,25 @@
 /* DubTab — page-specific styles layered over the design system. */
 
 /* ── Header strip ────────────────────────────────────────────── */
-.dub-head            { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; flex-shrink: 0; }
-.dub-head__title     { display: flex; align-items: center; gap: var(--space-3); margin-bottom: 0; min-width: 0; }
-.dub-head__actions   { display: flex; gap: var(--space-2); align-items: center; }
-.dub-head__filename  { font-weight: var(--weight-semibold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dub-head__meta      { color: var(--color-fg-muted); font-weight: 400; white-space: nowrap; }
-.dub-head__project   { color: #b8bb26; margin-left: var(--space-3); white-space: nowrap; }
+/* Top-bar — anchors to the top of the workspace, claims the full width
+   above the video + segment-table split. Drop the card chrome so it reads
+   as a header strip, not a floating panel. */
+.dub-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-md);
+  margin: 0 0 4px 0;
+}
+.dub-head__title     { display: flex; align-items: center; gap: var(--space-3); margin-bottom: 0; min-width: 0; flex: 1; }
+.dub-head__actions   { display: flex; gap: var(--space-2); align-items: center; flex-shrink: 0; }
+.dub-head__filename  { font-weight: var(--weight-semibold); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-fg); }
+.dub-head__meta      { color: var(--color-fg-muted); font-weight: 400; white-space: nowrap; font-size: 0.72rem; }
+.dub-head__project   { color: #b8bb26; margin-left: var(--space-3); white-space: nowrap; font-size: 0.72rem; }
 
 /* ── Preview toggle wrapper (above waveform) ─────────────────── */
 .dub-preview-toggle {
@@ -169,6 +182,269 @@
 .dub-tracks-row label.is-off           { color: var(--color-fg-subtle); }
 .dub-tracks-row label.is-on            { color: var(--color-fg); }
 .dub-tracks-row label span.code        { text-transform: uppercase; }
+
+/* ── Utility: column flex that fills remaining height ────────── */
+.dub-col            { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.dub-panel-col      { margin-bottom: 0; overflow: hidden; display: flex; flex-direction: column; }
+.dub-split-2        { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; flex: 1; min-height: 0; }
+.dub-split-1        { display: grid; grid-template-columns: 1fr; gap: 6px; flex: 1; min-height: 0; }
+
+/* ── Idle / drop-zone skeleton ───────────────────────────────── */
+.dub-idle-drop {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  cursor: pointer;
+  border: 2px dashed rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  transition: background 0.3s, border-color 0.3s;
+  margin: 4px;
+  background: transparent;
+}
+.dub-idle-drop.is-dragging {
+  border-color: #d3869b;
+  background: rgba(211, 134, 155, 0.05);
+}
+.dub-idle-drop__puck {
+  width: 60px; height: 60px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(211, 134, 155, 0.06);
+  border: 1px solid rgba(211, 134, 155, 0.1);
+}
+.dub-idle-drop__lines    { text-align: center; }
+.dub-idle-drop__title    { font-size: 0.9rem; color: var(--color-fg); font-weight: 500; margin-bottom: 4px; }
+.dub-idle-drop__sub      { font-size: 0.7rem; color: #665c54; }
+
+.dub-ingest-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 10px;
+  margin-top: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  width: min(420px, 80%);
+}
+.dub-ingest-row__input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-fg);
+  font-size: 0.75rem;
+}
+.dub-ingest-row__cta {
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #665c54;
+  cursor: default;
+}
+.dub-ingest-row__cta.is-ready {
+  background: rgba(211, 134, 155, 0.15);
+  border-color: rgba(211, 134, 155, 0.3);
+  color: var(--color-brand);
+  cursor: pointer;
+}
+
+.dub-idle-upload-label {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--color-fg-muted);
+}
+
+.dub-hidden-file { display: none; }
+
+.dub-change-row       { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+.dub-change-row__cta  { flex: 1; margin-top: 0; }
+
+/* Compact disabled inputs in the idle skeleton */
+.input-base--xs              { font-size: 0.65rem; }
+.dub-skel-translate-btn {
+  padding: 3px 8px;
+  background: rgba(131, 165, 152, 0.08);
+  border: 1px solid rgba(131, 165, 152, 0.12);
+  color: #504945;
+  border-radius: 4px;
+  font-size: 0.62rem;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.dub-skel-transcript-toggle        { margin-bottom: 4px; }
+.dub-skel-transcript-toggle__inner { margin-top: 0; padding: 2px 6px; font-size: 0.65rem; opacity: 0.3; cursor: default; }
+.dub-inline-icon                   { vertical-align: middle; margin-right: 3px; }
+
+.dub-ghost-footer                  { padding: 4px 8px; flex-shrink: 0; }
+
+/* Settings bar (right-pane) */
+.dub-settings-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+/* Collapsed-summary strip that replaces the full grid once language/engine/
+   quality are set. Keeps the primary Translate All + Clean Up CTAs inline. */
+.dub-settings-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 4px 6px;
+  margin-bottom: 4px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-md);
+  font-size: 0.68rem;
+}
+.dub-settings-summary__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  color: var(--color-fg-muted);
+  cursor: pointer;
+  padding: 2px 0;
+  font: inherit;
+  text-align: left;
+}
+.dub-settings-summary__trigger strong { color: var(--color-fg); font-weight: 600; }
+.dub-settings-summary__style {
+  color: var(--color-fg-subtle);
+  font-style: italic;
+  margin-left: var(--space-2);
+}
+.dub-settings-close {
+  flex: 0 0 auto;
+  padding: 0 6px;
+}
+.dub-engine-select  { font-size: 0.65rem; padding: 5px 8px; }
+.dub-quality-field  { flex: none; min-width: 140px; }
+
+/* Transcript collapsible + content */
+.dub-transcript-toggle-wrap          { margin-bottom: 4px; }
+.dub-transcript-toggle__inner        { margin-top: 0; padding: 2px 6px; font-size: 0.65rem; }
+.dub-transcript-body {
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  padding: 6px;
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+/* Glossary wrapper */
+.dub-glossary-wrap                   { margin-bottom: 4px; }
+.dub-glossary-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  margin-bottom: 4px;
+  font-size: 0.65rem;
+  color: var(--color-fg-muted);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.dub-glossary-chip:hover {
+  background: rgba(184, 187, 38, 0.06);
+  border-color: rgba(184, 187, 38, 0.24);
+  color: var(--color-fg);
+}
+
+/* Footer layout */
+.dub-footer-panel                    { padding: 4px 8px; flex-shrink: 0; }
+.dub-footer-btns                     { display: flex; gap: 4px; }
+.dub-footer-btns--spaced             { margin-top: 4px; }
+
+/* Output options row value column */
+.dub-outputs-title-strong            { font-weight: 600; color: var(--color-fg); }
+
+/* Bulk-select row controls */
+.dub-bulk-select               { font-size: 0.62rem; padding: 2px 4px; }
+.dub-bulk-select--flex         { flex: 1; }
+.dub-bulk-select--voice        { min-width: 100px; }
+.dub-bulk-select--lang         { width: 90px; }
+.dub-bulk-row__clear           { margin-left: auto; }
+
+/* Footer banner gapping */
+.dub-footer-banner__badge-gap  { margin-left: 6px; }
+
+.dub-lazy-fallback             { padding: 12px; color: #6b6657; font-size: 0.7rem; }
+
+/* ── Skeleton segment rows (idle state) ──────────────────────── */
+.dub-skel-table       { flex: 1; max-height: none; overflow-y: auto; min-height: 0; }
+.dub-skel-row         { opacity: 0.15; }
+.dub-skel-cell-time   { width: 55px; }
+.dub-skel-cell-spkr   { width: 50px; font-size: 0.58rem; color: #504945; }
+.dub-skel-cell-text   { flex: 1; height: 18px; background: rgba(255, 255, 255, 0.03); border-radius: 3px; }
+.dub-skel-cell-voice  { width: 90px; font-size: 0.6rem; color: #504945; }
+.dub-skel-cell-acts   { display: flex; gap: 1px; width: 40px; }
+.dub-skel-cell-acts__icon { opacity: 0.3; }
+.dub-skel-header-time { width: 55px; }
+.dub-skel-header-spkr { width: 50px; }
+.dub-skel-header-text { flex: 1; }
+.dub-skel-header-voice{ width: 90px; }
+.dub-skel-header-acts { width: 40px; }
+
+/* Disabled generation controls shown in idle skeleton */
+.dub-skel-gen-btn     { margin-top: 0; flex: 1; padding: 4px 8px; font-size: 0.7rem; opacity: 0.4; }
+.dub-skel-gen-row     { display: flex; gap: 4px; }
+.dub-skel-settings    {
+  display: flex; gap: 4px; margin-bottom: 4px;
+  flex-wrap: wrap; align-items: flex-end; opacity: 0.4;
+}
+.dub-skel-field       { flex: 1; min-width: 90px; }
+.dub-skel-field--sm   { flex: 1; min-width: 80px; }
+
+/* ── Generating overlay (on top of waveform) ─────────────────── */
+.dub-gen-overlay          { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
+.dub-gen-overlay__head    { display: flex; align-items: center; gap: 6px; }
+.dub-gen-overlay__title   { font-weight: 500; font-size: 0.72rem; color: var(--color-fg); }
+.dub-gen-overlay__title.is-stopping { color: var(--color-fg-muted); }
+.dub-gen-overlay__bar     { width: 80%; max-width: 240px; }
+.dub-gen-overlay__text    { font-size: 0.65rem; color: var(--color-fg-muted); }
+
+/* ── Cast / speaker-voices strip below waveform ──────────────── */
+.dub-cast               { margin-top: 4px; padding: 3px 6px; background: rgba(255, 255, 255, 0.02); border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.04); }
+.dub-cast__row          { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.dub-cast__kicker       { font-size: 0.62rem; color: var(--color-fg-muted); font-weight: 600; }
+.dub-cast__pair         { display: flex; align-items: center; gap: 3px; }
+.dub-cast__label        { font-size: 0.62rem; color: var(--color-fg); }
+.dub-cast__select       { width: 100px; padding: 1px 4px; font-size: 0.62rem; }
+
+/* Muted placeholder cast strip shown in the idle skeleton */
+.dub-cast--muted        { background: rgba(255, 255, 255, 0.015); border: 1px solid rgba(255, 255, 255, 0.03); }
+.dub-cast--muted .dub-cast__label,
+.dub-cast--muted .dub-cast__kicker { color: #504945; }
+.dub-cast--muted__chip  { font-size: 0.62rem; color: #504945; padding: 1px 4px; background: rgba(255, 255, 255, 0.02); border-radius: 2px; }
+
+/* ── Output options row (footer) ─────────────────────────────── */
+.dub-outputs-title      { font-weight: 600; color: var(--color-fg); }
+.dub-outputs-default    { font-size: 0.6rem; padding: 2px 4px; width: 120px; }
 
 /* ── Footer download buttons ─────────────────────────────────── */
 /* .btn-primary provides the base layout; tones are applied here. */

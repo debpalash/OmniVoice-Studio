@@ -115,13 +115,17 @@ export default function WaveformTimeline({
 
     let ws;
     try {
+      // Start at the container's measured height; a ResizeObserver below
+      // keeps WaveSurfer in sync when the column resizes. Fallback to 200
+      // if layout hasn't settled yet so we never render a flat sliver.
+      const initialHeight = Math.max(140, waveContainerRef.current.clientHeight || 200);
       ws = WaveSurfer.create({
         container:     waveContainerRef.current,
         waveColor:     'rgba(168,153,132,0.45)',
         progressColor: 'rgba(211,134,155,0.75)',
         cursorColor:   '#d3869b',
         cursorWidth:   2,
-        height:        64,
+        height:        initialHeight,
         barWidth:      2,
         barGap:        1,
         barRadius:     2,
@@ -336,23 +340,25 @@ export default function WaveformTimeline({
     <div className="waveform-timeline" style={{display:'flex', flexDirection:'column', flex:1, minHeight:0}}>
       {/* Video + Waveform stacked vertically */}
       <div style={{display:'flex', flexDirection:'column', gap:4, flex:1, minHeight:0}}>
-        {/* Video preview column */}
+        {/* Video preview — pinned to its aspect ratio so we don't letterbox
+            into huge black bars. Waveform gets the remaining height. */}
         {videoSrc && (
           <div
             ref={videoContainerRef}
             style={{
-              flex:1, minHeight:0, background:'#000', borderRadius:4, overflow:'hidden',
-              border:'1px solid rgba(255,255,255,0.05)', display: 'flex'
+              flex:'0 0 auto', aspectRatio:'16 / 9', maxHeight:'55%',
+              background:'#000', borderRadius:4, overflow:'hidden',
+              border:'1px solid rgba(255,255,255,0.05)', display: 'flex',
             }}
           />
         )}
 
-        {/* Waveform column */}
-        <div style={{position:'relative', overflow:'hidden', flexShrink:0}}>
+        {/* Waveform — fills the rest. This is the actual editing surface. */}
+        <div style={{position:'relative', overflow:'hidden', flex:'1 1 auto', minHeight:140}}>
           <div
             ref={waveContainerRef}
             className="waveform-container"
-            style={{height:'100%', minHeight:60, borderRadius:4, width:'100%', overflow:'hidden'}}
+            style={{height:'100%', minHeight:140, borderRadius:4, width:'100%', overflow:'hidden'}}
           />
 
           {/* Loading shimmer */}

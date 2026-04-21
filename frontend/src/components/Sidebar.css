@@ -140,3 +140,70 @@
   color: var(--text-secondary);
   margin-bottom: var(--space-4);
 }
+
+/* ── Scrollable body + collapsed-mode tweaks ─────────────────── */
+.sidebar__scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+.sidebar__scroll.is-collapsed {
+  padding: 8px 4px;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Preset rows that don't need a computed accent */
+.history-item--dub       { --row-accent: #83a598; }
+
+/* ── History-item kind badge variants ────────────────────────── */
+.history-kind--audio     { color: #83a598; border-color: rgba(131, 165, 152, 0.25); }
+
+/* Locked project label + italic subtitle */
+.history-meta--locked    { color: #b8bb26; font-style: italic; }
+.history-subtitle--italic { font-style: italic; }
+
+/* Generated-history title clamp */
+.history-title--clamp {
+  white-space: normal;
+  font-weight: 500;
+  font-size: 0.74rem;
+  line-height: 1.3;
+  max-height: 3em;
+  overflow: hidden;
+}
+.history-subtitle--seed {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.58rem;
+  color: #6b6657;
+}
+
+/* Inline mini-player in generate history */
+.history-audio {
+  height: 24px;
+  margin-top: 4px;
+  width: 100%;
+  border-radius: 999px;
+}
+
+/* Restore / re-open icon tiles on history + export rows */
+.sidebar-tile {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 6px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
+}
+.sidebar-tile--audio   { color: #83a598; }
+.sidebar-tile--clone   { color: #d3869b; }
+.sidebar-tile--design  { color: #b8bb26; }
+.sidebar-tile--success { color: #8ec07c; }

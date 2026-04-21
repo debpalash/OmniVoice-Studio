@@ -31,10 +31,37 @@ warnings.filterwarnings("ignore", category=UserWarning)
 torchaudio.set_audio_backend("soundfile")
 
 _LOG_FMT = "%(asctime)s %(levelname)s [%(name)s] %(message)s"
+
+
+class _JsonFormatter(logging.Formatter):
+    """Single-line JSON-per-record formatter. Opt in with `OMNIVOICE_JSON_LOGS=1`.
+
+    Keeps every field unquoted-string-safe so downstream log shippers
+    (Vector, Fluent Bit, grep) can stream without extra parsing.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        import json as _json
+        payload = {
+            "t":     self.formatTime(record, datefmt="%Y-%m-%dT%H:%M:%S"),
+            "level": record.levelname,
+            "name":  record.name,
+            "msg":   record.getMessage(),
+        }
+        if record.exc_info:
+            payload["exc"] = self.formatException(record.exc_info)
+        return _json.dumps(payload, ensure_ascii=False)
+
+
+_json_logs = os.environ.get("OMNIVOICE_JSON_LOGS") == "1"
 logging.basicConfig(
     level=os.environ.get("OMNIVOICE_LOG_LEVEL", "INFO"),
     format=_LOG_FMT,
 )
+if _json_logs:
+    # Replace every existing handler's formatter with the JSON one.
+    for _h in logging.getLogger().handlers:
+        _h.setFormatter(_JsonFormatter())
 
 # Rolling file handler so the Settings UI > Logs > Backend tab has something to read.
 # Attached to root so uvicorn, fastapi, and every `omnivoice.*` namespace land here.
@@ -46,7 +73,7 @@ if not os.environ.get("OMNIVOICE_DISABLE_FILE_LOG"):
             _LOG_PATH, maxBytes=2 * 1024 * 1024, backupCount=3, encoding="utf-8",
         )
         _file_handler.setLevel(logging.INFO)
-        _file_handler.setFormatter(logging.Formatter(_LOG_FMT))
+        _file_handler.setFormatter(_JsonFormatter() if _json_logs else logging.Formatter(_LOG_FMT))
         logging.getLogger().addHandler(_file_handler)
     except Exception as _e:  # disk full, permission denied, etc. — don't block startup
         logging.getLogger("omnivoice.api").warning("Runtime log file disabled: %s", _e)
@@ -68,13 +95,23 @@ _crash_log_lock = threading.Lock()
 from core.db import init_db
 from core.config import OUTPUTS_DIR, VOICES_DIR, CRASH_LOG_PATH
 from core.tasks import task_manager
+from core import job_store
 from services.model_manager import idle_worker
 
-from api.routers import system, profiles, exports, generation, dub_core, dub_generate, dub_export, dub_translate, projects
+from api.routers import system, profiles, exports, generation, dub_core, dub_generate, dub_export, dub_translate, projects, glossary, engines, tools
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    # Any job still in pending/running at startup is orphaned — a previous
+    # process didn't finish it. Flip to failed with a clear message so the
+    # UI doesn't show a fake spinner.
+    try:
+        swept = job_store.sweep_orphans_on_startup()
+        if swept:
+            logger.info("Startup: marked %d orphaned job(s) as failed.", swept)
+    except Exception:
+        logger.exception("Startup job-sweep failed (non-fatal).")
     idle_task = asyncio.create_task(idle_worker())
     worker_task = asyncio.create_task(task_manager.worker())
     yield
@@ -121,6 +158,9 @@ app.include_router(dub_generate.router)
 app.include_router(dub_export.router)
 app.include_router(dub_translate.router)
 app.include_router(projects.router)
+app.include_router(glossary.router)
+app.include_router(engines.router)
+app.include_router(tools.router)
 
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.exists(frontend_path):

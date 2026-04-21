@@ -9,6 +9,7 @@ import { API } from '../api/client';
 import { clearDubHistory } from '../api/dub';
 import { clearHistory as clearGenHistory } from '../api/generate';
 import { Button } from '../ui';
+import { useAppStore } from '../store';
 import './Sidebar.css';
 
 const SIDEBAR_TABS = [
@@ -33,17 +34,15 @@ function timeAgo(ms) {
 
 export default function Sidebar(props) {
   const {
-    mode,
     availableTabs = ['projects', 'history', 'downloads'],
-    isSidebarCollapsed,
     isSidebarProjectsCollapsed, setIsSidebarProjectsCollapsed,
     sidebarTab, setSidebarTab,
     studioProjects, profiles, history, dubHistory, exportHistory,
-    dubStep, dubVideoFile,
-    selectedProfile, activeProjectId,
+    dubVideoFile,
+    selectedProfile,
     previewLoading,
     saveProject, loadProject, deleteProject,
-    handleSelectProfile, handleDeleteProfile,
+    handleSelectProfile, handleDeleteProfile, handleOpenVoiceProfile,
     handleUnlockProfile, handleLockProfile, handlePreviewVoice,
     restoreHistory, restoreDubHistory,
     handleSaveHistoryAsProfile,
@@ -51,6 +50,12 @@ export default function Sidebar(props) {
     deleteHistory,
     loadHistory, loadDubHistory,
   } = props;
+
+  // Phase 2.2 — read UI + dub state straight from the store.
+  const mode               = useAppStore(s => s.mode);
+  const isSidebarCollapsed = useAppStore(s => s.isSidebarCollapsed);
+  const dubStep            = useAppStore(s => s.dubStep);
+  const activeProjectId    = useAppStore(s => s.activeProjectId);
 
   const [sbQuery, setSbQuery] = useState('');
   const qLower = sbQuery.trim().toLowerCase();
@@ -127,7 +132,7 @@ export default function Sidebar(props) {
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: isSidebarCollapsed ? '8px 4px' : '8px', display: 'flex', flexDirection: 'column', alignItems: isSidebarCollapsed ? 'center' : 'stretch', gap: isSidebarCollapsed ? 8 : 0 }}>
+      <div className={`sidebar__scroll ${isSidebarCollapsed ? 'is-collapsed' : ''}`}>
         {/* ── PROJECTS TAB ── */}
         {sidebarTab === 'projects' && (
           <>
@@ -178,12 +183,11 @@ export default function Sidebar(props) {
                     ) : (
                       filteredProjects.map(proj => (
                         <div key={proj.id}
-                          className={`history-item ${activeProjectId === proj.id ? 'project-active' : ''}`}
-                          style={{ '--row-accent': '#83a598' }}
+                          className={`history-item history-item--dub ${activeProjectId === proj.id ? 'project-active' : ''}`}
                           onClick={() => loadProject(proj.id)}
                         >
                           <div className="history-row-head">
-                            <span className="history-kind" style={{ color: '#83a598', borderColor: 'rgba(131,165,152,0.25)' }}>
+                            <span className="history-kind history-kind--audio">
                               <Film size={9} /> Dub
                             </span>
                             <span className="history-meta" title={new Date(proj.updated_at * 1000).toLocaleString()}>
@@ -193,7 +197,11 @@ export default function Sidebar(props) {
                           <div className="history-title">{proj.name}</div>
                           <div className="history-subtitle">
                             {proj.duration ? `${Math.round(proj.duration)}s` : 'audio'}
-                            {proj.video_path ? ` · ${proj.video_path.split(/[\\/]/).pop()}` : ''}
+                            {(() => {
+                              const basename = proj.video_path ? proj.video_path.split(/[\\/]/).pop() : '';
+                              // Skip echoing the filename when it already matches the project name.
+                              return basename && basename !== proj.name ? ` · ${basename}` : '';
+                            })()}
                           </div>
                           <div className="history-actions">
                             <button className="history-action-btn accent" onClick={(e) => { e.stopPropagation(); loadProject(proj.id); }}>
@@ -231,15 +239,24 @@ export default function Sidebar(props) {
                               <span className="history-kind" style={{ color: accent, borderColor: `${accent}40` }}>
                                 <KindIcon size={9} /> {proj.is_locked ? 'Locked' : (mode === 'clone' ? 'Clone' : 'Design')}
                               </span>
-                              {proj.is_locked ? <span className="history-meta" style={{ color: '#b8bb26', fontStyle: 'italic' }}>consistent</span> : null}
+                              {proj.is_locked ? <span className="history-meta history-meta--locked">consistent</span> : null}
                             </div>
                             <div className="history-title">{proj.name}</div>
-                            {proj.instruct ? <div className="history-subtitle" style={{ fontStyle: 'italic' }}>{proj.instruct}</div> : null}
+                            {proj.instruct ? <div className="history-subtitle history-subtitle--italic">{proj.instruct}</div> : null}
 
                             <div className="history-actions">
                               <button className="history-action-btn history-action-icon" onClick={(e) => { e.stopPropagation(); handlePreviewVoice(proj, e); }} title="Preview">
                                 {previewLoading === proj.id ? <Loader className="spinner" size={10} /> : <Play size={10} />}
                               </button>
+                              {handleOpenVoiceProfile && (
+                                <button
+                                  className="history-action-btn"
+                                  onClick={(e) => { e.stopPropagation(); handleOpenVoiceProfile(proj.id); }}
+                                  title="Open full profile"
+                                >
+                                  Open
+                                </button>
+                              )}
                               <button className="history-action-btn" onClick={(e) => { e.stopPropagation(); handleSelectProfile(proj); }}>
                                 <Check size={10} /> Select
                               </button>
@@ -301,12 +318,11 @@ export default function Sidebar(props) {
             ) : (
               <>
                 {!isSidebarCollapsed && filteredDubHistory.map(item => (
-                  <div key={`dub-${item.id}`} className="history-item"
-                    style={{ '--row-accent': '#83a598' }}
+                  <div key={`dub-${item.id}`} className="history-item history-item--dub"
                     onClick={() => restoreDubHistory(item)}
                   >
                     <div className="history-row-head">
-                      <span className="history-kind" style={{ color: '#83a598', borderColor: 'rgba(131,165,152,0.25)' }}>
+                      <span className="history-kind history-kind--audio">
                         <Film size={9} /> Dub
                       </span>
                       <span className="history-meta">{item.segments_count} segs · {Math.round(item.duration || 0)}s</span>
@@ -340,14 +356,14 @@ export default function Sidebar(props) {
                           {item.generation_time ? `${item.generation_time}s` : ''}
                         </span>
                       </div>
-                      <div className="history-title" title={item.text} style={{ whiteSpace: 'normal', fontWeight: 500, fontSize: '0.74rem', lineHeight: 1.3, maxHeight: '3em', overflow: 'hidden' }}>
+                      <div className="history-title history-title--clamp" title={item.text}>
                         {item.text}
                       </div>
                       {item.seed != null && String(item.seed) !== ''
-                        ? <div className="history-subtitle" style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '0.58rem', color: '#6b6657' }}>seed {item.seed}</div>
+                        ? <div className="history-subtitle history-subtitle--seed">seed {item.seed}</div>
                         : null}
                       {item.audio_path ? (
-                        <audio controls src={`${API}/audio/${item.audio_path}`} style={{ height: 24, marginTop: 4, width: '100%', borderRadius: 999 }} />
+                        <audio controls src={`${API}/audio/${item.audio_path}`} className="history-audio" />
                       ) : null}
                       {item.audio_path ? (
                         <div className="history-actions">
@@ -386,14 +402,14 @@ export default function Sidebar(props) {
 
             {isSidebarCollapsed && filteredDubHistory.map(item => (
               <div key={`dub-${item.id}`} title={`Dub: ${item.filename}`} onClick={() => restoreDubHistory(item)}
-                style={{ width: '32px', height: '32px', flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '6px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid transparent', color: '#83a598' }}>
+                className="sidebar-tile sidebar-tile--audio">
                 <Film size={14} />
               </div>
             ))}
 
             {isSidebarCollapsed && filteredHistory.map(item => (
               <div key={item.id} title={`${item.mode || 'history'}: ${item.text}`} onClick={() => restoreHistory(item)}
-                style={{ width: '32px', height: '32px', flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '6px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid transparent', color: item.mode === 'clone' ? '#d3869b' : '#b8bb26' }}>
+                className={`sidebar-tile ${item.mode === 'clone' ? 'sidebar-tile--clone' : 'sidebar-tile--design'}`}>
                 {item.mode === 'clone' ? <Fingerprint size={14} /> : <Wand2 size={14} />}
               </div>
             ))}
@@ -455,7 +471,7 @@ export default function Sidebar(props) {
                 {isSidebarCollapsed && filteredExport.map(item => (
                   <div key={item.id} title={`Exported: ${item.filename}\nClick to open folder`}
                     onClick={() => revealInFolder(item.destination_path)}
-                    style={{ width: '32px', height: '32px', flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '6px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid transparent', color: item.mode === 'audio' ? '#83a598' : '#8ec07c' }}
+                    className={`sidebar-tile ${item.mode === 'audio' ? 'sidebar-tile--audio' : 'sidebar-tile--success'}`}
                   >
                     <FolderOpen size={14} />
                   </div>

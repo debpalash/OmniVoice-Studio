@@ -46,19 +46,19 @@ export default function CloneDesignTab(props) {
   } = props;
 
   return (
-    <div className="clone-split-grid" style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 6, minHeight: 0 }}>
+    <div className="clone-split-grid">
 
       {/* ═══ LEFT COLUMN: prompt + language/steps ═══ */}
       <div className="studio-column">
         <div className="studio-panel">
-          <div className="label-row" style={{ alignItems: 'center' }}>
+          <div className="label-row label-row--center">
             <Button
               variant="icon"
               iconSize="sm"
               active={isSidebarCollapsed}
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
               title="Toggle Sidebar"
-              style={{ marginRight: 6 }}
+              className="label-row__kicker"
             >
               {isSidebarCollapsed ? <PanelLeftOpen size={12} /> : <PanelLeftClose size={12} />}
             </Button>
@@ -73,8 +73,7 @@ export default function CloneDesignTab(props) {
           )}
           <textarea
             ref={textAreaRef}
-            className="input-base"
-            style={{ flex: 1, resize: 'none', minHeight: 60, marginBottom: '6px' }}
+            className="input-base clone-text-area"
             placeholder={mode === 'clone' ? "What should this voice say? ✍️" : "Describe the voice, then type what it says…"}
             value={text}
             onChange={e => setText(e.target.value)}
@@ -82,8 +81,7 @@ export default function CloneDesignTab(props) {
           <div className="tags-container">
             {TAGS.map(tag => <button key={tag} className="tag-btn" onClick={() => insertTag(tag)}>{tag}</button>)}
             <button
-              className="tag-btn"
-              style={{ borderColor: '#b8bb26', color: '#b8bb26' }}
+              className="tag-btn clone-auto-extract-btn"
               onClick={() => insertTag('[B EY1 S]')}
             >
               [CMU]
@@ -91,7 +89,7 @@ export default function CloneDesignTab(props) {
           </div>
         </div>
 
-        <div className="studio-panel" style={{ overflow: 'visible' }}>
+        <div className="studio-panel clone-panel--overflow-visible">
           <div className="grid-2">
             <div>
               <div className="label-row"><Globe className="label-icon" size={14} /> Language ({ALL_LANGUAGES.length - 1})</div>
@@ -104,8 +102,8 @@ export default function CloneDesignTab(props) {
               />
             </div>
             <div>
-              <div className="label-row" style={{ justifyContent: 'space-between' }}>
-                <span className="label-row" style={{ marginBottom: 0 }}>
+              <div className="label-row label-row--spread">
+                <span className="label-row label-row--flush">
                   <SlidersHorizontal className="label-icon" size={14} /> Steps
                 </span>
                 <span className="val-bubble">{steps}</span>
@@ -125,15 +123,14 @@ export default function CloneDesignTab(props) {
 
             {/* ── VOICE PROFILES ── */}
             {profiles.length > 0 && (
-              <div style={{ marginBottom: 10 }}>
-                <div className="label-row" style={{ fontSize: '0.7rem', marginBottom: 4 }}><User size={12} /> Saved Profiles</div>
+              <div className="clone-profile-block">
+                <div className="label-row label-row--sm"><User size={12} /> Saved Profiles</div>
                 <div className="preset-grid">
                   {profiles.map(p => (
                     <div
                       key={p.id}
-                      className={`preset-btn ${selectedProfile === p.id ? 'profile-active' : ''}`}
+                      className={`preset-btn clone-profile-card ${selectedProfile === p.id ? 'profile-active' : ''}`}
                       onClick={() => handleSelectProfile(p)}
-                      style={{ position: 'relative' }}
                     >
                       <User size={10} /> {p.name}
                       <button
@@ -151,31 +148,29 @@ export default function CloneDesignTab(props) {
             )}
 
             {!selectedProfile && (
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+              <div className="clone-drop-row">
                 <input
                   type="file"
                   accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg"
                   onChange={e => { const f = e.target.files[0]; ingestRefAudio(f); e.target.value = ''; }}
-                  style={{ display: 'none' }}
+                  className="dub-hidden-file"
                   id="audio-upload"
                 />
                 <label
                   htmlFor="audio-upload"
-                  className="file-drag"
-                  style={{ padding: '6px', flex: 1 }}
-                  onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#d3869b'; e.currentTarget.style.background = 'rgba(211,134,155,0.05)'; }}
-                  onDragLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.background = ''; }}
+                  className="file-drag clone-drop-zone"
+                  onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('is-dragging'); }}
+                  onDragLeave={e => { e.currentTarget.classList.remove('is-dragging'); }}
                   onDrop={e => {
                     e.preventDefault();
-                    e.currentTarget.style.borderColor = '';
-                    e.currentTarget.style.background = '';
+                    e.currentTarget.classList.remove('is-dragging');
                     const file = e.dataTransfer.files[0];
                     const okType = file && (file.type.startsWith('audio/') || /\.(mp3|wav|m4a|flac|ogg|aac|webm)$/i.test(file.name));
                     if (okType) ingestRefAudio(file);
                   }}
                 >
                   <UploadCloud color="#a89984" size={18} />
-                  <p>{refAudio ? <span style={{ color: '#ebdbb2' }}>{refAudio.name}</span> : 'Drop audio here — or click. WAV, MP3, M4A… 🎤'}</p>
+                  <p>{refAudio ? <span className="clone-drop-filename">{refAudio.name}</span> : 'Drop audio here — or click. WAV, MP3, M4A… 🎤'}</p>
                 </label>
 
                 <MicButton
@@ -204,7 +199,7 @@ export default function CloneDesignTab(props) {
               </div>
             )}
 
-            <div className="grid-2" style={{ marginTop: 6 }}>
+            <div className="grid-2 grid-2--indent">
               <div>
                 <div className="label-row">Transcript</div>
                 <input type="text" className="input-base" value={refText} onChange={e => setRefText(e.target.value)} placeholder="(Optional)" />
@@ -245,14 +240,14 @@ export default function CloneDesignTab(props) {
         ) : (
           <div>
             <div className="label-row"><UserSquare2 className="label-icon" size={14} /> Voice Profile</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="clone-sliders-col">
               {Object.entries(CATEGORIES).map(([key, options]) => {
                 const many = options.length > 6;
                 return (
                   <div key={key}>
-                    <div className="label-row" style={{ fontSize: '0.7rem', marginBottom: 4 }}>
+                    <div className="label-row label-row--sm">
                       {key.replace(/([A-Z])/g, ' $1').trim()}
-                      <span style={{ marginLeft: 6, fontSize: '0.58rem', color: '#7c6f64', fontWeight: 500 }}>
+                      <span className="clone-slider-kicker">
                         {vdStates[key] === 'Auto' ? '· auto' : `· ${vdStates[key]}`}
                       </span>
                     </div>
@@ -287,47 +282,47 @@ export default function CloneDesignTab(props) {
 
         </div>
 
-        <div className="studio-panel" style={{ overflow: 'visible' }}>
+        <div className="studio-panel clone-panel--overflow-visible">
         <div className="override-toggle" onClick={() => setShowOverrides(!showOverrides)}>
-          <span><Settings2 size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} /> Production Overrides</span>
+          <span><Settings2 size={14} className="clone-icon-inline" /> Production Overrides</span>
           {showOverrides ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </div>
         {showOverrides && (
           <div className="override-content">
             <div className="grid-4">
               <div>
-                <div className="label-row" style={{ justifyContent: 'space-between' }}><span>CFG</span><span className="val-bubble">{cfg}</span></div>
+                <div className="label-row label-row--spread"><span>CFG</span><span className="val-bubble">{cfg}</span></div>
                 <input type="range" min="1.0" max="4.0" step="0.1" value={cfg} onChange={e => setCfg(Number(e.target.value))} />
               </div>
               <div>
-                <div className="label-row" style={{ justifyContent: 'space-between' }}><span>Speed</span><span className="val-bubble">{speed}x</span></div>
+                <div className="label-row label-row--spread"><span>Speed</span><span className="val-bubble">{speed}x</span></div>
                 <input type="range" min="0.5" max="2.0" step="0.1" value={speed} onChange={e => setSpeed(Number(e.target.value))} />
               </div>
               <div>
-                <div className="label-row" style={{ justifyContent: 'space-between' }}><span>t_shift</span><span className="val-bubble">{tShift}</span></div>
+                <div className="label-row label-row--spread"><span>t_shift</span><span className="val-bubble">{tShift}</span></div>
                 <input type="range" min="0" max="1.0" step="0.05" value={tShift} onChange={e => setTShift(Number(e.target.value))} />
               </div>
               <div>
-                <div className="label-row" style={{ justifyContent: 'space-between' }}><span>Pos Temp</span><span className="val-bubble">{posTemp}</span></div>
+                <div className="label-row label-row--spread"><span>Pos Temp</span><span className="val-bubble">{posTemp}</span></div>
                 <input type="range" min="0" max="10" step="0.5" value={posTemp} onChange={e => setPosTemp(Number(e.target.value))} />
               </div>
               <div>
-                <div className="label-row" style={{ justifyContent: 'space-between' }}><span>Class Temp</span><span className="val-bubble">{classTemp}</span></div>
+                <div className="label-row label-row--spread"><span>Class Temp</span><span className="val-bubble">{classTemp}</span></div>
                 <input type="range" min="0" max="2" step="0.1" value={classTemp} onChange={e => setClassTemp(Number(e.target.value))} />
               </div>
               <div>
-                <div className="label-row" style={{ justifyContent: 'space-between' }}><span>Layer Pen</span><span className="val-bubble">{layerPenalty}</span></div>
+                <div className="label-row label-row--spread"><span>Layer Pen</span><span className="val-bubble">{layerPenalty}</span></div>
                 <input type="range" min="0" max="10" step="0.5" value={layerPenalty} onChange={e => setLayerPenalty(Number(e.target.value))} />
               </div>
               <div>
                 <div className="label-row"><span>Duration</span></div>
-                <input type="text" className="input-base" value={duration} onChange={e => setDuration(e.target.value)} placeholder="Auto" style={{ fontSize: '0.8rem' }} />
+                <input type="text" className="input-base clone-duration-input" value={duration} onChange={e => setDuration(e.target.value)} placeholder="Auto" />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+              <div className="clone-prod-col">
+                <label className="clone-prod-check">
                   <input type="checkbox" checked={denoise} onChange={e => setDenoise(e.target.checked)} /> Denoise
                 </label>
-                <label style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <label className="clone-prod-check">
                   <input type="checkbox" checked={postprocess} onChange={e => setPostprocess(e.target.checked)} /> Postprocess
                 </label>
               </div>
@@ -341,7 +336,7 @@ export default function CloneDesignTab(props) {
           loading={isGenerating}
           onClick={handleGenerate}
           leading={!isGenerating && <Play size={14} />}
-          style={{ marginTop: 6 }}
+          className="clone-footer-cta"
         >
           {isGenerating ? `Synthesizing… (${generationTime}s)` : 'Synthesize Audio'}
         </Button>
@@ -350,7 +345,7 @@ export default function CloneDesignTab(props) {
             value={Math.min((generationTime / 8) * 100, 95)}
             tone="brand"
             size="sm"
-            style={{ marginTop: 6 }}
+            className="clone-footer-cta"
           />
         )}
         </div>

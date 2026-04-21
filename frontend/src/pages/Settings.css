@@ -35,3 +35,33 @@
    .settings-tabs gradient-above space stays; the Tabs primitive itself
    carries visual styling. */
 .settings-tabs-ui { margin-bottom: var(--space-5); }
+
+/* ── Engines tab ─────────────────────────────────────────────── */
+.engines-family            { margin-bottom: var(--space-5); }
+.engines-family__active    { margin-left: var(--space-4); font-weight: var(--weight-regular); color: var(--color-fg-subtle); font-size: var(--text-xs); }
+.engines-family__active code { color: var(--color-fg); }
+
+.engines-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.engines-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-md);
+  flex-wrap: wrap;
+}
+.engines-list li.is-ok       { border-left-color: var(--color-success); }
+.engines-list li.is-off      { border-left-color: var(--color-warn); opacity: 0.8; }
+.engines-list__name          { flex: 1; min-width: 240px; color: var(--color-fg); }
+.engines-list__name code     { color: var(--color-fg); font-family: var(--font-mono); font-size: var(--text-sm); }
+.engines-list__reason        { flex-basis: 100%; font-size: var(--text-xs); color: var(--color-fg-subtle); font-style: italic; padding-left: var(--space-4); }

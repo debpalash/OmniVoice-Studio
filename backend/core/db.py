@@ -91,6 +91,40 @@ _BASE_SCHEMA = """
         mode TEXT,
         created_at REAL
     );
+    CREATE TABLE IF NOT EXISTS glossary_terms (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        source TEXT NOT NULL,
+        target TEXT NOT NULL,
+        note TEXT DEFAULT '',
+        auto INTEGER DEFAULT 0,
+        created_at REAL
+    );
+    CREATE INDEX IF NOT EXISTS idx_glossary_project ON glossary_terms(project_id);
+
+    CREATE TABLE IF NOT EXISTS jobs (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        project_id TEXT,
+        status TEXT NOT NULL,
+        created_at REAL NOT NULL,
+        updated_at REAL NOT NULL,
+        finished_at REAL,
+        error TEXT,
+        meta_json TEXT DEFAULT '{}'
+    );
+    CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
+    CREATE INDEX IF NOT EXISTS idx_jobs_project ON jobs(project_id);
+    CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs(created_at);
+
+    CREATE TABLE IF NOT EXISTS job_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_id TEXT NOT NULL,
+        seq INTEGER NOT NULL,
+        created_at REAL NOT NULL,
+        payload TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_job_events_job_seq ON job_events(job_id, seq);
 """
 
 # Only tables/columns this module is allowed to ALTER. Prevents SQL injection via
@@ -129,7 +163,10 @@ def _migrate(conn, current: int) -> int:
     if current < 2:
         _add_column_if_missing(conn, "dub_history", "content_hash", "TEXT DEFAULT ''")
         current = 2
-    # Future migrations: if current < 3: ...; current = 3
+    # v3: glossary_terms table lives in _BASE_SCHEMA (IF NOT EXISTS), so an old
+    # DB simply picks it up on the next init — no ALTER needed.
+    if current < 3:
+        current = 3
     return current
 
 

@@ -21,6 +21,7 @@
   "devDependencies": {
     "concurrently": "^9.2.1",
     "turbo": "^2.9.6",
+    "typescript": "^6.0.3",
     "wait-on": "^9.0.5"
   }
 }

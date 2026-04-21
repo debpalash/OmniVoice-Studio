@@ -72,3 +72,77 @@
   cursor: default;
 }
 .mic-btn .spinner { animation: spin 1s linear infinite; }
+
+/* ── Page layout ─────────────────────────────────────────────── */
+.clone-split-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+  min-height: 0;
+}
+.clone-panel--overflow-visible { overflow: visible; }
+
+/* Label-row alignment variants for this page */
+.label-row--center  { align-items: center; }
+.label-row--spread  { justify-content: space-between; }
+.label-row--flush   { margin-bottom: 0; }
+.label-row--sm      { font-size: 0.7rem; margin-bottom: 4px; }
+.label-row__kicker  { margin-right: 6px; }
+
+/* Text input + textarea tweaks */
+.clone-text-area {
+  flex: 1;
+  resize: none;
+  min-height: 60px;
+  margin-bottom: 6px;
+}
+.clone-auto-extract-btn { border-color: #b8bb26; color: #b8bb26; }
+.clone-duration-input   { font-size: 0.8rem; }
+
+/* Saved-profile dropdown spacing */
+.clone-profile-block    { margin-bottom: 10px; }
+.clone-profile-card     { position: relative; }
+
+/* File-drop + record-button row */
+.clone-drop-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.clone-drop-zone        { padding: 6px; flex: 1; }
+.clone-drop-filename    { color: var(--color-fg); }
+
+/* Grid-2 margin */
+.grid-2--indent         { margin-top: 6px; }
+
+/* Slider column */
+.clone-sliders-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.clone-slider-kicker {
+  margin-left: 6px;
+  font-size: 0.58rem;
+  color: #7c6f64;
+  font-weight: 500;
+}
+
+/* Production-overrides column */
+.clone-prod-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.clone-prod-check {
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.clone-icon-inline { vertical-align: middle; margin-right: 4px; }
+
+/* Footer buttons */
+.clone-footer-cta  { margin-top: 6px; }

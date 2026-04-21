@@ -48,25 +48,44 @@ def _native_save(source: str, destination: str, display_name: str, media_type: s
     }
 
 @router.get("/tasks/stream/{task_id}")
-async def stream_task(task_id: str):
-    """Universal Server-Sent Event stream for background tasks."""
-    if task_id not in task_manager.active_tasks:
-        raise HTTPException(status_code=404, detail="Task not found")
-        
+async def stream_task(task_id: str, after_seq: int = 0):
+    """Universal Server-Sent Event stream for background tasks.
+
+    `?after_seq=N` enables resumption: on reconnect, the client replays
+    persisted events with seq > N, then (if the job is still live) attaches
+    to the in-memory listener for live updates. After a server restart the
+    in-memory task is gone but the persisted tail + final `jobs.status` are
+    still readable, so a mid-stream reload still sees the final state.
+    """
+    from core import job_store
+    job_row = job_store.get(task_id)
+    live = task_manager.active_tasks.get(task_id)
+
+    if not live and not job_row:
+        raise HTTPException(
+            status_code=404,
+            detail="No such task. It may have been cleaned up or was never created.",
+        )
+
     async def _reader():
-        t = task_manager.active_tasks.get(task_id)
-        if t is None:
+        # 1) Replay any persisted events after the client's last-seen seq.
+        try:
+            persisted = job_store.events_since(task_id, after_seq=after_seq)
+        except Exception:
+            persisted = []
+        for evt in persisted:
+            yield evt["payload"]
+
+        # 2) If the job has finished (whether in-memory or persisted-only), done.
+        if not live:
             return
+        if live["status"] in ("done", "failed", "cancelled"):
+            return
+
+        # 3) Attach to the in-memory listener for live updates.
         q = asyncio.Queue()
         await task_manager.add_listener(task_id, q)
-
         try:
-            for evt in t["history"]:
-                yield evt
-
-            if t["status"] in ("done", "failed"):
-                return
-
             while True:
                 evt = await q.get()
                 if evt is None:
@@ -76,6 +95,51 @@ async def stream_task(task_id: str):
             await task_manager.remove_listener(task_id, q)
 
     return StreamingResponse(_reader(), media_type="text/event-stream")
+
+
+@router.get("/jobs")
+async def list_jobs(status: str | None = None, project_id: str | None = None, limit: int = 100):
+    """List persisted jobs, newest first.
+
+    `status=active` → running + pending (what the batch-queue UI wants).
+    `status=failed|done|cancelled|pending|running` → exact match.
+    `project_id=...` → scope to one project.
+    """
+    from core import job_store
+    limit = max(1, min(500, int(limit)))
+    return job_store.list_jobs(status=status, project_id=project_id, limit=limit)
+
+
+@router.get("/jobs/{job_id}")
+async def get_job(job_id: str):
+    from core import job_store
+    row = job_store.get(job_id)
+    if not row:
+        raise HTTPException(
+            status_code=404,
+            detail="No such job. It may have been cleaned up or never created.",
+        )
+    return row
+
+
+@router.get("/jobs/{job_id}/events")
+async def list_job_events(job_id: str, after_seq: int = 0, limit: int = 500):
+    """Persisted SSE tail. Strict ascending seq so the client can stitch
+    it onto a live feed (which starts above the last returned seq).
+    """
+    from core import job_store
+    row = job_store.get(job_id)
+    if not row:
+        raise HTTPException(
+            status_code=404,
+            detail="No job with that id. It may have expired, been deleted, or the server restarted before it was persisted — check the dub history in the sidebar.",
+        )
+    limit = max(1, min(2000, int(limit)))
+    return {
+        "job": row,
+        "events": job_store.events_since(job_id, after_seq=after_seq, limit=limit),
+    }
+
 
 @router.post("/tasks/cancel/{task_id}")
 async def cancel_task(task_id: str):
@@ -202,7 +266,10 @@ async def dub_download(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"ffmpeg mux failed: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"ffmpeg failed to combine video + dubbed audio: {e}. Verify ffmpeg is installed (`ffmpeg -version`), and check that every dubbed track file exists in the job folder.",
+        )
 
     if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
         raise HTTPException(status_code=500, detail="ffmpeg mux produced no output file")
@@ -306,7 +373,10 @@ async def dub_preview_video(
         except HTTPException:
             raise
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"preview mux failed: {str(e)[:300]}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"ffmpeg failed to build the preview stream: {str(e)[:300]}. This usually means the source video can't be re-encoded on the fly — try downloading the MP4 instead.",
+            )
 
         if not os.path.exists(preview_path) or os.path.getsize(preview_path) == 0:
             raise HTTPException(status_code=500, detail="preview mux produced empty file")
@@ -408,9 +478,25 @@ def _format_srt_time(seconds):
     ms = int((seconds % 1) * 1000)
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
+def _pick_subtitle_text(seg: dict, dual: bool) -> str:
+    """One line per subtitle cue, unless dual=true and an original exists.
+
+    Dual layout stacks translated text on top of the (italicised) original, the
+    way Netflix / language-learning apps present them:
+
+        Das Spiel wirklich zu verändern.
+        <i>Actually change the game.</i>
+    """
+    translated = (seg.get("text") or "").strip()
+    original = (seg.get("text_original") or "").strip()
+    if not dual or not original or original == translated:
+        return translated or original
+    return f"{translated}\n<i>{original}</i>"
+
+
 @router.get("/dub/srt/{job_id}")
 @router.get("/dub/srt/{job_id}/{filename}")
-async def dub_export_srt(job_id: str):
+async def dub_export_srt(job_id: str, dual: bool = False):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -425,15 +511,16 @@ async def dub_export_srt(job_id: str):
         end_ts = _format_srt_time(seg["end"])
         srt_lines.append(f"{i + 1}")
         srt_lines.append(f"{start_ts} --> {end_ts}")
-        srt_lines.append(seg["text"])
+        srt_lines.append(_pick_subtitle_text(seg, dual))
         srt_lines.append("")
 
     srt_content = "\n".join(srt_lines)
     base_name = os.path.splitext(job.get('filename', 'video'))[0]
+    suffix = "_dual" if dual else ""
     return Response(
         content=srt_content,
         media_type="text/plain",
-        headers={"Content-Disposition": f'attachment; filename="subtitles_{base_name}.srt"'},
+        headers={"Content-Disposition": f'attachment; filename="subtitles_{base_name}{suffix}.srt"'},
     )
 
 def _format_vtt_time(seconds):
@@ -445,7 +532,7 @@ def _format_vtt_time(seconds):
 
 @router.get("/dub/vtt/{job_id}")
 @router.get("/dub/vtt/{job_id}/{filename}")
-async def dub_export_vtt(job_id: str):
+async def dub_export_vtt(job_id: str, dual: bool = False):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -460,15 +547,16 @@ async def dub_export_vtt(job_id: str):
         end_ts = _format_vtt_time(seg["end"])
         vtt_lines.append(str(i + 1))
         vtt_lines.append(f"{start_ts} --> {end_ts}")
-        vtt_lines.append(seg["text"])
+        vtt_lines.append(_pick_subtitle_text(seg, dual))
         vtt_lines.append("")
 
     vtt_content = "\n".join(vtt_lines)
     base_name = os.path.splitext(job.get('filename', 'video'))[0]
+    suffix = "_dual" if dual else ""
     return Response(
         content=vtt_content,
         media_type="text/vtt",
-        headers={"Content-Disposition": f'attachment; filename="subtitles_{base_name}.vtt"'},
+        headers={"Content-Disposition": f'attachment; filename="subtitles_{base_name}{suffix}.vtt"'},
     )
 
 
@@ -554,7 +642,10 @@ async def dub_download_mp3(job_id: str, lang: str = Query(None), preserve_bg: bo
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"MP3 encoding failed: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"ffmpeg couldn't encode MP3: {e}. Check that libmp3lame is compiled into your ffmpeg build (`ffmpeg -codecs | grep mp3`) — reinstall via homebrew if it's missing.",
+        )
 
     if not os.path.exists(mp3_path) or os.path.getsize(mp3_path) == 0:
         raise HTTPException(status_code=500, detail="MP3 encoding produced no output file")

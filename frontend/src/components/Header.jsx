@@ -13,12 +13,14 @@ const VIEW_META = {
 function WaveBars({ color = '#f3a5b6', active }) {
   const heights = [4, 9, 5, 11, 6, 10, 5, 8];
   return (
-    <div className="hq-wave" aria-hidden="true" style={{ opacity: active ? 1 : 0.35 }}>
+    <div className={`hq-wave ${active ? 'is-active' : ''}`} aria-hidden="true">
       {heights.map((h, i) => (
         <span
           key={i}
           className={active ? 'hq-wave-bar active' : 'hq-wave-bar'}
           style={{
+            // Height + color are per-instance; animation-delay is per-bar.
+            // These three are genuinely dynamic so stay inline.
             height: h,
             background: color,
             animationDelay: `${i * 0.08}s`,
@@ -36,30 +38,29 @@ export default function Header({
   const [flushing, setFlushing] = useState(false);
   const view = VIEW_META[mode] || VIEW_META.launchpad;
   const ViewIcon = view.Icon;
+  // Dynamic accent color must stay inline — it's driven by the current view.
+  const dotStyle   = { background: view.accent, boxShadow: `0 0 10px ${view.accent}90` };
+  const labelStyle = { color: view.accent };
   return (
     <div
       className="header-area"
       data-tauri-drag-region
       onDoubleClick={doubleClickMaximize}
-      style={{
-        display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center',
-        gridColumn: '1 / -1', gridRow: '1', cursor: 'default', paddingRight: '8px',
-      }}
     >
       {/* Left: view title + breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', justifySelf: 'start', minWidth: 0 }}>
-        <div style={{ minWidth: 80, flexShrink: 0 }} />
+      <div className="hq-col-left">
+        <div className="hq-col-left__spacer" />
         <div className="hq-view-title">
-          <span className="hq-view-dot" style={{ background: view.accent, boxShadow: `0 0 10px ${view.accent}90` }} />
+          <span className="hq-view-dot" style={dotStyle} />
           <span className="hq-view-kicker">{view.kicker}</span>
-          <ChevronRight size={10} color="#504945" style={{ margin: '0 2px' }} />
-          <span className="hq-view-label" style={{ color: view.accent }}>
-            <ViewIcon size={12} style={{ marginRight: 4, verticalAlign: '-1px' }} />
+          <ChevronRight size={10} color="#504945" className="hq-breadcrumb-sep" />
+          <span className="hq-view-label" style={labelStyle}>
+            <ViewIcon size={12} className="hq-view-icon" />
             {view.label}
           </span>
           {activeProjectName ? (
             <>
-              <ChevronRight size={10} color="#504945" style={{ margin: '0 2px' }} />
+              <ChevronRight size={10} color="#504945" className="hq-breadcrumb-sep" />
               <span className="hq-view-project" title={activeProjectName}>{activeProjectName}</span>
             </>
           ) : null}
@@ -71,7 +72,7 @@ export default function Header({
             title="Force Reload UI"
             onClick={() => window.location.reload()}
             leading={<RefreshCw size={9} />}
-            style={{ flexShrink: 0 }}
+            className="hq-reload-btn"
           >
             Reload
           </Button>
@@ -79,26 +80,21 @@ export default function Header({
       </div>
 
       {/* Center: logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifySelf: 'center', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f3a5b6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(-6deg)' }}>
+      <div className="hq-col-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f3a5b6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="hq-logo-mark">
           <circle cx="12" cy="12" r="10" opacity="0.18" fill="#f3a5b6" />
           <circle cx="12" cy="12" r="10" />
           <path d="M12 6v12" />
           <path d="M8 9v6" />
           <path d="M16 9v6" />
         </svg>
-        <span style={{
-          fontSize: '1.05rem', fontWeight: 800, color: '#f7e7c3',
-          letterSpacing: '-0.02em',
-          fontFamily: 'Fraunces, Georgia, serif',
-          fontStyle: 'italic',
-        }}>
-          Omni<span style={{ color: '#f3a5b6' }}>Voice</span>
+        <span className="hq-logo-word">
+          Omni<span className="hq-logo-word__accent">Voice</span>
         </span>
       </div>
 
       {/* Right: wave + UI scale + sys stats */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', justifySelf: 'end', minWidth: 0, overflow: 'hidden' }}>
+      <div className="hq-col-right">
         <WaveBars color={view.accent} active={modelStatus === 'ready' || modelStatus === 'loading'} />
         <Segmented
           className="hq-scale"
@@ -112,19 +108,18 @@ export default function Header({
           ]}
         />
         {sysStats && (
-          <div className="hq-stats" style={{ display: 'flex', gap: '8px', fontFamily: 'Nunito, sans-serif', fontSize: '0.58rem', color: '#7c6f64', background: 'rgba(0,0,0,0.28)', padding: '3px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.05)', whiteSpace: 'nowrap', flexShrink: 1, alignItems: 'center', overflow: 'hidden' }}>
-            <span><b style={{ color: '#a89984', fontWeight: 500 }}>RAM</b> {sysStats.ram.toFixed(1)}/{sysStats.total_ram.toFixed(0)}G</span>
-            <span><b style={{ color: '#a89984', fontWeight: 500 }}>CPU</b> {sysStats.cpu.toFixed(0)}%</span>
-            <span style={{ borderLeft: '1px solid rgba(255,255,255,0.06)', paddingLeft: 5 }}>
-              <b style={{ color: sysStats.gpu_active ? '#8ec07c' : '#a89984', fontWeight: 500 }}>VRAM</b> {sysStats.vram.toFixed(1)}G
+          <div className="hq-stats">
+            <span><b className="hq-stats__key">RAM</b> {sysStats.ram.toFixed(1)}/{sysStats.total_ram.toFixed(0)}G</span>
+            <span><b className="hq-stats__key">CPU</b> {sysStats.cpu.toFixed(0)}%</span>
+            <span className="hq-stats__sep">
+              <b className={`hq-stats__key ${sysStats.gpu_active ? 'hq-stats__key--gpu-active' : ''}`}>VRAM</b> {sysStats.vram.toFixed(1)}G
             </span>
-            <span style={{ borderLeft: '1px solid rgba(255,255,255,0.06)', paddingLeft: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span className="hq-stats__status-wrap">
               <Badge
                 tone={modelStatus === 'ready' ? 'success' : modelStatus === 'loading' ? 'warn' : 'neutral'}
                 size="xs"
                 dot
-                className={modelStatus === 'loading' ? 'ui-badge--pulse' : ''}
-                style={{ border: 'none', background: 'transparent', padding: 0, textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}
+                className={`hq-stats__status-badge ${modelStatus === 'loading' ? 'ui-badge--pulse' : ''}`}
               >
                 {modelStatus === 'ready' ? 'Ready' : modelStatus === 'loading' ? 'Loading…' : 'Idle'}
               </Badge>
@@ -140,7 +135,7 @@ export default function Header({
                   setFlushing(true);
                   try { await onFlushMemory(e.altKey); } finally { setFlushing(false); }
                 }}
-                style={{ marginLeft: 2 }}
+                className="hq-flush-btn"
               >
                 Flush
               </Button>

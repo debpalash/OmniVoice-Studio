@@ -1,9 +1,12 @@
 import React, { memo } from 'react';
-import { CheckCircle, AlertCircle, Circle, Trash2, Loader, Headphones, Scissors, Merge, MoreHorizontal } from 'lucide-react';
+import {
+  CheckCircle, AlertCircle, Circle, Trash2, Loader, Headphones, Scissors, Merge,
+  MoreHorizontal, Sparkles,
+} from 'lucide-react';
 import { formatTime } from '../utils/format';
 import { LANG_CODES } from '../utils/languages';
 import { PRESETS } from '../utils/constants';
-import { Menu, Button } from '../ui';
+import { Menu, Button, Badge } from '../ui';
 
 const CHAR_BUDGET_RATIO = 1.3;
 
@@ -14,6 +17,7 @@ function rowClass(isActive, isDone, selected) {
 function DubSegmentRow({
   seg, idx, style, disabled, isActive, isDone, previewLoading, selected,
   profiles, onEditField, onDelete, onRestore, onPreview, onSelect, onSplit, onMerge, canMerge,
+  onDirect,
 }) {
   const syncColor = seg.sync_ratio === undefined ? null
     : (seg.sync_ratio >= 0.95 && seg.sync_ratio <= 1.05) ? '#b8bb26'
@@ -68,6 +72,18 @@ function DubSegmentRow({
             title={`Generated audio is ${Math.round(seg.sync_ratio * 100)}% the duration of original`}
           >
             <SyncIcon size={8} /> Sync: {Math.round(seg.sync_ratio * 100)}%
+          </span>
+        )}
+        {seg.rate_ratio != null && Math.abs(seg.rate_ratio - 1.0) > 0.03 && (
+          <span
+            style={{
+              fontSize: '0.5rem', marginTop: 2,
+              color: seg.rate_ratio > 1.15 ? '#fb4934' : seg.rate_ratio < 0.85 ? '#83a598' : '#a89984',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+            title={`Speech-rate fit: ${seg.rate_ratio.toFixed(2)}× relative to slot${seg.rate_error ? ` (${seg.rate_error})` : ''}`}
+          >
+            📖 {seg.rate_ratio.toFixed(2)}×
           </span>
         )}
       </span>
@@ -175,6 +191,13 @@ function DubSegmentRow({
           disabled={disabled}
           items={[
             {
+              id: 'direct',
+              label: seg.direction ? 'Edit direction…' : 'Set direction…',
+              icon: Sparkles,
+              onSelect: () => onDirect?.(seg),
+            },
+            'separator',
+            {
               id: 'split',
               label: 'Split at cursor',
               icon: Scissors,
@@ -192,11 +215,11 @@ function DubSegmentRow({
           ]}
         >
           <button
-            className="segment-play"
+            className={`segment-play ${seg.direction ? 'has-direction' : ''}`}
             disabled={disabled}
-            title="More actions"
+            title={seg.direction ? `Direction: ${seg.direction}` : 'More actions'}
           >
-            <MoreHorizontal size={9} />
+            {seg.direction ? <Sparkles size={9} /> : <MoreHorizontal size={9} />}
           </button>
         </Menu>
         <button
@@ -217,6 +240,7 @@ export default memo(DubSegmentRow, (prev, next) => (
   prev.isActive === next.isActive &&
   prev.isDone === next.isDone &&
   prev.previewLoading === next.previewLoading &&
+  prev.onDirect === next.onDirect &&
   prev.selected === next.selected &&
   prev.canMerge === next.canMerge &&
   prev.profiles === next.profiles &&

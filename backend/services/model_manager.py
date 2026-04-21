@@ -29,7 +29,7 @@ def get_best_device():
 def _load_model_sync():
     global model
     device = get_best_device()
-    print(f"Loading OmniVoice model lazily on device: {device}...")
+    logger.info("Loading OmniVoice model lazily on device: %s", device)
     checkpoint = os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice")
     _model = OmniVoice.from_pretrained(
         checkpoint, device_map=device, dtype=torch.float16, load_asr=True,
@@ -37,10 +37,10 @@ def _load_model_sync():
     try:
         if device == "cuda":
             _model.llm = torch.compile(_model.llm, mode="reduce-overhead")
-            print("torch.compile applied.")
+            logger.info("torch.compile applied.")
     except Exception as e:
-        print(f"torch.compile skipped: {e}")
-    print("OmniVoice model loaded successfully.")
+        logger.info("torch.compile skipped: %s", e)
+    logger.info("OmniVoice model loaded successfully.")
     return _model
 
 async def get_model() -> OmniVoice:
@@ -74,7 +74,7 @@ async def idle_worker():
         await asyncio.sleep(30)
         async with _model_lock:
             if model is not None and time.time() - _last_used > _IDLE_TIMEOUT_SECONDS:
-                print("Idle timeout reached. Unloading OmniVoice model to free VRAM...")
+                logger.info("Idle timeout reached. Unloading OmniVoice model to free VRAM.")
                 model = None
                 import gc
                 gc.collect()

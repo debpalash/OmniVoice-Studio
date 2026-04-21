@@ -1,20 +1,29 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Cpu, FileText, Info, ShieldCheck, RefreshCw, Trash2, ExternalLink,
-  CheckCircle, AlertCircle,
+  CheckCircle, AlertCircle, Plug, Mic, MessageSquare,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { systemInfo, systemLogs, systemLogsTauri, clearSystemLogs, clearTauriLogs, modelStatus as fetchModelStatus } from '../api/system';
+import { listEngines, selectEngine } from '../api/engines';
 import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
-import { Tabs, Segmented, Button, Badge } from '../ui';
+import { Tabs, Segmented, Button, Badge, Panel } from '../ui';
+import { useAppStore } from '../store';
 import './Settings.css';
 
 const TABS = [
   { id: 'models',  label: 'Models',  icon: Cpu,          accent: '#f3a5b6' },
+  { id: 'engines', label: 'Engines', icon: Plug,         accent: '#d3869b' },
   { id: 'logs',    label: 'Logs',    icon: FileText,     accent: '#fabd2f' },
   { id: 'about',   label: 'About',   icon: Info,         accent: '#8ec07c' },
   { id: 'privacy', label: 'Privacy', icon: ShieldCheck,  accent: '#b8bb26' },
 ];
+
+const FAMILY_META = {
+  tts: { label: 'TTS', icon: Cpu,           tint: 'brand'   },
+  asr: { label: 'ASR', icon: Mic,           tint: 'info'    },
+  llm: { label: 'LLM', icon: MessageSquare, tint: 'violet'  },
+};
 
 const LOG_SOURCES = [
   { value: 'backend',  label: 'Backend' },
@@ -32,6 +41,135 @@ function Row({ label, value, mono }) {
     </div>
   );
 }
+
+function EnginesTab() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [switching, setSwitching] = useState(null);
+  const reviewMode = useAppStore(s => s.reviewMode);
+  const setReviewMode = useAppStore(s => s.setReviewMode);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    try { setData(await listEngines()); }
+    catch (e) { toast.error(`Failed to load engines: ${e.message}`); }
+    finally { setLoading(false); }
+  }, []);
+
+  const onSelect = useCallback(async (family, backendId) => {
+    setSwitching(`${family}:${backendId}`);
+    try {
+      const r = await selectEngine(family, backendId);
+      toast.success(`${family.toUpperCase()} → ${r.active}`);
+      await reload();
+    } catch (e) {
+      toast.error(e.message || 'Failed to switch engine');
+    } finally {
+      setSwitching(null);
+    }
+  }, [reload]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  if (loading && !data) {
+    return <section className="settings-section"><div className="settings-muted">Loading engines…</div></section>;
+  }
+  if (!data) return null;
+
+  return (
+    <section className="settings-section">
+      <h2 className="settings-section__head-row">
+        <span className="settings-section__head-left">
+          <Plug size={16} color="#d3869b" /> Engines
+        </span>
+        <span className="settings-section__head-actions">
+          <Button variant="subtle" size="sm" onClick={reload} leading={<RefreshCw size={11} />}>
+            Refresh
+          </Button>
+        </span>
+      </h2>
+
+      <p className="settings-prose" style={{ marginTop: 0 }}>
+        Click <strong>Use</strong> to switch which backend handles each stage. Your pick persists across restarts.
+        Env vars (<code>OMNIVOICE_TTS_BACKEND</code>, …) still override the UI so power-users can pin a backend.
+        Unavailable engines show why — usually a missing optional dep or a hardware mismatch.
+      </p>
+
+      <Panel variant="flat" padding="md" className="engines-family" title="Pipeline review mode">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Segmented
+            size="sm"
+            value={reviewMode}
+            onChange={setReviewMode}
+            items={[
+              { value: 'on',  label: 'Review between stages' },
+              { value: 'off', label: 'Rapid-fire' },
+            ]}
+          />
+          <span style={{ fontSize: '0.62rem', color: '#a89984', flex: 1 }}>
+            {reviewMode === 'on'
+              ? 'Banners nudge you to check transcripts and translations before advancing.'
+              : 'Banners hidden — go straight from Prepare to Translate to Generate.'}
+          </span>
+        </div>
+      </Panel>
+
+      {['tts', 'asr', 'llm'].map(fam => {
+        const { label, icon: FamIcon, tint } = FAMILY_META[fam];
+        const family = data[fam];
+        if (!family) return null;
+        return (
+          <Panel
+            key={fam}
+            variant="flat"
+            padding="md"
+            className="engines-family"
+            title={
+              <>
+                <FamIcon size={13} /> {label}
+                <span className="engines-family__active">
+                  active: <code>{family.active}</code>
+                </span>
+              </>
+            }
+          >
+            <ul className="engines-list">
+              {family.backends.map(b => {
+                const isActive = family.active === b.id;
+                const isSwitching = switching === `${fam}:${b.id}`;
+                return (
+                  <li key={b.id} className={b.available ? 'is-ok' : 'is-off'}>
+                    <span className="engines-list__name">
+                      <code>{b.id}</code> — {b.display_name}
+                    </span>
+                    {isActive && <Badge tone={tint}>active</Badge>}
+                    {b.available
+                      ? <Badge tone="success" size="xs">ready</Badge>
+                      : <Badge tone="warn" size="xs">unavailable</Badge>}
+                    {!isActive && b.available && (
+                      <Button
+                        variant="subtle"
+                        size="sm"
+                        onClick={() => onSelect(fam, b.id)}
+                        loading={isSwitching}
+                      >
+                        Use
+                      </Button>
+                    )}
+                    {!b.available && b.reason && (
+                      <span className="engines-list__reason">{b.reason}</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </Panel>
+        );
+      })}
+    </section>
+  );
+}
+
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('models');
@@ -161,6 +299,8 @@ export default function Settings() {
           )}
         </section>
       )}
+
+      {activeTab === 'engines' && <EnginesTab />}
 
       {activeTab === 'logs' && (
         <section className="settings-section">

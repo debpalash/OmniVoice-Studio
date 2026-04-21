@@ -73,6 +73,73 @@ def test_projects_list_smoke(client):
     assert isinstance(r.json(), list)
 
 
+# ── engines (Phase 3) ──────────────────────────────────────────────────────
+def test_engines_list_smoke(client):
+    r = client.get("/engines")
+    assert r.status_code == 200
+    body = r.json()
+    assert set(body) == {"tts", "asr", "llm"}
+    for family in ("tts", "asr", "llm"):
+        assert "active" in body[family]
+        assert "backends" in body[family]
+        assert isinstance(body[family]["backends"], list)
+
+
+def test_engines_tts_lists_all_backends(client):
+    r = client.get("/engines/tts")
+    assert r.status_code == 200
+    ids = {b["id"] for b in r.json()["backends"]}
+    assert ids == {"omnivoice", "voxcpm2", "moss-tts-nano"}
+
+
+def test_engines_select_refuses_unavailable_backend(client):
+    # MOSS-TTS-Nano deps aren't installed on the test host — /engines/select
+    # must refuse rather than brick the pipeline with an unavailable pick.
+    backends = {b["id"]: b for b in client.get("/engines/tts").json()["backends"]}
+    unavailable = next((bid for bid, b in backends.items() if not b["available"]), None)
+    if unavailable is None:
+        return  # all engines ready on this host — nothing to assert
+    r = client.post("/engines/select", json={"family": "tts", "backend_id": unavailable})
+    assert r.status_code == 400
+    detail = r.json().get("detail", "")
+    assert "not ready" in detail or "unavailable" in detail
+
+
+def test_engines_select_rejects_unknown_family(client):
+    r = client.post("/engines/select", json={"family": "xyz", "backend_id": "omnivoice"})
+    assert r.status_code == 400
+
+
+# ── tools (Phase 4.6) ──────────────────────────────────────────────────────
+def test_tools_direction_parses(client):
+    r = client.post("/tools/direction", json={"text": "urgent and surprised"})
+    assert r.status_code == 200
+    body = r.json()
+    assert "taxonomy" in body
+    assert body["instruct_prompt"]
+    assert body["rate_bias"] != 1.0
+
+
+def test_tools_incremental_first_run_everything_stale(client):
+    r = client.post("/tools/incremental", json={
+        "segments": [{"id": "s1", "text": "hi", "target_lang": "de"}],
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert body["stale"] == ["s1"]
+
+
+def test_tools_rate_fit_respects_tolerance(client):
+    # ~15 chars/s en → 15-char slot exactly.
+    r = client.post("/tools/rate-fit", json={
+        "text": "A" * 15,
+        "slot_seconds": 1.0,
+        "target_lang": "en",
+    })
+    assert r.status_code == 200
+    assert r.json()["attempts"] == 0
+
+
 # ── exports ─────────────────────────────────────────────────────────────────
 def test_export_history_smoke(client):
     r = client.get("/export/history")
@@ -99,6 +166,33 @@ def test_dub_history_list_smoke(client):
     r = client.get("/dub/history")
     assert r.status_code == 200
     assert isinstance(r.json(), list)
+
+
+# ── jobs (Phase 2.1) ────────────────────────────────────────────────────────
+def test_jobs_list_smoke(client):
+    r = client.get("/jobs")
+    assert r.status_code == 200
+    assert isinstance(r.json(), list)
+
+
+def test_jobs_list_filter_active(client):
+    r = client.get("/jobs?status=active")
+    assert r.status_code == 200
+    body = r.json()
+    assert isinstance(body, list)
+    for j in body:
+        assert j["status"] in ("pending", "running")
+
+
+def test_job_get_404(client):
+    r = client.get("/jobs/__nonexistent__")
+    assert r.status_code == 404
+    assert "no such job" in r.json()["detail"].lower()
+
+
+def test_job_events_404(client):
+    r = client.get("/jobs/__nonexistent__/events")
+    assert r.status_code == 404
 
 
 def test_dub_generate_unknown_job(client):

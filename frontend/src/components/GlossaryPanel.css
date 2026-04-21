@@ -1,0 +1,67 @@
+/* GlossaryPanel — project-scoped term table. */
+
+.glossary-panel__counts {
+  margin-left: var(--space-3);
+  font-weight: var(--weight-medium);
+  color: var(--color-fg-subtle);
+  font-size: var(--text-xs);
+}
+
+.glossary-panel__empty {
+  padding: var(--space-5);
+  text-align: center;
+  font-size: var(--text-md);
+  color: var(--color-fg-subtle);
+}
+
+.glossary-panel__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.glossary-panel__table th,
+.glossary-panel__table td {
+  padding: 3px 6px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.glossary-panel__table th {
+  font-size: var(--text-xs);
+  color: var(--color-fg-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: var(--weight-semibold);
+  border-bottom-color: var(--color-border);
+}
+
+.glossary-panel__col-kind   { width: 60px; }
+.glossary-panel__col-action { width: 26px; }
+
+.glossary-panel__cell-src  { color: var(--color-fg); font-weight: var(--weight-medium); }
+.glossary-panel__cell-tgt  { color: var(--color-brand); font-weight: var(--weight-medium); }
+.glossary-panel__cell-note { color: var(--color-fg-subtle); font-style: italic; font-size: var(--text-xs); }
+
+.glossary-panel__row-actions {
+  display: flex;
+  gap: var(--space-1);
+  justify-content: flex-end;
+}
+
+.glossary-panel__muted {
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--color-fg-subtle);
+  font-style: italic;
+}
+
+.glossary-panel__row--new td { padding-top: 4px; padding-bottom: 4px; }
+.glossary-panel__row--new { border-top: 1px dashed var(--color-border); }
+
+.glossary-panel__hint {
+  margin-top: var(--space-3);
+  padding: 2px var(--space-3);
+  font-size: var(--text-2xs);
+  color: var(--color-fg-subtle);
+  font-style: italic;
+}
