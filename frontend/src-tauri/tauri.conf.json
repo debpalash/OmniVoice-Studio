@@ -43,10 +43,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": {
-      "../../dist/omnivoice-backend": "backend",
-      "binaries/ffmpeg": "bin/ffmpeg"
-    },
     "macOS": {
       "minimumSystemVersion": "12.0"
     }
