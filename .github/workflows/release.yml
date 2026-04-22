@@ -31,6 +31,10 @@ on:
 permissions:
   contents: write    # needed to attach artifacts + updater manifest to GH Release
 
+env:
+  # Run all JavaScript actions on Node 24 (GH deprecates Node 20 in Sep 2026).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   # Fast gating job — runs backend pytest + frontend node:test + tsc on a
   # single Linux runner. The matrix build below waits on this via `needs:`
