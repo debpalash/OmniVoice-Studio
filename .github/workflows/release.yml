@@ -98,21 +98,29 @@ jobs:
             arch: aarch64-apple-darwin
             label: "macOS Apple Silicon"
             rust_target: aarch64-apple-darwin
+            bundles: "app,dmg,updater"
 
           - os: macos-13
             arch: x86_64-apple-darwin
             label: "macOS Intel"
             rust_target: x86_64-apple-darwin
+            bundles: "app,dmg,updater"
 
+          # Windows: force MSI bundling via --bundles. NSIS fails at makensis
+          # because our PyInstaller payload approaches its ~2 GB stub limit.
           - os: windows-2022
             arch: x86_64-pc-windows-msvc
             label: "Windows x64"
             rust_target: x86_64-pc-windows-msvc
+            bundles: "msi,updater"
 
+          # Linux: ship .deb only. AppImage bundling (linuxdeploy) is
+          # unreliable on GH Actions runners even with APPIMAGE_EXTRACT_AND_RUN.
           - os: ubuntu-22.04
             arch: x86_64-unknown-linux-gnu
             label: "Linux x64"
             rust_target: x86_64-unknown-linux-gnu
+            bundles: "deb,updater"
 
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.label }}
@@ -189,7 +197,7 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN: 1
         with:
           projectPath: frontend
-          args: --target ${{ matrix.rust_target }}
+          args: --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundles }}
           tagName: ${{ github.ref_name }}
           releaseName: "OmniVoice Studio ${{ github.ref_name }}"
           releaseBody: "Auto-generated release. See commit log for changes."
