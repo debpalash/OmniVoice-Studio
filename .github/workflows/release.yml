@@ -49,6 +49,13 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
 
+      # Node 22 is needed for --experimental-strip-types so node:test can
+      # import .ts files directly from frontend/src/api/*.
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
 
@@ -74,9 +81,12 @@ jobs:
         working-directory: frontend
         run: bunx tsc --noEmit
 
+      # Invoke node directly (not `bun run test`) because `bun run` auto-aliases
+      # `node` to `bun` in script bodies, and bun doesn't support
+      # --experimental-strip-types.
       - name: Run frontend node:test
         working-directory: frontend
-        run: bun run test
+        run: node --experimental-strip-types --no-warnings --test ../tests/frontend/*.test.mjs
 
   build:
     needs: test
