@@ -176,12 +176,17 @@ jobs:
       # tauri-action handles: bundle, sign updater payload with the
       # TAURI_SIGNING_PRIVATE_KEY secret, attach to release, update
       # latest.json with per-platform download URLs & signatures.
+      #
+      # APPIMAGE_EXTRACT_AND_RUN=1: GH Actions runners disable FUSE, so the
+      # linuxdeploy AppImage can't mount itself. Setting this env var tells
+      # AppImages to extract-and-run instead, which works without FUSE.
       - name: Build + release (Tauri)
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPIMAGE_EXTRACT_AND_RUN: 1
         with:
           projectPath: frontend
           args: --target ${{ matrix.rust_target }}
