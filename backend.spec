@@ -186,30 +186,6 @@ a = Analysis(
     optimize=2,
 )
 
-# Post-hoc binary filter: even on CPU-only torch wheels, collect_all pulls
-# a few large libraries the desktop runtime never touches. Drop them by
-# substring match on the archive name — PyInstaller re-runs when any of
-# these return False, so be precise (no matching "cuda" would eat too much).
-_DROP_BINARY_PATTERNS = (
-    # nvidia wheels (already in excludes, but collect_all can still pull their
-    # .so/.dll via torch's linker hints)
-    'libcudart.', 'libcublas.', 'libcublasLt.', 'libcudnn',
-    'libcurand.', 'libcufft.', 'libcusolver.', 'libcusparse.',
-    'libnccl.', 'libnvToolsExt.', 'libnvrtc.', 'libnvjitlink.',
-    'cudart64_', 'cublas64_', 'cublasLt64_', 'cudnn64_',
-    'curand64_', 'cufft64_', 'cusolver64_', 'cusparse64_',
-    # torch training / JIT runtimes not used by inference.
-    'libtorch_cuda', 'torch_cuda.', 'torch_cuda_linalg.',
-    # onnxruntime CUDA provider (we use CPU provider only).
-    'onnxruntime_providers_cuda', 'onnxruntime_providers_tensorrt',
-)
-
-def _keep_binary(entry):
-    name = entry[0].lower()
-    return not any(pat.lower() in name for pat in _DROP_BINARY_PATTERNS)
-
-a.binaries = [b for b in a.binaries if _keep_binary(b)]
-
 pyz = PYZ(a.pure)
 
 exe = EXE(
