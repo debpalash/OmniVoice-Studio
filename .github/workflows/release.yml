@@ -230,3 +230,28 @@ jobs:
           prerelease: false
           updaterJsonPreferNsis: false
           includeUpdaterJson: true
+
+      # The installer above ships WITHOUT the PyInstaller backend because a
+      # single bundled asset (Linux .deb, Windows .msi) overshoots GH
+      # Releases' 2 GB per-asset cap. Package the backend into its own tar.gz
+      # and attach it to the same draft release; the Tauri app downloads and
+      # extracts it from app_local_data_dir on first launch (see lib.rs →
+      # ensure_backend_ready).
+      - name: Package backend tarball
+        shell: bash
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          OUT="omnivoice-backend_${VER}_${{ matrix.rust_target }}.tar.gz"
+          tar -czf "$OUT" -C dist omnivoice-backend
+          ls -lah "$OUT"
+          echo "BACKEND_TARBALL=$OUT" >> "$GITHUB_ENV"
+
+      - name: Upload backend tarball to draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" \
+            "$BACKEND_TARBALL" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber

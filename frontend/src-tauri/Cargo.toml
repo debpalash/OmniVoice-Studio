@@ -28,5 +28,13 @@ tauri-plugin-window-state = "2.0.0"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 
+# First-run backend bootstrap: the PyInstaller backend (~1.5 GB) ships as a
+# separate release asset instead of being bundled into the installer so we
+# stay under GH Releases' 2 GB per-asset cap on Linux/Windows. ureq handles
+# the HTTP GET, flate2 + tar do the extraction of the downloaded tarball.
+ureq = "2"
+tar = "0.4"
+flate2 = "1"
+
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

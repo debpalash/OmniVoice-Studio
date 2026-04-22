@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::{self, Read};
 use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
@@ -7,6 +8,10 @@ use std::time::Duration;
 use tauri::Manager;
 
 const BACKEND_PORT: u16 = 8000;
+
+// GH Releases uploader repo. Used to construct the tarball download URL for
+// the first-run bootstrap when the installer ships without a bundled backend.
+const BACKEND_RELEASE_REPO: &str = "debpalash/OmniVoice-Studio";
 
 pub struct BackendState {
     pub process: Mutex<Option<Child>>,
@@ -105,22 +110,144 @@ fn kill_orphan_on_port(_port: u16) {}
 
 // ── Backend path resolution ───────────────────────────────────────────────
 
-/// Look for a frozen PyInstaller bundle shipped as a Tauri resource.
-/// In a packaged .app: `Contents/Resources/backend/omnivoice-backend/omnivoice-backend`.
+/// Look for a frozen PyInstaller bundle in three places, in priority order:
+///   1. Tauri resource dir (legacy path: backend bundled into the installer).
+///   2. Per-user app data dir (new path: backend downloaded on first run).
+///   3. Dev fallback (`../../dist/omnivoice-backend/`) — PyInstaller local run.
 fn find_bundled_backend<R: tauri::Runtime>(app: &tauri::App<R>) -> Option<PathBuf> {
-    let resource_dir = app.path().resource_dir().ok()?;
-    let candidates = [
-        resource_dir.join("backend/omnivoice-backend/omnivoice-backend"),
-        resource_dir.join("backend/omnivoice-backend"),
-        resource_dir.join("omnivoice-backend"),
-    ];
-    for c in &candidates {
-        if c.is_file() {
-            return Some(c.clone());
+    let exe_name = backend_exe_name();
+    let mut roots: Vec<PathBuf> = Vec::new();
+    if let Ok(d) = app.path().resource_dir() {
+        roots.push(d);
+    }
+    if let Ok(d) = app.path().app_local_data_dir() {
+        roots.push(d);
+    }
+    roots.push(PathBuf::from("../../dist"));
+    for root in roots {
+        let candidates = [
+            root.join(format!("backend/omnivoice-backend/{}", exe_name)),
+            root.join("backend/omnivoice-backend").join(&exe_name),
+            root.join("omnivoice-backend").join(&exe_name),
+            root.join(format!("omnivoice-backend/{}", exe_name)),
+        ];
+        for c in &candidates {
+            if c.is_file() {
+                return Some(c.clone());
+            }
         }
     }
     None
 }
+
+fn backend_exe_name() -> String {
+    if cfg!(windows) {
+        "omnivoice-backend.exe".into()
+    } else {
+        "omnivoice-backend".into()
+    }
+}
+
+// ── First-run backend bootstrap (download + extract) ──────────────────────
+
+/// Triple that matches the release-asset naming used by release.yml — see
+/// the `package-backend-tarball` step. Kept in lock-step with that
+/// matrix.rust_target value.
+fn release_asset_triple() -> Option<&'static str> {
+    match (std::env::consts::OS, std::env::consts::ARCH) {
+        ("macos", "aarch64") => Some("aarch64-apple-darwin"),
+        ("macos", "x86_64") => Some("x86_64-apple-darwin"),
+        ("linux", "x86_64") => Some("x86_64-unknown-linux-gnu"),
+        ("windows", "x86_64") => Some("x86_64-pc-windows-msvc"),
+        _ => None,
+    }
+}
+
+fn backend_download_url() -> Option<String> {
+    let triple = release_asset_triple()?;
+    let version = env!("CARGO_PKG_VERSION");
+    Some(format!(
+        "https://github.com/{}/releases/download/v{}/omnivoice-backend_{}_{}.tar.gz",
+        BACKEND_RELEASE_REPO, version, version, triple
+    ))
+}
+
+/// Download the backend tarball and extract it under the per-user app-local
+/// data dir. Blocks the caller. Returns the path where the backend was
+/// extracted (parent of the omnivoice-backend directory) on success.
+fn download_and_extract_backend<R: tauri::Runtime>(app: &tauri::App<R>) -> io::Result<PathBuf> {
+    let url = backend_download_url()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::Unsupported, "no release asset for this platform"))?;
+    let dest_root = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+    fs::create_dir_all(&dest_root)?;
+
+    log::info!("Fetching backend tarball: {}", url);
+    let resp = ureq::get(&url)
+        .timeout(Duration::from_secs(60 * 30))
+        .call()
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("download: {}", e)))?;
+    if resp.status() != 200 {
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!("download HTTP {} from {}", resp.status(), url),
+        ));
+    }
+
+    let mut reader = resp.into_reader();
+    let gz = flate2::read::GzDecoder::new(LogReader::new(&mut reader));
+    let mut archive = tar::Archive::new(gz);
+    archive.unpack(&dest_root)?;
+    log::info!("Backend extracted under {}", dest_root.display());
+    Ok(dest_root)
+}
+
+/// Wraps a Read impl and logs progress every ~64 MB. Gives the user some
+/// feedback in the tauri log while the download runs.
+struct LogReader<'a, R: Read> {
+    inner: &'a mut R,
+    so_far: u64,
+    next_log: u64,
+}
+
+impl<'a, R: Read> LogReader<'a, R> {
+    fn new(inner: &'a mut R) -> Self {
+        Self { inner, so_far: 0, next_log: 64 * 1024 * 1024 }
+    }
+}
+
+impl<'a, R: Read> Read for LogReader<'a, R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        self.so_far += n as u64;
+        if self.so_far >= self.next_log {
+            log::info!("Backend download: {} MB received", self.so_far / (1024 * 1024));
+            self.next_log += 64 * 1024 * 1024;
+        }
+        Ok(n)
+    }
+}
+
+fn ensure_backend_ready<R: tauri::Runtime>(app: &tauri::App<R>) -> bool {
+    if find_bundled_backend(app).is_some() {
+        return true;
+    }
+    if release_asset_triple().is_none() {
+        log::warn!("No release asset known for this platform; skipping auto-download.");
+        return false;
+    }
+    log::info!("Backend not found locally — starting first-run download.");
+    match download_and_extract_backend(app) {
+        Ok(_) => find_bundled_backend(app).is_some(),
+        Err(e) => {
+            log::error!("Backend auto-download failed: {}", e);
+            false
+        }
+    }
+}
+
 
 /// Dev-mode fallback: running from the source tree (`bun run dev`).
 /// Locate `backend/main.py` so we can launch via `uv run uvicorn`.
@@ -310,6 +437,14 @@ pub fn run() {
             //    `bun run tauri dev`.
             // 4. Otherwise → spawn (kill orphan first if port held by corpse).
             let skip_spawn = std::env::var("TAURI_SKIP_BACKEND").is_ok();
+            if !skip_spawn {
+                // First-run bootstrap: the installer ships without the
+                // PyInstaller backend so it fits under GH Releases' 2 GB
+                // per-asset cap. Download + extract it into the per-user
+                // app data dir if we don't have it yet. Blocking — the
+                // webview stays on the initial loader until this resolves.
+                let _ = ensure_backend_ready(app);
+            }
             let has_bundled = find_bundled_backend(app).is_some();
             let child = if skip_spawn {
                 log::info!("TAURI_SKIP_BACKEND set — not spawning");

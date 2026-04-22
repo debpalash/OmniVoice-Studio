@@ -44,9 +44,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": {
-      "../../dist/omnivoice-backend": "backend/omnivoice-backend"
-    },
+    "resources": {},
     "macOS": {
       "minimumSystemVersion": "12.0"
     }
