@@ -50,31 +50,48 @@ export default function CheckpointBanner({ stage, count, onContinue, onDismiss, 
 
   return (
     <div
+      className="checkpoint-banner"
       style={{
+        // Accent shows through as a left-edge bar instead of a gradient wash,
+        // and the fill stays flat chrome so the banner rhymes with the rest
+        // of the studio strips.
         display: 'flex',
         alignItems: 'center',
         gap: 10,
         padding: '8px 12px',
         marginBottom: 6,
-        borderRadius: 6,
-        background: `linear-gradient(90deg, ${cfg.accent}12 0%, rgba(255,255,255,0.01) 60%)`,
-        border: `1px solid ${cfg.accent}33`,
+        borderRadius: 'var(--chrome-radius-pill)',
+        background: 'var(--chrome-bg)',
+        border: '1px solid var(--chrome-border)',
+        borderLeft: `2px solid ${cfg.accent}`,
       }}
       role="status"
     >
-      <Icon size={16} color={cfg.accent} style={{ flexShrink: 0 }} />
+      <Icon size={14} color={cfg.accent} style={{ flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#ebdbb2' }}>
+          <span style={{
+            fontFamily: 'var(--chrome-font-mono)',
+            fontSize: 'var(--chrome-label-size)',
+            letterSpacing: 'var(--chrome-label-track)',
+            textTransform: 'uppercase',
+            fontWeight: 600,
+            color: 'var(--chrome-fg)',
+          }}>
             {cfg.title}
           </span>
           {typeof count === 'number' && (
-            <span style={{ fontSize: '0.6rem', color: '#a89984', fontVariantNumeric: 'tabular-nums' }}>
+            <span style={{
+              fontFamily: 'var(--chrome-font-mono)',
+              fontSize: 'var(--chrome-label-size)',
+              color: 'var(--chrome-fg-muted)',
+              fontVariantNumeric: 'tabular-nums',
+            }}>
               {count} segment{count === 1 ? '' : 's'}
             </span>
           )}
         </div>
-        <span style={{ fontSize: '0.6rem', color: '#a89984', lineHeight: 1.35 }}>
+        <span style={{ fontSize: '0.64rem', color: 'var(--chrome-fg-muted)', lineHeight: 1.35 }}>
           {cfg.hint}
         </span>
       </div>

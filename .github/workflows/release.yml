@@ -1,0 +1,184 @@
+# Desktop release pipeline — self-updating binaries for mac/linux/windows.
+#
+# Triggers:
+#   - push of a tag matching `v*` (e.g. `v0.2.0`) → full release, publishes
+#     artifacts + signed updater manifest (`latest.json`) to GH Releases.
+#   - workflow_dispatch → on-demand build, uploads artifacts as workflow
+#     artifacts only (no release, no updater manifest).
+#
+# Strategy: matrix builds per target. Each runner produces a PyInstaller
+# frozen backend + Tauri bundle. `tauri-apps/tauri-action` signs the updater
+# payloads with TAURI_SIGNING_PRIVATE_KEY and uploads to the GH Release for
+# the tag. The built-in updater plugin polls the release's `latest.json` on
+# client boot.
+#
+# Windows/Linux support: first-pass enabled. Expect the first few runs on
+# each to surface PyInstaller/Tauri issues that never showed up locally on
+# macOS — iterate on CI.
+
+name: Desktop Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: "Create as draft release (tag push only)"
+        required: false
+        default: "true"
+
+permissions:
+  contents: write    # needed to attach artifacts + updater manifest to GH Release
+
+jobs:
+  # Fast gating job — runs backend pytest + frontend node:test + tsc on a
+  # single Linux runner. The matrix build below waits on this via `needs:`
+  # so we don't burn 4× platform-matrix minutes on a broken commit.
+  test:
+    name: Tests (backend + frontend)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+
+      # Backend tests need ffmpeg (subprocess calls in fixtures) + the minimal
+      # apt deps pydub/imageio pull in. Model weights are mocked so no HF
+      # downloads happen.
+      - name: System deps (ffmpeg)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python deps
+        run: uv sync
+
+      - name: Run pytest
+        run: uv run pytest tests/ -q --tb=short
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: bun install
+
+      - name: Frontend typecheck
+        working-directory: frontend
+        run: bunx tsc --noEmit
+
+      - name: Run frontend node:test
+        working-directory: frontend
+        run: bun run test
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            arch: aarch64-apple-darwin
+            label: "macOS Apple Silicon"
+            rust_target: aarch64-apple-darwin
+
+          - os: macos-13
+            arch: x86_64-apple-darwin
+            label: "macOS Intel"
+            rust_target: x86_64-apple-darwin
+
+          - os: windows-2022
+            arch: x86_64-pc-windows-msvc
+            label: "Windows x64"
+            rust_target: x86_64-pc-windows-msvc
+
+          - os: ubuntu-22.04
+            arch: x86_64-unknown-linux-gnu
+            label: "Linux x64"
+            rust_target: x86_64-unknown-linux-gnu
+
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.label }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Language runtimes ──────────────────────────────────────────────
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Setup Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+
+      # ── Platform deps ──────────────────────────────────────────────────
+      - name: macOS system deps
+        if: runner.os == 'macOS'
+        run: |
+          brew install ffmpeg || true
+
+      - name: Linux system deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential curl wget file libxdo-dev libssl-dev \
+            libayatana-appindicator3-dev librsvg2-dev \
+            libasound2-dev ffmpeg
+
+      # Windows: ffmpeg ships via imageio_ffmpeg inside the PyInstaller bundle,
+      # no system-level install needed. PyInstaller picks it up automatically.
+
+      # ── Python deps + PyInstaller ──────────────────────────────────────
+      - name: Install Python deps
+        run: uv sync
+
+      - name: Freeze backend via PyInstaller
+        shell: bash
+        run: |
+          uv run pyinstaller backend.spec --noconfirm --clean
+          echo "Backend frozen at dist/omnivoice-backend/"
+          ls dist/omnivoice-backend/ | head
+
+      # ── Frontend build ─────────────────────────────────────────────────
+      - name: Install frontend deps
+        working-directory: frontend
+        run: bun install
+
+      # ── Tauri build + sign + publish ───────────────────────────────────
+      # tauri-action handles: bundle, sign updater payload with the
+      # TAURI_SIGNING_PRIVATE_KEY secret, attach to release, update
+      # latest.json with per-platform download URLs & signatures.
+      - name: Build + release (Tauri)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: frontend
+          args: --target ${{ matrix.rust_target }}
+          tagName: ${{ github.ref_name }}
+          releaseName: "OmniVoice Studio ${{ github.ref_name }}"
+          releaseBody: "Auto-generated release. See commit log for changes."
+          releaseDraft: ${{ inputs.draft || 'true' }}
+          prerelease: false
+          updaterJsonPreferNsis: false
+          includeUpdaterJson: true

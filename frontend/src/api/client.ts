@@ -1,4 +1,8 @@
-export const API = (import.meta as any).env?.DEV ? 'http://localhost:8000' : '';
+// Backend always listens on localhost:8000 — both in dev (Vite @ 5173 talking
+// to a separate uvicorn) and in the built .app (Tauri webview @ tauri://localhost
+// talking to the bundled frozen backend sidecar). Relative fetches against
+// tauri://localhost don't reach the sidecar, so we hardcode the absolute host.
+export const API = 'http://localhost:8000';
 
 export class ApiError extends Error {
   status?: number;

@@ -21,17 +21,43 @@ function DubThumb({ jobId, fallback }) {
   );
 }
 
-const Squiggle = () => (
-  <svg className="lp-underline" viewBox="0 0 240 8" preserveAspectRatio="none" aria-hidden="true">
-    <path
-      d="M2 5 Q 20 1 40 4 T 80 4 T 120 3 T 160 5 T 200 3 T 238 4"
-      stroke="#f3a5b6"
-      strokeWidth="2.5"
-      fill="none"
-      strokeLinecap="round"
-    />
-  </svg>
-);
+// Squiggle was replaced by the .lp-hero__sweep span — a pure-CSS animated
+// accent line under the H1. Less static, no SVG dependency.
+
+/**
+ * ActionCard — the three big Launchpad tiles. Reads its accent from a
+ * single `--card-hue` var so the CSS derives background / border / glow /
+ * spotlight from one hex color. Cursor-tracking spotlight: pointer events
+ * set --mx/--my so `.lp-glow-layer` can paint a radial gradient at the
+ * cursor position. Eternal breath ring lives on `.lp-glow-layer::after`
+ * and pulses forever whether the card is hovered or not.
+ */
+function ActionCard({ hue, Icon, title, accent, count, onClick, children }) {
+  const handleMouseMove = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`);
+    e.currentTarget.style.setProperty('--my', `${e.clientY - r.top}px`);
+  };
+  return (
+    <button
+      type="button"
+      className="lp-action-card lp-animate lp-glow-card"
+      onClick={onClick}
+      onMouseMove={handleMouseMove}
+      style={{ '--card-hue': hue }}
+    >
+      <span className="lp-glow-layer" aria-hidden="true" />
+      {count > 0 && <span className="card-count">{count}</span>}
+      <div className="card-icon">
+        <Icon size={18} color={hue} />
+      </div>
+      <h3>
+        {title} <span className="lp-action-card__emoji" aria-hidden="true">{accent}</span>
+      </h3>
+      <p className="card-desc">{children}</p>
+    </button>
+  );
+}
 
 export default function Launchpad({
   profiles, studioProjects, dubHistory,
@@ -42,52 +68,54 @@ export default function Launchpad({
 
   return (
     <div className="launchpad">
+      {/* Ambient backdrop — chrome-accent aurora that drifts forever. Lives
+          behind everything at z=0, contributes the "eternal glow" the user
+          asked for without painting any one surface. */}
+      <div className="lp-aurora" aria-hidden="true">
+        <span className="lp-aurora__blob lp-aurora__blob--pink" />
+        <span className="lp-aurora__blob lp-aurora__blob--green" />
+        <span className="lp-aurora__blob lp-aurora__blob--amber" />
+      </div>
+
       {/* Hero */}
       <div className="lp-hero">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' }}>
           <div style={{ maxWidth: 640 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '2px', height: '24px' }}>
-                {[14, 20, 10, 24, 16, 22, 12, 18].map((h, i) => (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '2px', height: '22px' }}>
+                {[10, 14, 8, 16, 12, 14, 9, 12].map((h, i) => (
                   <span
                     key={i}
                     className="lp-wave-bar"
                     style={{
-                      height: h,
-                      background: 'linear-gradient(to top, #f3a5b6, #fabd2f)',
-                      animationDelay: `${i * 0.15}s`,
-                      opacity: 0.7 + (i % 3) * 0.1,
-                      borderRadius: 4,
+                      // Per-bar animation offsets + distinct durations give
+                      // a breathing, never-identical pulse instead of the
+                      // rigid uniform bounce the old version had.
+                      '--bar-h': `${h}px`,
+                      '--bar-delay': `${i * 0.17}s`,
+                      '--bar-dur':   `${1.8 + (i % 3) * 0.4}s`,
                     }}
                   />
                 ))}
               </div>
-              <span style={{ fontFamily: 'Nunito, sans-serif', fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7c6f64' }}>
-                hello there 👋
-              </span>
+              <span className="lp-kicker">hello there</span>
             </div>
-            <h1>
+            <h1 className="lp-hero__title">
+              <span className="lp-hero__halo" aria-hidden="true" />
               Make voices that <em>sound like you</em>.
-              <Squiggle />
+              <span className="lp-hero__sweep" aria-hidden="true" />
             </h1>
             <p>
               Clone a voice, design a new one, or dub a video into any of <span className="lp-pill">646 languages</span>.
-              Built for creators who care how it sounds. 🎧
+              Built for creators who care how it sounds.
             </p>
           </div>
           <button
-            className="btn-primary"
             onClick={() => setIsCompareModalOpen(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '10px 18px', fontSize: '0.78rem', width: 'auto', marginTop: 8,
-              borderRadius: '999px',
-              fontFamily: 'Nunito, sans-serif', fontWeight: 800,
-              flexShrink: 0, transform: 'rotate(1deg)',
-            }}
+            className="lp-ab-compare"
             title="Try two voices side by side"
           >
-            <Scale size={14} /> A/B Compare
+            <Scale size={12} /> A/B Compare
           </button>
         </div>
 
@@ -95,44 +123,15 @@ export default function Launchpad({
 
       {/* Action Cards */}
       <div className="lp-actions">
-        <div
-          className="lp-action-card lp-animate"
-          onClick={() => setMode('clone')}
-          style={{ '--card-accent': 'rgba(211,134,155,0.1)', '--card-border': 'rgba(211,134,155,0.25)' }}
-        >
-          {cloneProfiles.length > 0 && <span className="card-count" style={{ background: 'rgba(211,134,155,0.12)', color: '#d3869b' }}>{cloneProfiles.length}</span>}
-          <div className="card-icon" style={{ background: 'rgba(211,134,155,0.1)' }}>
-            <Fingerprint size={18} color="#d3869b" />
-          </div>
-          <h3>Voice Clone ✨</h3>
-          <p className="card-desc">Drop in a short clip — we'll mirror it. One sample is usually enough.</p>
-        </div>
-
-        <div
-          className="lp-action-card lp-animate"
-          onClick={() => setMode('design')}
-          style={{ '--card-accent': 'rgba(142,192,124,0.1)', '--card-border': 'rgba(142,192,124,0.25)' }}
-        >
-          {designProfiles.length > 0 && <span className="card-count" style={{ background: 'rgba(142,192,124,0.12)', color: '#8ec07c' }}>{designProfiles.length}</span>}
-          <div className="card-icon" style={{ background: 'rgba(142,192,124,0.1)' }}>
-            <Wand2 size={18} color="#8ec07c" />
-          </div>
-          <h3>Voice Design 🧪</h3>
-          <p className="card-desc">Build a new voice from a sentence. Gender, age, accent, mood — your call.</p>
-        </div>
-
-        <div
-          className="lp-action-card lp-animate"
-          onClick={() => setMode('dub')}
-          style={{ '--card-accent': 'rgba(254,128,25,0.1)', '--card-border': 'rgba(254,128,25,0.25)' }}
-        >
-          {studioProjects.length > 0 && <span className="card-count" style={{ background: 'rgba(254,128,25,0.12)', color: '#fe8019' }}>{studioProjects.length}</span>}
-          <div className="card-icon" style={{ background: 'rgba(254,128,25,0.1)' }}>
-            <Film size={18} color="#fe8019" />
-          </div>
-          <h3>Video Dubbing 🎬</h3>
-          <p className="card-desc">Transcribe, translate, re-voice. Keep each speaker, line up the timing, ship it.</p>
-        </div>
+        <ActionCard hue="#d3869b" Icon={Fingerprint} title="Voice Clone" accent="✨" count={cloneProfiles.length} onClick={() => setMode('clone')}>
+          Drop in a short clip — we'll mirror it. One sample is usually enough.
+        </ActionCard>
+        <ActionCard hue="#8ec07c" Icon={Wand2} title="Voice Design" accent="🧪" count={designProfiles.length} onClick={() => setMode('design')}>
+          Build a new voice from a sentence. Gender, age, accent, mood — your call.
+        </ActionCard>
+        <ActionCard hue="#fe8019" Icon={Film} title="Video Dubbing" accent="🎬" count={studioProjects.length} onClick={() => setMode('dub')}>
+          Transcribe, translate, re-voice. Keep each speaker, line up the timing, ship it.
+        </ActionCard>
       </div>
 
       {/* Recent Projects */}
@@ -172,7 +171,16 @@ export default function Launchpad({
                         <div className="proj-name">{p.name}</div>
                         <div className="proj-meta" style={{ fontStyle: 'italic' }}>{p.instruct}</div>
                       </div>
-                      {p.is_locked && <span style={{ fontSize: '0.5rem', padding: '1px 6px', borderRadius: 4, background: 'rgba(184,187,38,0.12)', color: '#b8bb26', fontWeight: 600 }}>LOCKED</span>}
+                      {p.is_locked && <span style={{
+                        fontFamily: 'var(--chrome-font-mono)',
+                        fontSize: 'var(--chrome-label-size)',
+                        letterSpacing: 'var(--chrome-label-track)',
+                        padding: '1px 7px',
+                        borderRadius: 'var(--chrome-radius-pill)',
+                        background: 'color-mix(in srgb, #b8bb26 10%, transparent)',
+                        border: '1px solid color-mix(in srgb, #b8bb26 40%, transparent)',
+                        color: '#b8bb26', fontWeight: 600,
+                      }}>LOCKED</span>}
                       <button className="proj-action" onClick={() => { setMode('design'); handleSelectProfile(p); }}>Open</button>
                     </div>
                   ))}
@@ -222,8 +230,13 @@ export default function Launchpad({
                 />
               ))}
             </div>
-            <p style={{ fontFamily: 'Fraunces, Georgia, serif', fontSize: '1rem', color: '#a89984', margin: 0, fontStyle: 'italic' }}>
-              Nothing here yet. Pick a card above — we'll wait. ☕
+            <p style={{
+              fontFamily: 'var(--chrome-font-mono)',
+              fontSize: '0.8rem',
+              color: 'var(--chrome-fg-muted)',
+              margin: 0,
+            }}>
+              Nothing here yet — pick a card above.
             </p>
           </div>
         </div>

@@ -6,8 +6,10 @@
   display: flex;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--glass-border);
-  background: rgba(0, 0, 0, 0.15);
+  /* Match chrome — same bg + hairline as top/bottom bars so the sidebar
+     header reads as part of the frame, not a separate panel. */
+  border-bottom: 1px solid var(--chrome-border);
+  background: var(--chrome-bg);
   flex-shrink: 0;
   justify-content: center;
 }
@@ -15,23 +17,27 @@
 
 .sidebar__tab {
   flex: 1;
-  height: 26px;
+  height: var(--chrome-pill-h);
   max-width: 60px;
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(0, 0, 0, 0.2);
-  color: var(--color-fg-muted);
-  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--chrome-fg-muted);
+  border-radius: var(--chrome-radius-pill);
   transition: border-color var(--dur-base), background var(--dur-base), color var(--dur-base);
   display: flex;
   justify-content: center;
   align-items: center;
   --sidebar-tab-accent: var(--color-brand);
 }
+.sidebar__tab:hover {
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+}
 .sidebar.is-collapsed .sidebar__tab { max-width: 100%; }
 .sidebar__tab.is-active {
   border-color: color-mix(in srgb, var(--sidebar-tab-accent) 35%, transparent);
-  background:   color-mix(in srgb, var(--sidebar-tab-accent) 15%, transparent);
+  background:   color-mix(in srgb, var(--sidebar-tab-accent) 12%, transparent);
   color: var(--sidebar-tab-accent);
 }
 .sidebar__tab:focus-visible {
@@ -57,7 +63,9 @@
   width: 100%;
   font-size: var(--text-sm);
   padding: 4px 26px 4px 22px;
-  border-radius: var(--radius-pill);
+  /* Chrome-radius instead of 999 px pill so the input rhymes with the
+     footer / header pills. Colors come from the base Input primitive. */
+  border-radius: var(--chrome-radius-pill);
 }
 .sidebar__search-clear {
   position: absolute;
@@ -71,8 +79,21 @@
 }
 
 /* ── Save-project button tint ───────────────────────────────── */
-.sidebar__save-btn           { margin-bottom: var(--space-4); color: var(--color-info); border-color: rgba(131,165,152,0.30); background: rgba(131,165,152,0.15); }
-.sidebar__save-btn.is-active-project { color: #b8bb26;           border-color: rgba(184,187,38,0.35); background: rgba(184,187,38,0.15); }
+.sidebar__save-btn {
+  margin-bottom: var(--space-4);
+  color: var(--chrome-fg);
+  border: 1px solid var(--chrome-border-strong);
+  background: transparent;
+  border-radius: var(--chrome-radius-pill);
+  font-family: var(--font-sans);
+  letter-spacing: 0.02em;
+}
+.sidebar__save-btn:hover { background: var(--chrome-hover-bg); }
+.sidebar__save-btn.is-active-project {
+  color: #b8bb26;
+  border-color: color-mix(in srgb, #b8bb26 45%, transparent);
+  background: color-mix(in srgb, #b8bb26 10%, transparent);
+}
 .sidebar__save-btn--full     { justify-content: center; }
 
 /* ── Clear-history row ──────────────────────────────────────── */
@@ -81,51 +102,64 @@
 
 /* ── Empty-state placeholders ───────────────────────────────── */
 .sidebar__empty {
-  color: var(--color-fg-muted);
+  color: var(--chrome-fg-muted);
   text-align: center;
   padding: 24px 12px;
+  font-family: var(--font-sans);
 }
-.sidebar__empty-icon   { opacity: 0.3; margin-bottom: var(--space-4); }
-.sidebar__empty-title  { font-size: var(--text-md); margin: 0 0 var(--space-2); }
-.sidebar__empty-sub    { font-size: var(--text-xs); margin: 0; opacity: 0.6; }
+.sidebar__empty-icon   { opacity: 0.3; margin-bottom: var(--space-4); color: var(--chrome-fg-dim); }
+.sidebar__empty-title  { font-size: 0.82rem; margin: 0 0 var(--space-2); color: var(--chrome-fg); font-weight: 500; letter-spacing: 0.02em; }
+.sidebar__empty-sub    { font-size: 0.7rem; margin: 0; color: var(--chrome-fg-dim); line-height: 1.5; }
 
+/* Section label — matches the status-bar's "LOGS" uppercase treatment.
+   Labels are displays (not buttons) but this one IS clickable (collapses
+   the section), so the chevron on the right signals interactivity while
+   the text keeps the chrome label typography. */
 .sidebar__section-title {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  margin-bottom: var(--space-4);
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  font-weight: 600;
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  color: var(--chrome-fg-muted);
+  margin-bottom: var(--space-3);
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  padding: 2px 0;
+  padding: 4px 0;
 }
+.sidebar__section-title:hover { color: var(--chrome-fg); }
 
-/* ── Collapsed-mode hand-drawn icon tiles ───────────────────── */
+/* ── Collapsed-mode icon tiles — chrome square buttons ────────── */
 .sidebar__icon-tile {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  border-radius: 12px 16px 10px 18px / 14px 10px 16px 12px;
+  /* Squircle corners dropped in favour of chrome-radius to match the
+     NavRail and footer icon buttons. Same transparent-until-hover
+     treatment since these are interactive. */
+  border-radius: var(--chrome-radius-pill);
   cursor: pointer;
   position: relative;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  color: var(--color-fg-muted);
-  transition:
-    transform var(--dur-base) var(--ease-spring),
-    background var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--chrome-fg-muted);
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
 }
 .sidebar__icon-tile:hover {
-  transform: rotate(0deg) scale(1.08) !important;
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
 }
 .sidebar__icon-tile.is-active {
-  background: linear-gradient(140deg, rgba(243, 165, 182, 0.25), rgba(250, 189, 47, 0.15));
-  border-color: rgba(243, 165, 182, 0.4);
-  color: #fff9ef;
+  background: var(--chrome-accent-bg);
+  border-color: var(--chrome-accent-border);
+  color: var(--chrome-accent);
 }
 .sidebar__icon-tile__lock {
   position: absolute;
@@ -177,9 +211,9 @@
   overflow: hidden;
 }
 .history-subtitle--seed {
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.58rem;
-  color: #6b6657;
+  color: var(--chrome-fg-dim);
 }
 
 /* Inline mini-player in generate history */

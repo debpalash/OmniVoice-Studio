@@ -12,12 +12,30 @@ export async function dubUpload(
   return apiPost('/dub/upload', fd, { signal });
 }
 
+export interface IngestUrlOptions {
+  signal?: AbortSignal;
+  /** Ask yt-dlp to also pull caption tracks (incl. YouTube auto-translations). */
+  fetchSubs?: boolean;
+  /** Limit caption fetch to specific lang codes; defaults to all available. */
+  subLangs?: string[];
+}
+
 export async function dubIngestUrl(
   url: string,
   jobId: string,
-  { signal }: { signal?: AbortSignal } = {},
+  opts: IngestUrlOptions = {},
 ): Promise<unknown> {
-  return apiPost('/dub/ingest-url', { url, job_id: jobId }, { signal });
+  const { signal, fetchSubs, subLangs } = opts;
+  return apiPost(
+    '/dub/ingest-url',
+    {
+      url,
+      job_id: jobId,
+      fetch_subs: fetchSubs || undefined,
+      sub_langs: subLangs && subLangs.length ? subLangs : undefined,
+    },
+    { signal },
+  );
 }
 
 export function transcribeStreamUrl(jobId: string): string {

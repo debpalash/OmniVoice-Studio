@@ -1,16 +1,16 @@
-/* ── Badge primitive ────────────────────────────────────────────── */
+/* ── Badge primitive — chrome tokens ─────────────────────────────── */
 
 .ui-badge {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  border-radius: var(--radius-pill);
-  font-family: var(--font-ui);
-  font-weight: var(--weight-bold);
-  letter-spacing: 0.03em;
+  border-radius: var(--chrome-radius-pill);
+  font-family: var(--chrome-font-mono);
+  font-weight: 600;
+  letter-spacing: var(--chrome-label-track);
   text-transform: uppercase;
   border: 1px solid currentColor;
-  background: rgba(0, 0, 0, 0.12);
+  background: transparent;
   white-space: nowrap;
   user-select: none;
   line-height: 1.2;
@@ -21,21 +21,22 @@
   height: 5px;
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 0 6px currentColor;
+  box-shadow: none;
 }
 
 /* sizes */
-.ui-badge--size-xs { padding: 0px 5px; font-size: var(--text-2xs); }
-.ui-badge--size-sm { padding: 1px 6px; font-size: var(--text-xs);  }
+.ui-badge--size-xs { padding: 0px 6px; font-size: var(--chrome-label-size); }
+.ui-badge--size-sm { padding: 1px 7px; font-size: var(--chrome-label-size); }
 
-/* tones — colour applied via `color` so dot + border follow */
-.ui-badge--neutral { color: var(--color-fg-subtle);   border-color: var(--color-border); background: rgba(255,255,255,0.04); }
-.ui-badge--brand   { color: var(--color-brand);       border-color: rgba(211,134,155,0.4); background: rgba(211,134,155,0.12); }
-.ui-badge--success { color: var(--color-success);     border-color: rgba(142,192,124,0.4); background: rgba(142,192,124,0.10); }
-.ui-badge--warn    { color: var(--color-accent);      border-color: rgba(250,189,47,0.4);  background: rgba(250,189,47,0.10); }
-.ui-badge--danger  { color: var(--color-danger);      border-color: rgba(251,73,52,0.4);   background: rgba(251,73,52,0.10); }
-.ui-badge--info    { color: var(--color-info);        border-color: rgba(131,165,152,0.4); background: rgba(131,165,152,0.10); }
-.ui-badge--violet  { color: #a78bfa;                  border-color: rgba(167,139,250,0.3); background: rgba(94,106,210,0.12); }
+/* tones — color applied via `color` so dot + border follow. Fill stays near-
+   transparent so the badge reads as a chrome chip, not a filled pill. */
+.ui-badge--neutral { color: var(--chrome-fg-muted);        border-color: var(--chrome-border-strong);                                      background: transparent; }
+.ui-badge--brand   { color: var(--chrome-accent);          border-color: var(--chrome-accent-border);                                      background: var(--chrome-accent-bg); }
+.ui-badge--success { color: var(--chrome-severity-ok);     border-color: color-mix(in srgb, var(--chrome-severity-ok) 45%, transparent);   background: color-mix(in srgb, var(--chrome-severity-ok) 10%, transparent); }
+.ui-badge--warn    { color: var(--chrome-severity-warn);   border-color: color-mix(in srgb, var(--chrome-severity-warn) 45%, transparent); background: color-mix(in srgb, var(--chrome-severity-warn) 10%, transparent); }
+.ui-badge--danger  { color: var(--chrome-severity-err);    border-color: color-mix(in srgb, var(--chrome-severity-err) 45%, transparent);  background: color-mix(in srgb, var(--chrome-severity-err) 10%, transparent); }
+.ui-badge--info    { color: #83a598;                       border-color: color-mix(in srgb, #83a598 45%, transparent);                    background: color-mix(in srgb, #83a598 10%, transparent); }
+.ui-badge--violet  { color: var(--chrome-fg-muted);        border-color: var(--chrome-border-strong);                                      background: transparent; }
 
 /* pulse modifier — for "loading" / "thinking" states */
 .ui-badge--pulse .ui-badge__dot { animation: pulse 1.5s ease-in-out infinite; }

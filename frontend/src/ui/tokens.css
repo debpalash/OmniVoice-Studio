@@ -53,11 +53,16 @@
   --radius-xl: 10px;
   --radius-pill: 999px;
 
-  /* ── Typography ─────────────────────────────────────────────────── */
-  --font-sans:   'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display:'Fraunces', Georgia, serif;
-  --font-ui:     'Nunito', 'Inter', sans-serif;
-  --font-mono:   'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  /* ── Typography (Option A — Codex-inspired stack) ──────────────────
+     Inter for UI/body (closest OSS Söhne analog), IBM Plex Mono for chrome
+     labels + data + logs (warmer than Geist Mono, pairs with OpenAI's feel),
+     Source Serif 4 for hero moments only. Variable faces where possible so
+     weight 400–700 comes from a single file download. */
+  --font-sans:    'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Söhne', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
+  --font-serif:   'Source Serif 4 Variable', 'Source Serif 4', 'Söhne Breit', Georgia, serif;
+  --font-display: var(--font-serif);
+  --font-ui:      var(--font-sans);
 
   --text-2xs:   0.58rem;
   --text-xs:    0.62rem;

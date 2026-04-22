@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Globe, Fingerprint, Wand2, Film, RefreshCw, Settings2, ChevronRight, Zap } from 'lucide-react';
-import { Button, Badge, Segmented } from '../ui';
+import { Globe, Fingerprint, Wand2, Film, FolderOpen, RefreshCw, Settings2, ChevronRight, Zap } from 'lucide-react';
+import { Button, Badge } from '../ui';
 
 const VIEW_META = {
   launchpad: { label: 'Launchpad',       Icon: Globe,       accent: '#f3a5b6', kicker: 'Studio' },
   clone:     { label: 'Voice Clone',     Icon: Fingerprint, accent: '#d3869b', kicker: 'Studio' },
   design:    { label: 'Voice Design',    Icon: Wand2,       accent: '#8ec07c', kicker: 'Studio' },
   dub:       { label: 'Dubbing',         Icon: Film,        accent: '#fe8019', kicker: 'Studio' },
+  projects:  { label: 'Projects',        Icon: FolderOpen,  accent: '#83a598', kicker: 'Library' },
   settings:  { label: 'Settings',        Icon: Settings2,   accent: '#fabd2f', kicker: 'Preferences' },
 };
 
@@ -32,7 +33,7 @@ function WaveBars({ color = '#f3a5b6', active }) {
 }
 
 export default function Header({
-  mode, setMode, uiScale, setUiScale, sysStats, modelStatus, doubleClickMaximize,
+  mode, setMode, sysStats, modelStatus, doubleClickMaximize,
   activeProjectName, onFlushMemory,
 }) {
   const [flushing, setFlushing] = useState(false);
@@ -93,20 +94,10 @@ export default function Header({
         </span>
       </div>
 
-      {/* Right: wave + UI scale + sys stats */}
+      {/* Right: wave + sys stats. UI scale (S/M/L) lives in the bottom
+          LogsFooter bar so all app-wide chrome sits together. */}
       <div className="hq-col-right">
         <WaveBars color={view.accent} active={modelStatus === 'ready' || modelStatus === 'loading'} />
-        <Segmented
-          className="hq-scale"
-          size="xs"
-          value={uiScale}
-          onChange={setUiScale}
-          items={[
-            { value: 1,   label: 'S', title: 'Small UI scale'  },
-            { value: 1.3, label: 'M', title: 'Medium UI scale' },
-            { value: 1.5, label: 'L', title: 'Large UI scale'  },
-          ]}
-        />
         {sysStats && (
           <div className="hq-stats">
             <span><b className="hq-stats__key">RAM</b> {sysStats.ram.toFixed(1)}/{sysStats.total_ram.toFixed(0)}G</span>

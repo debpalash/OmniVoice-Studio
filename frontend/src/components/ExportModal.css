@@ -1,0 +1,336 @@
+/* ExportModal — non-blocking bottom drawer. Uses --chrome-* tokens so it
+   reads as part of the studio chrome. Slides up from above the LogsFooter
+   and leaves the dub editor interactive behind it (click-outside dismisses,
+   no backdrop wash). */
+
+.export-drawer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--logs-footer-height, 28px);
+  z-index: 90;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;   /* let clicks pass through to content behind */
+}
+.export-drawer__sheet {
+  pointer-events: auto;
+  width: min(880px, calc(100vw - 24px));
+  max-height: min(70vh, 560px);
+  display: flex;
+  flex-direction: column;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border-strong);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  box-shadow:
+    0 -8px 24px rgba(0, 0, 0, 0.45),
+    0 -1px 0 var(--chrome-border) inset;
+  animation: export-drawer-slide-up var(--dur-base, 180ms) var(--ease-out, cubic-bezier(.2,.8,.2,1));
+  overflow: hidden;
+}
+@keyframes export-drawer-slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.export-drawer__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px var(--space-4) 10px;
+  border-bottom: 1px solid var(--chrome-border);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+  position: relative;
+}
+.export-drawer__handle {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--chrome-border-strong);
+}
+.export-drawer__close {
+  margin-left: auto;
+  width: var(--chrome-icon-btn, 22px);
+  height: var(--chrome-icon-btn, 22px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--chrome-radius-pill);
+  color: var(--chrome-fg-muted);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+}
+.export-drawer__close:hover {
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+  border-color: var(--chrome-border-strong);
+}
+
+.export-modal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.export-modal--drawer {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  overflow-y: auto;
+}
+
+.export-modal__title-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.export-modal__filename {
+  font-family: var(--chrome-font-mono);
+  font-size: var(--text-sm);
+  color: var(--chrome-fg-muted);
+  margin-left: var(--space-2);
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-modal__kicker {
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  color: var(--chrome-fg-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Presets ───────────────────────────────────────────────── */
+.export-modal__presets {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--chrome-border);
+}
+.export-modal__preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: var(--text-xs);
+  font-family: var(--font-sans);
+  background: transparent;
+  color: var(--chrome-fg-muted);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+}
+.export-modal__preset-chip:hover {
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+  border-color: var(--chrome-border-strong);
+}
+
+/* ── Track row ─────────────────────────────────────────────── */
+.export-modal__tracks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.export-modal__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.export-modal__track-quick {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--chrome-fg-dim);
+}
+.export-modal__track-quick button {
+  background: transparent;
+  border: none;
+  color: var(--chrome-fg-muted);
+  font-size: var(--text-xs);
+  padding: 2px 4px;
+  cursor: pointer;
+}
+.export-modal__track-quick button:hover { color: var(--chrome-fg); }
+
+.export-modal__track-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.export-modal__track {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  font-size: var(--text-sm);
+  color: var(--chrome-fg-muted);
+  cursor: pointer;
+  transition: border-color var(--dur-fast), color var(--dur-fast), background var(--dur-fast);
+}
+.export-modal__track input { margin: 0; accent-color: var(--color-brand); }
+.export-modal__track.is-on {
+  color: var(--chrome-fg);
+  border-color: var(--chrome-border-strong);
+  background: var(--chrome-hover-bg);
+}
+.export-modal__track.is-dub.is-on {
+  border-color: var(--chrome-accent-border);
+  background: var(--chrome-accent-bg);
+  color: var(--chrome-accent);
+}
+.export-modal__track-label {
+  font-family: var(--chrome-font-mono);
+  letter-spacing: 0.02em;
+}
+
+/* ── Tabs ──────────────────────────────────────────────────── */
+.export-modal__tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--chrome-border);
+}
+.export-modal__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--chrome-fg-muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+.export-modal__tab:hover { color: var(--chrome-fg); }
+.export-modal__tab.is-active {
+  color: var(--chrome-accent);
+  border-bottom-color: var(--chrome-accent);
+}
+
+/* ── Body / fields ─────────────────────────────────────────── */
+.export-modal__body { min-height: 160px; }
+
+.export-modal__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4) var(--space-5);
+}
+.export-modal__field { display: flex; flex-direction: column; gap: 6px; }
+.export-modal__field-head { display: flex; flex-direction: column; gap: 2px; }
+.export-modal__field-label {
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  color: var(--chrome-fg-muted);
+}
+.export-modal__field-hint {
+  font-size: var(--text-xs);
+  color: var(--chrome-fg-dim);
+  line-height: 1.4;
+}
+
+.export-modal__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--chrome-fg);
+  cursor: pointer;
+}
+.export-modal__toggle input { accent-color: var(--color-brand); }
+.export-modal__toggle--indent { margin-left: var(--space-4); color: var(--chrome-fg-muted); }
+
+.export-modal__mt6 { margin-top: 6px; }
+
+.export-modal__note {
+  grid-column: 1 / -1;
+  font-size: var(--text-xs);
+  color: var(--chrome-fg-dim);
+  padding: var(--space-2) var(--space-3);
+  background: var(--chrome-hover-bg);
+  border-left: 2px solid var(--chrome-border-strong);
+  border-radius: 2px;
+}
+
+/* ── Package tab ───────────────────────────────────────────── */
+.export-modal__pkg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+.export-modal__pkg-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--space-3);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  background: var(--chrome-bg);
+}
+.export-modal__pkg-card.is-ghost { opacity: 0.75; }
+.export-modal__pkg-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--chrome-fg);
+  font-weight: 500;
+}
+.export-modal__pkg-body {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--chrome-fg-muted);
+  line-height: 1.4;
+  flex: 1;
+}
+
+/* ── Summary footer ────────────────────────────────────────── */
+.export-modal__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--chrome-border);
+}
+.export-modal__summary-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.export-modal__summary-name {
+  font-family: var(--chrome-font-mono);
+  font-size: var(--text-xs);
+  color: var(--chrome-fg);
+  background: var(--chrome-hover-bg);
+  padding: 3px 8px;
+  border-radius: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 340px;
+}
+.export-modal__summary-right {
+  display: inline-flex;
+  gap: var(--space-2);
+}

@@ -219,7 +219,23 @@ async def dub_translate(req: TranslateRequest):
             translated = await loop.run_in_executor(_cpu_pool, _translate_argos)
             return {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang}
 
-        # Legacy / API Deep_Translator logic
+        # Legacy / API Deep_Translator logic.
+        # Preflight the optional `deep_translator` dep once so we fail with a
+        # single actionable error instead of N identical per-segment
+        # ModuleNotFoundErrors that flood the UI's error badge.
+        try:
+            import deep_translator  # noqa: F401
+        except ImportError:
+            friendly = (
+                f"The '{provider}' translation engine needs the optional "
+                f"`deep_translator` Python package, which isn't installed in "
+                f"this backend. Install it with `uv pip install deep_translator` "
+                f"(or `pip install deep_translator`) and restart the server, or "
+                f"switch the Engine dropdown to Argos (local, bundled), NLLB "
+                f"(local, heavier), or OpenAI (LLM)."
+            )
+            return JSONResponse(status_code=400, content={"error": friendly})
+
         src_arg = TRANSLATE_CODES.get(src_lang, src_lang) or "auto"
 
         def _build_translator(src, tgt):

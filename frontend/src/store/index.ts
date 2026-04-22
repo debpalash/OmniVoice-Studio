@@ -53,6 +53,7 @@ export const useAppStore = create<AppStore>()(
       partialize: (s) => ({
         translateQuality:           s.translateQuality,
         dualSubs:                   s.dualSubs,
+        burnSubs:                   s.burnSubs,
         glossaryVisible:            s.glossaryVisible,
         reviewMode:                 s.reviewMode,
         mode:                       s.mode,

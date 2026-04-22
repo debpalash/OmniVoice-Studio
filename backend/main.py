@@ -85,7 +85,7 @@ import time
 import threading
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import traceback
@@ -98,7 +98,13 @@ from core.tasks import task_manager
 from core import job_store
 from services.model_manager import idle_worker
 
-from api.routers import system, profiles, exports, generation, dub_core, dub_generate, dub_export, dub_translate, projects, glossary, engines, tools
+from api.routers import system, profiles, exports, generation, dub_core, dub_generate, dub_export, dub_translate, projects, glossary, engines, tools, setup
+from utils import hf_progress
+
+# Install the HuggingFace tqdm patch early — every downstream library import
+# that triggers `hf_hub_download` (transformers, mlx_whisper, etc.) must see
+# the patched class, not the original.
+hf_progress.install()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -122,6 +128,13 @@ app = FastAPI(title="OmniVoice Studio API", version="0.4.0", lifespan=lifespan)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    # Client disconnected mid-stream (browser canceled a <video>/range fetch).
+    # The response is already partially sent — trying to wrap it in a 500 just
+    # produces a second protocol error. Log a one-liner and bail.
+    exc_name = type(exc).__name__
+    if exc_name in ("LocalProtocolError", "ClientDisconnect") or "Content-Length" in str(exc):
+        logger.info("Client disconnect during %s (%s)", request.url, exc_name)
+        return Response(status_code=499)
     try:
         # Serialize writes so concurrent unhandled exceptions don't interleave frames.
         with _crash_log_lock, open(CRASH_LOG_PATH, "a") as f:
@@ -131,7 +144,16 @@ async def global_exception_handler(request: Request, exc: Exception):
     except Exception:
         logger.exception("Failed to write crash log")
     logger.exception("Unhandled exception for %s", request.url)
-    return JSONResponse({"detail": str(exc)}, status_code=500)
+    # CORSMiddleware doesn't always get a shot at `exception_handler`-created
+    # responses, which leaves the browser reporting every 500 as a bare CORS
+    # error. Attach the headers manually so the real `detail` bubbles up.
+    origin = request.headers.get("origin", "")
+    headers: dict[str, str] = {}
+    if origin and (origin in _allowed or "*" in _allowed):
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+        headers["Vary"] = "Origin"
+    return JSONResponse({"detail": str(exc)}, status_code=500, headers=headers)
 
 _allowed = os.environ.get(
     "OMNIVOICE_ALLOWED_ORIGINS",
@@ -161,6 +183,7 @@ app.include_router(projects.router)
 app.include_router(glossary.router)
 app.include_router(engines.router)
 app.include_router(tools.router)
+app.include_router(setup.router)
 
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.exists(frontend_path):

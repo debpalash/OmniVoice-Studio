@@ -26,23 +26,25 @@
   display: flex;
   gap: var(--space-2);
   align-items: center;
-  padding: 4px 6px;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: var(--radius-md);
+  padding: 4px var(--space-3);
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
   margin-bottom: var(--space-2);
   flex-shrink: 0;
 }
 .dub-preview-toggle__kicker {
-  font-size: var(--text-xs);
-  color: var(--color-fg-subtle);
-  font-weight: var(--weight-bold);
-  margin-right: var(--space-2);
-  letter-spacing: 0.05em;
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  color: var(--chrome-fg-muted);
+  letter-spacing: var(--chrome-label-track);
   text-transform: uppercase;
+  margin-right: var(--space-2);
 }
 .dub-preview-toggle__hint {
-  font-size: var(--text-2xs);
-  color: var(--color-fg-subtle);
+  font-family: var(--font-sans);
+  font-size: var(--chrome-label-size);
+  color: var(--chrome-fg-dim);
   margin-left: auto;
 }
 
@@ -157,31 +159,56 @@
   margin-bottom: var(--space-2);
   padding: 0 var(--space-2);
   font-size: var(--text-xs);
-  color: var(--color-fg-muted);
+  color: var(--chrome-fg-muted);
+  font-family: var(--font-sans);
   flex-wrap: wrap;
 }
 .dub-outputs-row label { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; }
+.dub-outputs-row label:hover { color: var(--chrome-fg); }
+.dub-outputs-row input[type="checkbox"] { accent-color: var(--chrome-accent); }
 
 /* ── Export track checkbox row ───────────────────────────────── */
 .dub-tracks-row {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  margin-bottom: var(--space-4);
-  padding: 4px 6px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  padding: 4px var(--space-3);
   font-size: var(--text-xs);
-  color: var(--color-fg-muted);
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
+  color: var(--chrome-fg-muted);
+  font-family: var(--font-sans);
+  background: var(--chrome-bg);
+  border-radius: var(--chrome-radius-pill);
+  border: 1px solid var(--chrome-border);
   flex-wrap: wrap;
 }
-.dub-tracks-row__title { font-weight: var(--weight-bold); color: var(--color-fg); }
-.dub-tracks-row label  { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; }
-.dub-tracks-row label.is-on.is-success { color: var(--color-success); }
-.dub-tracks-row label.is-off           { color: var(--color-fg-subtle); }
-.dub-tracks-row label.is-on            { color: var(--color-fg); }
-.dub-tracks-row label span.code        { text-transform: uppercase; }
+.dub-tracks-row__title {
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  color: var(--chrome-fg-muted);
+  font-weight: 600;
+}
+.dub-tracks-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--chrome-radius-pill);
+  cursor: pointer;
+  transition: border-color var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
+}
+.dub-tracks-row label input { accent-color: var(--chrome-accent); }
+.dub-tracks-row label.is-on.is-success {
+  color: var(--chrome-severity-ok);
+  border-color: color-mix(in srgb, var(--chrome-severity-ok) 45%, transparent);
+  background: color-mix(in srgb, var(--chrome-severity-ok) 10%, transparent);
+}
+.dub-tracks-row label.is-off { color: var(--chrome-fg-dim); }
+.dub-tracks-row label.is-on  { color: var(--chrome-fg); border-color: var(--chrome-border-strong); background: var(--chrome-hover-bg); }
+.dub-tracks-row label span.code { text-transform: uppercase; letter-spacing: 0.04em; }
 
 /* ── Utility: column flex that fills remaining height ────────── */
 .dub-col            { flex: 1; display: flex; flex-direction: column; min-height: 0; }
@@ -289,13 +316,66 @@
 
 .dub-ghost-footer                  { padding: 4px 8px; flex-shrink: 0; }
 
-/* Settings bar (right-pane) */
+/* Settings bar (right-pane) — expanded translation settings.
+   Two-row layout: fields on top (CSS grid so nothing truncates),
+   primary/secondary actions flush-right underneath. Wraps into a
+   container card so it reads as a distinct cluster from the bulk-select
+   and segment table that follow it. */
 .dub-settings-bar {
   display: flex;
-  gap: 4px;
-  margin-bottom: 4px;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 6px;
+  padding: 7px 9px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+}
+.dub-settings-bar__fields {
+  display: grid;
+  /* collapse-btn | Language | ISO | Engine | Quality | Style(flex) */
+  grid-template-columns: auto minmax(120px, 1.1fr) minmax(95px, 0.9fr) minmax(140px, 1.2fr) minmax(155px, 1.1fr) minmax(120px, 1.2fr);
+  gap: 3px 8px;
+  align-items: end;
+}
+.dub-settings-bar__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
   flex-wrap: wrap;
-  align-items: flex-end;
+}
+.dub-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0; /* lets <select> shrink inside the grid cell instead of overflowing */
+}
+.dub-settings-field .label-row {
+  font-size: 0.62rem;
+  color: var(--color-fg-muted);
+  margin: 0;
+}
+.dub-settings-field .input-base,
+.dub-settings-field .dub-cast__select,
+.dub-settings-field .dub-engine-select,
+.dub-settings-field .input-base--xs {
+  width: 100%;
+  font-size: 0.68rem;
+  padding: 4px 6px;
+}
+.dub-settings-field__hint {
+  font-size: 0.55rem;
+  color: var(--color-fg-subtle);
+  font-style: italic;
+  margin-left: 3px;
+}
+/* Quality Segmented is a button group, not an input — let it size itself. */
+.dub-settings-field--quality > *:last-child { width: 100%; }
+@media (max-width: 960px) {
+  .dub-settings-bar__fields {
+    grid-template-columns: auto 1fr 1fr;
+  }
+  .dub-settings-field--style { grid-column: 1 / -1; }
 }
 
 /* Collapsed-summary strip that replaces the full grid once language/engine/
@@ -304,12 +384,14 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 4px 6px;
+  padding: 4px var(--space-3);
   margin-bottom: 4px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: var(--radius-md);
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  font-family: var(--font-sans);
   font-size: 0.68rem;
+  color: var(--chrome-fg-muted);
 }
 .dub-settings-summary__trigger {
   display: inline-flex;
@@ -325,9 +407,9 @@
   font: inherit;
   text-align: left;
 }
-.dub-settings-summary__trigger strong { color: var(--color-fg); font-weight: 600; }
+.dub-settings-summary__trigger strong { color: var(--chrome-fg); font-weight: 600; }
 .dub-settings-summary__style {
-  color: var(--color-fg-subtle);
+  color: var(--chrome-fg-dim);
   font-style: italic;
   margin-left: var(--space-2);
 }
@@ -335,20 +417,71 @@
   flex: 0 0 auto;
   padding: 0 6px;
 }
-.dub-engine-select  { font-size: 0.65rem; padding: 5px 8px; }
-.dub-quality-field  { flex: none; min-width: 140px; }
+.dub-engine-select  { font-size: 0.68rem; padding: 4px 6px; min-width: 140px; }
+
+/* Small opt-in below the URL ingest row: toggle YouTube caption pulling. */
+.dub-ingest-sub-opt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 4px 6px;
+  font-size: 0.62rem;
+  color: var(--color-fg-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.dub-ingest-sub-opt:hover { color: var(--color-fg); background: rgba(255, 255, 255, 0.05); }
+.dub-ingest-sub-opt input[type="checkbox"] { margin: 0; accent-color: #d3869b; }
+
+/* Inline "install engine" chip next to the Engine label. Tight + brand-tinted
+   so it reads as an affordance, not a badge. Disappears after a successful
+   install (refreshEngines re-renders). */
+.dub-engine-install-chip {
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 0.55rem;
+  line-height: 1.4;
+  background: rgba(211, 134, 155, 0.14);
+  border: 1px solid rgba(211, 134, 155, 0.35);
+  color: #d3869b;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.dub-engine-install-chip:hover   { background: rgba(211, 134, 155, 0.22); }
+.dub-engine-install-chip:disabled,
+.dub-engine-install-chip--disabled {
+  opacity: 0.55;
+  cursor: default;
+  font-style: italic;
+}
 
 /* Transcript collapsible + content */
 .dub-transcript-toggle-wrap          { margin-bottom: 4px; }
-.dub-transcript-toggle__inner        { margin-top: 0; padding: 2px 6px; font-size: 0.65rem; }
+.dub-transcript-toggle__inner {
+  margin-top: 0;
+  padding: 3px var(--space-3);
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  color: var(--chrome-fg-muted);
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+}
+.dub-transcript-toggle__inner:hover { color: var(--chrome-fg); }
 .dub-transcript-body {
-  background: rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
   border-top: none;
-  border-radius: 0 0 4px 4px;
-  padding: 6px;
-  font-size: 0.65rem;
-  color: var(--text-secondary);
+  border-radius: 0 0 var(--chrome-radius-pill) var(--chrome-radius-pill);
+  padding: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--chrome-fg-muted);
   line-height: 1.5;
   max-height: 80px;
   overflow-y: auto;
@@ -359,29 +492,48 @@
 .dub-glossary-chip {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
+  padding: 3px var(--space-3);
   margin-bottom: 4px;
-  font-size: 0.65rem;
-  color: var(--color-fg-muted);
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px dashed rgba(255, 255, 255, 0.08);
-  border-radius: 999px;
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  color: var(--chrome-fg-muted);
+  background: transparent;
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 .dub-glossary-chip:hover {
-  background: rgba(184, 187, 38, 0.06);
-  border-color: rgba(184, 187, 38, 0.24);
-  color: var(--color-fg);
+  background: var(--chrome-hover-bg);
+  border-color: var(--chrome-border-strong);
+  color: var(--chrome-fg);
 }
 
-/* Footer layout */
-.dub-footer-panel                    { padding: 4px 8px; flex-shrink: 0; }
+/* Footer layout — flatten the warm studio-panel backdrop so the chrome
+   action strip below has somewhere neutral to sit. Keep the content
+   padding tight. */
+.dub-footer-panel {
+  padding: 6px var(--space-4);
+  flex-shrink: 0;
+  background: var(--chrome-bg) !important;
+  border: 1px solid var(--chrome-border) !important;
+  border-radius: 0 !important;
+}
+.dub-footer-panel::before { display: none !important; }
 .dub-footer-btns                     { display: flex; gap: 4px; }
 .dub-footer-btns--spaced             { margin-top: 4px; }
 
 /* Output options row value column */
-.dub-outputs-title-strong            { font-weight: 600; color: var(--color-fg); }
+.dub-outputs-title-strong {
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  color: var(--chrome-fg-muted);
+  font-weight: 600;
+}
 
 /* Bulk-select row controls */
 .dub-bulk-select               { font-size: 0.62rem; padding: 2px 4px; }
@@ -427,41 +579,108 @@
 .dub-gen-overlay__title.is-stopping { color: var(--color-fg-muted); }
 .dub-gen-overlay__bar     { width: 80%; max-width: 240px; }
 .dub-gen-overlay__text    { font-size: 0.65rem; color: var(--color-fg-muted); }
+.dub-gen-overlay__stats   { display: flex; gap: var(--space-5); font-size: 0.68rem; color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
 
 /* ── Cast / speaker-voices strip below waveform ──────────────── */
-.dub-cast               { margin-top: 4px; padding: 3px 6px; background: rgba(255, 255, 255, 0.02); border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.04); }
-.dub-cast__row          { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.dub-cast__kicker       { font-size: 0.62rem; color: var(--color-fg-muted); font-weight: 600; }
-.dub-cast__pair         { display: flex; align-items: center; gap: 3px; }
-.dub-cast__label        { font-size: 0.62rem; color: var(--color-fg); }
+.dub-cast {
+  margin-top: 4px;
+  padding: 4px var(--space-3);
+  background: var(--chrome-bg);
+  border-radius: var(--chrome-radius-pill);
+  border: 1px solid var(--chrome-border);
+}
+.dub-cast__row          { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
+.dub-cast__kicker {
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  color: var(--chrome-fg-muted);
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.dub-cast__pair         { display: flex; align-items: center; gap: 4px; }
+.dub-cast__label        { font-family: var(--chrome-font-mono); font-size: 0.65rem; color: var(--chrome-fg); }
 .dub-cast__select       { width: 100px; padding: 1px 4px; font-size: 0.62rem; }
 
 /* Muted placeholder cast strip shown in the idle skeleton */
-.dub-cast--muted        { background: rgba(255, 255, 255, 0.015); border: 1px solid rgba(255, 255, 255, 0.03); }
+.dub-cast--muted        { background: transparent; border-color: var(--chrome-border); }
 .dub-cast--muted .dub-cast__label,
-.dub-cast--muted .dub-cast__kicker { color: #504945; }
-.dub-cast--muted__chip  { font-size: 0.62rem; color: #504945; padding: 1px 4px; background: rgba(255, 255, 255, 0.02); border-radius: 2px; }
+.dub-cast--muted .dub-cast__kicker { color: var(--chrome-fg-dim); }
+.dub-cast--muted__chip {
+  font-family: var(--chrome-font-mono);
+  font-size: 0.62rem;
+  color: var(--chrome-fg-dim);
+  padding: 1px 6px;
+  background: transparent;
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+}
 
 /* ── Output options row (footer) ─────────────────────────────── */
 .dub-outputs-title      { font-weight: 600; color: var(--color-fg); }
 .dub-outputs-default    { font-size: 0.6rem; padding: 2px 4px; width: 120px; }
 
 /* ── Footer download buttons ─────────────────────────────────── */
-/* .btn-primary provides the base layout; tones are applied here. */
+/* Flat chrome surfaces — color = accent (text+border), not a gradient fill.
+   Matches the status-bar chrome so the footer row reads as one strip instead
+   of a jelly of pastel pills. Tones tint via color-mix so a single formula
+   handles danger/ok/brand/etc consistently. */
 .dub-footer-btn {
   margin-top: 0 !important;
   flex: 1;
-  padding: 4px 8px !important;
-  font-size: var(--text-base) !important;
+  padding: 6px 10px !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--text-sm) !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  background: transparent !important;
+  border: 1px solid var(--chrome-border-strong) !important;
+  color: var(--chrome-fg) !important;
+  border-radius: var(--chrome-radius-pill) !important;
+  box-shadow: none !important;
+  transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast) !important;
 }
-.dub-footer-btn--sm { padding: 4px 7px !important; font-size: var(--text-xs) !important; }
+.dub-footer-btn:hover:not(:disabled) { background: var(--chrome-hover-bg) !important; }
+.dub-footer-btn:disabled             { opacity: 0.45; cursor: not-allowed; }
+.dub-footer-btn--sm { padding: 4px 8px !important; font-size: var(--text-xs) !important; }
 
-.dub-footer-btn--idle     { opacity: 0.4; }
-.dub-footer-btn--stopping { background: linear-gradient(135deg, #504945, #3c3836) !important; opacity: 0.8; }
-.dub-footer-btn--danger   { background: linear-gradient(135deg, #fb4934, #cc241d) !important; }
-.dub-footer-btn--green    { background: linear-gradient(135deg, #8ec07c, #689d6a) !important; }
-.dub-footer-btn--blue     { background: linear-gradient(135deg, #83a598, #458588) !important; }
-.dub-footer-btn--pink     { background: linear-gradient(135deg, #d3869b, #b16286) !important; }
-.dub-footer-btn--lime     { background: linear-gradient(135deg, #b8bb26, #98971a) !important; }
-.dub-footer-btn--amber    { background: linear-gradient(135deg, #fabd2f, #d79921) !important; }
-.dub-footer-btn--orange   { background: linear-gradient(135deg, #fe8019, #d65d0e) !important; }
+.dub-footer-btn--idle     { color: var(--chrome-fg-muted) !important; border-color: var(--chrome-border) !important; }
+.dub-footer-btn--stopping { color: var(--chrome-fg-muted) !important; border-color: var(--chrome-border) !important; }
+.dub-footer-btn--danger   {
+  color: var(--chrome-severity-err) !important;
+  border-color: color-mix(in srgb, var(--chrome-severity-err) 45%, transparent) !important;
+  background: color-mix(in srgb, var(--chrome-severity-err) 10%, transparent) !important;
+}
+.dub-footer-btn--danger:hover:not(:disabled) { background: color-mix(in srgb, var(--chrome-severity-err) 18%, transparent) !important; }
+.dub-footer-btn--green    {
+  color: var(--chrome-severity-ok) !important;
+  border-color: color-mix(in srgb, var(--chrome-severity-ok) 45%, transparent) !important;
+  background: color-mix(in srgb, var(--chrome-severity-ok) 10%, transparent) !important;
+}
+.dub-footer-btn--green:hover:not(:disabled) { background: color-mix(in srgb, var(--chrome-severity-ok) 18%, transparent) !important; }
+.dub-footer-btn--pink     {
+  color: var(--chrome-accent) !important;
+  border-color: var(--chrome-accent-border) !important;
+  background: var(--chrome-accent-bg) !important;
+}
+.dub-footer-btn--pink:hover:not(:disabled) { background: color-mix(in srgb, var(--chrome-accent) 20%, transparent) !important; }
+.dub-footer-btn--blue     {
+  color: #83a598 !important;
+  border-color: color-mix(in srgb, #83a598 45%, transparent) !important;
+  background: color-mix(in srgb, #83a598 10%, transparent) !important;
+}
+.dub-footer-btn--lime     {
+  color: #b8bb26 !important;
+  border-color: color-mix(in srgb, #b8bb26 45%, transparent) !important;
+  background: color-mix(in srgb, #b8bb26 10%, transparent) !important;
+}
+.dub-footer-btn--amber    {
+  color: var(--chrome-severity-warn) !important;
+  border-color: color-mix(in srgb, var(--chrome-severity-warn) 45%, transparent) !important;
+  background: color-mix(in srgb, var(--chrome-severity-warn) 10%, transparent) !important;
+}
+.dub-footer-btn--orange   {
+  color: #fe8019 !important;
+  border-color: color-mix(in srgb, #fe8019 45%, transparent) !important;
+  background: color-mix(in srgb, #fe8019 10%, transparent) !important;
+}

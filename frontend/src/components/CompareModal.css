@@ -1,5 +1,101 @@
-/* CompareModal — only layout + content-specific styles remain here.
-   Base controls (Dialog, Panel, Button, Select, Textarea) come from ui/. */
+/* CompareModal — non-modal bottom drawer. Leaves the app interactive;
+   no backdrop wash. ESC or click-outside dismisses. Mirrors
+   ExportModal's drawer chrome so the two read as siblings. */
+
+.compare-drawer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--logs-footer-height, 28px);
+  z-index: 90;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.compare-drawer__sheet {
+  pointer-events: auto;
+  width: min(880px, calc(100vw - 24px));
+  max-height: min(80vh, 640px);
+  display: flex;
+  flex-direction: column;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border-strong);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  box-shadow:
+    0 -8px 24px rgba(0, 0, 0, 0.45),
+    0 -1px 0 var(--chrome-border) inset;
+  animation: compare-drawer-slide-up var(--dur-base, 180ms) var(--ease-out, cubic-bezier(.2,.8,.2,1));
+  overflow: hidden;
+}
+@keyframes compare-drawer-slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.compare-drawer__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px var(--space-4);
+  border-bottom: 1px solid var(--chrome-border);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+  position: relative;
+}
+.compare-drawer__handle {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--chrome-border-strong);
+}
+.compare-drawer__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display, inherit);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--chrome-fg);
+}
+.compare-drawer__close {
+  margin-left: auto;
+  width: var(--chrome-icon-btn, 22px);
+  height: var(--chrome-icon-btn, 22px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--chrome-radius-pill);
+  color: var(--chrome-fg-muted);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+}
+.compare-drawer__close:hover {
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+  border-color: var(--chrome-border-strong);
+}
+
+.compare-drawer__body {
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+.compare-drawer__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--chrome-border);
+  background: var(--chrome-bg);
+}
+
+/* CompareModal — content-specific styles. Base controls (Panel, Button,
+   Select, Textarea) come from ui/. */
 
 .ui-compare__desc {
   margin: 0 0 var(--space-5);

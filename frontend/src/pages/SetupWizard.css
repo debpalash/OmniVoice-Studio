@@ -1,0 +1,192 @@
+.setup-wizard {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 32px 40px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+/* Hero stays constrained + centered so the headline doesn't stretch
+   uncomfortably wide on ultrawide displays; the embedded panels below
+   get the full width. */
+.setup-wizard__hero,
+.setup-wizard__steps {
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Guided-flow step header ─────────────────────────────────────────────── */
+.setup-wizard__steps {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+.setup-wizard__step {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: var(--color-fg-muted);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.setup-wizard__step--active {
+  background: rgba(243, 165, 182, 0.12);
+  border-color: rgba(243, 165, 182, 0.35);
+  color: #f3a5b6;
+}
+.setup-wizard__step--done {
+  color: #8ec07c;
+  border-color: rgba(142, 192, 124, 0.35);
+}
+.setup-wizard__embed {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 4px;
+}
+.setup-wizard__nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.setup-wizard--centered {
+  max-width: 100%;
+  height: 100%;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.setup-wizard__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 12px 12px;
+  text-align: center;
+}
+.setup-wizard__hero h1 {
+  margin: 0;
+  font-size: 1.6rem;
+  letter-spacing: -0.01em;
+}
+.setup-wizard__sub {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.85rem;
+  max-width: 440px;
+  line-height: 1.5;
+}
+
+.setup-wizard__card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.setup-wizard__card--error {
+  background: rgba(251, 73, 52, 0.06);
+  border-color: rgba(251, 73, 52, 0.3);
+  color: var(--color-danger);
+}
+.setup-wizard__card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--color-fg-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.setup-wizard__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.setup-wizard__row-body   { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.setup-wizard__row-title  { font-weight: 600; font-size: 0.85rem; }
+
+.setup-wizard__muted {
+  color: var(--color-fg-muted);
+  font-size: 0.72rem;
+}
+.setup-wizard__muted code { color: var(--color-fg-subtle); }
+
+.setup-wizard__warn { color: var(--color-warn, #fabd2f); font-weight: 600; }
+
+.setup-wizard__models {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.setup-wizard__models li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+}
+.setup-wizard__models code { font-size: 0.68rem; }
+
+.setup-wizard__aggregate {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.setup-wizard__files {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px 2px 2px;
+}
+.setup-wizard__file {
+  display: grid;
+  grid-template-columns: 1fr 120px 44px;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.72rem;
+}
+.setup-wizard__file-name {
+  font-family: var(--font-mono);
+  color: var(--chrome-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.setup-wizard__file-pct {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-fg-muted);
+}
+
+.setup-wizard__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  padding-top: 8px;
+}
+
+.setup-wizard__footnote {
+  color: var(--color-fg-subtle);
+  font-size: 0.65rem;
+  margin: 4px 0 0;
+  text-align: center;
+}
+.setup-wizard__footnote code { font-size: 0.62rem; }

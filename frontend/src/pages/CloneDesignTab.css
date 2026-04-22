@@ -125,7 +125,7 @@
 .clone-slider-kicker {
   margin-left: 6px;
   font-size: 0.58rem;
-  color: #7c6f64;
+  color: var(--chrome-fg-dim);
   font-weight: 500;
 }
 

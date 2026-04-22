@@ -26,43 +26,43 @@ export default class ErrorBoundary extends React.Component {
     return (
       <div style={{
         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 32, fontFamily: 'Nunito, Inter, sans-serif',
+        padding: 32, fontFamily: 'var(--font-sans)',
       }}>
         <div style={{
           maxWidth: 520, width: '100%',
           padding: 22, textAlign: 'center',
-          background: 'linear-gradient(160deg, rgba(251,73,52,0.08), rgba(47,41,39,0.8))',
-          border: '1px solid rgba(251,73,52,0.25)',
-          borderRadius: '18px 22px 16px 24px / 20px 16px 22px 18px',
-          boxShadow: '0 16px 40px -16px rgba(0,0,0,0.5)',
+          background: 'var(--chrome-bg)',
+          border: '1px solid color-mix(in srgb, var(--chrome-severity-err) 35%, transparent)',
+          borderLeft: '2px solid var(--chrome-severity-err)',
+          borderRadius: 'var(--chrome-radius-pill)',
+          boxShadow: 'none',
         }}>
-          <AlertCircle size={40} color="#fb4934" style={{ marginBottom: 10 }} />
+          <AlertCircle size={32} color="var(--chrome-severity-err)" style={{ marginBottom: 10 }} />
           <h2 style={{
-            fontFamily: 'Fraunces, Georgia, serif', fontSize: '1.35rem', fontWeight: 700,
-            color: '#f5e6c5', margin: '0 0 6px',
+            fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '1.6rem', fontWeight: 400,
+            color: 'var(--chrome-fg)', margin: '0 0 6px', letterSpacing: '-0.01em',
           }}>
             This tab hit a snag.
           </h2>
-          <p style={{ color: '#a89984', fontSize: '0.82rem', margin: '0 0 12px', lineHeight: 1.5 }}>
+          <p style={{ color: 'var(--chrome-fg-muted)', fontSize: '0.82rem', margin: '0 0 12px', lineHeight: 1.5 }}>
             Don't worry — the rest of the app still works. You can switch tabs, or try again below.
           </p>
           <pre style={{
-            textAlign: 'left', fontSize: '0.7rem', color: '#fb4934',
-            background: 'rgba(0,0,0,0.3)', padding: '8px 10px', borderRadius: 8,
+            textAlign: 'left', fontSize: '0.72rem', color: 'var(--chrome-severity-err)',
+            background: 'var(--chrome-hover-bg)', padding: '8px 10px', borderRadius: 'var(--chrome-radius-pill)',
+            border: '1px solid var(--chrome-border)',
             maxHeight: 140, overflow: 'auto', margin: '0 0 14px',
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            fontFamily: 'var(--font-mono)',
           }}>{msg}</pre>
           <button
             onClick={this.reset}
             className="btn-primary"
             style={{
-              padding: '8px 18px', fontSize: '0.78rem', fontWeight: 800,
-              background: 'rgba(243,165,182,0.18)', color: '#fff9ef',
-              border: '1px solid rgba(243,165,182,0.4)',
+              padding: '6px 14px', fontSize: '0.78rem', fontWeight: 500,
               display: 'inline-flex', alignItems: 'center', gap: 6,
             }}
           >
-            <RefreshCw size={13} /> Try again
+            <RefreshCw size={12} /> Try again
           </button>
         </div>
       </div>

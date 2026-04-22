@@ -158,6 +158,36 @@ async def dub_list_tracks(job_id: str):
     return {"tracks": job.get("dubbed_tracks", {})}
 
 
+def _write_burn_srt(job: dict, exports_dir: str, stamp: str, dual: bool) -> str | None:
+    """Build a temp SRT from job segments for use with ffmpeg's subtitles filter.
+
+    Returned path is already ffmpeg-filter-safe (plain ASCII basename under exports_dir).
+    Returns None if there are no segments to render.
+    """
+    segments = job.get("segments", [])
+    if not segments:
+        return None
+    lines = []
+    for i, seg in enumerate(segments):
+        lines.append(str(i + 1))
+        lines.append(f"{_format_srt_time(seg['start'])} --> {_format_srt_time(seg['end'])}")
+        lines.append(_pick_subtitle_text(seg, dual))
+        lines.append("")
+    sub_path = os.path.join(exports_dir, f"burn_subs_{stamp}.srt")
+    with open(sub_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    return sub_path
+
+
+def _ffmpeg_filter_escape(path: str) -> str:
+    """Escape a path for use inside an ffmpeg filter value (subtitles=...).
+
+    ffmpeg's filter parser treats `:` as an option separator and `\\`, `'` specially.
+    Backslashes first, then colons, then single quotes.
+    """
+    return path.replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
+
+
 @router.get("/dub/download/{job_id}")
 @router.get("/dub/download/{job_id}/{filename}")
 async def dub_download(
@@ -166,11 +196,13 @@ async def dub_download(
     default_track: str = Query("original"),
     include_tracks: str = Query("", description="Comma-separated list of tracks to include (e.g. 'original,de,es'). Empty = include all."),
     save_path: str = Query("", description="Absolute destination path. If set, mux output is copied there and JSON returned instead of FileResponse."),
+    burn_subs: bool = Query(False, description="Burn subtitles into the video stream (forces re-encode). Uses dual-subtitle layout when dual=1."),
+    dual: bool = Query(False, description="When burn_subs=1, render translated on top of italicised original."),
 ):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     tracks = job.get("dubbed_tracks", {})
     if not tracks:
         raise HTTPException(status_code=400, detail="No dubbed tracks generated yet")
@@ -182,7 +214,7 @@ async def dub_download(
         filtered_tracks = {k: v for k, v in tracks.items() if k in include_set}
     else:
         filtered_tracks = dict(tracks)
-    
+
     if not filtered_tracks and not include_original:
         raise HTTPException(status_code=400, detail="No tracks selected for export")
 
@@ -193,9 +225,11 @@ async def dub_download(
     output_path = os.path.join(exports_dir, f"dubbed_video_{stamp}.mp4")
     ffmpeg = find_ffmpeg()
 
+    sub_path = _write_burn_srt(job, exports_dir, stamp, dual) if burn_subs else None
+
     cmd = [ffmpeg, "-i", video_path]
     input_idx = 1
-    
+
     bg_audio = job.get("no_vocals_path") if preserve_bg else None
     bg_idx = None
     if bg_audio and os.path.exists(bg_audio) and filtered_tracks:
@@ -209,24 +243,37 @@ async def dub_download(
         tracks_to_process.append({"lang_code": lang_code, "idx": input_idx, "info": track_info})
         input_idx += 1
 
-    cmd += ["-map", "0:v:0"]
+    filter_parts: list[str] = []
+    video_map = "0:v:0"
+    if sub_path:
+        esc = _ffmpeg_filter_escape(sub_path)
+        filter_parts.append(f"[0:v]subtitles='{esc}'[vout]")
+        video_map = "[vout]"
+
+    cmd += ["-map", video_map]
     if include_original:
         cmd += ["-map", "0:a:0"]
 
     if bg_idx is not None:
-        filters = []
         for i, t in enumerate(tracks_to_process):
             out_label = f"[aout{i}]"
-            filters.append(f"[{bg_idx}:a][{t['idx']}:a]amix=inputs=2:duration=longest:dropout_transition=2:weights=0.8 1.2{out_label}")
+            filter_parts.append(f"[{bg_idx}:a][{t['idx']}:a]amix=inputs=2:duration=longest:dropout_transition=2:weights=0.8 1.2{out_label}")
             t["out_label"] = out_label
-        cmd += ["-filter_complex", ";".join(filters)]
         for t in tracks_to_process:
             cmd += ["-map", t["out_label"]]
     else:
         for t in tracks_to_process:
             cmd += ["-map", f"{t['idx']}:a:0"]
 
-    cmd += ["-c:v", "copy", "-c:a", "aac", "-b:a", "192k"]
+    if filter_parts:
+        cmd += ["-filter_complex", ";".join(filter_parts)]
+
+    # Burning subs forces a video re-encode; stream-copy otherwise to keep mux cheap.
+    if sub_path:
+        cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p"]
+    else:
+        cmd += ["-c:v", "copy"]
+    cmd += ["-c:a", "aac", "-b:a", "192k"]
 
     audio_stream_idx = 0
     if include_original:
@@ -593,7 +640,7 @@ async def dub_export_segments_zip(job_id: str):
 
 @router.get("/dub/download-mp3/{job_id}")
 @router.get("/dub/download-mp3/{job_id}/{filename}")
-async def dub_download_mp3(job_id: str, lang: str = Query(None), preserve_bg: bool = Query(True), save_path: str = Query("")):
+async def dub_download_mp3(job_id: str, lang: str = Query(None), preserve_bg: bool = Query(True), save_path: str = Query(""), bitrate: str = Query("192k")):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -632,7 +679,15 @@ async def dub_download_mp3(job_id: str, lang: str = Query(None), preserve_bg: bo
             logger.error(f"Failed to mix audio for MP3: {e}")
 
     mp3_path = os.path.join(exports_dir, f"dubbed_{lang_label}_{stamp}.mp3")
-    cmd = [ffmpeg, "-i", source_path, "-codec:a", "libmp3lame", "-b:a", "192k", "-y", mp3_path]
+    # Accept '128', '192k' etc. — normalize to ffmpeg's 'Nk' form and clamp
+    # to a sensible range so a malformed value can't stall encoding.
+    _br = str(bitrate or "192k").lower().rstrip("k") or "192"
+    try:
+        _br_int = max(64, min(int(_br), 320))
+    except ValueError:
+        _br_int = 192
+    br_arg = f"{_br_int}k"
+    cmd = [ffmpeg, "-i", source_path, "-codec:a", "libmp3lame", "-b:a", br_arg, "-y", mp3_path]
     try:
         rc, _, stderr = await run_ffmpeg(cmd, timeout=600.0)
         if rc != 0:

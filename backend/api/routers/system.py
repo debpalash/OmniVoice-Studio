@@ -37,7 +37,7 @@ def system_info():
         "crash_log_path": CRASH_LOG_PATH,
         "idle_timeout_seconds": IDLE_TIMEOUT_SECONDS,
         "model_checkpoint": os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice"),
-        "asr_model": os.environ.get("ASR_MODEL", "mlx-community/whisper-large-v3-mlx"),
+        "asr_model": os.environ.get("ASR_MODEL", "Systran/faster-whisper-large-v3"),
         "translate_provider": os.environ.get("TRANSLATE_PROVIDER", "google"),
         "has_hf_token": bool(os.environ.get("HF_TOKEN")),
         "device": get_best_device(),

@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Cpu, FileText, Info, ShieldCheck, RefreshCw, Trash2, ExternalLink,
-  CheckCircle, AlertCircle, Plug, Mic, MessageSquare,
+  CheckCircle, AlertCircle, Plug, Mic, MessageSquare, Download,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { systemInfo, systemLogs, systemLogsTauri, clearSystemLogs, clearTauriLogs, modelStatus as fetchModelStatus } from '../api/system';
 import { listEngines, selectEngine } from '../api/engines';
+import { listModels, installModel, deleteModel, setupDownloadStreamUrl, getRecommendations } from '../api/setup';
 import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
-import { Tabs, Segmented, Button, Badge, Panel } from '../ui';
+import { Tabs, Segmented, Button, Badge, Panel, Table } from '../ui';
 import { useAppStore } from '../store';
 import './Settings.css';
 
@@ -42,10 +43,281 @@ function Row({ label, value, mono }) {
   );
 }
 
-function EnginesTab() {
+function fmtBytes(n) {
+  if (!n || n <= 0) return '—';
+  if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(2)} GB`;
+  if (n >= 1024 ** 2) return `${(n / 1024 ** 2).toFixed(1)} MB`;
+  return `${Math.round(n / 1024)} KB`;
+}
+
+/**
+ * Model store — list every known HF model, show install state, let the
+ * user install / reinstall / delete individual models. Per-model download
+ * progress is pulled from the shared /setup/download-stream SSE.
+ */
+export function ModelStoreTab({ info, modelBadge }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(new Set()); // repo_ids currently working
+  const [progress, setProgress] = useState({}); // filename → event
+  const [reco, setReco] = useState(null);       // /setup/recommendations payload
+  const [installingReco, setInstallingReco] = useState(false);
+  const [activeRole, setActiveRole] = useState(null);
+  const esRef = React.useRef(null);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    try { setData(await listModels()); }
+    catch (e) { toast.error(`Failed to list models: ${e.message}`); }
+    finally { setLoading(false); }
+  }, []);
+
+  const reloadReco = useCallback(async () => {
+    try { setReco(await getRecommendations()); }
+    catch (e) { /* non-fatal — Recommendation card just hides */ void e; }
+  }, []);
+
+  useEffect(() => { reload(); reloadReco(); }, [reload, reloadReco]);
+
+  // Open the progress stream once when the tab mounts; close on unmount.
+  useEffect(() => {
+    const es = new EventSource(setupDownloadStreamUrl());
+    esRef.current = es;
+    es.onmessage = (evt) => {
+      try {
+        const ev = JSON.parse(evt.data);
+        if (ev?.filename) setProgress(prev => ({ ...prev, [ev.filename]: ev }));
+      } catch { /* keepalive / ignore */ }
+    };
+    return () => es.close();
+  }, []);
+
+  // When progress events stop firing, auto-refresh the list so "installed"
+  // flips without a manual click.
+  useEffect(() => {
+    const filesInFlight = Object.values(progress).filter(e => e.phase !== 'done');
+    if (filesInFlight.length === 0 && Object.keys(progress).length > 0) {
+      const t = setTimeout(reload, 1500);
+      return () => clearTimeout(t);
+    }
+  }, [progress, reload]);
+
+  const withBusy = async (repoId, fn, successMsg) => {
+    setBusy(prev => new Set(prev).add(repoId));
+    try {
+      await fn();
+      if (successMsg) toast.success(successMsg);
+      await reload();
+    } catch (e) {
+      toast.error(e.message || String(e));
+    } finally {
+      setBusy(prev => { const s = new Set(prev); s.delete(repoId); return s; });
+    }
+  };
+
+  const onInstall = (repoId) => withBusy(repoId, () => installModel(repoId), 'Install started — progress in the row');
+  const onDelete  = (repoId) => {
+    if (!confirm(`Delete ${repoId}? You can reinstall it later.`)) return;
+    return withBusy(repoId, () => deleteModel(repoId), `Deleted ${repoId}`);
+  };
+  const onReinstall = async (repoId) => {
+    if (!confirm(`Reinstall ${repoId}? This will delete the current copy and download again.`)) return;
+    await withBusy(repoId, async () => {
+      await deleteModel(repoId);
+      await installModel(repoId);
+    }, 'Reinstalling');
+  };
+
+  const onInstallRecommended = async () => {
+    if (!reco) return;
+    const missing = reco.models.filter(m => !m.installed);
+    if (missing.length === 0) {
+      toast.success('Recommended models are already installed.');
+      return;
+    }
+    setInstallingReco(true);
+    try {
+      // Parallel install — backend /models/install spawns each download on
+      // its own asyncio task so ordering doesn't matter.
+      await Promise.all(missing.map(m => installModel(m.repo_id)));
+      toast.success(`Started downloading ${missing.length} model${missing.length > 1 ? 's' : ''}`);
+      await Promise.all([reload(), reloadReco()]);
+    } catch (e) {
+      toast.error(`Install failed: ${e.message || e}`);
+    } finally {
+      setInstallingReco(false);
+    }
+  };
+
+  if (loading && !data) {
+    return (
+      <section className="settings-section">
+        <h2><Cpu size={16} color="#f3a5b6" /> Models</h2>
+        <div className="settings-muted">Loading…</div>
+      </section>
+    );
+  }
+  if (!data) return null;
+
+  const groups = (data.models || []).reduce((acc, m) => {
+    const k = (m.role || 'other').toLowerCase();
+    (acc[k] = acc[k] || []).push(m);
+    return acc;
+  }, {});
+  const ROLE_ORDER = ['tts', 'asr', 'diarisation', 'diarization', 'llm'];
+  const ROLE_LABEL = { tts: 'TTS', asr: 'ASR', diarisation: 'Diarisation', diarization: 'Diarisation', llm: 'LLM', other: 'Other' };
+  const roles = Object.keys(groups).sort((a, b) => {
+    const ai = ROLE_ORDER.indexOf(a), bi = ROLE_ORDER.indexOf(b);
+    return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
+  });
+  const currentRole = activeRole && groups[activeRole] ? activeRole : roles[0];
+  const rows = currentRole ? groups[currentRole] : [];
+
+  const COLUMNS = [
+    { key: 'name',    label: 'Model',   flex: 3 },
+    { key: 'size',    label: 'Size',    width: 80,  align: 'right' },
+    { key: 'status',  label: 'Status',  width: 110, align: 'center' },
+    { key: 'actions', label: '',        width: 108, align: 'right' },
+  ];
+
+  return (
+    <section className="settings-section settings-section--compact">
+      <div className="models-toolbar">
+        <div className="models-toolbar__stats">
+          <span><strong>{fmtBytes(data.total_installed_bytes)}</strong> on disk</span>
+          <span className="models-toolbar__sep">·</span>
+          <span className="models-toolbar__cache">cache: <code>{data.hf_cache_dir}</code></span>
+          {info && <span className="models-toolbar__sep">·</span>}
+          {info && <span>model: {modelBadge}</span>}
+        </div>
+        <Button variant="subtle" size="sm" onClick={reload} leading={<RefreshCw size={11} />}>
+          Refresh
+        </Button>
+      </div>
+
+      {reco && reco.all_installed && (
+        <div className="reco-banner">
+          <CheckCircle size={12} color="#8ec07c" />
+          <span className="reco-banner__text">
+            Recommended bundle installed for <strong>{reco.device.label}</strong>
+          </span>
+          <span className="reco-banner__size">{reco.total_gb} GB</span>
+        </div>
+      )}
+      {reco && !reco.all_installed && (
+        <div className="reco-banner reco-banner--action">
+          <div className="reco-banner__body">
+            <div className="reco-banner__title">Recommended for {reco.device.label}</div>
+            <div className="reco-banner__rationale">{reco.rationale}</div>
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={onInstallRecommended}
+            disabled={installingReco}
+            leading={installingReco ? <RefreshCw size={12} className="spinner" /> : null}
+          >
+            {installingReco ? 'Starting…' : `Install ~${reco.download_gb_remaining} GB`}
+          </Button>
+        </div>
+      )}
+
+      {roles.length > 1 && (
+        <Segmented
+          size="sm"
+          value={currentRole}
+          onChange={setActiveRole}
+          className="models-roletabs"
+          items={roles.map(r => {
+            const installed = groups[r].filter(m => m.installed).length;
+            return {
+              value: r,
+              label: `${ROLE_LABEL[r] || r.toUpperCase()} ${installed}/${groups[r].length}`,
+            };
+          })}
+        />
+      )}
+
+      <Table className="models-table">
+        <Table.Header columns={COLUMNS} />
+        <div className="models-table__body">
+          {rows.map((m) => {
+            const rowBusy = busy.has(m.repo_id);
+            const files = Object.values(progress).filter(p => p.filename && p.filename.includes(m.repo_id.split('/').pop()));
+            const activeFile = files.find(f => f.phase !== 'done');
+            return (
+              <div key={m.repo_id} className={`models-row ${m.installed ? 'is-ok' : 'is-off'}`}>
+                <div className="models-row__cell models-row__name" style={{ flex: 3 }}>
+                  <span className="models-row__title">
+                    {m.label}
+                    {m.required && <span className="models-row__tag">required</span>}
+                  </span>
+                  <span className="models-row__repo">
+                    <code>{m.repo_id}</code>
+                    {m.note && <span className="models-row__note"> · {m.note}</span>}
+                  </span>
+                  {activeFile && (
+                    <span className="models-row__progress">
+                      ⬇ {activeFile.filename.split('/').pop()} · {Math.round(activeFile.pct * 100)}%
+                    </span>
+                  )}
+                </div>
+                <div className="models-row__cell models-row__size" style={{ width: 80, textAlign: 'right' }}>
+                  {m.installed ? fmtBytes(m.size_on_disk_bytes) : `${m.size_gb} GB`}
+                </div>
+                <div className="models-row__cell" style={{ width: 110, display: 'flex', justifyContent: 'center' }}>
+                  {rowBusy
+                    ? <Badge tone="warn" size="xs"><RefreshCw size={10} className="spinner" /> working</Badge>
+                    : m.installed
+                      ? <Badge tone="success" size="xs">installed</Badge>
+                      : <Badge tone="neutral" size="xs">not installed</Badge>}
+                </div>
+                <div className="models-row__cell models-row__actions" style={{ width: 108 }}>
+                  {!m.installed && !rowBusy && (
+                    <Button
+                      variant="subtle" size="sm"
+                      onClick={() => onInstall(m.repo_id)}
+                      leading={<Download size={11} />}
+                    >
+                      Install
+                    </Button>
+                  )}
+                  {m.installed && !rowBusy && (
+                    <>
+                      <Button
+                        variant="icon" iconSize="sm"
+                        onClick={() => onReinstall(m.repo_id)}
+                        title="Reinstall"
+                        aria-label="Reinstall"
+                      >
+                        <RefreshCw size={11} />
+                      </Button>
+                      <Button
+                        variant="icon" iconSize="sm"
+                        onClick={() => onDelete(m.repo_id)}
+                        title="Delete"
+                        aria-label="Delete"
+                      >
+                        <Trash2 size={11} />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Table>
+    </section>
+  );
+}
+
+
+export function EnginesTab() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState(null);
+  const [activeFam, setActiveFam] = useState('tts');
   const reviewMode = useAppStore(s => s.reviewMode);
   const setReviewMode = useAppStore(s => s.setReviewMode);
 
@@ -76,96 +348,94 @@ function EnginesTab() {
   }
   if (!data) return null;
 
+  const fams = ['tts', 'asr', 'llm'].filter(f => data[f]);
+  const currentFam = fams.includes(activeFam) ? activeFam : fams[0];
+  const family = currentFam ? data[currentFam] : null;
+  const famTint = currentFam ? FAMILY_META[currentFam].tint : 'neutral';
+
+  const COLUMNS = [
+    { key: 'name',    label: 'Backend', flex: 3 },
+    { key: 'status',  label: 'Status',  width: 120, align: 'center' },
+    { key: 'action',  label: '',        width: 90,  align: 'right' },
+  ];
+
   return (
-    <section className="settings-section">
-      <h2 className="settings-section__head-row">
-        <span className="settings-section__head-left">
-          <Plug size={16} color="#d3869b" /> Engines
-        </span>
-        <span className="settings-section__head-actions">
-          <Button variant="subtle" size="sm" onClick={reload} leading={<RefreshCw size={11} />}>
-            Refresh
-          </Button>
-        </span>
-      </h2>
-
-      <p className="settings-prose" style={{ marginTop: 0 }}>
-        Click <strong>Use</strong> to switch which backend handles each stage. Your pick persists across restarts.
-        Env vars (<code>OMNIVOICE_TTS_BACKEND</code>, …) still override the UI so power-users can pin a backend.
-        Unavailable engines show why — usually a missing optional dep or a hardware mismatch.
-      </p>
-
-      <Panel variant="flat" padding="md" className="engines-family" title="Pipeline review mode">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <section className="settings-section settings-section--compact">
+      <div className="models-toolbar">
+        <div className="models-toolbar__stats">
           <Segmented
-            size="sm"
+            size="xs"
             value={reviewMode}
             onChange={setReviewMode}
             items={[
-              { value: 'on',  label: 'Review between stages' },
+              { value: 'on',  label: 'Review' },
               { value: 'off', label: 'Rapid-fire' },
             ]}
           />
-          <span style={{ fontSize: '0.62rem', color: '#a89984', flex: 1 }}>
-            {reviewMode === 'on'
-              ? 'Banners nudge you to check transcripts and translations before advancing.'
-              : 'Banners hidden — go straight from Prepare to Translate to Generate.'}
+          <span className="models-toolbar__sep">·</span>
+          <span>
+            {reviewMode === 'on' ? 'Stage banners on' : 'Stage banners off'}
           </span>
         </div>
-      </Panel>
+        <Button variant="subtle" size="sm" onClick={reload} leading={<RefreshCw size={11} />}>
+          Refresh
+        </Button>
+      </div>
 
-      {['tts', 'asr', 'llm'].map(fam => {
-        const { label, icon: FamIcon, tint } = FAMILY_META[fam];
-        const family = data[fam];
-        if (!family) return null;
-        return (
-          <Panel
-            key={fam}
-            variant="flat"
-            padding="md"
-            className="engines-family"
-            title={
-              <>
-                <FamIcon size={13} /> {label}
-                <span className="engines-family__active">
-                  active: <code>{family.active}</code>
-                </span>
-              </>
-            }
-          >
-            <ul className="engines-list">
-              {family.backends.map(b => {
-                const isActive = family.active === b.id;
-                const isSwitching = switching === `${fam}:${b.id}`;
-                return (
-                  <li key={b.id} className={b.available ? 'is-ok' : 'is-off'}>
-                    <span className="engines-list__name">
-                      <code>{b.id}</code> — {b.display_name}
+      {fams.length > 1 && (
+        <Segmented
+          size="sm"
+          value={currentFam}
+          onChange={setActiveFam}
+          className="models-roletabs"
+          items={fams.map(f => ({
+            value: f,
+            label: `${FAMILY_META[f].label} · ${data[f].active}`,
+          }))}
+        />
+      )}
+
+      {family && (
+        <Table className="models-table">
+          <Table.Header columns={COLUMNS} />
+          <div className="models-table__body">
+            {family.backends.map(b => {
+              const isActive = family.active === b.id;
+              const isSwitching = switching === `${currentFam}:${b.id}`;
+              return (
+                <div key={b.id} className={`models-row ${b.available ? 'is-ok' : 'is-off'}`}>
+                  <div className="models-row__cell models-row__name" style={{ flex: 3 }}>
+                    <span className="models-row__title">
+                      {b.display_name}
+                      {isActive && <Badge tone={famTint} size="xs">active</Badge>}
                     </span>
-                    {isActive && <Badge tone={tint}>active</Badge>}
+                    <span className="models-row__repo">
+                      <code>{b.id}</code>
+                      {!b.available && b.reason && <span className="models-row__note"> · {b.reason}</span>}
+                    </span>
+                  </div>
+                  <div className="models-row__cell" style={{ width: 120, display: 'flex', justifyContent: 'center' }}>
                     {b.available
                       ? <Badge tone="success" size="xs">ready</Badge>
                       : <Badge tone="warn" size="xs">unavailable</Badge>}
+                  </div>
+                  <div className="models-row__cell models-row__actions" style={{ width: 90 }}>
                     {!isActive && b.available && (
                       <Button
-                        variant="subtle"
-                        size="sm"
-                        onClick={() => onSelect(fam, b.id)}
+                        variant="subtle" size="sm"
+                        onClick={() => onSelect(currentFam, b.id)}
                         loading={isSwitching}
                       >
                         Use
                       </Button>
                     )}
-                    {!b.available && b.reason && (
-                      <span className="engines-list__reason">{b.reason}</span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </Panel>
-        );
-      })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Table>
+      )}
     </section>
   );
 }
@@ -276,29 +546,7 @@ export default function Settings() {
         className="settings-tabs-ui"
       />
 
-      {activeTab === 'models' && (
-        <section className="settings-section">
-          <h2><Cpu size={16} color="#f3a5b6" /> Models</h2>
-          {info ? (
-            <>
-              <Row label="TTS checkpoint"       value={info.model_checkpoint} mono />
-              <Row label="ASR model (Whisper)"  value={info.asr_model} mono />
-              <Row label="Translate provider"   value={info.translate_provider} />
-              <Row label="Device"               value={info.device?.toUpperCase()} />
-              <Row label="Status"               value={modelBadge} />
-              <Row label="Idle timeout"         value={`${info.idle_timeout_seconds}s`} />
-              <Row
-                label="Hugging Face token"
-                value={info.has_hf_token
-                  ? <Badge tone="success"><CheckCircle size={11} /> Set</Badge>
-                  : <Badge tone="warn"><AlertCircle size={11} /> Missing — diarization disabled</Badge>}
-              />
-            </>
-          ) : (
-            <div className="settings-muted">Loading…</div>
-          )}
-        </section>
-      )}
+      {activeTab === 'models' && <ModelStoreTab info={info} modelBadge={modelBadge} />}
 
       {activeTab === 'engines' && <EnginesTab />}
 

@@ -5,8 +5,8 @@
   flex-direction: column;
   min-height: 0;
   flex: 1;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
   overflow: hidden;
 }
 
@@ -16,8 +16,8 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
-  background: rgba(0, 0, 0, 0.15);
-  border-bottom: 1px solid var(--color-border);
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--chrome-border);
   flex-shrink: 0;
 }
 
@@ -31,14 +31,16 @@
 .ui-table-toolbar__search-icon {
   position: absolute;
   left: 6px;
-  color: var(--color-fg-subtle);
+  color: var(--chrome-fg-dim);
   pointer-events: none;
 }
 .ui-table-toolbar__search-input {
   width: 100%;
   padding-left: 22px;
   padding-right: 22px;
+  font-family: var(--font-sans);
   font-size: var(--text-xs);
+  border-radius: var(--chrome-radius-pill);
 }
 .ui-table-toolbar__search-clear {
   position: absolute !important;
@@ -50,8 +52,9 @@
 }
 
 .ui-table-toolbar__meta {
+  font-family: var(--chrome-font-mono);
   font-size: var(--text-xs);
-  color: var(--color-fg-subtle);
+  color: var(--chrome-fg-dim);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -62,15 +65,16 @@
   align-items: center;
   gap: var(--space-2);
   padding: 3px var(--space-3);
-  background: rgba(0, 0, 0, 0.35);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  color: var(--color-fg-muted);
+  background: var(--chrome-bg);
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  font-weight: 600;
+  color: var(--chrome-fg-muted);
   position: sticky;
   top: 0;
   z-index: 1;
-  border-bottom: 1px solid var(--color-border);
-  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--chrome-border);
+  letter-spacing: var(--chrome-label-track);
   text-transform: uppercase;
   flex-shrink: 0;
 }

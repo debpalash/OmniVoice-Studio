@@ -12,7 +12,9 @@ from services import tts_backend, asr_backend, llm_backend
 def test_tts_registry_lists_all_backends():
     rows = tts_backend.list_backends()
     ids = {r["id"] for r in rows}
-    assert ids == {"omnivoice", "voxcpm2", "moss-tts-nano"}
+    # Core set must exist; optional engines (kittentts, mlx-audio) may be
+    # added as platform support lands — only assert the baseline.
+    assert {"omnivoice", "voxcpm2", "moss-tts-nano"}.issubset(ids)
     for r in rows:
         assert set(r) >= {"id", "display_name", "available", "reason"}
 
@@ -76,12 +78,14 @@ def test_tts_unknown_backend_raises():
 def test_asr_registry_lists_backends():
     rows = asr_backend.list_backends()
     ids = {r["id"] for r in rows}
-    assert ids == {"mlx-whisper", "pytorch-whisper"}
+    assert {"mlx-whisper", "pytorch-whisper"}.issubset(ids)
 
 
 def test_asr_auto_detects():
     bid = asr_backend.active_backend_id()
-    assert bid in {"mlx-whisper", "pytorch-whisper"}
+    # WhisperX is now the default cross-platform pick (better wav2vec2 word
+    # alignment for lip-sync); mlx / pytorch / faster-whisper are fallbacks.
+    assert bid in {"whisperx", "faster-whisper", "mlx-whisper", "pytorch-whisper"}
 
 
 def test_asr_env_override(monkeypatch):

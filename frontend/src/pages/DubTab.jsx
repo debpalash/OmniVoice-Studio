@@ -1,7 +1,7 @@
-import React, { Suspense, lazy, useState } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react';
 import {
   PanelLeftOpen, PanelLeftClose, Film, Save, UploadCloud, Sparkles, Loader, Square,
-  FileText, Play, DownloadIcon, Volume2, Music, Package, Layers, Link2,
+  FileText, Play, DownloadIcon, Volume2, Link2,
   Languages, ChevronDown, ChevronUp, Wand2, Trash2, Check, Globe, UserSquare2, User, AlertCircle,
 } from 'lucide-react';
 // lucide-react exports DownloadIcon as "Download"; alias here to match App.jsx naming.
@@ -15,8 +15,11 @@ import { POPULAR_LANGS, POPULAR_ISO, PRESETS } from '../utils/constants';
 import { LANG_CODES } from '../utils/languages';
 import { formatTime } from '../utils/format';
 import { API } from '../api/client';
-import { Button, Segmented, Badge, Progress, Menu } from '../ui';
+import { listTranslationEngines, installTranslationEngine } from '../api/engines';
+import toast from 'react-hot-toast';
+import { Button, Segmented, Badge, Progress } from '../ui';
 import GlossaryPanel from '../components/GlossaryPanel';
+import ExportModal from '../components/ExportModal';
 import './DubTab.css';
 
 const DubSegmentTable = lazy(() => import('../components/DubSegmentTable'));
@@ -37,7 +40,7 @@ export default function DubTab(props) {
     segmentPreviewLoading,
     selectedSegIds,
     setDubVideoFile, setDubLocalBlobUrl,
-    handleDubAbort, handleDubUpload, handleDubIngestUrl, handleDubStop, handleDubGenerate,
+    handleDubAbort, handleDubUpload, handleDubIngestUrl, handleDubRetryTranscribe, handleDubStop, handleDubGenerate,
     handleDubDownload, handleDubAudioDownload, handleAudioExport,
     speakerClones = {},
     handleSegmentPreview, onDirectSegment, handleTranslateAll, handleCleanupSegments,
@@ -82,10 +85,70 @@ export default function DubTab(props) {
   const setTranslateQuality = useAppStore(s => s.setTranslateQuality);
   const dualSubs            = useAppStore(s => s.dualSubs);
   const setDualSubs         = useAppStore(s => s.setDualSubs);
+  const burnSubs            = useAppStore(s => s.burnSubs);
+  const setBurnSubs         = useAppStore(s => s.setBurnSubs);
 
   const showIdleSkeleton = !(dubJobId && (dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done'));
   const [ingestUrl, setIngestUrl] = useState('');
   const [previewMode, setPreviewMode] = useState('original'); // 'original' | 'dubbed'
+  const [exportOpen, setExportOpen] = useState(false);
+
+  // Live ETA while generating — elapsed ticks each second; remaining is
+  // extrapolated from the current/total rate so it's only meaningful once
+  // at least one segment has rendered and ~2s of clock has passed.
+  const [genElapsed, setGenElapsed] = useState(0);
+  useEffect(() => {
+    if (dubStep !== 'generating') { setGenElapsed(0); return; }
+    const start = Date.now();
+    setGenElapsed(0);
+    const id = setInterval(() => setGenElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [dubStep]);
+  const genRemaining = (() => {
+    if (dubStep !== 'generating') return null;
+    if (!dubProgress.total || !dubProgress.current || genElapsed < 2) return null;
+    const perSeg = genElapsed / dubProgress.current;
+    return Math.max(0, Math.round(perSeg * (dubProgress.total - dubProgress.current)));
+  })();
+
+  // Translation-engine availability → drives the Engine dropdown's disabled
+  // state and the inline Install chip. Lazy-fetched once; refreshed after
+  // any install/uninstall so the chip disappears on success.
+  const [engines, setEngines] = useState([]);
+  const [enginesSandboxed, setEnginesSandboxed] = useState(false);
+  const [engineInstalling, setEngineInstalling] = useState(null); // engine id being installed
+  const refreshEngines = useCallback(async () => {
+    try {
+      const res = await listTranslationEngines();
+      setEngines(res.engines || []);
+      setEnginesSandboxed(!!res.sandboxed);
+    } catch {
+      setEngines([]);
+    }
+  }, []);
+  useEffect(() => { refreshEngines(); }, [refreshEngines]);
+  const activeEngineEntry = engines.find(e => e.id === translateProvider);
+  const activeEngineUnavailable = activeEngineEntry && !activeEngineEntry.installed;
+  const handleInstallEngine = async (engineId) => {
+    if (!engineId || enginesSandboxed) return;
+    setEngineInstalling(engineId);
+    const progressToast = toast.loading(`Installing ${engineId}…`);
+    try {
+      const res = await installTranslationEngine(engineId);
+      await refreshEngines();
+      if (res.restart_required) {
+        toast(`${engineId} installed. Restart the backend to load it.`, { icon: '🔄', id: progressToast, duration: 7000 });
+      } else if (res.status === 'already_installed') {
+        toast(`${engineId} was already installed`, { icon: 'ℹ️', id: progressToast });
+      } else {
+        toast.success(`${engineId} installed`, { id: progressToast });
+      }
+    } catch (err) {
+      toast.error(`Install failed: ${String(err.message || err).slice(0, 200)}`, { id: progressToast, duration: 8000 });
+    } finally {
+      setEngineInstalling(null);
+    }
+  };
 
   // Collapse secondary settings (Language/ISO/Style/Engine/Quality) into an
   // accordion. Once the user has translated, the row's job is done; show a
@@ -119,9 +182,21 @@ export default function DubTab(props) {
       return next;
     });
   };
+  // Persist the "pull YouTube captions" intent across ingests — it's opt-in
+  // per-URL but almost always on once the user discovers it. Stored on the
+  // component instead of the global store to avoid polluting cross-project
+  // prefs with what's really a per-ingest choice.
+  const [fetchYtSubs, setFetchYtSubs] = useState(false);
   const onIngestUrl = () => {
     if (!ingestUrl.trim() || !handleDubIngestUrl) return;
-    handleDubIngestUrl(ingestUrl.trim());
+    handleDubIngestUrl(ingestUrl.trim(), {
+      fetchSubs: fetchYtSubs,
+      // Default to "all" available tracks — YouTube's auto-translator makes
+      // every major language available on demand, so letting yt-dlp grab
+      // them all up-front means switching target language later doesn't
+      // need another round trip.
+      subLangs: fetchYtSubs ? undefined : undefined,
+    });
     setIngestUrl('');
   };
   const hasDubbedTrack = dubStep === 'done' && dubLangCode && dubLangCode !== 'und' && (dubTracks?.length > 0 || !!dubTracks);
@@ -158,6 +233,28 @@ export default function DubTab(props) {
               <Button variant="ghost"  size="sm" disabled>Reset</Button>
             </div>
           </div>
+
+          {/* Transcription failure banner — shown in the idle state when a
+              job exists but transcription produced zero segments (or threw).
+              Surfaces the backend error detail and offers one-click retry,
+              which re-runs the ASR stream on the same job without re-uploading. */}
+          {dubError && dubJobId && dubStep === 'idle' && (
+            <div className="dub-footer-banner">
+              <Badge tone="danger">
+                <AlertCircle size={11} /> {dubError}
+              </Badge>
+              {handleDubRetryTranscribe && (
+                <Button
+                  variant="subtle"
+                  size="sm"
+                  onClick={handleDubRetryTranscribe}
+                  leading={<Sparkles size={10} />}
+                >
+                  Retry transcription
+                </Button>
+              )}
+            </div>
+          )}
 
           {/* SPLIT LAYOUT skeleton */}
           <div className={`dub-split-grid ${dubVideoFile ? 'dub-split-2' : 'dub-split-1'}`}>
@@ -242,6 +339,19 @@ export default function DubTab(props) {
                       Ingest
                     </button>
                   </div>
+                  <label
+                    className="dub-ingest-sub-opt"
+                    title="When the URL is a caption-bearing host (YouTube, Vimeo, TED…), also pull the original captions and any YouTube auto-translations. Seeds the editor without running Whisper; skip Translate All for languages YouTube already covers."
+                    onClick={e => { e.stopPropagation(); }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={fetchYtSubs}
+                      onChange={e => setFetchYtSubs(e.target.checked)}
+                      onClick={e => e.stopPropagation()}
+                    />
+                    <span>Pull YouTube captions + auto-translations</span>
+                  </label>
                 </label>
               )}
 
@@ -401,6 +511,10 @@ export default function DubTab(props) {
                     </div>
                     {dubStep === 'generating' && (
                       <>
+                        <div className="dub-gen-overlay__stats">
+                          <span>⏱ {fmtDur(genElapsed)} elapsed</span>
+                          {genRemaining !== null && <span>~{fmtDur(genRemaining)} remaining</span>}
+                        </div>
                         <div className="dub-gen-overlay__bar">
                           <Progress
                             value={dubProgress.total ? (dubProgress.current / dubProgress.total) * 100 : 0}
@@ -496,98 +610,127 @@ export default function DubTab(props) {
               )}
               {settingsOpen && (
               <div className="dub-settings-bar">
-                <button
-                  type="button"
-                  className="dub-settings-summary__trigger dub-settings-close"
-                  onClick={() => setSettingsOpen(false)}
-                  title="Collapse translation settings"
-                >
-                  <ChevronUp size={10} />
-                </button>
-                <div className="dub-skel-field">
-                  <div className="label-row"><Globe className="label-icon" size={9} /> Language</div>
-                  <select
-                    className="input-base dub-cast__select"
-                    value={dubLang}
-                    onChange={(e) => {
-                      const lang = e.target.value;
-                      setDubLang(lang);
-                      const match = LANG_CODES.find(lc => lc.label.toLowerCase() === lang.toLowerCase());
-                      if (match) setDubLangCode(match.code);
-                    }}
+                <div className="dub-settings-bar__fields">
+                  <button
+                    type="button"
+                    className="dub-settings-summary__trigger dub-settings-close"
+                    onClick={() => setSettingsOpen(false)}
+                    title="Collapse translation settings"
                   >
-                    <optgroup label="Popular">
-                      {POPULAR_LANGS.map(l => <option key={`p-${l}`} value={l}>{l}</option>)}
-                    </optgroup>
-                    <optgroup label="All languages">
-                      {ALL_LANGUAGES
-                        .filter(l => !POPULAR_LANGS.includes(l))
-                        .map(l => <option key={l} value={l}>{l}</option>)}
-                    </optgroup>
-                  </select>
+                    <ChevronUp size={10} />
+                  </button>
+                  <div className="dub-settings-field">
+                    <div className="label-row"><Globe className="label-icon" size={9} /> Language</div>
+                    <select
+                      className="input-base dub-cast__select"
+                      value={dubLang}
+                      onChange={(e) => {
+                        const lang = e.target.value;
+                        setDubLang(lang);
+                        const match = LANG_CODES.find(lc => lc.label.toLowerCase() === lang.toLowerCase());
+                        if (match) setDubLangCode(match.code);
+                      }}
+                    >
+                      <optgroup label="Popular">
+                        {POPULAR_LANGS.map(l => <option key={`p-${l}`} value={l}>{l}</option>)}
+                      </optgroup>
+                      <optgroup label="All languages">
+                        {ALL_LANGUAGES
+                          .filter(l => !POPULAR_LANGS.includes(l))
+                          .map(l => <option key={l} value={l}>{l}</option>)}
+                      </optgroup>
+                    </select>
+                  </div>
+                  <div className="dub-settings-field dub-settings-field--iso">
+                    <div className="label-row">ISO</div>
+                    <select
+                      className="input-base dub-cast__select"
+                      value={dubLangCode}
+                      onChange={(e) => setDubLangCode(e.target.value)}
+                    >
+                      {LANG_CODES.map(lc => (
+                        <option key={lc.code} value={lc.code}>{lc.code} — {lc.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="dub-settings-field">
+                    <div className="label-row">
+                      Engine
+                      {activeEngineUnavailable && !enginesSandboxed && (
+                        <button
+                          type="button"
+                          className="dub-engine-install-chip"
+                          onClick={() => handleInstallEngine(translateProvider)}
+                          disabled={engineInstalling === translateProvider}
+                          title={activeEngineEntry?.notes || 'Install this engine'}
+                        >
+                          {engineInstalling === translateProvider ? '…installing' : `+ install ${activeEngineEntry?.pip_package || ''}`}
+                        </button>
+                      )}
+                      {activeEngineUnavailable && enginesSandboxed && (
+                        <span className="dub-engine-install-chip dub-engine-install-chip--disabled" title="Installs are disabled in packaged builds">
+                          needs dev install
+                        </span>
+                      )}
+                    </div>
+                    <select className="input-base dub-engine-select" value={translateProvider} onChange={e => setTranslateProvider(e.target.value)}>
+                      {(engines.length ? engines : [
+                        { id: 'argos', display_name: 'Argos (Fast Local)', installed: true },
+                        { id: 'nllb', display_name: 'NLLB (Heavy Local)', installed: true },
+                        { id: 'google', display_name: 'Google (Online)', installed: true },
+                        { id: 'openai', display_name: 'OpenAI (LLM)', installed: true },
+                      ]).map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.installed ? p.display_name : `${p.display_name} — needs install`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="dub-settings-field dub-settings-field--quality">
+                    <div className="label-row" title="Cinematic = 3-step LLM refinement (translate → reflect → adapt). Needs an LLM configured.">Quality</div>
+                    <Segmented
+                      size="sm"
+                      value={translateQuality}
+                      onChange={setTranslateQuality}
+                      items={[
+                        { value: 'fast',      label: 'Fast' },
+                        { value: 'cinematic', label: 'Cinematic' },
+                      ]}
+                    />
+                  </div>
+                  <div className="dub-settings-field dub-settings-field--style">
+                    <div className="label-row"><UserSquare2 className="label-icon" size={9} /> Style <span className="dub-settings-field__hint">optional</span></div>
+                    <input className="input-base input-base--xs" placeholder="e.g. female" value={dubInstruct} onChange={e => setDubInstruct(e.target.value)} />
+                  </div>
                 </div>
-                <div className="dub-skel-field--sm">
-                  <div className="label-row">ISO Code</div>
-                  <select
-                    className="input-base dub-cast__select"
-                    value={dubLangCode}
-                    onChange={(e) => setDubLangCode(e.target.value)}
+                <div className="dub-settings-bar__actions">
+                  <Button
+                    variant="subtle" size="sm"
+                    onClick={() => editSegments(dubSegments.map(s => ({ ...s, text: s.text_original || s.text, translate_error: undefined })))}
+                    disabled={!dubSegments.some(s => s.text_original && s.text_original !== s.text)}
+                    title="Restore all segments to the original transcribed text"
                   >
-                    {LANG_CODES.map(lc => (
-                      <option key={lc.code} value={lc.code}>{lc.code} — {lc.label}</option>
-                    ))}
-                  </select>
+                    ↺ Restore
+                  </Button>
+                  <Button
+                    variant="subtle" size="sm"
+                    onClick={handleCleanupSegments}
+                    disabled={!dubSegments.length || !dubJobId}
+                    title="Merge tiny fragments and adjacent short segments"
+                    leading={<Wand2 size={10} />}
+                  >
+                    Clean Up
+                  </Button>
+                  <Button
+                    variant="primary" size="sm"
+                    onClick={handleTranslateAll}
+                    disabled={isTranslating || !dubSegments.length}
+                    loading={isTranslating}
+                    leading={!isTranslating && <Languages size={10} />}
+                  >
+                    {isTranslating ? 'Translating…' : 'Translate All'}
+                  </Button>
                 </div>
-                <div className="dub-skel-field">
-                  <div className="label-row"><UserSquare2 className="label-icon" size={9} /> Style</div>
-                  <input className="input-base input-base--xs" placeholder="e.g. female" value={dubInstruct} onChange={e => setDubInstruct(e.target.value)} />
-                </div>
-                <div className="dub-skel-field">
-                  <div className="label-row">Engine</div>
-                  <select className="input-base dub-engine-select" value={translateProvider} onChange={e => setTranslateProvider(e.target.value)}>
-                    {[{ id: 'argos', name: 'Argos (Fast Local)' }, { id: 'nllb', name: 'NLLB (Heavy Local)' }, { id: 'google', name: 'Google (Online)' }, { id: 'openai', name: 'OpenAI (LLM)' }].map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="dub-quality-field">
-                  <div className="label-row" title="Cinematic = 3-step LLM refinement (translate → reflect → adapt). Needs an LLM configured.">Quality</div>
-                  <Segmented
-                    size="sm"
-                    value={translateQuality}
-                    onChange={setTranslateQuality}
-                    items={[
-                      { value: 'fast',      label: 'Fast' },
-                      { value: 'cinematic', label: 'Cinematic' },
-                    ]}
-                  />
-                </div>
-                <Button
-                  variant="subtle" size="sm"
-                  onClick={handleTranslateAll}
-                  disabled={isTranslating || !dubSegments.length}
-                  loading={isTranslating}
-                  leading={!isTranslating && <Languages size={10} />}
-                >
-                  {isTranslating ? 'Translating…' : 'Translate All'}
-                </Button>
-                <Button
-                  variant="subtle" size="sm"
-                  onClick={() => editSegments(dubSegments.map(s => ({ ...s, text: s.text_original || s.text, translate_error: undefined })))}
-                  disabled={!dubSegments.some(s => s.text_original && s.text_original !== s.text)}
-                  title="Restore all segments to the original transcribed text"
-                >
-                  ↺ Restore
-                </Button>
-                <Button
-                  variant="subtle" size="sm"
-                  onClick={handleCleanupSegments}
-                  disabled={!dubSegments.length || !dubJobId}
-                  title="Merge tiny fragments and adjacent short segments"
-                  leading={<Wand2 size={10} />}
-                >
-                  Clean Up
-                </Button>
               </div>
               )}
 
@@ -729,6 +872,9 @@ export default function DubTab(props) {
               <label title="Export subtitles with translated text on top and original italicised underneath.">
                 <input type="checkbox" checked={!!dualSubs} onChange={e => setDualSubs(e.target.checked)} /> Dual subtitles
               </label>
+              <label title="Render subtitles directly into the MP4 video stream (hardsubs). Uses the dual-subtitle format when Dual subtitles is on.">
+                <input type="checkbox" checked={!!burnSubs} onChange={e => setBurnSubs(e.target.checked)} /> Burn subtitles
+              </label>
               <label>
                 Default Track:
                 <select className="input-base dub-outputs-default" value={defaultTrack} onChange={e => setDefaultTrack(e.target.value)}>
@@ -775,39 +921,46 @@ export default function DubTab(props) {
                   )}
                 </>
               )}
-              <Menu
-                placement="top-end"
+              <FooterBtn
+                tone={dubStep === 'done' ? 'green' : 'idle'}
                 disabled={dubStep !== 'done' && !dubSegments.length}
-                items={[
-                  { id: 'mp4',   label: 'MP4 (video + dubbed audio)', icon: Download, disabled: dubStep !== 'done', onSelect: handleDubDownload },
-                  { id: 'wav',   label: 'WAV (audio only)',           icon: Volume2,  disabled: dubStep !== 'done', onSelect: handleDubAudioDownload },
-                  'separator',
-                  { id: 'srt',   label: dualSubs ? 'SRT ✦ (dual subtitles)' : 'SRT (subtitles)', icon: FileText, disabled: !dubSegments.length,
-                    onSelect: () => triggerDownload(`${API}/dub/srt/${dubJobId}/subtitles.srt?dual=${dualSubs ? 1 : 0}`, dualSubs ? 'subtitles_dual.srt' : 'subtitles.srt') },
-                  { id: 'vtt',   label: dualSubs ? 'VTT ✦ (dual subtitles)' : 'VTT (subtitles)', icon: FileText, disabled: !dubSegments.length,
-                    onSelect: () => triggerDownload(`${API}/dub/vtt/${dubJobId}/subtitles.vtt?dual=${dualSubs ? 1 : 0}`, dualSubs ? 'subtitles_dual.vtt' : 'subtitles.vtt') },
-                  'separator',
-                  { id: 'mp3',   label: 'MP3 (compressed audio)',     icon: Music,    disabled: dubStep !== 'done',
-                    onSelect: () => handleAudioExport(`${API}/dub/download-mp3/${dubJobId}/audio.mp3?preserve_bg=${preserveBg}`, 'dubbed_audio.mp3') },
-                  { id: 'clips', label: 'Clips zip (per-segment WAVs)', icon: Package, disabled: dubStep !== 'done',
-                    onSelect: () => handleAudioExport(`${API}/dub/export-segments/${dubJobId}`, 'segments.zip') },
-                  { id: 'stems', label: 'Stems zip (vocals + BG)',     icon: Layers,   disabled: dubStep !== 'done',
-                    onSelect: () => handleAudioExport(`${API}/dub/export-stems/${dubJobId}`, 'stems.zip') },
-                ]}
-              >
-                <FooterBtn
-                  tone={dubStep === 'done' ? 'green' : 'idle'}
-                  disabled={dubStep !== 'done' && !dubSegments.length}
-                  icon={<Download size={11} />}
-                  label="Export ▾"
-                />
-              </Menu>
+                onClick={() => setExportOpen(true)}
+                icon={<Download size={11} />}
+                label="Export…"
+              />
             </div>
           </div>
         </div>
       )}
+
+      <ExportModal
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        jobId={dubJobId}
+        filename={dubFilename}
+        dubTracks={dubTracks}
+        dubLangCode={dubLangCode}
+        preserveBg={preserveBg} setPreserveBg={setPreserveBg}
+        defaultTrack={defaultTrack} setDefaultTrack={setDefaultTrack}
+        exportTracks={exportTracks} setExportTracks={setExportTracks}
+        dualSubs={dualSubs} setDualSubs={setDualSubs}
+        burnSubs={burnSubs} setBurnSubs={setBurnSubs}
+        API={API}
+        triggerDownload={triggerDownload}
+        handleDubDownload={handleDubDownload}
+        handleDubAudioDownload={handleDubAudioDownload}
+        handleAudioExport={handleAudioExport}
+        segmentCount={dubSegments.length}
+      />
     </div>
   );
+}
+
+function fmtDur(s) {
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return sec ? `${m}m ${sec}s` : `${m}m`;
 }
 
 const PREP_STAGE_LABEL = {
@@ -889,8 +1042,13 @@ function TranscribeOverlay({ elapsed, duration, onAbort }) {
 /**
  * FooterBtn — the gradient-per-tone download button family in the action footer.
  * Uses the legacy .btn-primary as the shape/hover base, just picks a tone class.
+ * forwardRef so <Menu> can wire its triggerRef to the underlying button —
+ * without this the Export menu can't compute coords and never opens.
  */
-function FooterBtn({ tone = 'idle', sm = false, disabled, onClick, icon, label }) {
+const FooterBtn = React.forwardRef(function FooterBtn(
+  { tone = 'idle', sm = false, disabled, onClick, icon, label, ...rest },
+  ref,
+) {
   const cls = [
     'btn-primary',
     'dub-footer-btn',
@@ -898,8 +1056,8 @@ function FooterBtn({ tone = 'idle', sm = false, disabled, onClick, icon, label }
     `dub-footer-btn--${tone}`,
   ].filter(Boolean).join(' ');
   return (
-    <button className={cls} disabled={disabled} onClick={onClick}>
+    <button ref={ref} className={cls} disabled={disabled} onClick={onClick} {...rest}>
       {icon} {label}
     </button>
   );
-}
+});

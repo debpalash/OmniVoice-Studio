@@ -247,10 +247,16 @@ async def dub_ingest_url(req: DubIngestUrlRequest):
     os.makedirs(job_dir, exist_ok=True)
 
     task_id = f"prep_{job_id}"
+    source = {
+        "kind": "url",
+        "url": url,
+        "fetch_subs": bool(req.fetch_subs),
+        "sub_langs": req.sub_langs or None,
+    }
     await task_manager.add_task(
         task_id, "prep",
         _ingest_gen, job_id, job_dir,
-        {"kind": "url", "url": url}, None,
+        source, None,
     )
     return JSONResponse(
         status_code=202,
@@ -267,28 +273,45 @@ _prep_event_helper = dub_pipeline.prep_event  # alias; we keep the module-local 
 
 @router.get("/dub/transcribe-stream/{job_id}")
 async def dub_transcribe_stream(job_id: str):
-    """Stream per-chunk segments via SSE, then emit diarized final pass."""
+    """Stream per-chunk segments via SSE, then emit diarized final pass.
+
+    Pre-flight checks (missing job, missing audio, ASR not loaded) are emitted
+    as in-stream `error` events rather than HTTP errors, because EventSource
+    on the client can't read non-2xx response bodies — a 503 there surfaces
+    as an opaque "network error" instead of the actionable message we want.
+    """
     job = _get_job(job_id)
+
+    preflight_error: Optional[str] = None
+    asr_audio_target: Optional[str] = None
+    _asr_backend = None
+    scene_cuts: list = []
+
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    _model = await get_model()
-    if _model._asr_pipe is None:
-        raise HTTPException(
-            status_code=503,
-            detail="ASR (speech recognition) isn't loaded yet. The model is still warming up or Whisper failed to initialise — check Settings → Models for status, or restart the server if 'Idle' persists.",
-        )
-
-    asr_audio_target = job.get("vocals_path")
-    if not asr_audio_target or not os.path.exists(asr_audio_target):
-        asr_audio_target = job.get("audio_path")
-    if not asr_audio_target or not os.path.exists(asr_audio_target):
-        raise HTTPException(status_code=404, detail="No audio available for transcription")
-
-    use_mlx = torch.backends.mps.is_available()
-    asr_model = os.environ.get("ASR_MODEL", "mlx-community/whisper-large-v3-mlx")
-    scene_cuts = job.get("scene_cuts") or []
+        preflight_error = "Job not found. It may have been cleaned up or was never created."
+    else:
+        _model = await get_model()
+        if _model._asr_pipe is None:
+            preflight_error = (
+                "ASR (speech recognition) isn't loaded yet. The model is still warming up or "
+                "Whisper failed to initialise — check Settings → Models for status, or restart "
+                "the server if 'Idle' persists."
+            )
+        else:
+            asr_audio_target = job.get("vocals_path")
+            if not asr_audio_target or not os.path.exists(asr_audio_target):
+                asr_audio_target = job.get("audio_path")
+            if not asr_audio_target or not os.path.exists(asr_audio_target):
+                preflight_error = "No audio available for transcription."
+            else:
+                from services.asr_backend import get_active_asr_backend
+                _asr_backend = get_active_asr_backend(asr_pipe=getattr(_model, "_asr_pipe", None))
+                scene_cuts = job.get("scene_cuts") or []
 
     async def gen():
+        if preflight_error:
+            yield _sse_event("error", {"detail": preflight_error})
+            return
         import math
         import tempfile
         loop = asyncio.get_event_loop()
@@ -312,6 +335,7 @@ async def dub_transcribe_stream(job_id: str):
         all_segments: list[dict] = []
         detected_lang = None
         next_seg_id = 0
+        chunk_errors: list[str] = []
 
         for i in range(chunks_n):
             if job.get("aborted"):
@@ -326,44 +350,31 @@ async def dub_transcribe_stream(job_id: str):
                 continue
 
             def _transcribe_chunk(arr=chunk_arr, offset=t0, local_sr=sr):
+                # Route through the active backend (WhisperX by default).
+                # Backends all take a file path, so write the chunk first.
                 try:
-                    if use_mlx:
-                        import mlx_whisper
-                        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-                        tmp.close()
-                        try:
-                            sf.write(tmp.name, arr, local_sr)
-                            r = mlx_whisper.transcribe(
-                                tmp.name, path_or_hf_repo=asr_model, word_timestamps=True,
-                            )
-                        finally:
-                            try: os.remove(tmp.name)
-                            except OSError: pass
-                        shifted = []
-                        for seg in r.get("segments", []) or []:
-                            shifted.append({
-                                "text": seg.get("text", ""),
-                                "timestamp": (float(seg.get("start", 0.0)) + offset,
-                                              float(seg.get("end", 0.0)) + offset),
-                            })
-                        return {"chunks": shifted, "language": r.get("language")}
-                    else:
-                        r = _model._asr_pipe(
-                            {"array": arr, "sampling_rate": local_sr},
-                            return_timestamps=True, chunk_length_s=15, batch_size=1,
-                        )
-                        shifted = []
-                        for c in (r.get("chunks", []) if isinstance(r, dict) else []):
-                            ts = c.get("timestamp", (0.0, 0.0)) or (0.0, 0.0)
-                            a0 = (ts[0] if ts[0] is not None else 0.0) + offset
-                            a1 = (ts[1] if ts[1] is not None else 0.0) + offset
-                            shifted.append({"text": c.get("text", ""), "timestamp": (a0, a1)})
-                        return {"chunks": shifted, "language": r.get("language") if isinstance(r, dict) else None}
+                    tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+                    tmp.close()
+                    try:
+                        sf.write(tmp.name, arr, local_sr)
+                        r = _asr_backend.transcribe(tmp.name, word_timestamps=True)
+                    finally:
+                        try: os.remove(tmp.name)
+                        except OSError: pass
+                    shifted = []
+                    for c in r.get("chunks", []) or []:
+                        ts = c.get("timestamp", (0.0, 0.0)) or (0.0, 0.0)
+                        a0 = (ts[0] if ts[0] is not None else 0.0) + offset
+                        a1 = (ts[1] if ts[1] is not None else 0.0) + offset
+                        shifted.append({"text": c.get("text", ""), "timestamp": (a0, a1)})
+                    return {"chunks": shifted, "language": r.get("language")}
                 except Exception as e:
-                    logger.exception("chunk transcribe failed")
+                    logger.exception("chunk transcribe failed (backend=%s)", _asr_backend.id)
                     return {"chunks": [], "language": None, "error": str(e)}
 
             part = await loop.run_in_executor(_gpu_pool, _transcribe_chunk)
+            if part.get("error"):
+                chunk_errors.append(part["error"])
             if detected_lang is None and part.get("language"):
                 detected_lang = part["language"]
             chunk_segs = segment_transcript(part, duration=t1, scene_cuts=scene_cuts)
@@ -391,6 +402,34 @@ async def dub_transcribe_stream(job_id: str):
 
         if job.get("aborted"):
             yield _sse_event("aborted", {})
+            return
+
+        # Empty-transcription guard: if every chunk came back with zero
+        # segments we can't proceed to diarization/clone extraction. Emit an
+        # actionable error so the UI can surface a Retry instead of silently
+        # landing in an empty editor. Commonly caused by a first-run model
+        # download failure, a PyTorch 2.6 weights_only regression inside
+        # whisperx's VAD load, or an unsupported audio format.
+        if not all_segments:
+            # Deduplicate while preserving order so one root cause doesn't
+            # repeat N times in the UI toast.
+            seen = set()
+            uniq: list[str] = []
+            for msg in chunk_errors:
+                if msg and msg not in seen:
+                    seen.add(msg)
+                    uniq.append(msg)
+            if uniq:
+                detail = "Transcription produced no segments. " + " | ".join(uniq[:3])
+            else:
+                detail = (
+                    "Transcription produced no segments. The audio may be silent, "
+                    "too short, or in an unsupported format. Try re-uploading or "
+                    "check that the source has an audible speech track."
+                )
+            logger.error("transcribe yielded 0 segments (job=%s): %s", job_id, detail)
+            yield _sse_event("error", {"detail": detail, "retryable": True})
+            yield _sse_event("done", {})
             return
 
         def _diarize():
@@ -481,37 +520,28 @@ async def dub_transcribe(job_id: str):
 
         detected_lang = None
 
-        if torch.backends.mps.is_available():
-            try:
-                import mlx_whisper
-                asr_model = os.environ.get("ASR_MODEL", "mlx-community/whisper-large-v3-mlx")
-                logger.info(f"Transcribing via MLX CoreML Engine ({asr_model})...")
-                result = mlx_whisper.transcribe(
-                    asr_audio_target,
-                    path_or_hf_repo=asr_model,
-                    word_timestamps=True
-                )
-                detected_lang = result.get("language")
-
-                if "segments" in result:
-                    result["chunks"] = []
-                    for seg in result["segments"]:
-                        result["chunks"].append({
-                            "text": seg["text"],
-                            "timestamp": (seg["start"], seg["end"])
-                        })
-            except Exception as e:
-                logger.error(f"MLX Whisper failed, falling back to PyTorch: {e}")
-                audio_np, sr = sf.read(asr_audio_target, dtype="float32")
-                if audio_np.ndim > 1: audio_np = audio_np.mean(axis=1)
-                bs = 16 if torch.cuda.is_available() else 2
-                result = _model._asr_pipe({"array": audio_np, "sampling_rate": sr}, return_timestamps=True, chunk_length_s=15, batch_size=bs)
-                detected_lang = (result.get("language") if isinstance(result, dict) else None)
-        else:
+        # Route through services.asr_backend — picks WhisperX / faster-whisper
+        # / mlx / pytorch based on what's installed + user preference. Works
+        # identically on all platforms; the older mlx-vs-pytorch branching
+        # here duplicated the logic in asr_backend.py and skipped WhisperX.
+        from services.asr_backend import get_active_asr_backend
+        _asr = get_active_asr_backend(asr_pipe=getattr(_model, "_asr_pipe", None))
+        try:
+            logger.info("Transcribing full audio via %s ...", _asr.id)
+            result = _asr.transcribe(asr_audio_target, word_timestamps=True)
+            detected_lang = result.get("language")
+        except Exception as e:
+            logger.error("ASR backend %s failed: %s", _asr.id, e)
+            # Last-resort fallback — in-memory pytorch whisper via the TTS
+            # model's pipeline. Guaranteed present since the TTS model is
+            # already loaded to reach this code path.
             audio_np, sr = sf.read(asr_audio_target, dtype="float32")
             if audio_np.ndim > 1: audio_np = audio_np.mean(axis=1)
             bs = 16 if torch.cuda.is_available() else 1
-            result = _model._asr_pipe({"array": audio_np, "sampling_rate": sr}, return_timestamps=True, chunk_length_s=15, batch_size=bs)
+            result = _model._asr_pipe(
+                {"array": audio_np, "sampling_rate": sr},
+                return_timestamps=True, chunk_length_s=15, batch_size=bs,
+            )
             detected_lang = (result.get("language") if isinstance(result, dict) else None)
 
         job["source_lang"] = (detected_lang or "en").split("_")[0][:2].lower()

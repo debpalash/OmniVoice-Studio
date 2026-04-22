@@ -322,11 +322,224 @@ class MossTTSNanoBackend(TTSBackend):
         return wav
 
 
+# ── KittenTTS (lightweight English "Turbo" tier) ────────────────────────────
+
+
+class KittenTTSBackend(TTSBackend):
+    """KittenML/KittenTTS — 25-80 MB ONNX model, 8 preset voices, English only.
+
+    Fills the ElevenLabs-Flash niche: when the caller just needs quick English
+    narration (voiceover, demo reads, short phrases) with no reference sample.
+    Runs CPU-realtime on any platform — no torch, no CUDA, no mlx. The
+    trade-off vs OmniVoice is obvious:
+      - No voice cloning (fixed preset voices)
+      - English only
+      - Much faster + much smaller install
+
+    Preset voice is chosen via `extras["voice"]` (defaults to "Jasper"). Any
+    `ref_audio` / `instruct` / `language` arg is ignored with a log line so
+    the common call-site doesn't need to know which engine it's talking to.
+    """
+
+    id = "kittentts"
+    display_name = "KittenTTS (English, 8 preset voices, CPU realtime)"
+
+    PRESET_VOICES = [
+        "expr-voice-2-m", "expr-voice-2-f",
+        "expr-voice-3-m", "expr-voice-3-f",
+        "expr-voice-4-m", "expr-voice-4-f",
+        "expr-voice-5-m", "expr-voice-5-f",
+    ]
+    DEFAULT_VOICE = "expr-voice-2-f"
+
+    def __init__(self):
+        self._model = None
+
+    @classmethod
+    def is_available(cls) -> tuple[bool, str]:
+        try:
+            import kittentts  # noqa: F401
+            return True, "ready"
+        except ImportError as e:
+            return False, f"kittentts not installed: {e}"
+
+    @property
+    def sample_rate(self) -> int:
+        # KittenTTS emits 24 kHz mono per its ONNX model config.
+        return 24000
+
+    @property
+    def supported_languages(self) -> list[str]:
+        return ["en"]
+
+    def _ensure_loaded(self):
+        if self._model is not None:
+            return
+        from kittentts import KittenTTS
+        checkpoint = os.environ.get(
+            "OMNIVOICE_KITTENTTS_MODEL", "KittenML/kitten-tts-mini-0.8"
+        )
+        logger.info("Loading KittenTTS from %s", checkpoint)
+        self._model = KittenTTS(checkpoint)
+
+    def generate(self, text: str, **kw) -> torch.Tensor:
+        import numpy as np
+        self._ensure_loaded()
+
+        language = kw.get("language")
+        if language and language.lower() not in {"en", "english", "auto"}:
+            logger.info(
+                "KittenTTS is English-only; ignoring language=%r — "
+                "use OmniVoice for multilingual synthesis.",
+                language,
+            )
+
+        voice = kw.get("voice") or self.DEFAULT_VOICE
+        if voice not in self.PRESET_VOICES:
+            logger.info(
+                "KittenTTS: unknown voice %r, falling back to %r. Valid: %s",
+                voice, self.DEFAULT_VOICE, self.PRESET_VOICES,
+            )
+            voice = self.DEFAULT_VOICE
+
+        speed = float(kw.get("speed", 1.0))
+        wav_np = self._model.generate(text, voice=voice, speed=speed)
+        if not isinstance(wav_np, np.ndarray):
+            wav_np = np.asarray(wav_np)
+        wav = torch.from_numpy(wav_np).float()
+        if wav.ndim == 1:
+            wav = wav.unsqueeze(0)
+        elif wav.ndim == 2 and wav.shape[0] > 1:
+            wav = wav.mean(dim=0, keepdim=True)
+        return wav
+
+
+# ── MLX-Audio (mac-ARM engine multiplexer) ──────────────────────────────────
+
+
+class MLXAudioBackend(TTSBackend):
+    """Blaizzy/mlx-audio — Apple-Silicon-only wrapper over 14+ TTS engines
+    (Kokoro, CSM, Dia, Qwen3-TTS, Chatterbox, MeloTTS, OuteTTS, Spark,
+    Higgs-Audio, Voxtral, LongCat-AudioDiT, KugelAudio, MingOmni, Soprano).
+
+    Exposed as a single backend with a `model_id` selector so the Settings
+    UI can surface an engine picker within one adapter. The user switches
+    models by setting `OMNIVOICE_MLX_AUDIO_MODEL` or picking from the UI —
+    no code change per engine. Default is Kokoro (82M, multilingual, small).
+
+    Availability: requires mlx (Apple Silicon only). Skipped entirely on
+    Linux/Windows/mac-Intel; the dep is platform-gated in pyproject.toml.
+    """
+
+    id = "mlx-audio"
+    display_name = "MLX-Audio (mac-ARM, 14+ engines: Kokoro, CSM, Dia, Qwen3, …)"
+
+    # A curated subset surfaced by default — the full mlx-audio roster is
+    # larger but these cover the useful tiers: small multilingual (Kokoro),
+    # voice-clone (CSM), voice-design (Qwen3), European (Kugel), lightweight
+    # VITS (MeloTTS). Users can point at any HF repo via OMNIVOICE_MLX_AUDIO_MODEL.
+    CURATED_MODELS = {
+        "kokoro":      "mlx-community/Kokoro-82M-bf16",
+        "csm":         "mlx-community/csm-1b-8bit",
+        "qwen3-tts":   "mlx-community/Qwen3-TTS-1.7B-4bit",
+        "dia":         "mlx-community/Dia-1.6B",
+        "chatterbox":  "mlx-community/Chatterbox",
+        "melotts":     "mlx-community/MeloTTS",
+        "outetts":     "mlx-community/OuteTTS-0.3-500M",
+    }
+    DEFAULT_MODEL_KEY = "kokoro"
+
+    def __init__(self):
+        self._model = None
+        self._sr = 24000  # most mlx-audio engines emit 24 kHz mono
+        key = os.environ.get("OMNIVOICE_MLX_AUDIO_MODEL", self.DEFAULT_MODEL_KEY)
+        # Accept either a curated key ("kokoro") or a full HF repo id
+        # ("mlx-community/Kokoro-82M-bf16") — flexibility for power users.
+        self._model_id = self.CURATED_MODELS.get(key, key)
+
+    @classmethod
+    def is_available(cls) -> tuple[bool, str]:
+        try:
+            import mlx_audio  # noqa: F401
+            return True, "ready"
+        except ImportError as e:
+            return False, (
+                f"mlx-audio not installed: {e}. "
+                "This backend is Apple Silicon only — available on mac-ARM dev "
+                "installs; not shipped on Linux/Windows/mac-Intel."
+            )
+
+    @property
+    def sample_rate(self) -> int:
+        return self._sr
+
+    @property
+    def supported_languages(self) -> list[str]:
+        # Per-model; Kokoro supports 8, Qwen3 ~4, Kugel 24. Return "multi"
+        # so the language picker doesn't gate by engine — each engine
+        # silently ignores languages it doesn't know.
+        return ["multi"]
+
+    def _ensure_loaded(self):
+        if self._model is not None:
+            return
+        from mlx_audio.tts.utils import load_model
+        logger.info("Loading mlx-audio model %s", self._model_id)
+        self._model = load_model(self._model_id)
+
+    def generate(self, text: str, **kw) -> torch.Tensor:
+        import numpy as np
+        self._ensure_loaded()
+
+        voice     = kw.get("voice")
+        ref_audio = kw.get("ref_audio")
+        language  = kw.get("language")
+        speed     = float(kw.get("speed", 1.0))
+
+        # mlx-audio's generate(...) returns an iterator of result objects,
+        # each with a .audio attribute. Different engines accept different
+        # kwargs (voice for Kokoro, ref_audio for CSM, instruct for Qwen3)
+        # — we pass them all and let the engine ignore what it doesn't use.
+        kwargs = {"text": text, "speed": speed}
+        if voice:     kwargs["voice"] = voice
+        if ref_audio: kwargs["ref_audio"] = ref_audio
+        if language:  kwargs["lang_code"] = language[:2].lower()
+
+        pieces = []
+        try:
+            for result in self._model.generate(**kwargs):
+                audio = getattr(result, "audio", result)
+                if hasattr(audio, "numpy"):
+                    audio = audio.numpy()
+                pieces.append(np.asarray(audio, dtype=np.float32))
+        except TypeError:
+            # Some engines don't accept lang_code / ref_audio. Retry with
+            # only the universal kwargs.
+            pieces = []
+            for result in self._model.generate(text=text, speed=speed):
+                audio = getattr(result, "audio", result)
+                if hasattr(audio, "numpy"):
+                    audio = audio.numpy()
+                pieces.append(np.asarray(audio, dtype=np.float32))
+
+        if not pieces:
+            raise RuntimeError(f"mlx-audio ({self._model_id}) produced no audio")
+        wav_np = np.concatenate(pieces, axis=-1)
+        wav = torch.from_numpy(wav_np).float()
+        if wav.ndim == 1:
+            wav = wav.unsqueeze(0)
+        elif wav.ndim == 2 and wav.shape[0] > 1:
+            wav = wav.mean(dim=0, keepdim=True)
+        return wav
+
+
 # ── Registry ────────────────────────────────────────────────────────────────
 
 
 _REGISTRY: dict[str, type[TTSBackend]] = {
     "omnivoice":     OmniVoiceBackend,
+    "kittentts":     KittenTTSBackend,
+    "mlx-audio":     MLXAudioBackend,
     "voxcpm2":       VoxCPM2Backend,
     "moss-tts-nano": MossTTSNanoBackend,
 }

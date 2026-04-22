@@ -1,0 +1,246 @@
+/* Projects page — browse all project types in one place. Uses the same
+   chrome tokens as the top/bottom bars so the page frame reads as a
+   continuation of the studio shell. */
+
+.projects {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+/* ── Header strip — title + search + view toggle ────────────────── */
+.projects__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--chrome-border);
+  background: var(--chrome-bg);
+  flex-shrink: 0;
+}
+.projects__title {
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--chrome-fg);
+  margin: 0;
+  flex-shrink: 0;
+}
+.projects__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
+}
+.projects__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--chrome-pill-h);
+  padding: 0 10px;
+  background: var(--chrome-hover-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  color: var(--chrome-fg-muted);
+  flex: 1;
+  max-width: 420px;
+}
+.projects__search input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--chrome-fg);
+  font-size: 12px;
+  font-family: inherit;
+  flex: 1;
+  min-width: 0;
+}
+.projects__search input::placeholder { color: var(--chrome-fg-dim); }
+
+.projects__view-toggle {
+  display: inline-flex;
+  gap: 1px;
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  overflow: hidden;
+  background: var(--chrome-hover-bg);
+}
+.projects__view-toggle button {
+  background: transparent;
+  border: none;
+  color: var(--chrome-fg-muted);
+  cursor: pointer;
+  width: 26px;
+  height: var(--chrome-pill-h);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s;
+}
+.projects__view-toggle button:hover { color: var(--chrome-fg); }
+.projects__view-toggle button.is-active {
+  background: var(--chrome-accent-bg);
+  color: var(--chrome-accent);
+}
+
+/* ── Body: filter rail + content pane ──────────────────────────── */
+.projects__body {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+
+.projects__rail {
+  border-right: 1px solid var(--chrome-border);
+  background: var(--chrome-bg);
+  padding: 10px 8px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.projects__rail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  height: 28px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--chrome-fg-muted);
+  font-size: 12px;
+  font-family: inherit;
+  border-radius: var(--chrome-radius-pill);
+  cursor: pointer;
+  transition: all 0.12s;
+  text-align: left;
+}
+.projects__rail-item span:first-of-type { flex: 1; }
+.projects__rail-item:hover {
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+}
+.projects__rail-item.is-active {
+  background: var(--chrome-accent-bg);
+  border-color: var(--chrome-accent-border);
+  color: var(--chrome-accent);
+}
+.projects__rail-count {
+  font-family: var(--chrome-font-mono);
+  font-size: 10.5px;
+  color: var(--chrome-fg-dim);
+  font-variant-numeric: tabular-nums;
+}
+.projects__rail-item.is-active .projects__rail-count { color: var(--chrome-accent); }
+
+/* ── Content: card grid / list view ────────────────────────────── */
+.projects__content {
+  padding: 14px 18px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.projects__content--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  align-content: start;
+}
+.projects__content--list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.projects__empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 48px 16px;
+  color: var(--chrome-fg-dim);
+  text-align: center;
+}
+.projects__empty p { max-width: 380px; margin: 0; font-size: 0.82rem; line-height: 1.5; }
+
+/* ── Cards ─────────────────────────────────────────────────────── */
+.projects__card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-left: 3px solid var(--card-accent, var(--chrome-accent));
+  border-radius: var(--chrome-radius-pill);
+  color: var(--chrome-fg);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.12s, background 0.12s, transform 0.12s;
+}
+.projects__card:hover {
+  border-color: var(--chrome-border-strong);
+  background: color-mix(in srgb, var(--card-accent, var(--chrome-accent)) 5%, var(--chrome-bg));
+}
+.projects__card:active { transform: translateY(1px); }
+
+.projects__card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.projects__card-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--chrome-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: var(--chrome-label-track);
+  color: var(--card-accent, var(--chrome-accent));
+  text-transform: uppercase;
+}
+.projects__card-trailing {
+  color: var(--chrome-fg-dim);
+  font-size: 10.5px;
+}
+.projects__card-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--chrome-font-mono);
+}
+.projects__card-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--chrome-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.projects__card-sub {
+  font-size: 0.74rem;
+  color: var(--chrome-fg-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* List-view variant — same card rendered flatter */
+.projects__content--list .projects__card {
+  flex-direction: row;
+  align-items: center;
+  padding: 6px 12px;
+  gap: 14px;
+}
+.projects__content--list .projects__card-head { flex-shrink: 0; width: 110px; }
+.projects__content--list .projects__card-title { flex: 1; }
+.projects__content--list .projects__card-sub   { flex-shrink: 0; width: 120px; }

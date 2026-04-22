@@ -1,0 +1,245 @@
+/* VSCode-style bottom log panel. Fixed to the bottom of the viewport so
+   the main app can freely scroll underneath; we reserve bottom padding
+   via `body { padding-bottom: 28px }` in the global styles (added via
+   the component's mount — see App.jsx). */
+
+.logs-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  /* Chrome tokens defined at :root in index.css. The Header topbar
+     uses the same set, so changes here flow to both surfaces. */
+  background: var(--chrome-bg);
+  border-top: 1px solid var(--chrome-border);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--chrome-fg);
+  user-select: none;
+}
+
+.logs-footer--collapsed {
+  height: var(--chrome-bar-h);
+}
+
+.logs-footer--open {
+  /* height is set inline via React state */
+  min-height: 180px;
+}
+
+/* Drag handle — 4 px strip on the top edge. Cursor + subtle hover
+   hint so it feels grabbable. */
+.logs-footer__resize {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 5px;
+  cursor: ns-resize;
+  z-index: 1;
+}
+.logs-footer__resize:hover {
+  background: rgba(243, 165, 182, 0.35);
+}
+
+/* Top bar — always visible */
+.logs-footer__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 28px;
+  padding: 0 8px;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  flex-shrink: 0;
+}
+.logs-footer__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.logs-footer__title {
+  color: #a89984;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-right: 4px;
+}
+/* Thin vertical divider between the UI-scale toggle (leftmost) and the
+   Logs title + source pills. Keeps the two distinct control groups from
+   visually running into each other. */
+.logs-footer__divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0 4px;
+}
+.logs-footer__scale {
+  margin-right: 2px;
+}
+.logs-footer__toggle {
+  background: none;
+  border: none;
+  color: #a89984;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+}
+.logs-footer__toggle:hover {
+  color: #ebdbb2;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Source pills with badges */
+.logs-footer__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  height: 20px;
+  border-radius: 3px;
+  background: none;
+  border: 1px solid transparent;
+  color: #a89984;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.1s;
+  font-family: inherit;
+}
+.logs-footer__pill:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #ebdbb2;
+}
+.logs-footer__pill--active {
+  background: rgba(243, 165, 182, 0.12);
+  border-color: rgba(243, 165, 182, 0.35);
+  color: #f3a5b6;
+}
+.logs-footer__pill--error {
+  color: #fb4934;
+}
+.logs-footer__pill--warn {
+  color: #fabd2f;
+}
+.logs-footer__pill-label {
+  font-weight: 500;
+}
+.logs-footer__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  padding: 0 5px;
+  height: 14px;
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--chrome-fg);
+  font-family: var(--chrome-font-mono);
+}
+.logs-footer__badge--error {
+  background: rgba(251, 73, 52, 0.2);
+  color: #fb4934;
+}
+.logs-footer__badge--warn {
+  background: rgba(250, 189, 47, 0.2);
+  color: #fabd2f;
+}
+
+/* Action buttons on the right */
+.logs-footer__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.logs-footer__icon-btn {
+  background: none;
+  border: none;
+  color: #a89984;
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s;
+}
+.logs-footer__icon-btn:hover {
+  color: #ebdbb2;
+  background: rgba(255, 255, 255, 0.06);
+}
+.logs-footer__icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.logs-footer__icon-btn--report:hover {
+  color: #fabd2f;
+}
+.logs-footer__icon-btn .spinner {
+  animation: logs-spin 1s linear infinite;
+}
+@keyframes logs-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Body (scrollable log area) */
+.logs-footer__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 4px 8px;
+  user-select: text;
+}
+.logs-footer__body::-webkit-scrollbar        { width: 8px; height: 8px; }
+.logs-footer__body::-webkit-scrollbar-thumb  { background: rgba(255, 255, 255, 0.08); border-radius: 4px; }
+.logs-footer__body::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+.logs-footer__empty {
+  padding: 12px;
+  color: var(--chrome-fg-dim);
+  font-style: normal;
+  font-size: 11px;
+  text-align: center;
+}
+
+.logs-footer__line {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+.logs-footer__line--error {
+  background: rgba(251, 73, 52, 0.06);
+}
+.logs-footer__line--warn {
+  background: rgba(250, 189, 47, 0.04);
+}
+.logs-footer__line-icon {
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+.logs-footer__line-text {
+  margin: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #ebdbb2;
+  flex: 1;
+}
+.logs-footer__line--error .logs-footer__line-text { color: #fb4934; }
+.logs-footer__line--warn  .logs-footer__line-text { color: #fabd2f; }

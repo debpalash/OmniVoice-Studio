@@ -1,4 +1,4 @@
-/* ── Button primitive ────────────────────────────────────────────── */
+/* ── Button primitive — chrome tokens only ────────────────────────── */
 
 .ui-btn {
   display: inline-flex;
@@ -6,29 +6,26 @@
   justify-content: center;
   gap: var(--space-3);
   border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border-radius: var(--chrome-radius-pill);
   background: transparent;
-  color: var(--color-fg);
+  color: var(--chrome-fg);
   font-family: var(--font-sans);
-  font-weight: var(--weight-semibold);
+  font-weight: 500;
+  letter-spacing: 0.02em;
   cursor: pointer;
   white-space: nowrap;
   transition:
-    background var(--dur-base) var(--ease-out),
-    border-color var(--dur-base) var(--ease-out),
-    color var(--dur-base) var(--ease-out),
-    transform var(--dur-base) var(--ease-spring),
-    box-shadow var(--dur-base) var(--ease-out),
-    filter var(--dur-base) var(--ease-out);
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
   position: relative;
   overflow: hidden;
   user-select: none;
-  letter-spacing: 0.01em;
 }
 .ui-btn:disabled {
-  opacity: 0.35;
+  opacity: 0.4;
   cursor: not-allowed;
-  filter: grayscale(0.5);
+  filter: none;
 }
 .ui-btn:focus-visible {
   outline: none;
@@ -40,137 +37,131 @@
 .ui-btn.is-loading { cursor: wait; }
 
 /* ── Size scale ──────────────────────────────────────────────────── */
-.ui-btn--size-sm { padding: 3px 8px;  font-size: var(--text-xs);   border-radius: var(--radius-sm); }
-.ui-btn--size-md { padding: 6px 10px; font-size: var(--text-md); }
+.ui-btn--size-sm { padding: 3px 10px; font-size: var(--text-xs); border-radius: var(--chrome-radius-pill); }
+.ui-btn--size-md { padding: 6px 12px; font-size: var(--text-md); border-radius: var(--chrome-radius-pill); }
 
 /* ── Variants ────────────────────────────────────────────────────── */
 
-/* primary — gradient CTA, supersedes legacy .btn-primary */
+/* primary — flat chrome accent, no gradient / shimmer */
 .ui-btn--primary {
-  background: linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-hover) 100%);
-  color: var(--color-fg-inverse);
-  border-color: var(--color-border-strong);
-  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  background: var(--chrome-accent-bg);
+  color: var(--chrome-accent);
+  border-color: var(--chrome-accent-border);
+  box-shadow: none;
 }
-.ui-btn--primary::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 -100%;
-  width: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left var(--dur-xslow) var(--ease-out);
-}
-.ui-btn--primary:hover:not(:disabled)::before { left: 100%; }
+.ui-btn--primary::before { display: none; }
 .ui-btn--primary:hover:not(:disabled) {
-  filter: brightness(1.15);
-  box-shadow: 0 4px 12px var(--color-brand-glow), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  transform: translateY(-1px);
+  filter: none;
+  background: color-mix(in srgb, var(--chrome-accent) 22%, transparent);
+  box-shadow: none;
+  transform: none;
 }
 .ui-btn--primary:active:not(:disabled) {
-  transform: scale(0.97) translateY(1px);
-  filter: brightness(0.9);
-  box-shadow: var(--shadow-sm);
+  transform: none;
+  filter: none;
+  box-shadow: none;
 }
 
 /* subtle — default neutral surface action */
 .ui-btn--subtle {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: var(--color-border);
-  color: var(--color-fg-muted);
+  background: transparent;
+  border-color: var(--chrome-border);
+  color: var(--chrome-fg-muted);
 }
 .ui-btn--subtle:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.10);
-  color: var(--color-fg);
-  border-color: var(--color-border-strong);
-  transform: translateY(-1px);
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+  border-color: var(--chrome-border-strong);
+  transform: none;
 }
-.ui-btn--subtle:active:not(:disabled) { transform: translateY(0); }
+.ui-btn--subtle:active:not(:disabled) { transform: none; }
 
 /* ghost — transparent, hover surfaces */
 .ui-btn--ghost {
   background: transparent;
   border-color: transparent;
-  color: var(--color-fg-muted);
+  color: var(--chrome-fg-muted);
 }
 .ui-btn--ghost:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--color-fg);
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
 }
 
 /* danger — destructive */
 .ui-btn--danger {
-  background: rgba(251, 73, 52, 0.12);
-  border-color: rgba(251, 73, 52, 0.30);
-  color: var(--color-danger);
+  background: color-mix(in srgb, var(--chrome-severity-err) 10%, transparent);
+  border-color: color-mix(in srgb, var(--chrome-severity-err) 45%, transparent);
+  color: var(--chrome-severity-err);
 }
 .ui-btn--danger:hover:not(:disabled) {
-  background: rgba(251, 73, 52, 0.22);
-  border-color: var(--color-danger);
+  background: color-mix(in srgb, var(--chrome-severity-err) 18%, transparent);
+  border-color: var(--chrome-severity-err);
 }
 
 /* chip — selectable tag */
 .ui-btn--chip {
-  padding: 2px 6px;
+  padding: 2px 8px;
   font-size: var(--text-xs);
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.04);
-  border-color: var(--color-border);
-  color: var(--color-fg-muted);
+  border-radius: var(--chrome-radius-pill);
+  background: transparent;
+  border-color: var(--chrome-border);
+  color: var(--chrome-fg-muted);
   font-family: var(--font-sans);
-  font-weight: var(--weight-medium);
+  font-weight: 500;
 }
 .ui-btn--chip:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.10);
-  color: var(--color-fg);
-  border-color: rgba(255, 255, 255, 0.20);
-  transform: translateY(-1px);
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+  border-color: var(--chrome-border-strong);
+  transform: none;
 }
 .ui-btn--chip.is-active {
-  background: rgba(142, 192, 124, 0.12);
-  color: var(--color-success);
-  border-color: var(--color-success);
+  background: color-mix(in srgb, var(--chrome-severity-ok) 12%, transparent);
+  color: var(--chrome-severity-ok);
+  border-color: color-mix(in srgb, var(--chrome-severity-ok) 45%, transparent);
 }
 
-/* preset — violet-tinted picker tile */
+/* preset — neutral chrome tile, no violet tint */
 .ui-btn--preset {
-  padding: 3px 6px;
+  padding: 3px 8px;
   font-size: var(--text-xs);
-  border-radius: var(--radius-md);
-  background: rgba(94, 106, 210, 0.06);
-  border-color: rgba(94, 106, 210, 0.15);
-  color: #c7d2fe;
+  border-radius: var(--chrome-radius-pill);
+  background: transparent;
+  border-color: var(--chrome-border);
+  color: var(--chrome-fg-muted);
   text-align: left;
   justify-content: flex-start;
 }
 .ui-btn--preset:hover:not(:disabled) {
-  background: rgba(94, 106, 210, 0.15);
-  border-color: #a78bfa;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(94, 106, 210, 0.15);
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+  border-color: var(--chrome-border-strong);
+  transform: none;
+  box-shadow: none;
 }
 .ui-btn--preset.is-active {
-  background: rgba(94, 106, 210, 0.20);
-  border-color: #a78bfa;
-  color: #e0e7ff;
+  background: var(--chrome-accent-bg);
+  border-color: var(--chrome-accent-border);
+  color: var(--chrome-accent);
 }
 
 /* icon — square, centered, for toolbar/inline actions */
 .ui-btn--icon {
   padding: 0;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.04);
-  border-color: var(--color-border);
-  color: var(--color-fg-muted);
+  border-radius: var(--chrome-radius-pill);
+  background: transparent;
+  border-color: var(--chrome-border);
+  color: var(--chrome-fg-muted);
 }
 .ui-btn--icon-sm { width: 20px; height: 20px; }
 .ui-btn--icon-md { width: 22px; height: 22px; }
 .ui-btn--icon:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.10);
-  color: var(--color-fg);
-  border-color: var(--color-border-strong);
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+  border-color: var(--chrome-border-strong);
 }
 .ui-btn--icon.is-active {
-  background: rgba(211, 134, 155, 0.15);
-  color: var(--color-brand);
-  border-color: rgba(211, 134, 155, 0.30);
+  background: var(--chrome-accent-bg);
+  color: var(--chrome-accent);
+  border-color: var(--chrome-accent-border);
 }

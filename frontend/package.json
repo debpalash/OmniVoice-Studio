@@ -1,7 +1,7 @@
 {
   "name": "omnivoice-studio",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,10 +9,16 @@
     "build": "vite build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --no-warnings --test ../tests/frontend/*.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/source-serif-4": "^5.2.9",
+    "@fontsource/ibm-plex-mono": "^5.2.7",
     "@tauri-apps/plugin-dialog": "^2.7.0",
+    "@tauri-apps/plugin-process": "^2.3.0",
+    "@tauri-apps/plugin-updater": "^2.9.0",
     "@tauri-apps/plugin-window-state": "^2.4.1",
     "lucide-react": "^1.8.0",
     "react": "^19.2.5",

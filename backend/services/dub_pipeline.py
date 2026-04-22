@@ -277,11 +277,29 @@ def run_proc_factory(job_id: str):
     return run_proc
 
 
-def yt_download_sync(url: str, job_dir: str) -> tuple[str, str]:
-    """Blocking yt-dlp download into `job_dir`. Returns (video_path, title)."""
+def yt_download_sync(
+    url: str,
+    job_dir: str,
+    *,
+    fetch_subs: bool = False,
+    sub_langs: list[str] | None = None,
+) -> tuple[str, str, list[str]]:
+    """Blocking yt-dlp download into `job_dir`.
+
+    Returns (video_path, title, downloaded_sub_files).
+
+    When `fetch_subs` is True we also ask yt-dlp to download both
+    manually-uploaded (`writesubtitles=True`) and auto-generated / auto-
+    translated captions (`writeautomaticsub=True`). This is how we pull
+    YouTube's free machine translations without needing a Google API key —
+    yt-dlp talks to the same public endpoints the YouTube player does.
+    `sub_langs` controls which language tracks to ask for; default `['all']`
+    grabs whatever the uploader / auto-translator makes available.
+    """
+    import glob
     import yt_dlp
     outtmpl = os.path.join(job_dir, "original.%(ext)s")
-    ydl_opts = {
+    ydl_opts: dict = {
         "outtmpl": outtmpl,
         "format": "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b",
         "merge_output_format": "mp4",
@@ -291,14 +309,86 @@ def yt_download_sync(url: str, job_dir: str) -> tuple[str, str]:
         "restrictfilenames": True,
         "socket_timeout": 30,
     }
+    if fetch_subs:
+        ydl_opts.update({
+            "writesubtitles": True,
+            "writeautomaticsub": True,
+            "subtitleslangs": list(sub_langs) if sub_langs else ["all"],
+            "subtitlesformat": "vtt",
+        })
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         path = ydl.prepare_filename(info)
         root, _ = os.path.splitext(path)
         mp4 = root + ".mp4"
         if os.path.exists(mp4):
-            return mp4, info.get("title") or os.path.basename(mp4)
-        return path, info.get("title") or os.path.basename(path)
+            video_path = mp4
+        else:
+            video_path = path
+    sub_files: list[str] = []
+    if fetch_subs:
+        # yt-dlp names captions "<base>.<lang>.vtt"; scoop them all.
+        base = os.path.splitext(video_path)[0]
+        sub_files = sorted(glob.glob(base + ".*.vtt"))
+    return video_path, info.get("title") or os.path.basename(video_path), sub_files
+
+
+def parse_vtt_segments(vtt_path: str) -> list[dict]:
+    """Very small WEBVTT parser → list of {start, end, text}.
+
+    Purpose: turn yt-dlp's downloaded caption track into the same segment
+    shape the dub pipeline's transcript step produces, so the UI can seed
+    its editor from YouTube captions instead of running Whisper. We don't
+    care about positioning cues or styling — just the timed text.
+    """
+    try:
+        with open(vtt_path, "r", encoding="utf-8") as f:
+            raw = f.read()
+    except OSError:
+        return []
+
+    def _ts(s: str) -> float:
+        # Format: HH:MM:SS.mmm or MM:SS.mmm
+        parts = s.strip().split(":")
+        try:
+            parts = [float(p.replace(",", ".")) for p in parts]
+        except ValueError:
+            return 0.0
+        if len(parts) == 3:
+            h, m, sec = parts
+        elif len(parts) == 2:
+            h, m, sec = 0.0, parts[0], parts[1]
+        else:
+            return 0.0
+        return h * 3600.0 + m * 60.0 + sec
+
+    segments: list[dict] = []
+    blocks = raw.replace("\r\n", "\n").split("\n\n")
+    for block in blocks:
+        lines = [ln for ln in block.split("\n") if ln.strip() and not ln.startswith("WEBVTT") and not ln.startswith("NOTE")]
+        if not lines:
+            continue
+        # Skip numeric cue ID line if present
+        if "-->" not in lines[0] and len(lines) > 1:
+            lines = lines[1:]
+        if not lines or "-->" not in lines[0]:
+            continue
+        ts_line = lines[0]
+        try:
+            left, right = ts_line.split("-->")
+            # Drop any settings after the right timestamp ("00:01.000 align:left line:0%")
+            right = right.strip().split(" ")[0]
+            start = _ts(left)
+            end = _ts(right)
+        except Exception:
+            continue
+        text = " ".join(ln.strip() for ln in lines[1:]).strip()
+        # Strip inline styling like <c.colorE5E5E5>foo</c> or <00:00:01.200>
+        import re as _re
+        text = _re.sub(r"<[^>]+>", "", text)
+        if text:
+            segments.append({"start": start, "end": end, "text": text})
+    return segments
 
 
 async def ingest_pipeline(
@@ -312,12 +402,18 @@ async def ingest_pipeline(
     Stages: download_start, download_done, extract_start, extract_done,
     demucs_start, demucs_done, scene_start, scene_done, ready, error, cancelled.
     """
+    youtube_subs_by_lang: dict[str, list[dict]] = {}
     try:
         if source.get("kind") == "url":
             url = source["url"]
+            fetch_subs = bool(source.get("fetch_subs"))
+            sub_langs = source.get("sub_langs") or None
             yield prep_event("download_start", url=url)
             try:
-                video_path, title = await asyncio.to_thread(yt_download_sync, url, job_dir)
+                video_path, title, sub_files = await asyncio.to_thread(
+                    yt_download_sync, url, job_dir,
+                    fetch_subs=fetch_subs, sub_langs=sub_langs,
+                )
             except Exception as e:
                 yield prep_event("error", stage="download", error=str(e)[:300])
                 shutil.rmtree(job_dir, ignore_errors=True)
@@ -327,7 +423,22 @@ async def ingest_pipeline(
                 size = os.path.getsize(video_path)
             except OSError:
                 size = 0
-            yield prep_event("download_done", title=title, size=size, filename=filename)
+            # Parse each downloaded .<lang>.vtt into a segment list we can
+            # stash on the job. The router will merge this into the job dict
+            # after ingest completes so /dub/transcribe-stream (or a future
+            # "use-youtube-subs" toggle) can seed segments from it.
+            for sf_path in sub_files:
+                base = os.path.splitext(os.path.basename(sf_path))[0]
+                # "original.en" → lang "en"; fallback to the trailing token.
+                lang_tag = base.rsplit(".", 1)[-1] if "." in base else "und"
+                segs = parse_vtt_segments(sf_path)
+                if segs:
+                    youtube_subs_by_lang[lang_tag] = segs
+            yield prep_event(
+                "download_done",
+                title=title, size=size, filename=filename,
+                youtube_subs=sorted(youtube_subs_by_lang.keys()),
+            )
         else:
             video_path = source["path"]
             filename = filename_hint or os.path.basename(video_path)
@@ -391,6 +502,7 @@ async def ingest_pipeline(
                 "segments": None,
                 "dubbed_tracks": {},
                 "scene_cuts": scene_cuts,
+                "youtube_subs": youtube_subs_by_lang or None,
             }
             put_job(job_id, full_job)
             save_job(job_id, full_job, filename, dur, content_hash)
@@ -413,6 +525,7 @@ async def ingest_pipeline(
                 "segments": None,
                 "dubbed_tracks": {},
                 "scene_cuts": [],
+                "youtube_subs": youtube_subs_by_lang or None,
             }
             put_job(job_id, partial)
             save_job(job_id, partial, filename, dur, content_hash)

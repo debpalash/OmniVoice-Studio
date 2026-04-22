@@ -15,7 +15,10 @@ const Settings = lazy(() => import('./pages/Settings'));
 const VoiceProfile = lazy(() => import('./pages/VoiceProfile'));
 const BatchQueue = lazy(() => import('./pages/BatchQueue'));
 const ToolsPage = lazy(() => import('./pages/ToolsPage'));
+const SetupWizard = lazy(() => import('./pages/SetupWizard'));
 const KeyboardCheatsheet = lazy(() => import('./components/KeyboardCheatsheet'));
+const LogsFooter = lazy(() => import('./components/LogsFooter'));
+const ProjectsPage = lazy(() => import('./pages/Projects'));
 import Header from './components/Header';
 import NavRail from './components/NavRail';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -188,7 +191,7 @@ function App() {
   const openVoiceProfile = useAppStore(s => s.openVoiceProfile);
   const closeVoiceProfile = useAppStore(s => s.closeVoiceProfile);
   const hideSidebar = mode === 'launchpad' || mode === 'settings' || mode === 'voice'
-    || mode === 'queue' || mode === 'tools';
+    || mode === 'queue' || mode === 'tools' || mode === 'projects';
   const availableSidebarTabs = mode === 'dub'
     ? ['projects', 'history', 'downloads']
     : (mode === 'clone' || mode === 'design')
@@ -332,6 +335,7 @@ function App() {
   const glossaryTerms = useAppStore(s => s.glossaryTerms);
   const setGlossaryTerms = useAppStore(s => s.setGlossaryTerms);
   const dualSubs = useAppStore(s => s.dualSubs);
+  const burnSubs = useAppStore(s => s.burnSubs);
   const setDualSubs = useAppStore(s => s.setDualSubs);
 
   const [translateProvider, setTranslateProvider] = useState('argos');
@@ -538,10 +542,78 @@ function App() {
   // ── LOAD DATA FROM SERVER ──
   const [sysStats, setSysStats] = useState(null);
 
+  // First-run gate — `/setup/status` reports whether required HF models are
+  // on disk. If not, we render <SetupWizard> in place of the main studio so
+  // the user actually SEES the download instead of a silent 5 GB hang.
+  //
+  // Packaged .app note: the frozen backend sidecar takes several seconds to
+  // import torch/torchaudio/whisper/etc. before it can serve /setup/status.
+  // A single fetch on mount lands during that window, fails, and the wizard
+  // would never render. So we retry with backoff until we get a response or
+  // the user gives up. `setupChecked` gates main-UI render so we don't flash
+  // the studio in front of a user who actually needs the wizard.
+  const [setupNeeded, setSetupNeeded] = useState(false);
+  const [setupChecked, setSetupChecked] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { setupStatus } = await import('./api/setup');
+      // ~30 attempts × ~1s ≈ 30s ceiling; enough for a cold sidecar on slow disks.
+      for (let attempt = 0; attempt < 30 && !cancelled; attempt++) {
+        try {
+          const s = await setupStatus();
+          if (cancelled) return;
+          setSetupNeeded(!s.models_ready);
+          setSetupChecked(true);
+          return;
+        } catch {
+          await new Promise(r => setTimeout(r, 1000));
+        }
+      }
+      if (!cancelled) setSetupChecked(true);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── Tauri auto-updater ──
+  // On boot, ask GitHub Releases if a newer build is available. If yes,
+  // prompt the user, download the signed bundle, restart into the new
+  // version. Only runs in packaged .app (not `tauri dev`) — the updater
+  // endpoint 404s until the first signed release is published, and we
+  // don't want that noise in the dev console.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!('__TAURI_INTERNALS__' in window)) return;
+    if (import.meta.env.DEV) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [{ check }, { relaunch }, { ask }] = await Promise.all([
+          import('@tauri-apps/plugin-updater'),
+          import('@tauri-apps/plugin-process'),
+          import('@tauri-apps/plugin-dialog'),
+        ]);
+        const update = await check();
+        if (cancelled || !update) return;
+        const proceed = await ask(
+          `A new version (${update.version}) of OmniVoice Studio is available.\n\nWhat's new:\n${update.body || '— see release notes'}\n\nDownload and install now?`,
+          { title: 'Update available', kind: 'info' },
+        );
+        if (!proceed) return;
+        await update.downloadAndInstall();
+        await relaunch();
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.debug('Updater check failed (non-fatal):', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // ── DESKTOP NATIVE INTEGRATION ──
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
+
     // 1. Prevent default right-click to hide web nature
     const handleContextMenu = (e) => {
       // allow on inputs/textareas for copy/paste
@@ -1161,8 +1233,14 @@ function App() {
         const m = e.data ? JSON.parse(e.data) : null;
         if (m && m.detail) { close(); reject(new Error(m.detail)); return; }
       } catch {}
-      if (gotFinal) { close(); resolve(); }
-      else if (evt.readyState === EventSource.CLOSED) { reject(new Error('transcribe stream closed')); }
+      if (gotFinal) { close(); resolve(); return; }
+      // EventSource auto-reconnects on transport errors; force-close so we
+      // don't loop against a broken endpoint, and surface a pointed message.
+      close();
+      reject(new Error(
+        'Transcribe stream dropped before emitting any segments. ' +
+        'Likely ASR backend failed to load — check backend log + Settings → Models.'
+      ));
     });
   });
 
@@ -1265,7 +1343,7 @@ function App() {
     }
   };
 
-  const handleDubIngestUrl = async (url) => {
+  const handleDubIngestUrl = async (url, opts = {}) => {
     const clean = (url || '').trim();
     if (!clean) return;
     setDubStep('uploading'); setDubError(''); setDubTracks([]); setDubPrepStage('download');
@@ -1275,7 +1353,11 @@ function App() {
     dubClientJobIdRef.current = clientJobId;
     setDubJobId(clientJobId);
     try {
-      const data = await dubIngestUrl(clean, clientJobId, { signal: ctrl.signal });
+      const data = await dubIngestUrl(clean, clientJobId, {
+        signal: ctrl.signal,
+        fetchSubs: !!opts.fetchSubs,
+        subLangs: opts.subLangs,
+      });
       setDubJobId(data.job_id);
       setDubTaskId(data.task_id);
       await _waitForPrep(data.task_id, ctrl);
@@ -1310,6 +1392,36 @@ function App() {
     if (dubAbortCtrlRef.current) dubAbortCtrlRef.current.abort();
     if (jobId) {
       await apiDubAbort(jobId);
+    }
+  };
+
+  // Retry transcribe on an existing job — the video + demucs + scene-cut
+  // preprocessing is already on disk, so we skip straight back to the ASR
+  // stream. Used by the "Retry" button on the transcribe-failed banner.
+  const handleDubRetryTranscribe = async () => {
+    if (!dubJobId) return;
+    const ctrl = new AbortController();
+    dubAbortCtrlRef.current = ctrl;
+    setDubError('');
+    setDubSegments([]);
+    setDubStep('transcribing');
+    setTranscribeStart(Date.now());
+    try {
+      await _waitForTranscribe(dubJobId, ctrl);
+      setTranscribeStart(null);
+      setDubStep('editing');
+    } catch (err) {
+      setTranscribeStart(null);
+      if (err.name === 'AbortError') {
+        toast('Retry cancelled');
+        setDubStep('idle');
+      } else {
+        setDubError(err.message);
+        setDubStep('idle');
+        toast.error('Transcription failed: ' + err.message);
+      }
+    } finally {
+      dubAbortCtrlRef.current = null;
     }
   };
 
@@ -1533,12 +1645,11 @@ function App() {
       if (!destPath) return; // User cancelled
 
       await exportAction({ source_filename: sourceIdentifier, destination_path: destPath, mode });
-      const data = await res.json();
       toast.success(`Exported: ${fallbackName}`);
       loadExportHistory();
     } catch (err) {
       console.error(err);
-      toast.error('Failed to bridge save dialog to rust/python backend.');
+      toast.error(`Export failed: ${err?.message || err}`);
     }
   };
   const revealInFolder = async (filePath) => {
@@ -1633,7 +1744,8 @@ function App() {
     if (exportTracks['original'] !== false) selected.push('original');
     dubTracks.forEach(t => { if (exportTracks[t] !== false) selected.push(t); });
     const tracksParam = selected.join(',');
-    triggerDownload(`${API}/dub/download/${dubJobId}/dubbed_video.mp4?preserve_bg=${preserveBg}&default_track=${defaultTrack}&include_tracks=${encodeURIComponent(tracksParam)}`, 'dubbed_video.mp4');
+    const burnParam = burnSubs ? `&burn_subs=1&dual=${dualSubs ? 1 : 0}` : '';
+    triggerDownload(`${API}/dub/download/${dubJobId}/dubbed_video.mp4?preserve_bg=${preserveBg}&default_track=${defaultTrack}&include_tracks=${encodeURIComponent(tracksParam)}${burnParam}`, 'dubbed_video.mp4');
   };
   const handleDubAudioDownload = async () => {
     await finalizeTtsBeforeExport();
@@ -1786,6 +1898,66 @@ function App() {
   };
 
 
+  // First-run gate: if /setup/status says models aren't on disk yet, render
+  // the wizard instead of the main studio. Dismisses itself once the user
+  // completes the download (or clicks "Skip" if they want to limp along).
+  // Also blocks render until we've heard back from the backend at least once
+  // — the frozen sidecar's cold-start import is ~5-10 s and without this we
+  // flash the empty studio before the wizard has a chance to mount.
+  if (!setupChecked) {
+    return (
+      <div className="app-container sidebar-hidden" style={{ zoom: uiScale, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', flexDirection: 'column', gap: 12, color: '#a89984', fontSize: 13 }}>
+        <div style={{ fontSize: 18, color: '#ebdbb2' }}>OmniVoice Studio</div>
+        <div>Starting backend…</div>
+      </div>
+    );
+  }
+  if (setupNeeded) {
+    // Render outside the `app-container` grid so the wizard spans the full
+    // viewport instead of getting squeezed into whatever grid cell the
+    // studio layout reserves for the main content column.
+    return (
+      <div
+        style={{
+          /* Same pattern as .app-container: shrink by whatever the
+             LogsFooter is currently occupying so it never covers the
+             wizard footer buttons / content. */
+          minHeight: 'calc(100vh - var(--logs-footer-height, 28px))',
+          maxHeight: 'calc(100vh - var(--logs-footer-height, 28px))',
+          width: '100%',
+          overflow: 'auto',
+          zoom: uiScale,
+          background: 'var(--color-bg, #1d2021)',
+          position: 'relative',
+        }}
+      >
+        {/* Invisible drag strip across the top 28 px of the wizard —
+            matches the macOS traffic-light zone so the window can be
+            dragged / double-click-zoomed from anywhere along the top. */}
+        <div
+          data-tauri-drag-region
+          onDoubleClick={() => {
+            if ('__TAURI_INTERNALS__' in window) {
+              import('@tauri-apps/api/window').then(m =>
+                m.getCurrentWindow().toggleMaximize()
+              ).catch(() => {});
+            }
+          }}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0,
+            height: 28, zIndex: 10,
+          }}
+        />
+        <Suspense fallback={<LazyFallback />}>
+          <SetupWizard onReady={() => setSetupNeeded(false)} />
+        </Suspense>
+        <Suspense fallback={null}>
+          <LogsFooter />
+        </Suspense>
+      </div>
+    );
+  }
+
   return (
     <div
       className={[
@@ -1814,7 +1986,6 @@ function App() {
 
       <Header
         mode={mode} setMode={setMode}
-        uiScale={uiScale} setUiScale={setUiScale}
         sysStats={sysStats} modelStatus={modelStatus}
         doubleClickMaximize={doubleClickMaximize}
         activeProjectName={activeProjectName}
@@ -1863,6 +2034,20 @@ function App() {
               <ToolsPage onBack={() => setMode('launchpad')} />
             </Suspense>
           </ErrorBoundary>
+        ) : mode === 'projects' ? (
+          <ErrorBoundary name="projects">
+            <Suspense fallback={<LazyFallback />}>
+              <ProjectsPage
+                studioProjects={studioProjects}
+                profiles={profiles}
+                history={history}
+                exportHistory={exportHistory}
+                onOpenDub={(id) => { loadProject(id); setMode('dub'); }}
+                onOpenProfile={(id) => { openVoiceProfile(id); }}
+                onRevealExport={(path) => { exportReveal({ path }).catch(() => {}); }}
+              />
+            </Suspense>
+          </ErrorBoundary>
         ) : mode === 'launchpad' ? (
           <ErrorBoundary name="launchpad">
           <Suspense fallback={<LazyFallback />}>
@@ -1896,6 +2081,7 @@ function App() {
               setDubLocalBlobUrl={setDubLocalBlobUrl}
               // Handlers — close over App.jsx scope so stay prop-threaded.
               handleDubAbort={handleDubAbort} handleDubUpload={handleDubUpload} handleDubIngestUrl={handleDubIngestUrl}
+              handleDubRetryTranscribe={handleDubRetryTranscribe}
               handleDubStop={handleDubStop} handleDubGenerate={handleDubGenerate}
               handleDubDownload={handleDubDownload} handleDubAudioDownload={handleDubAudioDownload}
               handleAudioExport={handleAudioExport}
@@ -2032,6 +2218,11 @@ function App() {
           <KeyboardCheatsheet open={showCheatsheet} onClose={() => setShowCheatsheet(false)} />
         </Suspense>
       )}
+
+      {/* ═══ BOTTOM LOGS PANEL (VSCode-style) ═══ */}
+      <Suspense fallback={null}>
+        <LogsFooter />
+      </Suspense>
 
     </div>
   );

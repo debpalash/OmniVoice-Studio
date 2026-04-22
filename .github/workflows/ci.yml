@@ -1,0 +1,63 @@
+# PR-gated continuous integration — runs backend pytest + frontend node:test
+# + TypeScript typecheck on every pull request and push to main. Keeps the
+# heavy 4-platform Tauri bundle off this path (that's release.yml on tag
+# push) so PRs turn around in a few minutes instead of ~40.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests (backend + frontend)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      # Node 22 is needed for --experimental-strip-types so node:test can
+      # import .ts files directly from frontend/src/api/*.
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+
+      - name: System deps (ffmpeg)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python deps
+        run: uv sync
+
+      - name: Run pytest
+        run: uv run pytest tests/ -q --tb=short
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: bun install
+
+      - name: Frontend typecheck
+        working-directory: frontend
+        run: bunx tsc --noEmit
+
+      - name: Run frontend node:test
+        working-directory: frontend
+        run: bun run test
