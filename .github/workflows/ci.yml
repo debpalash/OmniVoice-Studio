@@ -58,6 +58,9 @@ jobs:
         working-directory: frontend
         run: bunx tsc --noEmit
 
+      # Invoke node directly (not `bun run test`) because `bun run` auto-aliases
+      # `node` to `bun` in script bodies, and bun doesn't support
+      # --experimental-strip-types.
       - name: Run frontend node:test
         working-directory: frontend
-        run: bun run test
+        run: node --experimental-strip-types --no-warnings --test ../tests/frontend/*.test.mjs
