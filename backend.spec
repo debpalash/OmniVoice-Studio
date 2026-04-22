@@ -146,13 +146,37 @@ a = Analysis(
     excludes=[
         # Desktop-only bloat the frozen backend never uses.
         'tkinter', 'matplotlib', 'PIL.ImageQt', 'PyQt5', 'PyQt6',
-        # CUDA / NVIDIA wheels on Apple Silicon — saves ~2 GB.
-        # When we add a Windows/Linux CUDA build, remove these per-target.
+        # CUDA / NVIDIA wheels on every platform — we ship CPU-only inference
+        # for the desktop app. Models download on first run via HF cache, and
+        # GPU use is surfaced only when a user-installed driver is detected
+        # at runtime. Excluding these saves ~2 GB per bundle, which is what
+        # keeps Linux .deb / Windows MSI under GH Releases' 2 GB asset cap.
         'nvidia', 'nvidia.cublas', 'nvidia.cudnn', 'nvidia.cuda_runtime',
         'nvidia.cuda_nvrtc', 'nvidia.nccl', 'nvidia.nvtx',
         'nvidia.curand', 'nvidia.cusolver', 'nvidia.cusparse',
-        'nvidia.cufft', 'nvidia.cuda_cupti',
+        'nvidia.cufft', 'nvidia.cuda_cupti', 'nvidia.cusparselt',
+        'nvidia.nvjitlink', 'nvidia.cufile',
         'triton', 'flash_attn',
+        # Torch internals we never invoke at inference time — distributed
+        # training, compile, FX tracing, tensorboard, testing helpers. These
+        # pull hundreds of MB of Python source + transitive deps.
+        'torch.distributed', 'torch._dynamo', 'torch._inductor',
+        'torch._export', 'torch.testing', 'torch.utils.tensorboard',
+        'torch.utils.benchmark', 'torch.fx.experimental',
+        'torch._functorch', 'torch.ao', 'torch.onnx',
+        # torchaudio prototype / deprecated — nothing in the backend touches
+        # these; removing saves tens of MB and silences the deprecation log
+        # noise on startup.
+        'torchaudio.prototype', 'torchaudio.models.hifigan',
+        # Heavy optional deps that are in pyproject.toml but the Studio
+        # backend never imports (verified with `grep ^import`). Excluding
+        # keeps them out of the frozen bundle; nothing on the runtime path
+        # breaks.
+        'gradio', 'gradio_client', 'tensorboardX', 'webdataset',
+        's3prl', 'funasr', 'pedalboard',
+        # Test / example trees that get swept up by collect_all.
+        'scipy.special.tests', 'scipy.tests', 'numpy.f2py.tests',
+        'numpy.tests', 'numpy.testing.tests',
     ],
     noarchive=False,
     optimize=0,

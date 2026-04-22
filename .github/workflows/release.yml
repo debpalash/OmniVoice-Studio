@@ -168,6 +168,20 @@ jobs:
       - name: Install Python deps
         run: uv sync
 
+      # Windows + Linux default PyPI torch wheels bundle the full CUDA
+      # runtime (~2 GB of libcuda*/libcublas*/libcudnn*). For a desktop
+      # distribution we ship CPU-only inference and let the user opt into
+      # GPU separately, so we re-install torch from PyTorch's CPU index to
+      # strip the CUDA binaries. macOS wheels don't include CUDA so they
+      # skip this step.
+      - name: Re-install torch (CPU-only) on Linux/Windows
+        if: runner.os != 'macOS'
+        shell: bash
+        run: |
+          uv pip install --reinstall \
+            torch==2.8.0 torchaudio==2.8.0 \
+            --index-url https://download.pytorch.org/whl/cpu
+
       - name: Freeze backend via PyInstaller
         shell: bash
         run: |
