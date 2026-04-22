@@ -192,6 +192,13 @@ jobs:
           uv run pyinstaller backend.spec --noconfirm --clean
           echo "Backend frozen at dist/omnivoice-backend/"
           ls dist/omnivoice-backend/ | head
+          # Report total bundle size so we can eyeball CI against GH's 2 GB
+          # per-asset cap on Releases uploads.
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            powershell -Command "(Get-ChildItem -Recurse dist/omnivoice-backend | Measure-Object -Property Length -Sum).Sum / 1MB"
+          else
+            du -sh dist/omnivoice-backend
+          fi
 
       # ── Frontend build ─────────────────────────────────────────────────
       - name: Install frontend deps
