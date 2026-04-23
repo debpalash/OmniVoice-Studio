@@ -67,7 +67,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
-          bun-version: 1.3.11
+          bun-version: 1.3.13
 
       # Backend tests need ffmpeg (subprocess calls in fixtures). Cache the
       # resolved .debs so warm runs skip the apt-get update + install.
@@ -164,7 +164,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
-          bun-version: 1.3.11
+          bun-version: 1.3.13
 
       # ── Platform deps (Tauri host requirements only — no Python here) ─
       # The runtime Python/uv bootstrap happens on the user's machine at
