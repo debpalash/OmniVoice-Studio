@@ -97,7 +97,12 @@ export async function getRecommendations(): Promise<Recommendations> {
 }
 
 export async function deleteModel(repo_id: string): Promise<{ deleted: boolean; repo_id: string; freed_bytes: number }> {
-  const r = await apiFetch(`/models/${encodeURIComponent(repo_id)}`, { method: 'DELETE' });
+  // HF repo_ids look like "owner/name" — encode each segment so special chars
+  // are escaped but the literal "/" survives into FastAPI's `:path` converter.
+  // encodeURIComponent on the whole string would turn "/" into "%2F", which
+  // some ASGI middleware rejects as a path-traversal attempt.
+  const path = repo_id.split('/').map(encodeURIComponent).join('/');
+  const r = await apiFetch(`/models/${path}`, { method: 'DELETE' });
   return r.json();
 }
 
