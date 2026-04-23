@@ -138,6 +138,15 @@ jobs:
         with:
           targets: ${{ matrix.rust_target }}
 
+      # Cache ~/.cargo/registry + {target}/ per rust_target. Cargo dep
+      # compile is the long pole of the build — cold is ~5-7 min, warm
+      # drops to ~1-2 min.
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: frontend/src-tauri -> target
+          key: ${{ matrix.rust_target }}
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
 
