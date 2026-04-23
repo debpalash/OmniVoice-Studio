@@ -1,0 +1,109 @@
+.bootstrap-splash {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--chrome-bg, #141414);
+  color: var(--chrome-fg, #eee);
+  font-family: 'Inter Variable', 'Inter', system-ui, sans-serif;
+  z-index: 9999;
+  padding: 2rem;
+}
+
+.bootstrap-splash__card {
+  width: 100%;
+  max-width: 560px;
+  background: color-mix(in srgb, var(--chrome-fg, #eee) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chrome-fg, #eee) 10%, transparent);
+  border-radius: 14px;
+  padding: 2rem;
+  text-align: left;
+}
+
+.bootstrap-splash__card h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.bootstrap-splash__status {
+  margin: 0 0 1.25rem;
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
+
+.bootstrap-splash__bar {
+  height: 4px;
+  width: 100%;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--chrome-fg, #eee) 8%, transparent);
+  overflow: hidden;
+  margin-bottom: 1.25rem;
+}
+
+.bootstrap-splash__bar-fill {
+  height: 100%;
+  background: var(--chrome-accent, #8ec07c);
+  transition: width 0.4s ease;
+}
+
+.bootstrap-splash__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.bootstrap-splash__steps li {
+  padding-left: 1.5rem;
+  position: relative;
+  opacity: 0.5;
+}
+
+.bootstrap-splash__steps li::before {
+  content: '○';
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.bootstrap-splash__steps li.done {
+  opacity: 0.6;
+}
+
+.bootstrap-splash__steps li.done::before {
+  content: '✓';
+  color: var(--chrome-accent, #8ec07c);
+}
+
+.bootstrap-splash__steps li.active {
+  opacity: 1;
+  font-weight: 500;
+}
+
+.bootstrap-splash__steps li.active::before {
+  content: '●';
+  color: var(--chrome-accent, #8ec07c);
+  animation: bootstrap-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes bootstrap-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.bootstrap-splash__error {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  border: 1px solid color-mix(in srgb, #ef4444 35%, transparent);
+  color: #fca5a5;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

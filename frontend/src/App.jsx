@@ -22,6 +22,7 @@ const ProjectsPage = lazy(() => import('./pages/Projects'));
 import Header from './components/Header';
 import NavRail from './components/NavRail';
 import ErrorBoundary from './components/ErrorBoundary';
+import { BootstrapSplash, useBootstrapStage } from './components/BootstrapSplash';
 
 const LazyFallback = () => <div style={{ padding: 12, color: '#6b6657', fontSize: '0.7rem' }}>Loading…</div>;
 
@@ -153,6 +154,12 @@ const playPing = () => {
 };
 
 function App() {
+  // First-run bootstrap: Rust spawns uv sync in a background thread and
+  // publishes progress via the `bootstrap_status` Tauri command. Hook below
+  // polls every 1 s; until `ready`, we render BootstrapSplash instead of the
+  // normal app shell, so the user sees real progress instead of a hung UI.
+  const { stage: bootstrapStage, message: bootstrapMessage } = useBootstrapStage();
+
   // UI navigation state now lives in the Zustand `uiSlice` (Phase 2.2).
   // Mode + uiScale + sidebar-collapsed persist across reloads automatically
   // via the store's `partialize`; active project / voice ids stay transient.
@@ -1956,6 +1963,12 @@ function App() {
         </Suspense>
       </div>
     );
+  }
+
+  // Block the main UI until Rust reports the backend is ready. In dev web
+  // (no Tauri), the hook returns 'ready' immediately so this is a no-op.
+  if (bootstrapStage !== 'ready') {
+    return <BootstrapSplash stage={bootstrapStage} message={bootstrapMessage} />;
   }
 
   return (
