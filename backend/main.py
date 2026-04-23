@@ -157,7 +157,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 _allowed = os.environ.get(
     "OMNIVOICE_ALLOWED_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173,tauri://localhost,http://tauri.localhost",
+    "http://localhost:3901,http://127.0.0.1:3901,tauri://localhost,http://tauri.localhost",
 ).split(",")
 
 app.add_middleware(
@@ -191,8 +191,10 @@ if os.path.exists(frontend_path):
 else:
     @app.get("/")
     def _dev_fallback():
-        return RedirectResponse(url="http://localhost:5173")
+        return RedirectResponse(url="http://localhost:3901")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Port 3900 picked to dodge common 8000 conflicts (Django/Rails/Jupyter).
+    # Rust sidecar launcher in lib.rs::BACKEND_PORT must stay in sync.
+    uvicorn.run(app, host="0.0.0.0", port=3900)

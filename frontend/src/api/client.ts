@@ -1,8 +1,9 @@
-// Backend always listens on localhost:8000 — both in dev (Vite @ 5173 talking
+// Backend always listens on localhost:3900 — both in dev (Vite @ 3901 talking
 // to a separate uvicorn) and in the built .app (Tauri webview @ tauri://localhost
-// talking to the bundled frozen backend sidecar). Relative fetches against
+// talking to the venv-bootstrapped sidecar). Relative fetches against
 // tauri://localhost don't reach the sidecar, so we hardcode the absolute host.
-export const API = 'http://localhost:8000';
+// Port 3900 chosen to avoid common 8000 conflicts (Django/Rails/Jupyter).
+export const API = 'http://localhost:3900';
 
 export class ApiError extends Error {
   status?: number;

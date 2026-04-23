@@ -68,7 +68,7 @@ const doubleClickMaximize = () => {
  * We upload to the backend's /preview endpoint and serve via HTTP instead.
  * Falls back to createObjectURL for regular browsers.
  */
-const _PREVIEW_API = import.meta.env.VITE_OMNIVOICE_API || 'http://localhost:8000';
+const _PREVIEW_API = import.meta.env.VITE_OMNIVOICE_API || 'http://localhost:3900';
 const fileToMediaUrl = async (file, prevUrls) => {
   // Revoke previous blob URLs if they exist
   if (prevUrls?.videoUrl?.startsWith('blob:')) URL.revokeObjectURL(prevUrls.videoUrl);
