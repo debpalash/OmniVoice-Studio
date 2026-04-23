@@ -3,8 +3,9 @@ use std::io::{self, Read};
 use std::net::TcpStream;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use serde::Serialize;
 use tauri::Manager;
 
 // Unique port range (3900-3902) chosen to avoid common conflicts:
@@ -20,6 +21,47 @@ const UV_VERSION: &str = "0.11.7";
 
 pub struct BackendState {
     pub process: Mutex<Option<Child>>,
+}
+
+// ── Bootstrap progress (for the React splash screen) ─────────────────────
+
+#[derive(Clone, Serialize, Debug)]
+#[serde(tag = "stage", rename_all = "snake_case")]
+pub enum BootstrapStage {
+    /// Working out whether we need to bootstrap at all.
+    Checking,
+    /// Fetching the standalone `uv` binary from astral-sh/uv releases.
+    DownloadingUv { percent: Option<u8> },
+    /// Creating the Python 3.11 venv.
+    CreatingVenv,
+    /// Running `uv sync --frozen --no-dev`. Biggest time sink on first run
+    /// (~5-10 min to pull torch + whisperx + faster-whisper + demucs).
+    InstallingDeps,
+    /// Venv ready, spawning uvicorn. Should be <5 s.
+    StartingBackend,
+    /// Backend is listening and healthy. Frontend can leave the splash.
+    Ready,
+    /// Something blew up; message carries the reason.
+    Failed { message: String },
+}
+
+pub struct BootstrapState {
+    pub stage: Arc<Mutex<BootstrapStage>>,
+}
+
+fn set_stage(state: &Arc<Mutex<BootstrapStage>>, stage: BootstrapStage) {
+    if let Ok(mut guard) = state.lock() {
+        *guard = stage;
+    }
+}
+
+#[tauri::command]
+fn bootstrap_status(state: tauri::State<'_, BootstrapState>) -> BootstrapStage {
+    state
+        .stage
+        .lock()
+        .map(|g| g.clone())
+        .unwrap_or(BootstrapStage::Checking)
 }
 
 // ── Port probing ──────────────────────────────────────────────────────────
@@ -246,7 +288,17 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
 /// the behaviour of `bun run dev`). Otherwise copy the bundled pyproject.toml
 /// + uv.lock + backend/ from Tauri resources into `app_local_data_dir/project`
 /// and run `uv venv` + `uv sync --frozen --no-dev` there.
-fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::App<R>) -> Option<(PathBuf, PathBuf)> {
+fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<&Arc<Mutex<BootstrapStage>>>) -> Option<(PathBuf, PathBuf)> {
+    let fail = |progress: Option<&Arc<Mutex<BootstrapStage>>>, msg: &str| {
+        log::error!("{}", msg);
+        if let Some(p) = progress {
+            set_stage(p, BootstrapStage::Failed { message: msg.to_string() });
+        }
+    };
+    if let Some(p) = progress {
+        set_stage(p, BootstrapStage::Checking);
+    }
+
     if let Some(dev_root) = find_dev_project_root() {
         let dev_venv = dev_root.join(".venv");
         let dev_py = venv_python_path(&dev_venv);
@@ -273,28 +325,26 @@ fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::App<R>) -> Option<(PathBuf,
     let resource_uvlock = resource_dir.join("uv.lock");
     let resource_backend = resource_dir.join("backend");
     if !resource_pyproject.is_file() || !resource_backend.is_dir() {
-        log::warn!(
+        fail(progress, &format!(
             "Missing bootstrap resources (pyproject={}, backend={})",
-            resource_pyproject.display(),
-            resource_backend.display()
-        );
+            resource_pyproject.display(), resource_backend.display()));
         return None;
     }
 
     log::info!("First-run venv bootstrap in {}", project_dir.display());
     if let Err(e) = fs::create_dir_all(&project_dir) {
-        log::error!("mkdir {} failed: {}", project_dir.display(), e);
+        fail(progress, &format!("mkdir {} failed: {}", project_dir.display(), e));
         return None;
     }
     if let Err(e) = fs::copy(&resource_pyproject, project_dir.join("pyproject.toml")) {
-        log::error!("copy pyproject.toml: {}", e);
+        fail(progress, &format!("copy pyproject.toml: {}", e));
         return None;
     }
     if resource_uvlock.is_file() {
         let _ = fs::copy(&resource_uvlock, project_dir.join("uv.lock"));
     }
     if let Err(e) = copy_dir_recursive(&resource_backend, &backend_dir) {
-        log::error!("copy backend/: {}", e);
+        fail(progress, &format!("copy backend/: {}", e));
         return None;
     }
 
@@ -302,31 +352,42 @@ fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::App<R>) -> Option<(PathBuf,
     // standalone binary into `app_data/tools`.
     let uv_path = match Command::new("uv").arg("--version").output() {
         Ok(_) => PathBuf::from("uv"),
-        Err(_) => match install_uv_standalone(&app_data.join("tools")) {
-            Ok(p) => p,
-            Err(e) => {
-                log::error!("uv install failed: {}", e);
-                return None;
+        Err(_) => {
+            if let Some(p) = progress {
+                set_stage(p, BootstrapStage::DownloadingUv { percent: None });
             }
-        },
+            match install_uv_standalone(&app_data.join("tools")) {
+                Ok(p) => p,
+                Err(e) => {
+                    fail(progress, &format!("uv install failed: {}", e));
+                    return None;
+                }
+            }
+        }
     };
     log::info!("Bootstrap uv: {}", uv_path.display());
 
+    if let Some(p) = progress {
+        set_stage(p, BootstrapStage::CreatingVenv);
+    }
     let status = Command::new(&uv_path)
         .args(["venv", "--python", "3.11"])
         .current_dir(&project_dir)
         .status();
     if !matches!(status, Ok(s) if s.success()) {
-        log::error!("uv venv failed: {:?}", status);
+        fail(progress, &format!("uv venv failed: {:?}", status));
         return None;
     }
 
+    if let Some(p) = progress {
+        set_stage(p, BootstrapStage::InstallingDeps);
+    }
     let sync_status = Command::new(&uv_path)
         .args(["sync", "--frozen", "--no-dev"])
         .current_dir(&project_dir)
         .status();
     if !matches!(sync_status, Ok(s) if s.success()) {
-        log::error!("uv sync failed: {:?}", sync_status);
+        fail(progress, &format!("uv sync failed: {:?}", sync_status));
         return None;
     }
 
@@ -359,7 +420,7 @@ fn backend_log_path() -> PathBuf {
 /// Stage the bundled ffmpeg binary and return its absolute path. The path is
 /// exported via `OMNIVOICE_FFMPEG` so the Python backend uses it over a
 /// system install. Returns None if the bundled binary isn't present.
-fn find_bundled_ffmpeg<R: tauri::Runtime>(app: &tauri::App<R>) -> Option<PathBuf> {
+fn find_bundled_ffmpeg<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<PathBuf> {
     let dir = app.path().resource_dir().ok()?;
     let candidates = [
         dir.join("bin/ffmpeg"),
@@ -379,7 +440,7 @@ fn find_bundled_ffmpeg<R: tauri::Runtime>(app: &tauri::App<R>) -> Option<PathBuf
 
 // ── Spawn the backend via the bootstrapped venv Python ────────────────────
 
-fn spawn_backend<R: tauri::Runtime>(app: &tauri::App<R>) -> Option<Child> {
+fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<&Arc<Mutex<BootstrapStage>>>) -> Option<Child> {
     let log_path = backend_log_path();
     let err_path = log_path.with_file_name("backend_err.log");
     log::info!(
@@ -388,13 +449,16 @@ fn spawn_backend<R: tauri::Runtime>(app: &tauri::App<R>) -> Option<Child> {
         err_path.display(),
     );
 
-    let (python, backend_dir) = match ensure_venv_ready(app) {
+    let (python, backend_dir) = match ensure_venv_ready(app, progress) {
         Some(x) => x,
         None => {
             log::error!("Venv bootstrap failed — backend not started");
             return None;
         }
     };
+    if let Some(p) = progress {
+        set_stage(p, BootstrapStage::StartingBackend);
+    }
 
     let stdout_file = fs::File::create(&log_path).ok();
     let stderr_file = fs::File::create(&err_path).ok();
@@ -454,6 +518,7 @@ fn spawn_backend<R: tauri::Runtime>(app: &tauri::App<R>) -> Option<Child> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![bootstrap_status])
         .setup(|app| {
             app.handle().plugin(tauri_plugin_dialog::init())?;
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
@@ -472,24 +537,37 @@ pub fn run() {
                     .build(),
             )?;
 
-            // ── Port-reuse dance ──
-            // 1. TAURI_SKIP_BACKEND=1 → never spawn (for devs running uvicorn manually).
-            // 2. Port already serving a healthy OmniVoice backend → attach so
-            //    you can keep a manual `uv run uvicorn` running alongside
-            //    `bun run tauri dev`.
-            // 3. Otherwise → spawn (kill orphan first if port held by corpse).
-            //    spawn_backend triggers the first-run venv bootstrap if needed.
-            let skip_spawn = std::env::var("TAURI_SKIP_BACKEND").is_ok();
-            let child = if skip_spawn {
-                log::info!("TAURI_SKIP_BACKEND set — not spawning");
-                None
-            } else if backend_healthy(BACKEND_PORT) {
-                log::info!(
-                    "Port {} already serving OmniVoice backend — attaching",
-                    BACKEND_PORT
-                );
-                None
-            } else {
+            // Bootstrap state is published via the `bootstrap_status` Tauri
+            // command so the React splash can poll it while we work.
+            let bootstrap = BootstrapState {
+                stage: Arc::new(Mutex::new(BootstrapStage::Checking)),
+            };
+            let stage_handle = bootstrap.stage.clone();
+            app.manage(bootstrap);
+            app.manage(BackendState {
+                process: Mutex::new(None),
+            });
+
+            // Spawn the bootstrap + backend launch in a background thread so
+            // setup() returns immediately and the webview can render the
+            // splash screen. Previously this was synchronous, so on first
+            // launch the webview was blank for 5-10 minutes.
+            let app_handle = app.handle().clone();
+            std::thread::spawn(move || {
+                let skip_spawn = std::env::var("TAURI_SKIP_BACKEND").is_ok();
+                if skip_spawn {
+                    log::info!("TAURI_SKIP_BACKEND set — not spawning");
+                    set_stage(&stage_handle, BootstrapStage::Ready);
+                    return;
+                }
+                if backend_healthy(BACKEND_PORT) {
+                    log::info!(
+                        "Port {} already serving OmniVoice backend — attaching",
+                        BACKEND_PORT
+                    );
+                    set_stage(&stage_handle, BootstrapStage::Ready);
+                    return;
+                }
                 if port_in_use(BACKEND_PORT) {
                     log::warn!(
                         "Port {} in use — taking ownership (killing whatever's there)",
@@ -498,11 +576,28 @@ pub fn run() {
                     kill_orphan_on_port(BACKEND_PORT);
                     std::thread::sleep(Duration::from_millis(500));
                 }
-                spawn_backend(app)
-            };
-
-            app.manage(BackendState {
-                process: Mutex::new(child),
+                let child = spawn_backend(&app_handle, Some(&stage_handle));
+                if let Ok(mut guard) = app_handle.state::<BackendState>().process.lock() {
+                    *guard = child;
+                }
+                // Poll the port until the backend actually responds, then flip
+                // the splash to Ready. Bounded wait — if it never comes up we
+                // stop after ~60 s and leave the stage on StartingBackend so
+                // the UI can surface an error.
+                let start = std::time::Instant::now();
+                while start.elapsed() < Duration::from_secs(60) {
+                    if backend_healthy(BACKEND_PORT) {
+                        set_stage(&stage_handle, BootstrapStage::Ready);
+                        return;
+                    }
+                    std::thread::sleep(Duration::from_millis(500));
+                }
+                set_stage(
+                    &stage_handle,
+                    BootstrapStage::Failed {
+                        message: "Backend did not respond within 60 s".to_string(),
+                    },
+                );
             });
             Ok(())
         })
