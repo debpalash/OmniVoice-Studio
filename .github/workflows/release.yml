@@ -133,14 +133,6 @@ jobs:
       - uses: actions/checkout@v4
 
       # ── Language runtimes ──────────────────────────────────────────────
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-
       - name: Setup Rust (stable)
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -149,7 +141,10 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
 
-      # ── Platform deps ──────────────────────────────────────────────────
+      # ── Platform deps (Tauri host requirements only — no Python here) ─
+      # The runtime Python/uv bootstrap happens on the user's machine at
+      # first launch, not in CI. CI only packages the source (pyproject.toml,
+      # uv.lock, backend/*.py) into the Tauri installer as resources.
       - name: macOS system deps
         if: runner.os == 'macOS'
         run: |
@@ -165,41 +160,6 @@ jobs:
             libayatana-appindicator3-dev librsvg2-dev \
             libasound2-dev ffmpeg
 
-      # Windows: ffmpeg ships via imageio_ffmpeg inside the PyInstaller bundle,
-      # no system-level install needed. PyInstaller picks it up automatically.
-
-      # ── Python deps + PyInstaller ──────────────────────────────────────
-      - name: Install Python deps
-        run: uv sync
-
-      # Windows + Linux default PyPI torch wheels bundle the full CUDA
-      # runtime (~2 GB of libcuda*/libcublas*/libcudnn*). For a desktop
-      # distribution we ship CPU-only inference and let the user opt into
-      # GPU separately, so we re-install torch from PyTorch's CPU index to
-      # strip the CUDA binaries. macOS wheels don't include CUDA so they
-      # skip this step.
-      - name: Re-install torch (CPU-only) on Linux/Windows
-        if: runner.os != 'macOS'
-        shell: bash
-        run: |
-          uv pip install --reinstall \
-            torch==2.8.0 torchaudio==2.8.0 \
-            --index-url https://download.pytorch.org/whl/cpu
-
-      - name: Freeze backend via PyInstaller
-        shell: bash
-        run: |
-          uv run pyinstaller backend.spec --noconfirm --clean
-          echo "Backend frozen at dist/omnivoice-backend/"
-          ls dist/omnivoice-backend/ | head
-          # Report total bundle size so we can eyeball CI against GH's 2 GB
-          # per-asset cap on Releases uploads.
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            powershell -Command "(Get-ChildItem -Recurse dist/omnivoice-backend | Measure-Object -Property Length -Sum).Sum / 1MB"
-          else
-            du -sh dist/omnivoice-backend
-          fi
-
       # ── Frontend build ─────────────────────────────────────────────────
       - name: Install frontend deps
         working-directory: frontend
@@ -208,18 +168,16 @@ jobs:
       # ── Tauri build + sign + publish ───────────────────────────────────
       # tauri-action handles: bundle, sign updater payload with the
       # TAURI_SIGNING_PRIVATE_KEY secret, attach to release, update
-      # latest.json with per-platform download URLs & signatures.
-      #
-      # APPIMAGE_EXTRACT_AND_RUN=1: GH Actions runners disable FUSE, so the
-      # linuxdeploy AppImage can't mount itself. Setting this env var tells
-      # AppImages to extract-and-run instead, which works without FUSE.
+      # latest.json with per-platform download URLs & signatures. The
+      # installer ships the repo's pyproject.toml + uv.lock + backend/
+      # tree as Tauri resources; lib.rs::ensure_venv_ready recreates the
+      # venv on first launch via `uv sync --frozen --no-dev`.
       - name: Build + release (Tauri)
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          APPIMAGE_EXTRACT_AND_RUN: 1
         with:
           projectPath: frontend
           args: --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundles }}
@@ -230,28 +188,3 @@ jobs:
           prerelease: false
           updaterJsonPreferNsis: false
           includeUpdaterJson: true
-
-      # The installer above ships WITHOUT the PyInstaller backend because a
-      # single bundled asset (Linux .deb, Windows .msi) overshoots GH
-      # Releases' 2 GB per-asset cap. Package the backend into its own tar.gz
-      # and attach it to the same draft release; the Tauri app downloads and
-      # extracts it from app_local_data_dir on first launch (see lib.rs →
-      # ensure_backend_ready).
-      - name: Package backend tarball
-        shell: bash
-        run: |
-          VER="${GITHUB_REF_NAME#v}"
-          OUT="omnivoice-backend_${VER}_${{ matrix.rust_target }}.tar.gz"
-          tar -czf "$OUT" -C dist omnivoice-backend
-          ls -lah "$OUT"
-          echo "BACKEND_TARBALL=$OUT" >> "$GITHUB_ENV"
-
-      - name: Upload backend tarball to draft release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload "${{ github.ref_name }}" \
-            "$BACKEND_TARBALL" \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber

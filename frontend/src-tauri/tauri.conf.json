@@ -44,7 +44,11 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": {},
+    "resources": [
+      "../../pyproject.toml",
+      "../../uv.lock",
+      "../../backend"
+    ],
     "macOS": {
       "minimumSystemVersion": "12.0"
     }
