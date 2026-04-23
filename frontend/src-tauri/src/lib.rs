@@ -7,7 +7,11 @@ use std::sync::Mutex;
 use std::time::Duration;
 use tauri::Manager;
 
-const BACKEND_PORT: u16 = 8000;
+// Unique port range (3900-3902) chosen to avoid common conflicts:
+// 8000 collides with Django/Rails/Jupyter/Airflow on most dev machines.
+// 3900 is the backend (FastAPI + uvicorn), 3901 is the Vite dev server,
+// 3902 is reserved for future IPC / websocket listeners.
+const BACKEND_PORT: u16 = 3900;
 
 // Version of the Astral `uv` binary we download at first run when no system
 // uv is on PATH. Pinned for reproducibility — bump alongside the uv.lock

@@ -30,8 +30,13 @@ jobs:
         with:
           python-version: "3.11"
 
+      # enable-cache persists ~/.cache/uv across runs, keyed on uv.lock —
+      # turns `uv sync` from ~45 s cold to ~5 s warm.
       - name: Install uv
         uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       # Node 22 is needed for --experimental-strip-types so node:test can
       # import .ts files directly from frontend/src/api/*.
@@ -43,16 +48,28 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
 
+      # apt install ffmpeg is ~30 s every run; cache the resolved .debs.
       - name: System deps (ffmpeg)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: ffmpeg
+          version: 1.0
 
       - name: Install Python deps
         run: uv sync
 
       - name: Run pytest
         run: uv run pytest tests/ -q --tb=short
+
+      # Cache ~/.bun/install/cache keyed on bun.lock — `bun install` drops
+      # from ~15 s cold to near-instant on warm cache.
+      - name: Cache bun deps
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('frontend/bun.lock', 'bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
       - name: Install frontend deps
         working-directory: frontend
