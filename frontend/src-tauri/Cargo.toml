@@ -28,13 +28,19 @@ tauri-plugin-window-state = "2.0.0"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 
-# First-run backend bootstrap: the PyInstaller backend (~1.5 GB) ships as a
-# separate release asset instead of being bundled into the installer so we
-# stay under GH Releases' 2 GB per-asset cap on Linux/Windows. ureq handles
-# the HTTP GET, flate2 + tar do the extraction of the downloaded tarball.
+# First-run bootstrap: the installer ships ~10 MB with only the Tauri
+# shell + pyproject.toml + uv.lock + backend source. On first launch the
+# Rust setup hook downloads the standalone `uv` binary, creates a venv at
+# `app_local_data_dir/venv`, and runs `uv sync` against the bundled
+# pyproject.toml — which installs torch, whisperx, faster-whisper, etc.
+# ureq fetches the `uv` archive; flate2 + tar extract it on Unix; zip
+# does the same on Windows (Astral publishes .zip for Windows only).
 ureq = "2"
 tar = "0.4"
 flate2 = "1"
+
+[target.'cfg(windows)'.dependencies]
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
