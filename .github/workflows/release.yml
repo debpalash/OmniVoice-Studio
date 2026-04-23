@@ -198,6 +198,11 @@ jobs:
       # installer ships the repo's pyproject.toml + uv.lock + backend/
       # tree as Tauri resources; lib.rs::ensure_venv_ready recreates the
       # venv on first launch via `uv sync --frozen --no-dev`.
+      # Release creation (tagName/releaseName) only runs on a tag push.
+      # workflow_dispatch has no tag — github.ref_name is a branch, and the
+      # default GITHUB_TOKEN can't create a release against a branch ref
+      # ("Resource not accessible by integration"). Dispatch builds ship as
+      # workflow artifacts instead of a GH Release.
       - name: Build + release (Tauri)
         uses: tauri-apps/tauri-action@v0
         env:
@@ -207,10 +212,25 @@ jobs:
         with:
           projectPath: frontend
           args: --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundles }}
-          tagName: ${{ github.ref_name }}
-          releaseName: "OmniVoice Studio ${{ github.ref_name }}"
+          tagName: ${{ github.event_name == 'push' && github.ref_name || '' }}
+          releaseName: ${{ github.event_name == 'push' && format('OmniVoice Studio {0}', github.ref_name) || '' }}
           releaseBody: "Auto-generated release. See commit log for changes."
           releaseDraft: ${{ inputs.draft || 'true' }}
           prerelease: false
           updaterJsonPreferNsis: false
           includeUpdaterJson: true
+
+      # Upload bundles as workflow artifacts when we skipped the GH Release
+      # publish path (i.e. workflow_dispatch runs). Lets you still grab builds
+      # for smoke-testing without tagging.
+      - name: Upload bundles as workflow artifacts (dispatch only)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: omnivoice-studio-${{ matrix.rust_target }}
+          path: |
+            frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/**/*.dmg
+            frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/**/*.msi
+            frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/**/*.deb
+            frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/**/*.app.tar.gz
+          if-no-files-found: warn
