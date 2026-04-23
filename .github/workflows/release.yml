@@ -127,13 +127,16 @@ jobs:
             rust_target: x86_64-pc-windows-msvc
             bundles: "msi,updater"
 
-          # Linux: ship .deb only. AppImage bundling (linuxdeploy) is
-          # unreliable on GH Actions runners even with APPIMAGE_EXTRACT_AND_RUN.
+          # Linux: ship .deb + .AppImage. AppImage is universal (no distro
+          # package-manager dep), runs on any glibc-2.31+ host. Now viable
+          # because the thin uv-venv installer is ~10 MB (vs the prior ~2 GB
+          # PyInstaller payload that exceeded linuxdeploy limits). FUSE
+          # unavailability on GH runners handled via APPIMAGE_EXTRACT_AND_RUN=1.
           - os: ubuntu-22.04
             arch: x86_64-unknown-linux-gnu
             label: "Linux x64"
             rust_target: x86_64-unknown-linux-gnu
-            bundles: "deb,updater"
+            bundles: "deb,appimage,updater"
 
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.label }}
@@ -204,6 +207,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # GH runners disable FUSE, so linuxdeploy's AppImage can't mount
+          # itself at bundle time. This env tells linuxdeploy to extract-and-run
+          # instead, which works without FUSE.
+          APPIMAGE_EXTRACT_AND_RUN: 1
         with:
           projectPath: frontend
           args: --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundles }}
