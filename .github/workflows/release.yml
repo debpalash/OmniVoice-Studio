@@ -116,12 +116,9 @@ jobs:
             rust_target: aarch64-apple-darwin
             bundles: "app,dmg,updater"
 
-          - os: macos-13
-            arch: x86_64-apple-darwin
-            label: "macOS Intel"
-            rust_target: x86_64-apple-darwin
-            bundles: "app,dmg,updater"
-
+          # macOS Intel dropped: Apple shipped the last Intel Mac in 2023 and
+          # Rosetta 2 runs the ARM build natively. macos-13 runner backlog
+          # was also blocking every release tag for ~10 min.
           # Windows: force MSI bundling via --bundles. NSIS fails at makensis
           # because our PyInstaller payload approaches its ~2 GB stub limit.
           - os: windows-2022
