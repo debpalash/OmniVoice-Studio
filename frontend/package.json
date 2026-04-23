@@ -18,8 +18,8 @@
     "@fontsource-variable/source-serif-4": "^5.2.9",
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@tauri-apps/plugin-dialog": "^2.7.0",
-    "@tauri-apps/plugin-process": "^2.3.0",
-    "@tauri-apps/plugin-updater": "^2.9.0",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.1",
     "@tauri-apps/plugin-window-state": "^2.4.1",
     "lucide-react": "^1.8.0",
     "react": "^19.2.5",
@@ -27,7 +27,7 @@
     "react-hot-toast": "^2.6.0",
     "react-window": "^2.2.7",
     "wavesurfer.js": "^7.12.6",
-    "zustand": "^5.0.2"
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -36,11 +36,11 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "eslint": "^10.2.0",
-    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint": "^10.2.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.4.0",
-    "typescript": "^5.7.3",
-    "vite": "^8.0.8"
+    "globals": "^17.5.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.9"
   }
 }

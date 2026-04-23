@@ -19,7 +19,8 @@
     "noImplicitAny": false,
     "noEmit": true,
     "baseUrl": "./src",
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"],
   "exclude": ["node_modules", "dist", "src-tauri"]
