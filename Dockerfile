@@ -2,19 +2,18 @@
 # Builder Stage: Compile React Frontend
 # ==========================================
 FROM oven/bun:1-alpine AS frontend-builder
-WORKDIR /app/frontend
+WORKDIR /app
 
-# Copy frontend specifications
-COPY frontend/package.json ./
-COPY frontend/bun.lock ./
+# Monorepo — bun workspace with lockfile at repo root. Copy manifests first
+# so `bun install` caches independently of source edits.
+COPY package.json bun.lock ./
+COPY frontend/package.json ./frontend/
 
-# Install dependencies fast
 RUN bun install --frozen-lockfile
 
-# Copy frontend source and build static files
-COPY frontend/ ./
-# Output goes to /app/frontend/dist
-RUN bun run build
+# Build static files (output lands in /app/frontend/dist)
+COPY frontend/ ./frontend/
+RUN bun run --cwd frontend build
 
 # ==========================================
 # Runtime Stage: Python & PyTorch Backend

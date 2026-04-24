@@ -191,6 +191,34 @@
 .models-row__repo code{ color: var(--chrome-fg-muted); }
 .models-row__note     { color: var(--chrome-fg-dim); }
 .models-row__progress { color: var(--chrome-accent); font-size: var(--text-xs); font-family: var(--chrome-font-mono); margin-top: 2px; }
+.models-row__progressline {
+  display: flex; flex-direction: column; gap: 3px; margin-top: 6px;
+}
+.models-row__progresstext {
+  color: var(--chrome-fg-muted); font-size: var(--text-xs);
+  font-family: var(--chrome-font-mono); font-variant-numeric: tabular-nums;
+}
+.models-row__error {
+  color: var(--chrome-danger, #fb4934); font-size: var(--text-xs);
+  margin-top: 4px;
+}
+.models-controls {
+  display: flex; align-items: center; gap: var(--space-2);
+  margin: var(--space-2) 0;
+}
+.models-search {
+  flex: 1; min-width: 120px;
+  background: var(--chrome-bg-2, #1d1d1d);
+  border: 1px solid var(--chrome-border, #2a2a2a);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--chrome-fg);
+  padding: 6px 10px;
+  font-size: var(--text-xs);
+}
+.models-search:focus {
+  outline: none;
+  border-color: var(--chrome-accent, #fabd2f);
+}
 .models-row__size     { font-family: var(--chrome-font-mono); font-size: var(--text-xs); color: var(--chrome-fg-muted); font-variant-numeric: tabular-nums; }
 
 .models-row__actions {

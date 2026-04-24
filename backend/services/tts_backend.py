@@ -441,11 +441,11 @@ class MLXAudioBackend(TTSBackend):
     CURATED_MODELS = {
         "kokoro":      "mlx-community/Kokoro-82M-bf16",
         "csm":         "mlx-community/csm-1b-8bit",
-        "qwen3-tts":   "mlx-community/Qwen3-TTS-1.7B-4bit",
+        "qwen3-tts":   "mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-4bit",
         "dia":         "mlx-community/Dia-1.6B",
-        "chatterbox":  "mlx-community/Chatterbox",
-        "melotts":     "mlx-community/MeloTTS",
-        "outetts":     "mlx-community/OuteTTS-0.3-500M",
+        "chatterbox":  "mlx-community/Chatterbox-TTS-4bit",
+        "melotts":     "mlx-community/MeloTTS-English-v3-MLX",
+        "outetts":     "mlx-community/Llama-OuteTTS-1.0-1B-4bit",
     }
     DEFAULT_MODEL_KEY = "kokoro"
 

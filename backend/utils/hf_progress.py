@@ -18,12 +18,21 @@ Usage:
 """
 from __future__ import annotations
 
+import contextvars
 import itertools
 import logging
 import threading
 from typing import Callable, Optional
 
 logger = logging.getLogger("omnivoice.hf_progress")
+
+# Context-scoped active repo_id. Set in the install/delete handler so every
+# tqdm event fired while a snapshot_download runs can be stamped with the
+# originating repo, letting the frontend route per-file events to the right
+# row instead of heuristically matching filename substrings.
+current_repo_id: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "omnivoice_hf_progress_repo_id", default=None,
+)
 
 # Event shape forwarded to listeners. Typed loosely on purpose — SSE encodes
 # it as JSON so consumers read the dict directly.
@@ -61,6 +70,11 @@ def unregister_listener(lid: int) -> None:
 def _emit(event: ProgressEvent) -> None:
     """Fan out to all registered listeners. Never raise — a bad listener
     shouldn't break a download."""
+    # Stamp the active repo_id so frontends can route events to the right
+    # row. Only set when this emit is happening inside an install handler.
+    rid = current_repo_id.get()
+    if rid is not None and "repo_id" not in event:
+        event = {**event, "repo_id": rid}
     with _listener_lock:
         listeners = list(_listeners.values())
     for cb in listeners:
@@ -68,6 +82,12 @@ def _emit(event: ProgressEvent) -> None:
             cb(event)
         except Exception as e:  # noqa: BLE001
             logger.debug("hf_progress listener raised: %s", e)
+
+
+def emit(event: ProgressEvent) -> None:
+    """Public emit — lets non-tqdm operations (delete, verify, etc.) push
+    lifecycle events onto the same SSE stream."""
+    _emit(event)
 
 
 def install() -> None:

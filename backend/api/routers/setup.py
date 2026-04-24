@@ -114,8 +114,8 @@ KNOWN_MODELS = [
         "note": "Needs an HF_TOKEN with license accepted.",
     },
     {
-        "repo_id": "OpenMOSS-Team/MOSS-TTS-Nano",
-        "label": "MOSS-TTS-Nano (20 langs, CPU-realtime)",
+        "repo_id": "OpenMOSS-Team/MOSS-TTS-Nano-100M",
+        "label": "MOSS-TTS-Nano 100M (20 langs, CPU-realtime)",
         "role": "TTS",
         "size_gb": 0.4,
         "required": False,
@@ -151,7 +151,7 @@ KNOWN_MODELS = [
         "note": "Apple Silicon only — via mlx-audio backend.",
     },
     {
-        "repo_id": "mlx-community/Qwen3-TTS-1.7B-4bit",
+        "repo_id": "mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-4bit",
         "label": "Qwen3-TTS 1.7B 4bit (voice design, mlx-audio)",
         "role": "TTS",
         "size_gb": 1.4,
@@ -167,10 +167,26 @@ KNOWN_MODELS = [
         "note": "Apple Silicon only — via mlx-audio backend.",
     },
     {
-        "repo_id": "mlx-community/OuteTTS-0.3-500M",
-        "label": "OuteTTS 0.3 500M (voice clone, mlx-audio)",
+        "repo_id": "mlx-community/Llama-OuteTTS-1.0-1B-4bit",
+        "label": "Llama-OuteTTS 1.0 1B 4bit (voice clone, mlx-audio)",
         "role": "TTS",
-        "size_gb": 1.0,
+        "size_gb": 0.8,
+        "required": False,
+        "note": "Apple Silicon only — via mlx-audio backend.",
+    },
+    {
+        "repo_id": "mlx-community/Chatterbox-TTS-4bit",
+        "label": "Chatterbox TTS 4bit (mlx-audio)",
+        "role": "TTS",
+        "size_gb": 0.5,
+        "required": False,
+        "note": "Apple Silicon only — via mlx-audio backend.",
+    },
+    {
+        "repo_id": "mlx-community/MeloTTS-English-v3-MLX",
+        "label": "MeloTTS English v3 (mlx-audio)",
+        "role": "TTS",
+        "size_gb": 0.2,
         "required": False,
         "note": "Apple Silicon only — via mlx-audio backend.",
     },
@@ -342,13 +358,35 @@ async def install_model(req: InstallModelRequest):
     loop = asyncio.get_event_loop()
 
     def _do():
+        token = hf_progress.current_repo_id.set(req.repo_id)
+        hf_progress.emit({
+            "repo_id": req.repo_id,
+            "filename": req.repo_id,
+            "downloaded": 0, "total": 0, "pct": 0.0,
+            "phase": "install_start",
+        })
         try:
             from huggingface_hub import snapshot_download
             logger.info("model install starting: %s", req.repo_id)
             snapshot_download(repo_id=req.repo_id)
             logger.info("model install done: %s", req.repo_id)
+            hf_progress.emit({
+                "repo_id": req.repo_id,
+                "filename": req.repo_id,
+                "downloaded": 0, "total": 0, "pct": 1.0,
+                "phase": "install_done",
+            })
         except Exception as e:
             logger.warning("model install failed for %s: %s", req.repo_id, e)
+            hf_progress.emit({
+                "repo_id": req.repo_id,
+                "filename": req.repo_id,
+                "downloaded": 0, "total": 0, "pct": 0.0,
+                "phase": "install_error",
+                "error": str(e),
+            })
+        finally:
+            hf_progress.current_repo_id.reset(token)
 
     # Non-blocking — client polls /models or listens on the SSE.
     loop.create_task(asyncio.to_thread(_do))
@@ -359,6 +397,12 @@ async def install_model(req: InstallModelRequest):
 def delete_model(repo_id: str):
     """Remove every cached revision of a repo from the HF cache. Frees disk
     + lets the user re-install a fresh copy via POST /models/install."""
+    hf_progress.emit({
+        "repo_id": repo_id,
+        "filename": repo_id,
+        "downloaded": 0, "total": 0, "pct": 0.0,
+        "phase": "delete_start",
+    })
     try:
         from huggingface_hub import scan_cache_dir
         info = scan_cache_dir()
@@ -377,6 +421,13 @@ def delete_model(repo_id: str):
             )
         strategy = info.delete_revisions(*commits)
         strategy.execute()
+        hf_progress.emit({
+            "repo_id": repo_id,
+            "filename": repo_id,
+            "downloaded": 0, "total": 0, "pct": 1.0,
+            "phase": "delete_done",
+            "freed_bytes": strategy.expected_freed_size,
+        })
         return {
             "deleted": True,
             "repo_id": repo_id,

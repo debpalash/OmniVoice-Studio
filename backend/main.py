@@ -4,6 +4,11 @@ import sys
 try:
     import dotenv
     dotenv.load_dotenv()
+    # Also load the durable per-user config so env vars set once survive
+    # Tauri/Finder launches that don't inherit a shell environment.
+    _user_env = os.path.expanduser("~/.config/omnivoice/env")
+    if os.path.isfile(_user_env):
+        dotenv.load_dotenv(_user_env, override=False)
 except ImportError:
     pass
 

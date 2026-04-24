@@ -240,8 +240,8 @@ async def dub_translate(req: TranslateRequest):
 
         def _build_translator(src, tgt):
             if provider == "deepl":
-                from deep_translator import DeepL
-                return DeepL(api_key=api_key, source=src, target=tgt)
+                from deep_translator import DeeplTranslator
+                return DeeplTranslator(api_key=api_key, source=src, target=tgt)
             if provider == "mymemory":
                 from deep_translator import MyMemoryTranslator
                 return MyMemoryTranslator(source=src, target=tgt)

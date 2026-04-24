@@ -1,14 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Cpu, FileText, Info, ShieldCheck, RefreshCw, Trash2, ExternalLink,
-  CheckCircle, AlertCircle, Plug, Mic, MessageSquare, Download,
+  CheckCircle, AlertCircle, Plug, Mic, MessageSquare, Download, Copy,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { systemInfo, systemLogs, systemLogsTauri, clearSystemLogs, clearTauriLogs, modelStatus as fetchModelStatus } from '../api/system';
+import { systemInfo, systemLogs, systemLogsTauri, clearSystemLogs, clearTauriLogs, modelStatus as fetchModelStatus, sysinfo as fetchSysinfo } from '../api/system';
 import { listEngines, selectEngine } from '../api/engines';
 import { listModels, installModel, deleteModel, setupDownloadStreamUrl, getRecommendations } from '../api/setup';
 import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
-import { Tabs, Segmented, Button, Badge, Panel, Table } from '../ui';
+import { Tabs, Segmented, Button, Badge, Panel, Table, Progress } from '../ui';
 import { useAppStore } from '../store';
 import './Settings.css';
 
@@ -59,7 +59,11 @@ export function ModelStoreTab({ info, modelBadge }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(new Set()); // repo_ids currently working
-  const [progress, setProgress] = useState({}); // filename → event
+  // Per-repo active state. Tracks aggregate download across all files of
+  // a running install so the row can show a determinate progress bar.
+  // { [repo_id]: { phase, files: { [filename]: { downloaded, total, pct } }, error } }
+  const [rowState, setRowState] = useState({});
+  const [query, setQuery] = useState('');
   const [reco, setReco] = useState(null);       // /setup/recommendations payload
   const [installingReco, setInstallingReco] = useState(false);
   const [activeRole, setActiveRole] = useState(null);
@@ -86,21 +90,56 @@ export function ModelStoreTab({ info, modelBadge }) {
     es.onmessage = (evt) => {
       try {
         const ev = JSON.parse(evt.data);
-        if (ev?.filename) setProgress(prev => ({ ...prev, [ev.filename]: ev }));
+        if (!ev?.repo_id) return;
+        setRowState(prev => {
+          const cur = prev[ev.repo_id] || { phase: 'active', files: {} };
+          // Lifecycle events (install_start/install_done/install_error,
+          // delete_start/delete_done) flip the row's phase without
+          // touching per-file accounting.
+          if (ev.phase === 'install_start' || ev.phase === 'delete_start') {
+            return { ...prev, [ev.repo_id]: { phase: ev.phase, files: {}, error: null } };
+          }
+          if (ev.phase === 'install_done') {
+            return { ...prev, [ev.repo_id]: { ...cur, phase: 'install_done' } };
+          }
+          if (ev.phase === 'delete_done') {
+            return { ...prev, [ev.repo_id]: { ...cur, phase: 'delete_done' } };
+          }
+          if (ev.phase === 'install_error') {
+            return { ...prev, [ev.repo_id]: { ...cur, phase: 'install_error', error: ev.error } };
+          }
+          // Per-file tqdm events — aggregate across files.
+          const files = { ...cur.files, [ev.filename]: {
+            downloaded: ev.downloaded || 0,
+            total: ev.total || 0,
+            pct: ev.pct || 0,
+            phase: ev.phase,
+          }};
+          return { ...prev, [ev.repo_id]: { ...cur, phase: 'active', files } };
+        });
       } catch { /* keepalive / ignore */ }
     };
     return () => es.close();
   }, []);
 
-  // When progress events stop firing, auto-refresh the list so "installed"
-  // flips without a manual click.
+  // When a lifecycle terminator fires, refresh the list so "installed"
+  // flips server-side info into the row.
   useEffect(() => {
-    const filesInFlight = Object.values(progress).filter(e => e.phase !== 'done');
-    if (filesInFlight.length === 0 && Object.keys(progress).length > 0) {
-      const t = setTimeout(reload, 1500);
-      return () => clearTimeout(t);
-    }
-  }, [progress, reload]);
+    const term = Object.entries(rowState).find(([, s]) =>
+      ['install_done', 'delete_done', 'install_error'].includes(s.phase));
+    if (!term) return;
+    const t = setTimeout(() => {
+      reload();
+      // Clear the terminal entry so the row reverts to the authoritative
+      // `installed` flag from /models without keeping stale progress.
+      setRowState(prev => {
+        const next = { ...prev };
+        delete next[term[0]];
+        return next;
+      });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [rowState, reload]);
 
   const withBusy = async (repoId, fn, successMsg) => {
     setBusy(prev => new Set(prev).add(repoId));
@@ -116,12 +155,12 @@ export function ModelStoreTab({ info, modelBadge }) {
   };
 
   const onInstall = (repoId) => withBusy(repoId, () => installModel(repoId), 'Install started — progress in the row');
-  const onDelete  = (repoId) => {
-    if (!confirm(`Delete ${repoId}? You can reinstall it later.`)) return;
+  const onDelete  = async (repoId) => {
+    if (!(await askConfirm(`Delete ${repoId}? You can reinstall it later.`, 'Delete model'))) return;
     return withBusy(repoId, () => deleteModel(repoId), `Deleted ${repoId}`);
   };
   const onReinstall = async (repoId) => {
-    if (!confirm(`Reinstall ${repoId}? This will delete the current copy and download again.`)) return;
+    if (!(await askConfirm(`Reinstall ${repoId}? This will delete the current copy and download again.`, 'Reinstall model'))) return;
     await withBusy(repoId, async () => {
       await deleteModel(repoId);
       await installModel(repoId);
@@ -171,7 +210,9 @@ export function ModelStoreTab({ info, modelBadge }) {
     return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
   });
   const currentRole = activeRole && groups[activeRole] ? activeRole : roles[0];
-  const rows = currentRole ? groups[currentRole] : [];
+  const q = query.trim().toLowerCase();
+  const rows = (currentRole ? groups[currentRole] : []).filter(m =>
+    !q || m.repo_id.toLowerCase().includes(q) || (m.label || '').toLowerCase().includes(q));
 
   const COLUMNS = [
     { key: 'name',    label: 'Model',   flex: 3 },
@@ -190,7 +231,7 @@ export function ModelStoreTab({ info, modelBadge }) {
           {info && <span className="models-toolbar__sep">·</span>}
           {info && <span>model: {modelBadge}</span>}
         </div>
-        <Button variant="subtle" size="sm" onClick={reload} leading={<RefreshCw size={11} />}>
+        <Button variant="subtle" size="sm" onClick={reload} loading={loading} leading={<RefreshCw size={11} />}>
           Refresh
         </Button>
       </div>
@@ -222,29 +263,52 @@ export function ModelStoreTab({ info, modelBadge }) {
         </div>
       )}
 
-      {roles.length > 1 && (
-        <Segmented
-          size="sm"
-          value={currentRole}
-          onChange={setActiveRole}
-          className="models-roletabs"
-          items={roles.map(r => {
-            const installed = groups[r].filter(m => m.installed).length;
-            return {
-              value: r,
-              label: `${ROLE_LABEL[r] || r.toUpperCase()} ${installed}/${groups[r].length}`,
-            };
-          })}
+      <div className="models-controls">
+        {roles.length > 1 && (
+          <Segmented
+            size="sm"
+            value={currentRole}
+            onChange={setActiveRole}
+            className="models-roletabs"
+            items={roles.map(r => {
+              const installed = groups[r].filter(m => m.installed).length;
+              return {
+                value: r,
+                label: `${ROLE_LABEL[r] || r.toUpperCase()} ${installed}/${groups[r].length}`,
+              };
+            })}
+          />
+        )}
+        <input
+          type="search"
+          className="models-search"
+          placeholder="Search models…"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          aria-label="Search models"
         />
-      )}
+      </div>
 
       <Table className="models-table">
         <Table.Header columns={COLUMNS} />
         <div className="models-table__body">
           {rows.map((m) => {
+            const rs = rowState[m.repo_id];
             const rowBusy = busy.has(m.repo_id);
-            const files = Object.values(progress).filter(p => p.filename && p.filename.includes(m.repo_id.split('/').pop()));
-            const activeFile = files.find(f => f.phase !== 'done');
+            const isInstalling = rs?.phase === 'install_start' || (rs?.phase === 'active' && !rs.files && !rs.error);
+            const isDeleting = rs?.phase === 'delete_start';
+            const phase = rs?.phase;
+            // Aggregate current download progress across all in-flight files.
+            const fileList = rs?.files ? Object.entries(rs.files) : [];
+            const totals = fileList.reduce((a, [, f]) => ({
+              downloaded: a.downloaded + (f.downloaded || 0),
+              total: a.total + (f.total || 0),
+              done: a.done + (f.phase === 'done' ? 1 : 0),
+            }), { downloaded: 0, total: 0, done: 0 });
+            const hasFiles = fileList.length > 0;
+            const aggPct = totals.total > 0 ? (totals.downloaded / totals.total) * 100 : null;
+            const showBar = phase === 'install_start' || phase === 'active' || phase === 'delete_start';
+            const activeFilename = fileList.find(([, f]) => f.phase !== 'done')?.[0];
             return (
               <div key={m.repo_id} className={`models-row ${m.installed ? 'is-ok' : 'is-off'}`}>
                 <div className="models-row__cell models-row__name" style={{ flex: 3 }}>
@@ -256,24 +320,42 @@ export function ModelStoreTab({ info, modelBadge }) {
                     <code>{m.repo_id}</code>
                     {m.note && <span className="models-row__note"> · {m.note}</span>}
                   </span>
-                  {activeFile && (
-                    <span className="models-row__progress">
-                      ⬇ {activeFile.filename.split('/').pop()} · {Math.round(activeFile.pct * 100)}%
-                    </span>
+                  {showBar && (
+                    <div className="models-row__progressline">
+                      <Progress
+                        value={aggPct}
+                        tone={isDeleting ? 'warn' : 'brand'}
+                        size="xs"
+                      />
+                      <span className="models-row__progresstext">
+                        {isDeleting
+                          ? 'Removing cached revisions…'
+                          : hasFiles
+                            ? `${fmtBytes(totals.downloaded)}${totals.total ? ` / ${fmtBytes(totals.total)}` : ''} · ${fileList.length} file${fileList.length === 1 ? '' : 's'}${totals.done ? ` · ${totals.done} done` : ''}${activeFilename ? ` · ${activeFilename.split('/').pop()}` : ''}`
+                            : 'Preparing download…'}
+                      </span>
+                    </div>
+                  )}
+                  {phase === 'install_error' && rs?.error && (
+                    <span className="models-row__error">Install failed: {rs.error}</span>
                   )}
                 </div>
                 <div className="models-row__cell models-row__size" style={{ width: 80, textAlign: 'right' }}>
                   {m.installed ? fmtBytes(m.size_on_disk_bytes) : `${m.size_gb} GB`}
                 </div>
                 <div className="models-row__cell" style={{ width: 110, display: 'flex', justifyContent: 'center' }}>
-                  {rowBusy
-                    ? <Badge tone="warn" size="xs"><RefreshCw size={10} className="spinner" /> working</Badge>
-                    : m.installed
-                      ? <Badge tone="success" size="xs">installed</Badge>
-                      : <Badge tone="neutral" size="xs">not installed</Badge>}
+                  {isInstalling
+                    ? <Badge tone="warn" size="xs"><Download size={10} /> {aggPct != null ? `${Math.round(aggPct)}%` : 'downloading'}</Badge>
+                    : isDeleting
+                      ? <Badge tone="warn" size="xs"><Trash2 size={10} /> deleting</Badge>
+                      : rowBusy
+                        ? <Badge tone="warn" size="xs"><RefreshCw size={10} className="spinner" /> working</Badge>
+                        : m.installed
+                          ? <Badge tone="success" size="xs">installed</Badge>
+                          : <Badge tone="neutral" size="xs">not installed</Badge>}
                 </div>
                 <div className="models-row__cell models-row__actions" style={{ width: 108 }}>
-                  {!m.installed && !rowBusy && (
+                  {!m.installed && !rowBusy && !isInstalling && (
                     <Button
                       variant="subtle" size="sm"
                       onClick={() => onInstall(m.repo_id)}
@@ -282,7 +364,7 @@ export function ModelStoreTab({ info, modelBadge }) {
                       Install
                     </Button>
                   )}
-                  {m.installed && !rowBusy && (
+                  {m.installed && !rowBusy && !isDeleting && (
                     <>
                       <Button
                         variant="icon" iconSize="sm"
@@ -377,7 +459,7 @@ export function EnginesTab() {
             {reviewMode === 'on' ? 'Stage banners on' : 'Stage banners off'}
           </span>
         </div>
-        <Button variant="subtle" size="sm" onClick={reload} leading={<RefreshCw size={11} />}>
+        <Button variant="subtle" size="sm" onClick={reload} loading={loading} leading={<RefreshCw size={11} />}>
           Refresh
         </Button>
       </div>
@@ -441,6 +523,20 @@ export function EnginesTab() {
 }
 
 
+const isTauri = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
+// Tauri v2's webview disables native window.confirm/alert — they return
+// false silently, making Delete/Reinstall buttons appear dead. Route through
+// the dialog plugin when running in Tauri, fall back to browser confirm
+// elsewhere (vite dev, tests).
+async function askConfirm(message, title = 'Confirm') {
+  if (isTauri()) {
+    const { ask } = await import('@tauri-apps/plugin-dialog');
+    return ask(message, { title, kind: 'warning' });
+  }
+  return Promise.resolve(window.confirm(message));
+}
+
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('models');
   const [info, setInfo] = useState(null);
@@ -449,6 +545,107 @@ export default function Settings() {
   const [logs, setLogs] = useState([]);
   const [logMeta, setLogMeta] = useState({ path: '', exists: false });
   const [loadingLogs, setLoadingLogs] = useState(false);
+  const [appVersion, setAppVersion] = useState(null);
+  const [tauriVersion, setTauriVersion] = useState(null);
+  const [hw, setHw] = useState(null);
+  const [updateState, setUpdateState] = useState('idle'); // idle|checking|downloading|uptodate|error
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    (async () => {
+      try {
+        const app = await import('@tauri-apps/api/app');
+        setAppVersion(await app.getVersion());
+        if (app.getTauriVersion) setTauriVersion(await app.getTauriVersion());
+      } catch { /* web preview */ }
+    })();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const pull = async () => {
+      try {
+        const s = await fetchSysinfo();
+        if (!cancelled) setHw(s);
+      } catch { /* backend not up yet */ }
+    };
+    pull();
+    const iv = setInterval(pull, 6000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, []);
+
+  const copyDiagnostics = useCallback(async () => {
+    const nav = typeof navigator !== 'undefined' ? navigator : {};
+    const ua = nav.userAgent || '—';
+    const lang = nav.language || '—';
+    const tz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return '—'; } })();
+    const fmtGB = (v) => (typeof v === 'number' ? `${v.toFixed(2)} GB` : '—');
+    const lines = [
+      '### OmniVoice Studio diagnostics',
+      '',
+      `- **App version:** ${appVersion || '—'}`,
+      `- **Tauri runtime:** ${tauriVersion || (isTauri() ? '—' : 'web preview')}`,
+      `- **Platform:** ${info?.platform || '—'}`,
+      `- **Architecture:** ${nav.userAgentData?.platform || nav.platform || '—'}`,
+      `- **Locale / timezone:** ${lang} / ${tz}`,
+      `- **Python:** ${info?.python || '—'}`,
+      `- **Compute device:** ${info?.device || '—'}`,
+      `- **GPU active:** ${hw?.gpu_active ? 'yes' : 'no'}`,
+      `- **RAM:** ${fmtGB(hw?.ram)} used / ${fmtGB(hw?.total_ram)} total`,
+      `- **VRAM (allocated):** ${fmtGB(hw?.vram)}`,
+      `- **Backend status:** ${status?.status || 'unknown'}`,
+      `- **Active model:** ${status?.repo_id || info?.model_checkpoint || '—'}`,
+      `- **ASR model:** ${info?.asr_model || '—'}`,
+      `- **Translator:** ${info?.translate_provider || '—'}`,
+      `- **HF token set:** ${info?.has_hf_token ? 'yes' : 'no'}`,
+      `- **Data directory:** ${info?.data_dir || '—'}`,
+      `- **Outputs directory:** ${info?.outputs_dir || '—'}`,
+      `- **Crash log:** ${info?.crash_log_path || '—'}`,
+      `- **Update endpoint:** https://github.com/debpalash/OmniVoice-Studio/releases/latest/download/latest.json`,
+      `- **User agent:** ${ua}`,
+    ];
+    const text = lines.join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Diagnostics copied — paste into your issue report.');
+    } catch (e) {
+      toast.error('Copy failed: ' + (e?.message || e));
+    }
+  }, [appVersion, tauriVersion, info, status, hw]);
+
+  const checkForUpdates = useCallback(async () => {
+    if (!isTauri()) {
+      toast('Updater only runs in the desktop app.', { icon: 'ℹ️' });
+      return;
+    }
+    setUpdateState('checking');
+    try {
+      const [{ check }, { relaunch }, { ask }] = await Promise.all([
+        import('@tauri-apps/plugin-updater'),
+        import('@tauri-apps/plugin-process'),
+        import('@tauri-apps/plugin-dialog'),
+      ]);
+      const update = await check();
+      if (!update) {
+        setUpdateState('uptodate');
+        toast.success("You're on the latest version.");
+        return;
+      }
+      const proceed = await ask(
+        `Version ${update.version} is available.\n\n${update.body || 'See release notes on GitHub.'}\n\nDownload and install now?`,
+        { title: 'Update available', kind: 'info' },
+      );
+      if (!proceed) { setUpdateState('idle'); return; }
+      setUpdateState('downloading');
+      const t = toast.loading(`Downloading ${update.version}…`);
+      await update.downloadAndInstall();
+      toast.success('Installed — relaunching.', { id: t });
+      await relaunch();
+    } catch (e) {
+      setUpdateState('error');
+      toast.error('Update check failed: ' + (e?.message || e));
+    }
+  }, []);
 
   const refreshInfo = useCallback(async () => {
     try {
@@ -496,14 +693,14 @@ export default function Settings() {
 
   const onClearLogs = async () => {
     if (logSource === 'frontend') {
-      if (!confirm('Clear the in-memory frontend log buffer?')) return;
+      if (!(await askConfirm('Clear the in-memory frontend log buffer?', 'Clear logs'))) return;
       clearFrontendLogs();
       toast.success('Frontend logs cleared');
       setLogs([]);
       return;
     }
     if (logSource === 'tauri') {
-      if (!confirm('Truncate the Tauri-side log files? The OS will continue to write new entries.')) return;
+      if (!(await askConfirm('Truncate the Tauri-side log files? The OS will continue to write new entries.', 'Clear Tauri logs'))) return;
       try {
         const r = await clearTauriLogs();
         if (!r?.cleared?.length) {
@@ -517,7 +714,7 @@ export default function Settings() {
       }
       return;
     }
-    if (!confirm('Clear the backend runtime + crash logs? This cannot be undone.')) return;
+    if (!(await askConfirm('Clear the backend runtime + crash logs? This cannot be undone.', 'Clear logs'))) return;
     try {
       await clearSystemLogs();
       toast.success('Backend logs cleared');
@@ -609,10 +806,45 @@ export default function Settings() {
         <section className="settings-section">
           <h2><Info size={16} color="#8ec07c" /> About</h2>
           <Row label="App"             value="OmniVoice Studio" />
-          <Row label="Python"          value={info?.python || '—'} mono />
+          <Row label="Version"         value={appVersion || '—'} mono />
+          <Row label="Tauri runtime"   value={tauriVersion || (isTauri() ? '—' : 'web preview')} mono />
           <Row label="Platform"        value={info?.platform || '—'} />
+          <Row label="Architecture"    value={typeof navigator !== 'undefined' ? (navigator.userAgentData?.platform || navigator.platform || '—') : '—'} mono />
+          <Row label="Python"          value={info?.python || '—'} mono />
+          <Row label="Compute device"  value={info?.device || '—'} mono />
+          <Row label="GPU active"      value={hw?.gpu_active
+            ? <Badge tone="success"><CheckCircle size={11} /> yes</Badge>
+            : <Badge tone="neutral">no</Badge>} />
+          <Row label="RAM"             value={hw ? `${hw.ram?.toFixed(2)} / ${hw.total_ram?.toFixed(2)} GB` : '—'} mono />
+          <Row label="VRAM"            value={hw ? `${hw.vram?.toFixed(2)} GB` : '—'} mono />
+          <Row label="Backend"         value={<Badge tone={status?.status === 'ready' ? 'success' : status?.status === 'loading' ? 'warn' : 'neutral'}>{status?.status || 'unknown'}</Badge>} />
+          <Row label="Active model"    value={status?.repo_id || info?.model_checkpoint || '—'} mono />
+          <Row label="ASR model"       value={info?.asr_model || '—'} mono />
+          <Row label="Translator"      value={info?.translate_provider || '—'} />
+          <Row label="HF token set"    value={info?.has_hf_token ? 'yes' : 'no'} />
           <Row label="Data directory"  value={info?.data_dir || '—'} mono />
+          <Row label="Outputs"         value={info?.outputs_dir || '—'} mono />
+          <Row label="Crash log"       value={info?.crash_log_path || '—'} mono />
+          <Row label="Update endpoint" value="releases/latest/download/latest.json" mono />
           <div className="settings-link-row">
+            <Button
+              variant="primary"
+              size="md"
+              leading={<Download size={12} />}
+              onClick={checkForUpdates}
+              loading={updateState === 'checking' || updateState === 'downloading'}
+              disabled={!isTauri()}
+            >
+              {updateState === 'downloading' ? 'Downloading…' : 'Check for updates'}
+            </Button>
+            <Button
+              variant="subtle"
+              size="md"
+              leading={<Copy size={12} />}
+              onClick={copyDiagnostics}
+            >
+              Copy diagnostics
+            </Button>
             <Button
               variant="subtle"
               size="md"
