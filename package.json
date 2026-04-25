@@ -4,10 +4,10 @@
   "private": true,
   "packageManager": "bun@1.3.11",
   "scripts": {
-    "dev:api": "uv run uvicorn main:app --app-dir backend --host 0.0.0.0 --port 8000 --reload",
+    "dev:api": "uv run uvicorn main:app --app-dir backend --host 0.0.0.0 --port 3900 --reload",
     "dev:frontend": "bun run --cwd frontend dev",
     "dev:desktop": "bun run --cwd frontend desktop",
-    "wait:api": "wait-on -t 120000 http-get://localhost:8000/model/status",
+    "wait:api": "wait-on -t 120000 http-get://localhost:3900/system/info",
     "wait:frontend": "wait-on -t 120000 http://localhost:5173",
     "dev": "concurrently -n api,fe -c green,cyan --kill-others-on-fail \"bun run dev:api\" \"bun run wait:api && bun run dev:frontend\"",
     "desktop": "concurrently -n api,app -c green,magenta --kill-others-on-fail \"bun run dev:api\" \"bun run wait:api && bun run dev:desktop\"",

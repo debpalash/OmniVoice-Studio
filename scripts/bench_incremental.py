@@ -9,7 +9,7 @@ Usage:
     uv run python scripts/bench_incremental.py [URL]
 
 Default URL is the Fireship clip the user picked. Server must be live at
-127.0.0.1:8000 with the models loaded (first cold run can take minutes).
+127.0.0.1:3900 with the models loaded (first cold run can take minutes).
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ import time
 import urllib.request
 from urllib.error import HTTPError, URLError
 
-API = "http://127.0.0.1:8000"
+API = "http://127.0.0.1:3900"
 DEFAULT_URL = "https://www.youtube.com/watch?v=ZzI9JE0i6Lc"
 TARGET_S = 5.0
 # Cap baseline segments to keep full-dub wall-clock tractable. The incremental

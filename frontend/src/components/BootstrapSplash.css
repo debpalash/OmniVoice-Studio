@@ -107,3 +107,66 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+.bootstrap-splash__sub-progress {
+  margin: -0.5rem 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.bootstrap-splash__sub-bar {
+  height: 3px;
+  width: 100%;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--chrome-fg, #eee) 6%, transparent);
+  overflow: hidden;
+}
+
+.bootstrap-splash__sub-bar-fill {
+  height: 100%;
+  background: color-mix(in srgb, var(--chrome-accent, #8ec07c) 70%, transparent);
+  transition: width 0.2s ease;
+}
+
+.bootstrap-splash__sub-label {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.72rem;
+  opacity: 0.65;
+}
+
+.bootstrap-splash__log-toggle {
+  margin-top: 1.25rem;
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.65;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.25rem 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.bootstrap-splash__log-toggle:hover { opacity: 1; }
+
+.bootstrap-splash__log-count {
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.bootstrap-splash__logs {
+  margin: 0.5rem 0 0;
+  max-height: 220px;
+  overflow-y: auto;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  background: color-mix(in srgb, var(--chrome-fg, #eee) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chrome-fg, #eee) 8%, transparent);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  opacity: 0.85;
+}

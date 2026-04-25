@@ -1,12 +1,12 @@
 use std::fs;
-use std::io::{self, Read};
+use std::io::{self, BufRead, BufReader, Read};
 use std::net::TcpStream;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use serde::Serialize;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 // Unique port range (3900-3902) chosen to avoid common conflicts:
 // 8000 collides with Django/Rails/Jupyter/Airflow on most dev machines.
@@ -37,6 +37,9 @@ pub enum BootstrapStage {
     /// Running `uv sync --frozen --no-dev`. Biggest time sink on first run
     /// (~5-10 min to pull torch + whisperx + faster-whisper + demucs).
     InstallingDeps,
+    /// Fetching the per-platform static ffmpeg binary from the
+    /// ffmpeg-static GitHub release. ~30-70 MB.
+    DownloadingFfmpeg { percent: Option<u8> },
     /// Venv ready, spawning uvicorn. Should be <5 s.
     StartingBackend,
     /// Backend is listening and healthy. Frontend can leave the splash.
@@ -53,6 +56,94 @@ fn set_stage(state: &Arc<Mutex<BootstrapStage>>, stage: BootstrapStage) {
     if let Ok(mut guard) = state.lock() {
         *guard = stage;
     }
+}
+
+// ── Splash log + byte-progress event channel ─────────────────────────────
+//
+// Two Tauri events drive the splash UI's log panel + per-stage progress
+// bar. The splash polls `bootstrap_status` for the coarse stage label and
+// listens on these for live detail.
+
+#[derive(Clone, Serialize)]
+struct LogPayload {
+    stage: String,
+    line: String,
+}
+
+#[derive(Clone, Serialize)]
+struct ProgressPayload {
+    stage: String,
+    bytes_done: u64,
+    bytes_total: u64,
+    percent: Option<u8>,
+}
+
+fn emit_log<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stage: &str, line: &str) {
+    let _ = app.emit(
+        "bootstrap-log",
+        LogPayload { stage: stage.to_string(), line: line.to_string() },
+    );
+}
+
+fn emit_progress<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    stage: &str,
+    done: u64,
+    total: u64,
+) {
+    let percent = if total > 0 {
+        Some(((done as f64 / total as f64) * 100.0).min(100.0) as u8)
+    } else {
+        None
+    };
+    let _ = app.emit(
+        "bootstrap-progress",
+        ProgressPayload {
+            stage: stage.to_string(),
+            bytes_done: done,
+            bytes_total: total,
+            percent,
+        },
+    );
+}
+
+/// Stream stdout+stderr of a long-running subprocess line-by-line into the
+/// splash log panel. Replaces blocking `.status()` calls so the user sees
+/// `uv sync` chatter during the 5–10 min pip resolve. Returns the exit
+/// status once the child exits.
+fn run_streaming<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    stage: &str,
+    cmd: &mut Command,
+) -> io::Result<std::process::ExitStatus> {
+    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+    let mut child = cmd.spawn()?;
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+    let app_out = app.clone();
+    let app_err = app.clone();
+    let stage_out = stage.to_string();
+    let stage_err = stage.to_string();
+    let h_out = std::thread::spawn(move || {
+        if let Some(s) = stdout {
+            for line in BufReader::new(s).lines().flatten() {
+                log::info!("[{}] {}", stage_out, line);
+                emit_log(&app_out, &stage_out, &line);
+            }
+        }
+    });
+    let h_err = std::thread::spawn(move || {
+        if let Some(s) = stderr {
+            for line in BufReader::new(s).lines().flatten() {
+                log::info!("[{}] {}", stage_err, line);
+                emit_log(&app_err, &stage_err, &line);
+            }
+        }
+    });
+    let status = child.wait()?;
+    let _ = h_out.join();
+    let _ = h_err.join();
+    Ok(status)
 }
 
 #[tauri::command]
@@ -287,7 +378,8 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
 /// Dev mode wins: if `.venv` exists at the project root, reuse it (matches
 /// the behaviour of `bun run dev`). Otherwise copy the bundled pyproject.toml
 /// + uv.lock + backend/ from Tauri resources into `app_local_data_dir/project`
-/// and run `uv venv` + `uv sync --frozen --no-dev` there.
+/// and run `uv venv` + `uv sync --frozen --no-dev` there. All subprocess
+/// stdout/stderr is streamed to the splash log panel via Tauri events.
 fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<&Arc<Mutex<BootstrapStage>>>) -> Option<(PathBuf, PathBuf)> {
     let fail = |progress: Option<&Arc<Mutex<BootstrapStage>>>, msg: &str| {
         log::error!("{}", msg);
@@ -370,11 +462,10 @@ fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
     if let Some(p) = progress {
         set_stage(p, BootstrapStage::CreatingVenv);
     }
-    let status = Command::new(&uv_path)
-        .args(["venv", "--python", "3.11"])
-        .current_dir(&project_dir)
-        .status();
-    if !matches!(status, Ok(s) if s.success()) {
+    let mut venv_cmd = Command::new(&uv_path);
+    venv_cmd.args(["venv", "--python", "3.11"]).current_dir(&project_dir);
+    let status = run_streaming(app, "creating_venv", &mut venv_cmd);
+    if !matches!(status, Ok(ref s) if s.success()) {
         fail(progress, &format!("uv venv failed: {:?}", status));
         return None;
     }
@@ -382,11 +473,12 @@ fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
     if let Some(p) = progress {
         set_stage(p, BootstrapStage::InstallingDeps);
     }
-    let sync_status = Command::new(&uv_path)
-        .args(["sync", "--frozen", "--no-dev"])
-        .current_dir(&project_dir)
-        .status();
-    if !matches!(sync_status, Ok(s) if s.success()) {
+    let mut sync_cmd = Command::new(&uv_path);
+    sync_cmd
+        .args(["sync", "--frozen", "--no-dev", "--verbose"])
+        .current_dir(&project_dir);
+    let sync_status = run_streaming(app, "installing_deps", &mut sync_cmd);
+    if !matches!(sync_status, Ok(ref s) if s.success()) {
         fail(progress, &format!("uv sync failed: {:?}", sync_status));
         return None;
     }
@@ -415,6 +507,143 @@ fn backend_log_path() -> PathBuf {
     let log_dir = PathBuf::from(&home).join("Library/Logs/OmniVoice");
     let _ = fs::create_dir_all(&log_dir);
     log_dir.join("backend.log")
+}
+
+// ── ffmpeg static binary fetch (cross-platform, no extraction) ───────────
+//
+// We pull a single statically-linked binary per host platform from the
+// long-lived `ffmpeg-static` GitHub release (MIT, ffmpeg-6.0). One binary,
+// no archive — just download, chmod +x, done. URLs intentionally pinned
+// to a specific tag for reproducibility; bump `FFMPEG_TAG` to upgrade.
+const FFMPEG_TAG: &str = "b6.0";
+
+fn ffmpeg_download_url() -> Option<&'static str> {
+    match (std::env::consts::OS, std::env::consts::ARCH) {
+        ("macos", "aarch64")  => Some("ffmpeg-darwin-arm64"),
+        ("macos", "x86_64")   => Some("ffmpeg-darwin-x64"),
+        ("linux", "x86_64")   => Some("ffmpeg-linux-x64"),
+        ("linux", "aarch64")  => Some("ffmpeg-linux-arm64"),
+        ("windows", "x86_64") => Some("ffmpeg-win32-x64.exe"),
+        _ => None,
+    }
+}
+
+/// Download the static ffmpeg binary into `app_data/bin/ffmpeg[.exe]`.
+/// Idempotent: if the file exists and is executable, no-ops. Streams byte
+/// progress to the splash via `bootstrap-progress`.
+fn install_ffmpeg<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    dest_dir: &Path,
+    progress: Option<&Arc<Mutex<BootstrapStage>>>,
+) -> io::Result<PathBuf> {
+    let bin_name = if cfg!(windows) { "ffmpeg.exe" } else { "ffmpeg" };
+    let final_path = dest_dir.join(bin_name);
+
+    if final_path.is_file() {
+        // Treat any non-zero file as good enough — the user can delete it
+        // to force a re-download. Avoids bullying users on flaky networks.
+        if let Ok(meta) = fs::metadata(&final_path) {
+            if meta.len() > 1_000_000 {
+                return Ok(final_path);
+            }
+        }
+    }
+
+    let asset = ffmpeg_download_url().ok_or_else(|| {
+        io::Error::new(io::ErrorKind::Unsupported, "no ffmpeg binary for this platform")
+    })?;
+    let url = format!(
+        "https://github.com/eugeneware/ffmpeg-static/releases/download/{}/{}",
+        FFMPEG_TAG, asset
+    );
+
+    fs::create_dir_all(dest_dir)?;
+    let tmp_path = dest_dir.join(format!("{}.part", bin_name));
+    let _ = fs::remove_file(&tmp_path);
+
+    if let Some(p) = progress {
+        set_stage(p, BootstrapStage::DownloadingFfmpeg { percent: Some(0) });
+    }
+    emit_log(app, "downloading_ffmpeg", &format!("GET {}", url));
+
+    let resp = ureq::get(&url)
+        .timeout(Duration::from_secs(300))
+        .call()
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("ffmpeg download: {}", e)))?;
+    if resp.status() != 200 {
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!("ffmpeg HTTP {} from {}", resp.status(), url),
+        ));
+    }
+    let total: u64 = resp
+        .header("Content-Length")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0);
+
+    let mut reader = resp.into_reader();
+    let mut out = fs::File::create(&tmp_path)?;
+    let mut buf = [0u8; 64 * 1024];
+    let mut done: u64 = 0;
+    let mut last_emit = Instant::now();
+    loop {
+        let n = reader.read(&mut buf)?;
+        if n == 0 { break; }
+        use std::io::Write;
+        out.write_all(&buf[..n])?;
+        done += n as u64;
+        if last_emit.elapsed() > Duration::from_millis(150) {
+            emit_progress(app, "downloading_ffmpeg", done, total);
+            if let Some(p) = progress {
+                let pct = if total > 0 {
+                    Some(((done as f64 / total as f64) * 100.0) as u8)
+                } else { None };
+                set_stage(p, BootstrapStage::DownloadingFfmpeg { percent: pct });
+            }
+            last_emit = Instant::now();
+        }
+    }
+    drop(out);
+    emit_progress(app, "downloading_ffmpeg", done, total.max(done));
+
+    fs::rename(&tmp_path, &final_path)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&final_path)?.permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&final_path, perms)?;
+    }
+    emit_log(app, "downloading_ffmpeg",
+        &format!("ffmpeg ready at {} ({} bytes)", final_path.display(), done));
+    Ok(final_path)
+}
+
+/// Resolve the ffmpeg path to inject into the backend env. Order: app-data
+/// download (preferred — controlled), bundled resource (legacy), system
+/// PATH (None — let the backend find it). Triggers a fresh download into
+/// `app_data/bin/` if nothing usable is on disk.
+fn ensure_ffmpeg_ready<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    progress: Option<&Arc<Mutex<BootstrapStage>>>,
+) -> Option<PathBuf> {
+    let app_data = app.path().app_local_data_dir().ok()?;
+    let bin_dir = app_data.join("bin");
+    let installed = bin_dir.join(if cfg!(windows) { "ffmpeg.exe" } else { "ffmpeg" });
+    if installed.is_file() {
+        return Some(installed);
+    }
+    if let Some(bundled) = find_bundled_ffmpeg(app) {
+        return Some(bundled);
+    }
+    match install_ffmpeg(app, &bin_dir, progress) {
+        Ok(p) => Some(p),
+        Err(e) => {
+            emit_log(app, "downloading_ffmpeg", &format!("ffmpeg fetch failed: {}", e));
+            log::warn!("ffmpeg fetch failed: {} — backend will fall back to system PATH", e);
+            None
+        }
+    }
 }
 
 /// Stage the bundled ffmpeg binary and return its absolute path. The path is
@@ -456,6 +685,12 @@ fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<
             return None;
         }
     };
+
+    // Fetch ffmpeg before flipping to StartingBackend so the splash shows
+    // the real-time download. Failure isn't fatal — we'll fall back to the
+    // system PATH and let the backend log the missing-ffmpeg error itself.
+    let ffmpeg_path = ensure_ffmpeg_ready(app, progress);
+
     if let Some(p) = progress {
         set_stage(p, BootstrapStage::StartingBackend);
     }
@@ -464,7 +699,7 @@ fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<
     let stderr_file = fs::File::create(&err_path).ok();
 
     let mut env: Vec<(String, String)> = vec![("PYTHONUNBUFFERED".into(), "1".into())];
-    if let Some(ff) = find_bundled_ffmpeg(app) {
+    if let Some(ff) = ffmpeg_path {
         env.push(("OMNIVOICE_FFMPEG".into(), ff.to_string_lossy().into_owned()));
         let path_sep = if cfg!(windows) { ";" } else { ":" };
         env.push((
@@ -581,11 +816,11 @@ pub fn run() {
                     *guard = child;
                 }
                 // Poll the port until the backend actually responds, then flip
-                // the splash to Ready. Bounded wait — if it never comes up we
-                // stop after ~60 s and leave the stage on StartingBackend so
-                // the UI can surface an error.
+                // the splash to Ready. Bounded wait — first-run cold starts
+                // can hit 90+ s on slow disks while torch initialises, so
+                // we give it 3 min before declaring failure.
                 let start = std::time::Instant::now();
-                while start.elapsed() < Duration::from_secs(60) {
+                while start.elapsed() < Duration::from_secs(180) {
                     if backend_healthy(BACKEND_PORT) {
                         set_stage(&stage_handle, BootstrapStage::Ready);
                         return;
@@ -595,7 +830,7 @@ pub fn run() {
                 set_stage(
                     &stage_handle,
                     BootstrapStage::Failed {
-                        message: "Backend did not respond within 60 s".to_string(),
+                        message: "Backend did not respond within 180 s".to_string(),
                     },
                 );
             });

@@ -367,8 +367,50 @@ async def install_model(req: InstallModelRequest):
         })
         try:
             from huggingface_hub import snapshot_download
+            from huggingface_hub.utils import (
+                HfHubHTTPError,
+                LocalEntryNotFoundError,
+            )
             logger.info("model install starting: %s", req.repo_id)
-            snapshot_download(repo_id=req.repo_id)
+            # On Windows, NTFS symlinks require Developer Mode or Admin —
+            # most first-run installs don't have either.  The global env var
+            # HF_HUB_DISABLE_SYMLINKS=1 (set in main.py) covers implicit
+            # downloads, but we also pass the kwarg here as a belt-and-braces
+            # guard for older huggingface_hub versions that don't read the var.
+            dl_kwargs: dict = {"repo_id": req.repo_id}
+            if sys.platform == "win32":
+                dl_kwargs["local_dir_use_symlinks"] = False
+
+            # Resume on transient network failures. snapshot_download writes
+            # `.incomplete` shards into the HF cache and resumes from them on
+            # the next call automatically — re-invoking with the same args
+            # picks up where it left off, so each retry only re-fetches what's
+            # missing.
+            _max_attempts = 5
+            _attempt = 0
+            while True:
+                _attempt += 1
+                try:
+                    snapshot_download(**dl_kwargs)
+                    break
+                except (HfHubHTTPError, LocalEntryNotFoundError, OSError) as net_err:
+                    if _attempt >= _max_attempts:
+                        raise
+                    _backoff = min(30, 2 ** _attempt)
+                    logger.warning(
+                        "model install %s: attempt %d/%d failed (%s); retry in %ds",
+                        req.repo_id, _attempt, _max_attempts, net_err, _backoff,
+                    )
+                    hf_progress.emit({
+                        "repo_id": req.repo_id,
+                        "filename": req.repo_id,
+                        "downloaded": 0, "total": 0, "pct": 0.0,
+                        "phase": "install_retry",
+                        "attempt": _attempt,
+                        "error": str(net_err),
+                    })
+                    import time as _t
+                    _t.sleep(_backoff)
             logger.info("model install done: %s", req.repo_id)
             hf_progress.emit({
                 "repo_id": req.repo_id,

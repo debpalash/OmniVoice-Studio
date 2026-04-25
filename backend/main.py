@@ -20,6 +20,30 @@ if _cache_dir:
     os.environ["HF_HUB_CACHE"] = _cache_dir
     os.environ["TORCH_HOME"] = _cache_dir
 
+# ── Windows symlink fix ─────────────────────────────────────────────────────
+# HuggingFace Hub creates NTFS symlinks in its cache to deduplicate blobs
+# across model revisions.  On Windows, symlink creation requires either
+# Developer Mode enabled or an elevated (Administrator) shell.  Without
+# either, `snapshot_download` / `hf_hub_download` raises:
+#   OSError: [WinError 1314] A required privilege is not held by the client
+# Setting HF_HUB_DISABLE_SYMLINKS_WARNING silences the console spam, and the
+# newer HF_HUB_DISABLE_SYMLINKS (huggingface_hub ≥ 0.21) forces file copies
+# instead — slightly more disk but always works on first install.
+if sys.platform == "win32":
+    os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+    os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS", "1")
+
+# ── HF Xet → legacy LFS fallback ────────────────────────────────────────────
+# huggingface_hub ≥ 1.5 routes large file downloads through the Xet content-
+# addressed protocol (hf_xet runtime), which has its own internal progress
+# reporting that bypasses our `tqdm` monkey-patch in `utils.hf_progress`.
+# As a result the SetupWizard install rows show no byte progress while the
+# download is actually running. Force the legacy LFS path until we add a
+# proper hf_xet progress hook — this still streams via the standard tqdm
+# wrapper that our patch intercepts. Override-able by the user.
+os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+
+
 # Prevent torchaudio from lazy-importing torchcodec (broken on some installs).
 # Proper fix = exclude torchcodec in pyproject.toml; this is a belt-and-braces guard.
 os.environ.setdefault("TORCHAUDIO_USE_TORCHCODEC", "0")

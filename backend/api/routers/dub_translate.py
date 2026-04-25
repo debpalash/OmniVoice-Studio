@@ -23,11 +23,69 @@ TRANSLATE_CODES = {
 FLORES_CODES = {
     "en": "eng_Latn", "es": "spa_Latn", "fr": "fra_Latn", "de": "deu_Latn",
     "it": "ita_Latn", "pt": "por_Latn", "ru": "rus_Cyrl", "ja": "jpn_Jpan",
-    "ko": "kor_Hang", "zh": "zho_Hans", "zh-CN": "zho_Hans", "ar": "arb_Arab", 
+    "ko": "kor_Hang", "zh": "zho_Hans", "zh-CN": "zho_Hans", "ar": "arb_Arab",
     "hi": "hin_Deva", "tr": "tur_Latn", "pl": "pol_Latn", "nl": "nld_Latn",
     "sv": "swe_Latn", "th": "tha_Thai", "vi": "vie_Latn", "id": "ind_Latn",
     "uk": "ukr_Cyrl",
 }
+
+# Human-readable language names for LLM prompts. Empirically a tiny / 7B
+# local LLM produces Devanagari Hindi reliably when told "translate into
+# Hindi" but drifts to German / English / phonetic-Latin when told
+# "translate into hi". The two-letter ISO codes "hi" / "de" / "fr" can
+# overlap with everyday tokens ("hi" = greeting), which throws off small
+# instruction-tuned models. Pass the full name in the prompt so the model
+# can't misread it.
+LANG_NAMES = {
+    "en": "English", "es": "Spanish", "fr": "French", "de": "German",
+    "it": "Italian", "pt": "Portuguese", "ru": "Russian", "ja": "Japanese",
+    "ko": "Korean", "zh": "Chinese (Simplified)", "zh-CN": "Chinese (Simplified)",
+    "ar": "Arabic", "hi": "Hindi", "tr": "Turkish", "pl": "Polish",
+    "nl": "Dutch", "sv": "Swedish", "th": "Thai", "vi": "Vietnamese",
+    "id": "Indonesian", "uk": "Ukrainian",
+}
+
+# Per-language script enforcement. Maps language code → required Unicode
+# block(s) the translation must contain. Used as a sanity gate after the
+# LLM responds: if the output contains <50% characters from the expected
+# block, we treat the translation as corrupted and retry. The block names
+# here are the keys recognised by Python's `unicodedata.name()` lookup or
+# regex Unicode property classes.
+LANG_REQUIRED_SCRIPT = {
+    "hi":  ("DEVANAGARI", (0x0900, 0x097F)),
+    "ar":  ("ARABIC",     (0x0600, 0x06FF)),
+    "zh":  ("CJK",        (0x4E00, 0x9FFF)),
+    "zh-CN": ("CJK",      (0x4E00, 0x9FFF)),
+    "ja":  ("JAPANESE",   (0x3040, 0x30FF)),
+    "ko":  ("HANGUL",     (0xAC00, 0xD7AF)),
+    "th":  ("THAI",       (0x0E00, 0x0E7F)),
+    "ru":  ("CYRILLIC",   (0x0400, 0x04FF)),
+    "uk":  ("CYRILLIC",   (0x0400, 0x04FF)),
+}
+
+
+def _script_ratio(text: str, code: str) -> float:
+    """Fraction of letters in `text` that fall inside the script block we
+    expect for `code`. Punctuation/digits/whitespace are excluded from the
+    denominator so a Hindi sentence ending in "." still scores 1.0."""
+    info = LANG_REQUIRED_SCRIPT.get(code)
+    if not info:
+        return 1.0
+    _, (lo, hi) = info
+    letters = [c for c in text if c.isalpha()]
+    if not letters:
+        return 1.0
+    inside = sum(1 for c in letters if lo <= ord(c) <= hi)
+    return inside / len(letters)
+
+
+def _looks_like_target(text: str, code: str, threshold: float = 0.5) -> bool:
+    """Sanity gate for non-Latin targets. True if `text` is *plausibly* in
+    the target language by script. Only meaningful for languages with a
+    distinctive script (Indic, CJK, Arabic, etc.); Latin-script targets
+    always return True since we can't distinguish English from German by
+    codepoints alone."""
+    return _script_ratio(text, code) >= threshold
 
 _nllb_model = None
 _nllb_tokenizer = None
@@ -154,22 +212,89 @@ async def dub_translate(req: TranslateRequest):
             from openai import OpenAI
             client = OpenAI(base_url=base_url, api_key=api_key or "local")
 
-            def _translate_llm(seg):
-                try:
-                    if not seg.text or not seg.text.strip():
-                        return {"id": seg.id, "text": seg.text}
-                    tgt = seg.target_lang if seg.target_lang else req.target_lang
-                    res = client.chat.completions.create(
-                        model=model_name,
-                        messages=[
-                            {"role": "system", "content": f"You are a professional dubbing translator. Translate the user's text from {src_lang} into {tgt}. Reply ONLY with the translated text, do not add any quotes, notes, or explanations."},
-                            {"role": "user", "content": seg.text}
-                        ]
+            def _build_prompt(src_code: str, tgt_code: str) -> str:
+                """Build a system prompt that resists hallucinations on small
+                local LLMs. Three things matter:
+
+                1. Use full language names (Hindi, German) not ISO codes —
+                   tiny models read 'hi' as a greeting and drift.
+                2. For non-Latin targets, name the required script explicitly
+                   so the model can't fall back to phonetic Latin or another
+                   target it knows better (Hindi → German is a common drift
+                   we've actually observed).
+                3. End with a strict format guard so the model can't prepend
+                   'Translation:' or quote the output.
+                """
+                src_name = LANG_NAMES.get(src_code, src_code)
+                tgt_name = LANG_NAMES.get(tgt_code, tgt_code)
+                script_clause = ""
+                info = LANG_REQUIRED_SCRIPT.get(tgt_code)
+                if info:
+                    script_name, _ = info
+                    script_clause = (
+                        f" The output MUST be written in {script_name} script "
+                        f"only — do not use Latin/Roman letters, do not "
+                        f"transliterate, do not output any other language."
                     )
-                    out_text = res.choices[0].message.content.strip()
-                    return {"id": seg.id, "text": out_text}
-                except Exception as e:
-                    return {"id": seg.id, "text": seg.text, "error": str(e)}
+                return (
+                    f"You are a professional dubbing translator. "
+                    f"Translate the user's text from {src_name} into "
+                    f"{tgt_name}.{script_clause} "
+                    f"Reply ONLY with the translated {tgt_name} text, do not "
+                    f"add quotes, notes, headers, explanations, or commentary."
+                )
+
+            def _translate_llm(seg):
+                if not seg.text or not seg.text.strip():
+                    return {"id": seg.id, "text": seg.text}
+                tgt_code = seg.target_lang if seg.target_lang else req.target_lang
+                system_msg = _build_prompt(src_lang, tgt_code)
+                last_err = None
+                # Up to 2 attempts: if the first response fails the
+                # script-ratio gate (e.g. Hindi target but mostly Latin
+                # output), retry once with a more emphatic instruction.
+                for attempt in range(2):
+                    sys_for_attempt = system_msg
+                    if attempt == 1:
+                        sys_for_attempt = (
+                            system_msg
+                            + " Your previous attempt produced output in the "
+                            "wrong language or script. Output ONLY the "
+                            f"{LANG_NAMES.get(tgt_code, tgt_code)} translation."
+                        )
+                    try:
+                        res = client.chat.completions.create(
+                            model=model_name,
+                            temperature=0.2,  # less drift than default 1.0
+                            messages=[
+                                {"role": "system", "content": sys_for_attempt},
+                                {"role": "user", "content": seg.text},
+                            ],
+                        )
+                        out_text = (res.choices[0].message.content or "").strip()
+                        if not out_text:
+                            last_err = "empty LLM response"
+                            continue
+                        if not _looks_like_target(out_text, tgt_code):
+                            last_err = (
+                                f"LLM output script_ratio={_script_ratio(out_text, tgt_code):.2f} "
+                                f"below threshold for {tgt_code}"
+                            )
+                            logger.warning(
+                                "translate %s: attempt %d wrong script (%s); retrying",
+                                seg.id, attempt + 1, last_err,
+                            )
+                            continue
+                        return {"id": seg.id, "text": out_text}
+                    except Exception as e:
+                        last_err = f"{type(e).__name__}: {e}"
+                        logger.warning(
+                            "translate %s: LLM attempt %d failed: %s",
+                            seg.id, attempt + 1, e,
+                        )
+                # Both attempts failed — keep source text + flag error so the
+                # frontend can surface "fallback to literal" warning.
+                return {"id": seg.id, "text": seg.text, "error": last_err or "llm-failed"}
 
             tasks = [loop.run_in_executor(_cpu_pool, _translate_llm, seg) for seg in req.segments]
             translated = await asyncio.gather(*tasks)

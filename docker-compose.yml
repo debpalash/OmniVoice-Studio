@@ -6,7 +6,7 @@ services:
     container_name: omnivoice-studio
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "3900:3900"
     volumes:
       # Map the backend data directory to host for persistent SQLite, voices, and history
       - ./omnivoice_data:/app/omnivoice_data

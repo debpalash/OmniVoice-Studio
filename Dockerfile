@@ -51,10 +51,10 @@ COPY omnivoice/ ./omnivoice/
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Expose the single unified API and UI port
-EXPOSE 8000
+EXPOSE 3900
 
 # Mount points for persistent data (sqlite db, user voices, huggingface cache)
 VOLUME ["/app/omnivoice_data"]
 
 # Bind to 0.0.0.0 for external access
-ENTRYPOINT ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "3900"]

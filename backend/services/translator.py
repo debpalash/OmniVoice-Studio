@@ -59,8 +59,38 @@ _ADAPT_PROMPT = """\
 You are a cinematic dubbing writer. Rewrite the literal translation using the
 editor's critique so it sounds natural, in-character, and fits the speaker's
 time slot. Keep meaning faithful but prefer native idiom over word-for-word
-accuracy. Reply ONLY with the adapted translation — no quotes, no headers,
-no code fences, no commentary."""
+accuracy. The output MUST be written in the same target language and script
+as the literal translation — never switch language or transliterate.
+Reply ONLY with the adapted translation — no quotes, no headers, no code
+fences, no commentary."""
+
+# Per-language script ranges, mirrored from dub_translate.LANG_REQUIRED_SCRIPT
+# so the cinematic refine path can reject LLM outputs that drifted off the
+# target script. Kept local instead of imported because the routers package
+# also imports this services module — circular-import risk otherwise.
+_SCRIPT_RANGES = {
+    "hi":    (0x0900, 0x097F),
+    "ar":    (0x0600, 0x06FF),
+    "zh":    (0x4E00, 0x9FFF),
+    "zh-CN": (0x4E00, 0x9FFF),
+    "ja":    (0x3040, 0x30FF),
+    "ko":    (0xAC00, 0xD7AF),
+    "th":    (0x0E00, 0x0E7F),
+    "ru":    (0x0400, 0x04FF),
+    "uk":    (0x0400, 0x04FF),
+}
+
+
+def _looks_like_target_script(text: str, code: str, threshold: float = 0.5) -> bool:
+    rng = _SCRIPT_RANGES.get(code)
+    if not rng:
+        return True
+    lo, hi = rng
+    letters = [c for c in text if c.isalpha()]
+    if not letters:
+        return True
+    inside = sum(1 for c in letters if lo <= ord(c) <= hi)
+    return (inside / len(letters)) >= threshold
 
 
 def _llm_client():
@@ -219,7 +249,22 @@ def cinematic_refine_sync(
             "error": f"adapt: {e}",
         }
 
-    final = adapted.strip() or literal_text
+    final = (adapted or "").strip() or literal_text
+    # Refuse adaptations that drifted off the target script (e.g. local LLM
+    # rewrote a Devanagari line in Latin/German). Caller still gets the
+    # critique so the UI can show what happened, but the live text falls
+    # back to the literal translation rather than corrupting the dub.
+    if final is not literal_text and not _looks_like_target_script(final, target_lang):
+        logger.warning(
+            "cinematic adapt produced wrong-script output for %s — falling back to literal",
+            target_lang,
+        )
+        return {
+            "text": literal_text,
+            "literal": literal_text,
+            "critique": critique,
+            "error": f"adapt-wrong-script:{target_lang}",
+        }
     return {
         "text": final,
         "literal": literal_text,
