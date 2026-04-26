@@ -1,3 +1,50 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* ── Map design tokens → Tailwind v4 theme ──────────────────────────── */
+@theme {
+  /* Colors — semantic */
+  --color-fg:            #ebdbb2;
+  --color-fg-muted:      #a89984;
+  --color-fg-subtle:     #7c6f64;
+  --color-fg-inverse:    #1d2021;
+
+  --color-bg:            #1d2021;
+  --color-bg-elev-1:     rgba(50, 48, 47, 0.85);
+  --color-bg-elev-2:     rgba(0, 0, 0, 0.30);
+  --color-bg-elev-3:     rgba(0, 0, 0, 0.18);
+
+  --color-border:        rgba(255, 255, 255, 0.07);
+  --color-border-strong: rgba(255, 255, 255, 0.15);
+  --color-border-warm:   rgba(243, 165, 182, 0.08);
+
+  --color-brand:         #d3869b;
+  --color-brand-hover:   #b16286;
+  --color-brand-glow:    rgba(211, 134, 155, 0.4);
+
+  --color-accent:        #fabd2f;
+  --color-success:       #8ec07c;
+  --color-warn:          #fe8019;
+  --color-danger:        #fb4934;
+  --color-info:          #83a598;
+
+  --color-chrome-bg:     #0f1011;
+  --color-chrome-fg:     #d5c4a1;
+
+  /* Radius */
+  --radius-xs:  2px;
+  --radius-sm:  3px;
+  --radius-md:  4px;
+  --radius-lg:  6px;
+  --radius-xl: 10px;
+
+  /* Fonts */
+  --font-sans:    'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-serif:   'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif;
+}
+
 /* Font imports removed — the chrome token system uses only system monospace
    (ui-monospace, SFMono-Regular, Menlo, Consolas). Fraunces / Nunito / Outfit
    / Inter are no longer referenced by any rule. */
@@ -1190,6 +1237,56 @@ button:focus:not(:focus-visible) { outline: none; }
   content: ""; flex: 1; height: 1px;
   background-image: radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px);
   background-size: 6px 1px;
+}
+
+/* ── Launchpad extracted layout classes ──────────────────── */
+.lp-hero__row {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 24px; flex-wrap: wrap;
+}
+.lp-hero__col { max-width: 640px; }
+.lp-hero__kicker-row {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+}
+.lp-hero__wave-group {
+  display: flex; align-items: center; gap: 2px; height: 22px;
+}
+.lp-section__grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+.lp-col { display: flex; flex-direction: column; gap: 8px; }
+.lp-proj-icon--clone  { background: rgba(211,134,155,0.1); }
+.lp-proj-icon--design { background: rgba(142,192,124,0.1); }
+.lp-proj-icon--locked { background: rgba(184,187,38,0.1); }
+.lp-proj-icon--dub    { background: rgba(254,128,25,0.1); overflow: hidden; }
+.lp-proj-meta--italic { font-style: italic; }
+.lp-locked-badge {
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  letter-spacing: var(--chrome-label-track);
+  padding: 1px 7px;
+  border-radius: var(--chrome-radius-pill);
+  background: color-mix(in srgb, #b8bb26 10%, transparent);
+  border: 1px solid color-mix(in srgb, #b8bb26 40%, transparent);
+  color: #b8bb26; font-weight: 600;
+}
+.lp-empty {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  position: relative; z-index: 1;
+}
+.lp-empty__inner { text-align: center; max-width: 360px; }
+.lp-empty__bars {
+  display: flex; justify-content: center; gap: 3px;
+  margin-bottom: 16px; opacity: 0.3;
+}
+.lp-empty__hint {
+  font-family: var(--chrome-font-mono);
+  font-size: 0.8rem; color: var(--chrome-fg-muted); margin: 0;
+}
+.lp-dub-thumb {
+  width: 100%; height: 100%; object-fit: cover;
+  border-radius: inherit; display: block;
 }
 
 /* Project rows — chrome-radius pills so the launchpad project list

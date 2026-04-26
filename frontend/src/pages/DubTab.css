@@ -378,6 +378,24 @@
   .dub-settings-field--style { grid-column: 1 / -1; }
 }
 
+/* Multi-lang mode toggle + picker */
+.dub-settings-field--multi {
+  grid-column: 1 / -1;
+  padding-top: 4px;
+  border-top: 1px solid var(--chrome-border);
+  margin-top: 2px;
+}
+.dub-multi-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.68rem;
+  color: var(--chrome-fg-muted);
+  cursor: pointer;
+  margin-bottom: 4px;
+}
+.dub-multi-toggle input { accent-color: var(--chrome-accent); cursor: pointer; }
+
 /* Collapsed-summary strip that replaces the full grid once language/engine/
    quality are set. Keeps the primary Translate All + Clean Up CTAs inline. */
 .dub-settings-summary {

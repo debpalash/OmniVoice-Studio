@@ -1,0 +1,64 @@
+/* ═══ Keyboard Cheatsheet Modal ═══ */
+.kcs-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+  font-family: var(--font-sans);
+}
+.kcs-panel {
+  width: min(720px, 90vw); max-height: 82vh; overflow: auto;
+  padding: 22px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border-strong);
+  border-radius: var(--chrome-radius-pill);
+}
+.kcs-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.kcs-header__left { display: flex; align-items: center; gap: 10px; }
+.kcs-title {
+  margin: 0; font-family: var(--font-serif); font-style: italic;
+  font-weight: 400; font-size: 1.5rem; color: var(--chrome-fg);
+  letter-spacing: -0.01em;
+}
+.kcs-close {
+  background: none; border: none; color: var(--chrome-fg-muted); cursor: pointer;
+}
+.kcs-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+.kcs-section-title {
+  font-family: var(--font-mono); font-weight: 600;
+  font-size: var(--chrome-label-size);
+  text-transform: uppercase; letter-spacing: var(--chrome-label-track);
+  color: var(--chrome-fg-muted); margin-bottom: 10px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--chrome-border);
+}
+.kcs-items { display: flex; flex-direction: column; gap: 6px; }
+.kcs-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; font-family: var(--font-sans);
+}
+.kcs-desc { color: var(--chrome-fg-muted); font-size: 0.8rem; }
+.kcs-keys { display: flex; gap: 3px; flex-shrink: 0; }
+.kcs-key-group { display: flex; gap: 2px; }
+.kcs-or {
+  color: var(--chrome-fg-dim); align-self: center; font-size: 0.7rem;
+}
+.kcs-kbd {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 2px 8px;
+  min-width: 28px; height: 22px;
+  background: var(--chrome-hover-bg);
+  border: 1px solid var(--chrome-border-strong);
+  border-radius: var(--chrome-radius-pill);
+  color: var(--chrome-fg);
+  font-family: var(--font-mono);
+  font-size: 0.7rem; font-weight: 500;
+}
+.kcs-footer {
+  margin-top: 18px; text-align: center;
+  color: var(--chrome-fg-dim); font-family: var(--font-sans); font-size: 0.72rem;
+}

@@ -2,35 +2,37 @@
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 32px 40px 48px;
+  padding: 0 32px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  overflow-y: auto;
+  height: 100%;
+  min-height: 0;        /* let flex children shrink */
+  overflow: hidden;      /* NO page-level scroll — only embed scrolls */
 }
 
-/* Hero stays constrained + centered so the headline doesn't stretch
-   uncomfortably wide on ultrawide displays; the embedded panels below
-   get the full width. */
+/* Hero + steps stay constrained and centered; they never scroll. */
 .setup-wizard__hero,
 .setup-wizard__steps {
-  max-width: 720px;
+  max-width: 760px;
   margin-left: auto;
   margin-right: auto;
+  flex-shrink: 0;
 }
 
-/* Guided-flow step header ─────────────────────────────────────────────── */
+/* ── Step pills ──────────────────────────────────────────────────────── */
 .setup-wizard__steps {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   justify-content: center;
   margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 .setup-wizard__step {
-  padding: 6px 14px;
+  padding: 5px 14px;
   border-radius: 999px;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   letter-spacing: 0.02em;
+  line-height: 1.4;
   color: var(--color-fg-muted);
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -46,18 +48,25 @@
   color: #8ec07c;
   border-color: rgba(142, 192, 124, 0.35);
 }
+
+/* ── Embed panel — the ONLY scrollable region ────────────────────────── */
 .setup-wizard__embed {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 16px;
+  padding: 4px 0;
   margin-top: 4px;
+  flex: 1 1 0;
+  min-height: 0;          /* critical for flex child scroll */
+  overflow-y: auto;
+  overflow-x: hidden;
 }
+
+/* ── Nav bar — always visible below the embed ────────────────────────── */
 .setup-wizard__nav {
   display: flex;
   justify-content: space-between;
   gap: 8px;
   margin-top: 8px;
+  flex-shrink: 0;
+  padding-bottom: 4px;
 }
 
 .setup-wizard--centered {
@@ -68,27 +77,43 @@
   text-align: center;
 }
 
+/* ── Hero — compact ──────────────────────────────────────────────────── */
 .setup-wizard__hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 24px 12px 12px;
+  gap: 6px;
+  padding: 20px 12px 8px;
   text-align: center;
+  flex-shrink: 0;
 }
 .setup-wizard__hero h1 {
   margin: 0;
-  font-size: 1.6rem;
-  letter-spacing: -0.01em;
+  font-size: 1.45rem;
+  font-family: var(--font-display, var(--font-sans));
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.setup-wizard__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.setup-wizard__logo {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
 }
 .setup-wizard__sub {
   margin: 0;
   color: var(--color-fg-muted);
-  font-size: 0.85rem;
-  max-width: 440px;
-  line-height: 1.5;
+  font-size: 0.84rem;
+  max-width: 460px;
+  line-height: 1.55;
 }
 
+/* ── Card / checklist rows ───────────────────────────────────────────── */
 .setup-wizard__card {
   display: flex;
   flex-direction: column;
@@ -115,17 +140,73 @@
   align-items: center;
   gap: 12px;
 }
-.setup-wizard__row-body   { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.setup-wizard__row-title  { font-weight: 600; font-size: 0.85rem; }
+.setup-wizard__row-body   { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.setup-wizard__row-title  { font-weight: 600; font-size: 0.84rem; line-height: 1.4; }
 
 .setup-wizard__muted {
   color: var(--color-fg-muted);
-  font-size: 0.72rem;
+  font-size: 0.74rem;
+  line-height: 1.5;
 }
 .setup-wizard__muted code { color: var(--color-fg-subtle); }
 
 .setup-wizard__warn { color: var(--color-warn, #fabd2f); font-weight: 600; }
 
+/* ── Welcome step cards ──────────────────────────────────────────────── */
+.setup-wizard__welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.setup-wizard__welcome-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.setup-wizard__welcome-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.setup-wizard__welcome-card strong {
+  font-size: 0.84rem;
+  line-height: 1.3;
+  display: block;
+  margin-bottom: 2px;
+}
+.setup-wizard__welcome-card p {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+.setup-wizard__welcome-num {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: rgba(211, 134, 155, 0.12);
+  color: #d3869b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-top: 1px;
+}
+.setup-wizard__welcome-note {
+  margin: 0;
+  color: var(--color-fg-subtle);
+  font-size: 0.74rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* ── Model list ──────────────────────────────────────────────────────── */
 .setup-wizard__models {
   list-style: none;
   margin: 0;
@@ -183,10 +264,25 @@
   padding-top: 8px;
 }
 
+/* ── Footnote — pinned to bottom ─────────────────────────────────────── */
 .setup-wizard__footnote {
   color: var(--color-fg-subtle);
-  font-size: 0.65rem;
-  margin: 4px 0 0;
+  font-size: 0.64rem;
+  margin: 4px 0 6px;
   text-align: center;
+  line-height: 1.5;
+  flex-shrink: 0;
 }
 .setup-wizard__footnote code { font-size: 0.62rem; }
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .setup-wizard {
+    padding: 0 14px;
+  }
+  .setup-wizard__hero { padding: 14px 8px 6px; }
+  .setup-wizard__hero h1 { font-size: 1.2rem; }
+  .setup-wizard__sub { font-size: 0.78rem; }
+  .setup-wizard__steps { gap: 4px; }
+  .setup-wizard__step { padding: 4px 10px; font-size: 0.7rem; }
+}

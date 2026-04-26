@@ -4,8 +4,9 @@ import uuid
 import psutil
 import asyncio
 import logging
-from fastapi import APIRouter, File, UploadFile, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, File, UploadFile, HTTPException, Query
+from api.schemas import SysinfoResponse, SystemInfoResponse, ModelStatusResponse, LogsResponse, FlushMemoryResponse
+from fastapi.responses import FileResponse, StreamingResponse
 import torch
 import shutil
 
@@ -22,28 +23,49 @@ _is_cuda = torch.cuda.is_available()
 # Prime psutil's internal CPU counter so the first non-blocking call returns useful data
 psutil.cpu_percent(interval=None)
 
-@router.get("/model/status")
+@router.get("/model/status", response_model=ModelStatusResponse)
 def model_status():
     """Report model loading state for frontend warm-up indicators."""
     return get_model_status()
 
 
-@router.get("/system/info")
+@router.get("/system/info", response_model=SystemInfoResponse)
 def system_info():
-    """Settings page system info — model, tokens, data dir, timeout."""
-    return {
-        "data_dir": DATA_DIR,
-        "outputs_dir": OUTPUTS_DIR,
-        "crash_log_path": CRASH_LOG_PATH,
-        "idle_timeout_seconds": IDLE_TIMEOUT_SECONDS,
-        "model_checkpoint": os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice"),
-        "asr_model": os.environ.get("ASR_MODEL", "Systran/faster-whisper-large-v3"),
-        "translate_provider": os.environ.get("TRANSLATE_PROVIDER", "google"),
-        "has_hf_token": bool(os.environ.get("HF_TOKEN")),
-        "device": get_best_device(),
-        "python": sys.version.split()[0],
-        "platform": sys.platform,
-    }
+    """Settings page system info — model, tokens, data dir, timeout.
+
+    This endpoint MUST never throw — it's called on every Settings page load
+    and a 500 here blocks the entire UI from rendering system details.
+    """
+    try:
+        return {
+            "data_dir": DATA_DIR,
+            "outputs_dir": OUTPUTS_DIR,
+            "crash_log_path": CRASH_LOG_PATH,
+            "idle_timeout_seconds": IDLE_TIMEOUT_SECONDS,
+            "model_checkpoint": os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice"),
+            "asr_model": os.environ.get("ASR_MODEL", "Systran/faster-whisper-large-v3"),
+            "translate_provider": os.environ.get("TRANSLATE_PROVIDER", "google"),
+            "has_hf_token": bool(os.environ.get("HF_TOKEN")),
+            "device": get_best_device(),
+            "python": sys.version.split()[0],
+            "platform": sys.platform,
+        }
+    except Exception as e:
+        logger.exception("system_info failed — returning safe defaults")
+        return {
+            "data_dir": DATA_DIR,
+            "outputs_dir": OUTPUTS_DIR,
+            "crash_log_path": str(CRASH_LOG_PATH),
+            "idle_timeout_seconds": IDLE_TIMEOUT_SECONDS,
+            "model_checkpoint": "unknown",
+            "asr_model": "unknown",
+            "translate_provider": "unknown",
+            "has_hf_token": False,
+            "device": "cpu",
+            "python": sys.version.split()[0],
+            "platform": sys.platform,
+            "error": str(e),
+        }
 
 
 def _tail_file(path: str, tail: int):
@@ -85,7 +107,7 @@ def _tauri_log_candidates():
 
 
 @router.get("/system/logs")
-def system_logs(tail: int = 200):
+async def system_logs(tail: int = 200):
     """Tail the rolling runtime log — everything Python logged since last rotation.
 
     Back-stop: if the rolling log doesn't exist yet (fresh install, disk error),
@@ -100,12 +122,9 @@ def system_logs(tail: int = 200):
     if not os.path.exists(path):
         return {"lines": [], "path": LOG_PATH, "exists": False}
     try:
-        lines, total = _tail_file(path, tail)
+        lines, total = await asyncio.to_thread(_tail_file, path, tail)
         return {"lines": lines, "path": path, "exists": True, "total_lines": total}
     except Exception as e:
-        # The log file exists but we can't read it — usually a permission
-        # issue or the file got truncated mid-read. Point the user at the
-        # path so they can inspect or delete manually.
         raise HTTPException(
             status_code=500,
             detail=f"Could not read log at {path}: {e}. Check file permissions or delete it manually.",
@@ -113,7 +132,7 @@ def system_logs(tail: int = 200):
 
 
 @router.get("/system/logs/tauri")
-def system_logs_tauri(tail: int = 200):
+async def system_logs_tauri(tail: int = 200):
     """Tail the Tauri plugin log (or backend stdout redirect, whichever exists)."""
     try:
         tail = max(10, min(2000, int(tail)))
@@ -123,22 +142,87 @@ def system_logs_tauri(tail: int = 200):
     for p in candidates:
         if os.path.exists(p):
             try:
-                lines, total = _tail_file(p, tail)
+                lines, total = await asyncio.to_thread(_tail_file, p, tail)
                 return {"lines": lines, "path": p, "exists": True, "total_lines": total}
             except Exception as e:
                 return {"lines": [], "path": p, "exists": True, "error": str(e)}
     return {"lines": [], "path": None, "exists": False, "candidates": candidates}
 
 
+@router.get("/system/logs/stream")
+async def stream_logs(
+    source: str = Query("backend", description="'backend' or 'tauri'"),
+    interval: float = Query(1.0, ge=0.3, le=10.0, description="Poll interval in seconds"),
+):
+    """Server-Sent Events stream of new log lines.
+
+    The client opens an EventSource connection and receives new lines as they
+    are appended to the log file.  This replaces the polling pattern used by
+    the LogsFooter component.
+
+    Usage (frontend)::
+
+        const es = new EventSource('/system/logs/stream?source=backend');
+        es.onmessage = (e) => { const lines = JSON.parse(e.data); ... };
+    """
+    if source == "tauri":
+        candidates = _tauri_log_candidates()
+        path = next((p for p in candidates if os.path.exists(p)), None)
+    else:
+        path = LOG_PATH if os.path.exists(LOG_PATH) else CRASH_LOG_PATH
+
+    if not path or not os.path.exists(path):
+        raise HTTPException(status_code=404, detail=f"Log file not found for source={source}")
+
+    async def _generate():
+        """Yield SSE events whenever new lines appear in the log file."""
+        last_pos = 0
+        try:
+            last_pos = os.path.getsize(path)
+        except Exception:
+            pass
+        while True:
+            await asyncio.sleep(interval)
+            try:
+                size = os.path.getsize(path)
+                if size < last_pos:
+                    # File was truncated (log rotation or clear) — reset
+                    last_pos = 0
+                if size == last_pos:
+                    continue
+                new_lines = await asyncio.to_thread(_read_from_pos, path, last_pos)
+                last_pos = size
+                if new_lines:
+                    import json
+                    yield f"data: {json.dumps(new_lines)}\n\n"
+            except Exception:
+                break
+
+    return StreamingResponse(
+        _generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+def _read_from_pos(path: str, pos: int) -> list[str]:
+    """Read all lines from `pos` to EOF (runs in threadpool)."""
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        f.seek(pos)
+        return f.readlines()
+
+
 @router.post("/system/logs/clear")
-def clear_system_logs():
+async def clear_system_logs():
     """Truncate the rolling runtime log and the crash log (what the Backend tab reads)."""
     cleared_any = False
     for p in (LOG_PATH, CRASH_LOG_PATH):
         if os.path.exists(p):
             try:
-                with open(p, "w") as f:
-                    f.truncate(0)
+                await asyncio.to_thread(_truncate_file, p)
                 cleared_any = True
             except Exception as e:
                 raise HTTPException(
@@ -148,21 +232,26 @@ def clear_system_logs():
     return {"cleared": cleared_any}
 
 
+def _truncate_file(path: str):
+    """Truncate a file to zero length (runs in threadpool)."""
+    with open(path, "w") as f:
+        f.truncate(0)
+
+
 @router.post("/system/logs/tauri/clear")
-def clear_tauri_logs():
+async def clear_tauri_logs():
     """Truncate whichever Tauri-side log files we know about. OS-level rotation may recreate them."""
     cleared = []
     for p in _tauri_log_candidates():
         if os.path.exists(p):
             try:
-                with open(p, "w") as f:
-                    f.truncate(0)
+                await asyncio.to_thread(_truncate_file, p)
                 cleared.append(p)
             except Exception:
                 pass
     return {"cleared": cleared}
 
-@router.get("/sysinfo")
+@router.get("/sysinfo", response_model=SysinfoResponse)
 def get_sys_info():
     vram = 0.0
     gpu_active = False

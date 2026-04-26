@@ -39,8 +39,17 @@ ureq = "2"
 tar = "0.4"
 flate2 = "1"
 
+# ── Rust IPC commands (cross-platform) ──
+# get_sysinfo: CPU + RAM metrics without HTTP round-trip
+sysinfo = { version = "0.33", default-features = false, features = ["system"] }
+# hf_cache_scan: walk HF cache directory 3-5× faster than Python
+walkdir = "2"
+# File hash verification (optional, for future integrity checks)
+sha2 = "0.10"
+
 [target.'cfg(windows)'.dependencies]
 zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+webkit2gtk = "2.0"

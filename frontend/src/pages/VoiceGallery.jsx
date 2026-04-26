@@ -3,10 +3,12 @@ import {
   Search, Download, Play, Pause, Trash2, User, Film,
   Clock, Grid, List, X, Save, Loader, Music, Sparkles,
   Star, Crown, Gamepad2, BookOpen, Mic, RotateCcw,
-  FileAudio, UserPlus, MoreVertical,
+  FileAudio, UserPlus, MoreVertical, Scissors,
 } from 'lucide-react';
 import { Button, Input } from '../ui';
-import { listCategories, listGalleryVoices, searchYoutube, downloadYoutubeClip, deleteGalleryVoice, saveVoiceAsProfile } from '../api/gallery';
+import { searchYoutube, downloadYoutubeClip, deleteGalleryVoice, saveVoiceAsProfile, uploadVoiceClip } from '../api/gallery';
+import { useGalleryCategories, useGalleryVoices } from '../api/hooks';
+import AudioTrimmer from '../components/AudioTrimmer';
 import './VoiceGallery.css';
 
 // Check if running in Tauri
@@ -24,49 +26,30 @@ const CATEGORY_ICONS = {
 };
 
 export default function VoiceGallery() {
-  const [categories, setCategories] = useState([]);
-  const [voices, setVoices] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isLoadingVoices, setIsLoadingVoices] = useState(false);
   const [playingVoiceId, setPlayingVoiceId] = useState(null);
   const [playingAudio, setPlayingAudio] = useState(null);
   const [viewMode, setViewMode] = useState('list');
+  const [trimmingVoice, setTrimmingVoice] = useState(null);
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
+  const { data: categories = [] } = useGalleryCategories();
+  
+  const queryParams = React.useMemo(() => {
+    const p = {};
+    if (selectedCategory) p.category = selectedCategory;
+    if (searchQuery.trim()) p.search = searchQuery.trim();
+    return p;
+  }, [selectedCategory, searchQuery]);
 
-  useEffect(() => {
-    loadVoices();
-  }, [selectedCategory]);
+  const voicesQuery = useGalleryVoices(queryParams);
+  const voices = voicesQuery.data || [];
+  const isLoadingVoices = voicesQuery.isLoading;
 
-  const loadCategories = async () => {
-    try {
-      const data = await listCategories();
-      setCategories(data);
-    } catch (e) {
-      console.error('Failed to load categories:', e);
-    }
-  };
-
-  const loadVoices = async () => {
-    setIsLoadingVoices(true);
-    try {
-      const params = {};
-      if (selectedCategory) params.category = selectedCategory;
-      if (searchQuery.trim()) params.search = searchQuery.trim();
-      const data = await listGalleryVoices(params);
-      setVoices(data || []);
-    } catch (e) {
-      console.error('Failed to load voices:', e);
-    } finally {
-      setIsLoadingVoices(false);
-    }
-  };
+  const loadVoices = () => voicesQuery.refetch();
 
   const handleSearch = async () => {
     setIsSearching(true);
@@ -193,6 +176,39 @@ export default function VoiceGallery() {
     }
   };
 
+  const handleCropClick = async (voice) => {
+    try {
+      const { apiUrl } = await import('../api/client');
+      const response = await fetch(apiUrl(`/gallery/voices/${voice.id}/preview`));
+      if (!response.ok) throw new Error("Failed to fetch audio");
+      const blob = await response.blob();
+      const file = new File([blob], `${voice.name}.wav`, { type: 'audio/wav' });
+      setTrimmingVoice({ voice, file });
+    } catch (e) {
+      alert("Failed to load audio for trimming: " + e.message);
+    }
+  };
+
+  const handleConfirmTrim = async (trimmedFile) => {
+    if (!trimmingVoice) return;
+    try {
+      const { voice } = trimmingVoice;
+      const formData = new FormData();
+      formData.append('name', `${voice.name} (Cropped)`);
+      formData.append('character', voice.character);
+      formData.append('category', voice.category);
+      formData.append('description', voice.description || '');
+      formData.append('audio', trimmedFile);
+      
+      await uploadVoiceClip(formData);
+      
+      loadVoices();
+      setTrimmingVoice(null);
+    } catch (e) {
+      alert("Failed to upload cropped voice: " + e.message);
+    }
+  };
+
   const onSearchKey = (e) => {
     if (e.key === 'Enter') handleSearch();
   };
@@ -204,7 +220,7 @@ export default function VoiceGallery() {
           <div className="header-text">
             <h2>Voice Gallery</h2>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => loadVoices()} title="Reload">
+          <Button variant="ghost" size="sm" onClick={() => voicesQuery.refetch()} title="Reload">
             <RotateCcw size={14} />
           </Button>
         </div>
@@ -323,6 +339,13 @@ export default function VoiceGallery() {
                     <UserPlus size={12} />
                   </button>
                   <button 
+                    className="action-btn" 
+                    onClick={() => handleCropClick(voice)}
+                    title="Crop audio"
+                  >
+                    <Scissors size={12} />
+                  </button>
+                  <button 
                     className="action-btn danger" 
                     onClick={() => handleDeleteVoice(voice)}
                     title="Delete"
@@ -335,6 +358,15 @@ export default function VoiceGallery() {
           </div>
         )}
       </div>
+
+      {trimmingVoice && (
+        <AudioTrimmer
+          file={trimmingVoice.file}
+          maxSeconds={60}
+          onConfirm={handleConfirmTrim}
+          onCancel={() => setTrimmingVoice(null)}
+        />
+      )}
     </div>
   );
 }

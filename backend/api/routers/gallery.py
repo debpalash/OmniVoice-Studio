@@ -104,9 +104,15 @@ def _init_gallery_db():
             description TEXT,
             thumbnail TEXT,
             tags TEXT,
+            is_favorite INTEGER NOT NULL DEFAULT 0,
             created_at REAL NOT NULL
         )
     """)
+    # Migration: add is_favorite column if missing (existing DBs)
+    try:
+        conn.execute("SELECT is_favorite FROM voice_gallery LIMIT 1")
+    except Exception:
+        conn.execute("ALTER TABLE voice_gallery ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
     conn.commit()
     conn.close()
 
@@ -201,9 +207,8 @@ async def search_youtube(
     try:
         result = await asyncio.create_subprocess_exec(
             "yt-dlp",
-            "--flat-playlist",
-            "--print",
-            "%(title)s|%(id)s|%(duration)s|%(thumbnail)s",
+            "--dump-json",
+            "--remote-components", "ejs:github",
             f"ytsearch{max_results}:{query}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -219,17 +224,20 @@ async def search_youtube(
         lines = stdout.decode().strip().split("\n")
         results = []
         for line in lines:
-            if line.strip():
-                parts = line.split("|")
-                if len(parts) >= 2:
-                    results.append(
-                        {
-                            "title": parts[0],
-                            "video_id": parts[1] if len(parts) > 1 else "",
-                            "duration": parts[2] if len(parts) > 2 else None,
-                            "thumbnail": parts[3] if len(parts) > 3 else None,
-                        }
-                    )
+            if not line.strip():
+                continue
+            try:
+                data = json.loads(line)
+                results.append(
+                    {
+                        "title": data.get("title", ""),
+                        "video_id": data.get("id", ""),
+                        "duration": str(data.get("duration")) if data.get("duration") is not None else None,
+                        "thumbnail": data.get("thumbnail", None),
+                    }
+                )
+            except json.JSONDecodeError:
+                logger.warning(f"Failed to parse yt-dlp JSON line: {line}")
 
         return {"results": results, "query": query, "category": category}
     except FileNotFoundError:
@@ -256,6 +264,7 @@ async def download_youtube_clip(
     try:
         cmd = [
             "yt-dlp",
+            "--remote-components", "ejs:github",
             "-f",
             "bestaudio",
             "--download-sections",
@@ -466,3 +475,104 @@ def preview_voice(voice_id: str):
         status_code=404,
         detail=f"Audio not found: abs={is_absolute}, exists={path_exists}, path={audio_path}",
     )
+
+
+# ── Library management endpoints ──────────────────────────────────────────
+
+@router.patch("/gallery/voices/{voice_id}")
+def update_voice(voice_id: str, body: dict):
+    """Update voice metadata — name, tags, is_favorite."""
+    conn = get_db()
+    row = conn.execute("SELECT id FROM voice_gallery WHERE id = ?", (voice_id,)).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Voice not found")
+
+    updates = []
+    params = []
+    if "name" in body:
+        updates.append("name = ?")
+        params.append(body["name"])
+    if "tags" in body:
+        updates.append("tags = ?")
+        params.append(json.dumps(body["tags"]) if isinstance(body["tags"], list) else body["tags"])
+    if "is_favorite" in body:
+        updates.append("is_favorite = ?")
+        params.append(1 if body["is_favorite"] else 0)
+    if "description" in body:
+        updates.append("description = ?")
+        params.append(body["description"])
+
+    if not updates:
+        conn.close()
+        return {"success": True, "updated": []}
+
+    params.append(voice_id)
+    conn.execute(f"UPDATE voice_gallery SET {', '.join(updates)} WHERE id = ?", params)
+    conn.commit()
+    conn.close()
+    return {"success": True, "updated": list(body.keys())}
+
+
+@router.post("/gallery/voices/batch-delete")
+def batch_delete_voices(body: dict):
+    """Delete multiple voices by ID list."""
+    ids = body.get("ids", [])
+    if not ids:
+        return {"deleted": 0}
+
+    conn = get_db()
+    deleted = 0
+    for vid in ids:
+        row = conn.execute("SELECT audio_path FROM voice_gallery WHERE id = ?", (vid,)).fetchone()
+        if row:
+            audio_path = row["audio_path"]
+            if audio_path and os.path.exists(audio_path):
+                try:
+                    os.remove(audio_path)
+                except Exception:
+                    pass
+            conn.execute("DELETE FROM voice_gallery WHERE id = ?", (vid,))
+            deleted += 1
+    conn.commit()
+    conn.close()
+    return {"deleted": deleted}
+
+
+@router.post("/gallery/voices/{voice_id}/to-profile")
+def voice_to_profile(voice_id: str):
+    """Create a voice profile from a gallery clip."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM voice_gallery WHERE id = ?", (voice_id,)).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Voice not found")
+
+    voice = dict(row)
+    audio_path = voice["audio_path"]
+    if not os.path.exists(audio_path):
+        conn.close()
+        raise HTTPException(status_code=404, detail="Audio file not found on disk")
+
+    import shutil
+    import uuid
+
+    profile_id = str(uuid.uuid4())[:8]
+    # Copy audio to voices dir
+    dest_filename = f"{profile_id}_gallery.wav"
+    dest_path = os.path.join(VOICES_DIR, dest_filename)
+    shutil.copy2(audio_path, dest_path)
+
+    import time
+    now = time.time()
+    conn.execute(
+        """INSERT INTO voice_profiles
+           (id, name, ref_audio_path, ref_text, instruct, seed, is_locked, locked_audio_path, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (profile_id, voice["name"], dest_filename, "", None, None, 0, None, now, now),
+    )
+    conn.commit()
+    conn.close()
+
+    return {"success": True, "profile_id": profile_id, "name": voice["name"]}
+

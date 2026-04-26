@@ -13,6 +13,38 @@ try:
 except ImportError:
     pass
 
+# ── cuDNN 8 library preload ─────────────────────────────────────────────
+# CTranslate2 (used by faster-whisper / WhisperX) requires cuDNN 8, but
+# PyTorch 2.8+ pulls cuDNN 9. scripts/setup_cudnn.py installs cuDNN 8
+# side-by-side into cudnn8_compat/ (survives `uv sync`). We preload all
+# cuDNN 8 libs via ctypes so CTranslate2's dlopen/LoadLibrary finds them.
+if sys.platform != "darwin":  # macOS has no CUDA
+    _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    _pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    if sys.platform == "win32":
+        _cudnn8_lib = os.path.join(
+            _project_root, ".venv", "Lib", "site-packages",
+            "cudnn8_compat", "nvidia", "cudnn", "bin",
+        )
+        _cudnn8_glob = "cudnn*64_8.dll"
+    else:
+        _cudnn8_lib = os.path.join(
+            _project_root, ".venv", "lib", _pyver, "site-packages",
+            "cudnn8_compat", "nvidia", "cudnn", "lib",
+        )
+        _cudnn8_glob = "libcudnn*.so.8"
+    if os.path.isdir(_cudnn8_lib):
+        try:
+            import ctypes, glob
+            _mode = 0 if sys.platform == "win32" else ctypes.RTLD_GLOBAL
+            for _so in sorted(glob.glob(os.path.join(_cudnn8_lib, _cudnn8_glob))):
+                try:
+                    ctypes.CDLL(_so, mode=_mode)
+                except OSError:
+                    pass
+        except Exception:
+            pass
+
 # Route HF/Torch caches to a single external directory when requested.
 _cache_dir = os.environ.get("OMNIVOICE_CACHE_DIR")
 if _cache_dir:
@@ -152,6 +184,7 @@ from api.routers import (
     tools,
     setup,
     gallery,
+    batch,
 )
 from utils import hf_progress
 
@@ -179,8 +212,38 @@ async def lifespan(app: FastAPI):
     idle_task = asyncio.create_task(idle_worker())
     worker_task = asyncio.create_task(task_manager.worker())
     yield
+    # ── Graceful shutdown (SIGTERM from Tauri, Ctrl+C, etc.) ────────────
+    logger.info("Shutdown: cleaning up…")
     idle_task.cancel()
     worker_task.cancel()
+    # Wait for tasks to finish their current iteration
+    for t in (idle_task, worker_task):
+        try:
+            await asyncio.wait_for(t, timeout=3.0)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            pass
+    # Unload the model and free GPU memory
+    try:
+        import services.model_manager as mm
+        if mm.model is not None:
+            mm.model = None
+            logger.info("Shutdown: model unloaded.")
+        mm.free_vram()
+    except Exception:
+        pass
+    # Run GC to release any remaining references
+    try:
+        import gc
+        gc.collect()
+    except Exception:
+        pass
+    # Close shared httpx connection pool
+    try:
+        from api.http_client import close_http_client
+        await close_http_client()
+    except Exception:
+        pass
+    logger.info("Shutdown: done.")
 
 
 app = FastAPI(title="OmniVoice Studio API", version="0.4.0", lifespan=lifespan)
@@ -250,6 +313,7 @@ app.include_router(engines.router)
 app.include_router(tools.router)
 app.include_router(setup.router)
 app.include_router(gallery.router)
+app.include_router(batch.router)
 
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.exists(frontend_path):

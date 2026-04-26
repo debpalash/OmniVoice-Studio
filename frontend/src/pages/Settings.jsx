@@ -1,12 +1,21 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import {
   Cpu, FileText, Info, ShieldCheck, RefreshCw, Trash2, ExternalLink,
   CheckCircle, AlertCircle, Plug, Mic, MessageSquare, Download, Copy,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { systemInfo, systemLogs, systemLogsTauri, clearSystemLogs, clearTauriLogs, modelStatus as fetchModelStatus, sysinfo as fetchSysinfo } from '../api/system';
+import { systemLogs, systemLogsTauri, clearSystemLogs, clearTauriLogs } from '../api/system';
+import { useSysinfo, useModelStatus, useSystemInfo } from '../api/hooks';
 import { listEngines, selectEngine } from '../api/engines';
-import { listModels, installModel, deleteModel, setupDownloadStreamUrl, getRecommendations } from '../api/setup';
+import { setupDownloadStreamUrl } from '../api/setup';
 import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
 import { Tabs, Segmented, Button, Badge, Panel, Table, Progress } from '../ui';
 import { useAppStore } from '../store';
@@ -32,6 +41,9 @@ const LOG_SOURCES = [
   { value: 'tauri',    label: 'Tauri' },
 ];
 
+const MODEL_ROLE_ORDER = ['tts', 'asr', 'diarisation', 'diarization', 'llm'];
+const MODEL_ROLE_LABEL = { all: 'All', tts: 'TTS', asr: 'ASR', diarisation: 'Diarisation', diarization: 'Diarisation', llm: 'LLM', other: 'Other' };
+
 function Row({ label, value, mono }) {
   return (
     <div className="settings-row">
@@ -50,38 +62,44 @@ function fmtBytes(n) {
   return `${Math.round(n / 1024)} KB`;
 }
 
+/** Deterministic muted HSL color from an org/user name in a repo_id. */
+function orgColor(repoId) {
+  const org = (repoId || '').split('/')[0];
+  let h = 0;
+  for (let i = 0; i < org.length; i++) h = (h * 31 + org.charCodeAt(i)) & 0xffff;
+  return `hsl(${h % 360}, 35%, 28%)`;
+}
+
+import { useModels, useRecommendations, useInstallModel, useDeleteModel } from '../api/hooks';
+
 /**
  * Model store — list every known HF model, show install state, let the
  * user install / reinstall / delete individual models. Per-model download
  * progress is pulled from the shared /setup/download-stream SSE.
  */
 export function ModelStoreTab({ info, modelBadge }) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const modelsQuery = useModels();
+  const recoQuery = useRecommendations();
+  const data = modelsQuery.data;
+  const loading = modelsQuery.isLoading;
+  const reco = recoQuery.data;
+  const installMutation = useInstallModel();
+  const deleteMutation = useDeleteModel();
+
   const [busy, setBusy] = useState(new Set()); // repo_ids currently working
   // Per-repo active state. Tracks aggregate download across all files of
   // a running install so the row can show a determinate progress bar.
   // { [repo_id]: { phase, files: { [filename]: { downloaded, total, pct } }, error } }
   const [rowState, setRowState] = useState({});
   const [query, setQuery] = useState('');
-  const [reco, setReco] = useState(null);       // /setup/recommendations payload
   const [installingReco, setInstallingReco] = useState(false);
   const [activeRole, setActiveRole] = useState(null);
+  const [sorting, setSorting] = useState([]);
+  const [columnFilters, setColumnFilters] = useState([]);
   const esRef = React.useRef(null);
-
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try { setData(await listModels()); }
-    catch (e) { toast.error(`Failed to list models: ${e.message}`); }
-    finally { setLoading(false); }
-  }, []);
-
-  const reloadReco = useCallback(async () => {
-    try { setReco(await getRecommendations()); }
-    catch (e) { /* non-fatal — Recommendation card just hides */ void e; }
-  }, []);
-
-  useEffect(() => { reload(); reloadReco(); }, [reload, reloadReco]);
+  const tableBodyRef = React.useRef(null);
+  // Track download speed per repo: { [repo_id]: { lastBytes, lastTime, speed } }
+  const speedRef = React.useRef({});
 
   // Open the progress stream once when the tab mounts; close on unmount.
   useEffect(() => {
@@ -129,7 +147,10 @@ export function ModelStoreTab({ info, modelBadge }) {
       ['install_done', 'delete_done', 'install_error'].includes(s.phase));
     if (!term) return;
     const t = setTimeout(() => {
-      reload();
+      modelsQuery.refetch();
+      recoQuery.refetch();
+      // Clear stale speed data for this repo.
+      delete speedRef.current[term[0]];
       // Clear the terminal entry so the row reverts to the authoritative
       // `installed` flag from /models without keeping stale progress.
       setRowState(prev => {
@@ -139,33 +160,39 @@ export function ModelStoreTab({ info, modelBadge }) {
       });
     }, 800);
     return () => clearTimeout(t);
-  }, [rowState, reload]);
+  }, [rowState, modelsQuery, recoQuery]);
 
-  const withBusy = async (repoId, fn, successMsg) => {
+  const reload = useCallback(() => {
+    modelsQuery.refetch();
+    recoQuery.refetch();
+  }, [modelsQuery, recoQuery]);
+
+  const withBusy = useCallback(async (repoId, fn, successMsg) => {
     setBusy(prev => new Set(prev).add(repoId));
     try {
       await fn();
       if (successMsg) toast.success(successMsg);
-      await reload();
     } catch (e) {
       toast.error(e.message || String(e));
     } finally {
       setBusy(prev => { const s = new Set(prev); s.delete(repoId); return s; });
     }
-  };
+  }, []);
 
-  const onInstall = (repoId) => withBusy(repoId, () => installModel(repoId), 'Install started — progress in the row');
-  const onDelete  = async (repoId) => {
+  const onInstall = useCallback((repoId) =>
+    withBusy(repoId, () => installMutation.mutateAsync(repoId), 'Install started — progress in the row'),
+    [installMutation, withBusy]);
+  const onDelete = useCallback(async (repoId) => {
     if (!(await askConfirm(`Delete ${repoId}? You can reinstall it later.`, 'Delete model'))) return;
-    return withBusy(repoId, () => deleteModel(repoId), `Deleted ${repoId}`);
-  };
-  const onReinstall = async (repoId) => {
+    return withBusy(repoId, () => deleteMutation.mutateAsync(repoId), `Deleted ${repoId}`);
+  }, [deleteMutation, withBusy]);
+  const onReinstall = useCallback(async (repoId) => {
     if (!(await askConfirm(`Reinstall ${repoId}? This will delete the current copy and download again.`, 'Reinstall model'))) return;
     await withBusy(repoId, async () => {
-      await deleteModel(repoId);
-      await installModel(repoId);
+      await deleteMutation.mutateAsync(repoId);
+      await installMutation.mutateAsync(repoId);
     }, 'Reinstalling');
-  };
+  }, [deleteMutation, installMutation, withBusy]);
 
   const onInstallRecommended = async () => {
     if (!reco) return;
@@ -178,15 +205,273 @@ export function ModelStoreTab({ info, modelBadge }) {
     try {
       // Parallel install — backend /models/install spawns each download on
       // its own asyncio task so ordering doesn't matter.
-      await Promise.all(missing.map(m => installModel(m.repo_id)));
+      await Promise.all(missing.map(m => installMutation.mutateAsync(m.repo_id)));
       toast.success(`Started downloading ${missing.length} model${missing.length > 1 ? 's' : ''}`);
-      await Promise.all([reload(), reloadReco()]);
     } catch (e) {
       toast.error(`Install failed: ${e.message || e}`);
     } finally {
       setInstallingReco(false);
     }
   };
+
+  const allModels = React.useMemo(() => data?.models || [], [data]);
+  const groups = allModels.reduce((acc, m) => {
+    const k = (m.role || 'other').toLowerCase();
+    (acc[k] = acc[k] || []).push(m);
+    return acc;
+  }, {});
+  const roles = Object.keys(groups).sort((a, b) => {
+    const ai = MODEL_ROLE_ORDER.indexOf(a), bi = MODEL_ROLE_ORDER.indexOf(b);
+    return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
+  });
+  // 'all' is a virtual role — shows every model regardless of category.
+  const currentRole = activeRole === 'all' ? 'all'
+    : activeRole && groups[activeRole] ? activeRole
+    : 'all';
+
+  const allInstalled = allModels.filter(m => m.installed).length;
+
+  useEffect(() => {
+    setColumnFilters(currentRole === 'all' ? [] : [{ id: 'role', value: currentRole }]);
+  }, [currentRole]);
+
+  const getRowRuntime = React.useCallback((m) => {
+    const rs = rowState[m.repo_id];
+    const rowBusy = busy.has(m.repo_id);
+    const isInstalling = rs?.phase === 'install_start' || (rs?.phase === 'active' && !rs.files && !rs.error);
+    const isDeleting = rs?.phase === 'delete_start';
+    const phase = rs?.phase;
+    const fileList = rs?.files ? Object.entries(rs.files) : [];
+    const totals = fileList.reduce((a, [, f]) => ({
+      downloaded: a.downloaded + (f.downloaded || 0),
+      total: a.total + (f.total || 0),
+      done: a.done + (f.phase === 'done' ? 1 : 0),
+    }), { downloaded: 0, total: 0, done: 0 });
+    const hasFiles = fileList.length > 0;
+    const aggPct = totals.total > 0 ? (totals.downloaded / totals.total) * 100 : null;
+    const showBar = phase === 'install_start' || phase === 'active' || phase === 'delete_start';
+    const activeFilename = fileList.find(([, f]) => f.phase !== 'done')?.[0];
+    const unsupported = m.supported === false;
+
+    return {
+      rs,
+      rowBusy,
+      isInstalling,
+      isDeleting,
+      phase,
+      fileList,
+      totals,
+      hasFiles,
+      aggPct,
+      showBar,
+      activeFilename,
+      unsupported,
+    };
+  }, [busy, rowState]);
+
+  const columns = React.useMemo(() => [
+    {
+      id: 'name',
+      accessorFn: m => `${m.label || ''} ${m.repo_id || ''}`,
+      header: 'Model',
+      size: 420,
+      meta: { className: 'models-row__name' },
+      cell: ({ row }) => {
+        const m = row.original;
+        const rt = getRowRuntime(m);
+        return (
+          <>
+            <span className="models-row__title">
+              <span
+                className="models-row__avatar"
+                style={{ background: orgColor(m.repo_id) }}
+                title={m.repo_id.split('/')[0]}
+              >
+                {m.repo_id.split('/')[0].slice(0, 2).toUpperCase()}
+              </span>
+              {m.label}
+              {m.required && <span className="models-row__tag">required</span>}
+            </span>
+            <span className="models-row__repo">
+              <code>{m.repo_id}</code>
+              {m.note && <span className="models-row__note"> · {m.note}</span>}
+            </span>
+            {rt.showBar && (
+              <div className="models-row__progressline">
+                <Progress
+                  value={rt.aggPct}
+                  tone={rt.isDeleting ? 'warn' : 'brand'}
+                  size="xs"
+                />
+                <span className="models-row__progresstext">
+                  {rt.isDeleting
+                    ? 'Removing cached revisions…'
+                    : rt.hasFiles
+                      ? (() => {
+                          const sp = speedRef.current[m.repo_id];
+                          const now = Date.now();
+                          if (sp && rt.totals.downloaded > 0) {
+                            const dt = (now - sp.lastTime) / 1000;
+                            if (dt >= 2) {
+                              sp.speed = Math.max(0, (rt.totals.downloaded - sp.lastBytes) / dt);
+                              sp.lastBytes = rt.totals.downloaded;
+                              sp.lastTime = now;
+                            }
+                          } else {
+                            speedRef.current[m.repo_id] = { lastBytes: rt.totals.downloaded, lastTime: now, speed: 0 };
+                          }
+                          const speed = sp?.speed || 0;
+                          const speedStr = speed > 0 ? ` · ${fmtBytes(speed)}/s` : '';
+                          const pctStr = rt.aggPct != null ? ` (${Math.round(rt.aggPct)}%)` : '';
+                          const parts = [
+                            `${fmtBytes(rt.totals.downloaded)}${rt.totals.total ? ` / ${fmtBytes(rt.totals.total)}` : ''}${pctStr}${speedStr}`,
+                          ];
+                          if (rt.fileList.length > 1) {
+                            parts.push(`${rt.totals.done}/${rt.fileList.length} files`);
+                          }
+                          if (rt.activeFilename) {
+                            parts.push(rt.activeFilename.split('/').pop());
+                          }
+                          return parts.join(' · ');
+                        })()
+                      : 'Preparing download…'}
+                </span>
+              </div>
+            )}
+            {rt.phase === 'install_error' && rt.rs?.error && (
+              <span className="models-row__error">Install failed: {rt.rs.error}</span>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      id: 'role',
+      accessorFn: m => (m.role || 'other').toLowerCase(),
+      header: 'Role',
+      size: 92,
+      filterFn: (row, id, value) => !value || row.getValue(id) === value,
+      cell: ({ row }) => <span className="models-row__role">{MODEL_ROLE_LABEL[row.getValue('role')] || row.original.role || 'Other'}</span>,
+    },
+    {
+      id: 'size',
+      accessorFn: m => m.installed ? (m.size_on_disk_bytes || 0) : (m.size_gb || 0) * 1024 ** 3,
+      header: 'Size',
+      size: 86,
+      meta: { align: 'right', className: 'models-row__size' },
+      cell: ({ row }) => {
+        const m = row.original;
+        return m.installed ? fmtBytes(m.size_on_disk_bytes) : `${m.size_gb} GB`;
+      },
+    },
+    {
+      id: 'status',
+      accessorFn: m => m.installed ? 2 : (m.supported === false ? 0 : 1),
+      header: 'Status',
+      size: 116,
+      meta: { align: 'center', className: 'models-row__status' },
+      cell: ({ row }) => {
+        const m = row.original;
+        const rt = getRowRuntime(m);
+        return rt.isInstalling
+          ? <Badge tone="warn" size="xs"><Download size={10} /> {rt.aggPct != null ? `${Math.round(rt.aggPct)}%` : 'downloading'}</Badge>
+          : rt.isDeleting
+            ? <Badge tone="warn" size="xs"><Trash2 size={10} /> deleting</Badge>
+            : rt.rowBusy
+              ? <Badge tone="warn" size="xs"><RefreshCw size={10} className="spinner" /> working</Badge>
+              : m.installed
+                ? <Badge tone="success" size="xs">installed</Badge>
+                : rt.unsupported
+                  ? <Badge tone="neutral" size="xs">{(m.platforms || []).join(', ')}</Badge>
+                  : <Badge tone="neutral" size="xs">not installed</Badge>;
+      },
+    },
+    {
+      id: 'actions',
+      header: '',
+      size: 118,
+      enableSorting: false,
+      meta: { align: 'right', className: 'models-row__actions' },
+      cell: ({ row }) => {
+        const m = row.original;
+        const rt = getRowRuntime(m);
+        return (
+          <>
+            <Button
+              variant="icon" iconSize="sm"
+              onClick={() => window.open(`https://huggingface.co/${m.repo_id}`, '_blank', 'noopener,noreferrer')}
+              title="View on HuggingFace"
+              aria-label="View on HuggingFace"
+            >
+              <ExternalLink size={11} />
+            </Button>
+            {!m.installed && !rt.rowBusy && !rt.isInstalling && !rt.unsupported && (
+              <Button
+                variant="subtle" size="sm"
+                onClick={() => onInstall(m.repo_id)}
+                leading={<Download size={11} />}
+              >
+                Install
+              </Button>
+            )}
+            {m.installed && !rt.rowBusy && !rt.isDeleting && (
+              <>
+                <Button
+                  variant="icon" iconSize="sm"
+                  onClick={() => onReinstall(m.repo_id)}
+                  title="Reinstall"
+                  aria-label="Reinstall"
+                >
+                  <RefreshCw size={11} />
+                </Button>
+                <Button
+                  variant="icon" iconSize="sm"
+                  onClick={() => onDelete(m.repo_id)}
+                  title="Delete"
+                  aria-label="Delete"
+                >
+                  <Trash2 size={11} />
+                </Button>
+              </>
+            )}
+          </>
+        );
+      },
+    },
+  ], [getRowRuntime, onDelete, onInstall, onReinstall]);
+
+  const table = useReactTable({
+    data: allModels,
+    columns,
+    getRowId: row => row.repo_id,
+    state: {
+      sorting,
+      globalFilter: query,
+      columnFilters,
+    },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setQuery,
+    onColumnFiltersChange: setColumnFilters,
+    globalFilterFn: (row, _columnId, value) => {
+      const q = String(value || '').trim().toLowerCase();
+      if (!q) return true;
+      const m = row.original;
+      return [m.repo_id, m.label, m.note, m.role]
+        .filter(Boolean)
+        .some(v => String(v).toLowerCase().includes(q));
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+
+  const tableRows = table.getRowModel().rows;
+  const rowVirtualizer = useVirtualizer({
+    count: tableRows.length,
+    getScrollElement: () => tableBodyRef.current,
+    estimateSize: () => 68,
+    overscan: 8,
+  });
 
   if (loading && !data) {
     return (
@@ -197,29 +482,6 @@ export function ModelStoreTab({ info, modelBadge }) {
     );
   }
   if (!data) return null;
-
-  const groups = (data.models || []).reduce((acc, m) => {
-    const k = (m.role || 'other').toLowerCase();
-    (acc[k] = acc[k] || []).push(m);
-    return acc;
-  }, {});
-  const ROLE_ORDER = ['tts', 'asr', 'diarisation', 'diarization', 'llm'];
-  const ROLE_LABEL = { tts: 'TTS', asr: 'ASR', diarisation: 'Diarisation', diarization: 'Diarisation', llm: 'LLM', other: 'Other' };
-  const roles = Object.keys(groups).sort((a, b) => {
-    const ai = ROLE_ORDER.indexOf(a), bi = ROLE_ORDER.indexOf(b);
-    return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
-  });
-  const currentRole = activeRole && groups[activeRole] ? activeRole : roles[0];
-  const q = query.trim().toLowerCase();
-  const rows = (currentRole ? groups[currentRole] : []).filter(m =>
-    !q || m.repo_id.toLowerCase().includes(q) || (m.label || '').toLowerCase().includes(q));
-
-  const COLUMNS = [
-    { key: 'name',    label: 'Model',   flex: 3 },
-    { key: 'size',    label: 'Size',    width: 80,  align: 'right' },
-    { key: 'status',  label: 'Status',  width: 110, align: 'center' },
-    { key: 'actions', label: '',        width: 108, align: 'right' },
-  ];
 
   return (
     <section className="settings-section settings-section--compact">
@@ -237,19 +499,32 @@ export function ModelStoreTab({ info, modelBadge }) {
       </div>
 
       {reco && reco.all_installed && (
-        <div className="reco-banner">
+        <div className="mb-4 flex items-center gap-3 rounded-[var(--chrome-radius-pill)] border border-[color-mix(in_srgb,#8ec07c_30%,transparent)] border-l-2 border-l-[#8ec07c] bg-[color-mix(in_srgb,#8ec07c_5%,transparent)] px-4 py-[6px] font-[var(--font-sans)] text-[var(--text-sm)] text-[var(--chrome-fg-muted)]">
           <CheckCircle size={12} color="#8ec07c" />
-          <span className="reco-banner__text">
+          <span className="flex-1">
             Recommended bundle installed for <strong>{reco.device.label}</strong>
           </span>
-          <span className="reco-banner__size">{reco.total_gb} GB</span>
+          <span className="text-[var(--text-xs)] text-[var(--chrome-fg-dim)]">{reco.total_gb} GB</span>
         </div>
       )}
       {reco && !reco.all_installed && (
-        <div className="reco-banner reco-banner--action">
-          <div className="reco-banner__body">
-            <div className="reco-banner__title">Recommended for {reco.device.label}</div>
-            <div className="reco-banner__rationale">{reco.rationale}</div>
+        <div className="mb-4 flex flex-wrap items-start gap-3 rounded-[var(--chrome-radius-pill)] border border-[color-mix(in_srgb,#f3a5b6_30%,transparent)] border-l-2 border-l-[#f3a5b6] bg-[color-mix(in_srgb,#f3a5b6_5%,transparent)] px-4 py-2.5">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <div className="text-[var(--text-sm)] font-semibold text-[var(--chrome-fg)]">Recommended for {reco.device.label}</div>
+            <div className="text-[var(--text-xs)] leading-[1.4] text-[var(--chrome-fg-muted)]">{reco.rationale}</div>
+            <div className="mt-1 flex flex-col gap-0.5">
+              {reco.models.map(m => (
+                <span key={m.repo_id} className={`inline-flex items-center gap-2 text-[var(--text-xs)] leading-[1.5] ${m.installed ? 'text-[var(--chrome-fg)]' : 'text-[var(--chrome-fg-muted)]'}`}>
+                  {m.installed ? '✓' : '○'} {m.label}
+                  <span className="font-[var(--chrome-font-mono)] text-[var(--text-2xs)] text-[var(--chrome-fg-dim)]">{m.size_gb} GB</span>
+                  {m.required && (
+                    <span className="rounded-[var(--chrome-radius-pill,999px)] border border-[color-mix(in_srgb,#d3869b_35%,transparent)] px-1 text-[0.58rem] uppercase tracking-[0.04em] text-[#d3869b]">
+                      required
+                    </span>
+                  )}
+                </span>
+              ))}
+            </div>
           </div>
           <Button
             variant="primary"
@@ -264,21 +539,25 @@ export function ModelStoreTab({ info, modelBadge }) {
       )}
 
       <div className="models-controls">
-        {roles.length > 1 && (
-          <Segmented
-            size="sm"
-            value={currentRole}
-            onChange={setActiveRole}
-            className="models-roletabs"
-            items={roles.map(r => {
+        <Segmented
+          size="sm"
+          value={currentRole}
+          onChange={setActiveRole}
+          className="models-roletabs"
+          items={[
+            {
+              value: 'all',
+              label: `All ${allInstalled}/${allModels.length}`,
+            },
+            ...roles.map(r => {
               const installed = groups[r].filter(m => m.installed).length;
               return {
                 value: r,
-                label: `${ROLE_LABEL[r] || r.toUpperCase()} ${installed}/${groups[r].length}`,
+                label: `${MODEL_ROLE_LABEL[r] || r.toUpperCase()} ${installed}/${groups[r].length}`,
               };
-            })}
-          />
-        )}
+            }),
+          ]}
+        />
         <input
           type="search"
           className="models-search"
@@ -290,104 +569,72 @@ export function ModelStoreTab({ info, modelBadge }) {
       </div>
 
       <Table className="models-table">
-        <Table.Header columns={COLUMNS} />
-        <div className="models-table__body">
-          {rows.map((m) => {
-            const rs = rowState[m.repo_id];
-            const rowBusy = busy.has(m.repo_id);
-            const isInstalling = rs?.phase === 'install_start' || (rs?.phase === 'active' && !rs.files && !rs.error);
-            const isDeleting = rs?.phase === 'delete_start';
-            const phase = rs?.phase;
-            // Aggregate current download progress across all in-flight files.
-            const fileList = rs?.files ? Object.entries(rs.files) : [];
-            const totals = fileList.reduce((a, [, f]) => ({
-              downloaded: a.downloaded + (f.downloaded || 0),
-              total: a.total + (f.total || 0),
-              done: a.done + (f.phase === 'done' ? 1 : 0),
-            }), { downloaded: 0, total: 0, done: 0 });
-            const hasFiles = fileList.length > 0;
-            const aggPct = totals.total > 0 ? (totals.downloaded / totals.total) * 100 : null;
-            const showBar = phase === 'install_start' || phase === 'active' || phase === 'delete_start';
-            const activeFilename = fileList.find(([, f]) => f.phase !== 'done')?.[0];
-            return (
-              <div key={m.repo_id} className={`models-row ${m.installed ? 'is-ok' : 'is-off'}`}>
-                <div className="models-row__cell models-row__name" style={{ flex: 3 }}>
-                  <span className="models-row__title">
-                    {m.label}
-                    {m.required && <span className="models-row__tag">required</span>}
-                  </span>
-                  <span className="models-row__repo">
-                    <code>{m.repo_id}</code>
-                    {m.note && <span className="models-row__note"> · {m.note}</span>}
-                  </span>
-                  {showBar && (
-                    <div className="models-row__progressline">
-                      <Progress
-                        value={aggPct}
-                        tone={isDeleting ? 'warn' : 'brand'}
-                        size="xs"
-                      />
-                      <span className="models-row__progresstext">
-                        {isDeleting
-                          ? 'Removing cached revisions…'
-                          : hasFiles
-                            ? `${fmtBytes(totals.downloaded)}${totals.total ? ` / ${fmtBytes(totals.total)}` : ''} · ${fileList.length} file${fileList.length === 1 ? '' : 's'}${totals.done ? ` · ${totals.done} done` : ''}${activeFilename ? ` · ${activeFilename.split('/').pop()}` : ''}`
-                            : 'Preparing download…'}
-                      </span>
-                    </div>
-                  )}
-                  {phase === 'install_error' && rs?.error && (
-                    <span className="models-row__error">Install failed: {rs.error}</span>
-                  )}
-                </div>
-                <div className="models-row__cell models-row__size" style={{ width: 80, textAlign: 'right' }}>
-                  {m.installed ? fmtBytes(m.size_on_disk_bytes) : `${m.size_gb} GB`}
-                </div>
-                <div className="models-row__cell" style={{ width: 110, display: 'flex', justifyContent: 'center' }}>
-                  {isInstalling
-                    ? <Badge tone="warn" size="xs"><Download size={10} /> {aggPct != null ? `${Math.round(aggPct)}%` : 'downloading'}</Badge>
-                    : isDeleting
-                      ? <Badge tone="warn" size="xs"><Trash2 size={10} /> deleting</Badge>
-                      : rowBusy
-                        ? <Badge tone="warn" size="xs"><RefreshCw size={10} className="spinner" /> working</Badge>
-                        : m.installed
-                          ? <Badge tone="success" size="xs">installed</Badge>
-                          : <Badge tone="neutral" size="xs">not installed</Badge>}
-                </div>
-                <div className="models-row__cell models-row__actions" style={{ width: 108 }}>
-                  {!m.installed && !rowBusy && !isInstalling && (
-                    <Button
-                      variant="subtle" size="sm"
-                      onClick={() => onInstall(m.repo_id)}
-                      leading={<Download size={11} />}
-                    >
-                      Install
-                    </Button>
-                  )}
-                  {m.installed && !rowBusy && !isDeleting && (
-                    <>
-                      <Button
-                        variant="icon" iconSize="sm"
-                        onClick={() => onReinstall(m.repo_id)}
-                        title="Reinstall"
-                        aria-label="Reinstall"
+        <div className="ui-table-header models-table__header">
+          {table.getHeaderGroups().map(headerGroup => (
+            <React.Fragment key={headerGroup.id}>
+              {headerGroup.headers.map(header => {
+                const meta = header.column.columnDef.meta || {};
+                const canSort = header.column.getCanSort();
+                return (
+                  <button
+                    key={header.id}
+                    type="button"
+                    className={[
+                      'ui-table-header__cell',
+                      `ui-table-header__cell--align-${meta.align || 'left'}`,
+                      canSort ? 'models-table__sort' : 'models-table__sort--off',
+                    ].join(' ')}
+                    style={{ width: header.column.columnDef.size, flex: header.column.id === 'name' ? '1 1 auto' : '0 0 auto' }}
+                    onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                    disabled={!canSort}
+                    title={canSort ? `Sort by ${String(header.column.columnDef.header || '')}` : undefined}
+                  >
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {header.column.getIsSorted() === 'asc' && <span className="models-table__sortmark">↑</span>}
+                    {header.column.getIsSorted() === 'desc' && <span className="models-table__sortmark">↓</span>}
+                  </button>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </div>
+        <div ref={tableBodyRef} className="models-table__body">
+          <div className="models-table__virtual" style={{ height: rowVirtualizer.getTotalSize() }}>
+            {rowVirtualizer.getVirtualItems().map(virtualRow => {
+              const row = tableRows[virtualRow.index];
+              const m = row.original;
+              const rt = getRowRuntime(m);
+              return (
+                <div
+                  key={row.id}
+                  className={`models-row ${m.installed ? 'is-ok' : 'is-off'}${rt.unsupported ? ' is-unsupported' : ''}`}
+                  data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
+                  style={{ transform: `translateY(${virtualRow.start}px)` }}
+                >
+                  {row.getVisibleCells().map(cell => {
+                    const meta = cell.column.columnDef.meta || {};
+                    return (
+                      <div
+                        key={cell.id}
+                        className={`models-row__cell ${meta.className || ''}`}
+                        style={{
+                          width: cell.column.columnDef.size,
+                          flex: cell.column.id === 'name' ? '1 1 auto' : '0 0 auto',
+                          textAlign: meta.align || undefined,
+                        }}
                       >
-                        <RefreshCw size={11} />
-                      </Button>
-                      <Button
-                        variant="icon" iconSize="sm"
-                        onClick={() => onDelete(m.repo_id)}
-                        title="Delete"
-                        aria-label="Delete"
-                      >
-                        <Trash2 size={11} />
-                      </Button>
-                    </>
-                  )}
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+            {tableRows.length === 0 && (
+              <div className="models-table__empty">No models match your filters.</div>
+            )}
+          </div>
         </div>
       </Table>
     </section>
@@ -539,16 +786,18 @@ async function askConfirm(message, title = 'Confirm') {
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('models');
-  const [info, setInfo] = useState(null);
-  const [status, setStatus] = useState(null);
   const [logSource, setLogSource] = useState('backend');
   const [logs, setLogs] = useState([]);
   const [logMeta, setLogMeta] = useState({ path: '', exists: false });
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [appVersion, setAppVersion] = useState(null);
   const [tauriVersion, setTauriVersion] = useState(null);
-  const [hw, setHw] = useState(null);
   const [updateState, setUpdateState] = useState('idle'); // idle|checking|downloading|uptodate|error
+
+  // TanStack Query — shared cache with App.jsx, no duplicate requests
+  const { data: hw } = useSysinfo();
+  const { data: status } = useModelStatus();
+  const { data: info } = useSystemInfo();
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -561,18 +810,7 @@ export default function Settings() {
     })();
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    const pull = async () => {
-      try {
-        const s = await fetchSysinfo();
-        if (!cancelled) setHw(s);
-      } catch { /* backend not up yet */ }
-    };
-    pull();
-    const iv = setInterval(pull, 6000);
-    return () => { cancelled = true; clearInterval(iv); };
-  }, []);
+  // sysinfo polling is now handled by useSysinfo() hook above
 
   const copyDiagnostics = useCallback(async () => {
     const nav = typeof navigator !== 'undefined' ? navigator : {};
@@ -647,12 +885,8 @@ export default function Settings() {
     }
   }, []);
 
-  const refreshInfo = useCallback(async () => {
-    try {
-      const [i, s] = await Promise.all([systemInfo(), fetchModelStatus()]);
-      setInfo(i); setStatus(s);
-    } catch (e) { /* ignore */ }
-  }, []);
+  // refreshInfo polling replaced by TanStack Query (useSystemInfo + useModelStatus)
+  const refreshInfo = useCallback(() => {}, []);
 
   const refreshLogs = useCallback(async () => {
     setLoadingLogs(true);
@@ -680,12 +914,6 @@ export default function Settings() {
       setLoadingLogs(false);
     }
   }, [logSource]);
-
-  useEffect(() => {
-    refreshInfo();
-    const iv = setInterval(refreshInfo, 4000);
-    return () => clearInterval(iv);
-  }, [refreshInfo]);
 
   useEffect(() => {
     if (activeTab === 'logs') refreshLogs();

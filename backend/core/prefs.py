@@ -37,7 +37,11 @@ def _load() -> dict:
 
 def _save(data: dict) -> None:
     # Atomic write — no half-written JSON if the process dies mid-flush.
-    fd, tmp = tempfile.mkstemp(prefix=".prefs.", suffix=".tmp", dir=DATA_DIR)
+    # Derive temp-dir from _PREFS_PATH (not DATA_DIR) so os.replace() always
+    # operates within the same filesystem — important when tests redirect the path.
+    target_dir = os.path.dirname(_PREFS_PATH) or DATA_DIR
+    os.makedirs(target_dir, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=".prefs.", suffix=".tmp", dir=target_dir)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)

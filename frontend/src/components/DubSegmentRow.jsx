@@ -7,6 +7,7 @@ import { formatTime } from '../utils/format';
 import { LANG_CODES } from '../utils/languages';
 import { PRESETS } from '../utils/constants';
 import { Menu, Button, Badge } from '../ui';
+import './DubSegmentRow.css';
 
 const CHAR_BUDGET_RATIO = 1.3;
 
@@ -51,24 +52,23 @@ function DubSegmentRow({
         onChange={(e) => onSelect(seg.id, idx, e.nativeEvent.shiftKey)}
         onClick={(e) => onSelect(seg.id, idx, e.shiftKey)}
         disabled={disabled}
-        style={{ width: 14, marginRight: 4, cursor: 'pointer', accentColor: '#d3869b' }}
+        style={{ accentColor: '#d3869b' }}
+        className="seg-check"
         title="Select segment (shift+click for range)"
       />
-      <span className="segment-time" style={{ width: 55, display: 'flex', flexDirection: 'column' }}>
+      <span className="segment-time seg-time">
         <span>
           {formatTime(seg.start)}–{formatTime(seg.end)}
           {seg.speed && seg.speed !== 1.0 && (
-            <span style={{ fontSize: '0.55rem', color: seg.speed > 1 ? '#d3869b' : '#8ec07c', marginLeft: 2 }}>
+            <span className="seg-speed-badge" style={{ color: seg.speed > 1 ? '#d3869b' : '#8ec07c' }}>
               {seg.speed.toFixed(2)}x
             </span>
           )}
         </span>
         {SyncIcon && (
           <span
-            style={{
-              fontSize: '0.5rem', marginTop: 2, display: 'inline-flex',
-              alignItems: 'center', gap: 2, color: syncColor,
-            }}
+            className="seg-sync-badge"
+            style={{ color: syncColor }}
             title={`Generated audio is ${Math.round(seg.sync_ratio * 100)}% the duration of original`}
           >
             <SyncIcon size={8} /> Sync: {Math.round(seg.sync_ratio * 100)}%
@@ -76,11 +76,8 @@ function DubSegmentRow({
         )}
         {seg.rate_ratio != null && Math.abs(seg.rate_ratio - 1.0) > 0.03 && (
           <span
-            style={{
-              fontSize: '0.5rem', marginTop: 2,
-              color: seg.rate_ratio > 1.15 ? '#fb4934' : seg.rate_ratio < 0.85 ? '#83a598' : '#a89984',
-              fontVariantNumeric: 'tabular-nums',
-            }}
+            className="seg-rate-badge"
+            style={{ color: seg.rate_ratio > 1.15 ? '#fb4934' : seg.rate_ratio < 0.85 ? '#83a598' : '#a89984' }}
             title={`Speech-rate fit: ${seg.rate_ratio.toFixed(2)}× relative to slot${seg.rate_error ? ` (${seg.rate_error})` : ''}`}
           >
             📖 {seg.rate_ratio.toFixed(2)}×
@@ -88,9 +85,9 @@ function DubSegmentRow({
         )}
       </span>
 
-      <span style={{ width: 50, fontSize: '0.58rem', color: '#a89984' }}>{seg.speaker_id || ''}</span>
+      <span className="seg-speaker">{seg.speaker_id || ''}</span>
 
-      <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+      <span className="seg-text-col">
         <input
           className="input-base segment-input"
           value={seg.text}
@@ -109,13 +106,13 @@ function DubSegmentRow({
           }
         />
         {seg.text_original && seg.text_original !== seg.text && (
-          <span style={{ fontSize: '0.55rem', color: '#6b6657', display: 'flex', alignItems: 'center', gap: 4, padding: '0 4px', overflow: 'hidden' }}>
-            <span style={{ opacity: 0.8, textTransform: 'uppercase', fontWeight: 600, fontSize: '0.5rem', color: '#7c6f64' }}>orig</span>
-            <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={seg.text_original}>
+          <span className="seg-orig-row">
+            <span className="seg-orig-label">orig</span>
+            <span className="seg-orig-text" title={seg.text_original}>
               {seg.text_original}
             </span>
             {overBudget && (
-              <span style={{ color: '#fabd2f', fontSize: '0.5rem' }}>
+              <span className="seg-budget-warn">
                 {Math.round((seg.text.length / seg.text_original.length) * 100)}%
               </span>
             )}
@@ -123,7 +120,7 @@ function DubSegmentRow({
               onClick={() => onRestore(seg.id)}
               disabled={disabled}
               title="Restore original text"
-              style={{ background: 'none', border: 'none', color: '#83a598', cursor: 'pointer', padding: 0, fontSize: '0.55rem' }}
+              className="seg-restore-btn"
             >
               ↺
             </button>
@@ -132,8 +129,7 @@ function DubSegmentRow({
       </span>
 
       <select
-        className="input-base segment-input"
-        style={{ width: 45, fontSize: '0.55rem', padding: '1px 2px' }}
+        className="input-base segment-input seg-lang-select"
         value={seg.target_lang || ''}
         disabled={disabled}
         onChange={(e) => onEditField(seg.id, 'target_lang', e.target.value)}
@@ -145,8 +141,7 @@ function DubSegmentRow({
       </select>
 
       <select
-        className="input-base"
-        style={{ width: 90, fontSize: '0.6rem', padding: '1px 3px' }}
+        className="input-base seg-profile-select"
         value={seg.profile_id || ''}
         disabled={disabled}
         onChange={(e) => onEditField(seg.id, 'profile_id', e.target.value)}
@@ -171,13 +166,11 @@ function DubSegmentRow({
         title={`${Math.round((seg.gain ?? 1.0) * 100)}%`}
         disabled={disabled}
         onChange={(e) => onEditField(seg.id, 'gain', Number(e.target.value) / 100)}
-        style={{
-          width: 30, height: 2, padding: 0, margin: 0,
-          accentColor: (seg.gain ?? 1.0) > 1.2 ? '#fb4934' : (seg.gain ?? 1.0) < 0.5 ? '#83a598' : '#a89984',
-        }}
+        className="seg-gain-slider"
+        style={{ accentColor: (seg.gain ?? 1.0) > 1.2 ? '#fb4934' : (seg.gain ?? 1.0) < 0.5 ? '#83a598' : '#a89984' }}
       />
 
-      <div style={{ display: 'flex', gap: 1, width: 54 }}>
+      <div className="seg-actions">
         <button
           className="segment-play"
           disabled={disabled}

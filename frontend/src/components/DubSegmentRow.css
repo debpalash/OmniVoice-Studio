@@ -1,0 +1,53 @@
+/* ═══ DubSegmentRow extracted layout styles ═══ */
+.seg-check {
+  width: 14px; margin-right: 4px; cursor: pointer;
+}
+.seg-time {
+  width: 55px; display: flex; flex-direction: column;
+}
+.seg-sync-badge {
+  font-size: 0.5rem; margin-top: 2px;
+  display: inline-flex; align-items: center; gap: 2px;
+}
+.seg-rate-badge {
+  font-size: 0.5rem; margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.seg-speed-badge {
+  font-size: 0.55rem; margin-left: 2px;
+}
+.seg-speaker {
+  width: 50px; font-size: 0.58rem; color: #a89984;
+}
+.seg-text-col {
+  flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0;
+}
+.seg-orig-row {
+  font-size: 0.55rem; color: #6b6657;
+  display: flex; align-items: center; gap: 4px;
+  padding: 0 4px; overflow: hidden;
+}
+.seg-orig-label {
+  opacity: 0.8; text-transform: uppercase; font-weight: 600;
+  font-size: 0.5rem; color: #7c6f64;
+}
+.seg-orig-text {
+  flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.seg-budget-warn { color: #fabd2f; font-size: 0.5rem; }
+.seg-restore-btn {
+  background: none; border: none; color: #83a598;
+  cursor: pointer; padding: 0; font-size: 0.55rem;
+}
+.seg-lang-select {
+  width: 45px; font-size: 0.55rem; padding: 1px 2px;
+}
+.seg-profile-select {
+  width: 90px; font-size: 0.6rem; padding: 1px 3px;
+}
+.seg-gain-slider {
+  width: 30px; height: 2px; padding: 0; margin: 0;
+}
+.seg-actions {
+  display: flex; gap: 1px; width: 54px;
+}

@@ -17,9 +17,11 @@ const BatchQueue = lazy(() => import('./pages/BatchQueue'));
 const ToolsPage = lazy(() => import('./pages/ToolsPage'));
 const SetupWizard = lazy(() => import('./pages/SetupWizard'));
 const KeyboardCheatsheet = lazy(() => import('./components/KeyboardCheatsheet'));
+const VoicePreview = lazy(() => import('./components/VoicePreview'));
 const LogsFooter = lazy(() => import('./components/LogsFooter'));
 const ProjectsPage = lazy(() => import('./pages/Projects'));
 const VoiceGallery = lazy(() => import('./pages/VoiceGallery'));
+const DonatePage = lazy(() => import('./pages/DonatePage'));
 import Header from './components/Header';
 import NavRail from './components/NavRail';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -35,7 +37,8 @@ import {
 import { LANG_CODES } from './utils/languages';
 import { formatTime, probeAudioDuration } from './utils/format';
 import { API, apiPost } from './api/client';
-import { sysinfo as apiSysinfo, modelStatus as apiModelStatus, cleanAudio as apiCleanAudio, flushMemory as apiFlushMemory } from './api/system';
+import { cleanAudio as apiCleanAudio, flushMemory as apiFlushMemory } from './api/system';
+import { useSysinfo, useModelStatus } from './api/hooks';
 import { listProfiles, createProfile, deleteProfile as apiDeleteProfile, lockProfile, unlockProfile } from './api/profiles';
 import { listHistory, clearHistory, generateSpeech, audioUrlWithCacheBust } from './api/generate';
 import { listProjects, saveProject as apiSaveProject, loadProject as apiLoadProject, deleteProject as apiDeleteProject } from './api/projects';
@@ -198,7 +201,7 @@ function App() {
   const activeVoiceId = useAppStore(s => s.activeVoiceId);
   const openVoiceProfile = useAppStore(s => s.openVoiceProfile);
   const closeVoiceProfile = useAppStore(s => s.closeVoiceProfile);
-  const hideSidebar = mode === 'launchpad' || mode === 'settings' || mode === 'voice'
+  const hideSidebar = mode === 'launchpad' || mode === 'settings' || mode === 'voice' || mode === 'donate'
     || mode === 'queue' || mode === 'tools' || mode === 'projects' || mode === 'gallery';
   const availableSidebarTabs = mode === 'dub'
     ? ['projects', 'history', 'downloads']
@@ -281,6 +284,10 @@ function App() {
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(null);
   const [segmentPreviewLoading, setSegmentPreviewLoading] = useState(null);
+
+  // Voice Preview floating card
+  const [isVoicePreviewOpen, setIsVoicePreviewOpen] = useState(false);
+  const [voicePreviewProfileId, setVoicePreviewProfileId] = useState('');
 
   // ═══ MIC RECORDING ═══
   const [isRecording, setIsRecording] = useState(false);
@@ -544,11 +551,11 @@ function App() {
     });
   }, [dubSegments]);
 
-  // ── MODEL STATUS ──
-  const [modelStatus, setModelStatus] = useState('idle'); // 'idle' | 'loading' | 'ready'
-
-  // ── LOAD DATA FROM SERVER ──
-  const [sysStats, setSysStats] = useState(null);
+  // ── MODEL STATUS + SYSINFO (TanStack Query) ──
+  const sysQuery = useSysinfo();
+  const msQuery  = useModelStatus();
+  const sysStats    = sysQuery.data ?? null;
+  const modelStatus = msQuery.data?.status ?? 'idle';
 
   // First-run gate — `/setup/status` reports whether required HF models are
   // on disk. If not, we render <SetupWizard> in place of the main studio so
@@ -675,44 +682,8 @@ function App() {
     };
   }, []);
 
-  useEffect(() => {
-    let interval = null;
-    let cancelled = false;
-    let lastCpu = -1, lastRam = -1, lastVram = -1, lastModelSt = '';
-    const fetchStats = async () => {
-      try {
-        const [sys, ms] = await Promise.all([apiSysinfo(), apiModelStatus()]);
-        if (sys) {
-          // Only update state if values actually changed (avoids re-rendering entire tree)
-          const cpu = Math.round(sys.cpu);
-          const ram = Math.round(sys.ram * 10);
-          const vram = Math.round(sys.vram * 10);
-          if (cpu !== lastCpu || ram !== lastRam || vram !== lastVram) {
-            lastCpu = cpu; lastRam = ram; lastVram = vram;
-            setSysStats(sys);
-          }
-        }
-        if (ms && ms.status !== lastModelSt) {
-          lastModelSt = ms.status;
-          setModelStatus(ms.status);
-        }
-        return true;
-      } catch (e) { return false; }
-    };
-    // Wait for backend to be reachable before starting the polling interval
-    const startPolling = async () => {
-      while (!cancelled) {
-        const ok = await fetchStats();
-        if (ok) {
-          if (!cancelled) interval = setInterval(fetchStats, 4000);
-          return;
-        }
-        await new Promise(r => setTimeout(r, 1500));
-      }
-    };
-    startPolling();
-    return () => { cancelled = true; if (interval) clearInterval(interval); };
-  }, []);
+  // sysinfo + modelStatus polling is now handled by TanStack Query hooks
+  // (useSysinfo / useModelStatus at top of component). No manual setInterval.
 
   const loadProfiles = useCallback(async () => {
     try { setProfiles(await listProfiles()); } catch (e) {}
@@ -1933,10 +1904,12 @@ function App() {
           minHeight: 'calc(100vh - var(--logs-footer-height, 28px))',
           maxHeight: 'calc(100vh - var(--logs-footer-height, 28px))',
           width: '100%',
-          overflow: 'auto',
+          overflow: 'hidden',
           zoom: uiScale,
           background: 'var(--color-bg, #1d2021)',
           position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         {/* Invisible drag strip across the top 28 px of the wizard —
@@ -2068,6 +2041,12 @@ function App() {
               <VoiceGallery />
             </Suspense>
           </ErrorBoundary>
+        ) : mode === 'donate' ? (
+          <ErrorBoundary name="donate">
+            <Suspense fallback={<LazyFallback />}>
+              <DonatePage onBack={() => setMode('launchpad')} />
+            </Suspense>
+          </ErrorBoundary>
         ) : mode === 'launchpad' ? (
           <ErrorBoundary name="launchpad">
           <Suspense fallback={<LazyFallback />}>
@@ -2192,6 +2171,10 @@ function App() {
           handleUnlockProfile={handleUnlockProfile}
           handleLockProfile={handleLockProfile}
           handlePreviewVoice={handlePreviewVoice}
+          onOpenVoicePreview={(profileId) => {
+            setVoicePreviewProfileId(profileId || '');
+            setIsVoicePreviewOpen(true);
+          }}
           restoreHistory={restoreHistory}
           restoreDubHistory={restoreDubHistory}
           handleSaveHistoryAsProfile={handleSaveHistoryAsProfile}
@@ -2236,6 +2219,19 @@ function App() {
       {showCheatsheet && (
         <Suspense fallback={null}>
           <KeyboardCheatsheet open={showCheatsheet} onClose={() => setShowCheatsheet(false)} />
+        </Suspense>
+      )}
+
+      {/* ═══ VOICE PREVIEW FLOATING CARD ═══ */}
+      {isVoicePreviewOpen && (
+        <Suspense fallback={null}>
+          <VoicePreview
+            open={isVoicePreviewOpen}
+            onClose={() => setIsVoicePreviewOpen(false)}
+            profiles={profiles}
+            initialProfileId={voicePreviewProfileId}
+            fileToMediaUrl={fileToMediaUrl}
+          />
         </Suspense>
       )}
 

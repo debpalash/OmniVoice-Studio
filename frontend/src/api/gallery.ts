@@ -19,6 +19,7 @@ export interface GalleryVoice {
   description?: string;
   thumbnail?: string;
   tags: string[];
+  is_favorite?: boolean;
   created_at: number;
 }
 
@@ -73,3 +74,29 @@ export const saveVoiceAsProfile = async (voiceId: string, profileName: string): 
 };
 
 export const previewVoiceUrl = (voiceId: string): string => `/gallery/voices/${voiceId}/preview`;
+
+export const updateGalleryVoice = async (
+  voiceId: string,
+  updates: { name?: string; tags?: string[]; is_favorite?: boolean; description?: string },
+): Promise<{ success: boolean; updated: string[] }> =>
+  apiFetch(`/gallery/voices/${voiceId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  }).then(r => r.json());
+
+export const batchDeleteGalleryVoices = async (
+  ids: string[],
+): Promise<{ deleted: number }> =>
+  apiFetch('/gallery/voices/batch-delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  }).then(r => r.json());
+
+export const galleryVoiceToProfile = async (
+  voiceId: string,
+): Promise<{ success: boolean; profile_id: string; name: string }> =>
+  apiFetch(`/gallery/voices/${voiceId}/to-profile`, {
+    method: 'POST',
+  }).then(r => r.json());

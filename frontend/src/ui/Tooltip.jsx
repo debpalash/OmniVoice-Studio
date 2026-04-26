@@ -1,15 +1,14 @@
-import React, { useState, useRef, useId, useEffect } from 'react';
+import React from 'react';
+import * as RadixTooltip from '@radix-ui/react-tooltip';
 import './Tooltip.css';
 
 /**
  * Tooltip — keyboard-accessible replacement for `title=`.
+ * Backed by @radix-ui/react-tooltip for collision-aware positioning.
  *
- * Shows on hover and on keyboard focus. Dismisses on Escape.
- * Wraps exactly one child; forwards aria-describedby to it.
- *
- * @param content  tooltip body (string or node)
- * @param placement 'top' | 'bottom' | 'left' | 'right'
- * @param delay    ms before showing (default 300)
+ * @param content    tooltip body (string or node)
+ * @param placement  'top' | 'bottom' | 'left' | 'right'
+ * @param delay      ms before showing (default 300)
  */
 export default function Tooltip({
   content,
@@ -17,51 +16,28 @@ export default function Tooltip({
   delay = 300,
   children,
 }) {
-  const [open, setOpen] = useState(false);
-  const timer = useRef(null);
-  const id = useId();
-
-  const show = () => {
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setOpen(true), delay);
-  };
-  const hide = () => {
-    clearTimeout(timer.current);
-    setOpen(false);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => { if (e.key === 'Escape') hide(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
-
-  useEffect(() => () => clearTimeout(timer.current), []);
-
   if (!content) return children;
-  if (!React.isValidElement(children)) return children;
 
-  const trigger = React.cloneElement(children, {
-    'aria-describedby': open ? id : children.props['aria-describedby'],
-    onMouseEnter: (...args) => { show(); children.props.onMouseEnter?.(...args); },
-    onMouseLeave: (...args) => { hide(); children.props.onMouseLeave?.(...args); },
-    onFocus:      (...args) => { show(); children.props.onFocus?.(...args); },
-    onBlur:       (...args) => { hide(); children.props.onBlur?.(...args); },
-  });
+  // Map our placement names to Radix side names
+  const sideMap = { top: 'top', bottom: 'bottom', left: 'left', right: 'right' };
+  const side = sideMap[placement] || 'top';
 
   return (
-    <span className="ui-tooltip-wrap">
-      {trigger}
-      {open && (
-        <span
-          id={id}
-          role="tooltip"
-          className={`ui-tooltip ui-tooltip--${placement}`}
-        >
-          {content}
-        </span>
-      )}
-    </span>
+    <RadixTooltip.Provider delayDuration={delay}>
+      <RadixTooltip.Root>
+        <RadixTooltip.Trigger asChild>
+          {children}
+        </RadixTooltip.Trigger>
+        <RadixTooltip.Portal>
+          <RadixTooltip.Content
+            side={side}
+            sideOffset={5}
+            className={`ui-tooltip ui-tooltip--${placement}`}
+          >
+            {content}
+          </RadixTooltip.Content>
+        </RadixTooltip.Portal>
+      </RadixTooltip.Root>
+    </RadixTooltip.Provider>
   );
 }

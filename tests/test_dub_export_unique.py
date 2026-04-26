@@ -28,6 +28,10 @@ def app_client(tmp_path, monkeypatch):
     monkeypatch.setenv("OMNIVOICE_DATA_DIR", str(tmp_path))
     import core.config as _cfg
     importlib.reload(_cfg)
+    # Reload core.tasks so TaskManager gets a fresh asyncio.Queue bound to the
+    # current event loop (TestClient creates its own loop per fixture).
+    import core.tasks as _tasks
+    importlib.reload(_tasks)
     from api.routers import dub_core as _dc
     importlib.reload(_dc)
     from api.routers import dub_export as _dx

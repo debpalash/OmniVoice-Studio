@@ -79,24 +79,16 @@ KNOWN_MODELS = [
         "label": "Whisper large-v3 (MLX — optional mac-ARM speedup)",
         "role": "ASR",
         "size_gb": 3.0,
-        # Optional everywhere — only loadable on mac-ARM dev installs. The
-        # frozen .app can't load mlx reliably (nanobind duplicate-registration
-        # aborts on first mlx.core touch), and mlx doesn't exist on
-        # Linux/Windows/mac-Intel at all. Users on a mac-ARM dev install can
-        # opt in from Settings → Models for ~10-20% lower latency vs faster-
-        # whisper int8 on large-v3.
         "required": False,
+        "platforms": ["darwin-arm64"],
     },
     {
         "repo_id": "openai/whisper-large-v3",
         "label": "Whisper large-v3 (PyTorch — last-resort fallback)",
         "role": "ASR",
         "size_gb": 3.1,
-        # Optional fallback. The faster-whisper repo above is the primary
-        # ASR; openai/whisper-large-v3 is only needed if the user explicitly
-        # picks pytorch-whisper in Settings (CUDA-heavy workflows or when
-        # faster-whisper breaks on a specific host).
         "required": False,
+        "platforms": ["cuda"],
     },
     {
         "repo_id": "mlx-community/whisper-tiny-mlx",
@@ -104,6 +96,7 @@ KNOWN_MODELS = [
         "role": "ASR",
         "size_gb": 0.08,
         "required": False,
+        "platforms": ["darwin-arm64"],
     },
     {
         "repo_id": "pyannote/speaker-diarization-3.1",
@@ -141,6 +134,7 @@ KNOWN_MODELS = [
         "size_gb": 0.15,
         "required": False,
         "note": "Apple Silicon only — via mlx-audio backend.",
+        "platforms": ["darwin-arm64"],
     },
     {
         "repo_id": "mlx-community/csm-1b-8bit",
@@ -149,6 +143,7 @@ KNOWN_MODELS = [
         "size_gb": 1.1,
         "required": False,
         "note": "Apple Silicon only — via mlx-audio backend.",
+        "platforms": ["darwin-arm64"],
     },
     {
         "repo_id": "mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-4bit",
@@ -157,6 +152,7 @@ KNOWN_MODELS = [
         "size_gb": 1.4,
         "required": False,
         "note": "Apple Silicon only — via mlx-audio backend.",
+        "platforms": ["darwin-arm64"],
     },
     {
         "repo_id": "mlx-community/Dia-1.6B",
@@ -165,6 +161,7 @@ KNOWN_MODELS = [
         "size_gb": 3.2,
         "required": False,
         "note": "Apple Silicon only — via mlx-audio backend.",
+        "platforms": ["darwin-arm64"],
     },
     {
         "repo_id": "mlx-community/Llama-OuteTTS-1.0-1B-4bit",
@@ -173,6 +170,7 @@ KNOWN_MODELS = [
         "size_gb": 0.8,
         "required": False,
         "note": "Apple Silicon only — via mlx-audio backend.",
+        "platforms": ["darwin-arm64"],
     },
     {
         "repo_id": "mlx-community/Chatterbox-TTS-4bit",
@@ -181,6 +179,7 @@ KNOWN_MODELS = [
         "size_gb": 0.5,
         "required": False,
         "note": "Apple Silicon only — via mlx-audio backend.",
+        "platforms": ["darwin-arm64"],
     },
     {
         "repo_id": "mlx-community/MeloTTS-English-v3-MLX",
@@ -189,10 +188,37 @@ KNOWN_MODELS = [
         "size_gb": 0.2,
         "required": False,
         "note": "Apple Silicon only — via mlx-audio backend.",
+        "platforms": ["darwin-arm64"],
     },
 ]
 # Back-compat tuple view for code that expects (repo_id, label) pairs.
 REQUIRED_MODELS = [(m["repo_id"], m["label"]) for m in KNOWN_MODELS if m["required"]]
+
+
+def _current_platform_tags() -> list[str]:
+    """Return platform tags that the current host supports.
+
+    Models declare a `platforms` list (e.g. ["darwin-arm64", "cuda"]). A model
+    is supported if its list intersects with the host's tags, or if the model
+    has no `platforms` key (= cross-platform)."""
+    tags = [sys.platform]                             # "linux", "darwin", "win32"
+    arch = _platform.machine()
+    tags.append(f"{sys.platform}-{arch}")             # "darwin-arm64", "linux-x86_64"
+    try:
+        import torch
+        if torch.cuda.is_available():
+            tags.append("cuda")
+    except Exception:
+        pass
+    return tags
+
+
+def _model_supported(model: dict) -> bool:
+    """Check if a model is supported on the current platform."""
+    plats = model.get("platforms")
+    if not plats:
+        return True  # no restriction → cross-platform
+    return bool(set(plats) & set(_current_platform_tags()))
 
 
 def _is_cached(repo_id: str) -> bool:
@@ -327,11 +353,13 @@ def list_models():
             "installed": cached is not None and cached["size_on_disk"] > 0,
             "size_on_disk_bytes": cached["size_on_disk"] if cached else 0,
             "nb_files": cached["nb_files"] if cached else 0,
+            "supported": _model_supported(m),
         })
     return {
         "models": out,
         "total_installed_bytes": sum(m["size_on_disk_bytes"] for m in out),
         "hf_cache_dir": _hf_cache_dir(),
+        "platform_tags": _current_platform_tags(),
     }
 
 
@@ -757,6 +785,20 @@ def preflight():
             "detail": "Not bundled alongside ffmpeg.",
             "fix": "File-probe endpoint (/tools/probe) will 501. "
                    "Install system ffmpeg (includes ffprobe) to enable it.",
+        })
+
+    # ── yt-dlp (warn — gallery needs it)
+    yt_dlp_path = _shutil.which("yt-dlp")
+    if yt_dlp_path:
+        checks.append({
+            "id": "yt-dlp", "label": "yt-dlp", "status": "pass",
+            "detail": yt_dlp_path, "fix": None,
+        })
+    else:
+        checks.append({
+            "id": "yt-dlp", "label": "yt-dlp", "status": "warn",
+            "detail": "Not found in system PATH.",
+            "fix": "YouTube clip downloads in Voice Gallery will fail. Download the standalone binary from https://github.com/yt-dlp/yt-dlp/releases and place it in your PATH.",
         })
 
     # ── GPU + compute backend

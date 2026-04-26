@@ -91,6 +91,52 @@ def free_vram():
     elif torch.cuda.is_available():
         torch.cuda.empty_cache()
 
+
+def offload_tts_for_asr():
+    """Move TTS model to CPU to free VRAM for ASR (WhisperX large-v3).
+
+    On a 7-8 GB laptop GPU the TTS model (~2.4 GB) and WhisperX large-v3
+    (~3 GB) plus the VAD model can't coexist. Offloading the TTS model to
+    CPU before transcription prevents CUDA OOM, then restore_tts_after_asr()
+    moves it back.
+    """
+    global model
+    if model is None:
+        return
+    if not torch.cuda.is_available():
+        return  # Only needed on CUDA (limited VRAM)
+    try:
+        # Check if there's enough free VRAM to skip offloading (~4 GB needed for ASR)
+        free_mem = torch.cuda.mem_get_info()[0]
+        if free_mem > 4 * 1024 ** 3:  # > 4 GB free → probably fine
+            return
+    except Exception:
+        pass
+    try:
+        logger.info("Offloading TTS model to CPU to free VRAM for ASR...")
+        model.to("cpu")
+        free_vram()
+        logger.info("TTS model offloaded. VRAM freed for ASR.")
+    except Exception as e:
+        logger.warning("TTS offload failed: %s", e)
+
+
+def restore_tts_after_asr():
+    """Move TTS model back to CUDA after ASR completes."""
+    global model
+    if model is None:
+        return
+    if not torch.cuda.is_available():
+        return
+    try:
+        device = get_best_device()
+        if device == "cuda":
+            logger.info("Restoring TTS model to CUDA...")
+            model.to("cuda")
+            free_vram()
+    except Exception as e:
+        logger.warning("TTS restore to CUDA failed: %s", e)
+
 _diar_pipeline = None
 
 def get_diarization_pipeline():

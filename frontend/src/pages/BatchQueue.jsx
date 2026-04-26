@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { Panel, Button, Badge, Tabs } from '../ui';
 import { listJobs } from '../api/engines';
+import BatchAddDialog from '../components/BatchAddDialog';
 import './BatchQueue.css';
 
 /**
@@ -30,6 +31,7 @@ export default function BatchQueue({ onBack }) {
   const [tab, setTab] = useState('active');
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -61,6 +63,9 @@ export default function BatchQueue({ onBack }) {
         <Button variant="subtle" size="sm" onClick={reload} loading={loading} leading={<RefreshCw size={11} />}>
           Refresh
         </Button>
+        <Button variant="primary" size="sm" onClick={() => setAddOpen(true)} leading={<Plus size={11} />}>
+          Add Videos
+        </Button>
       </div>
 
       <Tabs
@@ -87,6 +92,15 @@ export default function BatchQueue({ onBack }) {
         {jobs.map(j => <JobCard key={j.id} job={j} />)}
       </div>
     </div>
+  );
+}
+
+function Plus({ size }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
   );
 }
 

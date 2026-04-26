@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronUp, ChevronDown, RefreshCw, Trash2, Copy, Bug, X,
-  AlertTriangle, AlertCircle, Info, FileText,
+  AlertTriangle, AlertCircle, Info, FileText, Heart,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import {
-  systemLogs, systemLogsTauri, clearSystemLogs, clearTauriLogs,
-} from '../api/system';
+import { clearSystemLogs, clearTauriLogs } from '../api/system';
+import { useSystemLogs, useTauriLogs, useClearLogs, useClearTauriLogs } from '../api/hooks';
 import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
 import { Segmented } from '../ui';
 import { useAppStore } from '../store';
@@ -153,19 +152,22 @@ export default function LogsFooter() {
     };
   }, [collapsed, height]);
 
-  const fetchBackend = useCallback(async () => {
-    try {
-      const r = await systemLogs(300);
-      setLines(prev => ({ ...prev, backend: r.lines || [] }));
-    } catch { /* backend may be warming up — don't spam toasts */ }
-  }, []);
+  // ── TanStack Query for backend + tauri logs ────────────────────────────
+  const backendLogs = useSystemLogs(300, true);
+  const tauriLogs   = useTauriLogs(300, true);
 
-  const fetchTauri = useCallback(async () => {
-    try {
-      const r = await systemLogsTauri(300);
-      setLines(prev => ({ ...prev, tauri: r.lines || [] }));
-    } catch { /* tauri log may not exist in dev */ }
-  }, []);
+  // Sync query data into local state for the rendering pipeline
+  useEffect(() => {
+    if (backendLogs.data) {
+      setLines(prev => ({ ...prev, backend: backendLogs.data.lines || [] }));
+    }
+  }, [backendLogs.data]);
+
+  useEffect(() => {
+    if (tauriLogs.data) {
+      setLines(prev => ({ ...prev, tauri: tauriLogs.data.lines || [] }));
+    }
+  }, [tauriLogs.data]);
 
   const pullFrontend = useCallback(() => {
     const raw = getFrontendLogs();
@@ -177,18 +179,18 @@ export default function LogsFooter() {
 
   const refreshAll = useCallback(async () => {
     setLoading(true);
-    await Promise.all([fetchBackend(), fetchTauri()]);
+    backendLogs.refetch();
+    tauriLogs.refetch();
     pullFrontend();
     setLoading(false);
-  }, [fetchBackend, fetchTauri, pullFrontend]);
+  }, [backendLogs, tauriLogs, pullFrontend]);
 
-  // Poll on a slow interval (badges update without user action), faster
-  // when the panel is open + focused on a source.
+  // Frontend logs still need a local interval (no API, reads from buffer)
   useEffect(() => {
-    refreshAll();
-    const slow = setInterval(refreshAll, collapsed ? 8000 : 3000);
-    return () => clearInterval(slow);
-  }, [refreshAll, collapsed]);
+    pullFrontend();
+    const iv = setInterval(pullFrontend, collapsed ? 8000 : 3000);
+    return () => clearInterval(iv);
+  }, [pullFrontend, collapsed]);
 
   // Auto-scroll to bottom when new lines arrive and panel is open.
   useEffect(() => {
@@ -313,25 +315,35 @@ export default function LogsFooter() {
             />
           ))}
         </div>
-        {!collapsed && (
-          <div className="logs-footer__actions">
-            <button className="logs-footer__icon-btn" onClick={refreshAll} disabled={loading} title="Refresh">
-              <RefreshCw size={12} className={loading ? 'spinner' : ''} />
-            </button>
-            <button className="logs-footer__icon-btn" onClick={onCopy} title="Copy visible log">
-              <Copy size={12} />
-            </button>
-            <button className="logs-footer__icon-btn" onClick={onClear} title="Clear">
-              <Trash2 size={12} />
-            </button>
-            <button className="logs-footer__icon-btn logs-footer__icon-btn--report" onClick={onReportIssue} title="Report issue (copy diagnostic)">
-              <Bug size={12} />
-            </button>
-            <button className="logs-footer__icon-btn" onClick={() => setCollapsed(true)} title="Close">
-              <X size={12} />
-            </button>
-          </div>
-        )}
+        <div className="logs-footer__right">
+          {!collapsed && (
+            <div className="logs-footer__actions">
+              <button className="logs-footer__icon-btn" onClick={refreshAll} disabled={loading} title="Refresh">
+                <RefreshCw size={12} className={loading ? 'spinner' : ''} />
+              </button>
+              <button className="logs-footer__icon-btn" onClick={onCopy} title="Copy visible log">
+                <Copy size={12} />
+              </button>
+              <button className="logs-footer__icon-btn" onClick={onClear} title="Clear">
+                <Trash2 size={12} />
+              </button>
+              <button className="logs-footer__icon-btn logs-footer__icon-btn--report" onClick={onReportIssue} title="Report issue (copy diagnostic)">
+                <Bug size={12} />
+              </button>
+              <button className="logs-footer__icon-btn" onClick={() => setCollapsed(true)} title="Close">
+                <X size={12} />
+              </button>
+            </div>
+          )}
+          <button
+            type="button"
+            className="logs-footer__donate"
+            onClick={() => useAppStore.getState().setMode?.('donate')}
+            title="Support this project"
+          >
+            <Heart size={13} />
+          </button>
+        </div>
       </div>
 
       {!collapsed && (

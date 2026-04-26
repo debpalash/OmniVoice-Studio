@@ -1,9 +1,8 @@
-// Backend always listens on localhost:3900 — both in dev (Vite @ 3901 talking
-// to a separate uvicorn) and in the built .app (Tauri webview @ tauri://localhost
-// talking to the venv-bootstrapped sidecar). Relative fetches against
-// tauri://localhost don't reach the sidecar, so we hardcode the absolute host.
-// Port 3900 chosen to avoid common 8000 conflicts (Django/Rails/Jupyter).
-export const API = 'http://localhost:3900';
+// Backend base URL. Configurable via VITE_API_URL or VITE_API_PORT env vars.
+// In production Tauri builds, the webview talks to the sidecar on localhost.
+const viteEnv = import.meta.env ?? {};
+const _port = viteEnv.VITE_API_PORT || '3900';
+export const API = viteEnv.VITE_API_URL || `http://localhost:${_port}`;
 
 export class ApiError extends Error {
   status?: number;

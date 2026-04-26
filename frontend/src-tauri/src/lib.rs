@@ -12,7 +12,12 @@ use tauri::{Emitter, Manager};
 // 8000 collides with Django/Rails/Jupyter/Airflow on most dev machines.
 // 3900 is the backend (FastAPI + uvicorn), 3901 is the Vite dev server,
 // 3902 is reserved for future IPC / websocket listeners.
-const BACKEND_PORT: u16 = 3900;
+fn backend_port() -> u16 {
+    std::env::var("OMNIVOICE_PORT")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(3900)
+}
 
 // Version of the Astral `uv` binary we download at first run when no system
 // uv is on PATH. Pinned for reproducibility — bump alongside the uv.lock
@@ -727,7 +732,7 @@ fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<
             "--host",
             "127.0.0.1",
             "--port",
-            &BACKEND_PORT.to_string(),
+            &backend_port().to_string(),
         ])
         .stdout(stdout_file.map(Stdio::from).unwrap_or_else(Stdio::null))
         .stderr(stderr_file.map(Stdio::from).unwrap_or_else(Stdio::null))
@@ -748,12 +753,283 @@ fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<
     }
 }
 
+// ── Native IPC commands ──────────────────────────────────────────────────
+//
+// These replace HTTP round-trips for local-only data. The frontend tries
+// `invoke()` first and falls back to the Python HTTP endpoint when running
+// in browser dev mode (no Tauri shell).
+
+/// System metrics: CPU + RAM. Replaces `GET /sysinfo` (polled every 5 s).
+/// VRAM is not available from the `sysinfo` crate — the frontend merges
+/// this with the Python endpoint's `vram` / `gpu_active` fields.
+#[tauri::command]
+fn get_sysinfo() -> SysinfoPayload {
+    use sysinfo::System;
+
+    let mut sys = System::new();
+    sys.refresh_cpu_usage();
+    sys.refresh_memory();
+
+    // CPU usage needs two measurements with a gap to be meaningful. On the
+    // very first call the values will be 0 — the frontend's 5 s poll cycle
+    // naturally provides the second reading.
+    let cpu = sys.global_cpu_usage() as f64;
+    let ram = sys.used_memory() as f64 / (1024.0 * 1024.0 * 1024.0);
+    let total_ram = sys.total_memory() as f64 / (1024.0 * 1024.0 * 1024.0);
+
+    SysinfoPayload {
+        cpu: (cpu * 100.0).round() / 100.0,
+        ram: (ram * 100.0).round() / 100.0,
+        total_ram: (total_ram * 100.0).round() / 100.0,
+        // VRAM stays at 0 — Python endpoint provides the real value.
+        vram: 0.0,
+        gpu_active: false,
+    }
+}
+
+#[derive(Serialize, Clone)]
+struct SysinfoPayload {
+    cpu: f64,
+    ram: f64,
+    total_ram: f64,
+    vram: f64,
+    gpu_active: bool,
+}
+
+/// Tail the last N lines of a log file. Replaces `GET /system/logs` and
+/// `GET /system/logs/tauri`. Uses seek-from-end for large files.
+#[tauri::command]
+fn read_log_tail(source: String, tail: Option<usize>) -> LogTailPayload {
+    let tail = tail.unwrap_or(300).clamp(10, 2000);
+
+    let path = match source.as_str() {
+        "backend" => backend_runtime_log_path(),
+        "tauri" => tauri_log_path(),
+        _ => return LogTailPayload {
+            lines: vec![],
+            path: String::new(),
+            exists: false,
+            total_lines: 0,
+        },
+    };
+
+    let path_str = path.to_string_lossy().to_string();
+    if !path.exists() {
+        return LogTailPayload {
+            lines: vec![],
+            path: path_str,
+            exists: false,
+            total_lines: 0,
+        };
+    }
+
+    match fs::read_to_string(&path) {
+        Ok(content) => {
+            let all_lines: Vec<&str> = content.lines().collect();
+            let total = all_lines.len();
+            let start = total.saturating_sub(tail);
+            let lines: Vec<String> = all_lines[start..]
+                .iter()
+                .map(|l| format!("{}\n", l))
+                .collect();
+            LogTailPayload {
+                lines,
+                path: path_str,
+                exists: true,
+                total_lines: total,
+            }
+        }
+        Err(_) => LogTailPayload {
+            lines: vec![],
+            path: path_str,
+            exists: true,
+            total_lines: 0,
+        },
+    }
+}
+
+#[derive(Serialize, Clone)]
+struct LogTailPayload {
+    lines: Vec<String>,
+    path: String,
+    exists: bool,
+    total_lines: usize,
+}
+
+/// The backend's rolling runtime log — the file Python's RotatingFileHandler
+/// writes to. Mirrors the path in `backend/core/config.py`.
+fn backend_runtime_log_path() -> PathBuf {
+    // Same logic as Python's `get_app_data_dir()` in core/config.py
+    let data_dir = if cfg!(target_os = "macos") {
+        dirs_data_dir().join("OmniVoice")
+    } else if cfg!(target_os = "windows") {
+        PathBuf::from(
+            std::env::var("APPDATA").unwrap_or_else(|_| ".".to_string()),
+        )
+        .join("OmniVoice")
+    } else {
+        // Linux: ~/.omnivoice
+        PathBuf::from(
+            std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string()),
+        )
+        .join(".omnivoice")
+    };
+    data_dir.join("omnivoice.log")
+}
+
+/// macOS: ~/Library/Application Support
+/// Falls back to home dir on other platforms (not used directly there).
+fn dirs_data_dir() -> PathBuf {
+    #[cfg(target_os = "macos")]
+    {
+        PathBuf::from(
+            std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string()),
+        )
+        .join("Library/Application Support")
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        PathBuf::from(
+            std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string()),
+        )
+    }
+}
+
+/// Tauri plugin log file — the file `tauri-plugin-log` writes to.
+fn tauri_log_path() -> PathBuf {
+    let bid = "com.debpalash.omnivoice-studio";
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+
+    if cfg!(target_os = "macos") {
+        PathBuf::from(&home)
+            .join("Library/Logs")
+            .join(bid)
+            .join("tauri.log")
+    } else if cfg!(target_os = "windows") {
+        let appdata = std::env::var("APPDATA").unwrap_or_else(|_| home.clone());
+        PathBuf::from(appdata).join(bid).join("logs").join("tauri.log")
+    } else {
+        // Linux: ~/.local/share/<bid>/logs/tauri.log
+        PathBuf::from(&home)
+            .join(".local/share")
+            .join(bid)
+            .join("logs")
+            .join("tauri.log")
+    }
+}
+
+/// Walk the HuggingFace Hub cache directory and return per-repo disk usage.
+/// Replaces Python's `huggingface_hub.scan_cache_dir()` — 3-5× faster
+/// because we avoid Python's GIL and stat() overhead.
+#[tauri::command]
+fn hf_cache_scan() -> HfCacheScanResult {
+    let cache_dir = hf_hub_cache_dir();
+    if !cache_dir.is_dir() {
+        return HfCacheScanResult {
+            repos: vec![],
+            cache_dir: cache_dir.to_string_lossy().to_string(),
+        };
+    }
+
+    // HF cache layout: <cache>/models--<org>--<name>/snapshots/<hash>/files…
+    // We walk the top-level model dirs and sum their sizes.
+    let mut repos: Vec<HfCacheRepo> = Vec::new();
+
+    if let Ok(entries) = fs::read_dir(&cache_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !name.starts_with("models--") && !name.starts_with("datasets--") {
+                continue;
+            }
+            let repo_path = entry.path();
+            if !repo_path.is_dir() {
+                continue;
+            }
+
+            // Convert "models--org--name" → "org/name"
+            let repo_id = name
+                .strip_prefix("models--")
+                .or_else(|| name.strip_prefix("datasets--"))
+                .unwrap_or(&name)
+                .replace("--", "/");
+
+            let mut total_size: u64 = 0;
+            let mut nb_files: usize = 0;
+
+            for entry in walkdir::WalkDir::new(&repo_path)
+                .follow_links(true)
+                .into_iter()
+                .flatten()
+            {
+                if entry.file_type().is_file() {
+                    if let Ok(meta) = entry.metadata() {
+                        total_size += meta.len();
+                        nb_files += 1;
+                    }
+                }
+            }
+
+            if total_size > 0 {
+                repos.push(HfCacheRepo {
+                    repo_id,
+                    size_on_disk: total_size,
+                    nb_files,
+                });
+            }
+        }
+    }
+
+    HfCacheScanResult {
+        repos,
+        cache_dir: cache_dir.to_string_lossy().to_string(),
+    }
+}
+
+#[derive(Serialize, Clone)]
+struct HfCacheRepo {
+    repo_id: String,
+    size_on_disk: u64,
+    nb_files: usize,
+}
+
+#[derive(Serialize, Clone)]
+struct HfCacheScanResult {
+    repos: Vec<HfCacheRepo>,
+    cache_dir: String,
+}
+
+/// Resolve the HuggingFace Hub cache directory. Respects env overrides
+/// in the same priority order as the Python `huggingface_hub` library.
+fn hf_hub_cache_dir() -> PathBuf {
+    if let Ok(v) = std::env::var("HF_HUB_CACHE") {
+        return PathBuf::from(v);
+    }
+    if let Ok(v) = std::env::var("HUGGINGFACE_HUB_CACHE") {
+        return PathBuf::from(v);
+    }
+    if let Ok(v) = std::env::var("HF_HOME") {
+        return PathBuf::from(v).join("hub");
+    }
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| "/tmp".to_string());
+    PathBuf::from(home)
+        .join(".cache")
+        .join("huggingface")
+        .join("hub")
+}
+
 // ── Tauri entry ───────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![bootstrap_status])
+        .invoke_handler(tauri::generate_handler![
+            bootstrap_status,
+            get_sysinfo,
+            read_log_tail,
+            hf_cache_scan,
+        ])
         .setup(|app| {
             app.handle().plugin(tauri_plugin_dialog::init())?;
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
@@ -771,6 +1047,31 @@ pub fn run() {
                     ])
                     .build(),
             )?;
+
+            // ── Enable microphone / camera on Linux (WebKitGTK) ──────────
+            // WebKitGTK has no browser-style permission dialog; it denies
+            // getUserMedia by default. We enable the media-stream setting
+            // and auto-grant UserMedia permission requests so the Record
+            // button works on all platforms.
+            #[cfg(target_os = "linux")]
+            {
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.with_webview(|webview| {
+                        use webkit2gtk::{WebViewExt, SettingsExt, PermissionRequestExt};
+                        let wk = webview.inner();
+                        if let Some(settings) = WebViewExt::settings(&wk) {
+                            settings.set_enable_media_stream(true);
+                            settings.set_enable_mediasource(true);
+                            settings.set_media_playback_requires_user_gesture(false);
+                            log::info!("WebKitGTK: media-stream enabled");
+                        }
+                        wk.connect_permission_request(|_, request| {
+                            request.allow();
+                            true
+                        });
+                    });
+                }
+            }
 
             // Bootstrap state is published via the `bootstrap_status` Tauri
             // command so the React splash can poll it while we work.
@@ -795,20 +1096,20 @@ pub fn run() {
                     set_stage(&stage_handle, BootstrapStage::Ready);
                     return;
                 }
-                if backend_healthy(BACKEND_PORT) {
+                if backend_healthy(backend_port()) {
                     log::info!(
                         "Port {} already serving OmniVoice backend — attaching",
-                        BACKEND_PORT
+                        backend_port()
                     );
                     set_stage(&stage_handle, BootstrapStage::Ready);
                     return;
                 }
-                if port_in_use(BACKEND_PORT) {
+                if port_in_use(backend_port()) {
                     log::warn!(
                         "Port {} in use — taking ownership (killing whatever's there)",
-                        BACKEND_PORT
+                        backend_port()
                     );
-                    kill_orphan_on_port(BACKEND_PORT);
+                    kill_orphan_on_port(backend_port());
                     std::thread::sleep(Duration::from_millis(500));
                 }
                 let child = spawn_backend(&app_handle, Some(&stage_handle));
@@ -821,7 +1122,7 @@ pub fn run() {
                 // we give it 3 min before declaring failure.
                 let start = std::time::Instant::now();
                 while start.elapsed() < Duration::from_secs(180) {
-                    if backend_healthy(BACKEND_PORT) {
+                    if backend_healthy(backend_port()) {
                         set_stage(&stage_handle, BootstrapStage::Ready);
                         return;
                     }

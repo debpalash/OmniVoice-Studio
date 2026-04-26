@@ -1,14 +1,16 @@
 import React from 'react';
+import * as ToggleGroup from '@radix-ui/react-toggle-group';
 import './Segmented.css';
 
 /**
  * Segmented — compact segmented control for small option sets.
- * Good for density pickers (S/M/L), view toggles, mode switches.
+ * Backed by @radix-ui/react-toggle-group for keyboard navigation
+ * and proper aria-pressed state management.
  *
- * @param items array of { value, label } — label is short text
- * @param value currently selected `value`
+ * @param items    array of { value, label, title? }
+ * @param value    currently selected `value`
  * @param onChange (value) => void
- * @param size  'xs' | 'sm'
+ * @param size     'xs' | 'sm'
  */
 export default function Segmented({
   items = [],
@@ -19,26 +21,26 @@ export default function Segmented({
   ...rest
 }) {
   return (
-    <div
-      role="radiogroup"
+    <ToggleGroup.Root
+      type="single"
+      value={value}
+      onValueChange={(val) => {
+        // Radix fires '' when you re-click the active item; ignore that
+        if (val) onChange?.(val);
+      }}
       className={`ui-seg ui-seg--size-${size} ${className}`}
       {...rest}
     >
-      {items.map((item) => {
-        const active = value === item.value;
-        return (
-          <button
-            key={item.value}
-            role="radio"
-            aria-checked={active}
-            className={`ui-seg__opt ${active ? 'is-active' : ''}`}
-            onClick={() => onChange?.(item.value)}
-            title={item.title || undefined}
-          >
-            {item.label}
-          </button>
-        );
-      })}
-    </div>
+      {items.map((item) => (
+        <ToggleGroup.Item
+          key={item.value}
+          value={item.value}
+          className={`ui-seg__opt ${value === item.value ? 'is-active' : ''}`}
+          title={item.title || undefined}
+        >
+          {item.label}
+        </ToggleGroup.Item>
+      ))}
+    </ToggleGroup.Root>
   );
 }

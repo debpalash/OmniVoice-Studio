@@ -1,0 +1,123 @@
+# ── OmniVoice Studio — Model Catalog ─────────────────────────────────────
+#
+# This file is the source of truth for all known HuggingFace models.
+# The backend loads it at startup via `load_model_catalog()`.
+#
+# To add a model: append an entry with the fields below.
+# To remove: delete the entry. The UI will stop showing it immediately.
+#
+# Fields:
+#   repo_id    (required) — HuggingFace repository ID
+#   label      (required) — Human-readable display name
+#   role       (required) — TTS | ASR | Diarisation
+#   size_gb    (required) — Approximate download size in GiB
+#   required   (optional) — true if the app needs this model to function
+#   platforms  (optional) — restrict to specific OS+arch tags (e.g. darwin-arm64, cuda)
+#   note       (optional) — shown in the UI as a tooltip/footnote
+# ─────────────────────────────────────────────────────────────────────────
+
+models:
+  # ── Required ──────────────────────────────────────────────────────────
+
+  - repo_id: "k2-fsa/OmniVoice"
+    label: "OmniVoice TTS (600+ languages, zero-shot)"
+    role: TTS
+    size_gb: 2.4
+    required: true
+
+  - repo_id: "Systran/faster-whisper-large-v3"
+    label: "Whisper large-v3 (faster-whisper — default, cross-platform)"
+    role: ASR
+    size_gb: 2.9
+    required: true
+
+  # ── Optional ASR ──────────────────────────────────────────────────────
+
+  - repo_id: "mlx-community/whisper-large-v3-mlx"
+    label: "Whisper large-v3 (MLX — optional mac-ARM speedup)"
+    role: ASR
+    size_gb: 3.0
+    platforms: [darwin-arm64]
+
+  - repo_id: "openai/whisper-large-v3"
+    label: "Whisper large-v3 (PyTorch — last-resort fallback)"
+    role: ASR
+    size_gb: 3.1
+    platforms: [cuda]
+
+  - repo_id: "mlx-community/whisper-tiny-mlx"
+    label: "Whisper tiny (MLX ASR — fast fallback)"
+    role: ASR
+    size_gb: 0.08
+    platforms: [darwin-arm64]
+
+  # ── Diarisation ───────────────────────────────────────────────────────
+
+  - repo_id: "pyannote/speaker-diarization-3.1"
+    label: "pyannote speaker diarisation (multi-speaker videos)"
+    role: Diarisation
+    size_gb: 0.8
+    note: "Needs an HF_TOKEN with license accepted."
+
+  # ── Optional TTS ──────────────────────────────────────────────────────
+
+  - repo_id: "OpenMOSS-Team/MOSS-TTS-Nano-100M"
+    label: "MOSS-TTS-Nano 100M (20 langs, CPU-realtime)"
+    role: TTS
+    size_gb: 0.4
+
+  - repo_id: "KittenML/kitten-tts-mini-0.8"
+    label: "KittenTTS (English, 8 preset voices, CPU realtime)"
+    role: TTS
+    size_gb: 0.08
+
+  # ── mlx-audio engines (Apple Silicon only) ────────────────────────────
+
+  - repo_id: "mlx-community/Kokoro-82M-bf16"
+    label: "Kokoro 82M (8 langs, small, mlx-audio default)"
+    role: TTS
+    size_gb: 0.15
+    note: "Apple Silicon only — via mlx-audio backend."
+    platforms: [darwin-arm64]
+
+  - repo_id: "mlx-community/csm-1b-8bit"
+    label: "CSM 1B (voice cloning, mlx-audio)"
+    role: TTS
+    size_gb: 1.1
+    note: "Apple Silicon only — via mlx-audio backend."
+    platforms: [darwin-arm64]
+
+  - repo_id: "mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-4bit"
+    label: "Qwen3-TTS 1.7B 4bit (voice design, mlx-audio)"
+    role: TTS
+    size_gb: 1.4
+    note: "Apple Silicon only — via mlx-audio backend."
+    platforms: [darwin-arm64]
+
+  - repo_id: "mlx-community/Dia-1.6B"
+    label: "Dia 1.6B (expressive, mlx-audio)"
+    role: TTS
+    size_gb: 3.2
+    note: "Apple Silicon only — via mlx-audio backend."
+    platforms: [darwin-arm64]
+
+  - repo_id: "mlx-community/Llama-OuteTTS-1.0-1B-4bit"
+    label: "Llama-OuteTTS 1.0 1B 4bit (voice clone, mlx-audio)"
+    role: TTS
+    size_gb: 0.8
+    note: "Apple Silicon only — via mlx-audio backend."
+    platforms: [darwin-arm64]
+
+  - repo_id: "mlx-community/Chatterbox-TTS-4bit"
+    label: "Chatterbox TTS 4bit (mlx-audio)"
+    role: TTS
+    size_gb: 0.5
+    note: "Apple Silicon only — via mlx-audio backend."
+    platforms: [darwin-arm64]
+
+  - repo_id: "mlx-community/MeloTTS-English-v3-MLX"
+    label: "MeloTTS English v3 (mlx-audio)"
+    role: TTS
+    size_gb: 0.2
+    note: "Apple Silicon only — via mlx-audio backend."
+    platforms: [darwin-arm64]

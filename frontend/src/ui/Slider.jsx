@@ -1,12 +1,15 @@
 import React, { forwardRef, useId } from 'react';
+import * as RadixSlider from '@radix-ui/react-slider';
 import './Slider.css';
 
 /**
  * Slider — styled horizontal range input.
+ * Backed by @radix-ui/react-slider for full keyboard accessibility
+ * (arrow keys, Home/End) and proper ARIA value announcements.
  *
  * @param value       controlled number
  * @param onChange    receives the new number (not the event)
- * @param min, max, step standard HTMLInputRange props
+ * @param min, max, step standard range props
  * @param format      optional (v) => string for the value bubble
  * @param showValue   show the trailing value bubble (default true)
  * @param label       optional small label above the track
@@ -29,25 +32,27 @@ const Slider = forwardRef(function Slider(
   ref,
 ) {
   const id = useId();
-  const pct = ((Number(value) - min) / (max - min)) * 100;
 
   return (
     <div className={`ui-slider ui-slider--size-${size} ${className}`}>
       {label && <label htmlFor={id} className="ui-slider__label">{label}</label>}
       <div className="ui-slider__row">
-        <input
+        <RadixSlider.Root
           ref={ref}
           id={id}
-          type="range"
-          className="ui-slider__input"
-          value={value}
+          className="ui-slider__root"
+          value={[Number(value)]}
+          onValueChange={([v]) => onChange?.(v)}
           min={min}
           max={max}
           step={step}
-          onChange={(e) => onChange?.(Number(e.target.value))}
-          style={{ '--ui-slider-pct': `${pct}%` }}
           {...rest}
-        />
+        >
+          <RadixSlider.Track className="ui-slider__track">
+            <RadixSlider.Range className="ui-slider__range" />
+          </RadixSlider.Track>
+          <RadixSlider.Thumb className="ui-slider__thumb" />
+        </RadixSlider.Root>
         {showValue && (
           <span className="ui-slider__value" aria-live="polite">
             {format(value)}

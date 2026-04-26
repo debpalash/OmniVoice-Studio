@@ -13,10 +13,7 @@ function DubThumb({ jobId, fallback }) {
       alt=""
       onError={() => setFailed(true)}
       loading="lazy"
-      style={{
-        width: '100%', height: '100%', objectFit: 'cover',
-        borderRadius: 'inherit', display: 'block',
-      }}
+      className="lp-dub-thumb"
     />
   );
 }
@@ -79,10 +76,10 @@ export default function Launchpad({
 
       {/* Hero */}
       <div className="lp-hero">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' }}>
-          <div style={{ maxWidth: 640 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '2px', height: '22px' }}>
+        <div className="lp-hero__row">
+          <div className="lp-hero__col">
+            <div className="lp-hero__kicker-row">
+              <div className="lp-hero__wave-group">
                 {[10, 14, 8, 16, 12, 14, 9, 12].map((h, i) => (
                   <span
                     key={i}
@@ -137,15 +134,15 @@ export default function Launchpad({
       {/* Recent Projects */}
       {(profiles.length > 0 || studioProjects.length > 0) && (
         <div className="lp-section">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+          <div className="lp-section__grid">
             {/* Cloned voices */}
             {cloneProfiles.length > 0 && (
               <div>
                 <div className="lp-section-title"><Fingerprint size={12} color="#d3869b" /> Cloned Voices</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div className="lp-col">
                   {cloneProfiles.map(p => (
                     <div key={p.id} className="lp-project-card">
-                      <div className="proj-icon" style={{ background: 'rgba(211,134,155,0.1)' }}><Fingerprint size={14} color="#d3869b" /></div>
+                      <div className="proj-icon lp-proj-icon--clone"><Fingerprint size={14} color="#d3869b" /></div>
                       <div className="proj-info">
                         <div className="proj-name">{p.name}</div>
                         <div className="proj-meta">{p.ref_audio_path}</div>
@@ -161,26 +158,17 @@ export default function Launchpad({
             {designProfiles.length > 0 && (
               <div>
                 <div className="lp-section-title"><Wand2 size={12} color="#8ec07c" /> Designed Voices</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div className="lp-col">
                   {designProfiles.map(p => (
                     <div key={p.id} className="lp-project-card">
-                      <div className="proj-icon" style={{ background: p.is_locked ? 'rgba(184,187,38,0.1)' : 'rgba(142,192,124,0.1)' }}>
+                      <div className={`proj-icon ${p.is_locked ? 'lp-proj-icon--locked' : 'lp-proj-icon--design'}`}>
                         {p.is_locked ? <Lock size={14} color="#b8bb26" /> : <Wand2 size={14} color="#8ec07c" />}
                       </div>
                       <div className="proj-info">
                         <div className="proj-name">{p.name}</div>
-                        <div className="proj-meta" style={{ fontStyle: 'italic' }}>{p.instruct}</div>
+                        <div className="proj-meta lp-proj-meta--italic">{p.instruct}</div>
                       </div>
-                      {p.is_locked && <span style={{
-                        fontFamily: 'var(--chrome-font-mono)',
-                        fontSize: 'var(--chrome-label-size)',
-                        letterSpacing: 'var(--chrome-label-track)',
-                        padding: '1px 7px',
-                        borderRadius: 'var(--chrome-radius-pill)',
-                        background: 'color-mix(in srgb, #b8bb26 10%, transparent)',
-                        border: '1px solid color-mix(in srgb, #b8bb26 40%, transparent)',
-                        color: '#b8bb26', fontWeight: 600,
-                      }}>LOCKED</span>}
+                      {p.is_locked && <span className="lp-locked-badge">LOCKED</span>}
                       <button className="proj-action" onClick={() => { setMode('design'); handleSelectProfile(p); }}>Open</button>
                     </div>
                   ))}
@@ -192,10 +180,10 @@ export default function Launchpad({
             {studioProjects.length > 0 && (
               <div>
                 <div className="lp-section-title"><Film size={12} color="#fe8019" /> Dubbing Projects</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div className="lp-col">
                   {studioProjects.map(proj => (
                     <div key={proj.id} className="lp-project-card">
-                      <div className="proj-icon" style={{ background: 'rgba(254,128,25,0.1)', overflow: 'hidden' }}>
+                      <div className="proj-icon lp-proj-icon--dub">
                         <DubThumb
                           jobId={proj.state?.dubJobId || proj.id}
                           fallback={<Film size={14} color="#fe8019" />}
@@ -217,9 +205,9 @@ export default function Launchpad({
 
       {/* Empty state */}
       {profiles.length === 0 && studioProjects.length === 0 && (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-          <div style={{ textAlign: 'center', maxWidth: 360 }}>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '3px', marginBottom: '16px', opacity: 0.3 }}>
+        <div className="lp-empty">
+          <div className="lp-empty__inner">
+            <div className="lp-empty__bars">
               {[8, 14, 22, 18, 26, 14, 20, 10, 16].map((h, i) => (
                 <span
                   key={i}
@@ -230,12 +218,7 @@ export default function Launchpad({
                 />
               ))}
             </div>
-            <p style={{
-              fontFamily: 'var(--chrome-font-mono)',
-              fontSize: '0.8rem',
-              color: 'var(--chrome-fg-muted)',
-              margin: 0,
-            }}>
+            <p className="lp-empty__hint">
               Nothing here yet — pick a card above.
             </p>
           </div>

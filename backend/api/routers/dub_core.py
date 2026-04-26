@@ -19,7 +19,7 @@ from core.db import get_db, db_conn
 from core.config import DATA_DIR, DUB_DIR, PREVIEW_DIR, VOICES_DIR
 from core.tasks import task_manager
 from schemas.requests import DubRequest, TranslateRequest, DubIngestUrlRequest
-from services.model_manager import get_model, _gpu_pool, _cpu_pool, get_best_device, get_diarization_pipeline
+from services.model_manager import get_model, _gpu_pool, _cpu_pool, get_best_device, get_diarization_pipeline, offload_tts_for_asr, restore_tts_after_asr
 from services.audio_dsp import apply_mastering, normalize_audio
 from services.ffmpeg_utils import find_ffmpeg, _get_semaphore, _spawn_with_retry
 from services.segmentation import (
@@ -265,6 +265,7 @@ async def dub_ingest_url(req: DubIngestUrlRequest):
 
 
 TRANSCRIBE_CHUNK_S = float(os.environ.get("OMNIVOICE_TRANSCRIBE_CHUNK_S", "30.0"))
+TRANSCRIBE_CHUNK_TIMEOUT_S = float(os.environ.get("OMNIVOICE_TRANSCRIBE_CHUNK_TIMEOUT_S", "120.0"))
 
 
 _sse_event = dub_pipeline.sse_event
@@ -332,6 +333,10 @@ async def dub_transcribe_stream(job_id: str):
         chunks_n = max(1, int(math.ceil(total / TRANSCRIBE_CHUNK_S))) if total > 0 else 1
         yield _sse_event("start", {"duration": total, "chunks": chunks_n, "chunk_s": TRANSCRIBE_CHUNK_S})
 
+        # Free VRAM: move TTS model to CPU so WhisperX + VAD can fit.
+        # Only offloads when free GPU memory is < 4 GB (e.g. laptop GPUs).
+        await loop.run_in_executor(_cpu_pool, offload_tts_for_asr)
+
         all_segments: list[dict] = []
         detected_lang = None
         next_seg_id = 0
@@ -372,24 +377,30 @@ async def dub_transcribe_stream(job_id: str):
                     logger.exception("chunk transcribe failed (backend=%s)", _asr_backend.id)
                     return {"chunks": [], "language": None, "error": str(e)}
 
-            part = await loop.run_in_executor(_gpu_pool, _transcribe_chunk)
+            try:
+                part = await asyncio.wait_for(
+                    loop.run_in_executor(_gpu_pool, _transcribe_chunk),
+                    timeout=TRANSCRIBE_CHUNK_TIMEOUT_S,
+                )
+            except asyncio.TimeoutError:
+                logger.error(
+                    "Transcribe chunk %d/%d timed out after %.0fs (job=%s)",
+                    i + 1, chunks_n, TRANSCRIBE_CHUNK_TIMEOUT_S, job_id,
+                )
+                part = {
+                    "chunks": [], "language": None,
+                    "error": f"Chunk {i+1} timed out after {TRANSCRIBE_CHUNK_TIMEOUT_S:.0f}s — "
+                             f"ASR backend may be stuck. Try restarting the server.",
+                }
             if part.get("error"):
                 chunk_errors.append(part["error"])
+                logger.warning("Chunk %d/%d error: %s", i + 1, chunks_n, part["error"])
             if detected_lang is None and part.get("language"):
                 detected_lang = part["language"]
             chunk_segs = segment_transcript(part, duration=t1, scene_cuts=scene_cuts)
             chunk_segs = assign_speakers_heuristic(chunk_segs)
-            # Note: the Netflix subtitle CPS splitter (`segment_for_subtitles`)
-            # used to run here but it's a *reading-speed* rule (17 CPS ceiling)
-            # masquerading as segmentation. Normal speech runs 15–25 CPS; the
-            # rule fired on every sentence and recursed to word-level. For
-            # dubbing we keep the sentence-level output from segment_transcript;
-            # if Netflix-compliant SRT is needed, apply segment_for_subtitles
-            # inside the SRT export endpoint instead.
             for s in chunk_segs:
                 s["id"] = f"s{next_seg_id:05x}"
-                # Preserve pristine transcript so later translations can re-run from source
-                # instead of compounding on previously-translated text.
                 s["text_original"] = s.get("text", "")
                 next_seg_id += 1
             all_segments.extend(chunk_segs)
@@ -473,6 +484,9 @@ async def dub_transcribe_stream(job_id: str):
         job["source_lang"] = ((detected_lang or "en").split("_")[0][:2] or "en").lower()
         job["full_transcript"] = " ".join(s.get("text", "") for s in final_segs)
         _save_job(job_id, job)
+
+        # Restore TTS model to GPU now that ASR is done
+        await loop.run_in_executor(_cpu_pool, restore_tts_after_asr)
 
         if torch.backends.mps.is_available():
             try: torch.mps.empty_cache()

@@ -20,6 +20,7 @@ import toast from 'react-hot-toast';
 import { Button, Segmented, Badge, Progress } from '../ui';
 import GlossaryPanel from '../components/GlossaryPanel';
 import ExportModal from '../components/ExportModal';
+import MultiLangPicker from '../components/MultiLangPicker';
 import './DubTab.css';
 
 const DubSegmentTable = lazy(() => import('../components/DubSegmentTable'));
@@ -92,6 +93,10 @@ export default function DubTab(props) {
   const [ingestUrl, setIngestUrl] = useState('');
   const [previewMode, setPreviewMode] = useState('original'); // 'original' | 'dubbed'
   const [exportOpen, setExportOpen] = useState(false);
+
+  // Multi-language mode
+  const [multiLangMode, setMultiLangMode] = useState(false);
+  const [multiLangs, setMultiLangs] = useState([]);
 
   // Live ETA while generating — elapsed ticks each second; remaining is
   // extrapolated from the current/total rate so it's only meaningful once
@@ -640,6 +645,23 @@ export default function DubTab(props) {
                           .map(l => <option key={l} value={l}>{l}</option>)}
                       </optgroup>
                     </select>
+                  </div>
+                  <div className="dub-settings-field dub-settings-field--multi">
+                    <label className="dub-multi-toggle">
+                      <input
+                        type="checkbox"
+                        checked={multiLangMode}
+                        onChange={e => setMultiLangMode(e.target.checked)}
+                      />
+                      <span>Multi-lang</span>
+                    </label>
+                    {multiLangMode && (
+                      <MultiLangPicker
+                        selected={multiLangs}
+                        onChange={setMultiLangs}
+                        disabled={dubStep === 'generating'}
+                      />
+                    )}
                   </div>
                   <div className="dub-settings-field dub-settings-field--iso">
                     <div className="label-row">ISO</div>

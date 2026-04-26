@@ -1,164 +1,190 @@
 <div align="center">
-  <img src="frontend/public/favicon.svg" alt="OmniVoice Logo" width="120" />
+  <img src="frontend/public/favicon.svg" alt="OmniVoice Logo" width="100" />
   <h1>OmniVoice Studio</h1>
-  <p><b>Your Local Cinematic AI Dubbing Studio</b></p>
+  <p><b>Local cinematic AI dubbing. No API keys. No cloud. Just run it.</b></p>
   <p>
-    <a href="#-features">Features</a> •
-    <a href="#-getting-started">Getting Started</a> •
-    <a href="#%EF%B8%8F-roadmap">Roadmap</a> •
-    <a href="#-changelog">Changelog</a>
+    <a href="#features">Features</a> ·
+    <a href="#quickstart">Quickstart</a> ·
+    <a href="#architecture">Architecture</a> ·
+    <a href="#roadmap">Roadmap</a>
+  </p>
+  <p>
+    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/download/v0.2.2/OmniVoice.Studio_0.2.2_aarch64.dmg"><img src="https://img.shields.io/badge/macOS-DMG_(Apple_Silicon)-000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS DMG" /></a>
+    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/download/v0.2.2/OmniVoice.Studio_0.2.2_x64_en-US.msi"><img src="https://img.shields.io/badge/Windows-MSI_(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows MSI" /></a>
+    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/download/v0.2.2/OmniVoice.Studio_0.2.2_amd64.AppImage"><img src="https://img.shields.io/badge/Linux-AppImage_(x64)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Download Linux AppImage" /></a>
+    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/download/v0.2.2/OmniVoice.Studio_0.2.2_amd64.deb"><img src="https://img.shields.io/badge/Debian-.deb-A81D33?style=for-the-badge&logo=debian&logoColor=white" alt="Download Debian .deb" /></a>
   </p>
 </div>
 
 <br/>
 
 <div align="center">
-  <img src="preview.png" alt="OmniVoice Studio Interface Demo" width="100%"/>
+  <img src="preview.png" alt="OmniVoice Studio — Launchpad" width="100%"/>
   <br/>
-  <i>The timeline-based cinematic dubbing and workspace UI.</i>
+  <sub>Launchpad — Voice Clone · Voice Design · Video Dubbing, all in one studio.</sub>
 </div>
+
+<details>
+<summary><b>📸 More screenshots</b></summary>
+<br/>
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshot-clone.png" width="100%"/><br/><sub><b>Voice Clone</b> — Drop a 3s clip, mirror the voice</sub></td>
+    <td align="center"><img src="docs/screenshot-design.png" width="100%"/><br/><sub><b>Voice Design</b> — Build voices by gender, age, accent, pitch</sub></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><img src="docs/screenshot-dub.png" width="100%"/><br/><sub><b>Video Dubbing</b> — Upload or paste URL, transcribe, translate, re-voice</sub></td>
+  </tr>
+</table>
+</details>
 
 ---
 
-Local, full-stack voice generation and cinematic dubbing. **No API keys. No cloud. Just run it.** Built on the open-source [OmniVoice](https://github.com/k2-fsa/OmniVoice) 600-language zero-shot diffusion model.
+Full-stack video dubbing studio built on the open-source [OmniVoice](https://github.com/k2-fsa/OmniVoice) 600-language zero-shot diffusion TTS model. Upload a video, get broadcast-quality dubs in any language with the original speaker's voice preserved.
 
-## ✨ Features
+## Features
 
-- 🎬 **Video Dubbing** — transcribe, translate, re-voice, and mux back into MP4 with selective track export.
-- 🎧 **Vocal Isolation** — built-in `demucs` automatically splits speech from music, keeping original background audio perfectly preserved.
-- 🧬 **Voice Cloning & Design** — Clone specific voices from just a 3-second audio clip, or design completely new studio profiles with tags like `female, british accent, excited`.
-- ⚡ **Cross-Platform Native Execution** — Auto-detects and accelerates inference using Apple Silicon (MPS), NVIDIA (CUDA), AMD (ROCm), or standard CPU.
-- 🔊 **Per-Segment Mixing** — Fine-grained volume/gain control per dubbed segment (0–200%) for broadcast-quality audio balancing.
-- ⌨️ **Keyboard-Driven Workflow** — `⌘+Enter` to generate, `⌘+S` to save, `⌘+Z`/`⌘+Shift+Z` for undo/redo.
-- 📡 **Live Model Telemetry** — Real-time CPU/RAM/VRAM stats + model warm-up indicator (idle → loading → ready).
+### Core Pipeline
+- **Video Dubbing** — Transcribe → translate → synthesize → mux back to MP4. One-click end-to-end.
+- **Vocal Isolation** — Demucs-powered speech/music separation. Background audio preserved automatically.
+- **Voice Cloning** — Clone any voice from a 3-second clip. Zero-shot, 600+ languages.
+- **Multi-Speaker Diarization** — Pyannote + WhisperX fusion auto-identifies speakers and assigns unique voice profiles.
 
-<br/>
+### Studio Tools
+- **Voice Preview** — Floating widget for instant 8-step TTS testing. Try voices without leaving the workspace.
+- **Multi-Language Batch** — Select multiple target languages, dub to all in one pass.
+- **Batch Queue** — Drag-and-drop bulk video processing with sequential GPU execution.
+- **Voice Library** — Browse, favorite, tag, and convert gallery clips into permanent voice profiles.
+- **A/B Comparison** — Side-by-side voice audition for casting decisions.
 
+### Production Export
+- **Selective Track Export** — Choose which language tracks to include in the final MP4.
+- **Subtitle Export** — SRT and VTT generation alongside dubbed video.
+- **Stem Export** — Separate vocals and background audio as individual files.
+- **Per-Segment Mixing** — 0–200% gain control per segment for broadcast-quality balancing.
 
-## 🚀 Getting Started
+### Technical
+- **Cross-Platform GPU** — Auto-detects CUDA, Apple Silicon (MPS), ROCm, or CPU. Includes automatic cuDNN 8/9 compatibility handling.
+- **VRAM-Aware** — Automatically offloads TTS to CPU during transcription on ≤8 GB GPUs. Zero config.
+- **Live Telemetry** — Real-time CPU/RAM/VRAM stats with model warm-up indicator.
+- **Keyboard-First** — `⌘+Enter` generate, `⌘+S` save, `⌘+Z`/`⌘+⇧+Z` undo/redo.
 
-The easiest way to run OmniVoice Studio locally or on a cloud VM is via Docker. Our environment utilizes an optimized `pytorch/pytorch` configuration which seamlessly enables zero-config GPU passthrough if your host supports it.
+---
 
-### Option 1: One-Click Docker (Recommended)
+## Quickstart
+
+### Docker (recommended)
 
 ```bash
 git clone https://github.com/debpalash/OmniVoice-Studio.git
 cd OmniVoice-Studio
-
 docker compose up --build -d
 ```
-That's it! Open [http://localhost:8000](http://localhost:8000) in your browser.
 
-> [!TIP]
-> **Windows/WSL Users:** Make sure your NVIDIA drivers are up to date. Docker Desktop automatically passes GPU capabilities to this container!
-> **Cloud VMs (AWS, RunPod):** The image inherently supports CUDA 12.1. As long as `nvidia-container-toolkit` is installed on your host, `--gpus all` binds natively.
+Open [http://localhost:8000](http://localhost:8000). GPU passthrough works automatically if `nvidia-container-toolkit` is installed.
 
-### Option 2: Local Development Setup
+### Local Development
 
-Quickly get OmniVoice Studio running natively on your hardware if you want to develop or modify code.
-**Prerequisites:** Ensure `ffmpeg` is installed on your system.
-Install standard modern web tooling: [Bun](https://bun.sh/) and [uv](https://docs.astral.sh/uv/getting-started/installation/).
+**Prerequisites:** [ffmpeg](https://ffmpeg.org/), [Bun](https://bun.sh/), [uv](https://docs.astral.sh/uv/)
 
 ```bash
 git clone https://github.com/debpalash/OmniVoice-Studio.git
 cd OmniVoice-Studio
-
-# Boot the Backend
-uv sync
-uv run uvicorn backend.main:app
-
-# Boot the Frontend (in a separate terminal)
 bun install
 bun run dev
 ```
 
-OmniVoice Studio launches exactly two micro-services:
+This boots both services:
 
-| Service | Protocol | Details |
-|---|---|---|
-| **Frontend** | `http://localhost:5173` | The real-time React UI — spanning cloning, design, and audio workspace. |
-| **Backend** | `http://localhost:8000` | The FastAPI server handling model inference, translation pipelines, transcriber tasks. |
+| Service | URL | Stack |
+|---------|-----|-------|
+| **Backend** | `localhost:3900` | FastAPI · 97 endpoints · WhisperX · Demucs · OmniVoice |
+| **Frontend** | `localhost:3901` | React · Vite · Waveform timeline · Glassmorphism UI |
 
 > [!NOTE]
-> **First run optimization:** Model weights (approx. 1.2 GB) automatically download from HuggingFace the first time you execute a generation sequence. Subsequent launches trigger instantly from cache. *(Tip: Set `HF_TOKEN` in your environment for faster, authenticated downloads!)*
+> First run downloads model weights (~2.4 GB) from HuggingFace. Set `HF_TOKEN` for faster authenticated downloads.
+
+### Desktop App
+
+```bash
+bun run desktop    # Launches Tauri native app (macOS / Windows / Linux)
+```
 
 ---
 
-## 🗺️ Roadmap
+## Architecture
 
-The studio is highly functional today, but we are aggressively expanding. Watch the roadmap to see what's shipping next:
-
-### 🌟 Completed Milestones
-- [x] Zero-shot voice cloning & complex voice design.
-- [x] Full video cinematic dubbing pipeline (transcribe → translate → synthesize → mux).
-- [x] Vocal isolation utilizing demucs alongside background audio retention.
-- [x] Embedded waveform timeline editor for micro-segment-level audio manipulation.
-- [x] Live system telemetry tracking (CPU, RAM, GPU VRAM usage).
-- [x] Targeted multi-speaker diarization — auto-assign unique voice profiles per active speaker.
-- [x] Studio project persistence — save, load, and cache multi-track projects seamlessly via local SQLite.
-- [x] Production SRT/VTT subtitle export packaged alongside the dubbed `.mp4` video output.
-- [x] Selective track export — choose exactly which language tracks (Original, DE, ES, etc.) to include in final MP4.
-- [x] Per-segment volume/gain control with real-time mixing (0–200%).
-- [x] Undo/redo system for all segment edits with 50-action history depth.
-- [x] Keyboard shortcuts: `⌘+Enter` generate, `⌘+S` save, `⌘+Z`/`⌘+Shift+Z` undo/redo.
-- [x] Drag-and-drop file uploads for both video and clone audio sources.
-- [x] Model warm-up indicator with live status pill (idle/loading/ready).
-- [x] Confirmation dialogs for all destructive actions (delete project/history/profile).
-- [x] UI preferences persistence (sidebar state, zoom, active tab) across sessions.
-- [x] Polished glassmorphism design system with micro-animations, focus rings, and custom scrollbars.
-
-### 🔨 Upcoming Features
-- [x] **Real Speaker Diarization** — ML-based diarization via pyannote.audio for true multi-speaker identification.
-- [x] **A/B Voice Comparison** — Side-by-side voice audition for casting decisions.
-- [x] **Scene-Aware Dubbing** — FFmpeg scene detection to auto-split segments at visual cuts.
-- [x] **Lip-Sync Scoring** — Analyze dubbed audio duration against original speaker timing with color-coded badges.
-- [x] **Batch Processing** — Centralized async task queue ensuring sequential GPU execution with reconnectable SSE streams.
-- [x] **Advanced Export Suite** — VTT subtitles, per-segment WAV ZIP, compressed MP3, and stem export (vocals + background separate).
-- [x] **Streaming TTS** — Chunked WAV streaming with progressive download and auto-playback.
-- [ ] **Native Desktop Applications** — Dedicated client apps for macOS, Windows, and Linux.
-- [x] **One-Click Deployment** — Docker image packages engineered for zero-config GPU passthrough.
+```
+┌─────────────────────────────────────────────────┐
+│                  Frontend (React)                │
+│  DubTab · VoicePreview · BatchQueue · Gallery    │
+├─────────────────────────────────────────────────┤
+│                Backend (FastAPI)                  │
+│  97 API endpoints · SSE streaming · SQLite       │
+├──────────┬──────────┬──────────┬────────────────┤
+│ WhisperX │  Demucs  │OmniVoice │   Pyannote     │
+│   ASR    │  Source  │   TTS    │  Diarization   │
+│          │  Sep.    │          │                │
+└──────────┴──────────┴──────────┴────────────────┘
+        CUDA / MPS / ROCm / CPU (auto-detected)
+```
 
 ---
 
-## 📝 Changelog
+## Roadmap
 
-### v1.2.0 — The Production Polish Update
+### ✅ Shipped
 
-- **Selective Track Export:** Choose exactly which audio tracks to include in the final MP4. Uncheck Original, keep only German — get a single-track export. Full per-track checkbox UI with dynamic FFmpeg stream index remapping.
-- **Undo/Redo System:** Full `⌘+Z` / `⌘+Shift+Z` undo/redo for all segment edits (text, voice, volume, delete). 50-action deep history stack.
-- **Per-Segment Volume Control:** Inline gain slider (0–200%) per segment row in the dub table. Backend applies gain during audio assembly with safe clamping.
-- **Keyboard Shortcuts:** `⌘+Enter` to generate, `⌘+S` to save project. Browser default overrides prevented.
-- **Model Status Indicator:** Live status pill in the header showing model warm-up state (idle → loading → ready). New `/model/status` backend endpoint.
-- **Drag-and-Drop Everywhere:** Video upload already supported drop — now clone audio upload does too, with pink highlight on hover.
-- **Confirmation Dialogs:** All destructive actions (delete project, profile, history item, clear all history) now require confirmation.
-- **Session Persistence:** Sidebar collapsed state, active tab, and zoom level now persist across browser sessions via localStorage.
-- **CSS Design System Overhaul:** Anti-aliased text, input focus glow rings, button hover shimmer, progress bar shimmer animation, fade-in on history items, selection color branding, Firefox scrollbar support, `tabular-nums` for timestamp columns.
-- **AudioContext Pooling:** `playPing()` synthesis notification reuses a single AudioContext instead of creating one per call (browsers cap at ~6).
+| Category | Features |
+|----------|----------|
+| **Dubbing** | Full pipeline (transcribe→translate→synthesize→mux), scene-aware splitting, lip-sync scoring, streaming TTS |
+| **Voice** | Zero-shot cloning, voice design, A/B comparison, voice preview widget, gallery with favorites/tags |
+| **Audio** | Demucs vocal isolation, per-segment gain, selective track export, stem/SRT/VTT/MP3 export |
+| **Multi-Lang** | Multi-language batch picker, batch dubbing queue with sequential GPU execution |
+| **Diarization** | Pyannote ML diarization, auto speaker clone extraction, per-speaker voice assignment |
+| **Infra** | Docker deployment, CUDA/MPS/ROCm auto-detect, cuDNN 8 compat, VRAM-aware model offloading |
+| **UX** | Undo/redo, keyboard shortcuts, drag-and-drop, session persistence, glassmorphism design system |
 
-### v1.1.0 — The Cinematic Studio Update
+### 🔜 Next — by priority
 
-- **The Cinematic Studio Interface:** Exhaustively re-engineered the UI to prioritize a high-density, real-estate optimized workflow featuring a dynamic UI zoom scalar (`Small`, `Normal`, `Max`). We minimized dead space and overhauled the widget layout keeping crucial tuning metrics immediately accessible.
-- **Multi-Track Timeline:** Deeply integrated a multi-layered waveform sequence interface supporting precision audio segment positioning, unmuted live preview playback, localized track timing, and unconstrained draggable positioning manipulation.
-- **Persistent Local Projects:** Put a complete stop to ephemeral state loss. All workspace metrics are successfully wrapped into `Projects` logged directly within a native embedded `SQLite` database. Workflows reliably survive browser shutdowns or server API reboots.
-- **AI Cast Diarization:** Dropped in an offline `Pyannote` + `WhisperX` fusion pipeline evaluating multi-speaker metadata and categorizing overlapping, distinct speakers. Rapidly "cast" clone overrides seamlessly over complex dialogue tracks.
-- **Polishing & Asset Control:** Cleaned cross-stack filename parsing and exported media rendering via `ffmpeg`, stabilizing codec dependencies, and deployed a unified custom `OmniVoice Studio` scalable aesthetic asset system.
+**⚡ Performance** (highest user-visible impact)
+- [ ] Batched TTS (8–16 segments per forward pass) — 3–5× throughput
+- [ ] Eliminate per-segment disk round-trips in `dub_generate.py`
+- [ ] Cold start ≤ 1.5s (currently ~4s on Apple Silicon)
+- [ ] Crash-sandbox GPU engines (subprocess isolation)
 
-<br/>
+**✨ Differentiators** (what no competitor has)
+- [ ] Real-time dub preview — stream TTS as you edit, no full re-render
+- [ ] Project-level casting view — drag voices to speakers
+- [ ] Context-aware pipeline — video frames inform dubbing decisions
+- [ ] Voice memory across projects
 
-## ⭐ Star History
+**🎨 Polish & Quality**
+- [ ] Accessibility audit — WCAG AA, ARIA live regions, full keyboard nav
+- [ ] Waveform timeline v2 — WaveSurfer continuous regions overlay
+- [ ] Onboarding sample clip — pre-loaded project for first-run experience
+- [ ] Zustand migration — extract App.jsx (94KB, 41 useState calls)
+
+**📦 Productisation**
+- [ ] Signed Tauri installers + auto-update (macOS / Windows / Linux)
+- [ ] Plugin SDK for third-party TTS engines (ElevenLabs, XTTS, Bark)
+- [ ] LLM-powered translation (GPT/Claude for nuanced localization)
+
+---
+
+## Contributing
+
+Issues and PRs welcome. See the [roadmap](#roadmap) for areas where help is most needed.
 
 <div align="center">
+
+**[⭐ Star on GitHub](https://github.com/debpalash/OmniVoice-Studio)** to follow updates.
+
   <a href="https://star-history.com/#debpalash/OmniVoice-Studio&Date">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=debpalash/OmniVoice-Studio&type=Date&theme=dark" />
       <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=debpalash/OmniVoice-Studio&type=Date" />
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=debpalash/OmniVoice-Studio&type=Date&theme=dark" width="100%" />
+      <img alt="Star History" src="https://api.star-history.com/svg?repos=debpalash/OmniVoice-Studio&type=Date&theme=dark" width="600" />
     </picture>
   </a>
-</div>
-
-<br/>
-
-<div align="center">
-  Contributions and conceptual ideas are greatly appreciated — open an issue or submit a PR.
 </div>

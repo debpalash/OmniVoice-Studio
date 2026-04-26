@@ -1,4 +1,4 @@
-/* ── Slider primitive ───────────────────────────────────────────── */
+/* ── Slider primitive (Radix UI) ──────────────────────────────── */
 
 .ui-slider { width: 100%; display: flex; flex-direction: column; gap: var(--space-1); }
 .ui-slider__label {
@@ -13,53 +13,51 @@
   gap: var(--space-3);
 }
 
-.ui-slider__input {
-  -webkit-appearance: none;
-  appearance: none;
+/* Radix Slider Root */
+.ui-slider__root {
+  position: relative;
+  display: flex;
+  align-items: center;
   flex: 1;
+  height: 20px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+/* Track */
+.ui-slider__track {
+  position: relative;
+  flex-grow: 1;
   height: 3px;
   border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Filled range */
+.ui-slider__range {
+  position: absolute;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-brand);
+}
+
+/* Thumb */
+.ui-slider__thumb {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-fg);
+  cursor: pointer;
+  border: 2px solid var(--color-bg);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast);
   outline: none;
-  cursor: pointer;
-  /* painted track = filled portion (brand) + rest (muted) */
-  background:
-    linear-gradient(to right,
-      var(--color-brand) 0%,
-      var(--color-brand) var(--ui-slider-pct, 0%),
-      rgba(255, 255, 255, 0.08) var(--ui-slider-pct, 0%),
-      rgba(255, 255, 255, 0.08) 100%);
-  transition: background var(--dur-fast) var(--ease-out);
 }
-
-.ui-slider__input::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--color-fg);
-  cursor: pointer;
-  border: 2px solid var(--color-bg);
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast);
-}
-.ui-slider__input::-webkit-slider-thumb:hover  { transform: scale(1.25); }
-.ui-slider__input::-webkit-slider-thumb:active { transform: scale(1.1);  background: var(--color-brand); }
-
-.ui-slider__input::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--color-fg);
-  cursor: pointer;
-  border: 2px solid var(--color-bg);
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast);
-}
-.ui-slider__input::-moz-range-thumb:hover  { transform: scale(1.25); }
-.ui-slider__input::-moz-range-thumb:active { transform: scale(1.1);  background: var(--color-brand); }
-
-.ui-slider__input:focus-visible { box-shadow: var(--focus-ring); }
+.ui-slider__thumb:hover  { transform: scale(1.25); }
+.ui-slider__thumb:active { transform: scale(1.1);  background: var(--color-brand); }
+.ui-slider__thumb:focus-visible { box-shadow: var(--focus-ring); }
 
 .ui-slider__value {
   font-size: var(--text-xs);
@@ -75,6 +73,6 @@
   flex-shrink: 0;
 }
 
-/* size sm: shorter value bubble */
-.ui-slider--size-sm .ui-slider__input { height: 2px; }
+/* size sm: shorter */
+.ui-slider--size-sm .ui-slider__track { height: 2px; }
 .ui-slider--size-sm .ui-slider__value { font-size: var(--text-2xs); padding: 0 4px; }

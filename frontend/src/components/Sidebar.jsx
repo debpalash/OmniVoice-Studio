@@ -44,6 +44,7 @@ export default function Sidebar(props) {
     saveProject, loadProject, deleteProject,
     handleSelectProfile, handleDeleteProfile, handleOpenVoiceProfile,
     handleUnlockProfile, handleLockProfile, handlePreviewVoice,
+    onOpenVoicePreview,
     restoreHistory, restoreDubHistory,
     handleSaveHistoryAsProfile,
     handleNativeExport, revealInFolder,
@@ -260,6 +261,15 @@ export default function Sidebar(props) {
                               <button className="history-action-btn" onClick={(e) => { e.stopPropagation(); handleSelectProfile(proj); }}>
                                 <Check size={10} /> Select
                               </button>
+                              {onOpenVoicePreview && (
+                                <button
+                                  className="history-action-btn accent"
+                                  onClick={(e) => { e.stopPropagation(); onOpenVoicePreview(proj.id); }}
+                                  title="Open interactive voice preview"
+                                >
+                                  <Volume2 size={10} /> Try
+                                </button>
+                              )}
                               {proj.is_locked ? (
                                 <button className="history-action-btn accent history-action-icon" onClick={(e) => { e.stopPropagation(); handleUnlockProfile(proj.id); }} title="Unlock">
                                   <Unlock size={10} />

@@ -157,10 +157,48 @@
 }
 
 /* Action buttons on the right */
+.logs-footer__right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .logs-footer__actions {
   display: flex;
   align-items: center;
   gap: 2px;
+}
+
+/* Glowing donate heart */
+.logs-footer__donate {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  color: #d3869b;
+  margin-left: 4px;
+  transition: color 0.15s, transform 0.15s;
+  animation: heart-glow 2.5s ease-in-out infinite;
+}
+.logs-footer__donate:hover {
+  color: #f3a5b6;
+  transform: scale(1.15);
+}
+.logs-footer__donate svg {
+  fill: rgba(211, 134, 155, 0.25);
+  filter: drop-shadow(0 0 4px rgba(211, 134, 155, 0.35));
+}
+.logs-footer__donate:hover svg {
+  fill: rgba(211, 134, 155, 0.5);
+  filter: drop-shadow(0 0 8px rgba(211, 134, 155, 0.6));
+}
+@keyframes heart-glow {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.08); }
 }
 .logs-footer__icon-btn {
   background: none;

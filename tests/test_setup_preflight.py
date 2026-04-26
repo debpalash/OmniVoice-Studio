@@ -86,7 +86,7 @@ def test_preflight_detects_apple_silicon():
     """On mac-ARM, vendor → 'apple' and backend → 'mps'."""
     if sys.platform != "darwin":
         pytest.skip("apple-silicon branch only exercisable on darwin")
-    from api.routers.setup import _detect_gpu
+    from api.routers.setup.wizard import _detect_gpu
     info = _detect_gpu()
     # mac-Intel CI hosts also hit darwin; only assert vendor if arch matches.
     import platform as _p
@@ -97,8 +97,8 @@ def test_preflight_detects_apple_silicon():
 
 def test_preflight_handles_missing_nvidia_smi():
     """When nvidia-smi is absent, vendor falls through (not nvidia)."""
-    from api.routers.setup import _detect_gpu, _run_cmd  # noqa
-    with patch("api.routers.setup._run_cmd", return_value=(-1, "")):
+    from api.routers.setup.wizard import _detect_gpu, _run_cmd  # noqa
+    with patch("api.routers.setup.wizard._run_cmd", return_value=(-1, "")):
         info = _detect_gpu()
         # On mac-ARM the apple branch returns before _run_cmd; skip that case.
         import platform as _p
@@ -111,7 +111,7 @@ def test_preflight_nvidia_driver_below_min_flags_fail():
     import platform as _p
     if sys.platform == "darwin" and _p.machine() == "arm64":
         pytest.skip("apple-silicon branch returns before nvidia-smi — not reachable")
-    from api.routers import setup as setup_mod
+    from api.routers.setup import wizard as setup_mod
 
     def fake_run_cmd(args, timeout=2.0):
         if args and args[0] == "nvidia-smi":
@@ -131,7 +131,7 @@ def test_preflight_amd_flags_warn_when_no_rocm_torch():
     import platform as _p
     if sys.platform == "darwin" and _p.machine() == "arm64":
         pytest.skip("apple-silicon branch returns before rocm-smi")
-    from api.routers import setup as setup_mod
+    from api.routers.setup import wizard as setup_mod
 
     def fake_run_cmd(args, timeout=2.0):
         if args and args[0] == "rocm-smi":
@@ -151,7 +151,7 @@ def test_preflight_amd_flags_warn_when_no_rocm_torch():
 
 def test_preflight_network_handles_offline():
     """_probe_network must gracefully return False on connection error."""
-    from api.routers.setup import _probe_network
+    from api.routers.setup.wizard import _probe_network
     # Deliberately unreachable host:port
     assert _probe_network(host="10.255.255.1", timeout=0.3) is False
 
@@ -160,7 +160,7 @@ def test_preflight_network_handles_offline():
 
 def test_preflight_ram_fail_threshold():
     """Below _RAM_FAIL_GB → fail status in the RAM check."""
-    from api.routers import setup as setup_mod
+    from api.routers.setup import wizard as setup_mod
 
     with patch.object(setup_mod, "_ram_gb", return_value=4.0):
         r = client_factory().get("/setup/preflight").json()
@@ -170,7 +170,7 @@ def test_preflight_ram_fail_threshold():
 
 def test_preflight_ram_warn_threshold():
     """Between fail and warn thresholds → warn."""
-    from api.routers import setup as setup_mod
+    from api.routers.setup import wizard as setup_mod
 
     with patch.object(setup_mod, "_ram_gb", return_value=10.0):
         r = client_factory().get("/setup/preflight").json()
