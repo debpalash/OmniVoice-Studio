@@ -3,6 +3,7 @@ import {
   Scale, Fingerprint, Wand2, Film, Lock,
 } from 'lucide-react';
 import { API } from '../api/client';
+import ReadinessChecklist from '../components/ReadinessChecklist';
 
 function DubThumb({ jobId, fallback }) {
   const [failed, setFailed] = useState(false);
@@ -222,7 +223,13 @@ export default function Launchpad({
               Nothing here yet — pick a card above.
             </p>
           </div>
+          <ReadinessChecklist showWhenAllPass />
         </div>
+      )}
+
+      {/* Show checklist alongside existing projects too, but only when issues exist */}
+      {(profiles.length > 0 || studioProjects.length > 0) && (
+        <ReadinessChecklist compact />
       )}
     </div>
   );

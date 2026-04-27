@@ -48,6 +48,11 @@ export interface SysinfoData {
   gpu_active: boolean;
 }
 
+// Cache VRAM from Python — it changes much slower than CPU/RAM, so we
+// only refresh it every 15s instead of every 5s poll cycle.
+let _vramCache: { vram: number; gpu_active: boolean; ts: number } | null = null;
+const VRAM_CACHE_TTL = 15_000;
+
 export async function sysinfo(): Promise<SysinfoData> {
   // Rust provides CPU + RAM; VRAM stays at 0. We merge with the Python
   // endpoint to get GPU data when available.
@@ -57,19 +62,24 @@ export async function sysinfo(): Promise<SysinfoData> {
     () => apiJson<SysinfoData>('/sysinfo'),
   );
 
-  // If we got data from Rust (vram=0), try to enrich with Python's VRAM
+  // If we got data from Rust (vram=0), enrich with Python's VRAM data
+  // but only re-fetch every 15s to avoid hammering the backend.
   if (rustData.vram === 0) {
-    try {
-      const pyData = await apiJson<SysinfoData>('/sysinfo');
-      return {
-        ...rustData,
-        vram: pyData.vram,
-        gpu_active: pyData.gpu_active,
-      };
-    } catch {
-      // Python backend not ready yet — return Rust-only data
-      return rustData;
+    const now = Date.now();
+    if (!_vramCache || now - _vramCache.ts > VRAM_CACHE_TTL) {
+      try {
+        const pyData = await apiJson<SysinfoData>('/sysinfo');
+        _vramCache = { vram: pyData.vram, gpu_active: pyData.gpu_active, ts: now };
+      } catch {
+        // Python backend not ready yet — return Rust-only data
+        return rustData;
+      }
     }
+    return {
+      ...rustData,
+      vram: _vramCache.vram,
+      gpu_active: _vramCache.gpu_active,
+    };
   }
   return rustData;
 }

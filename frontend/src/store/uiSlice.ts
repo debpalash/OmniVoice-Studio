@@ -65,7 +65,7 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) 
   isSidebarProjectsCollapsed: false,
   sidebarTab: 'projects',
   showCheatsheet: false,
-  uiScale: 1,
+  uiScale: 1.3,
 
   setMode: (mode) => set({ mode }),
   setActiveProject: (id, name = '') => set({ activeProjectId: id, activeProjectName: name }),

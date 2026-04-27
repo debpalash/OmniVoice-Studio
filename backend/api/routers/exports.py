@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 
 from core.db import get_db
 from core.config import OUTPUTS_DIR
+from core import event_bus
 from schemas.requests import ExportRequest, ExportRecordRequest, RevealRequest
 
 router = APIRouter()
@@ -98,6 +99,7 @@ def export_file(req: ExportRequest):
         conn.commit()
     finally:
         conn.close()
+    event_bus.emit("export_history", {"action": "exported", "id": export_id})
     return {"success": True, "id": export_id}
 
 
@@ -113,6 +115,7 @@ def record_export(req: ExportRecordRequest):
         conn.commit()
     finally:
         conn.close()
+    event_bus.emit("export_history", {"action": "recorded", "id": export_id})
     return {"success": True, "id": export_id}
 
 

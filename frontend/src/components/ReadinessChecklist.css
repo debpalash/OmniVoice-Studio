@@ -1,0 +1,112 @@
+/* ── Readiness Checklist ────────────────────────────────────────────────
+   VoiceBox-style system readiness panel showing pass/warn/fail gates
+   for ASR model, TTS engine, LLM, ffmpeg, GPU, etc.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.readiness-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--color-bg-elev-1);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+}
+
+.readiness-checklist__title {
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-md);
+  color: var(--color-fg);
+  margin: 0 0 var(--space-2) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.readiness-checklist__title-icon {
+  font-size: var(--text-lg);
+}
+
+.readiness-checklist__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.readiness-checklist__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.readiness-checklist__item:hover {
+  background: var(--color-bg-elev-3);
+}
+
+/* ── Status icons ───────────────────────────────────────────────────── */
+
+.readiness-checklist__status {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.readiness-checklist__status--pass { color: var(--color-success); }
+.readiness-checklist__status--warn { color: var(--color-accent); }
+.readiness-checklist__status--fail { color: var(--color-danger); }
+.readiness-checklist__status--loading {
+  color: var(--color-fg-subtle);
+  animation: rc-spin 1s linear infinite;
+}
+
+@keyframes rc-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Content ────────────────────────────────────────────────────────── */
+
+.readiness-checklist__label {
+  font-weight: var(--weight-medium);
+  color: var(--color-fg);
+}
+
+.readiness-checklist__detail {
+  font-size: var(--text-xs);
+  color: var(--color-fg-muted);
+  margin-top: 1px;
+}
+
+.readiness-checklist__fix {
+  font-size: var(--text-xs);
+  color: var(--color-accent);
+  margin-top: 2px;
+}
+
+/* ── Compact summary when all pass ──────────────────────────────────── */
+
+.readiness-checklist__all-pass {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(142, 192, 124, 0.08);
+  border: 1px solid rgba(142, 192, 124, 0.15);
+  border-radius: var(--radius-md);
+  color: var(--color-success);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-sm);
+}

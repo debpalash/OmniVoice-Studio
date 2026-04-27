@@ -4,6 +4,7 @@ import json
 from fastapi import APIRouter, HTTPException
 
 from core.db import get_db
+from core import event_bus
 from schemas.requests import ProjectSaveRequest
 
 router = APIRouter()
@@ -45,6 +46,7 @@ async def create_project(req: ProjectSaveRequest):
     )
     conn.commit()
     conn.close()
+    event_bus.emit("projects", {"action": "created", "id": project_id})
     return {"id": project_id, "name": req.name, "created_at": now}
 
 @router.put("/projects/{project_id}")
@@ -61,6 +63,7 @@ async def update_project(project_id: str, req: ProjectSaveRequest):
     )
     conn.commit()
     conn.close()
+    event_bus.emit("projects", {"action": "updated", "id": project_id})
     return {"id": project_id, "name": req.name, "updated_at": now}
 
 @router.delete("/projects/{project_id}")
@@ -69,4 +72,5 @@ async def delete_project(project_id: str):
     conn.execute("DELETE FROM studio_projects WHERE id=?", (project_id,))
     conn.commit()
     conn.close()
+    event_bus.emit("projects", {"action": "deleted", "id": project_id})
     return {"deleted": project_id}

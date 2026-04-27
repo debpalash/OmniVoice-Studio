@@ -27,8 +27,10 @@ import type { DubSlice } from './dubSlice';
 import { createDubSlice } from './dubSlice';
 import type { GenerateSlice } from './generateSlice';
 import { createGenerateSlice } from './generateSlice';
+import type { PillSlice } from './pillSlice';
+import { createPillSlice } from './pillSlice';
 
-export type AppStore = PrefsSlice & GlossarySlice & UiSlice & DubSlice & GenerateSlice;
+export type AppStore = PrefsSlice & GlossarySlice & UiSlice & DubSlice & GenerateSlice & PillSlice;
 
 /**
  * `useAppStore` — single root store. Don't create siblings. Slices compose here.
@@ -45,6 +47,7 @@ export const useAppStore = create<AppStore>()(
       ...createUiSlice(set, get, api),
       ...createDubSlice(set, get, api),
       ...createGenerateSlice(set, get, api),
+      ...createPillSlice(set, get, api),
     }),
     {
       name: 'omnivoice.app',

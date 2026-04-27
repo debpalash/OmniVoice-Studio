@@ -17,6 +17,7 @@ from core.db import get_db, db_conn
 from core.config import OUTPUTS_DIR, VOICES_DIR
 from services.model_manager import get_model, _gpu_pool
 from services.audio_dsp import apply_mastering, normalize_audio
+from core import event_bus
 
 router = APIRouter()
 logger = logging.getLogger("omnivoice.generate")
@@ -155,6 +156,7 @@ async def generate_speech(
                  language or "Auto", instruct or "", resolved_profile_id,
                  audio_filename, audio_dur, gen_time, used_seed, time.time())
             )
+        event_bus.emit("generation_history", {"action": "created", "id": audio_id})
 
         buffer = io.BytesIO()
         torchaudio.save(buffer, audio_tensor, _model.sampling_rate, format="wav")
@@ -227,6 +229,7 @@ def clear_history():
                 with contextlib.suppress(OSError):
                     os.remove(p)
         conn.execute("DELETE FROM generation_history")
+    event_bus.emit("generation_history")
     return {"cleared": True}
 
 @router.delete("/history/{history_id}")
@@ -239,4 +242,5 @@ def delete_single_history(history_id: str):
                 with contextlib.suppress(OSError):
                     os.remove(p)
         conn.execute("DELETE FROM generation_history WHERE id=?", (history_id,))
+    event_bus.emit("generation_history", {"action": "deleted", "id": history_id})
     return {"deleted": True}

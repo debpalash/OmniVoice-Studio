@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse, Response, StreamingResponse, JSONRes
 from core.db import get_db, db_conn
 from core.config import DATA_DIR, DUB_DIR, PREVIEW_DIR, VOICES_DIR
 from core.tasks import task_manager
+from core import event_bus
 from schemas.requests import DubRequest, TranslateRequest, DubIngestUrlRequest
 from services.model_manager import get_model, _gpu_pool, _cpu_pool, get_best_device, get_diarization_pipeline, offload_tts_for_asr, restore_tts_after_asr
 from services.audio_dsp import apply_mastering, normalize_audio
@@ -107,6 +108,7 @@ def clear_dub_history():
         safe = _safe_job_dir(jid)
         if safe and os.path.isdir(safe):
             shutil.rmtree(safe, ignore_errors=True)
+    event_bus.emit("dub_history")
     return {"cleared": True, "count": len(ids)}
 
 @router.delete("/dub/history/{history_id}")
@@ -117,6 +119,7 @@ def delete_single_dub_history(history_id: str):
     if safe and os.path.isdir(safe):
         shutil.rmtree(safe, ignore_errors=True)
     _dub_jobs.pop(history_id, None)
+    event_bus.emit("dub_history", {"action": "deleted", "id": history_id})
     return {"deleted": True}
 
 @router.post("/preview/upload")

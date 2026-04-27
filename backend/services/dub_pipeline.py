@@ -44,6 +44,7 @@ from fastapi import HTTPException
 from services.ffmpeg_utils import find_ffmpeg, _get_semaphore, _spawn_with_retry
 from services.model_manager import get_best_device
 from core.db import db_conn, get_db
+from core import event_bus
 
 logger = logging.getLogger("omnivoice.dub_pipeline")
 
@@ -230,6 +231,8 @@ def save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0, 
             )
     except Exception as e:
         logger.error("Failed to persist dub job %s: %s", job_id, e)
+        return
+    event_bus.emit("dub_history", {"action": "saved", "id": job_id})
 
 
 # ── Ingest pipeline (download → extract → demucs → scene → thumb) ──────────

@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from core.db import get_db, db_conn
 from core.config import VOICES_DIR, OUTPUTS_DIR
+from core import event_bus
 
 router = APIRouter()
 
@@ -50,6 +51,7 @@ async def create_profile(
     )
     conn.commit()
     conn.close()
+    event_bus.emit("profiles", {"action": "created", "id": profile_id})
     return {"id": profile_id, "name": name}
 
 @router.get("/profiles/{profile_id}")
@@ -99,6 +101,7 @@ def update_profile(profile_id: str, patch: ProfileUpdate):
         row = conn.execute(
             "SELECT * FROM voice_profiles WHERE id = ?", (profile_id,),
         ).fetchone()
+    event_bus.emit("profiles", {"action": "updated", "id": profile_id})
     return dict(row)
 
 
@@ -200,6 +203,7 @@ async def lock_profile(
     )
     conn.commit()
     conn.close()
+    event_bus.emit("profiles", {"action": "locked", "id": profile_id})
     return {"locked": True, "profile_id": profile_id, "locked_audio_path": locked_filename}
 
 @router.post("/profiles/{profile_id}/unlock")
@@ -224,6 +228,7 @@ async def unlock_profile(profile_id: str):
     )
     conn.commit()
     conn.close()
+    event_bus.emit("profiles", {"action": "unlocked", "id": profile_id})
     return {"unlocked": True, "profile_id": profile_id}
 
 @router.delete("/profiles/{profile_id}")
@@ -239,4 +244,5 @@ def delete_profile(profile_id: str):
     conn.execute("DELETE FROM voice_profiles WHERE id=?", (profile_id,))
     conn.commit()
     conn.close()
+    event_bus.emit("profiles", {"action": "deleted", "id": profile_id})
     return {"deleted": profile_id}

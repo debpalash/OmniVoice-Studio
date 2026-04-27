@@ -26,6 +26,8 @@ const EnterprisePage = lazy(() => import('./pages/EnterprisePage'));
 import Header from './components/Header';
 import NavRail from './components/NavRail';
 import ErrorBoundary from './components/ErrorBoundary';
+import FloatingPill from './components/FloatingPill';
+import useRealtimeEvents from './hooks/useRealtimeEvents';
 import { BootstrapSplash, useBootstrapStage } from './components/BootstrapSplash';
 
 import './components/Misc.css';
@@ -40,7 +42,7 @@ import {
 import { LANG_CODES } from './utils/languages';
 import { formatTime, probeAudioDuration } from './utils/format';
 import { API, apiPost } from './api/client';
-import { cleanAudio as apiCleanAudio, flushMemory as apiFlushMemory } from './api/system';
+import { cleanAudio as apiCleanAudio, flushMemory as apiFlushMemory, modelStatus as apiModelStatus } from './api/system';
 import { useSysinfo, useModelStatus } from './api/hooks';
 import { listProfiles, createProfile, deleteProfile as apiDeleteProfile, lockProfile, unlockProfile } from './api/profiles';
 import { listHistory, clearHistory, generateSpeech, audioUrlWithCacheBust } from './api/generate';
@@ -688,6 +690,25 @@ function App() {
   // sysinfo + modelStatus polling is now handled by TanStack Query hooks
   // (useSysinfo / useModelStatus at top of component). No manual setInterval.
 
+  // ── Floating pill for model loading (ASR cold start can take ~120s) ──
+  const prevModelStatusRef = useRef(modelStatus);
+  useEffect(() => {
+    const prev = prevModelStatusRef.current;
+    prevModelStatusRef.current = modelStatus;
+    const pill = useAppStore.getState();
+    // Only show pill if model transitions to loading and pill isn't already
+    // showing something more important (e.g. active dubbing).
+    if (modelStatus === 'loading' && prev !== 'loading' && pill.stage === 'idle') {
+      pill.showPill('loading-model', 'Loading ASR model…');
+    }
+    if (modelStatus === 'ready' && prev === 'loading') {
+      // Only dismiss if the pill is still showing the model-loading state
+      if (pill.stage === 'loading-model' && pill.label.includes('ASR')) {
+        pill.completePill('ASR model ready');
+      }
+    }
+  }, [modelStatus]);
+
   const loadProfiles = useCallback(async () => {
     try { setProfiles(await listProfiles()); } catch (e) {}
   }, []);
@@ -707,6 +728,17 @@ function App() {
   const loadExportHistory = useCallback(async () => {
     try { setExportHistory(await listExportHistory()); } catch (e) {}
   }, []);
+
+  // ── Real-time sidebar updates via WebSocket ────────────────────────────
+  // Replaces polling — the backend pushes an event on every DB mutation and
+  // we simply re-fetch the affected list. Reconnects automatically.
+  useRealtimeEvents({
+    projects:           () => loadProjects(),
+    profiles:           () => loadProfiles(),
+    dub_history:        () => loadDubHistory(),
+    export_history:     () => loadExportHistory(),
+    generation_history: () => loadHistory(),
+  });
 
   useEffect(() => {
     // Wait for backend to come alive before loading data (handles Tauri startup race)
@@ -1294,30 +1326,38 @@ function App() {
     const clientJobId = Math.random().toString(36).slice(2, 10);
     dubClientJobIdRef.current = clientJobId;
     setDubJobId(clientJobId);
+    useAppStore.getState().showPill('loading-model', 'Preparing video…', { cancellable: true });
     try {
       const data = await dubUpload(dubVideoFile, clientJobId, { signal: ctrl.signal });
       setDubJobId(data.job_id); if (data.filename) setDubFilename(data.filename);
       setDubTaskId(data.task_id);
       setDubPrepStage('extract');
+      useAppStore.getState().showPill('loading-model', 'Extracting audio & scenes…', { cancellable: true });
       await _waitForPrep(data.task_id, ctrl);
 
       setDubStep('transcribing');
       setDubPrepStage(null);
       setTranscribeStart(Date.now());
       setDubSegments([]);
+      useAppStore.getState().showPill('transcribing', 'Transcribing audio…', { cancellable: true });
 
       await _waitForTranscribe(data.job_id, ctrl);
 
       setTranscribeStart(null);
       setDubStep('editing');
+      useAppStore.getState().completePill('Transcription complete');
+      loadProjects();  // refresh sidebar
+      loadProfiles();  // speaker clones may have been auto-created
     } catch (err) {
       setDubPrepStage(null);
       if (err.name === 'AbortError') {
         toast('Upload cancelled');
         setDubStep('idle');
+        useAppStore.getState().dismissPill();
       } else {
         setDubError(err.message); setDubStep('idle');
         toast.error('Upload failed: ' + err.message);
+        useAppStore.getState().errorPill(err.message);
       }
       setTranscribeStart(null);
     } finally {
@@ -1334,6 +1374,7 @@ function App() {
     const clientJobId = Math.random().toString(36).slice(2, 10);
     dubClientJobIdRef.current = clientJobId;
     setDubJobId(clientJobId);
+    useAppStore.getState().showPill('loading-model', 'Downloading video…', { cancellable: true });
     try {
       const data = await dubIngestUrl(clean, clientJobId, {
         signal: ctrl.signal,
@@ -1342,26 +1383,33 @@ function App() {
       });
       setDubJobId(data.job_id);
       setDubTaskId(data.task_id);
+      useAppStore.getState().showPill('loading-model', 'Extracting audio & scenes…', { cancellable: true });
       await _waitForPrep(data.task_id, ctrl);
 
       setDubStep('transcribing');
       setDubPrepStage(null);
       setTranscribeStart(Date.now());
       setDubSegments([]);
+      useAppStore.getState().showPill('transcribing', 'Transcribing audio…', { cancellable: true });
 
       await _waitForTranscribe(data.job_id, ctrl);
 
       setTranscribeStart(null);
       setDubStep('editing');
+      useAppStore.getState().completePill('Transcription complete');
+      loadProjects();  // refresh sidebar
+      loadProfiles();  // speaker clones may have been auto-created
       toast.success('Ingested ' + clean.slice(0, 60));
     } catch (err) {
       setDubPrepStage(null);
       if (err.name === 'AbortError') {
         toast('Ingest cancelled');
         setDubStep('idle');
+        useAppStore.getState().dismissPill();
       } else {
         setDubError(err.message); setDubStep('idle');
         toast.error('URL ingest failed: ' + err.message);
+        useAppStore.getState().errorPill(err.message);
       }
       setTranscribeStart(null);
     } finally {
@@ -1392,6 +1440,7 @@ function App() {
       await _waitForTranscribe(dubJobId, ctrl);
       setTranscribeStart(null);
       setDubStep('editing');
+      loadProjects();  // refresh sidebar
     } catch (err) {
       setTranscribeStart(null);
       if (err.name === 'AbortError') {
@@ -1502,6 +1551,8 @@ function App() {
     setDubStep('generating');
     setDubProgress({ current: 0, total: dubSegments.length, text: '' });
     setDubError('');
+    const genLabel = regenOnly ? `Regenerating ${regenOnly.length} segment${regenOnly.length > 1 ? 's' : ''}…` : 'Generating dub…';
+    useAppStore.getState().showPill('generating', genLabel, { cancellable: true });
     try {
       const body = {
         segment_ids: dubSegments.map(s => String(s.id)),
@@ -1552,7 +1603,12 @@ function App() {
           if (line.startsWith('data: ')) {
             try {
               const evt = JSON.parse(line.slice(6));
-              if (evt.type === 'progress') setDubProgress({ current: evt.current + 1, total: evt.total, text: evt.text });
+              if (evt.type === 'progress') {
+                setDubProgress({ current: evt.current + 1, total: evt.total, text: evt.text });
+                const pct = Math.round(((evt.current + 1) / evt.total) * 100);
+                useAppStore.getState().setPillProgress(pct);
+                useAppStore.getState().setPillLabel(`Generating dub… ${evt.current + 1}/${evt.total}`);
+              }
               else if (evt.type === 'done') {
                 setDubStep('done');
                 setDubTracks(evt.tracks || []);
@@ -1603,9 +1659,16 @@ function App() {
       if (!wasCancelled) {
         if (dubStep !== 'done') setDubStep('done');
         loadDubHistory();
+        loadProjects();  // refresh sidebar with updated project state
         playPing();
+        useAppStore.getState().completePill('Dub complete');
+      } else {
+        useAppStore.getState().dismissPill();
       }
-    } catch (err) { setDubError(err.message); setDubStep('editing'); setDubTaskId(null); }
+    } catch (err) {
+      setDubError(err.message); setDubStep('editing'); setDubTaskId(null);
+      useAppStore.getState().errorPill(err.message);
+    }
   };
 
   const handleDubStop = async () => {
@@ -1958,6 +2021,8 @@ function App() {
         error: { iconTheme: { primary: '#fb4934', secondary: '#fff' } },
         success: { iconTheme: { primary: '#b8bb26', secondary: '#fff' } }
       }}/>
+
+      <FloatingPill />
 
       <Header
         mode={mode} setMode={setMode}

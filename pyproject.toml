@@ -80,6 +80,12 @@ dependencies = [
     # in AI-generated speech for provenance detection (SynthID-like).
     # MIT license, ~5ms per segment on CPU, 16-bit message payload.
     "audioseal>=0.1.3",
+    # API server — always needed for the Studio UI.
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+    # Required by uvicorn for WebSocket support (real-time sidebar events).
+    "websockets",
 ]
 
 [project.optional-dependencies]
@@ -92,11 +98,6 @@ eval = [
     "zhconv",              # Chinese character normalization
     "zhon",                # Chinese punctuation
     "unidecode",            # Unicode normalization
-]
-api = [
-    "fastapi",
-    "uvicorn",
-    "python-multipart"
 ]
 ui = [
     "gradio",

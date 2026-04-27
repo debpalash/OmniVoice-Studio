@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from core.db import get_db
 from core.config import VOICES_DIR, OUTPUTS_DIR
+from core import event_bus
 
 logger = logging.getLogger("omnivoice.gallery")
 
@@ -436,6 +437,7 @@ async def save_voice_as_profile(
     )
     conn.commit()
     conn.close()
+    event_bus.emit("profiles", {"action": "created", "id": profile_id})
 
     return {"profile_id": profile_id, "name": profile_name}
 
@@ -573,6 +575,7 @@ def voice_to_profile(voice_id: str):
     )
     conn.commit()
     conn.close()
+    event_bus.emit("profiles", {"action": "created", "id": profile_id})
 
     return {"success": True, "profile_id": profile_id, "name": voice["name"]}
 

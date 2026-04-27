@@ -42,8 +42,8 @@ export function useModelStatus(enabled = true) {
   return useQuery({
     queryKey: queryKeys.modelStatus,
     queryFn: systemApi.modelStatus,
-    refetchInterval: 5_000,
-    refetchIntervalInBackground: true,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
     retry: Infinity,
     retryDelay: 1_500,
     enabled,
@@ -54,7 +54,8 @@ export function useSystemLogs(tail = 300, enabled = true) {
   return useQuery({
     queryKey: queryKeys.systemLogs(tail),
     queryFn: () => systemApi.systemLogs(tail),
-    refetchInterval: 5_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
     enabled,
   });
 }
@@ -63,7 +64,8 @@ export function useTauriLogs(tail = 300, enabled = true) {
   return useQuery({
     queryKey: queryKeys.tauriLogs(tail),
     queryFn: () => systemApi.systemLogsTauri(tail),
-    refetchInterval: 5_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
     enabled,
   });
 }

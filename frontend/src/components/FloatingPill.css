@@ -1,0 +1,196 @@
+/* ── Floating Status Pill ───────────────────────────────────────────────
+   Always-on-top pill that tracks long-running operations (ASR model load,
+   dubbing progress, export). Inspired by VoiceBox 0.5.0's CapturePill.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.floating-pill {
+  position: fixed;
+  top: 48px;
+  right: 16px;
+  z-index: var(--z-toast);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5) var(--space-3) var(--space-4);
+  min-width: 220px;
+  max-width: 360px;
+
+  background: var(--color-bg-elev-1);
+  backdrop-filter: var(--glass-blur-md);
+  -webkit-backdrop-filter: var(--glass-blur-md);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(0,0,0,0.15);
+
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  color: var(--color-fg);
+
+  /* Slide-in animation */
+  animation: pill-enter 0.35s var(--ease-spring) both;
+  pointer-events: auto;
+  user-select: none;
+  cursor: default;
+}
+
+.floating-pill--exiting {
+  animation: pill-exit 0.25s var(--ease-out) both;
+}
+
+@keyframes pill-enter {
+  from {
+    opacity: 0;
+    transform: translateX(24px) scale(0.92);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes pill-exit {
+  to {
+    opacity: 0;
+    transform: translateX(16px) scale(0.95);
+    filter: blur(2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-pill { animation: none; opacity: 1; }
+  .floating-pill--exiting { animation: none; opacity: 0; }
+}
+
+/* ── Stage indicator dot ────────────────────────────────────────────── */
+
+.floating-pill__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: pill-dot-pulse 1.5s ease-in-out infinite;
+}
+
+.floating-pill__dot--loading-model { background: var(--color-accent); }
+.floating-pill__dot--transcribing  { background: var(--color-info); }
+.floating-pill__dot--translating   { background: var(--color-brand); }
+.floating-pill__dot--generating    { background: var(--color-warn); }
+.floating-pill__dot--exporting     { background: var(--color-success); }
+.floating-pill__dot--refining      { background: var(--color-info); }
+.floating-pill__dot--recording     { background: var(--color-danger); }
+.floating-pill__dot--done          { background: var(--color-success); animation: none; }
+.floating-pill__dot--error         { background: var(--color-danger); animation: none; }
+
+@keyframes pill-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* ── Content area ───────────────────────────────────────────────────── */
+
+.floating-pill__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.floating-pill__label {
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.floating-pill__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-fg-muted);
+}
+
+.floating-pill__timer {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--color-fg-subtle);
+  letter-spacing: 0.03em;
+}
+
+.floating-pill__error {
+  font-size: var(--text-xs);
+  color: var(--color-danger);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Mini progress bar ──────────────────────────────────────────────── */
+
+.floating-pill__progress {
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-bg-elev-2);
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.floating-pill__progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--color-brand);
+  transition: width 0.3s var(--ease-out);
+}
+
+.floating-pill__progress-fill--indeterminate {
+  width: 40% !important;
+  animation: pill-progress-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes pill-progress-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+/* ── Dismiss button ─────────────────────────────────────────────────── */
+
+.floating-pill__dismiss {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--color-fg-subtle);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
+
+.floating-pill__dismiss:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--color-fg);
+}
+
+/* ── Done stage — green tint ────────────────────────────────────────── */
+
+.floating-pill--done {
+  border-color: rgba(142, 192, 124, 0.25);
+}
+
+.floating-pill--done .floating-pill__label {
+  color: var(--color-success);
+}
+
+/* ── Error stage — red tint ─────────────────────────────────────────── */
+
+.floating-pill--error {
+  border-color: rgba(251, 73, 52, 0.25);
+}
