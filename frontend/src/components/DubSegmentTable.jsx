@@ -12,9 +12,9 @@ const COLUMNS = [
   { key: 'spkr',  label: 'Spkr',  width: 45 },
   { key: 'text',  label: 'Text',  flex: 1 },
   { key: 'lang',  label: 'Lang',  width: 42 },
-  { key: 'voice', label: 'Voice', width: 65 },
-  { key: 'vol',   label: 'Vol',   width: 28, title: 'Volume (0–200%)' },
-  { key: 'act',   label: '',      width: 46 },
+  { key: 'voice', label: 'Voice', width: 60 },
+  { key: 'vol',   label: 'Vol',   width: 40, title: 'Volume (0–200%)' },
+  { key: 'act',   label: '',      width: 42 },
 ];
 
 export default function DubSegmentTable({

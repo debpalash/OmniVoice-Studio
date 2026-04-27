@@ -324,18 +324,17 @@
 .dub-settings-bar {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   margin-bottom: 6px;
-  padding: 7px 9px;
+  padding: 6px 8px;
   background: var(--chrome-bg);
   border: 1px solid var(--chrome-border);
   border-radius: var(--chrome-radius-pill);
 }
 .dub-settings-bar__fields {
-  display: grid;
-  /* collapse-btn | Language | ISO | Engine | Quality | Style(flex) */
-  grid-template-columns: auto minmax(120px, 1.1fr) minmax(95px, 0.9fr) minmax(140px, 1.2fr) minmax(155px, 1.1fr) minmax(120px, 1.2fr);
-  gap: 3px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
   align-items: end;
 }
 .dub-settings-bar__actions {
@@ -347,52 +346,62 @@
 .dub-settings-field {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0; /* lets <select> shrink inside the grid cell instead of overflowing */
+  gap: 1px;
+  min-width: 0;
 }
 .dub-settings-field .label-row {
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   color: var(--color-fg-muted);
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .dub-settings-field .input-base,
 .dub-settings-field .dub-cast__select,
 .dub-settings-field .dub-engine-select,
 .dub-settings-field .input-base--xs {
   width: 100%;
-  font-size: 0.68rem;
-  padding: 4px 6px;
+  font-size: 0.65rem;
+  padding: 3px 5px;
 }
 .dub-settings-field__hint {
-  font-size: 0.55rem;
+  font-size: 0.52rem;
   color: var(--color-fg-subtle);
   font-style: italic;
-  margin-left: 3px;
+  margin-left: 2px;
 }
-/* Quality Segmented is a button group, not an input — let it size itself. */
+/* Size fields so they share the row proportionally */
+.dub-settings-field--lang    { flex: 1 1 100px; min-width: 90px; }
+.dub-settings-field--iso     { flex: 0 0 72px; }
+.dub-settings-field--engine  { flex: 1.4 1 130px; min-width: 110px; }
+.dub-settings-field--quality { flex: 0 0 auto; min-width: 100px; }
 .dub-settings-field--quality > *:last-child { width: 100%; }
+.dub-settings-field--style   { flex: 1 1 90px; min-width: 80px; }
 @media (max-width: 960px) {
-  .dub-settings-bar__fields {
-    grid-template-columns: auto 1fr 1fr;
-  }
-  .dub-settings-field--style { grid-column: 1 / -1; }
+  .dub-settings-bar__fields { flex-direction: column; }
+  .dub-settings-field--lang,
+  .dub-settings-field--iso,
+  .dub-settings-field--engine,
+  .dub-settings-field--quality,
+  .dub-settings-field--style { flex-basis: 100%; min-width: 0; }
 }
 
-/* Multi-lang mode toggle + picker */
+/* Multi-lang mode toggle + picker — inline in actions row */
 .dub-settings-field--multi {
-  grid-column: 1 / -1;
-  padding-top: 4px;
+  flex-basis: 100%;
+  padding-top: 3px;
   border-top: 1px solid var(--chrome-border);
-  margin-top: 2px;
+  margin-top: 1px;
 }
 .dub-multi-toggle {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   color: var(--chrome-fg-muted);
   cursor: pointer;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 .dub-multi-toggle input { accent-color: var(--chrome-accent); cursor: pointer; }
 
@@ -433,9 +442,10 @@
 }
 .dub-settings-close {
   flex: 0 0 auto;
-  padding: 0 6px;
+  padding: 0 4px;
+  align-self: center;
 }
-.dub-engine-select  { font-size: 0.68rem; padding: 4px 6px; min-width: 140px; }
+.dub-engine-select  { font-size: 0.65rem; padding: 3px 5px; min-width: 0; }
 
 /* Small opt-in below the URL ingest row: toggle YouTube caption pulling. */
 .dub-ingest-sub-opt {

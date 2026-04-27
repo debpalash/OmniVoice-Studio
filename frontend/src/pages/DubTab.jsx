@@ -624,7 +624,7 @@ export default function DubTab(props) {
                   >
                     <ChevronUp size={10} />
                   </button>
-                  <div className="dub-settings-field">
+                  <div className="dub-settings-field dub-settings-field--lang">
                     <div className="label-row"><Globe className="label-icon" size={9} /> Language</div>
                     <select
                       className="input-base dub-cast__select"
@@ -646,23 +646,6 @@ export default function DubTab(props) {
                       </optgroup>
                     </select>
                   </div>
-                  <div className="dub-settings-field dub-settings-field--multi">
-                    <label className="dub-multi-toggle">
-                      <input
-                        type="checkbox"
-                        checked={multiLangMode}
-                        onChange={e => setMultiLangMode(e.target.checked)}
-                      />
-                      <span>Multi-lang</span>
-                    </label>
-                    {multiLangMode && (
-                      <MultiLangPicker
-                        selected={multiLangs}
-                        onChange={setMultiLangs}
-                        disabled={dubStep === 'generating'}
-                      />
-                    )}
-                  </div>
                   <div className="dub-settings-field dub-settings-field--iso">
                     <div className="label-row">ISO</div>
                     <select
@@ -675,7 +658,7 @@ export default function DubTab(props) {
                       ))}
                     </select>
                   </div>
-                  <div className="dub-settings-field">
+                  <div className="dub-settings-field dub-settings-field--engine">
                     <div className="label-row">
                       Engine
                       {activeEngineUnavailable && !enginesSandboxed && (
@@ -723,6 +706,23 @@ export default function DubTab(props) {
                   <div className="dub-settings-field dub-settings-field--style">
                     <div className="label-row"><UserSquare2 className="label-icon" size={9} /> Style <span className="dub-settings-field__hint">optional</span></div>
                     <input className="input-base input-base--xs" placeholder="e.g. female" value={dubInstruct} onChange={e => setDubInstruct(e.target.value)} />
+                  </div>
+                  <div className="dub-settings-field dub-settings-field--multi">
+                    <label className="dub-multi-toggle">
+                      <input
+                        type="checkbox"
+                        checked={multiLangMode}
+                        onChange={e => setMultiLangMode(e.target.checked)}
+                      />
+                      <span>Multi-lang</span>
+                    </label>
+                    {multiLangMode && (
+                      <MultiLangPicker
+                        selected={multiLangs}
+                        onChange={setMultiLangs}
+                        disabled={dubStep === 'generating'}
+                      />
+                    )}
                   </div>
                 </div>
                 <div className="dub-settings-bar__actions">

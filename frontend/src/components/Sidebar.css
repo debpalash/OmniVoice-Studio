@@ -111,6 +111,11 @@
 .sidebar__empty-title  { font-size: 0.82rem; margin: 0 0 var(--space-2); color: var(--chrome-fg); font-weight: 500; letter-spacing: 0.02em; }
 .sidebar__empty-sub    { font-size: 0.7rem; margin: 0; color: var(--chrome-fg-dim); line-height: 1.5; }
 
+/* Hide text-heavy blocks when sidebar is collapsed to icon-only width */
+.sidebar.is-collapsed .sidebar__empty     { display: none; }
+.sidebar.is-collapsed .sidebar__subtitle  { display: none; }
+.sidebar.is-collapsed .sidebar__search    { display: none; }
+
 /* Section label — matches the status-bar's "LOGS" uppercase treatment.
    Labels are displays (not buttons) but this one IS clickable (collapses
    the section), so the chevron on the right signals interactivity while
