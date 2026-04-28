@@ -88,19 +88,30 @@ fi
 # ── Build debug binary ─────────────────────────────────────────────────────
 if [ "$SKIP_BUILD" = false ]; then
   echo ""
-  echo "🔨 Building debug binary (this takes 1-3 min first time)..."
+  echo "🔨 Building debug bundle (this takes 1-3 min first time)..."
+
+  # Remove stale bundle so we never accidentally launch old code
+  APP_BUNDLE="${TAURI_DIR}/target/debug/bundle/macos/${APP_NAME}.app"
+  [ -d "$APP_BUNDLE" ] && rm -rf "$APP_BUNDLE"
+
   cd frontend
-  # --no-bundle skips DMG/updater so we don't need TAURI_SIGNING_PRIVATE_KEY
-  bunx tauri build --debug --no-bundle 2>&1
+  # The build creates the .app bundle successfully, but then fails trying
+  # to sign the updater artifact (no TAURI_SIGNING_PRIVATE_KEY). The .app
+  # itself is fine — tolerate the exit code.
+  bunx tauri build --debug 2>&1 || true
   cd ..
-  echo "✅ Build complete."
+
+  if [ -d "${TAURI_DIR}/target/debug/bundle/macos/${APP_NAME}.app" ]; then
+    echo "✅ Build complete."
+  else
+    echo "❌ Build failed — no .app bundle produced."
+    exit 1
+  fi
 else
   echo "⏭️  Skipping build (--skip-build)"
 fi
 
 # ── Find and launch the app ────────────────────────────────────────────────
-# --no-bundle produces the raw binary, not the .app bundle
-RAW_BINARY="${TAURI_DIR}/target/debug/app"
 APP_BUNDLE="${TAURI_DIR}/target/debug/bundle/macos/${APP_NAME}.app"
 
 if [ -d "$APP_BUNDLE" ]; then
@@ -108,13 +119,8 @@ if [ -d "$APP_BUNDLE" ]; then
   echo "🚀 Launching ${APP_NAME} (.app bundle)..."
   echo "   Bundle: ${APP_BUNDLE}"
   open "$APP_BUNDLE"
-elif [ -f "$RAW_BINARY" ]; then
-  echo ""
-  echo "🚀 Launching ${APP_NAME} (raw binary)..."
-  echo "   Binary: ${RAW_BINARY}"
-  "$RAW_BINARY" &
 else
-  echo "❌ No binary found. Run without --skip-build first."
+  echo "❌ No bundle found. Run without --skip-build first."
   exit 1
 fi
 
