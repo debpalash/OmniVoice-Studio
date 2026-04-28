@@ -87,6 +87,37 @@ function UiScaleToggle() {
   );
 }
 
+const THEMES = [
+  { id: 'gruvbox',    label: 'Gruvbox',    dot: '#d3869b' },
+  { id: 'midnight',   label: 'Midnight',   dot: '#8b5cf6' },
+  { id: 'nord',       label: 'Nord',       dot: '#88c0d0' },
+  { id: 'solarized',  label: 'Solarized',  dot: '#268bd2' },
+  { id: 'rose-pine',  label: 'Rosé Pine',  dot: '#ebbcba' },
+  { id: 'catppuccin', label: 'Catppuccin', dot: '#cba6f7' },
+];
+
+function ThemePicker() {
+  const theme    = useAppStore(s => s.theme);
+  const setTheme = useAppStore(s => s.setTheme);
+  return (
+    <div className="logs-footer__themes" role="radiogroup" aria-label="Color theme">
+      {THEMES.map(t => (
+        <button
+          key={t.id}
+          type="button"
+          className={`logs-footer__theme-dot ${theme === t.id ? 'is-active' : ''}`}
+          style={{ '--dot-color': t.dot }}
+          onClick={() => setTheme(t.id)}
+          title={t.label}
+          aria-label={`${t.label} theme`}
+          aria-checked={theme === t.id}
+          role="radio"
+        />
+      ))}
+    </div>
+  );
+}
+
 function SourcePill({ source, counts, active, onClick }) {
   const hasErrors = counts.error > 0;
   const hasWarns  = counts.warn > 0;
@@ -321,6 +352,8 @@ export default function LogsFooter() {
       <div className="logs-footer__bar">
         <div className="logs-footer__left">
           <UiScaleToggle />
+          <span className="logs-footer__divider" />
+          <ThemePicker />
           <span className="logs-footer__divider" />
           <button
             type="button"

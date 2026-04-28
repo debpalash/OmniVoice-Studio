@@ -1,0 +1,186 @@
+/* ────────────────────────────────────────────────────────────────────
+   OmniVoice theme definitions.
+
+   Each theme overrides the semantic tokens defined in tokens.css.
+   The active theme is set via a `data-theme` attribute on <html>.
+   Default (no attribute) = Gruvbox Dark.
+
+   Usage:
+     document.documentElement.setAttribute('data-theme', 'midnight');
+   ──────────────────────────────────────────────────────────────────── */
+
+/* ── Midnight Blue ─────────────────────────────────────────────────── */
+[data-theme="midnight"] {
+  --color-fg:            #e2e8f0;
+  --color-fg-muted:      #94a3b8;
+  --color-fg-subtle:     #64748b;
+  --color-fg-inverse:    #0f172a;
+
+  --color-bg:            #0f172a;
+  --color-bg-elev-1:     rgba(30, 41, 59, 0.85);
+  --color-bg-elev-2:     rgba(15, 23, 42, 0.40);
+  --color-bg-elev-3:     rgba(30, 41, 59, 0.30);
+
+  --color-border:        rgba(148, 163, 184, 0.10);
+  --color-border-strong: rgba(148, 163, 184, 0.20);
+  --color-border-warm:   rgba(139, 92, 246, 0.12);
+
+  --color-brand:         #8b5cf6;
+  --color-brand-hover:   #7c3aed;
+  --color-brand-glow:    rgba(139, 92, 246, 0.35);
+
+  --color-accent:        #f59e0b;
+  --color-success:       #10b981;
+  --color-warn:          #f97316;
+  --color-danger:        #ef4444;
+  --color-info:          #3b82f6;
+
+  /* Chrome overrides for components using legacy vars */
+  --chrome-bg:           #1e293b;
+  --chrome-fg:           #e2e8f0;
+  --chrome-fg-muted:     #94a3b8;
+  --chrome-fg-dim:       #475569;
+  --chrome-border:       #334155;
+}
+
+/* ── Nord ──────────────────────────────────────────────────────────── */
+[data-theme="nord"] {
+  --color-fg:            #eceff4;
+  --color-fg-muted:      #d8dee9;
+  --color-fg-subtle:     #4c566a;
+  --color-fg-inverse:    #2e3440;
+
+  --color-bg:            #2e3440;
+  --color-bg-elev-1:     rgba(59, 66, 82, 0.85);
+  --color-bg-elev-2:     rgba(46, 52, 64, 0.40);
+  --color-bg-elev-3:     rgba(59, 66, 82, 0.25);
+
+  --color-border:        rgba(216, 222, 233, 0.08);
+  --color-border-strong: rgba(216, 222, 233, 0.15);
+  --color-border-warm:   rgba(136, 192, 208, 0.10);
+
+  --color-brand:         #88c0d0;
+  --color-brand-hover:   #81a1c1;
+  --color-brand-glow:    rgba(136, 192, 208, 0.3);
+
+  --color-accent:        #ebcb8b;
+  --color-success:       #a3be8c;
+  --color-warn:          #d08770;
+  --color-danger:        #bf616a;
+  --color-info:          #5e81ac;
+
+  --chrome-bg:           #3b4252;
+  --chrome-fg:           #eceff4;
+  --chrome-fg-muted:     #d8dee9;
+  --chrome-fg-dim:       #4c566a;
+  --chrome-border:       #434c5e;
+}
+
+/* ── Solarized Dark ────────────────────────────────────────────────── */
+[data-theme="solarized"] {
+  --color-fg:            #839496;
+  --color-fg-muted:      #657b83;
+  --color-fg-subtle:     #586e75;
+  --color-fg-inverse:    #fdf6e3;
+
+  --color-bg:            #002b36;
+  --color-bg-elev-1:     rgba(7, 54, 66, 0.90);
+  --color-bg-elev-2:     rgba(0, 43, 54, 0.40);
+  --color-bg-elev-3:     rgba(7, 54, 66, 0.25);
+
+  --color-border:        rgba(131, 148, 150, 0.10);
+  --color-border-strong: rgba(131, 148, 150, 0.18);
+  --color-border-warm:   rgba(181, 137, 0, 0.10);
+
+  --color-brand:         #268bd2;
+  --color-brand-hover:   #2aa198;
+  --color-brand-glow:    rgba(38, 139, 210, 0.3);
+
+  --color-accent:        #b58900;
+  --color-success:       #859900;
+  --color-warn:          #cb4b16;
+  --color-danger:        #dc322f;
+  --color-info:          #6c71c4;
+
+  --chrome-bg:           #073642;
+  --chrome-fg:           #93a1a1;
+  --chrome-fg-muted:     #657b83;
+  --chrome-fg-dim:       #586e75;
+  --chrome-border:       #073642;
+}
+
+/* ── Rose Pine ─────────────────────────────────────────────────────── */
+[data-theme="rose-pine"] {
+  --color-fg:            #e0def4;
+  --color-fg-muted:      #908caa;
+  --color-fg-subtle:     #6e6a86;
+  --color-fg-inverse:    #191724;
+
+  --color-bg:            #191724;
+  --color-bg-elev-1:     rgba(30, 27, 42, 0.90);
+  --color-bg-elev-2:     rgba(25, 23, 36, 0.40);
+  --color-bg-elev-3:     rgba(38, 35, 58, 0.30);
+
+  --color-border:        rgba(144, 140, 170, 0.10);
+  --color-border-strong: rgba(144, 140, 170, 0.18);
+  --color-border-warm:   rgba(235, 188, 186, 0.10);
+
+  --color-brand:         #ebbcba;
+  --color-brand-hover:   #eb6f92;
+  --color-brand-glow:    rgba(235, 188, 186, 0.3);
+
+  --color-accent:        #f6c177;
+  --color-success:       #9ccfd8;
+  --color-warn:          #f6c177;
+  --color-danger:        #eb6f92;
+  --color-info:          #c4a7e7;
+
+  --chrome-bg:           #1f1d2e;
+  --chrome-fg:           #e0def4;
+  --chrome-fg-muted:     #908caa;
+  --chrome-fg-dim:       #6e6a86;
+  --chrome-border:       #26233a;
+}
+
+/* ── Catppuccin Mocha ──────────────────────────────────────────────── */
+[data-theme="catppuccin"] {
+  --color-fg:            #cdd6f4;
+  --color-fg-muted:      #a6adc8;
+  --color-fg-subtle:     #6c7086;
+  --color-fg-inverse:    #1e1e2e;
+
+  --color-bg:            #1e1e2e;
+  --color-bg-elev-1:     rgba(49, 50, 68, 0.85);
+  --color-bg-elev-2:     rgba(30, 30, 46, 0.40);
+  --color-bg-elev-3:     rgba(49, 50, 68, 0.25);
+
+  --color-border:        rgba(166, 173, 200, 0.08);
+  --color-border-strong: rgba(166, 173, 200, 0.16);
+  --color-border-warm:   rgba(245, 194, 231, 0.10);
+
+  --color-brand:         #cba6f7;
+  --color-brand-hover:   #b4befe;
+  --color-brand-glow:    rgba(203, 166, 247, 0.3);
+
+  --color-accent:        #f9e2af;
+  --color-success:       #a6e3a1;
+  --color-warn:          #fab387;
+  --color-danger:        #f38ba8;
+  --color-info:          #89b4fa;
+
+  --chrome-bg:           #313244;
+  --chrome-fg:           #cdd6f4;
+  --chrome-fg-muted:     #a6adc8;
+  --chrome-fg-dim:       #585b70;
+  --chrome-border:       #45475a;
+}
+
+/* ── System-preference sync ────────────────────────────────────────── */
+/* When theme is "auto", the light theme activates on light-mode OS.
+   Currently we don't ship a light theme; this is scaffolding for
+   community contributions. */
+@media (prefers-color-scheme: light) {
+  [data-theme="auto"] {
+    /* Future light theme tokens go here */
+  }
+}

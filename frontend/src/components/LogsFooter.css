@@ -83,6 +83,32 @@
 .logs-footer__scale {
   margin-right: 2px;
 }
+
+/* Theme color dots */
+.logs-footer__themes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.logs-footer__theme-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--dot-color, #888);
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  padding: 0;
+}
+.logs-footer__theme-dot:hover {
+  transform: scale(1.25);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--dot-color, #888) 50%, transparent);
+}
+.logs-footer__theme-dot.is-active {
+  border-color: var(--dot-color, #888);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--dot-color, #888) 40%, transparent);
+  transform: scale(1.15);
+}
 .logs-footer__toggle {
   background: none;
   border: none;

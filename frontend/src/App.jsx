@@ -175,6 +175,14 @@ function App() {
   // via the store's `partialize`; active project / voice ids stay transient.
   const uiScale = useAppStore(s => s.uiScale);
   const setUiScale = useAppStore(s => s.setUiScale);
+  const theme = useAppStore(s => s.theme);
+
+  // Hydrate the theme on mount so that persisted preference takes effect.
+  useEffect(() => {
+    if (theme && theme !== 'gruvbox') {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const mode = useAppStore(s => s.mode);
   const setMode = useAppStore(s => s.setMode);
   const [navRailSide, setNavRailSide] = useState(() => {

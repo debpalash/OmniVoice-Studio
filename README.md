@@ -291,32 +291,20 @@ chmod +x OmniVoice.Studio_*.AppImage
 
 ### 🔜 Next — by priority
 
-**🚀 Ship-blockers**
-- [ ] macOS code signing + notarization — eliminates the `xattr -cr` workaround
-- [ ] Windows code signing — eliminates SmartScreen warning
-- [x] ~~Onboarding sample clip — pre-loaded demo project for first-run experience~~
-- [x] ~~Docker DX polish — health endpoint, CPU/GPU profiles, proper compose~~
-- [x] ~~Auto-updater — check + download + install from GitHub Releases~~
+**🚀 Shipped** ✅
+- ~~Onboarding sample clip~~ · ~~Docker DX~~ · ~~Auto-updater~~ · ~~Deferred disk writes~~
+- ~~MCP server~~ · ~~Voice personalities~~ · ~~Audio effects chain~~ · ~~i18n framework~~
+- ~~Global hotkey dictation~~ · ~~Real-time dub preview~~ · ~~Speaker casting view~~
 
 **⚡ Performance**
 - [ ] Batched TTS (8–16 segments per forward pass) — 3–5× throughput
-- [x] ~~Eliminate per-segment disk round-trips in `dub_generate.py`~~ (deferred batch-write)
 - [ ] Cold start ≤ 1.5s (currently ~4s on Apple Silicon)
 - [ ] Crash-sandbox GPU engines (subprocess isolation)
 
-**✨ Differentiators**
-- [x] ~~Global hotkey dictation — system-wide record → transcribe → paste (⌘+⇧+Space)~~
-- [x] ~~MCP server — expose OmniVoice as an AI agent tool (Claude, Cursor, etc.)~~
-- [x] ~~Voice personalities — named presets (narrator, casual, formal) with saved TTS params~~
-- [x] ~~Audio effects chain — post-processing pipeline (reverb, EQ, compression)~~
-- [x] ~~Real-time dub preview — single-segment TTS preview without full re-render~~
-- [x] ~~Project-level casting view — assign voices to speakers~~
-
 **🎨 Polish & Quality**
-- [x] ~~i18n framework — UI translation support (community-driven)~~
 - [ ] Waveform timeline v2 — WaveSurfer continuous regions overlay
 - [ ] Accessibility audit — WCAG AA, ARIA live regions, full keyboard nav
-- [ ] Theme system — multiple themes, system preference sync
+- [x] ~~Theme system — 6 themes (Gruvbox, Midnight, Nord, Solarized, Rosé Pine, Catppuccin)~~
 
 **📦 Ecosystem**
 - [ ] Plugin SDK for third-party TTS engines (ElevenLabs, XTTS, Bark, Fish)

@@ -9,6 +9,7 @@
 import type { StateCreator } from 'zustand';
 
 export type TranslateQuality = 'fast' | 'cinematic';
+export type ThemeId = 'gruvbox' | 'midnight' | 'nord' | 'solarized' | 'rose-pine' | 'catppuccin';
 
 export interface PrefsSlice {
   translateQuality: TranslateQuality;
@@ -27,6 +28,9 @@ export interface PrefsSlice {
   setBurnSubs: (on: boolean) => void;
   setGlossaryVisible: (on: boolean) => void;
   setReviewMode: (mode: 'on' | 'off') => void;
+
+  theme: ThemeId;
+  setTheme: (id: ThemeId) => void;
 }
 
 export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (set) => ({
@@ -41,4 +45,15 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   setBurnSubs:         (on) => set({ burnSubs: on }),
   setGlossaryVisible:  (on) => set({ glossaryVisible: on }),
   setReviewMode:       (mode) => set({ reviewMode: mode }),
+
+  theme: 'gruvbox',
+  setTheme: (id) => {
+    set({ theme: id });
+    // Apply to DOM — gruvbox is default (no attribute)
+    if (id === 'gruvbox') {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', id);
+    }
+  },
 });

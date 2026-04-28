@@ -9,6 +9,7 @@
 // ─────────────────────────────────────────────────────────────────
 
 import './tokens.css';
+import './themes.css';
 
 export { default as Button }    from './Button.jsx';
 export { default as Panel }     from './Panel.jsx';
