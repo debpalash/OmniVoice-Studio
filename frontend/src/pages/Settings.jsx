@@ -102,6 +102,16 @@ export function ModelStoreTab({ info, modelBadge }) {
   const tableBodyRef = React.useRef(null);
   // Track download speed per repo: { [repo_id]: { lastBytes, lastTime, speed } }
   const speedRef = React.useRef({});
+  // Tick counter — forces re-render every second while a download is active
+  // so speed/ETA displays update smoothly between SSE events.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const hasActive = Object.values(rowState).some(s =>
+      ['install_start', 'active', 'delete_start'].includes(s.phase));
+    if (!hasActive) return;
+    const iv = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(iv);
+  }, [rowState]);
 
   // HF token inline — compact input in the toolbar
   const [hfToken, setHfToken] = useState('');
@@ -341,50 +351,61 @@ export function ModelStoreTab({ info, modelBadge }) {
                   size="xs"
                 />
                 <span className="models-row__progresstext">
-                  {rt.isDeleting
-                    ? 'Removing cached revisions…'
-                    : rt.hasFiles
-                      ? (() => {
-                          const sp = speedRef.current[m.repo_id];
-                          const now = Date.now();
-                          if (sp && rt.totals.downloaded > 0) {
-                            const dt = (now - sp.lastTime) / 1000;
-                            if (dt >= 1) {
-                              sp.speed = Math.max(0, (rt.totals.downloaded - sp.lastBytes) / dt);
-                              sp.lastBytes = rt.totals.downloaded;
-                              sp.lastTime = now;
-                            }
-                          } else {
-                            speedRef.current[m.repo_id] = { lastBytes: rt.totals.downloaded, lastTime: now, speed: 0 };
-                          }
-                          // Prefer backend tqdm rate (available immediately), fall back to client delta
-                          const speed = rt.backendRate > 0 ? rt.backendRate : (sp?.speed || 0);
-                          const remaining = rt.totals.total - rt.totals.downloaded;
-                          const etaSec = speed > 0 ? remaining / speed : 0;
-                          const etaStr = etaSec > 0
-                            ? etaSec < 60 ? `~${Math.ceil(etaSec)}s left`
-                            : etaSec < 3600 ? `~${Math.ceil(etaSec / 60)}m left`
-                            : `~${(etaSec / 3600).toFixed(1)}h left`
-                            : '';
-                          const pctStr = rt.aggPct != null ? `${Math.round(rt.aggPct)}%` : '';
-                          const parts = [
-                            `${fmtBytes(rt.totals.downloaded)} / ${rt.totals.total ? fmtBytes(rt.totals.total) : '?'}`,
-                            pctStr,
-                            speed > 0 ? `${fmtBytes(speed)}/s` : 'measuring speed…',
-                            etaStr || null,
-                          ].filter(Boolean);
-                          const extra = [];
-                          if (rt.fileList.length > 1) {
-                            extra.push(`${rt.totals.done}/${rt.fileList.length} files`);
-                          }
-                          if (rt.activeFilename) {
-                            extra.push(rt.activeFilename.split('/').pop());
-                          }
-                          return extra.length
-                            ? `${parts.join(' · ')}  ⸱  ${extra.join(' · ')}`
-                            : parts.join(' · ');
-                        })()
-                      : rt.phase === 'install_start' ? 'Connecting to HuggingFace…' : 'Preparing download…'}
+                  {(() => {
+                    if (rt.isDeleting) return 'Removing cached revisions…';
+                    if (!rt.hasFiles) return 'Connecting to HuggingFace…';
+
+                    // We have file events — compute speed
+                    const sp = speedRef.current[m.repo_id];
+                    const now = Date.now();
+                    if (sp && rt.totals.downloaded > 0) {
+                      const dt = (now - sp.lastTime) / 1000;
+                      if (dt >= 1) {
+                        sp.speed = Math.max(0, (rt.totals.downloaded - sp.lastBytes) / dt);
+                        sp.lastBytes = rt.totals.downloaded;
+                        sp.lastTime = now;
+                      }
+                    } else {
+                      speedRef.current[m.repo_id] = { lastBytes: rt.totals.downloaded, lastTime: now, speed: 0 };
+                    }
+                    const speed = rt.backendRate > 0 ? rt.backendRate : (sp?.speed || 0);
+
+                    // If total is unknown and nothing downloaded yet → still resolving
+                    if (rt.totals.total === 0 && rt.totals.downloaded === 0) {
+                      const activeFile = rt.activeFilename?.split('/').pop();
+                      return activeFile
+                        ? `Resolving ${rt.fileList.length} file${rt.fileList.length > 1 ? 's' : ''}… · ${activeFile}`
+                        : `Resolving ${rt.fileList.length} file${rt.fileList.length > 1 ? 's' : ''}…`;
+                    }
+
+                    // Build the info line
+                    const remaining = rt.totals.total - rt.totals.downloaded;
+                    const etaSec = speed > 0 && rt.totals.total > 0 ? remaining / speed : 0;
+                    const etaStr = etaSec > 0
+                      ? etaSec < 60 ? `~${Math.ceil(etaSec)}s`
+                      : etaSec < 3600 ? `~${Math.ceil(etaSec / 60)}m`
+                      : `~${(etaSec / 3600).toFixed(1)}h`
+                      : '';
+                    const dlStr = fmtBytes(rt.totals.downloaded) || '0 B';
+                    const totalStr = rt.totals.total > 0 ? fmtBytes(rt.totals.total) : '…';
+                    const pctStr = rt.aggPct != null && rt.aggPct > 0 ? `${Math.round(rt.aggPct)}%` : '';
+                    const speedStr = speed > 0 ? `${fmtBytes(speed)}/s` : '';
+
+                    const parts = [
+                      `${dlStr} / ${totalStr}`,
+                      pctStr,
+                      speedStr || (rt.totals.downloaded > 0 ? 'measuring…' : ''),
+                      etaStr,
+                    ].filter(Boolean);
+
+                    const extra = [];
+                    if (rt.fileList.length > 1) extra.push(`${rt.totals.done}/${rt.fileList.length} files`);
+                    if (rt.activeFilename) extra.push(rt.activeFilename.split('/').pop());
+
+                    return extra.length
+                      ? `${parts.join(' · ')}  ⸱  ${extra.join(' · ')}`
+                      : parts.join(' · ');
+                  })()}
                 </span>
               </div>
             )}
