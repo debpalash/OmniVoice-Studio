@@ -527,8 +527,25 @@ fn find_dev_project_root() -> Option<PathBuf> {
 }
 
 fn backend_log_path() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-    let log_dir = PathBuf::from(&home).join("Library/Logs/OmniVoice");
+    // Cross-platform log directory:
+    //   macOS:   ~/Library/Logs/OmniVoice
+    //   Linux:   $XDG_STATE_HOME/OmniVoice  or  ~/.local/state/OmniVoice
+    //   Windows: %LOCALAPPDATA%\OmniVoice\Logs
+    let log_dir = if cfg!(target_os = "macos") {
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+        PathBuf::from(home).join("Library/Logs/OmniVoice")
+    } else if cfg!(target_os = "windows") {
+        let base = std::env::var("LOCALAPPDATA")
+            .or_else(|_| std::env::var("USERPROFILE").map(|u| format!("{}\\AppData\\Local", u)))
+            .unwrap_or_else(|_| "C:\\Temp".to_string());
+        PathBuf::from(base).join("OmniVoice").join("Logs")
+    } else {
+        // Linux / other Unix
+        let base = std::env::var("XDG_STATE_HOME")
+            .or_else(|_| std::env::var("HOME").map(|h| format!("{}/.local/state", h)))
+            .unwrap_or_else(|_| "/tmp".to_string());
+        PathBuf::from(base).join("OmniVoice")
+    };
     let _ = fs::create_dir_all(&log_dir);
     log_dir.join("backend.log")
 }
@@ -723,6 +740,14 @@ fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<
     let stderr_file = fs::File::create(&err_path).ok();
 
     let mut env: Vec<(String, String)> = vec![("PYTHONUNBUFFERED".into(), "1".into())];
+    // Windows: Triton doesn't exist, so torch.compile tries to download it
+    // and fails. TORCHDYNAMO_DISABLE skips torch.compile entirely. Also
+    // disable HF symlinks (NTFS symlinks need Developer Mode / admin).
+    if cfg!(target_os = "windows") {
+        env.push(("TORCHDYNAMO_DISABLE".into(), "1".into()));
+        env.push(("HF_HUB_DISABLE_SYMLINKS_WARNING".into(), "1".into()));
+        env.push(("HF_HUB_DISABLE_SYMLINKS".into(), "1".into()));
+    }
     if let Some(ff) = ffmpeg_path {
         env.push(("OMNIVOICE_FFMPEG".into(), ff.to_string_lossy().into_owned()));
         let path_sep = if cfg!(windows) { ";" } else { ":" };
@@ -1138,10 +1163,10 @@ pub fn run() {
                 }
                 // Poll the port until the backend actually responds, then flip
                 // the splash to Ready. Bounded wait — first-run cold starts
-                // can hit 90+ s on slow disks while torch initialises, so
-                // we give it 3 min before declaring failure.
+                // on Windows can hit 120+ s while torch imports + JIT compiles
+                // CUDA kernels, so we give it 5 min before declaring failure.
                 let start = std::time::Instant::now();
-                while start.elapsed() < Duration::from_secs(180) {
+                while start.elapsed() < Duration::from_secs(300) {
                     if backend_healthy(backend_port()) {
                         set_stage(&stage_handle, BootstrapStage::Ready);
                         return;
@@ -1151,7 +1176,7 @@ pub fn run() {
                 set_stage(
                     &stage_handle,
                     BootstrapStage::Failed {
-                        message: "Backend did not respond within 180 s".to_string(),
+                        message: "Backend did not respond within 300 s".to_string(),
                     },
                 );
             });
