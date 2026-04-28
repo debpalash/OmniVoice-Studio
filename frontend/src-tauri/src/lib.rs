@@ -7,6 +7,11 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use serde::Serialize;
 use tauri::{Emitter, Manager};
+use tauri::menu::{MenuBuilder, MenuItemBuilder};
+use tauri::tray::TrayIconBuilder;
+
+// ── Auto-paste (dictation → ⌘V into active app) ─────────────────────────
+use enigo::{Direction, Enigo, Key, Keyboard, Settings as EnigoSettings};
 
 // Unique port range (3900-3902) chosen to avoid common conflicts:
 // 8000 collides with Django/Rails/Jupyter/Airflow on most dev machines.
@@ -550,6 +555,20 @@ fn backend_log_path() -> PathBuf {
     log_dir.join("backend.log")
 }
 
+/// Read the last N lines from backend_err.log for diagnostic messages.
+/// Used to surface the real Python traceback when the backend process dies.
+fn read_error_log_tail(max_lines: usize) -> String {
+    let err_path = backend_log_path().with_file_name("backend_err.log");
+    match fs::read_to_string(&err_path) {
+        Ok(content) => {
+            let lines: Vec<&str> = content.lines().collect();
+            let start = lines.len().saturating_sub(max_lines);
+            lines[start..].join("\n")
+        }
+        Err(_) => String::new(),
+    }
+}
+
 // ── ffmpeg static binary fetch (cross-platform, no extraction) ───────────
 //
 // We pull a single statically-linked binary per host platform from the
@@ -737,7 +756,10 @@ fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<
     }
 
     let stdout_file = fs::File::create(&log_path).ok();
-    let stderr_file = fs::File::create(&err_path).ok();
+    // stderr: write to file AND stream to splash events for live debugging.
+    // We pipe stderr from the child and spawn a thread that tees each line
+    // to both the log file and the Tauri event bus.
+    let err_log_file = fs::File::create(&err_path).ok();
 
     let mut env: Vec<(String, String)> = vec![("PYTHONUNBUFFERED".into(), "1".into())];
     // Windows: Triton doesn't exist, so torch.compile tries to download it
@@ -766,7 +788,7 @@ fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<
     for (k, v) in &env {
         cmd.env(k, v);
     }
-    let child = cmd
+    let mut child = match cmd
         .args([
             "-m",
             "uvicorn",
@@ -779,22 +801,42 @@ fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<
             &backend_port().to_string(),
         ])
         .stdout(stdout_file.map(Stdio::from).unwrap_or_else(Stdio::null))
-        .stderr(stderr_file.map(Stdio::from).unwrap_or_else(Stdio::null))
-        .spawn();
-    match child {
+        .stderr(Stdio::piped())
+        .spawn()
+    {
         Ok(c) => {
             log::info!(
                 "Backend started via venv python {} (pid {})",
                 python.display(),
                 c.id()
             );
-            Some(c)
+            c
         }
         Err(e) => {
             log::error!("Failed to spawn backend: {}", e);
-            None
+            return None;
         }
+    };
+
+    // Tee stderr to both the log file and splash event stream so the user
+    // can see what's happening during slow first-run imports.
+    if let Some(stderr_pipe) = child.stderr.take() {
+        let app_clone = app.clone();
+        std::thread::spawn(move || {
+            use std::io::Write;
+            let reader = BufReader::new(stderr_pipe);
+            let mut log_file = err_log_file;
+            for line in reader.lines().flatten() {
+                log::info!("[backend_stderr] {}", line);
+                emit_log(&app_clone, "starting_backend", &line);
+                if let Some(ref mut f) = log_file {
+                    let _ = writeln!(f, "{}", line);
+                }
+            }
+        });
     }
+
+    Some(child)
 }
 
 // ── Native IPC commands ──────────────────────────────────────────────────
@@ -1063,6 +1105,38 @@ fn hf_hub_cache_dir() -> PathBuf {
         .join("hub")
 }
 
+// ── Simulate paste (⌘V / Ctrl+V) for auto-typing after dictation ─────────
+#[tauri::command]
+fn simulate_paste() -> Result<(), String> {
+    // Small delay to let the OS refocus the previous app after we minimise
+    std::thread::sleep(Duration::from_millis(80));
+
+    let mut enigo = Enigo::new(&EnigoSettings::default())
+        .map_err(|e| format!("Failed to init keyboard sim: {e}"))?;
+
+    #[cfg(target_os = "macos")]
+    {
+        enigo.key(Key::Meta, Direction::Press)
+            .map_err(|e| format!("key press failed: {e}"))?;
+        enigo.key(Key::Unicode('v'), Direction::Click)
+            .map_err(|e| format!("key click failed: {e}"))?;
+        enigo.key(Key::Meta, Direction::Release)
+            .map_err(|e| format!("key release failed: {e}"))?;
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        enigo.key(Key::Control, Direction::Press)
+            .map_err(|e| format!("key press failed: {e}"))?;
+        enigo.key(Key::Unicode('v'), Direction::Click)
+            .map_err(|e| format!("key click failed: {e}"))?;
+        enigo.key(Key::Control, Direction::Release)
+            .map_err(|e| format!("key release failed: {e}"))?;
+    }
+
+    Ok(())
+}
+
 // ── Tauri entry ───────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1073,6 +1147,7 @@ pub fn run() {
             get_sysinfo,
             read_log_tail,
             hf_cache_scan,
+            simulate_paste,
         ])
         .setup(|app| {
             app.handle().plugin(tauri_plugin_dialog::init())?;
@@ -1092,6 +1167,93 @@ pub fn run() {
                     ])
                     .build(),
             )?;
+
+            // ── Global shortcut: ⌘+⇧+Space (system-wide dictation) ──────────
+            {
+                use tauri_plugin_global_shortcut::{
+                    Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState,
+                };
+                let dictation_shortcut = Shortcut::new(
+                    Some(Modifiers::META | Modifiers::SHIFT),
+                    Code::Space,
+                );
+                app.handle().plugin(
+                    tauri_plugin_global_shortcut::Builder::new()
+                        .with_handler(move |app_handle, shortcut, event| {
+                            if event.state == ShortcutState::Pressed
+                                && *shortcut == dictation_shortcut
+                            {
+                                log::info!("Global shortcut triggered: dictation");
+                                // Show + focus the window so CaptureButton can record
+                                if let Some(win) = app_handle.get_webview_window("main") {
+                                    let _ = win.show();
+                                    let _ = win.set_focus();
+                                }
+                                let _ = app_handle.emit("tray-dictate", ());
+                            }
+                        })
+                        .build(),
+                )?;
+                // Register the shortcut
+                match app.global_shortcut().register(dictation_shortcut) {
+                    Ok(()) => log::info!("Global shortcut ⌘⇧Space registered"),
+                    Err(e) => log::warn!("Failed to register global shortcut: {e}"),
+                }
+            }
+
+            // ── System tray ──────────────────────────────────────────────────
+            let show_i = MenuItemBuilder::new("Show OmniVoice")
+                .id("show")
+                .build(app)?;
+            let dictate_i = MenuItemBuilder::new("Start Dictation  ⌘⇧Space")
+                .id("dictate")
+                .build(app)?;
+            let settings_i = MenuItemBuilder::new("Settings")
+                .id("settings")
+                .build(app)?;
+            let quit_i = MenuItemBuilder::new("Quit OmniVoice")
+                .id("quit")
+                .build(app)?;
+
+            let tray_menu = MenuBuilder::new(app)
+                .item(&show_i)
+                .separator()
+                .item(&dictate_i)
+                .item(&settings_i)
+                .separator()
+                .item(&quit_i)
+                .build()?;
+
+            let _tray = TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .menu(&tray_menu)
+                .tooltip("OmniVoice Studio")
+                .on_menu_event(|app, event| {
+                    match event.id().as_ref() {
+                        "show" => {
+                            if let Some(win) = app.get_webview_window("main") {
+                                let _ = win.show();
+                                let _ = win.set_focus();
+                            }
+                        }
+                        "dictate" => {
+                            // Emit to frontend → CaptureButton listens for this
+                            let _ = app.emit("tray-dictate", ());
+                        }
+                        "settings" => {
+                            if let Some(win) = app.get_webview_window("main") {
+                                let _ = win.show();
+                                let _ = win.set_focus();
+                            }
+                            let _ = app.emit("tray-navigate", "settings");
+                        }
+                        "quit" => {
+                            app.exit(0);
+                        }
+                        _ => {}
+                    }
+                })
+                .build(app)?;
 
             // ── Enable microphone / camera on Linux (WebKitGTK) ──────────
             // WebKitGTK has no browser-style permission dialog; it denies
@@ -1165,19 +1327,62 @@ pub fn run() {
                 // the splash to Ready. Bounded wait — first-run cold starts
                 // on Windows can hit 120+ s while torch imports + JIT compiles
                 // CUDA kernels, so we give it 5 min before declaring failure.
+                //
+                // FIX(#30): Also check if the child process has died — if so,
+                // fail immediately with the actual error instead of waiting
+                // the full 300 s for a dead process.
                 let start = std::time::Instant::now();
                 while start.elapsed() < Duration::from_secs(300) {
                     if backend_healthy(backend_port()) {
                         set_stage(&stage_handle, BootstrapStage::Ready);
                         return;
                     }
+                    // Check if backend process crashed
+                    let process_dead = if let Ok(mut guard) = app_handle.state::<BackendState>().process.lock() {
+                        match guard.as_mut() {
+                            Some(child) => match child.try_wait() {
+                                Ok(Some(status)) => Some(status.to_string()),
+                                Ok(None) => None,        // still running
+                                Err(_) => Some("unknown".to_string()),
+                            },
+                            None => Some("never started".to_string()),
+                        }
+                    } else {
+                        None
+                    };
+                    if let Some(exit_info) = process_dead {
+                        let err_tail = read_error_log_tail(30);
+                        let msg = if err_tail.is_empty() {
+                            format!("Backend process exited ({}) — no error output captured", exit_info)
+                        } else {
+                            format!(
+                                "Backend process exited ({}):\n{}",
+                                exit_info,
+                                err_tail
+                            )
+                        };
+                        log::error!("Backend died early: {}", msg);
+                        set_stage(
+                            &stage_handle,
+                            BootstrapStage::Failed { message: msg },
+                        );
+                        return;
+                    }
                     std::thread::sleep(Duration::from_millis(500));
                 }
+                // Timeout — include error log tail for diagnostics
+                let err_tail = read_error_log_tail(20);
+                let msg = if err_tail.is_empty() {
+                    "Backend did not respond within 300 s".to_string()
+                } else {
+                    format!(
+                        "Backend did not respond within 300 s. Last stderr output:\n{}",
+                        err_tail
+                    )
+                };
                 set_stage(
                     &stage_handle,
-                    BootstrapStage::Failed {
-                        message: "Backend did not respond within 300 s".to_string(),
-                    },
+                    BootstrapStage::Failed { message: msg },
                 );
             });
             Ok(())

@@ -368,13 +368,20 @@ class FasterWhisperBackend(ASRBackend):
 
 # ── MLX Whisper (Apple Silicon optional) ────────────────────────────────────
 
+# Default model for general transcription (dub pipeline etc.)
+_MLX_MODEL_DEFAULT = "mlx-community/whisper-large-v3-mlx"
+# Turbo model for dictation / capture — 5× faster, 0.8B params vs 1.5B.
+_MLX_MODEL_TURBO = "mlx-community/whisper-large-v3-turbo"
+
 
 class MLXWhisperBackend(ASRBackend):
     id = "mlx-whisper"
     display_name = "MLX Whisper (Apple Silicon CoreML)"
 
-    def __init__(self):
-        self._model_name = os.environ.get("ASR_MODEL", "mlx-community/whisper-large-v3-mlx")
+    def __init__(self, model_name: str | None = None):
+        self._model_name = model_name or os.environ.get(
+            "ASR_MODEL", _MLX_MODEL_DEFAULT,
+        )
 
     @classmethod
     def is_available(cls) -> tuple[bool, str]:
@@ -389,7 +396,10 @@ class MLXWhisperBackend(ASRBackend):
 
     def transcribe(self, audio_path: str, *, word_timestamps: bool = True) -> dict:
         import mlx_whisper
-        logger.info("MLX Whisper transcribing %s (word_timestamps=%s)", audio_path, word_timestamps)
+        logger.info(
+            "MLX Whisper transcribing %s (model=%s, word_timestamps=%s)",
+            audio_path, self._model_name, word_timestamps,
+        )
         result = mlx_whisper.transcribe(
             audio_path,
             path_or_hf_repo=self._model_name,
@@ -543,3 +553,32 @@ def get_active_asr_backend(*, asr_pipe=None) -> ASRBackend:
     if bid not in _REGISTRY:
         raise ValueError(f"Unknown ASR backend: {bid!r}. Known: {list(_REGISTRY)}")
     return _REGISTRY[bid]()
+
+
+def get_capture_asr_backend() -> ASRBackend:
+    """Pick the fastest ASR engine for capture / dictation.
+
+    Priority order (speed-first — word alignment is unnecessary for
+    dictation, so we skip WhisperX's forced-alignment overhead):
+
+      1. mlx-whisper Turbo  — Apple Silicon, ~5× faster than large-v3
+      2. mlx-whisper large  — still native Metal, faster than CPU int8
+      3. faster-whisper     — cross-platform CTranslate2 fallback
+      4. pytorch-whisper    — last resort
+
+    The caller should also pass ``word_timestamps=False`` to the returned
+    backend to skip per-word timing and shave another ~30% latency.
+    """
+    # Prefer MLX Turbo on Apple Silicon
+    ok, _ = MLXWhisperBackend.is_available()
+    if ok:
+        # Use Turbo model for maximum speed
+        return MLXWhisperBackend(model_name=_MLX_MODEL_TURBO)
+
+    # Fall back to faster-whisper (CPU int8 on non-Apple)
+    ok, _ = FasterWhisperBackend.is_available()
+    if ok:
+        return FasterWhisperBackend()
+
+    # Last resort
+    return PyTorchWhisperBackend()

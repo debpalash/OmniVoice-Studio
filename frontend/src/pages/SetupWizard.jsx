@@ -98,22 +98,7 @@ export default function SetupWizard({ onReady }) {
 
   return (
     <div className="setup-wizard">
-      <div
-        data-tauri-drag-region
-        onDoubleClick={doubleClickMaximize}
-        className="setup-wizard__hero"
-      >
-        <div className="setup-wizard__brand">
-          <img src="/favicon.svg" alt="" className="setup-wizard__logo" />
-          <h1 data-tauri-drag-region>OmniVoice Studio</h1>
-        </div>
-        <p className="setup-wizard__sub" data-tauri-drag-region>
-          Dubbing, voice cloning, and voice design — all running locally on
-          your machine. Four quick steps and you're in.
-        </p>
-      </div>
-
-      <div className="setup-wizard__steps">
+      <div className="setup-wizard__steps" data-tauri-drag-region>
         {['Welcome', 'System check', 'Install models', 'Pick engines'].map((label, i) => (
           <button
             key={label}
@@ -124,10 +109,26 @@ export default function SetupWizard({ onReady }) {
             ].filter(Boolean).join(' ')}
             onClick={() => setStep(i)}
             type="button"
+            aria-current={step === i ? 'step' : undefined}
+            aria-label={`Step ${i + 1}: ${label}${step > i ? ' (completed)' : ''}`}
           >
             {step > i ? '✓ ' : `${i + 1}. `}{label}
           </button>
         ))}
+      </div>
+
+      <div
+        data-tauri-drag-region
+        onDoubleClick={doubleClickMaximize}
+        className="setup-wizard__hero"
+      >
+        <img src="/favicon.svg" alt="" className="setup-wizard__logo" />
+        <div className="setup-wizard__hero-text">
+          <h1 data-tauri-drag-region>OmniVoice Studio</h1>
+          <span className="setup-wizard__sub" data-tauri-drag-region>
+            Dubbing, voice cloning, and voice design — all running locally on your machine.
+          </span>
+        </div>
       </div>
 
       {/* 0. Welcome */}
@@ -204,6 +205,12 @@ export default function SetupWizard({ onReady }) {
         <>
           <div className="setup-wizard__embed">
             <ModelStoreTab info={null} modelBadge={null} />
+            {!modelsReady && status?.missing?.length > 0 && (
+              <p className="setup-wizard__muted swiz-missing" style={{ marginTop: 8 }}>
+                Still needed:{' '}
+                {status.missing.map(m => m.label).join(', ')}
+              </p>
+            )}
           </div>
           <div className="setup-wizard__nav">
             <Button variant="ghost" onClick={() => setStep(1)}>Back</Button>
@@ -219,12 +226,6 @@ export default function SetupWizard({ onReady }) {
                 : 'Waiting for required models…'}
             </Button>
           </div>
-          {!modelsReady && status?.missing?.length > 0 && (
-            <p className="setup-wizard__muted swiz-missing">
-              Still needed:{' '}
-              {status.missing.map(m => m.label).join(', ')}
-            </p>
-          )}
         </>
       )}
 
@@ -254,7 +255,7 @@ export default function SetupWizard({ onReady }) {
       )}
 
       <p className="setup-wizard__footnote">
-        Downloads come from <code>huggingface.co</code>. Cache: {' '}
+        Downloads come from <code>huggingface.co</code>. Cache:{' '}
         <code>{status?.hf_cache_dir || '~/.cache/huggingface'}</code>
       </p>
     </div>

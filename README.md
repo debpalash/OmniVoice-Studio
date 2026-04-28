@@ -111,12 +111,12 @@ Built on the [OmniVoice](https://github.com/k2-fsa/OmniVoice) 600-language zero-
 - **Multi-Speaker Diarization** — Pyannote + WhisperX fusion auto-identifies speakers and assigns unique voice profiles.
 
 ### Studio Tools
-- **Voice Capture** — Press `⌘+⇧+Space` to record from your mic, transcribe, and copy to clipboard. Global dictation.
+- **Voice Capture** — Press `⌘+⇧+Space` **from any app** to dictate. Global system-wide hotkey records, transcribes, and auto-pastes into the active text field. Live partial results stream via WebSocket while you speak.
 - **Speaker Casting** — Visual speaker-to-voice assignment grid. Auto-cast from video clones or assign saved profiles.
 - **Voice Preview** — Floating widget for instant 8-step TTS testing. Try voices without leaving the workspace.
 - **Real-time Dub Preview** — Edit a segment's text, preview the audio instantly without full re-render.
 - **Multi-Language Batch** — Select multiple target languages, dub to all in one pass.
-- **Batch Queue** — Drag-and-drop bulk video processing with sequential GPU execution.
+- **Batch Queue** — Drag-and-drop bulk video processing. Full pipeline: extract → transcribe → translate → generate → mix → export. Real-time progress bars per job.
 - **Voice Library** — Browse, favorite, tag, and convert gallery clips into permanent voice profiles.
 - **A/B Comparison** — Side-by-side voice audition for casting decisions.
 
@@ -129,6 +129,8 @@ Built on the [OmniVoice](https://github.com/k2-fsa/OmniVoice) 600-language zero-
 ### Technical
 - **Cross-Platform GPU** — Auto-detects CUDA, Apple Silicon (MPS), ROCm, or CPU. Includes automatic cuDNN 8/9 compatibility handling.
 - **VRAM-Aware** — Automatically offloads TTS to CPU during transcription on ≤8 GB GPUs. Zero config.
+- **Streaming ASR** — WebSocket-based speech-to-text (`/ws/transcribe`) delivers live partial results during recording. 2s buffer interval, configurable.
+- **Auto-Paste** — Dictated text is automatically pasted into the active app via system keyboard simulation (macOS Accessibility / Windows SendInput).
 - **Live Telemetry** — Real-time CPU/RAM/VRAM stats with model warm-up indicator.
 - **Keyboard-First** — `⌘+Enter` generate, `⌘+S` save, `⌘+Z`/`⌘+⇧+Z` undo/redo.
 
@@ -298,6 +300,8 @@ chmod +x OmniVoice.Studio_*.AppImage
 | **State Management** | Zustand store migration — `uiSlice`, `pillSlice`, `dubSlice`, `generateSlice`, `prefsSlice`, `glossarySlice` |
 | **Desktop** | Cross-platform Tauri installers (macOS DMG, Windows MSI, Linux deb/AppImage), auto-update infrastructure |
 | **Windows Hardening** | Cross-platform log paths, Triton workaround, HF symlink bypass, 300s health check timeout |
+| **Dictation** | Global system-wide hotkey (`⌘+⇧+Space`), streaming ASR via WebSocket, auto-paste into active app |
+| **Batch Pipeline** | Full batch TTS: extract → transcribe → translate → generate → mix → export, with live progress tracking |
 
 ### 🔜 Roadmap — completed ✅
 

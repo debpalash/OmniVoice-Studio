@@ -39,6 +39,13 @@ models:
     size_gb: 3.0
     platforms: [darwin-arm64]
 
+  - repo_id: "mlx-community/whisper-large-v3-turbo"
+    label: "Whisper large-v3 Turbo (MLX — fastest dictation)"
+    role: ASR
+    size_gb: 1.6
+    platforms: [darwin-arm64]
+    note: "5× faster than large-v3, 0.8B params. Best for live dictation on Apple Silicon."
+
   - repo_id: "openai/whisper-large-v3"
     label: "Whisper large-v3 (PyTorch — last-resort fallback)"
     role: ASR

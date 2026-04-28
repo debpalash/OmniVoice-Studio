@@ -205,6 +205,20 @@ function App() {
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, []);
+
+  // Listen for tray navigation events (Tauri desktop)
+  useEffect(() => {
+    let unlisten;
+    (async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        unlisten = await listen('tray-navigate', (ev) => {
+          if (ev.payload) setMode(ev.payload);
+        });
+      } catch { /* not in Tauri */ }
+    })();
+    return () => { if (unlisten) unlisten(); };
+  }, [setMode]);
   const flipNavRailSide = useCallback(() => {
     setNavRailSide(prev => {
       const next = prev === 'left' ? 'right' : 'left';

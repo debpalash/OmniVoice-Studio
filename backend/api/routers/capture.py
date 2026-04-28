@@ -31,14 +31,16 @@ async def transcribe_audio(
     audio: UploadFile = File(...),
     language: Optional[str] = Form(None),
     model: Optional[str] = Form(None),
+    mode: Optional[str] = Form(None),
 ):
     """Transcribe an audio file to text.
 
     Args:
         audio: The audio file to transcribe.
         language: Optional language hint (not currently used; auto-detected).
-        model: Whisper model size ('tiny', 'base', 'small', 'medium', 'large-v3').
-               Defaults to the server's configured ASR model.
+        model: Whisper model size (legacy; ignored in dual-mode architecture).
+        mode: 'fast' (default) uses MLX Turbo for speed; 'accurate' uses
+              WhisperX with forced alignment for word-level timing.
 
     Returns:
         {
@@ -46,23 +48,13 @@ async def transcribe_audio(
             "segments": [ {"start": 0.0, "end": 1.5, "text": "..."}, ... ],
             "language": "en",
             "duration_s": 4.2,
-            "transcription_time_s": 0.8
+            "transcription_time_s": 0.8,
+            "engine": "mlx-whisper"
         }
     """
-    from services.model_manager import get_model, _gpu_pool
     import asyncio
 
-    _model = await get_model()
-    if _model._asr_pipe is None:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "ASR model isn't loaded. Wait for the model to finish warming "
-                "up, or check Settings → Models."
-            ),
-        )
-
-    # Save upload to a temp file (WhisperX needs a file path)
+    # Save upload to a temp file (all backends need a file path)
     ext = os.path.splitext(audio.filename or "audio.wav")[1] or ".wav"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
     try:
@@ -70,22 +62,28 @@ async def transcribe_audio(
         tmp.write(content)
         tmp.close()
 
-        chosen_model = model  # captured in closure
+        use_accurate = (mode or "").strip().lower() == "accurate"
 
         def _run():
-            from services.asr_backend import get_active_asr_backend
+            if use_accurate:
+                # Accurate mode: full WhisperX with forced alignment —
+                # for when the user explicitly wants word-level timing.
+                from services.asr_backend import get_active_asr_backend
+                backend = get_active_asr_backend()
+                result = backend.transcribe(tmp.name, word_timestamps=True)
+            else:
+                # Fast mode (default): use the fastest available engine
+                # (MLX Turbo on Apple Silicon). Skip word_timestamps for
+                # ~30% latency reduction — dictation doesn't need them.
+                from services.asr_backend import get_capture_asr_backend
+                backend = get_capture_asr_backend()
+                result = backend.transcribe(tmp.name, word_timestamps=False)
+            return result, backend.id
 
-            backend = get_active_asr_backend(asr_pipe=_model._asr_pipe)
-            # If user chose a specific model and the backend supports it,
-            # override the default. Otherwise fall through to the default.
-            if chosen_model and hasattr(backend, 'model_size'):
-                backend.model_size = chosen_model
-            result = backend.transcribe(tmp.name)
-            return result
-
+        from services.model_manager import _gpu_pool
         loop = asyncio.get_event_loop()
         t0 = time.perf_counter()
-        result = await loop.run_in_executor(_gpu_pool, _run)
+        result, engine_id = await loop.run_in_executor(_gpu_pool, _run)
         elapsed = round(time.perf_counter() - t0, 2)
 
         # Normalize result shape
@@ -101,6 +99,11 @@ async def transcribe_audio(
 
         detected_lang = result.get("language", language or "unknown")
 
+        logger.info(
+            "Capture transcription done: engine=%s, elapsed=%.2fs, duration=%.1fs, mode=%s",
+            engine_id, elapsed, duration, "accurate" if use_accurate else "fast",
+        )
+
         return {
             "text": full_text,
             "segments": [
@@ -114,6 +117,7 @@ async def transcribe_audio(
             "language": detected_lang,
             "duration_s": round(duration, 2),
             "transcription_time_s": elapsed,
+            "engine": engine_id,
         }
     finally:
         try:

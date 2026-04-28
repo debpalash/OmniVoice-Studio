@@ -103,6 +103,35 @@ export function ModelStoreTab({ info, modelBadge }) {
   // Track download speed per repo: { [repo_id]: { lastBytes, lastTime, speed } }
   const speedRef = React.useRef({});
 
+  // HF token inline — compact input in the toolbar
+  const [hfToken, setHfToken] = useState('');
+  const [hfSaved, setHfSaved] = useState(false);
+  const [hfSaving, setHfSaving] = useState(false);
+  const [hfExpanded, setHfExpanded] = useState(false);
+  const saveHfToken = async () => {
+    const value = hfToken.trim();
+    if (!value) return;
+    setHfSaving(true);
+    try {
+      const res = await fetch(`${API}/system/set-env`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'HF_TOKEN', value }),
+      });
+      if (res.ok) {
+        toast.success('HuggingFace token set — faster downloads enabled');
+        setHfSaved(true);
+        setHfToken('');
+        setHfExpanded(false);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.detail || 'Failed to save token');
+      }
+    } catch (e) { toast.error(`Save failed: ${e.message}`); }
+    finally { setHfSaving(false); }
+  };
+  const hfTokenSet = hfSaved || info?.has_hf_token;
+
   // Open the progress stream once when the tab mounts; close on unmount.
   useEffect(() => {
     const es = new EventSource(setupDownloadStreamUrl());
@@ -323,18 +352,30 @@ export function ModelStoreTab({ info, modelBadge }) {
                             speedRef.current[m.repo_id] = { lastBytes: rt.totals.downloaded, lastTime: now, speed: 0 };
                           }
                           const speed = sp?.speed || 0;
-                          const speedStr = speed > 0 ? ` · ${fmtBytes(speed)}/s` : '';
-                          const pctStr = rt.aggPct != null ? ` (${Math.round(rt.aggPct)}%)` : '';
+                          const remaining = rt.totals.total - rt.totals.downloaded;
+                          const etaSec = speed > 0 ? remaining / speed : 0;
+                          const etaStr = etaSec > 0
+                            ? etaSec < 60 ? `~${Math.ceil(etaSec)}s left`
+                            : etaSec < 3600 ? `~${Math.ceil(etaSec / 60)}m left`
+                            : `~${(etaSec / 3600).toFixed(1)}h left`
+                            : '';
+                          const pctStr = rt.aggPct != null ? `${Math.round(rt.aggPct)}%` : '';
                           const parts = [
-                            `${fmtBytes(rt.totals.downloaded)}${rt.totals.total ? ` / ${fmtBytes(rt.totals.total)}` : ''}${pctStr}${speedStr}`,
-                          ];
+                            `${fmtBytes(rt.totals.downloaded)} / ${rt.totals.total ? fmtBytes(rt.totals.total) : '?'}`,
+                            pctStr,
+                            speed > 0 ? `${fmtBytes(speed)}/s` : null,
+                            etaStr || null,
+                          ].filter(Boolean);
+                          const extra = [];
                           if (rt.fileList.length > 1) {
-                            parts.push(`${rt.totals.done}/${rt.fileList.length} files`);
+                            extra.push(`${rt.totals.done}/${rt.fileList.length} files`);
                           }
                           if (rt.activeFilename) {
-                            parts.push(rt.activeFilename.split('/').pop());
+                            extra.push(rt.activeFilename.split('/').pop());
                           }
-                          return parts.join(' · ');
+                          return extra.length
+                            ? `${parts.join(' · ')}  ⸱  ${extra.join(' · ')}`
+                            : parts.join(' · ');
                         })()
                       : 'Preparing download…'}
                 </span>
@@ -363,6 +404,11 @@ export function ModelStoreTab({ info, modelBadge }) {
       meta: { align: 'right', className: 'models-row__size' },
       cell: ({ row }) => {
         const m = row.original;
+        const rt = getRowRuntime(m);
+        // During active download, show live downloaded / total
+        if (rt.showBar && rt.hasFiles && rt.totals.total > 0) {
+          return <span className="models-row__size-live">{fmtBytes(rt.totals.downloaded)}<span className="models-row__size-sep">/</span>{fmtBytes(rt.totals.total)}</span>;
+        }
         return m.installed ? fmtBytes(m.size_on_disk_bytes) : `${m.size_gb} GB`;
       },
     },
@@ -489,54 +535,97 @@ export function ModelStoreTab({ info, modelBadge }) {
     <section className="settings-section settings-section--compact">
       <div className="models-toolbar">
         <div className="models-toolbar__stats">
-          <span><strong>{fmtBytes(data.total_installed_bytes)}</strong> on disk</span>
+          <span><strong>{fmtBytes(data.total_installed_bytes)}</strong></span>
           <span className="models-toolbar__sep">·</span>
-          <span className="models-toolbar__cache">cache: <code>{data.hf_cache_dir}</code></span>
+          <span className="models-toolbar__cache" title={data.hf_cache_dir}><code>{data.hf_cache_dir?.replace(/^\/Users\/[^/]+/, '~')}</code></span>
           {info && <span className="models-toolbar__sep">·</span>}
-          {info && <span>model: {modelBadge}</span>}
+          {info && <span>{modelBadge}</span>}
         </div>
-        <Button variant="subtle" size="sm" onClick={reload} loading={loading} leading={<RefreshCw size={11} />}>
-          Refresh
-        </Button>
+        <div className="models-toolbar__actions">
+          {/* Compact HF token inline */}
+          {!hfTokenSet && !hfExpanded && (
+            <button
+              className="models-toolbar__hf-btn"
+              onClick={() => setHfExpanded(true)}
+              title="Set HuggingFace token for faster downloads"
+            >
+              <KeyRound size={11} /> HF Token
+            </button>
+          )}
+          {!hfTokenSet && hfExpanded && (
+            <div className="models-toolbar__hf-row">
+              <input
+                type="password"
+                className="models-toolbar__hf-input"
+                placeholder="hf_xxxxxxxxxxxx"
+                value={hfToken}
+                onChange={e => setHfToken(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') saveHfToken(); if (e.key === 'Escape') setHfExpanded(false); }}
+                autoFocus
+              />
+              <Button size="sm" variant="subtle" onClick={saveHfToken} disabled={hfSaving || !hfToken.trim()} loading={hfSaving}>
+                Save
+              </Button>
+            </div>
+          )}
+          {hfTokenSet && (
+            <span className="models-toolbar__hf-ok"><KeyRound size={10} /> ✓</span>
+          )}
+          <Button variant="subtle" size="sm" onClick={reload} loading={loading} leading={<RefreshCw size={11} />}>
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {reco && reco.all_installed && (
-        <div className="mb-4 flex items-center gap-3 rounded-[var(--chrome-radius-pill)] border border-[color-mix(in_srgb,#8ec07c_30%,transparent)] border-l-2 border-l-[#8ec07c] bg-[color-mix(in_srgb,#8ec07c_5%,transparent)] px-4 py-[6px] font-[var(--font-sans)] text-[var(--text-sm)] text-[var(--chrome-fg-muted)]">
+        <div className="reco-banner reco-banner--ok">
           <CheckCircle size={12} color="#8ec07c" />
-          <span className="flex-1">
-            Recommended bundle installed for <strong>{reco.device.label}</strong>
-          </span>
-          <span className="text-[var(--text-xs)] text-[var(--chrome-fg-dim)]">{reco.total_gb} GB</span>
+          <span className="flex-1">Recommended bundle installed for <strong>{reco.device.label}</strong></span>
+          <span className="reco-banner__gb">{reco.total_gb} GB</span>
         </div>
       )}
       {reco && !reco.all_installed && (
-        <div className="mb-4 flex flex-wrap items-start gap-3 rounded-[var(--chrome-radius-pill)] border border-[color-mix(in_srgb,#f3a5b6_30%,transparent)] border-l-2 border-l-[#f3a5b6] bg-[color-mix(in_srgb,#f3a5b6_5%,transparent)] px-4 py-2.5">
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <div className="text-[var(--text-sm)] font-semibold text-[var(--chrome-fg)]">Recommended for {reco.device.label}</div>
-            <div className="text-[var(--text-xs)] leading-[1.4] text-[var(--chrome-fg-muted)]">{reco.rationale}</div>
-            <div className="mt-1 flex flex-col gap-0.5">
-              {reco.models.map(m => (
-                <span key={m.repo_id} className={`inline-flex items-center gap-2 text-[var(--text-xs)] leading-[1.5] ${m.installed ? 'text-[var(--chrome-fg)]' : 'text-[var(--chrome-fg-muted)]'}`}>
-                  {m.installed ? '✓' : '○'} {m.label}
-                  <span className="font-[var(--chrome-font-mono)] text-[var(--text-2xs)] text-[var(--chrome-fg-dim)]">{m.size_gb} GB</span>
-                  {m.required && (
-                    <span className="rounded-[var(--chrome-radius-pill,999px)] border border-[color-mix(in_srgb,#d3869b_35%,transparent)] px-1 text-[0.58rem] uppercase tracking-[0.04em] text-[#d3869b]">
-                      required
-                    </span>
-                  )}
-                </span>
-              ))}
+        <div className="reco-banner reco-banner--pending">
+          <div className="reco-banner__top">
+            <span className="reco-banner__title">Recommended for {reco.device.label}</span>
+            <div className="reco-banner__btns">
+              {(() => {
+                const requiredMissing = reco.models.filter(m => m.required && !m.installed);
+                const requiredGb = requiredMissing.reduce((s, m) => s + m.size_gb, 0);
+                if (requiredMissing.length === 0) return null;
+                return (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={async () => {
+                      setInstallingReco(true);
+                      try {
+                        await Promise.all(requiredMissing.map(m => installMutation.mutateAsync(m.repo_id)));
+                        toast.success(`Started downloading ${requiredMissing.length} required model${requiredMissing.length > 1 ? 's' : ''}`);
+                      } catch (e) { toast.error(`Install failed: ${e.message || e}`); }
+                      finally { setInstallingReco(false); }
+                    }}
+                    disabled={installingReco}
+                    leading={installingReco ? <RefreshCw size={12} className="spinner" /> : null}
+                  >
+                    {installingReco ? 'Starting…' : `Required ~${requiredGb.toFixed(1)} GB`}
+                  </Button>
+                );
+              })()}
+              <Button variant="subtle" size="sm" onClick={onInstallRecommended} disabled={installingReco}>
+                {`All ~${reco.download_gb_remaining} GB`}
+              </Button>
             </div>
           </div>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onInstallRecommended}
-            disabled={installingReco}
-            leading={installingReco ? <RefreshCw size={12} className="spinner" /> : null}
-          >
-            {installingReco ? 'Starting…' : `Install ~${reco.download_gb_remaining} GB`}
-          </Button>
+          <div className="reco-banner__grid">
+            {reco.models.map(m => (
+              <span key={m.repo_id} className={`reco-banner__model ${m.installed ? 'reco-banner__model--ok' : ''}`}>
+                {m.installed ? '✓' : '○'} {m.label}
+                <span className="reco-banner__model-size">{m.size_gb}</span>
+                {m.required && <span className="reco-banner__req">req</span>}
+              </span>
+            ))}
+          </div>
         </div>
       )}
 
@@ -961,11 +1050,6 @@ export default function Settings() {
 
   return (
     <div className="settings-page">
-      <h1>Settings</h1>
-      <div className="settings-subtitle">
-        Where your files live, what the model's doing, and what's gone wrong lately.
-      </div>
-
       <Tabs
         items={TABS}
         value={activeTab}

@@ -2,12 +2,12 @@
    Chrome tokens only: every surface here should rhyme with the status bar. */
 
 /* Tighter page chrome — reclaim whitespace around title and section padding. */
-.settings-page                   { padding: 18px 28px 32px; }
+.settings-page                   { padding: 10px 24px 24px; }
 .settings-page h1                { font-size: 1.15rem; margin: 0 0 2px; }
 .settings-page .settings-subtitle{ font-size: 0.72rem; margin-bottom: 14px; }
 .settings-tabs-ui                { margin-bottom: var(--space-3); }
 
-.settings-section--compact       { padding: 10px 12px; margin-bottom: 10px; }
+.settings-section--compact       { padding: 8px 10px; margin-bottom: 8px; }
 
 .settings-row__mono     { font-family: var(--chrome-font-mono); color: var(--chrome-fg-muted); }
 .settings-muted         { color: var(--chrome-fg-dim); font-size: var(--text-md); font-family: var(--font-sans); }
@@ -102,7 +102,7 @@
   align-items: center;
   gap: var(--space-3);
   padding: 6px var(--space-4);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
   border: 1px solid color-mix(in srgb, #8ec07c 30%, transparent);
   border-left: 2px solid #8ec07c;
   border-radius: var(--chrome-radius-pill);
@@ -134,7 +134,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: 4px 2px 10px;
+  padding: 2px 2px 6px;
   font-family: var(--chrome-font-mono);
   font-size: var(--text-xs);
   color: var(--chrome-fg-muted);
@@ -150,49 +150,86 @@
 .models-toolbar__sep          { color: var(--chrome-fg-dim); }
 .models-toolbar__cache code   { color: var(--chrome-fg); font-family: var(--chrome-font-mono); font-size: var(--text-xs); }
 
-.models-roletabs { margin: 8px 0 10px; }
+.models-roletabs { margin: 4px 0 6px; }
 
-.reco-banner--action {
-  align-items: flex-start;
-  padding: 10px var(--space-4);
-  border-left-color: #f3a5b6;
-  border-color: color-mix(in srgb, #f3a5b6 30%, transparent);
-  background: color-mix(in srgb, #f3a5b6 5%, transparent);
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-.reco-banner__body      { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.reco-banner__title     { color: var(--chrome-fg); font-weight: 600; font-size: var(--text-sm); }
-.reco-banner__rationale { color: var(--chrome-fg-muted); font-size: var(--text-xs); line-height: 1.4; }
-
-.reco-banner__models {
+/* ── Compact recommendation banner ───────────────────────────────── */
+.reco-banner {
   display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: var(--text-xs);
+  color: var(--chrome-fg-muted);
+  border: 1px solid;
+  border-left-width: 2px;
+}
+.reco-banner--ok {
+  border-color: color-mix(in srgb, #8ec07c 30%, transparent);
+  border-left-color: #8ec07c;
+  background: color-mix(in srgb, #8ec07c 4%, transparent);
+}
+.reco-banner--pending {
   flex-direction: column;
-  gap: 2px;
-  margin-top: 4px;
+  align-items: stretch;
+  gap: 4px;
+  padding: 6px 10px 8px;
+  border-color: color-mix(in srgb, #f3a5b6 25%, transparent);
+  border-left-color: #f3a5b6;
+  background: color-mix(in srgb, #f3a5b6 3%, transparent);
+}
+.reco-banner__gb {
+  font-size: var(--text-2xs);
+  color: var(--chrome-fg-dim);
+}
+.reco-banner__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.reco-banner__title {
+  font-weight: 600;
+  font-size: 0.76rem;
+  color: var(--chrome-fg);
+}
+.reco-banner__btns {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.reco-banner__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0 16px;
+  font-size: 0.68rem;
+  line-height: 1.6;
 }
 .reco-banner__model {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-xs);
+  gap: 4px;
   color: var(--chrome-fg-muted);
-  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.reco-banner__model.is-installed { color: var(--chrome-fg); }
+.reco-banner__model--ok { color: var(--chrome-fg); }
 .reco-banner__model-size {
-  color: var(--chrome-fg-dim);
   font-family: var(--chrome-font-mono);
-  font-size: var(--text-2xs);
+  font-size: 0.6rem;
+  color: var(--chrome-fg-dim);
 }
-.reco-banner__model-req {
-  font-size: var(--chrome-label-size, 0.58rem);
+.reco-banner__req {
+  font-size: 0.54rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #d3869b;
-  padding: 0 4px;
-  border: 1px solid color-mix(in srgb, #d3869b 35%, transparent);
-  border-radius: var(--chrome-radius-pill, 999px);
+  padding: 0 3px;
+  border: 1px solid color-mix(in srgb, #d3869b 30%, transparent);
+  border-radius: 999px;
+  line-height: 1.5;
 }
 
 /* Table — dense rows, fixed-width action column. */
@@ -296,12 +333,22 @@
 .models-row__role     { color: var(--chrome-fg-muted); font-size: var(--text-xs); font-family: var(--chrome-font-mono); text-transform: uppercase; letter-spacing: 0.03em; }
 .models-row__progress { color: var(--chrome-accent); font-size: var(--text-xs); font-family: var(--chrome-font-mono); margin-top: 2px; }
 .models-row__progressline {
-  display: flex; flex-direction: column; gap: 5px; margin-top: 8px;
+  display: flex; flex-direction: column; gap: 3px; margin-top: 6px;
 }
 .models-row__progresstext {
   color: var(--chrome-fg-muted); font-size: var(--text-xs);
   font-family: var(--chrome-font-mono); font-variant-numeric: tabular-nums;
   line-height: 1.4;
+}
+.models-row__size-live {
+  font-family: var(--chrome-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xs);
+  color: var(--chrome-accent, #fe8019);
+}
+.models-row__size-sep {
+  color: var(--chrome-fg-dim);
+  margin: 0 1px;
 }
 .models-row__error {
   color: var(--chrome-danger, #fb4934); font-size: var(--text-xs);

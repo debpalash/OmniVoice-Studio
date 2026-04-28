@@ -296,7 +296,7 @@ samp,
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   margin-bottom: 0;
   flex-shrink: 0;
   /* Matches the LogsFooter's chrome: flat bg, hairline bottom border,
@@ -307,6 +307,7 @@ samp,
   border-bottom: 1px solid var(--chrome-border);
   user-select: none;
   position: relative;
+  z-index: 100;
   grid-column: 1 / -1;
   grid-row: 1;
   cursor: default;
@@ -327,8 +328,8 @@ samp,
 }
 .hq-col-right {
   display: flex; align-items: center; justify-content: flex-end;
-  gap: 8px; justify-self: end;
-  min-width: 0; overflow: hidden;
+  gap: 12px; justify-self: end;
+  min-width: 0; overflow: visible;
 }
 
 /* Logo */
@@ -349,7 +350,7 @@ samp,
    the thin vertical dividers between groups do the visual grouping. */
 .hq-stats {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   font-family: var(--chrome-font-mono);
   font-size: 10.5px;
   color: var(--chrome-fg-dim);
@@ -386,11 +387,9 @@ samp,
 .hq-flush-btn      { margin-left: 2px; }
 .hq-reload-btn     { flex-shrink: 0; }
 
-/* Flush dropdown */
+/* Flush dropdown — portalled to document.body, positioned dynamically via JS */
 .hq-flush-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
+  position: fixed;
   width: 260px;
   background: var(--color-bg-elev-1);
   border: 1px solid var(--color-border);
@@ -562,7 +561,8 @@ samp,
 
 /* Prevent clusters overlapping: clip content inside grid cells */
 .header-area > div { min-width: 0; overflow: hidden; }
-.header-area > div:nth-child(2) { overflow: visible; }
+.header-area > div:nth-child(2),
+.header-area > div:nth-child(3) { overflow: visible; }
 .hq-wave-bar {
   display: inline-block; width: 2.5px; border-radius: 2px;
   transition: opacity 0.2s;
@@ -986,10 +986,14 @@ audio::-webkit-media-controls-time-remaining-display { color: var(--chrome-fg); 
 
 /* ═══ FOCUS VISIBLE (keyboard nav) ═══ */
 :focus-visible {
-  outline: 2px solid rgba(211, 134, 155, 0.5);
-  outline-offset: 1px;
+  outline: 2px solid color-mix(in srgb, var(--chrome-accent, #d3869b) 65%, transparent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--chrome-accent, #d3869b) 15%, transparent);
 }
-button:focus:not(:focus-visible) { outline: none; }
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
 
 /* ═══ LAUNCHPAD — chrome frame + restrained motion ═══ */
 .launchpad {

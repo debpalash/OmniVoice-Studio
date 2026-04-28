@@ -5,7 +5,8 @@
       {
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "transparent": true
+        "transparent": true,
+        "backgroundColor": "#1d2021"
       }
     ]
   },

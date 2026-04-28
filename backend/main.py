@@ -167,7 +167,7 @@ from core.db import init_db
 from core.config import OUTPUTS_DIR, VOICES_DIR, CRASH_LOG_PATH
 from core.tasks import task_manager
 from core import job_store
-from services.model_manager import idle_worker
+from services.model_manager import idle_worker, preload_model
 
 from api.routers import (
     system,
@@ -188,6 +188,7 @@ from api.routers import (
     watermark,
     events,
     capture,
+    capture_ws,
 )
 from utils import hf_progress
 
@@ -217,6 +218,8 @@ async def lifespan(app: FastAPI):
         logger.exception("Startup job-sweep failed (non-fatal).")
     idle_task = asyncio.create_task(idle_worker())
     worker_task = asyncio.create_task(task_manager.worker())
+    # Warm the TTS model in the background so first /generate is instant.
+    preload_task = asyncio.create_task(preload_model())
     yield
     # ── Graceful shutdown (SIGTERM from Tauri, Ctrl+C, etc.) ────────────
     logger.info("Shutdown: cleaning up…")
@@ -339,6 +342,7 @@ app.include_router(batch.router)
 app.include_router(watermark.router)
 app.include_router(events.router)
 app.include_router(capture.router)
+app.include_router(capture_ws.router)
 
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.exists(frontend_path):

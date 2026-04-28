@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Clipboard, X, Loader, ChevronDown } from 'lucide-react';
+import { Mic, MicOff, Clipboard, X, Loader, Zap, Target, Check } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAppStore } from '../store';
 import './CaptureButton.css';
@@ -7,42 +7,44 @@ import './CaptureButton.css';
 import { API as API_BASE } from '../api/client';
 import { addTranscription } from '../pages/Transcriptions';
 
-const WHISPER_MODELS = [
-  { id: 'tiny',     label: 'Tiny',     desc: 'Fastest · lowest accuracy',    icon: '⚡' },
-  { id: 'base',     label: 'Base',     desc: 'Fast · basic accuracy',         icon: '🔵' },
-  { id: 'small',    label: 'Small',    desc: 'Balanced speed & quality',      icon: '🟢' },
-  { id: 'medium',   label: 'Medium',   desc: 'Good accuracy · slower',        icon: '🟡' },
-  { id: 'large-v3', label: 'Large V3', desc: 'Best accuracy · slowest',       icon: '🔴' },
+const CAPTURE_MODES = [
+  { id: 'fast',     label: 'Turbo',    desc: 'MLX Whisper Turbo — fastest',      icon: <Zap size={12} /> },
+  { id: 'accurate', label: 'Accurate', desc: 'WhisperX — best word timing',       icon: <Target size={12} /> },
 ];
 
-const LS_WHISPER_MODEL = 'omni_whisper_model';
+const LS_CAPTURE_MODE = 'omni_capture_mode';
+const LS_AUTO_COPY = 'omni_capture_auto_copy';
 
 /**
  * CaptureButton — global dictation / voice capture widget.
  *
- * Inspired by VoiceBox's Capture mode:
- *   1. Press the button (or ⌘+Shift+Space)
- *   2. Speak into the mic
- *   3. Press again to stop
- *   4. Audio is sent to /transcribe → text appears
- *   5. Click "Copy" to paste into any app
+ * Dual-mode architecture:
+ *   • Turbo (default): MLX Whisper Turbo on Apple Silicon — ~5× faster
+ *   • Accurate: WhisperX with forced alignment — word-level timing
  *
- * The widget floats in the bottom-right corner, expanding when recording.
+ * Auto-copies to clipboard so users can immediately ⌘V into any app.
  */
 export default function CaptureButton() {
   const [state, setState] = useState('idle'); // idle | recording | transcribing | done | error
   const [transcript, setTranscript] = useState('');
   const [duration, setDuration] = useState(0);
   const [expanded, setExpanded] = useState(false);
-  const [whisperModel, setWhisperModel] = useState(() =>
-    localStorage.getItem(LS_WHISPER_MODEL) || 'small'
+  const [captureMode, setCaptureMode] = useState(() =>
+    localStorage.getItem(LS_CAPTURE_MODE) || 'fast'
   );
-  const [showModelPicker, setShowModelPicker] = useState(false);
+  const [autoCopy, setAutoCopy] = useState(() =>
+    localStorage.getItem(LS_AUTO_COPY) !== 'false'
+  );
+  const [lastEngine, setLastEngine] = useState('');
+  const [lastTime, setLastTime] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const [partialText, setPartialText] = useState('');
 
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const streamRef = useRef(null);
   const timerRef = useRef(null);
+  const wsRef = useRef(null);
 
   // Keyboard shortcut: Ctrl+Shift+Space (or ⌘+Shift+Space on Mac)
   useEffect(() => {
@@ -58,6 +60,24 @@ export default function CaptureButton() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
+  }, [state]);
+
+  // Listen for tray "Start Dictation" event (Tauri desktop)
+  useEffect(() => {
+    let unlisten;
+    (async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        unlisten = await listen('tray-dictate', () => {
+          if (state === 'idle' || state === 'done' || state === 'error') {
+            startRecording();
+          } else if (state === 'recording') {
+            stopRecording();
+          }
+        });
+      } catch { /* not in Tauri */ }
+    })();
+    return () => { if (unlisten) unlisten(); };
   }, [state]);
 
   // Timer while recording
@@ -84,7 +104,17 @@ export default function CaptureButton() {
 
       const recorder = new MediaRecorder(stream, { mimeType });
       recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+          // Stream chunk to WebSocket for partial results
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            e.data.arrayBuffer().then(buf => {
+              if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                wsRef.current.send(buf);
+              }
+            });
+          }
+        }
       };
       recorder.onstop = () => sendForTranscription();
       mediaRecorderRef.current = recorder;
@@ -93,7 +123,33 @@ export default function CaptureButton() {
       setState('recording');
       setDuration(0);
       setTranscript('');
+      setPartialText('');
       setExpanded(true);
+      setCopied(false);
+      setLastEngine('');
+      setLastTime(0);
+
+      // Open WebSocket for streaming partial results
+      try {
+        const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const wsUrl = `${wsProto}://${window.location.hostname}:3900/ws/transcribe`;
+        const ws = new WebSocket(wsUrl);
+        ws.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            if (msg.type === 'partial') {
+              setPartialText(msg.text || '');
+            }
+            // final/error handled after stopRecording
+          } catch {}
+        };
+        ws.onerror = () => { wsRef.current = null; };
+        ws.onclose = () => { wsRef.current = null; };
+        wsRef.current = ws;
+      } catch {
+        // WebSocket not available — will fallback to HTTP POST
+        wsRef.current = null;
+      }
     } catch (err) {
       toast.error('Microphone access denied. Check browser permissions.');
       setState('error');
@@ -108,6 +164,11 @@ export default function CaptureButton() {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
     }
+    // Close WebSocket to trigger final transcription
+    if (wsRef.current) {
+      try { wsRef.current.close(); } catch {}
+      wsRef.current = null;
+    }
     setState('transcribing');
   }, []);
 
@@ -115,7 +176,7 @@ export default function CaptureButton() {
     const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
     const formData = new FormData();
     formData.append('audio', blob, 'capture.webm');
-    formData.append('model', whisperModel);
+    formData.append('mode', captureMode);
 
     try {
       const res = await fetch(`${API_BASE}/transcribe`, {
@@ -128,20 +189,41 @@ export default function CaptureButton() {
       }
       const data = await res.json();
       setTranscript(data.text || '');
+      setLastEngine(data.engine || '');
+      setLastTime(data.transcription_time_s || 0);
       setState('done');
+
       // Persist to Transcriptions page history
       if (data.text) {
         addTranscription(data);
+      }
+
+      // Auto-copy to clipboard for instant paste into other apps
+      if (data.text && autoCopy) {
+        try {
+          await navigator.clipboard.writeText(data.text);
+          setCopied(true);
+          // Auto-paste: simulate ⌘V into the previously active app
+          try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('simulate_paste');
+            toast.success('Pasted into active app', { duration: 2000 });
+          } catch {
+            // Not in Tauri or accessibility permission missing
+            toast.success('Copied to clipboard — paste with ⌘V', { duration: 2000 });
+          }
+        } catch { /* clipboard API may fail in some contexts */ }
       }
     } catch (err) {
       toast.error(`Transcription failed: ${err.message}`);
       setState('error');
       setTranscript('');
     }
-  }, []);
+  }, [captureMode, autoCopy]);
 
   const copyToClipboard = useCallback(() => {
     navigator.clipboard.writeText(transcript).then(() => {
+      setCopied(true);
       toast.success('Copied to clipboard');
     });
   }, [transcript]);
@@ -151,6 +233,7 @@ export default function CaptureButton() {
     setTranscript('');
     setExpanded(false);
     setDuration(0);
+    setCopied(false);
   };
 
   const toggleCapture = () => {
@@ -181,7 +264,7 @@ export default function CaptureButton() {
               {state === 'error' && '❌ Error'}
               {state === 'idle' && '🎤 Capture'}
             </span>
-            <button className="capture-panel__close" onClick={dismiss} title="Close">
+            <button className="capture-panel__close" onClick={dismiss} title="Close" aria-label="Close capture panel">
               <X size={12} />
             </button>
           </div>
@@ -194,6 +277,9 @@ export default function CaptureButton() {
                 ))}
               </div>
               <span className="capture-panel__timer">{formatTime(duration)}</span>
+              {partialText && (
+                <p className="capture-panel__partial">{partialText}</p>
+              )}
             </div>
           )}
 
@@ -207,9 +293,17 @@ export default function CaptureButton() {
           {state === 'done' && transcript && (
             <div className="capture-panel__result">
               <p className="capture-panel__text">{transcript}</p>
-              <button className="capture-panel__copy" onClick={copyToClipboard}>
-                <Clipboard size={12} /> Copy
-              </button>
+              <div className="capture-panel__result-actions">
+                <button className="capture-panel__copy" onClick={copyToClipboard}>
+                  {copied ? <Check size={12} /> : <Clipboard size={12} />}
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+                {lastEngine && (
+                  <span className="capture-panel__engine">
+                    {lastEngine === 'mlx-whisper' ? '⚡ MLX' : lastEngine} · {lastTime}s
+                  </span>
+                )}
+              </div>
             </div>
           )}
 
@@ -219,38 +313,39 @@ export default function CaptureButton() {
             </div>
           )}
 
-          {/* Model selector */}
-          <div className="capture-panel__model-row">
-            <div className="capture-panel__model-picker" style={{ position: 'relative' }}>
-              <button
-                className="capture-panel__model-btn"
-                onClick={() => setShowModelPicker(p => !p)}
-                title="Whisper model quality"
-              >
-                {WHISPER_MODELS.find(m => m.id === whisperModel)?.icon || '🟢'}{' '}
-                {WHISPER_MODELS.find(m => m.id === whisperModel)?.label || 'Small'}
-                <ChevronDown size={10} />
-              </button>
-              {showModelPicker && (
-                <div className="capture-panel__model-dropdown">
-                  {WHISPER_MODELS.map(m => (
-                    <button
-                      key={m.id}
-                      className={`capture-panel__model-option ${whisperModel === m.id ? 'is-active' : ''}`}
-                      onClick={() => {
-                        setWhisperModel(m.id);
-                        localStorage.setItem(LS_WHISPER_MODEL, m.id);
-                        setShowModelPicker(false);
-                      }}
-                    >
-                      <span className="capture-panel__model-icon">{m.icon}</span>
-                      <span className="capture-panel__model-label">{m.label}</span>
-                      <span className="capture-panel__model-desc">{m.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+          {/* Mode selector + auto-copy toggle */}
+          <div className="capture-panel__controls">
+            <div className="capture-panel__mode-toggle" role="radiogroup" aria-label="Transcription mode">
+              {CAPTURE_MODES.map(m => (
+                <button
+                  key={m.id}
+                  className={`capture-panel__mode-btn ${captureMode === m.id ? 'is-active' : ''}`}
+                  onClick={() => {
+                    setCaptureMode(m.id);
+                    localStorage.setItem(LS_CAPTURE_MODE, m.id);
+                  }}
+                  title={m.desc}
+                  aria-label={`${m.label} mode: ${m.desc}`}
+                  aria-checked={captureMode === m.id}
+                  role="radio"
+                >
+                  {m.icon} {m.label}
+                </button>
+              ))}
             </div>
+            <button
+              className={`capture-panel__auto-copy ${autoCopy ? 'is-active' : ''}`}
+              onClick={() => {
+                const next = !autoCopy;
+                setAutoCopy(next);
+                localStorage.setItem(LS_AUTO_COPY, String(next));
+              }}
+              title={autoCopy ? 'Auto-copy enabled — results go to clipboard' : 'Auto-copy disabled'}
+              aria-label={autoCopy ? 'Disable auto-copy to clipboard' : 'Enable auto-copy to clipboard'}
+              aria-pressed={autoCopy}
+            >
+              <Clipboard size={10} /> Auto
+            </button>
           </div>
 
           <div className="capture-panel__hint">

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Globe, Fingerprint, Wand2, Film, FolderOpen, RefreshCw, Settings2, ChevronRight, ChevronDown, Zap, Building2, Library, FileText, Trash2 } from 'lucide-react';
 import { Button, Badge } from '../ui';
 import NotificationPanel from './NotificationPanel';
@@ -8,7 +9,7 @@ const VIEW_META = {
   clone:      { label: 'Voice Clone',     Icon: Fingerprint, accent: '#d3869b', kicker: 'Studio' },
   design:     { label: 'Voice Design',    Icon: Wand2,       accent: '#8ec07c', kicker: 'Studio' },
   dub:        { label: 'Dubbing',         Icon: Film,        accent: '#fe8019', kicker: 'Studio' },
-  projects:   { label: 'Projects',        Icon: FolderOpen,  accent: '#83a598', kicker: 'Library' },
+  projects:   { label: 'OmniDrive',      Icon: FolderOpen,  accent: '#83a598', kicker: 'Library' },
   gallery:    { label: 'Gallery',         Icon: Library,     accent: '#b8bb26', kicker: 'Library' },
   transcriptions: { label: 'Transcriptions', Icon: FileText, accent: '#d3869b', kicker: 'Library' },
   settings:   { label: 'Settings',        Icon: Settings2,   accent: '#fabd2f', kicker: 'Preferences' },
@@ -45,6 +46,43 @@ export default function Header({
   const [loadedModels, setLoadedModels] = useState([]);
   const [unloading, setUnloading] = useState(null);
   const flushRef = useRef(null);
+  const flushBtnRef = useRef(null);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
+
+  // Dynamically compute dropdown position from button rect
+  const computePos = useCallback(() => {
+    if (!flushBtnRef.current) return;
+    const rect = flushBtnRef.current.getBoundingClientRect();
+    const dropW = 260;
+    const dropH = 220; // approximate max height
+    const pad = 6;
+
+    // Default: below button, right-aligned
+    let top = rect.bottom + pad;
+    let left = rect.right - dropW;
+
+    // Flip up if too close to bottom
+    if (top + dropH > window.innerHeight - 10) {
+      top = rect.top - dropH - pad;
+    }
+    // Clamp left so it doesn't go off-screen
+    if (left < 8) left = 8;
+    if (left + dropW > window.innerWidth - 8) left = window.innerWidth - dropW - 8;
+
+    setDropdownPos({ top, left });
+  }, []);
+
+  // Recompute on open, resize, and scroll
+  useEffect(() => {
+    if (!flushOpen) return;
+    computePos();
+    window.addEventListener('resize', computePos);
+    window.addEventListener('scroll', computePos, true);
+    return () => {
+      window.removeEventListener('resize', computePos);
+      window.removeEventListener('scroll', computePos, true);
+    };
+  }, [flushOpen, computePos]);
   const view = VIEW_META[mode] || VIEW_META.launchpad;
   const ViewIcon = view.Icon;
 
@@ -64,11 +102,14 @@ export default function Header({
     fetchModels();
   }, [flushOpen]);
 
-  // Click outside to close
+  // Click outside to close (must check both the button wrapper AND the portal dropdown)
+  const dropdownRef = useRef(null);
   useEffect(() => {
     if (!flushOpen) return;
     const handler = (e) => {
-      if (flushRef.current && !flushRef.current.contains(e.target)) setFlushOpen(false);
+      const inBtn = flushRef.current && flushRef.current.contains(e.target);
+      const inDrop = dropdownRef.current && dropdownRef.current.contains(e.target);
+      if (!inBtn && !inDrop) setFlushOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -150,7 +191,7 @@ export default function Header({
           <div className="hq-stats">
             <span><b className="hq-stats__key">RAM</b> {sysStats.ram.toFixed(1)}/{sysStats.total_ram.toFixed(0)}G</span>
             <span><b className="hq-stats__key">CPU</b> {sysStats.cpu.toFixed(0)}%</span>
-            <span className="hq-stats__sep">
+            <span className="hq-stats__sep" aria-label={`VRAM usage: ${sysStats.vram.toFixed(1)} gigabytes`}>
               <b className={`hq-stats__key ${sysStats.gpu_active ? 'hq-stats__key--gpu-active' : ''}`}>VRAM</b> {sysStats.vram.toFixed(1)}G
             </span>
             <span className="hq-stats__status-wrap">
@@ -166,6 +207,7 @@ export default function Header({
             {onFlushMemory && (
               <div ref={flushRef} style={{ position: 'relative' }}>
                 <Button
+                  ref={flushBtnRef}
                   variant="subtle"
                   size="sm"
                   title="Memory management"
@@ -177,8 +219,12 @@ export default function Header({
                 >
                   Flush
                 </Button>
-                {flushOpen && (
-                  <div className="hq-flush-dropdown">
+                {flushOpen && createPortal(
+                  <div
+                    className="hq-flush-dropdown"
+                    style={{ top: dropdownPos.top, left: dropdownPos.left }}
+                    ref={dropdownRef}
+                  >
                     <div className="hq-flush-dropdown__header">Loaded Models</div>
                     {loadedModels.length === 0 ? (
                       <div className="hq-flush-dropdown__empty">No models loaded</div>
@@ -196,6 +242,7 @@ export default function Header({
                               className="hq-flush-dropdown__unload"
                               onClick={() => unloadModel(m.id)}
                               disabled={unloading === m.id}
+                              aria-label={`Unload ${m.name}`}
                             >
                               {unloading === m.id ? '…' : 'Unload'}
                             </button>
@@ -224,7 +271,8 @@ export default function Header({
                     >
                       <Trash2 size={10} /> Unload all + flush
                     </button>
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </div>
             )}

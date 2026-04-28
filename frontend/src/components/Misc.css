@@ -55,11 +55,16 @@
 }
 .app-startup__title { font-size: 18px; color: #ebdbb2; }
 .app-wizard-wrap {
-  min-height: calc(100vh - var(--logs-footer-height, 28px));
-  max-height: calc(100vh - var(--logs-footer-height, 28px));
-  width: 100%; overflow: hidden;
+  /* Fill viewport above the fixed LogsFooter */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: var(--logs-footer-height, 28px);
+  overflow: hidden;
   background: var(--color-bg, #1d2021);
-  position: relative; display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 .app-wizard-dragstrip {
   position: fixed; top: 0; left: 0; right: 0;

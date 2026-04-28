@@ -11,7 +11,7 @@ const ITEMS = [
   { id: 'dub',       label: 'Dub',       Icon: Film,        accent: '#fe8019' },
   { id: 'gallery',   label: 'Gallery',   Icon: Library,     accent: '#b8bb26' },
   { id: 'transcriptions', label: 'Transcripts', Icon: FileText, accent: '#d3869b' },
-  { id: 'projects',  label: 'Projects',  Icon: FolderOpen,  accent: '#83a598' },
+  { id: 'projects',  label: 'OmniDrive',  Icon: FolderOpen,  accent: '#83a598' },
 ];
 const FOOTER_ITEMS = [
   { id: 'settings', label: 'Settings', Icon: Settings2, accent: '#fabd2f' },

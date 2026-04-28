@@ -7,8 +7,6 @@ import tempfile
 import contextlib
 import logging
 import traceback
-import torch
-import torchaudio
 from typing import Optional
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
@@ -28,6 +26,7 @@ def _run_inference(
     postprocess_output, layer_penalty_factor, position_temperature,
     class_temperature, used_seed,
 ):
+    import torch
     try:
         if used_seed is not None:
             torch.manual_seed(used_seed)
@@ -145,6 +144,7 @@ async def generate_speech(
         audio_id = str(uuid.uuid4())[:8]
         audio_filename = f"{audio_id}.wav"
         audio_path = os.path.join(OUTPUTS_DIR, audio_filename)
+        import torchaudio
         torchaudio.save(audio_path, audio_tensor, _model.sampling_rate)
 
         audio_dur = round(audio_tensor.shape[-1] / _model.sampling_rate, 2)

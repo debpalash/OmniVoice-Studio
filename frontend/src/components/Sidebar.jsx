@@ -91,7 +91,7 @@ export default function Sidebar(props) {
     history: history.length + dubHistory.length,
     downloads: exportHistory.length,
   };
-  const tabLabel = { projects: 'Projects', history: 'History', downloads: 'Exports' };
+  const tabLabel = { projects: 'Drive', history: 'History', downloads: 'Exports' };
 
   return (
     <div className={`glass-panel history-panel sidebar ${isSidebarCollapsed ? 'is-collapsed' : ''}`}>
@@ -105,7 +105,9 @@ export default function Sidebar(props) {
             style={{ '--sidebar-tab-accent': accent }}
             title={`${tabLabel[id]} (${tabCount[id]})`}
           >
-            <Icon size={13} />
+            <Icon size={12} />
+            {!isSidebarCollapsed && <span className="sidebar__tab-label">{tabLabel[id]}</span>}
+            {!isSidebarCollapsed && <span className="sidebar__tab-count">{tabCount[id]}</span>}
           </button>
         ))}
       </div>

@@ -81,6 +81,39 @@ async def get_model():
             model = await loop.run_in_executor(_gpu_pool, _load_model_sync)
     return model
 
+
+async def preload_model():
+    """Background model warm-up — call from lifespan startup.
+
+    Loads the TTS model on the GPU pool thread so the first /generate
+    call is near-instant instead of waiting 4-6s for weight loading.
+    Non-blocking: if models aren't installed yet, silently exits.
+    """
+    global model, _last_used
+    if model is not None:
+        return  # already loaded
+    try:
+        # Check if the required model checkpoint exists before attempting
+        # a heavy load that would fail and pollute startup logs.
+        checkpoint = os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice")
+        try:
+            from huggingface_hub import model_info
+            model_info(checkpoint, timeout=5)
+        except Exception:
+            # Model not downloaded yet — skip preload
+            logger.info("Preload skipped: %s not available locally.", checkpoint)
+            return
+
+        logger.info("Preloading TTS model in background…")
+        _last_used = time.time()
+        async with _model_lock:
+            if model is None:
+                loop = asyncio.get_running_loop()
+                model = await loop.run_in_executor(_gpu_pool, _load_model_sync)
+        logger.info("Preload complete — model ready.")
+    except Exception as e:
+        logger.warning("Model preload failed (non-fatal): %s", e)
+
 def get_model_status():
     is_loaded = model is not None
     # asyncio.Lock exposes .locked() on all supported Python versions; wrap in try for safety.

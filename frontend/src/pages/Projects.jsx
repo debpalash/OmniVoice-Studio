@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import {
   Search, FolderOpen, Film, Fingerprint, Wand2, Music, Download,
-  LayoutGrid, List as ListIcon, Clock,
+  LayoutGrid, List as ListIcon, Clock, FileText, Mic,
 } from 'lucide-react';
 import './Projects.css';
 
 /**
- * Projects — browse everything (studio dubs, voice profiles, generation
+ * OmniDrive — browse everything (studio dubs, voice profiles, generation
  * history, exports) in one place.
  *
  * Shape:
@@ -25,11 +25,12 @@ import './Projects.css';
  */
 
 const FILTERS = [
-  { id: 'all',      label: 'All',          Icon: FolderOpen  },
-  { id: 'dubs',     label: 'Dub Projects', Icon: Film        },
+  { id: 'all',      label: 'All',            Icon: FolderOpen  },
+  { id: 'dubs',     label: 'Dub Projects',   Icon: Film        },
   { id: 'profiles', label: 'Voice Profiles', Icon: Fingerprint },
-  { id: 'history',  label: 'History',      Icon: Music       },
-  { id: 'exports',  label: 'Exports',      Icon: Download    },
+  { id: 'transcripts', label: 'Transcripts', Icon: Mic         },
+  { id: 'history',  label: 'History',        Icon: Music       },
+  { id: 'exports',  label: 'Exports',        Icon: Download    },
 ];
 
 function fmtTime(ts) {
@@ -88,6 +89,21 @@ export default function Projects({
   const [query, setQuery]     = useState('');
   const [view, setView]       = useState('grid');  // grid | list
 
+  // Load transcriptions from localStorage (same source as TranscriptionsPage)
+  const [transcriptions, setTranscriptions] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('omni_transcriptions') || '[]'); }
+    catch { return []; }
+  });
+  // Listen for new transcriptions
+  React.useEffect(() => {
+    const handler = () => {
+      try { setTranscriptions(JSON.parse(localStorage.getItem('omni_transcriptions') || '[]')); }
+      catch {}
+    };
+    window.addEventListener('omni:transcription-added', handler);
+    return () => window.removeEventListener('omni:transcription-added', handler);
+  }, []);
+
   // Normalise every source into a common shape so the filter + search +
   // sort pipeline is identical regardless of origin.
   const items = useMemo(() => {
@@ -141,9 +157,23 @@ export default function Projects({
         onClick: () => e.path && onRevealExport?.(e.path),
       });
     }
+    for (const t of transcriptions) {
+      list.push({
+        type: 'transcripts',
+        id: t.id || String(Math.random()),
+        title: (t.text || 'Transcription').slice(0, 120),
+        subtitle: [t.language, t.duration_s ? `${Math.round(t.duration_s)}s` : ''].filter(Boolean).join(' · '),
+        ts: t.timestamp ? Date.parse(t.timestamp) : 0,
+        accent: '#83a598',
+        Icon: FileText,
+        onClick: () => {
+          navigator.clipboard.writeText(t.text || '');
+        },
+      });
+    }
     list.sort((a, b) => (b.ts || 0) - (a.ts || 0));
     return list;
-  }, [studioProjects, profiles, history, exportHistory, onOpenDub, onOpenProfile, onRevealExport]);
+  }, [studioProjects, profiles, history, exportHistory, transcriptions, onOpenDub, onOpenProfile, onRevealExport]);
 
   const counts = useMemo(() => {
     const c = { all: items.length };
@@ -163,14 +193,14 @@ export default function Projects({
   return (
     <div className="projects">
       <div className="projects__header">
-        <h1 className="projects__title">Projects</h1>
+        <h1 className="projects__title">OmniDrive</h1>
         <div className="projects__toolbar">
           <div className="projects__search">
             <Search size={12} />
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Search projects, profiles, history, exports…"
+              placeholder="Search dubs, clones, transcripts, exports…"
               spellCheck={false}
             />
           </div>

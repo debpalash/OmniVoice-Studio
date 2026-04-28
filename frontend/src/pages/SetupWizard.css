@@ -10,21 +10,14 @@
   overflow: hidden;      /* NO page-level scroll — only embed scrolls */
 }
 
-/* Hero + steps stay constrained and centered; they never scroll. */
-.setup-wizard__hero,
-.setup-wizard__steps {
-  max-width: 760px;
-  margin-left: auto;
-  margin-right: auto;
-  flex-shrink: 0;
-}
-
-/* ── Step pills ──────────────────────────────────────────────────────── */
+/* ── Step pills — top bar ────────────────────────────────────────────── */
 .setup-wizard__steps {
   display: flex;
   gap: 6px;
+  align-items: center;
   justify-content: center;
-  margin-bottom: 8px;
+  padding: 10px 12px 0;
+  flex-shrink: 0;
   flex-wrap: wrap;
 }
 .setup-wizard__step {
@@ -49,6 +42,49 @@
   border-color: rgba(142, 192, 124, 0.35);
 }
 
+/* ── Hero — horizontal single-line: logo | title · subtitle ──────────── */
+.setup-wizard__hero {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 6px;
+  flex-shrink: 0;
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.setup-wizard__logo {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+.setup-wizard__hero-text {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.setup-wizard__hero h1 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-family: var(--font-display, var(--font-sans));
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.setup-wizard__sub {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ── Embed panel — the ONLY scrollable region ────────────────────────── */
 .setup-wizard__embed {
   padding: 4px 0;
@@ -59,14 +95,16 @@
   overflow-x: hidden;
 }
 
-/* ── Nav bar — always visible below the embed ────────────────────────── */
+/* ── Nav bar — pinned to bottom, always visible above LogsFooter ─────── */
 .setup-wizard__nav {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 8px;
-  margin-top: 8px;
   flex-shrink: 0;
-  padding-bottom: 4px;
+  padding: 10px 0 6px;
+  background: var(--color-bg, #1d2021);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .setup-wizard--centered {
@@ -75,42 +113,6 @@
   justify-content: center;
   align-items: center;
   text-align: center;
-}
-
-/* ── Hero — compact ──────────────────────────────────────────────────── */
-.setup-wizard__hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 20px 12px 8px;
-  text-align: center;
-  flex-shrink: 0;
-}
-.setup-wizard__hero h1 {
-  margin: 0;
-  font-size: 1.45rem;
-  font-family: var(--font-display, var(--font-sans));
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-.setup-wizard__brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.setup-wizard__logo {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-}
-.setup-wizard__sub {
-  margin: 0;
-  color: var(--color-fg-muted);
-  font-size: 0.84rem;
-  max-width: 460px;
-  line-height: 1.55;
 }
 
 /* ── Card / checklist rows ───────────────────────────────────────────── */
@@ -264,25 +266,85 @@
   padding-top: 8px;
 }
 
+/* ── Inline HF token (compact, lives in models-toolbar) ──────────────── */
+.models-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.models-toolbar__hf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  color: #fe8019;
+  background: rgba(254, 128, 25, 0.08);
+  border: 1px solid rgba(254, 128, 25, 0.2);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.models-toolbar__hf-btn:hover {
+  background: rgba(254, 128, 25, 0.15);
+  border-color: rgba(254, 128, 25, 0.35);
+}
+.models-toolbar__hf-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.models-toolbar__hf-input {
+  width: 150px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid rgba(254, 128, 25, 0.25);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--chrome-fg, #ebdbb2);
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.models-toolbar__hf-input:focus {
+  border-color: rgba(254, 128, 25, 0.5);
+}
+.models-toolbar__hf-input::placeholder {
+  color: var(--chrome-fg-dim, #665c54);
+}
+.models-toolbar__hf-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.66rem;
+  color: #8ec07c;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(142, 192, 124, 0.08);
+  border: 1px solid rgba(142, 192, 124, 0.2);
+}
+
 /* ── Footnote — pinned to bottom ─────────────────────────────────────── */
 .setup-wizard__footnote {
-  color: var(--color-fg-subtle);
-  font-size: 0.64rem;
-  margin: 4px 0 6px;
+  color: var(--color-fg-muted);
+  font-size: 0.68rem;
+  margin: 0;
+  padding: 6px 0 8px;
   text-align: center;
   line-height: 1.5;
   flex-shrink: 0;
 }
-.setup-wizard__footnote code { font-size: 0.62rem; }
+.setup-wizard__footnote code { font-size: 0.64rem; color: var(--chrome-fg-dim, #665c54); }
 
 /* ── Responsive ─────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .setup-wizard {
     padding: 0 14px;
   }
-  .setup-wizard__hero { padding: 14px 8px 6px; }
-  .setup-wizard__hero h1 { font-size: 1.2rem; }
-  .setup-wizard__sub { font-size: 0.78rem; }
-  .setup-wizard__steps { gap: 4px; }
+  .setup-wizard__steps { gap: 4px; padding: 8px 8px 0; }
   .setup-wizard__step { padding: 4px 10px; font-size: 0.7rem; }
+  .setup-wizard__hero { gap: 8px; padding: 6px 8px 4px; }
+  .setup-wizard__hero h1 { font-size: 1rem; }
+  .setup-wizard__sub { font-size: 0.72rem; }
 }

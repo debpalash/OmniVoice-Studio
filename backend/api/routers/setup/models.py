@@ -242,14 +242,16 @@ def recommendations():
             "k2-fsa/OmniVoice",
             "Systran/faster-whisper-large-v3",
             "mlx-community/whisper-large-v3-mlx",
+            "mlx-community/whisper-large-v3-turbo",
             "mlx-community/Kokoro-82M-bf16",
             "KittenML/kitten-tts-mini-0.8",
         ]
         rationale = (
             "Apple Silicon gets the full stack: OmniVoice for multilingual clone + "
             "WhisperX (faster-whisper weights) for cross-platform ASR + MLX-Whisper "
-            "for the Apple-optimised speedup + Kokoro (mlx-audio) for fast local "
-            "English + KittenTTS as a CPU-realtime backup."
+            "for the Apple-optimised speedup + Whisper Turbo (5× faster) for live "
+            "dictation + Kokoro (mlx-audio) for fast local English + KittenTTS as "
+            "a CPU-realtime backup."
         )
     else:
         recommended_ids = [
