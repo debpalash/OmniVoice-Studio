@@ -58,7 +58,8 @@ function Row({ label, value, mono }) {
 }
 
 function fmtBytes(n) {
-  if (!n || n <= 0) return '—';
+  if (n == null || n < 0) return '—';
+  if (n === 0) return '0 B';
   if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(2)} GB`;
   if (n >= 1024 ** 2) return `${(n / 1024 ** 2).toFixed(1)} MB`;
   return `${Math.round(n / 1024)} KB`;
@@ -157,6 +158,13 @@ export function ModelStoreTab({ info, modelBadge }) {
           // touching per-file accounting.
           if (ev.phase === 'install_start' || ev.phase === 'delete_start') {
             return { ...prev, [ev.repo_id]: { phase: ev.phase, files: {}, error: null } };
+          }
+          // Heartbeat from backend while resolving repo metadata
+          if (ev.phase === 'resolving') {
+            return { ...prev, [ev.repo_id]: { ...cur, phase: 'resolving', resolvingStep: ev.step || 0 } };
+          }
+          if (ev.phase === 'install_retry') {
+            return { ...prev, [ev.repo_id]: { ...cur, phase: 'install_retry', retryAttempt: ev.attempt, error: ev.error } };
           }
           if (ev.phase === 'install_done') {
             return { ...prev, [ev.repo_id]: { ...cur, phase: 'install_done' } };
@@ -295,7 +303,7 @@ export function ModelStoreTab({ info, modelBadge }) {
       .reduce((s, [, f]) => s + f.rate, 0);
     const hasFiles = fileList.length > 0;
     const aggPct = totals.total > 0 ? (totals.downloaded / totals.total) * 100 : null;
-    const showBar = phase === 'install_start' || phase === 'active' || phase === 'delete_start';
+    const showBar = ['install_start', 'resolving', 'install_retry', 'active', 'delete_start'].includes(phase);
     const activeFilename = fileList.find(([, f]) => f.phase !== 'done')?.[0];
     const unsupported = m.supported === false;
 
@@ -353,7 +361,16 @@ export function ModelStoreTab({ info, modelBadge }) {
                 <span className="models-row__progresstext">
                   {(() => {
                     if (rt.isDeleting) return 'Removing cached revisions…';
-                    if (!rt.hasFiles) return 'Connecting to HuggingFace…';
+                    if (!rt.hasFiles) {
+                      if (rt.phase === 'resolving') {
+                        const dots = '.'.repeat((rt.rs?.resolvingStep || 0) % 4);
+                        return `Resolving repo metadata${dots}`;
+                      }
+                      if (rt.phase === 'install_retry') {
+                        return `Retry attempt ${rt.rs?.retryAttempt || '?'} — ${rt.rs?.error || 'reconnecting'}`;
+                      }
+                      return 'Connecting to HuggingFace…';
+                    }
 
                     // We have file events — compute speed
                     const sp = speedRef.current[m.repo_id];

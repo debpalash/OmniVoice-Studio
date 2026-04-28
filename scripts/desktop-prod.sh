@@ -94,12 +94,26 @@ if [ "$SKIP_BUILD" = false ]; then
   APP_BUNDLE="${TAURI_DIR}/target/debug/bundle/macos/${APP_NAME}.app"
   [ -d "$APP_BUNDLE" ] && rm -rf "$APP_BUNDLE"
 
-  cd frontend
   # The build creates the .app bundle successfully, but then fails trying
   # to sign the updater artifact (no TAURI_SIGNING_PRIVATE_KEY). The .app
-  # itself is fine — tolerate the exit code.
-  bunx tauri build --debug 2>&1 || true
+  # itself is fine — tolerate ONLY that specific error.
+  BUILD_LOG=$(mktemp)
+  cd frontend
+  set +e
+  bunx tauri build --debug 2>&1 | tee "$BUILD_LOG"
+  BUILD_EXIT=$?
+  set -e
   cd ..
+  if [ $BUILD_EXIT -ne 0 ]; then
+    if grep -qi "TAURI_SIGNING_PRIVATE_KEY\|private key" "$BUILD_LOG"; then
+      echo "⚠️  Updater signing skipped (no TAURI_SIGNING_PRIVATE_KEY) — .app is fine."
+    else
+      echo "❌ Build failed with exit code $BUILD_EXIT"
+      rm -f "$BUILD_LOG"
+      exit $BUILD_EXIT
+    fi
+  fi
+  rm -f "$BUILD_LOG"
 
   if [ -d "${TAURI_DIR}/target/debug/bundle/macos/${APP_NAME}.app" ]; then
     echo "✅ Build complete."
