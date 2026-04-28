@@ -27,8 +27,22 @@ MIN_FREE_GB = 10
 
 
 def _disk_free_gb(path: str) -> float:
+    """Return free GB on the volume containing *path*.
+
+    If *path* doesn't exist yet (e.g. after a fresh wipe), walk up to the
+    nearest existing ancestor so ``shutil.disk_usage`` can still probe the
+    correct mount point.
+    """
     try:
-        return _shutil.disk_usage(path).free / (1024 ** 3)
+        from pathlib import Path
+        p = Path(path).resolve()
+        # Walk up until we find a directory that exists
+        while not p.exists():
+            parent = p.parent
+            if parent == p:  # root
+                break
+            p = parent
+        return _shutil.disk_usage(str(p)).free / (1024 ** 3)
     except Exception:
         return 0.0
 
