@@ -1290,6 +1290,65 @@ button:focus:not(:focus-visible) { outline: none; }
   border-radius: inherit; display: block;
 }
 
+/* ── Demo-profile callout ────────────────────────────────── */
+.lp-demo-callout {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 18px; margin: 8px 44px 0;
+  background: color-mix(in srgb, var(--chrome-accent) 8%, var(--chrome-bg));
+  border: 1px solid var(--chrome-accent-border);
+  border-radius: var(--chrome-radius-pill);
+  font-size: 0.76rem; color: var(--chrome-fg);
+  position: relative; z-index: 1;
+  animation: lpFadeUp 0.5s cubic-bezier(0.4,0,0.2,1) both;
+}
+.lp-demo-callout__icon { font-size: 1.1rem; }
+.lp-demo-callout__btn {
+  margin-left: auto; padding: 4px 14px;
+  font-family: var(--font-sans); font-size: 0.7rem; font-weight: 600;
+  border-radius: var(--chrome-radius-pill);
+  background: var(--chrome-accent-bg);
+  border: 1px solid var(--chrome-accent-border);
+  color: var(--chrome-accent); cursor: pointer;
+  transition: background var(--dur-fast);
+}
+.lp-demo-callout__btn:hover {
+  background: color-mix(in srgb, var(--chrome-accent) 22%, transparent);
+}
+
+/* ── Personality picker strip ────────────────────────────── */
+.personality-strip {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+}
+.personality-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px;
+  font-family: var(--font-sans); font-size: 0.72rem; font-weight: 500;
+  border-radius: var(--chrome-radius-pill);
+  background: transparent;
+  border: 1px solid var(--chrome-border);
+  color: var(--chrome-fg-muted); cursor: pointer;
+  transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+}
+.personality-chip:hover {
+  background: var(--chrome-hover-bg);
+  border-color: var(--chrome-border-strong);
+  color: var(--chrome-fg);
+}
+.personality-chip.active {
+  background: var(--chrome-accent-bg);
+  border-color: var(--chrome-accent-border);
+  color: var(--chrome-accent);
+}
+.personality-chip__icon { font-size: 0.9rem; }
+.personality-label {
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  font-weight: 600; text-transform: uppercase;
+  letter-spacing: var(--chrome-label-track);
+  color: var(--chrome-fg-muted);
+  margin-bottom: 6px;
+}
+
 /* Project rows — chrome-radius pills so the launchpad project list
    rhymes with the Projects page cards. Dropped the squircle corners,
    the translate-X hover, and the icon rotation/scale micro-animation

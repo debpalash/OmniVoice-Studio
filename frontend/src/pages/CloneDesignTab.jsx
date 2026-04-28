@@ -1,13 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   PanelLeftOpen, PanelLeftClose, Command, Globe, SlidersHorizontal, Volume2, User,
   UploadCloud, Square, Mic, Save, UserSquare2, Settings2, ChevronUp, ChevronDown,
   Sparkles, Play, Trash2, X,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import SearchableSelect from '../components/SearchableSelect';
 import ALL_LANGUAGES from '../languages.json';
 import { POPULAR_LANGS, PRESETS, TAGS, CATEGORIES } from '../utils/constants';
 import { Button, Input, Slider, Progress } from '../ui';
+import { API } from '../api/client';
 import './CloneDesignTab.css';
 
 export default function CloneDesignTab(props) {
@@ -44,6 +47,25 @@ export default function CloneDesignTab(props) {
     startRecording, stopRecording,
     ingestRefAudio,
   } = props;
+
+  const { t } = useTranslation();
+  const [activePersonality, setActivePersonality] = useState('');
+
+  // Fetch personality presets from backend
+  const { data: personalities = [] } = useQuery({
+    queryKey: ['personalities'],
+    queryFn: () => fetch(`${API}/personalities`).then(r => r.json()),
+    staleTime: Infinity,
+  });
+
+  const applyPersonality = (p) => {
+    if (activePersonality === p.id) {
+      setActivePersonality('');
+      return;
+    }
+    setActivePersonality(p.id);
+    setInstruct(p.instruct);
+  };
 
   return (
     <div className="clone-split-grid">
@@ -239,7 +261,27 @@ export default function CloneDesignTab(props) {
           </div>
         ) : (
           <div>
-            <div className="label-row"><UserSquare2 className="label-icon" size={14} /> Voice Profile</div>
+            <div className="label-row"><UserSquare2 className="label-icon" size={14} /> {t('voice.personality')}</div>
+
+            {/* Personality presets */}
+            {personalities.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div className="personality-label">{t('voice.pick_personality')}</div>
+                <div className="personality-strip">
+                  {personalities.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`personality-chip ${activePersonality === p.id ? 'active' : ''}`}
+                      onClick={() => applyPersonality(p)}
+                    >
+                      <span className="personality-chip__icon">{p.icon}</span>
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="clone-sliders-col">
               {Object.entries(CATEGORIES).map(([key, options]) => {
                 const many = options.length > 6;

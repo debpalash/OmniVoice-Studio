@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Scale, Fingerprint, Wand2, Film, Lock,
 } from 'lucide-react';
@@ -61,8 +62,10 @@ export default function Launchpad({
   profiles, studioProjects, dubHistory,
   setMode, setIsCompareModalOpen, handleSelectProfile, loadProject,
 }) {
+  const { t } = useTranslation();
   const cloneProfiles = profiles.filter(p => !p.instruct);
   const designProfiles = profiles.filter(p => !!p.instruct);
+  const demoProfile = profiles.find(p => p.id === 'demo0001');
 
   return (
     <div className="launchpad">
@@ -96,7 +99,7 @@ export default function Launchpad({
                   />
                 ))}
               </div>
-              <span className="lp-kicker">hello there</span>
+              <span className="lp-kicker">{t('launchpad.greeting')}</span>
             </div>
             <h1 className="lp-hero__title">
               <span className="lp-hero__halo" aria-hidden="true" />
@@ -104,7 +107,7 @@ export default function Launchpad({
               <span className="lp-hero__sweep" aria-hidden="true" />
             </h1>
             <p>
-              Clone a voice, design a new one, or dub a video into any of <span className="lp-pill">646 languages</span>.
+              Clone a voice, design a new one, or dub a video into any of <span className="lp-pill">{t('common.languages_count')}</span>.
               Built for creators who care how it sounds.
             </p>
           </div>
@@ -113,7 +116,7 @@ export default function Launchpad({
             className="lp-ab-compare"
             title="Try two voices side by side"
           >
-            <Scale size={12} /> A/B Compare
+            <Scale size={12} /> {t('launchpad.ab_compare')}
           </button>
         </div>
 
@@ -121,16 +124,30 @@ export default function Launchpad({
 
       {/* Action Cards */}
       <div className="lp-actions">
-        <ActionCard hue="#d3869b" Icon={Fingerprint} title="Voice Clone" accent="✨" count={cloneProfiles.length} onClick={() => setMode('clone')}>
-          Drop in a short clip — we'll mirror it. One sample is usually enough.
+        <ActionCard hue="#d3869b" Icon={Fingerprint} title={t('launchpad.clone_title')} accent="✨" count={cloneProfiles.length} onClick={() => setMode('clone')}>
+          {t('launchpad.clone_desc')}
         </ActionCard>
-        <ActionCard hue="#8ec07c" Icon={Wand2} title="Voice Design" accent="🧪" count={designProfiles.length} onClick={() => setMode('design')}>
-          Build a new voice from a sentence. Gender, age, accent, mood — your call.
+        <ActionCard hue="#8ec07c" Icon={Wand2} title={t('launchpad.design_title')} accent="🧪" count={designProfiles.length} onClick={() => setMode('design')}>
+          {t('launchpad.design_desc')}
         </ActionCard>
-        <ActionCard hue="#fe8019" Icon={Film} title="Video Dubbing" accent="🎬" count={studioProjects.length} onClick={() => setMode('dub')}>
-          Transcribe, translate, re-voice. Keep each speaker, line up the timing, ship it.
+        <ActionCard hue="#fe8019" Icon={Film} title={t('launchpad.dub_title')} accent="🎬" count={studioProjects.length} onClick={() => setMode('dub')}>
+          {t('launchpad.dub_desc')}
         </ActionCard>
       </div>
+
+      {/* Demo profile callout */}
+      {demoProfile && profiles.length === 1 && studioProjects.length === 0 && (
+        <div className="lp-demo-callout">
+          <span className="lp-demo-callout__icon">👋</span>
+          <span>{t('launchpad.demo_callout')}</span>
+          <button
+            className="lp-demo-callout__btn"
+            onClick={() => { setMode('clone'); handleSelectProfile(demoProfile); }}
+          >
+            Try it
+          </button>
+        </div>
+      )}
 
       {/* Recent Projects */}
       {(profiles.length > 0 || studioProjects.length > 0) && (
@@ -220,7 +237,7 @@ export default function Launchpad({
               ))}
             </div>
             <p className="lp-empty__hint">
-              Nothing here yet — pick a card above.
+              {t('launchpad.empty_hint')}
             </p>
           </div>
           <ReadinessChecklist showWhenAllPass />

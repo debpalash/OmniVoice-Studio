@@ -1,0 +1,57 @@
+{
+  "common": {
+    "open": "Open",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "languages_count": "646 languages"
+  },
+  "launchpad": {
+    "greeting": "hello there",
+    "hero_title": "Make voices that <1>sound like you</1>.",
+    "hero_desc": "Clone a voice, design a new one, or dub a video into any of <1>{{count}} languages</1>. Built for creators who care how it sounds.",
+    "clone_title": "Voice Clone",
+    "clone_desc": "Drop in a short clip — we'll mirror it. One sample is usually enough.",
+    "design_title": "Voice Design",
+    "design_desc": "Build a new voice from a sentence. Gender, age, accent, mood — your call.",
+    "dub_title": "Video Dubbing",
+    "dub_desc": "Transcribe, translate, re-voice. Keep each speaker, line up the timing, ship it.",
+    "ab_compare": "A/B Compare",
+    "cloned_voices": "Cloned Voices",
+    "designed_voices": "Designed Voices",
+    "dubbing_projects": "Dubbing Projects",
+    "empty_hint": "Nothing here yet — pick a card above.",
+    "demo_callout": "👋 Try the demo voice — hit Generate to hear it.",
+    "locked": "LOCKED"
+  },
+  "settings": {
+    "title": "Settings",
+    "models": "Models",
+    "logs": "Logs",
+    "general": "General",
+    "privacy": "Privacy",
+    "about": "About",
+    "ui_scale": "UI Scale",
+    "theme": "Theme"
+  },
+  "dub": {
+    "transcribe": "Transcribe",
+    "translate": "Translate",
+    "generate": "Generate",
+    "export": "Export",
+    "no_video": "No video loaded",
+    "segments": "segments",
+    "speakers": "speakers"
+  },
+  "voice": {
+    "personality": "Personality",
+    "pick_personality": "Pick a personality preset…",
+    "instruct": "Instruct",
+    "reference_text": "Reference Text",
+    "language": "Language",
+    "generate": "Generate",
+    "name": "Name"
+  }
+}

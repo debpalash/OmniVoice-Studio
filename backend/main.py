@@ -202,6 +202,9 @@ async def lifespan(app: FastAPI):
     from api.routers.gallery import _init_gallery_db
 
     _init_gallery_db()
+    # Seed a demo voice profile on first run (empty DB only).
+    from core.onboarding import seed_sample_project
+    seed_sample_project()
     # Any job still in pending/running at startup is orphaned — a previous
     # process didn't finish it. Flip to failed with a clear message so the
     # UI doesn't show a fake spinner.

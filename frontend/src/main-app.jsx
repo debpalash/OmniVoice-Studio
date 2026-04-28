@@ -9,6 +9,7 @@ import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import '@fontsource-variable/source-serif-4';
+import './i18n';   // ← initialise i18next before any component renders
 import './ui';
 import './index.css';
 import App from './App.jsx';

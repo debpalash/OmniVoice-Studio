@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from core.db import get_db, db_conn
 from core.config import VOICES_DIR, OUTPUTS_DIR
 from core import event_bus
+from core.personalities import get_personalities
 
 router = APIRouter()
 
@@ -19,6 +20,13 @@ class ProfileUpdate(BaseModel):
     ref_text: Optional[str] = None
     instruct: Optional[str] = None
     language: Optional[str] = None
+    personality: Optional[str] = None
+
+
+@router.get("/personalities")
+def list_personalities():
+    """Return built-in voice personality presets."""
+    return get_personalities()
 
 @router.get("/profiles")
 def list_profiles():
@@ -35,6 +43,7 @@ async def create_profile(
     instruct: str = Form(""),
     language: str = Form("Auto"),
     seed: Optional[int] = Form(None),
+    personality: str = Form(""),
 ):
     profile_id = str(uuid.uuid4())[:8]
     ext = os.path.splitext(ref_audio.filename or ".wav")[1]
@@ -46,8 +55,8 @@ async def create_profile(
 
     conn = get_db()
     conn.execute(
-        "INSERT INTO voice_profiles (id, name, ref_audio_path, ref_text, instruct, language, seed, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (profile_id, name, audio_filename, ref_text, instruct, language, seed, time.time())
+        "INSERT INTO voice_profiles (id, name, ref_audio_path, ref_text, instruct, language, seed, personality, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (profile_id, name, audio_filename, ref_text, instruct, language, seed, personality, time.time())
     )
     conn.commit()
     conn.close()
@@ -74,7 +83,7 @@ def update_profile(profile_id: str, patch: ProfileUpdate):
     """Partial update — only fields set on the payload are changed."""
     fields = []
     params = []
-    for col in ("name", "ref_text", "instruct", "language"):
+    for col in ("name", "ref_text", "instruct", "language", "personality"):
         val = getattr(patch, col)
         if val is None:
             continue
