@@ -47,7 +47,7 @@ export function BootstrapSplash({ stage, message }) {
   const stepIndex = Math.max(0, STEPS.indexOf(stage));
   const isFailed = stage === 'failed';
   const [logs, setLogs] = useState([]);
-  const [logsOpen, setLogsOpen] = useState(false);
+  const [logsOpen, setLogsOpen] = useState(true); // always open by default
   const [copied, setCopied] = useState(false);
   const [progress, setProgress] = useState(null); // { stage, bytes_done, bytes_total, percent }
   const logRef = useRef(null);
@@ -97,6 +97,7 @@ export function BootstrapSplash({ stage, message }) {
   }, [logs, logsOpen]);
 
   // Auto-expand logs on failure so users can see + copy the full output.
+  // Also expand on failure (in case user collapsed manually).
   useEffect(() => {
     if (isFailed) setLogsOpen(true);
   }, [isFailed]);
@@ -165,31 +166,32 @@ export function BootstrapSplash({ stage, message }) {
             </ol>
           </>
         )}
-        <button
-          type="button"
-          className="bootstrap-splash__log-toggle"
-          onClick={() => setLogsOpen((v) => !v)}
-        >
-          {logsOpen ? '▾ Hide logs' : '▸ Show logs'}
-          {logs.length > 0 && (
-            <span className="bootstrap-splash__log-count"> ({logs.length})</span>
-          )}
-        </button>
+        {/* Live log panel — always visible so users see what's happening */}
+        <div className="bootstrap-splash__log-header">
+          <button
+            type="button"
+            className="bootstrap-splash__log-toggle"
+            onClick={() => setLogsOpen((v) => !v)}
+          >
+            {logsOpen ? '▾ Hide logs' : '▸ Show logs'}
+          </button>
+          <span className="bootstrap-splash__log-count">
+            {logs.length > 0 && `${logs.length} lines`}
+          </span>
+          <button
+            type="button"
+            className="bootstrap-splash__copy-btn"
+            onClick={handleCopyLogs}
+          >
+            {copied ? '✓ Copied!' : '📋 Copy'}
+          </button>
+        </div>
         {logsOpen && (
-          <>
-            <pre className="bootstrap-splash__logs" ref={logRef}>
-              {logs.length === 0
-                ? 'Waiting for output…'
-                : logs.map((l, i) => `[${l.stage}] ${l.line}`).join('\n')}
-            </pre>
-            <button
-              type="button"
-              className="bootstrap-splash__copy-btn"
-              onClick={handleCopyLogs}
-            >
-              {copied ? '✓ Copied!' : '📋 Copy logs'}
-            </button>
-          </>
+          <pre className="bootstrap-splash__logs" ref={logRef}>
+            {logs.length === 0
+              ? 'Waiting for output…'
+              : logs.map((l, i) => `[${l.stage}] ${l.line}`).join('\n')}
+          </pre>
         )}
       </div>
     </div>

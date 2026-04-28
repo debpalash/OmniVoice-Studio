@@ -135,8 +135,14 @@
   opacity: 0.65;
 }
 
-.bootstrap-splash__log-toggle {
+.bootstrap-splash__log-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin-top: 1.25rem;
+}
+
+.bootstrap-splash__log-toggle {
   background: none;
   border: none;
   color: inherit;
@@ -151,13 +157,16 @@
 .bootstrap-splash__log-toggle:hover { opacity: 1; }
 
 .bootstrap-splash__log-count {
-  opacity: 0.6;
+  flex: 1;
+  opacity: 0.45;
+  font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
 }
 
 .bootstrap-splash__logs {
   margin: 0.5rem 0 0;
-  max-height: 220px;
+  max-height: 280px;
+  min-height: 100px;
   overflow-y: auto;
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 0.72rem;
