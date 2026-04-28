@@ -280,25 +280,26 @@ chmod +x OmniVoice.Studio_*.AppImage
 **🚀 Ship-blockers**
 - [ ] macOS code signing + notarization — eliminates the `xattr -cr` workaround
 - [ ] Windows code signing — eliminates SmartScreen warning
-- [ ] Onboarding sample clip — pre-loaded project for first-run experience
-- [ ] Docker DX polish — model download progress, GPU auto-detect feedback
+- [x] ~~Onboarding sample clip — pre-loaded demo project for first-run experience~~
+- [x] ~~Docker DX polish — health endpoint, CPU/GPU profiles, proper compose~~
+- [x] ~~Auto-updater — check + download + install from GitHub Releases~~
 
 **⚡ Performance**
 - [ ] Batched TTS (8–16 segments per forward pass) — 3–5× throughput
-- [ ] Eliminate per-segment disk round-trips in `dub_generate.py`
+- [x] ~~Eliminate per-segment disk round-trips in `dub_generate.py`~~ (deferred batch-write)
 - [ ] Cold start ≤ 1.5s (currently ~4s on Apple Silicon)
 - [ ] Crash-sandbox GPU engines (subprocess isolation)
 
 **✨ Differentiators**
 - [ ] Global hotkey dictation — system-wide record → transcribe → paste (inspired by [VoiceBox Capture](https://github.com/jamiepine/voicebox))
 - [ ] MCP server — expose OmniVoice as an AI agent tool (Claude, Cursor, etc.)
-- [ ] Voice personalities — named presets (narrator, casual, formal) with saved TTS params
+- [x] ~~Voice personalities — named presets (narrator, casual, formal) with saved TTS params~~
 - [ ] Audio effects chain — post-processing pipeline (reverb, EQ, compression)
 - [ ] Real-time dub preview — stream TTS as you edit, no full re-render
 - [ ] Project-level casting view — drag voices to speakers
 
 **🎨 Polish & Quality**
-- [ ] i18n framework — UI translation support (community-driven)
+- [x] ~~i18n framework — UI translation support (community-driven)~~
 - [ ] Waveform timeline v2 — WaveSurfer continuous regions overlay
 - [ ] Accessibility audit — WCAG AA, ARIA live regions, full keyboard nav
 - [ ] Theme system — multiple themes, system preference sync
