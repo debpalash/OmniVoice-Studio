@@ -48,6 +48,7 @@ export function BootstrapSplash({ stage, message }) {
   const isFailed = stage === 'failed';
   const [logs, setLogs] = useState([]);
   const [logsOpen, setLogsOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [progress, setProgress] = useState(null); // { stage, bytes_done, bytes_total, percent }
   const logRef = useRef(null);
 
@@ -94,6 +95,24 @@ export function BootstrapSplash({ stage, message }) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
   }, [logs, logsOpen]);
+
+  // Auto-expand logs on failure so users can see + copy the full output.
+  useEffect(() => {
+    if (isFailed) setLogsOpen(true);
+  }, [isFailed]);
+
+  const handleCopyLogs = () => {
+    const logText = logs.length === 0
+      ? 'No log output captured.'
+      : logs.map(l => `[${l.stage}] ${l.line}`).join('\n');
+    const full = isFailed && message
+      ? `ERROR: ${message}\n\n--- Bootstrap Logs ---\n${logText}`
+      : logText;
+    navigator.clipboard.writeText(full).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
 
   const stageProgress = progress && progress.stage === stage ? progress : null;
   const pctFromBytes = stageProgress?.percent != null ? stageProgress.percent : null;
@@ -157,11 +176,20 @@ export function BootstrapSplash({ stage, message }) {
           )}
         </button>
         {logsOpen && (
-          <pre className="bootstrap-splash__logs" ref={logRef}>
-            {logs.length === 0
-              ? 'Waiting for output…'
-              : logs.map((l, i) => `[${l.stage}] ${l.line}`).join('\n')}
-          </pre>
+          <>
+            <pre className="bootstrap-splash__logs" ref={logRef}>
+              {logs.length === 0
+                ? 'Waiting for output…'
+                : logs.map((l, i) => `[${l.stage}] ${l.line}`).join('\n')}
+            </pre>
+            <button
+              type="button"
+              className="bootstrap-splash__copy-btn"
+              onClick={handleCopyLogs}
+            >
+              {copied ? '✓ Copied!' : '📋 Copy logs'}
+            </button>
+          </>
         )}
       </div>
     </div>

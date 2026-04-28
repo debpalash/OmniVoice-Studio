@@ -169,4 +169,21 @@
   white-space: pre-wrap;
   word-break: break-word;
   opacity: 0.85;
+  user-select: text;
+}
+
+.bootstrap-splash__copy-btn {
+  margin-top: 0.5rem;
+  background: color-mix(in srgb, var(--chrome-fg, #eee) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chrome-fg, #eee) 12%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.bootstrap-splash__copy-btn:hover {
+  background: color-mix(in srgb, var(--chrome-fg, #eee) 14%, transparent);
 }

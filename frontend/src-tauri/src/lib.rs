@@ -462,7 +462,11 @@ fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
         return None;
     }
     if resource_uvlock.is_file() {
-        let _ = fs::copy(&resource_uvlock, project_dir.join("uv.lock"));
+        if let Err(e) = fs::copy(&resource_uvlock, project_dir.join("uv.lock")) {
+            log::warn!("Could not copy uv.lock (will use non-frozen sync): {}", e);
+        }
+    } else {
+        log::warn!("No uv.lock in bundle — uv sync will resolve from scratch");
     }
     if let Err(e) = copy_dir_recursive(&resource_backend, &backend_dir) {
         fail(progress, &format!("copy backend/: {}", e));
@@ -503,9 +507,19 @@ fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
         set_stage(p, BootstrapStage::InstallingDeps);
     }
     let mut sync_cmd = Command::new(&uv_path);
-    sync_cmd
-        .args(["sync", "--frozen", "--no-dev", "--verbose"])
-        .current_dir(&project_dir);
+    let has_lockfile = project_dir.join("uv.lock").is_file();
+    if has_lockfile {
+        sync_cmd
+            .args(["sync", "--frozen", "--no-dev", "--verbose"])
+            .current_dir(&project_dir);
+    } else {
+        // No lockfile — let uv resolve dependencies from pyproject.toml.
+        // This is slower but always works.
+        log::info!("No uv.lock present, running uv sync without --frozen");
+        sync_cmd
+            .args(["sync", "--no-dev", "--verbose"])
+            .current_dir(&project_dir);
+    }
     let sync_status = run_streaming(app, "installing_deps", &mut sync_cmd);
     if !matches!(sync_status, Ok(ref s) if s.success()) {
         fail(progress, &format!("uv sync failed: {:?}", sync_status));
