@@ -174,25 +174,45 @@ This boots both services:
 
 ### Desktop App
 
-Pre-built installers are available on the [Releases](https://github.com/debpalash/OmniVoice-Studio/releases/latest) page. Or build from source:
+Pre-built installers (~6–8 MB) are available on the [**Releases**](https://github.com/debpalash/OmniVoice-Studio/releases/latest) page. On first launch, the app bootstraps a Python environment and downloads model weights automatically — the splash screen shows progress.
+
+To build from source instead:
 
 ```bash
 bun run desktop    # Launches Tauri native app (macOS / Windows / Linux)
 ```
 
-> [!IMPORTANT]
-> **macOS — "app is damaged" error after downloading the `.dmg`**
->
-> macOS Gatekeeper quarantines apps downloaded from the internet. After dragging OmniVoice Studio to `/Applications`, run:
-> ```bash
-> xattr -cr /Applications/OmniVoice\ Studio.app
-> ```
-> Then open the app normally. This only needs to be done once.
+<details>
+<summary><b>macOS — "app is damaged and can't be opened"</b></summary>
+<br/>
 
-> [!TIP]
-> **Windows — first launch takes 5–10 minutes.** The app bootstraps a Python virtual environment, installs dependencies, and downloads ffmpeg automatically. The splash screen shows progress.
->
-> **Linux — AppImage requires FUSE.** If your distro doesn't have FUSE, use the `.deb` package instead, or run: `chmod +x OmniVoice.Studio_*.AppImage && ./OmniVoice.Studio_*.AppImage --appimage-extract-and-run`
+macOS quarantines apps downloaded outside the App Store. After dragging to `/Applications`:
+
+```bash
+xattr -cr /Applications/OmniVoice\ Studio.app
+```
+
+Open normally after. One-time fix.
+</details>
+
+<details>
+<summary><b>Windows — first launch takes 5–10 minutes</b></summary>
+<br/>
+
+The app bootstraps a Python virtual environment, installs dependencies, and downloads ffmpeg on first run. The splash screen shows each step. Subsequent launches start in seconds.
+</details>
+
+<details>
+<summary><b>Linux — AppImage needs FUSE</b></summary>
+<br/>
+
+If FUSE isn't available, use the `.deb` package or extract-and-run:
+
+```bash
+chmod +x OmniVoice.Studio_*.AppImage
+./OmniVoice.Studio_*.AppImage --appimage-extract-and-run
+```
+</details>
 
 ---
 
