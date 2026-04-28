@@ -265,31 +265,44 @@ chmod +x OmniVoice.Studio_*.AppImage
 | **Infra** | Docker deployment, CUDA/MPS/ROCm auto-detect, cuDNN 8 compat, VRAM-aware model offloading |
 | **AI Provenance** | AudioSeal invisible watermarking (SynthID-like), video logo overlay, watermark detection API |
 | **UX** | Undo/redo, keyboard shortcuts, drag-and-drop, session persistence, glassmorphism design system |
+| **Real-time Events** | WebSocket event bus — instant sidebar refresh on data mutations, exponential backoff reconnect |
+| **State Management** | Zustand store migration — `uiSlice`, `pillSlice`, `dubSlice`, `generateSlice`, `prefsSlice`, `glossarySlice` |
+| **Desktop** | Cross-platform Tauri installers (macOS DMG, Windows MSI, Linux deb/AppImage), auto-update infrastructure |
+| **Windows Hardening** | Cross-platform log paths, Triton workaround, HF symlink bypass, 300s health check timeout |
 
 ### 🔜 Next — by priority
 
-**⚡ Performance** (highest user-visible impact)
+**🚀 Ship-blockers**
+- [ ] macOS code signing + notarization — eliminates the `xattr -cr` workaround
+- [ ] Windows code signing — eliminates SmartScreen warning
+- [ ] Onboarding sample clip — pre-loaded project for first-run experience
+- [ ] Docker DX polish — model download progress, GPU auto-detect feedback
+
+**⚡ Performance**
 - [ ] Batched TTS (8–16 segments per forward pass) — 3–5× throughput
 - [ ] Eliminate per-segment disk round-trips in `dub_generate.py`
 - [ ] Cold start ≤ 1.5s (currently ~4s on Apple Silicon)
 - [ ] Crash-sandbox GPU engines (subprocess isolation)
 
-**✨ Differentiators** (what no competitor has)
+**✨ Differentiators**
+- [ ] Global hotkey dictation — system-wide record → transcribe → paste (inspired by [VoiceBox Capture](https://github.com/jamiepine/voicebox))
+- [ ] MCP server — expose OmniVoice as an AI agent tool (Claude, Cursor, etc.)
+- [ ] Voice personalities — named presets (narrator, casual, formal) with saved TTS params
+- [ ] Audio effects chain — post-processing pipeline (reverb, EQ, compression)
 - [ ] Real-time dub preview — stream TTS as you edit, no full re-render
 - [ ] Project-level casting view — drag voices to speakers
-- [ ] Context-aware pipeline — video frames inform dubbing decisions
-- [ ] Voice memory across projects
 
 **🎨 Polish & Quality**
-- [ ] Accessibility audit — WCAG AA, ARIA live regions, full keyboard nav
+- [ ] i18n framework — UI translation support (community-driven)
 - [ ] Waveform timeline v2 — WaveSurfer continuous regions overlay
-- [ ] Onboarding sample clip — pre-loaded project for first-run experience
-- [ ] Zustand migration — extract App.jsx (94KB, 41 useState calls)
+- [ ] Accessibility audit — WCAG AA, ARIA live regions, full keyboard nav
+- [ ] Theme system — multiple themes, system preference sync
 
-**📦 Productisation**
-- [ ] Signed Tauri installers + auto-update (macOS / Windows / Linux)
-- [ ] Plugin SDK for third-party TTS engines (ElevenLabs, XTTS, Bark)
+**📦 Ecosystem**
+- [ ] Plugin SDK for third-party TTS engines (ElevenLabs, XTTS, Bark, Fish)
 - [ ] LLM-powered translation (GPT/Claude for nuanced localization)
+- [ ] Stories / Audiobook editor — multi-track, per-character voice assignment
+- [ ] Context-aware pipeline — video frames inform dubbing decisions
 
 ---
 
