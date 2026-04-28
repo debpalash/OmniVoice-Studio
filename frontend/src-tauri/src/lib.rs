@@ -859,7 +859,7 @@ fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<
             "--port",
             &backend_port().to_string(),
         ])
-        .stdout(stdout_file.map(Stdio::from).unwrap_or_else(Stdio::null))
+        .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
     {
@@ -876,6 +876,23 @@ fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<
             return None;
         }
     };
+
+    // Tee stdout to log file + splash event stream.
+    if let Some(stdout_pipe) = child.stdout.take() {
+        let app_clone = app.clone();
+        let mut out_file = stdout_file;
+        std::thread::spawn(move || {
+            use std::io::Write;
+            let reader = BufReader::new(stdout_pipe);
+            for line in reader.lines().flatten() {
+                log::info!("[backend_stdout] {}", line);
+                emit_log(&app_clone, "starting_backend", &line);
+                if let Some(ref mut f) = out_file {
+                    let _ = writeln!(f, "{}", line);
+                }
+            }
+        });
+    }
 
     // Tee stderr to both the log file and splash event stream so the user
     // can see what's happening during slow first-run imports.
