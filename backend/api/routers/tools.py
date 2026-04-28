@@ -126,3 +126,14 @@ def rate_fit(req: RateFitReq):
         target_lang=req.target_lang,
         source_text=req.source_text,
     )
+
+
+# ── Audio effects presets ──────────────────────────────────────────────────
+
+
+@router.get("/tools/effects")
+def list_effects():
+    """Return available audio effect presets (Broadcast, Cinematic, etc.)."""
+    from services.audio_dsp import list_effect_presets
+    return list_effect_presets()
+

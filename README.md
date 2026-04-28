@@ -135,6 +135,17 @@ Built on the [OmniVoice](https://github.com/k2-fsa/OmniVoice) 600-language zero-
 - **Video Branding** — Optional logo overlay on exported MP4s (5s fade-out, bottom-right).
 - **Configurable** — Toggle invisible/visible watermarks independently in Settings → Privacy.
 
+### MCP Server (AI Agent Integration)
+- **Model Context Protocol** — Expose OmniVoice as an AI agent tool for Claude, Cursor, and any MCP-compatible client.
+- **5 Tools** — `generate_speech`, `list_voices`, `list_personalities`, `list_languages`, `check_health`.
+- **stdio + SSE** — Works locally (Claude Desktop) or remotely (networked agents).
+- **Zero config** — Drop `mcp.json` into your client config and go. See [`mcp.json`](mcp.json).
+
+### Audio Effects Chain
+- **6 presets** — Broadcast 📻, Cinematic 🎬, Podcast 🎙️, Warm ☀️, Bright ✨, Raw 🔇.
+- **Pedalboard-powered** — Spotify's production-grade DSP (EQ, compressor, reverb, noise gate, limiter).
+- **API-driven** — `GET /tools/effects` returns presets; custom chains via `apply_effects_chain()`.
+
 ---
 
 ## Quickstart
@@ -292,9 +303,9 @@ chmod +x OmniVoice.Studio_*.AppImage
 
 **✨ Differentiators**
 - [ ] Global hotkey dictation — system-wide record → transcribe → paste (inspired by [VoiceBox Capture](https://github.com/jamiepine/voicebox))
-- [ ] MCP server — expose OmniVoice as an AI agent tool (Claude, Cursor, etc.)
+- [x] ~~MCP server — expose OmniVoice as an AI agent tool (Claude, Cursor, etc.)~~
 - [x] ~~Voice personalities — named presets (narrator, casual, formal) with saved TTS params~~
-- [ ] Audio effects chain — post-processing pipeline (reverb, EQ, compression)
+- [x] ~~Audio effects chain — post-processing pipeline (reverb, EQ, compression)~~
 - [ ] Real-time dub preview — stream TTS as you edit, no full re-render
 - [ ] Project-level casting view — drag voices to speakers
 

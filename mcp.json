@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "omnivoice": {
+      "command": "python",
+      "args": ["-m", "backend.mcp_server"],
+      "cwd": "/path/to/OmniVoice-Studio",
+      "env": {
+        "OMNIVOICE_API_URL": "http://localhost:3900"
+      }
+    }
+  }
+}
