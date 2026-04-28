@@ -56,6 +56,7 @@ export function BootstrapSplash({ stage, message }) {
   const logRef = useRef(null);
 
   // Subscribe to live log + progress events from the Rust bootstrap.
+  // Also backfill any logs emitted before the webview finished loading.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!('__TAURI_INTERNALS__' in window)) return;
@@ -66,11 +67,28 @@ export function BootstrapSplash({ stage, message }) {
     (async () => {
       try {
         const { listen } = await import('@tauri-apps/api/event');
+        const { invoke } = await import('@tauri-apps/api/core');
         if (cancelled) return;
+
+        // Backfill: fetch all log lines buffered on the Rust side before
+        // the webview was ready to receive events.
+        try {
+          const buffered = await invoke('get_bootstrap_logs');
+          if (!cancelled && Array.isArray(buffered) && buffered.length > 0) {
+            setLogs(buffered.map(({ stage: s, line }) => ({
+              stage: s, line, t: Date.now(),
+            })));
+          }
+        } catch { /* command may not exist in older builds */ }
+
+        // Subscribe to live events for anything new from here on.
         unlistenLog = await listen('bootstrap-log', (e) => {
           const { stage: s, line } = e.payload || {};
           if (!line) return;
           setLogs((prev) => {
+            // Deduplicate against backfill by checking the last few lines.
+            const lastFew = prev.slice(-5);
+            if (lastFew.some(l => l.stage === s && l.line === line)) return prev;
             const next = prev.concat([{ stage: s, line, t: Date.now() }]);
             return next.length > MAX_LOG_LINES
               ? next.slice(next.length - MAX_LOG_LINES)

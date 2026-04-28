@@ -60,6 +60,7 @@ pub enum BootstrapStage {
 
 pub struct BootstrapState {
     pub stage: Arc<Mutex<BootstrapStage>>,
+    pub logs: Arc<Mutex<Vec<LogPayload>>>,
 }
 
 fn set_stage(state: &Arc<Mutex<BootstrapStage>>, stage: BootstrapStage) {
@@ -75,9 +76,9 @@ fn set_stage(state: &Arc<Mutex<BootstrapStage>>, stage: BootstrapStage) {
 // listens on these for live detail.
 
 #[derive(Clone, Serialize)]
-struct LogPayload {
-    stage: String,
-    line: String,
+pub struct LogPayload {
+    pub stage: String,
+    pub line: String,
 }
 
 #[derive(Clone, Serialize)]
@@ -89,10 +90,14 @@ struct ProgressPayload {
 }
 
 fn emit_log<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stage: &str, line: &str) {
-    let _ = app.emit(
-        "bootstrap-log",
-        LogPayload { stage: stage.to_string(), line: line.to_string() },
-    );
+    let payload = LogPayload { stage: stage.to_string(), line: line.to_string() };
+    // Buffer the log so the frontend can backfill on mount.
+    if let Some(state) = app.try_state::<BootstrapState>() {
+        if let Ok(mut logs) = state.logs.lock() {
+            logs.push(payload.clone());
+        }
+    }
+    let _ = app.emit("bootstrap-log", payload);
 }
 
 fn emit_progress<R: tauri::Runtime>(
@@ -163,6 +168,17 @@ fn bootstrap_status(state: tauri::State<'_, BootstrapState>) -> BootstrapStage {
         .lock()
         .map(|g| g.clone())
         .unwrap_or(BootstrapStage::Checking)
+}
+
+/// Return all buffered log lines so the frontend can backfill logs that were
+/// emitted before the webview finished loading.
+#[tauri::command]
+fn get_bootstrap_logs(state: tauri::State<'_, BootstrapState>) -> Vec<LogPayload> {
+    state
+        .logs
+        .lock()
+        .map(|g| g.clone())
+        .unwrap_or_default()
 }
 
 // ── Port probing ──────────────────────────────────────────────────────────
@@ -1220,6 +1236,7 @@ pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             bootstrap_status,
+            get_bootstrap_logs,
             get_sysinfo,
             read_log_tail,
             hf_cache_scan,
@@ -1360,6 +1377,7 @@ pub fn run() {
             // command so the React splash can poll it while we work.
             let bootstrap = BootstrapState {
                 stage: Arc::new(Mutex::new(BootstrapStage::Checking)),
+                logs: Arc::new(Mutex::new(Vec::new())),
             };
             let stage_handle = bootstrap.stage.clone();
             app.manage(bootstrap);
