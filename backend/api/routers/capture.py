@@ -30,8 +30,15 @@ logger = logging.getLogger("omnivoice.capture")
 async def transcribe_audio(
     audio: UploadFile = File(...),
     language: Optional[str] = Form(None),
+    model: Optional[str] = Form(None),
 ):
     """Transcribe an audio file to text.
+
+    Args:
+        audio: The audio file to transcribe.
+        language: Optional language hint (not currently used; auto-detected).
+        model: Whisper model size ('tiny', 'base', 'small', 'medium', 'large-v3').
+               Defaults to the server's configured ASR model.
 
     Returns:
         {
@@ -63,12 +70,16 @@ async def transcribe_audio(
         tmp.write(content)
         tmp.close()
 
+        chosen_model = model  # captured in closure
+
         def _run():
             from services.asr_backend import get_active_asr_backend
 
             backend = get_active_asr_backend(asr_pipe=_model._asr_pipe)
-            # Note: WhisperXBackend.transcribe() auto-detects language;
-            # the `language` form field is reserved for future use.
+            # If user chose a specific model and the backend supports it,
+            # override the default. Otherwise fall through to the default.
+            if chosen_model and hasattr(backend, 'model_size'):
+                backend.model_size = chosen_model
             result = backend.transcribe(tmp.name)
             return result
 

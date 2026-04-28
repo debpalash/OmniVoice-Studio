@@ -29,6 +29,92 @@ def model_status():
     return get_model_status()
 
 
+@router.get("/model/loaded")
+def loaded_models():
+    """Return details about all currently loaded models for the flush dropdown.
+
+    Returns a list of models with name, type, device, and estimated VRAM usage.
+    """
+    import services.model_manager as mm
+
+    models = []
+
+    # 1. TTS model (OmniVoice)
+    if mm.model is not None:
+        device = "unknown"
+        vram_mb = 0
+        try:
+            device = str(next(mm.model.parameters()).device) if hasattr(mm.model, 'parameters') else get_best_device()
+        except Exception:
+            device = get_best_device()
+        try:
+            torch = mm._lazy_torch()
+            if torch.cuda.is_available():
+                vram_mb = torch.cuda.memory_allocated() / (1024 ** 2)
+            elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                driver = getattr(torch.mps, "driver_allocated_memory", None)
+                if driver:
+                    vram_mb = driver() / (1024 ** 2)
+        except Exception:
+            pass
+        models.append({
+            "id": "tts",
+            "name": "OmniVoice TTS",
+            "checkpoint": os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice"),
+            "device": device,
+            "vram_mb": round(vram_mb, 1),
+            "unloadable": True,
+        })
+
+    # 2. ASR model (WhisperX)
+    if mm.model is not None and hasattr(mm.model, '_asr_pipe') and mm.model._asr_pipe is not None:
+        models.append({
+            "id": "asr",
+            "name": "WhisperX ASR",
+            "checkpoint": os.environ.get("ASR_MODEL", "Systran/faster-whisper-large-v3"),
+            "device": "cpu",
+            "vram_mb": 0,
+            "unloadable": False,  # tied to TTS model lifecycle
+        })
+
+    # 3. Diarization pipeline
+    if mm._diar_pipeline is not None:
+        models.append({
+            "id": "diarization",
+            "name": "Pyannote Diarization",
+            "checkpoint": "pyannote/speaker-diarization-3.1",
+            "device": get_best_device(),
+            "vram_mb": 0,
+            "unloadable": True,
+        })
+
+    return {"models": models, "count": len(models)}
+
+
+@router.post("/model/unload/{model_id}")
+async def unload_model(model_id: str):
+    """Unload a specific model by ID."""
+    import services.model_manager as mm
+
+    if model_id == "tts":
+        async with mm._model_lock:
+            if mm.model is not None:
+                mm.model = None
+                mm.free_vram()
+                return {"unloaded": "tts", "success": True}
+        return {"unloaded": "tts", "success": False, "reason": "not loaded"}
+
+    elif model_id == "diarization":
+        if mm._diar_pipeline is not None:
+            mm._diar_pipeline = None
+            mm.free_vram()
+            return {"unloaded": "diarization", "success": True}
+        return {"unloaded": "diarization", "success": False, "reason": "not loaded"}
+
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown model id: {model_id}")
+
+
 @router.get("/system/info", response_model=SystemInfoResponse)
 def system_info():
     """Settings page system info — model, tokens, data dir, timeout.
@@ -421,12 +507,11 @@ async def set_env_var(body: dict):
     Currently supports:
       - HF_TOKEN: HuggingFace access token
       - TRANSLATE_API_KEY: Translation API key
-      - ELEVENLABS_API_KEY: ElevenLabs API key
 
     The value is set on os.environ for the running process.
     For persistence across restarts, users should set it in their shell profile.
     """
-    ALLOWED_KEYS = {"HF_TOKEN", "TRANSLATE_API_KEY", "ELEVENLABS_API_KEY"}
+    ALLOWED_KEYS = {"HF_TOKEN", "TRANSLATE_API_KEY"}
     key = body.get("key", "")
     value = body.get("value", "")
 

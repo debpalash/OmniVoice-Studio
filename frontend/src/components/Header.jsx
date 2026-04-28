@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Globe, Fingerprint, Wand2, Film, FolderOpen, RefreshCw, Settings2, ChevronRight, Zap, Building2, Library, FileText } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Globe, Fingerprint, Wand2, Film, FolderOpen, RefreshCw, Settings2, ChevronRight, ChevronDown, Zap, Building2, Library, FileText, Trash2 } from 'lucide-react';
 import { Button, Badge } from '../ui';
 import NotificationPanel from './NotificationPanel';
 
@@ -41,8 +41,51 @@ export default function Header({
   activeProjectName, onFlushMemory,
 }) {
   const [flushing, setFlushing] = useState(false);
+  const [flushOpen, setFlushOpen] = useState(false);
+  const [loadedModels, setLoadedModels] = useState([]);
+  const [unloading, setUnloading] = useState(null);
+  const flushRef = useRef(null);
   const view = VIEW_META[mode] || VIEW_META.launchpad;
   const ViewIcon = view.Icon;
+
+  // Fetch loaded models when dropdown opens
+  useEffect(() => {
+    if (!flushOpen) return;
+    const fetchModels = async () => {
+      try {
+        const { API } = await import('../api/client');
+        const res = await fetch(`${API}/model/loaded`);
+        if (res.ok) {
+          const data = await res.json();
+          setLoadedModels(data.models || []);
+        }
+      } catch {}
+    };
+    fetchModels();
+  }, [flushOpen]);
+
+  // Click outside to close
+  useEffect(() => {
+    if (!flushOpen) return;
+    const handler = (e) => {
+      if (flushRef.current && !flushRef.current.contains(e.target)) setFlushOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [flushOpen]);
+
+  const unloadModel = async (modelId) => {
+    setUnloading(modelId);
+    try {
+      const { API } = await import('../api/client');
+      const res = await fetch(`${API}/model/unload/${modelId}`, { method: 'POST' });
+      if (res.ok) {
+        setLoadedModels(prev => prev.filter(m => m.id !== modelId));
+      }
+    } catch {} finally {
+      setUnloading(null);
+    }
+  };
   // Dynamic accent color must stay inline — it's driven by the current view.
   const dotStyle   = { background: view.accent, boxShadow: `0 0 10px ${view.accent}90` };
   const labelStyle = { color: view.accent };
@@ -121,20 +164,69 @@ export default function Header({
               </Badge>
             </span>
             {onFlushMemory && (
-              <Button
-                variant="subtle"
-                size="sm"
-                title="Flush RAM/VRAM caches. Alt+Click to also unload model."
-                loading={flushing}
-                leading={!flushing && <Zap size={8} />}
-                onClick={async (e) => {
-                  setFlushing(true);
-                  try { await onFlushMemory(e.altKey); } finally { setFlushing(false); }
-                }}
-                className="hq-flush-btn"
-              >
-                Flush
-              </Button>
+              <div ref={flushRef} style={{ position: 'relative' }}>
+                <Button
+                  variant="subtle"
+                  size="sm"
+                  title="Memory management"
+                  loading={flushing}
+                  leading={!flushing && <Zap size={8} />}
+                  trailing={<ChevronDown size={8} />}
+                  onClick={() => setFlushOpen(o => !o)}
+                  className="hq-flush-btn"
+                >
+                  Flush
+                </Button>
+                {flushOpen && (
+                  <div className="hq-flush-dropdown">
+                    <div className="hq-flush-dropdown__header">Loaded Models</div>
+                    {loadedModels.length === 0 ? (
+                      <div className="hq-flush-dropdown__empty">No models loaded</div>
+                    ) : (
+                      loadedModels.map(m => (
+                        <div key={m.id} className="hq-flush-dropdown__item">
+                          <div className="hq-flush-dropdown__info">
+                            <span className="hq-flush-dropdown__name">{m.name}</span>
+                            <span className="hq-flush-dropdown__meta">
+                              {m.device} {m.vram_mb > 0 ? `· ${m.vram_mb.toFixed(0)} MB` : ''}
+                            </span>
+                          </div>
+                          {m.unloadable && (
+                            <button
+                              className="hq-flush-dropdown__unload"
+                              onClick={() => unloadModel(m.id)}
+                              disabled={unloading === m.id}
+                            >
+                              {unloading === m.id ? '…' : 'Unload'}
+                            </button>
+                          )}
+                        </div>
+                      ))
+                    )}
+                    <div className="hq-flush-dropdown__divider" />
+                    <button
+                      className="hq-flush-dropdown__action"
+                      onClick={async () => {
+                        setFlushing(true);
+                        setFlushOpen(false);
+                        try { await onFlushMemory(false); } finally { setFlushing(false); }
+                      }}
+                    >
+                      <Zap size={10} /> Flush caches
+                    </button>
+                    <button
+                      className="hq-flush-dropdown__action hq-flush-dropdown__action--danger"
+                      onClick={async () => {
+                        setFlushing(true);
+                        setFlushOpen(false);
+                        try { await onFlushMemory(true); } finally { setFlushing(false); }
+                      }}
+                    >
+                      <Trash2 size={10} /> Unload all + flush
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}

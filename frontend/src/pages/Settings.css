@@ -351,3 +351,56 @@
   position: relative;
   top: auto;
 }
+
+/* ── Credentials tab ────────────────────────────────────────── */
+.settings-credential {
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--chrome-border);
+}
+.settings-credential:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+.settings-credential__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.settings-credential__label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--chrome-fg);
+  font-family: var(--font-sans);
+}
+.settings-credential__row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+.settings-credential__input {
+  flex: 1;
+  max-width: 380px;
+  background: var(--chrome-bg-2, #1d1d1d);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--chrome-fg);
+  font-size: var(--text-sm);
+  font-family: var(--chrome-font-mono);
+  padding: 6px 10px;
+}
+.settings-credential__input:focus {
+  outline: none;
+  border-color: var(--chrome-accent, #fabd2f);
+}
+.settings-credential__help {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--chrome-fg-dim);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+}
+.settings-credential__help a {
+  color: var(--chrome-accent, #d3869b);
+  text-decoration: none;
+}
+.settings-credential__help a:hover { text-decoration: underline; }

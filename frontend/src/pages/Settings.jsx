@@ -9,7 +9,7 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Cpu, FileText, Info, ShieldCheck, RefreshCw, Trash2, ExternalLink,
-  CheckCircle, AlertCircle, Plug, Mic, MessageSquare, Download, Copy, Building2,
+  CheckCircle, AlertCircle, Plug, Mic, MessageSquare, Download, Copy, Building2, KeyRound,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { openExternal } from '../api/external';
@@ -23,11 +23,12 @@ import { useAppStore } from '../store';
 import './Settings.css';
 
 const TABS = [
-  { id: 'models',  label: 'Models',  icon: Cpu,          accent: '#f3a5b6' },
-  { id: 'engines', label: 'Engines', icon: Plug,         accent: '#d3869b' },
-  { id: 'logs',    label: 'Logs',    icon: FileText,     accent: '#fabd2f' },
-  { id: 'about',   label: 'About',   icon: Info,         accent: '#8ec07c' },
-  { id: 'privacy', label: 'Privacy', icon: ShieldCheck,  accent: '#b8bb26' },
+  { id: 'models',      label: 'Models',      icon: Cpu,          accent: '#f3a5b6' },
+  { id: 'engines',     label: 'Engines',     icon: Plug,         accent: '#d3869b' },
+  { id: 'credentials', label: 'Credentials', icon: KeyRound,     accent: '#fe8019' },
+  { id: 'logs',        label: 'Logs',        icon: FileText,     accent: '#fabd2f' },
+  { id: 'about',       label: 'About',       icon: Info,         accent: '#8ec07c' },
+  { id: 'privacy',     label: 'Privacy',     icon: ShieldCheck,  accent: '#b8bb26' },
 ];
 
 const FAMILY_META = {
@@ -976,6 +977,8 @@ export default function Settings() {
 
       {activeTab === 'engines' && <EnginesTab />}
 
+      {activeTab === 'credentials' && <CredentialsTab info={info} />}
+
       {activeTab === 'logs' && (
         <section className="settings-section">
           <h2 className="settings-section__head-row">
@@ -1128,5 +1131,104 @@ export default function Settings() {
         </section>
       )}
     </div>
+  );
+}
+
+// ── Credentials Tab ───────────────────────────────────────────────────────
+
+const CREDENTIAL_FIELDS = [
+  {
+    key: 'HF_TOKEN',
+    label: 'HuggingFace Token',
+    placeholder: 'hf_xxxxxxxxxxxx',
+    help: 'Required for speaker diarization and faster model downloads. Get yours at huggingface.co/settings/tokens.',
+    link: 'https://huggingface.co/settings/tokens',
+  },
+  {
+    key: 'TRANSLATE_API_KEY',
+    label: 'Translation API Key',
+    placeholder: 'API key',
+    help: 'Optional — for DeepL, OpenAI, or paid translation providers. Not needed for Google Translate (free tier).',
+    link: null,
+  },
+];
+
+function CredentialsTab({ info }) {
+  const [values, setValues] = useState({});
+  const [saving, setSaving] = useState(null);
+  const [saved, setSaved] = useState({});
+
+  const save = async (key) => {
+    const value = (values[key] || '').trim();
+    if (!value) return;
+    setSaving(key);
+    try {
+      const { API } = await import('../api/client');
+      const res = await fetch(`${API}/system/set-env`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value }),
+      });
+      if (res.ok) {
+        toast.success(`${key} saved for this session`);
+        setSaved(prev => ({ ...prev, [key]: true }));
+        setValues(prev => ({ ...prev, [key]: '' }));
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.detail || 'Failed to save');
+      }
+    } catch (e) {
+      toast.error(`Save failed: ${e.message}`);
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  return (
+    <section className="settings-section">
+      <h2><KeyRound size={16} color="#fe8019" /> Credentials</h2>
+      <p className="settings-prose">
+        API keys and tokens are set <strong>for this session only</strong>. For
+        persistence across restarts, set them as environment variables in your
+        shell profile.
+      </p>
+      {CREDENTIAL_FIELDS.map(field => (
+        <div key={field.key} className="settings-credential">
+          <div className="settings-credential__header">
+            <label className="settings-credential__label">{field.label}</label>
+            {field.key === 'HF_TOKEN' && (
+              <Badge tone={info?.has_hf_token || saved.HF_TOKEN ? 'success' : 'warn'} size="xs">
+                {info?.has_hf_token || saved.HF_TOKEN ? '✓ Set' : '✗ Not set'}
+              </Badge>
+            )}
+          </div>
+          <div className="settings-credential__row">
+            <input
+              type="password"
+              className="settings-credential__input"
+              placeholder={field.placeholder}
+              value={values[field.key] || ''}
+              onChange={e => setValues(prev => ({ ...prev, [field.key]: e.target.value }))}
+              onKeyDown={e => e.key === 'Enter' && save(field.key)}
+            />
+            <Button
+              size="sm"
+              variant="subtle"
+              loading={saving === field.key}
+              onClick={() => save(field.key)}
+              disabled={!(values[field.key] || '').trim()}
+            >
+              Save
+            </Button>
+          </div>
+          <p className="settings-credential__help">
+            {field.help}
+            {field.link && (
+              <> <a href="#" onClick={e => { e.preventDefault(); openExternal(field.link); }}>Get token →</a></>
+            )}
+          </p>
+        </div>
+      ))}
+    </section>
   );
 }

@@ -385,6 +385,71 @@ samp,
 }
 .hq-flush-btn      { margin-left: 2px; }
 .hq-reload-btn     { flex-shrink: 0; }
+
+/* Flush dropdown */
+.hq-flush-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 260px;
+  background: var(--color-bg-elev-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  padding: 4px 0;
+  animation: flush-slide 0.12s ease-out;
+}
+@keyframes flush-slide {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hq-flush-dropdown__header {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-fg-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px 12px 4px;
+}
+.hq-flush-dropdown__empty {
+  padding: 12px;
+  font-size: 11px;
+  color: var(--color-fg-muted);
+  text-align: center;
+}
+.hq-flush-dropdown__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  gap: 8px;
+}
+.hq-flush-dropdown__item:hover { background: rgba(255,255,255,0.03); }
+.hq-flush-dropdown__info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.hq-flush-dropdown__name { font-size: 12px; color: var(--color-fg); font-weight: 500; }
+.hq-flush-dropdown__meta { font-size: 10px; color: var(--color-fg-subtle); font-family: var(--font-mono); }
+.hq-flush-dropdown__unload {
+  font-size: 10px; font-weight: 600;
+  color: var(--color-brand);
+  background: rgba(211,134,155,0.1);
+  border: 1px solid rgba(211,134,155,0.2);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px; cursor: pointer;
+  flex-shrink: 0;
+}
+.hq-flush-dropdown__unload:hover { background: rgba(211,134,155,0.2); }
+.hq-flush-dropdown__divider { height: 1px; background: var(--color-border); margin: 4px 0; }
+.hq-flush-dropdown__action {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; padding: 6px 12px;
+  font-size: 12px; color: var(--color-fg);
+  background: none; border: none; cursor: pointer;
+  text-align: left;
+}
+.hq-flush-dropdown__action:hover { background: rgba(255,255,255,0.04); }
+.hq-flush-dropdown__action--danger { color: #fb4934; }
+.hq-flush-dropdown__action--danger:hover { background: rgba(251,73,52,0.08); }
 /* Decorative wavy SVG ribbon was removed — the flat chrome gets its
    separation from the hairline `border-bottom` above, matching the
    LogsFooter's top edge. */

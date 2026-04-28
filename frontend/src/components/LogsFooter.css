@@ -332,3 +332,100 @@
 }
 .logs-footer__line--error .logs-footer__line-text { color: #fb4934; }
 .logs-footer__line--warn  .logs-footer__line-text { color: #fabd2f; }
+
+/* ── Notification panel in footer ────────────────────────────────── */
+
+.logs-footer__notif-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+}
+
+.logs-footer__notif-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid transparent;
+}
+.logs-footer__notif-item:hover { background: rgba(255, 255, 255, 0.04); }
+
+.logs-footer__notif-item--warn  { border-left: 2px solid #fabd2f; }
+.logs-footer__notif-item--error { border-left: 2px solid #fb4934; }
+.logs-footer__notif-item--info  { border-left: 2px solid #83a598; }
+
+.logs-footer__notif-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.logs-footer__notif-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.logs-footer__notif-content strong {
+  font-size: 12px;
+  color: var(--color-fg);
+}
+.logs-footer__notif-msg {
+  font-size: 11px;
+  color: var(--color-fg-muted);
+  line-height: 1.5;
+}
+
+.logs-footer__notif-link {
+  font-size: 11px;
+  color: var(--color-brand);
+  text-decoration: none;
+  margin-top: 2px;
+}
+.logs-footer__notif-link:hover { text-decoration: underline; }
+
+.logs-footer__notif-hf {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.logs-footer__notif-hf-input {
+  flex: 1;
+  max-width: 280px;
+  background: var(--color-bg-elev-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-fg);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  padding: 3px 8px;
+}
+.logs-footer__notif-hf-input:focus {
+  border-color: var(--color-brand);
+  outline: none;
+}
+.logs-footer__notif-hf-btn {
+  background: var(--color-brand);
+  color: #1d2021;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.logs-footer__notif-hf-btn:hover { opacity: 0.85; }
+
+.logs-footer__notif-item--clickable { cursor: pointer; }
+.logs-footer__notif-item--clickable:hover { background: rgba(255, 255, 255, 0.06); }
+
+.logs-footer__notif-action {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-brand);
+  white-space: nowrap;
+}

@@ -3,14 +3,18 @@
  *
  * Stores transcriptions in localStorage and displays them in a searchable,
  * timestamped list. Each entry can be copied, deleted, or re-used.
+ *
+ * Reactivity: addTranscription() dispatches a custom window event so the
+ * page updates in realtime without requiring a shared store.
  */
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Mic, Copy, Trash2, Search, Clock, Languages, FileText, Download } from 'lucide-react';
 import { Button } from '../ui';
 import { toast } from 'react-hot-toast';
 import './Transcriptions.css';
 
 const STORAGE_KEY = 'omni_transcriptions';
+const TXN_EVENT = 'omni:transcription-added';
 
 function loadTranscriptions() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
@@ -23,23 +27,35 @@ function saveTranscriptions(list) {
 
 export function addTranscription(entry) {
   const list = loadTranscriptions();
-  list.unshift({
+  const newEntry = {
     id: Date.now(),
     text: entry.text || '',
     language: entry.language || 'unknown',
     duration_s: entry.duration_s || 0,
     segments: entry.segments || [],
     timestamp: new Date().toISOString(),
-  });
+  };
+  list.unshift(newEntry);
   // Keep last 200
   if (list.length > 200) list.length = 200;
   saveTranscriptions(list);
+  // Fire custom event for reactive updates
+  window.dispatchEvent(new CustomEvent(TXN_EVENT, { detail: newEntry }));
 }
 
 export default function TranscriptionsPage() {
   const [transcriptions, setTranscriptions] = useState(loadTranscriptions);
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState(null);
+
+  // Listen for new transcriptions added from CaptureButton
+  useEffect(() => {
+    const handler = () => {
+      setTranscriptions(loadTranscriptions());
+    };
+    window.addEventListener(TXN_EVENT, handler);
+    return () => window.removeEventListener(TXN_EVENT, handler);
+  }, []);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return transcriptions;

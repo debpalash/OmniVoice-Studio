@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronUp, ChevronDown, RefreshCw, Trash2, Copy, Bug, X,
-  AlertTriangle, AlertCircle, Info, FileText, Heart,
+  AlertTriangle, AlertCircle, Info, FileText, Heart, Bell,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { clearSystemLogs, clearTauriLogs } from '../api/system';
@@ -23,6 +23,7 @@ const SOURCES = [
   { id: 'backend',  label: 'Backend',  icon: FileText },
   { id: 'frontend', label: 'Frontend', icon: FileText },
   { id: 'tauri',    label: 'Tauri',    icon: FileText },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
 ];
 
 const LS_HEIGHT = 'omnivoice.logs.height';
@@ -192,6 +193,8 @@ export default function LogsFooter() {
   // comes from the in-process ring buffer in consoleBuffer.js.
   const [lines, setLines] = useState({ backend: [], frontend: [], tauri: [] });
   const [loading, setLoading] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [hfInput, setHfInput] = useState('');
   const scrollRef = useRef(null);
 
   useEffect(() => localStorage.setItem(LS_HEIGHT, String(height)), [height]);
@@ -249,6 +252,34 @@ export default function LogsFooter() {
     return () => clearInterval(iv);
   }, [pullFrontend, collapsed]);
 
+  // ── Notifications polling ──────────────────────────────────────────────
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const { API } = await import('../api/client');
+      const res = await fetch(`${API}/system/notifications`);
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.notifications || []);
+      }
+    } catch { /* backend not ready */ }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    const iv = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(iv);
+  }, [fetchNotifications]);
+
+  // Allow header bell to open notifications tab
+  useEffect(() => {
+    const handler = () => {
+      setActive('notifications');
+      setCollapsed(false);
+    };
+    window.addEventListener('omni:open-notifications', handler);
+    return () => window.removeEventListener('omni:open-notifications', handler);
+  }, []);
+
   // Auto-scroll to bottom when new lines arrive and panel is open.
   useEffect(() => {
     if (collapsed) return;
@@ -262,7 +293,12 @@ export default function LogsFooter() {
     backend:  countLevels(lines.backend),
     frontend: countLevels(lines.frontend),
     tauri:    countLevels(lines.tauri),
-  }), [lines]);
+    notifications: {
+      error: notifications.filter(n => n.level === 'error').length,
+      warn: notifications.filter(n => n.level === 'warn').length,
+      total: notifications.length,
+    },
+  }), [lines, notifications]);
 
   const openTo = (id) => { setActive(id); setCollapsed(false); };
 
@@ -336,6 +372,7 @@ export default function LogsFooter() {
 
   // ── Render ──────────────────────────────────────────────────────────
   const current = lines[active] || [];
+  const notifCounts = { error: 0, warn: notifications.filter(n => n.level === 'warn').length + notifications.filter(n => n.level === 'error').length, total: notifications.length };
 
   return (
     <div className={['logs-footer', collapsed ? 'logs-footer--collapsed' : 'logs-footer--open'].join(' ')}
@@ -413,7 +450,7 @@ export default function LogsFooter() {
         </div>
       </div>
 
-      {!collapsed && (
+      {!collapsed && active !== 'notifications' && (
         <div ref={scrollRef} className="logs-footer__body">
           {current.length === 0 && (
             <div className="logs-footer__empty">
@@ -429,6 +466,47 @@ export default function LogsFooter() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {!collapsed && active === 'notifications' && (
+        <div className="logs-footer__body logs-footer__notif-body">
+          {notifications.length === 0 ? (
+            <div className="logs-footer__empty">
+              ✅ All clear — no issues detected
+            </div>
+          ) : (
+            notifications.map(notif => (
+              <div
+                key={notif.id}
+                className={`logs-footer__notif-item logs-footer__notif-item--${notif.level} ${notif.action ? 'logs-footer__notif-item--clickable' : ''}`}
+                onClick={() => {
+                  if (!notif.action) return;
+                  if (notif.action.type === 'navigate') {
+                    useAppStore.getState().setMode?.(notif.action.target);
+                    setCollapsed(true);
+                  } else if (notif.action.type === 'link') {
+                    import('../api/external').then(m => m.openExternal(notif.action.target));
+                  }
+                }}
+                role={notif.action ? 'button' : undefined}
+                tabIndex={notif.action ? 0 : undefined}
+              >
+                <span className="logs-footer__notif-icon">
+                  <SeverityIcon level={notif.level} />
+                </span>
+                <div className="logs-footer__notif-content">
+                  <strong>{notif.title}</strong>
+                  <span className="logs-footer__notif-msg">{notif.message}</span>
+                </div>
+                {notif.action && (
+                  <span className="logs-footer__notif-action">
+                    {notif.action.label} →
+                  </span>
+                )}
+              </div>
+            ))
+          )}
         </div>
       )}
     </div>

@@ -1,11 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Clipboard, X, Loader } from 'lucide-react';
+import { Mic, MicOff, Clipboard, X, Loader, ChevronDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAppStore } from '../store';
 import './CaptureButton.css';
 
 import { API as API_BASE } from '../api/client';
 import { addTranscription } from '../pages/Transcriptions';
+
+const WHISPER_MODELS = [
+  { id: 'tiny',     label: 'Tiny',     desc: 'Fastest · lowest accuracy',    icon: '⚡' },
+  { id: 'base',     label: 'Base',     desc: 'Fast · basic accuracy',         icon: '🔵' },
+  { id: 'small',    label: 'Small',    desc: 'Balanced speed & quality',      icon: '🟢' },
+  { id: 'medium',   label: 'Medium',   desc: 'Good accuracy · slower',        icon: '🟡' },
+  { id: 'large-v3', label: 'Large V3', desc: 'Best accuracy · slowest',       icon: '🔴' },
+];
+
+const LS_WHISPER_MODEL = 'omni_whisper_model';
 
 /**
  * CaptureButton — global dictation / voice capture widget.
@@ -24,6 +34,10 @@ export default function CaptureButton() {
   const [transcript, setTranscript] = useState('');
   const [duration, setDuration] = useState(0);
   const [expanded, setExpanded] = useState(false);
+  const [whisperModel, setWhisperModel] = useState(() =>
+    localStorage.getItem(LS_WHISPER_MODEL) || 'small'
+  );
+  const [showModelPicker, setShowModelPicker] = useState(false);
 
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -101,6 +115,7 @@ export default function CaptureButton() {
     const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
     const formData = new FormData();
     formData.append('audio', blob, 'capture.webm');
+    formData.append('model', whisperModel);
 
     try {
       const res = await fetch(`${API_BASE}/transcribe`, {
@@ -203,6 +218,40 @@ export default function CaptureButton() {
               No speech detected. Try again.
             </div>
           )}
+
+          {/* Model selector */}
+          <div className="capture-panel__model-row">
+            <div className="capture-panel__model-picker" style={{ position: 'relative' }}>
+              <button
+                className="capture-panel__model-btn"
+                onClick={() => setShowModelPicker(p => !p)}
+                title="Whisper model quality"
+              >
+                {WHISPER_MODELS.find(m => m.id === whisperModel)?.icon || '🟢'}{' '}
+                {WHISPER_MODELS.find(m => m.id === whisperModel)?.label || 'Small'}
+                <ChevronDown size={10} />
+              </button>
+              {showModelPicker && (
+                <div className="capture-panel__model-dropdown">
+                  {WHISPER_MODELS.map(m => (
+                    <button
+                      key={m.id}
+                      className={`capture-panel__model-option ${whisperModel === m.id ? 'is-active' : ''}`}
+                      onClick={() => {
+                        setWhisperModel(m.id);
+                        localStorage.setItem(LS_WHISPER_MODEL, m.id);
+                        setShowModelPicker(false);
+                      }}
+                    >
+                      <span className="capture-panel__model-icon">{m.icon}</span>
+                      <span className="capture-panel__model-label">{m.label}</span>
+                      <span className="capture-panel__model-desc">{m.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
           <div className="capture-panel__hint">
             <kbd>{navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}</kbd>+<kbd>⇧</kbd>+<kbd>Space</kbd>
