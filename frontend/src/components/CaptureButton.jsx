@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import { useAppStore } from '../store';
 import './CaptureButton.css';
 
-const API_BASE = import.meta.env.VITE_API_BACKEND_URL || '';
+import { API as API_BASE } from '../api/client';
 
 /**
  * CaptureButton — global dictation / voice capture widget.
