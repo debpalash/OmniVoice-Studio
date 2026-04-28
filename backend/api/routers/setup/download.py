@@ -113,6 +113,30 @@ async def install_model(req: InstallModelRequest):
             if sys.platform == "win32":
                 dl_kwargs["local_dir_use_symlinks"] = False
 
+            # Emit a 'resolving' heartbeat every 2s while snapshot_download
+            # resolves repo metadata (before any tqdm bars appear).
+            import threading
+            import time as _t
+            _resolving = threading.Event()
+
+            def _heartbeat():
+                _step = 0
+                while not _resolving.is_set():
+                    _resolving.wait(2.0)
+                    if _resolving.is_set():
+                        break
+                    _step += 1
+                    hf_progress.emit({
+                        "repo_id": req.repo_id,
+                        "filename": req.repo_id,
+                        "downloaded": 0, "total": 0, "pct": 0.0,
+                        "phase": "resolving",
+                        "step": _step,
+                    })
+
+            hb = threading.Thread(target=_heartbeat, daemon=True)
+            hb.start()
+
             _max_attempts = 5
             _attempt = 0
             while True:
@@ -136,8 +160,9 @@ async def install_model(req: InstallModelRequest):
                         "attempt": _attempt,
                         "error": str(net_err),
                     })
-                    import time as _t
                     _t.sleep(_backoff)
+            # Stop heartbeat once download completes
+            _resolving.set()
             logger.info("model install done: %s", req.repo_id)
             hf_progress.emit({
                 "repo_id": req.repo_id,
@@ -147,6 +172,7 @@ async def install_model(req: InstallModelRequest):
             })
             invalidate_cache()
         except Exception as e:
+            _resolving.set()
             logger.warning("model install failed for %s: %s", req.repo_id, e)
             hf_progress.emit({
                 "repo_id": req.repo_id,
