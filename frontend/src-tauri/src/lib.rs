@@ -418,9 +418,28 @@ fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
     }
 
     let resource_dir = app.path().resource_dir().ok()?;
-    let resource_pyproject = resource_dir.join("pyproject.toml");
-    let resource_uvlock = resource_dir.join("uv.lock");
-    let resource_backend = resource_dir.join("backend");
+
+    // Tauri v2 replaces `../` with `_up_/` in bundled resource paths. So
+    // `../../pyproject.toml` from tauri.conf.json becomes
+    // `$RESOURCE/_up_/_up_/pyproject.toml` on Windows MSI and Linux deb.
+    // macOS .app bundles flatten resources into Contents/Resources/ directly.
+    // Try both layouts so the bootstrap works across all platforms.
+    let flat = resource_dir.clone();
+    let up2  = resource_dir.join("_up_").join("_up_");
+
+    let (resource_pyproject, resource_uvlock, resource_backend) = if flat.join("pyproject.toml").is_file() {
+        (flat.join("pyproject.toml"), flat.join("uv.lock"), flat.join("backend"))
+    } else if up2.join("pyproject.toml").is_file() {
+        (up2.join("pyproject.toml"), up2.join("uv.lock"), up2.join("backend"))
+    } else {
+        fail(progress, &format!(
+            "Missing bootstrap resources — checked flat={} and _up_={}\n  pyproject.toml: flat={}, up2={}",
+            flat.display(), up2.display(),
+            flat.join("pyproject.toml").display(),
+            up2.join("pyproject.toml").display()));
+        return None;
+    };
+
     if !resource_pyproject.is_file() || !resource_backend.is_dir() {
         fail(progress, &format!(
             "Missing bootstrap resources (pyproject={}, backend={})",
