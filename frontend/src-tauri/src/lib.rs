@@ -3,12 +3,14 @@ use std::io::{self, BufRead, BufReader, Read};
 use std::net::TcpStream;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
+use tauri::image::Image;
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
-use tauri::tray::TrayIconBuilder;
+use tauri::tray::{TrayIcon, TrayIconBuilder};
 
 // ── Auto-paste (dictation → ⌘V into active app) ─────────────────────────
 use enigo::{Direction, Enigo, Key, Keyboard, Settings as EnigoSettings};
@@ -32,6 +34,29 @@ const UV_VERSION: &str = "0.11.7";
 pub struct BackendState {
     pub process: Mutex<Option<Child>>,
 }
+
+// Tray + lifecycle state. `quitting` flips true when the user picks the tray
+// "Quit OmniVoice" menu item (or otherwise asks for a real exit) so the
+// window CloseRequested handler knows to allow the close instead of hiding.
+pub struct AppFlags {
+    pub quitting: AtomicBool,
+}
+
+// Holds the tray icon handle so we can swap its image (red dot during
+// recording) and embedded variants of both icons (compiled in via include_bytes
+// — no resource bundling needed).
+pub struct TrayHandle {
+    pub tray: Mutex<Option<TrayIcon>>,
+}
+
+// Current global dictation shortcut. Stored so `set_dictation_shortcut` can
+// unregister the old binding before registering the new one.
+pub struct DictationShortcutState {
+    pub current: Mutex<Option<tauri_plugin_global_shortcut::Shortcut>>,
+}
+
+const TRAY_ICON_DEFAULT: &[u8] = include_bytes!("../icons/32x32.png");
+const TRAY_ICON_RECORDING: &[u8] = include_bytes!("../icons/tray-recording.png");
 
 // ── Bootstrap progress (for the React splash screen) ─────────────────────
 
@@ -70,10 +95,22 @@ pub struct AppConfig {
     /// "global" or "china"
     #[serde(default = "default_region")]
     pub region: String,
+    /// Accelerator string for the global dictation hotkey, e.g.
+    /// "CmdOrCtrl+Shift+Space". Parsed by tauri-plugin-global-shortcut at
+    /// register time. Falls back to the platform default when missing or
+    /// unparseable.
+    #[serde(default = "default_dictation_shortcut")]
+    pub dictation_shortcut: String,
 }
 fn default_region() -> String { "global".into() }
+fn default_dictation_shortcut() -> String { "CmdOrCtrl+Shift+Space".into() }
 impl Default for AppConfig {
-    fn default() -> Self { Self { region: default_region() } }
+    fn default() -> Self {
+        Self {
+            region: default_region(),
+            dictation_shortcut: default_dictation_shortcut(),
+        }
+    }
 }
 
 fn config_path<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<PathBuf> {
@@ -1400,11 +1437,99 @@ fn simulate_paste() -> Result<(), String> {
     Ok(())
 }
 
+// ── Tray icon recording-state swap ──────────────────────────────────────
+#[tauri::command]
+fn set_tray_recording(
+    recording: bool,
+    tray_handle: tauri::State<'_, TrayHandle>,
+) -> Result<(), String> {
+    let bytes = if recording { TRAY_ICON_RECORDING } else { TRAY_ICON_DEFAULT };
+    let img = Image::from_bytes(bytes).map_err(|e| format!("decode tray icon: {e}"))?;
+    let lock = tray_handle.tray.lock().map_err(|_| "tray lock poisoned")?;
+    if let Some(ref tray) = *lock {
+        tray.set_icon(Some(img)).map_err(|e| format!("set_icon: {e}"))?;
+    }
+    Ok(())
+}
+
+// ── Real quit (used by the tray "Quit" item) ─────────────────────────────
+// Sets the quitting flag so the window CloseRequested handler stops
+// intercepting, then asks the app to exit. Backend shutdown happens in the
+// RunEvent::ExitRequested handler at the bottom of run().
+#[tauri::command]
+fn quit_app(app: tauri::AppHandle, flags: tauri::State<'_, AppFlags>) {
+    flags.quitting.store(true, Ordering::SeqCst);
+    app.exit(0);
+}
+
+// ── Dictation hotkey: read / change at runtime ──────────────────────────
+#[tauri::command]
+fn get_dictation_shortcut(app: tauri::AppHandle) -> String {
+    load_config(&app).dictation_shortcut
+}
+
+#[tauri::command]
+fn set_dictation_shortcut(
+    app: tauri::AppHandle,
+    accelerator: String,
+    state: tauri::State<'_, DictationShortcutState>,
+) -> Result<String, String> {
+    use std::str::FromStr;
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+
+    let parsed = Shortcut::from_str(&accelerator)
+        .map_err(|e| format!("Invalid shortcut '{accelerator}': {e}"))?;
+
+    let gs = app.global_shortcut();
+
+    // Holding the lock across both calls keeps the stored Shortcut consistent
+    // with what the OS actually has registered. We unregister the old binding
+    // first (otherwise the new register can fail with "already registered"
+    // when the user only changed modifiers), and we keep `prev` around so we
+    // can restore it on failure — otherwise a bad accelerator leaves the user
+    // with no global shortcut at all.
+    let mut slot = state.current.lock().map_err(|_| "shortcut lock poisoned")?;
+    let prev = slot.take();
+    if let Some(ref p) = prev {
+        let _ = gs.unregister(p.clone());
+    }
+    if let Err(e) = gs.register(parsed.clone()) {
+        // Roll back so the previously-working shortcut keeps working.
+        if let Some(p) = prev {
+            if gs.register(p.clone()).is_ok() {
+                *slot = Some(p);
+            }
+        }
+        return Err(format!("Failed to register '{accelerator}': {e}"));
+    }
+    *slot = Some(parsed);
+    drop(slot);
+
+    // Persist so the new shortcut survives a restart.
+    let mut cfg = load_config(&app);
+    cfg.dictation_shortcut = accelerator.clone();
+    save_config(&app, &cfg);
+    log::info!("Dictation shortcut updated to {accelerator}");
+    Ok(accelerator)
+}
+
 // ── Tauri entry ───────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
+        // Single-instance MUST be registered first. When a second copy of the
+        // binary launches, the closure runs in the already-running instance:
+        // we just surface the existing window and discard the second process.
+        // This prevents two backends fighting over port 3900.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            log::info!("Second instance attempted — focusing existing window");
+            if let Some(win) = app.get_webview_window("main") {
+                let _ = win.show();
+                let _ = win.unminimize();
+                let _ = win.set_focus();
+            }
+        }))
         .invoke_handler(tauri::generate_handler![
             bootstrap_status,
             get_bootstrap_logs,
@@ -1416,6 +1541,10 @@ pub fn run() {
             read_log_tail,
             hf_cache_scan,
             simulate_paste,
+            set_tray_recording,
+            quit_app,
+            get_dictation_shortcut,
+            set_dictation_shortcut,
         ])
         .setup(|app| {
             app.handle().plugin(tauri_plugin_dialog::init())?;
@@ -1436,23 +1565,35 @@ pub fn run() {
                     .build(),
             )?;
 
-            // ── Global shortcut: ⌘+⇧+Space (system-wide dictation) ──────────
+            // Lifecycle + tray-handle state — must be managed BEFORE the
+            // tray builder runs (the tray menu handler reads AppFlags) and
+            // before set_tray_recording can fire from the frontend.
+            app.manage(AppFlags {
+                quitting: AtomicBool::new(false),
+            });
+            app.manage(TrayHandle {
+                tray: Mutex::new(None),
+            });
+            app.manage(DictationShortcutState {
+                current: Mutex::new(None),
+            });
+
+            // ── Global dictation shortcut (user-configurable) ────────────────
             {
+                use std::str::FromStr;
                 use tauri_plugin_global_shortcut::{
-                    Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState,
+                    GlobalShortcutExt, Shortcut, ShortcutState,
                 };
-                let dictation_shortcut = Shortcut::new(
-                    Some(Modifiers::META | Modifiers::SHIFT),
-                    Code::Space,
-                );
+
+                // Plugin handler: any registered shortcut press emits the
+                // dictation event. We only ever bind one shortcut at a time
+                // (the active one is tracked in DictationShortcutState), so
+                // there's nothing else to disambiguate here.
                 app.handle().plugin(
                     tauri_plugin_global_shortcut::Builder::new()
-                        .with_handler(move |app_handle, shortcut, event| {
-                            if event.state == ShortcutState::Pressed
-                                && *shortcut == dictation_shortcut
-                            {
+                        .with_handler(move |app_handle, _shortcut, event| {
+                            if event.state == ShortcutState::Pressed {
                                 log::info!("Global shortcut triggered: dictation");
-                                // Show + focus the window so CaptureButton can record
                                 if let Some(win) = app_handle.get_webview_window("main") {
                                     let _ = win.show();
                                     let _ = win.set_focus();
@@ -1462,10 +1603,34 @@ pub fn run() {
                         })
                         .build(),
                 )?;
-                // Register the shortcut
-                match app.global_shortcut().register(dictation_shortcut) {
-                    Ok(()) => log::info!("Global shortcut ⌘⇧Space registered"),
-                    Err(e) => log::warn!("Failed to register global shortcut: {e}"),
+
+                // Read the user's saved shortcut (or the default) and register
+                // it. If the saved string is malformed for any reason, log and
+                // fall back to the default so dictation still works.
+                let cfg = load_config(app.handle());
+                let accel = cfg.dictation_shortcut.clone();
+                let parsed = Shortcut::from_str(&accel)
+                    .or_else(|_| {
+                        log::warn!(
+                            "Saved shortcut '{accel}' unparseable — falling back to default"
+                        );
+                        Shortcut::from_str(&default_dictation_shortcut())
+                    });
+                match parsed {
+                    Ok(shortcut) => match app.global_shortcut().register(shortcut.clone()) {
+                        Ok(()) => {
+                            log::info!("Global shortcut '{accel}' registered");
+                            if let Ok(mut slot) = app
+                                .state::<DictationShortcutState>()
+                                .current
+                                .lock()
+                            {
+                                *slot = Some(shortcut);
+                            }
+                        }
+                        Err(e) => log::warn!("Failed to register global shortcut: {e}"),
+                    },
+                    Err(e) => log::warn!("No usable dictation shortcut: {e}"),
                 }
             }
 
@@ -1492,7 +1657,7 @@ pub fn run() {
                 .item(&quit_i)
                 .build()?;
 
-            let _tray = TrayIconBuilder::new()
+            let tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&tray_menu)
                 .tooltip("OmniVoice Studio")
@@ -1501,6 +1666,8 @@ pub fn run() {
                         "show" => {
                             if let Some(win) = app.get_webview_window("main") {
                                 let _ = win.show();
+                                #[cfg(not(target_os = "macos"))]
+                                let _ = win.set_skip_taskbar(false);
                                 let _ = win.set_focus();
                             }
                         }
@@ -1511,17 +1678,29 @@ pub fn run() {
                         "settings" => {
                             if let Some(win) = app.get_webview_window("main") {
                                 let _ = win.show();
+                                #[cfg(not(target_os = "macos"))]
+                                let _ = win.set_skip_taskbar(false);
                                 let _ = win.set_focus();
                             }
                             let _ = app.emit("tray-navigate", "settings");
                         }
                         "quit" => {
+                            // Mark quitting so the CloseRequested handler
+                            // stops intercepting on the way out, then exit.
+                            // Backend shutdown happens in the run-event loop.
+                            app.state::<AppFlags>()
+                                .quitting
+                                .store(true, Ordering::SeqCst);
                             app.exit(0);
                         }
                         _ => {}
                     }
                 })
                 .build(app)?;
+            // Stash the tray handle so set_tray_recording can swap its icon.
+            if let Ok(mut slot) = app.state::<TrayHandle>().tray.lock() {
+                *slot = Some(tray);
+            }
 
             // ── Enable microphone / camera on Linux (WebKitGTK) ──────────
             // WebKitGTK has no browser-style permission dialog; it denies
@@ -1657,44 +1836,74 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::Destroyed = event {
-                if window.label() == "main" {
-                    if let Ok(mut lock) = window.state::<BackendState>().process.lock() {
-                        if let Some(ref mut child) = *lock {
-                            let pid = child.id();
-                            log::info!("Shutting down backend (pid {})", pid);
-
-                            // SIGTERM first for graceful Python shutdown, then SIGKILL.
-                            #[cfg(unix)]
-                            {
-                                unsafe {
-                                    libc::kill(pid as i32, libc::SIGTERM);
-                                }
-                                let start = std::time::Instant::now();
-                                loop {
-                                    match child.try_wait() {
-                                        Ok(Some(_)) => break,
-                                        Ok(None) if start.elapsed() < Duration::from_secs(2) => {
-                                            std::thread::sleep(Duration::from_millis(100));
-                                        }
-                                        _ => {
-                                            log::warn!("Backend didn't exit in 2 s — SIGKILL");
-                                            let _ = child.kill();
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                            #[cfg(not(unix))]
-                            {
-                                let _ = child.kill();
-                            }
-                            let _ = child.wait();
-                        }
-                    }
+            // Close-to-hide: clicking the X (or Cmd+W on macOS) hides the
+            // window instead of tearing the app down, so the tray icon stays
+            // useful and the global hotkey keeps working. The user gets a
+            // real exit via the tray "Quit" menu (or Cmd+Q on macOS, which
+            // triggers RunEvent::ExitRequested directly without firing
+            // CloseRequested on individual windows).
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() != "main" {
+                    return;
+                }
+                let quitting = window
+                    .app_handle()
+                    .state::<AppFlags>()
+                    .quitting
+                    .load(Ordering::SeqCst);
+                if quitting {
+                    return; // Allow the close — exit handler will reap the backend.
+                }
+                api.prevent_close();
+                let _ = window.hide();
+                #[cfg(not(target_os = "macos"))]
+                {
+                    let _ = window.set_skip_taskbar(true);
                 }
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|app_handle, event| {
+        if let tauri::RunEvent::ExitRequested { .. } = event {
+            // Real exit: reap the Python backend so we don't orphan a uvicorn
+            // process holding port 3900. Previously this lived in the window
+            // Destroyed handler, which fired on every close — including the
+            // close-to-hide path, which left the user with no backend.
+            if let Ok(mut lock) = app_handle.state::<BackendState>().process.lock() {
+                if let Some(ref mut child) = *lock {
+                    let pid = child.id();
+                    log::info!("Shutting down backend (pid {})", pid);
+
+                    // SIGTERM first for graceful Python shutdown, then SIGKILL.
+                    #[cfg(unix)]
+                    {
+                        unsafe {
+                            libc::kill(pid as i32, libc::SIGTERM);
+                        }
+                        let start = std::time::Instant::now();
+                        loop {
+                            match child.try_wait() {
+                                Ok(Some(_)) => break,
+                                Ok(None) if start.elapsed() < Duration::from_secs(2) => {
+                                    std::thread::sleep(Duration::from_millis(100));
+                                }
+                                _ => {
+                                    log::warn!("Backend didn't exit in 2 s — SIGKILL");
+                                    let _ = child.kill();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    #[cfg(not(unix))]
+                    {
+                        let _ = child.kill();
+                    }
+                    let _ = child.wait();
+                }
+            }
+        }
+    });
 }

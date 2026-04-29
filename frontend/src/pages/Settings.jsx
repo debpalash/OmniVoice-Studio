@@ -10,6 +10,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Cpu, FileText, Info, ShieldCheck, RefreshCw, Trash2, ExternalLink,
   CheckCircle, AlertCircle, Plug, Mic, MessageSquare, Download, Copy, Building2, KeyRound,
+  Keyboard,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { openExternal } from '../api/external';
@@ -25,6 +26,7 @@ import './Settings.css';
 const TABS = [
   { id: 'models',      label: 'Models',      icon: Cpu,          accent: '#f3a5b6' },
   { id: 'engines',     label: 'Engines',     icon: Plug,         accent: '#d3869b' },
+  { id: 'capture',     label: 'Capture',     icon: Keyboard,     accent: '#83a598' },
   { id: 'credentials', label: 'Credentials', icon: KeyRound,     accent: '#fe8019' },
   { id: 'logs',        label: 'Logs',        icon: FileText,     accent: '#fabd2f' },
   { id: 'about',       label: 'About',       icon: Info,         accent: '#8ec07c' },
@@ -1106,6 +1108,8 @@ export default function Settings() {
 
       {activeTab === 'engines' && <EnginesTab />}
 
+      {activeTab === 'capture' && <HotkeyTab />}
+
       {activeTab === 'credentials' && <CredentialsTab info={info} />}
 
       {activeTab === 'logs' && (
@@ -1281,6 +1285,172 @@ const CREDENTIAL_FIELDS = [
     link: null,
   },
 ];
+
+// Convert a KeyboardEvent into a tauri-plugin-global-shortcut accelerator
+// string, e.g. "CmdOrCtrl+Shift+Space". Returns null when only modifiers
+// are held (the user hasn't picked a "real" key yet).
+function keyEventToAccelerator(e) {
+  const isMacLike = typeof navigator !== 'undefined'
+    && /Mac|iPad|iPhone|iPod/.test(navigator.platform || '');
+  const mods = [];
+  if (e.metaKey) mods.push(isMacLike ? 'Cmd' : 'Super');
+  if (e.ctrlKey) mods.push('Ctrl');
+  if (e.altKey) mods.push('Alt');
+  if (e.shiftKey) mods.push('Shift');
+
+  // e.code is the physical key — already in the shape tauri expects for
+  // Letter/Digit/Function keys ("KeyA", "Digit1", "F5"). Strip the prefix
+  // so we get "A" / "1" / "F5" which matches the accelerator grammar.
+  let key = e.code;
+  if (!key) return null;
+  if (key.startsWith('Key')) key = key.slice(3);
+  else if (key.startsWith('Digit')) key = key.slice(5);
+  // Skip pure modifier keys — we want the user to pick a real trigger.
+  if (/^(Meta|Control|Alt|Shift|OS)(Left|Right)?$/.test(key)) return null;
+
+  if (mods.length === 0) return null;
+  return [...mods, key].join('+');
+}
+
+function HotkeyTab() {
+  const [current, setCurrent] = useState('');
+  const [recording, setRecording] = useState(false);
+  const [pending, setPending] = useState('');
+  const [saving, setSaving] = useState(false);
+  const tauri = isTauri();
+
+  // Load the saved shortcut on mount.
+  useEffect(() => {
+    if (!tauri) return;
+    (async () => {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const v = await invoke('get_dictation_shortcut');
+        setCurrent(v || '');
+      } catch (e) {
+        toast.error(`Could not load shortcut: ${e?.message || e}`);
+      }
+    })();
+  }, [tauri]);
+
+  // While recording, swallow keystrokes globally and convert the next real
+  // press into an accelerator string. Escape cancels.
+  useEffect(() => {
+    if (!recording) return;
+    const onKeyDown = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === 'Escape') {
+        setRecording(false);
+        setPending('');
+        return;
+      }
+      const accel = keyEventToAccelerator(e);
+      if (accel) {
+        setPending(accel);
+        setRecording(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [recording]);
+
+  const save = async () => {
+    if (!pending || pending === current) return;
+    setSaving(true);
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const saved = await invoke('set_dictation_shortcut', { accelerator: pending });
+      setCurrent(saved);
+      setPending('');
+      toast.success(`Dictation shortcut set to ${saved}`);
+    } catch (e) {
+      // Common cause: the OS or another app already owns the combo. Surface
+      // the raw error so the user can pick something else.
+      toast.error(`Couldn't register: ${e?.message || e}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const resetDefault = async () => {
+    setSaving(true);
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const saved = await invoke('set_dictation_shortcut', {
+        accelerator: 'CmdOrCtrl+Shift+Space',
+      });
+      setCurrent(saved);
+      setPending('');
+      toast.success('Reset to default');
+    } catch (e) {
+      toast.error(`Reset failed: ${e?.message || e}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="settings-section">
+      <h2><Keyboard size={16} color="#83a598" /> Capture & Dictation</h2>
+
+      {!tauri && (
+        <p className="settings-prose">
+          Global hotkeys only work in the desktop app. The web UI uses an
+          in-page <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd> shortcut
+          while the window has focus.
+        </p>
+      )}
+
+      <div className="settings-row">
+        <span className="label">Active shortcut</span>
+        <span className="value settings-row__mono">{current || '—'}</span>
+      </div>
+
+      <div className="settings-row">
+        <span className="label">{recording ? 'Press a key combo…' : 'New shortcut'}</span>
+        <span className="value settings-row__mono">
+          {recording ? '⌨︎ listening (Esc to cancel)' : (pending || '—')}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+        <Button
+          size="sm"
+          variant="subtle"
+          onClick={() => { setPending(''); setRecording(true); }}
+          disabled={!tauri || saving}
+          leading={<Keyboard size={12} />}
+        >
+          {recording ? 'Recording…' : 'Record shortcut'}
+        </Button>
+        <Button
+          size="sm"
+          onClick={save}
+          disabled={!tauri || !pending || pending === current}
+          loading={saving}
+        >
+          Save
+        </Button>
+        <Button
+          size="sm"
+          variant="subtle"
+          onClick={resetDefault}
+          disabled={!tauri || saving}
+        >
+          Reset to default
+        </Button>
+      </div>
+
+      <p className="settings-prose" style={{ marginTop: 12 }}>
+        The hotkey works system-wide while OmniVoice is running — it focuses
+        the window and starts dictation. Avoid combos already claimed by the
+        OS (on macOS, <code>⌘+Space</code> is Spotlight and <code>⌘+⇧+Space</code>
+        cycles input sources). If registration fails, pick a different combo.
+      </p>
+    </section>
+  );
+}
 
 function CredentialsTab({ info }) {
   const [values, setValues] = useState({});

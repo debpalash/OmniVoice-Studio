@@ -180,6 +180,8 @@ docker compose --profile gpu up --build -d
 
 Open [http://localhost:3900](http://localhost:3900) once the health check passes. First run downloads ~4 GB of model weights — progress is shown in `docker compose logs -f`.
 
+> **Network access:** the container binds to `127.0.0.1` only. To reach OmniVoice from another machine on your LAN, change the port mapping in `docker-compose.yml` to `"0.0.0.0:3900:3900"`. OmniVoice ships no built-in authentication — when exposing it beyond your machine, put it behind a reverse proxy with auth (Caddy `basic_auth`, nginx + htpasswd, Tailscale, etc.).
+
 ### Local Development
 
 **Prerequisites:** [ffmpeg](https://ffmpeg.org/), [Bun](https://bun.sh/), [uv](https://docs.astral.sh/uv/)

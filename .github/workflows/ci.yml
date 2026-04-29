@@ -85,3 +85,80 @@ jobs:
       - name: Run frontend node:test
         working-directory: frontend
         run: node --experimental-strip-types --no-warnings --test ../tests/frontend/*.test.mjs
+
+  # ── Cross-platform Tauri shell check ────────────────────────────────────
+  # Catches platform-specific Rust regressions on PR (cfg(target_os=...)
+  # gates, missing Windows/macOS deps, etc.) without spending the 15+ min
+  # per-platform that a full `tauri build` takes. `cargo check` is the
+  # lightest gate that exercises type-checking + linking for each target.
+  # Full bundling stays in release.yml on tag push.
+  tauri-cross-platform:
+    name: Tauri shell check (${{ matrix.label }})
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            label: macOS
+            rust_target: aarch64-apple-darwin
+          - os: windows-2022
+            label: Windows
+            rust_target: x86_64-pc-windows-msvc
+          - os: ubuntu-22.04
+            label: Linux
+            rust_target: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      # Per-target cache key so we don't conflict with the release matrix.
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: frontend/src-tauri -> target
+          key: ${{ matrix.rust_target }}-check
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+
+      # Linux is the only host with non-trivial Tauri build deps —
+      # webkit2gtk + libayatana-appindicator + xdo. Mirror release.yml.
+      - name: Linux system deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential curl wget file libxdo-dev libssl-dev \
+            libayatana-appindicator3-dev librsvg2-dev \
+            libasound2-dev
+
+      - name: Cache bun deps
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('frontend/bun.lock', 'bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: bun install
+
+      # tauri-build's setup hook reads tauri.conf.json's `frontendDist`
+      # ("../dist"), which only exists after a frontend build. Without this,
+      # `cargo check` would fail on a fresh checkout because the embedded
+      # asset map can't resolve.
+      - name: Build frontend (for tauri.conf.json frontendDist)
+        working-directory: frontend
+        run: bun run build
+
+      - name: Cargo check (Tauri shell)
+        working-directory: frontend/src-tauri
+        run: cargo check --target ${{ matrix.rust_target }} --message-format=short

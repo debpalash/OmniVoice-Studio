@@ -7,6 +7,15 @@ import './CaptureButton.css';
 import { API as API_BASE } from '../api/client';
 import { addTranscription } from '../pages/Transcriptions';
 
+// Flip the system tray icon between default and red-dot. No-op when not
+// running inside the Tauri shell (e.g. browser webui, Docker).
+async function setTrayRecording(recording) {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('set_tray_recording', { recording });
+  } catch { /* not in Tauri */ }
+}
+
 const CAPTURE_MODES = [
   { id: 'fast',     label: 'Turbo',    desc: 'MLX Whisper Turbo — fastest',      icon: <Zap size={12} /> },
   { id: 'accurate', label: 'Accurate', desc: 'WhisperX — best word timing',       icon: <Target size={12} /> },
@@ -45,6 +54,20 @@ export default function CaptureButton() {
   const streamRef = useRef(null);
   const timerRef = useRef(null);
   const wsRef = useRef(null);
+  // Chunks captured before the WebSocket finishes its handshake — drained
+  // in `ws.onopen` so the server's `final` transcript covers the full
+  // recording (no missing first 250 ms).
+  const wsPendingRef = useRef([]);
+  // Set when the WebSocket delivers a `final` message. Used to dedupe
+  // against the HTTP POST fallback so we don't transcribe twice.
+  const wsHadFinalRef = useRef(false);
+  // Cancellable timer that fires the HTTP POST fallback if WS `final`
+  // never arrives in time.
+  const fallbackTimerRef = useRef(null);
+  // Wall-clock start of the current recording. Read by stopRecording to
+  // size the WS-fallback timeout against actual recording length without
+  // closing over the (stale) `duration` state.
+  const startTimeRef = useRef(0);
 
   // Keyboard shortcut: Ctrl+Shift+Space (or ⌘+Shift+Space on Mac)
   useEffect(() => {
@@ -90,6 +113,34 @@ export default function CaptureButton() {
     clearInterval(timerRef.current);
   }, [state]);
 
+  // Render a transcription result (from either the WS `final` message or
+  // the HTTP POST fallback). Idempotent — guarded by wsHadFinalRef so a
+  // late HTTP response can't overwrite a WS final that already landed.
+  const applyResult = useCallback(async (data) => {
+    setTranscript(data.text || '');
+    setLastEngine(data.engine || '');
+    setLastTime(data.transcription_time_s || 0);
+    setState('done');
+
+    if (data.text) {
+      addTranscription(data);
+    }
+
+    if (data.text && autoCopy) {
+      try {
+        await navigator.clipboard.writeText(data.text);
+        setCopied(true);
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          await invoke('simulate_paste');
+          toast.success('Pasted into active app', { duration: 2000 });
+        } catch {
+          toast.success('Copied to clipboard — paste with ⌘V', { duration: 2000 });
+        }
+      } catch { /* clipboard API may fail in some contexts */ }
+    }
+  }, [autoCopy]);
+
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -97,6 +148,12 @@ export default function CaptureButton() {
       });
       streamRef.current = stream;
       chunksRef.current = [];
+      wsPendingRef.current = [];
+      wsHadFinalRef.current = false;
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
 
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
@@ -106,20 +163,37 @@ export default function CaptureButton() {
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
-          // Stream chunk to WebSocket for partial results
-          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            e.data.arrayBuffer().then(buf => {
-              if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                wsRef.current.send(buf);
-              }
-            });
-          }
+          // Stream chunk to WebSocket for partial results AND to drive the
+          // server's `final` transcription. If the socket is still in
+          // CONNECTING state, queue the chunk so `ws.onopen` can drain it
+          // — otherwise the server's final transcript would lose the
+          // first ~250 ms of audio (the open-handshake window).
+          e.data.arrayBuffer().then(buf => {
+            const ws = wsRef.current;
+            if (!ws) return;
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(buf);
+            } else if (ws.readyState === WebSocket.CONNECTING) {
+              wsPendingRef.current.push(buf);
+            }
+          });
         }
       };
-      recorder.onstop = () => sendForTranscription();
+      // recorder.onstop frees the mic and (only as fallback) kicks the HTTP
+      // POST. The WebSocket `final` path is preferred — see ws.onmessage.
+      recorder.onstop = () => {
+        if (wsHadFinalRef.current) return;
+        if (!wsRef.current) {
+          // WS never opened — HTTP POST is the only path.
+          sendForTranscription();
+        }
+        // Otherwise: the fallback timer set in stopRecording will fire if
+        // the WS final never arrives.
+      };
       mediaRecorderRef.current = recorder;
       recorder.start(250); // collect in 250ms chunks
 
+      startTimeRef.current = Date.now();
       setState('recording');
       setDuration(0);
       setTranscript('');
@@ -128,19 +202,39 @@ export default function CaptureButton() {
       setCopied(false);
       setLastEngine('');
       setLastTime(0);
+      setTrayRecording(true);
 
-      // Open WebSocket for streaming partial results
+      // Open WebSocket for streaming partial results + final transcript
       try {
         const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const wsUrl = `${wsProto}://${window.location.hostname}:3900/ws/transcribe`;
+        const wsHost = API_BASE.replace(/^https?:\/\//, '').replace(/\/$/, '')
+          || `${window.location.hostname}:3900`;
+        const wsUrl = `${wsProto}://${wsHost}/ws/transcribe`;
         const ws = new WebSocket(wsUrl);
+        ws.binaryType = 'arraybuffer';
+        ws.onopen = () => {
+          // Drain chunks captured during the WS handshake.
+          for (const buf of wsPendingRef.current) {
+            try { ws.send(buf); } catch {}
+          }
+          wsPendingRef.current = [];
+        };
         ws.onmessage = (evt) => {
           try {
             const msg = JSON.parse(evt.data);
             if (msg.type === 'partial') {
               setPartialText(msg.text || '');
+            } else if (msg.type === 'final') {
+              wsHadFinalRef.current = true;
+              if (fallbackTimerRef.current) {
+                clearTimeout(fallbackTimerRef.current);
+                fallbackTimerRef.current = null;
+              }
+              applyResult(msg);
+              try { ws.close(); } catch {}
+            } else if (msg.type === 'error') {
+              // Let the fallback timer fire HTTP POST.
             }
-            // final/error handled after stopRecording
           } catch {}
         };
         ws.onerror = () => { wsRef.current = null; };
@@ -152,9 +246,10 @@ export default function CaptureButton() {
       }
     } catch (err) {
       toast.error('Microphone access denied. Check browser permissions.');
+      setTrayRecording(false);
       setState('error');
     }
-  }, []);
+  }, [applyResult]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -164,15 +259,46 @@ export default function CaptureButton() {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
     }
-    // Close WebSocket to trigger final transcription
-    if (wsRef.current) {
-      try { wsRef.current.close(); } catch {}
-      wsRef.current = null;
+    // Signal end-of-audio to the WS but DO NOT close — we want the server's
+    // `final` message to arrive over the same socket. The HTTP POST fallback
+    // timer below covers the case where final never lands.
+    const ws = wsRef.current;
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+      const sendEof = () => { try { ws.send('EOF'); } catch {} };
+      if (ws.readyState === WebSocket.OPEN) {
+        sendEof();
+      } else {
+        // Wait for open before sending EOF, otherwise the message is dropped.
+        ws.addEventListener('open', sendEof, { once: true });
+      }
+      // Fallback: if WS final doesn't arrive in time, use HTTP POST.
+      // Cleared in ws.onmessage when `final` lands. Timeout scales with
+      // recording length so long-form dictation (where the server's final
+      // pass naturally takes longer) doesn't trip the fallback and run the
+      // model twice. Floor of 15 s covers slow first-call cold starts.
+      const recorded = startTimeRef.current
+        ? Date.now() - startTimeRef.current
+        : 0;
+      const ms = Math.max(15000, recorded + 10000);
+      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = setTimeout(() => {
+        fallbackTimerRef.current = null;
+        if (!wsHadFinalRef.current) {
+          try { wsRef.current?.close(); } catch {}
+          wsRef.current = null;
+          sendForTranscription();
+        }
+      }, ms);
     }
+    setTrayRecording(false);
     setState('transcribing');
   }, []);
 
   const sendForTranscription = useCallback(async () => {
+    // Race-guard: WS final may have landed between when this was scheduled
+    // and now. Skip the duplicate HTTP transcription.
+    if (wsHadFinalRef.current) return;
+
     const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
     const formData = new FormData();
     formData.append('audio', blob, 'capture.webm');
@@ -188,38 +314,16 @@ export default function CaptureButton() {
         throw new Error(detail.detail || `HTTP ${res.status}`);
       }
       const data = await res.json();
-      setTranscript(data.text || '');
-      setLastEngine(data.engine || '');
-      setLastTime(data.transcription_time_s || 0);
-      setState('done');
-
-      // Persist to Transcriptions page history
-      if (data.text) {
-        addTranscription(data);
-      }
-
-      // Auto-copy to clipboard for instant paste into other apps
-      if (data.text && autoCopy) {
-        try {
-          await navigator.clipboard.writeText(data.text);
-          setCopied(true);
-          // Auto-paste: simulate ⌘V into the previously active app
-          try {
-            const { invoke } = await import('@tauri-apps/api/core');
-            await invoke('simulate_paste');
-            toast.success('Pasted into active app', { duration: 2000 });
-          } catch {
-            // Not in Tauri or accessibility permission missing
-            toast.success('Copied to clipboard — paste with ⌘V', { duration: 2000 });
-          }
-        } catch { /* clipboard API may fail in some contexts */ }
-      }
+      // Re-check guard — a WS final could land while we awaited the POST.
+      if (wsHadFinalRef.current) return;
+      await applyResult(data);
     } catch (err) {
+      if (wsHadFinalRef.current) return;
       toast.error(`Transcription failed: ${err.message}`);
       setState('error');
       setTranscript('');
     }
-  }, [captureMode, autoCopy]);
+  }, [captureMode, applyResult]);
 
   const copyToClipboard = useCallback(() => {
     navigator.clipboard.writeText(transcript).then(() => {

@@ -18,7 +18,7 @@ RUN bun run --cwd frontend build
 # ==========================================
 # Runtime Stage: Python & PyTorch Backend
 # ==========================================
-FROM pytorch/pytorch:2.4.0-cuda12.1-cudnn9-runtime AS runtime
+FROM pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime AS runtime
 WORKDIR /app
 
 # Enable unbuffered logs and optimizations
@@ -39,9 +39,9 @@ RUN pip install --no-cache-dir uv
 # Copy python packaging specs
 COPY pyproject.toml uv.lock ./
 
-# Native wheels from PyPI embed CUDA matching `torch >= 2.4` standard index
-# By installing via `uv`, the process completes exponentially faster
-RUN uv pip install --system --no-cache -e .  
+# Install the project (non-editable — no need for -e in containers).
+# Uses `uv` for exponentially faster resolution than plain pip.
+RUN uv pip install --system --no-cache .  
 
 # Copy application source
 COPY backend/ ./backend/

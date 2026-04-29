@@ -2,7 +2,8 @@
 # ──────────────────────────────────────────────────────────────────────────
 # desktop-prod.sh — Build & launch OmniVoice Studio as a "fresh install"
 #
-# This gives you the EXACT same experience as a user downloading the DMG:
+# This gives you the EXACT same experience as a user downloading the
+# installer (DMG on macOS, AppImage on Linux):
 #   • Full Rust bootstrap (venv creation, uv sync, model setup)
 #   • Splash screen with live logs
 #   • Region selector, version badge, etc.
@@ -10,13 +11,33 @@
 # Usage:
 #   bun desktop-prod          # build debug + wipe + launch
 #   bun desktop-prod:run      # re-launch last build (skip compile)
+#   bun desktop-prod:upgrade  # rebuild, but keep data (test upgrade)
 # ──────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 APP_ID="com.debpalash.omnivoice-studio"
-APP_DATA="$HOME/Library/Application Support/${APP_ID}"
 TAURI_DIR="frontend/src-tauri"
 APP_NAME="OmniVoice Studio"
+
+# ── Detect platform ───────────────────────────────────────────────────────
+OS="$(uname -s)"
+case "$OS" in
+  Darwin) PLATFORM="macos" ;;
+  Linux)  PLATFORM="linux" ;;
+  *)      echo "❌ Unsupported platform: $OS"; exit 1 ;;
+esac
+
+# ── Platform-specific paths ───────────────────────────────────────────────
+if [ "$PLATFORM" = "macos" ]; then
+  APP_DATA="$HOME/Library/Application Support/${APP_ID}"
+  TAURI_LOGS="$HOME/Library/Logs/${APP_ID}"
+  WEBKIT_DATA="$HOME/Library/WebKit/${APP_ID}"
+else
+  # Linux: XDG conventions
+  APP_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/${APP_ID}"
+  TAURI_LOGS="${XDG_DATA_HOME:-$HOME/.local/share}/${APP_ID}/logs"
+  WEBKIT_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/${APP_ID}/webview"
+fi
 
 # HF cache — where downloaded models live
 HF_CACHE="${HF_HOME:-$HOME/.cache/huggingface}"
@@ -62,7 +83,6 @@ if [ "$KEEP_DATA" = false ]; then
   fi
 
   # 3. Tauri log dir
-  TAURI_LOGS="$HOME/Library/Logs/${APP_ID}"
   if [ -d "${TAURI_LOGS}" ]; then
     echo "   ✗ Tauri logs:   ${TAURI_LOGS}"
     rm -rf "${TAURI_LOGS}"
@@ -71,7 +91,6 @@ if [ "$KEEP_DATA" = false ]; then
   fi
 
   # 4. WebView cache / local storage
-  WEBKIT_DATA="$HOME/Library/WebKit/${APP_ID}"
   if [ -d "${WEBKIT_DATA}" ]; then
     echo "   ✗ WebKit data:  ${WEBKIT_DATA}"
     rm -rf "${WEBKIT_DATA}"
@@ -91,12 +110,21 @@ if [ "$SKIP_BUILD" = false ]; then
   echo "🔨 Building debug bundle (this takes 1-3 min first time)..."
 
   # Remove stale bundle so we never accidentally launch old code
-  APP_BUNDLE="${TAURI_DIR}/target/debug/bundle/macos/${APP_NAME}.app"
-  [ -d "$APP_BUNDLE" ] && rm -rf "$APP_BUNDLE"
+  if [ "$PLATFORM" = "macos" ]; then
+    APP_BUNDLE="${TAURI_DIR}/target/debug/bundle/macos/${APP_NAME}.app"
+    [ -d "$APP_BUNDLE" ] && rm -rf "$APP_BUNDLE"
+  fi
 
-  # The build creates the .app bundle successfully, but then fails trying
-  # to sign the updater artifact (no TAURI_SIGNING_PRIVATE_KEY). The .app
-  # itself is fine — tolerate ONLY that specific error.
+  # Linux: linuxdeploy uses FUSE to mount itself; if FUSE is unavailable
+  # (containers, some hardened kernels), set APPIMAGE_EXTRACT_AND_RUN=1 to
+  # extract-and-run instead. Safe to always set on Linux.
+  if [ "$PLATFORM" = "linux" ]; then
+    export APPIMAGE_EXTRACT_AND_RUN=1
+  fi
+
+  # The build creates the bundle successfully, but then may fail trying
+  # to sign the updater artifact (no TAURI_SIGNING_PRIVATE_KEY) or to
+  # run linuxdeploy. The binary itself is fine — tolerate known errors.
   BUILD_LOG=$(mktemp)
   cd frontend
   set +e
@@ -105,8 +133,11 @@ if [ "$SKIP_BUILD" = false ]; then
   set -e
   cd ..
   if [ $BUILD_EXIT -ne 0 ]; then
-    if grep -qi "TAURI_SIGNING_PRIVATE_KEY\|private key" "$BUILD_LOG"; then
-      echo "⚠️  Updater signing skipped (no TAURI_SIGNING_PRIVATE_KEY) — .app is fine."
+    # Known-harmless failures:
+    #   - Missing TAURI_SIGNING_PRIVATE_KEY (updater signing)
+    #   - "failed to run linuxdeploy" (AppImage bundling — binary still works)
+    if grep -qi "TAURI_SIGNING_PRIVATE_KEY\|private key\|failed to run linuxdeploy\|failed to bundle" "$BUILD_LOG"; then
+      echo "⚠️  Non-fatal bundle error — binary is fine (see above for details)."
     else
       echo "❌ Build failed with exit code $BUILD_EXIT"
       rm -f "$BUILD_LOG"
@@ -115,27 +146,50 @@ if [ "$SKIP_BUILD" = false ]; then
   fi
   rm -f "$BUILD_LOG"
 
-  if [ -d "${TAURI_DIR}/target/debug/bundle/macos/${APP_NAME}.app" ]; then
-    echo "✅ Build complete."
-  else
-    echo "❌ Build failed — no .app bundle produced."
-    exit 1
-  fi
+  echo "✅ Build complete."
 else
   echo "⏭️  Skipping build (--skip-build)"
 fi
 
 # ── Find and launch the app ────────────────────────────────────────────────
-APP_BUNDLE="${TAURI_DIR}/target/debug/bundle/macos/${APP_NAME}.app"
+if [ "$PLATFORM" = "macos" ]; then
+  APP_BUNDLE="${TAURI_DIR}/target/debug/bundle/macos/${APP_NAME}.app"
+  BINARY="${TAURI_DIR}/target/debug/app"
 
-if [ -d "$APP_BUNDLE" ]; then
-  echo ""
-  echo "🚀 Launching ${APP_NAME} (.app bundle)..."
-  echo "   Bundle: ${APP_BUNDLE}"
-  open "$APP_BUNDLE"
+  if [ -d "$APP_BUNDLE" ]; then
+    echo ""
+    echo "🚀 Launching ${APP_NAME} (.app bundle)..."
+    echo "   Bundle: ${APP_BUNDLE}"
+    open "$APP_BUNDLE"
+  elif [ -f "$BINARY" ]; then
+    echo ""
+    echo "🚀 Launching ${APP_NAME} (raw binary — no .app bundle)..."
+    echo "   Binary: ${BINARY}"
+    "$BINARY" &
+  else
+    echo "❌ No bundle or binary found. Run without --skip-build first."
+    exit 1
+  fi
 else
-  echo "❌ No bundle found. Run without --skip-build first."
-  exit 1
+  # Linux: prefer AppImage, fall back to raw binary
+  APPIMAGE=$(find "${TAURI_DIR}/target/debug/bundle/appimage" -name "*.AppImage" -type f 2>/dev/null | head -1)
+  BINARY="${TAURI_DIR}/target/debug/app"
+
+  if [ -n "$APPIMAGE" ] && [ -f "$APPIMAGE" ]; then
+    echo ""
+    echo "🚀 Launching ${APP_NAME} (AppImage)..."
+    echo "   AppImage: ${APPIMAGE}"
+    chmod +x "$APPIMAGE"
+    "$APPIMAGE" &
+  elif [ -f "$BINARY" ]; then
+    echo ""
+    echo "🚀 Launching ${APP_NAME} (raw binary)..."
+    echo "   Binary: ${BINARY}"
+    "$BINARY" &
+  else
+    echo "❌ No AppImage or binary found. Run without --skip-build first."
+    exit 1
+  fi
 fi
 
 echo "   App data: ${APP_DATA}"

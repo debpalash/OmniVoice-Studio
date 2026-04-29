@@ -13,11 +13,15 @@
   isolation: isolate;
 }
 
-/* ── Back button ───────────────────────────────────────────── */
-.donate-page__back {
+/* ── Top bar (Back + Commercial License) ──────────────────── */
+.donate-page__topbar {
   padding: 16px 44px 0;
   position: relative;
   z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 /* ── Content container ─────────────────────────────────────── */
@@ -112,12 +116,6 @@
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 10px;
 }
-.donate-grid--crypto {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 /* ── Shared card chrome ───────────────────────────────────── */
 .donate-card {
   position: relative;
@@ -225,97 +223,6 @@
   border-color: color-mix(in srgb, var(--card-hue, #d3869b) 45%, transparent);
   color: var(--card-hue, #d3869b);
   background: color-mix(in srgb, var(--card-hue, #d3869b) 8%, transparent);
-}
-
-/* ── Crypto-specific elements ────────────────────────────── */
-.donate-card__addr-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  flex-wrap: wrap;
-}
-.donate-card__addr {
-  flex: 1;
-  min-width: 0;
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--chrome-font-mono);
-  font-size: 0.65rem;
-  color: var(--chrome-fg-dim);
-  padding: 4px 8px;
-  border-radius: var(--chrome-radius-pill);
-  background: var(--chrome-hover-bg);
-  border: 1px solid var(--chrome-border);
-}
-.donate-card__addr-actions {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-.donate-card__addr-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--chrome-radius-pill);
-  background: transparent;
-  border: 1px solid var(--chrome-border);
-  color: var(--chrome-fg-muted);
-  cursor: pointer;
-  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
-}
-.donate-card__addr-btn:hover {
-  background: var(--chrome-hover-bg);
-  color: var(--chrome-fg);
-  border-color: var(--chrome-border-strong);
-}
-.donate-card__addr-btn--open {
-  width: auto;
-  padding: 0 8px;
-  font-family: var(--chrome-font-mono);
-  font-size: var(--chrome-label-size);
-  font-weight: 600;
-  letter-spacing: var(--chrome-label-track);
-}
-.donate-card__open-label {
-  display: none;
-}
-@media (min-width: 480px) {
-  .donate-card__open-label { display: inline; }
-}
-.donate-card__network {
-  display: block;
-  margin-top: 4px;
-  font-family: var(--chrome-font-mono);
-  font-size: var(--chrome-label-size);
-  font-weight: 600;
-  letter-spacing: var(--chrome-label-track);
-  text-transform: uppercase;
-  color: var(--chrome-fg-dim);
-}
-
-/* QR code */
-.donate-card__qr {
-  display: none;
-  flex-shrink: 0;
-  padding: 4px;
-  border-radius: 6px;
-  background: #fff;
-  border: 1px solid var(--chrome-border);
-  position: relative;
-  z-index: 1;
-  transition: transform var(--dur-base);
-}
-@media (min-width: 560px) {
-  .donate-card__qr { display: block; }
-}
-.donate-card:hover .donate-card__qr {
-  transform: scale(1.04);
 }
 
 /* ── Footer ───────────────────────────────────────────────── */

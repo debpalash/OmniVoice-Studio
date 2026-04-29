@@ -50,21 +50,63 @@ async def ws_transcribe(websocket: WebSocket):
     last_audio_time = time.monotonic()
     running = True
     partial_text = ""
+    # Track whether the client initiated the disconnect. When True the
+    # WebSocket is already in a closed/closing state and any attempt to
+    # call `send_json()` will raise "Unexpected ASGI message".
+    client_disconnected = False
 
     async def receive_audio():
-        """Receive audio frames from the client."""
-        nonlocal total_bytes, last_audio_time, running
+        """Receive audio frames from the client.
+
+        Two end-of-stream signals: (a) text frame ``"EOF"`` (preferred —
+        keeps the socket open so the ``final`` message can still be sent
+        before the client closes), or (b) socket disconnect (legacy path).
+        The EOF protocol exists so the client can use the WS ``final``
+        message as the authoritative result and skip the duplicate HTTP
+        POST that used to run on every dictation.
+        """
+        nonlocal total_bytes, last_audio_time, running, client_disconnected
         try:
             while running:
-                data = await websocket.receive_bytes()
-                audio_chunks.append(data)
-                total_bytes += len(data)
-                last_audio_time = time.monotonic()
+                msg = await websocket.receive()
+                msg_type = msg.get("type")
+                if msg_type == "websocket.disconnect":
+                    client_disconnected = True
+                    running = False
+                    break
+                if msg_type != "websocket.receive":
+                    continue
+                data = msg.get("bytes")
+                if data is not None:
+                    if len(data) == 0:
+                        # Empty binary frame also acts as EOF — connection stays open.
+                        running = False
+                        break
+                    audio_chunks.append(data)
+                    total_bytes += len(data)
+                    last_audio_time = time.monotonic()
+                    continue
+                if msg.get("text") == "EOF":
+                    # Client signals end-of-audio but stays connected for `final`.
+                    running = False
+                    break
         except WebSocketDisconnect:
+            client_disconnected = True
             running = False
         except Exception as e:
             logger.debug("WS receive ended: %s", e)
+            client_disconnected = True
             running = False
+
+    async def _safe_send(payload: dict) -> bool:
+        """Send JSON to the client, returning False if the connection is gone."""
+        if client_disconnected:
+            return False
+        try:
+            await websocket.send_json(payload)
+            return True
+        except Exception:
+            return False
 
     async def process_partials():
         """Periodically transcribe the accumulated buffer for partial results."""
@@ -89,7 +131,7 @@ async def ws_transcribe(websocket: WebSocket):
                 text = await _transcribe_buffer(audio_chunks[:])
                 if text and text != partial_text:
                     partial_text = text
-                    await websocket.send_json({
+                    await _safe_send({
                         "type": "partial",
                         "text": text,
                     })
@@ -113,41 +155,31 @@ async def ws_transcribe(websocket: WebSocket):
         except (asyncio.CancelledError, Exception):
             pass
 
-    # Final transcription on complete buffer
+    # Final transcription on complete buffer — skip if client already gone.
     if total_bytes > MIN_BUFFER_BYTES:
         try:
             result = await _transcribe_buffer_full(audio_chunks)
-            await websocket.send_json({
-                "type": "final",
-                **result,
-            })
+            if not await _safe_send({"type": "final", **result}):
+                logger.debug("Skipped final send — client already disconnected")
         except Exception as e:
             logger.error("Final transcription failed: %s", e)
-            try:
-                await websocket.send_json({
-                    "type": "error",
-                    "detail": str(e),
-                })
-            except Exception:
-                pass
+            await _safe_send({"type": "error", "detail": str(e)})
     else:
+        await _safe_send({
+            "type": "final",
+            "text": "",
+            "segments": [],
+            "language": "unknown",
+            "duration_s": 0,
+            "transcription_time_s": 0,
+            "engine": "none",
+        })
+
+    if not client_disconnected:
         try:
-            await websocket.send_json({
-                "type": "final",
-                "text": "",
-                "segments": [],
-                "language": "unknown",
-                "duration_s": 0,
-                "transcription_time_s": 0,
-                "engine": "none",
-            })
+            await websocket.close()
         except Exception:
             pass
-
-    try:
-        await websocket.close()
-    except Exception:
-        pass
 
 
 async def _transcribe_buffer(chunks: list[bytes]) -> str:

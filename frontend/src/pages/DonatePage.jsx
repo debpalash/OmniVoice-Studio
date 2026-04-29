@@ -1,7 +1,5 @@
-import React, { useState } from 'react';
-import { Heart, Copy, ExternalLink, ArrowLeft, Check, Building2 } from 'lucide-react';
-import toast from 'react-hot-toast';
-import { QRCodeSVG } from 'qrcode.react';
+import React from 'react';
+import { Heart, ExternalLink, ArrowLeft, Building2 } from 'lucide-react';
 import { Button } from '../ui';
 import { openExternal } from '../api/external';
 import './DonatePage.css';
@@ -13,15 +11,6 @@ const METHODS = [
     description: 'Recurring or one-time — directly through GitHub.',
     url: 'https://github.com/debpalash',
     icon: '🐙',
-    type: 'link',
-  },
-  {
-    id: 'patreon',
-    label: 'Patreon',
-    description: 'Monthly support with early access perks.',
-    url: 'https://patreon.com/omnivoicestudio',
-    icon: '🎨',
-    type: 'link',
   },
   {
     id: 'kofi',
@@ -29,7 +18,6 @@ const METHODS = [
     description: 'Buy the team a coffee. No account needed.',
     url: 'https://ko-fi.com/debpalash',
     icon: '☕',
-    type: 'link',
   },
   {
     id: 'paypal',
@@ -37,92 +25,8 @@ const METHODS = [
     description: 'Quick one-time or recurring via PayPal.',
     url: 'https://paypal.me/palashCoder',
     icon: '💳',
-    type: 'link',
-  },
-  {
-    id: 'btc',
-    label: 'Bitcoin',
-    description: 'Native BTC — any amount.',
-    address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
-    icon: '₿',
-    type: 'crypto',
-    network: 'Bitcoin (BTC)',
-    protocol: 'bitcoin',
-  },
-  {
-    id: 'eth',
-    label: 'Ethereum',
-    description: 'ETH or ERC-20 tokens.',
-    address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
-    icon: 'Ξ',
-    type: 'crypto',
-    network: 'Ethereum (ETH / ERC-20)',
-    protocol: 'ethereum',
-  },
-  {
-    id: 'sol',
-    label: 'Solana',
-    description: 'SOL or SPL tokens.',
-    address: '7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV',
-    icon: '◎',
-    type: 'crypto',
-    network: 'Solana (SOL)',
-    protocol: 'solana',
   },
 ];
-
-function CryptoCard({ method, style }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(method.address);
-      setCopied(true);
-      toast.success(`${method.label} address copied`);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error('Copy failed');
-    }
-  };
-  return (
-    <div className="donate-card lp-glow-card" style={style}>
-      <span className="donate-card__glow" aria-hidden="true" />
-      <div className="donate-card__icon">{method.icon}</div>
-      <div className="donate-card__body">
-        <div className="donate-card__label">{method.label}</div>
-        <div className="donate-card__desc">{method.description}</div>
-        <div className="donate-card__addr-row">
-          <code className="donate-card__addr">{method.address}</code>
-          <div className="donate-card__addr-actions">
-            <button className="donate-card__addr-btn" onClick={handleCopy} title="Copy address">
-              {copied ? <Check size={13} /> : <Copy size={13} />}
-            </button>
-            {method.protocol && (
-              <button
-                className="donate-card__addr-btn donate-card__addr-btn--open"
-                onClick={() => openExternal(`${method.protocol}:${method.address}`)}
-                title="Open in desktop wallet"
-              >
-                <ExternalLink size={11} />
-                <span className="donate-card__open-label">Open</span>
-              </button>
-            )}
-          </div>
-        </div>
-        <span className="donate-card__network">{method.network}</span>
-      </div>
-      <div className="donate-card__qr">
-        <QRCodeSVG
-          value={`${method.protocol || ''}:${method.address}`}
-          size={48}
-          bgColor="#ffffff"
-          fgColor="#000000"
-          level="M"
-          includeMargin={false}
-        />
-      </div>
-    </div>
-  );
-}
 
 function LinkCard({ method, style }) {
   return (
@@ -146,9 +50,6 @@ function LinkCard({ method, style }) {
 }
 
 export default function DonatePage({ onBack, onEnterprise }) {
-  const links = METHODS.filter(m => m.type === 'link');
-  const crypto = METHODS.filter(m => m.type === 'crypto');
-
   return (
     <div className="donate-page">
       {/* Aurora backdrop — same as Launchpad */}
@@ -158,8 +59,8 @@ export default function DonatePage({ onBack, onEnterprise }) {
         <span className="lp-aurora__blob lp-aurora__blob--amber" />
       </div>
 
-      {/* Back button */}
-      <div className="donate-page__back">
+      {/* Top bar: Back (left) + Commercial License (right) */}
+      <div className="donate-page__topbar">
         <Button
           variant="subtle"
           size="sm"
@@ -168,6 +69,17 @@ export default function DonatePage({ onBack, onEnterprise }) {
         >
           Back to Studio
         </Button>
+        {onEnterprise && (
+          <Button
+            variant="subtle"
+            size="sm"
+            onClick={onEnterprise}
+            leading={<Building2 size={14} />}
+            trailing={<ExternalLink size={12} />}
+          >
+            Commercial License
+          </Button>
+        )}
       </div>
 
       <div className="donate-page__content">
@@ -192,7 +104,7 @@ export default function DonatePage({ onBack, onEnterprise }) {
             <span>Platforms</span>
           </div>
           <div className="donate-grid donate-grid--links">
-            {links.map((m, i) => (
+            {METHODS.map((m, i) => (
               <LinkCard
                 key={m.id}
                 method={m}
@@ -202,40 +114,9 @@ export default function DonatePage({ onBack, onEnterprise }) {
           </div>
         </section>
 
-        {/* Cryptocurrency */}
-        <section className="donate-section">
-          <div className="donate-section__title">
-            <span>Cryptocurrency</span>
-          </div>
-          <div className="donate-grid donate-grid--crypto">
-            {crypto.map((m, i) => (
-              <CryptoCard
-                key={m.id}
-                method={m}
-                style={{ '--anim-i': i + 3, '--card-hue': '#fe8019' }}
-              />
-            ))}
-          </div>
-        </section>
-
         <div className="donate-footer">
           Every contribution helps push the boundaries of local AI. ♥
         </div>
-
-        {/* Enterprise CTA */}
-        {onEnterprise && (
-          <div className="donate-enterprise-cta">
-            <button type="button" className="donate-card donate-card--link" onClick={onEnterprise} style={{ '--card-hue': '#fe8019' }}>
-              <span className="donate-card__glow" aria-hidden="true" />
-              <div className="donate-card__icon"><Building2 size={16} /></div>
-              <div className="donate-card__body">
-                <div className="donate-card__label">Commercial License</div>
-                <div className="donate-card__desc">Using OmniVoice in a product or business? See enterprise plans.</div>
-              </div>
-              <div className="donate-card__arrow"><ExternalLink size={14} /></div>
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
