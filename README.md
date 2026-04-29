@@ -6,7 +6,7 @@
   <p>
     <a href="https://github.com/debpalash/OmniVoice-Studio/stargazers"><img src="https://img.shields.io/github/stars/debpalash/OmniVoice-Studio?style=flat-square&color=f59e0b" alt="Stars" /></a>
     <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/github/v/release/debpalash/OmniVoice-Studio?style=flat-square&color=10b981" alt="Release" /></a>
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-Dual_(Free_%2B_Commercial)-blue?style=flat-square" alt="License" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-FSL--1.1--ALv2-blue?style=flat-square" alt="License" /></a>
     <a href="https://github.com/debpalash/OmniVoice-Studio/issues"><img src="https://img.shields.io/github/issues/debpalash/OmniVoice-Studio?style=flat-square&color=ef4444" alt="Issues" /></a>
     <a href="https://discord.gg/aRRdVj3de7"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord" /></a>
   </p>
@@ -340,7 +340,7 @@ Yes. MPS acceleration is auto-detected. MLX-optimized Whisper models are availab
 <details>
 <summary><b>Can I use this commercially?</b></summary>
 <br/>
-Personal and non-commercial use is free. Commercial use requires a paid license — see <a href="#license">License</a>. 30-day free evaluation for businesses.
+Personal, educational, internal-team, and non-commercial use is free under <a href="https://fsl.software/">FSL-1.1-ALv2</a>. Building a competing product or service on top of OmniVoice Studio requires a commercial license — see <a href="#license">License</a>. Pricing tiers coming soon. Each release converts to Apache 2.0 two years after publication.
 </details>
 
 <details>
@@ -359,11 +359,13 @@ Not yet — a Plugin SDK is on the <a href="#roadmap">roadmap</a>. The architect
 
 ## License
 
-**Personal, educational, and non-commercial use** — completely free. No restrictions, no limits.
+OmniVoice Studio is source-available under the [**Functional Source License (FSL-1.1-ALv2)**](https://fsl.software/).
 
-**Commercial use** (SaaS, paid products, enterprise) — requires a paid license. 30-day free evaluation included.
+**Free** for personal, educational, research, internal team, and non-commercial use. Each release **converts to Apache 2.0 automatically two years after publication**.
 
-See [`LICENSE`](LICENSE) for the full terms. For commercial inquiries, reach out at **OmniVoice@palash.dev**.
+**Business / enterprise** users building a competing product or service on top of OmniVoice Studio need a commercial license. **Pricing tiers coming soon.** For inquiries in the meantime, reach out at **OmniVoice@palash.dev**.
+
+See [`LICENSE`](LICENSE) for the full terms.
 
 ---
 

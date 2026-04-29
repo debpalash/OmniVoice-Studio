@@ -1,82 +1,136 @@
-OmniVoice Studio — Dual License
+# Functional Source License, Version 1.1, ALv2 Future License
 
-Copyright (c) 2024-present Palash Debnath and contributors.
+## Abbreviation
 
-This software is licensed under a dual-license model:
+FSL-1.1-ALv2
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## Notice
 
-1. PERSONAL & NON-COMMERCIAL USE — FREE
+Copyright 2024-present Palash Debnath and OmniVoice Studio contributors.
 
-You may use, copy, modify, and distribute this software free of
-charge for any personal, educational, research, or non-commercial
-purpose, subject to the following conditions:
+OmniVoice Studio is **free for personal, educational, research, and
+non-commercial use** under the terms below. Two years after each release is
+published, that release converts automatically to the Apache License,
+Version 2.0 (see "Grant of Future License").
 
-  • You include this license notice in all copies or substantial
-    portions of the software.
-  • You do not use the software, or any derivative of it, to provide
-    a commercial product or service (see Section 2).
-  • You provide attribution to "OmniVoice Studio" in any public-facing
-    derivative work.
+**Business / enterprise users** that fall outside the Permitted Purposes
+below — primarily those building a competing product or service on top of
+OmniVoice Studio — need a commercial license. Pricing tiers are coming
+soon. For inquiries in the meantime, contact `OmniVoice@palash.dev`.
 
-"Non-commercial" means use that is not intended for or directed toward
-commercial advantage or monetary compensation. This includes personal
-projects, academic research, open-source contributions, and internal
-evaluation within an organization (up to 30 days).
+### Scope
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+These terms cover the OmniVoice Studio application — the Tauri desktop
+shell (`frontend/src-tauri/`), the React frontend (`frontend/src/`), the
+FastAPI backend (`backend/`), and supporting build / packaging scripts
+(`scripts/`, `Dockerfile`, `docker-compose.yml`, `.github/`).
 
-2. COMMERCIAL USE — PAID LICENSE REQUIRED
+The bundled `omnivoice/` Python package — the underlying TTS model by
+Han Zhu — is **separately licensed under Apache License 2.0** by its
+upstream authors and is not relicensed here. See `pyproject.toml`.
 
-A separate commercial license is required for any use that does not
-qualify as personal or non-commercial under Section 1. This includes,
-but is not limited to:
+Third-party dependencies retain their own licenses. See `Cargo.lock`,
+`bun.lock`, and `uv.lock` for the resolved set.
 
-  • Using the software to provide a paid product or service.
-  • Embedding the software in a product sold or licensed to third
-    parties.
-  • Using the software in a revenue-generating business beyond the
-    30-day evaluation period.
-  • Offering the software as part of a managed, hosted, or SaaS
-    platform.
+### Reference
 
-To obtain a commercial license, contact:
+The full canonical text of the FSL-1.1-ALv2 follows verbatim. The
+authoritative copy lives at <https://fsl.software/>.
 
-  Email: OmniVoice@palash.dev
-  Web:   https://github.com/debpalash/OmniVoice-Studio
+---
 
-Commercial licenses are available for teams and enterprises of all
-sizes. Pricing scales with usage — solo creators and small studios
-are priced affordably.
+## Terms and Conditions
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### Licensor ("We")
 
-3. CONTRIBUTIONS
+The party offering the Software under these Terms and Conditions.
 
-By submitting a pull request or other contribution to this project,
-you agree to license your contribution under the same dual-license
-terms described herein, and you grant the copyright holder a
-perpetual, worldwide, royalty-free license to use, reproduce, modify,
-and distribute your contribution under both the non-commercial and
-commercial licenses.
+### The Software
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The "Software" is each version of the software that we make available under
+these Terms and Conditions, as indicated by our inclusion of these Terms and
+Conditions with the Software.
 
-4. NO WARRANTY
+### License Grant
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
-BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN
-ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Subject to your compliance with this License Grant and the Patents,
+Redistribution and Trademark clauses below, we hereby grant you the right to
+use, copy, modify, create derivative works, publicly perform, publicly display
+and redistribute the Software for any Permitted Purpose identified below.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### Permitted Purpose
 
-5. TERMINATION
+A Permitted Purpose is any purpose other than a Competing Use. A Competing Use
+means making the Software available to others in a commercial product or
+service that:
 
-Your rights under this license terminate automatically if you fail to
-comply with its terms. Upon termination, you must cease all use of the
-software and destroy all copies in your possession.
+1. substitutes for the Software;
+
+2. substitutes for any other product or service we offer using the Software
+   that exists as of the date we make the Software available; or
+
+3. offers the same or substantially similar functionality as the Software.
+
+Permitted Purposes specifically include using the Software:
+
+1. for your internal use and access;
+
+2. for non-commercial education;
+
+3. for non-commercial research; and
+
+4. in connection with professional services that you provide to a licensee
+   using the Software in accordance with these Terms and Conditions.
+
+### Patents
+
+To the extent your use for a Permitted Purpose would necessarily infringe our
+patents, the license grant above includes a license under our patents. If you
+make a claim against any party that the Software infringes or contributes to
+the infringement of any patent, then your patent license to the Software ends
+immediately.
+
+### Redistribution
+
+The Terms and Conditions apply to all copies, modifications and derivatives of
+the Software.
+
+If you redistribute any copies, modifications or derivatives of the Software,
+you must include a copy of or a link to these Terms and Conditions and not
+remove any copyright notices provided in or with the Software.
+
+### Disclaimer
+
+THE SOFTWARE IS PROVIDED "AS IS" AND WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING WITHOUT LIMITATION WARRANTIES OF FITNESS FOR A PARTICULAR
+PURPOSE, MERCHANTABILITY, TITLE OR NON-INFRINGEMENT.
+
+IN NO EVENT WILL WE HAVE ANY LIABILITY TO YOU ARISING OUT OF OR RELATED TO THE
+SOFTWARE, INCLUDING INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES,
+EVEN IF WE HAVE BEEN INFORMED OF THEIR POSSIBILITY IN ADVANCE.
+
+### Trademarks
+
+Except for displaying the License Details and identifying us as the origin of
+the Software, you have no right under these Terms and Conditions to use our
+trademarks, trade names, service marks or product names.
+
+## Grant of Future License
+
+We hereby irrevocably grant you an additional license to use the Software under
+the Apache License, Version 2.0 that is effective on the second anniversary of
+the date we make the Software available. On or after that date, you may use the
+Software under the Apache License, Version 2.0, in which case the following
+will apply:
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License.
+
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed
+under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.

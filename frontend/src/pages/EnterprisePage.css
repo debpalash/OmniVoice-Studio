@@ -137,137 +137,41 @@
   line-height: 1.5;
 }
 
-/* ── Pricing tiers ────────────────────────────────────────── */
-.ent-tiers {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
-  align-items: start;
-}
-.ent-tier {
-  position: relative;
-  padding: 22px 20px;
+/* ── Pricing — coming-soon panel ──────────────────────────── */
+.ent-coming-soon {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px 22px;
   border: 1px solid var(--chrome-border);
   border-radius: var(--chrome-radius-pill);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: background var(--dur-fast), border-color var(--dur-fast), transform var(--dur-base);
+  background: color-mix(in srgb, #fe8019 5%, transparent);
+  text-align: center;
+  align-items: center;
   animation: entCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-.ent-tier:hover {
-  transform: translateY(-2px);
-  background: color-mix(in srgb, var(--tier-accent) 4%, transparent);
-  border-color: color-mix(in srgb, var(--tier-accent) 35%, transparent);
-  box-shadow: 0 12px 28px -14px color-mix(in srgb, var(--tier-accent) 30%, transparent);
-}
-.ent-tier--best {
-  border-color: color-mix(in srgb, var(--tier-accent) 40%, transparent);
-  background: color-mix(in srgb, var(--tier-accent) 4%, transparent);
-}
-.ent-tier__badge {
-  position: absolute;
-  top: -9px;
-  right: 14px;
-  font-family: var(--chrome-font-mono);
-  font-size: var(--chrome-label-size);
-  font-weight: 600;
-  letter-spacing: var(--chrome-label-track);
-  text-transform: uppercase;
-  padding: 2px 10px;
-  border-radius: var(--chrome-radius-pill);
-  background: color-mix(in srgb, var(--tier-accent) 15%, var(--chrome-bg));
-  border: 1px solid color-mix(in srgb, var(--tier-accent) 45%, transparent);
-  color: var(--tier-accent);
-}
-.ent-tier__icon-wrap {
-  width: 34px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--chrome-radius-pill);
-  background: color-mix(in srgb, var(--tier-accent) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--tier-accent) 25%, transparent);
-  color: var(--tier-accent);
-}
-.ent-tier__name {
-  font-family: var(--chrome-font-mono);
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--chrome-fg);
-  letter-spacing: var(--chrome-label-track);
-  text-transform: uppercase;
+.ent-coming-soon p {
   margin: 0;
-}
-.ent-tier__price {
-  display: flex;
-  align-items: baseline;
-  gap: 3px;
-}
-.ent-tier__amount {
-  font-family: var(--font-serif);
-  font-size: 1.8rem;
-  font-weight: 400;
-  color: var(--chrome-fg);
-  letter-spacing: -0.02em;
-}
-.ent-tier__period {
-  font-family: var(--chrome-font-mono);
-  font-size: 0.68rem;
-  color: var(--chrome-fg-dim);
-}
-.ent-tier__desc {
-  font-family: var(--font-sans);
-  font-size: 0.72rem;
+  max-width: 540px;
   color: var(--chrome-fg-muted);
   line-height: 1.5;
-  margin: 0;
 }
-.ent-tier__perks {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.ent-tier__perks li {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-family: var(--font-sans);
-  font-size: 0.72rem;
-  color: var(--chrome-fg-muted);
-  line-height: 1.45;
-}
-.ent-tier__check {
-  color: var(--tier-accent);
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-.ent-tier__cta {
+.ent-coming-soon__cta {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 8px 16px;
+  gap: 6px;
+  padding: 10px 18px;
   border-radius: var(--chrome-radius-pill);
-  background: color-mix(in srgb, var(--tier-accent) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--tier-accent) 35%, transparent);
-  color: var(--tier-accent);
-  font-family: var(--font-sans);
-  font-size: 0.75rem;
+  background: color-mix(in srgb, #fe8019 18%, transparent);
+  border: 1px solid color-mix(in srgb, #fe8019 50%, transparent);
+  color: var(--chrome-fg);
   font-weight: 600;
-  letter-spacing: 0.02em;
-  text-decoration: none;
   cursor: pointer;
-  transition: background var(--dur-fast), border-color var(--dur-fast), transform var(--dur-base);
+  transition: background var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast);
 }
-.ent-tier__cta:hover {
-  background: color-mix(in srgb, var(--tier-accent) 20%, transparent);
-  border-color: color-mix(in srgb, var(--tier-accent) 55%, transparent);
+.ent-coming-soon__cta:hover {
+  background: color-mix(in srgb, #fe8019 28%, transparent);
+  border-color: color-mix(in srgb, #fe8019 70%, transparent);
   transform: translateY(-1px);
 }
 

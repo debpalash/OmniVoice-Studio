@@ -1,111 +1,20 @@
 import React from 'react';
 import {
   ArrowLeft, Shield, Zap, Users, Headphones, Code, Globe,
-  BarChart3, Building2, Mail, ExternalLink, Check,
+  Building2, Mail,
 } from 'lucide-react';
 import { Button } from '../ui';
 import { openExternal } from '../api/external';
 import './EnterprisePage.css';
 
-const TIERS = [
-  {
-    id: 'startup',
-    name: 'Startup',
-    price: '$249',
-    period: '/year',
-    accent: '#8ec07c',
-    best: false,
-    description: 'For small teams shipping content with AI voices.',
-    perks: [
-      'Commercial use license for up to 5 seats',
-      'Remove invisible watermark from exports',
-      'Priority bug fixes via email',
-      'Invoice + receipt for accounting',
-    ],
-  },
-  {
-    id: 'business',
-    name: 'Business',
-    price: '$999',
-    period: '/year',
-    accent: '#d3869b',
-    best: true,
-    description: 'For production teams that need reliability and support.',
-    perks: [
-      'Everything in Startup',
-      'Unlimited seats within one organization',
-      'Dedicated Slack/Discord channel with core team',
-      '48-hour response SLA on critical issues',
-      'Custom model fine-tuning guidance',
-      'Early access to beta features & engines',
-      'Logo on README + website acknowledgments',
-    ],
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise',
-    price: 'Custom',
-    period: '',
-    accent: '#fe8019',
-    best: false,
-    description: 'On-prem deployment, SLA, and dedicated engineering.',
-    perks: [
-      'Everything in Business',
-      'On-premise deployment support',
-      'Custom SLA (up to 4-hour response)',
-      'Dedicated integration engineer',
-      'Private model hosting & training',
-      'Custom API/SDK development',
-      'Source code escrow',
-      'Multi-year volume discounts',
-    ],
-  },
-];
-
 const WHY_ITEMS = [
   { icon: Shield, label: 'Full IP ownership', desc: 'Your voices, your data, your servers. No third-party dependency.' },
-  { icon: Zap, label: 'Zero per-minute costs', desc: 'One flat annual fee. Generate millions of minutes without usage caps.' },
+  { icon: Zap, label: 'Zero per-minute costs', desc: 'Flat licensing. Generate millions of minutes without usage caps.' },
   { icon: Users, label: 'Team-wide access', desc: 'Share across your org. No per-seat API key management.' },
   { icon: Headphones, label: 'Direct support', desc: 'Talk to the engineers who built it, not a helpdesk.' },
-  { icon: Code, label: 'Open source core', desc: 'Audit the code. Fork if needed. No vendor lock-in, ever.' },
+  { icon: Code, label: 'Source-available core', desc: 'Audit the code. Fork if needed. Apache 2.0 two years after release — no vendor lock-in.' },
   { icon: Globe, label: '646 languages', desc: 'Ship global content from one tool. No third-party locale add-ons.' },
 ];
-
-function TierCard({ tier }) {
-  return (
-    <div
-      className={`ent-tier ${tier.best ? 'ent-tier--best' : ''}`}
-      style={{ '--tier-accent': tier.accent }}
-    >
-      {tier.best && <span className="ent-tier__badge">Most popular</span>}
-      <div className="ent-tier__icon-wrap">
-        <Building2 size={18} />
-      </div>
-      <h3 className="ent-tier__name">{tier.name}</h3>
-      <div className="ent-tier__price">
-        <span className="ent-tier__amount">{tier.price}</span>
-        {tier.period && <span className="ent-tier__period">{tier.period}</span>}
-      </div>
-      <p className="ent-tier__desc">{tier.description}</p>
-      <ul className="ent-tier__perks">
-        {tier.perks.map((p, i) => (
-          <li key={i}>
-            <Check size={12} className="ent-tier__check" />
-            {p}
-          </li>
-        ))}
-      </ul>
-      <button
-        type="button"
-        className="ent-tier__cta"
-        onClick={() => openExternal(`mailto:OmniVoice@palash.dev?subject=OmniVoice ${tier.name} License&body=Hi Palash,%0A%0AI'm interested in the ${tier.name} license for OmniVoice Studio.%0A%0AOrganization:%0ATeam size:%0AUse case:%0A`)}
-      >
-        <Mail size={13} />
-        {tier.price === 'Custom' ? 'Contact Sales' : 'Get Started'}
-      </button>
-    </div>
-  );
-}
 
 export default function EnterprisePage({ onBack }) {
   return (
@@ -137,9 +46,18 @@ export default function EnterprisePage({ onBack }) {
             <span className="lp-hero__sweep" aria-hidden="true" />
           </h2>
           <p className="ent-hero__subtitle">
-            OmniVoice Studio is free for personal and non-commercial use.
-            For commercial products, SaaS, and enterprise — grab a license
-            that fits your team. <strong>30-day free evaluation included.</strong>
+            OmniVoice Studio is source-available under the{' '}
+            <button
+              type="button"
+              className="ent-cta-footer__link"
+              onClick={() => openExternal('https://fsl.software/')}
+            >
+              Functional Source License
+            </button>
+            {' '}— free for personal, educational, and non-commercial use,
+            and converts to Apache 2.0 two years after each release.
+            Building a competing product or service on top of OmniVoice?
+            <strong> Pricing tiers coming soon — get in touch in the meantime.</strong>
           </p>
         </div>
 
@@ -159,13 +77,26 @@ export default function EnterprisePage({ onBack }) {
           </div>
         </section>
 
-        {/* Pricing Tiers */}
+        {/* Pricing — coming soon */}
         <section className="ent-tiers-section">
           <div className="ent-section-title">
-            <span>Plans</span>
+            <span>Pricing</span>
           </div>
-          <div className="ent-tiers">
-            {TIERS.map(t => <TierCard key={t.id} tier={t} />)}
+          <div className="ent-coming-soon">
+            <p>
+              <strong>Tiers and pricing are still being finalized.</strong>{' '}
+              Until they're public, every commercial deployment is being
+              quoted individually so we can right-size for your team and
+              workload.
+            </p>
+            <button
+              type="button"
+              className="ent-coming-soon__cta"
+              onClick={() => openExternal('mailto:OmniVoice@palash.dev?subject=OmniVoice Commercial License Inquiry&body=Hi Palash,%0A%0AI%27d like to talk about a commercial license for OmniVoice Studio.%0A%0AOrganization:%0ATeam size:%0AUse case:%0A')}
+            >
+              <Mail size={13} />
+              Request a quote
+            </button>
           </div>
         </section>
 
@@ -177,19 +108,19 @@ export default function EnterprisePage({ onBack }) {
           <div className="ent-faq__list">
             <details className="ent-faq__item">
               <summary>Do I need a license for internal tools?</summary>
-              <p>If the tool generates revenue or is used in a commercial product — yes. Internal R&D and prototyping during the 30-day evaluation period is free.</p>
+              <p>Internal use by your employees and contractors is a Permitted Purpose under the FSL — no license required. A commercial license is needed when you make OmniVoice available to others as part of a competing product or service (resale, hosted SaaS, white-label).</p>
             </details>
             <details className="ent-faq__item">
-              <summary>Can I try before I buy?</summary>
-              <p>Absolutely. Every plan includes a 30-day free evaluation. No credit card required — just email us and we'll activate it.</p>
+              <summary>Can I try before committing?</summary>
+              <p>Yes. The full app is free to download and run locally for evaluation under the FSL. When you're ready to discuss a commercial deployment, email us and we'll work through the details together.</p>
             </details>
             <details className="ent-faq__item">
               <summary>What about the watermark?</summary>
               <p>The invisible AudioSeal watermark is embedded by default. Commercial licensees can disable it in Settings → Privacy. Free/personal use always includes the watermark.</p>
             </details>
             <details className="ent-faq__item">
-              <summary>Do you offer multi-year discounts?</summary>
-              <p>Yes — Enterprise tier includes volume and multi-year pricing. Contact us for a custom quote.</p>
+              <summary>Does the source ever become Apache 2.0?</summary>
+              <p>Yes. Each release converts automatically to the Apache License, Version 2.0 on the second anniversary of its publication. That means today's release is Apache 2.0 in two years, no action required from us — the FSL guarantees it irrevocably.</p>
             </details>
           </div>
         </section>
