@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+        macOS shows this string in the system dialog when the app first
+        requests microphone access. Without it, getUserMedia() in the
+        WebView fails silently on macOS 10.14+ (TCC blocks the access
+        and returns NotAllowedError to JS). This file is auto-merged
+        into the app's Info.plist by tauri-bundler at bundle time.
+    -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>OmniVoice needs microphone access for live dictation and voice recording. Audio is processed entirely on your machine — nothing is sent to any external server.</string>
+
+    <!--
+        Same story for camera. We don't currently use it, but if a future
+        feature ever calls getUserMedia({ video: true }) the system will
+        need this string. Cheap to ship now; avoids a future TCC denial.
+    -->
+    <key>NSCameraUsageDescription</key>
+    <string>OmniVoice may use the camera for upcoming video features. Video stays on your machine.</string>
+</dict>
+</plist>

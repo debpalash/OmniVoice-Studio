@@ -159,21 +159,90 @@ export default function CaptureButton() {
         ? 'audio/webm;codecs=opus'
         : 'audio/webm';
 
+      // Open the WebSocket BEFORE starting the recorder so wsRef is set by
+      // the time the first `ondataavailable` fires. Otherwise the very
+      // first 250 ms chunk — which carries the WebM EBML header — is
+      // dropped from the WS stream, every subsequent chunk decodes as
+      // malformed WebM, and ffmpeg fails with exit 183 on every partial.
+      try {
+        const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const wsHost = API_BASE.replace(/^https?:\/\//, '').replace(/\/$/, '')
+          || `${window.location.hostname}:3900`;
+        const wsUrl = `${wsProto}://${wsHost}/ws/transcribe`;
+        const ws = new WebSocket(wsUrl);
+        ws.binaryType = 'arraybuffer';
+        ws.onopen = () => {
+          // Drain chunks captured during the handshake.
+          for (const buf of wsPendingRef.current) {
+            try { ws.send(buf); } catch {}
+          }
+          wsPendingRef.current = [];
+        };
+        ws.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            if (msg.type === 'partial') {
+              setPartialText(msg.text || '');
+            } else if (msg.type === 'final') {
+              wsHadFinalRef.current = true;
+              if (fallbackTimerRef.current) {
+                clearTimeout(fallbackTimerRef.current);
+                fallbackTimerRef.current = null;
+              }
+              applyResult(msg);
+              try { ws.close(); } catch {}
+            } else if (msg.type === 'error') {
+              // Server failed (e.g. ffmpeg couldn't decode the partial
+              // buffer). Don't wait the full timeout — fire the HTTP
+              // fallback right away so the user still gets a transcript.
+              if (fallbackTimerRef.current) {
+                clearTimeout(fallbackTimerRef.current);
+                fallbackTimerRef.current = null;
+              }
+              try { ws.close(); } catch {}
+              wsRef.current = null;
+              if (!wsHadFinalRef.current) sendForTranscription();
+            }
+          } catch {}
+        };
+        ws.onerror = () => { wsRef.current = null; };
+        ws.onclose = () => {
+          wsRef.current = null;
+          // If the socket closed before delivering `final` and the
+          // recorder has already stopped, the fallback timer is the only
+          // thing left — kick the HTTP path now instead of waiting it
+          // out.
+          if (
+            !wsHadFinalRef.current
+            && mediaRecorderRef.current
+            && mediaRecorderRef.current.state === 'inactive'
+          ) {
+            if (fallbackTimerRef.current) {
+              clearTimeout(fallbackTimerRef.current);
+              fallbackTimerRef.current = null;
+            }
+            sendForTranscription();
+          }
+        };
+        wsRef.current = ws;
+      } catch {
+        // WebSocket not available — will fallback to HTTP POST
+        wsRef.current = null;
+      }
+
       const recorder = new MediaRecorder(stream, { mimeType });
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
-          // Stream chunk to WebSocket for partial results AND to drive the
-          // server's `final` transcription. If the socket is still in
-          // CONNECTING state, queue the chunk so `ws.onopen` can drain it
-          // — otherwise the server's final transcript would lose the
-          // first ~250 ms of audio (the open-handshake window).
+          // Stream every chunk to the WS — queueing through wsPendingRef
+          // until ws.onopen drains it. This guarantees the first chunk
+          // (which carries the WebM EBML header) reaches the server even
+          // if it arrives during the handshake window.
           e.data.arrayBuffer().then(buf => {
             const ws = wsRef.current;
-            if (!ws) return;
-            if (ws.readyState === WebSocket.OPEN) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
               ws.send(buf);
-            } else if (ws.readyState === WebSocket.CONNECTING) {
+            } else {
               wsPendingRef.current.push(buf);
             }
           });
@@ -203,49 +272,19 @@ export default function CaptureButton() {
       setLastEngine('');
       setLastTime(0);
       setTrayRecording(true);
-
-      // Open WebSocket for streaming partial results + final transcript
-      try {
-        const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const wsHost = API_BASE.replace(/^https?:\/\//, '').replace(/\/$/, '')
-          || `${window.location.hostname}:3900`;
-        const wsUrl = `${wsProto}://${wsHost}/ws/transcribe`;
-        const ws = new WebSocket(wsUrl);
-        ws.binaryType = 'arraybuffer';
-        ws.onopen = () => {
-          // Drain chunks captured during the WS handshake.
-          for (const buf of wsPendingRef.current) {
-            try { ws.send(buf); } catch {}
-          }
-          wsPendingRef.current = [];
-        };
-        ws.onmessage = (evt) => {
-          try {
-            const msg = JSON.parse(evt.data);
-            if (msg.type === 'partial') {
-              setPartialText(msg.text || '');
-            } else if (msg.type === 'final') {
-              wsHadFinalRef.current = true;
-              if (fallbackTimerRef.current) {
-                clearTimeout(fallbackTimerRef.current);
-                fallbackTimerRef.current = null;
-              }
-              applyResult(msg);
-              try { ws.close(); } catch {}
-            } else if (msg.type === 'error') {
-              // Let the fallback timer fire HTTP POST.
-            }
-          } catch {}
-        };
-        ws.onerror = () => { wsRef.current = null; };
-        ws.onclose = () => { wsRef.current = null; };
-        wsRef.current = ws;
-      } catch {
-        // WebSocket not available — will fallback to HTTP POST
-        wsRef.current = null;
-      }
     } catch (err) {
-      toast.error('Microphone access denied. Check browser permissions.');
+      // Platform-specific recovery hint — getUserMedia rejects with
+      // NotAllowedError when the OS or user has blocked mic access.
+      const isMac = typeof navigator !== 'undefined'
+        && /Mac|iPad|iPhone|iPod/.test(navigator.platform || '');
+      const isWindows = typeof navigator !== 'undefined'
+        && /Win/.test(navigator.platform || '');
+      const hint = isMac
+        ? 'macOS: open System Settings → Privacy & Security → Microphone and enable OmniVoice.'
+        : isWindows
+        ? 'Windows: open Settings → Privacy & security → Microphone and allow OmniVoice.'
+        : 'Linux: check that your user is in the audio group and the WebView has mic access.';
+      toast.error(`Microphone access denied. ${hint}`, { duration: 6000 });
       setTrayRecording(false);
       setState('error');
     }

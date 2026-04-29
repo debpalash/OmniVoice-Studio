@@ -201,6 +201,34 @@ jobs:
       # installer ships the repo's pyproject.toml + uv.lock + backend/
       # tree as Tauri resources; lib.rs::ensure_venv_ready recreates the
       # venv on first launch via `uv sync --frozen --no-dev`.
+      # Extract the matching CHANGELOG.md section so the release body has
+      # real notes instead of "see commit log". Falls back to a one-liner
+      # if the tag has no matching `## [X.Y.Z]` section yet — keeps the
+      # release publishable even when CHANGELOG hasn't been updated.
+      - name: Extract CHANGELOG section for tag
+        id: changelog
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          BODY=""
+          if [ -f CHANGELOG.md ]; then
+            BODY=$(awk -v tag="$TAG" '
+              /^## \[/ {
+                if (in_section) exit
+                if ($0 ~ "\\[" tag "\\]") { in_section = 1; next }
+              }
+              in_section { print }
+            ' CHANGELOG.md | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+          fi
+          if [ -z "$BODY" ]; then
+            BODY="Auto-generated release for ${GITHUB_REF_NAME}. See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/CHANGELOG.md) and the commit log for details."
+          fi
+          {
+            echo 'body<<RELEASE_BODY_EOF'
+            echo "$BODY"
+            echo 'RELEASE_BODY_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build + release (Tauri)
         uses: tauri-apps/tauri-action@v0
         env:
@@ -216,7 +244,7 @@ jobs:
           args: --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundles }}
           tagName: ${{ github.ref_name }}
           releaseName: "OmniVoice Studio ${{ github.ref_name }}"
-          releaseBody: "Auto-generated release. See commit log for changes."
+          releaseBody: ${{ steps.changelog.outputs.body }}
           releaseDraft: ${{ inputs.draft || 'true' }}
           prerelease: false
           updaterJsonPreferNsis: false
