@@ -203,7 +203,13 @@ class WhisperXBackend(ASRBackend):
         self._ensure_asr()
         logger.info("whisperx transcribing %s (word_timestamps=%s)", audio_path, word_timestamps)
         audio = whisperx.load_audio(audio_path)
-        result = self._asr.transcribe(audio)
+        try:
+            result = self._asr.transcribe(audio)
+        except IndexError as e:
+            # WhisperX pipeline crashes with IndexError if VAD produces 0 segments
+            logger.info("whisperx transcribe threw IndexError (likely 0 VAD segments). Returning empty result.")
+            result = {"segments": [], "language": "en"}
+            
         lang = result.get("language", "en")
 
         # Forced alignment when available — drastically improves word boundary

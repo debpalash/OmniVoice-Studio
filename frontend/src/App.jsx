@@ -33,6 +33,7 @@ import useRealtimeEvents from './hooks/useRealtimeEvents';
 import { BootstrapSplash, useBootstrapStage } from './components/BootstrapSplash';
 
 import './components/Misc.css';
+import { askConfirm } from './utils/dialog';
 
 const LazyFallback = () => <div className="app-lazy-fallback">Loading…</div>;
 
@@ -537,9 +538,9 @@ function App() {
     setDubSegments(prev => prev.map(s => selectedSegIds.has(s.id) ? { ...s, ...patch } : s));
   }, [dubSegments, selectedSegIds]);
 
-  const bulkDeleteSelected = useCallback(() => {
+  const bulkDeleteSelected = useCallback(async () => {
     if (!selectedSegIds.size) return;
-    if (!confirm(`Delete ${selectedSegIds.size} selected segment${selectedSegIds.size === 1 ? '' : 's'}?`)) return;
+    if (!(await askConfirm(`Delete ${selectedSegIds.size} selected segment${selectedSegIds.size === 1 ? '' : 's'}?`))) return;
     pushUndo(dubSegments);
     setDubSegments(prev => prev.filter(s => !selectedSegIds.has(s.id)));
     setSelectedSegIds(new Set());
@@ -932,7 +933,11 @@ function App() {
         if (selectedProfile) {
           formData.append("profile_id", selectedProfile);
         } else if (refAudio) {
-          formData.append("ref_audio", refAudio);
+          // Safari/WebKit workaround: fetching an in-memory File/Blob via FormData hangs/times out
+          // Recreating it synchronously from an ArrayBuffer avoids the bug
+          const arrBuf = await refAudio.arrayBuffer();
+          const safeBlob = new Blob([arrBuf], { type: refAudio.type });
+          formData.append("ref_audio", safeBlob, refAudio.name || "audio.wav");
           formData.append("ref_text", refText);
         }
         if (instruct) formData.append("instruct", instruct);
@@ -996,7 +1001,9 @@ function App() {
     if (!profileName.trim() || !refAudio) return toast.error("Need a name and reference audio");
     const formData = new FormData();
     formData.append("name", profileName);
-    formData.append("ref_audio", refAudio);
+    const arrBuf = await refAudio.arrayBuffer();
+    const safeBlob = new Blob([arrBuf], { type: refAudio.type });
+    formData.append("ref_audio", safeBlob, refAudio.name || "profile.wav");
     formData.append("ref_text", refText);
     formData.append("instruct", instruct);
     formData.append("language", language);
@@ -1009,7 +1016,7 @@ function App() {
   };
 
   const handleDeleteProfile = async (id) => {
-    if (!confirm('Delete this voice profile?')) return;
+    if (!(await askConfirm('Delete this voice profile?'))) return;
     await apiDeleteProfile(id);
     if (selectedProfile === id) setSelectedProfile(null);
     await loadProfiles();
@@ -1918,7 +1925,7 @@ function App() {
 
   const deleteProject = async (projectId, e) => {
     if (e) e.stopPropagation();
-    if (!confirm('Delete this project? This cannot be undone.')) return;
+    if (!(await askConfirm('Delete this project? This cannot be undone.'))) return;
     try {
       await apiDeleteProject(projectId);
       if (activeProjectId === projectId) {
@@ -1970,7 +1977,7 @@ function App() {
   };
 
   const deleteHistory = async (id, type) => {
-    if (!confirm('Delete this history item?')) return;
+    if (!(await askConfirm('Delete this history item?'))) return;
     try {
       const endpoint = type === 'dub' ? `${API}/dub/history/${id}` : `${API}/history/${id}`;
       await fetch(endpoint, { method: 'DELETE' });
@@ -2052,14 +2059,16 @@ function App() {
       style={{ zoom: uiScale }}
     >
       {pendingTrimFile && (
-        <Suspense fallback={<LazyFallback />}>
-          <AudioTrimmer
-            file={pendingTrimFile}
-            maxSeconds={CLONE_MAX_SECONDS}
-            onCancel={() => setPendingTrimFile(null)}
-            onConfirm={(trimmed) => { setPendingTrimFile(null); setRefAudio(trimmed); setSelectedProfile(null); toast.success('Trimmed audio loaded'); }}
-          />
-        </Suspense>
+        <ErrorBoundary name="audio-trimmer">
+          <Suspense fallback={<LazyFallback />}>
+            <AudioTrimmer
+              file={pendingTrimFile}
+              maxSeconds={CLONE_MAX_SECONDS}
+              onCancel={() => setPendingTrimFile(null)}
+              onConfirm={(trimmed) => { setPendingTrimFile(null); setRefAudio(trimmed); setSelectedProfile(null); toast.success('Trimmed audio loaded'); }}
+            />
+          </Suspense>
+        </ErrorBoundary>
       )}
       <Toaster position="top-center" toastOptions={{
         style: { background: 'rgba(40,40,40,0.9)', backdropFilter: 'blur(10px)', color: '#ebdbb2', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.72rem', padding: '4px 8px' },

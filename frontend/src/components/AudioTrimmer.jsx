@@ -55,6 +55,8 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
   const [startInput, setStartInput] = useState('0.00');
   const [endInput, setEndInput] = useState('0.00');
 
+  const [audioMeta, setAudioMeta] = useState(null);
+
   useEffect(() => {
     stateRef.current = {
       start, end, cursor, viewStart, viewEnd,
@@ -77,16 +79,17 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
         const buf = await decodeToMonoLowRate(file, 22050);
         if (cancelled) return;
         bufferRef.current = buf;
+        setAudioMeta({ duration: buf.duration, sampleRate: buf.sampleRate });
         // Prime with a coarse synchronous pass so waveform shows something instantly.
         peaksRef.current = computePeaksFromChannel(buf.getChannelData(0), 1024);
-        const initEnd = Math.min(buf.duration, maxSeconds);
+        setDuration(buf.duration);
+        setViewEnd(buf.duration);
+        setEnd(Math.min(buf.duration, maxSeconds));
         setStart(0);
-        setEnd(initEnd);
         setCursor(0);
         setViewStart(0);
-        setViewEnd(buf.duration);
-        setReady(true);
         setDecoding(false);
+        setReady(true);
         // Refine peaks asynchronously without blocking UI.
         const refined = await computePeaksAsync(
           buf.getChannelData(0),
@@ -539,7 +542,7 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
   };
 
   const keyHandlerRef = useRef(onKeyDown);
-  keyHandlerRef.current = onKeyDown;
+  useEffect(() => { keyHandlerRef.current = onKeyDown; }, [onKeyDown]);
 
   useEffect(() => {
     const node = containerRef.current;
@@ -573,8 +576,8 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
         <div className="audio-trimmer__meta">
           <span>{decoding
             ? 'Decoding audio…'
-            : (bufferRef.current
-                ? `Length ${fmtHMS(bufferRef.current.duration)} · ${bufferRef.current.sampleRate} Hz${peakProgress > 0 && peakProgress < 1 ? ` · rendering waveform ${Math.round(peakProgress * 100)}%` : ''}`
+            : (audioMeta
+                ? `Length ${fmtHMS(audioMeta.duration)} · ${audioMeta.sampleRate} Hz${peakProgress > 0 && peakProgress < 1 ? ` · rendering waveform ${Math.round(peakProgress * 100)}%` : ''}`
                 : '…')
           }</span>
           <span className="audio-trimmer__hint">

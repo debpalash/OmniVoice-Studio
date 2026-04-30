@@ -90,6 +90,23 @@ def emit(event: ProgressEvent) -> None:
     _emit(event)
 
 
+class SafeFileWrapper:
+    def __init__(self, fp):
+        self.fp = fp
+        self._is_safe_wrapper = True
+    def write(self, s):
+        try:
+            self.fp.write(s)
+        except OSError:
+            pass
+    def flush(self):
+        try:
+            getattr(self.fp, 'flush', lambda: None)()
+        except OSError:
+            pass
+    def __getattr__(self, name):
+        return getattr(self.fp, name)
+
 def install() -> None:
     """Monkey-patch `huggingface_hub`'s tqdm so every download reports to our
     listeners. Safe to call multiple times — second call is a no-op."""
@@ -124,8 +141,26 @@ def install() -> None:
 
             _last_emit_time: float = 0.0
 
+            @staticmethod
+            def status_printer(file):
+                if file is not None and not getattr(file, "_is_safe_wrapper", False):
+                    file = SafeFileWrapper(file)
+                try:
+                    return original.status_printer(file)
+                except Exception:
+                    return lambda s: None
+
             def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
+                if 'file' in kwargs and kwargs['file'] is not None and not getattr(kwargs['file'], "_is_safe_wrapper", False):
+                    kwargs['file'] = SafeFileWrapper(kwargs['file'])
+                try:
+                    super().__init__(*args, **kwargs)
+                except OSError:
+                    pass
+
+                if hasattr(self, 'fp') and getattr(self, 'fp', None) is not None and not getattr(self.fp, "_is_safe_wrapper", False):
+                    self.fp = SafeFileWrapper(self.fp)
+
                 import time as _t
                 self._last_emit_time = _t.monotonic()
                 try:
@@ -168,7 +203,10 @@ def install() -> None:
                     pass
 
             def update(self, n=1):
-                super().update(n)
+                try:
+                    super().update(n)
+                except OSError:
+                    pass
                 import time as _t
                 now = _t.monotonic()
                 # Throttle: emit at most every 0.3s to avoid flooding SSE
@@ -184,7 +222,16 @@ def install() -> None:
                 if (now - self._last_emit_time) >= 0.5:
                     self._last_emit_time = now
                     self._emit_progress()
-                return super().display(msg, pos)
+                try:
+                    return super().display(msg, pos)
+                except OSError:
+                    pass
+
+            def close(self):
+                try:
+                    super().close()
+                except OSError:
+                    pass
 
         # Stash the original for inspection / uninstall, then swap.
         hf_tqdm_module._omnivoice_original_tqdm = original  # type: ignore[attr-defined]

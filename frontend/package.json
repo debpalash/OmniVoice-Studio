@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "desktop": "TAURI_SKIP_BACKEND=1 tauri dev",
+    "desktop": "tauri dev",
     "build": "vite build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

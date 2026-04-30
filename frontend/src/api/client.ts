@@ -2,7 +2,7 @@
 // In production Tauri builds, the webview talks to the sidecar on localhost.
 const viteEnv = import.meta.env ?? {};
 const _port = viteEnv.VITE_API_PORT || '3900';
-export const API = viteEnv.VITE_API_URL || `http://localhost:${_port}`;
+export const API = viteEnv.VITE_API_URL || `http://127.0.0.1:${_port}`;
 
 export class ApiError extends Error {
   status?: number;

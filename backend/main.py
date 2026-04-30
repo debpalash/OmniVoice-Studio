@@ -121,6 +121,17 @@ logging.basicConfig(
     level=os.environ.get("OMNIVOICE_LOG_LEVEL", "INFO"),
     format=_LOG_FMT,
 )
+
+class AsyncioExceptionFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.levelno == logging.WARNING and "socket.send() raised exception" in record.getMessage():
+            return False
+        return True
+
+logging.getLogger("asyncio").addFilter(AsyncioExceptionFilter())
+
+# Silence HF Hub unauthenticated warnings unless specifically requested.
+logging.getLogger("huggingface_hub.utils._http").setLevel(logging.ERROR)
 if _json_logs:
     # Replace every existing handler's formatter with the JSON one.
     for _h in logging.getLogger().handlers:

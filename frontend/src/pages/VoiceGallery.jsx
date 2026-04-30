@@ -10,6 +10,7 @@ import { searchYoutube, downloadYoutubeClip, deleteGalleryVoice, saveVoiceAsProf
 import { useGalleryCategories, useGalleryVoices } from '../api/hooks';
 import AudioTrimmer from '../components/AudioTrimmer';
 import './VoiceGallery.css';
+import { askConfirm } from '../utils/dialog';
 
 // Check if running in Tauri
 const isTauri = window.__TAURI__ != null || window.location.protocol === 'tauri:';
@@ -167,7 +168,7 @@ export default function VoiceGallery() {
   };
 
   const handleDeleteVoice = async (voice) => {
-    if (!confirm(`Delete "${voice.name}"?`)) return;
+    if (!(await askConfirm(`Delete "${voice.name}"?`))) return;
     try {
       await deleteGalleryVoice(voice.id);
       loadVoices();

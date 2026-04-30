@@ -11,6 +11,7 @@ import {
 import { generateSpeech } from '../api/generate';
 import { API } from '../api/client';
 import './VoiceProfile.css';
+import { askConfirm } from '../utils/dialog';
 
 /**
  * VoiceProfile — per-voice detail page.
@@ -95,7 +96,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
   };
 
   const onDelete = async () => {
-    if (!confirm(`Delete "${profile.name}" permanently? This also removes the reference audio on disk.`)) return;
+    if (!(await askConfirm(`Delete "${profile.name}" permanently? This also removes the reference audio on disk.`))) return;
     try {
       await deleteProfile(voiceId);
       toast.success('Voice deleted');
@@ -106,7 +107,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
   };
 
   const onUnlock = async () => {
-    if (!confirm('Unlock this voice? Future generations will no longer be bit-reproducible.')) return;
+    if (!(await askConfirm('Unlock this voice? Future generations will no longer be bit-reproducible.'))) return;
     try {
       await unlockProfile(voiceId);
       await reload();

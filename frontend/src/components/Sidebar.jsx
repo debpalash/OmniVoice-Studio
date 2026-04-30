@@ -11,6 +11,7 @@ import { clearHistory as clearGenHistory } from '../api/generate';
 import { Button } from '../ui';
 import { useAppStore } from '../store';
 import './Sidebar.css';
+import { askConfirm } from '../utils/dialog';
 
 const SIDEBAR_TABS = [
   { id: 'projects',  icon: FolderOpen,   accent: '#b8bb26' },
@@ -78,7 +79,7 @@ export default function Sidebar(props) {
   ), [exportHistory, qLower]);
 
   const handleClearHistory = async () => {
-    if (!confirm(`Clear all ${history.length + dubHistory.length} history items? This cannot be undone.`)) return;
+    if (!(await askConfirm(`Clear all ${history.length + dubHistory.length} history items? This cannot be undone.`))) return;
     await clearGenHistory();
     await clearDubHistory();
     await loadHistory();

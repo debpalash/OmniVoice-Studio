@@ -381,10 +381,20 @@ async def dub_transcribe_stream(job_id: str):
                     return {"chunks": [], "language": None, "error": str(e)}
 
             try:
-                part = await asyncio.wait_for(
-                    loop.run_in_executor(_gpu_pool, _transcribe_chunk),
-                    timeout=TRANSCRIBE_CHUNK_TIMEOUT_S,
-                )
+                # wait_for in a loop to yield pings so the EventSource connection doesn't drop
+                fut = loop.run_in_executor(_gpu_pool, _transcribe_chunk)
+                waited = 0.0
+                part = None
+                while True:
+                    done, pending = await asyncio.wait([fut], timeout=5.0)
+                    if done:
+                        part = done.pop().result()
+                        break
+                    yield _sse_event("ping", {})
+                    waited += 5.0
+                    if waited >= TRANSCRIBE_CHUNK_TIMEOUT_S:
+                        # Re-raise TimeoutError if we exceed the overall limit
+                        raise asyncio.TimeoutError()
             except asyncio.TimeoutError:
                 logger.error(
                     "Transcribe chunk %d/%d timed out after %.0fs (job=%s)",
@@ -456,7 +466,15 @@ async def dub_transcribe_stream(job_id: str):
                 logger.error(f"Diarization failed: {e}")
             return assign_speakers_heuristic(all_segments)
 
-        final_segs = await loop.run_in_executor(_gpu_pool, _diarize)
+        fut_diar = loop.run_in_executor(_gpu_pool, _diarize)
+        final_segs = None
+        while True:
+            done, pending = await asyncio.wait([fut_diar], timeout=5.0)
+            if done:
+                final_segs = done.pop().result()
+                break
+            yield _sse_event("ping", {})
+
         job["segments"] = final_segs
 
         # Auto-speaker-clone: sample each detected speaker's voice from the
@@ -467,10 +485,17 @@ async def dub_transcribe_stream(job_id: str):
         try:
             from services.speaker_clone import extract_speaker_clones, auto_profile_id
             vocals_for_clone = job.get("vocals_path") or asr_audio_target
-            clones = await loop.run_in_executor(
+            fut_clones = loop.run_in_executor(
                 _cpu_pool, extract_speaker_clones,
                 vocals_for_clone, final_segs, os.path.dirname(vocals_for_clone),
             )
+            clones = None
+            while True:
+                done, pending = await asyncio.wait([fut_clones], timeout=5.0)
+                if done:
+                    clones = done.pop().result()
+                    break
+                yield _sse_event("ping", {})
             if clones:
                 job["speaker_clones"] = clones
                 # Default each segment's profile_id to its speaker's auto-clone,

@@ -250,6 +250,8 @@ def delete_profile(profile_id: str):
                 path = os.path.join(VOICES_DIR, row[col])
                 if os.path.exists(path):
                     os.remove(path)
+    # Prevent FOREIGN KEY constraint failure
+    conn.execute("UPDATE generation_history SET profile_id = NULL WHERE profile_id=?", (profile_id,))
     conn.execute("DELETE FROM voice_profiles WHERE id=?", (profile_id,))
     conn.commit()
     conn.close()
