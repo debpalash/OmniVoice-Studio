@@ -715,23 +715,42 @@ function App() {
   // (useSysinfo / useModelStatus at top of component). No manual setInterval.
 
   // ── Floating pill for model loading (ASR cold start can take ~120s) ──
+  // The backend now reports granular sub-stages: importing → loading_weights
+  // → loading_asr → compiling → ready (or error). We update the pill label
+  // in real-time so the user knows exactly what's happening.
+  const modelSubStage = msQuery.data?.sub_stage ?? null;
+  const modelDetail   = msQuery.data?.detail ?? '';
+  const modelError    = msQuery.data?.error ?? null;
   const prevModelStatusRef = useRef(modelStatus);
   useEffect(() => {
     const prev = prevModelStatusRef.current;
     prevModelStatusRef.current = modelStatus;
     const pill = useAppStore.getState();
-    // Only show pill if model transitions to loading and pill isn't already
-    // showing something more important (e.g. active dubbing).
-    if (modelStatus === 'loading' && prev !== 'loading' && pill.stage === 'idle') {
-      pill.showPill('loading-model', 'Loading ASR model…');
-    }
-    if (modelStatus === 'ready' && prev === 'loading') {
-      // Only dismiss if the pill is still showing the model-loading state
-      if (pill.stage === 'loading-model' && pill.label.includes('ASR')) {
-        pill.completePill('ASR model ready');
+
+    // ── Transition to loading: show the pill with sub-stage detail ──
+    if (modelStatus === 'loading') {
+      const label = modelDetail || 'Loading model…';
+      if (prev !== 'loading' && pill.stage === 'idle') {
+        // First time entering loading — show the pill
+        pill.showPill('loading-model', label);
+      } else if (pill.stage === 'loading-model') {
+        // Sub-stage changed — update the label live
+        pill.setPillLabel(label);
       }
     }
-  }, [modelStatus]);
+
+    // ── Transition to ready: complete the pill ──
+    if (modelStatus === 'ready' && prev === 'loading') {
+      if (pill.stage === 'loading-model') {
+        pill.completePill('Model ready');
+      }
+    }
+
+    // ── Error during loading: show error state ──
+    if (modelSubStage === 'error' && modelError && pill.stage === 'loading-model') {
+      pill.errorPill(modelError);
+    }
+  }, [modelStatus, modelSubStage, modelDetail, modelError]);
 
   const loadProfiles = useCallback(async () => {
     try { setProfiles(await listProfiles()); } catch (e) {}

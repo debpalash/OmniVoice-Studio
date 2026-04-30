@@ -42,7 +42,12 @@ export function useModelStatus(enabled = true) {
   return useQuery({
     queryKey: queryKeys.modelStatus,
     queryFn: systemApi.modelStatus,
-    refetchInterval: 10_000,
+    // Poll every 2s while model is loading for near-real-time sub-stage
+    // updates in the floating pill; 10s when idle/ready to save bandwidth.
+    refetchInterval: (query) => {
+      const status = query.state?.data?.status;
+      return status === 'loading' ? 2_000 : 10_000;
+    },
     refetchIntervalInBackground: false,
     retry: Infinity,
     retryDelay: 1_500,

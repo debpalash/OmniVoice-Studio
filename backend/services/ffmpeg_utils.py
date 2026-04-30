@@ -1,6 +1,7 @@
 import asyncio
 import errno
 import logging
+import os
 import shutil
 
 logger = logging.getLogger("omnivoice.api")
@@ -18,16 +19,55 @@ def _get_semaphore() -> asyncio.Semaphore:
 
 
 def find_ffmpeg():
+    """Locate an ffmpeg binary.
+
+    Resolution order:
+      1. ``FFMPEG_PATH`` env var (set by Tauri when a sidecar is bundled).
+      2. ``imageio-ffmpeg`` pip package (ships a static binary per platform).
+      3. Common system paths / ``PATH``.
+
+    Returns the path string, or ``None`` if nothing found.
+    """
+    # 1. Env var injected by Tauri host
+    env_path = os.environ.get("FFMPEG_PATH")
+    if env_path and os.path.isfile(env_path):
+        return env_path
+    # 2. imageio-ffmpeg bundled static binary
     try:
         import imageio_ffmpeg
-        # This will natively extract and return an architecture-specific static FFmpeg binary!
         return imageio_ffmpeg.get_ffmpeg_exe()
     except Exception as e:
-        logger.warning(f"imageio_ffmpeg failed to provide static binary: {e}. Falling back to default system path.")
-        for path in ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "ffmpeg"]:
-            if shutil.which(path):
-                return path
-        raise RuntimeError("ffmpeg not found in bundle or system path")
+        logger.warning(f"imageio_ffmpeg unavailable: {e}")
+    # 3. Well-known system paths + PATH lookup
+    for path in ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "ffmpeg"]:
+        if shutil.which(path):
+            return path
+    logger.warning("ffmpeg not found in env, imageio, or system PATH")
+    return None
+
+
+def find_ffprobe():
+    """Locate an ffprobe binary.
+
+    Resolution order:
+      1. ``FFPROBE_PATH`` env var (set by Tauri when a sidecar is bundled).
+      2. Derived from ``find_ffmpeg()`` path by replacing ``ffmpeg`` → ``ffprobe``.
+      3. System ``PATH``.
+    """
+    env_path = os.environ.get("FFPROBE_PATH")
+    if env_path and os.path.isfile(env_path):
+        return env_path
+    try:
+        ffmpeg_path = find_ffmpeg()
+        candidate = ffmpeg_path.replace("ffmpeg", "ffprobe")
+        if os.path.isfile(candidate):
+            return candidate
+    except Exception:
+        pass
+    system_probe = shutil.which("ffprobe")
+    if system_probe:
+        return system_probe
+    return None
 
 
 async def _spawn_with_retry(cmd, **kwargs):

@@ -613,6 +613,14 @@ export function ModelStoreTab({ info, modelBadge }) {
               <Button size="sm" variant="subtle" onClick={saveHfToken} disabled={hfSaving || !hfToken.trim()} loading={hfSaving}>
                 Save
               </Button>
+              <a
+                href="#"
+                className="models-toolbar__hf-link"
+                onClick={e => { e.preventDefault(); openExternal('https://huggingface.co/settings/tokens'); }}
+                title="Open huggingface.co/settings/tokens"
+              >
+                Get token →
+              </a>
             </div>
           )}
           {hfTokenSet && (

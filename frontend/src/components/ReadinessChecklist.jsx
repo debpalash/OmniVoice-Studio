@@ -36,18 +36,21 @@ export default function ReadinessChecklist({ compact = false, showWhenAllPass = 
   const checks = [];
 
   // Model readiness (from /model/status)
+  const modelDetail = modelData?.detail || '';
+  const modelErr    = modelData?.error || null;
   const modelCheck = {
     id: 'asr-model',
     label: 'ASR Model',
     status: modelStatus === 'ready' ? 'pass'
       : modelStatus === 'loading' ? 'loading'
-      : modelStatus === 'error' ? 'fail'
+      : modelStatus === 'error' || modelData?.sub_stage === 'error' ? 'fail'
       : 'warn',
     detail: modelStatus === 'ready' ? 'Loaded and ready'
-      : modelStatus === 'loading' ? 'Loading… (this may take 1-2 minutes on first run)'
-      : modelStatus === 'error' ? 'Failed to load'
-      : 'Not loaded yet — will load on first transcription',
-    fix: modelStatus === 'error' ? 'Check logs for model loading errors. Try restarting.' : null,
+      : modelStatus === 'loading' ? (modelDetail || 'Loading… (this may take 1-2 minutes on first run)')
+      : (modelData?.sub_stage === 'error' ? (modelErr || 'Failed to load') : 'Not loaded yet — will load on first transcription'),
+    fix: (modelStatus === 'error' || modelData?.sub_stage === 'error')
+      ? (modelErr ? `Error: ${modelErr}. Check logs and try restarting.` : 'Check logs for model loading errors. Try restarting.')
+      : null,
   };
   checks.push(modelCheck);
 

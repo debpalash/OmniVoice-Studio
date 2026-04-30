@@ -15,8 +15,8 @@
     "windows": [
       {
         "title": "OmniVoice Studio",
-        "width": 1600,
-        "height": 960,
+        "width": 1920,
+        "height": 1080,
         "minWidth": 900,
         "minHeight": 600,
         "resizable": true,
@@ -52,7 +52,9 @@
       "../../backend"
     ],
     "externalBin": [
-      "binaries/uv"
+      "binaries/uv",
+      "binaries/ffmpeg",
+      "binaries/ffprobe"
     ],
     "macOS": {
       "minimumSystemVersion": "12.0"

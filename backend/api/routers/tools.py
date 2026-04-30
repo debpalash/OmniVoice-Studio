@@ -27,7 +27,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from services import director, speech_rate, incremental
-from services.ffmpeg_utils import find_ffmpeg
+from services.ffmpeg_utils import find_ffmpeg, find_ffprobe
 
 logger = logging.getLogger("omnivoice.tools")
 router = APIRouter()
@@ -48,11 +48,11 @@ async def probe(req: ProbeReq):
             status_code=404,
             detail="File not found. Provide an absolute path to an existing file.",
         )
-    ffprobe = find_ffmpeg().replace("ffmpeg", "ffprobe")
-    if not os.path.exists(ffprobe):
+    ffprobe = find_ffprobe()
+    if not ffprobe:
         raise HTTPException(
-            status_code=500,
-            detail="ffprobe binary not available alongside ffmpeg.",
+            status_code=501,
+            detail="ffprobe binary not available. Install system ffmpeg or re-run the setup.",
         )
     proc = await asyncio.create_subprocess_exec(
         ffprobe, "-v", "quiet", "-print_format", "json",

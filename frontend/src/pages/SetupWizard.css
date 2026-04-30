@@ -324,6 +324,17 @@
   background: rgba(142, 192, 124, 0.08);
   border: 1px solid rgba(142, 192, 124, 0.2);
 }
+.models-toolbar__hf-link {
+  font-size: 0.68rem;
+  color: #83a598;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.models-toolbar__hf-link:hover {
+  color: #b8bb26;
+  text-decoration: underline;
+}
 
 /* ── Footnote — pinned to bottom ─────────────────────────────────────── */
 .setup-wizard__footnote {

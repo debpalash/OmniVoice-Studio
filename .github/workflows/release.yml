@@ -243,6 +243,66 @@ jobs:
           fi
           ls -la "frontend/src-tauri/binaries/"
 
+      # Download static ffmpeg + ffprobe binaries and drop them into the
+      # Tauri sidecar directory. Sources:
+      #   macOS:         evermeet.cx — individual .zip per binary (x86_64,
+      #                  runs fine on Apple Silicon via Rosetta 2)
+      #   Linux/Windows: BtbN/FFmpeg-Builds — single archive with both bins
+      - name: Bundle ffmpeg + ffprobe (${{ matrix.rust_target }})
+        shell: bash
+        env:
+          TRIPLE: ${{ matrix.rust_target }}
+        run: |
+          set -euo pipefail
+          BINDIR="frontend/src-tauri/binaries"
+          mkdir -p "$BINDIR"
+          WORK=$(mktemp -d)
+
+          case "$TRIPLE" in
+            aarch64-apple-darwin|x86_64-apple-darwin)
+              # evermeet.cx ships each binary as a separate .zip containing
+              # a single x86_64 Mach-O executable (runs via Rosetta on arm64).
+              for TOOL in ffmpeg ffprobe; do
+                if [ "$TOOL" = "ffmpeg" ]; then
+                  URL="https://evermeet.cx/ffmpeg/getrelease/zip"
+                else
+                  URL="https://evermeet.cx/ffmpeg/getrelease/${TOOL}/zip"
+                fi
+                echo "Fetching $TOOL from evermeet.cx"
+                curl -fsSL "$URL" -o "$WORK/${TOOL}.zip"
+                unzip -o -j "$WORK/${TOOL}.zip" -d "$WORK"
+                mv "$WORK/${TOOL}" "$BINDIR/${TOOL}-${TRIPLE}"
+                chmod +x "$BINDIR/${TOOL}-${TRIPLE}"
+              done
+              ;;
+            x86_64-unknown-linux-gnu)
+              URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz"
+              echo "Fetching ffmpeg from BtbN (linux64)"
+              curl -fsSL "$URL" -o "$WORK/ffmpeg.tar.xz"
+              tar -xJf "$WORK/ffmpeg.tar.xz" -C "$WORK"
+              # Archive extracts to ffmpeg-master-latest-linux64-gpl/bin/
+              EXTRACTED=$(find "$WORK" -type d -name "bin" | head -1)
+              mv "$EXTRACTED/ffmpeg"  "$BINDIR/ffmpeg-${TRIPLE}"
+              mv "$EXTRACTED/ffprobe" "$BINDIR/ffprobe-${TRIPLE}"
+              chmod +x "$BINDIR/ffmpeg-${TRIPLE}" "$BINDIR/ffprobe-${TRIPLE}"
+              ;;
+            x86_64-pc-windows-msvc)
+              URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+              echo "Fetching ffmpeg from BtbN (win64)"
+              curl -fsSL "$URL" -o "$WORK/ffmpeg.zip"
+              unzip -o "$WORK/ffmpeg.zip" -d "$WORK"
+              EXTRACTED=$(find "$WORK" -type f -name "ffmpeg.exe" | head -1)
+              EXTRACTED_DIR=$(dirname "$EXTRACTED")
+              mv "$EXTRACTED_DIR/ffmpeg.exe"  "$BINDIR/ffmpeg-${TRIPLE}.exe"
+              mv "$EXTRACTED_DIR/ffprobe.exe" "$BINDIR/ffprobe-${TRIPLE}.exe"
+              ;;
+            *)
+              echo "⚠ No ffmpeg bundling for target: $TRIPLE (will download at first run)"
+              ;;
+          esac
+          ls -la "$BINDIR/"
+
+
       # Extract the matching CHANGELOG.md section so the release body has
       # real notes instead of "see commit log". Falls back to a one-liner
       # if the tag has no matching `## [X.Y.Z]` section yet — keeps the

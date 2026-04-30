@@ -413,6 +413,27 @@ class MLXWhisperBackend(ASRBackend):
             ]
         return result
 
+    def warmup(self) -> None:
+        """Eagerly load model weights into memory so first transcribe is instant.
+
+        mlx_whisper internally caches via a class-level ModelHolder singleton.
+        Calling ``load_model`` triggers the download (if needed) and loads
+        weights onto the GPU — subsequent transcribe() calls hit the warm cache.
+        """
+        import time
+        t0 = time.perf_counter()
+        try:
+            from mlx_whisper.transcribe import ModelHolder
+            import mlx.core as mx
+            # load_model populates the class-level singleton; after this call
+            # the model is resident in unified memory.
+            ModelHolder.get_model(self._model_name, dtype=mx.float16)
+            dt = time.perf_counter() - t0
+            logger.info("MLX Whisper model '%s' warmed up in %.1fs", self._model_name, dt)
+        except Exception as e:
+            dt = time.perf_counter() - t0
+            logger.warning("MLX Whisper warmup failed after %.1fs: %s", dt, e)
+
 
 # ── PyTorch Whisper fallback (CUDA / CPU via pipeline) ─────────────────────
 
@@ -555,6 +576,9 @@ def get_active_asr_backend(*, asr_pipe=None) -> ASRBackend:
     return _REGISTRY[bid]()
 
 
+_capture_backend: ASRBackend | None = None
+
+
 def get_capture_asr_backend() -> ASRBackend:
     """Pick the fastest ASR engine for capture / dictation.
 
@@ -568,17 +592,25 @@ def get_capture_asr_backend() -> ASRBackend:
 
     The caller should also pass ``word_timestamps=False`` to the returned
     backend to skip per-word timing and shave another ~30% latency.
+
+    Returns a cached singleton so the model stays warm between calls.
     """
+    global _capture_backend
+    if _capture_backend is not None:
+        return _capture_backend
+
     # Prefer MLX Turbo on Apple Silicon
     ok, _ = MLXWhisperBackend.is_available()
     if ok:
-        # Use Turbo model for maximum speed
-        return MLXWhisperBackend(model_name=_MLX_MODEL_TURBO)
+        _capture_backend = MLXWhisperBackend(model_name=_MLX_MODEL_TURBO)
+        return _capture_backend
 
     # Fall back to faster-whisper (CPU int8 on non-Apple)
     ok, _ = FasterWhisperBackend.is_available()
     if ok:
-        return FasterWhisperBackend()
+        _capture_backend = FasterWhisperBackend()
+        return _capture_backend
 
     # Last resort
-    return PyTorchWhisperBackend()
+    _capture_backend = PyTorchWhisperBackend()
+    return _capture_backend

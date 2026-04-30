@@ -42,6 +42,15 @@ _model_lock = asyncio.Lock()
 _last_used = time.time()
 _IDLE_TIMEOUT_SECONDS = IDLE_TIMEOUT_SECONDS
 
+# ── Loading sub-stage tracker ────────────────────────────────────────
+# Updated by _load_model_sync() so get_model_status() can report
+# granular progress to the frontend pill.
+_loading_detail: dict = {
+    "sub_stage": None,   # importing | loading_weights | loading_asr | compiling | ready | error
+    "detail": "",        # human-readable description
+    "error": None,       # error message string if failed
+}
+
 def get_best_device():
     torch = _lazy_torch()
     if torch.cuda.is_available():
@@ -50,24 +59,45 @@ def get_best_device():
         return "mps"
     return "cpu"
 
+def _set_loading(sub_stage: str, detail: str = "", error: str | None = None):
+    """Update the loading detail dict atomically."""
+    _loading_detail["sub_stage"] = sub_stage
+    _loading_detail["detail"] = detail
+    _loading_detail["error"] = error
+
+
 def _load_model_sync():
     global model
-    torch = _lazy_torch()
-    OmniVoice = _lazy_omnivoice()
-    device = get_best_device()
-    logger.info("Loading OmniVoice model lazily on device: %s", device)
-    checkpoint = os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice")
-    _model = OmniVoice.from_pretrained(
-        checkpoint, device_map=device, dtype=torch.float16, load_asr=True,
-    )
     try:
-        if device == "cuda":
-            _model.llm = torch.compile(_model.llm, mode="reduce-overhead")
-            logger.info("torch.compile applied.")
-    except Exception as e:
-        logger.info("torch.compile skipped: %s", e)
-    logger.info("OmniVoice model loaded successfully.")
-    return _model
+        _set_loading("importing", "Importing PyTorch & OmniVoice runtime…")
+        logger.info("Importing PyTorch & OmniVoice runtime…")
+        torch = _lazy_torch()
+        OmniVoice = _lazy_omnivoice()
+        device = get_best_device()
+
+        checkpoint = os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice")
+        _set_loading("loading_weights", f"Loading TTS weights on {device}…")
+        logger.info("Loading OmniVoice model on device: %s", device)
+        _model = OmniVoice.from_pretrained(
+            checkpoint, device_map=device, dtype=torch.float16, load_asr=True,
+        )
+
+        try:
+            if device == "cuda":
+                _set_loading("compiling", "Compiling model (torch.compile)…")
+                _model.llm = torch.compile(_model.llm, mode="reduce-overhead")
+                logger.info("torch.compile applied.")
+        except Exception as e:
+            logger.info("torch.compile skipped: %s", e)
+
+        _set_loading("ready", "Model ready")
+        logger.info("OmniVoice model loaded successfully.")
+        return _model
+    except Exception as exc:
+        err_msg = str(exc)
+        _set_loading("error", "Model loading failed", error=err_msg)
+        logger.error("Model loading failed: %s", err_msg)
+        raise
 
 async def get_model():
     global model, _last_used
@@ -121,11 +151,22 @@ def get_model_status():
         is_loading = (not is_loaded) and _model_lock.locked()
     except Exception:
         is_loading = False
-    return {
+
+    status = "loading" if is_loading else ("ready" if is_loaded else "idle")
+    result = {
         "loaded": is_loaded,
         "loading": is_loading,
-        "status": "loading" if is_loading else ("ready" if is_loaded else "idle"),
+        "status": status,
     }
+    # Attach sub-stage detail when loading or after an error
+    sub = _loading_detail.get("sub_stage")
+    if sub:
+        result["sub_stage"] = sub
+        result["detail"] = _loading_detail.get("detail", "")
+        err = _loading_detail.get("error")
+        if err:
+            result["error"] = err
+    return result
 
 async def idle_worker():
     global model

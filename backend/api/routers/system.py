@@ -448,8 +448,15 @@ def system_notifications():
         })
 
     # 2. Missing ffmpeg
-    ffmpeg_path = find_ffmpeg()
-    if not ffmpeg_path or not os.path.exists(ffmpeg_path):
+    ffmpeg_ok = False
+    try:
+        ffmpeg_path = find_ffmpeg()
+        # find_ffmpeg may return an absolute path or a bare command name.
+        # Both are valid — only flag missing if find_ffmpeg raises.
+        ffmpeg_ok = bool(ffmpeg_path)
+    except Exception:
+        pass
+    if not ffmpeg_ok:
         notes.append({
             "id": "ffmpeg-missing",
             "level": "error",

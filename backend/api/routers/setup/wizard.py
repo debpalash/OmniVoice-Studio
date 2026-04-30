@@ -284,14 +284,11 @@ def preflight():
 
     # ── FFprobe
     ffprobe_path = None
-    if ffmpeg_path:
-        candidate = ffmpeg_path.replace("ffmpeg", "ffprobe")
-        if os.path.exists(candidate):
-            ffprobe_path = candidate
-        else:
-            system_probe = _shutil.which("ffprobe")
-            if system_probe:
-                ffprobe_path = system_probe
+    try:
+        from services.ffmpeg_utils import find_ffprobe
+        ffprobe_path = find_ffprobe()
+    except Exception:
+        pass
     if ffprobe_path:
         checks.append({
             "id": "ffprobe", "label": "FFprobe", "status": "pass",

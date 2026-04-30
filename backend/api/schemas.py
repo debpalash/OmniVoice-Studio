@@ -46,6 +46,9 @@ class ModelStatusResponse(BaseModel):
     status: str = Field(description="idle | loading | ready")
     checkpoint: str | None = None
     loaded_at: str | None = None
+    sub_stage: str | None = Field(None, description="Current loading sub-stage: importing | loading_weights | loading_asr | compiling | ready | error")
+    detail: str | None = Field(None, description="Human-readable detail of current loading phase")
+    error: str | None = Field(None, description="Error message if loading failed")
 
 
 class LogsResponse(BaseModel):
