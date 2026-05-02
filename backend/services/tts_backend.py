@@ -178,10 +178,9 @@ class VoxCPM2Backend(TTSBackend):
         except ImportError:
             return False, (
                 "voxcpm package not installed. Install with `pip install voxcpm` "
-                "(requires CUDA 12+ and ~8 GB VRAM)."
+                "(requires Python ≥3.10, PyTorch ≥2.5). CUDA ≥12 recommended "
+                "for full speed; MPS (Apple Silicon) and CPU also supported."
             )
-        if not torch.cuda.is_available():
-            return False, "VoxCPM2 requires a CUDA GPU (CUDA 12+)."
         return True, "ready"
 
     @property
@@ -533,16 +532,149 @@ class MLXAudioBackend(TTSBackend):
         return wav
 
 
+# ── CosyVoice adapter (Alibaba FunAudioLLM, Apache-2.0) ────────────────────
+
+
+class CosyVoiceBackend(TTSBackend):
+    """FunAudioLLM CosyVoice — multilingual zero-shot TTS (9 langs + 18 dialects).
+
+    Supports v1 (300M), v2 (0.5B), and v3 (0.5B, latest). Installation is
+    non-trivial (git clone --recursive + SoX) so we ship as an optional
+    scaffold: ``is_available()`` reports the missing install cleanly.
+
+    Set ``OMNIVOICE_COSYVOICE_MODEL`` to the pretrained model directory path
+    (e.g. ``pretrained_models/Fun-CosyVoice3-0.5B``). The directory must
+    contain the CosyVoice checkpoint files.
+
+    Install:
+        git clone --recursive https://github.com/FunAudioLLM/CosyVoice.git
+        cd CosyVoice && pip install -r requirements.txt
+        # Ubuntu: sudo apt-get install sox libsox-dev
+        # macOS:  brew install sox
+    """
+
+    id = "cosyvoice"
+    display_name = "CosyVoice 3 (9 langs, zero-shot, instruct, Apache-2.0)"
+
+    # CosyVoice language tags used for cross-lingual synthesis.
+    LANG_TAGS = {
+        "zh": "<|zh|>", "en": "<|en|>", "ja": "<|ja|>",
+        "ko": "<|ko|>", "yue": "<|yue|>", "de": "<|de|>",
+        "es": "<|es|>", "fr": "<|fr|>", "it": "<|it|>",
+        "ru": "<|ru|>",
+    }
+
+    def __init__(self):
+        self._model = None
+
+    @classmethod
+    def is_available(cls) -> tuple[bool, str]:
+        try:
+            from cosyvoice.cli.cosyvoice import AutoModel  # noqa: F401
+            return True, "ready"
+        except ImportError:
+            return False, (
+                "cosyvoice package not installed. Install from "
+                "https://github.com/FunAudioLLM/CosyVoice "
+                "(git clone --recursive + pip install -r requirements.txt + SoX). "
+                "Then set OMNIVOICE_COSYVOICE_MODEL to your model directory."
+            )
+
+    @property
+    def sample_rate(self) -> int:
+        if self._model is not None:
+            return self._model.sample_rate
+        return 24000  # v3 default
+
+    @property
+    def supported_languages(self) -> list[str]:
+        return ["zh", "en", "ja", "ko", "yue", "de", "es", "fr", "it", "ru"]
+
+    def _ensure_loaded(self):
+        if self._model is not None:
+            return
+        ok, msg = self.is_available()
+        if not ok:
+            raise RuntimeError(f"CosyVoice unavailable: {msg}")
+        from cosyvoice.cli.cosyvoice import AutoModel  # type: ignore[import-not-found]
+        model_dir = os.environ.get(
+            "OMNIVOICE_COSYVOICE_MODEL",
+            "pretrained_models/Fun-CosyVoice3-0.5B",
+        )
+        logger.info("Loading CosyVoice from %s", model_dir)
+        self._model = AutoModel(model_dir=model_dir)
+
+    def generate(self, text: str, **kw) -> torch.Tensor:
+        import numpy as np
+        self._ensure_loaded()
+
+        ref_audio = kw.get("ref_audio")
+        ref_text = kw.get("ref_text")
+        instruct = kw.get("instruct")
+        language = kw.get("language")
+
+        # Pick the right inference method based on what the caller provides:
+        # 1. instruct + ref_audio → inference_instruct2 (emotion/dialect/speed)
+        # 2. ref_audio + ref_text → inference_zero_shot (voice cloning)
+        # 3. ref_audio only → inference_cross_lingual (with lang tag)
+        # 4. nothing → inference_sft (built-in speakers, v1/SFT model only)
+        pieces = []
+        if instruct and ref_audio:
+            # Instruct mode: "用四川话说<|endofprompt|>"
+            if not instruct.endswith("<|endofprompt|>"):
+                instruct = f"{instruct}<|endofprompt|>"
+            results = self._model.inference_instruct2(
+                text, instruct, ref_audio, stream=False,
+            )
+        elif ref_audio and ref_text:
+            results = self._model.inference_zero_shot(
+                text, ref_text, ref_audio, stream=False,
+            )
+        elif ref_audio:
+            # Cross-lingual: prefix text with language tag if available.
+            lang_tag = ""
+            if language:
+                lang_key = language[:2].lower() if len(language) > 2 else language.lower()
+                lang_tag = self.LANG_TAGS.get(lang_key, "")
+            results = self._model.inference_cross_lingual(
+                f"{lang_tag}{text}", ref_audio, stream=False,
+            )
+        else:
+            # No ref audio — try SFT with first available speaker.
+            spks = self._model.list_available_spks()
+            spk = spks[0] if spks else "中文女"
+            results = self._model.inference_sft(text, spk, stream=False)
+
+        for chunk in results:
+            wav = chunk.get("tts_speech")
+            if wav is None:
+                continue
+            if isinstance(wav, np.ndarray):
+                wav = torch.from_numpy(wav).float()
+            if not isinstance(wav, torch.Tensor):
+                wav = torch.tensor(wav, dtype=torch.float32)
+            pieces.append(wav)
+
+        if not pieces:
+            raise RuntimeError("CosyVoice produced no audio")
+        wav = torch.cat(pieces, dim=-1)
+        if wav.ndim == 1:
+            wav = wav.unsqueeze(0)
+        return wav
+
+
 # ── Registry ────────────────────────────────────────────────────────────────
 
 
 _REGISTRY: dict[str, type[TTSBackend]] = {
     "omnivoice":     OmniVoiceBackend,
+    "cosyvoice":     CosyVoiceBackend,
     "kittentts":     KittenTTSBackend,
     "mlx-audio":     MLXAudioBackend,
     "voxcpm2":       VoxCPM2Backend,
     "moss-tts-nano": MossTTSNanoBackend,
 }
+
 
 
 def list_backends() -> list[dict]:

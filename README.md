@@ -263,6 +263,21 @@ chmod +x OmniVoice.Studio_*.AppImage
 > [!TIP]
 > On GPUs with **≤8 GB VRAM**, OmniVoice automatically offloads TTS to CPU during transcription — no config needed. A dedicated GPU is not required; the entire pipeline runs on CPU (just slower).
 
+### TTS Engines
+
+OmniVoice ships a multi-engine TTS backend. The default engine (OmniVoice) is always available; additional engines are opt-in and auto-detected. Switch engines in **Settings → TTS Engine** or via the `OMNIVOICE_TTS_BACKEND` env var.
+
+| Engine | Languages | Clone | Instruct | Linux | macOS ARM | Windows | License |
+|--------|:---------:|:-----:|:--------:|:-----:|:---------:|:-------:|:-------:|
+| **OmniVoice** (default) | 600+ | ✅ | ✅ | ✅ CUDA/CPU | ✅ MPS | ✅ CUDA/CPU | Built-in |
+| **CosyVoice 3** | 9 + 18 dialects | ✅ | ✅ | ✅ CUDA/CPU | ✅ MPS | ✅ CUDA/CPU | Apache-2.0 |
+| **MLX-Audio** (Kokoro, Qwen3-TTS, CSM, Dia, …) | Multi | Varies | Varies | ❌ | ✅ Native | ❌ | Varies |
+| **VoxCPM2** | 30 | ✅ | ✅ | ✅ CUDA/CPU | ✅ MPS | ✅ CUDA/CPU | Apache-2.0 |
+| **MOSS-TTS-Nano** | 20 | ✅ | ❌ | ✅ CUDA/CPU | ✅ CPU | ✅ CUDA/CPU | Apache-2.0 |
+| **KittenTTS** | English | ❌ | ❌ | ✅ CPU | ✅ CPU | ✅ CPU | MIT |
+
+> **CUDA** = GPU-accelerated · **MPS** = Apple Silicon Metal · **CPU** = runs everywhere, slower for large models · KittenTTS and MOSS-TTS-Nano run realtime on CPU · MLX-Audio is Apple Silicon only.
+
 ---
 
 ## Architecture
@@ -317,6 +332,16 @@ chmod +x OmniVoice.Studio_*.AppImage
 
 ---
 
+## Contributing
+
+We welcome contributions of all kinds — bug fixes, new TTS engine adapters, UI improvements, docs, and translations.
+
+- 📖 Read the **[Contributing Guide](CONTRIBUTING.md)** for setup, code style, and PR workflow
+- 🐛 Browse [good first issues](https://github.com/debpalash/OmniVoice-Studio/labels/good%20first%20issue)
+- 💬 Join our [Discord](https://discord.gg/aRRdVj3de7) to discuss ideas or ask for help
+
+---
+
 ## FAQ
 
 <details>
@@ -352,7 +377,7 @@ Personal, educational, internal-team, and non-commercial use is free under <a hr
 <details>
 <summary><b>Can I add my own TTS engine?</b></summary>
 <br/>
-Not yet — a Plugin SDK is on the <a href="#roadmap">roadmap</a>. The architecture is modular, so integration is straightforward for contributors.
+Yes. OmniVoice ships a <b>Plugin SDK</b> — subclass <code>TTSBackend</code> in <code>backend/services/tts_backend.py</code> to add any engine in ~50 lines. Six engines are built in: OmniVoice, CosyVoice, MLX-Audio (14+ sub-engines), VoxCPM2, MOSS-TTS-Nano, and KittenTTS. See the <a href="#tts-engines">TTS Engines</a> section for details.
 </details>
 
 ---
@@ -366,12 +391,6 @@ OmniVoice Studio is source-available under the [**Functional Source License (FSL
 **Business / enterprise** users building a competing product or service on top of OmniVoice Studio need a commercial license. **Pricing tiers coming soon.** For inquiries in the meantime, reach out at **OmniVoice@palash.dev**.
 
 See [`LICENSE`](LICENSE) for the full terms.
-
----
-
-## Contributing
-
-Issues and PRs welcome. See the [roadmap](#roadmap) for areas where help is most needed. Join our [Discord](https://discord.gg/aRRdVj3de7) to discuss ideas, get help, or find what to work on.
 
 ---
 
