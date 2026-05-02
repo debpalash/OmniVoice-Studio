@@ -106,9 +106,8 @@ export default function Sidebar(props) {
             style={{ '--sidebar-tab-accent': accent }}
             title={`${tabLabel[id]} (${tabCount[id]})`}
           >
-            <Icon size={12} />
-            {!isSidebarCollapsed && <span className="sidebar__tab-label">{tabLabel[id]}</span>}
-            {!isSidebarCollapsed && <span className="sidebar__tab-count">{tabCount[id]}</span>}
+            <Icon size={13} />
+            {tabCount[id] > 0 && <span className="sidebar__tab-badge">{tabCount[id]}</span>}
           </button>
         ))}
       </div>
@@ -169,7 +168,7 @@ export default function Sidebar(props) {
                 className="sidebar__section-title"
                 onClick={() => setIsSidebarProjectsCollapsed(!isSidebarProjectsCollapsed)}
               >
-                <span>{mode === 'dub' ? 'Studio Projects (Dubbing)' : (mode === 'clone' ? 'Voice Clones (Audio)' : 'Designed Voices (Synthetic)')}</span>
+                <span>{mode === 'dub' ? 'Dub Projects' : (mode === 'clone' ? 'Voice Clones' : 'Designed Voices')}</span>
                 {isSidebarProjectsCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
               </div>
             )}
@@ -299,7 +298,7 @@ export default function Sidebar(props) {
                 active={activeProjectId === proj.id}
                 rotSeed={proj.id}
               >
-                <Film size={14} />
+                <Film size={18} />
               </IconTile>
             ))}
 
@@ -311,7 +310,7 @@ export default function Sidebar(props) {
                 active={selectedProfile === proj.id}
                 rotSeed={proj.id}
               >
-                {mode === 'clone' ? <Fingerprint size={14} /> : <Wand2 size={14} />}
+                {mode === 'clone' ? <Fingerprint size={18} /> : <Wand2 size={18} />}
                 {proj.is_locked && <Lock size={8} className="sidebar__icon-tile__lock" />}
               </IconTile>
             ))}
@@ -416,14 +415,14 @@ export default function Sidebar(props) {
             {isSidebarCollapsed && filteredDubHistory.map(item => (
               <div key={`dub-${item.id}`} title={`Dub: ${item.filename}`} onClick={() => restoreDubHistory(item)}
                 className="sidebar-tile sidebar-tile--audio">
-                <Film size={14} />
+                <Film size={18} />
               </div>
             ))}
 
             {isSidebarCollapsed && filteredHistory.map(item => (
               <div key={item.id} title={`${item.mode || 'history'}: ${item.text}`} onClick={() => restoreHistory(item)}
                 className={`sidebar-tile ${item.mode === 'clone' ? 'sidebar-tile--clone' : 'sidebar-tile--design'}`}>
-                {item.mode === 'clone' ? <Fingerprint size={14} /> : <Wand2 size={14} />}
+                {item.mode === 'clone' ? <Fingerprint size={18} /> : <Wand2 size={18} />}
               </div>
             ))}
 
@@ -486,7 +485,7 @@ export default function Sidebar(props) {
                     onClick={() => revealInFolder(item.destination_path)}
                     className={`sidebar-tile ${item.mode === 'audio' ? 'sidebar-tile--audio' : 'sidebar-tile--success'}`}
                   >
-                    <FolderOpen size={14} />
+                    <FolderOpen size={18} />
                   </div>
                 ))}
               </>

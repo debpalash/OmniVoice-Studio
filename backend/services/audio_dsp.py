@@ -116,7 +116,7 @@ def apply_mastering(audio_tensor, sample_rate=24000):
     except ImportError:
         return audio_tensor # Fail gracefully if pedalboard isn't installed
     except Exception as e:
-        print(f"Mastering DSP Error: {e}")
+        logger.warning("Mastering DSP Error: %s", e)
         return audio_tensor
 
 

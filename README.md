@@ -28,7 +28,7 @@
 <br/>
 
 <div align="center">
-  <img src="preview.png" alt="OmniVoice Studio — Launchpad" width="100%"/>
+  <img src="docs/preview.png" alt="OmniVoice Studio — Launchpad" width="100%"/>
   <br/>
   <sub>Launchpad — Voice Clone · Voice Design · Video Dubbing, all in one place.</sub>
 </div>
@@ -144,7 +144,7 @@ Built on the [OmniVoice](https://github.com/k2-fsa/OmniVoice) 600-language zero-
 - **Model Context Protocol** — Expose OmniVoice as an AI agent tool for Claude, Cursor, and any MCP-compatible client.
 - **5 Tools** — `generate_speech`, `list_voices`, `list_personalities`, `list_languages`, `check_health`.
 - **stdio + SSE** — Works locally (Claude Desktop) or remotely (networked agents).
-- **Zero config** — Drop `mcp.json` into your client config and go. See [`mcp.json`](mcp.json).
+- **Zero config** — Drop `mcp.json` into your client config and go. See [`mcp.json`](docs/mcp.json).
 
 ### Audio Effects Chain
 - **6 presets** — Broadcast 📻, Cinematic 🎬, Podcast 🎙️, Warm ☀️, Bright ✨, Raw 🔇.

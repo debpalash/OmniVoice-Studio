@@ -85,7 +85,13 @@ function DubSegmentRow({
         )}
       </span>
 
-      <span className="seg-speaker">{seg.speaker_id || ''}</span>
+      <input
+        className="input-base seg-speaker-input"
+        value={seg.speaker_id || ''}
+        onChange={(e) => onEditField(seg.id, 'speaker_id', e.target.value)}
+        disabled={disabled}
+        title="Speaker ID"
+      />
 
       <span className="seg-text-col">
         <input

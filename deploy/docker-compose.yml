@@ -2,8 +2,8 @@
 #  OmniVoice Studio — Docker Compose
 #
 #  Quick start:
-#    docker compose up                 # CPU mode
-#    docker compose --profile gpu up   # NVIDIA GPU mode
+#    docker compose -f deploy/docker-compose.yml up                 # CPU mode
+#    docker compose -f deploy/docker-compose.yml --profile gpu up   # GPU mode
 #
 #  First run downloads ~4 GB of models. Progress is shown in logs.
 #  Open http://localhost:3900 once the health check passes.
@@ -19,7 +19,9 @@
 services:
   # ── CPU mode (default) ──────────────────────────────────────
   omnivoice:
-    build: .
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
     container_name: omnivoice-studio
     ports:
       - "127.0.0.1:3900:3900"
@@ -40,7 +42,9 @@ services:
 
   # ── GPU mode — activate with: docker compose --profile gpu up
   omnivoice-gpu:
-    build: .
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
     container_name: omnivoice-studio-gpu
     profiles: ["gpu"]
     ports:

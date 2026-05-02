@@ -20,12 +20,16 @@
 }
 
 @keyframes ui-dialog-pop {
-  from { opacity: 0; transform: translateY(8px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+  from { opacity: 0; transform: translate(-50%, -50%) translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translate(-50%, -50%) translateY(0)   scale(1);    }
 }
 
 .ui-dialog {
-  position: relative;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: calc(var(--z-dialog) + 1);
   background: linear-gradient(160deg, rgba(47, 41, 39, 0.95) 0%, rgba(32, 28, 27, 0.95) 100%);
   backdrop-filter: var(--glass-blur-md);
   -webkit-backdrop-filter: var(--glass-blur-md);

@@ -35,11 +35,10 @@ def _ensure_mcp():
         from mcp.server.fastmcp import FastMCP  # noqa: F811
         return FastMCP
     except ImportError:
-        print(
+        logger.error(
             "MCP SDK not installed. Install with:\n"
             "  pip install 'mcp[cli]'\n"
-            "Then re-run this module.",
-            file=sys.stderr,
+            "Then re-run this module."
         )
         sys.exit(1)
 

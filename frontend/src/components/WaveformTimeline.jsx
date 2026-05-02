@@ -121,7 +121,7 @@ export default function WaveformTimeline({
       // Start at the container's measured height; a ResizeObserver below
       // keeps WaveSurfer in sync when the column resizes. Fallback to 200
       // if layout hasn't settled yet so we never render a flat sliver.
-      const initialHeight = Math.max(140, waveContainerRef.current.clientHeight || 200);
+      const initialHeight = Math.max(80, Math.min(waveContainerRef.current.clientHeight || 120, 160));
       const minimap = MinimapPlugin.create({
         height: 20,
         waveColor: 'rgba(168,153,132,0.25)',

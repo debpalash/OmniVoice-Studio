@@ -51,12 +51,113 @@ _loading_detail: dict = {
     "error": None,       # error message string if failed
 }
 
-def get_best_device():
+# ── ROCm GFX version overrides ───────────────────────────────────────
+# AMD GPUs on ROCm report through torch.cuda but may need
+# HSA_OVERRIDE_GFX_VERSION for unsupported GFX IDs.
+_ROCM_GFX_OVERRIDES = {
+    # RDNA 3 (RX 7000 series) — override to gfx1100
+    "gfx1101": "11.0.0", "gfx1102": "11.0.0", "gfx1103": "11.0.0",
+    # RDNA 2 (RX 6000 series) — override to gfx1030
+    "gfx1031": "10.3.0", "gfx1032": "10.3.0", "gfx1034": "10.3.0",
+    # Vega (RX Vega / Radeon VII) — override to gfx900
+    "gfx902": "9.0.0", "gfx906": "9.0.6",
+}
+
+
+def _configure_rocm_if_needed(torch):
+    """Auto-set HSA_OVERRIDE_GFX_VERSION for AMD GPUs on ROCm.
+
+    ROCm-enabled PyTorch reports `torch.cuda.is_available() == True` but
+    some consumer AMD GPUs have GFX IDs not in the official support matrix.
+    Setting HSA_OVERRIDE_GFX_VERSION lets them run with the closest
+    supported architecture.
+    """
+    if os.environ.get("HSA_OVERRIDE_GFX_VERSION"):
+        return  # User already set it manually
+    try:
+        device_name = torch.cuda.get_device_name(0).lower()
+        # Only AMD GPUs need this — skip NVIDIA
+        if not any(kw in device_name for kw in ("amd", "radeon", "instinct")):
+            return
+        # Try to read the GFX version from the device properties
+        props = torch.cuda.get_device_properties(0)
+        gcn_arch = getattr(props, "gcnArchName", "") or ""
+        gfx_id = gcn_arch.split(":")[0].strip().lower()
+        if gfx_id in _ROCM_GFX_OVERRIDES:
+            override = _ROCM_GFX_OVERRIDES[gfx_id]
+            os.environ["HSA_OVERRIDE_GFX_VERSION"] = override
+            logger.info("ROCm: auto-set HSA_OVERRIDE_GFX_VERSION=%s for %s (%s)",
+                        override, device_name, gfx_id)
+    except Exception as e:
+        logger.debug("ROCm GFX auto-config skipped: %s", e)
+
+
+def check_device_compatibility():
+    """Check if PyTorch supports the current GPU's compute capability.
+
+    Returns (compatible, warning_message). Compatible is True if OK or
+    no discrete GPU is present.
+    """
     torch = _lazy_torch()
+    if not torch.cuda.is_available():
+        return True, None
+    try:
+        major, minor = torch.cuda.get_device_capability(0)
+        device_name = torch.cuda.get_device_name(0)
+        sm_tag = f"sm_{major}{minor}"
+        arch_list = getattr(torch.cuda, "_get_arch_list", lambda: [])()
+        if arch_list:
+            compute_tag = f"compute_{major}{minor}"
+            if sm_tag not in arch_list and compute_tag not in arch_list:
+                return False, (
+                    f"{device_name} (compute capability {major}.{minor} / {sm_tag}) "
+                    f"is not supported by this PyTorch build. "
+                    f"Supported architectures: {', '.join(arch_list)}. "
+                    f"Try: pip install torch --index-url https://download.pytorch.org/whl/nightly/cu128"
+                )
+    except Exception:
+        pass
+    return True, None
+
+
+def get_best_device():
+    """Detect the best available compute device.
+
+    Priority: CUDA/ROCm > Intel XPU > DirectML > MPS > CPU
+    """
+    torch = _lazy_torch()
+
+    # ── NVIDIA CUDA or AMD ROCm ──────────────────────────────────────
+    # ROCm-enabled PyTorch reports through torch.cuda, so this covers both.
     if torch.cuda.is_available():
+        _configure_rocm_if_needed(torch)
+        compatible, warning = check_device_compatibility()
+        if not compatible:
+            logger.warning(warning)
         return "cuda"
-    if torch.backends.mps.is_available():
+
+    # ── Intel Arc / discrete GPU via IPEX ────────────────────────────
+    try:
+        import intel_extension_for_pytorch  # noqa: F401
+        if hasattr(torch, "xpu") and torch.xpu.is_available():
+            logger.info("Using Intel XPU device: %s", torch.xpu.get_device_name(0))
+            return "xpu"
+    except ImportError:
+        pass
+
+    # ── DirectML — universal Windows GPU (AMD, Intel, NVIDIA fallback)
+    try:
+        import torch_directml
+        if torch_directml.device_count() > 0:
+            logger.info("Using DirectML device (GPU %d)", 0)
+            return str(torch_directml.device(0))
+    except ImportError:
+        pass
+
+    # ── Apple Silicon MPS ────────────────────────────────────────────
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
         return "mps"
+
     return "cpu"
 
 def _set_loading(sub_stage: str, detail: str = "", error: str | None = None):
@@ -177,21 +278,29 @@ async def idle_worker():
             if model is not None and time.time() - _last_used > _IDLE_TIMEOUT_SECONDS:
                 logger.info("Idle timeout reached. Unloading OmniVoice model to free VRAM.")
                 model = None
-                import gc
-                gc.collect()
-                if torch.backends.mps.is_available():
-                    torch.mps.empty_cache()
-                elif torch.cuda.is_available():
-                    torch.cuda.empty_cache()
+                free_vram()
 
 def free_vram():
+    """Release cached GPU memory on any accelerator (CUDA, MPS, XPU)."""
     torch = _lazy_torch()
     import gc
     gc.collect()
-    if torch.backends.mps.is_available():
-        torch.mps.empty_cache()
-    elif torch.cuda.is_available():
+    if torch.cuda.is_available():
         torch.cuda.empty_cache()
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        torch.mps.empty_cache()
+    elif hasattr(torch, "xpu") and torch.xpu.is_available():
+        torch.xpu.empty_cache()
+
+
+def _has_dedicated_vram():
+    """Check if the current device has limited dedicated VRAM that needs offloading."""
+    torch = _lazy_torch()
+    if torch.cuda.is_available():
+        return True
+    if hasattr(torch, "xpu") and torch.xpu.is_available():
+        return True
+    return False
 
 
 def offload_tts_for_asr():
@@ -201,18 +310,21 @@ def offload_tts_for_asr():
     (~3 GB) plus the VAD model can't coexist. Offloading the TTS model to
     CPU before transcription prevents CUDA OOM, then restore_tts_after_asr()
     moves it back.
+
+    Works on CUDA (NVIDIA + ROCm) and Intel XPU.
     """
     global model
     torch = _lazy_torch()
     if model is None:
         return
-    if not torch.cuda.is_available():
-        return  # Only needed on CUDA (limited VRAM)
+    if not _has_dedicated_vram():
+        return  # MPS / CPU / DirectML don't benefit from manual offloading
     try:
-        # Check if there's enough free VRAM to skip offloading (WhisperX + context needs >6GB safely)
-        free_mem = torch.cuda.mem_get_info()[0]
-        if free_mem > 8 * 1024 ** 3:  # > 8 GB free → plenty of room, skip offload
-            return
+        # Check if there's enough free VRAM to skip offloading
+        if torch.cuda.is_available():
+            free_mem = torch.cuda.mem_get_info()[0]
+            if free_mem > 8 * 1024 ** 3:  # > 8 GB free → skip offload
+                return
     except Exception:
         pass
     try:
@@ -225,21 +337,21 @@ def offload_tts_for_asr():
 
 
 def restore_tts_after_asr():
-    """Move TTS model back to CUDA after ASR completes."""
+    """Move TTS model back to the GPU after ASR completes."""
     global model
     torch = _lazy_torch()
     if model is None:
         return
-    if not torch.cuda.is_available():
+    if not _has_dedicated_vram():
         return
     try:
         device = get_best_device()
-        if device == "cuda":
-            logger.info("Restoring TTS model to CUDA...")
-            model.to("cuda")
+        if device in ("cuda", "xpu"):
+            logger.info("Restoring TTS model to %s...", device)
+            model.to(device)
             free_vram()
     except Exception as e:
-        logger.warning("TTS restore to CUDA failed: %s", e)
+        logger.warning("TTS restore to %s failed: %s", get_best_device(), e)
 
 _diar_pipeline = None
 
@@ -255,9 +367,11 @@ def get_diarization_pipeline():
         from pyannote.audio import Pipeline
         logger.info("Loading Pyannote Diarization Pipeline...")
         _diar_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", use_auth_token=hf_token)
-        if torch.cuda.is_available():
-            _diar_pipeline.to(torch.device("cuda"))
-        logger.info("Pyannote Diarization Pipeline loaded successfully.")
+        device = get_best_device()
+        # Pyannote supports CUDA and CPU; route XPU/DirectML to CPU
+        if device in ("cuda",):
+            _diar_pipeline.to(torch.device(device))
+        logger.info("Pyannote Diarization Pipeline loaded on %s.", device)
         return _diar_pipeline
     except Exception as e:
         logger.error(f"Failed to load Pyannote pipeline: {e}")

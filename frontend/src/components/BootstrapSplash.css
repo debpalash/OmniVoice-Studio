@@ -44,28 +44,36 @@
 .bootstrap-splash__region {
   margin-left: auto;
   display: flex;
-  gap: 0;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--chrome-fg, #eee) 12%, transparent);
+  align-items: center;
 }
 
-.bootstrap-splash__region-btn {
-  background: transparent;
-  border: none;
+.bootstrap-splash__region-select {
+  background: color-mix(in srgb, var(--chrome-fg, #eee) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chrome-fg, #eee) 12%, transparent);
   color: inherit;
   font: inherit;
   font-size: 0.72rem;
-  padding: 0.25rem 0.6rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
   cursor: pointer;
-  opacity: 0.5;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23999'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.4rem center;
+  padding-right: 1.4rem;
   transition: all 0.15s ease;
 }
-.bootstrap-splash__region-btn:hover { opacity: 0.8; }
-.bootstrap-splash__region-btn.is-active {
-  background: color-mix(in srgb, var(--chrome-fg, #eee) 10%, transparent);
-  opacity: 1;
-  font-weight: 600;
+.bootstrap-splash__region-select:hover {
+  background-color: color-mix(in srgb, var(--chrome-fg, #eee) 14%, transparent);
+}
+.bootstrap-splash__region-select:focus {
+  outline: 1px solid var(--chrome-accent, #8ec07c);
+  outline-offset: 1px;
+}
+.bootstrap-splash__region-select option {
+  background: #1a1a1a;
+  color: #eee;
 }
 
 .bootstrap-splash__status {

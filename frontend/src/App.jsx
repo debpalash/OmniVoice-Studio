@@ -34,6 +34,8 @@ import { BootstrapSplash, useBootstrapStage } from './components/BootstrapSplash
 
 import './components/Misc.css';
 import { askConfirm } from './utils/dialog';
+import useRecording from './hooks/useRecording';
+import useSegmentEditing from './hooks/useSegmentEditing';
 
 const LazyFallback = () => <div className="app-lazy-fallback">Loading…</div>;
 
@@ -65,105 +67,7 @@ import {
   Layers, Music, Package, DownloadCloud, RefreshCw,
 } from 'lucide-react';
 
-// Tauri: pre-import window API to avoid async delays in event handlers
-const isTauri = typeof window !== 'undefined' && !!(window.__TAURI_INTERNALS__ || window.__TAURI__);
-let tauriWindow = null;
-if (isTauri) {
-  import('@tauri-apps/api/window').then(m => { tauriWindow = m; });
-}
-const doubleClickMaximize = () => {
-  if (tauriWindow) tauriWindow.getCurrentWindow().toggleMaximize();
-};
-
-/**
- * Convert a File object to a media-safe URL.
- * In Tauri's WebKit, blob: URLs fail for <video>/<audio> elements.
- * We upload to the backend's /preview endpoint and serve via HTTP instead.
- * Falls back to createObjectURL for regular browsers.
- */
-const _PREVIEW_API = import.meta.env.VITE_OMNIVOICE_API || 'http://localhost:3900';
-const fileToMediaUrl = async (file, prevUrls) => {
-  // Revoke previous blob URLs if they exist
-  if (prevUrls?.videoUrl?.startsWith('blob:')) URL.revokeObjectURL(prevUrls.videoUrl);
-  if (prevUrls?.audioUrl?.startsWith('blob:')) URL.revokeObjectURL(prevUrls.audioUrl);
-  
-  if (isTauri) {
-    try {
-      const form = new FormData();
-      form.append('video', file, file.name || 'media.wav');
-      const res = await fetch(`${_PREVIEW_API}/preview/upload`, { method: 'POST', body: form });
-      const data = await res.json();
-      return {
-        videoUrl: `${_PREVIEW_API}${data.url}`,
-        audioUrl: data.audioUrl ? `${_PREVIEW_API}${data.audioUrl}` : `${_PREVIEW_API}${data.url}`
-      };
-    } catch (e) {
-      console.warn('Preview upload failed, falling back to blob URL:', e);
-    }
-  }
-  const url = URL.createObjectURL(file);
-  return { videoUrl: url, audioUrl: url };
-};
-
-/**
- * Play audio from a Blob. Uses Web Audio API in Tauri (blob URLs blocked)
- * and standard Audio() elsewhere.
- */
-const playBlobAudio = async (blob) => {
-  if (isTauri) {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    // WebKit suspends AudioContext by default — must resume before decoding
-    if (ctx.state === 'suspended') await ctx.resume();
-    try {
-      const buf = await blob.arrayBuffer();
-      const decoded = await ctx.decodeAudioData(buf);
-      const src = ctx.createBufferSource();
-      src.buffer = decoded;
-      src.connect(ctx.destination);
-      src.start(0);
-      src.onended = () => ctx.close();
-    } catch (e) {
-      console.error('playBlobAudio decode error:', e);
-      ctx.close();
-      // Fallback: try the standard Audio() path even in Tauri
-      try {
-        const url = URL.createObjectURL(blob);
-        const a = new Audio(url);
-        await a.play();
-        a.onended = () => URL.revokeObjectURL(url);
-      } catch (e2) {
-        console.error('playBlobAudio fallback error:', e2);
-      }
-    }
-  } else {
-    const url = URL.createObjectURL(blob);
-    const a = new Audio(url);
-    a.play().catch((e) => console.error('playBlobAudio play error:', e));
-    a.onended = () => URL.revokeObjectURL(url);
-  }
-};
-
-let _pingCtx = null;
-const playPing = () => {
-  try {
-    if (!_pingCtx) _pingCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const ctx = _pingCtx;
-    if (ctx.state === 'suspended') ctx.resume();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(600, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.08);
-    osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.15);
-    gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 0.03);
-    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.25);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.25);
-  } catch (e) {}
-};
+import { isTauri, doubleClickMaximize, fileToMediaUrl, playBlobAudio, playPing } from './utils/media';
 
 function App() {
   // First-run bootstrap: Rust spawns uv sync in a background thread and
@@ -320,12 +224,10 @@ function App() {
   const [voicePreviewProfileId, setVoicePreviewProfileId] = useState('');
 
   // ═══ MIC RECORDING ═══
-  const [isRecording, setIsRecording] = useState(false);
-  const [isCleaning, setIsCleaning] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const mediaRecorderRef = useRef(null);
-  const recordingChunksRef = useRef([]);
-  const recordingTimerRef = useRef(null);
+  const {
+    isRecording, isCleaning, recordingTime,
+    startRecording, stopRecording,
+  } = useRecording(ingestRefAudio);
 
   // ═══ DUB STATE ═══
   // Phase 2.2 — the dub pipeline's 18 useState calls now live in `dubSlice`.
@@ -419,167 +321,21 @@ function App() {
   const isSidebarCollapsed = useAppStore(s => s.isSidebarCollapsed);
   const setIsSidebarCollapsed = useAppStore(s => s.setIsSidebarCollapsed);
 
-  // ── UNDO / REDO ──
-  const undoStack = useRef([]);
-  const redoStack = useRef([]);
-  const pushUndo = (segments) => {
-    undoStack.current.push(JSON.stringify(segments));
-    if (undoStack.current.length > 50) undoStack.current.shift();
-    redoStack.current = []; // clear redo on new edit
-  };
-  const undo = () => {
-    if (undoStack.current.length === 0) return;
-    redoStack.current.push(JSON.stringify(dubSegments));
-    const prev = JSON.parse(undoStack.current.pop());
-    setDubSegments(prev);
-  };
-  const redo = () => {
-    if (redoStack.current.length === 0) return;
-    undoStack.current.push(JSON.stringify(dubSegments));
-    const next = JSON.parse(redoStack.current.pop());
-    setDubSegments(next);
-  };
-  // Wrap setDubSegments calls that are user-edits with undo tracking
-  const editSegments = (newSegs) => {
-    pushUndo(dubSegments);
-    setDubSegments(newSegs);
-  };
-
-  // Stable handlers for virtualized segment rows. Use functional updates so
-  // they don't depend on dubSegments identity (avoids row re-renders).
-  const segmentEditField = useCallback((id, field, value) => {
-    pushUndo(dubSegments);
-    setDubSegments(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
-  }, [dubSegments]);
-
-  // Phase 4.2 — direction editor per segment. Dialog state lives in App so
-  // opening one dialog closes any other, and Undo includes direction changes.
-  const [directionSegId, setDirectionSegId] = useState(null);
-  const openDirection = useCallback((seg) => setDirectionSegId(seg.id), []);
-  const closeDirection = useCallback(() => setDirectionSegId(null), []);
-  const saveDirection = useCallback((value) => {
-    if (!directionSegId) return;
-    pushUndo(dubSegments);
-    setDubSegments(prev => prev.map(s => s.id === directionSegId
-      ? { ...s, direction: value || undefined }
-      : s));
-  }, [directionSegId, dubSegments]);
-
-  // Phase 4.1 — after each successful dub generate, stash the segment
-  // fingerprints. "What changed since last generate?" reads against this map.
-  const [lastGenFingerprints, setLastGenFingerprints] = useState({});
-  const [incrementalPlan, setIncrementalPlan] = useState(null);  // {stale:[], fresh:[]}
-
-  const recomputeIncremental = useCallback(async () => {
-    if (!dubSegments.length || !Object.keys(lastGenFingerprints).length) {
-      setIncrementalPlan(null);
-      return;
-    }
-    try {
-      const res = await apiPost('/tools/incremental', {
-        segments: dubSegments.map(s => ({
-          id: String(s.id), text: s.text, target_lang: s.target_lang,
-          profile_id: s.profile_id, instruct: s.instruct,
-          speed: s.speed, direction: s.direction,
-        })),
-        stored_hashes: lastGenFingerprints,
-      });
-      setIncrementalPlan({ stale: res.stale, fresh: res.fresh });
-    } catch (e) {
-      console.warn('incremental plan failed', e);
-    }
-  }, [dubSegments, lastGenFingerprints]);
+  // ── UNDO / REDO + SEGMENT EDITING ──
+  const {
+    undo, redo, pushUndo, editSegments,
+    segmentEditField, segmentDelete, segmentRestoreOriginal,
+    segmentSplit, segmentMerge,
+    selectedSegIds, setSelectedSegIds,
+    toggleSegSelect, selectAllSegs, clearSegSelection,
+    bulkApplyToSelected, bulkDeleteSelected,
+    directionSegId, openDirection, closeDirection, saveDirection,
+    lastGenFingerprints, setLastGenFingerprints,
+    incrementalPlan, setIncrementalPlan,
+    recomputeIncremental,
+  } = useSegmentEditing();
 
   useEffect(() => { recomputeIncremental(); }, [recomputeIncremental]);
-
-  const segmentDelete = useCallback((id) => {
-    pushUndo(dubSegments);
-    setDubSegments(prev => prev.filter(s => s.id !== id));
-  }, [dubSegments]);
-
-  const segmentRestoreOriginal = useCallback((id) => {
-    pushUndo(dubSegments);
-    setDubSegments(prev => prev.map(s => s.id === id
-      ? { ...s, text: s.text_original || s.text, translate_error: undefined }
-      : s));
-  }, [dubSegments]);
-
-  // Segment multi-select
-  const [selectedSegIds, setSelectedSegIds] = useState(new Set());
-  const lastSelectedIdxRef = useRef(null);
-
-  const toggleSegSelect = useCallback((id, idx, shift) => {
-    setSelectedSegIds(prev => {
-      const next = new Set(prev);
-      if (shift && lastSelectedIdxRef.current !== null) {
-        const [a, b] = [lastSelectedIdxRef.current, idx].sort((x, y) => x - y);
-        for (let i = a; i <= b; i++) {
-          const s = dubSegments[i];
-          if (s) next.add(s.id);
-        }
-      } else {
-        if (next.has(id)) next.delete(id); else next.add(id);
-        lastSelectedIdxRef.current = idx;
-      }
-      return next;
-    });
-  }, [dubSegments]);
-
-  const selectAllSegs = useCallback((segs) => {
-    setSelectedSegIds(new Set(segs.map(s => s.id)));
-  }, []);
-
-  const clearSegSelection = useCallback(() => setSelectedSegIds(new Set()), []);
-
-  // Bulk actions
-  const bulkApplyToSelected = useCallback((patch) => {
-    if (!selectedSegIds.size) return;
-    pushUndo(dubSegments);
-    setDubSegments(prev => prev.map(s => selectedSegIds.has(s.id) ? { ...s, ...patch } : s));
-  }, [dubSegments, selectedSegIds]);
-
-  const bulkDeleteSelected = useCallback(async () => {
-    if (!selectedSegIds.size) return;
-    if (!(await askConfirm(`Delete ${selectedSegIds.size} selected segment${selectedSegIds.size === 1 ? '' : 's'}?`))) return;
-    pushUndo(dubSegments);
-    setDubSegments(prev => prev.filter(s => !selectedSegIds.has(s.id)));
-    setSelectedSegIds(new Set());
-  }, [dubSegments, selectedSegIds]);
-
-  // Split at text cursor. Time split proportional to cursor position in text.
-  const segmentSplit = useCallback((id, cursorPos) => {
-    pushUndo(dubSegments);
-    setDubSegments(prev => {
-      const idx = prev.findIndex(s => s.id === id);
-      if (idx < 0) return prev;
-      const seg = prev[idx];
-      const text = seg.text || '';
-      const pos = Math.max(1, Math.min(cursorPos, text.length - 1));
-      const ratio = text.length > 0 ? pos / text.length : 0.5;
-      const midT = seg.start + (seg.end - seg.start) * ratio;
-      const left = { ...seg, id: `${seg.id}_a`, text: text.slice(0, pos).trim(), end: midT, text_original: text.slice(0, pos).trim() };
-      const right = { ...seg, id: `${seg.id}_b`, text: text.slice(pos).trim(), start: midT, text_original: text.slice(pos).trim() };
-      return [...prev.slice(0, idx), left, right, ...prev.slice(idx + 1)];
-    });
-  }, [dubSegments]);
-
-  // Merge segment with its next sibling.
-  const segmentMerge = useCallback((id) => {
-    pushUndo(dubSegments);
-    setDubSegments(prev => {
-      const idx = prev.findIndex(s => s.id === id);
-      if (idx < 0 || idx >= prev.length - 1) return prev;
-      const a = prev[idx];
-      const b = prev[idx + 1];
-      const merged = {
-        ...a,
-        text: `${a.text || ''} ${b.text || ''}`.trim(),
-        text_original: `${a.text_original || a.text || ''} ${b.text_original || b.text || ''}`.trim(),
-        end: b.end,
-      };
-      return [...prev.slice(0, idx), merged, ...prev.slice(idx + 2)];
-    });
-  }, [dubSegments]);
 
   // ── MODEL STATUS + SYSINFO (TanStack Query) ──
   const sysQuery = useSysinfo();
@@ -1172,72 +928,6 @@ function App() {
     }
   };
 
-  // ═══ MIC RECORDING ═══
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-      mediaRecorderRef.current = mediaRecorder;
-      recordingChunksRef.current = [];
-      setRecordingTime(0);
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) recordingChunksRef.current.push(e.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        clearInterval(recordingTimerRef.current);
-        stream.getTracks().forEach(t => t.stop());
-
-        const blob = new Blob(recordingChunksRef.current, { type: 'audio/webm' });
-        if (blob.size < 1000) {
-          toast.error("Recording too short");
-          return;
-        }
-
-        // Send to backend for denoising
-        setIsCleaning(true);
-        try {
-          const formData = new FormData();
-          formData.append("audio", blob, "recording.webm");
-          const res = await apiCleanAudio(formData);
-
-          const cleanBlob = await res.blob();
-          const cleanFilename = res.headers.get("X-Clean-Filename") || "recording_clean.wav";
-          const cleanFile = new File([cleanBlob], cleanFilename, { type: "audio/wav" });
-
-          await ingestRefAudio(cleanFile);
-          toast.success("🎙️ Recording cleaned & loaded!");
-        } catch (e) {
-          // Fallback: use raw recording without denoising
-          const rawFile = new File([blob], "recording.webm", { type: "audio/webm" });
-          await ingestRefAudio(rawFile);
-          toast.success("Recording loaded (raw — denoising unavailable)");
-        } finally {
-          setIsCleaning(false);
-        }
-      };
-
-      mediaRecorder.start(250); // Collect chunks every 250ms
-      setIsRecording(true);
-
-      // Timer
-      const st = Date.now();
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingTime(((Date.now() - st) / 1000).toFixed(1));
-      }, 100);
-
-    } catch (e) {
-      toast.error("Microphone access denied");
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-    }
-    setIsRecording(false);
-  };
 
   // ═══ DUB WORKFLOW ═══
   const dubAbortCtrlRef = useRef(null);

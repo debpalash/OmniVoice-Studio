@@ -1916,10 +1916,10 @@ div[role="dialog"].audio-trimmer {
   border-radius: var(--chrome-radius-pill) !important;
   background: transparent !important;
   border: 1px solid var(--chrome-border) !important;
-  padding: 8px 10px !important;
-  margin-bottom: 6px;
+  padding: 6px 8px !important;
+  margin-bottom: 3px;
   position: relative;
-  display: flex; flex-direction: column; gap: 4px;
+  display: flex; flex-direction: column; gap: 2px;
   transition: background var(--dur-fast), border-color var(--dur-fast);
 }
 .history-item::before {
@@ -1978,7 +1978,7 @@ div[role="dialog"].audio-trimmer {
 
 /* Action row — visible on hover, always visible on focus-within */
 .history-actions {
-  display: flex; gap: 4px; margin-top: 4px;
+  display: flex; gap: 4px; margin-top: 2px;
   opacity: 0; max-height: 0;
   overflow: hidden;
   transition: opacity 0.2s, max-height 0.2s;

@@ -4,10 +4,8 @@
 
 .sidebar__tabs {
   display: flex;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  /* Match chrome — same bg + hairline as top/bottom bars so the sidebar
-     header reads as part of the frame, not a separate panel. */
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border-bottom: 1px solid var(--chrome-border);
   background: var(--chrome-bg);
   flex-shrink: 0;
@@ -21,16 +19,17 @@
 .sidebar.is-collapsed .sidebar__tab {
   max-width: 100%;
   padding: 0;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   flex: none;
 }
 .sidebar.is-collapsed .sidebar__tab svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 .sidebar__tab {
+  position: relative;
   flex: 1;
   height: var(--chrome-pill-h);
   cursor: pointer;
@@ -45,7 +44,7 @@
   gap: 5px;
   --sidebar-tab-accent: var(--color-brand);
   white-space: nowrap;
-  padding: 0 8px;
+  padding: 0 10px;
 }
 .sidebar__tab:hover {
   background: var(--chrome-hover-bg);
@@ -60,21 +59,26 @@
   outline: none;
   box-shadow: var(--focus-ring);
 }
-.sidebar__tab-label {
-  font-family: var(--font-sans);
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-.sidebar__tab-count {
+.sidebar__tab-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
   font-family: var(--chrome-font-mono);
-  font-size: 9.5px;
-  opacity: 0.6;
+  font-size: 8px;
+  font-weight: 700;
+  min-width: 14px;
+  height: 14px;
+  line-height: 14px;
+  text-align: center;
+  padding: 0 3px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--sidebar-tab-accent) 25%, transparent);
+  color: var(--sidebar-tab-accent);
 }
 
 /* ── Search ─────────────────────────────────────────────────── */
 .sidebar__search {
-  padding: 6px 8px 2px 8px;
+  padding: 3px 4px 2px 4px;
   flex-shrink: 0;
   position: relative;
 }
@@ -107,7 +111,7 @@
 
 /* ── Save-project button tint ───────────────────────────────── */
 .sidebar__save-btn {
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-2);
   color: var(--chrome-fg);
   border: 1px solid var(--chrome-border-strong);
   background: transparent;
@@ -154,7 +158,7 @@
   letter-spacing: var(--chrome-label-track);
   text-transform: uppercase;
   color: var(--chrome-fg-muted);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -165,8 +169,8 @@
 
 /* ── Collapsed-mode icon tiles — chrome square buttons ────────── */
 .sidebar__icon-tile {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
   display: flex;
   justify-content: center;
@@ -211,7 +215,7 @@
 .sidebar__scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 8px;
+  padding: 3px 4px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -258,8 +262,8 @@
 
 /* Restore / re-open icon tiles on history + export rows */
 .sidebar-tile {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
   display: flex;
   justify-content: center;

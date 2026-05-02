@@ -308,7 +308,7 @@ export default function DubTab(props) {
                     e.preventDefault();
                     e.currentTarget.classList.remove('is-dragging');
                     const file = e.dataTransfer.files[0];
-                    if (file && file.type.startsWith('video/')) {
+                    if (file && (file.type.startsWith('video/') || file.type.startsWith('audio/') || /\.(mp3|wav|flac|m4a|ogg)$/i.test(file.name))) {
                       setDubVideoFile(file);
                       setDubStep('idle');
                       fileToMediaUrl(file, null).then(urls => setDubLocalBlobUrl(urls));
@@ -318,8 +318,8 @@ export default function DubTab(props) {
                     <UploadCloud color="#d3869b" size={28} />
                   </div>
                   <div className="dub-idle-drop__lines">
-                    <div className="dub-idle-drop__title">Drop video here</div>
-                    <div className="dub-idle-drop__sub">MP4 · MOV · MKV · WEBM</div>
+                    <div className="dub-idle-drop__title">Drop video or audio here</div>
+                    <div className="dub-idle-drop__sub">MP4 · MOV · MKV · WEBM · MP3 · WAV · FLAC · M4A</div>
                   </div>
                   <div
                     className="dub-ingest-row"
@@ -360,7 +360,7 @@ export default function DubTab(props) {
                 </label>
               )}
 
-              <input type="file" accept="video/*" id="video-upload" className="dub-hidden-file"
+              <input type="file" accept="video/*,audio/*,.mp3,.wav,.m4a,.flac,.ogg" id="video-upload" className="dub-hidden-file"
                 onChange={e => {
                   const file = e.target.files[0];
                   if (!file) return;
@@ -576,11 +576,8 @@ export default function DubTab(props) {
                   </div>
                 </div>
               )}
-            </div>
 
-            {/* RIGHT: Settings + Segment Table */}
-            <div className="studio-panel dub-panel-col">
-              {/* Collapsed: one-line summary + Translate All. Expanded: full grid. */}
+              {/* Translation settings — collapsed or expanded */}
               {!settingsOpen && (
                 <div className="dub-settings-summary">
                   <button
@@ -755,6 +752,10 @@ export default function DubTab(props) {
                 </div>
               </div>
               )}
+            </div>
+
+            {/* RIGHT: Segment Table */}
+            <div className="studio-panel dub-panel-col">
 
               {dubTranscript && (
                 <div className="dub-transcript-toggle-wrap">

@@ -8,10 +8,8 @@ Every folder has a single job. Every file at the root earns its place.
 OmniVoice/
 │
 ├── README.md                    ⟵ user-facing overview
-├── ROADMAP.md                   ⟵ where this project is going
-├── STRUCTURE.md                 ⟵ you are here
+├── CHANGELOG.md                 ⟵ release history
 ├── LICENSE
-├── preview.png                  ⟵ referenced by README
 │
 ├── pyproject.toml               ⟵ Python project manifest
 ├── uv.lock                      ⟵ Python lockfile
@@ -19,10 +17,9 @@ OmniVoice/
 ├── bun.lock                     ⟵ JS lockfile
 ├── turbo.json                   ⟵ turborepo pipeline
 │
-├── Dockerfile                   ⟵ single-stage CUDA image
-├── docker-compose.yml           ⟵ one-click local deployment
-├── .dockerignore
+├── .dockerignore                ⟵ Docker build context filter
 ├── backend.spec                 ⟵ pyinstaller spec (stays at root by pyinstaller convention)
+├── alembic.ini                  ⟵ DB migration config (stays at root by alembic convention)
 │
 ├── .env                         ⟵ user config; gitignored, .env.example is the template
 ├── .gitignore
@@ -39,7 +36,8 @@ OmniVoice/
 │   │   ├── pages/               one file per top-level view
 │   │   ├── components/          reusable UI
 │   │   ├── api/                 typed API clients
-│   │   ├── store/               Zustand slices (arrives Phase 1)
+│   │   ├── store/               Zustand slices
+│   │   ├── hooks/               custom React hooks
 │   │   └── utils/
 │   ├── src-tauri/               Rust desktop shell
 │   └── public/
@@ -62,8 +60,22 @@ OmniVoice/
 │   └── frontend/                Node-based frontend tests
 │
 ├── scripts/                     ⟵ dev / build / release shell + python scripts
+│   ├── install.sh               universal installer
+│   ├── run.sh                   universal launcher
+│   ├── smoke-test.sh            end-to-end validation
+│   └── desktop-prod.sh          production desktop build
 │
-├── docs/                        ⟵ developer and model documentation
+├── deploy/                      ⟵ Docker deployment configs
+│   ├── Dockerfile               single-stage CUDA image
+│   └── docker-compose.yml       one-click local deployment
+│
+├── docs/                        ⟵ developer docs, screenshots, branding
+│   ├── ROADMAP.md               where this project is going
+│   ├── STRUCTURE.md             you are here
+│   ├── mcp.json                 MCP config template
+│   ├── preview.png              README hero image
+│   ├── logo.png, logo.svg       branding assets
+│   ├── screenshot-*.png         feature screenshots
 │   ├── languages.md
 │   ├── training.md
 │   ├── data_preparation.md
@@ -72,15 +84,7 @@ OmniVoice/
 │
 ├── design/                      ⟵ ASCII mockups of the target UX
 │   ├── README.md
-│   ├── 00-architecture.md
-│   ├── 01-launchpad.md
-│   ├── 02-dub-studio.md
-│   ├── 03-voice-library.md
-│   ├── 04-translation-workbench.md
-│   ├── 05-batch-queue.md
-│   ├── 06-export-center.md
-│   ├── 07-tools.md
-│   └── 08-settings.md
+│   └── 00–08-*.md               per-feature specs
 │
 ├── research/                    ⟵ reference material, competitor analysis, archived code
 │   ├── LEARNINGS.md             competitive analysis, what to absorb

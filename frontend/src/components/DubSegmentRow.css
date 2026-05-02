@@ -16,9 +16,9 @@
 .seg-speed-badge {
   font-size: 0.55rem; margin-left: 2px;
 }
-.seg-speaker {
+.seg-speaker-input {
   width: 45px; flex-shrink: 0; font-size: 0.55rem; color: #a89984;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 1px 2px; text-align: center;
 }
 .seg-text-col {
   flex: 1 1 0%; display: flex; flex-direction: column; gap: 2px;

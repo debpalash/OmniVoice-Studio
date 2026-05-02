@@ -40,6 +40,7 @@ dependencies = [
     "webdataset",
     "numpy",
     "soundfile",
+    "setuptools",
     "psutil>=7.2.2",
     # Pinned to 3.x — pyannote 4.x removed `use_auth_token` from `Inference`
     # which whisperx 3.4.2 still passes, blowing up `whisperx.load_model()`

@@ -1,27 +1,25 @@
 [package]
-name = "app"
+name = "omnivoice-studio"
 version = "0.2.6"
-description = "A Tauri App"
-authors = ["you"]
-license = ""
+description = "OmniVoice Studio – AI voice cloning & dubbing desktop app"
+authors = ["Debpalash"]
+license = "AGPL-3.0"
 repository = ""
 edition = "2021"
 rust-version = "1.77.2"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
 name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.5.6", features = [] }
+tauri-build = { version = "2.6.0", features = [] }
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2.10.3", features = ["macos-private-api", "protocol-asset", "tray-icon", "image-png"] }
+tauri = { version = "2.11.0", features = ["macos-private-api", "protocol-asset", "tray-icon", "image-png"] }
 tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-window-state = "2.0.0"
@@ -34,24 +32,18 @@ tauri-plugin-single-instance = "2"
 # Cross-platform keyboard simulation for auto-paste after dictation
 enigo = { version = "0.3", features = ["serde"] }
 
-# First-run bootstrap: the installer ships ~10 MB with only the Tauri
-# shell + pyproject.toml + uv.lock + backend source. On first launch the
-# Rust setup hook downloads the standalone `uv` binary, creates a venv at
-# `app_local_data_dir/venv`, and runs `uv sync` against the bundled
-# pyproject.toml — which installs torch, whisperx, faster-whisper, etc.
-# ureq fetches the `uv` archive; flate2 + tar extract it on Unix; zip
-# does the same on Windows (Astral publishes .zip for Windows only).
+# First-run bootstrap: on first launch the Rust setup hook installs `uv`
+# via the official Astral installer script (curl|sh on Unix, irm|iex on
+# Windows), creates a Python 3.11 venv, and runs `uv sync` against the
+# bundled pyproject.toml — which installs torch, whisperx, etc.
+# ureq is used for HTTP health checks and ffmpeg downloads.
 ureq = "2"
-tar = "0.4"
-flate2 = "1"
 
 # ── Rust IPC commands (cross-platform) ──
 # get_sysinfo: CPU + RAM metrics without HTTP round-trip
 sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 # hf_cache_scan: walk HF cache directory 3-5× faster than Python
 walkdir = "2"
-# File hash verification (optional, for future integrity checks)
-sha2 = "0.10"
 
 [target.'cfg(windows)'.dependencies]
 zip = { version = "2", default-features = false, features = ["deflate"] }

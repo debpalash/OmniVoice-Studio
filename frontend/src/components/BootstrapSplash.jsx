@@ -66,7 +66,7 @@ export function BootstrapSplash({ stage, message }) {
   const [logsOpen, setLogsOpen] = useState(true);
   const [copied, setCopied] = useState(false);
   const [progress, setProgress] = useState(null);
-  const [region, setRegionState] = useState('global');
+  const [region, setRegionState] = useState('auto');
   const [retrying, setRetrying] = useState(false);
   const logRef = useRef(null);
 
@@ -204,20 +204,17 @@ export function BootstrapSplash({ stage, message }) {
           <h1>OmniVoice Studio</h1>
           <span className="bootstrap-splash__version">v{APP_VERSION}</span>
           <div className="bootstrap-splash__region">
-            <button
-              type="button"
-              className={`bootstrap-splash__region-btn${region === 'global' ? ' is-active' : ''}`}
-              onClick={() => handleRegionChange('global')}
+            <select
+              className="bootstrap-splash__region-select"
+              value={region}
+              onChange={(e) => handleRegionChange(e.target.value)}
             >
-              🌐 Global
-            </button>
-            <button
-              type="button"
-              className={`bootstrap-splash__region-btn${region === 'china' ? ' is-active' : ''}`}
-              onClick={() => handleRegionChange('china')}
-            >
-              🇨🇳 China
-            </button>
+              <option value="auto">🌐 Auto-detect</option>
+              <option value="global">🌐 Global (direct)</option>
+              <option value="china">🇨🇳 China (mirror)</option>
+              <option value="russia">🇷🇺 Russia (mirror)</option>
+              <option value="restricted">🌍 Restricted (mirror)</option>
+            </select>
           </div>
         </div>
         <p className="bootstrap-splash__status">{label}</p>

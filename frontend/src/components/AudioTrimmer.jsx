@@ -82,7 +82,6 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
         setAudioMeta({ duration: buf.duration, sampleRate: buf.sampleRate });
         // Prime with a coarse synchronous pass so waveform shows something instantly.
         peaksRef.current = computePeaksFromChannel(buf.getChannelData(0), 1024);
-        setDuration(buf.duration);
         setViewEnd(buf.duration);
         setEnd(Math.min(buf.duration, maxSeconds));
         setStart(0);

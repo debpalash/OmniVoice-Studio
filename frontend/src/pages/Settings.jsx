@@ -126,6 +126,7 @@ export function ModelStoreTab({ info, modelBadge }) {
     if (!value) return;
     setHfSaving(true);
     try {
+      const { API } = await import('../api/client');
       const res = await fetch(`${API}/system/set-env`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

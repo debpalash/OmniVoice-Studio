@@ -4,15 +4,15 @@
 }
 .wfm-stack { display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 0; }
 .wfm-video-preview {
-  flex: 0 0 auto; aspect-ratio: 16 / 9; max-height: 55%;
+  flex: 0 0 auto; aspect-ratio: 16 / 9; max-height: 45%;
   background: #000; border-radius: 4px; overflow: hidden;
   border: 1px solid rgba(255,255,255,0.05); display: flex;
 }
 .wfm-wave-wrap {
-  position: relative; overflow: hidden; flex: 1 1 auto; min-height: 140px;
+  position: relative; overflow: hidden; flex: 1 1 auto; min-height: 80px; max-height: 160px;
 }
 .wfm-wave-inner {
-  height: 100%; min-height: 140px; border-radius: 4px; width: 100%; overflow: hidden;
+  height: 100%; min-height: 80px; border-radius: 4px; width: 100%; overflow: hidden;
 }
 .wfm-loading {
   position: absolute; inset: 0; display: flex; align-items: center;
