@@ -279,7 +279,7 @@ export default function CaptureWidget() {
       setDuration(0);
       setTranscript('');
       setPartialText('');
-      setExpanded(true);
+      // Widget panel is always visible — no expand/collapse needed.
       setCopied(false);
       setLastEngine('');
       setLastTime(0);

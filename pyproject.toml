@@ -83,6 +83,7 @@ dependencies = [
     "audioseal>=0.1.3",
     # API server — always needed for the Studio UI.
     "fastapi",
+    "scalar-fastapi",
     "uvicorn",
     "python-multipart",
     # Required by uvicorn for WebSocket support (real-time sidebar events).

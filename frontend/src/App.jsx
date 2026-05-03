@@ -24,6 +24,7 @@ const VoiceGallery = lazy(() => import('./pages/VoiceGallery'));
 const DonatePage = lazy(() => import('./pages/DonatePage'));
 const EnterprisePage = lazy(() => import('./pages/EnterprisePage'));
 const TranscriptionsPage = lazy(() => import('./pages/Transcriptions'));
+const CaptureWidget = lazy(() => import('./components/CaptureWidget'));
 import Header from './components/Header';
 import NavRail from './components/NavRail';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -97,6 +98,9 @@ function App() {
   const showCheatsheet = useAppStore(s => s.showCheatsheet);
   const setShowCheatsheet = useAppStore(s => s.setShowCheatsheet);
 
+  // ── Inline capture/dictation overlay state ──
+  const [showCapture, setShowCapture] = useState(false);
+
   // Global '?' → open cheatsheet
   useEffect(() => {
     const h = (e) => {
@@ -105,6 +109,18 @@ function App() {
       if (e.key === '?' || (e.shiftKey && e.key === '/')) {
         e.preventDefault();
         setShowCheatsheet(v => !v);
+      }
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, []);
+
+  // Global ⌘+Shift+Space → toggle capture/dictation overlay
+  useEffect(() => {
+    const h = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'Space') {
+        e.preventDefault();
+        setShowCapture(v => !v);
       }
     };
     window.addEventListener('keydown', h);
@@ -2043,6 +2059,17 @@ function App() {
             fileToMediaUrl={fileToMediaUrl}
           />
         </Suspense>
+      )}
+
+      {/* ═══ INLINE CAPTURE / DICTATION OVERLAY ═══ */}
+      {showCapture && (
+        <div className="capture-overlay" onClick={() => setShowCapture(false)}>
+          <div className="capture-overlay__panel" onClick={e => e.stopPropagation()}>
+            <Suspense fallback={<LazyFallback />}>
+              <CaptureWidget />
+            </Suspense>
+          </div>
+        </div>
       )}
 
       {/* ═══ BOTTOM LOGS PANEL (VSCode-style) ═══ */}

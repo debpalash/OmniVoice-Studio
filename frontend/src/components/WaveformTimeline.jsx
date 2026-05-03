@@ -262,6 +262,15 @@ export default function WaveformTimeline({
     wsRef.current = ws;
 
     return () => {
+      // Gracefully stop before destroy to avoid WaveSurfer's internal
+      // fetch progress handler logging "AbortError: Fetch is aborted".
+      try { ws.pause(); } catch (_) {}
+      try { ws.cancelAudioFetch?.(); } catch (_) {}
+      // Empty the media source before destroy so any in-flight fetch
+      // resolves its AbortController without a stale reference.
+      if (mediaEl && !videoEl) {
+        try { mediaEl.pause(); mediaEl.removeAttribute('src'); mediaEl.load?.(); } catch (_) {}
+      }
       try { ws.destroy(); } catch (_) {}
       wsRef.current      = null;
       mediaElRef.current = null;

@@ -105,69 +105,42 @@
 
 ## Quickstart
 
-### One-command install
+Pick your path — from zero-install to full developer setup:
 
-```bash
-git clone https://github.com/debpalash/OmniVoice-Studio.git && cd OmniVoice-Studio && bun install && bun run dev
-```
+<table>
+<tr>
+<td width="33%" align="center">
+<h3>🖥️ Desktop App</h3>
+<sub><b>Easiest</b> · ~2 min · No dependencies</sub>
+<br/><br/>
+<a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/Download-Installer-10b981?style=for-the-badge&logo=github&logoColor=white" alt="Download"/></a>
+<br/><br/>
+<sub>macOS DMG · Windows MSI · Linux AppImage/deb<br/>Auto-bootstraps Python + models on first launch.</sub>
+</td>
+<td width="33%" align="center">
+<h3>🐳 Docker</h3>
+<sub><b>One command</b> · ~3 min · Needs Docker</sub>
+<br/><br/>
+<code>docker pull ghcr.io/debpalash/omnivoice-studio</code>
+<br/><br/>
+<sub>Pre-built image from GHCR.<br/>CPU + NVIDIA GPU supported.</sub>
+</td>
+<td width="33%" align="center">
+<h3>⚡ From Source</h3>
+<sub><b>Full control</b> · ~5 min · Needs Bun + Python</sub>
+<br/><br/>
+<code>git clone → bun install → bun run dev</code>
+<br/><br/>
+<sub>Hot reload, full codebase access.<br/>Best for contributors.</sub>
+</td>
+</tr>
+</table>
 
-That's it. Open [localhost:3901](http://localhost:3901) and start cloning voices.
+---
 
-### Docker
+### 🖥️ Option 1 — Desktop App
 
-Pull the pre-built image from **GitHub Container Registry** — no build step needed:
-
-```bash
-docker pull ghcr.io/debpalash/omnivoice-studio:latest
-```
-
-Run it:
-
-```bash
-# CPU mode
-docker run -d --name omnivoice \
-  -p 127.0.0.1:3900:3900 \
-  -v omnivoice-data:/app/omnivoice_data \
-  ghcr.io/debpalash/omnivoice-studio:latest
-
-# NVIDIA GPU mode
-docker run -d --name omnivoice --gpus all \
-  -p 127.0.0.1:3900:3900 \
-  -v omnivoice-data:/app/omnivoice_data \
-  ghcr.io/debpalash/omnivoice-studio:latest
-```
-
-Or use **Docker Compose** with the GHCR image:
-
-```bash
-# CPU mode
-docker compose -f deploy/docker-compose.yml up -d
-
-# GPU mode
-docker compose -f deploy/docker-compose.yml --profile gpu up -d
-```
-
-Open [http://localhost:3900](http://localhost:3900) once the health check passes. First run downloads ~4 GB of model weights — progress is shown in `docker compose logs -f`.
-
-<details>
-<summary><b>Build from source instead of pulling</b></summary>
-<br/>
-
-```bash
-docker compose -f deploy/docker-compose.yml up --build -d
-```
-
-</details>
-
-> **Network access:** the container binds to `127.0.0.1` only. To reach OmniVoice from another machine on your LAN, change the port mapping to `"0.0.0.0:3900:3900"`. OmniVoice ships no built-in authentication — when exposing it beyond your machine, put it behind a reverse proxy with auth (Caddy `basic_auth`, nginx + htpasswd, Tailscale, etc.).
-
-### Desktop App
-
-Pre-built installers (~6–8 MB) are available on the [**Releases**](https://github.com/debpalash/OmniVoice-Studio/releases/latest) page. On first launch, the app bootstraps a Python environment and downloads model weights automatically — the splash screen shows progress.
-
-```bash
-bun run desktop    # Build from source (macOS / Windows / Linux)
-```
+Pre-built installers (~6–8 MB) are on the [**Releases**](https://github.com/debpalash/OmniVoice-Studio/releases/latest) page. Download, install, launch. The app bootstraps a Python environment and downloads model weights automatically — the splash screen shows progress.
 
 <details>
 <summary><b>macOS — "app is damaged and can't be opened"</b></summary>
@@ -201,15 +174,81 @@ chmod +x OmniVoice.Studio_*.AppImage
 ```
 </details>
 
-> [!NOTE]
-> First run downloads model weights (~2.4 GB). This works out of the box — no account needed. For faster downloads, optionally set `HF_TOKEN=hf_...` in your environment ([get a free token here](https://huggingface.co/settings/tokens)).
->
-> **Having issues?** Join our [Discord](https://discord.gg/aRRdVj3de7) for setup help and troubleshooting.
+---
+
+### 🐳 Option 2 — Docker
+
+Pull the pre-built image from **GitHub Container Registry**:
+
+```bash
+docker pull ghcr.io/debpalash/omnivoice-studio:latest
+```
+
+**Run it:**
+
+```bash
+# CPU mode
+docker run -d --name omnivoice \
+  -p 127.0.0.1:3900:3900 \
+  -v omnivoice-data:/app/omnivoice_data \
+  ghcr.io/debpalash/omnivoice-studio:latest
+
+# NVIDIA GPU mode
+docker run -d --name omnivoice --gpus all \
+  -p 127.0.0.1:3900:3900 \
+  -v omnivoice-data:/app/omnivoice_data \
+  ghcr.io/debpalash/omnivoice-studio:latest
+```
+
+**Or use Docker Compose:**
+
+```bash
+# CPU
+docker compose -f deploy/docker-compose.yml up -d
+
+# GPU
+docker compose -f deploy/docker-compose.yml --profile gpu up -d
+```
+
+Open [localhost:3900](http://localhost:3900) once the health check passes. First run downloads ~4 GB of model weights — progress in `docker compose logs -f`.
+
+<details>
+<summary><b>Build from source instead of pulling</b></summary>
+<br/>
+
+```bash
+docker compose -f deploy/docker-compose.yml up --build -d
+```
+
+</details>
+
+> **Network access:** the container binds to `127.0.0.1` only. To expose on your LAN, change the port mapping to `"0.0.0.0:3900:3900"`. OmniVoice ships no authentication — put it behind a reverse proxy with auth (Caddy `basic_auth`, nginx + htpasswd, Tailscale, etc.).
+
+---
+
+### ⚡ Option 3 — From Source
+
+```bash
+git clone https://github.com/debpalash/OmniVoice-Studio.git && cd OmniVoice-Studio
+bun install && bun run dev
+```
+
+Open [localhost:3901](http://localhost:3901) and start cloning voices. Hot-reload enabled for both frontend and backend.
+
+```bash
+bun run desktop    # Build the native desktop app from source
+```
 
 | Service | URL | Stack |
 |---------|-----|-------|
 | **Backend** | `localhost:3900` | FastAPI · 97 endpoints · WhisperX · Demucs · OmniVoice |
 | **Frontend** | `localhost:3901` | React · Vite · Waveform timeline · Glassmorphism UI |
+| **API Docs** | [`localhost:3900/docs`](http://localhost:3900/docs) | Scalar — interactive API reference |
+
+> [!NOTE]
+> First run downloads model weights (~2.4 GB). No account needed. For faster downloads, optionally set `HF_TOKEN=hf_...` in your environment ([get a free token here](https://huggingface.co/settings/tokens)).
+>
+> **Having issues?** Join our [Discord](https://discord.gg/aRRdVj3de7) for setup help and troubleshooting.
 
 ---
 

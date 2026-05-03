@@ -58,6 +58,10 @@ class TTSBackend(ABC):
     def is_available(cls) -> tuple[bool, str]:
         """Return (ok, message). message explains why not, if not."""
 
+    #: Whether this engine supports voice design from a text description
+    #: (e.g. "young female, warm tone, British accent") without reference audio.
+    supports_voice_design: bool = False
+
     @abstractmethod
     def generate(
         self,
@@ -68,12 +72,19 @@ class TTSBackend(ABC):
         instruct: Optional[str] = None,
         language: Optional[str] = None,
         duration: Optional[float] = None,
+        description: Optional[str] = None,
         num_step: int = 16,
         guidance_scale: float = 2.0,
         speed: float = 1.0,
         **extras,
     ) -> torch.Tensor:
-        """Synthesize `text`. Returns a tensor of shape (1, n_samples)."""
+        """Synthesize `text`. Returns a tensor of shape (1, n_samples).
+
+        When `description` is provided and `ref_audio` is None, engines that
+        support voice design will create a synthetic voice matching the
+        description (e.g. "young female, warm, slight British accent").
+        Engines that don't support this will ignore the parameter.
+        """
 
 
 # ── OmniVoice adapter (the current default) ─────────────────────────────────
@@ -163,10 +174,16 @@ class VoxCPM2Backend(TTSBackend):
     when the dep isn't installed, so Settings UI can gate the engine selector
     without a hard crash. When `voxcpm` is present, `generate()` delegates to
     the real model.
+
+    Voice Design: VoxCPM2 uniquely supports creating voices from a text
+    description (e.g. "young female, warm tone, British accent") without
+    any reference audio. Pass `description=` without `ref_audio=` to use
+    this mode.
     """
 
     id = "voxcpm2"
-    display_name = "VoxCPM2 (30 langs, studio 48 kHz)"
+    display_name = "VoxCPM2 (30 langs, studio 48 kHz, voice design)"
+    supports_voice_design = True
 
     def __init__(self):
         self._model = None
@@ -210,13 +227,38 @@ class VoxCPM2Backend(TTSBackend):
     def generate(self, text, **kw) -> torch.Tensor:
         self._ensure_loaded()
         import numpy as np
-        # Map our instruct prop onto VoxCPM2's inline "(instruct)prompt" prefix.
-        prompt = text
-        instruct = kw.get("instruct")
-        if instruct:
-            prompt = f"({instruct}){text}"
+
         ref_audio = kw.get("ref_audio")
         ref_text = kw.get("ref_text")
+        description = kw.get("description")
+        instruct = kw.get("instruct")
+
+        # ── Voice Design mode: description-only, no reference audio ─────
+        # VoxCPM2's `generate_from_description()` creates a synthetic voice
+        # matching a natural-language description. This is the P0 feature
+        # from the roadmap — text → voice without any audio sample.
+        if description and not ref_audio:
+            logger.info(
+                "VoxCPM2: voice design mode — generating from description: %r",
+                description[:80],
+            )
+            wav = self._model.generate(
+                text=text,
+                voice_description=description,
+                cfg_value=kw.get("guidance_scale", 2.0),
+                inference_timesteps=kw.get("num_step", 10),
+            )
+            if isinstance(wav, np.ndarray):
+                wav = torch.from_numpy(wav).float()
+            if wav.ndim == 1:
+                wav = wav.unsqueeze(0)
+            return wav
+
+        # ── Standard clone / instruct mode ──────────────────────────────
+        # Map our instruct prop onto VoxCPM2's inline "(instruct)prompt" prefix.
+        prompt = text
+        if instruct:
+            prompt = f"({instruct}){text}"
         wav = self._model.generate(
             text=prompt,
             cfg_value=kw.get("guidance_scale", 2.0),
@@ -664,6 +706,384 @@ class CosyVoiceBackend(TTSBackend):
         return wav
 
 
+# ── IndexTTS2 adapter (emotion control + duration control) ──────────────────
+
+
+class IndexTTS2Backend(TTSBackend):
+    """IndexTTS2 (Bilibili) — industrial zero-shot TTS with emotion and
+    duration control.
+
+    Key differentiators vs every other engine in the registry:
+      • **Emotion decoupling** — clone timbre from one reference, apply emotion
+        from a completely separate source (audio, 8-float vector, or text).
+      • **Duration control** — first AR model to precisely target output length
+        (critical for video dubbing lip-sync).
+      • **8-float emotion vector** — [happy, angry, sad, afraid, disgusted,
+        melancholic, surprised, calm] — each 0.0–1.0.
+      • **Text-based emotion** — pass natural-language emotion descriptions
+        (e.g. "terrified and panicking") via a fine-tuned Qwen3 encoder.
+
+    Installation:
+        git clone https://github.com/index-tts/index-tts.git
+        cd index-tts && uv sync --all-extras
+        hf download IndexTeam/IndexTTS-2 --local-dir=checkpoints
+
+    Set ``OMNIVOICE_INDEXTTS_DIR`` to the repo root (containing ``checkpoints/``).
+
+    License: Custom (Bilibili) — free for research/non-commercial. Commercial
+    use requires contacting indexspeech@bilibili.com.
+    """
+
+    id = "indextts2"
+    display_name = "IndexTTS2 (emotion control, duration control, zero-shot)"
+    supports_voice_design = False  # requires ref audio for timbre
+
+    def __init__(self):
+        self._model = None
+
+    @classmethod
+    def is_available(cls) -> tuple[bool, str]:
+        try:
+            from indextts.infer_v2 import IndexTTS2 as _Model  # noqa: F401
+            return True, "ready"
+        except ImportError:
+            return False, (
+                "indextts package not installed. Clone the repo and install: "
+                "git clone https://github.com/index-tts/index-tts.git && "
+                "cd index-tts && uv sync --all-extras. Then set "
+                "OMNIVOICE_INDEXTTS_DIR to the repo root."
+            )
+
+    @property
+    def sample_rate(self) -> int:
+        # IndexTTS2 outputs 24 kHz by default
+        return 24000
+
+    @property
+    def supported_languages(self) -> list[str]:
+        # Primarily Chinese + English, but can handle multilingual via prompts
+        return ["zh", "en"]
+
+    def _ensure_loaded(self):
+        if self._model is not None:
+            return
+        ok, msg = self.is_available()
+        if not ok:
+            raise RuntimeError(f"IndexTTS2 unavailable: {msg}")
+        from indextts.infer_v2 import IndexTTS2  # type: ignore[import-not-found]
+        repo_dir = os.environ.get("OMNIVOICE_INDEXTTS_DIR", ".")
+        cfg_path = os.path.join(repo_dir, "checkpoints", "config.yaml")
+        model_dir = os.path.join(repo_dir, "checkpoints")
+        use_fp16 = os.environ.get("OMNIVOICE_INDEXTTS_FP16", "1") == "1"
+        logger.info(
+            "Loading IndexTTS2 from %s (fp16=%s)", model_dir, use_fp16,
+        )
+        self._model = IndexTTS2(
+            cfg_path=cfg_path,
+            model_dir=model_dir,
+            use_fp16=use_fp16,
+            use_cuda_kernel=False,
+            use_deepspeed=False,
+        )
+
+    def generate(self, text: str, **kw) -> torch.Tensor:
+        self._ensure_loaded()
+        import numpy as np
+        import tempfile
+
+        ref_audio = kw.get("ref_audio")
+        if not ref_audio:
+            raise RuntimeError(
+                "IndexTTS2 requires a reference audio for voice cloning (timbre). "
+                "Pass ref_audio= with a path to a speaker reference clip."
+            )
+
+        # ── Emotion control ────────────────────────────────────────────
+        # IndexTTS2 supports 3 emotion modalities — we check in priority order:
+        #   1. emo_vector: explicit 8-float list
+        #   2. emo_audio: separate emotion reference audio
+        #   3. emo_text / description: natural-language emotion description
+        emo_vector = kw.get("emo_vector")          # list[float] len=8
+        emo_audio = kw.get("emo_audio")             # path to emotion ref audio
+        emo_text = kw.get("emo_text")               # text emotion description
+        emo_alpha = float(kw.get("emo_alpha", 1.0)) # emotion blending strength
+        use_random = bool(kw.get("use_random", False))
+
+        # Fall back: if `description` is set (from OpenAI API / voice design),
+        # treat it as an emotion text instruction.
+        description = kw.get("description")
+        if description and not emo_text and not emo_vector and not emo_audio:
+            emo_text = description
+
+        # Build the infer kwargs
+        infer_kw: dict = {
+            "spk_audio_prompt": ref_audio,
+            "text": text,
+            "verbose": False,
+        }
+
+        # Duration control — the killer feature for video dubbing sync.
+        # When the dub pipeline passes `duration=`, we convert seconds to
+        # the token count IndexTTS2 expects. The model's codec runs at ~21 Hz.
+        duration = kw.get("duration")
+        if duration is not None:
+            # IndexTTS2 uses target_tokens for duration control.
+            # Approximate: codec frame rate ≈ 21 Hz
+            target_tokens = int(float(duration) * 21)
+            if target_tokens > 0:
+                infer_kw["target_tokens"] = target_tokens
+
+        # Apply emotion modality
+        if emo_vector and isinstance(emo_vector, (list, tuple)) and len(emo_vector) == 8:
+            infer_kw["emo_vector"] = [float(v) for v in emo_vector]
+            infer_kw["use_random"] = use_random
+            logger.info("IndexTTS2: emotion via vector %s", infer_kw["emo_vector"])
+        elif emo_audio:
+            infer_kw["emo_audio_prompt"] = emo_audio
+            infer_kw["emo_alpha"] = emo_alpha
+            logger.info("IndexTTS2: emotion via audio ref (alpha=%.2f)", emo_alpha)
+        elif emo_text:
+            infer_kw["use_emo_text"] = True
+            infer_kw["emo_text"] = emo_text
+            infer_kw["emo_alpha"] = min(emo_alpha, 0.6)  # recommended ≤0.6 for text mode
+            infer_kw["use_random"] = use_random
+            logger.info(
+                "IndexTTS2: emotion via text description: %r (alpha=%.2f)",
+                emo_text[:60], infer_kw["emo_alpha"],
+            )
+
+        # IndexTTS2.infer() writes to a file, so we use a temp path and read back.
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            tmp_path = tmp.name
+
+        try:
+            infer_kw["output_path"] = tmp_path
+            self._model.infer(**infer_kw)
+
+            # Read back the generated audio
+            import torchaudio
+            wav, sr = torchaudio.load(tmp_path)
+            if sr != self.sample_rate:
+                wav = torchaudio.functional.resample(wav, sr, self.sample_rate)
+            if wav.ndim == 1:
+                wav = wav.unsqueeze(0)
+            elif wav.ndim == 2 and wav.shape[0] > 1:
+                wav = wav.mean(dim=0, keepdim=True)
+            return wav
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+
+# ── GPT-SoVITS adapter (most popular voice cloning, 57k★) ──────────────────
+
+
+class GPTSoVITSBackend(TTSBackend):
+    """RVC-Boss GPT-SoVITS — the most popular open-source voice cloning system.
+
+    57k GitHub stars, RTF 0.014 (10× faster than VoxCPM2). Supports zero-shot
+    and few-shot voice cloning with excellent naturalness. Chinese, English,
+    Japanese, Cantonese, Korean.
+
+    GPT-SoVITS runs as a standalone API server (api_v2.py) because it doesn't
+    ship a clean pip-installable package. This adapter connects to that server
+    over HTTP. Start the server before using this backend:
+
+        cd GPT-SoVITS
+        python api_v2.py -a 127.0.0.1 -p 9880 -c GPT_SoVITS/configs/tts_infer.yaml
+
+    Set ``OMNIVOICE_GPTSOVITS_URL`` to the server URL (default: http://127.0.0.1:9880).
+
+    License: MIT — fully permissive, commercial use OK.
+    """
+
+    id = "gpt-sovits"
+    display_name = "GPT-SoVITS (5 langs, zero-shot, RTF 0.014, MIT)"
+
+    def __init__(self):
+        self._url = os.environ.get("OMNIVOICE_GPTSOVITS_URL", "http://127.0.0.1:9880")
+
+    @classmethod
+    def is_available(cls) -> tuple[bool, str]:
+        # GPT-SoVITS runs as an external API server — check if it's reachable.
+        import urllib.request
+        url = os.environ.get("OMNIVOICE_GPTSOVITS_URL", "http://127.0.0.1:9880")
+        try:
+            req = urllib.request.Request(f"{url}/", method="GET")
+            urllib.request.urlopen(req, timeout=2)
+            return True, "ready (server reachable)"
+        except Exception:
+            return False, (
+                f"GPT-SoVITS server not reachable at {url}. "
+                "Start it with: python api_v2.py -a 127.0.0.1 -p 9880 "
+                "-c GPT_SoVITS/configs/tts_infer.yaml"
+            )
+
+    @property
+    def sample_rate(self) -> int:
+        return 32000  # GPT-SoVITS outputs 32 kHz
+
+    @property
+    def supported_languages(self) -> list[str]:
+        return ["zh", "en", "ja", "yue", "ko"]
+
+    def generate(self, text: str, **kw) -> torch.Tensor:
+        import urllib.request
+        import urllib.parse
+        import json
+
+        ref_audio = kw.get("ref_audio")
+        ref_text = kw.get("ref_text", "")
+        language = kw.get("language", "en")
+
+        # Map language codes to GPT-SoVITS format
+        lang_map = {
+            "zh": "zh", "en": "en", "ja": "ja", "yue": "yue", "ko": "ko",
+            "chinese": "zh", "english": "en", "japanese": "ja",
+        }
+        text_lang = lang_map.get(language.lower() if language else "en", "en")
+
+        # Build request params
+        params = {
+            "text": text,
+            "text_language": text_lang,
+        }
+        if ref_audio:
+            params["refer_wav_path"] = ref_audio
+            params["prompt_text"] = ref_text or ""
+            params["prompt_language"] = text_lang
+
+        speed = kw.get("speed", 1.0)
+        if speed != 1.0:
+            params["speed_factor"] = str(speed)
+
+        query = urllib.parse.urlencode(params)
+        url = f"{self._url}/?{query}"
+
+        try:
+            req = urllib.request.Request(url, method="POST")
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                audio_bytes = resp.read()
+        except Exception as e:
+            raise RuntimeError(
+                f"GPT-SoVITS API call failed: {e}. "
+                f"Ensure the server is running at {self._url}"
+            )
+
+        # Parse the WAV response
+        import io
+        import torchaudio
+        wav, sr = torchaudio.load(io.BytesIO(audio_bytes))
+        if sr != self.sample_rate:
+            wav = torchaudio.functional.resample(wav, sr, self.sample_rate)
+        if wav.ndim == 1:
+            wav = wav.unsqueeze(0)
+        elif wav.ndim == 2 and wav.shape[0] > 1:
+            wav = wav.mean(dim=0, keepdim=True)
+        return wav
+
+
+# ── Sherpa-ONNX adapter (universal ONNX runtime, WASM-ready) ───────────────
+
+
+class SherpaOnnxBackend(TTSBackend):
+    """k2-fsa/sherpa-onnx — unified C++ ONNX runtime for TTS (and ASR).
+
+    Sherpa-ONNX wraps 20+ TTS engines (VITS, MeloTTS, Piper, Kokoro, Matcha,
+    CosyVoice, etc.) under a single runtime with pre-built wheels for:
+      • Linux / Windows / macOS (x86 + ARM)
+      • Android / iOS
+      • WebAssembly (browser)
+
+    This is the bridge to browser-based OmniVoice: the same engine runs natively
+    on desktop and compiles to WASM for the web UI.
+
+    Install: pip install sherpa-onnx
+    Models: download from https://github.com/k2-fsa/sherpa-onnx/releases
+
+    Set ``OMNIVOICE_SHERPA_MODEL`` to the model directory path.
+    """
+
+    id = "sherpa-onnx"
+    display_name = "Sherpa-ONNX (20+ engines, WASM-ready, universal runtime)"
+
+    def __init__(self):
+        self._tts = None
+        self._model_dir = os.environ.get("OMNIVOICE_SHERPA_MODEL", "")
+
+    @classmethod
+    def is_available(cls) -> tuple[bool, str]:
+        try:
+            import sherpa_onnx  # noqa: F401
+            return True, "ready"
+        except ImportError as e:
+            return False, (
+                f"sherpa-onnx not installed: {e}. "
+                "Install with: pip install sherpa-onnx. "
+                "Download models from https://github.com/k2-fsa/sherpa-onnx/releases"
+            )
+
+    @property
+    def sample_rate(self) -> int:
+        if self._tts is not None:
+            return self._tts.sample_rate
+        return 22050  # VITS default
+
+    @property
+    def supported_languages(self) -> list[str]:
+        return ["multi"]  # depends on loaded model
+
+    def _ensure_loaded(self):
+        if self._tts is not None:
+            return
+        ok, msg = self.is_available()
+        if not ok:
+            raise RuntimeError(f"Sherpa-ONNX unavailable: {msg}")
+        import sherpa_onnx
+
+        if not self._model_dir:
+            raise RuntimeError(
+                "OMNIVOICE_SHERPA_MODEL not set. Point it to a sherpa-onnx "
+                "TTS model directory (containing model.onnx + tokens.txt)."
+            )
+
+        # Auto-detect model type from directory contents
+        model_onnx = os.path.join(self._model_dir, "model.onnx")
+        tokens = os.path.join(self._model_dir, "tokens.txt")
+
+        if not os.path.isfile(model_onnx):
+            raise RuntimeError(
+                f"No model.onnx found in {self._model_dir}. "
+                "Download a model from https://github.com/k2-fsa/sherpa-onnx/releases"
+            )
+
+        logger.info("Loading sherpa-onnx TTS from %s", self._model_dir)
+        tts_config = sherpa_onnx.OfflineTtsConfig(
+            model=sherpa_onnx.OfflineTtsModelConfig(
+                vits=sherpa_onnx.OfflineTtsVitsModelConfig(
+                    model=model_onnx,
+                    tokens=tokens,
+                ),
+            ),
+        )
+        self._tts = sherpa_onnx.OfflineTts(tts_config)
+
+    def generate(self, text: str, **kw) -> torch.Tensor:
+        import numpy as np
+        self._ensure_loaded()
+
+        speed = float(kw.get("speed", 1.0))
+        # sherpa-onnx speaker ID (for multi-speaker VITS models)
+        sid = int(kw.get("speaker_id", 0))
+
+        audio = self._tts.generate(text, sid=sid, speed=speed)
+        wav = np.array(audio.samples, dtype=np.float32)
+        wav = torch.from_numpy(wav).unsqueeze(0)  # (1, n_samples)
+        return wav
+
+
 # ── Registry ────────────────────────────────────────────────────────────────
 
 
@@ -674,6 +1094,9 @@ _REGISTRY: dict[str, type[TTSBackend]] = {
     "mlx-audio":     MLXAudioBackend,
     "voxcpm2":       VoxCPM2Backend,
     "moss-tts-nano": MossTTSNanoBackend,
+    "indextts2":     IndexTTS2Backend,
+    "gpt-sovits":    GPTSoVITSBackend,
+    "sherpa-onnx":   SherpaOnnxBackend,
 }
 
 
