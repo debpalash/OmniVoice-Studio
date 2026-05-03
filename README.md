@@ -115,17 +115,51 @@ That's it. Open [localhost:3901](http://localhost:3901) and start cloning voices
 
 ### Docker
 
+Pull the pre-built image from **GitHub Container Registry** — no build step needed:
+
+```bash
+docker pull ghcr.io/debpalash/omnivoice-studio:latest
+```
+
+Run it:
+
 ```bash
 # CPU mode
-docker compose up --build -d
+docker run -d --name omnivoice \
+  -p 127.0.0.1:3900:3900 \
+  -v omnivoice-data:/app/omnivoice_data \
+  ghcr.io/debpalash/omnivoice-studio:latest
 
-# Or with NVIDIA GPU
-docker compose --profile gpu up --build -d
+# NVIDIA GPU mode
+docker run -d --name omnivoice --gpus all \
+  -p 127.0.0.1:3900:3900 \
+  -v omnivoice-data:/app/omnivoice_data \
+  ghcr.io/debpalash/omnivoice-studio:latest
+```
+
+Or use **Docker Compose** with the GHCR image:
+
+```bash
+# CPU mode
+docker compose -f deploy/docker-compose.yml up -d
+
+# GPU mode
+docker compose -f deploy/docker-compose.yml --profile gpu up -d
 ```
 
 Open [http://localhost:3900](http://localhost:3900) once the health check passes. First run downloads ~4 GB of model weights — progress is shown in `docker compose logs -f`.
 
-> **Network access:** the container binds to `127.0.0.1` only. To reach OmniVoice from another machine on your LAN, change the port mapping in `docker-compose.yml` to `"0.0.0.0:3900:3900"`. OmniVoice ships no built-in authentication — when exposing it beyond your machine, put it behind a reverse proxy with auth (Caddy `basic_auth`, nginx + htpasswd, Tailscale, etc.).
+<details>
+<summary><b>Build from source instead of pulling</b></summary>
+<br/>
+
+```bash
+docker compose -f deploy/docker-compose.yml up --build -d
+```
+
+</details>
+
+> **Network access:** the container binds to `127.0.0.1` only. To reach OmniVoice from another machine on your LAN, change the port mapping to `"0.0.0.0:3900:3900"`. OmniVoice ships no built-in authentication — when exposing it beyond your machine, put it behind a reverse proxy with auth (Caddy `basic_auth`, nginx + htpasswd, Tailscale, etc.).
 
 ### Desktop App
 
