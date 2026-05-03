@@ -634,8 +634,9 @@ class CosyVoiceBackend(TTSBackend):
             # Cross-lingual: prefix text with language tag if available.
             lang_tag = ""
             if language:
-                lang_key = language[:2].lower() if len(language) > 2 else language.lower()
-                lang_tag = self.LANG_TAGS.get(lang_key, "")
+                full_lang = language.lower()
+                lang_key = full_lang[:2] if len(full_lang) > 2 else full_lang
+                lang_tag = self.LANG_TAGS.get(full_lang) or self.LANG_TAGS.get(lang_key, "")
             results = self._model.inference_cross_lingual(
                 f"{lang_tag}{text}", ref_audio, stream=False,
             )

@@ -377,7 +377,7 @@ Personal, educational, internal-team, and non-commercial use is free under <a hr
 <details>
 <summary><b>Can I add my own TTS engine?</b></summary>
 <br/>
-Yes. OmniVoice ships a <b>Plugin SDK</b> — subclass <code>TTSBackend</code> in <code>backend/services/tts_backend.py</code> to add any engine in ~50 lines. Six engines are built in: OmniVoice, CosyVoice, MLX-Audio (14+ sub-engines), VoxCPM2, MOSS-TTS-Nano, and KittenTTS. See the <a href="#tts-engines">TTS Engines</a> section for details.
+Yes. OmniVoice uses a <b>built-in backend registry</b>. To add an engine in ~50 lines, subclass <code>TTSBackend</code> in <code>backend/services/tts_backend.py</code> and add it to the <code>_REGISTRY</code> dictionary at the bottom. Six engines are built in: OmniVoice, CosyVoice, MLX-Audio (14+ sub-engines), VoxCPM2, MOSS-TTS-Nano, and KittenTTS. See the <a href="#tts-engines">TTS Engines</a> section for details.
 </details>
 
 ---
