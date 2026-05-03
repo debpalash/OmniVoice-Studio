@@ -81,3 +81,6 @@ frontend/src-tauri/binaries/ffmpeg
 # cuDNN 8 compat libs (auto-installed by scripts/setup_cudnn.py)
 cudnn8_compat/
 test-results/
+
+# Research repos (local only)
+research/

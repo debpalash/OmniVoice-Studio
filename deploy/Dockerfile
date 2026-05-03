@@ -36,8 +36,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install `uv` for blazing-fast reliable pip resolution
 RUN pip install --no-cache-dir uv
 
-# Copy python packaging specs
-COPY pyproject.toml uv.lock ./
+# Copy python packaging specs (README.md required by hatchling metadata)
+COPY pyproject.toml uv.lock README.md ./
 
 # Install the project (non-editable — no need for -e in containers).
 # Uses `uv` for exponentially faster resolution than plain pip.
