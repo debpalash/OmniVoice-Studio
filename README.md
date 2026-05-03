@@ -37,49 +37,47 @@
 
 > [!WARNING]
 > **OmniVoice Studio is in active beta.** Things may break between releases. For the latest features and fixes, clone the repo and run from source rather than using pre-built installers. Bug reports and PRs are very welcome — [open an issue](https://github.com/debpalash/OmniVoice-Studio/issues) or [join Discord](https://discord.gg/aRRdVj3de7).
->
-> **If you like what we're building, [please ⭐ star this repo](https://github.com/debpalash/OmniVoice-Studio) — it helps others discover OmniVoice and keeps us motivated!**
 
 <br/>
 
-## ✨ Highlights
+## ✨ What you get
 
 <table>
 <tr>
 <td width="50%" valign="top">
 
-### 🎙️ Voice Clone
-Drop a **3-second clip** → mirror any voice.
-646 languages, zero-shot, instant.
+### 🎙️ Clone any voice in 3 seconds
+Record a short clip — or drag in an audio file — and
+OmniVoice mirrors it across **646 languages**. No training,
+no fine-tuning, no waiting.
 
-### 🎨 Voice Design
-Build new voices from scratch — gender,
-age, accent, pitch, style, dialect.
+### 🎨 Design voices that don't exist yet
+Dial in gender, age, accent, pitch, speed, and emotion.
+Generate unlimited unique voices without paying per character.
 
-### 🌍 Video Dubbing
-Upload a video or paste a YouTube URL.
-Transcribe → translate → re-voice → export.
+### 🎬 Dub entire videos, one click
+Drop a file or paste a YouTube URL. The pipeline transcribes,
+translates, re-voices every speaker, and exports a finished MP4.
 
 </td>
 <td width="50%" valign="top">
 
-### ⌨️ Dictation Widget
-Press `⌘+⇧+Space` from **any app** — a transparent
-floating widget records, transcribes, and auto-pastes.
+### ⌨️ Dictate into any app
+Press `⌘+⇧+Space` anywhere — a transparent floating widget
+appears, transcribes your speech in real time, and pastes the
+text where your cursor is. Then it disappears.
 
-### 🔐 100% Private
-Nothing leaves your machine. No API keys,
-no cloud, no accounts. Ever.
+### 🔐 Your voice data never leaves your machine
+No API keys. No cloud. No accounts. No telemetry.
+Everything runs on your hardware — period.
 
-### ⚡ GPU-Accelerated
-Auto-detects CUDA, Apple Silicon MPS,
-ROCm, or CPU. Zero config.
+### ⚡ Works on the GPU you already have
+Auto-detects CUDA, Apple Silicon MPS, ROCm, or CPU.
+No config. ≤8 GB VRAM? TTS auto-offloads to CPU.
 
 </td>
 </tr>
 </table>
-
-> **⭐ If you find OmniVoice useful, please consider [giving it a star](https://github.com/debpalash/OmniVoice-Studio). It helps others discover the project!**
 
 ---
 
@@ -467,7 +465,12 @@ OmniVoice Studio is built on the shoulders of exceptional open-source work:
 
 <div align="center">
 
-**[⭐ Star on GitHub](https://github.com/debpalash/OmniVoice-Studio)** to follow updates.
+<br/>
+
+If you read this far, you're our kind of person.<br/>
+**[⭐ Star this repo](https://github.com/debpalash/OmniVoice-Studio)** so others can find it too.
+
+<br/>
 
   <a href="https://star-history.com/#debpalash/OmniVoice-Studio&Date">
     <picture>
