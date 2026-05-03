@@ -2,7 +2,7 @@
   <img src="docs/logo.png" alt="OmniVoice Logo" width="160" />
   <h1>OmniVoice Studio</h1>
   <p><b>The open-source ElevenLabs alternative.</b></p>
-  <p>Voice cloning · Voice design · Video dubbing — 646 languages, runs 100% locally, forever free.</p>
+  <p>Real-time dictation, zero-shot voice cloning, and cinematic video dubbing, all on your desktop. Open-source, no API keys, fully local.</p>
   <p>
     <a href="https://github.com/debpalash/OmniVoice-Studio/stargazers"><img src="https://img.shields.io/github/stars/debpalash/OmniVoice-Studio?style=flat-square&color=f59e0b" alt="Stars" /></a>
     <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/github/v/release/debpalash/OmniVoice-Studio?style=flat-square&color=10b981" alt="Release" /></a>
@@ -18,19 +18,17 @@
     <a href="#roadmap">Roadmap</a>
   </p>
   <p>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/download/v0.2.5/OmniVoice.Studio_0.2.5_aarch64.dmg"><img src="https://img.shields.io/badge/macOS-DMG_(Apple_Silicon)-000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS DMG" /></a>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/download/v0.2.5/OmniVoice.Studio_0.2.5_x64_en-US.msi"><img src="https://img.shields.io/badge/Windows-MSI_(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows MSI" /></a>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/download/v0.2.5/OmniVoice.Studio_0.2.5_amd64.AppImage"><img src="https://img.shields.io/badge/Linux-AppImage_(x64)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Download Linux AppImage" /></a>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/download/v0.2.5/OmniVoice.Studio_0.2.5_amd64.deb"><img src="https://img.shields.io/badge/Debian-.deb-A81D33?style=for-the-badge&logo=debian&logoColor=white" alt="Download Debian .deb" /></a>
+    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/download/v0.2.7/OmniVoice.Studio_0.2.7_aarch64.dmg"><img src="https://img.shields.io/badge/macOS-DMG_(Apple_Silicon)-000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS DMG" /></a>
+    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/download/v0.2.7/OmniVoice.Studio_0.2.7_x64_en-US.msi"><img src="https://img.shields.io/badge/Windows-MSI_(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows MSI" /></a>
+    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/download/v0.2.7/OmniVoice.Studio_0.2.7_amd64.AppImage"><img src="https://img.shields.io/badge/Linux-AppImage_(x64)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Download Linux AppImage" /></a>
+    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/download/v0.2.7/OmniVoice.Studio_0.2.7_amd64.deb"><img src="https://img.shields.io/badge/Debian-.deb-A81D33?style=for-the-badge&logo=debian&logoColor=white" alt="Download Debian .deb" /></a>
   </p>
 </div>
 
 <br/>
 
 <div align="center">
-  <img src="docs/preview.png" alt="OmniVoice Studio — Launchpad" width="100%"/>
-  <br/>
-  <sub>Launchpad — Voice Clone · Voice Design · Video Dubbing, all in one place.</sub>
+  <img src=".github/assets/social-preview.png" alt="OmniVoice Studio — The open-source ElevenLabs alternative" width="100%"/>
 </div>
 
 <br/>
@@ -111,7 +109,7 @@ Built on the [OmniVoice](https://github.com/k2-fsa/OmniVoice) 600-language zero-
 - **Multi-Speaker Diarization** — Pyannote + WhisperX fusion auto-identifies speakers and assigns unique voice profiles.
 
 ### Studio Tools
-- **Voice Capture** — Press `⌘+⇧+Space` **from any app** to dictate. Global system-wide hotkey records, transcribes, and auto-pastes into the active text field. Live partial results stream via WebSocket while you speak.
+- **Frameless Dictation Widget** — Press `⌘+⇧+Space` **from any app** to summon a transparent, OS-level floating widget. It records, transcribes with live partials, auto-pastes into your active text field, and auto-hides out of your way.
 - **Speaker Casting** — Visual speaker-to-voice assignment grid. Auto-cast from video clones or assign saved profiles.
 - **Voice Preview** — Floating widget for instant 8-step TTS testing. Try voices without leaving the workspace.
 - **Real-time Dub Preview** — Edit a segment's text, preview the audio instantly without full re-render.
