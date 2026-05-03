@@ -15,7 +15,7 @@
   <p>
     <a href="#quickstart">Quickstart</a> ·
     <a href="#features">Features</a> ·
-    <a href="#why-open-source">Why Open Source?</a> ·
+    <a href="#why-omnivoice-studio">Why OmniVoice Studio?</a> ·
     <a href="#tts-engines">TTS Engines</a> ·
     <a href="#contributing">Contributing</a> ·
     <a href="https://discord.gg/aRRdVj3de7">Discord</a>
@@ -207,7 +207,7 @@ chmod +x OmniVoice.Studio_*.AppImage
 
 ---
 
-## Why Open Source?
+## Why OmniVoice Studio?
 
 ElevenLabs charges **$5–$330/mo** and processes your audio on their servers. OmniVoice Studio runs **on your hardware, with no usage limits.**
 
