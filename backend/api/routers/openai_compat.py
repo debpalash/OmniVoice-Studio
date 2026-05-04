@@ -146,19 +146,19 @@ def _resolve_engine(model_id: str):
         )
 
 
-def _encode_audio(wav_tensor, sample_rate: int, fmt: str) -> tuple[bytes, str]:
-    """Encode a torch tensor to the requested audio format. Returns (bytes, mime_type)."""
+def _encode_audio(wav_tensor, sample_rate: int, fmt: str) -> tuple[bytes, str, str]:
+    """Encode a torch tensor to the requested audio format. Returns (bytes, mime_type, file_ext)."""
     import torchaudio
 
     if fmt == "wav":
         buf = io.BytesIO()
         torchaudio.save(buf, wav_tensor, sample_rate, format="wav")
-        return buf.getvalue(), "audio/wav"
+        return buf.getvalue(), "audio/wav", "wav"
 
     if fmt == "flac":
         buf = io.BytesIO()
         torchaudio.save(buf, wav_tensor, sample_rate, format="flac")
-        return buf.getvalue(), "audio/flac"
+        return buf.getvalue(), "audio/flac", "flac"
 
     if fmt == "mp3":
         # torchaudio can write mp3 if ffmpeg backend is available.
@@ -166,32 +166,32 @@ def _encode_audio(wav_tensor, sample_rate: int, fmt: str) -> tuple[bytes, str]:
         buf = io.BytesIO()
         try:
             torchaudio.save(buf, wav_tensor, sample_rate, format="mp3")
-            return buf.getvalue(), "audio/mpeg"
+            return buf.getvalue(), "audio/mpeg", "mp3"
         except Exception:
-            # ffmpeg not available — fall back to wav with mp3 mime
+            # ffmpeg not available — fall back to wav
             torchaudio.save(buf, wav_tensor, sample_rate, format="wav")
-            return buf.getvalue(), "audio/wav"
+            return buf.getvalue(), "audio/wav", "wav"
 
     if fmt == "opus":
         buf = io.BytesIO()
         try:
             torchaudio.save(buf, wav_tensor, sample_rate, format="ogg")
-            return buf.getvalue(), "audio/ogg"
+            return buf.getvalue(), "audio/ogg", "opus"
         except Exception:
             buf2 = io.BytesIO()
             torchaudio.save(buf2, wav_tensor, sample_rate, format="wav")
-            return buf2.getvalue(), "audio/wav"
+            return buf2.getvalue(), "audio/wav", "wav"
 
     if fmt == "pcm":
         # Raw 16-bit little-endian PCM, no header
         import torch
         pcm = (wav_tensor * 32767).clamp(-32768, 32767).to(torch.int16)
-        return pcm.numpy().tobytes(), "audio/pcm"
+        return pcm.numpy().tobytes(), "audio/pcm", "pcm"
 
     # AAC — not widely supported by torchaudio, fall back to wav
     buf = io.BytesIO()
     torchaudio.save(buf, wav_tensor, sample_rate, format="wav")
-    return buf.getvalue(), "audio/wav"
+    return buf.getvalue(), "audio/wav", "wav"
 
 
 def _run_tts(backend, text: str, kw: dict):
@@ -245,6 +245,9 @@ async def create_speech(req: SpeechRequest):
                     kw["ref_text"] = row["ref_text"]
                 if row["instruct"] and not req.instruct:
                     kw["instruct"] = row["instruct"]
+            else:
+                # Not a profile ID — forward as engine preset name
+                kw["voice"] = voice
         except Exception:
             # Not a profile ID — might be a KittenTTS preset or similar
             kw["voice"] = voice
@@ -256,14 +259,14 @@ async def create_speech(req: SpeechRequest):
         logger.exception("OpenAI TTS failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
-    audio_bytes, mime_type = _encode_audio(wav, sr, req.response_format)
+    audio_bytes, mime_type, ext = _encode_audio(wav, sr, req.response_format)
 
     return StreamingResponse(
         io.BytesIO(audio_bytes),
         media_type=mime_type,
         headers={
             "Content-Length": str(len(audio_bytes)),
-            "Content-Disposition": f'inline; filename="speech.{req.response_format}"',
+            "Content-Disposition": f'inline; filename="speech.{ext}"',
         },
     )
 

@@ -383,12 +383,22 @@ pub fn enable_pill_autostart() -> Result<String, String> {
     let exe = std::env::current_exe().map_err(|e| format!("Cannot find exe: {e}"))?;
     let exe_str = exe.to_string_lossy().to_string();
 
+    // Escape for plist XML: &, <, >, ", '
+    fn xml_escape(s: &str) -> String {
+        s.replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;")
+            .replace('\'', "&apos;")
+    }
+
     #[cfg(target_os = "macos")]
     {
         let plist_path = pill_autostart_path();
         if let Some(parent) = plist_path.parent() {
             let _ = fs::create_dir_all(parent);
         }
+        let safe_exe = xml_escape(&exe_str);
         let plist = format!(
 r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -398,7 +408,7 @@ r#"<?xml version="1.0" encoding="UTF-8"?>
     <string>com.debpalash.omnivoice-pill</string>
     <key>ProgramArguments</key>
     <array>
-        <string>{exe_str}</string>
+        <string>{safe_exe}</string>
         <string>--pill</string>
     </array>
     <key>RunAtLoad</key>
@@ -436,7 +446,8 @@ r#"<?xml version="1.0" encoding="UTF-8"?>
             let _ = fs::create_dir_all(parent);
         }
         let desktop = format!(
-            "[Desktop Entry]\nType=Application\nName=OmniVoice Dictation\nExec=\"{exe_str}\" --pill\nHidden=false\nNoDisplay=true\nX-GNOME-Autostart-enabled=true\n"
+            "[Desktop Entry]\nType=Application\nName=OmniVoice Dictation\nExec=\"{}\" --pill\nHidden=false\nNoDisplay=true\nX-GNOME-Autostart-enabled=true\n",
+            exe_str.replace('"', "\\\"")
         );
         fs::write(&desktop_path, desktop).map_err(|e| format!("Write desktop: {e}"))?;
         log::info!("Pill autostart enabled: {}", desktop_path.display());

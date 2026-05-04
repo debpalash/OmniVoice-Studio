@@ -262,7 +262,17 @@ pub fn run() {
                             }
                         }
                         "dictate" => {
-                            let _ = app.emit("tray-dictate", ());
+                            // Toggle: if the widget is visible (recording), stop;
+                            // otherwise start dictation.
+                            if let Some(win) = app.get_webview_window("widget") {
+                                if win.is_visible().unwrap_or(false) {
+                                    let _ = app.emit("tray-dictate-stop", ());
+                                } else {
+                                    let _ = app.emit("tray-dictate", ());
+                                }
+                            } else {
+                                let _ = app.emit("tray-dictate", ());
+                            }
                         }
                         "settings" => {
                             if let Some(win) = app.get_webview_window("main") {

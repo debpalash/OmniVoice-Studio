@@ -50,6 +50,9 @@ MARKETPLACE_DIR.mkdir(parents=True, exist_ok=True)
 # Bundle format version — increment if the schema changes
 BUNDLE_VERSION = 1
 
+# Maximum bundle upload size (100 MB) to prevent memory exhaustion
+MAX_BUNDLE_BYTES = 100 * 1024 * 1024
+
 
 # ── Export ──────────────────────────────────────────────────────────────────
 
@@ -135,12 +138,18 @@ async def import_profile(
             detail="File must be a .omnivoice bundle (ZIP format).",
         )
 
+    # Enforce upload size limit before reading
     content = await file.read()
+    if len(content) > MAX_BUNDLE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Bundle too large ({len(content)} bytes). Max is {MAX_BUNDLE_BYTES}.",
+        )
 
     try:
         zf = zipfile.ZipFile(io.BytesIO(content))
-    except zipfile.BadZipFile:
-        raise HTTPException(status_code=400, detail="Invalid .omnivoice bundle (not a valid ZIP).")
+    except zipfile.BadZipFile as exc:
+        raise HTTPException(status_code=400, detail="Invalid .omnivoice bundle (not a valid ZIP).") from exc
 
     # Read metadata
     if "metadata.json" not in zf.namelist():
@@ -149,10 +158,11 @@ async def import_profile(
             detail="Invalid .omnivoice bundle: missing metadata.json",
         )
 
-    metadata = json.loads(zf.read("metadata.json"))
+    with zf.open("metadata.json") as mf:
+        metadata = json.load(mf)
     profile_id = str(uuid.uuid4())[:8]
 
-    # Extract audio files
+    # Extract audio files — stream from zip to disk
     ref_audio_filename = None
     locked_audio_filename = None
 
@@ -161,15 +171,15 @@ async def import_profile(
             ext = os.path.splitext(name)[1] or ".wav"
             ref_audio_filename = f"{profile_id}{ext}"
             ref_path = os.path.join(VOICES_DIR, ref_audio_filename)
-            with open(ref_path, "wb") as f:
-                f.write(zf.read(name))
+            with zf.open(name) as src, open(ref_path, "wb") as dst:
+                shutil.copyfileobj(src, dst)
 
         elif name.startswith("locked_audio"):
             ext = os.path.splitext(name)[1] or ".wav"
             locked_audio_filename = f"{profile_id}_locked{ext}"
             locked_path = os.path.join(VOICES_DIR, locked_audio_filename)
-            with open(locked_path, "wb") as f:
-                f.write(zf.read(name))
+            with zf.open(name) as src, open(locked_path, "wb") as dst:
+                shutil.copyfileobj(src, dst)
 
     if not ref_audio_filename:
         raise HTTPException(
@@ -345,13 +355,14 @@ async def install_from_marketplace(filename: str):
 
     try:
         zf = zipfile.ZipFile(io.BytesIO(content))
-    except zipfile.BadZipFile:
-        raise HTTPException(status_code=400, detail="Invalid .omnivoice bundle.")
+    except zipfile.BadZipFile as exc:
+        raise HTTPException(status_code=400, detail="Invalid .omnivoice bundle.") from exc
 
     if "metadata.json" not in zf.namelist():
         raise HTTPException(status_code=400, detail="Invalid bundle: missing metadata.json")
 
-    metadata = json.loads(zf.read("metadata.json"))
+    with zf.open("metadata.json") as mf:
+        metadata = json.load(mf)
     profile_id = str(uuid.uuid4())[:8]
 
     ref_audio_filename = None
@@ -361,13 +372,13 @@ async def install_from_marketplace(filename: str):
         if name.startswith("ref_audio"):
             ext = os.path.splitext(name)[1] or ".wav"
             ref_audio_filename = f"{profile_id}{ext}"
-            with open(os.path.join(VOICES_DIR, ref_audio_filename), "wb") as f:
-                f.write(zf.read(name))
+            with zf.open(name) as src, open(os.path.join(VOICES_DIR, ref_audio_filename), "wb") as dst:
+                shutil.copyfileobj(src, dst)
         elif name.startswith("locked_audio"):
             ext = os.path.splitext(name)[1] or ".wav"
             locked_audio_filename = f"{profile_id}_locked{ext}"
-            with open(os.path.join(VOICES_DIR, locked_audio_filename), "wb") as f:
-                f.write(zf.read(name))
+            with zf.open(name) as src, open(os.path.join(VOICES_DIR, locked_audio_filename), "wb") as dst:
+                shutil.copyfileobj(src, dst)
 
     if not ref_audio_filename:
         raise HTTPException(status_code=400, detail="No reference audio in bundle.")

@@ -143,18 +143,10 @@ async def ws_tts(websocket: WebSocket):
                                 kw["ref_text"] = row["ref_text"]
                             if row["instruct"] and not data.get("instruct"):
                                 kw["instruct"] = row["instruct"]
+                        else:
+                            kw["voice"] = voice
                     except Exception:
                         kw["voice"] = voice
-
-                # Send metadata before audio starts
-                sr = backend.sample_rate
-                await websocket.send_json({
-                    "type": "start",
-                    "sample_rate": sr,
-                    "channels": 1,
-                    "format": "pcm16",
-                    "engine": backend.id,
-                })
 
                 # Run generation in the GPU pool
                 from services.model_manager import _gpu_pool
@@ -164,11 +156,21 @@ async def ws_tts(websocket: WebSocket):
                     import torch
                     from services.audio_dsp import apply_mastering, normalize_audio
                     wav = backend.generate(text, **kw)
-                    wav = apply_mastering(wav, sample_rate=sr)
+                    sr_actual = backend.sample_rate
+                    wav = apply_mastering(wav, sample_rate=sr_actual)
                     wav = normalize_audio(wav, target_dBFS=-2.0)
-                    return wav
+                    return wav, sr_actual
 
-                wav_tensor = await loop.run_in_executor(_gpu_pool, _generate)
+                wav_tensor, sr = await loop.run_in_executor(_gpu_pool, _generate)
+
+                # Send metadata after generation so sample_rate is real
+                await websocket.send_json({
+                    "type": "start",
+                    "sample_rate": sr,
+                    "channels": 1,
+                    "format": "pcm16",
+                    "engine": backend.id,
+                })
 
                 # Stream PCM16 chunks over the WebSocket
                 import torch
