@@ -1,7 +1,6 @@
 """HuggingFace download progress — one monkey-patch, every `hf_hub_download`
 reports bytes downloaded through a central callback.
 
-Pattern lifted from jamiepine/voicebox's `backend/utils/hf_progress.py`:
 `huggingface_hub` uses tqdm for progress bars; we subclass it, intercept
 `update()` calls, and forward (filename, downloaded_bytes, total_bytes) to
 whatever callback is registered. No changes to calling sites across

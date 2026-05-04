@@ -44,6 +44,8 @@ ureq = "2"
 sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 # hf_cache_scan: walk HF cache directory 3-5× faster than Python
 walkdir = "2"
+# Cross-platform home/config directories for pill autostart registration
+dirs-next = "2"
 
 [target.'cfg(windows)'.dependencies]
 zip = { version = "2", default-features = false, features = ["deflate"] }

@@ -6,9 +6,9 @@ import './FloatingPill.css';
 /**
  * FloatingPill — always-on-top status indicator for long-running operations.
  *
- * Inspired by VoiceBox 0.5.0's CapturePill. Walks through a state machine
- * (loading-model → transcribing → translating → generating → done) with a
- * live elapsed timer, mini progress bar, and dismiss button.
+ * Walks through a state machine (loading-model → transcribing → translating
+ * → generating → done) with a live elapsed timer, mini progress bar, and
+ * dismiss button.
  *
  * Reads entirely from the pillSlice in the Zustand store — any part of the
  * app can trigger it via `useAppStore.getState().showPill(...)`.

@@ -2,11 +2,11 @@
 
 A shippable macOS (and eventually cross-platform) desktop release where the user drags the `.app` to `Applications`, double-clicks once, and does **everything else from the UI** — dependency runtime, model weights, first-run consent, all inside the app.
 
-Reference implementation: **[jamiepine/voicebox](https://github.com/jamiepine/voicebox)** — same stack (Tauri v2 + FastAPI sidecar + PyInstaller), same target. They ship `Voicebox_0.4.4_aarch64.dmg` at 482 MB signed + notarized, plus matching Windows `.msi`/`.nsis`, Linux nothing but an `x64.app.tar.gz`, and a separate lazy-download CUDA tarball for NVIDIA hosts. This plan is a translation of their approach to our stack.
+Stack: Tauri v2 + FastAPI sidecar + PyInstaller. Target: ~500 MB signed + notarized arm64 DMG, with matching Windows `.msi`/`.nsis` later. Large optional payloads (CUDA libs, extra model packs) ship as separate lazy-download tarballs, not in the base DMG.
 
 ---
 
-## Target architecture (mirrors voicebox)
+## Target architecture
 
 | Layer | Contents | Ships in DMG? |
 |---|---|---|
@@ -17,16 +17,16 @@ Reference implementation: **[jamiepine/voicebox](https://github.com/jamiepine/vo
 | Model weights (OmniVoice TTS, MLX Whisper) | `~/Library/Application Support/OmniVoice/models/` | **No — first-run download** |
 | Optional engine packs (VoxCPM2 CUDA, pyannote, MOSS-TTS) | Separate `.tar.gz` via GitHub Releases manifest | **No — first-run download if user opts in** |
 
-Target DMG size: **~500 MB** (matches voicebox's 482 MB arm64 DMG).
+Target DMG size: **~500 MB**.
 First-run model download: **~5 GB** one-time.
 
 ---
 
-## Four techniques to steal from voicebox
+## Four key techniques
 
 ### 1. Sidecar port-reuse dance (dev ergonomics + crash recovery)
 
-Tauri's startup flow — adapted from `voicebox/tauri/src-tauri/src/main.rs`:
+Tauri's startup flow:
 
 1. Check if `127.0.0.1:17493/health` responds.
 2. If yes, verify JSON shape: `status == "healthy"`, `model_loaded: bool`, `gpu_available: bool`. If valid, **attach** to the existing process instead of spawning.
@@ -40,7 +40,7 @@ Tauri's startup flow — adapted from `voicebox/tauri/src-tauri/src/main.rs`:
 
 ### 2. tqdm → SSE progress for HuggingFace downloads
 
-Voicebox's `backend/utils/hf_progress.py` is ~80 lines:
+Our `backend/utils/hf_progress.py` is ~80 lines:
 
 ```python
 from huggingface_hub.utils import _tqdm as hf_tqdm_module
@@ -65,7 +65,7 @@ Pipe callbacks to a new `/setup/download/stream` SSE endpoint. React subscribes 
 
 ### 3. Two-tier binary: small base DMG + lazy optional payloads
 
-Voicebox excludes every `nvidia.*` wheel from the Apple Silicon build (saves ~2 GB) and ships CUDA libs in a separate `cuda-libs-cu128-v1.tar.gz` (1.97 GB), referenced by `cuda-libs.json` on the release.
+We exclude every `nvidia.*` wheel from the Apple Silicon build (saves ~2 GB) and ship CUDA libs in a separate `cuda-libs-cu128-v1.tar.gz` (~2 GB), referenced by `cuda-libs.json` on the release.
 
 For us:
 - **Base DMG ships MPS + MLX path only.** Excludes `nvidia.*`, `triton`, `flash-attn`, anything CUDA-specific in the spec.
@@ -73,7 +73,7 @@ For us:
 - **Optional pack: pyannote** (HF-token gated). Default off. Settings → Speaker diarisation → "Enable" prompts for HF token, downloads + installs.
 - **Optional pack: MOSS-TTS-Nano.** Same pattern.
 
-Manifest format copied from voicebox's `cuda-libs.json`:
+Manifest format for `cuda-libs.json`:
 ```json
 {
   "url": "https://github.com/.../releases/download/v0.1.0/voxcpm2-cu128-v1.tar.gz",
@@ -87,7 +87,7 @@ Manifest format copied from voicebox's `cuda-libs.json`:
 
 Starting point: our existing `backend.spec` (already rewritten this session).
 
-Two runtime hooks we should add, copied from voicebox:
+Two runtime hooks we need:
 
 - **`pyi_rth_numpy_compat.py`** — fixes a numpy compat shim that PyInstaller misses.
 - **`pyi_rth_torch_compiler_disable.py`** — disables `torch.compile` code paths that break under frozen imports.
@@ -119,7 +119,7 @@ Each phase produces a testable artifact. Don't proceed to the next phase until t
 
 **Deliverable:** `dist/omnivoice-backend/omnivoice-backend` runs standalone + serves the full API.
 
-1. Drop voicebox's two runtime hooks into `backend/hooks/`.
+1. Add two runtime hooks to `backend/hooks/`.
 2. Update `backend.spec` with the exclude list + the runtime hook paths.
 3. Run `uv run pyinstaller backend.spec --noconfirm --clean`.
 4. Iterate on hidden-imports until `./dist/omnivoice-backend/omnivoice-backend` starts cleanly and `/system/info` returns 200.
@@ -146,7 +146,7 @@ Each phase produces a testable artifact. Don't proceed to the next phase until t
 
 **Deliverable:** fresh app on a machine with no cached HF models walks user through download with live progress.
 
-1. Port voicebox's `hf_progress.py` — ~80 LOC.
+1. Implement `hf_progress.py` — ~80 LOC.
 2. New `backend/api/routers/setup.py`:
    - `GET /setup/status` → `{ models_ready: bool, missing: [...], disk_free_gb: number }`.
    - `GET /setup/download/stream` → SSE: `{ type: "progress", file, bytes, total, pct }` then `{ type: "done" }`.
@@ -178,16 +178,16 @@ Each phase produces a testable artifact. Don't proceed to the next phase until t
 Requires:
 - Apple Developer ID (~$99/yr).
 - Code-signing cert, App Store Connect API key.
-- GitHub Actions workflow mirroring voicebox's `.github/workflows/release.yml`:
+- GitHub Actions workflow (`.github/workflows/release.yml`):
   - `apple-actions/import-codesign-certs@v3`
   - `tauri-apps/tauri-action@v0.6` with `APPLE_SIGNING_IDENTITY` + `APPLE_API_KEY` + `APPLE_API_ISSUER` + `APPLE_PROVIDER_SHORT_NAME`
-  - **Explicit DMG re-notarize step** — voicebox's workflow comment notes macOS 15 Sequoia rejects DMGs that wrap a signed `.app` but aren't themselves notarized. Run `xcrun notarytool submit --wait` + `xcrun stapler staple` on the DMG, re-upload as release asset.
+  - **Explicit DMG re-notarize step** — macOS 15 Sequoia rejects DMGs that wrap a signed `.app` but aren't themselves notarized. Run `xcrun notarytool submit --wait` + `xcrun stapler staple` on the DMG, re-upload as release asset.
 
 ---
 
 ## Cross-platform extension (future)
 
-Voicebox ships macOS arm64 + macOS x64 + Windows x64 (`.msi`, `.nsis`, `.exe`). Not Linux.
+Targets: macOS arm64 + macOS x64 + Windows x64 (`.msi`, `.nsis`, `.exe`). Linux is best-effort.
 
 We can mirror this by extending the CI matrix once Phases A–D are green:
 
@@ -195,8 +195,8 @@ We can mirror this by extending the CI matrix once Phases A–D are green:
 |---|---|---|---|
 | macOS Apple Silicon | `macos-14` (ARM) | `backend.spec` (MPS/MLX) | Our primary |
 | macOS Intel | `macos-13` | `backend.spec` (MPS/x64 torch) | MLX absent — falls back to CPU Whisper |
-| Windows x64 (NVIDIA) | `windows-2022` | `backend.spec` + `--bootloader` + CUDA | Requires second CUDA tarball like voicebox's `cuda-libs-cu128-v1.tar.gz` |
-| Linux x64 | `ubuntu-22.04` | `backend.spec` | Untested in voicebox — treat as best-effort |
+| Windows x64 (NVIDIA) | `windows-2022` | `backend.spec` + `--bootloader` + CUDA | Requires second CUDA tarball (`cuda-libs-cu128-v1.tar.gz`) |
+| Linux x64 | `ubuntu-22.04` | `backend.spec` | Best-effort — untested |
 
 Each platform's first build will take the longest (PyInstaller hidden-import tuning is per-OS). Subsequent builds reuse the spec.
 
@@ -210,8 +210,8 @@ For our current goal (friend on the same M2 air), **stop at Phase D**. Cross-pla
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
-| PyInstaller can't bundle torch Metal libs | Medium | Voicebox proved it works → copy their `collect_all(...)` calls verbatim. Fallback: portable `.venv` approach |
-| `torch.compile` breaks under frozen imports | Certain | Copy `pyi_rth_torch_compiler_disable.py` runtime hook from voicebox |
+| PyInstaller can't bundle torch Metal libs | Medium | Use `collect_all(...)` calls for torch + MLX. Fallback: portable `.venv` approach |
+| `torch.compile` breaks under frozen imports | Certain | `pyi_rth_torch_compiler_disable.py` runtime hook |
 | DMG size >800 MB | Medium | Keep nvidia/triton/matplotlib out of the spec; defer optional packs to lazy download |
 | First-run download fails halfway | Medium | SSE retry + resumable `hf_hub_download` (supported natively). Show disk-space check upfront |
 | Gatekeeper blocks unsigned app | Certain | Document right-click → Open as the one-time step. Long-term: buy Apple Developer ID |
@@ -229,19 +229,15 @@ For our current goal (friend on the same M2 air), **stop at Phase D**. Cross-pla
 
 ---
 
-## Reference files to read in jamiepine/voicebox
+## Key implementation files
 
-Before starting Phase A, pull these from voicebox's repo for direct copy/adapt:
-
-- `backend/voicebox-server.spec` — PyInstaller spec
-- `backend/build_binary.py` — binary build + platform suffix
-- `backend/utils/hf_progress.py` — tqdm monkey-patch
+- `backend.spec` — PyInstaller spec
+- `backend/utils/hf_progress.py` — tqdm monkey-patch for download progress
 - `backend/hooks/pyi_rth_numpy_compat.py` — numpy runtime hook
 - `backend/hooks/pyi_rth_torch_compiler_disable.py` — torch.compile disable
-- `tauri/src-tauri/src/main.rs` — sidecar spawn + port-reuse
-- `tauri/src-tauri/tauri.conf.json` — bundle + updater config
-- `scripts/build-server.sh` — CI build entry
-- `scripts/package_cuda.py` — out-of-band CUDA tarball builder
+- `frontend/src-tauri/src/lib.rs` — sidecar spawn + port-reuse
+- `frontend/src-tauri/tauri.conf.json` — bundle + updater config
+- `scripts/build_desktop.sh` — build entry
 - `.github/workflows/release.yml` — full release pipeline (signing, notarization, DMG re-notarize)
 
 ---
@@ -262,8 +258,8 @@ Before starting Phase A, pull these from voicebox's repo for direct copy/adapt:
 
 | Phase | Hours | Confidence |
 |---|---|---|
-| A — frozen backend | 3–5 | High (voicebox proved it) |
-| B — Tauri sidecar + port-reuse | 2 | High (their Rust is readable) |
+| A — frozen backend | 3–5 | High |
+| B — Tauri sidecar + port-reuse | 2 | High |
 | C — first-run wizard + hf progress | 3–4 | High (80 LOC + UI) |
 | D — DMG + clean-machine test | 2–3 | Medium (Gatekeeper dance) |
 | **Total (macOS arm64 only)** | **10–14** | **Phaseable over 2–3 sessions** |

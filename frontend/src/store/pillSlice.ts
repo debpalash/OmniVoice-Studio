@@ -6,8 +6,8 @@
  * the app can push a pill state (e.g. ASR model loading, dubbing progress,
  * export encoding) and the pill renders it with an elapsed timer.
  *
- * Design inspiration: VoiceBox 0.5.0 CapturePill — a floating on-screen
- * indicator that walks through a state machine with a live timer.
+ * A floating on-screen indicator that walks through a state machine
+ * (loading-model → recording → transcribing → done) with a live timer.
  */
 import type { StateCreator } from 'zustand';
 

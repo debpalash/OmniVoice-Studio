@@ -4,7 +4,7 @@ import { usePreflight, useModelStatus } from '../api/hooks';
 import './ReadinessChecklist.css';
 
 /**
- * ReadinessChecklist — VoiceBox-style system readiness panel.
+ * ReadinessChecklist — system readiness panel.
  *
  * Consumes the existing /setup/preflight endpoint (OS, RAM, GPU, ffmpeg,
  * yt-dlp, network) plus /model/status, and renders a compact pass/warn/fail

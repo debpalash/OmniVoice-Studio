@@ -3,7 +3,7 @@
 Working doc for the desktop release effort. Every box maps to a concrete
 deliverable; mark `[x]` when verified end-to-end on a fresh environment,
 not just "code compiles." See `docs/DESKTOP_RELEASE.md` for the full
-engineering plan + `voicebox` comparison that grounds these milestones.
+engineering plan that grounds these milestones.
 
 **Primary target:** macOS Apple Silicon (arm64), unsigned.
 **Stretch targets:** macOS Intel, Windows x64, Linux — parked in CI matrix
@@ -23,13 +23,13 @@ until the arm64 path is green end-to-end.
 | First-run wizard endpoints | `backend/api/routers/setup.py` |
 | First-run wizard UI | `frontend/src/pages/SetupWizard.jsx` (TBD) |
 | CI release matrix | `.github/workflows/release.yml` |
-| Reference implementation | [jamiepine/voicebox](https://github.com/jamiepine/voicebox) |
+| Reference implementation | — |
 
 ---
 
 ## Phase A — Frozen backend binary (✅ 2026-04-21)
 
-- [x] Port voicebox runtime hooks into `backend/hooks/`
+- [x] Add runtime hooks to `backend/hooks/`
   - [x] `pyi_rth_numpy_compat.py` — pre-imports numpy to prime the C ext
   - [x] `pyi_rth_torch_compiler_disable.py` — disables dynamo/inductor via env
 - [x] Wire hooks into `backend.spec` via `runtime_hooks=[...]`
@@ -86,10 +86,10 @@ curl -s http://127.0.0.1:8000/engines              # ✓ omnivoice/voxcpm2/moss-
 ### DMG packaging failure to investigate
 
 Tauri's `bundle_dmg.sh` runs `hdiutil` to convert the intermediate RW DMG → compressed read-only DMG. On our 1.7 GB payload this failed silently; next session's task is to run the shell script manually and capture stderr. Possible fixes in priority order:
-1. Shrink the backend bundle (Phase A.1 — we're 1.1 GB, voicebox is 482 MB; 500 MB target cuts DMG pipeline latency and works around many hdiutil edge cases).
+1. Shrink the backend bundle (Phase A.1 — we're 1.1 GB, target is ~500 MB; cuts DMG pipeline latency and works around many hdiutil edge cases).
 2. Pass `hdiutilArgs` in `tauri.conf.json` → `["-format", "UDZO", "-imagekey", "zlib-level=1"]` — cheaper compression, faster, fewer hdiutil quirks.
 3. If hdiutil errors with disk space: `TMPDIR=/Volumes/other bunx tauri build` to route the scratch volume elsewhere.
-4. Last resort: build `.app.tar.gz` with `create-dmg` externally (voicebox pattern).
+4. Last resort: build `.app.tar.gz` with `create-dmg` externally.
 
 **Verification target:**
 ```bash
@@ -160,7 +160,7 @@ ls -lh frontend/src-tauri/target/release/bundle/dmg/*.dmg
 - [ ] Generate signing cert + App Store Connect API key
 - [ ] Store secrets in GitHub: `APPLE_SIGNING_IDENTITY`, `APPLE_API_KEY`, `APPLE_API_ISSUER`, `APPLE_PROVIDER_SHORT_NAME`
 - [ ] Enable signing in `tauri-apps/tauri-action@v0.6` step
-- [ ] **Post-build DMG re-notarize step** (voicebox's workaround for Sequoia):
+- [ ] **Post-build DMG re-notarize step** (workaround for Sequoia):
   - [ ] `xcrun notarytool submit "$DMG" --wait --apple-id "$APPLE_ID" --password "$APP_SPECIFIC_PASSWORD"`
   - [ ] `xcrun stapler staple "$DMG"`
   - [ ] Re-upload stapled DMG as release asset
@@ -188,7 +188,7 @@ One session per platform. Ordered by payoff:
 
 - [ ] **macOS Intel (`macos-13`)** — easiest; same cert, different PyInstaller wheel set
 - [ ] **Windows x64 CPU (`windows-2022`)** — `mlx_whisper` absent, fall back to PyTorch Whisper. Needs Windows code-signing cert (~$100–300/yr)
-- [ ] **Windows x64 CUDA** — follow voicebox `scripts/package_cuda.py` pattern, ship as lazy-download pack
+- [ ] **Windows x64 CUDA** — follow `scripts/package_cuda.py` pattern, ship as lazy-download pack
 - [ ] **Linux x64 AppImage** — `appimagetool` builds; unsigned is acceptable on Linux
 
 ---
@@ -197,7 +197,7 @@ One session per platform. Ordered by payoff:
 
 | # | Risk | Mitigation | Status |
 |---|---|---|---|
-| 1 | PyInstaller can't bundle torch Metal libs | Copy voicebox `collect_all()` calls; fallback: portable-venv inside `.app/Contents/Resources/` | Untested |
+| 1 | PyInstaller can't bundle torch Metal libs | Use `collect_all()` calls; fallback: portable-venv inside `.app/Contents/Resources/` | Untested |
 | 2 | `torch.compile` breaks under frozen imports | Port `pyi_rth_torch_compiler_disable.py` hook | Pending |
 | 3 | First-run model download fails halfway | SSE retry + resumable `hf_hub_download` (native) | Partial — frontend UI TBD |
 | 4 | User has <10 GB free disk | `/setup/status` refuses download; shows error | ✅ Implemented |

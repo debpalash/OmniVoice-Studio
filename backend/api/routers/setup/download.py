@@ -23,6 +23,10 @@ from .models import KNOWN_MODELS, invalidate_cache
 logger = logging.getLogger("omnivoice.setup.download")
 router = APIRouter()
 
+# Cooldown: prevent rapid re-install after a failure. Maps repo_id → last_fail_time.
+_install_cooldowns: dict[str, float] = {}
+_COOLDOWN_SECS = 60.0
+
 
 # ── SSE Download Stream ───────────────────────────────────────────────────
 
@@ -92,6 +96,18 @@ async def install_model(req: InstallModelRequest):
                 + ", ".join(m["repo_id"] for m in KNOWN_MODELS)
             ),
         )
+    # Cooldown guard — don't retry if the same model just failed.
+    import time as _time_check
+    last_fail = _install_cooldowns.get(req.repo_id)
+    if last_fail and (_time_check.time() - last_fail) < _COOLDOWN_SECS:
+        remaining = int(_COOLDOWN_SECS - (_time_check.time() - last_fail))
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"Model {req.repo_id!r} install failed recently. "
+                f"Retry in {remaining}s or check your network."
+            ),
+        )
     loop = asyncio.get_event_loop()
 
     def _do():
@@ -148,7 +164,7 @@ async def install_model(req: InstallModelRequest):
                     if _attempt >= _max_attempts:
                         raise
                     _backoff = min(30, 2 ** _attempt)
-                    logger.warning(
+                    logger.info(
                         "model install %s: attempt %d/%d failed (%s); retry in %ds",
                         req.repo_id, _attempt, _max_attempts, net_err, _backoff,
                     )
@@ -173,7 +189,9 @@ async def install_model(req: InstallModelRequest):
             invalidate_cache()
         except Exception as e:
             _resolving.set()
-            logger.warning("model install failed for %s: %s", req.repo_id, e)
+            logger.info("model install failed for %s: %s", req.repo_id, e)
+            import time as _time_fail
+            _install_cooldowns[req.repo_id] = _time_fail.time()
             hf_progress.emit({
                 "repo_id": req.repo_id,
                 "filename": req.repo_id,

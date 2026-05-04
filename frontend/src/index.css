@@ -256,11 +256,11 @@ samp,
 
 /* ≤1100: auto-collapse sidebar, keep nav + main */
 @media (max-width: 1100px) {
-  .app-container { grid-template-columns: 48px minmax(0, 1fr); }
-  .app-container > .history-panel { display: none; }
-  .app-container > .main-content { grid-column: 2; }
-  .app-container.rail-right { grid-template-columns: minmax(0, 1fr) 48px; }
-  .app-container.rail-right > .main-content { grid-column: 1; }
+  .app-container { grid-template-columns: 48px minmax(0, 1fr) !important; }
+  .app-container > .history-panel { display: none !important; }
+  .app-container > .main-content { grid-column: 2 !important; }
+  .app-container.rail-right { grid-template-columns: minmax(0, 1fr) 48px !important; }
+  .app-container.rail-right > .main-content { grid-column: 1 !important; }
 }
 
 /* ≤600: hide nav rail too, full-width main */
@@ -2344,36 +2344,17 @@ div[role="dialog"].audio-trimmer {
   select.input-base { font-size: 0.7rem; }
 }
 
-/* ═══ CAPTURE / DICTATION OVERLAY ═══ */
-/* Triggered by ⌘+Shift+Space — centers the CaptureWidget as a modal overlay
-   in the main app window (browser/webui mode). In Tauri desktop mode this
-   doubles as a fallback when the separate widget window isn't available. */
-.capture-overlay {
+/* ═══ CAPTURE / DICTATION PILL HOST ═══ */
+/* Positions the CaptureWidget pill at top-center of the main window.
+   Non-blocking — no dark backdrop, no modal trap. */
+.capture-pill-host {
   position: fixed;
-  inset: 0;
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  animation: capture-ov-fade 0.2s ease-out;
+  pointer-events: none;
 }
-@keyframes capture-ov-fade {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+.capture-pill-host > * {
+  pointer-events: auto;
 }
-.capture-overlay__panel {
-  width: min(380px, 90vw);
-  max-height: 80vh;
-  overflow: hidden;
-  border-radius: 20px;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.06);
-  animation: capture-ov-panel 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-@keyframes capture-ov-panel {
-  from { opacity: 0; transform: translateY(20px) scale(0.92); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-

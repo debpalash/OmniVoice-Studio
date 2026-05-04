@@ -354,3 +354,149 @@ pub fn set_dictation_shortcut(
     log::info!("Dictation shortcut updated to {accelerator}");
     Ok(accelerator)
 }
+
+// ── Pill autostart ────────────────────────────────────────────────────────
+
+/// Returns the path used for autostart registration on each platform.
+fn pill_autostart_path() -> PathBuf {
+    #[cfg(target_os = "macos")]
+    {
+        dirs_next::home_dir()
+            .unwrap_or_default()
+            .join("Library/LaunchAgents/com.debpalash.omnivoice-pill.plist")
+    }
+    #[cfg(target_os = "linux")]
+    {
+        dirs_next::config_dir()
+            .unwrap_or_else(|| PathBuf::from("~/.config"))
+            .join("autostart/omnivoice-pill.desktop")
+    }
+    #[cfg(target_os = "windows")]
+    {
+        // We use the registry, but return a sentinel path for the check.
+        PathBuf::from("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\OmniVoicePill")
+    }
+}
+
+#[tauri::command]
+pub fn enable_pill_autostart() -> Result<String, String> {
+    let exe = std::env::current_exe().map_err(|e| format!("Cannot find exe: {e}"))?;
+    let exe_str = exe.to_string_lossy().to_string();
+
+    #[cfg(target_os = "macos")]
+    {
+        let plist_path = pill_autostart_path();
+        if let Some(parent) = plist_path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        let plist = format!(
+r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.debpalash.omnivoice-pill</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{exe_str}</string>
+        <string>--pill</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <false/>
+</dict>
+</plist>
+"#);
+        fs::write(&plist_path, plist).map_err(|e| format!("Write plist: {e}"))?;
+        log::info!("Pill autostart enabled: {}", plist_path.display());
+        return Ok(plist_path.to_string_lossy().to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        let value = format!("\"{}\" --pill", exe_str);
+        let status = Command::new("reg")
+            .args(["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                   "/v", "OmniVoicePill", "/t", "REG_SZ", "/d", &value, "/f"])
+            .status()
+            .map_err(|e| format!("reg add: {e}"))?;
+        if !status.success() {
+            return Err("Failed to add registry key".into());
+        }
+        log::info!("Pill autostart enabled via registry");
+        return Ok("registry".into());
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let desktop_path = pill_autostart_path();
+        if let Some(parent) = desktop_path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        let desktop = format!(
+            "[Desktop Entry]\nType=Application\nName=OmniVoice Dictation\nExec=\"{exe_str}\" --pill\nHidden=false\nNoDisplay=true\nX-GNOME-Autostart-enabled=true\n"
+        );
+        fs::write(&desktop_path, desktop).map_err(|e| format!("Write desktop: {e}"))?;
+        log::info!("Pill autostart enabled: {}", desktop_path.display());
+        return Ok(desktop_path.to_string_lossy().to_string());
+    }
+}
+
+#[tauri::command]
+pub fn disable_pill_autostart() -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let path = pill_autostart_path();
+        if path.exists() {
+            fs::remove_file(&path).map_err(|e| format!("Remove plist: {e}"))?;
+        }
+        log::info!("Pill autostart disabled");
+        return Ok(());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        let _ = Command::new("reg")
+            .args(["delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                   "/v", "OmniVoicePill", "/f"])
+            .status();
+        log::info!("Pill autostart disabled via registry");
+        return Ok(());
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let path = pill_autostart_path();
+        if path.exists() {
+            fs::remove_file(&path).map_err(|e| format!("Remove desktop: {e}"))?;
+        }
+        log::info!("Pill autostart disabled");
+        return Ok(());
+    }
+}
+
+#[tauri::command]
+pub fn is_pill_autostart_enabled() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        return pill_autostart_path().exists();
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        let out = Command::new("reg")
+            .args(["query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                   "/v", "OmniVoicePill"])
+            .output();
+        return out.map(|o| o.status.success()).unwrap_or(false);
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        return pill_autostart_path().exists();
+    }
+}

@@ -90,7 +90,6 @@ OmniVoice/
 │   ├── LEARNINGS.md             competitive analysis, what to absorb
 │   ├── TheWhisper/              vendored reference (read-only)
 │   ├── voice-pro/               vendored reference
-│   ├── voicebox/                vendored reference
 │   └── legacy_gradio/           archived Gradio UI (pre-React rewrite)
 │
 ├── examples/                    ⟵ runnable demos + sample inputs

@@ -1,319 +1,192 @@
-/* ── CaptureButton — Global dictation FAB ─────────────────────────────── */
+/* ── Capture Pill ────────────────────────────────────────────────────────
+   Floating dictation indicator.
+   Slim horizontal pill: dot | label | timer | dismiss
+   ──────────────────────────────────────────────────────────────────────── */
 
-.capture-widget {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 10px;
-  box-sizing: border-box;
-}
-
-.capture-widget > * {
-  pointer-events: auto;
-}
-
-/* ── FAB button ───────────────────────────────────────────────────────── */
-
-.capture-fab {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #f3a5b6, #d3869b);
-  color: #1d2021;
-  box-shadow: 0 4px 20px rgba(243, 165, 182, 0.35);
-  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.capture-fab:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 28px rgba(243, 165, 182, 0.45);
-}
-
-.capture-fab:active {
-  transform: scale(0.95);
-}
-
-.capture-fab--recording {
-  background: linear-gradient(135deg, #fb4934, #cc241d);
-  color: #fbf1c7;
-  animation: capture-pulse 1.5s ease-in-out infinite;
-  box-shadow: 0 4px 24px rgba(251, 73, 52, 0.4);
-}
-
-.capture-fab--busy {
-  opacity: 0.7;
-  cursor: wait;
-}
-
-@keyframes capture-pulse {
-  0%, 100% { box-shadow: 0 4px 24px rgba(251, 73, 52, 0.3); }
-  50%      { box-shadow: 0 4px 36px rgba(251, 73, 52, 0.6); }
-}
-
-/* ── Expanded panel ───────────────────────────────────────────────────── */
-
-.capture-panel {
-  background: color-mix(in srgb, var(--chrome-bg, #282828) 92%, transparent);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
-  border: 1px solid color-mix(in srgb, var(--chrome-border, #3c3836) 60%, transparent);
-  border-radius: 16px;
-  padding: 14px 16px;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
-  animation: capture-slide-up 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@keyframes capture-slide-up {
-  from { opacity: 0; transform: translateY(12px) scale(0.95); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.capture-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.capture-panel__title {
-  font-size: var(--text-sm, 13px);
-  font-weight: 600;
-  color: var(--chrome-fg, #ebdbb2);
-}
-
-.capture-panel__close {
-  background: none;
-  border: none;
-  color: var(--chrome-fg-muted, #a89984);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.15s, background 0.15s;
-}
-
-.capture-panel__close:hover {
-  color: var(--chrome-fg, #ebdbb2);
-  background: color-mix(in srgb, var(--chrome-fg, #ebdbb2) 8%, transparent);
-}
-
-/* Recording visualization */
-.capture-panel__recording {
+.capture-pill {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 0;
+  padding: 10px 16px;
+  min-width: 180px;
+  max-width: 280px;
+  height: 48px;
+
+  background: rgba(18, 18, 22, 0.88);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 100px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  font-family: 'Inter Variable', 'Inter', -apple-system, sans-serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+
+  animation: pill-slide-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  user-select: none;
+  cursor: default;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
-.capture-panel__waveform {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  height: 24px;
+/* ── State-specific borders ─────────────────────────────────────────── */
+
+.capture-pill--recording {
+  border-color: rgba(239, 68, 68, 0.3);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(239, 68, 68, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.capture-pill--transcribing {
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(99, 102, 241, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.capture-pill--done {
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.capture-pill--error {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* ── Animations ─────────────────────────────────────────────────────── */
+
+@keyframes pill-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.92);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* ── Status dot ─────────────────────────────────────────────────────── */
+
+.capture-pill__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.3);
+  transition: background 0.2s ease;
+}
+
+.capture-pill--recording .capture-pill__dot {
+  background: #ef4444;
+  animation: dot-pulse 1.2s ease-in-out infinite;
+}
+
+.capture-pill--transcribing .capture-pill__dot {
+  background: #6366f1;
+  animation: dot-pulse 1.5s ease-in-out infinite;
+}
+
+.capture-pill--done .capture-pill__dot {
+  background: #22c55e;
+  animation: none;
+}
+
+.capture-pill--error .capture-pill__dot {
+  background: #ef4444;
+  animation: none;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.6); }
+}
+
+/* ── Content ────────────────────────────────────────────────────────── */
+
+.capture-pill__content {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.capture-panel__bar {
-  width: 3px;
-  background: linear-gradient(to top, #f3a5b6, #fb4934);
-  border-radius: 2px;
-  animation: capture-bar 0.8s ease-in-out infinite alternate;
-}
-
-@keyframes capture-bar {
-  0%   { height: 4px; }
-  100% { height: 20px; }
-}
-
-.capture-panel__partial {
-  margin: 6px 0 0;
-  font-size: 0.72rem;
-  font-style: italic;
-  color: var(--chrome-fg-muted);
-  opacity: 0.7;
-  line-height: 1.4;
-  max-height: 60px;
-  overflow-y: auto;
-  animation: capture-fadeIn 0.3s ease-out;
-}
-
-@keyframes capture-fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 0.7; transform: translateY(0); }
-}
-
-.capture-panel__timer {
-  font-family: var(--chrome-font-mono, 'JetBrains Mono', monospace);
-  font-size: var(--text-xs, 11px);
-  color: var(--chrome-fg-muted, #a89984);
-  min-width: 32px;
-  text-align: right;
-}
-
-/* Loading state */
-.capture-panel__loading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 0;
-  font-size: var(--text-sm, 13px);
-  color: var(--chrome-fg-muted, #a89984);
-}
-
-/* Result */
-.capture-panel__result {
-  padding: 6px 0;
-}
-
-.capture-panel__text {
-  font-size: var(--text-sm, 13px);
-  color: var(--chrome-fg, #ebdbb2);
-  line-height: 1.5;
-  margin: 0 0 8px;
-  max-height: 120px;
-  overflow-y: auto;
-  word-break: break-word;
-}
-
-.capture-panel__copy {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 12px;
-  border-radius: 8px;
-  border: 1px solid color-mix(in srgb, #8ec07c 30%, transparent);
-  background: color-mix(in srgb, #8ec07c 8%, transparent);
-  color: #8ec07c;
-  font-size: var(--text-xs, 11px);
+.capture-pill__label {
   font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
 }
 
-.capture-panel__copy:hover {
-  background: color-mix(in srgb, #8ec07c 15%, transparent);
-  border-color: color-mix(in srgb, #8ec07c 50%, transparent);
+/* ── Timer ──────────────────────────────────────────────────────────── */
+
+.capture-pill__timer {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
 }
 
-.capture-panel__empty {
-  font-size: var(--text-sm, 13px);
-  color: var(--chrome-fg-dim, #665c54);
-  padding: 8px 0;
-  font-style: italic;
+/* ── Spinner ────────────────────────────────────────────────────────── */
+
+.capture-pill__spinner {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.4);
+  animation: spin 1s linear infinite;
 }
 
-/* Keyboard hint */
-.capture-panel__hint {
-  font-size: var(--text-2xs, 10px);
-  color: var(--chrome-fg-dim, #665c54);
-  text-align: center;
-  padding-top: 6px;
-  border-top: 1px solid color-mix(in srgb, var(--chrome-border, #3c3836) 40%, transparent);
-  margin-top: 6px;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-.capture-panel__hint kbd {
-  display: inline-block;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--chrome-fg, #ebdbb2) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--chrome-border, #3c3836) 60%, transparent);
-  font-family: var(--chrome-font-mono, monospace);
-  font-size: inherit;
-  margin: 0 1px;
-}
+/* ── Dismiss button ─────────────────────────────────────────────────── */
 
-/* ── Result actions row ──────────────────────────────────────────────── */
-.capture-panel__result-actions {
+.capture-pill__dismiss {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.capture-panel__engine {
-  font-size: 9px;
-  color: var(--chrome-fg-dim, #665c54);
-  font-family: var(--chrome-font-mono, monospace);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── Mode toggle + auto-copy ─────────────────────────────────────────── */
-.capture-panel__controls {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 0;
-}
-
-.capture-panel__mode-toggle {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--chrome-fg, #ebdbb2) 4%, transparent);
-  border: 1px solid color-mix(in srgb, var(--chrome-border, #3c3836) 50%, transparent);
-}
-
-.capture-panel__mode-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 6px;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
   border: none;
-  background: transparent;
-  color: var(--chrome-fg-muted, #a89984);
-  font-size: 10px;
-  font-weight: 600;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.4);
   cursor: pointer;
-  transition: all 0.15s;
-}
-.capture-panel__mode-btn:hover {
-  color: var(--chrome-fg, #ebdbb2);
-}
-.capture-panel__mode-btn.is-active {
-  background: color-mix(in srgb, var(--color-brand, #d3869b) 18%, transparent);
-  color: var(--color-brand, #d3869b);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+  padding: 0;
 }
 
-.capture-panel__auto-copy {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid color-mix(in srgb, var(--chrome-border, #3c3836) 50%, transparent);
-  background: transparent;
-  color: var(--chrome-fg-dim, #665c54);
-  font-size: 9px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-  margin-left: auto;
-}
-.capture-panel__auto-copy:hover {
-  color: var(--chrome-fg-muted, #a89984);
-  border-color: var(--chrome-border, #3c3836);
-}
-.capture-panel__auto-copy.is-active {
-  color: #8ec07c;
-  border-color: color-mix(in srgb, #8ec07c 35%, transparent);
-  background: color-mix(in srgb, #8ec07c 6%, transparent);
+.capture-pill__dismiss:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.8);
 }
 
+/* ── Reduced motion ─────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .capture-pill { animation: none; opacity: 1; }
+  .capture-pill__dot { animation: none !important; }
+  .capture-pill__spinner { animation: none; }
+}
+
+/* ── Widget-mode body (standalone Tauri window) ─────────────────────── */
+
+body:has(.capture-pill) {
+  background: transparent !important;
+  margin: 0;
+  padding: 8px;
+  overflow: hidden;
+}

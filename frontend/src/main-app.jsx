@@ -37,7 +37,7 @@ export function bootstrapApp() {
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         {isWidget ? (
-          <Suspense fallback={<div>Loading...</div>}>
+          <Suspense fallback={null}>
             <CaptureWidget />
           </Suspense>
         ) : (

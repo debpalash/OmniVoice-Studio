@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Clipboard, X, Loader, Zap, Target, Check } from 'lucide-react';
+import { X, Loader } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAppStore } from '../store';
 import './CaptureWidget.css';
@@ -16,36 +16,32 @@ async function setTrayRecording(recording) {
   } catch { /* not in Tauri */ }
 }
 
-const CAPTURE_MODES = [
-  { id: 'fast',     label: 'Turbo',    desc: 'MLX Whisper Turbo — fastest',      icon: <Zap size={12} /> },
-  { id: 'accurate', label: 'Accurate', desc: 'WhisperX — best word timing',       icon: <Target size={12} /> },
-];
-
 const LS_CAPTURE_MODE = 'omni_capture_mode';
-const LS_AUTO_COPY = 'omni_capture_auto_copy';
+
+function formatElapsed(ms) {
+  const secs = Math.floor(ms / 1000);
+  const mins = Math.floor(secs / 60);
+  const s = secs % 60;
+  if (mins > 0) return `${mins}:${String(s).padStart(2, '0')}`;
+  return `${s}s`;
+}
 
 /**
- * CaptureButton — global dictation / voice capture widget.
+ * CaptureWidget — floating pill for dictation.
  *
- * Dual-mode architecture:
- *   • Turbo (default): MLX Whisper Turbo on Apple Silicon — ~5× faster
- *   • Accurate: WhisperX with forced alignment — word-level timing
- *
- * Auto-copies to clipboard so users can immediately ⌘V into any app.
+ * Minimal status-only UI: pulsing dot + label + timer.
+ * All interaction via global hotkey (hold-to-talk).
+ * Records → transcribes → auto-pastes → auto-dismisses.
  */
-export default function CaptureWidget() {
+export default function CaptureWidget({ onDismiss }) {
   const [state, setState] = useState('idle'); // idle | recording | transcribing | done | error
   const [transcript, setTranscript] = useState('');
   const [duration, setDuration] = useState(0);
-  const [captureMode, setCaptureMode] = useState(() =>
+  const [captureMode] = useState(() =>
     localStorage.getItem(LS_CAPTURE_MODE) || 'fast'
-  );
-  const [autoCopy, setAutoCopy] = useState(() =>
-    localStorage.getItem(LS_AUTO_COPY) !== 'false'
   );
   const [lastEngine, setLastEngine] = useState('');
   const [lastTime, setLastTime] = useState(0);
-  const [copied, setCopied] = useState(false);
   const [partialText, setPartialText] = useState('');
 
   const mediaRecorderRef = useRef(null);
@@ -53,22 +49,36 @@ export default function CaptureWidget() {
   const streamRef = useRef(null);
   const timerRef = useRef(null);
   const wsRef = useRef(null);
-  // Chunks captured before the WebSocket finishes its handshake — drained
-  // in `ws.onopen` so the server's `final` transcript covers the full
-  // recording (no missing first 250 ms).
   const wsPendingRef = useRef([]);
-  // Set when the WebSocket delivers a `final` message. Used to dedupe
-  // against the HTTP POST fallback so we don't transcribe twice.
   const wsHadFinalRef = useRef(false);
-  // Cancellable timer that fires the HTTP POST fallback if WS `final`
-  // never arrives in time.
   const fallbackTimerRef = useRef(null);
-  // Wall-clock start of the current recording. Read by stopRecording to
-  // size the WS-fallback timeout against actual recording length without
-  // closing over the (stale) `duration` state.
   const startTimeRef = useRef(0);
 
-  // Keyboard shortcut: Ctrl+Shift+Space (or ⌘+Shift+Space on Mac)
+  // ── Hold-to-talk: listen for tray-dictate (start) and tray-dictate-stop (release) ──
+  useEffect(() => {
+    let unlistenStart, unlistenStop;
+    (async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        unlistenStart = await listen('tray-dictate', () => {
+          if (state === 'idle' || state === 'done' || state === 'error') {
+            startRecording();
+          }
+        });
+        unlistenStop = await listen('tray-dictate-stop', () => {
+          if (state === 'recording') {
+            stopRecording();
+          }
+        });
+      } catch { /* not in Tauri */ }
+    })();
+    return () => {
+      if (unlistenStart) unlistenStart();
+      if (unlistenStop) unlistenStop();
+    };
+  }, [state]);
+
+  // Keyboard fallback: ⌘+Shift+Space toggles in web mode
   useEffect(() => {
     const handler = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'Space') {
@@ -84,24 +94,6 @@ export default function CaptureWidget() {
     return () => window.removeEventListener('keydown', handler);
   }, [state]);
 
-  // Listen for tray "Start Dictation" event (Tauri desktop)
-  useEffect(() => {
-    let unlisten;
-    (async () => {
-      try {
-        const { listen } = await import('@tauri-apps/api/event');
-        unlisten = await listen('tray-dictate', () => {
-          if (state === 'idle' || state === 'done' || state === 'error') {
-            startRecording();
-          } else if (state === 'recording') {
-            stopRecording();
-          }
-        });
-      } catch { /* not in Tauri */ }
-    })();
-    return () => { if (unlisten) unlisten(); };
-  }, [state]);
-
   // Timer while recording
   useEffect(() => {
     if (state === 'recording') {
@@ -112,9 +104,7 @@ export default function CaptureWidget() {
     clearInterval(timerRef.current);
   }, [state]);
 
-  // Render a transcription result (from either the WS `final` message or
-  // the HTTP POST fallback). Idempotent — guarded by wsHadFinalRef so a
-  // late HTTP response can't overwrite a WS final that already landed.
+  // Apply transcription result → auto-paste → auto-dismiss
   const applyResult = useCallback(async (data) => {
     setTranscript(data.text || '');
     setLastEngine(data.engine || '');
@@ -125,33 +115,40 @@ export default function CaptureWidget() {
       addTranscription(data);
     }
 
-    if (data.text && autoCopy) {
+    if (data.text) {
       try {
         await navigator.clipboard.writeText(data.text);
-        setCopied(true);
         try {
           const { invoke } = await import('@tauri-apps/api/core');
           await invoke('simulate_paste');
-          toast.success('Pasted into active app', { duration: 2000 });
-        } catch {
-          toast.success('Copied to clipboard — paste with ⌘V', { duration: 2000 });
-        }
-        
-        // Auto-dismiss the floating widget after 2.5 seconds so it gets out of the way
-        setTimeout(async () => {
-          setState('idle');
-          setTranscript('');
-          setDuration(0);
-          setCopied(false);
-          try {
-            const { getCurrentWindow } = await import('@tauri-apps/api/window');
-            await getCurrentWindow().hide();
-          } catch { /* not in Tauri */ }
-        }, 2500);
+        } catch { /* not in Tauri */ }
+      } catch { /* clipboard API may fail */ }
 
-      } catch { /* clipboard API may fail in some contexts */ }
+      // Auto-dismiss after 1.5s
+      setTimeout(async () => {
+        setState('idle');
+        setTranscript('');
+        setDuration(0);
+        try {
+          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          await getCurrentWindow().hide();
+        } catch { /* not in Tauri */ }
+        if (onDismiss) onDismiss();
+      }, 1500);
+    } else {
+      // No speech — auto-dismiss after 2.5s
+      setTimeout(async () => {
+        setState('idle');
+        setTranscript('');
+        setDuration(0);
+        try {
+          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          await getCurrentWindow().hide();
+        } catch { /* not in Tauri */ }
+        if (onDismiss) onDismiss();
+      }, 2500);
     }
-  }, [autoCopy]);
+  }, [onDismiss]);
 
   const startRecording = useCallback(async () => {
     try {
@@ -171,11 +168,7 @@ export default function CaptureWidget() {
         ? 'audio/webm;codecs=opus'
         : 'audio/webm';
 
-      // Open the WebSocket BEFORE starting the recorder so wsRef is set by
-      // the time the first `ondataavailable` fires. Otherwise the very
-      // first 250 ms chunk — which carries the WebM EBML header — is
-      // dropped from the WS stream, every subsequent chunk decodes as
-      // malformed WebM, and ffmpeg fails with exit 183 on every partial.
+      // Open WebSocket BEFORE starting recorder
       try {
         const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
         const wsHost = API_BASE.replace(/^https?:\/\//, '').replace(/\/$/, '')
@@ -184,7 +177,6 @@ export default function CaptureWidget() {
         const ws = new WebSocket(wsUrl);
         ws.binaryType = 'arraybuffer';
         ws.onopen = () => {
-          // Drain chunks captured during the handshake.
           for (const buf of wsPendingRef.current) {
             try { ws.send(buf); } catch {}
           }
@@ -204,9 +196,6 @@ export default function CaptureWidget() {
               applyResult(msg);
               try { ws.close(); } catch {}
             } else if (msg.type === 'error') {
-              // Server failed (e.g. ffmpeg couldn't decode the partial
-              // buffer). Don't wait the full timeout — fire the HTTP
-              // fallback right away so the user still gets a transcript.
               if (fallbackTimerRef.current) {
                 clearTimeout(fallbackTimerRef.current);
                 fallbackTimerRef.current = null;
@@ -220,10 +209,6 @@ export default function CaptureWidget() {
         ws.onerror = () => { wsRef.current = null; };
         ws.onclose = () => {
           wsRef.current = null;
-          // If the socket closed before delivering `final` and the
-          // recorder has already stopped, the fallback timer is the only
-          // thing left — kick the HTTP path now instead of waiting it
-          // out.
           if (
             !wsHadFinalRef.current
             && mediaRecorderRef.current
@@ -238,7 +223,6 @@ export default function CaptureWidget() {
         };
         wsRef.current = ws;
       } catch {
-        // WebSocket not available — will fallback to HTTP POST
         wsRef.current = null;
       }
 
@@ -246,10 +230,6 @@ export default function CaptureWidget() {
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
-          // Stream every chunk to the WS — queueing through wsPendingRef
-          // until ws.onopen drains it. This guarantees the first chunk
-          // (which carries the WebM EBML header) reaches the server even
-          // if it arrives during the handshake window.
           e.data.arrayBuffer().then(buf => {
             const ws = wsRef.current;
             if (ws && ws.readyState === WebSocket.OPEN) {
@@ -260,37 +240,18 @@ export default function CaptureWidget() {
           });
         }
       };
-      // recorder.onstop frees the mic and (only as fallback) kicks the HTTP
-      // POST. The WebSocket `final` path is preferred — see ws.onmessage.
-      recorder.onstop = () => {
-        if (wsHadFinalRef.current) return;
-        if (!wsRef.current) {
-          // WS never opened — HTTP POST is the only path.
-          sendForTranscription();
-        }
-        // Otherwise: the fallback timer set in stopRecording will fire if
-        // the WS final never arrives.
-      };
+      recorder.onstop = () => {};
+      recorder.start(250);
       mediaRecorderRef.current = recorder;
-      recorder.start(250); // collect in 250ms chunks
-
       startTimeRef.current = Date.now();
+      setTrayRecording(true);
       setState('recording');
-      setDuration(0);
       setTranscript('');
       setPartialText('');
-      // Widget panel is always visible — no expand/collapse needed.
-      setCopied(false);
-      setLastEngine('');
-      setLastTime(0);
-      setTrayRecording(true);
-    } catch (err) {
-      // Platform-specific recovery hint — getUserMedia rejects with
-      // NotAllowedError when the OS or user has blocked mic access.
-      const isMac = typeof navigator !== 'undefined'
-        && /Mac|iPad|iPhone|iPod/.test(navigator.platform || '');
-      const isWindows = typeof navigator !== 'undefined'
-        && /Win/.test(navigator.platform || '');
+      setDuration(0);
+    } catch {
+      const isMac = navigator.platform?.includes('Mac');
+      const isWindows = navigator.platform?.includes('Win');
       const hint = isMac
         ? 'macOS: open System Settings → Privacy & Security → Microphone and enable OmniVoice.'
         : isWindows
@@ -310,26 +271,17 @@ export default function CaptureWidget() {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
     }
-    // Signal end-of-audio to the WS but DO NOT close — we want the server's
-    // `final` message to arrive over the same socket. The HTTP POST fallback
-    // timer below covers the case where final never lands.
+    // Signal EOF to WebSocket
     const ws = wsRef.current;
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
       const sendEof = () => { try { ws.send('EOF'); } catch {} };
       if (ws.readyState === WebSocket.OPEN) {
         sendEof();
       } else {
-        // Wait for open before sending EOF, otherwise the message is dropped.
         ws.addEventListener('open', sendEof, { once: true });
       }
-      // Fallback: if WS final doesn't arrive in time, use HTTP POST.
-      // Cleared in ws.onmessage when `final` lands. Timeout scales with
-      // recording length so long-form dictation (where the server's final
-      // pass naturally takes longer) doesn't trip the fallback and run the
-      // model twice. Floor of 15 s covers slow first-call cold starts.
-      const recorded = startTimeRef.current
-        ? Date.now() - startTimeRef.current
-        : 0;
+      // Fallback timer
+      const recorded = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
       const ms = Math.max(15000, recorded + 10000);
       if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
       fallbackTimerRef.current = setTimeout(() => {
@@ -346,8 +298,6 @@ export default function CaptureWidget() {
   }, []);
 
   const sendForTranscription = useCallback(async () => {
-    // Race-guard: WS final may have landed between when this was scheduled
-    // and now. Skip the duplicate HTTP transcription.
     if (wsHadFinalRef.current) return;
 
     const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
@@ -365,7 +315,6 @@ export default function CaptureWidget() {
         throw new Error(detail.detail || `HTTP ${res.status}`);
       }
       const data = await res.json();
-      // Re-check guard — a WS final could land while we awaited the POST.
       if (wsHadFinalRef.current) return;
       await applyResult(data);
     } catch (err) {
@@ -376,138 +325,70 @@ export default function CaptureWidget() {
     }
   }, [captureMode, applyResult]);
 
-  const copyToClipboard = useCallback(() => {
-    navigator.clipboard.writeText(transcript).then(() => {
-      setCopied(true);
-      toast.success('Copied to clipboard');
-    });
-  }, [transcript]);
-
   const dismiss = async () => {
     setState('idle');
     setTranscript('');
     setDuration(0);
-    setCopied(false);
     try {
       const { getCurrentWindow } = await import('@tauri-apps/api/window');
       await getCurrentWindow().hide();
     } catch { /* not in Tauri */ }
+    if (onDismiss) onDismiss();
   };
 
-  const toggleCapture = () => {
-    if (state === 'idle' || state === 'done' || state === 'error') {
-      startRecording();
-    } else if (state === 'recording') {
-      stopRecording();
-    }
-  };
-
-  const formatTime = (ms) => {
-    const s = Math.floor(ms / 1000);
-    const m = Math.floor(s / 60);
-    const ss = s % 60;
-    return m > 0 ? `${m}:${String(ss).padStart(2, '0')}` : `${ss}s`;
-  };
+  // ── Pill label ──
+  let label = '';
+  let emoji = '';
+  if (state === 'recording') {
+    emoji = '🎙️';
+    label = partialText || 'Listening…';
+  } else if (state === 'transcribing') {
+    emoji = '📝';
+    label = partialText || 'Transcribing…';
+  } else if (state === 'done' && transcript) {
+    emoji = '✅';
+    label = 'Pasted';
+  } else if (state === 'done' && !transcript) {
+    emoji = '⚠️';
+    label = 'No speech detected';
+  } else if (state === 'error') {
+    emoji = '❌';
+    label = 'Mic access denied';
+  } else {
+    emoji = '🎙️';
+    label = 'Ready — hold shortcut to speak';
+  }
 
   return (
-    <div className="capture-widget">
-        <div className="capture-panel">
-          <div className="capture-panel__header" data-tauri-drag-region>
-            <span className="capture-panel__title">
-              {state === 'recording' && '🎙️ Listening…'}
-              {state === 'transcribing' && '📝 Transcribing…'}
-              {state === 'done' && '✅ Done'}
-              {state === 'error' && '❌ Error'}
-              {state === 'idle' && '🎤 Capture'}
-            </span>
-            <button className="capture-panel__close" onClick={dismiss} title="Close" aria-label="Close capture panel">
-              <X size={12} />
-            </button>
-          </div>
+    <div className={`capture-pill capture-pill--${state}`} role="status" aria-live="polite">
+      {/* Pulsing status dot */}
+      <span className="capture-pill__dot" />
 
-          {state === 'recording' && (
-            <div className="capture-panel__recording">
-              <div className="capture-panel__waveform">
-                {[...Array(12)].map((_, i) => (
-                  <span key={i} className="capture-panel__bar" style={{ animationDelay: `${i * 0.08}s` }} />
-                ))}
-              </div>
-              <span className="capture-panel__timer">{formatTime(duration)}</span>
-              {partialText && (
-                <p className="capture-panel__partial">{partialText}</p>
-              )}
-            </div>
-          )}
+      {/* Content */}
+      <div className="capture-pill__content">
+        <span className="capture-pill__label">
+          {emoji} {label}
+        </span>
+      </div>
 
-          {state === 'transcribing' && (
-            <div className="capture-panel__loading">
-              <Loader size={16} className="spinner" />
-              <span>Processing audio…</span>
-            </div>
-          )}
+      {/* Timer */}
+      {(state === 'recording' || state === 'transcribing') && (
+        <span className="capture-pill__timer">
+          {formatElapsed(duration)}
+        </span>
+      )}
 
-          {state === 'done' && transcript && (
-            <div className="capture-panel__result">
-              <p className="capture-panel__text">{transcript}</p>
-              <div className="capture-panel__result-actions">
-                <button className="capture-panel__copy" onClick={copyToClipboard}>
-                  {copied ? <Check size={12} /> : <Clipboard size={12} />}
-                  {copied ? 'Copied!' : 'Copy'}
-                </button>
-                {lastEngine && (
-                  <span className="capture-panel__engine">
-                    {lastEngine === 'mlx-whisper' ? '⚡ MLX' : lastEngine} · {lastTime}s
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
+      {/* Transcribing spinner */}
+      {state === 'transcribing' && (
+        <Loader size={14} className="capture-pill__spinner" />
+      )}
 
-          {state === 'done' && !transcript && (
-            <div className="capture-panel__empty">
-              No speech detected. Try again.
-            </div>
-          )}
-
-          {/* Mode selector + auto-copy toggle */}
-          <div className="capture-panel__controls">
-            <div className="capture-panel__mode-toggle" role="radiogroup" aria-label="Transcription mode">
-              {CAPTURE_MODES.map(m => (
-                <button
-                  key={m.id}
-                  className={`capture-panel__mode-btn ${captureMode === m.id ? 'is-active' : ''}`}
-                  onClick={() => {
-                    setCaptureMode(m.id);
-                    localStorage.setItem(LS_CAPTURE_MODE, m.id);
-                  }}
-                  title={m.desc}
-                  aria-label={`${m.label} mode: ${m.desc}`}
-                  aria-checked={captureMode === m.id}
-                  role="radio"
-                >
-                  {m.icon} {m.label}
-                </button>
-              ))}
-            </div>
-            <button
-              className={`capture-panel__auto-copy ${autoCopy ? 'is-active' : ''}`}
-              onClick={() => {
-                const next = !autoCopy;
-                setAutoCopy(next);
-                localStorage.setItem(LS_AUTO_COPY, String(next));
-              }}
-              title={autoCopy ? 'Auto-copy enabled — results go to clipboard' : 'Auto-copy disabled'}
-              aria-label={autoCopy ? 'Disable auto-copy to clipboard' : 'Enable auto-copy to clipboard'}
-              aria-pressed={autoCopy}
-            >
-              <Clipboard size={10} /> Auto
-            </button>
-          </div>
-
-          <div className="capture-panel__hint" data-tauri-drag-region>
-            <kbd>{navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}</kbd>+<kbd>⇧</kbd>+<kbd>Space</kbd>
-          </div>
-        </div>
+      {/* Dismiss — only on done/error */}
+      {(state === 'done' || state === 'error') && (
+        <button className="capture-pill__dismiss" onClick={dismiss} aria-label="Dismiss">
+          <X size={12} />
+        </button>
+      )}
     </div>
   );
 }

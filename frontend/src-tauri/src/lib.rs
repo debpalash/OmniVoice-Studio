@@ -59,11 +59,23 @@ pub const TRAY_ICON_RECORDING: &[u8] = include_bytes!("../icons/tray-recording.p
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // ── Detect pill mode from CLI args ────────────────────────────────────
+    let pill_mode = std::env::args().any(|a| a == "--pill");
+    if pill_mode {
+        log::info!("Starting in pill (dictation-only) mode");
+        // On macOS, hide the Dock icon in pill mode so only the tray shows.
+        // This is handled after the app builds via set_activation_policy.
+    }
+
+    let pill_mode_setup = pill_mode;
+    let pill_mode_tray = pill_mode;
+
     let app = tauri::Builder::default()
         // Single-instance MUST be registered first.
-        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(move |app, _argv, _cwd| {
             log::info!("Second instance attempted — focusing existing window");
-            if let Some(win) = app.get_webview_window("main") {
+            let target = if pill_mode { "widget" } else { "main" };
+            if let Some(win) = app.get_webview_window(target) {
                 let _ = win.show();
                 let _ = win.unminimize();
                 let _ = win.set_focus();
@@ -84,8 +96,11 @@ pub fn run() {
             commands::quit_app,
             commands::get_dictation_shortcut,
             commands::set_dictation_shortcut,
+            commands::enable_pill_autostart,
+            commands::disable_pill_autostart,
+            commands::is_pill_autostart_enabled,
         ])
-        .setup(|app| {
+        .setup(move |app| {
             app.handle().plugin(tauri_plugin_dialog::init())?;
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
             app.handle().plugin(tauri_plugin_process::init())?;
@@ -114,7 +129,7 @@ pub fn run() {
                 current: Mutex::new(None),
             });
 
-            // ── Global dictation shortcut ────────────────────────────────
+            // ── Global dictation shortcut (hold-to-talk) ─────────────────
             {
                 use std::str::FromStr;
                 use tauri_plugin_global_shortcut::{
@@ -124,13 +139,31 @@ pub fn run() {
                 app.handle().plugin(
                     tauri_plugin_global_shortcut::Builder::new()
                         .with_handler(move |app_handle, _shortcut, event| {
-                            if event.state == ShortcutState::Pressed {
-                                log::info!("Global shortcut triggered: dictation");
-                                if let Some(win) = app_handle.get_webview_window("widget") {
-                                    let _ = win.show();
-                                    let _ = win.set_focus();
+                            match event.state {
+                                ShortcutState::Pressed => {
+                                    log::info!("Global shortcut pressed: dictation start");
+                                    // Show the widget window (works in both pill + studio mode)
+                                    if let Some(win) = app_handle.get_webview_window("widget") {
+                                        // Position pill near top-center of primary monitor
+                                        if let Ok(Some(monitor)) = win.primary_monitor() {
+                                            let size = monitor.size();
+                                            let scale = monitor.scale_factor();
+                                            let x = ((size.width as f64 / scale) / 2.0 - 150.0) as i32;
+                                            let _ = win.set_position(tauri::Position::Logical(
+                                                tauri::LogicalPosition::new(x as f64, 60.0),
+                                            ));
+                                        } else {
+                                            let _ = win.center();
+                                        }
+                                        let _ = win.show();
+                                        let _ = win.set_focus();
+                                    }
+                                    let _ = app_handle.emit("tray-dictate", ());
                                 }
-                                let _ = app_handle.emit("tray-dictate", ());
+                                ShortcutState::Released => {
+                                    log::info!("Global shortcut released: dictation stop");
+                                    let _ = app_handle.emit("tray-dictate-stop", ());
+                                }
                             }
                         })
                         .build(),
@@ -164,33 +197,54 @@ pub fn run() {
             }
 
             // ── System tray ──────────────────────────────────────────────
-            let show_i = MenuItemBuilder::new("Show OmniVoice")
-                .id("show")
-                .build(app)?;
-            let dictate_i = MenuItemBuilder::new("Start Dictation  ⌘⇧Space")
-                .id("dictate")
-                .build(app)?;
-            let settings_i = MenuItemBuilder::new("Settings")
-                .id("settings")
-                .build(app)?;
-            let quit_i = MenuItemBuilder::new("Quit OmniVoice")
-                .id("quit")
-                .build(app)?;
+            let tray_menu = if pill_mode_tray {
+                // Pill mode: minimal tray with Open Studio + Dictate + Quit
+                let dictate_i = MenuItemBuilder::new("Start Dictation  ⌘⇧Space")
+                    .id("dictate")
+                    .build(app)?;
+                let open_studio_i = MenuItemBuilder::new("Open OmniVoice Studio")
+                    .id("open_studio")
+                    .build(app)?;
+                let quit_i = MenuItemBuilder::new("Quit Dictation")
+                    .id("quit")
+                    .build(app)?;
+                MenuBuilder::new(app)
+                    .item(&dictate_i)
+                    .separator()
+                    .item(&open_studio_i)
+                    .separator()
+                    .item(&quit_i)
+                    .build()?
+            } else {
+                // Studio mode: full tray
+                let show_i = MenuItemBuilder::new("Show OmniVoice")
+                    .id("show")
+                    .build(app)?;
+                let dictate_i = MenuItemBuilder::new("Start Dictation  ⌘⇧Space")
+                    .id("dictate")
+                    .build(app)?;
+                let settings_i = MenuItemBuilder::new("Settings")
+                    .id("settings")
+                    .build(app)?;
+                let quit_i = MenuItemBuilder::new("Quit OmniVoice")
+                    .id("quit")
+                    .build(app)?;
+                MenuBuilder::new(app)
+                    .item(&show_i)
+                    .separator()
+                    .item(&dictate_i)
+                    .item(&settings_i)
+                    .separator()
+                    .item(&quit_i)
+                    .build()?
+            };
 
-            let tray_menu = MenuBuilder::new(app)
-                .item(&show_i)
-                .separator()
-                .item(&dictate_i)
-                .item(&settings_i)
-                .separator()
-                .item(&quit_i)
-                .build()?;
 
             let tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&tray_menu)
-                .tooltip("OmniVoice Studio")
-                .on_menu_event(|app, event| {
+                .tooltip(if pill_mode_tray { "OmniVoice Dictation" } else { "OmniVoice Studio" })
+                .on_menu_event(move |app, event| {
                     match event.id().as_ref() {
                         "show" => {
                             if let Some(win) = app.get_webview_window("main") {
@@ -198,6 +252,13 @@ pub fn run() {
                                 #[cfg(not(target_os = "macos"))]
                                 let _ = win.set_skip_taskbar(false);
                                 let _ = win.set_focus();
+                            }
+                        }
+                        "open_studio" => {
+                            // Launch ourselves without --pill to open the full studio
+                            if let Ok(exe) = std::env::current_exe() {
+                                let _ = std::process::Command::new(exe)
+                                    .spawn();
                             }
                         }
                         "dictate" => {
@@ -224,6 +285,23 @@ pub fn run() {
                 .build(app)?;
             if let Ok(mut slot) = app.state::<TrayHandle>().tray.lock() {
                 *slot = Some(tray);
+            }
+
+            // ── Hide the unused window per mode ──────────────────────────
+            if pill_mode_setup {
+                // Pill mode: hide the main window, keep widget ready
+                if let Some(main_win) = app.get_webview_window("main") {
+                    let _ = main_win.hide();
+                    let _ = main_win.set_skip_taskbar(true);
+                }
+                // On macOS, set activation policy to Accessory (no Dock icon)
+                #[cfg(target_os = "macos")]
+                {
+                    let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                }
+            } else {
+                // Studio mode: widget window stays hidden but ready for the
+                // global shortcut. It's already visible:false in tauri.conf.json.
             }
 
             // ── Enable microphone / camera on Linux (WebKitGTK) ──────────

@@ -35,9 +35,12 @@ def find_ffmpeg():
     # 2. imageio-ffmpeg bundled static binary
     try:
         import imageio_ffmpeg
-        return imageio_ffmpeg.get_ffmpeg_exe()
+        candidate = imageio_ffmpeg.get_ffmpeg_exe()
+        if candidate and os.path.isfile(candidate):
+            return candidate
+        logger.debug("imageio_ffmpeg binary not found at %s", candidate)
     except Exception as e:
-        logger.warning(f"imageio_ffmpeg unavailable: {e}")
+        logger.debug("imageio_ffmpeg unavailable: %s", e)
     # 3. Well-known system paths + PATH lookup
     for path in ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "ffmpeg"]:
         if shutil.which(path):

@@ -1,6 +1,6 @@
 /* ── Floating Status Pill ───────────────────────────────────────────────
    Always-on-top pill that tracks long-running operations (ASR model load,
-   dubbing progress, export). Inspired by VoiceBox 0.5.0's CapturePill.
+   dubbing progress, export).
    ─────────────────────────────────────────────────────────────────────── */
 
 .floating-pill {

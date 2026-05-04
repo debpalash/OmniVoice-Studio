@@ -132,6 +132,9 @@ logging.getLogger("asyncio").addFilter(AsyncioExceptionFilter())
 
 # Silence HF Hub unauthenticated warnings unless specifically requested.
 logging.getLogger("huggingface_hub.utils._http").setLevel(logging.ERROR)
+# Silence httpx INFO — every HF Hub API call logs a line; the SSE stream
+# already surfaces download progress to the UI.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 if _json_logs:
     # Replace every existing handler's formatter with the JSON one.
     for _h in logging.getLogger().handlers:
@@ -236,8 +239,8 @@ async def lifespan(app: FastAPI):
     # Warm the TTS model in the background so first /generate is instant.
     preload_task = asyncio.create_task(preload_model())
     # Warm the capture ASR engine (MLX Whisper Turbo on Apple Silicon) so
-    # first dictation is instant — like Ghost Pepper and VoiceBox do.
-    # Without this, the first capture takes ~25s just to load the model.
+    # first dictation is instant. Without this, first capture takes ~25s
+    # just to load the model.
     async def _preload_capture_asr():
         try:
             from services.model_manager import _gpu_pool, _loading_detail
