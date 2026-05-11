@@ -186,6 +186,22 @@ class OmniVoice(PreTrainedModel):
     _supports_flash_attn_2 = True
     config_class = OmniVoiceConfig
 
+    # ── Desktop-bundle safety overrides ─────────────────────────────────
+    # transformers ≥4.52 calls `_can_set_experts_implementation()` and
+    # `_can_set_attn_implementation()` during __init__, which open the
+    # class's source file via `inspect.getsourcefile()`/`open(class_file)`.
+    # In a Tauri desktop bundle the module __file__ path doesn't exist on
+    # disk, causing FileNotFoundError.  OmniVoice doesn't use MoE experts,
+    # so we can safely return False for experts.  For attention, return True
+    # (we DO support flex_attn / flash_attn_2).
+    @classmethod
+    def _can_set_experts_implementation(cls) -> bool:
+        return False
+
+    @classmethod
+    def _can_set_attn_implementation(cls) -> bool:
+        return True
+
     def __init__(self, config: OmniVoiceConfig, llm: Optional[PreTrainedModel] = None):
         super().__init__(config)
 
