@@ -290,6 +290,35 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
             .stderr(Stdio::null())
             .status();
         if matches!(uvicorn_check, Ok(ref s) if s.success()) {
+            // Always sync source dirs from bundle so code fixes land on
+            // existing installs without requiring a full clean+reinstall.
+            let resource_dir = app.path().resource_dir().ok();
+            if let Some(ref res) = resource_dir {
+                let flat = res.clone();
+                let up2  = res.join("_up_").join("_up_");
+                let (res_omni, res_backend) = if flat.join("pyproject.toml").is_file() {
+                    (flat.join("omnivoice"), flat.join("backend"))
+                } else {
+                    (up2.join("omnivoice"), up2.join("backend"))
+                };
+                if res_omni.is_dir() {
+                    let omnivoice_dir = project_dir.join("omnivoice");
+                    let _ = fs::remove_dir_all(&omnivoice_dir);
+                    if let Err(e) = copy_dir_recursive(&res_omni, &omnivoice_dir) {
+                        log::warn!("Failed to sync omnivoice/ sources: {}", e);
+                    } else {
+                        log::info!("Synced omnivoice/ from bundle");
+                    }
+                }
+                if res_backend.is_dir() {
+                    let _ = fs::remove_dir_all(&backend_dir);
+                    if let Err(e) = copy_dir_recursive(&res_backend, &backend_dir) {
+                        log::warn!("Failed to sync backend/ sources: {}", e);
+                    } else {
+                        log::info!("Synced backend/ from bundle");
+                    }
+                }
+            }
             return Some((venv_py, backend_dir));
         }
         log::warn!(
