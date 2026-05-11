@@ -78,6 +78,7 @@ export default function useAppData() {
   const modelSubStage = msQuery.data?.sub_stage ?? null;
   const modelDetail = msQuery.data?.detail ?? '';
   const modelError = msQuery.data?.error ?? null;
+  const modelProgress = msQuery.data?.progress ?? null;
 
   // ── Model loading pill ──
   const prevModelStatusRef = useRef(modelStatus);
@@ -89,10 +90,14 @@ export default function useAppData() {
       const label = modelDetail || 'Loading model…';
       if (prev !== 'loading' && pill.stage === 'idle') pill.showPill('loading-model', label);
       else if (pill.stage === 'loading-model') pill.setPillLabel(label);
+      // Forward real-time percentage from backend
+      if (modelProgress !== null && pill.stage === 'loading-model') {
+        pill.setPillProgress(modelProgress);
+      }
     }
     if (modelStatus === 'ready' && prev === 'loading' && pill.stage === 'loading-model') pill.completePill('Model ready');
     if (modelSubStage === 'error' && modelError && pill.stage === 'loading-model') pill.errorPill(modelError);
-  }, [modelStatus, modelSubStage, modelDetail, modelError]);
+  }, [modelStatus, modelSubStage, modelDetail, modelError, modelProgress]);
 
   // ── Data loading callbacks ──
   const loadProfiles = useCallback(async () => { try { setProfiles(await listProfiles()); } catch (e) {} }, []);
