@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAppStore } from '../store';
-import { listProfiles, createProfile, deleteProfile as apiDeleteProfile, lockProfile, unlockProfile } from '../api/profiles';
+import { createProfile, deleteProfile as apiDeleteProfile, lockProfile, unlockProfile } from '../api/profiles';
 import { generateSpeech, audioUrlWithCacheBust } from '../api/generate';
 import { playBlobAudio } from '../utils/media';
 import { PRESETS } from '../utils/constants';
@@ -10,8 +10,7 @@ import { toast } from 'react-hot-toast';
 /**
  * Encapsulates voice-profile CRUD, lock/unlock, preview, and save-from-history.
  */
-export default function useProfiles({ loadHistory }) {
-  const [profiles, setProfiles] = useState([]);
+export default function useProfiles({ loadHistory, loadProfiles }) {
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [showSaveProfile, setShowSaveProfile] = useState(false);
   const [profileName, setProfileName] = useState('');
@@ -33,9 +32,7 @@ export default function useProfiles({ loadHistory }) {
   const dubSegments = useAppStore(s => s.dubSegments);
   const text = useAppStore(s => s.text);
 
-  const loadProfiles = useCallback(async () => {
-    try { setProfiles(await listProfiles()); } catch (e) {}
-  }, []);
+  // loadProfiles is provided by useAppData (single source of truth)
 
   const handleSaveProfile = useCallback(async (refAudio, refText, instruct, language) => {
     if (!profileName.trim() || !refAudio) return toast.error("Need a name and reference audio");
@@ -200,7 +197,6 @@ export default function useProfiles({ loadHistory }) {
   }, [loadProfiles]);
 
   return {
-    profiles, loadProfiles,
     selectedProfile, setSelectedProfile,
     showSaveProfile, setShowSaveProfile,
     profileName, setProfileName,
