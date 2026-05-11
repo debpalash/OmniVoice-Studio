@@ -133,7 +133,7 @@ class OmniVoiceBackend(TTSBackend):
         import asyncio
         # Caller is sync; spin up a fresh loop if needed.
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             if loop.is_running():
                 # Already inside an async context — caller should await
                 # `get_model()` themselves and pass it in via the constructor.

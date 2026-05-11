@@ -227,15 +227,12 @@ async def create_speech(req: SpeechRequest):
     if voice not in _OPENAI_VOICE_ALIASES and voice != "default":
         # Try to resolve as a voice profile ID
         try:
-            from core.db import get_db
+            from core.db import db_conn
             from core.config import VOICES_DIR
-            conn = get_db()
-            try:
+            with db_conn() as conn:
                 row = conn.execute(
                     "SELECT * FROM voice_profiles WHERE id=?", (voice,)
                 ).fetchone()
-            finally:
-                conn.close()
             if row:
                 if row["is_locked"] and row["locked_audio_path"]:
                     kw["ref_audio"] = os.path.join(VOICES_DIR, row["locked_audio_path"])
@@ -253,7 +250,7 @@ async def create_speech(req: SpeechRequest):
             kw["voice"] = voice
 
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         wav, sr = await loop.run_in_executor(_gpu_pool, _run_tts, backend, req.input, kw)
     except Exception as e:
         logger.exception("OpenAI TTS failed: %s", e)
@@ -318,7 +315,7 @@ async def create_transcription(
         backend = get_active_asr_backend()
 
         # Run transcription in the thread pool to avoid blocking the event loop
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         word_ts = response_format == "verbose_json"
         result = await loop.run_in_executor(
             _gpu_pool,
@@ -422,14 +419,11 @@ def list_voices():
 
     # Include voice profiles from the database
     try:
-        from core.db import get_db
-        conn = get_db()
-        try:
+        from core.db import db_conn
+        with db_conn() as conn:
             rows = conn.execute(
                 "SELECT id, name, language FROM voice_profiles ORDER BY name"
             ).fetchall()
-        finally:
-            conn.close()
         for row in rows:
             voices.append({
                 "voice_id": row["id"],

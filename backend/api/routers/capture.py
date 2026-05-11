@@ -81,7 +81,7 @@ async def transcribe_audio(
             return result, backend.id
 
         from services.model_manager import _gpu_pool
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         t0 = time.perf_counter()
         result, engine_id = await loop.run_in_executor(_gpu_pool, _run)
         elapsed = round(time.perf_counter() - t0, 2)

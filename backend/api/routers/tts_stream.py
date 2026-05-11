@@ -120,16 +120,13 @@ async def ws_tts(websocket: WebSocket):
                 voice = data.get("voice")
                 if voice:
                     try:
-                        from core.db import get_db
+                        from core.db import db_conn
                         from core.config import VOICES_DIR
-                        conn = get_db()
-                        try:
+                        with db_conn() as conn:
                             row = conn.execute(
                                 "SELECT * FROM voice_profiles WHERE id=?",
                                 (voice,),
                             ).fetchone()
-                        finally:
-                            conn.close()
                         if row:
                             if row["is_locked"] and row["locked_audio_path"]:
                                 kw["ref_audio"] = os.path.join(
@@ -150,7 +147,7 @@ async def ws_tts(websocket: WebSocket):
 
                 # Run generation in the GPU pool
                 from services.model_manager import _gpu_pool
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
 
                 def _generate():
                     import torch

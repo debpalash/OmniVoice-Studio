@@ -15,7 +15,7 @@ from typing import Optional, List
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException, Query
 from fastapi.responses import FileResponse, Response, StreamingResponse, JSONResponse
 
-from core.db import get_db, db_conn
+from core.db import db_conn
 from core.config import DATA_DIR, DUB_DIR, PREVIEW_DIR, VOICES_DIR
 from core.tasks import task_manager
 from core import event_bus
@@ -87,23 +87,16 @@ def dub_abort(job_id: str):
 
 @router.get("/dub/history")
 def list_dub_history():
-    conn = get_db()
-    try:
+    with db_conn() as conn:
         rows = conn.execute("SELECT * FROM dub_history ORDER BY created_at DESC LIMIT 30").fetchall()
-    finally:
-        conn.close()
     return [dict(r) for r in rows]
 
 @router.delete("/dub/history")
 def clear_dub_history():
     """Delete persisted dub rows and their on-disk dirs (scoped to known IDs)."""
-    conn = get_db()
-    try:
+    with db_conn() as conn:
         ids = [r["id"] for r in conn.execute("SELECT id FROM dub_history").fetchall()]
         conn.execute("DELETE FROM dub_history")
-        conn.commit()
-    finally:
-        conn.close()
     for jid in ids:
         safe = _safe_job_dir(jid)
         if safe and os.path.isdir(safe):
@@ -318,7 +311,7 @@ async def dub_transcribe_stream(job_id: str):
             return
         import math
         import tempfile
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _load():
             audio_np, sr = sf.read(asr_audio_target, dtype="float32")
@@ -630,7 +623,7 @@ async def dub_transcribe(job_id: str):
         return segments
 
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             segments_result = await loop.run_in_executor(_gpu_pool, _transcribe)
         except asyncio.CancelledError:

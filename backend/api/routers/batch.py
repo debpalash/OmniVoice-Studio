@@ -97,7 +97,7 @@ async def _run_batch_pipeline(job_id: str, job: dict):
     import tempfile
     import soundfile as sf
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     video_path = job["video_path"]
     langs = job["langs"]
     batch_dir = os.path.join(DATA_DIR, "batch", job_id)
@@ -275,16 +275,13 @@ async def _run_batch_pipeline(job_id: str, job: dict):
 
                 # Use voice_id if provided
                 if job.get("voice_id"):
-                    from core.db import get_db
+                    from core.db import db_conn
                     from core.config import VOICES_DIR as _VD
-                    conn = get_db()
-                    try:
+                    with db_conn() as conn:
                         row = conn.execute(
                             "SELECT * FROM voice_profiles WHERE id=?",
                             (job["voice_id"],),
                         ).fetchone()
-                    finally:
-                        conn.close()
                     if row:
                         if row["is_locked"] and row["locked_audio_path"]:
                             ref_audio = os.path.join(_VD, row["locked_audio_path"])

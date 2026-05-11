@@ -11,7 +11,7 @@ from fastapi import APIRouter, File, Form, UploadFile, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
-from core.db import get_db
+from core.db import db_conn
 from core.config import VOICES_DIR, OUTPUTS_DIR
 from core import event_bus
 
@@ -91,31 +91,29 @@ class VoiceEntry(BaseModel):
 
 def _init_gallery_db():
     """Initialize the voice gallery table."""
-    conn = get_db()
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS voice_gallery (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            character TEXT NOT NULL,
-            category TEXT NOT NULL,
-            source_type TEXT NOT NULL,
-            source_url TEXT,
-            audio_path TEXT NOT NULL,
-            duration REAL NOT NULL,
-            description TEXT,
-            thumbnail TEXT,
-            tags TEXT,
-            is_favorite INTEGER NOT NULL DEFAULT 0,
-            created_at REAL NOT NULL
-        )
-    """)
-    # Migration: add is_favorite column if missing (existing DBs)
-    try:
-        conn.execute("SELECT is_favorite FROM voice_gallery LIMIT 1")
-    except Exception:
-        conn.execute("ALTER TABLE voice_gallery ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
-    conn.commit()
-    conn.close()
+    with db_conn() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS voice_gallery (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                character TEXT NOT NULL,
+                category TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                source_url TEXT,
+                audio_path TEXT NOT NULL,
+                duration REAL NOT NULL,
+                description TEXT,
+                thumbnail TEXT,
+                tags TEXT,
+                is_favorite INTEGER NOT NULL DEFAULT 0,
+                created_at REAL NOT NULL
+            )
+        """)
+        # Migration: add is_favorite column if missing (existing DBs)
+        try:
+            conn.execute("SELECT is_favorite FROM voice_gallery LIMIT 1")
+        except Exception:
+            conn.execute("ALTER TABLE voice_gallery ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
 
 
 @router.get("/gallery/categories")
@@ -131,7 +129,6 @@ def list_voices(
     limit: int = Query(50, ge=1, le=200),
 ):
     """List voices in the gallery, optionally filtered by category or search."""
-    conn = get_db()
     query = "SELECT * FROM voice_gallery"
     params = []
     conditions = []
@@ -148,8 +145,8 @@ def list_voices(
     query += " ORDER BY created_at DESC LIMIT ?"
     params.append(limit)
 
-    rows = conn.execute(query, params).fetchall()
-    conn.close()
+    with db_conn() as conn:
+        rows = conn.execute(query, params).fetchall()
 
     results = []
     for row in rows:
@@ -162,11 +159,10 @@ def list_voices(
 @router.get("/gallery/voices/{voice_id}")
 def get_voice(voice_id: str):
     """Get a specific voice from the gallery."""
-    conn = get_db()
-    row = conn.execute(
-        "SELECT * FROM voice_gallery WHERE id = ?", (voice_id,)
-    ).fetchone()
-    conn.close()
+    with db_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM voice_gallery WHERE id = ?", (voice_id,)
+        ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Voice not found")
     r = dict(row)
@@ -177,24 +173,21 @@ def get_voice(voice_id: str):
 @router.delete("/gallery/voices/{voice_id}")
 def delete_voice(voice_id: str):
     """Delete a voice from the gallery."""
-    conn = get_db()
-    row = conn.execute(
-        "SELECT audio_path FROM voice_gallery WHERE id = ?", (voice_id,)
-    ).fetchone()
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Voice not found")
+    with db_conn() as conn:
+        row = conn.execute(
+            "SELECT audio_path FROM voice_gallery WHERE id = ?", (voice_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Voice not found")
 
-    audio_path = row["audio_path"]
-    if audio_path and os.path.exists(audio_path):
-        try:
-            os.remove(audio_path)
-        except Exception:
-            pass
+        audio_path = row["audio_path"]
+        if audio_path and os.path.exists(audio_path):
+            try:
+                os.remove(audio_path)
+            except Exception:
+                pass
 
-    conn.execute("DELETE FROM voice_gallery WHERE id = ?", (voice_id,))
-    conn.commit()
-    conn.close()
+        conn.execute("DELETE FROM voice_gallery WHERE id = ?", (voice_id,))
     return {"success": True}
 
 
@@ -303,29 +296,28 @@ async def download_youtube_clip(
         final_path = Path(output_path)
         actual_path.rename(final_path)
 
-        conn = get_db()
-        conn.execute(
-            """
-            INSERT INTO voice_gallery 
-            (id, name, character, category, source_type, source_url, audio_path, duration, description, tags, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-            (
-                voice_id,
-                character_name,
-                character_name,
-                category,
-                "youtube",
-                video_url,
-                output_path,
-                duration,
-                description,
-                json.dumps([character_name.lower(), category]),
-                time.time(),
-            ),
-        )
-        conn.commit()
-        conn.close()
+        conn = db_conn()
+        with conn as c:
+            c.execute(
+                """
+                INSERT INTO voice_gallery 
+                (id, name, character, category, source_type, source_url, audio_path, duration, description, tags, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    voice_id,
+                    character_name,
+                    character_name,
+                    category,
+                    "youtube",
+                    video_url,
+                    output_path,
+                    duration,
+                    description,
+                    json.dumps([character_name.lower(), category]),
+                    time.time(),
+                ),
+            )
 
         return {
             "success": True,
@@ -364,29 +356,27 @@ async def upload_voice_clip(
     except Exception:
         duration = 10.0
 
-    conn = get_db()
-    conn.execute(
-        """
-        INSERT INTO voice_gallery 
-        (id, name, character, category, source_type, source_url, audio_path, duration, description, tags, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """,
-        (
-            voice_id,
-            name,
-            character,
-            category,
-            "upload",
-            None,
-            audio_path,
-            duration,
-            description,
-            json.dumps([character.lower(), category]),
-            time.time(),
-        ),
-    )
-    conn.commit()
-    conn.close()
+    with db_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO voice_gallery 
+            (id, name, character, category, source_type, source_url, audio_path, duration, description, tags, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+            (
+                voice_id,
+                name,
+                character,
+                category,
+                "upload",
+                None,
+                audio_path,
+                duration,
+                description,
+                json.dumps([character.lower(), category]),
+                time.time(),
+            ),
+        )
 
     return {
         "id": voice_id,
@@ -402,41 +392,37 @@ async def save_voice_as_profile(
     profile_name: str = Query(..., description="Name for the voice profile"),
 ):
     """Save a gallery voice as a voice profile for cloning."""
-    conn = get_db()
-    row = conn.execute(
-        "SELECT * FROM voice_gallery WHERE id = ?", (voice_id,)
-    ).fetchone()
-    conn.close()
+    with db_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM voice_gallery WHERE id = ?", (voice_id,)
+        ).fetchone()
 
-    if not row:
-        raise HTTPException(status_code=404, detail="Voice not found")
+        if not row:
+            raise HTTPException(status_code=404, detail="Voice not found")
 
-    profile_id = str(uuid.uuid4())[:8]
-    import shutil
+        profile_id = str(uuid.uuid4())[:8]
+        import shutil
 
-    ext = os.path.splitext(row["audio_path"])[1]
-    new_audio_path = os.path.join(VOICES_DIR, f"{profile_id}{ext}")
-    shutil.copy(row["audio_path"], new_audio_path)
+        ext = os.path.splitext(row["audio_path"])[1]
+        new_audio_path = os.path.join(VOICES_DIR, f"{profile_id}{ext}")
+        shutil.copy(row["audio_path"], new_audio_path)
 
-    conn = get_db()
-    conn.execute(
-        """
-        INSERT INTO voice_profiles (id, name, ref_audio_path, ref_text, instruct, language, seed, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """,
-        (
-            profile_id,
-            profile_name,
-            f"{profile_id}{ext}",
-            row["description"] or "",
-            row["character"] or "",
-            "Auto",
-            None,
-            time.time(),
-        ),
-    )
-    conn.commit()
-    conn.close()
+        conn.execute(
+            """
+            INSERT INTO voice_profiles (id, name, ref_audio_path, ref_text, instruct, language, seed, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+            (
+                profile_id,
+                profile_name,
+                f"{profile_id}{ext}",
+                row["description"] or "",
+                row["character"] or "",
+                "Auto",
+                None,
+                time.time(),
+            ),
+        )
     event_bus.emit("profiles", {"action": "created", "id": profile_id})
 
     return {"profile_id": profile_id, "name": profile_name}
@@ -445,11 +431,10 @@ async def save_voice_as_profile(
 @router.get("/gallery/voices/{voice_id}/preview")
 def preview_voice(voice_id: str):
     """Get a voice clip for preview playback."""
-    conn = get_db()
-    row = conn.execute(
-        "SELECT audio_path FROM voice_gallery WHERE id = ?", (voice_id,)
-    ).fetchone()
-    conn.close()
+    with db_conn() as conn:
+        row = conn.execute(
+            "SELECT audio_path FROM voice_gallery WHERE id = ?", (voice_id,)
+        ).fetchone()
 
     if not row:
         raise HTTPException(status_code=404, detail="Voice not found")
@@ -475,7 +460,7 @@ def preview_voice(voice_id: str):
 
     raise HTTPException(
         status_code=404,
-        detail=f"Audio not found: abs={is_absolute}, exists={path_exists}, path={audio_path}",
+        detail="Audio file not found. It may have been deleted or moved.",
     )
 
 
@@ -484,35 +469,31 @@ def preview_voice(voice_id: str):
 @router.patch("/gallery/voices/{voice_id}")
 def update_voice(voice_id: str, body: dict):
     """Update voice metadata — name, tags, is_favorite."""
-    conn = get_db()
-    row = conn.execute("SELECT id FROM voice_gallery WHERE id = ?", (voice_id,)).fetchone()
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Voice not found")
+    with db_conn() as conn:
+        row = conn.execute("SELECT id FROM voice_gallery WHERE id = ?", (voice_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Voice not found")
 
-    updates = []
-    params = []
-    if "name" in body:
-        updates.append("name = ?")
-        params.append(body["name"])
-    if "tags" in body:
-        updates.append("tags = ?")
-        params.append(json.dumps(body["tags"]) if isinstance(body["tags"], list) else body["tags"])
-    if "is_favorite" in body:
-        updates.append("is_favorite = ?")
-        params.append(1 if body["is_favorite"] else 0)
-    if "description" in body:
-        updates.append("description = ?")
-        params.append(body["description"])
+        updates = []
+        params = []
+        if "name" in body:
+            updates.append("name = ?")
+            params.append(body["name"])
+        if "tags" in body:
+            updates.append("tags = ?")
+            params.append(json.dumps(body["tags"]) if isinstance(body["tags"], list) else body["tags"])
+        if "is_favorite" in body:
+            updates.append("is_favorite = ?")
+            params.append(1 if body["is_favorite"] else 0)
+        if "description" in body:
+            updates.append("description = ?")
+            params.append(body["description"])
 
-    if not updates:
-        conn.close()
-        return {"success": True, "updated": []}
+        if not updates:
+            return {"success": True, "updated": []}
 
-    params.append(voice_id)
-    conn.execute(f"UPDATE voice_gallery SET {', '.join(updates)} WHERE id = ?", params)
-    conn.commit()
-    conn.close()
+        params.append(voice_id)
+        conn.execute(f"UPDATE voice_gallery SET {', '.join(updates)} WHERE id = ?", params)
     return {"success": True, "updated": list(body.keys())}
 
 
@@ -523,58 +504,52 @@ def batch_delete_voices(body: dict):
     if not ids:
         return {"deleted": 0}
 
-    conn = get_db()
     deleted = 0
-    for vid in ids:
-        row = conn.execute("SELECT audio_path FROM voice_gallery WHERE id = ?", (vid,)).fetchone()
-        if row:
-            audio_path = row["audio_path"]
-            if audio_path and os.path.exists(audio_path):
-                try:
-                    os.remove(audio_path)
-                except Exception:
-                    pass
-            conn.execute("DELETE FROM voice_gallery WHERE id = ?", (vid,))
-            deleted += 1
-    conn.commit()
-    conn.close()
+    with db_conn() as conn:
+        for vid in ids:
+            row = conn.execute("SELECT audio_path FROM voice_gallery WHERE id = ?", (vid,)).fetchone()
+            if row:
+                audio_path = row["audio_path"]
+                if audio_path and os.path.exists(audio_path):
+                    try:
+                        os.remove(audio_path)
+                    except Exception:
+                        pass
+                conn.execute("DELETE FROM voice_gallery WHERE id = ?", (vid,))
+                deleted += 1
     return {"deleted": deleted}
 
 
 @router.post("/gallery/voices/{voice_id}/to-profile")
 def voice_to_profile(voice_id: str):
     """Create a voice profile from a gallery clip."""
-    conn = get_db()
-    row = conn.execute("SELECT * FROM voice_gallery WHERE id = ?", (voice_id,)).fetchone()
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Voice not found")
+    with db_conn() as conn:
+        row = conn.execute("SELECT * FROM voice_gallery WHERE id = ?", (voice_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Voice not found")
 
-    voice = dict(row)
-    audio_path = voice["audio_path"]
-    if not os.path.exists(audio_path):
-        conn.close()
-        raise HTTPException(status_code=404, detail="Audio file not found on disk")
+        voice = dict(row)
+        audio_path = voice["audio_path"]
+        if not os.path.exists(audio_path):
+            raise HTTPException(status_code=404, detail="Audio file not found on disk")
 
-    import shutil
-    import uuid
+        import shutil
+        import uuid
 
-    profile_id = str(uuid.uuid4())[:8]
-    # Copy audio to voices dir
-    dest_filename = f"{profile_id}_gallery.wav"
-    dest_path = os.path.join(VOICES_DIR, dest_filename)
-    shutil.copy2(audio_path, dest_path)
+        profile_id = str(uuid.uuid4())[:8]
+        # Copy audio to voices dir
+        dest_filename = f"{profile_id}_gallery.wav"
+        dest_path = os.path.join(VOICES_DIR, dest_filename)
+        shutil.copy2(audio_path, dest_path)
 
-    import time
-    now = time.time()
-    conn.execute(
-        """INSERT INTO voice_profiles
-           (id, name, ref_audio_path, ref_text, instruct, seed, is_locked, locked_audio_path, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (profile_id, voice["name"], dest_filename, "", None, None, 0, None, now, now),
-    )
-    conn.commit()
-    conn.close()
+        import time
+        now = time.time()
+        conn.execute(
+            """INSERT INTO voice_profiles
+               (id, name, ref_audio_path, ref_text, instruct, seed, is_locked, locked_audio_path, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (profile_id, voice["name"], dest_filename, "", None, None, 0, None, now, now),
+        )
     event_bus.emit("profiles", {"action": "created", "id": profile_id})
 
     return {"success": True, "profile_id": profile_id, "name": voice["name"]}

@@ -400,7 +400,7 @@ def preflight():
 async def setup_warmup():
     """Trigger a model load in the background so the first dub doesn't pay
     the cold-start tax."""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     async def _do_warmup():
         try:

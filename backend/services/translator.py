@@ -291,7 +291,7 @@ async def cinematic_refine_many(
     Returns a list of dicts keyed the same length + order, each carrying
     `id`, `text`, `literal`, `critique`, optional `error`.
     """
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     directions = directions or {}
 
     # Bound concurrency so we don't fan out 500 simultaneous requests.

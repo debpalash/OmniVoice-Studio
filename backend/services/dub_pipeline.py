@@ -53,6 +53,7 @@ logger = logging.getLogger("omnivoice.dub_pipeline")
 # backward compat during the transition.
 
 _dub_jobs: dict[str, dict] = {}
+_dub_jobs_lock = threading.Lock()
 _active_procs: dict[str, list] = {}
 _active_procs_lock = threading.Lock()
 
@@ -106,14 +107,11 @@ def find_cached_job(content_hash: str, exclude_job_id: str) -> Optional[dict]:
     """
     if not content_hash:
         return None
-    conn = get_db()
-    try:
+    with db_conn() as conn:
         rows = conn.execute(
             "SELECT id, job_data FROM dub_history WHERE content_hash=? AND id!=? ORDER BY created_at DESC LIMIT 5",
             (content_hash, exclude_job_id),
         ).fetchall()
-    finally:
-        conn.close()
     for row in rows:
         try:
             job = json.loads(row["job_data"])
@@ -183,17 +181,16 @@ def get_job(job_id: str) -> Optional[dict]:
     """Look up a job. Checks the in-memory cache first, then falls back to
     `dub_history.job_data` so saved projects still resolve after restart.
     """
-    if job_id in _dub_jobs:
-        return _dub_jobs[job_id]
-    conn = get_db()
-    try:
+    with _dub_jobs_lock:
+        if job_id in _dub_jobs:
+            return _dub_jobs[job_id]
+    with db_conn() as conn:
         row = conn.execute("SELECT job_data FROM dub_history WHERE id=?", (job_id,)).fetchone()
-    finally:
-        conn.close()
     if row and row["job_data"]:
         try:
             job = json.loads(row["job_data"])
-            _dub_jobs[job_id] = job
+            with _dub_jobs_lock:
+                _dub_jobs[job_id] = job
             return job
         except json.JSONDecodeError as e:
             logger.error("Failed to decode dub_history.job_data for %s: %s", job_id, e)
@@ -202,7 +199,8 @@ def get_job(job_id: str) -> Optional[dict]:
 
 def put_job(job_id: str, job: dict) -> None:
     """Insert / replace the in-memory job record. Does NOT persist."""
-    _dub_jobs[job_id] = job
+    with _dub_jobs_lock:
+        _dub_jobs[job_id] = job
 
 
 def save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0, content_hash: str = "") -> None:
@@ -387,8 +385,7 @@ def parse_vtt_segments(vtt_path: str) -> list[dict]:
             continue
         text = " ".join(ln.strip() for ln in lines[1:]).strip()
         # Strip inline styling like <c.colorE5E5E5>foo</c> or <00:00:01.200>
-        import re as _re
-        text = _re.sub(r"<[^>]+>", "", text)
+        text = re.sub(r"<[^>]+>", "", text)
         if text:
             segments.append({"start": start, "end": end, "text": text})
     return segments

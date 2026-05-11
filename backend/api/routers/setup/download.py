@@ -46,7 +46,7 @@ def _safe_put(queue: asyncio.Queue, event) -> None:
 async def setup_download_stream():
     """SSE: forward every HuggingFace download tqdm update as a JSON event."""
     queue: asyncio.Queue = asyncio.Queue(maxsize=512)
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     def listener(event):
         try:
@@ -108,7 +108,7 @@ async def install_model(req: InstallModelRequest):
                 f"Retry in {remaining}s or check your network."
             ),
         )
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     def _do():
         token = hf_progress.current_repo_id.set(req.repo_id)

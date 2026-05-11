@@ -8,7 +8,7 @@ import torchaudio
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from core.db import get_db
+from core.db import db_conn
 from core.config import DUB_DIR, VOICES_DIR
 from core.tasks import task_manager
 from schemas.requests import DubRequest
@@ -131,11 +131,8 @@ async def dub_generate(job_id: str, req: DubRequest):
                     profile_id = None  # prevent the voice_profiles lookup below
 
                 if profile_id:
-                    conn = get_db()
-                    try:
+                    with db_conn() as conn:
                         row = conn.execute("SELECT * FROM voice_profiles WHERE id=?", (profile_id,)).fetchone()
-                    finally:
-                        conn.close()
                     if row:
                         if row["is_locked"] and row["locked_audio_path"]:
                             ref_audio = os.path.join(VOICES_DIR, row["locked_audio_path"])
@@ -204,7 +201,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                 except Exception as e:
                     logger.debug("direction parse skipped for %s: %s", getattr(seg, 'id', '?'), e)
 
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             try:
                 # Fast-preview mode for interactive edits — trade ~10–20 %
                 # quality for ~2× speed by dropping flow-matching steps.
@@ -439,13 +436,10 @@ async def preview_segment(job_id: str, req: SegmentPreviewRequest):
 
         instruct_str = req.instruct
         if pid:
-            conn = get_db()
-            try:
+            with db_conn() as conn:
                 row = conn.execute(
                     "SELECT * FROM voice_profiles WHERE id=?", (pid,)
                 ).fetchone()
-            finally:
-                conn.close()
             if row:
                 if row["is_locked"] and row["locked_audio_path"]:
                     ref_audio = os.path.join(VOICES_DIR, row["locked_audio_path"])
@@ -477,7 +471,7 @@ async def preview_segment(job_id: str, req: SegmentPreviewRequest):
         )
         return normalize_audio(mastered, target_dBFS=-2.0)
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     audio_tensor = await loop.run_in_executor(_gpu_pool, _gen)
 
     sr = getattr(_model, "sampling_rate", 24000)

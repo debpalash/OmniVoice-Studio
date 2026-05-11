@@ -36,7 +36,7 @@ from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
 from core.config import OUTPUTS_DIR, VOICES_DIR
-from core.db import db_conn, get_db
+from core.db import db_conn
 from core import event_bus
 
 logger = logging.getLogger("omnivoice.marketplace")
@@ -60,13 +60,10 @@ MAX_BUNDLE_BYTES = 100 * 1024 * 1024
 @router.post("/export/{profile_id}")
 def export_profile(profile_id: str):
     """Export a voice profile as a downloadable .omnivoice bundle (ZIP)."""
-    conn = get_db()
-    try:
+    with db_conn() as conn:
         row = conn.execute(
             "SELECT * FROM voice_profiles WHERE id = ?", (profile_id,)
         ).fetchone()
-    finally:
-        conn.close()
 
     if not row:
         raise HTTPException(status_code=404, detail="Voice profile not found")
@@ -239,13 +236,10 @@ def publish_to_marketplace(
     OmniVoice instances on the same machine (or shared network drive)
     can discover and import it.
     """
-    conn = get_db()
-    try:
+    with db_conn() as conn:
         row = conn.execute(
             "SELECT * FROM voice_profiles WHERE id = ?", (profile_id,)
         ).fetchone()
-    finally:
-        conn.close()
 
     if not row:
         raise HTTPException(status_code=404, detail="Voice profile not found")

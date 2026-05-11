@@ -114,7 +114,7 @@ async def sandboxed_generate(
     )
     proc.start()
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     def _wait():
         proc.join(timeout=timeout)

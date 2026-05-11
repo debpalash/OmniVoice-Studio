@@ -204,7 +204,7 @@ async def _transcribe_buffer(chunks: list[bytes]) -> str:
             result = backend.transcribe(tmp, word_timestamps=False)
             return result.get("text", "")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         text = await loop.run_in_executor(_gpu_pool, _run)
         return text.strip()
     finally:
@@ -252,7 +252,7 @@ async def _transcribe_buffer_full(chunks: list[bytes]) -> dict:
                 "engine": backend.id,
             }
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(_gpu_pool, _run)
     finally:
         try:

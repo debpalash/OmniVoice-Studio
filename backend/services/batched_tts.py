@@ -96,7 +96,7 @@ async def generate_segments_batched(
     from services.audio_dsp import apply_mastering, normalize_audio
 
     sr = getattr(model, "sampling_rate", 24000)
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     results: list[tuple[int, torch.Tensor, int]] = []
     total = len(segments)
 

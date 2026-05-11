@@ -235,7 +235,7 @@ async def analyse_video(
     Returns:
         VideoContext with per-segment and global visual analysis.
     """
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     ctx = VideoContext()
 
     # Extract timestamps at segment midpoints

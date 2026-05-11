@@ -252,7 +252,7 @@ async def lifespan(app: FastAPI):
     async def _preload_capture_asr():
         try:
             from services.model_manager import _gpu_pool, _loading_detail
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             def _warm():
                 from services.asr_backend import get_capture_asr_backend
                 _loading_detail["sub_stage"] = "loading_asr"

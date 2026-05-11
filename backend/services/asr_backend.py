@@ -467,7 +467,7 @@ class PyTorchWhisperBackend(ASRBackend):
         import asyncio
         from services.model_manager import get_model
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             if loop.is_running():
                 raise RuntimeError(
                     "PyTorchWhisperBackend needs the ASR pipe — pass it via constructor "

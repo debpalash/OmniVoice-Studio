@@ -126,7 +126,7 @@ async def dub_translate(req: TranslateRequest):
         provider = (req.provider if req.provider else os.environ.get("TRANSLATE_PROVIDER", "google")).lower()
         lang_code = TRANSLATE_CODES.get(req.target_lang, req.target_lang)
         api_key = os.environ.get("TRANSLATE_API_KEY", "")
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         src_lang = _resolve_source_lang(req)
 
         # Offline NLLB Transformer Translation

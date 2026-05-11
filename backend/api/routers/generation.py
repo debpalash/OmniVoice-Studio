@@ -11,7 +11,7 @@ from typing import Optional
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
 
-from core.db import get_db, db_conn
+from core.db import db_conn
 from core.config import OUTPUTS_DIR, VOICES_DIR
 from services.model_manager import get_model, _gpu_pool
 from services.audio_dsp import apply_mastering, normalize_audio
@@ -90,11 +90,8 @@ async def generate_speech(
     resolved_profile_id = None
 
     if profile_id:
-        conn = get_db()
-        try:
+        with db_conn() as conn:
             row = conn.execute("SELECT * FROM voice_profiles WHERE id=?", (profile_id,)).fetchone()
-        finally:
-            conn.close()
         if row:
             resolved_profile_id = profile_id
             if row["is_locked"] and row["locked_audio_path"]:
@@ -131,7 +128,7 @@ async def generate_speech(
 
     start_time = time.time()
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         audio_tensor = await loop.run_in_executor(
             _gpu_pool, _run_inference,
             _model, text, language, ref_audio_path, ref_text, instruct, duration,
@@ -212,11 +209,8 @@ def _safe_output_path(name):
 
 @router.get("/history")
 def list_history():
-    conn = get_db()
-    try:
+    with db_conn() as conn:
         rows = conn.execute("SELECT * FROM generation_history ORDER BY created_at DESC LIMIT 50").fetchall()
-    finally:
-        conn.close()
     return [dict(r) for r in rows]
 
 @router.delete("/history")

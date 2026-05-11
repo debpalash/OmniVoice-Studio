@@ -6,7 +6,7 @@ import subprocess
 import platform
 from fastapi import APIRouter, HTTPException
 
-from core.db import get_db
+from core.db import db_conn
 from core.config import OUTPUTS_DIR
 from core import event_bus
 from schemas.requests import ExportRequest, ExportRecordRequest, RevealRequest
@@ -90,15 +90,11 @@ def export_file(req: ExportRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
     export_id = str(uuid.uuid4())[:8]
-    conn = get_db()
-    try:
+    with db_conn() as conn:
         conn.execute(
             "INSERT INTO export_history (id, filename, destination_path, mode, created_at) VALUES (?, ?, ?, ?, ?)",
             (export_id, req.source_filename, dest, req.mode, time.time()),
         )
-        conn.commit()
-    finally:
-        conn.close()
     event_bus.emit("export_history", {"action": "exported", "id": export_id})
     return {"success": True, "id": export_id}
 
@@ -106,26 +102,19 @@ def export_file(req: ExportRequest):
 @router.post("/export/record")
 def record_export(req: ExportRecordRequest):
     export_id = str(uuid.uuid4())[:8]
-    conn = get_db()
-    try:
+    with db_conn() as conn:
         conn.execute(
             "INSERT INTO export_history (id, filename, destination_path, mode, created_at) VALUES (?, ?, ?, ?, ?)",
             (export_id, req.filename, req.destination_path, req.mode, time.time()),
         )
-        conn.commit()
-    finally:
-        conn.close()
     event_bus.emit("export_history", {"action": "recorded", "id": export_id})
     return {"success": True, "id": export_id}
 
 
 @router.get("/export/history")
 def get_export_history():
-    conn = get_db()
-    try:
+    with db_conn() as conn:
         rows = conn.execute("SELECT * FROM export_history ORDER BY created_at DESC LIMIT 50").fetchall()
-    finally:
-        conn.close()
     return [dict(r) for r in rows]
 
 
