@@ -1,4 +1,4 @@
-const isTauri = typeof window !== 'undefined' && !!(window.__TAURI_INTERNALS__ || window.__TAURI__);
+import { isTauri } from './media';
 
 export async function askConfirm(message, title = 'Confirm') {
   if (isTauri) {

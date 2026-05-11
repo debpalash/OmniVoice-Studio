@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { isTauri as _isTauri } from '../utils/media';
 import {
   flexRender,
   getCoreRowModel,
@@ -924,7 +925,7 @@ export function EnginesTab() {
 }
 
 
-const isTauri = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+const isTauri = () => _isTauri;
 
 // Tauri v2's webview disables native window.confirm/alert — they return
 // false silently, making Delete/Reinstall buttons appear dead. Route through

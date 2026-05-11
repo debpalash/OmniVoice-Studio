@@ -13,7 +13,7 @@ import './VoiceGallery.css';
 import { askConfirm } from '../utils/dialog';
 
 // Check if running in Tauri
-const isTauri = window.__TAURI__ != null || window.location.protocol === 'tauri:';
+import { isTauri } from '../utils/media';
 
 const CATEGORY_ICONS = {
   disney: Film,
