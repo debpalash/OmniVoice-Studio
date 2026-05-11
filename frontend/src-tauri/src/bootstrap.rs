@@ -203,6 +203,13 @@ pub fn clean_and_retry_bootstrap(app: tauri::AppHandle, state: tauri::State<'_, 
             let _ = fs::remove_dir_all(&project_dir);
         }
     }
+    // Kill any zombie backend still occupying the port from the deleted
+    // project dir, otherwise bootstrap will "attach" to the stale process.
+    if crate::backend::port_in_use(backend_port()) {
+        log::warn!("Clean retry: killing stale backend on port {}", backend_port());
+        crate::backend::kill_orphan_on_port(backend_port());
+        std::thread::sleep(Duration::from_millis(500));
+    }
     retry_bootstrap(app, state);
 }
 
