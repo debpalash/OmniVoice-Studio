@@ -1,5 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { CheckCircle, Loader, ArrowRight, AlertTriangle, XCircle, RefreshCw } from 'lucide-react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
+import {
+  CheckCircle, Loader, ArrowRight, AlertTriangle, XCircle,
+  RefreshCw, Monitor, Download, Cog, FolderOpen,
+} from 'lucide-react';
 import { Button } from '../ui';
 import { useSetupStatus, usePreflight } from '../api/hooks';
 import { ModelStoreTab, EnginesTab } from './Settings';
@@ -15,16 +18,53 @@ const doubleClickMaximize = async () => {
   } catch { /* non-tauri preview — ignore */ }
 };
 
+/** Shorten an absolute path for display: /Users/foo/.cache/x → ~/.cache/x */
+function shortenPath(p) {
+  if (!p) return '~/.cache/huggingface';
+  try {
+    const home = p.match(/^(\/Users\/[^/]+|\/home\/[^/]+|C:\\Users\\[^\\]+)/)?.[0];
+    if (home) return p.replace(home, '~');
+  } catch { /* fallthrough */ }
+  return p;
+}
+
+/** Open a path in the OS file manager (Tauri only, no-op on web). */
+async function revealPath(path) {
+  try {
+    if (!('__TAURI_INTERNALS__' in window)) return;
+    const { revealItemInDir } = await import('@tauri-apps/plugin-opener');
+    await revealItemInDir(path);
+  } catch { /* ignore — probably web preview */ }
+}
+
 const CHECK_ICON = {
-  pass: <CheckCircle size={14} color="#8ec07c" />,
-  warn: <AlertTriangle size={14} color="#fabd2f" />,
-  fail: <XCircle size={14} color="#fb4934" />,
+  pass: <CheckCircle size={13} />,
+  warn: <AlertTriangle size={13} />,
+  fail: <XCircle size={13} />,
 };
 
-/**
- * Pre-flight panel — renders the /setup/preflight result as a pass/warn/fail
- * list. Wizard blocks forward-nav on any fail; warns pass through.
- */
+/* ── Welcome step cards ────────────────────────────────────────────────── */
+
+const WELCOME_CARDS = [
+  {
+    icon: <Monitor size={16} />,
+    title: 'System check',
+    desc: 'Probe RAM, disk, GPU, ffmpeg, and network. Blockers are flagged upfront so you know before downloading.',
+  },
+  {
+    icon: <Download size={16} />,
+    title: 'Install models',
+    desc: 'Download ~5 GB of weights — TTS + Whisper. Required models first, optional ones later.',
+  },
+  {
+    icon: <Cog size={16} />,
+    title: 'Pick engines',
+    desc: 'Choose TTS / ASR / LLM backends. Defaults work out of the box — customize anytime in Settings.',
+  },
+];
+
+/* ── Preflight panel ───────────────────────────────────────────────────── */
+
 function PreflightPanel({ report, loading, onRecheck }) {
   if (loading && !report) {
     return (
@@ -43,8 +83,10 @@ function PreflightPanel({ report, loading, onRecheck }) {
         </Button>
       </div>
       {report.checks.map((c) => (
-        <div key={c.id} className="setup-wizard__row" style={{ alignItems: 'flex-start', padding: '6px 2px' }}>
-          <span className="swiz-check-icon">{CHECK_ICON[c.status] || null}</span>
+        <div key={c.id} className="setup-wizard__row swiz-check-row" style={{ alignItems: 'flex-start', padding: '8px 4px' }}>
+          <span className={`swiz-check-icon swiz-check-icon--${c.status}`}>
+            {CHECK_ICON[c.status] || null}
+          </span>
           <div className="setup-wizard__row-body">
             <span className="setup-wizard__row-title">{c.label}</span>
             <span className="setup-wizard__muted" style={{ whiteSpace: 'normal' }}>{c.detail}</span>
@@ -64,13 +106,45 @@ function PreflightPanel({ report, loading, onRecheck }) {
   );
 }
 
+/* ── Stepper nav with connectors ───────────────────────────────────────── */
+
+const STEP_LABELS = ['Welcome', 'System check', 'Install models', 'Pick engines'];
+
+function StepperNav({ step, onStep }) {
+  return (
+    <div className="setup-wizard__steps" data-tauri-drag-region>
+      {STEP_LABELS.map((label, i) => (
+        <React.Fragment key={label}>
+          {i > 0 && (
+            <span className={`setup-wizard__step-connector${step > i - 1 ? ' setup-wizard__step-connector--done' : ''}`} />
+          )}
+          <button
+            className={[
+              'setup-wizard__step',
+              step === i ? 'setup-wizard__step--active' : '',
+              step > i ? 'setup-wizard__step--done' : '',
+            ].filter(Boolean).join(' ')}
+            onClick={() => onStep(i)}
+            type="button"
+            aria-current={step === i ? 'step' : undefined}
+            aria-label={`Step ${i + 1}: ${label}${step > i ? ' (completed)' : ''}`}
+          >
+            {step > i ? '✓ ' : `${i + 1}. `}{label}
+          </button>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+/* ── Main wizard component ─────────────────────────────────────────────── */
+
 /**
  * First-run / "no models installed" gate.
  *
  * Flow:
  *   0. Welcome    — hero + explainer + "continue"
- *   1. System     — /setup/preflight results (OS, RAM, disk, GPU driver,
- *                   ffmpeg, network). Blocks on any fail.
+ *   1. System     — /setup/preflight results
  *   2. Models     — ModelStoreTab, unlocks on models_ready
  *   3. Engines    — EnginesTab + "Enter studio"
  */
@@ -84,8 +158,7 @@ export default function SetupWizard({ onReady }) {
   const pre        = preQuery.data ?? null;
   const preLoading = preQuery.isLoading;
 
-  // Poll setup status every 4s while on Models step so "Finish" unlocks
-  // as soon as downloads complete.
+  // Poll setup status every 4s while on Models step
   useEffect(() => {
     if (step !== 2) return;
     const iv = setInterval(() => setupQuery.refetch(), 4000);
@@ -97,26 +170,11 @@ export default function SetupWizard({ onReady }) {
   const modelsReady = !!status?.models_ready;
   const preflightOk = !!pre?.ok;
 
+  const cachePath = status?.hf_cache_dir || '~/.cache/huggingface';
+
   return (
     <div className="setup-wizard">
-      <div className="setup-wizard__steps" data-tauri-drag-region>
-        {['Welcome', 'System check', 'Install models', 'Pick engines'].map((label, i) => (
-          <button
-            key={label}
-            className={[
-              'setup-wizard__step',
-              step === i ? 'setup-wizard__step--active' : '',
-              step > i ? 'setup-wizard__step--done' : '',
-            ].filter(Boolean).join(' ')}
-            onClick={() => setStep(i)}
-            type="button"
-            aria-current={step === i ? 'step' : undefined}
-            aria-label={`Step ${i + 1}: ${label}${step > i ? ' (completed)' : ''}`}
-          >
-            {step > i ? '✓ ' : `${i + 1}. `}{label}
-          </button>
-        ))}
-      </div>
+      <StepperNav step={step} onStep={setStep} />
 
       <div
         data-tauri-drag-region
@@ -134,33 +192,21 @@ export default function SetupWizard({ onReady }) {
 
       {/* 0. Welcome */}
       {step === 0 && (
-        <>
+        <div className="swiz-slide" key="step-0">
           <div className="setup-wizard__embed">
             <div className="setup-wizard__welcome">
               <div className="setup-wizard__welcome-grid">
-                <div className="flex items-start gap-3 rounded-[8px] border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.025)] px-3.5 py-2.5">
-                  <span className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] bg-[rgba(211,134,155,0.12)] text-[0.72rem] font-bold text-[var(--color-brand)]">1</span>
-                  <div>
-                    <strong className="mb-0.5 block text-[0.84rem] leading-[1.3]">System check</strong>
-                    <p className="m-0 text-[0.78rem] leading-[1.5] text-[var(--color-fg-muted)]">Probe RAM, disk, GPU, ffmpeg, network. Blockers are flagged upfront.</p>
+                {WELCOME_CARDS.map((card, i) => (
+                  <div className="swiz-welcome-card" key={i}>
+                    <div className="swiz-welcome-card__icon">{card.icon}</div>
+                    <div className="swiz-welcome-card__body">
+                      <span className="swiz-welcome-card__title">{card.title}</span>
+                      <p className="swiz-welcome-card__desc">{card.desc}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-start gap-3 rounded-[8px] border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.025)] px-3.5 py-2.5">
-                  <span className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] bg-[rgba(211,134,155,0.12)] text-[0.72rem] font-bold text-[var(--color-brand)]">2</span>
-                  <div>
-                    <strong className="mb-0.5 block text-[0.84rem] leading-[1.3]">Install models</strong>
-                    <p className="m-0 text-[0.78rem] leading-[1.5] text-[var(--color-fg-muted)]">Download ~5 GB of weights — TTS + Whisper. Required models first, optional ones later.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 rounded-[8px] border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.025)] px-3.5 py-2.5">
-                  <span className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] bg-[rgba(211,134,155,0.12)] text-[0.72rem] font-bold text-[var(--color-brand)]">3</span>
-                  <div>
-                    <strong className="mb-0.5 block text-[0.84rem] leading-[1.3]">Pick engines</strong>
-                    <p className="m-0 text-[0.78rem] leading-[1.5] text-[var(--color-fg-muted)]">Choose TTS / ASR / LLM backends. Defaults work out of the box.</p>
-                  </div>
-                </div>
+                ))}
               </div>
-              <p className="m-0 text-center text-[0.74rem] leading-[1.5] text-[var(--color-fg-subtle)]">
+              <p className="swiz-welcome-note">
                 First run takes 5–10 minutes to download. After that, every launch is instant and fully offline.
               </p>
             </div>
@@ -175,12 +221,12 @@ export default function SetupWizard({ onReady }) {
               Get started
             </Button>
           </div>
-        </>
+        </div>
       )}
 
       {/* 1. System check */}
       {step === 1 && (
-        <>
+        <div className="swiz-slide" key="step-1">
           <div className="setup-wizard__embed">
             <PreflightPanel report={pre} loading={preLoading} onRecheck={recheckPreflight} />
           </div>
@@ -198,12 +244,12 @@ export default function SetupWizard({ onReady }) {
                 : 'Resolve blockers to continue'}
             </Button>
           </div>
-        </>
+        </div>
       )}
 
       {/* 2. Models */}
       {step === 2 && (
-        <>
+        <div className="swiz-slide" key="step-2">
           <div className="setup-wizard__embed">
             <ModelStoreTab info={null} modelBadge={null} />
             {!modelsReady && status?.missing?.length > 0 && (
@@ -227,12 +273,12 @@ export default function SetupWizard({ onReady }) {
                 : 'Waiting for required models…'}
             </Button>
           </div>
-        </>
+        </div>
       )}
 
       {/* 3. Engines */}
       {step === 3 && (
-        <>
+        <div className="swiz-slide" key="step-3">
           <div className="setup-wizard__embed">
             <EnginesTab />
           </div>
@@ -246,7 +292,7 @@ export default function SetupWizard({ onReady }) {
               Enter studio
             </Button>
           </div>
-        </>
+        </div>
       )}
 
       {!status && step > 1 && (
@@ -256,8 +302,19 @@ export default function SetupWizard({ onReady }) {
       )}
 
       <p className="setup-wizard__footnote">
-        Downloads come from <code>huggingface.co</code>. Cache:{' '}
-        <code>{status?.hf_cache_dir || '~/.cache/huggingface'}</code>
+        Downloads from <code>huggingface.co</code>
+        <span style={{ margin: '0 2px' }}>·</span>
+        Cache: <code>{shortenPath(cachePath)}</code>
+        {'__TAURI_INTERNALS__' in window && cachePath && (
+          <button
+            className="setup-wizard__footnote-link"
+            onClick={() => revealPath(cachePath)}
+            title="Open in Finder"
+          >
+            <FolderOpen size={10} style={{ verticalAlign: '-1px', marginRight: 2 }} />
+            Open
+          </button>
+        )}
       </p>
     </div>
   );

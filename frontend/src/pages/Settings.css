@@ -174,10 +174,11 @@
   flex-direction: column;
   align-items: stretch;
   gap: 4px;
-  padding: 6px 10px 8px;
+  padding: 8px 12px 10px;
   border-color: color-mix(in srgb, #f3a5b6 25%, transparent);
   border-left-color: #f3a5b6;
-  background: color-mix(in srgb, #f3a5b6 3%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, #f3a5b6 4%, transparent), color-mix(in srgb, #d3869b 2%, transparent));
+  box-shadow: 0 0 12px color-mix(in srgb, #f3a5b6 6%, transparent);
 }
 .reco-banner__gb {
   font-size: var(--text-2xs);

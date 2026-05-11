@@ -42,24 +42,33 @@
 
 /* ── Variants ────────────────────────────────────────────────────── */
 
-/* primary — flat chrome accent, no gradient / shimmer */
+/* primary — solid gradient fill with glow */
 .ui-btn--primary {
-  background: var(--chrome-accent-bg);
-  color: var(--chrome-accent);
-  border-color: var(--chrome-accent-border);
-  box-shadow: none;
+  background: linear-gradient(135deg, var(--chrome-accent, #d3869b), color-mix(in srgb, var(--chrome-accent, #d3869b) 70%, #c07090));
+  color: #1d2021;
+  border-color: transparent;
+  font-weight: 600;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--chrome-accent, #d3869b) 30%, transparent),
+    0 1px 4px color-mix(in srgb, var(--chrome-accent, #d3869b) 15%, transparent);
+  transition:
+    background var(--dur-fast, 0.15s) var(--ease-out, ease-out),
+    box-shadow var(--dur-fast, 0.15s) var(--ease-out, ease-out),
+    transform var(--dur-fast, 0.15s) var(--ease-out, ease-out);
 }
 .ui-btn--primary::before { display: none; }
 .ui-btn--primary:hover:not(:disabled) {
-  filter: none;
-  background: color-mix(in srgb, var(--chrome-accent) 22%, transparent);
-  box-shadow: none;
-  transform: none;
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--chrome-accent, #d3869b) 45%, transparent),
+    0 4px 12px color-mix(in srgb, var(--chrome-accent, #d3869b) 25%, transparent);
 }
 .ui-btn--primary:active:not(:disabled) {
-  transform: none;
-  filter: none;
-  box-shadow: none;
+  transform: scale(0.98);
+  filter: brightness(0.95);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--chrome-accent, #d3869b) 30%, transparent);
 }
 
 /* subtle — default neutral surface action */

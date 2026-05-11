@@ -1,3 +1,7 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   SetupWizard — premium onboarding flow
+   ═══════════════════════════════════════════════════════════════════════ */
+
 .setup-wizard {
   width: 100%;
   max-width: none;
@@ -6,58 +10,97 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 0;        /* let flex children shrink */
-  overflow: hidden;      /* NO page-level scroll — only embed scrolls */
+  min-height: 0;
+  overflow: hidden;
 }
 
-/* ── Step pills — top bar ────────────────────────────────────────────── */
+/* ── Slide transition for step content ──────────────────────────────── */
+@keyframes swiz-enter {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes swiz-enter-back {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.swiz-slide {
+  animation: swiz-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  display: contents;
+}
+
+/* ── Step pills — connected stepper bar ─────────────────────────────── */
 .setup-wizard__steps {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
   justify-content: center;
-  padding: 10px 12px 0;
+  padding: 8px 12px 0;
   flex-shrink: 0;
   flex-wrap: wrap;
+  position: relative;
 }
 .setup-wizard__step {
-  padding: 5px 14px;
+  padding: 6px 16px;
   border-radius: 999px;
   font-size: 0.74rem;
   letter-spacing: 0.02em;
   line-height: 1.4;
-  color: var(--color-fg-muted);
-  background: rgba(255, 255, 255, 0.03);
+  color: var(--color-fg-muted, #928374);
+  background: rgba(255, 255, 255, 0.025);
   border: 1px solid rgba(255, 255, 255, 0.06);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+  font-weight: 500;
+}
+.setup-wizard__step:hover:not(.setup-wizard__step--active) {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
 }
 .setup-wizard__step--active {
-  background: rgba(243, 165, 182, 0.12);
-  border-color: rgba(243, 165, 182, 0.35);
+  background: linear-gradient(135deg, rgba(211, 134, 155, 0.2), rgba(211, 134, 155, 0.1));
+  border-color: rgba(211, 134, 155, 0.4);
   color: #f3a5b6;
+  font-weight: 600;
+  box-shadow:
+    0 0 0 1px rgba(211, 134, 155, 0.15),
+    0 0 12px rgba(211, 134, 155, 0.1);
 }
 .setup-wizard__step--done {
   color: #8ec07c;
-  border-color: rgba(142, 192, 124, 0.35);
+  border-color: rgba(142, 192, 124, 0.3);
+  background: rgba(142, 192, 124, 0.06);
 }
 
-/* ── Hero — horizontal single-line: logo | title · subtitle ──────────── */
+/* Connector lines between pills */
+.setup-wizard__step-connector {
+  width: 20px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+.setup-wizard__step-connector--done {
+  background: rgba(142, 192, 124, 0.3);
+}
+
+/* ── Hero — horizontal single-line ───────────────────────────────────── */
 .setup-wizard__hero {
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 12px;
-  padding: 8px 12px 6px;
+  padding: 6px 12px 4px;
   flex-shrink: 0;
   max-width: 760px;
   margin-left: auto;
   margin-right: auto;
 }
 .setup-wizard__logo {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
+  filter: drop-shadow(0 0 8px rgba(211, 134, 155, 0.3));
 }
 .setup-wizard__hero-text {
   display: flex;
@@ -68,10 +111,10 @@
 }
 .setup-wizard__hero h1 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   font-family: var(--font-display, var(--font-sans));
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-weight: 700;
+  letter-spacing: -0.025em;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -83,6 +126,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  opacity: 0.8;
 }
 
 /* ── Embed panel — the ONLY scrollable region ────────────────────────── */
@@ -90,29 +134,21 @@
   padding: 4px 0;
   margin-top: 4px;
   flex: 1 1 0;
-  min-height: 0;          /* critical for flex child scroll */
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
-/* ── Nav bar — pinned to bottom, always visible above LogsFooter ─────── */
+/* ── Nav bar — pinned to bottom ──────────────────────────────────────── */
 .setup-wizard__nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-  padding: 10px 0 6px;
+  padding: 8px 0 6px;
   background: var(--color-bg, #1d2021);
   border-top: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.setup-wizard--centered {
-  max-width: 100%;
-  height: 100%;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
 }
 
 /* ── Card / checklist rows ───────────────────────────────────────────── */
@@ -154,59 +190,168 @@
 
 .setup-wizard__warn { color: var(--color-warn, #fabd2f); font-weight: 600; }
 
-/* ── Welcome step cards ──────────────────────────────────────────────── */
+/* ── Welcome step — glassmorphism cards with stagger ─────────────────── */
 .setup-wizard__welcome {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.setup-wizard__welcome-grid {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-.setup-wizard__welcome-card {
+.setup-wizard__welcome-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+@keyframes swiz-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.swiz-welcome-card {
   display: flex;
   align-items: flex-start;
   gap: 12px;
   padding: 10px 14px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: swiz-card-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  position: relative;
+  overflow: hidden;
 }
-.setup-wizard__welcome-card strong {
-  font-size: 0.84rem;
-  line-height: 1.3;
-  display: block;
-  margin-bottom: 2px;
+.swiz-welcome-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(to bottom, rgba(211, 134, 155, 0.5), rgba(211, 134, 155, 0.1));
+  border-radius: 3px 0 0 3px;
 }
-.setup-wizard__welcome-card p {
-  margin: 0;
-  color: var(--color-fg-muted);
-  font-size: 0.78rem;
-  line-height: 1.5;
+.swiz-welcome-card:nth-child(1) { animation-delay: 0s; }
+.swiz-welcome-card:nth-child(2) { animation-delay: 0.08s; }
+.swiz-welcome-card:nth-child(3) { animation-delay: 0.16s; }
+
+.swiz-welcome-card:hover {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateX(2px);
 }
-.setup-wizard__welcome-num {
+
+.swiz-welcome-card__icon {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  background: rgba(211, 134, 155, 0.12);
+  border-radius: 8px;
+  background: rgba(211, 134, 155, 0.1);
   color: #d3869b;
-  font-size: 0.72rem;
-  font-weight: 700;
-  margin-top: 1px;
 }
-.setup-wizard__welcome-note {
+.swiz-welcome-card__body {
+  flex: 1;
+  min-width: 0;
+}
+.swiz-welcome-card__title {
+  font-weight: 600;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  margin-bottom: 2px;
+  display: block;
+}
+.swiz-welcome-card__desc {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.swiz-welcome-note {
   margin: 0;
   color: var(--color-fg-subtle);
   font-size: 0.74rem;
   line-height: 1.5;
   text-align: center;
+  opacity: 0;
+  animation: swiz-card-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.28s both;
 }
+
+/* ── Preflight checklist ─────────────────────────────────────────────── */
+.swiz-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.swiz-check-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.swiz-check-header__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-fg-muted);
+}
+
+@keyframes swiz-check-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.swiz-check-row {
+  animation: swiz-check-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.swiz-check-row:nth-child(2) { animation-delay: 0.04s; }
+.swiz-check-row:nth-child(3) { animation-delay: 0.08s; }
+.swiz-check-row:nth-child(4) { animation-delay: 0.12s; }
+.swiz-check-row:nth-child(5) { animation-delay: 0.16s; }
+.swiz-check-row:nth-child(6) { animation-delay: 0.20s; }
+
+.swiz-check-icon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.swiz-check-icon--pass {
+  background: rgba(142, 192, 124, 0.12);
+  color: #8ec07c;
+}
+.swiz-check-icon--warn {
+  background: rgba(250, 189, 47, 0.12);
+  color: #fabd2f;
+}
+.swiz-check-icon--fail {
+  background: rgba(251, 73, 52, 0.12);
+  color: #fb4934;
+}
+
+.swiz-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  color: var(--color-fg-muted);
+  font-size: 0.8rem;
+}
+.swiz-loading .spinner { animation: spin 1s linear infinite; }
 
 /* ── Model list ──────────────────────────────────────────────────────── */
 .setup-wizard__models {
@@ -266,7 +411,7 @@
   padding-top: 8px;
 }
 
-/* ── Inline HF token (compact, lives in models-toolbar) ──────────────── */
+/* ── Inline HF token ─────────────────────────────────────────────────── */
 .models-toolbar__actions {
   display: flex;
   align-items: center;
@@ -336,26 +481,76 @@
   text-decoration: underline;
 }
 
-/* ── Footnote — pinned to bottom ─────────────────────────────────────── */
+/* ── Footnote — polished ─────────────────────────────────────────────── */
 .setup-wizard__footnote {
-  color: var(--color-fg-muted);
-  font-size: 0.68rem;
+  color: var(--color-fg-subtle, #665c54);
+  font-size: 0.66rem;
   margin: 0;
   padding: 6px 0 8px;
   text-align: center;
   line-height: 1.5;
   flex-shrink: 0;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
-.setup-wizard__footnote code { font-size: 0.64rem; color: var(--chrome-fg-dim, #665c54); }
+.setup-wizard__footnote code {
+  font-size: 0.62rem;
+  color: var(--chrome-fg-dim, #665c54);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.setup-wizard__footnote-link {
+  color: var(--chrome-accent, #d3869b);
+  font-size: 0.64rem;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: none;
+  opacity: 0.8;
+  transition: opacity 0.15s;
+}
+.setup-wizard__footnote-link:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
 
-/* ── Responsive ─────────────────────────────────────────────────────── */
+/* ── Missing models indicator ────────────────────────────────────────── */
+.swiz-missing {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(251, 73, 52, 0.06);
+  border: 1px solid rgba(251, 73, 52, 0.15);
+  font-size: 0.72rem;
+}
+
+.swiz-status-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: var(--color-fg-muted);
+  font-size: 0.78rem;
+}
+.swiz-status-loading .spinner { animation: spin 1s linear infinite; }
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .setup-wizard {
     padding: 0 14px;
   }
-  .setup-wizard__steps { gap: 4px; padding: 8px 8px 0; }
+  .setup-wizard__steps { gap: 3px; padding: 8px 8px 0; }
   .setup-wizard__step { padding: 4px 10px; font-size: 0.7rem; }
+  .setup-wizard__step-connector { width: 10px; }
   .setup-wizard__hero { gap: 8px; padding: 6px 8px 4px; }
   .setup-wizard__hero h1 { font-size: 1rem; }
   .setup-wizard__sub { font-size: 0.72rem; }
+  .swiz-welcome-card { padding: 10px 14px; gap: 10px; }
+  .swiz-welcome-card__icon { width: 26px; height: 26px; }
 }
