@@ -26,7 +26,6 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile
     container_name: omnivoice-studio
-    profiles: ["cpu"]
     ports:
       - "127.0.0.1:3900:3900"
     volumes:

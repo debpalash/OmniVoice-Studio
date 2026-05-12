@@ -728,7 +728,6 @@ function App() {
     if (item.mode) setMode(item.mode);
     if (item.text) setText(item.text);
     if (item.language) setLanguage(item.language);
-    if (item.seed) setSeed(item.seed.toString());
     if (item.profile_id) setSelectedProfile(item.profile_id);
     
     // Switch to studio tab
