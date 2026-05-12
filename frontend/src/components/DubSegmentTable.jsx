@@ -18,7 +18,7 @@ const COLUMNS = [
 ];
 
 export default function DubSegmentTable({
-  segments, profiles, dubStep, dubProgress, previewLoadingId,
+  segments, profiles, speakerClones, dubStep, dubProgress, previewLoadingId,
   selectedIds, onSelect, onSelectAll, onClearSelection,
   onEditField, onDelete, onRestore, onPreview, onSplit, onMerge, onDirect,
 }) {
@@ -66,13 +66,13 @@ export default function DubSegmentTable({
   }, [filtered]);
 
   const rowProps = useMemo(() => ({
-    filtered, profiles, disabled, dubStep, dubProgress, previewLoadingId,
+    filtered, profiles, speakerClones, disabled, dubStep, dubProgress, previewLoadingId,
     selectedIds, onSelect, onEditField, onDelete, onRestore, onPreview, onSplit, onMerge, onDirect,
     segments,
-  }), [filtered, profiles, disabled, dubStep, dubProgress, previewLoadingId,
+  }), [filtered, profiles, speakerClones, disabled, dubStep, dubProgress, previewLoadingId,
       selectedIds, onSelect, onEditField, onDelete, onRestore, onPreview, onSplit, onMerge, onDirect, segments]);
 
-  const Row = useCallback(({ index, style, filtered: fl, profiles: profs, disabled: dis, dubProgress: prog, dubStep: step, previewLoadingId: previewId, selectedIds: sel, onSelect: pick, onEditField: edit, onDelete: del, onRestore: rest, onPreview: prev, onSplit: split, onMerge: merge, onDirect: direct, segments: segs }) => {
+  const Row = useCallback(({ index, style, filtered: fl, profiles: profs, speakerClones: clones, disabled: dis, dubProgress: prog, dubStep: step, previewLoadingId: previewId, selectedIds: sel, onSelect: pick, onEditField: edit, onDelete: del, onRestore: rest, onPreview: prev, onSplit: split, onMerge: merge, onDirect: direct, segments: segs }) => {
     const seg = fl[index];
     if (!seg) return null;
     const absoluteIndex = segs.indexOf(seg);
@@ -87,6 +87,7 @@ export default function DubSegmentTable({
         selected={sel && sel.has(seg.id)}
         canMerge={canMerge}
         profiles={profs}
+        speakerClones={clones}
         onEditField={edit} onDelete={del} onRestore={rest} onPreview={prev}
         onSelect={pick} onSplit={split} onMerge={merge} onDirect={direct}
       />

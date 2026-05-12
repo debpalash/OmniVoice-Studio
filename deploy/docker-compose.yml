@@ -22,10 +22,11 @@ services:
     image: ghcr.io/debpalash/omnivoice-studio:latest
     # To build from source instead of pulling, comment out `image:` and
     # uncomment the two lines below:
-    # build:
-    #   context: ..
-    #   dockerfile: deploy/Dockerfile
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
     container_name: omnivoice-studio
+    profiles: ["cpu"]
     ports:
       - "127.0.0.1:3900:3900"
     volumes:
@@ -46,9 +47,9 @@ services:
   # ── GPU mode — activate with: docker compose --profile gpu up
   omnivoice-gpu:
     image: ghcr.io/debpalash/omnivoice-studio:latest
-    # build:
-    #   context: ..
-    #   dockerfile: deploy/Dockerfile
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
     container_name: omnivoice-studio-gpu
     profiles: ["gpu"]
     ports:

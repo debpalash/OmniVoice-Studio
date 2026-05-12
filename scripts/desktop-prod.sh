@@ -154,7 +154,7 @@ fi
 # ── Find and launch the app ────────────────────────────────────────────────
 if [ "$PLATFORM" = "macos" ]; then
   APP_BUNDLE="${TAURI_DIR}/target/debug/bundle/macos/${APP_NAME}.app"
-  BINARY="${TAURI_DIR}/target/debug/app"
+  BINARY="${TAURI_DIR}/target/debug/omnivoice-studio"
 
   if [ -d "$APP_BUNDLE" ]; then
     echo ""
@@ -173,7 +173,7 @@ if [ "$PLATFORM" = "macos" ]; then
 else
   # Linux: prefer AppImage, fall back to raw binary
   APPIMAGE=$(find "${TAURI_DIR}/target/debug/bundle/appimage" -name "*.AppImage" -type f 2>/dev/null | head -1)
-  BINARY="${TAURI_DIR}/target/debug/app"
+  BINARY="${TAURI_DIR}/target/debug/omnivoice-studio"
 
   if [ -n "$APPIMAGE" ] && [ -f "$APPIMAGE" ]; then
     echo ""

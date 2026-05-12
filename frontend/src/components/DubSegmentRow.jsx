@@ -17,7 +17,7 @@ function rowClass(isActive, isDone, selected) {
 
 function DubSegmentRow({
   seg, idx, style, disabled, isActive, isDone, previewLoading, selected,
-  profiles, onEditField, onDelete, onRestore, onPreview, onSelect, onSplit, onMerge, canMerge,
+  profiles, speakerClones, onEditField, onDelete, onRestore, onPreview, onSelect, onSplit, onMerge, canMerge,
   onDirect,
 }) {
   const syncColor = seg.sync_ratio === undefined ? null
@@ -153,6 +153,14 @@ function DubSegmentRow({
         onChange={(e) => onEditField(seg.id, 'profile_id', e.target.value)}
       >
         <option value="">Default</option>
+        {speakerClones && Object.keys(speakerClones).length > 0 && (
+          <optgroup label="From Video">
+            {Object.keys(speakerClones).map(spk => {
+              const autoId = `auto:${(spk || '').toLowerCase().replace(/\s+/g, '_')}`;
+              return <option key={autoId} value={autoId}>🎤 {spk}</option>;
+            })}
+          </optgroup>
+        )}
         {profiles.length > 0 && (
           <optgroup label="Clone Profiles">
             {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -243,5 +251,6 @@ export default memo(DubSegmentRow, (prev, next) => (
   prev.selected === next.selected &&
   prev.canMerge === next.canMerge &&
   prev.profiles === next.profiles &&
+  prev.speakerClones === next.speakerClones &&
   prev.idx === next.idx
 ));

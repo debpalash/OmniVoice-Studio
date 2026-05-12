@@ -137,7 +137,7 @@ fi
 # ── Phase 2: Build ────────────────────────────────────────────────────────
 header "Phase 2: Build"
 
-BINARY="${TAURI_DIR}/target/debug/app"
+BINARY="${TAURI_DIR}/target/debug/omnivoice-studio"
 
 if [ "$SKIP_BUILD" = false ]; then
     info "Building debug bundle (this takes 1-3 min)..."

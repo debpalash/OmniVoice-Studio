@@ -806,6 +806,14 @@ export default function DubTab(props) {
                     value="" onChange={(e) => { const v = e.target.value; if (v === '__clear__') bulkApplyToSelected({ profile_id: '' }); else if (v) bulkApplyToSelected({ profile_id: v }); }}>
                     <option value="">Set voice…</option>
                     <option value="__clear__">⊘ Default</option>
+                    {speakerClones && Object.keys(speakerClones).length > 0 && (
+                      <optgroup label="From Video">
+                        {Object.keys(speakerClones).map(spk => {
+                          const autoId = `auto:${(spk || '').toLowerCase().replace(/\s+/g, '_')}`;
+                          return <option key={autoId} value={autoId}>🎤 {spk}</option>;
+                        })}
+                      </optgroup>
+                    )}
                     {profiles.filter(p => !p.instruct).length > 0 && (
                       <optgroup label="Clone">
                         {profiles.filter(p => !p.instruct).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -842,6 +850,7 @@ export default function DubTab(props) {
                 <DubSegmentTable
                   segments={dubSegments}
                   profiles={profiles}
+                  speakerClones={speakerClones}
                   dubStep={dubStep}
                   dubProgress={dubProgress}
                   previewLoadingId={segmentPreviewLoading}

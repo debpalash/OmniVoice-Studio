@@ -181,6 +181,7 @@ pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
         env.push(("FFPROBE_PATH".into(), ffprobe_path.to_string_lossy().into()));
     }
     let mut cmd = Command::new(&python);
+    cmd.env_remove("PYTHONHOME").env_remove("PYTHONPATH").env_remove("LD_LIBRARY_PATH");
     for (k, v) in &env {
         cmd.env(k, v);
     }

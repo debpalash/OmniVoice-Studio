@@ -19,9 +19,11 @@ export default function Progress({
   className = '',
   ...rest
 }) {
-  const indeterminate = value == null;
+  const isInvalid = value != null && (!Number.isFinite(value) || Number.isNaN(value));
+  const safeValue = isInvalid ? null : value;
+  const indeterminate = safeValue == null;
   const showShimmer = shimmer ?? !indeterminate;
-  const clamped = indeterminate ? null : Math.max(0, Math.min(100, value));
+  const clamped = indeterminate ? null : Math.max(0, Math.min(100, safeValue));
 
   return (
     <RadixProgress.Root

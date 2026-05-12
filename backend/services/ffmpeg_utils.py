@@ -30,8 +30,10 @@ def find_ffmpeg():
     """
     # 1. Env var injected by Tauri host
     env_path = os.environ.get("FFMPEG_PATH")
-    if env_path and os.path.isfile(env_path):
-        return env_path
+    if env_path:
+        resolved = shutil.which(env_path)
+        if resolved:
+            return resolved
     # 2. imageio-ffmpeg bundled static binary
     try:
         import imageio_ffmpeg
@@ -58,8 +60,10 @@ def find_ffprobe():
       3. System ``PATH``.
     """
     env_path = os.environ.get("FFPROBE_PATH")
-    if env_path and os.path.isfile(env_path):
-        return env_path
+    if env_path:
+        resolved = shutil.which(env_path)
+        if resolved:
+            return resolved
     try:
         ffmpeg_path = find_ffmpeg()
         candidate = ffmpeg_path.replace("ffmpeg", "ffprobe")

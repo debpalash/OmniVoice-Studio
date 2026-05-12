@@ -49,6 +49,9 @@ def _run_inference(
         mastered_audio = apply_mastering(audio_out, sample_rate=model.sampling_rate if hasattr(model, 'sampling_rate') else 24000)
         return normalize_audio(mastered_audio, target_dBFS=-2.0)
         
+    except ValueError as e:
+        # Don't wrap validation errors in OOM message
+        raise e
     except Exception as e:
         import gc
         gc.collect()
@@ -179,6 +182,9 @@ async def generate_speech(
         )
     except HTTPException:
         raise
+    except ValueError as e:
+        logger.error("Validation failed: %s", e)
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         tb = traceback.format_exc()
         logger.error("Inference failed: %s\n%s", e, tb)

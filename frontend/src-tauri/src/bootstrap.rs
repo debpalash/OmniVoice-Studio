@@ -291,7 +291,9 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
     let backend_dir = project_dir.join("backend");
 
     if venv_py.is_file() && backend_dir.is_dir() {
-        let uvicorn_check = Command::new(&venv_py)
+        let mut uvicorn_check_cmd = Command::new(&venv_py);
+        uvicorn_check_cmd.env_remove("PYTHONHOME").env_remove("PYTHONPATH").env_remove("LD_LIBRARY_PATH");
+        let uvicorn_check = uvicorn_check_cmd
             .args(["-c", "import uvicorn"])
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -340,6 +342,7 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
             Err(e) => { fail(progress, &e); return None; }
         };
         let mut repair_cmd = Command::new(&uv_path);
+        repair_cmd.env_remove("PYTHONHOME").env_remove("PYTHONPATH").env_remove("LD_LIBRARY_PATH");
         let has_lockfile = project_dir.join("uv.lock").is_file();
         if has_lockfile {
             repair_cmd.args(["sync", "--frozen", "--no-dev", "--verbose"]);
@@ -422,6 +425,7 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
         set_stage(p, BootstrapStage::CreatingVenv);
     }
     let mut venv_cmd = Command::new(&uv_path);
+    venv_cmd.env_remove("PYTHONHOME").env_remove("PYTHONPATH").env_remove("LD_LIBRARY_PATH");
     venv_cmd.args(["venv", "--python", "3.11", "--managed-python"]).current_dir(&project_dir);
     let status = run_streaming(app, "creating_venv", &mut venv_cmd);
     if !matches!(status, Ok(ref s) if s.success()) {
@@ -433,6 +437,7 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
         set_stage(p, BootstrapStage::InstallingDeps);
     }
     let mut sync_cmd = Command::new(&uv_path);
+    sync_cmd.env_remove("PYTHONHOME").env_remove("PYTHONPATH").env_remove("LD_LIBRARY_PATH");
     let has_lockfile = project_dir.join("uv.lock").is_file();
     if has_lockfile {
         sync_cmd

@@ -76,8 +76,13 @@ export default function CastingView({
         {speakers.map((speaker) => {
           const currentAssignment = assignments[speaker.id];
           const isAuto = currentAssignment?.startsWith('auto:');
+          let autoName = speaker.label;
+          if (isAuto && currentAssignment) {
+            const match = Object.keys(autoClones || {}).find(spk => `auto:${(spk || '').toLowerCase().replace(/\s+/g, '_')}` === currentAssignment);
+            if (match) autoName = match;
+          }
           const assignedProfile = isAuto
-            ? { name: `Auto-clone (${speaker.label})`, type: 'clone' }
+            ? { name: `🎤 From video (${autoName})`, type: 'clone' }
             : profiles.find(p => p.id === currentAssignment);
 
           return (
@@ -123,20 +128,26 @@ export default function CastingView({
                 {/* Dropdown */}
                 {openDropdown === speaker.id && (
                   <div className="casting-dropdown">
-                    {/* Auto-clone option */}
-                    {autoClones[speaker.id] && (
-                      <button
-                        className={`casting-dropdown__item ${isAuto ? 'is-active' : ''}`}
-                        onClick={() => assign(speaker.id, `auto:${speaker.id}`)}
-                      >
-                        <Shuffle size={11} />
-                        <span>Auto-clone from video</span>
-                        {isAuto && <Check size={11} />}
-                      </button>
-                    )}
-
-                    {autoClones[speaker.id] && profiles.length > 0 && (
-                      <div className="casting-dropdown__divider" />
+                    {/* Auto-clone options */}
+                    {autoClones && Object.keys(autoClones).length > 0 && (
+                      <>
+                        {Object.keys(autoClones).map(spk => {
+                          const autoId = `auto:${(spk || '').toLowerCase().replace(/\s+/g, '_')}`;
+                          const isActiveAuto = currentAssignment === autoId;
+                          return (
+                            <button
+                              key={autoId}
+                              className={`casting-dropdown__item ${isActiveAuto ? 'is-active' : ''}`}
+                              onClick={() => assign(speaker.id, autoId)}
+                            >
+                              <Shuffle size={11} />
+                              <span>🎤 {spk}</span>
+                              {isActiveAuto && <Check size={11} />}
+                            </button>
+                          );
+                        })}
+                        {profiles.length > 0 && <div className="casting-dropdown__divider" />}
+                      </>
                     )}
 
                     {/* Saved profiles */}

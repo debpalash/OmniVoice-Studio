@@ -155,6 +155,9 @@
   border-radius: 8px;
   white-space: pre-wrap;
   word-break: break-word;
+  max-height: 250px;
+  overflow-y: auto;
+  user-select: text;
 }
 
 .bootstrap-splash__sub-progress {
