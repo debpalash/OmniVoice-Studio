@@ -314,18 +314,18 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
                     let omnivoice_dir = project_dir.join("omnivoice");
                     let _ = fs::remove_dir_all(&omnivoice_dir);
                     if let Err(e) = copy_dir_recursive(&res_omni, &omnivoice_dir) {
-                        log::warn!("Failed to sync omnivoice/ sources: {}", e);
-                    } else {
-                        log::info!("Synced omnivoice/ from bundle");
+                        fail(progress, &format!("Failed to sync omnivoice/ sources: {}", e));
+                        return None;
                     }
+                    log::info!("Synced omnivoice/ from bundle");
                 }
                 if res_backend.is_dir() {
                     let _ = fs::remove_dir_all(&backend_dir);
                     if let Err(e) = copy_dir_recursive(&res_backend, &backend_dir) {
-                        log::warn!("Failed to sync backend/ sources: {}", e);
-                    } else {
-                        log::info!("Synced backend/ from bundle");
+                        fail(progress, &format!("Failed to sync backend/ sources: {}", e));
+                        return None;
                     }
+                    log::info!("Synced backend/ from bundle");
                 }
             }
             return Some((venv_py, backend_dir));

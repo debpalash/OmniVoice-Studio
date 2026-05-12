@@ -323,6 +323,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
       const decoder = new TextDecoder();
       let buffer = '';
       let wasCancelled = false;
+      let sawDone = false;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -337,6 +338,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
                 useAppStore.getState().setPillProgress(Math.round(((evt.current + 1) / evt.total) * 100));
                 useAppStore.getState().setPillLabel(`Generating dub… ${evt.current + 1}/${evt.total}`);
               } else if (evt.type === 'done') {
+                sawDone = true;
                 setDubStep('done');
                 setDubTracks(evt.tracks || []);
                 if (evt.sync_scores) setDubSegments(prev => prev.map((s, idx) => ({ ...s, sync_ratio: evt.sync_scores[idx] })));
@@ -358,6 +360,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
       }
       setDubTaskId(null);
       if (!wasCancelled) {
+        if (!sawDone) throw new Error('Generation stream ended before completion');
         if (dubStep !== 'done') setDubStep('done');
         loadDubHistory(); loadProjects(); playPing();
         useAppStore.getState().completePill('Dub complete');
@@ -370,9 +373,15 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
 
   const handleDubStop = useCallback(async () => {
     if (!dubTaskId) return;
+    const prevStep = dubStep;
     setDubStep('stopping');
-    try { await tasksCancel(dubTaskId); } catch (e) { toast.error('Failed to stop'); }
-  }, [dubTaskId, setDubStep]);
+    try {
+      await tasksCancel(dubTaskId);
+    } catch (e) {
+      setDubStep(prevStep);
+      toast.error('Failed to stop');
+    }
+  }, [dubTaskId, dubStep, setDubStep]);
 
   return {
     translateProvider, setTranslateProvider,

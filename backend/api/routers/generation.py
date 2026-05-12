@@ -184,7 +184,7 @@ async def generate_speech(
         raise
     except ValueError as e:
         logger.error("Validation failed: %s", e)
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         tb = traceback.format_exc()
         logger.error("Inference failed: %s\n%s", e, tb)

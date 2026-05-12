@@ -131,19 +131,18 @@ class OmniVoiceBackend(TTSBackend):
         # Reuse model_manager's cached instance so we don't double-load.
         from services.model_manager import get_model
         import asyncio
-        # Caller is sync; spin up a fresh loop if needed.
+        # Caller is sync; spin up a fresh loop if needed. get_running_loop()
+        # raises only when *no* loop is running — that's the safe path where
+        # we can bootstrap with asyncio.run().
         try:
-            loop = asyncio.get_running_loop()
-            if loop.is_running():
-                # Already inside an async context — caller should await
-                # `get_model()` themselves and pass it in via the constructor.
-                raise RuntimeError(
-                    "OmniVoiceBackend.generate() called inside an async context without a pre-loaded model. "
-                    "Pass `model=await get_model()` to the constructor."
-                )
-            self._model = loop.run_until_complete(get_model())
+            asyncio.get_running_loop()
         except RuntimeError:
             self._model = asyncio.run(get_model())
+            return
+        raise RuntimeError(
+            "OmniVoiceBackend.generate() called inside an async context without a pre-loaded model. "
+            "Pass `model=await get_model()` to the constructor."
+        )
 
     def generate(self, text, **kw) -> torch.Tensor:
         self._ensure_loaded()
