@@ -69,7 +69,13 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
     setIsGenerating(true);
     setGenerationTime(0);
     const st = Date.now();
-    timerRef.current = setInterval(() => setGenerationTime(((Date.now() - st) / 1000).toFixed(1)), 100);
+    timerRef.current = setInterval(() => {
+      const elapsed = ((Date.now() - st) / 1000).toFixed(1);
+      setGenerationTime(prev => {
+        const suffix = /\(\d+%\)$/.exec(String(prev))?.[0];
+        return suffix ? `${elapsed} ${suffix}` : elapsed;
+      });
+    }, 100);
     try {
       const formData = new FormData();
       formData.append("text", text);
