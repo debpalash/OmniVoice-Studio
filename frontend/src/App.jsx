@@ -549,7 +549,7 @@ function App() {
         try {
           await exportRecord({ filename: data.display_name || fallbackName, destination_path: data.path, mode: modeGuess });
           loadExportHistory();
-        } catch (_) {}
+        } catch (err) { console.warn('exportRecord (Tauri save path) failed:', err); }
       } catch (err) {
         console.error(err);
         toast.error(`Save error: ${err.message}`, { id: fallbackName });
@@ -577,7 +577,7 @@ function App() {
       try {
         await exportRecord({ filename: finalName, destination_path: `~/Downloads/${finalName}`, mode: modeGuess });
         loadExportHistory();
-      } catch (_) {}
+      } catch (err) { console.warn('exportRecord (browser download path) failed:', err); }
     } catch (err) {
       console.error(err);
       toast.error(`Download error: ${err.message}`, { id: fallbackName });

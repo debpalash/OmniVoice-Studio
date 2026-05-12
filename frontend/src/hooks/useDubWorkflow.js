@@ -94,7 +94,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
         if (m.speaker_clones && typeof m.speaker_clones === 'object') {
           setSpeakerClones(m.speaker_clones);
         }
-      } catch {}
+      } catch (err) { console.warn('Transcribe SSE handler failed:', err); }
     });
     evt.addEventListener('done', () => { close(); ctrl.signal.removeEventListener('abort', onAbortSignal); resolve(); });
     evt.addEventListener('aborted', () => { close(); ctrl.signal.removeEventListener('abort', onAbortSignal); reject(Object.assign(new Error('aborted'), { name: 'AbortError' })); });
@@ -344,12 +344,12 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
                 if (evt.seg_hashes && Object.keys(evt.seg_hashes).length > 0) {
                   setLastGenFingerprints(evt.seg_hashes);
                 } else {
-                  try { const plan = await apiPost('/tools/incremental', { segments: dubSegments.map(s => ({ id: String(s.id), text: s.text, target_lang: s.target_lang, profile_id: s.profile_id, instruct: s.instruct, speed: s.speed, direction: s.direction })) }); setLastGenFingerprints(plan.fingerprints || {}); } catch {}
+                  try { const plan = await apiPost('/tools/incremental', { segments: dubSegments.map(s => ({ id: String(s.id), text: s.text, target_lang: s.target_lang, profile_id: s.profile_id, instruct: s.instruct, speed: s.speed, direction: s.direction })) }); setLastGenFingerprints(plan.fingerprints || {}); } catch (err) { console.warn('Incremental plan fallback failed:', err); }
                 }
               } else if (evt.type === 'cancelled') {
                 wasCancelled = true; setDubStep('editing'); setDubError('Generation aborted.'); toast('Dubbing aborted', { icon: '⏹' });
               } else if (evt.type === 'error') setDubError(p => p + `\nSeg ${evt.segment}: ${evt.error}`);
-            } catch (e) {}
+            } catch (err) { console.warn('Dub generate SSE handler failed:', err); }
           }
         }
       }
