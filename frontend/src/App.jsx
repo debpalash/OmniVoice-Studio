@@ -211,7 +211,6 @@ function App() {
   const [compareResultB, setCompareResultB] = useState(null);
   const [isComparing, setIsComparing] = useState(false);
   const [compareProgress, setCompareProgress] = useState("");
-  const [showAllProjects, setShowAllProjects] = useState(false);
 
   // ═══ MIC RECORDING ═══
   const {
@@ -269,6 +268,24 @@ function App() {
   const burnSubs = useAppStore(s => s.burnSubs);
   const setDualSubs = useAppStore(s => s.setDualSubs);
 
+  // ── UNDO / REDO + SEGMENT EDITING ──
+  // Must come before useDubWorkflow because the dub generate handler needs
+  // setLastGenFingerprints to keep the incremental-regen plan in sync.
+  const {
+    undo, redo, editSegments,
+    segmentEditField, segmentDelete, segmentRestoreOriginal,
+    segmentSplit, segmentMerge,
+    selectedSegIds, setSelectedSegIds,
+    toggleSegSelect, selectAllSegs, clearSegSelection,
+    bulkApplyToSelected, bulkDeleteSelected,
+    directionSegId, openDirection, closeDirection, saveDirection,
+    lastGenFingerprints, setLastGenFingerprints,
+    incrementalPlan, setIncrementalPlan,
+    recomputeIncremental,
+  } = useSegmentEditing();
+
+  useEffect(() => { recomputeIncremental(); }, [recomputeIncremental]);
+
   const {
     translateProvider, setTranslateProvider,
     showTranscript, setShowTranscript,
@@ -278,7 +295,7 @@ function App() {
     handleDubAbort, handleDubRetryTranscribe,
     handleDubStop, handleDubGenerate,
     handleCleanupSegments, handleTranslateAll,
-  } = useDubWorkflow({ loadProjects, loadProfiles, loadDubHistory });
+  } = useDubWorkflow({ loadProjects, loadProfiles, loadDubHistory, setLastGenFingerprints });
 
   const [dubVideoFile, setDubVideoFile] = useState(null);
   const [dubLocalBlobUrl, setDubLocalBlobUrl] = useState(null);
@@ -309,23 +326,6 @@ function App() {
   const setIsSidebarProjectsCollapsed = useAppStore(s => s.setIsSidebarProjectsCollapsed);
   const isSidebarCollapsed = useAppStore(s => s.isSidebarCollapsed);
   const setIsSidebarCollapsed = useAppStore(s => s.setIsSidebarCollapsed);
-
-  // ── UNDO / REDO + SEGMENT EDITING ──
-  const {
-    undo, redo, pushUndo, editSegments,
-    segmentEditField, segmentDelete, segmentRestoreOriginal,
-    segmentSplit, segmentMerge,
-    selectedSegIds, setSelectedSegIds,
-    toggleSegSelect, selectAllSegs, clearSegSelection,
-    bulkApplyToSelected, bulkDeleteSelected,
-    directionSegId, openDirection, closeDirection, saveDirection,
-    lastGenFingerprints, setLastGenFingerprints,
-    incrementalPlan, setIncrementalPlan,
-    recomputeIncremental,
-  } = useSegmentEditing();
-
-  useEffect(() => { recomputeIncremental(); }, [recomputeIncremental]);
-
 
   // First-run gate — `/setup/status` reports whether required HF models are
   // on disk. If not, we render <SetupWizard> in place of the main studio so

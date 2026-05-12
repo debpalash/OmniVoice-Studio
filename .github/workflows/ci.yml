@@ -61,6 +61,12 @@ jobs:
       - name: Run pytest
         run: uv run pytest tests/ -q --tb=short
 
+      # `backend/tests/` stubs core.config in sys.modules to avoid the heavy
+      # main app import chain — that pollutes import state for other modules,
+      # so it runs in its own pytest session to stay isolated from tests/.
+      - name: Run pytest (backend/tests, isolated)
+        run: uv run pytest backend/tests/ -q --tb=short
+
       # Cache ~/.bun/install/cache keyed on bun.lock — `bun install` drops
       # from ~15 s cold to near-instant on warm cache.
       - name: Cache bun deps

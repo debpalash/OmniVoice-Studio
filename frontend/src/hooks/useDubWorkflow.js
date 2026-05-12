@@ -17,7 +17,7 @@ import { toast } from 'react-hot-toast';
  *
  * Extracts ~700 LOC of handler logic from App.jsx.
  */
-export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHistory }) {
+export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHistory, setLastGenFingerprints }) {
   const dubJobId        = useAppStore(s => s.dubJobId);
   const setDubJobId     = useAppStore(s => s.setDubJobId);
   const dubStep         = useAppStore(s => s.dubStep);
@@ -44,11 +44,6 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
   const speed           = useAppStore(s => s.speed);
   const translateQuality = useAppStore(s => s.translateQuality);
   const glossaryTerms   = useAppStore(s => s.glossaryTerms);
-  const preserveBg      = useAppStore(s => s.preserveBg);
-  const defaultTrack    = useAppStore(s => s.defaultTrack);
-  const exportTracks    = useAppStore(s => s.exportTracks);
-  const dualSubs        = useAppStore(s => s.dualSubs);
-  const burnSubs        = useAppStore(s => s.burnSubs);
 
   const [translateProvider, setTranslateProvider] = useState('argos');
   const [showTranscript, setShowTranscript] = useState(false);
@@ -347,9 +342,9 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
                   setPreviewSegIds(previewIds);
                 }
                 if (evt.seg_hashes && Object.keys(evt.seg_hashes).length > 0) {
-                  useAppStore.getState().setLastGenFingerprints?.(evt.seg_hashes);
+                  setLastGenFingerprints(evt.seg_hashes);
                 } else {
-                  try { const plan = await apiPost('/tools/incremental', { segments: dubSegments.map(s => ({ id: String(s.id), text: s.text, target_lang: s.target_lang, profile_id: s.profile_id, instruct: s.instruct, speed: s.speed, direction: s.direction })) }); useAppStore.getState().setLastGenFingerprints?.(plan.fingerprints || {}); } catch {}
+                  try { const plan = await apiPost('/tools/incremental', { segments: dubSegments.map(s => ({ id: String(s.id), text: s.text, target_lang: s.target_lang, profile_id: s.profile_id, instruct: s.instruct, speed: s.speed, direction: s.direction })) }); setLastGenFingerprints(plan.fingerprints || {}); } catch {}
                 }
               } else if (evt.type === 'cancelled') {
                 wasCancelled = true; setDubStep('editing'); setDubError('Generation aborted.'); toast('Dubbing aborted', { icon: '⏹' });
@@ -369,7 +364,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
       setDubError(err.message); setDubStep('editing'); setDubTaskId(null);
       useAppStore.getState().errorPill(err.message);
     }
-  }, [dubJobId, dubSegments, dubLang, dubLangCode, dubInstruct, steps, cfg, speed, dubStep, setDubStep, setDubProgress, setDubError, setDubTracks, setDubSegments, setDubTaskId, setPreviewSegIds, loadDubHistory, loadProjects]);
+  }, [dubJobId, dubSegments, dubLang, dubLangCode, dubInstruct, steps, cfg, speed, dubStep, setDubStep, setDubProgress, setDubError, setDubTracks, setDubSegments, setDubTaskId, setPreviewSegIds, setLastGenFingerprints, loadDubHistory, loadProjects]);
 
   const handleDubStop = useCallback(async () => {
     if (!dubTaskId) return;
