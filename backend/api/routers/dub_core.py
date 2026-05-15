@@ -564,25 +564,31 @@ async def dub_transcribe(job_id: str):
         from services.asr_backend import get_active_asr_backend
         _asr = get_active_asr_backend(asr_pipe=getattr(_model, "_asr_pipe", None))
         try:
-            logger.info("Transcribing full audio via %s ...", _asr.id)
-            result = _asr.transcribe(asr_audio_target, word_timestamps=True)
-            detected_lang = result.get("language")
-        except Exception as e:
-            logger.error("ASR backend %s failed: %s", _asr.id, e)
-            if getattr(_model, "_asr_pipe", None) is None:
-                raise RuntimeError(
-                    f"ASR backend {_asr.id} failed and PyTorch Whisper fallback is not preloaded: {e}"
-                ) from e
-            # Last-resort fallback — in-memory pytorch whisper via the TTS
-            # model's pipeline when explicitly preloaded.
-            audio_np, sr = sf.read(asr_audio_target, dtype="float32")
-            if audio_np.ndim > 1: audio_np = audio_np.mean(axis=1)
-            bs = 16 if torch.cuda.is_available() else 1
-            result = _model._asr_pipe(
-                {"array": audio_np, "sampling_rate": sr},
-                return_timestamps=True, chunk_length_s=15, batch_size=bs,
-            )
-            detected_lang = (result.get("language") if isinstance(result, dict) else None)
+            try:
+                logger.info("Transcribing full audio via %s ...", _asr.id)
+                result = _asr.transcribe(asr_audio_target, word_timestamps=True)
+                detected_lang = result.get("language")
+            except Exception as e:
+                logger.error("ASR backend %s failed: %s", _asr.id, e)
+                if getattr(_model, "_asr_pipe", None) is None:
+                    raise RuntimeError(
+                        f"ASR backend {_asr.id} failed and PyTorch Whisper fallback is not preloaded: {e}"
+                    ) from e
+                # Last-resort fallback — in-memory pytorch whisper via the TTS
+                # model's pipeline when explicitly preloaded.
+                audio_np, sr = sf.read(asr_audio_target, dtype="float32")
+                if audio_np.ndim > 1: audio_np = audio_np.mean(axis=1)
+                bs = 16 if torch.cuda.is_available() else 1
+                result = _model._asr_pipe(
+                    {"array": audio_np, "sampling_rate": sr},
+                    return_timestamps=True, chunk_length_s=15, batch_size=bs,
+                )
+                detected_lang = (result.get("language") if isinstance(result, dict) else None)
+        finally:
+            try:
+                _asr.unload()
+            except Exception as e:
+                logger.warning("Failed to unload ASR backend: %s", e)
 
         job["source_lang"] = (detected_lang or "en").split("_")[0][:2].lower()
 
@@ -610,11 +616,6 @@ async def dub_transcribe(job_id: str):
         for s in segments:
             s.setdefault("text_original", s.get("text", ""))
         job["full_transcript"] = " ".join(s["text"] for s in segments)
-
-        try:
-            _asr.unload()
-        except Exception as e:
-            logger.warning("Failed to unload ASR backend: %s", e)
 
         if torch.backends.mps.is_available():
             torch.mps.empty_cache()
