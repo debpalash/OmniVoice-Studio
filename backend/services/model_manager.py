@@ -169,6 +169,23 @@ def _set_loading(sub_stage: str, detail: str = "", error: str | None = None, pro
     _loading_detail["progress"] = progress
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def should_preload_tts_asr() -> bool:
+    """Whether OmniVoice.from_pretrained should attach PyTorch Whisper.
+
+    The default is intentionally false. On Apple Silicon, eager TTS + ASR
+    loading can overcommit unified memory and leave desktop startup stuck
+    at the model-loading stage. ASR backends still load on demand.
+    """
+    return _env_flag("OMNIVOICE_PRELOAD_TTS_ASR")
+
+
 def _load_model_sync():
     global model
     from utils.hf_progress import register_listener, unregister_listener
@@ -198,8 +215,13 @@ def _load_model_sync():
         checkpoint = os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice")
         _set_loading("loading_weights", f"Loading TTS weights on {device}…")
         logger.info("Loading OmniVoice model on device: %s", device)
+        preload_asr = should_preload_tts_asr()
+        if preload_asr:
+            logger.info("Preloading PyTorch Whisper with TTS model.")
+        else:
+            logger.info("Skipping PyTorch Whisper preload; ASR will load on demand.")
         _model = OmniVoice.from_pretrained(
-            checkpoint, device_map=device, dtype=torch.float16, load_asr=True,
+            checkpoint, device_map=device, dtype=torch.float16, load_asr=preload_asr,
         )
 
         try:

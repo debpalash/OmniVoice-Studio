@@ -288,22 +288,20 @@ async def dub_transcribe_stream(job_id: str):
         preflight_error = "Job not found. It may have been cleaned up or was never created."
     else:
         _model = await get_model()
-        if _model._asr_pipe is None:
-            preflight_error = (
-                "ASR (speech recognition) isn't loaded yet. The model is still warming up or "
-                "Whisper failed to initialise — check Settings → Models for status, or restart "
-                "the server if 'Idle' persists."
-            )
+        asr_audio_target = job.get("vocals_path")
+        if not asr_audio_target or not os.path.exists(asr_audio_target):
+            asr_audio_target = job.get("audio_path")
+        if not asr_audio_target or not os.path.exists(asr_audio_target):
+            preflight_error = "No audio available for transcription."
         else:
-            asr_audio_target = job.get("vocals_path")
-            if not asr_audio_target or not os.path.exists(asr_audio_target):
-                asr_audio_target = job.get("audio_path")
-            if not asr_audio_target or not os.path.exists(asr_audio_target):
-                preflight_error = "No audio available for transcription."
-            else:
-                from services.asr_backend import get_active_asr_backend
-                _asr_backend = get_active_asr_backend(asr_pipe=getattr(_model, "_asr_pipe", None))
-                scene_cuts = job.get("scene_cuts") or []
+            from services.asr_backend import get_active_asr_backend
+            _asr_backend = get_active_asr_backend(asr_pipe=getattr(_model, "_asr_pipe", None))
+            if _asr_backend.id == "pytorch-whisper" and getattr(_model, "_asr_pipe", None) is None:
+                preflight_error = (
+                    "No ASR backend is ready. Install WhisperX/faster-whisper/MLX Whisper "
+                    "or set OMNIVOICE_PRELOAD_TTS_ASR=1 before launch to use the PyTorch fallback."
+                )
+            scene_cuts = job.get("scene_cuts") or []
 
     async def gen():
         if preflight_error:
@@ -543,11 +541,6 @@ async def dub_transcribe(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     _model = await get_model()
-    if _model._asr_pipe is None:
-        raise HTTPException(
-            status_code=503,
-            detail="ASR (speech recognition) isn't loaded yet. The model is still warming up or Whisper failed to initialise — check Settings → Models for status, or restart the server if 'Idle' persists.",
-        )
 
     def _transcribe():
         import re
@@ -573,9 +566,12 @@ async def dub_transcribe(job_id: str):
             detected_lang = result.get("language")
         except Exception as e:
             logger.error("ASR backend %s failed: %s", _asr.id, e)
+            if getattr(_model, "_asr_pipe", None) is None:
+                raise RuntimeError(
+                    f"ASR backend {_asr.id} failed and PyTorch Whisper fallback is not preloaded: {e}"
+                ) from e
             # Last-resort fallback — in-memory pytorch whisper via the TTS
-            # model's pipeline. Guaranteed present since the TTS model is
-            # already loaded to reach this code path.
+            # model's pipeline when explicitly preloaded.
             audio_np, sr = sf.read(asr_audio_target, dtype="float32")
             if audio_np.ndim > 1: audio_np = audio_np.mean(axis=1)
             bs = 16 if torch.cuda.is_available() else 1

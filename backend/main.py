@@ -224,6 +224,13 @@ from utils import hf_progress
 hf_progress.install()
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
@@ -246,30 +253,31 @@ async def lifespan(app: FastAPI):
     worker_task = asyncio.create_task(task_manager.worker())
     # Warm the TTS model in the background so first /generate is instant.
     preload_task = asyncio.create_task(preload_model())
-    # Warm the capture ASR engine (MLX Whisper Turbo on Apple Silicon) so
-    # first dictation is instant. Without this, first capture takes ~25s
-    # just to load the model.
-    async def _preload_capture_asr():
-        try:
-            from services.model_manager import _gpu_pool, _loading_detail
-            loop = asyncio.get_running_loop()
-            def _warm():
-                from services.asr_backend import get_capture_asr_backend
-                _loading_detail["sub_stage"] = "loading_asr"
-                _loading_detail["detail"] = "Warming up ASR engine…"
-                backend = get_capture_asr_backend()
-                logger.info("Capture ASR backend selected: %s", backend.id)
-                # Actually load model weights into memory — without this the
-                # first dictation still takes ~25s for weight loading.
-                if hasattr(backend, 'warmup'):
-                    _loading_detail["detail"] = f"Loading {backend.display_name}…"
-                    backend.warmup()
-                _loading_detail["sub_stage"] = "ready"
-                _loading_detail["detail"] = "ASR engine ready"
-            await loop.run_in_executor(_gpu_pool, _warm)
-        except Exception as e:
-            logger.warning("Capture ASR preload skipped: %s", e)
-    capture_preload_task = asyncio.create_task(_preload_capture_asr())
+    # Capture ASR is useful to keep warm, but it is another large model in
+    # unified memory on Apple Silicon. Keep launch lean by default; users who
+    # prefer instant dictation can opt in with OMNIVOICE_PRELOAD_CAPTURE_ASR=1.
+    if _env_flag("OMNIVOICE_PRELOAD_CAPTURE_ASR"):
+        async def _preload_capture_asr():
+            try:
+                from services.model_manager import _gpu_pool, _loading_detail
+                loop = asyncio.get_running_loop()
+                def _warm():
+                    from services.asr_backend import get_capture_asr_backend
+                    _loading_detail["sub_stage"] = "loading_asr"
+                    _loading_detail["detail"] = "Warming up ASR engine…"
+                    backend = get_capture_asr_backend()
+                    logger.info("Capture ASR backend selected: %s", backend.id)
+                    if hasattr(backend, 'warmup'):
+                        _loading_detail["detail"] = f"Loading {backend.display_name}…"
+                        backend.warmup()
+                    _loading_detail["sub_stage"] = "ready"
+                    _loading_detail["detail"] = "ASR engine ready"
+                await loop.run_in_executor(_gpu_pool, _warm)
+            except Exception as e:
+                logger.warning("Capture ASR preload skipped: %s", e)
+        capture_preload_task = asyncio.create_task(_preload_capture_asr())
+    else:
+        logger.info("Capture ASR preload disabled; dictation ASR will load on first use.")
     yield
     # ── Graceful shutdown (SIGTERM from Tauri, Ctrl+C, etc.) ────────────
     logger.info("Shutdown: cleaning up…")
