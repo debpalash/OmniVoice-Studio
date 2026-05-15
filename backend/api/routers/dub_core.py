@@ -295,12 +295,15 @@ async def dub_transcribe_stream(job_id: str):
             preflight_error = "No audio available for transcription."
         else:
             from services.asr_backend import get_active_asr_backend
-            _asr_backend = get_active_asr_backend(asr_pipe=getattr(_model, "_asr_pipe", None))
-            if _asr_backend.id == "pytorch-whisper" and getattr(_model, "_asr_pipe", None) is None:
-                preflight_error = (
-                    "No ASR backend is ready. Install WhisperX/faster-whisper/MLX Whisper "
-                    "or set OMNIVOICE_PRELOAD_TTS_ASR=1 before launch to use the PyTorch fallback."
-                )
+            try:
+                _asr_backend = get_active_asr_backend(asr_pipe=getattr(_model, "_asr_pipe", None))
+                if _asr_backend.id == "pytorch-whisper" and getattr(_model, "_asr_pipe", None) is None:
+                    preflight_error = (
+                        "No ASR backend is ready. Install WhisperX/faster-whisper/MLX Whisper "
+                        "or set OMNIVOICE_PRELOAD_TTS_ASR=1 before launch to use the PyTorch fallback."
+                    )
+            except Exception as e:
+                preflight_error = f"ASR backend initialization failed: {e}"
             scene_cuts = job.get("scene_cuts") or []
 
     async def gen():

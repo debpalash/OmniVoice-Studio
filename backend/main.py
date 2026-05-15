@@ -258,22 +258,29 @@ async def lifespan(app: FastAPI):
     # prefer instant dictation can opt in with OMNIVOICE_PRELOAD_CAPTURE_ASR=1.
     if _env_flag("OMNIVOICE_PRELOAD_CAPTURE_ASR"):
         async def _preload_capture_asr():
+            loading_detail = None
+            prev_loading_detail = None
             try:
                 from services.model_manager import _gpu_pool, _loading_detail
+                loading_detail = _loading_detail
+                prev_loading_detail = dict(loading_detail)
                 loop = asyncio.get_running_loop()
                 def _warm():
                     from services.asr_backend import get_capture_asr_backend
-                    _loading_detail["sub_stage"] = "loading_asr"
-                    _loading_detail["detail"] = "Warming up ASR engine…"
+                    loading_detail["sub_stage"] = "loading_asr"
+                    loading_detail["detail"] = "Warming up ASR engine…"
                     backend = get_capture_asr_backend()
                     logger.info("Capture ASR backend selected: %s", backend.id)
                     if hasattr(backend, 'warmup'):
-                        _loading_detail["detail"] = f"Loading {backend.display_name}…"
+                        loading_detail["detail"] = f"Loading {backend.display_name}…"
                         backend.warmup()
-                    _loading_detail["sub_stage"] = "ready"
-                    _loading_detail["detail"] = "ASR engine ready"
+                    loading_detail["sub_stage"] = "ready"
+                    loading_detail["detail"] = "ASR engine ready"
                 await loop.run_in_executor(_gpu_pool, _warm)
             except Exception as e:
+                if loading_detail is not None and loading_detail.get("sub_stage") == "loading_asr":
+                    loading_detail.clear()
+                    loading_detail.update(prev_loading_detail or {})
                 logger.warning("Capture ASR preload skipped: %s", e)
         capture_preload_task = asyncio.create_task(_preload_capture_asr())
     else:
