@@ -438,3 +438,63 @@ jobs:
           echo "Launching under xvfb-run: $BIN --health-check"
           sudo apt-get install -y xvfb >/dev/null 2>&1 || true
           xvfb-run -a "$BIN" --health-check
+
+      # ── Compute SHA-256 checksums (Phase 0 GATE-05) ───────────────────
+      # Native OS tools: shasum -a 256 (POSIX) / Get-FileHash (Windows).
+      # Writes SHA256SUMS-<label>.txt for the user-verifiable path AND
+      # captures the content into $GITHUB_OUTPUT for body append.
+      - name: Compute SHA-256 checksums
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        id: checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUNDLE_DIR="frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle"
+          OUT="SHA256SUMS-${{ matrix.label }}.txt"
+
+          # Gather artifact paths per matrix leg's `bundles` (msi/app/dmg/deb/appimage/updater).
+          # `find` is portable across all three runners (Git Bash on Windows).
+          mapfile -t ARTIFACTS < <(find "$BUNDLE_DIR" -type f \
+            \( -name "*.dmg" -o -name "*.app.tar.gz" -o -name "*.app.tar.gz.sig" \
+               -o -name "*.msi" -o -name "*.msi.sig" \
+               -o -name "*.AppImage" -o -name "*.AppImage.sig" \
+               -o -name "*.deb" \) 2>/dev/null | sort)
+
+          if [ ${#ARTIFACTS[@]} -eq 0 ]; then
+            echo "FAIL — no artifacts found under $BUNDLE_DIR"
+            find "$BUNDLE_DIR" -type f | head -50
+            exit 1
+          fi
+
+          # shasum is available on macOS by default, on ubuntu-22.04 (perl pkg),
+          # and on windows-2022 Git Bash. Falls back to sha256sum on Linux.
+          if command -v shasum >/dev/null 2>&1; then
+            HASHER="shasum -a 256"
+          else
+            HASHER="sha256sum"
+          fi
+
+          {
+            echo "### ${{ matrix.label }} artifacts"
+            echo ""
+            echo '```'
+            for f in "${ARTIFACTS[@]}"; do
+              # Strip the long bundle prefix from the printed path for readability;
+              # the hash itself is computed against the full file.
+              ( cd "$(dirname "$f")" && $HASHER "$(basename "$f")" )
+            done
+            echo '```'
+            echo ""
+          } | tee "$OUT"
+
+          echo "checksums_file=$OUT" >> "$GITHUB_OUTPUT"
+
+      - name: Append checksums to release + attach SHA256SUMS file
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          append_body: true
+          body_path: ${{ steps.checksums.outputs.checksums_file }}
+          files: ${{ steps.checksums.outputs.checksums_file }}
+          fail_on_unmatched_files: true
