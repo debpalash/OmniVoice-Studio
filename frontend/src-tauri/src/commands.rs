@@ -355,6 +355,25 @@ pub fn set_dictation_shortcut(
     Ok(accelerator)
 }
 
+// ── Launch-mode persistence ───────────────────────────────────────────────
+
+#[tauri::command]
+pub fn get_launch_as_widget(app: tauri::AppHandle) -> bool {
+    load_config(&app).launch_as_widget
+}
+
+/// Persist the launch-mode preference. Takes effect on next app launch.
+/// Caller decides whether to relaunch immediately (typical UX pattern:
+/// tray-menu trigger relaunches; Settings checkbox just persists).
+#[tauri::command]
+pub fn set_launch_as_widget(app: tauri::AppHandle, value: bool) -> Result<bool, String> {
+    let mut cfg = load_config(&app);
+    cfg.launch_as_widget = value;
+    save_config(&app, &cfg);
+    log::info!("Launch mode updated: launch_as_widget={value}");
+    Ok(value)
+}
+
 // ── Pill autostart ────────────────────────────────────────────────────────
 
 /// Returns the path used for autostart registration on each platform.

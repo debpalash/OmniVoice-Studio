@@ -27,6 +27,7 @@ Requirements for the v0.3.x release. Each maps to roadmap phases.
 - [ ] **INST-03**: macOS `xattr -cr /Applications/OmniVoice\ Studio.app` workaround is documented in `docs/install/macos.md` AND surfaced in the app's first-run-failure UI when the app detects it was quarantined (closes #54 via documented workaround)
 - [ ] **INST-04**: `WEBKIT_DISABLE_COMPOSITING_MODE=1` workaround for AppImage white-screen on Fedora 44 / Ubuntu 24.04 is documented in `docs/install/linux.md` and applied conditionally by the AppImage launcher when WebKit version matches the broken range (closes #56 via documented workaround) — **README docs landed in PR #62; launcher conditional still pending**
 - [ ] **INST-12**: Windows Triton/torch.compile OOM workaround documented in `docs/install/windows.md` + surfaced via "Disable torch.compile on Windows" toggle in Settings → Performance (closes #65 — NEW issue, filed post-planning)
+- [ ] **INST-13**: Dictation-widget mode is discoverable via UI: tray menu item "Switch to Dictation Widget" (studio mode → restarts in `--pill`) AND a Settings → Launch options checkbox "Launch as dictation widget on startup" persisting `launch_as_widget` to `config.json`. Backend Rust + scripts shipped in Phase 0 (`bun desktop-prod:pill`); frontend Settings checkbox is the Phase 2 finish-line (closes the existing UX gap where the widget was unreachable from the GUI).
 - [ ] **INST-05**: README download badges use templated version refs (read latest release at render time or via release script), so they don't go stale between releases
 - [ ] **INST-06**: A `scripts/validate-install-docs.py` test extracts code blocks from `docs/install/*.md` and diffs them against `scripts/desktop-prod.sh` — fails CI if docs drift from the actual install script
 
@@ -248,6 +249,7 @@ Filled by roadmap on 2026-05-16; updated 2026-05-16 after inserting Phase 4 (Ada
 | INST-10 | Phase 3 | Pending |
 | INST-11 | Phase 3 | Pending |
 | INST-12 | Phase 1 | Pending |
+| INST-13 | Phase 0 (backend) + Phase 2 (UI) | In progress (backend shipped) |
 | SPIKE-01 | Phase 4 | Pending |
 | SPIKE-02 | Phase 4 | Pending |
 | GGUF-01 | Phase 4 | Pending (conditional on SPIKE-01=GO) |

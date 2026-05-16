@@ -45,16 +45,19 @@ HF_CACHE="${HF_HOME:-$HOME/.cache/huggingface}"
 # ── Flags ──────────────────────────────────────────────────────────────────
 SKIP_BUILD=false
 KEEP_DATA=false
+PILL_MODE=false
 
 for arg in "$@"; do
   case "$arg" in
     --skip-build) SKIP_BUILD=true ;;
     --keep-data)  KEEP_DATA=true ;;
+    --pill)       PILL_MODE=true ;;
     -h|--help)
-      echo "Usage: $0 [--skip-build] [--keep-data]"
+      echo "Usage: $0 [--skip-build] [--keep-data] [--pill]"
       echo ""
       echo "  --skip-build  Skip cargo build, use last compiled binary"
       echo "  --keep-data   Don't wipe app data (test upgrade path)"
+      echo "  --pill        Launch in dictation-widget mode (no main window)"
       exit 0
       ;;
   esac
@@ -151,6 +154,13 @@ else
   echo "⏭️  Skipping build (--skip-build)"
 fi
 
+# ── Build launch args ──────────────────────────────────────────────────────
+LAUNCH_ARGS=()
+if [ "$PILL_MODE" = true ]; then
+  LAUNCH_ARGS+=("--pill")
+  echo "📌 Launch mode: pill (dictation-only widget, no main window)"
+fi
+
 # ── Find and launch the app ────────────────────────────────────────────────
 if [ "$PLATFORM" = "macos" ]; then
   APP_BUNDLE="${TAURI_DIR}/target/debug/bundle/macos/${APP_NAME}.app"
@@ -160,12 +170,17 @@ if [ "$PLATFORM" = "macos" ]; then
     echo ""
     echo "🚀 Launching ${APP_NAME} (.app bundle)..."
     echo "   Bundle: ${APP_BUNDLE}"
-    open "$APP_BUNDLE"
+    # macOS `open` needs -n to spawn a fresh instance, --args to forward flags.
+    if [ ${#LAUNCH_ARGS[@]} -gt 0 ]; then
+      open -n "$APP_BUNDLE" --args "${LAUNCH_ARGS[@]}"
+    else
+      open "$APP_BUNDLE"
+    fi
   elif [ -f "$BINARY" ]; then
     echo ""
     echo "🚀 Launching ${APP_NAME} (raw binary — no .app bundle)..."
     echo "   Binary: ${BINARY}"
-    "$BINARY" &
+    "$BINARY" "${LAUNCH_ARGS[@]}" &
   else
     echo "❌ No bundle or binary found. Run without --skip-build first."
     exit 1
@@ -180,12 +195,12 @@ else
     echo "🚀 Launching ${APP_NAME} (AppImage)..."
     echo "   AppImage: ${APPIMAGE}"
     chmod +x "$APPIMAGE"
-    "$APPIMAGE" &
+    "$APPIMAGE" "${LAUNCH_ARGS[@]}" &
   elif [ -f "$BINARY" ]; then
     echo ""
     echo "🚀 Launching ${APP_NAME} (raw binary)..."
     echo "   Binary: ${BINARY}"
-    "$BINARY" &
+    "$BINARY" "${LAUNCH_ARGS[@]}" &
   else
     echo "❌ No AppImage or binary found. Run without --skip-build first."
     exit 1
@@ -195,4 +210,10 @@ fi
 echo "   App data: ${APP_DATA}"
 echo ""
 echo "✅ App launched. Check the splash screen for bootstrap logs."
-echo "   To re-run without rebuilding: bun desktop-prod:run"
+if [ "$PILL_MODE" = true ]; then
+  echo "   To re-run pill mode without rebuilding: bun desktop-prod:run:pill"
+  echo "   To switch back to studio: bun desktop-prod:run"
+else
+  echo "   To re-run without rebuilding: bun desktop-prod:run"
+  echo "   To launch as dictation widget: bun desktop-prod:pill"
+fi

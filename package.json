@@ -17,6 +17,8 @@
     "desktop-prod": "bash scripts/desktop-prod.sh",
     "desktop-prod:run": "bash scripts/desktop-prod.sh --skip-build",
     "desktop-prod:upgrade": "bash scripts/desktop-prod.sh --keep-data",
+    "desktop-prod:pill": "bash scripts/desktop-prod.sh --pill",
+    "desktop-prod:run:pill": "bash scripts/desktop-prod.sh --skip-build --pill",
     "build": "turbo run build",
     "start": "turbo run start",
     "test:frontend": "node --test tests/frontend/*.test.mjs",
