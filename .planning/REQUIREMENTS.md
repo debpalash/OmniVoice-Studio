@@ -40,11 +40,28 @@ Requirements for the v0.3.x release. Each maps to roadmap phases.
 
 ### Token & Settings (Phase 1)
 
-- [ ] **AUTH-01**: `backend/services/env_store.py` exists and provides read/write of persistent env vars to `~/.config/omnivoice/env` (POSIX) / `%APPDATA%\OmniVoice\env` (Windows), mode 0600
-- [ ] **AUTH-02**: HF token persistence uses `huggingface_hub.login(token=…)` to write to `$HF_HOME/token` — the canonical location — so engines requesting HF resources pick it up without further configuration
-- [ ] **AUTH-03**: Frontend Settings → API Keys panel lets the user enter, save, and clear an HF token; clears any in-memory + on-disk copy on logout
-- [ ] **AUTH-04**: Token persists across app restarts AND across spawned engine subprocesses (forwarded via env on subprocess spawn)
-- [ ] **AUTH-05**: HF token is excluded from any log line via a logging filter — never written to log files, never embedded in error tracebacks (closes #35 sub-issue: leak prevention)
+**Design: three sources, cascading priority, automatic fallback.** OmniVoice supports HF tokens from three locations simultaneously. The active token is the first one in priority order that exists AND validates (`whoami` returns 200). If the active token returns 401 during use, the resolver automatically retries with the next source and updates the active marker.
+
+**Resolution priority (highest → lowest):**
+
+| # | Source | Storage | Set via |
+|---|--------|---------|---------|
+| 1 | **App** | SQLite `settings` table, column-encrypted (AES-GCM, key derived from machine ID) | Settings → API Keys panel |
+| 2 | **Env var** | `$HF_TOKEN` in the launching shell's environment | `export HF_TOKEN=hf_…` in `~/.zshrc` / `.env` / Windows env |
+| 3 | **Global HF CLI** | `~/.cache/huggingface/token` (mode 0600) | `huggingface-cli login` |
+
+The Settings panel shows ALL three sources with their state (set/unset, masked preview, `whoami` result) and a clear "Active: <source>" badge. User can clear any source independently; clearing the active source falls back to the next in cascade.
+
+- [ ] **AUTH-01**: `backend/services/token_resolver.py` exists and implements the 3-source cascade with on-failure fallback. Returns `(token, source: "app"|"env"|"hf-cli", username)` so callers can surface attribution.
+- [ ] **AUTH-02**: App-stored tokens persist to SQLite `settings` table (encrypted column, AES-GCM, machine-ID-derived key). NOT a separate file. Schema migration handled via the project's `init_db()` (or alembic when adopted). Read/write via `backend/services/settings_store.py`.
+- [ ] **AUTH-03**: Frontend Settings → API Keys panel:
+  - Renders 3 source rows (App / Env / HF CLI), each with: token status (set/unset), masked preview (`hf_…3jw`), `whoami` result, "Test now" button, "Clear" button (for App only; Env and HF CLI are read-only display).
+  - Shows "Active: <source>" badge based on resolver result.
+  - Save action calls `huggingface_hub.login(token=…, add_to_git_credential=False)` AS WELL AS writing to App store — so power users get the canonical file populated too (defensive — never makes app-store-only a single point of failure).
+  - Logout/Clear action removes from App store; offers "Also clear ~/.cache/huggingface/token?" checkbox (default off — respect global state).
+- [ ] **AUTH-04**: Token persists across app restarts AND across spawned engine subprocesses. Subprocess spawn injects the resolved token as `$HF_TOKEN` in the child env so subprocess engines (IndexTTS, CosyVoice, etc.) see it without re-reading SQLite.
+- [ ] **AUTH-05**: HF token is excluded from any log line via a logging filter — never written to log files, never embedded in error tracebacks, never surfaced in the bug-report payload (Phase 5). Closes #35 sub-issue.
+- [ ] **AUTH-06**: On HTTP 401 from `huggingface_hub` during a download, the resolver auto-retries with the next source in cascade. If all sources fail, surfaces a single error toast: "HF auth failed across all configured sources — open Settings → API Keys to fix." (Prevents the current confusing UX where one bad token blocks downloads even though a working one exists at lower priority.)
 
 ### Engine Isolation (Phase 2)
 
@@ -210,6 +227,7 @@ Filled by roadmap on 2026-05-16; updated 2026-05-16 after inserting Phase 4 (Ada
 | AUTH-03 | Phase 1 | Pending |
 | AUTH-04 | Phase 1 | Pending |
 | AUTH-05 | Phase 1 | Pending |
+| AUTH-06 | Phase 1 | Pending |
 | ENGINE-01 | Phase 2 | Pending |
 | ENGINE-02 | Phase 2 | Pending |
 | ENGINE-03 | Phase 2 | Pending |
@@ -229,6 +247,7 @@ Filled by roadmap on 2026-05-16; updated 2026-05-16 after inserting Phase 4 (Ada
 | INST-09 | Phase 3 | Pending |
 | INST-10 | Phase 3 | Pending |
 | INST-11 | Phase 3 | Pending |
+| INST-12 | Phase 1 | Pending |
 | SPIKE-01 | Phase 4 | Pending |
 | SPIKE-02 | Phase 4 | Pending |
 | GGUF-01 | Phase 4 | Pending (conditional on SPIKE-01=GO) |
@@ -262,8 +281,8 @@ Filled by roadmap on 2026-05-16; updated 2026-05-16 after inserting Phase 4 (Ada
 | REL-06 | Phase 6 | Pending |
 
 **Coverage:**
-- v1 requirements: 62 total
-- Mapped to phases: 62 ✓
+- v1 requirements: 74 total (was 62 at planning; +12 post-triage: INST-12, AUTH-06, GATE-06 expansion, plus original undercount)
+- Mapped to phases: 74 ✓
 - Unmapped: 0 ✓
 - Duplicates: 0 ✓
 
