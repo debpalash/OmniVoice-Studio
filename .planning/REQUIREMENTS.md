@@ -18,14 +18,15 @@ Requirements for the v0.3.x release. Each maps to roadmap phases.
 - [ ] **GATE-03**: `release.yml` runs at least one post-build installer smoke test per platform (boot the bundled app, hit a health endpoint)
 - [ ] **GATE-04**: PR template documents the two-RC release cadence and the regression-fixture requirement
 - [ ] **GATE-05**: SHA-256 checksums are published in every GitHub Release body (defends the `xattr -cr` workaround context for #54)
-- [ ] **GATE-06**: Open PRs #51 (cross-platform bug bash), #53 (SRT import), #61 (lazy ASR) are merged before Phase 0 finalizes the CI matrix
+- [ ] **GATE-06**: Open PRs #51 (cross-platform bug bash), ~~#53 (SRT import)~~ ✓ merged 2026-05-16, ~~#61 (lazy ASR)~~ ✓ merged 2026-05-16, and #62 (Wave 1 quick wins — setuptools/Linux/Russia) are merged before Phase 0 finalizes the CI matrix
 
 ### Install — Quick Wins (Phase 1, Wave 1)
 
-- [ ] **INST-01**: `setuptools` is added to `pyproject.toml` `[project.dependencies]` so WhisperX can import `pkg_resources` on Python 3.12+ (closes #58)
+- [ ] **INST-01**: `setuptools` is added to `pyproject.toml` `[project.dependencies]` so WhisperX can import `pkg_resources` on Python 3.12+ (closes #58) — **DONE in PR #62 (pending merge)**
 - [ ] **INST-02**: README install section is split into `docs/install/{macos,windows,linux,docker}.md` with per-OS instructions, and README links there instead of inlining 600 lines
 - [ ] **INST-03**: macOS `xattr -cr /Applications/OmniVoice\ Studio.app` workaround is documented in `docs/install/macos.md` AND surfaced in the app's first-run-failure UI when the app detects it was quarantined (closes #54 via documented workaround)
-- [ ] **INST-04**: `WEBKIT_DISABLE_COMPOSITING_MODE=1` workaround for AppImage white-screen on Fedora 44 / Ubuntu 24.04 is documented in `docs/install/linux.md` and applied conditionally by the AppImage launcher when WebKit version matches the broken range (closes #56 via documented workaround)
+- [ ] **INST-04**: `WEBKIT_DISABLE_COMPOSITING_MODE=1` workaround for AppImage white-screen on Fedora 44 / Ubuntu 24.04 is documented in `docs/install/linux.md` and applied conditionally by the AppImage launcher when WebKit version matches the broken range (closes #56 via documented workaround) — **README docs landed in PR #62; launcher conditional still pending**
+- [ ] **INST-12**: Windows Triton/torch.compile OOM workaround documented in `docs/install/windows.md` + surfaced via "Disable torch.compile on Windows" toggle in Settings → Performance (closes #65 — NEW issue, filed post-planning)
 - [ ] **INST-05**: README download badges use templated version refs (read latest release at render time or via release script), so they don't go stale between releases
 - [ ] **INST-06**: A `scripts/validate-install-docs.py` test extracts code blocks from `docs/install/*.md` and diffs them against `scripts/desktop-prod.sh` — fails CI if docs drift from the actual install script
 
@@ -174,6 +175,10 @@ Explicitly excluded for v0.3.x. Anti-features that would violate constraints are
 | OS keyring integration | Defer to v0.4 — `$HF_HOME/token` + `~/.config/omnivoice/env` is sufficient; keyring adds a native dep without clear v0.3 user-pull |
 | Full subprocess migration for all engines | Risk-bounded to IndexTTS this milestone; other engines stay in-process pending evidence of clashes |
 | Material for MkDocs / heavyweight docs framework | Material for MkDocs entered maintenance Nov 2025; markdown-in-repo is the durable choice |
+| Per-segment audio effects DSP preset selector (#67 / PR #68) | Feature, not stability — defer to v0.4; thank contributor + close PR with kind note |
+| Custom model download directory (#64) | Feature, not stability — defer to v0.4; `HF_HUB_CACHE` env var is the v0.3 workaround |
+| Full zh-CN frontend localization (PR #66) | UI redesign-adjacent + 23-file diff — defer to a dedicated i18n milestone; cherry-pick Windows/backend fixes only if they don't conflict with our engine isolation work |
+| Empty-template bug reports without repro (#63) | Reporter must fill template; auto-close after 14 days no-response |
 
 ---
 
