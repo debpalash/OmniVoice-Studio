@@ -179,7 +179,7 @@ Explicitly excluded for v0.3.x. Anti-features that would violate constraints are
 
 ## Traceability
 
-Filled by roadmap on 2026-05-16. Coverage = 49 / 49 v1 requirements (100%). No orphans, no duplicates.
+Filled by roadmap on 2026-05-16; updated 2026-05-16 after inserting Phase 4 (Adaptive & Specialty Engines). Coverage = 62 / 62 v1 requirements (100%). No orphans, no duplicates.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
@@ -224,28 +224,41 @@ Filled by roadmap on 2026-05-16. Coverage = 49 / 49 v1 requirements (100%). No o
 | INST-09 | Phase 3 | Pending |
 | INST-10 | Phase 3 | Pending |
 | INST-11 | Phase 3 | Pending |
-| REPORT-01 | Phase 4 | Pending |
-| REPORT-02 | Phase 4 | Pending |
-| REPORT-03 | Phase 4 | Pending |
-| REPORT-04 | Phase 4 | Pending |
-| REPORT-05 | Phase 4 | Pending |
-| REPORT-06 | Phase 4 | Pending |
-| REPORT-07 | Phase 4 | Pending |
-| REPORT-08 | Phase 4 | Pending |
-| REPORT-09 | Phase 4 | Pending |
-| REPORT-10 | Phase 4 | Pending |
-| REPORT-11 | Phase 4 | Pending |
-| REPORT-12 | Phase 4 | Pending |
-| REL-01 | Phase 5 | Pending |
-| REL-02 | Phase 5 | Pending |
-| REL-03 | Phase 5 | Pending |
-| REL-04 | Phase 5 | Pending |
-| REL-05 | Phase 5 | Pending |
-| REL-06 | Phase 5 | Pending |
+| SPIKE-01 | Phase 4 | Pending |
+| SPIKE-02 | Phase 4 | Pending |
+| GGUF-01 | Phase 4 | Pending (conditional on SPIKE-01=GO) |
+| GGUF-02 | Phase 4 | Pending (conditional on SPIKE-01=GO) |
+| GGUF-03 | Phase 4 | Pending (conditional on SPIKE-01=GO) |
+| GGUF-04 | Phase 4 | Pending (conditional on SPIKE-01=GO) |
+| GGUF-05 | Phase 4 | Pending (conditional on SPIKE-01=GO) |
+| GGUF-06 | Phase 4 | Pending (conditional on SPIKE-01=GO) |
+| SING-01 | Phase 4 | Pending (conditional on SPIKE-02=GO) |
+| SING-02 | Phase 4 | Pending (conditional on SPIKE-02=GO) |
+| SING-03 | Phase 4 | Pending (conditional on SPIKE-02=GO) |
+| SING-04 | Phase 4 | Pending (conditional on SPIKE-02=GO) |
+| SING-05 | Phase 4 | Pending (conditional on SPIKE-02=GO) |
+| REPORT-01 | Phase 5 | Pending |
+| REPORT-02 | Phase 5 | Pending |
+| REPORT-03 | Phase 5 | Pending |
+| REPORT-04 | Phase 5 | Pending |
+| REPORT-05 | Phase 5 | Pending |
+| REPORT-06 | Phase 5 | Pending |
+| REPORT-07 | Phase 5 | Pending |
+| REPORT-08 | Phase 5 | Pending |
+| REPORT-09 | Phase 5 | Pending |
+| REPORT-10 | Phase 5 | Pending |
+| REPORT-11 | Phase 5 | Pending |
+| REPORT-12 | Phase 5 | Pending |
+| REL-01 | Phase 6 | Pending |
+| REL-02 | Phase 6 | Pending |
+| REL-03 | Phase 6 | Pending |
+| REL-04 | Phase 6 | Pending |
+| REL-05 | Phase 6 | Pending |
+| REL-06 | Phase 6 | Pending |
 
 **Coverage:**
-- v1 requirements: 49 total
-- Mapped to phases: 49 ✓
+- v1 requirements: 62 total
+- Mapped to phases: 62 ✓
 - Unmapped: 0 ✓
 - Duplicates: 0 ✓
 
@@ -255,10 +268,11 @@ Filled by roadmap on 2026-05-16. Coverage = 49 / 49 v1 requirements (100%). No o
 | Phase 1 — Install + Token + Docs + Error UX | 16 |
 | Phase 2 — Engine Isolation + WAV-export fix | 8 |
 | Phase 3 — Supertonic-3 + Mirror Reliability | 11 |
-| Phase 4 — Opt-in Bug Reporting | 12 |
-| Phase 5 — Release, Verification, Retro | 6 |
-| **Total** | **49** |
+| Phase 4 — Adaptive & Specialty Engines (spike-first) | 13 |
+| Phase 5 — Opt-in Bug Reporting | 12 |
+| Phase 6 — Release, Verification, Retro | 6 |
+| **Total** | **62** |
 
 ---
 *Requirements defined: 2026-05-16*
-*Last updated: 2026-05-16 after roadmap traceability mapping*
+*Last updated: 2026-05-16 after inserting Phase 4 (Adaptive & Specialty Engines — SPIKE/GGUF/SING) and renumbering REPORT-* → Phase 5, REL-* → Phase 6*
