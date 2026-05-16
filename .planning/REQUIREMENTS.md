@@ -76,7 +76,31 @@ Requirements for the v0.3.x release. Each maps to roadmap phases.
 
 - [ ] **BUG-01**: WAV export corruption in video-dubbing pipeline is reproduced, root-caused, and fixed; regression test exports a WAV via the dubbing pipeline and validates header + decode (closes #48)
 
-### Bug Reporting (Phase 4)
+### Adaptive & Specialty Engines — Spike (Phase 4, gates integration)
+
+Both items below are **investigations first**. Integration requirements (GGUF-* / SING-*) only run if the corresponding spike returns GO. NO-GO outcomes are documented in `.planning/decisions/` and the corresponding integration requirements move to Out of Scope or v2.
+
+- [ ] **SPIKE-01**: Verify `https://huggingface.co/Serveurperso/OmniVoice-GGUF` is the intended artifact — fetch model card, confirm relationship to OmniVoice Studio's voice-cloning model lineage (NOT a different "OmniVoice" project), document license, confirm runtime requirement (llama.cpp / candle / custom), enumerate available quant variants with their VRAM footprints. Output: `.planning/decisions/gguf-spike.md` with GO/NO-GO + rationale. (Hardware-adaptive default cloning engine — user-requested.)
+- [ ] **SPIKE-02**: Verify `https://huggingface.co/ModelsLab/omnivoice-singing` is the intended artifact — fetch model card, confirm license, confirm runtime (likely shares an OmniVoice runtime; need to check), document whether it's sung-vocal cloning, full-song generation, or both, and what input/output formats it expects. Output: `.planning/decisions/singing-spike.md` with GO/NO-GO + rationale. (Singing extension for the dubbing pipeline — user-requested.)
+
+### Hardware-Adaptive Default Engine — GGUF (Phase 4, conditional on SPIKE-01=GO)
+
+- [ ] **GGUF-01**: Hardware probe extends the existing GPU auto-detect to also report available VRAM in MB and a "compute class" bucket (CPU-only / low-VRAM / mid-VRAM / high-VRAM)
+- [ ] **GGUF-02**: Quant-selection table maps (compute class) → recommended GGUF variant; shipped as `backend/engines/omnivoice_gguf/quant_map.json` so the table can be updated without an app release
+- [ ] **GGUF-03**: `backend/engines/omnivoice_gguf/` implements `TTSBackend` on top of `SubprocessBackend`, runs the auto-selected quant via the runtime confirmed in SPIKE-01
+- [ ] **GGUF-04**: First-run / Settings UI surfaces the auto-selected quant with a one-click "pick a different quant" override (lets advanced users force a higher- or lower-quality variant)
+- [ ] **GGUF-05**: On hardware that passes the GGUF probe, the GGUF engine becomes the default for voice cloning. The pre-existing default engine is preserved as fallback when GGUF probe / load fails, and the choice is exposed (and overridable) in Settings → Engines → Default
+- [ ] **GGUF-06**: Smoke test: probe → select → load → clone 3 seconds across 3 representative hardware classes (CPU-only Linux, 8 GB VRAM macOS/Windows, 16+ GB VRAM Windows) — assert quant matches the table and output is intelligible
+
+### Singing Variant for Dubbing Pipeline (Phase 4, conditional on SPIKE-02=GO)
+
+- [ ] **SING-01**: `backend/engines/omnivoice_singing/` implements singing voice cloning following the SubprocessBackend pattern; engine card declares it as "singing/musical content" rather than a general-purpose TTS
+- [ ] **SING-02**: Dubbing pipeline gains a "singing mode" toggle in the dub-job UI — when enabled, vocal-isolation output (Demucs vocals stem) routes through the singing engine while the instrumental stem is preserved untouched in the final mix
+- [ ] **SING-03**: Auto-detect singing vs spoken segments in source audio (start with a simple pitch-stability + energy heuristic; defer model-based classifier to v2) and route segment-by-segment — power-user override available per segment in the dubbing job UI
+- [ ] **SING-04**: License + model-card link surfaced in the singing engine card; first-use acceptance flow gates download
+- [ ] **SING-05**: Smoke test: dub a 30-second source mixing speech + singing — verify both segments produce intelligible target output with consistent voice identity and the instrumental remains in the final mix
+
+### Bug Reporting (Phase 5)
 
 - [ ] **REPORT-01**: `backend/services/bug_report.py` aggregates errors from 3 producers — Python (`global_exception_handler`), Rust (`std::panic::set_hook`), React (`ErrorBoundary` already tapping `console.error`)
 - [ ] **REPORT-02**: Bug reports submit via prefilled GitHub Issues URL (`tauri-plugin-opener`) — no PAT, no third-party telemetry endpoint, no Sentry DSN
@@ -91,7 +115,7 @@ Requirements for the v0.3.x release. Each maps to roadmap phases.
 - [ ] **REPORT-11**: GitHub Issues URL length is capped at ~6 KB encoded; payload trimming + "see attached log" link to a pastebin-style local file path when too long
 - [ ] **REPORT-12**: Bug reporting is OFF by default; user must opt in via Settings → Privacy → "Help improve OmniVoice" with explicit copy explaining what is and isn't sent
 
-### Release & Verification (Phase 5)
+### Release & Verification (Phase 6)
 
 - [ ] **REL-01**: `v0.3.0-rc1` is cut and exercised on clean VMs (UTM macOS Sequoia, Hyper-V Windows 11, Ubuntu 24.04, Fedora 44) by following the install docs verbatim — no shortcuts
 - [ ] **REL-02**: 48-hour soak period between rc1 and promotion to `v0.3.0`
@@ -135,7 +159,9 @@ Explicitly excluded for v0.3.x. Anti-features that would violate constraints are
 
 | Feature | Reason |
 |---------|--------|
-| New TTS engines beyond Supertonic-3 (Qwen3, VoiceBox) | Stabilization focus; track in v2 |
+| New TTS engines beyond Supertonic-3, OmniVoice-GGUF, and the singing variant (Qwen3, VoiceBox) | Stabilization focus; track in v2 |
+| Model-based singing-vs-speech classifier (vs heuristic) | Heuristic in SING-03 is sufficient for v0.3; train/integrate a real classifier in v0.4 |
+| Custom GGUF quants we produce ourselves | Defer to v0.4 — use upstream `Serveurperso` quants only this milestone |
 | Real macOS code signing + notarization | Infrastructure project — needs Apple Developer account + signing pipeline; documented `xattr -cr` workaround is this milestone's answer |
 | Windows code signing certificate | Same — separate infrastructure milestone |
 | Major UI/UX redesign | Fix what's broken; don't redesign screens |
@@ -153,26 +179,86 @@ Explicitly excluded for v0.3.x. Anti-features that would violate constraints are
 
 ## Traceability
 
-Filled by roadmap during Step 8. Coverage check happens after roadmap creation.
+Filled by roadmap on 2026-05-16. Coverage = 49 / 49 v1 requirements (100%). No orphans, no duplicates.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| GATE-01 — GATE-06 | TBD | Pending |
-| INST-01 — INST-06 | TBD | Pending |
-| DOCS-01 — DOCS-05 | TBD | Pending |
-| AUTH-01 — AUTH-05 | TBD | Pending |
-| ENGINE-01 — ENGINE-07 | TBD | Pending |
-| TTS-01 — TTS-06 | TBD | Pending |
-| INST-07 — INST-11 | TBD | Pending |
-| BUG-01 | TBD | Pending |
-| REPORT-01 — REPORT-12 | TBD | Pending |
-| REL-01 — REL-06 | TBD | Pending |
+| GATE-01 | Phase 0 | Pending |
+| GATE-02 | Phase 0 | Pending |
+| GATE-03 | Phase 0 | Pending |
+| GATE-04 | Phase 0 | Pending |
+| GATE-05 | Phase 0 | Pending |
+| GATE-06 | Phase 0 | Pending |
+| INST-01 | Phase 1 | Pending |
+| INST-02 | Phase 1 | Pending |
+| INST-03 | Phase 1 | Pending |
+| INST-04 | Phase 1 | Pending |
+| INST-05 | Phase 1 | Pending |
+| INST-06 | Phase 1 | Pending |
+| DOCS-01 | Phase 1 | Pending |
+| DOCS-02 | Phase 1 | Pending |
+| DOCS-03 | Phase 1 | Pending |
+| DOCS-04 | Phase 1 | Pending |
+| DOCS-05 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| AUTH-05 | Phase 1 | Pending |
+| ENGINE-01 | Phase 2 | Pending |
+| ENGINE-02 | Phase 2 | Pending |
+| ENGINE-03 | Phase 2 | Pending |
+| ENGINE-04 | Phase 2 | Pending |
+| ENGINE-05 | Phase 2 | Pending |
+| ENGINE-06 | Phase 2 | Pending |
+| ENGINE-07 | Phase 2 | Pending |
+| BUG-01 | Phase 2 | Pending |
+| TTS-01 | Phase 3 | Pending |
+| TTS-02 | Phase 3 | Pending |
+| TTS-03 | Phase 3 | Pending |
+| TTS-04 | Phase 3 | Pending |
+| TTS-05 | Phase 3 | Pending |
+| TTS-06 | Phase 3 | Pending |
+| INST-07 | Phase 3 | Pending |
+| INST-08 | Phase 3 | Pending |
+| INST-09 | Phase 3 | Pending |
+| INST-10 | Phase 3 | Pending |
+| INST-11 | Phase 3 | Pending |
+| REPORT-01 | Phase 4 | Pending |
+| REPORT-02 | Phase 4 | Pending |
+| REPORT-03 | Phase 4 | Pending |
+| REPORT-04 | Phase 4 | Pending |
+| REPORT-05 | Phase 4 | Pending |
+| REPORT-06 | Phase 4 | Pending |
+| REPORT-07 | Phase 4 | Pending |
+| REPORT-08 | Phase 4 | Pending |
+| REPORT-09 | Phase 4 | Pending |
+| REPORT-10 | Phase 4 | Pending |
+| REPORT-11 | Phase 4 | Pending |
+| REPORT-12 | Phase 4 | Pending |
+| REL-01 | Phase 5 | Pending |
+| REL-02 | Phase 5 | Pending |
+| REL-03 | Phase 5 | Pending |
+| REL-04 | Phase 5 | Pending |
+| REL-05 | Phase 5 | Pending |
+| REL-06 | Phase 5 | Pending |
 
-**Coverage (filled by roadmapper):**
+**Coverage:**
 - v1 requirements: 49 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 49 ⚠️ (expected before roadmap runs)
+- Mapped to phases: 49 ✓
+- Unmapped: 0 ✓
+- Duplicates: 0 ✓
+
+| Phase | Requirement Count |
+|-------|-------------------|
+| Phase 0 — Gates | 6 |
+| Phase 1 — Install + Token + Docs + Error UX | 16 |
+| Phase 2 — Engine Isolation + WAV-export fix | 8 |
+| Phase 3 — Supertonic-3 + Mirror Reliability | 11 |
+| Phase 4 — Opt-in Bug Reporting | 12 |
+| Phase 5 — Release, Verification, Retro | 6 |
+| **Total** | **49** |
 
 ---
 *Requirements defined: 2026-05-16*
-*Last updated: 2026-05-16 after initial definition*
+*Last updated: 2026-05-16 after roadmap traceability mapping*

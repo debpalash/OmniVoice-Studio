@@ -56,12 +56,14 @@ Everything else (new engines, fancy features) is downstream of "the thing instal
 **Additions beyond the inbox:**
 - [ ] Add Supertonic-3 as a new TTS engine (https://huggingface.co/Supertone/supertonic-3) — explicit user request
 - [ ] In-app bug reporting that auto-files structured GitHub issues for product quality (opt-in, captures logs/system info)
+- [ ] **Spike + conditional integration**: Evaluate `Serveurperso/OmniVoice-GGUF` as a hardware-adaptive default cloning engine — auto-pick GGUF quant from detected VRAM/compute class so low-VRAM users get a working cloning experience out of the box
+- [ ] **Spike + conditional integration**: Evaluate `ModelsLab/omnivoice-singing` to extend the dubbing pipeline with sung-vocal cloning (route Demucs vocal stem through the singing engine when source contains singing; preserve instrumental)
 
 ### Out of Scope
 
 <!-- Explicit boundaries. -->
 
-- **New TTS engines beyond Supertonic-3** (Qwen3, VoiceBox from #44) — keep this milestone focused on stabilization; revisit in a future milestone
+- **New TTS engines beyond Supertonic-3, OmniVoice-GGUF, and the singing variant** (Qwen3, VoiceBox from #44) — keep this milestone focused on stabilization; revisit in a future milestone
 - **Real macOS code signing + notarization** — infrastructure project (Apple Developer account, signing pipeline); documented `xattr -cr` workaround is the milestone's answer for #54
 - **Major UI/UX redesign** — fix what's broken in existing screens; do not redesign
 - **New features beyond the issue list + the two explicit additions above** — no scope creep into novel capabilities
@@ -107,7 +109,7 @@ The trajectory is already stabilization-oriented; this milestone formalizes and 
 |----------|-----------|---------|
 | Milestone framing = "Empty the inbox" (close all 11 open issues) | User chose this over "trustworthy v0.3.0 release" or "drop Discord support volume" — concrete, measurable closure bar | — Pending |
 | Hard issues (#54 code signing, #56 Tauri/WebKit) count as closed if a workaround is documented in README + surfaced in error UI | Real fixes are infrastructure-level (signing cert, upstream Tauri bug) — don't block milestone on them | — Pending |
-| Add Supertonic-3 as the sole new TTS engine; defer Qwen3/VoiceBox | User explicitly requested Supertonic-3 by URL; other engines deferred to keep stabilization scope tight | — Pending |
+| Add Supertonic-3 + spike-and-conditionally-add OmniVoice-GGUF and OmniVoice-Singing; defer Qwen3/VoiceBox | All three model additions came from explicit user requests by URL; GGUF and Singing are spike-first because both names are plausibly ambiguous and need verification before code work | — Pending |
 | Add opt-in auto bug reporting that files GitHub issues | User flagged "we need to add bug issues auto reported for product quality" — but local-first promise constrains it to opt-in + GitHub-only target | — Pending |
 | Treat video dubbing fixes as part of general stability (not a dedicated phase) | User chose "Roll into stability" over carving dubbing out separately | — Pending |
 | Run milestone in YOLO/autonomous mode (auto-approve gates) | User said "do actions to fix improve and feature building on auto, test with cli/code" | — Pending |
