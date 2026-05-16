@@ -62,6 +62,17 @@ omnivoice_data/
 *.db-wal
 *.log
 *.wav
+
+# ─────────────────────────────────────────────────────────────────────────
+#  Frozen regression fixture (GATE-01) — explicit allow-list.
+#  The patterns above (omnivoice_data/, *.db, *.wav) would otherwise hide
+#  tests/fixtures/omnivoice_data/ from git. Phase 0 requires this fixture
+#  to be checked in (no LFS) so every PR's smoke matrix loads it.
+# ─────────────────────────────────────────────────────────────────────────
+!tests/fixtures/omnivoice_data/
+!tests/fixtures/omnivoice_data/**
+!tests/fixtures/omnivoice_data/**/*.db
+!tests/fixtures/omnivoice_data/**/*.wav
 *.jsonl
 demo_recording.webp
 cloudflared

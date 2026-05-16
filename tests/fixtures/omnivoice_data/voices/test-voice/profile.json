@@ -1,0 +1,12 @@
+{
+  "created_at": 1700000000.0,
+  "id": "test-voice",
+  "instruct": "",
+  "is_locked": 0,
+  "language": "Auto",
+  "locked_audio_path": "",
+  "name": "Test Voice (silence)",
+  "ref_audio_path": "voices/test-voice/sample.wav",
+  "ref_text": "silence",
+  "seed": null
+}
