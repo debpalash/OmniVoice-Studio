@@ -172,3 +172,70 @@ jobs:
       - name: Cargo check (Tauri shell)
         working-directory: frontend/src-tauri
         run: cargo check --target ${{ matrix.rust_target }} --message-format=short
+
+  # ── Cross-platform Python runtime smoke (Phase 0 GATE-02) ───────────────
+  # Loads the frozen tests/fixtures/omnivoice_data/ fixture and boots the
+  # FastAPI app in-process via TestClient on macOS/Windows/Linux. Catches
+  # platform-specific Python import / path bugs that the Linux-only `test`
+  # job above misses. Narrow scope (tests/smoke/ only) — full pytest stays
+  # on Linux until Phase 1's INST-01 lands setuptools for WhisperX.
+  smoke-matrix:
+    name: Smoke (${{ matrix.label }})
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            label: macOS
+          - os: windows-2022
+            label: Windows
+          - os: ubuntu-22.04
+            label: Linux
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      # Restricted-network resilience (RESEARCH Pitfall #6) — keeps uv from
+      # giving up on the first slow PyPI / python-build-standalone fetch.
+      UV_HTTP_TIMEOUT: "120"
+      UV_HTTP_RETRIES: "5"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      # ffmpeg + libsndfile are needed by soundfile / audio fixtures even
+      # though the silence WAV doesn't decode anything heavy — keeps test
+      # collection from import-erroring on optional audio modules.
+      - name: System deps (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg libsndfile || true
+
+      - name: System deps (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          choco install ffmpeg -y --no-progress
+          ffmpeg -version
+
+      - name: System deps (Linux)
+        if: runner.os == 'Linux'
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: ffmpeg libsndfile1
+          version: 1.0
+
+      - name: Install Python deps
+        run: uv sync
+
+      - name: Run smoke tests
+        run: uv run pytest tests/smoke/ -q --tb=short
