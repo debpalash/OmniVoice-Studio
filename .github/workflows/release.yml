@@ -351,3 +351,90 @@ jobs:
           prerelease: false
           updaterJsonPreferNsis: false
           includeUpdaterJson: true
+
+      # ── Installer smoke (Phase 0 GATE-03) ─────────────────────────────
+      # Boot the just-built bundle on this matrix leg, poll /health, fail
+      # the release if it doesn't come up. Catches bundle-only regressions
+      # (PyInstaller missing-module, Tauri sidecar path mismatch, etc.)
+      # that the in-process smoke matrix on ci.yml cannot see.
+      - name: Installer smoke (macOS)
+        if: runner.os == 'macOS'
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          set -euo pipefail
+          DMG=$(find frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/dmg -name "*.dmg" | head -1)
+          echo "Smoke-testing DMG: $DMG"
+          MOUNT=$(hdiutil attach -nobrowse -readonly "$DMG" | tail -1 | awk '{print $3}')
+          APP=$(find "$MOUNT" -maxdepth 2 -name "*.app" | head -1)
+          # RESEARCH Pitfall #5: do NOT launch the Tauri WebView shell on a headless runner — it hangs.
+          # The `--health-check` flag lives in backend/main.py (Python), not the Rust WebView main.
+          # Strategy: invoke the bundled Python backend directly, bypassing Tauri's window code.
+          BACKEND=$(find "$APP/Contents" -type f \( -name 'backend' -o -name 'backend.app' -o -name 'main.py' \) -perm +111 2>/dev/null | head -1)
+          if [ -z "$BACKEND" ]; then
+            # Fallback: try the PyInstaller sidecar location Tauri uses.
+            BACKEND=$(find "$APP/Contents/Resources" -type f \( -name 'backend*' -o -name 'omnivoice*' \) -perm +111 2>/dev/null | head -1)
+          fi
+          if [ -z "$BACKEND" ]; then
+            echo "FAIL — could not locate bundled backend binary in $APP. Contents:"
+            find "$APP/Contents" -type f -perm +111 | head -30
+            hdiutil detach "$MOUNT" || true
+            exit 1
+          fi
+          echo "Launching bundled backend: $BACKEND --health-check"
+          "$BACKEND" --health-check
+          EXIT=$?
+          hdiutil detach "$MOUNT" || true
+          exit $EXIT
+
+      - name: Installer smoke (Windows)
+        if: runner.os == 'Windows'
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          set -euo pipefail
+          MSI=$(find frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/msi -name "*.msi" | head -1)
+          echo "Smoke-testing MSI: $MSI"
+          # /quiet = no UI, /norestart = don't reboot the runner if a dep asks
+          msiexec.exe //i "$(cygpath -w "$MSI")" //quiet //norestart
+          # Tauri installs to "Program Files\OmniVoice Studio\..." by default. Backend is a sidecar binary
+          # (RESEARCH Pitfall #5) — not the Tauri WebView .exe — so locate by name pattern.
+          BACKEND=$(find "/c/Program Files/OmniVoice Studio" -type f \( -name 'backend.exe' -o -name 'omnivoice-backend.exe' -o -name 'main.exe' \) 2>/dev/null | head -1)
+          if [ -z "$BACKEND" ]; then
+            echo "FAIL — bundled backend .exe not found under C:/Program Files/OmniVoice Studio. Contents:"
+            find "/c/Program Files/OmniVoice Studio" -type f -name '*.exe' | head -20
+            exit 1
+          fi
+          echo "Launching bundled backend: $BACKEND --health-check"
+          "$BACKEND" --health-check &
+          BACKEND_PID=$!
+          # Wait for completion (--health-check is a short-lived, exits-after-200 invocation)
+          wait $BACKEND_PID
+          EXIT=$?
+          # RESEARCH Pitfall #2: cleanup orphaned PyInstaller child processes on port 3900.
+          # Safe on GH-hosted ephemeral runners; REQUIRED if/when we move to self-hosted Windows.
+          taskkill //F //T //PID $BACKEND_PID 2>/dev/null || echo "backend process already exited cleanly"
+          exit $EXIT
+
+      - name: Installer smoke (Linux)
+        if: runner.os == 'Linux'
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Use the AppImage — single-file, no installer needed.
+          APPIMAGE=$(find frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/appimage -name "*.AppImage" | head -1)
+          echo "Smoke-testing AppImage: $APPIMAGE"
+          chmod +x "$APPIMAGE"
+          # GH runners have no FUSE — extract before running (mirrors APPIMAGE_EXTRACT_AND_RUN=1 used at build time).
+          EXTRACT_DIR="$(mktemp -d)"
+          cd "$EXTRACT_DIR"
+          "$APPIMAGE" --appimage-extract >/dev/null
+          # Tauri's AppRun lives at squashfs-root/AppRun; the actual binary is in squashfs-root/usr/bin/
+          BIN=$(find squashfs-root -type f -name "OmniVoice Studio" -o -name "omnivoice-studio" 2>/dev/null | head -1)
+          if [ -z "$BIN" ]; then
+            BIN="$EXTRACT_DIR/squashfs-root/AppRun"
+          fi
+          echo "Launching under xvfb-run: $BIN --health-check"
+          sudo apt-get install -y xvfb >/dev/null 2>&1 || true
+          xvfb-run -a "$BIN" --health-check
