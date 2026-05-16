@@ -438,7 +438,52 @@ else:
 
 
 if __name__ == "__main__":
+    import argparse
+    import sys
+    import threading
+    import time
+    import urllib.request
     import uvicorn
+
+    parser = argparse.ArgumentParser(prog="omnivoice-backend")
+    parser.add_argument(
+        "--health-check",
+        action="store_true",
+        help="Boot the server, poll /health, exit 0 on success / 1 on timeout. "
+             "Used by the release-time installer smoke step in .github/workflows/release.yml.",
+    )
+    args, _unknown = parser.parse_known_args()
+
+    if args.health_check:
+        HEALTH_URL = "http://127.0.0.1:3900/health"
+        TIMEOUT_S = 60
+        INTERVAL_S = 5
+
+        def _serve():
+            # log_level="warning" silences the per-request access log spam
+            # so the smoke output stays readable in GH Actions.
+            uvicorn.run(app, host="127.0.0.1", port=3900, log_level="warning")
+
+        t = threading.Thread(target=_serve, daemon=True)
+        t.start()
+
+        elapsed = 0
+        while elapsed < TIMEOUT_S:
+            try:
+                with urllib.request.urlopen(HEALTH_URL, timeout=2) as resp:
+                    if resp.status == 200:
+                        print(f"OK — /health responded 200 after {elapsed}s", flush=True)
+                        sys.exit(0)
+            except Exception:
+                pass
+            time.sleep(INTERVAL_S)
+            elapsed += INTERVAL_S
+
+        print(
+            f"FAIL — /health did not respond 200 within {TIMEOUT_S}s",
+            file=sys.stderr, flush=True,
+        )
+        sys.exit(1)
 
     # Port 3900 picked to dodge common 8000 conflicts (Django/Rails/Jupyter).
     # Rust sidecar launcher in lib.rs::BACKEND_PORT must stay in sync.
