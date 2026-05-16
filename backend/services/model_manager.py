@@ -403,7 +403,16 @@ _diar_pipeline = None
 
 def get_diarization_pipeline():
     global _diar_pipeline
+    # AUTH cascade prelude: env var > canonical ~/.cache/huggingface/token
+    # (written by `huggingface-cli login` or app save). Phase 1 token_resolver
+    # adds the SQLite app-store layer on top.
     hf_token = os.environ.get("HF_TOKEN")
+    if not hf_token:
+        try:
+            from huggingface_hub import get_token
+            hf_token = get_token()
+        except Exception:
+            hf_token = None
     if not hf_token:
         return None
     if _diar_pipeline is not None:
