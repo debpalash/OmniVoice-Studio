@@ -84,5 +84,7 @@ test-results/
 
 # Research repos (local only)
 research/
+!.planning/research/
+!.planning/research/**
 marketing.md
 .coverage
