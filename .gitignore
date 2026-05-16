@@ -68,11 +68,18 @@ omnivoice_data/
 #  The patterns above (omnivoice_data/, *.db, *.wav) would otherwise hide
 #  tests/fixtures/omnivoice_data/ from git. Phase 0 requires this fixture
 #  to be checked in (no LFS) so every PR's smoke matrix loads it.
+#
+#  We only un-ignore the EXACT files the seed script produces. The backend
+#  creates runtime subdirs (dub_jobs/, outputs/, preview/, etc.) when the
+#  smoke test boots — those stay ignored.
 # ─────────────────────────────────────────────────────────────────────────
 !tests/fixtures/omnivoice_data/
-!tests/fixtures/omnivoice_data/**
-!tests/fixtures/omnivoice_data/**/*.db
-!tests/fixtures/omnivoice_data/**/*.wav
+!tests/fixtures/omnivoice_data/README.md
+!tests/fixtures/omnivoice_data/omnivoice.db
+!tests/fixtures/omnivoice_data/voices/
+!tests/fixtures/omnivoice_data/voices/test-voice/
+!tests/fixtures/omnivoice_data/voices/test-voice/profile.json
+!tests/fixtures/omnivoice_data/voices/test-voice/sample.wav
 *.jsonl
 demo_recording.webp
 cloudflared
