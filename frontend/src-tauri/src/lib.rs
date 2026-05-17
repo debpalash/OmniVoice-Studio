@@ -129,6 +129,35 @@ pub fn run() {
                     .build(),
             )?;
 
+            // ── Programmatic widget window creation ──────────────────────
+            // Tauri 2's config-array creation silently dropped the widget
+            // window (declared in tauri.conf.json with create:false to
+            // make the handoff explicit). Some combination of transparent
+            // + decorations:false + visible:false + always-on-top was being
+            // rejected without an error. Building via WebviewWindowBuilder
+            // works and surfaces real errors on failure.
+            {
+                use tauri::{WebviewWindowBuilder, WebviewUrl};
+                let result = WebviewWindowBuilder::new(
+                    app,
+                    "widget",
+                    WebviewUrl::App("index.html".into()),
+                )
+                .title("Capture")
+                .inner_size(300.0, 64.0)
+                .resizable(false)
+                .transparent(true)
+                .decorations(false)
+                .always_on_top(true)
+                .visible(false)
+                .skip_taskbar(true)
+                .center()
+                .build();
+                if let Err(e) = result {
+                    log::error!("Failed to create widget window: {e:?}");
+                }
+            }
+
             app.manage(AppFlags {
                 quitting: AtomicBool::new(false),
             });

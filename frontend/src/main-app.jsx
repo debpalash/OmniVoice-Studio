@@ -30,9 +30,25 @@ const queryClient = new QueryClient({
 import { Suspense, lazy } from 'react';
 const CaptureWidget = lazy(() => import('./components/CaptureWidget.jsx'));
 
-export function bootstrapApp() {
-  const isWidget = window.location.search.includes('window=widget');
-  
+// Detect which Tauri window we're rendering in.
+// Tauri 2's WebviewUrl::App(PathBuf) variant doesn't support query strings —
+// declaring `"url": "/?window=widget"` in tauri.conf.json silently failed to
+// create the widget window. So both windows load the same index.html and we
+// differentiate by window label via the Tauri JS API.
+async function detectIsWidget() {
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    return getCurrentWindow().label === 'widget';
+  } catch {
+    // Non-Tauri context (browser dev, Docker) — fall back to URL query for
+    // legacy `bun dev:frontend` workflows that may still rely on it.
+    return window.location.search.includes('window=widget');
+  }
+}
+
+export async function bootstrapApp() {
+  const isWidget = await detectIsWidget();
+
   createRoot(document.getElementById('root')).render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>

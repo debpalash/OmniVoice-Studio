@@ -27,7 +27,6 @@
       {
         "label": "widget",
         "title": "Capture",
-        "url": "/?window=widget",
         "width": 300,
         "height": 64,
         "resizable": false,
@@ -37,7 +36,8 @@
         "alwaysOnTop": true,
         "visible": false,
         "skipTaskbar": true,
-        "center": true
+        "center": true,
+        "create": false
       }
     ],
     "security": {
