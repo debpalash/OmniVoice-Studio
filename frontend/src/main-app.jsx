@@ -37,7 +37,30 @@ export function bootstrapApp() {
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         {isWidget ? (
-          <Suspense fallback={null}>
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'rgba(18, 18, 22, 0.88)',
+                  backdropFilter: 'blur(24px) saturate(180%)',
+                  WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '100px',
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  fontFamily: '"Inter Variable", "Inter", -apple-system, sans-serif',
+                  fontSize: 13,
+                  userSelect: 'none',
+                }}
+              >
+                Loading dictation…
+              </div>
+            }
+          >
             <CaptureWidget />
           </Suspense>
         ) : (

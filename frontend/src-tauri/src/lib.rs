@@ -337,7 +337,7 @@ pub fn run() {
 
             // ── Hide the unused window per mode ──────────────────────────
             if pill_mode_setup {
-                // Pill mode: hide the main window, keep widget ready
+                // Pill mode: hide the main window
                 if let Some(main_win) = app.get_webview_window("main") {
                     let _ = main_win.hide();
                     let _ = main_win.set_skip_taskbar(true);
@@ -346,6 +346,34 @@ pub fn run() {
                 #[cfg(target_os = "macos")]
                 {
                     let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                }
+                // PILL MODE = the widget IS the app. Show it immediately so the
+                // user has visible feedback (previously it stayed hidden until
+                // ⌘⇧Space was pressed, which made the app look launch-failed
+                // for first-time users with no global-shortcut Accessibility
+                // permission yet). Position near top-center of primary monitor.
+                match app.get_webview_window("widget") {
+                    Some(win) => {
+                        if let Ok(Some(monitor)) = win.primary_monitor() {
+                            let size = monitor.size();
+                            let scale = monitor.scale_factor();
+                            let x = ((size.width as f64 / scale) / 2.0 - 150.0) as i32;
+                            let _ = win.set_position(tauri::Position::Logical(
+                                tauri::LogicalPosition::new(x as f64, 60.0),
+                            ));
+                        } else {
+                            let _ = win.center();
+                        }
+                        match win.show() {
+                            Ok(_) => log::info!("Pill mode: widget window shown"),
+                            Err(e) => log::error!("Pill mode: widget.show() failed: {e}"),
+                        }
+                        let _ = win.set_focus();
+                    }
+                    None => log::error!(
+                        "Pill mode: widget window NOT FOUND — get_webview_window(\"widget\") \
+                         returned None. Check tauri.conf.json windows[label=\"widget\"]."
+                    ),
                 }
             } else {
                 // Studio mode: widget window stays hidden but ready for the
