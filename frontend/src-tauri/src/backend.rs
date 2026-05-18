@@ -97,7 +97,48 @@ pub fn kill_orphan_on_port(port: u16) {
 }
 
 #[cfg(not(unix))]
-pub fn kill_orphan_on_port(_port: u16) {}
+pub fn kill_orphan_on_port(port: u16) {
+    // `netstat -ano` lists listening sockets with owning PID.
+    // Parse output to find the process listening on exactly `port`.
+    let out = match std::process::Command::new("netstat")
+        .args(["-ano", "-p", "TCP"])
+        .output()
+    {
+        Ok(o) => o,
+        Err(_) => return,
+    };
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    // Match ":PORT " or ":PORT]" at end of address string to avoid false
+    // positives (e.g. :3900 matching port 39000).
+    let needle = format!(":{} ", port);
+    for line in stdout.lines() {
+        if !line.to_uppercase().contains("LISTENING") {
+            continue;
+        }
+        // Local address is the second whitespace-delimited field.
+        // Format: "  TCP    0.0.0.0:3900           0.0.0.0:0 ..."
+        let local_addr = line.split_whitespace().nth(1).unwrap_or("");
+        if !local_addr.ends_with(&needle.trim_end()) {
+            // needle has trailing space trimmed; check suffix match
+            let port_suffix = format!(":{}", port);
+            if !local_addr.ends_with(&port_suffix) {
+                continue;
+            }
+        }
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if let Some(pid_str) = parts.last() {
+            if let Ok(pid) = pid_str.parse::<u32>() {
+                log::warn!(
+                    "Killing orphan process {} on port {} (Windows)",
+                    pid, port
+                );
+                let _ = std::process::Command::new("taskkill")
+                    .args(["/PID", &pid.to_string(), "/F"])
+                    .output();
+            }
+        }
+    }
+}
 
 // ── Log paths ─────────────────────────────────────────────────────────────
 

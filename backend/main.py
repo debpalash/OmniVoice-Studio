@@ -1,6 +1,12 @@
 import os
 import sys
 
+# Force offline mode before ANY library import touches the network.
+# This must be set before huggingface_hub, transformers, or any HF
+# library is imported — otherwise lazy imports deep in the stack can
+# trigger httpx ConnectTimeout on restricted networks.
+os.environ["HF_HUB_OFFLINE"] = "1"
+
 # Ensure `backend/` is on sys.path so bare imports like `from core.config`
 # work regardless of how uvicorn is invoked:
 #   - `uvicorn main:app`           (cwd = backend/)

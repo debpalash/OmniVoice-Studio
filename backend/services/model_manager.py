@@ -277,6 +277,10 @@ def _load_model_sync():
 
     lid = register_listener(_on_hf_progress)
     try:
+        # Force offline mode so no sub-component accidentally hits the network.
+        _prev_hf_offline = os.environ.get("HF_HUB_OFFLINE")
+        os.environ["HF_HUB_OFFLINE"] = "1"
+
         _set_loading("importing", "Importing PyTorch & OmniVoice runtime…")
         logger.info("Importing PyTorch & OmniVoice runtime…")
         torch = _lazy_torch()
@@ -293,6 +297,7 @@ def _load_model_sync():
             logger.info("Skipping PyTorch Whisper preload; ASR will load on demand.")
         _model = OmniVoice.from_pretrained(
             checkpoint, device_map=device, dtype=torch.float16, load_asr=preload_asr,
+            local_files_only=True,
         )
 
         try:
@@ -312,6 +317,10 @@ def _load_model_sync():
         logger.error("Model loading failed: %s", err_msg)
         raise
     finally:
+        if _prev_hf_offline is None:
+            os.environ.pop("HF_HUB_OFFLINE", None)
+        else:
+            os.environ["HF_HUB_OFFLINE"] = _prev_hf_offline
         unregister_listener(lid)
 
 async def get_model():
