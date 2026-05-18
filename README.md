@@ -1,578 +1,375 @@
 <div align="center">
   <img src="docs/logo.png" alt="OmniVoice Logo" width="120" />
   <h1>OmniVoice Studio</h1>
-  <h3>The open-source ElevenLabs alternative.</h3>
-  <p>Real-time dictation, zero-shot voice cloning, and cinematic video dubbing — all on your desktop.<br/>Open-source, no API keys, fully local. <b>646 languages.</b></p>
+  <h3>开源的 ElevenLabs 替代品</h3>
+  <p>实时听写 · 零样本语音克隆 · 影视级视频配音 — 全部在你电脑上运行<br/>开源、无需 API Key、完全本地化 · <b>646 种语言</b></p>
 
   <p>
     <a href="https://github.com/debpalash/OmniVoice-Studio/stargazers"><img src="https://img.shields.io/github/stars/debpalash/OmniVoice-Studio?style=flat-square&color=f59e0b" alt="Stars" /></a>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/github/v/release/debpalash/OmniVoice-Studio?style=flat-square&color=10b981" alt="Release" /></a>
+    <a href="https://github.com/caaaaaleb/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/github/v/release/caaaaaleb/OmniVoice-Studio?style=flat-square&color=10b981" alt="Release" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-FSL--1.1--ALv2-blue?style=flat-square" alt="License" /></a>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/issues"><img src="https://img.shields.io/github/issues/debpalash/OmniVoice-Studio?style=flat-square&color=ef4444" alt="Issues" /></a>
-    <a href="https://discord.gg/bzQavDfVV9"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord" /></a>
   </p>
 
   <p>
-    <a href="#quickstart">Quickstart</a> ·
-    <a href="#features">Features</a> ·
-    <a href="#why-omnivoice-studio">Why OmniVoice Studio?</a> ·
-    <a href="#tts-engines">TTS Engines</a> ·
-    <a href="#contributing">Contributing</a> ·
-    <a href="https://discord.gg/bzQavDfVV9">Discord</a>
+    <a href="#快速开始">快速开始</a> ·
+    <a href="#功能特性">功能特性</a> ·
+    <a href="#tts-引擎">TTS 引擎</a> ·
+    <a href="#版本说明">版本说明</a> ·
+    <a href="#参与贡献">参与贡献</a>
   </p>
 
   <p>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/download/v0.2.7/OmniVoice.Studio_0.2.7_aarch64.dmg"><img src="https://img.shields.io/badge/macOS-DMG_(Apple_Silicon)-000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS DMG" /></a>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/download/v0.2.7/OmniVoice.Studio_0.2.7_x64_en-US.msi"><img src="https://img.shields.io/badge/Windows-MSI_(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows MSI" /></a>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/download/v0.2.7/OmniVoice.Studio_0.2.7_amd64.AppImage"><img src="https://img.shields.io/badge/Linux-AppImage_(x64)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Download Linux AppImage" /></a>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/download/v0.2.7/OmniVoice.Studio_0.2.7_amd64.deb"><img src="https://img.shields.io/badge/Debian-.deb-A81D33?style=for-the-badge&logo=debian&logoColor=white" alt="Download Debian .deb" /></a>
+    <a href="https://github.com/caaaaaleb/OmniVoice-Studio/releases/download/v0.2.7-fix1/OmniVoice_Studio_0.2.7_x64.msi"><img src="https://img.shields.io/badge/Windows-MSI_(x64)_v0.2.7_fix1-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="下载 Windows MSI" /></a>
+    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/官方原版-下载页-181717?style=for-the-badge&logo=github&logoColor=white" alt="官方原版" /></a>
   </p>
 </div>
 
 <br/>
 
 <div align="center">
-  <img src=".github/assets/social-preview.png" alt="OmniVoice Studio — The open-source ElevenLabs alternative" width="100%"/>
+  <img src=".github/assets/social-preview.png" alt="OmniVoice Studio — 开源的 ElevenLabs 替代品" width="100%"/>
 </div>
 
 > [!WARNING]
-> **OmniVoice Studio is in active beta.** Things may break between releases. For the latest features and fixes, clone the repo and run from source rather than using pre-built installers. Bug reports and PRs are very welcome — [open an issue](https://github.com/debpalash/OmniVoice-Studio/issues) or [join Discord](https://discord.gg/bzQavDfVV9).
+> **OmniVoice Studio 处于活跃开发阶段。** 版本之间可能会有 breaking changes。如需最新功能和修复，建议从源码运行。
 
-<div align="center">
-  <br/>
-  <a href="https://discord.gg/bzQavDfVV9"><img src="https://img.shields.io/badge/💬_Join_the_Community-Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord" /></a>
-  <br/>
-  <sub>Get setup help · Share your dubs · Vote on the roadmap · Early access to new engines</sub>
-  <br/>
-</div>
+---
 
-<br/>
+## 版本说明
 
-## Features
+### 🛠️ v0.2.7-fix1（本 Fork 修复版）
+
+基于官方 v0.2.7，额外包含以下关键修复：
+
+| 修复项 | 说明 |
+|--------|------|
+| **Windows 端口冲突** | 实现了 `kill_orphan_on_port` Windows 版本（原版为空函数）。使用 `netstat -ano` + `taskkill /PID /F` 清理残留后端进程，解决 "Could not import module AutoModel" 错误 |
+| **离线模式** | 在 `main.py`（所有 import 之前）和 `model_manager.py` 中设置 `HF_HUB_OFFLINE=1`，确保在国内受限网络环境下不从 HuggingFace 拉取文件 |
+| **local_files_only** | `OmniVoice.from_pretrained()` 增加 `local_files_only=True` 参数，双重保障离线加载 |
+
+**适用场景：** 国内用户、受限网络环境、Windows 平台遇到后端启动失败的情况。
+
+**修复详情：** [PR #85](https://github.com/debpalash/OmniVoice-Studio/pull/85) | [Release 下载](https://github.com/caaaaaleb/OmniVoice-Studio/releases/tag/v0.2.7-fix1)
+
+> [!NOTE]
+> 本版本为**精简安装包**（~7 MB），首次运行仍需联网下载 Python 依赖和模型文件。建议配合 [hf-mirror.com](https://hf-mirror.com) 镜像使用。
+
+---
+
+## 功能特性
 
 <table>
 <tr>
   <td align="center" width="33%">
-    <h3>🎙️ Voice Cloning</h3>
-    <p>3-second clip → mirror any voice.<br/><b>646 languages</b>, zero-shot.</p>
+    <h3>🎙️ 语音克隆</h3>
+    <p>3 秒音频 → 复刻任何声音<br/><b>646 种语言</b>，零样本</p>
   </td>
   <td align="center" width="33%">
-    <h3>🎨 Voice Design</h3>
-    <p>Gender, age, accent, pitch, speed,<br/>emotion, dialect — <b>dial it in</b>.</p>
+    <h3>🎨 声音设计</h3>
+    <p>性别、年龄、口音、音高、语速、<br/>情感、方言 — <b>精细调节</b></p>
   </td>
   <td align="center" width="33%">
-    <h3>🎬 Video Dubbing</h3>
-    <p>YouTube URL or file → transcribe →<br/>translate → re-voice → <b>MP4</b>.</p>
+    <h3>🎬 视频配音</h3>
+    <p>YouTube 链接或本地文件 → 转录 →<br/>翻译 → 重新配音 → <b>导出 MP4</b></p>
   </td>
 </tr>
 <tr>
   <td align="center" valign="top">
-    <h3>⌨️ Dictation Widget</h3>
-    <p><code>⌘+⇧+Space</code> from <b>any app</b>.<br/>Transcribes, auto-pastes, disappears.</p>
+    <h3>⌨️ 听写悬浮窗</h3>
+    <p>全局快捷键，<b>任意应用</b>中唤起<br/>实时转录、自动粘贴</p>
   </td>
   <td align="center" valign="top">
-    <h3>🔊 Vocal Isolation</h3>
-    <p>Demucs-powered. Splits speech<br/>from music, <b>keeps the background</b>.</p>
+    <h3>🔊 人声分离</h3>
+    <p>Demucs 驱动，分离语音<br/>和背景音乐</p>
   </td>
   <td align="center" valign="top">
-    <h3>👥 Speaker Diarization</h3>
-    <p>Pyannote + WhisperX.<br/><b>Auto-identifies</b> who said what.</p>
-  </td>
-</tr>
-<tr>
-  <td align="center" valign="top">
-    <h3>📦 Batch Queue</h3>
-    <p>Drop <b>50 videos</b>, walk away.<br/>Progress bars per job.</p>
-  </td>
-  <td align="center" valign="top">
-    <h3>🤖 MCP Server</h3>
-    <p>Use OmniVoice from <b>Claude</b>,<br/>Cursor, or any MCP client.</p>
-  </td>
-  <td align="center" valign="top">
-    <h3>🛡️ AI Watermark</h3>
-    <p>AudioSeal (Meta). <b>Invisible</b>,<br/>survives compression.</p>
+    <h3>👥 说话人识别</h3>
+    <p>Pyannote + WhisperX<br/><b>自动识别</b>谁在说话</p>
   </td>
 </tr>
 <tr>
   <td align="center" valign="top">
-    <h3>🔐 100% Local</h3>
-    <p>No keys, no cloud, no accounts.<br/><b>Your machine only</b>.</p>
+    <h3>📦 批量处理</h3>
+    <p>丢进 <b>50 个视频</b>，走开<br/>每个任务独立进度条</p>
   </td>
   <td align="center" valign="top">
-    <h3>⚡ GPU Auto-Detect</h3>
-    <p>CUDA · MPS · ROCm · CPU.<br/>≤8 GB? <b>Auto-offloads</b>.</p>
+    <h3>🤖 MCP 服务</h3>
+    <p>在 <b>Claude</b>、Cursor 等<br/>MCP 客户端中使用 OmniVoice</p>
   </td>
   <td align="center" valign="top">
-    <h3>🧩 Extensible</h3>
-    <p>Subclass <code>TTSBackend</code>,<br/>add any engine in <b>~50 lines</b>.</p>
+    <h3>🛡️ AI 水印</h3>
+    <p>AudioSeal (Meta) 隐形水印<br/>抗压缩，可验证</p>
+  </td>
+</tr>
+<tr>
+  <td align="center" valign="top">
+    <h3>🔐 100% 本地</h3>
+    <p>无需密钥、无需云端、<br/><b>无需注册账号</b></p>
+  </td>
+  <td align="center" valign="top">
+    <h3>⚡ GPU 自动检测</h3>
+    <p>CUDA · MPS · ROCm · CPU<br/>≤8 GB 显存？<b>自动卸载</b></p>
+  </td>
+  <td align="center" valign="top">
+    <h3>🧩 可扩展</h3>
+    <p>继承 <code>TTSBackend</code><br/><b>~50 行代码</b>接入新引擎</p>
   </td>
 </tr>
 </table>
 
 ---
 
-## Quickstart
-
-Pick your path — from zero-install to full developer setup:
+## 快速开始
 
 <table>
 <tr>
 <td width="33%" align="center">
-<h3>🖥️ Desktop App</h3>
-<sub><b>Easiest</b> · ~2 min · No dependencies</sub>
+<h3>🖥️ 桌面应用</h3>
+<sub><b>最简单</b> · ~2 分钟</sub>
 <br/><br/>
-<a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/Download-Installer-10b981?style=for-the-badge&logo=github&logoColor=white" alt="Download"/></a>
+<a href="https://github.com/caaaaaleb/OmniVoice-Studio/releases/download/v0.2.7-fix1/OmniVoice_Studio_0.2.7_x64.msi"><img src="https://img.shields.io/badge/下载-Windows_MSI_(修复版)-10b981?style=for-the-badge" alt="下载"/></a>
 <br/><br/>
-<sub>macOS DMG · Windows MSI · Linux AppImage/deb<br/>Auto-bootstraps Python + models on first launch.</sub>
+<sub>首次启动自动安装 Python 环境并下载模型<br/>在启动画面可以看到进度</sub>
 </td>
 <td width="33%" align="center">
 <h3>🐳 Docker</h3>
-<sub><b>One command</b> · ~3 min · Needs Docker</sub>
+<sub><b>一条命令</b> · ~3 分钟</sub>
 <br/><br/>
 <code>docker pull ghcr.io/debpalash/omnivoice-studio</code>
 <br/><br/>
-<sub>Pre-built image from GHCR.<br/>CPU + NVIDIA GPU supported.</sub>
+<sub>预构建镜像，支持 CPU + NVIDIA GPU</sub>
 </td>
 <td width="33%" align="center">
-<h3>⚡ From Source</h3>
-<sub><b>Full control</b> · ~5 min · Needs Bun + Python</sub>
+<h3>⚡ 源码运行</h3>
+<sub><b>完全可控</b> · ~5 分钟</sub>
 <br/><br/>
 <code>git clone → bun install → bun run dev</code>
 <br/><br/>
-<sub>Hot reload, full codebase access.<br/>Best for contributors.</sub>
+<sub>热重载，完整代码访问<br/>适合开发者</sub>
 </td>
 </tr>
 </table>
 
 ---
 
-### 🖥️ Option 1 — Desktop App
+### 🖥️ 方式一 — 桌面应用
 
-Pre-built installers (~6–8 MB) are on the [**Releases**](https://github.com/debpalash/OmniVoice-Studio/releases/latest) page. Download, install, launch. The app bootstraps a Python environment and downloads model weights automatically — the splash screen shows progress.
+在 [Releases](https://github.com/caaaaaleb/OmniVoice-Studio/releases) 页面下载安装包（~7 MB）。安装、启动即可。应用会自动安装 Python 环境和下载模型权重。
 
 <details>
-<summary><b>macOS — "app is damaged and can't be opened"</b></summary>
+<summary><b>Windows — 首次启动需要 5–10 分钟</b></summary>
 <br/>
 
-macOS quarantines apps downloaded outside the App Store. After dragging to `/Applications`:
+首次运行会引导安装 Python 虚拟环境、下载依赖和 ffmpeg。启动画面会显示每一步的进度。后续启动只需几秒。
+</details>
+
+<details>
+<summary><b>macOS — 提示"app 已损坏无法打开"</b></summary>
+<br/>
+
+将应用拖入 `/Applications` 后，在终端运行：
 
 ```bash
 xattr -cr /Applications/OmniVoice\ Studio.app
 ```
 
-Open normally after. One-time fix.
+然后正常打开即可，只需操作一次。
 </details>
 
 <details>
-<summary><b>Windows — first launch takes 5–10 minutes</b></summary>
+<summary><b>国内网络 — 下载慢或连不上</b></summary>
 <br/>
 
-The app bootstraps a Python virtual environment, installs dependencies, and downloads ffmpeg on first run. The splash screen shows each step. Subsequent launches start in seconds.
-</details>
+桌面应用首次启动时需要从 GitHub 和 HuggingFace 下载文件。如果网络受限：
 
-<details>
-<summary><b>Linux — AppImage needs FUSE</b></summary>
-<br/>
+1. 设置 HuggingFace 镜像：启动前设置环境变量 `HF_ENDPOINT=https://hf-mirror.com`
+2. 设置 PyPI 镜像：设置 `UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/`
+3. 或直接从源码运行，配合代理使用
 
-If FUSE isn't available, use the `.deb` package or extract-and-run:
-
-```bash
-chmod +x OmniVoice.Studio_*.AppImage
-./OmniVoice.Studio_*.AppImage --appimage-extract-and-run
-```
-</details>
-
-<details>
-<summary><b>Linux — White screen on Fedora 44 / Ubuntu 24.04</b></summary>
-<br/>
-
-Some newer distros ship a WebKit/GTK version with compositing issues. Try:
-
-```bash
-WEBKIT_DISABLE_COMPOSITING_MODE=1 ./OmniVoice.Studio_*.AppImage
-```
-
-If that doesn't help, use the `.deb` package or run from source instead.
-</details>
-
-<details>
-<summary><b>Installation fails behind a firewall / in Russia</b></summary>
-<br/>
-
-The desktop app downloads Python from GitHub during first launch. If your network blocks GitHub:
-
-1. Install Python 3.11 manually from [python.org](https://python.org/downloads/)
-2. Set `UV_PYTHON_PREFERENCE=system` before launching, or run from source with `bun run dev`
-3. For PyPI mirrors: set `UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/`
+如果后端报 "Could not import module AutoModel" 错误，请使用本 Fork 的[修复版](https://github.com/caaaaaleb/OmniVoice-Studio/releases/tag/v0.2.7-fix1)。
 </details>
 
 ---
 
-### 🐳 Option 2 — Docker
+### 🐳 方式二 — Docker
 
-Pull the pre-built image from **GitHub Container Registry**:
+从 GitHub Container Registry 拉取预构建镜像：
 
 ```bash
 docker pull ghcr.io/debpalash/omnivoice-studio:latest
 ```
 
-**Run it:**
-
+**运行（CPU）：**
 ```bash
-# CPU mode
 docker run -d --name omnivoice \
   -p 127.0.0.1:3900:3900 \
   -v omnivoice-data:/app/omnivoice_data \
   ghcr.io/debpalash/omnivoice-studio:latest
+```
 
-# NVIDIA GPU mode
+**运行（NVIDIA GPU）：**
+```bash
 docker run -d --name omnivoice --gpus all \
   -p 127.0.0.1:3900:3900 \
   -v omnivoice-data:/app/omnivoice_data \
   ghcr.io/debpalash/omnivoice-studio:latest
 ```
 
-**Or use Docker Compose (recommended):**
-
+**使用 Docker Compose（推荐）：**
 ```bash
-# CPU mode
+# CPU
 docker compose -f deploy/docker-compose.yml --profile cpu up -d
 
-# GPU mode (NVIDIA)
+# GPU (NVIDIA)
 docker compose -f deploy/docker-compose.yml --profile gpu up -d
 ```
 
-Open [localhost:3900](http://localhost:3900) once the health check passes. First run downloads ~4 GB of model weights — progress in `docker compose logs -f`.
-
-<details>
-<summary><b>NVIDIA GPU setup prerequisites</b></summary>
-<br/>
-
-GPU mode requires the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html):
-
-```bash
-# Arch / CachyOS
-sudo pacman -S nvidia-container-toolkit
-
-# Ubuntu / Debian
-sudo apt-get install -y nvidia-container-toolkit
-
-# Then configure and restart Docker
-sudo nvidia-ctk runtime configure --runtime=docker
-sudo systemctl restart docker
-```
-
-Verify with `docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi`.
-</details>
-
-<details>
-<summary><b>Build from source instead of pulling</b></summary>
-<br/>
-
-```bash
-# CPU
-docker compose -f deploy/docker-compose.yml --profile cpu up --build -d
-
-# GPU
-docker compose -f deploy/docker-compose.yml --profile gpu up --build -d
-```
-
-</details>
-
-> **Network access:** the host-side port mapping binds to `127.0.0.1` only, and the backend itself defaults to `OMNIVOICE_BIND_HOST=127.0.0.1` (loopback). The shipped `docker-compose.yml` sets `OMNIVOICE_BIND_HOST=0.0.0.0` *inside* the container so the host mapping can forward traffic in — the `127.0.0.1:3900:3900` mapping is what enforces loopback-only on the host. To expose on your LAN, change the host port mapping to `"0.0.0.0:3900:3900"`. Running the backend directly (not under Docker)? Set `OMNIVOICE_BIND_HOST=0.0.0.0` to listen on all interfaces. OmniVoice ships no authentication — put it behind a reverse proxy with auth (Caddy `basic_auth`, nginx + htpasswd, Tailscale, etc.).
-
 ---
 
-### ⚡ Option 3 — From Source
+### ⚡ 方式三 — 源码运行
 
 ```bash
-git clone https://github.com/debpalash/OmniVoice-Studio.git && cd OmniVoice-Studio
+git clone https://github.com/caaaaaleb/OmniVoice-Studio.git && cd OmniVoice-Studio
 bun install && bun run dev
 ```
 
-Open [localhost:3901](http://localhost:3901) and start cloning voices. Hot-reload enabled for both frontend and backend.
+打开 [localhost:3901](http://localhost:3901) 即可使用。前后端均支持热重载。
 
 ```bash
-bun run desktop    # Build the native desktop app from source
+bun run desktop    # 构建原生桌面应用
 ```
 
-| Service | URL | Stack |
-|---------|-----|-------|
-| **Backend** | `localhost:3900` | FastAPI · 97 endpoints · WhisperX · Demucs · OmniVoice |
-| **Frontend** | `localhost:3901` | React · Vite · Waveform timeline · Glassmorphism UI |
-| **API Docs** | [`localhost:3900/docs`](http://localhost:3900/docs) | Scalar — interactive API reference |
+| 服务 | 地址 | 技术栈 |
+|------|------|--------|
+| **后端** | `localhost:3900` | FastAPI · WhisperX · Demucs · OmniVoice |
+| **前端** | `localhost:3901` | React · Vite · 波形时间线 · 玻璃拟态 UI |
+| **API 文档** | [`localhost:3900/docs`](http://localhost:3900/docs) | Scalar — 交互式 API 文档 |
 
 > [!NOTE]
-> First run downloads model weights (~2.4 GB). No account needed. For faster downloads, optionally set `HF_TOKEN=hf_...` in your environment ([get a free token here](https://huggingface.co/settings/tokens)).
->
-> **Having issues?** Join our [Discord](https://discord.gg/bzQavDfVV9) for setup help and troubleshooting.
+> 首次运行会下载模型权重（~2.4 GB），无需注册。建议设置 `HF_ENDPOINT=https://hf-mirror.com` 加速下载。
 
 ---
 
-## Screenshots
+## 系统要求
 
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <img src="docs/screenshot-clone.png" alt="Voice Clone" width="100%"/>
-      <br/><b>Voice Clone</b><br/>
-      <sub>Drop a 3-second clip → mirror any voice. 646 languages, zero-shot.</sub>
-    </td>
-    <td align="center" width="50%">
-      <img src="docs/screenshot-design.png" alt="Voice Design" width="100%"/>
-      <br/><b>Voice Design</b><br/>
-      <sub>Build new voices from scratch — gender, age, accent, pitch, style.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src="docs/screenshot-dub.png" alt="Video Dubbing" width="100%"/>
-      <br/><b>Video Dubbing</b><br/>
-      <sub>Upload or paste a YouTube URL. Transcribe, translate, re-voice, export.</sub>
-    </td>
-    <td align="center">
-      <img src="docs/screenshot-gallery.png" alt="Voice Gallery" width="100%"/>
-      <br/><b>Voice Gallery</b><br/>
-      <sub>Search YouTube, browse categories, download clips, build your library.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src="docs/screenshot-settings.png" alt="Settings — Models" width="100%"/>
-      <br/><b>Settings → Models</b><br/>
-      <sub>15 models. One-click install. Auto-detects your platform (CUDA / MPS / CPU).</sub>
-    </td>
-    <td align="center">
-      <img src="docs/screenshot-libraryprojects.png" alt="Projects" width="100%"/>
-      <br/><b>Projects</b><br/>
-      <sub>Dub projects, voice profiles, generation history, exports — all searchable.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" colspan="2">
-      <img src="docs/screenshot-logs.png" alt="Settings — Logs" width="100%"/>
-      <br/><b>Settings → Logs</b><br/>
-      <sub>Live backend, frontend, and Tauri runtime logs. Filter, refresh, clear.</sub>
-    </td>
-  </tr>
-</table>
-
----
-
-## Why OmniVoice Studio?
-
-ElevenLabs charges **$5–$330/mo** and processes your audio on their servers. OmniVoice Studio runs **on your hardware, with no usage limits.**
-
-| | **ElevenLabs** | **OmniVoice Studio** |
+| | **最低配置** | **推荐配置** |
 |---|---|---|
-| **Pricing** | $5–$330/mo, per-character billing | Free for personal use · [Commercial license](#license) for business |
-| **Voice Cloning** | ✅ 3s clip | ✅ 3s clip, zero-shot |
-| **Voice Design** | ✅ Gender, age | ✅ Gender, age, accent, pitch, style, dialect |
-| **Languages** | 32 | **646** |
-| **Video Dubbing** | ✅ Cloud-only | ✅ Fully local |
-| **Data Privacy** | Audio sent to cloud | **Nothing leaves your machine** |
-| **API Keys** | Required | Not needed |
-| **GPU Support** | N/A (cloud) | CUDA · Apple Silicon · ROCm · CPU |
-| **Desktop App** | ❌ | ✅ macOS · Windows · Linux |
-| **Customizable** | ❌ Closed | ✅ Fork it, extend it, ship it |
-
-OmniVoice Studio gives you professional-grade AI tools without the subscription or the cloud.
-
-<div align="center">
-  <br/>
-  <b>Convinced? Come build with us.</b><br/>
-  <a href="https://discord.gg/bzQavDfVV9"><img src="https://img.shields.io/badge/Join_Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord" /></a>
-  <br/><br/>
-</div>
+| **操作系统** | Windows 10, macOS 12+, Ubuntu 20.04+ | 任意现代 64 位系统 |
+| **内存** | 8 GB | 16 GB+ |
+| **显存 (GPU)** | 4 GB（自动将 TTS 卸载到 CPU） | 8 GB+ (NVIDIA RTX 3060+) |
+| **磁盘** | 10 GB（模型 + 缓存） | 20 GB+ SSD |
+| **Python** | 3.10+（由 `uv` 管理） | 3.11–3.12 |
+| **GPU** | 可选 — CPU 也能跑 | NVIDIA CUDA · Apple Silicon MPS · AMD ROCm |
 
 ---
 
-## System Requirements
+### TTS 引擎
 
-| | **Minimum** | **Recommended** |
-|---|---|---|
-| **OS** | Windows 10, macOS 12+, Ubuntu 20.04+ | Any modern 64-bit OS |
-| **RAM** | 8 GB | 16 GB+ |
-| **VRAM (GPU)** | 4 GB (auto-offloads TTS to CPU) | 8 GB+ (NVIDIA RTX 3060+) |
-| **Disk** | 10 GB free (models + cache) | 20 GB+ SSD |
-| **Python** | 3.10+ (managed by `uv`) | 3.11–3.12 |
-| **GPU** | Optional — CPU works | NVIDIA CUDA · Apple Silicon MPS · AMD ROCm |
-
-> [!TIP]
-> On GPUs with **≤8 GB VRAM**, OmniVoice automatically offloads TTS to CPU during transcription — no config needed. A dedicated GPU is not required; the entire pipeline runs on CPU (just slower).
-
-### TTS Engines
-
-OmniVoice ships a multi-engine TTS backend. The default engine (OmniVoice) is always available; additional engines are opt-in and auto-detected. Switch engines in **Settings → TTS Engine** or via the `OMNIVOICE_TTS_BACKEND` env var.
-
-| Engine | Languages | Clone | Instruct | Linux | macOS ARM | Windows | License |
-|--------|:---------:|:-----:|:--------:|:-----:|:---------:|:-------:|:-------:|
-| **OmniVoice** (default) | 600+ | ✅ | ✅ | ✅ CUDA/CPU | ✅ MPS | ✅ CUDA/CPU | Built-in |
-| **CosyVoice 3** | 9 + 18 dialects | ✅ | ✅ | ✅ CUDA/CPU | ✅ MPS | ✅ CUDA/CPU | Apache-2.0 |
-| **MLX-Audio** (Kokoro, Qwen3-TTS, CSM, Dia, …) | Multi | Varies | Varies | ❌ | ✅ Native | ❌ | Varies |
+| 引擎 | 语言数 | 克隆 | Instruct | Linux | macOS ARM | Windows | 许可证 |
+|------|:------:|:----:|:--------:|:-----:|:---------:|:-------:|:------:|
+| **OmniVoice** (默认) | 600+ | ✅ | ✅ | ✅ CUDA/CPU | ✅ MPS | ✅ CUDA/CPU | 内置 |
+| **CosyVoice 3** | 9 + 18 方言 | ✅ | ✅ | ✅ CUDA/CPU | ✅ MPS | ✅ CUDA/CPU | Apache-2.0 |
+| **MLX-Audio** | 多语言 | 视引擎 | 视引擎 | ❌ | ✅ 原生 | ❌ | 视引擎 |
 | **VoxCPM2** | 30 | ✅ | ✅ | ✅ CUDA/CPU | ✅ MPS | ✅ CUDA/CPU | Apache-2.0 |
 | **MOSS-TTS-Nano** | 20 | ✅ | ❌ | ✅ CUDA/CPU | ✅ CPU | ✅ CUDA/CPU | Apache-2.0 |
-| **KittenTTS** | English | ❌ | ❌ | ✅ CPU | ✅ CPU | ✅ CPU | MIT |
-
-> **CUDA** = GPU-accelerated · **MPS** = Apple Silicon Metal · **CPU** = runs everywhere, slower for large models · KittenTTS and MOSS-TTS-Nano run realtime on CPU · MLX-Audio is Apple Silicon only.
+| **KittenTTS** | 英语 | ❌ | ❌ | ✅ CPU | ✅ CPU | ✅ CPU | MIT |
 
 ---
 
-## Architecture
+## 架构
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                  Frontend (React)                │
+│                  前端 (React)                     │
 │  DubTab · VoicePreview · BatchQueue · Gallery    │
 ├─────────────────────────────────────────────────┤
-│                Backend (FastAPI)                  │
-│  97 API endpoints · SSE streaming · SQLite       │
+│                后端 (FastAPI)                     │
+│   97 个 API 接口 · SSE 流式传输 · SQLite          │
 ├──────────┬──────────┬──────────┬────────────────┤
 │ WhisperX │  Demucs  │OmniVoice │   Pyannote     │
-│   ASR    │  Source  │   TTS    │  Diarization   │
-│          │  Sep.    │          │                │
+│   语音识别 │  音源分离  │   TTS    │   说话人识别    │
 └──────────┴──────────┴──────────┴────────────────┘
-        CUDA / MPS / ROCm / CPU (auto-detected)
+         CUDA / MPS / ROCm / CPU（自动检测）
 ```
 
 ---
 
-## Roadmap
+## 参与贡献
 
-### ✅ Shipped
+欢迎提交 Bug 修复、新引擎适配、UI 改进、文档翻译等各类贡献。
 
-| Category | Features |
-|----------|----------|
-| **Dubbing** | Full pipeline (transcribe→translate→synthesize→mux), scene-aware splitting, lip-sync scoring, streaming TTS |
-| **Voice** | Zero-shot cloning, voice design, A/B comparison, voice preview widget, gallery with favorites/tags |
-| **Audio** | Demucs vocal isolation, per-segment gain, selective track export, stem/SRT/VTT/MP3 export |
-| **Multi-Lang** | Multi-language batch picker, batch dubbing queue with sequential GPU execution |
-| **Diarization** | Pyannote ML diarization, auto speaker clone extraction, per-speaker voice assignment |
-| **Infra** | Docker deployment, CUDA/MPS/ROCm auto-detect, cuDNN 8 compat, VRAM-aware model offloading |
-| **AI Provenance** | AudioSeal invisible watermarking (SynthID-like), video logo overlay, watermark detection API |
-| **UX** | Undo/redo, keyboard shortcuts, drag-and-drop, session persistence, glassmorphism design system |
-| **Real-time Events** | WebSocket event bus — instant sidebar refresh on data mutations, exponential backoff reconnect |
-| **State Management** | Zustand store migration — `uiSlice`, `pillSlice`, `dubSlice`, `generateSlice`, `prefsSlice`, `glossarySlice` |
-| **Desktop** | Cross-platform Tauri installers (macOS DMG, Windows MSI, Linux deb/AppImage), auto-update infrastructure |
-| **Windows Hardening** | Cross-platform log paths, Triton workaround, HF symlink bypass, 300s health check timeout |
-| **Dictation** | Global system-wide hotkey (`⌘+⇧+Space`), frameless floating widget, streaming ASR via WebSocket, auto-paste |
-| **Batch Pipeline** | Full batch TTS: extract → transcribe → translate → generate → mix → export, with live progress tracking |
+- 📖 阅读 [贡献指南](CONTRIBUTING.md)（英文）
+- 🐛 查看 [good first issues](https://github.com/debpalash/OmniVoice-Studio/labels/good%20first%20issue)
+- 💬 加入 [Discord](https://discord.gg/bzQavDfVV9) 讨论想法
 
-### 🔜 Up Next
-
-- 🎬 **Lip-sync v2** — visual speech timing with wav2lip
-- 📖 **Audiobook Editor** — chapter-aware long-form narration
-- 🌐 **Hosted Demo** — try OmniVoice without installing anything
-- 🔌 **Plugin Marketplace** — community-contributed TTS engines and effects
-
----
-
-## Community
-
-<div align="center">
-  <a href="https://discord.gg/bzQavDfVV9"><img src="https://img.shields.io/badge/💬_Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord" /></a>
-</div>
-
-<br/>
-
-| Channel | What happens there |
-|---------|--------------------|
-| `#showcase` | Members share their dubs, clones, and voice designs |
-| `#help` | Setup issues, GPU troubleshooting, model questions |
-| `#feature-requests` | Vote on what gets built next |
-| `#dev` | Architecture discussions, PR reviews, engine integrations |
-| `#announcements` | Release notes, breaking changes, early access |
-
-**[→ Join the Discord](https://discord.gg/bzQavDfVV9)** — we respond to setup questions within hours, not days.
-
----
-
-## Contributing
-
-We welcome contributions of all kinds — bug fixes, new TTS engine adapters, UI improvements, docs, and translations.
-
-- 📖 Read the **[Contributing Guide](CONTRIBUTING.md)** for setup, code style, and PR workflow
-- 🐛 Browse [good first issues](https://github.com/debpalash/OmniVoice-Studio/labels/good%20first%20issue)
-- 💬 Join our [Discord](https://discord.gg/bzQavDfVV9) to discuss ideas or ask for help
+本 Fork 专注于改善国内用户和 Windows 平台的体验。如有问题或建议，欢迎提 [Issue](https://github.com/caaaaaleb/OmniVoice-Studio/issues)。
 
 ---
 
 ## FAQ
 
 <details>
-<summary><b>Is this really as good as ElevenLabs?</b></summary>
+<summary><b>效果真的能和 ElevenLabs 比吗？</b></summary>
 <br/>
-For voice cloning and dubbing, yes — OmniVoice uses a state-of-the-art diffusion TTS model with 646 languages (ElevenLabs supports 32). Quality is comparable for most use cases. Where ElevenLabs wins is in their polished cloud API and pre-made voice library. OmniVoice wins on privacy, cost, language coverage, and customizability.
+语音克隆和配音方面——可以的。OmniVoice 使用最先进的扩散 TTS 模型，支持 646 种语言（ElevenLabs 只支持 32 种）。大多数场景下质量相当。ElevenLabs 的优势在于成熟的云 API 和预设语音库；OmniVoice 的优势在于隐私、成本、语言覆盖度和可定制性。
 </details>
 
 <details>
-<summary><b>Does it work on Apple Silicon (M1/M2/M3/M4)?</b></summary>
+<summary><b>支持苹果芯片（M1/M2/M3/M4）吗？</b></summary>
 <br/>
-Yes. MPS acceleration is auto-detected. MLX-optimized Whisper models are available for faster transcription on Apple hardware.
+支持。MPS 加速自动检测。Apple 设备上还有 MLX 优化的 Whisper 模型，转录速度更快。
 </details>
 
 <details>
-<summary><b>How much VRAM do I need?</b></summary>
+<summary><b>需要多少显存？</b></summary>
 <br/>
-<b>4 GB minimum.</b> With ≤8 GB, the TTS model is automatically offloaded to CPU during transcription. With 8+ GB, everything runs on GPU simultaneously. No GPU at all? CPU mode works — just slower (~3× for TTS).
+<b>最低 4 GB。</b> ≤8 GB 显存时，TTS 模型会自动在转录期间卸载到 CPU。8 GB+ 时全部在 GPU 上运行。没有 GPU？CPU 模式也能跑，只是 TTS 大约慢 3 倍。
 </details>
 
 <details>
-<summary><b>Can I use this commercially?</b></summary>
+<summary><b>支持哪些语言？</b></summary>
 <br/>
-Personal, educational, internal-team, and non-commercial use is free under <a href="https://fsl.software/">FSL-1.1-ALv2</a>. Building a competing product or service on top of OmniVoice Studio requires a commercial license — see <a href="#license">License</a>. Pricing tiers coming soon. Each release converts to Apache 2.0 two years after publication.
+TTS 支持 646 种语言（OmniVoice 模型）。语音识别（WhisperX）支持 99 种语言。翻译覆盖范围取决于目标语言组合。
 </details>
 
 <details>
-<summary><b>What languages are supported?</b></summary>
+<summary><b>Windows 上启动报 "Could not import module AutoModel" 怎么办？</b></summary>
 <br/>
-646 languages for TTS via the OmniVoice model. Transcription (WhisperX) supports 99 languages. Translation coverage depends on the target language pair.
-</details>
-
-<details>
-<summary><b>Can I add my own TTS engine?</b></summary>
-<br/>
-Yes. OmniVoice uses a <b>built-in backend registry</b>. To add an engine in ~50 lines, subclass <code>TTSBackend</code> in <code>backend/services/tts_backend.py</code> and add it to the <code>_REGISTRY</code> dictionary at the bottom. Six engines are built in: OmniVoice, CosyVoice, MLX-Audio (14+ sub-engines), VoxCPM2, MOSS-TTS-Nano, and KittenTTS. See the <a href="#tts-engines">TTS Engines</a> section for details.
+这是端口冲突问题。旧的后端进程残留在端口上，新进程无法绑定。请使用本 Fork 的<a href="https://github.com/caaaaaleb/OmniVoice-Studio/releases/tag/v0.2.7-fix1">修复版</a>，已解决此问题。或者手动杀掉残留的 Python 进程后重试。
 </details>
 
 ---
 
-## License
+## 许可证
 
-OmniVoice Studio is source-available under the [**Functional Source License (FSL-1.1-ALv2)**](https://fsl.software/).
+OmniVoice Studio 基于 [**Functional Source License (FSL-1.1-ALv2)**](https://fsl.software/)。
 
-**Free** for personal, educational, research, internal team, and non-commercial use. Each release **converts to Apache 2.0 automatically two years after publication**.
+个人、教育、研究、内部团队和非商业用途**免费**。每个版本在发布两年后自动转为 Apache 2.0。商业使用需获取商业许可证。
 
-**Business / enterprise** users building a competing product or service on top of OmniVoice Studio need a commercial license. **Pricing tiers coming soon.** For inquiries in the meantime, reach out at **OmniVoice@palash.dev**.
-
-See [`LICENSE`](LICENSE) for the full terms.
+详见 [`LICENSE`](LICENSE)。
 
 ---
 
-## Acknowledgments
+## 致谢
 
-OmniVoice Studio is built on the shoulders of exceptional open-source work:
-
-| Project | Role |
-|---------|------|
-| [**OmniVoice (k2-fsa)**](https://github.com/k2-fsa/OmniVoice) | Zero-shot diffusion TTS engine — the core voice synthesis model |
-| [**WhisperX**](https://github.com/m-bain/whisperX) | Word-level speech recognition and alignment |
-| [**Demucs (Meta)**](https://github.com/facebookresearch/demucs) | Music source separation for vocal isolation |
-| [**Pyannote**](https://github.com/pyannote/pyannote-audio) | Speaker diarization — who said what |
-| [**CTranslate2**](https://github.com/OpenNMT/CTranslate2) | Optimized Transformer inference on CPU and GPU |
-| [**AudioSeal (Meta)**](https://github.com/facebookresearch/audioseal) | Invisible neural audio watermarking for AI provenance |
-| [**Tauri**](https://tauri.app) | Native desktop app framework |
+| 项目 | 作用 |
+|------|------|
+| [**OmniVoice (k2-fsa)**](https://github.com/k2-fsa/OmniVoice) | 零样本扩散 TTS 引擎——核心语音合成模型 |
+| [**WhisperX**](https://github.com/m-bain/whisperX) | 词级语音识别和对齐 |
+| [**Demucs (Meta)**](https://github.com/facebookresearch/demucs) | 音源分离，人声提取 |
+| [**Pyannote**](https://github.com/pyannote/pyannote-audio) | 说话人识别 |
+| [**CTranslate2**](https://github.com/OpenNMT/CTranslate2) | 优化的 CPU/GPU Transformer 推理 |
+| [**AudioSeal (Meta)**](https://github.com/facebookresearch/audioseal) | 隐形神经网络音频水印 |
+| [**Tauri**](https://tauri.app) | 原生桌面应用框架 |
 
 ---
 
 <div align="center">
+<br/>
+⭐ <b>给项目点个 Star</b> 让更多人发现它<br/>
+💬 <a href="https://discord.gg/bzQavDfVV9"><b>加入 Discord</b></a> 分享你的作品
 
 <br/>
-
-If you read this far, you're our kind of person.<br/>
-**[⭐ Star this repo](https://github.com/debpalash/OmniVoice-Studio)** so others can find it too.<br/>
-**[💬 Join the Discord](https://discord.gg/bzQavDfVV9)** to share what you build.
-
 <br/>
 
   <a href="https://star-history.com/#debpalash/OmniVoice-Studio&Date">
