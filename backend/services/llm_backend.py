@@ -125,6 +125,72 @@ class OpenAICompatBackend(LLMBackend):
 # ── Off — explicit no-LLM path ────────────────────────────────────────────
 
 
+class MiniMaxBackend(LLMBackend):
+    """MiniMax (MiniMax) — OpenAI-compatible chat endpoint.
+
+    Models:
+      • MiniMax-M2.7        — Peak Performance. Ultimate Value.
+      • MiniMax-M2.7-highspeed — Same performance, faster and more agile.
+
+    Config env vars:
+      MINIMAX_API_KEY       — required
+      MINIMAX_BASE_URL      — optional (default https://api.minimax.io/v1)
+      MINIMAX_MODEL         — optional (default MiniMax-M2.7)
+    """
+
+    id = "minimax"
+    display_name = "MiniMax (MiniMax)"
+
+    def __init__(self):
+        self._client = None
+
+    @classmethod
+    def is_available(cls) -> tuple[bool, str]:
+        try:
+            import openai  # noqa: F401
+        except ImportError:
+            return False, "openai package missing (install with `pip install openai`)."
+        if not os.environ.get("MINIMAX_API_KEY"):
+            return False, (
+                "MINIMAX_API_KEY not set. Get one at https://platform.minimax.io "
+                "and export MINIMAX_API_KEY=<key>."
+            )
+        return True, "ready"
+
+    @property
+    def model_name(self) -> str:
+        return os.environ.get("MINIMAX_MODEL", "MiniMax-M2.7")
+
+    def _get_client(self):
+        if self._client is not None:
+            return self._client
+        from openai import OpenAI
+
+        api_key = os.environ.get("MINIMAX_API_KEY")
+        if not api_key:
+            raise RuntimeError("MINIMAX_API_KEY not set. See `is_available()` for details.")
+        base_url = os.environ.get("MINIMAX_BASE_URL", "https://api.minimax.io/v1")
+        self._client = OpenAI(api_key=api_key, base_url=base_url)
+        return self._client
+
+    def chat(self, *, system: str, user: str, timeout: Optional[float] = None) -> str:
+        if timeout is None:
+            try:
+                timeout = float(os.environ.get("OMNIVOICE_LLM_TIMEOUT", "45"))
+            except ValueError:
+                timeout = 45.0
+        res = self._get_client().chat.completions.create(
+            model=self.model_name,
+            timeout=timeout,
+            temperature=1.0,  # MiniMax requires (0.0, 1.0], cannot be 0
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        )
+        return (res.choices[0].message.content or "").strip()
+
+
 class OffBackend(LLMBackend):
     id = "off"
     display_name = "Off (no LLM)"
@@ -146,6 +212,7 @@ class OffBackend(LLMBackend):
 
 _REGISTRY: dict[str, type[LLMBackend]] = {
     "openai-compat": OpenAICompatBackend,
+    "minimax":       MiniMaxBackend,
     "off":           OffBackend,
 }
 

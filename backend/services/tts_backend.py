@@ -1109,6 +1109,124 @@ class SherpaOnnxBackend(TTSBackend):
         return wav
 
 
+# ── MiniMax TTS adapter (cloud API, hex-encoded audio) ────────────────────
+
+
+class MiniMaxTTSBackend(TTSBackend):
+    """MiniMax TTS — cloud-based text-to-speech via the MiniMax API.
+
+    Models: speech-2.8-hd (default, highest quality), speech-2.8-turbo (fast).
+    Endpoint: POST https://api.minimax.io/v1/t2a_v2
+    Audio: hex-encoded MP3, decoded to PCM tensor.
+
+    Config env vars:
+      MINIMAX_API_KEY       — required (shared with MiniMax Chat)
+      MINIMAX_BASE_URL      — optional (default https://api.minimax.io)
+      MINIMAX_TTS_MODEL     — optional (default speech-2.8-hd)
+    """
+
+    id = "minimax"
+    display_name = "MiniMax TTS (cloud, speech-2.8-hd / turbo)"
+
+    # MiniMax voices — a curated subset of the system voice list.
+    VOICES = [
+        "English_Graceful_Lady",
+        "English_Insightful_Speaker",
+        "English_radiant_girl",
+        "English_Persuasive_Man",
+        "English_Lucky_Robot",
+        "English_expressive_narrator",
+    ]
+
+    @classmethod
+    def is_available(cls) -> tuple[bool, str]:
+        if not os.environ.get("MINIMAX_API_KEY"):
+            return False, (
+                "MINIMAX_API_KEY not set. Get one at https://platform.minimax.io "
+                "and export MINIMAX_API_KEY=<key>."
+            )
+        return True, "ready"
+
+    @property
+    def sample_rate(self) -> int:
+        return 32000
+
+    @property
+    def supported_languages(self) -> list[str]:
+        return ["multi"]
+
+    def generate(self, text: str, **kw) -> torch.Tensor:
+        import io
+        import json
+        import urllib.request
+
+        api_key = os.environ.get("MINIMAX_API_KEY")
+        if not api_key:
+            raise RuntimeError("MINIMAX_API_KEY not set. See `is_available()` for details.")
+
+        base_url = os.environ.get("MINIMAX_BASE_URL", "https://api.minimax.io")
+        base_url = base_url.rstrip("/")
+        model = os.environ.get("MINIMAX_TTS_MODEL", "speech-2.8-hd")
+        voice = kw.get("voice", self.VOICES[0])
+        speed = float(kw.get("speed", 1.0))
+
+        payload = json.dumps({
+            "model": model,
+            "text": text,
+            "stream": False,
+            "voice_setting": {
+                "voice_id": voice,
+                "speed": speed,
+                "vol": 1,
+                "pitch": 0,
+            },
+            "audio_setting": {
+                "sample_rate": self.sample_rate,
+                "bitrate": 128000,
+                "format": "mp3",
+                "channel": 1,
+            },
+        }).encode()
+
+        req = urllib.request.Request(
+            f"{base_url}/v1/t2a_v2",
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+            },
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                result = json.loads(resp.read())
+        except Exception as e:
+            raise RuntimeError(f"MiniMax TTS API call failed: {e}")
+
+        status_code = result.get("base_resp", {}).get("status_code", -1)
+        if status_code != 0:
+            msg = result.get("base_resp", {}).get("status_msg", "unknown error")
+            raise RuntimeError(f"MiniMax TTS error ({status_code}): {msg}")
+
+        hex_audio = result.get("data", {}).get("audio", "")
+        if not hex_audio:
+            raise RuntimeError("MiniMax TTS returned empty audio data.")
+
+        # MiniMax returns hex-encoded audio (not base64).
+        audio_bytes = bytes.fromhex(hex_audio)
+
+        import torchaudio
+        wav, sr = torchaudio.load(io.BytesIO(audio_bytes))
+        if sr != self.sample_rate:
+            wav = torchaudio.functional.resample(wav, sr, self.sample_rate)
+        if wav.ndim == 1:
+            wav = wav.unsqueeze(0)
+        elif wav.ndim == 2 and wav.shape[0] > 1:
+            wav = wav.mean(dim=0, keepdim=True)
+        return wav
+
+
 # ── Registry ────────────────────────────────────────────────────────────────
 
 
@@ -1122,6 +1240,7 @@ _REGISTRY: dict[str, type[TTSBackend]] = {
     "indextts2":     IndexTTS2Backend,
     "gpt-sovits":    GPTSoVITSBackend,
     "sherpa-onnx":   SherpaOnnxBackend,
+    "minimax":       MiniMaxTTSBackend,
 }
 
 
@@ -1138,6 +1257,7 @@ _INSTALL_HINTS: dict[str, str] = {
     "indextts2":     "git clone index-tts/index-tts && uv pip install -e .  (NOT uv sync --all-extras)",
     "gpt-sovits":    "External API server — start api_v2.py on port 9880",
     "sherpa-onnx":   "pip install sherpa-onnx  (universal ONNX runtime, WASM-ready)",
+    "minimax":       "Cloud API — set MINIMAX_API_KEY (get key at https://platform.minimax.io)",
 }
 
 

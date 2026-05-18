@@ -99,7 +99,7 @@ def test_asr_env_override(monkeypatch):
 def test_llm_registry_includes_off():
     rows = llm_backend.list_backends()
     ids = {r["id"] for r in rows}
-    assert ids == {"openai-compat", "off"}
+    assert {"openai-compat", "off", "minimax"}.issubset(ids)
 
 
 def test_llm_off_chat_raises_actionable(monkeypatch):
@@ -131,3 +131,83 @@ def test_llm_auto_selects_openai_compat_when_configured(monkeypatch):
     except ImportError:
         pytest.skip("openai package not available in this environment")
     assert llm_backend.active_backend_id() == "openai-compat"
+
+
+# ── MiniMax (minimax) ──────────────────────────────────────────────────────
+
+
+def test_llm_registry_includes_minimax():
+    rows = llm_backend.list_backends()
+    ids = {r["id"] for r in rows}
+    assert "minimax" in ids
+
+
+def test_llm_minimax_unavailable_without_key(monkeypatch):
+    monkeypatch.delenv("MINIMAX_API_KEY", raising=False)
+    ok, msg = llm_backend.MiniMaxBackend.is_available()
+    assert not ok
+    assert "MINIMAX_API_KEY" in msg or "openai" in msg
+
+
+def test_llm_minimax_available_with_key(monkeypatch):
+    monkeypatch.setenv("MINIMAX_API_KEY", "test-key")
+    try:
+        import openai  # noqa: F401
+    except ImportError:
+        pytest.skip("openai package not available in this environment")
+    ok, _ = llm_backend.MiniMaxBackend.is_available()
+    assert ok
+
+
+def test_llm_minimax_default_model():
+    be = llm_backend.MiniMaxBackend()
+    assert be.model_name == "MiniMax-M2.7"
+
+
+def test_llm_minimax_custom_model(monkeypatch):
+    monkeypatch.setenv("MINIMAX_MODEL", "MiniMax-M2.7-highspeed")
+    be = llm_backend.MiniMaxBackend()
+    assert be.model_name == "MiniMax-M2.7-highspeed"
+
+
+def test_llm_minimax_env_override_selects(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_LLM_BACKEND", "minimax")
+    assert llm_backend.active_backend_id() == "minimax"
+
+
+def test_tts_minimax_unavailable_without_key(monkeypatch):
+    monkeypatch.delenv("MINIMAX_API_KEY", raising=False)
+    ok, msg = tts_backend.MiniMaxTTSBackend.is_available()
+    assert not ok
+    assert "MINIMAX_API_KEY" in msg
+
+
+def test_tts_minimax_available_with_key(monkeypatch):
+    monkeypatch.setenv("MINIMAX_API_KEY", "test-key")
+    ok, _ = tts_backend.MiniMaxTTSBackend.is_available()
+    assert ok
+
+
+def test_tts_minimax_sample_rate():
+    assert tts_backend.MiniMaxTTSBackend().sample_rate == 32000
+
+
+def test_tts_minimax_voices():
+    assert len(tts_backend.MiniMaxTTSBackend.VOICES) == 6
+    assert "English_Graceful_Lady" in tts_backend.MiniMaxTTSBackend.VOICES
+
+
+def test_tts_minimax_languages():
+    langs = tts_backend.MiniMaxTTSBackend().supported_languages
+    assert "multi" in langs
+
+
+def test_tts_minimax_env_override_selects(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_TTS_BACKEND", "minimax")
+    assert tts_backend.active_backend_id() == "minimax"
+
+
+def test_tts_minimax_in_registry():
+    rows = tts_backend.list_backends()
+    ids = {r["id"] for r in rows}
+    assert "minimax" in ids
