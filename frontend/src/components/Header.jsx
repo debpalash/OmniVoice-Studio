@@ -1,19 +1,21 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { Globe, Fingerprint, Wand2, Film, FolderOpen, RefreshCw, Settings2, ChevronRight, ChevronDown, Zap, Building2, Library, FileText, Trash2 } from 'lucide-react';
+import i18n from '../i18n';
 import { Button, Badge } from '../ui';
 import NotificationPanel from './NotificationPanel';
 
 const VIEW_META = {
-  launchpad:  { label: 'Launchpad',       Icon: Globe,       accent: '#f3a5b6', kicker: 'Studio' },
-  clone:      { label: 'Voice Clone',     Icon: Fingerprint, accent: '#d3869b', kicker: 'Studio' },
-  design:     { label: 'Voice Design',    Icon: Wand2,       accent: '#8ec07c', kicker: 'Studio' },
-  dub:        { label: 'Dubbing',         Icon: Film,        accent: '#fe8019', kicker: 'Studio' },
-  projects:   { label: 'OmniDrive',      Icon: FolderOpen,  accent: '#83a598', kicker: 'Library' },
-  gallery:    { label: 'Gallery',         Icon: Library,     accent: '#b8bb26', kicker: 'Library' },
-  transcriptions: { label: 'Transcriptions', Icon: FileText, accent: '#d3869b', kicker: 'Library' },
-  settings:   { label: 'Settings',        Icon: Settings2,   accent: '#fabd2f', kicker: 'Preferences' },
-  enterprise: { label: 'Commercial License', Icon: Building2, accent: '#fe8019', kicker: 'Licensing' },
+  launchpad:  { labelKey: 'nav.launchpad',       Icon: Globe,       accent: '#f3a5b6', kickerKey: 'nav.studio' },
+  clone:      { labelKey: 'nav.clone',            Icon: Fingerprint, accent: '#d3869b', kickerKey: 'nav.studio' },
+  design:     { labelKey: 'nav.design',           Icon: Wand2,       accent: '#8ec07c', kickerKey: 'nav.studio' },
+  dub:        { labelKey: 'nav.dub',              Icon: Film,        accent: '#fe8019', kickerKey: 'nav.studio' },
+  projects:   { labelKey: 'nav.omnidrive',        Icon: FolderOpen,  accent: '#83a598', kickerKey: 'nav.library' },
+  gallery:    { labelKey: 'nav.gallery',          Icon: Library,     accent: '#b8bb26', kickerKey: 'nav.library' },
+  transcriptions: { labelKey: 'nav.transcripts',  Icon: FileText,    accent: '#d3869b', kickerKey: 'nav.library' },
+  settings:   { labelKey: 'nav.settings',         Icon: Settings2,   accent: '#fabd2f', kickerKey: 'nav.preferences' },
+  enterprise: { labelKey: 'nav.licensing',        Icon: Building2,   accent: '#fe8019', kickerKey: 'nav.licensing' },
 };
 
 function WaveBars({ color = '#f3a5b6', active }) {
@@ -41,6 +43,7 @@ export default function Header({
   mode, setMode, sysStats, modelStatus, doubleClickMaximize,
   activeProjectName, onFlushMemory,
 }) {
+  const { t } = useTranslation();
   const [flushing, setFlushing] = useState(false);
   const [flushOpen, setFlushOpen] = useState(false);
   const [loadedModels, setLoadedModels] = useState([]);
@@ -141,11 +144,11 @@ export default function Header({
         <div className="hq-col-left__spacer" />
         <div className="hq-view-title">
           <span className="hq-view-dot" style={dotStyle} />
-          <span className="hq-view-kicker">{view.kicker}</span>
+          <span className="hq-view-kicker">{t(view.kickerKey)}</span>
           <ChevronRight size={10} color="#504945" className="hq-breadcrumb-sep" />
           <span className="hq-view-label" style={labelStyle}>
             <ViewIcon size={12} className="hq-view-icon" />
-            {view.label}
+            {t(view.labelKey)}
           </span>
           {activeProjectName ? (
             <>
@@ -158,12 +161,12 @@ export default function Header({
           <Button
             variant="ghost"
             size="sm"
-            title="Force Reload UI"
+            title={t('settings.force_reload_ui')}
             onClick={() => window.location.reload()}
             leading={<RefreshCw size={9} />}
             className="hq-reload-btn"
           >
-            Reload
+            {t('settings.reload')}
           </Button>
         )}
       </div>
@@ -189,10 +192,10 @@ export default function Header({
         <WaveBars color={view.accent} active={modelStatus === 'ready' || modelStatus === 'loading'} />
         {sysStats && (
           <div className="hq-stats">
-            <span><b className="hq-stats__key">RAM</b> {sysStats.ram.toFixed(1)}/{sysStats.total_ram.toFixed(0)}G</span>
-            <span><b className="hq-stats__key">CPU</b> {sysStats.cpu.toFixed(0)}%</span>
-            <span className="hq-stats__sep" aria-label={`VRAM usage: ${sysStats.vram.toFixed(1)} gigabytes`}>
-              <b className={`hq-stats__key ${sysStats.gpu_active ? 'hq-stats__key--gpu-active' : ''}`}>VRAM</b> {sysStats.vram.toFixed(1)}G
+            <span><b className="hq-stats__key">{t('settings.ram')}</b> {sysStats.ram.toFixed(1)}/{sysStats.total_ram.toFixed(0)}G</span>
+            <span><b className="hq-stats__key">{t('settings.cpu')}</b> {sysStats.cpu.toFixed(0)}%</span>
+            <span className="hq-stats__sep" aria-label={`${t('settings.vram')}: ${sysStats.vram.toFixed(1)} gigabytes`}>
+              <b className={`hq-stats__key ${sysStats.gpu_active ? 'hq-stats__key--gpu-active' : ''}`}>{t('settings.vram')}</b> {sysStats.vram.toFixed(1)}G
             </span>
             <span className="hq-stats__status-wrap">
               <Badge
@@ -201,23 +204,33 @@ export default function Header({
                 dot
                 className={`hq-stats__status-badge ${modelStatus === 'loading' ? 'ui-badge--pulse' : ''}`}
               >
-                {modelStatus === 'ready' ? 'Ready' : modelStatus === 'loading' ? 'Loading…' : 'Idle'}
+                {modelStatus === 'ready' ? t('common.ready') : modelStatus === 'loading' ? t('common.loading') : t('common.idle')}
               </Badge>
             </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              title={t('common.switch_language')}
+              onClick={() => i18n.changeLanguage(i18n.language === 'zh' ? 'en' : 'zh')}
+              className="hq-lang-btn"
+            >
+              <Globe size={12} />
+              {i18n.language === 'zh' ? 'EN' : '中'}
+            </Button>
             {onFlushMemory && (
               <div ref={flushRef} style={{ position: 'relative' }}>
                 <Button
                   ref={flushBtnRef}
                   variant="subtle"
                   size="sm"
-                  title="Memory management"
+                  title={t('settings.memory_management')}
                   loading={flushing}
                   leading={!flushing && <Zap size={8} />}
                   trailing={<ChevronDown size={8} />}
                   onClick={() => setFlushOpen(o => !o)}
                   className="hq-flush-btn"
                 >
-                  Flush
+                  {t('settings.flush')}
                 </Button>
                 {flushOpen && createPortal(
                   <div
@@ -225,9 +238,9 @@ export default function Header({
                     style={{ top: dropdownPos.top, left: dropdownPos.left }}
                     ref={dropdownRef}
                   >
-                    <div className="hq-flush-dropdown__header">Loaded Models</div>
+                    <div className="hq-flush-dropdown__header">{t('settings.loaded_models')}</div>
                     {loadedModels.length === 0 ? (
-                      <div className="hq-flush-dropdown__empty">No models loaded</div>
+                      <div className="hq-flush-dropdown__empty">{t('settings.no_models_loaded')}</div>
                     ) : (
                       loadedModels.map(m => (
                         <div key={m.id} className="hq-flush-dropdown__item">
@@ -242,9 +255,9 @@ export default function Header({
                               className="hq-flush-dropdown__unload"
                               onClick={() => unloadModel(m.id)}
                               disabled={unloading === m.id}
-                              aria-label={`Unload ${m.name}`}
+                              aria-label={`${t('settings.unload')} ${m.name}`}
                             >
-                              {unloading === m.id ? '…' : 'Unload'}
+                              {unloading === m.id ? '…' : t('settings.unload')}
                             </button>
                           )}
                         </div>
@@ -259,7 +272,7 @@ export default function Header({
                         try { await onFlushMemory(false); } finally { setFlushing(false); }
                       }}
                     >
-                      <Zap size={10} /> Flush caches
+                      <Zap size={10} /> {t('settings.flush_caches')}
                     </button>
                     <button
                       className="hq-flush-dropdown__action hq-flush-dropdown__action--danger"
@@ -269,7 +282,7 @@ export default function Header({
                         try { await onFlushMemory(true); } finally { setFlushing(false); }
                       }}
                     >
-                      <Trash2 size={10} /> Unload all + flush
+                      <Trash2 size={10} /> {t('settings.unload_all_flush')}
                     </button>
                   </div>,
                   document.body

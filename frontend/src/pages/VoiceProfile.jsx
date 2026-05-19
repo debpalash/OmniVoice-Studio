@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
 import {
   ArrowLeft, Fingerprint, Wand2, Lock, Unlock, Trash2, Play, Save,
@@ -26,6 +27,8 @@ import { askConfirm } from '../utils/dialog';
  *   onDeleted()   called after successful delete
  */
 export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted }) {
+  const { t } = useTranslation();
+
   const [profile, setProfile] = useState(null);
   const [usage, setUsage] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -34,7 +37,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
   const [saving, setSaving] = useState(false);
 
   // Try-it panel
-  const [testText, setTestText] = useState('Hello — this is a test of this voice.');
+  const [testText, setTestText] = useState(t('voice.defaultTestPhrase', { defaultValue: 'Hello — this is a test of this voice.' }));
   const [testGenerating, setTestGenerating] = useState(false);
   const [testAudioUrl, setTestAudioUrl] = useState(null);
   const testAudioRef = useRef(null);
@@ -53,7 +56,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
         ref_text: p.ref_text || '',
       });
     } catch (e) {
-      toast.error(e.message || 'Failed to load voice');
+      toast.error(e.message || t('voice.loadFailed', { defaultValue: 'Failed to load voice' }));
       setProfile(null);
     } finally {
       setLoading(false);
@@ -69,7 +72,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
 
   const saveEdits = async () => {
     if (!draft.name.trim()) {
-      toast.error("Voice profile needs a name.");
+      toast.error(t('voice.voice_name_required'));
       return;
     }
     setSaving(true);
@@ -77,9 +80,9 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
       const next = await updateProfile(voiceId, draft);
       setProfile(next);
       setEditing(false);
-      toast.success('Saved');
+      toast.success(t('voice.voice_saved'));
     } catch (e) {
-      toast.error(`Save failed: ${e.message}`);
+      toast.error(t('voice.save_failed', { msg: e.message }));
     } finally {
       setSaving(false);
     }
@@ -96,24 +99,24 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
   };
 
   const onDelete = async () => {
-    if (!(await askConfirm(`Delete "${profile.name}" permanently? This also removes the reference audio on disk.`))) return;
+    if (!(await askConfirm(t('voice.delete_voice_confirm', { name: profile.name })))) return;
     try {
       await deleteProfile(voiceId);
-      toast.success('Voice deleted');
+      toast.success(t('voice.voice_deleted'));
       onDeleted?.();
     } catch (e) {
-      toast.error(`Delete failed: ${e.message}`);
+      toast.error(t('voice.delete_failed', { msg: e.message }));
     }
   };
 
   const onUnlock = async () => {
-    if (!(await askConfirm('Unlock this voice? Future generations will no longer be bit-reproducible.'))) return;
+    if (!(await askConfirm(t('voice.unlock_confirm')))) return;
     try {
       await unlockProfile(voiceId);
       await reload();
-      toast.success('Voice unlocked');
+      toast.success(t('voice.voice_unlocked'));
     } catch (e) {
-      toast.error(`Unlock failed: ${e.message}`);
+      toast.error(t('voice.unlock_failed', { msg: e.message }));
     }
   };
 
@@ -137,7 +140,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
       setTestAudioUrl(url);
       setTimeout(() => testAudioRef.current?.play?.(), 80);
     } catch (e) {
-      toast.error(`Generation failed: ${e.message}`);
+      toast.error(t('voice.generation_failed', { msg: e.message }));
     } finally {
       setTestGenerating(false);
     }
@@ -147,22 +150,22 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
     return (
       <div className="voice-profile voice-profile--loading">
         <Sparkles className="spinner" size={24} color="#d3869b" />
-        <span>Loading voice…</span>
+        <span>{t('voice.loading_voice')}</span>
       </div>
     );
   }
   if (!profile) {
     return (
       <div className="voice-profile voice-profile--empty">
-        <p>Voice not found.</p>
-        <Button variant="subtle" onClick={onBack} leading={<ArrowLeft size={12} />}>Back</Button>
+        <p>{t('voice.voice_not_found')}</p>
+        <Button variant="subtle" onClick={onBack} leading={<ArrowLeft size={12} />}>{t('common.back')}</Button>
       </div>
     );
   }
 
   const isDesign = !!profile.instruct && !profile.ref_audio_path;
   const TypeIcon = isDesign ? Wand2 : Fingerprint;
-  const kind = isDesign ? 'Designed' : 'Cloned';
+  const kind = isDesign ? t('voice.voice_designed_kind') : t('voice.voice_cloned_kind');
   const createdDate = profile.created_at
     ? new Date(profile.created_at * 1000).toLocaleString()
     : '—';
@@ -173,19 +176,19 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
       {/* Toolbar */}
       <div className="voice-profile__bar">
         <Button variant="ghost" size="sm" onClick={onBack} leading={<ArrowLeft size={12} />}>
-          Back
+          {t('common.back')}
         </Button>
         <span className="voice-profile__crumb">
-          <TypeIcon size={12} /> {kind} voice
+          <TypeIcon size={12} /> {t('voice.voice_kind_label', { kind })}
         </span>
         <div className="voice-profile__bar-spacer" />
         {!editing && (
           <Button variant="subtle" size="sm" onClick={() => setEditing(true)} leading={<Pencil size={12} />}>
-            Edit
+            {t('common.edit', { defaultValue: 'Edit' })}
           </Button>
         )}
         <Button variant="danger" size="sm" onClick={onDelete} leading={<Trash2 size={12} />}>
-          Delete
+          {t('common.delete')}
         </Button>
       </div>
 
@@ -201,7 +204,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
                 size="lg"
                 value={draft.name}
                 onChange={e => setDraft({ ...draft, name: e.target.value })}
-                placeholder="Voice name"
+                placeholder={t('voice.name_placeholder')}
                 autoFocus
               />
             ) : (
@@ -209,8 +212,8 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
             )}
             <div className="voice-profile__badges">
               {profile.is_locked
-                ? <Badge tone="warn" dot><Lock size={10} /> Locked</Badge>
-                : <Badge tone="neutral">Free</Badge>}
+                ? <Badge tone="warn" dot><Lock size={10} /> {t('voice.voice_locked_badge')}</Badge>
+                : <Badge tone="neutral">{t('voice.voice_free_badge')}</Badge>}
               {profile.language && profile.language !== 'Auto' && (
                 <Badge tone="info">{profile.language}</Badge>
               )}
@@ -218,7 +221,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
                 <Clock size={9} /> {createdDate}
               </Badge>
               {profile.seed != null && (
-                <Badge tone="violet" size="xs">seed {profile.seed}</Badge>
+                <Badge tone="violet" size="xs">{t('voice.voice_seed_badge', { seed: profile.seed })}</Badge>
               )}
             </div>
           </div>
@@ -227,7 +230,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
         {(profile.ref_audio_path || profile.locked_audio_path) && (
           <div className="voice-profile__audio">
             <div className="voice-profile__audio-label">
-              <Volume2 size={11} /> {profile.is_locked ? 'Locked reference' : 'Reference audio'}
+              <Volume2 size={11} /> {profile.is_locked ? t('voice.locked_reference') : t('voice.reference_audio')}
             </div>
             <audio controls src={audioUrl} className="voice-profile__audio-el" preload="metadata" />
           </div>
@@ -238,62 +241,62 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
       <Panel
         variant="flat"
         padding="md"
-        title={<>Details</>}
+        title={t('voice.details')}
         actions={editing ? (
           <>
-            <Button variant="ghost"   size="sm" onClick={cancelEdits} leading={<X size={12} />}>Cancel</Button>
-            <Button variant="primary" size="sm" onClick={saveEdits}   loading={saving} leading={!saving && <Check size={12} />}>Save</Button>
+            <Button variant="ghost"   size="sm" onClick={cancelEdits} leading={<X size={12} />}>{t('common.cancel')}</Button>
+            <Button variant="primary" size="sm" onClick={saveEdits}   loading={saving} leading={!saving && <Check size={12} />}>{t('common.save')}</Button>
           </>
         ) : null}
       >
         <div className="voice-profile__grid-2">
-          <Field label="Style instruct">
+          <Field label={t('voice.style_instruct')}>
             {editing ? (
               <Textarea
                 rows={2}
                 value={draft.instruct}
                 onChange={e => setDraft({ ...draft, instruct: e.target.value })}
-                placeholder="e.g. whisper, excited, gentle"
+                placeholder={t('voice.style_instruct_placeholder')}
               />
             ) : (
               <div className="voice-profile__readonly">
-                {profile.instruct || <em>— none —</em>}
+                {profile.instruct || <em>{t('voice.none_fallback')}</em>}
               </div>
             )}
           </Field>
-          <Field label="Language">
+          <Field label={t('voice.language')}>
             {editing ? (
               <Input
                 value={draft.language}
                 onChange={e => setDraft({ ...draft, language: e.target.value })}
-                placeholder="Auto"
+                placeholder={t('common.auto')}
               />
             ) : (
-              <div className="voice-profile__readonly">{profile.language || 'Auto'}</div>
+              <div className="voice-profile__readonly">{profile.language || t('common.auto')}</div>
             )}
           </Field>
         </div>
-        <Field label="Reference transcript" hint="What the reference audio says. Used to improve clone accuracy.">
+        <Field label={t('voice.reference_text')} hint={t('voice.reference_text_hint')}>
           {editing ? (
             <Textarea
               rows={2}
               value={draft.ref_text}
               onChange={e => setDraft({ ...draft, ref_text: e.target.value })}
-              placeholder="(Optional)"
+              placeholder={t('voice.reference_text_placeholder')}
             />
           ) : (
             <div className="voice-profile__readonly voice-profile__readonly--transcript">
-              {profile.ref_text || <em>— none —</em>}
+              {profile.ref_text || <em>{t('voice.none_fallback')}</em>}
             </div>
           )}
         </Field>
         {profile.is_locked && !editing && (
           <div className="voice-profile__lock-row">
-            <Badge tone="warn" dot><Lock size={10} /> Locked</Badge>
+            <Badge tone="warn" dot><Lock size={10} /> {t('voice.voice_locked_badge')}</Badge>
             <span className="voice-profile__lock-hint">
-              This voice is bit-reproducible. Every generation uses the same reference + seed.
+              {t('voice.bit_reproducible_hint')}
             </span>
-            <Button variant="subtle" size="sm" onClick={onUnlock} leading={<Unlock size={12} />}>Unlock</Button>
+            <Button variant="subtle" size="sm" onClick={onUnlock} leading={<Unlock size={12} />}>{t('voice.unlock')}</Button>
           </div>
         )}
       </Panel>
@@ -302,17 +305,17 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
       <Panel
         variant="flat"
         padding="md"
-        title={<><Play size={13} /> Try this voice</>}
+        title={<><Play size={13} /> {t('voice.try_this_voice')}</>}
       >
         <Field
-          label="Test phrase"
-          hint="Type anything — we'll generate it with this voice's current settings."
+          label={t('components.test_phrase')}
+          hint={t('voice.try_this_voice_hint')}
         >
           <Textarea
             rows={2}
             value={testText}
             onChange={e => setTestText(e.target.value)}
-            placeholder="Type something to hear this voice say it…"
+            placeholder={t('voice.preview_text_placeholder')}
           />
         </Field>
         <div className="voice-profile__tryit-actions">
@@ -324,7 +327,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
             disabled={!testText.trim()}
             leading={!testGenerating && <Sparkles size={12} />}
           >
-            {testGenerating ? 'Generating…' : 'Generate preview'}
+            {testGenerating ? t('voice.generating') : t('voice.preview_generate', { defaultValue: 'Generate preview' })}
           </Button>
           {testAudioUrl && (
             <audio
@@ -339,22 +342,22 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
       </Panel>
 
       {/* Usage */}
-      <Panel variant="flat" padding="md" title={<>Where this voice has been used</>}>
+      <Panel variant="flat" padding="md" title={t('voice.where_used')}>
         {!usage || (!usage.synth_total && !usage.projects?.length) ? (
           <div className="voice-profile__usage-empty">
-            This voice hasn't been used yet. Generate a preview above, or pick it in a dub.
+            {t('voice.voice_unused')}
           </div>
         ) : (
           <>
             <div className="voice-profile__usage-counts">
               <Badge tone="brand">
-                {usage.synth_total} synth clip{usage.synth_total === 1 ? '' : 's'}
+                {usage.synth_total} {t('voice.synth_clips')}
               </Badge>
               <Badge tone="info">
-                {usage.projects.length} project{usage.projects.length === 1 ? '' : 's'}
+                {usage.projects.length} {t('voice.projects_label')}
               </Badge>
               <Badge tone="success">
-                {usage.project_total_segments} dubbed segment{usage.project_total_segments === 1 ? '' : 's'}
+                {usage.project_total_segments} {t('voice.dubbed_segments')}
               </Badge>
             </div>
             {usage.projects.length > 0 && (
@@ -368,7 +371,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
                     >
                       <FolderOpen size={11} />
                       <span className="voice-profile__usage-name">{p.project_name}</span>
-                      <span className="voice-profile__usage-count">{p.segment_count} segs</span>
+                      <span className="voice-profile__usage-count">{p.segment_count} {t('voice.segs')}</span>
                     </button>
                   </li>
                 ))}

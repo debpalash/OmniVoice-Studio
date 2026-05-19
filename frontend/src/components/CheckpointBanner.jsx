@@ -1,49 +1,38 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { CheckCircle, ArrowRight, X, Sparkles, Languages, Mic } from 'lucide-react';
 import { Button } from '../ui';
 import './Misc.css';
 
-/**
- * Phase 4.3 — between-stage checkpoint banner.
- *
- * The dub pipeline has three natural review points (post-ASR, post-translate,
- * post-generate). Each one is a chance for the user to spot a mistake before
- * it compounds into the next stage. This banner makes that review window
- * explicit instead of silently leaving the user on the segment editor with
- * no cue about what to do next.
- *
- * Render it above the segment table. Pass `onContinue` to advance the
- * pipeline directly from the banner's CTA (translate, generate, etc).
- */
-
-const STAGE_CONFIG = {
+const STAGE_KEYS = {
   asr: {
     icon: Mic,
     accent: '#b8bb26',
-    title: 'Transcripts ready',
-    cta: 'Translate',
+    titleKey: 'dub.transcripts_ready',
+    ctaKey: 'dub.translate',
     ctaIcon: Languages,
-    hint: 'Fix any ASR errors now — tight diction saves TTS attempts later.',
+    hintKey: 'dub.checkpoint_asr_hint',
   },
   translate: {
     icon: Languages,
     accent: '#83a598',
-    title: 'Translations ready',
-    cta: 'Generate dub',
+    titleKey: 'dub.translations_ready',
+    ctaKey: 'dub.generate_dub',
     ctaIcon: Sparkles,
-    hint: 'Skim the target text. Over-length lines get speed-boosted; you can also edit directly.',
+    hintKey: 'dub.checkpoint_translate_hint',
   },
   done: {
     icon: CheckCircle,
     accent: '#8ec07c',
-    title: 'Dub complete',
-    cta: null,
-    hint: 'Review timing and sync ratios. Tweak any line and hit "Regen changed" for a fast partial redo.',
+    titleKey: 'dub.dub_complete',
+    ctaKey: null,
+    hintKey: 'dub.checkpoint_review',
   },
 };
 
 export default function CheckpointBanner({ stage, count, onContinue, onDismiss, continueLoading }) {
-  const cfg = STAGE_CONFIG[stage];
+  const { t } = useTranslation();
+  const cfg = STAGE_KEYS[stage];
   if (!cfg) return null;
 
   const Icon = cfg.icon;
@@ -59,19 +48,19 @@ export default function CheckpointBanner({ stage, count, onContinue, onDismiss, 
       <div className="ckpt-body">
         <div className="ckpt-head">
           <span className="ckpt-title">
-            {cfg.title}
+            {t(cfg.titleKey)}
           </span>
           {typeof count === 'number' && (
             <span className="ckpt-count">
-              {count} segment{count === 1 ? '' : 's'}
+              {count} {t('dub.segments')}
             </span>
           )}
         </div>
         <span className="ckpt-hint">
-          {cfg.hint}
+          {t(cfg.hintKey)}
         </span>
       </div>
-      {cfg.cta && onContinue && (
+      {cfg.ctaKey && onContinue && (
         <Button
           variant="subtle"
           size="sm"
@@ -80,7 +69,7 @@ export default function CheckpointBanner({ stage, count, onContinue, onDismiss, 
           leading={CtaIcon ? <CtaIcon size={10} /> : null}
           trailing={<ArrowRight size={10} />}
         >
-          {cfg.cta}
+          {t(cfg.ctaKey)}
         </Button>
       )}
       {onDismiss && (
@@ -88,7 +77,7 @@ export default function CheckpointBanner({ stage, count, onContinue, onDismiss, 
           variant="ghost"
           size="sm"
           onClick={onDismiss}
-          title="Dismiss — won't reappear for this stage until reload"
+          title={t('dub.checkpoint_dismiss')}
           iconSize="sm"
         >
           <X size={10} />

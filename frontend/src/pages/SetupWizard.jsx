@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CheckCircle, Loader, ArrowRight, AlertTriangle, XCircle,
   RefreshCw, Monitor, Download, Cog, FolderOpen,
@@ -48,28 +49,29 @@ const CHECK_ICON = {
 const WELCOME_CARDS = [
   {
     icon: <Monitor size={16} />,
-    title: 'System check',
-    desc: 'Probe RAM, disk, GPU, ffmpeg, and network. Blockers are flagged upfront so you know before downloading.',
+    titleKey: 'settings.system_check',
+    descKey: 'settings.probe_system',
   },
   {
     icon: <Download size={16} />,
-    title: 'Install models',
-    desc: 'Download ~5 GB of weights — TTS + Whisper. Required models first, optional ones later.',
+    titleKey: 'settings.install_models',
+    descKey: 'settings.download_models_desc',
   },
   {
     icon: <Cog size={16} />,
-    title: 'Pick engines',
-    desc: 'Choose TTS / ASR / LLM backends. Defaults work out of the box — customize anytime in Settings.',
+    titleKey: 'settings.pick_engines',
+    descKey: 'settings.choose_backends',
   },
 ];
 
 /* ── Preflight panel ───────────────────────────────────────────────────── */
 
 function PreflightPanel({ report, loading, onRecheck }) {
+  const { t } = useTranslation();
   if (loading && !report) {
     return (
       <div className="swiz-loading">
-        <Loader className="spinner" size={14} /> Probing system…
+        <Loader className="spinner" size={14} /> {t('settings.probe_system_status')}
       </div>
     );
   }
@@ -77,9 +79,9 @@ function PreflightPanel({ report, loading, onRecheck }) {
   return (
     <div className="swiz-checklist">
       <div className="swiz-check-header">
-        <span className="swiz-check-header__label">System preflight</span>
+        <span className="swiz-check-header__label">{t('settings.system_preflight')}</span>
         <Button variant="ghost" size="sm" onClick={onRecheck} leading={<RefreshCw size={12} />}>
-          Re-check
+          {t('settings.re_check')}
         </Button>
       </div>
       {report.checks.map((c) => (
@@ -108,13 +110,14 @@ function PreflightPanel({ report, loading, onRecheck }) {
 
 /* ── Stepper nav with connectors ───────────────────────────────────────── */
 
-const STEP_LABELS = ['Welcome', 'System check', 'Install models', 'Pick engines'];
+const STEP_KEYS = ['settings.welcome', 'settings.system_check', 'settings.install_models', 'settings.pick_engines'];
 
 function StepperNav({ step, onStep }) {
+  const { t } = useTranslation();
   return (
     <div className="setup-wizard__steps" data-tauri-drag-region>
-      {STEP_LABELS.map((label, i) => (
-        <React.Fragment key={label}>
+      {STEP_KEYS.map((key, i) => (
+        <React.Fragment key={key}>
           {i > 0 && (
             <span className={`setup-wizard__step-connector${step > i - 1 ? ' setup-wizard__step-connector--done' : ''}`} />
           )}
@@ -127,9 +130,9 @@ function StepperNav({ step, onStep }) {
             onClick={() => onStep(i)}
             type="button"
             aria-current={step === i ? 'step' : undefined}
-            aria-label={`Step ${i + 1}: ${label}${step > i ? ' (completed)' : ''}`}
+            aria-label={`Step ${i + 1}: ${t(key)}${step > i ? ' (completed)' : ''}`}
           >
-            {step > i ? '✓ ' : `${i + 1}. `}{label}
+            {step > i ? '✓ ' : `${i + 1}. `}{t(key)}
           </button>
         </React.Fragment>
       ))}
@@ -149,6 +152,7 @@ function StepperNav({ step, onStep }) {
  *   3. Engines    — EnginesTab + "Enter studio"
  */
 export default function SetupWizard({ onReady }) {
+  const { t } = useTranslation();
   const [step, setStep] = useState(0);
 
   // TanStack Query — shared cache, auto-refetch on step 2 (models)
@@ -185,7 +189,7 @@ export default function SetupWizard({ onReady }) {
         <div className="setup-wizard__hero-text">
           <h1 data-tauri-drag-region>OmniVoice Studio</h1>
           <span className="setup-wizard__sub" data-tauri-drag-region>
-            Dubbing, voice cloning, and voice design — all running locally on your machine.
+            {t('settings.welcome_desc')}
           </span>
         </div>
       </div>
@@ -200,14 +204,14 @@ export default function SetupWizard({ onReady }) {
                   <div className="swiz-welcome-card" key={i}>
                     <div className="swiz-welcome-card__icon">{card.icon}</div>
                     <div className="swiz-welcome-card__body">
-                      <span className="swiz-welcome-card__title">{card.title}</span>
-                      <p className="swiz-welcome-card__desc">{card.desc}</p>
+                      <span className="swiz-welcome-card__title">{t(card.titleKey)}</span>
+                      <p className="swiz-welcome-card__desc">{t(card.descKey)}</p>
                     </div>
                   </div>
                 ))}
               </div>
               <p className="swiz-welcome-note">
-                First run takes 5–10 minutes to download. After that, every launch is instant and fully offline.
+                {t('settings.welcome_first_run')}
               </p>
             </div>
           </div>
@@ -218,7 +222,7 @@ export default function SetupWizard({ onReady }) {
               onClick={() => setStep(1)}
               trailing={<ArrowRight size={14} />}
             >
-              Get started
+              {t('settings.get_started')}
             </Button>
           </div>
         </div>
@@ -231,17 +235,17 @@ export default function SetupWizard({ onReady }) {
             <PreflightPanel report={pre} loading={preLoading} onRecheck={recheckPreflight} />
           </div>
           <div className="setup-wizard__nav">
-            <Button variant="ghost" onClick={() => setStep(0)}>Back</Button>
+            <Button variant="ghost" onClick={() => setStep(0)}>{t('common.back')}</Button>
             <Button
               variant={preflightOk ? 'primary' : 'ghost'}
               onClick={() => setStep(2)}
               trailing={<ArrowRight size={14} />}
               disabled={!preflightOk}
-              title={preflightOk ? '' : 'Resolve the failing checks above to continue.'}
+              title={preflightOk ? '' : t('settings.resolve_blockers')}
             >
               {preflightOk
-                ? (pre?.has_warnings ? 'Continue (with warnings)' : 'All good — continue')
-                : 'Resolve blockers to continue'}
+                ? (pre?.has_warnings ? t('settings.continue_with_warnings') : t('settings.all_good_continue'))
+                : t('settings.resolve_blockers')}
             </Button>
           </div>
         </div>
@@ -254,23 +258,23 @@ export default function SetupWizard({ onReady }) {
             <ModelStoreTab info={null} modelBadge={null} />
             {!modelsReady && status?.missing?.length > 0 && (
               <p className="setup-wizard__muted swiz-missing" style={{ marginTop: 8 }}>
-                Still needed:{' '}
+                {t('settings.still_needed')}{' '}
                 {status.missing.map(m => m.label).join(', ')}
               </p>
             )}
           </div>
           <div className="setup-wizard__nav">
-            <Button variant="ghost" onClick={() => setStep(1)}>Back</Button>
+            <Button variant="ghost" onClick={() => setStep(1)}>{t('common.back')}</Button>
             <Button
               variant={modelsReady ? 'primary' : 'ghost'}
               onClick={() => setStep(3)}
               trailing={<ArrowRight size={14} />}
               disabled={!modelsReady}
-              title={modelsReady ? '' : 'Install the required models above to continue.'}
+              title={modelsReady ? '' : t('settings.waiting_for_models')}
             >
               {modelsReady
-                ? 'Required models ready — continue'
-                : 'Waiting for required models…'}
+                ? t('settings.required_models_ready')
+                : t('settings.waiting_for_models')}
             </Button>
           </div>
         </div>
@@ -283,13 +287,13 @@ export default function SetupWizard({ onReady }) {
             <EnginesTab />
           </div>
           <div className="setup-wizard__nav">
-            <Button variant="ghost" onClick={() => setStep(2)}>Back</Button>
+            <Button variant="ghost" onClick={() => setStep(2)}>{t('common.back')}</Button>
             <Button
               variant="primary"
               onClick={onReady}
               leading={<CheckCircle size={14} />}
             >
-              Enter studio
+              {t('settings.enter_studio')}
             </Button>
           </div>
         </div>
@@ -297,22 +301,22 @@ export default function SetupWizard({ onReady }) {
 
       {!status && step > 1 && (
         <div className="swiz-status-loading">
-          <Loader className="spinner" size={14} /> Checking setup…
+          <Loader className="spinner" size={14} /> {t('settings.checking_setup')}
         </div>
       )}
 
       <p className="setup-wizard__footnote">
-        Downloads from <code>huggingface.co</code>
+        {t('settings.downloads_from_hf')} <code>huggingface.co</code>
         <span style={{ margin: '0 2px' }}>·</span>
-        Cache: <code>{shortenPath(cachePath)}</code>
+        {t('settings.cache')} <code>{shortenPath(cachePath)}</code>
         {'__TAURI_INTERNALS__' in window && cachePath && (
           <button
             className="setup-wizard__footnote-link"
             onClick={() => revealPath(cachePath)}
-            title="Open in Finder"
+            title={t('common.open')}
           >
             <FolderOpen size={10} style={{ verticalAlign: '-1px', marginRight: 2 }} />
-            Open
+            {t('common.open')}
           </button>
         )}
       </p>

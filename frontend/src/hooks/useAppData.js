@@ -10,6 +10,7 @@ import { useSysinfo, useModelStatus } from '../api/hooks';
 import useRealtimeEvents from './useRealtimeEvents';
 import { isTauri, fileToMediaUrl } from '../utils/media';
 import { toast } from 'react-hot-toast';
+import i18n from '../i18n';
 
 /**
  * Encapsulates all data-loading effects, localStorage persistence,
@@ -87,7 +88,7 @@ export default function useAppData() {
     prevModelStatusRef.current = modelStatus;
     const pill = useAppStore.getState();
     if (modelStatus === 'loading') {
-      const label = modelDetail || 'Loading model…';
+      const label = modelDetail || i18n.t('voice.loading_model');
       if (prev !== 'loading' && pill.stage === 'idle') pill.showPill('loading-model', label);
       else if (pill.stage === 'loading-model') pill.setPillLabel(label);
       // Forward real-time percentage from backend
@@ -95,7 +96,7 @@ export default function useAppData() {
         pill.setPillProgress(modelProgress);
       }
     }
-    if (modelStatus === 'ready' && prev === 'loading' && pill.stage === 'loading-model') pill.completePill('Model ready');
+    if (modelStatus === 'ready' && prev === 'loading' && pill.stage === 'loading-model') pill.completePill(i18n.t('voice.model_ready'));
     if (modelSubStage === 'error' && modelError && pill.stage === 'loading-model') pill.errorPill(modelError);
   }, [modelStatus, modelSubStage, modelDetail, modelError, modelProgress]);
 

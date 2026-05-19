@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import MinimapPlugin from 'wavesurfer.js/dist/plugins/minimap.esm.js';
@@ -35,6 +36,7 @@ function WaveformTimeline({
   disabled = false,
   overlayContent,
 }, ref) {
+  const { t } = useTranslation();
   const waveContainerRef = useRef(null);  // div WaveSurfer draws into
   const videoContainerRef = useRef(null); // div we imperatively append the <video> into
   const wsRef         = useRef(null);
@@ -412,14 +414,14 @@ function WaveformTimeline({
     return (
       <div className="waveform-timeline">
         <div className="wfm-error">
-          ⚠ Could not load audio from this file
+          {'⚠ ' + t('components.could_not_load_audio')}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="waveform-timeline wfm-layout" role="region" aria-label="Audio waveform timeline">
+    <div className="waveform-timeline wfm-layout" role="region" aria-label={t('components.waveform_timeline')}>
       {/* Video + Waveform stacked vertically */}
       <div className="wfm-stack">
         {/* Video preview — pinned to its aspect ratio so we don't letterbox
@@ -443,7 +445,7 @@ function WaveformTimeline({
           {!ready && !loadError && (
             <div className="wfm-loading">
               <Loader className="spinner" size={12} color="#d3869b"/>
-              <span className="wfm-loading__text">Loading waveform…</span>
+              <span className="wfm-loading__text">{t('components.loading_waveform')}</span>
             </div>
           )}
 
@@ -457,21 +459,21 @@ function WaveformTimeline({
       </div>
 
       {/* Controls */}
-      <div className="waveform-controls wfm-controls" role="toolbar" aria-label="Playback controls">
+      <div className="waveform-controls wfm-controls" role="toolbar" aria-label={t('components.playback_controls')}>
         <div className="waveform-controls-left">
-          <button className="waveform-btn" onClick={() => seekTo(0)} title="Restart" aria-label="Restart playback"><SkipBack size={11}/></button>
-          <button className="waveform-btn waveform-btn-play" onClick={togglePlay} disabled={!ready} aria-label={isPlaying ? 'Pause' : 'Play'}>
+          <button className="waveform-btn" onClick={() => seekTo(0)} title={t('components.restart')} aria-label={t('components.restart_playback')}><SkipBack size={11}/></button>
+          <button className="waveform-btn waveform-btn-play" onClick={togglePlay} disabled={!ready} aria-label={isPlaying ? t('components.pause') : t('components.play')}>
             {isPlaying ? <Pause size={11}/> : <Play size={11}/>}
           </button>
           <span className="waveform-time" aria-live="off">{fmt(currentTime)} / {fmt(duration)}</span>
-          <span className="wfm-kbd-hint" title="J/K/L: rewind, play/pause, forward"><Keyboard size={10}/></span>
+          <span className="wfm-kbd-hint" title={t('components.jkl_hint')}><Keyboard size={10}/></span>
         </div>
         <div className="waveform-controls-right">
-          <button className="waveform-btn" onClick={() => setZoom(z => Math.max(10, z - 20))} aria-label="Zoom out"><ZoomOut size={11}/></button>
+          <button className="waveform-btn" onClick={() => setZoom(z => Math.max(10, z - 20))} aria-label={t('voice.zoom_out')}><ZoomOut size={11}/></button>
           <input type="range" min="10" max="300" value={zoom}
             onChange={e => setZoom(Number(e.target.value))} className="waveform-zoom-slider"
-            aria-label="Zoom level" />
-          <button className="waveform-btn" onClick={() => setZoom(z => Math.min(300, z + 20))} aria-label="Zoom in"><ZoomIn size={11}/></button>
+            aria-label={t('components.zoom_level')} />
+          <button className="waveform-btn" onClick={() => setZoom(z => Math.min(300, z + 20))} aria-label={t('voice.zoom_in')}><ZoomIn size={11}/></button>
         </div>
       </div>
     </div>

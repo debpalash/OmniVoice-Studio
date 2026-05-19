@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { isTauri as _isTauri } from '../utils/media';
 import {
   flexRender,
@@ -84,6 +85,7 @@ import { useModels, useRecommendations, useInstallModel, useDeleteModel } from '
  * progress is pulled from the shared /setup/download-stream SSE.
  */
 export function ModelStoreTab({ info, modelBadge }) {
+  const { t } = useTranslation();
   const modelsQuery = useModels();
   const recoQuery = useRecommendations();
   const data = modelsQuery.data;
@@ -134,15 +136,15 @@ export function ModelStoreTab({ info, modelBadge }) {
         body: JSON.stringify({ key: 'HF_TOKEN', value }),
       });
       if (res.ok) {
-        toast.success('HuggingFace token set — faster downloads enabled');
+        toast.success(t('settings.hf_token_set'));
         setHfSaved(true);
         setHfToken('');
         setHfExpanded(false);
       } else {
         const d = await res.json().catch(() => ({}));
-        toast.error(d.detail || 'Failed to save token');
+        toast.error(d.detail || t('settings.hf_token_save_failed'));
       }
-    } catch (e) { toast.error(`Save failed: ${e.message}`); }
+    } catch (e) { toast.error(`${t('common.error')}: ${e.message}`); }
     finally { setHfSaving(false); }
   };
   const hfTokenSet = hfSaved || info?.has_hf_token;
@@ -234,25 +236,25 @@ export function ModelStoreTab({ info, modelBadge }) {
   }, []);
 
   const onInstall = useCallback((repoId) =>
-    withBusy(repoId, () => installMutation.mutateAsync(repoId), 'Install started — progress in the row'),
-    [installMutation, withBusy]);
+    withBusy(repoId, () => installMutation.mutateAsync(repoId), t('settings.install_started')),
+    [installMutation, withBusy, t]);
   const onDelete = useCallback(async (repoId) => {
-    if (!(await askConfirm(`Delete ${repoId}? You can reinstall it later.`, 'Delete model'))) return;
-    return withBusy(repoId, () => deleteMutation.mutateAsync(repoId), `Deleted ${repoId}`);
-  }, [deleteMutation, withBusy]);
+    if (!(await askConfirm(t('settings.delete_model_confirm', { repoId }), t('settings.delete_model')))) return;
+    return withBusy(repoId, () => deleteMutation.mutateAsync(repoId), t('settings.deleted_model', { repoId }));
+  }, [deleteMutation, withBusy, t]);
   const onReinstall = useCallback(async (repoId) => {
-    if (!(await askConfirm(`Reinstall ${repoId}? This will delete the current copy and download again.`, 'Reinstall model'))) return;
+    if (!(await askConfirm(t('settings.reinstall_model_confirm', { repoId }), t('settings.reinstall_model')))) return;
     await withBusy(repoId, async () => {
       await deleteMutation.mutateAsync(repoId);
       await installMutation.mutateAsync(repoId);
-    }, 'Reinstalling');
-  }, [deleteMutation, installMutation, withBusy]);
+    }, t('settings.reinstalling'));
+  }, [deleteMutation, installMutation, withBusy, t]);
 
   const onInstallRecommended = async () => {
     if (!reco) return;
     const missing = reco.models.filter(m => !m.installed);
     if (missing.length === 0) {
-      toast.success('Recommended models are already installed.');
+      toast.success(t('settings.recommended_installed'));
       return;
     }
     setInstallingReco(true);
@@ -260,9 +262,9 @@ export function ModelStoreTab({ info, modelBadge }) {
       // Parallel install — backend /models/install spawns each download on
       // its own asyncio task so ordering doesn't matter.
       await Promise.all(missing.map(m => installMutation.mutateAsync(m.repo_id)));
-      toast.success(`Started downloading ${missing.length} model${missing.length > 1 ? 's' : ''}`);
+      toast.success(t('settings.started_downloading_models', { n: missing.length, defaultValue: `Started downloading ${missing.length} model${missing.length > 1 ? 's' : ''}` }));
     } catch (e) {
-      toast.error(`Install failed: ${e.message || e}`);
+      toast.error(`${t('settings.install_failed', 'Install failed')}: ${e.message || e}`);
     } finally {
       setInstallingReco(false);
     }
@@ -332,7 +334,7 @@ export function ModelStoreTab({ info, modelBadge }) {
     {
       id: 'name',
       accessorFn: m => `${m.label || ''} ${m.repo_id || ''}`,
-      header: 'Model',
+      header: t('settings.model'),
       size: 260,
       meta: { className: 'models-row__name' },
       cell: ({ row }) => {
@@ -349,7 +351,7 @@ export function ModelStoreTab({ info, modelBadge }) {
                 {m.repo_id.split('/')[0].slice(0, 2).toUpperCase()}
               </span>
               {m.label}
-              {m.required && <span className="models-row__tag">required</span>}
+              {m.required && <span className="models-row__tag">{t('common.required')}</span>}
             </span>
             <span className="models-row__repo">
               <code>{m.repo_id}</code>
@@ -364,16 +366,16 @@ export function ModelStoreTab({ info, modelBadge }) {
                 />
                 <span className="models-row__progresstext">
                   {(() => {
-                    if (rt.isDeleting) return 'Removing cached revisions…';
+                    if (rt.isDeleting) return t('settings.deleting_progress', 'Removing cached revisions…');
                     if (!rt.hasFiles) {
                       if (rt.phase === 'resolving') {
                         const dots = '.'.repeat((rt.rs?.resolvingStep || 0) % 4);
-                        return `Resolving repo metadata${dots}`;
+                        return `${t('settings.resolving_metadata', 'Resolving repo metadata')}${dots}`;
                       }
                       if (rt.phase === 'install_retry') {
-                        return `Retry attempt ${rt.rs?.retryAttempt || '?'} — ${rt.rs?.error || 'reconnecting'}`;
+                        return t('settings.retry_attempt', { attempt: rt.rs?.retryAttempt || '?', error: rt.rs?.error || t('settings.reconnecting', 'reconnecting'), defaultValue: `Retry attempt {{attempt}} — {{error}}` });
                       }
-                      return 'Connecting to HuggingFace…';
+                      return t('settings.connecting_hf', 'Connecting to HuggingFace…');
                     }
 
                     // We have file events — compute speed
@@ -395,8 +397,8 @@ export function ModelStoreTab({ info, modelBadge }) {
                     if (rt.totals.total === 0 && rt.totals.downloaded === 0) {
                       const activeFile = rt.activeFilename?.split('/').pop();
                       return activeFile
-                        ? `Resolving ${rt.fileList.length} file${rt.fileList.length > 1 ? 's' : ''}… · ${activeFile}`
-                        : `Resolving ${rt.fileList.length} file${rt.fileList.length > 1 ? 's' : ''}…`;
+                        ? `${t('settings.resolving_files', { count: rt.fileList.length, defaultValue: `Resolving {{count}} file${rt.fileList.length > 1 ? 's' : ''}…` })} · ${activeFile}`
+                        : t('settings.resolving_files', { count: rt.fileList.length, defaultValue: `Resolving ${rt.fileList.length} file${rt.fileList.length > 1 ? 's' : ''}…` });
                     }
 
                     // Build the info line
@@ -415,12 +417,12 @@ export function ModelStoreTab({ info, modelBadge }) {
                     const parts = [
                       `${dlStr} / ${totalStr}`,
                       pctStr,
-                      speedStr || (rt.totals.downloaded > 0 ? 'measuring…' : ''),
+                      speedStr || (rt.totals.downloaded > 0 ? t('settings.measuring', 'measuring…') : ''),
                       etaStr,
                     ].filter(Boolean);
 
                     const extra = [];
-                    if (rt.fileList.length > 1) extra.push(`${rt.totals.done}/${rt.fileList.length} files`);
+                    if (rt.fileList.length > 1) extra.push(t('settings.files_progress', { done: rt.totals.done, total: rt.fileList.length, defaultValue: `${rt.totals.done}/${rt.fileList.length} files` }));
                     if (rt.activeFilename) extra.push(rt.activeFilename.split('/').pop());
 
                     return extra.length
@@ -431,7 +433,7 @@ export function ModelStoreTab({ info, modelBadge }) {
               </div>
             )}
             {rt.phase === 'install_error' && rt.rs?.error && (
-              <span className="models-row__error">Install failed: {rt.rs.error}</span>
+              <span className="models-row__error">{t('settings.install_failed', 'Install failed')}: {rt.rs.error}</span>
             )}
           </>
         );
@@ -440,15 +442,20 @@ export function ModelStoreTab({ info, modelBadge }) {
     {
       id: 'role',
       accessorFn: m => (m.role || 'other').toLowerCase(),
-      header: 'Role',
+      header: t('settings.role'),
       size: 58,
       filterFn: (row, id, value) => !value || row.getValue(id) === value,
-      cell: ({ row }) => <span className="models-row__role">{MODEL_ROLE_LABEL[row.getValue('role')] || row.original.role || 'Other'}</span>,
+      cell: ({ row }) => {
+        const roleKey = row.getValue('role');
+        const translatedRole = roleKey === 'all' ? t('common.all')
+          : (MODEL_ROLE_LABEL[roleKey] === 'Other' ? t('settings.other', 'Other') : MODEL_ROLE_LABEL[roleKey]);
+        return <span className="models-row__role">{translatedRole || row.original.role || t('settings.other', 'Other')}</span>;
+      },
     },
     {
       id: 'size',
       accessorFn: m => m.installed ? (m.size_on_disk_bytes || 0) : (m.size_gb || 0) * 1024 ** 3,
-      header: 'Size',
+      header: t('settings.size'),
       size: 68,
       meta: { align: 'right', className: 'models-row__size' },
       cell: ({ row }) => {
@@ -464,23 +471,23 @@ export function ModelStoreTab({ info, modelBadge }) {
     {
       id: 'status',
       accessorFn: m => m.installed ? 2 : (m.supported === false ? 0 : 1),
-      header: 'Status',
+      header: t('settings.status'),
       size: 96,
       meta: { align: 'center', className: 'models-row__status' },
       cell: ({ row }) => {
         const m = row.original;
         const rt = getRowRuntime(m);
         return rt.isInstalling
-          ? <Badge tone="warn" size="xs"><Download size={10} /> {rt.aggPct != null ? `${Math.round(rt.aggPct)}%` : 'downloading'}</Badge>
+          ? <Badge tone="warn" size="xs"><Download size={10} /> {rt.aggPct != null ? `${Math.round(rt.aggPct)}%` : t('settings.downloading')}</Badge>
           : rt.isDeleting
-            ? <Badge tone="warn" size="xs"><Trash2 size={10} /> deleting</Badge>
+            ? <Badge tone="warn" size="xs"><Trash2 size={10} /> {t('settings.deleting')}</Badge>
             : rt.rowBusy
-              ? <Badge tone="warn" size="xs"><RefreshCw size={10} className="spinner" /> working</Badge>
+              ? <Badge tone="warn" size="xs"><RefreshCw size={10} className="spinner" /> {t('settings.working')}</Badge>
               : m.installed
-                ? <Badge tone="success" size="xs">installed</Badge>
+                ? <Badge tone="success" size="xs">{t('settings.installed')}</Badge>
                 : rt.unsupported
                   ? <Badge tone="neutral" size="xs">{(m.platforms || []).join(', ')}</Badge>
-                  : <Badge tone="neutral" size="xs">not installed</Badge>;
+                  : <Badge tone="neutral" size="xs">{t('settings.not_installed')}</Badge>;
       },
     },
     {
@@ -497,8 +504,8 @@ export function ModelStoreTab({ info, modelBadge }) {
             <Button
               variant="icon" iconSize="sm"
               onClick={() => openExternal(`https://huggingface.co/${m.repo_id}`)}
-              title="View on HuggingFace"
-              aria-label="View on HuggingFace"
+              title={t('settings.view_on_hf', 'View on HuggingFace')}
+              aria-label={t('settings.view_on_hf', 'View on HuggingFace')}
             >
               <ExternalLink size={11} />
             </Button>
@@ -508,7 +515,7 @@ export function ModelStoreTab({ info, modelBadge }) {
                 onClick={() => onInstall(m.repo_id)}
                 leading={<Download size={11} />}
               >
-                Install
+                {t('settings.install')}
               </Button>
             )}
             {m.installed && !rt.rowBusy && !rt.isDeleting && (
@@ -516,16 +523,16 @@ export function ModelStoreTab({ info, modelBadge }) {
                 <Button
                   variant="icon" iconSize="sm"
                   onClick={() => onReinstall(m.repo_id)}
-                  title="Reinstall"
-                  aria-label="Reinstall"
+                  title={t('settings.reinstall')}
+                  aria-label={t('settings.reinstall')}
                 >
                   <RefreshCw size={11} />
                 </Button>
                 <Button
                   variant="icon" iconSize="sm"
                   onClick={() => onDelete(m.repo_id)}
-                  title="Delete"
-                  aria-label="Delete"
+                  title={t('common.delete')}
+                  aria-label={t('common.delete')}
                 >
                   <Trash2 size={11} />
                 </Button>
@@ -535,7 +542,7 @@ export function ModelStoreTab({ info, modelBadge }) {
         );
       },
     },
-  ], [getRowRuntime, onDelete, onInstall, onReinstall]);
+  ], [getRowRuntime, onDelete, onInstall, onReinstall, t]);
 
   const table = useReactTable({
     data: allModels,
@@ -573,8 +580,8 @@ export function ModelStoreTab({ info, modelBadge }) {
   if (loading && !data) {
     return (
       <section className="settings-section">
-        <h2><Cpu size={16} color="#f3a5b6" /> Models</h2>
-        <div className="settings-muted">Loading…</div>
+        <h2><Cpu size={16} color="#f3a5b6" /> {t('settings.models')}</h2>
+        <div className="settings-muted">{t('common.loading')}</div>
       </section>
     );
   }
@@ -596,9 +603,9 @@ export function ModelStoreTab({ info, modelBadge }) {
             <button
               className="models-toolbar__hf-btn"
               onClick={() => setHfExpanded(true)}
-              title="Set HuggingFace token for faster downloads"
+              title={t('settings.hf_token_help')}
             >
-              <KeyRound size={11} /> HF Token
+              <KeyRound size={11} /> {t('settings.hf_token')}
             </button>
           )}
           {!hfTokenSet && hfExpanded && (
@@ -606,22 +613,22 @@ export function ModelStoreTab({ info, modelBadge }) {
               <input
                 type="password"
                 className="models-toolbar__hf-input"
-                placeholder="hf_xxxxxxxxxxxx"
+                placeholder={t('settings.hf_token_placeholder')}
                 value={hfToken}
                 onChange={e => setHfToken(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') saveHfToken(); if (e.key === 'Escape') setHfExpanded(false); }}
                 autoFocus
               />
               <Button size="sm" variant="subtle" onClick={saveHfToken} disabled={hfSaving || !hfToken.trim()} loading={hfSaving}>
-                Save
+                {t('common.save')}
               </Button>
               <a
                 href="#"
                 className="models-toolbar__hf-link"
                 onClick={e => { e.preventDefault(); openExternal('https://huggingface.co/settings/tokens'); }}
-                title="Open huggingface.co/settings/tokens"
+                title={t('settings.hf_token_help')}
               >
-                Get token →
+                {t('settings.hf_token_get')}
               </a>
             </div>
           )}
@@ -629,7 +636,7 @@ export function ModelStoreTab({ info, modelBadge }) {
             <span className="models-toolbar__hf-ok"><KeyRound size={10} /> ✓</span>
           )}
           <Button variant="subtle" size="sm" onClick={reload} loading={loading} leading={<RefreshCw size={11} />}>
-            Refresh
+            {t('common.refresh')}
           </Button>
         </div>
       </div>
@@ -637,14 +644,14 @@ export function ModelStoreTab({ info, modelBadge }) {
       {reco && reco.all_installed && (
         <div className="reco-banner reco-banner--ok">
           <CheckCircle size={12} color="#8ec07c" />
-          <span className="flex-1">Recommended bundle installed for <strong>{reco.device.label}</strong></span>
+          <span className="flex-1">{t('settings.recommended_bundle', { device: reco.device.label })}</span>
           <span className="reco-banner__gb">{reco.total_gb} GB</span>
         </div>
       )}
       {reco && !reco.all_installed && (
         <div className="reco-banner reco-banner--pending">
           <div className="reco-banner__top">
-            <span className="reco-banner__title">Recommended for {reco.device.label}</span>
+            <span className="reco-banner__title">{t('settings.recommended_for', { device: reco.device.label })}</span>
             <div className="reco-banner__btns">
               {(() => {
                 const requiredMissing = reco.models.filter(m => m.required && !m.installed);
@@ -658,19 +665,19 @@ export function ModelStoreTab({ info, modelBadge }) {
                       setInstallingReco(true);
                       try {
                         await Promise.all(requiredMissing.map(m => installMutation.mutateAsync(m.repo_id)));
-                        toast.success(`Started downloading ${requiredMissing.length} required model${requiredMissing.length > 1 ? 's' : ''}`);
-                      } catch (e) { toast.error(`Install failed: ${e.message || e}`); }
+                        toast.success(t('settings.started_downloading_required', { n: requiredMissing.length, defaultValue: `Started downloading ${requiredMissing.length} required model${requiredMissing.length > 1 ? 's' : ''}` }));
+                      } catch (e) { toast.error(`${t('settings.install_failed', 'Install failed')}: ${e.message || e}`); }
                       finally { setInstallingReco(false); }
                     }}
                     disabled={installingReco}
                     leading={installingReco ? <RefreshCw size={12} className="spinner" /> : null}
                   >
-                    {installingReco ? 'Starting…' : `Required ~${requiredGb.toFixed(1)} GB`}
+                    {installingReco ? t('settings.starting') : t('settings.required_gb', { gb: requiredGb.toFixed(1) })}
                   </Button>
                 );
               })()}
               <Button variant="subtle" size="sm" onClick={onInstallRecommended} disabled={installingReco}>
-                {`All ~${reco.download_gb_remaining} GB`}
+                {t('settings.all_gb', { gb: reco.download_gb_remaining })}
               </Button>
             </div>
           </div>
@@ -709,10 +716,10 @@ export function ModelStoreTab({ info, modelBadge }) {
         <input
           type="search"
           className="models-search"
-          placeholder="Search models…"
+          placeholder={t('settings.search_models')}
           value={query}
           onChange={e => setQuery(e.target.value)}
-          aria-label="Search models"
+          aria-label={t('settings.search_models')}
         />
       </div>
 
@@ -735,7 +742,7 @@ export function ModelStoreTab({ info, modelBadge }) {
                     style={{ width: header.column.columnDef.size, flex: header.column.id === 'name' ? '1 1 auto' : '0 0 auto' }}
                     onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                     disabled={!canSort}
-                    title={canSort ? `Sort by ${String(header.column.columnDef.header || '')}` : undefined}
+                    title={canSort ? t('settings.sort_by', { column: String(header.column.columnDef.header || ''), defaultValue: `Sort by ${String(header.column.columnDef.header || '')}` }) : undefined}
                   >
                     {flexRender(header.column.columnDef.header, header.getContext())}
                     {header.column.getIsSorted() === 'asc' && <span className="models-table__sortmark">↑</span>}
@@ -780,7 +787,7 @@ export function ModelStoreTab({ info, modelBadge }) {
               );
             })}
             {tableRows.length === 0 && (
-              <div className="models-table__empty">No models match your filters.</div>
+              <div className="models-table__empty">{t('settings.no_models_match')}</div>
             )}
           </div>
         </div>
@@ -791,6 +798,7 @@ export function ModelStoreTab({ info, modelBadge }) {
 
 
 export function EnginesTab() {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState(null);
@@ -801,9 +809,9 @@ export function EnginesTab() {
   const reload = useCallback(async () => {
     setLoading(true);
     try { setData(await listEngines()); }
-    catch (e) { toast.error(`Failed to load engines: ${e.message}`); }
+    catch (e) { toast.error(`${t('settings.failed_load_engines', 'Failed to load engines')}: ${e.message}`); }
     finally { setLoading(false); }
-  }, []);
+  }, [t]);
 
   const onSelect = useCallback(async (family, backendId) => {
     setSwitching(`${family}:${backendId}`);
@@ -812,7 +820,7 @@ export function EnginesTab() {
       toast.success(`${family.toUpperCase()} → ${r.active}`);
       await reload();
     } catch (e) {
-      toast.error(e.message || 'Failed to switch engine');
+      toast.error(e.message || t('settings.failed_switch_engine', 'Failed to switch engine'));
     } finally {
       setSwitching(null);
     }
@@ -821,7 +829,7 @@ export function EnginesTab() {
   useEffect(() => { reload(); }, [reload]);
 
   if (loading && !data) {
-    return <section className="settings-section"><div className="settings-muted">Loading engines…</div></section>;
+    return <section className="settings-section"><div className="settings-muted">{t('settings.loading_engines')}</div></section>;
   }
   if (!data) return null;
 
@@ -831,8 +839,8 @@ export function EnginesTab() {
   const famTint = currentFam ? FAMILY_META[currentFam].tint : 'neutral';
 
   const COLUMNS = [
-    { key: 'name',    label: 'Backend', flex: 3 },
-    { key: 'status',  label: 'Status',  width: 120, align: 'center' },
+    { key: 'name',    label: t('settings.backend', 'Backend'), flex: 3 },
+    { key: 'status',  label: t('settings.status'),  width: 120, align: 'center' },
     { key: 'action',  label: '',        width: 90,  align: 'right' },
   ];
 
@@ -845,17 +853,17 @@ export function EnginesTab() {
             value={reviewMode}
             onChange={setReviewMode}
             items={[
-              { value: 'on',  label: 'Review' },
-              { value: 'off', label: 'Rapid-fire' },
+              { value: 'on',  label: t('settings.review') },
+              { value: 'off', label: t('settings.rapid_fire') },
             ]}
           />
           <span className="models-toolbar__sep">·</span>
           <span>
-            {reviewMode === 'on' ? 'Stage banners on' : 'Stage banners off'}
+            {reviewMode === 'on' ? t('settings.stage_banners_on') : t('settings.stage_banners_off')}
           </span>
         </div>
         <Button variant="subtle" size="sm" onClick={reload} loading={loading} leading={<RefreshCw size={11} />}>
-          Refresh
+          {t('common.refresh')}
         </Button>
       </div>
 
@@ -884,7 +892,7 @@ export function EnginesTab() {
                   <div className="models-row__cell models-row__name" style={{ flex: 3 }}>
                     <span className="models-row__title">
                       {b.display_name}
-                      {isActive && <Badge tone={famTint} size="xs">active</Badge>}
+                      {isActive && <Badge tone={famTint} size="xs">{t('settings.active')}</Badge>}
                     </span>
                     <span className="models-row__repo">
                       <code>{b.id}</code>
@@ -898,10 +906,10 @@ export function EnginesTab() {
                       </span>
                     )}
                   </div>
-                  <div className="models-row__cell" style={{ width: 120, display: 'flex', justifyContent: 'center' }} title={b.available ? 'Installed and ready' : (b.reason || 'Not installed')}>
+                  <div className="models-row__cell" style={{ width: 120, display: 'flex', justifyContent: 'center' }} title={b.available ? t('settings.installed_ready') : (b.reason || t('settings.not_installed', 'Not installed'))}>
                     {b.available
-                      ? <Badge tone="success" size="xs">ready</Badge>
-                      : <Badge tone="warn" size="xs">unavailable</Badge>}
+                      ? <Badge tone="success" size="xs">{t('settings.ready_badge')}</Badge>
+                      : <Badge tone="warn" size="xs">{t('settings.unavailable')}</Badge>}
                   </div>
                   <div className="models-row__cell models-row__actions" style={{ width: 90 }}>
                     {!isActive && b.available && (
@@ -910,7 +918,7 @@ export function EnginesTab() {
                         onClick={() => onSelect(currentFam, b.id)}
                         loading={isSwitching}
                       >
-                        Use
+                        {t('settings.use')}
                       </Button>
                     )}
                   </div>
@@ -940,6 +948,7 @@ async function askConfirm(message, title = 'Confirm') {
 }
 
 export default function Settings() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('models');
   const [logSource, setLogSource] = useState('backend');
   const [logs, setLogs] = useState([]);
@@ -1000,15 +1009,15 @@ export default function Settings() {
     const text = lines.join('\n');
     try {
       await navigator.clipboard.writeText(text);
-      toast.success('Diagnostics copied — paste into your issue report.');
+      toast.success(t('settings.diagnostics_copied'));
     } catch (e) {
-      toast.error('Copy failed: ' + (e?.message || e));
+      toast.error(`${t('settings.copy_failed', 'Copy failed')}: ${e?.message || e}`);
     }
-  }, [appVersion, tauriVersion, info, status, hw]);
+  }, [appVersion, tauriVersion, info, status, hw, t]);
 
   const checkForUpdates = useCallback(async () => {
     if (!isTauri()) {
-      toast('Updater only runs in the desktop app.', { icon: 'ℹ️' });
+      toast(t('settings.updater_desktop_only'), { icon: 'ℹ️' });
       return;
     }
     setUpdateState('checking');
@@ -1021,24 +1030,24 @@ export default function Settings() {
       const update = await check();
       if (!update) {
         setUpdateState('uptodate');
-        toast.success("You're on the latest version.");
+        toast.success(t('settings.latest_version'));
         return;
       }
       const proceed = await ask(
-        `Version ${update.version} is available.\n\n${update.body || 'See release notes on GitHub.'}\n\nDownload and install now?`,
-        { title: 'Update available', kind: 'info' },
+        t('settings.update_available_dialog', { version: update.version, body: update.body || 'See release notes on GitHub.', defaultValue: `Version ${update.version} is available.\n\n${update.body || 'See release notes on GitHub.'}\n\nDownload and install now?` }),
+        { title: t('settings.update_available', 'Update available'), kind: 'info' },
       );
       if (!proceed) { setUpdateState('idle'); return; }
       setUpdateState('downloading');
-      const t = toast.loading(`Downloading ${update.version}…`);
+      const toastId = toast.loading(t('settings.downloading_update', { version: update.version }));
       await update.downloadAndInstall();
-      toast.success('Installed — relaunching.', { id: t });
+      toast.success(t('settings.update_installed'), { id: toastId });
       await relaunch();
     } catch (e) {
       setUpdateState('error');
-      toast.error('Update check failed: ' + (e?.message || e));
+      toast.error(`${t('settings.update_check_failed')}${e?.message || e}`);
     }
-  }, []);
+  }, [t]);
 
   // refreshInfo polling replaced by TanStack Query (useSystemInfo + useModelStatus)
   const refreshInfo = useCallback(() => {}, []);
@@ -1061,14 +1070,14 @@ export default function Settings() {
           return `[${ts}] [${e.level}] ${e.msg}\n`;
         });
         setLogs(lines);
-        setLogMeta({ path: 'in-memory (last 500)', exists: true });
+        setLogMeta({ path: t('settings.in_memory_last_500'), exists: true });
       }
     } catch (e) {
-      toast.error('Failed to load logs: ' + e.message);
+      toast.error(`${t('settings.failed_load_logs', 'Failed to load logs')}: ${e.message}`);
     } finally {
       setLoadingLogs(false);
     }
-  }, [logSource]);
+  }, [logSource, t]);
 
   useEffect(() => {
     if (activeTab === 'logs') refreshLogs();
@@ -1076,46 +1085,54 @@ export default function Settings() {
 
   const onClearLogs = async () => {
     if (logSource === 'frontend') {
-      if (!(await askConfirm('Clear the in-memory frontend log buffer?', 'Clear logs'))) return;
+      if (!(await askConfirm(t('settings.clear_logs_confirm'), t('settings.clear_logs_title')))) return;
       clearFrontendLogs();
-      toast.success('Frontend logs cleared');
+      toast.success(t('settings.logs_cleared'));
       setLogs([]);
       return;
     }
     if (logSource === 'tauri') {
-      if (!(await askConfirm('Truncate the Tauri-side log files? The OS will continue to write new entries.', 'Clear Tauri logs'))) return;
+      if (!(await askConfirm(t('settings.clear_tauri_logs_confirm'), t('settings.clear_tauri_logs_title')))) return;
       try {
         const r = await clearTauriLogs();
         if (!r?.cleared?.length) {
-          toast('Nothing to clear — no Tauri log file on disk yet.', { icon: 'ℹ️' });
+          toast(t('settings.no_tauri_logs'), { icon: 'ℹ️' });
         } else {
-          toast.success(`Cleared ${r.cleared.length} Tauri log file(s)`);
+          toast.success(t('settings.tauri_logs_cleared', { n: r.cleared.length }));
           setLogs([]);
         }
       } catch (e) {
-        toast.error('Failed to clear Tauri logs: ' + e.message);
+        toast.error(`${t('settings.failed_clear_tauri_logs', 'Failed to clear Tauri logs')}: ${e.message}`);
       }
       return;
     }
-    if (!(await askConfirm('Clear the backend runtime + crash logs? This cannot be undone.', 'Clear logs'))) return;
+    if (!(await askConfirm(t('settings.clear_backend_logs_confirm'), t('settings.clear_logs_title')))) return;
     try {
       await clearSystemLogs();
-      toast.success('Backend logs cleared');
+      toast.success(t('settings.backend_logs_cleared'));
       setLogs([]);
     } catch (e) {
-      toast.error('Failed to clear logs');
+      toast.error(t('settings.failed_clear_logs', 'Failed to clear logs'));
     }
   };
 
   const modelBadge =
-    status?.status === 'ready'   ? <Badge tone="success"><CheckCircle size={11} /> Ready</Badge>
-  : status?.status === 'loading' ? <Badge tone="warn"><RefreshCw size={11} className="spinner" /> Loading…</Badge>
-                                 : <Badge tone="warn">Idle</Badge>;
+    status?.status === 'ready'   ? <Badge tone="success"><CheckCircle size={11} /> {t('common.ready')}</Badge>
+  : status?.status === 'loading' ? <Badge tone="warn"><RefreshCw size={11} className="spinner" /> {t('common.loading')}</Badge>
+                                 : <Badge tone="warn">{t('common.idle')}</Badge>;
 
   return (
     <div className="settings-page">
       <Tabs
-        items={TABS}
+        items={[
+          { id: 'models',      label: t('settings.models'),      icon: Cpu,          accent: '#f3a5b6' },
+          { id: 'engines',     label: t('settings.engines'),     icon: Plug,         accent: '#d3869b' },
+          { id: 'capture',     label: t('settings.capture'),     icon: Keyboard,     accent: '#83a598' },
+          { id: 'credentials', label: t('settings.credentials'), icon: KeyRound,     accent: '#fe8019' },
+          { id: 'logs',        label: t('settings.logs'),        icon: FileText,     accent: '#fabd2f' },
+          { id: 'about',       label: t('settings.about'),       icon: Info,         accent: '#8ec07c' },
+          { id: 'privacy',     label: t('settings.privacy'),     icon: ShieldCheck,  accent: '#b8bb26' },
+        ]}
         value={activeTab}
         onChange={setActiveTab}
         className="settings-tabs-ui"
@@ -1133,7 +1150,7 @@ export default function Settings() {
         <section className="settings-section">
           <h2 className="settings-section__head-row">
             <span className="settings-section__head-left">
-              <FileText size={16} color="#fabd2f" /> Logs
+              <FileText size={16} color="#fabd2f" /> {t('settings.logs')}
             </span>
             <span className="settings-section__head-actions">
               <Button
@@ -1143,7 +1160,7 @@ export default function Settings() {
                 loading={loadingLogs}
                 leading={!loadingLogs && <RefreshCw size={11} />}
               >
-                Refresh
+                {t('common.refresh')}
               </Button>
               <Button
                 variant="danger"
@@ -1151,13 +1168,17 @@ export default function Settings() {
                 onClick={onClearLogs}
                 leading={<Trash2 size={11} />}
               >
-                Clear
+                {t('common.clear')}
               </Button>
             </span>
           </h2>
 
           <Segmented
-            items={LOG_SOURCES}
+            items={[
+              { value: 'backend',  label: t('settings.log_sources_backend') },
+              { value: 'frontend', label: t('settings.log_sources_frontend') },
+              { value: 'tauri',    label: t('settings.log_sources_tauri') },
+            ]}
             value={logSource}
             onChange={setLogSource}
           />
@@ -1166,7 +1187,7 @@ export default function Settings() {
             <span>{logMeta.path || '—'}</span>
             {logSource === 'tauri' && !logMeta.exists && (
               <Badge tone="warn">
-                <AlertCircle size={11} /> No Tauri log on disk yet — launch via the desktop build to produce one
+                <AlertCircle size={11} /> {t('settings.no_tauri_log_yet')}
               </Badge>
             )}
           </div>
@@ -1174,10 +1195,10 @@ export default function Settings() {
             {logs.length === 0
               ? <span className="settings-log__empty">
                   {logSource === 'frontend'
-                    ? 'No frontend console entries captured yet. Interact with the app — every console.* will appear here.'
+                    ? t('settings.no_frontend_logs_verbose', 'No frontend console entries captured yet. Interact with the app — every console.* will appear here.')
                     : logSource === 'tauri'
-                      ? 'No Tauri log available. Runs in the desktop shell only.'
-                      : "Runtime log is empty. Activity will appear here as the backend logs it."}
+                      ? t('settings.no_tauri_log_verbose', 'No Tauri log available. Runs in the desktop shell only.')
+                      : t('settings.runtime_log_empty', "Runtime log is empty. Activity will appear here as the backend logs it.")}
                 </span>
               : logs.join('')}
           </div>
@@ -1186,28 +1207,28 @@ export default function Settings() {
 
       {activeTab === 'about' && (
         <section className="settings-section">
-          <h2><Info size={16} color="#8ec07c" /> About</h2>
-          <Row label="App"             value="OmniVoice Studio" />
-          <Row label="Version"         value={appVersion || '—'} mono />
-          <Row label="Tauri runtime"   value={tauriVersion || (isTauri() ? '—' : 'web preview')} mono />
-          <Row label="Platform"        value={info?.platform || '—'} />
-          <Row label="Architecture"    value={typeof navigator !== 'undefined' ? (navigator.userAgentData?.platform || navigator.platform || '—') : '—'} mono />
-          <Row label="Python"          value={info?.python || '—'} mono />
-          <Row label="Compute device"  value={info?.device || '—'} mono />
-          <Row label="GPU active"      value={hw?.gpu_active
-            ? <Badge tone="success"><CheckCircle size={11} /> yes</Badge>
-            : <Badge tone="neutral">no</Badge>} />
-          <Row label="RAM"             value={hw ? `${hw.ram?.toFixed(2)} / ${hw.total_ram?.toFixed(2)} GB` : '—'} mono />
-          <Row label="VRAM"            value={hw ? `${hw.vram?.toFixed(2)} GB` : '—'} mono />
-          <Row label="Backend"         value={<Badge tone={status?.status === 'ready' ? 'success' : status?.status === 'loading' ? 'warn' : 'neutral'}>{status?.status || 'unknown'}</Badge>} />
-          <Row label="Active model"    value={status?.repo_id || info?.model_checkpoint || '—'} mono />
-          <Row label="ASR model"       value={info?.asr_model || '—'} mono />
-          <Row label="Translator"      value={info?.translate_provider || '—'} />
-          <Row label="HF token set"    value={info?.has_hf_token ? 'yes' : 'no'} />
-          <Row label="Data directory"  value={info?.data_dir || '—'} mono />
-          <Row label="Outputs"         value={info?.outputs_dir || '—'} mono />
-          <Row label="Crash log"       value={info?.crash_log_path || '—'} mono />
-          <Row label="Update endpoint" value="releases/latest/download/latest.json" mono />
+          <h2><Info size={16} color="#8ec07c" /> {t('settings.about')}</h2>
+          <Row label={t('settings.about_app')}             value="OmniVoice Studio" />
+          <Row label={t('settings.about_version')}         value={appVersion || '—'} mono />
+          <Row label={t('settings.about_tauri_runtime')}   value={tauriVersion || (isTauri() ? '—' : t('settings.about_web_preview'))} mono />
+          <Row label={t('settings.about_platform')}        value={info?.platform || '—'} />
+          <Row label={t('settings.about_architecture')}    value={typeof navigator !== 'undefined' ? (navigator.userAgentData?.platform || navigator.platform || '—') : '—'} mono />
+          <Row label={t('settings.about_python')}          value={info?.python || '—'} mono />
+          <Row label={t('settings.about_compute_device')}  value={info?.device || '—'} mono />
+          <Row label={t('settings.about_gpu_active')}      value={hw?.gpu_active
+            ? <Badge tone="success"><CheckCircle size={11} /> {t('settings.about_yes')}</Badge>
+            : <Badge tone="neutral">{t('settings.about_no')}</Badge>} />
+          <Row label={t('settings.about_ram')}             value={hw ? `${hw.ram?.toFixed(2)} / ${hw.total_ram?.toFixed(2)} GB` : '—'} mono />
+          <Row label={t('settings.about_vram')}            value={hw ? `${hw.vram?.toFixed(2)} GB` : '—'} mono />
+          <Row label={t('settings.about_backend')}         value={<Badge tone={status?.status === 'ready' ? 'success' : status?.status === 'loading' ? 'warn' : 'neutral'}>{status?.status || t('settings.about_unknown')}</Badge>} />
+          <Row label={t('settings.about_active_model')}    value={status?.repo_id || info?.model_checkpoint || '—'} mono />
+          <Row label={t('settings.about_asr_model')}       value={info?.asr_model || '—'} mono />
+          <Row label={t('settings.about_translator')}      value={info?.translate_provider || '—'} />
+          <Row label={t('settings.about_hf_token_set')}    value={info?.has_hf_token ? t('settings.about_yes') : t('settings.about_no')} />
+          <Row label={t('settings.about_data_directory')}  value={info?.data_dir || '—'} mono />
+          <Row label={t('settings.about_outputs')}         value={info?.outputs_dir || '—'} mono />
+          <Row label={t('settings.about_crash_log')}       value={info?.crash_log_path || '—'} mono />
+          <Row label={t('settings.about_update_endpoint')} value="releases/latest/download/latest.json" mono />
           <div className="settings-link-row">
             <Button
               variant="primary"
@@ -1217,7 +1238,7 @@ export default function Settings() {
               loading={updateState === 'checking' || updateState === 'downloading'}
               disabled={!isTauri()}
             >
-              {updateState === 'downloading' ? 'Downloading…' : 'Check for updates'}
+              {updateState === 'downloading' ? t('settings.downloading', 'Downloading…') : t('settings.check_updates')}
             </Button>
             <Button
               variant="subtle"
@@ -1225,7 +1246,7 @@ export default function Settings() {
               leading={<Copy size={12} />}
               onClick={copyDiagnostics}
             >
-              Copy diagnostics
+              {t('settings.copy_diagnostics')}
             </Button>
             <Button
               variant="subtle"
@@ -1233,7 +1254,7 @@ export default function Settings() {
               leading={<ExternalLink size={12} />}
               onClick={() => openExternal('https://github.com/k2-fsa/OmniVoice')}
             >
-              OmniVoice on GitHub
+              {t('settings.github_link')}
             </Button>
             <Button
               variant="subtle"
@@ -1241,7 +1262,7 @@ export default function Settings() {
               leading={<ExternalLink size={12} />}
               onClick={() => openExternal('https://huggingface.co/k2-fsa/OmniVoice')}
             >
-              Model card
+              {t('settings.model_card')}
             </Button>
             <Button
               variant="subtle"
@@ -1249,7 +1270,7 @@ export default function Settings() {
               leading={<Building2 size={12} />}
               onClick={() => { useAppStore.getState().setMode?.('enterprise'); }}
             >
-              Commercial License
+              {t('settings.commercial_license')}
             </Button>
           </div>
         </section>
@@ -1257,26 +1278,24 @@ export default function Settings() {
 
       {activeTab === 'privacy' && (
         <section className="settings-section">
-          <h2><ShieldCheck size={16} color="#b8bb26" /> Privacy</h2>
+          <h2><ShieldCheck size={16} color="#b8bb26" /> {t('settings.privacy')}</h2>
           <p className="settings-prose">
-            Everything runs on <strong>this machine</strong>. Your audio, video, and transcripts
-            never leave your computer unless you explicitly use an online translator (Google, DeepL, etc.) or
-            push to HuggingFace.
+            {t('settings.privacy_local')}
           </p>
-          <Row label="Uploads stored at"   value={info?.data_dir ? `${info.data_dir}/` : '—'} mono />
-          <Row label="Outputs stored at"   value={info?.outputs_dir || '—'} mono />
-          <Row label="Generation history"  value={<Badge tone="neutral">Local SQLite</Badge>} />
+          <Row label={t('settings.uploads_stored_at')}   value={info?.data_dir ? `${info.data_dir}/` : '—'} mono />
+          <Row label={t('settings.outputs_stored_at')}   value={info?.outputs_dir || '—'} mono />
+          <Row label={t('settings.generation_history', 'Generation history')}  value={<Badge tone="neutral">{t('settings.local_sqlite')}</Badge>} />
           <Row
-            label="Network calls"
+            label={t('settings.network_calls')}
             value={
               info?.translate_provider && ['google', 'deepl', 'mymemory', 'microsoft', 'openai'].includes(info.translate_provider)
-                ? <Badge tone="warn"><AlertCircle size={11} /> Translator is online: {info.translate_provider}</Badge>
-                : <Badge tone="success"><CheckCircle size={11} /> Offline translator</Badge>
+                ? <Badge tone="warn"><AlertCircle size={11} /> {t('settings.translator_online')}{info.translate_provider}</Badge>
+                : <Badge tone="success"><CheckCircle size={11} /> {t('settings.offline_translator')}</Badge>
             }
           />
           <Row
-            label="Model telemetry"
-            value={<Badge tone="success"><CheckCircle size={11} /> None — no tracking</Badge>}
+            label={t('settings.model_telemetry')}
+            value={<Badge tone="success"><CheckCircle size={11} /> {t('settings.no_tracking')}</Badge>}
           />
         </section>
       )}
@@ -1330,6 +1349,7 @@ function keyEventToAccelerator(e) {
 }
 
 function HotkeyTab() {
+  const { t } = useTranslation();
   const [current, setCurrent] = useState('');
   const [recording, setRecording] = useState(false);
   const [pending, setPending] = useState('');
@@ -1345,7 +1365,7 @@ function HotkeyTab() {
         const v = await invoke('get_dictation_shortcut');
         setCurrent(v || '');
       } catch (e) {
-        toast.error(`Could not load shortcut: ${e?.message || e}`);
+        toast.error(`${t('settings.could_not_load_shortcut', 'Could not load shortcut')}: ${e?.message || e}`);
       }
     })();
   }, [tauri]);
@@ -1380,11 +1400,11 @@ function HotkeyTab() {
       const saved = await invoke('set_dictation_shortcut', { accelerator: pending });
       setCurrent(saved);
       setPending('');
-      toast.success(`Dictation shortcut set to ${saved}`);
+      toast.success(t('settings.dictation_shortcut_set', { saved }));
     } catch (e) {
       // Common cause: the OS or another app already owns the combo. Surface
       // the raw error so the user can pick something else.
-      toast.error(`Couldn't register: ${e?.message || e}`);
+      toast.error(`${t('settings.couldnt_register', "Couldn't register")}: ${e?.message || e}`);
     } finally {
       setSaving(false);
     }
@@ -1399,9 +1419,9 @@ function HotkeyTab() {
       });
       setCurrent(saved);
       setPending('');
-      toast.success('Reset to default');
+      toast.success(t('settings.reset_to_default'));
     } catch (e) {
-      toast.error(`Reset failed: ${e?.message || e}`);
+      toast.error(`${t('settings.reset_failed', 'Reset failed')}: ${e?.message || e}`);
     } finally {
       setSaving(false);
     }
@@ -1409,25 +1429,23 @@ function HotkeyTab() {
 
   return (
     <section className="settings-section">
-      <h2><Keyboard size={16} color="#83a598" /> Capture & Dictation</h2>
+      <h2><Keyboard size={16} color="#83a598" /> {t('settings.capture_dictation')}</h2>
 
       {!tauri && (
         <p className="settings-prose">
-          Global hotkeys only work in the desktop app. The web UI uses an
-          in-page <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd> shortcut
-          while the window has focus.
+          {t('settings.global_hotkeys_info')}
         </p>
       )}
 
       <div className="settings-row">
-        <span className="label">Active shortcut</span>
+        <span className="label">{t('settings.active_shortcut')}</span>
         <span className="value settings-row__mono">{current || '—'}</span>
       </div>
 
       <div className="settings-row">
-        <span className="label">{recording ? 'Press a key combo…' : 'New shortcut'}</span>
+        <span className="label">{recording ? t('settings.press_key_combo') : t('settings.new_shortcut')}</span>
         <span className="value settings-row__mono">
-          {recording ? '⌨︎ listening (Esc to cancel)' : (pending || '—')}
+          {recording ? t('settings.listening_esc') : (pending || '—')}
         </span>
       </div>
 
@@ -1439,7 +1457,7 @@ function HotkeyTab() {
           disabled={!tauri || saving}
           leading={<Keyboard size={12} />}
         >
-          {recording ? 'Recording…' : 'Record shortcut'}
+          {recording ? t('settings.recording') : t('settings.record_shortcut')}
         </Button>
         <Button
           size="sm"
@@ -1447,7 +1465,7 @@ function HotkeyTab() {
           disabled={!tauri || !pending || pending === current}
           loading={saving}
         >
-          Save
+          {t('common.save')}
         </Button>
         <Button
           size="sm"
@@ -1455,21 +1473,19 @@ function HotkeyTab() {
           onClick={resetDefault}
           disabled={!tauri || saving}
         >
-          Reset to default
+          {t('settings.reset_to_default')}
         </Button>
       </div>
 
       <p className="settings-prose" style={{ marginTop: 12 }}>
-        The hotkey works system-wide while OmniVoice is running — it focuses
-        the window and starts dictation. Avoid combos already claimed by the
-        OS (on macOS, <code>⌘+Space</code> is Spotlight and <code>⌘+⇧+Space</code>
-        cycles input sources). If registration fails, pick a different combo.
+        {t('settings.hotkey_system_info', 'The hotkey works system-wide while OmniVoice is running — it focuses the window and starts dictation. Avoid combos already claimed by the OS (on macOS, ⌘+Space is Spotlight and ⌘+⇧+Space cycles input sources). If registration fails, pick a different combo.')}
       </p>
     </section>
   );
 }
 
 function CredentialsTab({ info }) {
+  const { t } = useTranslation();
   const [values, setValues] = useState({});
   const [saving, setSaving] = useState(null);
   const [saved, setSaved] = useState({});
@@ -1486,15 +1502,15 @@ function CredentialsTab({ info }) {
         body: JSON.stringify({ key, value }),
       });
       if (res.ok) {
-        toast.success(`${key} saved for this session`);
+        toast.success(t('settings.credential_saved', { key, defaultValue: `${key} saved for this session` }));
         setSaved(prev => ({ ...prev, [key]: true }));
         setValues(prev => ({ ...prev, [key]: '' }));
       } else {
         const d = await res.json().catch(() => ({}));
-        toast.error(d.detail || 'Failed to save');
+        toast.error(d.detail || t('settings.save_failed', 'Failed to save'));
       }
     } catch (e) {
-      toast.error(`Save failed: ${e.message}`);
+      toast.error(`${t('settings.save_failed', 'Save failed')}: ${e.message}`);
     } finally {
       setSaving(null);
     }
@@ -1502,19 +1518,30 @@ function CredentialsTab({ info }) {
 
   return (
     <section className="settings-section">
-      <h2><KeyRound size={16} color="#fe8019" /> Credentials</h2>
+      <h2><KeyRound size={16} color="#fe8019" /> {t('settings.credentials')}</h2>
       <p className="settings-prose">
-        API keys and tokens are set <strong>for this session only</strong>. For
-        persistence across restarts, set them as environment variables in your
-        shell profile.
+        {t('settings.session_only_hint')}
       </p>
-      {CREDENTIAL_FIELDS.map(field => (
+      {CREDENTIAL_FIELDS.map(field => {
+        const credLabels = {
+          HF_TOKEN: t('settings.hf_token'),
+          TRANSLATE_API_KEY: t('settings.translation_api_key'),
+        };
+        const credPlaceholders = {
+          HF_TOKEN: t('settings.hf_token_placeholder'),
+          TRANSLATE_API_KEY: t('settings.translation_api_key_placeholder'),
+        };
+        const credHelp = {
+          HF_TOKEN: t('settings.hf_token_help'),
+          TRANSLATE_API_KEY: t('settings.translation_api_key_help'),
+        };
+        return (
         <div key={field.key} className="settings-credential">
           <div className="settings-credential__header">
-            <label className="settings-credential__label">{field.label}</label>
+            <label className="settings-credential__label">{credLabels[field.key] || field.label}</label>
             {field.key === 'HF_TOKEN' && (
               <Badge tone={info?.has_hf_token || saved.HF_TOKEN ? 'success' : 'warn'} size="xs">
-                {info?.has_hf_token || saved.HF_TOKEN ? '✓ Set' : '✗ Not set'}
+                {info?.has_hf_token || saved.HF_TOKEN ? `✓ ${t('settings.set')}` : `✗ ${t('settings.not_set')}`}
               </Badge>
             )}
           </div>
@@ -1522,7 +1549,7 @@ function CredentialsTab({ info }) {
             <input
               type="password"
               className="settings-credential__input"
-              placeholder={field.placeholder}
+              placeholder={credPlaceholders[field.key] || field.placeholder}
               value={values[field.key] || ''}
               onChange={e => setValues(prev => ({ ...prev, [field.key]: e.target.value }))}
               onKeyDown={e => e.key === 'Enter' && save(field.key)}
@@ -1534,17 +1561,18 @@ function CredentialsTab({ info }) {
               onClick={() => save(field.key)}
               disabled={!(values[field.key] || '').trim()}
             >
-              Save
+              {t('common.save')}
             </Button>
           </div>
           <p className="settings-credential__help">
-            {field.help}
+            {credHelp[field.key] || field.help}
             {field.link && (
-              <> <a href="#" onClick={e => { e.preventDefault(); openExternal(field.link); }}>Get token →</a></>
+              <> <a href="#" onClick={e => { e.preventDefault(); openExternal(field.link); }}>{t('settings.hf_token_get')}</a></>
             )}
           </p>
         </div>
-      ))}
+        );
+      })}
     </section>
   );
 }

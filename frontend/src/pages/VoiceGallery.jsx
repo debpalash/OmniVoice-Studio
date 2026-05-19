@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Search, Download, Play, Pause, Trash2, User, Film,
   Clock, Grid, List, X, Save, Loader, Music, Sparkles,
@@ -27,6 +28,7 @@ const CATEGORY_ICONS = {
 };
 
 export default function VoiceGallery() {
+  const { t } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -80,7 +82,7 @@ export default function VoiceGallery() {
       setSearchResults([]);
     } catch (e) {
       console.error('Download failed:', e);
-      alert('Download failed: ' + e.message);
+      alert(t('voice.download_failed', { msg: e.message }));
     } finally {
       setIsDownloading(false);
     }
@@ -157,18 +159,18 @@ export default function VoiceGallery() {
   };
 
   const handleSaveAsProfile = async (voice) => {
-    const name = prompt(`Enter a name for this voice profile:`, voice.name);
+    const name = prompt(t('voice.save_voice_modal_title'), voice.name);
     if (!name) return;
     try {
       await saveVoiceAsProfile(voice.id, name);
-      alert('Voice saved as profile!');
+      alert(t('voice.voice_saved_as_profile'));
     } catch (e) {
-      alert('Failed to save profile');
+      alert(t('voice.voice_save_failed'));
     }
   };
 
   const handleDeleteVoice = async (voice) => {
-    if (!(await askConfirm(`Delete "${voice.name}"?`))) return;
+    if (!(await askConfirm(t('voice.delete_gallery_voice_confirm', { name: voice.name })))) return;
     try {
       await deleteGalleryVoice(voice.id);
       loadVoices();
@@ -186,7 +188,7 @@ export default function VoiceGallery() {
       const file = new File([blob], `${voice.name}.wav`, { type: 'audio/wav' });
       setTrimmingVoice({ voice, file });
     } catch (e) {
-      alert("Failed to load audio for trimming: " + e.message);
+      alert(t('voice.trim_failed_load') + e.message);
     }
   };
 
@@ -206,7 +208,7 @@ export default function VoiceGallery() {
       loadVoices();
       setTrimmingVoice(null);
     } catch (e) {
-      alert("Failed to upload cropped voice: " + e.message);
+      alert(t('voice.trim_upload_failed') + e.message);
     }
   };
 
@@ -219,9 +221,9 @@ export default function VoiceGallery() {
       <div className="gallery-header">
         <div className="header-top">
           <div className="header-text">
-            <h2>Voice Gallery</h2>
+            <h2>{t('voice.voice_gallery')}</h2>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => voicesQuery.refetch()} title="Reload">
+          <Button variant="ghost" size="sm" onClick={() => voicesQuery.refetch()} title={t('common.refresh')}>
             <RotateCcw size={14} />
           </Button>
         </div>
@@ -230,7 +232,7 @@ export default function VoiceGallery() {
       <div className="gallery-search">
         <div className="search-row">
           <Input
-            placeholder="Search YouTube..."
+            placeholder={t('voice.search_youtube_placeholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={onSearchKey}
@@ -261,7 +263,7 @@ export default function VoiceGallery() {
       {searchResults.length > 0 && (
         <div className="search-results-panel">
           <div className="panel-header">
-            <span>YouTube Results ({searchResults.length})</span>
+            <span>{t('voice.youtube_results', { n: searchResults.length })}</span>
             <button className="close-btn" onClick={() => setSearchResults([])}><X size={14} /></button>
           </div>
           <div className="results-list">
@@ -272,7 +274,7 @@ export default function VoiceGallery() {
                   <span className="result-meta">{result.duration || '?'}s</span>
                 </div>
                 <Button size="sm" onClick={() => handleDownload(result)} disabled={isDownloading}>
-                  <Download size={12} /> Get
+                  <Download size={12} /> {t('voice.download_clip')}
                 </Button>
               </div>
             ))}
@@ -285,21 +287,21 @@ export default function VoiceGallery() {
           <div className="content-title">
             {selectedCategory 
               ? categories.find(c => c.id === selectedCategory)?.name 
-              : 'All Voices'}
+              : t('voice.all_voices')}
             <span className="count">({voices.length})</span>
           </div>
           <div className="view-toggle">
             <button 
               className={viewMode === 'list' ? 'active' : ''} 
               onClick={() => setViewMode('list')}
-              title="List"
+              title={t('voice.list_view')}
             >
               <List size={14} />
             </button>
-            <button 
-              className={viewMode === 'grid' ? 'active' : ''} 
+            <button
+              className={viewMode === 'grid' ? 'active' : ''}
               onClick={() => setViewMode('grid')}
-              title="Grid"
+              title={t('voice.grid_view')}
             >
               <Grid size={14} />
             </button>
@@ -311,8 +313,8 @@ export default function VoiceGallery() {
         ) : voices.length === 0 ? (
           <div className="empty">
             <FileAudio size={24} />
-            <p>No voices yet</p>
-            <p>Search above to download clips</p>
+            <p>{t('voice.no_voices_yet')}</p>
+            <p>{t('voice.no_voices_hint')}</p>
           </div>
         ) : (
           <div className={`voice-list ${viewMode}`}>
@@ -321,7 +323,7 @@ export default function VoiceGallery() {
                 <button 
                   className="voice-play" 
                   onClick={() => playVoice(voice)}
-                  title={playingVoiceId === voice.id ? 'Pause' : 'Play'}
+                  title={playingVoiceId === voice.id ? t('components.pause') : t('components.play')}
                 >
                   {playingVoiceId === voice.id ? <Pause size={14} /> : <Play size={14} />}
                 </button>
@@ -335,21 +337,21 @@ export default function VoiceGallery() {
                   <button 
                     className="action-btn" 
                     onClick={() => handleSaveAsProfile(voice)}
-                    title="Clone profile"
+                    title={t('voice.clone_profile')}
                   >
                     <UserPlus size={12} />
                   </button>
                   <button 
                     className="action-btn" 
                     onClick={() => handleCropClick(voice)}
-                    title="Crop audio"
+                    title={t('voice.crop_audio')}
                   >
                     <Scissors size={12} />
                   </button>
                   <button 
                     className="action-btn danger" 
                     onClick={() => handleDeleteVoice(voice)}
-                    title="Delete"
+                    title={t('common.delete')}
                   >
                     <Trash2 size={12} />
                   </button>

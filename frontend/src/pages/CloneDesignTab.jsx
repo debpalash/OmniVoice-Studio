@@ -84,7 +84,7 @@ export default function CloneDesignTab(props) {
             >
               {isSidebarCollapsed ? <PanelLeftOpen size={12} /> : <PanelLeftClose size={12} />}
             </Button>
-            <Command className="label-icon" size={14} /> Prompt
+            <Command className="label-icon" size={14} /> {t('voice.prompt')}
           </div>
           {mode === 'design' && (
             <div className="preset-grid">
@@ -96,7 +96,7 @@ export default function CloneDesignTab(props) {
           <textarea
             ref={textAreaRef}
             className="input-base clone-text-area"
-            placeholder={mode === 'clone' ? "What should this voice say? ✍️" : "Describe the voice, then type what it says…"}
+            placeholder={mode === 'clone' ? t('voice.clone_prompt_placeholder') : t('voice.design_prompt_placeholder')}
             value={text}
             onChange={e => setText(e.target.value)}
           />
@@ -114,7 +114,7 @@ export default function CloneDesignTab(props) {
         <div className="studio-panel clone-panel--overflow-visible">
           <div className="grid-2">
             <div>
-              <div className="label-row"><Globe className="label-icon" size={14} /> Language ({ALL_LANGUAGES.length - 1})</div>
+              <div className="label-row"><Globe className="label-icon" size={14} /> {t('voice.language')} ({ALL_LANGUAGES.length - 1})</div>
               <SearchableSelect
                 value={language}
                 options={ALL_LANGUAGES}
@@ -126,7 +126,7 @@ export default function CloneDesignTab(props) {
             <div>
               <div className="label-row label-row--spread">
                 <span className="label-row label-row--flush">
-                  <SlidersHorizontal className="label-icon" size={14} /> Steps
+                  <SlidersHorizontal className="label-icon" size={14} /> {t('voice.steps')}
                 </span>
                 <span className="val-bubble">{steps}</span>
               </div>
@@ -141,12 +141,12 @@ export default function CloneDesignTab(props) {
         <div className="studio-panel">
         {mode === 'clone' ? (
           <div>
-            <div className="label-row"><Volume2 className="label-icon" size={14} /> Voice Source</div>
+            <div className="label-row"><Volume2 className="label-icon" size={14} /> {t('voice.voice_source')}</div>
 
             {/* ── VOICE PROFILES ── */}
             {profiles.length > 0 && (
               <div className="clone-profile-block">
-                <div className="label-row label-row--sm"><User size={12} /> Saved Profiles</div>
+                <div className="label-row label-row--sm"><User size={12} /> {t('voice.saved_profiles')}</div>
                 <div className="preset-grid">
                   {profiles.map(p => (
                     <div
@@ -159,7 +159,7 @@ export default function CloneDesignTab(props) {
                         type="button"
                         onClick={(e) => { e.stopPropagation(); handleDeleteProfile(p.id); }}
                         className="clone-profile-delete"
-                        aria-label="Delete profile"
+                        aria-label={t('common.delete')}
                       >
                         <Trash2 size={10} />
                       </button>
@@ -192,7 +192,7 @@ export default function CloneDesignTab(props) {
                   }}
                 >
                   <UploadCloud color="#a89984" size={18} />
-                  <p>{refAudio ? <span className="clone-drop-filename">{refAudio.name}</span> : 'Drop audio here — or click. WAV, MP3, M4A… 🎤'}</p>
+                  <p>{refAudio ? <span className="clone-drop-filename">{refAudio.name}</span> : t('voice.drop_audio_hint')}</p>
                 </label>
 
                 <MicButton
@@ -208,7 +208,7 @@ export default function CloneDesignTab(props) {
             {selectedProfile && (
               <div className="clone-profile-banner">
                 <span className="clone-profile-banner__label">
-                  Using profile: {profiles.find(p => p.id === selectedProfile)?.name}
+                  {t('voice.using_profile')}{profiles.find(p => p.id === selectedProfile)?.name}
                 </span>
                 <Button
                   variant="ghost"
@@ -216,19 +216,19 @@ export default function CloneDesignTab(props) {
                   onClick={() => setSelectedProfile(null)}
                   leading={<X size={11} />}
                 >
-                  clear
+                  {t('common.clear')}
                 </Button>
               </div>
             )}
 
             <div className="grid-2 grid-2--indent">
               <div>
-                <div className="label-row">Transcript</div>
-                <input type="text" className="input-base" value={refText} onChange={e => setRefText(e.target.value)} placeholder="(Optional)" />
+                <div className="label-row">{t('voice.transcript_label')}</div>
+                <input type="text" className="input-base" value={refText} onChange={e => setRefText(e.target.value)} placeholder={t('voice.reference_text_placeholder')} />
               </div>
               <div>
-                <div className="label-row">Style</div>
-                <input type="text" className="input-base" value={instruct} onChange={e => setInstruct(e.target.value)} placeholder="e.g. whisper" />
+                <div className="label-row">{t('voice.style_label')}</div>
+                <input type="text" className="input-base" value={instruct} onChange={e => setInstruct(e.target.value)} placeholder={t('voice.style_placeholder')} />
               </div>
             </div>
 
@@ -242,18 +242,18 @@ export default function CloneDesignTab(props) {
                     onClick={() => setShowSaveProfile(true)}
                     leading={<Save size={12} />}
                   >
-                    Save as Voice Profile
+                    {t('voice.save_as_voice_profile')}
                   </Button>
                 ) : (
                   <div className="clone-save-profile__row">
                     <Input
                       size="sm"
-                      placeholder="Profile name…"
+                      placeholder={t('voice.profile_name_placeholder')}
                       value={profileName}
                       onChange={e => setProfileName(e.target.value)}
                     />
-                    <Button variant="subtle" size="sm" onClick={handleSaveProfile}>Save</Button>
-                    <Button variant="ghost"  size="sm" onClick={() => setShowSaveProfile(false)}>Cancel</Button>
+                    <Button variant="subtle" size="sm" onClick={handleSaveProfile}>{t('common.save')}</Button>
+                    <Button variant="ghost"  size="sm" onClick={() => setShowSaveProfile(false)}>{t('common.cancel')}</Button>
                   </div>
                 )}
               </div>
@@ -326,46 +326,46 @@ export default function CloneDesignTab(props) {
 
         <div className="studio-panel clone-panel--overflow-visible">
         <div className="override-toggle" onClick={() => setShowOverrides(!showOverrides)}>
-          <span><Settings2 size={14} className="clone-icon-inline" /> Production Overrides</span>
+          <span><Settings2 size={14} className="clone-icon-inline" /> {t('voice.production_overrides')}</span>
           {showOverrides ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </div>
         {showOverrides && (
           <div className="override-content">
             <div className="grid-4">
               <div>
-                <div className="label-row label-row--spread"><span>CFG</span><span className="val-bubble">{cfg}</span></div>
+                <div className="label-row label-row--spread"><span>{t('voice.cfg')}</span><span className="val-bubble">{cfg}</span></div>
                 <input type="range" min="1.0" max="4.0" step="0.1" value={cfg} onChange={e => setCfg(Number(e.target.value))} />
               </div>
               <div>
-                <div className="label-row label-row--spread"><span>Speed</span><span className="val-bubble">{speed}x</span></div>
+                <div className="label-row label-row--spread"><span>{t('voice.speed')}</span><span className="val-bubble">{speed}x</span></div>
                 <input type="range" min="0.5" max="2.0" step="0.1" value={speed} onChange={e => setSpeed(Number(e.target.value))} />
               </div>
               <div>
-                <div className="label-row label-row--spread"><span>t_shift</span><span className="val-bubble">{tShift}</span></div>
+                <div className="label-row label-row--spread"><span>{t('voice.t_shift')}</span><span className="val-bubble">{tShift}</span></div>
                 <input type="range" min="0" max="1.0" step="0.05" value={tShift} onChange={e => setTShift(Number(e.target.value))} />
               </div>
               <div>
-                <div className="label-row label-row--spread"><span>Pos Temp</span><span className="val-bubble">{posTemp}</span></div>
+                <div className="label-row label-row--spread"><span>{t('voice.pos_temp')}</span><span className="val-bubble">{posTemp}</span></div>
                 <input type="range" min="0" max="10" step="0.5" value={posTemp} onChange={e => setPosTemp(Number(e.target.value))} />
               </div>
               <div>
-                <div className="label-row label-row--spread"><span>Class Temp</span><span className="val-bubble">{classTemp}</span></div>
+                <div className="label-row label-row--spread"><span>{t('voice.class_temp')}</span><span className="val-bubble">{classTemp}</span></div>
                 <input type="range" min="0" max="2" step="0.1" value={classTemp} onChange={e => setClassTemp(Number(e.target.value))} />
               </div>
               <div>
-                <div className="label-row label-row--spread"><span>Layer Pen</span><span className="val-bubble">{layerPenalty}</span></div>
+                <div className="label-row label-row--spread"><span>{t('voice.layer_pen')}</span><span className="val-bubble">{layerPenalty}</span></div>
                 <input type="range" min="0" max="10" step="0.5" value={layerPenalty} onChange={e => setLayerPenalty(Number(e.target.value))} />
               </div>
               <div>
-                <div className="label-row"><span>Duration</span></div>
-                <input type="text" className="input-base clone-duration-input" value={duration} onChange={e => setDuration(e.target.value)} placeholder="Auto" />
+                <div className="label-row"><span>{t('voice.duration')}</span></div>
+                <input type="text" className="input-base clone-duration-input" value={duration} onChange={e => setDuration(e.target.value)} placeholder={t('voice.duration_placeholder')} />
               </div>
               <div className="clone-prod-col">
                 <label className="clone-prod-check">
-                  <input type="checkbox" checked={denoise} onChange={e => setDenoise(e.target.checked)} /> Denoise
+                  <input type="checkbox" checked={denoise} onChange={e => setDenoise(e.target.checked)} /> {t('voice.denoise')}
                 </label>
                 <label className="clone-prod-check">
-                  <input type="checkbox" checked={postprocess} onChange={e => setPostprocess(e.target.checked)} /> Postprocess
+                  <input type="checkbox" checked={postprocess} onChange={e => setPostprocess(e.target.checked)} /> {t('voice.postprocess')}
                 </label>
               </div>
             </div>
@@ -380,7 +380,7 @@ export default function CloneDesignTab(props) {
           leading={!isGenerating && <Play size={14} />}
           className="clone-footer-cta"
         >
-          {isGenerating ? `Synthesizing… (${generationTime}s)` : 'Synthesize Audio'}
+          {isGenerating ? t('voice.synthesizing', { time: generationTime }) : t('voice.synthesize_audio')}
         </Button>
         {isGenerating && (
           <Progress
@@ -397,11 +397,12 @@ export default function CloneDesignTab(props) {
 }
 
 function MicButton({ isCleaning, isRecording, recordingTime, onStart, onStop }) {
+  const { t } = useTranslation();
   if (isCleaning) {
     return (
       <div className="mic-btn mic-btn--cleaning">
         <Sparkles size={18} className="spinner" />
-        <span>Cleaning…</span>
+        <span>{t('voice.cleaning')}</span>
       </div>
     );
   }
@@ -414,9 +415,9 @@ function MicButton({ isCleaning, isRecording, recordingTime, onStart, onStop }) 
     );
   }
   return (
-    <button type="button" onClick={onStart} className="mic-btn mic-btn--idle" title="Record your voice for cloning">
+    <button type="button" onClick={onStart} className="mic-btn mic-btn--idle" title={t('voice.record_title')}>
       <Mic size={18} />
-      <span>Record</span>
+      <span>{t('voice.record')}</span>
     </button>
   );
 }

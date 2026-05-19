@@ -10,6 +10,7 @@ import { apiPost } from '../api/client';
 import { API } from '../api/client';
 import { playPing, isTauri } from '../utils/media';
 import { toast } from 'react-hot-toast';
+import i18n from '../i18n';
 
 /**
  * Encapsulates the entire dub pipeline workflow:
@@ -169,19 +170,19 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
       const data = await dubUpload(dubVideoFile, clientJobId, { signal: ctrl.signal });
       setDubJobId(data.job_id); if (data.filename) setDubFilename(data.filename);
       setDubTaskId(data.task_id); setDubPrepStage('extract');
-      useAppStore.getState().showPill('loading-model', 'Extracting audio & scenes…', { cancellable: true });
+      useAppStore.getState().showPill('loading-model', i18n.t('dub.extracting_audio_scenes'), { cancellable: true });
       await _waitForPrep(data.task_id, ctrl);
       setDubStep('transcribing'); setDubPrepStage(null);
       setTranscribeStart(Date.now()); setDubSegments([]);
-      useAppStore.getState().showPill('transcribing', 'Transcribing audio…', { cancellable: true });
+      useAppStore.getState().showPill('transcribing', i18n.t('dub.transcribing_audio'), { cancellable: true });
       await _waitForTranscribe(data.job_id, ctrl);
       setTranscribeStart(null); setDubStep('editing');
-      useAppStore.getState().completePill('Transcription complete');
+      useAppStore.getState().completePill(i18n.t('dub.transcription_complete'));
       loadProjects(); loadProfiles();
     } catch (err) {
       setDubPrepStage(null);
-      if (err.name === 'AbortError') { toast('Upload cancelled'); setDubStep('idle'); useAppStore.getState().dismissPill(); }
-      else { setDubError(err.message); setDubStep('idle'); toast.error('Upload failed: ' + err.message); useAppStore.getState().errorPill(err.message); }
+      if (err.name === 'AbortError') { toast(i18n.t('dub.upload_cancelled')); setDubStep('idle'); useAppStore.getState().dismissPill(); }
+      else { setDubError(err.message); setDubStep('idle'); toast.error(i18n.t('dub.upload_failed', { msg: err.message })); useAppStore.getState().errorPill(err.message); }
       setTranscribeStart(null);
     } finally { dubAbortCtrlRef.current = null; }
   }, [setDubStep, setDubError, setDubTracks, setDubPrepStage, setDubJobId, setDubFilename, setDubTaskId, setDubSegments, _waitForPrep, _waitForTranscribe, loadProjects, loadProfiles]);
@@ -195,24 +196,24 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
     const clientJobId = Math.random().toString(36).slice(2, 10);
     dubClientJobIdRef.current = clientJobId;
     setDubJobId(clientJobId);
-    useAppStore.getState().showPill('loading-model', 'Downloading video…', { cancellable: true });
+    useAppStore.getState().showPill('loading-model', i18n.t('dub.downloading_video'), { cancellable: true });
     try {
       const data = await dubIngestUrl(clean, clientJobId, { signal: ctrl.signal, fetchSubs: !!opts.fetchSubs, subLangs: opts.subLangs });
       setDubJobId(data.job_id); setDubTaskId(data.task_id);
-      useAppStore.getState().showPill('loading-model', 'Extracting audio & scenes…', { cancellable: true });
+      useAppStore.getState().showPill('loading-model', i18n.t('dub.extracting_audio_scenes'), { cancellable: true });
       await _waitForPrep(data.task_id, ctrl);
       setDubStep('transcribing'); setDubPrepStage(null);
       setTranscribeStart(Date.now()); setDubSegments([]);
-      useAppStore.getState().showPill('transcribing', 'Transcribing audio…', { cancellable: true });
+      useAppStore.getState().showPill('transcribing', i18n.t('dub.transcribing_audio'), { cancellable: true });
       await _waitForTranscribe(data.job_id, ctrl);
       setTranscribeStart(null); setDubStep('editing');
-      useAppStore.getState().completePill('Transcription complete');
+      useAppStore.getState().completePill(i18n.t('dub.transcription_complete'));
       loadProjects(); loadProfiles();
-      toast.success('Ingested ' + clean.slice(0, 60));
+      toast.success(i18n.t('dub.ingested', { name: clean.slice(0, 60) }));
     } catch (err) {
       setDubPrepStage(null);
-      if (err.name === 'AbortError') { toast('Ingest cancelled'); setDubStep('idle'); useAppStore.getState().dismissPill(); }
-      else { setDubError(err.message); setDubStep('idle'); toast.error('URL ingest failed: ' + err.message); useAppStore.getState().errorPill(err.message); }
+      if (err.name === 'AbortError') { toast(i18n.t('dub.ingest_cancelled')); setDubStep('idle'); useAppStore.getState().dismissPill(); }
+      else { setDubError(err.message); setDubStep('idle'); toast.error(i18n.t('dub.url_ingest_failed', { msg: err.message })); useAppStore.getState().errorPill(err.message); }
       setTranscribeStart(null);
     } finally { dubAbortCtrlRef.current = null; }
   }, [setDubStep, setDubError, setDubTracks, setDubPrepStage, setDubJobId, setDubTaskId, setDubSegments, _waitForPrep, _waitForTranscribe, loadProjects, loadProfiles]);
@@ -234,14 +235,14 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
       setTranscribeStart(null); setDubStep('editing'); loadProjects();
     } catch (err) {
       setTranscribeStart(null);
-      if (err.name === 'AbortError') { toast('Retry cancelled'); setDubStep('idle'); }
-      else { setDubError(err.message); setDubStep('idle'); toast.error('Transcription failed: ' + err.message); }
+      if (err.name === 'AbortError') { toast(i18n.t('dub.retry_cancelled')); setDubStep('idle'); }
+      else { setDubError(err.message); setDubStep('idle'); toast.error(i18n.t('dub.transcription_failed', { msg: err.message })); }
     } finally { dubAbortCtrlRef.current = null; }
   }, [dubJobId, setDubError, setDubSegments, setDubStep, _waitForTranscribe, loadProjects]);
 
   const handleDubImportSrt = useCallback(async (file) => {
     if (!dubJobId) {
-      toast.error('Upload or ingest a video first — there is no job to attach subtitles to.');
+      toast.error(i18n.t('dub.need_video_for_srt'));
       return;
     }
     if (!file) return;

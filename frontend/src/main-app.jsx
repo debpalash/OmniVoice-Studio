@@ -10,6 +10,7 @@ import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import '@fontsource-variable/source-serif-4';
 import './i18n';   // ← initialise i18next before any component renders
+import i18n from './i18n';
 import './ui';
 import './index.css';
 import App from './App.jsx';
@@ -73,7 +74,7 @@ export async function bootstrapApp() {
                   userSelect: 'none',
                 }}
               >
-                Loading dictation…
+                {i18n.t('common.loading')}
               </div>
             }
           >

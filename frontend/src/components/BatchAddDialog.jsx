@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Upload, Film, Globe, X, Plus, Loader } from 'lucide-react';
 import { Button } from '../ui';
 import MultiLangPicker from './MultiLangPicker';
@@ -17,6 +18,7 @@ export default function BatchAddDialog({
   profiles = [],
   onEnqueue,  // async (files, settings) => void
 }) {
+  const { t } = useTranslation();
   const [files, setFiles] = useState([]);
   const [langs, setLangs] = useState([{ lang: 'Spanish', code: 'es' }]);
   const [voiceId, setVoiceId] = useState('');
@@ -53,7 +55,7 @@ export default function BatchAddDialog({
       <div className="batch-add" onClick={e => e.stopPropagation()}>
         <div className="batch-add__head">
           <span className="batch-add__title">
-            <Plus size={13} /> Add Videos to Queue
+            <Plus size={13} /> {t('batch.add_videos_to_queue')}
           </span>
           <button type="button" className="batch-add__close" onClick={onClose}>
             <X size={13} />
@@ -70,8 +72,8 @@ export default function BatchAddDialog({
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload size={24} />
-            <span>Drop video files here or click to browse</span>
-            <span className="batch-add__drop-hint">MP4 · MOV · MKV · WEBM</span>
+            <span>{t('batch.drop_files_here')}</span>
+            <span className="batch-add__drop-hint">{t('batch.batch_formats')}</span>
           </div>
           <input
             ref={fileInputRef}
@@ -89,7 +91,7 @@ export default function BatchAddDialog({
           {/* File list */}
           {files.length > 0 && (
             <div className="batch-add__files">
-              <span className="batch-add__kicker">FILES ({files.length})</span>
+              <span className="batch-add__kicker">{t('batch.files_count', { n: files.length })}</span>
               {files.map((f, i) => (
                 <div key={`${f.name}-${i}`} className="batch-add__file-row">
                   <Film size={10} />
@@ -106,27 +108,27 @@ export default function BatchAddDialog({
           {/* Settings */}
           <div className="batch-add__settings">
             <div className="batch-add__field">
-              <span className="batch-add__kicker"><Globe size={9} /> TARGET LANGUAGES</span>
+              <span className="batch-add__kicker"><Globe size={9} /> {t('batch.target_languages')}</span>
               <MultiLangPicker selected={langs} onChange={setLangs} />
             </div>
 
             <div className="batch-add__field">
-              <span className="batch-add__kicker">VOICE</span>
+              <span className="batch-add__kicker">{t('batch.voice_label')}</span>
               <select
                 className="input-base batch-add__select"
                 value={voiceId}
                 onChange={e => setVoiceId(e.target.value)}
               >
-                <option value="">Default</option>
+                <option value="">{t('common.default')}</option>
                 {profiles.filter(p => !p.instruct).length > 0 && (
-                  <optgroup label="Clone Profiles">
+                  <optgroup label={t('dub.clone_profiles')}>
                     {profiles.filter(p => !p.instruct).map(p => (
                       <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </optgroup>
                 )}
                 {PRESETS.length > 0 && (
-                  <optgroup label="Presets">
+                  <optgroup label={t('voice.presets')}>
                     {PRESETS.map(p => (
                       <option key={p.id} value={`preset:${p.id}`}>{p.name}</option>
                     ))}
@@ -137,7 +139,7 @@ export default function BatchAddDialog({
 
             <label className="batch-add__toggle">
               <input type="checkbox" checked={preserveBg} onChange={e => setPreserveBg(e.target.checked)} />
-              <span>Preserve background audio (music/FX)</span>
+              <span>{t('batch.preserve_bg_audio')}</span>
             </label>
           </div>
         </div>
@@ -145,10 +147,10 @@ export default function BatchAddDialog({
         <div className="batch-add__foot">
           <span className="batch-add__estimate">
             {files.length > 0 && langs.length > 0
-              ? `${files.length} video${files.length > 1 ? 's' : ''} × ${langs.length} lang${langs.length > 1 ? 's' : ''} = ${files.length * langs.length} job${files.length * langs.length > 1 ? 's' : ''}`
-              : 'Select files and languages'}
+              ? t('batch.calc_jobs', { videos: files.length, langs: langs.length, total: files.length * langs.length })
+              : t('batch.select_files_and_langs')}
           </span>
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+          <Button variant="ghost" size="sm" onClick={onClose}>{t('common.cancel')}</Button>
           <Button
             variant="primary"
             size="sm"
@@ -157,7 +159,7 @@ export default function BatchAddDialog({
             loading={submitting}
             leading={!submitting && <Plus size={10} />}
           >
-            Add to Queue
+            {t('batch.add_to_queue')}
           </Button>
         </div>
       </div>

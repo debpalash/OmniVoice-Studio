@@ -6,6 +6,7 @@ import { playBlobAudio } from '../utils/media';
 import { PRESETS } from '../utils/constants';
 import { askConfirm } from '../utils/dialog';
 import { toast } from 'react-hot-toast';
+import i18n from '../i18n';
 
 /**
  * Encapsulates voice-profile CRUD, lock/unlock, preview, and save-from-history.
@@ -53,7 +54,7 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
   }, [profileName, loadProfiles]);
 
   const handleDeleteProfile = useCallback(async (id) => {
-    if (!(await askConfirm('Delete this voice profile?'))) return;
+    if (!(await askConfirm(i18n.t('voice.delete_profile_confirm')))) return;
     await apiDeleteProfile(id);
     if (selectedProfile === id) setSelectedProfile(null);
     await loadProfiles();
@@ -70,7 +71,7 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
     e.stopPropagation();
     if (previewLoading) return;
 
-    let previewText = "This is a voice preview.";
+    let previewText = i18n.t('voice.preview_default_text');
     let reqLang = language;
 
     if (mode === 'dub' && dubSegments.length > 0) {
@@ -83,7 +84,7 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
     }
 
     setPreviewLoading(proj.id);
-    const toastId = toast.loading(`Synthesizing preview for ${proj.name}...`);
+    const toastId = toast.loading(i18n.t('voice.synthesizing_preview', { name: proj.name }));
 
     try {
       const formData = new FormData();
@@ -93,11 +94,11 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
       formData.append("num_step", steps || 16);
       const res = await generateSpeech(formData);
       const blob = await res.blob();
-      toast.success('Preview ready!', { id: toastId });
-      playBlobAudio(blob).catch(() => toast.error('Playback failed', { id: toastId }));
+      toast.success(i18n.t('voice.preview_ready'), { id: toastId });
+      playBlobAudio(blob).catch(() => toast.error(i18n.t('voice.playback_failed'), { id: toastId }));
       await loadHistory();
     } catch (err) {
-      toast.error('Preview failed: ' + err.message, { id: toastId });
+      toast.error(i18n.t('voice.preview_failed', { msg: err.message }), { id: toastId });
     } finally {
       setPreviewLoading(null);
     }
@@ -107,7 +108,7 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
     e.preventDefault();
     if (segmentPreviewLoading) return;
     setSegmentPreviewLoading(seg.id);
-    const toastId = toast.loading(`Synthesizing segment...`);
+    const toastId = toast.loading(i18n.t('voice.synthesizing_segment'));
 
     try {
       const formData = new FormData();
@@ -137,10 +138,10 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
 
       const res = await generateSpeech(formData);
       const blob = await res.blob();
-      toast.success('Preview ready!', { id: toastId });
-      playBlobAudio(blob).catch(() => toast.error('Playback failed', { id: toastId }));
+      toast.success(i18n.t('voice.preview_ready'), { id: toastId });
+      playBlobAudio(blob).catch(() => toast.error(i18n.t('voice.playback_failed'), { id: toastId }));
     } catch (err) {
-      toast.error('Preview failed: ' + err.message, { id: toastId });
+      toast.error(i18n.t('voice.preview_failed', { msg: err.message }), { id: toastId });
     } finally {
       setSegmentPreviewLoading(null);
     }

@@ -8,6 +8,7 @@
  * page updates in realtime without requiring a shared store.
  */
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Mic, Copy, Trash2, Search, Clock, Languages, FileText, Download } from 'lucide-react';
 import { Button } from '../ui';
 import { toast } from 'react-hot-toast';
@@ -44,6 +45,7 @@ export function addTranscription(entry) {
 }
 
 export default function TranscriptionsPage() {
+  const { t } = useTranslation();
   const [transcriptions, setTranscriptions] = useState(loadTranscriptions);
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState(null);
@@ -73,8 +75,8 @@ export default function TranscriptionsPage() {
 
   const copyText = useCallback((text) => {
     navigator.clipboard.writeText(text).then(
-      () => toast.success('Copied to clipboard'),
-      () => toast.error('Copy failed')
+      () => toast.success(t('transcriptions.copied_to_clipboard')),
+      () => toast.error(t('transcriptions.copy_failed'))
     );
   }, []);
 
@@ -102,48 +104,48 @@ export default function TranscriptionsPage() {
     a.download = `transcriptions_${new Date().toISOString().slice(0, 10)}.txt`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('Exported transcriptions');
+    toast.success(t('transcriptions.exported_transcriptions'));
   }, [transcriptions]);
 
   const formatTime = (iso) => {
     const d = new Date(iso);
     const now = new Date();
     const diff = now - d;
-    if (diff < 60000) return 'Just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    if (diff < 60000) return t('common.just_now');
+    if (diff < 3600000) return t('common.minutes_ago', { m: Math.floor(diff / 60000) });
+    if (diff < 86400000) return t('common.hours_ago', { h: Math.floor(diff / 3600000) });
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
   return (
-    <div className="txn-page" role="region" aria-label="Transcriptions">
+    <div className="txn-page" role="region" aria-label={t('transcriptions.title')}>
       {/* Header */}
       <div className="txn-header">
         <div className="txn-header__left">
           <h1 className="txn-header__title">
             <FileText size={20} />
-            Transcriptions
+            {t('transcriptions.title')}
           </h1>
-          <span className="txn-header__count">{transcriptions.length} entries</span>
+          <span className="txn-header__count">{t('transcriptions.entries_count', { n: transcriptions.length })}</span>
         </div>
         <div className="txn-header__right">
           <div className="txn-search">
             <Search size={13} className="txn-search__icon" />
             <input
               className="txn-search__input"
-              placeholder="Search transcriptions…"
+              placeholder={t('transcriptions.search_placeholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
-              aria-label="Search transcriptions"
+              aria-label={t('transcriptions.search_placeholder')}
             />
           </div>
           {transcriptions.length > 0 && (
             <>
-              <Button size="sm" variant="ghost" onClick={exportAll} title="Export all">
-                <Download size={13} /> Export
+              <Button size="sm" variant="ghost" onClick={exportAll} title={t('transcriptions.export_all')}>
+                <Download size={13} /> {t('common.export')}
               </Button>
-              <Button size="sm" variant="ghost" onClick={clearAll} title="Clear all">
-                <Trash2 size={13} /> Clear
+              <Button size="sm" variant="ghost" onClick={clearAll} title={t('transcriptions.clear_all')}>
+                <Trash2 size={13} /> {t('common.clear')}
               </Button>
             </>
           )}
@@ -158,12 +160,12 @@ export default function TranscriptionsPage() {
             <div className="txn-empty">
               <Mic size={32} className="txn-empty__icon" />
               <p className="txn-empty__title">
-                {search ? 'No matching transcriptions' : 'No transcriptions yet'}
+                {search ? t('transcriptions.no_matching') : t('transcriptions.no_transcriptions')}
               </p>
               <p className="txn-empty__desc">
                 {search
-                  ? 'Try a different search term.'
-                  : 'Use the capture button (⌘+⇧+Space) to record and transcribe audio.'
+                  ? t('transcriptions.try_different_search')
+                  : t('transcriptions.use_capture_hint')
                 }
               </p>
             </div>
@@ -205,10 +207,10 @@ export default function TranscriptionsPage() {
               </span>
               <div className="txn-detail__actions">
                 <Button size="sm" variant="ghost" onClick={() => copyText(selected.text)}>
-                  <Copy size={12} /> Copy
+                  <Copy size={12} /> {t('common.copy')}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => deleteEntry(selected.id)}>
-                  <Trash2 size={12} /> Delete
+                  <Trash2 size={12} /> {t('common.delete')}
                 </Button>
               </div>
             </div>
@@ -217,7 +219,7 @@ export default function TranscriptionsPage() {
             </div>
             {selected.segments && selected.segments.length > 0 && (
               <div className="txn-detail__segments">
-                <h4 className="txn-detail__seg-title">Segments</h4>
+                <h4 className="txn-detail__seg-title">{t('transcriptions.segments')}</h4>
                 {selected.segments.map((seg, i) => (
                   <div key={i} className="txn-detail__seg">
                     <span className="txn-detail__seg-time">

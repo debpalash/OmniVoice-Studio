@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Search, Globe, Plus } from 'lucide-react';
 import { POPULAR_LANGS } from '../utils/constants';
 import { LANG_CODES } from '../utils/languages';
@@ -15,6 +16,7 @@ export default function MultiLangPicker({
   onChange,              // (newSelected) => void
   disabled = false,
 }) {
+  const { t } = useTranslation();
   const [dropOpen, setDropOpen] = useState(false);
   const [query, setQuery] = useState('');
   const dropRef = useRef(null);
@@ -77,7 +79,7 @@ export default function MultiLangPicker({
                 type="button"
                 className="multi-lang__chip-x"
                 onClick={() => removeLang(s.code)}
-                aria-label={`Remove ${s.lang}`}
+                aria-label={t('components.remove_language', { lang: s.lang })}
               >
                 <X size={8} />
               </button>
@@ -89,7 +91,7 @@ export default function MultiLangPicker({
             type="button"
             className="multi-lang__add"
             onClick={() => setDropOpen(!dropOpen)}
-            title="Add language"
+            title={t('components.add_language')}
           >
             <Plus size={10} />
           </button>
@@ -98,7 +100,7 @@ export default function MultiLangPicker({
 
       {selected.length > 0 && (
         <div className="multi-lang__summary">
-          {selected.length} language{selected.length > 1 ? 's' : ''} selected
+          {t('components.selected_languages', { n: selected.length })}
         </div>
       )}
 
@@ -110,14 +112,14 @@ export default function MultiLangPicker({
               ref={inputRef}
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Search languages…"
+              placeholder={t('components.search_languages')}
               spellCheck={false}
             />
           </div>
           <div className="multi-lang__list">
             {popularFiltered.length > 0 && (
               <>
-                <div className="multi-lang__section">Popular</div>
+                <div className="multi-lang__section">{t('dub.popular')}</div>
                 {popularFiltered.map(item => (
                   <button
                     key={item.code}
@@ -131,7 +133,7 @@ export default function MultiLangPicker({
                 ))}
               </>
             )}
-            <div className="multi-lang__section">All Languages</div>
+            <div className="multi-lang__section">{t('dub.all_languages')}</div>
             {filteredLangs.slice(0, 50).map(lc => (
               <button
                 key={lc.code}
@@ -145,11 +147,11 @@ export default function MultiLangPicker({
             ))}
             {filteredLangs.length > 50 && (
               <div className="multi-lang__more">
-                +{filteredLangs.length - 50} more — type to narrow
+                {t('components.more_languages', { n: filteredLangs.length - 50 })}
               </div>
             )}
             {filteredLangs.length === 0 && popularFiltered.length === 0 && (
-              <div className="multi-lang__empty">No matches</div>
+              <div className="multi-lang__empty">{t('common.no_matches')}</div>
             )}
           </div>
         </div>

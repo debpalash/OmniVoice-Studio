@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Scissors, Play, Pause, Check, ZoomIn, ZoomOut, Maximize2, Repeat } from 'lucide-react';
 import {
   clamp, encodeWav, computePeaksFromChannel, computePeaksAsync, pickTickInterval,
@@ -29,6 +30,7 @@ function fmtHMS(t) {
 }
 
 export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCancel }) {
+  const { t } = useTranslation();
   const waveRef = useRef(null);
   const rulerRef = useRef(null);
   const audioRef = useRef(null);
@@ -99,7 +101,7 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
         peaksRef.current = refined;
         setPeakProgress(1);
       } catch (e) {
-        if (!cancelled) setError('Decode failed: ' + (e.message || e));
+        if (!cancelled) setError(t('voice.trim_decode_failed', { msg: e.message || e }));
         setDecoding(false);
       }
     })();
@@ -465,7 +467,7 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
     const doPlay = () => {
       try { a.currentTime = s; } catch (err) { console.warn('currentTime set failed', err); }
       a.play().then(() => setPlaying(true)).catch((err) => {
-        setError('Playback failed: ' + (err.message || err));
+        setError(t('voice.trim_playback_failed', { msg: err.message || err }));
       });
     };
     // HAVE_METADATA = 1 is enough to set currentTime on most browsers.
@@ -473,7 +475,7 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
       doPlay();
     } else {
       a.addEventListener('loadedmetadata', doPlay, { once: true });
-      a.addEventListener('error', () => setError('Audio load failed'), { once: true });
+      a.addEventListener('error', () => setError(t('voice.trim_audio_load_failed')), { once: true });
     }
   };
 
@@ -569,18 +571,20 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
       open
       onClose={onCancel}
       size="xl"
-      title={<><Scissors size={15} color="var(--color-brand)" /> Trim reference audio</>}
+      title={<><Scissors size={15} color="var(--color-brand)" /> {t('voice.trim_reference_audio')}</>}
     >
       <div ref={containerRef} tabIndex={-1} className="audio-trimmer">
         <div className="audio-trimmer__meta">
           <span>{decoding
-            ? 'Decoding audio…'
+            ? t('voice.decoding_audio')
             : (audioMeta
-                ? `Length ${fmtHMS(audioMeta.duration)} · ${audioMeta.sampleRate} Hz${peakProgress > 0 && peakProgress < 1 ? ` · rendering waveform ${Math.round(peakProgress * 100)}%` : ''}`
+                ? (peakProgress > 0 && peakProgress < 1
+                  ? t('voice.waveform_rendering_progress', { length: fmtHMS(audioMeta.duration), sr: audioMeta.sampleRate, pct: Math.round(peakProgress * 100) })
+                  : t('voice.waveform_ready', { length: fmtHMS(audioMeta.duration), sr: audioMeta.sampleRate }))
                 : '…')
           }</span>
           <span className="audio-trimmer__hint">
-            scroll = zoom · shift+scroll = pan · alt+drag = pan · ⏐ ⟵ ⟶ ⏐ keys adjust handles
+            {t('voice.trim_zoom_hint')}
           </span>
         </div>
 
@@ -588,12 +592,12 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
 
         {/* Zoom controls */}
         <div className="audio-trimmer__toolbar">
-          <Button variant="subtle" iconSize="md" onClick={zoomIn}        disabled={!ready} title="Zoom in (+)"><ZoomIn size={12}/></Button>
-          <Button variant="subtle" iconSize="md" onClick={zoomOut}       disabled={!ready} title="Zoom out (-)"><ZoomOut size={12}/></Button>
-          <Button variant="subtle" iconSize="md" onClick={fitAll}        disabled={!ready} title="Fit all (Home)"><Maximize2 size={12}/></Button>
-          <Button variant="chip"   size="sm"    onClick={fitSelection} disabled={!ready} title="Fit selection (End)">FIT SEL</Button>
+          <Button variant="subtle" iconSize="md" onClick={zoomIn}        disabled={!ready} title={t('voice.zoom_in')}><ZoomIn size={12}/></Button>
+          <Button variant="subtle" iconSize="md" onClick={zoomOut}       disabled={!ready} title={t('voice.zoom_out')}><ZoomOut size={12}/></Button>
+          <Button variant="subtle" iconSize="md" onClick={fitAll}        disabled={!ready} title={t('voice.fit_all')}><Maximize2 size={12}/></Button>
+          <Button variant="chip"   size="sm"    onClick={fitSelection} disabled={!ready} title={t('voice.fit_selection')}>{t('voice.fit_sel_button')}</Button>
           <div className="audio-trimmer__view-info">
-            View {fmtHMS(viewStart)} → {fmtHMS(viewEnd)} ({fmtSec(viewEnd - viewStart, viewEnd - viewStart < 10 ? 2 : 0)})
+            {t('voice.trim_view_range', { start: fmtHMS(viewStart), end: fmtHMS(viewEnd), sec: (viewEnd - viewStart).toFixed(viewEnd - viewStart < 10 ? 2 : 0) })}
           </div>
         </div>
 
@@ -606,7 +610,7 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
         {/* Numeric fields */}
         <div className="audio-trimmer__fields">
           <label className="trim-field">
-            <span className="trim-field__label">Start</span>
+            <span className="trim-field__label">{t('voice.trim_start')}</span>
             <input
               type="text" inputMode="decimal" value={startInput}
               onChange={(e) => setStartInput(e.target.value)}
@@ -617,7 +621,7 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
             <span className="trim-field__unit">s</span>
           </label>
           <label className="trim-field">
-            <span className="trim-field__label">End</span>
+            <span className="trim-field__label">{t('voice.trim_end')}</span>
             <input
               type="text" inputMode="decimal" value={endInput}
               onChange={(e) => setEndInput(e.target.value)}
@@ -628,18 +632,18 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
             <span className="trim-field__unit">s</span>
           </label>
           <div className="trim-field trim-field--readonly">
-            <span className="trim-field__label">Length</span>
+            <span className="trim-field__label">{t('voice.trim_length')}</span>
             <span className={`trim-field__value ${tooLong ? 'is-err' : ''}`}>
               {(duration_ms / 1000).toFixed(2)}s
             </span>
-            <span className="trim-field__unit">{tooLong ? `>${maxSeconds}s` : tooShort ? 'too short' : 'ok'}</span>
+            <span className="trim-field__unit">{tooLong ? t('voice.trim_too_long', { max: maxSeconds }) : tooShort ? t('voice.trim_too_short') : t('voice.trim_ok')}</span>
           </div>
           <Button
             variant="icon"
             iconSize="md"
             active={loop}
             onClick={() => setLoop((v) => !v)}
-            title="Loop preview"
+            title={t('voice.trim_loop_preview')}
           >
             <Repeat size={12} />
           </Button>
@@ -654,19 +658,19 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
             leading={playing ? <Pause size={12} /> : <Play size={12} />}
             className="audio-trimmer__play-btn"
           >
-            {playing ? 'Pause' : 'Preview selection'}
+            {playing ? t('voice.trim_pause') : t('voice.trim_preview_selection')}
           </Button>
-          <span className="audio-trimmer__kbd-hint">Space to play · Enter to confirm · Esc to cancel</span>
+          <span className="audio-trimmer__kbd-hint">{t('voice.trim_keyboard_hint')}</span>
 
           <div className="audio-trimmer__actions-right">
-            <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+            <Button variant="ghost" onClick={onCancel}>{t('common.cancel')}</Button>
             <Button
               variant={(tooLong || tooShort) ? 'danger' : 'primary'}
               disabled={!ready || tooLong || tooShort}
               onClick={handleConfirm}
               leading={<Check size={12} />}
             >
-              Use trimmed
+              {t('voice.trim_use_trimmed')}
             </Button>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Scale, Fingerprint, Play, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { PRESETS } from '../utils/constants';
@@ -19,6 +20,7 @@ export default function CompareModal({
   steps, cfg, speed, denoise, postprocess,
   fileToMediaUrl, loadHistory,
 }) {
+  const { t } = useTranslation();
   const drawerRef = useRef(null);
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export default function CompareModal({
     setCompareResultB(null);
 
     const generateVoice = async (voiceId) => {
-      setCompareProgress('Preparing voice...');
+      setCompareProgress(t('dub.preparing'));
       const formData = new FormData();
       formData.append('text', compareText);
       let fin_prof = voiceId;
@@ -72,17 +74,17 @@ export default function CompareModal({
     };
 
     try {
-      setCompareProgress('Generating Voice A...');
+      setCompareProgress(`${t('voice.generating')} ${t('components.voice_a')}...`);
       const audioA = await generateVoice(compareVoiceA);
       setCompareResultA(audioA);
-      setCompareProgress('Generating Voice B...');
+      setCompareProgress(`${t('voice.generating')} ${t('components.voice_b')}...`);
       const audioB = await generateVoice(compareVoiceB);
       setCompareResultB(audioB);
       setCompareProgress('');
-      toast.success('Comparison complete!');
+      toast.success(t('dub.dub_complete'));
       loadHistory();
     } catch (err) {
-      toast.error('Play failed: ' + err.message);
+      toast.error(t('voice.generation_failed', { msg: err.message }));
       setCompareProgress('');
     } finally {
       setIsComparing(false);
@@ -94,18 +96,18 @@ export default function CompareModal({
   if (!open) return null;
 
   return (
-    <div className="compare-drawer" role="dialog" aria-modal="false" aria-label="A/B Voice Comparison">
+    <div className="compare-drawer" role="dialog" aria-modal="false" aria-label={t('components.ab_compare_title')}>
       <div className="compare-drawer__sheet" ref={drawerRef}>
         <header className="compare-drawer__head">
           <span className="compare-drawer__handle" aria-hidden="true" />
           <span className="compare-drawer__title">
-            <Scale size={14} /> A/B Voice Comparison
+            <Scale size={14} /> {t('components.ab_compare_title')}
           </span>
           <button
             type="button"
             className="compare-drawer__close"
             onClick={onClose}
-            aria-label="Close comparison"
+            aria-label={t('components.close_comparison')}
           >
             <X size={12} />
           </button>
@@ -113,10 +115,10 @@ export default function CompareModal({
 
         <div className="compare-drawer__body">
           <p className="ui-compare__desc">
-            Compare two voices side by side to make casting decisions. App stays interactive behind.
+            {t('components.compare_description')}
           </p>
 
-          <Field label="Test phrase">
+          <Field label={t('components.test_phrase')}>
             <Textarea
               value={compareText}
               onChange={e => setCompareText(e.target.value)}
@@ -128,7 +130,7 @@ export default function CompareModal({
           <div className="ui-compare__grid">
             <CompareSide
               accent="var(--color-brand)"
-              label="Voice A"
+              label={t('components.voice_a')}
               profiles={profiles}
               value={compareVoiceA}
               onChange={setCompareVoiceA}
@@ -136,7 +138,7 @@ export default function CompareModal({
             />
             <CompareSide
               accent="var(--color-success)"
-              label="Voice B"
+              label={t('components.voice_b')}
               profiles={profiles}
               value={compareVoiceB}
               onChange={setCompareVoiceB}
@@ -146,7 +148,7 @@ export default function CompareModal({
         </div>
 
         <footer className="compare-drawer__foot">
-          <Button variant="ghost" onClick={onClose}>Close</Button>
+          <Button variant="ghost" onClick={onClose}>{t('common.close')}</Button>
           <Button
             variant="primary"
             loading={isComparing}
@@ -154,7 +156,7 @@ export default function CompareModal({
             onClick={runCompare}
             leading={!isComparing && <Play size={12} />}
           >
-            {isComparing ? (compareProgress || 'Comparing…') : 'Compare'}
+            {isComparing ? (compareProgress || t('components.comparing')) : t('components.compare')}
           </Button>
         </footer>
       </div>
@@ -163,6 +165,7 @@ export default function CompareModal({
 }
 
 function CompareSide({ accent, label, profiles, value, onChange, audio }) {
+  const { t } = useTranslation();
   return (
     <Panel variant="flat" padding="sm">
       <h3 className="ui-compare__head" style={{ color: accent }}>
@@ -170,15 +173,15 @@ function CompareSide({ accent, label, profiles, value, onChange, audio }) {
       </h3>
       <Field>
         <Select value={value} onChange={e => onChange(e.target.value)}>
-          <option value="">— Select voice —</option>
+          <option value="">{t('components.select_voice')}</option>
           {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          {PRESETS.map(p => <option key={p.id} value={`preset:${p.id}`}>{p.name} (Preset)</option>)}
+          {PRESETS.map(p => <option key={p.id} value={`preset:${p.id}`}>{p.name} ({t('voice.presets')})</option>)}
         </Select>
       </Field>
       {audio ? (
         <audio src={audio} controls className="ui-compare__audio" />
       ) : (
-        <div className="ui-compare__audio-empty">No audio yet</div>
+        <div className="ui-compare__audio-empty">{t('components.no_audio_yet')}</div>
       )}
     </Panel>
   );

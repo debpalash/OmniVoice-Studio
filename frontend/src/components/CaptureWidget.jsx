@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Loader } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAppStore } from '../store';
@@ -34,6 +35,7 @@ function formatElapsed(ms) {
  * Records → transcribes → auto-pastes → auto-dismisses.
  */
 export default function CaptureWidget({ onDismiss }) {
+  const { t } = useTranslation();
   const [state, setState] = useState('idle'); // idle | recording | transcribing | done | error
   const [transcript, setTranscript] = useState('');
   const [duration, setDuration] = useState(0);
@@ -253,11 +255,11 @@ export default function CaptureWidget({ onDismiss }) {
       const isMac = navigator.platform?.includes('Mac');
       const isWindows = navigator.platform?.includes('Win');
       const hint = isMac
-        ? 'macOS: open System Settings → Privacy & Security → Microphone and enable OmniVoice.'
+        ? t('capture.mic_denied_macos')
         : isWindows
-        ? 'Windows: open Settings → Privacy & security → Microphone and allow OmniVoice.'
-        : 'Linux: check that your user is in the audio group and the WebView has mic access.';
-      toast.error(`Microphone access denied. ${hint}`, { duration: 6000 });
+        ? t('capture.mic_denied_windows')
+        : t('capture.mic_denied_linux');
+      toast.error(`${t('capture.mic_denied')}. ${hint}`, { duration: 6000 });
       setTrayRecording(false);
       setState('error');
     }
@@ -319,7 +321,7 @@ export default function CaptureWidget({ onDismiss }) {
       await applyResult(data);
     } catch (err) {
       if (wsHadFinalRef.current) return;
-      toast.error(`Transcription failed: ${err.message}`);
+      toast.error(`${t('capture.transcribing')} ${err.message}`);
       setState('error');
       setTranscript('');
     }
@@ -341,22 +343,22 @@ export default function CaptureWidget({ onDismiss }) {
   let emoji = '';
   if (state === 'recording') {
     emoji = '🎙️';
-    label = partialText || 'Listening…';
+    label = partialText || t('capture.listening');
   } else if (state === 'transcribing') {
     emoji = '📝';
-    label = partialText || 'Transcribing…';
+    label = partialText || t('capture.transcribing');
   } else if (state === 'done' && transcript) {
     emoji = '✅';
-    label = 'Pasted';
+    label = t('capture.pasted');
   } else if (state === 'done' && !transcript) {
     emoji = '⚠️';
-    label = 'No speech detected';
+    label = t('capture.no_speech_detected');
   } else if (state === 'error') {
     emoji = '❌';
-    label = 'Mic access denied';
+    label = t('capture.mic_denied');
   } else {
     emoji = '🎙️';
-    label = 'Ready — hold shortcut to speak';
+    label = t('capture.ready_hold_shortcut');
   }
 
   return (
@@ -385,7 +387,7 @@ export default function CaptureWidget({ onDismiss }) {
 
       {/* Dismiss — only on done/error */}
       {(state === 'done' || state === 'error') && (
-        <button className="capture-pill__dismiss" onClick={dismiss} aria-label="Dismiss">
+        <button className="capture-pill__dismiss" onClick={dismiss} aria-label={t('common.dismiss')}>
           <X size={12} />
         </button>
       )}

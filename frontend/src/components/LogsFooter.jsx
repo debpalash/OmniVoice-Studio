@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ChevronUp, ChevronDown, RefreshCw, Trash2, Copy, Bug, X,
   AlertTriangle, AlertCircle, Info, FileText, Heart, Bell,
@@ -19,11 +20,11 @@ import './LogsFooter.css';
  * so the panel remembers where the user left it across launches.
  */
 
-const SOURCES = [
-  { id: 'backend',  label: 'Backend',  icon: FileText },
-  { id: 'frontend', label: 'Frontend', icon: FileText },
-  { id: 'tauri',    label: 'Tauri',    icon: FileText },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
+const SOURCE_KEYS = [
+  { id: 'backend',      key: 'settings.log_sources_backend' },
+  { id: 'frontend',     key: 'settings.log_sources_frontend' },
+  { id: 'tauri',        key: 'settings.log_sources_tauri' },
+  { id: 'notifications', key: 'settings.log_sources_notifications' },
 ];
 
 const LS_HEIGHT = 'omnivoice.logs.height';
@@ -68,9 +69,7 @@ function SeverityIcon({ level, size = 11 }) {
 }
 
 function UiScaleToggle() {
-  // Sources the zoom factor directly from the store so no prop-drilling
-  // is required. Same three values the Header previously exposed; moved
-  // here so app-wide chrome lives in one place.
+  const { t } = useTranslation();
   const uiScale    = useAppStore(s => s.uiScale);
   const setUiScale = useAppStore(s => s.setUiScale);
   return (
@@ -80,38 +79,39 @@ function UiScaleToggle() {
       value={uiScale}
       onChange={setUiScale}
       items={[
-        { value: 1,   label: 'S', title: 'Small UI scale'  },
-        { value: 1.3, label: 'M', title: 'Medium UI scale' },
-        { value: 1.5, label: 'L', title: 'Large UI scale'  },
+        { value: 1,   label: 'S', title: t('settings.small_ui_scale')  },
+        { value: 1.3, label: 'M', title: t('settings.medium_ui_scale') },
+        { value: 1.5, label: 'L', title: t('settings.large_ui_scale')  },
       ]}
     />
   );
 }
 
-const THEMES = [
-  { id: 'gruvbox',    label: 'Gruvbox',    dot: '#d3869b' },
-  { id: 'midnight',   label: 'Midnight',   dot: '#8b5cf6' },
-  { id: 'nord',       label: 'Nord',       dot: '#88c0d0' },
-  { id: 'solarized',  label: 'Solarized',  dot: '#268bd2' },
-  { id: 'rose-pine',  label: 'Rosé Pine',  dot: '#ebbcba' },
-  { id: 'catppuccin', label: 'Catppuccin', dot: '#cba6f7' },
+const THEME_KEYS = [
+  { id: 'gruvbox',    key: 'settings.theme_gruvbox',    dot: '#d3869b' },
+  { id: 'midnight',   key: 'settings.theme_midnight',   dot: '#8b5cf6' },
+  { id: 'nord',       key: 'settings.theme_nord',       dot: '#88c0d0' },
+  { id: 'solarized',  key: 'settings.theme_solarized',  dot: '#268bd2' },
+  { id: 'rose-pine',  key: 'settings.theme_rose_pine',  dot: '#ebbcba' },
+  { id: 'catppuccin', key: 'settings.theme_catppuccin', dot: '#cba6f7' },
 ];
 
 function ThemePicker() {
+  const { t } = useTranslation();
   const theme    = useAppStore(s => s.theme);
   const setTheme = useAppStore(s => s.setTheme);
   return (
-    <div className="logs-footer__themes" role="radiogroup" aria-label="Color theme">
-      {THEMES.map(t => (
+    <div className="logs-footer__themes" role="radiogroup" aria-label={t('settings.color_theme')}>
+      {THEME_KEYS.map(tn => (
         <button
-          key={t.id}
+          key={tn.id}
           type="button"
-          className={`logs-footer__theme-dot ${theme === t.id ? 'is-active' : ''}`}
-          style={{ '--dot-color': t.dot }}
-          onClick={() => setTheme(t.id)}
-          title={t.label}
-          aria-label={`${t.label} theme`}
-          aria-checked={theme === t.id}
+          className={`logs-footer__theme-dot ${theme === tn.id ? 'is-active' : ''}`}
+          style={{ '--dot-color': tn.dot }}
+          onClick={() => setTheme(tn.id)}
+          title={t(tn.key)}
+          aria-label={`${t(tn.key)} ${t('settings.theme')}`}
+          aria-checked={theme === tn.id}
           role="radio"
         />
       ))}
@@ -119,7 +119,7 @@ function ThemePicker() {
   );
 }
 
-function SourcePill({ source, counts, active, onClick }) {
+function SourcePill({ source, sourceLabel, counts, active, onClick }) {
   const hasErrors = counts.error > 0;
   const hasWarns  = counts.warn > 0;
   return (
@@ -131,9 +131,9 @@ function SourcePill({ source, counts, active, onClick }) {
         hasErrors ? 'logs-footer__pill--error' : hasWarns ? 'logs-footer__pill--warn' : '',
       ].filter(Boolean).join(' ')}
       onClick={onClick}
-      aria-label={`${source.label} logs${hasErrors ? `, ${counts.error} errors` : hasWarns ? `, ${counts.warn} warnings` : ''}`}
+      aria-label={`${sourceLabel}${hasErrors ? `, ${counts.error} errors` : hasWarns ? `, ${counts.warn} warnings` : ''}`}
     >
-      <span className="logs-footer__pill-label">{source.label}</span>
+      <span className="logs-footer__pill-label">{sourceLabel}</span>
       {hasErrors && (
         <span className="logs-footer__badge logs-footer__badge--error">{counts.error}</span>
       )}
@@ -152,31 +152,28 @@ function SourcePill({ source, counts, active, onClick }) {
 // default pool rotates daily based on day-of-year.
 const HEART_POOL = ['❤️', '🩷', '💜', '💙', '🧡', '💛', '🩵', '💖', '💗'];
 const SEASONAL = [
-  { month: 12, emoji: '🎄',  color: '#e74c3c', title: 'Merry Christmas! Support this project' },
-  { month: 2,  emoji: '💝',  color: '#ff6b81', title: 'Happy Valentine\'s! Support this project' },
-  // Diwali window — roughly Kartik Amavasya (Oct–Nov)
-  { month: 10, emoji: '🪔',  color: '#f5a623', title: 'Happy Diwali! Support this project' },
-  { month: 11, emoji: '✨',  color: '#f5a623', title: 'Happy Diwali! Support this project' },
+  { month: 12, emoji: '🎄',  color: '#e74c3c', titleKey: 'components.merry_christmas' },
+  { month: 2,  emoji: '💝',  color: '#ff6b81', titleKey: 'components.happy_valentines' },
+  { month: 10, emoji: '🪔',  color: '#f5a623', titleKey: 'components.happy_diwali' },
+  { month: 11, emoji: '✨',  color: '#f5a623', titleKey: 'components.happy_diwali' },
 ];
 
 function DonateHeart() {
+  const { t } = useTranslation();
   const now = new Date();
   const month = now.getMonth() + 1;
   const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
 
   const seasonal = SEASONAL.find(s => s.month === month);
   if (seasonal) {
-    return <span style={{ fontSize: 14, lineHeight: 1 }} title={seasonal.title}>{seasonal.emoji}</span>;
+    return <span style={{ fontSize: 14, lineHeight: 1 }} title={t(seasonal.titleKey)}>{seasonal.emoji}</span>;
   }
-  // Rotate through the pool daily
   const pick = HEART_POOL[dayOfYear % HEART_POOL.length];
   return <span style={{ fontSize: 14, lineHeight: 1 }}>{pick}</span>;
 }
 
 export default function LogsFooter() {
-  // Always start collapsed on every launch — per-session toggling works
-  // but nothing persists. Kill the legacy key on the way out so users
-  // who had it stored as "open" before aren't stuck on the next load.
+  const { t } = useTranslation();
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem('omnivoice.logs.collapsed');
   }
@@ -187,7 +184,7 @@ export default function LogsFooter() {
   });
   const [active, setActive] = useState(() => {
     const v = localStorage.getItem(LS_ACTIVE);
-    return SOURCES.some(s => s.id === v) ? v : 'backend';
+    return SOURCE_KEYS.some(s => s.id === v) ? v : 'backend';
   });
 
   // Raw log state per source. Backend / Tauri come from HTTP; frontend
@@ -329,7 +326,7 @@ export default function LogsFooter() {
       else if (active === 'tauri')    await clearTauriLogs();
       else if (active === 'frontend') clearFrontendLogs();
       setLines(prev => ({ ...prev, [active]: [] }));
-      toast.success(`${active} log cleared`);
+      toast.success(t('settings.logs_cleared'));
     } catch (e) {
       toast.error(`Clear failed: ${e?.message || e}`);
     }
@@ -339,7 +336,7 @@ export default function LogsFooter() {
     try {
       const raw = (lines[active] || []).join('\n');
       await navigator.clipboard.writeText(raw);
-      toast.success(`Copied ${active} log`);
+      toast.success(t('settings.copied'));
     } catch (e) {
       toast.error(`Copy failed: ${e?.message || e}`);
     }
@@ -358,14 +355,14 @@ export default function LogsFooter() {
         `tauri err=${counts.tauri.error}/warn=${counts.tauri.warn}`,
       '',
     ].join('\n');
-    const body = SOURCES.map(s => {
+    const body = SOURCE_KEYS.map(s => {
       const l = lines[s.id] || [];
-      return `── ${s.label} (last ${Math.min(l.length, 80)} of ${l.length}) ──────────────\n` +
+      return `── ${t(s.key)} (last ${Math.min(l.length, 80)} of ${l.length}) ──────────────\n` +
         l.slice(-80).join('\n');
     }).join('\n\n');
     try {
       await navigator.clipboard.writeText(header + body);
-      toast.success('Diagnostic report copied — paste it into a GitHub issue.');
+      toast.success(t('settings.diagnostics_copied'));
     } catch (e) {
       toast.error(`Report failed: ${e?.message || e}`);
     }
@@ -383,7 +380,7 @@ export default function LogsFooter() {
           ref={dragRef}
           className="logs-footer__resize"
           onMouseDown={onDragStart}
-          title="Drag to resize"
+          title={t('settings.drag_to_resize')}
         />
       )}
 
@@ -397,17 +394,18 @@ export default function LogsFooter() {
             type="button"
             className="logs-footer__toggle"
             onClick={() => setCollapsed(c => !c)}
-            title={collapsed ? 'Expand logs' : 'Collapse logs'}
-            aria-label={collapsed ? 'Expand logs panel' : 'Collapse logs panel'}
+            title={collapsed ? t('settings.expand_logs') : t('settings.collapse_logs')}
+            aria-label={collapsed ? t('settings.expand_logs') : t('settings.collapse_logs')}
             aria-expanded={!collapsed}
           >
             {collapsed ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
-          <span className="logs-footer__title">Logs</span>
-          {SOURCES.map(s => (
+          <span className="logs-footer__title">{t('settings.logs_title')}</span>
+          {SOURCE_KEYS.map(s => (
             <SourcePill
               key={s.id}
               source={s}
+              sourceLabel={t(s.key)}
               counts={counts[s.id]}
               active={!collapsed && active === s.id}
               onClick={() => (collapsed ? openTo(s.id) : setActive(s.id))}
@@ -417,19 +415,19 @@ export default function LogsFooter() {
         <div className="logs-footer__right">
           {!collapsed && (
             <div className="logs-footer__actions">
-              <button className="logs-footer__icon-btn" onClick={refreshAll} disabled={loading} title="Refresh" aria-label="Refresh logs">
+              <button className="logs-footer__icon-btn" onClick={refreshAll} disabled={loading} title={t('settings.refresh_logs')} aria-label={t('settings.refresh_logs')}>
                 <RefreshCw size={12} className={loading ? 'spinner' : ''} />
               </button>
-              <button className="logs-footer__icon-btn" onClick={onCopy} title="Copy visible log" aria-label="Copy visible log">
+              <button className="logs-footer__icon-btn" onClick={onCopy} title={t('settings.copy_visible_log')} aria-label={t('settings.copy_visible_log')}>
                 <Copy size={12} />
               </button>
-              <button className="logs-footer__icon-btn" onClick={onClear} title="Clear" aria-label="Clear log">
+              <button className="logs-footer__icon-btn" onClick={onClear} title={t('settings.clear_log')} aria-label={t('settings.clear_log')}>
                 <Trash2 size={12} />
               </button>
-              <button className="logs-footer__icon-btn logs-footer__icon-btn--report" onClick={onReportIssue} title="Report issue (copy diagnostic)" aria-label="Report issue">
+              <button className="logs-footer__icon-btn logs-footer__icon-btn--report" onClick={onReportIssue} title={t('settings.report_issue')} aria-label={t('settings.report_issue')}>
                 <Bug size={12} />
               </button>
-              <button className="logs-footer__icon-btn" onClick={() => setCollapsed(true)} title="Close" aria-label="Close logs panel">
+              <button className="logs-footer__icon-btn" onClick={() => setCollapsed(true)} title={t('common.close')} aria-label={t('common.close')}>
                 <X size={12} />
               </button>
             </div>
@@ -438,8 +436,8 @@ export default function LogsFooter() {
             type="button"
             className="logs-footer__discord"
             onClick={() => { import('../api/external').then(m => m.openExternal('https://discord.gg/bzQavDfVV9')); }}
-            title="Join our Discord"
-            aria-label="Join our Discord community"
+            title={t('components.discord_join')}
+            aria-label={t('components.discord_community')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.947 2.418-2.157 2.418z"/></svg>
           </button>
@@ -447,8 +445,8 @@ export default function LogsFooter() {
             type="button"
             className="logs-footer__donate"
             onClick={() => useAppStore.getState().setMode?.('donate')}
-            title="Support this project"
-            aria-label="Support this project"
+            title={t('components.support_project')}
+            aria-label={t('components.support_project')}
           >
             <DonateHeart />
           </button>
@@ -459,7 +457,7 @@ export default function LogsFooter() {
         <div ref={scrollRef} className="logs-footer__body">
           {current.length === 0 && (
             <div className="logs-footer__empty">
-              {active === 'frontend' ? 'No frontend console output yet.' : 'No lines.'}
+              {active === 'frontend' ? t('settings.no_frontend_logs') : t('settings.no_lines')}
             </div>
           )}
           {current.map((line, i) => {
@@ -478,7 +476,7 @@ export default function LogsFooter() {
         <div className="logs-footer__body logs-footer__notif-body">
           {notifications.length === 0 ? (
             <div className="logs-footer__empty">
-              ✅ All clear — no issues detected
+              ✅ {t('settings.all_clear')}
             </div>
           ) : (
             notifications.map(notif => (

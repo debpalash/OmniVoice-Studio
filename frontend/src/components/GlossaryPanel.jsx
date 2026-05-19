@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, BookOpen, Sparkles, Check, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Panel, Button, Input, Badge } from '../ui';
@@ -26,6 +27,7 @@ export default function GlossaryPanel({
   segments = [],
   onChange,
 }) {
+  const { t } = useTranslation();
   const [terms, setTerms] = useState([]);
   const [loading, setLoading] = useState(false);
   const [extracting, setExtracting] = useState(false);
@@ -41,23 +43,23 @@ export default function GlossaryPanel({
       setTerms(rows);
       pushChange(rows);
     } catch (e) {
-      toast.error(`Failed to load glossary: ${e.message}`);
+      toast.error(t('dub.glossary_load_failed', { msg: e.message }));
     } finally {
       setLoading(false);
     }
-  }, [projectId, pushChange]);
+  }, [projectId, pushChange, t]);
 
   useEffect(() => { reload(); }, [reload]);
 
   const onAdd = async () => {
-    if (!projectId) { toast.error('Glossary needs a loaded project.'); return; }
+    if (!projectId) { toast.error(t('dub.glossary_needs_project')); return; }
     if (!draft.source.trim() || !draft.target.trim()) return;
     try {
       const row = await addGlossaryTerm(projectId, draft);
       const next = [...terms, row];
       setTerms(next); pushChange(next);
       setDraft({ source: '', target: '', note: '' });
-    } catch (e) { toast.error(`Add failed: ${e.message}`); }
+    } catch (e) { toast.error(t('dub.glossary_add_failed', { msg: e.message })); }
   };
 
   const onUpdate = async (id, patch) => {
@@ -65,7 +67,7 @@ export default function GlossaryPanel({
       const row = await updateGlossaryTerm(projectId, id, patch);
       const next = terms.map(t => t.id === id ? row : t);
       setTerms(next); pushChange(next);
-    } catch (e) { toast.error(`Update failed: ${e.message}`); }
+    } catch (e) { toast.error(t('dub.glossary_update_failed', { msg: e.message })); }
   };
 
   const onDelete = async (id) => {
@@ -73,20 +75,20 @@ export default function GlossaryPanel({
       await deleteGlossaryTerm(projectId, id);
       const next = terms.filter(t => t.id !== id);
       setTerms(next); pushChange(next);
-    } catch (e) { toast.error(`Delete failed: ${e.message}`); }
+    } catch (e) { toast.error(t('dub.glossary_delete_failed', { msg: e.message })); }
   };
 
   const onClearAuto = async () => {
-    if (!confirm('Remove all auto-extracted terms? Manual entries are kept.')) return;
+    if (!confirm(t('dub.glossary_clear_auto_confirm'))) return;
     try {
       await clearGlossary(projectId, true);
       await reload();
-    } catch (e) { toast.error(`Clear failed: ${e.message}`); }
+    } catch (e) { toast.error(t('dub.glossary_clear_failed', { msg: e.message })); }
   };
 
   const onAutoExtract = async () => {
-    if (!targetLang) { toast.error('Pick a target language first.'); return; }
-    if (!segments.length) { toast.error('No segments to scan.'); return; }
+    if (!targetLang) { toast.error(t('dub.glossary_need_target_lang')); return; }
+    if (!segments.length) { toast.error(t('dub.glossary_no_segments')); return; }
     setExtracting(true);
     try {
       const res = await autoExtractGlossary(projectId, {
@@ -95,12 +97,12 @@ export default function GlossaryPanel({
       });
       setTerms(res.terms); pushChange(res.terms);
       if (res.inserted === 0) {
-        toast('Auto-extract found no new terms.', { icon: 'ℹ️' });
+        toast(t('dub.glossary_auto_found_none'), { icon: 'ℹ️' });
       } else {
-        toast.success(`Added ${res.inserted} auto term${res.inserted === 1 ? '' : 's'}. Review and edit before translating.`);
+        toast.success(t('dub.glossary_auto_found', { n: res.inserted }));
       }
     } catch (e) {
-      toast.error(`Auto-extract failed: ${e.message}`);
+      toast.error(t('dub.glossary_auto_extract_failed', { msg: e.message }));
     } finally {
       setExtracting(false);
     }
@@ -116,10 +118,10 @@ export default function GlossaryPanel({
       className="glossary-panel"
       title={
         <>
-          <BookOpen size={13} /> Glossary
+          <BookOpen size={13} /> {t('dub.glossary')}
           <span className="glossary-panel__counts">
-            {terms.length} {terms.length === 1 ? 'term' : 'terms'}
-            {autoCount > 0 && <> · {autoCount} auto</>}
+            {t('dub.glossary_terms', { n: terms.length })}
+            {autoCount > 0 && <> · {t('dub.glossary_auto_count', { n: autoCount })}</>}
           </span>
         </>
       }
@@ -131,17 +133,17 @@ export default function GlossaryPanel({
             onClick={onAutoExtract}
             loading={extracting}
             disabled={!projectId || !targetLang || !segments.length}
-            title="Ask the LLM to scan segments for proper nouns + recurring terms"
+            title={t('dub.glossary_auto_title')}
           >
-            Auto
+            {t('common.auto')}
           </Button>
           {autoCount > 0 && (
             <Button
               variant="ghost" size="sm"
               onClick={onClearAuto}
-              title="Remove all auto-extracted terms, keep manual ones"
+              title={t('dub.glossary_clear_auto_title')}
             >
-              Clear auto
+              {t('dub.glossary_clear_auto')}
             </Button>
           )}
         </>
@@ -149,26 +151,26 @@ export default function GlossaryPanel({
     >
       {!projectId ? (
         <div className="glossary-panel__empty">
-          Save the dub as a project to start a glossary.
+          {t('dub.glossary_empty')}
         </div>
       ) : (
         <>
           <table className="glossary-panel__table">
             <thead>
               <tr>
-                <th>Source</th>
-                <th>Target</th>
-                <th>Note</th>
-                <th className="glossary-panel__col-kind" aria-label="auto / manual"></th>
-                <th className="glossary-panel__col-action" aria-label="delete"></th>
+                <th>{t('dub.glossary_source_column')}</th>
+                <th>{t('dub.glossary_target_column')}</th>
+                <th>{t('dub.glossary_note_column')}</th>
+                <th className="glossary-panel__col-kind" aria-label={t('dub.glossary_kind_column')}></th>
+                <th className="glossary-panel__col-action" aria-label={t('common.delete')}></th>
               </tr>
             </thead>
             <tbody>
               {loading && !terms.length && (
-                <tr><td colSpan={5} className="glossary-panel__muted">Loading…</td></tr>
+                <tr><td colSpan={5} className="glossary-panel__muted">{t('common.loading')}</td></tr>
               )}
               {!loading && !terms.length && (
-                <tr><td colSpan={5} className="glossary-panel__muted">No terms yet. Add one below or click Auto.</td></tr>
+                <tr><td colSpan={5} className="glossary-panel__muted">{t('dub.glossary_no_terms')}</td></tr>
               )}
               {terms.map(t => (
                 <GlossaryRow
@@ -181,7 +183,7 @@ export default function GlossaryPanel({
               <tr className="glossary-panel__row--new">
                 <td>
                   <Input
-                    size="sm" placeholder={`Source (${sourceLang})`}
+                    size="sm" placeholder={t('dub.glossary_source_placeholder', { lang: sourceLang })}
                     value={draft.source}
                     onChange={e => setDraft({ ...draft, source: e.target.value })}
                     onKeyDown={e => { if (e.key === 'Enter') onAdd(); }}
@@ -189,7 +191,7 @@ export default function GlossaryPanel({
                 </td>
                 <td>
                   <Input
-                    size="sm" placeholder={`Target (${targetLang || '—'})`}
+                    size="sm" placeholder={t('dub.glossary_target_placeholder', { lang: targetLang || '—' })}
                     value={draft.target}
                     onChange={e => setDraft({ ...draft, target: e.target.value })}
                     onKeyDown={e => { if (e.key === 'Enter') onAdd(); }}
@@ -197,7 +199,7 @@ export default function GlossaryPanel({
                 </td>
                 <td>
                   <Input
-                    size="sm" placeholder="Note (optional)"
+                    size="sm" placeholder={t('dub.glossary_note_placeholder')}
                     value={draft.note}
                     onChange={e => setDraft({ ...draft, note: e.target.value })}
                     onKeyDown={e => { if (e.key === 'Enter') onAdd(); }}
@@ -209,7 +211,7 @@ export default function GlossaryPanel({
                     variant="subtle" iconSize="sm"
                     disabled={!draft.source.trim() || !draft.target.trim()}
                     onClick={onAdd}
-                    title="Add term"
+                    title={t('dub.glossary_add_term')}
                   >
                     <Plus size={10} />
                   </Button>
@@ -219,7 +221,7 @@ export default function GlossaryPanel({
           </table>
           {manualCount > 0 && targetLang && (
             <div className="glossary-panel__hint">
-              Glossary is injected into every Cinematic translate prompt. Manual entries take precedence.
+              {t('dub.glossary_hint')}
             </div>
           )}
         </>
@@ -229,6 +231,7 @@ export default function GlossaryPanel({
 }
 
 function GlossaryRow({ term, onUpdate, onDelete }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [local, setLocal] = useState({ source: term.source, target: term.target, note: term.note || '' });
 
@@ -248,8 +251,8 @@ function GlossaryRow({ term, onUpdate, onDelete }) {
         <td><Input size="sm" value={local.note}   onChange={e => setLocal({ ...local, note: e.target.value })}   onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }} /></td>
         <td />
         <td className="glossary-panel__row-actions">
-          <Button variant="subtle" iconSize="sm" onClick={save} title="Save"><Check size={10} /></Button>
-          <Button variant="ghost"   iconSize="sm" onClick={() => setEditing(false)} title="Cancel"><X size={10} /></Button>
+          <Button variant="subtle" iconSize="sm" onClick={save} title={t('common.save')}><Check size={10} /></Button>
+          <Button variant="ghost"   iconSize="sm" onClick={() => setEditing(false)} title={t('common.cancel')}><X size={10} /></Button>
         </td>
       </tr>
     );
@@ -262,11 +265,11 @@ function GlossaryRow({ term, onUpdate, onDelete }) {
       <td className="glossary-panel__cell-note">{term.note}</td>
       <td>
         {term.auto
-          ? <Badge tone="violet" size="xs">auto</Badge>
-          : <Badge tone="success" size="xs">manual</Badge>}
+          ? <Badge tone="violet" size="xs">{t('dub.glossary_auto_badge')}</Badge>
+          : <Badge tone="success" size="xs">{t('dub.glossary_manual_badge')}</Badge>}
       </td>
       <td className="glossary-panel__row-actions">
-        <Button variant="danger" iconSize="sm" onClick={onDelete} title="Delete">
+        <Button variant="danger" iconSize="sm" onClick={onDelete} title={t('common.delete')}>
           <Trash2 size={10} />
         </Button>
       </td>

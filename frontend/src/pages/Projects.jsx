@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 import {
   Search, FolderOpen, Film, Fingerprint, Wand2, Music, Download,
   LayoutGrid, List as ListIcon, Clock, FileText, Mic,
@@ -25,12 +27,12 @@ import './Projects.css';
  */
 
 const FILTERS = [
-  { id: 'all',      label: 'All',            Icon: FolderOpen  },
-  { id: 'dubs',     label: 'Dub Projects',   Icon: Film        },
-  { id: 'profiles', label: 'Voice Profiles', Icon: Fingerprint },
-  { id: 'transcripts', label: 'Transcripts', Icon: Mic         },
-  { id: 'history',  label: 'History',        Icon: Music       },
-  { id: 'exports',  label: 'Exports',        Icon: Download    },
+  { id: 'all',      key: 'projects.filter_all',      Icon: FolderOpen  },
+  { id: 'dubs',     key: 'projects.filter_dubs',     Icon: Film        },
+  { id: 'profiles', key: 'projects.filter_voices',   Icon: Fingerprint },
+  { id: 'transcripts', key: 'projects.filter_transcripts', Icon: Mic   },
+  { id: 'history',  key: 'projects.filter_history',  Icon: Music       },
+  { id: 'exports',  key: 'projects.filter_exports',  Icon: Download    },
 ];
 
 function fmtTime(ts) {
@@ -39,10 +41,10 @@ function fmtTime(ts) {
   if (!Number.isFinite(d)) return '';
   const diff = Date.now() - d;
   const s = Math.floor(diff / 1000);
-  if (s < 60)     return `${s}s ago`;
-  if (s < 3600)   return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400)  return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+  if (s < 60)     return i18n.t('common.seconds_ago', { s });
+  if (s < 3600)   return i18n.t('common.minutes_ago', { m: Math.floor(s / 60) });
+  if (s < 86400)  return i18n.t('common.hours_ago', { h: Math.floor(s / 3600) });
+  return i18n.t('common.days_ago', { d: Math.floor(s / 86400) });
 }
 
 function fmtDuration(sec) {
@@ -85,6 +87,7 @@ export default function Projects({
   onOpenProfile,       // (voiceId)   => void
   onRevealExport,      // (path)      => void
 }) {
+  const { t } = useTranslation();
   const [filter, setFilter]   = useState('all');
   const [query, setQuery]     = useState('');
   const [view, setView]       = useState('grid');  // grid | list
@@ -126,7 +129,7 @@ export default function Projects({
         type: 'profiles',
         id: pr.id,
         title: pr.name || pr.id,
-        subtitle: kind === 'design' ? 'Designed voice' : 'Cloned voice',
+        subtitle: kind === 'design' ? t('projects.designed_voice') : t('projects.cloned_voice'),
         ts: (pr.updated_at || pr.created_at || 0) * 1000,
         accent: kind === 'design' ? '#8ec07c' : '#d3869b',
         Icon: kind === 'design' ? Wand2 : Fingerprint,
@@ -137,7 +140,7 @@ export default function Projects({
       list.push({
         type: 'history',
         id: h.filename || h.id || String(Math.random()),
-        title: (h.text || h.prompt || h.filename || 'Generated audio').slice(0, 80),
+        title: (h.text || h.prompt || h.filename || t('projects.generated_audio')).slice(0, 80),
         subtitle: h.language || h.voice || '',
         ts: h.timestamp || h.created_at || 0,
         accent: '#f3a5b6',
@@ -149,7 +152,7 @@ export default function Projects({
       list.push({
         type: 'exports',
         id: e.path || e.id,
-        title: e.path?.split('/').pop() || e.filename || 'Export',
+        title: e.path?.split('/').pop() || e.filename || t('common.export'),
         subtitle: e.mode || '',
         ts: (e.created_at || 0) * 1000,
         accent: '#fabd2f',
@@ -161,7 +164,7 @@ export default function Projects({
       list.push({
         type: 'transcripts',
         id: t.id || String(Math.random()),
-        title: (t.text || 'Transcription').slice(0, 120),
+        title: (t.text || t('projects.transcription_item')).slice(0, 120),
         subtitle: [t.language, t.duration_s ? `${Math.round(t.duration_s)}s` : ''].filter(Boolean).join(' · '),
         ts: t.timestamp ? Date.parse(t.timestamp) : 0,
         accent: '#83a598',
@@ -173,7 +176,7 @@ export default function Projects({
     }
     list.sort((a, b) => (b.ts || 0) - (a.ts || 0));
     return list;
-  }, [studioProjects, profiles, history, exportHistory, transcriptions, onOpenDub, onOpenProfile, onRevealExport]);
+  }, [studioProjects, profiles, history, exportHistory, transcriptions, onOpenDub, onOpenProfile, onRevealExport, t]);
 
   const counts = useMemo(() => {
     const c = { all: items.length };
@@ -193,14 +196,14 @@ export default function Projects({
   return (
     <div className="projects">
       <div className="projects__header">
-        <h1 className="projects__title">OmniDrive</h1>
+        <h1 className="projects__title">{t('projects.omnidrive')}</h1>
         <div className="projects__toolbar">
           <div className="projects__search">
             <Search size={12} />
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Search dubs, clones, transcripts, exports…"
+              placeholder={t('projects.search_placeholder')}
               spellCheck={false}
             />
           </div>
@@ -208,7 +211,7 @@ export default function Projects({
             <button
               className={view === 'grid' ? 'is-active' : ''}
               onClick={() => setView('grid')}
-              title="Card grid"
+              title={t('projects.card_grid')}
               type="button"
             >
               <LayoutGrid size={12} />
@@ -216,7 +219,7 @@ export default function Projects({
             <button
               className={view === 'list' ? 'is-active' : ''}
               onClick={() => setView('list')}
-              title="List"
+              title={t('projects.list_view')}
               type="button"
             >
               <ListIcon size={12} />
@@ -238,7 +241,7 @@ export default function Projects({
                 onClick={() => setFilter(f.id)}
               >
                 <FI size={12} />
-                <span>{f.label}</span>
+                <span>{t(f.key)}</span>
                 <span className="projects__rail-count">{n}</span>
               </button>
             );
@@ -249,13 +252,22 @@ export default function Projects({
           {visible.length === 0 && (
             <div className="projects__empty">
               <FolderOpen size={28} />
-              <p>{query ? `No matches for “${query}”` : 'Nothing here yet. Start a dub, design a voice, or generate audio to see it appear.'}</p>
+              <p>{query ? t('projects.no_matches_for', { query }) : t('projects.empty_hint')}</p>
             </div>
           )}
           {visible.map(it => (
             <Card
               key={`${it.type}:${it.id}`}
-              kind={it.type.toUpperCase()}
+              kind={(() => {
+                const kindMap = {
+                  dubs: t('projects.kind_dub'),
+                  profiles: t('projects.kind_voice'),
+                  history: t('projects.kind_history_item'),
+                  exports: t('projects.kind_export'),
+                  transcripts: t('projects.kind_transcript'),
+                };
+                return (kindMap[it.type] || it.type).toUpperCase();
+              })()}
               accent={it.accent}
               title={it.title}
               subtitle={it.subtitle}

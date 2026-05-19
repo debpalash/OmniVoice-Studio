@@ -1,20 +1,19 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Wrench, Sparkles, Activity, Target } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Panel, Button, Input, Field, Textarea, Badge } from '../ui';
 import { apiPost } from '../api/client';
 import './ToolsPage.css';
 
-/**
- * ToolsPage — Phase 4.6 surface. Standalone utilities independent of the
- * dub pipeline. Today: directorial-AI parser, speech-rate fitter, probe.
- */
 export default function ToolsPage({ onBack }) {
+  const { t } = useTranslation();
+
   return (
     <div className="tools-page">
       <div className="tools-page__bar">
-        {onBack && <Button variant="ghost" size="sm" onClick={onBack}>← Back</Button>}
-        <h1><Wrench size={15} /> Tools</h1>
+        {onBack && <Button variant="ghost" size="sm" onClick={onBack}>← {t('common.back')}</Button>}
+        <h1><Wrench size={15} /> {t('tools.title')}</h1>
       </div>
 
       <div className="tools-page__grid">
@@ -28,6 +27,7 @@ export default function ToolsPage({ onBack }) {
 
 
 function DirectorTool() {
+  const { t } = useTranslation();
   const [text, setText] = useState('make this feel urgent and surprised');
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -35,39 +35,38 @@ function DirectorTool() {
   const run = async () => {
     setBusy(true);
     try { setResult(await apiPost('/tools/direction', { text })); }
-    catch (e) { toast.error(`Parse failed: ${e.message}`); }
+    catch (e) { toast.error(t('tools.parse_failed', { msg: e.message })); }
     finally { setBusy(false); }
   };
 
   return (
     <Panel variant="flat" padding="md" className="tools-card"
-      title={<><Sparkles size={13} /> Directorial AI</>}
+      title={<><Sparkles size={13} /> {t('tools.directorial_ai')}</>}
     >
       <p className="tools-card__desc">
-        Type a natural-language direction — see the taxonomy tokens it maps to
-        + the TTS instruct + translate hint + speech-rate bias.
+        {t('tools.directorial_desc')}
       </p>
-      <Field label="Direction">
+      <Field label={t('dub.direction_label')}>
         <Textarea rows={2} value={text} onChange={e => setText(e.target.value)} />
       </Field>
       <Button variant="primary" size="sm" loading={busy} onClick={run}>
-        Parse
+        {t('tools.parse')}
       </Button>
       {result && (
         <div className="tools-card__out">
           <div className="tools-card__out-row">
-            <strong>method:</strong> <Badge tone={result.method === 'llm' ? 'violet' : 'neutral'}>{result.method}</Badge>
+            <strong>{t('tools.method_label')}</strong> <Badge tone={result.method === 'llm' ? 'violet' : 'neutral'}>{result.method}</Badge>
             {result.error && <Badge tone="warn" size="xs">{result.error}</Badge>}
           </div>
-          <div className="tools-card__out-row"><strong>tts instruct:</strong> <code>{result.instruct_prompt || '—'}</code></div>
-          <div className="tools-card__out-row"><strong>translate hint:</strong> <em>{result.translate_hint || '—'}</em></div>
-          <div className="tools-card__out-row"><strong>rate bias:</strong> <code>{result.rate_bias?.toFixed?.(2)}</code></div>
+          <div className="tools-card__out-row"><strong>{t('dub.tts_instruct')}</strong> <code>{result.instruct_prompt || '—'}</code></div>
+          <div className="tools-card__out-row"><strong>{t('dub.translate_hint')}</strong> <em>{result.translate_hint || '—'}</em></div>
+          <div className="tools-card__out-row"><strong>{t('dub.rate_bias')}</strong> <code>{result.rate_bias?.toFixed?.(2)}</code></div>
           <details>
-            <summary>tokens</summary>
+            <summary>{t('tools.tokens_label')}</summary>
             <pre>{JSON.stringify(result.tokens, null, 2)}</pre>
           </details>
           <details>
-            <summary>taxonomy</summary>
+            <summary>{t('tools.taxonomy_label')}</summary>
             <pre>{JSON.stringify(result.taxonomy, null, 2)}</pre>
           </details>
         </div>
@@ -78,6 +77,7 @@ function DirectorTool() {
 
 
 function RateFitTool() {
+  const { t } = useTranslation();
   const [text, setText] = useState('Tatsächlich das Spiel zu verändern.');
   const [slot, setSlot] = useState('2.0');
   const [lang, setLang] = useState('de');
@@ -90,33 +90,32 @@ function RateFitTool() {
       setResult(await apiPost('/tools/rate-fit', {
         text, slot_seconds: Number(slot), target_lang: lang,
       }));
-    } catch (e) { toast.error(`Fit failed: ${e.message}`); }
+    } catch (e) { toast.error(t('tools.fit_failed', { msg: e.message })); }
     finally { setBusy(false); }
   };
 
   return (
     <Panel variant="flat" padding="md" className="tools-card"
-      title={<><Target size={13} /> Speech-rate fit</>}
+      title={<><Target size={13} /> {t('tools.speech_rate_fit')}</>}
     >
       <p className="tools-card__desc">
-        Check how a translated line compares to its time slot. With an LLM
-        configured, the tool will trim or expand to fit.
+        {t('tools.rate_fit_desc')}
       </p>
-      <Field label="Translated line">
+      <Field label={t('tools.translated_line')}>
         <Textarea rows={2} value={text} onChange={e => setText(e.target.value)} />
       </Field>
       <div className="tools-card__row">
-        <Field label="Slot (seconds)"><Input size="sm" value={slot} onChange={e => setSlot(e.target.value)} /></Field>
-        <Field label="Target language"><Input size="sm" value={lang} onChange={e => setLang(e.target.value)} /></Field>
+        <Field label={t('tools.slot_seconds')}><Input size="sm" value={slot} onChange={e => setSlot(e.target.value)} /></Field>
+        <Field label={t('tools.target_language')}><Input size="sm" value={lang} onChange={e => setLang(e.target.value)} /></Field>
       </div>
       <Button variant="primary" size="sm" loading={busy} onClick={run}>
-        Fit
+        {t('tools.fit')}
       </Button>
       {result && (
         <div className="tools-card__out">
-          <div className="tools-card__out-row"><strong>ratio:</strong> <code>{result.rate_ratio?.toFixed?.(2)}</code> {result.error && <Badge tone="warn" size="xs">{result.error}</Badge>}</div>
-          <div className="tools-card__out-row"><strong>attempts:</strong> <code>{result.attempts}</code></div>
-          <div className="tools-card__out-row"><strong>result:</strong></div>
+          <div className="tools-card__out-row"><strong>{t('tools.ratio_label')}</strong> <code>{result.rate_ratio?.toFixed?.(2)}</code> {result.error && <Badge tone="warn" size="xs">{result.error}</Badge>}</div>
+          <div className="tools-card__out-row"><strong>{t('tools.attempts_label')}</strong> <code>{result.attempts}</code></div>
+          <div className="tools-card__out-row"><strong>{t('tools.result_label')}</strong></div>
           <div className="tools-card__result">{result.text}</div>
         </div>
       )}
@@ -126,6 +125,7 @@ function RateFitTool() {
 
 
 function ProbeTool() {
+  const { t } = useTranslation();
   const [path, setPath] = useState('');
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -133,27 +133,26 @@ function ProbeTool() {
   const run = async () => {
     setBusy(true);
     try { setResult(await apiPost('/tools/probe', { path })); }
-    catch (e) { toast.error(`Probe failed: ${e.message}`); }
+    catch (e) { toast.error(t('tools.probe_failed', { msg: e.message })); }
     finally { setBusy(false); }
   };
 
   return (
     <Panel variant="flat" padding="md" className="tools-card"
-      title={<><Activity size={13} /> Probe file</>}
+      title={<><Activity size={13} /> {t('tools.probe_file')}</>}
     >
       <p className="tools-card__desc">
-        ffprobe wrapper — inspect codec, streams, bit depth, duration of any
-        local media file.
+        {t('tools.probe_desc')}
       </p>
-      <Field label="Absolute path">
+      <Field label={t('tools.absolute_path')}>
         <Input size="sm" value={path} onChange={e => setPath(e.target.value)} placeholder="/Users/you/Movies/sample.mp4" />
       </Field>
       <Button variant="primary" size="sm" loading={busy} onClick={run} disabled={!path.trim()}>
-        Probe
+        {t('tools.probe')}
       </Button>
       {result && (
         <details open className="tools-card__out">
-          <summary>result</summary>
+          <summary>{t('tools.result_section')}</summary>
           <pre>{JSON.stringify(result, null, 2)}</pre>
         </details>
       )}

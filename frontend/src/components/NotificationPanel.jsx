@@ -3,11 +3,13 @@
  * Notifications tab in the footer status bar.
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Bell } from 'lucide-react';
 import { API } from '../api/client';
 import './NotificationPanel.css';
 
 export default function NotificationPanel() {
+  const { t } = useTranslation();
   const [count, setCount] = useState(0);
   const [hasErrors, setHasErrors] = useState(false);
   const [hasWarns, setHasWarns] = useState(false);
@@ -41,8 +43,8 @@ export default function NotificationPanel() {
     <button
       className={`notif-trigger ${count > 0 ? 'notif-trigger--has-items' : ''}`}
       onClick={openNotifications}
-      aria-label={`Notifications (${count})`}
-      title="Notifications"
+      aria-label={t('components.notifications_count', { count })}
+      title={t('components.notifications')}
     >
       <Bell size={14} />
       {count > 0 && (

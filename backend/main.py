@@ -7,6 +7,15 @@ import sys
 # trigger httpx ConnectTimeout on restricted networks.
 os.environ["HF_HUB_OFFLINE"] = "1"
 
+# Triton is unavailable on Windows — disable torch.compile / dynamo / inductor
+# to prevent TritonMissing errors at inference time. Must be set before
+# torch is imported (lazy import in services/model_manager.py).
+# Mirrors the PyInstaller runtime hook at backend/hooks/pyi_rth_torch_compiler_disable.py
+if sys.platform == "win32":
+    os.environ.setdefault("TORCH_COMPILE_DISABLE", "1")
+    os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
+    os.environ.setdefault("TORCHINDUCTOR_DISABLE", "1")
+
 # Ensure `backend/` is on sys.path so bare imports like `from core.config`
 # work regardless of how uvicorn is invoked:
 #   - `uvicorn main:app`           (cwd = backend/)

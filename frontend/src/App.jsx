@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, Suspense, lazy } from 'react';
+import { useTranslation } from 'react-i18next';
 import './index.css';
 import { useAppStore } from './store';
 import SearchableSelect from './components/SearchableSelect';
@@ -43,7 +44,10 @@ import useProfiles from './hooks/useProfiles';
 import useTTS from './hooks/useTTS';
 import useDubWorkflow from './hooks/useDubWorkflow';
 
-const LazyFallback = () => <div className="app-lazy-fallback">Loading…</div>;
+const LazyFallback = () => {
+  const { t } = useTranslation();
+  return <div className="app-lazy-fallback">{t('common.loading')}</div>;
+};
 
 import { Toaster, toast } from 'react-hot-toast';
 import {
@@ -59,6 +63,7 @@ import { exportAction, exportReveal, exportRecord } from './api/exports';
 import { isTauri, doubleClickMaximize, fileToMediaUrl, playBlobAudio, playPing } from './utils/media';
 
 function App() {
+  const { t } = useTranslation();
   // First-run bootstrap: Rust spawns uv sync in a background thread and
   // publishes progress via the `bootstrap_status` Tauri command. Hook below
   // polls every 1 s; until `ready`, we render BootstrapSplash instead of the
@@ -208,7 +213,9 @@ function App() {
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [compareVoiceA, setCompareVoiceA] = useState("");
   const [compareVoiceB, setCompareVoiceB] = useState("");
-  const [compareText, setCompareText] = useState("The quick brown fox jumps over the lazy dog, proving that this voice sounds much better.");
+  const [compareText, setCompareText] = useState(() => {
+    try { return i18n?.t?.('voice.default_test_phrase'); } catch { return "The quick brown fox jumps over the lazy dog."; }
+  });
   const [compareResultA, setCompareResultA] = useState(null);
   const [compareResultB, setCompareResultB] = useState(null);
   const [isComparing, setIsComparing] = useState(false);
@@ -384,8 +391,8 @@ function App() {
         const update = await check();
         if (cancelled || !update) return;
         const proceed = await ask(
-          `A new version (${update.version}) of OmniVoice Studio is available.\n\nWhat's new:\n${update.body || '— see release notes'}\n\nDownload and install now?`,
-          { title: 'Update available', kind: 'info' },
+          t('settings.update_available_prompt', { version: update.version, body: update.body || t('settings.see_release_notes') }),
+          { title: t('settings.update_available'), kind: 'info' },
         );
         if (!proceed) return;
         await update.downloadAndInstall();
@@ -503,18 +510,18 @@ function App() {
       if (!destPath) return; // User cancelled
 
       await exportAction({ source_filename: sourceIdentifier, destination_path: destPath, mode });
-      toast.success(`Exported: ${fallbackName}`);
+      toast.success(t('settings.exported_file', { name: fallbackName }));
       loadExportHistory();
     } catch (err) {
       console.error(err);
-      toast.error(`Export failed: ${err?.message || err}`);
+      toast.error(t('settings.export_failed', { msg: err?.message || err }));
     }
   };
   const revealInFolder = async (filePath) => {
     try {
       await exportReveal({ path: filePath });
     } catch (err) {
-      toast.error(`Could not open folder: ${err.message}`);
+      toast.error(t('settings.open_folder_failed', { msg: err.message }));
     }
   };
   const parseFilenameFromContentDisposition = (header) => {
@@ -540,29 +547,29 @@ function App() {
           filters: [{ name: modeGuess === 'video' ? 'Video' : 'Audio', extensions: [extGuess] }],
         });
         if (!destPath) return; // user cancelled
-        toast.loading(`Saving ${fallbackName}...`, { id: fallbackName });
+        toast.loading(t('settings.saving_file', { name: fallbackName }), { id: fallbackName });
         const sep = url.includes('?') ? '&' : '?';
         const res = await fetch(`${url}${sep}save_path=${encodeURIComponent(destPath)}`);
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.detail || 'Save failed');
+          throw new Error(err.detail || t('settings.save_failed_generic'));
         }
         const data = await res.json();
-        toast.success(`Saved: ${data.path}`, { id: fallbackName });
+        toast.success(t('settings.saved_file', { path: data.path }), { id: fallbackName });
         try {
           await exportRecord({ filename: data.display_name || fallbackName, destination_path: data.path, mode: modeGuess });
           loadExportHistory();
         } catch (err) { console.warn('exportRecord (Tauri save path) failed:', err); }
       } catch (err) {
         console.error(err);
-        toast.error(`Save error: ${err.message}`, { id: fallbackName });
+        toast.error(t('settings.save_error', { msg: err.message }), { id: fallbackName });
       }
       return;
     }
 
     // Browser path: standard blob download.
     try {
-      toast.loading(`Processing ${fallbackName}...`, { id: fallbackName });
+      toast.loading(t('settings.processing_file', { name: fallbackName }), { id: fallbackName });
       const response = await fetch(url);
       if (!response.ok) throw new Error("Download failed");
       const serverName = parseFilenameFromContentDisposition(response.headers.get('content-disposition'));
@@ -576,14 +583,14 @@ function App() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(localUrl);
-      toast.success(`Downloaded ${finalName}`, { id: fallbackName });
+      toast.success(t('settings.downloaded_file', { name: finalName }), { id: fallbackName });
       try {
         await exportRecord({ filename: finalName, destination_path: `~/Downloads/${finalName}`, mode: modeGuess });
         loadExportHistory();
       } catch (err) { console.warn('exportRecord (browser download path) failed:', err); }
     } catch (err) {
       console.error(err);
-      toast.error(`Download error: ${err.message}`, { id: fallbackName });
+      toast.error(t('settings.download_error', { msg: err.message }), { id: fallbackName });
     }
   };
   // Pre-flight for audio/video exports. If any segments are at preview
@@ -592,7 +599,7 @@ function App() {
   // artifacts. No-op when previewSegIds is empty.
   const finalizeTtsBeforeExport = async () => {
     if (!previewSegIds || previewSegIds.length === 0) return;
-    toast(`Upgrading ${previewSegIds.length} preview-quality segment${previewSegIds.length === 1 ? '' : 's'} to full quality…`, { icon: '✨' });
+    toast(t('dub.upgrading_preview_segments', { n: previewSegIds.length }), { icon: '✨' });
     await handleDubGenerate({ regenOnly: previewSegIds, preview: false });
   };
   const handleDubDownload = async () => {
@@ -631,10 +638,10 @@ function App() {
   // ═══ STUDIO PROJECT CRUD ═══
   const saveProject = async () => {
     if (dubStep === 'idle') {
-      toast.error("Please click 'Upload & Transcribe' first so the video is processed on the server before saving.");
+      toast.error(t('toast.save_dub_first'));
       return;
     }
-    const name = activeProjectName || dubFilename || `Project ${new Date().toLocaleString()}`;
+    const name = activeProjectName || dubFilename || t('dub.untitled_project');
     const statePayload = {
       name,
       video_path: dubFilename || null,
@@ -649,10 +656,10 @@ function App() {
     try {
       const data = await apiSaveProject(statePayload, activeProjectId);
       setActiveProject(data.id, name);
-      toast.success(activeProjectId ? 'Project saved' : 'Project created');
+      toast.success(t('toast.project_saved'));
       loadProjects();
     } catch (err) {
-      toast.error('Save failed: ' + err.message);
+      toast.error(t('voice.save_failed', { msg: err.message }));
     }
   };
 
@@ -680,7 +687,7 @@ function App() {
       // the last generate.
       setLastGenFingerprints(s.segHashes || {});
       setSpeakerClones(s.speakerClones || {});
-      toast.success(`Opened: ${data.name}`);
+      toast.success(t('sidebar.load_profile', { name: data.name }));
     } catch (err) {
       toast.error(err.message);
     }
@@ -688,14 +695,14 @@ function App() {
 
   const deleteProject = async (projectId, e) => {
     if (e) e.stopPropagation();
-    if (!(await askConfirm('Delete this project? This cannot be undone.'))) return;
+    if (!(await askConfirm(t('dub.delete_project_confirm')))) return;
     try {
       await apiDeleteProject(projectId);
       if (activeProjectId === projectId) {
         setActiveProject(null);
       }
       loadProjects();
-      toast.success('Project deleted');
+      toast.success(t('dub.project_deleted'));
     } catch (err) { toast.error(err.message); }
   };
 
@@ -735,11 +742,11 @@ function App() {
     
     // Switch to studio tab
     setSidebarTab('projects');
-    toast.success('Restored previous generation state');
+    toast.success(t('sidebar.history_restored'));
   };
 
   const deleteHistory = async (id, type) => {
-    if (!(await askConfirm('Delete this history item?'))) return;
+    if (!(await askConfirm(t('sidebar.delete_history_confirm')))) return;
     try {
       const endpoint = type === 'dub' ? `${API}/dub/history/${id}` : `${API}/history/${id}`;
       await fetch(endpoint, { method: 'DELETE' });
@@ -748,7 +755,7 @@ function App() {
       } else {
         loadHistory();
       }
-      toast.success('History item deleted');
+      toast.success(t('sidebar.history_item_deleted'));
     } catch (err) {
       toast.error(err.message);
     }
@@ -827,7 +834,7 @@ function App() {
               file={pendingTrimFile}
               maxSeconds={CLONE_MAX_SECONDS}
               onCancel={() => setPendingTrimFile(null)}
-              onConfirm={(trimmed) => { setPendingTrimFile(null); setRefAudio(trimmed); setSelectedProfile(null); toast.success('Trimmed audio loaded'); }}
+              onConfirm={(trimmed) => { setPendingTrimFile(null); setRefAudio(trimmed); setSelectedProfile(null); toast.success(t('voice.trimmed_audio_loaded')); }}
             />
           </Suspense>
         </ErrorBoundary>
@@ -849,8 +856,8 @@ function App() {
         onFlushMemory={async (unloadModel) => {
           try {
             const r = await apiFlushMemory(unloadModel);
-            toast.success(`Flushed — RAM ${r.ram_after}G · VRAM ${r.vram_after}G${r.unloaded_model ? ' · model unloaded' : ''}`);
-          } catch (e) { toast.error('Flush failed: ' + e.message); }
+            toast.success(t('settings.flushed_memory', { ram: r.ram_after, vram: r.vram_after, unloaded: r.unloaded_model ? ` · ${t('settings.model_unloaded')}` : '' }));
+          } catch (e) { toast.error(t('settings.flush_failed', { msg: e.message })); }
         }}
       />
 

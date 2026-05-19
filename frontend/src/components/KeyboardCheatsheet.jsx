@@ -1,45 +1,46 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Command, X } from 'lucide-react';
 import './KeyboardCheatsheet.css';
 
-const SECTIONS = [
+const SECTION_KEYS = [
   {
-    title: 'Navigation',
+    titleKey: 'components.navigation_section',
     items: [
-      ['?', 'Show this cheatsheet'],
-      ['Esc', 'Close modal / cancel'],
-      ['Cmd/Ctrl+S', 'Save project / commit trim'],
+      ['?', 'components.show_cheatsheet'],
+      ['Esc', 'components.close_modal'],
+      ['Cmd/Ctrl+S', 'components.save_project'],
     ],
   },
   {
-    title: 'Segment editor',
+    titleKey: 'components.segment_editor_section',
     items: [
-      ['Cmd/Ctrl+D', 'Split segment at cursor'],
-      ['Cmd/Ctrl+M', 'Merge with next segment'],
-      ['Cmd/Ctrl+Z', 'Undo'],
-      ['Cmd/Ctrl+Shift+Z', 'Redo'],
-      ['Click row', 'Primary action'],
-      ['Shift+click row', 'Range select'],
+      ['Cmd/Ctrl+D', 'components.split_segment'],
+      ['Cmd/Ctrl+M', 'components.merge_segment'],
+      ['Cmd/Ctrl+Z', 'components.undo'],
+      ['Cmd/Ctrl+Shift+Z', 'components.redo'],
+      ['Click row', 'components.primary_action'],
+      ['Shift+click row', 'components.range_select'],
     ],
   },
   {
-    title: 'Audio trimmer',
+    titleKey: 'components.audio_trimmer_section',
     items: [
-      ['Space', 'Preview play / pause'],
-      ['← / →', 'Nudge start handle'],
-      ['Ctrl+← / →', 'Nudge end handle'],
-      ['Shift+arrow', 'Fine nudge'],
-      ['Alt+arrow', 'Coarse nudge'],
-      ['+ / −', 'Zoom in / out'],
-      ['Home / End', 'Fit all / Fit selection'],
-      ['Enter', 'Confirm trim'],
+      ['Space', 'components.preview_play'],
+      ['← / →', 'components.nudge_start'],
+      ['Ctrl+← / →', 'components.nudge_end'],
+      ['Shift+arrow', 'components.fine_nudge'],
+      ['Alt+arrow', 'components.coarse_nudge'],
+      ['+ / −', 'components.zoom_in_out'],
+      ['Home / End', 'components.fit_all_fit_sel'],
+      ['Enter', 'components.confirm_trim'],
     ],
   },
   {
-    title: 'Dub',
+    titleKey: 'components.dub_section',
     items: [
-      ['Cmd/Ctrl+Enter', 'Generate dub'],
-      ['Cmd/Ctrl+B', 'Toggle sidebar'],
+      ['Cmd/Ctrl+Enter', 'components.generate_dub_shortcut'],
+      ['Cmd/Ctrl+B', 'components.toggle_sidebar_shortcut'],
     ],
   },
 ];
@@ -49,6 +50,7 @@ function Kbd({ children }) {
 }
 
 export default function KeyboardCheatsheet({ open, onClose }) {
+  const { t } = useTranslation();
   if (!open) return null;
   return (
     <div onClick={onClose} className="kcs-overlay">
@@ -56,7 +58,7 @@ export default function KeyboardCheatsheet({ open, onClose }) {
         <div className="kcs-header">
           <div className="kcs-header__left">
             <Command size={16} color="var(--chrome-accent)" />
-            <h2 className="kcs-title">Keyboard shortcuts</h2>
+            <h2 className="kcs-title">{t('components.keyboard_shortcuts')}</h2>
           </div>
           <button onClick={onClose} className="kcs-close">
             <X size={16} />
@@ -64,20 +66,20 @@ export default function KeyboardCheatsheet({ open, onClose }) {
         </div>
 
         <div className="kcs-grid">
-          {SECTIONS.map((sec) => (
-            <div key={sec.title}>
-              <div className="kcs-section-title">{sec.title}</div>
+          {SECTION_KEYS.map((sec) => (
+            <div key={sec.titleKey}>
+              <div className="kcs-section-title">{t(sec.titleKey)}</div>
               <div className="kcs-items">
-                {sec.items.map(([keys, desc]) => (
+                {sec.items.map(([keys, descKey]) => (
                   <div key={keys} className="kcs-row">
-                    <span className="kcs-desc">{desc}</span>
+                    <span className="kcs-desc">{t(descKey)}</span>
                     <span className="kcs-keys">
                       {keys.split(' / ').map((group, i, arr) => (
                         <React.Fragment key={group}>
                           <span className="kcs-key-group">
                             {group.split('+').map((k) => <Kbd key={k}>{k}</Kbd>)}
                           </span>
-                          {i < arr.length - 1 && <span className="kcs-or">or</span>}
+                          {i < arr.length - 1 && <span className="kcs-or">{t('components.or_separator')}</span>}
                         </React.Fragment>
                       ))}
                     </span>
@@ -89,7 +91,7 @@ export default function KeyboardCheatsheet({ open, onClose }) {
         </div>
 
         <div className="kcs-footer">
-          Press <Kbd>?</Kbd> any time to open this.
+          {t('components.press_question')}
         </div>
       </div>
     </div>

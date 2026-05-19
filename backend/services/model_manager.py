@@ -300,13 +300,15 @@ def _load_model_sync():
             local_files_only=True,
         )
 
-        try:
-            if device == "cuda":
+        if device == "cuda" and not os.environ.get("TORCH_COMPILE_DISABLE"):
+            try:
                 _set_loading("compiling", "Compiling model (torch.compile)…")
                 _model.llm = torch.compile(_model.llm, mode="reduce-overhead")
                 logger.info("torch.compile applied.")
-        except Exception as e:
-            logger.info("torch.compile skipped: %s", e)
+            except Exception as e:
+                logger.info("torch.compile skipped: %s", e)
+        elif os.environ.get("TORCH_COMPILE_DISABLE"):
+            logger.info("torch.compile disabled by TORCH_COMPILE_DISABLE env var.")
 
         _set_loading("ready", "Model ready", progress=100)
         logger.info("OmniVoice model loaded successfully.")
@@ -332,7 +334,7 @@ async def get_model():
     async with _model_lock:
         if model is None:
             loop = asyncio.get_running_loop()
-            model = await loop.run_in_executor(_gpu_pool, _load_model_sync)
+            model = await loop.run_in_executor(_get_gpu_pool(), _load_model_sync)
     return model
 
 

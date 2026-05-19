@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, ChevronDown, Check, Star, Clock } from 'lucide-react';
 
 const MAX_DISPLAY = 200;
@@ -22,7 +23,7 @@ export default function SearchableSelect({
   value,
   onChange,
   options,
-  placeholder = 'Select…',
+  placeholder,
   popular = [],
   recentsKey = '',
   renderLabel,
@@ -32,6 +33,7 @@ export default function SearchableSelect({
   buttonClassName = 'input-base',
   size = 'md',
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
@@ -55,8 +57,9 @@ export default function SearchableSelect({
 
   const currentLabel = useMemo(() => {
     const o = byVal.get(value);
-    return o ? getLabel(o) : (value || placeholder);
-  }, [byVal, value, getLabel, placeholder]);
+    const displayPlaceholder = placeholder !== undefined ? placeholder : t('common.select_ellipsis');
+  return o ? getLabel(o) : (value || displayPlaceholder);
+  }, [byVal, value, getLabel, placeholder, t]);
 
   const filtered = useMemo(() => {
     const q = normalize(query);
@@ -161,7 +164,7 @@ export default function SearchableSelect({
             <input
               ref={inputRef}
               className="ss-search-input"
-              placeholder="Search…"
+              placeholder={t('components.search_generic')}
               value={query}
               onChange={e => { setQuery(e.target.value); setHighlight(0); }}
               onKeyDown={onKey}
@@ -170,12 +173,12 @@ export default function SearchableSelect({
 
           <div ref={listRef} className="ss-list">
             {flatItems.length === 0 && (
-              <div className="ss-empty">No matches</div>
+              <div className="ss-empty">{t('common.no_matches')}</div>
             )}
 
             {pinned.length > 0 && (
               <div className="ss-group-label">
-                {recents.length ? <><Clock size={9}/> Recent & Popular</> : <><Star size={9}/> Popular</>}
+                {recents.length ? <><Clock size={9}/> {t('components.recent_popular')}</> : <><Star size={9}/> {t('dub.popular')}</>}
               </div>
             )}
 
@@ -204,7 +207,7 @@ export default function SearchableSelect({
             })}
 
             {!query && filtered.length > MAX_DISPLAY && (
-              <div className="ss-more">Showing {MAX_DISPLAY} of {filtered.length}. Type to search…</div>
+              <div className="ss-more">{t('components.showing_m_of_n', { n: MAX_DISPLAY, m: filtered.length })}</div>
             )}
           </div>
         </div>

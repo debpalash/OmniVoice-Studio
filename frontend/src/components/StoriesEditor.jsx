@@ -14,6 +14,7 @@
  *   />
  */
 import React, { useState, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Play, Trash2, GripVertical, BookOpen, Mic, Download, Scissors, Pause as PauseIcon, Users } from 'lucide-react';
 import { Button, Menu } from '../ui';
 import { parseStoryText, hasStoryMarkers, applyInlineVoice } from '../utils/storyTokens';
@@ -51,13 +52,13 @@ function splitIntoChunks(text, maxChars) {
 }
 
 const CHARACTERS = [
-  { id: 'narrator', label: 'Narrator', color: 'var(--color-accent)' },
-  { id: 'char-0',   label: 'Character 1', color: '#d3869b' },
-  { id: 'char-1',   label: 'Character 2', color: '#83a598' },
-  { id: 'char-2',   label: 'Character 3', color: '#b8bb26' },
-  { id: 'char-3',   label: 'Character 4', color: '#fabd2f' },
-  { id: 'char-4',   label: 'Character 5', color: '#fe8019' },
-  { id: 'char-5',   label: 'Character 6', color: '#8ec07c' },
+  { id: 'narrator', labelKey: 'stories.narrator', color: 'var(--color-accent)' },
+  { id: 'char-0',   labelKey: 'stories.character_n', labelN: 1, color: '#d3869b' },
+  { id: 'char-1',   labelKey: 'stories.character_n', labelN: 2, color: '#83a598' },
+  { id: 'char-2',   labelKey: 'stories.character_n', labelN: 3, color: '#b8bb26' },
+  { id: 'char-3',   labelKey: 'stories.character_n', labelN: 4, color: '#fabd2f' },
+  { id: 'char-4',   labelKey: 'stories.character_n', labelN: 5, color: '#fe8019' },
+  { id: 'char-5',   labelKey: 'stories.character_n', labelN: 6, color: '#8ec07c' },
 ];
 
 let _trackId = 0;
@@ -74,6 +75,7 @@ function makeTrack(character = 'narrator', text = '') {
 }
 
 export default function StoriesEditor({ profiles = [], onGenerate }) {
+  const { t } = useTranslation();
   const [tracks, setTracks] = useState(() => [
     makeTrack('narrator', 'Once upon a time, in a land far away...'),
     makeTrack('char-0', 'Where are we going?'),
@@ -229,47 +231,50 @@ export default function StoriesEditor({ profiles = [], onGenerate }) {
   const uniqueChars = new Set(tracks.map(t => t.character)).size;
   const estMinutes = Math.ceil(totalChars / 800); // ~800 chars/min speech
 
-  const charInfo = (charId) => CHARACTERS.find(c => c.id === charId) || CHARACTERS[0];
+  const charInfo = (charId) => {
+    const c = CHARACTERS.find(c => c.id === charId) || CHARACTERS[0];
+    return { ...c, label: c.labelN ? t(c.labelKey, { n: c.labelN }) : t(c.labelKey) };
+  };
 
   return (
-    <div className="stories-editor" role="region" aria-label="Stories editor">
+    <div className="stories-editor" role="region" aria-label={t('stories.stories_editor')}>
       {/* Header */}
       <div className="stories-editor__header">
         <div>
           <h2 className="stories-editor__title">
             <BookOpen size={18} />
-            Stories Editor
+            {t('stories.stories_editor')}
           </h2>
           <p className="stories-editor__subtitle">
-            Multi-track audiobook with per-character voice assignment
+            {t('stories.stories_subtitle')}
           </p>
         </div>
         <div className="stories-editor__actions">
-          <Button size="sm" variant="ghost" onClick={() => setSplitOpen(v => !v)} aria-label="Paste & split">
-            <Scissors size={13} /> Paste & Split
+          <Button size="sm" variant="ghost" onClick={() => setSplitOpen(v => !v)} aria-label={t('stories.paste_split')}>
+            <Scissors size={13} /> {t('stories.paste_split')}
           </Button>
-          <Button size="sm" variant="ghost" onClick={addTrack} aria-label="Add track">
-            <Plus size={13} /> Add Line
+          <Button size="sm" variant="ghost" onClick={addTrack} aria-label={t('stories.add_track_aria')}>
+            <Plus size={13} /> {t('stories.add_line')}
           </Button>
           <Button size="sm" onClick={generateAll} disabled={tracks.length === 0}>
-            <Download size={13} /> Generate All
+            <Download size={13} /> {t('stories.generate_all')}
           </Button>
         </div>
       </div>
 
       {splitOpen && (
-        <div className="stories-editor__split-panel" role="region" aria-label="Paste long text and auto-split">
+        <div className="stories-editor__split-panel" role="region" aria-label={t('stories.split_panel_aria')}>
           <textarea
             className="stories-editor__split-text"
-            placeholder="Paste a long passage. We'll split it into segments at sentence boundaries."
+            placeholder={t('stories.paste_placeholder')}
             value={splitText}
             onChange={(e) => setSplitText(e.target.value)}
             rows={6}
-            aria-label="Long-form text input"
+            aria-label={t('stories.paste_input_label')}
           />
           <div className="stories-editor__split-controls">
             <label className="stories-editor__split-label">
-              Max chars per segment
+              {t('stories.max_chars_per_segment')}
               <input
                 type="number"
                 min={60}
@@ -282,12 +287,12 @@ export default function StoriesEditor({ profiles = [], onGenerate }) {
             </label>
             <span className="stories-editor__split-hint">
               {splitText
-                ? `~${splitIntoChunks(splitText, splitMax).length} segment(s) at ${splitMax} chars`
-                : 'Paste text above'}
+                ? t('stories.split_preview', { n: splitIntoChunks(splitText, splitMax).length, max: splitMax })
+                : t('stories.paste_text_above')}
             </span>
-            <Button size="sm" variant="ghost" onClick={() => { setSplitText(''); setSplitOpen(false); }}>Cancel</Button>
+            <Button size="sm" variant="ghost" onClick={() => { setSplitText(''); setSplitOpen(false); }}>{t('common.cancel')}</Button>
             <Button size="sm" onClick={applySplit} disabled={!splitText.trim()}>
-              <Scissors size={13} /> Split into tracks
+              <Scissors size={13} /> {t('stories.split_into_tracks')}
             </Button>
           </div>
         </div>
@@ -298,11 +303,10 @@ export default function StoriesEditor({ profiles = [], onGenerate }) {
         <div className="stories-editor__empty">
           <span className="stories-editor__empty-icon">📖</span>
           <p className="stories-editor__empty-text">
-            Start your story by adding dialogue and narration tracks.
-            Assign a unique voice to each character.
+            {t('stories.empty_stories_hint')}
           </p>
           <Button size="sm" onClick={addTrack}>
-            <Plus size={13} /> Add First Line
+            <Plus size={13} /> {t('stories.add_first_line')}
           </Button>
         </div>
       ) : (
@@ -334,9 +338,9 @@ export default function StoriesEditor({ profiles = [], onGenerate }) {
                   }}
                   value={track.text}
                   onChange={(e) => updateTrack(track.id, 'text', e.target.value)}
-                  placeholder="Enter dialogue or narration… use [pause 0.5s] to insert a silent break"
+                  placeholder={t('stories.dialogue_placeholder')}
                   rows={1}
-                  aria-label={`${char.label} text`}
+                  aria-label={t('stories.track_text_aria', { character: char.label })}
                 />
 
                 {/* Voice selector */}
@@ -350,10 +354,10 @@ export default function StoriesEditor({ profiles = [], onGenerate }) {
                     className="stories-track__voice-select"
                     value={track.character}
                     onChange={(e) => updateTrack(track.id, 'character', e.target.value)}
-                    aria-label="Character"
+                    aria-label={t('stories.character')}
                   >
                     {CHARACTERS.map(c => (
-                      <option key={c.id} value={c.id}>{c.label}</option>
+                      <option key={c.id} value={c.id}>{c.labelN ? t(c.labelKey, { n: c.labelN }) : t(c.labelKey)}</option>
                     ))}
                   </select>
                 </div>
@@ -363,9 +367,9 @@ export default function StoriesEditor({ profiles = [], onGenerate }) {
                   className="stories-track__character"
                   value={track.profileId || ''}
                   onChange={(e) => updateTrack(track.id, 'profileId', e.target.value || null)}
-                  aria-label="Voice profile"
+                  aria-label={t('stories.voice_profile')}
                 >
-                  <option value="">Default</option>
+                  <option value="">{t('common.default')}</option>
                   {profiles.map(p => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
@@ -377,21 +381,21 @@ export default function StoriesEditor({ profiles = [], onGenerate }) {
                     placement="bottom-end"
                     items={[
                       ...(profiles.length === 0
-                        ? [{ id: 'noprof', label: 'No voice profiles installed', disabled: true }]
+                        ? [{ id: 'noprof', label: t('stories.no_voice_profiles_installed'), disabled: true }]
                         : profiles.map(p => ({
                             id: `voice-${p.id}`,
                             label: p.name,
                             onSelect: () => setVoiceForSelection(track.id, p.id),
                           }))),
                       'separator',
-                      { id: 'voice-default', label: 'Reset to track default', onSelect: () => setVoiceForSelection(track.id, 'default') },
+                      { id: 'voice-default', label: t('stories.reset_to_track_default'), onSelect: () => setVoiceForSelection(track.id, 'default') },
                     ]}
                   >
                     <button
                       className="stories-track__btn"
                       onClick={(e) => e.stopPropagation()}
-                      title="Switch voice for the highlighted text (or insert a switch at the cursor)"
-                      aria-label="Set inline voice"
+                      title={t('stories.set_inline_voice')}
+                      aria-label={t('stories.inline_voice_aria')}
                     >
                       <Users size={12} />
                     </button>
@@ -399,8 +403,8 @@ export default function StoriesEditor({ profiles = [], onGenerate }) {
                   <button
                     className="stories-track__btn"
                     onClick={(e) => { e.stopPropagation(); insertPauseInto(track.id); }}
-                    title="Insert a [pause 0.5s] break at the cursor"
-                    aria-label="Insert pause"
+                    title={t('stories.insert_pause')}
+                    aria-label={t('stories.insert_pause_aria')}
                   >
                     <PauseIcon size={12} />
                   </button>
@@ -408,16 +412,16 @@ export default function StoriesEditor({ profiles = [], onGenerate }) {
                     className="stories-track__btn"
                     onClick={(e) => { e.stopPropagation(); previewTrack(track); }}
                     disabled={track.generating || !track.text.trim()}
-                    title="Preview this line"
-                    aria-label="Preview"
+                    title={t('stories.preview_line')}
+                    aria-label={t('stories.preview_aria')}
                   >
                     {track.generating ? <Mic size={12} className="spinner" /> : <Play size={12} />}
                   </button>
                   <button
                     className="stories-track__btn stories-track__btn--delete"
                     onClick={(e) => { e.stopPropagation(); removeTrack(track.id); }}
-                    title="Remove line"
-                    aria-label="Remove"
+                    title={t('stories.remove_line')}
+                    aria-label={t('stories.remove_aria')}
                   >
                     <Trash2 size={12} />
                   </button>
@@ -433,16 +437,16 @@ export default function StoriesEditor({ profiles = [], onGenerate }) {
         <div className="stories-editor__footer">
           <div className="stories-editor__stats">
             <span className="stories-editor__stat">
-              📝 {tracks.length} lines
+              📝 {t('stories.stats_lines', { n: tracks.length })}
             </span>
             <span className="stories-editor__stat">
-              🎭 {uniqueChars} characters
+              🎭 {t('stories.stats_characters', { n: uniqueChars })}
             </span>
             <span className="stories-editor__stat">
-              ⏱ ~{estMinutes} min
+              ⏱ {t('stories.stats_duration', { n: estMinutes })}
             </span>
             <span className="stories-editor__stat">
-              📊 {totalChars.toLocaleString()} chars
+              📊 {t('stories.stats_chars', { n: totalChars.toLocaleString() })}
             </span>
           </div>
         </div>

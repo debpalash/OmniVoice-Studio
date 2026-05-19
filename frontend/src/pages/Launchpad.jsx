@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import {
   Scale, Fingerprint, Wand2, Film, Lock,
 } from 'lucide-react';
@@ -103,18 +103,20 @@ export default function Launchpad({
             </div>
             <h1 className="lp-hero__title">
               <span className="lp-hero__halo" aria-hidden="true" />
-              Make voices that <em>sound like you</em>.
+              <Trans i18nKey="launchpad.hero_title">Make voices that <em>sound like you</em>.</Trans>
               <span className="lp-hero__sweep" aria-hidden="true" />
             </h1>
             <p>
-              Clone a voice, design a new one, or dub a video into any of <span className="lp-pill">{t('common.languages_count')}</span>.
-              Built for creators who care how it sounds.
+              <Trans i18nKey="launchpad.hero_desc" values={{ count: 646 }} components={{ 1: <span className="lp-pill" /> }}>
+                Clone a voice, design a new one, or dub a video into any of <span className="lp-pill">{t('common.languages_count')}</span>.
+                Built for creators who care how it sounds.
+              </Trans>
             </p>
           </div>
           <button
             onClick={() => setIsCompareModalOpen(true)}
             className="lp-ab-compare"
-            title="Try two voices side by side"
+            title={t('components.compare_description')}
           >
             <Scale size={12} /> {t('launchpad.ab_compare')}
           </button>
@@ -144,7 +146,7 @@ export default function Launchpad({
             className="lp-demo-callout__btn"
             onClick={() => { setMode('clone'); handleSelectProfile(demoProfile); }}
           >
-            Try it
+            {t('launchpad.try_it')}
           </button>
         </div>
       )}
@@ -156,7 +158,7 @@ export default function Launchpad({
             {/* Cloned voices */}
             {cloneProfiles.length > 0 && (
               <div>
-                <div className="lp-section-title"><Fingerprint size={12} color="#d3869b" /> Cloned Voices</div>
+                <div className="lp-section-title"><Fingerprint size={12} color="#d3869b" /> {t('launchpad.cloned_voices')}</div>
                 <div className="lp-col">
                   {cloneProfiles.map(p => (
                     <div key={p.id} className="lp-project-card">
@@ -165,7 +167,7 @@ export default function Launchpad({
                         <div className="proj-name">{p.name}</div>
                         <div className="proj-meta">{p.ref_audio_path}</div>
                       </div>
-                      <button className="proj-action" onClick={() => { setMode('clone'); handleSelectProfile(p); }}>Open</button>
+                      <button className="proj-action" onClick={() => { setMode('clone'); handleSelectProfile(p); }}>{t('common.open')}</button>
                     </div>
                   ))}
                 </div>
@@ -175,7 +177,7 @@ export default function Launchpad({
             {/* Designed voices */}
             {designProfiles.length > 0 && (
               <div>
-                <div className="lp-section-title"><Wand2 size={12} color="#8ec07c" /> Designed Voices</div>
+                <div className="lp-section-title"><Wand2 size={12} color="#8ec07c" /> {t('launchpad.designed_voices')}</div>
                 <div className="lp-col">
                   {designProfiles.map(p => (
                     <div key={p.id} className="lp-project-card">
@@ -186,8 +188,8 @@ export default function Launchpad({
                         <div className="proj-name">{p.name}</div>
                         <div className="proj-meta lp-proj-meta--italic">{p.instruct}</div>
                       </div>
-                      {p.is_locked && <span className="lp-locked-badge">LOCKED</span>}
-                      <button className="proj-action" onClick={() => { setMode('design'); handleSelectProfile(p); }}>Open</button>
+                      {p.is_locked && <span className="lp-locked-badge">{t('launchpad.locked')}</span>}
+                      <button className="proj-action" onClick={() => { setMode('design'); handleSelectProfile(p); }}>{t('common.open')}</button>
                     </div>
                   ))}
                 </div>
@@ -197,7 +199,7 @@ export default function Launchpad({
             {/* Dubbing projects */}
             {studioProjects.length > 0 && (
               <div>
-                <div className="lp-section-title"><Film size={12} color="#fe8019" /> Dubbing Projects</div>
+                <div className="lp-section-title"><Film size={12} color="#fe8019" /> {t('launchpad.dubbing_projects')}</div>
                 <div className="lp-col">
                   {studioProjects.map(proj => (
                     <div key={proj.id} className="lp-project-card">
@@ -209,9 +211,9 @@ export default function Launchpad({
                       </div>
                       <div className="proj-info">
                         <div className="proj-name">{proj.name}</div>
-                        <div className="proj-meta">{proj.video_path || 'Audio Only'}</div>
+                        <div className="proj-meta">{proj.video_path || t('launchpad.audio_only')}</div>
                       </div>
-                      <button className="proj-action" onClick={() => { setMode('dub'); loadProject(proj.id); }}>Open</button>
+                      <button className="proj-action" onClick={() => { setMode('dub'); loadProject(proj.id); }}>{t('common.open')}</button>
                     </div>
                   ))}
                 </div>

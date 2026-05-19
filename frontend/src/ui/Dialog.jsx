@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import Button from './Button';
@@ -26,6 +27,8 @@ export default function Dialog({
   dismissable = true,
   children,
 }) {
+  const { t } = useTranslation();
+
   const handleOpenChange = (nextOpen) => {
     if (!nextOpen && dismissable) onClose?.();
   };
@@ -57,14 +60,14 @@ export default function Dialog({
               )}
               {dismissable && (
                 <RadixDialog.Close asChild>
-                  <Button variant="icon" iconSize="sm" aria-label="Close">
+                  <Button variant="icon" iconSize="sm" aria-label={t('common.close')}>
                     <X size={12} />
                   </Button>
                 </RadixDialog.Close>
               )}
             </header>
           )}
-          {!title && <RadixDialog.Title className="sr-only">Dialog</RadixDialog.Title>}
+          {!title && <RadixDialog.Title className="sr-only">{t('common.dialog')}</RadixDialog.Title>}
           <div className="ui-dialog__body">{children}</div>
           {footer && <footer className="ui-dialog__footer">{footer}</footer>}
         </RadixDialog.Content>

@@ -3,6 +3,7 @@ import {
   Activity, RefreshCw, CheckCircle, AlertCircle, Square, Circle,
   Trash2, Download, XCircle, Film, Globe,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Panel, Button, Badge, Tabs } from '../ui';
 import {
   listBatchJobs, cancelBatchJob, deleteBatchJob, enqueueBatchJob,
@@ -12,40 +13,18 @@ import BatchAddDialog from '../components/BatchAddDialog';
 import toast from 'react-hot-toast';
 import './BatchQueue.css';
 
-/**
- * BatchQueue — UI for the /batch/* dubbing pipeline.
- *
- * Tabs: Active · Done · Failed. Polls every 3s for active jobs.
- * Shows real-time progress (extract → transcribe → translate → generate → mix).
- */
-const TABS = [
-  { id: 'active',   label: 'Active',    icon: Activity     },
-  { id: 'done',     label: 'Completed', icon: CheckCircle },
-  { id: 'failed',   label: 'Failed',    icon: AlertCircle  },
-];
-
-const STATUS_TONE = {
-  queued:    { tone: 'neutral', icon: Circle,      label: 'queued'    },
-  running:   { tone: 'brand',   icon: Activity,    label: 'running'   },
-  done:      { tone: 'success', icon: CheckCircle, label: 'done'      },
-  failed:    { tone: 'danger',  icon: AlertCircle, label: 'failed'    },
-  cancelled: { tone: 'warn',    icon: Square,      label: 'cancelled' },
-};
-
-const STAGE_LABELS = {
-  extract:    '🎬 Extracting audio…',
-  transcribe: '📝 Transcribing…',
-  translate:  '🌐 Translating…',
-  generate:   '🗣️ Generating speech…',
-  mix:        '🎛️ Mixing audio…',
-  done:       '✅ Complete',
-};
-
 export default function BatchQueue({ onBack }) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState('active');
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+
+  const TABS = useMemo(() => [
+    { id: 'active', label: t('batch.active'), icon: Activity },
+    { id: 'done', label: t('batch.completed'), icon: CheckCircle },
+    { id: 'failed', label: t('batch.failed'), icon: AlertCircle },
+  ], [t]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -76,47 +55,47 @@ export default function BatchQueue({ onBack }) {
         await enqueueBatchJob(file, langCodes, settings.voiceId || undefined, settings.preserveBg);
         success++;
       } catch (e) {
-        toast.error(`Failed to enqueue ${file.name}: ${e.message}`);
+        toast.error(t('batch.enqueue_failed', { name: file.name, msg: e.message }));
       }
     }
     if (success > 0) {
-      toast.success(`${success} video${success > 1 ? 's' : ''} added to queue`);
+      toast.success(t('batch.enqueued', { n: success }));
       setTab('active');
       reload();
     }
-  }, [reload]);
+  }, [reload, t]);
 
   const handleCancel = useCallback(async (id) => {
     try {
       await cancelBatchJob(id);
-      toast.success('Job cancelled');
+      toast.success(t('batch.job_cancelled'));
       reload();
     } catch (e) {
-      toast.error('Cancel failed: ' + e.message);
+      toast.error(t('batch.cancel_failed') + e.message);
     }
-  }, [reload]);
+  }, [reload, t]);
 
   const handleDelete = useCallback(async (id) => {
     try {
       await deleteBatchJob(id);
-      toast.success('Job deleted');
+      toast.success(t('batch.job_deleted'));
       reload();
     } catch (e) {
-      toast.error('Delete failed: ' + e.message);
+      toast.error(t('batch.delete_failed') + e.message);
     }
-  }, [reload]);
+  }, [reload, t]);
 
   return (
     <div className="batch-queue">
       <div className="batch-queue__bar">
-        {onBack && <Button variant="ghost" size="sm" onClick={onBack}>← Back</Button>}
-        <h1><Activity size={15} /> Batch dubbing</h1>
+        {onBack && <Button variant="ghost" size="sm" onClick={onBack}>← {t('common.back')}</Button>}
+        <h1><Activity size={15} /> {t('batch.batch_dubbing')}</h1>
         <div className="batch-queue__bar-spacer" />
         <Button variant="subtle" size="sm" onClick={reload} loading={loading} leading={<RefreshCw size={11} />}>
-          Refresh
+          {t('common.refresh')}
         </Button>
         <Button variant="primary" size="sm" onClick={() => setAddOpen(true)} leading={<PlusIcon size={11} />}>
-          Add Videos
+          {t('batch.add_videos')}
         </Button>
       </div>
 
@@ -130,11 +109,11 @@ export default function BatchQueue({ onBack }) {
       {jobs.length === 0 && !loading && (
         <Panel variant="flat" padding="lg" className="batch-queue__empty">
           <div>
-            <p>No {tab} jobs.</p>
+            <p>{t('batch.no_jobs', { tab })}</p>
             <p className="batch-queue__empty-sub">
-              {tab === 'active' && 'Drop videos above to start batch dubbing.'}
-              {tab === 'done' && 'Nothing has completed recently.'}
-              {tab === 'failed' && 'No failed jobs — enjoy the silence.'}
+              {tab === 'active' && t('batch.drop_hint')}
+              {tab === 'done' && t('batch.nothing_completed')}
+              {tab === 'failed' && t('batch.no_failed_jobs')}
             </p>
           </div>
         </Panel>
@@ -170,10 +149,29 @@ function PlusIcon({ size }) {
 }
 
 function JobCard({ job, onCancel, onDelete }) {
+  const { t } = useTranslation();
+
+  const STATUS_TONE = {
+    queued:    { tone: 'neutral', icon: Circle,      label: t('batch.queued') },
+    running:   { tone: 'brand',   icon: Activity,    label: t('batch.running') },
+    done:      { tone: 'success', icon: CheckCircle, label: t('common.done') },
+    failed:    { tone: 'danger',  icon: AlertCircle, label: t('batch.failed') },
+    cancelled: { tone: 'warn',    icon: Square,      label: t('batch.cancelled') },
+  };
+
+  const STAGE_LABELS = {
+    extract:    '🎬 ' + t('batch.step_extract'),
+    transcribe: '📝 ' + t('batch.step_transcribe'),
+    translate:  '🌐 ' + t('batch.step_translate'),
+    generate:   '🗣️ ' + t('batch.step_generate'),
+    mix:        '🎛️ ' + t('batch.step_mix'),
+    done:       '✅ ' + t('batch.step_complete'),
+  };
+
   const st = STATUS_TONE[job.status] || STATUS_TONE.queued;
   const StIcon = st.icon;
 
-  const ageLabel = formatAge((Date.now() / 1000 - (job.created_at || 0)) * 1000);
+  const ageLabel = formatAge((Date.now() / 1000 - (job.created_at || 0)) * 1000, t);
 
   const duration = job.finished_at && job.started_at
     ? Math.max(0, job.finished_at - job.started_at)
@@ -222,7 +220,7 @@ function JobCard({ job, onCancel, onDelete }) {
             )}
             {progress.current_segment != null && progress.total_segments && (
               <span className="batch-queue__progress-segs">
-                seg {progress.current_segment}/{progress.total_segments}
+                {t('batch.seg_progress', { current: progress.current_segment, total: progress.total_segments })}
               </span>
             )}
             <span className="batch-queue__progress-pct">{pct}%</span>
@@ -233,7 +231,7 @@ function JobCard({ job, onCancel, onDelete }) {
       {/* Duration for completed jobs */}
       {duration != null && (
         <div className="batch-queue__card-meta">
-          Completed in {formatDuration(duration)}
+          {t('batch.completed_in', { duration: formatDuration(duration, t) })}
         </div>
       )}
 
@@ -264,12 +262,12 @@ function JobCard({ job, onCancel, onDelete }) {
       <div className="batch-queue__card-actions">
         {(job.status === 'queued' || job.status === 'running') && (
           <Button variant="ghost" size="xs" onClick={() => onCancel(job.id)} leading={<XCircle size={10} />}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         )}
         {(job.status === 'done' || job.status === 'failed' || job.status === 'cancelled') && (
           <Button variant="ghost" size="xs" onClick={() => onDelete(job.id)} leading={<Trash2 size={10} />}>
-            Delete
+            {t('common.delete')}
           </Button>
         )}
       </div>
@@ -277,22 +275,23 @@ function JobCard({ job, onCancel, onDelete }) {
   );
 }
 
-function formatAge(ms) {
+function formatAge(ms, t) {
   if (!isFinite(ms) || ms < 0) return '—';
   const s = Math.floor(ms / 1000);
-  if (s < 60) return `${s}s ago`;
+  if (s < 60) return t('common.seconds_ago', { s });
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return t('common.minutes_ago', { m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return new Date(Date.now() - ms).toLocaleDateString();
+  if (h < 24) return t('common.hours_ago', { h });
+  const d = Math.floor(h / 24);
+  return t('common.days_ago', { d });
 }
 
-function formatDuration(secs) {
-  if (secs < 60) return `${secs.toFixed(1)}s`;
+function formatDuration(secs, t) {
+  if (secs < 60) return t('batch.duration_seconds', { s: secs.toFixed(1) });
   const m = Math.floor(secs / 60);
   const s = Math.round(secs % 60);
-  if (m < 60) return `${m}m ${s}s`;
+  if (m < 60) return t('batch.duration_min_sec', { m, s });
   const h = Math.floor(m / 60);
-  return `${h}h ${m % 60}m`;
+  return t('batch.duration_hr_min', { h, m: m % 60 });
 }

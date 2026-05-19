@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAppStore } from '../store';
 import './FloatingPill.css';
@@ -35,6 +36,7 @@ const STAGE_LABELS = {
 };
 
 export default function FloatingPill() {
+  const { t } = useTranslation();
   const visible    = useAppStore(s => s.visible);
   const stage      = useAppStore(s => s.stage);
   const label      = useAppStore(s => s.label);
@@ -127,8 +129,8 @@ export default function FloatingPill() {
       <button
         className="floating-pill__dismiss"
         onClick={handleDismiss}
-        title={cancellable ? 'Cancel' : 'Dismiss'}
-        aria-label={cancellable ? 'Cancel operation' : 'Dismiss status'}
+        title={cancellable ? t('common.cancel') : t('common.dismiss')}
+        aria-label={cancellable ? t('common.cancel') : t('common.dismiss')}
       >
         <X size={12} />
       </button>

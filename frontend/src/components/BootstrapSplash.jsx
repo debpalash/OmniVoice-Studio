@@ -9,19 +9,20 @@
  *      min dependency install.
  */
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import './BootstrapSplash.css';
 
 // Vite injects package.json version at build time.
 const APP_VERSION = __APP_VERSION__ || '0.0.0';
 
-const STAGE_LABEL = {
-  checking:           'Checking environment…',
-  downloading_uv:     'Downloading uv (Python package manager)…',
-  creating_venv:      'Creating Python virtual environment…',
-  installing_deps:    'Installing dependencies — first run, 5–10 min.',
-  starting_backend:   'Starting backend…',
-  ready:              'Ready',
-  failed:             'Setup failed',
+const STAGE_KEY = {
+  checking:           'settings.checking_env',
+  downloading_uv:     'settings.downloading_uv',
+  creating_venv:      'settings.creating_venv',
+  installing_deps:    'settings.installing_deps',
+  starting_backend:   'settings.starting_backend',
+  ready:              'common.ready',
+  failed:             'settings.setup_failed',
 };
 
 const STEPS = [
@@ -59,7 +60,8 @@ function formatBytes(n) {
 }
 
 export function BootstrapSplash({ stage, message }) {
-  const label = STAGE_LABEL[stage] || stage;
+  const { t } = useTranslation();
+  const label = t(STAGE_KEY[stage] || stage);
   const stepIndex = Math.max(0, STEPS.indexOf(stage));
   const isFailed = stage === 'failed';
   const [logs, setLogs] = useState([]);
@@ -183,7 +185,7 @@ export function BootstrapSplash({ stage, message }) {
 
   const handleCopyLogs = () => {
     const logText = logs.length === 0
-      ? 'No log output captured.'
+      ? t('settings.no_lines')
       : logs.map(l => `[${l.stage}] ${l.line}`).join('\n');
     const full = isFailed && message
       ? `ERROR: ${message}\n\n--- Bootstrap Logs ---\n${logText}`
@@ -201,7 +203,7 @@ export function BootstrapSplash({ stage, message }) {
     <div className="bootstrap-splash">
       <div className="bootstrap-splash__card">
         <div className="bootstrap-splash__title-row">
-          <h1>OmniVoice Studio</h1>
+          <h1>{t('settings.welcome_title')}</h1>
           <span className="bootstrap-splash__version">v{APP_VERSION}</span>
           <div className="bootstrap-splash__region">
             <select
@@ -209,30 +211,30 @@ export function BootstrapSplash({ stage, message }) {
               value={region}
               onChange={(e) => handleRegionChange(e.target.value)}
             >
-              <option value="auto">🌐 Auto-detect</option>
-              <option value="global">🌐 Global (direct)</option>
-              <option value="china">🇨🇳 China (mirror)</option>
-              <option value="russia">🇷🇺 Russia (mirror)</option>
-              <option value="restricted">🌍 Restricted (mirror)</option>
+              <option value="auto">🌐 {t('settings.auto_detect')}</option>
+              <option value="global">🌐 {t('settings.global_direct')}</option>
+              <option value="china">🇨🇳 {t('settings.china_mirror')}</option>
+              <option value="russia">🇷🇺 {t('settings.russia_mirror')}</option>
+              <option value="restricted">🌍 {t('settings.restricted_mirror')}</option>
             </select>
           </div>
         </div>
         <p className="bootstrap-splash__status">{label}</p>
         {isFailed ? (
           <>
-            <pre className="bootstrap-splash__error">{message || 'Unknown error'}</pre>
+            <pre className="bootstrap-splash__error">{message || t('settings.unknown_error')}</pre>
             <div className="bootstrap-splash__hints">
-              <strong>💡 What to try:</strong>
+              <strong>💡 {t('settings.what_to_try')}</strong>
               <ul>
                 {detectHints(message, logs).map((h, i) => <li key={i}>{h}</li>)}
               </ul>
             </div>
             <div className="bootstrap-splash__actions">
               <button className="bootstrap-splash__retry-btn" onClick={handleRetry} disabled={retrying}>
-                {retrying ? '⏳ Retrying…' : '🔄 Retry'}
+                {retrying ? `⏳ ${t('settings.retrying')}` : `🔄 ${t('common.retry')}`}
               </button>
               <button className="bootstrap-splash__retry-btn bootstrap-splash__retry-btn--danger" onClick={handleCleanRetry} disabled={retrying}>
-                🧹 Clean & Retry
+                🧹 {t('settings.clean_retry')}
               </button>
             </div>
           </>
@@ -271,7 +273,7 @@ export function BootstrapSplash({ stage, message }) {
                     'pending'
                   }
                 >
-                  {STAGE_LABEL[s]}
+                  {t(STAGE_KEY[s])}
                 </li>
               ))}
             </ol>
@@ -284,23 +286,23 @@ export function BootstrapSplash({ stage, message }) {
             className="bootstrap-splash__log-toggle"
             onClick={() => setLogsOpen((v) => !v)}
           >
-            {logsOpen ? '▾ Hide logs' : '▸ Show logs'}
+            {logsOpen ? `▾ ${t('settings.hide_logs')}` : `▸ ${t('settings.show_logs')}`}
           </button>
           <span className="bootstrap-splash__log-count">
-            {logs.length > 0 && `${logs.length} lines`}
+            {logs.length > 0 && t('settings.lines_count', { n: logs.length })}
           </span>
           <button
             type="button"
             className="bootstrap-splash__copy-btn"
             onClick={handleCopyLogs}
           >
-            {copied ? '✓ Copied!' : '📋 Copy'}
+            {copied ? `✓ ${t('settings.copied')}` : `📋 ${t('settings.copy')}`}
           </button>
         </div>
         {logsOpen && (
           <pre className="bootstrap-splash__logs" ref={logRef}>
             {logs.length === 0
-              ? 'Waiting for output…'
+              ? t('settings.waiting_for_output')
               : logs.map((l, i) => `[${l.stage}] ${l.line}`).join('\n')}
           </pre>
         )}
