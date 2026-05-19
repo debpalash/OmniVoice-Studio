@@ -323,7 +323,7 @@ async def get_model():
     async with _model_lock:
         if model is None:
             loop = asyncio.get_running_loop()
-            model = await loop.run_in_executor(_gpu_pool, _load_model_sync)
+            model = await loop.run_in_executor(_get_gpu_pool(), _load_model_sync)
     return model
 
 
