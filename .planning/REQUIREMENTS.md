@@ -13,12 +13,12 @@ Requirements for the v0.3.x release. Each maps to roadmap phases.
 
 ### Gates (Phase 0 — non-negotiable pre-conditions)
 
-- [ ] **GATE-01**: A frozen `omnivoice_data/` regression fixture exists and is loaded by a smoke test that runs on every PR
-- [ ] **GATE-02**: CI (`ci.yml`) runs Python runtime smoke tests on macOS, Windows, and Linux — not just `cargo check` on macOS/Windows
-- [ ] **GATE-03**: `release.yml` runs at least one post-build installer smoke test per platform (boot the bundled app, hit a health endpoint)
-- [ ] **GATE-04**: PR template documents the two-RC release cadence and the regression-fixture requirement
-- [ ] **GATE-05**: SHA-256 checksums are published in every GitHub Release body (defends the `xattr -cr` workaround context for #54)
-- [ ] **GATE-06**: Open PRs #51 (cross-platform bug bash), ~~#53 (SRT import)~~ ✓ merged 2026-05-16, ~~#61 (lazy ASR)~~ ✓ merged 2026-05-16, and #62 (Wave 1 quick wins — setuptools/Linux/Russia) are merged before Phase 0 finalizes the CI matrix
+- [x] **GATE-01**: A frozen `omnivoice_data/` regression fixture exists and is loaded by a smoke test that runs on every PR
+- [x] **GATE-02**: CI (`ci.yml`) runs Python runtime smoke tests on macOS, Windows, and Linux — not just `cargo check` on macOS/Windows
+- [x] **GATE-03**: `release.yml` runs at least one post-build installer smoke test per platform (boot the bundled app, hit a health endpoint)
+- [x] **GATE-04**: PR template documents the two-RC release cadence and the regression-fixture requirement
+- [x] **GATE-05**: SHA-256 checksums are published in every GitHub Release body (defends the `xattr -cr` workaround context for #54)
+- [x] **GATE-06**: Open PRs ~~#51 (cross-platform bug bash)~~ ✓ merged 2026-05-18, ~~#53 (SRT import)~~ ✓ merged 2026-05-16, ~~#61 (lazy ASR)~~ ✓ merged 2026-05-16, and ~~#62 (Wave 1 quick wins — setuptools/Linux/Russia)~~ ✓ merged 2026-05-16 are merged before Phase 0 finalizes the CI matrix
 
 ### Install — Quick Wins (Phase 1, Wave 1)
 
@@ -53,16 +53,16 @@ Requirements for the v0.3.x release. Each maps to roadmap phases.
 
 The Settings panel shows ALL three sources with their state (set/unset, masked preview, `whoami` result) and a clear "Active: <source>" badge. User can clear any source independently; clearing the active source falls back to the next in cascade.
 
-- [ ] **AUTH-01**: `backend/services/token_resolver.py` exists and implements the 3-source cascade with on-failure fallback. Returns `(token, source: "app"|"env"|"hf-cli", username)` so callers can surface attribution.
-- [ ] **AUTH-02**: App-stored tokens persist to SQLite `settings` table (encrypted column, AES-GCM, machine-ID-derived key). NOT a separate file. Schema migration handled via the project's `init_db()` (or alembic when adopted). Read/write via `backend/services/settings_store.py`.
-- [ ] **AUTH-03**: Frontend Settings → API Keys panel:
+- [x] **AUTH-01**: `backend/services/token_resolver.py` exists and implements the 3-source cascade with on-failure fallback. Returns `(token, source: "app"|"env"|"hf-cli", username)` so callers can surface attribution.
+- [x] **AUTH-02**: App-stored tokens persist to SQLite `settings` table (encrypted column, Fernet/AES-128-CBC + HMAC-SHA-256, scrypt-derived key from machine-ID + per-install salt). NOT a separate file. Schema migration handled via alembic (`backend/migrations/versions/0001_phase1_settings_table.py`). Read/write via `backend/services/settings_store.py`.
+- [x] **AUTH-03**: Frontend Settings → API Keys panel (backend endpoints landed in Wave 1; UI lands in Wave 2):
   - Renders 3 source rows (App / Env / HF CLI), each with: token status (set/unset), masked preview (`hf_…3jw`), `whoami` result, "Test now" button, "Clear" button (for App only; Env and HF CLI are read-only display).
   - Shows "Active: <source>" badge based on resolver result.
   - Save action calls `huggingface_hub.login(token=…, add_to_git_credential=False)` AS WELL AS writing to App store — so power users get the canonical file populated too (defensive — never makes app-store-only a single point of failure).
   - Logout/Clear action removes from App store; offers "Also clear ~/.cache/huggingface/token?" checkbox (default off — respect global state).
-- [ ] **AUTH-04**: Token persists across app restarts AND across spawned engine subprocesses. Subprocess spawn injects the resolved token as `$HF_TOKEN` in the child env so subprocess engines (IndexTTS, CosyVoice, etc.) see it without re-reading SQLite.
-- [ ] **AUTH-05**: HF token is excluded from any log line via a logging filter — never written to log files, never embedded in error tracebacks, never surfaced in the bug-report payload (Phase 5). Closes #35 sub-issue.
-- [ ] **AUTH-06**: On HTTP 401 from `huggingface_hub` during a download, the resolver auto-retries with the next source in cascade. If all sources fail, surfaces a single error toast: "HF auth failed across all configured sources — open Settings → API Keys to fix." (Prevents the current confusing UX where one bad token blocks downloads even though a working one exists at lower priority.)
+- [x] **AUTH-04**: Token persists across app restarts AND across spawned engine subprocesses. Subprocess spawn injects the resolved token as `$HF_TOKEN` in the child env so subprocess engines (IndexTTS, CosyVoice, etc.) see it without re-reading SQLite.
+- [x] **AUTH-05**: HF token is excluded from any log line via a logging filter — never written to log files, never embedded in error tracebacks, never surfaced in the bug-report payload (Phase 5). Closes #35 sub-issue.
+- [x] **AUTH-06**: On HTTP 401 from `huggingface_hub` during a download, the resolver auto-retries with the next source in cascade. If all sources fail, surfaces a single error toast: "HF auth failed across all configured sources — open Settings → API Keys to fix." (Prevents the current confusing UX where one bad token blocks downloads even though a working one exists at lower priority.)
 
 ### Engine Isolation (Phase 2)
 
@@ -206,12 +206,12 @@ Filled by roadmap on 2026-05-16; updated 2026-05-16 after inserting Phase 4 (Ada
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| GATE-01 | Phase 0 | Pending |
-| GATE-02 | Phase 0 | Pending |
-| GATE-03 | Phase 0 | Pending |
-| GATE-04 | Phase 0 | Pending |
-| GATE-05 | Phase 0 | Pending |
-| GATE-06 | Phase 0 | Pending |
+| GATE-01 | Phase 0 | Done |
+| GATE-02 | Phase 0 | Done |
+| GATE-03 | Phase 0 | Done |
+| GATE-04 | Phase 0 | Done |
+| GATE-05 | Phase 0 | Done |
+| GATE-06 | Phase 0 | Done |
 | INST-01 | Phase 1 | Pending |
 | INST-02 | Phase 1 | Pending |
 | INST-03 | Phase 1 | Pending |
@@ -223,12 +223,12 @@ Filled by roadmap on 2026-05-16; updated 2026-05-16 after inserting Phase 4 (Ada
 | DOCS-03 | Phase 1 | Pending |
 | DOCS-04 | Phase 1 | Pending |
 | DOCS-05 | Phase 1 | Pending |
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
-| AUTH-04 | Phase 1 | Pending |
-| AUTH-05 | Phase 1 | Pending |
-| AUTH-06 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Done |
+| AUTH-02 | Phase 1 | Done |
+| AUTH-03 | Phase 1 | Done (backend); Wave 2 (UI) |
+| AUTH-04 | Phase 1 | Done |
+| AUTH-05 | Phase 1 | Done |
+| AUTH-06 | Phase 1 | Done |
 | ENGINE-01 | Phase 2 | Pending |
 | ENGINE-02 | Phase 2 | Pending |
 | ENGINE-03 | Phase 2 | Pending |
