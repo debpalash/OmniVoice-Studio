@@ -62,6 +62,14 @@ jobs:
       - name: Run pytest
         run: uv run pytest tests/ -q --tb=short
 
+      # Docs-drift CI gate (Phase 1 INST-06). The validator extracts code
+      # blocks tagged `<!-- validate -->` from docs/install/*.md and asserts
+      # each line appears in scripts/desktop-prod.sh after normalisation.
+      # Its own correctness is enforced by tests/scripts/test_validate_install_docs.py
+      # (checker B-5) — those tests run in the previous step.
+      - name: Validate install docs against desktop-prod.sh
+        run: python scripts/validate-install-docs.py
+
       # `backend/tests/` stubs core.config in sys.modules to avoid the heavy
       # main app import chain — that pollutes import state for other modules,
       # so it runs in its own pytest session to stay isolated from tests/.
