@@ -111,13 +111,19 @@ export default function Launchpad({
               Built for creators who care how it sounds.
             </p>
           </div>
-          <button
-            onClick={() => setIsCompareModalOpen(true)}
-            className="lp-ab-compare"
-            title="Try two voices side by side"
-          >
-            <Scale size={12} /> {t('launchpad.ab_compare')}
-          </button>
+          {/* A/B Compare is a side-by-side voice diff — only useful when the
+              user has at least two profiles to actually compare. On a fresh
+              install (or for first-time users) the button is just chrome
+              noise that opens an empty modal, so we gate it. */}
+          {profiles.length >= 2 && (
+            <button
+              onClick={() => setIsCompareModalOpen(true)}
+              className="lp-ab-compare"
+              title="Try two voices side by side"
+            >
+              <Scale size={12} /> {t('launchpad.ab_compare')}
+            </button>
+          )}
         </div>
 
       </div>
