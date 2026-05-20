@@ -20,18 +20,22 @@ export const ERROR_DOCS: Record<string, string> = {
   APPIMAGE_WEBKIT_WHITESCREEN: `${BASE}/docs/install/linux.md#appimage-white-screen-on-fedora-44--ubuntu-2404`,
   PKG_RESOURCES_MISSING: `${BASE}/docs/install/troubleshooting.md#pkg_resources-missing`,
   HF_AUTH_FAILED: `${BASE}/docs/setup/huggingface-token.md`,
+  // Issue #78 — pyannote gated-model license not accepted on HF.
+  // Distinct from HF_AUTH_FAILED (which is a missing/invalid token).
+  PYANNOTE_LICENSE_REQUIRED: `${BASE}/docs/features/diarization.md#license-acceptance-flow`,
 };
 
 export const DEFAULT_DOCS = `${BASE}/docs/install/troubleshooting.md`;
 
 // Locked taxonomy keys — Phase 5 bug reporter consumes this exact set.
-// Adding a 5th class is a contract change; update the Python map at the
+// Adding a 6th class is a contract change; update the Python map at the
 // same time (`backend/core/error_docs_map.py`).
 export const ERROR_CLASS_KEYS = [
   'GATEKEEPER_QUARANTINE',
   'APPIMAGE_WEBKIT_WHITESCREEN',
   'PKG_RESOURCES_MISSING',
   'HF_AUTH_FAILED',
+  'PYANNOTE_LICENSE_REQUIRED',
 ] as const;
 
 export type ErrorClass = (typeof ERROR_CLASS_KEYS)[number];
@@ -45,6 +49,19 @@ export function classifyError(error: unknown): ErrorClass | null {
     (error as { message?: string } | null | undefined)?.message ?? String(error ?? '');
   const lower = message.toLowerCase();
   if (/pkg_resources/.test(lower)) return 'PKG_RESOURCES_MISSING';
+  // Issue #78 — pyannote license + diarization are diagnosed separately
+  // from generic HF auth, since the fix instructions are different (click
+  // "Agree" on the model page vs. set/refresh the token). Check this BEFORE
+  // the HF_AUTH_FAILED branch so a message mentioning both "pyannote" and
+  // "401" routes to the more specific deeplink.
+  if (
+    /pyannote/.test(lower) ||
+    /\bgated\b/.test(lower) ||
+    /speaker[- ]?diariz/.test(lower) ||
+    /accept.*(license|terms|conditions)/.test(lower)
+  ) {
+    return 'PYANNOTE_LICENSE_REQUIRED';
+  }
   if (/\b401\b/.test(lower) || /hfhub|hfhubhttp/.test(lower) || /unauthorized/.test(lower)) {
     return 'HF_AUTH_FAILED';
   }

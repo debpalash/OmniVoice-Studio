@@ -529,14 +529,25 @@ async def dub_transcribe_stream(job_id: str):
             return
 
         def _diarize():
-            """Returns (segments, warning_or_None).
+            """Returns (segments, warning_payload_or_None).
 
-            Warning is set when we silently fell back to the silence-gap
-            heuristic (no HF_TOKEN, model unavailable, or pyannote raised).
-            The heuristic only detects speaker turns from >1.2s silences,
-            so a rapid-fire man↔woman exchange will read as one speaker.
+            `warning_payload` is a structured dict
+            `{detail, error_class, docs_url}` whenever we silently fell back
+            to the silence-gap heuristic (no HF_TOKEN, model unavailable,
+            license not accepted, or pyannote raised). The heuristic only
+            detects speaker turns from >1.2s silences, so a rapid-fire
+            man↔woman exchange will read as one speaker. Issue #78 — we
+            attach an `error_class` so the front-end's errorDocsMap can
+            render a "See docs" deeplink instead of a dead-end toast.
             """
-            diar_pipe = get_diarization_pipeline()
+            from services.model_manager import (
+                DIARIZATION_ERR_LICENSE,
+                DIARIZATION_ERR_LOAD,
+                DIARIZATION_ERR_NO_TOKEN,
+            )
+            from core import error_docs_map
+
+            diar_pipe, err_sentinel = get_diarization_pipeline(return_error=True)
             if not diar_pipe:
                 # Phase 1 AUTH-01: ask the resolver (App → Env → HF-CLI),
                 # not just the env var. This is the #35 fix — users who
@@ -545,8 +556,9 @@ async def dub_transcribe_stream(job_id: str):
                 # read the token. Now the cascade is honoured.
                 from services import token_resolver
                 resolved = token_resolver.resolve()
-                if not resolved:
-                    reason = (
+
+                if err_sentinel == DIARIZATION_ERR_NO_TOKEN or not resolved:
+                    detail = (
                         "Speaker diarization is disabled because no HuggingFace token "
                         "was found in any source (Settings → API Keys, the HF_TOKEN "
                         "env var, or ~/.cache/huggingface/token from `huggingface-cli "
@@ -556,28 +568,70 @@ async def dub_transcribe_stream(job_id: str):
                         "heuristic — turns with no audible pause between them will "
                         "be merged into one speaker."
                     )
-                else:
+                    error_class = "HF_AUTH_FAILED"
+                elif err_sentinel == DIARIZATION_ERR_LICENSE:
                     who = resolved.username or "(whoami suppressed)"
-                    reason = (
+                    detail = (
+                        f"Speaker diarization model is gated — the "
+                        f"pyannote/speaker-diarization-3.1 license has not been "
+                        f"accepted on HuggingFace by this account "
+                        f"(source={resolved.source}, user={who}). Visit "
+                        f"huggingface.co/pyannote/speaker-diarization-3.1 AND "
+                        f"huggingface.co/pyannote/segmentation-3.0 while signed "
+                        f"in and click 'Agree and access repository' on both, "
+                        f"then restart this dub job. Falling back to a "
+                        f"silence-gap heuristic; rapid speaker turns may be "
+                        f"merged into one speaker."
+                    )
+                    error_class = "PYANNOTE_LICENSE_REQUIRED"
+                else:
+                    # err_sentinel == DIARIZATION_ERR_LOAD (or unexpected None
+                    # with a resolved token — historical safety net).
+                    who = resolved.username or "(whoami suppressed)"
+                    detail = (
                         f"Speaker diarization model failed to load even though an HF "
                         f"token was found (source={resolved.source}, user={who}). "
-                        f"Most common cause: the pyannote/speaker-diarization-3.1 "
-                        f"license has not been accepted on HuggingFace by this "
-                        f"account. See backend logs for the underlying error. "
-                        f"Falling back to a silence-gap heuristic; rapid speaker "
-                        f"turns may be merged."
+                        f"Most common causes: the pyannote/speaker-diarization-3.1 "
+                        f"license has not been accepted on HuggingFace, or there is "
+                        f"a pyannote/torch version mismatch. See backend logs for "
+                        f"the underlying error. Falling back to a silence-gap "
+                        f"heuristic; rapid speaker turns may be merged."
                     )
-                return assign_speakers_heuristic(all_segments), reason
+                    error_class = "PYANNOTE_LICENSE_REQUIRED"
+                return (
+                    assign_speakers_heuristic(all_segments),
+                    {
+                        "detail": detail,
+                        "error_class": error_class,
+                        "docs_url": error_docs_map.lookup(error_class),
+                    },
+                )
             try:
                 diar = diar_pipe(asr_audio_target)
                 return assign_speakers_from_diarization(all_segments, diar), None
             except Exception as e:
                 logger.error(f"Diarization failed: {e}")
+                # Mid-run failure — classify against the same sentinels so a
+                # post-load 401 (rare but possible after a token rotation)
+                # still gets the right docs deeplink.
+                from services.model_manager import _classify_diarization_error
+                err_class_post = _classify_diarization_error(e)
+                error_class = (
+                    "PYANNOTE_LICENSE_REQUIRED"
+                    if err_class_post == DIARIZATION_ERR_LICENSE
+                    else "PYANNOTE_LICENSE_REQUIRED"  # LOAD failures land here too
+                )
                 return (
                     assign_speakers_heuristic(all_segments),
-                    f"Speaker diarization crashed mid-run ({type(e).__name__}); "
-                    "falling back to a silence-gap heuristic. Rapid speaker turns "
-                    "may be merged."
+                    {
+                        "detail": (
+                            f"Speaker diarization crashed mid-run "
+                            f"({type(e).__name__}); falling back to a silence-gap "
+                            f"heuristic. Rapid speaker turns may be merged."
+                        ),
+                        "error_class": error_class,
+                        "docs_url": error_docs_map.lookup(error_class),
+                    },
                 )
 
         fut_diar = loop.run_in_executor(_gpu_pool, _diarize)
@@ -590,8 +644,13 @@ async def dub_transcribe_stream(job_id: str):
                 break
             yield _sse_event("ping", {})
         if diar_warning:
-            logger.warning("diarization fallback: %s", diar_warning)
-            yield _sse_event("warning", {"detail": diar_warning, "source": "diarization"})
+            logger.warning("diarization fallback: %s", diar_warning.get("detail"))
+            yield _sse_event("warning", {
+                "detail": diar_warning.get("detail"),
+                "source": "diarization",
+                "error_class": diar_warning.get("error_class"),
+                "docs_url": diar_warning.get("docs_url"),
+            })
 
         job["segments"] = final_segs
 

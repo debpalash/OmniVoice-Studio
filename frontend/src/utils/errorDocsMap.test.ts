@@ -35,8 +35,8 @@ describe('errorDocsMap', () => {
     expect(openExternal).toHaveBeenCalledWith(DEFAULT_DOCS);
   });
 
-  // Sentinel test — locks the 4-class taxonomy in lockstep with the
-  // Python map (backend/core/error_docs_map.py). Adding a 5th class is
+  // Sentinel test — locks the 5-class taxonomy in lockstep with the
+  // Python map (backend/core/error_docs_map.py). Adding a 6th class is
   // a contract change; update both sides + this list.
   it('keys match the locked taxonomy (mirror of Python map)', () => {
     expect(Object.keys(ERROR_DOCS).sort()).toEqual([...ERROR_CLASS_KEYS].sort());
@@ -46,6 +46,7 @@ describe('errorDocsMap', () => {
         'GATEKEEPER_QUARANTINE',
         'HF_AUTH_FAILED',
         'PKG_RESOURCES_MISSING',
+        'PYANNOTE_LICENSE_REQUIRED',
       ].sort(),
     );
   });
@@ -67,6 +68,20 @@ describe('errorDocsMap', () => {
   it('classifyError maps 401 / HfHubHTTPError to HF_AUTH_FAILED', () => {
     expect(classifyError(new Error('HfHubHTTPError: 401 Unauthorized'))).toBe('HF_AUTH_FAILED');
     expect(classifyError(new Error('Got 401 from HuggingFace'))).toBe('HF_AUTH_FAILED');
+  });
+
+  // Issue #78 — diarization-specific 401/gated repo lands on the
+  // diarization docs deeplink, not the generic token-setup one.
+  it('classifyError maps pyannote / diarization gated-model errors to PYANNOTE_LICENSE_REQUIRED', () => {
+    expect(
+      classifyError(new Error('pyannote/speaker-diarization-3.1 is gated; 401 Unauthorized')),
+    ).toBe('PYANNOTE_LICENSE_REQUIRED');
+    expect(classifyError(new Error('Speaker diarization model failed to load'))).toBe(
+      'PYANNOTE_LICENSE_REQUIRED',
+    );
+    expect(
+      classifyError(new Error('You must accept the user conditions for this model')),
+    ).toBe('PYANNOTE_LICENSE_REQUIRED');
   });
 
   it('classifyError maps WebKit / white screen to APPIMAGE_WEBKIT_WHITESCREEN', () => {

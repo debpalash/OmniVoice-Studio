@@ -472,18 +472,68 @@ def restore_tts_after_asr():
 
 _diar_pipeline = None
 
-def get_diarization_pipeline():
+# Sentinel error classes used by callers (dub_core) to decide whether to
+# emit a structured SSE warning with a docs deeplink. Kept as module-level
+# constants so tests can pin them — they cross the SSE wire and the
+# frontend's errorDocsMap classifies on the same strings.
+DIARIZATION_ERR_NO_TOKEN = "NO_TOKEN"
+DIARIZATION_ERR_LICENSE  = "PYANNOTE_LICENSE_REQUIRED"
+DIARIZATION_ERR_LOAD     = "LOAD_FAILED"
+
+
+def _classify_diarization_error(exc: BaseException) -> str:
+    """Map a pyannote/HF-hub exception to one of the diarization error
+    sentinels above.
+
+    The 401/403 path is the canonical "user hasn't accepted the model
+    license on huggingface.co" symptom — both `Pipeline.from_pretrained`
+    and `huggingface_hub` raise distinct exception classes for it
+    depending on the installed versions, so we sniff on both the class
+    name and the stringified message rather than importing the
+    `HfHubHTTPError` symbol directly (which is not stable across
+    huggingface_hub majors).
+    """
+    name = type(exc).__name__.lower()
+    msg = str(exc).lower()
+    if (
+        "401" in msg
+        or "403" in msg
+        or "unauthorized" in msg
+        or "gated" in msg
+        or "accept" in msg and ("license" in msg or "terms" in msg or "user conditions" in msg)
+        or "hfhubhttperror" in name
+        or "gatedrepoerror" in name
+        or "repositorynotfounderror" in name and "gated" in msg
+    ):
+        return DIARIZATION_ERR_LICENSE
+    return DIARIZATION_ERR_LOAD
+
+
+def get_diarization_pipeline(return_error: bool = False):
+    """Load (or return the cached) pyannote speaker-diarization-3.1 pipeline.
+
+    Default return: the pipeline instance, or `None` if anything went
+    wrong (no token, license not accepted, model load crashed). Existing
+    callers (dub_core legacy `_transcribe`) rely on the `None` sentinel.
+
+    When `return_error=True`, returns a 2-tuple
+    `(pipeline | None, error_sentinel | None)` where `error_sentinel` is
+    one of the `DIARIZATION_ERR_*` constants. This shape is what the
+    streaming `_diarize` path uses to emit a structured SSE warning with
+    a docs deeplink — issue #78.
+    """
     global _diar_pipeline
+    if _diar_pipeline is not None:
+        return (_diar_pipeline, None) if return_error else _diar_pipeline
+
     # Phase 1 AUTH-01: 3-source resolver (App → Env → HF-CLI). Per
     # Pitfall #1 in 01-RESEARCH.md — exactly one place in the backend
     # reads HF tokens, and that place is `token_resolver.resolve()`.
     from services import token_resolver
     resolved = token_resolver.resolve()
     if not resolved:
-        return None
+        return (None, DIARIZATION_ERR_NO_TOKEN) if return_error else None
     hf_token = resolved.token
-    if _diar_pipeline is not None:
-        return _diar_pipeline
     try:
         torch = _lazy_torch()
         from pyannote.audio import Pipeline
@@ -494,7 +544,10 @@ def get_diarization_pipeline():
         if device in ("cuda",):
             _diar_pipeline.to(torch.device(device))
         logger.info("Pyannote Diarization Pipeline loaded on %s.", device)
-        return _diar_pipeline
+        return (_diar_pipeline, None) if return_error else _diar_pipeline
     except Exception as e:
-        logger.error(f"Failed to load Pyannote pipeline: {e}")
-        return None
+        err_class = _classify_diarization_error(e)
+        logger.error(
+            "Failed to load Pyannote pipeline (class=%s): %s", err_class, e,
+        )
+        return (None, err_class) if return_error else None
