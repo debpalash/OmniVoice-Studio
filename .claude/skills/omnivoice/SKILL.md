@@ -1,98 +1,169 @@
 ---
 name: omnivoice
-description: "Local TTS, voice cloning, voice design, and video dubbing via the OmniVoice Studio MCP server bundled in this repository. Open-source ElevenLabs alternative — nothing leaves the machine, 646 languages, runs on MPS/CUDA/ROCm/CPU. Use when: (1) generating speech from text in any of 646 languages, (2) cloning a voice from a 3-second reference clip, (3) designing a voice by gender/age/accent/pitch/style, (4) dubbing a video into another language, (5) listing voice profiles or personalities, (6) producing narration where privacy, cost, or absent API keys matter, (7) batch audio for blog posts or content pipelines. Triggers: 'omnivoice', 'voice clone', 'clone this voice', 'tts', 'narrate', 'generate speech', 'voice synthesis', 'dub video', 'voice design', 'local tts', 'multilingual voice', 'elevenlabs alternative'."
+description: "Local TTS, voice cloning, voice design, and video dubbing via the OmniVoice Studio MCP server (open-source ElevenLabs alternative; nothing leaves the machine, runs on MPS/CUDA/CPU). Use when: (1) generating speech from text in any of 646 languages, (2) cloning a voice from a 3-second reference clip, (3) designing a voice by gender/age/accent/pitch/style, (4) dubbing a video into another language, (5) listing voice profiles or personality presets, (6) producing narration where privacy, cost, or absent API keys matter, (7) non-English narration where Edge TTS/kokoro fall short, (8) batch audio for blog posts or content pipelines. Triggers: 'omnivoice', 'voice clone', 'clone this voice', 'tts', 'narrate', 'generate speech', 'voice synthesis', 'dub video', 'voice design', 'local tts', 'multilingual voice', 'narrate this post', 'elevenlabs alternative'."
 ---
 
-# OmniVoice — Agent Skill (Bundled)
+# OmniVoice
 
-This skill ships in `<repo>/.claude/skills/omnivoice/` so any agent (Claude Code, Cursor, etc.) cloning the repo gets immediate access to the MCP integration with zero further configuration.
+## Overview
 
-## Prerequisites
+Generate audio locally via the OmniVoice Studio MCP server. Tools: `generate_speech`, `list_voices`, `list_personalities`, `list_languages`, `check_health`. Resources: `voice://{id}`, `history://recent`.
+
+## Prerequisites — Backend Must Be Running
+
+The MCP tools all hit `$OMNIVOICE_API_URL` (default `http://localhost:3900`). If the backend is down, every tool returns a connection error. Install + boot:
 
 ```bash
-# From repo root
-uv sync                                              # ~1.6 GB venv on darwin arm64
-VIRTUAL_ENV="$(pwd)/.venv" uv pip install 'mcp[cli]' # MCP SDK not in lockfile yet
+git clone https://github.com/debpalash/OmniVoice-Studio.git "$OMNIVOICE_HOME"
+cd "$OMNIVOICE_HOME"
+uv sync
+VIRTUAL_ENV="$(pwd)/.venv" uv pip install 'mcp[cli]'
 ```
 
-Then wire the MCP server into your client (Claude Desktop / Claude Code / Cursor). For Claude Code at `~/.claude.json`:
+Then:
 
-```json
-{
-  "mcpServers": {
-    "omnivoice": {
-      "type": "stdio",
-      "command": "uv",
-      "args": ["--directory", "<absolute path to this repo>",
-               "run", "python", "-m", "backend.mcp_server"],
-      "env": { "OMNIVOICE_API_URL": "http://localhost:3900" }
-    }
-  }
-}
+```bash
+scripts/check-health.sh        # exit 0 if up
+scripts/start-backend.sh       # boot in background (MPS/CUDA auto-detected)
 ```
 
-The MCP server is a thin wrapper around the FastAPI backend on `127.0.0.1:3900`. **Backend must be running** for every MCP tool call. See [references/mcp-setup.md](references/mcp-setup.md) for lifecycle, env vars, and troubleshooting.
+First synthesis call lazy-downloads the `k2-fsa/OmniVoice` model (~2.4 GB) from HuggingFace — cached on subsequent boots.
 
-## Tools
+## Task Index — Pick the Right Tool
 
-| Tool | What it does |
-|---|---|
-| `check_health` | `GET /health` — verifies backend is up and reports active device (mps/cuda/cpu) |
-| `list_voices` | `GET /profiles` — saved voice profiles (id, name, type, personality) |
-| `list_personalities` | `GET /personalities` — pre-made `instruct` presets (narrator, casual, news-anchor, …) |
-| `list_languages` | Static list — 20 popular ISO codes + count (646 total) |
-| `generate_speech(text, language, profile_id, instruct, speed, steps)` | `POST /generate` — returns base64 WAV (16-bit, 24 kHz, mono) plus `audio_id`, `generation_time_s`, `audio_duration_s` |
+| Task | Tool | Notes |
+|---|---|---|
+| Verify backend is up | `check_health` | Returns `{"status":"ok","device":"mps|cuda|cpu"}` |
+| Text → audio with a saved voice | `generate_speech(text, profile_id)` | Returns base64 WAV. `profile_id="demo0001"` is the bundled demo voice |
+| Text → audio without a clone (voice design) | `generate_speech(text, instruct="…")` | Omit `profile_id`; pass an `instruct` like `"warm middle-aged female narrator, calm pace"` |
+| Multilingual narration | `generate_speech(text, language="es")` | Any ISO 639 code or `"Auto"` |
+| List existing voices | `list_voices` | Returns id, name, type, personality |
+| List personality presets | `list_personalities` | Returns narrator / casual / news-anchor / etc. with their `instruct` strings |
+| List supported languages | `list_languages` | 646 total; returns 20 popular + the full count |
 
-Resources: `voice://{profile_id}` (profile detail), `history://recent` (last 20 generations).
+For non-trivial decisions (which engine to use, when to pick OmniVoice over kokoro / Edge TTS / ElevenLabs), see [references/engines-comparison.md](references/engines-comparison.md).
 
-## Quick Decisions
+For MCP wiring details, backend lifecycle, troubleshooting, and a clean teardown, see [references/mcp-setup.md](references/mcp-setup.md).
 
-- **Want a saved voice?** Pass `profile_id`. List with `list_voices`. `demo0001` is the bundled demo.
-- **No reference clip — describe the voice in words?** Skip `profile_id`, pass `instruct` (e.g. `"warm middle-aged female narrator, calm pace"`). Copy an `instruct` from `list_personalities`.
-- **Non-English?** Pass `language="es"` (any ISO 639) or `language="Auto"` for detection. All 646 supported langs handled by the same call.
-- **Quality vs speed?** `steps=8` fast/draft · `steps=16` balanced (default) · `steps=32` quality.
+## Common Workflows
 
-## Workflows
-
-### One-shot synthesis (returned WAV)
+### 1. One-shot narration with the demo voice
 
 ```python
+# As called through the MCP client (your agent will do this for you):
 result = generate_speech(
-    text="Welcome to OmniVoice Studio.",
+    text="Hello — this is OmniVoice generating speech locally.",
     profile_id="demo0001",
     language="English",
-    steps=16,
+    steps=16,                   # 8 = fast/draft · 16 = balanced · 32 = quality
 )
-# Decode the base64 wav from result["wav_base64"] and write to disk.
+# result is JSON with audio_id, generation_time_s, audio_duration_s, format, wav_base64
 ```
 
-### Voice clone
+Benchmark: 4.2 s of audio in ~24 s server-side on Apple Silicon MPS at 16 diffusion steps.
 
-Profile creation happens **outside** the MCP server — either via:
+### 2. Save the WAV to disk and play
 
-- the Tauri desktop UI (`bun run desktop` in repo root), or
-- `POST /profiles` to the FastAPI backend with the 3-sec reference WAV (multipart form). Schema at `http://127.0.0.1:3900/docs`.
+Tool returns base64 PCM WAV (16-bit, mono, 24 kHz). Decode + write:
 
-Once the profile exists, pass its `id` as `profile_id` to `generate_speech`.
+```python
+import base64, json
+payload = json.loads(result_text)            # parse JSON the tool returns
+open("out.wav","wb").write(base64.b64decode(payload["wav_base64"]))
+```
 
-### Voice design
+On macOS: `afplay out.wav`. Convert to MP3 with `ffmpeg -i out.wav -codec:a libmp3lame -b:a 128k out.mp3`.
 
-Pass `instruct` describing the desired voice + omit `profile_id`. `list_personalities` returns canned `instruct` strings for common briefs.
+### 3. Voice clone — end-to-end recipe
 
-### Video dubbing
+Cloning needs a 3-10 second reference clip the model will use as a speaker embedding. The MCP server does NOT expose profile creation — it only reads existing profiles. Two paths to create one:
 
-The dub pipeline (transcribe → translate → re-voice → mux) is NOT exposed via MCP. Use the desktop UI or call the `/dub/*` REST routes directly. The MCP surface intentionally covers the synthesis primitives only.
+**Path A — bundled helper (macOS, recommended for fresh clones):**
 
-## When NOT to use this skill
+```bash
+scripts/record-reference.sh ~/Downloads/my-ref.wav 12 1
+# args: output_path raw_duration_sec mic_index
+# Default mic_index=1 (MacBook built-in); list devices via:
+#   ffmpeg -f avfoundation -list_devices true -i ""
+```
 
-- **Fast English narration on weak hardware** → kokoro-tts is ~30 MB vs OmniVoice's 2.4 GB; 2× realtime on CPU
-- **One-off TTS with no install** → Edge TTS is one `pip install` away
-- **Highest English polish** → ElevenLabs still tops the polish leaderboard for English
-- **Real-time streaming dictation** → use the OmniVoice desktop dictation widget (`⌘+⇧+Space`); the MCP server is request/response
+The script gives **audible** countdown + start/stop cues via macOS `say` + `/System/Library/Sounds/Ping.aiff` so the user knows when to speak (terminal stdout is buffered — text "speak now" prompts arrive too late). It records a longer raw window, then trims to ~10 seconds of speech via `silenceremove + atrim`, plays back for verification, and prints the next-step `curl` command.
+
+**Path B — manual:**
+
+```bash
+# 1. Record (mono, 24 kHz native — matches model's internal rate)
+ffmpeg -f avfoundation -i ":1" -t 12 -ac 1 -ar 24000 raw.wav
+
+# 2. Trim leading silence + take first 10 sec of speech
+ffmpeg -i raw.wav \
+  -af "silenceremove=start_periods=1:start_silence=0.05:start_threshold=-40dB,atrim=end=10" \
+  -ac 1 -ar 24000 ref.wav
+
+# 3. Verify
+ffmpeg -i ref.wav -af volumedetect -f null - 2>&1 | grep volume   # max should be > -20 dB
+afplay ref.wav
+```
+
+**POST to /profiles** (multipart/form-data — required fields: `name`, `ref_audio`):
+
+```bash
+curl -X POST http://127.0.0.1:3900/profiles \
+  -F "name=carlos-clone" \
+  -F "ref_audio=@ref.wav" \
+  -F "ref_text=The exact text spoken in the clip" \
+  -F "language=English" \
+  | python3 -m json.tool
+# returns { "id": "abc12345", "name": "carlos-clone" }
+```
+
+Once created, pass `profile_id` to `generate_speech` (via MCP) or directly via `POST /generate`. Profiles persist in SQLite + WAVs at `~/Library/Application Support/OmniVoice/voices/<id>.wav` across backend restarts.
+
+**Reference clip tips that materially affect quality:**
+
+| Factor | Why it matters |
+|---|---|
+| Single speaker | Mixed speakers blur the embedding |
+| Clean speech, no music/noise | Model embeds the noise too |
+| Natural prosody (avoid pangrams) | Diffusion samples replicate prosody, not just timbre |
+| 3-10 sec is the sweet spot | < 3 s lacks information; > 10 s adds compute without quality gain |
+| Match `ref_text` to what's spoken | Improves alignment, especially on noisy refs |
+| `language` correct | Wrong language → cross-lingual transfer artifacts |
+| Loudness peak ≥ -15 dB | Quiet refs work but normalize poorly |
+
+### 4. Voice design (no reference clip)
+
+Skip `profile_id`; provide an `instruct` string describing the desired voice:
+
+```python
+generate_speech(
+    text="Welcome to the future of agentic systems.",
+    instruct="warm middle-aged female narrator, calm authoritative pace, documentary style",
+)
+```
+
+Get pre-made instructs via `list_personalities` and copy the one matching the brief (narrator, casual, news-anchor, etc.).
+
+### 5. Video dubbing (web UI only)
+
+The MCP server does not expose the dubbing endpoint. The full transcribe → translate → re-voice → mux pipeline lives behind the desktop UI (`bun run desktop` in `$OMNIVOICE_HOME`) and the `/dub/*` REST routes. When the user asks to dub a video, point them to the UI; surface this skill only for the synthesis primitives above.
+
+## When NOT to use OmniVoice
+
+- **Fast English-only narration on weak hardware** → `kokoro-tts` is ~10× smaller and 2× realtime on CPU (see [references/engines-comparison.md](references/engines-comparison.md))
+- **Lowest-friction one-off TTS** → Edge TTS needs no install or backend
+- **Highest possible quality regardless of cost** → ElevenLabs still wins on English narration polish; OmniVoice ties or wins on multilingual + cloning
+- **Real-time streaming dictation** → use the OmniVoice desktop widget (`⌘+⇧+Space`), not the MCP server
 
 ## Resources
 
-- [references/mcp-setup.md](references/mcp-setup.md) — Backend lifecycle, env vars, troubleshooting
-- [scripts/check-health.sh](scripts/check-health.sh) — Curl `/health`, exit 0/1
-- [scripts/start-backend.sh](scripts/start-backend.sh) — Boot uvicorn on 127.0.0.1:3900 with health probe
-- [scripts/stop-backend.sh](scripts/stop-backend.sh) — Graceful SIGTERM on the bound PID
+- [references/engines-comparison.md](references/engines-comparison.md) — Decision tree across OmniVoice / kokoro / Voicebox / Edge TTS / ElevenLabs / cloud APIs
+- [references/mcp-setup.md](references/mcp-setup.md) — MCP wiring, backend lifecycle, env vars, troubleshooting
+- [scripts/check-health.sh](scripts/check-health.sh) — `curl /health`, exit 0/1
+- [scripts/start-backend.sh](scripts/start-backend.sh) — Start uvicorn on 127.0.0.1:3900 with health probe
+- [scripts/stop-backend.sh](scripts/stop-backend.sh) — Clean shutdown via `kill -TERM` on the bound PID
+- [scripts/record-reference.sh](scripts/record-reference.sh) — macOS-only: record + trim + verify a reference clip for cloning, with audible cues (`say` + system beeps) that bypass terminal output buffering
+
+Backend Swagger / OpenAPI: `http://127.0.0.1:3900/docs` (when backend is up).
+
+Upstream: github.com/debpalash/OmniVoice-Studio — FSL-1.1-ALv2 (free for personal/internal/non-commercial; auto-converts to Apache-2.0 two years after each release).
