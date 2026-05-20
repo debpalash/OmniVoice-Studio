@@ -284,7 +284,14 @@ jobs:
             experimental: false
           - os: macos-13
             platform: darwin-x86_64
-            experimental: false
+            # Intel-Mac runners (macos-13) are heavily contended in GitHub's
+            # hosted pool — builds frequently queue >30 min and block merges
+            # even though Apple's own platform momentum is on arm64. The
+            # engine's runtime gracefully reports unavailable on a missing
+            # binary, so a failed/missing darwin-x86_64 build degrades
+            # cleanly rather than crashing. Marking experimental so PRs
+            # aren't held hostage by Intel-Mac runner backlog.
+            experimental: true
           - os: macos-14
             platform: darwin-arm64
             # Metal build path is unpublished upstream — see Pitfall 1.
