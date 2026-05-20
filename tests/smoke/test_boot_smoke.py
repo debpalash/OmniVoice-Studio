@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 
@@ -43,17 +44,21 @@ if not FIXTURE_SRC.exists():
 _FIXTURE_COPY = Path(tempfile.mkdtemp(prefix="omnivoice-smoke-"))
 shutil.copytree(FIXTURE_SRC, _FIXTURE_COPY, dirs_exist_ok=True)
 
-# Point backend.core.config.get_app_data_dir() at the COPY before any
-# import that pulls in core.config (which caches DB_PATH at module import).
-os.environ.setdefault("OMNIVOICE_DATA_DIR", str(_FIXTURE_COPY))
+# Point backend.core.config.get_app_data_dir() at the COPY. Force-override
+# (not setdefault) — earlier tests in a full-suite run may have set it to
+# their own temp dir, and core.config caches DB_PATH at first import.
+os.environ["OMNIVOICE_DATA_DIR"] = str(_FIXTURE_COPY)
 
 
 @pytest.fixture(scope="module")
 def client():
-    # Lazy import — env must be set before `core.config` is touched.
-    # `client=("127.0.0.1", 50000)` makes `request.client.host` resolve to
-    # a loopback address — the system router is now gated by a router-level
-    # `require_loopback` dependency, and the smoke test hits `/system/info`.
+    # Purge any cached backend modules from earlier tests in the suite —
+    # `core.config` reads OMNIVOICE_DATA_DIR at import time and caches DB_PATH,
+    # so a prior import with a different value would survive the env-var
+    # override above. Same pattern as tests/backend/services/conftest.py.
+    for mod in list(sys.modules):
+        if mod == "main" or mod == "core" or mod.startswith("core.") or mod.startswith("api.") or mod.startswith("services."):
+            sys.modules.pop(mod, None)
     from fastapi.testclient import TestClient
     from main import app
     return TestClient(app, client=("127.0.0.1", 50000))
