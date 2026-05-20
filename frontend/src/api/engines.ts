@@ -98,3 +98,20 @@ export async function getJob(id: string): Promise<unknown> {
 export async function getJobEvents(id: string, afterSeq: number = 0): Promise<unknown> {
   return apiJson(`/jobs/${id}/events?after_seq=${afterSeq}`);
 }
+
+// ── Effect presets ──────────────────────────────────────────────────────
+
+export interface EffectPreset {
+  id: string;
+  label: string;
+  icon: string;
+  description: string;
+}
+
+export interface EffectPresetsResponse {
+  presets: EffectPreset[];
+}
+
+export async function fetchEffectPresets(): Promise<EffectPresetsResponse> {
+  return apiJson<EffectPresetsResponse>('/engines/effects/presets');
+}

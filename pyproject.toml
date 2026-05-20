@@ -118,6 +118,23 @@ ui = [
     "gradio_client",
     "requests",
 ]
+# Phase 3 Plan 03-01 — Supertonic-3 opt-in engine. CPU-only ONNX TTS,
+# 31 languages, ~99M params, ~400 MB model on first use. Default
+# `uv sync --no-dev` does NOT install this; users opt in with
+# `uv sync --extra supertonic` after accepting the OpenRAIL-M model
+# license in Settings → Engines.
+#
+# Publisher verified per Plan 03-01 Task 1 (Package Legitimacy Audit):
+#   • PyPI maintainers = Yu Yechan / Juheon Lee / Hyeongju Kim (Supertone Inc.)
+#   • Repository = github.com/supertone-inc/supertonic-py
+#   • Same publisher ships supertonic-js on npm (same maintainer email)
+#   • Wheel inspected: pure-Python, no postinstall scripts, no subprocess/exec
+#     at module top level. ``supertonic.config.MODEL_CONFIGS["supertonic-3"]``
+#     itself pins the HF model revision by SHA — we re-pin to the same
+#     SHA in backend/engines/supertonic3/constants.py for TTS-03.
+supertonic = [
+    "supertonic==1.3.1",
+]
 
 [project.scripts]
 omnivoice-infer = "omnivoice.cli.infer:main"

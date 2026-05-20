@@ -1,14 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronUp, ChevronDown, RefreshCw, Trash2, Copy, Bug, X,
-  AlertTriangle, AlertCircle, Info, FileText, Heart, Bell,
+  AlertTriangle, AlertCircle, Info, FileText, Heart,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { clearSystemLogs, clearTauriLogs } from '../api/system';
 import { useSystemLogs, useTauriLogs, useClearLogs, useClearTauriLogs } from '../api/hooks';
 import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
-import { Segmented } from '../ui';
-import { useAppStore } from '../store';
 import './LogsFooter.css';
 
 /**
@@ -23,7 +21,9 @@ const SOURCES = [
   { id: 'backend',  label: 'Backend',  icon: FileText },
   { id: 'frontend', label: 'Frontend', icon: FileText },
   { id: 'tauri',    label: 'Tauri',    icon: FileText },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
+  // Notifications used to live here as a 4th pill but that duplicated the
+  // header's bell+badge (single source of truth for notifications). The
+  // footer is logs-only now; bell handles notifications.
 ];
 
 const LS_HEIGHT = 'omnivoice.logs.height';
@@ -67,57 +67,11 @@ function SeverityIcon({ level, size = 11 }) {
   return <Info size={size} color="#7c6f64" />;
 }
 
-function UiScaleToggle() {
-  // Sources the zoom factor directly from the store so no prop-drilling
-  // is required. Same three values the Header previously exposed; moved
-  // here so app-wide chrome lives in one place.
-  const uiScale    = useAppStore(s => s.uiScale);
-  const setUiScale = useAppStore(s => s.setUiScale);
-  return (
-    <Segmented
-      className="logs-footer__scale"
-      size="xs"
-      value={uiScale}
-      onChange={setUiScale}
-      items={[
-        { value: 1,   label: 'S', title: 'Small UI scale'  },
-        { value: 1.3, label: 'M', title: 'Medium UI scale' },
-        { value: 1.5, label: 'L', title: 'Large UI scale'  },
-      ]}
-    />
-  );
-}
-
-const THEMES = [
-  { id: 'gruvbox',    label: 'Gruvbox',    dot: '#d3869b' },
-  { id: 'midnight',   label: 'Midnight',   dot: '#8b5cf6' },
-  { id: 'nord',       label: 'Nord',       dot: '#88c0d0' },
-  { id: 'solarized',  label: 'Solarized',  dot: '#268bd2' },
-  { id: 'rose-pine',  label: 'Rosé Pine',  dot: '#ebbcba' },
-  { id: 'catppuccin', label: 'Catppuccin', dot: '#cba6f7' },
-];
-
-function ThemePicker() {
-  const theme    = useAppStore(s => s.theme);
-  const setTheme = useAppStore(s => s.setTheme);
-  return (
-    <div className="logs-footer__themes" role="radiogroup" aria-label="Color theme">
-      {THEMES.map(t => (
-        <button
-          key={t.id}
-          type="button"
-          className={`logs-footer__theme-dot ${theme === t.id ? 'is-active' : ''}`}
-          style={{ '--dot-color': t.dot }}
-          onClick={() => setTheme(t.id)}
-          title={t.label}
-          aria-label={`${t.label} theme`}
-          aria-checked={theme === t.id}
-          role="radio"
-        />
-      ))}
-    </div>
-  );
-}
+// UiScaleToggle and ThemePicker used to live here as always-visible
+// controls in the footer chrome. Moved to Settings → Appearance (see
+// AppearancePanel) so the footer can stay focused on logs. The store
+// fields (uiScale, theme, setUiScale, setTheme) are unchanged; only the
+// rendering moved.
 
 function SourcePill({ source, counts, active, onClick }) {
   const hasErrors = counts.error > 0;
@@ -389,10 +343,9 @@ export default function LogsFooter() {
 
       <div className="logs-footer__bar">
         <div className="logs-footer__left">
-          <UiScaleToggle />
-          <span className="logs-footer__divider" />
-          <ThemePicker />
-          <span className="logs-footer__divider" />
+          {/* UI scale + theme picker moved to Settings → Appearance.
+              Footer is logs-focused now; rarely-used display prefs don't
+              belong in always-visible chrome. */}
           <button
             type="button"
             className="logs-footer__toggle"

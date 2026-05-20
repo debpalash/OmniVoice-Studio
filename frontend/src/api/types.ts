@@ -153,6 +153,18 @@ export interface DubHistoryResponse {
   jobs: DubJobMeta[];
 }
 
+export interface DubSegment {
+  start: number;
+  end: number;
+  text: string;
+  instruct?: string;
+  profile_id?: string;
+  speed?: number;
+  gain?: number;
+  target_lang?: string;
+  effect_preset?: string;
+}
+
 export interface DubTranslateResponse {
   segments: { id: string; text: string; text_original?: string; rate_ratio?: number; rate_error?: string }[];
 }

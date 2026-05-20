@@ -24,6 +24,7 @@ import { Tabs, Segmented, Button, Badge, Panel, Table, Progress } from '../ui';
 import { useAppStore } from '../store';
 import ApiKeysPanel from '../components/settings/ApiKeysPanel';
 import PerformancePanel from '../components/settings/PerformancePanel';
+import AppearancePanel from '../components/settings/AppearancePanel';
 import EngineCompatibilityMatrix from '../components/EngineCompatibilityMatrix';
 import './Settings.css';
 
@@ -1417,6 +1418,10 @@ function CredentialsTab({ info }) {
           (#65). Toggle is rendered disabled on macOS/Linux with an
           explainer; backend ignores the flag on non-Windows. */}
       <PerformancePanel />
+
+      {/* UI scale + color theme — moved out of the LogsFooter chrome so
+          the footer can focus on logs. Rarely-used prefs belong here. */}
+      <AppearancePanel />
 
       <p className="settings-prose">
         Other API keys and tokens are set <strong>for this session only</strong>.

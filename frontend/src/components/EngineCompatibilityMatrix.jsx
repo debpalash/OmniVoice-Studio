@@ -3,7 +3,24 @@ import { Cpu, Mic, MessageSquare, Activity, AlertTriangle, CheckCircle2, Refresh
 import { toast } from 'react-hot-toast';
 import { listEngines, getEngineHealth } from '../api/engines';
 import { Badge, Button, Segmented, Table } from '../ui';
+import SupertonicLicenseDialog from './SupertonicLicenseDialog';
 import './EngineCompatibilityMatrix.css';
+
+/** Engines that gate first use behind an in-app license acceptance dialog.
+ *  Phase 3 Plan 03-01 ‑‑ Supertonic-3 today; future OpenRAIL-M engines
+ *  add themselves here alongside an in-tree dialog component. */
+const LICENSE_DIALOGS = {
+  supertonic3: SupertonicLicenseDialog,
+};
+
+/** Heuristic detector for the "license not accepted" backend reason
+ *  message produced by Supertonic3Backend.is_available(). The backend
+ *  message reads "Supertonic-3 license not accepted ..." so this prefix
+ *  match is robust to wording tweaks. */
+function reasonMentionsLicense(reason) {
+  if (!reason || typeof reason !== 'string') return false;
+  return /license not accepted/i.test(reason);
+}
 
 /**
  * Engine Compatibility Matrix (Plan 02-04 / ENGINE-06).
@@ -95,6 +112,9 @@ export default function EngineCompatibilityMatrix({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeFamily, setActiveFamily] = useState(family);
+  // Phase 3 Plan 03-01 / TTS-05: which engine has its license dialog
+  // currently open, or null. Only one dialog is ever open at a time.
+  const [licenseDialogFor, setLicenseDialogFor] = useState(null);
 
   // health state keyed by engine id:
   //   { [id]: { inflight: boolean, ok?: boolean, message?: string,
@@ -328,6 +348,23 @@ export default function EngineCompatibilityMatrix({
                       Use
                     </Button>
                   )}
+                  {/* TTS-05: license-acceptance entry point. Surfaced when
+                      the backend says the user hasn't accepted the
+                      engine's license yet AND we have a dialog
+                      registered for that engine id. */}
+                  {!b.available
+                    && reasonMentionsLicense(b.reason)
+                    && LICENSE_DIALOGS[b.id]
+                    && (
+                      <Button
+                        size="sm"
+                        variant="subtle"
+                        onClick={() => setLicenseDialogFor(b.id)}
+                        aria-label={`Review and accept ${b.display_name} license`}
+                      >
+                        Accept license
+                      </Button>
+                    )}
                 </div>
               </div>
             );

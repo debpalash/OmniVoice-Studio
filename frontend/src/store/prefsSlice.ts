@@ -23,11 +23,21 @@ export interface PrefsSlice {
    */
   reviewMode: 'on' | 'off';
 
+  /**
+   * Show RAM/CPU/VRAM live counters in the header. Default OFF — the
+   * "Make voices that sound like you" landing screen shouldn't double as a
+   * resource monitor. Power users can flip this on via Settings →
+   * Performance. The Idle/Ready/Loading status badge + Flush button stay
+   * visible regardless because they're action-relevant.
+   */
+  showHeaderLiveStats: boolean;
+
   setTranslateQuality: (q: TranslateQuality) => void;
   setDualSubs: (on: boolean) => void;
   setBurnSubs: (on: boolean) => void;
   setGlossaryVisible: (on: boolean) => void;
   setReviewMode: (mode: 'on' | 'off') => void;
+  setShowHeaderLiveStats: (on: boolean) => void;
 
   theme: ThemeId;
   setTheme: (id: ThemeId) => void;
@@ -39,12 +49,14 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   burnSubs: false,
   glossaryVisible: true,
   reviewMode: 'on',
+  showHeaderLiveStats: false,
 
-  setTranslateQuality: (q) => set({ translateQuality: q }),
-  setDualSubs:         (on) => set({ dualSubs: on }),
-  setBurnSubs:         (on) => set({ burnSubs: on }),
-  setGlossaryVisible:  (on) => set({ glossaryVisible: on }),
-  setReviewMode:       (mode) => set({ reviewMode: mode }),
+  setTranslateQuality:    (q) => set({ translateQuality: q }),
+  setDualSubs:            (on) => set({ dualSubs: on }),
+  setBurnSubs:            (on) => set({ burnSubs: on }),
+  setGlossaryVisible:     (on) => set({ glossaryVisible: on }),
+  setReviewMode:          (mode) => set({ reviewMode: mode }),
+  setShowHeaderLiveStats: (on) => set({ showHeaderLiveStats: on }),
 
   theme: 'gruvbox',
   setTheme: (id) => {

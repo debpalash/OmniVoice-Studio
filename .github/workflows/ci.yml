@@ -57,7 +57,11 @@ jobs:
           version: 1.0
 
       - name: Install Python deps
-        run: uv sync
+        # `--all-extras` installs optional engine deps (e.g. `supertonic`)
+        # so their tests can exercise the real import path, not the
+        # "package not installed" fallback. Smoke job below stays on bare
+        # `uv sync` because smoke only hits /health + fixture profiles.
+        run: uv sync --all-extras
 
       - name: Run pytest
         run: uv run pytest tests/ -q --tb=short

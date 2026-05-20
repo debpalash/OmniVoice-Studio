@@ -147,3 +147,20 @@ class ModelEntry(BaseModel):
     supported: bool = True
     size_on_disk: int | None = None
     nb_files: int | None = None
+
+
+# ── Effect presets ─────────────────────────────────────────────────────
+
+class EffectPresetEntry(BaseModel):
+    """One DSP effect preset."""
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    label: str
+    icon: str
+    description: str
+
+
+class EffectPresetsResponse(BaseModel):
+    """GET /engines/effects/presets"""
+    presets: list[EffectPresetEntry] = Field(default_factory=list)

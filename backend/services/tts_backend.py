@@ -1036,6 +1036,12 @@ _LAZY_REGISTRY: dict[str, tuple[str, str]] = {
     # huggingface_hub + soundfile transitively when callers only need
     # the in-process OmniVoice. Resolves on first attribute / item access.
     "omnivoice-gguf": ("engines.omnivoice_gguf", "OmniVoiceGGUFBackend"),
+    # Phase 3 Plan 03-01 (TTS-01): Supertonic-3 lives in its own engine
+    # package for the same import-cycle reason as IndexTTS2 (its backend
+    # module imports services.subprocess_backend which in turn imports
+    # this module for TTSBackend). The class is resolved on first
+    # attribute access via the LazyRegistry below.
+    "supertonic3": ("engines.supertonic3", "Supertonic3Backend"),
 }
 
 
@@ -1128,6 +1134,7 @@ _INSTALL_HINTS: dict[str, str] = {
     "gpt-sovits":    "External API server — start api_v2.py on port 9880",
     "sherpa-onnx":   "pip install sherpa-onnx  (universal ONNX runtime, WASM-ready)",
     "omnivoice-gguf":"Bundled — runs the C++ omnivoice-tts binary in bin/. Quants download lazily from Serveurperso/OmniVoice-GGUF on first generate.",
+    "supertonic3":   "uv sync --extra supertonic  (CPU-only ONNX, 31 langs, ~400 MB model on first use; OpenRAIL-M model license)",
 }
 
 

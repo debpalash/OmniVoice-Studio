@@ -1,0 +1,141 @@
+/* Supertonic-3 license acceptance modal (Phase 3 Plan 03-01 / TTS-05).
+ *
+ * Uses the same CSS-variable palette as BootstrapSplash so the modal
+ * blends with the rest of the app chrome regardless of the user's
+ * light/dark theme.
+ */
+
+.supertonic-license {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 10000;
+  padding: 1.5rem;
+  font-family: 'Inter Variable', 'Inter', system-ui, sans-serif;
+}
+
+.supertonic-license__card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--chrome-bg, #1c1c1c);
+  color: var(--chrome-fg, #eee);
+  border: 1px solid color-mix(in srgb, var(--chrome-fg, #eee) 14%, transparent);
+  border-radius: 12px;
+  padding: 1.75rem 1.75rem 1.5rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+  text-align: left;
+}
+
+.supertonic-license__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.supertonic-license__intro {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  opacity: 0.85;
+  line-height: 1.5;
+}
+
+.supertonic-license__sections {
+  display: grid;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.supertonic-license__section {
+  background: color-mix(in srgb, var(--chrome-fg, #eee) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chrome-fg, #eee) 10%, transparent);
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+}
+
+.supertonic-license__section h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.supertonic-license__section p {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  opacity: 0.92;
+}
+
+.supertonic-license__section code {
+  background: color-mix(in srgb, var(--chrome-fg, #eee) 8%, transparent);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', 'Menlo', monospace;
+  font-size: 0.78rem;
+}
+
+.supertonic-license__link {
+  font-size: 0.83rem;
+  color: var(--accent, #8ab4f8);
+  text-decoration: none;
+}
+
+.supertonic-license__link:hover,
+.supertonic-license__link:focus-visible {
+  text-decoration: underline;
+}
+
+.supertonic-license__footer {
+  margin: 0 0 1.1rem;
+  font-size: 0.78rem;
+  opacity: 0.7;
+  line-height: 1.5;
+}
+
+.supertonic-license__actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.supertonic-license__btn {
+  border-radius: 6px;
+  padding: 0.5rem 1.1rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+  border: 1px solid transparent;
+}
+
+.supertonic-license__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.supertonic-license__btn--secondary {
+  background: transparent;
+  color: inherit;
+  border-color: color-mix(in srgb, var(--chrome-fg, #eee) 22%, transparent);
+}
+
+.supertonic-license__btn--secondary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--chrome-fg, #eee) 8%, transparent);
+}
+
+.supertonic-license__btn--primary {
+  background: var(--accent, #4f8cff);
+  color: white;
+  border-color: var(--accent, #4f8cff);
+}
+
+.supertonic-license__btn--primary:hover:not(:disabled),
+.supertonic-license__btn--primary:focus-visible:not(:disabled) {
+  background: color-mix(in srgb, var(--accent, #4f8cff) 90%, #fff);
+  border-color: color-mix(in srgb, var(--accent, #4f8cff) 90%, #fff);
+}

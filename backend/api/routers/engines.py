@@ -23,6 +23,8 @@ from pydantic import BaseModel
 from api.dependencies import require_loopback
 from core import prefs
 from services import tts_backend, asr_backend, llm_backend, translation_engines
+from services.audio_dsp import list_effect_presets
+from api.schemas import EffectPresetsResponse
 
 router = APIRouter()
 
@@ -64,6 +66,16 @@ def list_asr_backends():
 @router.get("/engines/llm")
 def list_llm_backends():
     return {"active": llm_backend.active_backend_id(), "backends": llm_backend.list_backends()}
+
+
+@router.get("/engines/effects/presets", response_model=EffectPresetsResponse)
+def list_effects_presets():
+    """Return available DSP effect presets for the dub pipeline.
+
+    Each preset is a named chain of audio effects (EQ, compressor, reverb, etc.)
+    that can be applied to generated TTS audio on a per-segment basis.
+    """
+    return {"presets": list_effect_presets()}
 
 
 @router.get("/engines/translation")

@@ -3107,6 +3107,9 @@ eval = [
     { name = "zhconv" },
     { name = "zhon" },
 ]
+supertonic = [
+    { name = "supertonic" },
+]
 ui = [
     { name = "gradio" },
     { name = "gradio-client" },
@@ -3153,6 +3156,7 @@ requires-dist = [
     { name = "scalar-fastapi" },
     { name = "setuptools", specifier = ">=75.0" },
     { name = "soundfile" },
+    { name = "supertonic", marker = "extra == 'supertonic'", specifier = "==1.3.1" },
     { name = "tensorboardx" },
     { name = "torch", marker = "sys_platform != 'linux' and sys_platform != 'win32'", specifier = ">=2.4" },
     { name = "torch", marker = "sys_platform == 'linux' or sys_platform == 'win32'", specifier = ">=2.4", index = "https://download.pytorch.org/whl/cu128" },
@@ -3168,7 +3172,7 @@ requires-dist = [
     { name = "zhconv", marker = "extra == 'eval'" },
     { name = "zhon", marker = "extra == 'eval'" },
 ]
-provides-extras = ["eval", "ui"]
+provides-extras = ["eval", "ui", "supertonic"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -5428,6 +5432,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/47/86/497018fb3b74e71bef45df82762b176e6b3d159f29941c20d2f141ec4096/submitit-1.5.4.tar.gz", hash = "sha256:7100848bd1cdda79c7196e54ee830793ae75fd7adde0c5bef738d72360a07508", size = 81538, upload-time = "2025-12-17T19:20:03.396Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ea/bb/711e1c2ebd18a21202c972dd5d5c8e09a921f2d3560e3a53d6350c808ab7/submitit-1.5.4-py3-none-any.whl", hash = "sha256:c26f3a7c8d4150eaf70b1da71e2023e9e9936c93e8342ed7db910f29158561c5", size = 76043, upload-time = "2025-12-17T19:20:01.941Z" },
+]
+
+[[package]]
+name = "supertonic"
+version = "1.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "huggingface-hub" },
+    { name = "numpy" },
+    { name = "onnxruntime" },
+    { name = "soundfile" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e9/fe/1431393433d0c0570b54b8bd1307502fa0231238ed2cd9506c3e2799a12a/supertonic-1.3.1.tar.gz", hash = "sha256:4367e8f61afea618dac948f6bee55fed4721ad66ca2d3fc90771a2a66740731e", size = 54853, upload-time = "2026-05-18T09:50:39.759Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8f/9f/d3c0367115b378d09a3866502609841c283fbd48c5b8f58902a03f81b752/supertonic-1.3.1-py3-none-any.whl", hash = "sha256:0079c9d4166008b8a6eeae95f20c092148786b7232192dd3dd9f358960c6c077", size = 51871, upload-time = "2026-05-18T09:50:38.376Z" },
 ]
 
 [[package]]

@@ -13,7 +13,7 @@ from core.config import DUB_DIR, VOICES_DIR
 from core.tasks import task_manager
 from schemas.requests import DubRequest
 from services.model_manager import get_model, _gpu_pool
-from services.audio_dsp import apply_mastering, normalize_audio
+from services.audio_dsp import apply_mastering, normalize_audio, apply_effects_chain, get_effect_chain
 from services.audio_io import atomic_save_wav, _safe_torchaudio_save
 from services.rvc import apply_rvc, is_enabled as rvc_is_enabled
 from services.incremental import segment_fingerprint
@@ -108,7 +108,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                 sync_scores.append(1.0)
                 continue
 
-            def _gen(text, lang, instruct_str, dur_s, nstep, cfg, spd, profile_id=None):
+            def _gen(text, lang, instruct_str, dur_s, nstep, cfg, spd, profile_id, effect_preset):
                 ref_audio = None
                 ref_text = None
                 used_seed = None
@@ -161,7 +161,21 @@ async def dub_generate(job_id: str, req: DubRequest):
                         speed=spd, denoise=True, postprocess_output=True,
                     )
                     audio_out = audios[0]
-                    mastered_audio = apply_mastering(audio_out, sample_rate=_model.sampling_rate if hasattr(_model, 'sampling_rate') else 24000)
+                    sr = _model.sampling_rate if hasattr(_model, 'sampling_rate') else 24000
+
+                    # Apply per-segment DSP effect preset (default: broadcast)
+                    seg_effect_preset = effect_preset or "broadcast"
+                    if seg_effect_preset == "raw":
+                        return audio_out
+
+                    mastered_audio = apply_mastering(audio_out, sample_rate=sr)
+                    effect_chain = get_effect_chain(seg_effect_preset)
+                    if effect_chain:
+                        mastered_audio = apply_effects_chain(
+                            mastered_audio,
+                            sample_rate=sr,
+                            chain=effect_chain,
+                        )
                     return normalize_audio(mastered_audio, target_dBFS=-2.0)
                 except Exception as e:
                     is_oom = (
@@ -169,7 +183,6 @@ async def dub_generate(job_id: str, req: DubRequest):
                         or "out of memory" in str(e).lower()
                         or "CUDA error" in str(e)
                     )
-                    # Always try to reclaim VRAM regardless of error type.
                     import gc
                     gc.collect()
                     if torch.cuda.is_available():
@@ -178,9 +191,8 @@ async def dub_generate(job_id: str, req: DubRequest):
                         torch.mps.empty_cache()
 
                     if not is_oom:
-                        raise  # Non-OOM — propagate the real error, don't mask it.
+                        raise
 
-                    # OOM recovery: retry once with reduced steps (less VRAM).
                     retry_steps = min(nstep, 8)
                     logger.warning(
                         "OOM on segment (nstep=%d), retrying with %d steps after cache flush",
@@ -195,7 +207,20 @@ async def dub_generate(job_id: str, req: DubRequest):
                             speed=spd, denoise=True, postprocess_output=True,
                         )
                         audio_out = audios[0]
-                        mastered_audio = apply_mastering(audio_out, sample_rate=_model.sampling_rate if hasattr(_model, 'sampling_rate') else 24000)
+                        sr = _model.sampling_rate if hasattr(_model, 'sampling_rate') else 24000
+
+                        seg_effect_preset = effect_preset or "broadcast"
+                        if seg_effect_preset == "raw":
+                            return audio_out
+
+                        mastered_audio = apply_mastering(audio_out, sample_rate=sr)
+                        effect_chain = get_effect_chain(seg_effect_preset)
+                        if effect_chain:
+                            mastered_audio = apply_effects_chain(
+                                mastered_audio,
+                                sample_rate=sr,
+                                chain=effect_chain,
+                            )
                         return normalize_audio(mastered_audio, target_dBFS=-2.0)
                     except Exception as retry_err:
                         raise RuntimeError(
@@ -204,13 +229,13 @@ async def dub_generate(job_id: str, req: DubRequest):
                             f"Try the Flush button in the header to free VRAM, "
                             f"or switch to CPU in Settings. "
                             f"Underlying error: {retry_err}"
-                        )
+                        ) from retry_err
 
-            seg_instruct = seg.instruct or req.instruct
             seg_profile = seg.profile_id or None
             seg_speed = seg.speed if hasattr(seg, 'speed') and seg.speed is not None else req.speed
             seg_lang = seg.target_lang if getattr(seg, 'target_lang', None) else req.language
 
+            seg_instruct = seg.instruct or req.instruct
             # Phase 4.2 — if the segment carries a free-form direction, parse it
             # and append the taxonomy instruct (e.g. "urgent, surprised") on top
             # of whatever instruct was already set. Also apply the director's
@@ -240,10 +265,11 @@ async def dub_generate(job_id: str, req: DubRequest):
                 # flag to restore num_step=req.num_step quality.
                 _num_step = 8 if req.preview else req.num_step
                 _t_tts_0 = time.perf_counter()
+                seg_effect_preset = getattr(seg, "effect_preset", None) or "broadcast"
                 audio_tensor = await loop.run_in_executor(
                     _gpu_pool, _gen,
                     seg.text, seg_lang, seg_instruct, seg_duration,
-                    _num_step, req.guidance_scale, seg_speed, seg_profile,
+                    _num_step, req.guidance_scale, seg_speed, seg_profile, seg_effect_preset,
                 )
                 _t_tts += time.perf_counter() - _t_tts_0
 
@@ -277,6 +303,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                         "instruct": getattr(seg, "instruct", None),
                         "speed": getattr(seg, "speed", None),
                         "direction": getattr(seg, "direction", None),
+                        "effect_preset": getattr(seg, "effect_preset", None),
                     })
                 except Exception as e:
                     logger.debug("seg fingerprint skipped for %s: %s", seg_id, e)

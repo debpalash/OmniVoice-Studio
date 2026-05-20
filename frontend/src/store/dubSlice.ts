@@ -15,6 +15,7 @@
  * history restore explicitly rehydrates the relevant fields.
  */
 import type { StateCreator } from 'zustand';
+import type { EffectPreset } from '../api/engines';
 
 export type DubStep =
   | 'idle'
@@ -84,6 +85,12 @@ export interface DubSlice {
     source_count: number;
   }>;
 
+  // ── Effect Presets ────────────────────────────────────────────────────
+  segmentEffectPresets: Record<string, string>;
+  setSegmentEffectPreset: (segId: string, presetId: string) => void;
+  availableEffectPresets: EffectPreset[];
+  setAvailableEffectPresets: (presets: EffectPreset[]) => void;
+
   // ── Setters (React-style; accept value or updater fn) ─────────────────
   setDubJobId: (v: Updater<string | null>) => void;
   setDubStep: (v: Updater<DubStep>) => void;
@@ -115,7 +122,8 @@ const INITIAL: Omit<DubSlice,
   | 'setDubProgress' | 'setDubError' | 'setIsTranslating' | 'setDubSegments'
   | 'setDubTranscript' | 'setDubFilename' | 'setDubDuration' | 'setDubTracks'
   | 'setDubLang' | 'setDubLangCode' | 'setDubInstruct' | 'setPreserveBg'
-  | 'setDefaultTrack' | 'setExportTracks' | 'setPreviewSegIds' | 'setSpeakerClones' | 'resetDubState'
+  | 'setDefaultTrack' | 'setExportTracks' | 'setPreviewSegIds' | 'setSpeakerClones'
+  | 'setSegmentEffectPreset' | 'setAvailableEffectPresets' | 'resetDubState'
 > = {
   dubJobId: null,
   dubStep: 'idle',
@@ -137,6 +145,8 @@ const INITIAL: Omit<DubSlice,
   exportTracks: { original: true },
   previewSegIds: [],
   speakerClones: {},
+  segmentEffectPresets: {},
+  availableEffectPresets: [],
 };
 
 export const createDubSlice: StateCreator<DubSlice, [], [], DubSlice> = (set, get) => ({
@@ -162,6 +172,11 @@ export const createDubSlice: StateCreator<DubSlice, [], [], DubSlice> = (set, ge
   setExportTracks: (v) => set((s) => ({ exportTracks: resolve(v, s.exportTracks) })),
   setPreviewSegIds:(v) => set((s) => ({ previewSegIds:resolve(v, s.previewSegIds) })),
   setSpeakerClones:(v) => set((s) => ({ speakerClones: resolve(v, s.speakerClones) })),
+  setSegmentEffectPreset: (segId, presetId) =>
+    set((s) => ({
+      segmentEffectPresets: { ...s.segmentEffectPresets, [segId]: presetId },
+    })),
+  setAvailableEffectPresets: (presets) => set({ availableEffectPresets: presets }),
 
   resetDubState: () => {
     // Touch `get` so strict-mode double-invocation of the initializer doesn't

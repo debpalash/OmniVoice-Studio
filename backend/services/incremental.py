@@ -20,7 +20,7 @@ import hashlib
 import json
 
 
-_GEN_INPUT_FIELDS = ("text", "target_lang", "profile_id", "instruct", "speed", "direction")
+_GEN_INPUT_FIELDS = ("text", "target_lang", "profile_id", "instruct", "speed", "direction", "effect_preset")
 
 
 def segment_fingerprint(seg: dict) -> str:
@@ -29,6 +29,9 @@ def segment_fingerprint(seg: dict) -> str:
     Any change to `_GEN_INPUT_FIELDS` flips the hash and the segment becomes
     a re-gen candidate. Changes to position / selection state / lip-sync
     badge don't trigger regen, which is what we want.
+
+    Currently includes: text, target_lang, profile_id, instruct, speed,
+    direction, effect_preset.
     """
     payload = {k: (seg.get(k) if seg.get(k) is not None else "") for k in _GEN_INPUT_FIELDS}
     blob = json.dumps(payload, sort_keys=True, ensure_ascii=False)

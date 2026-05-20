@@ -121,3 +121,76 @@ def set_torch_compile_disabled(body: _TorchCompileBody):
         logger.exception("set_torch_compile_disabled failed")
         raise HTTPException(status_code=500, detail="Failed to persist setting")
     return _torch_compile_state()
+
+
+# ── License acceptance (Phase 3 Plan 03-01 / TTS-05) ──────────────────────
+# Frontend ``SupertonicLicenseDialog`` flips the engine-license bit via this
+# endpoint. The handler is loopback-gated (router-level dep) and the
+# engine_id is allow-listed so an arbitrary string cannot be persisted.
+# Threat T-03-04 in the plan frontmatter: this is an honest-acknowledgment
+# gate, not a security boundary; the loopback + allow-list keeps the
+# attack surface tight regardless.
+
+
+#: Engines that have an in-tree acceptance dialog. Adding a new engine
+#: here means adding a corresponding frontend dialog + a license URLs
+#: dict in its constants module. Until that, the API refuses the write.
+_LICENSE_ALLOWED_ENGINES: frozenset[str] = frozenset({"supertonic3"})
+
+
+class _LicenseAcceptBody(BaseModel):
+    engine_id: str = Field(..., min_length=1, max_length=64)
+    accepted: bool = Field(..., description="True to accept the license terms")
+
+
+@router.post("/license")
+def post_license_acceptance(body: _LicenseAcceptBody) -> dict:
+    """Persist a per-engine license-acceptance boolean.
+
+    Returns ``{"ok": True, "engine_id": ..., "accepted": ...}`` so the
+    caller can update its UI without a second round-trip. Validation:
+    ``engine_id`` must be in the in-tree allow-list ‑‑ refuses arbitrary
+    keys so the settings table can't be polluted via this route.
+    """
+    eid = body.engine_id.strip().lower()
+    if eid not in _LICENSE_ALLOWED_ENGINES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"engine_id {eid!r} is not in the license allow-list "
+                f"{sorted(_LICENSE_ALLOWED_ENGINES)}"
+            ),
+        )
+    from services import settings_store
+    try:
+        settings_store.set_license_accepted(eid, body.accepted)
+    except Exception:
+        logger.exception("set_license_accepted failed for %s", eid)
+        raise HTTPException(status_code=500, detail="Failed to persist license acceptance")
+    return {"ok": True, "engine_id": eid, "accepted": bool(body.accepted)}
+
+
+@router.get("/license/{engine_id}")
+def get_license_acceptance(engine_id: str) -> dict:
+    """Return ``{"engine_id": ..., "accepted": bool}``.
+
+    Same allow-list as the POST handler so an unknown engine id is a
+    400 rather than a silent ``accepted=false`` for a non-existent
+    engine.
+    """
+    eid = engine_id.strip().lower()
+    if eid not in _LICENSE_ALLOWED_ENGINES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"engine_id {eid!r} is not in the license allow-list "
+                f"{sorted(_LICENSE_ALLOWED_ENGINES)}"
+            ),
+        )
+    from services import settings_store
+    try:
+        accepted = settings_store.get_license_accepted(eid)
+    except Exception:
+        logger.exception("get_license_accepted failed for %s", eid)
+        raise HTTPException(status_code=500, detail="Failed to read license acceptance")
+    return {"engine_id": eid, "accepted": bool(accepted)}

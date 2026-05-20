@@ -42,7 +42,7 @@ class SegmentSpec:
     __slots__ = (
         "index", "text", "language", "instruct", "speed", "duration",
         "num_step", "guidance_scale", "profile_id",
-        "ref_audio", "ref_text", "start", "end",
+        "ref_audio", "ref_text", "start", "end", "effect_preset",
     )
 
     def __init__(self, **kwargs):
@@ -93,7 +93,7 @@ async def generate_segments_batched(
         List of (segment_index, audio_tensor, sample_rate) tuples,
         ordered by segment_index.
     """
-    from services.audio_dsp import apply_mastering, normalize_audio
+    from services.audio_dsp import apply_mastering, normalize_audio, apply_effects_chain, get_effect_chain
 
     sr = getattr(model, "sampling_rate", 24000)
     loop = asyncio.get_running_loop()
@@ -144,7 +144,20 @@ async def generate_segments_batched(
                     postprocess_output=True,
                 )
                 audio_out = audios[0]
+
+                # Apply per-segment DSP effect preset (default: broadcast)
+                seg_effect_preset = getattr(s, "effect_preset", None) or "broadcast"
+                if seg_effect_preset == "raw":
+                    # Raw: skip all DSP — return raw model output
+                    return audio_out
+
                 mastered = apply_mastering(audio_out, sample_rate=sr)
+                effect_chain = get_effect_chain(seg_effect_preset)
+                if effect_chain:
+                    mastered = apply_effects_chain(
+                        mastered, sample_rate=sr, chain=effect_chain
+                    )
+
                 return normalize_audio(mastered, target_dBFS=-2.0)
 
             audio = await loop.run_in_executor(gpu_pool, _gen_one)

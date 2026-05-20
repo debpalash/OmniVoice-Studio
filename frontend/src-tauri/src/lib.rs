@@ -115,8 +115,17 @@ pub fn run() {
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
             app.handle().plugin(tauri_plugin_process::init())?;
             app.handle().plugin(tauri_plugin_opener::init())?;
-            app.handle()
-                .plugin(tauri_plugin_window_state::Builder::default().build())?;
+            // Exclude the dictation widget from state persistence — otherwise
+            // `tauri-plugin-window-state` restores `visible: true` on next
+            // launch if the user happened to be dictating when they quit,
+            // overriding the WebviewWindowBuilder `.visible(false)` below.
+            // Symptom: pill appears on app load with no shortcut press.
+            // The main window is fine to persist (size/position are useful).
+            app.handle().plugin(
+                tauri_plugin_window_state::Builder::default()
+                    .with_denylist(&["widget"])
+                    .build(),
+            )?;
             app.handle().plugin(
                 tauri_plugin_log::Builder::new()
                     .level(log::LevelFilter::Info)
@@ -183,13 +192,18 @@ pub fn run() {
                                     log::info!("Global shortcut pressed: dictation start");
                                     // Show the widget window (works in both pill + studio mode)
                                     if let Some(win) = app_handle.get_webview_window("widget") {
-                                        // Position pill near top-center of primary monitor
+                                        // Position pill at bottom-center — WhisperFlow / Ghost-Pepper
+                                        // style. 80px margin from bottom clears macOS dock + Windows
+                                        // taskbar + most Linux panels. Same math on all platforms.
                                         if let Ok(Some(monitor)) = win.primary_monitor() {
                                             let size = monitor.size();
                                             let scale = monitor.scale_factor();
-                                            let x = ((size.width as f64 / scale) / 2.0 - 150.0) as i32;
+                                            let logical_w = size.width as f64 / scale;
+                                            let logical_h = size.height as f64 / scale;
+                                            let x = (logical_w / 2.0 - 150.0) as i32;
+                                            let y = (logical_h - 64.0 - 80.0) as i32;
                                             let _ = win.set_position(tauri::Position::Logical(
-                                                tauri::LogicalPosition::new(x as f64, 60.0),
+                                                tauri::LogicalPosition::new(x as f64, y as f64),
                                             ));
                                         } else {
                                             let _ = win.center();
@@ -331,9 +345,10 @@ pub fn run() {
                         "dictate" => {
                             // Toggle: if the widget is visible (recording), stop;
                             // otherwise start dictation. On start, show + position
-                            // + focus the widget BEFORE emitting tray-dictate
-                            // (mirrors the global-shortcut handler ~lines 184-199)
-                            // so the user sees the pill instead of silent recording.
+                            // + focus the widget BEFORE emitting tray-dictate so
+                            // the user sees the pill instead of silent recording.
+                            // Positioning mirrors the global-shortcut handler:
+                            // bottom-center (WhisperFlow style).
                             if let Some(win) = app.get_webview_window("widget") {
                                 if win.is_visible().unwrap_or(false) {
                                     let _ = app.emit("tray-dictate-stop", ());
@@ -341,9 +356,12 @@ pub fn run() {
                                     if let Ok(Some(monitor)) = win.primary_monitor() {
                                         let size = monitor.size();
                                         let scale = monitor.scale_factor();
-                                        let x = ((size.width as f64 / scale) / 2.0 - 150.0) as i32;
+                                        let logical_w = size.width as f64 / scale;
+                                        let logical_h = size.height as f64 / scale;
+                                        let x = (logical_w / 2.0 - 150.0) as i32;
+                                        let y = (logical_h - 64.0 - 80.0) as i32;
                                         let _ = win.set_position(tauri::Position::Logical(
-                                            tauri::LogicalPosition::new(x as f64, 60.0),
+                                            tauri::LogicalPosition::new(x as f64, y as f64),
                                         ));
                                     } else {
                                         let _ = win.center();
@@ -397,23 +415,30 @@ pub fn run() {
                 }
                 // Pill mode: widget stays HIDDEN until activated by global
                 // shortcut or tray 'Start Dictation'. Pre-position it now so
-                // the first show appears at top-center without an
+                // the first show appears at bottom-center without an
                 // animation/frame flicker. Trade-off accepted vs the original
                 // 'looks-launch-failed' concern: the tray icon + 'OmniVoice
                 // Dictation' tooltip provide the app-running signal.
                 match app.get_webview_window("widget") {
                     Some(win) => {
+                        // Defensive: make sure the widget is hidden on startup
+                        // regardless of what window-state restored. The denylist
+                        // above should handle it, but belt-and-braces.
+                        let _ = win.hide();
                         if let Ok(Some(monitor)) = win.primary_monitor() {
                             let size = monitor.size();
                             let scale = monitor.scale_factor();
-                            let x = ((size.width as f64 / scale) / 2.0 - 150.0) as i32;
+                            let logical_w = size.width as f64 / scale;
+                            let logical_h = size.height as f64 / scale;
+                            let x = (logical_w / 2.0 - 150.0) as i32;
+                            let y = (logical_h - 64.0 - 80.0) as i32;
                             let _ = win.set_position(tauri::Position::Logical(
-                                tauri::LogicalPosition::new(x as f64, 60.0),
+                                tauri::LogicalPosition::new(x as f64, y as f64),
                             ));
                         } else {
                             let _ = win.center();
                         }
-                        log::info!("Pill mode: widget window pre-positioned (hidden until activated)");
+                        log::info!("Pill mode: widget window pre-positioned at bottom-center (hidden until activated)");
                     }
                     None => log::error!(
                         "Pill mode: widget window NOT FOUND — get_webview_window(\"widget\") \
@@ -422,7 +447,11 @@ pub fn run() {
                 }
             } else {
                 // Studio mode: widget window stays hidden but ready for the
-                // global shortcut. It's already visible:false in tauri.conf.json.
+                // global shortcut. Belt-and-braces hide() in case any plugin
+                // or stale state would otherwise show it on startup.
+                if let Some(win) = app.get_webview_window("widget") {
+                    let _ = win.hide();
+                }
             }
 
             // ── Enable microphone / camera on Linux (WebKitGTK) ──────────
