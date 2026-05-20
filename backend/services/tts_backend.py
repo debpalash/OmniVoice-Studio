@@ -1031,6 +1031,11 @@ class SherpaOnnxBackend(TTSBackend):
 
 _LAZY_REGISTRY: dict[str, tuple[str, str]] = {
     "indextts2": ("engines.indextts", "IndexTTS2Backend"),
+    # Phase 4 Plan 04-01 (GGUF-03): hardware-adaptive GGUF runtime wrapper.
+    # Lazy so the import of services.tts_backend doesn't pull
+    # huggingface_hub + soundfile transitively when callers only need
+    # the in-process OmniVoice. Resolves on first attribute / item access.
+    "omnivoice-gguf": ("engines.omnivoice_gguf", "OmniVoiceGGUFBackend"),
 }
 
 
@@ -1122,6 +1127,7 @@ _INSTALL_HINTS: dict[str, str] = {
     "indextts2":     "git clone index-tts/index-tts && uv pip install -e .  (NOT uv sync --all-extras)",
     "gpt-sovits":    "External API server — start api_v2.py on port 9880",
     "sherpa-onnx":   "pip install sherpa-onnx  (universal ONNX runtime, WASM-ready)",
+    "omnivoice-gguf":"Bundled — runs the C++ omnivoice-tts binary in bin/. Quants download lazily from Serveurperso/OmniVoice-GGUF on first generate.",
 }
 
 

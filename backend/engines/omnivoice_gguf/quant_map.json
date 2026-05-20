@@ -1,0 +1,38 @@
+{
+  "_meta": {
+    "schema_version": 1,
+    "source_model": "Serveurperso/OmniVoice-GGUF",
+    "source_commit_sha": "361609388ae572a820d085185bbbe2a2aac4b30e",
+    "runtime": "omnivoice.cpp",
+    "runtime_commit_sha": "886fc079838ca7400cb2b42b36e2a65aa1daabe8",
+    "doc": "Pinned at Phase 4 Plan 04-01 (2026-05-20). source_commit_sha is the HF repo revision; runtime_commit_sha is the omnivoice.cpp master HEAD used to build bin/omnivoice-tts-* binaries. Both SHAs are also recorded in .planning/decisions/SPIKE-01-gguf.md so the engine code and the ADR cannot drift."
+  },
+  "high-vram": {
+    "base": "omnivoice-base-BF16.gguf",
+    "tokenizer": "omnivoice-tokenizer-BF16.gguf",
+    "rationale": "12 GB+ VRAM — quality-first; ~1.6 GB total VRAM use"
+  },
+  "mid-vram": {
+    "base": "omnivoice-base-Q8_0.gguf",
+    "tokenizer": "omnivoice-tokenizer-Q8_0.gguf",
+    "rationale": "4-12 GB VRAM — recommended balance; ~945 MB VRAM use"
+  },
+  "low-vram": {
+    "base": "omnivoice-base-Q4_K_M.gguf",
+    "tokenizer": "omnivoice-tokenizer-Q4_K_M.gguf",
+    "rationale": "1-4 GB VRAM — minimal footprint; ~659 MB VRAM use"
+  },
+  "cpu": {
+    "base": "omnivoice-base-Q4_K_M.gguf",
+    "tokenizer": "omnivoice-tokenizer-Q4_K_M.gguf",
+    "rationale": "CPU-only — Q4_K_M keeps latency tolerable on RAM-bound inference"
+  },
+  "_extras": {
+    "doc": "Quants that are published by Serveurperso/OmniVoice-GGUF and accepted by the Settings override allow-list, but not auto-selected by the hardware probe. F32 is reference/debug grade — no quality gain over BF16 at 2x the disk footprint.",
+    "f32": {
+      "base": "omnivoice-base-F32.gguf",
+      "tokenizer": "omnivoice-tokenizer-F32.gguf",
+      "rationale": "Override-only — bit-exact reference output; ~3.2 GB total."
+    }
+  }
+}

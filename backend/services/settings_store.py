@@ -163,3 +163,96 @@ def set_text(key: str, value: str) -> None:
             "VALUES (?, ?, ?)",
             (key, value, time.time()),
         )
+
+
+# ── Phase 4 Plan 04-01 (GGUF-04): per-engine quant override ────────────────
+#
+# Settings row "gguf_quant_override" holds either:
+#   * "auto"          — explicit auto-select (default, equivalent to row absent)
+#   * a quant filename listed in quant_map.json (e.g. "omnivoice-base-F32.gguf")
+# Any other value is rejected at write time (T-04-05 — the quant override UI
+# cannot be used to load an attacker-controlled GGUF path).
+
+_QUANT_OVERRIDE_KEY = "gguf_quant_override"
+
+
+def get_quant_override() -> Optional[str]:
+    """Return the user's GGUF quant override, or None when auto-select.
+
+    Returns:
+        ``None`` — no row present, or row holds the sentinel ``"auto"``.
+        ``str``  — a quant filename from ``quant_map.json``'s allow-list.
+
+    Reads through the same disk-backed SQLite path as ``get_text``, so
+    the override survives process restart (per GGUF-04 acceptance).
+    """
+    raw = get_text(_QUANT_OVERRIDE_KEY)
+    if raw is None or raw == "auto":
+        return None
+    return raw
+
+
+def set_quant_override(value: Optional[str]) -> None:
+    """Persist a GGUF quant override (or clear it on ``None`` / ``"auto"``).
+
+    Args:
+        value: ``None`` or ``"auto"`` to clear; otherwise a quant filename
+            from ``quant_map.json``'s allow-list
+            (e.g. ``"omnivoice-base-F32.gguf"``).
+
+    Raises:
+        ValueError: ``value`` is a string but is not in the allow-list,
+            or it contains a path separator / ``..``. This protects
+            against UI input being used to load a quant from an
+            attacker-controlled path (T-04-05 in the Plan 04-01 threat
+            model).
+    """
+    from core.db import db_conn
+
+    if value is None or value == "auto":
+        # Clear the row entirely — get_quant_override returns None for
+        # both "row absent" and the explicit "auto" sentinel; we
+        # canonicalize on "absent" so the table stays clean.
+        with db_conn() as conn:
+            conn.execute(
+                "DELETE FROM settings WHERE key = ?",
+                (_QUANT_OVERRIDE_KEY,),
+            )
+        return
+
+    if not isinstance(value, str):
+        raise ValueError(
+            f"set_quant_override expects a str or None, got {type(value).__name__}"
+        )
+
+    # Defence-in-depth: never accept anything that could escape the HF
+    # cache. The allow-list check below would catch this too, but
+    # failing fast on path separators surfaces the bug closer to the
+    # caller.
+    if "/" in value or "\\" in value or ".." in value:
+        raise ValueError(
+            f"set_quant_override refuses path components in {value!r}"
+        )
+
+    # Allow-list against quant_map.json. Importing here keeps the engine
+    # package off settings_store's hot import path for non-GGUF callers.
+    try:
+        from engines.omnivoice_gguf.backend import _allowed_quant_filenames
+    except Exception as exc:  # pragma: no cover - engine package always present
+        raise ValueError(
+            f"GGUF engine package unavailable; cannot validate quant override: {exc}"
+        ) from exc
+
+    allowed = _allowed_quant_filenames()
+    if value not in allowed:
+        raise ValueError(
+            f"set_quant_override rejects {value!r}: not in quant_map.json "
+            f"allow-list. Allowed values: {sorted(allowed)}"
+        )
+
+    with db_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO settings(key, value, updated_at) "
+            "VALUES (?, ?, ?)",
+            (_QUANT_OVERRIDE_KEY, value, time.time()),
+        )

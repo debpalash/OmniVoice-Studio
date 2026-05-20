@@ -338,3 +338,59 @@ def test_alembic_downgrade_drops_settings_only(tmp_path, monkeypatch):
         assert "settings" not in tables
         assert "voice_profiles" in tables
         assert "jobs" in tables
+
+
+# ── Phase 4 Plan 04-01 (GGUF-04): quant override round-trip + allow-list ──
+
+
+def test_quant_override_round_trip(isolated_db):
+    """A user picks a quant in Settings; after restart (modelled by a
+    fresh `get_quant_override()` against the same SQLite path) the
+    value still resolves."""
+    from services import settings_store
+
+    # Round-trips an allow-listed quant filename.
+    settings_store.set_quant_override("omnivoice-base-F32.gguf")
+    assert settings_store.get_quant_override() == "omnivoice-base-F32.gguf"
+
+
+def test_quant_override_clear_with_none(isolated_db):
+    from services import settings_store
+
+    settings_store.set_quant_override("omnivoice-base-F32.gguf")
+    settings_store.set_quant_override(None)
+    assert settings_store.get_quant_override() is None
+
+
+def test_quant_override_clear_with_auto_sentinel(isolated_db):
+    from services import settings_store
+
+    settings_store.set_quant_override("omnivoice-base-Q8_0.gguf")
+    settings_store.set_quant_override("auto")
+    # "auto" is the explicit clear sentinel; get_quant_override returns
+    # None for both "row absent" and "auto" so the caller's downstream
+    # auto-select code path runs.
+    assert settings_store.get_quant_override() is None
+
+
+def test_quant_override_rejects_freeform_path(isolated_db):
+    """T-04-05 — UI input cannot load an attacker-controlled GGUF path."""
+    from services import settings_store
+
+    with pytest.raises(ValueError):
+        settings_store.set_quant_override("../etc/passwd")
+
+
+def test_quant_override_rejects_unknown_filename(isolated_db):
+    """Anything not in the quant_map.json allow-list is refused."""
+    from services import settings_store
+
+    with pytest.raises(ValueError):
+        settings_store.set_quant_override("malicious-base-Q4.gguf")
+
+
+def test_quant_override_rejects_non_string(isolated_db):
+    from services import settings_store
+
+    with pytest.raises(ValueError):
+        settings_store.set_quant_override(42)  # type: ignore[arg-type]

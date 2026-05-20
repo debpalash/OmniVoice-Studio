@@ -161,3 +161,25 @@ def is_sandbox_available() -> tuple[bool, str]:
         return True, f"sandbox available (start method: {method})"
     except Exception as e:
         return False, f"multiprocessing not available: {e}"
+
+
+# ── Phase 4 GGUF-01: hardware-capability probe ─────────────────────────────
+#
+# The probe itself lives in ``engines.omnivoice_gguf.hardware_probe`` (it's
+# tightly coupled to the GGUF engine's quant_map.json) but it is a
+# *backend-tier* responsibility per RESEARCH.md "Architectural
+# Responsibility Map" — anything that needs to know "is this machine
+# CUDA / MPS / CPU and how much VRAM does it have?" should import it from
+# this module so we have a single entry point.
+#
+# Re-exported lazily via ``__getattr__`` so importing ``gpu_sandbox`` for
+# the existing CUDA-crash sandbox doesn't drag in the GGUF engine package
+# (which transitively pulls ``huggingface_hub`` + ``soundfile``).
+
+
+def __getattr__(name: str):  # pragma: no cover - exercised via tests
+    if name in ("detect_capabilities", "HardwareCapabilities", "ComputeClass"):
+        from engines.omnivoice_gguf import hardware_probe
+
+        return getattr(hardware_probe, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
