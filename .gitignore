@@ -57,6 +57,7 @@ research/
 #  (app-local state — safe to regenerate)
 # ─────────────────────────────────────────────────────────────────────────
 omnivoice_data/
+models_cache/
 /data/
 /local/
 /results/
