@@ -64,7 +64,7 @@ export default function CloneDesignTab(props) {
       return;
     }
     setActivePersonality(p.id);
-    setInstruct(p.instruct);
+    if (p.attrs) setVdStates(p.attrs);
   };
 
   return (

@@ -106,7 +106,6 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
         const designSeed = Math.floor(Math.random() * 2147483647);
         formData.append("seed", designSeed);
         const parts = Object.values(vdStates).filter(v => v !== 'Auto');
-        if (instruct.trim()) parts.push(instruct.trim());
         const finalInstruct = parts.join(', ');
         if (finalInstruct) formData.append("instruct", finalInstruct);
         if (selectedProfile) {
