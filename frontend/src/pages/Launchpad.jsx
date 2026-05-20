@@ -240,7 +240,11 @@ export default function Launchpad({
               {t('launchpad.empty_hint')}
             </p>
           </div>
-          <ReadinessChecklist showWhenAllPass />
+          {/* No `showWhenAllPass` — let the component self-hide when every
+              check is pass-or-warn. Surfacing "everything is fine" on the
+              welcome screen is noise; only show when there's an actual
+              issue to address. */}
+          <ReadinessChecklist />
         </div>
       )}
 

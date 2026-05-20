@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronUp, ChevronDown, RefreshCw, Trash2, Copy, Bug, X,
-  AlertTriangle, AlertCircle, Info, FileText, Heart, Bell,
+  AlertTriangle, AlertCircle, Info, FileText, Heart,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { clearSystemLogs, clearTauriLogs } from '../api/system';
@@ -23,7 +23,9 @@ const SOURCES = [
   { id: 'backend',  label: 'Backend',  icon: FileText },
   { id: 'frontend', label: 'Frontend', icon: FileText },
   { id: 'tauri',    label: 'Tauri',    icon: FileText },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
+  // Notifications used to live here as a 4th pill but that duplicated the
+  // header's bell+badge (single source of truth for notifications). The
+  // footer is logs-only now; bell handles notifications.
 ];
 
 const LS_HEIGHT = 'omnivoice.logs.height';
