@@ -556,9 +556,32 @@ def _make_backend_class():
             if lang:
                 argv += ["--lang", lang]
             if ref_audio:
-                # Reject anything that isn't an existing file on disk —
-                # defense in depth on top of the UI's path validation.
-                ref_path = Path(str(ref_audio))
+                # Two-stage validation (defense in depth):
+                #   (a) Reject anything outside the project's voices /
+                #       dub-jobs trees + the system temp dir. Test
+                #       `test_generate_blocks_freeform_ref_audio` proved
+                #       on Linux that an existence-only check accepts
+                #       sensitive paths like /etc/shadow.
+                #   (b) Then confirm the constrained path actually exists.
+                ref_path = Path(str(ref_audio)).resolve()
+                from core.config import VOICES_DIR, DUB_DIR
+                allowed_roots = [
+                    Path(VOICES_DIR).resolve(),
+                    Path(DUB_DIR).resolve(),
+                    Path(tempfile.gettempdir()).resolve(),
+                ]
+                inside_allowed = any(
+                    ref_path == root or root in ref_path.parents
+                    for root in allowed_roots
+                )
+                if not inside_allowed:
+                    # FileNotFoundError keeps the failure mode consistent
+                    # with the existing test's expectation and the prior
+                    # validation contract (callers never differentiate
+                    # "outside policy" from "missing file" — both are bad).
+                    raise FileNotFoundError(
+                        f"ref_audio outside allowed roots: {ref_path}"
+                    )
                 if not ref_path.is_file():
                     raise FileNotFoundError(
                         f"ref_audio not found: {ref_path}"
