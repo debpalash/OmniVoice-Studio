@@ -28,13 +28,23 @@ case "$OS" in
 esac
 
 # ── Platform-specific paths ───────────────────────────────────────────────
+# Two directories matter for fresh-install simulation:
+#   APP_DATA     — Tauri's bundle dir (keyed by APP_ID); holds the post-install
+#                  Python venv + webview state.
+#   BACKEND_DATA — Where backend/core/config.py::get_app_data_dir() writes:
+#                  SQLite db, voice profiles, generation outputs, logs. This is
+#                  NOT under APP_ID — it's a separate hardcoded name. Cleaning
+#                  only APP_DATA leaves all user data behind, defeating the
+#                  fresh-emulation promise.
 if [ "$PLATFORM" = "macos" ]; then
   APP_DATA="$HOME/Library/Application Support/${APP_ID}"
+  BACKEND_DATA="$HOME/Library/Application Support/OmniVoice"
   TAURI_LOGS="$HOME/Library/Logs/${APP_ID}"
   WEBKIT_DATA="$HOME/Library/WebKit/${APP_ID}"
 else
-  # Linux: XDG conventions
+  # Linux: backend uses ~/.omnivoice (not XDG — see backend/core/config.py).
   APP_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/${APP_ID}"
+  BACKEND_DATA="$HOME/.omnivoice"
   TAURI_LOGS="${XDG_DATA_HOME:-$HOME/.local/share}/${APP_ID}/logs"
   WEBKIT_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/${APP_ID}/webview"
 fi
@@ -68,12 +78,22 @@ if [ "$KEEP_DATA" = false ]; then
   echo "🧹 Cleaning all OmniVoice data for fresh prod emulation..."
   echo ""
 
-  # 1. App data (venv, config, bundled backend)
+  # 1. App data (Tauri bundle dir: post-install venv + webview state)
   if [ -d "${APP_DATA}" ]; then
     echo "   ✗ App data:     ${APP_DATA}"
     rm -rf "${APP_DATA}"
   else
     echo "   ○ App data:     (already clean)"
+  fi
+
+  # 1b. Backend data (SQLite db, voice profiles, outputs, logs)
+  #     — separate dir hardcoded in backend/core/config.py, NOT under APP_ID.
+  if [ -d "${BACKEND_DATA}" ]; then
+    BD_SIZE=$(du -sh "${BACKEND_DATA}" 2>/dev/null | cut -f1)
+    echo "   ✗ Backend data: ${BACKEND_DATA} (${BD_SIZE})"
+    rm -rf "${BACKEND_DATA}"
+  else
+    echo "   ○ Backend data: (already clean)"
   fi
 
   # 2. HF model cache (downloaded .safetensors, tokenizers, etc.)
