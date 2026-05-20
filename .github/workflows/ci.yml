@@ -293,6 +293,19 @@ jobs:
         run: |
           sha=$(python -c "import json,sys; print(json.load(open('backend/engines/omnivoice_gguf/quant_map.json'))['_meta']['runtime_commit_sha'])")
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      # Linux-only: upstream `buildcpu.sh` enables `-DGGML_BLAS=ON` which
+      # requires a system BLAS implementation at cmake configure time.
+      # ubuntu-latest does not preinstall any (`Could NOT find BLAS
+      # (missing: BLAS_LIBRARIES)`), so we install OpenBLAS + pkg-config
+      # here. macOS uses Accelerate (built in) and Windows builds without
+      # the BLAS backend, so neither needs this step.
+      - name: Linux system deps (BLAS for ggml-blas backend)
+        if: matrix.platform == 'linux-x86_64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopenblas-dev pkg-config
+
       - name: Build omnivoice-tts
         shell: bash
         run: |
