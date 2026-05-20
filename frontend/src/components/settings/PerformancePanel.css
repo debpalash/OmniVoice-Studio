@@ -1,0 +1,83 @@
+/* Settings → Performance panel (Wave 2 INST-12). Matches the API Keys
+   panel palette for visual consistency in the Credentials tab. */
+
+.perfpanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.perfpanel__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--chrome-fg);
+}
+
+.perfpanel__error {
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--chrome-severity-err) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chrome-severity-err) 35%, transparent);
+  border-radius: var(--chrome-radius-pill);
+  font-size: 0.78rem;
+  color: var(--chrome-severity-err);
+}
+
+.perfpanel__row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.84rem;
+  color: var(--chrome-fg);
+}
+
+.perfpanel__row:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.perfpanel__checkbox {
+  width: 16px;
+  height: 16px;
+}
+
+.perfpanel__badge {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg-muted);
+  margin-left: 4px;
+}
+
+.perfpanel__help {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--chrome-fg-muted);
+}
+
+.perfpanel__help code {
+  font-family: var(--font-mono);
+  background: var(--chrome-hover-bg);
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
+.perfpanel__help a {
+  color: var(--chrome-accent, #83a598);
+  text-decoration: none;
+}
+
+.perfpanel__help a:hover {
+  text-decoration: underline;
+}

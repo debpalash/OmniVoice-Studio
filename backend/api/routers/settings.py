@@ -79,3 +79,45 @@ def clear_hf_token(also_clear_hf_cli: bool = Query(False)):
 def get_hf_token_state():
     """3-source HF token cascade state for the Settings UI."""
     return _state_response()
+
+
+# ── Performance settings (INST-12) ────────────────────────────────────────
+# Threat T-02-04: same loopback guard as the hf-token endpoints via the
+# router-level `require_loopback` dep.
+
+
+_TORCH_COMPILE_KEY = "perf.torch_compile_disabled"
+
+
+class _TorchCompileBody(BaseModel):
+    enabled: bool = Field(..., description="True to set TORCH_COMPILE_DISABLE=1 on engine subprocesses")
+
+
+def _torch_compile_state() -> dict:
+    import sys
+    from services import settings_store
+
+    raw = settings_store.get_text(_TORCH_COMPILE_KEY, "0")
+    return {"enabled": raw == "1", "platform": sys.platform}
+
+
+@router.get("/perf/torch-compile-disabled")
+def get_torch_compile_disabled():
+    """Return the current torch.compile-disabled toggle + the runtime platform.
+    UI uses the platform to render the toggle disabled (with an explainer)
+    on non-Windows hosts, since the OOM is Windows-specific (issue #65)."""
+    return _torch_compile_state()
+
+
+@router.put("/perf/torch-compile-disabled")
+def set_torch_compile_disabled(body: _TorchCompileBody):
+    """Persist the toggle. Honoured by `services.engine_env.build_engine_env()`
+    which injects TORCH_COMPILE_DISABLE=1 on Windows when enabled."""
+    from services import settings_store
+
+    try:
+        settings_store.set_text(_TORCH_COMPILE_KEY, "1" if body.enabled else "0")
+    except Exception:
+        logger.exception("set_torch_compile_disabled failed")
+        raise HTTPException(status_code=500, detail="Failed to persist setting")
+    return _torch_compile_state()

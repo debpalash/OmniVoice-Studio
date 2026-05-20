@@ -106,3 +106,60 @@ def clear_hf_token() -> None:
 
     with db_conn() as conn:
         conn.execute("DELETE FROM settings WHERE key = ?", (_TOKEN_KEY,))
+
+
+# ── Non-secret text settings ──────────────────────────────────────────────
+# Plan 01-02 Task 4 (INST-12): the Performance panel needs to persist a
+# boolean toggle (`perf.torch_compile_disabled`). It is NOT a secret — no
+# user-recoverable harm comes from a leaked "user disabled torch.compile"
+# bit — so we store the raw text directly in the same `settings` table
+# without Fernet wrap.
+#
+# Use these helpers (not `set_hf_token`) for non-secret config:
+#   set_text("perf.torch_compile_disabled", "1")
+#   get_text("perf.torch_compile_disabled", default="0")
+
+
+def get_text(key: str, default: Optional[str] = None) -> Optional[str]:
+    """Read a non-encrypted text value from the settings table.
+
+    Returns `default` if the row is missing OR if reading the row fails.
+    The HF-token row is encrypted ciphertext and will round-trip here
+    looking like opaque bytes — callers MUST use `get_hf_token()` for
+    secrets and only ever pass non-secret keys to `get_text()`.
+    """
+    if key == _TOKEN_KEY:  # defence in depth — never let a misrouted call leak ciphertext
+        return default
+    from core.db import db_conn
+
+    try:
+        with db_conn() as conn:
+            row = conn.execute(
+                "SELECT value FROM settings WHERE key = ?", (key,)
+            ).fetchone()
+        if row is None or row[0] is None:
+            return default
+        return str(row[0])
+    except Exception:
+        logger.exception("settings_store.get_text(%s): SQLite read failed", key)
+        return default
+
+
+def set_text(key: str, value: str) -> None:
+    """Persist a non-encrypted text value into the settings table.
+
+    Use for non-secret config only. For tokens, use `set_hf_token()`.
+    """
+    if key == _TOKEN_KEY:
+        raise ValueError(
+            "set_text refuses to write to the encrypted hf_token row; "
+            "use set_hf_token() for secrets"
+        )
+    from core.db import db_conn
+
+    with db_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO settings(key, value, updated_at) "
+            "VALUES (?, ?, ?)",
+            (key, value, time.time()),
+        )

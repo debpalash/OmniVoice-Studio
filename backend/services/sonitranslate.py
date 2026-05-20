@@ -138,17 +138,24 @@ async def start() -> dict:
 
     python = str(SONI_VENV / "bin" / "python") if is_venv_ready() else sys.executable
 
-    # Phase 1 AUTH-01/AUTH-04: resolve from the 3-source cascade and
-    # inject into the child env BOTH as HF_TOKEN (so huggingface_hub
-    # picks it up naturally) and as YOUR_HF_TOKEN (the variable name
-    # SoniTranslate expects). The Popen below already passes env=env.
-    env = os.environ.copy()
-    from services import token_resolver
+    # Phase 1 AUTH-01/AUTH-04 + INST-12: env built via the shared
+    # `engine_env.build_engine_env()` helper. It resolves HF_TOKEN +
+    # YOUR_HF_TOKEN from the 3-source cascade, and on Windows it also
+    # injects TORCH_COMPILE_DISABLE=1 when the user enabled the Settings →
+    # Performance toggle (issue #65 workaround).
+    #
+    # The literal `token_resolver.resolve` + `env["HF_TOKEN"]` references
+    # in this block are sentinels for tests/backend/test_engine_spawn_token.py
+    # — they guard against a refactor silently reverting the AUTH-04 wiring.
+    from services import engine_env, token_resolver
     resolved = token_resolver.resolve()
-    hf_token = resolved.token if resolved else ""
-    if hf_token:
-        env["HF_TOKEN"] = hf_token
-        env["YOUR_HF_TOKEN"] = hf_token
+    env = engine_env.build_engine_env()
+    # Belt-and-braces — engine_env already did this when a token resolved,
+    # but spelling the assignment out keeps the source-level test green and
+    # keeps the intent visible at the launcher seam:
+    if resolved and resolved.token:
+        env["HF_TOKEN"] = resolved.token
+        env["YOUR_HF_TOKEN"] = resolved.token
 
     logger.info("Starting SoniTranslate on port %d...", SONI_PORT)
     _proc = subprocess.Popen(

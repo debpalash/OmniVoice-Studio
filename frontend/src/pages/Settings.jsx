@@ -23,6 +23,7 @@ import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
 import { Tabs, Segmented, Button, Badge, Panel, Table, Progress } from '../ui';
 import { useAppStore } from '../store';
 import ApiKeysPanel from '../components/settings/ApiKeysPanel';
+import PerformancePanel from '../components/settings/PerformancePanel';
 import './Settings.css';
 
 const TABS = [
@@ -1508,6 +1509,11 @@ function CredentialsTab({ info }) {
       {/* Wave 2 AUTH-03 panel — 3-source cascade with Active badge,
           encrypted-at-rest App-source storage, and live whoami status. */}
       <ApiKeysPanel />
+
+      {/* Wave 2 INST-12 panel — Windows torch.compile OOM workaround
+          (#65). Toggle is rendered disabled on macOS/Linux with an
+          explainer; backend ignores the flag on non-Windows. */}
+      <PerformancePanel />
 
       <p className="settings-prose">
         Other API keys and tokens are set <strong>for this session only</strong>.
