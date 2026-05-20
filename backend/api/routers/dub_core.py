@@ -22,6 +22,7 @@ from core import event_bus
 from schemas.requests import DubRequest, TranslateRequest, DubIngestUrlRequest
 from services.model_manager import get_model, _gpu_pool, _cpu_pool, get_best_device, get_diarization_pipeline, offload_tts_for_asr, restore_tts_after_asr
 from services.audio_dsp import apply_mastering, normalize_audio
+from services.audio_io import _safe_soundfile_write
 from services.ffmpeg_utils import find_ffmpeg, _get_semaphore, _spawn_with_retry
 from services.segmentation import (
     segment_transcript,
@@ -435,7 +436,7 @@ async def dub_transcribe_stream(job_id: str):
                     tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
                     tmp.close()
                     try:
-                        sf.write(tmp.name, arr, local_sr)
+                        _safe_soundfile_write(tmp.name, arr, local_sr)
                         r = _asr_backend.transcribe(tmp.name, word_timestamps=True)
                     finally:
                         try: os.remove(tmp.name)

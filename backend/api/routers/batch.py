@@ -240,8 +240,8 @@ async def _run_batch_pipeline(job_id: str, job: dict):
 
         from services.model_manager import get_model
         from services.audio_dsp import apply_mastering, normalize_audio
+        from services.audio_io import atomic_save_wav
         import torch
-        import torchaudio
 
         _model = await get_model()
         sr = _model.sampling_rate
@@ -337,8 +337,13 @@ async def _run_batch_pipeline(job_id: str, job: dict):
                 logger.warning("Batch TTS seg %d failed: %s", i, e)
 
         # ── 3c. Save dubbed audio track ───────────────────────────────
+        # Same assembly pattern as dub_generate.py:390 — `full_audio` is a
+        # zero-init tensor that gets +='d from torch.cat-style slices, so
+        # it can land non-contiguous + out-of-range. Go through the
+        # audited + atomic helper to defend against #48 silent corruption
+        # and partial-write truncation simultaneously.
         track_path = os.path.join(batch_dir, f"dubbed_{target_lang}.wav")
-        torchaudio.save(track_path, full_audio, sr)
+        atomic_save_wav(track_path, full_audio, sr)
 
         # ── 3d. Mix with original video ───────────────────────────────
         _set_progress(

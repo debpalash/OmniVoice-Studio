@@ -14,7 +14,7 @@ from core.tasks import task_manager
 from schemas.requests import DubRequest
 from services.model_manager import get_model, _gpu_pool
 from services.audio_dsp import apply_mastering, normalize_audio
-from services.audio_io import atomic_save_wav
+from services.audio_io import atomic_save_wav, _safe_torchaudio_save
 from services.rvc import apply_rvc, is_enabled as rvc_is_enabled
 from services.incremental import segment_fingerprint
 from services.watermark import embed_watermark
@@ -506,7 +506,7 @@ async def preview_segment(job_id: str, req: SegmentPreviewRequest):
 
     sr = getattr(_model, "sampling_rate", 24000)
     buf = io.BytesIO()
-    torchaudio.save(buf, audio_tensor, sr, format="wav")
+    _safe_torchaudio_save(buf, audio_tensor, sr, format="wav")
     buf.seek(0)
 
     return Response(

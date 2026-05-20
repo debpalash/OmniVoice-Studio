@@ -15,6 +15,7 @@ from core.db import db_conn
 from core.config import OUTPUTS_DIR, VOICES_DIR
 from services.model_manager import get_model, _gpu_pool
 from services.audio_dsp import apply_mastering, normalize_audio
+from services.audio_io import _safe_torchaudio_save
 from core import event_bus
 
 router = APIRouter()
@@ -144,8 +145,7 @@ async def generate_speech(
         audio_id = str(uuid.uuid4())[:8]
         audio_filename = f"{audio_id}.wav"
         audio_path = os.path.join(OUTPUTS_DIR, audio_filename)
-        import torchaudio
-        torchaudio.save(audio_path, audio_tensor, _model.sampling_rate)
+        _safe_torchaudio_save(audio_path, audio_tensor, _model.sampling_rate)
 
         audio_dur = round(audio_tensor.shape[-1] / _model.sampling_rate, 2)
 
@@ -159,7 +159,7 @@ async def generate_speech(
         event_bus.emit("generation_history", {"action": "created", "id": audio_id})
 
         buffer = io.BytesIO()
-        torchaudio.save(buffer, audio_tensor, _model.sampling_rate, format="wav")
+        _safe_torchaudio_save(buffer, audio_tensor, _model.sampling_rate, format="wav")
         buffer.seek(0)
         wav_bytes = buffer.read()
 
