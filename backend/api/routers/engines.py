@@ -4,17 +4,23 @@ Engines router — Phase 3 wiring.
 Exposes the three adapter registries (TTS, ASR, LLM) so the Settings UI can
 render an engine picker + availability reasons.
 
-    GET  /engines                     → { tts, asr, llm }
-    GET  /engines/{family}            → list of backends
-    POST /engines/select              → persist a backend choice in prefs.json
+    GET  /engines                       → { tts, asr, llm }
+    GET  /engines/{family}              → list of backends
+    POST /engines/select                → persist a backend choice in prefs.json
+    GET  /engines/{engine_id}/health    → spawn-or-ping for SubprocessBackend
+                                          subclasses; ``is_available()`` for
+                                          in-process backends (Plan 02-04)
 
 Environment variables (`OMNIVOICE_TTS_BACKEND`, `OMNIVOICE_ASR_BACKEND`,
 `OMNIVOICE_LLM_BACKEND`) still win over the UI choice so power-users can pin
 a backend without Settings silently undoing it.
 """
-from fastapi import APIRouter, HTTPException
+from time import perf_counter
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from api.dependencies import require_loopback
 from core import prefs
 from services import tts_backend, asr_backend, llm_backend, translation_engines
 
@@ -133,6 +139,114 @@ async def uninstall_translation_engine(engine_id: str):
     if rc != 0:
         raise HTTPException(status_code=500, detail=f"pip uninstall {pkg} failed ({rc}): {out[-1000:]}")
     return {"status": "uninstalled", "engine": engine_id, "package": pkg, "log_tail": out[-800:]}
+
+
+# ── Engine health-check (Plan 02-04 / ENGINE-06) ───────────────────────────
+#
+# The Compat Matrix UI's "Test engine" button calls into this endpoint so
+# that users can verify a SubprocessBackend engine is alive without
+# kicking off a full synthesize. For an in-process backend the check is a
+# cheap ``is_available()`` round-trip; for a SubprocessBackend subclass
+# the call spawns the sidecar (if not already up) and round-trips a ping
+# frame. Result includes wall-clock latency so the UI can render
+# "1234 ms — pong" inline next to the button.
+#
+# Loopback-gated (T-02-13): only the local desktop frontend may trigger
+# a sidecar spawn through this endpoint.
+
+# Engine instances cached for the lifetime of the FastAPI process so that
+# repeated health checks don't spawn a new SubprocessBackend (each spawn
+# allocates a sidecar venv probe + atexit hook). The cache is keyed by
+# class to survive registry-sandbox tests that rebind ids transiently.
+_ENGINE_INSTANCES: dict[type, object] = {}
+
+
+def _get_engine_instance(cls):
+    """Return a cached singleton instance of ``cls``.
+
+    SubprocessBackend's ``__init__`` registers an atexit shutdown hook,
+    so re-instantiating per request would leak handler entries (and on
+    real engines, additional sidecar processes the first time the lock
+    is acquired). One instance per process is the right move.
+    """
+    inst = _ENGINE_INSTANCES.get(cls)
+    if inst is None:
+        inst = cls()
+        _ENGINE_INSTANCES[cls] = inst
+    return inst
+
+
+def _resolve_engine_class(engine_id: str):
+    """Look up ``engine_id`` across the tts/asr/llm registries.
+
+    Returns the class or ``None`` if no family knows the id. Order is
+    tts → asr → llm so the most-common case (TTS engine matrix) wins
+    early. No collision risk today — all current ids are family-unique.
+    """
+    for registry in (
+        tts_backend._REGISTRY,
+        asr_backend._REGISTRY,
+        llm_backend._REGISTRY,
+    ):
+        if engine_id in registry:
+            return registry[engine_id]
+    return None
+
+
+@router.get(
+    "/engines/{engine_id}/health",
+    dependencies=[Depends(require_loopback)],
+)
+def engine_health(engine_id: str):
+    """Spawn-and-ping a SubprocessBackend; ``is_available()`` for the rest.
+
+    Returns:
+        { id, ok, message, latency_ms }
+
+    Never raises through to a 500: if the backend's check throws, the
+    exception is captured into the response body as ``ok=False`` /
+    ``message="ExcType: ..."`` so the UI can render a per-row failure
+    without crashing the panel. Unknown engine ids return 404.
+    """
+    cls = _resolve_engine_class(engine_id)
+    if cls is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"unknown engine id: {engine_id!r}",
+        )
+
+    t0 = perf_counter()
+    if hasattr(cls, "health_check"):
+        # SubprocessBackend path — spawn sidecar (if not running) and ping.
+        # ``health_check`` already swallows its own exceptions per Plan
+        # 02-01's contract; we still wrap in a defensive try so a custom
+        # subclass that violates the contract can't 500 the endpoint.
+        try:
+            instance = _get_engine_instance(cls)
+            ok, msg = instance.health_check()
+        except Exception as exc:
+            ok, msg = False, f"{type(exc).__name__}: {exc}"
+    else:
+        # In-process backend — `is_available()` is the classmethod-level
+        # liveness check. Cheap and side-effect-free for every shipping
+        # backend (it imports the engine package, no model load).
+        try:
+            ok, msg = cls.is_available()
+        except Exception as exc:
+            ok, msg = False, f"{type(exc).__name__}: {exc}"
+
+    # Mask any HF token the engine accidentally leaked into the message
+    # so the response body matches the same redaction guarantee as
+    # ``list_backends()``.
+    from services.tts_backend import _mask_hf_tokens
+
+    latency_ms = (perf_counter() - t0) * 1000.0
+    return {
+        "id": engine_id,
+        "ok": bool(ok),
+        "message": _mask_hf_tokens(msg) if isinstance(msg, str) else str(msg),
+        "latency_ms": latency_ms,
+    }
 
 
 class SelectEngineRequest(BaseModel):

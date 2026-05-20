@@ -20,12 +20,37 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from abc import ABC, abstractmethod
 from typing import Optional
 
 import torch
 
 logger = logging.getLogger("omnivoice.tts")
+
+
+# ── HF token leak mitigation (Plan 02-04, T-02-12) ─────────────────────────
+#
+# Token shape is ``hf_`` + 30+ alphanumeric chars per Hugging Face's own
+# format. Any error / status string surfaced through the engines API gets
+# scrubbed via :func:`_mask_hf_tokens` before serialization so that a
+# backend whose ``is_available()`` interpolates ``HF_TOKEN`` into its
+# failure message can't accidentally leak it to the frontend. Phase 1's
+# ``HFTokenRedactor`` covers logging only — FastAPI response bodies do
+# NOT run through the logging filter chain.
+_HF_TOKEN_MASK_RE = re.compile(r"hf_[A-Za-z0-9]{30,}")
+_HF_TOKEN_MASK = "hf_***REDACTED***"
+
+
+def _mask_hf_tokens(value):
+    """Return ``value`` with any HF-shaped token substring redacted.
+
+    Non-string values pass through unchanged. Used inside
+    :func:`list_backends` for the ``reason`` and ``last_error`` fields.
+    """
+    if not isinstance(value, str):
+        return value
+    return _HF_TOKEN_MASK_RE.sub(_HF_TOKEN_MASK, value)
 
 
 # ── Protocol ────────────────────────────────────────────────────────────────
@@ -61,6 +86,14 @@ class TTSBackend(ABC):
     #: Whether this engine supports voice design from a text description
     #: (e.g. "young female, warm tone, British accent") without reference audio.
     supports_voice_design: bool = False
+
+    #: GPU/accelerator targets the engine can run on. Surfaced via the
+    #: Engine Compatibility Matrix (Plan 02-04 / ENGINE-06) so users can
+    #: tell at a glance which engines will use their hardware. Defaults to
+    #: CPU-only — subclasses override with the union of devices their
+    #: implementation supports (cuda / mps / rocm / cpu). This is metadata,
+    #: not enforced — actual device selection lives in the engine's loader.
+    gpu_compat: tuple[str, ...] = ("cpu",)
 
     @abstractmethod
     def generate(
@@ -129,6 +162,7 @@ class OmniVoiceBackend(TTSBackend):
 
     id = "omnivoice"
     display_name = "OmniVoice (600 languages, zero-shot)"
+    gpu_compat = ("cuda", "mps", "cpu")
 
     def __init__(self, model=None):
         # The live OmniVoice instance. Reuses the singleton owned by
@@ -212,6 +246,7 @@ class VoxCPM2Backend(TTSBackend):
     id = "voxcpm2"
     display_name = "VoxCPM2 (30 langs, studio 48 kHz, voice design)"
     supports_voice_design = True
+    gpu_compat = ("cuda", "mps", "cpu")
 
     def __init__(self):
         self._model = None
@@ -320,6 +355,7 @@ class MossTTSNanoBackend(TTSBackend):
 
     id = "moss-tts-nano"
     display_name = "MOSS-TTS-Nano (20 langs, CPU realtime, 48 kHz)"
+    gpu_compat = ("cuda", "cpu")
 
     def __init__(self):
         self._model = None
@@ -412,6 +448,8 @@ class KittenTTSBackend(TTSBackend):
 
     id = "kittentts"
     display_name = "KittenTTS (English, 8 preset voices, CPU realtime)"
+    # KittenTTS ships as an ONNX CPU graph; no CUDA/MPS path today.
+    gpu_compat = ("cpu",)
 
     PRESET_VOICES = [
         "expr-voice-2-m", "expr-voice-2-f",
@@ -502,6 +540,9 @@ class MLXAudioBackend(TTSBackend):
 
     id = "mlx-audio"
     display_name = "MLX-Audio (mac-ARM, 14+ engines: Kokoro, CSM, Dia, Qwen3, …)"
+    # mlx is Apple-Silicon-only; CPU is the practical fallback when the
+    # mlx framework is installed but the user lacks an Apple GPU.
+    gpu_compat = ("mps", "cpu")
 
     # A curated subset surfaced by default — the full mlx-audio roster is
     # larger but these cover the useful tiers: small multilingual (Kokoro),
@@ -625,6 +666,9 @@ class CosyVoiceBackend(TTSBackend):
 
     id = "cosyvoice"
     display_name = "CosyVoice 3 (9 langs, zero-shot, instruct, Apache-2.0)"
+    # CosyVoice's official inference path expects CUDA; CPU works but slow.
+    # MPS support not verified upstream — flagged for Phase 6 confirmation.
+    gpu_compat = ("cuda", "cpu")
 
     # CosyVoice language tags used for cross-lingual synthesis.
     LANG_TAGS = {
@@ -787,6 +831,8 @@ class GPTSoVITSBackend(TTSBackend):
 
     id = "gpt-sovits"
     display_name = "GPT-SoVITS (5 langs, zero-shot, RTF 0.014, MIT)"
+    # Server-side; whichever device GPT-SoVITS itself uses (CUDA preferred).
+    gpu_compat = ("cuda", "cpu")
 
     def __init__(self):
         self._url = os.environ.get("OMNIVOICE_GPTSOVITS_URL", "http://127.0.0.1:9880")
@@ -894,6 +940,9 @@ class SherpaOnnxBackend(TTSBackend):
 
     id = "sherpa-onnx"
     display_name = "Sherpa-ONNX (20+ engines, WASM-ready, universal runtime)"
+    # Sherpa-ONNX uses the onnxruntime providers — CPU is the universal
+    # baseline; CUDA provider is available on Linux/Windows installs.
+    gpu_compat = ("cuda", "cpu")
 
     def __init__(self):
         self._tts = None
@@ -1082,19 +1131,25 @@ def list_backends() -> list[dict]:
     Per-entry shape (ENGINE-05 + ENGINE-06):
 
         {
-          "id":            str,
-          "display_name":  str,
-          "available":     bool,
-          "reason":        Optional[str],          # message when not available
-          "install_hint":  Optional[str],
-          "last_error":    Optional[str],          # cached most-recent failure
+          "id":             str,
+          "display_name":   str,
+          "available":      bool,
+          "reason":         Optional[str],          # message when not available
+          "install_hint":   Optional[str],
+          "last_error":     Optional[str],          # cached most-recent failure
           "isolation_mode": "in-process" | "subprocess",
+          "gpu_compat":     list[str],              # subset of {cuda, mps, rocm, cpu}
         }
 
     Guarantees (ENGINE-05): a backend whose `is_available()` raises does
     NOT prevent the list from returning. The exception is captured into
     the `reason`/`last_error` fields for that one entry and every other
     backend is still listed normally.
+
+    Security (Plan 02-04 / T-02-12): any HF-shaped token substring in
+    ``reason`` or ``last_error`` is redacted before the entry is
+    serialized — :func:`_mask_hf_tokens`. The frontend can render these
+    fields verbatim without leaking credentials.
     """
     # Detect subprocess-isolated backends via a duck-typed marker rather
     # than `issubclass(cls, SubprocessBackend)`. Test fixtures (e.g. the
@@ -1118,7 +1173,10 @@ def list_backends() -> list[dict]:
         if ok:
             _LAST_ERRORS.pop(bid, None)
         else:
-            _LAST_ERRORS[bid] = msg
+            # Mask any HF token inside the failure message BEFORE it lands
+            # in the in-memory cache — otherwise a later list_backends()
+            # call would re-surface the unmasked string.
+            _LAST_ERRORS[bid] = _mask_hf_tokens(msg)
         # ENGINE-06 isolation_mode: duck-typed marker for SubprocessBackend
         # subclasses (see services.subprocess_backend.SubprocessBackend).
         if getattr(cls, "_is_subprocess_isolated", False):
@@ -1129,10 +1187,11 @@ def list_backends() -> list[dict]:
             "id": bid,
             "display_name": cls.display_name,
             "available": ok,
-            "reason": None if ok else msg,
+            "reason": None if ok else _mask_hf_tokens(msg),
             "install_hint": _INSTALL_HINTS.get(bid),
             "last_error": _LAST_ERRORS.get(bid),
             "isolation_mode": isolation,
+            "gpu_compat": list(getattr(cls, "gpu_compat", ("cpu",))),
         })
     return out
 

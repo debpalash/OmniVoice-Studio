@@ -143,9 +143,11 @@ def test_list_backends_resilient(registry_sandbox):
 def test_list_backends_shape(registry_sandbox):
     """Every entry must contain exactly the documented keys — no more, no less."""
     out = list_backends()
+    # `gpu_compat` joined the documented shape in Plan 02-04 alongside the
+    # Engine Compatibility Matrix UI (ENGINE-06).
     required = {
         "id", "display_name", "available", "reason",
-        "install_hint", "last_error", "isolation_mode",
+        "install_hint", "last_error", "isolation_mode", "gpu_compat",
     }
     for entry in out:
         assert set(entry.keys()) == required, (
