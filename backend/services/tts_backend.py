@@ -1031,6 +1031,12 @@ class SherpaOnnxBackend(TTSBackend):
 
 _LAZY_REGISTRY: dict[str, tuple[str, str]] = {
     "indextts2": ("engines.indextts", "IndexTTS2Backend"),
+    # Phase 3 Plan 03-01 (TTS-01): Supertonic-3 lives in its own engine
+    # package for the same import-cycle reason as IndexTTS2 (its backend
+    # module imports services.subprocess_backend which in turn imports
+    # this module for TTSBackend). The class is resolved on first
+    # attribute access via the LazyRegistry below.
+    "supertonic3": ("engines.supertonic3", "Supertonic3Backend"),
 }
 
 
@@ -1122,6 +1128,7 @@ _INSTALL_HINTS: dict[str, str] = {
     "indextts2":     "git clone index-tts/index-tts && uv pip install -e .  (NOT uv sync --all-extras)",
     "gpt-sovits":    "External API server — start api_v2.py on port 9880",
     "sherpa-onnx":   "pip install sherpa-onnx  (universal ONNX runtime, WASM-ready)",
+    "supertonic3":   "uv sync --extra supertonic  (CPU-only ONNX, 31 langs, ~400 MB model on first use; OpenRAIL-M model license)",
 }
 
 

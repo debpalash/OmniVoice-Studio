@@ -163,3 +163,69 @@ def set_text(key: str, value: str) -> None:
             "VALUES (?, ?, ?)",
             (key, value, time.time()),
         )
+
+
+# ── License acceptance helpers (Phase 3 Plan 03-01 / TTS-05) ──────────────
+# Tiny wrappers around the plaintext ``set_text``/``get_text`` helpers so
+# every engine that needs an acceptance gate (Supertonic-3 today; future
+# OpenRAIL-M / non-commercial engines) reads + writes the same key shape:
+# ``"<engine_id>_license_accepted"`` -> ``"1"`` | ``"0"``.
+#
+# Pitfall 6 in 03-RESEARCH.md: ``set_license_accepted`` MUST block until
+# the SQLite commit returns. ``db_conn()`` is a context manager that
+# commits on ``__exit__`` (Phase 1 contract verified at 01-RESEARCH.md
+# settings_store section), so ``set_text`` already satisfies the
+# "readable on next call" invariant. We re-read inside this helper as a
+# belt-and-braces verification path that tests can rely on.
+
+
+_LICENSE_KEY_SUFFIX = "_license_accepted"
+
+
+def _license_key(engine_id: str) -> str:
+    """Map an engine id to its license-flag settings key.
+
+    Public so tests can assert on the exact stored row. The HF-token
+    row's name ``hf_token`` will never collide because we always append
+    the suffix.
+    """
+    if not engine_id or not isinstance(engine_id, str):
+        raise ValueError(f"engine_id must be a non-empty string, got {engine_id!r}")
+    # Defence in depth: disallow the literal hf_token key so a misrouted
+    # call can never overwrite the encrypted-token row.
+    if engine_id == _TOKEN_KEY:
+        raise ValueError("engine_id cannot be the reserved HF-token key")
+    return f"{engine_id}{_LICENSE_KEY_SUFFIX}"
+
+
+def get_license_accepted(engine_id: str) -> bool:
+    """Return True iff the user has accepted the engine's license terms.
+
+    Reads from the plaintext ``settings`` table. Missing row, SQLite
+    read failure, or any non-``"1"`` value all return False so the
+    callsite (``Supertonic3Backend.is_available()``) defaults to safe.
+    """
+    key = _license_key(engine_id)
+    raw = get_text(key, default="0")
+    return raw == "1"
+
+
+def set_license_accepted(engine_id: str, accepted: bool) -> None:
+    """Persist the acceptance flag. Blocks until SQLite commits.
+
+    ``accepted=False`` writes ``"0"`` (not a delete) so a once-accepted
+    user who later revokes acceptance still has an explicit row in the
+    audit-trail-friendly settings table.
+    """
+    key = _license_key(engine_id)
+    set_text(key, "1" if accepted else "0")
+    # Re-read invariant ‑‑ Pitfall 6 defence. A failure here means the
+    # commit silently dropped, which would be a SQLite/db_conn bug; we
+    # surface it as a hard error rather than hand back a stale state.
+    actual = get_text(key, default="0")
+    expected = "1" if accepted else "0"
+    if actual != expected:
+        raise RuntimeError(
+            f"set_license_accepted({engine_id!r}, {accepted!r}) did not "
+            f"persist (read back {actual!r}, expected {expected!r})"
+        )
