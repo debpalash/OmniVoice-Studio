@@ -1,0 +1,228 @@
+/* Settings → API Keys panel — Wave 2 AUTH-03 UI. Styled to match the existing
+   Credentials tab + LogsFooter palette (var(--chrome-*) tokens). */
+
+.apikeys-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px 0;
+}
+
+.apikeys-panel__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--chrome-fg);
+  letter-spacing: -0.005em;
+}
+
+.apikeys-panel__intro {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--chrome-fg-muted);
+}
+
+.apikeys-panel__intro code {
+  font-family: var(--font-mono);
+  background: var(--chrome-hover-bg);
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 0.8em;
+}
+
+.apikeys-panel__error {
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--chrome-severity-err) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chrome-severity-err) 35%, transparent);
+  border-radius: var(--chrome-radius-pill);
+  font-size: 0.78rem;
+  color: var(--chrome-severity-err);
+}
+
+.apikeys-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.apikeys-row {
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  padding: 12px 14px;
+  background: var(--chrome-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.apikeys-row--active {
+  border-left: 2px solid var(--chrome-accent, #8ec07c);
+  background: color-mix(in srgb, var(--chrome-accent, #8ec07c) 5%, var(--chrome-bg));
+}
+
+.apikeys-row__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.apikeys-row__name {
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--chrome-fg);
+}
+
+.apikeys-badge {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg-muted);
+}
+
+.apikeys-badge--active {
+  background: color-mix(in srgb, var(--chrome-accent, #8ec07c) 25%, transparent);
+  color: var(--chrome-accent, #8ec07c);
+}
+
+.apikeys-row__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.78rem;
+  color: var(--chrome-fg-muted);
+}
+
+.apikeys-row__set,
+.apikeys-row__unset,
+.apikeys-row__whoami {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.apikeys-row__set { color: var(--chrome-severity-ok, #8ec07c); }
+.apikeys-row__unset { color: var(--chrome-severity-warn, #fabd2f); }
+.apikeys-row__whoami--ok { color: var(--chrome-severity-ok, #8ec07c); }
+.apikeys-row__whoami--bad { color: var(--chrome-severity-err); }
+
+.apikeys-row__masked {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background: var(--chrome-hover-bg);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.apikeys-row__help {
+  margin: 2px 0 0;
+  font-size: 0.74rem;
+  color: var(--chrome-fg-muted);
+  line-height: 1.45;
+}
+
+.apikeys-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.apikeys-input {
+  flex: 1 1 220px;
+  min-width: 220px;
+  padding: 6px 10px;
+  background: var(--chrome-hover-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  color: var(--chrome-fg);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.apikeys-input:focus {
+  outline: none;
+  border-color: var(--chrome-accent, #83a598);
+}
+
+.apikeys-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  border-radius: var(--chrome-radius-pill);
+  border: 1px solid var(--chrome-border);
+  background: var(--chrome-bg);
+  color: var(--chrome-fg);
+  cursor: pointer;
+}
+
+.apikeys-btn:hover:not(:disabled) {
+  background: var(--chrome-hover-bg);
+}
+
+.apikeys-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.apikeys-btn--save {
+  background: color-mix(in srgb, var(--chrome-accent, #83a598) 25%, var(--chrome-bg));
+  border-color: var(--chrome-accent, #83a598);
+}
+
+.apikeys-btn--danger {
+  color: var(--chrome-severity-err);
+  border-color: color-mix(in srgb, var(--chrome-severity-err) 35%, var(--chrome-border));
+}
+
+.apikeys-btn--ghost {
+  background: transparent;
+}
+
+.apikeys-panel__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.apikeys-clear-dialog {
+  margin-top: 4px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--chrome-severity-err) 35%, var(--chrome-border));
+  border-radius: var(--chrome-radius-pill);
+  background: color-mix(in srgb, var(--chrome-severity-err) 6%, var(--chrome-bg));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.apikeys-clear-dialog p {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.apikeys-checkbox {
+  font-size: 0.78rem;
+  color: var(--chrome-fg-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.apikeys-clear-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

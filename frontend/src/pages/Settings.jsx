@@ -22,6 +22,7 @@ import { setupDownloadStreamUrl } from '../api/setup';
 import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
 import { Tabs, Segmented, Button, Badge, Panel, Table, Progress } from '../ui';
 import { useAppStore } from '../store';
+import ApiKeysPanel from '../components/settings/ApiKeysPanel';
 import './Settings.css';
 
 const TABS = [
@@ -1503,12 +1504,17 @@ function CredentialsTab({ info }) {
   return (
     <section className="settings-section">
       <h2><KeyRound size={16} color="#fe8019" /> Credentials</h2>
+
+      {/* Wave 2 AUTH-03 panel — 3-source cascade with Active badge,
+          encrypted-at-rest App-source storage, and live whoami status. */}
+      <ApiKeysPanel />
+
       <p className="settings-prose">
-        API keys and tokens are set <strong>for this session only</strong>. For
-        persistence across restarts, set them as environment variables in your
-        shell profile.
+        Other API keys and tokens are set <strong>for this session only</strong>.
+        For persistence across restarts, set them as environment variables in
+        your shell profile.
       </p>
-      {CREDENTIAL_FIELDS.map(field => (
+      {CREDENTIAL_FIELDS.filter(f => f.key !== 'HF_TOKEN').map(field => (
         <div key={field.key} className="settings-credential">
           <div className="settings-credential__header">
             <label className="settings-credential__label">{field.label}</label>
