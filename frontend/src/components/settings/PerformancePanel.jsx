@@ -18,6 +18,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Cpu } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
+import { useAppStore } from '../../store';
 import './PerformancePanel.css';
 
 export default function PerformancePanel() {
@@ -26,6 +27,11 @@ export default function PerformancePanel() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  // Header live-metrics toggle (default OFF). Persisted via the Zustand
+  // app store so it survives reload without a separate API round-trip.
+  const showHeaderLiveStats = useAppStore(s => s.showHeaderLiveStats);
+  const setShowHeaderLiveStats = useAppStore(s => s.setShowHeaderLiveStats);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -111,6 +117,24 @@ export default function PerformancePanel() {
         model load on GPUs with &lt;16 GB VRAM. Enabling this sets{' '}
         <code>TORCH_COMPILE_DISABLE=1</code> on engine subprocesses, which
         falls back to eager mode. macOS and Linux are unaffected.
+      </p>
+
+      <label className="perfpanel__row" title="Show RAM / CPU / VRAM live counters in the top bar.">
+        <input
+          type="checkbox"
+          className="perfpanel__checkbox"
+          checked={showHeaderLiveStats}
+          onChange={(e) => setShowHeaderLiveStats(e.target.checked)}
+          data-testid="header-live-stats-toggle"
+        />
+        <span className="perfpanel__label">Show live system metrics in header</span>
+      </label>
+
+      <p className="perfpanel__help">
+        Default off — the header keeps the model-status badge and Flush
+        button always visible because they're action-relevant, but RAM /
+        CPU / VRAM counters are noise on the welcome screen. Turn this on
+        if you want a live resource monitor in the top bar.
       </p>
     </section>
   );
