@@ -51,29 +51,56 @@ def find_ffmpeg():
     return None
 
 
-def find_ffprobe():
-    """Locate an ffprobe binary.
+def resolve_ffprobe() -> str | None:
+    """Resolve an ffprobe binary path.
 
-    Resolution order:
-      1. ``FFPROBE_PATH`` env var (set by Tauri when a sidecar is bundled).
-      2. Derived from ``find_ffmpeg()`` path by replacing ``ffmpeg`` → ``ffprobe``.
-      3. System ``PATH``.
+    Resolution order (per issue #76 and 01-03-PLAN.md must_haves):
+      1. ``OMNIVOICE_FFPROBE_PATH`` env var — the canonical, namespaced path
+         injected by Tauri pointing at the bundled sidecar (e.g.
+         ``/usr/lib/omnivoice-studio/bin/ffprobe`` on .deb installs).
+      2. ``FFPROBE_PATH`` env var — legacy alias kept for backward
+         compatibility with older Tauri shells / dev environments.
+      3. ``shutil.which("ffprobe")`` — system ``PATH`` fallback.
+
+    Returns the resolved path string, or ``None`` if nothing found. Callers
+    that need a hard failure should use :func:`find_ffprobe` instead.
     """
-    env_path = os.environ.get("FFPROBE_PATH")
-    if env_path:
-        resolved = shutil.which(env_path)
+    for env_key in ("OMNIVOICE_FFPROBE_PATH", "FFPROBE_PATH"):
+        path = os.environ.get(env_key)
+        if not path:
+            continue
+        # The env var may carry either an absolute path to a file OR a bare
+        # command name (legacy). Accept both shapes — file first.
+        if os.path.isfile(path):
+            return path
+        resolved = shutil.which(path)
         if resolved:
             return resolved
-    try:
-        ffmpeg_path = find_ffmpeg()
-        candidate = ffmpeg_path.replace("ffmpeg", "ffprobe")
-        if os.path.isfile(candidate):
-            return candidate
-    except Exception:
-        pass
+
     system_probe = shutil.which("ffprobe")
     if system_probe:
         return system_probe
+    return None
+
+
+def find_ffprobe():
+    """Locate an ffprobe binary (legacy wrapper around :func:`resolve_ffprobe`).
+
+    Falls back to deriving the path from ``find_ffmpeg()`` so the
+    co-located ffprobe in an ffmpeg-bundle download (e.g. BtbN, evermeet.cx)
+    is still picked up when only ffmpeg has been resolved.
+    """
+    resolved = resolve_ffprobe()
+    if resolved:
+        return resolved
+    try:
+        ffmpeg_path = find_ffmpeg()
+        if ffmpeg_path:
+            candidate = ffmpeg_path.replace("ffmpeg", "ffprobe")
+            if os.path.isfile(candidate):
+                return candidate
+    except Exception:
+        pass
     return None
 
 

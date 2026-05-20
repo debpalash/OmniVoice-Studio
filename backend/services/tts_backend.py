@@ -20,12 +20,37 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from abc import ABC, abstractmethod
 from typing import Optional
 
 import torch
 
 logger = logging.getLogger("omnivoice.tts")
+
+
+# ── HF token leak mitigation (Plan 02-04, T-02-12) ─────────────────────────
+#
+# Token shape is ``hf_`` + 30+ alphanumeric chars per Hugging Face's own
+# format. Any error / status string surfaced through the engines API gets
+# scrubbed via :func:`_mask_hf_tokens` before serialization so that a
+# backend whose ``is_available()`` interpolates ``HF_TOKEN`` into its
+# failure message can't accidentally leak it to the frontend. Phase 1's
+# ``HFTokenRedactor`` covers logging only — FastAPI response bodies do
+# NOT run through the logging filter chain.
+_HF_TOKEN_MASK_RE = re.compile(r"hf_[A-Za-z0-9]{30,}")
+_HF_TOKEN_MASK = "hf_***REDACTED***"
+
+
+def _mask_hf_tokens(value):
+    """Return ``value`` with any HF-shaped token substring redacted.
+
+    Non-string values pass through unchanged. Used inside
+    :func:`list_backends` for the ``reason`` and ``last_error`` fields.
+    """
+    if not isinstance(value, str):
+        return value
+    return _HF_TOKEN_MASK_RE.sub(_HF_TOKEN_MASK, value)
 
 
 # ── Protocol ────────────────────────────────────────────────────────────────
@@ -62,6 +87,14 @@ class TTSBackend(ABC):
     #: (e.g. "young female, warm tone, British accent") without reference audio.
     supports_voice_design: bool = False
 
+    #: GPU/accelerator targets the engine can run on. Surfaced via the
+    #: Engine Compatibility Matrix (Plan 02-04 / ENGINE-06) so users can
+    #: tell at a glance which engines will use their hardware. Defaults to
+    #: CPU-only — subclasses override with the union of devices their
+    #: implementation supports (cuda / mps / rocm / cpu). This is metadata,
+    #: not enforced — actual device selection lives in the engine's loader.
+    gpu_compat: tuple[str, ...] = ("cpu",)
+
     @abstractmethod
     def generate(
         self,
@@ -86,6 +119,35 @@ class TTSBackend(ABC):
         Engines that don't support this will ignore the parameter.
         """
 
+    # ── Lifecycle (Phase 2 will enforce per-engine overrides) ──────────────
+    #
+    # Today every backend lazily loads its weights on first `generate()` and
+    # keeps them in VRAM for the lifetime of the process. Switching engines
+    # in Settings therefore leaks the old engine's allocations until the
+    # next process restart — measurable on multi-engine sessions on 8 GB
+    # MPS Macs.
+    #
+    # `unload()` is the contract that lets the registry release an engine
+    # before instantiating the next one. It is a default no-op on the ABC
+    # so this commit does not break any of the 9 existing subclasses; Phase
+    # 2 (engine isolation) overrides it per-engine and adds a CI gate that
+    # fails when a subclass doesn't implement it.
+    #
+    # Contract for overriders:
+    #   • Idempotent: calling unload() twice must not raise.
+    #   • Synchronous: returns after VRAM is freed (or after best-effort
+    #     `torch.cuda.empty_cache()` / `torch.mps.empty_cache()`).
+    #   • Safe to call before the first generate(): a backend that never
+    #     loaded has nothing to release.
+    def unload(self) -> None:
+        """Release any GPU memory and file handles held by this backend.
+
+        Called by the registry on engine switch and on app shutdown. Default
+        is a no-op so engines that haven't migrated keep working; per-engine
+        overrides arrive in Phase 2 (see ROADMAP.md). Must be idempotent.
+        """
+        return None
+
 
 # ── OmniVoice adapter (the current default) ─────────────────────────────────
 
@@ -100,6 +162,7 @@ class OmniVoiceBackend(TTSBackend):
 
     id = "omnivoice"
     display_name = "OmniVoice (600 languages, zero-shot)"
+    gpu_compat = ("cuda", "mps", "cpu")
 
     def __init__(self, model=None):
         # The live OmniVoice instance. Reuses the singleton owned by
@@ -183,6 +246,7 @@ class VoxCPM2Backend(TTSBackend):
     id = "voxcpm2"
     display_name = "VoxCPM2 (30 langs, studio 48 kHz, voice design)"
     supports_voice_design = True
+    gpu_compat = ("cuda", "mps", "cpu")
 
     def __init__(self):
         self._model = None
@@ -291,6 +355,7 @@ class MossTTSNanoBackend(TTSBackend):
 
     id = "moss-tts-nano"
     display_name = "MOSS-TTS-Nano (20 langs, CPU realtime, 48 kHz)"
+    gpu_compat = ("cuda", "cpu")
 
     def __init__(self):
         self._model = None
@@ -383,6 +448,8 @@ class KittenTTSBackend(TTSBackend):
 
     id = "kittentts"
     display_name = "KittenTTS (English, 8 preset voices, CPU realtime)"
+    # KittenTTS ships as an ONNX CPU graph; no CUDA/MPS path today.
+    gpu_compat = ("cpu",)
 
     PRESET_VOICES = [
         "expr-voice-2-m", "expr-voice-2-f",
@@ -473,6 +540,9 @@ class MLXAudioBackend(TTSBackend):
 
     id = "mlx-audio"
     display_name = "MLX-Audio (mac-ARM, 14+ engines: Kokoro, CSM, Dia, Qwen3, …)"
+    # mlx is Apple-Silicon-only; CPU is the practical fallback when the
+    # mlx framework is installed but the user lacks an Apple GPU.
+    gpu_compat = ("mps", "cpu")
 
     # A curated subset surfaced by default — the full mlx-audio roster is
     # larger but these cover the useful tiers: small multilingual (Kokoro),
@@ -596,6 +666,9 @@ class CosyVoiceBackend(TTSBackend):
 
     id = "cosyvoice"
     display_name = "CosyVoice 3 (9 langs, zero-shot, instruct, Apache-2.0)"
+    # CosyVoice's official inference path expects CUDA; CPU works but slow.
+    # MPS support not verified upstream — flagged for Phase 6 confirmation.
+    gpu_compat = ("cuda", "cpu")
 
     # CosyVoice language tags used for cross-lingual synthesis.
     LANG_TAGS = {
@@ -705,201 +778,33 @@ class CosyVoiceBackend(TTSBackend):
         return wav
 
 
-# ── IndexTTS2 adapter (emotion control + duration control) ──────────────────
+# ── IndexTTS2 adapter ───────────────────────────────────────────────────────
+#
+# The concrete class lives in ``backend/engines/indextts/__init__.py`` so
+# that ``services.tts_backend`` itself does NOT import
+# ``services.subprocess_backend`` at module load time. That separation
+# breaks the import cycle:
+#
+#     services.subprocess_backend  ──imports──>  services.tts_backend (TTSBackend)
+#     services.tts_backend         ──exports──>  TTSBackend + registry
+#     engines.indextts             ──imports──>  services.subprocess_backend
+#                                  ──exports──>  IndexTTS2Backend
+#
+# The registry below resolves IndexTTS2Backend lazily via the
+# ``_LAZY_REGISTRY`` indirection — see ``get_backend_class`` and
+# ``list_backends``. This was driven by Plan 02-03 (Step 3); see
+# ``engines/indextts/__init__.py`` for the actual class body.
 
 
-class IndexTTS2Backend(TTSBackend):
-    """IndexTTS2 (Bilibili) — industrial zero-shot TTS with emotion and
-    duration control.
-
-    Key differentiators vs every other engine in the registry:
-      • **Emotion decoupling** — clone timbre from one reference, apply emotion
-        from a completely separate source (audio, 8-float vector, or text).
-      • **Duration control** — first AR model to precisely target output length
-        (critical for video dubbing lip-sync).
-      • **8-float emotion vector** — [happy, angry, sad, afraid, disgusted,
-        melancholic, surprised, calm] — each 0.0–1.0.
-      • **Text-based emotion** — pass natural-language emotion descriptions
-        (e.g. "terrified and panicking") via a fine-tuned Qwen3 encoder.
-
-    Installation:
-        git clone https://github.com/index-tts/index-tts.git
-        cd index-tts && uv pip install -e .
-        hf download IndexTeam/IndexTTS-2 --local-dir=checkpoints
-
-    ⚠️  Do NOT use ``uv sync --all-extras`` — it overwrites OmniVoice's lock
-    file and replaces transformers>=5.3 with transformers<5, breaking OmniVoice.
-    Use ``uv pip install -e .`` instead to add IndexTTS without clobbering deps.
-    On Windows, ``--all-extras`` also fails because deepspeed cannot compile.
-
-    Set ``OMNIVOICE_INDEXTTS_DIR`` to the repo root (containing ``checkpoints/``).
-
-    License: Custom (Bilibili) — free for research/non-commercial. Commercial
-    use requires contacting indexspeech@bilibili.com.
-    """
-
-    id = "indextts2"
-    display_name = "IndexTTS2 (emotion control, duration control, zero-shot)"
-    supports_voice_design = False  # requires ref audio for timbre
-
-    def __init__(self):
-        self._model = None
-
-    @classmethod
-    def is_available(cls) -> tuple[bool, str]:
-        try:
-            from indextts.infer_v2 import IndexTTS2 as _Model  # noqa: F401
-            return True, "ready"
-        except ImportError as e:
-            err = str(e)
-            # Detect the transformers version conflict specifically
-            if "transformers" in err or "OffloadedCache" in err or "HiggsAudio" in err:
-                return False, (
-                    f"IndexTTS dependency conflict: {err}. "
-                    "IndexTTS requires transformers<5 but OmniVoice needs "
-                    "transformers>=5.3. Install IndexTTS in a separate venv "
-                    "and run it as a sidecar process, or use "
-                    "`uv pip install -e .` (not `uv sync --all-extras`) "
-                    "to avoid overwriting OmniVoice's lock file."
-                )
-            return False, (
-                "indextts package not installed. Clone the repo and install: "
-                "git clone https://github.com/index-tts/index-tts.git && "
-                "cd index-tts && uv pip install -e . "
-                "(Note: use `uv pip install -e .` instead of `uv sync --all-extras` "
-                "to avoid overwriting OmniVoice dependencies). Then set "
-                "OMNIVOICE_INDEXTTS_DIR to the repo root."
-            )
-        except Exception as e:
-            # Catch deeper crashes from the import chain (e.g. transformers
-            # internal ImportError that surfaces as a regular Exception)
-            return False, (
-                f"IndexTTS failed to load: {e}. This is usually caused by "
-                "a transformers version conflict (IndexTTS needs <5, OmniVoice "
-                "needs >=5.3). Consider running IndexTTS in a separate venv."
-            )
-
-    @property
-    def sample_rate(self) -> int:
-        # IndexTTS2 outputs 24 kHz by default
-        return 24000
-
-    @property
-    def supported_languages(self) -> list[str]:
-        # Primarily Chinese + English, but can handle multilingual via prompts
-        return ["zh", "en"]
-
-    def _ensure_loaded(self):
-        if self._model is not None:
-            return
-        ok, msg = self.is_available()
-        if not ok:
-            raise RuntimeError(f"IndexTTS2 unavailable: {msg}")
-        from indextts.infer_v2 import IndexTTS2  # type: ignore[import-not-found]
-        repo_dir = os.environ.get("OMNIVOICE_INDEXTTS_DIR", ".")
-        cfg_path = os.path.join(repo_dir, "checkpoints", "config.yaml")
-        model_dir = os.path.join(repo_dir, "checkpoints")
-        use_fp16 = os.environ.get("OMNIVOICE_INDEXTTS_FP16", "1") == "1"
-        logger.info(
-            "Loading IndexTTS2 from %s (fp16=%s)", model_dir, use_fp16,
-        )
-        self._model = IndexTTS2(
-            cfg_path=cfg_path,
-            model_dir=model_dir,
-            use_fp16=use_fp16,
-            use_cuda_kernel=False,
-            use_deepspeed=False,
-        )
-
-    def generate(self, text: str, **kw) -> torch.Tensor:
-        self._ensure_loaded()
-        import numpy as np
-        import tempfile
-
-        ref_audio = kw.get("ref_audio")
-        if not ref_audio:
-            raise RuntimeError(
-                "IndexTTS2 requires a reference audio for voice cloning (timbre). "
-                "Pass ref_audio= with a path to a speaker reference clip."
-            )
-
-        # ── Emotion control ────────────────────────────────────────────
-        # IndexTTS2 supports 3 emotion modalities — we check in priority order:
-        #   1. emo_vector: explicit 8-float list
-        #   2. emo_audio: separate emotion reference audio
-        #   3. emo_text / description: natural-language emotion description
-        emo_vector = kw.get("emo_vector")          # list[float] len=8
-        emo_audio = kw.get("emo_audio")             # path to emotion ref audio
-        emo_text = kw.get("emo_text")               # text emotion description
-        emo_alpha = float(kw.get("emo_alpha", 1.0)) # emotion blending strength
-        use_random = bool(kw.get("use_random", False))
-
-        # Fall back: if `description` is set (from OpenAI API / voice design),
-        # treat it as an emotion text instruction.
-        description = kw.get("description")
-        if description and not emo_text and not emo_vector and not emo_audio:
-            emo_text = description
-
-        # Build the infer kwargs
-        infer_kw: dict = {
-            "spk_audio_prompt": ref_audio,
-            "text": text,
-            "verbose": False,
-        }
-
-        # Duration control — the killer feature for video dubbing sync.
-        # When the dub pipeline passes `duration=`, we convert seconds to
-        # the token count IndexTTS2 expects. The model's codec runs at ~21 Hz.
-        duration = kw.get("duration")
-        if duration is not None:
-            # IndexTTS2 uses target_tokens for duration control.
-            # Approximate: codec frame rate ≈ 21 Hz
-            target_tokens = int(float(duration) * 21)
-            if target_tokens > 0:
-                infer_kw["target_tokens"] = target_tokens
-
-        # Apply emotion modality
-        if emo_vector and isinstance(emo_vector, (list, tuple)) and len(emo_vector) == 8:
-            infer_kw["emo_vector"] = [float(v) for v in emo_vector]
-            infer_kw["use_random"] = use_random
-            logger.info("IndexTTS2: emotion via vector %s", infer_kw["emo_vector"])
-        elif emo_audio:
-            infer_kw["emo_audio_prompt"] = emo_audio
-            infer_kw["emo_alpha"] = emo_alpha
-            logger.info("IndexTTS2: emotion via audio ref (alpha=%.2f)", emo_alpha)
-        elif emo_text:
-            infer_kw["use_emo_text"] = True
-            infer_kw["emo_text"] = emo_text
-            infer_kw["emo_alpha"] = min(emo_alpha, 0.6)  # recommended ≤0.6 for text mode
-            infer_kw["use_random"] = use_random
-            logger.info(
-                "IndexTTS2: emotion via text description: %r (alpha=%.2f)",
-                emo_text[:60], infer_kw["emo_alpha"],
-            )
-
-        # IndexTTS2.infer() writes to a file, so we use a temp path and read back.
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-            tmp_path = tmp.name
-
-        try:
-            infer_kw["output_path"] = tmp_path
-            self._model.infer(**infer_kw)
-
-            # Read back the generated audio
-            import torchaudio
-            wav, sr = torchaudio.load(tmp_path)
-            if sr != self.sample_rate:
-                wav = torchaudio.functional.resample(wav, sr, self.sample_rate)
-            if wav.ndim == 1:
-                wav = wav.unsqueeze(0)
-            elif wav.ndim == 2 and wav.shape[0] > 1:
-                wav = wav.mean(dim=0, keepdim=True)
-            return wav
-        finally:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
+# ``IndexTTS2Backend`` is re-exported from ``backend/engines/indextts``
+# via the module-level ``__getattr__`` hook at the bottom of this file
+# (PEP 562). Callers can still write::
+#
+#     from services.tts_backend import IndexTTS2Backend
+#
+# and they receive the same class object as ``engines.indextts.IndexTTS2Backend``.
+# The deferred lookup is what breaks the
+# ``services.subprocess_backend ↔ services.tts_backend`` cycle.
 
 
 # ── GPT-SoVITS adapter (most popular voice cloning, 57k★) ──────────────────
@@ -926,6 +831,8 @@ class GPTSoVITSBackend(TTSBackend):
 
     id = "gpt-sovits"
     display_name = "GPT-SoVITS (5 langs, zero-shot, RTF 0.014, MIT)"
+    # Server-side; whichever device GPT-SoVITS itself uses (CUDA preferred).
+    gpu_compat = ("cuda", "cpu")
 
     def __init__(self):
         self._url = os.environ.get("OMNIVOICE_GPTSOVITS_URL", "http://127.0.0.1:9880")
@@ -1033,6 +940,9 @@ class SherpaOnnxBackend(TTSBackend):
 
     id = "sherpa-onnx"
     display_name = "Sherpa-ONNX (20+ engines, WASM-ready, universal runtime)"
+    # Sherpa-ONNX uses the onnxruntime providers — CPU is the universal
+    # baseline; CUDA provider is available on Linux/Windows installs.
+    gpu_compat = ("cuda", "cpu")
 
     def __init__(self):
         self._tts = None
@@ -1112,17 +1022,97 @@ class SherpaOnnxBackend(TTSBackend):
 # ── Registry ────────────────────────────────────────────────────────────────
 
 
-_REGISTRY: dict[str, type[TTSBackend]] = {
+# ── Lazy registry entry for subprocess-isolated backends ──────────────────
+#
+# Backends that live in their own module (to avoid an import cycle with
+# ``services.subprocess_backend``) register here as ``(module_path,
+# attribute_name)``. ``_REGISTRY`` resolves the entry on first access via
+# the descriptor below.
+
+_LAZY_REGISTRY: dict[str, tuple[str, str]] = {
+    "indextts2": ("engines.indextts", "IndexTTS2Backend"),
+    # Phase 3 Plan 03-01 (TTS-01): Supertonic-3 lives in its own engine
+    # package for the same import-cycle reason as IndexTTS2 (its backend
+    # module imports services.subprocess_backend which in turn imports
+    # this module for TTSBackend). The class is resolved on first
+    # attribute access via the LazyRegistry below.
+    "supertonic3": ("engines.supertonic3", "Supertonic3Backend"),
+}
+
+
+class _LazyRegistry(dict):
+    """A dict that resolves selected keys via a deferred import.
+
+    Keys in ``_LAZY_REGISTRY`` are not present in ``self`` until first
+    access; ``__getitem__`` / ``__contains__`` / iteration all import
+    them on demand. Everything else behaves like a normal dict — the
+    registry-sandbox fixture in
+    ``tests/backend/services/test_tts_backend_registry.py`` still gets
+    snapshot semantics because once a lazy key is resolved it's stored
+    in self exactly like a non-lazy key.
+    """
+
+    def __contains__(self, key) -> bool:  # noqa: D401
+        return dict.__contains__(self, key) or key in _LAZY_REGISTRY
+
+    def __getitem__(self, key):
+        if dict.__contains__(self, key):
+            return dict.__getitem__(self, key)
+        if key in _LAZY_REGISTRY:
+            mod_path, attr = _LAZY_REGISTRY[key]
+            import importlib
+
+            cls = getattr(importlib.import_module(mod_path), attr)
+            self[key] = cls
+            return cls
+        raise KeyError(key)
+
+    def __iter__(self):
+        # Yield resolved keys first, then any lazy keys that haven't been
+        # resolved yet. Resolving inside __iter__ would trigger a side
+        # effect on every list_backends() call — we keep iteration light
+        # and let the caller's __getitem__ trigger the import.
+        seen: set[str] = set()
+        for k in dict.__iter__(self):
+            seen.add(k)
+            yield k
+        for k in _LAZY_REGISTRY:
+            if k not in seen:
+                yield k
+
+    def items(self):
+        for k in self:
+            yield k, self[k]
+
+    def keys(self):
+        return list(iter(self))
+
+    def values(self):
+        return [self[k] for k in self]
+
+
+_REGISTRY: dict[str, type[TTSBackend]] = _LazyRegistry({
     "omnivoice":     OmniVoiceBackend,
     "cosyvoice":     CosyVoiceBackend,
     "kittentts":     KittenTTSBackend,
     "mlx-audio":     MLXAudioBackend,
     "voxcpm2":       VoxCPM2Backend,
     "moss-tts-nano": MossTTSNanoBackend,
-    "indextts2":     IndexTTS2Backend,
+    # "indextts2": resolved lazily via _LAZY_REGISTRY -> engines.indextts
     "gpt-sovits":    GPTSoVITSBackend,
     "sherpa-onnx":   SherpaOnnxBackend,
-}
+})
+
+
+# ── ENGINE-06 last-error cache ─────────────────────────────────────────────
+#
+# Populated by `list_backends()` whenever a backend's `is_available()`
+# returns ok=False or raises an exception. Cleared per-id when the same
+# backend reports ok=True. Surfaced via the `last_error` field on each
+# registry entry so the Compat Matrix UI (Plan 02-04) can show the most
+# recent failure even between calls — and prove which engine is the source
+# of a hung Settings panel.
+_LAST_ERRORS: dict[str, str] = {}
 
 
 
@@ -1138,22 +1128,77 @@ _INSTALL_HINTS: dict[str, str] = {
     "indextts2":     "git clone index-tts/index-tts && uv pip install -e .  (NOT uv sync --all-extras)",
     "gpt-sovits":    "External API server — start api_v2.py on port 9880",
     "sherpa-onnx":   "pip install sherpa-onnx  (universal ONNX runtime, WASM-ready)",
+    "supertonic3":   "uv sync --extra supertonic  (CPU-only ONNX, 31 langs, ~400 MB model on first use; OpenRAIL-M model license)",
 }
 
 
 def list_backends() -> list[dict]:
     """Enumerate every registered backend with its availability state.
-    Shape matches what a Settings-UI engine picker wants.
+
+    Per-entry shape (ENGINE-05 + ENGINE-06):
+
+        {
+          "id":             str,
+          "display_name":   str,
+          "available":      bool,
+          "reason":         Optional[str],          # message when not available
+          "install_hint":   Optional[str],
+          "last_error":     Optional[str],          # cached most-recent failure
+          "isolation_mode": "in-process" | "subprocess",
+          "gpu_compat":     list[str],              # subset of {cuda, mps, rocm, cpu}
+        }
+
+    Guarantees (ENGINE-05): a backend whose `is_available()` raises does
+    NOT prevent the list from returning. The exception is captured into
+    the `reason`/`last_error` fields for that one entry and every other
+    backend is still listed normally.
+
+    Security (Plan 02-04 / T-02-12): any HF-shaped token substring in
+    ``reason`` or ``last_error`` is redacted before the entry is
+    serialized — :func:`_mask_hf_tokens`. The frontend can render these
+    fields verbatim without leaking credentials.
     """
-    out = []
+    # Detect subprocess-isolated backends via a duck-typed marker rather
+    # than `issubclass(cls, SubprocessBackend)`. Test fixtures (e.g. the
+    # token_resolver suite) purge `sys.modules["services"]` between tests
+    # for DB isolation, which produces a re-imported SubprocessBackend
+    # class object that no longer == the one this test's subclasses closed
+    # over. The marker attribute is set on SubprocessBackend itself, so
+    # subclasses inherit it through any re-import path.
+    out: list[dict] = []
     for bid, cls in _REGISTRY.items():
-        ok, msg = cls.is_available()
+        try:
+            ok, msg = cls.is_available()
+        except Exception as exc:
+            ok = False
+            msg = f"{type(exc).__name__}: {exc}"
+            logger.warning(
+                "list_backends: %s.is_available() raised — degrading "
+                "gracefully so the picker still renders: %s",
+                bid, msg,
+            )
+        if ok:
+            _LAST_ERRORS.pop(bid, None)
+        else:
+            # Mask any HF token inside the failure message BEFORE it lands
+            # in the in-memory cache — otherwise a later list_backends()
+            # call would re-surface the unmasked string.
+            _LAST_ERRORS[bid] = _mask_hf_tokens(msg)
+        # ENGINE-06 isolation_mode: duck-typed marker for SubprocessBackend
+        # subclasses (see services.subprocess_backend.SubprocessBackend).
+        if getattr(cls, "_is_subprocess_isolated", False):
+            isolation = "subprocess"
+        else:
+            isolation = "in-process"
         out.append({
             "id": bid,
             "display_name": cls.display_name,
             "available": ok,
-            "reason": None if ok else msg,
+            "reason": None if ok else _mask_hf_tokens(msg),
             "install_hint": _INSTALL_HINTS.get(bid),
+            "last_error": _LAST_ERRORS.get(bid),
+            "isolation_mode": isolation,
+            "gpu_compat": list(getattr(cls, "gpu_compat", ("cpu",))),
         })
     return out
 
@@ -1179,3 +1224,18 @@ def get_active_tts_backend(*, model=None) -> TTSBackend:
     if cls is OmniVoiceBackend:
         return OmniVoiceBackend(model=model)
     return cls()
+
+
+# ── PEP 562 lazy attribute re-export ───────────────────────────────────────
+#
+# Allows ``from services.tts_backend import IndexTTS2Backend`` to keep
+# working even though the class itself lives in ``engines.indextts``.
+# Triggers the engines.indextts import on first attribute access, which
+# is after this module has finished loading — so no import cycle.
+
+def __getattr__(name: str):  # pragma: no cover - exercised via tests
+    if name in _LAZY_REGISTRY:
+        return _REGISTRY[name if name in _REGISTRY else None]
+    if name == "IndexTTS2Backend":
+        return _REGISTRY["indextts2"]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

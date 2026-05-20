@@ -323,7 +323,7 @@ async def get_model():
     async with _model_lock:
         if model is None:
             loop = asyncio.get_running_loop()
-            model = await loop.run_in_executor(_gpu_pool, _load_model_sync)
+            model = await loop.run_in_executor(_get_gpu_pool(), _load_model_sync)
     return model
 
 
@@ -474,18 +474,14 @@ _diar_pipeline = None
 
 def get_diarization_pipeline():
     global _diar_pipeline
-    # AUTH cascade prelude: env var > canonical ~/.cache/huggingface/token
-    # (written by `huggingface-cli login` or app save). Phase 1 token_resolver
-    # adds the SQLite app-store layer on top.
-    hf_token = os.environ.get("HF_TOKEN")
-    if not hf_token:
-        try:
-            from huggingface_hub import get_token
-            hf_token = get_token()
-        except Exception:
-            hf_token = None
-    if not hf_token:
+    # Phase 1 AUTH-01: 3-source resolver (App → Env → HF-CLI). Per
+    # Pitfall #1 in 01-RESEARCH.md — exactly one place in the backend
+    # reads HF tokens, and that place is `token_resolver.resolve()`.
+    from services import token_resolver
+    resolved = token_resolver.resolve()
+    if not resolved:
         return None
+    hf_token = resolved.token
     if _diar_pipeline is not None:
         return _diar_pipeline
     try:

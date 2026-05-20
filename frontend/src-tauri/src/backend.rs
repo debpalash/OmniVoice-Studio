@@ -178,7 +178,13 @@ pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
         env.push(("FFMPEG_PATH".into(), ffmpeg_path.to_string_lossy().into()));
     }
     if let Some(ffprobe_path) = resolve_ffprobe(app, &app_data) {
-        env.push(("FFPROBE_PATH".into(), ffprobe_path.to_string_lossy().into()));
+        let ffprobe_str: String = ffprobe_path.to_string_lossy().into();
+        env.push(("FFPROBE_PATH".into(), ffprobe_str.clone()));
+        // Issue #76: OMNIVOICE_FFPROBE_PATH is the canonical name going
+        // forward — explicit, namespaced, and unambiguously the path of a
+        // file (not a PATH-style command name). FFPROBE_PATH stays for
+        // backward compat with prior backend releases.
+        env.push(("OMNIVOICE_FFPROBE_PATH".into(), ffprobe_str));
     }
     let mut cmd = Command::new(&python);
     cmd.env_remove("PYTHONHOME").env_remove("PYTHONPATH").env_remove("LD_LIBRARY_PATH");

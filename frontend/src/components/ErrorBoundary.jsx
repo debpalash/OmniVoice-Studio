@@ -1,5 +1,6 @@
 import React from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, BookOpen, RefreshCw } from 'lucide-react';
+import { classifyError, openDocsFor } from '../utils/errorDocsMap';
 import './WaveformErrorBoundary.css';
 
 export default class ErrorBoundary extends React.Component {
@@ -20,6 +21,20 @@ export default class ErrorBoundary extends React.Component {
 
   reset = () => this.setState({ error: null });
 
+  openDocs = async () => {
+    const cls =
+      this.state.error?.errorClass /* explicit hint from the thrower */ ||
+      classifyError(this.state.error);
+    try {
+      await openDocsFor(cls);
+    } catch (err) {
+      // openExternal already falls back to window.open; swallow any
+      // remaining failure so the error boundary itself never throws.
+      // eslint-disable-next-line no-console
+      console.warn('[ErrorBoundary] openDocsFor failed', err);
+    }
+  };
+
   render() {
     if (!this.state.error) return this.props.children;
 
@@ -35,12 +50,22 @@ export default class ErrorBoundary extends React.Component {
             Don't worry — the rest of the app still works. You can switch tabs, or try again below.
           </p>
           <pre className="errbnd-trace">{msg}</pre>
-          <button
-            onClick={this.reset}
-            className="btn-primary errbnd-retry"
-          >
-            <RefreshCw size={12} /> Try again
-          </button>
+          <div className="errbnd-actions">
+            <button
+              onClick={this.reset}
+              className="btn-primary errbnd-retry"
+            >
+              <RefreshCw size={12} /> Try again
+            </button>
+            <button
+              type="button"
+              onClick={this.openDocs}
+              className="btn-secondary errbnd-docs"
+              title="Open the docs page for this error in your browser"
+            >
+              <BookOpen size={12} /> Open docs for this error
+            </button>
+          </div>
         </div>
       </div>
     );

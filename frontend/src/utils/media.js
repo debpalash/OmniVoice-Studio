@@ -3,8 +3,9 @@
  *
  * Extracted from App.jsx to reduce file size and enable independent testing.
  */
+import { API_BASE as _PREVIEW_API, isTauriContext } from './apiBase';
 
-const isTauri = typeof window !== 'undefined' && !!(window.__TAURI_INTERNALS__ || window.__TAURI__);
+const isTauri = isTauriContext();
 
 // ── Tauri window maximise on double-click ─────────────────────────────
 let tauriWindow = null;
@@ -16,8 +17,8 @@ export const doubleClickMaximize = () => {
 };
 
 // ── File → media URL ──────────────────────────────────────────────────
-
-const _PREVIEW_API = import.meta.env.VITE_OMNIVOICE_API || 'http://localhost:3900';
+// _PREVIEW_API is now sourced from utils/apiBase.ts so Docker LAN users
+// (issue #80) get window.location.hostname:3900 instead of localhost:3900.
 
 /**
  * Convert a File object to a media-safe URL.

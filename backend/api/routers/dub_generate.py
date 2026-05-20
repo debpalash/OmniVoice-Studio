@@ -14,6 +14,7 @@ from core.tasks import task_manager
 from schemas.requests import DubRequest
 from services.model_manager import get_model, _gpu_pool
 from services.audio_dsp import apply_mastering, normalize_audio, apply_effects_chain, get_effect_chain
+from services.audio_io import atomic_save_wav, _safe_torchaudio_save
 from services.rvc import apply_rvc, is_enabled as rvc_is_enabled
 from services.incremental import segment_fingerprint
 from services.watermark import embed_watermark
@@ -313,7 +314,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                 # when RVC is active (uncommon path).
                 if rvc_is_enabled():
                     seg_wav_path = os.path.join(DUB_DIR, job_id, f"seg_{i}.wav")
-                    torchaudio.save(seg_wav_path, audio_tensor, _model.sampling_rate)
+                    atomic_save_wav(seg_wav_path, audio_tensor, _model.sampling_rate)
                     try:
                         await loop.run_in_executor(_gpu_pool, apply_rvc, seg_wav_path)
                         rvc_wav, rvc_sr = torchaudio.load(seg_wav_path)
@@ -352,7 +353,7 @@ async def dub_generate(job_id: str, req: DubRequest):
             try:
                 # Apply invisible watermark before writing to disk
                 _wav = embed_watermark(_wav, _sr)
-                torchaudio.save(seg_wav_path, _wav, _sr)
+                atomic_save_wav(seg_wav_path, _wav, _sr)
             except Exception as e:
                 logger.warning("deferred seg write failed for %s: %s", _sid, e)
             if _fp is not None:
@@ -414,7 +415,7 @@ async def dub_generate(job_id: str, req: DubRequest):
         _t_save_0 = time.perf_counter()
         # Apply invisible watermark to the final assembled track
         full_audio = embed_watermark(full_audio, sr)
-        torchaudio.save(track_path, full_audio, sr)
+        atomic_save_wav(track_path, full_audio, sr)
         _t_save = time.perf_counter() - _t_save_0
         _t_mix = _t_save_0 - _t_loop_end
         job["dubbed_tracks"][lang_code] = {
@@ -532,7 +533,7 @@ async def preview_segment(job_id: str, req: SegmentPreviewRequest):
 
     sr = getattr(_model, "sampling_rate", 24000)
     buf = io.BytesIO()
-    torchaudio.save(buf, audio_tensor, sr, format="wav")
+    _safe_torchaudio_save(buf, audio_tensor, sr, format="wav")
     buf.seek(0)
 
     return Response(

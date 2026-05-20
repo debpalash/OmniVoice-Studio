@@ -1,0 +1,98 @@
+/**
+ * Centralised API base URL resolver.
+ *
+ * Single source of truth for "where is the OmniVoice backend reachable from
+ * the currently-rendering frontend?". Three runtime contexts need different
+ * answers:
+ *
+ *   1. Explicit override (Docker users / CI / power users):
+ *        VITE_OMNIVOICE_API="http://10.0.0.5:3900"
+ *      Always wins. Set in `.env.local` or the docker-compose env.
+ *
+ *   2. Tauri webview (the shipped desktop app):
+ *      Backend always listens on 127.0.0.1:3900 on the same machine.
+ *      Even when Tauri's webview origin is `tauri://localhost`, plain
+ *      `http://localhost:3900` reaches the backend.
+ *
+ *   3. Plain browser (Docker LAN, port-forward, dev server on a NAS):
+ *      The browser was served from some host — likely a LAN IP. We must
+ *      target THAT host's :3900, not the browser machine's localhost.
+ *      This closes issue #80 (Docker LAN frontend hits the wrong host).
+ *
+ * Plan: 01-03-PLAN.md (Phase 1 Wave 3)
+ * Issue: #80
+ */
+
+declare global {
+  interface Window {
+    __TAURI_INTERNALS__?: unknown;
+    __TAURI__?: unknown;
+  }
+}
+
+/** Backend port — kept here as a single constant so we never grep-replace
+ *  hard-coded `3900` across the codebase again. */
+export const BACKEND_PORT = 3900;
+
+/** True when the current execution context is a Tauri webview. */
+export function isTauriContext(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    !!(window.__TAURI_INTERNALS__ || window.__TAURI__)
+  );
+}
+
+/**
+ * Resolve the backend API base URL for the current runtime context.
+ *
+ * Returns a URL with NO trailing slash so callers can safely concatenate
+ * `/preview/upload` etc.
+ */
+/** Test-only override for the env-resolved API base. vitest 4.x does not
+ *  propagate `vi.stubEnv` to dynamically imported modules' `import.meta.env`,
+ *  so we expose this small hook for tests. Production code never sets it. */
+let _testEnvOverride: string | undefined = undefined;
+export function _setEnvOverrideForTesting(value: string | undefined): void {
+  _testEnvOverride = value;
+}
+
+function _readEnvOverride(): string | undefined {
+  if (_testEnvOverride !== undefined) return _testEnvOverride;
+  const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+  return env?.VITE_OMNIVOICE_API;
+}
+
+export function getApiBase(): string {
+  // 1. Explicit override always wins.
+  const override = _readEnvOverride();
+  if (override) {
+    return stripTrailingSlash(override);
+  }
+
+  // 2. Tauri webview → loopback.
+  if (isTauriContext()) {
+    return `http://localhost:${BACKEND_PORT}`;
+  }
+
+  // 3. Plain browser → follow the page's own origin/host.
+  if (typeof window !== "undefined" && window.location) {
+    const { protocol, hostname } = window.location;
+    if (hostname) {
+      return `${protocol}//${hostname}:${BACKEND_PORT}`;
+    }
+  }
+
+  // 4. SSR / vitest jsdom without window — safe fallback.
+  return `http://localhost:${BACKEND_PORT}`;
+}
+
+function stripTrailingSlash(url: string): string {
+  return url.endsWith("/") ? url.slice(0, -1) : url;
+}
+
+/** Module-level cached base URL — resolved once at import time. Most callers
+ *  want this; only call `getApiBase()` directly if you need to re-evaluate
+ *  after env or window changes (rare, mostly tests). */
+export const API_BASE: string = getApiBase();
+
+export default API_BASE;

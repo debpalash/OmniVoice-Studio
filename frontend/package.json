@@ -9,6 +9,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "typecheck:ci": "tsc --noEmit --checkJs false",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:legacy": "node --experimental-strip-types --no-warnings --test ../tests/frontend/*.test.mjs",

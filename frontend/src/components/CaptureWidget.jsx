@@ -336,6 +336,12 @@ export default function CaptureWidget({ onDismiss }) {
     if (onDismiss) onDismiss();
   };
 
+  // Idle: render nothing — pill is hold-to-talk only (Whisper-Flow / Ghost-Pepper
+  // style). The tray-dictate listener above stays mounted, so the shortcut still
+  // triggers startRecording() which flips state out of 'idle' and remounts the
+  // pill DOM with the slide-in animation.
+  if (state === 'idle') return null;
+
   // ── Pill label ──
   let label = '';
   let emoji = '';
@@ -354,9 +360,6 @@ export default function CaptureWidget({ onDismiss }) {
   } else if (state === 'error') {
     emoji = '❌';
     label = 'Mic access denied';
-  } else {
-    emoji = '🎙️';
-    label = 'Ready — hold shortcut to speak';
   }
 
   return (

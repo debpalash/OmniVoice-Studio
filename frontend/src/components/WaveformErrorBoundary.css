@@ -70,7 +70,21 @@
   max-height: 140px; overflow: auto; margin: 0 0 14px;
   font-family: var(--font-mono);
 }
-.errbnd-retry {
+.errbnd-actions {
+  display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+}
+.errbnd-retry,
+.errbnd-docs {
   padding: 6px 14px; font-size: 0.78rem; font-weight: 500;
   display: inline-flex; align-items: center; gap: 6px;
+}
+.errbnd-docs {
+  background: transparent;
+  color: var(--chrome-fg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  cursor: pointer;
+}
+.errbnd-docs:hover {
+  background: var(--chrome-hover-bg);
 }

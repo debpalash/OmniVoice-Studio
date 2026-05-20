@@ -45,7 +45,11 @@ def client(monkeypatch):
     monkeypatch.setattr(cw, "_transcribe_buffer_full", fake_full)
 
     from main import app
-    return TestClient(app)
+    # client=("127.0.0.1", 50000) matches the loopback allow-list in
+    # backend/api/routers/capture_ws.py:_LOOPBACK_HOSTS. Starlette's default
+    # TestClient uses client=("testclient", 50000), which the WS guard rejects.
+    # Matches the pattern PR #84 established for HTTP TestClient fixtures.
+    return TestClient(app, client=("127.0.0.1", 50000))
 
 
 def _audio_chunk(n_bytes: int = 20_000) -> bytes:

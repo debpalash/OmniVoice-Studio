@@ -311,6 +311,25 @@ fi
 # System notifications endpoint
 check_endpoint "GET /system/notifications" "${BACKEND_URL}/system/notifications"
 
+# Phase 1 Wave 3 — Gatekeeper quarantine probe surface (#54).
+# On Linux/Windows the endpoint always returns {"quarantined": false}; on
+# macOS it returns false in dev runs (not inside a .app). Smoke-test only
+# checks that the route exists and returns 200 — actual quarantine state
+# isn't reachable from this harness.
+check_endpoint "GET /system/quarantine-status" "${BACKEND_URL}/system/quarantine-status"
+
+# INST-01 no-regression — setuptools>=75.0 pinned, WhisperX imports cleanly.
+# Per 01-03-PLAN.md must_have truth #6 / checker W-5: the user-observable
+# form of this check lives here in the smoke test (Phase 0 GATE-02 also
+# enforces it in CI), guarding against a regression where pkg_resources
+# goes missing on Python 3.12+.
+TESTS=$((TESTS + 1))
+if uv run python -c "import pkg_resources; import whisperx" 2>/dev/null; then
+    pass "INST-01: pkg_resources + whisperx import OK (setuptools pinned)"
+else
+    fail "INST-01 regression: pkg_resources or whisperx import failed (setuptools pin?)"
+fi
+
 # ── Phase 5: Model Loading (optional) ─────────────────────────────────────
 if [ "$SKIP_MODEL" = false ]; then
     header "Phase 5: Model Loading"

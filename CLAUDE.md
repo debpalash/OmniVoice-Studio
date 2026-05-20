@@ -13,9 +13,10 @@ Everything else (new engines, fancy features) is downstream of "the thing instal
 
 - **Existing engine compatibility**: Users with already-installed engines (IndexTTS, CosyVoice, etc.) must not have to reinstall. Fixes touching engine code must be backward-compatible with on-disk model state.
 - **Cross-platform parity**: Every fix must work on macOS (Apple Silicon + Intel), Windows (x64), and Linux (AppImage + deb). No platform-only regressions; the cross-platform bug bash (PR #51) is the baseline.
+- **Default features must work on every platform (strict rule, 2026-05-20):** A feature that ships in default mode — out-of-the-box, no user customization, no opt-in toggle — must behave identically on macOS, Windows, and Linux. Platform-specific *implementation code* is allowed for OS APIs / shells / packaging, but the user-visible *default behavior* cannot diverge. Platform-only features (e.g., a macOS-only global shortcut, a Windows-only path picker) must go behind explicit user opt-in: Settings toggle, env var, or CLI flag. When a default doesn't work on a platform, that's a P0 bug — either fix it on the missing platform or move it behind opt-in. No third option.
 - **Backward-compatible project data**: Existing `omnivoice_data/` (user voices, projects, settings) must keep working without manual migration. Any DB schema change goes through alembic with a tested upgrade path.
 - **Local-first guarantee preserved**: Auto bug reporting (new addition) must be **opt-in**, must submit only to GitHub Issues (no third-party telemetry endpoint), and the app must remain fully functional with reporting disabled. No required cloud calls, accounts, or API keys.
-- **Beta release cadence**: Ship as `v0.3.x` minor releases — small, frequent, low-risk drops. Don't gate a v1.0 on this milestone (per the "Empty the inbox" outcome — version is secondary to issue closure).
+- **Beta release cadence (no RC, no ceremony — strict rule, 2026-05-20):** v0.3.0 has **no release candidates, no 48h soak, no formal release ceremony**. Every fix goes continuous-to-main. Tag `v0.3.0` once when the user calls "actually useful" — a qualitative bar, not a checklist. No `v0.3.0-rc1`. No phased release. No `v0.4` deferrals while v0.3.0 is open — every open issue and every open community PR gets absorbed into the v0.3.0 line or explicitly declined. Users follow `main` for previews; users wanting stable stay on `v0.2.7`. ROADMAP.md's Phase 6 "Release/Verify/Retro" entries are obsolete unless the user revives them.
 <!-- GSD:project-end -->
 
 <!-- GSD:stack-start source:research/STACK.md -->
@@ -86,7 +87,7 @@ Everything else (new engines, fancy features) is downstream of "the thing instal
 ### Capability 4 — Supertonic-3 TTS Engine
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| `supertonic` (PyPI) | `1.2.3` (latest, May 15 2026) | Official Supertonic-3 inference SDK | Authoritative wrapper from Supertone Inc. Wraps the ONNX session orchestration so we don't have to. |
+| `supertonic` (PyPI) | `1.3.1` (latest, May 18 2026 — Phase 3 Wave 1 to verify constructor signature before bump) | Official Supertonic-3 inference SDK | Authoritative wrapper from Supertone Inc. Wraps the ONNX session orchestration so we don't have to. |
 | `onnxruntime` | `≥1.17.x` (any recent) | ONNX inference runtime | Already a transitive dep of WhisperX (via CTranslate2 path is separate, but `onnxruntime` itself ships for kittentts and audioseal). Verify with `uv tree` after adding — should resolve cleanly. |
 | `huggingface_hub` (already pinned) | `≥1.12.x` | Model weight download (~400 MB on first use) | Reuses existing HF token + cache infrastructure. The user's existing `HF_TOKEN` (Capability 1) works for the Supertonic model download too. |
 | `numpy`, `soundfile` (already pinned) | already pinned | Audio I/O + array math | No new deps. |
@@ -98,7 +99,7 @@ Everything else (new engines, fancy features) is downstream of "the thing instal
 - Tokenizer: `AutoTokenizer.from_pretrained(model_path)` — loads from `tokenizer.json` shipped with model
 - [Supertone/supertonic-3 model card](https://huggingface.co/Supertone/supertonic-3) — HIGH (official)
 - [supertone-inc/supertonic GitHub](https://github.com/supertone-inc/supertonic) — HIGH (official)
-- [supertonic PyPI page](https://pypi.org/project/supertonic/) — HIGH (`1.2.3` confirmed 2026-05-15)
+- [supertonic PyPI page](https://pypi.org/project/supertonic/) — HIGH (`1.3.1` confirmed 2026-05-18; same publisher, MIT, same 4 deps)
 - [onnx-community/Supertonic-TTS-ONNX](https://huggingface.co/onnx-community/Supertonic-TTS-ONNX) — HIGH (ONNX file structure details)
 ### Capability 5 — Cross-Platform Documentation Tooling
 | Technology | Version | Purpose | Why Recommended |
@@ -160,7 +161,7 @@ Everything else (new engines, fancy features) is downstream of "the thing instal
 ## Version Compatibility
 | Package A | Compatible With | Notes |
 |-----------|-----------------|-------|
-| `supertonic@1.2.3` | `onnxruntime>=1.17`, `numpy>=1.24`, `huggingface_hub>=0.20` | All deps already satisfied transitively by current `pyproject.toml`. |
+| `supertonic@1.3.1` | `onnxruntime>=1.17`, `numpy>=1.24`, `huggingface_hub>=0.20` | All deps already satisfied transitively by current `pyproject.toml`. |
 | `huggingface_hub>=1.12` | `transformers>=5.3.0` (current pin) | `HfFolder` retained as deprecated alias; `login()`/`get_token()` are the canonical APIs. |
 | `uv>=0.5` | `UV_PYTHON_INSTALL_MIRROR`, `UV_PYTHON_PREFERENCE` | Both env vars stable since uv 0.4.x. |
 | Tauri v2 + `@tauri-apps/api/shell` | `shell.open()` for the prefilled-URL pattern | Already in the desktop app; no new permission needed beyond what the existing "open external link" plugin grants. |
@@ -175,7 +176,7 @@ Everything else (new engines, fancy features) is downstream of "the thing instal
 - [uv `python-preference` semantics](https://github.com/astral-sh/uv/blob/main/docs/concepts/python-versions.md) — HIGH
 - [Supertone/supertonic-3 model card](https://huggingface.co/Supertone/supertonic-3) — HIGH (official, 99M params, 31 languages, OpenRAIL-M)
 - [supertone-inc/supertonic GitHub](https://github.com/supertone-inc/supertonic) — HIGH (official inference API)
-- [supertonic 1.2.3 on PyPI](https://pypi.org/project/supertonic/) — HIGH (released 2026-05-15, MIT code license)
+- [supertonic 1.3.1 on PyPI](https://pypi.org/project/supertonic/) — HIGH (released 2026-05-18, MIT code license; bumped from 1.2.3 after Phase 3 research)
 - [onnx-community/Supertonic-TTS-ONNX](https://huggingface.co/onnx-community/Supertonic-TTS-ONNX) — HIGH (ONNX file structure)
 - [GitHub Docs: Authenticating to the REST API](https://docs.github.com/en/rest/authentication/authenticating-to-the-rest-api) — HIGH
 - [GitHub Docs: Generating a user access token for a GitHub App](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-user-access-token-for-a-github-app) — HIGH (device flow reference)

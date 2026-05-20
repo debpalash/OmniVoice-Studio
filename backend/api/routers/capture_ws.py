@@ -26,6 +26,8 @@ import time
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from api.dependencies import _LOOPBACK_HOSTS
+
 router = APIRouter()
 logger = logging.getLogger("omnivoice.capture_ws")
 
@@ -47,6 +49,16 @@ MIN_FINAL_BUFFER_BYTES = 4000  # ~125ms of 16-bit mono 16kHz
 @router.websocket("/ws/transcribe")
 async def ws_transcribe(websocket: WebSocket):
     """Stream audio in, get partial + final transcription out."""
+    # Loopback origin guard — refuse anything not from 127.0.0.1, ::1, or
+    # localhost. HTTP routers use Depends(require_loopback) at router level;
+    # WebSocket dependency injection differs across FastAPI versions, so we
+    # inline the check before accept(). Without it, any local process could
+    # stream the user's microphone over this endpoint.
+    host = websocket.client.host if websocket.client else None
+    if host not in _LOOPBACK_HOSTS:
+        await websocket.close(code=1008, reason="loopback origin required")
+        return
+
     await websocket.accept()
 
     audio_chunks: list[bytes] = []

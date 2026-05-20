@@ -19,8 +19,12 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# SQLite file URL, resolved at run time (respects OMNIVOICE_DATA_DIR).
-config.set_main_option("sqlalchemy.url", f"sqlite:///{DB_PATH}")
+# SQLite file URL. Honour an externally-set URL (tests pass one via
+# `cfg.set_main_option("sqlalchemy.url", ...)` to point at a fixture DB),
+# otherwise resolve from `core.config.DB_PATH` so production runs respect
+# the `OMNIVOICE_DATA_DIR` override.
+if not config.get_main_option("sqlalchemy.url"):
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{DB_PATH}")
 
 target_metadata = None  # no SQLAlchemy models — hand-written migrations only.
 

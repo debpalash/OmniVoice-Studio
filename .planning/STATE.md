@@ -1,6 +1,6 @@
 # STATE: OmniVoice Studio v0.3.x Stabilization
 
-**Last updated:** 2026-05-18 — Completed quick task 260518-lp7: hide dictation pill widget when idle
+**Last updated:** 2026-05-20 — Phase 1 Wave 1 (Plan 01-01) complete; ready for Wave 2 (Plan 01-02)
 
 ---
 
@@ -10,7 +10,7 @@
 
 **Milestone:** v0.3.x stabilization — "Empty the inbox" (close all 11 open GitHub issues) plus two surgical additions (Supertonic-3 engine, opt-in bug reporting) plus two spike-first model additions (`Serveurperso/OmniVoice-GGUF` hardware-adaptive default, `ModelsLab/omnivoice-singing` for the dubbing pipeline).
 
-**Current focus:** Roadmap defined (7 phases, 62 v1 requirements). Awaiting `/gsd:plan-phase 0` to decompose Phase 0 (Gates) into executable plans.
+**Current focus:** Phase 1 planned. Three plans cover all 16 official Phase 1 requirements plus accepted scope additions (#76 .deb ffprobe, #80 Docker LAN). Ready for `/gsd:execute-phase 1`.
 
 ---
 
@@ -18,9 +18,9 @@
 
 | Field | Value |
 |-------|-------|
-| Phase | 0 — Gates |
-| Plan | none yet |
-| Status | Roadmap complete (revised to insert Phase 4), planning not started |
+| Phase | 1 — Install + Token Persistence + Docs Scaffolding + Error UX |
+| Plan | 01-01 (executed, PR open), 01-02 + 01-03 awaiting execute |
+| Status | Wave 1 shipped (HF token persistence + redactor + 5 read sites); Wave 2 + 3 pending |
 | Mode | yolo (autonomous) |
 | Granularity | standard |
 | Project mode | mvp (per phase) |
@@ -29,7 +29,7 @@
 
 ```
 [ ] Phase 0  Gates (hard gate — must merge and be green before any other phase)
-[ ] Phase 1  Install + Token Persistence + Docs Scaffolding + Error UX
+[~] Phase 1  Install + Token Persistence + Docs Scaffolding + Error UX  ← Wave 1 shipped (1/3 plans)
 [ ] Phase 2  Engine Isolation (SubprocessBackend → IndexTTS + WAV-export fix)
 [ ] Phase 3  Supertonic-3 Engine + Installer Mirror Reliability
 [ ] Phase 4  Adaptive & Specialty Engines (spike-first: GGUF + Singing)
@@ -64,17 +64,30 @@
 6. **Bug reporting is opt-in only.** Default-deny allow-list payload, GitHub-Issues prefilled URL only, no PAT / no third-party telemetry endpoint.
 7. **`xattr -cr` (#54) and `WEBKIT_DISABLE_COMPOSITING_MODE=1` (#56) count as closed if documented + surfaced in error UI.** Real fixes are infrastructure-level (signing cert, upstream Tauri bug).
 8. **Mode is `yolo` (autonomous), per-phase mode is `mvp`.** Auto-approve gates as user directed.
+9. **Phase 1 scope locked (2026-05-18):** Three plans cover 17 requirements (INST-01..06, DOCS-01..05, AUTH-01..06) plus two accepted scope additions (#76 .deb ffprobe conflict, #80 Docker LAN frontend). v0.3.0 ships as a single fat release bundling all 7 phases — no incremental v0.3.x tags.
+10. **Phase 1 wave structure (2026-05-18):**
+    - **Wave 1 (Plan 01-01):** Token resolver (3-source cascade) + encrypted SQLite settings store + logging redactor + subprocess env injection + patch all 5 bare `os.environ.get("HF_TOKEN")` call sites. Closes #35 read-side bug.
+    - **Wave 2 (Plan 01-02):** Split README into per-OS docs + 5 new docs + `scripts/validate-install-docs.py` CI gate + error→docs deeplink map (Python + TS halves) + ErrorBoundary deeplink wiring + Settings → API Keys panel UI (consumes Wave 1 resolver state endpoint).
+    - **Wave 3 (Plan 01-03):** AppRun strategy spike + AppImage WebKit conditional launcher (#56) + .deb ffprobe relocation + postinst cleanup (#76) + centralized `apiBase.ts` + Docker LAN frontend fix (#80) + macOS Gatekeeper detection probe + INST-01 no-regression assertion.
+11. **Open Question resolutions for Phase 1 (2026-05-18):**
+    - AppRun location: spike-first (Task 01-03-1) — outcome documented in `.planning/decisions/apprun-strategy.md`
+    - Settings table: AUTH-02 adds via real alembic migration (project already has `alembic.ini` + `backend/migrations/`), not `init_db()` patch
+    - Project repo URL: `backend/core/links.py` reads from `pyproject.toml [project.urls]` + `tauri.conf.json` updater endpoint (single source of truth)
+    - localhost hardcodes: `frontend/src/utils/media.js:20` confirmed as only site; centralized via `apiBase.ts`
+    - First-launch failure UI: backend startup probe emits `GATEKEEPER_QUARANTINE` error class → React ErrorBoundary renders docs deeplink (Tauri itself launches; backend detects)
 
 ### Open TODOs
 
-- Run `/gsd:plan-phase 0` to decompose Phase 0 (Gates) into executable plans.
+- Run `/gsd:execute-phase 1` for Wave 2 (Plan 01-02: docs scaffolding + error UX deeplinks + Settings → API Keys React panel). Plan 01-02 depends on Plan 01-01's resolver state endpoint (`GET /system/hf-token/state` AND `GET /api/settings/hf-token/state`) which is now live.
+- Run `/gsd:execute-phase 1` for Wave 3 (Plan 01-03: AppRun spike + AppImage WebKit launcher + .deb ffprobe + apiBase.ts + Docker LAN frontend + macOS Gatekeeper probe).
+- Run `/gsd:plan-phase 0` to decompose Phase 0 (Gates) into executable plans (Phase 0 is the hard gate; technically should land first, but Phase 1 plans don't block on its execution).
 - Confirm open PRs #51 / #53 / #61 land before Phase 0 finalizes the CI matrix.
-- Resolve Phase 2 / 3 / 5 research questions enumerated in `.planning/research/SUMMARY.md` Open Questions table (note: SUMMARY.md "Phase 4" rows now correspond to this roadmap's Phase 5 — bug reporting — after the insertion).
+- Resolve Phase 2 / 3 / 5 research questions enumerated in `.planning/research/SUMMARY.md` Open Questions table.
 - Schedule Phase 4 research dimension (web-fetch model cards for `Serveurperso/OmniVoice-GGUF` and `ModelsLab/omnivoice-singing`, license + runtime confirmation) before any GGUF/SING code work.
 
 ### Blockers
 
-None.
+None. Phase 1 plans are independent of Phase 0 plan creation (though Phase 0 execution must merge before Phase 1 PRs per Key Decision #2).
 
 ### Quick Tasks Completed
 
@@ -87,14 +100,18 @@ None.
 
 ## Session Continuity
 
-**Last session ended after:** Roadmap revision to insert Phase 4 (Adaptive & Specialty Engines). Files written:
-- `.planning/ROADMAP.md` (revised: 7 phases, new Phase 4 inserted between Supertonic-3 and Bug Reporting)
-- `.planning/REQUIREMENTS.md` (revised: 13 new requirements added, traceability table extended to 62 rows, REPORT-* renumbered to Phase 5, REL-* to Phase 6)
-- `.planning/STATE.md` (this file — updated to 7 phases / 62 requirements)
+**Last session ended after:** Phase 1 Wave 1 execution (Plan 01-01). Commits landed: `aa06754` (encrypted settings store + alembic migration), `f254e00` (resolver + redactor + 5 read sites), `e4e2398` (Settings API endpoints + subprocess env injection tests). 35 new tests, all green. Phase 0 smoke tests still green. PR opened against `main` from worktree branch.
 
-**Resume with:** `/gsd:plan-phase 0`
+**Previous session:** Phase 1 planning. Files written:
+- `.planning/phases/01-install-token-persistence-docs-scaffolding-error-ux/01-01-PLAN.md` (Wave 1 — token persistence + read-side fix)
+- `.planning/phases/01-install-token-persistence-docs-scaffolding-error-ux/01-02-PLAN.md` (Wave 2 — docs scaffolding + error UX)
+- `.planning/phases/01-install-token-persistence-docs-scaffolding-error-ux/01-03-PLAN.md` (Wave 3 — installer/bundler fixes)
+- `.planning/ROADMAP.md` (Phase 1 plan list populated, progress 0/3)
+- `.planning/STATE.md` (this file — Phase 1 planned, ready for execute)
+
+**Resume with:** `/gsd:execute-phase 1` (or `/gsd:plan-phase 0` to decompose Phase 0 in parallel).
 
 ---
 
 *State initialized: 2026-05-16 after roadmap creation*
-*Last updated: 2026-05-16 after Phase 4 insertion (Adaptive & Specialty Engines)*
+*Last updated: 2026-05-18 after Phase 1 planning (3 plans across 3 waves)*

@@ -114,35 +114,55 @@ def test_indextts_is_available_returns_tuple():
 
 
 def test_indextts_unavailable_message_is_actionable():
-    """When IndexTTS is not installed, the message should guide the user."""
+    """When IndexTTS is not installed, the message should guide the user.
+
+    Plan 02-03 migrated IndexTTS to a subprocess + dedicated venv (closes
+    #42 properly). The unavailable message is no longer about the
+    transformers conflict — it's about the venv not existing — and it
+    must point the user at the install docs.
+    """
     ok, msg = tts_backend.IndexTTS2Backend.is_available()
     if not ok:
-        # Must mention install method
-        assert "uv pip install" in msg or "git clone" in msg or "conflict" in msg.lower()
+        # Must point at the env-var-driven install path OR the docs.
+        msg_lower = msg.lower()
+        assert (
+            "omnivoice_indextts_dir" in msg_lower
+            or "docs/engines/indextts.md" in msg_lower
+            or "uv pip install" in msg_lower
+            or "git clone" in msg_lower
+            or "conflict" in msg_lower
+        ), f"is_available() failure message not actionable: {msg!r}"
 
 
-def test_indextts_catches_transformers_conflict():
-    """Simulate the transformers version conflict ImportError."""
-    with mock.patch.dict("sys.modules", {"indextts": None, "indextts.infer_v2": None}):
-        # Force a fresh call — the mock makes import raise ImportError
-        ok, msg = tts_backend.IndexTTS2Backend.is_available()
-        assert ok is False
-        assert isinstance(msg, str)
+def test_indextts_no_inprocess_import_attempted():
+    """The new IndexTTS2Backend must NOT attempt `import indextts` at any point.
 
+    Plan 02-03 closes #42 by running IndexTTS in a subprocess with its
+    own venv — the parent's transformers>=5.3 never touches
+    transformers<5. We assert by patching builtins.__import__: if
+    is_available() triggers an indextts.* import, the assertion fires.
+    """
+    calls: list[str] = []
+    original_import = (
+        __builtins__.__import__
+        if hasattr(__builtins__, "__import__")
+        else __import__
+    )
 
-def test_indextts_catches_transformers_keyword_in_error():
-    """When the ImportError mentions 'transformers', the message should explain the conflict."""
-    original_import = __builtins__.__import__ if hasattr(__builtins__, '__import__') else __import__
-    
-    def mock_import(name, *args, **kwargs):
-        if name == "indextts.infer_v2":
-            raise ImportError("cannot import name 'OffloadedCache' from 'transformers.cache_utils'")
+    def tracking_import(name, *args, **kwargs):
+        if name.startswith("indextts"):
+            calls.append(name)
         return original_import(name, *args, **kwargs)
 
-    with mock.patch("builtins.__import__", side_effect=mock_import):
+    with mock.patch("builtins.__import__", side_effect=tracking_import):
         ok, msg = tts_backend.IndexTTS2Backend.is_available()
-        assert ok is False
-        assert "conflict" in msg.lower() or "transformers" in msg.lower()
+
+    assert calls == [], (
+        f"IndexTTS2Backend.is_available() must not import indextts.* in the "
+        f"parent process (Plan 02-03 / #42); got imports: {calls}"
+    )
+    assert isinstance(ok, bool)
+    assert isinstance(msg, str)
 
 
 def test_indextts_docstring_warns_about_uv_sync():

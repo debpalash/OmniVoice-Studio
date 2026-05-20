@@ -17,6 +17,20 @@ use crate::bootstrap::{BootstrapStage, set_stage};
 // when the toolchain needs a newer uv.
 pub const UV_VERSION: &str = "0.11.7";
 
+// Version of BtbN/FFmpeg-Builds we download for Linux/Windows ffmpeg first-
+// run setup. The string appears *twice* in each URL (once as the release tag,
+// once inside the archive filename) — BtbN tags their autobuilds
+// `autobuild-YYYY-MM-DD-HH-MM` and the inner filenames use the same datestamp.
+// Driving both from one constant means pinning to a specific autobuild is a
+// one-line edit: change `"latest"` to e.g. `"autobuild-2026-04-15-12-50"` and
+// match the same constant in `.github/workflows/release.yml`
+// (FFMPEG_BTBN_VERSION env var). Reproducible installer builds without
+// surprise upstream regressions, AV reputation drift, or 2am pages when BtbN
+// retags `latest` to a build that fails Windows SmartScreen.
+//
+// Browse releases: https://github.com/BtbN/FFmpeg-Builds/releases
+pub const FFMPEG_BTBN_VERSION: &str = "latest";
+
 // ── Sidecar detection ─────────────────────────────────────────────────────
 
 /// Look for a sidecar binary bundled alongside the app via Tauri's
@@ -148,10 +162,13 @@ pub fn install_ffmpeg_standalone(dest: &Path, region: &str) -> io::Result<()> {
     #[cfg(target_os = "linux")]
     {
         let url = resolve_github_url(
-            "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz",
+            &format!(
+                "https://github.com/BtbN/FFmpeg-Builds/releases/download/{ver}/ffmpeg-master-{ver}-linux64-gpl.tar.xz",
+                ver = FFMPEG_BTBN_VERSION,
+            ),
             region,
         );
-        log::info!("Downloading ffmpeg from BtbN (linux64)");
+        log::info!("Downloading ffmpeg from BtbN (linux64) — version={}", FFMPEG_BTBN_VERSION);
         let archive_path = dest.join("ffmpeg.tar.xz");
         let resp = ureq::get(&url)
             .timeout(Duration::from_secs(300))
@@ -216,10 +233,13 @@ pub fn install_ffmpeg_standalone(dest: &Path, region: &str) -> io::Result<()> {
     {
         use std::io::Read;
         let url = resolve_github_url(
-            "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip",
+            &format!(
+                "https://github.com/BtbN/FFmpeg-Builds/releases/download/{ver}/ffmpeg-master-{ver}-win64-gpl.zip",
+                ver = FFMPEG_BTBN_VERSION,
+            ),
             region,
         );
-        log::info!("Downloading ffmpeg from BtbN (win64)");
+        log::info!("Downloading ffmpeg from BtbN (win64) — version={}", FFMPEG_BTBN_VERSION);
         let resp = ureq::get(&url)
             .timeout(Duration::from_secs(300))
             .call()
@@ -296,11 +316,26 @@ pub fn resolve_ffmpeg<R: tauri::Runtime>(app: &tauri::AppHandle<R>, app_data: &P
     }
 }
 
-/// Resolve a usable ffprobe binary. Same cascade as ffmpeg.
+/// Resolve a usable ffprobe binary. Same cascade as ffmpeg, with one extra
+/// step on Linux: probe the relocated .deb path at
+/// `/usr/lib/omnivoice-studio/bin/ffprobe` (issue #76, see
+/// `frontend/src-tauri/debian/postinst`). The bundled sidecar lookup via
+/// `current_exe()` does not find this path because it lives outside the
+/// binary's own directory, so we probe it explicitly here.
 pub fn resolve_ffprobe<R: tauri::Runtime>(app: &tauri::AppHandle<R>, app_data: &Path) -> Option<PathBuf> {
     if let Some(p) = find_bundled_ffprobe() {
         log::info!("Using bundled ffprobe at {}", p.display());
         return Some(p);
+    }
+    // Linux .deb install path (#76 — ffprobe relocated out of /usr/bin to
+    // avoid overwriting the system binary).
+    #[cfg(target_os = "linux")]
+    {
+        let deb_path = PathBuf::from("/usr/lib/omnivoice-studio/bin/ffprobe");
+        if deb_path.is_file() {
+            log::info!("Using .deb-bundled ffprobe at {}", deb_path.display());
+            return Some(deb_path);
+        }
     }
     let tools_dir = app_data.join("tools");
     let cached = tools_dir.join(if cfg!(windows) { "ffprobe.exe" } else { "ffprobe" });

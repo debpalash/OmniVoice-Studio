@@ -126,6 +126,16 @@ _BASE_SCHEMA = """
         payload TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_job_events_job_seq ON job_events(job_id, seq);
+
+    -- Phase 1 AUTH-02: encrypted per-install key/value store. Used today
+    -- for the HF token row + the per-install Fernet salt. Both fresh
+    -- installs (this CREATE) and v0.2.7 upgrades (alembic
+    -- 0001_phase1_settings) converge on the same schema.
+    CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at REAL NOT NULL
+    );
 """
 
 # Only tables/columns this module is allowed to ALTER. Prevents SQL injection via
@@ -186,3 +196,37 @@ def init_db():
         conn.commit()
     finally:
         conn.close()
+    # Phase 1: also run any pending alembic migrations. Fresh installs land
+    # the schema via _BASE_SCHEMA above; v0.2.7 → v0.3.0 upgrades pick up
+    # the same end-state via the alembic versions/ chain. Both paths
+    # converge because every migration uses `CREATE TABLE IF NOT EXISTS`
+    # or explicit existence checks.
+    _run_alembic_upgrade()
+
+
+def _run_alembic_upgrade() -> None:
+    """Best-effort `alembic upgrade head` on startup. Non-fatal: if alembic
+    isn't reachable (e.g. user running a stripped-down install or migrations
+    were already applied out-of-band), log a warning and move on. The
+    _BASE_SCHEMA CREATE TABLE IF NOT EXISTS above guarantees the runtime
+    schema is correct regardless."""
+    try:
+        import os
+        from alembic import command
+        from alembic.config import Config
+
+        # Walk up from backend/core/db.py to find the alembic.ini at the
+        # project root.
+        here = os.path.dirname(os.path.abspath(__file__))
+        root = os.path.dirname(os.path.dirname(here))
+        ini = os.path.join(root, "alembic.ini")
+        if not os.path.isfile(ini):
+            logger.debug("alembic.ini not found at %s; skipping migrations", ini)
+            return
+        cfg = Config(ini)
+        cfg.set_main_option("sqlalchemy.url", f"sqlite:///{DB_PATH}")
+        command.upgrade(cfg, "head")
+    except Exception as exc:
+        # Don't block startup on a migration tooling problem. The runtime
+        # schema is already correct via _BASE_SCHEMA.
+        logger.warning("alembic upgrade head skipped: %s", exc)

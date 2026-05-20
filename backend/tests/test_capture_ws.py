@@ -43,3 +43,52 @@ class TestConstants:
     def test_silence_timeout_positive(self):
         from api.routers.capture_ws import SILENCE_TIMEOUT_S
         assert SILENCE_TIMEOUT_S > 0
+
+
+class TestLoopbackGuard:
+    """Source-level guard against regressing the WS loopback contract.
+
+    Same shape as tests/test_bind_host.py: these don't run the endpoint
+    (which needs the full app + a WebSocket client). They read the source
+    and assert the guard is present. If a future refactor removes the inline
+    check, this test fails with a pointer to the security rationale.
+
+    Why a source-level guard: the /ws/transcribe socket streams the user's
+    live microphone audio. Any local process opening this WS without an
+    origin check could exfiltrate dictation in real time. HTTP routers use
+    Depends(require_loopback) at router level; WebSocket dependency
+    injection is brittle across FastAPI versions, so the guard is inlined.
+    """
+
+    def _src(self):
+        from pathlib import Path
+        return (
+            Path(__file__).resolve().parent.parent
+            / "api" / "routers" / "capture_ws.py"
+        ).read_text(encoding="utf-8")
+
+    def test_ws_transcribe_references_loopback_hosts(self):
+        assert "_LOOPBACK_HOSTS" in self._src(), (
+            "capture_ws.py no longer references _LOOPBACK_HOSTS — the WS "
+            "loopback guard has been removed. Reinstate it before accept()."
+        )
+
+    def test_ws_transcribe_closes_non_loopback_with_1008(self):
+        assert "websocket.close(code=1008" in self._src(), (
+            "capture_ws.py must close non-loopback connections with code "
+            "1008 (Policy Violation) before calling websocket.accept(). "
+            "Otherwise any local process can stream the user's microphone."
+        )
+
+    def test_guard_runs_before_accept(self):
+        src = self._src()
+        # The close() call must appear before the first accept() in the
+        # ws_transcribe handler, otherwise an attacker gets a window where
+        # the WS is open and can send audio frames.
+        close_idx = src.find("websocket.close(code=1008")
+        accept_idx = src.find("await websocket.accept()")
+        assert 0 <= close_idx < accept_idx, (
+            "websocket.close(code=1008) must appear before "
+            "websocket.accept() — the guard runs *before* the handshake "
+            "completes so non-loopback origins never see an open socket."
+        )

@@ -53,14 +53,17 @@ All 11 open GitHub issues are closed or have a documented workaround surfaced in
 **Depends on:** Phase 0
 **User-value density:** This phase closes the most issues in the milestone — #35 (HF token + diarization sub-issues), #54 (macOS quarantine via documented `xattr -cr` workaround surfaced in error UI), #56 (AppImage white-screen via documented `WEBKIT_DISABLE_COMPOSITING_MODE=1` workaround), #58 (`pkg_resources`), and partial #55 (CosyVoice docs).
 **Closes issues:** #35, #54 (documented workaround), #55 (partial), #56 (documented workaround), #58
-**Requirements:** INST-01, INST-02, INST-03, INST-04, INST-05, INST-06, DOCS-01, DOCS-02, DOCS-03, DOCS-04, DOCS-05, AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05
+**Requirements:** INST-01, INST-02, INST-03, INST-04, INST-05, INST-06, DOCS-01, DOCS-02, DOCS-03, DOCS-04, DOCS-05, AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, AUTH-06 (scope additions: #76 .deb ffprobe, #80 Docker LAN)
 **Success Criteria** (what must be TRUE):
   1. A new user on macOS / Windows / Linux follows `docs/install/{macos,windows,linux,docker}.md` end-to-end and reaches a working app (validated by `scripts/validate-install-docs.py` against the actual install script)
   2. User enters an HF token in Settings → API Keys once; the token survives app restart, is forwarded to engine subprocesses, and never appears in any log file or error traceback
   3. When the app raises a known error class (quarantined `.app`, AppImage WebKit white-screen, missing `pkg_resources`, missing HF token, etc.), the error UI shows an "Open docs for this error" button that links to the right `docs/install/*.md` section
   4. README install section is split into per-OS files with templated version badges, no longer inlining 600 lines; `docs/install/troubleshooting.md` covers the top 10 install errors
   5. CosyVoice install guide (`docs/engines/cosyvoice.md`), diarization guide (`docs/features/diarization.md`), and HF token guide (`docs/setup/huggingface-token.md`) exist and are linked from README + error UI
-**Plans:** TBD
+**Plans:** 3 plans (3 waves)
+- [ ] 01-01-PLAN.md — Wave 1 — Token resolver (3-source cascade), encrypted SQLite settings store, logging redactor, subprocess env injection, patch all 5 bare `os.environ.get("HF_TOKEN")` call sites
+- [ ] 01-02-PLAN.md — Wave 2 — Docs scaffolding (split README + 8 docs files), `scripts/validate-install-docs.py` CI gate, error→docs deeplink map (Python + TS), ErrorBoundary wiring, Settings → API Keys panel UI
+- [ ] 01-03-PLAN.md — Wave 3 — AppRun strategy spike + AppImage WebKit conditional launcher, .deb ffprobe relocation + postinst cleanup (#76), centralized `apiBase.ts` + Docker LAN fix (#80), macOS Gatekeeper detection probe
 **UI hint:** yes
 
 ### Phase 2: Engine Isolation (SubprocessBackend → IndexTTS + WAV-export dubbing fix)
@@ -150,7 +153,7 @@ All 11 open GitHub issues are closed or have a documented workaround surfaced in
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 0. Gates | 0/0 | Not started | - |
-| 1. Install + Token + Docs + Error UX | 0/0 | Not started | - |
+| 1. Install + Token + Docs + Error UX | 0/3 | Planned | - |
 | 2. Engine Isolation | 0/0 | Not started | - |
 | 3. Supertonic-3 + Mirror Reliability | 0/0 | Not started | - |
 | 4. Adaptive & Specialty Engines (spike-first) | 0/0 | Not started | - |
@@ -161,20 +164,20 @@ All 11 open GitHub issues are closed or have a documented workaround surfaced in
 
 ## Coverage Summary
 
-**v1 requirements mapped:** 62 / 62 ✓
+**v1 requirements mapped:** 74 / 74 ✓ (updated 2026-05-18 — Phase 1 row corrected per checker B-3 to include INST-12 + AUTH-06; total now matches REQUIREMENTS.md 74)
 **Orphaned requirements:** 0 ✓
 **Duplicates:** 0 ✓
 
 | Phase | Requirement Count | Requirement IDs |
 |-------|-------------------|-----------------|
 | Phase 0 | 6 | GATE-01 — GATE-06 |
-| Phase 1 | 16 | INST-01 — INST-06, DOCS-01 — DOCS-05, AUTH-01 — AUTH-05 |
+| Phase 1 | 18 | INST-01 — INST-06, INST-12, DOCS-01 — DOCS-05, AUTH-01 — AUTH-06 |
 | Phase 2 | 8 | ENGINE-01 — ENGINE-07, BUG-01 |
 | Phase 3 | 11 | TTS-01 — TTS-06, INST-07 — INST-11 |
 | Phase 4 | 13 | SPIKE-01 — SPIKE-02, GGUF-01 — GGUF-06, SING-01 — SING-05 |
 | Phase 5 | 12 | REPORT-01 — REPORT-12 |
 | Phase 6 | 6 | REL-01 — REL-06 |
-| **Total** | **62** | — |
+| **Total** | **74** | — |
 
 ---
 

@@ -7,7 +7,8 @@
     "frontendDist": "../dist",
     "devUrl": "http://localhost:3901",
     "beforeDevCommand": "bun run dev",
-    "beforeBuildCommand": "bun run build"
+    "beforeBuildCommand": "bun run build",
+    "beforeBundleCommand": "bash ../scripts/inject-apprun.sh"
   },
   "app": {
     "macOSPrivateApi": true,

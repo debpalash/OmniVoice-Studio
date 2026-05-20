@@ -106,5 +106,4 @@ research/
 !.planning/research/**
 marketing.md
 .coverage
-engines/
-engines/
+/engines/

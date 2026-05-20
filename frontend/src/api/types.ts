@@ -9,14 +9,26 @@
  * than lying with a fake type — explicit "unknown" prompts a runtime check.
  */
 
-// ── Engines (Phase 3 / 4.6) ──────────────────────────────────────────────
+// ── Engines (Phase 3 / 4.6 / Plan 02-04) ─────────────────────────────────
 export type EngineFamily = 'tts' | 'asr' | 'llm';
+
+// `isolation_mode`, `last_error`, `install_hint`, `gpu_compat` arrived
+// in Plan 02-04 alongside the Engine Compatibility Matrix. They're
+// optional in this type because the asr / llm registries don't emit them
+// today (only the TTS registry has been migrated to the extended shape).
+// The matrix UI gates them with `??` / `?.length` so the simpler payload
+// still renders without errors.
+export type GPUTarget = 'cuda' | 'mps' | 'rocm' | 'cpu';
 
 export interface EngineBackend {
   id: string;
   display_name: string;
   available: boolean;
   reason: string | null;
+  install_hint?: string | null;
+  last_error?: string | null;
+  isolation_mode?: 'in-process' | 'subprocess';
+  gpu_compat?: GPUTarget[];
 }
 
 export interface EngineFamilyResponse {
@@ -34,6 +46,13 @@ export interface SelectEngineResponse {
   family: EngineFamily;
   active: string;
   env_override: boolean;
+}
+
+export interface EngineHealthResponse {
+  id: string;
+  ok: boolean;
+  message: string;
+  latency_ms: number;
 }
 
 // ── System / diagnostics ─────────────────────────────────────────────────

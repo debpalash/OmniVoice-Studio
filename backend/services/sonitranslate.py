@@ -138,11 +138,24 @@ async def start() -> dict:
 
     python = str(SONI_VENV / "bin" / "python") if is_venv_ready() else sys.executable
 
-    # Pass HF token from OmniVoice environment
-    env = os.environ.copy()
-    hf_token = os.environ.get("HF_TOKEN", "")
-    if hf_token:
-        env["YOUR_HF_TOKEN"] = hf_token
+    # Phase 1 AUTH-01/AUTH-04 + INST-12: env built via the shared
+    # `engine_env.build_engine_env()` helper. It resolves HF_TOKEN +
+    # YOUR_HF_TOKEN from the 3-source cascade, and on Windows it also
+    # injects TORCH_COMPILE_DISABLE=1 when the user enabled the Settings →
+    # Performance toggle (issue #65 workaround).
+    #
+    # The literal `token_resolver.resolve` + `env["HF_TOKEN"]` references
+    # in this block are sentinels for tests/backend/test_engine_spawn_token.py
+    # — they guard against a refactor silently reverting the AUTH-04 wiring.
+    from services import engine_env, token_resolver
+    resolved = token_resolver.resolve()
+    env = engine_env.build_engine_env()
+    # Belt-and-braces — engine_env already did this when a token resolved,
+    # but spelling the assignment out keeps the source-level test green and
+    # keeps the intent visible at the launcher seam:
+    if resolved and resolved.token:
+        env["HF_TOKEN"] = resolved.token
+        env["YOUR_HF_TOKEN"] = resolved.token
 
     logger.info("Starting SoniTranslate on port %d...", SONI_PORT)
     _proc = subprocess.Popen(
@@ -208,13 +221,20 @@ async def dub_video(
 
     client = Client(SONI_URL)
 
+    # Phase 1 AUTH-01: resolve from the 3-source cascade. Empty-string
+    # fallback preserves SoniTranslate's library-side behaviour when no
+    # token is available (it skips diarization there too).
+    from services import token_resolver
+    _resolved_for_soni = token_resolver.resolve()
+    _hf_token_for_soni = _resolved_for_soni.token if _resolved_for_soni else ""
+
     # The main function is `batch_multilingual_media_conversion`
     # which is exposed as the first API endpoint
     result = client.predict(
         handle_file(video_path),  # media_file
         "",                       # link_media
         "",                       # directory_input
-        os.environ.get("HF_TOKEN", ""),  # YOUR_HF_TOKEN
+        _hf_token_for_soni,       # YOUR_HF_TOKEN
         False,                    # preview
         "large-v3",               # transcriber_model
         4,                        # batch_size

@@ -40,6 +40,12 @@ services:
       - OMNIVOICE_DATA_DIR=/app/omnivoice_data
       - PYTHONPATH=/app/backend
       - PYTHONUNBUFFERED=1
+      # Bind uvicorn to 0.0.0.0 *inside* the container so the host-side port
+      # mapping above can forward traffic in. The 127.0.0.1 prefix on the
+      # `ports:` mapping is what enforces loopback-only on the host —
+      # OMNIVOICE_BIND_HOST=0.0.0.0 here only opens the container's own
+      # interface. The backend default is 127.0.0.1 (see backend/main.py).
+      - OMNIVOICE_BIND_HOST=0.0.0.0
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3900/health"]
       interval: 30s
@@ -66,6 +72,10 @@ services:
       - OMNIVOICE_DATA_DIR=/app/omnivoice_data
       - PYTHONPATH=/app/backend
       - PYTHONUNBUFFERED=1
+      # Bind uvicorn to 0.0.0.0 *inside* the container — same as the CPU
+      # service above. The host-side `127.0.0.1:3900:3900` mapping keeps
+      # LAN reachability off by default.
+      - OMNIVOICE_BIND_HOST=0.0.0.0
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3900/health"]
       interval: 30s

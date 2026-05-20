@@ -92,7 +92,6 @@ class WhisperXBackend(ASRBackend):
         if self._asr is not None:
             return
         import whisperx
-        import torch
         logger.info(
             "whisperx loading ASR %s on %s (%s)",
             self._model_name, self._device, self._compute_type,
@@ -100,35 +99,29 @@ class WhisperXBackend(ASRBackend):
         # PyTorch 2.6 flipped `torch.load(weights_only=True)` to default,
         # which breaks pyannote 3.x's VAD checkpoint (that whisperx ships):
         # each load surfaces a different missing global — `omegaconf.*`,
-        # `typing.Any`, etc. The VAD file ships inside the whisperx wheel,
-        # so it's as trusted as whisperx itself. Two-layer defence:
-        #   (a) allowlist the known pickle globals so the secure load path
-        #       actually succeeds, and
-        #   (b) monkey-patch `torch.load` to force `weights_only=False` as
-        #       a belt-and-braces fallback for anything we missed.
+        # `typing.Any`, etc. The fix is to allowlist the pickle globals the
+        # VAD file contains via `torch.serialization.add_safe_globals` so
+        # the secure `weights_only=True` load path succeeds *without* us
+        # disabling it.
+        #
+        # An earlier defensive layer (monkey-patching `torch.load` to force
+        # `weights_only=False` for the duration of `whisperx.load_model`)
+        # was removed in P0 Wave 1: it defeated PyTorch's secure unpickler
+        # globally for any code that ran during that window, which is the
+        # opposite of what the surrounding comment claimed. If a downstream
+        # callee deserialised an attacker-controlled pickle in that window
+        # it would have executed arbitrary code with no warning. The
+        # allowlist below is the only correct mitigation; if pyannote ever
+        # ships a checkpoint with a new pickle class, the load fails loudly
+        # and we extend `_allow_vad_pickle_globals()`.
         self._allow_vad_pickle_globals()
-        import torch.serialization as _ts
-        _orig_top   = torch.load
-        _orig_inner = _ts.load
-        def _patched(*args, **kwargs):
-            # Force — Lightning explicitly passes weights_only=True, so a
-            # setdefault wouldn't override it. The VAD pickle ships in the
-            # whisperx wheel; trust is the same as trusting whisperx itself.
-            kwargs["weights_only"] = False
-            return _orig_inner(*args, **kwargs)
-        torch.load = _patched
-        _ts.load   = _patched
-        try:
-            self._asr = whisperx.load_model(
-                self._model_name,
-                device=self._device,
-                compute_type=self._compute_type,
-                # vad_method="silero" is the default; keep it so short gaps
-                # get cleaned up before transcription.
-            )
-        finally:
-            torch.load = _orig_top
-            _ts.load   = _orig_inner
+        self._asr = whisperx.load_model(
+            self._model_name,
+            device=self._device,
+            compute_type=self._compute_type,
+            # vad_method="silero" is the default; keep it so short gaps
+            # get cleaned up before transcription.
+        )
 
     @staticmethod
     def _allow_vad_pickle_globals():

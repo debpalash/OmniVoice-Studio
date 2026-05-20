@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Globe, Fingerprint, Wand2, Film, FolderOpen, RefreshCw, Settings2, ChevronRight, ChevronDown, Zap, Building2, Library, FileText, Trash2 } from 'lucide-react';
 import { Button, Badge } from '../ui';
 import NotificationPanel from './NotificationPanel';
+import { useAppStore } from '../store';
 
 const VIEW_META = {
   launchpad:  { label: 'Launchpad',       Icon: Globe,       accent: '#f3a5b6', kicker: 'Studio' },
@@ -41,6 +42,10 @@ export default function Header({
   mode, setMode, sysStats, modelStatus, doubleClickMaximize,
   activeProjectName, onFlushMemory,
 }) {
+  // Default OFF — chrome shouldn't double as a resource monitor. Power users
+  // flip this on via Settings → Performance. Idle/Ready/Loading badge +
+  // Flush button stay visible regardless (action-relevant).
+  const showLiveStats = useAppStore(s => s.showHeaderLiveStats);
   const [flushing, setFlushing] = useState(false);
   const [flushOpen, setFlushOpen] = useState(false);
   const [loadedModels, setLoadedModels] = useState([]);
@@ -189,11 +194,15 @@ export default function Header({
         <WaveBars color={view.accent} active={modelStatus === 'ready' || modelStatus === 'loading'} />
         {sysStats && (
           <div className="hq-stats">
-            <span><b className="hq-stats__key">RAM</b> {sysStats.ram.toFixed(1)}/{sysStats.total_ram.toFixed(0)}G</span>
-            <span><b className="hq-stats__key">CPU</b> {sysStats.cpu.toFixed(0)}%</span>
-            <span className="hq-stats__sep" aria-label={`VRAM usage: ${sysStats.vram.toFixed(1)} gigabytes`}>
-              <b className={`hq-stats__key ${sysStats.gpu_active ? 'hq-stats__key--gpu-active' : ''}`}>VRAM</b> {sysStats.vram.toFixed(1)}G
-            </span>
+            {showLiveStats && (
+              <>
+                <span><b className="hq-stats__key">RAM</b> {sysStats.ram.toFixed(1)}/{sysStats.total_ram.toFixed(0)}G</span>
+                <span><b className="hq-stats__key">CPU</b> {sysStats.cpu.toFixed(0)}%</span>
+                <span className="hq-stats__sep" aria-label={`VRAM usage: ${sysStats.vram.toFixed(1)} gigabytes`}>
+                  <b className={`hq-stats__key ${sysStats.gpu_active ? 'hq-stats__key--gpu-active' : ''}`}>VRAM</b> {sysStats.vram.toFixed(1)}G
+                </span>
+              </>
+            )}
             <span className="hq-stats__status-wrap">
               <Badge
                 tone={modelStatus === 'ready' ? 'success' : modelStatus === 'loading' ? 'warn' : 'neutral'}

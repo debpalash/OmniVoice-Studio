@@ -17,9 +17,13 @@ os.environ.setdefault("OMNIVOICE_DISABLE_FILE_LOG", "1")
 def client():
     # Lazy import so test_api.py's session fixtures can mock the model first
     # if both suites run together.
+    # `client=("127.0.0.1", 50000)` so `request.client.host` resolves to a
+    # loopback address — the system router is now gated by a router-level
+    # `require_loopback` dependency. Smoke tests are happy-path tests and
+    # should pass the gate.
     from fastapi.testclient import TestClient
     from main import app
-    return TestClient(app)
+    return TestClient(app, client=("127.0.0.1", 50000))
 
 
 # ── system ──────────────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import type {
   AllEnginesResponse,
   EngineFamily,
   EngineFamilyResponse,
+  EngineHealthResponse,
   SelectEngineResponse,
 } from './types';
 
@@ -46,6 +47,21 @@ export async function listLlmBackends(): Promise<EngineFamilyResponse> {
 
 export async function selectEngine(family: EngineFamily, backendId: string): Promise<SelectEngineResponse> {
   return apiPost<SelectEngineResponse>('/engines/select', { family, backend_id: backendId });
+}
+
+/**
+ * Plan 02-04 / ENGINE-06 — spawn-and-ping a SubprocessBackend (or
+ * `is_available()`-check an in-process backend) on user demand. The
+ * Engine Compatibility Matrix's "Test engine" button calls this; never
+ * called on Settings mount to avoid auto-spawning every sidecar.
+ *
+ * The endpoint never 500s on a sick backend — it captures the exception
+ * into the response body as `{ ok: false, message: "ExcType: ..." }`.
+ * 404 is returned only when `engineId` matches none of the tts/asr/llm
+ * registries.
+ */
+export async function getEngineHealth(engineId: string): Promise<EngineHealthResponse> {
+  return apiJson<EngineHealthResponse>(`/engines/${encodeURIComponent(engineId)}/health`);
 }
 
 export async function listTranslationEngines(): Promise<TranslationEnginesResponse> {

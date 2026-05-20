@@ -148,16 +148,16 @@ def _resolve_engine(model_id: str):
 
 def _encode_audio(wav_tensor, sample_rate: int, fmt: str) -> tuple[bytes, str, str]:
     """Encode a torch tensor to the requested audio format. Returns (bytes, mime_type, file_ext)."""
-    import torchaudio
+    from services.audio_io import _safe_torchaudio_save
 
     if fmt == "wav":
         buf = io.BytesIO()
-        torchaudio.save(buf, wav_tensor, sample_rate, format="wav")
+        _safe_torchaudio_save(buf, wav_tensor, sample_rate, format="wav")
         return buf.getvalue(), "audio/wav", "wav"
 
     if fmt == "flac":
         buf = io.BytesIO()
-        torchaudio.save(buf, wav_tensor, sample_rate, format="flac")
+        _safe_torchaudio_save(buf, wav_tensor, sample_rate, format="flac")
         return buf.getvalue(), "audio/flac", "flac"
 
     if fmt == "mp3":
@@ -165,32 +165,44 @@ def _encode_audio(wav_tensor, sample_rate: int, fmt: str) -> tuple[bytes, str, s
         # Fall back to wav if it can't.
         buf = io.BytesIO()
         try:
-            torchaudio.save(buf, wav_tensor, sample_rate, format="mp3")
+            _safe_torchaudio_save(buf, wav_tensor, sample_rate, format="mp3")
             return buf.getvalue(), "audio/mpeg", "mp3"
         except Exception:
-            # ffmpeg not available — fall back to wav
-            torchaudio.save(buf, wav_tensor, sample_rate, format="wav")
+            # ffmpeg not available — fall back to wav. Reset the buffer
+            # in case the failed mp3 attempt wrote partial bytes.
+            buf.seek(0)
+            buf.truncate(0)
+            _safe_torchaudio_save(buf, wav_tensor, sample_rate, format="wav")
             return buf.getvalue(), "audio/wav", "wav"
 
     if fmt == "opus":
         buf = io.BytesIO()
         try:
-            torchaudio.save(buf, wav_tensor, sample_rate, format="ogg")
+            _safe_torchaudio_save(buf, wav_tensor, sample_rate, format="ogg")
             return buf.getvalue(), "audio/ogg", "opus"
         except Exception:
             buf2 = io.BytesIO()
-            torchaudio.save(buf2, wav_tensor, sample_rate, format="wav")
+            _safe_torchaudio_save(buf2, wav_tensor, sample_rate, format="wav")
             return buf2.getvalue(), "audio/wav", "wav"
 
     if fmt == "pcm":
-        # Raw 16-bit little-endian PCM, no header
+        # Raw 16-bit little-endian PCM, no header. Still apply the same
+        # clamp + dtype + contig invariants the helper enforces; we just
+        # can't go through it because this branch produces raw samples,
+        # not a container.
         import torch
-        pcm = (wav_tensor * 32767).clamp(-32768, 32767).to(torch.int16)
+        t = wav_tensor
+        if t.device.type != "cpu":
+            t = t.cpu()
+        if t.dtype != torch.float32:
+            t = t.to(torch.float32)
+        t = t.clamp(-1.0, 1.0).contiguous()
+        pcm = (t * 32767).clamp(-32768, 32767).to(torch.int16)
         return pcm.numpy().tobytes(), "audio/pcm", "pcm"
 
     # AAC — not widely supported by torchaudio, fall back to wav
     buf = io.BytesIO()
-    torchaudio.save(buf, wav_tensor, sample_rate, format="wav")
+    _safe_torchaudio_save(buf, wav_tensor, sample_rate, format="wav")
     return buf.getvalue(), "audio/wav", "wav"
 
 
