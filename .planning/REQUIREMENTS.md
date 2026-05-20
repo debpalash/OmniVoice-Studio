@@ -213,22 +213,23 @@ Filled by roadmap on 2026-05-16; updated 2026-05-16 after inserting Phase 4 (Ada
 | GATE-05 | Phase 0 | Done |
 | GATE-06 | Phase 0 | Done |
 | INST-01 | Phase 1 | Pending |
-| INST-02 | Phase 1 | Pending |
-| INST-03 | Phase 1 | Pending |
+| INST-02 | Phase 1 | Done (Wave 2 — README routing to per-OS docs) |
+| INST-03 | Phase 1 | Done (Wave 2 — docs anchor) / Wave 3 backend detection |
 | INST-04 | Phase 1 | Pending |
-| INST-05 | Phase 1 | Pending |
-| INST-06 | Phase 1 | Pending |
-| DOCS-01 | Phase 1 | Pending |
-| DOCS-02 | Phase 1 | Pending |
-| DOCS-03 | Phase 1 | Pending |
-| DOCS-04 | Phase 1 | Pending |
-| DOCS-05 | Phase 1 | Pending |
-| AUTH-01 | Phase 1 | Done |
-| AUTH-02 | Phase 1 | Done |
-| AUTH-03 | Phase 1 | Done (backend); Wave 2 (UI) |
-| AUTH-04 | Phase 1 | Done |
-| AUTH-05 | Phase 1 | Done |
-| AUTH-06 | Phase 1 | Done |
+| INST-05 | Phase 1 | Pending (Wave 2 — shields.io URL noted as drift site) |
+| INST-06 | Phase 1 | Done (Wave 2 — validator + B-5 self-tests + CI gate) |
+| INST-12 | Phase 1 | Done (Wave 2 — Disable torch.compile (Windows) toggle, backend + UI) |
+| DOCS-01 | Phase 1 | Done (Wave 2 — troubleshooting.md top-10 entries) |
+| DOCS-02 | Phase 1 | Done (Wave 2 — per-OS install pages) |
+| DOCS-03 | Phase 1 | Done (Wave 2 — docs/engines/cosyvoice.md) |
+| DOCS-04 | Phase 1 | Done (Wave 2 — docs/features/diarization.md) |
+| DOCS-05 | Phase 1 | Done (Wave 2 — docs/setup/huggingface-token.md) |
+| AUTH-01 | Phase 1 | Done (Wave 1) |
+| AUTH-02 | Phase 1 | Done (Wave 1) |
+| AUTH-03 | Phase 1 | Done (Wave 1 backend + Wave 2 UI) |
+| AUTH-04 | Phase 1 | Done (Wave 1) |
+| AUTH-05 | Phase 1 | Done (Wave 1) |
+| AUTH-06 | Phase 1 | Done (Wave 1) |
 | ENGINE-01 | Phase 2 | Pending |
 | ENGINE-02 | Phase 2 | Pending |
 | ENGINE-03 | Phase 2 | Pending |
