@@ -117,7 +117,7 @@ curl -X POST http://127.0.0.1:3900/profiles \
 # returns { "id": "abc12345", "name": "carlos-clone" }
 ```
 
-Once created, pass `profile_id` to `generate_speech` (via MCP) or directly via `POST /generate`. Profiles persist in SQLite + WAVs at `~/Library/Application Support/OmniVoice/voices/<id>.wav` across backend restarts.
+Once created, pass `profile_id` to `generate_speech` (via MCP) or directly via `POST /generate`. Profiles persist in SQLite + reference-audio files at `~/Library/Application Support/OmniVoice/voices/<id>.<ext>` (the backend preserves the uploaded extension — `.wav` if you uploaded a WAV, `.mp3` if MP3, etc.). State persists across backend restarts.
 
 **Reference clip tips that materially affect quality:**
 
