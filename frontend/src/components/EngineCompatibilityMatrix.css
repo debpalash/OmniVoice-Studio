@@ -1,0 +1,180 @@
+/* Engine Compatibility Matrix (Plan 02-04 / ENGINE-06) */
+
+.engine-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 8px);
+}
+
+.engine-matrix--loading,
+.engine-matrix--error {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.engine-matrix__muted {
+  color: var(--chrome-fg-muted, #888);
+  font-size: 13px;
+}
+
+.engine-matrix__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.engine-matrix__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--chrome-fg, currentColor);
+}
+
+.engine-matrix__table {
+  width: 100%;
+}
+
+.engine-matrix__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.engine-matrix__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--chrome-border, rgba(255,255,255,0.06));
+  min-height: 56px;
+}
+
+.engine-matrix__row.is-off {
+  opacity: 0.78;
+}
+
+.engine-matrix__cell {
+  display: flex;
+  align-items: center;
+}
+
+.engine-matrix__cell--name {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.engine-matrix__cell--center {
+  justify-content: center;
+}
+
+.engine-matrix__cell--gpu {
+  align-items: center;
+}
+
+.engine-matrix__cell--actions {
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.engine-matrix__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--chrome-fg, currentColor);
+}
+
+.engine-matrix__id {
+  font-family: var(--chrome-font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 11px;
+  color: var(--chrome-fg-muted, #888);
+}
+
+.engine-matrix__reason {
+  font-size: 12px;
+  color: var(--chrome-severity-warn, #d79921);
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.engine-matrix__hint {
+  font-size: 11px;
+  color: var(--chrome-fg-muted, #888);
+}
+
+.engine-matrix__last-error {
+  font-size: 11px;
+  color: var(--chrome-severity-err, #cc241d);
+  display: block;
+}
+
+.engine-matrix__chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.engine-matrix__chip {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-family: var(--chrome-font-mono, ui-monospace, monospace);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  border: 1px solid var(--chrome-border-strong, rgba(255,255,255,0.18));
+  color: var(--chrome-fg-muted, #888);
+  background: transparent;
+  user-select: none;
+}
+
+.engine-matrix__chip--cuda {
+  color: #76b900;
+  border-color: color-mix(in srgb, #76b900 45%, transparent);
+  background: color-mix(in srgb, #76b900 10%, transparent);
+}
+.engine-matrix__chip--mps {
+  color: #b8b8b8;
+  border-color: color-mix(in srgb, #b8b8b8 45%, transparent);
+  background: color-mix(in srgb, #b8b8b8 10%, transparent);
+}
+.engine-matrix__chip--rocm {
+  color: #ed1c24;
+  border-color: color-mix(in srgb, #ed1c24 45%, transparent);
+  background: color-mix(in srgb, #ed1c24 10%, transparent);
+}
+.engine-matrix__chip--cpu {
+  /* keep default muted tone for CPU */
+}
+
+.engine-matrix__result {
+  font-size: 11px;
+  font-family: var(--chrome-font-mono, ui-monospace, monospace);
+}
+
+.engine-matrix__result--ok {
+  color: var(--chrome-severity-ok, #98971a);
+}
+
+.engine-matrix__result--fail {
+  color: var(--chrome-severity-err, #cc241d);
+}
+
+.engine-matrix__empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--chrome-fg-muted, #888);
+  font-size: 13px;
+}

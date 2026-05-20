@@ -10,20 +10,21 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Cpu, FileText, Info, ShieldCheck, RefreshCw, Trash2, ExternalLink,
-  CheckCircle, AlertCircle, Plug, Mic, MessageSquare, Download, Copy, Building2, KeyRound,
+  CheckCircle, AlertCircle, Plug, Download, Copy, Building2, KeyRound,
   Keyboard,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { openExternal } from '../api/external';
 import { systemLogs, systemLogsTauri, clearSystemLogs, clearTauriLogs } from '../api/system';
 import { useSysinfo, useModelStatus, useSystemInfo } from '../api/hooks';
-import { listEngines, selectEngine } from '../api/engines';
+import { selectEngine } from '../api/engines';
 import { setupDownloadStreamUrl } from '../api/setup';
 import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
 import { Tabs, Segmented, Button, Badge, Panel, Table, Progress } from '../ui';
 import { useAppStore } from '../store';
 import ApiKeysPanel from '../components/settings/ApiKeysPanel';
 import PerformancePanel from '../components/settings/PerformancePanel';
+import EngineCompatibilityMatrix from '../components/EngineCompatibilityMatrix';
 import './Settings.css';
 
 const TABS = [
@@ -35,12 +36,6 @@ const TABS = [
   { id: 'about',       label: 'About',       icon: Info,         accent: '#8ec07c' },
   { id: 'privacy',     label: 'Privacy',     icon: ShieldCheck,  accent: '#b8bb26' },
 ];
-
-const FAMILY_META = {
-  tts: { label: 'TTS', icon: Cpu,           tint: 'brand'   },
-  asr: { label: 'ASR', icon: Mic,           tint: 'info'    },
-  llm: { label: 'LLM', icon: MessageSquare, tint: 'violet'  },
-};
 
 const LOG_SOURCES = [
   { value: 'backend',  label: 'Backend' },
@@ -793,50 +788,21 @@ export function ModelStoreTab({ info, modelBadge }) {
 
 
 export function EnginesTab() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [switching, setSwitching] = useState(null);
-  const [activeFam, setActiveFam] = useState('tts');
   const reviewMode = useAppStore(s => s.reviewMode);
   const setReviewMode = useAppStore(s => s.setReviewMode);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try { setData(await listEngines()); }
-    catch (e) { toast.error(`Failed to load engines: ${e.message}`); }
-    finally { setLoading(false); }
-  }, []);
-
+  // Plan 02-04 / ENGINE-06 — engine selection is wired through the
+  // matrix component's optional onSelect callback so the matrix doubles
+  // as a picker. Keeps a single source of truth for the engine list +
+  // its install / GPU / isolation state.
   const onSelect = useCallback(async (family, backendId) => {
-    setSwitching(`${family}:${backendId}`);
     try {
       const r = await selectEngine(family, backendId);
       toast.success(`${family.toUpperCase()} → ${r.active}`);
-      await reload();
     } catch (e) {
       toast.error(e.message || 'Failed to switch engine');
-    } finally {
-      setSwitching(null);
     }
-  }, [reload]);
-
-  useEffect(() => { reload(); }, [reload]);
-
-  if (loading && !data) {
-    return <section className="settings-section"><div className="settings-muted">Loading engines…</div></section>;
-  }
-  if (!data) return null;
-
-  const fams = ['tts', 'asr', 'llm'].filter(f => data[f]);
-  const currentFam = fams.includes(activeFam) ? activeFam : fams[0];
-  const family = currentFam ? data[currentFam] : null;
-  const famTint = currentFam ? FAMILY_META[currentFam].tint : 'neutral';
-
-  const COLUMNS = [
-    { key: 'name',    label: 'Backend', flex: 3 },
-    { key: 'status',  label: 'Status',  width: 120, align: 'center' },
-    { key: 'action',  label: '',        width: 90,  align: 'right' },
-  ];
+  }, []);
 
   return (
     <section className="settings-section settings-section--compact">
@@ -856,72 +822,9 @@ export function EnginesTab() {
             {reviewMode === 'on' ? 'Stage banners on' : 'Stage banners off'}
           </span>
         </div>
-        <Button variant="subtle" size="sm" onClick={reload} loading={loading} leading={<RefreshCw size={11} />}>
-          Refresh
-        </Button>
       </div>
 
-      {fams.length > 1 && (
-        <Segmented
-          size="sm"
-          value={currentFam}
-          onChange={setActiveFam}
-          className="models-roletabs"
-          items={fams.map(f => ({
-            value: f,
-            label: `${FAMILY_META[f].label} · ${data[f].active}`,
-          }))}
-        />
-      )}
-
-      {family && (
-        <Table className="models-table">
-          <Table.Header columns={COLUMNS} />
-          <div className="models-table__body">
-            {family.backends.map(b => {
-              const isActive = family.active === b.id;
-              const isSwitching = switching === `${currentFam}:${b.id}`;
-              return (
-                <div key={b.id} className={`models-row ${b.available ? 'is-ok' : 'is-off'}`}>
-                  <div className="models-row__cell models-row__name" style={{ flex: 3 }}>
-                    <span className="models-row__title">
-                      {b.display_name}
-                      {isActive && <Badge tone={famTint} size="xs">active</Badge>}
-                    </span>
-                    <span className="models-row__repo">
-                      <code>{b.id}</code>
-                      {!b.available && b.reason && (
-                        <span className="models-row__note" title={b.reason}> · {b.reason}</span>
-                      )}
-                    </span>
-                    {b.install_hint && (
-                      <span className="models-row__hint" title={b.install_hint}>
-                        <Info size={11} /> {b.install_hint}
-                      </span>
-                    )}
-                  </div>
-                  <div className="models-row__cell" style={{ width: 120, display: 'flex', justifyContent: 'center' }} title={b.available ? 'Installed and ready' : (b.reason || 'Not installed')}>
-                    {b.available
-                      ? <Badge tone="success" size="xs">ready</Badge>
-                      : <Badge tone="warn" size="xs">unavailable</Badge>}
-                  </div>
-                  <div className="models-row__cell models-row__actions" style={{ width: 90 }}>
-                    {!isActive && b.available && (
-                      <Button
-                        variant="subtle" size="sm"
-                        onClick={() => onSelect(currentFam, b.id)}
-                        loading={isSwitching}
-                      >
-                        Use
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Table>
-      )}
+      <EngineCompatibilityMatrix family="tts" onSelect={onSelect} />
     </section>
   );
 }
