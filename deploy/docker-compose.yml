@@ -31,7 +31,7 @@ services:
     container_name: omnivoice-studio
     profiles: ["cpu"]
     ports:
-      - "127.0.0.1:3900:3900"
+      - "0.0.0.0:3900:3900"
     volumes:
       - omnivoice-data:/app/omnivoice_data
     environment:
@@ -46,6 +46,7 @@ services:
       # OMNIVOICE_BIND_HOST=0.0.0.0 here only opens the container's own
       # interface. The backend default is 127.0.0.1 (see backend/main.py).
       - OMNIVOICE_BIND_HOST=0.0.0.0
+      - OMNIVOICE_IDLE_TIMEOUT=0
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3900/health"]
       interval: 30s
@@ -63,7 +64,7 @@ services:
     container_name: omnivoice-studio-gpu
     profiles: ["gpu"]
     ports:
-      - "127.0.0.1:3900:3900"
+      - "0.0.0.0:3900:3900"
     volumes:
       - omnivoice-data:/app/omnivoice_data
     environment:
@@ -73,9 +74,10 @@ services:
       - PYTHONPATH=/app/backend
       - PYTHONUNBUFFERED=1
       # Bind uvicorn to 0.0.0.0 *inside* the container — same as the CPU
-      # service above. The host-side `127.0.0.1:3900:3900` mapping keeps
+      # service above. The host-side `0.0.0.0:3900:3900` mapping keeps
       # LAN reachability off by default.
       - OMNIVOICE_BIND_HOST=0.0.0.0
+      - OMNIVOICE_IDLE_TIMEOUT=0
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3900/health"]
       interval: 30s
