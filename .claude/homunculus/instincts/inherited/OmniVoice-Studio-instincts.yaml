@@ -1,0 +1,750 @@
+# Instincts generated from https://github.com/debpalash/OmniVoice-Studio
+# Generated: 2026-05-27T05:09:30.245Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: OmniVoice-Studio-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: feat, fix, docs, chore, refactor
+
+## Evidence
+
+- 175 commits analyzed
+- Detected conventional commit pattern
+- Examples: fix: speaker detection — gated pyannote license surfaces a docs deeplink (closes #78) (#110), docs(planning): Phase 0 VERIFICATION + flip GATE/AUTH status to Done (#92)
+
+---
+id: OmniVoice-Studio-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Commit Length
+
+## Action
+
+Write moderate-length commit messages (~73 characters)
+
+## Evidence
+
+- Average commit message length: 73 chars
+- Based on 175 commits
+
+---
+id: OmniVoice-Studio-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Naming Files
+
+## Action
+
+Use camelCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: camelCase
+
+---
+id: OmniVoice-Studio-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: OmniVoice-Studio-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: OmniVoice-Studio-arch-type-based
+trigger: "when adding new code"
+confidence: 0.8
+domain: architecture
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Arch Type Based
+
+## Action
+
+Place code in the appropriate type folder (components/, services/, utils/, etc.)
+
+## Evidence
+
+- Type-based module organization detected
+- Folders: 
+
+---
+id: OmniVoice-Studio-test-separate
+trigger: "when writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Test Separate
+
+## Action
+
+Place tests in the tests/ or __tests__/ directory, mirroring src structure
+
+## Evidence
+
+- Separate test directory pattern detected
+- Tests live in dedicated test folders
+
+---
+id: OmniVoice-Studio-test-framework
+trigger: "when writing tests"
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Test Framework
+
+## Action
+
+Use vitest as the test framework
+
+## Evidence
+
+- Test framework detected: vitest
+- File pattern: *.test.js
+
+---
+id: OmniVoice-Studio-test-naming
+trigger: "when creating a test file"
+confidence: 0.85
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Test Naming
+
+## Action
+
+Name test files using the pattern: *.test.js
+
+## Evidence
+
+- File pattern: *.test.js
+- Consistent across test files
+
+---
+id: OmniVoice-Studio-test-mocking
+trigger: "when mocking dependencies in tests"
+confidence: 0.75
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Test Mocking
+
+## Action
+
+Use vi.mock for mocking
+
+## Evidence
+
+- Mocking pattern detected: vi.mock
+- Consistent across test files
+
+---
+id: OmniVoice-Studio-test-types
+trigger: "when planning tests for a feature"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Test Types
+
+## Action
+
+Write unit, integration tests to match project standards
+
+## Evidence
+
+- Test types detected: unit, integration
+- Coverage config: no
+
+---
+id: OmniVoice-Studio-workflow-feature-development
+trigger: "when implementing a new feature"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Workflow Feature Development
+
+## Action
+
+Follow the feature-development workflow:
+1. Add feature implementation
+2. Add tests for feature
+3. Update documentation
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~11x per month
+- Files: frontend/src/components/*, frontend/src/store/*, frontend/src/api/*
+
+---
+id: OmniVoice-Studio-workflow-refactoring
+trigger: "when refactoring code"
+confidence: 0.75
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Workflow Refactoring
+
+## Action
+
+Follow the refactoring workflow:
+1. Ensure tests pass before refactor
+2. Refactor code structure
+3. Verify tests still pass
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~5x per month
+- Files: src/**/*
+
+---
+id: OmniVoice-Studio-workflow-add-new-engine-backend
+trigger: "when doing add new engine backend"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Workflow Add New Engine Backend
+
+## Action
+
+Follow the add-new-engine-backend workflow:
+1. Create new backend/engines/{engine_name}/ directory with __init__.py, backend.py, and any engine-specific files.
+2. Add engine registration and logic to backend/services/tts_backend.py.
+3. Update backend/services/settings_store.py if engine requires settings or license gating.
+4. Update or create frontend/src/components/EngineCompatibilityMatrix.jsx and related frontend/src/api/types.ts to surface the new engine.
+5. Update backend/api/routers/engines.py to expose health/status endpoints if needed.
+6. Add tests for the new engine in tests/test_{engine_name}.py and/or tests/backend/services/test_{engine_name}_sidecar.py.
+7. Update .github/workflows/ci.yml to ensure CI builds/tests the new engine.
+8. Document engine in .planning/phases/{phase}/ and/or docs/engines/{engine_name}.md.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: backend/engines/{engine_name}/__init__.py, backend/engines/{engine_name}/backend.py, backend/services/tts_backend.py
+
+---
+id: OmniVoice-Studio-workflow-add-or-harden-audio-io-helper
+trigger: "when doing add or harden audio io helper"
+confidence: 0.55
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Workflow Add Or Harden Audio Io Helper
+
+## Action
+
+Follow the add-or-harden-audio-io-helper workflow:
+1. Create or update helpers in backend/services/audio_io.py (e.g., _safe_torchaudio_save, atomic_save_wav, _safe_soundfile_write).
+2. Migrate all direct audio write calls in backend/api/routers/ to use the new helpers.
+3. Add or update tests in tests/backend/services/test_audio_io.py and tests/backend/test_dub_pipeline_wav.py.
+4. Add or update documentation in .planning/phases/ or docs/ if needed.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~1x per month
+- Files: backend/services/audio_io.py, backend/api/routers/*.py, tests/backend/services/test_audio_io.py
+
+---
+id: OmniVoice-Studio-workflow-add-or-update-settings-ui-panel
+trigger: "when doing add or update settings ui panel"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Workflow Add Or Update Settings Ui Panel
+
+## Action
+
+Follow the add-or-update-settings-ui-panel workflow:
+1. Create or update frontend/src/components/settings/{PanelName}Panel.jsx and .css.
+2. Wire panel into frontend/src/pages/Settings.jsx.
+3. Add or update state in frontend/src/store/ (e.g., prefsSlice.ts, index.ts).
+4. Add or update backend API endpoints in backend/api/routers/settings.py.
+5. Add or update backend/services/settings_store.py for persistence.
+6. Write or update tests in frontend/src/components/settings/{PanelName}Panel.test.jsx and backend tests as needed.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: frontend/src/components/settings/*Panel.jsx, frontend/src/components/settings/*Panel.css, frontend/src/pages/Settings.jsx
+
+---
+id: OmniVoice-Studio-workflow-add-or-update-error-docs-deeplink
+trigger: "when doing add or update error docs deeplink"
+confidence: 0.55
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Workflow Add Or Update Error Docs Deeplink
+
+## Action
+
+Follow the add-or-update-error-docs-deeplink workflow:
+1. Add or update error class → docs URL mapping in backend/core/error_docs_map.py.
+2. Mirror the mapping in frontend/src/utils/errorDocsMap.ts.
+3. Add or update classifyError logic in TS and Python.
+4. Update or create tests in tests/backend/core/test_error_docs_map.py and frontend/src/utils/errorDocsMap.test.ts.
+5. Update frontend/src/components/ErrorBoundary.jsx to use the mapping for deeplink buttons.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~1x per month
+- Files: backend/core/error_docs_map.py, frontend/src/utils/errorDocsMap.ts, frontend/src/utils/errorDocsMap.test.ts
+
+---
+id: OmniVoice-Studio-workflow-engine-health-api-and-compat-matrix-ui
+trigger: "when doing engine health api and compat matrix ui"
+confidence: 0.55
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Workflow Engine Health Api And Compat Matrix Ui
+
+## Action
+
+Follow the engine-health-api-and-compat-matrix-ui workflow:
+1. Add or update backend/api/routers/engines.py to provide /engines and /engines/{id}/health endpoints.
+2. Update backend/services/tts_backend.py to include health, last_error, gpu_compat, etc.
+3. Update frontend/src/components/EngineCompatibilityMatrix.jsx and .css to render the matrix.
+4. Update frontend/src/api/engines.ts and types.ts for API calls and types.
+5. Add or update tests in tests/backend/api/test_engines_route_shape.py and frontend/src/test/EngineCompatibilityMatrix.test.jsx.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~1x per month
+- Files: backend/api/routers/engines.py, backend/services/tts_backend.py, frontend/src/components/EngineCompatibilityMatrix.jsx
+
+---
+id: OmniVoice-Studio-workflow-add-or-update-regression-or-smoke-test-fixture
+trigger: "when doing add or update regression or smoke test fixture"
+confidence: 0.55
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Workflow Add Or Update Regression Or Smoke Test Fixture
+
+## Action
+
+Follow the add-or-update-regression-or-smoke-test-fixture workflow:
+1. Create or update scripts/seed-test-fixture.py to generate a deterministic fixture.
+2. Update or add files in tests/fixtures/omnivoice_data/ (db, profile, sample.wav).
+3. Add or update smoke tests in tests/smoke/test_boot_smoke.py.
+4. Update .gitignore to allowlist fixture files.
+5. Ensure CI runs the smoke tests on all platforms (.github/workflows/ci.yml).
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~1x per month
+- Files: scripts/seed-test-fixture.py, tests/fixtures/omnivoice_data/*, tests/smoke/test_boot_smoke.py
+
+---
+id: omnivoice-studio-camelcase-functions
+trigger: "When creating or renaming a function in Python code"
+confidence: 0.85
+domain: code-style
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Camelcase Functions
+
+## Action
+
+Use camelCase for function names
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.functions
+- Consistent with Python files in repo
+
+---
+id: omnivoice-studio-pascalcase-classes
+trigger: "When defining a new class in Python code"
+confidence: 0.85
+domain: code-style
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Pascalcase Classes
+
+## Action
+
+Use PascalCase for class names
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.classes
+
+---
+id: omnivoice-studio-screaming-snake-constants
+trigger: "When defining a constant in Python code"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Screaming Snake Constants
+
+## Action
+
+Use SCREAMING_SNAKE_CASE for constant names
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.constants
+
+---
+id: omnivoice-studio-camelcase-files
+trigger: "When creating or renaming a file in the codebase"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Camelcase Files
+
+## Action
+
+Use camelCase for file names
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.files
+
+---
+id: omnivoice-studio-relative-imports
+trigger: "When importing modules in Python code"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Relative Imports
+
+## Action
+
+Use relative imports
+
+## Evidence
+
+- Pattern in codeStyle.importStyle
+
+---
+id: omnivoice-studio-named-exports
+trigger: "When exporting from a module"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Named Exports
+
+## Action
+
+Use named exports
+
+## Evidence
+
+- Pattern in codeStyle.exportStyle
+
+---
+id: omnivoice-studio-vitest-pattern
+trigger: "When writing a test for JavaScript/TypeScript code"
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Vitest Pattern
+
+## Action
+
+Use vitest with *.test.js pattern and vi.mock for mocking
+
+## Evidence
+
+- testing.framework = vitest
+- testing.filePattern = *.test.js
+- testing.mockingStyle = vi.mock
+
+---
+id: omnivoice-studio-unit-integration-tests
+trigger: "When testing new or refactored code"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Unit Integration Tests
+
+## Action
+
+Write both unit and integration tests as appropriate
+
+## Evidence
+
+- testing.testTypes includes unit and integration
+
+---
+id: omnivoice-studio-test-location-separate
+trigger: "When adding new tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Test Location Separate
+
+## Action
+
+Place test files in the separate tests/ directory
+
+## Evidence
+
+- architecture.folderStructure.testLocation = separate
+
+---
+id: omnivoice-studio-conventional-commits
+trigger: "When writing a commit message"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Conventional Commits
+
+## Action
+
+Use conventional commit prefixes (feat, fix, docs, chore, refactor, ci) and keep messages concise (~73 chars)
+
+## Evidence
+
+- commits.type = conventional
+- commits.prefixes
+- commits.averageLength = 73
+- Examples: 'fix: speaker detection — gated pyannote license surfaces a docs deeplink (closes #78) (#110)'
+
+---
+id: omnivoice-studio-add-new-engine-backend
+trigger: "When someone wants to add a new engine (e.g., TTS, GGUF, Supertonic, IndexTTS) to the system"
+confidence: 0.95
+domain: workflow
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Add New Engine Backend
+
+## Action
+
+Follow the multi-step workflow: create backend/engines/{engine_name}/, register in tts_backend.py, update settings_store.py if needed, expose in EngineCompatibilityMatrix.jsx, update routers/engines.py, add tests, update CI, and document
+
+## Evidence
+
+- Workflow: add-new-engine-backend
+- Files and commit sequences in workflow definition
+
+---
+id: omnivoice-studio-harden-audio-io-helper
+trigger: "When fixing audio file corruption bugs or adding new audio formats"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Harden Audio Io Helper
+
+## Action
+
+Centralize audio IO logic in backend/services/audio_io.py, migrate direct calls, and add/update tests
+
+## Evidence
+
+- Workflow: add-or-harden-audio-io-helper
+- Files and commit sequences in workflow definition
+
+---
+id: omnivoice-studio-settings-ui-panel
+trigger: "When exposing a new user-configurable setting or moving a UI control"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Settings Ui Panel
+
+## Action
+
+Create/update settings panel in frontend, wire to backend API and persistence, and add/update tests
+
+## Evidence
+
+- Workflow: add-or-update-settings-ui-panel
+- Files and commit sequences in workflow definition
+
+---
+id: omnivoice-studio-error-docs-deeplink
+trigger: "When making an error actionable by linking to relevant documentation"
+confidence: 0.85
+domain: workflow
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Error Docs Deeplink
+
+## Action
+
+Add/update error class → docs URL mapping in backend/core/error_docs_map.py and mirror in frontend/src/utils/errorDocsMap.ts, update classifyError logic and tests, update ErrorBoundary.jsx
+
+## Evidence
+
+- Workflow: add-or-update-error-docs-deeplink
+- Files and commit sequences in workflow definition
+
+---
+id: omnivoice-studio-engine-health-matrix
+trigger: "When making engine installability and compatibility visible to users"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Engine Health Matrix
+
+## Action
+
+Expose engine health/status via backend API and surface in frontend compatibility matrix, update tests
+
+## Evidence
+
+- Workflow: engine-health-api-and-compat-matrix-ui
+- Files and commit sequences in workflow definition
+
+---
+id: omnivoice-studio-regression-smoke-fixture
+trigger: "When ensuring core app functions don't regress, especially after major changes"
+confidence: 0.85
+domain: workflow
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Regression Smoke Fixture
+
+## Action
+
+Seed/update regression fixture, add/update smoke tests, ensure CI runs them, update .gitignore as needed
+
+## Evidence
+
+- Workflow: add-or-update-regression-or-smoke-test-fixture
+- Files and commit sequences in workflow definition
+
