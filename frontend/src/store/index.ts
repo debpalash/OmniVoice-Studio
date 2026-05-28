@@ -60,6 +60,7 @@ export const useAppStore = create<AppStore>()(
         glossaryVisible:            s.glossaryVisible,
         reviewMode:                 s.reviewMode,
         showHeaderLiveStats:        s.showHeaderLiveStats,
+        timingStrategy:             s.timingStrategy,
         mode:                       s.mode,
         isSidebarCollapsed:         s.isSidebarCollapsed,
         isSidebarProjectsCollapsed: s.isSidebarProjectsCollapsed,
@@ -79,17 +80,18 @@ export const useAppStore = create<AppStore>()(
         postprocess:   s.postprocess,
         vdStates:      s.vdStates,
       }),
-      version: 3,
+      version: 4,
       // Drop old persisted shapes rather than crashing the app. Every field
-      // has a safe default in its slice, so v1/v2 users pick up v3 defaults
-      // for the new fields (mode, uiScale, generate knobs, etc.) and keep
-      // any keys we still write today. Upgrade > crash.
+      // has a safe default in its slice, so v1/v2/v3 users pick up v4 defaults
+      // for new fields (timingStrategy etc.) and keep any keys we still write
+      // today. Upgrade > crash.
       migrate: (persisted, version) => {
         if (!persisted || typeof persisted !== 'object') return {} as Partial<AppStore>;
-        if (version < 3) {
-          // v1 → v2 added reviewMode; v2 → v3 added mode/sidebar/generate knobs.
-          // All of those have slice defaults, so passing through the old keys
-          // is sufficient — anything missing falls through to the slice init.
+        if (version < 4) {
+          // v1 → v2 added reviewMode; v2 → v3 added mode/sidebar/generate knobs;
+          // v3 → v4 added timingStrategy. All of those have slice defaults,
+          // so passing through the old keys is sufficient — anything missing
+          // falls through to the slice init.
           return persisted as Partial<AppStore>;
         }
         return persisted as Partial<AppStore>;

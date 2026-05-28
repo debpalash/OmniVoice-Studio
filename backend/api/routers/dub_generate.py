@@ -337,7 +337,16 @@ async def dub_generate(job_id: str, req: DubRequest):
                         )
                     bias = d.rate_bias()
                     if bias and abs(bias - 1.0) > 0.01:
-                        seg_speed = (seg_speed or 1.0) * bias
+                        # Speed-bias from a Direction only multiplies seg_speed
+                        # in strict_slot mode, which is the legacy path that
+                        # compresses audio at synthesis time to fit the slot.
+                        # In concise / stretch_video modes we preserve natural
+                        # rate so the user gets the "urgent" or "slow" voice
+                        # the director asked for without the chipmunk side-
+                        # effect that overshooting the slot would otherwise
+                        # cause.
+                        if (req.timing_strategy or "concise") == "strict_slot":
+                            seg_speed = (seg_speed or 1.0) * bias
                 except Exception as e:
                     logger.debug("direction parse skipped for %s: %s", getattr(seg, 'id', '?'), e)
 
@@ -351,9 +360,18 @@ async def dub_generate(job_id: str, req: DubRequest):
                 _num_step = 8 if req.preview else req.num_step
                 _t_tts_0 = time.perf_counter()
                 seg_effect_preset = getattr(seg, "effect_preset", None) or "broadcast"
+
+                # In concise / stretch_video modes we pass dur_s=None so the
+                # TTS model speaks at its natural rate for this text length —
+                # the whole point of the new timing strategies is to never
+                # squeeze the speech to fit. strict_slot keeps the legacy
+                # behaviour where dur_s is the slot hint.
+                _strategy = (req.timing_strategy or "concise").lower()
+                _dur_for_tts = seg_duration if _strategy == "strict_slot" else None
+
                 audio_tensor = await loop.run_in_executor(
                     _gpu_pool, _gen,
-                    seg.text, seg_lang, seg_instruct, seg_duration,
+                    seg.text, seg_lang, seg_instruct, _dur_for_tts,
                     _num_step, req.guidance_scale, seg_speed, seg_profile, seg_effect_preset,
                 )
                 _t_tts += time.perf_counter() - _t_tts_0
@@ -362,19 +380,27 @@ async def dub_generate(job_id: str, req: DubRequest):
                 if task_manager.is_cancelled(task_id):
                     yield f"data: {json.dumps({'type': 'cancelled', 'segments_processed': i + 1})}\n\n"
                     return
-                
+
                 target_samples = int(seg_duration * _model.sampling_rate)
                 current_samples = audio_tensor.shape[-1]
-                
-                if target_samples > current_samples:
-                    pad_amount = target_samples - current_samples
-                    audio_tensor = torch.nn.functional.pad(audio_tensor, (0, pad_amount))
-                elif current_samples > target_samples:
-                    audio_tensor = audio_tensor[..., :target_samples]
-                    
+
+                if _strategy == "strict_slot":
+                    # Legacy: pad short audio + trim long audio so the mix
+                    # loop receives slot-sized buffers. The atempo squeeze
+                    # in the mix loop never fires here because we already
+                    # forced size = target_samples.
+                    if target_samples > current_samples:
+                        pad_amount = target_samples - current_samples
+                        audio_tensor = torch.nn.functional.pad(audio_tensor, (0, pad_amount))
+                    elif current_samples > target_samples:
+                        audio_tensor = audio_tensor[..., :target_samples]
+                # concise / stretch_video: keep audio at its natural length.
+                # The mix loop decides per-mode whether to trim, slip, or
+                # stretch the video to accommodate it.
+
                 generated_dur = audio_tensor.shape[-1] / _model.sampling_rate
                 sync_ratio = round(generated_dur / max(seg_duration, 0.01), 3)
-                
+
                 sync_scores.append(sync_ratio)
 
                 # Build the fingerprint now (cheap) but defer the disk write
@@ -449,85 +475,159 @@ async def dub_generate(job_id: str, req: DubRequest):
         _t_diskw = time.perf_counter() - _t_diskw_0
 
         sr = _model.sampling_rate
-        total_samples = int(job["duration"] * sr)
+        strategy = (req.timing_strategy or "concise").lower()
+        slot_fit = (req.slot_fit or "time_stretch").lower()
+        overflow_budget_s = max(0.0, float(req.overflow_budget_s or 0.0))
+
+        # Per-segment fit_status emitted alongside the legacy sync_scores so
+        # the UI can replace the lying "Sync: 100%" badge with a truthful
+        # "Fits / Overflows +0.4s / Slipped 0.2s / Video stretched 1.18×".
+        fit_status: list[dict] = []
+
+        # Mode B layout: when stretch_video is on, compute a new timeline
+        # where each segment's slot equals the natural-rate dub audio length;
+        # gaps stay at 1.0×. Persisted on the job so dub_export.py can build
+        # the matching per-segment setpts filter chain on the source video.
+        new_layout: list[tuple[float, float]] = []
+        video_stretch_plan: list[dict] = []
+        orig_total_dur = float(job.get("duration") or 0.0)
+
+        if strategy == "stretch_video":
+            cursor = 0.0
+            for i, (orig_start, orig_end, wav, _) in enumerate(all_segment_wavs):
+                wl_i = wav.shape[-1]
+                natural_dur = (wl_i / sr) if wl_i > 0 else max(0.0, orig_end - orig_start)
+                if i == 0:
+                    # Preserve the pre-roll (silence before the first seg).
+                    cursor = orig_start
+                else:
+                    prev_orig_end = all_segment_wavs[i - 1][1]
+                    gap = max(0.0, orig_start - prev_orig_end)
+                    cursor += gap
+                new_start = cursor
+                new_end = cursor + natural_dur
+                new_layout.append((new_start, new_end))
+                orig_dur = max(1e-3, orig_end - orig_start)
+                video_stretch_plan.append({
+                    "orig_start": round(orig_start, 4),
+                    "orig_end": round(orig_end, 4),
+                    "new_start": round(new_start, 4),
+                    "new_end": round(new_end, 4),
+                    "stretch_ratio": round(natural_dur / orig_dur, 4),
+                })
+                cursor = new_end
+            # Preserve the trailing tail (anything after the last seg in the
+            # original video) at 1.0× rate.
+            if all_segment_wavs:
+                last_orig_end = all_segment_wavs[-1][1]
+                cursor += max(0.0, orig_total_dur - last_orig_end)
+            new_total_dur = max(cursor, orig_total_dur)
+            total_samples = int(new_total_dur * sr)
+        else:
+            total_samples = int(orig_total_dur * sr)
+
         full_audio = torch.zeros(1, total_samples)
 
-        slot_fit = (req.slot_fit or "time_stretch").lower()
         for i, (start, end, wav, _) in enumerate(all_segment_wavs):
-            s = int(start * sr)
             seg_ref = req.segments[i] if i < len(req.segments) else None
             seg_gain = getattr(seg_ref, "gain", None) if seg_ref is not None else None
             seg_gain = seg_gain if seg_gain is not None else 1.0
             seg_gain = max(0.0, min(2.0, seg_gain))
             adjusted = wav * seg_gain
-
-            # Slot-fit: keep each seg from bleeding into the next.
-            #   "time_stretch" — pitch-preserving WSOLA via ffmpeg atempo
-            #                    (chained for ratios beyond 0.5–2.0). The
-            #                    previous linear-interp implementation
-            #                    shifted pitch up by the compression
-            #                    ratio, producing the "ghost language /
-            #                    chipmunk" artefact on high-density
-            #                    target languages (Bengali, Hindi, etc.).
-            #   "trim"          — hard-clip + fade-out, no time-fit.
-            #   "off"           — legacy overlap behaviour, no slot guard.
-            #
-            # Effective slot extends into the silent gap before the next
-            # segment (up to GAP_OVERFLOW_MAX_S, with a small buffer so
-            # the audio doesn't collide with the next onset). This buys
-            # back enough time to keep many high-density-language
-            # segments under MAX_STRETCH_RATIO, where atempo's
-            # intelligibility is best.
-            effective_end = end
-            if i + 1 < len(all_segment_wavs):
-                next_start = all_segment_wavs[i + 1][0]
-                gap = next_start - end
-                if gap > GAP_OVERFLOW_BUFFER_S:
-                    effective_end = end + min(
-                        gap - GAP_OVERFLOW_BUFFER_S, GAP_OVERFLOW_MAX_S,
-                    )
-            slot_samples = int(max(0.0, (effective_end - start)) * sr)
             wl = adjusted.shape[-1]
-            if slot_fit != "off" and slot_samples > 0 and wl > slot_samples:
-                if slot_fit == "time_stretch":
-                    ratio = wl / slot_samples
-                    capped_ratio = min(ratio, MAX_STRETCH_RATIO)
-                    capped_target = int(wl / capped_ratio)
-                    try:
-                        adjusted = _pitch_preserving_stretch(
-                            adjusted, capped_target, sr,
-                        )
-                        # If the cap kicked in (ratio > MAX_STRETCH_RATIO),
-                        # the segment is now longer than slot_samples and
-                        # will bleed slightly into the next gap. Trim the
-                        # tail to the slot to be safe.
-                        if adjusted.shape[-1] > slot_samples:
-                            adjusted = adjusted[..., :slot_samples]
-                        if ratio > MAX_STRETCH_RATIO:
-                            logger.info(
-                                "seg %d compression %.2f× exceeded cap; "
-                                "stretched to %.2f×, tail trimmed",
-                                i, ratio, capped_ratio,
-                            )
-                    except Exception as e:
-                        # ffmpeg failed — fall back to linear interp so
-                        # the slot still gets filled. Pitch will shift,
-                        # but a chipmunk segment beats a silent one.
-                        logger.warning(
-                            "atempo stretch failed for seg %d (%.2f×), "
-                            "falling back to linear interp: %s",
-                            i, ratio, e,
-                        )
-                        adjusted = torch.nn.functional.interpolate(
-                            adjusted.unsqueeze(0),
-                            size=slot_samples,
-                            mode='linear',
-                            align_corners=False,
-                        ).squeeze(0)
-                else:  # "trim"
-                    adjusted = adjusted[..., :slot_samples]
-                wl = adjusted.shape[-1]
+            natural_dur = wl / sr if wl > 0 else 0.0
+            orig_dur = max(0.0, end - start)
 
+            if strategy == "stretch_video":
+                # Mode B: audio at natural rate, placed on the stretched
+                # timeline. No trim, no atempo. dub_export handles the video.
+                new_start, _new_end = new_layout[i]
+                place_at = new_start
+                fit_status.append({
+                    "status": "video_stretched",
+                    "stretch_ratio": round(natural_dur / max(orig_dur, 1e-3), 3),
+                })
+
+            elif strategy == "concise":
+                # Mode A: never compress. Allow the audio to extend into the
+                # silent gap before the next seg (existing heuristic) plus
+                # any extra `overflow_budget_s`. Beyond that, hard-trim with
+                # a short fade so we never overlap the next speaker.
+                place_at = start
+                effective_end = end
+                if i + 1 < len(all_segment_wavs):
+                    next_start = all_segment_wavs[i + 1][0]
+                    gap = next_start - end
+                    if gap > GAP_OVERFLOW_BUFFER_S:
+                        effective_end = end + min(
+                            gap - GAP_OVERFLOW_BUFFER_S, GAP_OVERFLOW_MAX_S,
+                        )
+                effective_end += overflow_budget_s
+                slot_samples_eff = int(max(0.0, (effective_end - start)) * sr)
+                if slot_samples_eff > 0 and wl > slot_samples_eff:
+                    overflow_s = (wl - slot_samples_eff) / sr
+                    adjusted = adjusted[..., :slot_samples_eff]
+                    wl = adjusted.shape[-1]
+                    fit_status.append({
+                        "status": "overflows",
+                        "overflow_s": round(overflow_s, 3),
+                    })
+                else:
+                    fit_status.append({"status": "fits"})
+
+            else:
+                # strict_slot (legacy): preserve the previous atempo / trim /
+                # off semantics so existing callers and back-compat tests
+                # keep passing.
+                place_at = start
+                effective_end = end
+                if i + 1 < len(all_segment_wavs):
+                    next_start = all_segment_wavs[i + 1][0]
+                    gap = next_start - end
+                    if gap > GAP_OVERFLOW_BUFFER_S:
+                        effective_end = end + min(
+                            gap - GAP_OVERFLOW_BUFFER_S, GAP_OVERFLOW_MAX_S,
+                        )
+                slot_samples = int(max(0.0, (effective_end - start)) * sr)
+                if slot_fit != "off" and slot_samples > 0 and wl > slot_samples:
+                    if slot_fit == "time_stretch":
+                        ratio = wl / slot_samples
+                        capped_ratio = min(ratio, MAX_STRETCH_RATIO)
+                        capped_target = int(wl / capped_ratio)
+                        try:
+                            adjusted = _pitch_preserving_stretch(
+                                adjusted, capped_target, sr,
+                            )
+                            if adjusted.shape[-1] > slot_samples:
+                                adjusted = adjusted[..., :slot_samples]
+                            if ratio > MAX_STRETCH_RATIO:
+                                logger.info(
+                                    "seg %d compression %.2f× exceeded cap; "
+                                    "stretched to %.2f×, tail trimmed",
+                                    i, ratio, capped_ratio,
+                                )
+                        except Exception as e:
+                            logger.warning(
+                                "atempo stretch failed for seg %d (%.2f×), "
+                                "falling back to linear interp: %s",
+                                i, ratio, e,
+                            )
+                            adjusted = torch.nn.functional.interpolate(
+                                adjusted.unsqueeze(0),
+                                size=slot_samples,
+                                mode='linear',
+                                align_corners=False,
+                            ).squeeze(0)
+                    else:  # "trim"
+                        adjusted = adjusted[..., :slot_samples]
+                    wl = adjusted.shape[-1]
+                fit_status.append({
+                    "status": "fits",
+                    "compression_applied": (slot_fit == "time_stretch"
+                                            and wl != int(natural_dur * sr)),
+                })
+
+            # Common: short fades to avoid pops, then mix into full_audio.
             fade_ms = 15
             fade_samples = int((fade_ms / 1000.0) * sr)
             if wl > fade_samples * 2:
@@ -536,8 +636,10 @@ async def dub_generate(job_id: str, req: DubRequest):
                 adjusted[0, :fade_samples] *= ramp_up
                 adjusted[0, -fade_samples:] *= ramp_down
 
+            s = int(place_at * sr)
             e = min(s + wl, total_samples)
-            full_audio[:, s:e] += adjusted[:, :e - s]
+            if s < total_samples:
+                full_audio[:, s:e] += adjusted[:, :e - s]
 
         lang_code = req.language_code or "und"
         track_path = os.path.join(DUB_DIR, job_id, f"dubbed_{lang_code}.wav")
@@ -547,14 +649,33 @@ async def dub_generate(job_id: str, req: DubRequest):
         atomic_save_wav(track_path, full_audio, sr)
         _t_save = time.perf_counter() - _t_save_0
         _t_mix = _t_save_0 - _t_loop_end
+        # Per-track metadata. For stretch_video, the dub wav is at the new
+        # (longer) timeline, so we record its actual duration here too — the
+        # mux step needs this to know whether to use the original video as-is
+        # or stretch it per the plan.
+        track_dur = full_audio.shape[-1] / sr if full_audio.shape[-1] > 0 else 0.0
         job["dubbed_tracks"][lang_code] = {
             "path": track_path,
             "language": req.language,
             "language_code": lang_code,
+            "duration": round(track_dur, 4),
+            "timing_strategy": strategy,
         }
 
+        # Persist the timing strategy + (for Mode B) the per-segment stretch
+        # plan so dub_export can build the matching video pipeline at mux
+        # time. Plans are keyed by language code because each language gets
+        # its own dub track with its own natural-rate audio layout.
         job["language"] = req.language
         job["language_code"] = lang_code
+        job["timing_strategy"] = strategy
+        if strategy == "stretch_video":
+            stretch_plans = job.setdefault("video_stretch_plans", {})
+            stretch_plans[lang_code] = {
+                "plan": video_stretch_plan,
+                "total_duration": round(track_dur, 4),
+                "orig_duration": round(orig_total_dur, 4),
+            }
         _save_job(job_id, job)
 
         _t_total = time.perf_counter() - _t_start
@@ -564,7 +685,7 @@ async def dub_generate(job_id: str, req: DubRequest):
             f" regen={len(regen_only)}" if regen_only is not None else "",
         )
 
-        yield f"data: {json.dumps({'type': 'done', 'segments_processed': total, 'language_code': lang_code, 'tracks': list(job['dubbed_tracks'].keys()), 'sync_scores': sync_scores, 'seg_hashes': job.get('seg_hashes', {}), 'seg_num_step': job.get('seg_num_step', {})})}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'segments_processed': total, 'language_code': lang_code, 'tracks': list(job['dubbed_tracks'].keys()), 'sync_scores': sync_scores, 'fit_status': fit_status, 'timing_strategy': strategy, 'seg_hashes': job.get('seg_hashes', {}), 'seg_num_step': job.get('seg_num_step', {})})}\n\n"
 
     task_id = f"dub_{job_id}_{int(time.time())}"
     await task_manager.add_task(task_id, "dub_generate", _stream, task_id)

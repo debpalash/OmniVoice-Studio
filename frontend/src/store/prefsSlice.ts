@@ -11,6 +11,16 @@ import type { StateCreator } from 'zustand';
 export type TranslateQuality = 'fast' | 'cinematic';
 export type ThemeId = 'gruvbox' | 'midnight' | 'nord' | 'solarized' | 'rose-pine' | 'catppuccin';
 
+/**
+ * Dub timing strategy — replaces audio time-compression with two cleaner
+ * alternatives. `concise` trims the translation up-front so it fits at
+ * natural rate (overflows surfaced for manual edit); `stretch_video`
+ * stretches the source video per-segment so natural-rate audio fits
+ * without lip-sync drift. `strict_slot` is the legacy compress-to-fit
+ * path, retained for back-compat.
+ */
+export type TimingStrategy = 'concise' | 'stretch_video' | 'strict_slot';
+
 export interface PrefsSlice {
   translateQuality: TranslateQuality;
   dualSubs: boolean;
@@ -32,12 +42,21 @@ export interface PrefsSlice {
    */
   showHeaderLiveStats: boolean;
 
+  /**
+   * How the dub pipeline reconciles natural-rate TTS with the original
+   * timeline. `concise` (default) trims translation to fit; `stretch_video`
+   * stretches the video instead; `strict_slot` compresses the audio to fit
+   * (legacy behaviour, retained for back-compat).
+   */
+  timingStrategy: TimingStrategy;
+
   setTranslateQuality: (q: TranslateQuality) => void;
   setDualSubs: (on: boolean) => void;
   setBurnSubs: (on: boolean) => void;
   setGlossaryVisible: (on: boolean) => void;
   setReviewMode: (mode: 'on' | 'off') => void;
   setShowHeaderLiveStats: (on: boolean) => void;
+  setTimingStrategy: (s: TimingStrategy) => void;
 
   theme: ThemeId;
   setTheme: (id: ThemeId) => void;
@@ -50,6 +69,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   glossaryVisible: true,
   reviewMode: 'on',
   showHeaderLiveStats: false,
+  timingStrategy: 'concise',
 
   setTranslateQuality:    (q) => set({ translateQuality: q }),
   setDualSubs:            (on) => set({ dualSubs: on }),
@@ -57,6 +77,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   setGlossaryVisible:     (on) => set({ glossaryVisible: on }),
   setReviewMode:          (mode) => set({ reviewMode: mode }),
   setShowHeaderLiveStats: (on) => set({ showHeaderLiveStats: on }),
+  setTimingStrategy:      (s) => set({ timingStrategy: s }),
 
   theme: 'gruvbox',
   setTheme: (id) => {

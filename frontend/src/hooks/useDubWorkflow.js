@@ -44,6 +44,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
   const cfg             = useAppStore(s => s.cfg);
   const speed           = useAppStore(s => s.speed);
   const translateQuality = useAppStore(s => s.translateQuality);
+  const timingStrategy  = useAppStore(s => s.timingStrategy);
   const glossaryTerms   = useAppStore(s => s.glossaryTerms);
 
   const [translateProvider, setTranslateProvider] = useState('argos');
@@ -390,6 +391,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
         instruct: dubInstruct,
         num_step: steps, guidance_scale: cfg, speed,
         preview,
+        timing_strategy: timingStrategy || 'concise',
       };
       const data = await dubGenerate(dubJobId, body);
       setDubTaskId(data.task_id);
@@ -416,7 +418,17 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
                 sawDone = true;
                 setDubStep('done');
                 setDubTracks(evt.tracks || []);
-                if (evt.sync_scores) setDubSegments(prev => prev.map((s, idx) => ({ ...s, sync_ratio: evt.sync_scores[idx] })));
+                // Merge sync_scores (back-compat) and the new richer
+                // fit_status array onto each segment so the row badge can
+                // show truthful "Fits / Overflows +0.4s / Video stretched
+                // 1.18×" labels.
+                if (evt.sync_scores || evt.fit_status) {
+                  setDubSegments(prev => prev.map((s, idx) => ({
+                    ...s,
+                    sync_ratio: evt.sync_scores ? evt.sync_scores[idx] : s.sync_ratio,
+                    fit_status: evt.fit_status ? evt.fit_status[idx] : s.fit_status,
+                  })));
+                }
                 if (evt.seg_num_step && typeof evt.seg_num_step === 'object') {
                   const previewIds = Object.entries(evt.seg_num_step).filter(([, n]) => typeof n === 'number' && n < steps).map(([id]) => id);
                   setPreviewSegIds(previewIds);
@@ -444,7 +456,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
       setDubError(err.message); setDubStep('editing'); setDubTaskId(null);
       useAppStore.getState().errorPill(err.message);
     }
-  }, [dubJobId, dubSegments, dubLang, dubLangCode, dubInstruct, steps, cfg, speed, dubStep, setDubStep, setDubProgress, setDubError, setDubTracks, setDubSegments, setDubTaskId, setPreviewSegIds, setLastGenFingerprints, loadDubHistory, loadProjects]);
+  }, [dubJobId, dubSegments, dubLang, dubLangCode, dubInstruct, steps, cfg, speed, dubStep, timingStrategy, setDubStep, setDubProgress, setDubError, setDubTracks, setDubSegments, setDubTaskId, setPreviewSegIds, setLastGenFingerprints, loadDubHistory, loadProjects]);
 
   const handleDubStop = useCallback(async () => {
     if (!dubTaskId) return;

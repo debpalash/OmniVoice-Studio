@@ -90,6 +90,8 @@ export default function DubTab(props) {
   const setDualSubs         = useAppStore(s => s.setDualSubs);
   const burnSubs            = useAppStore(s => s.burnSubs);
   const setBurnSubs         = useAppStore(s => s.setBurnSubs);
+  const timingStrategy      = useAppStore(s => s.timingStrategy);
+  const setTimingStrategy   = useAppStore(s => s.setTimingStrategy);
 
   const showIdleSkeleton = !(dubJobId && (dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done'));
   // Imperative handle to the post-job waveform so the transcript table can
@@ -982,6 +984,21 @@ export default function DubTab(props) {
                   ))}
                 </select>
               </label>
+            </div>
+            <div
+              className="dub-outputs-row"
+              title="Timing strategy — how the dub reconciles natural-rate TTS with the original timeline."
+            >
+              <span className="dub-outputs-title-strong">Timing:</span>
+              <Segmented
+                value={timingStrategy}
+                onChange={setTimingStrategy}
+                options={[
+                  { value: 'concise',       label: 'Concise',        title: 'Translator trims text to fit at natural rate. Overflows surface in the row badge so you can shorten the segment.' },
+                  { value: 'stretch_video', label: 'Stretch Video',  title: 'Audio plays at natural rate; each segment of the video is stretched (per-segment ffmpeg setpts) to fit. Total video duration grows. Requires a re-encode pass.' },
+                  { value: 'strict_slot',   label: 'Strict slot',    title: 'Legacy: compress audio to fit the original timing. Can sound rushed/chipmunky on high-density target languages.' },
+                ]}
+              />
             </div>
             {dubTracks.length > 0 && (
               <div className="dub-tracks-row">

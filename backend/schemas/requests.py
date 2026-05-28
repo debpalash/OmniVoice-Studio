@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from services.audio_dsp import EFFECT_PRESETS
 
@@ -60,7 +60,28 @@ class DubRequest(BaseModel):
     #   "time_stretch" — phase-vocoder stretch to fit, preserves pitch (default).
     #   "trim"         — hard-clip to slot length + fade out (cheap, may cut mid-word).
     #   "off"          — no fit; mix layers with += (legacy behaviour, may overlap).
+    # Legacy knob. When `timing_strategy` is set, it takes precedence and this is ignored.
     slot_fit: Optional[str] = "time_stretch"
+
+    # High-level timing strategy. Replaces the audio-compression default that
+    # produced chipmunk/alien artefacts on high-density target languages
+    # (Bengali, Hindi, Arabic…). Three modes:
+    #   "concise"       — never compress TTS audio. Trim text up-front via
+    #                     speech_rate so it fits naturally; if it still
+    #                     overflows, hard-trim at slot with a short fade and
+    #                     surface fit_status="overflows" so the UI can prompt
+    #                     the user to shorten the segment. DEFAULT.
+    #   "stretch_video" — never compress TTS audio. Re-lay the timeline so
+    #                     each segment's video portion is stretched (via
+    #                     ffmpeg setpts) to fit the natural-rate dub audio.
+    #                     Audio plays at 1.0×; total video duration grows.
+    #   "strict_slot"   — legacy: keep `slot_fit` semantics (atempo squeeze
+    #                     when audio > slot). Kept for back-compat.
+    timing_strategy: Optional[Literal["concise", "stretch_video", "strict_slot"]] = "concise"
+
+    # Per-job slip budget for "concise" mode. Hard-trim only kicks in once
+    # gap absorption + this much extra time has been consumed.
+    overflow_budget_s: Optional[float] = 0.0
 
 class TranslateSegment(BaseModel):
     id: str

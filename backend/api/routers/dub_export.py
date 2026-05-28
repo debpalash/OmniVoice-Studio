@@ -188,6 +188,82 @@ def _ffmpeg_filter_escape(path: str) -> str:
     return path.replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
 
 
+def _build_video_stretch_filter_graph(
+    plan: list[dict], orig_dur: float, video_input_idx: int = 0,
+    in_label: str | None = None,
+) -> tuple[str, str]:
+    """Build an ffmpeg filter_complex graph that stretches the source video
+    per-segment so each segment's visual duration matches a dub audio layout.
+
+    `plan` is a list of {orig_start, orig_end, new_start, new_end, stretch_ratio}
+    in original-time order (as persisted by dub_generate for stretch_video
+    mode). Gaps between plan entries — and the pre-roll / tail — are passed
+    through at 1.0× rate so silence and B-roll don't get squashed.
+
+    `in_label` overrides the input stream reference; e.g. pass "[vsub]" when
+    a subtitles filter has already written to that label. Defaults to
+    `[{video_input_idx}:v]` for direct source-stream consumption.
+
+    Returns (filter_graph, output_label). Output label is "[vstretched]" when
+    chunks were emitted, or the original input label when the plan was empty
+    (caller should fall back to stream-copy in that case).
+    """
+    # Empty plan = no stretch — caller should stream-copy the video. Return
+    # early so we don't synthesise a degenerate "stretch whole video at 1.0×"
+    # graph that would force a needless re-encode.
+    if not plan:
+        return "", in_label or f"[{video_input_idx}:v]"
+
+    chunks: list[tuple[float, float, float]] = []  # (a, b, ratio)
+    cursor = 0.0
+    for entry in plan:
+        a = float(entry["orig_start"])
+        b = float(entry["orig_end"])
+        if a > cursor + 1e-3:
+            chunks.append((cursor, a, 1.0))  # gap or pre-roll at native rate
+        ratio = float(entry["stretch_ratio"])
+        if b > a:
+            chunks.append((a, b, ratio))
+        cursor = max(cursor, b)
+    if orig_dur > cursor + 1e-3:
+        chunks.append((cursor, orig_dur, 1.0))  # tail at native rate
+    chunks = [(a, b, r) for (a, b, r) in chunks if b > a]
+    if not chunks:
+        return "", in_label or f"[{video_input_idx}:v]"
+
+    src = in_label or f"[{video_input_idx}:v]"
+    parts: list[str] = []
+    labels: list[str] = []
+    # `split` lets us tap the same source stream once per chunk without re-
+    # decoding. setpts={ratio}*PTS slows down (ratio > 1) or speeds up
+    # (ratio < 1) each chunk; PTS-STARTPTS first to normalise the timestamp
+    # base after the trim.
+    split_labels = [f"[vsplit{idx}]" for idx in range(len(chunks))]
+    parts.append(f"{src}split={len(chunks)}{''.join(split_labels)}")
+    for idx, ((a, b, ratio), split_lbl) in enumerate(zip(chunks, split_labels)):
+        out_label = f"[vstr{idx}]"
+        labels.append(out_label)
+        parts.append(
+            f"{split_lbl}trim=start={a:.4f}:end={b:.4f},"
+            f"setpts=PTS-STARTPTS,setpts={ratio:.6f}*PTS{out_label}"
+        )
+    parts.append("".join(labels) + f"concat=n={len(chunks)}:v=1:a=0[vstretched]")
+    return ";".join(parts), "[vstretched]"
+
+
+def _video_stretch_plan_for(job: dict, lang_code: str) -> dict | None:
+    """Return the persisted stretch plan + total durations for `lang_code`,
+    or None if this job didn't use stretch_video mode (or no plan exists).
+    """
+    if (job.get("timing_strategy") or "").lower() != "stretch_video":
+        return None
+    plans = job.get("video_stretch_plans") or {}
+    entry = plans.get(lang_code)
+    if not entry or not entry.get("plan"):
+        return None
+    return entry
+
+
 @router.get("/dub/download/{job_id}")
 @router.get("/dub/download/{job_id}/{filename}")
 async def dub_download(
@@ -225,6 +301,26 @@ async def dub_download(
     output_path = os.path.join(exports_dir, f"dubbed_video_{stamp}.mp4")
     ffmpeg = find_ffmpeg()
 
+    # Determine whether this export should drive video through a per-segment
+    # stretch graph (Mode B). Stretch is keyed off the default_track's plan
+    # because the video can only physically follow one timeline at a time.
+    # If multiple dub tracks are included and they were generated under
+    # stretch_video, only the default_track is visually in sync — other
+    # tracks share the same (stretched) video. Single-track export is the
+    # supported common case.
+    stretch_entry = _video_stretch_plan_for(job, default_track) if default_track and default_track != "original" else None
+    # Subtitle burn under stretch_video would render cues at the original
+    # timestamps onto a re-timed video — they'd drift. Skip the burn pass
+    # in that combo and log; the user can still export the SRT/VTT
+    # separately and the new-layout timing lives there.
+    if stretch_entry and burn_subs:
+        logger.warning(
+            "stretch_video + burn_subs is not supported in one pass; "
+            "skipping subtitle burn for job %s. Export the SRT/VTT separately.",
+            job_id,
+        )
+        burn_subs = False
+
     sub_path = _write_burn_srt(job, exports_dir, stamp, dual) if burn_subs else None
 
     cmd = [ffmpeg, "-i", video_path]
@@ -247,8 +343,17 @@ async def dub_download(
     video_map = "0:v:0"
     if sub_path:
         esc = _ffmpeg_filter_escape(sub_path)
-        filter_parts.append(f"[0:v]subtitles='{esc}'[vout]")
-        video_map = "[vout]"
+        filter_parts.append(f"[0:v]subtitles='{esc}'[vsub]")
+        video_map = "[vsub]"
+    if stretch_entry:
+        orig_dur = float(stretch_entry.get("orig_duration") or job.get("duration") or 0.0)
+        graph, vlabel = _build_video_stretch_filter_graph(
+            stretch_entry["plan"], orig_dur, video_input_idx=0,
+            in_label=video_map if video_map != "0:v:0" else None,
+        )
+        if graph:
+            filter_parts.append(graph)
+            video_map = vlabel
 
     cmd += ["-map", video_map]
     if include_original:
@@ -268,8 +373,10 @@ async def dub_download(
     if filter_parts:
         cmd += ["-filter_complex", ";".join(filter_parts)]
 
-    # Burning subs forces a video re-encode; stream-copy otherwise to keep mux cheap.
-    if sub_path:
+    # Burning subs or per-segment video stretch both force a real video
+    # re-encode; stream-copy is only viable when nothing touches the video
+    # filter chain.
+    if sub_path or stretch_entry:
         cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p"]
     else:
         cmd += ["-c:v", "copy"]
@@ -302,7 +409,14 @@ async def dub_download(
                 break
         cmd += [f"-disposition:a:{target_idx}", "default"]
 
-    cmd += ["-shortest", output_path, "-y"]
+    # In stretch_video mode the video and audio durations should match
+    # within sub-frame precision, but `-shortest` can still cut off the
+    # trailing frame; let ffmpeg keep both streams. Otherwise keep the
+    # legacy `-shortest` so a slightly-overrunning track doesn't extend
+    # the mux past the video.
+    if not stretch_entry:
+        cmd += ["-shortest"]
+    cmd += [output_path, "-y"]
 
     try:
         rc, _, stderr = await run_ffmpeg(cmd, timeout=1800.0)
@@ -411,6 +525,7 @@ async def dub_preview_video(
 
     if not cache_ok:
         ffmpeg = find_ffmpeg()
+        stretch_entry = _video_stretch_plan_for(job, lang)
         cmd = [ffmpeg, "-i", video_path]
         input_idx = 1
         if preserve_bg and has_bg:
@@ -422,16 +537,44 @@ async def dub_preview_video(
         cmd += ["-i", track_path]
         track_idx = input_idx
 
-        cmd += ["-map", "0:v:0"]
+        # Build filter graph. In stretch_video mode we splice the source
+        # video into per-segment chunks, setpts each to match the dub audio
+        # layout, and concat them — so audio plays at natural rate and the
+        # visuals follow. Otherwise we stream-copy video for speed.
+        filter_parts: list[str] = []
+        video_map = "0:v:0"
+        if stretch_entry:
+            orig_dur = float(stretch_entry.get("orig_duration") or job.get("duration") or 0.0)
+            graph, vlabel = _build_video_stretch_filter_graph(
+                stretch_entry["plan"], orig_dur, video_input_idx=0,
+            )
+            if graph:
+                filter_parts.append(graph)
+                video_map = vlabel
         if bg_idx is not None:
-            cmd += [
-                "-filter_complex",
-                f"[{bg_idx}:a][{track_idx}:a]amix=inputs=2:duration=longest:dropout_transition=2:weights=0.8 1.2[aout]",
-                "-map", "[aout]",
-            ]
+            filter_parts.append(
+                f"[{bg_idx}:a][{track_idx}:a]amix=inputs=2:duration=longest:dropout_transition=2:weights=0.8 1.2[aout]"
+            )
+
+        cmd += ["-map", video_map]
+        if bg_idx is not None:
+            cmd += ["-map", "[aout]"]
         else:
             cmd += ["-map", f"{track_idx}:a:0"]
-        cmd += ["-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", preview_path, "-y"]
+        if filter_parts:
+            cmd += ["-filter_complex", ";".join(filter_parts)]
+
+        # Stretch path needs a real encode; stream-copy otherwise.
+        if stretch_entry:
+            cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p"]
+        else:
+            cmd += ["-c:v", "copy"]
+        cmd += ["-c:a", "aac", "-b:a", "192k"]
+        # `-shortest` would cut the stretched video at the (slightly different)
+        # audio length and lose the trailing frame; only use it on the copy path.
+        if not stretch_entry:
+            cmd += ["-shortest"]
+        cmd += [preview_path, "-y"]
 
         try:
             rc, _, stderr = await run_ffmpeg(cmd, timeout=900.0)
