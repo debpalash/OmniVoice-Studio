@@ -39,7 +39,13 @@ function detectHints(message, logs) {
   const hints = [];
   const all = (message || '') + '\n' + logs.map(l => l.line).join('\n');
   if (/README\.md/i.test(all))           hints.push('README.md was missing from the bundle. This is now auto-fixed — retry should work.');
-  if (/uv.*download|uv.*install/i.test(all) && /timeout|connection/i.test(all)) hints.push('Network timeout downloading uv. Check your internet connection or try the China mirror.');
+  // python-build-standalone download failure (issue #57, #60): user's network
+  // can't reach the github.com release. We auto-retry with a system-Python
+  // fallback in bootstrap.rs, but if that also fails the user needs an actionable next step.
+  if (/python-build-standalone|managed-python download failed/i.test(all)) {
+    hints.push('Network couldn\'t reach the Python download (github.com release). Switch your region in Settings → Network (China / Russia / Restricted route through a mirror), or install Python 3.11+ system-wide so the app uses that instead.');
+  }
+  if (/uv.*download|uv.*install/i.test(all) && /timeout|connection/i.test(all)) hints.push('Network timeout downloading uv. Check your internet connection or try a different region in Settings → Network.');
   if (/uv sync failed/i.test(all))       hints.push('Dependency install failed. "Clean & Retry" will delete the cached venv and start fresh.');
   if (/hatchling|build_editable/i.test(all)) hints.push('Python build backend error. "Clean & Retry" removes the broken venv so it rebuilds from scratch.');
   if (/ffmpeg/i.test(all) && /download|timeout/i.test(all)) hints.push('ffmpeg download failed. This is non-fatal — retry or install ffmpeg manually.');

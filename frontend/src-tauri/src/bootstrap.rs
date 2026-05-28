@@ -223,6 +223,46 @@ pub fn venv_python_path(venv: &Path) -> PathBuf {
     }
 }
 
+/// Apply region-aware UV networking env vars (mirror + timeouts) to a Command.
+///
+/// `UV_PYTHON_INSTALL_MIRROR` replaces the python-build-standalone download
+/// prefix; we route it through ghproxy.net for regions where github.com is
+/// commonly unreachable. The bumped HTTP timeouts/retries help even when the
+/// mirror is reachable but slow (issues #57, #60).
+fn apply_uv_network_env(cmd: &mut Command, effective_region: &str) {
+    // Don't override user-set env vars — power users may have configured their
+    // own mirror in the shell. Cmd's `env()` overwrites, so check first.
+    let uv_mirror_set = std::env::var_os("UV_PYTHON_INSTALL_MIRROR").is_some();
+    let uv_timeout_set = std::env::var_os("UV_HTTP_TIMEOUT").is_some();
+    let uv_retries_set = std::env::var_os("UV_HTTP_RETRIES").is_some();
+
+    if !uv_mirror_set {
+        if let Some(mirror) = python_install_mirror_for_region(effective_region) {
+            cmd.env("UV_PYTHON_INSTALL_MIRROR", mirror);
+        }
+    }
+    if !uv_timeout_set {
+        cmd.env("UV_HTTP_TIMEOUT", "120");
+    }
+    if !uv_retries_set {
+        cmd.env("UV_HTTP_RETRIES", "5");
+    }
+}
+
+/// Region → python-build-standalone mirror URL prefix. Returns None for the
+/// global region (use uv default — direct GitHub).
+fn python_install_mirror_for_region(region: &str) -> Option<&'static str> {
+    match region {
+        // ghproxy.net accepts a fully-qualified GitHub URL appended to its host
+        // and proxies the response. Consistent with `resolve_github_url` in
+        // config.rs which is already used for FFmpeg downloads.
+        "china" | "russia" | "restricted" => Some(
+            "https://ghproxy.net/https://github.com/astral-sh/python-build-standalone/releases/download",
+        ),
+        _ => None,
+    }
+}
+
 /// Recursive directory copy that skips `__pycache__` and any dotfile dirs.
 pub fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     fs::create_dir_all(dst)?;
@@ -424,13 +464,45 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
     if let Some(p) = progress {
         set_stage(p, BootstrapStage::CreatingVenv);
     }
+    let effective_region = get_effective_region(app);
     let mut venv_cmd = Command::new(&uv_path);
     venv_cmd.env_remove("PYTHONHOME").env_remove("PYTHONPATH").env_remove("LD_LIBRARY_PATH");
+    apply_uv_network_env(&mut venv_cmd, &effective_region);
     venv_cmd.args(["venv", "--python", "3.11", "--managed-python"]).current_dir(&project_dir);
-    let status = run_streaming(app, "creating_venv", &mut venv_cmd);
+    let mut status = run_streaming(app, "creating_venv", &mut venv_cmd);
     if !matches!(status, Ok(ref s) if s.success()) {
-        fail(progress, &format!("uv venv failed: {:?}", status));
-        return None;
+        // Managed-python download failed (common on restricted networks even
+        // with a mirror configured). Fall back to the user's system Python if
+        // one is available — uv will pick anything >=3.11.
+        log::warn!(
+            "uv venv (managed Python) failed: {:?} — retrying with --python-preference only-system",
+            status
+        );
+        emit_log(
+            app,
+            "creating_venv",
+            "managed-python download failed; trying system Python (>=3.11) as fallback",
+        );
+        let mut fallback_cmd = Command::new(&uv_path);
+        fallback_cmd
+            .env_remove("PYTHONHOME")
+            .env_remove("PYTHONPATH")
+            .env_remove("LD_LIBRARY_PATH");
+        apply_uv_network_env(&mut fallback_cmd, &effective_region);
+        fallback_cmd
+            .args(["venv", "--python", "3.11", "--python-preference", "only-system"])
+            .current_dir(&project_dir);
+        status = run_streaming(app, "creating_venv", &mut fallback_cmd);
+        if !matches!(status, Ok(ref s) if s.success()) {
+            fail(
+                progress,
+                &format!(
+                    "uv venv failed: {:?}. Network couldn't reach python-build-standalone, and no system Python 3.11+ was found. Install Python 3.11+ system-wide or switch region in Settings.",
+                    status
+                ),
+            );
+            return None;
+        }
     }
 
     if let Some(p) = progress {
@@ -438,6 +510,7 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
     }
     let mut sync_cmd = Command::new(&uv_path);
     sync_cmd.env_remove("PYTHONHOME").env_remove("PYTHONPATH").env_remove("LD_LIBRARY_PATH");
+    apply_uv_network_env(&mut sync_cmd, &effective_region);
     let has_lockfile = project_dir.join("uv.lock").is_file();
     if has_lockfile {
         sync_cmd
@@ -449,7 +522,6 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
             .args(["sync", "--no-dev", "--verbose"])
             .current_dir(&project_dir);
     }
-    let effective_region = get_effective_region(app);
     if effective_region == "china" {
         sync_cmd.env("UV_INDEX_URL", "https://mirrors.aliyun.com/pypi/simple/");
     }
@@ -460,4 +532,29 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
     }
 
     Some((venv_py, backend_dir))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mirror_routes_restricted_regions_via_ghproxy() {
+        for region in ["china", "russia", "restricted"] {
+            let mirror = python_install_mirror_for_region(region)
+                .unwrap_or_else(|| panic!("expected mirror for region={region}"));
+            assert!(mirror.starts_with("https://ghproxy.net/"), "region={region} got {mirror}");
+            assert!(mirror.contains("astral-sh/python-build-standalone/releases/download"));
+        }
+    }
+
+    #[test]
+    fn mirror_is_none_for_global_and_auto() {
+        assert!(python_install_mirror_for_region("global").is_none());
+        // "auto" resolves to global or restricted before reaching this fn, but
+        // if it ever slips through unmapped, default to None (no mirror) rather
+        // than guessing.
+        assert!(python_install_mirror_for_region("auto").is_none());
+        assert!(python_install_mirror_for_region("").is_none());
+    }
 }

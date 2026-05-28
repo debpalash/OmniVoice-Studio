@@ -1,0 +1,175 @@
+/* Synthetic dubbing demo — side-by-side player. */
+
+.dubbing-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.dubbing-demo--loading {
+  font-size: 11px;
+  color: var(--color-fg-muted, #928374);
+  padding: 18px;
+  text-align: center;
+}
+
+.dubbing-demo__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dubbing-demo__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-fg, currentColor);
+}
+
+.dubbing-demo__head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dubbing-demo__sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--color-fg-muted, #b0aaa1);
+  cursor: pointer;
+  user-select: none;
+}
+
+.dubbing-demo__sync input {
+  accent-color: #f3a5b6;
+}
+
+.dubbing-demo__dismiss {
+  border: 0;
+  background: transparent;
+  color: var(--color-fg-muted, #928374);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: inline-flex;
+}
+
+.dubbing-demo__dismiss:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-fg, currentColor);
+}
+
+.dubbing-demo__players {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 720px) {
+  .dubbing-demo__players { grid-template-columns: 1fr; }
+}
+
+.dubbing-demo__pane {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dubbing-demo__pane-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-fg, currentColor);
+}
+
+.dubbing-demo__pane-label span {
+  font-weight: 400;
+  color: var(--color-fg-muted, #928374);
+  font-size: 10px;
+  margin-left: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dubbing-demo__pane video {
+  width: 100%;
+  border-radius: 6px;
+  background: #000;
+  outline: 1px solid rgba(255, 255, 255, 0.06);
+  outline-offset: -1px;
+}
+
+.dubbing-demo__caption {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--color-fg-muted, #b0aaa1);
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 4px;
+}
+
+.dubbing-demo__picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.dubbing-demo__picker-label {
+  font-size: 10px;
+  color: var(--color-fg-muted, #928374);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 4px;
+}
+
+.dubbing-demo__chip {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  background: transparent;
+  color: var(--color-fg-muted, #b0aaa1);
+  cursor: pointer;
+  transition: background 100ms ease, border-color 100ms ease, color 100ms ease;
+}
+
+.dubbing-demo__chip:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-fg, currentColor);
+}
+
+.dubbing-demo__chip.is-active {
+  background: rgba(243, 165, 182, 0.18);
+  border-color: rgba(243, 165, 182, 0.45);
+  color: #fff9ef;
+}
+
+.dubbing-demo__cta {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid rgba(243, 165, 182, 0.4);
+  background: rgba(243, 165, 182, 0.12);
+  color: var(--color-fg, currentColor);
+  cursor: pointer;
+}
+
+.dubbing-demo__cta:hover {
+  background: rgba(243, 165, 182, 0.22);
+}

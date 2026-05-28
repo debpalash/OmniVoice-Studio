@@ -21,6 +21,7 @@ import { Button, Segmented, Badge, Progress } from '../ui';
 import GlossaryPanel from '../components/GlossaryPanel';
 import ExportModal from '../components/ExportModal';
 import MultiLangPicker from '../components/MultiLangPicker';
+import DubbingDemo from '../components/DubbingDemo';
 import './DubTab.css';
 
 const DubSegmentTable = lazy(() => import('../components/DubSegmentTable'));
@@ -58,6 +59,7 @@ export default function DubTab(props) {
   const dubStep           = useAppStore(s => s.dubStep);
   const setDubStep        = useAppStore(s => s.setDubStep);
   const dubPrepStage      = useAppStore(s => s.dubPrepStage);
+  const dubPrepProgress   = useAppStore(s => s.dubPrepProgress);
   const dubFilename       = useAppStore(s => s.dubFilename);
   const dubDuration       = useAppStore(s => s.dubDuration);
   const dubSegments       = useAppStore(s => s.dubSegments);
@@ -97,6 +99,17 @@ export default function DubTab(props) {
     waveformRef.current?.seekTo?.(time);
   }, []);
   const [ingestUrl, setIngestUrl] = useState('');
+  // Dubbing demo: show the side-by-side player above the drop zone on
+  // first-run / no-project state. localStorage flag persists dismissal
+  // across sessions so power users don't see it every launch.
+  const [demoDismissed, setDemoDismissed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('omnivoice.dubbingDemoDismissed') === '1';
+  });
+  const dismissDubDemo = () => {
+    setDemoDismissed(true);
+    try { localStorage.setItem('omnivoice.dubbingDemoDismissed', '1'); } catch { /* noop */ }
+  };
   const [previewMode, setPreviewMode] = useState('original'); // 'original' | 'dubbed'
   const [exportOpen, setExportOpen] = useState(false);
 
@@ -161,10 +174,11 @@ export default function DubTab(props) {
     }
   };
 
-  // Collapse secondary settings (Language/ISO/Style/Engine/Quality) into an
-  // accordion. Once the user has translated, the row's job is done; show a
-  // one-line summary instead of the full 5-col grid.
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // Secondary settings (Language/ISO/Style/Engine/Quality/Multi-lang) are
+  // expanded by default so the user can pick a target language and quality
+  // without an extra click on first open. They stay an accordion so the
+  // user can collapse them once happy with the choice.
+  const [settingsOpen, setSettingsOpen] = useState(true);
   const hasAnyTranslation = dubSegments.some(s => s.text_original && s.text_original !== s.text);
 
   // Glossary: hide behind a chip when empty, auto-open once terms exist.
@@ -202,11 +216,7 @@ export default function DubTab(props) {
     if (!ingestUrl.trim() || !handleDubIngestUrl) return;
     handleDubIngestUrl(ingestUrl.trim(), {
       fetchSubs: fetchYtSubs,
-      // Default to "all" available tracks — YouTube's auto-translator makes
-      // every major language available on demand, so letting yt-dlp grab
-      // them all up-front means switching target language later doesn't
-      // need another round trip.
-      subLangs: fetchYtSubs ? undefined : undefined,
+      subLangs: undefined,
     });
     setIngestUrl('');
   };
@@ -302,7 +312,7 @@ export default function DubTab(props) {
                     disabled={true}
                     overlayContent={
                       dubStep === 'uploading' ? (
-                        <PrepOverlay stage={dubPrepStage} onAbort={handleDubAbort} />
+                        <PrepOverlay stage={dubPrepStage} progress={dubPrepProgress} onAbort={handleDubAbort} />
                       ) : dubStep === 'transcribing' ? (
                         <TranscribeOverlay
                           elapsed={transcribeElapsed}
@@ -347,9 +357,13 @@ export default function DubTab(props) {
                   </div>
                 </>
               ) : dubStep === 'uploading' ? (
-                <PrepOverlay stage={dubPrepStage} onAbort={handleDubAbort} large />
+                <PrepOverlay stage={dubPrepStage} progress={dubPrepProgress} onAbort={handleDubAbort} large />
               ) : (
-                <label htmlFor="video-upload" className="dub-idle-drop"
+                <>
+                  {!demoDismissed && (
+                    <DubbingDemo onDismiss={dismissDubDemo} />
+                  )}
+                  <label htmlFor="video-upload" className="dub-idle-drop"
                   onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('is-dragging'); }}
                   onDragLeave={e => { e.currentTarget.classList.remove('is-dragging'); }}
                   onDrop={e => {
@@ -394,7 +408,7 @@ export default function DubTab(props) {
                   </div>
                   <label
                     className="dub-ingest-sub-opt"
-                    title="When the URL is a caption-bearing host (YouTube, Vimeo, TED…), also pull the original captions and any YouTube auto-translations. Seeds the editor without running Whisper; skip Translate All for languages YouTube already covers."
+                    title="When the URL is a caption-bearing host (YouTube, Vimeo, TED…), also pull the original-language captions (manually-uploaded + auto-generated). Lets the editor seed from real subtitles instead of running Whisper from scratch."
                     onClick={e => { e.stopPropagation(); }}
                   >
                     <input
@@ -403,9 +417,10 @@ export default function DubTab(props) {
                       onChange={e => setFetchYtSubs(e.target.checked)}
                       onClick={e => e.stopPropagation()}
                     />
-                    <span>Pull YouTube captions + auto-translations</span>
+                    <span>Pull original-language captions</span>
                   </label>
                 </label>
+                </>
               )}
 
               <input type="file" accept="video/*,audio/*,.mp3,.wav,.m4a,.flac,.ogg" id="video-upload" className="dub-hidden-file"
@@ -983,6 +998,32 @@ export default function DubTab(props) {
                 ))}
               </div>
             )}
+            {(() => {
+              // Pre-generation compression warning. Predicted by the
+              // translate response (see services/speech_rate.rate_ratio
+              // + dub_translate._maybe_cinematic), populated whenever
+              // segments carry a slot_seconds and translated text.
+              // Surfaces here so the user can act (re-translate in
+              // Cinematic, edit text, allow longer slots) before
+              // committing to a full Generate Dub run.
+              const hot = dubSegments.filter(s => (s.rate_ratio || 0) > 1.3);
+              if (hot.length === 0 || !dubSegments.length) return null;
+              const pctHot = Math.round((hot.length / dubSegments.length) * 100);
+              if (pctHot < 10) return null;
+              const worst = hot.reduce((a, b) => (a.rate_ratio > b.rate_ratio ? a : b));
+              return (
+                <div className="dub-compression-warn" role="status">
+                  <span className="dub-compression-warn__icon">⚠</span>
+                  <span className="dub-compression-warn__body">
+                    <strong>{hot.length} of {dubSegments.length}</strong> segments need {'>'}1.3× compression
+                    (worst: <span style={{ fontVariantNumeric: 'tabular-nums' }}>{worst.rate_ratio.toFixed(2)}×</span>).
+                    Output will be intelligible (pitch-preserving stretch) but stressed —
+                    {translateQuality === 'fast' ? ' switch to Cinematic and Re-translate' : ' shorten the worst segments'}
+                    {' '}for cleaner audio.
+                  </span>
+                </div>
+              );
+            })()}
             <div className="dub-footer-btns">
               {dubStep === 'stopping' ? (
                 <FooterBtn tone="stopping" disabled icon={<Loader className="spinner" size={9} />} label="Stopping…" />
@@ -1056,18 +1097,70 @@ const PREP_STAGE_LABEL = {
 const PREP_FULL   = ['download', 'extract', 'demucs', 'scene'];
 const PREP_CACHED = ['download', 'extract', 'cached'];
 
+function fmtBytesRate(bps) {
+  if (!bps || bps <= 0) return null;
+  const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+  let v = bps, i = 0;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i += 1; }
+  return `${v < 10 ? v.toFixed(1) : Math.round(v)} ${units[i]}`;
+}
+
+function fmtEta(seconds) {
+  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return null;
+  const s = Math.round(seconds);
+  if (s < 60) return `${s}s left`;
+  const m = Math.floor(s / 60), rem = s % 60;
+  return rem ? `${m}m ${rem}s left` : `${m}m left`;
+}
+
 /**
  * PrepOverlay — the prepare-upload stage indicator.
  * `large` makes the surrounding frame bigger (used for the empty-state drop zone).
  */
-function PrepOverlay({ stage, onAbort, large = false }) {
+function PrepOverlay({ stage, progress, onAbort, large = false }) {
   const stages = stage === 'cached' ? PREP_CACHED : PREP_FULL;
+  // Elapsed-time ticker for the current stage. Reset whenever
+  // stageStartedAt changes (i.e. the backend transitions stages).
+  const [elapsedS, setElapsedS] = useState(0);
+  const startedAt = progress?.stageStartedAt ?? null;
+  useEffect(() => {
+    if (!startedAt) { setElapsedS(0); return undefined; }
+    setElapsedS(Math.floor((Date.now() - startedAt) / 1000));
+    const iv = setInterval(() => {
+      setElapsedS(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [startedAt]);
+
+  const pct = progress?.percent;
+  const hasPct = typeof pct === 'number' && pct >= 0 && pct <= 100;
+  const speed = stage === 'download' ? fmtBytesRate(progress?.speedBps) : null;
+  const eta   = fmtEta(progress?.etaS);
+  const elapsedLabel = startedAt ? (elapsedS < 60 ? `${elapsedS}s` : `${Math.floor(elapsedS / 60)}m ${elapsedS % 60}s`) : null;
+  const detailBits = [
+    hasPct ? `${pct}%` : null,
+    elapsedLabel ? `${elapsedLabel} elapsed` : null,
+    speed,
+    eta,
+  ].filter(Boolean);
+  const note = stage === 'demucs' && !hasPct
+    ? 'Demucs typically takes 20–40% of the video length to separate vocals from music.'
+    : null;
+
   const body = (
     <>
       <Loader className="spinner" size={large ? 28 : 20} color="#d3869b" />
       <span className="dub-prep-overlay__title" style={{ fontSize: large ? '0.95rem' : '0.85rem' }}>
         {PREP_STAGE_LABEL[stage] || 'Preparing…'}
       </span>
+      {hasPct && (
+        <div className="dub-prep-bar" aria-label={`${pct}%`}>
+          <div className="dub-prep-bar__fill" style={{ width: `${pct}%` }} />
+        </div>
+      )}
+      {detailBits.length > 0 && (
+        <span className="dub-prep-overlay__detail">{detailBits.join(' · ')}</span>
+      )}
       <div className={`dub-prep-chips ${large ? 'dub-prep-chips--lg' : ''}`}>
         {stages.map(s => (
           <span
@@ -1078,10 +1171,8 @@ function PrepOverlay({ stage, onAbort, large = false }) {
           </span>
         ))}
       </div>
-      {stage === 'demucs' && (
-        <span className="dub-prep-overlay__note">
-          Demucs can take several minutes on long videos. Long audio = longer wait.
-        </span>
+      {note && (
+        <span className="dub-prep-overlay__note">{note}</span>
       )}
       <Button variant="danger" size="sm" onClick={onAbort} leading={<Square size={11} />}>
         Stop

@@ -335,14 +335,36 @@ async def dub_download(
     )
 
 
+_MEDIA_TYPES = {
+    ".mp4": "video/mp4",
+    ".m4v": "video/mp4",
+    ".mov": "video/quicktime",
+    ".webm": "video/webm",
+    ".mkv": "video/x-matroska",
+    ".m4a": "audio/mp4",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".flac": "audio/flac",
+    ".ogg": "audio/ogg",
+}
+
+
 @router.get("/dub/media/{job_id}")
 async def dub_get_media(job_id: str):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    if not os.path.exists(job["video_path"]):
+    video_path = job["video_path"]
+    if not os.path.exists(video_path):
         raise HTTPException(status_code=404, detail="Media file not found")
-    return FileResponse(job["video_path"])
+    # Pass an explicit media_type. Without this Starlette falls back to
+    # mimetypes.guess_type, which on some platforms returns the wrong
+    # MIME (e.g. "application/octet-stream" for .mkv), and the Tauri
+    # WebView then refuses to render the <video> element — leaving a
+    # silent black box. Default to video/mp4 because the ingest pipeline
+    # remuxes URL downloads to mp4 (dub_pipeline.yt_download_sync).
+    ext = os.path.splitext(video_path)[1].lower()
+    return FileResponse(video_path, media_type=_MEDIA_TYPES.get(ext, "video/mp4"))
 
 @router.get("/dub/preview-video/{job_id}")
 async def dub_preview_video(

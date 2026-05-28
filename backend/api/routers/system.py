@@ -561,9 +561,33 @@ async def set_env_var(body: dict):
     if value:
         os.environ[key] = value
         logger.info("Set environment variable: %s (length=%d)", key, len(value))
+
+        # Capability 1 / issue #35: HF_TOKEN persists across restarts via
+        # huggingface_hub.login() — writes the token to $HF_HOME/token so
+        # the next process pickup doesn't need an env var. add_to_git_credential
+        # stays False; we don't want to spew tokens into the user's git config.
+        if key == "HF_TOKEN":
+            try:
+                from huggingface_hub import login as _hf_login
+                _hf_login(token=value, add_to_git_credential=False)
+                logger.info("HF token persisted to $HF_HOME/token via login()")
+            except Exception as e:
+                # Non-fatal — the runtime env var is still set, so the
+                # current process will still see the token. We just lose
+                # persistence across restarts.
+                logger.warning("Could not persist HF token to disk: %s", e)
     else:
         os.environ.pop(key, None)
         logger.info("Cleared environment variable: %s", key)
+
+        # Mirror the persistence on clear — wipe the saved token file too.
+        if key == "HF_TOKEN":
+            try:
+                from huggingface_hub import logout as _hf_logout
+                _hf_logout()
+                logger.info("HF token cleared from $HF_HOME/token via logout()")
+            except Exception as e:
+                logger.warning("Could not clear HF token file: %s", e)
 
     return {"key": key, "set": bool(value)}
 

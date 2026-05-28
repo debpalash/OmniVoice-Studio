@@ -80,6 +80,14 @@ omnivoice_data/
 !tests/fixtures/omnivoice_data/voices/test-voice/
 !tests/fixtures/omnivoice_data/voices/test-voice/profile.json
 !tests/fixtures/omnivoice_data/voices/test-voice/sample.wav
+
+# ─────────────────────────────────────────────────────────────────────────
+#  Bundled demo assets (synthetic, rendered by scripts/build_demos.sh).
+#  Ship with the installer so first-run users have working demos before any
+#  model weights download. *.wav above would hide these.
+# ─────────────────────────────────────────────────────────────────────────
+!backend/assets/samples/**/*.wav
+!backend/assets/samples/*.wav
 *.jsonl
 demo_recording.webp
 cloudflared

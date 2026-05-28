@@ -142,13 +142,60 @@ class WhisperXBackend(ASRBackend):
             return  # older torch — secure unpickler didn't exist
 
         allow = []
-        # omegaconf config containers — the immediate cause of the error
-        # pyannote's VAD emits (`GLOBAL omegaconf.listconfig.ListConfig`).
+        # omegaconf config containers + every node wrapper type the library
+        # exposes. pyannote's VAD checkpoint pickles `ListConfig` /
+        # `DictConfig` trees whose leaves are `AnyNode`/`ValueNode`/etc., so
+        # allowlist the whole family in one pass rather than waiting for
+        # users to hit each one in turn. All of these are pure metadata
+        # containers — no executable side effects.
         try:
+            import omegaconf.nodes as _ocn
+            import omegaconf.base as _ocb
             from omegaconf.listconfig import ListConfig
             from omegaconf.dictconfig import DictConfig
-            from omegaconf.base import ContainerMetadata, Metadata
-            allow += [ListConfig, DictConfig, ContainerMetadata, Metadata]
+            allow += [ListConfig, DictConfig]
+            for _modname in ("nodes", "base"):
+                _mod = _ocn if _modname == "nodes" else _ocb
+                for _name in dir(_mod):
+                    _obj = getattr(_mod, _name, None)
+                    if isinstance(_obj, type) and _obj.__module__ == f"omegaconf.{_modname}":
+                        allow.append(_obj)
+        except Exception:
+            pass
+        # `EnumNode` references real enum classes at unpickle time; allow
+        # the base Enum/IntEnum/Flag types so configs using enums load.
+        try:
+            import enum
+            allow += [enum.Enum, enum.IntEnum, enum.Flag, enum.IntFlag]
+        except Exception:
+            pass
+        # torch utility types that aren't in the secure unpickler's
+        # default allowlist. `TorchVersion` is a `str` subclass that
+        # pyannote/lightning serialise as metadata; `Size` is the shape
+        # tuple type used in tensor metadata. Both are inert data.
+        try:
+            from torch.torch_version import TorchVersion
+            import torch as _torch
+            allow += [TorchVersion, _torch.Size]
+        except Exception:
+            pass
+        # PyTorch Lightning serialises `hyper_parameters` as
+        # `argparse.Namespace` (or an AttributeDict subclass thereof) so
+        # configs roundtrip. Allowlist the Namespace constructor — it is
+        # just an attribute bag with no executable side effects.
+        try:
+            import argparse
+            allow += [argparse.Namespace]
+        except Exception:
+            pass
+        # pyannote-specific metadata classes that travel with the VAD
+        # checkpoint. Only the inert data-only types are allowlisted —
+        # the `Model` / `Task` / `Dataset` classes from the same modules
+        # do real work in `__init__` and stay off the allowlist.
+        try:
+            from pyannote.audio.core.model import Introspection, Output
+            from pyannote.audio.core.task import Problem, Resolution, Specifications
+            allow += [Introspection, Output, Problem, Resolution, Specifications]
         except Exception:
             pass
         # Python typing primitives that show up in config annotations.
@@ -161,6 +208,53 @@ class WhisperXBackend(ASRBackend):
         try:
             from collections import OrderedDict, defaultdict
             allow += [OrderedDict, defaultdict]
+        except Exception:
+            pass
+        # Plain-data builtins. pyannote's VAD checkpoint pickles config
+        # entries that resolve to bare builtin constructors (`GLOBAL list`,
+        # `GLOBAL int`, …) and the secure unpickler refuses each one
+        # without an explicit allowlist. These constructors only build
+        # inert data primitives — no side effects, no code paths — so the
+        # full set is safe to allowlist together, which avoids users
+        # hitting them one-at-a-time as the checkpoint deserialises.
+        allow += [
+            list, dict, tuple, set, frozenset,
+            int, float, bool, str, bytes, bytearray, complex,
+            type(None), slice, range,
+        ]
+        # numpy scalar/array constructors that show up in pyannote configs
+        # (sample rates, hop sizes saved as numpy ints/floats). Each is a
+        # pure data type — safe to allowlist.
+        try:
+            import numpy as _np
+            allow += [
+                _np.ndarray, _np.dtype,
+                _np.int8, _np.int16, _np.int32, _np.int64,
+                _np.uint8, _np.uint16, _np.uint32, _np.uint64,
+                _np.float16, _np.float32, _np.float64,
+                _np.bool_, _np.complex64, _np.complex128,
+            ]
+            # numpy.core was renamed to numpy._core in 1.25+. Both modules
+            # expose the same reconstruct helpers; allowlist whichever ships.
+            for _modname in ("numpy._core.multiarray", "numpy.core.multiarray"):
+                try:
+                    _mod = __import__(_modname, fromlist=["_reconstruct", "scalar"])
+                    for _attr in ("_reconstruct", "scalar"):
+                        _fn = getattr(_mod, _attr, None)
+                        if _fn is not None:
+                            allow.append(_fn)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        # pathlib types — config files sometimes save cache directories as
+        # Path objects so the checkpoint can be relocated.
+        try:
+            import pathlib
+            allow += [
+                pathlib.PurePath, pathlib.PurePosixPath, pathlib.PureWindowsPath,
+                pathlib.Path, pathlib.PosixPath, pathlib.WindowsPath,
+            ]
         except Exception:
             pass
         if allow:

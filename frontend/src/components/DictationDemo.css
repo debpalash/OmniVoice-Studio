@@ -1,0 +1,164 @@
+/* Dictation demo — guided walkthrough panel.
+   Used in Settings → Capture & Dictation and SetupWizard step 4. */
+
+.dictation-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 16px;
+}
+
+.dictation-demo--embedded {
+  /* When embedded inside Settings panel: drop border, let parent provide it */
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin-bottom: 12px;
+}
+
+.dictation-demo__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dictation-demo__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-fg, currentColor);
+}
+
+.dictation-demo__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.dictation-demo__status code {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 10px;
+  padding: 1px 4px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+}
+
+.dictation-demo__status--ok {
+  background: rgba(152, 151, 26, 0.12);
+  border-color: rgba(152, 151, 26, 0.35);
+  color: #b8bb26;
+}
+
+.dictation-demo__status--pending {
+  background: rgba(215, 153, 33, 0.10);
+  border-color: rgba(215, 153, 33, 0.30);
+  color: #fabd2f;
+}
+
+.dictation-demo__status--warn {
+  background: rgba(204, 36, 29, 0.10);
+  border-color: rgba(204, 36, 29, 0.30);
+  color: #fb4934;
+}
+
+.dictation-demo__lede {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--color-fg-muted, #b0aaa1);
+}
+
+.dictation-demo__scripts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.dictation-demo__card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.dictation-demo__card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--color-fg-muted, #928374);
+}
+
+.dictation-demo__lang {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dictation-demo__card-label {
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--color-fg, currentColor);
+  text-transform: none;
+}
+
+.dictation-demo__script {
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  border-left: 2px solid rgba(243, 165, 182, 0.4);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--color-fg, currentColor);
+  font-style: italic;
+}
+
+.dictation-demo__card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.dictation-demo__result {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 11px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  line-height: 1.4;
+}
+
+.dictation-demo__result--ok {
+  color: #b8bb26;
+  background: rgba(152, 151, 26, 0.08);
+  border: 1px solid rgba(152, 151, 26, 0.25);
+}
+
+.dictation-demo__result--ok em { font-style: normal; }
+
+.dictation-demo__result--fail {
+  color: #fb4934;
+  background: rgba(204, 36, 29, 0.08);
+  border: 1px solid rgba(204, 36, 29, 0.25);
+}

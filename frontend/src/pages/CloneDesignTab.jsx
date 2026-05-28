@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   PanelLeftOpen, PanelLeftClose, Command, Globe, SlidersHorizontal, Volume2, User,
   UploadCloud, Square, Mic, Save, UserSquare2, Settings2, ChevronUp, ChevronDown,
@@ -7,10 +7,12 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import SearchableSelect from '../components/SearchableSelect';
+import DemoPresetGrid from '../components/DemoPresetGrid';
 import ALL_LANGUAGES from '../languages.json';
 import { POPULAR_LANGS, PRESETS, TAGS, CATEGORIES } from '../utils/constants';
 import { Button, Input, Slider, Progress } from '../ui';
 import { API } from '../api/client';
+import { listEngines } from '../api/engines';
 import './CloneDesignTab.css';
 
 export default function CloneDesignTab(props) {
@@ -65,6 +67,88 @@ export default function CloneDesignTab(props) {
     }
     setActivePersonality(p.id);
     setInstruct(p.instruct);
+    // Reset category sliders to Auto so the synthesize path doesn't
+    // merge stale slider tokens with the personality's instruct string —
+    // that combination caused issue #114 (conflicting items in the same
+    // category, e.g. "low pitch" from a prior preset + "moderate pitch"
+    // from the personality).
+    const resetVd = Object.fromEntries(Object.keys(CATEGORIES).map(k => [k, 'Auto']));
+    setVdStates(resetVd);
+  };
+
+  // Engine readiness — used by the demo "Hear demo" fallback. Polls every
+  // 15s so a freshly-finished model download flips the button back to live
+  // synthesis without a manual refresh.
+  const { data: enginesData } = useQuery({
+    queryKey: ['engines-readiness'],
+    queryFn: listEngines,
+    refetchInterval: 15000,
+    staleTime: 5000,
+  });
+  const anyTtsReady = !!(enginesData?.tts?.backends || []).some(b => b.available);
+
+  // Demo coach-mark: when the user enters the Clone tab with the bundled
+  // demo profile (demo0001) freshly selected and the textarea is empty,
+  // prefill a punchy starter prompt and show a one-line coach-mark above
+  // the textarea. Both auto-dismiss as soon as the user types anything.
+  // Tracked via localStorage so we don't re-prefill on every visit.
+  const DEMO_PROFILE_ID = 'demo0001';
+  const DEMO_PROMPT = "Welcome aboard. I was just a three-second clip a moment ago — now I can say anything you'd like, in your voice or mine.";
+  const [showDemoCoachmark, setShowDemoCoachmark] = useState(false);
+
+  useEffect(() => {
+    if (mode !== 'clone') return;
+    if (selectedProfile !== DEMO_PROFILE_ID) return;
+    if (typeof window === 'undefined') return;
+    if (localStorage.getItem('omnivoice.demoClonePrompted') === '1') return;
+    if (text) return; // user already typed something
+    setText(DEMO_PROMPT);
+    setShowDemoCoachmark(true);
+    localStorage.setItem('omnivoice.demoClonePrompted', '1');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, selectedProfile]);
+
+  // "Hear demo" fallback: when no TTS engine is ready and the user is on
+  // the demo profile, the Synthesize button is swapped for one that plays
+  // the pre-rendered demo_clone_output.wav. This guarantees a working
+  // "wow moment" on first launch before any model downloads finish.
+  const showHearDemo =
+    mode === 'clone' && selectedProfile === DEMO_PROFILE_ID && !anyTtsReady;
+  const demoAudioRef = useRef(null);
+  const [demoAudioPlaying, setDemoAudioPlaying] = useState(false);
+
+  const playDemoOutput = () => {
+    const audio = demoAudioRef.current;
+    if (!audio) return;
+    if (demoAudioPlaying) {
+      audio.pause();
+      setDemoAudioPlaying(false);
+      return;
+    }
+    audio.src = `${API}/demo_audio/demo_clone_output.wav`;
+    audio.currentTime = 0;
+    audio.play()
+      .then(() => setDemoAudioPlaying(true))
+      .catch(() => setDemoAudioPlaying(false));
+  };
+
+  // Partition personalities into legacy chips vs. new demo cards.
+  // `is_demo: true` entries get the rich card grid; the rest keep their
+  // existing chip-strip rendering (backward-compatible with v0.2.x users
+  // who learned the chips and shouldn't see them suddenly missing).
+  const demoPresets = personalities.filter(p => p.is_demo);
+  const chipPersonalities = personalities.filter(p => !p.is_demo);
+
+  // Apply a full demo preset: pre-fill the textarea, set the category
+  // sliders, clear any stale free-text instruct, switch language, and
+  // highlight the chip equivalent. After this fires, the user can hit
+  // Synthesize Audio immediately — no further input needed.
+  const applyDemoPreset = (p) => {
+    if (p.script) setText(p.script);
+    if (p.attrs) setVdStates({ ...vdStates, ...p.attrs });
+    setInstruct('');
+    if (p.language) setLanguage(p.language);
+    setActivePersonality(p.id);
   };
 
   return (
@@ -86,11 +170,34 @@ export default function CloneDesignTab(props) {
             </Button>
             <Command className="label-icon" size={14} /> Prompt
           </div>
-          {mode === 'design' && (
+          {/* Design-tab empty state: 7-card demo grid replaces the bare
+              attribute-preset buttons when the user has not yet typed
+              anything and no personality is active. As soon as they
+              interact, the grid steps aside for the standard form. */}
+          {mode === 'design' && !text && !activePersonality && demoPresets.length > 0 && (
+            <DemoPresetGrid presets={demoPresets} onUse={applyDemoPreset} />
+          )}
+          {mode === 'design' && (text || activePersonality || demoPresets.length === 0) && (
             <div className="preset-grid">
               {PRESETS.map(p => (
                 <button key={p.id} className="preset-btn" onClick={() => applyPreset(p)}>{p.name}</button>
               ))}
+            </div>
+          )}
+          {showDemoCoachmark && mode === 'clone' && selectedProfile === DEMO_PROFILE_ID && (
+            <div className="clone-coachmark" role="note">
+              <span className="clone-coachmark__icon">💡</span>
+              <span className="clone-coachmark__msg">
+                {t('demo.clone_coachmark')}
+              </span>
+              <button
+                type="button"
+                className="clone-coachmark__close"
+                onClick={() => setShowDemoCoachmark(false)}
+                aria-label="Dismiss coach mark"
+              >
+                ×
+              </button>
             </div>
           )}
           <textarea
@@ -98,7 +205,10 @@ export default function CloneDesignTab(props) {
             className="input-base clone-text-area"
             placeholder={mode === 'clone' ? "What should this voice say? ✍️" : "Describe the voice, then type what it says…"}
             value={text}
-            onChange={e => setText(e.target.value)}
+            onChange={e => {
+              setText(e.target.value);
+              if (showDemoCoachmark) setShowDemoCoachmark(false);
+            }}
           />
           <div className="tags-container">
             {TAGS.map(tag => <button key={tag} className="tag-btn" onClick={() => insertTag(tag)}>{tag}</button>)}
@@ -263,12 +373,14 @@ export default function CloneDesignTab(props) {
           <div>
             <div className="label-row"><UserSquare2 className="label-icon" size={14} /> {t('voice.personality')}</div>
 
-            {/* Personality presets */}
-            {personalities.length > 0 && (
+            {/* Personality presets — chip-only entries. Demo presets
+                render as full cards in the empty state above; including
+                them here too would duplicate the affordance. */}
+            {chipPersonalities.length > 0 && (
               <div style={{ marginBottom: 10 }}>
                 <div className="personality-label">{t('voice.pick_personality')}</div>
                 <div className="personality-strip">
-                  {personalities.map(p => (
+                  {chipPersonalities.map(p => (
                     <button
                       key={p.id}
                       type="button"
@@ -372,16 +484,38 @@ export default function CloneDesignTab(props) {
           </div>
         )}
 
-        <Button
-          variant="primary"
-          block
-          loading={isGenerating}
-          onClick={handleGenerate}
-          leading={!isGenerating && <Play size={14} />}
-          className="clone-footer-cta"
-        >
-          {isGenerating ? `Synthesizing… (${generationTime}s)` : 'Synthesize Audio'}
-        </Button>
+        {showHearDemo ? (
+          <>
+            <Button
+              variant="primary"
+              block
+              onClick={playDemoOutput}
+              leading={<Play size={14} />}
+              className="clone-footer-cta"
+            >
+              {demoAudioPlaying ? t('demo.stop_demo') : t('demo.hear_demo')}
+            </Button>
+            <div className="clone-hear-demo-chip">
+              {t('demo.prerendered_chip')}
+            </div>
+            <audio
+              ref={demoAudioRef}
+              onEnded={() => setDemoAudioPlaying(false)}
+              preload="none"
+            />
+          </>
+        ) : (
+          <Button
+            variant="primary"
+            block
+            loading={isGenerating}
+            onClick={handleGenerate}
+            leading={!isGenerating && <Play size={14} />}
+            className="clone-footer-cta"
+          >
+            {isGenerating ? `Synthesizing… (${generationTime}s)` : 'Synthesize Audio'}
+          </Button>
+        )}
         {isGenerating && (
           <Progress
             value={Math.min((generationTime / 8) * 100, 95)}

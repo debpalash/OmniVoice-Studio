@@ -418,6 +418,27 @@ async def _maybe_cinematic(translated, req, src_lang, loop):
     Otherwise return Fast-mode shape unchanged.
     """
     quality = (getattr(req, "quality", None) or "fast").lower()
+    # Stamp the predicted rate_ratio on every translated row that has a
+    # known slot. Works for Fast mode too — no LLM needed; just the CPS
+    # table from services/speech_rate. The UI's `seg-rate-badge` reads
+    # this value and shows users which segments will compress hard at
+    # generation time, so they can edit text or pick Cinematic quality.
+    try:
+        from services.speech_rate import rate_ratio as _predict_rate_ratio
+        for row in translated:
+            seg_ref = next(
+                (s for s in req.segments if str(s.id) == str(row["id"])),
+                None,
+            )
+            slot = getattr(seg_ref, "slot_seconds", None) if seg_ref else None
+            text = (row.get("text") or "").strip()
+            if slot and text and not row.get("error"):
+                row["rate_ratio"] = round(
+                    _predict_rate_ratio(text, float(slot), req.target_lang), 3,
+                )
+    except Exception as e:
+        logger.debug("non-LLM rate_ratio prediction skipped: %s", e)
+
     base = {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang, "quality_used": "fast"}
 
     if quality != "cinematic":

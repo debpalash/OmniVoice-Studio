@@ -321,9 +321,29 @@ step "gpu" "$GPU_INFO"
 step "python" "syncing dependencies..."
 note "This can take 5–10 min the first time (torch + torchaudio + demucs...)"
 
-# Create venv with the target Python version if it doesn't exist
+# Restricted-network support: when OMNIVOICE_REGION is set to china/russia/restricted,
+# route python-build-standalone downloads through ghproxy.net. See issues #57, #60.
+# Honors any existing UV_* env vars (power-user override).
+case "${OMNIVOICE_REGION:-}" in
+    china|russia|restricted)
+        : "${UV_PYTHON_INSTALL_MIRROR:=https://ghproxy.net/https://github.com/astral-sh/python-build-standalone/releases/download}"
+        export UV_PYTHON_INSTALL_MIRROR
+        note "Using ghproxy.net mirror for Python download (OMNIVOICE_REGION=${OMNIVOICE_REGION})"
+        ;;
+esac
+: "${UV_HTTP_TIMEOUT:=120}"
+: "${UV_HTTP_RETRIES:=5}"
+export UV_HTTP_TIMEOUT UV_HTTP_RETRIES
+
+# Create venv with the target Python version if it doesn't exist.
+# If the managed-python download fails (restricted network, mirror unreachable),
+# fall back to the user's system Python.
 if [ ! -d .venv ]; then
-    uv venv --python "$PYTHON_VERSION"
+    if ! uv venv --python "$PYTHON_VERSION"; then
+        warn "uv venv failed (likely Python download). Retrying with system Python..."
+        uv venv --python "$PYTHON_VERSION" --python-preference only-system \
+            || die "uv venv failed: install Python $PYTHON_VERSION system-wide, set OMNIVOICE_REGION=china|russia|restricted to route through a mirror, or check your network."
+    fi
 fi
 
 # Sync all deps from pyproject.toml + uv.lock

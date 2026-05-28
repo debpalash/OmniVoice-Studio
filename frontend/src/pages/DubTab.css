@@ -102,6 +102,26 @@
   max-width: 320px;
   text-align: center;
 }
+.dub-prep-overlay__detail {
+  font-size: var(--text-xs);
+  color: var(--color-fg-subtle);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.dub-prep-bar {
+  width: 240px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.dub-prep-overlay--large .dub-prep-bar { width: 320px; height: 5px; }
+.dub-prep-bar__fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(211, 134, 155, 0.75), rgba(211, 134, 155, 1));
+  border-radius: inherit;
+  transition: width 220ms ease-out;
+}
 
 .dub-trans-overlay {
   display: flex;
@@ -209,6 +229,30 @@
 .dub-tracks-row label.is-off { color: var(--chrome-fg-dim); }
 .dub-tracks-row label.is-on  { color: var(--chrome-fg); border-color: var(--chrome-border-strong); background: var(--chrome-hover-bg); }
 .dub-tracks-row label span.code { text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Pre-generation compression-ratio warning surfaced above Generate Dub. */
+.dub-compression-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 10px;
+  margin: 4px 0;
+  background: color-mix(in srgb, #fabd2f 12%, transparent);
+  border: 1px solid color-mix(in srgb, #fabd2f 35%, transparent);
+  border-left: 2px solid #fabd2f;
+  border-radius: var(--chrome-radius-pill);
+  font-size: 0.72rem;
+  color: var(--chrome-fg);
+  line-height: 1.35;
+}
+.dub-compression-warn__icon {
+  color: #fabd2f;
+  font-size: 0.9rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.dub-compression-warn__body { flex: 1; }
+.dub-compression-warn strong { color: #fabd2f; font-weight: var(--weight-semibold); }
 
 /* ── Utility: column flex that fills remaining height ────────── */
 .dub-col            { flex: 1; display: flex; flex-direction: column; min-height: 0; }

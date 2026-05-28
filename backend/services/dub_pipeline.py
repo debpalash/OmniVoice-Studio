@@ -32,6 +32,7 @@ import logging
 import os
 import re
 import shutil
+import subprocess
 import sys
 import threading
 import time
@@ -41,7 +42,7 @@ import soundfile as sf
 
 from core.config import DUB_DIR
 from fastapi import HTTPException
-from services.ffmpeg_utils import find_ffmpeg, _get_semaphore, _spawn_with_retry
+from services.ffmpeg_utils import find_ffmpeg, find_ffprobe, _get_semaphore, _spawn_with_retry
 from services.model_manager import get_best_device
 from core.db import db_conn, get_db
 from core import event_bus
@@ -278,45 +279,240 @@ def run_proc_factory(job_id: str):
     return run_proc
 
 
+async def run_proc_streaming_stderr(
+    job_id: str,
+    cmd: list[str],
+    *,
+    timeout: float = 1800.0,
+) -> AsyncIterator[tuple]:
+    """Spawn `cmd` and stream its stderr line-by-line as it runs.
+
+    Yields:
+      ('stderr', line: str) — once per logical line (split on \\r or \\n,
+        so tqdm-style progress bars that overwrite the same line via
+        carriage return surface as separate lines)
+      ('done', returncode: int, full_stderr: bytes) — exactly once when
+        the subprocess exits; this is always the final value.
+
+    Honors the same semaphore + register_proc/kill plumbing as run_proc.
+    """
+    async with _get_semaphore():
+        p = await _spawn_with_retry(
+            cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        register_proc(job_id, p)
+        stderr_parts: list[bytes] = []
+        rc: int = -1
+        try:
+            buf = b""
+            start = time.monotonic()
+            while True:
+                if time.monotonic() - start > timeout:
+                    try:
+                        p.kill()
+                    except ProcessLookupError:
+                        pass
+                    raise HTTPException(
+                        status_code=504,
+                        detail=f"subprocess timed out after {timeout}s",
+                    )
+                try:
+                    chunk = await asyncio.wait_for(p.stderr.read(256), timeout=1.0)
+                except asyncio.TimeoutError:
+                    if p.returncode is not None:
+                        break
+                    continue
+                if not chunk:
+                    break
+                stderr_parts.append(chunk)
+                buf += chunk
+                while True:
+                    idx_r = buf.find(b"\r")
+                    idx_n = buf.find(b"\n")
+                    if idx_r < 0 and idx_n < 0:
+                        break
+                    if idx_r < 0:
+                        idx = idx_n
+                    elif idx_n < 0:
+                        idx = idx_r
+                    else:
+                        idx = min(idx_r, idx_n)
+                    line = buf[:idx].decode(errors="replace")
+                    buf = buf[idx + 1:]
+                    if line.strip():
+                        yield ("stderr", line)
+            rc = await p.wait()
+        finally:
+            unregister_proc(job_id, p)
+            if p.returncode is None:
+                try:
+                    p.kill()
+                except ProcessLookupError:
+                    pass
+                try:
+                    await asyncio.wait_for(p.wait(), timeout=5.0)
+                except asyncio.TimeoutError:
+                    pass
+            try:
+                p.stdout.close()
+            except Exception:
+                pass
+    yield ("done", rc, b"".join(stderr_parts))
+
+
+_BROWSER_VIDEO_CODECS = {"h264", "avc1"}
+_BROWSER_AUDIO_CODECS = {"aac", "mp4a"}
+
+
+def _probe_codecs(path: str) -> tuple[str, str]:
+    """Return (video_codec, audio_codec) lowercased, or ('','') on probe error."""
+    ffprobe = find_ffprobe()
+    if not ffprobe:
+        return ("", "")
+    try:
+        out = subprocess.run(
+            [ffprobe, "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=codec_name", "-of", "csv=p=0", path],
+            capture_output=True, text=True, timeout=10,
+        )
+        vcodec = (out.stdout or "").strip().lower()
+        out = subprocess.run(
+            [ffprobe, "-v", "error", "-select_streams", "a:0",
+             "-show_entries", "stream=codec_name", "-of", "csv=p=0", path],
+            capture_output=True, text=True, timeout=10,
+        )
+        acodec = (out.stdout or "").strip().lower()
+        return vcodec, acodec
+    except Exception:
+        return ("", "")
+
+
+def _ensure_browser_playable_mp4(video_path: str) -> str:
+    """Guarantee `video_path` is an mp4 with h264 video + aac audio.
+
+    Three classes of fix the in-app `<video>` element needs:
+      1. `.webm`/`.mkv` containers — WKWebView refuses them outright.
+      2. `.mp4` with VP9 or AV1 video — WKWebView can't decode either
+         inside an mp4 container (Safari ships VP9 only in WebM).
+      3. `.mp4` with Opus audio — same story; mp4-with-opus is rare and
+         poorly supported across webviews.
+
+    Strategy: probe codecs; if extension is mp4 AND both codecs are in
+    the browser-safe set, leave alone. Otherwise transcode to h264+aac.
+    Returns the (possibly new) file path.
+    """
+    ffmpeg_bin = find_ffmpeg()
+    is_mp4 = video_path.lower().endswith(".mp4")
+    if is_mp4:
+        vcodec, acodec = _probe_codecs(video_path)
+        if vcodec in _BROWSER_VIDEO_CODECS and acodec in _BROWSER_AUDIO_CODECS:
+            return video_path  # already safe — fast path, no rewrite
+    # Need to rewrite. Try stream-copy first when the container is the
+    # only problem; fall back to full transcode for codec mismatches.
+    target = os.path.splitext(video_path)[0] + ".mp4"
+    if target == video_path:
+        target = os.path.splitext(video_path)[0] + ".browser.mp4"
+    # Stream-copy attempt — works when codecs are already h264+aac but
+    # the container is wrong (rare with our format selector but cheap to
+    # try). Skip straight to transcode if we already know codecs are bad.
+    rc = 1
+    if is_mp4:
+        # Codecs were probed and known-bad; skip the copy attempt.
+        pass
+    else:
+        rc = subprocess.run(
+            [ffmpeg_bin, "-y", "-i", video_path,
+             "-c:v", "copy", "-c:a", "copy",
+             "-movflags", "+faststart", target],
+            capture_output=True,
+        ).returncode
+        if rc != 0 or not os.path.exists(target):
+            rc = 1
+    if rc != 0:
+        # Full transcode — h264 baseline-ish + aac is the safe combo.
+        rc = subprocess.run(
+            [ffmpeg_bin, "-y", "-i", video_path,
+             "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+             "-pix_fmt", "yuv420p",
+             "-c:a", "aac", "-b:a", "192k",
+             "-movflags", "+faststart", target],
+            capture_output=True,
+        ).returncode
+    if rc == 0 and os.path.exists(target) and target != video_path:
+        try:
+            os.remove(video_path)
+        except OSError:
+            pass
+        return target
+    if rc != 0:
+        logger.warning(
+            "Could not transcode %s to browser-playable mp4 — the in-app "
+            "video player may render this file as a black box.",
+            video_path,
+        )
+    return video_path
+
+
 def yt_download_sync(
     url: str,
     job_dir: str,
     *,
     fetch_subs: bool = False,
     sub_langs: list[str] | None = None,
+    progress_hook=None,
 ) -> tuple[str, str, list[str]]:
     """Blocking yt-dlp download into `job_dir`.
 
     Returns (video_path, title, downloaded_sub_files).
 
-    When `fetch_subs` is True we also ask yt-dlp to download both
-    manually-uploaded (`writesubtitles=True`) and auto-generated / auto-
-    translated captions (`writeautomaticsub=True`). This is how we pull
-    YouTube's free machine translations without needing a Google API key —
-    yt-dlp talks to the same public endpoints the YouTube player does.
-    `sub_langs` controls which language tracks to ask for; default `['all']`
-    grabs whatever the uploader / auto-translator makes available.
+    Captions are downloaded in a separate, best-effort pass after the video
+    so subtitle failures (rate-limits, missing tracks) can never derail the
+    actual ingest. Defaults skip YouTube's auto-translated set — requesting
+    "all" expands into ~100 per-language variants per video and reliably
+    trips HTTP 429, and the downstream Translate step handles target
+    languages more reliably than YouTube's machine translations anyway.
+    Pass an explicit `sub_langs` list to override the default selection.
     """
     import glob
     import yt_dlp
     outtmpl = os.path.join(job_dir, "original.%(ext)s")
     ydl_opts: dict = {
         "outtmpl": outtmpl,
-        "format": "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b",
+        # Prefer h264+aac streams so the merged mp4 is natively decodable
+        # by WKWebView/WebView2/Chromium. YouTube serves VP9+Opus as the
+        # default high-quality combo, which yt-dlp will happily mux into
+        # an mp4 container — but Safari/WKWebView refuses to decode VP9
+        # inside mp4, leaving a black <video> in the dub editor. Fall
+        # back to any combo only when no h264/aac variant exists, then
+        # the post-download codec probe below will transcode it.
+        "format": (
+            "bv*[vcodec^=avc1][ext=mp4]+ba[acodec^=mp4a][ext=m4a]/"
+            "bv*[vcodec^=avc1]+ba[acodec^=mp4a]/"
+            "b[vcodec^=avc1][acodec^=mp4a]/"
+            "bv*[vcodec^=avc1]+ba/"
+            "b[vcodec^=avc1]/"
+            "bv*+ba/b"
+        ),
         "merge_output_format": "mp4",
         "noplaylist": True,
         "quiet": True,
         "no_warnings": True,
         "restrictfilenames": True,
         "socket_timeout": 30,
+        # Resilience against YouTube CDN flakes: a single empty fragment
+        # (commonly the very last one — "Did not get any data blocks")
+        # used to fail the whole ingest at 99% complete. Retry each
+        # fragment generously and tolerate one that never returns data;
+        # missing the last <0.5% of audio is acceptable for transcription.
+        "fragment_retries": 10,
+        "retries": 10,
+        "extractor_retries": 5,
+        "skip_unavailable_fragments": True,
     }
-    if fetch_subs:
-        ydl_opts.update({
-            "writesubtitles": True,
-            "writeautomaticsub": True,
-            "subtitleslangs": list(sub_langs) if sub_langs else ["all"],
-            "subtitlesformat": "vtt",
-        })
+    if progress_hook is not None:
+        ydl_opts["progress_hooks"] = [progress_hook]
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         path = ydl.prepare_filename(info)
@@ -326,12 +522,48 @@ def yt_download_sync(
             video_path = mp4
         else:
             video_path = path
+    # Browser-playability guard: WKWebView (Tauri on macOS) refuses to
+    # decode VP9/AV1 video and Opus audio even when they're wrapped in an
+    # mp4 container, and refuses .webm/.mkv outright. We probe the actual
+    # codecs and transcode only when needed — `<video>` rendering is
+    # what we care about, not what extension yt-dlp ended up writing.
+    video_path = _ensure_browser_playable_mp4(video_path)
+    title = info.get("title") or os.path.basename(video_path)
+
     sub_files: list[str] = []
     if fetch_subs:
-        # yt-dlp names captions "<base>.<lang>.vtt"; scoop them all.
-        base = os.path.splitext(video_path)[0]
-        sub_files = sorted(glob.glob(base + ".*.vtt"))
-    return video_path, info.get("title") or os.path.basename(video_path), sub_files
+        if sub_langs:
+            langs = list(sub_langs)
+        else:
+            orig = (info.get("language") or "").strip()
+            manual = list((info.get("subtitles") or {}).keys())
+            langs = sorted({*manual, *([orig] if orig else [])})
+        if not langs:
+            logger.info("No captions available on %s (skipping subtitle pass)", url)
+        else:
+            sub_opts = {
+                **ydl_opts,
+                "skip_download": True,
+                "writesubtitles": True,
+                "writeautomaticsub": True,
+                "subtitleslangs": langs,
+                "subtitlesformat": "vtt",
+                "extractor_args": {"youtube": {"skip": ["translated_subs"]}},
+                "ignoreerrors": True,
+                "extractor_retries": 5,
+                "sleep_interval_subtitles": 1,
+            }
+            try:
+                with yt_dlp.YoutubeDL(sub_opts) as ydl_sub:
+                    ydl_sub.extract_info(url, download=True)
+            except Exception as e:
+                logger.warning(
+                    "Subtitle download failed for %s (continuing with video): %s",
+                    url, e,
+                )
+            base = os.path.splitext(video_path)[0]
+            sub_files = sorted(glob.glob(base + ".*.vtt"))
+    return video_path, title, sub_files
 
 
 def parse_vtt_segments(vtt_path: str) -> list[dict]:
@@ -409,12 +641,50 @@ async def ingest_pipeline(
             fetch_subs = bool(source.get("fetch_subs"))
             sub_langs = source.get("sub_langs") or None
             yield prep_event("download_start", url=url)
+            # Bridge yt-dlp's per-fragment progress callback (fires inside
+            # the worker thread) into the async generator via a threadsafe
+            # queue so the UI can render a real download bar.
+            loop = asyncio.get_running_loop()
+            dl_queue: asyncio.Queue = asyncio.Queue()
+            _last_pct = -1
+
+            def _yt_progress(d: dict) -> None:
+                nonlocal _last_pct
+                status = d.get("status")
+                if status == "downloading":
+                    total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
+                    cur = d.get("downloaded_bytes") or 0
+                    if total > 0:
+                        pct = max(0, min(100, int(cur * 100 / total)))
+                        if pct != _last_pct:
+                            _last_pct = pct
+                            payload = {
+                                "percent": pct,
+                                "speed_bps": d.get("speed") or 0,
+                                "eta_s": d.get("eta"),
+                            }
+                            loop.call_soon_threadsafe(dl_queue.put_nowait, payload)
+
+            dl_task = asyncio.create_task(asyncio.to_thread(
+                yt_download_sync, url, job_dir,
+                fetch_subs=fetch_subs, sub_langs=sub_langs,
+                progress_hook=_yt_progress,
+            ))
             try:
-                video_path, title, sub_files = await asyncio.to_thread(
-                    yt_download_sync, url, job_dir,
-                    fetch_subs=fetch_subs, sub_langs=sub_langs,
-                )
+                while not dl_task.done():
+                    try:
+                        payload = await asyncio.wait_for(dl_queue.get(), timeout=0.5)
+                        yield prep_event("download_progress", **payload)
+                    except asyncio.TimeoutError:
+                        continue
+                # Drain any final queued events.
+                while not dl_queue.empty():
+                    payload = dl_queue.get_nowait()
+                    yield prep_event("download_progress", **payload)
+                video_path, title, sub_files = await dl_task
             except Exception as e:
+                if not dl_task.done():
+                    dl_task.cancel()
                 yield prep_event("error", stage="download", error=str(e)[:300])
                 shutil.rmtree(job_dir, ignore_errors=True)
                 return
@@ -540,9 +810,25 @@ async def ingest_pipeline(
                 demucs_cmd = [sys.executable, "-m", "demucs.separate",
                               "--two-stems", "vocals", "-n", "htdemucs", "-d", get_best_device(),
                               audio_path, "-o", job_dir]
-                p, _, stderr = await run_proc(demucs_cmd, timeout=1800.0)
-                if p.returncode != 0:
-                    raise Exception(stderr.decode(errors="replace")[:500])
+                rc = -1
+                stderr_full = b""
+                last_pct = -1
+                # demucs writes a tqdm progress bar to stderr as
+                # "  42%|████      | …" — surface each new integer percent
+                # to the UI so the user sees the bar instead of a static
+                # spinner during the multi-minute separation step.
+                async for evt in run_proc_streaming_stderr(job_id, demucs_cmd, timeout=1800.0):
+                    if evt[0] == "stderr":
+                        m = re.search(r"(\d{1,3})%", evt[1])
+                        if m:
+                            pct = max(0, min(100, int(m.group(1))))
+                            if pct != last_pct:
+                                last_pct = pct
+                                yield prep_event("demucs_progress", percent=pct)
+                    elif evt[0] == "done":
+                        rc, stderr_full = evt[1], evt[2]
+                if rc != 0:
+                    raise Exception(stderr_full.decode(errors="replace")[:500])
                 demucs_out = os.path.join(job_dir, "htdemucs", "audio")
                 if os.path.exists(os.path.join(demucs_out, "vocals.wav")):
                     shutil.move(os.path.join(demucs_out, "vocals.wav"), vocals_path)

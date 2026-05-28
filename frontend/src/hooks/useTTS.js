@@ -104,8 +104,18 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
       } else {
         const designSeed = Math.floor(Math.random() * 2147483647);
         formData.append("seed", designSeed);
+        // Build the instruct string from slider tokens + the free-text /
+        // personality instruct. Deduplicate so a personality whose instruct
+        // overlaps with a slider value doesn't produce "middle-aged,
+        // middle-aged" (issue #114). We can't disambiguate conflicting
+        // categories (e.g. "low pitch" vs "moderate pitch") here — that's
+        // resolved upstream by applyPersonality clearing vdStates to Auto.
         const parts = Object.values(vdStates).filter(v => v !== 'Auto');
-        if (instruct.trim()) parts.push(instruct.trim());
+        if (instruct.trim()) {
+          for (const tok of instruct.trim().split(',').map(s => s.trim()).filter(Boolean)) {
+            if (!parts.includes(tok)) parts.push(tok);
+          }
+        }
         const finalInstruct = parts.join(', ');
         if (finalInstruct) formData.append("instruct", finalInstruct);
         if (selectedProfile) {

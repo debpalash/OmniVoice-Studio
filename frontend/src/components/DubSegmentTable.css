@@ -1,14 +1,44 @@
 /* Table body specific styles — chrome comes from ui/Table. */
 
+/* Single grid template shared by both header and data rows so columns
+   line up. Order: [select][time][spkr][text][lang][voice][vol][actions].
+   Both `.dub-segment-table__header` and `.segment-row` override their
+   default flex layout to use this template — eliminates the column-
+   drift bug where the time pill bled into the text column. */
+.segment-table {
+  --seg-grid-cols: 18px 64px 70px minmax(0, 1fr) 44px 60px 40px 44px;
+}
+
+.dub-segment-table__header,
+.segment-table .segment-row {
+  display: grid !important;
+  grid-template-columns: var(--seg-grid-cols);
+  align-items: center;
+  gap: 6px;
+}
+
 .dub-segment-table__header {
-  padding: 3px 4px !important;
-  gap: 3px !important;
+  padding: 4px 6px !important;
+  /* Header cells normally carry explicit widths from Table.jsx — neutralise
+     them so the grid template wins. */
+}
+.dub-segment-table__header .ui-table-header__cell {
+  width: auto !important;
+  flex: none !important;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.segment-table .segment-row {
+  padding: 4px 6px;
+  min-height: 30px;
 }
 
 .dub-segment-table__body { flex: 1; min-height: 0; }
 
 .dub-segment-table__select-all {
-  width: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

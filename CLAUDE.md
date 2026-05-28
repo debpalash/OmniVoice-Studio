@@ -190,7 +190,9 @@ Everything else (new engines, fancy features) is downstream of "the thing instal
 <!-- GSD:conventions-start source:CONVENTIONS.md -->
 ## Conventions
 
-Conventions not yet established. Will populate as patterns emerge during development.
+**Versioning (hard rule):** Everything ships on `v0.3.0`. Never mention, suggest, or label anything with a version bump — no v0.4, no RCs, no "defer to next version", no future-version labels — unless the user explicitly asks to bump. Zero unprompted version chatter.
+
+Other conventions not yet established. Will populate as patterns emerge during development.
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->

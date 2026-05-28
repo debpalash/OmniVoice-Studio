@@ -6,6 +6,7 @@ import {
 import { Button } from '../ui';
 import { useSetupStatus, usePreflight } from '../api/hooks';
 import { ModelStoreTab, EnginesTab } from './Settings';
+import DictationDemo from '../components/DictationDemo';
 import './SetupWizard.css';
 import '../components/Misc.css';
 
@@ -108,7 +109,7 @@ function PreflightPanel({ report, loading, onRecheck }) {
 
 /* ── Stepper nav with connectors ───────────────────────────────────────── */
 
-const STEP_LABELS = ['Welcome', 'System check', 'Install models', 'Pick engines'];
+const STEP_LABELS = ['Welcome', 'System check', 'Install models', 'Pick engines', 'Try dictation'];
 
 function StepperNav({ step, onStep }) {
   return (
@@ -286,11 +287,34 @@ export default function SetupWizard({ onReady }) {
             <Button variant="ghost" onClick={() => setStep(2)}>Back</Button>
             <Button
               variant="primary"
-              onClick={onReady}
+              onClick={() => setStep(4)}
               leading={<CheckCircle size={14} />}
             >
-              Enter studio
+              Next: Try dictation
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Dictation — guided walkthrough. Skippable (per cross-platform
+          parity rule: some users genuinely don't want dictation). */}
+      {step === 4 && (
+        <div className="swiz-slide" key="step-4">
+          <div className="setup-wizard__embed">
+            <DictationDemo />
+          </div>
+          <div className="setup-wizard__nav">
+            <Button variant="ghost" onClick={() => setStep(3)}>Back</Button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button variant="subtle" onClick={onReady}>Skip</Button>
+              <Button
+                variant="primary"
+                onClick={onReady}
+                leading={<CheckCircle size={14} />}
+              >
+                Enter studio
+              </Button>
+            </div>
           </div>
         </div>
       )}

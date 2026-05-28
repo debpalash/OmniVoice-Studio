@@ -98,6 +98,14 @@ describe('errorDocsMap', () => {
     expect(classifyError(new Error('Gatekeeper blocked the launch'))).toBe(
       'GATEKEEPER_QUARANTINE',
     );
+    // Issue #72: macOS reports "app is damaged" in English and "已损坏" in
+    // localized Chinese builds — both should land on the same docs page.
+    expect(classifyError(new Error('OmniVoice Studio is damaged'))).toBe(
+      'GATEKEEPER_QUARANTINE',
+    );
+    expect(classifyError(new Error('OmniVoice Studio已损坏，无法打开'))).toBe(
+      'GATEKEEPER_QUARANTINE',
+    );
   });
 
   it('classifyError returns null on unknown messages', () => {

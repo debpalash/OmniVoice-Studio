@@ -26,6 +26,8 @@ import ApiKeysPanel from '../components/settings/ApiKeysPanel';
 import PerformancePanel from '../components/settings/PerformancePanel';
 import AppearancePanel from '../components/settings/AppearancePanel';
 import EngineCompatibilityMatrix from '../components/EngineCompatibilityMatrix';
+import DictationDemo from '../components/DictationDemo';
+import ReportBugButton from '../components/ReportBugButton';
 import './Settings.css';
 
 const TABS = [
@@ -1031,7 +1033,12 @@ export default function Settings() {
 
       {activeTab === 'engines' && <EnginesTab />}
 
-      {activeTab === 'capture' && <HotkeyTab />}
+      {activeTab === 'capture' && (
+        <>
+          <DictationDemo />
+          <HotkeyTab />
+        </>
+      )}
 
       {activeTab === 'credentials' && <CredentialsTab info={info} />}
 
@@ -1042,6 +1049,7 @@ export default function Settings() {
               <FileText size={16} color="#fabd2f" /> Logs
             </span>
             <span className="settings-section__head-actions">
+              <ReportBugButton />
               <Button
                 variant="subtle"
                 size="sm"

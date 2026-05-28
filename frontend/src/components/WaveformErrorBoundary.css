@@ -4,7 +4,17 @@
 }
 .wfm-stack { display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 0; }
 .wfm-video-preview {
-  flex: 0 0 auto; aspect-ratio: 16 / 9; max-height: 45%;
+  /* Width-driven: use the full available width and derive height from the
+     16:9 aspect ratio, capped at 60vh so a very tall parent can't push
+     the waveform off-screen. Previous `max-height: 45%` was clamping the
+     height first, which then back-pressured the width (aspect-ratio
+     preserves shape), leaving empty black space to the right of the
+     video. For portrait sources the inner <video> uses object-fit:contain
+     and letterboxes within the 16:9 box. */
+  flex: 0 0 auto;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 60vh;
   background: #000; border-radius: 4px; overflow: hidden;
   border: 1px solid rgba(255,255,255,0.05); display: flex;
 }

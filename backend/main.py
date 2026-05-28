@@ -429,6 +429,13 @@ app.add_middleware(
 app.mount("/audio", StaticFiles(directory=OUTPUTS_DIR), name="audio")
 app.mount("/voice_audio", StaticFiles(directory=VOICES_DIR), name="voice_audio")
 
+# Bundled demo assets — clone reference + pre-rendered output, voice-design
+# preset previews, dictation samples. Read-only, ships with the app, no
+# network. See scripts/build_demos.sh for how the WAVs are generated.
+_DEMO_ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets", "samples")
+if os.path.isdir(_DEMO_ASSETS_DIR):
+    app.mount("/demo_audio", StaticFiles(directory=_DEMO_ASSETS_DIR), name="demo_audio")
+
 
 # ── Health check ────────────────────────────────────────────────────────
 # Used by Docker health checks, load balancers, and the Tauri desktop shell.

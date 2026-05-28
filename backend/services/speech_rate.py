@@ -21,11 +21,38 @@ from services.llm_backend import get_active_llm_backend, OffBackend
 
 logger = logging.getLogger("omnivoice.speech_rate")
 
-# Per-language read-speed estimates (chars/sec at natural pace).
-# These are rough; real speakers vary wildly. Good enough for a first pass.
+# Per-language read-speed estimates (chars/sec at natural pace, counting
+# Python `len()` codepoints — not phonemes or graphemes). These are
+# rough; real speakers vary wildly. Numbers below come from a mix of
+# Pellegrino et al. 2011 (Cross-language information rate) and informal
+# calibration against TTS engine outputs.
+#
+# Codepoint density matters a lot here because Indic scripts (Devanagari,
+# Bengali, Tamil…) encode vowel-marks as separate codepoints, inflating
+# `len(text)` for the same spoken duration. Without an explicit entry,
+# `expected_duration` falls back to 13.0 cps — which produces ratios
+# 1.3-1.7× the truth for Bengali/Hindi/Tamil and forces aggressive
+# slot-compression in TTS that the WSOLA stretch then has to repair.
 _RATE_CPS = {
     "en": 15.0, "de": 14.0, "fr": 15.0, "es": 15.5, "it": 15.0, "pt": 15.0,
+    # CJK — logographic / mora-based scripts, fewer chars per second.
     "ja": 10.0, "ko": 10.0, "zh": 6.0,
+    # Indic — Devanagari/Bengali/Tamil/Telugu/etc. compound graphemes
+    # decompose into multiple codepoints; spoken syllable rate is
+    # closer to English but the codepoint count is higher.
+    "hi": 17.0, "bn": 17.0, "ta": 14.0, "te": 14.0, "mr": 16.0,
+    "gu": 16.0, "kn": 14.0, "ml": 14.0, "pa": 16.0, "or": 16.0,
+    "ur": 13.0,
+    # RTL / Semitic — Arabic & Hebrew have shorter codepoint counts per
+    # word than English (no vowel chars written) so cps reads lower.
+    "ar": 12.0, "he": 12.0, "fa": 13.0,
+    # Southeast Asian — Thai is contiguous (no spaces); Vietnamese is
+    # concise; Indonesian is concise but Latin-scripted.
+    "th": 10.0, "vi": 16.0, "id": 14.0, "ms": 14.0,
+    # Slavic + Turkic — agglutinative or compound-heavy; long words.
+    "ru": 13.0, "pl": 13.0, "uk": 13.0, "cs": 13.0, "tr": 12.0,
+    # Nordic / Greek — close to mainland European baseline.
+    "el": 14.0, "nl": 14.0, "sv": 14.0, "no": 14.0, "da": 14.0, "fi": 13.0,
 }
 
 # Tolerance window — if predicted ratio is within this of 1.0 we accept.

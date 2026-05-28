@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { List } from 'react-window';
 import DubSegmentRow from './DubSegmentRow';
 import { Table, Select } from '../ui';
+import { useAppStore } from '../store';
 import './DubSegmentTable.css';
 
 const BASE_ROW_HEIGHT = 26;
@@ -25,6 +26,15 @@ export default function DubSegmentTable({
   const disabled = dubStep === 'generating' || dubStep === 'stopping';
   const [query, setQuery] = useState('');
   const [speakerFilter, setSpeakerFilter] = useState('');
+  // ID of the segment under the playhead. Subscribed via selector so the
+  // table re-renders only when the playing segment changes, not on every
+  // timeupdate tick.
+  const currentSegId = useAppStore(s => s.dubCurrentSegId);
+
+  // Imperative handle for react-window v2 so we can auto-scroll the row
+  // containing the playhead into view. (The scroll effect itself lives
+  // below the `filtered` memo so it can depend on it without TDZ.)
+  const listRef = useRef(null);
 
   // react-window v2 needs a concrete height prop — CSS 100 % doesn't cut it.
   // Measure the body container and pass its height explicitly so the list
@@ -59,6 +69,20 @@ export default function DubSegmentTable({
     });
   }, [segments, query, speakerFilter]);
 
+  // Auto-scroll the playing row into view as the playhead advances. Uses
+  // align='smart' so an already-visible row doesn't trigger a jump.
+  // Placed after `filtered` so it can depend on it without TDZ.
+  useEffect(() => {
+    if (!currentSegId || !listRef.current) return;
+    const filteredIdx = filtered.findIndex(s => s.id === currentSegId);
+    if (filteredIdx < 0) return;
+    try {
+      listRef.current.scrollToRow({
+        index: filteredIdx, align: 'smart', behavior: 'smooth',
+      });
+    } catch (_) { /* react-window may not be ready yet */ }
+  }, [currentSegId, filtered]);
+
   const rowHeight = useCallback((index) => {
     const s = filtered[index];
     if (!s) return BASE_ROW_HEIGHT;
@@ -68,21 +92,23 @@ export default function DubSegmentTable({
   const rowProps = useMemo(() => ({
     filtered, profiles, speakerClones, disabled, dubStep, dubProgress, previewLoadingId,
     selectedIds, onSelect, onEditField, onDelete, onRestore, onPreview, onSplit, onMerge, onDirect, onSeek,
-    segments,
+    segments, currentSegId,
   }), [filtered, profiles, speakerClones, disabled, dubStep, dubProgress, previewLoadingId,
-      selectedIds, onSelect, onEditField, onDelete, onRestore, onPreview, onSplit, onMerge, onDirect, onSeek, segments]);
+      selectedIds, onSelect, onEditField, onDelete, onRestore, onPreview, onSplit, onMerge, onDirect, onSeek, segments, currentSegId]);
 
-  const Row = useCallback(({ index, style, filtered: fl, profiles: profs, speakerClones: clones, disabled: dis, dubProgress: prog, dubStep: step, previewLoadingId: previewId, selectedIds: sel, onSelect: pick, onEditField: edit, onDelete: del, onRestore: rest, onPreview: prev, onSplit: split, onMerge: merge, onDirect: direct, onSeek: seek, segments: segs }) => {
+  const Row = useCallback(({ index, style, filtered: fl, profiles: profs, speakerClones: clones, disabled: dis, dubProgress: prog, dubStep: step, previewLoadingId: previewId, selectedIds: sel, onSelect: pick, onEditField: edit, onDelete: del, onRestore: rest, onPreview: prev, onSplit: split, onMerge: merge, onDirect: direct, onSeek: seek, segments: segs, currentSegId: curId }) => {
     const seg = fl[index];
     if (!seg) return null;
     const absoluteIndex = segs.indexOf(seg);
     const isActive = (step === 'generating' || step === 'stopping') && prog.current === absoluteIndex + 1;
     const isDone = (step === 'generating' || step === 'stopping') && prog.current > absoluteIndex + 1;
+    const isPlaying = curId === seg.id;
     const canMerge = index < fl.length - 1;
     return (
       <DubSegmentRow
         seg={seg} idx={index} style={style}
         disabled={dis} isActive={isActive} isDone={isDone}
+        isPlaying={isPlaying}
         previewLoading={previewId === seg.id}
         selected={sel && sel.has(seg.id)}
         canMerge={canMerge}
@@ -142,6 +168,7 @@ export default function DubSegmentTable({
       <div className="dub-segment-table__body" ref={bodyRef}>
         {bodyHeight > 0 && (
           <List
+            listRef={listRef}
             rowCount={filtered.length}
             rowHeight={rowHeight}
             rowComponent={Row}

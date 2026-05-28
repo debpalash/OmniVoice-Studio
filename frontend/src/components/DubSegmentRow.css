@@ -17,11 +17,54 @@
   background: rgba(211, 134, 155, 0.05) !important;
 }
 
+/* Row containing the current media playhead — distinct from segment-active
+   (which fires during dub *generation*) so users can tell at a glance
+   where the video is playing while editing. */
+.segment-row.segment-playing {
+  background: rgba(131, 165, 152, 0.10) !important;
+  box-shadow: inset 2px 0 0 #83a598;
+}
+.segment-row.segment-playing.segment-active {
+  /* Generation wins visually when both are true. */
+  box-shadow: inset 2px 0 0 #d3869b;
+}
+
+/* Per-cell widths are inherited from the shared grid template defined
+   in DubSegmentTable.css (--seg-grid-cols). Cells here only control
+   intra-cell layout: stacking, font, overflow. */
 .seg-check {
-  width: 14px; flex-shrink: 0; margin-right: 1px; cursor: pointer;
+  cursor: pointer;
+  justify-self: center;
 }
 .seg-time {
-  width: 46px; flex-shrink: 0; display: flex; flex-direction: column;
+  min-width: 0; overflow: hidden;
+  display: flex; flex-direction: column;
+  font-variant-numeric: tabular-nums;
+}
+.seg-time-row {
+  display: flex; align-items: baseline; gap: 2px;
+  min-width: 0;
+}
+.seg-time-input {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.66rem;
+  color: var(--chrome-fg);
+  width: 36px;
+  text-align: right;
+  min-width: 0;
+}
+.seg-time-input:focus {
+  outline: 1px solid var(--chrome-accent);
+  outline-offset: 1px;
+  background: var(--chrome-hover-bg);
+}
+.seg-time-sep { color: var(--chrome-fg-muted); }
+.seg-time-end {
+  color: var(--chrome-fg-muted);
+  font-size: 0.62rem;
 }
 .seg-sync-badge {
   font-size: 0.48rem; margin-top: 1px;
@@ -35,12 +78,26 @@
   font-size: 0.52rem; margin-left: 1px;
 }
 .seg-speaker-input {
-  width: 40px; flex-shrink: 0; font-size: 0.52rem; color: #a89984;
-  padding: 1px 2px; text-align: center;
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 0.66rem;
+  color: var(--chrome-fg-muted);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.seg-speaker-input:focus {
+  outline: 1px solid var(--chrome-accent);
+  outline-offset: 1px;
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
 }
 .seg-text-col {
-  flex: 1 1 0%; display: flex; flex-direction: column; gap: 1px;
-  min-width: 80px; overflow: hidden;
+  display: flex; flex-direction: column; gap: 1px;
+  min-width: 0; overflow: hidden;
 }
 .seg-text-col .segment-input {
   width: 100%; min-width: 0;
@@ -63,17 +120,22 @@
   cursor: pointer; padding: 0; font-size: 0.52rem;
 }
 .seg-lang-select {
-  width: 38px; flex-shrink: 0; font-size: 0.48rem; padding: 1px 1px;
+  width: 100%; min-width: 0; font-size: 0.6rem; padding: 1px 2px;
 }
 .seg-profile-select {
-  width: 56px; flex-shrink: 0; font-size: 0.52rem; padding: 1px 2px;
+  width: 100%; min-width: 0; font-size: 0.6rem; padding: 1px 4px;
   overflow: hidden; text-overflow: ellipsis;
 }
 .seg-gain-slider {
-  width: 36px !important; max-width: 36px; flex-shrink: 0; flex-grow: 0;
-  height: 3px; padding: 0; margin: 0;
+  width: 100%; min-width: 0; padding: 0; margin: 0;
+  height: 3px;
 }
 .seg-actions {
-  display: flex; gap: 1px; width: 38px; flex-shrink: 0;
+  display: flex; gap: 2px; justify-content: flex-end;
+  min-width: 0;
+}
+.seg-actions > button {
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
 }
 

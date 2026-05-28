@@ -1,8 +1,10 @@
 import os
 import json
 import logging
+import subprocess
 import time
 import asyncio
+import numpy as np
 import torch
 import torchaudio
 from fastapi import APIRouter, HTTPException
@@ -15,12 +17,95 @@ from schemas.requests import DubRequest
 from services.model_manager import get_model, _gpu_pool
 from services.audio_dsp import apply_mastering, normalize_audio, apply_effects_chain, get_effect_chain
 from services.audio_io import atomic_save_wav, _safe_torchaudio_save
+from services.ffmpeg_utils import find_ffmpeg
 from services.rvc import apply_rvc, is_enabled as rvc_is_enabled
 from services.incremental import segment_fingerprint
 from services.watermark import embed_watermark
 from api.routers.dub_core import _get_job, _save_job
 
 logger = logging.getLogger("omnivoice.dub")
+
+# Maximum compression ratio we'll attempt with pitch-preserving stretch
+# before declaring "no way to fit cleanly" and falling back. atempo
+# remains intelligible up to ~1.5× then introduces audible WSOLA
+# artefacts; above ~1.8× speech becomes a fast garbled stream that no
+# DSP can rescue. The contributing-factor pipeline (CPS-aware slot-fit
+# in services/speech_rate.py, gap absorption below) keeps us under this
+# in practice — this is only a guard rail.
+MAX_STRETCH_RATIO = 1.8
+# How far a too-long segment is allowed to bleed into the silent gap
+# before the next segment. Buys headroom on languages with higher
+# information density (Bengali, Hindi, Arabic…) without the audio
+# colliding with the next speaker's onset.
+GAP_OVERFLOW_MAX_S = 0.25
+GAP_OVERFLOW_BUFFER_S = 0.05
+
+
+def _atempo_chain(ratio: float) -> str:
+    """Build an `atempo=…,atempo=…` filter chain for arbitrary ratios.
+
+    ffmpeg's atempo filter is limited to [0.5, 2.0] per stage. Chaining
+    multiple stages multiplies the effective ratio while keeping each
+    individual stage inside the well-behaved range. Pitch is preserved
+    (WSOLA-style time-domain stretching). ratio > 1 speeds up, < 1
+    slows down.
+    """
+    stages: list[str] = []
+    remaining = ratio
+    while remaining > 2.0:
+        stages.append("atempo=2.0")
+        remaining /= 2.0
+    while remaining < 0.5:
+        stages.append("atempo=0.5")
+        remaining /= 0.5
+    stages.append(f"atempo={remaining:.6f}")
+    return ",".join(stages)
+
+
+def _pitch_preserving_stretch(
+    wav: torch.Tensor, target_samples: int, sr: int,
+) -> torch.Tensor:
+    """Time-stretch a (1, samples) tensor to `target_samples` while
+    preserving pitch, by piping the audio through `ffmpeg atempo`.
+
+    Returns a (1, target_samples) tensor on the same device as input.
+    Raises RuntimeError when ffmpeg fails — callers should fall back to
+    naive linear interpolation, accepting the pitch shift, to ensure the
+    output isn't silent.
+    """
+    wl = int(wav.shape[-1])
+    if target_samples <= 0 or wl == target_samples:
+        return wav
+    ratio = wl / target_samples
+    filter_str = _atempo_chain(ratio)
+
+    # Mono float32 via stdin → ffmpeg → stdout. One subprocess per
+    # segment is ~50-100 ms overhead, dwarfed by TTS generation.
+    arr = wav.detach().cpu().to(torch.float32).numpy().reshape(-1).astype(np.float32, copy=False)
+    proc = subprocess.run(
+        [
+            find_ffmpeg(), "-hide_banner", "-loglevel", "error", "-y",
+            "-f", "f32le", "-ar", str(sr), "-ac", "1", "-i", "pipe:0",
+            "-af", filter_str,
+            "-f", "f32le", "-ar", str(sr), "-ac", "1", "pipe:1",
+        ],
+        input=arr.tobytes(),
+        capture_output=True,
+    )
+    if proc.returncode != 0 or not proc.stdout:
+        raise RuntimeError(
+            (proc.stderr.decode(errors="replace") or "atempo failed")[:200]
+        )
+    out_arr = np.frombuffer(proc.stdout, dtype=np.float32)
+    # atempo rarely lands exactly on the integer sample count, so
+    # pad/trim to the requested slot length.
+    if len(out_arr) < target_samples:
+        pad = np.zeros(target_samples - len(out_arr), dtype=np.float32)
+        out_arr = np.concatenate([out_arr, pad])
+    elif len(out_arr) > target_samples:
+        out_arr = out_arr[:target_samples]
+    return torch.from_numpy(out_arr.copy()).unsqueeze(0).to(wav.device)
+
 
 router = APIRouter()
 
@@ -376,25 +461,69 @@ async def dub_generate(job_id: str, req: DubRequest):
             seg_gain = max(0.0, min(2.0, seg_gain))
             adjusted = wav * seg_gain
 
-            # Slot-fit: keep each seg from bleeding into the next. "time_stretch"
-            # resamples to the slot via linear interpolation (slight pitch lift
-            # on compression, negligible at ≤1.15×, audible at ≥1.3×). "trim"
-            # hard-clips + fade-out. "off" is the legacy overlap behaviour.
-            slot_samples = int(max(0.0, (end - start)) * sr)
+            # Slot-fit: keep each seg from bleeding into the next.
+            #   "time_stretch" — pitch-preserving WSOLA via ffmpeg atempo
+            #                    (chained for ratios beyond 0.5–2.0). The
+            #                    previous linear-interp implementation
+            #                    shifted pitch up by the compression
+            #                    ratio, producing the "ghost language /
+            #                    chipmunk" artefact on high-density
+            #                    target languages (Bengali, Hindi, etc.).
+            #   "trim"          — hard-clip + fade-out, no time-fit.
+            #   "off"           — legacy overlap behaviour, no slot guard.
+            #
+            # Effective slot extends into the silent gap before the next
+            # segment (up to GAP_OVERFLOW_MAX_S, with a small buffer so
+            # the audio doesn't collide with the next onset). This buys
+            # back enough time to keep many high-density-language
+            # segments under MAX_STRETCH_RATIO, where atempo's
+            # intelligibility is best.
+            effective_end = end
+            if i + 1 < len(all_segment_wavs):
+                next_start = all_segment_wavs[i + 1][0]
+                gap = next_start - end
+                if gap > GAP_OVERFLOW_BUFFER_S:
+                    effective_end = end + min(
+                        gap - GAP_OVERFLOW_BUFFER_S, GAP_OVERFLOW_MAX_S,
+                    )
+            slot_samples = int(max(0.0, (effective_end - start)) * sr)
             wl = adjusted.shape[-1]
             if slot_fit != "off" and slot_samples > 0 and wl > slot_samples:
                 if slot_fit == "time_stretch":
+                    ratio = wl / slot_samples
+                    capped_ratio = min(ratio, MAX_STRETCH_RATIO)
+                    capped_target = int(wl / capped_ratio)
                     try:
-                        # Shape: (1, wl) → interpolate(..., size=slot_samples) → (1, slot_samples)
+                        adjusted = _pitch_preserving_stretch(
+                            adjusted, capped_target, sr,
+                        )
+                        # If the cap kicked in (ratio > MAX_STRETCH_RATIO),
+                        # the segment is now longer than slot_samples and
+                        # will bleed slightly into the next gap. Trim the
+                        # tail to the slot to be safe.
+                        if adjusted.shape[-1] > slot_samples:
+                            adjusted = adjusted[..., :slot_samples]
+                        if ratio > MAX_STRETCH_RATIO:
+                            logger.info(
+                                "seg %d compression %.2f× exceeded cap; "
+                                "stretched to %.2f×, tail trimmed",
+                                i, ratio, capped_ratio,
+                            )
+                    except Exception as e:
+                        # ffmpeg failed — fall back to linear interp so
+                        # the slot still gets filled. Pitch will shift,
+                        # but a chipmunk segment beats a silent one.
+                        logger.warning(
+                            "atempo stretch failed for seg %d (%.2f×), "
+                            "falling back to linear interp: %s",
+                            i, ratio, e,
+                        )
                         adjusted = torch.nn.functional.interpolate(
                             adjusted.unsqueeze(0),
                             size=slot_samples,
                             mode='linear',
                             align_corners=False,
                         ).squeeze(0)
-                    except Exception as e:
-                        logger.warning("time_stretch failed for seg %d, falling back to trim: %s", i, e)
-                        adjusted = adjusted[..., :slot_samples]
                 else:  # "trim"
                     adjusted = adjusted[..., :slot_samples]
                 wl = adjusted.shape[-1]

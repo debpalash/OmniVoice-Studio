@@ -43,6 +43,9 @@
 .engine-matrix__body {
   display: flex;
   flex-direction: column;
+  /* Bottom gutter so the last row never sits flush against a footer/nav bar
+     when the matrix lives inside a scroll container (e.g. SetupWizard step 4). */
+  padding-bottom: 12px;
 }
 
 .engine-matrix__row {
@@ -119,6 +122,54 @@
   display: block;
 }
 
+/* Disclosure for unavailable-row details: keeps the row a single line until
+   the user opts in to see the why. Drastically reduces vertical noise on
+   first-paint of the matrix. */
+.engine-matrix__why {
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.engine-matrix__why-summary {
+  cursor: pointer;
+  color: var(--chrome-fg-muted, #888);
+  font-size: 11px;
+  user-select: none;
+  padding: 1px 0;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.engine-matrix__why-summary:hover {
+  color: var(--chrome-fg, currentColor);
+}
+
+.engine-matrix__why-summary::-webkit-details-marker {
+  display: none;
+}
+
+.engine-matrix__why-summary::before {
+  content: '▸';
+  font-size: 9px;
+  transition: transform 120ms ease;
+  display: inline-block;
+}
+
+.engine-matrix__why[open] .engine-matrix__why-summary::before {
+  transform: rotate(90deg);
+}
+
+.engine-matrix__why-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 4px;
+  padding-left: 12px;
+  border-left: 2px solid var(--chrome-border, rgba(255,255,255,0.08));
+}
+
 .engine-matrix__chips {
   display: inline-flex;
   flex-wrap: wrap;
@@ -170,6 +221,33 @@
 
 .engine-matrix__result--fail {
   color: var(--chrome-severity-err, #cc241d);
+}
+
+/* Two-line tab label: family name prominent, active engine subdued.
+   Makes the segmented control read as a control (tap me, navigate)
+   rather than a status line ("TTS · omnivoice"). */
+.engine-matrix__tab-label {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  line-height: 1.1;
+  padding: 1px 2px;
+}
+
+.engine-matrix__tab-family {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.engine-matrix__tab-active {
+  font-size: 9px;
+  font-family: var(--chrome-font-mono, ui-monospace, monospace);
+  opacity: 0.65;
+  text-transform: lowercase;
+  letter-spacing: 0;
+  margin-top: 1px;
 }
 
 .engine-matrix__empty {

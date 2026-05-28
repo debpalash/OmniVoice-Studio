@@ -68,7 +68,15 @@ export function classifyError(error: unknown): ErrorClass | null {
   if (/webkit/.test(lower) || /white\s*screen/.test(lower)) {
     return 'APPIMAGE_WEBKIT_WHITESCREEN';
   }
-  if (/quarantine/.test(lower) || /gatekeeper/.test(lower)) return 'GATEKEEPER_QUARANTINE';
+  // Gatekeeper match: includes the literal "is damaged" macOS phrasing
+  // (English + Chinese 已损坏 per issue #72). Lower-case test is safe;
+  // '已损坏' is unaffected by lowercasing.
+  if (
+    /quarantine/.test(lower)
+    || /gatekeeper/.test(lower)
+    || /\bdamaged\b/.test(lower)
+    || /已损坏/.test(message || '')
+  ) return 'GATEKEEPER_QUARANTINE';
   return null;
 }
 

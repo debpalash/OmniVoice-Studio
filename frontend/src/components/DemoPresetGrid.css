@@ -1,0 +1,109 @@
+/* Demo preset grid — empty state of the Voice Design tab.
+   7 cards in a responsive grid; cards self-size on column count. */
+
+.demo-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.demo-preset-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.demo-preset-card:hover {
+  border-color: rgba(243, 165, 182, 0.35);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.demo-preset-card__head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.demo-preset-card__icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.demo-preset-card__name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-fg, currentColor);
+}
+
+.demo-preset-card__desc {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--color-fg-muted, #b0aaa1);
+}
+
+.demo-preset-card__instruct {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 10px;
+  color: var(--color-fg-subtle, #928374);
+  background: rgba(0, 0, 0, 0.22);
+  padding: 2px 6px;
+  border-radius: 4px;
+  align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.demo-preset-card__actions {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.demo-preset-card__preview,
+.demo-preset-card__use {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  background: transparent;
+  color: var(--color-fg, currentColor);
+  cursor: pointer;
+  transition: background 100ms ease, border-color 100ms ease;
+}
+
+.demo-preset-card__preview:hover,
+.demo-preset-card__use:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.demo-preset-card__preview[aria-pressed="true"] {
+  background: rgba(243, 165, 182, 0.18);
+  border-color: rgba(243, 165, 182, 0.4);
+  color: #fff9ef;
+}
+
+.demo-preset-card__use {
+  background: rgba(243, 165, 182, 0.12);
+  border-color: rgba(243, 165, 182, 0.3);
+}
+
+.demo-preset-card__use:hover {
+  background: rgba(243, 165, 182, 0.22);
+}

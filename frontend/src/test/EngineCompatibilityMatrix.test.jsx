@@ -140,7 +140,13 @@ describe('EngineCompatibilityMatrix', () => {
     await waitFor(() => screen.getByText('KittenTTS (test)'));
     const kittenRow = screen.getByText('KittenTTS (test)').closest('[role="row"]');
     expect(within(kittenRow).getByText('kittentts not installed')).toBeInTheDocument();
-    expect(within(kittenRow).getByText(/Unavailable/i)).toBeInTheDocument();
+    // The badge text is exactly "Unavailable" (with a leading icon); the new
+    // disclosure summary is "Why unavailable?" — scope to the badge with an
+    // exact match so we don't double-count the summary.
+    const badge = within(kittenRow).getByText((_, el) =>
+      el?.tagName === 'SPAN' && /^\s*Unavailable\s*$/.test(el.textContent || '')
+    );
+    expect(badge).toBeInTheDocument();
   });
 
   it('renders a "Last error" line when last_error is populated', async () => {

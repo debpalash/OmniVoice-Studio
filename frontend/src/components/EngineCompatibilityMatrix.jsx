@@ -233,7 +233,13 @@ export default function EngineCompatibilityMatrix({
           onChange={setActiveFamily}
           items={families.map((f) => ({
             value: f,
-            label: `${FAMILY_META[f].label} · ${data[f].active}`,
+            title: `Active ${FAMILY_META[f].label}: ${data[f].active}`,
+            label: (
+              <span className="engine-matrix__tab-label">
+                <span className="engine-matrix__tab-family">{FAMILY_META[f].label}</span>
+                <span className="engine-matrix__tab-active">{data[f].active}</span>
+              </span>
+            ),
           }))}
         />
       )}
@@ -258,18 +264,32 @@ export default function EngineCompatibilityMatrix({
                     {isActive && <Badge tone="brand" size="xs">active</Badge>}
                   </span>
                   <code className="engine-matrix__id">{b.id}</code>
-                  {!b.available && b.reason && (
-                    <span className="engine-matrix__reason" title={b.reason}>{b.reason}</span>
-                  )}
-                  {b.install_hint && (
+                  {/* For available rows, show install_hint inline (one line — usually
+                      a parenthetical like "(bundled — no extra install needed)").
+                      For unavailable rows, collapse reason + install_hint + last_error
+                      into a single disclosure so unavailable rows don't dwarf the matrix. */}
+                  {b.available && b.install_hint && (
                     <span className="engine-matrix__hint" title={b.install_hint}>
                       {b.install_hint}
                     </span>
                   )}
-                  {b.last_error && (
-                    <span className="engine-matrix__last-error" data-testid="last-error">
-                      Last error: {b.last_error}
-                    </span>
+                  {!b.available && (b.reason || b.install_hint || b.last_error) && (
+                    <details className="engine-matrix__why">
+                      <summary className="engine-matrix__why-summary">Why unavailable?</summary>
+                      <div className="engine-matrix__why-body">
+                        {b.reason && (
+                          <span className="engine-matrix__reason">{b.reason}</span>
+                        )}
+                        {b.install_hint && b.install_hint !== b.reason && (
+                          <span className="engine-matrix__hint">{b.install_hint}</span>
+                        )}
+                        {b.last_error && b.last_error !== b.reason && (
+                          <span className="engine-matrix__last-error" data-testid="last-error">
+                            Last error: {b.last_error}
+                          </span>
+                        )}
+                      </div>
+                    </details>
                   )}
                 </div>
 
@@ -310,23 +330,42 @@ export default function EngineCompatibilityMatrix({
                   </Badge>
                 </div>
 
-                {/* Actions: Test engine + optional Use */}
+                {/* Actions: Test engine + optional Use.
+                    "Test engine" is hidden on unavailable rows by default —
+                    a health check on a known-unavailable engine just confirms
+                    what the matrix already says. Users re-checking after a
+                    manual install can hit "Re-check" inside the disclosure. */}
                 <div
                   role="cell"
                   className="engine-matrix__cell engine-matrix__cell--actions"
                   style={{ width: 220 }}
                 >
-                  <Button
-                    size="sm"
-                    variant="subtle"
-                    onClick={() => testHealth(b.id)}
-                    disabled={!!health?.inflight}
-                    loading={!!health?.inflight}
-                    leading={!health?.inflight && <Activity size={11} />}
-                    aria-label={`Test ${b.display_name}`}
-                  >
-                    {health?.inflight ? 'Testing…' : 'Test engine'}
-                  </Button>
+                  {b.available && (
+                    <Button
+                      size="sm"
+                      variant="subtle"
+                      onClick={() => testHealth(b.id)}
+                      disabled={!!health?.inflight}
+                      loading={!!health?.inflight}
+                      leading={!health?.inflight && <Activity size={11} />}
+                      aria-label={`Test ${b.display_name}`}
+                    >
+                      {health?.inflight ? 'Testing…' : 'Test engine'}
+                    </Button>
+                  )}
+                  {!b.available && (
+                    <Button
+                      size="sm"
+                      variant="subtle"
+                      onClick={() => testHealth(b.id)}
+                      disabled={!!health?.inflight}
+                      loading={!!health?.inflight}
+                      leading={!health?.inflight && <RefreshCw size={11} />}
+                      aria-label={`Re-check ${b.display_name}`}
+                    >
+                      {health?.inflight ? 'Re-checking…' : 'Re-check'}
+                    </Button>
+                  )}
                   {health && !health.inflight && (
                     <span
                       className={`engine-matrix__result engine-matrix__result--${health.ok ? 'ok' : 'fail'}`}

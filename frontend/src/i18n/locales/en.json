@@ -53,5 +53,27 @@
     "language": "Language",
     "generate": "Generate",
     "name": "Name"
+  },
+  "demo": {
+    "clone_coachmark": "This is a guided demo — try the suggested prompt or write your own.",
+    "hear_demo": "Hear demo",
+    "stop_demo": "Stop demo",
+    "prerendered_chip": "Pre-rendered sample — install a TTS engine to synthesize new text.",
+    "preset_preview": "Preview",
+    "preset_stop": "Stop",
+    "preset_use": "Use this design →",
+    "dictation_title": "Try Dictation",
+    "dictation_lede": "Read one of these aloud after pressing your hotkey, or hit Replay to send the bundled sample through the transcriber so you can see dictation work end-to-end without speaking.",
+    "dictation_status_ok": "Verified — hotkey works on this machine",
+    "dictation_status_pending": "Press your shortcut anywhere to test",
+    "dictation_status_warn": "No hotkey registered — set one below",
+    "dictation_hear": "Hear",
+    "dictation_stop": "Stop",
+    "dictation_replay": "Replay",
+    "dictation_transcribing": "Transcribing…",
+    "dubbing_title": "See dubbing in action",
+    "dubbing_sync": "Synced playback",
+    "dubbing_picker": "Try another language:",
+    "dubbing_cta": "Run this on your own video →"
   }
 }

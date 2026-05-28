@@ -4,6 +4,7 @@ import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import MinimapPlugin from 'wavesurfer.js/dist/plugins/minimap.esm.js';
 import TimelinePlugin from 'wavesurfer.js/dist/plugins/timeline.esm.js';
 import { Play, Pause, ZoomIn, ZoomOut, SkipBack, Loader, Keyboard } from 'lucide-react';
+import { useAppStore } from '../store';
 import './WaveformErrorBoundary.css';
 
 const REGION_COLORS = [
@@ -50,6 +51,34 @@ function WaveformTimeline({
   const [duration,    setDuration]    = useState(0);
   const [zoom,        setZoom]        = useState(50);
 
+  // ── Live "current segment" signal ──────────────────────────────────────────
+  // Derive which segment contains the playhead and write the id to the store
+  // *only when it changes*. This keeps DubSegmentTable re-renders bounded to
+  // segment-crossings instead of the 4-50Hz timeupdate cadence.
+  const setDubCurrentSegId = useAppStore(s => s.setDubCurrentSegId);
+  const lastSegIdRef = useRef(null);
+  useEffect(() => {
+    if (!segments.length) {
+      if (lastSegIdRef.current != null) {
+        lastSegIdRef.current = null;
+        setDubCurrentSegId(null);
+      }
+      return;
+    }
+    // Linear scan — fine for ≤200 segments. For longer transcripts we'd
+    // switch to a binary search; keep it simple until needed.
+    let hit = null;
+    for (const s of segments) {
+      if (currentTime >= s.start && currentTime < s.end) { hit = s.id; break; }
+    }
+    if (hit !== lastSegIdRef.current) {
+      lastSegIdRef.current = hit;
+      setDubCurrentSegId(hit);
+    }
+  }, [currentTime, segments, setDubCurrentSegId]);
+  // Clear on unmount so a stale id can't outlive the editor.
+  useEffect(() => () => { setDubCurrentSegId(null); }, [setDubCurrentSegId]);
+
   // ── Core init — only re-runs when src changes ───────────────────────────────
   useEffect(() => {
     if (!waveContainerRef.current || !audioSrc) return;
@@ -92,6 +121,16 @@ function WaveformTimeline({
       videoEl.addEventListener('loadedmetadata', showFirstFrame, { once: true });
       // Fallback if loadedmetadata already fired before listener attached (cached).
       if (videoEl.readyState >= 1) showFirstFrame();
+      // Surface media decode failures so future format issues don't
+      // present as a silent black box. MediaError codes: 1=aborted,
+      // 2=network, 3=decode, 4=src not supported. The latter two are
+      // the actionable ones (codec/container mismatch).
+      videoEl.addEventListener('error', () => {
+        const code = videoEl.error?.code;
+        if (code === 3 || code === 4) {
+          console.warn('[WaveformTimeline] video element rejected source', videoSrc, 'code', code);
+        }
+      }, { once: true });
       videoContainerRef.current.appendChild(videoEl);
     }
 

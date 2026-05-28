@@ -146,3 +146,48 @@
 
 /* Footer buttons */
 .clone-footer-cta  { margin-top: 6px; }
+
+/* Demo coach-mark — shown once above the textarea on first visit to the
+   bundled demo profile. Auto-dismisses when the user types. */
+.clone-coachmark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: rgba(243, 165, 182, 0.08);
+  border: 1px solid rgba(243, 165, 182, 0.25);
+  font-size: 11px;
+  color: var(--color-fg, currentColor);
+}
+.clone-coachmark__icon { font-size: 14px; line-height: 1; }
+.clone-coachmark__msg  { flex: 1; }
+.clone-coachmark__close {
+  border: 0;
+  background: transparent;
+  color: var(--color-fg-muted, #928374);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+.clone-coachmark__close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-fg, currentColor);
+}
+
+/* "Hear demo" chip — shown under the play button when no TTS engine is
+   ready and the user is on the demo profile. Tells them they're hearing a
+   pre-rendered sample, not a live synthesis. */
+.clone-hear-demo-chip {
+  margin-top: 6px;
+  padding: 4px 8px;
+  font-size: 10px;
+  text-align: center;
+  color: var(--color-fg-muted, #928374);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+}

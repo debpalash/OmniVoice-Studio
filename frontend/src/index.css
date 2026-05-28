@@ -843,7 +843,7 @@ audio::-webkit-media-controls-time-remaining-display { color: var(--chrome-fg); 
   box-shadow: inset 2px 0 0 var(--chrome-accent);
 }
 .segment-time {
-  width: 48px; flex-shrink: 0;
+  /* Width comes from --seg-grid-cols in DubSegmentTable.css. */
   font-size: 0.62rem; font-family: var(--chrome-font-mono); color: var(--chrome-fg-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -2302,7 +2302,11 @@ div[role="dialog"].audio-trimmer {
 
 /* ── Segment table — tighter columns ── */
 @media (max-width: 800px) {
-  .segment-time { width: 45px !important; font-size: 0.58rem !important; }
+  .segment-table {
+    /* Tighter grid template on narrow screens. */
+    --seg-grid-cols: 16px 56px 60px minmax(0, 1fr) 38px 52px 36px 38px;
+  }
+  .segment-time { font-size: 0.58rem !important; }
   .segment-row { padding: 2px 4px; }
   .segment-header { padding: 2px 4px; font-size: 0.58rem; }
 }

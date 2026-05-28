@@ -47,6 +47,8 @@ _BASE_SCHEMA = """
         seed INTEGER DEFAULT NULL,
         is_locked INTEGER DEFAULT 0,
         personality TEXT DEFAULT '',
+        description TEXT DEFAULT '',
+        is_demo INTEGER DEFAULT 0,
         created_at REAL
     );
     CREATE TABLE IF NOT EXISTS generation_history (

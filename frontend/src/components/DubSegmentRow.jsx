@@ -12,8 +12,8 @@ import './DubSegmentRow.css';
 const CHAR_BUDGET_RATIO = 1.3;
 const SENTENCE_END = /[.!?。！？]/;
 
-function rowClass(isActive, isDone, selected) {
-  return `segment-row${isActive ? ' segment-active' : ''}${isDone ? ' segment-done' : ''}${selected ? ' segment-selected' : ''}`;
+function rowClass(isActive, isDone, selected, isPlaying) {
+  return `segment-row${isActive ? ' segment-active' : ''}${isDone ? ' segment-done' : ''}${selected ? ' segment-selected' : ''}${isPlaying ? ' segment-playing' : ''}`;
 }
 
 // Best split point for the Scissors menu when the user hasn't placed a cursor —
@@ -46,7 +46,7 @@ function parseTime(s) {
 }
 
 function DubSegmentRow({
-  seg, idx, style, disabled, isActive, isDone, previewLoading, selected,
+  seg, idx, style, disabled, isActive, isDone, isPlaying, previewLoading, selected,
   profiles, speakerClones, onEditField, onDelete, onRestore, onPreview, onSelect, onSplit, onMerge, canMerge,
   onDirect, onSeek,
 }) {
@@ -96,7 +96,7 @@ function DubSegmentRow({
   };
 
   return (
-    <div style={style} className={rowClass(isActive, isDone, selected)} onClick={handleRowClick}>
+    <div style={style} className={rowClass(isActive, isDone, selected, isPlaying)} onClick={handleRowClick}>
       <input
         type="checkbox"
         checked={!!selected}
@@ -163,7 +163,7 @@ function DubSegmentRow({
       </span>
 
       <input
-        className="input-base seg-speaker-input"
+        className="seg-speaker-input"
         value={seg.speaker_id || ''}
         onChange={(e) => onEditField(seg.id, 'speaker_id', e.target.value)}
         onClick={(e) => e.stopPropagation()}
@@ -350,6 +350,7 @@ export default memo(DubSegmentRow, (prev, next) => (
   prev.disabled === next.disabled &&
   prev.isActive === next.isActive &&
   prev.isDone === next.isDone &&
+  prev.isPlaying === next.isPlaying &&
   prev.previewLoading === next.previewLoading &&
   prev.onDirect === next.onDirect &&
   prev.onSeek === next.onSeek &&
