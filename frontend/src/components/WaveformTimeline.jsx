@@ -46,6 +46,10 @@ function WaveformTimeline({
 
   const [ready,       setReady]       = useState(false);
   const [loadError,   setLoadError]   = useState(false);
+  // Specifically: the source returned a non-media response (typically 404
+  // HTML). Differentiates from a generic decode failure so the error UI
+  // can tell the user the file has moved/been deleted, not just "broken".
+  const [sourceMissing, setSourceMissing] = useState(false);
   const [isPlaying,   setIsPlaying]   = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration,    setDuration]    = useState(0);
@@ -85,6 +89,7 @@ function WaveformTimeline({
 
     setReady(false);
     setLoadError(false);
+    setSourceMissing(false);
     setCurrentTime(0);
     setDuration(0);
     setIsPlaying(false);
@@ -123,12 +128,19 @@ function WaveformTimeline({
       if (videoEl.readyState >= 1) showFirstFrame();
       // Surface media decode failures so future format issues don't
       // present as a silent black box. MediaError codes: 1=aborted,
-      // 2=network, 3=decode, 4=src not supported. The latter two are
-      // the actionable ones (codec/container mismatch).
+      // 2=network, 3=decode, 4=src not supported. 3 = real codec/
+      // container mismatch (decoder ran but couldn't handle it); 4 =
+      // server returned a non-media response (most often a 404 HTML
+      // body when the source video moved or was deleted between
+      // project save and reload). In either case the rest of the
+      // pipeline can't do anything useful, so flip into the
+      // user-facing error fallback instead of staring at a black box.
       videoEl.addEventListener('error', () => {
         const code = videoEl.error?.code;
         if (code === 3 || code === 4) {
           console.warn('[WaveformTimeline] video element rejected source', videoSrc, 'code', code);
+          setSourceMissing(code === 4);
+          setLoadError(true);
         }
       }, { once: true });
       videoContainerRef.current.appendChild(videoEl);
@@ -250,8 +262,20 @@ function WaveformTimeline({
              ws.load(undefined, [channelData], audioBuffer.duration);
           })
           .catch((decodeErr) => {
+            // HTTP 404 on the companion audio means the source file is
+            // gone (typically: project loaded after the underlying media
+            // was moved/deleted). Surface that explicitly — an empty
+            // waveform fallback would just confuse the user into thinking
+            // the file is silent. Other decode failures still fall back
+            // to empty peaks so the media element can still play.
+            const isMissing = /\bHTTP 404\b/.test(String(decodeErr?.message || decodeErr));
+            if (isMissing) {
+              console.warn('Audio source missing (HTTP 404):', audioSrc);
+              setSourceMissing(true);
+              setLoadError(true);
+              return;
+            }
             console.warn('Audio decode fallback failed, loading with empty peaks:', decodeErr);
-            // Last resort — show flat waveform but keep media element playback working
             try {
               const emptyPeaks = new Float32Array(1000).fill(0);
               ws.load(undefined, [emptyPeaks], mediaEl.duration || 60);
@@ -451,7 +475,14 @@ function WaveformTimeline({
     return (
       <div className="waveform-timeline">
         <div className="wfm-error">
-          ⚠ Could not load audio from this file
+          {sourceMissing ? (
+            <>
+              ⚠ Source media missing — this file may have moved or been deleted.
+              Re-upload the video to continue.
+            </>
+          ) : (
+            <>⚠ Could not load audio from this file</>
+          )}
         </div>
       </div>
     );
