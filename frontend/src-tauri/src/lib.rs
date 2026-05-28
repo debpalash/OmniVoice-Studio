@@ -309,6 +309,17 @@ pub fn run() {
                                 #[cfg(not(target_os = "macos"))]
                                 let _ = win.set_skip_taskbar(false);
                                 let _ = win.set_focus();
+                                // Self-recovery: if the webview failed to load
+                                // the dev/prod URL earlier (Vite restarted,
+                                // backend not up yet at first show, etc.) the
+                                // window shows a blank `<body></body>` with a
+                                // "Could not connect to the server" console
+                                // error. Reload only when the body is empty
+                                // so a healthy window doesn't blink on every
+                                // tray click.
+                                let _ = win.eval(
+                                    "if (document.body && document.body.childElementCount === 0) { location.reload(); }",
+                                );
                             }
                         }
                         "open_studio" => {
