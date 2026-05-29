@@ -74,6 +74,7 @@ async def _drain_failing_task(boom):
         try:
             await worker
         except asyncio.CancelledError:
+            # Expected: we cancel the worker loop to tear it down after draining.
             pass
     return events
 

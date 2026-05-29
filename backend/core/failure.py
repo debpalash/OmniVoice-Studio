@@ -81,6 +81,8 @@ def sanitize(text: Optional[str]) -> str:
         if home and home in out:
             out = out.replace(home, "~")
     except Exception:
+        # Best-effort: sanitize() must never raise (it runs on the failure path);
+        # if home-dir resolution fails, leave the text as-is rather than throw.
         pass
     return out
 
@@ -90,6 +92,7 @@ def _env_summary() -> str:
     try:
         lines.append(f"OS:      {platform.platform()}")
     except Exception:
+        # Best-effort env summary — omit the OS line rather than fail diagnostics.
         pass
     lines.append(f"Python:  {sys.version.split()[0]}")
     try:
@@ -99,6 +102,7 @@ def _env_summary() -> str:
         lines.append(f"CPU:     {os.cpu_count()} cores")
         lines.append(f"RAM:     {round(vm.total / 1024 ** 3, 1)} GB")
     except Exception:
+        # Best-effort — omit CPU/RAM if psutil is unavailable or probing fails.
         pass
     # Only probe the GPU if torch is ALREADY imported — importing it here just
     # to build a diagnostic would add seconds to every failure (and to tests).
@@ -112,6 +116,7 @@ def _env_summary() -> str:
             else:
                 lines.append("GPU:     CPU only")
         except Exception:
+            # Best-effort — omit the GPU line if torch probing raises.
             pass
     return "\n".join(lines)
 
