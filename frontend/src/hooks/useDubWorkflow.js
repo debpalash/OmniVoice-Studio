@@ -207,7 +207,8 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
     setDubJobId(clientJobId);
     useAppStore.getState().showPill('loading-model', 'Preparing video…', { cancellable: true });
     try {
-      const data = await dubUpload(dubVideoFile, clientJobId, { signal: ctrl.signal });
+      const inputType = useAppStore.getState().dubInputType || 'video';  // #119
+      const data = await dubUpload(dubVideoFile, clientJobId, { signal: ctrl.signal, inputType });
       setDubJobId(data.job_id); if (data.filename) setDubFilename(data.filename);
       setDubTaskId(data.task_id); setDubPrepStage('extract');
       useAppStore.getState().showPill('loading-model', 'Extracting audio & scenes…', { cancellable: true });

@@ -114,9 +114,13 @@ export interface DubSlice {
   availableEffectPresets: EffectPreset[];
   setAvailableEffectPresets: (presets: EffectPreset[]) => void;
 
+  /** #119: 'video' (default) or 'audio' — audio-only jobs skip video work. */
+  dubInputType: 'video' | 'audio';
+
   // ── Setters (React-style; accept value or updater fn) ─────────────────
   setDubJobId: (v: Updater<string | null>) => void;
   setDubStep: (v: Updater<DubStep>) => void;
+  setDubInputType: (v: Updater<'video' | 'audio'>) => void;
   setDubTaskId: (v: Updater<string | null>) => void;
   setDubPrepStage: (v: Updater<DubPrepStage>) => void;
   setDubPrepProgress: (v: Updater<DubPrepProgress>) => void;
@@ -144,7 +148,7 @@ export interface DubSlice {
 }
 
 const INITIAL: Omit<DubSlice,
-  | 'setDubJobId' | 'setDubStep' | 'setDubTaskId' | 'setDubPrepStage'
+  | 'setDubJobId' | 'setDubStep' | 'setDubInputType' | 'setDubTaskId' | 'setDubPrepStage'
   | 'setDubPrepProgress' | 'setDubCurrentSegId'
   | 'setDubProgress' | 'setDubError' | 'setDubFailure' | 'setIsTranslating' | 'setDubSegments'
   | 'setDubTranscript' | 'setDubFilename' | 'setDubDuration' | 'setDubTracks'
@@ -154,6 +158,7 @@ const INITIAL: Omit<DubSlice,
 > = {
   dubJobId: null,
   dubStep: 'idle',
+  dubInputType: 'video',
   dubTaskId: null,
   dubPrepStage: null,
   dubPrepProgress: { percent: null, speedBps: null, etaS: null, stageStartedAt: null },
@@ -184,6 +189,7 @@ export const createDubSlice: StateCreator<DubSlice, [], [], DubSlice> = (set, ge
 
   setDubJobId:     (v) => set((s) => ({ dubJobId:     resolve(v, s.dubJobId) })),
   setDubStep:      (v) => set((s) => ({ dubStep:      resolve(v, s.dubStep) })),
+  setDubInputType: (v) => set((s) => ({ dubInputType: resolve(v, s.dubInputType) })),
   setDubTaskId:    (v) => set((s) => ({ dubTaskId:    resolve(v, s.dubTaskId) })),
   setDubPrepStage: (v) => set((s) => ({ dubPrepStage: resolve(v, s.dubPrepStage) })),
   setDubPrepProgress: (v) => set((s) => ({ dubPrepProgress: resolve(v, s.dubPrepProgress) })),

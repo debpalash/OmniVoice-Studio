@@ -636,6 +636,9 @@ async def ingest_pipeline(
     demucs_start, demucs_done, scene_start, scene_done, ready, error, cancelled.
     """
     youtube_subs_by_lang: dict[str, list[dict]] = {}
+    # Audio-only jobs (#119) skip scene detection + thumbnailing below; the
+    # transcribe → translate → TTS core is identical.
+    input_type = (source.get("input_type") or "video").lower()
     try:
         if source.get("kind") == "url":
             url = source["url"]
@@ -776,6 +779,7 @@ async def ingest_pipeline(
                 "dubbed_tracks": {},
                 "scene_cuts": scene_cuts,
                 "youtube_subs": youtube_subs_by_lang or None,
+                "input_type": input_type,
             }
             put_job(job_id, full_job)
             save_job(job_id, full_job, filename, dur, content_hash)
@@ -799,6 +803,7 @@ async def ingest_pipeline(
                 "dubbed_tracks": {},
                 "scene_cuts": [],
                 "youtube_subs": youtube_subs_by_lang or None,
+                "input_type": input_type,
             }
             put_job(job_id, partial)
             save_job(job_id, partial, filename, dur, content_hash)
@@ -848,39 +853,46 @@ async def ingest_pipeline(
             yield prep_event("demucs_done",
                              has_bg=bool(no_vocals_path and os.path.exists(no_vocals_path)))
 
-            yield prep_event("scene_start")
-            try:
-                p, _, stderr_scene = await run_proc([
-                    ffmpeg, "-i", video_path, "-filter:v",
-                    "select='gt(scene,0.3)',showinfo", "-f", "null", "-",
-                ], timeout=600.0)
-                matches = re.finditer(r"pts_time:([\d\.]+)", stderr_scene.decode(errors="replace"))
-                scene_cuts = [float(m.group(1)) for m in matches]
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:
-                logger.warning("Scene detection failed for %s: %s", job_id, e)
-                yield prep_event("warning", **failure.build_failure(e, stage="scene", include_diagnostic=False))
-            yield prep_event("scene_done", count=len(scene_cuts))
-
+            # Audio-only jobs (#119) have no video to scan or thumbnail. Skip
+            # both ffmpeg passes but still emit scene_done (count=0) so the
+            # prep SSE contract the frontend waits on is unchanged.
             thumb_path = os.path.join(job_dir, "thumb.jpg")
-            offset = max(0.5, min(1.5, dur * 0.1)) if dur else 1.0
-            try:
-                await run_proc([
-                    ffmpeg, "-y", "-ss", f"{offset:.2f}", "-i", video_path,
-                    "-vframes", "1", "-vf", "scale=320:-2",
-                    "-q:v", "4", thumb_path,
-                ], timeout=30.0)
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:
-                logger.warning("Thumbnail extraction failed for %s: %s", job_id, e)
-                yield prep_event("warning", **failure.build_failure(e, stage="thumbnail", include_diagnostic=False))
+            if input_type == "audio":
+                yield prep_event("scene_done", count=0)
+                thumb_path = None
+            else:
+                yield prep_event("scene_start")
+                try:
+                    p, _, stderr_scene = await run_proc([
+                        ffmpeg, "-i", video_path, "-filter:v",
+                        "select='gt(scene,0.3)',showinfo", "-f", "null", "-",
+                    ], timeout=600.0)
+                    matches = re.finditer(r"pts_time:([\d\.]+)", stderr_scene.decode(errors="replace"))
+                    scene_cuts = [float(m.group(1)) for m in matches]
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    logger.warning("Scene detection failed for %s: %s", job_id, e)
+                    yield prep_event("warning", **failure.build_failure(e, stage="scene", include_diagnostic=False))
+                yield prep_event("scene_done", count=len(scene_cuts))
+
+                offset = max(0.5, min(1.5, dur * 0.1)) if dur else 1.0
+                try:
+                    await run_proc([
+                        ffmpeg, "-y", "-ss", f"{offset:.2f}", "-i", video_path,
+                        "-vframes", "1", "-vf", "scale=320:-2",
+                        "-q:v", "4", thumb_path,
+                    ], timeout=30.0)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    logger.warning("Thumbnail extraction failed for %s: %s", job_id, e)
+                    yield prep_event("warning", **failure.build_failure(e, stage="thumbnail", include_diagnostic=False))
 
             _dub_jobs[job_id].update({
                 "vocals_path": vocals_path,
                 "no_vocals_path": no_vocals_path,
-                "thumb_path": thumb_path if os.path.exists(thumb_path) else None,
+                "thumb_path": thumb_path if (thumb_path and os.path.exists(thumb_path)) else None,
                 "scene_cuts": scene_cuts,
             })
             save_job(job_id, _dub_jobs[job_id], filename, dur, content_hash)

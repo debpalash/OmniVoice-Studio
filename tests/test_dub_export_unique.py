@@ -142,3 +142,48 @@ class TestDubExportUniqueness:
 
         assert res.status_code == 500
         assert "no output file" in res.json()["detail"]
+
+
+class TestAudioOnlyDubbing:
+    """#119 — audio-only jobs export an audio file (no video mux)."""
+
+    def test_audio_only_export_produces_audio_file(self, app_client):
+        client, dc, dx, tmp = app_client
+        job_id, job_dir = _seed_job_with_tracks(dc, tmp)
+        dc._dub_jobs[job_id]["input_type"] = "audio"
+        exports_dir = job_dir / "exports"
+
+        with patch.object(_asyncio, _SUBPROC_ATTR, side_effect=_fake_ffmpeg_factory(True)):
+            r = client.get(
+                f"/dub/download/{job_id}",
+                params={"preserve_bg": False, "out_format": "m4a", "default_track": "es"},
+            )
+
+        assert r.status_code == 200, r.text
+        audio_files = sorted(exports_dir.glob("dubbed_audio_es_*.m4a"))
+        assert len(audio_files) == 1, [f.name for f in audio_files]
+        # The video-mux path must NOT have run for an audio job.
+        assert not list(exports_dir.glob("dubbed_video_*.mp4"))
+        assert r.headers.get("content-type", "").startswith("audio/")
+
+    def test_audio_only_export_defaults_unknown_format_to_m4a(self, app_client):
+        client, dc, dx, tmp = app_client
+        job_id, job_dir = _seed_job_with_tracks(dc, tmp)
+        dc._dub_jobs[job_id]["input_type"] = "audio"
+        exports_dir = job_dir / "exports"
+
+        with patch.object(_asyncio, _SUBPROC_ATTR, side_effect=_fake_ffmpeg_factory(True)):
+            r = client.get(f"/dub/download/{job_id}", params={"preserve_bg": False, "out_format": "weird"})
+
+        assert r.status_code == 200, r.text
+        assert sorted(exports_dir.glob("dubbed_audio_es_*.m4a"))
+
+    def test_upload_rejects_video_ext_when_audio_mode(self, app_client):
+        client, dc, dx, tmp = app_client
+        r = client.post(
+            "/dub/upload",
+            files={"video": ("clip.mp4", b"\x00" * 16, "video/mp4")},
+            data={"input_type": "audio"},
+        )
+        assert r.status_code == 400
+        assert "audio file" in r.json()["detail"].lower()

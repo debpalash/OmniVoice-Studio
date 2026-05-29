@@ -4,6 +4,7 @@ import time
 import uuid
 import asyncio
 import logging
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import FileResponse, StreamingResponse
 
@@ -264,6 +265,42 @@ def _video_stretch_plan_for(job: dict, lang_code: str) -> dict | None:
     return entry
 
 
+#: Audio export formats → ffmpeg codec args. Unknown formats fall back to
+#: AAC/m4a so a bad request can never produce a broken command.
+_AUDIO_FORMAT_CODECS: dict[str, list[str]] = {
+    "wav": ["-c:a", "pcm_s16le"],
+    "m4a": ["-c:a", "aac", "-b:a", "192k"],
+    "mp3": ["-c:a", "libmp3lame", "-q:a", "2"],
+    "flac": ["-c:a", "flac"],
+}
+
+
+def _build_audio_export_cmd(
+    ffmpeg: str,
+    track_path: str,
+    bg_path: Optional[str],
+    out_path: str,
+    fmt: str,
+) -> list[str]:
+    """Build the ffmpeg command for an audio-only dub export (#119).
+
+    No video input, stream-map, or codec — just the dubbed track, optionally
+    mixed with the separated background (``no_vocals``), written to ``out_path``
+    in the requested ``fmt``. Unknown formats fall back to AAC.
+    """
+    codec = _AUDIO_FORMAT_CODECS.get((fmt or "").lower(), _AUDIO_FORMAT_CODECS["m4a"])
+    cmd = [ffmpeg, "-y", "-i", track_path]
+    if bg_path:
+        # Mix the dubbed voice over the original background bed (same weights
+        # as the video mux path) so ambience/music is preserved.
+        cmd += ["-i", bg_path, "-filter_complex",
+                "[0:a][1:a]amix=inputs=2:duration=longest:dropout_transition=2:weights=1.2 0.8[aout]",
+                "-map", "[aout]"]
+    cmd += codec
+    cmd.append(out_path)
+    return cmd
+
+
 @router.get("/dub/download/{job_id}")
 @router.get("/dub/download/{job_id}/{filename}")
 async def dub_download(
@@ -274,6 +311,7 @@ async def dub_download(
     save_path: str = Query("", description="Absolute destination path. If set, mux output is copied there and JSON returned instead of FileResponse."),
     burn_subs: bool = Query(False, description="Burn subtitles into the video stream (forces re-encode). Uses dual-subtitle layout when dual=1."),
     dual: bool = Query(False, description="When burn_subs=1, render translated on top of italicised original."),
+    out_format: str = Query("m4a", description="Audio-only jobs (#119): output container — wav, m4a, mp3, or flac. Ignored for video jobs."),
 ):
     job = _get_job(job_id)
     if not job:
@@ -300,6 +338,52 @@ async def dub_download(
     os.makedirs(exports_dir, exist_ok=True)
     output_path = os.path.join(exports_dir, f"dubbed_video_{stamp}.mp4")
     ffmpeg = find_ffmpeg()
+
+    # ── Audio-only dubbing (#119) ─────────────────────────────────────────
+    # No source video to mux into — export the dubbed track (optionally mixed
+    # with the separated background) straight to an audio container.
+    if (job.get("input_type") or "video").lower() == "audio":
+        if default_track and default_track != "original" and default_track in filtered_tracks:
+            lang_code, track_info = default_track, filtered_tracks[default_track]
+        elif filtered_tracks:
+            lang_code, track_info = next(iter(filtered_tracks.items()))
+        else:
+            raise HTTPException(status_code=400, detail="No dubbed track selected for audio export")
+
+        fmt = (out_format or "m4a").lower()
+        if fmt not in _AUDIO_FORMAT_CODECS:
+            fmt = "m4a"
+        out_path = os.path.join(exports_dir, f"dubbed_audio_{lang_code}_{stamp}.{fmt}")
+        bg = job.get("no_vocals_path") if preserve_bg else None
+        bg = bg if (bg and os.path.exists(bg)) else None
+        cmd = _build_audio_export_cmd(ffmpeg, track_info["path"], bg, out_path, fmt)
+        try:
+            rc, _, stderr = await run_ffmpeg(cmd, timeout=1800.0)
+            if rc != 0:
+                raise Exception(stderr.decode(errors="replace") if stderr else "ffmpeg audio export non-zero")
+        except asyncio.TimeoutError:
+            raise HTTPException(status_code=504, detail="ffmpeg audio export timed out")
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"ffmpeg failed to export dubbed audio: {e}. Verify ffmpeg is installed (`ffmpeg -version`) and the dubbed track exists.",
+            )
+        if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
+            raise HTTPException(status_code=500, detail="ffmpeg audio export produced no output file")
+        logger.info("Dub audio export wrote %s (%d bytes)", out_path, os.path.getsize(out_path))
+
+        base_name = os.path.splitext(job.get("filename", "output"))[0]
+        safe_name = "".join(c for c in base_name if c.isalnum() or c in "-_ ").strip() or "output"
+        dl_name = f"dubbed_{safe_name}_{lang_code}_{stamp}.{fmt}"
+        media_type = _MEDIA_TYPES.get(f".{fmt}", "audio/mp4")
+        if save_path:
+            return _native_save(out_path, save_path, dl_name, media_type=media_type)
+        return FileResponse(
+            out_path, media_type=media_type,
+            headers={"Content-Disposition": f'attachment; filename="{dl_name}"'},
+        )
 
     # Determine whether this export should drive video through a per-segment
     # stretch graph (Mode B). Stretch is keyed off the default_track's plan

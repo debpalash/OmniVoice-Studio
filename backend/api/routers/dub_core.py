@@ -253,14 +253,32 @@ _prep_event       = dub_pipeline.prep_event
 _ingest_gen       = dub_pipeline.ingest_pipeline
 
 
+#: Recognised audio extensions for audio-only dubbing (#119). When the client
+#: declares input_type=audio we refuse anything that isn't a known audio
+#: container so a mislabelled video can't slip past the video-skipping branch.
+_AUDIO_EXTS = {".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wma"}
+
+
 @router.post("/dub/upload")
-async def dub_upload(video: UploadFile = File(...), job_id: Optional[str] = Form(None)):
-    """Accept video upload, write to disk, queue background prep task.
+async def dub_upload(
+    video: UploadFile = File(...),
+    job_id: Optional[str] = Form(None),
+    input_type: str = Form("video"),
+):
+    """Accept a media upload, write to disk, queue background prep task.
+
+    `input_type` is "video" (default) or "audio". Audio-only jobs (#119) skip
+    scene detection, thumbnailing, and the final video mux — the transcribe →
+    translate → TTS core is identical.
 
     Returns 202 with {job_id, task_id, filename}. Client should open SSE on
-    /tasks/stream/{task_id} to monitor extract/demucs/scene stages and wait for
-    the 'ready' event before starting transcription.
+    /tasks/stream/{task_id} to monitor extract/demucs stages and wait for the
+    'ready' event before starting transcription.
     """
+    input_type = (input_type or "video").lower()
+    if input_type not in ("video", "audio"):
+        raise HTTPException(status_code=400, detail="input_type must be 'video' or 'audio'")
+
     job_id = job_id or str(uuid.uuid4())[:8]
     job_dir = _safe_job_dir(job_id)
     if job_dir is None:
@@ -268,9 +286,15 @@ async def dub_upload(video: UploadFile = File(...), job_id: Optional[str] = Form
             status_code=400,
             detail="Invalid job_id. Must be alphanumeric + hyphens/underscores only, ≤64 chars. Generate a fresh job_id or omit it to auto-create one.",
         )
+    ext = os.path.splitext(video.filename or "video.mp4")[1]
+    if input_type == "audio" and ext.lower() not in _AUDIO_EXTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Audio-only dubbing needs an audio file ({', '.join(sorted(_AUDIO_EXTS))}); got '{ext or 'no extension'}'.",
+        )
+
     os.makedirs(job_dir, exist_ok=True)
 
-    ext = os.path.splitext(video.filename or "video.mp4")[1]
     video_path = os.path.join(job_dir, f"original{ext}")
     with open(video_path, "wb") as f:
         f.write(await video.read())
@@ -280,7 +304,7 @@ async def dub_upload(video: UploadFile = File(...), job_id: Optional[str] = Form
     await task_manager.add_task(
         task_id, "prep",
         _ingest_gen, job_id, job_dir,
-        {"kind": "file", "path": video_path}, filename,
+        {"kind": "file", "path": video_path, "input_type": input_type}, filename,
     )
     return JSONResponse(
         status_code=202,

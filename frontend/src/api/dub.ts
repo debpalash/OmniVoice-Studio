@@ -4,11 +4,12 @@ import type { DubHistoryResponse, DubTranslateResponse } from './types';
 export async function dubUpload(
   file: File | Blob,
   jobId: string,
-  { signal }: { signal?: AbortSignal } = {},
+  { signal, inputType = 'video' }: { signal?: AbortSignal; inputType?: 'video' | 'audio' } = {},
 ): Promise<unknown> {
   const fd = new FormData();
   fd.append('video', file);
   fd.append('job_id', jobId);
+  fd.append('input_type', inputType);  // #119: audio-only dubbing
   return apiPost('/dub/upload', fd, { signal });
 }
 
