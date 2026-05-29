@@ -8,8 +8,6 @@ assert a direct-filesystem fallback still recognises a cached repo.
 """
 from __future__ import annotations
 
-import os
-
 from api.routers.setup import models
 
 
@@ -48,6 +46,23 @@ def test_disk_scan_reports_size_and_files(tmp_path, monkeypatch):
     assert repo in found
     assert found[repo]["nb_files"] >= 1
     assert found[repo]["size_on_disk"] >= 2048
+
+
+def test_hf_home_only_finds_repo_under_hub_subdir(tmp_path, monkeypatch):
+    # When only HF_HOME is set, HF stores repos under $HF_HOME/hub/models--…
+    # The fallback must probe the /hub subdir, not just the root (CodeRabbit #137).
+    repo_id = "k2-fsa/OmniVoice"
+    name = "models--" + repo_id.replace("/", "--")
+    snap = tmp_path / "hub" / name / "snapshots" / "rev1"
+    snap.mkdir(parents=True)
+    (snap / "model.bin").write_bytes(b"x" * 1024)
+    monkeypatch.delenv("HF_HUB_CACHE", raising=False)
+    monkeypatch.delenv("HUGGINGFACE_HUB_CACHE", raising=False)
+    monkeypatch.setenv("HF_HOME", str(tmp_path))
+    monkeypatch.setattr("huggingface_hub.scan_cache_dir", _raise_winerror)
+    models.invalidate_cache()
+    assert models.is_cached(repo_id) is True
+    assert repo_id in models._scan_cache_on_disk()
 
 
 def test_empty_snapshot_dir_not_counted_as_cached(tmp_path, monkeypatch):
