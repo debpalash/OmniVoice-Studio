@@ -284,37 +284,6 @@ fn apply_uv_http_env(cmd: &mut Command) {
         .env("UV_HTTP_RETRIES", "5");
 }
 
-/// Parse a `python --version` line ("Python 3.11.7") into (major, minor).
-fn parse_py_version(s: &str) -> Option<(u32, u32)> {
-    let rest = s.trim().strip_prefix("Python ")?;
-    let mut parts = rest.split('.');
-    let major: u32 = parts.next()?.trim().parse().ok()?;
-    let minor: u32 = parts.next()?.trim().parse().ok()?;
-    Some((major, minor))
-}
-
-/// True if a system Python >= 3.11 is on PATH — the prerequisite for the
-/// `UV_PYTHON_PREFERENCE=only-system` fallback when all download mirrors fail.
-fn system_python_ge_311() -> bool {
-    for exe in ["python3", "python"] {
-        if let Ok(out) = Command::new(exe).arg("--version").output() {
-            if out.status.success() {
-                let text = format!(
-                    "{}{}",
-                    String::from_utf8_lossy(&out.stdout),
-                    String::from_utf8_lossy(&out.stderr),
-                );
-                if let Some((maj, min)) = parse_py_version(&text) {
-                    if maj == 3 && min >= 11 {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    false
-}
-
 /// Prepare (and on first run, create) the Python venv that will host the
 /// backend process. Returns (venv_python, backend_source_dir).
 pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<&Arc<Mutex<BootstrapStage>>>) -> Option<(PathBuf, PathBuf)> {
@@ -491,18 +460,18 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
             vec![("UV_PYTHON_INSTALL_MIRROR", PY_INSTALL_MIRROR)],
         ),
     ];
-    if system_python_ge_311() {
-        // No `--python 3.11` pin here: that would force uv to find a 3.11.x
-        // interpreter exactly, so a machine with only 3.12/3.13 would fail the
-        // fallback despite being compatible (Greptile #140). `only-system` plus
-        // the project's `requires-python = ">=3.11"` lets uv resolve any
-        // compatible system interpreter.
-        venv_attempts.push((
-            "system-python",
-            vec!["venv"],
-            vec![("UV_PYTHON_PREFERENCE", "only-system")],
-        ));
-    }
+    // Always try the system Python as the LAST resort (mirrors blocked too).
+    // No `--python 3.11` pin and no pre-gate: uv's own interpreter discovery is
+    // the authority — with `only-system` + the project's `requires-python =
+    // ">=3.11"` it resolves any compatible system interpreter (3.12/3.13/3.14…),
+    // or fails fast → the remediation message. A pre-gate that only probed
+    // `python3`/`python` was stricter than uv (e.g. it missed a Homebrew 3.14
+    // when `python3` was the macOS 3.9), wrongly skipping this fallback.
+    venv_attempts.push((
+        "system-python",
+        vec!["venv"],
+        vec![("UV_PYTHON_PREFERENCE", "only-system")],
+    ));
 
     let mut venv_ok = false;
     for (label, args, envs) in &venv_attempts {
@@ -565,16 +534,6 @@ docs/install/troubleshooting.md).",
 mod tests {
     use super::*;
     use std::collections::HashMap;
-
-    #[test]
-    fn parse_py_version_handles_real_and_garbage() {
-        assert_eq!(parse_py_version("Python 3.11.7"), Some((3, 11)));
-        assert_eq!(parse_py_version("Python 3.11"), Some((3, 11)));
-        assert_eq!(parse_py_version("Python 3.12.2\n"), Some((3, 12)));
-        assert_eq!(parse_py_version("Python 3.10.6"), Some((3, 10)));
-        assert_eq!(parse_py_version("garbage"), None);
-        assert_eq!(parse_py_version(""), None);
-    }
 
     #[test]
     fn apply_uv_http_env_sets_timeouts_and_retries() {
