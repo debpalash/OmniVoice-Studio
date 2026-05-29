@@ -125,6 +125,50 @@ export UV_HTTP_RETRIES=5
 The Phase 3 install milestone (INST-07..11) ships an OS-level mirror cascade
 that picks these defaults automatically; for v0.3 set them by hand.
 
+## AMD GPU (ROCm)
+
+<a id="amd-gpu-rocm"></a>
+
+OmniVoice **auto-detects AMD GPUs** — `get_best_device()` returns the GPU when a
+ROCm build of PyTorch is installed (ROCm-built PyTorch reports through
+`torch.cuda.is_available()`), and OmniVoice auto-sets `HSA_OVERRIDE_GFX_VERSION`
+for consumer cards whose GFX ID isn't in the official ROCm support matrix. No
+code changes or flags are needed.
+
+The catch: the **default install ships the CUDA build** of PyTorch (the
+`pytorch-cuda` index in `pyproject.toml`), so on an AMD-only machine
+`torch.cuda.is_available()` is `False` and OmniVoice falls back to CPU. To use
+your AMD GPU, replace torch with the ROCm wheel **after** the first-run install
+populates the venv:
+
+```bash
+# From the project directory (source install), into OmniVoice's uv venv.
+# Current stable is ROCm 6.2 — match your installed ROCm/driver version
+# (https://pytorch.org/get-started/locally/ lists available wheels).
+uv pip install --reinstall torch torchaudio \
+  --index-url https://download.pytorch.org/whl/rocm6.2
+```
+
+Then relaunch — the Settings → System panel should now report the GPU device
+instead of `cpu`. Verify the wheel sees your card:
+
+```bash
+uv run python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+```
+
+Notes:
+- ROCm is **Linux-only** and **opt-in** — the default cross-platform behavior
+  (CUDA on NVIDIA, MPS on Apple, CPU elsewhere) is unchanged.
+- Unsupported GFX (e.g. some consumer RDNA cards): if it still won't run, set
+  `HSA_OVERRIDE_GFX_VERSION` yourself (e.g. `export HSA_OVERRIDE_GFX_VERSION=11.0.0`)
+  to the nearest supported architecture before launching.
+- ZLUDA (CUDA-on-ROCm translation) can work but is unsupported here — prefer a
+  native ROCm wheel.
+
+Tracking issue: [#124](https://github.com/debpalash/OmniVoice-Studio/issues/124).
+An installer-integrated, env-var-driven ROCm wheel selection is a planned
+follow-up; until then this manual step is the supported path.
+
 ## Hugging Face token (optional but recommended)
 
 See [docs/setup/huggingface-token.md](../setup/huggingface-token.md).
