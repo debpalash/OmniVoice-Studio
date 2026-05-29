@@ -13,6 +13,7 @@ The state endpoint duplicates `/system/hf-token/state` (which lives on
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import asdict
 from typing import Optional
 
@@ -194,3 +195,82 @@ def get_license_acceptance(engine_id: str) -> dict:
         logger.exception("get_license_accepted failed for %s", eid)
         raise HTTPException(status_code=500, detail="Failed to read license acceptance")
     return {"engine_id": eid, "accepted": bool(accepted)}
+
+
+# ── Storage: configurable models directory (#64) ──────────────────────────
+# Where HuggingFace / Torch download model weights. Persisted durably to the
+# per-user env file so main.py maps it to HF_HOME / HF_HUB_CACHE / TORCH_HOME
+# at startup. Takes effect on the next backend restart (a storage-location
+# change can't safely move an in-use cache mid-process).
+_MODELS_DIR_ENV = "OMNIVOICE_CACHE_DIR"
+_MODELS_DIR_KEY = "storage.models_dir"
+
+
+def _default_models_dir() -> str:
+    return os.path.expanduser("~/.cache/huggingface")
+
+
+def _effective_models_dir() -> str:
+    return (
+        os.environ.get("HF_HUB_CACHE")
+        or os.environ.get("HUGGINGFACE_HUB_CACHE")
+        or os.environ.get("HF_HOME")
+        or _default_models_dir()
+    )
+
+
+class _ModelsDirBody(BaseModel):
+    path: str = Field(default="", description="Absolute directory; empty clears → default cache")
+
+
+@router.get("/storage/models-dir")
+def get_models_dir():
+    """Current models directory: the persisted choice, what's effective in this
+    process, and the platform default."""
+    from services import settings_store
+
+    configured = settings_store.get_text(_MODELS_DIR_KEY, "") or None
+    return {
+        "configured": configured,
+        "effective": _effective_models_dir(),
+        "default": _default_models_dir(),
+        "restart_required": False,
+    }
+
+
+@router.put("/storage/models-dir")
+def set_models_dir(body: _ModelsDirBody):
+    """Set (or clear, with an empty path) the models download directory.
+
+    Validates the directory is writable, persists the choice, and writes
+    OMNIVOICE_CACHE_DIR to the durable per-user env file so main.py applies it
+    on the next launch. Returns restart_required=True.
+    """
+    from core import user_env
+    from services import settings_store
+
+    raw = (body.path or "").strip()
+    if not raw:
+        try:
+            settings_store.set_text(_MODELS_DIR_KEY, "")
+        except Exception:
+            logger.exception("models-dir: settings_store clear failed")
+        user_env.unset_user_env(_MODELS_DIR_ENV)
+        return {"configured": None, "default": _default_models_dir(), "restart_required": True}
+
+    path = os.path.abspath(os.path.expanduser(raw))
+    try:
+        os.makedirs(path, exist_ok=True)
+        probe = os.path.join(path, ".omnivoice_write_test")
+        with open(probe, "w", encoding="utf-8") as f:
+            f.write("ok")
+        os.remove(probe)
+    except OSError as e:
+        raise HTTPException(status_code=400, detail=f"Directory is not writable: {e}")
+
+    try:
+        settings_store.set_text(_MODELS_DIR_KEY, path)
+    except Exception:
+        logger.exception("models-dir: settings_store write failed")
+    user_env.set_user_env(_MODELS_DIR_ENV, path)
+    return {"configured": path, "effective": _effective_models_dir(), "restart_required": True}

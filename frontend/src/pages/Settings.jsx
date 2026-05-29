@@ -25,6 +25,7 @@ import { useAppStore } from '../store';
 import ApiKeysPanel from '../components/settings/ApiKeysPanel';
 import PerformancePanel from '../components/settings/PerformancePanel';
 import AppearancePanel from '../components/settings/AppearancePanel';
+import StoragePanel from '../components/settings/StoragePanel';
 import EngineCompatibilityMatrix from '../components/EngineCompatibilityMatrix';
 import './Settings.css';
 
@@ -1027,7 +1028,12 @@ export default function Settings() {
         className="settings-tabs-ui"
       />
 
-      {activeTab === 'models' && <ModelStoreTab info={info} modelBadge={modelBadge} />}
+      {activeTab === 'models' && (
+        <>
+          <StoragePanel />
+          <ModelStoreTab info={info} modelBadge={modelBadge} />
+        </>
+      )}
 
       {activeTab === 'engines' && <EnginesTab />}
 
