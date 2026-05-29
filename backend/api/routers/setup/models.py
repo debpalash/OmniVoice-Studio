@@ -124,6 +124,65 @@ def hf_cache_dir() -> str:
     )
 
 
+def _repo_dir_name(repo_id: str) -> str:
+    """HF cache dir name for a repo: 'k2-fsa/OmniVoice' → 'models--k2-fsa--OmniVoice'."""
+    return "models--" + repo_id.replace("/", "--")
+
+
+def _is_cached_on_disk(repo_id: str) -> bool:
+    """Direct-filesystem fallback for is_cached when scan_cache_dir is unavailable.
+
+    On Windows scan_cache_dir() can raise WinError 448 ('untrusted mount point');
+    we then walk the canonical HF layout <cache>/models--<org>--<name>/snapshots/
+    <rev>/ and treat the repo as cached if any revision directory has files. This
+    stops a present model from being mistaken for missing and re-downloaded
+    (#117/#118).
+    """
+    snaps = os.path.join(hf_cache_dir(), _repo_dir_name(repo_id), "snapshots")
+    try:
+        if not os.path.isdir(snaps):
+            return False
+        for rev in os.listdir(snaps):
+            rev_dir = os.path.join(snaps, rev)
+            if os.path.isdir(rev_dir) and any(os.scandir(rev_dir)):
+                return True
+        return False
+    except OSError:
+        return False
+
+
+def _scan_cache_on_disk() -> dict[str, dict]:
+    """Direct-filesystem equivalent of scan_cache_dir(), for the WinError-448
+    fallback path. Returns {repo_id: {size_on_disk, last_accessed, nb_files}}."""
+    out: dict[str, dict] = {}
+    root = hf_cache_dir()
+    try:
+        names = os.listdir(root)
+    except OSError:
+        return out
+    for name in names:
+        if not name.startswith("models--"):
+            continue
+        repo_id = name[len("models--"):].replace("--", "/")
+        repo_root = os.path.join(root, name)
+        if not os.path.isdir(os.path.join(repo_root, "snapshots")):
+            continue
+        size = 0
+        nb = 0
+        for dirpath, _dirs, files in os.walk(repo_root):
+            for f in files:
+                try:
+                    size += os.path.getsize(os.path.join(dirpath, f))
+                    nb += 1
+                except OSError:
+                    # Skip files we can't stat (broken symlink, permission) —
+                    # the count is best-effort for the UI's "installed" badge.
+                    continue
+        if nb > 0:
+            out[repo_id] = {"size_on_disk": size, "last_accessed": None, "nb_files": nb}
+    return out
+
+
 def is_cached(repo_id: str) -> bool:
     """Best-effort check: does HF have this repo in its cache on disk?"""
     try:
@@ -134,8 +193,11 @@ def is_cached(repo_id: str) -> bool:
                 return True
         return False
     except Exception as e:
-        logger.debug("scan_cache_dir failed: %s", e)
-        return False
+        # scan_cache_dir can raise on Windows (WinError 448 'untrusted mount
+        # point'); fall back to a direct disk check so a cached model isn't
+        # mistaken for missing and re-downloaded in a loop (#117/#118).
+        logger.debug("scan_cache_dir failed (%s); using disk fallback", e)
+        return _is_cached_on_disk(repo_id)
 
 
 # ── Response Cache ─────────────────────────────────────────────────────────
@@ -187,7 +249,10 @@ def list_models():
                 "nb_files": entry.nb_files,
             }
     except Exception as e:
-        logger.warning("scan_cache_dir failed: %s", e)
+        # WinError-448 fallback (#117/#118): use a direct disk scan so installed
+        # models still show as installed instead of offering a re-download.
+        logger.warning("scan_cache_dir failed (%s); using disk fallback", e)
+        cached_by_repo = _scan_cache_on_disk()
 
     out = []
     for m in KNOWN_MODELS:
@@ -281,8 +346,10 @@ def recommendations():
         cached_ids = {
             entry.repo_id for entry in info.repos if entry.size_on_disk > 0
         }
-    except Exception:
-        pass
+    except Exception as e:
+        # WinError-448 fallback (#117/#118): recommend based on the disk scan.
+        logger.debug("scan_cache_dir failed (%s); using disk fallback", e)
+        cached_ids = set(_scan_cache_on_disk().keys())
 
     entries = []
     for rid in recommended_ids:
