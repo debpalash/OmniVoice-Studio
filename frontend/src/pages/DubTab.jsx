@@ -93,7 +93,6 @@ export default function DubTab(props) {
   const dubJobId          = useAppStore(s => s.dubJobId);
   const dubStep           = useAppStore(s => s.dubStep);
   const setDubStep        = useAppStore(s => s.setDubStep);
-  const dubInputType      = useAppStore(s => s.dubInputType);
   const setDubInputType   = useAppStore(s => s.setDubInputType);
   const dubPrepStage      = useAppStore(s => s.dubPrepStage);
   const dubPrepProgress   = useAppStore(s => s.dubPrepProgress);
