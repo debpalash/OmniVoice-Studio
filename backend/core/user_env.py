@@ -35,7 +35,7 @@ def _write_lines(path: str, lines: list[str]) -> None:
     try:
         os.chmod(path, 0o600)  # may hold secrets; no-op semantics on Windows
     except OSError:
-        pass
+        pass  # best-effort hardening; some filesystems/Windows don't support chmod
 
 
 def get_user_env(key: str, path: Optional[str] = None) -> Optional[str]:

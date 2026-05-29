@@ -42,6 +42,14 @@ def test_rejects_unwritable_dir(env):
     assert ei.value.status_code == 400
 
 
+def test_rejects_path_with_null_byte(env):
+    # An embedded NUL would otherwise blow up os.makedirs with a ValueError
+    # (→ 500). Validate up front and return a clean 400 instead.
+    with pytest.raises(fastapi.HTTPException) as ei:
+        s.set_models_dir(s._ModelsDirBody(path="/tmp/mo\x00dels"))
+    assert ei.value.status_code == 400
+
+
 def test_clear_reverts_to_default(env):
     env["storage.models_dir"] = "/old"
     user_env.set_user_env("OMNIVOICE_CACHE_DIR", "/old")

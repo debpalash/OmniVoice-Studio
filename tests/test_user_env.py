@@ -21,7 +21,8 @@ def test_set_creates_and_upserts(tmp_path):
     # upsert: change value, do not duplicate the key
     user_env.set_user_env("OMNIVOICE_CACHE_DIR", "/other/models", path=p)
     assert user_env.get_user_env("OMNIVOICE_CACHE_DIR", path=p) == "/other/models"
-    assert open(p).read().count("OMNIVOICE_CACHE_DIR=") == 1
+    with open(p) as f:
+        assert f.read().count("OMNIVOICE_CACHE_DIR=") == 1
 
 
 def test_preserves_other_keys(tmp_path):

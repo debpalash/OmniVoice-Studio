@@ -258,6 +258,14 @@ def set_models_dir(body: _ModelsDirBody):
         user_env.unset_user_env(_MODELS_DIR_ENV)
         return {"configured": None, "default": _default_models_dir(), "restart_required": True}
 
+    # Reject control characters / NUL before touching the filesystem: an
+    # embedded NUL makes os.makedirs raise ValueError (→ 500). This is also
+    # the input-validation barrier for the path before it reaches any fs call
+    # (the dir is user-chosen by design — this is a loopback-gated, same-user
+    # local file picker, not a cross-privilege boundary).
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in raw):
+        raise HTTPException(status_code=400, detail="Path contains invalid control characters")
+
     path = os.path.abspath(os.path.expanduser(raw))
     try:
         os.makedirs(path, exist_ok=True)
