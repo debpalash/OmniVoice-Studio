@@ -34,8 +34,8 @@ Threat model (Plan 02-03 frontmatter):
     T-02-09 — supply chain (uv pip install -e):
         Bootstrap installs from a user-controlled local directory
         (``OMNIVOICE_INDEXTTS_DIR``). The user already trusts that
-        directory's contents (it's their own clone). Accepted for v0.3;
-        revisit in v0.4 with hash-pinned indextts requirements.
+        directory's contents (it's their own clone). Accepted for now; a
+        later hardening pass can hash-pin the indextts requirements.
 """
 from __future__ import annotations
 

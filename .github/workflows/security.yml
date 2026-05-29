@@ -1,0 +1,170 @@
+# Security scanning — runs on every PR, on push to main, and weekly.
+#
+# Complements the CodeRabbit + Greptile app reviews (which fire on PR creation)
+# with deterministic, gating checks:
+#   • gitleaks   — secret scanning. HARD FAIL: a leaked credential blocks merge.
+#   • CodeQL     — Python + JS/TS SAST. Results land in the Security tab.
+#   • bandit     — Python SAST (SARIF → Security tab). Reporting, non-gating.
+#   • pip-audit  — Python dependency advisories. Reporting, non-gating.
+#   • bun audit  — frontend dependency advisories. Reporting, non-gating.
+#
+# Only the secret scan gates the PR. Dependency advisories and bandit findings
+# are surfaced as signal (Security tab / job log) rather than blocking every PR
+# on a transitive upstream advisory — consistent with the "no ceremony,
+# continuous-to-main" cadence.
+name: Security
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Mondays 06:00 UTC — catch advisories disclosed since the last PR.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+env:
+  # Match ci.yml: run JS actions on Node 24 (GH removes Node 20 in Sep 2026).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# Least privilege by default; jobs that upload SARIF opt into security-events.
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Secret scanning (gating) ─────────────────────────────────────────────
+  # Full-history scan on push to main; PR-diff scan on pull_request (faster,
+  # and the action picks the right mode from the event automatically).
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gitleaks needs full history to scan all commits on push events.
+          fetch-depth: 0
+          # No authed git needed after clone; don't persist GITHUB_TOKEN.
+          persist-credentials: false
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITLEAKS_LICENSE is only required for GitHub *organizations*; this is
+          # a personal public repo, so the action runs free without it.
+
+  # ── CodeQL SAST (Python + JS/TS) ─────────────────────────────────────────
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # Both targets are interpreted — no compiled build step needed.
+          build-mode: none
+          queries: security-and-quality
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  # ── Python SAST (bandit → SARIF) ─────────────────────────────────────────
+  bandit:
+    name: Python SAST (bandit)
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # -ll: report MEDIUM+ severity only. -ii: MEDIUM+ confidence only.
+      # Keeps the SARIF focused on findings worth a human look. The scan step
+      # is allowed to "fail" (findings present) without failing the job; the
+      # SARIF upload still runs so results reach the Security tab.
+      #
+      # NOTE: the `sarif` output format lives in the `bandit[sarif]` extra
+      # (pulls in sarif-om + jschema-to-python). Plain `bandit` rejects
+      # `-f sarif`, so install via the extra spec.
+      - name: Run bandit
+        continue-on-error: true
+        run: |
+          pipx run --spec 'bandit[sarif]' bandit -r backend/ -ll -ii -f sarif -o bandit.sarif
+
+      # continue-on-error: this job is reporting-only. If bandit can't write a
+      # SARIF for any reason (no findings dir, pipx hiccup), don't fail the job.
+      - name: Upload bandit SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: bandit.sarif
+          category: bandit
+
+  # ── Dependency advisories (reporting) ────────────────────────────────────
+  dependencies:
+    name: Dependency audit
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Audit the resolved Python environment. Non-gating: a transitive
+      # advisory with no fix available should not wall off every PR.
+      - name: pip-audit (Python)
+        continue-on-error: true
+        run: |
+          uv sync
+          uv run --with pip-audit pip-audit
+
+      # Pin a floor: `bun audit` was added in bun 1.2.x, so guarantee it exists.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: "1.2"
+
+      # `bun audit` reports advisories against the frontend lockfile. Non-gating
+      # for the same reason; also tolerant of older bun without the subcommand.
+      - name: bun audit (frontend)
+        continue-on-error: true
+        working-directory: frontend
+        run: |
+          bun install --frozen-lockfile
+          bun audit

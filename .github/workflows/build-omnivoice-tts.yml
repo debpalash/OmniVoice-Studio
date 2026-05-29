@@ -1,0 +1,105 @@
+# Build the `omnivoice-tts` C++ runtime binary (Phase 4 Plan 04-01, GGUF-03).
+#
+# The runtime is PINNED to a commit SHA in
+# `backend/engines/omnivoice_gguf/quant_map.json` (`_meta.runtime_commit_sha`),
+# so the binary only changes when that pin (or the build script) changes — NOT
+# on every PR. This workflow is therefore gated to those paths + manual
+# dispatch, instead of running on every push.
+#
+# Why it moved off ci.yml: the per-push matrix kept the heavily-contended
+# hosted macOS runners (especially the Intel `macos-13` pool) sitting in
+# "Waiting for a runner…" for hours as a perpetual queued check. The engine's
+# runtime gracefully reports unavailable on a missing binary (falls back to the
+# in-process OmniVoiceBackend), so this build is not on the critical PR path.
+#
+# The Intel `darwin-x86_64` (`macos-13`) leg is intentionally dropped: those
+# hosted runners are unusably contended and Apple's platform momentum is on
+# arm64; Intel-Mac users get the in-process fallback. Re-add a `macos-13` matrix
+# entry here if first-class Intel binaries are ever needed.
+name: Build omnivoice-tts
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - backend/engines/omnivoice_gguf/quant_map.json
+      - scripts/build-omnivoice-tts.sh
+      - .github/workflows/build-omnivoice-tts.yml
+  push:
+    branches: [main]
+    paths:
+      - backend/engines/omnivoice_gguf/quant_map.json
+      - scripts/build-omnivoice-tts.sh
+      - .github/workflows/build-omnivoice-tts.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-omnivoice-tts:
+    name: Build omnivoice-tts (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
+    # Bound worst-case cost: a hung leg (esp. the experimental darwin-arm64
+    # Metal build) shouldn't run to GitHub's 6h ceiling burning runner minutes.
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x86_64
+            experimental: false
+          - os: windows-latest
+            platform: windows-x86_64
+            experimental: false
+          - os: macos-14
+            platform: darwin-arm64
+            # Metal build path is unpublished upstream (Pitfall 1 in
+            # 04-RESEARCH.md); experimental so a failed Metal build doesn't
+            # block — the SPIKE-01 ADR records the in-process fallback.
+            experimental: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Read pinned omnivoice.cpp SHA from quant_map.json
+        id: pin
+        shell: bash
+        run: |
+          sha=$(python -c "import json; print(json.load(open('backend/engines/omnivoice_gguf/quant_map.json'))['_meta']['runtime_commit_sha'])")
+          # Validate it's a git SHA before it ever reaches a shell command —
+          # a crafted quant_map.json value must not be able to inject shell.
+          if ! [[ "$sha" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+            echo "::error::runtime_commit_sha is not a valid git SHA: '$sha'"
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      # Linux-only: upstream `buildcpu.sh` enables `-DGGML_BLAS=ON` which
+      # requires a system BLAS implementation at cmake configure time.
+      - name: Linux system deps (BLAS for ggml-blas backend)
+        if: matrix.platform == 'linux-x86_64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopenblas-dev pkg-config
+
+      - name: Build omnivoice-tts
+        shell: bash
+        # Pass values through env (quoted) rather than ${{ }} interpolation
+        # directly into the run block — avoids shell-injection on the inputs.
+        env:
+          PIN_SHA: ${{ steps.pin.outputs.sha }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          bash scripts/build-omnivoice-tts.sh \
+            --platform "$PLATFORM" \
+            --commit-sha "$PIN_SHA"
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: omnivoice-tts-${{ matrix.platform }}
+          path: |
+            bin/omnivoice-tts-${{ matrix.platform }}*
+            bin/checksums.sha256

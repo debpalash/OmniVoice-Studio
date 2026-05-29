@@ -1,0 +1,65 @@
+# CodeRabbit configuration — https://docs.coderabbit.ai/guides/configure-coderabbit
+# The CodeRabbit GitHub App is already installed on this repo and reviews every
+# PR on creation. This file only tunes that behavior; it is not required for the
+# bot to run.
+#
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+early_access: false
+
+reviews:
+  # "chill" keeps the bot from blocking merges — it comments, it does not gate.
+  # Hard gating lives in CI (security.yml) and the constitution's human bar.
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  poem: false
+
+  auto_review:
+    enabled: true
+    # Match the constitution: drafts are work-in-progress, don't burn review
+    # cycles on them. PRs flip to ready → CodeRabbit reviews.
+    drafts: false
+    base_branches:
+      - main
+
+  # Skip generated / vendored / binary paths so the review stays high-signal.
+  path_filters:
+    - "!**/*.lock"
+    - "!**/bun.lock"
+    - "!**/uv.lock"
+    - "!**/dist/**"
+    - "!**/build/**"
+    - "!frontend/src-tauri/target/**"
+    - "!**/*.min.js"
+    - "!**/*.svg"
+    - "!**/*.png"
+    - "!**/*.wav"
+    - "!**/*.onnx"
+    - "!tests/fixtures/**"
+
+  # Encode the project's hard constraints so the bot reviews against them.
+  path_instructions:
+    - path: "**/*.{py,rs,js,jsx,ts,tsx}"
+      instructions: >-
+        OmniVoice is fully-local (no cloud, no API keys, no telemetry). Flag any
+        new outbound network call that is not to github.com issues, a HuggingFace
+        model download, or an explicitly opt-in endpoint. Flag any code that
+        persists or logs values matching *TOKEN*/*KEY*/*SECRET* or absolute user
+        home paths (/Users/<name>/, C:\\Users\\<name>\\).
+    - path: "backend/**/*.py"
+      instructions: >-
+        Default features must behave identically on macOS, Windows and Linux.
+        Platform-specific implementation is allowed, but a divergent user-visible
+        default is a P0 bug — flag it and suggest an opt-in (Settings/env/flag).
+        Any DB schema change must go through an alembic migration with an upgrade
+        path; flag direct schema edits. Engine code must stay backward-compatible
+        with already-installed on-disk model state (no forced reinstall).
+    - path: ".github/workflows/**"
+      instructions: >-
+        Pin actions to a major version tag at minimum. Flag any workflow that
+        grants write permissions it does not need.
+
+chat:
+  auto_reply: true

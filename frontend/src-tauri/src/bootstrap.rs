@@ -223,46 +223,6 @@ pub fn venv_python_path(venv: &Path) -> PathBuf {
     }
 }
 
-/// Apply region-aware UV networking env vars (mirror + timeouts) to a Command.
-///
-/// `UV_PYTHON_INSTALL_MIRROR` replaces the python-build-standalone download
-/// prefix; we route it through ghproxy.net for regions where github.com is
-/// commonly unreachable. The bumped HTTP timeouts/retries help even when the
-/// mirror is reachable but slow (issues #57, #60).
-fn apply_uv_network_env(cmd: &mut Command, effective_region: &str) {
-    // Don't override user-set env vars — power users may have configured their
-    // own mirror in the shell. Cmd's `env()` overwrites, so check first.
-    let uv_mirror_set = std::env::var_os("UV_PYTHON_INSTALL_MIRROR").is_some();
-    let uv_timeout_set = std::env::var_os("UV_HTTP_TIMEOUT").is_some();
-    let uv_retries_set = std::env::var_os("UV_HTTP_RETRIES").is_some();
-
-    if !uv_mirror_set {
-        if let Some(mirror) = python_install_mirror_for_region(effective_region) {
-            cmd.env("UV_PYTHON_INSTALL_MIRROR", mirror);
-        }
-    }
-    if !uv_timeout_set {
-        cmd.env("UV_HTTP_TIMEOUT", "120");
-    }
-    if !uv_retries_set {
-        cmd.env("UV_HTTP_RETRIES", "5");
-    }
-}
-
-/// Region → python-build-standalone mirror URL prefix. Returns None for the
-/// global region (use uv default — direct GitHub).
-fn python_install_mirror_for_region(region: &str) -> Option<&'static str> {
-    match region {
-        // ghproxy.net accepts a fully-qualified GitHub URL appended to its host
-        // and proxies the response. Consistent with `resolve_github_url` in
-        // config.rs which is already used for FFmpeg downloads.
-        "china" | "russia" | "restricted" => Some(
-            "https://ghproxy.net/https://github.com/astral-sh/python-build-standalone/releases/download",
-        ),
-        _ => None,
-    }
-}
-
 /// Recursive directory copy that skips `__pycache__` and any dotfile dirs.
 pub fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     fs::create_dir_all(dst)?;
@@ -298,6 +258,30 @@ pub fn find_dev_project_root() -> Option<PathBuf> {
         }
     }
     None
+}
+
+// ── plan-03 (#130): restricted-network bootstrap resilience ────────────────
+
+/// gh-proxy mirror for python-build-standalone, used as a fallback when the
+/// default GitHub releases host is blocked/unresolvable (#60). Points
+/// UV_PYTHON_INSTALL_MIRROR at the releases-download base behind the proxy.
+const PY_INSTALL_MIRROR: &str =
+    "https://gh-proxy.com/https://github.com/astral-sh/python-build-standalone/releases/download";
+
+/// Shown when every managed-Python strategy AND the system-Python fallback fail
+/// — actionable remediation instead of a raw `uv` exit code (#130 step 5).
+const BOOTSTRAP_REMEDIATION: &str =
+    "First-run setup couldn't download Python — your network may be blocking GitHub. \
+Fix: install Python 3.11+ from https://www.python.org/downloads/ (tick \"Add to PATH\"), \
+then relaunch — OmniVoice will use your system Python. Advanced: set \
+UV_PYTHON_INSTALL_MIRROR to a reachable mirror (see docs/install/troubleshooting.md).";
+
+/// Longer timeouts + more retries so a slow/flaky mirror or PyPI doesn't kill
+/// the first-run install on its first hiccup (#130 step 2).
+fn apply_uv_http_env(cmd: &mut Command) {
+    cmd.env("UV_HTTP_TIMEOUT", "120")
+        .env("UV_HTTP_CONNECT_TIMEOUT", "30")
+        .env("UV_HTTP_RETRIES", "5");
 }
 
 /// Prepare (and on first run, create) the Python venv that will host the
@@ -464,45 +448,50 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
     if let Some(p) = progress {
         set_stage(p, BootstrapStage::CreatingVenv);
     }
-    let effective_region = get_effective_region(app);
-    let mut venv_cmd = Command::new(&uv_path);
-    venv_cmd.env_remove("PYTHONHOME").env_remove("PYTHONPATH").env_remove("LD_LIBRARY_PATH");
-    apply_uv_network_env(&mut venv_cmd, &effective_region);
-    venv_cmd.args(["venv", "--python", "3.11", "--managed-python"]).current_dir(&project_dir);
-    let mut status = run_streaming(app, "creating_venv", &mut venv_cmd);
-    if !matches!(status, Ok(ref s) if s.success()) {
-        // Managed-python download failed (common on restricted networks even
-        // with a mirror configured). Fall back to the user's system Python if
-        // one is available — uv will pick anything >=3.11.
-        log::warn!(
-            "uv venv (managed Python) failed: {:?} — retrying with --python-preference only-system",
-            status
-        );
-        emit_log(
-            app,
-            "creating_venv",
-            "managed-python download failed; trying system Python (>=3.11) as fallback",
-        );
-        let mut fallback_cmd = Command::new(&uv_path);
-        fallback_cmd
-            .env_remove("PYTHONHOME")
-            .env_remove("PYTHONPATH")
-            .env_remove("LD_LIBRARY_PATH");
-        apply_uv_network_env(&mut fallback_cmd, &effective_region);
-        fallback_cmd
-            .args(["venv", "--python", "3.11", "--python-preference", "only-system"])
-            .current_dir(&project_dir);
-        status = run_streaming(app, "creating_venv", &mut fallback_cmd);
-        if !matches!(status, Ok(ref s) if s.success()) {
-            fail(
-                progress,
-                &format!(
-                    "uv venv failed: {:?}. Network couldn't reach python-build-standalone, and no system Python 3.11+ was found. Install Python 3.11+ system-wide or switch region in Settings.",
-                    status
-                ),
-            );
-            return None;
+    // plan-03 (#130): mirror cascade + system-Python fallback so first-run
+    // survives a GitHub-blocked network. Try in order: (1) default GitHub host,
+    // (2) gh-proxy mirror, (3) system Python (only if >= 3.11) — each with
+    // longer timeouts/retries. Stop at the first that succeeds.
+    let mut venv_attempts: Vec<(&str, Vec<&str>, Vec<(&str, &str)>)> = vec![
+        ("default", vec!["venv", "--python", "3.11", "--managed-python"], vec![]),
+        (
+            "gh-proxy mirror",
+            vec!["venv", "--python", "3.11", "--managed-python"],
+            vec![("UV_PYTHON_INSTALL_MIRROR", PY_INSTALL_MIRROR)],
+        ),
+    ];
+    // Always try the system Python as the LAST resort (mirrors blocked too).
+    // No `--python 3.11` pin and no pre-gate: uv's own interpreter discovery is
+    // the authority — with `only-system` + the project's `requires-python =
+    // ">=3.11"` it resolves any compatible system interpreter (3.12/3.13/3.14…),
+    // or fails fast → the remediation message. A pre-gate that only probed
+    // `python3`/`python` was stricter than uv (e.g. it missed a Homebrew 3.14
+    // when `python3` was the macOS 3.9), wrongly skipping this fallback.
+    venv_attempts.push((
+        "system-python",
+        vec!["venv"],
+        vec![("UV_PYTHON_PREFERENCE", "only-system")],
+    ));
+
+    let mut venv_ok = false;
+    for (label, args, envs) in &venv_attempts {
+        let mut venv_cmd = Command::new(&uv_path);
+        venv_cmd.env_remove("PYTHONHOME").env_remove("PYTHONPATH").env_remove("LD_LIBRARY_PATH");
+        apply_uv_http_env(&mut venv_cmd);
+        for &(k, v) in envs {
+            venv_cmd.env(k, v);
         }
+        venv_cmd.args(args.iter()).current_dir(&project_dir);
+        log::info!("uv venv attempt ({})", label);
+        if matches!(run_streaming(app, "creating_venv", &mut venv_cmd), Ok(ref s) if s.success()) {
+            venv_ok = true;
+            break;
+        }
+        log::warn!("uv venv attempt ({}) failed; trying next strategy", label);
+    }
+    if !venv_ok {
+        fail(progress, BOOTSTRAP_REMEDIATION);
+        return None;
     }
 
     if let Some(p) = progress {
@@ -510,7 +499,7 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
     }
     let mut sync_cmd = Command::new(&uv_path);
     sync_cmd.env_remove("PYTHONHOME").env_remove("PYTHONPATH").env_remove("LD_LIBRARY_PATH");
-    apply_uv_network_env(&mut sync_cmd, &effective_region);
+    apply_uv_http_env(&mut sync_cmd);
     let has_lockfile = project_dir.join("uv.lock").is_file();
     if has_lockfile {
         sync_cmd
@@ -522,12 +511,19 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
             .args(["sync", "--no-dev", "--verbose"])
             .current_dir(&project_dir);
     }
+    let effective_region = get_effective_region(app);
     if effective_region == "china" {
         sync_cmd.env("UV_INDEX_URL", "https://mirrors.aliyun.com/pypi/simple/");
     }
     let sync_status = run_streaming(app, "installing_deps", &mut sync_cmd);
     if !matches!(sync_status, Ok(ref s) if s.success()) {
-        fail(progress, &format!("uv sync failed: {:?}", sync_status));
+        fail(
+            progress,
+            "Dependency install (uv sync) failed — often a network drop or a \
+partial cache. \"Clean & Retry\" rebuilds the environment from scratch. If your \
+network blocks PyPI, set UV_DEFAULT_INDEX to a mirror (see \
+docs/install/troubleshooting.md).",
+        );
         return None;
     }
 
@@ -537,24 +533,20 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
-    fn mirror_routes_restricted_regions_via_ghproxy() {
-        for region in ["china", "russia", "restricted"] {
-            let mirror = python_install_mirror_for_region(region)
-                .unwrap_or_else(|| panic!("expected mirror for region={region}"));
-            assert!(mirror.starts_with("https://ghproxy.net/"), "region={region} got {mirror}");
-            assert!(mirror.contains("astral-sh/python-build-standalone/releases/download"));
-        }
-    }
-
-    #[test]
-    fn mirror_is_none_for_global_and_auto() {
-        assert!(python_install_mirror_for_region("global").is_none());
-        // "auto" resolves to global or restricted before reaching this fn, but
-        // if it ever slips through unmapped, default to None (no mirror) rather
-        // than guessing.
-        assert!(python_install_mirror_for_region("auto").is_none());
-        assert!(python_install_mirror_for_region("").is_none());
+    fn apply_uv_http_env_sets_timeouts_and_retries() {
+        let mut cmd = Command::new("uv");
+        apply_uv_http_env(&mut cmd);
+        let envs: HashMap<String, String> = cmd
+            .get_envs()
+            .filter_map(|(k, v)| {
+                v.map(|v| (k.to_string_lossy().into_owned(), v.to_string_lossy().into_owned()))
+            })
+            .collect();
+        assert_eq!(envs.get("UV_HTTP_TIMEOUT").map(String::as_str), Some("120"));
+        assert_eq!(envs.get("UV_HTTP_CONNECT_TIMEOUT").map(String::as_str), Some("30"));
+        assert_eq!(envs.get("UV_HTTP_RETRIES").map(String::as_str), Some("5"));
     }
 }

@@ -1,0 +1,188 @@
+"""Shared pipeline-failure helper (plan-04 / #131).
+
+Single source of truth for "what a failure looks like" so every emit site —
+the TaskManager worker, the dub ingest pipeline, the dub/batch routers — produces
+the same structured, **non-empty**, sanitized failure event instead of its own
+ad-hoc ``str(e)`` (which is empty or cryptic for many exception types, and was
+the root of the "extract: unknown error" reports in #122/#63).
+
+Guarantees:
+  - ``reason`` is ALWAYS non-empty (falls back to the exception class name).
+  - ``detail`` / ``diagnostic`` are sanitized: HF tokens, ``*TOKEN*/*KEY*/*SECRET*``
+    env values, and absolute home paths never leak (Constitution I).
+  - the 5-class docs taxonomy is reused from ``core.error_docs_map`` (not
+    duplicated) so the deeplink contract stays single-sourced.
+"""
+from __future__ import annotations
+
+import os
+import platform
+import re
+import sys
+from pathlib import Path
+from typing import Any, Optional
+
+from core import error_docs_map
+from core.logging_filter import REDACTED, _HF_TOKEN_RE
+
+# Env vars whose *name* implies a credential — their values are redacted.
+_SECRET_NAME_RE = re.compile(r"(TOKEN|KEY|SECRET)", re.IGNORECASE)
+_REDACTED_VALUE = "***REDACTED***"
+
+# One-line "what to do" per docs-taxonomy key. Keys mirror error_docs_map's
+# taxonomy; the docs URL itself stays owned by error_docs_map.
+_HINTS: dict[str, str] = {
+    "PKG_RESOURCES_MISSING": "Install setuptools in the backend environment (provides pkg_resources).",
+    "GATEKEEPER_QUARANTINE": "Clear the macOS quarantine flag (xattr -cr the app), then reopen.",
+    "APPIMAGE_WEBKIT_WHITESCREEN": "Launch with WEBKIT_DISABLE_DMABUF_RENDERER=1 set.",
+    "HF_AUTH_FAILED": "Set a valid HF_TOKEN in Settings → Hugging Face and retry.",
+    "PYANNOTE_LICENSE_REQUIRED": "Accept the pyannote model licenses on Hugging Face, then retry.",
+}
+
+
+def classify(reason: str) -> str:
+    """Map a failure reason to a docs-taxonomy key, or "" when unknown.
+
+    Heuristic substring match — mirrors the frontend ``classifyError`` so the
+    backend log / diagnostic names the same class the UI deeplink will use.
+    """
+    low = (reason or "").lower()
+    if "pkg_resources" in low:
+        return "PKG_RESOURCES_MISSING"
+    if "quarantine" in low or "is damaged" in low or "gatekeeper" in low:
+        return "GATEKEEPER_QUARANTINE"
+    if "webkit" in low or "white screen" in low or "dmabuf" in low or "appimage" in low:
+        return "APPIMAGE_WEBKIT_WHITESCREEN"
+    if "pyannote" in low or ("gated" in low and "model" in low) or "accept the" in low:
+        return "PYANNOTE_LICENSE_REQUIRED"
+    if ("huggingface" in low or "hf_token" in low or "401" in low or "unauthorized" in low) and (
+        "token" in low or "auth" in low or "401" in low or "unauthorized" in low
+    ):
+        return "HF_AUTH_FAILED"
+    return ""
+
+
+def sanitize(text: Optional[str]) -> str:
+    """Redact secrets and strip the home path from a string.
+
+    - HF tokens (reuses the regex from ``core.logging_filter``)
+    - values of env vars whose name matches ``*TOKEN*/*KEY*/*SECRET*``
+    - the user's absolute home directory → ``~``
+    """
+    if not text:
+        return text or ""
+    out = _HF_TOKEN_RE.sub(REDACTED, str(text))
+    for name, val in os.environ.items():
+        # Only redact substantial values so short/empty ones don't blank the text.
+        if val and len(val) >= 6 and _SECRET_NAME_RE.search(name):
+            out = out.replace(val, _REDACTED_VALUE)
+    try:
+        home = str(Path.home())
+        if home and home in out:
+            out = out.replace(home, "~")
+    except Exception:
+        # Best-effort: sanitize() must never raise (it runs on the failure path);
+        # if home-dir resolution fails, leave the text as-is rather than throw.
+        pass
+    return out
+
+
+def _env_summary() -> str:
+    lines: list[str] = []
+    try:
+        lines.append(f"OS:      {platform.platform()}")
+    except Exception:
+        # Best-effort env summary — omit the OS line rather than fail diagnostics.
+        pass
+    lines.append(f"Python:  {sys.version.split()[0]}")
+    try:
+        import psutil  # already a runtime dep
+
+        vm = psutil.virtual_memory()
+        lines.append(f"CPU:     {os.cpu_count()} cores")
+        lines.append(f"RAM:     {round(vm.total / 1024 ** 3, 1)} GB")
+    except Exception:
+        # Best-effort — omit CPU/RAM if psutil is unavailable or probing fails.
+        pass
+    # Only probe the GPU if torch is ALREADY imported — importing it here just
+    # to build a diagnostic would add seconds to every failure (and to tests).
+    torch = sys.modules.get("torch")
+    if torch is not None:
+        try:
+            if torch.cuda.is_available():
+                lines.append(f"GPU:     CUDA {torch.cuda.get_device_name(0)}")
+            elif getattr(getattr(torch, "backends", None), "mps", None) and torch.backends.mps.is_available():
+                lines.append("GPU:     MPS (Apple)")
+            else:
+                lines.append("GPU:     CPU only")
+        except Exception:
+            # Best-effort — omit the GPU line if torch probing raises.
+            pass
+    return "\n".join(lines)
+
+
+def diagnostic(*, reason: str, error_class: str, stage: str) -> str:
+    """A sanitized, copy-paste-friendly diagnostic block for a failed job."""
+    block = (
+        "OmniVoice diagnostic\n"
+        "--------------------\n"
+        f"Stage:   {stage}\n"
+        f"Error:   {error_class}\n"
+        f"Reason:  {reason}\n"
+        f"{_env_summary()}\n"
+    )
+    return sanitize(block)
+
+
+def build_failure(
+    exc_or_msg: Any,
+    *,
+    stage: str,
+    context: Optional[dict] = None,
+    include_diagnostic: bool = True,
+) -> dict:
+    """Build the structured failure fields (no ``type`` — caller/prep_event adds it).
+
+    ``reason`` is guaranteed non-empty: ``str(exc)`` → exception class name.
+    """
+    if isinstance(exc_or_msg, BaseException):
+        error_class = type(exc_or_msg).__name__
+        raw = str(exc_or_msg).strip() or error_class
+    else:
+        error_class = "Error"
+        raw = str(exc_or_msg).strip() or "Unknown failure"
+
+    reason = sanitize(raw) or error_class
+    docs_topic = classify(raw)
+    fields: dict[str, Any] = {
+        "reason": reason,
+        "error": reason,  # backward-compat mirror for older frontends
+        "error_class": error_class,
+        "stage": stage,
+        "hint": _HINTS.get(docs_topic, ""),
+        "docs_topic": docs_topic,
+        "docs_url": error_docs_map.ERROR_DOCS.get(docs_topic, ""),
+        "detail": sanitize(raw),
+    }
+    if context:
+        fields["context"] = {k: sanitize(str(v)) for k, v in context.items()}
+    if include_diagnostic:
+        fields["diagnostic"] = diagnostic(reason=reason, error_class=error_class, stage=stage)
+    return fields
+
+
+def build_failure_event(
+    exc_or_msg: Any,
+    *,
+    stage: str,
+    event_type: str = "error",
+    context: Optional[dict] = None,
+    include_diagnostic: bool = True,
+) -> dict:
+    """``build_failure`` plus a ``type`` key, for SSE event sites (tasks.py)."""
+    return {
+        "type": event_type,
+        **build_failure(
+            exc_or_msg, stage=stage, context=context, include_diagnostic=include_diagnostic
+        ),
+    }

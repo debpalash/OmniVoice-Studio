@@ -38,7 +38,11 @@ Thumbs.db
 # ─────────────────────────────────────────────────────────────────────────
 #  Editor / tool caches
 # ─────────────────────────────────────────────────────────────────────────
-.claude/
+# Ignore ad-hoc Claude Code state, but allow project-bundled skills
+# (CLAUDE.md invites `.claude/skills/<name>/SKILL.md`).
+.claude/*
+!.claude/skills/
+!.claude/skills/**
 /.cache*
 /.tmp/
 

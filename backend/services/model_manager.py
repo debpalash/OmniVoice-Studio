@@ -296,7 +296,13 @@ def _load_model_sync():
         )
 
         try:
-            if device == "cuda":
+            # plan-02 (#65): gate on Triton availability (+ user setting), not
+            # just device==cuda. Triton has no Windows wheel, so the old
+            # cuda-only check OOM'd on Windows+CUDA; should_torch_compile()
+            # falls back to eager there.
+            from services.engine_env import should_torch_compile
+
+            if should_torch_compile(device):
                 _set_loading("compiling", "Compiling model (torch.compile)…")
                 _model.llm = torch.compile(_model.llm, mode="reduce-overhead")
                 logger.info("torch.compile applied.")

@@ -14,7 +14,7 @@ machine will produce a Fernet that can't decrypt the existing token row
 logging a warning and returning None, after which the resolver falls
 through to env / HF-CLI naturally — see Open Question #5 in 01-RESEARCH.md.
 
-We do not use OS keyring (Capability 1 / Keyring deferred to v0.4 per
+We do not use OS keyring (Capability 1 / Keyring deferred — see
 STATE Key Decision #5).
 """
 from __future__ import annotations

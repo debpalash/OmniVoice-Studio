@@ -14,6 +14,7 @@ passing to `subprocess.Popen(env=...)`).
 """
 from __future__ import annotations
 
+import importlib.util
 import logging
 import os
 import sys
@@ -22,6 +23,35 @@ from typing import Optional
 logger = logging.getLogger("omnivoice.engine_env")
 
 _TORCH_COMPILE_KEY = "perf.torch_compile_disabled"
+
+
+def should_torch_compile(device: str) -> bool:
+    """Decide whether to apply ``torch.compile`` to an in-process model.
+
+    plan-02 (#65): ``torch.compile(mode="reduce-overhead")`` needs Triton at
+    runtime, and Triton has no Windows build — on Windows+CUDA the compile path
+    failed and surfaced as a confusing "OOM". Requires all of:
+      - device == "cuda" (compile only helps the CUDA path here),
+      - Triton importable (``find_spec`` — the cross-platform gate that closes
+        #65; no Windows wheel ⇒ skip ⇒ eager),
+      - the user has NOT set the ``perf.torch_compile_disabled`` escape hatch.
+
+    Returns False (→ eager mode) on any of those, logging the reason at INFO.
+    """
+    if device != "cuda":
+        return False
+    if importlib.util.find_spec("triton") is None:
+        logger.info("torch.compile skipped: Triton unavailable — using eager mode.")
+        return False
+    try:
+        from services import settings_store
+
+        if settings_store.get_text(_TORCH_COMPILE_KEY, "0") == "1":
+            logger.info("torch.compile skipped: disabled in Settings (Performance).")
+            return False
+    except Exception:
+        logger.exception("should_torch_compile: settings read failed; proceeding")
+    return True
 
 
 def build_engine_env(
@@ -58,7 +88,9 @@ def build_engine_env(
     # INST-12: TORCH_COMPILE_DISABLE on Windows when the user opted in.
     # The flag is a Windows-only escape hatch — torch.compile OOMs the same
     # Triton kernel cache differently on macOS/Linux, so injecting on those
-    # platforms would just slow the engine for no gain.
+    # platforms would just slow the engine for no gain. (The in-process
+    # should_torch_compile() gate handles the automatic Triton-absence case;
+    # the subprocess var stays user-driven by design — see test_perf_settings.)
     if sys.platform.startswith("win"):
         try:
             from services import settings_store

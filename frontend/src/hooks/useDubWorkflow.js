@@ -30,6 +30,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
   const setDubFilename  = useAppStore(s => s.setDubFilename);
   const setDubDuration  = useAppStore(s => s.setDubDuration);
   const setDubError     = useAppStore(s => s.setDubError);
+  const setDubFailure   = useAppStore(s => s.setDubFailure);
   const setDubTracks    = useAppStore(s => s.setDubTracks);
   const setDubTranscript = useAppStore(s => s.setDubTranscript);
   const setDubProgress  = useAppStore(s => s.setDubProgress);
@@ -172,7 +173,15 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
           setDubPrepProgress({ percent: 100, speedBps: null, etaS: null, stageStartedAt: Date.now() });
           break;
         case 'ready': close(); ctrl.signal.removeEventListener('abort', onAbort); resolve(m); return;
-        case 'error': close(); ctrl.signal.removeEventListener('abort', onAbort); reject(new Error(`${m.stage || 'prep'}: ${m.error || 'unknown error'}`)); return;
+        case 'error': {
+          close(); ctrl.signal.removeEventListener('abort', onAbort);
+          // plan-04 (#131): the backend now always sends a non-empty reason;
+          // capture the structured failure so the UI can show a hint + docs link
+          // + copyable diagnostic instead of a bare "unknown error".
+          const reason = m.reason || m.error || 'unknown error';
+          setDubFailure({ reason, errorClass: m.error_class, stage: m.stage, hint: m.hint, docsTopic: m.docs_topic, diagnostic: m.diagnostic });
+          reject(new Error(`${m.stage || 'prep'}: ${reason}`)); return;
+        }
         case 'cancelled': close(); ctrl.signal.removeEventListener('abort', onAbort); reject(Object.assign(new Error('aborted'), { name: 'AbortError' })); return;
         default: break;
       }
@@ -184,12 +193,12 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
         else reject(new Error('prep stream closed unexpectedly'));
       }
     };
-  }), [setDubPrepStage, setDubPrepProgress, setDubJobId, setDubDuration, setDubFilename]);
+  }), [setDubPrepStage, setDubPrepProgress, setDubJobId, setDubDuration, setDubFilename, setDubFailure]);
 
   // ── Handlers ──
   const handleDubUpload = useCallback(async (dubVideoFile) => {
     if (!dubVideoFile) return;
-    setDubStep('uploading'); setDubError(''); setDubTracks([]); setDubPrepStage('download');
+    setDubStep('uploading'); setDubError(''); setDubFailure(null); setDubTracks([]); setDubPrepStage('download');
     setDubPrepProgress({ percent: null, speedBps: null, etaS: null, stageStartedAt: Date.now() });
     const ctrl = new AbortController();
     dubAbortCtrlRef.current = ctrl;
@@ -216,12 +225,12 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
       else { setDubError(err.message); setDubStep('idle'); toast.error('Upload failed: ' + err.message); useAppStore.getState().errorPill(err.message); }
       setTranscribeStart(null);
     } finally { dubAbortCtrlRef.current = null; }
-  }, [setDubStep, setDubError, setDubTracks, setDubPrepStage, setDubJobId, setDubFilename, setDubTaskId, setDubSegments, _waitForPrep, _waitForTranscribe, loadProjects, loadProfiles]);
+  }, [setDubStep, setDubError, setDubFailure, setDubTracks, setDubPrepStage, setDubJobId, setDubFilename, setDubTaskId, setDubSegments, _waitForPrep, _waitForTranscribe, loadProjects, loadProfiles]);
 
   const handleDubIngestUrl = useCallback(async (url, opts = {}) => {
     const clean = (url || '').trim();
     if (!clean) return;
-    setDubStep('uploading'); setDubError(''); setDubTracks([]); setDubPrepStage('download');
+    setDubStep('uploading'); setDubError(''); setDubFailure(null); setDubTracks([]); setDubPrepStage('download');
     setDubPrepProgress({ percent: null, speedBps: null, etaS: null, stageStartedAt: Date.now() });
     const ctrl = new AbortController();
     dubAbortCtrlRef.current = ctrl;
@@ -248,7 +257,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
       else { setDubError(err.message); setDubStep('idle'); toast.error('URL ingest failed: ' + err.message); useAppStore.getState().errorPill(err.message); }
       setTranscribeStart(null);
     } finally { dubAbortCtrlRef.current = null; }
-  }, [setDubStep, setDubError, setDubTracks, setDubPrepStage, setDubJobId, setDubTaskId, setDubSegments, _waitForPrep, _waitForTranscribe, loadProjects, loadProfiles]);
+  }, [setDubStep, setDubError, setDubFailure, setDubTracks, setDubPrepStage, setDubJobId, setDubTaskId, setDubSegments, _waitForPrep, _waitForTranscribe, loadProjects, loadProfiles]);
 
   const handleDubAbort = useCallback(async () => {
     const jobId = dubClientJobIdRef.current || dubJobId;

@@ -42,19 +42,43 @@ Gatekeeper — see the next section.
 
 <a id="gatekeeper-quarantine"></a>
 
-OmniVoice Studio is currently **not notarised** — the developer-ID signing +
-notarisation pipeline is tracked for v0.4. Until then, macOS quarantines any
-copy you downloaded outside the App Store. After dragging the app into
-`/Applications`, run:
+If you see **"OmniVoice Studio.app" is damaged and can't be opened. You should
+move it to the Trash**, the app is **not** damaged — that misleading message is
+macOS Gatekeeper blocking an app it can't verify (issues #134, #72).
+
+**Why:** releases are only notarised when the project's Apple Developer ID
+signing pipeline is configured (see "For maintainers" below). On an unsigned
+build, macOS quarantines any copy downloaded outside the App Store.
+
+**Fix (unsigned builds):** after dragging the app into `/Applications`, run:
 
 ```bash
 xattr -cr "/Applications/OmniVoice Studio.app"
 ```
 
-That clears the quarantine xattr so Gatekeeper stops blocking the launch. It's
-a one-time fix per install. The app itself is open source — verify the SHA-256
-against the `*.dmg.sha256` checksum on the release page before clearing the
-attribute if you want belt-and-braces.
+That clears the quarantine xattr so Gatekeeper stops blocking the launch — a
+one-time fix per install. Alternatively, right-click the app → **Open** →
+**Open** in the dialog. The app is open source; verify the SHA-256 against the
+`*.dmg.sha256` checksum on the release page first if you want belt-and-braces.
+
+### For maintainers — enabling notarised builds
+
+The release workflow (`.github/workflows/release.yml`) is already wired to
+code-sign + notarise the macOS bundle; it activates automatically once these
+repository **secrets** are set (it skips signing — producing today's unsigned
+build — when they're absent):
+
+| Secret | What |
+|--------|------|
+| `APPLE_CERTIFICATE` | Developer ID Application cert, exported as a base64-encoded `.p12` |
+| `APPLE_CERTIFICATE_PASSWORD` | password for that `.p12` |
+| `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: Your Name (TEAMID)` |
+| `APPLE_ID` | Apple ID email used for notarisation |
+| `APPLE_PASSWORD` | an **app-specific password** for that Apple ID |
+| `APPLE_TEAM_ID` | your 10-char Apple Developer Team ID |
+
+Requires a paid Apple Developer account ($99/yr). Once set, downloaded DMGs open
+without the quarantine step.
 
 ## Apple Silicon vs Intel
 

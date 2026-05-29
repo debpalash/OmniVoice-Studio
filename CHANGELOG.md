@@ -6,7 +6,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
-## [0.2.7] — Unreleased
+## [0.3.0] — Unreleased
 
 ### Added
 - **Frameless dictation widget.** Global dictation upgraded from an in-app FAB to a true OS-level floating widget that hovers over any application. Transparent, decorations-free, always-on-top secondary Tauri window activated by `⌘+⇧+Space`. Auto-hides 2.5 s after a successful paste.

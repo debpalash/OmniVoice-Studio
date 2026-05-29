@@ -4,6 +4,7 @@ import json
 import logging
 
 from core import job_store
+from core import failure
 
 logger = logging.getLogger("omnivoice.tasks")
 
@@ -127,13 +128,16 @@ class TaskManager:
             except Exception as e:
                 logger.exception("Task %s failed", task_id)
                 t["status"] = "failed"
-                t["error"] = str(e)
+                # plan-04 (#131): structured, non-empty failure event instead of
+                # a bare str(e) (which is empty/cryptic for many exception types).
+                evt = failure.build_failure_event(e, stage="task", context={"task_id": task_id})
+                t["error"] = evt["reason"]
                 try:
-                    job_store.mark_failed(task_id, str(e))
+                    job_store.mark_failed(task_id, evt["reason"])
                 except Exception:
                     logger.exception("job_store.mark_failed failed")
                 try:
-                    await self._push_event(task_id, f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n")
+                    await self._push_event(task_id, f"data: {json.dumps(evt)}\n\n")
                 except Exception as push_err:
                     logger.warning("Failed to push error event for %s: %s", task_id, push_err)
             finally:

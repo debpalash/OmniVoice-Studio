@@ -48,8 +48,7 @@ def create_mcp_server():
     FastMCP = _ensure_mcp()
     mcp = FastMCP(
         "OmniVoice Studio",
-        version="0.3.0",
-        description=(
+        instructions=(
             "AI-agent interface for OmniVoice Studio — voice cloning, "
             "voice design, and video dubbing in 646 languages."
         ),

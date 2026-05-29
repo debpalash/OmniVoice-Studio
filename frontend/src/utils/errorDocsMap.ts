@@ -7,8 +7,8 @@
 // canonical Python-side resolver is `backend/core/links.py`
 // (`PROJECT_REPO_BLOB_MAIN`). The TS half runs in the browser and can't
 // read `pyproject.toml`, so it gets a hand-maintained mirror. Centralising
-// the URL on the TS side is a v0.4 concern — the milestone accepts the
-// drift risk and relies on the keys-sync test + threat-model T-02-01
+// the URL on the TS side is a deferred hardening item — for now we accept the
+// drift risk and rely on the keys-sync test + threat-model T-02-01
 // to bound the blast radius.
 
 import { openExternal } from '../api/external';

@@ -4,7 +4,7 @@ use std::fs;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::net::{TcpStream, ToSocketAddrs};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -133,6 +133,44 @@ pub fn read_error_log_tail(max_lines: usize) -> String {
     }
 }
 
+/// Human-readable diagnostic for a failed `Command::spawn()` of the backend.
+///
+/// #144 / #127: when the bundled venv Python can't exec (the common Linux/
+/// AppImage failure — missing system lib, stale venv, arch mismatch) the
+/// process "never started" and we previously surfaced "no error output
+/// captured". Writing this to backend_err.log lets read_error_log_tail show the
+/// real OS error + an actionable hint instead.
+fn spawn_failure_diagnostic(python: &Path, err: &std::io::Error) -> String {
+    // Platform-specific tail (cfg! resolves to this build's target OS, i.e. the
+    // OS it runs on) — don't show AppImage/loader wording to macOS/Windows users.
+    let os_hint = if cfg!(target_os = "linux") {
+        "On Linux (especially the AppImage) this usually means the bundled venv \
+         Python can't execute — a missing system library or a stale/incomplete \
+         venv. If it persists, run the app from a terminal to see the \
+         dynamic-loader error."
+    } else if cfg!(target_os = "macos") {
+        "On macOS this usually means the bundled venv Python can't execute (a \
+         stale/incomplete venv, or the interpreter got quarantined)."
+    } else if cfg!(target_os = "windows") {
+        "On Windows this usually means the bundled venv Python is missing or was \
+         blocked (antivirus / SmartScreen), or the venv is stale/incomplete."
+    } else {
+        "This usually means the bundled venv Python can't execute, or the venv is \
+         stale/incomplete."
+    };
+    format!(
+        "Failed to launch the backend process.\n\
+         Tried to run: {}\n\
+         Interpreter present on disk: {}\n\
+         OS error: {}\n\n\
+         {} Use \"Clean & Retry\" to rebuild the environment.",
+        python.display(),
+        python.exists(),
+        err,
+        os_hint,
+    )
+}
+
 // ── Spawn the backend via the bootstrapped venv Python ────────────────────
 
 pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<&Arc<Mutex<BootstrapStage>>>) -> Option<Child> {
@@ -216,7 +254,12 @@ pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
             c
         }
         Err(e) => {
-            log::error!("Failed to spawn backend: {}", e);
+            // #144/#127: surface WHY it never started. Write the diagnostic to
+            // backend_err.log so the bootstrap's read_error_log_tail shows the
+            // real exec error instead of "no error output captured".
+            let diag = spawn_failure_diagnostic(&python, &e);
+            log::error!("{}", diag);
+            let _ = fs::write(&err_path, &diag);
             return None;
         }
     };
@@ -254,4 +297,20 @@ pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
     }
 
     Some(child)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io;
+
+    #[test]
+    fn spawn_failure_diagnostic_surfaces_path_error_and_hint() {
+        let err = io::Error::new(io::ErrorKind::NotFound, "No such file or directory");
+        let diag = spawn_failure_diagnostic(Path::new("/no/such/python"), &err);
+        assert!(diag.contains("/no/such/python"), "must name the interpreter path");
+        assert!(diag.contains("No such file or directory"), "must include the OS error");
+        assert!(diag.contains("Interpreter present on disk: false"));
+        assert!(diag.contains("Clean & Retry"), "must give an actionable hint");
+    }
 }

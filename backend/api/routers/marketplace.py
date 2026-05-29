@@ -38,6 +38,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from core.config import OUTPUTS_DIR, VOICES_DIR
 from core.db import db_conn
 from core import event_bus
+from core.version import APP_VERSION
 
 logger = logging.getLogger("omnivoice.marketplace")
 
@@ -85,7 +86,7 @@ def export_profile(profile_id: str):
             "is_locked": bool(profile.get("is_locked")),
             "created_at": profile.get("created_at"),
             "exported_at": time.time(),
-            "omnivoice_version": "0.4.0",
+            "omnivoice_version": APP_VERSION,
         }
         zf.writestr("metadata.json", json.dumps(metadata, indent=2))
 
@@ -263,7 +264,7 @@ def publish_to_marketplace(
             "is_locked": bool(profile.get("is_locked")),
             "tags": [t.strip() for t in tags.split(",") if t.strip()],
             "published_at": time.time(),
-            "omnivoice_version": "0.4.0",
+            "omnivoice_version": APP_VERSION,
         }
         zf.writestr("metadata.json", json.dumps(metadata, indent=2))
 

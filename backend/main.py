@@ -361,9 +361,11 @@ async def lifespan(app: FastAPI):
     logger.info("Shutdown: done.")
 
 
+from core.version import APP_VERSION  # single source of truth (pyproject metadata)
+
 app = FastAPI(
     title="OmniVoice Studio API",
-    version="0.4.0",
+    version=APP_VERSION,
     lifespan=lifespan,
     docs_url=None,       # Disabled — replaced by Scalar at /docs
     redoc_url=None,      # Disabled — Scalar covers this

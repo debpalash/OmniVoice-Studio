@@ -47,6 +47,18 @@ OmniVoice Studio runs **100% locally** by default. The primary attack surface is
 - Issues requiring physical access to the machine
 - Social engineering attacks
 
+## Automated scanning
+
+Every pull request and push to `main` runs [`.github/workflows/security.yml`](.github/workflows/security.yml):
+
+- **gitleaks** — secret scanning (blocks merge on a leaked credential)
+- **CodeQL** — Python + JavaScript/TypeScript static analysis → Security tab
+- **bandit** — Python static analysis → Security tab
+- **pip-audit** / **bun audit** — dependency advisory checks (reporting)
+
+Pull requests are additionally reviewed by the **CodeRabbit** and **Greptile**
+GitHub Apps on creation.
+
 ## Security Best Practices for Users
 
 - **Do not expose OmniVoice to the internet without authentication.** The API has no built-in auth. Use a reverse proxy (Caddy, nginx, Tailscale) if you need remote access.

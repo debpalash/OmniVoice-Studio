@@ -4,6 +4,7 @@ import { generateSpeech, audioUrlWithCacheBust } from '../api/generate';
 import { playBlobAudio, playPing } from '../utils/media';
 import { probeAudioDuration } from '../utils/format';
 import { CLONE_MAX_SECONDS, PRESETS } from '../utils/constants';
+import { buildDesignInstruct } from '../utils/voiceInstruct';
 import { toast } from 'react-hot-toast';
 
 /**
@@ -104,19 +105,17 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
       } else {
         const designSeed = Math.floor(Math.random() * 2147483647);
         formData.append("seed", designSeed);
-        // Build the instruct string from slider tokens + the free-text /
-        // personality instruct. Deduplicate so a personality whose instruct
-        // overlaps with a slider value doesn't produce "middle-aged,
-        // middle-aged" (issue #114). We can't disambiguate conflicting
-        // categories (e.g. "low pitch" vs "moderate pitch") here — that's
-        // resolved upstream by applyPersonality clearing vdStates to Auto.
-        const parts = Object.values(vdStates).filter(v => v !== 'Auto');
-        if (instruct.trim()) {
-          for (const tok of instruct.trim().split(',').map(s => s.trim()).filter(Boolean)) {
-            if (!parts.includes(tok)) parts.push(tok);
-          }
+        // plan-05 (#132): build a validator-safe instruct (one valid tag per
+        // category; drop unsupported free-text) so Synthesize stops failing
+        // with "Unsupported instruct items" (#115) / "conflicting items within
+        // the same category" (#114).
+        const { instruct: finalInstruct, unsupported, duplicates } = buildDesignInstruct(vdStates, instruct);
+        if (unsupported.length) {
+          toast(`Ignored unsupported instruct: ${unsupported.join(', ')}`, { icon: '⚠️' });
         }
-        const finalInstruct = parts.join(', ');
+        if (duplicates.length) {
+          toast(`Ignored (category already set): ${duplicates.join(', ')}`, { icon: '⚠️' });
+        }
         if (finalInstruct) formData.append("instruct", finalInstruct);
         if (selectedProfile) {
           formData.append("profile_id", selectedProfile);

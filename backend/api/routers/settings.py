@@ -13,6 +13,7 @@ The state endpoint duplicates `/system/hf-token/state` (which lives on
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import asdict
 from typing import Optional
 
@@ -194,3 +195,93 @@ def get_license_acceptance(engine_id: str) -> dict:
         logger.exception("get_license_accepted failed for %s", eid)
         raise HTTPException(status_code=500, detail="Failed to read license acceptance")
     return {"engine_id": eid, "accepted": bool(accepted)}
+
+
+# ── Storage: configurable models directory (#64) ──────────────────────────
+# Where HuggingFace / Torch download model weights. The user's choice is
+# persisted durably to the per-user env file as OMNIVOICE_CACHE_DIR, which
+# main.py maps to HF_HOME / HF_HUB_CACHE / TORCH_HOME at startup. That env file
+# is the *single source of truth*: PUT writes it, GET reads it back — there is
+# no second store to diverge from. Takes effect on the next backend restart
+# (a storage-location change can't safely move an in-use cache mid-process).
+_MODELS_DIR_ENV = "OMNIVOICE_CACHE_DIR"
+
+
+def _default_models_dir() -> str:
+    """huggingface_hub's default cache root, honoring XDG_CACHE_HOME on Linux
+    (matches HF so GET reports the *true* default the backend would use)."""
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache")
+    return os.path.join(base, "huggingface")
+
+
+def _effective_models_dir() -> str:
+    return (
+        os.environ.get("HF_HUB_CACHE")
+        or os.environ.get("HUGGINGFACE_HUB_CACHE")
+        or os.environ.get("HF_HOME")
+        or _default_models_dir()
+    )
+
+
+class _ModelsDirBody(BaseModel):
+    path: str = Field(default="", description="Absolute directory; empty clears → default cache")
+
+
+@router.get("/storage/models-dir")
+def get_models_dir():
+    """Current models directory: the persisted choice (from the durable env
+    file — the same value main.py reads at startup), what's effective in this
+    process, and the platform default."""
+    from core import user_env
+
+    configured = user_env.get_user_env(_MODELS_DIR_ENV) or None
+    return {
+        "configured": configured,
+        "effective": _effective_models_dir(),
+        "default": _default_models_dir(),
+        "restart_required": False,
+    }
+
+
+@router.put("/storage/models-dir")
+def set_models_dir(body: _ModelsDirBody):
+    """Set (or clear, with an empty path) the models download directory.
+
+    Validates the directory is writable, then writes OMNIVOICE_CACHE_DIR to the
+    durable per-user env file so main.py applies it on the next launch. The env
+    file is the only persisted store, so GET can never diverge from what was
+    saved. Returns restart_required=True.
+    """
+    from core import user_env
+
+    raw = (body.path or "").strip()
+    if not raw:
+        user_env.unset_user_env(_MODELS_DIR_ENV)
+        return {"configured": None, "default": _default_models_dir(), "restart_required": True}
+
+    # Reject control characters / NUL before touching the filesystem: an
+    # embedded NUL makes os.makedirs raise ValueError (→ 500). This is also
+    # the input-validation barrier for the path before it reaches any fs call
+    # (the dir is user-chosen by design — this is a loopback-gated, same-user
+    # local file picker, not a cross-privilege boundary).
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in raw):
+        raise HTTPException(status_code=400, detail="Path contains invalid control characters")
+
+    path = os.path.abspath(os.path.expanduser(raw))
+    try:
+        os.makedirs(path, exist_ok=True)
+        probe = os.path.join(path, ".omnivoice_write_test")
+        with open(probe, "w", encoding="utf-8") as f:
+            f.write("ok")
+    except OSError as e:
+        raise HTTPException(status_code=400, detail=f"Directory is not writable: {e}") from e
+    finally:
+        # Best-effort cleanup; a failed remove (concurrent process, perm change)
+        # must not leave the request hanging or mask the real error.
+        try:
+            os.remove(os.path.join(path, ".omnivoice_write_test"))
+        except OSError:
+            pass
+
+    user_env.set_user_env(_MODELS_DIR_ENV, path)
+    return {"configured": path, "effective": _effective_models_dir(), "restart_required": True}

@@ -330,6 +330,16 @@ else
     fail "INST-01 regression: pkg_resources or whisperx import failed (setuptools pin?)"
 fi
 
+# INST-02 (plan-02 #129/#116) — the full ASR critical path must import before
+# the build ships, so a missing ctranslate2/torch surfaces here rather than as
+# a ModuleNotFoundError mid-transcription on the user's machine.
+TESTS=$((TESTS + 1))
+if uv run python -c "import torch; import ctranslate2; import whisperx" 2>/dev/null; then
+    pass "INST-02: ASR critical path (torch, ctranslate2, whisperx) imports OK"
+else
+    fail "INST-02: ASR critical path import failed (torch/ctranslate2/whisperx) — packaged venv incomplete"
+fi
+
 # ── Phase 5: Model Loading (optional) ─────────────────────────────────────
 if [ "$SKIP_MODEL" = false ]; then
     header "Phase 5: Model Loading"
