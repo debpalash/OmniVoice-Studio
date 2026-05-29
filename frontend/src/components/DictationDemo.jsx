@@ -21,7 +21,7 @@
  *   - SetupWizard step 4 — first-run onboarding
  */
 import { useEffect, useRef, useState } from 'react';
-import { Play, Pause, Keyboard, Mic, CheckCircle2, AlertTriangle, Loader } from 'lucide-react';
+import { Play, Pause, Keyboard, Mic, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { API } from '../api/client';
 import { Button } from '../ui';

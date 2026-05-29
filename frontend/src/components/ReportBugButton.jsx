@@ -32,7 +32,6 @@ const ISSUES_URL = 'https://github.com/debpalash/OmniVoice-Studio/issues/new';
 
 function stripHome(s) {
   if (!s) return s;
-  const home = typeof navigator !== 'undefined' ? '' : '';
   // Best-effort home redaction — works for the most common /Users/<name>/
   // and /home/<name>/ paths. We don't know the actual $HOME from JS, so
   // pattern-match the prefix.
@@ -53,10 +52,12 @@ async function captureContext() {
     const r = await fetch(`${API}/system/info`);
     if (r.ok) {
       const j = await r.json();
-      if (j?.os) lines.push(`**OS:** \`${j.os}\``);
+      // /system/info exposes `platform` (sys.platform) + `device` (best
+      // compute device). Map to those — older field names (os/torch_device/
+      // gpu) never existed on this endpoint, so they silently dropped.
+      if (j?.platform) lines.push(`**OS:** \`${j.platform}\``);
       if (j?.python) lines.push(`**Python:** \`${j.python}\``);
-      if (j?.torch_device) lines.push(`**Torch device:** \`${j.torch_device}\``);
-      if (j?.gpu) lines.push(`**GPU:** \`${stripHome(j.gpu)}\``);
+      if (j?.device) lines.push(`**Compute device:** \`${stripHome(j.device)}\``);
     }
   } catch { /* backend probably not up yet */ }
 
