@@ -353,6 +353,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # macOS Developer-ID code-signing + notarization (#134 / #72).
+          # tauri-action signs + notarizes the .app/.dmg ONLY when these are
+          # non-empty; with the secrets unset they resolve to empty strings and
+          # the build stays unsigned (today's behavior — users clear quarantine
+          # via `xattr -cr`, see docs/install/macos.md). To enable, add the repo
+          # secrets documented in docs/install/macos.md → "For maintainers".
+          # No-op on the Windows/Linux matrix legs.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           # GH runners disable FUSE, so linuxdeploy's AppImage can't mount
           # itself at bundle time. This env tells linuxdeploy to extract-and-run
           # instead, which works without FUSE.
