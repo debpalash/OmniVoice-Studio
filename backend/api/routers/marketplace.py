@@ -85,7 +85,7 @@ def export_profile(profile_id: str):
             "is_locked": bool(profile.get("is_locked")),
             "created_at": profile.get("created_at"),
             "exported_at": time.time(),
-            "omnivoice_version": "0.4.0",
+            "omnivoice_version": "0.2.7",
         }
         zf.writestr("metadata.json", json.dumps(metadata, indent=2))
 
@@ -263,7 +263,7 @@ def publish_to_marketplace(
             "is_locked": bool(profile.get("is_locked")),
             "tags": [t.strip() for t in tags.split(",") if t.strip()],
             "published_at": time.time(),
-            "omnivoice_version": "0.4.0",
+            "omnivoice_version": "0.2.7",
         }
         zf.writestr("metadata.json", json.dumps(metadata, indent=2))
 

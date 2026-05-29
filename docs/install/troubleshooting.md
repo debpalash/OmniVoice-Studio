@@ -47,8 +47,9 @@ before the token works for downloads.
 
 **Symptom:** "OmniVoice Studio.app is damaged and can't be opened."
 
-**Cause:** the app is not yet notarised (tracked for v0.4) — macOS quarantines
-every download.
+**Cause:** the app is not yet notarised (signing is wired in `release.yml` and
+activates once the maintainer adds the Apple cert secrets) — until then macOS
+quarantines every download.
 
 **Fix:** see [macos.md#gatekeeper-quarantine](macos.md#gatekeeper-quarantine).
 
