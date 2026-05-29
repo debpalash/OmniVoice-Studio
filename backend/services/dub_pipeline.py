@@ -45,6 +45,7 @@ from services.ffmpeg_utils import find_ffmpeg, _get_semaphore, _spawn_with_retry
 from services.model_manager import get_best_device
 from core.db import db_conn, get_db
 from core import event_bus
+from core import failure
 
 logger = logging.getLogger("omnivoice.dub_pipeline")
 
@@ -415,7 +416,8 @@ async def ingest_pipeline(
                     fetch_subs=fetch_subs, sub_langs=sub_langs,
                 )
             except Exception as e:
-                yield prep_event("error", stage="download", error=str(e)[:300])
+                logger.exception("Download failed for job %s", job_id)
+                yield prep_event("error", **failure.build_failure(e, stage="download"))
                 shutil.rmtree(job_dir, ignore_errors=True)
                 return
             filename = title or os.path.basename(video_path)
@@ -458,7 +460,8 @@ async def ingest_pipeline(
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            yield prep_event("error", stage="extract", error=str(e)[:300])
+            logger.exception("Extract failed for job %s", job_id)
+            yield prep_event("error", **failure.build_failure(e, stage="extract"))
             return
 
         try:
@@ -552,6 +555,8 @@ async def ingest_pipeline(
                 raise
             except Exception as e:
                 logger.warning("Demucs failed for %s, falling back to mixed audio: %s", job_id, e)
+                # plan-04: surface the degradation (job continues with mixed audio).
+                yield prep_event("warning", **failure.build_failure(e, stage="demucs", include_diagnostic=False))
                 vocals_path = audio_path
                 no_vocals_path = None
             yield prep_event("demucs_done",
@@ -569,6 +574,7 @@ async def ingest_pipeline(
                 raise
             except Exception as e:
                 logger.warning("Scene detection failed for %s: %s", job_id, e)
+                yield prep_event("warning", **failure.build_failure(e, stage="scene", include_diagnostic=False))
             yield prep_event("scene_done", count=len(scene_cuts))
 
             thumb_path = os.path.join(job_dir, "thumb.jpg")
@@ -583,6 +589,7 @@ async def ingest_pipeline(
                 raise
             except Exception as e:
                 logger.warning("Thumbnail extraction failed for %s: %s", job_id, e)
+                yield prep_event("warning", **failure.build_failure(e, stage="thumbnail", include_diagnostic=False))
 
             _dub_jobs[job_id].update({
                 "vocals_path": vocals_path,
@@ -602,6 +609,13 @@ async def ingest_pipeline(
             _dub_jobs.pop(job_id, None)
         yield prep_event("cancelled")
         raise
+    except Exception as e:
+        # plan-04 (#131): no unhandled ingest failure may be silent. Log the
+        # real traceback and surface a structured, non-empty reason with stage
+        # context instead of letting it bubble up as a bare task error.
+        logger.exception("Ingest pipeline failed for job %s", job_id)
+        yield prep_event("error", **failure.build_failure(e, stage="ingest"))
+        return
     finally:
         with _active_procs_lock:
             _active_procs.pop(job_id, None)

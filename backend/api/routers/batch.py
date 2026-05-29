@@ -19,6 +19,7 @@ from fastapi import APIRouter, File, UploadFile, HTTPException, Form
 from pydantic import BaseModel
 
 from core.config import DATA_DIR
+from core import failure
 
 router = APIRouter()
 logger = logging.getLogger("omnivoice.batch")
@@ -79,7 +80,8 @@ async def _worker():
             job["finished_at"] = time.time()
         except Exception as e:
             job["status"] = "failed"
-            job["error"] = str(e)[:500]
+            # plan-04 (#131): guaranteed non-empty, structured reason.
+            job["error"] = failure.build_failure(e, stage="batch", include_diagnostic=False)["reason"]
             job["finished_at"] = time.time()
             logger.error("Batch job %s failed: %s", job_id, e, exc_info=True)
         finally:
