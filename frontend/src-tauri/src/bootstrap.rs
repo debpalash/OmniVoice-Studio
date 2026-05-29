@@ -492,9 +492,14 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
         ),
     ];
     if system_python_ge_311() {
+        // No `--python 3.11` pin here: that would force uv to find a 3.11.x
+        // interpreter exactly, so a machine with only 3.12/3.13 would fail the
+        // fallback despite being compatible (Greptile #140). `only-system` plus
+        // the project's `requires-python = ">=3.11"` lets uv resolve any
+        // compatible system interpreter.
         venv_attempts.push((
             "system-python",
-            vec!["venv", "--python", "3.11"],
+            vec!["venv"],
             vec![("UV_PYTHON_PREFERENCE", "only-system")],
         ));
     }
