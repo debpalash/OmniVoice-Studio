@@ -353,7 +353,12 @@ async def dub_download(
         fmt = (out_format or "m4a").lower()
         if fmt not in _AUDIO_FORMAT_CODECS:
             fmt = "m4a"
-        out_path = os.path.join(exports_dir, f"dubbed_audio_{lang_code}_{stamp}.{fmt}")
+        # lang_code is already constrained to an existing track key, but
+        # allowlist-sanitize it before it reaches the output path so a path
+        # component can never carry separators/traversal (same pattern as
+        # safe_name below).
+        safe_lang = "".join(c for c in lang_code if c.isalnum() or c in "-_") or "track"
+        out_path = os.path.join(exports_dir, f"dubbed_audio_{safe_lang}_{stamp}.{fmt}")
         bg = job.get("no_vocals_path") if preserve_bg else None
         bg = bg if (bg and os.path.exists(bg)) else None
         cmd = _build_audio_export_cmd(ffmpeg, track_info["path"], bg, out_path, fmt)
@@ -376,7 +381,7 @@ async def dub_download(
 
         base_name = os.path.splitext(job.get("filename", "output"))[0]
         safe_name = "".join(c for c in base_name if c.isalnum() or c in "-_ ").strip() or "output"
-        dl_name = f"dubbed_{safe_name}_{lang_code}_{stamp}.{fmt}"
+        dl_name = f"dubbed_{safe_name}_{safe_lang}_{stamp}.{fmt}"
         media_type = _MEDIA_TYPES.get(f".{fmt}", "audio/mp4")
         if save_path:
             return _native_save(out_path, save_path, dl_name, media_type=media_type)
