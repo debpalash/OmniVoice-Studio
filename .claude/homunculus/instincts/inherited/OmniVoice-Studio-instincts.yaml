@@ -1,0 +1,301 @@
+# Instincts generated from https://github.com/debpalash/OmniVoice-Studio
+# Generated: 2026-05-29T04:24:03.089Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: OmniVoice-Studio-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: fix
+
+## Evidence
+
+- 1 commits analyzed
+- Detected conventional commit pattern
+- Examples: fix(windows): gate torch.compile on Triton availability (#129, closes #65)
+
+---
+id: OmniVoice-Studio-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Commit Length
+
+## Action
+
+Write moderate-length commit messages (~74 characters)
+
+## Evidence
+
+- Average commit message length: 74 chars
+- Based on 1 commits
+
+---
+id: OmniVoice-Studio-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Naming Files
+
+## Action
+
+Use snake_case naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: snake_case
+
+---
+id: OmniVoice-Studio-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: OmniVoice-Studio-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: OmniVoice-Studio-test-separate
+trigger: "when writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/debpalash/OmniVoice-Studio
+---
+
+# OmniVoice Studio Test Separate
+
+## Action
+
+Place tests in the tests/ or __tests__/ directory, mirroring src structure
+
+## Evidence
+
+- Separate test directory pattern detected
+- Tests live in dedicated test folders
+
+---
+id: omnivoice-studio-instinct-file-naming
+trigger: "When creating a new Python file"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Instinct File Naming
+
+## Action
+
+Name the file using snake_case
+
+## Evidence
+
+- Pattern: namingConventions.files = snake_case
+
+---
+id: omnivoice-studio-instinct-function-naming
+trigger: "When defining a new function"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Instinct Function Naming
+
+## Action
+
+Use camelCase for the function name
+
+## Evidence
+
+- Pattern: namingConventions.functions = camelCase
+
+---
+id: omnivoice-studio-instinct-class-naming
+trigger: "When defining a new class"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Instinct Class Naming
+
+## Action
+
+Use PascalCase for the class name
+
+## Evidence
+
+- Pattern: namingConventions.classes = PascalCase
+
+---
+id: omnivoice-studio-instinct-constant-naming
+trigger: "When defining a constant"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Instinct Constant Naming
+
+## Action
+
+Use SCREAMING_SNAKE_CASE for the constant name
+
+## Evidence
+
+- Pattern: namingConventions.constants = SCREAMING_SNAKE_CASE
+
+---
+id: omnivoice-studio-instinct-import-style
+trigger: "When importing modules within the package"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Instinct Import Style
+
+## Action
+
+Use relative imports
+
+## Evidence
+
+- Pattern: importStyle = relative
+
+---
+id: omnivoice-studio-instinct-export-style
+trigger: "When exporting functions or classes from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Instinct Export Style
+
+## Action
+
+Use named exports
+
+## Evidence
+
+- Pattern: exportStyle = named
+
+---
+id: omnivoice-studio-instinct-test-location
+trigger: "When adding or updating tests"
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Instinct Test Location
+
+## Action
+
+Place test files in the 'tests' folder, separate from source code
+
+## Evidence
+
+- Pattern: testLocation = separate
+- commonFolders includes 'tests'
+
+---
+id: omnivoice-studio-instinct-git-commit-prefix
+trigger: "When making a commit that fixes a bug"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Instinct Git Commit Prefix
+
+## Action
+
+Prefix the commit message with 'fix' following conventional commits
+
+## Evidence
+
+- commits.prefixes includes 'fix'
+- Example: fix(windows): gate torch.compile on Triton availability (#129, closes #65)
+
+---
+id: omnivoice-studio-instinct-git-commit-format
+trigger: "When writing a commit message"
+confidence: 0.8
+domain: git
+source: repo-analysis
+source_repo: debpalash/OmniVoice-Studio
+---
+
+# Omnivoice Studio Instinct Git Commit Format
+
+## Action
+
+Use the conventional commit format: <type>(<scope>): <description>
+
+## Evidence
+
+- commits.type = conventional
+- Example: fix(windows): gate torch.compile on Triton availability (#129, closes #65)
+
