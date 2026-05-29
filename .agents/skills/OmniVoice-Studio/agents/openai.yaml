@@ -1,0 +1,6 @@
+interface:
+  display_name: "OmniVoice Studio"
+  short_description: "Repo-specific patterns and workflows for OmniVoice-Studio"
+  default_prompt: "Use the OmniVoice-Studio repo skill to follow existing architecture, testing, and workflow conventions."
+policy:
+  allow_implicit_invocation: true
