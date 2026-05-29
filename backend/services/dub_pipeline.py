@@ -858,6 +858,10 @@ async def ingest_pipeline(
             # prep SSE contract the frontend waits on is unchanged.
             thumb_path = os.path.join(job_dir, "thumb.jpg")
             if input_type == "audio":
+                # No scenes/thumbnail in audio — emit the start/done pair anyway
+                # so the prep SSE stage sequence stays symmetric with the video
+                # path (the frontend's stage tracker expects both).
+                yield prep_event("scene_start")
                 yield prep_event("scene_done", count=0)
                 thumb_path = None
             else:
