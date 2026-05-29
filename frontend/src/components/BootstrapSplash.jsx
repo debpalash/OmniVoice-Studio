@@ -45,6 +45,7 @@ function detectHints(message, logs) {
   if (/ffmpeg/i.test(all) && /download|timeout/i.test(all)) hints.push('ffmpeg download failed. This is non-fatal — retry or install ffmpeg manually.');
   if (/port.*in use|address.*in use/i.test(all)) hints.push('Port 3900 is already in use. Close other instances of OmniVoice or apps using that port.');
   if (/no error output/i.test(all))      hints.push('Backend crashed silently. "Clean & Retry" often fixes corrupt venv issues.');
+  if (/blocking GitHub|couldn't download Python|python-build-standalone|dns error/i.test(all)) hints.push('Your network may block GitHub. Install Python 3.11+ from python.org (Add to PATH) and relaunch, or set UV_PYTHON_INSTALL_MIRROR — see docs/install/troubleshooting.md.');
   if (hints.length === 0)                hints.push('Try "Retry" first. If it fails again, "Clean & Retry" will rebuild the environment from scratch.');
   return hints;
 }

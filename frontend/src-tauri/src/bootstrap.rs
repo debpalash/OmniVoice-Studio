@@ -260,6 +260,61 @@ pub fn find_dev_project_root() -> Option<PathBuf> {
     None
 }
 
+// ── plan-03 (#130): restricted-network bootstrap resilience ────────────────
+
+/// gh-proxy mirror for python-build-standalone, used as a fallback when the
+/// default GitHub releases host is blocked/unresolvable (#60). Points
+/// UV_PYTHON_INSTALL_MIRROR at the releases-download base behind the proxy.
+const PY_INSTALL_MIRROR: &str =
+    "https://gh-proxy.com/https://github.com/astral-sh/python-build-standalone/releases/download";
+
+/// Shown when every managed-Python strategy AND the system-Python fallback fail
+/// — actionable remediation instead of a raw `uv` exit code (#130 step 5).
+const BOOTSTRAP_REMEDIATION: &str =
+    "First-run setup couldn't download Python — your network may be blocking GitHub. \
+Fix: install Python 3.11+ from https://www.python.org/downloads/ (tick \"Add to PATH\"), \
+then relaunch — OmniVoice will use your system Python. Advanced: set \
+UV_PYTHON_INSTALL_MIRROR to a reachable mirror (see docs/install/troubleshooting.md).";
+
+/// Longer timeouts + more retries so a slow/flaky mirror or PyPI doesn't kill
+/// the first-run install on its first hiccup (#130 step 2).
+fn apply_uv_http_env(cmd: &mut Command) {
+    cmd.env("UV_HTTP_TIMEOUT", "120")
+        .env("UV_HTTP_CONNECT_TIMEOUT", "30")
+        .env("UV_HTTP_RETRIES", "5");
+}
+
+/// Parse a `python --version` line ("Python 3.11.7") into (major, minor).
+fn parse_py_version(s: &str) -> Option<(u32, u32)> {
+    let rest = s.trim().strip_prefix("Python ")?;
+    let mut parts = rest.split('.');
+    let major: u32 = parts.next()?.trim().parse().ok()?;
+    let minor: u32 = parts.next()?.trim().parse().ok()?;
+    Some((major, minor))
+}
+
+/// True if a system Python >= 3.11 is on PATH — the prerequisite for the
+/// `UV_PYTHON_PREFERENCE=only-system` fallback when all download mirrors fail.
+fn system_python_ge_311() -> bool {
+    for exe in ["python3", "python"] {
+        if let Ok(out) = Command::new(exe).arg("--version").output() {
+            if out.status.success() {
+                let text = format!(
+                    "{}{}",
+                    String::from_utf8_lossy(&out.stdout),
+                    String::from_utf8_lossy(&out.stderr),
+                );
+                if let Some((maj, min)) = parse_py_version(&text) {
+                    if maj == 3 && min >= 11 {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
 /// Prepare (and on first run, create) the Python venv that will host the
 /// backend process. Returns (venv_python, backend_source_dir).
 pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<&Arc<Mutex<BootstrapStage>>>) -> Option<(PathBuf, PathBuf)> {
@@ -424,12 +479,44 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
     if let Some(p) = progress {
         set_stage(p, BootstrapStage::CreatingVenv);
     }
-    let mut venv_cmd = Command::new(&uv_path);
-    venv_cmd.env_remove("PYTHONHOME").env_remove("PYTHONPATH").env_remove("LD_LIBRARY_PATH");
-    venv_cmd.args(["venv", "--python", "3.11", "--managed-python"]).current_dir(&project_dir);
-    let status = run_streaming(app, "creating_venv", &mut venv_cmd);
-    if !matches!(status, Ok(ref s) if s.success()) {
-        fail(progress, &format!("uv venv failed: {:?}", status));
+    // plan-03 (#130): mirror cascade + system-Python fallback so first-run
+    // survives a GitHub-blocked network. Try in order: (1) default GitHub host,
+    // (2) gh-proxy mirror, (3) system Python (only if >= 3.11) — each with
+    // longer timeouts/retries. Stop at the first that succeeds.
+    let mut venv_attempts: Vec<(&str, Vec<&str>, Vec<(&str, &str)>)> = vec![
+        ("default", vec!["venv", "--python", "3.11", "--managed-python"], vec![]),
+        (
+            "gh-proxy mirror",
+            vec!["venv", "--python", "3.11", "--managed-python"],
+            vec![("UV_PYTHON_INSTALL_MIRROR", PY_INSTALL_MIRROR)],
+        ),
+    ];
+    if system_python_ge_311() {
+        venv_attempts.push((
+            "system-python",
+            vec!["venv", "--python", "3.11"],
+            vec![("UV_PYTHON_PREFERENCE", "only-system")],
+        ));
+    }
+
+    let mut venv_ok = false;
+    for (label, args, envs) in &venv_attempts {
+        let mut venv_cmd = Command::new(&uv_path);
+        venv_cmd.env_remove("PYTHONHOME").env_remove("PYTHONPATH").env_remove("LD_LIBRARY_PATH");
+        apply_uv_http_env(&mut venv_cmd);
+        for &(k, v) in envs {
+            venv_cmd.env(k, v);
+        }
+        venv_cmd.args(args.iter()).current_dir(&project_dir);
+        log::info!("uv venv attempt ({})", label);
+        if matches!(run_streaming(app, "creating_venv", &mut venv_cmd), Ok(ref s) if s.success()) {
+            venv_ok = true;
+            break;
+        }
+        log::warn!("uv venv attempt ({}) failed; trying next strategy", label);
+    }
+    if !venv_ok {
+        fail(progress, BOOTSTRAP_REMEDIATION);
         return None;
     }
 
@@ -438,6 +525,7 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
     }
     let mut sync_cmd = Command::new(&uv_path);
     sync_cmd.env_remove("PYTHONHOME").env_remove("PYTHONPATH").env_remove("LD_LIBRARY_PATH");
+    apply_uv_http_env(&mut sync_cmd);
     let has_lockfile = project_dir.join("uv.lock").is_file();
     if has_lockfile {
         sync_cmd
@@ -455,9 +543,46 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
     }
     let sync_status = run_streaming(app, "installing_deps", &mut sync_cmd);
     if !matches!(sync_status, Ok(ref s) if s.success()) {
-        fail(progress, &format!("uv sync failed: {:?}", sync_status));
+        fail(
+            progress,
+            "Dependency install (uv sync) failed — often a network drop or a \
+partial cache. \"Clean & Retry\" rebuilds the environment from scratch. If your \
+network blocks PyPI, set UV_DEFAULT_INDEX to a mirror (see \
+docs/install/troubleshooting.md).",
+        );
         return None;
     }
 
     Some((venv_py, backend_dir))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn parse_py_version_handles_real_and_garbage() {
+        assert_eq!(parse_py_version("Python 3.11.7"), Some((3, 11)));
+        assert_eq!(parse_py_version("Python 3.11"), Some((3, 11)));
+        assert_eq!(parse_py_version("Python 3.12.2\n"), Some((3, 12)));
+        assert_eq!(parse_py_version("Python 3.10.6"), Some((3, 10)));
+        assert_eq!(parse_py_version("garbage"), None);
+        assert_eq!(parse_py_version(""), None);
+    }
+
+    #[test]
+    fn apply_uv_http_env_sets_timeouts_and_retries() {
+        let mut cmd = Command::new("uv");
+        apply_uv_http_env(&mut cmd);
+        let envs: HashMap<String, String> = cmd
+            .get_envs()
+            .filter_map(|(k, v)| {
+                v.map(|v| (k.to_string_lossy().into_owned(), v.to_string_lossy().into_owned()))
+            })
+            .collect();
+        assert_eq!(envs.get("UV_HTTP_TIMEOUT").map(String::as_str), Some("120"));
+        assert_eq!(envs.get("UV_HTTP_CONNECT_TIMEOUT").map(String::as_str), Some("30"));
+        assert_eq!(envs.get("UV_HTTP_RETRIES").map(String::as_str), Some("5"));
+    }
 }

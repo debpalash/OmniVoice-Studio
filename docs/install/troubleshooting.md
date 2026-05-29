@@ -132,3 +132,24 @@ engines per OmniVoice copy. See [docs/engines/cosyvoice.md](../engines/cosyvoice
 for the dedicated CosyVoice path.
 
 **Linked issue:** [#55](https://github.com/debpalash/OmniVoice-Studio/issues/55)
+
+## First-run setup fails on a restricted network (GitHub/PyPI blocked)
+
+On networks that block or can't resolve **GitHub**, the first-run bootstrap may
+fail to download the managed Python (`uv venv ... failed`, often a DNS error).
+OmniVoice now tries, in order: the default GitHub host → a gh-proxy mirror → your
+**system Python** (if 3.11+ is installed). If all three fail:
+
+1. **Install Python 3.11+** from <https://www.python.org/downloads/> (on Windows,
+   tick *"Add Python to PATH"*), then relaunch — OmniVoice will use it.
+2. **Point at a reachable mirror** for the Python download:
+   - `UV_PYTHON_INSTALL_MIRROR=https://gh-proxy.com/https://github.com/astral-sh/python-build-standalone/releases/download`
+3. **Point at a PyPI mirror** for the dependency install (`uv sync`):
+   - China: `UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple` (or `https://mirrors.aliyun.com/pypi/simple`)
+   - Fully-blocked networks (e.g. some regions): use a VPN — there is no
+     government-blessed PyPI mirror to rely on.
+4. The bootstrap already raises the network budget for you
+   (`UV_HTTP_TIMEOUT=120`, `UV_HTTP_CONNECT_TIMEOUT=30`, `UV_HTTP_RETRIES=5`);
+   you can raise them further in the environment if a mirror is very slow.
+
+**Linked issues:** [#130](https://github.com/debpalash/OmniVoice-Studio/issues/130), [#60](https://github.com/debpalash/OmniVoice-Studio/issues/60), [#57](https://github.com/debpalash/OmniVoice-Studio/issues/57)
