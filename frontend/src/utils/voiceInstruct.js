@@ -20,39 +20,46 @@ const TAG_TO_CATEGORY = (() => {
  *
  * - Dropdowns contribute one valid tag per category (they win their category).
  * - Free-text items are accepted only if they're a known tag whose category is
- *   still open; unknown/prose items and category-duplicates are dropped and
- *   returned in `dropped` so the caller can warn the user.
+ *   still open. The rest are returned split into two buckets so the caller can
+ *   show an accurate message:
+ *     - `unsupported`: not a known tag (free-text prose) — the #115 case;
+ *     - `duplicates`:  a valid tag whose category was already set (e.g. a
+ *       dropdown's `low pitch` outranks a typed `high pitch`) — the #114 case.
  *
- * This closes #114 (≤1 item per category — no "conflicting" error) and #115
- * (no unsupported free-text reaches the whitelist validator).
- *
- * @returns {{ instruct: string, dropped: string[] }}
+ * @returns {{ instruct: string, unsupported: string[], duplicates: string[] }}
  */
 export function buildDesignInstruct(vdStates = {}, freeText = '') {
   const byCategory = {};
+  const unsupported = [];
+  const duplicates = [];
 
-  const add = (value, dropped) => {
+  // Dropdowns first — they win their category.
+  for (const value of Object.values(vdStates || {})) {
     const item = String(value ?? '').trim();
-    if (!item || item === 'Auto') return;
-    const key = item.toLowerCase();
-    const cat = TAG_TO_CATEGORY[key];
+    if (!item || item === 'Auto') continue;
+    const cat = TAG_TO_CATEGORY[item.toLowerCase()];
     if (!cat) {
-      if (dropped) dropped.push(item); // unknown / free-text prose
-      return;
+      // A dropdown value that isn't in CATEGORIES means the option list and the
+      // whitelist have drifted — silently dropping it would hide a real bug.
+      console.warn(`buildDesignInstruct: unknown dropdown value "${item}" (not in CATEGORIES)`);
+      continue;
     }
-    if (cat in byCategory) {
-      if (dropped) dropped.push(item); // category already filled
-      return;
+    if (!(cat in byCategory)) byCategory[cat] = item.toLowerCase();
+  }
+
+  // Free-text field — accept valid tags in open categories; bucket the rest.
+  for (const raw of String(freeText || '').split(/[,，]/)) {
+    const item = raw.trim();
+    if (!item) continue;
+    const cat = TAG_TO_CATEGORY[item.toLowerCase()];
+    if (!cat) {
+      unsupported.push(item);
+    } else if (cat in byCategory) {
+      duplicates.push(item);
+    } else {
+      byCategory[cat] = item.toLowerCase();
     }
-    byCategory[cat] = key; // canonical (CATEGORIES values are lowercase)
-  };
+  }
 
-  // Dropdowns first — they win their category (not tracked as "dropped").
-  for (const v of Object.values(vdStates || {})) add(v, null);
-
-  // Free-text field — accept valid tags in open categories; collect the rest.
-  const dropped = [];
-  for (const raw of String(freeText || '').split(/[,，]/)) add(raw, dropped);
-
-  return { instruct: Object.values(byCategory).join(', '), dropped };
+  return { instruct: Object.values(byCategory).join(', '), unsupported, duplicates };
 }

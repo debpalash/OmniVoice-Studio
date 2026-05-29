@@ -109,9 +109,12 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
         // category; drop unsupported free-text) so Synthesize stops failing
         // with "Unsupported instruct items" (#115) / "conflicting items within
         // the same category" (#114).
-        const { instruct: finalInstruct, dropped } = buildDesignInstruct(vdStates, instruct);
-        if (dropped.length) {
-          toast(`Ignored instruct not in the supported set: ${dropped.join(', ')}`, { icon: '⚠️' });
+        const { instruct: finalInstruct, unsupported, duplicates } = buildDesignInstruct(vdStates, instruct);
+        if (unsupported.length) {
+          toast(`Ignored unsupported instruct: ${unsupported.join(', ')}`, { icon: '⚠️' });
+        }
+        if (duplicates.length) {
+          toast(`Ignored (category already set): ${duplicates.join(', ')}`, { icon: '⚠️' });
         }
         if (finalInstruct) formData.append("instruct", finalInstruct);
         if (selectedProfile) {

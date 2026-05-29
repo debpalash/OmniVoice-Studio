@@ -8,27 +8,30 @@ import { buildDesignInstruct } from './voiceInstruct';
 
 describe('buildDesignInstruct', () => {
   it('keeps one valid tag per category from the dropdowns', () => {
-    const { instruct, dropped } = buildDesignInstruct(
+    const { instruct, unsupported, duplicates } = buildDesignInstruct(
       { Gender: 'male', Age: 'middle-aged', Pitch: 'low pitch', Style: 'Auto',
         EnglishAccent: 'british accent', ChineseDialect: 'Auto' },
       '',
     );
     expect(instruct.split(', ').sort())
       .toEqual(['british accent', 'low pitch', 'male', 'middle-aged'].sort());
-    expect(dropped).toEqual([]);
+    expect(unsupported).toEqual([]);
+    expect(duplicates).toEqual([]);
   });
 
-  it('drops free-text prose as unsupported and reports it (#115)', () => {
-    const { instruct, dropped } = buildDesignInstruct(
+  it('buckets free-text prose as unsupported, not a duplicate (#115)', () => {
+    const { instruct, unsupported, duplicates } = buildDesignInstruct(
       { Gender: 'male' }, 'Speak as a calm documentary narrator');
     expect(instruct).toBe('male');
-    expect(dropped).toContain('Speak as a calm documentary narrator');
+    expect(unsupported).toContain('Speak as a calm documentary narrator');
+    expect(duplicates).toEqual([]);
   });
 
-  it('drops a free-text tag whose category a dropdown already set (no #114 conflict)', () => {
-    const { instruct, dropped } = buildDesignInstruct({ Pitch: 'low pitch' }, 'high pitch');
+  it('buckets a valid tag outranked by a dropdown as a duplicate, not unsupported (#114)', () => {
+    const { instruct, unsupported, duplicates } = buildDesignInstruct({ Pitch: 'low pitch' }, 'high pitch');
     expect(instruct).toBe('low pitch'); // dropdown wins the category
-    expect(dropped).toContain('high pitch');
+    expect(duplicates).toContain('high pitch');
+    expect(unsupported).toEqual([]);
   });
 
   it('accepts a valid free-text tag when its category is open', () => {
@@ -44,5 +47,13 @@ describe('buildDesignInstruct', () => {
   it('ignores Auto and empty input', () => {
     expect(buildDesignInstruct({ Gender: 'Auto', Age: 'Auto' }, '').instruct).toBe('');
     expect(buildDesignInstruct({}, '').instruct).toBe('');
+  });
+
+  it('does not count an unknown dropdown value as unsupported free-text', () => {
+    // CATEGORIES↔dropdown drift: warned in dev, excluded from instruct, NOT a
+    // free-text "unsupported" item.
+    const { instruct, unsupported } = buildDesignInstruct({ Gender: 'nonbinary' }, '');
+    expect(instruct).toBe('');
+    expect(unsupported).toEqual([]);
   });
 });
