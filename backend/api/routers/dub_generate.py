@@ -1,7 +1,6 @@
 import os
 import json
 import logging
-import subprocess
 import time
 import asyncio
 import numpy as np
@@ -62,11 +61,16 @@ def _atempo_chain(ratio: float) -> str:
     return ",".join(stages)
 
 
-def _pitch_preserving_stretch(
+async def _pitch_preserving_stretch(
     wav: torch.Tensor, target_samples: int, sr: int,
 ) -> torch.Tensor:
     """Time-stretch a (1, samples) tensor to `target_samples` while
     preserving pitch, by piping the audio through `ffmpeg atempo`.
+
+    Async so it never blocks the event loop: it's awaited from the `_stream`
+    generator, and each ffmpeg call is ~50-100 ms — a synchronous
+    ``subprocess.run`` here froze health-checks / SSE / every concurrent
+    request for the whole multi-segment job.
 
     Returns a (1, target_samples) tensor on the same device as input.
     Raises RuntimeError when ffmpeg fails — callers should fall back to
@@ -79,24 +83,24 @@ def _pitch_preserving_stretch(
     ratio = wl / target_samples
     filter_str = _atempo_chain(ratio)
 
-    # Mono float32 via stdin → ffmpeg → stdout. One subprocess per
-    # segment is ~50-100 ms overhead, dwarfed by TTS generation.
+    # Mono float32 via stdin → ffmpeg → stdout. One subprocess per segment,
+    # run off the event loop so concurrent requests stay responsive.
     arr = wav.detach().cpu().to(torch.float32).numpy().reshape(-1).astype(np.float32, copy=False)
-    proc = subprocess.run(
-        [
-            find_ffmpeg(), "-hide_banner", "-loglevel", "error", "-y",
-            "-f", "f32le", "-ar", str(sr), "-ac", "1", "-i", "pipe:0",
-            "-af", filter_str,
-            "-f", "f32le", "-ar", str(sr), "-ac", "1", "pipe:1",
-        ],
-        input=arr.tobytes(),
-        capture_output=True,
+    proc = await asyncio.create_subprocess_exec(
+        find_ffmpeg(), "-hide_banner", "-loglevel", "error", "-y",
+        "-f", "f32le", "-ar", str(sr), "-ac", "1", "-i", "pipe:0",
+        "-af", filter_str,
+        "-f", "f32le", "-ar", str(sr), "-ac", "1", "pipe:1",
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
-    if proc.returncode != 0 or not proc.stdout:
+    stdout, stderr = await proc.communicate(input=arr.tobytes())
+    if proc.returncode != 0 or not stdout:
         raise RuntimeError(
-            (proc.stderr.decode(errors="replace") or "atempo failed")[:200]
+            (stderr.decode(errors="replace") or "atempo failed")[:200]
         )
-    out_arr = np.frombuffer(proc.stdout, dtype=np.float32)
+    out_arr = np.frombuffer(stdout, dtype=np.float32)
     # atempo rarely lands exactly on the integer sample count, so
     # pad/trim to the requested slot length.
     if len(out_arr) < target_samples:
@@ -595,7 +599,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                         capped_ratio = min(ratio, MAX_STRETCH_RATIO)
                         capped_target = int(wl / capped_ratio)
                         try:
-                            adjusted = _pitch_preserving_stretch(
+                            adjusted = await _pitch_preserving_stretch(
                                 adjusted, capped_target, sr,
                             )
                             if adjusted.shape[-1] > slot_samples:
