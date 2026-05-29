@@ -24,6 +24,10 @@ on:
     - cron: "0 6 * * 1"
   workflow_dispatch:
 
+env:
+  # Match ci.yml: run JS actions on Node 24 (GH removes Node 20 in Sep 2026).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 # Least privilege by default; jobs that upload SARIF opt into security-events.
 permissions:
   contents: read
@@ -97,10 +101,14 @@ jobs:
       # Keeps the SARIF focused on findings worth a human look. The scan step
       # is allowed to "fail" (findings present) without failing the job; the
       # SARIF upload still runs so results reach the Security tab.
+      #
+      # NOTE: the `sarif` output format lives in the `bandit[sarif]` extra
+      # (pulls in sarif-om + jschema-to-python). Plain `bandit` rejects
+      # `-f sarif`, so install via the extra spec.
       - name: Run bandit
         continue-on-error: true
         run: |
-          pipx run bandit -r backend/ -ll -ii -f sarif -o bandit.sarif
+          pipx run --spec 'bandit[sarif]' bandit -r backend/ -ll -ii -f sarif -o bandit.sarif
 
       - name: Upload bandit SARIF
         uses: github/codeql-action/upload-sarif@v3
