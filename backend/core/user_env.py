@@ -21,21 +21,34 @@ def _read_lines(path: str) -> list[str]:
     try:
         with open(path, "r", encoding="utf-8") as f:
             return f.read().splitlines()
-    except OSError:
+    except FileNotFoundError:
         return []
+    # Any *other* OSError (permission, I/O error) propagates: collapsing it to
+    # an empty baseline would make a subsequent upsert silently drop existing
+    # keys (e.g. a persisted HF_TOKEN) when it rewrites the file.
+
+
+def _opener_0600(path: str, flags: int) -> int:
+    # Create the file with 0600 from the start (no world-readable window before
+    # a follow-up chmod) — it can hold secrets like HF_TOKEN. The mode is
+    # masked by umask but only ever *more* restrictive; non-POSIX platforms
+    # ignore the mode bits.
+    return os.open(path, flags, 0o600)
 
 
 def _write_lines(path: str, lines: list[str]) -> None:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    parent = os.path.dirname(path)
+    if parent:  # bare filename (e.g. an OMNIVOICE_ENV_FILE override) has no parent
+        os.makedirs(parent, exist_ok=True)
     body = "\n".join(lines)
     if body and not body.endswith("\n"):
         body += "\n"
-    with open(path, "w", encoding="utf-8") as f:
+    with open(path, "w", encoding="utf-8", opener=_opener_0600) as f:
         f.write(body)
     try:
-        os.chmod(path, 0o600)  # may hold secrets; no-op semantics on Windows
+        os.chmod(path, 0o600)  # tighten an existing file that predates the opener
     except OSError:
-        pass  # best-effort hardening; some filesystems/Windows don't support chmod
+        pass  # best-effort; some filesystems/Windows don't support chmod
 
 
 def get_user_env(key: str, path: Optional[str] = None) -> Optional[str]:

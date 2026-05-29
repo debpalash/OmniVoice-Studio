@@ -198,16 +198,20 @@ def get_license_acceptance(engine_id: str) -> dict:
 
 
 # ── Storage: configurable models directory (#64) ──────────────────────────
-# Where HuggingFace / Torch download model weights. Persisted durably to the
-# per-user env file so main.py maps it to HF_HOME / HF_HUB_CACHE / TORCH_HOME
-# at startup. Takes effect on the next backend restart (a storage-location
-# change can't safely move an in-use cache mid-process).
+# Where HuggingFace / Torch download model weights. The user's choice is
+# persisted durably to the per-user env file as OMNIVOICE_CACHE_DIR, which
+# main.py maps to HF_HOME / HF_HUB_CACHE / TORCH_HOME at startup. That env file
+# is the *single source of truth*: PUT writes it, GET reads it back — there is
+# no second store to diverge from. Takes effect on the next backend restart
+# (a storage-location change can't safely move an in-use cache mid-process).
 _MODELS_DIR_ENV = "OMNIVOICE_CACHE_DIR"
-_MODELS_DIR_KEY = "storage.models_dir"
 
 
 def _default_models_dir() -> str:
-    return os.path.expanduser("~/.cache/huggingface")
+    """huggingface_hub's default cache root, honoring XDG_CACHE_HOME on Linux
+    (matches HF so GET reports the *true* default the backend would use)."""
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache")
+    return os.path.join(base, "huggingface")
 
 
 def _effective_models_dir() -> str:
@@ -225,11 +229,12 @@ class _ModelsDirBody(BaseModel):
 
 @router.get("/storage/models-dir")
 def get_models_dir():
-    """Current models directory: the persisted choice, what's effective in this
+    """Current models directory: the persisted choice (from the durable env
+    file — the same value main.py reads at startup), what's effective in this
     process, and the platform default."""
-    from services import settings_store
+    from core import user_env
 
-    configured = settings_store.get_text(_MODELS_DIR_KEY, "") or None
+    configured = user_env.get_user_env(_MODELS_DIR_ENV) or None
     return {
         "configured": configured,
         "effective": _effective_models_dir(),
@@ -242,19 +247,15 @@ def get_models_dir():
 def set_models_dir(body: _ModelsDirBody):
     """Set (or clear, with an empty path) the models download directory.
 
-    Validates the directory is writable, persists the choice, and writes
-    OMNIVOICE_CACHE_DIR to the durable per-user env file so main.py applies it
-    on the next launch. Returns restart_required=True.
+    Validates the directory is writable, then writes OMNIVOICE_CACHE_DIR to the
+    durable per-user env file so main.py applies it on the next launch. The env
+    file is the only persisted store, so GET can never diverge from what was
+    saved. Returns restart_required=True.
     """
     from core import user_env
-    from services import settings_store
 
     raw = (body.path or "").strip()
     if not raw:
-        try:
-            settings_store.set_text(_MODELS_DIR_KEY, "")
-        except Exception:
-            logger.exception("models-dir: settings_store clear failed")
         user_env.unset_user_env(_MODELS_DIR_ENV)
         return {"configured": None, "default": _default_models_dir(), "restart_required": True}
 
@@ -272,13 +273,15 @@ def set_models_dir(body: _ModelsDirBody):
         probe = os.path.join(path, ".omnivoice_write_test")
         with open(probe, "w", encoding="utf-8") as f:
             f.write("ok")
-        os.remove(probe)
     except OSError as e:
-        raise HTTPException(status_code=400, detail=f"Directory is not writable: {e}")
+        raise HTTPException(status_code=400, detail=f"Directory is not writable: {e}") from e
+    finally:
+        # Best-effort cleanup; a failed remove (concurrent process, perm change)
+        # must not leave the request hanging or mask the real error.
+        try:
+            os.remove(os.path.join(path, ".omnivoice_write_test"))
+        except OSError:
+            pass
 
-    try:
-        settings_store.set_text(_MODELS_DIR_KEY, path)
-    except Exception:
-        logger.exception("models-dir: settings_store write failed")
     user_env.set_user_env(_MODELS_DIR_ENV, path)
     return {"configured": path, "effective": _effective_models_dir(), "restart_required": True}

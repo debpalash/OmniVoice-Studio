@@ -48,6 +48,14 @@ def test_get_missing_returns_none(tmp_path):
     assert user_env.get_user_env("NOPE", path=str(tmp_path / "env")) is None
 
 
+def test_set_with_bare_filename_no_parent(tmp_path, monkeypatch):
+    # A path with no directory component (e.g. OMNIVOICE_ENV_FILE=env) must not
+    # blow up: os.makedirs("") raises, so the helper has to skip the mkdir.
+    monkeypatch.chdir(tmp_path)
+    user_env.set_user_env("K", "v", path="envfile")
+    assert user_env.get_user_env("K", path="envfile") == "v"
+
+
 def test_file_is_0600(tmp_path):
     if sys.platform == "win32":
         return  # POSIX perms not meaningful on Windows

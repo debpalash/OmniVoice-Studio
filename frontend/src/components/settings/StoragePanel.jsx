@@ -78,7 +78,7 @@ export default function StoragePanel() {
 
       {error && <div className="storagepanel__error" role="alert">{error}</div>}
 
-      <p className="storagepanel__help">
+      <p id="storagepanel-help" className="storagepanel__help">
         Where model weights download (the HuggingFace / Torch cache). Point this
         at a larger or faster drive — useful when your system drive is small.
         Changes apply on the next restart.
@@ -93,6 +93,8 @@ export default function StoragePanel() {
           onChange={(e) => setInput(e.target.value)}
           disabled={saving || loading}
           spellCheck={false}
+          aria-labelledby="storagepanel-heading"
+          aria-describedby="storagepanel-help"
           data-testid="models-dir-input"
         />
         <button
