@@ -3,6 +3,7 @@ import {
   PanelLeftOpen, PanelLeftClose, Film, Save, UploadCloud, Sparkles, Loader, Square,
   FileText, Play, DownloadIcon, Volume2, Link2,
   Languages, ChevronDown, ChevronUp, Wand2, Trash2, Check, Globe, UserSquare2, User, AlertCircle,
+  ExternalLink, Copy,
 } from 'lucide-react';
 // lucide-react exports DownloadIcon as "Download"; alias here to match App.jsx naming.
 import { Download as Download } from 'lucide-react';
@@ -18,6 +19,7 @@ import { API } from '../api/client';
 import { listTranslationEngines, installTranslationEngine } from '../api/engines';
 import toast from 'react-hot-toast';
 import { Button, Segmented, Badge, Progress } from '../ui';
+import { openDocsFor, classifyError } from '../utils/errorDocsMap';
 import GlossaryPanel from '../components/GlossaryPanel';
 import ExportModal from '../components/ExportModal';
 import MultiLangPicker from '../components/MultiLangPicker';
@@ -28,6 +30,39 @@ const DubSegmentTable = lazy(() => import('../components/DubSegmentTable'));
 const LazyFallback = () => (
   <div className="dub-lazy-fallback">Loading…</div>
 );
+
+/** plan-04 (#131): actionable failure detail — hint + docs deeplink + a copyable
+ *  diagnostic block — shown beneath the error badge when the backend sent a
+ *  structured failure. */
+function DubFailureNotice({ failure }) {
+  if (!failure) return null;
+  const topic = failure.docsTopic || classifyError(failure.reason);
+  const copyDiagnostic = async () => {
+    try {
+      await navigator.clipboard.writeText(failure.diagnostic || failure.reason);
+      toast.success('Diagnostic copied');
+    } catch {
+      toast.error('Copy failed');
+    }
+  };
+  return (
+    <div className="dub-failure-notice">
+      {failure.hint && <span className="dub-failure-notice__hint">{failure.hint}</span>}
+      <div className="dub-failure-notice__actions">
+        {topic && (
+          <Button variant="subtle" size="sm" onClick={() => openDocsFor(topic)}>
+            <ExternalLink size={11} /> Open docs
+          </Button>
+        )}
+        {failure.diagnostic && (
+          <Button variant="subtle" size="sm" onClick={copyDiagnostic}>
+            <Copy size={11} /> Copy diagnostic
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function DubTab(props) {
   const {
@@ -71,6 +106,7 @@ export default function DubTab(props) {
   const setDubInstruct    = useAppStore(s => s.setDubInstruct);
   const dubTracks         = useAppStore(s => s.dubTracks);
   const dubError          = useAppStore(s => s.dubError);
+  const dubFailure        = useAppStore(s => s.dubFailure);
   const dubProgress       = useAppStore(s => s.dubProgress);
   const isTranslating     = useAppStore(s => s.isTranslating);
   const preserveBg        = useAppStore(s => s.preserveBg);
@@ -254,6 +290,7 @@ export default function DubTab(props) {
               <Badge tone="danger">
                 <AlertCircle size={11} /> {dubError}
               </Badge>
+              <DubFailureNotice failure={dubFailure} />
               {handleDubRetryTranscribe && (
                 <Button
                   variant="subtle"
@@ -944,6 +981,7 @@ export default function DubTab(props) {
                 <Badge tone="danger">
                   <AlertCircle size={11} /> {dubError}
                 </Badge>
+                <DubFailureNotice failure={dubFailure} />
               </div>
             )}
             <div className="dub-outputs-row">

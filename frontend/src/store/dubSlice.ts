@@ -43,6 +43,17 @@ function resolve<T>(updater: Updater<T>, prev: T): T {
   return typeof updater === 'function' ? (updater as (prev: T) => T)(prev) : updater;
 }
 
+/** Structured pipeline failure (plan-04 #131) — carries the specific cause,
+ *  an actionable hint, an optional docs-topic key, and a copyable diagnostic. */
+export interface DubFailure {
+  reason: string;
+  errorClass?: string;
+  stage?: string;
+  hint?: string;
+  docsTopic?: string;
+  diagnostic?: string;
+}
+
 export interface DubSlice {
   // ── Pipeline state ────────────────────────────────────────────────────
   dubJobId: string | null;
@@ -51,6 +62,7 @@ export interface DubSlice {
   dubPrepStage: DubPrepStage;
   dubProgress: DubProgress;
   dubError: string;
+  dubFailure: DubFailure | null;
   isTranslating: boolean;
 
   // ── Content ───────────────────────────────────────────────────────────
@@ -98,6 +110,7 @@ export interface DubSlice {
   setDubPrepStage: (v: Updater<DubPrepStage>) => void;
   setDubProgress: (v: Updater<DubProgress>) => void;
   setDubError: (v: Updater<string>) => void;
+  setDubFailure: (v: Updater<DubSlice['dubFailure']>) => void;
   setIsTranslating: (v: Updater<boolean>) => void;
   setDubSegments: (v: Updater<DubSegment[]>) => void;
   setDubTranscript: (v: Updater<string>) => void;
@@ -119,7 +132,7 @@ export interface DubSlice {
 
 const INITIAL: Omit<DubSlice,
   | 'setDubJobId' | 'setDubStep' | 'setDubTaskId' | 'setDubPrepStage'
-  | 'setDubProgress' | 'setDubError' | 'setIsTranslating' | 'setDubSegments'
+  | 'setDubProgress' | 'setDubError' | 'setDubFailure' | 'setIsTranslating' | 'setDubSegments'
   | 'setDubTranscript' | 'setDubFilename' | 'setDubDuration' | 'setDubTracks'
   | 'setDubLang' | 'setDubLangCode' | 'setDubInstruct' | 'setPreserveBg'
   | 'setDefaultTrack' | 'setExportTracks' | 'setPreviewSegIds' | 'setSpeakerClones'
@@ -131,6 +144,7 @@ const INITIAL: Omit<DubSlice,
   dubPrepStage: null,
   dubProgress: { current: 0, total: 0, text: '' },
   dubError: '',
+  dubFailure: null,
   isTranslating: false,
   dubSegments: [],
   dubTranscript: '',
@@ -158,6 +172,7 @@ export const createDubSlice: StateCreator<DubSlice, [], [], DubSlice> = (set, ge
   setDubPrepStage: (v) => set((s) => ({ dubPrepStage: resolve(v, s.dubPrepStage) })),
   setDubProgress:  (v) => set((s) => ({ dubProgress:  resolve(v, s.dubProgress) })),
   setDubError:     (v) => set((s) => ({ dubError:     resolve(v, s.dubError) })),
+  setDubFailure:   (v) => set((s) => ({ dubFailure:   resolve(v, s.dubFailure) })),
   setIsTranslating:(v) => set((s) => ({ isTranslating:resolve(v, s.isTranslating) })),
   setDubSegments:  (v) => set((s) => ({ dubSegments:  resolve(v, s.dubSegments) })),
   setDubTranscript:(v) => set((s) => ({ dubTranscript:resolve(v, s.dubTranscript) })),

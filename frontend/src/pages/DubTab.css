@@ -723,3 +723,20 @@
   border-color: color-mix(in srgb, #fe8019 45%, transparent) !important;
   background: color-mix(in srgb, #fe8019 10%, transparent) !important;
 }
+
+/* plan-04 (#131): actionable failure detail beneath the error badge. */
+.dub-failure-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.dub-failure-notice__hint {
+  font-size: 11px;
+  opacity: 0.85;
+}
+.dub-failure-notice__actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
