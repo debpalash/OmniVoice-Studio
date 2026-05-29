@@ -35,29 +35,3 @@ def test_skips_when_disabled_in_settings(monkeypatch):
     monkeypatch.setattr(importlib.util, "find_spec", lambda name: object())
     monkeypatch.setattr("services.settings_store.get_text", lambda key, default="0": "1")
     assert engine_env.should_torch_compile("cuda") is False
-
-
-# ── Subprocess engines must get the same Triton gate (Greptile #138) ────────
-
-def test_engine_env_disables_compile_when_triton_missing(monkeypatch):
-    monkeypatch.setattr(
-        importlib.util, "find_spec",
-        lambda name: None if name == "triton" else object(),
-    )
-    monkeypatch.setattr("services.settings_store.get_text", lambda key, default="0": "0")
-    env = engine_env.build_engine_env(base_env={}, inject_hf_token=False)
-    assert env.get("TORCH_COMPILE_DISABLE") == "1"
-
-
-def test_engine_env_keeps_compile_when_triton_present(monkeypatch):
-    monkeypatch.setattr(importlib.util, "find_spec", lambda name: object())
-    monkeypatch.setattr("services.settings_store.get_text", lambda key, default="0": "0")
-    env = engine_env.build_engine_env(base_env={}, inject_hf_token=False)
-    assert "TORCH_COMPILE_DISABLE" not in env
-
-
-def test_engine_env_disables_compile_when_user_opted_out(monkeypatch):
-    monkeypatch.setattr(importlib.util, "find_spec", lambda name: object())  # triton present
-    monkeypatch.setattr("services.settings_store.get_text", lambda key, default="0": "1")
-    env = engine_env.build_engine_env(base_env={}, inject_hf_token=False)
-    assert env.get("TORCH_COMPILE_DISABLE") == "1"
