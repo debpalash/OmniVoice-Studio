@@ -6,8 +6,8 @@ CosyVoice / IndexTTS subprocess backends from Phase 2) should call
 That gives us ONE place to inject:
 
   - HF_TOKEN / YOUR_HF_TOKEN from the 3-source resolver (AUTH-04)
-  - TORCH_COMPILE_DISABLE=1 on Windows when the user enabled the
-    Performance toggle (INST-12, issue #65)
+  - TORCH_COMPILE_DISABLE=1 when the user disabled torch.compile OR Triton is
+    unavailable (INST-12, issue #65) — mirrors should_torch_compile()
 
 The function returns a fresh dict (caller may further mutate before
 passing to `subprocess.Popen(env=...)`).
@@ -17,7 +17,6 @@ from __future__ import annotations
 import importlib.util
 import logging
 import os
-import sys
 from typing import Optional
 
 logger = logging.getLogger("omnivoice.engine_env")
@@ -85,17 +84,20 @@ def build_engine_env(
         except Exception:
             logger.exception("build_engine_env: token resolver failed (non-fatal)")
 
-    # INST-12: TORCH_COMPILE_DISABLE on Windows when the user opted in.
-    # The flag is a Windows-only escape hatch — torch.compile OOMs the same
-    # Triton kernel cache differently on macOS/Linux, so injecting on those
-    # platforms would just slow the engine for no gain.
-    if sys.platform.startswith("win"):
-        try:
-            from services import settings_store
+    # INST-12 / #65: disable torch.compile in the engine subprocess when EITHER
+    # the user opted out (Performance toggle) OR Triton is unavailable. This
+    # mirrors the in-process should_torch_compile() gate — Triton has no
+    # Windows (or macOS) wheel, so subprocess engines that honour
+    # TORCH_COMPILE_DISABLE would otherwise hit the same Triton-absent crash the
+    # in-process path now avoids.
+    try:
+        from services import settings_store
 
-            if settings_store.get_text(_TORCH_COMPILE_KEY, "0") == "1":
-                env["TORCH_COMPILE_DISABLE"] = "1"
-        except Exception:
-            logger.exception("build_engine_env: torch_compile_disabled read failed")
+        user_disabled = settings_store.get_text(_TORCH_COMPILE_KEY, "0") == "1"
+    except Exception:
+        logger.exception("build_engine_env: torch_compile_disabled read failed")
+        user_disabled = False
+    if user_disabled or importlib.util.find_spec("triton") is None:
+        env["TORCH_COMPILE_DISABLE"] = "1"
 
     return env
