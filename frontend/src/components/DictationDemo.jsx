@@ -61,7 +61,22 @@ export default function DictationDemo({ embedded = false }) {
   const [hotkeyState, setHotkeyState] = useState('unknown'); // unknown | registered | verified
   const [playingId, setPlayingId] = useState(null);
   const [transcripts, setTranscripts] = useState({}); // {scriptId: {state, text, error}}
+  // null = probing, true/false once the demo assets are confirmed present.
+  // The sample WAVs are rendered by scripts/build_demos.sh and may be absent
+  // (e.g. source checkout without a render step). When absent we hide the demo
+  // rather than show cards that fail on click (#119/#124 follow-up).
+  const [assetsAvailable, setAssetsAvailable] = useState(null);
   const audioRef = useRef(null);
+
+  // Probe whether the bundled dictation samples actually exist; hide the whole
+  // demo if not, mirroring DubbingDemo's missing-manifest behavior.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API}${SCRIPTS[0].wav}`, { method: 'HEAD' })
+      .then((r) => { if (!cancelled) setAssetsAvailable(r.ok); })
+      .catch(() => { if (!cancelled) setAssetsAvailable(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   // Read the registered hotkey on mount.
   useEffect(() => {
@@ -178,6 +193,9 @@ export default function DictationDemo({ embedded = false }) {
         );
     }
   })();
+
+  // No bundled samples on disk → don't render a demo that can't work.
+  if (assetsAvailable === false) return null;
 
   return (
     <section className={`dictation-demo ${embedded ? 'dictation-demo--embedded' : ''}`}>

@@ -34,6 +34,16 @@ describe('DictationDemo', () => {
     expect(screen.getByText(/No hotkey registered/i)).toBeInTheDocument();
   });
 
+  it('hides the demo when the sample assets are missing (HEAD 404)', async () => {
+    // The mount probe HEAD-checks the first sample; a 404 means no rendered
+    // assets on disk → the whole demo should disappear rather than show cards
+    // that fail on click.
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 404 }));
+    const { container } = render(withI18n(<DictationDemo />));
+    await waitFor(() => expect(container).toBeEmptyDOMElement());
+    expect(screen.queryByText(/Schedule a meeting with Pat/)).not.toBeInTheDocument();
+  });
+
   it('POSTs the bundled WAV to /transcribe when Replay is clicked', async () => {
     const wavBlob = new Blob([new Uint8Array([0, 0, 0, 0])], { type: 'audio/wav' });
     // Make the recognized text deliberately different from the on-card
