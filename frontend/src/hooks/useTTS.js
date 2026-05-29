@@ -4,6 +4,7 @@ import { generateSpeech, audioUrlWithCacheBust } from '../api/generate';
 import { playBlobAudio, playPing } from '../utils/media';
 import { probeAudioDuration } from '../utils/format';
 import { CLONE_MAX_SECONDS, PRESETS } from '../utils/constants';
+import { buildDesignInstruct } from '../utils/voiceInstruct';
 import { toast } from 'react-hot-toast';
 
 /**
@@ -104,9 +105,14 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
       } else {
         const designSeed = Math.floor(Math.random() * 2147483647);
         formData.append("seed", designSeed);
-        const parts = Object.values(vdStates).filter(v => v !== 'Auto');
-        if (instruct.trim()) parts.push(instruct.trim());
-        const finalInstruct = parts.join(', ');
+        // plan-05 (#132): build a validator-safe instruct (one valid tag per
+        // category; drop unsupported free-text) so Synthesize stops failing
+        // with "Unsupported instruct items" (#115) / "conflicting items within
+        // the same category" (#114).
+        const { instruct: finalInstruct, dropped } = buildDesignInstruct(vdStates, instruct);
+        if (dropped.length) {
+          toast(`Ignored instruct not in the supported set: ${dropped.join(', ')}`, { icon: '⚠️' });
+        }
         if (finalInstruct) formData.append("instruct", finalInstruct);
         if (selectedProfile) {
           formData.append("profile_id", selectedProfile);
