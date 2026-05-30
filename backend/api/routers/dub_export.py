@@ -713,21 +713,20 @@ async def dub_preview_segment(job_id: str, segment_index: int):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     # Resolve the stable-id-named WAV via the render manifest; fall back to the
-    # legacy index name for jobs rendered before id-based naming (#185).
+    # legacy index name for jobs rendered before id-based naming (#185). Each
+    # candidate is realpath-normalised and containment-checked BEFORE any
+    # filesystem access, so the guard dominates every path sink.
     order = job.get("seg_order") or []
     seg_id = order[segment_index] if 0 <= segment_index < len(order) else segment_index
-    seg_path = dub_seg_path(job_id, seg_id)
-    if not os.path.exists(seg_path):
-        _legacy = dub_seg_path(job_id, segment_index)
-        if os.path.exists(_legacy):
-            seg_path = _legacy
-    if not os.path.exists(seg_path):
+    base = os.path.realpath(DUB_DIR)
+    seg_path = None
+    for _sid in (seg_id, segment_index):
+        cand = os.path.realpath(dub_seg_path(job_id, _sid))
+        if cand.startswith(base + os.sep) and os.path.exists(cand):
+            seg_path = cand
+            break
+    if not seg_path:
         raise HTTPException(status_code=404, detail="Segment not generated yet")
-    # Containment guard at the sink (dub_seg_path already validates; re-assert
-    # here so static analysis sees the barrier dominate the file read).
-    seg_path = os.path.realpath(seg_path)
-    if not seg_path.startswith(os.path.realpath(DUB_DIR) + os.sep):
-        raise HTTPException(status_code=400, detail="Invalid segment path")
     return FileResponse(seg_path, media_type="audio/wav")
 
 
@@ -887,17 +886,18 @@ async def dub_export_segments_zip(job_id: str):
 
     zip_buffer = io.BytesIO()
     order = job.get("seg_order") or []
+    base = os.path.realpath(DUB_DIR)
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         for i, seg in enumerate(segments):
             seg_id = order[i] if i < len(order) else i
-            seg_path = dub_seg_path(job_id, seg_id)
-            if not os.path.exists(seg_path):
-                _legacy = dub_seg_path(job_id, i)
-                if os.path.exists(_legacy):
-                    seg_path = _legacy
-            # Containment guard at the sink (see preview endpoint).
-            seg_path = os.path.realpath(seg_path)
-            if seg_path.startswith(os.path.realpath(DUB_DIR) + os.sep) and os.path.exists(seg_path):
+            # realpath + containment guard before any filesystem access.
+            seg_path = None
+            for _sid in (seg_id, i):
+                cand = os.path.realpath(dub_seg_path(job_id, _sid))
+                if cand.startswith(base + os.sep) and os.path.exists(cand):
+                    seg_path = cand
+                    break
+            if seg_path:
                 speaker = seg.get("speaker_id", "Speaker1").replace(" ", "")
                 start_str = f"{seg['start']:.2f}"
                 end_str = f"{seg['end']:.2f}"
