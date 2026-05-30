@@ -320,16 +320,69 @@ def _load_model_sync():
     finally:
         unregister_listener(lid)
 
+def _model_load_timeout() -> float:
+    """Overall ceiling (seconds) for a single model load/download attempt.
+
+    Backstop for any hang the HF per-read socket timeouts don't catch
+    (a wedged torch.compile, a deadlock, etc.). Generous by default so a
+    legitimate cold multi-GB download on a slow link still completes;
+    overridable via OMNIVOICE_MODEL_LOAD_TIMEOUT for very slow networks.
+    """
+    try:
+        return max(30.0, float(os.environ.get("OMNIVOICE_MODEL_LOAD_TIMEOUT", "1200")))
+    except (ValueError, TypeError):
+        return 1200.0
+
+
+def _reset_gpu_pool() -> None:
+    """Drop the GPU pool singleton so the next access builds a fresh one.
+
+    Python can't kill the thread stuck in a timed-out load, but abandoning the
+    poisoned single-worker pool means a *retry* gets a clean worker instead of
+    queueing forever behind the wedged one.
+    """
+    global _gpu_pool_singleton
+    pool, _gpu_pool_singleton = _gpu_pool_singleton, None
+    if pool is not None:
+        try:
+            pool.shutdown(wait=False, cancel_futures=True)
+        except Exception:
+            pass
+
+
+async def _load_model_with_timeout():
+    """Run the blocking model load on the GPU pool, bounded by a deadline.
+
+    Raises RuntimeError on timeout (and resets the poisoned pool) so callers
+    surface an actionable error instead of hanging indefinitely.
+    """
+    loop = asyncio.get_running_loop()
+    timeout = _model_load_timeout()
+    try:
+        return await asyncio.wait_for(
+            loop.run_in_executor(_get_gpu_pool(), _load_model_sync),
+            timeout=timeout,
+        )
+    except asyncio.TimeoutError as exc:
+        _set_loading("error", "Model load timed out", error="timeout")
+        _reset_gpu_pool()
+        logger.error("Model load exceeded %ss; resetting GPU pool.", timeout)
+        raise RuntimeError(
+            f"Model loading timed out after {int(timeout)}s — usually a network "
+            "stall downloading the model (proxy, firewall, or antivirus). Check "
+            "your connection or set a Hugging Face mirror in Settings, then retry."
+        ) from exc
+
+
 async def get_model():
     global model, _last_used
     _last_used = time.time()
     if model is not None:
         return model
-    
+
     async with _model_lock:
         if model is None:
-            loop = asyncio.get_running_loop()
-            model = await loop.run_in_executor(_get_gpu_pool(), _load_model_sync)
+            model = await _load_model_with_timeout()
     return model
 
 
@@ -359,8 +412,7 @@ async def preload_model():
         _last_used = time.time()
         async with _model_lock:
             if model is None:
-                loop = asyncio.get_running_loop()
-                model = await loop.run_in_executor(_get_gpu_pool(), _load_model_sync)
+                model = await _load_model_with_timeout()
         logger.info("Preload complete — model ready.")
     except Exception as e:
         logger.warning("Model preload failed (non-fatal): %s", e)

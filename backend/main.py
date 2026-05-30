@@ -98,6 +98,19 @@ if sys.platform == "win32":
 # wrapper that our patch intercepts. Override-able by the user.
 os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
 
+# ── HF network timeouts ─────────────────────────────────────────────────────
+# Bound HF network ops so a stalled metadata HEAD or a dead download socket
+# RAISES (and surfaces as an error) instead of hanging the model-load worker
+# forever — the root cause of the "demo voice spins forever, no error" report
+# (most often hit on Windows behind a proxy / firewall / antivirus that wedges
+# the multi-GB legacy-LFS transfer). HF_HUB_DOWNLOAD_TIMEOUT is a *per-read*
+# timeout: it resets on every received chunk, so a slow-but-progressing
+# download is never punished — only a genuinely dead socket trips it. Both are
+# user-overridable for unusually slow links. Set before huggingface_hub is
+# imported so its constants pick them up.
+os.environ.setdefault("HF_HUB_ETAG_TIMEOUT", "15")
+os.environ.setdefault("HF_HUB_DOWNLOAD_TIMEOUT", "30")
+
 
 # Prevent torchaudio from lazy-importing torchcodec (broken on some installs).
 # Proper fix = exclude torchcodec in pyproject.toml; this is a belt-and-braces guard.

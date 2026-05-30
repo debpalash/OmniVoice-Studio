@@ -77,6 +77,7 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
         return suffix ? `${elapsed} ${suffix}` : elapsed;
       });
     }, 100);
+    let abortTimer = null;
     try {
       const formData = new FormData();
       formData.append("text", text);
@@ -122,7 +123,14 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
         }
       }
 
-      const response = await generateSpeech(formData);
+      // The first /generate may cold-load/download the model. The backend now
+      // bounds that and returns an error rather than hanging; this client-side
+      // abort is a backstop so the UI never spins forever even if the backend
+      // is unreachable. The ceiling sits just above the backend's load timeout
+      // so the backend's descriptive error wins in the normal case.
+      const ac = new AbortController();
+      abortTimer = setTimeout(() => ac.abort(), 21 * 60 * 1000);
+      const response = await generateSpeech(formData, { signal: ac.signal });
       const reader = response.body.getReader();
       const chunks = [];
       let receivedLength = 0;
@@ -146,8 +154,12 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
       setSidebarTab('history');
       playPing();
     } catch (err) {
-      toast.error("Error: " + err.message);
+      const msg = err?.name === 'AbortError'
+        ? 'Generation timed out — the model may still be downloading. Check Settings → Logs, then try again.'
+        : ("Error: " + err.message);
+      toast.error(msg);
     } finally {
+      if (abortTimer) clearTimeout(abortTimer);
       clearInterval(timerRef.current);
       setIsGenerating(false);
     }
