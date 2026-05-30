@@ -222,13 +222,13 @@ export default function ExportModal({
             </div>
           </div>
           <div className="export-modal__track-row">
-            {allTracks.map(t => {
-              const on = exportTracks[t.code] !== false;
+            {allTracks.map(track => {
+              const on = exportTracks[track.code] !== false;
               return (
-                <label key={t.code} className={`export-modal__track ${on ? 'is-on' : ''} ${t.kind === 'original' ? 'is-original' : 'is-dub'}`}>
-                  <input type="checkbox" checked={on} onChange={() => toggleTrack(t.code)} />
-                  <span className="export-modal__track-label">{t.label}</span>
-                  {t.kind === 'dub' && t.code === dubLangCode && <Badge tone="brand" size="xs">{t('exportModal.primary')}</Badge>}
+                <label key={track.code} className={`export-modal__track ${on ? 'is-on' : ''} ${track.kind === 'original' ? 'is-original' : 'is-dub'}`}>
+                  <input type="checkbox" checked={on} onChange={() => toggleTrack(track.code)} />
+                  <span className="export-modal__track-label">{track.label}</span>
+                  {track.kind === 'dub' && track.code === dubLangCode && <Badge tone="brand" size="xs">{t('exportModal.primary')}</Badge>}
                 </label>
               );
             })}
@@ -263,8 +263,8 @@ export default function ExportModal({
               <Field label={t('exportModal.default_audio_track')} hint={t('exportModal.default_audio_hint')}>
                 <select className="input-base input-base--xs" value={defaultTrack} onChange={e => setDefaultTrack(e.target.value)}>
                   {exportTracks['original'] !== false && <option value="original">{t('exportModal.original')}</option>}
-                  {(dubTracks || []).filter(t => exportTracks[t] !== false).map(t => (
-                    <option key={t} value={t}>{t.toUpperCase()} {t('exportModal.dub_suffix')}</option>
+                  {(dubTracks || []).filter(code => exportTracks[code] !== false).map(code => (
+                    <option key={code} value={code}>{code.toUpperCase()} {t('exportModal.dub_suffix')}</option>
                   ))}
                 </select>
               </Field>
@@ -315,7 +315,7 @@ export default function ExportModal({
                 {audioBatch === 'primary' && (
                   <select className="input-base input-base--xs export-modal__mt6"
                     value={audioPrimaryLang} onChange={e => setAudioPrimaryLang(e.target.value)}>
-                    {(dubTracks || []).map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
+                    {(dubTracks || []).map(code => <option key={code} value={code}>{code.toUpperCase()}</option>)}
                   </select>
                 )}
               </Field>
