@@ -134,6 +134,7 @@
     "engines": "Engines",
     "capture": "Capture",
     "sharing": "Sharing",
+    "appearance": "Appearance",
     "credentials": "Credentials",
     "proxy": "Proxy",
     "proxy_desc": "HTTP/SOCKS5 proxy for downloads (yt-dlp, HuggingFace). Supports http://, https://, socks5://. Restart required if changed after backend start.",

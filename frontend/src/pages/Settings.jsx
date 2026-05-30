@@ -11,7 +11,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Cpu, FileText, Info, ShieldCheck, RefreshCw, Trash2, ExternalLink,
   CheckCircle, AlertCircle, Plug, Download, Copy, Building2, KeyRound,
-  Keyboard, Wifi,
+  Keyboard, Wifi, Palette,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { openExternal } from '../api/external';
@@ -41,6 +41,7 @@ const TAB_DEFS = [
   { id: 'engines',     icon: Plug,         accent: '#d3869b' },
   { id: 'capture',     icon: Keyboard,     accent: '#83a598' },
   { id: 'sharing',     icon: Wifi,         accent: '#83a598' },
+  { id: 'appearance',  icon: Palette,      accent: '#d3869b' },
   { id: 'credentials', icon: KeyRound,     accent: '#fe8019' },
   { id: 'logs',        icon: FileText,     accent: '#fabd2f' },
   { id: 'about',       icon: Info,         accent: '#8ec07c' },
@@ -1256,6 +1257,8 @@ export default function Settings() {
 
       {activeTab === 'sharing' && <SharingPanel />}
 
+      {activeTab === 'appearance' && <AppearancePanel />}
+
       {activeTab === 'credentials' && <CredentialsTab info={info} />}
 
       {activeTab === 'logs' && (
@@ -1644,10 +1647,6 @@ function CredentialsTab({ info }) {
           (#65). Toggle is rendered disabled on macOS/Linux with an
           explainer; backend ignores the flag on non-Windows. */}
       <PerformancePanel />
-
-      {/* UI scale + color theme — moved out of the LogsFooter chrome so
-          the footer can focus on logs. Rarely-used prefs belong here. */}
-      <AppearancePanel />
 
       <p className="settings-prose">
         <Trans i18nKey="credentials.desc" components={{ 1: <strong /> }} />
