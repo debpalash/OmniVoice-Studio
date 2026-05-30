@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 
 def get_app_data_dir():
@@ -48,6 +49,18 @@ VOICES_DIR = os.path.join(DATA_DIR, "voices")       # Reference audio for profil
 OUTPUTS_DIR = os.path.join(DATA_DIR, "outputs")      # Generated audio files
 DUB_DIR = os.path.join(DATA_DIR, "dub_jobs")
 DB_PATH = os.path.join(DATA_DIR, "omnivoice.db")
+
+
+def dub_seg_path(job_id, seg_id):
+    """Per-segment dub WAV path keyed by the STABLE segment id (not its list
+    index), so partial regeneration reuses the right audio after a
+    delete/merge/split shifts positions (#185). The id is sanitised to a bare
+    filename (no path separators) — defends against traversal via crafted ids.
+    Note: a numeric index `i` sanitises to `seg_{i}.wav`, i.e. the legacy
+    index-based name, so old jobs keep resolving via the same helper.
+    """
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", str(seg_id))
+    return os.path.join(DUB_DIR, job_id, f"seg_{safe}.wav")
 PREVIEW_DIR = os.path.join(DATA_DIR, "preview")
 CRASH_LOG_PATH = os.path.join(DATA_DIR, "crash_log.txt")   # only written on unhandled exceptions
 LOG_PATH = os.path.join(DATA_DIR, "omnivoice.log")          # rolling runtime log — what the Settings UI reads

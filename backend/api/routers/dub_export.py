@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import FileResponse, StreamingResponse
 
 from core.db import db_conn
-from core.config import DUB_DIR
+from core.config import DUB_DIR, dub_seg_path
 from core.tasks import task_manager
 from api.routers.dub_core import _get_job
 from services.ffmpeg_utils import find_ffmpeg, run_ffmpeg
@@ -712,7 +712,15 @@ async def dub_preview_segment(job_id: str, segment_index: int):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    seg_path = os.path.join(DUB_DIR, job_id, f"seg_{segment_index}.wav")
+    # Resolve the stable-id-named WAV via the render manifest; fall back to the
+    # legacy index name for jobs rendered before id-based naming (#185).
+    order = job.get("seg_order") or []
+    seg_id = order[segment_index] if 0 <= segment_index < len(order) else segment_index
+    seg_path = dub_seg_path(job_id, seg_id)
+    if not os.path.exists(seg_path):
+        _legacy = os.path.join(DUB_DIR, job_id, f"seg_{segment_index}.wav")
+        if os.path.exists(_legacy):
+            seg_path = _legacy
     if not os.path.exists(seg_path):
         raise HTTPException(status_code=404, detail="Segment not generated yet")
     return FileResponse(seg_path, media_type="audio/wav")
@@ -873,9 +881,15 @@ async def dub_export_segments_zip(job_id: str):
         raise HTTPException(status_code=400, detail="No segments available")
 
     zip_buffer = io.BytesIO()
+    order = job.get("seg_order") or []
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         for i, seg in enumerate(segments):
-            seg_path = os.path.join(DUB_DIR, job_id, f"seg_{i}.wav")
+            seg_id = order[i] if i < len(order) else i
+            seg_path = dub_seg_path(job_id, seg_id)
+            if not os.path.exists(seg_path):
+                _legacy = os.path.join(DUB_DIR, job_id, f"seg_{i}.wav")
+                if os.path.exists(_legacy):
+                    seg_path = _legacy
             if os.path.exists(seg_path):
                 speaker = seg.get("speaker_id", "Speaker1").replace(" ", "")
                 start_str = f"{seg['start']:.2f}"

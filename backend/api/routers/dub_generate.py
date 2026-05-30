@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from core.db import db_conn
-from core.config import DUB_DIR, VOICES_DIR
+from core.config import DUB_DIR, VOICES_DIR, dub_seg_path
 from core.tasks import task_manager
 from schemas.requests import DubRequest
 from services.model_manager import get_model, _gpu_pool
@@ -135,6 +135,10 @@ async def dub_generate(job_id: str, req: DubRequest):
         # `seg_i.wav` on disk and slot into the final mix unchanged.
         regen_only = set(req.regen_only or []) if req.regen_only is not None else None
         seg_ids = req.segment_ids or []
+        # Manifest: stable segment id per current index. Per-segment WAVs are
+        # named by stable id (dub_seg_path) so regen reuses the right audio after
+        # reorder; index-keyed readers (preview/export) resolve via this manifest.
+        job["seg_order"] = [seg_ids[k] if k < len(seg_ids) else f"seg_{k}" for k in range(len(req.segments))]
 
         # Deferred disk writes: collect (index, tensor, sr, seg_id, fingerprint,
         # num_step) tuples during the hot loop and batch-flush after all TTS
@@ -168,7 +172,12 @@ async def dub_generate(job_id: str, req: DubRequest):
             # Partial regen: if this segment isn't in the allow-list, reuse its
             # previously-rendered WAV so the final mix still covers the timeline.
             if regen_only is not None and seg_id not in regen_only:
-                seg_wav_path = os.path.join(DUB_DIR, job_id, f"seg_{i}.wav")
+                seg_wav_path = dub_seg_path(job_id, seg_id)
+                if not os.path.exists(seg_wav_path):
+                    # Back-compat: jobs rendered before id-named files used seg_{index}.wav.
+                    _legacy = os.path.join(DUB_DIR, job_id, f"seg_{i}.wav")
+                    if os.path.exists(_legacy):
+                        seg_wav_path = _legacy
                 if os.path.exists(seg_wav_path):
                     try:
                         _t_cache_0 = time.perf_counter()
@@ -428,7 +437,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                 # RVC needs the WAV on disk, so write it immediately only
                 # when RVC is active (uncommon path).
                 if rvc_is_enabled():
-                    seg_wav_path = os.path.join(DUB_DIR, job_id, f"seg_{i}.wav")
+                    seg_wav_path = dub_seg_path(job_id, seg_id)
                     atomic_save_wav(seg_wav_path, audio_tensor, _model.sampling_rate)
                     try:
                         await loop.run_in_executor(_gpu_pool, apply_rvc, seg_wav_path)
@@ -464,7 +473,7 @@ async def dub_generate(job_id: str, req: DubRequest):
         hashes = job.setdefault("seg_hashes", {})
         quality_map = job.setdefault("seg_num_step", {})
         for (_si, _wav, _sr, _sid, _fp, _nstep) in _pending_seg_writes:
-            seg_wav_path = os.path.join(DUB_DIR, job_id, f"seg_{_si}.wav")
+            seg_wav_path = dub_seg_path(job_id, _sid)
             try:
                 # Apply invisible watermark before writing to disk
                 _wav = embed_watermark(_wav, _sr)
