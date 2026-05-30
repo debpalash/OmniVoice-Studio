@@ -622,6 +622,37 @@ app.include_router(settings_router.router)  # Phase 1 AUTH-03 endpoints
 
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.exists(frontend_path):
+    # ── Runtime API-base override (Docker / reverse-proxy deployments) ──────
+    # When OMNIVOICE_PUBLIC_API_BASE is set we inject it into index.html as
+    # `window.__OMNIVOICE_API_BASE__`, which the SPA's API resolver reads first.
+    # Unset (the default) → StaticFiles serves index.html untouched: same-origin,
+    # zero overhead, no behavior change. See core/spa_inject.py.
+    from core.spa_inject import is_valid_public_api_base, inject_api_base
+
+    _public_api_base = os.environ.get("OMNIVOICE_PUBLIC_API_BASE", "").strip().rstrip("/")
+    _index_path = os.path.join(frontend_path, "index.html")
+    if _public_api_base and not is_valid_public_api_base(_public_api_base):
+        logging.getLogger("omnivoice.api").warning(
+            "OMNIVOICE_PUBLIC_API_BASE=%r is not a valid http(s) URL; ignoring.",
+            _public_api_base,
+        )
+        _public_api_base = ""
+
+    if _public_api_base and os.path.isfile(_index_path):
+        from fastapi.responses import HTMLResponse
+
+        def _index_with_api_base() -> "HTMLResponse":
+            with open(_index_path, "r", encoding="utf-8") as _fh:
+                return HTMLResponse(inject_api_base(_fh.read(), _public_api_base))
+
+        @app.get("/", include_in_schema=False)
+        def _index_root():
+            return _index_with_api_base()
+
+        @app.get("/index.html", include_in_schema=False)
+        def _index_html():
+            return _index_with_api_base()
+
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 else:
 

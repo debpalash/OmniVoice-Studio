@@ -63,17 +63,26 @@ services:
       - "0.0.0.0:3900:3900"   # ← was 127.0.0.1:3900:3900
 ```
 
-The OmniVoice frontend uses `window.location.host` for its API base when no
-explicit override is set, so opening the UI from `http://<lan-ip>:3900` Just
-Works for both the page load *and* the media-preview requests it kicks off
-afterwards. If you front the app with a reverse proxy and the API and UI
-land on different origins, pin the API base explicitly:
+The OmniVoice frontend defaults to the **same origin** the page was served
+from, so opening the UI from `http://<lan-ip>:3900` Just Works for both the
+page load *and* the API/media requests it makes afterwards.
+
+If you front the app with a **reverse proxy** and the API and UI land on
+different origins, pin the API base explicitly. Use **`OMNIVOICE_PUBLIC_API_BASE`**
+— a *runtime* env var the backend injects into the page, so it works with the
+prebuilt image via `docker run -e` (the older `VITE_OMNIVOICE_API` is inlined at
+*build* time and cannot be set on a prebuilt image):
 
 ```bash
-docker run -e VITE_OMNIVOICE_API=https://api.your-host.example \
+docker run -e OMNIVOICE_PUBLIC_API_BASE=https://api.your-host.example \
   -p 0.0.0.0:3900:3900 \
   ghcr.io/debpalash/omnivoice-studio:latest
 ```
+
+> `OMNIVOICE_PUBLIC_API_BASE` must be a plain `http(s)://…` URL; anything else
+> is ignored and the app falls back to same-origin. If you build from source you
+> may instead bake `VITE_OMNIVOICE_API` at build time, but the runtime var above
+> is simpler and image-agnostic.
 
 > **Security:** OmniVoice ships no authentication. Anything on your LAN with
 > the URL can use the app. Put it behind a reverse proxy with `basic_auth`

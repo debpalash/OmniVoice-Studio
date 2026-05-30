@@ -104,9 +104,11 @@ pane shows 404s for `/media/...`.
 **Cause:** pre-v0.3, the frontend hardcoded `localhost:3900` for media-preview
 URLs, which is wrong when the UI is reached from a different LAN host.
 
-**Fix:** Plan 01-03 ships a fix that derives the media-preview base from
-`window.location.host`. See [docker.md#lan-access](docker.md#lan-access) for the
-override env var (`VITE_OMNIVOICE_API`) when running behind a reverse proxy.
+**Fix:** the frontend derives its API/media base from the page's own origin.
+When running behind a reverse proxy where the UI and API are on different
+origins, set the runtime override `OMNIVOICE_PUBLIC_API_BASE` (works on the
+prebuilt image via `docker run -e`) — see
+[docker.md#lan-access](docker.md#lan-access).
 
 ## 9. Apple Silicon `mlx-whisper` unavailable on Intel mac
 

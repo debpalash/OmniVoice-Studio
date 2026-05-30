@@ -27,6 +27,9 @@ declare global {
   interface Window {
     __TAURI_INTERNALS__?: unknown;
     __TAURI__?: unknown;
+    /** Runtime API base injected into index.html by the backend from
+     *  OMNIVOICE_PUBLIC_API_BASE (Docker / reverse-proxy deployments). */
+    __OMNIVOICE_API_BASE__?: string;
   }
 }
 
@@ -63,7 +66,16 @@ function _readEnvOverride(): string | undefined {
 }
 
 export function getApiBase(): string {
-  // 1. Explicit override always wins.
+  // 0. Runtime override injected by the backend (Docker/proxy) wins over
+  //    everything — it's the only knob a prebuilt image can turn at run time.
+  if (typeof window !== "undefined") {
+    const runtime = window.__OMNIVOICE_API_BASE__;
+    if (typeof runtime === "string" && runtime) {
+      return stripTrailingSlash(runtime);
+    }
+  }
+
+  // 1. Explicit build-time override.
   const override = _readEnvOverride();
   if (override) {
     return stripTrailingSlash(override);

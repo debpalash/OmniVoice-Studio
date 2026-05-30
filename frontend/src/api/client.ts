@@ -13,9 +13,18 @@ const viteEnv = import.meta.env ?? {};
 // re-import the module or stub import.meta.env.
 export function _resolveApiBase(env: any, win: any): string {
   const port = env?.VITE_API_PORT || '3900';
-  if (env?.VITE_API_URL) return env.VITE_API_URL;
+  // Explicit override, in precedence order:
+  //   1. window.__OMNIVOICE_API_BASE__ — RUNTIME global the backend injects
+  //      into index.html from OMNIVOICE_PUBLIC_API_BASE. The only override that
+  //      works on a prebuilt Docker image (VITE_* is inlined at build time).
+  //   2. VITE_OMNIVOICE_API — the build-time var documented for Docker/proxy
+  //      deploys and used by utils/apiBase.ts.
+  //   3. VITE_API_URL — legacy alias.
+  const runtime = win && typeof win.__OMNIVOICE_API_BASE__ === 'string' ? win.__OMNIVOICE_API_BASE__ : '';
+  const override = runtime || env?.VITE_OMNIVOICE_API || env?.VITE_API_URL;
+  if (override) return String(override).replace(/\/+$/, '');
   if (!win) return `http://127.0.0.1:${port}`;
-  if (win.__TAURI__) return `http://127.0.0.1:${port}`;
+  if (win.__TAURI__ || win.__TAURI_INTERNALS__) return `http://127.0.0.1:${port}`;
   if (env?.DEV) return `http://${win.location.hostname}:${port}`;
   return win.location.origin;
 }
