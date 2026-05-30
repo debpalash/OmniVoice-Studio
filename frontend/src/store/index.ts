@@ -33,8 +33,10 @@ import type { GenerateSlice } from './generateSlice';
 import { createGenerateSlice } from './generateSlice';
 import type { PillSlice } from './pillSlice';
 import { createPillSlice } from './pillSlice';
+import type { StoriesSlice } from './storiesSlice';
+import { createStoriesSlice } from './storiesSlice';
 
-export type AppStore = PrefsSlice & GlossarySlice & UiSlice & DubSlice & GenerateSlice & PillSlice;
+export type AppStore = PrefsSlice & GlossarySlice & UiSlice & DubSlice & GenerateSlice & PillSlice & StoriesSlice;
 
 /**
  * `useAppStore` — single root store. Don't create siblings. Slices compose here.
@@ -52,6 +54,7 @@ export const useAppStore = create<AppStore>()(
       ...createDubSlice(set, get, api),
       ...createGenerateSlice(set, get, api),
       ...createPillSlice(set, get, api),
+      ...createStoriesSlice(set, get, api),
     }),
     {
       name: 'omnivoice.app',
@@ -85,6 +88,11 @@ export const useAppStore = create<AppStore>()(
         denoise:       s.denoise,
         postprocess:   s.postprocess,
         vdStates:      s.vdStates,
+        // Stories Editor — persist the project; strip transient runtime fields
+        // (generating, audioUrl) so a dead blob: URL / stuck spinner never rehydrates.
+        storyTracks:   s.storyTracks.map(({ id, character, text, profileId, emotion, speed }) =>
+                          ({ id, character, text, profileId, emotion, speed })),
+        cast:          s.cast,
       }),
       version: 4,
       // Drop old persisted shapes rather than crashing the app. Every field
