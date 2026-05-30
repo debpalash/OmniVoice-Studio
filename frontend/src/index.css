@@ -2110,7 +2110,7 @@ div[role="dialog"].audio-trimmer {
   background: var(--chrome-bg);
   border: 1px solid var(--chrome-border);
   border-radius: 0;
-  padding: 14px 16px;
+  padding: 10px 12px;
   position: relative;
   overflow: auto;
   display: flex; flex-direction: column;
