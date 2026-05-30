@@ -10,12 +10,14 @@
  * Spec: docs/superpowers/specs/2026-05-30-stories-editor-studio-design.md
  */
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Plus, Play, Trash2, GripVertical, BookOpen, Mic, Download, Scissors, Pause as PauseIcon, Users, X } from 'lucide-react';
+import { Plus, Play, Trash2, GripVertical, BookOpen, Mic, Download, Scissors, Pause as PauseIcon, Users, X, Upload, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { Button, Menu } from '../ui';
 import { useAppStore } from '../store';
 import { parseStoryText, hasStoryMarkers, applyInlineVoice } from '../utils/storyTokens';
+import { parseScript } from '../utils/parseScript';
+import { importToText } from '../utils/importStory';
 import { generateSpeech } from '../api/generate';
 import { exportStoryAudio } from '../utils/storyExport';
 import { reorder } from '../utils/storyReorder';
@@ -68,6 +70,7 @@ export default function StoriesEditor({ profiles = [] }) {
   const tracks = useAppStore((s) => s.storyTracks);
   const setStoryTracks = useAppStore((s) => s.setStoryTracks);
   const cast = useAppStore((s) => s.cast);
+  const setCast = useAppStore((s) => s.setCast);
   const upsertCastMember = useAppStore((s) => s.upsertCastMember);
   const removeCastMember = useAppStore((s) => s.removeCastMember);
   const setCharacterVoice = useAppStore((s) => s.setCharacterVoice);
@@ -93,6 +96,7 @@ export default function StoriesEditor({ profiles = [] }) {
   const [exporting, setExporting] = useState(false);
   const [exportPct, setExportPct] = useState(0);
   const trackTextRefs = useRef(new Map());
+  const fileInputRef = useRef(null);
   const dragId = useRef(null);
   const [dragOver, setDragOver] = useState(null);
 
@@ -109,6 +113,50 @@ export default function StoriesEditor({ profiles = [] }) {
     setTracks((prev) => prev.map((tk) => (tk.character === id ? { ...tk, character: 'narrator' } : tk)));
     removeCastMember(id);
   }, [removeCastMember, setTracks]);
+
+  // ── Auto-cast: detect speakers in pasted/imported text, build cast + lines ─
+  const slug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'char';
+
+  const autoCast = useCallback(() => {
+    const parsed = parseScript(splitText);
+    if (!parsed.length) { toast.error(t('stories.autocastEmpty')); return; }
+    const speakers = [...new Set(parsed.map((p) => p.speaker))];
+    const newCast = cast.map((c) => ({ ...c }));
+    const idFor = {};
+    let voiceIdx = 0;
+    const assignVoice = () => (profiles.length ? profiles[voiceIdx++ % profiles.length].id : null);
+    for (const sp of speakers) {
+      const id = sp.toLowerCase() === 'narrator' ? 'narrator' : slug(sp);
+      idFor[sp] = id;
+      const existing = newCast.find((c) => c.id === id);
+      if (!existing) {
+        newCast.push({ id, name: sp, color: nextCastColor(newCast), profileId: assignVoice() });
+      } else if (!existing.profileId && profiles.length) {
+        existing.profileId = assignVoice();
+      }
+    }
+    setCast(newCast);
+    const newTracks = parsed.map((p) => makeTrack(idFor[p.speaker], p.text));
+    setTracks((prev) => [...prev, ...newTracks]);
+    setSplitText('');
+    setSplitOpen(false);
+    setCastOpen(true);
+    toast.success(t('stories.autocastDone', { lines: newTracks.length, voices: speakers.length }));
+  }, [splitText, cast, profiles, setCast, setTracks, t]);
+
+  const onImportFile = useCallback(async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const text = importToText(file.name, await file.text());
+      setSplitText(text);
+      setSplitOpen(true);
+    } catch (err) {
+      console.warn('Story import failed:', err);
+      toast.error(t('stories.importFailed'));
+    }
+  }, [t]);
 
   // ── Paste & auto-split ───────────────────────────────────────────────────
   const applySplit = useCallback(() => {
@@ -267,8 +315,12 @@ export default function StoriesEditor({ profiles = [] }) {
           <p className="stories-editor__subtitle">{t('stories.subtitle')}</p>
         </div>
         <div className="stories-editor__actions">
+          <input ref={fileInputRef} type="file" accept=".txt,.srt,text/plain" onChange={onImportFile} hidden />
           <Button size="sm" variant="ghost" onClick={() => setCastOpen((v) => !v)} aria-label={t('stories.cast')}>
             <Users size={13} /> {t('stories.cast')}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => fileInputRef.current && fileInputRef.current.click()} aria-label={t('stories.import')}>
+            <Upload size={13} /> {t('stories.import')}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setSplitOpen((v) => !v)} aria-label={t('stories.pasteSplit')}>
             <Scissors size={13} /> {t('stories.pasteSplit')}
@@ -351,8 +403,11 @@ export default function StoriesEditor({ profiles = [] }) {
                 : t('stories.pasteAbove')}
             </span>
             <Button size="sm" variant="ghost" onClick={() => { setSplitText(''); setSplitOpen(false); }}>{t('stories.cancel')}</Button>
-            <Button size="sm" onClick={applySplit} disabled={!splitText.trim()}>
+            <Button size="sm" variant="ghost" onClick={applySplit} disabled={!splitText.trim()}>
               <Scissors size={13} /> {t('stories.splitIntoTracks')}
+            </Button>
+            <Button size="sm" onClick={autoCast} disabled={!splitText.trim()} title={t('stories.autocastHint')}>
+              <Sparkles size={13} /> {t('stories.autocast')}
             </Button>
           </div>
         </div>
