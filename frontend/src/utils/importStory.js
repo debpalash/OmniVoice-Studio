@@ -10,7 +10,10 @@ export function parseSrt(content) {
   for (const b of blocks) {
     const lines = b.split('\n').map((l) => l.trim()).filter(Boolean);
     const text = lines
-      .filter((l) => !/^\d+$/.test(l) && !/-->/.test(l))
+      // Drop the cue index line (digits only) and the timestamp line. Use a
+      // plain substring check for the SRT time arrow — a `/-->/` regex trips
+      // CodeQL's js/bad-tag-filter (it mistakes it for HTML-comment filtering).
+      .filter((l) => !/^\d+$/.test(l) && !l.includes('-->'))
       .join(' ')
       .trim();
     if (text) out.push(text);
