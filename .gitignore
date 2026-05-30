@@ -119,3 +119,11 @@ research/
 marketing.md
 .coverage
 /engines/
+
+# ─────────────────────────────────────────────────────────────────────────
+#  Local planning tooling (Spec Kit / GSD) — not part of OmniVoice.
+#  NOTE: .claude/skills/omnivoice/ (the MCP skill) IS tracked — only the
+#  speckit-* helper skills + .specify config are ignored.
+# ─────────────────────────────────────────────────────────────────────────
+.specify/
+.claude/skills/speckit-*/
