@@ -17,6 +17,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import { Plus, Play, Trash2, GripVertical, BookOpen, Mic, Download, Scissors, Pause as PauseIcon, Users } from 'lucide-react';
 import { Button, Menu } from '../ui';
 import { parseStoryText, hasStoryMarkers, applyInlineVoice } from '../utils/storyTokens';
+import { generateSpeech } from '../api/generate';
 import './StoriesEditor.css';
 
 // Sentence-aware splitter for the "Paste & auto-split" panel. Walks the
@@ -145,11 +146,15 @@ export default function StoriesEditor({ profiles = [], onGenerate }) {
   }, []);
 
   const fetchChunkAudio = useCallback(async (text, profileId) => {
-    const res = await fetch('/api/dub/preview-segment/__stories__', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, profile_id: profileId || null, speed: 1.0 }),
-    });
+    // Route through the standalone /generate endpoint (job-less TTS) via the
+    // shared api client — same-origin + PIN-aware. The old
+    // /api/dub/preview-segment/__stories__ path 404'd: that route needs a real
+    // dub job, and the bare relative URL skipped the API base entirely (#122-adjacent).
+    const fd = new FormData();
+    fd.append('text', text);
+    fd.append('speed', '1.0');
+    if (profileId) fd.append('profile_id', profileId);
+    const res = await generateSpeech(fd);
     if (!res.ok) throw new Error(`Preview HTTP ${res.status}`);
     const blob = await res.blob();
     return URL.createObjectURL(blob);
