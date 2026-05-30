@@ -10,12 +10,12 @@
  * Spec: docs/superpowers/specs/2026-05-30-stories-editor-studio-design.md
  */
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Plus, Play, Trash2, GripVertical, BookOpen, Mic, Download, Scissors, Pause as PauseIcon, Users, X, Upload, Sparkles } from 'lucide-react';
+import { Plus, Play, Trash2, GripVertical, BookOpen, Mic, Download, Scissors, Pause as PauseIcon, Users, X, Upload, Sparkles, SlidersHorizontal } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { Button, Menu } from '../ui';
 import { useAppStore } from '../store';
-import { parseStoryText, hasStoryMarkers, applyInlineVoice } from '../utils/storyTokens';
+import { parseStoryText, hasStoryMarkers, applyInlineVoice, insertToken } from '../utils/storyTokens';
 import { parseScript } from '../utils/parseScript';
 import { importToText } from '../utils/importStory';
 import { generateSpeech } from '../api/generate';
@@ -63,6 +63,17 @@ function genCastId() {
   return `c_${rnd}`;
 }
 
+// Curated inline emotion/sound tags (a subset of utils/constants TAGS) for the
+// per-line tone drawer. Inserting a tag is the model-native way to direct tone.
+const STORY_TONES = [
+  { tag: '[laughter]', icon: '😄', key: 'laugh' },
+  { tag: '[sigh]', icon: '😮‍💨', key: 'sigh' },
+  { tag: '[question-en]', icon: '❓', key: 'question' },
+  { tag: '[surprise-wa]', icon: '😲', key: 'surprise' },
+  { tag: '[confirmation-en]', icon: '✅', key: 'confirm' },
+  { tag: '[dissatisfaction-hnn]', icon: '😒', key: 'dissatisfaction' },
+];
+
 export default function StoriesEditor({ profiles = [] }) {
   const { t } = useTranslation();
 
@@ -95,6 +106,7 @@ export default function StoriesEditor({ profiles = [] }) {
   const [splitMax, setSplitMax] = useState(180);
   const [exporting, setExporting] = useState(false);
   const [exportPct, setExportPct] = useState(0);
+  const [expandedLine, setExpandedLine] = useState(null);
   const trackTextRefs = useRef(new Map());
   const fileInputRef = useRef(null);
   const dragId = useRef(null);
@@ -179,23 +191,12 @@ export default function StoriesEditor({ profiles = [] }) {
     }));
   }, [setTracks]);
 
-  const insertPauseInto = useCallback((trackId) => {
+  const insertTokenInto = useCallback((trackId, token) => {
     const el = trackTextRefs.current.get(trackId);
-    const token = '[pause 0.5s]';
-    setTracks((prev) => prev.map((tk) => {
-      if (tk.id !== trackId) return tk;
-      const pos = el?.selectionStart;
-      if (pos != null && pos >= 0 && pos <= tk.text.length) {
-        const before = tk.text.slice(0, pos);
-        const after = tk.text.slice(pos);
-        const left = before.length && !/\s$/.test(before) ? `${before} ` : before;
-        const right = after.length && !/^\s/.test(after) ? ` ${after}` : after;
-        return { ...tk, text: `${left}${token}${right}` };
-      }
-      const sep = tk.text.length && !/\s$/.test(tk.text) ? ' ' : '';
-      return { ...tk, text: `${tk.text}${sep}${token}` };
-    }));
+    const caret = el ? el.selectionStart : null;
+    setTracks((prev) => prev.map((tk) => (tk.id === trackId ? { ...tk, text: insertToken(tk.text, caret, token) } : tk)));
   }, [setTracks]);
+  const insertPauseInto = useCallback((trackId) => insertTokenInto(trackId, '[pause 0.5s]'), [insertTokenInto]);
 
   const addTrack = useCallback(() => setTracks((prev) => [...prev, makeTrack()]), [setTracks]);
   const removeTrack = useCallback((id) => setTracks((prev) => prev.filter((tk) => tk.id !== id)), [setTracks]);
@@ -204,17 +205,17 @@ export default function StoriesEditor({ profiles = [] }) {
   }, [setTracks]);
 
   // ── Synthesis (preview + export share one fetch) ─────────────────────────
-  const fetchChunkBlob = useCallback(async (text, profileId) => {
+  const fetchChunkBlob = useCallback(async (text, profileId, speed = 1.0) => {
     const fd = new FormData();
     fd.append('text', text);
-    fd.append('speed', '1.0');
+    fd.append('speed', String(speed || 1.0));
     if (profileId) fd.append('profile_id', profileId);
     const res = await generateSpeech(fd); // apiFetch: same-origin + PIN-aware
     return res.blob();
   }, []);
 
-  const fetchChunkAudio = useCallback(async (text, profileId) => {
-    const blob = await fetchChunkBlob(text, profileId);
+  const fetchChunkAudio = useCallback(async (text, profileId, speed = 1.0) => {
+    const blob = await fetchChunkBlob(text, profileId, speed);
     return URL.createObjectURL(blob);
   }, [fetchChunkBlob]);
 
@@ -222,11 +223,12 @@ export default function StoriesEditor({ profiles = [] }) {
     const raw = (track.text || '').trim();
     if (!raw) return;
     const pid = effectiveProfile(track, cast);
+    const spd = track.speed || 1.0;
     setTracks((prev) => prev.map((tk) => (tk.id === track.id ? { ...tk, generating: true } : tk)));
 
     if (!hasStoryMarkers(raw)) {
       try {
-        const url = await fetchChunkAudio(raw, pid);
+        const url = await fetchChunkAudio(raw, pid, spd);
         setTracks((prev) => prev.map((tk) => (tk.id === track.id ? { ...tk, audioUrl: url, generating: false } : tk)));
         const audio = new Audio(url);
         audio.play().catch(() => {});
@@ -240,7 +242,7 @@ export default function StoriesEditor({ profiles = [] }) {
     const parsed = parseStoryText(raw, pid);
     try {
       const audioUrls = await Promise.all(
-        parsed.map((seg) => (seg.type === 'chunk' ? fetchChunkAudio(seg.text, seg.profileId) : Promise.resolve(null))),
+        parsed.map((seg) => (seg.type === 'chunk' ? fetchChunkAudio(seg.text, seg.profileId, spd) : Promise.resolve(null))),
       );
       let cursor = 0;
       const finish = () => {
@@ -278,7 +280,7 @@ export default function StoriesEditor({ profiles = [] }) {
     try {
       const blob = await exportStoryAudio(
         usable,
-        (tk) => effectiveProfile(tk, cast),
+        (tk) => ({ profileId: effectiveProfile(tk, cast), speed: tk.speed || 1.0 }),
         fetchChunkBlob,
         (d, total) => setExportPct(total ? Math.round((d / total) * 100) : 0),
       );
@@ -499,6 +501,9 @@ export default function StoriesEditor({ profiles = [] }) {
                       <Users size={12} />
                     </button>
                   </Menu>
+                  <button className={`stories-track__btn ${expandedLine === track.id ? 'stories-track__btn--on' : ''}`} onClick={(e) => { e.stopPropagation(); setExpandedLine((id) => (id === track.id ? null : track.id)); }} title={t('stories.tune')} aria-label={t('stories.tune')}>
+                    <SlidersHorizontal size={12} />
+                  </button>
                   <button className="stories-track__btn" onClick={(e) => { e.stopPropagation(); insertPauseInto(track.id); }} title={t('stories.insertPause')} aria-label={t('stories.insertPause')}>
                     <PauseIcon size={12} />
                   </button>
@@ -509,6 +514,30 @@ export default function StoriesEditor({ profiles = [] }) {
                     <Trash2 size={12} />
                   </button>
                 </div>
+
+                {expandedLine === track.id && (
+                  <div className="stories-track__drawer" onClick={(e) => e.stopPropagation()}>
+                    <div className="stories-track__tones">
+                      {STORY_TONES.map((tn) => (
+                        <button key={tn.tag} type="button" className="stories-track__tone" onClick={() => insertTokenInto(track.id, tn.tag)} title={tn.tag}>
+                          <span aria-hidden="true">{tn.icon}</span> {t(`stories.tones.${tn.key}`)}
+                        </button>
+                      ))}
+                    </div>
+                    <label className="stories-track__speed">
+                      <span>{t('stories.speed')}</span>
+                      <input
+                        type="range" min="0.5" max="2" step="0.05" value={track.speed || 1}
+                        onChange={(e) => updateTrack(track.id, 'speed', parseFloat(e.target.value))}
+                        aria-label={t('stories.speed')}
+                      />
+                      <span className="stories-track__speed-val">{(track.speed || 1).toFixed(2)}×</span>
+                      {track.speed != null && (
+                        <button type="button" className="stories-track__reset" onClick={() => updateTrack(track.id, 'speed', null)}>{t('stories.reset')}</button>
+                      )}
+                    </label>
+                  </div>
+                )}
               </div>
             );
           })}

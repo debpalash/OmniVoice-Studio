@@ -37,6 +37,17 @@
     "insertPause": "Insert a [pause 0.5s] break",
     "preview": "Preview this line",
     "removeLine": "Remove line",
+    "tune": "Tone & speed",
+    "speed": "Speed",
+    "reset": "Reset",
+    "tones": {
+      "laugh": "Laugh",
+      "sigh": "Sigh",
+      "question": "Question",
+      "surprise": "Surprise",
+      "confirm": "Confirm",
+      "dissatisfaction": "Hmph"
+    },
     "lines": "{{count}} lines",
     "characters": "{{count}} characters",
     "minutes": "~{{count}} min",

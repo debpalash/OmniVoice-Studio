@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseStoryText, hasStoryMarkers, applyInlineVoice } from './storyTokens';
+import { parseStoryText, hasStoryMarkers, applyInlineVoice, insertToken } from './storyTokens';
 
 describe('parseStoryText', () => {
   it('returns a single chunk with the default voice when no markers are present', () => {
@@ -82,5 +82,20 @@ describe('applyInlineVoice', () => {
   it('clamps out-of-range indices to the text length', () => {
     const result = applyInlineVoice('xy', 99, 99, 'c');
     expect(result).toBe('xy[voice:c]');
+  });
+});
+
+describe('insertToken', () => {
+  it('inserts at the caret, padding with spaces', () => {
+    expect(insertToken('hello world', 5, '[laughter]')).toBe('hello [laughter] world');
+  });
+  it('appends to the end when the caret is null', () => {
+    expect(insertToken('hello', null, '[pause 0.5s]')).toBe('hello [pause 0.5s]');
+  });
+  it('does not add a leading space at the start of the text', () => {
+    expect(insertToken('hi', 0, '[sigh]')).toBe('[sigh] hi');
+  });
+  it('handles empty text', () => {
+    expect(insertToken('', null, '[laughter]')).toBe('[laughter]');
   });
 });

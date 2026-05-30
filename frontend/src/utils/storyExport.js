@@ -61,20 +61,22 @@ export function encodeWav(buffer, sampleRate) {
 
 /**
  * Render an ordered track list to one WAV blob.
- * @param tracks          [{ text, character, profileId }]
- * @param resolveProfile  (track) => profileId|null   // applies cast fallback
- * @param fetchChunkBlob  (text, profileId) => Promise<Blob>   // /generate WAV
+ * @param tracks          [{ text, character, profileId, speed }]
+ * @param resolveOpts     (track) => { profileId, speed }   // applies cast fallback
+ * @param fetchChunkBlob  (text, profileId, speed) => Promise<Blob>   // /generate WAV
  * @param onProgress      (done, total) => void
  * @returns Blob (audio/wav)
  */
-export async function exportStoryAudio(tracks, resolveProfile, fetchChunkBlob, onProgress) {
+export async function exportStoryAudio(tracks, resolveOpts, fetchChunkBlob, onProgress) {
   const Ctx = window.AudioContext || window.webkitAudioContext;
   const ctx = new Ctx();
   try {
     const segments = [];
     for (const tk of tracks) {
-      const pid = resolveProfile(tk);
-      for (const seg of parseStoryText(tk.text || '', pid)) segments.push(seg);
+      const opts = resolveOpts(tk) || {};
+      for (const seg of parseStoryText(tk.text || '', opts.profileId)) {
+        segments.push(seg.type === 'chunk' ? { ...seg, speed: opts.speed } : seg);
+      }
     }
     const chunkCount = segments.filter((s) => s.type === 'chunk').length;
     let done = 0;
@@ -84,7 +86,7 @@ export async function exportStoryAudio(tracks, resolveProfile, fetchChunkBlob, o
         buffers.push(silenceBuffer(seg.seconds, ctx.sampleRate));
         continue;
       }
-      const blob = await fetchChunkBlob(seg.text, seg.profileId);
+      const blob = await fetchChunkBlob(seg.text, seg.profileId, seg.speed);
       const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
       buffers.push(decoded); // decodeAudioData resamples to ctx.sampleRate → safe to concat
       onProgress?.(++done, chunkCount);

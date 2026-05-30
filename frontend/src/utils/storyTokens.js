@@ -76,3 +76,21 @@ export function applyInlineVoice(text, selectionStart, selectionEnd, voiceId) {
   }
   return `${before}[voice:${voiceId}]${middle}[voice:default]${after}`;
 }
+
+/**
+ * Insert `token` (e.g. `[pause 0.5s]` or `[laughter]`) at `caret`, padding with
+ * spaces so it survives a re-split and never glues onto a word. With a null/
+ * out-of-range caret it appends to the end. Pure — the caller updates state.
+ */
+export function insertToken(text, caret, token) {
+  const t = String(text || '');
+  if (caret == null || caret < 0 || caret > t.length) {
+    const sep = t.length && !/\s$/.test(t) ? ' ' : '';
+    return `${t}${sep}${token}`;
+  }
+  const before = t.slice(0, caret);
+  const after = t.slice(caret);
+  const left = before.length && !/\s$/.test(before) ? `${before} ` : before;
+  const right = after.length && !/^\s/.test(after) ? ` ${after}` : after;
+  return `${left}${token}${right}`;
+}

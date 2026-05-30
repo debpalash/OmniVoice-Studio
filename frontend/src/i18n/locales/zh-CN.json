@@ -37,6 +37,17 @@
     "insertPause": "插入 [pause 0.5s] 停顿",
     "preview": "试听这句",
     "removeLine": "移除台词",
+    "tune": "语气与语速",
+    "speed": "语速",
+    "reset": "重置",
+    "tones": {
+      "laugh": "笑",
+      "sigh": "叹气",
+      "question": "疑问",
+      "surprise": "惊讶",
+      "confirm": "确认",
+      "dissatisfaction": "不满"
+    },
     "lines": "{{count}} 句",
     "characters": "{{count}} 个角色",
     "minutes": "约 {{count}} 分钟",
