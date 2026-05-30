@@ -6,6 +6,8 @@ constant can differ from the instance dub_seg_path closes over.
 """
 import os
 
+import pytest
+
 from core.config import dub_seg_path
 
 
@@ -25,3 +27,10 @@ def test_sanitises_against_path_traversal():
     assert os.path.basename(p) == "seg_.._.._etc_passwd.wav"  # slashes neutralised
     assert os.path.basename(os.path.dirname(p)) == "job1"      # stays in the job dir
     assert os.path.basename(dub_seg_path("job1", "a b/c")) == "seg_a_b_c.wav"
+
+
+def test_rejects_parent_dir_job_id():
+    # A bare ".." component survives sanitisation (dots are allowed) but the
+    # realpath containment guard rejects it.
+    with pytest.raises(ValueError):
+        dub_seg_path("..", "5")

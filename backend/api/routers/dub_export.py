@@ -718,7 +718,7 @@ async def dub_preview_segment(job_id: str, segment_index: int):
     seg_id = order[segment_index] if 0 <= segment_index < len(order) else segment_index
     seg_path = dub_seg_path(job_id, seg_id)
     if not os.path.exists(seg_path):
-        _legacy = os.path.join(DUB_DIR, job_id, f"seg_{segment_index}.wav")
+        _legacy = dub_seg_path(job_id, segment_index)
         if os.path.exists(_legacy):
             seg_path = _legacy
     if not os.path.exists(seg_path):
@@ -887,7 +887,7 @@ async def dub_export_segments_zip(job_id: str):
             seg_id = order[i] if i < len(order) else i
             seg_path = dub_seg_path(job_id, seg_id)
             if not os.path.exists(seg_path):
-                _legacy = os.path.join(DUB_DIR, job_id, f"seg_{i}.wav")
+                _legacy = dub_seg_path(job_id, i)
                 if os.path.exists(_legacy):
                     seg_path = _legacy
             if os.path.exists(seg_path):

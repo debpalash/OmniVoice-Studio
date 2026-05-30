@@ -175,7 +175,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                 seg_wav_path = dub_seg_path(job_id, seg_id)
                 if not os.path.exists(seg_wav_path):
                     # Back-compat: jobs rendered before id-named files used seg_{index}.wav.
-                    _legacy = os.path.join(DUB_DIR, job_id, f"seg_{i}.wav")
+                    _legacy = dub_seg_path(job_id, i)
                     if os.path.exists(_legacy):
                         seg_wav_path = _legacy
                 if os.path.exists(seg_wav_path):
