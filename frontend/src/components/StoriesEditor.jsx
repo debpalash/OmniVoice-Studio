@@ -19,6 +19,7 @@ import { parseStoryText, hasStoryMarkers, applyInlineVoice, insertToken } from '
 import { parseScript } from '../utils/parseScript';
 import { importToText } from '../utils/importStory';
 import { generateSpeech } from '../api/generate';
+import { encodeAudio } from '../api/stories';
 import { exportStoryAudio, exportStems, buildCueSheet } from '../utils/storyExport';
 import { reorder } from '../utils/storyReorder';
 import { effectiveProfile, castMember, nextCastColor } from '../utils/storyCast';
@@ -127,6 +128,7 @@ export default function StoriesEditor({ profiles = [] }) {
   const [expandedLine, setExpandedLine] = useState(null);
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [projectName, setProjectName] = useState('');
+  const [exportFormat, setExportFormat] = useState('wav');
   const trackTextRefs = useRef(new Map());
   const fileInputRef = useRef(null);
   const dragId = useRef(null);
@@ -311,6 +313,21 @@ export default function StoriesEditor({ profiles = [] }) {
     }
   }, [fetchChunkAudio, cast, setTracks]);
 
+  // Deliver a stitched WAV in the chosen format. MP3 routes through the backend
+  // ffmpeg endpoint; if that fails (e.g. no ffmpeg), fall back to the raw WAV.
+  const deliver = useCallback(async (wavBlob, baseName) => {
+    if (exportFormat === 'mp3') {
+      try {
+        download(await encodeAudio(wavBlob, 'mp3'), `${baseName}.mp3`);
+        return;
+      } catch (err) {
+        console.warn('MP3 encode failed; falling back to WAV:', err);
+        toast(t('stories.mp3Fallback'), { icon: '⚠️' });
+      }
+    }
+    download(wavBlob, `${baseName}.wav`);
+  }, [exportFormat, t]);
+
   const generateAll = useCallback(async () => {
     const usable = tracks.filter((tk) => (tk.text || '').trim());
     if (!usable.length || exporting) return;
@@ -323,7 +340,7 @@ export default function StoriesEditor({ profiles = [] }) {
         fetchChunkBlob,
         (d, total) => setExportPct(total ? Math.round((d / total) * 100) : 0),
       );
-      download(blob, 'story.wav');
+      await deliver(blob, 'story');
       if (chapters.length) download(new Blob([buildCueSheet(chapters)], { type: 'text/plain' }), 'story-chapters.txt');
       toast.success(t('stories.exportDone'));
     } catch (err) {
@@ -332,7 +349,7 @@ export default function StoriesEditor({ profiles = [] }) {
     } finally {
       setExporting(false);
     }
-  }, [tracks, cast, fetchChunkBlob, exporting, t]);
+  }, [tracks, cast, fetchChunkBlob, exporting, deliver, t]);
 
   const exportStemsAll = useCallback(async () => {
     const usable = tracks.filter((tk) => (tk.text || '').trim());
@@ -348,7 +365,7 @@ export default function StoriesEditor({ profiles = [] }) {
       );
       for (const s of stems) {
         const name = ((castMember(cast, s.character) || {}).name || s.character).replace(/[^\w-]+/g, '_');
-        download(s.blob, `story-${name}.wav`);
+        await deliver(s.blob, `story-${name}`);
       }
       toast.success(t('stories.stemsDone', { count: stems.length }));
     } catch (err) {
@@ -357,7 +374,7 @@ export default function StoriesEditor({ profiles = [] }) {
     } finally {
       setExporting(false);
     }
-  }, [tracks, cast, fetchChunkBlob, exporting, t]);
+  }, [tracks, cast, fetchChunkBlob, exporting, deliver, t]);
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   const totalChars = tracks.reduce((acc, tk) => acc + tk.text.length, 0);
@@ -397,6 +414,16 @@ export default function StoriesEditor({ profiles = [] }) {
           <Button size="sm" variant="ghost" onClick={exportStemsAll} disabled={tracks.length === 0 || exporting} aria-label={t('stories.stems')}>
             <Layers size={13} /> {t('stories.stems')}
           </Button>
+          <select
+            className="stories-editor__format"
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value)}
+            aria-label={t('stories.format')}
+            title={t('stories.format')}
+          >
+            <option value="wav">WAV</option>
+            <option value="mp3">MP3</option>
+          </select>
           <Button size="sm" onClick={generateAll} disabled={tracks.length === 0 || exporting}>
             <Download size={13} /> {exporting ? `${exportPct}%` : t('stories.generateAll')}
           </Button>

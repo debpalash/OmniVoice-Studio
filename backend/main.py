@@ -295,6 +295,7 @@ from api.routers import (
     glossary,
     engines,
     tools,
+    stories,
     setup,
     gallery,
     batch,
@@ -620,6 +621,7 @@ app.include_router(projects.router)
 app.include_router(glossary.router)
 app.include_router(engines.router)
 app.include_router(tools.router)
+app.include_router(stories.router)
 app.include_router(setup.router)
 app.include_router(gallery.router)
 app.include_router(batch.router)

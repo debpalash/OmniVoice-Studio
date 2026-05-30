@@ -22,6 +22,8 @@
     "chapterN": "Chapter {{n}}",
     "stems": "Stems",
     "stemsDone": "Exported {{count}} character stem(s)",
+    "format": "Export format",
+    "mp3Fallback": "MP3 encode unavailable — downloaded WAV instead.",
     "projects": "Projects",
     "newStory": "New story",
     "save": "Save",

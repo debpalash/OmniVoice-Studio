@@ -22,6 +22,8 @@
     "chapterN": "第 {{n}} 章",
     "stems": "分轨",
     "stemsDone": "已导出 {{count}} 个角色分轨",
+    "format": "导出格式",
+    "mp3Fallback": "MP3 编码不可用 — 已改为下载 WAV。",
     "projects": "项目",
     "newStory": "新建故事",
     "save": "保存",
