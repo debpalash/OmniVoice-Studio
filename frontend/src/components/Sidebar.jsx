@@ -106,7 +106,7 @@ export default function Sidebar(props) {
             style={{ '--sidebar-tab-accent': accent }}
             title={`${tabLabel[id]} (${tabCount[id]})`}
           >
-            <Icon size={13} />
+            <Icon size={isSidebarCollapsed ? 18 : 13} />
             {tabCount[id] > 0 && <span className="sidebar__tab-badge">{tabCount[id]}</span>}
           </button>
         ))}
