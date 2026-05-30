@@ -1,14 +1,25 @@
-// Backend base URL. Configurable via VITE_API_URL or VITE_API_PORT env vars.
-// In production Tauri builds, the webview talks to the sidecar on localhost.
+// Backend base URL.
+//   • VITE_API_URL                → explicit override (any deploy).
+//   • Tauri webview               → the local sidecar (127.0.0.1:<port>).
+//   • Vite dev server (import.meta.env.DEV) → backend on :<port> (the dev
+//     SPA runs on :3901 and the backend on :3900; CORS allows the dev origin).
+//   • Anything else (served BY the backend itself — the LAN-share listener,
+//     Docker, or a prod build) → SAME ORIGIN. That server serves both the SPA
+//     and the API, so a remote device on http://<host>:<share-port> must hit
+//     that same origin — NOT a hardcoded :3900, which is cross-origin (CORS)
+//     and loopback-only/unreachable from another machine.
 const viteEnv = import.meta.env ?? {};
-const _port = viteEnv.VITE_API_PORT || '3900';
-// In Tauri builds the backend is always on localhost; in Docker/remote deployments
-// use window.location.hostname so the browser can reach the server remotely.
-const _host =
-  typeof window !== 'undefined' && window.__TAURI__
-    ? '127.0.0.1'
-    : (typeof window !== 'undefined' ? window.location.hostname : '127.0.0.1');
-export const API = viteEnv.VITE_API_URL || `http://${_host}:${_port}`;
+// Pure + exported for unit testing — takes env + window so tests don't need to
+// re-import the module or stub import.meta.env.
+export function _resolveApiBase(env: any, win: any): string {
+  const port = env?.VITE_API_PORT || '3900';
+  if (env?.VITE_API_URL) return env.VITE_API_URL;
+  if (!win) return `http://127.0.0.1:${port}`;
+  if (win.__TAURI__) return `http://127.0.0.1:${port}`;
+  if (env?.DEV) return `http://${win.location.hostname}:${port}`;
+  return win.location.origin;
+}
+export const API = _resolveApiBase(viteEnv, typeof window !== 'undefined' ? window : undefined);
 
 // Capture a QR-supplied PIN once on load. When LAN sharing is on, the host's
 // QR code links to `http://<lan-ip>:<port>/?pin=<pin>`; stash it in
