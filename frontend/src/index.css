@@ -302,7 +302,7 @@ samp,
   /* Matches the LogsFooter's chrome: flat bg, hairline bottom border,
      no radial glow, no blur, no decorative SVG ribbon. The pulsing
      accent dot + italic logo still carry the brand. */
-  padding: 6px 16px 6px 64px;
+  padding: 3px 16px 3px 64px;
   background: var(--chrome-bg);
   border-bottom: 1px solid var(--chrome-border);
   user-select: none;
@@ -575,7 +575,7 @@ samp,
   50% { transform: scaleY(1.25); opacity: 1; }
 }
 .header-area h1 {
-  font-size: 1.1rem; font-weight: 700;
+  font-size: 1.05rem; font-weight: 700; line-height: 1.15;
   background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   letter-spacing: -0.01em;
