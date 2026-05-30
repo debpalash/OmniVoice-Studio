@@ -8,8 +8,8 @@
  */
 import React from 'react';
 import { Palette } from 'lucide-react';
-import { Segmented } from '../../ui';
-import { useAppStore } from '../../store';
+import { Segmented, Select } from '../../ui';
+import { useAppStore, FONT_OPTIONS } from '../../store';
 import './AppearancePanel.css';
 
 const THEMES = [
@@ -26,6 +26,8 @@ export default function AppearancePanel() {
   const setUiScale = useAppStore(s => s.setUiScale);
   const theme      = useAppStore(s => s.theme);
   const setTheme   = useAppStore(s => s.setTheme);
+  const font       = useAppStore(s => s.font);
+  const setFont    = useAppStore(s => s.setFont);
 
   return (
     <section className="appearance-panel" aria-labelledby="appearance-panel-heading">
@@ -64,6 +66,21 @@ export default function AppearancePanel() {
             />
           ))}
         </div>
+      </div>
+
+      <div className="appearance-panel__row">
+        <span className="appearance-panel__label">Font</span>
+        <Select
+          size="xs"
+          value={font}
+          onChange={(e) => setFont(e.target.value)}
+          data-testid="appearance-font-select"
+          aria-label="Font"
+        >
+          {FONT_OPTIONS.map(f => (
+            <option key={f.id} value={f.id}>{f.label}</option>
+          ))}
+        </Select>
       </div>
 
       <p className="appearance-panel__help">

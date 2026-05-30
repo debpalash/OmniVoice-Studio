@@ -12,6 +12,33 @@ export type TranslateQuality = 'fast' | 'cinematic';
 export type ThemeId = 'gruvbox' | 'midnight' | 'nord' | 'solarized' | 'rose-pine' | 'catppuccin';
 
 /**
+ * Global UI font. Applied app-wide by overriding the `--font-sans` CSS custom
+ * property on `document.documentElement` (the whole UI uses
+ * `font-family: var(--font-sans)`). `default` removes the override so the CSS
+ * `:root` Inter stack takes over. All stacks are SYSTEM-SAFE — no web-font
+ * downloads, so this works identically offline across macOS/Windows/Linux.
+ */
+export type FontId = 'default' | 'system' | 'serif' | 'mono' | 'rounded' | 'readable';
+
+export const FONT_OPTIONS: { id: FontId; label: string }[] = [
+  { id: 'default',  label: 'Inter (default)' },
+  { id: 'system',   label: 'System' },
+  { id: 'serif',    label: 'Serif' },
+  { id: 'mono',     label: 'Monospace' },
+  { id: 'rounded',  label: 'Rounded' },
+  { id: 'readable', label: 'Readable' },
+];
+
+export const FONT_STACKS: Record<FontId, string | null> = {
+  default:  null, // use the CSS :root --font-sans (Inter)
+  system:   '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+  serif:    'Georgia, "Times New Roman", serif',
+  mono:     'ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace',
+  rounded:  '"SF Pro Rounded", "Nunito", "Quicksand", system-ui, sans-serif',
+  readable: '"Atkinson Hyperlegible", Verdana, system-ui, sans-serif',
+};
+
+/**
  * Dub timing strategy — replaces audio time-compression with two cleaner
  * alternatives. `concise` trims the translation up-front so it fits at
  * natural rate (overflows surfaced for manual edit); `stretch_video`
@@ -63,6 +90,9 @@ export interface PrefsSlice {
 
   theme: ThemeId;
   setTheme: (id: ThemeId) => void;
+
+  font: FontId;
+  setFont: (id: FontId) => void;
 }
 
 export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (set) => ({
@@ -94,5 +124,13 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
     } else {
       document.documentElement.setAttribute('data-theme', id);
     }
+  },
+
+  font: 'default',
+  setFont: (id) => {
+    set({ font: id });
+    const stack = FONT_STACKS[id];
+    if (stack) document.documentElement.style.setProperty('--font-sans', stack);
+    else document.documentElement.style.removeProperty('--font-sans');
   },
 });

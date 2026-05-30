@@ -17,8 +17,12 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
-import type { PrefsSlice } from './prefsSlice';
-import { createPrefsSlice } from './prefsSlice';
+import type { PrefsSlice, FontId } from './prefsSlice';
+import { createPrefsSlice, FONT_OPTIONS, FONT_STACKS } from './prefsSlice';
+
+// Re-export font preference tables so panels can import from the store root.
+export type { FontId };
+export { FONT_OPTIONS, FONT_STACKS };
 import type { GlossarySlice } from './glossarySlice';
 import { createGlossarySlice } from './glossarySlice';
 import type { UiSlice } from './uiSlice';
@@ -68,6 +72,7 @@ export const useAppStore = create<AppStore>()(
         uiScale:                    s.uiScale,
         locale:                     s.locale,
         theme:                      s.theme,
+        font:                       s.font,
         // Generate-tab prefs — users expect their synthesis knobs to stick.
         language:      s.language,
         speed:         s.speed,

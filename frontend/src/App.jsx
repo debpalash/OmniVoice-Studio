@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, Suspense, lazy } from 'react';
 import './index.css';
-import { useAppStore } from './store';
+import { useAppStore, FONT_STACKS } from './store';
 import SearchableSelect from './components/SearchableSelect';
 import DirectionDialog from './components/DirectionDialog';
 
@@ -78,8 +78,9 @@ function App() {
   const theme = useAppStore(s => s.theme);
 
   const locale = useAppStore(s => s.locale);
+  const font = useAppStore(s => s.font);
 
-  // Hydrate the theme & locale so persisted preferences take effect after
+  // Hydrate the theme, locale & font so persisted preferences take effect after
   // zustand persist rehydrates (async from localStorage) and when the user
   // changes them at runtime.
   useEffect(() => {
@@ -91,7 +92,12 @@ function App() {
     if (locale) {
       i18n.changeLanguage(locale);
     }
-  }, [locale, theme]);
+    // Re-apply the global font the same way setFont does, so a persisted
+    // non-default font takes effect on launch.
+    const fontStack = FONT_STACKS[font];
+    if (fontStack) document.documentElement.style.setProperty('--font-sans', fontStack);
+    else document.documentElement.style.removeProperty('--font-sans');
+  }, [locale, theme, font]);
   const mode = useAppStore(s => s.mode);
   const setMode = useAppStore(s => s.setMode);
   const [navRailSide, setNavRailSide] = useState(() => {
