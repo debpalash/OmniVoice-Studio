@@ -93,6 +93,8 @@ export const useAppStore = create<AppStore>()(
         storyTracks:   s.storyTracks.map(({ id, character, text, profileId, emotion, speed }) =>
                           ({ id, character, text, profileId, emotion, speed })),
         cast:          s.cast,
+        storyProjects: s.storyProjects,
+        currentProjectId: s.currentProjectId,
       }),
       version: 4,
       // Drop old persisted shapes rather than crashing the app. Every field

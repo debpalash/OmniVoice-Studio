@@ -10,7 +10,7 @@
  * Spec: docs/superpowers/specs/2026-05-30-stories-editor-studio-design.md
  */
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Plus, Play, Trash2, GripVertical, BookOpen, Mic, Download, Scissors, Pause as PauseIcon, Users, X, Upload, Sparkles, SlidersHorizontal } from 'lucide-react';
+import { Plus, Play, Trash2, GripVertical, BookOpen, Mic, Download, Scissors, Pause as PauseIcon, Users, X, Upload, Sparkles, SlidersHorizontal, Folder, Layers, Bookmark } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { Button, Menu } from '../ui';
@@ -19,10 +19,22 @@ import { parseStoryText, hasStoryMarkers, applyInlineVoice, insertToken } from '
 import { parseScript } from '../utils/parseScript';
 import { importToText } from '../utils/importStory';
 import { generateSpeech } from '../api/generate';
-import { exportStoryAudio } from '../utils/storyExport';
+import { exportStoryAudio, exportStems, buildCueSheet } from '../utils/storyExport';
 import { reorder } from '../utils/storyReorder';
 import { effectiveProfile, castMember, nextCastColor } from '../utils/storyCast';
 import './StoriesEditor.css';
+
+// Trigger a browser download for a Blob.
+function download(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
 
 // Sentence-aware splitter for the "Paste & auto-split" panel. Walks the text
 // and breaks at the closest sentence boundary that keeps each chunk under
@@ -85,6 +97,12 @@ export default function StoriesEditor({ profiles = [] }) {
   const upsertCastMember = useAppStore((s) => s.upsertCastMember);
   const removeCastMember = useAppStore((s) => s.removeCastMember);
   const setCharacterVoice = useAppStore((s) => s.setCharacterVoice);
+  const storyProjects = useAppStore((s) => s.storyProjects);
+  const currentProjectId = useAppStore((s) => s.currentProjectId);
+  const saveProject = useAppStore((s) => s.saveProject);
+  const loadProject = useAppStore((s) => s.loadProject);
+  const newProject = useAppStore((s) => s.newProject);
+  const deleteProject = useAppStore((s) => s.deleteProject);
 
   // Proxy so existing `setTracks(prev => …)` call shapes keep working.
   const setTracks = useCallback((updater) => {
@@ -107,6 +125,8 @@ export default function StoriesEditor({ profiles = [] }) {
   const [exporting, setExporting] = useState(false);
   const [exportPct, setExportPct] = useState(0);
   const [expandedLine, setExpandedLine] = useState(null);
+  const [projectsOpen, setProjectsOpen] = useState(false);
+  const [projectName, setProjectName] = useState('');
   const trackTextRefs = useRef(new Map());
   const fileInputRef = useRef(null);
   const dragId = useRef(null);
@@ -169,6 +189,25 @@ export default function StoriesEditor({ profiles = [] }) {
       toast.error(t('stories.importFailed'));
     }
   }, [t]);
+
+  // ── Named projects ──────────────────────────────────────────────────────
+  const currentProject = storyProjects.find((p) => p.id === currentProjectId) || null;
+  useEffect(() => {
+    setProjectName(currentProject ? currentProject.name : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentProjectId]);
+
+  const saveCurrent = useCallback(() => {
+    saveProject(projectName.trim() || t('stories.untitled'));
+    toast.success(t('stories.projectSaved'));
+  }, [projectName, saveProject, t]);
+  const newStory = useCallback(() => { newProject(); setProjectName(''); }, [newProject]);
+  const openProject = useCallback((id) => { loadProject(id); setProjectsOpen(false); }, [loadProject]);
+
+  const addChapter = useCallback(() => {
+    const n = tracks.filter((tk) => /^#{1,6}\s+/.test((tk.text || '').trim())).length + 1;
+    setTracks((prev) => [...prev, makeTrack('narrator', `# ${t('stories.chapterN', { n })}`)]);
+  }, [tracks, setTracks, t]);
 
   // ── Paste & auto-split ───────────────────────────────────────────────────
   const applySplit = useCallback(() => {
@@ -278,23 +317,42 @@ export default function StoriesEditor({ profiles = [] }) {
     setExporting(true);
     setExportPct(0);
     try {
-      const blob = await exportStoryAudio(
+      const { blob, chapters } = await exportStoryAudio(
         usable,
         (tk) => ({ profileId: effectiveProfile(tk, cast), speed: tk.speed || 1.0 }),
         fetchChunkBlob,
         (d, total) => setExportPct(total ? Math.round((d / total) * 100) : 0),
       );
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'story.wav';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      download(blob, 'story.wav');
+      if (chapters.length) download(new Blob([buildCueSheet(chapters)], { type: 'text/plain' }), 'story-chapters.txt');
       toast.success(t('stories.exportDone'));
     } catch (err) {
       console.warn('Story export failed:', err);
+      toast.error(t('stories.exportFailed'));
+    } finally {
+      setExporting(false);
+    }
+  }, [tracks, cast, fetchChunkBlob, exporting, t]);
+
+  const exportStemsAll = useCallback(async () => {
+    const usable = tracks.filter((tk) => (tk.text || '').trim());
+    if (!usable.length || exporting) return;
+    setExporting(true);
+    setExportPct(0);
+    try {
+      const stems = await exportStems(
+        usable,
+        (tk) => ({ profileId: effectiveProfile(tk, cast), speed: tk.speed || 1.0 }),
+        fetchChunkBlob,
+        (d, total) => setExportPct(total ? Math.round((d / total) * 100) : 0),
+      );
+      for (const s of stems) {
+        const name = ((castMember(cast, s.character) || {}).name || s.character).replace(/[^\w-]+/g, '_');
+        download(s.blob, `story-${name}.wav`);
+      }
+      toast.success(t('stories.stemsDone', { count: stems.length }));
+    } catch (err) {
+      console.warn('Stems export failed:', err);
       toast.error(t('stories.exportFailed'));
     } finally {
       setExporting(false);
@@ -318,6 +376,9 @@ export default function StoriesEditor({ profiles = [] }) {
         </div>
         <div className="stories-editor__actions">
           <input ref={fileInputRef} type="file" accept=".txt,.srt,text/plain" onChange={onImportFile} hidden />
+          <Button size="sm" variant="ghost" onClick={() => setProjectsOpen((v) => !v)} aria-label={t('stories.projects')}>
+            <Folder size={13} /> {currentProject ? currentProject.name : t('stories.projects')}
+          </Button>
           <Button size="sm" variant="ghost" onClick={() => setCastOpen((v) => !v)} aria-label={t('stories.cast')}>
             <Users size={13} /> {t('stories.cast')}
           </Button>
@@ -330,11 +391,50 @@ export default function StoriesEditor({ profiles = [] }) {
           <Button size="sm" variant="ghost" onClick={addTrack} aria-label={t('stories.addLine')}>
             <Plus size={13} /> {t('stories.addLine')}
           </Button>
+          <Button size="sm" variant="ghost" onClick={addChapter} aria-label={t('stories.addChapter')}>
+            <Bookmark size={13} /> {t('stories.addChapter')}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={exportStemsAll} disabled={tracks.length === 0 || exporting} aria-label={t('stories.stems')}>
+            <Layers size={13} /> {t('stories.stems')}
+          </Button>
           <Button size="sm" onClick={generateAll} disabled={tracks.length === 0 || exporting}>
             <Download size={13} /> {exporting ? `${exportPct}%` : t('stories.generateAll')}
           </Button>
         </div>
       </div>
+
+      {/* Projects panel */}
+      {projectsOpen && (
+        <div className="stories-cast" role="region" aria-label={t('stories.projects')}>
+          <div className="stories-cast__head">
+            <span className="stories-editor__panel-title">{t('stories.projects')}</span>
+            <button type="button" className="stories-cast__add" onClick={newStory}>
+              <Plus size={12} /> {t('stories.newStory')}
+            </button>
+          </div>
+          <div className="stories-cast__row">
+            <input
+              className="stories-cast__name stories-proj__name"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              placeholder={t('stories.untitled')}
+              aria-label={t('stories.projectName')}
+            />
+            <Button size="sm" onClick={saveCurrent}>{t('stories.save')}</Button>
+          </div>
+          {storyProjects.map((p) => (
+            <div key={p.id} className={`stories-cast__row ${p.id === currentProjectId ? 'stories-proj--current' : ''}`}>
+              <button type="button" className="stories-proj__open" onClick={() => openProject(p.id)}>
+                <Folder size={12} /> {p.name}
+              </button>
+              <button type="button" className="stories-cast__del" onClick={() => deleteProject(p.id)} aria-label={t('stories.deleteProject')}>
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+          {storyProjects.length === 0 && <p className="stories-editor__hint">{t('stories.noProjects')}</p>}
+        </div>
+      )}
 
       {/* Cast panel */}
       {castOpen && (

@@ -429,3 +429,22 @@
   cursor: pointer;
 }
 .stories-track__reset:hover { color: var(--color-fg); }
+
+/* ── Projects panel ───────────────────────────────────────────────── */
+.stories-proj__name { flex: 1; }
+.stories-proj__open {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--color-fg);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  text-align: left;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+.stories-proj__open:hover { color: var(--color-accent); }
+.stories-proj--current { background: rgba(184, 187, 38, 0.08); border-radius: var(--radius-sm); }

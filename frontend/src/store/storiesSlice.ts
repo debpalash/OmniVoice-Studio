@@ -25,23 +25,49 @@ export interface CastMember {
   profileId: string | null;     // the voice this character speaks in
 }
 
+export interface StoryProject {
+  id: string;
+  name: string;
+  tracks: StoryTrack[];
+  cast: CastMember[];
+  updatedAt: number;
+}
+
 export interface StoriesSlice {
   storyTracks: StoryTrack[];
   cast: CastMember[];
+  storyProjects: StoryProject[];
+  currentProjectId: string | null;
   setStoryTracks: (tracks: StoryTrack[]) => void;
   setCast: (cast: CastMember[]) => void;
   upsertCastMember: (member: CastMember) => void;
   removeCastMember: (id: string) => void;
   setCharacterVoice: (castId: string, profileId: string | null) => void;
+  saveProject: (name: string) => void;
+  loadProject: (id: string) => void;
+  newProject: () => void;
+  deleteProject: (id: string) => void;
+  renameProject: (id: string, name: string) => void;
 }
 
 export const DEFAULT_CAST: CastMember[] = [
   { id: 'narrator', name: 'Narrator', color: '#fabd2f', profileId: null },
 ];
 
-export const createStoriesSlice: StateCreator<StoriesSlice, [], [], StoriesSlice> = (set) => ({
+function genProjectId(): string {
+  return `p_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+// Strip transient runtime fields before snapshotting into a saved project.
+function snapshotTracks(tracks: StoryTrack[]): StoryTrack[] {
+  return tracks.map(({ id, character, text, profileId, emotion, speed }) => ({ id, character, text, profileId, emotion, speed }));
+}
+
+export const createStoriesSlice: StateCreator<StoriesSlice, [], [], StoriesSlice> = (set, get) => ({
   storyTracks: [],
   cast: DEFAULT_CAST.map((c) => ({ ...c })),
+  storyProjects: [],
+  currentProjectId: null,
   setStoryTracks: (storyTracks) => set({ storyTracks }),
   setCast: (cast) => set({ cast }),
   upsertCastMember: (member) =>
@@ -55,4 +81,34 @@ export const createStoriesSlice: StateCreator<StoriesSlice, [], [], StoriesSlice
   removeCastMember: (id) => set((s) => ({ cast: s.cast.filter((c) => c.id !== id) })),
   setCharacterVoice: (castId, profileId) =>
     set((s) => ({ cast: s.cast.map((c) => (c.id === castId ? { ...c, profileId } : c)) })),
+  saveProject: (name) =>
+    set((s) => {
+      const id = s.currentProjectId || genProjectId();
+      const ts = (() => { try { return Date.now(); } catch { return 0; } })();
+      const proj: StoryProject = {
+        id,
+        name: name || 'Untitled',
+        tracks: snapshotTracks(s.storyTracks),
+        cast: s.cast.map((c) => ({ ...c })),
+        updatedAt: ts,
+      };
+      const exists = s.storyProjects.some((p) => p.id === id);
+      return {
+        storyProjects: exists ? s.storyProjects.map((p) => (p.id === id ? proj : p)) : [...s.storyProjects, proj],
+        currentProjectId: id,
+      };
+    }),
+  loadProject: (id) => {
+    const p = get().storyProjects.find((x) => x.id === id);
+    if (!p) return;
+    set({ storyTracks: p.tracks.map((t) => ({ ...t })), cast: p.cast.map((c) => ({ ...c })), currentProjectId: id });
+  },
+  newProject: () => set({ storyTracks: [], cast: DEFAULT_CAST.map((c) => ({ ...c })), currentProjectId: null }),
+  deleteProject: (id) =>
+    set((s) => ({
+      storyProjects: s.storyProjects.filter((p) => p.id !== id),
+      currentProjectId: s.currentProjectId === id ? null : s.currentProjectId,
+    })),
+  renameProject: (id, name) =>
+    set((s) => ({ storyProjects: s.storyProjects.map((p) => (p.id === id ? { ...p, name } : p)) })),
 });

@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { silenceBuffer, concatBuffers, encodeWav } from './storyExport';
+import {
+  silenceBuffer, concatBuffers, encodeWav,
+  isChapterLine, chapterTitle, formatTimecode, tracksByCharacter, buildCueSheet,
+} from './storyExport';
 
 function fakeBuffer(samples, sampleRate = 24000) {
   const data = Float32Array.from(samples);
@@ -35,5 +38,38 @@ describe('encodeWav', () => {
     expect(dv.getUint32(24, true)).toBe(24000);  // sample rate
     expect(dv.getUint16(34, true)).toBe(16);     // bits/sample
     expect(wav.byteLength).toBe(44 + 3 * 2);     // header + 3 int16 samples
+  });
+});
+
+describe('chapter helpers', () => {
+  it('detects + titles markdown chapter lines', () => {
+    expect(isChapterLine('# Chapter One')).toBe(true);
+    expect(isChapterLine('  ## Part 2 ')).toBe(true);
+    expect(isChapterLine('Not a chapter')).toBe(false);
+    expect(chapterTitle('# Chapter One')).toBe('Chapter One');
+    expect(chapterTitle('## Part 2')).toBe('Part 2');
+  });
+  it('formats timecodes HH:MM:SS', () => {
+    expect(formatTimecode(0)).toBe('00:00:00');
+    expect(formatTimecode(65)).toBe('00:01:05');
+    expect(formatTimecode(3661)).toBe('01:01:01');
+  });
+  it('builds a cue sheet', () => {
+    expect(buildCueSheet([{ time: 0, title: 'Intro' }, { time: 65, title: 'Two' }]))
+      .toBe('00:00:00 Intro\n00:01:05 Two');
+  });
+});
+
+describe('tracksByCharacter', () => {
+  it('groups spoken lines by character, skipping chapter headings', () => {
+    const groups = tracksByCharacter([
+      { character: 'narrator', text: '# Chapter 1' },
+      { character: 'narrator', text: 'Once.' },
+      { character: 'fox', text: 'Hi.' },
+      { character: 'narrator', text: 'Then.' },
+    ]);
+    expect(groups.map((g) => g.character)).toEqual(['narrator', 'fox']);
+    expect(groups[0].tracks).toHaveLength(2);
+    expect(groups[1].tracks).toHaveLength(1);
   });
 });

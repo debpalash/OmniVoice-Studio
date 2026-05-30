@@ -59,41 +59,105 @@ export function encodeWav(buffer, sampleRate) {
   return ab;
 }
 
+/** A line is a chapter heading if its text starts with a markdown "# ". */
+export function isChapterLine(text) {
+  return /^#{1,6}\s+/.test(String(text || '').trim());
+}
+
+/** The chapter title — the text after the leading "# ". */
+export function chapterTitle(text) {
+  return String(text || '').trim().replace(/^#+\s+/, '').trim();
+}
+
+/** Format seconds as HH:MM:SS for a chapter cue sheet. */
+export function formatTimecode(sec) {
+  const s = Math.max(0, Math.floor(sec || 0));
+  const hh = String(Math.floor(s / 3600)).padStart(2, '0');
+  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+  const ss = String(s % 60).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+}
+
+/** Group spoken lines (skip chapter headings) by character, preserving order. */
+export function tracksByCharacter(tracks) {
+  const groups = [];
+  const idx = {};
+  for (const tk of tracks || []) {
+    if (isChapterLine(tk.text)) continue;
+    const key = tk.character || 'narrator';
+    if (!(key in idx)) { idx[key] = groups.length; groups.push({ character: key, tracks: [] }); }
+    groups[idx[key]].tracks.push(tk);
+  }
+  return groups;
+}
+
+/** Build a chapter cue sheet string from {time,title} cues. */
+export function buildCueSheet(chapters) {
+  return (chapters || []).map((c) => `${formatTimecode(c.time)} ${c.title}`).join('\n');
+}
+
 /**
- * Render an ordered track list to one WAV blob.
+ * Render an ordered track list to one WAV blob + chapter cues.
+ * Lines whose text starts with "# " are chapter markers — not spoken; they
+ * record a cue at the current timeline position.
  * @param tracks          [{ text, character, profileId, speed }]
  * @param resolveOpts     (track) => { profileId, speed }   // applies cast fallback
  * @param fetchChunkBlob  (text, profileId, speed) => Promise<Blob>   // /generate WAV
  * @param onProgress      (done, total) => void
- * @returns Blob (audio/wav)
+ * @returns { blob: Blob, chapters: [{time,title}], durationSec: number }
  */
 export async function exportStoryAudio(tracks, resolveOpts, fetchChunkBlob, onProgress) {
   const Ctx = window.AudioContext || window.webkitAudioContext;
   const ctx = new Ctx();
+  const sr = ctx.sampleRate;
   try {
-    const segments = [];
+    const plan = [];
     for (const tk of tracks) {
+      if (isChapterLine(tk.text)) { plan.push({ chapter: chapterTitle(tk.text) }); continue; }
       const opts = resolveOpts(tk) || {};
       for (const seg of parseStoryText(tk.text || '', opts.profileId)) {
-        segments.push(seg.type === 'chunk' ? { ...seg, speed: opts.speed } : seg);
+        plan.push(seg.type === 'chunk' ? { ...seg, speed: opts.speed } : seg);
       }
     }
-    const chunkCount = segments.filter((s) => s.type === 'chunk').length;
+    const chunkCount = plan.filter((s) => s.type === 'chunk').length;
     let done = 0;
+    let sampleCursor = 0;
     const buffers = [];
-    for (const seg of segments) {
-      if (seg.type === 'pause') {
-        buffers.push(silenceBuffer(seg.seconds, ctx.sampleRate));
+    const chapters = [];
+    for (const item of plan) {
+      if (item.chapter !== undefined) { chapters.push({ time: sampleCursor / sr, title: item.chapter }); continue; }
+      if (item.type === 'pause') {
+        const b = silenceBuffer(item.seconds, sr);
+        buffers.push(b); sampleCursor += b.length;
         continue;
       }
-      const blob = await fetchChunkBlob(seg.text, seg.profileId, seg.speed);
+      const blob = await fetchChunkBlob(item.text, item.profileId, item.speed);
       const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
-      buffers.push(decoded); // decodeAudioData resamples to ctx.sampleRate → safe to concat
+      buffers.push(decoded); sampleCursor += decoded.length; // resamples to ctx.sampleRate → safe to concat
       onProgress?.(++done, chunkCount);
     }
-    const combined = concatBuffers(buffers, ctx.sampleRate);
-    return new Blob([encodeWav(combined, ctx.sampleRate)], { type: 'audio/wav' });
+    const combined = concatBuffers(buffers, sr);
+    return {
+      blob: new Blob([encodeWav(combined, sr)], { type: 'audio/wav' }),
+      chapters,
+      durationSec: combined.length / sr,
+    };
   } finally {
     ctx.close?.();
   }
+}
+
+/**
+ * Export one WAV per character (stems). Returns [{ character, blob }] in the
+ * order characters first appear. Reuses exportStoryAudio per character group.
+ */
+export async function exportStems(tracks, resolveOpts, fetchChunkBlob, onProgress) {
+  const groups = tracksByCharacter(tracks);
+  const out = [];
+  for (let i = 0; i < groups.length; i++) {
+    const { blob } = await exportStoryAudio(groups[i].tracks, resolveOpts, fetchChunkBlob, null);
+    out.push({ character: groups[i].character, blob });
+    onProgress?.(i + 1, groups.length);
+  }
+  return out;
 }
