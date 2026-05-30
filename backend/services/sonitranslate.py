@@ -15,6 +15,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from services.ffmpeg_utils import spawn_subprocess
+
 logger = logging.getLogger("omnivoice.sonitranslate")
 
 # Default install location — inside the OmniVoice project tree
@@ -73,7 +75,7 @@ async def install(progress_callback=None) -> dict:
         logger.info("Cloning SoniTranslate...")
         if progress_callback:
             progress_callback("Cloning SoniTranslate repository...")
-        proc = await asyncio.create_subprocess_exec(
+        proc = await spawn_subprocess(
             "git", "clone", "--depth", "1",
             "https://github.com/R3gm/SoniTranslate.git",
             str(SONI_DIR),
@@ -91,7 +93,7 @@ async def install(progress_callback=None) -> dict:
             progress_callback("Creating virtualenv...")
 
         python = sys.executable
-        proc = await asyncio.create_subprocess_exec(
+        proc = await spawn_subprocess(
             python, "-m", "venv", str(SONI_VENV),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -103,7 +105,7 @@ async def install(progress_callback=None) -> dict:
         if progress_callback:
             progress_callback("Installing base requirements (this may take a while)...")
 
-        proc = await asyncio.create_subprocess_exec(
+        proc = await spawn_subprocess(
             pip, "install", "-r", str(SONI_DIR / "requirements_base.txt"),
             cwd=str(SONI_DIR),
             stdout=asyncio.subprocess.PIPE,
@@ -116,7 +118,7 @@ async def install(progress_callback=None) -> dict:
         # Install extra requirements
         if progress_callback:
             progress_callback("Installing extra requirements...")
-        proc = await asyncio.create_subprocess_exec(
+        proc = await spawn_subprocess(
             pip, "install", "-r", str(SONI_DIR / "requirements_extra.txt"),
             cwd=str(SONI_DIR),
             stdout=asyncio.subprocess.PIPE,

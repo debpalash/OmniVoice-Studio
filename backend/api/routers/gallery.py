@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from core.db import db_conn
 from core.config import VOICES_DIR, OUTPUTS_DIR
 from core import event_bus
+from services.ffmpeg_utils import spawn_subprocess
 
 logger = logging.getLogger("omnivoice.gallery")
 
@@ -199,7 +200,7 @@ async def search_youtube(
 ):
     """Search YouTube for character/celebrity clips using yt-dlp."""
     try:
-        result = await asyncio.create_subprocess_exec(
+        result = await spawn_subprocess(
             "yt-dlp",
             "--dump-json",
             "--remote-components", "ejs:github",
@@ -273,7 +274,7 @@ async def download_youtube_clip(
             video_url,
         ]
 
-        result = await asyncio.create_subprocess_exec(
+        result = await spawn_subprocess(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,

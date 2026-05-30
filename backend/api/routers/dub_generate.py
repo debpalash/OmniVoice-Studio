@@ -16,7 +16,7 @@ from schemas.requests import DubRequest
 from services.model_manager import get_model, _gpu_pool
 from services.audio_dsp import apply_mastering, normalize_audio, apply_effects_chain, get_effect_chain
 from services.audio_io import atomic_save_wav, _safe_torchaudio_save
-from services.ffmpeg_utils import find_ffmpeg
+from services.ffmpeg_utils import find_ffmpeg, spawn_subprocess
 from services.rvc import apply_rvc, is_enabled as rvc_is_enabled
 from services.incremental import segment_fingerprint
 from services.watermark import embed_watermark
@@ -86,7 +86,7 @@ async def _pitch_preserving_stretch(
     # Mono float32 via stdin → ffmpeg → stdout. One subprocess per segment,
     # run off the event loop so concurrent requests stay responsive.
     arr = wav.detach().cpu().to(torch.float32).numpy().reshape(-1).astype(np.float32, copy=False)
-    proc = await asyncio.create_subprocess_exec(
+    proc = await spawn_subprocess(
         find_ffmpeg(), "-hide_banner", "-loglevel", "error", "-y",
         "-f", "f32le", "-ar", str(sr), "-ac", "1", "-i", "pipe:0",
         "-af", filter_str,

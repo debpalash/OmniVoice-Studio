@@ -136,6 +136,7 @@ async def _spawn_thread_fallback(cmd, **kwargs):
             stdout=subprocess.PIPE if stdout == asyncio.subprocess.PIPE else stdout,
             stderr=subprocess.PIPE if stderr == asyncio.subprocess.PIPE else stderr,
             stdin=subprocess.PIPE if stdin == asyncio.subprocess.PIPE else stdin,
+            **kwargs,  # forward cwd / env / etc. so the fallback matches the async call
         )
 
     proc = await loop.run_in_executor(None, _run)
@@ -164,6 +165,20 @@ async def _spawn_thread_fallback(cmd, **kwargs):
             self._popen.terminate()
 
     return _AsyncCompatProc(proc)
+
+
+async def spawn_subprocess(*args, **kwargs):
+    """Drop-in replacement for ``asyncio.create_subprocess_exec``.
+
+    Falls back to a thread-based ``subprocess.Popen`` (wrapped to match the
+    asyncio Process interface) on event loops without subprocess support —
+    notably the Windows ``SelectorEventLoop`` that uvicorn forces under
+    ``--reload``/multi-worker (``use_subprocess=True``), where the native call
+    raises ``NotImplementedError`` (GH #122). Also inherits the EAGAIN retry.
+    On loops that DO support subprocesses (Proactor, posix) the native path is
+    used unchanged, so there is no behavior change off the broken loop.
+    """
+    return await _spawn_with_retry(list(args), **kwargs)
 
 
 async def _spawn_with_retry(cmd, **kwargs):
