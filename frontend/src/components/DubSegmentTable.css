@@ -18,7 +18,7 @@
 }
 
 .dub-segment-table__header {
-  padding: 4px 6px !important;
+  padding: 3px 6px !important;
   /* Header cells normally carry explicit widths from Table.jsx — neutralise
      them so the grid template wins. */
 }
@@ -32,8 +32,8 @@
 }
 
 .segment-table .segment-row {
-  padding: 4px 6px;
-  min-height: 30px;
+  padding: 3px 6px;
+  min-height: 27px;
 }
 
 .dub-segment-table__body { flex: 1; min-height: 0; }
