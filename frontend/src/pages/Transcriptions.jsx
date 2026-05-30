@@ -8,6 +8,7 @@
  * page updates in realtime without requiring a shared store.
  */
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { copyText } from "../utils/copyText";
 import { useTranslation } from 'react-i18next';
 import { Mic, Copy, Trash2, Search, Clock, Languages, FileText, Download } from 'lucide-react';
 import { Button } from '../ui';
@@ -74,7 +75,7 @@ export default function TranscriptionsPage() {
   );
 
   const copyText = useCallback((text) => {
-    navigator.clipboard.writeText(text).then(
+    copyText(text).then(
       () => toast.success(t('transcriptions.copied')),
       () => toast.error(t('transcriptions.copy_failed'))
     );

@@ -17,6 +17,7 @@
  *   POST /system/tailscale/disable  → {ok}
  */
 import React, { useCallback, useEffect, useState } from 'react';
+import { copyText } from "../../utils/copyText";
 import QRCode from 'qrcode';
 import { Wifi, Globe, Copy, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -150,7 +151,7 @@ export default function SharingPanel() {
     }
   };
 
-  const copy = (text) => { navigator.clipboard?.writeText(text); toast.success('Copied'); };
+  const copy = (text) => { copyText(text); toast.success('Copied'); };
 
   const installed = !!status?.installed;
   const running = !!status?.running;

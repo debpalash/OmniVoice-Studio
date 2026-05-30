@@ -1,5 +1,6 @@
 // frontend/src/components/NetworkToggle.jsx
 import { useEffect, useState, useCallback } from 'react';
+import { copyText } from "../utils/copyText";
 import QRCode from 'qrcode';
 import { Wifi, WifiOff, Copy, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -47,7 +48,7 @@ export default function NetworkToggle() {
     finally { setBusy(false); }
   };
 
-  const copy = (text) => { navigator.clipboard?.writeText(text); toast.success('Copied'); };
+  const copy = (text) => { copyText(text); toast.success('Copied'); };
 
   return (
     <div className="net-toggle">

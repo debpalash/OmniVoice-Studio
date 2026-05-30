@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { copyText } from "../utils/copyText";
 import {
   ChevronUp, ChevronDown, RefreshCw, Trash2, Copy, Bug, X,
   AlertTriangle, AlertCircle, Info, FileText, Heart,
@@ -293,7 +294,7 @@ export default function LogsFooter() {
   const onCopy = async () => {
     try {
       const raw = (lines[active] || []).join('\n');
-      await navigator.clipboard.writeText(raw);
+      await copyText(raw);
       toast.success(`Copied ${active} log`);
     } catch (e) {
       toast.error(`Copy failed: ${e?.message || e}`);
@@ -319,7 +320,7 @@ export default function LogsFooter() {
         l.slice(-80).join('\n');
     }).join('\n\n');
     try {
-      await navigator.clipboard.writeText(header + body);
+      await copyText(header + body);
       toast.success('Diagnostic report copied — paste it into a GitHub issue.');
     } catch (e) {
       toast.error(`Report failed: ${e?.message || e}`);

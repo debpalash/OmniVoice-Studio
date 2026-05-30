@@ -9,6 +9,7 @@
  *      min dependency install.
  */
 import { useEffect, useRef, useState } from 'react';
+import { copyText } from "../utils/copyText";
 import './BootstrapSplash.css';
 
 // Vite injects package.json version at build time.
@@ -195,7 +196,7 @@ export function BootstrapSplash({ stage, message }) {
     const full = isFailed && message
       ? `ERROR: ${message}\n\n--- Bootstrap Logs ---\n${logText}`
       : logText;
-    navigator.clipboard.writeText(full).then(() => {
+    copyText(full).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }).catch(() => {});

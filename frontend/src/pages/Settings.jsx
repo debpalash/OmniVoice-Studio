@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { copyText } from "../utils/copyText";
 import { isTauri as _isTauri } from '../utils/media';
 import {
   flexRender,
@@ -1115,7 +1116,7 @@ export default function Settings() {
     ];
     const text = lines.join('\n');
     try {
-      await navigator.clipboard.writeText(text);
+      await copyText(text);
       toast.success('Diagnostics copied — paste into your issue report.');
     } catch (e) {
       toast.error('Copy failed: ' + (e?.message || e));

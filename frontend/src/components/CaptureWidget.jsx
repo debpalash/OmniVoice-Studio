@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { copyText } from "../utils/copyText";
 import { X, Loader } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAppStore } from '../store';
@@ -117,7 +118,7 @@ export default function CaptureWidget({ onDismiss }) {
 
     if (data.text) {
       try {
-        await navigator.clipboard.writeText(data.text);
+        await copyText(data.text);
         try {
           const { invoke } = await import('@tauri-apps/api/core');
           await invoke('simulate_paste');

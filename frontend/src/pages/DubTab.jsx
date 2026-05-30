@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, useState, useEffect, useCallback, useRef } from 'react';
+import { copyText } from "../utils/copyText";
 import { useTranslation } from 'react-i18next';
 import {
   PanelLeftOpen, PanelLeftClose, Film, Save, UploadCloud, Sparkles, Loader, Square,
@@ -41,7 +42,7 @@ function DubFailureNotice({ failure }) {
   const topic = failure.docsTopic || classifyError(failure.reason);
   const copyDiagnostic = async () => {
     try {
-      await navigator.clipboard.writeText(failure.diagnostic || failure.reason);
+      await copyText(failure.diagnostic || failure.reason);
       toast.success('Diagnostic copied');
     } catch {
       toast.error('Copy failed');

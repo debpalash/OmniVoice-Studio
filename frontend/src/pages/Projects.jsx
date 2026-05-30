@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { copyText } from "../utils/copyText";
 import { useTranslation } from 'react-i18next';
 import {
   Search, FolderOpen, Film, Fingerprint, Wand2, Music, Download,
@@ -169,7 +170,7 @@ export default function Projects({
         accent: '#83a598',
         Icon: FileText,
         onClick: () => {
-          navigator.clipboard.writeText(tr.text || '');
+          copyText(tr.text || '');
         },
       });
     }
