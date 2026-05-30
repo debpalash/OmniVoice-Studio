@@ -9,7 +9,6 @@ import asyncio
 import logging
 import os
 import shutil
-import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -30,6 +29,15 @@ SONI_URL = f"http://127.0.0.1:{SONI_PORT}"
 _proc: Optional[subprocess.Popen] = None
 
 
+def _venv_bin(name: str):
+    """Path to an executable inside the SoniTranslate venv, cross-platform.
+    Windows venvs put executables in Scripts\\ (with a .exe suffix); POSIX uses
+    bin/. (Matches engines/indextts/bootstrap.py's _venv_python_path.)"""
+    if sys.platform == "win32":
+        return SONI_VENV / "Scripts" / f"{name}.exe"
+    return SONI_VENV / "bin" / name
+
+
 def is_installed() -> bool:
     """Check if SoniTranslate is cloned and has its entry point."""
     return (SONI_DIR / "app_rvc.py").is_file()
@@ -37,7 +45,7 @@ def is_installed() -> bool:
 
 def is_venv_ready() -> bool:
     """Check if the SoniTranslate virtualenv exists with key deps."""
-    pip = SONI_VENV / "bin" / "pip"
+    pip = _venv_bin("pip")
     return pip.is_file()
 
 
@@ -101,7 +109,7 @@ async def install(progress_callback=None) -> dict:
         await proc.communicate()
 
         # Install base requirements
-        pip = str(SONI_VENV / "bin" / "pip")
+        pip = str(_venv_bin("pip"))
         if progress_callback:
             progress_callback("Installing base requirements (this may take a while)...")
 
@@ -138,7 +146,7 @@ async def start() -> dict:
     if not is_installed():
         raise RuntimeError("SoniTranslate not installed. Call /engines/sonitranslate/install first.")
 
-    python = str(SONI_VENV / "bin" / "python") if is_venv_ready() else sys.executable
+    python = str(_venv_bin("python")) if is_venv_ready() else sys.executable
 
     # Phase 1 AUTH-01/AUTH-04 + INST-12: env built via the shared
     # `engine_env.build_engine_env()` helper. It resolves HF_TOKEN +
@@ -187,7 +195,7 @@ async def stop() -> dict:
     if _proc is None:
         return {"stopped": False, "reason": "not_running"}
 
-    _proc.send_signal(signal.SIGTERM)
+    _proc.terminate()  # cross-platform (SIGTERM on POSIX, TerminateProcess on Windows)
     try:
         _proc.wait(timeout=5)
     except subprocess.TimeoutExpired:
