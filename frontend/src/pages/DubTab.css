@@ -17,6 +17,9 @@
 }
 .dub-head__title     { display: flex; align-items: center; gap: var(--space-3); margin-bottom: 0; min-width: 0; flex: 1; }
 .dub-head__actions   { display: flex; gap: var(--space-2); align-items: center; flex-shrink: 0; }
+/* Primary actions (Generate/Export/Stop) relocated onto the header bar; a thin
+   divider separates them from Save/Reset and sm FooterBtns keep it compact. */
+.dub-head__primary   { display: flex; gap: var(--space-2); align-items: center; padding-left: var(--space-2); border-left: 1px solid var(--color-border, #3a3a3a); }
 .dub-head__filename  { font-weight: var(--weight-semibold); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-fg); }
 .dub-head__meta      { color: var(--color-fg-muted); font-weight: 400; white-space: nowrap; font-size: 0.72rem; }
 .dub-head__project   { color: #b8bb26; margin-left: var(--space-3); white-space: nowrap; font-size: 0.72rem; }

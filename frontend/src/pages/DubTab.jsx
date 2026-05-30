@@ -587,6 +587,30 @@ export default function DubTab(props) {
             <div className="dub-head__actions">
               <Button variant="subtle" size="sm" onClick={saveProject} leading={<Save size={9} />}>{t('dub.save')}</Button>
               <Button variant="danger" size="sm" onClick={resetDub}>{t('dub.reset')}</Button>
+              {/* Primary actions live on the header bar (compact) — moved up from the footer. */}
+              <div className="dub-head__primary">
+                {dubStep === 'stopping' ? (
+                  <FooterBtn sm tone="stopping" disabled icon={<Loader className="spinner" size={9} />} label={t('dub.stopping')} />
+                ) : dubStep === 'generating' ? (
+                  <FooterBtn sm tone="danger" onClick={handleDubStop} icon={<Square size={9} />}
+                    label={t('dub.stop_progress', { current: dubProgress.current, total: dubProgress.total })} />
+                ) : (
+                  <>
+                    <FooterBtn sm tone={dubSegments.length ? 'pink' : 'idle'} onClick={() => handleDubGenerate()}
+                      disabled={!dubSegments.length} icon={<Play size={11} />} label={t('dub.generate_dub')} />
+                    {dubStep === 'done' && incrementalPlan && incrementalPlan.stale?.length > 0 && (
+                      <FooterBtn sm tone="pink"
+                        onClick={() => handleDubGenerate({ regenOnly: incrementalPlan.stale, preview: true })}
+                        icon={<Play size={11} />}
+                        label={t('dub.regen_changed', { count: incrementalPlan.stale.length })} />
+                    )}
+                  </>
+                )}
+                <FooterBtn sm tone={dubStep === 'done' ? 'green' : 'idle'}
+                  disabled={dubStep !== 'done' && !dubSegments.length}
+                  onClick={() => setExportOpen(true)}
+                  icon={<Download size={11} />} label={t('dub.export_btn')} />
+              </div>
             </div>
           </div>
 
@@ -1084,34 +1108,7 @@ export default function DubTab(props) {
                 </div>
               );
             })()}
-            <div className="dub-footer-btns">
-              {dubStep === 'stopping' ? (
-                <FooterBtn tone="stopping" disabled icon={<Loader className="spinner" size={9} />} label={t('dub.stopping')} />
-              ) : dubStep === 'generating' ? (
-                <FooterBtn tone="danger" onClick={handleDubStop} icon={<Square size={9} />}
-                  label={t('dub.stop_progress', { current: dubProgress.current, total: dubProgress.total })} />
-              ) : (
-                <>
-                  <FooterBtn tone={dubSegments.length ? 'pink' : 'idle'} onClick={() => handleDubGenerate()}
-                    disabled={!dubSegments.length} icon={<Play size={11} />} label={t('dub.generate_dub')} />
-                  {dubStep === 'done' && incrementalPlan && incrementalPlan.stale?.length > 0 && (
-                    <FooterBtn
-                      tone="pink"
-                      onClick={() => handleDubGenerate({ regenOnly: incrementalPlan.stale, preview: true })}
-                      icon={<Play size={11} />}
-                      label={t('dub.regen_changed', { count: incrementalPlan.stale.length })}
-                    />
-                  )}
-                </>
-              )}
-              <FooterBtn
-                tone={dubStep === 'done' ? 'green' : 'idle'}
-                disabled={dubStep !== 'done' && !dubSegments.length}
-                onClick={() => setExportOpen(true)}
-                icon={<Download size={11} />}
-                label={t('dub.export_btn')}
-              />
-            </div>
+            {/* Generate / Export / Stop actions moved to the header bar (dub-head__primary). */}
           </div>
         </div>
       )}
