@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -784,6 +785,110 @@ class MoonshineASRBackend(ASRBackend):
 # ── Registry ────────────────────────────────────────────────────────────────
 
 
+# ── FunASR (SenseVoice — all-in-one multilingual, opt-in alternative, #182) ──
+
+# SenseVoice emits rich tokens like `<|en|><|NEUTRAL|><|Speech|>` around the
+# text; strip them when no postprocessor is applied.
+_FUNASR_TAG_RE = re.compile(r"<\|[^|>]*\|>")
+
+
+def _ms_to_s(value):
+    """Milliseconds → seconds (FunASR reports ms). None on bad input."""
+    try:
+        return round(float(value) / 1000.0, 3)
+    except (TypeError, ValueError):
+        return None
+
+
+def _clean_funasr_text(text):
+    return _FUNASR_TAG_RE.sub("", str(text or "")).strip()
+
+
+def _normalize_funasr(res) -> dict:
+    """Normalise FunASR ``generate()`` output → OmniVoice's
+    ``{chunks, segments, language}`` shape (the same one the Whisper backends
+    return, consumed by ``services.segmentation``). Defensive about FunASR's
+    output variations: prefers VAD ``sentence_info`` (ms timestamps + optional
+    ``spk`` speaker id) and falls back to a single utterance from ``text``.
+    Pure — testable without funasr installed.
+    """
+    item = (res[0] if isinstance(res, (list, tuple)) and res else res) or {}
+    if not isinstance(item, dict):
+        item = {"text": str(item)}
+    language = item.get("language") or item.get("lang") or None
+
+    segments = []
+    for s in item.get("sentence_info") or []:
+        if not isinstance(s, dict):
+            continue
+        txt = _clean_funasr_text(s.get("text", ""))
+        if not txt:
+            continue
+        seg = {"text": txt, "start": _ms_to_s(s.get("start", 0)) or 0.0, "end": _ms_to_s(s.get("end"))}
+        spk = s.get("spk")
+        if spk is not None:
+            seg["speaker"] = f"Speaker {int(spk) + 1}" if isinstance(spk, (int, float)) else str(spk)
+        segments.append(seg)
+
+    if not segments:
+        txt = _clean_funasr_text(item.get("text", ""))
+        if txt:
+            ts = item.get("timestamp") or []  # [[start_ms, end_ms], ...]
+            start = _ms_to_s(ts[0][0]) if ts else 0.0
+            end = _ms_to_s(ts[-1][1]) if ts else None
+            segments.append({"text": txt, "start": start or 0.0, "end": end})
+
+    chunks = [{"text": seg["text"], "timestamp": (seg["start"], seg.get("end"))} for seg in segments]
+    return {"chunks": chunks, "segments": segments, "language": language}
+
+
+class FunASRBackend(ASRBackend):
+    """FunASR — SenseVoiceSmall + FSMN-VAD. All-in-one multilingual ASR:
+    transcription + punctuation across 50+ languages, with optional speaker
+    diarization via the cam++ model. Opt-in alternative to WhisperX (issue
+    #182); WhisperX remains the cross-platform default.
+    """
+    id = "funasr"
+    display_name = "FunASR (SenseVoice — 50+ languages, all-in-one)"
+
+    def __init__(self):
+        self._model_name = os.environ.get("ASR_MODEL_FUNASR", "iic/SenseVoiceSmall")
+        self._vad_model = os.environ.get("ASR_FUNASR_VAD", "fsmn-vad")
+        self._model = None
+
+    @classmethod
+    def is_available(cls) -> tuple[bool, str]:
+        try:
+            import funasr  # noqa: F401
+            return True, "ready"
+        except ImportError:
+            return False, "funasr not installed. Install with: uv pip install funasr"
+
+    def _ensure_model(self):
+        if self._model is not None:
+            return
+        from funasr import AutoModel
+        logger.info("FunASR loading %s (vad=%s)", self._model_name, self._vad_model)
+        self._model = AutoModel(model=self._model_name, vad_model=self._vad_model, disable_update=True)
+
+    def transcribe(self, audio_path: str, *, word_timestamps: bool = True) -> dict:
+        self._ensure_model()
+        logger.info("FunASR transcribing %s", audio_path)
+        res = self._model.generate(input=audio_path, cache={}, language="auto", use_itn=True)
+        return _normalize_funasr(res)
+
+    def unload(self) -> None:
+        self._model = None
+        import gc
+        gc.collect()
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
+
+
 _REGISTRY: dict[str, type[ASRBackend]] = {
     "whisperx":        WhisperXBackend,
     "faster-whisper":  FasterWhisperBackend,
@@ -791,6 +896,7 @@ _REGISTRY: dict[str, type[ASRBackend]] = {
     "pytorch-whisper": PyTorchWhisperBackend,
     "nemo-parakeet":   NeMoASRBackend,
     "moonshine":       MoonshineASRBackend,
+    "funasr":          FunASRBackend,
 }
 
 
