@@ -888,6 +888,44 @@ export default function DubTab(props) {
             {/* RIGHT: Segment Table */}
             <div className="studio-panel dub-panel-col">
 
+              {/* Output options + timing — moved to the top of the right section. */}
+              <div className="dub-right-outputs">
+                <div className="dub-outputs-row">
+                  <span className="dub-outputs-title-strong">{t('dub.output_options')}</span>
+                  <label>
+                    <input type="checkbox" checked={preserveBg} onChange={e => setPreserveBg(e.target.checked)} /> {t('dub.mix_bg_audio')}
+                  </label>
+                  <label title={t('dub.dual_subs_title')}>
+                    <input type="checkbox" checked={!!dualSubs} onChange={e => setDualSubs(e.target.checked)} /> {t('dub.dual_subs')}
+                  </label>
+                  <label title={t('dub.burn_subs_title')}>
+                    <input type="checkbox" checked={!!burnSubs} onChange={e => setBurnSubs(e.target.checked)} /> {t('dub.burn_subs')}
+                  </label>
+                  <label>
+                    {t('dub.default_track')}
+                    <select className="input-base dub-outputs-default" value={defaultTrack} onChange={e => setDefaultTrack(e.target.value)}>
+                      <option value="original">{t('dub.original_track')}</option>
+                      {dubLangCode && <option value={dubLangCode}>{t('dub.selected_dub', { code: dubLangCode })}</option>}
+                      {dubTracks.filter(tr => tr !== dubLangCode).map(tr => (
+                        <option key={tr} value={tr}>{t('dub.dub_track', { code: tr })}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="dub-outputs-row" title="Timing strategy — how the dub reconciles natural-rate TTS with the original timeline.">
+                  <span className="dub-outputs-title-strong">Timing:</span>
+                  <Segmented
+                    value={timingStrategy}
+                    onChange={setTimingStrategy}
+                    options={[
+                      { value: 'concise',       label: 'Concise',        title: 'Translator trims text to fit at natural rate. Overflows surface in the row badge so you can shorten the segment.' },
+                      { value: 'stretch_video', label: 'Stretch Video',  title: 'Audio plays at natural rate; each segment of the video is stretched (per-segment ffmpeg setpts) to fit. Total video duration grows. Requires a re-encode pass.' },
+                      { value: 'strict_slot',   label: 'Strict slot',    title: 'Legacy: compress audio to fit the original timing. Can sound rushed/chipmunky on high-density target languages.' },
+                    ]}
+                  />
+                </div>
+              </div>
+
               {dubTranscript && (
                 <div className="dub-transcript-toggle-wrap">
                   <div className="override-toggle dub-transcript-toggle__inner" onClick={() => setShowTranscript(!showTranscript)}>
@@ -1030,43 +1068,7 @@ export default function DubTab(props) {
                 <DubFailureNotice failure={dubFailure} />
               </div>
             )}
-            <div className="dub-outputs-row">
-              <span className="dub-outputs-title-strong">{t('dub.output_options')}</span>
-              <label>
-                <input type="checkbox" checked={preserveBg} onChange={e => setPreserveBg(e.target.checked)} /> {t('dub.mix_bg_audio')}
-              </label>
-              <label title={t('dub.dual_subs_title')}>
-                <input type="checkbox" checked={!!dualSubs} onChange={e => setDualSubs(e.target.checked)} /> {t('dub.dual_subs')}
-              </label>
-              <label title={t('dub.burn_subs_title')}>
-                <input type="checkbox" checked={!!burnSubs} onChange={e => setBurnSubs(e.target.checked)} /> {t('dub.burn_subs')}
-              </label>
-              <label>
-                {t('dub.default_track')}
-                <select className="input-base dub-outputs-default" value={defaultTrack} onChange={e => setDefaultTrack(e.target.value)}>
-                  <option value="original">{t('dub.original_track')}</option>
-                  {dubLangCode && <option value={dubLangCode}>{t('dub.selected_dub', { code: dubLangCode })}</option>}
-                  {dubTracks.filter(tr => tr !== dubLangCode).map(tr => (
-                    <option key={tr} value={tr}>{t('dub.dub_track', { code: tr })}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div
-              className="dub-outputs-row"
-              title="Timing strategy — how the dub reconciles natural-rate TTS with the original timeline."
-            >
-              <span className="dub-outputs-title-strong">Timing:</span>
-              <Segmented
-                value={timingStrategy}
-                onChange={setTimingStrategy}
-                options={[
-                  { value: 'concise',       label: 'Concise',        title: 'Translator trims text to fit at natural rate. Overflows surface in the row badge so you can shorten the segment.' },
-                  { value: 'stretch_video', label: 'Stretch Video',  title: 'Audio plays at natural rate; each segment of the video is stretched (per-segment ffmpeg setpts) to fit. Total video duration grows. Requires a re-encode pass.' },
-                  { value: 'strict_slot',   label: 'Strict slot',    title: 'Legacy: compress audio to fit the original timing. Can sound rushed/chipmunky on high-density target languages.' },
-                ]}
-              />
-            </div>
+            {/* Output options + Timing moved to the top of the right (transcript) section. */}
             {dubTracks.length > 0 && (
               <div className="dub-tracks-row">
                 <span className="dub-tracks-row__title">{t('dub.export_tracks')}</span>
