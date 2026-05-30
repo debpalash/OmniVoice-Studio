@@ -723,6 +723,11 @@ async def dub_preview_segment(job_id: str, segment_index: int):
             seg_path = _legacy
     if not os.path.exists(seg_path):
         raise HTTPException(status_code=404, detail="Segment not generated yet")
+    # Containment guard at the sink (dub_seg_path already validates; re-assert
+    # here so static analysis sees the barrier dominate the file read).
+    seg_path = os.path.realpath(seg_path)
+    if not seg_path.startswith(os.path.realpath(DUB_DIR) + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid segment path")
     return FileResponse(seg_path, media_type="audio/wav")
 
 
@@ -890,7 +895,9 @@ async def dub_export_segments_zip(job_id: str):
                 _legacy = dub_seg_path(job_id, i)
                 if os.path.exists(_legacy):
                     seg_path = _legacy
-            if os.path.exists(seg_path):
+            # Containment guard at the sink (see preview endpoint).
+            seg_path = os.path.realpath(seg_path)
+            if seg_path.startswith(os.path.realpath(DUB_DIR) + os.sep) and os.path.exists(seg_path):
                 speaker = seg.get("speaker_id", "Speaker1").replace(" ", "")
                 start_str = f"{seg['start']:.2f}"
                 end_str = f"{seg['end']:.2f}"
