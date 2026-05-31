@@ -23,56 +23,14 @@ router = APIRouter()
 VOICE_GALLERY_DIR = Path(os.path.join(OUTPUTS_DIR, "voice_gallery"))
 VOICE_GALLERY_DIR.mkdir(parents=True, exist_ok=True)
 
-CATEGORIES = [
-    {
-        "id": "disney",
-        "name": "Disney",
-        "icon": "🎬",
-        "description": "Disney characters, Pixar, and animated films",
-    },
-    {
-        "id": "anime",
-        "name": "Anime",
-        "icon": "🎌",
-        "description": "Japanese anime characters",
-    },
-    {
-        "id": "marvel",
-        "name": "Marvel/DC",
-        "icon": "🦸",
-        "description": "Superhero movies and TV shows",
-    },
-    {
-        "id": "celebs",
-        "name": "Celebrities",
-        "icon": "⭐",
-        "description": "Famous actors and personalities",
-    },
-    {
-        "id": "politicians",
-        "name": "Politicians",
-        "icon": "🏛️",
-        "description": "World leaders and politicians",
-    },
-    {
-        "id": "news",
-        "name": "News Anchors",
-        "icon": "📰",
-        "description": "News broadcasters",
-    },
-    {
-        "id": "gaming",
-        "name": "Gaming",
-        "icon": "🎮",
-        "description": "Video game characters",
-    },
-    {
-        "id": "books",
-        "name": "Books/Movies",
-        "icon": "📚",
-        "description": "Literary and film characters",
-    },
-]
+# Voice imports carry no project-authored taxonomy. The gallery deliberately
+# ships no curated directory of named real people (celebrities, politicians,
+# franchise characters): shipping such a directory would turn a neutral
+# user-driven import tool into an editorial invitation to clone identifiable
+# individuals (the inducement-liability line). Users paste their own URLs/files
+# into a flat "My Imports" list and own the licensing call. Designed,
+# real-person-free voices live in the archetype gallery (core.archetypes).
+CATEGORIES: list[dict] = []
 
 
 class VoiceEntry(BaseModel):
@@ -194,11 +152,15 @@ def delete_voice(voice_id: str):
 
 @router.post("/gallery/search/youtube")
 async def search_youtube(
-    query: str = Query(..., description="Character or celebrity name to search"),
-    category: str = Query(..., description="Category to associate results with"),
+    query: str = Query(..., description="User-supplied search terms or video title"),
+    category: str = Query("import", description="Free-form tag stored with results"),
     max_results: int = Query(5, ge=1, le=20),
 ):
-    """Search YouTube for character/celebrity clips using yt-dlp."""
+    """Search a source site (via yt-dlp) for clips matching the user's query.
+
+    The query is user-supplied; the project ships no celebrity/character seed
+    list. Users are responsible for the licensing of whatever they import.
+    """
     try:
         result = await spawn_subprocess(
             "yt-dlp",
@@ -247,8 +209,8 @@ async def download_youtube_clip(
     video_url: str = Query(..., description="YouTube video URL"),
     start_time: float = Query(0, ge=0, description="Start time in seconds"),
     duration: float = Query(10, ge=1, le=30, description="Clip duration in seconds"),
-    character_name: str = Query(..., description="Character/celebrity name"),
-    category: str = Query(..., description="Category"),
+    character_name: str = Query(..., description="Name to label this clip"),
+    category: str = Query("import", description="Free-form tag stored with the clip"),
     description: str = Query("", description="Optional description"),
 ):
     """Download a clip from YouTube for voice cloning."""
@@ -336,8 +298,8 @@ async def download_youtube_clip(
 @router.post("/gallery/upload")
 async def upload_voice_clip(
     name: str = Form(...),
-    character: str = Form(...),
-    category: str = Form(...),
+    character: str = Form(""),
+    category: str = Form("import"),
     description: str = Form(""),
     audio: UploadFile = File(...),
 ):

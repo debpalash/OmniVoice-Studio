@@ -350,3 +350,51 @@
   justify-content: center;
   margin-top: 6px;
 }
+
+/* ── Voice Gallery: zone toggle + header ──────────────────────────────── */
+.gallery-sub { margin: 2px 0 0; font-size: 0.72rem; color: var(--text-secondary); }
+.zone-toggle { display: inline-flex; gap: 2px; background: var(--bg-tertiary); border-radius: 8px; padding: 2px; }
+.zone-tab { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border: none; background: transparent; color: var(--text-secondary); border-radius: 6px; font-size: 0.75rem; cursor: pointer; }
+.zone-tab.active { background: var(--bg-secondary); color: var(--text-primary); }
+.gallery-notice { flex-shrink: 0; padding: 7px 10px; background: var(--bg-tertiary); border-left: 3px solid var(--accent); border-radius: 6px; font-size: 0.75rem; color: var(--text-primary); }
+
+/* ── Facet filter bar ─────────────────────────────────────────────────── */
+.facet-bar { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; padding-bottom: 8px; }
+.use-case-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip-emoji { font-size: 0.8rem; line-height: 1; }
+.facet-selects { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.facet-select { padding: 5px 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.7rem; cursor: pointer; }
+.facet-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; color: var(--text-secondary); cursor: pointer; }
+.facet-reset { display: inline-flex; align-items: center; gap: 4px; padding: 5px 8px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); border-radius: 8px; font-size: 0.7rem; cursor: pointer; }
+.facet-reset:hover { border-color: var(--border-hover); color: var(--text-primary); }
+
+/* ── Archetype sections + grid ────────────────────────────────────────── */
+.gallery-content.gallery-scroll { overflow-y: auto; }
+.archetype-section { margin-bottom: 14px; }
+.count-badge { margin-left: 6px; padding: 1px 7px; border-radius: 10px; background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.65rem; font-weight: 400; }
+.archetype-grid.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.archetype-grid.list { display: flex; flex-direction: column; gap: 5px; }
+
+.archetype-card { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 10px; transition: border-color 0.15s ease, background 0.15s ease; }
+.archetype-card:hover { border-color: var(--border-hover); }
+.archetype-card.list { flex-direction: row; align-items: center; padding: 8px 10px; }
+
+.fav-btn { position: absolute; top: 8px; right: 8px; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: none; background: transparent; color: var(--text-secondary); border-radius: 6px; cursor: pointer; }
+.fav-btn:hover { color: var(--accent); }
+.fav-btn.on { color: #fabd2f; }
+.archetype-card.list .fav-btn { position: static; order: 3; }
+
+.archetype-play { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; }
+.archetype-play:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.archetype-card.list .archetype-play { width: 30px; height: 30px; }
+
+.archetype-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.archetype-name { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.archetype-icon { font-size: 0.95rem; line-height: 1; }
+.archetype-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.facet-chip { padding: 1px 7px; border-radius: 8px; background: var(--bg-secondary); color: var(--text-secondary); font-size: 0.62rem; }
+.archetype-actions { display: flex; gap: 5px; }
+.archetype-card.list .archetype-actions { margin-left: auto; }
+
+.load-more { display: flex; justify-content: center; padding: 12px 0; }
+.import-explainer { flex-shrink: 0; padding: 8px 10px; margin-bottom: 8px; background: var(--bg-tertiary); border-radius: 8px; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.4; }

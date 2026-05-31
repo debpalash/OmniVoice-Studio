@@ -4,10 +4,12 @@
 // Deduplication is automatic — two components using useSysinfo() share one
 // network request and one cache entry.
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import * as systemApi from './system';
 import * as setupApi from './setup';
 import * as galleryApi from './gallery';
+import * as archetypesApi from './archetypes';
+import type { ArchetypeFilters } from './archetypes';
 
 // ── Keys (prevents typos, enables targeted invalidation) ─────────────────
 export const queryKeys = {
@@ -22,6 +24,8 @@ export const queryKeys = {
   setupStatus:     ['setup-status']    as const,
   galleryVoices:   (params?: any) => ['gallery-voices', params] as const,
   galleryCategories: ['gallery-categories'] as const,
+  archetypeCategories: ['archetype-categories'] as const,
+  archetypes:      (filters?: any) => ['archetypes', filters] as const,
 };
 
 // ── Polling queries (sysinfo, model status, logs) ────────────────────────
@@ -132,6 +136,25 @@ export function useGalleryVoices(params?: any) {
     queryKey: queryKeys.galleryVoices(params),
     queryFn: () => galleryApi.listGalleryVoices(params),
     staleTime: 30_000,
+  });
+}
+
+// ── Archetype gallery (designed voices) ──────────────────────────────────
+// The catalog is large and static, so cache it hard.
+export function useArchetypeCategories() {
+  return useQuery({
+    queryKey: queryKeys.archetypeCategories,
+    queryFn: archetypesApi.listArchetypeCategories,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useArchetypes(filters: ArchetypeFilters = {}) {
+  return useQuery({
+    queryKey: queryKeys.archetypes(filters),
+    queryFn: () => archetypesApi.listArchetypes(filters),
+    staleTime: 5 * 60_000,
+    placeholderData: keepPreviousData, // v5: keep prior page visible while paginating
   });
 }
 
