@@ -19,6 +19,9 @@ working OmniVoice Studio install on a Debian / Ubuntu / Fedora / Arch host.
 
   # Fedora
   sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel openssl-devel
+
+  # Arch
+  sudo pacman -S base-devel webkit2gtk-4.1 libayatana-appindicator librsvg openssl xdotool --needed
   ```
 
 - Optional: a **Hugging Face token** for diarization + the larger TTS engines
