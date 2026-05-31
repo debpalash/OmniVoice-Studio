@@ -1,4 +1,12 @@
 {
+  "update": {
+    "available": "有可用更新 {{version}}",
+    "install": "安装并重启",
+    "install_hint": "下载更新并重启到新版本",
+    "downloading": "更新中… {{pct}}%",
+    "restart": "重启以更新",
+    "busy": "请先完成配音，再安装更新。"
+  },
   "stories": {
     "title": "故事编辑器",
     "subtitle": "多轨有声书，为每个角色分配语音",

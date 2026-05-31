@@ -1,0 +1,42 @@
+.update-badge {
+  position: fixed;
+  top: 38px;
+  right: 12px;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+}
+.update-badge__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(184, 187, 38, 0.14);
+  border: 1px solid rgba(184, 187, 38, 0.45);
+  color: #b8bb26;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+.update-badge__btn:hover { background: rgba(184, 187, 38, 0.22); }
+.update-badge__btn--ready {
+  background: rgba(131, 165, 152, 0.18);
+  border-color: rgba(131, 165, 152, 0.5);
+  color: #8ec07c;
+}
+.update-badge__progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--chrome-bg, #1d2021);
+  border: 1px solid var(--chrome-border, #3a3a3a);
+  color: #ebdbb2;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.update-badge__bar { width: 60px; height: 3px; background: rgba(255, 255, 255, 0.12); border-radius: 2px; overflow: hidden; }
+.update-badge__bar span { display: block; height: 100%; background: #b8bb26; }

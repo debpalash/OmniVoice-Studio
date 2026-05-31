@@ -1,4 +1,12 @@
 {
+  "update": {
+    "available": "Update {{version}} available",
+    "install": "Install & Restart",
+    "install_hint": "Download the update and restart into the new version",
+    "downloading": "Updating… {{pct}}%",
+    "restart": "Restart to update",
+    "busy": "Finish your dub first — then install the update."
+  },
   "stories": {
     "title": "Stories Editor",
     "subtitle": "Multi-track audiobook with per-character voices",

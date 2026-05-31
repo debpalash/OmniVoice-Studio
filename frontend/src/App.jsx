@@ -27,6 +27,7 @@ const TranscriptionsPage = lazy(() => import('./pages/Transcriptions'));
 const StoriesEditor = lazy(() => import('./components/StoriesEditor'));
 
 import Header from './components/Header';
+import UpdateBadge from './components/UpdateBadge';
 import NavRail from './components/NavRail';
 import ErrorBoundary from './components/ErrorBoundary';
 import FloatingPill from './components/FloatingPill';
@@ -61,6 +62,7 @@ import { saveProject as apiSaveProject, loadProject as apiLoadProject, deletePro
 import { exportAction, exportReveal, exportRecord } from './api/exports';
 
 import { isTauri, doubleClickMaximize, fileToMediaUrl, playBlobAudio, playPing } from './utils/media';
+import { checkForUpdate } from './utils/updater';
 import i18n from './i18n';
 
 function App() {
@@ -393,29 +395,10 @@ function App() {
     if (typeof window === 'undefined') return;
     if (!('__TAURI_INTERNALS__' in window)) return;
     if (import.meta.env.DEV) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const [{ check }, { relaunch }, { ask }] = await Promise.all([
-          import('@tauri-apps/plugin-updater'),
-          import('@tauri-apps/plugin-process'),
-          import('@tauri-apps/plugin-dialog'),
-        ]);
-        const update = await check();
-        if (cancelled || !update) return;
-        const proceed = await ask(
-          `A new version (${update.version}) of OmniVoice Studio is available.\n\nWhat's new:\n${update.body || '— see release notes'}\n\nDownload and install now?`,
-          { title: 'Update available', kind: 'info' },
-        );
-        if (!proceed) return;
-        await update.downloadAndInstall();
-        await relaunch();
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.debug('Updater check failed (non-fatal):', e);
-      }
-    })();
-    return () => { cancelled = true; };
+    // Non-blocking: surface availability into the store. The UpdateBadge lets
+    // the user install + restart when they choose (with a progress bar), so an
+    // update never interrupts in-flight work.
+    checkForUpdate(useAppStore.getState());
   }, []);
 
   // ── DESKTOP NATIVE INTEGRATION ──
@@ -861,6 +844,7 @@ function App() {
       <FloatingPill />
 
 
+      <UpdateBadge />
       <Header
         mode={mode} setMode={setMode}
         sysStats={sysStats} modelStatus={modelStatus}
