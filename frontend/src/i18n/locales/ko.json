@@ -1,4 +1,12 @@
 {
+  "update": {
+    "available": "업데이트 {{version}} 사용 가능",
+    "install": "설치 후 다시 시작",
+    "install_hint": "업데이트를 다운로드하고 새 버전으로 다시 시작합니다",
+    "downloading": "업데이트 중… {{pct}}%",
+    "restart": "다시 시작하여 업데이트",
+    "busy": "먼저 더빙을 완료한 후 업데이트를 설치하세요."
+  },
   "nav": {
     "clone": "복제",
     "design": "디자인",
@@ -263,6 +271,11 @@
     "outputs": "출력",
     "crash_log": "충돌 로그",
     "update_endpoint": "엔드포인트 업데이트",
+    "update_channel": "업데이트 채널",
+    "channel_stable": "안정 버전",
+    "channel_preview": "미리 보기",
+    "channel_set": "업데이트 채널이 {{channel}}(으)로 설정됨",
+    "channel_preview_hint": "미리 보기는 최신 main 빌드를 따릅니다. 새로운 기능을 빨리 사용할 수 있지만 테스트는 적습니다. 안정 버전이 더 최신이면 안정 버전으로 대체됩니다.",
     "yes": "응",
     "no": "아니",
     "web_preview": "웹 미리보기",

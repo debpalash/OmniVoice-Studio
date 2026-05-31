@@ -1,4 +1,12 @@
 {
+  "update": {
+    "available": "Update {{version}} verfügbar",
+    "install": "Installieren und neu starten",
+    "install_hint": "Update herunterladen und in die neue Version neu starten",
+    "downloading": "Wird aktualisiert… {{pct}} %",
+    "restart": "Zum Aktualisieren neu starten",
+    "busy": "Beende zuerst deine Synchronisation – dann installiere das Update."
+  },
   "nav": {
     "clone": "Klonen",
     "design": "Designen",
@@ -264,6 +272,11 @@
     "outputs": "Ausgänge",
     "crash_log": "Absturzprotokoll",
     "update_endpoint": "Endpunkt aktualisieren",
+    "update_channel": "Update-Kanal",
+    "channel_stable": "Stabil",
+    "channel_preview": "Vorschau",
+    "channel_set": "Update-Kanal auf {{channel}} gesetzt",
+    "channel_preview_hint": "Die Vorschau folgt dem neuesten main-Build – neuere Funktionen, weniger getestet. Wechselt zurück zu Stabil, wenn eine stabile Version voraus ist.",
     "yes": "ja",
     "no": "Nein",
     "web_preview": "Webvorschau",

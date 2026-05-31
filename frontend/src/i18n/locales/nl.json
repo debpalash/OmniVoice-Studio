@@ -1,4 +1,12 @@
 {
+  "update": {
+    "available": "Update {{version}} beschikbaar",
+    "install": "Installeren en opnieuw opstarten",
+    "install_hint": "Download de update en start opnieuw op in de nieuwe versie",
+    "downloading": "Bijwerken… {{pct}}%",
+    "restart": "Opnieuw opstarten om bij te werken",
+    "busy": "Voltooi eerst je nasynchronisatie — installeer daarna de update."
+  },
   "nav": {
     "clone": "Klonen",
     "design": "Ontwerpen",
@@ -263,6 +271,11 @@
     "outputs": "Uitgangen",
     "crash_log": "Crashlogboek",
     "update_endpoint": "Eindpunt bijwerken",
+    "update_channel": "Updatekanaal",
+    "channel_stable": "Stabiel",
+    "channel_preview": "Voorbeeld",
+    "channel_set": "Updatekanaal ingesteld op {{channel}}",
+    "channel_preview_hint": "Voorbeeld volgt de nieuwste main-build — nieuwere functies, minder getest. Valt terug op stabiel als er een nieuwere stabiele release is.",
     "yes": "ja",
     "no": "nee",
     "web_preview": "webvoorbeeld",

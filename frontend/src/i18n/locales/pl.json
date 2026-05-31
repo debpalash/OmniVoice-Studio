@@ -1,4 +1,12 @@
 {
+  "update": {
+    "available": "Dostępna aktualizacja {{version}}",
+    "install": "Zainstaluj i uruchom ponownie",
+    "install_hint": "Pobierz aktualizację i uruchom ponownie w nowej wersji",
+    "downloading": "Aktualizowanie… {{pct}}%",
+    "restart": "Uruchom ponownie, aby zaktualizować",
+    "busy": "Najpierw dokończ dubbing — potem zainstaluj aktualizację."
+  },
   "nav": {
     "clone": "Klonuj",
     "design": "Projektuj",
@@ -263,6 +271,11 @@
     "outputs": "Wyjścia",
     "crash_log": "Dziennik awarii",
     "update_endpoint": "Zaktualizuj punkt końcowy",
+    "update_channel": "Kanał aktualizacji",
+    "channel_stable": "Stabilny",
+    "channel_preview": "Podgląd",
+    "channel_set": "Kanał aktualizacji ustawiony na {{channel}}",
+    "channel_preview_hint": "Podgląd śledzi najnowszą kompilację main — nowsze funkcje, mniej testów. Wraca do stabilnej, jeśli stabilne wydanie jest nowsze.",
     "yes": "tak",
     "no": "nie",
     "web_preview": "podgląd internetowy",

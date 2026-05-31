@@ -1,4 +1,12 @@
 {
+  "update": {
+    "available": "Actualización {{version}} disponible",
+    "install": "Instalar y reiniciar",
+    "install_hint": "Descarga la actualización y reinicia en la nueva versión",
+    "downloading": "Actualizando… {{pct}}%",
+    "restart": "Reiniciar para actualizar",
+    "busy": "Termina tu doblaje primero — luego instala la actualización."
+  },
   "nav": {
     "clone": "Clonar",
     "design": "Diseñar",
@@ -264,6 +272,11 @@
     "outputs": "Salidas",
     "crash_log": "Registro de fallos",
     "update_endpoint": "Actualizar punto final",
+    "update_channel": "Canal de actualización",
+    "channel_stable": "Estable",
+    "channel_preview": "Vista previa",
+    "channel_set": "Canal de actualización configurado en {{channel}}",
+    "channel_preview_hint": "La vista previa sigue la última compilación de main: funciones más nuevas, menos probadas. Vuelve a estable si hay una versión estable más reciente.",
     "yes": "si",
     "no": "no",
     "web_preview": "vista previa web",

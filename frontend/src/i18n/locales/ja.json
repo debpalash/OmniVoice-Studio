@@ -1,4 +1,12 @@
 {
+  "update": {
+    "available": "アップデート {{version}} が利用可能です",
+    "install": "インストールして再起動",
+    "install_hint": "アップデートをダウンロードして新しいバージョンで再起動します",
+    "downloading": "更新中… {{pct}}%",
+    "restart": "再起動してアップデート",
+    "busy": "先に吹き替えを完了してから、アップデートをインストールしてください。"
+  },
   "nav": {
     "clone": "複製",
     "design": "デザイン",
@@ -264,6 +272,11 @@
     "outputs": "出力",
     "crash_log": "クラッシュログ",
     "update_endpoint": "エンドポイントの更新",
+    "update_channel": "アップデートチャンネル",
+    "channel_stable": "安定版",
+    "channel_preview": "プレビュー",
+    "channel_set": "アップデートチャンネルを {{channel}} に設定しました",
+    "channel_preview_hint": "プレビューは最新の main ビルドを追跡します。新機能をいち早く利用できますが、テストは少なめです。安定版が先行している場合は安定版にフォールバックします。",
     "yes": "はい",
     "no": "いいえ",
     "web_preview": "ウェブプレビュー",

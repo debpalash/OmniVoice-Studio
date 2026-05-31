@@ -1,4 +1,12 @@
 {
+  "update": {
+    "available": "有可用更新 {{version}}",
+    "install": "安裝並重新啟動",
+    "install_hint": "下載更新並重新啟動至新版本",
+    "downloading": "更新中… {{pct}}%",
+    "restart": "重新啟動以更新",
+    "busy": "請先完成配音，再安裝更新。"
+  },
   "nav": {
     "clone": "複製聲音",
     "design": "設計聲音",
@@ -263,6 +271,11 @@
     "outputs": "輸出",
     "crash_log": "崩潰日誌",
     "update_endpoint": "更新端點",
+    "update_channel": "更新通道",
+    "channel_stable": "穩定版",
+    "channel_preview": "預覽版",
+    "channel_set": "更新通道已設定為 {{channel}}",
+    "channel_preview_hint": "預覽版追蹤最新的 main 組建——功能較新，但測試較少。若穩定版較新，則回退至穩定版。",
     "yes": "是的",
     "no": "不",
     "web_preview": "網頁預覽",

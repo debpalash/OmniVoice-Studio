@@ -1,4 +1,12 @@
 {
+  "update": {
+    "available": "Pembaruan {{version}} tersedia",
+    "install": "Instal dan mulai ulang",
+    "install_hint": "Unduh pembaruan dan mulai ulang ke versi baru",
+    "downloading": "Memperbarui… {{pct}}%",
+    "restart": "Mulai ulang untuk memperbarui",
+    "busy": "Selesaikan sulih suara Anda dulu — lalu instal pembaruannya."
+  },
   "nav": {
     "clone": "Kloning",
     "design": "Desain",
@@ -263,6 +271,11 @@
     "outputs": "Keluaran",
     "crash_log": "Catatan kerusakan",
     "update_endpoint": "Perbarui titik akhir",
+    "update_channel": "Saluran pembaruan",
+    "channel_stable": "Stabil",
+    "channel_preview": "Pratinjau",
+    "channel_set": "Saluran pembaruan disetel ke {{channel}}",
+    "channel_preview_hint": "Pratinjau mengikuti build main terbaru — fitur lebih baru, lebih sedikit diuji. Kembali ke stabil jika ada rilis stabil yang lebih baru.",
     "yes": "ya",
     "no": "tidak",
     "web_preview": "pratinjau web",

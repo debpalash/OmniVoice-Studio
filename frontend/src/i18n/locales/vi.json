@@ -1,4 +1,12 @@
 {
+  "update": {
+    "available": "Đã có bản cập nhật {{version}}",
+    "install": "Cài đặt và khởi động lại",
+    "install_hint": "Tải bản cập nhật và khởi động lại vào phiên bản mới",
+    "downloading": "Đang cập nhật… {{pct}}%",
+    "restart": "Khởi động lại để cập nhật",
+    "busy": "Hoàn tất lồng tiếng của bạn trước — rồi cài đặt bản cập nhật."
+  },
   "nav": {
     "clone": "Nhân bản",
     "design": "Thiết kế",
@@ -263,6 +271,11 @@
     "outputs": "đầu ra",
     "crash_log": "Nhật ký sự cố",
     "update_endpoint": "Cập nhật điểm cuối",
+    "update_channel": "Kênh cập nhật",
+    "channel_stable": "Ổn định",
+    "channel_preview": "Xem trước",
+    "channel_set": "Đã đặt kênh cập nhật thành {{channel}}",
+    "channel_preview_hint": "Bản xem trước theo dõi bản dựng main mới nhất — tính năng mới hơn, ít được kiểm thử hơn. Quay lại bản ổn định nếu có bản phát hành ổn định mới hơn.",
     "yes": "vâng",
     "no": "không",
     "web_preview": "xem trước trang web",

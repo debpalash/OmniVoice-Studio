@@ -1,4 +1,12 @@
 {
+  "update": {
+    "available": "Uppdatering {{version}} tillgänglig",
+    "install": "Installera och starta om",
+    "install_hint": "Ladda ner uppdateringen och starta om i den nya versionen",
+    "downloading": "Uppdaterar… {{pct}} %",
+    "restart": "Starta om för att uppdatera",
+    "busy": "Slutför din dubbning först – installera sedan uppdateringen."
+  },
   "nav": {
     "clone": "Klona",
     "design": "Designa",
@@ -263,6 +271,11 @@
     "outputs": "Utgångar",
     "crash_log": "Krocklogg",
     "update_endpoint": "Uppdatera slutpunkt",
+    "update_channel": "Uppdateringskanal",
+    "channel_stable": "Stabil",
+    "channel_preview": "Förhandsvisning",
+    "channel_set": "Uppdateringskanal inställd på {{channel}}",
+    "channel_preview_hint": "Förhandsvisning följer det senaste main-bygget – nyare funktioner, mindre testade. Återgår till stabil om en stabil version ligger före.",
     "yes": "ja",
     "no": "nej",
     "web_preview": "webbförhandsvisning",

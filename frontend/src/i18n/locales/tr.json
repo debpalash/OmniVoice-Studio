@@ -1,4 +1,12 @@
 {
+  "update": {
+    "available": "{{version}} güncellemesi mevcut",
+    "install": "Yükle ve yeniden başlat",
+    "install_hint": "Güncellemeyi indir ve yeni sürümle yeniden başlat",
+    "downloading": "Güncelleniyor… %{{pct}}",
+    "restart": "Güncellemek için yeniden başlat",
+    "busy": "Önce dublajını bitir — sonra güncellemeyi yükle."
+  },
   "nav": {
     "clone": "Klonla",
     "design": "Tasarla",
@@ -263,6 +271,11 @@
     "outputs": "Çıkışlar",
     "crash_log": "Kilitlenme günlüğü",
     "update_endpoint": "Uç noktayı güncelle",
+    "update_channel": "Güncelleme kanalı",
+    "channel_stable": "Kararlı",
+    "channel_preview": "Önizleme",
+    "channel_set": "Güncelleme kanalı {{channel}} olarak ayarlandı",
+    "channel_preview_hint": "Önizleme en son main yapısını izler — daha yeni özellikler, daha az test. Daha yeni bir kararlı sürüm varsa kararlıya geri döner.",
     "yes": "evet",
     "no": "hayır",
     "web_preview": "web önizlemesi",

@@ -1,4 +1,12 @@
 {
+  "update": {
+    "available": "Atualização {{version}} disponível",
+    "install": "Instalar e reiniciar",
+    "install_hint": "Baixe a atualização e reinicie na nova versão",
+    "downloading": "Atualizando… {{pct}}%",
+    "restart": "Reiniciar para atualizar",
+    "busy": "Termine sua dublagem primeiro — depois instale a atualização."
+  },
   "nav": {
     "clone": "Clonar",
     "design": "Desenhar",
@@ -263,6 +271,11 @@
     "outputs": "Resultados",
     "crash_log": "Registro de falhas",
     "update_endpoint": "Atualizar ponto de extremidade",
+    "update_channel": "Canal de atualização",
+    "channel_stable": "Estável",
+    "channel_preview": "Prévia",
+    "channel_set": "Canal de atualização definido como {{channel}}",
+    "channel_preview_hint": "A prévia acompanha a compilação mais recente da main — recursos mais novos, menos testados. Volta para a estável se uma versão estável estiver à frente.",
     "yes": "sim",
     "no": "não",
     "web_preview": "visualização da web",

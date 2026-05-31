@@ -1,4 +1,12 @@
 {
+  "update": {
+    "available": "Mise à jour {{version}} disponible",
+    "install": "Installer et redémarrer",
+    "install_hint": "Télécharger la mise à jour et redémarrer dans la nouvelle version",
+    "downloading": "Mise à jour… {{pct}} %",
+    "restart": "Redémarrer pour mettre à jour",
+    "busy": "Terminez d'abord votre doublage, puis installez la mise à jour."
+  },
   "nav": {
     "clone": "Cloner",
     "design": "Concevoir",
@@ -264,6 +272,11 @@
     "outputs": "Sorties",
     "crash_log": "Journal des incidents",
     "update_endpoint": "Mettre à jour le point de terminaison",
+    "update_channel": "Canal de mise à jour",
+    "channel_stable": "Stable",
+    "channel_preview": "Aperçu",
+    "channel_set": "Canal de mise à jour réglé sur {{channel}}",
+    "channel_preview_hint": "L'aperçu suit la dernière version de main : fonctionnalités plus récentes, moins testées. Revient à la version stable si une version stable est plus avancée.",
     "yes": "oui",
     "no": "non",
     "web_preview": "aperçu Web",

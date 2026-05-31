@@ -4,7 +4,9 @@ import re
 import time
 from deep_translator import GoogleTranslator
 
-LOCALES_DIR = "/Users/user4/orca/workspaces/OmniVoice/translation/frontend/src/i18n/locales"
+LOCALES_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "frontend", "src", "i18n", "locales"
+)
 
 LANGUAGES = [
     "zh-CN", "es", "fr", "de", "ja", "pt", "it", "ru", "ko",

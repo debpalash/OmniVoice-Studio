@@ -1,4 +1,12 @@
 {
+  "update": {
+    "available": "Aggiornamento {{version}} disponibile",
+    "install": "Installa e riavvia",
+    "install_hint": "Scarica l'aggiornamento e riavvia nella nuova versione",
+    "downloading": "Aggiornamento… {{pct}}%",
+    "restart": "Riavvia per aggiornare",
+    "busy": "Completa prima il tuo doppiaggio, poi installa l'aggiornamento."
+  },
   "nav": {
     "clone": "Clona",
     "design": "Progetta",
@@ -263,6 +271,11 @@
     "outputs": "Uscite",
     "crash_log": "Registro degli arresti anomali",
     "update_endpoint": "Aggiorna endpoint",
+    "update_channel": "Canale di aggiornamento",
+    "channel_stable": "Stabile",
+    "channel_preview": "Anteprima",
+    "channel_set": "Canale di aggiornamento impostato su {{channel}}",
+    "channel_preview_hint": "L'anteprima segue l'ultima build di main: funzionalità più recenti, meno testate. Torna alla versione stabile se una release stabile è più avanti.",
     "yes": "sì",
     "no": "no",
     "web_preview": "anteprima web",
