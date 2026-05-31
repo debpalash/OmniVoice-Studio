@@ -44,9 +44,10 @@ _PREVIEW_SEED = 42
 
 
 def _preview_key(a: dict) -> str:
-    # Deterministic cache key, not a security digest.
-    return hashlib.sha1(
-        f"{a['instruct']}|{a['language']}".encode("utf-8"), usedforsecurity=False
+    # Deterministic cache key, not a security digest. SHA-256 (not SHA-1) so the
+    # SAST scanners don't flag it as a weak hash.
+    return hashlib.sha256(
+        f"{a['instruct']}|{a['language']}".encode("utf-8")
     ).hexdigest()[:16]
 
 
@@ -148,7 +149,7 @@ async def preview_archetype(archetype_id: str):
         try:
             await _render_archetype_wav(a, cache_path)
         except Exception as e:  # model missing / OOM / inference failure
-            logger.error("Archetype preview render failed for %s: %s", archetype_id, e)
+            logger.error("Archetype preview render failed for %s: %s", a["id"], e)
             raise HTTPException(
                 status_code=503,
                 detail=(
@@ -182,7 +183,7 @@ async def use_archetype(archetype_id: str, name: Optional[str] = Query(None)):
     try:
         await _render_archetype_wav(a, audio_path)
     except Exception as e:
-        logger.error("Archetype 'use' render failed for %s: %s", archetype_id, e)
+        logger.error("Archetype 'use' render failed for %s: %s", a["id"], e)
         raise HTTPException(
             status_code=503,
             detail=(

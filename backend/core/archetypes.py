@@ -220,9 +220,10 @@ def _build(gender, age, pitch, *, accent=None, dialect=None, whisper=False,
     if featured:
         aid = fid
     else:
-        # Deterministic archetype id, not a security digest.
-        aid = "a_" + hashlib.sha1(
-            f"{instruct}|{language}".encode("utf-8"), usedforsecurity=False
+        # Deterministic archetype id, not a security digest. SHA-256 (not
+        # SHA-1) to avoid the SAST weak-hash flag.
+        aid = "a_" + hashlib.sha256(
+            f"{instruct}|{language}".encode("utf-8")
         ).hexdigest()[:10]
 
     return {

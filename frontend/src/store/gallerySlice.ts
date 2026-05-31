@@ -49,7 +49,7 @@ export interface GallerySlice {
   setGalleryViewMode: (mode: 'grid' | 'list') => void;
 }
 
-export const createGallerySlice: StateCreator<GallerySlice, [], [], GallerySlice> = (set, get) => ({
+export const createGallerySlice: StateCreator<GallerySlice, [], [], GallerySlice> = (set, get, _store) => ({
   galleryZone: 'archetypes',
   archetypeFilters: { ...EMPTY_ARCHETYPE_FILTERS },
   favoriteArchetypeIds: [],
