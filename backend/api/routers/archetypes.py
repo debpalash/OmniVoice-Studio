@@ -149,7 +149,7 @@ async def preview_archetype(archetype_id: str):
         try:
             await _render_archetype_wav(a, cache_path)
         except Exception as e:  # model missing / OOM / inference failure
-            logger.error("Archetype preview render failed for %s: %s", a["id"], e)
+            logger.error("Archetype preview render failed", exc_info=True)
             raise HTTPException(
                 status_code=503,
                 detail=(
@@ -183,7 +183,7 @@ async def use_archetype(archetype_id: str, name: Optional[str] = Query(None)):
     try:
         await _render_archetype_wav(a, audio_path)
     except Exception as e:
-        logger.error("Archetype 'use' render failed for %s: %s", a["id"], e)
+        logger.error("Archetype 'use' render failed", exc_info=True)
         raise HTTPException(
             status_code=503,
             detail=(
