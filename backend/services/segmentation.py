@@ -494,6 +494,44 @@ def assign_speakers_from_diarization(
     return segments
 
 
+def assign_speakers_from_turns(
+    segments: List[dict],
+    turns: List[dict],
+) -> List[dict]:
+    """Assign speaker_id by overlap against a list of ``{start, end, speaker}``
+    turns produced by an ASR backend that diarizes inline (e.g. FunASR's cam++).
+
+    Mirrors :func:`assign_speakers_from_diarization`'s overlap-weighting (winner
+    = most-overlapping speaker; midpoint membership as fallback) without a
+    pyannote object. ``speaker`` is used verbatim — FunASR already labels its
+    speakers ``"Speaker N"``. Falls back to the silence-gap heuristic when no
+    usable turns are supplied.
+    """
+    clean = [
+        t for t in (turns or [])
+        if t.get("speaker") is not None and t.get("start") is not None and t.get("end") is not None
+    ]
+    if not clean:
+        return assign_speakers_heuristic(segments)
+    for s in segments:
+        start, end = s["start"], s["end"]
+        mid = (start + end) / 2.0
+        overlap: dict = {}
+        for t in clean:
+            left = max(start, t["start"])
+            right = min(end, t["end"])
+            if right > left:
+                overlap[t["speaker"]] = overlap.get(t["speaker"], 0.0) + (right - left)
+        if overlap:
+            s["speaker_id"] = max(overlap.items(), key=lambda kv: kv[1])[0]
+        else:
+            for t in clean:
+                if t["start"] <= mid <= t["end"]:
+                    s["speaker_id"] = t["speaker"]
+                    break
+    return segments
+
+
 def assign_speakers_heuristic(segments: List[dict]) -> List[dict]:
     """Two-speaker alternation based on silence gaps."""
     current = 1

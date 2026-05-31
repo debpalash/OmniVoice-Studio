@@ -854,6 +854,9 @@ class FunASRBackend(ASRBackend):
     def __init__(self):
         self._model_name = os.environ.get("ASR_MODEL_FUNASR", "iic/SenseVoiceSmall")
         self._vad_model = os.environ.get("ASR_FUNASR_VAD", "fsmn-vad")
+        # cam++ speaker model → inline diarization (Phase 2). Set ASR_FUNASR_SPK=""
+        # to disable and fall back to the dub pipeline's pyannote/heuristic path.
+        self._spk_model = os.environ.get("ASR_FUNASR_SPK", "cam++")
         self._model = None
 
     @classmethod
@@ -868,8 +871,11 @@ class FunASRBackend(ASRBackend):
         if self._model is not None:
             return
         from funasr import AutoModel
-        logger.info("FunASR loading %s (vad=%s)", self._model_name, self._vad_model)
-        self._model = AutoModel(model=self._model_name, vad_model=self._vad_model, disable_update=True)
+        kwargs = {"model": self._model_name, "vad_model": self._vad_model, "disable_update": True}
+        if self._spk_model:
+            kwargs["spk_model"] = self._spk_model
+        logger.info("FunASR loading %s (vad=%s, spk=%s)", self._model_name, self._vad_model, self._spk_model or "off")
+        self._model = AutoModel(**kwargs)
 
     def transcribe(self, audio_path: str, *, word_timestamps: bool = True) -> dict:
         self._ensure_model()

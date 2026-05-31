@@ -27,6 +27,7 @@ from services.ffmpeg_utils import find_ffmpeg, _get_semaphore, _spawn_with_retry
 from services.segmentation import (
     segment_transcript,
     assign_speakers_from_diarization,
+    assign_speakers_from_turns,
     assign_speakers_heuristic,
     clean_up_segments,
 )
@@ -440,6 +441,9 @@ async def dub_transcribe_stream(job_id: str):
         detected_lang = None
         next_seg_id = 0
         chunk_errors: list[str] = []
+        # Speaker turns from an ASR backend that diarizes inline (FunASR cam++).
+        # When present, _diarize() uses them and skips pyannote (Phase 2, #182).
+        asr_speaker_turns: list[dict] = []
 
         for i in range(chunks_n):
             if job.get("aborted"):
@@ -471,7 +475,16 @@ async def dub_transcribe_stream(job_id: str):
                         a0 = (ts[0] if ts[0] is not None else 0.0) + offset
                         a1 = (ts[1] if ts[1] is not None else 0.0) + offset
                         shifted.append({"text": c.get("text", ""), "timestamp": (a0, a1)})
-                    return {"chunks": shifted, "language": r.get("language")}
+                    # Inline-diarization speaker turns (FunASR cam++), offset-shifted
+                    # to the full-audio timeline so _diarize() can use them.
+                    turns = []
+                    for seg in r.get("segments", []) or []:
+                        spk = seg.get("speaker")
+                        s0, s1 = seg.get("start"), seg.get("end")
+                        if spk is None or s0 is None or s1 is None:
+                            continue
+                        turns.append({"start": s0 + offset, "end": s1 + offset, "speaker": spk})
+                    return {"chunks": shifted, "language": r.get("language"), "speaker_turns": turns}
                 except Exception as e:
                     logger.exception("chunk transcribe failed (backend=%s)", _asr_backend.id)
                     return {"chunks": [], "language": None, "error": str(e)}
@@ -506,6 +519,7 @@ async def dub_transcribe_stream(job_id: str):
                 logger.warning("Chunk %d/%d error: %s", i + 1, chunks_n, part["error"])
             if detected_lang is None and part.get("language"):
                 detected_lang = part["language"]
+            asr_speaker_turns.extend(part.get("speaker_turns") or [])
             chunk_segs = segment_transcript(part, duration=t1, scene_cuts=scene_cuts)
             chunk_segs = assign_speakers_heuristic(chunk_segs)
             for s in chunk_segs:
@@ -564,6 +578,12 @@ async def dub_transcribe_stream(job_id: str):
             attach an `error_class` so the front-end's errorDocsMap can
             render a "See docs" deeplink instead of a dead-end toast.
             """
+            # The active ASR backend already diarized inline (FunASR cam++):
+            # use its speaker turns directly and skip pyannote entirely (#182).
+            if asr_speaker_turns:
+                logger.info("Using inline ASR diarization (%d turns); skipping pyannote.", len(asr_speaker_turns))
+                return assign_speakers_from_turns(all_segments, asr_speaker_turns), None
+
             from services.model_manager import (
                 DIARIZATION_ERR_LICENSE,
                 DIARIZATION_ERR_LOAD,
