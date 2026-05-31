@@ -12,6 +12,7 @@ pub mod bootstrap;
 pub mod tools;
 pub mod backend;
 pub mod commands;
+pub mod updater_channel;
 
 use std::process::Child;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -96,6 +97,10 @@ pub fn run() {
             bootstrap::clean_and_retry_bootstrap,
             config::get_region,
             config::set_region,
+            config::get_update_channel,
+            config::set_update_channel,
+            updater_channel::check_update,
+            updater_channel::install_update,
             commands::get_sysinfo,
             commands::read_log_tail,
             commands::hf_cache_scan,

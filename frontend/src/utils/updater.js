@@ -1,28 +1,46 @@
 /**
- * Tauri auto-update flow with progress + safety.
+ * Tauri auto-update flow with progress + safety, channel-aware.
+ *
+ * The bundled updater plugin can't switch release channels from JS (its
+ * endpoints are fixed in tauri.conf.json), so check + install go through the
+ * Rust `check_update` / `install_update` commands, which bind the right
+ * endpoints per call via `UpdaterExt`. The store contract here is identical to
+ * the prior JS-plugin flow, so UpdateBadge / App.jsx are unaffected.
  *
  * - checkForUpdate(): non-blocking; on launch, surfaces availability into the
  *   store (no auto-install — the user picks when via the UpdateBadge).
- * - installUpdate(): downloads with a progress callback → store, then relaunches.
- *   Download is safe anytime; only the relaunch ends the session, and the badge
- *   gates the action while a job is running so in-flight work isn't lost.
+ * - installUpdate(): installs with a progress callback (Rust emits
+ *   `update://progress`), then relaunches. The badge gates the action while a
+ *   job is running so in-flight work isn't lost.
  *
  * Both no-op outside a packaged Tauri build.
  */
+import { normalizeChannel } from './updateChannel';
+
 export function isTauri() {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+}
+
+async function currentChannel() {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return normalizeChannel(await invoke('get_update_channel'));
+  } catch {
+    return 'stable';
+  }
 }
 
 export async function checkForUpdate(store) {
   if (!isTauri()) return;
   try {
     store.setUpdateChecking();
-    const { check } = await import('@tauri-apps/plugin-updater');
-    const update = await check();
-    if (update) store.setUpdateAvailable(update.version, update.body || null);
+    const { invoke } = await import('@tauri-apps/api/core');
+    const channel = await currentChannel();
+    const update = await invoke('check_update', { channel });
+    if (update) store.setUpdateAvailable(update.version, update.notes || null);
     else store.setUpdateIdle();
   } catch (e) {
-    // Endpoint 404s until the first signed release — non-fatal noise.
+    // Endpoint 404s until the first signed release on a channel — non-fatal.
     console.debug('Update check failed (non-fatal):', e);
     store.setUpdateIdle();
   }
@@ -30,29 +48,26 @@ export async function checkForUpdate(store) {
 
 export async function installUpdate(store) {
   if (!isTauri()) return;
+  let unlisten;
   try {
-    const [{ check }, { relaunch }] = await Promise.all([
-      import('@tauri-apps/plugin-updater'),
+    const [{ invoke }, { listen }, { relaunch }] = await Promise.all([
+      import('@tauri-apps/api/core'),
+      import('@tauri-apps/api/event'),
       import('@tauri-apps/plugin-process'),
     ]);
-    const update = await check();
-    if (!update) { store.setUpdateIdle(); return; }
-    let total = 0;
-    let got = 0;
+    const channel = await currentChannel();
     store.setUpdateProgress(0);
-    await update.downloadAndInstall((ev) => {
-      if (ev.event === 'Started') total = ev.data?.contentLength || 0;
-      else if (ev.event === 'Progress') {
-        got += ev.data?.chunkLength || 0;
-        if (total > 0) store.setUpdateProgress(Math.min(99, (got / total) * 100));
-      } else if (ev.event === 'Finished') {
-        store.setUpdateReady();
-      }
+    unlisten = await listen('update://progress', (ev) => {
+      const { downloaded = 0, total = 0 } = ev?.payload || {};
+      if (total > 0) store.setUpdateProgress(Math.min(99, (downloaded / total) * 100));
     });
+    await invoke('install_update', { channel });
     store.setUpdateReady();
     await relaunch();
   } catch (e) {
     console.warn('Update install failed:', e);
-    store.setUpdateError((e && e.message) || 'Update failed');
+    store.setUpdateError((e && e.message) || String(e) || 'Update failed');
+  } finally {
+    if (unlisten) unlisten();
   }
 }

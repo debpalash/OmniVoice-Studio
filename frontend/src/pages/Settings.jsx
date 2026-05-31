@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { copyText } from "../utils/copyText";
 import { isTauri as _isTauri } from '../utils/media';
+import { normalizeChannel } from '../utils/updateChannel';
 import {
   flexRender,
   getCoreRowModel,
@@ -1065,6 +1066,7 @@ export default function Settings() {
   const [appVersion, setAppVersion] = useState(null);
   const [tauriVersion, setTauriVersion] = useState(null);
   const [updateState, setUpdateState] = useState('idle'); // idle|checking|downloading|uptodate|error
+  const [updateChannel, setUpdateChannelState] = useState('stable'); // stable|preview
 
   // TanStack Query — shared cache with App.jsx, no duplicate requests
   const { data: hw } = useSysinfo();
@@ -1079,8 +1081,25 @@ export default function Settings() {
         setAppVersion(await app.getVersion());
         if (app.getTauriVersion) setTauriVersion(await app.getTauriVersion());
       } catch { /* web preview */ }
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        setUpdateChannelState(normalizeChannel(await invoke('get_update_channel')));
+      } catch { /* web preview / pre-channel build */ }
     })();
   }, []);
+
+  const changeChannel = useCallback(async (ch) => {
+    const next = normalizeChannel(ch);
+    setUpdateChannelState(next);
+    if (!isTauri()) return;
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('set_update_channel', { channel: next });
+      toast.success(t('about.channel_set', { channel: t(`about.channel_${next}`) }));
+    } catch (e) {
+      toast.error(`Failed to set channel: ${e?.message || e}`);
+    }
+  }, [t]);
 
   // sysinfo polling is now handled by useSysinfo() hook above
 
@@ -1111,7 +1130,10 @@ export default function Settings() {
       `- **Data directory:** ${info?.data_dir || '—'}`,
       `- **Outputs directory:** ${info?.outputs_dir || '—'}`,
       `- **Crash log:** ${info?.crash_log_path || '—'}`,
-      `- **Update endpoint:** https://github.com/debpalash/OmniVoice-Studio/releases/latest/download/latest.json`,
+      `- **Update channel:** ${updateChannel}`,
+      `- **Update endpoint:** ${updateChannel === 'preview'
+        ? 'https://github.com/debpalash/OmniVoice-Studio/releases/download/preview/latest.json'
+        : 'https://github.com/debpalash/OmniVoice-Studio/releases/latest/download/latest.json'}`,
       `- **User agent:** ${ua}`,
     ];
     const text = lines.join('\n');
@@ -1121,7 +1143,7 @@ export default function Settings() {
     } catch (e) {
       toast.error('Copy failed: ' + (e?.message || e));
     }
-  }, [appVersion, tauriVersion, info, status, hw]);
+  }, [appVersion, tauriVersion, info, status, hw, updateChannel]);
 
   const checkForUpdates = useCallback(async () => {
     if (!isTauri()) {
@@ -1130,32 +1152,33 @@ export default function Settings() {
     }
     setUpdateState('checking');
     try {
-      const [{ check }, { relaunch }, { ask }] = await Promise.all([
-        import('@tauri-apps/plugin-updater'),
+      const [{ invoke }, { relaunch }, { ask }] = await Promise.all([
+        import('@tauri-apps/api/core'),
         import('@tauri-apps/plugin-process'),
         import('@tauri-apps/plugin-dialog'),
       ]);
-      const update = await check();
+      const channel = normalizeChannel(updateChannel);
+      const update = await invoke('check_update', { channel });
       if (!update) {
         setUpdateState('uptodate');
         toast.success("You're on the latest version.");
         return;
       }
       const proceed = await ask(
-        `Version ${update.version} is available.\n\n${update.body || 'See release notes on GitHub.'}\n\nDownload and install now?`,
+        `Version ${update.version} is available.\n\n${update.notes || 'See release notes on GitHub.'}\n\nDownload and install now?`,
         { title: 'Update available', kind: 'info' },
       );
       if (!proceed) { setUpdateState('idle'); return; }
       setUpdateState('downloading');
-      const t = toast.loading(`Downloading ${update.version}…`);
-      await update.downloadAndInstall();
-      toast.success('Installed — relaunching.', { id: t });
+      const tid = toast.loading(`Downloading ${update.version}…`);
+      await invoke('install_update', { channel });
+      toast.success('Installed — relaunching.', { id: tid });
       await relaunch();
     } catch (e) {
       setUpdateState('error');
       toast.error('Update check failed: ' + (e?.message || e));
     }
-  }, []);
+  }, [updateChannel]);
 
   // refreshInfo polling replaced by TanStack Query (useSystemInfo + useModelStatus)
   const refreshInfo = useCallback(() => {}, []);
@@ -1341,7 +1364,30 @@ export default function Settings() {
           <Row label={t('about.data_dir')}        value={info?.data_dir || '—'} mono />
           <Row label={t('about.outputs')}         value={info?.outputs_dir || '—'} mono />
           <Row label={t('about.crash_log')}       value={info?.crash_log_path || '—'} mono />
-          <Row label={t('about.update_endpoint')} value="releases/latest/download/latest.json" mono />
+          <Row
+            label={t('about.update_channel')}
+            value={
+              <Segmented
+                size="xs"
+                value={updateChannel}
+                onChange={changeChannel}
+                items={[
+                  { value: 'stable',  label: t('about.channel_stable') },
+                  { value: 'preview', label: t('about.channel_preview') },
+                ]}
+              />
+            }
+          />
+          <Row
+            label={t('about.update_endpoint')}
+            value={updateChannel === 'preview'
+              ? 'releases/download/preview/latest.json'
+              : 'releases/latest/download/latest.json'}
+            mono
+          />
+          {updateChannel === 'preview' && (
+            <p className="settings-muted">{t('about.channel_preview_hint')}</p>
+          )}
           <div className="settings-link-row">
             <Button
               variant="primary"

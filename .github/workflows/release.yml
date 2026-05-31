@@ -1,10 +1,17 @@
 # Desktop release pipeline — self-updating binaries for mac/linux/windows.
 #
 # Triggers:
-#   - push of a tag matching `v*` (e.g. `v0.2.0`) → full release, publishes
-#     artifacts + signed updater manifest (`latest.json`) to GH Releases.
-#   - workflow_dispatch → on-demand build, uploads artifacts as workflow
-#     artifacts only (no release, no updater manifest).
+#   - push of a tag matching `v*` (e.g. `v0.2.0`) → full STABLE release,
+#     publishes artifacts + signed updater manifest (`latest.json`) to the
+#     tag's GH Release. This is the default Stable updater channel.
+#   - workflow_dispatch (publish_preview=true) → builds the selected branch and
+#     publishes a rolling `preview` PRERELEASE with its own signed
+#     `latest.json` at releases/download/preview/. This feeds the opt-in
+#     Preview updater channel (Settings → About → Update channel). The stable
+#     `latest` release is untouched. Run this manually whenever you want to cut
+#     a preview from `main`.
+#   - workflow_dispatch (publish_preview=false) → on-demand build (prior
+#     behavior; draft release named after the branch).
 #
 # Strategy: matrix builds per target. Each runner produces a PyInstaller
 # frozen backend + Tauri bundle. `tauri-apps/tauri-action` signs the updater
@@ -27,6 +34,11 @@ on:
         description: "Create as draft release (tag push only)"
         required: false
         default: "true"
+      publish_preview:
+        description: "Publish a rolling 'preview' prerelease (updater Preview channel) from the selected branch"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write    # needed to attach artifacts + updater manifest to GH Release
@@ -373,11 +385,15 @@ jobs:
         with:
           projectPath: frontend
           args: --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundles }}
-          tagName: ${{ github.ref_name }}
-          releaseName: "OmniVoice Studio ${{ github.ref_name }}"
+          # Preview path (workflow_dispatch + publish_preview=true) targets a
+          # rolling `preview` prerelease for the updater's Preview channel.
+          # Every other invocation — crucially the `v*` tag-push stable release
+          # — evaluates these expressions to exactly their prior values.
+          tagName: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && 'preview' || github.ref_name }}
+          releaseName: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && 'OmniVoice Studio (Preview)' || format('OmniVoice Studio {0}', github.ref_name) }}
           releaseBody: ${{ steps.changelog.outputs.body }}
-          releaseDraft: ${{ inputs.draft || 'true' }}
-          prerelease: false
+          releaseDraft: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && 'false' || (inputs.draft || 'true') }}
+          prerelease: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) || false }}
           updaterJsonPreferNsis: false
           includeUpdaterJson: true
 

@@ -33,11 +33,22 @@ pub struct AppConfig {
     /// CLI flag still takes precedence when explicitly passed.
     #[serde(default = "default_launch_as_widget")]
     pub launch_as_widget: bool,
+    /// Updater release channel: "stable" (default) | "preview".
+    ///
+    /// "preview" makes the auto-updater consult the rolling `preview`
+    /// prerelease manifest first (falling back to stable), letting a user opt
+    /// into latest-`main` builds. The channel is bound per update check in
+    /// `updater_channel.rs` via `UpdaterExt::endpoints`, so switching takes
+    /// effect on the very next check — no restart needed. Default stays
+    /// stable on every launch.
+    #[serde(default = "default_update_channel")]
+    pub update_channel: String,
 }
 
 pub fn default_region() -> String { "auto".into() }
 pub fn default_dictation_shortcut() -> String { "CmdOrCtrl+Shift+Space".into() }
 pub fn default_launch_as_widget() -> bool { false }
+pub fn default_update_channel() -> String { "stable".into() }
 
 impl Default for AppConfig {
     fn default() -> Self {
@@ -45,6 +56,7 @@ impl Default for AppConfig {
             region: default_region(),
             dictation_shortcut: default_dictation_shortcut(),
             launch_as_widget: default_launch_as_widget(),
+            update_channel: default_update_channel(),
         }
     }
 }
@@ -90,6 +102,8 @@ pub fn save_config<R: tauri::Runtime>(app: &tauri::AppHandle<R>, cfg: &AppConfig
 // ── Region helpers ────────────────────────────────────────────────────────
 
 pub const VALID_REGIONS: &[&str] = &["auto", "global", "china", "russia", "restricted"];
+
+pub const VALID_CHANNELS: &[&str] = &["stable", "preview"];
 
 /// Resolve a raw GitHub URL through the appropriate mirror for the given region.
 /// If the region uses a proxy, prepends the proxy prefix.
@@ -148,4 +162,25 @@ pub fn set_region(app: tauri::AppHandle, region: String) -> String {
     cfg.region = r.to_string();
     save_config(&app, &cfg);
     r.to_string()
+}
+
+#[tauri::command]
+pub fn get_update_channel(app: tauri::AppHandle) -> String {
+    load_config(&app).update_channel
+}
+
+/// Persist the updater release channel. Unknown values clamp to "stable".
+/// Takes effect on the next update check (the channel is read per-check).
+#[tauri::command]
+pub fn set_update_channel(app: tauri::AppHandle, channel: String) -> String {
+    let c = if VALID_CHANNELS.contains(&channel.as_str()) {
+        channel.as_str()
+    } else {
+        "stable"
+    };
+    let mut cfg = load_config(&app);
+    cfg.update_channel = c.to_string();
+    save_config(&app, &cfg);
+    log::info!("Update channel set to {c}");
+    c.to_string()
 }
