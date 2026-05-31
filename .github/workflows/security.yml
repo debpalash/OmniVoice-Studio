@@ -79,7 +79,26 @@ jobs:
           languages: ${{ matrix.language }}
           # Both targets are interpreted — no compiled build step needed.
           build-mode: none
-          queries: security-and-quality
+          # Scope analysis to shipped product code. The excluded trees never
+          # ship in the installer's runtime path and produce the bulk of the
+          # note-level + false-positive findings (file-not-closed in eval
+          # harnesses, unused alembic migration globals, bind-all in tests,
+          # path sinks in the legacy Gradio research UI). Queries live in the
+          # inline config so there's a single source of truth next to
+          # paths-ignore. paths-ignore is supported here because build-mode is
+          # `none` (interpreted analysis).
+          config: |
+            queries:
+              - uses: security-and-quality
+            paths-ignore:
+              - omnivoice/eval
+              - research
+              - tests
+              - backend/migrations
+              - "**/*.test.js"
+              - "**/*.test.jsx"
+              - "**/*.test.ts"
+              - "**/*.test.tsx"
 
       - name: Analyze
         uses: github/codeql-action/analyze@v3
