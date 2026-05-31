@@ -127,10 +127,10 @@ async def _render_archetype_wav(a: dict, out_path: Path) -> None:
 
     audio_tensor = await loop.run_in_executor(_gpu_pool, _infer, _PREVIEW_SEED)
     if _is_blank_audio(audio_tensor):
-        logger.warning(
-            "Archetype %s rendered blank at seed %d — retrying once",
-            a.get("id"), _PREVIEW_SEED,
-        )
+        # Static message only — the archetype id derives from the request path
+        # param, and CodeQL flags logging request-derived data (clear-text /
+        # log-injection). The seed is a module constant, safe to log.
+        logger.warning("Archetype rendered blank at seed %d — retrying once", _PREVIEW_SEED)
         audio_tensor = await loop.run_in_executor(_gpu_pool, _infer, _PREVIEW_SEED + 1)
     if _is_blank_audio(audio_tensor):
         raise RuntimeError("the voice engine returned no audible audio for this archetype")
