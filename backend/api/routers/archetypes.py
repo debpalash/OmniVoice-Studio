@@ -51,11 +51,42 @@ def _preview_key(a: dict) -> str:
     ).hexdigest()[:16]
 
 
+# A non-empty script is always required — synthesizing empty text yields
+# silence. Every archetype carries a use-case script, but guard the render path
+# too so a malformed archetype can never drive a blank render.
+_FALLBACK_SCRIPT = "Here's a quick sample of this voice so you can hear how it sounds."
+
+
+def _is_blank_audio(audio_tensor) -> bool:
+    """True if a render came back effectively silent / empty / non-finite.
+
+    After ``normalize_audio``'s silence-floor guard a dead render stays at the
+    noise floor instead of being amplified to hiss, so a near-zero peak is a
+    reliable "no audible speech" signal. A real, normalized clip peaks near
+    -2 dBFS (~0.79), so the 0.02 threshold has a wide margin and won't flag
+    legitimately quiet (e.g. whisper) voices.
+    """
+    try:
+        import torch
+
+        t = audio_tensor if isinstance(audio_tensor, torch.Tensor) else torch.as_tensor(audio_tensor)
+        if t.numel() == 0:
+            return True
+        t = t.detach().to("cpu", dtype=torch.float32)
+        if not torch.isfinite(t).all():
+            return True
+        return t.abs().max().item() < 0.02
+    except Exception:  # never let the checker itself block a render
+        return False
+
+
 async def _render_archetype_wav(a: dict, out_path: Path) -> None:
     """Render an archetype's sample script to ``out_path`` using the live engine.
 
-    Reuses generation.py's inference primitives so there is exactly one TTS
-    code path. Heavy deps are imported here, never at module load.
+    Reuses generation.py's inference primitives so there is exactly one TTS code
+    path. Heavy deps are imported here, never at module load. If the engine
+    returns a blank/silent clip we retry once with a different seed, then fail
+    loudly — a blank preview or voice profile must never be cached or saved.
     """
     from api.routers.generation import (  # noqa: WPS433 — intentional lazy import
         get_model,
@@ -68,30 +99,42 @@ async def _render_archetype_wav(a: dict, out_path: Path) -> None:
     language = a["language"]
     if language in (None, "", "Auto"):
         language = None
+    text = (a.get("sample_script") or "").strip() or _FALLBACK_SCRIPT
 
     loop = asyncio.get_running_loop()
-    audio_tensor = await loop.run_in_executor(
-        _gpu_pool,
-        _run_inference,
-        model,                # _model
-        a["sample_script"],   # text
-        language,             # language
-        None,                 # ref_audio_path (design mode — no reference)
-        None,                 # ref_text
-        a["instruct"],        # instruct
-        None,                 # duration
-        16,                   # num_step
-        2.0,                  # guidance_scale
-        1.0,                  # speed
-        None,                 # t_shift
-        True,                 # denoise
-        True,                 # postprocess_output
-        None,                 # layer_penalty_factor
-        None,                 # position_temperature
-        None,                 # class_temperature
-        _PREVIEW_SEED,        # seed
-        "broadcast",          # effect_preset
-    )
+
+    def _infer(seed: int):
+        return _run_inference(
+            model,          # _model
+            text,           # text
+            language,       # language
+            None,           # ref_audio_path (design mode — no reference)
+            None,           # ref_text
+            a["instruct"],  # instruct
+            None,           # duration
+            16,             # num_step
+            2.0,            # guidance_scale
+            1.0,            # speed
+            None,           # t_shift
+            True,           # denoise
+            True,           # postprocess_output
+            None,           # layer_penalty_factor
+            None,           # position_temperature
+            None,           # class_temperature
+            seed,           # seed
+            "broadcast",    # effect_preset
+        )
+
+    audio_tensor = await loop.run_in_executor(_gpu_pool, _infer, _PREVIEW_SEED)
+    if _is_blank_audio(audio_tensor):
+        logger.warning(
+            "Archetype %s rendered blank at seed %d — retrying once",
+            a.get("id"), _PREVIEW_SEED,
+        )
+        audio_tensor = await loop.run_in_executor(_gpu_pool, _infer, _PREVIEW_SEED + 1)
+    if _is_blank_audio(audio_tensor):
+        raise RuntimeError("the voice engine returned no audible audio for this archetype")
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     _safe_torchaudio_save(str(out_path), audio_tensor, model.sampling_rate)
 

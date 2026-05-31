@@ -121,11 +121,22 @@ def apply_mastering(audio_tensor, sample_rate=24000):
 
 
 def normalize_audio(audio_tensor, target_dBFS=-2.0):
-    """Peak-normalizes the audio to a standard broadcasting level (-2 dB) to fix F5TTS volume fluctuations."""
+    """Peak-normalizes the audio to a standard broadcasting level (-2 dB) to fix F5TTS volume fluctuations.
+
+    Never amplifies a near-silent signal. A failed/empty render sits at the
+    noise floor; blindly scaling its peak up to -2 dBFS applies thousands of
+    times of gain and turns silence into full-scale hiss — the "blank noise"
+    some generated voices exhibited. Below a -50 dBFS silence floor we leave the
+    audio untouched so it stays inaudible (and downstream guards can treat it as
+    a dead render) instead of shipping amplified noise. Real speech — even a
+    whisper — peaks well above this floor, so normal output is unaffected.
+    """
     if audio_tensor.numel() == 0:
         return audio_tensor
     max_val = torch.abs(audio_tensor).max()
-    if max_val > 0:
+    # -50 dBFS ≈ 0.00316 linear. Anything at/below this is silence / noise floor.
+    silence_floor = 10 ** (-50.0 / 20.0)
+    if max_val > silence_floor:
         target_amp = 10 ** (target_dBFS / 20.0)
         audio_tensor = audio_tensor * (target_amp / max_val)
     return audio_tensor

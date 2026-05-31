@@ -215,7 +215,8 @@ def _build(gender, age, pitch, *, accent=None, dialect=None, whisper=False,
     instruct = ", ".join(toks)
 
     if script is None:
-        script = _ZH_SAMPLE if language == "Chinese" else _SCRIPTS.get(use_case, "")
+        # Never fall back to an empty script — empty text synthesizes to silence.
+        script = _ZH_SAMPLE if language == "Chinese" else (_SCRIPTS.get(use_case) or _SCRIPTS["narration"])
 
     if featured:
         aid = fid
