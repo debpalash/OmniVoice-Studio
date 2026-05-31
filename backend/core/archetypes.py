@@ -220,7 +220,10 @@ def _build(gender, age, pitch, *, accent=None, dialect=None, whisper=False,
     if featured:
         aid = fid
     else:
-        aid = "a_" + hashlib.sha1(f"{instruct}|{language}".encode("utf-8")).hexdigest()[:10]
+        # Deterministic archetype id, not a security digest.
+        aid = "a_" + hashlib.sha1(
+            f"{instruct}|{language}".encode("utf-8"), usedforsecurity=False
+        ).hexdigest()[:10]
 
     return {
         "id": aid,

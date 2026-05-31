@@ -456,7 +456,10 @@ def update_voice(voice_id: str, body: dict):
             return {"success": True, "updated": []}
 
         params.append(voice_id)
-        conn.execute(f"UPDATE voice_gallery SET {', '.join(updates)} WHERE id = ?", params)
+        # `updates` holds only static, code-controlled column fragments
+        # ("is_favorite = ?", "description = ?"); every user value is bound via
+        # a `?` placeholder in `params`. No user input reaches the SQL string.
+        conn.execute(f"UPDATE voice_gallery SET {', '.join(updates)} WHERE id = ?", params)  # nosec B608
     return {"success": True, "updated": list(body.keys())}
 
 

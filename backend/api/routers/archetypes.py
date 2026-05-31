@@ -44,7 +44,10 @@ _PREVIEW_SEED = 42
 
 
 def _preview_key(a: dict) -> str:
-    return hashlib.sha1(f"{a['instruct']}|{a['language']}".encode("utf-8")).hexdigest()[:16]
+    # Deterministic cache key, not a security digest.
+    return hashlib.sha1(
+        f"{a['instruct']}|{a['language']}".encode("utf-8"), usedforsecurity=False
+    ).hexdigest()[:16]
 
 
 async def _render_archetype_wav(a: dict, out_path: Path) -> None:
