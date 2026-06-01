@@ -21,8 +21,7 @@ const VoicePreview = lazy(() => import('./components/VoicePreview'));
 const LogsFooter = lazy(() => import('./components/LogsFooter'));
 const ProjectsPage = lazy(() => import('./pages/Projects'));
 const VoiceGallery = lazy(() => import('./pages/VoiceGallery'));
-const DonatePage = lazy(() => import('./pages/DonatePage'));
-const EnterprisePage = lazy(() => import('./pages/EnterprisePage'));
+const SupportPage = lazy(() => import('./pages/SupportPage'));
 const TranscriptionsPage = lazy(() => import('./pages/Transcriptions'));
 const StoriesEditor = lazy(() => import('./components/StoriesEditor'));
 
@@ -940,13 +939,13 @@ function App() {
         ) : mode === 'donate' ? (
           <ErrorBoundary name="donate">
             <Suspense fallback={<LazyFallback />}>
-              <DonatePage onBack={() => setMode('launchpad')} onEnterprise={() => setMode('enterprise')} />
+              <SupportPage initialView="support" onBack={() => setMode('launchpad')} />
             </Suspense>
           </ErrorBoundary>
         ) : mode === 'enterprise' ? (
           <ErrorBoundary name="enterprise">
             <Suspense fallback={<LazyFallback />}>
-              <EnterprisePage onBack={() => setMode('launchpad')} />
+              <SupportPage initialView="license" onBack={() => setMode('launchpad')} />
             </Suspense>
           </ErrorBoundary>
         ) : mode === 'launchpad' ? (

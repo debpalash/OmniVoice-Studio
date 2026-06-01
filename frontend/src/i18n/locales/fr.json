@@ -1573,5 +1573,10 @@
     "facet_accent": "Accent",
     "facet_lang": "Langue",
     "facet_whisper": "Chuchoter"
+  },
+  "support": {
+    "tab_support": "Assistance",
+    "tab_license": "Licence commerciale",
+    "toggle_label": "Support ou licence commerciale"
   }
 }

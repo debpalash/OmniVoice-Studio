@@ -1572,5 +1572,10 @@
     "facet_accent": "Akcent",
     "facet_lang": "Język",
     "facet_whisper": "Szeptać"
+  },
+  "support": {
+    "tab_support": "Wsparcie",
+    "tab_license": "Licencja komercyjna",
+    "toggle_label": "Wsparcie lub licencja komercyjna"
   }
 }

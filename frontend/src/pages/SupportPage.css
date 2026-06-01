@@ -1,0 +1,108 @@
+/* SupportPage — unifies the donate + commercial-license panels behind one
+   segmented toggle. Reuses the donate/enterprise chrome (DonatePage.css,
+   EnterprisePage.css); this file only owns the toggle + panel transitions. */
+
+/* Top bar: Back · toggle (centered) · spacer */
+.support-page__topbar {
+  padding: 16px 44px 0;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+/* Mirrors the Back button's footprint so the toggle sits visually centered. */
+.support-page__spacer { width: 96px; flex-shrink: 0; }
+
+/* ── Segmented toggle ─────────────────────────────────────────────────── */
+.support-toggle {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  border-radius: var(--chrome-radius-pill);
+  background: color-mix(in srgb, var(--chrome-fg) 5%, transparent);
+  border: 1px solid var(--chrome-border);
+  isolation: isolate;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+/* The sliding active background. Carries the panel's accent hue so the toggle
+   itself signals which world you're in — pink for Support, teal for License. */
+.support-toggle__pill {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  border-radius: var(--chrome-radius-pill);
+  background: color-mix(in srgb, #d3869b 18%, transparent);
+  border: 1px solid color-mix(in srgb, #d3869b 38%, transparent);
+  box-shadow: 0 2px 14px -5px rgba(211, 134, 155, 0.55);
+  z-index: 0;
+  transition:
+    transform 0.36s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.36s ease,
+    border-color 0.36s ease,
+    box-shadow 0.36s ease;
+}
+.support-toggle__pill[data-view="license"] {
+  transform: translateX(100%);
+  background: color-mix(in srgb, #83a598 18%, transparent);
+  border-color: color-mix(in srgb, #83a598 40%, transparent);
+  box-shadow: 0 2px 14px -5px rgba(131, 165, 152, 0.55);
+}
+
+.support-toggle__opt {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 18px;
+  border: none;
+  background: transparent;
+  font-family: var(--chrome-font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--chrome-fg-muted);
+  cursor: pointer;
+  border-radius: var(--chrome-radius-pill);
+  transition: color 0.22s ease;
+}
+.support-toggle__opt svg { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.support-toggle__opt.is-active { color: var(--chrome-fg); }
+.support-toggle__opt.is-active svg { transform: scale(1.12); }
+.support-toggle__opt:hover:not(.is-active) { color: var(--chrome-fg); }
+.support-toggle__opt:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--chrome-accent) 60%, transparent);
+  outline-offset: 2px;
+}
+
+/* ── Panel cross-fade — the content remounts on toggle (key={view}), which
+   replays the inner hero/card entry animations; this adds a soft lift over
+   the whole panel so the swap feels intentional, not jumpy. ─────────────── */
+.support-view {
+  animation: supportViewIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes supportViewIn {
+  0%   { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 540px) {
+  .support-page__topbar { padding: 14px 18px 0; }
+  .support-page__spacer { display: none; }
+  .support-toggle__opt { padding: 6px 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .support-toggle__pill,
+  .support-toggle__opt svg { transition: none; }
+  .support-view { animation: none; }
+}

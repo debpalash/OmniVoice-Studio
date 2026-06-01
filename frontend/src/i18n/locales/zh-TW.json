@@ -1572,5 +1572,10 @@
     "facet_accent": "口音",
     "facet_lang": "語言",
     "facet_whisper": "耳語"
+  },
+  "support": {
+    "tab_support": "支援",
+    "tab_license": "商業許可",
+    "toggle_label": "支持或商業許可"
   }
 }

@@ -1573,5 +1573,10 @@
     "facet_accent": "アクセント",
     "facet_lang": "言語",
     "facet_whisper": "ささやき"
+  },
+  "support": {
+    "tab_support": "サポート",
+    "tab_license": "商用ライセンス",
+    "toggle_label": "サポートまたは商用ライセンス"
   }
 }

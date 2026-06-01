@@ -1572,5 +1572,10 @@
     "facet_accent": "Aksan",
     "facet_lang": "Dil",
     "facet_whisper": "Fısıltı"
+  },
+  "support": {
+    "tab_support": "Destek",
+    "tab_license": "Ticari Lisans",
+    "toggle_label": "Destek veya ticari lisans"
   }
 }

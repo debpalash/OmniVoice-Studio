@@ -1572,5 +1572,10 @@
     "facet_accent": "สำเนียง",
     "facet_lang": "ภาษา",
     "facet_whisper": "กระซิบ"
+  },
+  "support": {
+    "tab_support": "สนับสนุน",
+    "tab_license": "ใบอนุญาตการค้า",
+    "toggle_label": "การสนับสนุนหรือใบอนุญาตทางการค้า"
   }
 }

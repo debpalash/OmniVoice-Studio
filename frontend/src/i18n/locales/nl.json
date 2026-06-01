@@ -1572,5 +1572,10 @@
     "facet_accent": "Accent",
     "facet_lang": "Taal",
     "facet_whisper": "Fluister"
+  },
+  "support": {
+    "tab_support": "Ondersteuning",
+    "tab_license": "Commerciële licentie",
+    "toggle_label": "Ondersteuning of commerciële licentie"
   }
 }

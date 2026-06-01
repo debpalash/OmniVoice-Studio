@@ -1572,5 +1572,10 @@
     "facet_accent": "उच्चारण",
     "facet_lang": "भाषा",
     "facet_whisper": "कानाफूसी"
+  },
+  "support": {
+    "tab_support": "समर्थन",
+    "tab_license": "वाणिज्यिक लाइसेंस",
+    "toggle_label": "समर्थन या वाणिज्यिक लाइसेंस"
   }
 }

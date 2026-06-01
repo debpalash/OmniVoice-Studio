@@ -1572,5 +1572,10 @@
     "facet_accent": "لهجة",
     "facet_lang": "اللغة",
     "facet_whisper": "الهمس"
+  },
+  "support": {
+    "tab_support": "الدعم",
+    "tab_license": "رخصة تجارية",
+    "toggle_label": "الدعم أو الترخيص التجاري"
   }
 }

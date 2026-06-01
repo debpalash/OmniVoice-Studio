@@ -1572,5 +1572,10 @@
     "facet_accent": "Aksen",
     "facet_lang": "Bahasa",
     "facet_whisper": "Bisikan"
+  },
+  "support": {
+    "tab_support": "Dukungan",
+    "tab_license": "Lisensi Komersial",
+    "toggle_label": "Dukungan atau lisensi komersial"
   }
 }

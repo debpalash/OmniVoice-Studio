@@ -1572,5 +1572,10 @@
     "facet_accent": "Акцент",
     "facet_lang": "Мова",
     "facet_whisper": "Шепіт"
+  },
+  "support": {
+    "tab_support": "Підтримка",
+    "tab_license": "Комерційна ліцензія",
+    "toggle_label": "Підтримка або комерційна ліцензія"
   }
 }

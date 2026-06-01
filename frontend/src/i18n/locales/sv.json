@@ -1572,5 +1572,10 @@
     "facet_accent": "Accent",
     "facet_lang": "Språk",
     "facet_whisper": "Viska"
+  },
+  "support": {
+    "tab_support": "Support",
+    "tab_license": "Kommersiell licens",
+    "toggle_label": "Support eller kommersiell licens"
   }
 }

@@ -1572,5 +1572,10 @@
     "facet_accent": "Sotaque",
     "facet_lang": "Idioma",
     "facet_whisper": "Sussurro"
+  },
+  "support": {
+    "tab_support": "Suporte",
+    "tab_license": "Licença Comercial",
+    "toggle_label": "Suporte ou licença comercial"
   }
 }

@@ -1564,5 +1564,10 @@
     "toast_flush_failed": "Flush failed: {{message}}",
     "toast_project_saved": "Project saved",
     "toast_project_created": "Project created"
+  },
+  "support": {
+    "tab_support": "Support",
+    "tab_license": "Commercial License",
+    "toggle_label": "Support or commercial license"
   }
 }

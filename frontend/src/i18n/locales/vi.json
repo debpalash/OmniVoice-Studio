@@ -1572,5 +1572,10 @@
     "facet_accent": "Giọng",
     "facet_lang": "Ngôn ngữ",
     "facet_whisper": "Thì thầm"
+  },
+  "support": {
+    "tab_support": "Hỗ trợ",
+    "tab_license": "Giấy phép thương mại",
+    "toggle_label": "Hỗ trợ hoặc giấy phép thương mại"
   }
 }

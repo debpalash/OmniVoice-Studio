@@ -1572,5 +1572,10 @@
     "facet_accent": "악센트",
     "facet_lang": "언어",
     "facet_whisper": "속삭임"
+  },
+  "support": {
+    "tab_support": "지원",
+    "tab_license": "상업용 라이센스",
+    "toggle_label": "지원 또는 상업용 라이센스"
   }
 }
