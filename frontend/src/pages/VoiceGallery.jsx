@@ -377,19 +377,19 @@ function ArchetypeCard({
         </button>
       </div>
 
-      {(accentLabel || a.facets.whisper) && (
-        <div className="archetype-chips">
-          {accentLabel && (
-            <span className="facet-chip with-flag">
-              <AccentFlag accent={a.facets.accent} lang={a.language} size={14} />
-              {accentLabel}
-            </span>
-          )}
-          {a.facets.whisper && (
-            <span className="facet-chip">{t('archetypes.facet_whisper', { defaultValue: 'Whisper' })}</span>
-          )}
-        </div>
-      )}
+      {/* Always render the chip row (even when empty) so every card shares the
+          same height and the action rows align across the grid. */}
+      <div className="archetype-chips">
+        {accentLabel && (
+          <span className="facet-chip with-flag">
+            <AccentFlag accent={a.facets.accent} lang={a.language} size={14} />
+            {accentLabel}
+          </span>
+        )}
+        {a.facets.whisper && (
+          <span className="facet-chip">{t('archetypes.facet_whisper', { defaultValue: 'Whisper' })}</span>
+        )}
+      </div>
 
       <div className="arch-foot">
         <button className="preview-btn" onClick={() => onPreview(a)} title={t('gallery.preview', { defaultValue: 'Preview' })}>

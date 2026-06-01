@@ -387,7 +387,7 @@
   border-radius: 13px;
   transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
-.archetype-card:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, 0.16); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.4); }
+.archetype-card:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, 0.13); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.4); }
 .archetype-card.playing { border-color: var(--card-accent, var(--accent)); box-shadow: 0 0 0 1px var(--card-accent, var(--accent)), 0 6px 22px rgba(0, 0, 0, 0.4); }
 
 /* Header: avatar tile + title + favorite */
@@ -404,8 +404,11 @@
 .fav-btn:hover { color: #fabd2f; background: rgba(255, 255, 255, 0.05); }
 .fav-btn.on { color: #fabd2f; }
 
-/* Facet chips (accent chip carries its flag) */
-.archetype-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+/* Facet chips (accent chip carries its flag). Always rendered (even when a
+   voice has no accent/whisper chip) with a reserved min-height so every card
+   shares the same vertical rhythm and the action rows line up across the grid
+   instead of floating at ragged heights. */
+.archetype-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; min-height: 21px; }
 .facet-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 7px; background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); font-size: 0.64rem; line-height: 1.6; }
 .facet-chip.with-flag { padding-left: 5px; }
 
@@ -413,9 +416,29 @@
 .arch-foot { display: flex; align-items: center; gap: 6px; margin-top: auto; }
 .preview-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border: 1px solid rgba(255, 255, 255, 0.09); background: rgba(255, 255, 255, 0.03); color: var(--text-primary); border-radius: 8px; font-size: 0.7rem; cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease; }
 .preview-btn:hover { border-color: var(--card-accent, var(--accent)); color: var(--card-accent, var(--accent)); }
-.use-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 10px; border: none; border-radius: 8px; background: var(--card-accent, var(--accent)); color: #1d2021; font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: filter 0.15s ease; }
-.use-btn:hover { filter: brightness(1.08); }
-.designer-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex-shrink: 0; border: 1px solid rgba(255, 255, 255, 0.09); background: rgba(255, 255, 255, 0.03); color: var(--text-secondary); border-radius: 8px; cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease; }
+/* Primary action — tonal by default (a low-alpha wash of the card accent with
+   accent-colored text), going solid only on hover/focus. This keeps the grid
+   calm at rest — the eye lands on the voice names, not a field of saturated
+   color blocks — while the CTA still "lights up" on the card you're pointing
+   at. The per-category hue is preserved as identity, just dialed down. */
+.use-btn {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 6px 10px; border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--card-accent, var(--accent)) 36%, transparent);
+  background: color-mix(in srgb, var(--card-accent, var(--accent)) 13%, transparent);
+  color: var(--card-accent, var(--accent));
+  font-size: 0.72rem; font-weight: 600; cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.use-btn:hover, .use-btn:focus-visible {
+  background: var(--card-accent, var(--accent));
+  border-color: var(--card-accent, var(--accent));
+  color: #1d2021;
+}
+/* Designer/open-in-designer is a tertiary action — keep it quiet at rest and
+   reveal it on card hover/focus so it isn't competing on every tile. */
+.designer-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex-shrink: 0; border: 1px solid rgba(255, 255, 255, 0.09); background: rgba(255, 255, 255, 0.03); color: var(--text-secondary); border-radius: 8px; cursor: pointer; opacity: 0.5; transition: opacity 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
+.archetype-card:hover .designer-btn, .designer-btn:focus-visible { opacity: 1; }
 .designer-btn:hover { color: var(--card-accent, var(--accent)); border-color: var(--card-accent, var(--accent)); }
 
 /* Animated "now playing" equalizer */
