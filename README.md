@@ -246,9 +246,9 @@ OmniVoice ships a multi-engine ASR (speech-to-text) backend that powers dictatio
 |--------|-------------------------|:---------:|----------|
 | **WhisperX** (default) | `whisperx` | ~100 | Dubbing & subtitles — word-level timing via wav2vec2 forced alignment |
 | **Faster-Whisper** | `faster-whisper` | ~100 | Fast transcription on Linux / macOS / Windows (CTranslate2) |
-| **MLX Whisper** | `mlx-whisper` | ~100 | Native Apple Silicon speed (CoreML) |
+| **MLX Whisper** | `mlx-whisper` | ~100 | Native Apple Silicon speed (Apple MLX / Metal) |
 | **PyTorch Whisper** | `pytorch-whisper` | ~100 | CUDA / CPU fallback via 🤗 Transformers |
-| **Parakeet TDT** | `nemo-parakeet` | English | English SOTA accuracy (NVIDIA NeMo) |
+| **Parakeet TDT** | `nemo-parakeet` | English + 25 EU | SOTA English accuracy, auto language detection (NVIDIA NeMo, GPU only) |
 | **Moonshine** | `moonshine` | English | Edge / low-latency, ONNX |
 | **FunASR** | `funasr` | 50+ | All-in-one multilingual — built-in VAD + inline speaker diarization (SenseVoice) |
 
