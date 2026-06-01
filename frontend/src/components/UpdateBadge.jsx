@@ -47,7 +47,7 @@ export default function UpdateBadge() {
               <ChevronDown size={12} /> {t('update.whats_new')}
             </button>
           )}
-          {notesOpen && notes && <div id="update-badge-notes" className="update-badge__notes">{notes}</div>}
+          {notes && <div id="update-badge-notes" className="update-badge__notes" hidden={!notesOpen}>{notes}</div>}
         </div>
       )}
       {status === 'downloading' && (
