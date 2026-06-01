@@ -973,7 +973,6 @@
     "badge": "Commerciële licentie",
     "hero_title": "Verzend AI-stemmen in productie",
     "hero_desc": "OmniVoice Studio is bron-beschikbaar onder de Functionele Bronlicentie (FSL). De meeste gebruikers kunnen zonder commerciële overeenkomst evalueren, prototypen maken en zelfs intern implementeren. U heeft alleen een commerciële licentie nodig als u een concurrerend product of dienst bouwt, of als uw gebruiksscenario buiten de grenzen van de FSL valt.",
-    "hero_note": "Voor het bouwen van een concurrerend product of dienst of het op grote schaal implementeren (bijvoorbeeld het aanbieden van een pay-per-use API) is een commerciële licentie vereist. Prijsniveaus volgen binnenkort. Neem in de tussentijd contact met ons op.",
     "why_title": "Waarom bedrijven voor OmniVoice kiezen",
     "pricing_title": "Prijzen",
     "faq_title": "Veelgestelde vragen",
@@ -993,7 +992,8 @@
     "benefit_source": "Bronbeschikbare kern",
     "benefit_source_desc": "Volledig zicht op de stapel. Audit, fork en pas aan binnen de licentievoorwaarden.",
     "benefit_lang": "646 talen",
-    "benefit_lang_desc": "Transcribeer, vertaal en kopieer in 646 talen met kwaliteit op menselijk niveau."
+    "benefit_lang_desc": "Transcribeer, vertaal en kopieer in 646 talen met kwaliteit op menselijk niveau.",
+    "hero_note": "Intern gebruik – zelfs op grote schaal – is gratis onder de FSL; een commerciële licentie is alleen vereist om OmniVoice aan anderen aan te bieden als een concurrerend product of dienst (een gehoste of pay-per-use API, een doorverkochte of white-labeled app). Prijsniveaus volgen binnenkort. Neem in de tussentijd contact met ons op."
   },
   "exportModal": {
     "export": "Exporteren",

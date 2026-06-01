@@ -973,7 +973,6 @@
     "badge": "Ticari Lisans",
     "hero_title": "Üretimde yapay zeka seslerini gönderin",
     "hero_desc": "OmniVoice Studio, İşlevsel Kaynak Lisansı (FSL) kapsamında kaynak olarak mevcuttur. Çoğu kullanıcı ticari bir anlaşma olmadan dahili olarak değerlendirebilir, prototip oluşturabilir ve hatta dağıtabilir. Ticari lisansa yalnızca rakip bir ürün veya hizmet geliştiriyorsanız ya da kullanım alanınız FSL sınırlarının dışında kalıyorsa ihtiyacınız vardır.",
-    "hero_note": "Rakip bir ürün veya hizmet oluşturmak ya da geniş ölçekte dağıtmak (ör. kullanım başına ödeme API'si sunmak) ticari bir lisans gerektirir. Fiyatlandırma katmanları yakında gelecek; bu arada bizimle iletişime geçin.",
     "why_title": "İşletmeler neden OmniVoice'u seçiyor?",
     "pricing_title": "Fiyatlandırma",
     "faq_title": "Sık sorulan sorular",
@@ -993,7 +992,8 @@
     "benefit_source": "Kaynakta mevcut çekirdek",
     "benefit_source_desc": "Yığına tam görünürlük. Lisans koşulları dahilinde denetleyin, çatallayın ve uyarlayın.",
     "benefit_lang": "646 dil",
-    "benefit_lang_desc": "646 dilde insan düzeyinde kaliteyle metne dönüştürün, tercüme edin ve dublaj yapın."
+    "benefit_lang_desc": "646 dilde insan düzeyinde kaliteyle metne dönüştürün, tercüme edin ve dublaj yapın.",
+    "hero_note": "FSL kapsamında dahili kullanım - geniş ölçekte bile - ücretsizdir; ticari lisans yalnızca OmniVoice'u başkalarına rakip bir ürün veya hizmet (barındırılan veya kullanım başına ödemeli API, yeniden satılan veya beyaz etiketli bir uygulama) olarak sunmak için gereklidir. Fiyatlandırma katmanları yakında gelecek; bu arada bizimle iletişime geçin."
   },
   "exportModal": {
     "export": "İhracat",

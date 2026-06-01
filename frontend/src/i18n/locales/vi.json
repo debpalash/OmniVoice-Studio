@@ -973,7 +973,6 @@
     "badge": "Giấy phép thương mại",
     "hero_title": "Vận chuyển giọng nói AI trong quá trình sản xuất",
     "hero_desc": "OmniVoice Studio có sẵn nguồn theo Giấy phép Nguồn Chức năng (FSL). Hầu hết người dùng có thể đánh giá, tạo nguyên mẫu và thậm chí triển khai nội bộ mà không cần thỏa thuận thương mại. Bạn chỉ cần giấy phép thương mại nếu bạn đang xây dựng một sản phẩm hoặc dịch vụ cạnh tranh hoặc nếu trường hợp sử dụng của bạn nằm ngoài ranh giới của FSL.",
-    "hero_note": "Việc xây dựng một sản phẩm hoặc dịch vụ cạnh tranh hoặc triển khai trên quy mô lớn (ví dụ: cung cấp API trả tiền cho mỗi lần sử dụng) cần có giấy phép thương mại. Sắp có mức giá — hãy liên hệ trong thời gian chờ đợi.",
     "why_title": "Tại sao doanh nghiệp chọn OmniVoice",
     "pricing_title": "Định giá",
     "faq_title": "Câu hỏi thường gặp",
@@ -993,7 +992,8 @@
     "benefit_source": "Lõi có sẵn nguồn",
     "benefit_source_desc": "Hiển thị đầy đủ vào ngăn xếp. Kiểm tra, phân nhánh và điều chỉnh theo các điều khoản cấp phép.",
     "benefit_lang": "646 ngôn ngữ",
-    "benefit_lang_desc": "Phiên âm, dịch và lồng tiếng trên 646 ngôn ngữ với chất lượng ngang tầm con người."
+    "benefit_lang_desc": "Phiên âm, dịch và lồng tiếng trên 646 ngôn ngữ với chất lượng ngang tầm con người.",
+    "hero_note": "Việc sử dụng nội bộ — ngay cả ở quy mô lớn — đều miễn phí theo FSL; giấy phép thương mại chỉ được yêu cầu để cung cấp OmniVoice cho người khác dưới dạng sản phẩm hoặc dịch vụ cạnh tranh (API được lưu trữ hoặc trả tiền cho mỗi lần sử dụng, ứng dụng được bán lại hoặc được gắn nhãn trắng). Sắp có mức giá - hãy liên hệ trong thời gian chờ đợi."
   },
   "exportModal": {
     "export": "Xuất khẩu",

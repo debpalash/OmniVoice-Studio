@@ -974,7 +974,6 @@
     "badge": "Licence commerciale",
     "hero_title": "Expédier les voix de l'IA en production",
     "hero_desc": "OmniVoice Studio est disponible sous la licence Functional Source (FSL). La plupart des utilisateurs peuvent évaluer, prototyper et même déployer en interne sans accord commercial. Vous n’avez besoin d’une licence commerciale que si vous créez un produit ou un service concurrent, ou si votre cas d’utilisation dépasse les limites du FSL.",
-    "hero_note": "La création d'un produit ou d'un service concurrent ou son déploiement à grande échelle (par exemple, la fourniture d'une API payante à l'utilisation) nécessite une licence commerciale. Niveaux de tarification à venir – contactez-nous en attendant.",
     "why_title": "Pourquoi les entreprises choisissent OmniVoice",
     "pricing_title": "Tarifs",
     "faq_title": "Questions courantes",
@@ -994,7 +993,8 @@
     "benefit_source": "Noyau disponible à la source",
     "benefit_source_desc": "Visibilité totale sur la pile. Auditez, forkez et adaptez selon les termes de la licence.",
     "benefit_lang": "646 langues",
-    "benefit_lang_desc": "Transcrivez, traduisez et doublez dans 646 langues avec une qualité humaine."
+    "benefit_lang_desc": "Transcrivez, traduisez et doublez dans 646 langues avec une qualité humaine.",
+    "hero_note": "L’utilisation interne – même à grande échelle – est gratuite dans le cadre du FSL ; une licence commerciale n'est requise que pour proposer OmniVoice à des tiers en tant que produit ou service concurrent (une API hébergée ou payante à l'utilisation, une application revendue ou en marque blanche). Les niveaux de tarification arriveront bientôt – contactez-nous en attendant."
   },
   "exportModal": {
     "export": "Exporter",

@@ -943,7 +943,6 @@
     "badge": "商业许可",
     "hero_title": "在生产环境中部署 AI 语音",
     "hero_desc": "OmniVoice Studio 采用功能性源代码许可（FSL）。大多数用户可以在无需商业协议的情况下评估、原型开发甚至内部部署。只有在构建竞争产品或服务，或您的使用场景超出 FSL 范围时，才需要商业许可。",
-    "hero_note": "构建竞争产品或服务，或大规模部署（例如提供按量付费 API）需要商业许可。定价层级即将推出 — 在此期间请与我们联系。",
     "why_title": "为什么企业选择 OmniVoice",
     "pricing_title": "定价",
     "faq_title": "常见问题",
@@ -963,7 +962,8 @@
     "benefit_source": "源码可用",
     "benefit_source_desc": "完全可见的技术栈。在许可条款内审计、分叉和适配。",
     "benefit_lang": "646 种语言",
-    "benefit_lang_desc": "以人类级质量转录、翻译和配音 646 种语言。"
+    "benefit_lang_desc": "以人类级质量转录、翻译和配音 646 种语言。",
+    "hero_note": "根据 FSL，内部使用（即使是大规模使用）也是免费的；仅需要商业许可证才能将 OmniVoice 作为竞争产品或服务（托管或按使用付费的 API、转售或白标应用程序）提供给其他人。定价等级即将推出 - 请同时联系我们。"
   },
   "exportModal": {
     "export": "导出",

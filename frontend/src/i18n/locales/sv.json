@@ -973,7 +973,6 @@
     "badge": "Kommersiell licens",
     "hero_title": "Ship AI-röster i produktion",
     "hero_desc": "OmniVoice Studio är källtillgänglig under Functional Source License (FSL). De flesta användare kan utvärdera, prototyper och till och med distribuera internt utan ett kommersiellt avtal. Du behöver endast en kommersiell licens om du bygger en konkurrerande produkt eller tjänst, eller om ditt användningsfall faller utanför FSL:s gränser.",
-    "hero_note": "Att bygga en konkurrerande produkt eller tjänst eller distribuera i stor skala (t.ex. betjäna pay-per-use API) kräver en kommersiell licens. Prisnivåer kommer snart – hör av dig under tiden.",
     "why_title": "Varför företag väljer OmniVoice",
     "pricing_title": "Prissättning",
     "faq_title": "Vanliga frågor",
@@ -993,7 +992,8 @@
     "benefit_source": "Källa-tillgänglig kärna",
     "benefit_source_desc": "Full insyn i stapeln. Granska, fördela och anpassa inom licensvillkoren.",
     "benefit_lang": "646 språk",
-    "benefit_lang_desc": "Transkribera, översätt och dubba på 646 språk med kvalitet på mänsklig nivå."
+    "benefit_lang_desc": "Transkribera, översätt och dubba på 646 språk med kvalitet på mänsklig nivå.",
+    "hero_note": "Intern användning – även i stor skala – är gratis enligt FSL; en kommersiell licens krävs endast för att erbjuda OmniVoice till andra som en konkurrerande produkt eller tjänst (ett värd- eller pay-per-use API, en vidaresåld eller vitmärkt app). Prisnivåer kommer snart - hör av dig under tiden."
   },
   "exportModal": {
     "export": "Exportera",
