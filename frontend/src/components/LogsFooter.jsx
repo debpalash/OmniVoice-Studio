@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { clearSystemLogs, clearTauriLogs } from '../api/system';
 import { useSystemLogs, useTauriLogs, useClearLogs, useClearTauriLogs } from '../api/hooks';
 import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
+import { useAppStore } from '../store';
 import NetworkToggle from './NetworkToggle';
 import './LogsFooter.css';
 
