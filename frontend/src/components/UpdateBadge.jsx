@@ -5,7 +5,7 @@
 // is running. A failed install surfaces a retry instead of vanishing silently.
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Download, Loader, RotateCw, AlertTriangle, ChevronDown } from 'lucide-react';
+import { Download, Loader, RotateCw, AlertTriangle, ChevronDown, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../store';
 import { installUpdate } from '../utils/updater';
@@ -18,6 +18,7 @@ export default function UpdateBadge() {
   const notes = useAppStore((s) => s.updateNotes);
   const progress = useAppStore((s) => s.updateProgress);
   const error = useAppStore((s) => s.updateError);
+  const dismissUpdate = useAppStore((s) => s.dismissUpdate);
   const dubStep = useAppStore((s) => s.dubStep);
   const [notesOpen, setNotesOpen] = useState(false);
 
@@ -62,14 +63,25 @@ export default function UpdateBadge() {
         </button>
       )}
       {status === 'error' && (
-        <button
-          type="button"
-          className="update-badge__btn update-badge__btn--error"
-          onClick={onInstall}
-          title={error || t('update.failed')}
-        >
-          <AlertTriangle size={12} /> {t('update.failed')} · {t('update.retry')}
-        </button>
+        <div className="update-badge__error">
+          <button
+            type="button"
+            className="update-badge__btn update-badge__btn--error"
+            onClick={onInstall}
+            title={error || t('update.failed')}
+          >
+            <AlertTriangle size={12} /> {t('update.failed')} · {t('update.retry')}
+          </button>
+          <button
+            type="button"
+            className="update-badge__dismiss"
+            onClick={dismissUpdate}
+            title={t('update.dismiss')}
+            aria-label={t('update.dismiss')}
+          >
+            <X size={12} />
+          </button>
+        </div>
       )}
     </div>
   );

@@ -8,7 +8,8 @@
     "busy": "Finish your dub first — then install the update.",
     "whats_new": "What's new",
     "failed": "Update failed",
-    "retry": "Retry"
+    "retry": "Retry",
+    "dismiss": "Dismiss"
   },
   "stories": {
     "title": "Stories Editor",

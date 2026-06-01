@@ -52,4 +52,14 @@ describe('updaterSlice', () => {
     expect(get().updateStatus).toBe('idle');
     expect(get().updateProgress).toBe(0);
   });
+
+  it('dismiss clears the error pill back to idle', () => {
+    const { get } = harness();
+    get().setUpdateError('boom');
+    expect(get().updateStatus).toBe('error');
+    get().dismissUpdate();
+    expect(get().updateStatus).toBe('idle');
+    expect(get().updateError).toBeNull();
+    expect(get().updateProgress).toBe(0);
+  });
 });

@@ -65,3 +65,12 @@
   color: #fb4934;
 }
 .update-badge__btn--error:hover { background: rgba(251, 73, 52, 0.22); }
+.update-badge__error { display: inline-flex; align-items: center; gap: 4px; }
+.update-badge__dismiss {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0;
+  background: rgba(251, 73, 52, 0.14); border: 1px solid rgba(251, 73, 52, 0.5);
+  color: #fb4934; border-radius: 999px; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+.update-badge__dismiss:hover { background: rgba(251, 73, 52, 0.22); }
