@@ -37,6 +37,14 @@ function download(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
+// A chapter line is any track whose text is a markdown heading (`# …`). It
+// renders as a section bar (no voice/tune/preview), and storyExport keys its
+// chapter cues off the same prefix — keep the two in sync.
+// Lenient on purpose: a heading with an empty title is still `# ` (or `#`), and
+// it must stay a chapter while the user edits the title — otherwise clearing the
+// text would flip the bar back into a voiced line card mid-edit.
+const isChapterText = (s) => /^\s*#{1,6}(\s|$)/.test(s || '');
+
 // Sentence-aware splitter for the "Paste & auto-split" panel. Walks the text
 // and breaks at the closest sentence boundary that keeps each chunk under
 // `maxChars`. Falls back to whitespace, then to the hard cap.
@@ -207,7 +215,7 @@ export default function StoriesEditor({ profiles = [] }) {
   const openProject = useCallback((id) => { loadProject(id); setProjectsOpen(false); }, [loadProject]);
 
   const addChapter = useCallback(() => {
-    const n = tracks.filter((tk) => /^#{1,6}\s+/.test((tk.text || '').trim())).length + 1;
+    const n = tracks.filter((tk) => isChapterText(tk.text)).length + 1;
     setTracks((prev) => [...prev, makeTrack('narrator', `# ${t('stories.chapterN', { n })}`)]);
   }, [tracks, setTracks, t]);
 
@@ -393,40 +401,56 @@ export default function StoriesEditor({ profiles = [] }) {
         </div>
         <div className="stories-editor__actions">
           <input ref={fileInputRef} type="file" accept=".txt,.srt,text/plain" onChange={onImportFile} hidden />
-          <Button size="sm" variant="ghost" onClick={() => setProjectsOpen((v) => !v)} aria-label={t('stories.projects')}>
-            <Folder size={13} /> {currentProject ? currentProject.name : t('stories.projects')}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => setCastOpen((v) => !v)} aria-label={t('stories.cast')}>
-            <Users size={13} /> {t('stories.cast')}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => fileInputRef.current && fileInputRef.current.click()} aria-label={t('stories.import')}>
-            <Upload size={13} /> {t('stories.import')}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => setSplitOpen((v) => !v)} aria-label={t('stories.pasteSplit')}>
-            <Scissors size={13} /> {t('stories.pasteSplit')}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={addTrack} aria-label={t('stories.addLine')}>
-            <Plus size={13} /> {t('stories.addLine')}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={addChapter} aria-label={t('stories.addChapter')}>
-            <Bookmark size={13} /> {t('stories.addChapter')}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={exportStemsAll} disabled={tracks.length === 0 || exporting} aria-label={t('stories.stems')}>
-            <Layers size={13} /> {t('stories.stems')}
-          </Button>
-          <select
-            className="stories-editor__format"
-            value={exportFormat}
-            onChange={(e) => setExportFormat(e.target.value)}
-            aria-label={t('stories.format')}
-            title={t('stories.format')}
-          >
-            <option value="wav">WAV</option>
-            <option value="mp3">MP3</option>
-          </select>
-          <Button size="sm" onClick={generateAll} disabled={tracks.length === 0 || exporting}>
-            <Download size={13} /> {exporting ? `${exportPct}%` : t('stories.generateAll')}
-          </Button>
+
+          {/* Project */}
+          <div className="stories-editor__group">
+            <Button size="sm" variant="ghost" onClick={() => setProjectsOpen((v) => !v)} aria-label={t('stories.projects')}>
+              <Folder size={13} /> {currentProject ? currentProject.name : t('stories.projects')}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setCastOpen((v) => !v)} aria-label={t('stories.cast')}>
+              <Users size={13} /> {t('stories.cast')}
+            </Button>
+          </div>
+
+          <span className="stories-editor__divider" aria-hidden="true" />
+
+          {/* Content */}
+          <div className="stories-editor__group">
+            <Button size="sm" variant="ghost" onClick={() => fileInputRef.current && fileInputRef.current.click()} aria-label={t('stories.import')}>
+              <Upload size={13} /> {t('stories.import')}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSplitOpen((v) => !v)} aria-label={t('stories.pasteSplit')}>
+              <Scissors size={13} /> {t('stories.pasteSplit')}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={addTrack} aria-label={t('stories.addLine')}>
+              <Plus size={13} /> {t('stories.addLine')}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={addChapter} aria-label={t('stories.addChapter')}>
+              <Bookmark size={13} /> {t('stories.addChapter')}
+            </Button>
+          </div>
+
+          <span className="stories-editor__divider" aria-hidden="true" />
+
+          {/* Output */}
+          <div className="stories-editor__group">
+            <Button size="sm" variant="ghost" onClick={exportStemsAll} disabled={tracks.length === 0 || exporting} aria-label={t('stories.stems')}>
+              <Layers size={13} /> {t('stories.stems')}
+            </Button>
+            <select
+              className="stories-editor__format"
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value)}
+              aria-label={t('stories.format')}
+              title={t('stories.format')}
+            >
+              <option value="wav">WAV</option>
+              <option value="mp3">MP3</option>
+            </select>
+            <Button size="sm" onClick={generateAll} disabled={tracks.length === 0 || exporting}>
+              <Download size={13} /> {exporting ? `${exportPct}%` : t('stories.generateAll')}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -552,6 +576,53 @@ export default function StoriesEditor({ profiles = [] }) {
       ) : (
         <div className="stories-editor__tracks" role="list">
           {tracks.map((track) => {
+            const dragProps = {
+              draggable: true,
+              onDragStart: (e) => { dragId.current = track.id; e.dataTransfer.effectAllowed = 'move'; },
+              onDragOver: (e) => { e.preventDefault(); if (dragOver !== track.id) setDragOver(track.id); },
+              onDragLeave: () => setDragOver((d) => (d === track.id ? null : d)),
+              onDrop: (e) => {
+                e.preventDefault();
+                if (dragId.current != null && dragId.current !== track.id) {
+                  setTracks((prev) => reorder(prev, dragId.current, track.id));
+                }
+                dragId.current = null;
+                setDragOver(null);
+              },
+            };
+
+            // Chapters render as a section bar — no voice / tune / preview.
+            if (isChapterText(track.text)) {
+              const title = track.text.replace(/^#{1,6}\s*/, '');
+              return (
+                <div
+                  key={track.id}
+                  role="listitem"
+                  className={['stories-chapter', dragOver === track.id ? 'stories-chapter--dragover' : ''].filter(Boolean).join(' ')}
+                  {...dragProps}
+                >
+                  <div className="stories-chapter__grip" aria-hidden="true"><GripVertical size={14} /></div>
+                  <Bookmark size={15} className="stories-chapter__icon" aria-hidden="true" />
+                  <input
+                    className="stories-chapter__title"
+                    value={title}
+                    onChange={(e) => updateTrack(track.id, 'text', `# ${e.target.value}`)}
+                    placeholder={t('stories.addChapter')}
+                    aria-label={t('stories.addChapter')}
+                  />
+                  <button
+                    type="button"
+                    className="stories-chapter__del"
+                    onClick={(e) => { e.stopPropagation(); removeTrack(track.id); }}
+                    title={t('stories.removeLine')}
+                    aria-label={t('stories.removeLine')}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              );
+            }
+
             const member = castMember(cast, track.character);
             const inheritedId = member && member.profileId;
             const inheritedName = inheritedId ? profileName(inheritedId) : null;
@@ -566,18 +637,7 @@ export default function StoriesEditor({ profiles = [] }) {
                   dragOver === track.id ? 'stories-track--dragover' : '',
                 ].filter(Boolean).join(' ')}
                 onClick={() => setActiveTrack(track.id)}
-                draggable
-                onDragStart={(e) => { dragId.current = track.id; e.dataTransfer.effectAllowed = 'move'; }}
-                onDragOver={(e) => { e.preventDefault(); if (dragOver !== track.id) setDragOver(track.id); }}
-                onDragLeave={() => setDragOver((d) => (d === track.id ? null : d))}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (dragId.current != null && dragId.current !== track.id) {
-                    setTracks((prev) => reorder(prev, dragId.current, track.id));
-                  }
-                  dragId.current = null;
-                  setDragOver(null);
-                }}
+                {...dragProps}
               >
                 <div className="stories-track__grip" aria-hidden="true"><GripVertical size={14} /></div>
 
