@@ -368,22 +368,23 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # macOS Developer-ID code-signing + notarization (#134 / #72).
-          # tauri-action signs + notarizes the .app/.dmg ONLY when these are
-          # non-empty; with the secrets unset they resolve to empty strings and
-          # the build stays unsigned (users clear quarantine via `xattr -cr`,
-          # see docs/install/macos.md). No-op on the Windows/Linux legs.
+          # tauri-action signs ONLY when these are non-empty; empty → the build
+          # stays unsigned (users clear quarantine via `xattr -cr`, see
+          # docs/install/macos.md). No-op on the Windows/Linux legs.
           #
-          # PREVIEW builds force-skip signing (pass empty): preview is unsigned
-          # by design, and it must not fail when the APPLE_CERTIFICATE secret is
-          # absent or malformed (a bad cert makes `security import` fail and
-          # kills the whole mac build). Stable `v*` tag releases still receive
-          # the secrets, so signing kicks in once the cert is configured.
-          APPLE_CERTIFICATE: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && '' || secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && '' || secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && '' || secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && '' || secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && '' || secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && '' || secrets.APPLE_TEAM_ID }}
+          # Signing is OPT-IN and OFF by default, so neither preview nor stable
+          # can be broken by an absent/malformed APPLE_CERTIFICATE (a bad cert
+          # makes `security import` fail and kills the whole mac build). To turn
+          # it on for stable releases: fix the signing secrets, then set the repo
+          # variable MACOS_SIGNING_ENABLED = true (Settings → Secrets and
+          # variables → Actions → Variables). Signing then engages on `v*` tag
+          # pushes only; preview builds always stay unsigned.
+          APPLE_CERTIFICATE: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.MACOS_SIGNING_ENABLED == 'true') && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.MACOS_SIGNING_ENABLED == 'true') && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.MACOS_SIGNING_ENABLED == 'true') && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_ID: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.MACOS_SIGNING_ENABLED == 'true') && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.MACOS_SIGNING_ENABLED == 'true') && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.MACOS_SIGNING_ENABLED == 'true') && secrets.APPLE_TEAM_ID || '' }}
           # GH runners disable FUSE, so linuxdeploy's AppImage can't mount
           # itself at bundle time. This env tells linuxdeploy to extract-and-run
           # instead, which works without FUSE.
