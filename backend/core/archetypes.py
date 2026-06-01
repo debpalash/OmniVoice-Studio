@@ -308,7 +308,63 @@ def _make_featured():
     return out
 
 
-_FEATURED = _make_featured()
+# ── Featured: multilingual designed voices ────────────────────────────────────
+# The voice-design *timbre* axes (gender/age/pitch) are language-independent, and
+# the spoken language of a designed voice is driven by the preview *text*, not by
+# the instruct — the same neutral instruct renders in any of OmniVoice's 646
+# languages (the exact ``model.generate(text=…, language=…, instruct=…)`` call
+# the Generate tab already makes). So we ship a curated set in the major languages
+# the app already localizes its UI into, giving the gallery more than English +
+# Chinese out of the box.
+#
+# These carry **no accent/dialect token**: accents are English-only and dialects
+# Chinese-only, so a "spanish accent" token doesn't exist in the taxonomy and
+# would crash synthesis (the issue-#89 failure mode). Using only the universal
+# gender/age/pitch axes keeps every instruct inside the validator's vocabulary —
+# ``test_archetypes.py`` enforces this independently.
+#
+# Each ``language`` label must match an entry in ``frontend/src/languages.json``
+# verbatim, because the string flows straight into ``model.generate(language=…)``
+# with no normalization. ("Arabic" is intentionally omitted — it is not in that
+# list.) ``_ML_SAMPLES`` is functional demo/eval text (like ``_ZH_SAMPLE``); the
+# Japanese/Korean lines are covered by this file's ``test_no_hardcoded_cjk.py``
+# allowlist entry.
+_ML_SAMPLES = {
+    "Spanish": "Hola y bienvenido a esta breve demostración de voz. Espero que disfrutes escuchando cómo suena.",
+    "French": "Bonjour et bienvenue dans cette courte démonstration vocale. J'espère que cette voix vous plaira.",
+    "German": "Hallo und willkommen zu dieser kurzen Sprachdemo. Ich hoffe, diese Stimme gefällt dir.",
+    "Italian": "Ciao e benvenuto in questa breve dimostrazione vocale. Spero che questa voce ti piaccia.",
+    "Portuguese": "Olá e bem-vindo a esta breve demonstração de voz. Espero que goste de ouvir como ela soa.",
+    "Russian": "Здравствуйте и добро пожаловать в эту короткую демонстрацию голоса. Надеюсь, вам понравится, как он звучит.",
+    "Hindi": "नमस्ते और इस छोटे से वॉइस डेमो में आपका स्वागत है। मुझे आशा है कि आपको यह आवाज़ पसंद आएगी।",
+    "Japanese": "こんにちは。この短い音声デモへようこそ。この声を気に入っていただけるとうれしいです。",
+    "Korean": "안녕하세요. 이 짧은 음성 데모에 오신 것을 환영합니다. 이 목소리가 마음에 드시길 바랍니다.",
+}
+
+# Three reusable, language-independent roles. (gender, age, pitch, use_case,
+# role, icon) — instruct is built from gender/age/pitch only.
+_ML_ROLES = [
+    ("female", "middle-aged", "low pitch", "narration", "Narrator", "BookOpen"),
+    ("male", "young adult", "moderate pitch", "informative", "Explainer", "GraduationCap"),
+    ("female", "young adult", "moderate pitch", "conversational", "Companion", "MessagesSquare"),
+]
+
+
+def _make_multilingual():
+    out = []
+    for language, script in _ML_SAMPLES.items():
+        lang_slug = language.lower()
+        for gender, age, pitch, uc, role, icon in _ML_ROLES:
+            out.append(_build(
+                gender, age, pitch,
+                use_case=uc, name=f"{language} {role}", icon=icon,
+                language=language, script=script,
+                featured=True, fid=f"ml_{lang_slug}_{role.lower()}",
+            ))
+    return out
+
+
+_FEATURED = _make_featured() + _make_multilingual()
 _FEATURED_KEYS = {(a["instruct"], a["language"]) for a in _FEATURED}
 
 

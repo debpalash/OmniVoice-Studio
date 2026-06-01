@@ -172,6 +172,38 @@ def test_filter_by_accent():
     assert all("british accent" in a["instruct"] for a in res)
 
 
+# ── (h2) Multilingual designed voices ship beyond English + Chinese ───────────
+_ML_LANGS = {
+    "Spanish", "French", "German", "Italian", "Portuguese",
+    "Russian", "Hindi", "Japanese", "Korean",
+}
+
+
+def test_multilingual_featured_languages_present():
+    featured_langs = {a["language"] for a in archetypes.list_archetypes(featured=True)}
+    missing = _ML_LANGS - featured_langs
+    assert not missing, f"missing curated multilingual languages: {missing}"
+
+
+def test_multilingual_archetypes_are_neutral_timbre_with_valid_tokens():
+    # A designed voice's spoken language is the preview text, not the instruct —
+    # so these carry no English-accent / Chinese-dialect token, only the
+    # universal gender/age/pitch axes that exist in every language.
+    for lang in _ML_LANGS:
+        res = archetypes.list_archetypes(lang=lang)
+        assert res, f"no archetypes for language {lang!r}"
+        for a in res:
+            assert a["language"] == lang
+            assert a["sample_script"].strip(), f"{a['id']} missing sample_script"
+            toks = set(_tokens(a["instruct"]))
+            assert toks, f"{a['id']} has empty instruct"
+            assert all(t in _VALID_TOKENS for t in toks), (
+                f"{a['id']} emits invalid token (instruct={a['instruct']!r})"
+            )
+            assert not (toks & _ACCENTS), f"{a['id']} should carry no English accent"
+            assert not (toks & _DIALECTS), f"{a['id']} should carry no Chinese dialect"
+
+
 # ── (i) Lookup by id ──────────────────────────────────────────────────────────
 def test_get_archetype_roundtrip():
     sample = ALL[0]

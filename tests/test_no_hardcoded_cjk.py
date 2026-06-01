@@ -58,7 +58,7 @@ _ALLOWED_FILES = {
     # Model / engine vocabulary & identifiers (the model/engine requires these)
     "backend/services/tts_backend.py",            # CosyVoice speaker IDs
     "backend/core/personalities.py",              # Chinese-dialect showcase preset
-    "backend/core/archetypes.py",                 # Chinese-dialect preview sample text
+    "backend/core/archetypes.py",                 # Chinese-dialect + JA/KO multilingual preview sample text
     "frontend/src/utils/constants.js",            # Chinese-dialect picker names
     "omnivoice/models/omnivoice.py",              # instruct-mode vocabulary
     "omnivoice/utils/duration.py",
