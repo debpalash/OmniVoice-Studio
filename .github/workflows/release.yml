@@ -461,6 +461,10 @@ jobs:
           set -euo pipefail
           # Use the AppImage — single-file, no installer needed.
           APPIMAGE=$(find frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/appimage -name "*.AppImage" | head -1)
+          # Resolve to an absolute path BEFORE the cd below — `--appimage-extract`
+          # always writes ./squashfs-root into the CWD, so we cd into a temp dir,
+          # at which point a relative AppImage path would no longer resolve.
+          APPIMAGE=$(realpath "$APPIMAGE")
           echo "Smoke-testing AppImage: $APPIMAGE"
           chmod +x "$APPIMAGE"
           # GH runners have no FUSE — extract before running (mirrors APPIMAGE_EXTRACT_AND_RUN=1 used at build time).
