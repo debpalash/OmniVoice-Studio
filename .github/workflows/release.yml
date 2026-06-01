@@ -393,6 +393,29 @@ jobs:
             echo "APPLE_TEAM_ID=$TID"
           } >> "$GITHUB_ENV"
 
+      # Stamp each preview build with a unique, monotonically increasing semver
+      # PRERELEASE so the updater actually offers it (a rolling preview that
+      # always reported the static 0.3.0 never looked "newer", so no update was
+      # ever delivered). Ephemeral, CI-only — never committed. Tauri reads the
+      # bundle + updater version from tauri.conf.json, so rewriting it here
+      # stamps the artifacts + latest.json. `0.3.0-preview.N` is a prerelease of
+      # the current target, so previews converge to stable when 0.3.0 ships
+      # (0.3.0 > 0.3.0-preview.N). NOTE: the Windows MSI ProductVersion strips
+      # the prerelease (→ 0.3.0), a wrinkle to verify for win preview→preview
+      # upgrades; mac/linux replace the bundle wholesale and are unaffected.
+      - name: Stamp preview version
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          CONF=frontend/src-tauri/tauri.conf.json
+          BASE=$(jq -r .version "$CONF")
+          PREVIEW_VERSION="${BASE}-preview.${{ github.run_number }}"
+          tmp=$(mktemp)
+          jq --arg v "$PREVIEW_VERSION" '.version = $v' "$CONF" > "$tmp"
+          mv "$tmp" "$CONF"
+          echo "Stamped preview version: $PREVIEW_VERSION"
+
       - name: Build + release (Tauri)
         uses: tauri-apps/tauri-action@v0
         env:
