@@ -17,6 +17,7 @@
     <a href="#features">Features</a> ·
     <a href="#why-omnivoice-studio">Why OmniVoice Studio?</a> ·
     <a href="#tts-engines">TTS Engines</a> ·
+    <a href="#asr-engines">ASR Engines</a> ·
     <a href="#contributing">Contributing</a> ·
     <a href="https://discord.gg/bzQavDfVV9">Discord</a> ·
     <a href="README_CN.md"><strong>简体中文</strong></a>
@@ -236,6 +237,22 @@ OmniVoice ships a multi-engine TTS backend. The default engine (OmniVoice) is al
 | **KittenTTS** | English | ❌ | ❌ | ✅ CPU | ✅ CPU | ✅ CPU | MIT |
 
 > **CUDA** = GPU-accelerated · **MPS** = Apple Silicon Metal · **CPU** = runs everywhere, slower for large models · KittenTTS and MOSS-TTS-Nano run realtime on CPU · MLX-Audio is Apple Silicon only.
+
+### ASR Engines
+
+OmniVoice ships a multi-engine ASR (speech-to-text) backend that powers dictation, video dubbing, and subtitle generation — all fully local. **WhisperX** is the cross-platform default; the rest are opt-in and auto-detected. Switch in **Settings → ASR Engine** or via the `OMNIVOICE_ASR_BACKEND` env var.
+
+| Engine | `OMNIVOICE_ASR_BACKEND` | Languages | Best for |
+|--------|-------------------------|:---------:|----------|
+| **WhisperX** (default) | `whisperx` | ~100 | Dubbing & subtitles — word-level timing via wav2vec2 forced alignment |
+| **Faster-Whisper** | `faster-whisper` | ~100 | Fast transcription on Linux / macOS / Windows (CTranslate2) |
+| **MLX Whisper** | `mlx-whisper` | ~100 | Native Apple Silicon speed (CoreML) |
+| **PyTorch Whisper** | `pytorch-whisper` | ~100 | CUDA / CPU fallback via 🤗 Transformers |
+| **Parakeet TDT** | `nemo-parakeet` | English | English SOTA accuracy (NVIDIA NeMo) |
+| **Moonshine** | `moonshine` | English | Edge / low-latency, ONNX |
+| **FunASR** | `funasr` | 50+ | All-in-one multilingual — built-in VAD + inline speaker diarization (SenseVoice) |
+
+> Whisper-family engines cover ~100 languages; **FunASR / SenseVoice** adds an all-in-one multilingual path with built-in voice-activity detection and inline speaker diarization. Every engine runs on-device — no API keys, no cloud.
 
 ---
 
