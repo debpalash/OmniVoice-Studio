@@ -8,7 +8,6 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import FileResponse, StreamingResponse
 
-from core.db import db_conn
 from core.config import DUB_DIR, dub_seg_path
 from core.tasks import task_manager
 from api.routers.dub_core import _get_job

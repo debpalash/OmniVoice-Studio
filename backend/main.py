@@ -117,8 +117,6 @@ os.environ.setdefault("HF_HUB_DOWNLOAD_TIMEOUT", "30")
 os.environ.setdefault("TORCHAUDIO_USE_TORCHCODEC", "0")
 sys.modules.setdefault("torchcodec", None)
 
-import soundfile as sf
-import torch
 import torchaudio
 import warnings
 import logging

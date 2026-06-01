@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query, 
 from core.prefs import set_ as prefs_set, delete as prefs_delete
 from services import network_share
 from services import tailscale as _tailscale
-from api.schemas import SysinfoResponse, SystemInfoResponse, ModelStatusResponse, LogsResponse, FlushMemoryResponse
+from api.schemas import SysinfoResponse, SystemInfoResponse, ModelStatusResponse
 from api.dependencies import require_loopback
 from fastapi.responses import FileResponse, StreamingResponse
 import torch
@@ -437,7 +437,7 @@ async def flush_memory(unload_model: bool = False):
     re-loaded lazily on the next generation request.
     """
     import gc
-    from services.model_manager import free_vram, model as _current_model
+    from services.model_manager import free_vram
 
     freed_model = False
     if unload_model:

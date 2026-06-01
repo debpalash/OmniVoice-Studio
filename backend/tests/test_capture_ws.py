@@ -6,7 +6,6 @@ skip in CI — it's integration-tested via the browser.
 """
 import os
 import sys
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 

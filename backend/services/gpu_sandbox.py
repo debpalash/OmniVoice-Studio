@@ -26,13 +26,11 @@ Architecture:
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import multiprocessing
 import os
 import sys
 import tempfile
-import time
 
 logger = logging.getLogger("omnivoice.sandbox")
 
@@ -43,7 +41,6 @@ def _worker(conn, request: dict):
         # Prevent CUDA from inheriting contexts from parent
         os.environ.setdefault("CUDA_DEVICE_ORDER", "PCI_BUS_ID")
 
-        import torch
         import torchaudio
 
         # Add backend to path

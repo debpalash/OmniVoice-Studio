@@ -201,7 +201,7 @@ async def _spawn_with_retry(cmd, **kwargs):
                 delay *= 2
                 continue
             raise
-        except Exception as e:
+        except Exception:
             raise
     raise last_err if last_err else RuntimeError("spawn failed")
 

@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 
 from core.config import OUTPUTS_DIR, VOICES_DIR
 from core.db import db_conn

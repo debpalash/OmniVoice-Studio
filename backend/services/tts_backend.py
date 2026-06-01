@@ -864,7 +864,6 @@ class GPTSoVITSBackend(TTSBackend):
     def generate(self, text: str, **kw) -> torch.Tensor:
         import urllib.request
         import urllib.parse
-        import json
 
         ref_audio = kw.get("ref_audio")
         ref_text = kw.get("ref_text", "")

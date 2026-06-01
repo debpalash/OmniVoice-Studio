@@ -38,7 +38,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import Any, Iterable, Optional
+from typing import Iterable, Optional
 
 logger = logging.getLogger("omnivoice.translator")
 

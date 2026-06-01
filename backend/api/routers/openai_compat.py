@@ -24,15 +24,13 @@ import logging
 import os
 import asyncio
 import tempfile
-import time
-import uuid
 from typing import Literal, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from services.model_manager import get_model, _gpu_pool
+from services.model_manager import _gpu_pool
 
 logger = logging.getLogger("omnivoice.openai_compat")
 
@@ -116,7 +114,7 @@ _OPENAI_VOICE_ALIASES = {
 
 def _resolve_engine(model_id: str):
     """Map an OpenAI model name to an OmniVoice backend."""
-    from services.tts_backend import get_backend_class, get_active_tts_backend, active_backend_id
+    from services.tts_backend import get_backend_class, get_active_tts_backend
 
     # Accept OpenAI model names as pass-through to the active engine.
     if model_id in ("tts-1", "tts-1-hd"):
@@ -208,7 +206,6 @@ def _encode_audio(wav_tensor, sample_rate: int, fmt: str) -> tuple[bytes, str, s
 
 def _run_tts(backend, text: str, kw: dict):
     """Run TTS inference in the GPU thread pool."""
-    import torch
     from services.audio_dsp import apply_mastering, normalize_audio
     wav = backend.generate(text, **kw)
     sr = backend.sample_rate

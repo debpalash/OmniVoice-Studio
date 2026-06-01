@@ -4,11 +4,10 @@ import uuid
 import time
 import asyncio
 import logging
-import subprocess
 from typing import Optional, List
 from pathlib import Path
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException, Query
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 
 from core.db import db_conn

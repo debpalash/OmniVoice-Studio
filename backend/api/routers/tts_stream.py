@@ -18,7 +18,6 @@ The chunked delivery targets <100ms time-to-first-audio (TTFA) on warm models.
 from __future__ import annotations
 
 import asyncio
-import io
 import logging
 import os
 import time
@@ -150,7 +149,6 @@ async def ws_tts(websocket: WebSocket):
                 loop = asyncio.get_running_loop()
 
                 def _generate():
-                    import torch
                     from services.audio_dsp import apply_mastering, normalize_audio
                     wav = backend.generate(text, **kw)
                     sr_actual = backend.sample_rate

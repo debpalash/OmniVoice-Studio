@@ -27,7 +27,6 @@ import logging
 import os
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
 
 logger = logging.getLogger("omnivoice.video_context")
 

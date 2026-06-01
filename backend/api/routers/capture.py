@@ -13,13 +13,12 @@ by default, or MLX Whisper on Apple Silicon when configured.
 """
 from __future__ import annotations
 
-import io
 import logging
 import os
 import tempfile
 import time
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, UploadFile
 from typing import Optional
 
 router = APIRouter()

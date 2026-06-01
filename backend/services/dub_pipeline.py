@@ -44,7 +44,7 @@ from core.config import DUB_DIR
 from fastapi import HTTPException
 from services.ffmpeg_utils import find_ffmpeg, find_ffprobe, _get_semaphore, _spawn_with_retry
 from services.model_manager import get_best_device
-from core.db import db_conn, get_db
+from core.db import db_conn
 from core import event_bus
 from core import failure
 

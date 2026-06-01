@@ -1,29 +1,23 @@
 import os
-import io
-import sys
 import uuid
-import json
-import time
 import asyncio
 import logging
 import shutil
 import subprocess
 import soundfile as sf
 import torch
-import torchaudio
-from typing import Optional, List
-from fastapi import APIRouter, File, Form, UploadFile, HTTPException, Query
-from fastapi.responses import FileResponse, Response, StreamingResponse, JSONResponse
+from typing import Optional
+from fastapi import APIRouter, File, Form, UploadFile, HTTPException
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 
 from core.db import db_conn
-from core.config import DATA_DIR, DUB_DIR, PREVIEW_DIR, VOICES_DIR
+from core.config import PREVIEW_DIR
 from core.tasks import task_manager
 from core import event_bus
-from schemas.requests import DubRequest, TranslateRequest, DubIngestUrlRequest
-from services.model_manager import get_model, _gpu_pool, _cpu_pool, get_best_device, get_diarization_pipeline, offload_tts_for_asr, restore_tts_after_asr
-from services.audio_dsp import apply_mastering, normalize_audio
+from schemas.requests import DubIngestUrlRequest
+from services.model_manager import get_model, _gpu_pool, _cpu_pool, get_diarization_pipeline, offload_tts_for_asr, restore_tts_after_asr
 from services.audio_io import _safe_soundfile_write
-from services.ffmpeg_utils import find_ffmpeg, _get_semaphore, _spawn_with_retry
+from services.ffmpeg_utils import find_ffmpeg
 from services.segmentation import (
     segment_transcript,
     assign_speakers_from_diarization,
@@ -586,7 +580,6 @@ async def dub_transcribe_stream(job_id: str):
 
             from services.model_manager import (
                 DIARIZATION_ERR_LICENSE,
-                DIARIZATION_ERR_LOAD,
                 DIARIZATION_ERR_NO_TOKEN,
             )
             from core import error_docs_map
@@ -773,8 +766,6 @@ async def dub_transcribe(job_id: str):
     _model = await get_model()
 
     def _transcribe():
-        import re
-        import traceback
         
         asr_audio_target = job.get("vocals_path")
         if not asr_audio_target or not os.path.exists(asr_audio_target):

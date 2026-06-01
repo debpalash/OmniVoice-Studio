@@ -27,7 +27,6 @@ import logging
 import os
 import re
 from abc import ABC, abstractmethod
-from typing import Optional
 
 logger = logging.getLogger("omnivoice.asr")
 
@@ -293,7 +292,7 @@ class WhisperXBackend(ASRBackend):
         audio = whisperx.load_audio(audio_path)
         try:
             result = self._asr.transcribe(audio)
-        except IndexError as e:
+        except IndexError:
             # WhisperX pipeline crashes with IndexError if VAD produces 0 segments
             logger.info("whisperx transcribe threw IndexError (likely 0 VAD segments). Returning empty result.")
             result = {"segments": [], "language": "en"}

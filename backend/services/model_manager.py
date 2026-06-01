@@ -2,7 +2,6 @@ import os
 import time
 import asyncio
 import logging
-from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
 
 # ── Lazy imports ─────────────────────────────────────────────────────

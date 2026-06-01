@@ -96,8 +96,6 @@ def _set_progress(job, stage, percent=0, **extra):
 async def _run_batch_pipeline(job_id: str, job: dict):
     """Full batch dub pipeline: extract → transcribe → translate → generate → mix → export."""
     import subprocess
-    import tempfile
-    import soundfile as sf
 
     loop = asyncio.get_running_loop()
     video_path = job["video_path"]

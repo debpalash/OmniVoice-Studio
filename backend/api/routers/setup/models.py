@@ -14,9 +14,8 @@ import platform as _platform
 import sys
 import time
 from pathlib import Path
-from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
 logger = logging.getLogger("omnivoice.setup.models")
 router = APIRouter()

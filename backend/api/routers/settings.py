@@ -15,7 +15,6 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import asdict
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field

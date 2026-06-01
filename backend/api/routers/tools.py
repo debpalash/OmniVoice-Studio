@@ -27,7 +27,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from services import director, speech_rate, incremental
-from services.ffmpeg_utils import find_ffmpeg, find_ffprobe, spawn_subprocess
+from services.ffmpeg_utils import find_ffprobe, spawn_subprocess
 
 logger = logging.getLogger("omnivoice.tools")
 router = APIRouter()

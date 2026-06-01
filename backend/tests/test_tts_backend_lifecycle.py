@@ -22,7 +22,6 @@ from __future__ import annotations
 import inspect
 import os
 import sys
-from pathlib import Path
 
 import pytest
 

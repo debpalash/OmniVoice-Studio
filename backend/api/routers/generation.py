@@ -14,7 +14,6 @@ from fastapi.responses import StreamingResponse
 from core.db import db_conn
 from core.config import OUTPUTS_DIR, VOICES_DIR
 from services.model_manager import get_model, _gpu_pool
-from services.audio_dsp import apply_mastering, normalize_audio
 from services.audio_io import _safe_torchaudio_save
 from core import event_bus
 

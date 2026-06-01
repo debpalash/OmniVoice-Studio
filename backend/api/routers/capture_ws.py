@@ -18,7 +18,6 @@ Protocol:
 from __future__ import annotations
 
 import asyncio
-import io
 import logging
 import os
 import tempfile
@@ -200,8 +199,6 @@ async def ws_transcribe(websocket: WebSocket):
 
 async def _transcribe_buffer(chunks: list[bytes]) -> str:
     """Quick partial transcription of the current audio buffer."""
-    import soundfile as sf
-    import numpy as np
 
     tmp = _chunks_to_wav(chunks)
     if tmp is None:
