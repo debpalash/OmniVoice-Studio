@@ -144,16 +144,18 @@ jobs:
             rust_target: x86_64-pc-windows-msvc
             bundles: "msi,updater"
 
-          # Linux: ship .deb + .AppImage. AppImage is universal (no distro
-          # package-manager dep), runs on any glibc-2.31+ host. Now viable
-          # because the thin uv-venv installer is ~10 MB (vs the prior ~2 GB
-          # PyInstaller payload that exceeded linuxdeploy limits). FUSE
-          # unavailability on GH runners handled via APPIMAGE_EXTRACT_AND_RUN=1.
+          # Linux: ship .AppImage only. AppImage is universal (no distro
+          # package-manager dep), runs on any glibc-2.31+ host, and is the
+          # Linux auto-update target. The .deb target was dropped: tauri-bundler
+          # fails it with "Failed to create control scripts: No such file or
+          # directory" (no custom deb config of ours is at fault) — revisit on a
+          # tauri-cli bump. FUSE unavailability on GH runners is handled via
+          # APPIMAGE_EXTRACT_AND_RUN=1.
           - os: ubuntu-22.04
             arch: x86_64-unknown-linux-gnu
             label: "Linux x64"
             rust_target: x86_64-unknown-linux-gnu
-            bundles: "deb,appimage,updater"
+            bundles: "appimage,updater"
 
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.label }}
@@ -368,16 +370,20 @@ jobs:
           # macOS Developer-ID code-signing + notarization (#134 / #72).
           # tauri-action signs + notarizes the .app/.dmg ONLY when these are
           # non-empty; with the secrets unset they resolve to empty strings and
-          # the build stays unsigned (today's behavior — users clear quarantine
-          # via `xattr -cr`, see docs/install/macos.md). To enable, add the repo
-          # secrets documented in docs/install/macos.md → "For maintainers".
-          # No-op on the Windows/Linux matrix legs.
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # the build stays unsigned (users clear quarantine via `xattr -cr`,
+          # see docs/install/macos.md). No-op on the Windows/Linux legs.
+          #
+          # PREVIEW builds force-skip signing (pass empty): preview is unsigned
+          # by design, and it must not fail when the APPLE_CERTIFICATE secret is
+          # absent or malformed (a bad cert makes `security import` fail and
+          # kills the whole mac build). Stable `v*` tag releases still receive
+          # the secrets, so signing kicks in once the cert is configured.
+          APPLE_CERTIFICATE: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && '' || secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && '' || secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && '' || secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && '' || secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && '' || secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && '' || secrets.APPLE_TEAM_ID }}
           # GH runners disable FUSE, so linuxdeploy's AppImage can't mount
           # itself at bundle time. This env tells linuxdeploy to extract-and-run
           # instead, which works without FUSE.
@@ -398,10 +404,13 @@ jobs:
           includeUpdaterJson: true
 
       # ── Installer smoke (Phase 0 GATE-03) ─────────────────────────────
-      # Boot the just-built bundle on this matrix leg, poll /health, fail
-      # the release if it doesn't come up. Catches bundle-only regressions
-      # (PyInstaller missing-module, Tauri sidecar path mismatch, etc.)
-      # that the in-process smoke matrix on ci.yml cannot see.
+      # Structural verification of the installed/extracted bundle. The thin
+      # uv-venv installer ships NO frozen backend binary (the venv is built on
+      # first launch via the bundled `uv`), so there is nothing to boot with
+      # `--health-check` here. Instead assert the bundle carries the shell
+      # binary, the bundled `uv` sidecar, and the backend source resources
+      # (pyproject.toml + backend/main.py) — the real "is the bundle complete"
+      # regression that ci.yml's in-process smoke can't catch.
       - name: Installer smoke (macOS)
         if: runner.os == 'macOS'
         timeout-minutes: 5
@@ -412,25 +421,16 @@ jobs:
           echo "Smoke-testing DMG: $DMG"
           MOUNT=$(hdiutil attach -nobrowse -readonly "$DMG" | tail -1 | awk '{print $3}')
           APP=$(find "$MOUNT" -maxdepth 2 -name "*.app" | head -1)
-          # RESEARCH Pitfall #5: do NOT launch the Tauri WebView shell on a headless runner — it hangs.
-          # The `--health-check` flag lives in backend/main.py (Python), not the Rust WebView main.
-          # Strategy: invoke the bundled Python backend directly, bypassing Tauri's window code.
-          BACKEND=$(find "$APP/Contents" -type f \( -name 'backend' -o -name 'backend.app' -o -name 'main.py' \) -perm +111 2>/dev/null | head -1)
-          if [ -z "$BACKEND" ]; then
-            # Fallback: try the PyInstaller sidecar location Tauri uses.
-            BACKEND=$(find "$APP/Contents/Resources" -type f \( -name 'backend*' -o -name 'omnivoice*' \) -perm +111 2>/dev/null | head -1)
-          fi
-          if [ -z "$BACKEND" ]; then
-            echo "FAIL — could not locate bundled backend binary in $APP. Contents:"
-            find "$APP/Contents" -type f -perm +111 | head -30
-            hdiutil detach "$MOUNT" || true
-            exit 1
-          fi
-          echo "Launching bundled backend: $BACKEND --health-check"
-          "$BACKEND" --health-check
-          EXIT=$?
+          fail() { echo "FAIL — $1"; find "$APP/Contents" -maxdepth 4 -type f 2>/dev/null | head -40; hdiutil detach "$MOUNT" || true; exit 1; }
+          [ -n "$APP" ] || { echo "FAIL — no .app inside DMG"; hdiutil detach "$MOUNT" || true; exit 1; }
+          # Thin uv-venv installer ships no frozen backend to boot — verify the
+          # bundle is complete: shell binary + bundled uv sidecar + backend source.
+          ls "$APP/Contents/MacOS"/* >/dev/null 2>&1 || fail "no shell binary in Contents/MacOS"
+          find "$APP/Contents" -type f -name 'uv' | grep -q . || fail "bundled uv sidecar missing"
+          find "$APP/Contents" -type f -name 'pyproject.toml' | grep -q . || fail "backend resource pyproject.toml missing"
+          find "$APP/Contents" -type f -path '*/backend/main.py' | grep -q . || fail "backend source backend/main.py missing"
+          echo "OK — bundle has shell + uv + backend resources"
           hdiutil detach "$MOUNT" || true
-          exit $EXIT
 
       - name: Installer smoke (Windows)
         if: runner.os == 'Windows'
@@ -442,24 +442,15 @@ jobs:
           echo "Smoke-testing MSI: $MSI"
           # /quiet = no UI, /norestart = don't reboot the runner if a dep asks
           msiexec.exe //i "$(cygpath -w "$MSI")" //quiet //norestart
-          # Tauri installs to "Program Files\OmniVoice Studio\..." by default. Backend is a sidecar binary
-          # (RESEARCH Pitfall #5) — not the Tauri WebView .exe — so locate by name pattern.
-          BACKEND=$(find "/c/Program Files/OmniVoice Studio" -type f \( -name 'backend.exe' -o -name 'omnivoice-backend.exe' -o -name 'main.exe' \) 2>/dev/null | head -1)
-          if [ -z "$BACKEND" ]; then
-            echo "FAIL — bundled backend .exe not found under C:/Program Files/OmniVoice Studio. Contents:"
-            find "/c/Program Files/OmniVoice Studio" -type f -name '*.exe' | head -20
-            exit 1
-          fi
-          echo "Launching bundled backend: $BACKEND --health-check"
-          "$BACKEND" --health-check &
-          BACKEND_PID=$!
-          # Wait for completion (--health-check is a short-lived, exits-after-200 invocation)
-          wait $BACKEND_PID
-          EXIT=$?
-          # RESEARCH Pitfall #2: cleanup orphaned PyInstaller child processes on port 3900.
-          # Safe on GH-hosted ephemeral runners; REQUIRED if/when we move to self-hosted Windows.
-          taskkill //F //T //PID $BACKEND_PID 2>/dev/null || echo "backend process already exited cleanly"
-          exit $EXIT
+          INSTALL="/c/Program Files/OmniVoice Studio"
+          fail() { echo "FAIL — $1. Contents:"; find "$INSTALL" -maxdepth 4 -type f 2>/dev/null | head -40; exit 1; }
+          # Thin uv-venv installer ships no frozen backend .exe — verify the
+          # install is complete: shell exe + bundled uv + backend source resources.
+          test -f "$INSTALL/omnivoice-studio.exe" || fail "shell exe missing"
+          test -f "$INSTALL/uv.exe" || fail "bundled uv missing"
+          find "$INSTALL" -type f -name 'pyproject.toml' | grep -q . || fail "backend resource pyproject.toml missing"
+          find "$INSTALL" -type f -path '*backend*main.py' | grep -q . || fail "backend source main.py missing"
+          echo "OK — MSI installed shell + uv + backend resources"
 
       - name: Installer smoke (Linux)
         if: runner.os == 'Linux'
@@ -475,14 +466,15 @@ jobs:
           EXTRACT_DIR="$(mktemp -d)"
           cd "$EXTRACT_DIR"
           "$APPIMAGE" --appimage-extract >/dev/null
-          # Tauri's AppRun lives at squashfs-root/AppRun; the actual binary is in squashfs-root/usr/bin/
-          BIN=$(find squashfs-root -type f -name "OmniVoice Studio" -o -name "omnivoice-studio" 2>/dev/null | head -1)
-          if [ -z "$BIN" ]; then
-            BIN="$EXTRACT_DIR/squashfs-root/AppRun"
-          fi
-          echo "Launching under xvfb-run: $BIN --health-check"
-          sudo apt-get install -y xvfb >/dev/null 2>&1 || true
-          xvfb-run -a "$BIN" --health-check
+          ROOT="$EXTRACT_DIR/squashfs-root"
+          fail() { echo "FAIL — $1"; find "$ROOT" -maxdepth 5 -type f 2>/dev/null | head -40; exit 1; }
+          # Thin uv-venv installer: verify the AppImage carries the shell binary,
+          # the bundled uv sidecar, and the backend source resources.
+          { [ -f "$ROOT/AppRun" ] || find "$ROOT" -type f \( -name "OmniVoice Studio" -o -name "omnivoice-studio" \) | grep -q .; } || fail "shell binary / AppRun missing"
+          find "$ROOT" -type f -name 'uv' | grep -q . || fail "bundled uv sidecar missing"
+          find "$ROOT" -type f -name 'pyproject.toml' | grep -q . || fail "backend resource pyproject.toml missing"
+          find "$ROOT" -type f -path '*/backend/main.py' | grep -q . || fail "backend source backend/main.py missing"
+          echo "OK — AppImage has shell + uv + backend resources"
 
       # ── Compute SHA-256 checksums (Phase 0 GATE-05) ───────────────────
       # Native OS tools: shasum -a 256 (POSIX) / Get-FileHash (Windows).
@@ -543,3 +535,46 @@ jobs:
           body_path: ${{ steps.checksums.outputs.checksums_file }}
           files: ${{ steps.checksums.outputs.checksums_file }}
           fail_on_unmatched_files: true
+
+  # ── Auto-generated preview release notes ──────────────────────────────────
+  # tauri-action publishes the rolling `preview` release with the plain
+  # changelog-fallback body ("Auto-generated release for main…"). Replace it
+  # with GitHub's auto-generated notes (What's Changed by PR + Contributors +
+  # Full Changelog) once the matrix has finished. Runs once (no matrix race),
+  # preview-only — stable `v*` releases keep their CHANGELOG section + the
+  # appended checksums.
+  preview-notes:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_preview
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Generate + apply GitHub release notes to the preview release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          NOTES=$(gh api --method POST "repos/$REPO/releases/generate-notes" -f tag_name=preview --jq .body)
+          # Build a Contributors avatar strip from the PR authors GitHub listed
+          # in the notes ("by @handle in …"). Inline <a>/<img> render on the
+          # release page (GitHub strips inline styles, so avatars are square).
+          CONTRIB=""
+          HANDLES=$(printf '%s\n' "$NOTES" | grep -oE 'by @[A-Za-z0-9-]+' | sed 's/^by @//' | sort -u || true)
+          if [ -n "$HANDLES" ]; then
+            CONTRIB=$'## Contributors\n\n'
+            while IFS= read -r h; do
+              [ -z "$h" ] && continue
+              CONTRIB="$CONTRIB<a href=\"https://github.com/$h\" title=\"@$h\"><img src=\"https://github.com/$h.png?size=64\" width=\"48\" alt=\"@$h\"/></a> "
+            done <<< "$HANDLES"
+          fi
+          {
+            echo "> 🧪 **Rolling preview build from \`main\`** — newest features, less tested. Opt in via **Settings → About → Update channel → Preview**; switch back to Stable any time."
+            echo ""
+            echo "$NOTES"
+            echo ""
+            echo "$CONTRIB"
+          } > /tmp/preview-notes.md
+          gh release edit preview --repo "$REPO" --notes-file /tmp/preview-notes.md
+          echo "Applied auto-generated release notes + contributors to the preview release."
