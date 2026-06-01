@@ -40,10 +40,14 @@ dependencies = [
     "webdataset",
     "numpy",
     "soundfile",
-    # pkg_resources is used by whisperx/faster-whisper at runtime.
-    # On Python 3.12+ it's no longer bundled by default — pin a modern
-    # setuptools to guarantee it's present (fixes #58).
-    "setuptools>=75.0",
+    # whisperx / faster-whisper import `pkg_resources` at runtime. setuptools
+    # 80+ DROPPED the bundled pkg_resources, so an unpinned ">=75" now resolves
+    # to a version WITHOUT it → "No module named 'pkg_resources'", which both
+    # breaks WhisperX transcription and makes its is_available() report false
+    # ("No ASR backend is ready"). Cap below 80 so pkg_resources stays present
+    # (issue #224; also #58). Revisit when whisperx/faster-whisper drop the
+    # pkg_resources dependency.
+    "setuptools>=75,<80",
     "psutil>=7.2.2",
     # Pinned to 3.x — pyannote 4.x removed `use_auth_token` from `Inference`
     # which whisperx 3.4.2 still passes, blowing up `whisperx.load_model()`
