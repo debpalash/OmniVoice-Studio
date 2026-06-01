@@ -56,7 +56,7 @@
   background: var(--chrome-bg, #1d2021); border: 1px solid var(--chrome-border, #3a3a3a);
   border-radius: 8px; padding: 8px 10px;
   font-size: 11px; line-height: 1.45; color: #d5c4a1;
-  white-space: pre-wrap; word-break: break-word;
+  white-space: pre-wrap; overflow-wrap: break-word;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 .update-badge__btn--error {

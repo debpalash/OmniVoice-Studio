@@ -42,11 +42,12 @@ export default function UpdateBadge() {
               className={`update-badge__more ${notesOpen ? 'is-open' : ''}`}
               onClick={() => setNotesOpen((v) => !v)}
               aria-expanded={notesOpen}
+              aria-controls="update-badge-notes"
             >
               <ChevronDown size={12} /> {t('update.whats_new')}
             </button>
           )}
-          {notesOpen && notes && <div className="update-badge__notes">{notes}</div>}
+          {notesOpen && notes && <div id="update-badge-notes" className="update-badge__notes">{notes}</div>}
         </div>
       )}
       {status === 'downloading' && (

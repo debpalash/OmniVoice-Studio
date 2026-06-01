@@ -33,8 +33,18 @@ async function currentChannel() {
 export async function checkForUpdate(store) {
   if (!isTauri()) return;
   // A periodic re-check must not interrupt an in-progress download or a
-  // ready-to-restart state (it would reset the badge mid-flight).
-  if (store.updateStatus === 'downloading' || store.updateStatus === 'ready') return;
+  // ready-to-restart state (it would reset the badge mid-flight), nor wipe a
+  // surfaced error — `setUpdateChecking()` clears `updateError` and hides the
+  // pill, so a 6h tick would silently erase the "failed · retry" prompt the
+  // user still needs to act on. Retry is user-initiated (it goes through
+  // installUpdate → downloading), so skipping the auto re-check here is safe.
+  if (
+    store.updateStatus === 'downloading' ||
+    store.updateStatus === 'ready' ||
+    store.updateStatus === 'error'
+  ) {
+    return;
+  }
   try {
     store.setUpdateChecking();
     const { invoke } = await import('@tauri-apps/api/core');
