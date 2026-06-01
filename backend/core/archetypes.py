@@ -8,10 +8,10 @@ taxonomy. Each archetype carries an ``instruct`` string (e.g.
 
 Two tiers (the "hybrid" gallery model):
 
-* **Featured** — ~24 hand-curated archetypes spanning the seven use-case
-  categories. Pre-rendered preview WAVs are produced by
-  ``scripts/render_demos_omnivoice.py``; until a WAV exists the API renders one
-  on demand.
+* **Featured** — ~51 hand-curated archetypes (24 English across the seven
+  use-case categories + 27 multilingual designed voices in nine more languages).
+  Pre-rendered preview WAVs are produced by ``scripts/render_demos_omnivoice.py``;
+  until a WAV exists the API renders one on demand.
 * **Generated** — the full combinatorial space of gender × age × pitch ×
   accent (English) and gender × age × pitch × dialect (Chinese), pruned of
   physically-implausible combinations (no "child + very low pitch"). This is
@@ -351,6 +351,12 @@ _ML_ROLES = [
 
 
 def _make_multilingual():
+    """Build the featured archetypes for the non-EN/ZH languages.
+
+    Cross-products ``_ML_SAMPLES`` (one localized preview script per language)
+    with ``_ML_ROLES`` (the reusable, language-independent timbre roles), so each
+    language gets the same curated set of neutral-instruct designed voices.
+    """
     out = []
     for language, script in _ML_SAMPLES.items():
         lang_slug = language.lower()
