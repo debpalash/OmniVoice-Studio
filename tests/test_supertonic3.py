@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import builtins
 import importlib
+import importlib.util
 import os
 import re
 import subprocess
@@ -21,6 +22,14 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SUPERTONIC_SMOKE = os.environ.get("OMNIVOICE_SMOKE") == "1"
+
+# The license-gate / CPU-honesty tests exercise logic that only runs once the
+# optional `supertonic` package is importable (is_available() short-circuits
+# with a "not installed" reason otherwise). ci.yml runs `uv sync --all-extras`
+# and exercises them; release.yml + a plain local `uv sync` don't install
+# optional engines, so skip there rather than fail. The absent-package path is
+# covered independently by test_optional_dep_missing.
+_SUPERTONIC_INSTALLED = importlib.util.find_spec("supertonic") is not None
 
 
 # ── TTS-02: optional-dep pin ──────────────────────────────────────────────
@@ -164,6 +173,7 @@ def test_pep562_lazy_import():
 # ── TTS-04: honest CPU-only hardware reporting ────────────────────────────
 
 
+@pytest.mark.skipif(not _SUPERTONIC_INSTALLED, reason="supertonic optional dep not installed (uv sync --all-extras)")
 def test_cpu_only_honest(mock_settings_store):
     """``is_available()`` never claims CUDA or MPS.
 
@@ -195,6 +205,7 @@ def test_cpu_only_honest(mock_settings_store):
 # ── TTS-05: license gate ──────────────────────────────────────────────────
 
 
+@pytest.mark.skipif(not _SUPERTONIC_INSTALLED, reason="supertonic optional dep not installed (uv sync --all-extras)")
 def test_license_gate(mock_settings_store):
     """Until the user accepts the license, is_available() returns False
     with a Settings → Engines hint. After accept, it flips True."""
