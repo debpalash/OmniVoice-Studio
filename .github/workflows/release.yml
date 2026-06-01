@@ -361,30 +361,49 @@ jobs:
             echo 'RELEASE_BODY_EOF'
           } >> "$GITHUB_OUTPUT"
 
+      # Apple code-signing is OPT-IN and OFF by default. Export the APPLE_*
+      # secrets to $GITHUB_ENV ONLY for a stable `v*` release with the
+      # MACOS_SIGNING_ENABLED repo variable set. On every other path (preview,
+      # or stable without the var) the APPLE_* vars stay ABSENT — NOT empty.
+      # This matters: Tauri's macOS bundler runs `security import` whenever
+      # APPLE_CERTIFICATE is *present* (even ""), which fails the whole build;
+      # absence makes it skip cert import and bundle unsigned (users clear
+      # quarantine via `xattr -cr`, see docs/install/macos.md). A static `env:`
+      # on the build step can't express "absent", so signing lives here.
+      # To enable signed stable releases: fix the signing secrets, then set the
+      # repo variable MACOS_SIGNING_ENABLED = true.
+      - name: Configure Apple signing (stable, opt-in)
+        if: runner.os == 'macOS' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.MACOS_SIGNING_ENABLED == 'true'
+        env:
+          C: ${{ secrets.APPLE_CERTIFICATE }}
+          CP: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          SI: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          AID: ${{ secrets.APPLE_ID }}
+          AP: ${{ secrets.APPLE_PASSWORD }}
+          TID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          {
+            echo "APPLE_CERTIFICATE<<__OV_EOF__"
+            echo "$C"
+            echo "__OV_EOF__"
+            echo "APPLE_CERTIFICATE_PASSWORD=$CP"
+            echo "APPLE_SIGNING_IDENTITY=$SI"
+            echo "APPLE_ID=$AID"
+            echo "APPLE_PASSWORD=$AP"
+            echo "APPLE_TEAM_ID=$TID"
+          } >> "$GITHUB_ENV"
+
       - name: Build + release (Tauri)
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # macOS Developer-ID code-signing + notarization (#134 / #72).
-          # tauri-action signs ONLY when these are non-empty; empty → the build
-          # stays unsigned (users clear quarantine via `xattr -cr`, see
-          # docs/install/macos.md). No-op on the Windows/Linux legs.
-          #
-          # Signing is OPT-IN and OFF by default, so neither preview nor stable
-          # can be broken by an absent/malformed APPLE_CERTIFICATE (a bad cert
-          # makes `security import` fail and kills the whole mac build). To turn
-          # it on for stable releases: fix the signing secrets, then set the repo
-          # variable MACOS_SIGNING_ENABLED = true (Settings → Secrets and
-          # variables → Actions → Variables). Signing then engages on `v*` tag
-          # pushes only; preview builds always stay unsigned.
-          APPLE_CERTIFICATE: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.MACOS_SIGNING_ENABLED == 'true') && secrets.APPLE_CERTIFICATE || '' }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.MACOS_SIGNING_ENABLED == 'true') && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
-          APPLE_SIGNING_IDENTITY: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.MACOS_SIGNING_ENABLED == 'true') && secrets.APPLE_SIGNING_IDENTITY || '' }}
-          APPLE_ID: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.MACOS_SIGNING_ENABLED == 'true') && secrets.APPLE_ID || '' }}
-          APPLE_PASSWORD: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.MACOS_SIGNING_ENABLED == 'true') && secrets.APPLE_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.MACOS_SIGNING_ENABLED == 'true') && secrets.APPLE_TEAM_ID || '' }}
+          # macOS Apple signing (#134 / #72) is configured by the preceding
+          # "Configure Apple signing" step — it exports APPLE_* to $GITHUB_ENV
+          # only on the opt-in stable path, leaving them ABSENT (not "") on
+          # preview/unsigned paths so Tauri's bundler skips cert import. A static
+          # env: here would always set them to "" and break the mac build.
           # GH runners disable FUSE, so linuxdeploy's AppImage can't mount
           # itself at bundle time. This env tells linuxdeploy to extract-and-run
           # instead, which works without FUSE.
