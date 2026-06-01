@@ -1576,6 +1576,9 @@
   "support": {
     "tab_support": "支持",
     "tab_license": "商业许可",
-    "toggle_label": "支持或商业许可"
+    "toggle_label": "支持或商业许可",
+    "other_ways": "其他帮助方法",
+    "star_github": "在 GitHub 上加星标",
+    "join_discord": "加入不和谐"
   }
 }

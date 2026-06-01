@@ -1576,6 +1576,9 @@
   "support": {
     "tab_support": "الدعم",
     "tab_license": "رخصة تجارية",
-    "toggle_label": "الدعم أو الترخيص التجاري"
+    "toggle_label": "الدعم أو الترخيص التجاري",
+    "other_ways": "طرق أخرى للمساعدة",
+    "star_github": "نجمة على جيثب",
+    "join_discord": "انضم إلى الفتنة"
   }
 }

@@ -1576,6 +1576,9 @@
   "support": {
     "tab_support": "Support",
     "tab_license": "Kommersiell licens",
-    "toggle_label": "Support eller kommersiell licens"
+    "toggle_label": "Support eller kommersiell licens",
+    "other_ways": "Andra sätt att hjälpa till",
+    "star_github": "Stjärna på GitHub",
+    "join_discord": "Gå med i Discord"
   }
 }

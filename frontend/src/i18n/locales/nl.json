@@ -1576,6 +1576,9 @@
   "support": {
     "tab_support": "Ondersteuning",
     "tab_license": "Commerciële licentie",
-    "toggle_label": "Ondersteuning of commerciële licentie"
+    "toggle_label": "Ondersteuning of commerciële licentie",
+    "other_ways": "Andere manieren om te helpen",
+    "star_github": "Ster op GitHub",
+    "join_discord": "Sluit je aan bij Discord"
   }
 }

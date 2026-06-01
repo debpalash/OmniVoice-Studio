@@ -1576,6 +1576,9 @@
   "support": {
     "tab_support": "지원",
     "tab_license": "상업용 라이센스",
-    "toggle_label": "지원 또는 상업용 라이센스"
+    "toggle_label": "지원 또는 상업용 라이센스",
+    "other_ways": "도움을 줄 수 있는 다른 방법",
+    "star_github": "GitHub의 스타",
+    "join_discord": "디스코드에 참여하세요"
   }
 }

@@ -1576,6 +1576,9 @@
   "support": {
     "tab_support": "Supporto",
     "tab_license": "Licenza commerciale",
-    "toggle_label": "Supporto o licenza commerciale"
+    "toggle_label": "Supporto o licenza commerciale",
+    "other_ways": "Altri modi per aiutare",
+    "star_github": "Stella su GitHub",
+    "join_discord": "Unisciti a Discord"
   }
 }

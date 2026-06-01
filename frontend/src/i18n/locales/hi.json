@@ -1576,6 +1576,9 @@
   "support": {
     "tab_support": "समर्थन",
     "tab_license": "वाणिज्यिक लाइसेंस",
-    "toggle_label": "समर्थन या वाणिज्यिक लाइसेंस"
+    "toggle_label": "समर्थन या वाणिज्यिक लाइसेंस",
+    "other_ways": "मदद करने के अन्य तरीके",
+    "star_github": "GitHub पर स्टार लगाएं",
+    "join_discord": "कलह में शामिल हों"
   }
 }

@@ -1576,6 +1576,9 @@
   "support": {
     "tab_support": "Hỗ trợ",
     "tab_license": "Giấy phép thương mại",
-    "toggle_label": "Hỗ trợ hoặc giấy phép thương mại"
+    "toggle_label": "Hỗ trợ hoặc giấy phép thương mại",
+    "other_ways": "Những cách khác để giúp đỡ",
+    "star_github": "Sao trên GitHub",
+    "join_discord": "Tham gia bất hòa"
   }
 }

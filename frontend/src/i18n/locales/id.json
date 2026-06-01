@@ -1576,6 +1576,9 @@
   "support": {
     "tab_support": "Dukungan",
     "tab_license": "Lisensi Komersial",
-    "toggle_label": "Dukungan atau lisensi komersial"
+    "toggle_label": "Dukungan atau lisensi komersial",
+    "other_ways": "Cara lain untuk membantu",
+    "star_github": "Bintangi di GitHub",
+    "join_discord": "Bergabunglah dengan Perselisihan"
   }
 }

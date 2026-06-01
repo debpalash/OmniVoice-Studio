@@ -1576,6 +1576,9 @@
   "support": {
     "tab_support": "Destek",
     "tab_license": "Ticari Lisans",
-    "toggle_label": "Destek veya ticari lisans"
+    "toggle_label": "Destek veya ticari lisans",
+    "other_ways": "Yardım etmenin diğer yolları",
+    "star_github": "GitHub'da yıldız",
+    "join_discord": "Discord'a Katılın"
   }
 }

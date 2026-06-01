@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Heart, ExternalLink, ArrowLeft, Building2,
   Shield, Zap, Users, Headphones, Code, Globe, Mail,
+  Star, MessageCircle,
 } from 'lucide-react';
 import { Button } from '../ui';
 import { openExternal } from '../api/external';
@@ -56,10 +57,32 @@ function SupportView() {
 
       <section className="donate-section">
         <div className="donate-section__title"><span>{t('donate.platforms')}</span></div>
-        <div className="donate-grid donate-grid--links">
+        <div className="donate-grid support-methods">
           {METHODS.map((m, i) => (
             <LinkCard key={m.id} method={m} style={{ '--anim-i': i, '--card-hue': '#d3869b' }} />
           ))}
+        </div>
+      </section>
+
+      {/* Non-monetary ways to help — gives people who can't (or don't want to)
+          donate a real way to support, and balances out the panel. */}
+      <section className="donate-section">
+        <div className="donate-section__title"><span>{t('support.other_ways')}</span></div>
+        <div className="support-chips">
+          <button
+            type="button"
+            className="support-chip"
+            onClick={() => openExternal('https://github.com/debpalash/OmniVoice-Studio')}
+          >
+            <Star size={14} /> {t('support.star_github')}
+          </button>
+          <button
+            type="button"
+            className="support-chip"
+            onClick={() => openExternal('https://discord.gg/bzQavDfVV9')}
+          >
+            <MessageCircle size={14} /> {t('support.join_discord')}
+          </button>
         </div>
       </section>
 
@@ -221,8 +244,11 @@ export default function SupportPage({ onBack, initialView = 'support' }) {
         <span className="support-page__spacer" aria-hidden="true" />
       </div>
 
-      {/* key={view} remounts the panel so its entry animations replay on toggle */}
-      <div className="support-page__content donate-page__content" key={view}>
+      {/* key={view} remounts the panel so its entry animations replay on toggle.
+          The --support modifier vertically centers the (short) Support panel so
+          it doesn't float at the top of an empty page; License stays top-aligned
+          since it's tall enough to fill on its own. */}
+      <div className={`support-page__content donate-page__content support-page__content--${view}`} key={view}>
         {view === 'support' ? <SupportView /> : <LicenseView />}
       </div>
     </div>

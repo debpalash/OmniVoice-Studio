@@ -95,6 +95,57 @@
   100% { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Support panel layout ─────────────────────────────────────────────────
+   The Support panel is short, so center it vertically in the available space
+   instead of letting it cling to the top of an empty page. License is tall
+   enough to fill on its own, so it stays top-aligned and scrolls normally. */
+.support-page__content--support {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+/* Donation methods stack in a single clean column — three full-width rows,
+   no orphaned card in a half-empty second row. */
+.support-methods {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+/* ── "Other ways to help" chips ───────────────────────────────────────────
+   Non-monetary support (star, Discord) as quiet ghost pills, centered. */
+.support-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.support-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  background: color-mix(in srgb, var(--chrome-fg) 4%, transparent);
+  color: var(--chrome-fg-muted);
+  font-family: var(--chrome-font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast),
+    background var(--dur-fast), transform var(--dur-base);
+}
+.support-chip:hover {
+  color: var(--chrome-fg);
+  border-color: color-mix(in srgb, #d3869b 42%, transparent);
+  background: color-mix(in srgb, #d3869b 8%, transparent);
+  transform: translateY(-1px);
+}
+.support-chip svg { color: #d3869b; }
+
 @media (max-width: 540px) {
   .support-page__topbar { padding: 14px 18px 0; }
   .support-page__spacer { display: none; }
