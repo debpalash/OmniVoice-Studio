@@ -1330,7 +1330,30 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
 .lp-proj-icon--design { background: rgba(142,192,124,0.1); }
 .lp-proj-icon--locked { background: rgba(184,187,38,0.1); }
 .lp-proj-icon--dub    { background: rgba(254,128,25,0.1); overflow: hidden; }
+.lp-proj-icon--file   { background: rgba(250,189,47,0.1); }
 .lp-proj-meta--italic { font-style: italic; }
+
+/* Recent files (OmniDrive) strip on the Launchpad */
+.lp-files__head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-bottom: 12px;
+}
+.lp-files__head .lp-section-title { margin: 0; }
+.lp-files__head .lp-section-title::after { display: none; }
+.lp-view-all {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  border: none; background: transparent; cursor: pointer; padding: 2px 4px;
+  font-family: var(--chrome-font-mono); font-size: var(--chrome-label-size);
+  font-weight: 600; text-transform: uppercase; letter-spacing: var(--chrome-label-track);
+  color: var(--chrome-fg-muted); transition: color 0.15s ease;
+}
+.lp-view-all:hover { color: #fabd2f; }
+.lp-files__grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px;
+}
+.lp-file-card {
+  width: 100%; font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
 .lp-locked-badge {
   font-family: var(--chrome-font-mono);
   font-size: var(--chrome-label-size);

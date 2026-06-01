@@ -228,7 +228,12 @@
     "stories_title": "Berättelser",
     "stories_desc": "Ljudböcker med flera röster – cast dina karaktärer, släpp in ett manus, exportera efter kapitel.",
     "gallery_title": "Röstgalleri",
-    "gallery_desc": "Bläddra bland färdigdesignade röster efter accent, ålder och stil – inga inställningar."
+    "gallery_desc": "Bläddra bland färdigdesignade röster efter accent, ålder och stil – inga inställningar.",
+    "transcripts_title": "Avskrifter",
+    "transcripts_desc": "Förvandla ljud eller video till redigerbar, sökbar text – på 646 språk.",
+    "recent_files": "Senaste filer",
+    "view_all_files": "Visa alla filer",
+    "file": "Arkiv"
   },
   "clone": {
     "prompt": "Fråga",

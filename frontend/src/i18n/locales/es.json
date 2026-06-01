@@ -229,7 +229,12 @@
     "stories_title": "Historias",
     "stories_desc": "Audiolibros con varias voces: elige tus personajes, introduce un guión y exporta por capítulo.",
     "gallery_title": "Galería de voz",
-    "gallery_desc": "Explore voces diseñadas ya preparadas por acento, edad y estilo, sin configuración."
+    "gallery_desc": "Explore voces diseñadas ya preparadas por acento, edad y estilo, sin configuración.",
+    "transcripts_title": "Transcripciones",
+    "transcripts_desc": "Convierta audio o vídeo en texto editable y con capacidad de búsqueda, en 646 idiomas.",
+    "recent_files": "Archivos recientes",
+    "view_all_files": "Ver todos los archivos",
+    "file": "Archivo"
   },
   "clone": {
     "prompt": "rápido",

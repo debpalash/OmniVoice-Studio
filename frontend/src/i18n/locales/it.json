@@ -228,7 +228,12 @@
     "stories_title": "Storie",
     "stories_desc": "Audiolibri a più voci: lancia i tuoi personaggi, inserisci una sceneggiatura, esporta per capitolo.",
     "gallery_title": "Galleria vocale",
-    "gallery_desc": "Sfoglia le voci già pronte per accento, età e stile, senza alcuna configurazione."
+    "gallery_desc": "Sfoglia le voci già pronte per accento, età e stile, senza alcuna configurazione.",
+    "transcripts_title": "Trascrizioni",
+    "transcripts_desc": "Trasforma audio o video in testo modificabile e ricercabile, in 646 lingue.",
+    "recent_files": "File recenti",
+    "view_all_files": "Visualizza tutti i file",
+    "file": "Archivio"
   },
   "clone": {
     "prompt": "Richiedi",

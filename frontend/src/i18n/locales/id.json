@@ -228,7 +228,12 @@
     "stories_title": "Cerita",
     "stories_desc": "Buku audio multi-suara — masukkan karakter Anda, masukkan skrip, ekspor per bab.",
     "gallery_title": "Galeri Suara",
-    "gallery_desc": "Telusuri suara rancangan siap pakai berdasarkan aksen, usia, dan gaya — tanpa penyiapan."
+    "gallery_desc": "Telusuri suara rancangan siap pakai berdasarkan aksen, usia, dan gaya — tanpa penyiapan.",
+    "transcripts_title": "Transkrip",
+    "transcripts_desc": "Ubah audio atau video menjadi teks yang dapat diedit dan dicari — dalam 646 bahasa.",
+    "recent_files": "File terbaru",
+    "view_all_files": "Lihat semua file",
+    "file": "Mengajukan"
   },
   "clone": {
     "prompt": "Cepat",

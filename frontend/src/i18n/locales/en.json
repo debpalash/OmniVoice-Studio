@@ -119,7 +119,12 @@
     "locked": "LOCKED",
     "open": "Open",
     "try_it": "Try it",
-    "audio_only": "Audio Only"
+    "audio_only": "Audio Only",
+    "transcripts_title": "Transcripts",
+    "transcripts_desc": "Turn audio or video into editable, searchable text — across 646 languages.",
+    "recent_files": "Recent files",
+    "view_all_files": "View all files",
+    "file": "File"
   },
   "clone": {
     "prompt": "Prompt",

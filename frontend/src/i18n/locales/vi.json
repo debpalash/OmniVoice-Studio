@@ -228,7 +228,12 @@
     "stories_title": "Truyện",
     "stories_desc": "Sách nói nhiều giọng nói — chọn nhân vật, nhập tập lệnh, xuất theo chương.",
     "gallery_title": "Thư viện giọng nói",
-    "gallery_desc": "Duyệt qua các giọng nói được thiết kế sẵn theo giọng, độ tuổi và phong cách — không cần thiết lập."
+    "gallery_desc": "Duyệt qua các giọng nói được thiết kế sẵn theo giọng, độ tuổi và phong cách — không cần thiết lập.",
+    "transcripts_title": "bảng điểm",
+    "transcripts_desc": "Biến âm thanh hoặc video thành văn bản có thể chỉnh sửa, tìm kiếm được — trên 646 ngôn ngữ.",
+    "recent_files": "Các tập tin gần đây",
+    "view_all_files": "Xem tất cả các tập tin",
+    "file": "tập tin"
   },
   "clone": {
     "prompt": "Lời nhắc",

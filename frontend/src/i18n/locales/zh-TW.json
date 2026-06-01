@@ -228,7 +228,12 @@
     "stories_title": "故事",
     "stories_desc": "多語音有聲書 — 塑造角色、插入劇本、依章節導出。",
     "gallery_title": "語音畫廊",
-    "gallery_desc": "按口音、年齡和風格瀏覽現成的設計聲音 - 無需設定。"
+    "gallery_desc": "按口音、年齡和風格瀏覽現成的設計聲音 - 無需設定。",
+    "transcripts_title": "成績單",
+    "transcripts_desc": "將音訊或視訊轉換為可編輯、可搜尋的文字 - 涵蓋 646 種語言。",
+    "recent_files": "最近的文件",
+    "view_all_files": "查看所有文件",
+    "file": "文件"
   },
   "clone": {
     "prompt": "提示",

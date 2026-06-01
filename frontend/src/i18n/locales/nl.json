@@ -228,7 +228,12 @@
     "stories_title": "Verhalen",
     "stories_desc": "Audioboeken met meerdere stemmen: cast je personages, voeg een script toe en exporteer per hoofdstuk.",
     "gallery_title": "Stemgalerij",
-    "gallery_desc": "Blader door kant-en-klare ontworpen stemmen op accent, leeftijd en stijl - geen installatie."
+    "gallery_desc": "Blader door kant-en-klare ontworpen stemmen op accent, leeftijd en stijl - geen installatie.",
+    "transcripts_title": "Afschriften",
+    "transcripts_desc": "Zet audio of video om in bewerkbare, doorzoekbare tekst – in 646 talen.",
+    "recent_files": "Recente bestanden",
+    "view_all_files": "Bekijk alle bestanden",
+    "file": "Bestand"
   },
   "clone": {
     "prompt": "Prompt",

@@ -228,7 +228,12 @@
     "stories_title": "스토리",
     "stories_desc": "다중 음성 오디오북 — 캐릭터 캐스팅, 스크립트 삽입, 장별로 내보내기.",
     "gallery_title": "보이스 갤러리",
-    "gallery_desc": "악센트, 연령, 스타일별로 미리 디자인된 음성을 찾아보세요. 설정이 필요 없습니다."
+    "gallery_desc": "악센트, 연령, 스타일별로 미리 디자인된 음성을 찾아보세요. 설정이 필요 없습니다.",
+    "transcripts_title": "성적 증명서",
+    "transcripts_desc": "646개 언어로 오디오나 비디오를 편집 및 검색 가능한 텍스트로 변환하세요.",
+    "recent_files": "최근 파일",
+    "view_all_files": "모든 파일 보기",
+    "file": "파일"
   },
   "clone": {
     "prompt": "프롬프트",

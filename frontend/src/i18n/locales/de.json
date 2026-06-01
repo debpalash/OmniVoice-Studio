@@ -229,7 +229,12 @@
     "stories_title": "Geschichten",
     "stories_desc": "Mehrsprachige Hörbücher – Besetzung Ihrer Charaktere, Einfügen eines Skripts, Export nach Kapitel.",
     "gallery_title": "Sprachgalerie",
-    "gallery_desc": "Durchsuchen Sie vorgefertigte Stimmen nach Akzent, Alter und Stil – ohne Einrichtung."
+    "gallery_desc": "Durchsuchen Sie vorgefertigte Stimmen nach Akzent, Alter und Stil – ohne Einrichtung.",
+    "transcripts_title": "Transkripte",
+    "transcripts_desc": "Verwandeln Sie Audio oder Video in bearbeitbaren, durchsuchbaren Text – in 646 Sprachen.",
+    "recent_files": "Aktuelle Dateien",
+    "view_all_files": "Alle Dateien anzeigen",
+    "file": "Datei"
   },
   "clone": {
     "prompt": "Prompt",

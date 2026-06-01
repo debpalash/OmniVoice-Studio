@@ -136,7 +136,12 @@
     "stories_title": "故事",
     "stories_desc": "多角色有声书——为角色分配语音，粘贴脚本，按章节导出。",
     "gallery_title": "语音库",
-    "gallery_desc": "按口音、年龄和风格浏览现成的设计语音——无需设置。"
+    "gallery_desc": "按口音、年龄和风格浏览现成的设计语音——无需设置。",
+    "transcripts_title": "成绩单",
+    "transcripts_desc": "将音频或视频转换为可编辑、可搜索的文本 - 涵盖 646 种语言。",
+    "recent_files": "最近的文件",
+    "view_all_files": "查看所有文件",
+    "file": "文件"
   },
   "clone": {
     "prompt": "提示词",

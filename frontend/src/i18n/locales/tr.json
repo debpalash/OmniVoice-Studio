@@ -228,7 +228,12 @@
     "stories_title": "Hikayeler",
     "stories_desc": "Çok sesli sesli kitaplar — karakterlerinizi yayınlayın, bir komut dosyası ekleyin, bölüme göre dışa aktarın.",
     "gallery_title": "Ses Galerisi",
-    "gallery_desc": "Hazır tasarlanmış seslere aksan, yaş ve stile göre göz atın; kurulum gerektirmez."
+    "gallery_desc": "Hazır tasarlanmış seslere aksan, yaş ve stile göre göz atın; kurulum gerektirmez.",
+    "transcripts_title": "Transkriptler",
+    "transcripts_desc": "Sesi veya videoyu 646 dilde düzenlenebilir, aranabilir metne dönüştürün.",
+    "recent_files": "Son dosyalar",
+    "view_all_files": "Tüm dosyaları görüntüle",
+    "file": "Dosya"
   },
   "clone": {
     "prompt": "İstemi",

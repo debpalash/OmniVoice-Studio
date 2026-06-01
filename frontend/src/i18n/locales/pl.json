@@ -228,7 +228,12 @@
     "stories_title": "Historie",
     "stories_desc": "Audiobooki z wieloma głosami — rzucaj postaciami, wstawiaj scenariusz, eksportuj według rozdziałów.",
     "gallery_title": "Galeria Głosów",
-    "gallery_desc": "Przeglądaj gotowe, zaprojektowane głosy według akcentu, wieku i stylu — bez konieczności konfiguracji."
+    "gallery_desc": "Przeglądaj gotowe, zaprojektowane głosy według akcentu, wieku i stylu — bez konieczności konfiguracji.",
+    "transcripts_title": "Transkrypcje",
+    "transcripts_desc": "Zamień dźwięk lub wideo w edytowalny i przeszukiwalny tekst — w 646 językach.",
+    "recent_files": "Najnowsze pliki",
+    "view_all_files": "Wyświetl wszystkie pliki",
+    "file": "Plik"
   },
   "clone": {
     "prompt": "Podpowiedź",

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import {
   Scale, Fingerprint, Wand2, Film, Lock, BookOpen, LibraryBig,
+  FileText, HardDrive, Download, ArrowRight,
 } from 'lucide-react';
 import { API } from '../api/client';
 import ReadinessChecklist from '../components/ReadinessChecklist';
@@ -59,13 +60,16 @@ function ActionCard({ hue, Icon, title, accent, count, onClick, children }) {
 }
 
 export default function Launchpad({
-  profiles, studioProjects, dubHistory,
+  profiles, studioProjects, dubHistory, exportHistory = [],
   setMode, setIsCompareModalOpen, handleSelectProfile, loadProject,
 }) {
   const { t } = useTranslation();
   const cloneProfiles = profiles.filter(p => !p.instruct);
   const designProfiles = profiles.filter(p => !!p.instruct);
   const demoProfile = profiles.find(p => p.id === 'demo0001');
+  // Most-recent exported files from OmniDrive — a quick "pick up where you left
+  // off" strip. exportHistory arrives newest-first from /export/history.
+  const recentFiles = exportHistory.slice(0, 4);
 
   return (
     <div className="launchpad">
@@ -144,7 +148,43 @@ export default function Launchpad({
         <ActionCard hue="#fabd2f" Icon={LibraryBig} title={t('launchpad.gallery_title')} accent="🎭" onClick={() => setMode('gallery')}>
           {t('launchpad.gallery_desc')}
         </ActionCard>
+        <ActionCard hue="#b8bb26" Icon={FileText} title={t('launchpad.transcripts_title')} accent="📝" onClick={() => setMode('transcriptions')}>
+          {t('launchpad.transcripts_desc')}
+        </ActionCard>
       </div>
+
+      {/* Recent files from OmniDrive — last few exports, with a jump to the
+          full file browser (the Projects/OmniDrive page). */}
+      {recentFiles.length > 0 && (
+        <div className="lp-section lp-files">
+          <div className="lp-files__head">
+            <div className="lp-section-title"><HardDrive size={12} color="#fabd2f" /> {t('launchpad.recent_files')}</div>
+            <button type="button" className="lp-view-all" onClick={() => setMode('projects')}>
+              {t('launchpad.view_all_files')} <ArrowRight size={12} />
+            </button>
+          </div>
+          <div className="lp-files__grid">
+            {recentFiles.map((f, i) => {
+              const name = (f.destination_path || f.path || f.filename || '').split('/').pop() || t('launchpad.file');
+              return (
+                <button
+                  key={f.id || f.destination_path || i}
+                  type="button"
+                  className="lp-project-card lp-file-card"
+                  onClick={() => setMode('projects')}
+                  title={name}
+                >
+                  <div className="proj-icon lp-proj-icon--file"><Download size={14} color="#fabd2f" /></div>
+                  <div className="proj-info">
+                    <div className="proj-name">{name}</div>
+                    {f.mode && <div className="proj-meta">{f.mode}</div>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Demo profile callout */}
       {demoProfile && profiles.length === 1 && studioProjects.length === 0 && (

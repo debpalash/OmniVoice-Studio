@@ -229,7 +229,12 @@
     "stories_title": "Histoires",
     "stories_desc": "Livres audio multi-voix : lancez vos personnages, insérez un script, exportez par chapitre.",
     "gallery_title": "Galerie vocale",
-    "gallery_desc": "Parcourez les voix prêtes à l’emploi par accent, âge et style – aucune configuration."
+    "gallery_desc": "Parcourez les voix prêtes à l’emploi par accent, âge et style – aucune configuration.",
+    "transcripts_title": "Transcriptions",
+    "transcripts_desc": "Transformez l'audio ou la vidéo en texte modifiable et consultable, dans 646 langues.",
+    "recent_files": "Fichiers récents",
+    "view_all_files": "Afficher tous les fichiers",
+    "file": "Fichier"
   },
   "clone": {
     "prompt": "Invite",

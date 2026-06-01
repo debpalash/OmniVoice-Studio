@@ -956,6 +956,7 @@ function App() {
               profiles={profiles}
               studioProjects={studioProjects}
               dubHistory={dubHistory}
+              exportHistory={exportHistory}
               setMode={setMode}
               setIsCompareModalOpen={setIsCompareModalOpen}
               handleSelectProfile={handleSelectProfile}
