@@ -1261,7 +1261,12 @@ export default function Settings() {
         className="settings-tabs-ui"
       />
 
-      {activeTab === 'general' && <GeneralTab />}
+      {activeTab === 'general' && (
+        <>
+          <GeneralTab />
+          <PerformancePanel />
+        </>
+      )}
 
       {activeTab === 'models' && (
         <>
@@ -1689,11 +1694,6 @@ function CredentialsTab({ info }) {
       {/* Wave 2 AUTH-03 panel — 3-source cascade with Active badge,
           encrypted-at-rest App-source storage, and live whoami status. */}
       <ApiKeysPanel />
-
-      {/* Wave 2 INST-12 panel — Windows torch.compile OOM workaround
-          (#65). Toggle is rendered disabled on macOS/Linux with an
-          explainer; backend ignores the flag on non-Windows. */}
-      <PerformancePanel />
 
       <p className="settings-prose">
         <Trans i18nKey="credentials.desc" components={{ 1: <strong /> }} />
