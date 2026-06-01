@@ -59,7 +59,21 @@
     "backend_logs_cleared": "後台日誌清除",
     "clear_backend_failed": "清除日誌失敗",
     "copy_failed": "複製失敗：{{message}}",
-    "update_check_failed": "更新檢查失敗：{{message}}"
+    "update_check_failed": "更新檢查失敗：{{message}}",
+    "save_failed": "儲存失敗：{{message}}",
+    "clear_failed": "清除失敗：{{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "無法設定頻道：{{message}}",
+    "updater_downloading": "正在下載 {{version}}...",
+    "updater_installed": "已安裝 - 重新啟動。",
+    "updater_available_title": "可用更新",
+    "updater_available_body": "版本 {{version}} 可用。\n\n{{notes}}\n\n立即下載並安裝？",
+    "updater_notes_fallback": "請參閱 GitHub 上的發行說明。",
+    "shortcut_load_failed": "無法載入捷徑：{{message}}",
+    "shortcut_set": "聽寫快捷鍵設定為 {{shortcut}}",
+    "shortcut_register_failed": "無法註冊：{{message}}",
+    "shortcut_reset": "重設為預設值",
+    "shortcut_reset_failed": "重置失敗：{{message}}"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -631,7 +645,11 @@
     "languages_selected_one": "已選擇 {{count}} 語言",
     "languages_selected_other": "已選擇 {{count}} 種語言",
     "more_to_narrow": "+{{count}} more — 鍵入縮小範圍",
-    "no_matches": "沒有匹配項"
+    "no_matches": "沒有匹配項",
+    "diagnostic_copied": "診斷複製",
+    "copy_failed": "複製失敗",
+    "open_docs": "開啟文件",
+    "copy_diagnostic": "複製診斷"
   },
   "glossary": {
     "title": "詞彙表",
@@ -1504,7 +1522,27 @@
   },
   "app": {
     "loading": "加載中...",
-    "trimmed_loaded": "已載入修剪後的音頻"
+    "trimmed_loaded": "已載入修剪後的音頻",
+    "toast_exported": "匯出：{{name}}",
+    "toast_export_failed": "匯出失敗：{{message}}",
+    "toast_open_folder_failed": "無法開啟資料夾：{{message}}",
+    "toast_saving": "正在儲存 {{name}}...",
+    "toast_saved": "已儲存：{{path}}",
+    "toast_save_error": "儲存錯誤：{{message}}",
+    "toast_processing": "正在處理 {{name}}...",
+    "toast_downloaded": "已下載{{name}}",
+    "toast_download_error": "下載錯誤：{{message}}",
+    "toast_upload_first": "請先點擊“上傳和轉錄”，以便在儲存之前在伺服器上處理影片。",
+    "toast_save_failed": "儲存失敗：{{message}}",
+    "toast_opened": "開放時間：{{name}}",
+    "toast_project_deleted": "項目已刪除",
+    "toast_restored_state": "恢復了上一代狀態",
+    "toast_history_deleted": "歷史記錄項目已刪除",
+    "toast_flushed": "刷新 — RAM {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· 模型卸載",
+    "toast_flush_failed": "刷新失敗：{{message}}",
+    "toast_project_saved": "項目已儲存",
+    "toast_project_created": "專案已建立"
   },
   "update": {
     "available": "有可用更新 {{version}}",

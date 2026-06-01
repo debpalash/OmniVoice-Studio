@@ -59,7 +59,21 @@
     "backend_logs_cleared": "Серверные журналы очищены",
     "clear_backend_failed": "Не удалось очистить журналы",
     "copy_failed": "Не удалось скопировать: {{message}}",
-    "update_check_failed": "Проверка обновлений не удалась: {{message}}"
+    "update_check_failed": "Проверка обновлений не удалась: {{message}}",
+    "save_failed": "Не удалось сохранить: {{message}}",
+    "clear_failed": "Очистить не удалось: {{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "Не удалось установить канал: {{message}}.",
+    "updater_downloading": "Загрузка {{version}}…",
+    "updater_installed": "Установил — перезапускаю.",
+    "updater_available_title": "Доступно обновление",
+    "updater_available_body": "Доступна версия {{version}}.\n\n{{notes}}\n\nСкачать и установить сейчас?",
+    "updater_notes_fallback": "См. примечания к выпуску на GitHub.",
+    "shortcut_load_failed": "Не удалось загрузить ярлык: {{message}}.",
+    "shortcut_set": "Ярлык диктовки установлен на {{shortcut}}.",
+    "shortcut_register_failed": "Не удалось зарегистрироваться: {{message}}",
+    "shortcut_reset": "Сбросить настройки по умолчанию",
+    "shortcut_reset_failed": "Сброс не удался: {{message}}"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -631,7 +645,11 @@
     "languages_selected_one": "{{count}} выбран язык",
     "languages_selected_other": "Выбрано {{count}} языков",
     "more_to_narrow": "+{{count}} еще — введите текст, чтобы сузить",
-    "no_matches": "Нет совпадений"
+    "no_matches": "Нет совпадений",
+    "diagnostic_copied": "Диагностика скопирована",
+    "copy_failed": "Не удалось скопировать",
+    "open_docs": "Открыть документы",
+    "copy_diagnostic": "Копирование диагностики"
   },
   "glossary": {
     "title": "Глоссарий",
@@ -1504,7 +1522,27 @@
   },
   "app": {
     "loading": "Загрузка…",
-    "trimmed_loaded": "Обрезанный звук загружен."
+    "trimmed_loaded": "Обрезанный звук загружен.",
+    "toast_exported": "Экспортировано: {{name}}",
+    "toast_export_failed": "Не удалось экспортировать: {{message}}",
+    "toast_open_folder_failed": "Не удалось открыть папку: {{message}}",
+    "toast_saving": "Сохранение {{name}}...",
+    "toast_saved": "Сохранено: {{path}}",
+    "toast_save_error": "Ошибка сохранения: {{message}}",
+    "toast_processing": "Обработка {{name}}...",
+    "toast_downloaded": "Скачано {{name}}",
+    "toast_download_error": "Ошибка загрузки: {{message}}",
+    "toast_upload_first": "Сначала нажмите «Загрузить и расшифровать», чтобы видео обработалось на сервере перед сохранением.",
+    "toast_save_failed": "Не удалось сохранить: {{message}}",
+    "toast_opened": "Открыто: {{name}}",
+    "toast_project_deleted": "Проект удален",
+    "toast_restored_state": "Восстановлено состояние предыдущего поколения",
+    "toast_history_deleted": "Элемент истории удален.",
+    "toast_flushed": "Сброшено — ОЗУ {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· модель выгружена",
+    "toast_flush_failed": "Сброс не выполнен: {{message}}",
+    "toast_project_saved": "Проект сохранен.",
+    "toast_project_created": "Проект создан"
   },
   "update": {
     "available": "Доступно обновление {{version}}",

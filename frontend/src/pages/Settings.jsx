@@ -103,7 +103,7 @@ function GeneralTab() {
         const d = await r.json().catch(() => ({}));
         toast.error(d.detail || t('credentials.save_failed'));
       }
-    } catch (e) { toast.error(`Save failed: ${e.message}`); }
+    } catch (e) { toast.error(t('settings.save_failed', { message: e.message })); }
     finally { setFfmpegSaving(false); }
   };
 
@@ -139,7 +139,7 @@ function GeneralTab() {
         const d = await r.json().catch(() => ({}));
         toast.error(d.detail || t('settings.proxy_save_failed'));
       }
-    } catch (e) { toast.error(`Save failed: ${e.message}`); }
+    } catch (e) { toast.error(t('settings.save_failed', { message: e.message })); }
     finally { setProxySaving(false); }
   };
 
@@ -164,7 +164,7 @@ function GeneralTab() {
       setProxySaved(false);
       toast.success(t('settings.proxy_cleared'));
       queryClient.invalidateQueries({ queryKey: queryKeys.systemInfo });
-    } catch (e) { toast.error(`Clear failed: ${e.message}`); }
+    } catch (e) { toast.error(t('settings.clear_failed', { message: e.message })); }
     finally { setProxySaving(false); }
   };
 
@@ -350,7 +350,7 @@ export function ModelStoreTab({ info, modelBadge }) {
         const d = await res.json().catch(() => ({}));
         toast.error(d.detail || t('models.hf_token_save_failed'));
       }
-    } catch (e) { toast.error(`Save failed: ${e.message}`); }
+    } catch (e) { toast.error(t('settings.save_failed', { message: e.message })); }
     finally { setHfSaving(false); }
   };
   const hfTokenSet = hfSaved || info?.has_hf_token;
@@ -1010,7 +1010,7 @@ export function EnginesTab() {
   const onSelect = useCallback(async (family, backendId) => {
     try {
       const r = await selectEngine(family, backendId);
-      toast.success(`${family.toUpperCase()} → ${r.active}`);
+      toast.success(t('settings.engine_switched', { family: family.toUpperCase(), engine: r.active }));
     } catch (e) {
       toast.error(e.message || t('engines.switch_failed'));
     }
@@ -1097,7 +1097,7 @@ export default function Settings() {
       await invoke('set_update_channel', { channel: next });
       toast.success(t('about.channel_set', { channel: t(`about.channel_${next}`) }));
     } catch (e) {
-      toast.error(`Failed to set channel: ${e?.message || e}`);
+      toast.error(t('settings.channel_set_failed', { message: e?.message || e }));
     }
   }, [t]);
 
@@ -1165,14 +1165,17 @@ export default function Settings() {
         return;
       }
       const proceed = await ask(
-        `Version ${update.version} is available.\n\n${update.notes || 'See release notes on GitHub.'}\n\nDownload and install now?`,
-        { title: 'Update available', kind: 'info' },
+        t('settings.updater_available_body', {
+          version: update.version,
+          notes: update.notes || t('settings.updater_notes_fallback'),
+        }),
+        { title: t('settings.updater_available_title'), kind: 'info' },
       );
       if (!proceed) { setUpdateState('idle'); return; }
       setUpdateState('downloading');
-      const tid = toast.loading(`Downloading ${update.version}…`);
+      const tid = toast.loading(t('settings.updater_downloading', { version: update.version }));
       await invoke('install_update', { channel });
-      toast.success('Installed — relaunching.', { id: tid });
+      toast.success(t('settings.updater_installed'), { id: tid });
       await relaunch();
     } catch (e) {
       setUpdateState('error');
@@ -1536,7 +1539,7 @@ function HotkeyTab() {
         const v = await invoke('get_dictation_shortcut');
         setCurrent(v || '');
       } catch (e) {
-        toast.error(`Could not load shortcut: ${e?.message || e}`);
+        toast.error(t('settings.shortcut_load_failed', { message: e?.message || e }));
       }
     })();
   }, [tauri]);
@@ -1571,11 +1574,11 @@ function HotkeyTab() {
       const saved = await invoke('set_dictation_shortcut', { accelerator: pending });
       setCurrent(saved);
       setPending('');
-      toast.success(`Dictation shortcut set to ${saved}`);
+      toast.success(t('settings.shortcut_set', { shortcut: saved }));
     } catch (e) {
       // Common cause: the OS or another app already owns the combo. Surface
       // the raw error so the user can pick something else.
-      toast.error(`Couldn't register: ${e?.message || e}`);
+      toast.error(t('settings.shortcut_register_failed', { message: e?.message || e }));
     } finally {
       setSaving(false);
     }
@@ -1590,9 +1593,9 @@ function HotkeyTab() {
       });
       setCurrent(saved);
       setPending('');
-      toast.success('Reset to default');
+      toast.success(t('settings.shortcut_reset'));
     } catch (e) {
-      toast.error(`Reset failed: ${e?.message || e}`);
+      toast.error(t('settings.shortcut_reset_failed', { message: e?.message || e }));
     } finally {
       setSaving(false);
     }

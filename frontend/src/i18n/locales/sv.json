@@ -59,7 +59,21 @@
     "backend_logs_cleared": "Backend-loggarna rensades",
     "clear_backend_failed": "Det gick inte att rensa loggar",
     "copy_failed": "Kopieringen misslyckades: {{message}}",
-    "update_check_failed": "Uppdateringskontrollen misslyckades: {{message}}"
+    "update_check_failed": "Uppdateringskontrollen misslyckades: {{message}}",
+    "save_failed": "Det gick inte att spara: {{message}}",
+    "clear_failed": "Rensa misslyckades: {{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "Det gick inte att ställa in kanal: {{message}}",
+    "updater_downloading": "Laddar ner {{version}}...",
+    "updater_installed": "Installerad — omstart.",
+    "updater_available_title": "Uppdatering tillgänglig",
+    "updater_available_body": "Version {{version}} är tillgänglig.\n\n{{notes}}\n\nLadda ner och installera nu?",
+    "updater_notes_fallback": "Se release notes på GitHub.",
+    "shortcut_load_failed": "Det gick inte att läsa in genväg: {{message}}",
+    "shortcut_set": "Dikteringsgenväg inställd på {{shortcut}}",
+    "shortcut_register_failed": "Kunde inte registrera: {{message}}",
+    "shortcut_reset": "Återställ till standard",
+    "shortcut_reset_failed": "Återställning misslyckades: {{message}}"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -631,7 +645,11 @@
     "languages_selected_one": "{{count}} språk valt",
     "languages_selected_other": "{{count}} språk har valts",
     "more_to_narrow": "+{{count}} mer — skriv för att begränsa",
-    "no_matches": "Inga matchningar"
+    "no_matches": "Inga matchningar",
+    "diagnostic_copied": "Diagnostiken kopierad",
+    "copy_failed": "Kopieringen misslyckades",
+    "open_docs": "Öppna dokument",
+    "copy_diagnostic": "Kopiera diagnostik"
   },
   "glossary": {
     "title": "Ordlista",
@@ -1504,7 +1522,27 @@
   },
   "app": {
     "loading": "Laddar...",
-    "trimmed_loaded": "Trimmat ljud har laddats"
+    "trimmed_loaded": "Trimmat ljud har laddats",
+    "toast_exported": "Exporterad: {{name}}",
+    "toast_export_failed": "Export misslyckades: {{message}}",
+    "toast_open_folder_failed": "Kunde inte öppna mappen: {{message}}",
+    "toast_saving": "Sparar {{name}}...",
+    "toast_saved": "Sparad: {{path}}",
+    "toast_save_error": "Spara fel: {{message}}",
+    "toast_processing": "Bearbetar {{name}}...",
+    "toast_downloaded": "Nedladdat {{name}}",
+    "toast_download_error": "Nedladdningsfel: {{message}}",
+    "toast_upload_first": "Klicka på \"Ladda upp och transkribera\" först så att videon bearbetas på servern innan du sparar.",
+    "toast_save_failed": "Det gick inte att spara: {{message}}",
+    "toast_opened": "Öppnad: {{name}}",
+    "toast_project_deleted": "Projektet raderat",
+    "toast_restored_state": "Återställd föregående generations tillstånd",
+    "toast_history_deleted": "Historikobjektet har tagits bort",
+    "toast_flushed": "Spolat — RAM {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· modell avlastad",
+    "toast_flush_failed": "Spolning misslyckades: {{message}}",
+    "toast_project_saved": "Projektet sparat",
+    "toast_project_created": "Projekt skapat"
   },
   "update": {
     "available": "Uppdatering {{version}} tillgänglig",

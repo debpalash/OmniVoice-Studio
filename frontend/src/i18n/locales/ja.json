@@ -59,7 +59,21 @@
     "backend_logs_cleared": "バックエンドログがクリアされました",
     "clear_backend_failed": "ログのクリアに失敗しました",
     "copy_failed": "コピーに失敗しました: {{message}}",
-    "update_check_failed": "更新チェックに失敗しました: {{message}}"
+    "update_check_failed": "更新チェックに失敗しました: {{message}}",
+    "save_failed": "保存に失敗しました: {{message}}",
+    "clear_failed": "クリアに失敗しました: {{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "チャネルの設定に失敗しました: {{message}}",
+    "updater_downloading": "{{version}} をダウンロード中…",
+    "updater_installed": "インストール済み — 再起動中。",
+    "updater_available_title": "利用可能なアップデート",
+    "updater_available_body": "バージョン {{version}} が利用可能です。\n\n{{notes}}\n\n今すぐダウンロードしてインストールしますか?",
+    "updater_notes_fallback": "GitHub のリリース ノートを参照してください。",
+    "shortcut_load_failed": "ショートカットを読み込めませんでした: {{message}}",
+    "shortcut_set": "ディクテーションのショートカットが {{shortcut}} に設定されました",
+    "shortcut_register_failed": "登録できませんでした: {{message}}",
+    "shortcut_reset": "デフォルトにリセットする",
+    "shortcut_reset_failed": "リセットに失敗しました: {{message}}"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -632,7 +646,11 @@
     "languages_selected_one": "{{count}} 言語が選択されました",
     "languages_selected_other": "{{count}} 言語が選択されました",
     "more_to_narrow": "+{{count}} 詳細 — 入力して絞り込む",
-    "no_matches": "一致しません"
+    "no_matches": "一致しません",
+    "diagnostic_copied": "診断がコピーされました",
+    "copy_failed": "コピーに失敗しました",
+    "open_docs": "ドキュメントを開く",
+    "copy_diagnostic": "コピー診断"
   },
   "glossary": {
     "title": "用語集",
@@ -1505,7 +1523,27 @@
   },
   "app": {
     "loading": "読み込み中…",
-    "trimmed_loaded": "トリミングされたオーディオがロードされました"
+    "trimmed_loaded": "トリミングされたオーディオがロードされました",
+    "toast_exported": "エクスポート済み: {{name}}",
+    "toast_export_failed": "エクスポートに失敗しました: {{message}}",
+    "toast_open_folder_failed": "フォルダーを開けませんでした: {{message}}",
+    "toast_saving": "{{name}} を保存しています...",
+    "toast_saved": "保存済み: {{path}}",
+    "toast_save_error": "保存エラー: {{message}}",
+    "toast_processing": "{{name}} を処理しています...",
+    "toast_downloaded": "{{name}} をダウンロードしました",
+    "toast_download_error": "ダウンロード エラー: {{message}}",
+    "toast_upload_first": "まず「アップロードと文字起こし」をクリックして、ビデオが保存前にサーバー上で処理されるようにしてください。",
+    "toast_save_failed": "保存に失敗しました: {{message}}",
+    "toast_opened": "オープン済み: {{name}}",
+    "toast_project_deleted": "プロジェクトが削除されました",
+    "toast_restored_state": "前世代の状態を復元",
+    "toast_history_deleted": "履歴項目が削除されました",
+    "toast_flushed": "フラッシュ — RAM {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· モデルがアンロードされました",
+    "toast_flush_failed": "フラッシュに失敗しました: {{message}}",
+    "toast_project_saved": "プロジェクトが保存されました",
+    "toast_project_created": "プロジェクトが作成されました"
   },
   "update": {
     "available": "アップデート {{version}} が利用可能です",

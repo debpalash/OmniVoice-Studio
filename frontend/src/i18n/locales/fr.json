@@ -59,7 +59,21 @@
     "backend_logs_cleared": "Journaux back-end effacés",
     "clear_backend_failed": "Échec de la suppression des journaux",
     "copy_failed": "Échec de la copie : {{message}}",
-    "update_check_failed": "Échec de la vérification de la mise à jour : {{message}}"
+    "update_check_failed": "Échec de la vérification de la mise à jour : {{message}}",
+    "save_failed": "Échec de l'enregistrement : {{message}}",
+    "clear_failed": "Échec de la suppression : {{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "Échec de la définition du canal : {{message}}",
+    "updater_downloading": "Téléchargement de {{version}}…",
+    "updater_installed": "Installé — relance.",
+    "updater_available_title": "Mise à jour disponible",
+    "updater_available_body": "La version {{version}} est disponible.\n\n{{notes}}\n\nTélécharger et installer maintenant ?",
+    "updater_notes_fallback": "Voir les notes de version sur GitHub.",
+    "shortcut_load_failed": "Impossible de charger le raccourci : {{message}}",
+    "shortcut_set": "Raccourci de dictée défini sur {{shortcut}}",
+    "shortcut_register_failed": "Impossible de s'inscrire : {{message}}",
+    "shortcut_reset": "Réinitialiser aux valeurs par défaut",
+    "shortcut_reset_failed": "Échec de la réinitialisation : {{message}}"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -632,7 +646,11 @@
     "languages_selected_one": "{{count}} langue sélectionnée",
     "languages_selected_other": "{{count}} langues sélectionnées",
     "more_to_narrow": "+{{count}} plus — tapez pour affiner",
-    "no_matches": "Aucune correspondance"
+    "no_matches": "Aucune correspondance",
+    "diagnostic_copied": "Diagnostic copié",
+    "copy_failed": "Échec de la copie",
+    "open_docs": "Ouvrir des documents",
+    "copy_diagnostic": "Copier le diagnostic"
   },
   "glossary": {
     "title": "Glossaire",
@@ -1505,7 +1523,27 @@
   },
   "app": {
     "loading": "Chargement…",
-    "trimmed_loaded": "Audio découpé chargé"
+    "trimmed_loaded": "Audio découpé chargé",
+    "toast_exported": "Exporté : {{name}}",
+    "toast_export_failed": "Échec de l'exportation : {{message}}",
+    "toast_open_folder_failed": "Impossible d'ouvrir le dossier : {{message}}",
+    "toast_saving": "Sauvegarde de {{name}}...",
+    "toast_saved": "Enregistré : {{path}}",
+    "toast_save_error": "Erreur d'enregistrement : {{message}}",
+    "toast_processing": "Traitement {{name}}...",
+    "toast_downloaded": "Téléchargé {{name}}",
+    "toast_download_error": "Erreur de téléchargement : {{message}}",
+    "toast_upload_first": "Veuillez d'abord cliquer sur « Télécharger et transcrire » afin que la vidéo soit traitée sur le serveur avant de l'enregistrer.",
+    "toast_save_failed": "Échec de l'enregistrement : {{message}}",
+    "toast_opened": "Ouvert : {{name}}",
+    "toast_project_deleted": "Projet supprimé",
+    "toast_restored_state": "État de la génération précédente restauré",
+    "toast_history_deleted": "Élément d'historique supprimé",
+    "toast_flushed": "Vidé — RAM {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· modèle déchargé",
+    "toast_flush_failed": "Échec du rinçage : {{message}}",
+    "toast_project_saved": "Projet enregistré",
+    "toast_project_created": "Projet créé"
   },
   "update": {
     "available": "Mise à jour {{version}} disponible",

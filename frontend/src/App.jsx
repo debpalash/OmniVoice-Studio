@@ -512,18 +512,18 @@ function App() {
       if (!destPath) return; // User cancelled
 
       await exportAction({ source_filename: sourceIdentifier, destination_path: destPath, mode });
-      toast.success(`Exported: ${fallbackName}`);
+      toast.success(i18n.t('app.toast_exported', { name: fallbackName }));
       loadExportHistory();
     } catch (err) {
       console.error(err);
-      toast.error(`Export failed: ${err?.message || err}`);
+      toast.error(i18n.t('app.toast_export_failed', { message: err?.message || err }));
     }
   };
   const revealInFolder = async (filePath) => {
     try {
       await exportReveal({ path: filePath });
     } catch (err) {
-      toast.error(`Could not open folder: ${err.message}`);
+      toast.error(i18n.t('app.toast_open_folder_failed', { message: err.message }));
     }
   };
   const parseFilenameFromContentDisposition = (header) => {
@@ -549,7 +549,7 @@ function App() {
           filters: [{ name: modeGuess === 'video' ? 'Video' : 'Audio', extensions: [extGuess] }],
         });
         if (!destPath) return; // user cancelled
-        toast.loading(`Saving ${fallbackName}...`, { id: fallbackName });
+        toast.loading(i18n.t('app.toast_saving', { name: fallbackName }), { id: fallbackName });
         const sep = url.includes('?') ? '&' : '?';
         const res = await fetch(`${url}${sep}save_path=${encodeURIComponent(destPath)}`);
         if (!res.ok) {
@@ -557,21 +557,21 @@ function App() {
           throw new Error(err.detail || 'Save failed');
         }
         const data = await res.json();
-        toast.success(`Saved: ${data.path}`, { id: fallbackName });
+        toast.success(i18n.t('app.toast_saved', { path: data.path }), { id: fallbackName });
         try {
           await exportRecord({ filename: data.display_name || fallbackName, destination_path: data.path, mode: modeGuess });
           loadExportHistory();
         } catch (err) { console.warn('exportRecord (Tauri save path) failed:', err); }
       } catch (err) {
         console.error(err);
-        toast.error(`Save error: ${err.message}`, { id: fallbackName });
+        toast.error(i18n.t('app.toast_save_error', { message: err.message }), { id: fallbackName });
       }
       return;
     }
 
     // Browser path: standard blob download.
     try {
-      toast.loading(`Processing ${fallbackName}...`, { id: fallbackName });
+      toast.loading(i18n.t('app.toast_processing', { name: fallbackName }), { id: fallbackName });
       const response = await fetch(url);
       if (!response.ok) throw new Error("Download failed");
       const serverName = parseFilenameFromContentDisposition(response.headers.get('content-disposition'));
@@ -585,14 +585,14 @@ function App() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(localUrl);
-      toast.success(`Downloaded ${finalName}`, { id: fallbackName });
+      toast.success(i18n.t('app.toast_downloaded', { name: finalName }), { id: fallbackName });
       try {
         await exportRecord({ filename: finalName, destination_path: `~/Downloads/${finalName}`, mode: modeGuess });
         loadExportHistory();
       } catch (err) { console.warn('exportRecord (browser download path) failed:', err); }
     } catch (err) {
       console.error(err);
-      toast.error(`Download error: ${err.message}`, { id: fallbackName });
+      toast.error(i18n.t('app.toast_download_error', { message: err.message }), { id: fallbackName });
     }
   };
   // Pre-flight for audio/video exports. If any segments are at preview
@@ -640,7 +640,7 @@ function App() {
   // ═══ STUDIO PROJECT CRUD ═══
   const saveProject = async () => {
     if (dubStep === 'idle') {
-      toast.error("Please click 'Upload & Transcribe' first so the video is processed on the server before saving.");
+      toast.error(i18n.t('app.toast_upload_first'));
       return;
     }
     const name = activeProjectName || dubFilename || `Project ${new Date().toLocaleString()}`;
@@ -658,10 +658,10 @@ function App() {
     try {
       const data = await apiSaveProject(statePayload, activeProjectId);
       setActiveProject(data.id, name);
-      toast.success(activeProjectId ? 'Project saved' : 'Project created');
+      toast.success(activeProjectId ? i18n.t('app.toast_project_saved') : i18n.t('app.toast_project_created'));
       loadProjects();
     } catch (err) {
-      toast.error('Save failed: ' + err.message);
+      toast.error(i18n.t('app.toast_save_failed', { message: err.message }));
     }
   };
 
@@ -689,7 +689,7 @@ function App() {
       // the last generate.
       setLastGenFingerprints(s.segHashes || {});
       setSpeakerClones(s.speakerClones || {});
-      toast.success(`Opened: ${data.name}`);
+      toast.success(i18n.t('app.toast_opened', { name: data.name }));
     } catch (err) {
       toast.error(err.message);
     }
@@ -704,7 +704,7 @@ function App() {
         setActiveProject(null);
       }
       loadProjects();
-      toast.success('Project deleted');
+      toast.success(i18n.t('app.toast_project_deleted'));
     } catch (err) { toast.error(err.message); }
   };
 
@@ -744,7 +744,7 @@ function App() {
     
     // Switch to studio tab
     setSidebarTab('projects');
-    toast.success('Restored previous generation state');
+    toast.success(i18n.t('app.toast_restored_state'));
   };
 
   const deleteHistory = async (id, type) => {
@@ -757,7 +757,7 @@ function App() {
       } else {
         loadHistory();
       }
-      toast.success('History item deleted');
+      toast.success(i18n.t('app.toast_history_deleted'));
     } catch (err) {
       toast.error(err.message);
     }
@@ -859,8 +859,12 @@ function App() {
         onFlushMemory={async (unloadModel) => {
           try {
             const r = await apiFlushMemory(unloadModel);
-            toast.success(`Flushed — RAM ${r.ram_after}G · VRAM ${r.vram_after}G${r.unloaded_model ? ' · model unloaded' : ''}`);
-          } catch (e) { toast.error('Flush failed: ' + e.message); }
+            toast.success(i18n.t('app.toast_flushed', {
+              ram: r.ram_after,
+              vram: r.vram_after,
+              unloaded: r.unloaded_model ? i18n.t('app.toast_model_unloaded') : '',
+            }));
+          } catch (e) { toast.error(i18n.t('app.toast_flush_failed', { message: e.message })); }
         }}
       />
 

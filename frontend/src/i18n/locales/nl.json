@@ -59,7 +59,21 @@
     "backend_logs_cleared": "Backend-logboeken gewist",
     "clear_backend_failed": "Kan de logboeken niet wissen",
     "copy_failed": "Kopiëren mislukt: {{message}}",
-    "update_check_failed": "Updatecontrole mislukt: {{message}}"
+    "update_check_failed": "Updatecontrole mislukt: {{message}}",
+    "save_failed": "Opslaan mislukt: {{message}}",
+    "clear_failed": "Wissen mislukt: {{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "Kan kanaal niet instellen: {{message}}",
+    "updater_downloading": "{{version}} downloaden…",
+    "updater_installed": "Geïnstalleerd - opnieuw gestart.",
+    "updater_available_title": "Update beschikbaar",
+    "updater_available_body": "Versie {{version}} is beschikbaar.\n\n{{notes}}\n\nNu downloaden en installeren?",
+    "updater_notes_fallback": "Zie release-opmerkingen op GitHub.",
+    "shortcut_load_failed": "Kan snelkoppeling niet laden: {{message}}",
+    "shortcut_set": "Dicteersnelkoppeling ingesteld op {{shortcut}}",
+    "shortcut_register_failed": "Kon niet registreren: {{message}}",
+    "shortcut_reset": "Resetten naar standaard",
+    "shortcut_reset_failed": "Reset mislukt: {{message}}"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -631,7 +645,11 @@
     "languages_selected_one": "{{count}} taal geselecteerd",
     "languages_selected_other": "{{count}} talen geselecteerd",
     "more_to_narrow": "+{{count}} meer — typ om te verkleinen",
-    "no_matches": "Geen overeenkomsten"
+    "no_matches": "Geen overeenkomsten",
+    "diagnostic_copied": "Diagnostiek gekopieerd",
+    "copy_failed": "Kopiëren mislukt",
+    "open_docs": "Documenten openen",
+    "copy_diagnostic": "Diagnostiek kopiëren"
   },
   "glossary": {
     "title": "Woordenlijst",
@@ -1504,7 +1522,27 @@
   },
   "app": {
     "loading": "Laden…",
-    "trimmed_loaded": "Bijgesneden audio geladen"
+    "trimmed_loaded": "Bijgesneden audio geladen",
+    "toast_exported": "Geëxporteerd: {{name}}",
+    "toast_export_failed": "Exporteren mislukt: {{message}}",
+    "toast_open_folder_failed": "Kan map niet openen: {{message}}",
+    "toast_saving": "{{name}} opslaan...",
+    "toast_saved": "Opgeslagen: {{path}}",
+    "toast_save_error": "Fout bij opslaan: {{message}}",
+    "toast_processing": "Verwerking {{name}}...",
+    "toast_downloaded": "Gedownload {{name}}",
+    "toast_download_error": "Downloadfout: {{message}}",
+    "toast_upload_first": "Klik eerst op 'Uploaden en transcriberen', zodat de video op de server wordt verwerkt voordat deze wordt opgeslagen.",
+    "toast_save_failed": "Opslaan mislukt: {{message}}",
+    "toast_opened": "Geopend: {{name}}",
+    "toast_project_deleted": "Project verwijderd",
+    "toast_restored_state": "Herstelde staat van de vorige generatie",
+    "toast_history_deleted": "Geschiedenisitem verwijderd",
+    "toast_flushed": "Gespoeld — RAM {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· model onbeladen",
+    "toast_flush_failed": "Spoelen mislukt: {{message}}",
+    "toast_project_saved": "Project opgeslagen",
+    "toast_project_created": "Project gemaakt"
   },
   "update": {
     "available": "Update {{version}} beschikbaar",

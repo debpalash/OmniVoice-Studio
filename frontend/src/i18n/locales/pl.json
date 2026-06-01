@@ -59,7 +59,21 @@
     "backend_logs_cleared": "Dzienniki backendu zostały wyczyszczone",
     "clear_backend_failed": "Nie udało się wyczyścić dzienników",
     "copy_failed": "Kopiowanie nie powiodło się: {{message}}",
-    "update_check_failed": "Sprawdzanie aktualizacji nie powiodło się: {{message}}"
+    "update_check_failed": "Sprawdzanie aktualizacji nie powiodło się: {{message}}",
+    "save_failed": "Zapis nie powiódł się: {{message}}",
+    "clear_failed": "Wyczyszczenie nie powiodło się: {{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "Nie udało się ustawić kanału: {{message}}",
+    "updater_downloading": "Pobieranie {{version}}…",
+    "updater_installed": "Zainstalowano — uruchamiam ponownie.",
+    "updater_available_title": "Dostępna aktualizacja",
+    "updater_available_body": "Dostępna jest wersja {{version}}.\n\n{{notes}}\n\nPobrać i zainstalować teraz?",
+    "updater_notes_fallback": "Zobacz informacje o wersji w serwisie GitHub.",
+    "shortcut_load_failed": "Nie można załadować skrótu: {{message}}",
+    "shortcut_set": "Skrót do dyktowania ustawiony na {{shortcut}}",
+    "shortcut_register_failed": "Nie udało się zarejestrować: {{message}}",
+    "shortcut_reset": "Przywróć ustawienia domyślne",
+    "shortcut_reset_failed": "Resetowanie nie powiodło się: {{message}}"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -631,7 +645,11 @@
     "languages_selected_one": "Wybrano {{count}} język",
     "languages_selected_other": "Wybrano {{count}} języki",
     "more_to_narrow": "+{{count}} więcej — wpisz, aby zawęzić",
-    "no_matches": "Brak dopasowań"
+    "no_matches": "Brak dopasowań",
+    "diagnostic_copied": "Diagnostyka skopiowana",
+    "copy_failed": "Kopiowanie nie powiodło się",
+    "open_docs": "Otwórz dokumenty",
+    "copy_diagnostic": "Kopiuj diagnostykę"
   },
   "glossary": {
     "title": "Glosariusz",
@@ -1504,7 +1522,27 @@
   },
   "app": {
     "loading": "Ładowanie…",
-    "trimmed_loaded": "Wczytano przycięty dźwięk"
+    "trimmed_loaded": "Wczytano przycięty dźwięk",
+    "toast_exported": "Wyeksportowano: {{name}}",
+    "toast_export_failed": "Eksport nie powiódł się: {{message}}",
+    "toast_open_folder_failed": "Nie można otworzyć folderu: {{message}}",
+    "toast_saving": "Zapisywanie {{name}}...",
+    "toast_saved": "Zapisano: {{path}}",
+    "toast_save_error": "Zapisz błąd: {{message}}",
+    "toast_processing": "Przetwarzanie {{name}}...",
+    "toast_downloaded": "Pobrano {{name}}",
+    "toast_download_error": "Błąd pobierania: {{message}}",
+    "toast_upload_first": "Najpierw kliknij „Prześlij i transkrybuj”, aby wideo zostało przetworzone na serwerze przed zapisaniem.",
+    "toast_save_failed": "Zapis nie powiódł się: {{message}}",
+    "toast_opened": "Otwarto: {{name}}",
+    "toast_project_deleted": "Projekt usunięty",
+    "toast_restored_state": "Przywrócono stan poprzedniej generacji",
+    "toast_history_deleted": "Element historii usunięty",
+    "toast_flushed": "Opróżniony — RAM {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· model rozładowany",
+    "toast_flush_failed": "Spłukiwanie nie powiodło się: {{message}}",
+    "toast_project_saved": "Projekt zapisany",
+    "toast_project_created": "Projekt stworzony"
   },
   "update": {
     "available": "Dostępna aktualizacja {{version}}",

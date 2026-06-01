@@ -38,14 +38,15 @@ const LazyFallback = () => (
  *  diagnostic block — shown beneath the error badge when the backend sent a
  *  structured failure. */
 function DubFailureNotice({ failure }) {
+  const { t } = useTranslation();
   if (!failure) return null;
   const topic = failure.docsTopic || classifyError(failure.reason);
   const copyDiagnostic = async () => {
     try {
       await copyText(failure.diagnostic || failure.reason);
-      toast.success('Diagnostic copied');
+      toast.success(t('dub.diagnostic_copied'));
     } catch {
-      toast.error('Copy failed');
+      toast.error(t('dub.copy_failed'));
     }
   };
   return (
@@ -54,12 +55,12 @@ function DubFailureNotice({ failure }) {
       <div className="dub-failure-notice__actions">
         {topic && (
           <Button variant="subtle" size="sm" onClick={() => openDocsFor(topic)}>
-            <ExternalLink size={11} /> Open docs
+            <ExternalLink size={11} /> {t('dub.open_docs')}
           </Button>
         )}
         {failure.diagnostic && (
           <Button variant="subtle" size="sm" onClick={copyDiagnostic}>
-            <Copy size={11} /> Copy diagnostic
+            <Copy size={11} /> {t('dub.copy_diagnostic')}
           </Button>
         )}
       </div>

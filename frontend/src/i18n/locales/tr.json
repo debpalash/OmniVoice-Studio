@@ -59,7 +59,21 @@
     "backend_logs_cleared": "Arka uç günlükleri temizlendi",
     "clear_backend_failed": "Günlükler temizlenemedi",
     "copy_failed": "Kopyalama başarısız oldu: {{message}}",
-    "update_check_failed": "Güncelleme kontrolü başarısız oldu: {{message}}"
+    "update_check_failed": "Güncelleme kontrolü başarısız oldu: {{message}}",
+    "save_failed": "Kaydetme başarısız oldu: {{message}}",
+    "clear_failed": "Temizleme başarısız oldu: {{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "Kanal ayarlanamadı: {{message}}",
+    "updater_downloading": "{{version}} indiriliyor…",
+    "updater_installed": "Yüklendi - yeniden başlatılıyor.",
+    "updater_available_title": "Güncelleme mevcut",
+    "updater_available_body": "Sürüm {{version}} mevcut.\n\n{{notes}}\n\nŞimdi indirip yüklemek ister misiniz?",
+    "updater_notes_fallback": "GitHub'daki sürüm notlarına bakın.",
+    "shortcut_load_failed": "Kısayol yüklenemedi: {{message}}",
+    "shortcut_set": "Dikte kısayolu {{shortcut}} olarak ayarlandı",
+    "shortcut_register_failed": "Kaydedilemedi: {{message}}",
+    "shortcut_reset": "Varsayılana sıfırla",
+    "shortcut_reset_failed": "Sıfırlama başarısız oldu: {{message}}"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -631,7 +645,11 @@
     "languages_selected_one": "{{count}} dil seçildi",
     "languages_selected_other": "{{count}} dil seçildi",
     "more_to_narrow": "+{{count}} daha fazla — daraltmak için yazın",
-    "no_matches": "Eşleşme yok"
+    "no_matches": "Eşleşme yok",
+    "diagnostic_copied": "Teşhis kopyalandı",
+    "copy_failed": "Kopyalama başarısız oldu",
+    "open_docs": "Dokümanları aç",
+    "copy_diagnostic": "Teşhisi kopyala"
   },
   "glossary": {
     "title": "Sözlük",
@@ -1504,7 +1522,27 @@
   },
   "app": {
     "loading": "Yükleniyor…",
-    "trimmed_loaded": "Kırpılmış ses yüklendi"
+    "trimmed_loaded": "Kırpılmış ses yüklendi",
+    "toast_exported": "Dışa aktarıldı: {{name}}",
+    "toast_export_failed": "Dışa aktarma başarısız oldu: {{message}}",
+    "toast_open_folder_failed": "Klasör açılamadı: {{message}}",
+    "toast_saving": "{{name}} kaydediliyor...",
+    "toast_saved": "Kaydedildi: {{path}}",
+    "toast_save_error": "Kaydetme hatası: {{message}}",
+    "toast_processing": "{{name}} işleniyor...",
+    "toast_downloaded": "İndirildi {{name}}",
+    "toast_download_error": "İndirme hatası: {{message}}",
+    "toast_upload_first": "Videonun kaydedilmeden önce sunucuda işlenmesi için lütfen önce 'Yükle ve Metne Yaz'ı tıklayın.",
+    "toast_save_failed": "Kaydetme başarısız oldu: {{message}}",
+    "toast_opened": "Açılış: {{name}}",
+    "toast_project_deleted": "Proje silindi",
+    "toast_restored_state": "Önceki nesil durumu geri yüklendi",
+    "toast_history_deleted": "Geçmiş öğesi silindi",
+    "toast_flushed": "Temizlenmiş — RAM {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· model boşaltıldı",
+    "toast_flush_failed": "Temizleme başarısız oldu: {{message}}",
+    "toast_project_saved": "Proje kaydedildi",
+    "toast_project_created": "Proje oluşturuldu"
   },
   "update": {
     "available": "{{version}} güncellemesi mevcut",

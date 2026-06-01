@@ -59,7 +59,21 @@
     "backend_logs_cleared": "Log backend dihapus",
     "clear_backend_failed": "Gagal menghapus log",
     "copy_failed": "Penyalinan gagal: {{message}}",
-    "update_check_failed": "Pemeriksaan pembaruan gagal: {{message}}"
+    "update_check_failed": "Pemeriksaan pembaruan gagal: {{message}}",
+    "save_failed": "Gagal menyimpan: {{message}}",
+    "clear_failed": "Hapus gagal: {{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "Gagal menyetel saluran: {{message}}",
+    "updater_downloading": "Mengunduh {{version}}…",
+    "updater_installed": "Dipasang — diluncurkan kembali.",
+    "updater_available_title": "Pembaruan tersedia",
+    "updater_available_body": "Versi {{version}} tersedia.\n\n{{notes}}\n\nUnduh dan instal sekarang?",
+    "updater_notes_fallback": "Lihat catatan rilis di GitHub.",
+    "shortcut_load_failed": "Tidak dapat memuat pintasan: {{message}}",
+    "shortcut_set": "Pintasan dikte disetel ke {{shortcut}}",
+    "shortcut_register_failed": "Tidak dapat mendaftar: {{message}}",
+    "shortcut_reset": "Atur ulang ke default",
+    "shortcut_reset_failed": "Penyetelan ulang gagal: {{message}}"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -631,7 +645,11 @@
     "languages_selected_one": "{{count}} bahasa dipilih",
     "languages_selected_other": "{{count}} bahasa dipilih",
     "more_to_narrow": "+{{count}} more — ketik untuk mempersempit",
-    "no_matches": "Tidak ada kecocokan"
+    "no_matches": "Tidak ada kecocokan",
+    "diagnostic_copied": "Diagnostik disalin",
+    "copy_failed": "Penyalinan gagal",
+    "open_docs": "Buka dokumen",
+    "copy_diagnostic": "Salin diagnostik"
   },
   "glossary": {
     "title": "Glosarium",
@@ -1504,7 +1522,27 @@
   },
   "app": {
     "loading": "Memuat…",
-    "trimmed_loaded": "Audio yang dipangkas dimuat"
+    "trimmed_loaded": "Audio yang dipangkas dimuat",
+    "toast_exported": "Diekspor: {{name}}",
+    "toast_export_failed": "Ekspor gagal: {{message}}",
+    "toast_open_folder_failed": "Tidak dapat membuka folder: {{message}}",
+    "toast_saving": "Menyimpan {{name}}...",
+    "toast_saved": "Disimpan: {{path}}",
+    "toast_save_error": "Kesalahan penyimpanan: {{message}}",
+    "toast_processing": "Memproses {{name}}...",
+    "toast_downloaded": "Diunduh {{name}}",
+    "toast_download_error": "Kesalahan pengunduhan: {{message}}",
+    "toast_upload_first": "Silakan klik 'Unggah & Transkripsikan' terlebih dahulu agar video diproses di server sebelum disimpan.",
+    "toast_save_failed": "Gagal menyimpan: {{message}}",
+    "toast_opened": "Dibuka: {{name}}",
+    "toast_project_deleted": "Proyek dihapus",
+    "toast_restored_state": "Memulihkan keadaan generasi sebelumnya",
+    "toast_history_deleted": "Item riwayat dihapus",
+    "toast_flushed": "Dibilas — RAM {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· model dibongkar",
+    "toast_flush_failed": "Gagal menyiram: {{message}}",
+    "toast_project_saved": "Proyek disimpan",
+    "toast_project_created": "Proyek dibuat"
   },
   "update": {
     "available": "Pembaruan {{version}} tersedia",

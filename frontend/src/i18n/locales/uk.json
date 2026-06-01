@@ -59,7 +59,21 @@
     "backend_logs_cleared": "Серверні журнали очищено",
     "clear_backend_failed": "Не вдалося очистити журнали",
     "copy_failed": "Помилка копіювання: {{message}}",
-    "update_check_failed": "Не вдалося перевірити оновлення: {{message}}"
+    "update_check_failed": "Не вдалося перевірити оновлення: {{message}}",
+    "save_failed": "Не вдалося зберегти: {{message}}",
+    "clear_failed": "Помилка очищення: {{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "Не вдалося встановити канал: {{message}}",
+    "updater_downloading": "Завантаження {{version}}…",
+    "updater_installed": "Встановлено — перезапуск.",
+    "updater_available_title": "Доступне оновлення",
+    "updater_available_body": "Доступна версія {{version}}.\n\n{{notes}}\n\nЗавантажити та встановити зараз?",
+    "updater_notes_fallback": "Перегляньте примітки до випуску на GitHub.",
+    "shortcut_load_failed": "Не вдалося завантажити ярлик: {{message}}",
+    "shortcut_set": "Ярлик для диктування встановлено на {{shortcut}}",
+    "shortcut_register_failed": "Не вдалося зареєструватися: {{message}}",
+    "shortcut_reset": "Скинути до замовчування",
+    "shortcut_reset_failed": "Помилка скидання: {{message}}"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -631,7 +645,11 @@
     "languages_selected_one": "Вибрано {{count}} мову",
     "languages_selected_other": "Вибрано {{count}} мов",
     "more_to_narrow": "+{{count}} більше — введіть, щоб звузити",
-    "no_matches": "Немає збігів"
+    "no_matches": "Немає збігів",
+    "diagnostic_copied": "Діагностику скопійовано",
+    "copy_failed": "Помилка копіювання",
+    "open_docs": "Відкрити документи",
+    "copy_diagnostic": "Діагностика копії"
   },
   "glossary": {
     "title": "Глосарій",
@@ -1504,7 +1522,27 @@
   },
   "app": {
     "loading": "Завантаження…",
-    "trimmed_loaded": "Завантажено обрізаний звук"
+    "trimmed_loaded": "Завантажено обрізаний звук",
+    "toast_exported": "Експортовано: {{name}}",
+    "toast_export_failed": "Помилка експорту: {{message}}",
+    "toast_open_folder_failed": "Не вдалося відкрити папку: {{message}}",
+    "toast_saving": "Збереження {{name}}...",
+    "toast_saved": "Збережено: {{path}}",
+    "toast_save_error": "Помилка збереження: {{message}}",
+    "toast_processing": "Обробка {{name}}...",
+    "toast_downloaded": "Завантажено {{name}}",
+    "toast_download_error": "Помилка завантаження: {{message}}",
+    "toast_upload_first": "Будь ласка, спочатку натисніть «Завантажити та транскрибувати», щоб відео було оброблено на сервері перед збереженням.",
+    "toast_save_failed": "Не вдалося зберегти: {{message}}",
+    "toast_opened": "Відкрито: {{name}}",
+    "toast_project_deleted": "Проект видалено",
+    "toast_restored_state": "Відновлено стан попереднього покоління",
+    "toast_history_deleted": "Елемент історії видалено",
+    "toast_flushed": "Очищено — RAM {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· модель ненавантажена",
+    "toast_flush_failed": "Помилка очищення: {{message}}",
+    "toast_project_saved": "Проект збережено",
+    "toast_project_created": "Проект створено"
   },
   "update": {
     "available": "Доступне оновлення {{version}}",

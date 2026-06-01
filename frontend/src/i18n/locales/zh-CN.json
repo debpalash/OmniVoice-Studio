@@ -253,7 +253,21 @@
     "backend_logs_cleared": "后台日志清除",
     "clear_backend_failed": "清除日志失败",
     "copy_failed": "复制失败：{{message}}",
-    "update_check_failed": "更新检查失败：{{message}}"
+    "update_check_failed": "更新检查失败：{{message}}",
+    "save_failed": "保存失败：{{message}}",
+    "clear_failed": "清除失败：{{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "无法设置频道：{{message}}",
+    "updater_downloading": "正在下载 {{version}}...",
+    "updater_installed": "已安装 - 重新启动。",
+    "updater_available_title": "可用更新",
+    "updater_available_body": "版本 {{version}} 可用。\n\n{{notes}}\n\n立即下载并安装？",
+    "updater_notes_fallback": "请参阅 GitHub 上的发行说明。",
+    "shortcut_load_failed": "无法加载快捷方式：{{message}}",
+    "shortcut_set": "听写快捷键设置为 {{shortcut}}",
+    "shortcut_register_failed": "无法注册：{{message}}",
+    "shortcut_reset": "重置为默认值",
+    "shortcut_reset_failed": "重置失败：{{message}}"
   },
   "about": {
     "app": "应用",
@@ -601,7 +615,11 @@
     "languages_selected_one": "已选择 {{count}} 语言",
     "languages_selected_other": "已选择 {{count}} 种语言",
     "more_to_narrow": "+{{count}} more — 键入缩小范围",
-    "no_matches": "没有匹配项"
+    "no_matches": "没有匹配项",
+    "diagnostic_copied": "诊断复制",
+    "copy_failed": "复制失败",
+    "open_docs": "打开文档",
+    "copy_diagnostic": "复制诊断"
   },
   "glossary": {
     "title": "术语表",
@@ -1504,7 +1522,27 @@
   },
   "app": {
     "loading": "加载中...",
-    "trimmed_loaded": "已加载修剪后的音频"
+    "trimmed_loaded": "已加载修剪后的音频",
+    "toast_exported": "导出：{{name}}",
+    "toast_export_failed": "导出失败：{{message}}",
+    "toast_open_folder_failed": "无法打开文件夹：{{message}}",
+    "toast_saving": "正在保存 {{name}}...",
+    "toast_saved": "已保存：{{path}}",
+    "toast_save_error": "保存错误：{{message}}",
+    "toast_processing": "正在处理 {{name}}...",
+    "toast_downloaded": "已下载{{name}}",
+    "toast_download_error": "下载错误：{{message}}",
+    "toast_upload_first": "请先单击“上传和转录”，以便在保存之前在服务器上处理视频。",
+    "toast_save_failed": "保存失败：{{message}}",
+    "toast_opened": "开放时间：{{name}}",
+    "toast_project_deleted": "项目已删除",
+    "toast_restored_state": "恢复了上一代状态",
+    "toast_history_deleted": "历史记录项已删除",
+    "toast_flushed": "刷新 — RAM {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· 模型卸载",
+    "toast_flush_failed": "刷新失败：{{message}}",
+    "toast_project_saved": "项目已保存",
+    "toast_project_created": "项目已创建"
   },
   "update": {
     "available": "有可用更新 {{version}}",

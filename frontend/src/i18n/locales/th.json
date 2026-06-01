@@ -59,7 +59,21 @@
     "backend_logs_cleared": "ล้างบันทึกแบ็กเอนด์แล้ว",
     "clear_backend_failed": "ไม่สามารถล้างบันทึกได้",
     "copy_failed": "การคัดลอกล้มเหลว: {{message}}",
-    "update_check_failed": "การตรวจสอบการอัปเดตล้มเหลว: {{message}}"
+    "update_check_failed": "การตรวจสอบการอัปเดตล้มเหลว: {{message}}",
+    "save_failed": "บันทึกล้มเหลว: {{message}}",
+    "clear_failed": "การเคลียร์ล้มเหลว: {{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "ไม่สามารถตั้งค่าช่อง: {{message}}",
+    "updater_downloading": "กำลังดาวน์โหลด {{version}}…",
+    "updater_installed": "ติดตั้งแล้ว — เปิดตัวใหม่",
+    "updater_available_title": "อัปเดตพร้อมใช้งาน",
+    "updater_available_body": "มีเวอร์ชัน {{version}} แล้ว\n\n{{notes}}\n\nดาวน์โหลดและติดตั้งทันที?",
+    "updater_notes_fallback": "ดูบันทึกประจำรุ่นบน GitHub",
+    "shortcut_load_failed": "ไม่สามารถโหลดทางลัด: {{message}}",
+    "shortcut_set": "ทางลัดการเขียนตามคำบอกตั้งค่าเป็น {{shortcut}}",
+    "shortcut_register_failed": "ไม่สามารถลงทะเบียนได้: {{message}}",
+    "shortcut_reset": "รีเซ็ตเป็นค่าเริ่มต้น",
+    "shortcut_reset_failed": "การรีเซ็ตล้มเหลว: {{message}}"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -631,7 +645,11 @@
     "languages_selected_one": "เลือก {{count}} ภาษาแล้ว",
     "languages_selected_other": "เลือก {{count}} ภาษาแล้ว",
     "more_to_narrow": "+{{count}} เพิ่มเติม — พิมพ์เพื่อจำกัดให้แคบลง",
-    "no_matches": "ไม่มีการแข่งขัน"
+    "no_matches": "ไม่มีการแข่งขัน",
+    "diagnostic_copied": "คัดลอกการวินิจฉัยแล้ว",
+    "copy_failed": "การคัดลอกล้มเหลว",
+    "open_docs": "เปิดเอกสาร",
+    "copy_diagnostic": "คัดลอกการวินิจฉัย"
   },
   "glossary": {
     "title": "อภิธานศัพท์",
@@ -1504,7 +1522,27 @@
   },
   "app": {
     "loading": "กำลังโหลด...",
-    "trimmed_loaded": "โหลดเสียงที่ตัดแล้ว"
+    "trimmed_loaded": "โหลดเสียงที่ตัดแล้ว",
+    "toast_exported": "ส่งออกแล้ว: {{name}}",
+    "toast_export_failed": "การส่งออกล้มเหลว: {{message}}",
+    "toast_open_folder_failed": "ไม่สามารถเปิดโฟลเดอร์: {{message}}",
+    "toast_saving": "กำลังบันทึก {{name}}...",
+    "toast_saved": "บันทึกแล้ว: {{path}}",
+    "toast_save_error": "บันทึกข้อผิดพลาด: {{message}}",
+    "toast_processing": "กำลังประมวลผล {{name}}...",
+    "toast_downloaded": "ดาวน์โหลดแล้ว {{name}}",
+    "toast_download_error": "ข้อผิดพลาดในการดาวน์โหลด: {{message}}",
+    "toast_upload_first": "โปรดคลิก 'อัปโหลดและถอดเสียง' ก่อน เพื่อให้วิดีโอได้รับการประมวลผลบนเซิร์ฟเวอร์ก่อนบันทึก",
+    "toast_save_failed": "บันทึกล้มเหลว: {{message}}",
+    "toast_opened": "เปิดแล้ว: {{name}}",
+    "toast_project_deleted": "ลบโครงการแล้ว",
+    "toast_restored_state": "คืนค่าสถานะรุ่นก่อนหน้า",
+    "toast_history_deleted": "ลบรายการประวัติแล้ว",
+    "toast_flushed": "ฟลัช — RAM {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· โมเดลยกเลิกการโหลดแล้ว",
+    "toast_flush_failed": "การฟลัชล้มเหลว: {{message}}",
+    "toast_project_saved": "บันทึกโครงการแล้ว",
+    "toast_project_created": "สร้างโครงการแล้ว"
   },
   "update": {
     "available": "มีอัปเดต {{version}}",

@@ -59,7 +59,21 @@
     "backend_logs_cleared": "बैकएंड लॉग साफ़ किए गए",
     "clear_backend_failed": "लॉग साफ़ करने में विफल",
     "copy_failed": "प्रतिलिपि विफल: {{message}}",
-    "update_check_failed": "अद्यतन जाँच विफल: {{message}}"
+    "update_check_failed": "अद्यतन जाँच विफल: {{message}}",
+    "save_failed": "सहेजना विफल: {{message}}",
+    "clear_failed": "साफ़ विफल: {{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "चैनल सेट करने में विफल: {{message}}",
+    "updater_downloading": "डाउनलोड हो रहा है {{version}}…",
+    "updater_installed": "इंस्टॉल किया गया - पुनः लॉन्च किया जा रहा है।",
+    "updater_available_title": "अपडेट उपलब्ध है",
+    "updater_available_body": "संस्करण {{version}} उपलब्ध है.\n\n{{notes}}\n\nअभी डाउनलोड करें और इंस्टॉल करें?",
+    "updater_notes_fallback": "GitHub पर रिलीज़ नोट्स देखें।",
+    "shortcut_load_failed": "शॉर्टकट लोड नहीं किया जा सका: {{message}}",
+    "shortcut_set": "डिक्टेशन शॉर्टकट {{shortcut}} पर सेट किया गया",
+    "shortcut_register_failed": "पंजीकरण नहीं हो सका: {{message}}",
+    "shortcut_reset": "डिफ़ॉल्ट पर रीसेट करें",
+    "shortcut_reset_failed": "रीसेट विफल: {{message}}"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -631,7 +645,11 @@
     "languages_selected_one": "{{count}} भाषा चयनित",
     "languages_selected_other": "{{count}} भाषाएँ चयनित",
     "more_to_narrow": "+{{count}} अधिक - संकीर्ण करने के लिए टाइप करें",
-    "no_matches": "कोई मेल नहीं"
+    "no_matches": "कोई मेल नहीं",
+    "diagnostic_copied": "डायग्नोस्टिक कॉपी किया गया",
+    "copy_failed": "प्रतिलिपि विफल",
+    "open_docs": "दस्तावेज़ खोलें",
+    "copy_diagnostic": "डायग्नोस्टिक कॉपी करें"
   },
   "glossary": {
     "title": "शब्दावली",
@@ -1504,7 +1522,27 @@
   },
   "app": {
     "loading": "लोड हो रहा है...",
-    "trimmed_loaded": "ट्रिम किया गया ऑडियो लोड किया गया"
+    "trimmed_loaded": "ट्रिम किया गया ऑडियो लोड किया गया",
+    "toast_exported": "निर्यातित: {{name}}",
+    "toast_export_failed": "निर्यात विफल: {{message}}",
+    "toast_open_folder_failed": "फ़ोल्डर नहीं खुल सका: {{message}}",
+    "toast_saving": "सहेजा जा रहा है {{name}}...",
+    "toast_saved": "सहेजा गया: {{path}}",
+    "toast_save_error": "त्रुटि सहेजें: {{message}}",
+    "toast_processing": "प्रसंस्करण {{name}}...",
+    "toast_downloaded": "डाउनलोड किया गया {{name}}",
+    "toast_download_error": "डाउनलोड त्रुटि: {{message}}",
+    "toast_upload_first": "कृपया पहले 'अपलोड और ट्रांसक्राइब' पर क्लिक करें ताकि वीडियो सहेजने से पहले सर्वर पर संसाधित हो जाए।",
+    "toast_save_failed": "सहेजना विफल: {{message}}",
+    "toast_opened": "खोला गया: {{name}}",
+    "toast_project_deleted": "प्रोजेक्ट हटा दिया गया",
+    "toast_restored_state": "पिछली पीढ़ी की स्थिति बहाल की गई",
+    "toast_history_deleted": "इतिहास आइटम हटा दिया गया",
+    "toast_flushed": "फ्लश - RAM {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· मॉडल उतार दिया गया",
+    "toast_flush_failed": "फ्लश विफल: {{message}}",
+    "toast_project_saved": "प्रोजेक्ट सहेजा गया",
+    "toast_project_created": "प्रोजेक्ट बनाया गया"
   },
   "update": {
     "available": "अपडेट {{version}} उपलब्ध है",

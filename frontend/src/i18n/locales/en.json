@@ -236,7 +236,21 @@
     "backend_logs_cleared": "Backend logs cleared",
     "clear_backend_failed": "Failed to clear logs",
     "copy_failed": "Copy failed: {{message}}",
-    "update_check_failed": "Update check failed: {{message}}"
+    "update_check_failed": "Update check failed: {{message}}",
+    "save_failed": "Save failed: {{message}}",
+    "clear_failed": "Clear failed: {{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "Failed to set channel: {{message}}",
+    "updater_downloading": "Downloading {{version}}…",
+    "updater_installed": "Installed — relaunching.",
+    "updater_available_title": "Update available",
+    "updater_available_body": "Version {{version}} is available.\n\n{{notes}}\n\nDownload and install now?",
+    "updater_notes_fallback": "See release notes on GitHub.",
+    "shortcut_load_failed": "Could not load shortcut: {{message}}",
+    "shortcut_set": "Dictation shortcut set to {{shortcut}}",
+    "shortcut_register_failed": "Couldn't register: {{message}}",
+    "shortcut_reset": "Reset to default",
+    "shortcut_reset_failed": "Reset failed: {{message}}"
   },
   "about": {
     "app": "App",
@@ -316,7 +330,6 @@
     "group_deepl": "DeepL Custom Endpoint",
     "group_microsoft": "Microsoft Translator Custom Endpoint"
   },
-
   "capture": {
     "desc": "Global hotkeys only work in the desktop app. The web UI uses an in-page <1>Ctrl+Shift+Space</1> shortcut while the window has focus.",
     "desc_detail": "The hotkey works system-wide while OmniVoice is running — it focuses the window and starts dictation. Avoid combos already claimed by the OS (on macOS, <1>⌘+Space</1> is Spotlight and <2>⌘+⇧+Space</2> cycles input sources). If registration fails, pick a different combo.",
@@ -511,7 +524,11 @@
     "install_already": "{{engine}} was already installed",
     "install_ok": "{{engine}} installed",
     "install_failed": "Install failed: {{message}}",
-    "prep_elapsed": "{{time}} elapsed"
+    "prep_elapsed": "{{time}} elapsed",
+    "diagnostic_copied": "Diagnostic copied",
+    "copy_failed": "Copy failed",
+    "open_docs": "Open docs",
+    "copy_diagnostic": "Copy diagnostic"
   },
   "glossary": {
     "title": "Glossary",
@@ -706,7 +723,6 @@
     "estimate": "{{videos}} video(s) × {{langs}} lang(s) = {{jobs}} job(s)",
     "select_files_langs": "Select files and languages",
     "add_to_queue": "Add to Queue"
-
   },
   "gallery": {
     "title": "Gallery",
@@ -1527,6 +1543,26 @@
   },
   "app": {
     "loading": "Loading…",
-    "trimmed_loaded": "Trimmed audio loaded"
+    "trimmed_loaded": "Trimmed audio loaded",
+    "toast_exported": "Exported: {{name}}",
+    "toast_export_failed": "Export failed: {{message}}",
+    "toast_open_folder_failed": "Could not open folder: {{message}}",
+    "toast_saving": "Saving {{name}}...",
+    "toast_saved": "Saved: {{path}}",
+    "toast_save_error": "Save error: {{message}}",
+    "toast_processing": "Processing {{name}}...",
+    "toast_downloaded": "Downloaded {{name}}",
+    "toast_download_error": "Download error: {{message}}",
+    "toast_upload_first": "Please click 'Upload & Transcribe' first so the video is processed on the server before saving.",
+    "toast_save_failed": "Save failed: {{message}}",
+    "toast_opened": "Opened: {{name}}",
+    "toast_project_deleted": "Project deleted",
+    "toast_restored_state": "Restored previous generation state",
+    "toast_history_deleted": "History item deleted",
+    "toast_flushed": "Flushed — RAM {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": " · model unloaded",
+    "toast_flush_failed": "Flush failed: {{message}}",
+    "toast_project_saved": "Project saved",
+    "toast_project_created": "Project created"
   }
 }

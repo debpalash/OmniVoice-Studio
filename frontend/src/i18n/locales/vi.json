@@ -59,7 +59,21 @@
     "backend_logs_cleared": "Đã xóa nhật ký phụ trợ",
     "clear_backend_failed": "Không thể xóa nhật ký",
     "copy_failed": "Sao chép không thành công: {{message}}",
-    "update_check_failed": "Kiểm tra cập nhật không thành công: {{message}}"
+    "update_check_failed": "Kiểm tra cập nhật không thành công: {{message}}",
+    "save_failed": "Lưu không thành công: {{message}}",
+    "clear_failed": "Xóa không thành công: {{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "Không đặt được kênh: {{message}}",
+    "updater_downloading": "Đang tải xuống _V_0__…",
+    "updater_installed": "Đã cài đặt - khởi chạy lại.",
+    "updater_available_title": "Đã có bản cập nhật",
+    "updater_available_body": "Đã có phiên bản {{version}}.\n\n{{notes}}\n\nTải xuống và cài đặt ngay bây giờ?",
+    "updater_notes_fallback": "Xem ghi chú phát hành trên GitHub.",
+    "shortcut_load_failed": "Không thể tải phím tắt: {{message}}",
+    "shortcut_set": "Phím tắt đọc chính tả được đặt thành {{shortcut}}",
+    "shortcut_register_failed": "Không thể đăng ký: {{message}}",
+    "shortcut_reset": "Đặt lại về mặc định",
+    "shortcut_reset_failed": "Đặt lại không thành công: {{message}}"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -631,7 +645,11 @@
     "languages_selected_one": "{{count}} ngôn ngữ đã chọn",
     "languages_selected_other": "{{count}} ngôn ngữ đã chọn",
     "more_to_narrow": "+{{count}} thêm — gõ để thu hẹp",
-    "no_matches": "Không có kết quả phù hợp"
+    "no_matches": "Không có kết quả phù hợp",
+    "diagnostic_copied": "Đã sao chép chẩn đoán",
+    "copy_failed": "Sao chép không thành công",
+    "open_docs": "Mở tài liệu",
+    "copy_diagnostic": "Sao chép chẩn đoán"
   },
   "glossary": {
     "title": "Thuật ngữ",
@@ -1504,7 +1522,27 @@
   },
   "app": {
     "loading": "Đang tải…",
-    "trimmed_loaded": "Đã tải âm thanh đã cắt bớt"
+    "trimmed_loaded": "Đã tải âm thanh đã cắt bớt",
+    "toast_exported": "Đã xuất: {{name}}",
+    "toast_export_failed": "Xuất không thành công: {{message}}",
+    "toast_open_folder_failed": "Không thể mở thư mục: {{message}}",
+    "toast_saving": "Đang lưu {{name}}...",
+    "toast_saved": "Đã lưu: {{path}}",
+    "toast_save_error": "Lỗi lưu: {{message}}",
+    "toast_processing": "Đang xử lý {{name}}...",
+    "toast_downloaded": "Đã tải xuống _V_0__",
+    "toast_download_error": "Lỗi tải xuống: _V_0__",
+    "toast_upload_first": "Vui lòng nhấp vào 'Tải lên & Phiên âm' trước để video được xử lý trên máy chủ trước khi lưu.",
+    "toast_save_failed": "Lưu không thành công: {{message}}",
+    "toast_opened": "Đã mở: {{name}}",
+    "toast_project_deleted": "Dự án đã bị xóa",
+    "toast_restored_state": "Đã khôi phục trạng thái thế hệ trước",
+    "toast_history_deleted": "Mục lịch sử đã bị xóa",
+    "toast_flushed": "Đã xóa — RAM {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· dỡ mô hình",
+    "toast_flush_failed": "Xóa không thành công: {{message}}",
+    "toast_project_saved": "Đã lưu dự án",
+    "toast_project_created": "Dự án đã được tạo"
   },
   "update": {
     "available": "Đã có bản cập nhật {{version}}",

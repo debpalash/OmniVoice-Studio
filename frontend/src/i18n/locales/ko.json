@@ -59,7 +59,21 @@
     "backend_logs_cleared": "백엔드 로그가 삭제되었습니다.",
     "clear_backend_failed": "로그를 지우지 못했습니다.",
     "copy_failed": "복사 실패: {{message}}",
-    "update_check_failed": "업데이트 확인 실패: {{message}}"
+    "update_check_failed": "업데이트 확인 실패: {{message}}",
+    "save_failed": "저장 실패: {{message}}",
+    "clear_failed": "지우기 실패: {{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "채널 설정 실패: {{message}}",
+    "updater_downloading": "{{version}} 다운로드 중…",
+    "updater_installed": "설치됨 - 다시 시작하는 중입니다.",
+    "updater_available_title": "업데이트 가능",
+    "updater_available_body": "버전 {{version}}을(를) 사용할 수 있습니다.\n\n{{notes}}\n\n지금 다운로드하여 설치하시겠습니까?",
+    "updater_notes_fallback": "GitHub의 릴리스 노트를 참조하세요.",
+    "shortcut_load_failed": "바로가기를 로드할 수 없습니다: {{message}}",
+    "shortcut_set": "받아쓰기 단축키가 {{shortcut}}로 설정되었습니다.",
+    "shortcut_register_failed": "등록할 수 없습니다: {{message}}",
+    "shortcut_reset": "기본값으로 재설정",
+    "shortcut_reset_failed": "재설정 실패: {{message}}"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -631,7 +645,11 @@
     "languages_selected_one": "{{count}} 언어 선택됨",
     "languages_selected_other": "{{count}} 언어 선택됨",
     "more_to_narrow": "+{{count}} 더보기 — 범위를 좁히려면 입력하세요.",
-    "no_matches": "일치하는 항목 없음"
+    "no_matches": "일치하는 항목 없음",
+    "diagnostic_copied": "진단이 복사되었습니다.",
+    "copy_failed": "복사 실패",
+    "open_docs": "문서 열기",
+    "copy_diagnostic": "진단 복사"
   },
   "glossary": {
     "title": "용어집",
@@ -1504,7 +1522,27 @@
   },
   "app": {
     "loading": "로드 중…",
-    "trimmed_loaded": "잘린 오디오 로드됨"
+    "trimmed_loaded": "잘린 오디오 로드됨",
+    "toast_exported": "내보낸 날짜: {{name}}",
+    "toast_export_failed": "내보내기 실패: {{message}}",
+    "toast_open_folder_failed": "폴더를 열 수 없습니다: {{message}}",
+    "toast_saving": "{{name}} 저장 중...",
+    "toast_saved": "저장됨: {{path}}",
+    "toast_save_error": "저장 오류: {{message}}",
+    "toast_processing": "{{name}} 처리 중...",
+    "toast_downloaded": "{{name}} 다운로드됨",
+    "toast_download_error": "다운로드 오류: {{message}}",
+    "toast_upload_first": "저장하기 전에 동영상이 서버에서 처리되도록 먼저 '업로드 및 스크립트 작성'을 클릭하세요.",
+    "toast_save_failed": "저장 실패: {{message}}",
+    "toast_opened": "열림: {{name}}",
+    "toast_project_deleted": "프로젝트가 삭제되었습니다.",
+    "toast_restored_state": "이전 세대 상태를 복원했습니다.",
+    "toast_history_deleted": "기록 항목이 삭제되었습니다.",
+    "toast_flushed": "플러시 — RAM {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· 모델 언로드됨",
+    "toast_flush_failed": "플러시 실패: {{message}}",
+    "toast_project_saved": "프로젝트가 저장되었습니다",
+    "toast_project_created": "프로젝트가 생성되었습니다."
   },
   "update": {
     "available": "업데이트 {{version}} 사용 가능",

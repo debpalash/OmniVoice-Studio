@@ -59,7 +59,21 @@
     "backend_logs_cleared": "تم مسح سجلات الواجهة الخلفية",
     "clear_backend_failed": "فشل في مسح السجلات",
     "copy_failed": "فشل النسخ: {{message}}",
-    "update_check_failed": "فشل التحقق من التحديث: {{message}}"
+    "update_check_failed": "فشل التحقق من التحديث: {{message}}",
+    "save_failed": "فشل الحفظ: {{message}}",
+    "clear_failed": "فشل المسح: {{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "فشل تعيين القناة: {{message}}",
+    "updater_downloading": "جارٍ التنزيل {{version}}…",
+    "updater_installed": "تم التثبيت - إعادة التشغيل.",
+    "updater_available_title": "التحديث متاح",
+    "updater_available_body": "الإصدار {{version}} متاح.\n\n{{notes}}\n\nتحميل وتثبيت الآن؟",
+    "updater_notes_fallback": "راجع ملاحظات الإصدار على GitHub.",
+    "shortcut_load_failed": "تعذر تحميل الاختصار: {{message}}",
+    "shortcut_set": "تم ضبط اختصار الإملاء على {{shortcut}}",
+    "shortcut_register_failed": "تعذر التسجيل: {{message}}",
+    "shortcut_reset": "إعادة التعيين إلى الوضع الافتراضي",
+    "shortcut_reset_failed": "فشلت إعادة التعيين: {{message}}"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -631,7 +645,11 @@
     "languages_selected_one": "تم تحديد لغة {{count}}",
     "languages_selected_other": "تم تحديد {{count}} اللغات",
     "more_to_narrow": "+{{count}} المزيد - اكتب للتضييق",
-    "no_matches": "لا توجد مباريات"
+    "no_matches": "لا توجد مباريات",
+    "diagnostic_copied": "منقول التشخيص",
+    "copy_failed": "فشل النسخ",
+    "open_docs": "افتح المستندات",
+    "copy_diagnostic": "نسخ التشخيص"
   },
   "glossary": {
     "title": "مسرد",
@@ -1504,7 +1522,27 @@
   },
   "app": {
     "loading": "جارٍ التحميل…",
-    "trimmed_loaded": "تم تحميل الصوت المقطوع"
+    "trimmed_loaded": "تم تحميل الصوت المقطوع",
+    "toast_exported": "تم التصدير: {{name}}",
+    "toast_export_failed": "فشل التصدير: {{message}}",
+    "toast_open_folder_failed": "لا يمكن فتح المجلد: {{message}}",
+    "toast_saving": "جارٍ حفظ {{name}}...",
+    "toast_saved": "تم الحفظ: {{path}}",
+    "toast_save_error": "خطأ في الحفظ: {{message}}",
+    "toast_processing": "معالجة {{name}}...",
+    "toast_downloaded": "تم التنزيل {{name}}",
+    "toast_download_error": "خطأ في التنزيل: {{message}}",
+    "toast_upload_first": "الرجاء النقر فوق \"تحميل ونسخ\" أولاً حتى تتم معالجة الفيديو على الخادم قبل حفظه.",
+    "toast_save_failed": "فشل الحفظ: {{message}}",
+    "toast_opened": "مفتوح: {{name}}",
+    "toast_project_deleted": "تم حذف المشروع",
+    "toast_restored_state": "تمت استعادة حالة الجيل السابق",
+    "toast_history_deleted": "تم حذف عنصر السجل",
+    "toast_flushed": "متدفق — ذاكرة الوصول العشوائي {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· تم تفريغ النموذج",
+    "toast_flush_failed": "فشل التدفق: {{message}}",
+    "toast_project_saved": "تم حفظ المشروع",
+    "toast_project_created": "تم إنشاء المشروع"
   },
   "update": {
     "available": "يتوفّر التحديث {{version}}",

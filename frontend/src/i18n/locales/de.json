@@ -59,7 +59,21 @@
     "backend_logs_cleared": "Backend-Protokolle gelöscht",
     "clear_backend_failed": "Protokolle konnten nicht gelöscht werden",
     "copy_failed": "Kopieren fehlgeschlagen: {{message}}",
-    "update_check_failed": "Update-Prüfung fehlgeschlagen: {{message}}"
+    "update_check_failed": "Update-Prüfung fehlgeschlagen: {{message}}",
+    "save_failed": "Speichern fehlgeschlagen: {{message}}",
+    "clear_failed": "Löschen fehlgeschlagen: {{message}}",
+    "engine_switched": "{{family}} → {{engine}}",
+    "channel_set_failed": "Kanal konnte nicht festgelegt werden: {{message}}",
+    "updater_downloading": "{{version}} wird heruntergeladen…",
+    "updater_installed": "Installiert – Neustart.",
+    "updater_available_title": "Update verfügbar",
+    "updater_available_body": "Version {{version}} ist verfügbar.\n\n{{notes}}\n\nJetzt herunterladen und installieren?",
+    "updater_notes_fallback": "Siehe Versionshinweise auf GitHub.",
+    "shortcut_load_failed": "Verknüpfung konnte nicht geladen werden: {{message}}",
+    "shortcut_set": "Diktatverknüpfung auf {{shortcut}} festgelegt",
+    "shortcut_register_failed": "Konnte nicht registriert werden: {{message}}",
+    "shortcut_reset": "Auf Standard zurücksetzen",
+    "shortcut_reset_failed": "Zurücksetzen fehlgeschlagen: {{message}}"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -632,7 +646,11 @@
     "languages_selected_one": "{{count}} Sprache ausgewählt",
     "languages_selected_other": "{{count}} Sprachen ausgewählt",
     "more_to_narrow": "+{{count}} mehr – zum Eingrenzen eingeben",
-    "no_matches": "Keine Übereinstimmungen"
+    "no_matches": "Keine Übereinstimmungen",
+    "diagnostic_copied": "Diagnose kopiert",
+    "copy_failed": "Das Kopieren ist fehlgeschlagen",
+    "open_docs": "Dokumente öffnen",
+    "copy_diagnostic": "Diagnose kopieren"
   },
   "glossary": {
     "title": "Glossar",
@@ -1505,7 +1523,27 @@
   },
   "app": {
     "loading": "Laden…",
-    "trimmed_loaded": "Zugeschnittenes Audio geladen"
+    "trimmed_loaded": "Zugeschnittenes Audio geladen",
+    "toast_exported": "Exportiert: {{name}}",
+    "toast_export_failed": "Export fehlgeschlagen: {{message}}",
+    "toast_open_folder_failed": "Ordner konnte nicht geöffnet werden: {{message}}",
+    "toast_saving": "Speichern {{name}}...",
+    "toast_saved": "Gespeichert: {{path}}",
+    "toast_save_error": "Speicherfehler: {{message}}",
+    "toast_processing": "Verarbeitung {{name}}...",
+    "toast_downloaded": "Heruntergeladen {{name}}",
+    "toast_download_error": "Download-Fehler: {{message}}",
+    "toast_upload_first": "Bitte klicken Sie zuerst auf „Hochladen und transkribieren“, damit das Video vor dem Speichern auf dem Server verarbeitet wird.",
+    "toast_save_failed": "Speichern fehlgeschlagen: {{message}}",
+    "toast_opened": "Geöffnet: {{name}}",
+    "toast_project_deleted": "Projekt gelöscht",
+    "toast_restored_state": "Wiederhergestellter Zustand der vorherigen Generation",
+    "toast_history_deleted": "Verlaufselement gelöscht",
+    "toast_flushed": "Gespült – RAM {{ram}}G · VRAM {{vram}}G{{unloaded}}",
+    "toast_model_unloaded": "· Modell entladen",
+    "toast_flush_failed": "Spülung fehlgeschlagen: {{message}}",
+    "toast_project_saved": "Projekt gespeichert",
+    "toast_project_created": "Projekt erstellt"
   },
   "update": {
     "available": "Update {{version}} verfügbar",
