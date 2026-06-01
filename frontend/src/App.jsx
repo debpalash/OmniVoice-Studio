@@ -399,6 +399,12 @@ function App() {
     // the user install + restart when they choose (with a progress bar), so an
     // update never interrupts in-flight work.
     checkForUpdate(useAppStore.getState());
+    // Re-check periodically so a long-running session still gets notified, not
+    // only at boot. checkForUpdate no-ops while a download/restart is already
+    // in flight, so this can't interrupt an install.
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+    const id = setInterval(() => checkForUpdate(useAppStore.getState()), SIX_HOURS);
+    return () => clearInterval(id);
   }, []);
 
   // ── DESKTOP NATIVE INTEGRATION ──

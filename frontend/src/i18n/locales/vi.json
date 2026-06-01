@@ -5,7 +5,10 @@
     "install_hint": "Tải bản cập nhật và khởi động lại vào phiên bản mới",
     "downloading": "Đang cập nhật… {{pct}}%",
     "restart": "Khởi động lại để cập nhật",
-    "busy": "Hoàn tất lồng tiếng của bạn trước — rồi cài đặt bản cập nhật."
+    "busy": "Hoàn tất lồng tiếng của bạn trước — rồi cài đặt bản cập nhật.",
+    "whats_new": "Có gì mới",
+    "failed": "Cập nhật không thành công",
+    "retry": "Thử lại"
   },
   "nav": {
     "clone": "Nhân bản",

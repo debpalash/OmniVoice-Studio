@@ -5,7 +5,10 @@
     "install_hint": "Update herunterladen und in die neue Version neu starten",
     "downloading": "Wird aktualisiert… {{pct}} %",
     "restart": "Zum Aktualisieren neu starten",
-    "busy": "Beende zuerst deine Synchronisation – dann installiere das Update."
+    "busy": "Beende zuerst deine Synchronisation – dann installiere das Update.",
+    "whats_new": "Was ist neu?",
+    "failed": "Update fehlgeschlagen",
+    "retry": "Versuchen Sie es noch einmal"
   },
   "nav": {
     "clone": "Klonen",

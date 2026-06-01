@@ -5,7 +5,10 @@
     "install_hint": "下载更新并重启到新版本",
     "downloading": "更新中… {{pct}}%",
     "restart": "重启以更新",
-    "busy": "请先完成配音，再安装更新。"
+    "busy": "请先完成配音，再安装更新。",
+    "whats_new": "更新内容",
+    "failed": "更新失败",
+    "retry": "重试"
   },
   "stories": {
     "title": "故事编辑器",

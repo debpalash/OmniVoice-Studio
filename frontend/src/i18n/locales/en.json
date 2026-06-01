@@ -5,7 +5,10 @@
     "install_hint": "Download the update and restart into the new version",
     "downloading": "Updating… {{pct}}%",
     "restart": "Restart to update",
-    "busy": "Finish your dub first — then install the update."
+    "busy": "Finish your dub first — then install the update.",
+    "whats_new": "What's new",
+    "failed": "Update failed",
+    "retry": "Retry"
   },
   "stories": {
     "title": "Stories Editor",

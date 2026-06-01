@@ -5,7 +5,10 @@
     "install_hint": "下載更新並重新啟動至新版本",
     "downloading": "更新中… {{pct}}%",
     "restart": "重新啟動以更新",
-    "busy": "請先完成配音，再安裝更新。"
+    "busy": "請先完成配音，再安裝更新。",
+    "whats_new": "有什麼新消息",
+    "failed": "更新失敗",
+    "retry": "重試"
   },
   "nav": {
     "clone": "複製聲音",

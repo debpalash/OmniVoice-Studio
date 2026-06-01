@@ -5,7 +5,10 @@
     "install_hint": "Descarga la actualización y reinicia en la nueva versión",
     "downloading": "Actualizando… {{pct}}%",
     "restart": "Reiniciar para actualizar",
-    "busy": "Termina tu doblaje primero — luego instala la actualización."
+    "busy": "Termina tu doblaje primero — luego instala la actualización.",
+    "whats_new": "¿Qué hay de nuevo?",
+    "failed": "La actualización falló",
+    "retry": "Reintentar"
   },
   "nav": {
     "clone": "Clonar",

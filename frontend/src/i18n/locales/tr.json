@@ -5,7 +5,10 @@
     "install_hint": "Güncellemeyi indir ve yeni sürümle yeniden başlat",
     "downloading": "Güncelleniyor… %{{pct}}",
     "restart": "Güncellemek için yeniden başlat",
-    "busy": "Önce dublajını bitir — sonra güncellemeyi yükle."
+    "busy": "Önce dublajını bitir — sonra güncellemeyi yükle.",
+    "whats_new": "Yenilikler",
+    "failed": "Güncelleme başarısız oldu",
+    "retry": "Yeniden dene"
   },
   "nav": {
     "clone": "Klonla",

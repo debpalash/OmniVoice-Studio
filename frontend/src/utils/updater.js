@@ -32,6 +32,9 @@ async function currentChannel() {
 
 export async function checkForUpdate(store) {
   if (!isTauri()) return;
+  // A periodic re-check must not interrupt an in-progress download or a
+  // ready-to-restart state (it would reset the badge mid-flight).
+  if (store.updateStatus === 'downloading' || store.updateStatus === 'ready') return;
   try {
     store.setUpdateChecking();
     const { invoke } = await import('@tauri-apps/api/core');

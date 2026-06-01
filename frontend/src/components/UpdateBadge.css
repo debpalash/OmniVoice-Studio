@@ -40,3 +40,28 @@
 }
 .update-badge__bar { width: 60px; height: 3px; background: rgba(255, 255, 255, 0.12); border-radius: 2px; overflow: hidden; }
 .update-badge__bar span { display: block; height: 100%; background: #b8bb26; }
+
+/* available: pill + a "what's new" expander showing release notes */
+.update-badge__avail { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.update-badge__more {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: none; border: none; color: var(--text-dim, #a89984);
+  font-family: inherit; font-size: 10px; font-weight: 600; cursor: pointer; padding: 0 4px;
+}
+.update-badge__more:hover { color: #ebdbb2; }
+.update-badge__more svg { transition: transform 0.15s ease; }
+.update-badge__more.is-open svg { transform: rotate(180deg); }
+.update-badge__notes {
+  max-width: 320px; max-height: 180px; overflow-y: auto;
+  background: var(--chrome-bg, #1d2021); border: 1px solid var(--chrome-border, #3a3a3a);
+  border-radius: 8px; padding: 8px 10px;
+  font-size: 11px; line-height: 1.45; color: #d5c4a1;
+  white-space: pre-wrap; word-break: break-word;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+.update-badge__btn--error {
+  background: rgba(251, 73, 52, 0.14);
+  border-color: rgba(251, 73, 52, 0.5);
+  color: #fb4934;
+}
+.update-badge__btn--error:hover { background: rgba(251, 73, 52, 0.22); }

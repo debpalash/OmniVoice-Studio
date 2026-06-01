@@ -5,7 +5,10 @@
     "install_hint": "Pobierz aktualizację i uruchom ponownie w nowej wersji",
     "downloading": "Aktualizowanie… {{pct}}%",
     "restart": "Uruchom ponownie, aby zaktualizować",
-    "busy": "Najpierw dokończ dubbing — potem zainstaluj aktualizację."
+    "busy": "Najpierw dokończ dubbing — potem zainstaluj aktualizację.",
+    "whats_new": "Co nowego?",
+    "failed": "Aktualizacja nie powiodła się",
+    "retry": "Spróbuj ponownie"
   },
   "nav": {
     "clone": "Klonuj",

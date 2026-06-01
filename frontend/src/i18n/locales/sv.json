@@ -5,7 +5,10 @@
     "install_hint": "Ladda ner uppdateringen och starta om i den nya versionen",
     "downloading": "Uppdaterar… {{pct}} %",
     "restart": "Starta om för att uppdatera",
-    "busy": "Slutför din dubbning först – installera sedan uppdateringen."
+    "busy": "Slutför din dubbning först – installera sedan uppdateringen.",
+    "whats_new": "Vad är nytt",
+    "failed": "Uppdateringen misslyckades",
+    "retry": "Försök igen"
   },
   "nav": {
     "clone": "Klona",

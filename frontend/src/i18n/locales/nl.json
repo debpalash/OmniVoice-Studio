@@ -5,7 +5,10 @@
     "install_hint": "Download de update en start opnieuw op in de nieuwe versie",
     "downloading": "Bijwerken… {{pct}}%",
     "restart": "Opnieuw opstarten om bij te werken",
-    "busy": "Voltooi eerst je nasynchronisatie — installeer daarna de update."
+    "busy": "Voltooi eerst je nasynchronisatie — installeer daarna de update.",
+    "whats_new": "Wat is er nieuw",
+    "failed": "Update mislukt",
+    "retry": "Opnieuw proberen"
   },
   "nav": {
     "clone": "Klonen",

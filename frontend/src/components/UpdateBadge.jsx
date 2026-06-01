@@ -1,9 +1,11 @@
 // Non-blocking auto-update surface: a small pill that appears when an update is
-// available / downloading / ready. Replaces the old blocking ask() dialog so an
-// update never interrupts in-flight work — the user installs when they choose,
-// and the action is gated while a dub job is running.
+// available / downloading / ready / failed. Replaces the old blocking ask()
+// dialog so an update never interrupts in-flight work — the user installs when
+// they choose, sees what's new first, and the action is gated while a dub job
+// is running. A failed install surfaces a retry instead of vanishing silently.
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Download, Loader, RotateCw } from 'lucide-react';
+import { Download, Loader, RotateCw, AlertTriangle, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../store';
 import { installUpdate } from '../utils/updater';
@@ -13,10 +15,13 @@ export default function UpdateBadge() {
   const { t } = useTranslation();
   const status = useAppStore((s) => s.updateStatus);
   const version = useAppStore((s) => s.updateVersion);
+  const notes = useAppStore((s) => s.updateNotes);
   const progress = useAppStore((s) => s.updateProgress);
+  const error = useAppStore((s) => s.updateError);
   const dubStep = useAppStore((s) => s.dubStep);
+  const [notesOpen, setNotesOpen] = useState(false);
 
-  if (status === 'idle' || status === 'checking' || status === 'error') return null;
+  if (status === 'idle' || status === 'checking') return null;
 
   const busy = dubStep === 'generating';
   const onInstall = () => {
@@ -27,9 +32,22 @@ export default function UpdateBadge() {
   return (
     <div className="update-badge" role="status">
       {status === 'available' && (
-        <button type="button" className="update-badge__btn" onClick={onInstall} title={t('update.install_hint')}>
-          <Download size={12} /> {t('update.available', { version: version || '' })} · {t('update.install')}
-        </button>
+        <div className="update-badge__avail">
+          <button type="button" className="update-badge__btn" onClick={onInstall} title={t('update.install_hint')}>
+            <Download size={12} /> {t('update.available', { version: version || '' })} · {t('update.install')}
+          </button>
+          {notes && (
+            <button
+              type="button"
+              className={`update-badge__more ${notesOpen ? 'is-open' : ''}`}
+              onClick={() => setNotesOpen((v) => !v)}
+              aria-expanded={notesOpen}
+            >
+              <ChevronDown size={12} /> {t('update.whats_new')}
+            </button>
+          )}
+          {notesOpen && notes && <div className="update-badge__notes">{notes}</div>}
+        </div>
       )}
       {status === 'downloading' && (
         <span className="update-badge__progress">
@@ -40,6 +58,16 @@ export default function UpdateBadge() {
       {status === 'ready' && (
         <button type="button" className="update-badge__btn update-badge__btn--ready" onClick={onInstall}>
           <RotateCw size={12} /> {t('update.restart')}
+        </button>
+      )}
+      {status === 'error' && (
+        <button
+          type="button"
+          className="update-badge__btn update-badge__btn--error"
+          onClick={onInstall}
+          title={error || t('update.failed')}
+        >
+          <AlertTriangle size={12} /> {t('update.failed')} · {t('update.retry')}
         </button>
       )}
     </div>
