@@ -439,7 +439,9 @@ jobs:
           set -euo pipefail
           DMG=$(find frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/dmg -name "*.dmg" | head -1)
           echo "Smoke-testing DMG: $DMG"
-          MOUNT=$(hdiutil attach -nobrowse -readonly "$DMG" | tail -1 | awk '{print $3}')
+          # Grab the full mount path — the volume name has a space ("OmniVoice
+          # Studio"), so `awk '{print $3}'` would truncate it to /Volumes/OmniVoice.
+          MOUNT=$(hdiutil attach -nobrowse -readonly "$DMG" | tail -1 | grep -oE '/Volumes/.*$')
           APP=$(find "$MOUNT" -maxdepth 2 -name "*.app" | head -1)
           fail() { echo "FAIL — $1"; find "$APP/Contents" -maxdepth 4 -type f 2>/dev/null | head -40; hdiutil detach "$MOUNT" || true; exit 1; }
           [ -n "$APP" ] || { echo "FAIL — no .app inside DMG"; hdiutil detach "$MOUNT" || true; exit 1; }
