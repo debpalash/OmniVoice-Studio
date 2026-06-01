@@ -8,7 +8,8 @@
     "busy": "Voltooi eerst je nasynchronisatie — installeer daarna de update.",
     "whats_new": "Wat is er nieuw",
     "failed": "Update mislukt",
-    "retry": "Opnieuw proberen"
+    "retry": "Opnieuw proberen",
+    "dismiss": "Negeren"
   },
   "nav": {
     "clone": "Klonen",
@@ -183,7 +184,11 @@
     "locked": "GESLOTEN",
     "open": "Openen",
     "try_it": "Probeer het",
-    "audio_only": "Alleen audio"
+    "audio_only": "Alleen audio",
+    "stories_title": "Verhalen",
+    "stories_desc": "Audioboeken met meerdere stemmen: cast je personages, voeg een script toe en exporteer per hoofdstuk.",
+    "gallery_title": "Stemgalerij",
+    "gallery_desc": "Blader door kant-en-klare ontworpen stemmen op accent, leeftijd en stijl - geen installatie."
   },
   "clone": {
     "prompt": "Prompt",

@@ -8,7 +8,8 @@
     "busy": "Beende zuerst deine Synchronisation – dann installiere das Update.",
     "whats_new": "Was ist neu?",
     "failed": "Update fehlgeschlagen",
-    "retry": "Versuchen Sie es noch einmal"
+    "retry": "Versuchen Sie es noch einmal",
+    "dismiss": "Entlassen"
   },
   "nav": {
     "clone": "Klonen",
@@ -184,7 +185,11 @@
     "locked": "GESPERRT",
     "open": "Offen",
     "try_it": "Probieren Sie es aus",
-    "audio_only": "Nur Audio"
+    "audio_only": "Nur Audio",
+    "stories_title": "Geschichten",
+    "stories_desc": "Mehrsprachige Hörbücher – Besetzung Ihrer Charaktere, Einfügen eines Skripts, Export nach Kapitel.",
+    "gallery_title": "Sprachgalerie",
+    "gallery_desc": "Durchsuchen Sie vorgefertigte Stimmen nach Akzent, Alter und Stil – ohne Einrichtung."
   },
   "clone": {
     "prompt": "Prompt",

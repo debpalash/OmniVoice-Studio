@@ -8,7 +8,8 @@
     "busy": "Slutför din dubbning först – installera sedan uppdateringen.",
     "whats_new": "Vad är nytt",
     "failed": "Uppdateringen misslyckades",
-    "retry": "Försök igen"
+    "retry": "Försök igen",
+    "dismiss": "Avvisa"
   },
   "nav": {
     "clone": "Klona",
@@ -183,7 +184,11 @@
     "locked": "LÅST",
     "open": "Öppna",
     "try_it": "Prova det",
-    "audio_only": "Endast ljud"
+    "audio_only": "Endast ljud",
+    "stories_title": "Berättelser",
+    "stories_desc": "Ljudböcker med flera röster – cast dina karaktärer, släpp in ett manus, exportera efter kapitel.",
+    "gallery_title": "Röstgalleri",
+    "gallery_desc": "Bläddra bland färdigdesignade röster efter accent, ålder och stil – inga inställningar."
   },
   "clone": {
     "prompt": "Fråga",

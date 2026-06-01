@@ -8,7 +8,8 @@
     "busy": "请先完成配音，再安装更新。",
     "whats_new": "更新内容",
     "failed": "更新失败",
-    "retry": "重试"
+    "retry": "重试",
+    "dismiss": "解雇"
   },
   "stories": {
     "title": "故事编辑器",
@@ -120,6 +121,10 @@
     "design_desc": "用一句话构建新声线。性别、年龄、口音、情绪 — 由你决定。",
     "dub_title": "视频配音",
     "dub_desc": "转录、翻译、重新配音。保留每位说话人，对齐时间轴，然后导出。",
+    "stories_title": "故事",
+    "stories_desc": "多角色有声书——为角色分配语音，粘贴脚本，按章节导出。",
+    "gallery_title": "语音库",
+    "gallery_desc": "按口音、年龄和风格浏览现成的设计语音——无需设置。",
     "ab_compare": "A/B 对比",
     "ab_compare_title": "并排试听两个声音",
     "cloned_voices": "克隆语音",

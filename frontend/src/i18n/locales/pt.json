@@ -8,7 +8,8 @@
     "busy": "Termine sua dublagem primeiro — depois instale a atualização.",
     "whats_new": "O que há de novo",
     "failed": "Falha na atualização",
-    "retry": "Tentar novamente"
+    "retry": "Tentar novamente",
+    "dismiss": "Dispensar"
   },
   "nav": {
     "clone": "Clonar",
@@ -183,7 +184,11 @@
     "locked": "BLOQUEADO",
     "open": "Abrir",
     "try_it": "Experimente",
-    "audio_only": "Somente áudio"
+    "audio_only": "Somente áudio",
+    "stories_title": "Histórias",
+    "stories_desc": "Audiolivros com múltiplas vozes – escolha seus personagens, insira um roteiro, exporte por capítulo.",
+    "gallery_title": "Galeria de Voz",
+    "gallery_desc": "Procure vozes projetadas e prontas por sotaque, idade e estilo — sem configuração."
   },
   "clone": {
     "prompt": "Alerta",

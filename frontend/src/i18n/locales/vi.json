@@ -8,7 +8,8 @@
     "busy": "Hoàn tất lồng tiếng của bạn trước — rồi cài đặt bản cập nhật.",
     "whats_new": "Có gì mới",
     "failed": "Cập nhật không thành công",
-    "retry": "Thử lại"
+    "retry": "Thử lại",
+    "dismiss": "Loại bỏ"
   },
   "nav": {
     "clone": "Nhân bản",
@@ -183,7 +184,11 @@
     "locked": "ĐÃ KHÓA",
     "open": "Mở",
     "try_it": "Hãy thử nó",
-    "audio_only": "Chỉ âm thanh"
+    "audio_only": "Chỉ âm thanh",
+    "stories_title": "Truyện",
+    "stories_desc": "Sách nói nhiều giọng nói — chọn nhân vật, nhập tập lệnh, xuất theo chương.",
+    "gallery_title": "Thư viện giọng nói",
+    "gallery_desc": "Duyệt qua các giọng nói được thiết kế sẵn theo giọng, độ tuổi và phong cách — không cần thiết lập."
   },
   "clone": {
     "prompt": "Lời nhắc",

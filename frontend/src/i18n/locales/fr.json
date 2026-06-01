@@ -8,7 +8,8 @@
     "busy": "Terminez d'abord votre doublage, puis installez la mise à jour.",
     "whats_new": "Quoi de neuf",
     "failed": "La mise à jour a échoué",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "dismiss": "Rejeter"
   },
   "nav": {
     "clone": "Cloner",
@@ -184,7 +185,11 @@
     "locked": "VERROUILLÉ",
     "open": "Ouvert",
     "try_it": "Essayez-le",
-    "audio_only": "Audio uniquement"
+    "audio_only": "Audio uniquement",
+    "stories_title": "Histoires",
+    "stories_desc": "Livres audio multi-voix : lancez vos personnages, insérez un script, exportez par chapitre.",
+    "gallery_title": "Galerie vocale",
+    "gallery_desc": "Parcourez les voix prêtes à l’emploi par accent, âge et style – aucune configuration."
   },
   "clone": {
     "prompt": "Invite",

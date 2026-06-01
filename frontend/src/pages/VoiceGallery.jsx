@@ -242,8 +242,10 @@ function ArchetypesZone({
   const favSet = useMemo(() => new Set(favorites), [favorites]);
   const applyFav = (list) => (favOnly ? list.filter((a) => favSet.has(a.id)) : list);
 
+  // NOTE: no `key` here — React keys must be passed directly on the element,
+  // not spread in (spreading a `key` prop triggers a dev warning + is ignored).
   const cardProps = (a) => ({
-    key: a.id, a, t, viewMode,
+    a, t, viewMode,
     isFavorite: favSet.has(a.id),
     isPlaying: playingId === a.id,
     isLoadingPreview: loadingPreviewId === a.id,
@@ -308,7 +310,7 @@ function ArchetypesZone({
         <section className="archetype-section">
           <div className="content-header"><div className="content-title">{t('archetypes.featured', { defaultValue: 'Featured' })}</div></div>
           <div className={`archetype-grid ${viewMode}`}>
-            {applyFav(featured).map((a) => <ArchetypeCard {...cardProps(a)} />)}
+            {applyFav(featured).map((a) => <ArchetypeCard key={a.id} {...cardProps(a)} />)}
           </div>
         </section>
       )}
@@ -325,7 +327,7 @@ function ArchetypesZone({
         ) : (
           <>
             <div className={`archetype-grid ${viewMode}`}>
-              {applyFav(browse).map((a) => <ArchetypeCard {...cardProps(a)} />)}
+              {applyFav(browse).map((a) => <ArchetypeCard key={a.id} {...cardProps(a)} />)}
             </div>
             {applyFav(browse).length === 0 && (
               <div className="empty">{t('gallery.no_matches', { defaultValue: 'No voices match these filters.' })}</div>

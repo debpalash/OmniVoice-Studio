@@ -8,7 +8,8 @@
     "busy": "먼저 더빙을 완료한 후 업데이트를 설치하세요.",
     "whats_new": "새로운 소식",
     "failed": "업데이트 실패",
-    "retry": "재시도"
+    "retry": "재시도",
+    "dismiss": "닫기"
   },
   "nav": {
     "clone": "복제",
@@ -183,7 +184,11 @@
     "locked": "잠김",
     "open": "열기",
     "try_it": "사용해 보세요",
-    "audio_only": "오디오만"
+    "audio_only": "오디오만",
+    "stories_title": "스토리",
+    "stories_desc": "다중 음성 오디오북 — 캐릭터 캐스팅, 스크립트 삽입, 장별로 내보내기.",
+    "gallery_title": "보이스 갤러리",
+    "gallery_desc": "악센트, 연령, 스타일별로 미리 디자인된 음성을 찾아보세요. 설정이 필요 없습니다."
   },
   "clone": {
     "prompt": "프롬프트",

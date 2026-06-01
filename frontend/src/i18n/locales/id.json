@@ -8,7 +8,8 @@
     "busy": "Selesaikan sulih suara Anda dulu — lalu instal pembaruannya.",
     "whats_new": "Apa yang baru",
     "failed": "Pembaruan gagal",
-    "retry": "Coba lagi"
+    "retry": "Coba lagi",
+    "dismiss": "Singkirkan"
   },
   "nav": {
     "clone": "Kloning",
@@ -183,7 +184,11 @@
     "locked": "TERKUNCI",
     "open": "Buka",
     "try_it": "Cobalah",
-    "audio_only": "Hanya Audio"
+    "audio_only": "Hanya Audio",
+    "stories_title": "Cerita",
+    "stories_desc": "Buku audio multi-suara — masukkan karakter Anda, masukkan skrip, ekspor per bab.",
+    "gallery_title": "Galeri Suara",
+    "gallery_desc": "Telusuri suara rancangan siap pakai berdasarkan aksen, usia, dan gaya — tanpa penyiapan."
   },
   "clone": {
     "prompt": "Cepat",

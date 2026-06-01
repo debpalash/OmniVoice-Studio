@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import {
-  Scale, Fingerprint, Wand2, Film, Lock,
+  Scale, Fingerprint, Wand2, Film, Lock, BookOpen, LibraryBig,
 } from 'lucide-react';
 import { API } from '../api/client';
 import ReadinessChecklist from '../components/ReadinessChecklist';
@@ -137,6 +137,12 @@ export default function Launchpad({
         </ActionCard>
         <ActionCard hue="#fe8019" Icon={Film} title={t('launchpad.dub_title')} accent="🎬" count={studioProjects.length} onClick={() => setMode('dub')}>
           {t('launchpad.dub_desc')}
+        </ActionCard>
+        <ActionCard hue="#83a598" Icon={BookOpen} title={t('launchpad.stories_title')} accent="📖" onClick={() => setMode('stories')}>
+          {t('launchpad.stories_desc')}
+        </ActionCard>
+        <ActionCard hue="#fabd2f" Icon={LibraryBig} title={t('launchpad.gallery_title')} accent="🎭" onClick={() => setMode('gallery')}>
+          {t('launchpad.gallery_desc')}
         </ActionCard>
       </div>
 

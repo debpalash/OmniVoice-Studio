@@ -8,7 +8,8 @@
     "busy": "請先完成配音，再安裝更新。",
     "whats_new": "有什麼新消息",
     "failed": "更新失敗",
-    "retry": "重試"
+    "retry": "重試",
+    "dismiss": "解僱"
   },
   "nav": {
     "clone": "複製聲音",
@@ -183,7 +184,11 @@
     "locked": "鎖定",
     "open": "打開",
     "try_it": "嘗試一下",
-    "audio_only": "僅音訊"
+    "audio_only": "僅音訊",
+    "stories_title": "故事",
+    "stories_desc": "多語音有聲書 — 塑造角色、插入劇本、依章節導出。",
+    "gallery_title": "語音畫廊",
+    "gallery_desc": "按口音、年齡和風格瀏覽現成的設計聲音 - 無需設定。"
   },
   "clone": {
     "prompt": "提示",

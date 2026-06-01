@@ -8,7 +8,8 @@
     "busy": "Önce dublajını bitir — sonra güncellemeyi yükle.",
     "whats_new": "Yenilikler",
     "failed": "Güncelleme başarısız oldu",
-    "retry": "Yeniden dene"
+    "retry": "Yeniden dene",
+    "dismiss": "Reddet"
   },
   "nav": {
     "clone": "Klonla",
@@ -183,7 +184,11 @@
     "locked": "KİLİTLİ",
     "open": "Açık",
     "try_it": "Deneyin",
-    "audio_only": "Yalnızca Ses"
+    "audio_only": "Yalnızca Ses",
+    "stories_title": "Hikayeler",
+    "stories_desc": "Çok sesli sesli kitaplar — karakterlerinizi yayınlayın, bir komut dosyası ekleyin, bölüme göre dışa aktarın.",
+    "gallery_title": "Ses Galerisi",
+    "gallery_desc": "Hazır tasarlanmış seslere aksan, yaş ve stile göre göz atın; kurulum gerektirmez."
   },
   "clone": {
     "prompt": "İstemi",

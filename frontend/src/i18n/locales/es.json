@@ -8,7 +8,8 @@
     "busy": "Termina tu doblaje primero — luego instala la actualización.",
     "whats_new": "¿Qué hay de nuevo?",
     "failed": "La actualización falló",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "dismiss": "Descartar"
   },
   "nav": {
     "clone": "Clonar",
@@ -184,7 +185,11 @@
     "locked": "BLOQUEADO",
     "open": "Abierto",
     "try_it": "Pruébalo",
-    "audio_only": "Sólo audio"
+    "audio_only": "Sólo audio",
+    "stories_title": "Historias",
+    "stories_desc": "Audiolibros con varias voces: elige tus personajes, introduce un guión y exporta por capítulo.",
+    "gallery_title": "Galería de voz",
+    "gallery_desc": "Explore voces diseñadas ya preparadas por acento, edad y estilo, sin configuración."
   },
   "clone": {
     "prompt": "rápido",

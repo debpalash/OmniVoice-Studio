@@ -8,7 +8,8 @@
     "busy": "Najpierw dokończ dubbing — potem zainstaluj aktualizację.",
     "whats_new": "Co nowego?",
     "failed": "Aktualizacja nie powiodła się",
-    "retry": "Spróbuj ponownie"
+    "retry": "Spróbuj ponownie",
+    "dismiss": "Odrzuć"
   },
   "nav": {
     "clone": "Klonuj",
@@ -183,7 +184,11 @@
     "locked": "ZABLOKOWANE",
     "open": "Otwórz",
     "try_it": "Spróbuj",
-    "audio_only": "Tylko dźwięk"
+    "audio_only": "Tylko dźwięk",
+    "stories_title": "Historie",
+    "stories_desc": "Audiobooki z wieloma głosami — rzucaj postaciami, wstawiaj scenariusz, eksportuj według rozdziałów.",
+    "gallery_title": "Galeria Głosów",
+    "gallery_desc": "Przeglądaj gotowe, zaprojektowane głosy według akcentu, wieku i stylu — bez konieczności konfiguracji."
   },
   "clone": {
     "prompt": "Podpowiedź",
