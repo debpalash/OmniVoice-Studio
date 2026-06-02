@@ -7,7 +7,7 @@
   <p>
     <a href="https://github.com/debpalash/OmniVoice-Studio/stargazers"><img src="https://img.shields.io/github/stars/debpalash/OmniVoice-Studio?style=flat-square&color=f59e0b" alt="Stars" /></a>
     <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/github/v/release/debpalash/OmniVoice-Studio?style=flat-square&color=10b981" alt="Release" /></a>
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-FSL--1.1--ALv2-blue?style=flat-square" alt="License" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0%20%2B%20Commercial-blue?style=flat-square" alt="License" /></a>
     <a href="https://github.com/debpalash/OmniVoice-Studio/issues"><img src="https://img.shields.io/github/issues/debpalash/OmniVoice-Studio?style=flat-square&color=ef4444" alt="Issues" /></a>
     <a href="https://discord.gg/bzQavDfVV9"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord" /></a>
   </p>
@@ -187,7 +187,7 @@ ElevenLabs charges **$5–$330/mo** and processes your audio on their servers. O
 
 | | **ElevenLabs** | **OmniVoice Studio** |
 |---|---|---|
-| **Pricing** | $5–$330/mo, per-character billing | Free for personal use · [Commercial license](#license) for business |
+| **Pricing** | $5–$330/mo, per-character billing | Open-source (AGPL-3.0) · [Commercial license](#license) to embed/redistribute/host |
 | **Voice Cloning** | ✅ 3s clip | ✅ 3s clip, zero-shot |
 | **Voice Design** | ✅ Gender, age | ✅ Gender, age, accent, pitch, style, dialect |
 | **Languages** | 32 | **646** |
@@ -358,7 +358,7 @@ Yes. MPS acceleration is auto-detected. MLX-optimized Whisper models are availab
 <details>
 <summary><b>Can I use this commercially?</b></summary>
 <br/>
-Personal, educational, internal-team, and non-commercial use is free under <a href="https://fsl.software/">FSL-1.1-ALv2</a>. Building a competing product or service on top of OmniVoice Studio requires a commercial license — see <a href="#license">License</a>. Pricing tiers coming soon. Each release converts to Apache 2.0 two years after publication.
+Yes. OmniVoice Studio is open source under the <a href="https://www.gnu.org/licenses/agpl-3.0.en.html">GNU AGPL-3.0</a> — you're free to use, modify, and self-host it under the AGPL's terms (which require making source available to anyone you distribute to or who interacts with it over a network). A <a href="#license">commercial license</a> is available if you need to embed, redistribute, white-label, or offer OmniVoice as a hosted/SaaS service <em>without</em> AGPL's copyleft obligations. Commercial pricing is being finalized.
 </details>
 
 <details>
@@ -377,11 +377,12 @@ Yes. OmniVoice uses a <b>built-in backend registry</b>. To add an engine in ~50 
 
 ## License
 
-OmniVoice Studio is source-available under the [**Functional Source License (FSL-1.1-ALv2)**](https://fsl.software/).
+OmniVoice Studio is **dual-licensed**:
 
-**Free** for personal, educational, research, internal team, and non-commercial use. Each release **converts to Apache 2.0 automatically two years after publication**.
+- **Open source — [GNU AGPL-3.0-or-later](https://www.gnu.org/licenses/agpl-3.0.en.html).** Free to use, modify, and self-host under the AGPL's terms, which require making corresponding source available to anyone you distribute to or who interacts with the Software over a network.
+- **Commercial license** — for using OmniVoice **without** the AGPL's copyleft / source-disclosure obligations: embedding it in a closed-source product, redistributing it, white-labeling, or offering it as a hosted/SaaS service. See [`LICENSE-COMMERCIAL.md`](LICENSE-COMMERCIAL.md). **Pricing is being finalized** — for inquiries, reach out at **OmniVoice@palash.dev**.
 
-**Business / enterprise** users building a competing product or service on top of OmniVoice Studio need a commercial license. **Pricing tiers coming soon.** For inquiries in the meantime, reach out at **OmniVoice@palash.dev**.
+The bundled `omnivoice/` TTS model (by Han Zhu) is separately licensed under **Apache 2.0** upstream and is not relicensed here.
 
 See [`LICENSE`](LICENSE) for the full terms.
 
