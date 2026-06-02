@@ -247,7 +247,14 @@ async def preview_archetype(archetype_id: str):
                     f"unavailable. See Settings → Logs → Backend. Error: {e}"
                 ),
             )
-    return FileResponse(str(cache_path), media_type="audio/wav")
+    # no-cache (not no-store): the URL is stable but its bytes change when an
+    # archetype's preview is re-rendered, so force the client to revalidate
+    # against the ETag instead of serving a stale cached clip indefinitely.
+    return FileResponse(
+        str(cache_path),
+        media_type="audio/wav",
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 @router.post("/archetypes/{archetype_id}/use")

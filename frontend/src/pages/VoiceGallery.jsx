@@ -97,7 +97,10 @@ export default function VoiceGallery() {
     stopPlayback();
     setLoadingPreviewId(id);
     try {
-      const resp = await fetch(fullUrl);
+      // no-store: preview audio is re-rendered server-side when an archetype is
+      // fixed/changed, but the URL is stable. Without this the WebView's HTTP
+      // cache replays the first clip it ever fetched (a stale render) forever.
+      const resp = await fetch(fullUrl, { cache: 'no-store' });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const blob = await resp.blob();
       setPlayingId(id);
