@@ -1592,7 +1592,7 @@
     "up_to_date": "最新 · v{{version}}",
     "check_now": "今すぐチェック",
     "releases": "リリース",
-    "current": "現在の",
+    "current": "現在",
     "prerelease": "プレビュー",
     "loading": "リリースを読み込み中…",
     "none": "リリースが見つかりませんでした",

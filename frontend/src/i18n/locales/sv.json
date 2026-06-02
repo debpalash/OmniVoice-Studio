@@ -1590,12 +1590,12 @@
     "tab": "Uppdateringar",
     "up_to_date": "Uppdaterad · v{{version}}",
     "check_now": "Kolla nu",
-    "releases": "Släpps",
+    "releases": "Utgåvor",
     "current": "nuvarande",
     "prerelease": "förhandsgranskning",
-    "loading": "Läser in versioner...",
-    "none": "Inga releaser hittades",
-    "load_error": "Det gick inte att läsa in versioner (offline?)",
+    "loading": "Läser in utgåvor...",
+    "none": "Inga utgåvor hittades",
+    "load_error": "Det gick inte att läsa in utgåvor (offline?)",
     "retry_load": "Försök igen"
   }
 }

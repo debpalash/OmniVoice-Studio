@@ -1589,7 +1589,7 @@
   "updates": {
     "tab": "更新",
     "up_to_date": "最新·v{{version}}",
-    "check_now": "立即查看",
+    "check_now": "立即檢查",
     "releases": "發布",
     "current": "目前",
     "prerelease": "預覽",

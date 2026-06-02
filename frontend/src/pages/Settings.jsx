@@ -1090,7 +1090,7 @@ export default function Settings() {
       const next = await setChannel(useAppStore.getState(), ch);
       toast.success(t('about.channel_set', { channel: t(`about.channel_${next}`) }));
     } catch (e) {
-      toast.error(`Failed to set channel: ${e?.message || e}`);
+      toast.error(t('settings.channel_set_failed', { message: e?.message || e }));
     }
   }, [t]);
 
