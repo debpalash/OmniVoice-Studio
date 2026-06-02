@@ -7,6 +7,7 @@ import { Check, ArrowUp, Loader, RotateCw, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '../store';
 import { chipPresentation } from '../utils/updatePresentation';
 import { installUpdate } from '../utils/updater';
+import toast from 'react-hot-toast';
 import './UpdateStatusChip.css';
 
 const ICONS = { check: Check, up: ArrowUp, spin: Loader, restart: RotateCw, alert: AlertTriangle };
@@ -17,6 +18,7 @@ export default function UpdateStatusChip({ onOpen }) {
   const version = useAppStore((s) => s.updateVersion);
   const appVersion = useAppStore((s) => s.appVersion);
   const progress = useAppStore((s) => s.updateProgress);
+  const dubStep = useAppStore((s) => s.dubStep);
 
   const p = chipPresentation(status, { appVersion, version, progress });
   if (!p) return null;
@@ -30,9 +32,14 @@ export default function UpdateStatusChip({ onOpen }) {
     error: t('update.failed'),
   }[p.variant];
 
-  // ready/error stay one-click (preserve today's behavior); others open the panel.
+  // ready stays one-click (preserve today's behavior); others open the panel.
   const onClick = () => {
-    if (p.variant === 'ready') { installUpdate(useAppStore.getState()); return; }
+    if (p.variant === 'ready') {
+      // Don't relaunch out from under an in-flight dub/transcription job.
+      if (dubStep === 'generating') { toast(t('update.busy'), { icon: '⏳' }); return; }
+      installUpdate(useAppStore.getState());
+      return;
+    }
     onOpen?.();
   };
 
