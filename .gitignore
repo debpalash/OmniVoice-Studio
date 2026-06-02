@@ -131,3 +131,6 @@ marketing.md
 
 playwright-report/
 .last-run.json
+
+# probe — generated HTML reports
+tests/probe/reports/

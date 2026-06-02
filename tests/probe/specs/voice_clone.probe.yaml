@@ -1,0 +1,42 @@
+# Example probe spec — L4 voice-cloning verification.
+#
+# Demonstrates the full shape: blocking correctness checks, a speaker-similarity
+# check that SKIPS gracefully when no embedding backend is installed, and the
+# non-blocking advisory lane (where naturalness predictors like UTMOS/SQUIM
+# would slot in — they never gate).
+
+feature: voice-cloning
+layer: media
+
+setup:
+  fixture: ephemeral-backend
+  deterministic: { seed: 1234, temperature: 0 }
+
+steps:
+  - actor: api
+    call: POST /generate
+    body:
+      text: "Cloning my voice from a short reference."
+      ref_audio: ref_en_3s.wav
+      language: en
+    capture:
+      audio: $.output_path
+      ref: $.ref_path
+
+judge:
+  subject: $.audio
+  checks:
+    - artifact_exists
+    - decodes
+    - duration_between: [0.8, 6.0]
+    - not_silent: { rms_floor_db: -45 }
+    - asr_wer_below:
+        expected: "Cloning my voice from a short reference."
+        max: 0.2
+    # SKIPs unless `uv add resemblyzer` (or an ECAPA/WavLM embedder is injected).
+    - speaker_similarity_above: { ref: $.ref, gen: $.audio, min: 0.70 }
+
+advisory:
+  # Placeholder for UTMOS / TorchAudio-SQUIM / TTSDS2 naturalness trend.
+  # Non-blocking by design — reported, never gates.
+  - not_clipping: { peak_ceiling: 0.99 }

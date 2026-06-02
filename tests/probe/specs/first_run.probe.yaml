@@ -1,0 +1,38 @@
+# L5 env/first-run spec — the path a brand-new user hits.
+#
+# Actor: boot the backend against an EMPTY data dir (true first-run), then GET
+# the lowest-cost endpoints. The test wires the Actor and captures status/body/
+# latency + on-disk first-run artifacts into the context.
+
+feature: first-run
+layer: env
+
+setup:
+  fixture: fresh-data-dir        # empty OMNIVOICE_DATA_DIR → exercises DB init
+
+steps:
+  - actor: env
+    probe: ["GET /health", "GET /system/info", "GET /model/status"]
+    capture:
+      health_status: $.health_status
+      health_body: $.health_body
+      data_dir: $.data_dir
+      db_path: $.db_path
+
+judge:
+  checks:
+    # Health: the canonical liveness probe (release.yml uses it too).
+    - status_eq: { actual: $.health_status, expected: 200 }
+    - json_field_eq: { obj: $.health_body, key: status, value: ok }
+    - json_has: { obj: $.health_body, key: device }
+    - responds_within_ms: { elapsed_ms: $.health_ms, max: 5000 }
+    # System info resolves the data dir (loopback-gated route reachable).
+    - status_eq: { actual: $.sysinfo_status, expected: 200 }
+    - json_has: { obj: $.sysinfo_body, key: data_dir }
+    # Model status route answers even with the model short-circuited.
+    - status_eq: { actual: $.model_status, expected: 200 }
+    # First-run side effects actually happened on disk.
+    - path_exists: { target: $.data_dir }
+    - path_exists: { target: $.db_path }
+
+advisory: []

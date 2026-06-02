@@ -1,0 +1,28 @@
+# L2 web spec — the Launchpad (app home) renders.
+#
+# Actor: a Playwright-driven WebDriver (self-healing) navigates to the app and
+# captures the live `page` into the context. The deterministic judges below
+# render the verdict from observable page state — the Driver never judges.
+#
+# Runs live only when Playwright + the frontend (`bun run dev` on :3901) are
+# available; otherwise test_probe_web.py skips it. The judges themselves are
+# page-protocol based, so they're also exercised offline against a FakePage.
+
+feature: launchpad
+layer: web
+
+setup:
+  fixture: web-frontend
+  base_url: http://localhost:3901
+
+steps:
+  - actor: web
+    goto: /
+    capture: { page: $.page }
+
+judge:
+  checks:
+    - web_url_matches: { page: $.page, pattern: "localhost:3901|127\\.0\\.0\\.1" }
+    - web_visible: { page: $.page, selector: "#root" }
+
+advisory: []

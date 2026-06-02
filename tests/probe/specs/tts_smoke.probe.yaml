@@ -1,0 +1,40 @@
+# Example probe spec — L4 media verification for a single TTS synthesis.
+#
+# The Actor (POST /generate) is executed by the per-layer runner / a pytest
+# fixture, which captures the output path into the run context as `audio`.
+# This engine then renders the deterministic verdict below.
+#
+# NOTE: there is intentionally NO golden-WAV comparison. We gate on *metrics*
+# that survive the CUDA/MPS/ROCm/CPU matrix, not on waveform bytes.
+
+feature: tts-synthesis
+layer: media
+
+setup:
+  fixture: ephemeral-backend
+  deterministic: { seed: 1234, temperature: 0 }
+
+steps:
+  - actor: api
+    call: POST /generate
+    body:
+      text: "The quick brown fox jumps over the lazy dog."
+      language: en
+    capture: { audio: $.output_path }
+
+judge:
+  subject: $.audio          # subject-taking audio judges default to this artifact
+  checks:
+    - artifact_exists
+    - decodes
+    - no_nan
+    - not_clipping: { peak_ceiling: 0.999 }
+    - duration_between: [1.0, 6.0]
+    - not_silent: { rms_floor_db: -45 }
+    - asr_wer_below:
+        expected: "The quick brown fox jumps over the lazy dog."
+        max: 0.15
+
+# Non-blocking. Reported as a trend, never gates — naturalness predictors fail
+# out-of-domain and most of 646 languages is out-of-domain for them.
+advisory: []
