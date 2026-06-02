@@ -80,7 +80,7 @@ export default function UpdatesPanel() {
               role="radio"
               aria-checked={channel === c}
               className={`updates-panel__segbtn ${channel === c ? 'is-active' : ''}`}
-              onClick={() => setChannel(useAppStore.getState(), c)}
+              onClick={() => setChannel(useAppStore.getState(), c).catch((e) => toast(t('settings.channel_set_failed', { message: e?.message || e }), { icon: '⚠️' }))}
             >
               {t(`about.channel_${c}`)}
             </button>
