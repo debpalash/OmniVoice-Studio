@@ -50,6 +50,6 @@ def test_required_fields_present():
 
 
 def test_known_404_repo_ids_absent():
-    ids = {m["repo_id"] for m in _models()}
+    ids = {m.get("repo_id", "") for m in _models()}
     leaked = ids & _KNOWN_BAD
     assert not leaked, f"known-404 repo IDs reintroduced (issue #239): {leaked}"

@@ -62,7 +62,7 @@ models:
     label: "Whisper large-v3 Turbo (5× faster, 0.8B)"
     role: ASR
     size_gb: 1.6
-    note: "Best speed/quality tradeoff. 5× faster than large-v3 with minimal WER loss. CTranslate2 build (Systran publishes no turbo repo)."
+    note: "Best speed/quality tradeoff. 5× faster than large-v3 with minimal WER loss. Community CTranslate2 conversion (no official Systran/OpenAI turbo repo) — re-verify availability on catalog audits."
 
   - repo_id: "Systran/faster-distil-whisper-large-v3"
     label: "Distil-Whisper large-v3 (distilled, fast)"
