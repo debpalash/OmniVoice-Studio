@@ -38,6 +38,8 @@ enigo = { version = "0.3", features = ["serde"] }
 # bundled pyproject.toml — which installs torch, whisperx, etc.
 # ureq is used for HTTP health checks and ffmpeg downloads.
 ureq = "2"
+# reqwest is used for GitHub Releases API calls (list_releases command).
+reqwest = { version = "0.13", features = ["json"] }
 
 # ── Rust IPC commands (cross-platform) ──
 # get_sysinfo: CPU + RAM metrics without HTTP round-trip

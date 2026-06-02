@@ -100,3 +100,64 @@ pub async fn install_update(app: AppHandle, channel: String) -> Result<(), Strin
         .map_err(|e| e.to_string())?;
     Ok(())
 }
+
+// ── GitHub releases (changelog/history panel) ─────────────────────────────
+
+const RELEASES_API: &str =
+    "https://api.github.com/repos/debpalash/OmniVoice-Studio/releases?per_page=30";
+
+#[derive(Serialize)]
+pub struct ReleaseInfo {
+    pub version: String,
+    pub name: String,
+    pub date: String,
+    pub prerelease: bool,
+    pub notes: String,
+}
+
+/// Fetch the project's GitHub releases for the changelog/history panel.
+/// `channel` is accepted for symmetry with the other update commands; channel
+/// filtering is applied on the frontend (prepareReleases) so this returns all.
+#[tauri::command]
+pub async fn list_releases(_channel: String) -> Result<Vec<ReleaseInfo>, String> {
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(RELEASES_API)
+        .header("User-Agent", "OmniVoice-Studio")
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await
+        .map_err(|e| format!("releases request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(format!("releases request status {}", resp.status()));
+    }
+    let arr: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("releases parse failed: {e}"))?;
+    let mut out = Vec::new();
+    if let Some(items) = arr.as_array() {
+        for it in items {
+            let tag = it.get("tag_name").and_then(|v| v.as_str()).unwrap_or("");
+            out.push(ReleaseInfo {
+                version: tag.trim_start_matches('v').to_string(),
+                name: it
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or(tag)
+                    .to_string(),
+                date: it
+                    .get("published_at")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .chars()
+                    .take(10)
+                    .collect(),
+                prerelease: it.get("prerelease").and_then(|v| v.as_bool()).unwrap_or(false),
+                notes: it.get("body").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            });
+        }
+    }
+    Ok(out)
+}

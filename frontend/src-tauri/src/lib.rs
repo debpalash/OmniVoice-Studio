@@ -101,6 +101,7 @@ pub fn run() {
             config::set_update_channel,
             updater_channel::check_update,
             updater_channel::install_update,
+            updater_channel::list_releases,
             commands::get_sysinfo,
             commands::read_log_tail,
             commands::hf_cache_scan,
