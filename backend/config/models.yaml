@@ -58,11 +58,11 @@ models:
     size_gb: 0.08
     platforms: [darwin-arm64]
 
-  - repo_id: "Systran/faster-whisper-large-v3-turbo"
+  - repo_id: "deepdml/faster-whisper-large-v3-turbo-ct2"
     label: "Whisper large-v3 Turbo (5× faster, 0.8B)"
     role: ASR
     size_gb: 1.6
-    note: "Best speed/quality tradeoff. 5× faster than large-v3 with minimal WER loss."
+    note: "Best speed/quality tradeoff. 5× faster than large-v3 with minimal WER loss. CTranslate2 build (Systran publishes no turbo repo)."
 
   - repo_id: "Systran/faster-distil-whisper-large-v3"
     label: "Distil-Whisper large-v3 (distilled, fast)"
@@ -110,11 +110,11 @@ models:
     size_gb: 0.12
     note: "Variable-length processing, sub-200ms latency. Great for CPU/edge. Requires moonshine-onnx."
 
-  - repo_id: "UsefulSensors/moonshine-small"
-    label: "Moonshine small (edge-optimized, 300M, ONNX)"
+  - repo_id: "UsefulSensors/moonshine-tiny"
+    label: "Moonshine tiny (edge-optimized, 27M, ONNX)"
     role: ASR
-    size_gb: 0.6
-    note: "Higher accuracy than base, still fast. Requires moonshine-onnx."
+    size_gb: 0.05
+    note: "Smallest/fastest Moonshine, sub-200ms latency. Lower accuracy than base. Requires moonshine-onnx."
 
   # ── Diarisation ───────────────────────────────────────────────────────
 
