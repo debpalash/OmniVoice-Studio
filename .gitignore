@@ -129,3 +129,5 @@ marketing.md
 .claude/skills/speckit-*/
 .antigravitycli/
 
+playwright-report/
+.last-run.json
