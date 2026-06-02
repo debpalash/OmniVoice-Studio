@@ -39,8 +39,10 @@ import type { UpdaterSlice } from './updaterSlice';
 import { createUpdaterSlice } from './updaterSlice';
 import type { GallerySlice } from './gallerySlice';
 import { createGallerySlice } from './gallerySlice';
+import type { ReleasesSlice } from './releasesSlice';
+import { createReleasesSlice } from './releasesSlice';
 
-export type AppStore = PrefsSlice & GlossarySlice & UiSlice & DubSlice & GenerateSlice & PillSlice & StoriesSlice & UpdaterSlice & GallerySlice;
+export type AppStore = PrefsSlice & GlossarySlice & UiSlice & DubSlice & GenerateSlice & PillSlice & StoriesSlice & UpdaterSlice & GallerySlice & ReleasesSlice;
 
 /**
  * `useAppStore` — single root store. Don't create siblings. Slices compose here.
@@ -61,6 +63,7 @@ export const useAppStore = create<AppStore>()(
       ...createStoriesSlice(set, get, api),
       ...createUpdaterSlice(set, get, api),  // transient — not in partialize
       ...createGallerySlice(set, get, api),
+      ...createReleasesSlice(set, get, api),  // transient — not in partialize
     }),
     {
       name: 'omnivoice.app',
