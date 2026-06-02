@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { copyText } from "../utils/copyText";
 import {
   ChevronUp, ChevronDown, RefreshCw, Trash2, Copy, Bug, X,
-  AlertTriangle, AlertCircle, Info, FileText, Heart,
+  AlertTriangle, AlertCircle, Info, FileText, Heart, Download,
 } from 'lucide-react';
+import UpdatesPanel from './UpdatesPanel';
+import UpdateStatusChip from './UpdateStatusChip';
 import toast from 'react-hot-toast';
 import { clearSystemLogs, clearTauriLogs } from '../api/system';
 import { useSystemLogs, useTauriLogs, useClearLogs, useClearTauriLogs } from '../api/hooks';
@@ -25,6 +27,7 @@ const SOURCES = [
   { id: 'backend',  label: 'Backend',  icon: FileText },
   { id: 'frontend', label: 'Frontend', icon: FileText },
   { id: 'tauri',    label: 'Tauri',    icon: FileText },
+  { id: 'updates',  label: 'Updates',  icon: Download },
   // Notifications used to live here as a 4th pill but that duplicated the
   // header's bell+badge (single source of truth for notifications). The
   // footer is logs-only now; bell handles notifications.
@@ -253,6 +256,7 @@ export default function LogsFooter() {
     backend:  countLevels(lines.backend),
     frontend: countLevels(lines.frontend),
     tauri:    countLevels(lines.tauri),
+    updates:  { error: 0, warn: 0, total: 0 },
     notifications: {
       error: notifications.filter(n => n.level === 'error').length,
       warn: notifications.filter(n => n.level === 'warn').length,
@@ -392,6 +396,7 @@ export default function LogsFooter() {
               </button>
             </div>
           )}
+          <UpdateStatusChip onOpen={() => openTo('updates')} />
           <NetworkToggle />
           <button
             type="button"
@@ -414,7 +419,13 @@ export default function LogsFooter() {
         </div>
       </div>
 
-      {!collapsed && active !== 'notifications' && (
+      {!collapsed && active === 'updates' && (
+        <div className="logs-footer__body">
+          <UpdatesPanel />
+        </div>
+      )}
+
+      {!collapsed && active !== 'notifications' && active !== 'updates' && (
         <div ref={scrollRef} className="logs-footer__body">
           {current.length === 0 && (
             <div className="logs-footer__empty">

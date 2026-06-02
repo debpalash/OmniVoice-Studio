@@ -26,7 +26,6 @@ const TranscriptionsPage = lazy(() => import('./pages/Transcriptions'));
 const StoriesEditor = lazy(() => import('./components/StoriesEditor'));
 
 import Header from './components/Header';
-import UpdateBadge from './components/UpdateBadge';
 import NavRail from './components/NavRail';
 import ErrorBoundary from './components/ErrorBoundary';
 import FloatingPill from './components/FloatingPill';
@@ -61,7 +60,8 @@ import { saveProject as apiSaveProject, loadProject as apiLoadProject, deletePro
 import { exportAction, exportReveal, exportRecord } from './api/exports';
 
 import { isTauri, doubleClickMaximize, fileToMediaUrl, playBlobAudio, playPing } from './utils/media';
-import { checkForUpdate } from './utils/updater';
+import { checkForUpdate, fetchAppVersion } from './utils/updater';
+import { syncChannel } from './utils/channelControl';
 import i18n from './i18n';
 
 function App() {
@@ -394,9 +394,11 @@ function App() {
     if (typeof window === 'undefined') return;
     if (!('__TAURI_INTERNALS__' in window)) return;
     if (import.meta.env.DEV) return;
-    // Non-blocking: surface availability into the store. The UpdateBadge lets
-    // the user install + restart when they choose (with a progress bar), so an
-    // update never interrupts in-flight work.
+    // Non-blocking: surface availability into the store. The UpdateStatusChip
+    // in LogsFooter lets the user install + restart when they choose (with a
+    // progress bar), so an update never interrupts in-flight work.
+    fetchAppVersion().then(v => useAppStore.getState().setAppVersion(v));
+    syncChannel(useAppStore.getState());
     checkForUpdate(useAppStore.getState());
     // Re-check periodically so a long-running session still gets notified, not
     // only at boot. checkForUpdate no-ops while a download/restart is already
@@ -849,7 +851,6 @@ function App() {
       <FloatingPill />
 
 
-      <UpdateBadge />
       <Header
         mode={mode} setMode={setMode}
         sysStats={sysStats} modelStatus={modelStatus}
