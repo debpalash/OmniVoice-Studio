@@ -49,20 +49,47 @@
 /* We're migrating to the ui/ Tabs primitive — keep a thin class so the old
    .settings-tabs gradient-above space stays; the Tabs primitive itself
    carries visual styling. */
-.settings-tabs-ui { margin-bottom: var(--space-5); }
+/* The .settings-content bridge owns the gap below the bar (see below). */
+.settings-tabs-ui { margin-bottom: 0; }
 
 /* The settings sub-nav has 10 tabs (General…Privacy). The base .ui-tabs is a
    non-wrapping inline-flex row, so on a narrow Settings pane the later tabs
    (Credentials/Logs/About/Privacy) overflow and clip out of view. Scope a wrap
    to this nav only (the shared primitive is unchanged) so every tab stays
    reachable — the pill bar grows to 2 rows instead of running off-screen.
-   `.ui-tabs.settings-tabs-ui` outranks `.ui-tabs` so the display/flex overrides
-   take regardless of stylesheet order. */
+   `.ui-tabs.settings-tabs-ui` outranks `.ui-tabs` so the overrides take
+   regardless of stylesheet order. */
 .ui-tabs.settings-tabs-ui {
   display: flex;
   flex-wrap: wrap;
   max-width: 100%;
   row-gap: 3px;
+}
+
+/* Active tab adopts its own semantic accent (TAB_DEFS) instead of the global
+   pink, so that colour can be echoed on the content edge below as the visual
+   "connection". --ui-tab-accent is set per-trigger by the Tabs primitive.
+   Scoped to the settings nav only. */
+.ui-tabs.settings-tabs-ui .ui-tabs__tab.is-active {
+  background: color-mix(in srgb, var(--ui-tab-accent) 14%, transparent);
+  color: var(--ui-tab-accent);
+  border-color: color-mix(in srgb, var(--ui-tab-accent) 42%, transparent);
+}
+.ui-tabs.settings-tabs-ui .ui-tabs__tab.is-active .ui-tabs__icon {
+  color: var(--ui-tab-accent);
+}
+
+/* Tab → content connection. The panel opens with a hairline painted in the
+   active tab's accent (threaded in as --settings-accent by Settings.jsx), so
+   the coloured active tab above and the coloured content edge below read as a
+   single unit — subtle (a 1px rule blended toward the chrome border), not a
+   slab, and wrap-proof (colour carries the meaning, not position). The margin
+   + padding give the panel deliberate breathing room under the bar. */
+.settings-content {
+  margin-top: var(--space-4);
+  padding-top: var(--space-5);
+  border-top: 1px solid color-mix(in srgb, var(--settings-accent) 32%, var(--chrome-border) 68%);
+  transition: border-color var(--dur-fast, 120ms) var(--ease-out, ease);
 }
 
 /* ── Engines tab ─────────────────────────────────────────────── */

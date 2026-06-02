@@ -1248,8 +1248,13 @@ export default function Settings() {
   : status?.status === 'loading' ? <Badge tone="warn"><RefreshCw size={11} className="spinner" /> {t('models.loading_badge')}</Badge>
                                  : <Badge tone="warn">{t('models.idle_badge')}</Badge>;
 
+  // The active tab's accent (from TAB_DEFS) threads down to the content edge as
+  // --settings-accent, so the coloured active tab and the content panel read as
+  // one connected unit (see .settings-content in Settings.css).
+  const activeAccent = TAB_DEFS.find((d) => d.id === activeTab)?.accent || 'var(--chrome-accent)';
+
   return (
-    <div className="settings-page">
+    <div className="settings-page" style={{ '--settings-accent': activeAccent }}>
       <Tabs
         items={TAB_DEFS.map(def => ({ ...def, label: t(`settings.${def.id}`) }))}
         value={activeTab}
@@ -1257,6 +1262,7 @@ export default function Settings() {
         className="settings-tabs-ui"
       />
 
+      <div className="settings-content">
       {activeTab === 'general' && (
         <>
           <GeneralTab />
@@ -1459,6 +1465,7 @@ export default function Settings() {
           />
         </section>
       )}
+      </div>
     </div>
   );
 }
