@@ -120,7 +120,10 @@ pub struct ReleaseInfo {
 /// filtering is applied on the frontend (prepareReleases) so this returns all.
 #[tauri::command]
 pub async fn list_releases(_channel: String) -> Result<Vec<ReleaseInfo>, String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .unwrap_or_default();
     let resp = client
         .get(RELEASES_API)
         .header("User-Agent", "OmniVoice-Studio")
