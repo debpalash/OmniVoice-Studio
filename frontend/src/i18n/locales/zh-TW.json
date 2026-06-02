@@ -851,7 +851,7 @@
     "add_to_queue": "添加到隊列"
   },
   "gallery": {
-    "title": "畫廊",
+    "title": "OmniVoice 畫廊",
     "search_placeholder": "搜尋 YouTube...",
     "all_voices": "所有聲音 ({{count}})",
     "no_voices": "還沒有聲音",

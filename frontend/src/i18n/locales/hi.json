@@ -851,7 +851,7 @@
     "add_to_queue": "कतार में जोड़ें"
   },
   "gallery": {
-    "title": "गैलरी",
+    "title": "OmniVoice गैलरी",
     "search_placeholder": "यूट्यूब पर खोजें...",
     "all_voices": "सभी आवाज़ें ({{count}})",
     "no_voices": "अभी तक कोई आवाज़ नहीं",

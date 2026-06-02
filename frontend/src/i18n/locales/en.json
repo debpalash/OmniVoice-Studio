@@ -730,7 +730,7 @@
     "add_to_queue": "Add to Queue"
   },
   "gallery": {
-    "title": "Gallery",
+    "title": "OmniVoice Gallery",
     "search_placeholder": "Search YouTube…",
     "all_voices": "All Voices ({{count}})",
     "no_voices": "No voices yet",

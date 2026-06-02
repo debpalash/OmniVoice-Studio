@@ -852,7 +852,7 @@
     "add_to_queue": "Agregar a la cola"
   },
   "gallery": {
-    "title": "Galería",
+    "title": "OmniVoice Galería",
     "search_placeholder": "Buscar en YouTube…",
     "all_voices": "Todas las voces ({{count}})",
     "no_voices": "Aún no hay voces",

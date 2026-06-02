@@ -363,7 +363,14 @@
 .use-case-chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .chip-emoji { font-size: 0.8rem; line-height: 1; }
 .facet-selects { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.facet-select { padding: 5px 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.7rem; cursor: pointer; }
+/* Native <select> falls back to the OS-default (light) control surface when its
+   background resolves to an undefined var, so pin real dark-chrome tokens. The
+   undefined --border-color/--bg-tertiary read as transparent on the sibling
+   <div> filters (fine on the dark page) but render light on a form control. */
+.facet-select { padding: 5px 8px; border-radius: 8px; border: 1px solid var(--chrome-border); background: var(--chrome-hover-bg); color: var(--chrome-fg); font-size: 0.7rem; cursor: pointer; color-scheme: dark; }
+/* Belt-and-suspenders: explicit dark option list for WebViews that ignore
+   color-scheme on the popup (cross-platform parity: WebKit / WebView2 / WebKitGTK). */
+.facet-select option { background: var(--chrome-bg); color: var(--chrome-fg); }
 .facet-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; color: var(--text-secondary); cursor: pointer; }
 .facet-reset { display: inline-flex; align-items: center; gap: 4px; padding: 5px 8px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); border-radius: 8px; font-size: 0.7rem; cursor: pointer; }
 .facet-reset:hover { border-color: var(--border-hover); color: var(--text-primary); }

@@ -851,7 +851,7 @@
     "add_to_queue": "Додати в чергу"
   },
   "gallery": {
-    "title": "Галерея",
+    "title": "OmniVoice Галерея",
     "search_placeholder": "Пошук на YouTube…",
     "all_voices": "Усі голоси ({{count}})",
     "no_voices": "Голосів ще немає",

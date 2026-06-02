@@ -851,7 +851,7 @@
     "add_to_queue": "Aggiungi alla coda"
   },
   "gallery": {
-    "title": "Galleria",
+    "title": "OmniVoice Galleria",
     "search_placeholder": "Cerca su YouTube...",
     "all_voices": "Tutte le voci ({{count}})",
     "no_voices": "Nessuna voce ancora",

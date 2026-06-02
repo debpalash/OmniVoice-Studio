@@ -852,7 +852,7 @@
     "add_to_queue": "Zur Warteschlange hinzufügen"
   },
   "gallery": {
-    "title": "Galerie",
+    "title": "OmniVoice Galerie",
     "search_placeholder": "YouTube durchsuchen…",
     "all_voices": "Alle Stimmen ({{count}})",
     "no_voices": "Noch keine Stimmen",

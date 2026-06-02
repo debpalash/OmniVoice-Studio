@@ -851,7 +851,7 @@
     "add_to_queue": "Kuyruğa Ekle"
   },
   "gallery": {
-    "title": "Galeri",
+    "title": "OmniVoice Galeri",
     "search_placeholder": "YouTube'da ara…",
     "all_voices": "Tüm Sesler ({{count}})",
     "no_voices": "Henüz ses yok",

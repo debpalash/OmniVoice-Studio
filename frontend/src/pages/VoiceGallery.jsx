@@ -131,7 +131,7 @@ export default function VoiceGallery() {
       <div className="gallery-header">
         <div className="header-top">
           <div className="header-text">
-            <h2>{t('gallery.title', { defaultValue: 'Voice Gallery' })}</h2>
+            <h2>{t('gallery.title', { defaultValue: 'OmniVoice Gallery' })}</h2>
             <p className="gallery-sub">
               {t('gallery.subtitle', { defaultValue: 'Hundreds of ready-made designed voices — pick one and go.' })}
             </p>

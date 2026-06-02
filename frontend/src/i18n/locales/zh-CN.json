@@ -821,7 +821,7 @@
     "add_to_queue": "添加到队列"
   },
   "gallery": {
-    "title": "音色库",
+    "title": "OmniVoice 音色库",
     "search_placeholder": "搜索 YouTube…",
     "all_voices": "全部声音（{{count}}）",
     "no_voices": "暂无声音",

@@ -851,7 +851,7 @@
     "add_to_queue": "เพิ่มเข้าคิว"
   },
   "gallery": {
-    "title": "แกลเลอรี่",
+    "title": "OmniVoice แกลเลอรี่",
     "search_placeholder": "ค้นหา YouTube...",
     "all_voices": "ทุกเสียง ({{count}})",
     "no_voices": "ยังไม่มีเสียง.",

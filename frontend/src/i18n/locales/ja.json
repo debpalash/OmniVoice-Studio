@@ -852,7 +852,7 @@
     "add_to_queue": "キューに追加"
   },
   "gallery": {
-    "title": "ギャラリー",
+    "title": "OmniVoice ギャラリー",
     "search_placeholder": "YouTube を検索…",
     "all_voices": "すべての声 ({{count}})",
     "no_voices": "まだ声はありません",

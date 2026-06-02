@@ -851,7 +851,7 @@
     "add_to_queue": "대기열에 추가"
   },
   "gallery": {
-    "title": "갤러리",
+    "title": "OmniVoice 갤러리",
     "search_placeholder": "유튜브 검색…",
     "all_voices": "모든 음색({{count}})",
     "no_voices": "아직 음성이 없습니다.",

@@ -851,7 +851,7 @@
     "add_to_queue": "Toevoegen aan wachtrij"
   },
   "gallery": {
-    "title": "Galerij",
+    "title": "OmniVoice Galerij",
     "search_placeholder": "Zoek op YouTube...",
     "all_voices": "Alle stemmen ({{count}})",
     "no_voices": "Nog geen stemmen",

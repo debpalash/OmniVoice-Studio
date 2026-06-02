@@ -852,7 +852,7 @@
     "add_to_queue": "Ajouter à la file d'attente"
   },
   "gallery": {
-    "title": "Galerie",
+    "title": "OmniVoice Galerie",
     "search_placeholder": "Rechercher sur YouTube…",
     "all_voices": "Toutes les voix ({{count}})",
     "no_voices": "Pas encore de voix",

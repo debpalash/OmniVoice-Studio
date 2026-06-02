@@ -851,7 +851,7 @@
     "add_to_queue": "إضافة إلى قائمة الانتظار"
   },
   "gallery": {
-    "title": "معرض",
+    "title": "OmniVoice معرض",
     "search_placeholder": "بحث في يوتيوب...",
     "all_voices": "جميع الأصوات ({{count}})",
     "no_voices": "لا توجد أصوات بعد",

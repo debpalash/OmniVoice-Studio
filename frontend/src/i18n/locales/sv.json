@@ -851,7 +851,7 @@
     "add_to_queue": "Lägg till i kö"
   },
   "gallery": {
-    "title": "Galleri",
+    "title": "OmniVoice Galleri",
     "search_placeholder": "Sök på YouTube...",
     "all_voices": "Alla röster ({{count}})",
     "no_voices": "Inga röster än",

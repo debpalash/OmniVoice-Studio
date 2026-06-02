@@ -851,7 +851,7 @@
     "add_to_queue": "Tambahkan ke Antrean"
   },
   "gallery": {
-    "title": "Galeri",
+    "title": "OmniVoice Galeri",
     "search_placeholder": "Telusuri YouTube…",
     "all_voices": "Semua Suara ({{count}})",
     "no_voices": "Belum ada suara",
