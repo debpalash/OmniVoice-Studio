@@ -41,6 +41,17 @@ _PREVIEW_DIR = Path(OUTPUTS_DIR) / "archetype_previews"
 # Seed fixed so repeated renders of the same archetype are reproducible
 # (mirrors scripts/render_demos_omnivoice.py).
 _PREVIEW_SEED = 42
+# Diffusion steps for previews. 16 under-converges: certain (script, seed)
+# points — notably the "social" sample script at seed 42 — collapse to a
+# degenerate tonal buzz (The Hype Host / Podcaster / Vlogger, issue follow-up).
+# 32 reliably converges to speech across the gallery's instruct/script space
+# at a one-time (cached) render cost.
+_PREVIEW_NUM_STEP = 32
+# Spectral-flatness floor below which a render is a degenerate tonal artifact
+# rather than speech. Real, mastered speech sits ~0.04–0.07; a tonal buzz
+# collapses to <0.005. 0.015 separates the two with wide margin and sits well
+# below even breathy/whisper voices (which are broadband → high flatness).
+_DEGENERATE_FLATNESS = 0.015
 
 
 def _preview_key(a: dict) -> str:
@@ -80,6 +91,41 @@ def _is_blank_audio(audio_tensor) -> bool:
         return False
 
 
+def _spectral_flatness(audio_tensor) -> Optional[float]:
+    """Geometric-mean / arithmetic-mean of the power spectrum.
+
+    ~1.0 for broadband noise, →0 for a pure tone. The degenerate diffusion
+    renders this guards against are near-pure tonal buzzes (flatness <0.005),
+    distinct from both silence (caught by ``_is_blank_audio``) and real speech
+    (~0.04+). Returns ``None`` if it can't be computed so callers don't act on
+    a bad measurement.
+    """
+    try:
+        import torch
+
+        t = audio_tensor if isinstance(audio_tensor, torch.Tensor) else torch.as_tensor(audio_tensor)
+        t = t.detach().to("cpu", dtype=torch.float32).flatten()
+        if t.numel() < 1024 or not torch.isfinite(t).all():
+            return None
+        spec = torch.fft.rfft(t * torch.hann_window(t.numel())).abs().pow(2) + 1e-12
+        return float(torch.exp(torch.mean(torch.log(spec))) / torch.mean(spec))
+    except Exception:  # never let the checker itself block a render
+        return None
+
+
+def _is_unusable_audio(audio_tensor) -> bool:
+    """True if a render is silent/non-finite OR a degenerate tonal buzz.
+
+    The blank guard alone misses the tonal-collapse failure mode: a buzz is
+    *loud* (peaks near -2 dBFS after normalize), so it sails past the silence
+    floor and — without this — gets cached and served as the preview.
+    """
+    if _is_blank_audio(audio_tensor):
+        return True
+    flatness = _spectral_flatness(audio_tensor)
+    return flatness is not None and flatness < _DEGENERATE_FLATNESS
+
+
 async def _render_archetype_wav(a: dict, out_path: Path) -> None:
     """Render an archetype's sample script to ``out_path`` using the live engine.
 
@@ -112,7 +158,7 @@ async def _render_archetype_wav(a: dict, out_path: Path) -> None:
             None,           # ref_text
             a["instruct"],  # instruct
             None,           # duration
-            16,             # num_step
+            _PREVIEW_NUM_STEP,  # num_step
             2.0,            # guidance_scale
             1.0,            # speed
             None,           # t_shift
@@ -126,13 +172,14 @@ async def _render_archetype_wav(a: dict, out_path: Path) -> None:
         )
 
     audio_tensor = await loop.run_in_executor(_gpu_pool, _infer, _PREVIEW_SEED)
-    if _is_blank_audio(audio_tensor):
-        # Static message only — the archetype id derives from the request path
-        # param, and CodeQL flags logging request-derived data (clear-text /
-        # log-injection). The seed is a module constant, safe to log.
-        logger.warning("Archetype rendered blank at seed %d — retrying once", _PREVIEW_SEED)
+    if _is_unusable_audio(audio_tensor):
+        # Blank OR a degenerate tonal buzz — retry once on a different seed to
+        # step off the bad diffusion trajectory. Static message only: the
+        # archetype id is request-derived (CodeQL log-injection); the seed is a
+        # module constant, safe to log.
+        logger.warning("Archetype rendered unusable at seed %d — retrying once", _PREVIEW_SEED)
         audio_tensor = await loop.run_in_executor(_gpu_pool, _infer, _PREVIEW_SEED + 1)
-    if _is_blank_audio(audio_tensor):
+    if _is_unusable_audio(audio_tensor):
         raise RuntimeError("the voice engine returned no audible audio for this archetype")
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
