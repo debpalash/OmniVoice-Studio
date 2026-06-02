@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { copyText } from "../utils/copyText";
 import { isTauri as _isTauri } from '../utils/media';
 import { normalizeChannel } from '../utils/updateChannel';
+import { setChannel } from '../utils/channelControl';
 import {
   flexRender,
   getCoreRowModel,
@@ -1066,7 +1067,7 @@ export default function Settings() {
   const [appVersion, setAppVersion] = useState(null);
   const [tauriVersion, setTauriVersion] = useState(null);
   const [updateState, setUpdateState] = useState('idle'); // idle|checking|downloading|uptodate|error
-  const [updateChannel, setUpdateChannelState] = useState('stable'); // stable|preview
+  const updateChannel = useAppStore((s) => s.updateChannel);
 
   // TanStack Query — shared cache with App.jsx, no duplicate requests
   const { data: hw } = useSysinfo();
@@ -1081,23 +1082,15 @@ export default function Settings() {
         setAppVersion(await app.getVersion());
         if (app.getTauriVersion) setTauriVersion(await app.getTauriVersion());
       } catch { /* web preview */ }
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        setUpdateChannelState(normalizeChannel(await invoke('get_update_channel')));
-      } catch { /* web preview / pre-channel build */ }
     })();
   }, []);
 
   const changeChannel = useCallback(async (ch) => {
-    const next = normalizeChannel(ch);
-    setUpdateChannelState(next);
-    if (!isTauri()) return;
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('set_update_channel', { channel: next });
+      const next = await setChannel(useAppStore.getState(), ch);
       toast.success(t('about.channel_set', { channel: t(`about.channel_${next}`) }));
     } catch (e) {
-      toast.error(t('settings.channel_set_failed', { message: e?.message || e }));
+      toast.error(`Failed to set channel: ${e?.message || e}`);
     }
   }, [t]);
 
