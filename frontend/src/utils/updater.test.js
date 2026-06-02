@@ -41,3 +41,20 @@ describe('checkForUpdate periodic re-check guard', () => {
     expect(store.setUpdateIdle).toHaveBeenCalled(); // mocked check_update → no update
   });
 });
+
+describe('listReleases / fetchAppVersion', () => {
+  beforeEach(() => { window.__TAURI_INTERNALS__ = {}; });
+  afterEach(() => { delete window.__TAURI_INTERNALS__; });
+
+  it('listReleases returns [] when not in Tauri', async () => {
+    delete window.__TAURI_INTERNALS__;
+    const { listReleases } = await import('./updater');
+    expect(await listReleases('stable')).toEqual([]);
+  });
+
+  it('fetchAppVersion returns null when not in Tauri', async () => {
+    delete window.__TAURI_INTERNALS__;
+    const { fetchAppVersion } = await import('./updater');
+    expect(await fetchAppVersion()).toBeNull();
+  });
+});

@@ -84,3 +84,22 @@ export async function installUpdate(store) {
     if (unlisten) unlisten();
   }
 }
+
+/** Fetch the project's releases (changelog/history) via the Rust command. [] outside Tauri / on error. */
+export async function listReleases(channel) {
+  if (!isTauri()) return [];
+  const { invoke } = await import('@tauri-apps/api/core');
+  const data = await invoke('list_releases', { channel });
+  return Array.isArray(data) ? data : [];
+}
+
+/** Current app version via Tauri, or null outside a packaged build. */
+export async function fetchAppVersion() {
+  if (!isTauri()) return null;
+  try {
+    const { getVersion } = await import('@tauri-apps/api/app');
+    return await getVersion();
+  } catch {
+    return null;
+  }
+}
