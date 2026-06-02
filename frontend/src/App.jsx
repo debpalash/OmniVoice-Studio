@@ -60,6 +60,7 @@ import { saveProject as apiSaveProject, loadProject as apiLoadProject, deletePro
 import { exportAction, exportReveal, exportRecord } from './api/exports';
 
 import { isTauri, doubleClickMaximize, fileToMediaUrl, playBlobAudio, playPing } from './utils/media';
+import { browserDownload } from './utils/download';
 import { checkForUpdate, fetchAppVersion } from './utils/updater';
 import { syncChannel } from './utils/channelControl';
 import i18n from './i18n';
@@ -506,6 +507,25 @@ function App() {
 
   const handleNativeExport = async (e, sourceIdentifier, fallbackName, mode) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
+    // Browser / Docker web build: there is no Tauri shell, so the native save
+    // dialog is unavailable — invoking it throws "Cannot read properties of
+    // undefined (reading 'invoke')" (issue #256). Fall back to a plain HTTP
+    // blob download of the file already served at /audio/<path>.
+    if (!isTauri) {
+      const niceName = (fallbackName || sourceIdentifier || 'audio').split('/').pop();
+      try {
+        const finalName = await browserDownload(`${API}/audio/${sourceIdentifier}`, niceName);
+        toast.success(i18n.t('app.toast_downloaded', { name: finalName }));
+        try {
+          await exportRecord({ filename: finalName, destination_path: `~/Downloads/${finalName}`, mode });
+          loadExportHistory();
+        } catch (err) { console.warn('exportRecord (browser export path) failed:', err); }
+      } catch (err) {
+        console.error(err);
+        toast.error(i18n.t('app.toast_export_failed', { message: err?.message || err }));
+      }
+      return;
+    }
     try {
       const { save } = await import('@tauri-apps/plugin-dialog');
       const ext = fallbackName.includes('.') ? fallbackName.split('.').pop() : 'wav';
@@ -527,14 +547,6 @@ function App() {
       toast.error(i18n.t('app.toast_open_folder_failed', { message: err.message }));
     }
   };
-  const parseFilenameFromContentDisposition = (header) => {
-    if (!header) return null;
-    const utf8 = header.match(/filename\*=(?:UTF-8|utf-8)''([^;]+)/i);
-    if (utf8) { try { return decodeURIComponent(utf8[1].trim().replace(/^"|"$/g, '')); } catch { /* ignore */ } }
-    const plain = header.match(/filename="?([^";]+)"?/i);
-    return plain ? plain[1].trim() : null;
-  };
-
   const triggerDownload = async (url, fallbackName) => {
     const extGuess = (fallbackName.includes('.') ? fallbackName.split('.').pop() : 'bin').toLowerCase();
     const modeGuess = ['mp4','mov','mkv','webm'].includes(extGuess)
@@ -573,19 +585,7 @@ function App() {
     // Browser path: standard blob download.
     try {
       toast.loading(i18n.t('app.toast_processing', { name: fallbackName }), { id: fallbackName });
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Download failed");
-      const serverName = parseFilenameFromContentDisposition(response.headers.get('content-disposition'));
-      const finalName = serverName || fallbackName || 'download';
-      const blob = await response.blob();
-      const localUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = localUrl;
-      a.download = finalName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(localUrl);
+      const finalName = await browserDownload(url, fallbackName);
       toast.success(i18n.t('app.toast_downloaded', { name: finalName }), { id: fallbackName });
       try {
         await exportRecord({ filename: finalName, destination_path: `~/Downloads/${finalName}`, mode: modeGuess });
