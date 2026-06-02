@@ -64,6 +64,12 @@
   flex-wrap: wrap;
   max-width: 100%;
   row-gap: 3px;
+  /* Border-connect: the bar opens at the bottom into the content panel — flat
+     bottom corners + no bottom border so the panel below reads as one
+     continuous outlined container attached to the tabs. */
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom: 0;
 }
 
 /* Active tab adopts its own semantic accent (TAB_DEFS) instead of the global
@@ -86,11 +92,24 @@
    slab, and wrap-proof (colour carries the meaning, not position). The margin
    + padding give the panel deliberate breathing room under the bar. */
 .settings-content {
-  margin-top: var(--space-4);
-  padding-top: var(--space-5);
-  border-top: 1px solid color-mix(in srgb, var(--settings-accent) 32%, var(--chrome-border) 68%);
+  /* Attached directly under the bar (no gap) as a 3-sided panel with an open
+     top — the bar + panel form one outlined container, split where the tabs
+     sit. The border is tinted by the active tab's accent so the active tab and
+     its panel read as connected by a shared border. */
+  margin-top: 0;
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--settings-accent) 38%, var(--chrome-border) 62%);
+  /* Stronger top: a 2px full-accent edge at the seam with the bar, so the
+     active tab's colour visibly "feeds" into the panel it opens. Top corners
+     stay square to butt against the bar above; bottom corners round off. */
+  border-top: 2px solid var(--settings-accent);
+  border-bottom-left-radius: var(--chrome-radius-pill);
+  border-bottom-right-radius: var(--chrome-radius-pill);
   transition: border-color var(--dur-fast, 120ms) var(--ease-out, ease);
 }
+/* The bar's accent already cues the active tab; inside the connected panel the
+   first card sits flush to the panel's inner padding (no extra top margin). */
+.settings-content > :first-child { margin-top: 0; }
 
 /* ── Engines tab ─────────────────────────────────────────────── */
 .engines-family            { margin-bottom: var(--space-5); }
