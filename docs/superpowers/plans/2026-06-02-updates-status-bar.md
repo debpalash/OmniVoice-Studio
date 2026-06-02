@@ -971,9 +971,16 @@ Insert a new top-level `"updates"` block (e.g. right after the existing `"update
   },
 ```
 
-- [ ] **Step 2: Mirror the keys into the other 20 locales**
+- [ ] **Step 2: Backfill the other 20 locales with the repo's translation script**
 
-For each non-English locale, add the same `"updates"` block with the values translated. To stay consistent with the repo's backfill approach, reuse the existing translation tooling. Run the project's locale-backfill (the same path used for prior i18n backfills — check `package.json`/`scripts` for an i18n backfill script, e.g. `bun run i18n:backfill` or the `deep_translator` script under `scripts/`), then spot-check CJK locales (`zh-CN`, `zh-TW`, `ja`, `ko`) render correctly. If no script exists, translate the 10 short strings per locale by hand (they are short UI labels). Ensure every locale has all 10 keys (parity).
+Only `en.json` is edited by hand. The repo's existing backfill script (`scripts/translate_all.py` — `deep_translator`/GoogleTranslator, source `en.json` → fills any keys missing from each `frontend/src/i18n/locales/{lang}.json`; the same pipeline used for #205) propagates the new `updates.*` block to all 20 other locales:
+
+```bash
+cd /Users/user4/orca/workspaces/OmniVoice/main-2
+uv run python scripts/translate_all.py
+```
+
+> Note: only the `updates.*` keys are new for this feature — the components reuse the already-present `update.*` and `about.channel_*` keys (verified against `en.json`), so the script only needs to add the 10 new strings. After it runs, spot-check the CJK locales (`zh-CN`, `zh-TW`, `ja`, `ko`) render the new strings; every locale must have all 10 `updates.*` keys (parity check in Step 3).
 
 - [ ] **Step 3: Verify parity + CJK guard**
 
