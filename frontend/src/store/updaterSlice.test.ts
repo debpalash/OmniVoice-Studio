@@ -62,4 +62,20 @@ describe('updaterSlice', () => {
     expect(get().updateError).toBeNull();
     expect(get().updateProgress).toBe(0);
   });
+
+  it('tracks app version', () => {
+    const { get } = harness();
+    expect(get().appVersion).toBeNull();
+    get().setAppVersion('0.3.0');
+    expect(get().appVersion).toBe('0.3.0');
+  });
+
+  it('holds the update channel, defaulting to stable', () => {
+    const { get } = harness();
+    expect(get().updateChannel).toBe('stable');
+    get().setUpdateChannelValue('preview');
+    expect(get().updateChannel).toBe('preview');
+    get().setUpdateChannelValue('bogus');     // normalized
+    expect(get().updateChannel).toBe('stable');
+  });
 });

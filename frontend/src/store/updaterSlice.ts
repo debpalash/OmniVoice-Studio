@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import { normalizeChannel } from '../utils/updateChannel';
 
 /**
  * Auto-update state machine (Tauri updater). Transient — never persisted.
@@ -13,6 +14,10 @@ export interface UpdaterSlice {
   updateNotes: string | null;
   updateProgress: number; // 0–100
   updateError: string | null;
+  appVersion: string | null;
+  updateChannel: 'stable' | 'preview';
+  setAppVersion: (v: string | null) => void;
+  setUpdateChannelValue: (ch: string) => void;
   setUpdateChecking: () => void;
   setUpdateAvailable: (version: string, notes: string | null) => void;
   setUpdateIdle: () => void;
@@ -37,4 +42,8 @@ export const createUpdaterSlice: StateCreator<UpdaterSlice, [], [], UpdaterSlice
   setUpdateReady: () => set({ updateStatus: 'ready', updateProgress: 100 }),
   setUpdateError: (msg) => set({ updateStatus: 'error', updateError: msg }),
   dismissUpdate: () => set({ updateStatus: 'idle', updateError: null, updateProgress: 0 }),
+  appVersion: null,
+  updateChannel: 'stable',
+  setAppVersion: (v) => set({ appVersion: v }),
+  setUpdateChannelValue: (ch) => set({ updateChannel: normalizeChannel(ch) }),
 });
