@@ -51,6 +51,20 @@
    carries visual styling. */
 .settings-tabs-ui { margin-bottom: var(--space-5); }
 
+/* The settings sub-nav has 10 tabs (General…Privacy). The base .ui-tabs is a
+   non-wrapping inline-flex row, so on a narrow Settings pane the later tabs
+   (Credentials/Logs/About/Privacy) overflow and clip out of view. Scope a wrap
+   to this nav only (the shared primitive is unchanged) so every tab stays
+   reachable — the pill bar grows to 2 rows instead of running off-screen.
+   `.ui-tabs.settings-tabs-ui` outranks `.ui-tabs` so the display/flex overrides
+   take regardless of stylesheet order. */
+.ui-tabs.settings-tabs-ui {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+  row-gap: 3px;
+}
+
 /* ── Engines tab ─────────────────────────────────────────────── */
 .engines-family            { margin-bottom: var(--space-5); }
 .engines-family__active {
