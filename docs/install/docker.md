@@ -115,7 +115,9 @@ Two paths are worth persisting across container restarts:
 - **Container reports 0.2.7 but image is tagged 0.3.x:** This was a workflow bug
   (fixes #249, #251) — the `:latest` tag was not being updated on release tag
   pushes. Pull the image again after the fix is merged: `docker pull ghcr.io/debpalash/omnivoice-studio:latest`.
-- **Checking which version is running:** `docker exec omnivoice python -c "import importlib.metadata; print(importlib.metadata.version('omnivoice-studio'))"` or visit the `/health` endpoint which includes the version field.
+  The running version is now shown in **Settings → About → Version** (read live
+  from the backend), so the web UI no longer displays a dash in Docker.
+- **Checking which version is running:** `docker exec omnivoice python -c "import importlib.metadata; print(importlib.metadata.version('omnivoice'))"`, or hit the `/health` endpoint — it returns `{"status": "ok", "device": ..., "version": "0.3.x"}`.
 - **Media-preview 404 in LAN mode:** see the [LAN access](#lan-access) section
   above — the `window.location.host` fix shipped in v0.3.
 - **GPU not detected:** verify `docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi` succeeds first.

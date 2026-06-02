@@ -1352,7 +1352,7 @@ export default function Settings() {
         <section className="settings-section">
           <h2><Info size={16} color="#8ec07c" /> {t('settings.about')}</h2>
           <Row label={t('about.app')}             value="OmniVoice Studio" />
-          <Row label={t('about.version')}         value={appVersion || '—'} mono />
+          <Row label={t('about.version')}         value={appVersion || info?.app_version || '—'} mono />
           <Row label={t('about.tauri_runtime')}   value={tauriVersion || (isTauri() ? '—' : t('about.web_preview'))} mono />
           <Row label={t('about.platform')}        value={info?.platform || '—'} />
           <Row label={t('about.architecture')}    value={typeof navigator !== 'undefined' ? (navigator.userAgentData?.platform || navigator.platform || '—') : '—'} mono />
@@ -1371,41 +1371,49 @@ export default function Settings() {
           <Row label={t('about.data_dir')}        value={info?.data_dir || '—'} mono />
           <Row label={t('about.outputs')}         value={info?.outputs_dir || '—'} mono />
           <Row label={t('about.crash_log')}       value={info?.crash_log_path || '—'} mono />
-          <Row
-            label={t('about.update_channel')}
-            value={
-              <Segmented
-                size="xs"
-                value={updateChannel}
-                onChange={changeChannel}
-                items={[
-                  { value: 'stable',  label: t('about.channel_stable') },
-                  { value: 'preview', label: t('about.channel_preview') },
-                ]}
+          {/* Auto-updater + channel toggle are desktop-only (Tauri). The Docker
+              web build updates by pulling a new image tag, so hide these rows
+              there to avoid a non-functional control (issue #249). */}
+          {isTauri() && (
+            <>
+              <Row
+                label={t('about.update_channel')}
+                value={
+                  <Segmented
+                    size="xs"
+                    value={updateChannel}
+                    onChange={changeChannel}
+                    items={[
+                      { value: 'stable',  label: t('about.channel_stable') },
+                      { value: 'preview', label: t('about.channel_preview') },
+                    ]}
+                  />
+                }
               />
-            }
-          />
-          <Row
-            label={t('about.update_endpoint')}
-            value={updateChannel === 'preview'
-              ? 'releases/download/preview/latest.json'
-              : 'releases/latest/download/latest.json'}
-            mono
-          />
-          {updateChannel === 'preview' && (
-            <p className="settings-muted">{t('about.channel_preview_hint')}</p>
+              <Row
+                label={t('about.update_endpoint')}
+                value={updateChannel === 'preview'
+                  ? 'releases/download/preview/latest.json'
+                  : 'releases/latest/download/latest.json'}
+                mono
+              />
+              {updateChannel === 'preview' && (
+                <p className="settings-muted">{t('about.channel_preview_hint')}</p>
+              )}
+            </>
           )}
           <div className="settings-link-row">
-            <Button
-              variant="primary"
-              size="md"
-              leading={<Download size={12} />}
-              onClick={checkForUpdates}
-              loading={updateState === 'checking' || updateState === 'downloading'}
-              disabled={!isTauri()}
-            >
-              {updateState === 'downloading' ? t('about.downloading') : t('about.check_updates')}
-            </Button>
+            {isTauri() && (
+              <Button
+                variant="primary"
+                size="md"
+                leading={<Download size={12} />}
+                onClick={checkForUpdates}
+                loading={updateState === 'checking' || updateState === 'downloading'}
+              >
+                {updateState === 'downloading' ? t('about.downloading') : t('about.check_updates')}
+              </Button>
+            )}
             <Button
               variant="subtle"
               size="md"

@@ -15,6 +15,7 @@ import torch
 import shutil
 
 from core.config import OUTPUTS_DIR, DATA_DIR, CRASH_LOG_PATH, LOG_PATH, IDLE_TIMEOUT_SECONDS
+from core.version import APP_VERSION
 from services.model_manager import get_model_status, get_best_device
 from services.ffmpeg_utils import find_ffmpeg, run_ffmpeg
 
@@ -168,6 +169,7 @@ def system_info():
     try:
         _ffmpeg = find_ffmpeg()
         return {
+            "app_version": APP_VERSION,
             "data_dir": DATA_DIR,
             "outputs_dir": OUTPUTS_DIR,
             "crash_log_path": CRASH_LOG_PATH,
@@ -193,6 +195,7 @@ def system_info():
     except Exception as e:
         logger.exception("system_info failed — returning safe defaults")
         return {
+            "app_version": APP_VERSION,
             "data_dir": DATA_DIR,
             "outputs_dir": OUTPUTS_DIR,
             "crash_log_path": str(CRASH_LOG_PATH),

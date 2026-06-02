@@ -606,7 +606,7 @@ def health():
     elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
         device = "mps"
 
-    return {"status": "ok", "device": device}
+    return {"status": "ok", "device": device, "version": APP_VERSION}
 
 
 app.include_router(system.router)

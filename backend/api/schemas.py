@@ -25,6 +25,7 @@ class SystemInfoResponse(BaseModel):
     """GET /system/info"""
     model_config = ConfigDict(extra="allow")
 
+    app_version: str = ""
     data_dir: str
     outputs_dir: str
     crash_log_path: str
