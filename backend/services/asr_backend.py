@@ -115,13 +115,40 @@ class WhisperXBackend(ASRBackend):
         # ships a checkpoint with a new pickle class, the load fails loudly
         # and we extend `_allow_vad_pickle_globals()`.
         self._allow_vad_pickle_globals()
-        self._asr = whisperx.load_model(
-            self._model_name,
-            device=self._device,
-            compute_type=self._compute_type,
-            # vad_method="silero" is the default; keep it so short gaps
-            # get cleaned up before transcription.
-        )
+        try:
+            self._asr = whisperx.load_model(
+                self._model_name,
+                device=self._device,
+                compute_type=self._compute_type,
+                # vad_method="silero" is the default; keep it so short gaps
+                # get cleaned up before transcription.
+            )
+        except RuntimeError as e:
+            # CUDA OOM: a resident TTS model + the GPU worker pool can starve
+            # VRAM on small (e.g. 8 GB laptop) GPUs, so loading large-v3 on
+            # CUDA dies here — which previously surfaced as a bare 500 from
+            # /dub/transcribe with no guidance. Fall back to CPU (slower, but
+            # dubbing still works and keeps the same model/accuracy) instead.
+            # Only triggers on a CUDA OOM, so the MPS/CPU paths are untouched.
+            if self._device == "cuda" and "out of memory" in str(e).lower():
+                logger.warning(
+                    "whisperx CUDA OOM loading %s — retrying on CPU (slower). "
+                    "Free VRAM (Flush the TTS model) for GPU-speed ASR. Detail: %s",
+                    self._model_name, e,
+                )
+                try:
+                    import torch
+                    torch.cuda.empty_cache()
+                except Exception:  # noqa: BLE001 — cache clear is best-effort
+                    pass
+                self._device, self._compute_type = "cpu", "int8"
+                self._asr = whisperx.load_model(
+                    self._model_name,
+                    device=self._device,
+                    compute_type=self._compute_type,
+                )
+            else:
+                raise
 
     @staticmethod
     def _allow_vad_pickle_globals():
