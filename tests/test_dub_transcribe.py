@@ -109,6 +109,24 @@ def _seed_job(dc_module, tmp_path: Path, duration: float, scene_cuts=None) -> st
 # Tests
 # ---------------------------------------------------------------------------
 
+def test_transcribe_stream_surfaces_model_load_failure(app_client):
+    """Regression #255: when the model fails to load, the SSE transcribe stream
+    must emit a structured `error` event carrying the real cause — not silently
+    drop the connection (the UI renders a dropped stream as a misleading generic
+    "Transcribe stream dropped … Likely ASR backend failed to load")."""
+    client, dc, tmp = app_client
+    job_id = _seed_job(dc, tmp, duration=4.0)
+
+    async def _boom():
+        raise RuntimeError("CUDA driver init failed: simulated")
+
+    dc.get_model = _boom  # the fixture reloads dc fresh per test
+
+    body = client.get(f"/dub/transcribe-stream/{job_id}").text
+    assert "event: error" in body, body
+    assert "CUDA driver init failed: simulated" in body, body
+
+
 @pytest.mark.xfail(
     reason="dub_core._transcribe was refactored to route through "
            "services.asr_backend.get_active_asr_backend; the MagicMock fixture "

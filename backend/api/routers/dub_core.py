@@ -384,24 +384,39 @@ async def dub_transcribe_stream(job_id: str):
     if not job:
         preflight_error = "Job not found. It may have been cleaned up or was never created."
     else:
-        _model = await get_model()
-        asr_audio_target = job.get("vocals_path")
-        if not asr_audio_target or not os.path.exists(asr_audio_target):
-            asr_audio_target = job.get("audio_path")
-        if not asr_audio_target or not os.path.exists(asr_audio_target):
-            preflight_error = "No audio available for transcription."
-        else:
-            from services.asr_backend import get_active_asr_backend
-            try:
-                _asr_backend = get_active_asr_backend(asr_pipe=getattr(_model, "_asr_pipe", None))
-                if _asr_backend.id == "pytorch-whisper" and getattr(_model, "_asr_pipe", None) is None:
-                    preflight_error = (
-                        "No ASR backend is ready. Install WhisperX/faster-whisper/MLX Whisper "
-                        "or set OMNIVOICE_PRELOAD_TTS_ASR=1 before launch to use the PyTorch fallback."
+        # Guard the model load: if it raises, the SSE stream would otherwise die
+        # before emitting any event, and the UI shows a misleading generic
+        # "stream dropped" message instead of the real cause (issue #255).
+        try:
+            _model = await get_model()
+        except Exception as e:
+            logger.exception("transcribe preflight: model load failed (job=%s)", job_id)
+            from core.failure import build_failure
+            f = build_failure(e, stage="transcribe-preflight", include_diagnostic=False)
+            preflight_error = f["reason"] + (f" — {f['hint']}" if f.get("hint") else "")
+            _model = None
+        if _model is not None:
+            asr_audio_target = job.get("vocals_path")
+            if not asr_audio_target or not os.path.exists(asr_audio_target):
+                asr_audio_target = job.get("audio_path")
+            if not asr_audio_target or not os.path.exists(asr_audio_target):
+                preflight_error = "No audio available for transcription."
+            else:
+                from services.asr_backend import get_active_asr_backend
+                try:
+                    _asr_backend = get_active_asr_backend(asr_pipe=getattr(_model, "_asr_pipe", None))
+                    if _asr_backend.id == "pytorch-whisper" and getattr(_model, "_asr_pipe", None) is None:
+                        preflight_error = (
+                            "No ASR backend is ready. Install WhisperX/faster-whisper/MLX Whisper "
+                            "or set OMNIVOICE_PRELOAD_TTS_ASR=1 before launch to use the PyTorch fallback."
+                        )
+                except Exception as e:
+                    from core.failure import build_failure
+                    f = build_failure(e, stage="transcribe-preflight", include_diagnostic=False)
+                    preflight_error = "ASR backend initialization failed: " + f["reason"] + (
+                        f" — {f['hint']}" if f.get("hint") else ""
                     )
-            except Exception as e:
-                preflight_error = f"ASR backend initialization failed: {e}"
-            scene_cuts = job.get("scene_cuts") or []
+                scene_cuts = job.get("scene_cuts") or []
 
     async def gen():
         if preflight_error:
@@ -429,7 +444,12 @@ async def dub_transcribe_stream(job_id: str):
 
         # Free VRAM: move TTS model to CPU so WhisperX + VAD can fit.
         # Only offloads when free GPU memory is < 4 GB (e.g. laptop GPUs).
-        await loop.run_in_executor(_cpu_pool, offload_tts_for_asr)
+        # Non-fatal: an offload failure must not drop the stream (#255) —
+        # transcription can still proceed (it just has less headroom).
+        try:
+            await loop.run_in_executor(_cpu_pool, offload_tts_for_asr)
+        except Exception as e:
+            logger.warning("offload_tts_for_asr failed (continuing): %s", e)
 
         all_segments: list[dict] = []
         detected_lang = None
@@ -540,15 +560,23 @@ async def dub_transcribe_stream(job_id: str):
         # whisperx's VAD load, or an unsupported audio format.
         if not all_segments:
             # Deduplicate while preserving order so one root cause doesn't
-            # repeat N times in the UI toast.
+            # repeat N times in the UI toast. Sanitize each message so home
+            # paths / tokens from a backend traceback never leak (#255).
+            from core.failure import sanitize, build_failure
             seen = set()
             uniq: list[str] = []
             for msg in chunk_errors:
-                if msg and msg not in seen:
-                    seen.add(msg)
-                    uniq.append(msg)
+                s = sanitize(msg)
+                if s and s not in seen:
+                    seen.add(s)
+                    uniq.append(s)
             if uniq:
                 detail = "Transcription produced no segments. " + " | ".join(uniq[:3])
+                # Add the actionable hint for a recognized failure class
+                # (e.g. pkg_resources missing → install setuptools).
+                hint = build_failure(" ".join(uniq), stage="transcribe", include_diagnostic=False).get("hint")
+                if hint:
+                    detail += f" — {hint}"
             else:
                 detail = (
                     "Transcription produced no segments. The audio may be silent, "
