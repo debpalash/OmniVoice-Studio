@@ -38,7 +38,24 @@
 
 .engine-matrix__table {
   width: 100%;
+  /* Responsive: the fixed-width columns (status/gpu/isolation/actions) +
+     the flexible name column need ~840px. On a narrow Settings pane they used
+     to collapse and OVERLAP (name text under the badges). Instead keep the
+     table's shape and let it scroll horizontally — the data-table treatment
+     used elsewhere — so every column stays legible at any width. */
+  overflow-x: auto;
 }
+
+/* Header + body share one min-width so columns stay aligned while scrolling. */
+.engine-matrix__table .ui-table-header,
+.engine-matrix__body {
+  min-width: 840px;
+}
+
+/* Fixed-width cells must not shrink below their column width (that shrink was
+   what caused the overlap); the name column keeps a sane floor and still grows. */
+.engine-matrix__cell { flex-shrink: 0; }
+.engine-matrix__cell--name { min-width: 200px; }
 
 .engine-matrix__body {
   display: flex;
