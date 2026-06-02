@@ -164,6 +164,16 @@ async def generate_speech(
             postprocess_output, layer_penalty_factor, position_temperature,
             class_temperature, used_seed, effect_preset,
         )
+        # Invisible AudioSeal provenance watermark on the final audio. Embedding
+        # was previously only wired into the dub pipeline (dub_generate.py), so
+        # plain TTS came out unmarked despite the setting being on. embed_watermark
+        # self-gates on the user's watermark setting + AudioSeal availability and
+        # passes the audio through unchanged on any failure, so it never breaks
+        # generation.
+        from services.watermark import embed_watermark
+        audio_tensor = await loop.run_in_executor(
+            _gpu_pool, embed_watermark, audio_tensor, _model.sampling_rate
+        )
         gen_time = round(time.time() - start_time, 2)
 
         audio_id = str(uuid.uuid4())[:8]
