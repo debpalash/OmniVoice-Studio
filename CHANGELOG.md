@@ -6,6 +6,29 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [0.3.1] — 2026-06-03
+
+First tagged build of the 0.3 line off `main` — it ships the accumulated
+`[0.3.0]` work below plus the fixes here. (The `[0.3.0]` milestone heading is
+kept for the qualitative "actually useful" release.)
+
+### Fixed
+- **Voice-clone / export download crashed in the Docker & browser build** with
+  `TypeError: Cannot read properties of undefined (reading 'invoke')`. The
+  export button called the Tauri save dialog unconditionally; outside the
+  desktop shell it now falls back to a standard browser download of the file
+  served at `/audio/<path>`. (#256)
+- **Docker container showed no version** (a dash) in Settings → About, and the
+  desktop-only update-channel toggle appeared in the web build. The running
+  version is now read from the backend (`/system/info` `app_version`, `/health`
+  `version`); the updater UI is hidden outside Tauri. Also corrected the
+  version-check command in the Docker docs (`omnivoice`, not
+  `omnivoice-studio`). (#249)
+- **Transcription failures were masked** by a generic "Transcribe stream
+  dropped" message. The transcribe SSE stream now surfaces the real, sanitized
+  cause (with an actionable hint) instead of silently dropping when model load
+  or VRAM offload fails. (#255)
+
 ## [0.3.0] — Unreleased
 
 ### Added
