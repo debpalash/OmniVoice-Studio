@@ -1,11 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createReleasesSlice } from './releasesSlice';
 
-function harness(loader?) {
+function harness() {
   let state: any = {};
   const set = (p: any) => { state = { ...state, ...(typeof p === 'function' ? p(state) : p) }; };
   state = createReleasesSlice(set as any, (() => state) as any, {} as any);
-  state.__loader = loader;            // test seam: injected fetcher
   return { get: () => state };
 }
 

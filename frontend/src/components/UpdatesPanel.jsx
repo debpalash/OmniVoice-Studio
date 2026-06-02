@@ -72,10 +72,13 @@ export default function UpdatesPanel() {
 
       <div className="updates-panel__channel">
         <span>{t('about.update_channel')}</span>
-        <div className="updates-panel__seg">
+        <div className="updates-panel__seg" role="radiogroup" aria-label={t('about.update_channel')}>
           {['stable', 'preview'].map((c) => (
             <button
               key={c}
+              type="button"
+              role="radio"
+              aria-checked={channel === c}
               className={`updates-panel__segbtn ${channel === c ? 'is-active' : ''}`}
               onClick={() => setChannel(useAppStore.getState(), c)}
             >
@@ -98,7 +101,7 @@ export default function UpdatesPanel() {
           <div className="updates-panel__rel-empty">{t('updates.none')}</div>
         )}
         {rows.map((r) => (
-          <div key={r.version} className={`updates-panel__rel ${r.current ? 'is-current' : ''}`}>
+          <div key={r.name || r.version} className={`updates-panel__rel ${r.current ? 'is-current' : ''}`}>
             <div className="updates-panel__rel-row">
               <span className="updates-panel__rel-ver">v{r.version}</span>
               {r.current && <span className="updates-panel__rel-tag">{t('updates.current')}</span>}
