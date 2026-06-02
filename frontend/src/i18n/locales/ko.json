@@ -1585,5 +1585,17 @@
     "other_ways": "도움을 줄 수 있는 다른 방법",
     "star_github": "GitHub의 스타",
     "join_discord": "디스코드에 참여하세요"
+  },
+  "updates": {
+    "tab": "업데이트",
+    "up_to_date": "최신 · v{{version}}",
+    "check_now": "지금 확인하세요",
+    "releases": "릴리스",
+    "current": "현재",
+    "prerelease": "미리보기",
+    "loading": "릴리스 로드 중…",
+    "none": "릴리스를 찾을 수 없습니다.",
+    "load_error": "릴리스를 로드할 수 없습니다(오프라인?)",
+    "retry_load": "재시도"
   }
 }

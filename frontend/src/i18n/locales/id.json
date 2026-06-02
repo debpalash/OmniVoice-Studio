@@ -1585,5 +1585,17 @@
     "other_ways": "Cara lain untuk membantu",
     "star_github": "Bintangi di GitHub",
     "join_discord": "Bergabunglah dengan Perselisihan"
+  },
+  "updates": {
+    "tab": "Pembaruan",
+    "up_to_date": "Terkini · v{{version}}",
+    "check_now": "Periksa sekarang",
+    "releases": "Rilis",
+    "current": "saat ini",
+    "prerelease": "pratinjau",
+    "loading": "Memuat rilis…",
+    "none": "Tidak ada rilis yang ditemukan",
+    "load_error": "Tidak dapat memuat rilis (offline?)",
+    "retry_load": "Coba lagi"
   }
 }

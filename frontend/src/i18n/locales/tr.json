@@ -1585,5 +1585,17 @@
     "other_ways": "Yardım etmenin diğer yolları",
     "star_github": "GitHub'da yıldız",
     "join_discord": "Discord'a Katılın"
+  },
+  "updates": {
+    "tab": "Güncellemeler",
+    "up_to_date": "Güncel · v{{version}}",
+    "check_now": "Şimdi kontrol et",
+    "releases": "Bültenler",
+    "current": "akım",
+    "prerelease": "önizleme",
+    "loading": "Sürümler yükleniyor…",
+    "none": "Yayın bulunamadı",
+    "load_error": "Sürümler yüklenemedi (çevrimdışı mı?)",
+    "retry_load": "Yeniden dene"
   }
 }

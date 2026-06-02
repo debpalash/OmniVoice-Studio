@@ -1585,5 +1585,17 @@
     "other_ways": "Altri modi per aiutare",
     "star_github": "Stella su GitHub",
     "join_discord": "Unisciti a Discord"
+  },
+  "updates": {
+    "tab": "Aggiornamenti",
+    "up_to_date": "Aggiornato · v{{version}}",
+    "check_now": "Controlla ora",
+    "releases": "Rilasci",
+    "current": "corrente",
+    "prerelease": "anteprima",
+    "loading": "Caricamento versioni…",
+    "none": "Nessuna versione trovata",
+    "load_error": "Impossibile caricare le versioni (offline?)",
+    "retry_load": "Riprova"
   }
 }

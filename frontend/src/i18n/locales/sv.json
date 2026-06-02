@@ -1585,5 +1585,17 @@
     "other_ways": "Andra sätt att hjälpa till",
     "star_github": "Stjärna på GitHub",
     "join_discord": "Gå med i Discord"
+  },
+  "updates": {
+    "tab": "Uppdateringar",
+    "up_to_date": "Uppdaterad · v{{version}}",
+    "check_now": "Kolla nu",
+    "releases": "Släpps",
+    "current": "nuvarande",
+    "prerelease": "förhandsgranskning",
+    "loading": "Läser in versioner...",
+    "none": "Inga releaser hittades",
+    "load_error": "Det gick inte att läsa in versioner (offline?)",
+    "retry_load": "Försök igen"
   }
 }

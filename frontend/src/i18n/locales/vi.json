@@ -1585,5 +1585,17 @@
     "other_ways": "Những cách khác để giúp đỡ",
     "star_github": "Sao trên GitHub",
     "join_discord": "Tham gia bất hòa"
+  },
+  "updates": {
+    "tab": "Cập nhật",
+    "up_to_date": "Đã cập nhật · v{{version}}",
+    "check_now": "Kiểm tra ngay",
+    "releases": "phát hành",
+    "current": "hiện tại",
+    "prerelease": "xem trước",
+    "loading": "Đang tải bản phát hành…",
+    "none": "Không tìm thấy bản phát hành nào",
+    "load_error": "Không thể tải bản phát hành (ngoại tuyến?)",
+    "retry_load": "Thử lại"
   }
 }

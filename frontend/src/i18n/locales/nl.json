@@ -1585,5 +1585,17 @@
     "other_ways": "Andere manieren om te helpen",
     "star_github": "Ster op GitHub",
     "join_discord": "Sluit je aan bij Discord"
+  },
+  "updates": {
+    "tab": "Updates",
+    "up_to_date": "Up-to-date · v{{version}}",
+    "check_now": "Controleer nu",
+    "releases": "Releases",
+    "current": "actueel",
+    "prerelease": "voorbeeld",
+    "loading": "Releases laden…",
+    "none": "Geen releases gevonden",
+    "load_error": "Kan releases niet laden (offline?)",
+    "retry_load": "Opnieuw proberen"
   }
 }

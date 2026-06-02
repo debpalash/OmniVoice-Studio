@@ -1586,5 +1586,17 @@
     "other_ways": "Andere Möglichkeiten zu helfen",
     "star_github": "Stern auf GitHub",
     "join_discord": "Treten Sie Discord bei"
+  },
+  "updates": {
+    "tab": "Aktualisierungen",
+    "up_to_date": "Auf dem neuesten Stand · v{{version}}",
+    "check_now": "Jetzt prüfen",
+    "releases": "Veröffentlichungen",
+    "current": "aktuell",
+    "prerelease": "Vorschau",
+    "loading": "Veröffentlichungen werden geladen…",
+    "none": "Keine Veröffentlichungen gefunden",
+    "load_error": "Veröffentlichungen konnten nicht geladen werden (offline?)",
+    "retry_load": "Versuchen Sie es noch einmal"
   }
 }

@@ -1585,5 +1585,17 @@
     "other_ways": "其他幫助方法",
     "star_github": "在 GitHub 上加星標",
     "join_discord": "加入不和諧"
+  },
+  "updates": {
+    "tab": "更新",
+    "up_to_date": "最新·v{{version}}",
+    "check_now": "立即查看",
+    "releases": "發布",
+    "current": "目前",
+    "prerelease": "預覽",
+    "loading": "正在載入版本...",
+    "none": "未找到任何版本",
+    "load_error": "無法載入版本（離線？）",
+    "retry_load": "重試"
   }
 }

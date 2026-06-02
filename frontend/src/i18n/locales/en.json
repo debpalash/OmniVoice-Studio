@@ -11,6 +11,18 @@
     "retry": "Retry",
     "dismiss": "Dismiss"
   },
+  "updates": {
+    "tab": "Updates",
+    "up_to_date": "Up to date · v{{version}}",
+    "check_now": "Check now",
+    "releases": "Releases",
+    "current": "current",
+    "prerelease": "preview",
+    "loading": "Loading releases…",
+    "none": "No releases found",
+    "load_error": "Couldn't load releases (offline?)",
+    "retry_load": "Retry"
+  },
   "stories": {
     "title": "Stories Editor",
     "subtitle": "Multi-track audiobook with per-character voices",
