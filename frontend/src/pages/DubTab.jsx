@@ -2,7 +2,7 @@ import React, { Suspense, lazy, useState, useEffect, useCallback, useRef } from 
 import { copyText } from "../utils/copyText";
 import { useTranslation } from 'react-i18next';
 import {
-  PanelLeftOpen, PanelLeftClose, Film, Save, UploadCloud, Sparkles, Loader, Square,
+  PanelLeftOpen, PanelLeftClose, Film, Save, UploadCloud, Sparkles, Loader, Square, Users,
   FileText, Play, DownloadIcon, Volume2, Link2,
   Languages, ChevronDown, ChevronUp, Wand2, Trash2, Check, Globe, UserSquare2, User, AlertCircle,
   ExternalLink, Copy,
@@ -109,6 +109,8 @@ export default function DubTab(props) {
   const setDubLang        = useAppStore(s => s.setDubLang);
   const dubLangCode       = useAppStore(s => s.dubLangCode);
   const setDubLangCode    = useAppStore(s => s.setDubLangCode);
+  const dubNumSpeakers    = useAppStore(s => s.dubNumSpeakers);
+  const setDubNumSpeakers = useAppStore(s => s.setDubNumSpeakers);
   const dubInstruct       = useAppStore(s => s.dubInstruct);
   const setDubInstruct    = useAppStore(s => s.setDubInstruct);
   const dubTracks         = useAppStore(s => s.dubTracks);
@@ -392,6 +394,23 @@ export default function DubTab(props) {
                         />
                       </label>
                     )}
+                    <label className="dub-speakers-hint" title={t('dub.num_speakers_help')}>
+                      <Users size={13} /> {t('dub.num_speakers_label')}
+                      <input
+                        type="number"
+                        min={1}
+                        max={20}
+                        step={1}
+                        className="dub-speakers-input"
+                        placeholder={t('dub.num_speakers_auto')}
+                        value={dubNumSpeakers ?? ''}
+                        disabled={dubStep === 'uploading' || dubStep === 'transcribing'}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value, 10);
+                          setDubNumSpeakers(Number.isFinite(v) && v > 0 ? Math.min(v, 20) : null);
+                        }}
+                      />
+                    </label>
                     <button className="btn-primary dub-change-row__cta"
                       onClick={handleDubUpload}
                       disabled={dubStep === 'uploading' || dubStep === 'transcribing'}>

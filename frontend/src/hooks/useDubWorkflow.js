@@ -68,7 +68,11 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
 
   // ── SSE: wait for transcription stream ──
   const _waitForTranscribe = useCallback((jobId, ctrl) => new Promise((resolve, reject) => {
-    const evt = new EventSource(transcribeStreamUrl(jobId));
+    // Read the optional speaker-count hint at stream-open time (#274) so the
+    // user's choice for this job is honoured without threading it through the
+    // three call sites. null → pyannote auto-detect.
+    const numSpeakers = useAppStore.getState().dubNumSpeakers;
+    const evt = new EventSource(transcribeStreamUrl(jobId, numSpeakers));
     let gotFinal = false;
     const close = () => { try { evt.close(); } catch {} };
     const onAbortSignal = () => { close(); reject(Object.assign(new Error('aborted'), { name: 'AbortError' })); };

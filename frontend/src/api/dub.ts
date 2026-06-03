@@ -39,8 +39,14 @@ export async function dubIngestUrl(
   );
 }
 
-export function transcribeStreamUrl(jobId: string): string {
-  return `${API}/dub/transcribe-stream/${jobId}`;
+export function transcribeStreamUrl(jobId: string, numSpeakers?: number | null): string {
+  const base = `${API}/dub/transcribe-stream/${jobId}`;
+  // Optional pyannote speaker-count hint (#274). Only appended when a positive
+  // integer; otherwise the backend auto-detects.
+  if (numSpeakers && Number.isFinite(numSpeakers) && numSpeakers > 0) {
+    return `${base}?num_speakers=${Math.floor(numSpeakers)}`;
+  }
+  return base;
 }
 
 export async function dubAbort(jobId: string): Promise<void> {

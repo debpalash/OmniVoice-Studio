@@ -366,14 +366,28 @@ _prep_event_helper = dub_pipeline.prep_event  # alias; we keep the module-local 
 
 
 @router.get("/dub/transcribe-stream/{job_id}")
-async def dub_transcribe_stream(job_id: str):
+async def dub_transcribe_stream(job_id: str, num_speakers: Optional[int] = None):
     """Stream per-chunk segments via SSE, then emit diarized final pass.
 
     Pre-flight checks (missing job, missing audio, ASR not loaded) are emitted
     as in-stream `error` events rather than HTTP errors, because EventSource
     on the client can't read non-2xx response bodies — a 503 there surfaces
     as an opaque "network error" instead of the actionable message we want.
+
+    `num_speakers` is an optional hint passed straight to pyannote. Left unset,
+    pyannote auto-detects the count — but its auto-detect can collapse a
+    multi-speaker clip to a single speaker (issue #274). When the user knows
+    the exact count, supplying it forces pyannote to return that many speakers.
     """
+    # Clamp to a sane range; ignore anything non-positive / absurd so a bad
+    # query string can never break the diarization call. None → auto-detect.
+    if num_speakers is not None:
+        try:
+            num_speakers = int(num_speakers)
+            num_speakers = num_speakers if 1 <= num_speakers <= 20 else None
+        except (TypeError, ValueError):
+            num_speakers = None
+
     job = _get_job(job_id)
 
     preflight_error: Optional[str] = None
@@ -671,7 +685,15 @@ async def dub_transcribe_stream(job_id: str):
                     },
                 )
             try:
-                diar = diar_pipe(asr_audio_target)
+                # Pass the user's speaker-count hint through to pyannote when
+                # provided (#274). pyannote's apply() accepts num_speakers;
+                # omit it entirely when None so we don't depend on the kwarg
+                # existing in every pyannote build.
+                if num_speakers:
+                    logger.info("Diarizing with num_speakers=%d (user hint)", num_speakers)
+                    diar = diar_pipe(asr_audio_target, num_speakers=num_speakers)
+                else:
+                    diar = diar_pipe(asr_audio_target)
                 return assign_speakers_from_diarization(all_segments, diar), None
             except Exception as e:
                 logger.error(f"Diarization failed: {e}")

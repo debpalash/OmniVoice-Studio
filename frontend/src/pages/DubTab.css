@@ -352,6 +352,8 @@
 
 .dub-change-row       { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
 .dub-change-row__cta  { flex: 1; margin-top: 0; }
+.dub-speakers-hint    { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted, #a89984); white-space: nowrap; }
+.dub-speakers-input   { width: 52px; margin-left: 4px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border, #3c3836); background: var(--input-bg, #282828); color: inherit; font-size: 12px; }
 
 /* Compact disabled inputs in the idle skeleton */
 .input-base--xs              { font-size: 0.65rem; }
