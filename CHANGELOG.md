@@ -6,6 +6,21 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [0.3.3] — 2026-06-03
+
+### Fixed
+- **Settings → About showed the wrong architecture in the Docker/web build.**
+  The "Architecture" row rendered the *client browser's* platform
+  (`navigator.platform` → e.g. "Win32"); it now reports the **server's** CPU
+  architecture from the backend (`platform.machine()`), correct for both the
+  desktop app and Docker. The blank version/GPU/RAM/VRAM in the same report
+  were the loopback-gate 403s already fixed in v0.3.2. (#262)
+
+### CI
+- The release SHA-256 checksum step no longer uses `mapfile` (a bash 4+
+  builtin) — it broke on the macOS runner's bash 3.2 and dropped the macOS
+  `SHA256SUMS` for v0.3.1/v0.3.2. Now portable to bash 3.2.
+
 ## [0.3.2] — 2026-06-03
 
 ### Fixed
