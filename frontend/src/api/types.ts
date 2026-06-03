@@ -60,6 +60,7 @@ export interface SystemInfo {
   app_version?: string;
   python?: string;
   platform?: string;
+  arch?: string;
   device?: string;
   data_dir?: string;
   outputs_dir?: string;

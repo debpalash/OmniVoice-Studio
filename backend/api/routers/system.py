@@ -1,5 +1,6 @@
 import os
 import sys
+import platform
 import uuid
 import psutil
 import asyncio
@@ -181,6 +182,7 @@ def system_info():
             "device": get_best_device(),
             "python": sys.version.split()[0],
             "platform": sys.platform,
+            "arch": platform.machine(),
             "ffmpeg_ok": bool(_ffmpeg),
             "ffmpeg_path": _ffmpeg or "",
             "proxy_url": os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy") or "",
@@ -207,6 +209,7 @@ def system_info():
             "device": "cpu",
             "python": sys.version.split()[0],
             "platform": sys.platform,
+            "arch": platform.machine(),
             "proxy_url": "",
             "share_enabled": network_share.get_state().enabled,
             "share_port": network_share.get_state().share_port,

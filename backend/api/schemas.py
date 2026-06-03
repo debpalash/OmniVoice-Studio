@@ -37,6 +37,7 @@ class SystemInfoResponse(BaseModel):
     device: str = "cpu"
     python: str = ""
     platform: str = ""
+    arch: str = ""
     error: str | None = None
     ffmpeg_ok: bool = False
     ffmpeg_path: str = ""

@@ -37,6 +37,10 @@ def test_system_info_smoke(client):
     # running version from here so it shows the real version, not a dash (#249).
     from core.version import APP_VERSION
     assert body["app_version"] == APP_VERSION
+    # Settings → About → Architecture must reflect the SERVER's machine, not the
+    # client browser's navigator.platform (which showed "Win32" in Docker, #262).
+    import platform as _pf
+    assert body["arch"] == _pf.machine()
 
 
 def test_health_exposes_version(client):

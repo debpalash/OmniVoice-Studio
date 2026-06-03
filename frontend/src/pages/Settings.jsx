@@ -1355,7 +1355,7 @@ export default function Settings() {
           <Row label={t('about.version')}         value={appVersion || info?.app_version || '—'} mono />
           <Row label={t('about.tauri_runtime')}   value={tauriVersion || (isTauri() ? '—' : t('about.web_preview'))} mono />
           <Row label={t('about.platform')}        value={info?.platform || '—'} />
-          <Row label={t('about.architecture')}    value={typeof navigator !== 'undefined' ? (navigator.userAgentData?.platform || navigator.platform || '—') : '—'} mono />
+          <Row label={t('about.architecture')}    value={info?.arch || '—'} mono />
           <Row label={t('about.python')}          value={info?.python || '—'} mono />
           <Row label={t('about.compute_device')}  value={info?.device || '—'} mono />
           <Row label={t('about.gpu_active')}      value={hw?.gpu_active
