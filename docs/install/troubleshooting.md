@@ -121,7 +121,24 @@ falling back to faster-whisper`.
 path and is still fast. If you want the latest CT2 wheels, run `uv sync`
 from a fresh source checkout.
 
-## 10. IndexTTS / CosyVoice / ChatterboxTTS clash
+## 10. Windows: `Could not locate cudnn_ops_infer64_8.dll` during transcription
+
+**Symptom:** on Windows + NVIDIA, transcription/dubbing fails and the backend
+log shows `Could not locate cudnn_ops_infer64_8.dll`. Settings → Models shows
+WhisperX or faster-whisper selected.
+
+**Cause:** WhisperX and faster-whisper run on **CTranslate2**, which needs
+**cuDNN 8**, but PyTorch 2.8 ships cuDNN 9. OmniVoice side-loads a cuDNN-8 copy
+from `.venv\Lib\site-packages\cudnn8_compat\`; if that folder is missing
+(some upgrade paths don't install it), CTranslate2 can't find the DLL.
+
+**Fix:** switch the ASR backend to **PyTorch Whisper** in **Settings → Models**.
+It runs on PyTorch's own stack (cuDNN 9, bundled with torch) and needs no
+cuDNN-8 DLL — it loads its Whisper pipeline on demand (no extra env var). To
+keep using faster-whisper/WhisperX instead, reinstall to restore the bundled
+`cudnn8_compat` libraries.
+
+## 11. IndexTTS / CosyVoice / ChatterboxTTS clash
 
 **Symptom:** installing one of these engines breaks the others — e.g. after
 installing CosyVoice, IndexTTS errors out with import conflicts.

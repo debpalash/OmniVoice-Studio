@@ -577,22 +577,32 @@ class PyTorchWhisperBackend(ASRBackend):
     def _ensure_pipe(self):
         if self._pipe is not None:
             return
-        # Fall back to grabbing the TTS model's ASR head.
-        import asyncio
-        from services.model_manager import get_model
-        try:
-            loop = asyncio.get_running_loop()
-            if loop.is_running():
-                raise RuntimeError(
-                    "PyTorchWhisperBackend needs the ASR pipe — pass it via constructor "
-                    "when calling from an async context."
-                )
-            model = loop.run_until_complete(get_model())
-        except RuntimeError:
-            model = asyncio.run(get_model())
-        self._pipe = getattr(model, "_asr_pipe", None)
-        if self._pipe is None:
-            raise RuntimeError("Loaded TTS model has no `_asr_pipe` attribute.")
+        # Build a standalone transformers Whisper pipeline on demand. This runs
+        # on PyTorch's own stack (cuDNN 9 ships with torch), so it works as a
+        # fallback on machines where WhisperX / faster-whisper can't load
+        # cuDNN 8 (the `cudnn_ops_infer64_8.dll` failure, issue #255) — and it
+        # needs neither OMNIVOICE_PRELOAD_TTS_ASR=1 nor a loaded TTS model.
+        # When the TTS model already has an ASR head, dub_core passes it via the
+        # constructor and this path is skipped.
+        import torch
+        from transformers import pipeline as hf_pipeline
+        from services.model_manager import get_best_device
+
+        model_name = os.environ.get(
+            "OMNIVOICE_PYTORCH_ASR_MODEL", "openai/whisper-large-v3-turbo"
+        )
+        device = get_best_device()
+        asr_dtype = torch.float16 if str(device).startswith("cuda") else torch.float32
+        logger.info(
+            "PyTorchWhisperBackend: loading standalone ASR pipeline %s on %s",
+            model_name, device,
+        )
+        self._pipe = hf_pipeline(
+            "automatic-speech-recognition",
+            model=model_name,
+            dtype=asr_dtype,
+            device_map=device,
+        )
 
     def transcribe(self, audio_path: str, *, word_timestamps: bool = True) -> dict:
         import soundfile as sf

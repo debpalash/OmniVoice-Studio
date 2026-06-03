@@ -404,12 +404,11 @@ async def dub_transcribe_stream(job_id: str):
             else:
                 from services.asr_backend import get_active_asr_backend
                 try:
+                    # The PyTorch-Whisper backend lazily builds its own pipeline
+                    # when no preloaded `_asr_pipe` is present (issue #255), so it
+                    # no longer needs OMNIVOICE_PRELOAD_TTS_ASR=1 — don't reject it
+                    # here; any load failure surfaces per-chunk with a real cause.
                     _asr_backend = get_active_asr_backend(asr_pipe=getattr(_model, "_asr_pipe", None))
-                    if _asr_backend.id == "pytorch-whisper" and getattr(_model, "_asr_pipe", None) is None:
-                        preflight_error = (
-                            "No ASR backend is ready. Install WhisperX/faster-whisper/MLX Whisper "
-                            "or set OMNIVOICE_PRELOAD_TTS_ASR=1 before launch to use the PyTorch fallback."
-                        )
                 except Exception as e:
                     from core.failure import build_failure
                     f = build_failure(e, stage="transcribe-preflight", include_diagnostic=False)
