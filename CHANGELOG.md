@@ -6,6 +6,17 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [0.3.4] — 2026-06-03
+
+### Fixed
+- **Transcription on Windows + NVIDIA failed with `Could not locate
+  cudnn_ops_infer64_8.dll`.** WhisperX/faster-whisper need cuDNN 8 (via
+  CTranslate2); when the side-loaded `cudnn8_compat` libs are missing, the
+  **PyTorch Whisper** backend (Settings → Models) now works as a drop-in
+  fallback — it builds its own transformers pipeline on PyTorch's cuDNN-9
+  stack, with no CTranslate2/cuDNN-8 dependency and no
+  `OMNIVOICE_PRELOAD_TTS_ASR=1` required. (#255)
+
 ## [0.3.3] — 2026-06-03
 
 ### Fixed
