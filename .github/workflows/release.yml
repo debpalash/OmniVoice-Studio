@@ -540,7 +540,13 @@ jobs:
 
           # Gather artifact paths per matrix leg's `bundles` (msi/app/dmg/deb/appimage/updater).
           # `find` is portable across all three runners (Git Bash on Windows).
-          mapfile -t ARTIFACTS < <(find "$BUNDLE_DIR" -type f \
+          # NB: macOS runners use /bin/bash 3.2, which has no `mapfile` (a bash 4+
+          # builtin) — using it 127'd this step and dropped the macOS SHA256SUMS
+          # for v0.3.1 and v0.3.2. A `while read` loop is portable to bash 3.2.
+          ARTIFACTS=()
+          while IFS= read -r artifact; do
+            ARTIFACTS+=("$artifact")
+          done < <(find "$BUNDLE_DIR" -type f \
             \( -name "*.dmg" -o -name "*.app.tar.gz" -o -name "*.app.tar.gz.sig" \
                -o -name "*.msi" -o -name "*.msi.sig" \
                -o -name "*.AppImage" -o -name "*.AppImage.sig" \
