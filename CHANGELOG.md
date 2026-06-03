@@ -6,6 +6,19 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [0.3.2] — 2026-06-03
+
+### Fixed
+- **"Loopback origin required" all over the Docker UI** (and a blank version).
+  The `/system/*` and `/api/settings/*` routes are restricted to a loopback
+  origin, but Docker's NAT makes every request look non-loopback, so the gate
+  403'd the operator out of the admin UI — including `/system/info` (blanking
+  the version) and HF-token entry. The Docker image now runs with
+  `OMNIVOICE_SERVER_MODE=1`, which relaxes the gate for the headless
+  deployment; exposure is governed by the `-p` port mapping plus the optional
+  share PIN. Desktop builds are unaffected — their loopback boundary (and the
+  denial of admin routes to LAN share guests) is unchanged. (#261)
+
 ## [0.3.1] — 2026-06-03
 
 First tagged build of the 0.3 line off `main` — it ships the accumulated
