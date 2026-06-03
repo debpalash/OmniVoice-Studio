@@ -118,6 +118,15 @@ Two paths are worth persisting across container restarts:
   The running version is now shown in **Settings → About → Version** (read live
   from the backend), so the web UI no longer displays a dash in Docker.
 - **Checking which version is running:** `docker exec omnivoice python -c "import importlib.metadata; print(importlib.metadata.version('omnivoice'))"`, or hit the `/health` endpoint — it returns `{"status": "ok", "device": ..., "version": "0.3.x"}`.
+- **"Loopback origin required" errors (and a blank version):** the desktop
+  build restricts the `/system/*` and `/api/settings/*` routes to a loopback
+  origin, but Docker's NAT makes every request look non-loopback, so the gate
+  used to 403 the whole admin UI (issue #261). The image now ships with
+  `OMNIVOICE_SERVER_MODE=1`, which relaxes that gate for the headless
+  deployment — exposure is instead governed by your `-p` port mapping (keep the
+  `127.0.0.1:` prefix to stay local) plus the optional share PIN. If you front
+  the container with your own auth proxy on loopback, set `OMNIVOICE_SERVER_MODE=0`
+  to re-enable the strict gate.
 - **Media-preview 404 in LAN mode:** see the [LAN access](#lan-access) section
   above — the `window.location.host` fix shipped in v0.3.
 - **GPU not detected:** verify `docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi` succeeds first.

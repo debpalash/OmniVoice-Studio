@@ -46,6 +46,12 @@ services:
       # OMNIVOICE_BIND_HOST=0.0.0.0 here only opens the container's own
       # interface. The backend default is 127.0.0.1 (see backend/main.py).
       - OMNIVOICE_BIND_HOST=0.0.0.0
+      # Headless server: relax the desktop-only loopback origin gate so the
+      # web UI's /system/* and /api/settings/* routes work through Docker's
+      # NAT (issue #261). Already baked into the image; shown here so it's
+      # discoverable. If you front the container with your own auth proxy on
+      # loopback, set this to 0 to re-enable the strict gate.
+      - OMNIVOICE_SERVER_MODE=1
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3900/health"]
       interval: 30s
@@ -76,6 +82,9 @@ services:
       # service above. The host-side `127.0.0.1:3900:3900` mapping keeps
       # LAN reachability off by default.
       - OMNIVOICE_BIND_HOST=0.0.0.0
+      # See the CPU service above — relaxes the loopback origin gate for the
+      # headless Docker deployment (issue #261). Set to 0 to re-enable it.
+      - OMNIVOICE_SERVER_MODE=1
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3900/health"]
       interval: 30s

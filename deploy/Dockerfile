@@ -29,6 +29,13 @@ ENV HF_HOME=/app/omnivoice_data/huggingface
 # Allow bare imports (from core.config, from services.*, etc.) when
 # uvicorn is started as `backend.main:app` from WORKDIR /app.
 ENV PYTHONPATH=/app/backend
+# Headless server deployment: relax the desktop-only loopback origin gate.
+# Docker's network NAT rewrites the client host to the bridge gateway, so the
+# gate would otherwise 403 the operator out of /system/* and /api/settings/*
+# ("Loopback origin required", issue #261). Exposure is governed by the
+# operator's `-p` port mapping plus the optional share PIN. Desktop builds
+# never set this, so their loopback boundary is unchanged.
+ENV OMNIVOICE_SERVER_MODE=1
 
 # Install system dependencies (FFmpeg is critical for torchaudio/scene splitting)
 RUN apt-get update && apt-get install -y --no-install-recommends \
