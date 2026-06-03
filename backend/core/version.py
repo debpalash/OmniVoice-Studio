@@ -12,4 +12,4 @@ from importlib.metadata import PackageNotFoundError, version
 try:
     APP_VERSION = version("omnivoice")
 except PackageNotFoundError:  # non-installed source checkout
-    APP_VERSION = "0.3.4"
+    APP_VERSION = "0.3.5"

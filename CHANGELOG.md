@@ -6,6 +6,17 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [0.3.5] — 2026-06-03
+
+### Fixed
+- **Speaker diarization failed on PyTorch ≥ 2.6** (`Weights only load failed …
+  Unsupported global: torch.torch_version.TorchVersion`) even with the pyannote
+  license accepted. PyTorch 2.6 made `torch.load` default to
+  `weights_only=True`, whose secure unpickler rejects the pyannote checkpoint's
+  metadata globals. The diarization loader now registers the same safe-globals
+  allowlist the WhisperX VAD load already uses, so the secure load succeeds.
+  (#270)
+
 ## [0.3.4] — 2026-06-03
 
 ### Fixed
