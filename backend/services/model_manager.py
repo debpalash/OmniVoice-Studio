@@ -633,6 +633,18 @@ def get_diarization_pipeline(return_error: bool = False):
     try:
         torch = _lazy_torch()
         _ensure_pyannote_hf_token_compat()  # #167: use_auth_token -> token
+        # PyTorch 2.6 flipped torch.load's default to weights_only=True, whose
+        # secure unpickler rejects the pyannote checkpoint's metadata globals
+        # (torch_version.TorchVersion, omegaconf nodes, …) — surfacing as
+        # "Weights only load failed / Unsupported global" and breaking
+        # diarization on torch>=2.6 even after the license is accepted (#270).
+        # Reuse the exact allowlist the WhisperX VAD load registers so the
+        # secure load path succeeds; it is idempotent and per-process.
+        try:
+            from services.asr_backend import WhisperXBackend
+            WhisperXBackend._allow_vad_pickle_globals()
+        except Exception as _glob_e:
+            logger.debug("pyannote safe-globals allowlist skipped: %s", _glob_e)
         from pyannote.audio import Pipeline
         logger.info("Loading Pyannote Diarization Pipeline...")
         _diar_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", use_auth_token=hf_token)
