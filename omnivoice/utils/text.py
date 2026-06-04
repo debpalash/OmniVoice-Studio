@@ -23,7 +23,8 @@ Provides:
 - ``add_punctuation()``: Appends missing end punctuation (Chinese or English).
 """
 
-from typing import List, Optional
+import re
+from typing import List, Optional, Tuple
 
 
 SPLIT_PUNCTUATION = set(".,;:!?。，；：！？")
@@ -217,3 +218,71 @@ def add_punctuation(text: str):
         text += "。" if is_chinese else "."
 
     return text
+
+
+# Inline pause marker (issue #276): `[pause]`, `[pause 500ms]`, `[pause 1s]`,
+# `[pause 1.5s]`. Case-insensitive; whitespace around the number is tolerated.
+# A bare `[pause]` uses PAUSE_DEFAULT_MS.
+PAUSE_DEFAULT_MS = 350
+PAUSE_MAX_MS = 10_000
+_PAUSE_RE = re.compile(
+    r"\[\s*pause(?:\s+(\d+(?:\.\d+)?)\s*(ms|s)?)?\s*\]",
+    re.IGNORECASE,
+)
+
+
+def _pause_ms(num, unit):
+    """Resolve a parsed (number, unit) pair to a clamped millisecond value."""
+    if num is None:
+        return PAUSE_DEFAULT_MS
+    try:
+        value = float(num)
+    except ValueError:
+        return PAUSE_DEFAULT_MS
+    # Bare number or explicit "ms" -> milliseconds; "s" -> seconds.
+    ms = value * 1000.0 if (unit and unit.lower() == "s") else value
+    ms_int = int(round(ms))
+    return max(0, min(ms_int, PAUSE_MAX_MS))
+
+
+def parse_pause_markers(text):
+    """Split ``text`` on inline ``[pause ...]`` markers (issue #276).
+
+    Returns a list of ``(span_text, pause_ms_after)`` tuples, in order, where
+    ``pause_ms_after`` is the silence (in milliseconds) to insert AFTER that
+    span's synthesized audio. Guarantees:
+
+    - With no markers: ``[(text, 0)]`` -- the original text, no pause.
+    - Concatenating every ``span_text`` (markers removed) reproduces the input
+      minus the markers.
+    - A leading marker yields a first tuple with empty ``span_text`` and the
+      pause (rendered as leading silence, no audio).
+    - Consecutive markers sum their durations (clamped to ``PAUSE_MAX_MS``).
+
+    The caller synthesizes each non-empty ``span_text`` as usual and stitches a
+    silence buffer of the given length between spans -- no model changes needed.
+    """
+    if not text or "[" not in text:
+        return [(text, 0)]
+
+    segments = []
+    last = 0
+    pending_text = ""
+    for m in _PAUSE_RE.finditer(text):
+        pending_text += text[last:m.start()]
+        last = m.end()
+        pause = _pause_ms(m.group(1), m.group(2))
+        # When two markers are adjacent (no text between), merge the silence
+        # onto the previous segment instead of emitting an empty span.
+        if pending_text == "" and segments:
+            prev_text, prev_pause = segments[-1]
+            segments[-1] = (prev_text, min(prev_pause + pause, PAUSE_MAX_MS))
+        else:
+            segments.append((pending_text, pause))
+        pending_text = ""
+
+    tail = pending_text + text[last:]
+    if tail or not segments:
+        segments.append((tail, 0))
+
+    return segments

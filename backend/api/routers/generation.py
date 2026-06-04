@@ -20,6 +20,45 @@ from core import event_bus
 router = APIRouter()
 logger = logging.getLogger("omnivoice.generate")
 
+
+def _render_with_pauses(gen_span, segments, sample_rate):
+    """Synthesize ``[(text, pause_ms), ...]`` spans and stitch silence between
+    them (issue #276).
+
+    ``gen_span(text) -> torch.Tensor`` synthesizes one text span (raw model
+    output). A silence buffer of ``pause_ms`` is inserted after a span when
+    requested, matching the audio tensor's channel dims / dtype / device.
+    Returns the concatenated waveform. Kept model-free (``gen_span`` is injected)
+    so the stitching is unit-testable without loading the TTS model.
+    """
+    import torch
+
+    items = []  # ('a', tensor) for audio, ('s', n_samples) for silence
+    for span_text, pause_ms in segments:
+        if span_text and span_text.strip():
+            items.append(("a", gen_span(span_text)))
+        if pause_ms > 0:
+            n = int(round(sample_rate * pause_ms / 1000.0))
+            if n > 0:
+                items.append(("s", n))
+
+    ref = next((t for kind, t in items if kind == "a"), None)
+    if ref is None:
+        # No speakable text (e.g. the input was only pause markers) — emit the
+        # requested silence so the caller still gets a valid clip.
+        total = sum(n for kind, n in items if kind == "s") or 1
+        return torch.zeros(total, dtype=torch.float32)
+
+    parts = []
+    for kind, val in items:
+        if kind == "a":
+            parts.append(val)
+        else:
+            shape = list(ref.shape)
+            shape[-1] = val
+            parts.append(torch.zeros(*shape, dtype=ref.dtype, device=ref.device))
+    return torch.cat(parts, dim=-1)
+
 def _run_inference(
     model, text, language, ref_audio_path, ref_text, instruct, duration,
     num_step, guidance_scale, speed, t_shift, denoise,
@@ -38,16 +77,36 @@ def _run_inference(
         if position_temperature is not None: kwargs["position_temperature"] = position_temperature
         if class_temperature is not None: kwargs["class_temperature"] = class_temperature
 
-        audios = model.generate(
-            text=text, language=language, ref_audio=ref_audio_path,
-            ref_text=ref_text, instruct=instruct, duration=duration,
-            num_step=num_step, guidance_scale=guidance_scale, speed=speed,
-            denoise=denoise, postprocess_output=postprocess_output,
-            **kwargs
-        )
-        audio_out = audios[0]
-        
         sr = model.sampling_rate if hasattr(model, 'sampling_rate') else 24000
+
+        # Inline [pause Nms] markers (issue #276): split the text and stitch
+        # silence between independently-synthesized spans. Fully opt-in — text
+        # without a marker takes the unchanged single-shot path below.
+        from omnivoice.utils.text import parse_pause_markers
+        segments = parse_pause_markers(text)
+        has_pause = len(segments) > 1 or (segments and segments[0][1] > 0)
+
+        if has_pause:
+            def _gen_span(span_text):
+                # Per-span duration is left to the model; an explicit overall
+                # `duration` can't be meaningfully split across spans.
+                return model.generate(
+                    text=span_text, language=language, ref_audio=ref_audio_path,
+                    ref_text=ref_text, instruct=instruct, duration=None,
+                    num_step=num_step, guidance_scale=guidance_scale, speed=speed,
+                    denoise=denoise, postprocess_output=postprocess_output,
+                    **kwargs
+                )[0]
+            audio_out = _render_with_pauses(_gen_span, segments, sr)
+        else:
+            audios = model.generate(
+                text=text, language=language, ref_audio=ref_audio_path,
+                ref_text=ref_text, instruct=instruct, duration=duration,
+                num_step=num_step, guidance_scale=guidance_scale, speed=speed,
+                denoise=denoise, postprocess_output=postprocess_output,
+                **kwargs
+            )
+            audio_out = audios[0]
 
         # Apply DSP effect preset
         _effect_preset = effect_preset or "broadcast"
