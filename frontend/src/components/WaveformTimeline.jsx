@@ -96,6 +96,7 @@ function WaveformTimeline({
 
     // ── 1. Create the video element imperatively (stable, no React re-renders) ──
     let videoEl = null;
+    let videoRetryTimer = null;
     if (videoSrc && videoContainerRef.current) {
       // Remove prior children + detach listeners explicitly to avoid leaks.
       const c = videoContainerRef.current;
@@ -135,14 +136,27 @@ function WaveformTimeline({
       // project save and reload). In either case the rest of the
       // pipeline can't do anything useful, so flip into the
       // user-facing error fallback instead of staring at a black box.
+      // Right after a URL ingest the server file may not be finalized yet
+      // (yt-dlp still remuxing) — the first load then fails with code 2
+      // (network) or 4 (non-media 404 body) and the preview used to stay a
+      // black box until the project was reloaded. Retry with backoff before
+      // declaring the source dead; code 3 (decode) is terminal immediately.
+      let videoRetries = 0;
       videoEl.addEventListener('error', () => {
         const code = videoEl.error?.code;
+        if ((code === 2 || code === 4) && videoRetries < 6) {
+          videoRetries += 1;
+          videoRetryTimer = setTimeout(() => {
+            try { videoEl.src = videoSrc; videoEl.load(); } catch (_) { /* ignore */ }
+          }, 1000 * videoRetries);
+          return;
+        }
         if (code === 3 || code === 4) {
           console.warn('[WaveformTimeline] video element rejected source', videoSrc, 'code', code);
           setSourceMissing(code === 4);
           setLoadError(true);
         }
-      }, { once: true });
+      });
       videoContainerRef.current.appendChild(videoEl);
     }
 
@@ -325,6 +339,7 @@ function WaveformTimeline({
     wsRef.current = ws;
 
     return () => {
+      if (videoRetryTimer) clearTimeout(videoRetryTimer);
       // Gracefully stop before destroy to avoid WaveSurfer's internal
       // fetch progress handler logging "AbortError: Fetch is aborted".
       try { ws.pause(); } catch (_) {}

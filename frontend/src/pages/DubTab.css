@@ -102,7 +102,7 @@
 .dub-prep-overlay__note {
   font-size: var(--text-xs);
   color: var(--color-fg-subtle);
-  max-width: 320px;
+  max-width: min(320px, 90vw);
   text-align: center;
 }
 .dub-prep-overlay__detail {
@@ -112,7 +112,7 @@
   letter-spacing: 0.02em;
 }
 .dub-prep-bar {
-  width: 240px;
+  width: min(240px, 85vw);
   height: 4px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
@@ -431,12 +431,12 @@
   margin-left: 2px;
 }
 /* Size fields so they share the row proportionally */
-.dub-settings-field--lang    { flex: 1 1 100px; min-width: 90px; }
-.dub-settings-field--iso     { flex: 0 0 72px; }
-.dub-settings-field--engine  { flex: 1.4 1 130px; min-width: 110px; }
-.dub-settings-field--quality { flex: 0 0 auto; min-width: 100px; }
+.dub-settings-field--lang    { flex: 1 1 100px; min-width: 70px; }
+.dub-settings-field--iso     { flex: 0 1 72px; min-width: 52px; }
+.dub-settings-field--engine  { flex: 1.4 1 130px; min-width: 90px; }
+.dub-settings-field--quality { flex: 0 1 auto; min-width: 80px; }
 .dub-settings-field--quality > *:last-child { width: 100%; }
-.dub-settings-field--style   { flex: 1 1 90px; min-width: 80px; }
+.dub-settings-field--style   { flex: 1 1 90px; min-width: 64px; }
 @media (max-width: 960px) {
   .dub-settings-bar__fields { flex-direction: column; }
   .dub-settings-field--lang,
@@ -625,8 +625,8 @@
 /* Bulk-select row controls */
 .dub-bulk-select               { font-size: 0.62rem; padding: 2px 4px; }
 .dub-bulk-select--flex         { flex: 1; }
-.dub-bulk-select--voice        { min-width: 100px; }
-.dub-bulk-select--lang         { width: 90px; }
+.dub-bulk-select--voice        { min-width: 72px; flex: 1 1 100px; }
+.dub-bulk-select--lang         { width: auto; min-width: 64px; flex: 0 1 90px; }
 .dub-bulk-row__clear           { margin-left: auto; }
 
 /* Footer banner gapping */
