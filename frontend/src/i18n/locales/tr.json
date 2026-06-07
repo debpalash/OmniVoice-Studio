@@ -1661,6 +1661,8 @@
     "lib_show_all": "{{count}} isteğe bağlı modeli göster",
     "trust_line": "Her şey bu makinede çalışır ve kalır — hesap yok, bulut yok, telemetri yok.",
     "resume_note": "Yarıda kalan indirmeler otomatik devam eder — uygulamayı kapatmak güvenlidir.",
-    "eta_left": "~{{eta}} kaldı"
+    "eta_left": "~{{eta}} kaldı",
+    "first_sound_text": "Stüdyona hoş geldin. Duyduğun her kelime az önce bu makinede üretildi.",
+    "first_sound_done": "O ses mi? Saniyeler önce, yerelde üretildi. Hoş geldin."
   }
 }

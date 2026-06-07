@@ -392,6 +392,38 @@ function App() {
     return () => { cancelled = true; };
   }, [bootstrapStage]);
 
+  // ── First sound ──
+  // Onboarding should end with the product doing the thing: the moment the
+  // studio mounts after the wizard, generate one short line locally and play
+  // it. Best-effort by design — a first impression must never surface an
+  // error, so every failure path is silent.
+  useEffect(() => {
+    if (!setupChecked || setupNeeded || bootstrapStage !== 'ready') return;
+    let pending = false;
+    try {
+      pending = sessionStorage.getItem('omnivoice.firstSound') === '1';
+      if (pending) sessionStorage.removeItem('omnivoice.firstSound');
+    } catch { /* private mode */ }
+    if (!pending) return;
+    (async () => {
+      try {
+        const fd = new FormData();
+        fd.append('text', i18n.t('firstrun.first_sound_text',
+          'Welcome to your studio. Every word you hear was generated on this machine, just now.'));
+        // Functional model prompt (not user-facing copy) — keeps the demo
+        // voice warm without depending on seeded profiles.
+        fd.append('instruct', 'A warm, friendly narrator voice, medium pace');
+        fd.append('num_step', '16');
+        const res = await fetch(`${API}/generate`, { method: 'POST', body: fd });
+        if (!res.ok) return;
+        const blob = await res.blob();
+        await playBlobAudio(blob);
+        toast.success(i18n.t('firstrun.first_sound_done',
+          'That voice? Generated seconds ago, locally. Welcome in.'), { duration: 7000 });
+      } catch { /* silent — see above */ }
+    })();
+  }, [setupChecked, setupNeeded, bootstrapStage]);
+
   // ── Tauri auto-updater ──
   // On boot, ask GitHub Releases if a newer build is available. If yes,
   // prompt the user, download the signed bundle, restart into the new
@@ -826,7 +858,13 @@ function App() {
           className="app-wizard-dragstrip"
         />
         <Suspense fallback={<LazyFallback />}>
-          <SetupWizard onReady={() => setSetupNeeded(false)} />
+          <SetupWizard onReady={() => {
+            // First-sound handoff: the studio's first act after onboarding is
+            // to speak. sessionStorage (not localStorage) so it never replays
+            // on later launches — only on the run that finished the wizard.
+            try { sessionStorage.setItem('omnivoice.firstSound', '1'); } catch { /* private mode */ }
+            setSetupNeeded(false);
+          }} />
         </Suspense>
         <Suspense fallback={null}>
           <LogsFooter />

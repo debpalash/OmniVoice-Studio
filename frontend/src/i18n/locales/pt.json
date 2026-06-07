@@ -1661,6 +1661,8 @@
     "lib_show_all": "Mostrar {{count}} modelos opcionais",
     "trust_line": "Tudo roda e permanece nesta máquina — sem conta, sem nuvem, sem telemetria.",
     "resume_note": "Downloads interrompidos retomam sozinhos — fechar o app é seguro.",
-    "eta_left": "faltam ~{{eta}}"
+    "eta_left": "faltam ~{{eta}}",
+    "first_sound_text": "Bem-vindo ao seu estúdio. Cada palavra que você ouve foi gerada nesta máquina, agora mesmo.",
+    "first_sound_done": "Essa voz? Gerada há segundos, localmente. Bem-vindo."
   }
 }

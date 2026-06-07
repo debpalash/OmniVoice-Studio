@@ -1662,6 +1662,8 @@
     "lib_show_all": "{{count}} optionale Modelle anzeigen",
     "trust_line": "Alles läuft und bleibt auf diesem Rechner — kein Konto, keine Cloud, keine Telemetrie.",
     "resume_note": "Unterbrochene Downloads werden automatisch fortgesetzt — die App zu schließen ist sicher.",
-    "eta_left": "noch ~{{eta}}"
+    "eta_left": "noch ~{{eta}}",
+    "first_sound_text": "Willkommen in deinem Studio. Jedes Wort, das du hörst, wurde gerade eben auf diesem Rechner erzeugt.",
+    "first_sound_done": "Diese Stimme? Vor Sekunden lokal erzeugt. Willkommen."
   }
 }

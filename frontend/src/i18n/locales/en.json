@@ -1656,6 +1656,8 @@
     "lib_show_all": "Show {{count}} optional models",
     "trust_line": "Everything runs and stays on this machine — no account, no cloud, no telemetry.",
     "resume_note": "Interrupted downloads resume automatically — closing the app is safe.",
-    "eta_left": "~{{eta}} left"
+    "eta_left": "~{{eta}} left",
+    "first_sound_text": "Welcome to your studio. Every word you hear was generated on this machine, just now.",
+    "first_sound_done": "That voice? Generated seconds ago, locally. Welcome in."
   }
 }

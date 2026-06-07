@@ -98,7 +98,7 @@
   margin: 0.5rem 0 0;
   font-size: 0.8rem;
   line-height: 1.5;
-  opacity: 0.62;
+  opacity: 0.72;
   max-width: 62ch;
 }
 
@@ -130,7 +130,7 @@
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.62rem;
   letter-spacing: 0.14em;
-  opacity: 0.45;
+  opacity: 0.6;
   font-variant-numeric: tabular-nums;
   user-select: none;
   white-space: nowrap;
@@ -164,7 +164,7 @@
 
 @keyframes frs-breathe {
   from { transform: scaleY(calc(var(--h, 0.4) * 0.55)); opacity: 0.22; }
-  to   { transform: scaleY(var(--h, 0.4)); opacity: 0.5; }
+  to   { transform: scaleY(var(--h, 0.4)); opacity: 0.65; }
 }
 
 /* ── Wide grid: storage rail (left, 7fr) + decision rail (right, 5fr) ──── */
@@ -200,7 +200,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.22em;
-  opacity: 0.55;
+  opacity: 0.68;
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -338,7 +338,7 @@
   font-size: 0.58rem;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  opacity: 0.5;
+  opacity: 0.65;
   flex-shrink: 0;
 }
 
@@ -384,7 +384,7 @@
 .frs-row__path {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.66rem;
-  opacity: 0.5;
+  opacity: 0.65;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -409,7 +409,7 @@
 .frs-row__readout {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.64rem;
-  opacity: 0.55;
+  opacity: 0.68;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -467,7 +467,7 @@
   font-size: 0.6rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  opacity: 0.5;
+  opacity: 0.65;
 }
 
 .frs-select,
@@ -515,7 +515,7 @@
   font-size: 0.62rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  opacity: 0.5;
+  opacity: 0.65;
   cursor: pointer;
   user-select: none;
   padding: 0.15rem 0;
@@ -565,11 +565,11 @@
   align-items: baseline;
   gap: 0.5rem;
   font-size: 0.72rem;
-  opacity: 0.55;
+  opacity: 0.68;
   font-variant-numeric: tabular-nums;
 }
 
-.frs__totals-sep { opacity: 0.5; }
+.frs__totals-sep { opacity: 0.65; }
 
 .frs__blocker {
   margin: 0;
@@ -641,7 +641,7 @@
 .frs-btn--quiet {
   background: transparent;
   color: inherit;
-  opacity: 0.5;
+  opacity: 0.65;
   font-weight: 500;
   padding: 0.34rem 0.6rem;
   font-size: 0.68rem;
@@ -730,7 +730,7 @@
   animation: frs-hw-pulse 1.6s ease-in-out infinite;
 }
 
-.frs-step.is-done .frs-step__label { opacity: 0.55; }
+.frs-step.is-done .frs-step__label { opacity: 0.68; }
 .frs-step.is-active .frs-step__label { font-weight: 650; }
 .frs-step.is-pending { opacity: 0.45; }
 

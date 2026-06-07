@@ -1661,6 +1661,8 @@
     "lib_show_all": "Mostra {{count}} modelli opzionali",
     "trust_line": "Tutto gira e resta su questa macchina — niente account, niente cloud, niente telemetria.",
     "resume_note": "I download interrotti riprendono da soli — chiudere l’app è sicuro.",
-    "eta_left": "~{{eta}} rimanenti"
+    "eta_left": "~{{eta}} rimanenti",
+    "first_sound_text": "Benvenuto nel tuo studio. Ogni parola che senti è stata generata su questa macchina, proprio ora.",
+    "first_sound_done": "Quella voce? Generata pochi secondi fa, in locale. Benvenuto."
   }
 }

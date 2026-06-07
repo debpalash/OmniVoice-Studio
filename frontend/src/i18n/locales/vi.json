@@ -1661,6 +1661,8 @@
     "lib_show_all": "Hiện {{count}} mô hình tùy chọn",
     "trust_line": "Mọi thứ chạy và lưu trên máy này — không tài khoản, không đám mây, không telemetry.",
     "resume_note": "Tải xuống bị gián đoạn sẽ tự tiếp tục — đóng ứng dụng vẫn an toàn.",
-    "eta_left": "còn ~{{eta}}"
+    "eta_left": "còn ~{{eta}}",
+    "first_sound_text": "Chào mừng đến với studio của bạn. Mỗi từ bạn đang nghe vừa được tạo trên chính máy này.",
+    "first_sound_done": "Giọng nói đó? Vừa được tạo vài giây trước, ngay trên máy. Chào mừng."
   }
 }

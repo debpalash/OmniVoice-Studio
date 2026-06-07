@@ -1661,6 +1661,8 @@
     "lib_show_all": "Tampilkan {{count}} model opsional",
     "trust_line": "Semuanya berjalan dan tersimpan di mesin ini — tanpa akun, tanpa cloud, tanpa telemetri.",
     "resume_note": "Unduhan yang terputus dilanjutkan otomatis — menutup aplikasi aman.",
-    "eta_left": "sisa ~{{eta}}"
+    "eta_left": "sisa ~{{eta}}",
+    "first_sound_text": "Selamat datang di studio Anda. Setiap kata yang Anda dengar baru saja dihasilkan di mesin ini.",
+    "first_sound_done": "Suara tadi? Dihasilkan beberapa detik lalu, secara lokal. Selamat datang."
   }
 }

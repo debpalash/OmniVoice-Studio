@@ -1661,6 +1661,8 @@
     "lib_show_all": "Pokaż opcjonalne modele: {{count}}",
     "trust_line": "Wszystko działa i pozostaje na tym komputerze — bez konta, chmury i telemetrii.",
     "resume_note": "Przerwane pobierania wznawiają się same — zamknięcie aplikacji jest bezpieczne.",
-    "eta_left": "pozostało ~{{eta}}"
+    "eta_left": "pozostało ~{{eta}}",
+    "first_sound_text": "Witaj w swoim studiu. Każde słowo, które słyszysz, zostało wygenerowane na tym komputerze — przed chwilą.",
+    "first_sound_done": "Ten głos? Wygenerowany sekundy temu, lokalnie. Witaj."
   }
 }

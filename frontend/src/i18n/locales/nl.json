@@ -1661,6 +1661,8 @@
     "lib_show_all": "Toon {{count}} optionele modellen",
     "trust_line": "Alles draait en blijft op deze machine — geen account, geen cloud, geen telemetrie.",
     "resume_note": "Onderbroken downloads hervatten automatisch — de app sluiten is veilig.",
-    "eta_left": "nog ~{{eta}}"
+    "eta_left": "nog ~{{eta}}",
+    "first_sound_text": "Welkom in je studio. Elk woord dat je hoort is zojuist op deze machine gegenereerd.",
+    "first_sound_done": "Die stem? Seconden geleden lokaal gegenereerd. Welkom."
   }
 }

@@ -152,16 +152,32 @@ function Panel({ title, delay, className = '', children }) {
   );
 }
 
+/** Arrow-key navigation for a radio group (WAI-ARIA radio pattern):
+ *  Left/Up selects the previous enabled option, Right/Down the next.
+ *  Selection follows focus, exactly like native radios. */
+export function radioGroupNav(e, values, current, select) {
+  let delta = 0;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') delta = 1;
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') delta = -1;
+  else return;
+  e.preventDefault();
+  const idx = Math.max(0, values.indexOf(current));
+  const next = values[(idx + delta + values.length) % values.length];
+  select(next);
+}
+
 /** LED radio option — used for install mode, compute and update channel.
  *  Verbosity diet: the description unfolds only on the selected card; the
  *  rest expose it as a tooltip. One expanded card per group keeps the page
- *  calm without hiding information. */
+ *  calm without hiding information. Roving tabindex: only the selected
+ *  option is in the tab order; arrows move within the group. */
 function OptionCard({ active, disabled, onSelect, name, desc, badge, compact }) {
   return (
     <button
       type="button"
       role="radio"
       aria-checked={active}
+      tabIndex={active ? 0 : -1}
       className={`frs-opt ${compact ? 'frs-opt--compact' : ''} ${active ? 'is-active' : ''}`}
       disabled={disabled}
       title={active ? undefined : desc}
@@ -410,7 +426,7 @@ export default function FirstRunSetup() {
           <div className="frs__col frs__col--main">
 
             <Panel title={t('firstrun.mode_title', 'Install mode')} delay={1}>
-              <div className="frs__options frs__options--two" role="radiogroup">
+              <div className="frs__options frs__options--two" role="radiogroup" aria-label={t('firstrun.mode_title', 'Install mode')} onKeyDown={(e) => radioGroupNav(e, setup.portable.available ? ['installed', 'portable'] : ['installed'], plan.installMode, (v) => set({ installMode: v }))}>
                 <OptionCard
                   active={!portable}
                   onSelect={() => set({ installMode: 'installed' })}
@@ -482,7 +498,12 @@ export default function FirstRunSetup() {
                   <span className="frs__hw-value">{hwLine}</span>
                 </div>
               )}
-              <div className="frs__options" role="radiogroup">
+              <div
+                className="frs__options"
+                role="radiogroup"
+                aria-label={t('firstrun.compute_title', 'Compute')}
+                onKeyDown={(e) => radioGroupNav(e, rocmAvailable ? ['auto', 'rocm'] : ['auto'], plan.torchVariant, (v) => set({ torchVariant: v }))}
+              >
                 <OptionCard
                   compact
                   active={plan.torchVariant === 'auto'}
@@ -509,7 +530,12 @@ export default function FirstRunSetup() {
             </Panel>
 
             <Panel title={t('firstrun.channel_label', 'Update channel')} delay={3}>
-              <div className="frs__options" role="radiogroup">
+              <div
+                className="frs__options"
+                role="radiogroup"
+                aria-label={t('firstrun.channel_label', 'Update channel')}
+                onKeyDown={(e) => radioGroupNav(e, ['stable', 'preview'], plan.updateChannel, (v) => set({ updateChannel: v }))}
+              >
                 <OptionCard
                   compact
                   active={plan.updateChannel === 'stable'}
