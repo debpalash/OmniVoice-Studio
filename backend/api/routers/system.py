@@ -1,6 +1,7 @@
 import os
 import sys
 import platform
+import time
 import uuid
 import psutil
 import asyncio
@@ -297,11 +298,19 @@ def _tail_file(path: str, tail: int):
 def _tauri_log_candidates():
     """Likely paths for Tauri-side logs, most useful first.
 
-    `tauri-plugin-log` writes to `~/Library/Logs/<bundle_id>/<file_name>.log`
-    by default on macOS. Our bundle id is `com.debpalash.omnivoice-studio`
-    (see frontend/src-tauri/tauri.conf.json). lib.rs also redirects the
-    spawned backend's stdout/stderr to `~/Library/Logs/OmniVoice/backend.log`
-    which is where `print()` calls and uvicorn startup banners land.
+    Two distinct producers, both per-platform:
+
+    - `tauri-plugin-log` writes `tauri.log` to the app log dir
+      (`~/Library/Logs/<bundle_id>` on macOS, `$XDG_DATA_HOME/<bundle_id>/logs`
+      on Linux, `%LOCALAPPDATA%\\<bundle_id>\\logs` on Windows). Bundle id is
+      `com.debpalash.omnivoice-studio` (frontend/src-tauri/tauri.conf.json).
+    - backend.rs::backend_log_path() redirects the spawned backend's
+      stdout/stderr to `backend.log` / `backend_err.log` under
+      `~/Library/Logs/OmniVoice` (macOS), `$XDG_STATE_HOME/OmniVoice` falling
+      back to `~/.local/state/OmniVoice` (Linux), and
+      `%LOCALAPPDATA%\\OmniVoice\\Logs` (Windows). This is where uvicorn
+      startup banners and hard-crash tracebacks land — keep all three OS
+      shapes listed or sidecar crashes become invisible off-macOS.
     """
     home = os.path.expanduser("~")
     bid = "com.debpalash.omnivoice-studio"
@@ -313,14 +322,21 @@ def _tauri_log_candidates():
             os.path.join(home, "Library/Logs/OmniVoice/backend_err.log"),
         ]
     if sys.platform.startswith("linux"):
+        state_dir = os.environ.get("XDG_STATE_HOME") or os.path.join(home, ".local/state")
         return [
             os.path.join(home, ".local/share", bid, "logs", "tauri.log"),
             os.path.join(home, ".config", bid, "logs", "tauri.log"),
+            os.path.join(state_dir, "OmniVoice", "backend.log"),
+            os.path.join(state_dir, "OmniVoice", "backend_err.log"),
         ]
     if sys.platform.startswith("win"):
         appdata = os.environ.get("APPDATA", home)
+        localappdata = os.environ.get("LOCALAPPDATA") or os.path.join(home, "AppData", "Local")
         return [
+            os.path.join(localappdata, bid, "logs", "tauri.log"),
             os.path.join(appdata, bid, "logs", "tauri.log"),
+            os.path.join(localappdata, "OmniVoice", "Logs", "backend.log"),
+            os.path.join(localappdata, "OmniVoice", "Logs", "backend_err.log"),
         ]
     return []
 
@@ -634,7 +650,55 @@ def system_notifications():
             "action": None,
         })
 
+    # 5. A previous session logged a crash the user never saw.
+    #    crash_log grew past the last acknowledged size AND predates this
+    #    process — i.e. it happened last run, not just now (errors from the
+    #    current session already surfaced as toasts).
+    try:
+        if _crashed_last_session():
+            notes.append({
+                "id": "crash-last-session",
+                "level": "error",
+                "title": "Last session ended with an error",
+                "message": (
+                    "A crash was logged before this session started. "
+                    "Review the backend log and consider filing a report."
+                ),
+                "action": {
+                    "label": "View logs",
+                    "type": "navigate",
+                    "target": "settings",
+                },
+            })
+    except Exception:
+        pass
+
     return {"notifications": notes, "count": len(notes)}
+
+
+# Process start time — anchors "did the crash happen before this run?".
+_PROCESS_START_TS = time.time()
+
+
+def _crashed_last_session() -> bool:
+    from core.prefs import get as prefs_get
+
+    if not os.path.exists(CRASH_LOG_PATH):
+        return False
+    size = os.path.getsize(CRASH_LOG_PATH)
+    acked = int(prefs_get("crash_log_acked_size", 0) or 0)
+    if size <= acked:
+        return False
+    return os.path.getmtime(CRASH_LOG_PATH) < _PROCESS_START_TS
+
+
+@router.post("/system/crash/ack")
+async def ack_crash():
+    """Mark the current crash log as seen — dismisses the
+    'crash-last-session' notification until the log grows again."""
+    size = os.path.getsize(CRASH_LOG_PATH) if os.path.exists(CRASH_LOG_PATH) else 0
+    prefs_set("crash_log_acked_size", size)
+    return {"acked_size": size}
 
 
 # ── Environment variable setter ───────────────────────────────────────────
@@ -852,6 +916,39 @@ def hf_token_state():
         "active": s["active"],
         "sources": [asdict(row) for row in s["sources"]],
     }
+
+
+# ── Error journal ─────────────────────────────────────────────────────────
+
+
+@router.get("/system/errors/recent")
+def recent_errors(limit: int = Query(20, ge=1, le=50)):
+    """Recent unhandled backend errors, newest first — structured, deduped
+    (count per fingerprint), classified (error_class), pre-scrubbed. The
+    bug-report pipeline reads this to auto-attach the most recent backend
+    failure; Settings → Logs can render it as a triage view.
+    """
+    from core import error_journal
+
+    errors = error_journal.recent(limit)
+    return {"errors": errors, "count": len(errors)}
+
+
+# ── Diagnostic bundle ─────────────────────────────────────────────────────
+
+
+@router.post("/system/diagnostic-bundle")
+async def diagnostic_bundle(network: bool = Query(False, description="Include the hub reachability probe")):
+    """Build the drag-onto-a-GitHub-issue zip (core.diagnostic_bundle):
+    self-check report, recent error journal, scrubbed log tails. Returns the
+    local path so the UI can reveal it in the file manager. The path itself
+    is NOT scrubbed — this response never leaves the machine; the zip's
+    *contents* are scrubbed because the zip does.
+    """
+    from core.diagnostic_bundle import build_bundle
+
+    path = await asyncio.to_thread(build_bundle, network)
+    return {"path": path, "filename": os.path.basename(path)}
 
 
 # ── Self-check diagnostics ────────────────────────────────────────────────

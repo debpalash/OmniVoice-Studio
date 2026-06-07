@@ -482,6 +482,13 @@ async def global_exception_handler(request: Request, exc: Exception):
     except Exception:
         logger.exception("Failed to write crash log")
     logger.exception("Unhandled exception for %s", request.url)
+    # Structured journal entry (dedup + error_class) — feeds /system/errors/
+    # recent, the diagnostic bundle, and the bug-report pipeline. record()
+    # never raises; a journal failure must not shadow the real error.
+    from core import error_journal
+    _entry = error_journal.record(
+        exc, route=str(request.url.path), trace=traceback.format_exc()
+    )
     # CORSMiddleware doesn't always get a shot at `exception_handler`-created
     # responses, which leaves the browser reporting every 500 as a bare CORS
     # error. Attach the headers manually so the real `detail` bubbles up.
@@ -491,7 +498,11 @@ async def global_exception_handler(request: Request, exc: Exception):
         headers["Access-Control-Allow-Origin"] = origin
         headers["Access-Control-Allow-Credentials"] = "true"
         headers["Vary"] = "Origin"
-    return JSONResponse({"detail": str(exc)}, status_code=500, headers=headers)
+    return JSONResponse(
+        {"detail": str(exc), "error_class": _entry.get("error_class")},
+        status_code=500,
+        headers=headers,
+    )
 
 
 _LOOPBACK_CLIENTS = {"127.0.0.1", "::1"}

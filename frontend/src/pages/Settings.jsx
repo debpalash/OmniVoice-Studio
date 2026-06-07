@@ -1115,6 +1115,28 @@ export default function Settings() {
     }
   }, [t]);
 
+  // Diagnostic bundle — zip of self-check + error journal + scrubbed log
+  // tails, saved to the outputs dir and revealed so the user can drag it
+  // onto a GitHub issue (logs never fit in the prefilled-URL report).
+  const [bundleBuilding, setBundleBuilding] = useState(false);
+  const saveDiagnosticBundle = useCallback(async () => {
+    setBundleBuilding(true);
+    try {
+      const r = await fetch(`${API}/system/diagnostic-bundle`, { method: 'POST' });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = await r.json();
+      toast.success(t('about.bundle_saved', { filename: j.filename }));
+      try {
+        const { exportReveal } = await import('../api/exports');
+        await exportReveal({ path: j.path });
+      } catch { /* reveal is best-effort — the toast already names the file */ }
+    } catch (e) {
+      toast.error(t('about.bundle_failed', { message: e?.message || e }));
+    } finally {
+      setBundleBuilding(false);
+    }
+  }, [t]);
+
   const copyDiagnostics = useCallback(async () => {
     const nav = typeof navigator !== 'undefined' ? navigator : {};
     const ua = nav.userAgent || '—';
@@ -1441,6 +1463,15 @@ export default function Settings() {
               loading={selfCheckRunning}
             >
               {t('about.self_check')}
+            </Button>
+            <Button
+              variant="subtle"
+              size="md"
+              leading={!bundleBuilding && <Download size={12} />}
+              onClick={saveDiagnosticBundle}
+              loading={bundleBuilding}
+            >
+              {t('about.save_bundle')}
             </Button>
             <Button
               variant="subtle"

@@ -278,6 +278,9 @@
     "self_check_fail": "Failed",
     "self_check_healthy": "All checks passed — this install looks healthy.",
     "self_check_attention": "{{count}} check(s) failed — see the hints above.",
+    "save_bundle": "Save diagnostic bundle",
+    "bundle_saved": "Diagnostic bundle saved: {{filename}}",
+    "bundle_failed": "Could not build the diagnostic bundle: {{message}}",
     "version": "Version",
     "tauri_runtime": "Tauri runtime",
     "platform": "Platform",
@@ -1099,7 +1102,8 @@
     "desc": "Don't worry — the rest of the app still works. You can switch tabs, or try again below.",
     "tryAgain": "Try again",
     "openDocs": "Open docs for this error",
-    "report": "Report this bug"
+    "report": "Report this bug",
+    "unexpected": "Unexpected error: {{message}}"
   },
   "common": {
     "open": "Open",
