@@ -338,7 +338,7 @@ export function BootstrapSplash({ stage, message }) {
           <div className="frs__mast-row">
             <div className="frs__mast-text">
               <h1 className="frs__title">{t('bootstrap.title', 'OmniVoice Studio')}</h1>
-              <p className="frs__subtitle">{label}</p>
+              <p className="frs__subtitle" aria-live="polite">{label}</p>
             </div>
             <div className="frs__mast-meta">
               <div className="frs__mast-selects">

@@ -9,6 +9,26 @@
   --seg-grid-cols: 18px 64px 70px minmax(0, 1fr) 44px 60px 40px 44px;
 }
 
+/* Narrow windows: shrink the fixed rails so the text column keeps real
+   width instead of being squeezed to nothing — the table reflows with the
+   window instead of overflowing it. */
+@media (max-width: 1100px) {
+  .segment-table {
+    --seg-grid-cols: 16px 54px 56px minmax(0, 1fr) 38px 52px 34px 38px;
+  }
+}
+
+@media (max-width: 760px) {
+  .segment-table {
+    --seg-grid-cols: 14px 48px minmax(0, 1fr) 34px 48px 34px;
+  }
+  /* Speaker + gain rails collapse entirely below tablet width. */
+  .dub-segment-table__header > :nth-child(3),
+  .segment-row > :nth-child(3),
+  .dub-segment-table__header > :nth-child(7),
+  .segment-row > :nth-child(7) { display: none; }
+}
+
 .dub-segment-table__header,
 .segment-table .segment-row {
   display: grid !important;

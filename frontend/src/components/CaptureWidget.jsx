@@ -120,10 +120,14 @@ export default function CaptureWidget({ onDismiss }) {
 
     if (data.text) {
       try {
+        // Best-effort WebView copy (works in browser mode). In Tauri the
+        // widget window is unfocused on macOS, where WebView clipboard APIs
+        // fail silently — so pass the transcript to simulate_paste, which
+        // writes the clipboard natively (OS-side) before sending ⌘V (#287).
         await copyText(data.text);
         try {
           const { invoke } = await import('@tauri-apps/api/core');
-          await invoke('simulate_paste');
+          await invoke('simulate_paste', { text: data.text });
         } catch { /* not in Tauri */ }
       } catch { /* clipboard API may fail */ }
 

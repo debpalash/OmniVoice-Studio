@@ -258,7 +258,19 @@ fn hf_hub_cache_dir() -> PathBuf {
 use enigo::{Direction, Enigo, Key, Keyboard, Settings as EnigoSettings};
 
 #[tauri::command]
-pub fn simulate_paste() -> Result<(), String> {
+pub fn simulate_paste(text: Option<String>) -> Result<(), String> {
+    // Write the transcript to the clipboard natively first: the widget window
+    // is intentionally unfocused on macOS (so the simulated ⌘V reaches the
+    // target app), which makes the WebView clipboard APIs (navigator.clipboard
+    // / execCommand('copy')) fail silently there (#287). `text` is optional so
+    // call sites that already populated the clipboard keep working.
+    if let Some(t) = text {
+        let mut cb = arboard::Clipboard::new()
+            .map_err(|e| format!("clipboard init failed: {e}"))?;
+        cb.set_text(t)
+            .map_err(|e| format!("clipboard write failed: {e}"))?;
+    }
+
     std::thread::sleep(Duration::from_millis(80));
 
     let mut enigo = Enigo::new(&EnigoSettings::default())

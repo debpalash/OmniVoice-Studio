@@ -34,13 +34,18 @@ describe('DictationDemo', () => {
     expect(screen.getByText(/No hotkey registered/i)).toBeInTheDocument();
   });
 
-  it('hides the demo when the sample assets are missing (HEAD 404)', async () => {
+  it('keeps the hotkey card but hides the script cards when samples are missing (HEAD 404)', async () => {
     // The mount probe HEAD-checks the first sample; a 404 means no rendered
-    // assets on disk → the whole demo should disappear rather than show cards
-    // that fail on click.
+    // assets on disk. Since #294 the demo no longer disappears wholesale —
+    // that blanked the wizard's Try-dictation act on every real install.
+    // The hotkey card (shortcut + press-to-verify) needs no assets and must
+    // stay; only the replayable script cards are asset-gated.
     global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 404 }));
     const { container } = render(withI18n(<DictationDemo />));
-    await waitFor(() => expect(container).toBeEmptyDOMElement());
+    await waitFor(() =>
+      expect(container.querySelector('.dictation-demo__scripts')).toBeNull());
+    // The panel itself (hotkey teaching) is still there.
+    expect(container.querySelector('.dictation-demo')).not.toBeNull();
     expect(screen.queryByText(/Schedule a meeting with Pat/)).not.toBeInTheDocument();
   });
 
