@@ -131,3 +131,9 @@
 .swiz-lib__sub { display: block; min-width: 0; }
 
 .swiz-lib__more { align-self: flex-start; }
+
+/* Optional HF token — quiet disclosure at the bottom of the library. */
+.swiz-lib__hf { margin-top: 0.3rem; }
+.swiz-lib__hf-body { display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.45rem; max-width: 460px; }
+.swiz-lib__hf-row { display: flex; gap: 0.45rem; }
+.swiz-lib__hf-row .frs-input { flex: 1; }

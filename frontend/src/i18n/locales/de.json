@@ -1664,6 +1664,12 @@
     "resume_note": "Unterbrochene Downloads werden automatisch fortgesetzt — die App zu schließen ist sicher.",
     "eta_left": "noch ~{{eta}}",
     "first_sound_text": "Willkommen in deinem Studio. Jedes Wort, das du hörst, wurde gerade eben auf diesem Rechner erzeugt.",
-    "first_sound_done": "Diese Stimme? Vor Sekunden lokal erzeugt. Willkommen."
+    "first_sound_done": "Diese Stimme? Vor Sekunden lokal erzeugt. Willkommen.",
+    "hf_token_title": "Hugging-Face-Token (optional)",
+    "hf_token_hint": "Schaltet beschränkte Modelle frei — z. B. Sprecher-Diarisierung für Mehrsprecher-Dubbing (pyannote). Kostenloses Konto-Token; bleibt auf diesem Rechner.",
+    "hf_token_save": "Speichern",
+    "hf_token_saving": "speichert…",
+    "hf_token_saved": "Hugging-Face-Token gespeichert",
+    "hf_token_error": "Token konnte nicht gespeichert werden — erneut versuchen oder später in Einstellungen → Zugangsdaten setzen."
   }
 }

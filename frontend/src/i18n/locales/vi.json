@@ -1663,6 +1663,12 @@
     "resume_note": "Tải xuống bị gián đoạn sẽ tự tiếp tục — đóng ứng dụng vẫn an toàn.",
     "eta_left": "còn ~{{eta}}",
     "first_sound_text": "Chào mừng đến với studio của bạn. Mỗi từ bạn đang nghe vừa được tạo trên chính máy này.",
-    "first_sound_done": "Giọng nói đó? Vừa được tạo vài giây trước, ngay trên máy. Chào mừng."
+    "first_sound_done": "Giọng nói đó? Vừa được tạo vài giây trước, ngay trên máy. Chào mừng.",
+    "hf_token_title": "Token Hugging Face (tùy chọn)",
+    "hf_token_hint": "Mở khóa các mô hình bị giới hạn — ví dụ tách người nói cho lồng tiếng nhiều giọng (pyannote). Token tài khoản miễn phí; chỉ lưu trên máy này.",
+    "hf_token_save": "Lưu",
+    "hf_token_saving": "đang lưu…",
+    "hf_token_saved": "Đã lưu token Hugging Face",
+    "hf_token_error": "Không thể lưu token — thử lại hoặc đặt sau trong Cài đặt → Thông tin xác thực."
   }
 }

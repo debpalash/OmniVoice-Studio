@@ -1663,6 +1663,12 @@
     "resume_note": "下载中断后会自动续传——关闭应用也没关系。",
     "eta_left": "剩余约 {{eta}}",
     "first_sound_text": "欢迎来到你的工作室。你听到的每一个字，都是刚刚在这台设备上生成的。",
-    "first_sound_done": "刚才的声音？几秒前在本地生成。欢迎入驻。"
+    "first_sound_done": "刚才的声音？几秒前在本地生成。欢迎入驻。",
+    "hf_token_title": "Hugging Face 令牌（可选）",
+    "hf_token_hint": "解锁受限模型——例如多说话人配音的说话人分离（pyannote）。免费账号令牌，仅保存在本机。",
+    "hf_token_save": "保存",
+    "hf_token_saving": "保存中…",
+    "hf_token_saved": "Hugging Face 令牌已保存",
+    "hf_token_error": "令牌保存失败——请重试，或稍后在设置 → 凭据中设置。"
   }
 }

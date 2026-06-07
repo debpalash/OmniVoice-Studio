@@ -1663,6 +1663,12 @@
     "resume_note": "Avbrutna nedladdningar återupptas automatiskt — det är säkert att stänga appen.",
     "eta_left": "~{{eta}} kvar",
     "first_sound_text": "Välkommen till din studio. Varje ord du hör genererades på den här datorn, alldeles nyss.",
-    "first_sound_done": "Den rösten? Genererad för några sekunder sedan, lokalt. Välkommen."
+    "first_sound_done": "Den rösten? Genererad för några sekunder sedan, lokalt. Välkommen.",
+    "hf_token_title": "Hugging Face-token (valfritt)",
+    "hf_token_hint": "Låser upp begränsade modeller — t.ex. talardiarisering för dubbning med flera röster (pyannote). Token från gratiskonto; stannar på den här datorn.",
+    "hf_token_save": "Spara",
+    "hf_token_saving": "sparar…",
+    "hf_token_saved": "Hugging Face-token sparad",
+    "hf_token_error": "Kunde inte spara token — försök igen eller ange den senare i Inställningar → Uppgifter."
   }
 }

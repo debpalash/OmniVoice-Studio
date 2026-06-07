@@ -1663,6 +1663,12 @@
     "resume_note": "Onderbroken downloads hervatten automatisch — de app sluiten is veilig.",
     "eta_left": "nog ~{{eta}}",
     "first_sound_text": "Welkom in je studio. Elk woord dat je hoort is zojuist op deze machine gegenereerd.",
-    "first_sound_done": "Die stem? Seconden geleden lokaal gegenereerd. Welkom."
+    "first_sound_done": "Die stem? Seconden geleden lokaal gegenereerd. Welkom.",
+    "hf_token_title": "Hugging Face-token (optioneel)",
+    "hf_token_hint": "Ontgrendelt afgeschermde modellen — bijv. sprekerdiarisatie voor dubben met meerdere stemmen (pyannote). Token van gratis account; blijft op deze machine.",
+    "hf_token_save": "Opslaan",
+    "hf_token_saving": "opslaan…",
+    "hf_token_saved": "Hugging Face-token opgeslagen",
+    "hf_token_error": "Token kon niet worden opgeslagen — probeer opnieuw of stel het later in via Instellingen → Inloggegevens."
   }
 }

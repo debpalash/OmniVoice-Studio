@@ -1664,6 +1664,12 @@
     "resume_note": "Las descargas interrumpidas se reanudan solas; cerrar la app es seguro.",
     "eta_left": "quedan ~{{eta}}",
     "first_sound_text": "Bienvenido a tu estudio. Cada palabra que oyes se generó en esta máquina, ahora mismo.",
-    "first_sound_done": "¿Esa voz? Generada hace segundos, en local. Bienvenido."
+    "first_sound_done": "¿Esa voz? Generada hace segundos, en local. Bienvenido.",
+    "hf_token_title": "Token de Hugging Face (opcional)",
+    "hf_token_hint": "Desbloquea modelos restringidos — p. ej. diarización de hablantes para doblaje multivoz (pyannote). Token de cuenta gratuita; se queda en esta máquina.",
+    "hf_token_save": "Guardar",
+    "hf_token_saving": "guardando…",
+    "hf_token_saved": "Token de Hugging Face guardado",
+    "hf_token_error": "No se pudo guardar el token — reintenta o configúralo luego en Ajustes → Credenciales."
   }
 }

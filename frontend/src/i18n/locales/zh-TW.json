@@ -1663,6 +1663,12 @@
     "resume_note": "下載中斷後會自動續傳——關閉應用程式也沒關係。",
     "eta_left": "剩餘約 {{eta}}",
     "first_sound_text": "歡迎來到你的工作室。你聽到的每一個字，都是剛剛在這台裝置上生成的。",
-    "first_sound_done": "剛才的聲音？幾秒前在本機生成。歡迎加入。"
+    "first_sound_done": "剛才的聲音？幾秒前在本機生成。歡迎加入。",
+    "hf_token_title": "Hugging Face 權杖（可選）",
+    "hf_token_hint": "解鎖受限模型——例如多語者配音的語者分離（pyannote）。免費帳號權杖，僅保存在本機。",
+    "hf_token_save": "儲存",
+    "hf_token_saving": "儲存中…",
+    "hf_token_saved": "Hugging Face 權杖已儲存",
+    "hf_token_error": "權杖儲存失敗——請重試，或稍後在設定 → 憑證中設定。"
   }
 }

@@ -69,7 +69,31 @@ export default function WizardLibrary() {
   const [progress, setProgress] = useState({}); // { repo_id: { phase, files } }
   const [showTail, setShowTail] = useState(false);
   const [switching, setSwitching] = useState(null);
+  const [hfToken, setHfToken] = useState('');
+  const [hfState, setHfState] = useState('idle'); // idle | saving | saved | error
   const esRef = useRef(null);
+
+  // Optional HF token: unlocks gated models (e.g. pyannote speaker
+  // diarization). Same persistence endpoint Settings uses — the backend
+  // writes it durably so it survives restarts.
+  const saveHfToken = async () => {
+    const value = hfToken.trim();
+    if (!value || hfState === 'saving') return;
+    setHfState('saving');
+    try {
+      const { API } = await import('../api/client');
+      const res = await fetch(`${API}/system/set-env`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'HF_TOKEN', value }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      setHfState('saved');
+      setHfToken('');
+    } catch {
+      setHfState('error');
+    }
+  };
 
   const models = useMemo(() => {
     const list = modelsQuery.data;
@@ -214,6 +238,43 @@ export default function WizardLibrary() {
           {t('firstrun.resume_note', 'Interrupted downloads resume automatically — closing the app is safe.')}
         </p>
       )}
+      <details className="frs__advanced swiz-lib__hf">
+        <summary>
+          {hfState === 'saved'
+            ? `✓ ${t('firstrun.hf_token_saved', 'Hugging Face token saved')}`
+            : t('firstrun.hf_token_title', 'Hugging Face token (optional)')}
+        </summary>
+        <div className="swiz-lib__hf-body">
+          <p className="frs__trust">
+            {t('firstrun.hf_token_hint', 'Unlocks gated models — e.g. speaker diarization for multi-speaker dubbing (pyannote). Free account token; stays on this machine.')}
+          </p>
+          <div className="swiz-lib__hf-row">
+            <input
+              className="frs-input"
+              type="password"
+              placeholder="hf_…"
+              value={hfToken}
+              autoComplete="off"
+              onChange={(e) => { setHfToken(e.target.value); if (hfState !== 'idle') setHfState('idle'); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') saveHfToken(); }}
+              aria-label={t('firstrun.hf_token_title', 'Hugging Face token (optional)')}
+            />
+            <button
+              type="button"
+              className="frs-btn frs-btn--quiet"
+              disabled={!hfToken.trim() || hfState === 'saving'}
+              onClick={saveHfToken}
+            >
+              {hfState === 'saving'
+                ? t('firstrun.hf_token_saving', 'saving…')
+                : t('firstrun.hf_token_save', 'Save')}
+            </button>
+          </div>
+          {hfState === 'error' && (
+            <p className="frs__blocker">{t('firstrun.hf_token_error', 'Could not save the token — try again or set it later in Settings → Credentials.')}</p>
+          )}
+        </div>
+      </details>
     </div>
   );
 }

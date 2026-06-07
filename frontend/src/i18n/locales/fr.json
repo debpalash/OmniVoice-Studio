@@ -1664,6 +1664,12 @@
     "resume_note": "Les téléchargements interrompus reprennent automatiquement — fermer l’application est sans risque.",
     "eta_left": "~{{eta}} restantes",
     "first_sound_text": "Bienvenue dans votre studio. Chaque mot que vous entendez vient d’être généré sur cette machine.",
-    "first_sound_done": "Cette voix ? Générée il y a quelques secondes, en local. Bienvenue."
+    "first_sound_done": "Cette voix ? Générée il y a quelques secondes, en local. Bienvenue.",
+    "hf_token_title": "Jeton Hugging Face (optionnel)",
+    "hf_token_hint": "Débloque les modèles restreints — p. ex. la diarisation pour le doublage multi-locuteurs (pyannote). Jeton de compte gratuit ; reste sur cette machine.",
+    "hf_token_save": "Enregistrer",
+    "hf_token_saving": "enregistrement…",
+    "hf_token_saved": "Jeton Hugging Face enregistré",
+    "hf_token_error": "Impossible d’enregistrer le jeton — réessayez ou configurez-le plus tard dans Réglages → Identifiants."
   }
 }

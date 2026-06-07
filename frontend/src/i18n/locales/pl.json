@@ -1663,6 +1663,12 @@
     "resume_note": "Przerwane pobierania wznawiają się same — zamknięcie aplikacji jest bezpieczne.",
     "eta_left": "pozostało ~{{eta}}",
     "first_sound_text": "Witaj w swoim studiu. Każde słowo, które słyszysz, zostało wygenerowane na tym komputerze — przed chwilą.",
-    "first_sound_done": "Ten głos? Wygenerowany sekundy temu, lokalnie. Witaj."
+    "first_sound_done": "Ten głos? Wygenerowany sekundy temu, lokalnie. Witaj.",
+    "hf_token_title": "Token Hugging Face (opcjonalny)",
+    "hf_token_hint": "Odblokowuje modele z ograniczeniami — np. diaryzację mówców do dubbingu wielogłosowego (pyannote). Token darmowego konta; zostaje na tym komputerze.",
+    "hf_token_save": "Zapisz",
+    "hf_token_saving": "zapisywanie…",
+    "hf_token_saved": "Token Hugging Face zapisany",
+    "hf_token_error": "Nie udało się zapisać tokenu — spróbuj ponownie lub ustaw go później w Ustawieniach → Dane logowania."
   }
 }

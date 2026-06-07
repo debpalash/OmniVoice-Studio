@@ -1663,6 +1663,12 @@
     "resume_note": "중단된 다운로드는 자동으로 이어집니다 — 앱을 닫아도 안전합니다.",
     "eta_left": "약 {{eta}} 남음",
     "first_sound_text": "당신의 스튜디오에 오신 것을 환영합니다. 지금 들리는 모든 말은 방금 이 컴퓨터에서 생성되었습니다.",
-    "first_sound_done": "방금 그 목소리, 몇 초 전 로컬에서 생성됐습니다. 환영합니다."
+    "first_sound_done": "방금 그 목소리, 몇 초 전 로컬에서 생성됐습니다. 환영합니다.",
+    "hf_token_title": "Hugging Face 토큰(선택)",
+    "hf_token_hint": "제한된 모델을 사용할 수 있게 합니다 — 예: 다중 화자 더빙용 화자 분리(pyannote). 무료 계정 토큰이며 이 컴퓨터에만 저장됩니다.",
+    "hf_token_save": "저장",
+    "hf_token_saving": "저장 중…",
+    "hf_token_saved": "Hugging Face 토큰 저장됨",
+    "hf_token_error": "토큰을 저장하지 못했습니다 — 다시 시도하거나 나중에 설정 → 자격 증명에서 설정하세요."
   }
 }

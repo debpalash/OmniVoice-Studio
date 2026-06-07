@@ -1658,6 +1658,12 @@
     "resume_note": "Interrupted downloads resume automatically — closing the app is safe.",
     "eta_left": "~{{eta}} left",
     "first_sound_text": "Welcome to your studio. Every word you hear was generated on this machine, just now.",
-    "first_sound_done": "That voice? Generated seconds ago, locally. Welcome in."
+    "first_sound_done": "That voice? Generated seconds ago, locally. Welcome in.",
+    "hf_token_title": "Hugging Face token (optional)",
+    "hf_token_hint": "Unlocks gated models — e.g. speaker diarization for multi-speaker dubbing (pyannote). Free account token; stays on this machine.",
+    "hf_token_save": "Save",
+    "hf_token_saving": "saving…",
+    "hf_token_saved": "Hugging Face token saved",
+    "hf_token_error": "Could not save the token — try again or set it later in Settings → Credentials."
   }
 }

@@ -1663,6 +1663,12 @@
     "resume_note": "Yarıda kalan indirmeler otomatik devam eder — uygulamayı kapatmak güvenlidir.",
     "eta_left": "~{{eta}} kaldı",
     "first_sound_text": "Stüdyona hoş geldin. Duyduğun her kelime az önce bu makinede üretildi.",
-    "first_sound_done": "O ses mi? Saniyeler önce, yerelde üretildi. Hoş geldin."
+    "first_sound_done": "O ses mi? Saniyeler önce, yerelde üretildi. Hoş geldin.",
+    "hf_token_title": "Hugging Face belirteci (isteğe bağlı)",
+    "hf_token_hint": "Kısıtlı modellerin kilidini açar — ör. çok konuşmacılı dublaj için konuşmacı ayrıştırma (pyannote). Ücretsiz hesap belirteci; bu makinede kalır.",
+    "hf_token_save": "Kaydet",
+    "hf_token_saving": "kaydediliyor…",
+    "hf_token_saved": "Hugging Face belirteci kaydedildi",
+    "hf_token_error": "Belirteç kaydedilemedi — yeniden deneyin veya sonra Ayarlar → Kimlik bilgileri bölümünden ayarlayın."
   }
 }

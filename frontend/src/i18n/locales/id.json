@@ -1663,6 +1663,12 @@
     "resume_note": "Unduhan yang terputus dilanjutkan otomatis — menutup aplikasi aman.",
     "eta_left": "sisa ~{{eta}}",
     "first_sound_text": "Selamat datang di studio Anda. Setiap kata yang Anda dengar baru saja dihasilkan di mesin ini.",
-    "first_sound_done": "Suara tadi? Dihasilkan beberapa detik lalu, secara lokal. Selamat datang."
+    "first_sound_done": "Suara tadi? Dihasilkan beberapa detik lalu, secara lokal. Selamat datang.",
+    "hf_token_title": "Token Hugging Face (opsional)",
+    "hf_token_hint": "Membuka model terbatas — mis. diarisasi pembicara untuk sulih suara multi-suara (pyannote). Token akun gratis; tetap di mesin ini.",
+    "hf_token_save": "Simpan",
+    "hf_token_saving": "menyimpan…",
+    "hf_token_saved": "Token Hugging Face tersimpan",
+    "hf_token_error": "Gagal menyimpan token — coba lagi atau atur nanti di Pengaturan → Kredensial."
   }
 }
