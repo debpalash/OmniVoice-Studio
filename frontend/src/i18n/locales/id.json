@@ -1097,7 +1097,8 @@
     "script_french": "Non-Inggris (Prancis)",
     "aria_pause": "Jeda {{label}}",
     "aria_hear": "Dengarkan {{label}}",
-    "aria_replay": "Putar ulang {{label}} melalui transcriber"
+    "aria_replay": "Putar ulang {{label}} melalui transcriber",
+    "dictation_lede_hotkey_only": "Tahan pintasan di atas di mana saja di desktop, bicara, lepaskan — teks masuk ke aplikasi yang sedang fokus. Tekan sekarang untuk memverifikasi."
   },
   "direction": {
     "title": "Arah untuk segmen #{{id}}",

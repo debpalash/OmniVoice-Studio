@@ -1098,7 +1098,8 @@
     "script_french": "英語以外（フランス語）",
     "aria_pause": "一時停止 {{label}}",
     "aria_hear": "{{label}} を聞いてください",
-    "aria_replay": "文字起こしを通じて {{label}} を再生する"
+    "aria_replay": "文字起こしを通じて {{label}} を再生する",
+    "dictation_lede_hotkey_only": "デスクトップのどこでも上のショートカットを押しながら話し、離すとフォーカス中のアプリにテキストが入力されます。今押して動作を確認しましょう。"
   },
   "direction": {
     "title": "セグメント #{{id}} の方向",

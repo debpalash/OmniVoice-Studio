@@ -1097,7 +1097,8 @@
     "script_french": "비영어권(프랑스어)",
     "aria_pause": "일시중지 {{label}}",
     "aria_hear": "{{label}} 듣기",
-    "aria_replay": "전사기를 통해 {{label}} 재생"
+    "aria_replay": "전사기를 통해 {{label}} 재생",
+    "dictation_lede_hotkey_only": "데스크톱 어디서든 위 단축키를 누른 채 말하고 떼면 포커스된 앱에 텍스트가 입력됩니다. 지금 눌러서 확인해 보세요."
   },
   "direction": {
     "title": "세그먼트 #{{id}} 방향",

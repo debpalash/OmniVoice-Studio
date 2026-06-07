@@ -1098,7 +1098,8 @@
     "script_french": "Non anglais (français)",
     "aria_pause": "Pause {{label}}",
     "aria_hear": "Écoutez {{label}}",
-    "aria_replay": "Rejouer {{label}} via le transcripteur"
+    "aria_replay": "Rejouer {{label}} via le transcripteur",
+    "dictation_lede_hotkey_only": "Maintenez le raccourci ci-dessus n'importe où sur votre bureau, parlez, relâchez — le texte arrive dans l'application active. Appuyez maintenant pour vérifier."
   },
   "direction": {
     "title": "Direction pour le segment #{{id}}",

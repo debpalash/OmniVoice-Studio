@@ -1098,7 +1098,8 @@
     "script_french": "No inglés (francés)",
     "aria_pause": "Pausa {{label}}",
     "aria_hear": "Escuchar {{label}}",
-    "aria_replay": "Reproducir {{label}} a través del transcriptor"
+    "aria_replay": "Reproducir {{label}} a través del transcriptor",
+    "dictation_lede_hotkey_only": "Mantén pulsado el atajo de arriba en cualquier lugar del escritorio, habla y suéltalo: el texto aparecerá en la app con foco. Púlsalo ahora para verificarlo."
   },
   "direction": {
     "title": "Dirección del segmento #{{id}}",

@@ -1098,7 +1098,8 @@
     "script_french": "Nicht-Englisch (Französisch)",
     "aria_pause": "Pause {{label}}",
     "aria_hear": "Hören Sie {{label}}",
-    "aria_replay": "Wiederholen Sie {{label}} durch den Transkriptor"
+    "aria_replay": "Wiederholen Sie {{label}} durch den Transkriptor",
+    "dictation_lede_hotkey_only": "Halte das Tastenkürzel oben überall auf dem Desktop gedrückt, sprich und lass los — der Text landet in der fokussierten App. Drücke es jetzt zum Verifizieren."
   },
   "direction": {
     "title": "Richtung für Segment #{{id}}",

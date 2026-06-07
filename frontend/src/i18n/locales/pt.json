@@ -1097,7 +1097,8 @@
     "script_french": "Não Inglês (Francês)",
     "aria_pause": "Pausa {{label}}",
     "aria_hear": "Ouça {{label}}",
-    "aria_replay": "Reproduzir {{label}} através do transcritor"
+    "aria_replay": "Reproduzir {{label}} através do transcritor",
+    "dictation_lede_hotkey_only": "Segure o atalho acima em qualquer lugar da área de trabalho, fale e solte — o texto cai no app em foco. Pressione agora para verificar."
   },
   "direction": {
     "title": "Direção para o segmento #{{id}}",

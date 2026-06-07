@@ -1097,7 +1097,8 @@
     "script_french": "Không phải tiếng Anh (tiếng Pháp)",
     "aria_pause": "Tạm dừng {{label}}",
     "aria_hear": "Nghe _V_0__",
-    "aria_replay": "Phát lại {{label}} thông qua người ghi âm"
+    "aria_replay": "Phát lại {{label}} thông qua người ghi âm",
+    "dictation_lede_hotkey_only": "Giữ phím tắt ở trên tại bất kỳ đâu trên màn hình, nói rồi thả — văn bản sẽ vào ứng dụng đang được chọn. Nhấn ngay để kiểm tra."
   },
   "direction": {
     "title": "Hướng cho đoạn #{{id}}",

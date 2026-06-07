@@ -1097,7 +1097,8 @@
     "script_french": "Non inglese (francese)",
     "aria_pause": "Pausa {{label}}",
     "aria_hear": "Ascolta {{label}}",
-    "aria_replay": "Riproduci {{label}} tramite il trascrittore"
+    "aria_replay": "Riproduci {{label}} tramite il trascrittore",
+    "dictation_lede_hotkey_only": "Tieni premuta la scorciatoia qui sopra ovunque sul desktop, parla e rilascia — il testo arriva nell'app attiva. Premila ora per verificarla."
   },
   "direction": {
     "title": "Direzione per il segmento #{{id}}",

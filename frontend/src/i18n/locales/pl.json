@@ -1097,7 +1097,8 @@
     "script_french": "Język inny niż angielski (francuski)",
     "aria_pause": "Wstrzymaj {{label}}",
     "aria_hear": "Usłysz {{label}}",
-    "aria_replay": "Odtwórz ponownie {{label}} przez transkrypcję"
+    "aria_replay": "Odtwórz ponownie {{label}} przez transkrypcję",
+    "dictation_lede_hotkey_only": "Przytrzymaj powyższy skrót w dowolnym miejscu pulpitu, mów i puść — tekst trafi do aktywnej aplikacji. Naciśnij teraz, aby zweryfikować."
   },
   "direction": {
     "title": "Kierunek odcinka #{{id}}",

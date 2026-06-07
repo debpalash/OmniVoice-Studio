@@ -1097,7 +1097,8 @@
     "script_french": "非英語（法語）",
     "aria_pause": "暫停{{label}}",
     "aria_hear": "聽到{{label}}",
-    "aria_replay": "透過轉錄器重播 {{label}}"
+    "aria_replay": "透過轉錄器重播 {{label}}",
+    "dictation_lede_hotkey_only": "在桌面任意位置按住上方快速鍵說話，放開後文字會輸入到目前聚焦的應用程式。現在按一下即可驗證是否生效。"
   },
   "direction": {
     "title": "段 #{{id}} 的方向",

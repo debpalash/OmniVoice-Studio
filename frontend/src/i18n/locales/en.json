@@ -1000,7 +1000,8 @@
     "script_french": "Non-English (French)",
     "aria_pause": "Pause {{label}}",
     "aria_hear": "Hear {{label}}",
-    "aria_replay": "Replay {{label}} through transcriber"
+    "aria_replay": "Replay {{label}} through transcriber",
+    "dictation_lede_hotkey_only": "Hold the shortcut above anywhere on your desktop, speak, release — the text lands in whatever app has focus. Press it now to verify it works."
   },
   "bootstrap": {
     "title": "OmniVoice Studio",

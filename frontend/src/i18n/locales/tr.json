@@ -1097,7 +1097,8 @@
     "script_french": "İngilizce olmayan (Fransızca)",
     "aria_pause": "Duraklat {{label}}",
     "aria_hear": "{{label}} sesini duyun",
-    "aria_replay": "{{label}} metnini aktarıcı aracılığıyla tekrar oynat"
+    "aria_replay": "{{label}} metnini aktarıcı aracılığıyla tekrar oynat",
+    "dictation_lede_hotkey_only": "Yukarıdaki kısayolu masaüstünde herhangi bir yerde basılı tutun, konuşun, bırakın — metin odaktaki uygulamaya düşer. Şimdi basıp doğrulayın."
   },
   "direction": {
     "title": "#{{id}} segmentinin yönü",

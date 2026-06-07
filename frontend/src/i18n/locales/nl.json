@@ -1097,7 +1097,8 @@
     "script_french": "Niet-Engels (Frans)",
     "aria_pause": "Pauze {{label}}",
     "aria_hear": "Hoor {{label}}",
-    "aria_replay": "Speel {{label}} opnieuw af via de transcriber"
+    "aria_replay": "Speel {{label}} opnieuw af via de transcriber",
+    "dictation_lede_hotkey_only": "Houd de sneltoets hierboven overal op je bureaublad ingedrukt, spreek, laat los — de tekst belandt in de app met focus. Druk nu om te verifiëren."
   },
   "direction": {
     "title": "Richting voor segment #{{id}}",

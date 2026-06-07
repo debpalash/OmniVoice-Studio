@@ -1097,7 +1097,8 @@
     "script_french": "Icke-engelska (franska)",
     "aria_pause": "Pausa {{label}}",
     "aria_hear": "Hör {{label}}",
-    "aria_replay": "Spela om {{label}} genom transcriber"
+    "aria_replay": "Spela om {{label}} genom transcriber",
+    "dictation_lede_hotkey_only": "Håll ner kortkommandot ovan var som helst på skrivbordet, tala, släpp — texten hamnar i appen med fokus. Tryck nu för att verifiera."
   },
   "direction": {
     "title": "Riktning för segment #{{id}}",

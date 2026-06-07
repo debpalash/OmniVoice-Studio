@@ -1067,7 +1067,8 @@
     "script_french": "非英语（法语）",
     "aria_pause": "暂停{{label}}",
     "aria_hear": "听到{{label}}",
-    "aria_replay": "通过转录器重播 {{label}}"
+    "aria_replay": "通过转录器重播 {{label}}",
+    "dictation_lede_hotkey_only": "在桌面任意位置按住上方快捷键说话，松开后文字会输入到当前聚焦的应用中。现在按一下即可验证是否生效。"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",

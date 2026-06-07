@@ -194,8 +194,12 @@ export default function DictationDemo({ embedded = false }) {
     }
   })();
 
-  // No bundled samples on disk → don't render a demo that can't work.
-  if (assetsAvailable === false) return null;
+  // The hotkey card always has something real to teach (the registered
+  // shortcut + live press-to-verify) — only the replayable script cards
+  // depend on the bundled WAVs, which installs don't always ship. Hiding
+  // the whole panel left the wizard's "Try dictation" act completely
+  // blank on every such install (#119/#124 follow-up, refined).
+  const showScripts = assetsAvailable !== false;
 
   return (
     <section className={`dictation-demo ${embedded ? 'dictation-demo--embedded' : ''}`}>
@@ -206,10 +210,16 @@ export default function DictationDemo({ embedded = false }) {
         {statusBadge}
       </header>
 
-      <p className="dictation-demo__lede">{t('demo.dictation_lede')}</p>
+      <p className="dictation-demo__lede">
+        {showScripts
+          ? t('demo.dictation_lede')
+          : t('demo.dictation_lede_hotkey_only',
+              'Hold the shortcut above anywhere on your desktop, speak, release — the text lands in whatever app has focus. Press it now to verify it works.')}
+      </p>
 
       <audio ref={audioRef} onEnded={() => setPlayingId(null)} preload="none" />
 
+      {showScripts && (
       <div className="dictation-demo__scripts">
         {SCRIPTS.map((s) => {
           const isPlaying = playingId === s.id;
@@ -256,6 +266,7 @@ export default function DictationDemo({ embedded = false }) {
           );
         })}
       </div>
+      )}
     </section>
   );
 }
