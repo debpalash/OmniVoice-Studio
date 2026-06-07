@@ -2385,3 +2385,44 @@ div[role="dialog"].audio-trimmer {
 .capture-pill-host > * {
   pointer-events: auto;
 }
+
+/* ── Icon refinement — thinner, crisper strokes app-wide ──────────────────
+   Lucide ships stroke-width 2 on a 24px grid; rendered at our 11–16px
+   sizes that weight reads heavy and clunky. stroke-width is an SVG
+   presentation attribute (lowest cascade priority), so this single rule
+   re-weights every lucide icon app-wide without touching call sites.
+   geometricPrecision favors smooth anti-aliased curves over the default
+   renderer's stroke snapping, which blurs at small raster sizes.
+   Hand-rolled SVGs (logo mark, batch spinner) don't carry the .lucide
+   class and keep their bespoke weights. */
+svg.lucide {
+  stroke-width: 1.5;
+  shape-rendering: geometricPrecision;
+}
+
+/* ── Native file inputs — themed "Choose file" chip ───────────────────────
+   Every in-app file input is currently hidden behind a themed label, but
+   any visible <input type="file"> (future panels, the LAN/share web view,
+   dev surfaces) must not render the OS-default grey button. Mirrors
+   .ui-btn--subtle (ui/Button.css). */
+input[type="file"] {
+  color: var(--chrome-fg-muted);
+  font-size: var(--text-xs);
+}
+input[type="file"]::file-selector-button {
+  margin-right: 8px;
+  padding: 3px 10px;
+  font: inherit;
+  font-size: var(--text-xs);
+  color: var(--chrome-fg-muted);
+  background: transparent;
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+input[type="file"]::file-selector-button:hover {
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+  border-color: var(--chrome-border-strong);
+}

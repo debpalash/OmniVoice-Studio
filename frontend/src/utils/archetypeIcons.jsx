@@ -58,7 +58,9 @@ function tint(hex, alpha) {
 
 export function ArchetypeIcon({ name, size = 18, color }) {
   const Cmp = ICONS[name] || Sparkles;
-  return <Cmp size={size} color={color} strokeWidth={2} />;
+  // Stroke weight is governed globally (`svg.lucide` in index.css) so all
+  // icons share one refined weight — no per-icon strokeWidth here.
+  return <Cmp size={size} color={color} />;
 }
 
 /** Country flag for an accent (or the Chinese flag for dialect voices, or a globe). */
