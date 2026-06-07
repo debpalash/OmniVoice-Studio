@@ -14,6 +14,7 @@
  */
 /* global __APP_VERSION__ -- injected by Vite at build time (vite.config define) */
 import { API } from '../api/client';
+import { formatBreadcrumbs } from './breadcrumbs';
 
 export const ISSUES_URL = 'https://github.com/debpalash/OmniVoice-Studio/issues/new';
 
@@ -119,6 +120,13 @@ export async function buildBugReportUrl({ title = '[Bug] ', error } = {}) {
     );
   }
 
+  // Action names only (see utils/breadcrumbs.js privacy rules) — still
+  // scrubbed as belt-and-braces, and the user reviews it all on github.com.
+  const crumbs = scrubText(formatBreadcrumbs());
+  const crumbSection = crumbs
+    ? ['## Recent actions', '', '```', crumbs, '```', '']
+    : [];
+
   let body = [
     '<!-- Click Submit at the bottom of this page to file the issue.',
     '     Review the auto-captured environment info below and add anything',
@@ -133,6 +141,7 @@ export async function buildBugReportUrl({ title = '[Bug] ', error } = {}) {
     '',
     ctx,
     '',
+    ...crumbSection,
     '## What I was doing',
     '',
     '<!-- step-by-step would help us reproduce -->',
@@ -141,4 +150,22 @@ export async function buildBugReportUrl({ title = '[Bug] ', error } = {}) {
   if (body.length > MAX_BODY_CHARS) body = `${body.slice(0, MAX_BODY_CHARS)}\n… (truncated)`;
 
   return `${ISSUES_URL}?title=${encodeURIComponent(title)}&labels=${encodeURIComponent('bug')}&body=${encodeURIComponent(body)}`;
+}
+
+/**
+ * GitHub issue-search URL for "has someone already hit this?" — opened in
+ * the user's browser before they file a duplicate. Search terms come from
+ * the scrubbed error message with noise (numbers, paths, quotes) stripped
+ * so the query matches across machines.
+ */
+export function buildIssueSearchUrl(error) {
+  const msg = scrubText(error?.message || String(error || ''));
+  const terms = msg
+    .replace(/[^a-zA-Z\s]/g, ' ')      // drop numbers/punctuation — machine-specific
+    .split(/\s+/)
+    .filter((w) => w.length > 2)
+    .slice(0, 6)
+    .join(' ');
+  const q = `is:issue ${terms}`.trim();
+  return `https://github.com/debpalash/OmniVoice-Studio/issues?q=${encodeURIComponent(q)}`;
 }

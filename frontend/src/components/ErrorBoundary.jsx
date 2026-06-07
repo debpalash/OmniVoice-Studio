@@ -1,9 +1,9 @@
 import React from 'react';
-import { AlertCircle, BookOpen, Bug, RefreshCw } from 'lucide-react';
+import { AlertCircle, BookOpen, Bug, RefreshCw, Search } from 'lucide-react';
 import i18next from 'i18next';
 import { classifyError, openDocsFor } from '../utils/errorDocsMap';
 import { openExternal } from '../api/external';
-import { buildBugReportUrl } from '../utils/bugReport';
+import { buildBugReportUrl, buildIssueSearchUrl } from '../utils/bugReport';
 import './WaveformErrorBoundary.css';
 
 export default class ErrorBoundary extends React.Component {
@@ -48,6 +48,16 @@ export default class ErrorBoundary extends React.Component {
     }
   };
 
+  searchIssues = async () => {
+    // "Has someone already hit this?" — issue search in the browser, so a
+    // duplicate gets a 👍 on the existing thread instead of a new report.
+    try {
+      await openExternal(buildIssueSearchUrl(this.state.error));
+    } catch (err) {
+      console.warn('[ErrorBoundary] issue search failed', err);
+    }
+  };
+
   render() {
     if (!this.state.error) return this.props.children;
 
@@ -77,6 +87,14 @@ export default class ErrorBoundary extends React.Component {
               title={i18next.t('errors.openDocs')}
             >
               <BookOpen size={12} /> {i18next.t('errors.openDocs')}
+            </button>
+            <button
+              type="button"
+              onClick={this.searchIssues}
+              className="btn-secondary errbnd-search"
+              title={i18next.t('errors.searchIssues')}
+            >
+              <Search size={12} /> {i18next.t('errors.searchIssues')}
             </button>
             <button
               type="button"

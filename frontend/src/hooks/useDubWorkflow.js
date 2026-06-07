@@ -10,6 +10,8 @@ import { apiPost } from '../api/client';
 import { API } from '../api/client';
 import { playPing, isTauri } from '../utils/media';
 import { toast } from 'react-hot-toast';
+import { toastErrorWithReport } from '../utils/errorToast';
+import { addBreadcrumb } from '../utils/breadcrumbs';
 import i18next from 'i18next';
 const t = i18next.t.bind(i18next);
 
@@ -204,7 +206,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
   // ── Handlers ──
   const handleDubUpload = useCallback(async (dubVideoFile) => {
     if (!dubVideoFile) return;
-    setDubStep('uploading'); setDubError(''); setDubFailure(null); setDubTracks([]); setDubPrepStage('download');
+    addBreadcrumb('dub:upload'); setDubStep('uploading'); setDubError(''); setDubFailure(null); setDubTracks([]); setDubPrepStage('download');
     setDubPrepProgress({ percent: null, speedBps: null, etaS: null, stageStartedAt: Date.now() });
     const ctrl = new AbortController();
     dubAbortCtrlRef.current = ctrl;
@@ -229,7 +231,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
     } catch (err) {
       setDubPrepStage(null);
       if (err.name === 'AbortError') { toast(t('dub_workflow.upload_cancelled')); setDubStep('idle'); useAppStore.getState().dismissPill(); }
-      else { setDubError(err.message); setDubStep('idle'); toast.error(t('dub_workflow.upload_failed', { message: err.message })); useAppStore.getState().errorPill(err.message); }
+      else { setDubError(err.message); setDubStep('idle'); toastErrorWithReport(t('dub_workflow.upload_failed', { message: err.message }), err); useAppStore.getState().errorPill(err.message); }
       setTranscribeStart(null);
     } finally { dubAbortCtrlRef.current = null; }
   }, [setDubStep, setDubError, setDubFailure, setDubTracks, setDubPrepStage, setDubJobId, setDubFilename, setDubTaskId, setDubSegments, _waitForPrep, _waitForTranscribe, loadProjects, loadProfiles]);
@@ -237,7 +239,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
   const handleDubIngestUrl = useCallback(async (url, opts = {}) => {
     const clean = (url || '').trim();
     if (!clean) return;
-    setDubStep('uploading'); setDubError(''); setDubFailure(null); setDubTracks([]); setDubPrepStage('download');
+    addBreadcrumb('dub:ingest-url'); setDubStep('uploading'); setDubError(''); setDubFailure(null); setDubTracks([]); setDubPrepStage('download');
     setDubPrepProgress({ percent: null, speedBps: null, etaS: null, stageStartedAt: Date.now() });
     const ctrl = new AbortController();
     dubAbortCtrlRef.current = ctrl;
@@ -261,7 +263,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
     } catch (err) {
       setDubPrepStage(null);
       if (err.name === 'AbortError') { toast(t('dub_workflow.ingest_cancelled')); setDubStep('idle'); useAppStore.getState().dismissPill(); }
-      else { setDubError(err.message); setDubStep('idle'); toast.error(t('dub_workflow.ingest_failed', { message: err.message })); useAppStore.getState().errorPill(err.message); }
+      else { setDubError(err.message); setDubStep('idle'); toastErrorWithReport(t('dub_workflow.ingest_failed', { message: err.message }), err); useAppStore.getState().errorPill(err.message); }
       setTranscribeStart(null);
     } finally { dubAbortCtrlRef.current = null; }
   }, [setDubStep, setDubError, setDubFailure, setDubTracks, setDubPrepStage, setDubJobId, setDubTaskId, setDubSegments, _waitForPrep, _waitForTranscribe, loadProjects, loadProfiles]);
@@ -284,7 +286,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
     } catch (err) {
       setTranscribeStart(null);
       if (err.name === 'AbortError') { toast(t('dub_workflow.retry_cancelled')); setDubStep('idle'); }
-      else { setDubError(err.message); setDubStep('idle'); toast.error(t('dub_workflow.transcription_failed', { message: err.message })); }
+      else { setDubError(err.message); setDubStep('idle'); toastErrorWithReport(t('dub_workflow.transcription_failed', { message: err.message }), err); }
     } finally { dubAbortCtrlRef.current = null; }
   }, [dubJobId, setDubError, setDubSegments, setDubStep, _waitForTranscribe, loadProjects]);
 
@@ -381,6 +383,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
   }, [dubSegments, dubLangCode, translateProvider, translateQuality, glossaryTerms, setIsTranslating, setDubSegments, setDubError]);
 
   const handleDubGenerate = useCallback(async (opts = {}) => {
+    addBreadcrumb('dub:generate');
     const regenOnly = Array.isArray(opts.regenOnly) && opts.regenOnly.length ? opts.regenOnly : null;
     const preview = !!opts.preview;
     setDubStep('generating');

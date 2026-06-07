@@ -11,6 +11,7 @@ import {
 import { API } from '../api/client';
 import BatchAddDialog from '../components/BatchAddDialog';
 import toast from 'react-hot-toast';
+import { toastErrorWithReport } from '../utils/errorToast';
 import './BatchQueue.css';
 
 /**
@@ -78,7 +79,7 @@ export default function BatchQueue({ onBack }) {
         await enqueueBatchJob(file, langCodes, settings.voiceId || undefined, settings.preserveBg);
         success++;
       } catch (e) {
-        toast.error(t('batch.enqueue_failed', { name: file.name, message: e.message }));
+        toastErrorWithReport(t('batch.enqueue_failed', { name: file.name, message: e.message }), e);
       }
     }
     if (success > 0) {
@@ -94,7 +95,7 @@ export default function BatchQueue({ onBack }) {
       toast.success(t('batch.job_cancelled'));
       reload();
     } catch (e) {
-      toast.error(t('batch.cancel_failed', { message: e.message }));
+      toastErrorWithReport(t('batch.cancel_failed', { message: e.message }), e);
     }
   }, [t, reload]);
 
@@ -104,7 +105,7 @@ export default function BatchQueue({ onBack }) {
       toast.success(t('batch.job_deleted'));
       reload();
     } catch (e) {
-      toast.error(t('batch.delete_failed', { message: e.message }));
+      toastErrorWithReport(t('batch.delete_failed', { message: e.message }), e);
     }
   }, [t, reload]);
 

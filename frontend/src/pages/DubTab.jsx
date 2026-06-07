@@ -20,6 +20,7 @@ import { formatTime } from '../utils/format';
 import { API } from '../api/client';
 import { listTranslationEngines, installTranslationEngine } from '../api/engines';
 import toast from 'react-hot-toast';
+import { toastErrorWithReport } from '../utils/errorToast';
 import { Button, Segmented, Badge, Progress } from '../ui';
 import { openDocsFor, classifyError } from '../utils/errorDocsMap';
 import GlossaryPanel from '../components/GlossaryPanel';
@@ -213,7 +214,8 @@ export default function DubTab(props) {
         toast.success(t('dub.install_ok', { engine: engineId }), { id: progressToast });
       }
     } catch (err) {
-      toast.error(t('dub.install_failed', { message: String(err.message || err).slice(0, 200) }), { id: progressToast, duration: 8000 });
+      toast.dismiss(progressToast);
+      toastErrorWithReport(t('dub.install_failed', { message: String(err.message || err).slice(0, 200) }), err);
     } finally {
       setEngineInstalling(null);
     }

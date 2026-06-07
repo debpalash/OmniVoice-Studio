@@ -1103,6 +1103,7 @@
     "tryAgain": "Try again",
     "openDocs": "Open docs for this error",
     "report": "Report this bug",
+    "searchIssues": "Search similar issues",
     "unexpected": "Unexpected error: {{message}}"
   },
   "common": {

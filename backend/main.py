@@ -711,12 +711,19 @@ if __name__ == "__main__":
              "network) without starting the server. Exit 0 if healthy, 1 if any "
              "check fails. Output is scrubbed — safe to paste into a GitHub issue.",
     )
+    parser.add_argument(
+        "--deep",
+        action="store_true",
+        help="With --diagnose: also load the active TTS engine and synthesize a "
+             "short utterance. Catches 'installed but broken'. May cold-load the "
+             "model (minutes + a large download on a fresh install).",
+    )
     args, _unknown = parser.parse_known_args()
 
     if args.diagnose:
         from core.diagnose import run_diagnostics, format_text
 
-        _report = run_diagnostics()
+        _report = run_diagnostics(deep=args.deep)
         print(format_text(_report), flush=True)
         sys.exit(0 if _report["summary"]["ok"] else 1)
 

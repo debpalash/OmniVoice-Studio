@@ -957,16 +957,18 @@ async def diagnostic_bundle(network: bool = Query(False, description="Include th
 @router.get("/system/diagnose")
 async def system_diagnose(
     network: bool = Query(True, description="Include the HuggingFace hub reachability probe"),
+    deep: bool = Query(False, description="Also load the active engine and synthesize a short utterance (may cold-load the model — minutes on first run)"),
 ):
     """Run the self-check suite (core.diagnose) and return the structured report.
 
-    The hub probe can block up to ~5s, so the whole run goes through a
-    threadpool; pass ``network=false`` for an instant offline report.
-    Output is pre-scrubbed (core.scrub) — safe to paste into a GitHub issue.
+    The hub probe can block up to ~5s (and ``deep=true`` far longer), so the
+    whole run goes through a threadpool; pass ``network=false`` for an
+    instant offline report. Output is pre-scrubbed (core.scrub) — safe to
+    paste into a GitHub issue.
     """
     from core.diagnose import run_diagnostics
 
-    return await asyncio.to_thread(run_diagnostics, network)
+    return await asyncio.to_thread(run_diagnostics, network, deep)
 
 
 # ── Phase 1 Wave 3 — macOS Gatekeeper quarantine probe (#54) ────────────

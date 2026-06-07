@@ -68,3 +68,20 @@ describe('buildBugReportUrl', () => {
     expect(url.length).toBeLessThan(8000);
   });
 });
+
+describe('buildIssueSearchUrl', () => {
+  it('builds a scrubbed, noise-free search query', async () => {
+    const { buildIssueSearchUrl } = await import('./bugReport');
+    const url = buildIssueSearchUrl(new Error('CUDA error 700 at /home/eve/cache: illegal memory access'));
+    const q = decodeURIComponent(url.split('q=')[1]);
+    expect(url).toContain('github.com/debpalash/OmniVoice-Studio/issues?q=');
+    expect(q).toContain('CUDA error');
+    expect(q).not.toContain('700');       // machine-specific noise stripped
+    expect(q).not.toContain('/home/eve'); // scrubbed + punctuation-stripped
+  });
+
+  it('survives an empty error', async () => {
+    const { buildIssueSearchUrl } = await import('./bugReport');
+    expect(buildIssueSearchUrl(null)).toContain('issues?q=');
+  });
+});

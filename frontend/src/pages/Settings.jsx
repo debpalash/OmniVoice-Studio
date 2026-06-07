@@ -19,6 +19,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { openExternal } from '../api/external';
 import { API } from '../api/client';
+import { addBreadcrumb } from '../utils/breadcrumbs';
 import { Trans, useTranslation } from 'react-i18next';
 import { systemLogs, systemLogsTauri, clearSystemLogs, clearTauriLogs } from '../api/system';
 import i18n, { LANGUAGES } from '../i18n';
@@ -1011,6 +1012,7 @@ export function EnginesTab() {
   // its install / GPU / isolation state.
   const onSelect = useCallback(async (family, backendId) => {
     try {
+      addBreadcrumb(`engine:${family}=${backendId}`);
       const r = await selectEngine(family, backendId);
       toast.success(t('settings.engine_switched', { family: family.toUpperCase(), engine: r.active }));
     } catch (e) {

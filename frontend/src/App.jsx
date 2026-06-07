@@ -50,6 +50,7 @@ const LazyFallback = () => <div className="app-lazy-fallback">{i18n.t('app.loadi
 
 import { Toaster, toast } from 'react-hot-toast';
 import { toastErrorWithReport } from './utils/errorToast';
+import { addBreadcrumb } from './utils/breadcrumbs';
 import {
   POPULAR_LANGS, POPULAR_ISO, TAGS, CATEGORIES, PRESETS, CLONE_MAX_SECONDS,
 } from './utils/constants';
@@ -103,6 +104,9 @@ function App() {
   }, [locale, theme, font]);
   const mode = useAppStore(s => s.mode);
   const setMode = useAppStore(s => s.setMode);
+  // Breadcrumb every view change — mode names are a closed set, so this is
+  // privacy-safe by construction (see utils/breadcrumbs.js).
+  useEffect(() => { addBreadcrumb(`view:${mode}`); }, [mode]);
   const [navRailSide, setNavRailSide] = useState(() => {
     try { return localStorage.getItem('omnivoice.navRailSide') || 'left'; } catch { return 'left'; }
   });
@@ -507,6 +511,7 @@ function App() {
   });
 
   const handleNativeExport = async (e, sourceIdentifier, fallbackName, mode) => {
+    addBreadcrumb('export');
     if (e) { e.preventDefault(); e.stopPropagation(); }
     // Browser / Docker web build: there is no Tauri shell, so the native save
     // dialog is unavailable — invoking it throws "Cannot read properties of

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Cpu, Mic, MessageSquare, Activity, AlertTriangle, CheckCircle2, RefreshCw, Layers } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toastErrorWithReport } from '../utils/errorToast';
 import { useTranslation } from 'react-i18next';
 import { listEngines, getEngineHealth } from '../api/engines';
 import { Badge, Button, Segmented, Table } from '../ui';
@@ -126,7 +126,7 @@ export default function EngineCompatibilityMatrix({
     } catch (e) {
       const msg = e?.message || String(e);
       setError(msg);
-      toast.error(t('engines.loadFailed', { message: msg }));
+      toastErrorWithReport(t('engines.loadFailed', { message: msg }), e);
     } finally {
       setLoading(false);
     }

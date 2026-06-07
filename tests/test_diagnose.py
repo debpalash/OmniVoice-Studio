@@ -70,3 +70,43 @@ def test_format_text_ascii_and_exit_signal(report):
     text.encode("ascii")
     assert "OmniVoice Studio self-check" in text
     assert ("looks healthy" in text) == report["summary"]["ok"]
+
+
+# ── Deep synthesis check (mocked — no real model load in CI) ─────────────
+
+
+def test_deep_off_by_default(report):
+    assert "deep_synth" not in [c["id"] for c in report["checks"]]
+
+
+def test_deep_check_success(monkeypatch):
+    class FakeBackend:
+        sample_rate = 24000
+        def generate(self, text, **kw):
+            import torch
+            return torch.zeros(1, 24000)  # exactly 1s
+    import services.tts_backend as tb
+    monkeypatch.setattr(tb, "get_active_tts_backend", lambda model=None: FakeBackend())
+    monkeypatch.setattr(tb, "active_backend_id", lambda: "fake")
+    check = diagnose._check_deep_synthesis()
+    assert check["status"] == OK
+    assert "1.0s of audio" in check["detail"]
+
+
+def test_deep_check_engine_failure(monkeypatch):
+    import services.tts_backend as tb
+    def _boom(model=None):
+        raise RuntimeError("weights corrupted at /home/eve/cache")
+    monkeypatch.setattr(tb, "get_active_tts_backend", _boom)
+    check = diagnose._check_deep_synthesis()
+    assert check["status"] == FAIL
+    assert "/home/eve" not in check["detail"]  # scrubbed
+    assert check["hint"]
+
+
+def test_deep_check_skips_during_model_load(monkeypatch):
+    import services.model_manager as mm
+    monkeypatch.setattr(mm, "get_model_status", lambda: {"status": "loading"})
+    check = diagnose._check_deep_synthesis()
+    assert check["status"] == WARN
+    assert "skipped" in check["detail"]

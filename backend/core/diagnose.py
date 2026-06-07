@@ -194,6 +194,71 @@ def _check_engines() -> dict:
     return _check("engines", "TTS engines", OK, detail)
 
 
+_DEEP_TIMEOUT_S = 180
+
+
+def _check_deep_synthesis() -> dict:
+    """Actually load the active engine and synthesize a short utterance.
+
+    Catches "installed but broken" — the most common issue category — which
+    the presence checks above can't see. Opt-in only (?deep=true / --deep):
+    it may cold-load the model (minutes + a multi-GB download on a fresh
+    install), so it must never run on a casual Settings-page self-check.
+    """
+    try:
+        from services.model_manager import get_model_status
+        if get_model_status().get("status") == "loading":
+            return _check(
+                "deep_synth", "Deep synthesis", WARN,
+                "skipped - a model load is already in progress",
+                "Re-run once the current load finishes.",
+            )
+    except Exception:
+        pass
+
+    import concurrent.futures
+    import time as _time
+
+    def _synth():
+        import services.model_manager as mm
+        from services.tts_backend import get_active_tts_backend, active_backend_id
+        backend = get_active_tts_backend(model=mm.model)
+        wav = backend.generate("Diagnostics check, one two three.", num_step=4)
+        return active_backend_id(), int(wav.shape[-1]) / max(1, backend.sample_rate)
+
+    t0 = _time.perf_counter()
+    ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    try:
+        engine_id, audio_s = ex.submit(_synth).result(timeout=_DEEP_TIMEOUT_S)
+    except concurrent.futures.TimeoutError:
+        return _check(
+            "deep_synth", "Deep synthesis", FAIL,
+            f"timed out after {_DEEP_TIMEOUT_S}s - engine load or synthesis hung",
+            "If this is a first run, the model may still be downloading - retry later. Otherwise check the backend log for where it stalled.",
+        )
+    except Exception as e:
+        return _check(
+            "deep_synth", "Deep synthesis", FAIL,
+            f"active engine failed: {type(e).__name__}: {e}",
+            "The engine is installed but not producing audio. The error above is the lead; Settings > Logs has the full trace.",
+        )
+    finally:
+        # Never block the report on a hung worker; the thread is left to
+        # finish (or hang) on its own — the timeout verdict already shipped.
+        ex.shutdown(wait=False)
+    elapsed = _time.perf_counter() - t0
+    if audio_s <= 0:
+        return _check(
+            "deep_synth", "Deep synthesis", FAIL,
+            f"engine '{engine_id}' returned empty audio in {elapsed:.1f}s",
+            "Synthesis ran but produced no samples - engine output is broken.",
+        )
+    return _check(
+        "deep_synth", "Deep synthesis", OK,
+        f"engine '{engine_id}' produced {audio_s:.1f}s of audio in {elapsed:.1f}s",
+    )
+
+
 def _check_network() -> dict:
     # Any HTTP response — even a 4xx — proves the hub is reachable; that's
     # all model downloads need to get started. urllib honors HTTP(S)_PROXY.
@@ -214,11 +279,13 @@ def _check_network() -> dict:
         )
 
 
-def run_diagnostics(include_network: bool = True) -> dict:
+def run_diagnostics(include_network: bool = True, deep: bool = False) -> dict:
     """Run every check and return the structured report.
 
     ``include_network=False`` skips the hub probe — used by tests and by
     callers that need the report to come back instantly offline.
+    ``deep=True`` additionally loads the active engine and synthesizes a
+    short utterance (may take minutes on a cold install — opt-in only).
     """
     checks = [
         _check_python(),
@@ -232,6 +299,8 @@ def run_diagnostics(include_network: bool = True) -> dict:
     ]
     if include_network:
         checks.append(_check_network())
+    if deep:
+        checks.append(_check_deep_synthesis())
 
     counts = {OK: 0, WARN: 0, FAIL: 0}
     for c in checks:

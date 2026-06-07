@@ -25,6 +25,12 @@ What you expected to happen.
 
 If applicable, add screenshots or paste relevant logs from **Settings → Logs**.
 
+> **Tip:** **Settings → About → "Save diagnostic bundle"** produces a zip
+> (self-check report, recent errors, scrubbed log tails) you can drag onto
+> this issue — it answers most environment questions below automatically.
+> Headless installs: `python backend/main.py --diagnose` prints the same
+> self-check (`--deep` also test-loads the active engine).
+
 ## Environment
 
 - **OS:** [e.g. macOS 15.2, Windows 11, Ubuntu 24.04]
@@ -32,6 +38,7 @@ If applicable, add screenshots or paste relevant logs from **Settings → Logs**
 - **Version:** [e.g. v0.2.7 — check Settings → About]
 - **GPU:** [e.g. NVIDIA RTX 4090 / Apple M3 Pro / CPU only]
 - **RAM:** [e.g. 16 GB]
+- **Active TTS engine:** [e.g. omnivoice — check Settings → Engines]
 
 ## Additional context
 
