@@ -180,7 +180,7 @@ function OptionCard({ active, disabled, onSelect, name, desc, badge, compact }) 
       tabIndex={active ? 0 : -1}
       className={`frs-opt ${compact ? 'frs-opt--compact' : ''} ${active ? 'is-active' : ''}`}
       disabled={disabled}
-      title={active ? undefined : desc}
+      title={desc}
       onClick={() => !disabled && onSelect()}
     >
       <span className="frs-opt__led" aria-hidden="true" />
@@ -188,9 +188,14 @@ function OptionCard({ active, disabled, onSelect, name, desc, badge, compact }) 
         <span className="frs-opt__name">{name}</span>
         {badge && <span className="frs-opt__badge">{badge}</span>}
       </span>
-      <span className="frs-opt__desc">{desc}</span>
     </button>
   );
+}
+
+/** Fixed caption slot under a radio group: two reserved lines, the active
+ *  option's description swaps in — the layout never shifts on selection. */
+function GroupCaption({ text }) {
+  return <p className="frs__opt-caption" aria-live="polite">{text}</p>;
 }
 
 export default function FirstRunSetup() {
@@ -443,6 +448,9 @@ export default function FirstRunSetup() {
                     : t('firstrun.mode_portable_unavailable', 'Unavailable: the folder next to the app is not writable.')}
                 />
               </div>
+              <GroupCaption text={portable
+                ? t('firstrun.mode_portable_desc', 'Everything lives in one folder next to the app — move it to another disk or machine as a unit.')
+                : t('firstrun.mode_installed_desc', 'Uses standard system folders. Recommended for most users.')} />
             </Panel>
 
             <Panel title={t('firstrun.storage_title', 'Storage')} delay={2}>
@@ -527,6 +535,9 @@ export default function FirstRunSetup() {
                   />
                 )}
               </div>
+              <GroupCaption text={plan.torchVariant === 'rocm'
+                ? t('firstrun.compute_rocm_desc', 'Installs PyTorch ROCm wheels for AMD graphics cards on Linux. Leave on Auto if unsure.')
+                : t('firstrun.compute_auto_desc', 'Picks the best backend on this machine at runtime — CUDA on NVIDIA, MPS on Apple Silicon, CPU otherwise.')} />
             </Panel>
 
             <Panel title={t('firstrun.channel_label', 'Update channel')} delay={3}>
@@ -551,6 +562,9 @@ export default function FirstRunSetup() {
                   desc={t('firstrun.channel_preview_desc', 'Rolling builds from the latest main — new engines and fixes first, occasional rough edges.')}
                 />
               </div>
+              <GroupCaption text={plan.updateChannel === 'preview'
+                ? t('firstrun.channel_preview_desc', 'Rolling builds from the latest main — new engines and fixes first, occasional rough edges.')
+                : t('firstrun.channel_stable_desc', 'Tested releases only — updates arrive after community validation.')} />
             </Panel>
           </div>
         </div>

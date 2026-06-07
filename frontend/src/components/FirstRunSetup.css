@@ -46,11 +46,16 @@
   position: relative;
   width: 100%;
   max-width: 1240px;
-  margin: auto 0;            /* vertical centering when content is short */
+  /* Top-anchored: the waveform opens the page right under the titlebar —
+     vertical centering left a dead zone above it on tall windows. */
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
   min-width: 0;
+  /* Fill the viewport (minus the shell's padding) so the sticky footer's
+     margin-top:auto hugs the bottom even when content is short. */
+  min-height: calc(100dvh - 5.4rem);
 }
 
 .frs__loading {
@@ -100,6 +105,7 @@
   line-height: 1.5;
   opacity: 0.72;
   max-width: 62ch;
+  min-height: 3em;            /* two lines reserved — stage swaps don't shift */
 }
 
 .frs__mast-meta {
@@ -294,18 +300,17 @@
 
 /* Verbosity diet: the description unfolds (smoothly) only on the selected
    card — collapsed cards keep it as a tooltip. */
-.frs-opt__desc {
+/* Descriptions live in a fixed per-group caption slot (two reserved lines)
+   so selecting an option NEVER shifts the layout — text swaps in place.
+   .frs-opt__desc remains visible only for legacy embeds (wizard cards). */
+.frs-opt__desc { font-size: 0.7rem; line-height: 1.45; opacity: 0.7; }
+
+.frs__opt-caption {
+  margin: 0;
   font-size: 0.7rem;
   line-height: 1.45;
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  transition: max-height 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 260ms ease;
-}
-
-.frs-opt.is-active .frs-opt__desc {
-  max-height: 4.5em;
-  opacity: 0.6;
+  opacity: 0.68;
+  min-height: 2.9em;          /* exactly two lines reserved */
 }
 
 /* ── Detected hardware readout (Compute panel) ─────────────────────────── */
@@ -547,10 +552,18 @@
 /* ── Footer: gate + armed button ───────────────────────────────────────── */
 
 .frs__foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
   padding-top: 0.6rem;
+  padding-bottom: 0.5rem;
+  margin-top: auto;          /* hug the bottom when content is short */
+  background: var(--frs-bg);
+  /* soft top fade so scrolled content slips under, not against, the bar */
+  box-shadow: 0 -14px 14px -8px var(--frs-bg);
 }
 
 .frs__foot-row {
