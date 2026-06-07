@@ -1658,6 +1658,9 @@
     "lib_use": "Użyj",
     "lib_active": "aktywny",
     "lib_in_settings": "zainstaluj później w Ustawieniach",
-    "lib_show_all": "Pokaż opcjonalne modele: {{count}}"
+    "lib_show_all": "Pokaż opcjonalne modele: {{count}}",
+    "trust_line": "Wszystko działa i pozostaje na tym komputerze — bez konta, chmury i telemetrii.",
+    "resume_note": "Przerwane pobierania wznawiają się same — zamknięcie aplikacji jest bezpieczne.",
+    "eta_left": "pozostało ~{{eta}}"
   }
 }

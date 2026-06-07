@@ -23,15 +23,25 @@ import { listEngines, selectEngine } from '../api/engines';
 
 const fmtGB = (gb) => (gb == null ? '' : `${gb.toFixed(gb < 10 ? 1 : 0)} GB`);
 
-/** Aggregate one repo's SSE file events into a single 0–100 number. */
-function aggregatePct(files) {
+/** Aggregate one repo's SSE file events: percent done + ETA from rates. */
+function aggregate(files) {
   let done = 0;
   let total = 0;
+  let rate = 0;
   for (const f of Object.values(files)) {
     done += f.downloaded || 0;
     total += f.total || 0;
+    if ((f.total || 0) > (f.downloaded || 0)) rate += f.rate || 0;
   }
-  return total > 0 ? Math.min(100, Math.round((done / total) * 100)) : null;
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : null;
+  const etaSec = rate > 0 && total > done ? (total - done) / rate : null;
+  return { pct, etaSec };
+}
+
+function formatEta(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '';
+  if (seconds < 60) return '<1m';
+  return `${Math.round(seconds / 60)}m`;
 }
 
 function Row({ led, name, chip, chipTone, size, action, sub }) {
@@ -96,7 +106,7 @@ export default function WizardLibrary() {
             return next;
           }
           if (!ev.filename) return prev;
-          const files = { ...cur.files, [ev.filename]: { downloaded: ev.downloaded || 0, total: ev.total || 0 } };
+          const files = { ...cur.files, [ev.filename]: { downloaded: ev.downloaded || 0, total: ev.total || 0, rate: ev.rate || 0 } };
           return { ...prev, [ev.repo_id]: { ...cur, files } };
         });
       } catch { /* keepalive */ }
@@ -133,7 +143,7 @@ export default function WizardLibrary() {
 
   const modelRow = (m, chip, chipTone) => {
     const p = progress[m.repo_id];
-    const pct = p ? aggregatePct(p.files) : null;
+    const { pct, etaSec } = p ? aggregate(p.files) : { pct: null, etaSec: null };
     const downloading = !!p;
     return (
       <Row
@@ -151,6 +161,7 @@ export default function WizardLibrary() {
         ) : downloading ? (
           <span className="swiz-lib__state swiz-lib__state--busy">
             {pct != null ? `${pct}%` : t('firstrun.lib_downloading', 'downloading…')}
+            {etaSec != null && ` · ${t('firstrun.eta_left', { eta: formatEta(etaSec), defaultValue: '~{{eta}} left' })}`}
           </span>
         ) : (
           <button type="button" className="frs-btn frs-btn--quiet swiz-lib__act" onClick={() => install(m.repo_id)}>
@@ -198,6 +209,11 @@ export default function WizardLibrary() {
         </button>
       )}
       {showTail && optional.map((m) => modelRow(m, t('firstrun.chip_optional', 'optional'), 'opt'))}
+      {Object.keys(progress).length > 0 && (
+        <p className="frs__trust">
+          {t('firstrun.resume_note', 'Interrupted downloads resume automatically — closing the app is safe.')}
+        </p>
+      )}
     </div>
   );
 }

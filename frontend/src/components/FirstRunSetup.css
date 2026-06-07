@@ -926,3 +926,11 @@
 .frs-check__fix { font-size: 0.7rem; line-height: 1.45; }
 .frs-check--fail .frs-check__fix { color: var(--frs-err); }
 .frs-check--warn .frs-check__fix { color: var(--chrome-severity-warn, #d79921); }
+
+/* Quiet reassurance lines (trust statement, resume note) — present, never loud. */
+.frs__trust {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.5;
+  opacity: 0.45;
+}

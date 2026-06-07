@@ -1658,6 +1658,9 @@
     "lib_use": "Gebruik",
     "lib_active": "actief",
     "lib_in_settings": "later installeren in Instellingen",
-    "lib_show_all": "Toon {{count}} optionele modellen"
+    "lib_show_all": "Toon {{count}} optionele modellen",
+    "trust_line": "Alles draait en blijft op deze machine — geen account, geen cloud, geen telemetrie.",
+    "resume_note": "Onderbroken downloads hervatten automatisch — de app sluiten is veilig.",
+    "eta_left": "nog ~{{eta}}"
   }
 }

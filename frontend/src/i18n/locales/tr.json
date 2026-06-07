@@ -1658,6 +1658,9 @@
     "lib_use": "Kullan",
     "lib_active": "etkin",
     "lib_in_settings": "daha sonra Ayarlar’dan kur",
-    "lib_show_all": "{{count}} isteğe bağlı modeli göster"
+    "lib_show_all": "{{count}} isteğe bağlı modeli göster",
+    "trust_line": "Her şey bu makinede çalışır ve kalır — hesap yok, bulut yok, telemetri yok.",
+    "resume_note": "Yarıda kalan indirmeler otomatik devam eder — uygulamayı kapatmak güvenlidir.",
+    "eta_left": "~{{eta}} kaldı"
   }
 }

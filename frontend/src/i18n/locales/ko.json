@@ -1658,6 +1658,9 @@
     "lib_use": "사용",
     "lib_active": "사용 중",
     "lib_in_settings": "나중에 설정에서 설치",
-    "lib_show_all": "선택 모델 {{count}}개 표시"
+    "lib_show_all": "선택 모델 {{count}}개 표시",
+    "trust_line": "모든 것이 이 컴퓨터에서 실행되고 저장됩니다 — 계정·클라우드·텔레메트리 없음.",
+    "resume_note": "중단된 다운로드는 자동으로 이어집니다 — 앱을 닫아도 안전합니다.",
+    "eta_left": "약 {{eta}} 남음"
   }
 }

@@ -1659,6 +1659,9 @@
     "lib_use": "Utiliser",
     "lib_active": "actif",
     "lib_in_settings": "installer plus tard dans Réglages",
-    "lib_show_all": "Afficher {{count}} modèles optionnels"
+    "lib_show_all": "Afficher {{count}} modèles optionnels",
+    "trust_line": "Tout s’exécute et reste sur cette machine — sans compte, sans cloud, sans télémétrie.",
+    "resume_note": "Les téléchargements interrompus reprennent automatiquement — fermer l’application est sans risque.",
+    "eta_left": "~{{eta}} restantes"
   }
 }

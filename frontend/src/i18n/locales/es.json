@@ -1659,6 +1659,9 @@
     "lib_use": "Usar",
     "lib_active": "activo",
     "lib_in_settings": "instalar luego en Ajustes",
-    "lib_show_all": "Mostrar {{count}} modelos opcionales"
+    "lib_show_all": "Mostrar {{count}} modelos opcionales",
+    "trust_line": "Todo se ejecuta y permanece en esta máquina: sin cuenta, sin nube, sin telemetría.",
+    "resume_note": "Las descargas interrumpidas se reanudan solas; cerrar la app es seguro.",
+    "eta_left": "quedan ~{{eta}}"
   }
 }

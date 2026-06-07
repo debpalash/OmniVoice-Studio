@@ -78,6 +78,12 @@ function detectHints(message, logs) {
   return hints;
 }
 
+function formatEta(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '';
+  if (seconds < 60) return '<1m';
+  return `${Math.round(seconds / 60)}m`;
+}
+
 function formatBytes(n) {
   if (!n || n < 0) return '';
   const units = ['B', 'KB', 'MB', 'GB'];
@@ -147,6 +153,8 @@ export function BootstrapSplash({ stage, message }) {
   const [region, setRegionState] = useState('auto');
   const [retrying, setRetrying] = useState(false);
   const logRef = useRef(null);
+  const prevProgRef = useRef(null); // {bytes, t} — last progress event
+  const rateRef = useRef(0);        // EMA bytes/sec across events
 
   const handleRetry = async () => {
     if (retrying) return;
@@ -232,7 +240,18 @@ export function BootstrapSplash({ stage, message }) {
           });
         });
         unlistenProgress = await listen('bootstrap-progress', (e) => {
-          setProgress(e.payload || null);
+          const payload = e.payload || null;
+          // EMA byte-rate from successive events → ETA for the long stretch.
+          if (payload?.bytes_done != null) {
+            const now = Date.now();
+            const prev = prevProgRef.current;
+            if (prev && payload.bytes_done > prev.bytes && now > prev.t) {
+              const inst = (payload.bytes_done - prev.bytes) / ((now - prev.t) / 1000);
+              rateRef.current = rateRef.current ? rateRef.current * 0.7 + inst * 0.3 : inst;
+            }
+            prevProgRef.current = { bytes: payload.bytes_done, t: now };
+          }
+          setProgress(payload);
         });
       } catch {
         /* not in Tauri or listen unavailable — silent */
@@ -414,11 +433,20 @@ export function BootstrapSplash({ stage, message }) {
                       {formatBytes(stageProgress.bytes_done)}
                       {stageProgress.bytes_total > 0 ? ` / ${formatBytes(stageProgress.bytes_total)}` : ''}
                       {pctFromBytes != null ? ` (${pctFromBytes}%)` : ''}
+                      {stageProgress.bytes_total > 0 && rateRef.current > 0 && stageProgress.bytes_done < stageProgress.bytes_total && (
+                        ` · ${t('firstrun.eta_left', {
+                          eta: formatEta((stageProgress.bytes_total - stageProgress.bytes_done) / rateRef.current),
+                          defaultValue: '~{{eta}} left',
+                        })}`
+                      )}
                     </span>
                   )}
                 </li>
               ))}
             </ol>
+            <p className="frs__trust">
+              {t('firstrun.resume_note', 'Interrupted downloads resume automatically — closing the app is safe.')}
+            </p>
           </section>
         )}
 

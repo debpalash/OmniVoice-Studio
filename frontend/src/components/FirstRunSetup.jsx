@@ -567,6 +567,10 @@ export default function FirstRunSetup() {
                 : t('firstrun.start', 'Start installation')}
             </button>
           </div>
+          {/* The product's whole thesis, said where the user decides. */}
+          <p className="frs__trust">
+            {t('firstrun.trust_line', 'Everything runs and stays on this machine — no account, no cloud, no telemetry.')}
+          </p>
         </footer>
       </div>
     </div>

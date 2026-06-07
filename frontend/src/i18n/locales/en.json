@@ -1653,6 +1653,9 @@
     "lib_use": "Use",
     "lib_active": "active",
     "lib_in_settings": "install later in Settings",
-    "lib_show_all": "Show {{count}} optional models"
+    "lib_show_all": "Show {{count}} optional models",
+    "trust_line": "Everything runs and stays on this machine — no account, no cloud, no telemetry.",
+    "resume_note": "Interrupted downloads resume automatically — closing the app is safe.",
+    "eta_left": "~{{eta}} left"
   }
 }

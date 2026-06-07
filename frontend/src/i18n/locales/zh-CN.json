@@ -1658,6 +1658,9 @@
     "lib_use": "使用",
     "lib_active": "当前",
     "lib_in_settings": "稍后在设置中安装",
-    "lib_show_all": "显示 {{count}} 个可选模型"
+    "lib_show_all": "显示 {{count}} 个可选模型",
+    "trust_line": "一切都在这台设备上运行和保存——无需账号、无云端、无遥测。",
+    "resume_note": "下载中断后会自动续传——关闭应用也没关系。",
+    "eta_left": "剩余约 {{eta}}"
   }
 }

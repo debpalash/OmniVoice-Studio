@@ -1658,6 +1658,9 @@
     "lib_use": "Dùng",
     "lib_active": "đang dùng",
     "lib_in_settings": "cài sau trong Cài đặt",
-    "lib_show_all": "Hiện {{count}} mô hình tùy chọn"
+    "lib_show_all": "Hiện {{count}} mô hình tùy chọn",
+    "trust_line": "Mọi thứ chạy và lưu trên máy này — không tài khoản, không đám mây, không telemetry.",
+    "resume_note": "Tải xuống bị gián đoạn sẽ tự tiếp tục — đóng ứng dụng vẫn an toàn.",
+    "eta_left": "còn ~{{eta}}"
   }
 }

@@ -1658,6 +1658,9 @@
     "lib_use": "Pakai",
     "lib_active": "aktif",
     "lib_in_settings": "pasang nanti di Pengaturan",
-    "lib_show_all": "Tampilkan {{count}} model opsional"
+    "lib_show_all": "Tampilkan {{count}} model opsional",
+    "trust_line": "Semuanya berjalan dan tersimpan di mesin ini — tanpa akun, tanpa cloud, tanpa telemetri.",
+    "resume_note": "Unduhan yang terputus dilanjutkan otomatis — menutup aplikasi aman.",
+    "eta_left": "sisa ~{{eta}}"
   }
 }

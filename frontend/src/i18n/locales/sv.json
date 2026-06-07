@@ -1658,6 +1658,9 @@
     "lib_use": "Använd",
     "lib_active": "aktiv",
     "lib_in_settings": "installera senare i Inställningar",
-    "lib_show_all": "Visa {{count}} valfria modeller"
+    "lib_show_all": "Visa {{count}} valfria modeller",
+    "trust_line": "Allt körs och stannar på den här datorn — inget konto, inget moln, ingen telemetri.",
+    "resume_note": "Avbrutna nedladdningar återupptas automatiskt — det är säkert att stänga appen.",
+    "eta_left": "~{{eta}} kvar"
   }
 }

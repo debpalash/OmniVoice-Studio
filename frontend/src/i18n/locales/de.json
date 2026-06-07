@@ -1659,6 +1659,9 @@
     "lib_use": "Verwenden",
     "lib_active": "aktiv",
     "lib_in_settings": "später in den Einstellungen",
-    "lib_show_all": "{{count}} optionale Modelle anzeigen"
+    "lib_show_all": "{{count}} optionale Modelle anzeigen",
+    "trust_line": "Alles läuft und bleibt auf diesem Rechner — kein Konto, keine Cloud, keine Telemetrie.",
+    "resume_note": "Unterbrochene Downloads werden automatisch fortgesetzt — die App zu schließen ist sicher.",
+    "eta_left": "noch ~{{eta}}"
   }
 }
