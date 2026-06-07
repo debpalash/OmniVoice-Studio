@@ -977,7 +977,7 @@
     "back": "Quay lại Studio",
     "badge": "Giấy phép thương mại",
     "hero_title": "Vận chuyển giọng nói AI trong quá trình sản xuất",
-    "hero_desc": "OmniVoice Studio có sẵn nguồn theo Giấy phép Nguồn Chức năng (FSL). Hầu hết người dùng có thể đánh giá, tạo nguyên mẫu và thậm chí triển khai nội bộ mà không cần thỏa thuận thương mại. Bạn chỉ cần giấy phép thương mại nếu bạn đang xây dựng một sản phẩm hoặc dịch vụ cạnh tranh hoặc nếu trường hợp sử dụng của bạn nằm ngoài ranh giới của FSL.",
+    "hero_desc": "OmniVoice Studio là phần mềm tự do, mã nguồn mở theo giấy phép GNU Affero General Public License v3 (AGPL-3.0) — miễn phí sử dụng, bao gồm cả mục đích thương mại và sử dụng nội bộ doanh nghiệp. Bạn chỉ cần giấy phép thương mại nếu muốn nhúng OmniVoice Studio vào sản phẩm hoặc dịch vụ mã nguồn đóng hay độc quyền mà không chịu các nghĩa vụ copyleft của AGPL-3.0.",
     "why_title": "Tại sao doanh nghiệp chọn OmniVoice",
     "pricing_title": "Định giá",
     "faq_title": "Câu hỏi thường gặp",
@@ -998,7 +998,7 @@
     "benefit_source_desc": "Hiển thị đầy đủ vào ngăn xếp. Kiểm tra, phân nhánh và điều chỉnh theo các điều khoản cấp phép.",
     "benefit_lang": "646 ngôn ngữ",
     "benefit_lang_desc": "Phiên âm, dịch và lồng tiếng trên 646 ngôn ngữ với chất lượng ngang tầm con người.",
-    "hero_note": "Việc sử dụng nội bộ — ngay cả ở quy mô lớn — đều miễn phí theo FSL; giấy phép thương mại chỉ được yêu cầu để cung cấp OmniVoice cho người khác dưới dạng sản phẩm hoặc dịch vụ cạnh tranh (API được lưu trữ hoặc trả tiền cho mỗi lần sử dụng, ứng dụng được bán lại hoặc được gắn nhãn trắng). Sắp có mức giá - hãy liên hệ trong thời gian chờ đợi."
+    "hero_note": "Sử dụng, tự lưu trữ và dùng cho mục đích thương mại đều miễn phí theo AGPL-3.0 — kể cả ở quy mô lớn. AGPL là giấy phép copyleft qua mạng: nếu bạn chỉnh sửa OmniVoice và cung cấp phiên bản chỉnh sửa đó cho người khác qua mạng, bạn phải chia sẻ mã nguồn đã chỉnh sửa theo cùng điều khoản. Giấy phép thương mại sẽ gỡ bỏ các nghĩa vụ copyleft này cho các triển khai độc quyền, mã nguồn đóng. Các gói giá sẽ sớm ra mắt — trong lúc đó hãy liên hệ với chúng tôi."
   },
   "exportModal": {
     "export": "Xuất khẩu",
@@ -1411,13 +1411,11 @@
   },
   "enterprise_faq": {
     "q_internal_tools": "Tôi có cần giấy phép cho các công cụ nội bộ không?",
-    "a_internal_tools": "Việc sử dụng nội bộ của nhân viên và nhà thầu của bạn là Mục đích được phép theo FSL — không cần giấy phép. Cần có giấy phép thương mại khi bạn cung cấp OmniVoice cho người khác như một phần của sản phẩm hoặc dịch vụ cạnh tranh (bán lại, SaaS được lưu trữ, nhãn trắng).",
+    "a_internal_tools": "Không. Việc sử dụng bởi nhân viên và nhà thầu của bạn — bao gồm chỉnh sửa và tự lưu trữ nội bộ — là miễn phí theo AGPL-3.0. Giấy phép thương mại chỉ cần thiết nếu bạn nhúng OmniVoice vào sản phẩm hoặc dịch vụ mã nguồn đóng hay độc quyền và không muốn tuân thủ nghĩa vụ chia sẻ mã nguồn của AGPL.",
     "q_try_before": "Tôi có thể thử trước khi cam kết không?",
-    "a_try_before": "Vâng. Ứng dụng đầy đủ được tải xuống và chạy cục bộ miễn phí để đánh giá theo FSL. Khi bạn sẵn sàng thảo luận về việc triển khai thương mại, hãy gửi email cho chúng tôi và chúng ta sẽ cùng nhau giải quyết các chi tiết.",
+    "a_try_before": "Có. Toàn bộ ứng dụng có thể tải xuống, chạy và tự lưu trữ miễn phí theo AGPL-3.0 — không cần bất kỳ thỏa thuận nào. Khi bạn sẵn sàng trao đổi về giấy phép thương mại (sử dụng độc quyền), hãy gửi email cho chúng tôi và chúng ta sẽ cùng thống nhất chi tiết.",
     "q_watermark": "Còn hình mờ thì sao?",
-    "a_watermark": "Hình mờ AudioSeal vô hình được nhúng theo mặc định. Người được cấp phép thương mại có thể tắt nó trong Cài đặt → Quyền riêng tư. Sử dụng miễn phí/cá nhân luôn bao gồm hình mờ.",
-    "q_apache": "Nguồn có bao giờ trở thành Apache 2.0 không?",
-    "a_apache": "Vâng. Mỗi bản phát hành sẽ tự động chuyển đổi sang Giấy phép Apache, Phiên bản 2.0 vào ngày kỷ niệm thứ hai ngày xuất bản. Điều đó có nghĩa là bản phát hành hôm nay là Apache 2.0 sau hai năm nữa, chúng tôi không cần thực hiện hành động nào — FSL đảm bảo điều đó không thể hủy bỏ."
+    "a_watermark": "Hình mờ AudioSeal vô hình được nhúng theo mặc định cho tất cả mọi người. Người được cấp phép thương mại có thể tắt nó trong Cài đặt → Quyền riêng tư."
   },
   "gallery_extra": {
     "save_prompt": "Nhập tên cho cấu hình giọng nói này:",

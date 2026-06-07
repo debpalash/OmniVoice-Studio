@@ -978,7 +978,7 @@
     "back": "Volver al estudio",
     "badge": "Licencia Comercial",
     "hero_title": "Enviar voces de IA en producción",
-    "hero_desc": "OmniVoice Studio está disponible bajo la Licencia de fuente funcional (FSL). La mayoría de los usuarios pueden evaluar, crear prototipos e incluso implementar internamente sin un acuerdo comercial. Necesita una licencia comercial sólo si está creando un producto o servicio de la competencia, o si su caso de uso queda fuera de los límites de la FSL.",
+    "hero_desc": "OmniVoice Studio es software libre y de código abierto bajo la GNU Affero General Public License v3 (AGPL-3.0): gratuito para cualquier uso, incluido el uso comercial y empresarial interno. Solo necesitas una licencia comercial si quieres integrar OmniVoice Studio en un producto o servicio propietario o de código cerrado sin las obligaciones copyleft de la AGPL-3.0.",
     "why_title": "Por qué las empresas eligen OmniVoice",
     "pricing_title": "Precios",
     "faq_title": "Preguntas comunes",
@@ -999,7 +999,7 @@
     "benefit_source_desc": "Visibilidad total de la pila. Audite, bifurque y adapte dentro de los términos de la licencia.",
     "benefit_lang": "646 idiomas",
     "benefit_lang_desc": "Transcribe, traduce y dobla en 646 idiomas con calidad de nivel humano.",
-    "hero_note": "El uso interno, incluso a escala, es gratuito según la FSL; solo se requiere una licencia comercial para ofrecer OmniVoice a otros como un producto o servicio de la competencia (una API alojada o de pago por uso, una aplicación revendida o de marca blanca). Los niveles de precios estarán disponibles pronto; póngase en contacto mientras tanto."
+    "hero_note": "El uso, el autoalojamiento y el uso comercial son gratuitos bajo la AGPL-3.0, incluso a gran escala. La AGPL es una licencia copyleft de red: si modificas OmniVoice y ofreces esa versión modificada a terceros a través de una red, debes compartir tu código fuente modificado bajo los mismos términos. Una licencia comercial elimina esas obligaciones copyleft para despliegues propietarios de código cerrado. Los planes de precios llegarán pronto; mientras tanto, contáctanos."
   },
   "exportModal": {
     "export": "Exportar",
@@ -1412,13 +1412,11 @@
   },
   "enterprise_faq": {
     "q_internal_tools": "¿Necesito una licencia para herramientas internas?",
-    "a_internal_tools": "El uso interno por parte de sus empleados y contratistas es un Propósito permitido según la FSL; no se requiere licencia. Se necesita una licencia comercial cuando pone OmniVoice a disposición de otros como parte de un producto o servicio de la competencia (reventa, SaaS alojado, marca blanca).",
+    "a_internal_tools": "No. El uso por parte de tus empleados y contratistas —incluida la modificación y el autoalojamiento interno— es gratuito bajo la AGPL-3.0. Solo necesitas una licencia comercial si integras OmniVoice en un producto o servicio propietario o de código cerrado y no quieres cumplir las obligaciones de compartir el código fuente de la AGPL.",
     "q_try_before": "¿Puedo intentarlo antes de comprometerme?",
-    "a_try_before": "Sí. La aplicación completa se puede descargar y ejecutar localmente de forma gratuita para su evaluación según la FSL. Cuando esté listo para discutir una implementación comercial, envíenos un correo electrónico y trabajaremos juntos en los detalles.",
+    "a_try_before": "Sí. La aplicación completa se puede descargar, ejecutar y autoalojar gratis bajo la AGPL-3.0, sin ningún acuerdo. Cuando quieras hablar de una licencia comercial (uso propietario), escríbenos y resolveremos los detalles juntos.",
     "q_watermark": "¿Qué pasa con la marca de agua?",
-    "a_watermark": "La marca de agua invisible AudioSeal está incrustada de forma predeterminada. Los licenciatarios comerciales pueden desactivarlo en Configuración → Privacidad. El uso gratuito/personal siempre incluye la marca de agua.",
-    "q_apache": "¿La fuente alguna vez se convierte en Apache 2.0?",
-    "a_apache": "Sí. Cada versión se convierte automáticamente a la Licencia Apache, Versión 2.0 en el segundo aniversario de su publicación. Eso significa que el lanzamiento de hoy es Apache 2.0 dentro de dos años, no es necesario que hagamos nada: la FSL lo garantiza irrevocablemente."
+    "a_watermark": "La marca de agua invisible AudioSeal está incrustada de forma predeterminada para todos. Los licenciatarios comerciales pueden desactivarla en Configuración → Privacidad."
   },
   "gallery_extra": {
     "save_prompt": "Ingrese un nombre para este perfil de voz:",

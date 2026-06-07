@@ -977,7 +977,7 @@
     "back": "Tillbaka till Studio",
     "badge": "Kommersiell licens",
     "hero_title": "Ship AI-röster i produktion",
-    "hero_desc": "OmniVoice Studio är källtillgänglig under Functional Source License (FSL). De flesta användare kan utvärdera, prototyper och till och med distribuera internt utan ett kommersiellt avtal. Du behöver endast en kommersiell licens om du bygger en konkurrerande produkt eller tjänst, eller om ditt användningsfall faller utanför FSL:s gränser.",
+    "hero_desc": "OmniVoice Studio är fri programvara med öppen källkod under GNU Affero General Public License v3 (AGPL-3.0) — gratis att använda, även för kommersiellt och internt företagsbruk. En kommersiell licens behövs bara om du vill bädda in OmniVoice Studio i en proprietär produkt eller tjänst med stängd källkod utan AGPL-3.0:s copyleft-skyldigheter.",
     "why_title": "Varför företag väljer OmniVoice",
     "pricing_title": "Prissättning",
     "faq_title": "Vanliga frågor",
@@ -998,7 +998,7 @@
     "benefit_source_desc": "Full insyn i stapeln. Granska, fördela och anpassa inom licensvillkoren.",
     "benefit_lang": "646 språk",
     "benefit_lang_desc": "Transkribera, översätt och dubba på 646 språk med kvalitet på mänsklig nivå.",
-    "hero_note": "Intern användning – även i stor skala – är gratis enligt FSL; en kommersiell licens krävs endast för att erbjuda OmniVoice till andra som en konkurrerande produkt eller tjänst (ett värd- eller pay-per-use API, en vidaresåld eller vitmärkt app). Prisnivåer kommer snart - hör av dig under tiden."
+    "hero_note": "Användning, självhosting och kommersiellt bruk är gratis under AGPL-3.0 — även i stor skala. AGPL är en nätverks-copyleft-licens: om du modifierar OmniVoice och erbjuder den modifierade versionen till andra över ett nätverk måste du dela din modifierade källkod på samma villkor. En kommersiell licens lyfter dessa copyleft-skyldigheter för proprietära driftsättningar med stängd källkod. Prisplaner kommer snart — hör av dig under tiden."
   },
   "exportModal": {
     "export": "Exportera",
@@ -1411,13 +1411,11 @@
   },
   "enterprise_faq": {
     "q_internal_tools": "Behöver jag en licens för interna verktyg?",
-    "a_internal_tools": "Intern användning av dina anställda och entreprenörer är ett tillåtet syfte enligt FSL - ingen licens krävs. En kommersiell licens behövs när du gör OmniVoice tillgänglig för andra som en del av en konkurrerande produkt eller tjänst (återförsäljning, värd SaaS, white-label).",
+    "a_internal_tools": "Nej. Användning av dina anställda och konsulter — inklusive intern modifiering och självhosting — är gratis under AGPL-3.0. En kommersiell licens behövs bara om du bäddar in OmniVoice i en proprietär produkt eller tjänst med stängd källkod och inte vill följa AGPL:s krav på källkodsdelning.",
     "q_try_before": "Kan jag prova innan jag binder mig?",
-    "a_try_before": "Ja. Den fullständiga appen är gratis att ladda ner och köra lokalt för utvärdering under FSL. När du är redo att diskutera en kommersiell implementering, maila oss så går vi igenom detaljerna tillsammans.",
+    "a_try_before": "Ja. Hela appen är gratis att ladda ner, köra och självhosta under AGPL-3.0 — inget avtal krävs. När du vill diskutera en kommersiell licens (proprietär användning), mejla oss så går vi igenom detaljerna tillsammans.",
     "q_watermark": "Hur är det med vattenstämpeln?",
-    "a_watermark": "Den osynliga AudioSeal-vattenstämpeln är inbäddad som standard. Kommersiella licenstagare kan inaktivera det i Inställningar → Sekretess. Gratis/personligt bruk inkluderar alltid vattenstämpeln.",
-    "q_apache": "Blir källan någonsin Apache 2.0?",
-    "a_apache": "Ja. Varje utgåva konverteras automatiskt till Apache-licensen, version 2.0 på tvåårsdagen av dess publicering. Det betyder att dagens version är Apache 2.0 om två år, ingen åtgärd krävs från oss – FSL garanterar det oåterkalleligt."
+    "a_watermark": "Den osynliga AudioSeal-vattenstämpeln är inbäddad som standard för alla. Kommersiella licenstagare kan inaktivera den i Inställningar → Sekretess."
   },
   "gallery_extra": {
     "save_prompt": "Ange ett namn för denna röstprofil:",

@@ -977,7 +977,7 @@
     "back": "Studio'ya geri dön",
     "badge": "Ticari Lisans",
     "hero_title": "Üretimde yapay zeka seslerini gönderin",
-    "hero_desc": "OmniVoice Studio, İşlevsel Kaynak Lisansı (FSL) kapsamında kaynak olarak mevcuttur. Çoğu kullanıcı ticari bir anlaşma olmadan dahili olarak değerlendirebilir, prototip oluşturabilir ve hatta dağıtabilir. Ticari lisansa yalnızca rakip bir ürün veya hizmet geliştiriyorsanız ya da kullanım alanınız FSL sınırlarının dışında kalıyorsa ihtiyacınız vardır.",
+    "hero_desc": "OmniVoice Studio, GNU Affero Genel Kamu Lisansı v3 (AGPL-3.0) kapsamında özgür ve açık kaynaklı bir yazılımdır — ticari ve kurum içi iş kullanımı dahil, kullanımı ücretsizdir. Ticari lisans yalnızca OmniVoice Studio'yu AGPL-3.0'ın copyleft yükümlülükleri olmadan kapalı kaynaklı veya tescilli bir ürün ya da hizmete gömmek istediğinizde gereklidir.",
     "why_title": "İşletmeler neden OmniVoice'u seçiyor?",
     "pricing_title": "Fiyatlandırma",
     "faq_title": "Sık sorulan sorular",
@@ -998,7 +998,7 @@
     "benefit_source_desc": "Yığına tam görünürlük. Lisans koşulları dahilinde denetleyin, çatallayın ve uyarlayın.",
     "benefit_lang": "646 dil",
     "benefit_lang_desc": "646 dilde insan düzeyinde kaliteyle metne dönüştürün, tercüme edin ve dublaj yapın.",
-    "hero_note": "FSL kapsamında dahili kullanım - geniş ölçekte bile - ücretsizdir; ticari lisans yalnızca OmniVoice'u başkalarına rakip bir ürün veya hizmet (barındırılan veya kullanım başına ödemeli API, yeniden satılan veya beyaz etiketli bir uygulama) olarak sunmak için gereklidir. Fiyatlandırma katmanları yakında gelecek; bu arada bizimle iletişime geçin."
+    "hero_note": "Kullanım, kendi sunucunuzda barındırma ve ticari kullanım AGPL-3.0 kapsamında tamamen ücretsizdir — büyük ölçekte bile. AGPL bir ağ copyleft lisansıdır: OmniVoice'u değiştirir ve bu değiştirilmiş sürümü ağ üzerinden başkalarına sunarsanız, değiştirilmiş kaynak kodunuzu aynı koşullarla paylaşmanız gerekir. Ticari lisans, tescilli ve kapalı kaynaklı dağıtımlar için bu copyleft yükümlülüklerini kaldırır. Fiyatlandırma planları yakında — bu arada bizimle iletişime geçin."
   },
   "exportModal": {
     "export": "İhracat",
@@ -1411,13 +1411,11 @@
   },
   "enterprise_faq": {
     "q_internal_tools": "Dahili araçlar için lisansa ihtiyacım var mı?",
-    "a_internal_tools": "Çalışanlarınızın ve yüklenicilerinizin şirket içi kullanımı, FSL kapsamında İzin Verilen Amaçlardan biridir; lisans gerekmez. OmniVoice'u rakip bir ürün veya hizmetin (yeniden satış, barındırılan SaaS, beyaz etiket) parçası olarak başkalarının kullanımına sunduğunuzda ticari bir lisans gerekir.",
+    "a_internal_tools": "Hayır. Çalışanlarınızın ve yüklenicilerinizin kullanımı — kurum içi değişiklik ve kendi sunucunuzda barındırma dahil — AGPL-3.0 kapsamında ücretsizdir. Ticari lisans yalnızca OmniVoice'u kapalı kaynaklı veya tescilli bir ürün ya da hizmete gömüp AGPL'nin kaynak paylaşım yükümlülüklerine uymak istemediğinizde gereklidir.",
     "q_try_before": "Taahhüt etmeden önce deneyebilir miyim?",
-    "a_try_before": "Evet. Uygulamanın tamamını FSL kapsamında değerlendirme için yerel olarak indirmek ve çalıştırmak ücretsizdir. Ticari bir dağıtımı tartışmaya hazır olduğunuzda bize e-posta gönderin; ayrıntılar üzerinde birlikte çalışalım.",
+    "a_try_before": "Evet. Uygulamanın tamamı AGPL-3.0 kapsamında ücretsiz indirilebilir, çalıştırılabilir ve kendi sunucunuzda barındırılabilir — hiçbir sözleşme gerekmez. Ticari (tescilli kullanım) lisansını görüşmeye hazır olduğunuzda bize e-posta gönderin; ayrıntıları birlikte netleştirelim.",
     "q_watermark": "Filigran ne olacak?",
-    "a_watermark": "Görünmez AudioSeal filigranı varsayılan olarak gömülüdür. Ticari lisans sahipleri bunu Ayarlar → Gizlilik bölümünden devre dışı bırakabilir. Ücretsiz/kişisel kullanım her zaman filigranı da içerir.",
-    "q_apache": "Kaynak hiç Apache 2.0 olur mu?",
-    "a_apache": "Evet. Her sürüm, yayınlanmasının ikinci yıldönümünde otomatik olarak Apache Lisansı Sürüm 2.0'a dönüştürülür. Bu, bugünkü sürümün iki yıl içinde Apache 2.0 olacağı anlamına gelir; bizden herhangi bir işlem yapılmasına gerek yoktur - FSL bunu geri dönülmez bir şekilde garanti eder."
+    "a_watermark": "Görünmez AudioSeal filigranı varsayılan olarak herkes için gömülüdür. Ticari lisans sahipleri bunu Ayarlar → Gizlilik bölümünden devre dışı bırakabilir."
   },
   "gallery_extra": {
     "save_prompt": "Bu ses profili için bir ad girin:",

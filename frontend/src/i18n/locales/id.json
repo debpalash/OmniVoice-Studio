@@ -977,7 +977,7 @@
     "back": "Kembali ke Studio",
     "badge": "Lisensi Komersial",
     "hero_title": "Kirimkan suara AI dalam produksi",
-    "hero_desc": "OmniVoice Studio tersedia sumbernya di bawah Lisensi Sumber Fungsional (FSL). Sebagian besar pengguna dapat mengevaluasi, membuat prototipe, dan bahkan menerapkan secara internal tanpa perjanjian komersial. Anda memerlukan lisensi komersial hanya jika Anda membuat produk atau layanan pesaing, atau jika kasus penggunaan Anda berada di luar batasan FSL.",
+    "hero_desc": "OmniVoice Studio adalah perangkat lunak bebas dan open source di bawah GNU Affero General Public License v3 (AGPL-3.0) — gratis digunakan, termasuk untuk penggunaan komersial dan bisnis internal. Lisensi komersial hanya diperlukan jika Anda ingin menyematkan OmniVoice Studio ke dalam produk atau layanan closed-source atau proprietary tanpa kewajiban copyleft AGPL-3.0.",
     "why_title": "Mengapa bisnis memilih OmniVoice",
     "pricing_title": "Harga",
     "faq_title": "Pertanyaan umum",
@@ -998,7 +998,7 @@
     "benefit_source_desc": "Visibilitas penuh ke dalam tumpukan. Audit, fork, dan adaptasi sesuai ketentuan lisensi.",
     "benefit_lang": "646 bahasa",
     "benefit_lang_desc": "Transkripsikan, terjemahkan, dan sulih suara dalam 646 bahasa dengan kualitas setingkat manusia.",
-    "hero_note": "Penggunaan internal — bahkan dalam skala besar — ​​gratis di bawah FSL; lisensi komersial hanya diperlukan untuk menawarkan OmniVoice kepada orang lain sebagai produk atau layanan pesaing (API yang dihosting atau bayar per penggunaan, aplikasi yang dijual kembali atau diberi label putih). Tingkatan harga akan segera hadir — hubungi kami sementara ini."
+    "hero_note": "Penggunaan, self-hosting, dan penggunaan komersial semuanya gratis di bawah AGPL-3.0 — termasuk dalam skala besar. AGPL adalah lisensi copyleft jaringan: jika Anda memodifikasi OmniVoice dan menawarkan versi modifikasi itu kepada orang lain melalui jaringan, Anda harus membagikan kode sumber modifikasi Anda dengan ketentuan yang sama. Lisensi komersial menghapus kewajiban copyleft tersebut untuk penerapan proprietary closed-source. Paket harga segera hadir — sementara itu, hubungi kami."
   },
   "exportModal": {
     "export": "Ekspor",
@@ -1411,13 +1411,11 @@
   },
   "enterprise_faq": {
     "q_internal_tools": "Apakah saya memerlukan lisensi untuk alat internal?",
-    "a_internal_tools": "Penggunaan internal oleh karyawan dan kontraktor Anda adalah Tujuan yang Diizinkan berdasarkan FSL — tidak diperlukan lisensi. Lisensi komersial diperlukan saat Anda membuat OmniVoice tersedia bagi orang lain sebagai bagian dari produk atau layanan pesaing (dijual kembali, SaaS yang dihosting, label putih).",
+    "a_internal_tools": "Tidak. Penggunaan oleh karyawan dan kontraktor Anda — termasuk memodifikasi dan self-hosting secara internal — gratis di bawah AGPL-3.0. Lisensi komersial hanya diperlukan jika Anda menyematkan OmniVoice ke dalam produk atau layanan closed-source atau proprietary dan tidak ingin mematuhi kewajiban berbagi kode sumber AGPL.",
     "q_try_before": "Bisakah saya mencoba sebelum melakukan?",
-    "a_try_before": "Ya. Aplikasi lengkapnya gratis untuk diunduh dan dijalankan secara lokal untuk evaluasi di bawah FSL. Saat Anda siap mendiskusikan penerapan komersial, kirimkan email kepada kami dan kami akan membahas detailnya bersama-sama.",
+    "a_try_before": "Ya. Aplikasi lengkap gratis untuk diunduh, dijalankan, dan di-host sendiri di bawah AGPL-3.0 — tanpa perjanjian apa pun. Saat Anda siap membahas lisensi komersial (penggunaan proprietary), kirim email kepada kami dan kita akan menyelesaikan detailnya bersama.",
     "q_watermark": "Bagaimana dengan tanda airnya?",
-    "a_watermark": "Tanda air AudioSeal yang tidak terlihat tertanam secara default. Pemegang lisensi komersial dapat menonaktifkannya di Pengaturan → Privasi. Penggunaan gratis/pribadi selalu menyertakan tanda air.",
-    "q_apache": "Apakah sumbernya pernah menjadi Apache 2.0?",
-    "a_apache": "Ya. Setiap rilis dikonversi secara otomatis ke Lisensi Apache, Versi 2.0 pada ulang tahun kedua penerbitannya. Itu berarti rilis hari ini adalah Apache 2.0 dalam dua tahun, kami tidak perlu mengambil tindakan apa pun — FSL menjaminnya tanpa dapat ditarik kembali."
+    "a_watermark": "Tanda air AudioSeal yang tidak terlihat tertanam secara default untuk semua orang. Pemegang lisensi komersial dapat menonaktifkannya di Pengaturan → Privasi."
   },
   "gallery_extra": {
     "save_prompt": "Masukkan nama untuk profil suara ini:",
