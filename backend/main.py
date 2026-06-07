@@ -19,6 +19,22 @@ if sys.platform == "win32":
     os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
     os.environ.setdefault("TORCHINDUCTOR_DISABLE", "1")
 
+# The backend's stdout/stderr are pipes owned by the desktop shell that
+# spawned it. If that shell exits while the backend survives (crash,
+# relaunch, orphan), the pipes close — and the next write raises
+# BrokenPipeError. transformers' tqdm weight-loading bar writes constantly,
+# so an orphaned backend couldn't load the model at all (caught in the wild
+# by the in-app diagnostic report). Wrap stdio so EPIPE is swallowed
+# process-wide: logs are best-effort for a server, model loading is not.
+# (utils.hf_progress.SafeFileWrapper — same wrapper the patched hub tqdm
+# already uses for its own fp.)
+from utils.hf_progress import SafeFileWrapper as _SafeStdio  # noqa: E402
+
+if not getattr(sys.stdout, "_is_safe_wrapper", False):
+    sys.stdout = _SafeStdio(sys.stdout)
+if not getattr(sys.stderr, "_is_safe_wrapper", False):
+    sys.stderr = _SafeStdio(sys.stderr)
+
 try:
     import dotenv
 
