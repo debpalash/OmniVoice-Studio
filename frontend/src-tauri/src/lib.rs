@@ -219,6 +219,11 @@ pub fn run() {
                                             let _ = win.center();
                                         }
                                         let _ = win.show();
+                                        // Don't steal focus on macOS: the simulated ⌘V from
+                                        // simulate_paste() must land in the app the user is
+                                        // dictating into — focusing the widget would swallow
+                                        // it (#287).
+                                        #[cfg(not(target_os = "macos"))]
                                         let _ = win.set_focus();
                                     }
                                     let _ = app_handle.emit("tray-dictate", ());
