@@ -410,7 +410,11 @@ jobs:
           set -euo pipefail
           CONF=frontend/src-tauri/tauri.conf.json
           BASE=$(jq -r .version "$CONF")
-          PREVIEW_VERSION="${BASE}-preview.${{ github.run_number }}"
+          # MSI/WiX requires the semver pre-release identifier to be numeric-only
+          # (and <= 65535). "preview.N" hard-fails the Windows bundler, so the
+          # preview stamp is BASE-N — still sorts below the stable BASE for the
+          # updater, still unique per run.
+          PREVIEW_VERSION="${BASE}-${{ github.run_number }}"
           tmp=$(mktemp)
           jq --arg v "$PREVIEW_VERSION" '.version = $v' "$CONF" > "$tmp"
           mv "$tmp" "$CONF"
