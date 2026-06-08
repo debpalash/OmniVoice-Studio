@@ -31,6 +31,7 @@ import difflib
 import logging
 import math
 import os
+import sys
 import re
 from dataclasses import dataclass, fields
 from functools import partial
@@ -252,6 +253,11 @@ class OmniVoice(PreTrainedModel):
         _prev_disable = logging.root.manager.disable
         logging.disable(logging.INFO)
 
+        # Disable tqdm on non-TTY (e.g., Tauri backend) to prevent OSError on Windows
+        _prev_tqdm = os.environ.get("TQDM_DISABLE")
+        if not sys.stdout.isatty():
+            os.environ["TQDM_DISABLE"] = "1"
+
         try:
             model = super().from_pretrained(
                 pretrained_model_name_or_path, *args, **kwargs
@@ -296,6 +302,11 @@ class OmniVoice(PreTrainedModel):
                     model.load_asr_model(model_name=asr_model_name)
         finally:
             logging.disable(_prev_disable)
+            # Restore TQDM_DISABLE state
+            if _prev_tqdm is None:
+                os.environ.pop("TQDM_DISABLE", None)
+            else:
+                os.environ["TQDM_DISABLE"] = _prev_tqdm
 
         return model
 
