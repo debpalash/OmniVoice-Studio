@@ -31,8 +31,8 @@ import difflib
 import logging
 import math
 import os
-import sys
 import re
+import sys
 from dataclasses import dataclass, fields
 from functools import partial
 from typing import Any, List, Optional, Union
@@ -255,7 +255,7 @@ class OmniVoice(PreTrainedModel):
 
         # Disable tqdm on non-TTY (e.g., Tauri backend) to prevent OSError on Windows
         _prev_tqdm = os.environ.get("TQDM_DISABLE")
-        if not sys.stdout.isatty():
+        if sys.stdout is not None and not sys.stdout.isatty():
             os.environ["TQDM_DISABLE"] = "1"
 
         try:
