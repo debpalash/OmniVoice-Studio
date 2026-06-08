@@ -493,6 +493,12 @@ def _make_backend_class():
               * ``ref_audio`` (str/Path) — speaker reference WAV for cloning.
               * ``ref_text`` (str) — transcript of ``ref_audio``.
               * ``language`` (str) — ISO code or omnivoice-tts lang label.
+              * ``instruct`` (str) — style instruction.
+              * ``duration`` (float) — target duration in seconds.
+              * ``seed`` (int) — deterministic sampling seed.
+              * ``denoise`` (bool) — omit denoise token when false.
+              * ``preprocess_prompt`` (bool) — skip prompt preprocessing when false.
+              * ``chunk_duration`` / ``chunk_threshold`` (float) — binary long-form controls.
             """
             import soundfile as sf  # local import keeps module import cheap
             import torch
@@ -503,15 +509,32 @@ def _make_backend_class():
             fd, out_str = tempfile.mkstemp(prefix="omnivoice-gguf-", suffix=".wav")
             os.close(fd)
             out_path = Path(out_str)
+            ref_text_path: Optional[Path] = None
 
             try:
+                ref_text = kw.get("ref_text")
+                if kw.get("ref_audio") and ref_text:
+                    text_fd, text_str = tempfile.mkstemp(
+                        prefix="omnivoice-gguf-ref-", suffix=".txt"
+                    )
+                    os.close(text_fd)
+                    ref_text_path = Path(text_str)
+                    ref_text_path.write_text(str(ref_text), encoding="utf-8")
+
                 argv = self._build_argv(
                     base=base_path,
                     tokenizer=tok_path,
                     out_path=out_path,
                     ref_audio=kw.get("ref_audio"),
-                    ref_text=kw.get("ref_text"),
+                    ref_text=str(ref_text_path) if ref_text_path else None,
                     language=kw.get("language"),
+                    instruct=kw.get("instruct"),
+                    duration=kw.get("duration"),
+                    seed=kw.get("seed"),
+                    denoise=kw.get("denoise", True),
+                    preprocess_prompt=kw.get("preprocess_prompt", True),
+                    chunk_duration=kw.get("chunk_duration"),
+                    chunk_threshold=kw.get("chunk_threshold"),
                 )
                 self._run_subprocess(argv, stdin_text=text)
                 wav, sr = sf.read(str(out_path))
@@ -520,6 +543,11 @@ def _make_backend_class():
                     out_path.unlink()
                 except OSError:
                     pass
+                if ref_text_path is not None:
+                    try:
+                        ref_text_path.unlink()
+                    except OSError:
+                        pass
 
             # soundfile returns (n,) for mono or (n, c) for multichannel.
             # OmniVoice/Higgs Audio v2 is mono → (n,). Wrap to (1, n).
@@ -544,6 +572,13 @@ def _make_backend_class():
             ref_audio: Optional[str],
             ref_text: Optional[str],
             language: Optional[str],
+            instruct: Optional[str] = None,
+            duration: Optional[float] = None,
+            seed: Optional[int] = None,
+            denoise: bool = True,
+            preprocess_prompt: bool = True,
+            chunk_duration: Optional[float] = None,
+            chunk_threshold: Optional[float] = None,
         ) -> list[str]:
             """Compose argv from typed Path objects only (T-04-02)."""
             argv: list[str] = [
@@ -555,6 +590,20 @@ def _make_backend_class():
             lang = _iso_to_omnivoice_lang(language)
             if lang:
                 argv += ["--lang", lang]
+            if instruct:
+                argv += ["--instruct", str(instruct)]
+            if duration is not None:
+                argv += ["--duration", str(float(duration))]
+            if seed is not None:
+                argv += ["--seed", str(int(seed))]
+            if denoise is False:
+                argv += ["--no-denoise"]
+            if preprocess_prompt is False:
+                argv += ["--no-preprocess-prompt"]
+            if chunk_duration is not None:
+                argv += ["--chunk-duration", str(float(chunk_duration))]
+            if chunk_threshold is not None:
+                argv += ["--chunk-threshold", str(float(chunk_threshold))]
             if ref_audio:
                 # Two-stage validation (defense in depth):
                 #   (a) Reject anything outside the project's voices /
@@ -588,11 +637,8 @@ def _make_backend_class():
                     )
                 argv += ["--ref-wav", str(ref_path)]
                 if ref_text:
-                    # ref_text is free-form text; pass via stdin would
-                    # collide with the synthesis prompt, so the only safe
-                    # channel is argv. The binary treats this as a quoted
-                    # string at the OS layer (Popen escapes argv per
-                    # platform); we don't pre-escape.
+                    # The C++ runtime expects a transcript file path.
+                    # generate() creates this file in the system temp dir.
                     argv += ["--ref-text", str(ref_text)]
             return argv
 

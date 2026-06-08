@@ -251,6 +251,108 @@ def test_generate_returns_tensor_from_stub_wav(monkeypatch, tmp_path):
     assert captured["stdin"] == "hello world"
 
 
+def test_generate_forwards_control_arguments(monkeypatch, tmp_path):
+    """The GGUF binary exposes quality/prosody controls; the adapter must not
+    silently drop them."""
+    from engines.omnivoice_gguf import backend as gguf_backend
+
+    cls = gguf_backend._make_backend_class()
+    backend = cls()
+
+    fake_base = tmp_path / "omnivoice-base-Q8_0.gguf"
+    fake_tok = tmp_path / "omnivoice-tokenizer-Q8_0.gguf"
+    fake_base.write_bytes(b"x")
+    fake_tok.write_bytes(b"x")
+    monkeypatch.setattr(
+        backend,
+        "_resolve_quant_paths",
+        lambda: (fake_base, fake_tok, {"base": "omnivoice-base-Q8_0.gguf",
+                                       "tokenizer": "omnivoice-tokenizer-Q8_0.gguf"}),
+    )
+    monkeypatch.setattr(
+        gguf_backend, "_binary_path", lambda slug=None: tmp_path / "fake-omnivoice-tts",
+    )
+
+    captured: dict = {}
+
+    def _stub_run(argv, *, input=None, text=None, capture_output=None,
+                  timeout=None, check=None, **_kw):
+        for i, a in enumerate(argv):
+            if a == "-o":
+                _write_3s_wav(Path(argv[i + 1]))
+                break
+        captured["argv"] = argv
+        return subprocess.CompletedProcess(args=argv, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", _stub_run)
+
+    backend.generate(
+        "hello world",
+        instruct="calm narrator",
+        duration=3.2,
+        seed=1234,
+        denoise=False,
+        preprocess_prompt=False,
+        chunk_duration=0,
+        chunk_threshold=999,
+    )
+
+    argv = captured["argv"]
+    assert argv[argv.index("--instruct") + 1] == "calm narrator"
+    assert argv[argv.index("--duration") + 1] == "3.2"
+    assert argv[argv.index("--seed") + 1] == "1234"
+    assert "--no-denoise" in argv
+    assert "--no-preprocess-prompt" in argv
+    assert argv[argv.index("--chunk-duration") + 1] == "0.0"
+    assert argv[argv.index("--chunk-threshold") + 1] == "999.0"
+
+
+def test_generate_passes_ref_text_as_temporary_file(monkeypatch, tmp_path):
+    from engines.omnivoice_gguf import backend as gguf_backend
+
+    cls = gguf_backend._make_backend_class()
+    backend = cls()
+    fake_base = tmp_path / "omnivoice-base-Q8_0.gguf"
+    fake_tok = tmp_path / "omnivoice-tokenizer-Q8_0.gguf"
+    fake_ref = tmp_path / "reference.wav"
+    fake_base.write_bytes(b"x")
+    fake_tok.write_bytes(b"x")
+    fake_ref.write_bytes(b"x")
+    monkeypatch.setattr(
+        backend,
+        "_resolve_quant_paths",
+        lambda: (fake_base, fake_tok, {"base": fake_base.name,
+                                       "tokenizer": fake_tok.name}),
+    )
+    monkeypatch.setattr(
+        gguf_backend, "_binary_path", lambda slug=None: tmp_path / "fake-omnivoice-tts",
+    )
+
+    captured: dict = {}
+
+    def _stub_run(argv, *, input=None, text=None, capture_output=None,
+                  timeout=None, check=None, **_kw):
+        ref_text_path = Path(argv[argv.index("--ref-text") + 1])
+        captured["ref_text_path"] = ref_text_path
+        captured["ref_text"] = ref_text_path.read_text(encoding="utf-8")
+        for i, arg in enumerate(argv):
+            if arg == "-o":
+                _write_3s_wav(Path(argv[i + 1]))
+                break
+        return subprocess.CompletedProcess(args=argv, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", _stub_run)
+
+    backend.generate(
+        "hello world",
+        ref_audio=str(fake_ref),
+        ref_text="reference transcript",
+    )
+
+    assert captured["ref_text"] == "reference transcript"
+    assert not captured["ref_text_path"].exists()
+
+
 def test_generate_blocks_freeform_ref_audio(monkeypatch, tmp_path):
     """T-04-02 — ref_audio path that doesn't exist is rejected before
     spawning the subprocess."""
