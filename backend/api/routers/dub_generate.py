@@ -265,6 +265,9 @@ async def dub_generate(job_id: str, req: DubRequest):
                     if seg_effect_preset == "raw":
                         return audio_out
 
+                    # TODO(#312): this route runs the OmniVoice model directly (not the active
+                    # backend), so VoxCPM2 never reaches it. When these routes become
+                    # engine-aware, guard with `if not getattr(backend, "applies_own_mastering", False)`.
                     mastered_audio = apply_mastering(audio_out, sample_rate=sr)
                     effect_chain = get_effect_chain(seg_effect_preset)
                     if effect_chain:
@@ -310,6 +313,9 @@ async def dub_generate(job_id: str, req: DubRequest):
                         if seg_effect_preset == "raw":
                             return audio_out
 
+                        # TODO(#312): this route runs the OmniVoice model directly (not the active
+                        # backend), so VoxCPM2 never reaches it. When these routes become
+                        # engine-aware, guard with `if not getattr(backend, "applies_own_mastering", False)`.
                         mastered_audio = apply_mastering(audio_out, sample_rate=sr)
                         effect_chain = get_effect_chain(seg_effect_preset)
                         if effect_chain:
@@ -784,6 +790,9 @@ async def preview_segment(job_id: str, req: SegmentPreviewRequest):
             postprocess_output=True,
         )
         audio_out = audios[0]
+        # TODO(#312): this route runs the OmniVoice model directly (not the active
+        # backend), so VoxCPM2 never reaches it. When these routes become
+        # engine-aware, guard with `if not getattr(backend, "applies_own_mastering", False)`.
         mastered = apply_mastering(
             audio_out,
             sample_rate=getattr(_model, "sampling_rate", 24000),
