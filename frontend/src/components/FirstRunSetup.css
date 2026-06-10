@@ -22,8 +22,11 @@
 
   position: fixed;
   inset: 0;
+  /* Flex column: the deck fills the height and the action bar pins flush to the
+     bottom edge; only the inner .frs__scroll region scrolls. */
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   background: var(--frs-bg);
   color: var(--frs-ink);
   font-family: var(--font-sans, 'Inter Variable', system-ui, sans-serif);
@@ -31,8 +34,9 @@
   /* Extra top clearance: the native titlebar (GTK headerbar / macOS
      traffic lights / Windows controls) overlays the top of the window —
      content must start below it, never under it. */
-  padding: 3.4rem 2.5rem 2rem;
-  overflow-y: auto;
+  /* No bottom padding: the action bar sits flush to the window's bottom edge. */
+  padding: 3.4rem 2.5rem 0;
+  overflow: hidden;            /* the inner .frs__scroll region scrolls, not this */
 }
 
 /* No backdrop decoration: the journey sits on a clean flat surface — corner
@@ -46,16 +50,24 @@
   position: relative;
   width: 100%;
   max-width: 1240px;
-  /* Top-anchored: the waveform opens the page right under the titlebar —
-     vertical centering left a dead zone above it on tall windows. */
   margin: 0;
+  flex: 1 1 auto;           /* fill the column height; the inner region scrolls */
+  min-height: 0;            /* let the inner scroll region shrink + scroll */
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Scrollable region: masthead + decision grid. Only this scrolls — the action
+   bar (.frs__foot) is a sibling below it, so it stays flush at the bottom with
+   nothing rendering beneath it on small windows. */
+.frs__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
-  min-width: 0;
-  /* Fill the viewport (minus the shell's padding) so the sticky footer's
-     margin-top:auto hugs the bottom even when content is short. */
-  min-height: calc(100dvh - 5.4rem);
 }
 
 .frs__loading {
@@ -552,18 +564,17 @@
 /* ── Footer: gate + armed button ───────────────────────────────────────── */
 
 .frs__foot {
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
+  /* Pinned action bar: the last flex item below the scroll region, so it sits
+     flush at the window's bottom edge while only the content above scrolls —
+     nothing renders beneath it. */
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-  padding-top: 0.6rem;
-  padding-bottom: 0.5rem;
-  margin-top: auto;          /* hug the bottom when content is short */
+  padding-top: 0.7rem;
+  padding-bottom: 1.6rem;
   background: var(--frs-bg);
-  /* soft top fade so scrolled content slips under, not against, the bar */
-  box-shadow: 0 -14px 14px -8px var(--frs-bg);
+  border-top: 1px solid var(--frs-line);
 }
 
 .frs__foot-row {

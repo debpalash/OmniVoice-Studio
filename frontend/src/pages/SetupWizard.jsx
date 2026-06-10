@@ -79,6 +79,7 @@ function PreflightPanel({ report, loading, onRecheck }) {
           ↻ {t('setup.recheck')}
         </button>
       </h2>
+      <div className="swiz-checks">
       {report.checks.map((c) => (
         <div key={c.id} className={`frs-check frs-check--${c.status}`}>
           <span className="frs-check__led" aria-hidden="true" />
@@ -91,6 +92,7 @@ function PreflightPanel({ report, loading, onRecheck }) {
           </div>
         </div>
       ))}
+      </div>
     </section>
   );
 }

@@ -25,6 +25,17 @@
 /* Recheck action lives inside the engraved panel title row. */
 .swiz-recheck { letter-spacing: 0; text-transform: none; }
 
+/* Preflight checks flow into responsive columns so the list stays short on a
+   wide/maximized window instead of one tall single column. Collapses to a
+   single column on narrow windows. */
+.swiz-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  column-gap: 1.6rem;
+  row-gap: 0.55rem;
+  align-items: start;
+}
+
 .swiz-loading {
   display: flex;
   align-items: center;

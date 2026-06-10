@@ -23,7 +23,8 @@
         "resizable": true,
         "fullscreen": false,
         "titleBarStyle": "Overlay",
-        "hiddenTitle": true
+        "hiddenTitle": true,
+        "maximized": true
       },
       {
         "label": "widget",

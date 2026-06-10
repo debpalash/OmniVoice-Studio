@@ -846,15 +846,10 @@ function App() {
         {/* Invisible drag strip across the top 28 px of the wizard —
             matches the macOS traffic-light zone so the window can be
             dragged / double-click-zoomed from anywhere along the top. */}
+        {/* Double-click-to-maximize is handled globally in main.jsx for every
+            drag region (splash, first-run, wizard, main) on all platforms. */}
         <div
           data-tauri-drag-region
-          onDoubleClick={() => {
-            if ('__TAURI_INTERNALS__' in window) {
-              import('@tauri-apps/api/window').then(m =>
-                m.getCurrentWindow().toggleMaximize()
-              ).catch(() => {});
-            }
-          }}
           className="app-wizard-dragstrip"
         />
         <Suspense fallback={<LazyFallback />}>
