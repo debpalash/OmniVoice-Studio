@@ -1016,6 +1016,44 @@ def get_active_asr_backend(*, asr_pipe=None) -> ASRBackend:
     return _REGISTRY[bid]()
 
 
+def transcribe_reference(audio_path: str) -> str | None:
+    """Transcribe a voice-clone reference clip with the active ASR backend.
+
+    Voice cloning without a user-supplied transcript used to fall through to
+    ``OmniVoice.load_asr_model()`` — a transformers ``pipeline()`` load of
+    whisper-large-v3-turbo that fails outright on transformers 5.3 (#308),
+    even when whisperx / faster-whisper / mlx-whisper are installed and
+    working. Route the reference transcript through the registry instead, so
+    the model-attached pipeline is only reached when it is genuinely the last
+    resort. Returns ``None`` on any failure — callers pass ``ref_text=None``
+    through and the model's built-in fallback still gets its chance.
+    """
+    try:
+        backend = get_active_asr_backend()
+    except Exception as e:  # noqa: BLE001 — never let ASR break generation
+        logger.warning("transcribe_reference: no ASR backend available (%s)", e)
+        return None
+    if isinstance(backend, PyTorchWhisperBackend):
+        # The registry fell through to the model-attached pipeline; let the
+        # model load it lazily rather than constructing a second copy here.
+        return None
+    try:
+        result = backend.transcribe(audio_path, word_timestamps=False)
+    except Exception as e:  # noqa: BLE001 — degrade to the model fallback
+        logger.warning(
+            "transcribe_reference: %s failed (%s) — deferring to the model's "
+            "built-in ASR fallback",
+            backend.id, e,
+        )
+        return None
+    result = result or {}
+    text = result.get("text") or " ".join(
+        (seg.get("text") or "").strip() for seg in result.get("segments", [])
+    )
+    text = (text or "").strip()
+    return text or None
+
+
 _capture_backend: ASRBackend | None = None
 
 

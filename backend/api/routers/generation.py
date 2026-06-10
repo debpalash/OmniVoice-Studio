@@ -213,6 +213,17 @@ async def generate_speech(
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
+    # #308: a transcript-less reference is transcribed with the active ASR
+    # backend (whisperx / faster-whisper / mlx-whisper) instead of the model's
+    # built-in transformers pipeline, which cannot load whisper-large-v3-turbo
+    # on transformers 5.3. On failure ref_text stays None and the model's
+    # fallback behaves exactly as before.
+    if ref_audio_path and not ref_text:
+        from services.asr_backend import transcribe_reference
+        ref_text = await asyncio.get_running_loop().run_in_executor(
+            _gpu_pool, transcribe_reference, ref_audio_path
+        )
+
     start_time = time.time()
     try:
         loop = asyncio.get_running_loop()
