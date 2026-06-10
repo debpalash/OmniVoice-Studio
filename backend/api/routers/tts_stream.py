@@ -152,7 +152,12 @@ async def ws_tts(websocket: WebSocket):
                     from services.audio_dsp import apply_mastering, normalize_audio
                     wav = backend.generate(text, **kw)
                     sr_actual = backend.sample_rate
-                    wav = apply_mastering(wav, sample_rate=sr_actual)
+                    # Like _run_tts in openai_compat: studio engines (VoxCPM2)
+                    # opt out of the broadcast mastering chain. This is the
+                    # other route that runs the active backend, so it needs the
+                    # same guard. Loudness normalisation still runs.
+                    if not getattr(backend, "applies_own_mastering", False):
+                        wav = apply_mastering(wav, sample_rate=sr_actual)
                     wav = normalize_audio(wav, target_dBFS=-2.0)
                     return wav, sr_actual
 
