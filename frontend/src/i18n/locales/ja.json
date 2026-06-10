@@ -249,6 +249,7 @@
     "save": "保存",
     "cancel": "キャンセル",
     "synthesize": "音声を合成する",
+    "stop_playback": "再生を停止",
     "synthesizing": "合成中… ({{seconds}}s)",
     "drop_audio": "ここに音声をドロップするか、クリックします。 WAV、MP3、M4A… 🎤",
     "record": "記録",

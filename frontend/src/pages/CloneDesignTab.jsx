@@ -13,6 +13,7 @@ import { POPULAR_LANGS, PRESETS, TAGS, CATEGORIES } from '../utils/constants';
 import { Button, Input, Slider, Progress } from '../ui';
 import { API } from '../api/client';
 import { listEngines } from '../api/engines';
+import { claimPlayback, stopActivePlayback, usePlaybackSource } from '../utils/playback';
 import './CloneDesignTab.css';
 
 export default function CloneDesignTab(props) {
@@ -115,21 +116,37 @@ export default function CloneDesignTab(props) {
   const showHearDemo =
     mode === 'clone' && selectedProfile === DEMO_PROFILE_ID && !anyTtsReady;
   const demoAudioRef = useRef(null);
+  const demoReleaseRef = useRef(null);
   const [demoAudioPlaying, setDemoAudioPlaying] = useState(false);
+
+  // Global playback state (#316): while a synthesized output (or another
+  // unmanaged blob playback) is audible, the footer CTA becomes a Stop
+  // button so the user can halt it immediately.
+  const playbackSource = usePlaybackSource();
+  const outputPlaying = playbackSource === 'output';
 
   const playDemoOutput = () => {
     const audio = demoAudioRef.current;
     if (!audio) return;
     if (demoAudioPlaying) {
-      audio.pause();
-      setDemoAudioPlaying(false);
+      stopActivePlayback();
       return;
     }
+    // Claim the global playback slot so this demo stops any other preview
+    // first — and can itself be stopped from anywhere (#316).
+    demoReleaseRef.current = claimPlayback(() => {
+      audio.pause();
+      setDemoAudioPlaying(false);
+    }, 'demo-output');
     audio.src = `${API}/demo_audio/demo_clone_output.wav`;
     audio.currentTime = 0;
     audio.play()
       .then(() => setDemoAudioPlaying(true))
-      .catch(() => setDemoAudioPlaying(false));
+      .catch(() => {
+        demoReleaseRef.current?.();
+        demoReleaseRef.current = null;
+        setDemoAudioPlaying(false);
+      });
   };
 
   // Partition personalities into legacy chips vs. new demo cards.
@@ -510,10 +527,26 @@ export default function CloneDesignTab(props) {
             </div>
             <audio
               ref={demoAudioRef}
-              onEnded={() => setDemoAudioPlaying(false)}
+              onEnded={() => {
+                setDemoAudioPlaying(false);
+                demoReleaseRef.current?.();
+                demoReleaseRef.current = null;
+              }}
               preload="none"
             />
           </>
+        ) : outputPlaying && !isGenerating ? (
+          /* Synthesized output is playing — the CTA becomes a Stop button
+             (#316) so playback can be halted immediately. */
+          <Button
+            variant="primary"
+            block
+            onClick={stopActivePlayback}
+            leading={<Square size={14} />}
+            className="clone-footer-cta"
+          >
+            {t('clone.stop_playback')}
+          </Button>
         ) : (
           <Button
             variant="primary"

@@ -249,6 +249,7 @@
     "save": "Enregistrer",
     "cancel": "Annuler",
     "synthesize": "Synthétiser l'audio",
+    "stop_playback": "Arrêter la lecture",
     "synthesizing": "Synthèse… ({{seconds}}s)",
     "drop_audio": "Déposez l’audio ici – ou cliquez. WAV, MP3, M4A… 🎤",
     "record": "Enregistrer",

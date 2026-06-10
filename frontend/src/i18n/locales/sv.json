@@ -248,6 +248,7 @@
     "save": "Spara",
     "cancel": "Avbryt",
     "synthesize": "Syntetisera ljud",
+    "stop_playback": "Stoppa uppspelning",
     "synthesizing": "Syntetiserar... ({{seconds}}s)",
     "drop_audio": "Släpp ljud här - eller klicka. WAV, MP3, M4A... 🎤",
     "record": "Spela in",

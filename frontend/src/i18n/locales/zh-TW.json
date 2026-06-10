@@ -248,6 +248,7 @@
     "save": "儲存",
     "cancel": "取消",
     "synthesize": "合成音訊",
+    "stop_playback": "停止播放",
     "synthesizing": "正在綜合... ({{seconds}}s)",
     "drop_audio": "將音訊拖放到此處 - 或單擊。 WAV、MP3、M4A…🎤",
     "record": "記錄",

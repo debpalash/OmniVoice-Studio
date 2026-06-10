@@ -248,6 +248,7 @@
     "save": "Simpan",
     "cancel": "Batalkan",
     "synthesize": "Sintesis Audio",
+    "stop_playback": "Hentikan pemutaran",
     "synthesizing": "Mensintesis… ({{seconds}}s)",
     "drop_audio": "Letakkan audio di sini — atau klik. WAV, MP3, M4A… 🎤",
     "record": "Rekam",

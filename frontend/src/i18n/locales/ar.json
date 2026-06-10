@@ -248,6 +248,7 @@
     "save": "حفظ",
     "cancel": "إلغاء",
     "synthesize": "توليف الصوت",
+    "stop_playback": "إيقاف التشغيل",
     "synthesizing": "Synthesizing… ({{seconds}}s)",
     "drop_audio": "قم بإسقاط الصوت هنا - أو انقر. WAV، MP3، M4A… 🎤",
     "record": "سجل",

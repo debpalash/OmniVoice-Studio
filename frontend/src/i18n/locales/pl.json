@@ -248,6 +248,7 @@
     "save": "Zapisz",
     "cancel": "Anuluj",
     "synthesize": "Syntetyzuj dźwięk",
+    "stop_playback": "Zatrzymaj odtwarzanie",
     "synthesizing": "Syntetyzowanie… ({{seconds}}s)",
     "drop_audio": "Upuść dźwięk tutaj — lub kliknij. WAV, MP3, M4A… 🎤",
     "record": "Nagraj",

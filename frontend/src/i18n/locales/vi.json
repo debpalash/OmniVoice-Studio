@@ -248,6 +248,7 @@
     "save": "Lưu",
     "cancel": "Hủy bỏ",
     "synthesize": "Tổng hợp âm thanh",
+    "stop_playback": "Dừng phát",
     "synthesizing": "Đang tổng hợp… ({{seconds}}s)",
     "drop_audio": "Thả âm thanh vào đây — hoặc nhấp vào. WAV, MP3, M4A… 🎤",
     "record": "Ghi lại",

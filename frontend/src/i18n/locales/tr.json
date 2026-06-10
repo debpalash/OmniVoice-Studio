@@ -248,6 +248,7 @@
     "save": "Kaydet",
     "cancel": "İptal",
     "synthesize": "Sesi Sentezle",
+    "stop_playback": "Oynatmayı durdur",
     "synthesizing": "Sentezleniyor… ({{seconds}}s)",
     "drop_audio": "Sesi buraya bırakın veya tıklayın. WAV, MP3, M4A… 🎤",
     "record": "Kayıt",

@@ -248,6 +248,7 @@
     "save": "저장",
     "cancel": "취소",
     "synthesize": "오디오 합성",
+    "stop_playback": "재생 중지",
     "synthesizing": "합성 중… ({{seconds}}s)",
     "drop_audio": "여기에 오디오를 놓거나 클릭하세요. WAV, MP3, M4A… 🎤",
     "record": "기록",

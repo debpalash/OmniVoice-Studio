@@ -156,6 +156,7 @@
     "save": "保存",
     "cancel": "取消",
     "synthesize": "生成音频",
+    "stop_playback": "停止播放",
     "synthesizing": "生成中…（{{seconds}} 秒）",
     "drop_audio": "拖放音频文件 — 或点击选择。支持 WAV、MP3、M4A… 🎤",
     "record": "录制",

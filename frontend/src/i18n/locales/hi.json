@@ -248,6 +248,7 @@
     "save": "सहेजें",
     "cancel": "रद्द करें",
     "synthesize": "ऑडियो का संश्लेषण करें",
+    "stop_playback": "प्लेबैक रोकें",
     "synthesizing": "संश्लेषण... ({{seconds}}s)",
     "drop_audio": "ऑडियो यहां छोड़ें - या क्लिक करें। WAV, MP3, M4A… 🎤",
     "record": "अभिलेख",

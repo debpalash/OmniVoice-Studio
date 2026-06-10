@@ -56,4 +56,53 @@ describe('DemoPresetGrid', () => {
     fireEvent.click(buttons[0]);
     expect(onUse).toHaveBeenCalledWith(PRESETS[0]);
   });
+
+  // Regression for #316 — single-playback invariant. jsdom doesn't implement
+  // HTMLMediaElement playback, so stub play/pause and assert coordination.
+  it('starting a second preview stops the first (single playback, #316)', async () => {
+    const play = vi
+      .spyOn(window.HTMLMediaElement.prototype, 'play')
+      .mockResolvedValue(undefined);
+    const pause = vi
+      .spyOn(window.HTMLMediaElement.prototype, 'pause')
+      .mockImplementation(() => {});
+    try {
+      render(withI18n(<DemoPresetGrid presets={PRESETS} onUse={vi.fn()} />));
+
+      fireEvent.click(screen.getByLabelText('Preview The Librarian'));
+      expect(await screen.findByLabelText('Pause The Librarian')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByLabelText('Preview The Anchor'));
+      // Claiming the playback manager for card 2 pauses card 1's audio.
+      expect(pause).toHaveBeenCalled();
+      expect(await screen.findByLabelText('Pause The Anchor')).toBeInTheDocument();
+      // Card 1 is back to its idle Preview state — only one plays at a time.
+      expect(screen.getByLabelText('Preview The Librarian')).toBeInTheDocument();
+      expect(play).toHaveBeenCalledTimes(2);
+    } finally {
+      play.mockRestore();
+      pause.mockRestore();
+    }
+  });
+
+  it('clicking a playing preview stops it (#316)', async () => {
+    const play = vi
+      .spyOn(window.HTMLMediaElement.prototype, 'play')
+      .mockResolvedValue(undefined);
+    const pause = vi
+      .spyOn(window.HTMLMediaElement.prototype, 'pause')
+      .mockImplementation(() => {});
+    try {
+      render(withI18n(<DemoPresetGrid presets={PRESETS} onUse={vi.fn()} />));
+
+      fireEvent.click(screen.getByLabelText('Preview The Librarian'));
+      fireEvent.click(await screen.findByLabelText('Pause The Librarian'));
+
+      expect(pause).toHaveBeenCalled();
+      expect(await screen.findByLabelText('Preview The Librarian')).toBeInTheDocument();
+    } finally {
+      play.mockRestore();
+      pause.mockRestore();
+    }
+  });
 });

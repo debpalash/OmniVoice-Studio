@@ -248,6 +248,7 @@
     "save": "บันทึก",
     "cancel": "ยกเลิก",
     "synthesize": "สังเคราะห์เสียง",
+    "stop_playback": "หยุดเล่น",
     "synthesizing": "กำลังสังเคราะห์… ({{seconds}}s)",
     "drop_audio": "วางเสียงที่นี่ — หรือคลิก WAV, MP3, M4A… 🎶",
     "record": "บันทึก",

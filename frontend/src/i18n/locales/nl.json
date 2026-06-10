@@ -248,6 +248,7 @@
     "save": "Opslaan",
     "cancel": "Annuleer",
     "synthesize": "Audio synthetiseren",
+    "stop_playback": "Afspelen stoppen",
     "synthesizing": "Synthetiseren… ({{seconds}}s)",
     "drop_audio": "Zet hier audio neer - of klik. WAV, MP3, M4A... 🎤",
     "record": "Opnemen",
