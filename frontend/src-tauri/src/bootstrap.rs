@@ -250,6 +250,45 @@ pub fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     Ok(())
 }
 
+/// Refresh `pyproject.toml` + `uv.lock` in the project dir from the bundled
+/// resources, so an upgraded app never runs freshly-synced backend code against
+/// the stale dependency manifests from when the venv was first created (#307 —
+/// a venv predating scalar-fastapi's addition crashed main.py on import).
+/// Returns true when the lockfile content changed (or the project had none):
+/// the signal that the venv may be missing newly added dependencies and needs
+/// a `uv sync`.
+fn refresh_project_manifests(resource_dir: &Path, project_dir: &Path) -> bool {
+    let flat = resource_dir.to_path_buf();
+    let up2 = resource_dir.join("_up_").join("_up_");
+    let res_root = if flat.join("pyproject.toml").is_file() { flat } else { up2 };
+    let res_pyproject = res_root.join("pyproject.toml");
+    let res_uvlock = res_root.join("uv.lock");
+    if res_pyproject.is_file() {
+        if let Err(e) = fs::copy(&res_pyproject, project_dir.join("pyproject.toml")) {
+            log::warn!("Could not refresh pyproject.toml from bundle: {}", e);
+        }
+    }
+    if !res_uvlock.is_file() {
+        return false;
+    }
+    let project_lock = project_dir.join("uv.lock");
+    let lock_changed = match (fs::read(&res_uvlock), fs::read(&project_lock)) {
+        (Ok(bundled), Ok(existing)) => bundled != existing,
+        (Ok(_), Err(_)) => true, // project has no lock yet — treat as drift
+        (Err(e), _) => {
+            log::warn!("Could not read bundled uv.lock: {}", e);
+            return false;
+        }
+    };
+    if lock_changed {
+        if let Err(e) = fs::copy(&res_uvlock, &project_lock) {
+            log::warn!("Could not refresh uv.lock from bundle: {}", e);
+            return false; // don't sync against a lock we failed to refresh
+        }
+    }
+    lock_changed
+}
+
 /// Dev-mode fallback: running from the source tree (`bun run dev`).
 pub fn find_dev_project_root() -> Option<PathBuf> {
     let candidates = [
@@ -428,6 +467,49 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
                     }
                     log::info!("Synced backend/ from bundle");
                 }
+                // #307: the source dirs above track the bundle, so the
+                // dependency manifests must too — otherwise an upgrade runs
+                // new code against a venv that predates newly added deps.
+                if refresh_project_manifests(res, &project_dir) {
+                    log::info!("uv.lock changed since the venv was synced — running uv sync (#307)");
+                    if let Some(p) = progress {
+                        set_stage(p, BootstrapStage::InstallingDeps);
+                    }
+                    match resolve_uv(app, &app_data, progress) {
+                        Ok(uv_path) => {
+                            let mut drift_cmd = Command::new(&uv_path);
+                            scrub_python_env(&mut drift_cmd); // #144
+                            apply_uv_http_env(&mut drift_cmd);
+                            let user_cfg = crate::config::load_config(app);
+                            if let Some(pypi) = user_cfg.mirrors.pypi_index.as_deref() {
+                                drift_cmd.env("UV_INDEX_URL", pypi);
+                            } else if get_effective_region(app) == "china" {
+                                drift_cmd.env("UV_INDEX_URL", "https://mirrors.aliyun.com/pypi/simple/");
+                            }
+                            drift_cmd
+                                .args(["sync", "--frozen", "--no-dev", "--verbose"])
+                                .current_dir(&project_dir);
+                            match run_streaming(app, "installing_deps", &mut drift_cmd) {
+                                Ok(ref s) if s.success() => {
+                                    log::info!("Dependency drift sync complete (#307)");
+                                }
+                                other => {
+                                    // Don't brick a previously-working install
+                                    // (e.g. an offline upgrade): keep the old
+                                    // venv and let the backend try.
+                                    log::error!(
+                                        "Dependency drift sync failed ({:?}) — continuing with \
+the existing venv; newly added dependencies may be missing (#307)",
+                                        other
+                                    );
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            log::error!("Could not resolve uv for drift sync: {} (#307)", e);
+                        }
+                    }
+                }
             }
             return Some((venv_py, backend_dir));
         }
@@ -453,8 +535,14 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
             Ok(p) => p,
             Err(e) => { fail(progress, &e); return None; }
         };
+        // #307: repair against the *current* bundled manifests, not the stale
+        // copies from when the venv was first created.
+        if let Ok(res) = app.path().resource_dir() {
+            let _ = refresh_project_manifests(&res, &project_dir);
+        }
         let mut repair_cmd = Command::new(&uv_path);
         scrub_python_env(&mut repair_cmd); // #144: don't inherit AppImage's bundled Python
+        apply_uv_http_env(&mut repair_cmd);
         let has_lockfile = project_dir.join("uv.lock").is_file();
         if has_lockfile {
             repair_cmd.args(["sync", "--frozen", "--no-dev", "--verbose"]);

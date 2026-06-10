@@ -284,7 +284,12 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import MutableHeaders
-from scalar_fastapi import get_scalar_api_reference
+# Docs-only dependency: a venv created before scalar-fastapi entered the
+# dependency set must still boot the backend (#307) — /docs degrades instead.
+try:
+    from scalar_fastapi import get_scalar_api_reference
+except ImportError:
+    get_scalar_api_reference = None
 import traceback
 
 _crash_log_lock = threading.Lock()
@@ -471,6 +476,14 @@ app = FastAPI(
 @app.get("/docs", include_in_schema=False)
 async def scalar_docs():
     """Interactive API documentation powered by Scalar."""
+    if get_scalar_api_reference is None:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": "API docs unavailable: scalar-fastapi is not installed "
+                          "in the backend environment (#307)."
+            },
+        )
     return get_scalar_api_reference(
         openapi_url=app.openapi_url,
         title=app.title,
