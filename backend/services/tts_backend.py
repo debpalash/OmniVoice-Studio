@@ -87,6 +87,13 @@ class TTSBackend(ABC):
     #: (e.g. "young female, warm tone, British accent") without reference audio.
     supports_voice_design: bool = False
 
+    #: Whether this engine already emits mastered, studio-grade audio and should
+    #: therefore skip the shared apply_mastering() chain (Compressor + Reverb,
+    #: tuned for OmniVoice's 24 kHz output). Studio engines like VoxCPM2 (native
+    #: 48 kHz) set this True so their clean output isn't pumped/reverbed. Loudness
+    #: normalisation is applied regardless — it's a benign peak scale.
+    applies_own_mastering: bool = False
+
     #: GPU/accelerator targets the engine can run on. Surfaced via the
     #: Engine Compatibility Matrix (Plan 02-04 / ENGINE-06) so users can
     #: tell at a glance which engines will use their hardware. Defaults to
@@ -246,6 +253,7 @@ class VoxCPM2Backend(TTSBackend):
     id = "voxcpm2"
     display_name = "VoxCPM2 (30 langs, studio 48 kHz, voice design)"
     supports_voice_design = True
+    applies_own_mastering = True  # native 48 kHz studio output — skip apply_mastering()
     gpu_compat = ("cuda", "mps", "cpu")
 
     def __init__(self):
