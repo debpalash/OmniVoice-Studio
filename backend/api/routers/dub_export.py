@@ -614,10 +614,20 @@ async def dub_preview_video(
     bg_audio = job.get("no_vocals_path") if preserve_bg else None
     has_bg = bool(bg_audio and os.path.exists(bg_audio))
 
-    exports_dir = os.path.join(DUB_DIR, job_id, "exports")
+    base_dub_dir = os.path.realpath(DUB_DIR)
+    job_base_dir = os.path.realpath(os.path.join(base_dub_dir, job_id))
+    if os.path.commonpath([base_dub_dir, job_base_dir]) != base_dub_dir:
+        raise HTTPException(status_code=400, detail="Invalid path parameters")
+
+    exports_dir = os.path.realpath(os.path.join(job_base_dir, "exports"))
+    if os.path.commonpath([job_base_dir, exports_dir]) != job_base_dir:
+        raise HTTPException(status_code=400, detail="Invalid path parameters")
+
     os.makedirs(exports_dir, exist_ok=True)
     bg_suffix = "bg" if (preserve_bg and has_bg) else "nobg"
-    preview_path = os.path.join(exports_dir, f"preview_{lang}_{bg_suffix}.mp4")
+    preview_path = os.path.realpath(os.path.join(exports_dir, f"preview_{lang}_{bg_suffix}.mp4"))
+    if os.path.commonpath([exports_dir, preview_path]) != exports_dir:
+        raise HTTPException(status_code=400, detail="Invalid path parameters")
 
     track_mtime = os.path.getmtime(track_path)
 
