@@ -50,6 +50,7 @@ _ALLOWED_FILES = {
     "examples/README.md",                         # multilingual example payloads
     # Text-processing (CJK punctuation inside sentence/clause-splitting regexes)
     "backend/services/segmentation.py",
+    "backend/services/sentence_chunker.py",       # streaming-TTS terminator tables (Patter port, Wave 1.4)
     "backend/services/subtitle_segmenter.py",
     "frontend/src/components/DubSegmentRow.jsx",
     "frontend/src/components/StoriesEditor.jsx",
