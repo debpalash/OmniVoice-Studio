@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 import time
 import shutil
@@ -243,6 +244,26 @@ async def unlock_profile(profile_id: str):
 
 _MIN_CONSENT_AUDIO_BYTES = 1000  # same floor as the frontend recorder
 
+# Upload filename extension whitelist — anything else falls back to .wav so a
+# crafted filename can never influence the on-disk path (py/path-injection).
+_CONSENT_EXT_RE = re.compile(r"^\.[A-Za-z0-9]{1,8}$")
+
+
+def _voices_path(filename: str) -> Optional[str]:
+    """Resolve a DB-stored audio filename strictly inside VOICES_DIR.
+
+    Rejects anything that isn't a bare filename or that escapes the voices
+    directory after symlink resolution. Returns None instead of raising so
+    cleanup paths can simply skip bad values.
+    """
+    if not filename or os.path.basename(filename) != filename:
+        return None
+    root = os.path.realpath(VOICES_DIR)
+    path = os.path.realpath(os.path.join(root, filename))
+    if not path.startswith(root + os.sep):
+        return None
+    return path
+
 
 @router.post("/profiles/{profile_id}/consent")
 async def record_consent(
@@ -263,17 +284,21 @@ async def record_consent(
     if not row:
         raise HTTPException(status_code=404, detail="Profile not found")
 
-    ext = os.path.splitext(consent_audio.filename or ".wav")[1] or ".wav"
+    ext = os.path.splitext(consent_audio.filename or "")[1]
+    if not _CONSENT_EXT_RE.match(ext):
+        ext = ".wav"
     audio_filename = f"{profile_id}_consent{ext}"
-    audio_path = os.path.join(VOICES_DIR, audio_filename)
+    audio_path = _voices_path(audio_filename)
+    if audio_path is None:  # profile_id is server-generated; this is belt+braces
+        raise HTTPException(status_code=400, detail="Invalid profile id")
     with open(audio_path, "wb") as f:
         f.write(data)
 
     # A re-record may change the extension; drop the superseded file.
     old = row["consent_audio_path"]
     if old and old != audio_filename:
-        old_path = os.path.join(VOICES_DIR, old)
-        if os.path.exists(old_path):
+        old_path = _voices_path(old)
+        if old_path and os.path.exists(old_path):
             os.remove(old_path)
 
     recorded_at = time.time()
@@ -310,8 +335,8 @@ def revoke_consent(profile_id: str):
             (profile_id,),
         )
     if row["consent_audio_path"]:
-        path = os.path.join(VOICES_DIR, row["consent_audio_path"])
-        if os.path.exists(path):
+        path = _voices_path(row["consent_audio_path"])
+        if path and os.path.exists(path):
             os.remove(path)
     event_bus.emit("profiles", {"action": "consent_revoked", "id": profile_id})
     return {"id": profile_id, "verified_own_voice": False}
@@ -324,8 +349,8 @@ def delete_profile(profile_id: str):
         if row:
             for col in ["ref_audio_path", "locked_audio_path", "consent_audio_path"]:
                 if row[col]:
-                    path = os.path.join(VOICES_DIR, row[col])
-                    if os.path.exists(path):
+                    path = _voices_path(row[col])
+                    if path and os.path.exists(path):
                         os.remove(path)
         # Prevent FOREIGN KEY constraint failure
         conn.execute("UPDATE generation_history SET profile_id = NULL WHERE profile_id=?", (profile_id,))

@@ -23,10 +23,11 @@ _CONSENT_TEXT = "I confirm this is my own voice and I consent to cloning it in O
 def app_client(tmp_path_factory):
     """TestClient with an isolated data dir so profile/consent files land in tmp.
 
-    Module-scoped: module-level asyncio primitives (event bus, job queues)
-    bind to the first TestClient event loop, so per-test clients would hit
-    "bound to a different event loop". One client + one loop for the file;
-    each test creates its own profile, so isolation holds.
+    Deliberately does NOT run the app lifespan (no ``with TestClient(...)``):
+    startup/shutdown touch module-level asyncio primitives (event bus, job
+    queues) that other test modules may have bound to a different event loop,
+    which made this suite order-dependent in full-suite CI runs. The consent
+    endpoints only need the DB schema, so init_db() is called directly.
     """
     mp = pytest.MonkeyPatch()
     tmp_path = tmp_path_factory.mktemp("consent-data")
@@ -42,10 +43,11 @@ def app_client(tmp_path_factory):
     import main as _main
     importlib.reload(_main)
 
+    _db.init_db()
+
     from fastapi.testclient import TestClient
     try:
-        with TestClient(_main.app, client=("127.0.0.1", 50000)) as client:
-            yield client, _cfg
+        yield TestClient(_main.app, client=("127.0.0.1", 50000)), _cfg
     finally:
         mp.undo()
 
@@ -134,6 +136,21 @@ def test_consent_validation(app_client):
 
     # Failed attempts must not flip the flag.
     assert client.get(f"/profiles/{pid}").json()["verified_own_voice"] == 0
+
+
+def test_malicious_upload_filename_cannot_steer_path(app_client):
+    """py/path-injection hardening: extension whitelist + VOICES_DIR containment."""
+    client, cfg = app_client
+    pid = _create_profile(client)
+    r = client.post(
+        f"/profiles/{pid}/consent",
+        data={"consent_text": _CONSENT_TEXT},
+        files={"consent_audio": ("../../evil.sh/x.....", _FAKE_AUDIO, "audio/wav")},
+    )
+    assert r.status_code == 200, r.text
+    profile = client.get(f"/profiles/{pid}").json()
+    assert profile["consent_audio_path"] == f"{pid}_consent.wav"  # fell back
+    assert os.path.exists(os.path.join(cfg.VOICES_DIR, f"{pid}_consent.wav"))
 
 
 def test_revoke_consent_clears_flag_and_file(app_client):
