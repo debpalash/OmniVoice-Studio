@@ -38,10 +38,7 @@ def _native_save(source: str, destination: str, display_name: str, media_type: s
         raise HTTPException(status_code=500, detail=f"Copy failed: {e}")
     if not os.path.exists(dest) or os.path.getsize(dest) == 0:
         raise HTTPException(status_code=500, detail="Copy produced empty file at destination")
-    # dest is the user's save-dialog path — strip newlines so it can't forge
-    # extra log lines (py/log-injection).
-    logger.info("Native save wrote %s (%d bytes)",
-                dest.replace("\r", "").replace("\n", ""), os.path.getsize(dest))
+    logger.info("Native save wrote %s (%d bytes)", dest, os.path.getsize(dest))
     return {
         "saved": True,
         "path": dest,
