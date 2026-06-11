@@ -154,7 +154,7 @@ def _run_inference(
                 f"TTS engine hit a torch.compile/Triton error (not out of memory). "
                 f"Disable torch.compile in Settings → Performance, use the Flush "
                 f"button to reload the model, then regenerate. Underlying error: {e}"
-            )
+            ) from e
         raise RuntimeError(
             f"TTS engine stopped mid-generation. This usually means it ran out of memory. "
             f"Try the Flush button to reload the model, then regenerate. Underlying error: {e}"
