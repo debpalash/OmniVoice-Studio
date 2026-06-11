@@ -38,7 +38,10 @@ def _native_save(source: str, destination: str, display_name: str, media_type: s
         raise HTTPException(status_code=500, detail=f"Copy failed: {e}")
     if not os.path.exists(dest) or os.path.getsize(dest) == 0:
         raise HTTPException(status_code=500, detail="Copy produced empty file at destination")
-    logger.info("Native save wrote %s (%d bytes)", dest, os.path.getsize(dest))
+    # dest is the user's save-dialog path — strip newlines so it can't forge
+    # extra log lines (py/log-injection).
+    logger.info("Native save wrote %s (%d bytes)",
+                dest.replace("\r", "").replace("\n", ""), os.path.getsize(dest))
     return {
         "saved": True,
         "path": dest,
@@ -806,42 +809,15 @@ def _pick_subtitle_text(seg: dict, dual: bool) -> str:
     return f"{translated}\n<i>{original}</i>"
 
 
-def _save_subtitle_native(job_id: str, content: str, ext: str, display_name: str,
-                          save_path: str, media_type: str):
-    """Write subtitle text under the job's exports dir, then copy it to the
-    user-chosen destination and return the standard native-save JSON envelope.
-
-    Before this existed, the frontend's Tauri save dialog appended
-    `?save_path=…` to the SRT/VTT URLs (as it does for every other export)
-    and parsed the response as JSON — but these endpoints ignored the param
-    and returned the raw subtitle body, so JSON.parse choked on the SRT cue
-    index with "Unexpected non-whitespace character after JSON" (#309).
-    """
-    # realpath-normalised and containment-checked BEFORE any filesystem
-    # access, so the guard dominates every path sink (the file's established
-    # pattern — see dub_preview_segment).
-    base = os.path.realpath(DUB_DIR)
-    exports_dir = os.path.realpath(os.path.join(base, job_id, "exports"))
-    if not exports_dir.startswith(base + os.sep):
-        raise HTTPException(status_code=400, detail="Invalid job id")
-    os.makedirs(exports_dir, exist_ok=True)
-    tmp_path = os.path.realpath(
-        os.path.join(exports_dir, f"subtitles_{_unique_stamp()}.{ext}")
-    )
-    if not tmp_path.startswith(base + os.sep):
-        raise HTTPException(status_code=400, detail="Invalid path")
-    with open(tmp_path, "w", encoding="utf-8") as f:
-        f.write(content)
-    return _native_save(tmp_path, save_path, display_name, media_type=media_type)
+# Subtitles deliberately have no ?save_path= variant: they're small text
+# bodies, so the Tauri side fetches them raw and writes the file itself via
+# the save_text_file command — the OS save dialog is the write authorization
+# (#309). The frontend's JSON-envelope save flow stays for binary exports.
 
 
 @router.get("/dub/srt/{job_id}")
 @router.get("/dub/srt/{job_id}/{filename}")
-async def dub_export_srt(
-    job_id: str,
-    dual: bool = False,
-    save_path: str = Query("", description="Absolute destination path. If set, the SRT is written there and JSON returned instead of the raw body."),
-):
+async def dub_export_srt(job_id: str, dual: bool = False):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -863,9 +839,6 @@ async def dub_export_srt(
     base_name = os.path.splitext(job.get('filename', 'video'))[0]
     suffix = "_dual" if dual else ""
     dl_name = f"subtitles_{base_name}{suffix}.srt"
-    if save_path:
-        return _save_subtitle_native(job_id, srt_content, "srt", dl_name, save_path,
-                                     media_type="application/x-subrip")
     return Response(
         content=srt_content,
         media_type="text/plain",
@@ -881,11 +854,7 @@ def _format_vtt_time(seconds):
 
 @router.get("/dub/vtt/{job_id}")
 @router.get("/dub/vtt/{job_id}/{filename}")
-async def dub_export_vtt(
-    job_id: str,
-    dual: bool = False,
-    save_path: str = Query("", description="Absolute destination path. If set, the VTT is written there and JSON returned instead of the raw body."),
-):
+async def dub_export_vtt(job_id: str, dual: bool = False):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -907,9 +876,6 @@ async def dub_export_vtt(
     base_name = os.path.splitext(job.get('filename', 'video'))[0]
     suffix = "_dual" if dual else ""
     dl_name = f"subtitles_{base_name}{suffix}.vtt"
-    if save_path:
-        return _save_subtitle_native(job_id, vtt_content, "vtt", dl_name, save_path,
-                                     media_type="text/vtt")
     return Response(
         content=vtt_content,
         media_type="text/vtt",

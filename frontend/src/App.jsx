@@ -602,6 +602,28 @@ function App() {
         });
         if (!destPath) return; // user cancelled
         toast.loading(i18n.t('app.toast_saving', { name: fallbackName }), { id: fallbackName });
+
+        // Subtitles are small text bodies: fetch them raw and write from this
+        // (trusted) process via the save_text_file command — the user's dialog
+        // pick is the write authorization, and the backend never handles a
+        // destination path (#309).
+        if (['srt', 'vtt'].includes(extGuess)) {
+          const res = await fetch(url);
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'Save failed');
+          }
+          const text = await res.text();
+          const { invoke } = await import('@tauri-apps/api/core');
+          await invoke('save_text_file', { path: destPath, contents: text });
+          toast.success(i18n.t('app.toast_saved', { path: destPath }), { id: fallbackName });
+          try {
+            await exportRecord({ filename: fallbackName, destination_path: destPath, mode: modeGuess });
+            loadExportHistory();
+          } catch (err) { console.warn('exportRecord (subtitle save) failed:', err); }
+          return;
+        }
+
         const sep = url.includes('?') ? '&' : '?';
         const res = await fetch(`${url}${sep}save_path=${encodeURIComponent(destPath)}`);
         if (!res.ok) {

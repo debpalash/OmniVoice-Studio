@@ -8,12 +8,13 @@ Two symptoms, one root cause each:
    generated segments back onto the job.
 
 2. "Save error: Unexpected non-whitespace character after JSON" — the Tauri
-   save dialog appends ``?save_path=…`` to every export URL and parses the
+   save dialog appended ``?save_path=…`` to every export URL and parsed the
    response as JSON, but ``/dub/srt`` and ``/dub/vtt`` ignored the param and
    returned the raw subtitle body (which starts with the cue index ``1``, a
    valid JSON document, followed by the timestamp line → parse error at
-   line 2 column 1). Both endpoints now honour ``save_path`` and return the
-   standard native-save JSON envelope.
+   line 2 column 1). Fixed on the frontend: subtitles are fetched raw and
+   written by the Tauri process via ``save_text_file`` (the OS save dialog is
+   the write authorization); the endpoints stay raw-body-only.
 """
 
 import os
@@ -162,53 +163,39 @@ class TestBurnSrtUsesTranslatedText:
 
 
 # ---------------------------------------------------------------------------
-# Symptom 2 — SRT/VTT save_path must return JSON, raw GET must return text
+# Symptom 2 — SRT/VTT are raw text bodies the Tauri side writes itself.
+# The frontend fetches the body and saves it via the save_text_file command,
+# so the backend must NOT grow a ?save_path= variant here (it would be a
+# user-controlled filesystem write on the loopback HTTP surface).
 # ---------------------------------------------------------------------------
 
 class TestSubtitleSaveResponseShape:
-    def test_srt_save_path_returns_json_envelope(self, client, translated_job, tmp_path):
+    def test_srt_save_path_param_is_inert(self, client, translated_job, tmp_path):
+        # A stray ?save_path= (e.g. an old frontend) must neither write the
+        # file nor change the response shape.
         job_id, _ = translated_job
         dest = tmp_path / "subs.srt"
         res = client.get(f"/dub/srt/{job_id}", params={"save_path": str(dest)})
         assert res.status_code == 200
-        assert res.headers["content-type"].startswith("application/json")
-        data = res.json()  # must not raise — this was the #309 failure mode
-        assert data["saved"] is True
-        assert data["path"] == str(dest)
-        assert data["size"] > 0
-        assert data["display_name"].endswith(".srt")
-        on_disk = dest.read_text(encoding="utf-8")
-        assert "Hello world" in on_disk
-        assert "-->" in on_disk
+        assert not res.headers["content-type"].startswith("application/json")
+        assert "Hello world" in res.text
+        assert not dest.exists()
 
-    def test_vtt_save_path_returns_json_envelope(self, client, translated_job, tmp_path):
+    def test_srt_dual_includes_original(self, client, translated_job):
         job_id, _ = translated_job
-        dest = tmp_path / "subs.vtt"
-        res = client.get(f"/dub/vtt/{job_id}", params={"save_path": str(dest), "dual": 1})
+        res = client.get(f"/dub/srt/{job_id}", params={"dual": 1})
         assert res.status_code == 200
-        assert res.headers["content-type"].startswith("application/json")
-        data = res.json()
-        assert data["saved"] is True
-        on_disk = dest.read_text(encoding="utf-8")
-        assert on_disk.startswith("WEBVTT")
-        assert "Hello world" in on_disk
-        assert "shalom olam" in on_disk  # dual layout includes original
+        assert "Hello world" in res.text
+        assert "shalom olam" in res.text  # dual layout includes original
 
-    def test_srt_save_path_with_filename_route(self, client, translated_job, tmp_path):
+    def test_srt_filename_route_returns_text(self, client, translated_job):
         # The Export drawer uses the /{filename} route variant.
         job_id, _ = translated_job
-        dest = tmp_path / "named.srt"
-        res = client.get(
-            f"/dub/srt/{job_id}/subtitles_en.srt", params={"save_path": str(dest)},
-        )
+        res = client.get(f"/dub/srt/{job_id}/subtitles_en.srt")
         assert res.status_code == 200
-        assert res.json()["saved"] is True
-        assert dest.exists()
-
-    def test_srt_relative_save_path_rejected(self, client, translated_job):
-        job_id, _ = translated_job
-        res = client.get(f"/dub/srt/{job_id}", params={"save_path": "relative/subs.srt"})
-        assert res.status_code == 400
+        assert res.text.startswith("1\n")
+        disposition = res.headers.get("content-disposition", "")
+        assert disposition.endswith('.srt"')
 
     def test_plain_srt_get_still_returns_text_body(self, client, translated_job):
         job_id, _ = translated_job

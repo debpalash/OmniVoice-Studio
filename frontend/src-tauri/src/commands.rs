@@ -542,3 +542,18 @@ pub fn is_pill_autostart_enabled() -> bool {
         return pill_autostart_path().exists();
     }
 }
+
+#[tauri::command]
+pub fn save_text_file(path: String, contents: String) -> Result<(), String> {
+    // Subtitle exports (#309). The path comes from the OS save dialog in this
+    // process — the user's dialog interaction *is* the authorization, which is
+    // why this write lives here and not behind a loopback-HTTP query param.
+    let p = std::path::Path::new(&path);
+    if !p.is_absolute() {
+        return Err("save path must be absolute".into());
+    }
+    if let Some(dir) = p.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("create dir: {e}"))?;
+    }
+    std::fs::write(p, contents).map_err(|e| format!("write: {e}"))
+}
