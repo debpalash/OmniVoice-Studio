@@ -654,7 +654,11 @@
     "diagnostic_copied": "Diagnóstico copiado",
     "copy_failed": "Falha na cópia",
     "open_docs": "Abrir documentos",
-    "copy_diagnostic": "Copiar diagnóstico"
+    "copy_diagnostic": "Copiar diagnóstico",
+    "dialect_label": "Dialeto",
+    "dialect_default": "Padrão",
+    "dialect_title": "Dialeto regional e vocabulário para a tradução (ex.: Argentina → “vos sos” em vez de “tú eres”). Aplicado pelos motores LLM (OpenAI/Ollama) e pela qualidade Cinematic.",
+    "dialect_not_applied": "O dialeto selecionado precisa de um LLM — mude o motor para OpenAI/Ollama ou escolha a qualidade Cinematic."
   },
   "glossary": {
     "title": "Glossário",

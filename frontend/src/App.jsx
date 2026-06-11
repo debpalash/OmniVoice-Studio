@@ -253,6 +253,8 @@ function App() {
   const setDubLang         = useAppStore(s => s.setDubLang);
   const dubLangCode        = useAppStore(s => s.dubLangCode);
   const setDubLangCode     = useAppStore(s => s.setDubLangCode);
+  const dubDialect         = useAppStore(s => s.dubDialect);
+  const setDubDialect      = useAppStore(s => s.setDubDialect);
   const dubInstruct        = useAppStore(s => s.dubInstruct);
   const setDubInstruct     = useAppStore(s => s.setDubInstruct);
   const dubProgress        = useAppStore(s => s.dubProgress);
@@ -690,7 +692,7 @@ function App() {
       duration: dubDuration || null,
       state: {
         dubJobId, dubFilename, dubDuration, dubSegments,
-        dubLang, dubLangCode, dubInstruct, dubTracks,
+        dubLang, dubLangCode, dubDialect, dubInstruct, dubTracks,
         dubStep, dubTranscript, preserveBg, defaultTrack,
         speakerClones,
       },
@@ -718,6 +720,7 @@ function App() {
       setDubSegments((s.dubSegments || []).map(x => ({ ...x, text_original: x.text_original || x.text || '' })));
       setDubLang(s.dubLang || 'Auto');
       setDubLangCode(s.dubLangCode || 'en');
+      setDubDialect(s.dubDialect || '');
       setDubInstruct(s.dubInstruct || '');
       setDubTracks(s.dubTracks || []);
       setDubTranscript(s.dubTranscript || '');

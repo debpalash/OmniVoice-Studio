@@ -654,7 +654,11 @@
     "diagnostic_copied": "Діагностику скопійовано",
     "copy_failed": "Помилка копіювання",
     "open_docs": "Відкрити документи",
-    "copy_diagnostic": "Діагностика копії"
+    "copy_diagnostic": "Діагностика копії",
+    "dialect_label": "Діалект",
+    "dialect_default": "Типовий",
+    "dialect_title": "Регіональний діалект і лексика перекладу (напр. Аргентина → “vos sos” замість “tú eres”). Застосовується рушіями LLM (OpenAI/Ollama) та якістю Cinematic.",
+    "dialect_not_applied": "Обраний діалект потребує LLM — перемкніть рушій на OpenAI/Ollama або виберіть якість Cinematic."
   },
   "glossary": {
     "title": "Глосарій",

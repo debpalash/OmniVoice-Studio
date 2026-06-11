@@ -655,7 +655,11 @@
     "diagnostic_copied": "診断がコピーされました",
     "copy_failed": "コピーに失敗しました",
     "open_docs": "ドキュメントを開く",
-    "copy_diagnostic": "コピー診断"
+    "copy_diagnostic": "コピー診断",
+    "dialect_label": "方言",
+    "dialect_default": "デフォルト",
+    "dialect_title": "翻訳に使う地域の方言と語彙（例: アルゼンチン → “tú eres” ではなく “vos sos”）。LLM エンジン（OpenAI/Ollama）と Cinematic 品質で適用されます。",
+    "dialect_not_applied": "選択した方言の適用には LLM が必要です — エンジンを OpenAI/Ollama に切り替えるか、Cinematic 品質を選んでください。"
   },
   "glossary": {
     "title": "用語集",

@@ -654,7 +654,11 @@
     "diagnostic_copied": "डायग्नोस्टिक कॉपी किया गया",
     "copy_failed": "प्रतिलिपि विफल",
     "open_docs": "दस्तावेज़ खोलें",
-    "copy_diagnostic": "डायग्नोस्टिक कॉपी करें"
+    "copy_diagnostic": "डायग्नोस्टिक कॉपी करें",
+    "dialect_label": "बोली",
+    "dialect_default": "डिफ़ॉल्ट",
+    "dialect_title": "अनुवाद के लिए क्षेत्रीय बोली और शब्दावली (जैसे अर्जेंटीना → “vos sos”, “tú eres” की जगह)। LLM इंजन (OpenAI/Ollama) और Cinematic गुणवत्ता द्वारा लागू।",
+    "dialect_not_applied": "चुनी गई बोली लागू करने के लिए LLM चाहिए — इंजन को OpenAI/Ollama पर बदलें या Cinematic गुणवत्ता चुनें।"
   },
   "glossary": {
     "title": "शब्दावली",

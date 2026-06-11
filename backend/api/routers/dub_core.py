@@ -25,6 +25,7 @@ from services.segmentation import (
     assign_speakers_heuristic,
     clean_up_segments,
 )
+from services.onset_align import snap_segment_starts
 from services import dub_pipeline
 
 router = APIRouter()
@@ -548,6 +549,15 @@ async def dub_transcribe_stream(job_id: str, num_speakers: Optional[int] = None)
                 detected_lang = part["language"]
             asr_speaker_turns.extend(part.get("speaker_turns") or [])
             chunk_segs = segment_transcript(part, duration=t1, scene_cuts=scene_cuts)
+            # #280: Whisper often stretches a segment's start back over
+            # leading music/silence (classic case: speech begins at 0:03,
+            # transcript says 0.0 → the dub plays 3 s early). Snap starts
+            # forward to the actual speech onset. `audio_np` is the same
+            # track ASR ran on — vocals.wav when Demucs succeeded.
+            try:
+                snap_segment_starts(chunk_segs, audio_np, sr)
+            except Exception as e:
+                logger.warning("onset alignment skipped for chunk %d: %s", i, e)
             chunk_segs = assign_speakers_heuristic(chunk_segs)
             for s in chunk_segs:
                 s["id"] = f"s{next_seg_id:05x}"
@@ -861,6 +871,14 @@ async def dub_transcribe(job_id: str):
 
         scene_cuts = job.get("scene_cuts") or []
         segments = segment_transcript(result, duration=job.get("duration", 0.0), scene_cuts=scene_cuts)
+
+        # #280: snap segment starts forward to the actual speech onset so the
+        # dub doesn't begin seconds before the original speaker does.
+        try:
+            audio_for_onset, onset_sr = sf.read(asr_audio_target, dtype="float32")
+            snap_segment_starts(segments, audio_for_onset, onset_sr)
+        except Exception as e:
+            logger.warning("onset alignment skipped: %s", e)
 
         diar_pipe = get_diarization_pipeline()
         if diar_pipe:

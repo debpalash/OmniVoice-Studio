@@ -433,6 +433,7 @@
 /* Size fields so they share the row proportionally */
 .dub-settings-field--lang    { flex: 1 1 100px; min-width: 70px; }
 .dub-settings-field--iso     { flex: 0 1 72px; min-width: 52px; }
+.dub-settings-field--dialect { flex: 0 1 110px; min-width: 80px; }
 .dub-settings-field--engine  { flex: 1.4 1 130px; min-width: 90px; }
 .dub-settings-field--quality { flex: 0 1 auto; min-width: 80px; }
 .dub-settings-field--quality > *:last-child { width: 100%; }
@@ -441,6 +442,7 @@
   .dub-settings-bar__fields { flex-direction: column; }
   .dub-settings-field--lang,
   .dub-settings-field--iso,
+  .dub-settings-field--dialect,
   .dub-settings-field--engine,
   .dub-settings-field--quality,
   .dub-settings-field--style { flex-basis: 100%; min-width: 0; }

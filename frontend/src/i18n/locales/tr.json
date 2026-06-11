@@ -654,7 +654,11 @@
     "diagnostic_copied": "Teşhis kopyalandı",
     "copy_failed": "Kopyalama başarısız oldu",
     "open_docs": "Dokümanları aç",
-    "copy_diagnostic": "Teşhisi kopyala"
+    "copy_diagnostic": "Teşhisi kopyala",
+    "dialect_label": "Lehçe",
+    "dialect_default": "Varsayılan",
+    "dialect_title": "Çeviri için bölgesel lehçe ve söz varlığı (örn. Arjantin → “tú eres” yerine “vos sos”). LLM motorları (OpenAI/Ollama) ve Cinematic kalitesi tarafından uygulanır.",
+    "dialect_not_applied": "Seçilen lehçe için LLM gerekir — motoru OpenAI/Ollama yapın veya Cinematic kalitesini seçin."
   },
   "glossary": {
     "title": "Sözlük",

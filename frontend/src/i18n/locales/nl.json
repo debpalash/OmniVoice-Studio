@@ -654,7 +654,11 @@
     "diagnostic_copied": "Diagnostiek gekopieerd",
     "copy_failed": "Kopiëren mislukt",
     "open_docs": "Documenten openen",
-    "copy_diagnostic": "Diagnostiek kopiëren"
+    "copy_diagnostic": "Diagnostiek kopiëren",
+    "dialect_label": "Dialect",
+    "dialect_default": "Standaard",
+    "dialect_title": "Regionaal dialect en vocabulaire voor de vertaling (bijv. Argentinië → “vos sos” in plaats van “tú eres”). Toegepast door LLM-engines (OpenAI/Ollama) en Cinematic-kwaliteit.",
+    "dialect_not_applied": "Het gekozen dialect heeft een LLM nodig — zet de engine op OpenAI/Ollama of kies Cinematic-kwaliteit."
   },
   "glossary": {
     "title": "Woordenlijst",

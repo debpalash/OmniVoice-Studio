@@ -654,7 +654,11 @@
     "diagnostic_copied": "Диагностика скопирована",
     "copy_failed": "Не удалось скопировать",
     "open_docs": "Открыть документы",
-    "copy_diagnostic": "Копирование диагностики"
+    "copy_diagnostic": "Копирование диагностики",
+    "dialect_label": "Диалект",
+    "dialect_default": "По умолчанию",
+    "dialect_title": "Региональный диалект и лексика перевода (напр. Аргентина → “vos sos” вместо “tú eres”). Применяется движками LLM (OpenAI/Ollama) и качеством Cinematic.",
+    "dialect_not_applied": "Для выбранного диалекта нужен LLM — переключите движок на OpenAI/Ollama или выберите качество Cinematic."
   },
   "glossary": {
     "title": "Глоссарий",

@@ -87,6 +87,14 @@ class TranslateSegment(BaseModel):
     id: str
     text: str
     target_lang: Optional[str] = None
+    # Free-form delivery direction ("urgent, whispering") — feeds the
+    # cinematic reflect/adapt prompts. The frontend has sent this since
+    # Phase 4.2 but pydantic silently dropped it as an undeclared extra,
+    # so the per-segment direction hint never reached the LLM.
+    direction: Optional[str] = None
+    # Available time slot (end - start, seconds) for rate-ratio prediction
+    # and the cinematic slot-fit pass. Same silent-drop fix as `direction`.
+    slot_seconds: Optional[float] = None
 
 class TranslateRequest(BaseModel):
     segments: List[TranslateSegment]
@@ -96,6 +104,12 @@ class TranslateRequest(BaseModel):
     job_id: Optional[str] = None  # Dub job id, used to resolve detected source_lang
     quality: Optional[str] = "fast"  # "fast" (one-shot) | "cinematic" (reflect → adapt)
     glossary: Optional[List[dict]] = None  # [{"source": "...", "target": "...", "note": "..."}]
+    # Optional regional dialect (BCP-47, e.g. "es-AR", "pt-BR") — #280 item 2.
+    # Applied by LLM-backed paths (provider="openai" or quality="cinematic"):
+    # the prompt asks for that region's vocabulary/grammar (e.g. Argentinian
+    # voseo: "vos sos" instead of "tú eres"). Non-LLM providers (Argos, NLLB,
+    # Google) can't honor it; the response then carries dialect_applied=false.
+    dialect: Optional[str] = None
 
 class DubIngestUrlRequest(BaseModel):
     url: str

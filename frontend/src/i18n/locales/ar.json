@@ -654,7 +654,11 @@
     "diagnostic_copied": "منقول التشخيص",
     "copy_failed": "فشل النسخ",
     "open_docs": "افتح المستندات",
-    "copy_diagnostic": "نسخ التشخيص"
+    "copy_diagnostic": "نسخ التشخيص",
+    "dialect_label": "اللهجة",
+    "dialect_default": "افتراضي",
+    "dialect_title": "اللهجة الإقليمية والمفردات للترجمة (مثل الأرجنتين ← “vos sos” بدلاً من “tú eres”). تُطبَّق بواسطة محركات LLM ‏(OpenAI/Ollama) وجودة Cinematic.",
+    "dialect_not_applied": "تحتاج اللهجة المحددة إلى LLM لتطبيقها — بدّل المحرك إلى OpenAI/Ollama أو اختر جودة Cinematic."
   },
   "glossary": {
     "title": "مسرد",

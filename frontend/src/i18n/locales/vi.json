@@ -654,7 +654,11 @@
     "diagnostic_copied": "Đã sao chép chẩn đoán",
     "copy_failed": "Sao chép không thành công",
     "open_docs": "Mở tài liệu",
-    "copy_diagnostic": "Sao chép chẩn đoán"
+    "copy_diagnostic": "Sao chép chẩn đoán",
+    "dialect_label": "Phương ngữ",
+    "dialect_default": "Mặc định",
+    "dialect_title": "Phương ngữ và từ vựng vùng miền cho bản dịch (vd. Argentina → “vos sos” thay vì “tú eres”). Áp dụng bởi các engine LLM (OpenAI/Ollama) và chất lượng Cinematic.",
+    "dialect_not_applied": "Phương ngữ đã chọn cần LLM để áp dụng — chuyển Engine sang OpenAI/Ollama hoặc chọn chất lượng Cinematic."
   },
   "glossary": {
     "title": "Thuật ngữ",

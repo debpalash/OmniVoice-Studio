@@ -654,7 +654,11 @@
     "diagnostic_copied": "Diagnostik disalin",
     "copy_failed": "Penyalinan gagal",
     "open_docs": "Buka dokumen",
-    "copy_diagnostic": "Salin diagnostik"
+    "copy_diagnostic": "Salin diagnostik",
+    "dialect_label": "Dialek",
+    "dialect_default": "Bawaan",
+    "dialect_title": "Dialek regional dan kosakata untuk terjemahan (mis. Argentina → “vos sos” alih-alih “tú eres”). Diterapkan oleh mesin LLM (OpenAI/Ollama) dan kualitas Cinematic.",
+    "dialect_not_applied": "Dialek terpilih memerlukan LLM — ganti Engine ke OpenAI/Ollama atau pilih kualitas Cinematic."
   },
   "glossary": {
     "title": "Glosarium",

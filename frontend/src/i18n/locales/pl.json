@@ -654,7 +654,11 @@
     "diagnostic_copied": "Diagnostyka skopiowana",
     "copy_failed": "Kopiowanie nie powiodło się",
     "open_docs": "Otwórz dokumenty",
-    "copy_diagnostic": "Kopiuj diagnostykę"
+    "copy_diagnostic": "Kopiuj diagnostykę",
+    "dialect_label": "Dialekt",
+    "dialect_default": "Domyślny",
+    "dialect_title": "Regionalny dialekt i słownictwo tłumaczenia (np. Argentyna → „vos sos” zamiast „tú eres”). Stosowane przez silniki LLM (OpenAI/Ollama) i jakość Cinematic.",
+    "dialect_not_applied": "Wybrany dialekt wymaga LLM — przełącz silnik na OpenAI/Ollama lub wybierz jakość Cinematic."
   },
   "glossary": {
     "title": "Glosariusz",

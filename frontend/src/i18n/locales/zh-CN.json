@@ -624,7 +624,11 @@
     "diagnostic_copied": "诊断复制",
     "copy_failed": "复制失败",
     "open_docs": "打开文档",
-    "copy_diagnostic": "复制诊断"
+    "copy_diagnostic": "复制诊断",
+    "dialect_label": "方言",
+    "dialect_default": "默认",
+    "dialect_title": "翻译所用的地区方言与词汇（例如 阿根廷 → “vos sos” 而非 “tú eres”）。由 LLM 引擎（OpenAI/Ollama）和 Cinematic 质量应用。",
+    "dialect_not_applied": "所选方言需要 LLM 才能生效 — 请将引擎切换为 OpenAI/Ollama，或选择 Cinematic 质量。"
   },
   "glossary": {
     "title": "术语表",

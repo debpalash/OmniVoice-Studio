@@ -18,6 +18,7 @@ import { POPULAR_LANGS, POPULAR_ISO, PRESETS } from '../utils/constants';
 import { LANG_CODES } from '../utils/languages';
 import { formatTime } from '../utils/format';
 import { API } from '../api/client';
+import { dialectOptionsFor, dialectLabel, dialectMatchesLang } from '../api/dialects';
 import { listTranslationEngines, installTranslationEngine } from '../api/engines';
 import toast from 'react-hot-toast';
 import { Button, Segmented, Badge, Progress } from '../ui';
@@ -69,7 +70,7 @@ function DubFailureNotice({ failure }) {
 }
 
 export default function DubTab(props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const {
     // Props that stay prop-threaded: non-serialisable state + handlers that
     // close over App.jsx's scope (uploads, SSE wiring, project CRUD, etc.).
@@ -111,6 +112,8 @@ export default function DubTab(props) {
   const setDubLangCode    = useAppStore(s => s.setDubLangCode);
   const dubNumSpeakers    = useAppStore(s => s.dubNumSpeakers);
   const setDubNumSpeakers = useAppStore(s => s.setDubNumSpeakers);
+  const dubDialect        = useAppStore(s => s.dubDialect);
+  const setDubDialect     = useAppStore(s => s.setDubDialect);
   const dubInstruct       = useAppStore(s => s.dubInstruct);
   const setDubInstruct    = useAppStore(s => s.setDubInstruct);
   const dubTracks         = useAppStore(s => s.dubTracks);
@@ -791,7 +794,12 @@ export default function DubTab(props) {
                         const lang = e.target.value;
                         setDubLang(lang);
                         const match = LANG_CODES.find(lc => lc.label.toLowerCase() === lang.toLowerCase());
-                        if (match) setDubLangCode(match.code);
+                        if (match) {
+                          setDubLangCode(match.code);
+                          // #280: a dialect belongs to one language — clear it
+                          // whenever the new target doesn't match.
+                          if (!dialectMatchesLang(dubDialect, match.code)) setDubDialect('');
+                        }
                       }}
                     >
                       <optgroup label={t('dub.popular')}>
@@ -809,13 +817,35 @@ export default function DubTab(props) {
                     <select
                       className="input-base dub-cast__select"
                       value={dubLangCode}
-                      onChange={(e) => setDubLangCode(e.target.value)}
+                      onChange={(e) => {
+                        const code = e.target.value;
+                        setDubLangCode(code);
+                        if (!dialectMatchesLang(dubDialect, code)) setDubDialect('');
+                      }}
                     >
                       {LANG_CODES.map(lc => (
                         <option key={lc.code} value={lc.code}>{lc.code} — {lc.label}</option>
                       ))}
                     </select>
                   </div>
+                  {/* #280: regional dialect / vocabulary. Only rendered for
+                      languages with curated variants; region names come from
+                      Intl.DisplayNames so they localize with the UI for free. */}
+                  {dialectOptionsFor(dubLangCode).length > 0 && (
+                    <div className="dub-settings-field dub-settings-field--dialect">
+                      <div className="label-row" title={t('dub.dialect_title')}>{t('dub.dialect_label')}</div>
+                      <select
+                        className="input-base dub-cast__select"
+                        value={dialectMatchesLang(dubDialect, dubLangCode) ? dubDialect : ''}
+                        onChange={(e) => setDubDialect(e.target.value)}
+                      >
+                        <option value="">{t('dub.dialect_default')}</option>
+                        {dialectOptionsFor(dubLangCode).map(d => (
+                          <option key={d} value={d}>{dialectLabel(d, i18n.language)}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div className="dub-settings-field dub-settings-field--engine">
                     <div className="label-row">
                       {t('dub.engine_label')}

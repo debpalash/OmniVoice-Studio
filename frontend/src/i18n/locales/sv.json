@@ -654,7 +654,11 @@
     "diagnostic_copied": "Diagnostiken kopierad",
     "copy_failed": "Kopieringen misslyckades",
     "open_docs": "Öppna dokument",
-    "copy_diagnostic": "Kopiera diagnostik"
+    "copy_diagnostic": "Kopiera diagnostik",
+    "dialect_label": "Dialekt",
+    "dialect_default": "Standard",
+    "dialect_title": "Regional dialekt och ordförråd för översättningen (t.ex. Argentina → ”vos sos” i stället för ”tú eres”). Tillämpas av LLM-motorer (OpenAI/Ollama) och Cinematic-kvalitet.",
+    "dialect_not_applied": "Den valda dialekten kräver en LLM — byt motor till OpenAI/Ollama eller välj Cinematic-kvalitet."
   },
   "glossary": {
     "title": "Ordlista",

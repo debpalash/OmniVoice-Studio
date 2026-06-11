@@ -5,6 +5,7 @@ import {
   dubTranslate, dubGenerate, tasksStreamUrl, tasksCancel,
   transcribeStreamUrl, dubImportSrt,
 } from '../api/dub';
+import { dialectMatchesLang } from '../api/dialects';
 import { PRESETS } from '../utils/constants';
 import { apiPost } from '../api/client';
 import { API } from '../api/client';
@@ -49,6 +50,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
   const translateQuality = useAppStore(s => s.translateQuality);
   const timingStrategy  = useAppStore(s => s.timingStrategy);
   const glossaryTerms   = useAppStore(s => s.glossaryTerms);
+  const dubDialect      = useAppStore(s => s.dubDialect);
 
   const [translateProvider, setTranslateProvider] = useState('argos');
   const [showTranscript, setShowTranscript] = useState(false);
@@ -343,6 +345,9 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
         target_lang: dubLangCode,
         provider: translateProvider,
         quality: translateQuality,
+        // #280: regional dialect — only sent when it matches the target
+        // language so a stale "es-AR" never rides on a French translate.
+        dialect: dialectMatchesLang(dubDialect, dubLangCode) ? dubDialect : undefined,
         glossary: glossaryTerms.length
           ? glossaryTerms.map(t => ({ source: t.source, target: t.target, note: t.note || '' }))
           : undefined,
@@ -369,6 +374,11 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
       if (data.cinematic_skipped === 'no-llm-configured') {
         toast(t('dub_workflow.cinematic_no_llm'), { icon: 'ℹ️', duration: 7000 });
       }
+      // #280: the user picked a dialect but the chosen engine can't honor it
+      // (Argos/NLLB/Google in Fast mode). Tell them how to make it count.
+      if (data.dialect && data.dialect_applied === false) {
+        toast(t('dub_workflow.dialect_not_applied'), { icon: 'ℹ️', duration: 7000 });
+      }
       if (errors.length) {
         const unique = [...new Set(errors.map(e => e.error))];
         toast.error(t('dub_workflow.translate_errors', { errorCount: errors.length, totalCount: data.translated.length, firstError: unique[0].slice(0, 120) }), { duration: 6000 });
@@ -378,7 +388,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
       }
     } catch (err) { setDubError(t('dub_workflow.translation_failed', { message: err.message })); }
     setIsTranslating(false);
-  }, [dubSegments, dubLangCode, translateProvider, translateQuality, glossaryTerms, setIsTranslating, setDubSegments, setDubError]);
+  }, [dubSegments, dubLangCode, dubDialect, translateProvider, translateQuality, glossaryTerms, setIsTranslating, setDubSegments, setDubError]);
 
   const handleDubGenerate = useCallback(async (opts = {}) => {
     const regenOnly = Array.isArray(opts.regenOnly) && opts.regenOnly.length ? opts.regenOnly : null;

@@ -2,6 +2,7 @@ import os
 import time
 import asyncio
 import logging
+from typing import Optional
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
@@ -44,6 +45,70 @@ LANG_NAMES = {
     "nl": "Dutch", "sv": "Swedish", "th": "Thai", "vi": "Vietnamese",
     "id": "Indonesian", "uk": "Ukrainian",
 }
+
+# Regional dialect hints (#280 item 2). Maps a BCP-47 dialect code to the
+# instruction injected into LLM translation prompts so the output uses that
+# region's vocabulary and grammar (the reporter's example: choosing Argentina
+# should yield "Vos sos muy listo", not the Peninsular "Tú eres muy listo").
+# Only LLM-backed paths can honor these — provider="openai" and the
+# quality="cinematic" refine pass. Keep entries short: they ride on every
+# per-segment prompt, so verbosity = wall time.
+DIALECT_HINTS = {
+    # Spanish
+    "es-ES": "European Spanish (Spain): use tú/vosotros forms and Peninsular vocabulary.",
+    "es-MX": "Mexican Spanish: use tú/ustedes forms and Mexican vocabulary.",
+    "es-AR": "Rioplatense Spanish (Argentina): use voseo — 'vos' with its verb forms (e.g. 'vos sos', 'tenés') and 'ustedes'; prefer Argentinian vocabulary.",
+    "es-CO": "Colombian Spanish: use tú/usted as natural in Colombia and Colombian vocabulary.",
+    "es-CL": "Chilean Spanish: use Chilean vocabulary and expressions.",
+    # Portuguese
+    "pt-BR": "Brazilian Portuguese: use 'você' forms, Brazilian vocabulary and spelling.",
+    "pt-PT": "European Portuguese: use European vocabulary, spelling, and 'tu' where natural.",
+    # English
+    "en-US": "American English: use US spelling and vocabulary.",
+    "en-GB": "British English: use UK spelling and vocabulary.",
+    "en-AU": "Australian English: use Australian spelling and vocabulary.",
+    "en-IN": "Indian English: use Indian English vocabulary and conventions.",
+    # French
+    "fr-FR": "Metropolitan French (France): use standard French vocabulary.",
+    "fr-CA": "Canadian French (Québec): use Québécois vocabulary and expressions.",
+    "fr-BE": "Belgian French: use Belgian vocabulary (e.g. septante, nonante).",
+    # German
+    "de-DE": "Standard German (Germany): use Federal German vocabulary.",
+    "de-AT": "Austrian German: use Austrian vocabulary (e.g. Jänner, Erdapfel).",
+    "de-CH": "Swiss Standard German: use Swiss vocabulary and 'ss' instead of 'ß'.",
+    # Arabic
+    "ar-EG": "Egyptian Arabic: use Egyptian colloquial vocabulary where natural for dubbing.",
+    "ar-SA": "Gulf/Saudi Arabic flavor: prefer vocabulary natural to the Gulf region.",
+    "ar-MA": "Moroccan Arabic (Darija) flavor: prefer vocabulary natural to Morocco.",
+    # Dutch
+    "nl-NL": "Netherlands Dutch: use vocabulary standard in the Netherlands.",
+    "nl-BE": "Belgian Dutch (Flemish): use Flemish vocabulary and expressions.",
+}
+
+
+def dialect_clause(dialect: Optional[str]) -> str:
+    """Prompt fragment for a requested dialect, or '' when unset/unknown.
+
+    Unknown-but-plausible codes (e.g. "es-PE") still get a generic regional
+    clause so users aren't limited to the curated list.
+    """
+    if not dialect or not str(dialect).strip():
+        return ""
+    code = str(dialect).strip()
+    hint = DIALECT_HINTS.get(code)
+    if hint:
+        return f" Target dialect — {hint}"
+    # Generic fallback for any lang-REGION shaped code we don't curate.
+    if "-" in code:
+        lang, _, region = code.partition("-")
+        lang_name = LANG_NAMES.get(lang, lang)
+        if region:
+            return (
+                f" Use the vocabulary, grammar, and expressions of {lang_name} "
+                f"as spoken in the region '{region}'."
+            )
+    return ""
+
 
 # Per-language script enforcement. Maps language code → required Unicode
 # block(s) the translation must contain. Used as a sanity gate after the
@@ -90,6 +155,17 @@ def _looks_like_target(text: str, code: str, threshold: float = 0.5) -> bool:
 _nllb_model = None
 _nllb_tokenizer = None
 _nllb_device = None
+
+
+def _dialect_flags(req, applied: bool) -> dict:
+    """Response fields describing whether the requested dialect was honored.
+
+    Empty dict when no dialect was requested, so existing response shapes
+    stay byte-identical for callers that never send one.
+    """
+    if not getattr(req, "dialect", None):
+        return {}
+    return {"dialect": req.dialect, "dialect_applied": bool(applied)}
 
 
 def _resolve_source_lang(req: TranslateRequest) -> str:
@@ -203,7 +279,8 @@ async def dub_translate(req: TranslateRequest):
             translated = await loop.run_in_executor(_gpu_pool, _translate_nllb)
             if os.environ.get("OMNIVOICE_UNLOAD_NLLB", "1") == "1":
                 _unload_nllb()
-            return {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang}
+            return {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang,
+                    **_dialect_flags(req, applied=False)}
 
         # OpenAI / Ollama Local LLM Translation
         if provider == "openai":
@@ -236,10 +313,16 @@ async def dub_translate(req: TranslateRequest):
                         f"only — do not use Latin/Roman letters, do not "
                         f"transliterate, do not output any other language."
                     )
+                # #280 item 2 — regional dialect/vocabulary. Only applied when
+                # the dialect belongs to the target language (a leftover
+                # "es-AR" must not contaminate a French translation).
+                dia_clause = ""
+                if req.dialect and str(req.dialect).lower().startswith(str(tgt_code).lower()[:2]):
+                    dia_clause = dialect_clause(req.dialect)
                 return (
                     f"You are a professional dubbing translator. "
                     f"Translate the user's text from {src_name} into "
-                    f"{tgt_name}.{script_clause} "
+                    f"{tgt_name}.{script_clause}{dia_clause} "
                     f"Reply ONLY with the translated {tgt_name} text, do not "
                     f"add quotes, notes, headers, explanations, or commentary."
                 )
@@ -299,7 +382,8 @@ async def dub_translate(req: TranslateRequest):
             tasks = [loop.run_in_executor(_cpu_pool, _translate_llm, seg) for seg in req.segments]
             translated = await asyncio.gather(*tasks)
             translated.sort(key=lambda x: str(x["id"]))
-            return {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang}
+            return {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang,
+                    **_dialect_flags(req, applied=True)}
 
         # Offline Argos Translate
         if provider == "argos" or provider == "libretranslate":
@@ -353,7 +437,8 @@ async def dub_translate(req: TranslateRequest):
                 return results
 
             translated = await loop.run_in_executor(_cpu_pool, _translate_argos)
-            return {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang}
+            return {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang,
+                    **_dialect_flags(req, applied=False)}
 
         # Legacy / API Deep_Translator logic.
         # Preflight the optional `deep_translator` dep once so we fail with a
@@ -462,7 +547,8 @@ async def _maybe_cinematic(translated, req, src_lang, loop):
     except Exception as e:
         logger.debug("non-LLM rate_ratio prediction skipped: %s", e)
 
-    base = {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang, "quality_used": "fast"}
+    base = {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang,
+            "quality_used": "fast", **_dialect_flags(req, applied=False)}
 
     if quality != "cinematic":
         return base
@@ -492,12 +578,19 @@ async def _maybe_cinematic(translated, req, src_lang, loop):
     if not pairs:
         return base
 
+    # #280 item 2: thread the regional-dialect hint into the reflect/adapt
+    # prompts. Guard against a stale dialect from another language.
+    dialect_hint = ""
+    if req.dialect and str(req.dialect).lower().startswith(str(req.target_lang).lower()[:2]):
+        dialect_hint = dialect_clause(req.dialect)
+
     refined = await cinematic_refine_many(
         pairs,
         source_lang=src_lang,
         target_lang=req.target_lang,
         glossary=req.glossary,
         directions=directions,
+        dialect_hint=dialect_hint,
         executor=_cpu_pool,
     )
     refined_by_id = {r["id"]: r for r in refined}
@@ -560,4 +653,5 @@ async def _maybe_cinematic(translated, req, src_lang, loop):
         "target_lang": req.target_lang,
         "source_lang": src_lang,
         "quality_used": "cinematic",
+        **_dialect_flags(req, applied=bool(dialect_hint)),
     }

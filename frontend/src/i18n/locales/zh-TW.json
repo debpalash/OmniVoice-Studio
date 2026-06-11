@@ -654,7 +654,11 @@
     "diagnostic_copied": "診斷複製",
     "copy_failed": "複製失敗",
     "open_docs": "開啟文件",
-    "copy_diagnostic": "複製診斷"
+    "copy_diagnostic": "複製診斷",
+    "dialect_label": "方言",
+    "dialect_default": "預設",
+    "dialect_title": "翻譯所用的地區方言與詞彙（例如 阿根廷 → “vos sos” 而非 “tú eres”）。由 LLM 引擎（OpenAI/Ollama）與 Cinematic 品質套用。",
+    "dialect_not_applied": "所選方言需要 LLM 才能套用 — 請將引擎切換為 OpenAI/Ollama，或選擇 Cinematic 品質。"
   },
   "glossary": {
     "title": "詞彙表",

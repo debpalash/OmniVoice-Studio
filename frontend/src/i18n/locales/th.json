@@ -654,7 +654,11 @@
     "diagnostic_copied": "คัดลอกการวินิจฉัยแล้ว",
     "copy_failed": "การคัดลอกล้มเหลว",
     "open_docs": "เปิดเอกสาร",
-    "copy_diagnostic": "คัดลอกการวินิจฉัย"
+    "copy_diagnostic": "คัดลอกการวินิจฉัย",
+    "dialect_label": "สำเนียงถิ่น",
+    "dialect_default": "ค่าเริ่มต้น",
+    "dialect_title": "สำเนียงถิ่นและคำศัพท์เฉพาะภูมิภาคสำหรับการแปล (เช่น อาร์เจนตินา → “vos sos” แทน “tú eres”) ใช้โดยเอนจิน LLM (OpenAI/Ollama) และคุณภาพ Cinematic",
+    "dialect_not_applied": "สำเนียงที่เลือกต้องใช้ LLM — เปลี่ยนเอนจินเป็น OpenAI/Ollama หรือเลือกคุณภาพ Cinematic"
   },
   "glossary": {
     "title": "อภิธานศัพท์",

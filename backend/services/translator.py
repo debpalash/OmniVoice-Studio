@@ -178,6 +178,7 @@ def cinematic_refine_sync(
     target_lang: str,
     glossary: Iterable[dict] | None = None,
     direction: Optional[str] = None,
+    dialect_hint: Optional[str] = None,
 ) -> dict:
     """Blocking: run REFLECT + ADAPT on a single segment.
 
@@ -219,6 +220,10 @@ def cinematic_refine_sync(
             out = out + "\n\n" + glossary_preamble
         if direction_hint:
             out = out + "\n\nDirection: " + direction_hint
+        # #280 item 2 — regional dialect/vocabulary hint (e.g. Argentinian
+        # voseo). Caller builds the clause; we just ride it on both prompts.
+        if dialect_hint and dialect_hint.strip():
+            out = out + "\n\nDialect: " + dialect_hint.strip()
         return out
 
     # Step 2 — reflect
@@ -279,6 +284,7 @@ async def cinematic_refine_many(
     target_lang: str,
     glossary: Iterable[dict] | None = None,
     directions: Optional[dict[str, str]] = None,
+    dialect_hint: Optional[str] = None,
     executor=None,
     concurrency: int | None = None,
 ) -> list[dict]:
@@ -288,6 +294,8 @@ async def cinematic_refine_many(
     `directions`: optional `{seg_id: "natural-language direction"}` — when
         present, the matching segment's reflect/adapt prompts get the parsed
         direction hint prepended.
+    `dialect_hint`: optional regional-dialect clause (#280) applied to every
+        segment's reflect/adapt prompts.
     Returns a list of dicts keyed the same length + order, each carrying
     `id`, `text`, `literal`, `critique`, optional `error`.
     """
@@ -307,6 +315,7 @@ async def cinematic_refine_many(
                     target_lang=target_lang,
                     glossary=glossary,
                     direction=directions.get(seg_id),
+                    dialect_hint=dialect_hint,
                 ),
             )
         return {"id": seg_id, **res}
