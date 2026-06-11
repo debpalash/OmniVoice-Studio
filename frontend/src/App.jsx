@@ -305,7 +305,8 @@ function App() {
   const {
     undo, redo, editSegments,
     segmentEditField, segmentDelete, segmentRestoreOriginal,
-    segmentSplit, segmentMerge,
+    segmentSplit, segmentMerge, segmentMoveResize,
+    timelineSelSegId, setTimelineSelSegId,
     selectedSegIds, setSelectedSegIds,
     toggleSegSelect, selectAllSegs, clearSegSelection,
     bulkApplyToSelected, bulkDeleteSelected,
@@ -1091,6 +1092,8 @@ function App() {
               segmentEditField={segmentEditField} segmentDelete={segmentDelete}
               segmentRestoreOriginal={segmentRestoreOriginal}
               segmentSplit={segmentSplit} segmentMerge={segmentMerge}
+              segmentMoveResize={segmentMoveResize}
+              timelineSelSegId={timelineSelSegId} setTimelineSelSegId={setTimelineSelSegId}
               toggleSegSelect={toggleSegSelect}
               selectAllSegs={selectAllSegs} clearSegSelection={clearSegSelection}
               bulkApplyToSelected={bulkApplyToSelected}

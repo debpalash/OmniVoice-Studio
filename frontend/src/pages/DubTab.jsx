@@ -23,6 +23,7 @@ import { listTranslationEngines, installTranslationEngine } from '../api/engines
 import toast from 'react-hot-toast';
 import { toastErrorWithReport } from '../utils/errorToast';
 import { Button, Segmented, Badge, Progress } from '../ui';
+import useTimelineOnsets from '../hooks/useTimelineOnsets';
 import { openDocsFor, classifyError } from '../utils/errorDocsMap';
 import GlossaryPanel from '../components/GlossaryPanel';
 import ExportModal from '../components/ExportModal';
@@ -91,6 +92,7 @@ export default function DubTab(props) {
     triggerDownload, fileToMediaUrl,
     editSegments, saveProject, resetDub,
     segmentEditField, segmentDelete, segmentRestoreOriginal, segmentSplit, segmentMerge,
+    segmentMoveResize, timelineSelSegId, setTimelineSelSegId,
     toggleSegSelect, selectAllSegs, clearSegSelection,
     bulkApplyToSelected, bulkDeleteSelected,
   } = props;
@@ -147,6 +149,17 @@ export default function DubTab(props) {
   const seekWaveform = useCallback((time) => {
     waveformRef.current?.seekTo?.(time);
   }, []);
+  // Speech-onset ticks for the timeline editor (#280, item 3). Lazy: only
+  // fetched while the editor is live; re-fetched after a re-transcription
+  // because the step leaves and re-enters the editing state.
+  const editorActive = !!dubJobId && (dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done');
+  const { onsets: timelineOnsets } = useTimelineOnsets(dubJobId, editorActive);
+  // "Preview dub here" from a timeline box: park the player at the slot
+  // start (so the video frame matches), then synthesize + play the line.
+  const onTimelinePreviewSegment = useCallback((seg) => {
+    seekWaveform(seg.start);
+    handleSegmentPreview?.(seg, { preventDefault() {} });
+  }, [seekWaveform, handleSegmentPreview]);
   const [ingestUrl, setIngestUrl] = useState('');
   // Dubbing demo: show the side-by-side player above the drop zone on
   // first-run / no-project state. localStorage flag persists dismissal
@@ -366,7 +379,6 @@ export default function DubTab(props) {
                     audioSrc={dubLocalBlobUrl?.audioUrl}
                     videoSrc={dubLocalBlobUrl?.videoUrl}
                     segments={[]}
-                    onSegmentsChange={() => { }}
                     disabled={true}
                     overlayContent={
                       dubStep === 'uploading' ? (
@@ -676,7 +688,13 @@ export default function DubTab(props) {
                 audioSrc={`${API}/dub/audio/${dubJobId}`}
                 videoSrc={videoSrc}
                 segments={dubSegments}
-                onSegmentsChange={setDubSegments}
+                onsets={timelineOnsets}
+                selectedSegId={timelineSelSegId}
+                onSelectSeg={setTimelineSelSegId}
+                incrementalPlan={incrementalPlan}
+                onSegmentCommit={segmentMoveResize}
+                onSegmentDelete={segmentDelete}
+                onPreviewSegment={onTimelinePreviewSegment}
                 disabled={dubStep === 'generating' || dubStep === 'stopping'}
                 overlayContent={(dubStep === 'generating' || dubStep === 'stopping') ? (
                   <div className="dub-gen-overlay">
@@ -1099,6 +1117,7 @@ export default function DubTab(props) {
                   onSplit={segmentSplit}
                   onMerge={segmentMerge}
                   onSeek={seekWaveform}
+                  timelineSelectedId={timelineSelSegId}
                 />
               </Suspense>
             </div>

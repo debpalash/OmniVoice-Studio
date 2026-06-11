@@ -139,3 +139,10 @@
   display: inline-flex; align-items: center; justify-content: center;
 }
 
+
+/* Row selected from the waveform timeline (#280, item 3) — distinct from
+   multi-select (checkbox) and from the playhead row. */
+.segment-row.segment-timeline-selected {
+  background: rgba(250, 189, 47, 0.08) !important;
+  box-shadow: inset 2px 0 0 #fabd2f;
+}
