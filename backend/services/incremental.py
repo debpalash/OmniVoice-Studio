@@ -64,7 +64,7 @@ def segment_fingerprint(seg: dict) -> str:
     """
     payload = {k: _canon_value(k, seg.get(k)) for k in _GEN_INPUT_FIELDS}
     blob = json.dumps(payload, sort_keys=True, ensure_ascii=False)
-    return hashlib.sha1(blob.encode("utf-8")).hexdigest()[:16]
+    return hashlib.sha1(blob.encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
 
 
 # ── Smart Fit (dub-length fitting v2) fingerprints ─────────────────────────
@@ -113,7 +113,7 @@ def fit_fingerprint(params: dict) -> str:
             v = _FIT_PARAM_DEFAULTS[k]
         payload[k] = _canon_value(k, v)
     blob = json.dumps(payload, sort_keys=True, ensure_ascii=False)
-    return hashlib.sha1(blob.encode("utf-8")).hexdigest()[:16]
+    return hashlib.sha1(blob.encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
 
 
 def plan_incremental(
