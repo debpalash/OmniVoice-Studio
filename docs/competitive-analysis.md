@@ -12,6 +12,13 @@ mapping every ranked action onto this codebase, and user-sentiment / market-posi
 research. Three grades in the matrix were corrected where the original self-inventory
 was stale — see the matrix legend.*
 
+*Expanded again 2026-06-12 (third pass): the
+[Roadmap directions](#roadmap-directions-community-discussion-346) section grounds
+the feature roadmap announced in discussion #346 — agentic voice workflows, remote
+GPU backends, audiobook creator, persona gallery, model/env + GPU-compat management —
+in landscape, license, and regulatory research, with scope ladders and eight new
+consolidated actions (15–22).*
+
 ## TL;DR
 
 | | [voicebox](https://github.com/jamiepine/voicebox) | [pyvideotrans](https://github.com/jianchang512/pyvideotrans) | [Patter](https://github.com/PatterAI/Patter) |
@@ -915,6 +922,303 @@ the GPU slot accounting in `subprocess_backend.py` is the tricky part.
 
 *Actions 10 and 14 are practice/positioning items — no code spec needed; 14's
 content is in [positioning moves](#positioning-moves).*
+
+---
+
+## Roadmap directions (community discussion #346)
+
+*Researched 2026-06-12 (third pass, four research agents + five verification
+sub-agents). The maintainer's [discussion #346](https://github.com/debpalash/OmniVoice-Studio/discussions/346)
+announced a feature roadmap toward full ElevenLabs feature-parity. This section
+grounds each direction in the landscape: what exists, what's license-clean, what
+the honest constraints are, and a scope ladder per direction.*
+
+**Mapping the announcement to this doc** — several items are already covered:
+
+| Discussion item | Status |
+|---|---|
+| Unlimited-length generation | Covered — voicebox chunked TTS ([deep dive](#1-chunked-long-form-tts-backendutilschunked_ttspy-299-loc), port, S) |
+| WisprFlow-like dictation for agentic/code editors | Covered — [Spec 3](#spec-3--dictation-refinement) + [positioning move 4](#positioning-moves) |
+| Polished dubbing experience | Covered — [Specs 1](#spec-1--dub-length-fitting-v2), [4](#spec-4--per-segment-clone-refs), [5](#spec-5--second-pass-asr-qc) |
+| Better MLX / Nvidia / AMD / CPU | [Spec 6](#spec-6--mlx-runtime-pass) + new compat-matrix research (§R4) |
+| Polished OpenAPI specs with Scalar | **Mostly shipped** — Scalar mounted at `/docs` since #307; remaining work is spec hygiene (§R2) |
+| Agentic voice workflow | New — §R1 |
+| Remote GPU · Tailscale · remote API in UI | New — §R2 |
+| Ebook/audiobook/stories creator · persona gallery | New — §R3 |
+| Better model & env management | New — §R4 |
+
+### R1 — Agentic voice workflow
+
+**Runtime landscape (licenses verified against LICENSE files, 2026-06):**
+
+| Runtime | License | Fit |
+|---|---|---|
+| [pipecat](https://github.com/pipecat-ai/pipecat) (12.8k★, v1.0) | **BSD-2** | **Best fit.** A Python library that runs *inside* our existing FastAPI process (`FastAPIWebsocketTransport`) — no extra server. Local VAD (Silero) + smart turn detection + barge-in. Its `OpenAITTSService` takes a `base_url` and defaults to 24 kHz — our `/v1/audio/speech` plugs in with configuration, not code |
+| [LiveKit Agents](https://github.com/livekit/agents) (10.9k★) | Apache-2.0 | Good, heavier: needs a LiveKit media server alongside. The right choice only if self-hosted SIP at scale becomes the priority (their [SIP server](https://github.com/livekit/sip) is Apache-2.0). Their openai plugin TTS/STT classes accept `base_url` (verified in source) — OVS works as a provider today |
+| [Patter](https://github.com/PatterAI/Patter) (MIT) | MIT | Parts donor (already deep-dived). If embedded, its **opt-out telemetry must be hard-disabled** to honor our local-first guarantee |
+| [vocode-core](https://github.com/vocodedev/vocode-core) | MIT | **Avoid as runtime** — no commits since Nov 2024 |
+| [TEN Framework](https://github.com/TEN-framework/ten-framework) | Apache-2.0 **+ conditions** | **Disqualified**: LICENSE bans hosting on "End User devices" (fatal for a desktop app) + an Agora non-compete |
+
+**Telephony honesty.** There is **no fully-local path to the PSTN** — reaching a real
+phone number requires a carrier (Telnyx ~$0.005–0.007/min, Twilio ~$0.014/min; even
+self-hosted Asterisk/FreeSWITCH needs a SIP trunk as the gateway). So under our
+constraints, outbound calling must be an **explicit opt-in integration where the user
+supplies carrier credentials** — never a default. Two prerequisite spikes before
+promising calls: (a) TTFA benchmark of our engines in a streaming pipeline against
+the ~600 ms p95 voice-to-voice budget; (b) AudioSeal detection survival through the
+8 kHz G.711 phone leg (untested anywhere — phone-band downsampling may strip the
+watermark, and it certainly reduces cloned-voice fidelity).
+
+**Persona/community bots.** Prior art exists but is assembled hobby-grade
+(closest: [Discord-Local-LLM-VoiceChat-Bot](https://github.com/KickerMix/Discord-Local-LLM-VoiceChat-Bot)
+— local Whisper + LM Studio + cloning). Text-persona bots are trivial on our stack
+(LLM adapter + `/v1/audio/speech` voice replies). Live voice-channel bots are harder:
+discord.py has never shipped voice *receive* (years-open RFC); the working options
+are Pycord's recording sinks or [discord-ext-voice-recv](https://github.com/imayhaveborkedit/discord-ext-voice-recv)
+(both MIT, both single-maintainer risk). The conversation loop (VAD/turn-taking)
+should come from pipecat, not from this prior art.
+
+**Safety/regulatory (binding, not optional).** FCC ruling
+[FCC 24-17](https://www.fcc.gov/document/fcc-makes-ai-generated-voices-robocalls-illegal)
+(Feb 2024): AI/cloned voices are "artificial" under the TCPA — consumer calls require
+prior express consent ($500–1,500/call private right of action). Texas SB 140
+requires AI disclosure within the first 30 seconds of a call. Tennessee's ELVIS Act
+extends liability to **tool providers**. **EU AI Act Article 50 applies from
+2026-08-02**: people must be told they're talking to an AI, and generative-audio
+output must be marked machine-readably — **the open-source exemption does not cover
+Article 50**, and our AudioSeal default maps directly onto the marking obligation
+(a structural advantage no competitor ships). The "my own cloned voice, my own
+errand" single-call case is a genuine legal gray zone — docs should say so rather
+than imply it's safe.
+
+**Guardrails to build in (concrete):** (1) non-removable disclosure preamble on every
+outbound call — satisfies Texas + FCC direction + EU Art 50(1) in one stroke;
+(2) **consent-locked voice profiles** — agentic features require a profile flagged
+verified-own-voice (recorded consent phrase), exactly the lock voicebox was
+criticized for lacking; (3) AudioSeal always-on for agentic output, no toggle;
+(4) destination allowlist + daily call cap, and no bulk-dial API surface ever —
+architecturally incapable of being robocall infrastructure; (5) local immutable call
+log (with two-party-consent warning before audio recording); (6) honest jurisdiction
+notice in docs.
+
+**Scope ladder:** **v1 (S–M, mostly docs):** OVS as TTS/STT provider for
+pipecat/LiveKit — both verified to point at `localhost:3900/v1` via `base_url`
+today; ship a `docs/agentic-voice.md` recipe + a pipecat smoke test, fix whatever
+param mismatches it exposes. Users wire their own agent; we stay a model server.
+**v2 (M–L):** built-in Discord persona bot (opt-in by construction — user supplies
+their own bot token; identical on all platforms): text replies via the LLM adapter +
+voice replies via `/v1/audio/speech`, persona attached to a consent-locked profile;
+live voice-channel mode as a stretch. Mount the MCP server in the same milestone
+(Spec 2) so external agents can drive OVS voices. **v3 (L, only after guardrails
+1–5 exist):** telephony via opt-in carrier credentials, pipecat embedded with
+Telnyx/Twilio serializers — disclosure preamble, watermark, allowlist, and call log
+land in the same PR, not a follow-up.
+
+### R2 — Remote GPU, Tailscale, remote API, Scalar
+
+**The pattern is settled** across Ollama / LM Studio / Open WebUI / Jellyfin: server
+binds a port, client has a *base URL* setting, optional bearer key. Nobody
+comparable ships custom tunneling — LM Studio's remote story (LM Link, June 2026)
+took a **Tailscale partnership on tsnet** to do more, which is exactly the bar we
+should not chase. The existing Tauri app *is* the thin client; it needs a Backend
+URL setting + `/health` handshake, with the local backend supervisor disabled when
+remote.
+
+**Security is the non-negotiable half.** The cautionary tale:
+[~175,000 publicly exposed no-auth Ollama servers](https://thehackernews.com/2026/01/researchers-find-175000-publicly.html)
+found in early-2026 scans, with documented LLMjacking. Our voice-cloning endpoints
+are *more* sensitive than chat. The consensus mechanism (LM Studio, vLLM, Speaches):
+optional bearer key — `OMNIVOICE_API_KEY`; when set, all non-loopback HTTP+WS
+requires `Authorization: Bearer`. Our existing `NetworkAccessMiddleware` PIN gate
+has the right ASGI shape and needs a bearer variant. Loopback-only stays the desktop
+default. Note: Tailscale Serve terminates on-node and forwards from `127.0.0.1` —
+Serve traffic looks loopback to the PIN gate, so the token must still apply in
+server mode. Docs say plainly: bearer-over-plain-HTTP is sniffable; use Tailscale
+(WireGuard) or Serve (TLS) beyond a trusted LAN; never Funnel without the key.
+
+**Tailscale depth:** ship rung (a) — documentation ("install Tailscale both ends,
+paste the MagicDNS URL"), plus a Serve recipe — which is all Home Assistant, Open
+WebUI, and Jellyfin actually ship. Embedding is not viable from Python: tsnet is
+Go-only; libtailscale's Python binding and tailscale-rs are explicitly
+experimental/unaudited and not on PyPI. Mention [headscale](https://github.com/juanfont/headscale)
+for users wanting a fully open control plane. Tailscale's client core is BSD-3;
+documenting it imposes nothing on us.
+
+**Remote LLM endpoint UI:** vLLM's OpenAI-compat server is verified drop-in for our
+`llm_backend.py` (today env-only via `TRANSLATE_BASE_URL`) — the work is Settings
+fields for base URL + model + optional API key, which Ollama ignores and
+vLLM/LM Studio require. Watch item: **vLLM-Omni** now serves TTS first-class with an
+OpenAI-compatible `/v1/audio/speech` — including **CosyVoice3, an engine we wrap** —
+so "OVS on the GPU box" will eventually compete with "vLLM-Omni on the GPU box"; a
+future option is consuming a remote vLLM-Omni endpoint *as an engine*.
+
+**Scalar:** already shipped (#307 — mounted at `/docs`, `scalar-fastapi` is MIT,
+actively maintained). The remaining "polished spec" work is OpenAPI hygiene Scalar
+renders but can't create: stable `operation_id`s, router tags + descriptions,
+`response_model` + examples on every endpoint — `/v1` and core TTS routes first,
+since those are what remote users hit. ~1 day for tags/IDs; the response-model long
+tail is incremental.
+
+**Ladder:** (1) Backend URL setting + health handshake — S; (2) bearer token incl.
+WS paths + tests — S–M; (3) "Remote GPU over Tailscale" docs page — S;
+(4) remote LLM endpoint UI — S–M; (5) OpenAPI hygiene — M incremental.
+**Don't build:** custom tunneling/relay, tsnet embedding, Funnel as a promoted
+path, mTLS/OAuth (overkill vs bearer + WireGuard), a second thin-client binary.
+
+### R3 — Audiobook/stories creator + persona gallery
+
+**The production bar** (verified against [ebook2audiobook](https://github.com/DrewThomasson/ebook2audiobook),
+audiblez, epub2tts, abogen, Pandrator): broad ingest (epub/mobi/pdf/docx + OCR for
+image PDFs), chapter detection (TOC-driven for epub — even the 19.2k★ leader's
+algorithm is thinly documented), **chapterized m4b** output (FFMETADATA1 chapters +
+cover via `attached_pic` — ffmpeg writes both Nero and QuickTime chapter forms),
+inline tags (`[pause:N]`, `[voice:...]` — ebook2audiobook's square-bracket dialect
+is Apache-2.0 and portable), batch with per-file voice mapping, and **crash resume**
+(their `--session` pattern). The mastering bar is the
+[ACX technical spec](https://help.acx.com/s/article/what-are-the-acx-audio-submission-requirements):
+RMS −23 to −18 dB, peaks < −3 dB, noise floor < −60 dB RMS, ≥192 kbps CBR MP3,
+≤120 min/file, room tone 1–5 s both ends — implementable as two-pass ffmpeg
+`loudnorm` + an `astats` verifier. **Framing caveat:** ACX itself prohibits AI
+narration unless authorized — market this as "masters to ACX technical spec," never
+"Audible-ready."
+
+**License traps in the parser stack (verified — this is the §R3 landmine):**
+`ebooklib` is **AGPL-3.0 with no commercial-license option** — it poisons our
+commercial build; parse EPUB with `zipfile` + `lxml` instead (EPUB is zip+XHTML).
+PyMuPDF is AGPL (Artifex sells exceptions) — use **pypdf (BSD-3)**. The PyPI `mobi`
+package is GPL — shell out to Calibre's `ebook-convert` instead (process boundary is
+safe). OCR via pytesseract/tesseract is Apache-2.0, clean.
+
+**What we already have:** voicebox's Stories schema (deep-dived above) is the
+assembly/timeline half. The missing halves are symmetric: ingest (parsing,
+chapterization, long-form batch with per-chapter resume) and export (m4b + ACX
+mastering). **Ladder:** A1 EPUB ingest + TOC chapters + resumable per-chapter TTS
+queue (M) → A2 chapterized m4b export (S) → A3 ACX mastering pass (S–M) → A4
+PDF/txt/docx (M) → A5 inline tags + per-chapter voices (M) → A6 OCR + Calibre
+shell-out (M) → A7 book→Stories timeline round-trip (L) — the differentiator no
+surveyed tool has.
+
+**Persona gallery — the territory is genuinely unoccupied.** The field splits into
+consent-heavy commercial (ElevenLabs Voice Library: live-read Voice Captcha
+verification, human review, sharing limited to professional clones), a consent-free
+gray market (voice-models.com, ~28k RVC models), and read-only single-project
+registries ([piper-voices](https://huggingface.co/rhasspy/piper-voices)' single
+`voices.json` is the proven local-first pattern). **No OSS, consent-aware,
+browse-preview-install voice gallery exists.** The build recipe: piper-voices-style
+JSON index in a public git repo (checksums + preview URLs, payloads on HF) +
+Obsidian-style PR curation + our existing `VoiceGallery.jsx` as the browser (it
+already has community hooks: `useCommunityX`, `communitySubmitUrl`).
+
+**Consent gates (legal floor, not nice-to-have):** Tennessee ELVIS reaches tools
+whose "primary purpose" is unauthorized voice likeness — a gallery distributing
+named-person clones is much closer to that line than a TTS engine; Illinois HB 4875
+reaches distribution *facilitators*; EU Art 50 marking applies from 2026-08-02.
+Gates: accept only **designed/synthetic voices** (#317 mapper personas) and
+**self-recorded voices with a recorded consent statement** (spoken attestation, not
+a checkbox — the Consumer Reports critique); AudioSeal watermark mandatory on
+preview audio (it's already a direct dependency and now fully MIT incl. weights,
+with a 16-bit payload — enough to carry a persona ID); PR-based human curation;
+takedown via issue template propagating on index refresh. Honest note: none of this
+stops a determined fork — the gates protect *the project* and set norms; the index
+is the one chokepoint we actually control.
+
+**Portable persona format:** no standard exists (the one attempt, vox-format, has
+zero adoption; the de-facto reality is five incompatible engine-native formats).
+Recommend a minimal **`.ovsvoice`** zip: manifest (schema version, engine + design
+params for deterministic-mapper reproducibility, tags), optional reference audio +
+transcript, `consent.json` (creation method + attestation + timestamp), SPDX-style
+license tag, watermarked preview. Demand signal: voicebox's
+[#138](https://github.com/jamiepine/voicebox/issues/138) (export profiles for
+Piper/Home Assistant) — design the format so a Piper-ONNX export target can be added
+later. **Ladder:** G1 `.ovsvoice` export/import (S–M, standalone value) → G2
+community index + Gallery "Community" tab (M) → G3 in-app submission via prefilled
+GitHub PR/issue — mirrors our bug-reporter pattern, no accounts (M) → G4
+similarity-search/ratings/ONNX export (L, later).
+
+### R4 — Model & env management, GPU compat matrix
+
+**Environment management — what the field converged on** (licenses verified):
+ComfyUI's one-shared-env model is the cautionary tale (conflict UIs, downgrade
+blacklists, and pip-state-repair files *as product features*; its 2026 fix is uv +
+whole-env lockfiles, not isolation). Pinokio (MIT) and StabilityMatrix (AGPL —
+patterns only, no code) both landed on **one venv per app** — exactly our sidecar
+architecture — then clawed disk back at the filesystem layer. LM Studio/Ollama
+sidestep Python entirely with decoupled, hot-swappable native runtime packs — the
+strongest pattern, but ours only if we ever ship prebuilt engine binaries.
+Code-portable references: Pinokio, Ollama, llama.cpp, lms CLI (all MIT),
+huggingface_hub/hf-xet (Apache-2.0), uv (MIT/Apache). **Not portable:**
+StabilityMatrix (AGPL), ComfyUI + Manager + comfy-cli (all GPL-3.0).
+
+**The torch-duplication math (measured 2026-06):** uv's global cache dedupes via
+link mode — default **`clone` (CoW) on macOS *and* Linux, `hardlink` on Windows**;
+same wheel across N venvs ≈ one copy on disk, *iff* cache and venvs share a
+filesystem. But dedup is per-identical-wheel: our IndexTTS2 sidecar (torch 2.6.x)
+vs parent (torch 2.8.0) shares nothing — the Windows cu128 torch wheel alone is
+**~3.2 GiB** (measured), Linux ~0.83 GiB + multi-GB `nvidia-*` deps. Partial
+consolation on Linux: `nvidia-*` packages dedupe independently wherever pinned
+versions coincide across torch versions. Levers: keep `UV_CACHE_DIR` + sidecar
+venvs on one filesystem; consider pinning `UV_LINK_MODE=hardlink` on Linux (reflink
+degrades on ext4); and treat "align the sidecar's torch pin with the parent
+whenever the engine permits" as the single biggest disk decision. Watch item:
+PyTorch **wheel variants** (shipped experimental in 2.8, NVIDIA+Astral
+collaboration) will eventually make `uv install torch` auto-select the right CUDA
+build; uv already ships `--torch-backend=auto`.
+
+**The compat matrix is two-dimensional** — `(torch version, CUDA wheel variant) →
+supported sm_XX set`, published in
+[pytorch RELEASE.md](https://github.com/pytorch/pytorch/blob/main/RELEASE.md):
+Blackwell sm_120 needs **2.7.0 + cu128 or later**; from 2.8 the cu128+ wheels
+dropped Maxwell/Pascal (Turing sm_75 is the floor; Pascal users must pin cu126
+variants). Driver minimums: CUDA 12.x wheels ≥ 525, 13.x ≥ 580. Both failure
+directions ("GPU too new" sm_120-on-cu126 and "GPU too old" sm_61-on-cu128) throw
+the same lazy `no kernel image` error *after* `cuda.is_available()` returns True —
+which is why preflight must check capability, not availability. The documented
+antipattern is Ollama's silent CPU fallback
+([their own #14258](https://github.com/ollama/ollama/issues/14258)); voicebox's
+silent-fallback bootstrap is our other autopsy. Build: detect (capability via
+torch, driver via NVML) → gate engine installs with a specific message ("this
+engine's cu128 build needs Turing+; you have Pascal — installing the cu126 build
+instead") → **loud persistent CPU-fallback banner**, never silent. We already have
+probes to build on (`engine_env.py` compute-capability check — today it only gates
+`torch.compile`; `hardware_probe.py`).
+
+**Model management — the HF cache is the blessed single source of truth.** The hub
+cache layout is now a [language-agnostic spec](https://huggingface.co/docs/hub/local-cache)
+adopted by llama.cpp among others; blobs are content-addressed (LFS SHA-256 =
+filename, so integrity is re-checkable offline), and the v1.x CLI ships exactly the
+manager primitives a UI needs: `hf cache ls --filter "accessed>30d"`, `hf cache rm`,
+`hf cache prune`, **`hf cache verify`**. Gotchas verified: Windows without
+Developer Mode falls back to copy-per-snapshot (degraded dedup); concurrent
+downloads are lock-protected (`.locks/`) but **deletion is not** — a delete UI over
+a shared cache must handle delete-vs-reader races (fine on Linux fd semantics,
+breaks on Windows); env vars are read at import time, so a Settings-controlled
+cache path needs a restart. Offline/restricted: `HF_HUB_OFFLINE`,
+`HF_HUB_ETAG_TIMEOUT` (falls back to cache on timeout), `HF_ENDPOINT` for mirrors —
+hf-mirror.com is community-run, not HF-official, and its compatibility with the new
+Xet/CAS download path is untested (escape hatch: `HF_HUB_DISABLE_XET=1`). Also:
+`hf_transfer` is now fully deprecated (Xet is the default transfer path) —
+consistent with our existing stack guidance.
+
+**Ladder:** (a) uv link-mode + shared-cache audit, document the dedupe behavior +
+sidecar pin-alignment policy — S; (b) in-app preflight compat gate (capability +
+driver → engine × wheel-variant table) with specific errors + loud CPU banner — M;
+(c) model manager UI over `scan_cache_dir()` (per-model disk usage, evict,
+re-verify, mirror setting) — M; (d) LM-Studio-style decoupled runtime packs — L,
+**not recommended now**: our sidecar architecture already decouples engines; revisit
+only if we ship prebuilt binaries.
+
+### Consolidated new actions
+
+| # | Action | Mode | Effort | First rung |
+|---|---|---|---|---|
+| 15 | Agentic v1: provider recipe + pipecat smoke test against `:3900/v1` | Docs + test | S–M | §R1 v1 |
+| 16 | Remote backend: URL setting + bearer token + Tailscale docs page | Build | M total | §R2 rungs 1–3 |
+| 17 | Audiobook v1: EPUB ingest → chapterized m4b → ACX mastering | Build (+ port Apache-2.0 pieces) | M+S+S–M | §R3 A1–A3 |
+| 18 | `.ovsvoice` portable persona export/import | Build | S–M | §R3 G1 |
+| 19 | Engine preflight compat gate + loud CPU-fallback banner | Build | M | §R4 (b) |
+| 20 | Model manager UI over the HF cache primitives | Build | M | §R4 (c) |
+| 21 | OpenAPI hygiene pass under the shipped Scalar UI | Build | M incremental | §R2 rung 5 |
+| 22 | Consent-locked voice profiles (prerequisite for §R1 v2/v3 and §R3 G2+) | Build | M | §R1 guardrail 2 |
 
 ---
 
