@@ -32,9 +32,13 @@ env:
 permissions:
   contents: read
 
+# PR branches: a new push cancels the superseded scan (no wasted runners).
+# main: every commit keeps its own group, so nothing is cancelled — a merge
+# train used to leave a permanent red ✗ ("cancelled") on every intermediate
+# commit in the history view even though nothing failed.
 concurrency:
-  group: security-${{ github.ref }}
-  cancel-in-progress: true
+  group: security-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || 'branch' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   # ── Secret scanning (gating) ─────────────────────────────────────────────
