@@ -127,6 +127,7 @@ def _run_inference(
     num_step, guidance_scale, speed, t_shift, denoise,
     postprocess_output, layer_penalty_factor, position_temperature,
     class_temperature, used_seed, effect_preset="broadcast",
+    max_chunk_chars=None, crossfade_ms=None,
 ):
     import torch
     try:
@@ -161,14 +162,41 @@ def _run_inference(
                 )[0]
             audio_out = _render_with_pauses(_gen_span, segments, sr)
         else:
-            audios = model.generate(
-                text=text, language=language, ref_audio=ref_audio_path,
-                ref_text=ref_text, instruct=instruct, duration=duration,
-                num_step=num_step, guidance_scale=guidance_scale, speed=speed,
-                denoise=denoise, postprocess_output=postprocess_output,
-                **kwargs
+            # Wave 1.2: long text is split at sentence boundaries and the
+            # per-chunk audio crossfaded — removes the length ceiling. Short
+            # text takes the single-shot path below unchanged. [pause] inputs
+            # keep the dedicated stitcher above (spans are already short).
+            from services.chunked_tts import (
+                DEFAULT_CROSSFADE_MS, DEFAULT_MAX_CHUNK_CHARS,
+                concatenate_audio_chunks, split_text_into_chunks,
             )
-            audio_out = audios[0]
+            _max_chars = DEFAULT_MAX_CHUNK_CHARS if max_chunk_chars is None else max_chunk_chars
+            _xfade_ms = DEFAULT_CROSSFADE_MS if crossfade_ms is None else crossfade_ms
+            text_chunks = split_text_into_chunks(text, _max_chars)
+            if len(text_chunks) > 1:
+                parts = []
+                for i, chunk_text in enumerate(text_chunks):
+                    # Vary the seed per chunk (deterministically) to avoid
+                    # correlated RNG artifacts across chunk boundaries.
+                    if used_seed is not None:
+                        torch.manual_seed(used_seed + i)
+                    parts.append(model.generate(
+                        text=chunk_text, language=language, ref_audio=ref_audio_path,
+                        ref_text=ref_text, instruct=instruct, duration=None,
+                        num_step=num_step, guidance_scale=guidance_scale, speed=speed,
+                        denoise=denoise, postprocess_output=postprocess_output,
+                        **kwargs
+                    )[0])
+                audio_out = concatenate_audio_chunks(parts, sr, _xfade_ms)
+            else:
+                audios = model.generate(
+                    text=text, language=language, ref_audio=ref_audio_path,
+                    ref_text=ref_text, instruct=instruct, duration=duration,
+                    num_step=num_step, guidance_scale=guidance_scale, speed=speed,
+                    denoise=denoise, postprocess_output=postprocess_output,
+                    **kwargs
+                )
+                audio_out = audios[0]
 
         # Apply DSP effect preset. The OmniVoice model never masters its own
         # output, so mastering always runs here (unchanged behavior).
@@ -185,6 +213,7 @@ def _run_backend_inference(
     backend, text, language, ref_audio_path, ref_text, instruct, duration,
     num_step, guidance_scale, speed, denoise, postprocess_output,
     used_seed, effect_preset="broadcast",
+    max_chunk_chars=None, crossfade_ms=None,
 ):
     """Engine-aware twin of :func:`_run_inference` (issue #312).
 
@@ -222,7 +251,24 @@ def _run_backend_inference(
                 return backend.generate(span_text, duration=None, **gen_kwargs)
             audio_out = _render_with_pauses(_gen_span, segments, sr)
         else:
-            audio_out = backend.generate(text, duration=duration, **gen_kwargs)
+            # Wave 1.2: sentence-boundary chunking for long text (see
+            # _run_inference for the rationale; behavior is identical here).
+            from services.chunked_tts import (
+                DEFAULT_CROSSFADE_MS, DEFAULT_MAX_CHUNK_CHARS,
+                concatenate_audio_chunks, split_text_into_chunks,
+            )
+            _max_chars = DEFAULT_MAX_CHUNK_CHARS if max_chunk_chars is None else max_chunk_chars
+            _xfade_ms = DEFAULT_CROSSFADE_MS if crossfade_ms is None else crossfade_ms
+            text_chunks = split_text_into_chunks(text, _max_chars)
+            if len(text_chunks) > 1:
+                parts = []
+                for i, chunk_text in enumerate(text_chunks):
+                    if used_seed is not None:
+                        torch.manual_seed(used_seed + i)
+                    parts.append(backend.generate(chunk_text, duration=None, **gen_kwargs))
+                audio_out = concatenate_audio_chunks(parts, sr, _xfade_ms)
+            else:
+                audio_out = backend.generate(text, duration=duration, **gen_kwargs)
 
         return _apply_effect_chain(
             audio_out, sr, effect_preset,
@@ -257,6 +303,10 @@ async def generate_speech(
     seed: Optional[int] = Form(None),
     effect_preset: str = Form("broadcast"),
     engine: Optional[str] = Form(None),
+    # Wave 1.2 — unlimited-length generation: long text is split at sentence
+    # boundaries and crossfaded. 0 disables chunking (whole text to engine).
+    max_chunk_chars: int = Form(800, ge=0),
+    crossfade_ms: int = Form(50, ge=0, le=1000),
 ):
     # ── Engine resolution (issue #312) ──────────────────────────────────────
     # The request runs on the engine selected in Settings (POST /engines/select,
@@ -364,6 +414,7 @@ async def generate_speech(
                 _backend, text, language, ref_audio_path, ref_text, instruct,
                 duration, num_step, guidance_scale, speed, denoise,
                 postprocess_output, used_seed, effect_preset,
+                max_chunk_chars, crossfade_ms,
             )
             # Read after generation: engines with lazy model loading report
             # their real rate only once weights are up.
@@ -375,6 +426,7 @@ async def generate_speech(
                 num_step, guidance_scale, speed, t_shift, denoise,
                 postprocess_output, layer_penalty_factor, position_temperature,
                 class_temperature, used_seed, effect_preset,
+                max_chunk_chars, crossfade_ms,
             )
             sample_rate = _model.sampling_rate
         # Invisible AudioSeal provenance watermark on the final audio. Embedding
