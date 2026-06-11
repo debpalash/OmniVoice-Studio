@@ -3,7 +3,6 @@ import json
 import logging
 import time
 import asyncio
-import numpy as np
 import torch
 import torchaudio
 from fastapi import APIRouter, HTTPException
@@ -15,9 +14,18 @@ from schemas.requests import DubRequest
 from services.model_manager import get_model, _gpu_pool
 from services.audio_dsp import apply_mastering, normalize_audio, apply_effects_chain, get_effect_chain
 from services.audio_io import atomic_save_wav, _safe_torchaudio_save
-from services.ffmpeg_utils import find_ffmpeg, spawn_subprocess
+from services.ffmpeg_utils import (
+    find_ffmpeg,
+    spawn_subprocess,
+    # Moved to ffmpeg_utils so the Smart Fit export pipeline (Phase B) can
+    # reuse them; re-imported here so `dub_generate._atempo_chain` /
+    # `_pitch_preserving_stretch` keep working for existing importers.
+    _atempo_chain,
+    _pitch_preserving_stretch,
+)
 from services.rvc import apply_rvc, is_enabled as rvc_is_enabled
-from services.incremental import segment_fingerprint
+from services.incremental import segment_fingerprint, fit_fingerprint
+from services.fit_planner import FitParams, plan_fit
 from services.watermark import embed_watermark
 from api.routers.dub_core import _get_job, _save_job
 
@@ -79,77 +87,6 @@ def _sync_job_segments(job: dict, req: DubRequest) -> None:
     job["segments"] = merged
 
 
-def _atempo_chain(ratio: float) -> str:
-    """Build an `atempo=…,atempo=…` filter chain for arbitrary ratios.
-
-    ffmpeg's atempo filter is limited to [0.5, 2.0] per stage. Chaining
-    multiple stages multiplies the effective ratio while keeping each
-    individual stage inside the well-behaved range. Pitch is preserved
-    (WSOLA-style time-domain stretching). ratio > 1 speeds up, < 1
-    slows down.
-    """
-    stages: list[str] = []
-    remaining = ratio
-    while remaining > 2.0:
-        stages.append("atempo=2.0")
-        remaining /= 2.0
-    while remaining < 0.5:
-        stages.append("atempo=0.5")
-        remaining /= 0.5
-    stages.append(f"atempo={remaining:.6f}")
-    return ",".join(stages)
-
-
-async def _pitch_preserving_stretch(
-    wav: torch.Tensor, target_samples: int, sr: int,
-) -> torch.Tensor:
-    """Time-stretch a (1, samples) tensor to `target_samples` while
-    preserving pitch, by piping the audio through `ffmpeg atempo`.
-
-    Async so it never blocks the event loop: it's awaited from the `_stream`
-    generator, and each ffmpeg call is ~50-100 ms — a synchronous
-    ``subprocess.run`` here froze health-checks / SSE / every concurrent
-    request for the whole multi-segment job.
-
-    Returns a (1, target_samples) tensor on the same device as input.
-    Raises RuntimeError when ffmpeg fails — callers should fall back to
-    naive linear interpolation, accepting the pitch shift, to ensure the
-    output isn't silent.
-    """
-    wl = int(wav.shape[-1])
-    if target_samples <= 0 or wl == target_samples:
-        return wav
-    ratio = wl / target_samples
-    filter_str = _atempo_chain(ratio)
-
-    # Mono float32 via stdin → ffmpeg → stdout. One subprocess per segment,
-    # run off the event loop so concurrent requests stay responsive.
-    arr = wav.detach().cpu().to(torch.float32).numpy().reshape(-1).astype(np.float32, copy=False)
-    proc = await spawn_subprocess(
-        find_ffmpeg(), "-hide_banner", "-loglevel", "error", "-y",
-        "-f", "f32le", "-ar", str(sr), "-ac", "1", "-i", "pipe:0",
-        "-af", filter_str,
-        "-f", "f32le", "-ar", str(sr), "-ac", "1", "pipe:1",
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, stderr = await proc.communicate(input=arr.tobytes())
-    if proc.returncode != 0 or not stdout:
-        raise RuntimeError(
-            (stderr.decode(errors="replace") or "atempo failed")[:200]
-        )
-    out_arr = np.frombuffer(stdout, dtype=np.float32)
-    # atempo rarely lands exactly on the integer sample count, so
-    # pad/trim to the requested slot length.
-    if len(out_arr) < target_samples:
-        pad = np.zeros(target_samples - len(out_arr), dtype=np.float32)
-        out_arr = np.concatenate([out_arr, pad])
-    elif len(out_arr) > target_samples:
-        out_arr = out_arr[:target_samples]
-    return torch.from_numpy(out_arr.copy()).unsqueeze(0).to(wav.device)
-
-
 router = APIRouter()
 
 @router.post("/dub/generate/{job_id}")
@@ -174,6 +111,15 @@ async def dub_generate(job_id: str, req: DubRequest):
         # `seg_i.wav` on disk and slot into the final mix unchanged.
         regen_only = set(req.regen_only or []) if req.regen_only is not None else None
         seg_ids = req.segment_ids or []
+        strategy = (req.timing_strategy or "concise").lower()
+        # Strategy-transition guard: smart_fit re-mixes the *natural-rate*
+        # per-segment WAVs from disk. If the previous run used strict_slot,
+        # the on-disk WAVs are slot-squeezed ("slotted") — reusing them would
+        # double-compress. Force one full regen; afterwards seg_wav_kind is
+        # "natural" and partial regen / fit-only re-mix (regen_only=[]) work.
+        # Jobs predating this field have unknown kind → also regen once.
+        if strategy == "smart_fit" and regen_only is not None and job.get("seg_wav_kind") != "natural":
+            regen_only = None
         # Manifest: stable segment id per current index. Per-segment WAVs are
         # named by stable id (dub_seg_path) so regen reuses the right audio after
         # reorder; index-keyed readers (preview/export) resolve via this manifest.
@@ -224,13 +170,17 @@ async def dub_generate(job_id: str, req: DubRequest):
                         if cached_sr != _model.sampling_rate:
                             import torchaudio.functional as AF
                             cached_wav = AF.resample(cached_wav, cached_sr, _model.sampling_rate)
-                        # Pad/trim to slot.
-                        target_samples = int(seg_duration * _model.sampling_rate)
-                        current_samples = cached_wav.shape[-1]
-                        if target_samples > current_samples:
-                            cached_wav = torch.nn.functional.pad(cached_wav, (0, target_samples - current_samples))
-                        elif current_samples > target_samples:
-                            cached_wav = cached_wav[..., :target_samples]
+                        # Pad/trim to slot — except smart_fit, whose mix
+                        # loop needs the natural-rate length to compute the
+                        # audio/video split (the seg_wav_kind guard above
+                        # guarantees these cached WAVs are natural-rate).
+                        if strategy != "smart_fit":
+                            target_samples = int(seg_duration * _model.sampling_rate)
+                            current_samples = cached_wav.shape[-1]
+                            if target_samples > current_samples:
+                                cached_wav = torch.nn.functional.pad(cached_wav, (0, target_samples - current_samples))
+                            elif current_samples > target_samples:
+                                cached_wav = cached_wav[..., :target_samples]
                         all_segment_wavs.append((seg.start, seg.end, cached_wav, _model.sampling_rate))
                         sync_scores.append(getattr(seg, 'sync_ratio', None) or 1.0)
                         _t_cache += time.perf_counter() - _t_cache_0
@@ -419,13 +369,13 @@ async def dub_generate(job_id: str, req: DubRequest):
                 _t_tts_0 = time.perf_counter()
                 seg_effect_preset = getattr(seg, "effect_preset", None) or "broadcast"
 
-                # In concise / stretch_video modes we pass dur_s=None so the
-                # TTS model speaks at its natural rate for this text length —
-                # the whole point of the new timing strategies is to never
-                # squeeze the speech to fit. strict_slot keeps the legacy
-                # behaviour where dur_s is the slot hint.
-                _strategy = (req.timing_strategy or "concise").lower()
-                _dur_for_tts = seg_duration if _strategy == "strict_slot" else None
+                # In concise / stretch_video / smart_fit modes we pass
+                # dur_s=None so the TTS model speaks at its natural rate for
+                # this text length — the whole point of the new timing
+                # strategies is to never squeeze the speech to fit at
+                # synthesis time. strict_slot keeps the legacy behaviour
+                # where dur_s is the slot hint.
+                _dur_for_tts = seg_duration if strategy == "strict_slot" else None
 
                 audio_tensor = await loop.run_in_executor(
                     _gpu_pool, _gen,
@@ -442,7 +392,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                 target_samples = int(seg_duration * _model.sampling_rate)
                 current_samples = audio_tensor.shape[-1]
 
-                if _strategy == "strict_slot":
+                if strategy == "strict_slot":
                     # Legacy: pad short audio + trim long audio so the mix
                     # loop receives slot-sized buffers. The atempo squeeze
                     # in the mix loop never fires here because we already
@@ -452,9 +402,10 @@ async def dub_generate(job_id: str, req: DubRequest):
                         audio_tensor = torch.nn.functional.pad(audio_tensor, (0, pad_amount))
                     elif current_samples > target_samples:
                         audio_tensor = audio_tensor[..., :target_samples]
-                # concise / stretch_video: keep audio at its natural length.
-                # The mix loop decides per-mode whether to trim, slip, or
-                # stretch the video to accommodate it.
+                # concise / stretch_video / smart_fit: keep audio at its
+                # natural length. The mix loop decides per-mode whether to
+                # trim, slip, stretch the video, or split audio/video
+                # retiming (smart_fit) to accommodate it.
 
                 generated_dur = audio_tensor.shape[-1] / _model.sampling_rate
                 sync_ratio = round(generated_dur / max(seg_duration, 0.01), 3)
@@ -533,7 +484,6 @@ async def dub_generate(job_id: str, req: DubRequest):
         _t_diskw = time.perf_counter() - _t_diskw_0
 
         sr = _model.sampling_rate
-        strategy = (req.timing_strategy or "concise").lower()
         slot_fit = (req.slot_fit or "time_stretch").lower()
         overflow_budget_s = max(0.0, float(req.overflow_budget_s or 0.0))
 
@@ -548,6 +498,7 @@ async def dub_generate(job_id: str, req: DubRequest):
         # the matching per-segment setpts filter chain on the source video.
         new_layout: list[tuple[float, float]] = []
         video_stretch_plan: list[dict] = []
+        fit_plan = None  # smart_fit only — services.fit_planner.FitPlan
         orig_total_dur = float(job.get("duration") or 0.0)
 
         if strategy == "stretch_video":
@@ -581,8 +532,42 @@ async def dub_generate(job_id: str, req: DubRequest):
                 cursor += max(0.0, orig_total_dur - last_orig_end)
             new_total_dur = max(cursor, orig_total_dur)
             total_samples = int(new_total_dur * sr)
+        elif strategy == "smart_fit":
+            # Smart Fit: plan the audio-rate / video-ratio split per segment
+            # from the natural-rate WAV lengths. Pure planning — the mix
+            # loop below applies the audio side; the video side ships as
+            # fit_plans[lang] for the (Phase B) export pipeline.
+            _fo = req.fit_options
+            _fit_defaults = FitParams()
+            fit_params = FitParams(
+                max_audio_only_rate=float(getattr(_fo, "max_audio_only_rate", None) or _fit_defaults.max_audio_only_rate),
+                audio_rate_cap=float(getattr(_fo, "audio_rate_cap", None) or _fit_defaults.audio_rate_cap),
+                video_slow_cap=float(getattr(_fo, "video_slow_cap", None) or _fit_defaults.video_slow_cap),
+                gap_guard_s=float(_fo.gap_guard_s) if _fo is not None and _fo.gap_guard_s is not None else _fit_defaults.gap_guard_s,
+                allow_video_retime=bool(_fo.allow_video_retime) if _fo is not None and _fo.allow_video_retime is not None else _fit_defaults.allow_video_retime,
+            )
+            _seg_order = job.get("seg_order") or []
+            fit_plan = plan_fit(
+                [
+                    {
+                        "id": _seg_order[i] if i < len(_seg_order) else f"seg_{i}",
+                        "start": s,
+                        "end": e,
+                    }
+                    for i, (s, e, _w, _) in enumerate(all_segment_wavs)
+                ],
+                [w.shape[-1] / sr for (_s, _e, w, _) in all_segment_wavs],
+                orig_total_dur,
+                fit_params,
+            )
+            total_samples = int(fit_plan.total_duration * sr)
         else:
             total_samples = int(orig_total_dur * sr)
+
+        # smart_fit: cue times for the fitted timeline, computed from the
+        # ACTUAL stretched/trimmed sample positions in the mix loop below —
+        # not from the plan — so subtitles land exactly on the audio.
+        fitted_cues: list[dict] = []
 
         full_audio = torch.zeros(1, total_samples)
 
@@ -604,6 +589,55 @@ async def dub_generate(job_id: str, req: DubRequest):
                 fit_status.append({
                     "status": "video_stretched",
                     "stretch_ratio": round(natural_dur / max(orig_dur, 1e-3), 3),
+                })
+
+            elif strategy == "smart_fit":
+                # Smart Fit: apply the planner's audio_rate via the same
+                # pitch-preserving atempo pipe strict_slot uses, place the
+                # result at the planned new_start, and hard-trim whatever
+                # the caps couldn't absorb. The video side (video_ratio per
+                # chunk) is persisted below for the export pipeline.
+                sf = fit_plan.segments[i]
+                place_at = sf.new_start
+                if sf.audio_rate > 1.0 + 1e-6 and wl > 0:
+                    target = max(1, int(round(wl / sf.audio_rate)))
+                    try:
+                        adjusted = await _pitch_preserving_stretch(
+                            adjusted, target, sr,
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "atempo stretch failed for seg %d (%.2f×), "
+                            "falling back to linear interp: %s",
+                            i, sf.audio_rate, e,
+                        )
+                        adjusted = torch.nn.functional.interpolate(
+                            adjusted.unsqueeze(0),
+                            size=target,
+                            mode='linear',
+                            align_corners=False,
+                        ).squeeze(0)
+                    wl = adjusted.shape[-1]
+                # Residual overflow → hard-trim to the segment's new video
+                # slot (fade below keeps the cut pop-free).
+                new_slot_samples = int(max(0.0, sf.new_end - sf.new_start) * sr)
+                if new_slot_samples > 0 and wl > new_slot_samples:
+                    adjusted = adjusted[..., :new_slot_samples]
+                    wl = adjusted.shape[-1]
+                # Truthful per-segment verdict for the UI badge.
+                entry = {"status": sf.status}
+                if sf.audio_rate > 1.0 + 1e-6:
+                    entry["audio_rate"] = round(sf.audio_rate, 3)
+                if sf.video_ratio > 1.0 + 1e-6:
+                    entry["video_ratio"] = round(sf.video_ratio, 3)
+                if sf.overflow_s > 0:
+                    entry["overflow_s"] = round(sf.overflow_s, 3)
+                fit_status.append(entry)
+                # Cue times from the ACTUAL stretched sample positions.
+                fitted_cues.append({
+                    "id": sf.seg_id,
+                    "start": round(place_at, 4),
+                    "end": round(place_at + wl / sr, 4),
                 })
 
             elif strategy == "concise":
@@ -737,6 +771,34 @@ async def dub_generate(job_id: str, req: DubRequest):
                 "total_duration": round(track_dur, 4),
                 "orig_duration": round(orig_total_dur, 4),
             }
+        elif strategy == "smart_fit" and fit_plan is not None:
+            # video_stretch_plans stays untouched — smart_fit persists its
+            # own keyspace so a job can carry both without clobbering.
+            _fit_params_payload = {
+                "timing_strategy": strategy,
+                "max_audio_only_rate": fit_params.max_audio_only_rate,
+                "audio_rate_cap": fit_params.audio_rate_cap,
+                "video_slow_cap": fit_params.video_slow_cap,
+                "gap_guard_s": fit_params.gap_guard_s,
+                "allow_video_retime": fit_params.allow_video_retime,
+            }
+            fit_fp = fit_fingerprint(_fit_params_payload)
+            job.setdefault("fit_plans", {})[lang_code] = {
+                # Same dict shape _build_video_stretch_filter_graph consumes.
+                "plan": fit_plan.video_plan,
+                # Cue times from actual stretched sample positions — for
+                # subtitle export on the fitted timeline.
+                "fitted_segments": fitted_cues,
+                "total_duration": round(track_dur, 4),
+                "orig_duration": round(orig_total_dur, 4),
+                "params": _fit_params_payload,
+                "fit_fp": fit_fp,
+            }
+            job["dubbed_tracks"][lang_code]["fit_fp"] = fit_fp
+        # Record what kind of per-segment WAVs are on disk so a later
+        # smart_fit run knows whether partial regen / fit-only re-mix can
+        # reuse them ("natural") or must regen once ("slotted").
+        job["seg_wav_kind"] = "slotted" if strategy == "strict_slot" else "natural"
         _save_job(job_id, job)
 
         _t_total = time.perf_counter() - _t_start
