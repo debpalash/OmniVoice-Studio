@@ -631,10 +631,21 @@ async def dub_preview_video(
 
     if not _SAFE_LANG.match(lang):
         raise HTTPException(status_code=400, detail="Invalid lang")
-    exports_dir = _safe_job_path(job_id, "exports")
+    # realpath-normalised + containment-checked inline BEFORE any filesystem
+    # access so the guard dominates every sink (the file's established
+    # pattern — see dub_preview_segment; CodeQL does not track the guard
+    # through a helper's return value).
+    _base = os.path.realpath(DUB_DIR)
+    exports_dir = os.path.realpath(os.path.join(_base, job_id, "exports"))
+    if not exports_dir.startswith(_base + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid job id")
     os.makedirs(exports_dir, exist_ok=True)
     bg_suffix = "bg" if (preserve_bg and has_bg) else "nobg"
-    preview_path = _safe_job_path(job_id, "exports", f"preview_{lang}_{bg_suffix}.mp4")
+    preview_path = os.path.realpath(
+        os.path.join(exports_dir, f"preview_{lang}_{bg_suffix}.mp4")
+    )
+    if not preview_path.startswith(_base + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid path")
 
     track_mtime = os.path.getmtime(track_path)
 
