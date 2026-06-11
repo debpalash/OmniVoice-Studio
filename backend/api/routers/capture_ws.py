@@ -174,6 +174,15 @@ async def ws_transcribe(websocket: WebSocket):
     if total_bytes > MIN_FINAL_BUFFER_BYTES:
         try:
             result = await _transcribe_buffer_full(audio_chunks)
+            # Wave 2.1: optional local-LLM refinement of the final text.
+            # Off-thread (network call, not GPU); pass-through on any
+            # failure or when no LLM backend is configured. The raw text
+            # always ships too — clients paste refined_text ?? text.
+            if result.get("text"):
+                from services.refinement import maybe_refine
+                refined = await asyncio.to_thread(maybe_refine, result["text"])
+                if refined and refined != result["text"]:
+                    result["refined_text"] = refined
             if not await _safe_send({"type": "final", **result}):
                 logger.debug("Skipped final send — client already disconnected")
         except Exception as e:

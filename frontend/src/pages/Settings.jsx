@@ -32,6 +32,7 @@ import { Tabs, Segmented, Button, Badge, Table, Progress, Select } from '../ui';
 import { useAppStore } from '../store';
 import ApiKeysPanel from '../components/settings/ApiKeysPanel';
 import PerformancePanel from '../components/settings/PerformancePanel';
+import RefinementPanel from '../components/settings/RefinementPanel';
 import AppearancePanel from '../components/settings/AppearancePanel';
 import StoragePanel from '../components/settings/StoragePanel';
 import SharingPanel from '../components/settings/SharingPanel';
@@ -1326,6 +1327,7 @@ export default function Settings() {
         <>
           <DictationDemo />
           <HotkeyTab />
+          <RefinementPanel />
         </>
       )}
 

@@ -110,7 +110,11 @@ export default function CaptureWidget({ onDismiss }) {
 
   // Apply transcription result → auto-paste → auto-dismiss
   const applyResult = useCallback(async (data) => {
-    setTranscript(data.text || '');
+    // Wave 2.1: the backend may attach an LLM-refined version of the final
+    // text (filler words removed, self-corrections applied). Paste/show the
+    // refined text when present; the raw text is kept in history alongside.
+    const finalText = data.refined_text || data.text || '';
+    setTranscript(finalText);
     setLastEngine(data.engine || '');
     setLastTime(data.transcription_time_s || 0);
     setState('done');
@@ -119,16 +123,16 @@ export default function CaptureWidget({ onDismiss }) {
       addTranscription(data);
     }
 
-    if (data.text) {
+    if (finalText) {
       try {
         // Best-effort WebView copy (works in browser mode). In Tauri the
         // widget window is unfocused on macOS, where WebView clipboard APIs
         // fail silently — so pass the transcript to simulate_paste, which
         // writes the clipboard natively (OS-side) before sending ⌘V (#287).
-        await copyText(data.text);
+        await copyText(finalText);
         try {
           const { invoke } = await import('@tauri-apps/api/core');
-          await invoke('simulate_paste', { text: data.text });
+          await invoke('simulate_paste', { text: finalText });
         } catch { /* not in Tauri */ }
       } catch { /* clipboard API may fail */ }
 

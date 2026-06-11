@@ -123,6 +123,44 @@ def set_torch_compile_disabled(body: _TorchCompileBody):
     return _torch_compile_state()
 
 
+# ── Dictation refinement (parity program Wave 2.1 / Spec 3 phase 2) ───────
+
+
+class _RefinementBody(BaseModel):
+    auto: bool | None = None
+    smart_cleanup: bool | None = None
+    self_correction: bool | None = None
+    preserve_technical: bool | None = None
+
+
+def _refinement_state():
+    from services.refinement import get_refinement_config
+    from services.llm_backend import get_active_llm_backend
+
+    cfg = get_refinement_config()
+    # The UI shows whether refinement can actually run (needs an LLM).
+    cfg["llm_ready"] = get_active_llm_backend().id != "off"
+    return cfg
+
+
+@router.get("/dictation-refinement")
+def get_dictation_refinement():
+    """Current refinement config + whether an LLM backend is configured."""
+    return _refinement_state()
+
+
+@router.put("/dictation-refinement")
+def set_dictation_refinement(body: _RefinementBody):
+    from services.refinement import set_refinement_config
+
+    try:
+        set_refinement_config({k: v for k, v in body.model_dump().items() if v is not None})
+    except Exception:
+        logger.exception("set_dictation_refinement failed")
+        raise HTTPException(status_code=500, detail="Failed to persist setting")
+    return _refinement_state()
+
+
 # ── License acceptance (Phase 3 Plan 03-01 / TTS-05) ──────────────────────
 # Frontend ``SupertonicLicenseDialog`` flips the engine-license bit via this
 # endpoint. The handler is loopback-gated (router-level dep) and the
