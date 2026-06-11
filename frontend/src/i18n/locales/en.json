@@ -151,6 +151,7 @@
     "save": "Save",
     "cancel": "Cancel",
     "synthesize": "Synthesize Audio",
+    "stop_playback": "Stop playback",
     "synthesizing": "Synthesizing… ({{seconds}}s)",
     "drop_audio": "Drop audio here — or click. WAV, MP3, M4A… 🎤",
     "record": "Record",
@@ -179,6 +180,11 @@
     "preset_sichuan": "🌶️ 四川话",
     "prompt_placeholder": "What should this voice say? ✍️",
     "design_placeholder": "Describe the voice, then type what it says…",
+    "describe_label": "Describe your voice",
+    "describe_placeholder": "e.g. a warm elderly British storyteller, slightly raspy",
+    "describe_hint": "Your description sets the controls below — you can still fine-tune them afterwards.",
+    "describe_unmatched": "Couldn't map: {{items}}",
+    "describe_no_match": "No voice traits recognized yet — try words like deep, elderly, or British.",
     "speed": "Speed",
     "tshift": "t_shift",
     "pos_temp": "Pos Temp",
@@ -302,7 +308,17 @@
     "copy_diagnostics": "Copy diagnostics",
     "github": "OmniVoice on GitHub",
     "model_card": "Model card",
-    "commercial_license": "Commercial License"
+    "commercial_license": "Commercial License",
+    "self_check": "Run self-check",
+    "self_check_failed": "Self-check failed: {{message}}",
+    "self_check_ok": "OK",
+    "self_check_warn": "Warning",
+    "self_check_fail": "Failed",
+    "self_check_healthy": "All checks passed — this install looks healthy.",
+    "self_check_attention": "{{count}} check(s) failed — see the hints above.",
+    "save_bundle": "Save diagnostic bundle",
+    "bundle_saved": "Diagnostic bundle saved: {{filename}}",
+    "bundle_failed": "Could not build the diagnostic bundle: {{message}}"
   },
   "privacy": {
     "desc": "Everything runs on <1>this machine</1>. Your audio, video, and transcripts never leave your computer unless you explicitly use an online translator (Google, DeepL, etc.) or push to HuggingFace.",
@@ -365,8 +381,11 @@
     "mic_denied": "Mic access denied",
     "mic_denied_toast": "Microphone access denied. {{hint}}",
     "mic_hint_mac": "macOS: open System Settings → Privacy & Security → Microphone and enable OmniVoice.",
-    "mic_hint_windows": "Windows: open Settings → Privacy & security → Microphone and allow OmniVoice.",
+    "mic_hint_windows": "Windows: open Settings → Privacy & security → Microphone, turn on 'Microphone access' and 'Let desktop apps access your microphone', then allow OmniVoice.",
     "mic_hint_linux": "Linux: check that your user is in the audio group and the WebView has mic access.",
+    "mic_not_found": "No microphone found. Connect or enable a microphone and try again.",
+    "mic_in_use": "The microphone is busy or unavailable. Close other apps that may be using it and try again.",
+    "mic_error_generic": "Could not start the microphone: {{message}}",
     "transcription_failed": "Transcription failed: {{message}}"
   },
   "voice_profile": {
@@ -859,7 +878,9 @@
     "open": "Open",
     "install_required_models": "Install the required models above to continue.",
     "try_dictation": "Try dictation",
-    "next_try_dictation": "Next: Try dictation"
+    "next_try_dictation": "Next: Try dictation",
+    "step_aria": "Step {{num}}: {{label}}",
+    "step_completed": "completed"
   },
   "donate": {
     "title": "Support",
@@ -1031,7 +1052,17 @@
     "region_russia": "Russia (mirror)",
     "region_restricted": "Restricted (mirror)",
     "unknown_error": "Unknown error",
-    "retrying": "Retrying…"
+    "retrying": "Retrying…",
+    "hint_readme": "README.md was missing from the bundle. This is now auto-fixed — retry should work.",
+    "hint_python_mirror": "Network couldn't reach the Python download (github.com release). Switch your region in Settings → Network (China / Russia / Restricted route through a mirror), or install Python 3.11+ system-wide so the app uses that instead.",
+    "hint_uv_timeout": "Network timeout downloading uv. Check your internet connection or try a different region in Settings → Network.",
+    "hint_uv_sync": "Dependency install failed. \"Clean & Retry\" will delete the cached venv and start fresh.",
+    "hint_build_backend": "Python build backend error. \"Clean & Retry\" removes the broken venv so it rebuilds from scratch.",
+    "hint_ffmpeg": "ffmpeg download failed. This is non-fatal — retry or install ffmpeg manually.",
+    "hint_port": "Port 3900 is already in use. Close other instances of OmniVoice or apps using that port.",
+    "hint_silent_crash": "Backend crashed silently. \"Clean & Retry\" often fixes corrupt venv issues.",
+    "hint_github_blocked": "Your network may block GitHub. Install Python 3.11+ from python.org (Add to PATH) and relaunch, or set UV_PYTHON_INSTALL_MIRROR — see docs/install/troubleshooting.md.",
+    "hint_default": "Try \"Retry\" first. If it fails again, \"Clean & Retry\" will rebuild the environment from scratch."
   },
   "direction": {
     "title": "Direction for segment #{{id}}",
@@ -1092,7 +1123,10 @@
     "title": "This tab hit a snag.",
     "desc": "Don't worry — the rest of the app still works. You can switch tabs, or try again below.",
     "tryAgain": "Try again",
-    "openDocs": "Open docs for this error"
+    "openDocs": "Open docs for this error",
+    "report": "Report this bug",
+    "searchIssues": "Search similar issues",
+    "unexpected": "Unexpected error: {{message}}"
   },
   "common": {
     "open": "Open",

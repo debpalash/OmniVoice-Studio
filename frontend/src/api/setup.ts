@@ -14,12 +14,31 @@ export interface SetupStatus {
   enough_disk: boolean;
 }
 
+/**
+ * One event on the `/setup/download-stream` SSE feed. Two families share it:
+ *
+ * - per-file tqdm updates from `utils/hf_progress.py`:
+ *   `'start' | 'progress' | 'done'` (with `filename`/`downloaded`/`total`/`rate`)
+ * - repo lifecycle markers from `routers/setup/download.py`:
+ *   `'resolving' | 'install_start' | 'install_retry' | 'install_done' |
+ *    'install_error' | 'delete_start' | 'delete_done'`
+ *
+ * Reducers (WizardLibrary, Settings model store) key resets/refetches off the
+ * lifecycle phases and byte math off the per-file phases.
+ */
 export interface SetupProgressEvent {
+  repo_id?: string;
   filename: string;
   downloaded: number;
   total: number;
   pct: number;
-  phase: 'start' | 'progress' | 'done';
+  rate?: number;
+  error?: string;
+  attempt?: number;
+  phase:
+    | 'start' | 'progress' | 'done'
+    | 'resolving' | 'install_start' | 'install_retry' | 'install_done' | 'install_error'
+    | 'delete_start' | 'delete_done';
 }
 
 export async function setupStatus(): Promise<SetupStatus> {

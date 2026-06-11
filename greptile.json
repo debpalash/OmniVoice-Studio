@@ -1,0 +1,28 @@
+{
+  "$comment": "Greptile per-repo config — https://www.greptile.com/docs/code-review-bot/greptile-json. The Greptile GitHub App is installed; this file tunes its reviews. Dashboard settings are the org-wide fallback. Greptile also learns from 👍/👎 reactions on its comments — react to train it.",
+  "instructions": "Review as a panel of passionate senior domain experts (ML inference, audio DSP, desktop systems, product polish): cite exact lines, name the concrete failure mode, propose the fix — no filler praise. OmniVoice is a fully-local desktop app (no cloud, no API keys, no telemetry): flag any new outbound network call that is not GitHub Issues or a HuggingFace model download. In every review summary, make the change visual: if the PR touches UI (JSX/TSX/CSS or Tauri window config), include a compact ASCII before/after mockup of the affected layout or component; if it changes behavior or data flow, include a sequence/flow diagram of the new mechanism. Keep diagrams small and strictly faithful to the diff.",
+  "commentTypes": ["logic", "syntax", "info"],
+  "strictness": 2,
+  "customContext": {
+    "files": ["CLAUDE.md"],
+    "rules": [
+      "Default features must behave identically on macOS, Windows and Linux; a platform-divergent default is a P0 — platform-only behavior must sit behind explicit opt-in (Settings toggle, env var, or CLI flag).",
+      "Every new user-facing string must be an i18n t('...') key present in all 21 frontend/src/i18n/locales/*.json files; hardcoded CJK outside the allowlist in tests/test_no_hardcoded_cjk.py fails CI.",
+      "Existing omnivoice_data/ and already-installed engine model state must keep working without manual migration; DB schema changes go through alembic with an upgrade path.",
+      "Never propose version bumps, release candidates, or deferrals to a future version — everything ships on the current line.",
+      "The backend serves loopback HTTP: treat every query/path/form parameter as hostile (path traversal, log injection, CSRF from a browser tab); user-chosen filesystem destinations are authorized in the Tauri process, never via HTTP params.",
+      "Every #[tauri::command] is callable from the webview: validate inputs and scope filesystem/process access; no unwrap/expect on user-controlled input.",
+      "Model/engine code must be thread-safe across the GPU worker pool and correct on all of CUDA, MPS, ROCm and CPU; check VRAM lifecycle on error paths and offline behavior of model downloads."
+    ]
+  },
+  "sequenceDiagramSection": {
+    "included": true,
+    "collapsible": true,
+    "defaultOpen": true
+  },
+  "summarySection": {
+    "included": true,
+    "collapsible": true,
+    "defaultOpen": true
+  }
+}

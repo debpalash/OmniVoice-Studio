@@ -103,7 +103,17 @@
     "region_russia": "Rosja (lustro)",
     "region_restricted": "Ograniczone (lustro)",
     "unknown_error": "Nieznany błąd",
-    "retrying": "Ponawiam próbę…"
+    "retrying": "Ponawiam próbę…",
+    "hint_readme": "W pakiecie brakowało README.md. Jest to już naprawiane automatycznie — ponowienie powinno zadziałać.",
+    "hint_python_mirror": "Sieć nie mogła pobrać Pythona (release z github.com). Zmień region w Ustawienia → Sieć (Chiny / Rosja / Ograniczony korzystają z mirrora) albo zainstaluj Pythona 3.11+ w systemie, aby aplikacja z niego korzystała.",
+    "hint_uv_timeout": "Przekroczono limit czasu pobierania uv. Sprawdź połączenie z internetem lub wybierz inny region w Ustawienia → Sieć.",
+    "hint_uv_sync": "Instalacja zależności nie powiodła się. „Wyczyść i ponów” usunie zbuforowany venv i zacznie od nowa.",
+    "hint_build_backend": "Błąd backendu budowania Pythona. „Wyczyść i ponów” usuwa uszkodzony venv, aby zbudować go od zera.",
+    "hint_ffmpeg": "Pobieranie ffmpeg nie powiodło się. To nie jest krytyczne — ponów próbę lub zainstaluj ffmpeg ręcznie.",
+    "hint_port": "Port 3900 jest już zajęty. Zamknij inne instancje OmniVoice lub aplikacje korzystające z tego portu.",
+    "hint_silent_crash": "Backend zakończył działanie bez komunikatu o błędzie. „Wyczyść i ponów” często naprawia problemy z uszkodzonym venv.",
+    "hint_github_blocked": "Twoja sieć może blokować GitHub. Zainstaluj Pythona 3.11+ z python.org (dodaj do PATH) i uruchom ponownie albo ustaw UV_PYTHON_INSTALL_MIRROR — zobacz docs/install/troubleshooting.md.",
+    "hint_default": "Najpierw spróbuj „Ponów”. Jeśli znowu się nie powiedzie, „Wyczyść i ponów” odbuduje środowisko od zera."
   },
   "stories": {
     "title": "Redaktor opowiadań",
@@ -248,6 +258,7 @@
     "save": "Zapisz",
     "cancel": "Anuluj",
     "synthesize": "Syntetyzuj dźwięk",
+    "stop_playback": "Zatrzymaj odtwarzanie",
     "synthesizing": "Syntetyzowanie… ({{seconds}}s)",
     "drop_audio": "Upuść dźwięk tutaj — lub kliknij. WAV, MP3, M4A… 🎤",
     "record": "Nagraj",
@@ -276,6 +287,11 @@
     "preset_sichuan": "🌶️ 四川话",
     "prompt_placeholder": "Co powinien powiedzieć ten głos? ✍️",
     "design_placeholder": "Opisz głos, a następnie napisz, co mówi…",
+    "describe_label": "Opisz swój głos",
+    "describe_placeholder": "np. a warm elderly British storyteller, slightly raspy",
+    "describe_hint": "Twój opis (po angielsku) ustawia poniższe kontrolki — możesz je potem doprecyzować.",
+    "describe_unmatched": "Nie udało się dopasować: {{items}}",
+    "describe_no_match": "Nie rozpoznano jeszcze cech głosu — spróbuj słów takich jak deep, elderly lub British.",
     "speed": "Prędkość",
     "tshift": "t_przesunięcie",
     "pos_temp": "Temp. poz",
@@ -337,7 +353,17 @@
     "channel_stable": "Stabilny",
     "channel_preview": "Podgląd",
     "channel_set": "Kanał aktualizacji ustawiony na {{channel}}",
-    "channel_preview_hint": "Podgląd śledzi najnowszą kompilację main — nowsze funkcje, mniej testów. Wraca do stabilnej, jeśli stabilne wydanie jest nowsze."
+    "channel_preview_hint": "Podgląd śledzi najnowszą kompilację main — nowsze funkcje, mniej testów. Wraca do stabilnej, jeśli stabilne wydanie jest nowsze.",
+    "self_check": "Uruchom autodiagnostykę",
+    "self_check_failed": "Autodiagnostyka nie powiodła się: {{message}}",
+    "self_check_ok": "OK",
+    "self_check_warn": "Ostrzeżenie",
+    "self_check_fail": "Niepowodzenie",
+    "self_check_healthy": "Wszystkie testy zaliczone — ta instalacja wygląda na sprawną.",
+    "self_check_attention": "{{count}} test(y) zakończone niepowodzeniem — zobacz wskazówki powyżej.",
+    "save_bundle": "Zapisz pakiet diagnostyczny",
+    "bundle_saved": "Pakiet diagnostyczny zapisany: {{filename}}",
+    "bundle_failed": "Nie udało się utworzyć pakietu diagnostycznego: {{message}}"
   },
   "privacy": {
     "desc": "Wszystko działa na <1>tej maszynie</1>. Twoje nagrania audio, wideo i transkrypcje nigdy nie opuszczają Twojego komputera, chyba że wyraźnie skorzystasz z tłumacza online (Google, DeepL itp.) lub przekażesz je do HuggingFace.",
@@ -436,8 +462,11 @@
     "mic_denied": "Odmowa dostępu do mikrofonu",
     "mic_denied_toast": "Odmowa dostępu do mikrofonu. {{hint}}",
     "mic_hint_mac": "macOS: otwórz Ustawienia systemowe → Prywatność i bezpieczeństwo → Mikrofon i włącz OmniVoice.",
-    "mic_hint_windows": "Windows: otwórz Ustawienia → Prywatność i bezpieczeństwo → Mikrofon i zezwól na OmniVoice.",
+    "mic_hint_windows": "Windows: otwórz Ustawienia → Prywatność i zabezpieczenia → Mikrofon, włącz „Dostęp do mikrofonu” i „Zezwalaj aplikacjom klasycznym na dostęp do mikrofonu”, a następnie zezwól OmniVoice.",
     "mic_hint_linux": "Linux: sprawdź, czy użytkownik należy do grupy audio i czy WebView ma dostęp do mikrofonu.",
+    "mic_not_found": "Nie znaleziono mikrofonu. Podłącz lub włącz mikrofon i spróbuj ponownie.",
+    "mic_in_use": "Mikrofon jest zajęty lub niedostępny. Zamknij inne aplikacje, które mogą go używać, i spróbuj ponownie.",
+    "mic_error_generic": "Nie można uruchomić mikrofonu: {{message}}",
     "transcription_failed": "Transkrypcja nie powiodła się: {{message}}"
   },
   "logs": {
@@ -654,7 +683,10 @@
     "diagnostic_copied": "Diagnostyka skopiowana",
     "copy_failed": "Kopiowanie nie powiodło się",
     "open_docs": "Otwórz dokumenty",
-    "copy_diagnostic": "Kopiuj diagnostykę"
+    "copy_diagnostic": "Kopiuj diagnostykę",
+    "num_speakers_label": "Mówcy",
+    "num_speakers_auto": "Automatycznie",
+    "num_speakers_help": "Ilu mówców jest w tym wideo? Pozostaw puste, aby wykryć automatycznie. Podaj liczbę, jeśli automatyczne wykrywanie łączy kilku mówców w jednego."
   },
   "glossary": {
     "title": "Glosariusz",
@@ -956,7 +988,9 @@
     "open": "Otwórz",
     "install_required_models": "Aby kontynuować, zainstaluj wymagane modele powyżej.",
     "try_dictation": "Spróbuj dyktowania",
-    "next_try_dictation": "Dalej: Wypróbuj dyktowanie"
+    "next_try_dictation": "Dalej: Wypróbuj dyktowanie",
+    "step_aria": "Krok {{num}}: {{label}}",
+    "step_completed": "ukończono"
   },
   "donate": {
     "title": "Wsparcie",
@@ -1123,7 +1157,10 @@
     "title": "Ta zakładka napotkała przeszkodę.",
     "desc": "Nie martw się — reszta aplikacji nadal działa. Możesz przełączyć karty lub spróbować ponownie poniżej.",
     "tryAgain": "Spróbuj ponownie",
-    "openDocs": "Otwórz dokumenty dotyczące tego błędu"
+    "openDocs": "Otwórz dokumenty dotyczące tego błędu",
+    "report": "Zgłoś ten błąd",
+    "searchIssues": "Szukaj podobnych problemów",
+    "unexpected": "Nieoczekiwany błąd: {{message}}"
   },
   "keyboard": {
     "title": "Skróty klawiaturowe",

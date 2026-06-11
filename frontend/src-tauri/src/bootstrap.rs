@@ -154,14 +154,31 @@ pub fn retry_bootstrap(app: tauri::AppHandle, state: tauri::State<'_, BootstrapS
             crate::backend::kill_orphan_on_port(backend_port());
             std::thread::sleep(Duration::from_millis(500));
         }
-        let child = crate::backend::spawn_backend(&app, Some(&stage_handle));
+        spawn_backend_and_wait(&app, &stage_handle);
+    });
+}
+
+/// Spawn the backend and poll until it is healthy (→ `Ready`) or dead /
+/// timed out (→ `Failed`). Shared by the launch-time bootstrap (`lib.rs`) and
+/// the Retry button (`retry_bootstrap`) so both get the same recovery
+/// behavior.
+///
+/// #314: when the backend dies with a broken-venv signature ("No pyvenv.cfg
+/// file" / exit code 106 from the CPython venv launcher), the venv — and only
+/// the venv — is removed and the bootstrap re-runs once, recreating it through
+/// the normal `CreatingVenv` / `InstallingDeps` setup path instead of
+/// surfacing the same dead-end failure on every retry.
+pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapStage>>) {
+    let mut venv_heal_attempted = false;
+    'bootstrap: loop {
+        let child = crate::backend::spawn_backend(app, Some(stage_handle));
         if let Ok(mut guard) = app.state::<BackendState>().process.lock() {
             *guard = child;
         }
         let start = std::time::Instant::now();
         while start.elapsed() < Duration::from_secs(300) {
             if crate::backend::backend_healthy(backend_port()) {
-                set_stage(&stage_handle, BootstrapStage::Ready);
+                set_stage(stage_handle, BootstrapStage::Ready);
                 return;
             }
             let process_dead = if let Ok(mut guard) = app.state::<BackendState>().process.lock() {
@@ -178,13 +195,40 @@ pub fn retry_bootstrap(app: tauri::AppHandle, state: tauri::State<'_, BootstrapS
             };
             if let Some(exit_info) = process_dead {
                 let err_tail = crate::backend::read_error_log_tail(30);
+                // #314: a backend that dies because the venv itself is broken
+                // can only be healed by rebuilding the venv — do that once
+                // instead of failing into an unwinnable retry loop.
+                if !venv_heal_attempted
+                    && backend_exit_indicates_broken_venv(&exit_info, &err_tail)
+                {
+                    venv_heal_attempted = true;
+                    let venv_dir = crate::setup::env_root(app).join("project").join(".venv");
+                    log::warn!(
+                        "Backend exited with a broken-venv signature ({}) — removing {} and rebuilding (#314)",
+                        exit_info,
+                        venv_dir.display()
+                    );
+                    emit_log(
+                        app,
+                        "checking",
+                        "Backend failed because the Python environment is broken — rebuilding it automatically",
+                    );
+                    if quarantine_broken_venv(&venv_dir) {
+                        set_stage(stage_handle, BootstrapStage::Checking);
+                        continue 'bootstrap;
+                    }
+                    log::error!(
+                        "Could not remove broken venv at {} — surfacing the failure",
+                        venv_dir.display()
+                    );
+                }
                 let msg = if err_tail.is_empty() {
                     format!("Backend process exited ({}) — no error output captured", exit_info)
                 } else {
                     format!("Backend process exited ({}):\n{}", exit_info, err_tail)
                 };
                 log::error!("Backend died early: {}", msg);
-                set_stage(&stage_handle, BootstrapStage::Failed { message: msg });
+                set_stage(stage_handle, BootstrapStage::Failed { message: msg });
                 return;
             }
             std::thread::sleep(Duration::from_millis(500));
@@ -195,8 +239,9 @@ pub fn retry_bootstrap(app: tauri::AppHandle, state: tauri::State<'_, BootstrapS
         } else {
             format!("Backend did not respond within 300 s. Last stderr output:\n{}", err_tail)
         };
-        set_stage(&stage_handle, BootstrapStage::Failed { message: msg });
-    });
+        set_stage(stage_handle, BootstrapStage::Failed { message: msg });
+        return;
+    }
 }
 
 #[tauri::command]
@@ -378,6 +423,94 @@ fn rocm_opt_in(configured_variant: &str) -> Option<String> {
     Some(std::env::var("OMNIVOICE_TORCH_INDEX").unwrap_or_else(|_| ROCM_TORCH_INDEX.to_string()))
 }
 
+// ── #314: broken-venv detection + self-heal ────────────────────────────────
+
+/// Cheap structural validity check for an existing venv — no subprocess
+/// spawned. Returns a human-readable reason when the venv can never work and
+/// must be rebuilt:
+///   - `pyvenv.cfg` missing (interrupted creation / half-deleted dir — the
+///     CPython venv launcher then exits 106 with "No pyvenv.cfg file"),
+///   - the python executable missing entirely, or
+///   - on Unix, `bin/python` left as a dangling symlink because the base
+///     interpreter it was created from was removed.
+///
+/// Returns `None` both for a healthy venv (which must never be touched) and
+/// for a venv path that doesn't exist at all (the first-run creation path
+/// owns that case).
+pub fn venv_structural_problem(venv_dir: &Path) -> Option<String> {
+    if venv_dir.symlink_metadata().is_err() {
+        return None; // no venv at all — first-run creation handles it
+    }
+    if !venv_dir.is_dir() {
+        return Some(".venv exists but is not a directory".to_string());
+    }
+    if !venv_dir.join("pyvenv.cfg").is_file() {
+        return Some("pyvenv.cfg is missing".to_string());
+    }
+    let py = venv_python_path(venv_dir);
+    if py.symlink_metadata().is_err() {
+        return Some(format!("python executable is missing ({})", py.display()));
+    }
+    // `is_file()` follows symlinks, so a `bin/python` whose target interpreter
+    // was uninstalled (dangling symlink) fails here even though the
+    // `symlink_metadata()` existence check above passed.
+    if !py.is_file() {
+        return Some(format!("python executable is a dangling symlink ({})", py.display()));
+    }
+    None
+}
+
+/// Remove a structurally broken venv so the creation path can rebuild it.
+/// Only `.venv` itself is touched — project manifests, backend sources, and
+/// all user data (`omnivoice_data/`) stay in place. If the directory can't be
+/// deleted outright (e.g. a locked file on Windows), rename it aside instead
+/// so `uv venv` still finds a clean path. Returns true when the original path
+/// is gone.
+fn quarantine_broken_venv(venv_dir: &Path) -> bool {
+    if venv_dir.symlink_metadata().is_err() {
+        return true; // already gone — nothing to do
+    }
+    match fs::remove_dir_all(venv_dir) {
+        Ok(()) => {
+            log::info!("Removed broken venv {} (#314)", venv_dir.display());
+            true
+        }
+        Err(e) => {
+            log::warn!(
+                "remove_dir_all({}) failed: {} — renaming the broken venv aside instead",
+                venv_dir.display(),
+                e
+            );
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let quarantine = venv_dir.with_file_name(format!(".venv.broken-{}", ts));
+            match fs::rename(venv_dir, &quarantine) {
+                Ok(()) => {
+                    log::info!("Renamed broken venv to {} (#314)", quarantine.display());
+                    true
+                }
+                Err(e2) => {
+                    log::error!("Could not rename broken venv aside: {}", e2);
+                    false
+                }
+            }
+        }
+    }
+}
+
+/// Whether a dead backend process looks like it failed because the venv
+/// itself is structurally broken — the CPython venv launcher prints
+/// "No pyvenv.cfg file" and exits with code 106 (`RC_NO_PYVENV_CFG`). Matches
+/// either the message in the captured stderr tail or the exit code in the
+/// `ExitStatus` display ("exit code: 106" on Windows, "exit status: 106" on
+/// Unix). Kept deliberately narrow so ordinary backend crashes never trigger
+/// a venv rebuild.
+pub fn backend_exit_indicates_broken_venv(exit_info: &str, err_tail: &str) -> bool {
+    err_tail.contains("No pyvenv.cfg file") || exit_info.trim_end().ends_with(": 106")
+}
+
 /// Prepare (and on first run, create) the Python venv that will host the
 /// backend process. Returns (venv_python, backend_source_dir).
 pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<&Arc<Mutex<BootstrapStage>>>) -> Option<(PathBuf, PathBuf)> {
@@ -409,6 +542,37 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
     let venv_dir = project_dir.join(".venv");
     let venv_py = venv_python_path(&venv_dir);
     let backend_dir = project_dir.join("backend");
+
+    // #314: structural validation before trusting an existing venv. A venv
+    // whose pyvenv.cfg is gone (interrupted install) or whose python is a
+    // dangling symlink (its base interpreter was removed) can never recover
+    // via `uv sync` — the interpreter itself is the broken part, and the
+    // backend would just exit 106 ("No pyvenv.cfg file") forever. Quarantine
+    // it and fall through to the creation path below, which rebuilds it with
+    // the normal CreatingVenv/InstallingDeps progress. A healthy venv returns
+    // None here and is never touched.
+    if let Some(problem) = venv_structural_problem(&venv_dir) {
+        log::warn!(
+            "Venv at {} is structurally broken ({}) — removing it and rebuilding (#314)",
+            venv_dir.display(),
+            problem
+        );
+        emit_log(
+            app,
+            "checking",
+            &format!("Detected a broken Python environment ({}) — rebuilding it automatically", problem),
+        );
+        if !quarantine_broken_venv(&venv_dir) {
+            fail(progress, &format!(
+                "The Python environment at {} is broken ({}) but could not be removed \
+automatically. Close any programs using that folder, or delete the .venv folder \
+manually, then relaunch.",
+                venv_dir.display(),
+                problem
+            ));
+            return None;
+        }
+    }
 
     if venv_py.is_file() && backend_dir.is_dir() {
         let mut uvicorn_check_cmd = Command::new(&venv_py);
@@ -907,6 +1071,128 @@ mod tests {
 
         std::env::remove_var("OMNIVOICE_TORCH_VARIANT");
         std::env::remove_var("OMNIVOICE_TORCH_INDEX");
+    }
+
+    /// Unique scratch dir under the OS temp dir for the #314 venv-validity tests.
+    /// Caller removes it at the end of the test.
+    fn temp_venv_dir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "omnivoice-test-314-{}-{}",
+            tag,
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("create temp venv dir");
+        dir
+    }
+
+    /// Lay down the minimal healthy-venv skeleton: pyvenv.cfg + the python
+    /// executable at the platform-correct location.
+    fn write_healthy_venv_skeleton(venv: &Path) {
+        fs::write(venv.join("pyvenv.cfg"), "home = /usr/local/bin\n").unwrap();
+        let py = venv_python_path(venv);
+        fs::create_dir_all(py.parent().unwrap()).unwrap();
+        fs::write(&py, "#!fake interpreter\n").unwrap();
+    }
+
+    #[test]
+    fn venv_structural_problem_none_when_venv_missing() {
+        // #314: a venv path that doesn't exist is the first-run case — the
+        // creation path owns it, the validator must stay out of the way.
+        let dir = temp_venv_dir("absent");
+        let venv = dir.join(".venv");
+        assert!(venv_structural_problem(&venv).is_none());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn venv_structural_problem_none_for_healthy_venv() {
+        // #314 / backward-compat hard rule: a healthy venv must never be
+        // flagged (and therefore never deleted).
+        let dir = temp_venv_dir("healthy");
+        let venv = dir.join(".venv");
+        fs::create_dir_all(&venv).unwrap();
+        write_healthy_venv_skeleton(&venv);
+        assert!(venv_structural_problem(&venv).is_none());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn venv_structural_problem_detects_missing_pyvenv_cfg() {
+        // #314: the exact field condition of the bug report — python present,
+        // pyvenv.cfg gone → venv launcher exits 106 "No pyvenv.cfg file".
+        let dir = temp_venv_dir("no-cfg");
+        let venv = dir.join(".venv");
+        fs::create_dir_all(&venv).unwrap();
+        write_healthy_venv_skeleton(&venv);
+        fs::remove_file(venv.join("pyvenv.cfg")).unwrap();
+        let problem = venv_structural_problem(&venv).expect("must flag missing pyvenv.cfg");
+        assert!(problem.contains("pyvenv.cfg"), "reason names pyvenv.cfg: {}", problem);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn venv_structural_problem_detects_missing_python() {
+        let dir = temp_venv_dir("no-python");
+        let venv = dir.join(".venv");
+        fs::create_dir_all(&venv).unwrap();
+        write_healthy_venv_skeleton(&venv);
+        fs::remove_file(venv_python_path(&venv)).unwrap();
+        let problem = venv_structural_problem(&venv).expect("must flag missing python");
+        assert!(problem.contains("python"), "reason names python: {}", problem);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn venv_structural_problem_detects_dangling_python_symlink() {
+        // #314: `bin/python` symlinks to a managed base interpreter; if that
+        // interpreter was removed, the symlink dangles and the venv is dead.
+        let dir = temp_venv_dir("dangling");
+        let venv = dir.join(".venv");
+        fs::create_dir_all(&venv).unwrap();
+        write_healthy_venv_skeleton(&venv);
+        let py = venv_python_path(&venv);
+        fs::remove_file(&py).unwrap();
+        std::os::unix::fs::symlink(dir.join("no-such-interpreter"), &py).unwrap();
+        let problem = venv_structural_problem(&venv).expect("must flag dangling symlink");
+        assert!(problem.contains("dangling"), "reason names the dangling link: {}", problem);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn quarantine_broken_venv_removes_only_the_venv() {
+        // #314 safety property: only `.venv` goes away; sibling project files
+        // (manifests, backend sources) are untouched.
+        let dir = temp_venv_dir("quarantine");
+        let venv = dir.join(".venv");
+        fs::create_dir_all(venv.join("lib")).unwrap();
+        fs::write(venv.join("lib").join("junk.py"), "x").unwrap();
+        fs::write(dir.join("pyproject.toml"), "[project]\n").unwrap();
+        assert!(quarantine_broken_venv(&venv), "quarantine must succeed");
+        assert!(!venv.exists(), ".venv must be gone");
+        assert!(dir.join("pyproject.toml").is_file(), "sibling files must survive");
+        // Idempotent: quarantining an already-gone venv is a no-op success.
+        assert!(quarantine_broken_venv(&venv));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn broken_venv_exit_signature_matches_106_and_pyvenv_message_only() {
+        // #314: Windows venv launcher display + message.
+        assert!(backend_exit_indicates_broken_venv("exit code: 106", ""));
+        // Unix ExitStatus display.
+        assert!(backend_exit_indicates_broken_venv("exit status: 106", ""));
+        // Message in stderr tail wins regardless of the exit code text.
+        assert!(backend_exit_indicates_broken_venv(
+            "exit status: 1",
+            "Fatal error: No pyvenv.cfg file"
+        ));
+        // Deliberately narrow: ordinary crashes must NOT trigger a rebuild.
+        assert!(!backend_exit_indicates_broken_venv("exit status: 1", "Traceback ..."));
+        assert!(!backend_exit_indicates_broken_venv("exit status: 1060", ""));
+        assert!(!backend_exit_indicates_broken_venv("signal: 6 (SIGABRT)", ""));
+        assert!(!backend_exit_indicates_broken_venv("never started", ""));
     }
 
     /// #248: verify that the setuptools repair install uses the correct specifier.

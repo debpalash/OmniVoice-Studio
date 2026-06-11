@@ -103,7 +103,17 @@
     "region_russia": "Rusia (cermin)",
     "region_restricted": "Dibatasi (cermin)",
     "unknown_error": "Kesalahan tidak diketahui",
-    "retrying": "Mencoba lagi…"
+    "retrying": "Mencoba lagi…",
+    "hint_readme": "README.md hilang dari bundel. Ini sekarang diperbaiki otomatis — coba lagi seharusnya berhasil.",
+    "hint_python_mirror": "Jaringan tidak dapat menjangkau unduhan Python (rilis github.com). Ganti wilayah di Pengaturan → Jaringan (Tiongkok / Rusia / Terbatas lewat mirror), atau pasang Python 3.11+ di sistem agar aplikasi memakainya.",
+    "hint_uv_timeout": "Waktu jaringan habis saat mengunduh uv. Periksa koneksi internet Anda atau coba wilayah lain di Pengaturan → Jaringan.",
+    "hint_uv_sync": "Pemasangan dependensi gagal. \"Bersihkan & Coba Lagi\" akan menghapus venv yang ter-cache dan memulai dari awal.",
+    "hint_build_backend": "Kesalahan backend build Python. \"Bersihkan & Coba Lagi\" menghapus venv yang rusak agar dibangun ulang dari awal.",
+    "hint_ffmpeg": "Unduhan ffmpeg gagal. Ini tidak fatal — coba lagi atau pasang ffmpeg secara manual.",
+    "hint_port": "Port 3900 sudah digunakan. Tutup instans OmniVoice lain atau aplikasi yang memakai port itu.",
+    "hint_silent_crash": "Backend berhenti tanpa pesan kesalahan. \"Bersihkan & Coba Lagi\" sering memperbaiki masalah venv yang rusak.",
+    "hint_github_blocked": "Jaringan Anda mungkin memblokir GitHub. Pasang Python 3.11+ dari python.org (tambahkan ke PATH) lalu jalankan ulang, atau setel UV_PYTHON_INSTALL_MIRROR — lihat docs/install/troubleshooting.md.",
+    "hint_default": "Coba \"Coba Lagi\" dulu. Jika gagal lagi, \"Bersihkan & Coba Lagi\" akan membangun ulang lingkungan dari awal."
   },
   "stories": {
     "title": "Editor Cerita",
@@ -248,6 +258,7 @@
     "save": "Simpan",
     "cancel": "Batalkan",
     "synthesize": "Sintesis Audio",
+    "stop_playback": "Hentikan pemutaran",
     "synthesizing": "Mensintesis… ({{seconds}}s)",
     "drop_audio": "Letakkan audio di sini — atau klik. WAV, MP3, M4A… 🎤",
     "record": "Rekam",
@@ -276,6 +287,11 @@
     "preset_sichuan": "🌶️ 四川话",
     "prompt_placeholder": "Apa yang seharusnya dikatakan oleh suara ini? ✍️",
     "design_placeholder": "Jelaskan suaranya, lalu ketikkan apa yang dikatakannya…",
+    "describe_label": "Deskripsikan suara Anda",
+    "describe_placeholder": "mis. a warm elderly British storyteller, slightly raspy",
+    "describe_hint": "Deskripsi Anda (dalam bahasa Inggris) mengatur kontrol di bawah — Anda tetap bisa menyetelnya setelahnya.",
+    "describe_unmatched": "Tidak dapat dipetakan: {{items}}",
+    "describe_no_match": "Belum ada ciri suara yang dikenali — coba kata seperti deep, elderly, atau British.",
     "speed": "Kecepatan",
     "tshift": "t_shift",
     "pos_temp": "Suhu Pos",
@@ -337,7 +353,17 @@
     "channel_stable": "Stabil",
     "channel_preview": "Pratinjau",
     "channel_set": "Saluran pembaruan disetel ke {{channel}}",
-    "channel_preview_hint": "Pratinjau mengikuti build main terbaru — fitur lebih baru, lebih sedikit diuji. Kembali ke stabil jika ada rilis stabil yang lebih baru."
+    "channel_preview_hint": "Pratinjau mengikuti build main terbaru — fitur lebih baru, lebih sedikit diuji. Kembali ke stabil jika ada rilis stabil yang lebih baru.",
+    "self_check": "Jalankan pemeriksaan mandiri",
+    "self_check_failed": "Pemeriksaan mandiri gagal: {{message}}",
+    "self_check_ok": "OK",
+    "self_check_warn": "Peringatan",
+    "self_check_fail": "Gagal",
+    "self_check_healthy": "Semua pemeriksaan lulus — instalasi ini tampak sehat.",
+    "self_check_attention": "{{count}} pemeriksaan gagal — lihat petunjuk di atas.",
+    "save_bundle": "Simpan bundel diagnostik",
+    "bundle_saved": "Bundel diagnostik tersimpan: {{filename}}",
+    "bundle_failed": "Tidak dapat membuat bundel diagnostik: {{message}}"
   },
   "privacy": {
     "desc": "Semuanya berjalan di <1>mesin ini</1>. Audio, video, dan transkrip Anda tidak pernah keluar dari komputer kecuali Anda secara eksplisit menggunakan penerjemah online (Google, DeepL, dll.) atau mendorong ke HuggingFace.",
@@ -436,8 +462,11 @@
     "mic_denied": "Akses mikrofon ditolak",
     "mic_denied_toast": "Akses mikrofon ditolak. {{hint}}",
     "mic_hint_mac": "macOS: buka Pengaturan Sistem → Privasi & Keamanan → Mikrofon dan aktifkan OmniVoice.",
-    "mic_hint_windows": "Windows: buka Pengaturan → Privasi & keamanan → Mikrofon dan izinkan OmniVoice.",
+    "mic_hint_windows": "Windows: buka Pengaturan → Privasi & keamanan → Mikrofon, aktifkan 'Akses mikrofon' dan 'Izinkan aplikasi desktop mengakses mikrofon Anda', lalu izinkan OmniVoice.",
     "mic_hint_linux": "Linux: periksa apakah pengguna Anda ada di grup audio dan WebView memiliki akses mikrofon.",
+    "mic_not_found": "Mikrofon tidak ditemukan. Hubungkan atau aktifkan mikrofon, lalu coba lagi.",
+    "mic_in_use": "Mikrofon sedang sibuk atau tidak tersedia. Tutup aplikasi lain yang mungkin menggunakannya, lalu coba lagi.",
+    "mic_error_generic": "Tidak dapat memulai mikrofon: {{message}}",
     "transcription_failed": "Transkripsi gagal: {{message}}"
   },
   "logs": {
@@ -654,7 +683,10 @@
     "diagnostic_copied": "Diagnostik disalin",
     "copy_failed": "Penyalinan gagal",
     "open_docs": "Buka dokumen",
-    "copy_diagnostic": "Salin diagnostik"
+    "copy_diagnostic": "Salin diagnostik",
+    "num_speakers_label": "Pembicara",
+    "num_speakers_auto": "Otomatis",
+    "num_speakers_help": "Berapa banyak pembicara dalam video ini? Biarkan kosong untuk deteksi otomatis. Tetapkan angka jika deteksi otomatis menggabungkan beberapa pembicara menjadi satu."
   },
   "glossary": {
     "title": "Glosarium",
@@ -956,7 +988,9 @@
     "open": "Buka",
     "install_required_models": "Instal model yang diperlukan di atas untuk melanjutkan.",
     "try_dictation": "Coba dikte",
-    "next_try_dictation": "Berikutnya: Coba dikte"
+    "next_try_dictation": "Berikutnya: Coba dikte",
+    "step_aria": "Langkah {{num}}: {{label}}",
+    "step_completed": "selesai"
   },
   "donate": {
     "title": "Dukungan",
@@ -1123,7 +1157,10 @@
     "title": "Tab ini menemui hambatan.",
     "desc": "Jangan khawatir — aplikasi lainnya masih berfungsi. Anda dapat berpindah tab, atau coba lagi di bawah.",
     "tryAgain": "Coba lagi",
-    "openDocs": "Buka dokumen untuk kesalahan ini"
+    "openDocs": "Buka dokumen untuk kesalahan ini",
+    "report": "Laporkan bug ini",
+    "searchIssues": "Cari masalah serupa",
+    "unexpected": "Kesalahan tak terduga: {{message}}"
   },
   "keyboard": {
     "title": "Pintasan keyboard",

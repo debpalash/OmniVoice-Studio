@@ -25,6 +25,11 @@ class DubSegment(BaseModel):
     speed: Optional[float] = None
     gain: Optional[float] = None  # Per-segment volume (0.0 - 2.0, default 1.0)
     target_lang: Optional[str] = None  # Per-segment language override (ISO code)
+    # Phase 4.2 free-form directorial note ("urgent, whispered…"). The client
+    # has always sent this; without the field pydantic silently dropped it,
+    # so directions never reached TTS and never entered the regen
+    # fingerprint (#281).
+    direction: Optional[str] = None
     effect_preset: str = "broadcast"   # NEW: DSP preset id (default: broadcast)
 
     @field_validator("effect_preset")

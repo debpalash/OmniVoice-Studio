@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
+import { toastErrorWithReport } from '../utils/errorToast';
 import {
   ArrowLeft, Fingerprint, Wand2, Lock, Unlock, Trash2, Play, Save,
   FolderOpen, Volume2, Clock, Pencil, Check, X, Sparkles,
@@ -81,7 +82,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
       setEditing(false);
       toast.success(t('voice_profile.saved'));
     } catch (e) {
-      toast.error(t('voice_profile.save_failed', { message: e.message }));
+      toastErrorWithReport(t('voice_profile.save_failed', { message: e.message }), e);
     } finally {
       setSaving(false);
     }
@@ -104,7 +105,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
       toast.success(t('voice_profile.deleted'));
       onDeleted?.();
     } catch (e) {
-      toast.error(t('voice_profile.delete_failed', { message: e.message }));
+      toastErrorWithReport(t('voice_profile.delete_failed', { message: e.message }), e);
     }
   };
 
@@ -139,7 +140,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
       setTestAudioUrl(url);
       setTimeout(() => testAudioRef.current?.play?.(), 80);
     } catch (e) {
-      toast.error(t('voice_profile.gen_failed', { message: e.message }));
+      toastErrorWithReport(t('voice_profile.gen_failed', { message: e.message }), e);
     } finally {
       setTestGenerating(false);
     }

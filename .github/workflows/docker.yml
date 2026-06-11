@@ -5,11 +5,13 @@
 #   - push to main branch                          → :main, :sha- (rolling "edge" build)
 #   - workflow_dispatch                            → :sha- only (ad-hoc test build)
 #
-# Tag ↔ image mapping
-#   :latest   — always the most recent versioned release (set on every v* tag push)
-#   :0.3.0    — exact version from the git tag
+# Tag ↔ image mapping (versioning hard rule, owner-set 2026-06-11:
+# :latest IS the preview channel; stable users pin :stable or a version tag)
+#   :latest   — rolling preview: latest commit on main (always last release + 1 dev)
+#   :main     — alias of the same rolling main build (kept for back-compat)
+#   :stable   — most recent versioned release (set on every v* tag push)
+#   :0.3.6    — exact version from the git tag
 #   :0.3      — major.minor floating tag (updated on every patch within the minor)
-#   :main     — latest commit on main; may be ahead of the last tagged release
 #   :sha-xxxx — specific commit SHA; produced by workflow_dispatch
 #
 # Images land at: ghcr.io/debpalash/omnivoice-studio
@@ -57,18 +59,14 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # Tag strategy (`:sha-<short>` is emitted on every trigger):
-      #   v0.3.0 tag push   → :0.3.0, :0.3, :latest, :sha-
-      #   main branch push  → :main, :sha-
+      #   v0.3.6 tag push   → :0.3.6, :0.3, :stable, :sha-
+      #   main branch push  → :latest, :main, :sha-
       #   workflow_dispatch → :sha- only
       #
-      # Fix for stale :latest (issues #249, #251):
-      #   The previous rule used `enable={{is_default_branch}}`, which evaluates
-      #   to false on tag pushes (detached HEAD) — so :latest was never updated
-      #   when a release tag was pushed. The version / :latest / :main rules are
-      #   gated on `github.event_name == 'push'` so a manual workflow_dispatch can
-      #   only ever produce a throwaway `:sha-` tag (never republish a mutable
-      #   tag), and :latest additionally excludes prerelease tags (those contain a
-      #   `-`, e.g. v1.0.0-rc.1) so a prerelease can't clobber :latest.
+      # All mutable-tag rules stay gated on `github.event_name == 'push'` so a
+      # manual workflow_dispatch can only ever produce a throwaway `:sha-` tag
+      # (the stale-:latest fix from #249/#251). :stable excludes prerelease
+      # tags (those contain a `-`) so a prerelease can't clobber it.
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
@@ -77,7 +75,8 @@ jobs:
           tags: |
             type=semver,pattern={{version}},enable=${{ github.event_name == 'push' }}
             type=semver,pattern={{major}}.{{minor}},enable=${{ github.event_name == 'push' }}
-            type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref_type == 'tag' && !contains(github.ref, '-') }}
+            type=raw,value=stable,enable=${{ github.event_name == 'push' && github.ref_type == 'tag' && !contains(github.ref, '-') }}
+            type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
             type=raw,value=main,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
             type=sha,prefix=sha-,format=short
 

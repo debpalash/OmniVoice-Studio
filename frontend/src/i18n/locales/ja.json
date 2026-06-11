@@ -104,7 +104,17 @@
     "region_russia": "ロシア（鏡）",
     "region_restricted": "制限付き（ミラー）",
     "unknown_error": "不明なエラー",
-    "retrying": "再試行中…"
+    "retrying": "再試行中…",
+    "hint_readme": "バンドルに README.md がありませんでした。現在は自動修正されます — 再試行すれば動作するはずです。",
+    "hint_python_mirror": "ネットワークが Python のダウンロード(github.com のリリース)に到達できませんでした。設定 → ネットワークで地域を切り替える(中国 / ロシア / 制限付きはミラー経由)か、システムに Python 3.11+ をインストールしてアプリにそちらを使わせてください。",
+    "hint_uv_timeout": "uv のダウンロードでネットワークがタイムアウトしました。インターネット接続を確認するか、設定 → ネットワークで別の地域を試してください。",
+    "hint_uv_sync": "依存関係のインストールに失敗しました。「クリーンアップして再試行」はキャッシュされた venv を削除して最初からやり直します。",
+    "hint_build_backend": "Python ビルドバックエンドのエラーです。「クリーンアップして再試行」は壊れた venv を削除してゼロから再構築します。",
+    "hint_ffmpeg": "ffmpeg のダウンロードに失敗しました。致命的ではありません — 再試行するか、ffmpeg を手動でインストールしてください。",
+    "hint_port": "ポート 3900 は既に使用中です。他の OmniVoice インスタンスや、そのポートを使うアプリを終了してください。",
+    "hint_silent_crash": "バックエンドがエラーメッセージなしでクラッシュしました。「クリーンアップして再試行」で venv の破損が直ることがよくあります。",
+    "hint_github_blocked": "ネットワークが GitHub をブロックしている可能性があります。python.org から Python 3.11+ をインストール(PATH に追加)して再起動するか、UV_PYTHON_INSTALL_MIRROR を設定してください — docs/install/troubleshooting.md を参照。",
+    "hint_default": "まず「再試行」を試してください。再び失敗する場合、「クリーンアップして再試行」が環境をゼロから再構築します。"
   },
   "stories": {
     "title": "ストーリーエディター",
@@ -249,6 +259,7 @@
     "save": "保存",
     "cancel": "キャンセル",
     "synthesize": "音声を合成する",
+    "stop_playback": "再生を停止",
     "synthesizing": "合成中… ({{seconds}}s)",
     "drop_audio": "ここに音声をドロップするか、クリックします。 WAV、MP3、M4A… 🎤",
     "record": "記録",
@@ -277,6 +288,11 @@
     "preset_sichuan": "🌶️四川话",
     "prompt_placeholder": "この声は何と言えばいいのでしょうか？ ✍️",
     "design_placeholder": "音声を説明し、その内容を入力します…",
+    "describe_label": "声を言葉で説明",
+    "describe_placeholder": "例: a warm elderly British storyteller, slightly raspy",
+    "describe_hint": "説明（英語）が下のコントロールを設定します。後から微調整もできます。",
+    "describe_unmatched": "対応付けできません: {{items}}",
+    "describe_no_match": "まだ声の特徴を認識できていません。deep、elderly、British などの単語を試してください。",
     "speed": "速度",
     "tshift": "t_シフト",
     "pos_temp": "正温度",
@@ -338,7 +354,17 @@
     "channel_stable": "安定版",
     "channel_preview": "プレビュー",
     "channel_set": "アップデートチャンネルを {{channel}} に設定しました",
-    "channel_preview_hint": "プレビューは最新の main ビルドを追跡します。新機能をいち早く利用できますが、テストは少なめです。安定版が先行している場合は安定版にフォールバックします。"
+    "channel_preview_hint": "プレビューは最新の main ビルドを追跡します。新機能をいち早く利用できますが、テストは少なめです。安定版が先行している場合は安定版にフォールバックします。",
+    "self_check": "セルフチェックを実行",
+    "self_check_failed": "セルフチェックに失敗しました: {{message}}",
+    "self_check_ok": "正常",
+    "self_check_warn": "警告",
+    "self_check_fail": "失敗",
+    "self_check_healthy": "すべてのチェックに合格 — このインストールは正常のようです。",
+    "self_check_attention": "{{count}} 件のチェックが失敗しました — 上のヒントをご覧ください。",
+    "save_bundle": "診断バンドルを保存",
+    "bundle_saved": "診断バンドルを保存しました: {{filename}}",
+    "bundle_failed": "診断バンドルを作成できませんでした: {{message}}"
   },
   "privacy": {
     "desc": "すべては<1>このマシン</1> 上で実行されます。オンライン翻訳者 (Google、DeepL など) を明示的に使用するか、HuggingFace にプッシュしない限り、オーディオ、ビデオ、およびトランスクリプトがコンピューターから流出することはありません。",
@@ -437,8 +463,11 @@
     "mic_denied": "マイクアクセスが拒否されました",
     "mic_denied_toast": "マイクへのアクセスが拒否されました。 {{hint}}",
     "mic_hint_mac": "macOS: [システム設定] → [プライバシーとセキュリティ] → [マイク] を開き、OmniVoice を有効にします。",
-    "mic_hint_windows": "Windows: [設定] → [プライバシーとセキュリティ] → [マイク] を開き、OmniVoice を許可します。",
+    "mic_hint_windows": "Windows: 設定 → プライバシーとセキュリティ → マイクを開き、「マイクへのアクセス」と「デスクトップ アプリがマイクにアクセスできるようにする」をオンにして、OmniVoice を許可してください。",
     "mic_hint_linux": "Linux: ユーザーがオーディオ グループに属していること、および WebView にマイク アクセスがあることを確認してください。",
+    "mic_not_found": "マイクが見つかりません。マイクを接続または有効にして、もう一度お試しください。",
+    "mic_in_use": "マイクが使用中か利用できません。マイクを使用している可能性のある他のアプリを閉じて、もう一度お試しください。",
+    "mic_error_generic": "マイクを起動できませんでした: {{message}}",
     "transcription_failed": "転写に失敗しました: {{message}}"
   },
   "logs": {
@@ -655,7 +684,10 @@
     "diagnostic_copied": "診断がコピーされました",
     "copy_failed": "コピーに失敗しました",
     "open_docs": "ドキュメントを開く",
-    "copy_diagnostic": "コピー診断"
+    "copy_diagnostic": "コピー診断",
+    "num_speakers_label": "話者",
+    "num_speakers_auto": "自動",
+    "num_speakers_help": "この動画の話者は何人ですか？空欄で自動検出します。自動検出が複数の話者を1人にまとめてしまう場合は人数を指定してください。"
   },
   "glossary": {
     "title": "用語集",
@@ -957,7 +989,9 @@
     "open": "開く",
     "install_required_models": "続行するには、上記の必要なモデルをインストールしてください。",
     "try_dictation": "ディクテーションを試してみる",
-    "next_try_dictation": "次へ: ディクテーションを試してみる"
+    "next_try_dictation": "次へ: ディクテーションを試してみる",
+    "step_aria": "ステップ {{num}}: {{label}}",
+    "step_completed": "完了"
   },
   "donate": {
     "title": "サポート",
@@ -1124,7 +1158,10 @@
     "title": "このタブは問題に遭遇しました。",
     "desc": "心配しないでください。アプリの残りの部分は引き続き動作します。タブを切り替えるか、以下でもう一度お試しください。",
     "tryAgain": "もう一度試してください",
-    "openDocs": "このエラーのドキュメントを開く"
+    "openDocs": "このエラーのドキュメントを開く",
+    "report": "このバグを報告",
+    "searchIssues": "類似の問題を検索",
+    "unexpected": "予期しないエラー: {{message}}"
   },
   "keyboard": {
     "title": "キーボードショートカット",

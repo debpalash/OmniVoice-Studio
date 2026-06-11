@@ -103,7 +103,17 @@
     "region_russia": "俄羅斯（鏡子）",
     "region_restricted": "受限（鏡像）",
     "unknown_error": "未知錯誤",
-    "retrying": "正在重試..."
+    "retrying": "正在重試...",
+    "hint_readme": "安裝包中缺少 README.md。此問題現已自動修復 — 重試應該可以成功。",
+    "hint_python_mirror": "網路無法連線到 Python 下載(github.com 發行版)。請在設定 → 網路中切換地區(中國 / 俄羅斯 / 受限會經由鏡像),或在系統中安裝 Python 3.11+ 讓應用程式直接使用。",
+    "hint_uv_timeout": "下載 uv 時網路逾時。請檢查網路連線,或在設定 → 網路中嘗試其他地區。",
+    "hint_uv_sync": "相依套件安裝失敗。「清理並重試」會刪除快取的 venv 並重新開始。",
+    "hint_build_backend": "Python 建置後端發生錯誤。「清理並重試」會移除損壞的 venv,從頭重新建置。",
+    "hint_ffmpeg": "ffmpeg 下載失敗。這不是致命問題 — 可以重試,或手動安裝 ffmpeg。",
+    "hint_port": "連接埠 3900 已被佔用。請關閉其他 OmniVoice 實例或佔用該連接埠的應用程式。",
+    "hint_silent_crash": "後端在沒有錯誤訊息的情況下當機。「清理並重試」通常能解決 venv 損壞的問題。",
+    "hint_github_blocked": "您的網路可能封鎖了 GitHub。請從 python.org 安裝 Python 3.11+(加入 PATH)後重新啟動,或設定 UV_PYTHON_INSTALL_MIRROR — 參見 docs/install/troubleshooting.md。",
+    "hint_default": "請先嘗試「重試」。若再次失敗,「清理並重試」會從頭重建執行環境。"
   },
   "stories": {
     "title": "故事編輯器",
@@ -248,6 +258,7 @@
     "save": "儲存",
     "cancel": "取消",
     "synthesize": "合成音訊",
+    "stop_playback": "停止播放",
     "synthesizing": "正在綜合... ({{seconds}}s)",
     "drop_audio": "將音訊拖放到此處 - 或單擊。 WAV、MP3、M4A…🎤",
     "record": "記錄",
@@ -276,6 +287,11 @@
     "preset_sichuan": "🌶️四川話",
     "prompt_placeholder": "這個聲音該說什麼？ ✍️",
     "design_placeholder": "描述聲音，然後輸入它所說的內容...",
+    "describe_label": "描述你想要的聲音",
+    "describe_placeholder": "例如：a warm elderly British storyteller, slightly raspy",
+    "describe_hint": "你的描述（英文）會自動設定下方的控制項，之後仍可手動微調。",
+    "describe_unmatched": "無法辨識：{{items}}",
+    "describe_no_match": "尚未辨識出聲音特徵——試試 deep、elderly 或 British 等詞。",
     "speed": "速度",
     "tshift": "t_shift",
     "pos_temp": "後溫度",
@@ -337,7 +353,17 @@
     "channel_stable": "穩定版",
     "channel_preview": "預覽版",
     "channel_set": "更新通道已設定為 {{channel}}",
-    "channel_preview_hint": "預覽版追蹤最新的 main 組建——功能較新，但測試較少。若穩定版較新，則回退至穩定版。"
+    "channel_preview_hint": "預覽版追蹤最新的 main 組建——功能較新，但測試較少。若穩定版較新，則回退至穩定版。",
+    "self_check": "執行自我檢查",
+    "self_check_failed": "自我檢查失敗：{{message}}",
+    "self_check_ok": "正常",
+    "self_check_warn": "警告",
+    "self_check_fail": "未通過",
+    "self_check_healthy": "所有檢查均已通過 — 此安裝看起來運作正常。",
+    "self_check_attention": "{{count}} 項檢查未通過 — 請參閱上方提示。",
+    "save_bundle": "儲存診斷套件",
+    "bundle_saved": "診斷套件已儲存：{{filename}}",
+    "bundle_failed": "無法建立診斷套件：{{message}}"
   },
   "privacy": {
     "desc": "一切都在<1>這台機器</1>上運作。除非您明確使用線上翻譯器（Google、DeepL 等）或推送到 HuggingFace，否則您的音訊、視訊和文字記錄永遠不會離開您的電腦。",
@@ -436,8 +462,11 @@
     "mic_denied": "麥克風存取被拒絕",
     "mic_denied_toast": "麥克風存取被拒絕。 {{hint}}",
     "mic_hint_mac": "macOS：開啟系統設定 → 隱私和安全 → 麥克風並啟用 OmniVoice。",
-    "mic_hint_windows": "Windows：開啟設定 → 隱私和安全性 → 麥克風並允許 OmniVoice。",
+    "mic_hint_windows": "Windows：開啟 設定 → 隱私權與安全性 → 麥克風，開啟「麥克風存取權」和「允許桌面應用程式存取您的麥克風」，然後允許 OmniVoice。",
     "mic_hint_linux": "Linux：檢查您的使用者是否在音訊群組中且 WebView 是否具有麥克風存取權限。",
+    "mic_not_found": "找不到麥克風。請連接或啟用麥克風後再試一次。",
+    "mic_in_use": "麥克風使用中或無法使用。請關閉可能正在使用它的其他應用程式後再試一次。",
+    "mic_error_generic": "無法啟動麥克風：{{message}}",
     "transcription_failed": "轉錄失敗：{{message}}"
   },
   "logs": {
@@ -654,7 +683,10 @@
     "diagnostic_copied": "診斷複製",
     "copy_failed": "複製失敗",
     "open_docs": "開啟文件",
-    "copy_diagnostic": "複製診斷"
+    "copy_diagnostic": "複製診斷",
+    "num_speakers_label": "說話者",
+    "num_speakers_auto": "自動",
+    "num_speakers_help": "這段影片中有幾位說話者？留空則自動偵測。若自動偵測將多位說話者合併為一人，請手動指定人數。"
   },
   "glossary": {
     "title": "詞彙表",
@@ -956,7 +988,9 @@
     "open": "打開",
     "install_required_models": "安裝上面所需的模型以繼續。",
     "try_dictation": "試著聽寫",
-    "next_try_dictation": "下一步：嘗試聽寫"
+    "next_try_dictation": "下一步：嘗試聽寫",
+    "step_aria": "第 {{num}} 步:{{label}}",
+    "step_completed": "已完成"
   },
   "donate": {
     "title": "支援",
@@ -1123,7 +1157,10 @@
     "title": "這個選項卡遇到了障礙。",
     "desc": "別擔心——應用程式的其餘部分仍然有效。您可以切換選項卡，或在下面重試。",
     "tryAgain": "再試一次",
-    "openDocs": "開啟此錯誤的文檔"
+    "openDocs": "開啟此錯誤的文檔",
+    "report": "回報此錯誤",
+    "searchIssues": "搜尋類似問題",
+    "unexpected": "未預期的錯誤：{{message}}"
   },
   "keyboard": {
     "title": "鍵盤快速鍵",

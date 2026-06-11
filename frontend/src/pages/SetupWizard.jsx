@@ -99,7 +99,7 @@ function PreflightPanel({ report, loading, onRecheck }) {
 
 /* ── LED stepper rail ──────────────────────────────────────────────────── */
 
-function StepperNav({ step, onStep }) {
+function StepperNav({ step, maxUnlockedStep, onStep }) {
   const { t } = useTranslation();
   // Three steps, no welcome ceremony: the journey rail + setup page already
   // oriented the user. Models + engines share one act (required gate +
@@ -116,9 +116,16 @@ function StepperNav({ step, onStep }) {
             step === i ? 'is-active' : '',
             step > i ? 'is-done' : '',
           ].filter(Boolean).join(' ')}
-          onClick={() => onStep(i)}
+          // The rail mirrors the continue buttons' gates: jumping past an
+          // unmet gate (preflight, required models) would let "Enter studio"
+          // clear setupNeeded without the checks ever passing.
+          disabled={i > maxUnlockedStep}
+          onClick={() => i <= maxUnlockedStep && onStep(i)}
           aria-current={step === i ? 'step' : undefined}
-          aria-label={`Step ${i + 1}: ${label}${step > i ? ' (completed)' : ''}`}
+          aria-label={
+            t('setup.step_aria', { num: i + 1, label, defaultValue: 'Step {{num}}: {{label}}' })
+            + (step > i ? ` (${t('setup.step_completed', 'completed')})` : '')
+          }
         >
           <span className="frs-wstep__led" aria-hidden="true" />
           {label}
@@ -193,7 +200,11 @@ export default function SetupWizard({ onReady }) {
               <p className="frs__subtitle" data-tauri-drag-region>{STEP_SUBTITLES[step]}</p>
             </div>
             <div className="frs__mast-meta">
-              <StepperNav step={step} onStep={setStep} />
+              <StepperNav
+                step={step}
+                maxUnlockedStep={preflightOk ? (modelsReady ? 2 : 1) : 0}
+                onStep={setStep}
+              />
             </div>
           </div>
         </header>

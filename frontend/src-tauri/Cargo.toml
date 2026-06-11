@@ -1,6 +1,6 @@
 [package]
 name = "omnivoice-studio"
-version = "0.3.5"
+version = "0.3.6"
 description = "OmniVoice Studio – AI voice cloning & dubbing desktop app"
 authors = ["Debpalash"]
 license = "AGPL-3.0-only"
@@ -40,6 +40,10 @@ enigo = { version = "0.3", features = ["serde"] }
 ureq = "2"
 # reqwest is used for GitHub Releases API calls (list_releases command).
 reqwest = { version = "0.13", features = ["json"] }
+# semver is used by the channel-aware updater (updater_channel.rs) to rank
+# builds across the stable/preview channels (#326); same major as the
+# `Version` type tauri-plugin-updater re-exports (already in the lockfile).
+semver = "1"
 
 # ── Rust IPC commands (cross-platform) ──
 # get_sysinfo: CPU + RAM metrics without HTTP round-trip
@@ -58,6 +62,11 @@ arboard = "3"
 
 [target.'cfg(windows)'.dependencies]
 zip = { version = "2", default-features = false, features = ["deflate"] }
+# WebView2 PermissionRequested handler: auto-grant media-capture for the
+# app's own origin so getUserMedia() works in the dictation widget (#323).
+# Versions match what wry already locks — no new native code is pulled in.
+webview2-com = "0.38"
+windows-core = "0.61"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

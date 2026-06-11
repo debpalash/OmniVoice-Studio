@@ -22,6 +22,32 @@ import json
 
 _GEN_INPUT_FIELDS = ("text", "target_lang", "profile_id", "instruct", "speed", "direction", "effect_preset")
 
+# Pydantic fills `effect_preset` with this default when the client omits it,
+# while the client-side recompute (/tools/incremental) sends nothing. Both
+# representations must hash identically or every segment looks "stale" after
+# every generate and incremental re-dub degrades to a full re-dub (#281).
+_DEFAULT_EFFECT_PRESET = "broadcast"
+
+
+def _canon_value(field: str, value):
+    """Normalise one generation-input value so that the server-side view
+    (pydantic-parsed `DubSegment`, defaults filled in) and the client-side
+    view (raw segment dict, unset keys omitted) produce the same hash.
+
+    - missing / None / "" all mean "default" for string fields
+    - `effect_preset` default is "broadcast" (pydantic fills it server-side)
+    - numbers are coerced to float so `speed: 1` (JS) == `speed: 1.0` (pydantic)
+    """
+    if field == "effect_preset":
+        return value or _DEFAULT_EFFECT_PRESET
+    if value is None or value == "":
+        return ""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return float(value)
+    return value
+
 
 def segment_fingerprint(seg: dict) -> str:
     """Deterministic hash of the inputs that actually affect TTS output.
@@ -31,9 +57,12 @@ def segment_fingerprint(seg: dict) -> str:
     badge don't trigger regen, which is what we want.
 
     Currently includes: text, target_lang, profile_id, instruct, speed,
-    direction, effect_preset.
+    direction, effect_preset. Values are canonicalised (see `_canon_value`)
+    so a fingerprint computed from the generate request (server defaults
+    filled in) matches one recomputed later from the client's raw segment
+    state — the root cause of #281's "1 edit re-dubs all N lines".
     """
-    payload = {k: (seg.get(k) if seg.get(k) is not None else "") for k in _GEN_INPUT_FIELDS}
+    payload = {k: _canon_value(k, seg.get(k)) for k in _GEN_INPUT_FIELDS}
     blob = json.dumps(payload, sort_keys=True, ensure_ascii=False)
     return hashlib.sha1(blob.encode("utf-8")).hexdigest()[:16]
 

@@ -6,6 +6,8 @@ import { probeAudioDuration } from '../utils/format';
 import { CLONE_MAX_SECONDS, PRESETS } from '../utils/constants';
 import { buildDesignInstruct } from '../utils/voiceInstruct';
 import { toast } from 'react-hot-toast';
+import { toastErrorWithReport } from '../utils/errorToast';
+import { addBreadcrumb } from '../utils/breadcrumbs';
 import i18next from 'i18next';
 const t = i18next.t.bind(i18next);
 
@@ -69,6 +71,7 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
   const handleGenerate = useCallback(async () => {
     if (!text.trim()) return toast.error(t('tts_errors.enter_text'));
     if (mode === 'clone' && !refAudio && !selectedProfile) return toast.error(t('tts_errors.upload_or_select'));
+    addBreadcrumb(`generate:start (${mode})`);
     setIsGenerating(true);
     setGenerationTime(0);
     const st = Date.now();
@@ -156,10 +159,13 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
       setSidebarTab('history');
       playPing();
     } catch (err) {
-      const msg = err?.name === 'AbortError'
-        ? t('tts_errors.timeout')
-        : t('tts_errors.error_prefix', { message: err.message });
-      toast.error(msg);
+      // Timeouts are user-recoverable (retry / shorter input) — plain toast.
+      // Real generation failures get the "Report this bug" action.
+      if (err?.name === 'AbortError') {
+        toast.error(t('tts_errors.timeout'));
+      } else {
+        toastErrorWithReport(t('tts_errors.error_prefix', { message: err.message }), err);
+      }
     } finally {
       if (abortTimer) clearTimeout(abortTimer);
       clearInterval(timerRef.current);

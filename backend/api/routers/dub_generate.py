@@ -39,6 +39,46 @@ GAP_OVERFLOW_MAX_S = 0.25
 GAP_OVERFLOW_BUFFER_S = 0.05
 
 
+def _sync_job_segments(job: dict, req: DubRequest) -> None:
+    """Persist the segments this dub was actually generated from back onto the job.
+
+    The editor only sends the (translated / user-edited) segment text in the
+    generate request; the job itself kept the original-language ASR transcript.
+    SRT/VTT export and ffmpeg subtitle burn-in read `job["segments"]`, so they
+    rendered the source language instead of the dub the user just heard (#309).
+
+    Merge strategy: rebuild `job["segments"]` from the request, carrying over
+    per-segment metadata (speaker_id, id, …) from the existing job segment
+    matched by stable id (fallback: index). `text_original` always keeps the
+    source-language text so dual-subtitle layouts can still stack it under the
+    translation.
+    """
+    if not req.segments:
+        return
+    existing = [s for s in (job.get("segments") or []) if isinstance(s, dict)]
+    by_id = {str(s["id"]): s for s in existing if s.get("id") is not None}
+    seg_ids = req.segment_ids or []
+    merged: list[dict] = []
+    for i, seg in enumerate(req.segments):
+        seg_id = seg_ids[i] if i < len(seg_ids) else None
+        prev = by_id.get(str(seg_id)) if seg_id is not None else None
+        if prev is None and i < len(existing):
+            prev = existing[i]
+        row = dict(prev) if prev else {}
+        if seg_id is not None:
+            # The request id is authoritative — seg_order and the per-segment
+            # WAV manifest are keyed by it.
+            row["id"] = seg_id
+        # Source-language text survives the overwrite so dual-subtitle export
+        # keeps working; never let the translation clobber it.
+        row["text_original"] = row.get("text_original") or row.get("text") or ""
+        row["start"] = seg.start
+        row["end"] = seg.end
+        row["text"] = seg.text
+        merged.append(row)
+    job["segments"] = merged
+
+
 def _atempo_chain(ratio: float) -> str:
     """Build an `atempo=…,atempo=…` filter chain for arbitrary ratios.
 
@@ -687,6 +727,9 @@ async def dub_generate(job_id: str, req: DubRequest):
         job["language"] = req.language
         job["language_code"] = lang_code
         job["timing_strategy"] = strategy
+        # Keep job segments in lock-step with what was just rendered so
+        # subtitle export / burn-in use the translated text (#309).
+        _sync_job_segments(job, req)
         if strategy == "stretch_video":
             stretch_plans = job.setdefault("video_stretch_plans", {})
             stretch_plans[lang_code] = {

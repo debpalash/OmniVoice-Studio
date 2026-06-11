@@ -7,27 +7,130 @@
 //! runtime-endpoint API: `AppHandle::updater_builder().endpoints(...)`
 //! (`UpdaterExt`). The check + download/install below mirror the plugin's own
 //! command implementation, so the default ("stable") path behaves identically
-//! to the JS flow it replaces — only *which manifest* is consulted changes.
+//! to the JS flow it replaces. The preview path additionally consults *both*
+//! manifests and ranks builds with [`cross_channel_cmp`] so preview users are
+//! always offered the newest build across channels (#326).
 
+use std::cmp::Ordering;
+
+use semver::Version;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
-use tauri_plugin_updater::UpdaterExt;
+use tauri_plugin_updater::{Update, Updater, UpdaterExt};
 
 const STABLE_MANIFEST: &str =
     "https://github.com/debpalash/OmniVoice-Studio/releases/latest/download/latest.json";
 const PREVIEW_MANIFEST: &str =
     "https://github.com/debpalash/OmniVoice-Studio/releases/download/preview/latest.json";
 
-/// Endpoints for a channel. Preview tries the rolling `preview` manifest first,
-/// then falls back to stable so a preview user still receives a newer *stable*
-/// release if one is ahead of the latest preview. Any unknown channel → stable.
-fn channel_endpoints(channel: &str) -> Vec<tauri::Url> {
-    let raw = if channel == "preview" {
-        vec![PREVIEW_MANIFEST, STABLE_MANIFEST]
-    } else {
-        vec![STABLE_MANIFEST]
-    };
-    raw.iter().filter_map(|u| u.parse().ok()).collect()
+/// Cross-channel ordering of OmniVoice build versions (#326).
+///
+/// Preview builds are published as `X.Y.Z-N` (e.g. `0.3.5-41`): base `X.Y.Z`
+/// is the latest stable tag at build time and `-N` counts `main` builds
+/// *after* that tag — so a preview build is **newer** than the stable release
+/// sharing its base. That is the opposite of semver's pre-release rule
+/// (`0.3.5-41 < 0.3.5`), which is what the updater plugin's default
+/// comparator uses and why preview-channel users on stable `0.3.5` were told
+/// "you already have the latest version".
+///
+/// Rules:
+/// 1. A higher base version (major.minor.patch) always wins.
+/// 2. Equal base: a suffixed (preview) build outranks the bare stable it was
+///    built on top of.
+/// 3. Equal base, both suffixed: semver pre-release comparison, which is
+///    numeric-aware (`-9 < -41 < -42`, `-preview.4 < -preview.5`).
+fn cross_channel_cmp(a: &Version, b: &Version) -> Ordering {
+    (a.major, a.minor, a.patch)
+        .cmp(&(b.major, b.minor, b.patch))
+        .then_with(|| match (a.pre.is_empty(), b.pre.is_empty()) {
+            (true, true) => Ordering::Equal,
+            (false, true) => Ordering::Greater,
+            (true, false) => Ordering::Less,
+            (false, false) => a.pre.cmp(&b.pre),
+        })
+}
+
+/// Whether `remote` should be offered to a user currently running `current`,
+/// under cross-channel ordering. Strict: equal builds are never re-offered,
+/// so a preview user can't ping-pong between the two manifests.
+fn remote_is_newer(remote: &Version, current: &Version) -> bool {
+    cross_channel_cmp(remote, current) == Ordering::Greater
+}
+
+/// Build an updater bound to a single manifest. `cross_channel` swaps the
+/// plugin's default comparator (plain semver `remote > current`) for
+/// [`remote_is_newer`]; the preview channel needs that both to accept
+/// `0.3.5-41` while on stable `0.3.5` and to *reject* stable `0.3.5` while on
+/// `0.3.5-41` (the default would offer it — a downgrade under our scheme).
+fn build_updater(app: &AppHandle, manifest: &str, cross_channel: bool) -> Result<Updater, String> {
+    let url: tauri::Url = manifest
+        .parse()
+        .map_err(|e| format!("updater endpoint parse: {e}"))?;
+    let mut builder = app
+        .updater_builder()
+        .endpoints(vec![url])
+        .map_err(|e| format!("updater endpoints: {e}"))?;
+    if cross_channel {
+        builder = builder
+            .version_comparator(|current, release| remote_is_newer(&release.version, &current));
+    }
+    builder.build().map_err(|e| format!("updater build: {e}"))
+}
+
+/// Of two available updates, keep the newest under cross-channel ordering.
+/// `a` (the earlier-checked manifest, i.e. preview) wins ties.
+fn newest_of(a: Update, b: Update) -> Update {
+    match (Version::parse(&a.version), Version::parse(&b.version)) {
+        (Ok(va), Ok(vb)) if remote_is_newer(&vb, &va) => b,
+        (Err(_), Ok(_)) => b,
+        _ => a,
+    }
+}
+
+/// Find the newest applicable update for a channel.
+///
+/// - `stable`: the tagged `releases/latest` manifest with the plugin's
+///   default semver comparison — behavior unchanged.
+/// - `preview`: consult **both** the rolling preview manifest and the stable
+///   manifest, and offer whichever build is newest under
+///   [`cross_channel_cmp`]. The plugin's own multi-endpoint list can't do
+///   this — it stops at the first manifest that parses and uses later
+///   endpoints only as network fallbacks — so a reachable preview manifest
+///   used to hide a newer stable release entirely (#326).
+///
+/// A manifest fetch error is non-fatal as long as the other manifest answers;
+/// an error is returned only when every manifest fails.
+async fn best_update(app: &AppHandle, channel: &str) -> Result<Option<Update>, String> {
+    if channel != "preview" {
+        return build_updater(app, STABLE_MANIFEST, false)?
+            .check()
+            .await
+            .map_err(|e| e.to_string());
+    }
+
+    let mut best: Option<Update> = None;
+    let mut any_ok = false;
+    let mut first_err: Option<String> = None;
+    for manifest in [PREVIEW_MANIFEST, STABLE_MANIFEST] {
+        match build_updater(app, manifest, true)?.check().await {
+            Ok(candidate) => {
+                any_ok = true;
+                best = match (best.take(), candidate) {
+                    (Some(a), Some(b)) => Some(newest_of(a, b)),
+                    (a, b) => b.or(a),
+                };
+            }
+            Err(e) => {
+                if first_err.is_none() {
+                    first_err = Some(e.to_string());
+                }
+            }
+        }
+    }
+    if !any_ok {
+        return Err(first_err.unwrap_or_else(|| "update check failed".to_string()));
+    }
+    Ok(best)
 }
 
 #[derive(Serialize, Clone)]
@@ -50,21 +153,11 @@ pub async fn check_update(
     app: AppHandle,
     channel: String,
 ) -> Result<Option<UpdateMeta>, String> {
-    let updater = app
-        .updater_builder()
-        .endpoints(channel_endpoints(&channel))
-        .map_err(|e| format!("updater endpoints: {e}"))?
-        .build()
-        .map_err(|e| format!("updater build: {e}"))?;
-    match updater.check().await {
-        Ok(Some(u)) => Ok(Some(UpdateMeta {
-            version: u.version.clone(),
-            current_version: u.current_version.clone(),
-            notes: u.body.clone(),
-        })),
-        Ok(None) => Ok(None),
-        Err(e) => Err(e.to_string()),
-    }
+    Ok(best_update(&app, &channel).await?.map(|u| UpdateMeta {
+        version: u.version.clone(),
+        current_version: u.current_version.clone(),
+        notes: u.body.clone(),
+    }))
 }
 
 /// Download + install the available update for the given channel, emitting
@@ -73,16 +166,8 @@ pub async fn check_update(
 /// side, exactly as the badge flow already does.
 #[tauri::command]
 pub async fn install_update(app: AppHandle, channel: String) -> Result<(), String> {
-    let updater = app
-        .updater_builder()
-        .endpoints(channel_endpoints(&channel))
-        .map_err(|e| format!("updater endpoints: {e}"))?
-        .build()
-        .map_err(|e| format!("updater build: {e}"))?;
-    let update = updater
-        .check()
-        .await
-        .map_err(|e| e.to_string())?
+    let update = best_update(&app, &channel)
+        .await?
         .ok_or_else(|| "No update available".to_string())?;
 
     let mut downloaded: usize = 0;
@@ -163,4 +248,71 @@ pub async fn list_releases(_channel: String) -> Result<Vec<ReleaseInfo>, String>
         }
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn v(s: &str) -> Version {
+        Version::parse(s).unwrap()
+    }
+
+    /// Documents the #326 root cause: under plain semver (the plugin's
+    /// default comparator) a preview build is a *pre-release* of its base and
+    /// sorts below the stable release, so once stable caught up the preview
+    /// channel reported "up to date".
+    #[test]
+    fn plain_semver_ranks_preview_below_equal_base_stable() {
+        assert!(v("0.3.5-41") < v("0.3.5"));
+    }
+
+    /// The bug case: user on stable 0.3.5, preview manifest advertises
+    /// 0.3.5-41 (a `main` build 4 days newer) → must be offered.
+    #[test]
+    fn preview_ahead_of_equal_base_stable_is_offered() {
+        assert!(remote_is_newer(&v("0.3.5-41"), &v("0.3.5")));
+    }
+
+    /// Equal base the other way: stable 0.3.5 is the tag the 0.3.5-41
+    /// preview was built on top of — offering it would be a downgrade.
+    #[test]
+    fn equal_base_stable_is_not_offered_to_preview_user() {
+        assert!(!remote_is_newer(&v("0.3.5"), &v("0.3.5-41")));
+    }
+
+    /// Preview behind stable: when stable passes the newest preview build,
+    /// the preview user gets the stable release (never stuck).
+    #[test]
+    fn stable_that_passed_preview_is_offered() {
+        assert!(remote_is_newer(&v("0.3.6"), &v("0.3.5-41")));
+        assert!(!remote_is_newer(&v("0.3.5-41"), &v("0.3.6")));
+    }
+
+    /// Preview-to-preview moves forward, with numeric (not lexicographic)
+    /// build-counter comparison, and dotted pre-release forms work too.
+    #[test]
+    fn newer_preview_builds_are_offered_numerically() {
+        assert!(remote_is_newer(&v("0.3.5-42"), &v("0.3.5-41")));
+        assert!(!remote_is_newer(&v("0.3.5-9"), &v("0.3.5-41")));
+        assert!(remote_is_newer(&v("0.3.0-preview.5"), &v("0.3.0-preview.4")));
+        assert!(!remote_is_newer(&v("0.3.0-preview.4"), &v("0.3.0-preview.5")));
+    }
+
+    /// Strict ordering: the exact same build (either channel) is never
+    /// re-offered, so a preview user can't ping-pong between manifests.
+    #[test]
+    fn equal_versions_are_not_offered() {
+        assert!(!remote_is_newer(&v("0.3.5"), &v("0.3.5")));
+        assert!(!remote_is_newer(&v("0.3.5-41"), &v("0.3.5-41")));
+        assert_eq!(cross_channel_cmp(&v("0.3.5-41"), &v("0.3.5-41")), Ordering::Equal);
+    }
+
+    /// The base version always dominates the suffix.
+    #[test]
+    fn base_version_dominates_suffix() {
+        assert!(remote_is_newer(&v("0.4.0"), &v("0.3.9-7")));
+        assert!(remote_is_newer(&v("0.3.6-1"), &v("0.3.5")));
+        assert!(!remote_is_newer(&v("0.3.4-99"), &v("0.3.5")));
+    }
 }

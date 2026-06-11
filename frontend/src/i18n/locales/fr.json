@@ -104,7 +104,17 @@
     "region_russia": "Russie (miroir)",
     "region_restricted": "Restreint (miroir)",
     "unknown_error": "Erreur inconnue",
-    "retrying": "Nouvelle tentative…"
+    "retrying": "Nouvelle tentative…",
+    "hint_readme": "README.md manquait dans le paquet. C'est désormais corrigé automatiquement — réessayer devrait fonctionner.",
+    "hint_python_mirror": "Le réseau n'a pas pu atteindre le téléchargement de Python (release github.com). Changez de région dans Paramètres → Réseau (Chine / Russie / Restreint passent par un miroir), ou installez Python 3.11+ sur le système pour que l'application l'utilise.",
+    "hint_uv_timeout": "Délai réseau dépassé lors du téléchargement de uv. Vérifiez votre connexion internet ou essayez une autre région dans Paramètres → Réseau.",
+    "hint_uv_sync": "L'installation des dépendances a échoué. « Nettoyer et réessayer » supprimera le venv en cache et repartira de zéro.",
+    "hint_build_backend": "Erreur du backend de build Python. « Nettoyer et réessayer » supprime le venv défectueux pour le reconstruire entièrement.",
+    "hint_ffmpeg": "Le téléchargement de ffmpeg a échoué. Ce n'est pas bloquant — réessayez ou installez ffmpeg manuellement.",
+    "hint_port": "Le port 3900 est déjà utilisé. Fermez les autres instances d'OmniVoice ou les applications utilisant ce port.",
+    "hint_silent_crash": "Le backend s'est arrêté sans message d'erreur. « Nettoyer et réessayer » corrige souvent un venv corrompu.",
+    "hint_github_blocked": "Votre réseau bloque peut-être GitHub. Installez Python 3.11+ depuis python.org (ajout au PATH) et relancez, ou définissez UV_PYTHON_INSTALL_MIRROR — voir docs/install/troubleshooting.md.",
+    "hint_default": "Essayez d'abord « Réessayer ». En cas de nouvel échec, « Nettoyer et réessayer » reconstruira l'environnement de zéro."
   },
   "stories": {
     "title": "Éditeur d'histoires",
@@ -249,6 +259,7 @@
     "save": "Enregistrer",
     "cancel": "Annuler",
     "synthesize": "Synthétiser l'audio",
+    "stop_playback": "Arrêter la lecture",
     "synthesizing": "Synthèse… ({{seconds}}s)",
     "drop_audio": "Déposez l’audio ici – ou cliquez. WAV, MP3, M4A… 🎤",
     "record": "Enregistrer",
@@ -277,6 +288,11 @@
     "preset_sichuan": "🌶️ 四川话",
     "prompt_placeholder": "Que devrait dire cette voix ? ✍️",
     "design_placeholder": "Décrivez la voix, puis tapez ce qu'elle dit…",
+    "describe_label": "Décrivez votre voix",
+    "describe_placeholder": "p. ex. a warm elderly British storyteller, slightly raspy",
+    "describe_hint": "Votre description (en anglais) règle les contrôles ci-dessous — vous pouvez encore les ajuster après.",
+    "describe_unmatched": "Impossible d'associer : {{items}}",
+    "describe_no_match": "Aucun trait vocal reconnu pour l'instant — essayez des mots comme deep, elderly ou British.",
     "speed": "Vitesse",
     "tshift": "t_shift",
     "pos_temp": "Température de position",
@@ -338,7 +354,17 @@
     "channel_stable": "Stable",
     "channel_preview": "Aperçu",
     "channel_set": "Canal de mise à jour réglé sur {{channel}}",
-    "channel_preview_hint": "L'aperçu suit la dernière version de main : fonctionnalités plus récentes, moins testées. Revient à la version stable si une version stable est plus avancée."
+    "channel_preview_hint": "L'aperçu suit la dernière version de main : fonctionnalités plus récentes, moins testées. Revient à la version stable si une version stable est plus avancée.",
+    "self_check": "Lancer l'auto-diagnostic",
+    "self_check_failed": "Échec de l'auto-diagnostic : {{message}}",
+    "self_check_ok": "OK",
+    "self_check_warn": "Avertissement",
+    "self_check_fail": "Échec",
+    "self_check_healthy": "Toutes les vérifications sont passées — cette installation semble saine.",
+    "self_check_attention": "{{count}} vérification(s) en échec — voir les indications ci-dessus.",
+    "save_bundle": "Enregistrer le paquet de diagnostic",
+    "bundle_saved": "Paquet de diagnostic enregistré : {{filename}}",
+    "bundle_failed": "Impossible de créer le paquet de diagnostic : {{message}}"
   },
   "privacy": {
     "desc": "Tout fonctionne sur <1>cette machine</1>. Votre audio, vidéo et transcriptions ne quittent jamais votre ordinateur, sauf si vous utilisez explicitement un traducteur en ligne (Google, DeepL, etc.) ou si vous poussez vers HuggingFace.",
@@ -437,8 +463,11 @@
     "mic_denied": "Accès au micro refusé",
     "mic_denied_toast": "Accès au microphone refusé. {{hint}}",
     "mic_hint_mac": "macOS : ouvrez Paramètres système → Confidentialité et sécurité → Microphone et activez OmniVoice.",
-    "mic_hint_windows": "Windows : ouvrez Paramètres → Confidentialité et sécurité → Microphone et autorisez OmniVoice.",
+    "mic_hint_windows": "Windows : ouvrez Paramètres → Confidentialité et sécurité → Microphone, activez « Accès au microphone » et « Autoriser les applications de bureau à accéder à votre microphone », puis autorisez OmniVoice.",
     "mic_hint_linux": "Linux : vérifiez que votre utilisateur est dans le groupe audio et que WebView a accès au micro.",
+    "mic_not_found": "Aucun microphone détecté. Branchez ou activez un microphone, puis réessayez.",
+    "mic_in_use": "Le microphone est occupé ou indisponible. Fermez les autres applications susceptibles de l'utiliser, puis réessayez.",
+    "mic_error_generic": "Impossible de démarrer le microphone : {{message}}",
     "transcription_failed": "Échec de la transcription : {{message}}"
   },
   "logs": {
@@ -655,7 +684,10 @@
     "diagnostic_copied": "Diagnostic copié",
     "copy_failed": "Échec de la copie",
     "open_docs": "Ouvrir des documents",
-    "copy_diagnostic": "Copier le diagnostic"
+    "copy_diagnostic": "Copier le diagnostic",
+    "num_speakers_label": "Locuteurs",
+    "num_speakers_auto": "Auto",
+    "num_speakers_help": "Combien de locuteurs dans cette vidéo ? Laissez vide pour la détection automatique. Indiquez un nombre si la détection fusionne plusieurs locuteurs en un seul."
   },
   "glossary": {
     "title": "Glossaire",
@@ -957,7 +989,9 @@
     "open": "Ouvert",
     "install_required_models": "Installez les modèles requis ci-dessus pour continuer.",
     "try_dictation": "Essayez la dictée",
-    "next_try_dictation": "Suivant : Essayez la dictée"
+    "next_try_dictation": "Suivant : Essayez la dictée",
+    "step_aria": "Étape {{num}} : {{label}}",
+    "step_completed": "terminée"
   },
   "donate": {
     "title": "Assistance",
@@ -1124,7 +1158,10 @@
     "title": "Cet onglet a rencontré un problème.",
     "desc": "Ne vous inquiétez pas, le reste de l'application fonctionne toujours. Vous pouvez changer d'onglet ou réessayer ci-dessous.",
     "tryAgain": "Réessayez",
-    "openDocs": "Ouvrir la documentation pour cette erreur"
+    "openDocs": "Ouvrir la documentation pour cette erreur",
+    "report": "Signaler ce bogue",
+    "searchIssues": "Rechercher des problèmes similaires",
+    "unexpected": "Erreur inattendue : {{message}}"
   },
   "keyboard": {
     "title": "Raccourcis clavier",

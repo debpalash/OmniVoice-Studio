@@ -4,6 +4,32 @@ The top 10 errors users have actually hit on `v0.2.x`, with their causes and
 fixes. Most have a deeplink anchor that the in-app error UI's "Open docs for
 this error" button targets directly.
 
+## Start here: self-diagnosis
+
+<a id="self-diagnosis"></a>
+
+Before digging through the entries below, let the app diagnose itself:
+
+- **In the app:** **Settings → About → "Run self-check"** verifies your
+  compute device (CUDA/MPS/CPU), ffmpeg, HuggingFace token, disk space,
+  data-directory permissions, RAM, installed TTS engines, and hub
+  reachability — each with a hint when something's off.
+- **Headless / terminal:**
+
+  ```bash
+  uv run python backend/main.py --diagnose          # same checks, exits 1 on failure
+  uv run python backend/main.py --diagnose --deep   # also loads the active engine
+                                                    # and synthesizes a test utterance
+  ```
+
+  `--deep` catches "installed but broken" engines. On a fresh install it may
+  cold-load the model (minutes, plus a large download).
+
+- **Filing an issue?** **Settings → About → "Save diagnostic bundle"**
+  produces a zip (self-check report, recent classified errors, scrubbed log
+  tails) you can drag straight onto the GitHub issue. Home paths and
+  anything token-shaped are redacted before they leave your machine.
+
 ## 1. `pkg_resources` missing (ModuleNotFoundError)
 
 <a id="pkg_resources-missing"></a>

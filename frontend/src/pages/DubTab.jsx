@@ -20,6 +20,7 @@ import { formatTime } from '../utils/format';
 import { API } from '../api/client';
 import { listTranslationEngines, installTranslationEngine } from '../api/engines';
 import toast from 'react-hot-toast';
+import { toastErrorWithReport } from '../utils/errorToast';
 import { Button, Segmented, Badge, Progress } from '../ui';
 import { openDocsFor, classifyError } from '../utils/errorDocsMap';
 import GlossaryPanel from '../components/GlossaryPanel';
@@ -213,7 +214,8 @@ export default function DubTab(props) {
         toast.success(t('dub.install_ok', { engine: engineId }), { id: progressToast });
       }
     } catch (err) {
-      toast.error(t('dub.install_failed', { message: String(err.message || err).slice(0, 200) }), { id: progressToast, duration: 8000 });
+      toast.dismiss(progressToast);
+      toastErrorWithReport(t('dub.install_failed', { message: String(err.message || err).slice(0, 200) }), err);
     } finally {
       setEngineInstalling(null);
     }
@@ -267,8 +269,14 @@ export default function DubTab(props) {
     setIngestUrl('');
   };
   const hasDubbedTrack = dubStep === 'done' && dubLangCode && dubLangCode !== 'und' && (dubTracks?.length > 0 || !!dubTracks);
+  // Cache-busting nonce, bumped every time a generation completes (see
+  // useDubWorkflow's done handler). The preview URL is otherwise identical
+  // across re-dubs, so the WebView could keep serving the previously
+  // buffered MP4 and the user would see the old dub after editing +
+  // regenerating (#281). The backend ignores `v`.
+  const dubGenNonce = useAppStore(s => s.dubGenNonce);
   const videoSrc = (previewMode === 'dubbed' && hasDubbedTrack)
-    ? `${API}/dub/preview-video/${dubJobId}?lang=${encodeURIComponent(dubLangCode)}&preserve_bg=${preserveBg ? 1 : 0}`
+    ? `${API}/dub/preview-video/${dubJobId}?lang=${encodeURIComponent(dubLangCode)}&preserve_bg=${preserveBg ? 1 : 0}&v=${dubGenNonce}`
     : `${API}/dub/media/${dubJobId}`;
 
   return (
