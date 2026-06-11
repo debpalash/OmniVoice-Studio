@@ -50,7 +50,7 @@ Legend — **Us**: A–D maturity grade from the self-inventory. **Them**: ✅ s
 | **Dubbing pipeline** |
 | Full video dub (ASR→translate→TTS→mux) | A– | ❌ | ✅ (1200-line battle-tested pipeline) | ❌ | Two-horse race; we're competitive |
 | Incremental re-dub (change 1 line, regen 1 segment) | A– (#281 fixed) | ❌ | ❌ | ❌ | **We're unique here** |
-| **Dub-length fitting (audio speedup + video slowdown)** | C (onset snap #280, speed adapt) | ❌ | ✅ **`_rate.py` — the crown jewel** | ❌ | **Biggest algorithmic gap.** See Action 1 |
+| **Dub-length fitting (audio speedup + video slowdown)** | B (Smart Fit Phase A: planner + generate path + fit fingerprints; Phase B = video-retime export) | ❌ | ✅ **`_rate.py` — the crown jewel** | ❌ | Gap closing — Action 1 reimplemented clean-room (`services/fit_planner.py`); export-side retime ships in Phase B |
 | Vocal/BGM separation + re-mix | A– (Demucs 4-stem) | ❌ | ✅ (UVR/Spleeter ONNX) | ❌ | Parity; their ONNX models are lighter than Demucs |
 | **Clone refs cut from separated vocals per segment** | 🟡 (speaker_clone refs 5–15 s/speaker) | ❌ | ✅ per-subtitle-line refs | ❌ | Their per-line granularity beats our per-speaker. Action 4 |
 | Speaker diarization → multi-voice dub | B+ (pyannote) | ❌ | ✅ (4 backends incl. CAM++) | ❌ | Parity; their backend choice is wider |
