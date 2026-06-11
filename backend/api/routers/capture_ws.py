@@ -25,7 +25,7 @@ import time
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from api.dependencies import _LOOPBACK_HOSTS
+from api.dependencies import _LOOPBACK_HOSTS, ws_remote_authorized
 
 router = APIRouter()
 logger = logging.getLogger("omnivoice.capture_ws")
@@ -53,8 +53,11 @@ async def ws_transcribe(websocket: WebSocket):
     # WebSocket dependency injection differs across FastAPI versions, so we
     # inline the check before accept(). Without it, any local process could
     # stream the user's microphone over this endpoint.
+    # Wave 2.3 (remote backend): a non-loopback client that presents the
+    # OMNIVOICE_API_KEY bearer is the thin-client dictation case — the mic
+    # lives on the user's machine, the GPU here — and is allowed through.
     host = websocket.client.host if websocket.client else None
-    if host not in _LOOPBACK_HOSTS:
+    if host not in _LOOPBACK_HOSTS and not ws_remote_authorized(websocket):
         await websocket.close(code=1008, reason="loopback origin required")
         return
 

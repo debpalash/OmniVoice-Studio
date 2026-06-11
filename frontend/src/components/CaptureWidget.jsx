@@ -6,7 +6,7 @@ import { useAppStore } from '../store';
 import { useTranslation } from 'react-i18next';
 import './CaptureWidget.css';
 
-import { API as API_BASE } from '../api/client';
+import { wsUrl as buildWsUrl, apiFetch } from '../api/client';
 import { addTranscription } from '../pages/Transcriptions';
 import { micErrorMessage } from '../utils/micError';
 
@@ -178,11 +178,9 @@ export default function CaptureWidget({ onDismiss }) {
 
       // Open WebSocket BEFORE starting recorder
       try {
-        const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const wsHost = API_BASE.replace(/^https?:\/\//, '').replace(/\/$/, '')
-          || `${window.location.hostname}:3900`;
-        const wsUrl = `${wsProto}://${wsHost}/ws/transcribe`;
-        const ws = new WebSocket(wsUrl);
+        // Scheme + host + remote api key all derive from the API base
+        // (Wave 2.3) — window.location lies inside the Tauri webview.
+        const ws = new WebSocket(buildWsUrl('/ws/transcribe'));
         ws.binaryType = 'arraybuffer';
         ws.onopen = () => {
           for (const buf of wsPendingRef.current) {
@@ -309,14 +307,12 @@ export default function CaptureWidget({ onDismiss }) {
     formData.append('mode', captureMode);
 
     try {
-      const res = await fetch(`${API_BASE}/transcribe`, {
+      // apiFetch attaches the PIN / remote API key headers (Wave 2.3)
+      // and throws on non-2xx with the server's detail message.
+      const res = await apiFetch('/transcribe', {
         method: 'POST',
         body: formData,
       });
-      if (!res.ok) {
-        const detail = await res.json().catch(() => ({}));
-        throw new Error(detail.detail || `HTTP ${res.status}`);
-      }
       const data = await res.json();
       if (wsHadFinalRef.current) return;
       await applyResult(data);

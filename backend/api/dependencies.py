@@ -7,9 +7,13 @@ composed at the route or router level without surprises.
 Currently exposed:
 - `require_loopback`: 403 unless the request came from a loopback origin
   (bypassed in explicit server mode — see `_server_mode`).
+- `ws_remote_authorized`: whether a WebSocket handshake from a non-loopback
+  client carries the remote API key (Wave 2.3) — used by WS endpoints that
+  keep their own inline loopback guards.
 """
 
 import os
+import secrets
 
 from fastapi import HTTPException, Request
 
@@ -71,3 +75,31 @@ def require_loopback(request: Request) -> None:
     if _server_mode():
         return
     raise HTTPException(status_code=403, detail="loopback origin required")
+
+
+def remote_api_key() -> str | None:
+    """The remote-backend bearer key (Wave 2.3), or None when remote mode is
+    off. Read at call time so tests can monkeypatch the env."""
+    return os.environ.get("OMNIVOICE_API_KEY") or None
+
+
+def ws_remote_authorized(websocket) -> bool:
+    """Whether a WebSocket handshake presents the remote API key.
+
+    Browser WebSockets cannot set an Authorization header, so the key may
+    arrive as ``?api_key=`` or via the ``ov_key`` cookie that the bearer
+    middleware sets on the first authenticated HTTP request. Returns False
+    when remote mode is off — callers keep their loopback-only behavior.
+    """
+    key = remote_api_key()
+    if not key:
+        return False
+    auth = websocket.headers.get("authorization", "")
+    supplied = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
+    if not supplied:
+        supplied = (
+            websocket.query_params.get("api_key")
+            or websocket.cookies.get("ov_key")
+            or ""
+        )
+    return secrets.compare_digest(supplied, key)

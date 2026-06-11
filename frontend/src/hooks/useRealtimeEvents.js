@@ -12,9 +12,9 @@
  *   { kind: "ping" }  // keepalive, ignored
  */
 import { useEffect, useRef, useCallback } from 'react';
-import { API } from '../api/client';
+import { wsUrl } from '../api/client';
 
-const WS_EVENTS_URL = API.replace(/^http/, 'ws') + '/ws/events';
+const WS_EVENTS_URL = wsUrl('/ws/events');
 
 /**
  * @param {Object} handlers - Map of event kind → callback
