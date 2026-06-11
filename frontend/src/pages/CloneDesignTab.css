@@ -116,6 +116,26 @@
 /* Grid-2 margin */
 .grid-2--indent         { margin-top: 6px; }
 
+/* "Describe your voice" free-text block (issue #317) */
+.describe-voice-block {
+  margin-bottom: 12px;
+}
+.describe-voice-area {
+  width: 100%;
+  resize: vertical;
+  min-height: 44px;
+  margin-bottom: 4px;
+}
+.describe-voice-hint {
+  font-size: 0.62rem;
+  color: var(--chrome-fg-dim);
+}
+.describe-voice-feedback {
+  font-size: 0.65rem;
+  color: #d79921;
+  margin-bottom: 2px;
+}
+
 /* Slider column */
 .clone-sliders-col {
   display: flex;

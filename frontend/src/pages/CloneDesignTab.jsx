@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   PanelLeftOpen, PanelLeftClose, Command, Globe, SlidersHorizontal, Volume2, User,
   UploadCloud, Square, Mic, Save, UserSquare2, Settings2, ChevronUp, ChevronDown,
-  Sparkles, Play, Trash2, X,
+  Sparkles, Play, Trash2, X, Wand2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
@@ -11,7 +11,8 @@ import DemoPresetGrid from '../components/DemoPresetGrid';
 import ALL_LANGUAGES from '../languages.json';
 import { POPULAR_LANGS, PRESETS, TAGS, CATEGORIES } from '../utils/constants';
 import { Button, Input, Slider, Progress } from '../ui';
-import { API } from '../api/client';
+import { API, apiPost } from '../api/client';
+import { mergeDescribedAttrs } from '../utils/voiceInstruct';
 import { listEngines } from '../api/engines';
 import './CloneDesignTab.css';
 
@@ -52,6 +53,50 @@ export default function CloneDesignTab(props) {
 
   const { t } = useTranslation();
   const [activePersonality, setActivePersonality] = useState('');
+
+  // ── "Describe your voice" (#317): free-text → design parameters ──────────
+  // Debounced call to the local deterministic mapper (POST /design/describe);
+  // the result overwrites the category controls live, and the user can still
+  // hand-tune any of them afterwards. Unmappable fragments are surfaced
+  // instead of silently dropped (the #115/#114 validator-feedback lesson).
+  const [describeText, setDescribeText] = useState('');
+  const [describeUnmatched, setDescribeUnmatched] = useState([]);
+  const [describeMatchedAny, setDescribeMatchedAny] = useState(true);
+
+  const onDescribeChange = (e) => {
+    const value = e.target.value;
+    setDescribeText(value);
+    if (!value.trim()) {
+      // Cleared: drop stale feedback immediately (controls stay as they are).
+      setDescribeUnmatched([]);
+      setDescribeMatchedAny(true);
+    }
+  };
+
+  useEffect(() => {
+    const q = describeText.trim();
+    if (!q) return undefined;
+    let cancelled = false;
+    const id = setTimeout(async () => {
+      try {
+        const res = await apiPost('/design/describe', { description: q });
+        if (cancelled) return;
+        setVdStates(mergeDescribedAttrs(res.attrs));
+        setDescribeUnmatched(res.unmatched || []);
+        setDescribeMatchedAny((res.matched || []).length > 0);
+        // The description now owns the design parameters — clear any stale
+        // personality instruct so the synthesize path can't merge conflicting
+        // tokens from two sources (the issue-#114 failure mode).
+        setActivePersonality('');
+        setInstruct('');
+      } catch {
+        // Backend unreachable mid-typing — leave the controls untouched;
+        // the next keystroke retries.
+      }
+    }, 450);
+    return () => { cancelled = true; clearTimeout(id); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [describeText]);
 
   // Fetch personality presets from backend
   const { data: personalities = [] } = useQuery({
@@ -371,6 +416,29 @@ export default function CloneDesignTab(props) {
           </div>
         ) : (
           <div>
+            {/* ── Describe your voice (#317) — free text drives the controls ── */}
+            <div className="describe-voice-block">
+              <div className="label-row"><Wand2 className="label-icon" size={14} /> {t('clone.describe_label')}</div>
+              <textarea
+                className="input-base describe-voice-area"
+                rows={2}
+                placeholder={t('clone.describe_placeholder')}
+                value={describeText}
+                onChange={onDescribeChange}
+              />
+              {describeText.trim() && !describeMatchedAny && (
+                <div className="describe-voice-feedback" role="status">
+                  {t('clone.describe_no_match')}
+                </div>
+              )}
+              {describeMatchedAny && describeUnmatched.length > 0 && (
+                <div className="describe-voice-feedback" role="status">
+                  {t('clone.describe_unmatched', { items: describeUnmatched.join(', ') })}
+                </div>
+              )}
+              <div className="describe-voice-hint">{t('clone.describe_hint')}</div>
+            </div>
+
             <div className="label-row"><UserSquare2 className="label-icon" size={14} /> {t('voice.personality')}</div>
 
             {/* Personality presets — chip-only entries. Demo presets

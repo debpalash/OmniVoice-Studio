@@ -318,6 +318,7 @@ from api.routers import (
     setup,
     gallery,
     archetypes,
+    describe_voice,
     community,
     batch,
     watermark,
@@ -654,6 +655,7 @@ app.include_router(stories.router)
 app.include_router(setup.router)
 app.include_router(gallery.router)
 app.include_router(archetypes.router)
+app.include_router(describe_voice.router)  # issue #317: free-text voice design
 app.include_router(community.router)
 app.include_router(batch.router)
 app.include_router(watermark.router)
