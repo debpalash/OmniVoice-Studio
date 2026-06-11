@@ -608,6 +608,13 @@ function App() {
           const err = await res.json().catch(() => ({}));
           throw new Error(err.detail || 'Save failed');
         }
+        // Every save_path-aware endpoint returns a JSON envelope. Guard the
+        // content-type so a raw-body response surfaces as a clear error
+        // instead of a cryptic JSON.parse failure (#309).
+        const ctype = res.headers.get('content-type') || '';
+        if (!ctype.includes('application/json')) {
+          throw new Error(`Server returned ${ctype || 'an unknown content type'} instead of a JSON save confirmation`);
+        }
         const data = await res.json();
         toast.success(i18n.t('app.toast_saved', { path: data.path }), { id: fallbackName });
         try {

@@ -806,9 +806,32 @@ def _pick_subtitle_text(seg: dict, dual: bool) -> str:
     return f"{translated}\n<i>{original}</i>"
 
 
+def _save_subtitle_native(job_id: str, content: str, ext: str, display_name: str,
+                          save_path: str, media_type: str):
+    """Write subtitle text under the job's exports dir, then copy it to the
+    user-chosen destination and return the standard native-save JSON envelope.
+
+    Before this existed, the frontend's Tauri save dialog appended
+    `?save_path=…` to the SRT/VTT URLs (as it does for every other export)
+    and parsed the response as JSON — but these endpoints ignored the param
+    and returned the raw subtitle body, so JSON.parse choked on the SRT cue
+    index with "Unexpected non-whitespace character after JSON" (#309).
+    """
+    exports_dir = os.path.join(DUB_DIR, job_id, "exports")
+    os.makedirs(exports_dir, exist_ok=True)
+    tmp_path = os.path.join(exports_dir, f"subtitles_{_unique_stamp()}.{ext}")
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        f.write(content)
+    return _native_save(tmp_path, save_path, display_name, media_type=media_type)
+
+
 @router.get("/dub/srt/{job_id}")
 @router.get("/dub/srt/{job_id}/{filename}")
-async def dub_export_srt(job_id: str, dual: bool = False):
+async def dub_export_srt(
+    job_id: str,
+    dual: bool = False,
+    save_path: str = Query("", description="Absolute destination path. If set, the SRT is written there and JSON returned instead of the raw body."),
+):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -829,10 +852,14 @@ async def dub_export_srt(job_id: str, dual: bool = False):
     srt_content = "\n".join(srt_lines)
     base_name = os.path.splitext(job.get('filename', 'video'))[0]
     suffix = "_dual" if dual else ""
+    dl_name = f"subtitles_{base_name}{suffix}.srt"
+    if save_path:
+        return _save_subtitle_native(job_id, srt_content, "srt", dl_name, save_path,
+                                     media_type="application/x-subrip")
     return Response(
         content=srt_content,
         media_type="text/plain",
-        headers={"Content-Disposition": f'attachment; filename="subtitles_{base_name}{suffix}.srt"'},
+        headers={"Content-Disposition": f'attachment; filename="{dl_name}"'},
     )
 
 def _format_vtt_time(seconds):
@@ -844,7 +871,11 @@ def _format_vtt_time(seconds):
 
 @router.get("/dub/vtt/{job_id}")
 @router.get("/dub/vtt/{job_id}/{filename}")
-async def dub_export_vtt(job_id: str, dual: bool = False):
+async def dub_export_vtt(
+    job_id: str,
+    dual: bool = False,
+    save_path: str = Query("", description="Absolute destination path. If set, the VTT is written there and JSON returned instead of the raw body."),
+):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -865,10 +896,14 @@ async def dub_export_vtt(job_id: str, dual: bool = False):
     vtt_content = "\n".join(vtt_lines)
     base_name = os.path.splitext(job.get('filename', 'video'))[0]
     suffix = "_dual" if dual else ""
+    dl_name = f"subtitles_{base_name}{suffix}.vtt"
+    if save_path:
+        return _save_subtitle_native(job_id, vtt_content, "vtt", dl_name, save_path,
+                                     media_type="text/vtt")
     return Response(
         content=vtt_content,
         media_type="text/vtt",
-        headers={"Content-Disposition": f'attachment; filename="subtitles_{base_name}{suffix}.vtt"'},
+        headers={"Content-Disposition": f'attachment; filename="{dl_name}"'},
     )
 
 
