@@ -42,6 +42,19 @@ class DubSegment(BaseModel):
             )
         return v
 
+class FitOptions(BaseModel):
+    """Optional knob overrides for the `smart_fit` timing strategy.
+
+    All fields default to None — the server fills in the canonical
+    defaults (services.fit_planner.FitParams) so old clients and sparse
+    payloads behave identically to a fully-populated default payload.
+    """
+    max_audio_only_rate: Optional[float] = None  # default 1.2
+    audio_rate_cap: Optional[float] = None       # default 1.5
+    video_slow_cap: Optional[float] = None       # default 2.0
+    gap_guard_s: Optional[float] = None          # default 0.05
+    allow_video_retime: Optional[bool] = None    # default True
+
 class DubRequest(BaseModel):
     segments: List[DubSegment]
     language: str = "Auto"
@@ -80,13 +93,22 @@ class DubRequest(BaseModel):
     #                     each segment's video portion is stretched (via
     #                     ffmpeg setpts) to fit the natural-rate dub audio.
     #                     Audio plays at 1.0×; total video duration grows.
+    #   "smart_fit"     — dub-length fitting v2: split the burden between a
+    #                     mild pitch-preserving audio speed-up (≤1.2× alone,
+    #                     ≤1.5× in hybrid) and a mild per-segment video
+    #                     slow-down (≤2.0×), per services/fit_planner.py.
+    #                     Residual overflow is trimmed and surfaced.
     #   "strict_slot"   — legacy: keep `slot_fit` semantics (atempo squeeze
     #                     when audio > slot). Kept for back-compat.
-    timing_strategy: Optional[Literal["concise", "stretch_video", "strict_slot"]] = "concise"
+    timing_strategy: Optional[Literal["concise", "stretch_video", "strict_slot", "smart_fit"]] = "concise"
 
     # Per-job slip budget for "concise" mode. Hard-trim only kicks in once
     # gap absorption + this much extra time has been consumed.
     overflow_budget_s: Optional[float] = 0.0
+
+    # Knob overrides for `smart_fit` (ignored by other strategies). Omitted
+    # fields default server-side to fit_planner.FitParams values.
+    fit_options: Optional[FitOptions] = None
 
 class TranslateSegment(BaseModel):
     id: str
