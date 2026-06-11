@@ -982,6 +982,7 @@ export default function DubTab(props) {
                     onChange={setTimingStrategy}
                     items={[
                       { value: 'concise',       label: 'Concise',        title: 'Translator trims text to fit at natural rate. Overflows surface in the row badge so you can shorten the segment.' },
+                      { value: 'smart_fit',     label: t('dub.timing_smart_fit'), title: t('dub.timing_smart_fit_title') },
                       { value: 'stretch_video', label: 'Stretch Video',  title: 'Audio plays at natural rate; each segment of the video is stretched (per-segment ffmpeg setpts) to fit. Total video duration grows. Requires a re-encode pass.' },
                       { value: 'strict_slot',   label: 'Strict slot',    title: 'Legacy: compress audio to fit the original timing. Can sound rushed/chipmunky on high-density target languages.' },
                     ]}

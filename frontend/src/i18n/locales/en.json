@@ -551,6 +551,8 @@
     "dual_subs_title": "Export subtitles with translated text on top and original italicised underneath.",
     "burn_subs": "Burn subtitles",
     "burn_subs_title": "Render subtitles directly into the MP4 video stream (hardsubs). Uses the dual-subtitle format when Dual subtitles is on.",
+    "timing_smart_fit": "Smart Fit",
+    "timing_smart_fit_title": "Splits the difference: slightly speeds up the audio (pitch preserved, up to 1.5×) and slightly slows down that segment of the video (up to 2×) so natural-rate speech fits. Anything beyond the caps is trimmed and flagged. Export re-encodes the video.",
     "default_track": "Default Track:",
     "original_track": "Original",
     "selected_dub": "{{code}} (Selected Dub)",

@@ -658,6 +658,8 @@
     "dual_subs_title": "Altyazıları, üstte çevrilmiş metin ve altta italik orijinal olacak şekilde dışa aktarın.",
     "burn_subs": "Altyazıları yaz",
     "burn_subs_title": "Altyazıları doğrudan MP4 video akışına (hardsub'lar) aktarın. Çift altyazı açıkken çift altyazı formatını kullanır.",
+    "timing_smart_fit": "Akıllı Sığdırma",
+    "timing_smart_fit_title": "Yükü paylaştırır: sesi hafifçe hızlandırır (perde korunur, en fazla 1,5×) ve videonun o bölümünü hafifçe yavaşlatır (en fazla 2×), böylece doğal hızdaki konuşma sığar. Sınırları aşan kısım kırpılır ve işaretlenir. Dışa aktarma videoyu yeniden kodlar.",
     "default_track": "Varsayılan Parça:",
     "original_track": "Orijinal",
     "selected_dub": "{{code}} (Seçilmiş Dub)",

@@ -658,6 +658,8 @@
     "dual_subs_title": "Esporta i sottotitoli con il testo tradotto in alto e l'originale in corsivo sotto.",
     "burn_subs": "Masterizza i sottotitoli",
     "burn_subs_title": "Rendi i sottotitoli direttamente nel flusso video MP4 (hardsubs). Utilizza il formato doppio sottotitolo quando è attivo il doppio sottotitolo.",
+    "timing_smart_fit": "Adattamento intelligente",
+    "timing_smart_fit_title": "Divide il compito: accelera leggermente l'audio (tono preservato, fino a 1,5×) e rallenta leggermente quel segmento del video (fino a 2×) così il parlato a ritmo naturale ci sta. L'eccedenza viene tagliata e segnalata. L'esportazione ricodifica il video.",
     "default_track": "Traccia predefinita:",
     "original_track": "Originale",
     "selected_dub": "{{code}} (duplicazione selezionata)",

@@ -658,6 +658,8 @@
     "dual_subs_title": "Exporteer ondertitels met de vertaalde tekst bovenaan en het origineel cursief eronder.",
     "burn_subs": "Ondertitels branden",
     "burn_subs_title": "Geef ondertitels rechtstreeks weer in de MP4-videostream (hardsubs). Gebruikt het formaat met dubbele ondertiteling wanneer dubbele ondertiteling is ingeschakeld.",
+    "timing_smart_fit": "Slimme aanpassing",
+    "timing_smart_fit_title": "Verdeelt de aanpassing: versnelt de audio licht (toonhoogte behouden, tot 1,5×) en vertraagt dat videosegment licht (tot 2×) zodat spraak op natuurlijk tempo past. Wat daarbuiten valt wordt afgekapt en gemarkeerd. Exporteren hercodeert de video.",
     "default_track": "Standaardnummer:",
     "original_track": "Origineel",
     "selected_dub": "{{code}} (geselecteerde kopie)",

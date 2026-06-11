@@ -659,6 +659,8 @@
     "dual_subs_title": "Exportieren Sie Untertitel mit übersetztem Text oben und kursiv geschriebenem Original darunter.",
     "burn_subs": "Untertitel brennen",
     "burn_subs_title": "Rendern Sie Untertitel direkt in den MP4-Videostream (Hardsubs). Verwendet das Dual-Untertitelformat, wenn Dual-Untertitel aktiviert ist.",
+    "timing_smart_fit": "Intelligente Anpassung",
+    "timing_smart_fit_title": "Teilt die Anpassung auf: Das Audio wird leicht beschleunigt (tonhöhenerhaltend, bis 1,5×) und das Videosegment leicht verlangsamt (bis 2×), damit Sprache in natürlichem Tempo passt. Was darüber hinausgeht, wird gekürzt und markiert. Der Export codiert das Video neu.",
     "default_track": "Standardspur:",
     "original_track": "Original",
     "selected_dub": "{{code}} (Ausgewählter Dub)",

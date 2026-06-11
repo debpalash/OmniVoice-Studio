@@ -658,6 +658,8 @@
     "dual_subs_title": "Xuất phụ đề với văn bản dịch ở trên và bản gốc in nghiêng bên dưới.",
     "burn_subs": "Ghi phụ đề",
     "burn_subs_title": "Hiển thị phụ đề trực tiếp vào luồng video MP4 (hardsub). Sử dụng định dạng phụ đề kép khi phụ đề kép được bật.",
+    "timing_smart_fit": "Khớp thông minh",
+    "timing_smart_fit_title": "Chia đôi gánh nặng: tăng nhẹ tốc độ âm thanh (giữ cao độ, tối đa 1,5×) và làm chậm nhẹ đoạn video đó (tối đa 2×) để lời thoại ở nhịp tự nhiên vừa khít. Phần vượt giới hạn sẽ bị cắt và được đánh dấu. Xuất sẽ mã hóa lại video.",
     "default_track": "Bản nhạc mặc định:",
     "original_track": "Bản gốc",
     "selected_dub": "{{code}} (Lồng tiếng được chọn)",

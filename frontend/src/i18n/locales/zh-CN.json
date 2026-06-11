@@ -618,6 +618,8 @@
     "dual_subs_title": "导出字幕时上方为翻译文本，下方为原文（斜体）。",
     "burn_subs": "烧录字幕",
     "burn_subs_title": "将字幕直接渲染到 MP4 视频流中。开启双字幕时使用双字幕格式。",
+    "timing_smart_fit": "智能适配",
+    "timing_smart_fit_title": "两边各让一步：音频略微加速（保持音高，最高 1.5×），该片段的视频略微放慢（最高 2×），让自然语速的配音刚好放下。超出上限的部分会被裁剪并标记。导出时会重新编码视频。",
     "default_track": "默认轨道：",
     "original_track": "原声",
     "selected_dub": "{{code}}（选定配音）",

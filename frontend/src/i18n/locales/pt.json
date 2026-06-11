@@ -658,6 +658,8 @@
     "dual_subs_title": "Exporte legendas com o texto traduzido na parte superior e o original em itálico embaixo.",
     "burn_subs": "Gravar legendas",
     "burn_subs_title": "Renderize legendas diretamente no stream de vídeo MP4 (hardsubs). Usa o formato de legenda dupla quando Legendas duplas está ativado.",
+    "timing_smart_fit": "Ajuste inteligente",
+    "timing_smart_fit_title": "Divide o ajuste: acelera ligeiramente o áudio (tom preservado, até 1,5×) e desacelera ligeiramente esse trecho do vídeo (até 2×) para que a fala em ritmo natural caiba. O que passar dos limites é cortado e sinalizado. A exportação recodifica o vídeo.",
     "default_track": "Faixa padrão:",
     "original_track": "Originais",
     "selected_dub": "{{code}} (dublagem selecionada)",

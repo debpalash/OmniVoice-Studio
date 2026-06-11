@@ -658,6 +658,8 @@
     "dual_subs_title": "Ekspor subtitle dengan teks terjemahan di atas dan teks asli dicetak miring di bawahnya.",
     "burn_subs": "Bakar subtitle",
     "burn_subs_title": "Render subtitle langsung ke aliran video MP4 (hardsubs). Menggunakan format subtitle ganda saat Subtitle ganda aktif.",
+    "timing_smart_fit": "Penyesuaian Cerdas",
+    "timing_smart_fit_title": "Membagi beban: sedikit mempercepat audio (nada dipertahankan, hingga 1,5×) dan sedikit memperlambat segmen video itu (hingga 2×) agar suara dengan tempo alami muat. Kelebihan di luar batas dipangkas dan ditandai. Ekspor mengenkode ulang video.",
     "default_track": "Lagu Bawaan:",
     "original_track": "Asli",
     "selected_dub": "{{code}} (Suara yang Dipilih)",

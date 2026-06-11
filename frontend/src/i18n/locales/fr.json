@@ -659,6 +659,8 @@
     "dual_subs_title": "Exportez les sous-titres avec le texte traduit en haut et l'original en italique en dessous.",
     "burn_subs": "Graver les sous-titres",
     "burn_subs_title": "Rendu des sous-titres directement dans le flux vidéo MP4 (hardsubs). Utilise le format double sous-titre lorsque les sous-titres doubles sont activés.",
+    "timing_smart_fit": "Ajustement intelligent",
+    "timing_smart_fit_title": "Répartit l'effort : accélère légèrement l'audio (hauteur préservée, jusqu'à 1,5×) et ralentit légèrement ce segment de la vidéo (jusqu'à 2×) pour que la voix à débit naturel tienne. Tout dépassement est coupé et signalé. L'export réencode la vidéo.",
     "default_track": "Piste par défaut :",
     "original_track": "Originale",
     "selected_dub": "{{code}} (doublage sélectionné)",

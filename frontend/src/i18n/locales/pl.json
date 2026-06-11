@@ -658,6 +658,8 @@
     "dual_subs_title": "Eksportuj napisy z przetłumaczonym tekstem na górze i oryginalną kursywą pod spodem.",
     "burn_subs": "Wypal napisy",
     "burn_subs_title": "Renderuj napisy bezpośrednio do strumienia wideo MP4 (hardsub). Używa formatu podwójnych napisów, gdy opcja Podwójne napisy jest włączona.",
+    "timing_smart_fit": "Inteligentne dopasowanie",
+    "timing_smart_fit_title": "Dzieli dopasowanie: lekko przyspiesza dźwięk (z zachowaniem wysokości tonu, do 1,5×) i lekko spowalnia dany fragment wideo (do 2×), aby mowa w naturalnym tempie się zmieściła. Nadmiar jest przycinany i oznaczany. Eksport ponownie koduje wideo.",
     "default_track": "Domyślny utwór:",
     "original_track": "Oryginał",
     "selected_dub": "{{code}} (wybrany dubbing)",

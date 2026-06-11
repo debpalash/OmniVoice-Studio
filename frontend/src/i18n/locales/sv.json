@@ -658,6 +658,8 @@
     "dual_subs_title": "Exportera undertexter med översatt text överst och originalet kursivt under.",
     "burn_subs": "Bränn undertexter",
     "burn_subs_title": "Återge undertexter direkt i MP4-videoströmmen (hardsubs). Använder formatet med dubbla undertexter när dubbla undertexter är på.",
+    "timing_smart_fit": "Smart anpassning",
+    "timing_smart_fit_title": "Delar upp anpassningen: snabbar upp ljudet något (tonhöjd bevaras, upp till 1,5×) och saktar ner det videosegmentet något (upp till 2×) så att tal i naturligt tempo får plats. Det som ändå inte ryms klipps och flaggas. Export omkodar videon.",
     "default_track": "Standardspår:",
     "original_track": "Original",
     "selected_dub": "{{code}} (vald dub)",

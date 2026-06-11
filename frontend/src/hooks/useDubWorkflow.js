@@ -51,6 +51,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
   const speed           = useAppStore(s => s.speed);
   const translateQuality = useAppStore(s => s.translateQuality);
   const timingStrategy  = useAppStore(s => s.timingStrategy);
+  const fitOptions      = useAppStore(s => s.fitOptions);
   const glossaryTerms   = useAppStore(s => s.glossaryTerms);
   const dubDialect      = useAppStore(s => s.dubDialect);
 
@@ -420,6 +421,9 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
         num_step: steps, guidance_scale: cfg, speed,
         preview,
         timing_strategy: timingStrategy || 'concise',
+        // Smart Fit knob overrides — only when the user customised them;
+        // otherwise the backend's canonical defaults apply.
+        ...(timingStrategy === 'smart_fit' && fitOptions ? { fit_options: fitOptions } : {}),
       };
       const data = await dubGenerate(dubJobId, body);
       setDubTaskId(data.task_id);
@@ -487,7 +491,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
       setDubError(err.message); setDubStep('editing'); setDubTaskId(null);
       useAppStore.getState().errorPill(err.message);
     }
-  }, [dubJobId, dubSegments, dubLang, dubLangCode, dubInstruct, steps, cfg, speed, dubStep, timingStrategy, setDubStep, setDubProgress, setDubError, setDubTracks, setDubSegments, setDubTaskId, setPreviewSegIds, setLastGenFingerprints, loadDubHistory, loadProjects]);
+  }, [dubJobId, dubSegments, dubLang, dubLangCode, dubInstruct, steps, cfg, speed, dubStep, timingStrategy, fitOptions, setDubStep, setDubProgress, setDubError, setDubTracks, setDubSegments, setDubTaskId, setPreviewSegIds, setLastGenFingerprints, loadDubHistory, loadProjects]);
 
   const handleDubStop = useCallback(async () => {
     if (!dubTaskId) return;
