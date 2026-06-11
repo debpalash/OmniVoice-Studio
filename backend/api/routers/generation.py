@@ -145,6 +145,16 @@ def _run_inference(
             torch.mps.empty_cache()
         elif torch.cuda.is_available():
             torch.cuda.empty_cache()
+        # #278: don't mislabel a torch.compile/Triton/Inductor crash as an
+        # out-of-memory condition. (model_manager's generate wrapper already
+        # retries these eagerly; this only triggers if that retry also died.)
+        from services.model_manager import _is_compile_runtime_failure
+        if _is_compile_runtime_failure(e):
+            raise RuntimeError(
+                f"TTS engine hit a torch.compile/Triton error (not out of memory). "
+                f"Disable torch.compile in Settings → Performance, use the Flush "
+                f"button to reload the model, then regenerate. Underlying error: {e}"
+            )
         raise RuntimeError(
             f"TTS engine stopped mid-generation. This usually means it ran out of memory. "
             f"Try the Flush button to reload the model, then regenerate. Underlying error: {e}"

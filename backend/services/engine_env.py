@@ -24,6 +24,78 @@ logger = logging.getLogger("omnivoice.engine_env")
 
 _TORCH_COMPILE_KEY = "perf.torch_compile_disabled"
 
+# #278: explicit opt-in override — set to 1/true to attempt torch.compile even
+# when the GPU's compute capability is not in this PyTorch build's arch list
+# (e.g. a brand-new architecture running through PTX forward-compat).
+_FORCE_COMPILE_ENV = "OMNIVOICE_FORCE_TORCH_COMPILE"
+
+# #278: set (with a reason) the first time torch.compile — or *running* the
+# compiled model — fails at runtime in this process. Once set, every later
+# load in the same session goes straight to eager instead of re-tripping the
+# same Dynamo/Inductor/Triton failure.
+_compile_runtime_failure: Optional[str] = None
+
+
+def mark_compile_runtime_failure(reason: str) -> None:
+    """Record that torch.compile (or compiled execution) failed at runtime.
+
+    Called by ``services.model_manager`` when compilation raises, or when a
+    generation through the compiled model dies inside the Dynamo / Inductor /
+    Triton stack (#278). Disables compile for the rest of the process — eager
+    mode from here on; the next app restart probes again.
+    """
+    global _compile_runtime_failure
+    _compile_runtime_failure = reason or "unknown torch.compile runtime failure"
+    logger.warning(
+        "torch.compile disabled for this session after a runtime failure: %s",
+        _compile_runtime_failure,
+    )
+
+
+def _force_compile_requested() -> bool:
+    value = os.environ.get(_FORCE_COMPILE_ENV, "")
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _cuda_arch_supported_for_compile() -> "tuple[bool, str]":
+    """Check the GPU's compute capability against this torch build's arch list.
+
+    New GPU architectures (e.g. Blackwell sm_120, issue #278) routinely break
+    torch.compile/Triton before upstream support lands: the eager model runs
+    via PTX forward-compat, but Inductor/Triton kernel compilation targets the
+    new arch directly and fails mid-generation. If the device's ``sm_XY`` tag
+    is absent from ``torch.cuda.get_arch_list()`` we treat compile as
+    unsupported and use eager.
+
+    Returns ``(supported, reason)``. Fails open — any probe error returns
+    ``(True, "")`` so a weird torch build never silently loses the
+    optimization (the runtime fallback in model_manager still protects
+    generation).
+    """
+    try:
+        import torch
+
+        if not torch.cuda.is_available():
+            return True, ""
+        major, minor = torch.cuda.get_device_capability(0)
+        arch_list = list(getattr(torch.cuda, "get_arch_list", lambda: [])() or [])
+        if not arch_list:
+            return True, ""
+        sm_tag = f"sm_{major}{minor}"
+        if sm_tag in arch_list or f"compute_{major}{minor}" in arch_list:
+            return True, ""
+        try:
+            device_name = torch.cuda.get_device_name(0)
+        except Exception:
+            device_name = "GPU"
+        return False, (
+            f"{device_name} (compute capability {major}.{minor} / {sm_tag}) is not "
+            f"in this PyTorch build's supported arch list ({', '.join(arch_list)})"
+        )
+    except Exception:
+        logger.debug("CUDA arch probe for torch.compile failed; assuming supported", exc_info=True)
+        return True, ""
+
 
 def should_torch_compile(device: str) -> bool:
     """Decide whether to apply ``torch.compile`` to an in-process model.
@@ -34,9 +106,14 @@ def should_torch_compile(device: str) -> bool:
       - device == "cuda" (compile only helps the CUDA path here),
       - Triton importable (``find_spec`` — the cross-platform gate that closes
         #65; no Windows wheel ⇒ skip ⇒ eager),
-      - the user has NOT set the ``perf.torch_compile_disabled`` escape hatch.
+      - the user has NOT set the ``perf.torch_compile_disabled`` escape hatch,
+      - compile has NOT already failed at runtime in this process (#278),
+      - the GPU's compute capability is in this torch build's arch list (#278)
+        — overridable via ``OMNIVOICE_FORCE_TORCH_COMPILE=1``.
 
     Returns False (→ eager mode) on any of those, logging the reason at INFO.
+    torch.compile is an optimization, never a requirement — generation must
+    always work without it.
     """
     if device != "cuda":
         return False
@@ -51,6 +128,25 @@ def should_torch_compile(device: str) -> bool:
             return False
     except Exception:
         logger.exception("should_torch_compile: settings read failed; proceeding")
+    if _compile_runtime_failure is not None:
+        logger.info(
+            "torch.compile skipped: failed earlier this session (%s) — using eager mode.",
+            _compile_runtime_failure,
+        )
+        return False
+    supported, reason = _cuda_arch_supported_for_compile()
+    if not supported:
+        if _force_compile_requested():
+            logger.warning(
+                "torch.compile forced via %s=1 despite: %s", _FORCE_COMPILE_ENV, reason,
+            )
+            return True
+        logger.info(
+            "torch.compile skipped: %s — using eager mode. "
+            "(Set %s=1 to attempt compile anyway.)",
+            reason, _FORCE_COMPILE_ENV,
+        )
+        return False
     return True
 
 

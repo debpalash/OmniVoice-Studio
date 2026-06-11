@@ -231,6 +231,105 @@ def get_best_device():
 
     return "cpu"
 
+_COMPILE_ERR_MODULE_PREFIXES = ("torch._dynamo", "torch._inductor", "torch.fx", "triton")
+_COMPILE_ERR_TB_MARKERS = ("/_dynamo/", "/_inductor/", "/triton/", "torch/fx/")
+_COMPILE_ERR_MSG_MARKERS = (
+    "dynamo", "inductor", "triton", "cudagraph",
+    "symbolically trace", "torch.compile", "fx graph",
+)
+
+
+def _is_compile_runtime_failure(exc: BaseException) -> bool:
+    """True when an exception originates in the torch.compile stack (Dynamo /
+    Inductor / Triton / FX / CUDA-graph trees) rather than in the model itself.
+
+    #278: on GPU architectures Triton doesn't support yet (e.g. Blackwell
+    sm_120), the compiled model dies mid-generation with errors like
+    "Detected that you are using FX to symbolically trace a dynamo-optimized
+    function" or an AssertionError out of torch/_inductor/cudagraph_trees.py.
+    Walks the exception chain and checks (a) the exception type's module,
+    (b) the message, (c) the traceback file paths — the cudagraph case is a
+    bare AssertionError, so the traceback check is load-bearing.
+    """
+    import traceback as _tb
+
+    seen: set[int] = set()
+    cur: BaseException | None = exc
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        mod = type(cur).__module__ or ""
+        if mod.startswith(_COMPILE_ERR_MODULE_PREFIXES):
+            return True
+        msg = str(cur).lower()
+        if any(marker in msg for marker in _COMPILE_ERR_MSG_MARKERS):
+            return True
+        try:
+            for frame in _tb.extract_tb(cur.__traceback__):
+                filename = (frame.filename or "").replace("\\", "/")
+                if any(marker in filename for marker in _COMPILE_ERR_TB_MARKERS):
+                    return True
+        except Exception:
+            pass
+        # Follow the chain, honoring `raise ... from None` (the eager-retry
+        # path suppresses the original compile error so a genuine eager
+        # failure isn't misclassified as a compile failure).
+        if cur.__cause__ is not None:
+            cur = cur.__cause__
+        elif not cur.__suppress_context__:
+            cur = cur.__context__
+        else:
+            cur = None
+    return False
+
+
+def _install_compile_fallback(_model) -> None:
+    """Wrap ``model.generate`` so a torch.compile failure at inference time
+    falls back to the eager (uncompiled) model instead of failing the
+    generation (#278).
+
+    All TTS paths (generate, archetype previews, dub, stream, batch) funnel
+    through ``model.generate``, so this is the single choke point. On a
+    compile-stack failure we: log a clear warning, restore the eager module
+    (``OptimizedModule._orig_mod``), disable compile for the rest of the
+    session via ``engine_env.mark_compile_runtime_failure``, reset dynamo
+    state, and retry the call once eagerly. Non-compile errors (real OOM,
+    validation, …) propagate unchanged — fully backward compatible for users
+    whose torch.compile works.
+    """
+    orig_generate = _model.generate
+
+    def _generate_with_compile_fallback(*args, **kwargs):
+        try:
+            return orig_generate(*args, **kwargs)
+        except Exception as exc:
+            compiled = getattr(_model, "llm", None)
+            eager = getattr(compiled, "_orig_mod", None)
+            if eager is None or not _is_compile_runtime_failure(exc):
+                raise
+            logger.warning(
+                "torch.compile runtime failure during generation (%s: %s) — "
+                "falling back to the eager model and disabling torch.compile "
+                "for this session. Generation is being retried without it.",
+                type(exc).__name__, exc,
+            )
+            from services import engine_env
+            engine_env.mark_compile_runtime_failure(f"{type(exc).__name__}: {exc}")
+            _model.llm = eager
+            try:
+                torch = _lazy_torch()
+                torch._dynamo.reset()
+            except Exception:
+                pass
+            try:
+                return orig_generate(*args, **kwargs)
+            except Exception as eager_exc:
+                # `from None` so a genuine eager failure (e.g. a real OOM)
+                # isn't chained to — and misclassified as — the compile error.
+                raise eager_exc from None
+
+    _model.generate = _generate_with_compile_fallback
+
+
 def _set_loading(sub_stage: str, detail: str = "", error: str | None = None, progress: float | None = None):
     """Update the loading detail dict atomically."""
     _loading_detail["sub_stage"] = sub_stage
@@ -303,8 +402,25 @@ def _load_model_sync():
 
             if should_torch_compile(device):
                 _set_loading("compiling", "Compiling model (torch.compile)…")
-                _model.llm = torch.compile(_model.llm, mode="reduce-overhead")
-                logger.info("torch.compile applied.")
+                try:
+                    _model.llm = torch.compile(_model.llm, mode="reduce-overhead")
+                except Exception as compile_exc:
+                    # #278: compile is an optimization, never a point of
+                    # failure — keep the eager model and remember the failure
+                    # so later loads this session skip compile up front.
+                    from services.engine_env import mark_compile_runtime_failure
+                    mark_compile_runtime_failure(f"{type(compile_exc).__name__}: {compile_exc}")
+                    logger.warning(
+                        "torch.compile failed (%s) — continuing with the eager model.",
+                        compile_exc,
+                    )
+                else:
+                    # Compilation is lazy: Dynamo/Inductor/Triton can still
+                    # blow up on the first *forward* (e.g. unsupported new GPU
+                    # archs, #278). Wrap generate so that falls back to eager
+                    # instead of failing the generation.
+                    _install_compile_fallback(_model)
+                    logger.info("torch.compile applied.")
         except Exception as e:
             logger.info("torch.compile skipped: %s", e)
 
