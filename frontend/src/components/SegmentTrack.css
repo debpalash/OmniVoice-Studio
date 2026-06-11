@@ -1,0 +1,167 @@
+/* SegmentTrack — custom dub-timeline segment lane (#280, item 3). */
+
+.seg-track {
+  position: relative;
+  width: 100%;
+  user-select: none;
+  -webkit-user-select: none;
+  margin-top: 2px;
+}
+
+.seg-track__onsets {
+  display: block;
+  width: 100%;
+  pointer-events: none;
+}
+
+.seg-track__viewport {
+  position: relative;
+  width: 100%;
+  height: 40px;
+  overflow: hidden;
+}
+
+/* WebKit fallback: the lane scrolls itself (no WaveSurfer wrapper to sync). */
+.seg-track__viewport--scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.seg-track__lane {
+  position: relative;
+  height: 100%;
+  will-change: transform;
+}
+
+.seg-track__box {
+  position: absolute;
+  top: 3px;
+  height: 34px;
+  border: 1px solid rgba(168, 153, 132, 0.35);
+  border-radius: 4px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+}
+
+.seg-track__box.is-dragging { cursor: grabbing; }
+
+.seg-track__box:focus-visible {
+  border-color: #d3869b;
+  box-shadow: 0 0 0 1px #d3869b;
+}
+
+.seg-track__box.is-selected {
+  border-color: #d3869b;
+  box-shadow: 0 0 0 1px rgba(211, 134, 155, 0.7);
+}
+
+.seg-track__box.is-editing {
+  border-style: dashed;
+  border-color: #fabd2f;
+}
+
+/* Cache state from the incremental plan. */
+.seg-track__box.is-stale { border-bottom: 2px solid #fabd2f; }
+.seg-track__box.is-fresh { border-bottom: 2px solid rgba(142, 192, 124, 0.8); }
+
+/* Hatched warning when Alt-drag created an overlap (≤200 ms allowed). */
+.seg-track__box.is-overlap {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(251, 73, 52, 0.28) 0,
+    rgba(251, 73, 52, 0.28) 4px,
+    transparent 4px,
+    transparent 8px
+  ) !important;
+  border-color: #fb4934;
+}
+
+.seg-track__label {
+  flex: 1;
+  min-width: 0;
+  padding: 0 8px;
+  font-size: 9px;
+  line-height: 1.2;
+  color: #ebdbb2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.seg-track__handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 2;
+}
+
+.seg-track__handle--l { left: 0; border-left: 2px solid rgba(235, 219, 178, 0.45); }
+.seg-track__handle--r { right: 0; border-right: 2px solid rgba(235, 219, 178, 0.45); }
+
+.seg-track__box:hover .seg-track__handle--l,
+.seg-track__box.is-selected .seg-track__handle--l { border-left-color: #d3869b; }
+.seg-track__box:hover .seg-track__handle--r,
+.seg-track__box.is-selected .seg-track__handle--r { border-right-color: #d3869b; }
+
+.seg-track__actions {
+  display: inline-flex;
+  gap: 2px;
+  margin-right: 8px;
+  z-index: 3;
+}
+
+.seg-track__action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid rgba(168, 153, 132, 0.4);
+  border-radius: 3px;
+  background: rgba(40, 40, 40, 0.85);
+  color: #ebdbb2;
+  cursor: pointer;
+}
+
+.seg-track__action-btn:hover {
+  border-color: #d3869b;
+  color: #d3869b;
+}
+
+.seg-track__playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #d3869b;
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.seg-track.is-disabled .seg-track__box {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* Visually hidden, still announced by screen readers. */
+.seg-track__sr-announce {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}

@@ -657,6 +657,20 @@
     "fit_audio_title": "Audio fit inside the slot.",
     "fit_ratio_title": "TTS audio is {{pct}}% of the slot."
   },
+  "timeline": {
+    "track_label": "Segment timeline",
+    "keyboard_hint": "Arrow keys select a segment · Enter toggles edit mode · Delete removes · S snaps to the nearest speech onset",
+    "segment_aria": "Segment {{index}}: {{start}} to {{end}}",
+    "overlap_warning": "Overlaps an adjacent segment — both lines will play together",
+    "moved_announce": "Segment {{index}} moved to {{start}}",
+    "resized_announce": "Segment {{index}}: {{start}} to {{end}}",
+    "deleted_announce": "Segment {{index}} deleted",
+    "snapped_announce": "Edge snapped to speech onset at {{time}}",
+    "edit_mode_on": "Edit mode: arrows nudge the start, Shift adjusts the end, Alt moves the segment, Esc finishes",
+    "edit_mode_off": "Edit mode off",
+    "play_slot": "Play this slot",
+    "preview_dub": "Preview dub here"
+  },
   "voice": {
     "personality": "Personality",
     "pick_personality": "Pick a personality preset…",

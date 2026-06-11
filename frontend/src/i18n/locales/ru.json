@@ -776,6 +776,20 @@
     "fit_audio_title": "Аудио поместилось внутри слота.",
     "fit_ratio_title": "Звук TTS занимает {{pct}}% слота."
   },
+  "timeline": {
+    "track_label": "Шкала сегментов",
+    "keyboard_hint": "Стрелки выбирают сегмент · Enter переключает режим правки · Delete удаляет · S привязывает к ближайшему началу речи",
+    "segment_aria": "Сегмент {{index}}: с {{start}} до {{end}}",
+    "overlap_warning": "Перекрывается с соседним сегментом — обе реплики прозвучат одновременно",
+    "moved_announce": "Сегмент {{index}} перемещён на {{start}}",
+    "resized_announce": "Сегмент {{index}}: с {{start}} до {{end}}",
+    "deleted_announce": "Сегмент {{index}} удалён",
+    "snapped_announce": "Край привязан к началу речи в {{time}}",
+    "edit_mode_on": "Режим правки: стрелки сдвигают начало, Shift — конец, Alt — весь сегмент, Esc — завершить",
+    "edit_mode_off": "Режим правки выключен",
+    "play_slot": "Воспроизвести этот участок",
+    "preview_dub": "Прослушать дубляж здесь"
+  },
   "voice": {
     "personality": "Личность",
     "pick_personality": "Выберите персональную предустановку…",

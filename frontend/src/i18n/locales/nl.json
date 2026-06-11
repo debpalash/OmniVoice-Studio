@@ -776,6 +776,20 @@
     "fit_audio_title": "Audio past in de sleuf.",
     "fit_ratio_title": "TTS-audio is {{pct}}% van de sleuf."
   },
+  "timeline": {
+    "track_label": "Segmenttijdlijn",
+    "keyboard_hint": "Pijltjestoetsen selecteren een segment · Enter schakelt de bewerkmodus · Delete verwijdert · S klikt vast op de dichtstbijzijnde spraakinzet",
+    "segment_aria": "Segment {{index}}: {{start}} tot {{end}}",
+    "overlap_warning": "Overlapt een aangrenzend segment — beide regels klinken tegelijk",
+    "moved_announce": "Segment {{index}} verplaatst naar {{start}}",
+    "resized_announce": "Segment {{index}}: {{start}} tot {{end}}",
+    "deleted_announce": "Segment {{index}} verwijderd",
+    "snapped_announce": "Rand vastgeklikt op spraakinzet bij {{time}}",
+    "edit_mode_on": "Bewerkmodus: pijltjes verschuiven het begin, Shift het einde, Alt het hele segment, Esc sluit af",
+    "edit_mode_off": "Bewerkmodus uit",
+    "play_slot": "Dit fragment afspelen",
+    "preview_dub": "Dub hier voorbeluisteren"
+  },
   "voice": {
     "personality": "Persoonlijkheid",
     "pick_personality": "Kies een persoonlijkheidsvoorinstelling...",

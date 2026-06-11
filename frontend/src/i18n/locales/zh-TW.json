@@ -776,6 +776,20 @@
     "fit_audio_title": "音訊適合插槽內。",
     "fit_ratio_title": "TTS 音訊佔插槽的 {{pct}}%。"
   },
+  "timeline": {
+    "track_label": "片段時間軸",
+    "keyboard_hint": "方向鍵選擇片段 · Enter 切換編輯模式 · Delete 刪除 · S 吸附到最近的語音起點",
+    "segment_aria": "片段 {{index}}：{{start}} 至 {{end}}",
+    "overlap_warning": "與相鄰片段重疊 — 兩句台詞將同時播放",
+    "moved_announce": "片段 {{index}} 已移動到 {{start}}",
+    "resized_announce": "片段 {{index}}：{{start}} 至 {{end}}",
+    "deleted_announce": "片段 {{index}} 已刪除",
+    "snapped_announce": "邊緣已吸附到 {{time}} 處的語音起點",
+    "edit_mode_on": "編輯模式：方向鍵微調起點，Shift 調整終點，Alt 移動整個片段，Esc 結束",
+    "edit_mode_off": "已離開編輯模式",
+    "play_slot": "播放此區間",
+    "preview_dub": "在此預聽配音"
+  },
   "voice": {
     "personality": "個性",
     "pick_personality": "選擇個性預設...",

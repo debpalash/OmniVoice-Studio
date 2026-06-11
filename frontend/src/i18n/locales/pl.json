@@ -776,6 +776,20 @@
     "fit_audio_title": "Dźwięk mieści się w gnieździe.",
     "fit_ratio_title": "Dźwięk TTS zajmuje {{pct}}% szczeliny."
   },
+  "timeline": {
+    "track_label": "Oś czasu segmentów",
+    "keyboard_hint": "Strzałki wybierają segment · Enter przełącza tryb edycji · Delete usuwa · S przyciąga do najbliższego początku mowy",
+    "segment_aria": "Segment {{index}}: od {{start}} do {{end}}",
+    "overlap_warning": "Nakłada się na sąsiedni segment — obie kwestie zagrają jednocześnie",
+    "moved_announce": "Segment {{index}} przesunięty do {{start}}",
+    "resized_announce": "Segment {{index}}: od {{start}} do {{end}}",
+    "deleted_announce": "Segment {{index}} usunięty",
+    "snapped_announce": "Krawędź przyciągnięta do początku mowy w {{time}}",
+    "edit_mode_on": "Tryb edycji: strzałki przesuwają początek, Shift koniec, Alt cały segment, Esc kończy",
+    "edit_mode_off": "Tryb edycji wyłączony",
+    "play_slot": "Odtwórz ten fragment",
+    "preview_dub": "Odsłuchaj dubbing tutaj"
+  },
   "voice": {
     "personality": "Osobowość",
     "pick_personality": "Wybierz gotowe ustawienie osobowości…",

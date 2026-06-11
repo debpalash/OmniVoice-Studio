@@ -776,6 +776,20 @@
     "fit_audio_title": "L'audio si inserisce all'interno dello slot.",
     "fit_ratio_title": "L'audio TTS è il {{pct}}% dello slot."
   },
+  "timeline": {
+    "track_label": "Timeline dei segmenti",
+    "keyboard_hint": "Le frecce selezionano un segmento · Invio attiva o disattiva la modalità modifica · Canc elimina · S aggancia all'attacco vocale più vicino",
+    "segment_aria": "Segmento {{index}}: da {{start}} a {{end}}",
+    "overlap_warning": "Si sovrappone a un segmento adiacente — le due battute suoneranno insieme",
+    "moved_announce": "Segmento {{index}} spostato a {{start}}",
+    "resized_announce": "Segmento {{index}}: da {{start}} a {{end}}",
+    "deleted_announce": "Segmento {{index}} eliminato",
+    "snapped_announce": "Bordo agganciato all'attacco vocale a {{time}}",
+    "edit_mode_on": "Modalità modifica: le frecce spostano l'inizio, Maiusc la fine, Alt l'intero segmento, Esc termina",
+    "edit_mode_off": "Modalità modifica disattivata",
+    "play_slot": "Riproduci questo intervallo",
+    "preview_dub": "Anteprima del doppiaggio qui"
+  },
   "voice": {
     "personality": "Personalità",
     "pick_personality": "Scegli una personalità preimpostata...",

@@ -777,6 +777,20 @@
     "fit_audio_title": "Audio passt in den Steckplatz.",
     "fit_ratio_title": "TTS-Audio macht {{pct}} % des Slots aus."
   },
+  "timeline": {
+    "track_label": "Segment-Zeitleiste",
+    "keyboard_hint": "Pfeiltasten wählen ein Segment · Enter schaltet den Bearbeitungsmodus um · Entf löscht · S rastet am nächsten Sprecheinsatz ein",
+    "segment_aria": "Segment {{index}}: {{start}} bis {{end}}",
+    "overlap_warning": "Überlappt ein benachbartes Segment — beide Zeilen werden zusammen abgespielt",
+    "moved_announce": "Segment {{index}} verschoben nach {{start}}",
+    "resized_announce": "Segment {{index}}: {{start}} bis {{end}}",
+    "deleted_announce": "Segment {{index}} gelöscht",
+    "snapped_announce": "Kante am Sprecheinsatz bei {{time}} eingerastet",
+    "edit_mode_on": "Bearbeitungsmodus: Pfeile verschieben den Anfang, Umschalt das Ende, Alt das ganze Segment, Esc beendet",
+    "edit_mode_off": "Bearbeitungsmodus aus",
+    "play_slot": "Diesen Abschnitt abspielen",
+    "preview_dub": "Synchro hier vorhören"
+  },
   "voice": {
     "personality": "Persönlichkeit",
     "pick_personality": "Wählen Sie eine Persönlichkeitsvoreinstellung ...",

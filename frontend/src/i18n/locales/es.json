@@ -777,6 +777,20 @@
     "fit_audio_title": "El audio encaja dentro de la ranura.",
     "fit_ratio_title": "El audio TTS es el {{pct}}% de la ranura."
   },
+  "timeline": {
+    "track_label": "Línea de tiempo de segmentos",
+    "keyboard_hint": "Las flechas seleccionan un segmento · Enter alterna el modo de edición · Supr elimina · S ajusta al inicio de voz más cercano",
+    "segment_aria": "Segmento {{index}}: {{start}} a {{end}}",
+    "overlap_warning": "Se solapa con un segmento adyacente — ambas líneas sonarán a la vez",
+    "moved_announce": "Segmento {{index}} movido a {{start}}",
+    "resized_announce": "Segmento {{index}}: {{start}} a {{end}}",
+    "deleted_announce": "Segmento {{index}} eliminado",
+    "snapped_announce": "Borde ajustado al inicio de voz en {{time}}",
+    "edit_mode_on": "Modo edición: las flechas mueven el inicio, Mayús el final, Alt todo el segmento, Esc termina",
+    "edit_mode_off": "Modo edición desactivado",
+    "play_slot": "Reproducir este intervalo",
+    "preview_dub": "Previsualizar el doblaje aquí"
+  },
   "voice": {
     "personality": "Personalidad",
     "pick_personality": "Elige un ajuste preestablecido de personalidad...",

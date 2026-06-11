@@ -1,50 +1,61 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import WaveSurfer from 'wavesurfer.js';
-import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import MinimapPlugin from 'wavesurfer.js/dist/plugins/minimap.esm.js';
 import TimelinePlugin from 'wavesurfer.js/dist/plugins/timeline.esm.js';
 import { Play, Pause, ZoomIn, ZoomOut, SkipBack, Loader, Keyboard } from 'lucide-react';
 import { useAppStore } from '../store';
+import SegmentTrack from './SegmentTrack';
 import './WaveformErrorBoundary.css';
-
-const REGION_COLORS = [
-  'rgba(211,134,155,0.3)',
-  'rgba(131,165,152,0.3)',
-  'rgba(184,187,38,0.3)',
-  'rgba(250,189,47,0.3)',
-  'rgba(142,192,124,0.3)',
-  'rgba(254,128,25,0.3)',
-  'rgba(104,157,106,0.3)',
-];
 
 /**
  * WaveformTimeline
  *
+ * Hosts WaveSurfer (waveform / playhead / zoom / scroll) plus the custom
+ * SegmentTrack editing lane (#280, item 3 — replaces the Regions plugin).
+ * All segment-box positions derive from a single {pxPerSec, scrollLeft}
+ * source read off WaveSurfer's wrapper, so the lane stays pixel-aligned
+ * with the waveform across zoom/scroll/resize.
+ *
  * Props:
- *   audioSrc       – URL / blob URL for audio (used as WaveSurfer media + waveform source)
- *   videoSrc       – URL / blob URL for the video preview (optional, shown above waveform)
- *   segments       – Array<{ id, start, end, text }>
- *   onSegmentsChange – (fn) => void  (receives a setter-style function)
- *   disabled       – locks drag/resize of regions
- *   overlayContent – React node rendered as a translucent overlay on the waveform
+ *   audioSrc        – URL / blob URL for audio (WaveSurfer media + waveform source)
+ *   videoSrc        – URL / blob URL for the video preview (optional, shown above waveform)
+ *   segments        – Array<{ id, start, end, text }>
+ *   disabled        – locks drag/resize of segment boxes
+ *   overlayContent  – React node rendered as a translucent overlay on the waveform
+ *   onsets          – speech-onset times (s) for the snap ticks
+ *   selectedSegId   – selected segment id (timeline ↔ table sync)
+ *   onSelectSeg     – (id) => void
+ *   incrementalPlan – { stale, fresh } cache plan for box tinting
+ *   onSegmentCommit – (id, {start,end}, {undo}) => void — one commit per gesture
+ *   onSegmentDelete – (id) => void
+ *   onPreviewSegment– (seg) => void — synthesize-and-play this segment's dub
  */
 function WaveformTimeline({
   audioSrc,
   videoSrc,
   segments = [],
-  onSegmentsChange,
   disabled = false,
   overlayContent,
+  onsets = [],
+  selectedSegId = null,
+  onSelectSeg,
+  incrementalPlan = null,
+  onSegmentCommit,
+  onSegmentDelete,
+  onPreviewSegment,
 }, ref) {
   const waveContainerRef = useRef(null);  // div WaveSurfer draws into
   const videoContainerRef = useRef(null); // div we imperatively append the <video> into
   const wsRef         = useRef(null);
   const mediaElRef    = useRef(null);  // fallback: direct media element if WaveSurfer unavailable
-  const regionsRef    = useRef(null);
-  const isDraggingRef = useRef(false);
-  const lastFpRef     = useRef(null);
+  const playRangeEndRef = useRef(null); // playRange() watcher pauses at this time
 
   const [ready,       setReady]       = useState(false);
+  // WaveSurfer init threw (WebKit restriction) — media element still works;
+  // the SegmentTrack then self-scrolls with a locally fixed pxPerSec.
+  const [fallbackMode, setFallbackMode] = useState(false);
+  // Single alignment source for the SegmentTrack, read off ws.getWrapper().
+  const [metrics, setMetrics] = useState({ pxPerSec: 0, scrollLeft: 0 });
   const [loadError,   setLoadError]   = useState(false);
   // Specifically: the source returned a non-media response (typically 404
   // HTML). Differentiates from a generic decode failure so the error UI
@@ -93,6 +104,8 @@ function WaveformTimeline({
     setCurrentTime(0);
     setDuration(0);
     setIsPlaying(false);
+    setFallbackMode(false);
+    playRangeEndRef.current = null;
 
     // ── 1. Create the video element imperatively (stable, no React re-renders) ──
     let videoEl = null;
@@ -177,10 +190,6 @@ function WaveformTimeline({
     mediaElRef.current = mediaEl;       // keep ref for fallback play/pause
 
     // ── 3. Init WaveSurfer with that single media element ────────────────────
-    const regions = RegionsPlugin.create();
-    regionsRef.current = regions;
-    lastFpRef.current  = null;
-
     let ws;
     try {
       // Start at the container's measured height; a ResizeObserver below
@@ -214,7 +223,7 @@ function WaveformTimeline({
         barRadius:     2,
         normalize:     true,
         media:         mediaEl,
-        plugins:       [regions, minimap, timeline],
+        plugins:       [minimap, timeline],
       });
     } catch (initErr) {
       console.warn('WaveSurfer init failed (WebKit restriction?):', initErr);
@@ -226,18 +235,33 @@ function WaveformTimeline({
       };
       if (mediaEl.readyState >= 1) waitMeta();
       else mediaEl.addEventListener('loadedmetadata', waitMeta, { once: true });
-      mediaEl.addEventListener('timeupdate', () => setCurrentTime(mediaEl.currentTime));
+      mediaEl.addEventListener('timeupdate', () => {
+        setCurrentTime(mediaEl.currentTime);
+        // playRange watcher — stop at the requested slot end.
+        if (playRangeEndRef.current != null && mediaEl.currentTime >= playRangeEndRef.current - 0.02) {
+          playRangeEndRef.current = null;
+          try { mediaEl.pause(); } catch (_) { /* ignore */ }
+        }
+      });
       mediaEl.addEventListener('play',  () => setIsPlaying(true));
-      mediaEl.addEventListener('pause', () => setIsPlaying(false));
+      mediaEl.addEventListener('pause', () => { setIsPlaying(false); playRangeEndRef.current = null; });
       mediaEl.addEventListener('ended', () => setIsPlaying(false));
       wsRef.current = null;
+      setFallbackMode(true);
       return;
     }
 
     ws.on('ready',      ()  => { setDuration(ws.getDuration()); setReady(true); });
-    ws.on('timeupdate', (t) => setCurrentTime(t));
+    ws.on('timeupdate', (t) => {
+      setCurrentTime(t);
+      // playRange watcher — pause when the requested slot finishes.
+      if (playRangeEndRef.current != null && t >= playRangeEndRef.current - 0.02) {
+        playRangeEndRef.current = null;
+        try { ws.pause(); } catch (_) { /* ignore */ }
+      }
+    });
     ws.on('play',       ()  => setIsPlaying(true));
-    ws.on('pause',      ()  => setIsPlaying(false));
+    ws.on('pause',      ()  => { setIsPlaying(false); playRangeEndRef.current = null; });
     ws.on('finish',     ()  => setIsPlaying(false));
 
     // Handle errors (like Safari refusing to decode .mov in WebAudio)
@@ -302,40 +326,6 @@ function WaveformTimeline({
       }
     });
 
-    regions.on('region-updated', (region) => {
-      const segId = parseInt(region.id.replace('seg-', ''), 10);
-      if (isNaN(segId) || !onSegmentsChange) return;
-      isDraggingRef.current = true;
-      onSegmentsChange(prev =>
-        (Array.isArray(prev) ? prev : []).map(s => {
-          if (s.id !== segId) return s;
-          
-          // Store the very first original duration so successive drags compound correctly
-          const origDur = s.original_duration || (s.end - s.start);
-          const newStart = +region.start.toFixed(2);
-          const newEnd = +region.end.toFixed(2);
-          const newDuration = newEnd - newStart;
-          
-          // Speed = (original spoken duration) / (new target duration defined by UI region width)
-          const newSpeed = newDuration > 0 ? +(origDur / newDuration).toFixed(2) : 1.0;
-
-          return { 
-            ...s, 
-            start: newStart, 
-            end: newEnd, 
-            speed: newSpeed, 
-            original_duration: origDur 
-          };
-        })
-      );
-      requestAnimationFrame(() => { isDraggingRef.current = false; });
-    });
-
-    regions.on('region-clicked', (region, e) => {
-      e.stopPropagation();
-      try { region.play(); } catch (_) { /* WebKit may reject */ }
-    });
-
     wsRef.current = ws;
 
     return () => {
@@ -352,7 +342,6 @@ function WaveformTimeline({
       try { ws.destroy(); } catch (_) {}
       wsRef.current      = null;
       mediaElRef.current = null;
-      regionsRef.current = null;
       // Clear the imperatively-created video element (release src so browser frees decoder)
       const c = videoContainerRef.current;
       if (c) {
@@ -369,41 +358,77 @@ function WaveformTimeline({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioSrc, videoSrc]);
 
+  // ── Alignment metrics — the single {pxPerSec, scrollLeft} source ────────────
+  // Everything the SegmentTrack draws derives from these two numbers, read
+  // off WaveSurfer's wrapper after every zoom/scroll/redraw/resize. rAF-
+  // throttled so scroll events can't render-storm.
+  const metricsRafRef = useRef(0);
+  const syncMetrics = useCallback(() => {
+    if (metricsRafRef.current) return;
+    metricsRafRef.current = requestAnimationFrame(() => {
+      metricsRafRef.current = 0;
+      const ws = wsRef.current;
+      if (!ws) return;
+      let wrap = null;
+      try { wrap = ws.getWrapper?.(); } catch (_) { /* destroyed */ }
+      if (!wrap) return;
+      const scrollEl = wrap.parentElement || wrap;
+      const dur = ws.getDuration?.() || 0;
+      const next = {
+        pxPerSec: dur > 0 ? wrap.scrollWidth / dur : 0,
+        scrollLeft: scrollEl.scrollLeft || 0,
+      };
+      setMetrics(m => (m.pxPerSec === next.pxPerSec && m.scrollLeft === next.scrollLeft) ? m : next);
+    });
+  }, []);
+  useEffect(() => () => { if (metricsRafRef.current) cancelAnimationFrame(metricsRafRef.current); }, []);
+
+  useEffect(() => {
+    if (!ready || !wsRef.current) return undefined;
+    const ws = wsRef.current;
+    ws.on('redraw', syncMetrics);
+    ws.on('zoom', syncMetrics);
+    ws.on('scroll', syncMetrics);
+    let wrap = null;
+    try { wrap = ws.getWrapper?.(); } catch (_) { /* ignore */ }
+    const scrollEl = wrap?.parentElement || null;
+    if (scrollEl) scrollEl.addEventListener('scroll', syncMetrics, { passive: true });
+    const ro = scrollEl ? new ResizeObserver(syncMetrics) : null;
+    if (ro && scrollEl) ro.observe(scrollEl);
+    syncMetrics();
+    return () => {
+      try { ws.un('redraw', syncMetrics); ws.un('zoom', syncMetrics); ws.un('scroll', syncMetrics); } catch (_) { /* destroyed */ }
+      if (scrollEl) scrollEl.removeEventListener('scroll', syncMetrics);
+      if (ro) ro.disconnect();
+    };
+  }, [ready, syncMetrics]);
+
   // ── Zoom ────────────────────────────────────────────────────────────────────
+  // pendingZoomAnchorRef keeps the time under the cursor fixed across a
+  // Ctrl/Cmd-wheel zoom: after ws.zoom() we re-read the real pxPerSec and
+  // restore the anchor's pixel position.
+  const pendingZoomAnchorRef = useRef(null);
   useEffect(() => {
     if (wsRef.current && ready) {
       try {
         wsRef.current.zoom(zoom);
+        const anchor = pendingZoomAnchorRef.current;
+        if (anchor) {
+          pendingZoomAnchorRef.current = null;
+          const wrap = wsRef.current.getWrapper?.();
+          const scrollEl = wrap?.parentElement;
+          const dur = wsRef.current.getDuration?.() || 0;
+          if (wrap && scrollEl && dur > 0) {
+            const pps = wrap.scrollWidth / dur;
+            scrollEl.scrollLeft = Math.max(0, anchor.time * pps - anchor.cursorX);
+          }
+        }
       } catch (err) {
         console.warn('WaveSurfer zoom failed:', err);
       }
+      syncMetrics();
     }
-  }, [zoom, ready]);
-
-  // ── Sync regions — skips when dragging or fingerprint unchanged ─────────────
-  const fingerprint = useMemo(
-    () => segments.map(s => `${s.id}:${s.start}:${s.end}`).join('|'),
-    [segments]
-  );
-
-  useEffect(() => {
-    if (!regionsRef.current || !ready || isDraggingRef.current) return;
-    if (lastFpRef.current === fingerprint) return;
-    lastFpRef.current = fingerprint;
-
-    regionsRef.current.clearRegions();
-    segments.forEach((seg, i) => {
-      regionsRef.current.addRegion({
-        id:      `seg-${seg.id}`,
-        start:   seg.start,
-        end:     seg.end,
-        color:   REGION_COLORS[i % REGION_COLORS.length],
-        drag:    !disabled,
-        resize:  !disabled,
-        content: seg.text?.length > 32 ? seg.text.slice(0, 30) + '…' : (seg.text || ''),
-      });
-    });
-  }, [fingerprint, ready, disabled, segments]);
+  }, [zoom, ready, syncMetrics]);
 
   // Imperative seek + scroll hooks — used by the transcript table to jump the
   // player to a clicked row, and by the mouse-wheel handler below.
@@ -434,13 +459,61 @@ function WaveformTimeline({
     if (!ws || !ready) return;
     const wrap = ws.getWrapper?.();
     if (!wrap) return;
-    // Don't fight the page when ctrl/cmd is held — that pinches zoom in browsers.
-    if (e.ctrlKey || e.metaKey) return;
+    const scrollEl = wrap.parentElement || wrap;
+    // Ctrl/Cmd + wheel = zoom centered on the cursor (#280, item 3).
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const dur = ws.getDuration?.() || 0;
+      if (dur <= 0) return;
+      const rect = scrollEl.getBoundingClientRect();
+      const cursorX = e.clientX - rect.left;
+      const curPps = wrap.scrollWidth / dur;
+      const timeAt = (scrollEl.scrollLeft + cursorX) / curPps;
+      const factor = e.deltaY < 0 ? 1.25 : 0.8;
+      setZoom(z => {
+        const nz = Math.min(300, Math.max(10, Math.round(z * factor)));
+        if (nz !== z) pendingZoomAnchorRef.current = { time: timeAt, cursorX };
+        return nz;
+      });
+      return;
+    }
     const dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
     if (!dx) return;
     e.preventDefault();
-    wrap.scrollLeft += dx;
+    scrollEl.scrollLeft += dx;
   }, [ready]);
+
+  // playRange — seek + play, pausing automatically at `end` via the
+  // timeupdate watcher wired in the init effect. Used by the SegmentTrack
+  // ("play this slot") on whatever media the player currently holds, so it
+  // respects the original/dubbed preview toggle for free.
+  const playRange = useCallback((start, end) => {
+    playRangeEndRef.current = end;
+    const ws = wsRef.current;
+    if (ws) {
+      try { ws.setTime(start); ws.play(); } catch (_) { playRangeEndRef.current = null; }
+      return;
+    }
+    const el = mediaElRef.current;
+    if (el) {
+      try { el.currentTime = start; el.play().catch(() => {}); } catch (_) { playRangeEndRef.current = null; }
+    }
+  }, []);
+
+  // Scroll a given time into view (keyboard focus moved to an off-screen box).
+  const ensureTimeVisible = useCallback((timeS) => {
+    const ws = wsRef.current;
+    if (!ws) return;
+    const wrap = ws.getWrapper?.();
+    const scrollEl = wrap?.parentElement;
+    const dur = ws.getDuration?.() || 0;
+    if (!wrap || !scrollEl || dur <= 0) return;
+    const pps = wrap.scrollWidth / dur;
+    const x = timeS * pps;
+    if (x < scrollEl.scrollLeft || x > scrollEl.scrollLeft + scrollEl.clientWidth) {
+      scrollEl.scrollLeft = Math.max(0, x - scrollEl.clientWidth * 0.3);
+    }
+  }, []);
 
   const togglePlay = useCallback(() => {
     if (wsRef.current) {
@@ -539,6 +612,30 @@ function WaveformTimeline({
             </div>
           )}
         </div>
+
+        {/* Segment editing lane — pixel-aligned with the waveform via the
+            shared {pxPerSec, scrollLeft} metrics. In the WebKit fallback
+            (no WaveSurfer) it self-scrolls with a fixed px/sec scale. */}
+        {ready && segments.length > 0 && (
+          <SegmentTrack
+            segments={segments}
+            pxPerSec={fallbackMode ? zoom : metrics.pxPerSec}
+            scrollLeft={metrics.scrollLeft}
+            duration={duration}
+            currentTime={currentTime}
+            onsets={onsets}
+            disabled={disabled}
+            selectedId={selectedSegId}
+            onSelectSeg={onSelectSeg}
+            incrementalPlan={incrementalPlan}
+            onCommit={onSegmentCommit}
+            onDelete={onSegmentDelete}
+            onPlayRange={playRange}
+            onPreviewSegment={onPreviewSegment}
+            onEnsureVisible={ensureTimeVisible}
+            selfScroll={fallbackMode}
+          />
+        )}
       </div>
 
       {/* Controls */}

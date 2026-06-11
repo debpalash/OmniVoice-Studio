@@ -777,6 +777,20 @@
     "fit_audio_title": "L'audio s'adapte à l'intérieur de la fente.",
     "fit_ratio_title": "L'audio TTS représente {{pct}}% de l'emplacement."
   },
+  "timeline": {
+    "track_label": "Chronologie des segments",
+    "keyboard_hint": "Les flèches sélectionnent un segment · Entrée bascule le mode édition · Suppr supprime · S cale sur le départ de voix le plus proche",
+    "segment_aria": "Segment {{index}} : de {{start}} à {{end}}",
+    "overlap_warning": "Chevauche un segment adjacent — les deux répliques joueront ensemble",
+    "moved_announce": "Segment {{index}} déplacé à {{start}}",
+    "resized_announce": "Segment {{index}} : de {{start}} à {{end}}",
+    "deleted_announce": "Segment {{index}} supprimé",
+    "snapped_announce": "Bord calé sur le départ de voix à {{time}}",
+    "edit_mode_on": "Mode édition : les flèches déplacent le début, Maj la fin, Alt tout le segment, Échap termine",
+    "edit_mode_off": "Mode édition désactivé",
+    "play_slot": "Lire cet intervalle",
+    "preview_dub": "Pré-écouter le doublage ici"
+  },
   "voice": {
     "personality": "Personnalité",
     "pick_personality": "Choisissez un préréglage de personnalité…",

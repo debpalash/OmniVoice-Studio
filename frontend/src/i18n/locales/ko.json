@@ -776,6 +776,20 @@
     "fit_audio_title": "오디오는 슬롯 안에 맞습니다.",
     "fit_ratio_title": "TTS 오디오는 슬롯의 {{pct}}%입니다."
   },
+  "timeline": {
+    "track_label": "세그먼트 타임라인",
+    "keyboard_hint": "화살표 키로 세그먼트 선택 · Enter로 편집 모드 전환 · Delete로 삭제 · S로 가장 가까운 발화 시작점에 스냅",
+    "segment_aria": "세그먼트 {{index}}: {{start}}부터 {{end}}까지",
+    "overlap_warning": "인접 세그먼트와 겹칩니다 — 두 대사가 동시에 재생됩니다",
+    "moved_announce": "세그먼트 {{index}}을(를) {{start}}(으)로 이동했습니다",
+    "resized_announce": "세그먼트 {{index}}: {{start}}부터 {{end}}까지",
+    "deleted_announce": "세그먼트 {{index}}이(가) 삭제되었습니다",
+    "snapped_announce": "가장자리를 {{time}}의 발화 시작점에 스냅했습니다",
+    "edit_mode_on": "편집 모드: 화살표는 시작, Shift는 끝, Alt는 세그먼트 전체 이동, Esc로 종료",
+    "edit_mode_off": "편집 모드 꺼짐",
+    "play_slot": "이 구간 재생",
+    "preview_dub": "여기서 더빙 미리 듣기"
+  },
   "voice": {
     "personality": "성격",
     "pick_personality": "성격 사전 설정을 선택하세요…",

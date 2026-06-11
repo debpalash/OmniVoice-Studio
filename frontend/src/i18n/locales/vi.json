@@ -776,6 +776,20 @@
     "fit_audio_title": "Âm thanh vừa vặn bên trong khe cắm.",
     "fit_ratio_title": "Âm thanh TTS chiếm {{pct}}% dung lượng khe."
   },
+  "timeline": {
+    "track_label": "Dòng thời gian phân đoạn",
+    "keyboard_hint": "Phím mũi tên chọn phân đoạn · Enter bật/tắt chế độ chỉnh sửa · Delete xóa · S hít vào điểm bắt đầu giọng nói gần nhất",
+    "segment_aria": "Phân đoạn {{index}}: {{start}} đến {{end}}",
+    "overlap_warning": "Chồng lấn phân đoạn liền kề — cả hai lời thoại sẽ phát cùng lúc",
+    "moved_announce": "Phân đoạn {{index}} đã chuyển đến {{start}}",
+    "resized_announce": "Phân đoạn {{index}}: {{start}} đến {{end}}",
+    "deleted_announce": "Đã xóa phân đoạn {{index}}",
+    "snapped_announce": "Cạnh đã hít vào điểm bắt đầu giọng nói tại {{time}}",
+    "edit_mode_on": "Chế độ chỉnh sửa: mũi tên dịch điểm đầu, Shift điểm cuối, Alt cả phân đoạn, Esc kết thúc",
+    "edit_mode_off": "Đã tắt chế độ chỉnh sửa",
+    "play_slot": "Phát đoạn này",
+    "preview_dub": "Nghe thử lồng tiếng tại đây"
+  },
   "voice": {
     "personality": "Tính cách",
     "pick_personality": "Chọn cài đặt trước về tính cách…",

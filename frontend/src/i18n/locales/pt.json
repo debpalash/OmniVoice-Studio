@@ -776,6 +776,20 @@
     "fit_audio_title": "O áudio cabe dentro do slot.",
     "fit_ratio_title": "O áudio TTS é {{pct}}% do slot."
   },
+  "timeline": {
+    "track_label": "Linha do tempo de segmentos",
+    "keyboard_hint": "As setas selecionam um segmento · Enter alterna o modo de edição · Delete remove · S encaixa no início de fala mais próximo",
+    "segment_aria": "Segmento {{index}}: {{start}} a {{end}}",
+    "overlap_warning": "Sobrepõe um segmento adjacente — as duas falas tocarão juntas",
+    "moved_announce": "Segmento {{index}} movido para {{start}}",
+    "resized_announce": "Segmento {{index}}: {{start}} a {{end}}",
+    "deleted_announce": "Segmento {{index}} excluído",
+    "snapped_announce": "Borda encaixada no início de fala em {{time}}",
+    "edit_mode_on": "Modo de edição: setas movem o início, Shift o fim, Alt o segmento inteiro, Esc conclui",
+    "edit_mode_off": "Modo de edição desativado",
+    "play_slot": "Reproduzir este trecho",
+    "preview_dub": "Pré-visualizar a dublagem aqui"
+  },
   "voice": {
     "personality": "Personalidade",
     "pick_personality": "Escolha uma predefinição de personalidade…",

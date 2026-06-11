@@ -776,6 +776,20 @@
     "fit_audio_title": "Audio pas di dalam slot.",
     "fit_ratio_title": "Audio TTS adalah {{pct}}% dari slot."
   },
+  "timeline": {
+    "track_label": "Lini masa segmen",
+    "keyboard_hint": "Tombol panah memilih segmen · Enter mengalihkan mode edit · Delete menghapus · S menjepret ke awal ucapan terdekat",
+    "segment_aria": "Segmen {{index}}: {{start}} hingga {{end}}",
+    "overlap_warning": "Tumpang tindih dengan segmen di sebelahnya — kedua dialog akan berbunyi bersamaan",
+    "moved_announce": "Segmen {{index}} dipindahkan ke {{start}}",
+    "resized_announce": "Segmen {{index}}: {{start}} hingga {{end}}",
+    "deleted_announce": "Segmen {{index}} dihapus",
+    "snapped_announce": "Tepi dijepretkan ke awal ucapan pada {{time}}",
+    "edit_mode_on": "Mode edit: panah menggeser awal, Shift akhir, Alt seluruh segmen, Esc selesai",
+    "edit_mode_off": "Mode edit nonaktif",
+    "play_slot": "Putar bagian ini",
+    "preview_dub": "Pratinjau sulih suara di sini"
+  },
   "voice": {
     "personality": "Kepribadian",
     "pick_personality": "Pilih preset kepribadian…",

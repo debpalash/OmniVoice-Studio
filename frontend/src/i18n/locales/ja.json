@@ -777,6 +777,20 @@
     "fit_audio_title": "オーディオはスロット内に収まります。",
     "fit_ratio_title": "TTS オーディオはスロットの {{pct}}% です。"
   },
+  "timeline": {
+    "track_label": "セグメントタイムライン",
+    "keyboard_hint": "矢印キーでセグメントを選択 · Enterで編集モード切替 · Deleteで削除 · Sで最寄りの発話開始位置にスナップ",
+    "segment_aria": "セグメント {{index}}: {{start}} から {{end}}",
+    "overlap_warning": "隣のセグメントと重なっています — 両方のセリフが同時に再生されます",
+    "moved_announce": "セグメント {{index}} を {{start}} に移動しました",
+    "resized_announce": "セグメント {{index}}: {{start}} から {{end}}",
+    "deleted_announce": "セグメント {{index}} を削除しました",
+    "snapped_announce": "エッジを {{time}} の発話開始位置にスナップしました",
+    "edit_mode_on": "編集モード: 矢印で開始位置、Shiftで終了位置、Altでセグメント全体を移動、Escで終了",
+    "edit_mode_off": "編集モードを終了しました",
+    "play_slot": "この区間を再生",
+    "preview_dub": "ここで吹き替えをプレビュー"
+  },
   "voice": {
     "personality": "性格",
     "pick_personality": "性格のプリセットを選択してください…",

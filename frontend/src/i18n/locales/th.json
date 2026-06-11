@@ -776,6 +776,20 @@
     "fit_audio_title": "เสียงพอดีกับช่อง",
     "fit_ratio_title": "เสียง TTS คือ {{pct}}% ของช่อง"
   },
+  "timeline": {
+    "track_label": "ไทม์ไลน์ของเซกเมนต์",
+    "keyboard_hint": "ปุ่มลูกศรเลือกเซกเมนต์ · Enter สลับโหมดแก้ไข · Delete ลบ · S สแนปไปยังจุดเริ่มเสียงพูดที่ใกล้ที่สุด",
+    "segment_aria": "เซกเมนต์ {{index}}: {{start}} ถึง {{end}}",
+    "overlap_warning": "ทับซ้อนกับเซกเมนต์ข้างเคียง — บทพูดทั้งสองจะเล่นพร้อมกัน",
+    "moved_announce": "ย้ายเซกเมนต์ {{index}} ไปที่ {{start}} แล้ว",
+    "resized_announce": "เซกเมนต์ {{index}}: {{start}} ถึง {{end}}",
+    "deleted_announce": "ลบเซกเมนต์ {{index}} แล้ว",
+    "snapped_announce": "สแนปขอบไปยังจุดเริ่มเสียงพูดที่ {{time}} แล้ว",
+    "edit_mode_on": "โหมดแก้ไข: ลูกศรเลื่อนจุดเริ่ม, Shift เลื่อนจุดจบ, Alt เลื่อนทั้งเซกเมนต์, Esc เพื่อจบ",
+    "edit_mode_off": "ปิดโหมดแก้ไขแล้ว",
+    "play_slot": "เล่นช่วงนี้",
+    "preview_dub": "ฟังตัวอย่างพากย์ตรงนี้"
+  },
   "voice": {
     "personality": "บุคลิกภาพ",
     "pick_personality": "เลือกพรีเซ็ตบุคลิกภาพ...",

@@ -776,6 +776,20 @@
     "fit_audio_title": "Ses yuvanın içine sığar.",
     "fit_ratio_title": "TTS sesi yuvanın %{{pct}} kadarıdır."
   },
+  "timeline": {
+    "track_label": "Segment zaman çizelgesi",
+    "keyboard_hint": "Ok tuşları segment seçer · Enter düzenleme modunu açıp kapatır · Delete siler · S en yakın konuşma başlangıcına hizalar",
+    "segment_aria": "Segment {{index}}: {{start}} - {{end}}",
+    "overlap_warning": "Bitişik bir segmentle çakışıyor — iki replik birlikte çalınacak",
+    "moved_announce": "Segment {{index}}, {{start}} konumuna taşındı",
+    "resized_announce": "Segment {{index}}: {{start}} - {{end}}",
+    "deleted_announce": "Segment {{index}} silindi",
+    "snapped_announce": "Kenar, {{time}} konumundaki konuşma başlangıcına hizalandı",
+    "edit_mode_on": "Düzenleme modu: oklar başlangıcı, Shift bitişi, Alt tüm segmenti kaydırır, Esc bitirir",
+    "edit_mode_off": "Düzenleme modu kapalı",
+    "play_slot": "Bu aralığı oynat",
+    "preview_dub": "Dublajı burada önizle"
+  },
   "voice": {
     "personality": "Kişilik",
     "pick_personality": "Bir kişilik ön ayarı seçin…",

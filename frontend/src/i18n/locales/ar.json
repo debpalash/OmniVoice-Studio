@@ -776,6 +776,20 @@
     "fit_audio_title": "الصوت مناسب داخل الفتحة.",
     "fit_ratio_title": "يمثل صوت تحويل النص إلى كلام (TTS) {{pct}}% من الفتحة."
   },
+  "timeline": {
+    "track_label": "الخط الزمني للمقاطع",
+    "keyboard_hint": "مفاتيح الأسهم تحدد مقطعًا · Enter يبدّل وضع التحرير · Delete يحذف · S يحاذي إلى أقرب بداية كلام",
+    "segment_aria": "المقطع {{index}}: من {{start}} إلى {{end}}",
+    "overlap_warning": "يتداخل مع مقطع مجاور — سيُشغَّل السطران معًا",
+    "moved_announce": "نُقل المقطع {{index}} إلى {{start}}",
+    "resized_announce": "المقطع {{index}}: من {{start}} إلى {{end}}",
+    "deleted_announce": "حُذف المقطع {{index}}",
+    "snapped_announce": "حُوذيت الحافة إلى بداية الكلام عند {{time}}",
+    "edit_mode_on": "وضع التحرير: الأسهم تحرّك البداية، وShift النهاية، وAlt المقطع كاملًا، وEsc للإنهاء",
+    "edit_mode_off": "وضع التحرير متوقف",
+    "play_slot": "تشغيل هذا الجزء",
+    "preview_dub": "معاينة الدبلجة هنا"
+  },
   "voice": {
     "personality": "الشخصية",
     "pick_personality": "اختر إعدادًا مسبقًا للشخصية...",
