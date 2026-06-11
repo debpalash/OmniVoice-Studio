@@ -26,17 +26,6 @@ def _unique_stamp() -> str:
 _SAFE_LANG = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
 
 
-def _safe_job_path(job_id: str, *parts: str) -> str:
-    """Join path components under DUB_DIR/<job_id>/ with a realpath
-    containment guard — request-supplied ids/names must never traverse out
-    of the job's directory (same pattern as the per-segment export below)."""
-    base = os.path.realpath(DUB_DIR)
-    cand = os.path.realpath(os.path.join(DUB_DIR, job_id, *parts))
-    if cand != base and not cand.startswith(base + os.sep):
-        raise HTTPException(status_code=400, detail="Invalid path component")
-    return cand
-
-
 def _native_save(source: str, destination: str, display_name: str, media_type: str):
     """Copy a generated export file to a user-chosen destination and return JSON."""
     import shutil
@@ -782,7 +771,12 @@ async def dub_get_onsets(job_id: str):
     else:
         raise HTTPException(status_code=404, detail="No audio track available for onset analysis")
 
-    cache_path = _safe_job_path(job_id, "onsets.json")
+    # Containment inlined (not via _safe_job_path): CodeQL can't track the
+    # sanitizer through a helper's return — the file's established idiom.
+    base = os.path.realpath(DUB_DIR)
+    cache_path = os.path.realpath(os.path.join(base, job_id, "onsets.json"))
+    if not cache_path.startswith(base + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid job id")
     try:
         if (
             os.path.exists(cache_path)
