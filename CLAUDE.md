@@ -190,7 +190,11 @@ Everything else (new engines, fancy features) is downstream of "the thing instal
 <!-- GSD:conventions-start source:CONVENTIONS.md -->
 ## Conventions
 
-**Versioning (hard rule):** Everything ships on `v0.3.0`. Never mention, suggest, or label anything with a version bump — no v0.4, no RCs, no "defer to next version", no future-version labels — unless the user explicitly asks to bump. Zero unprompted version chatter.
+**Versioning (hard rule, owner-set 2026-06-11):** main is always **latest release + 1 patch**. The moment `vX.Y.Z` is released, main's version files (`frontend/src-tauri/tauri.conf.json`, `frontend/src-tauri/Cargo.toml`, `pyproject.toml` — keep all three in lockstep) bump to `X.Y.(Z+1)`. Consequences:
+- Every PR and preview build identifies as the **next** version. Preview builds stamp `X.Y.(Z+1)-N` (run number), which semver-sorts **above** the last stable `X.Y.Z` — the updater ordering is natural, no comparator tricks needed.
+- Releasing = tag `vX.Y.(Z+1)` from main (version files already match), then immediately bump main to `X.Y.(Z+2)`. The post-release bump is automated by the `version-bump` job in release.yml; if it fails, do it manually in the same day.
+- Docker: `ghcr.io/debpalash/omnivoice-studio:latest` = **main** (rolling preview); `:X.Y.Z` + `:X.Y` + `:stable` = tagged releases. `:latest` is the preview channel by design — stable users pin `:stable` or a version tag.
+- Do not bump minor/major or invent RCs/codenames without the owner asking. No "defer to next version" labels — scope is absorbed or declined, never re-versioned.
 
 **Localization (hard rule):** No hardcoded non-English (CJK) **user-facing text** anywhere in the codebase except the translation layer (`frontend/src/i18n/`). All UI strings go through i18n (`t('...')` keys in `locales/*.json`); native language names live in `i18n/index.ts` (`LANGUAGES`). Functional CJK is allowed and tracked via the allowlist in `tests/test_no_hardcoded_cjk.py` — text-processing regexes, model/engine vocabulary & identifiers (e.g. CosyVoice speaker IDs), localized error matching, demo/eval data, and test fixtures. CI fails on any hardcoded CJK outside the allowlist; to add legitimate functional CJK, extend `_ALLOWED_FILES` there with a justification.
 
