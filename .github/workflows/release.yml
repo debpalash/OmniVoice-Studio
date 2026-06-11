@@ -133,9 +133,28 @@ jobs:
             rust_target: aarch64-apple-darwin
             bundles: "app,dmg,updater"
 
-          # macOS Intel dropped: Apple shipped the last Intel Mac in 2023 and
-          # Rosetta 2 runs the ARM build natively. macos-13 runner backlog
-          # was also blocking every release tag for ~10 min.
+          # macOS Intel (#279): reinstated. The earlier "Rosetta 2 runs the
+          # ARM build" rationale for dropping it was backwards — Rosetta only
+          # translates x86_64→arm64, so Intel Macs (supported through macOS
+          # Sequoia) simply cannot run the aarch64 bundle and had NO
+          # installable artifact. Runner: `macos-15-intel`, GitHub's
+          # designated migration target after macos-13 retired (Dec 2025);
+          # it's a standard (public-repo-free) image supported through
+          # August 2027 — the last x86_64 image Actions will offer. Building
+          # natively (not cross-compiling from the arm64 leg) keeps the
+          # per-TRIPLE uv/ffmpeg sidecar fetches, the DMG installer smoke,
+          # and the ad-hoc signing verification (scripts/
+          # verify-macos-signing.sh, PR #290) all exercising the real
+          # x86_64 artifact on real Intel hardware. The macos-13 queue
+          # backlog that motivated the original drop is contained by
+          # fail-fast:false — a slow Intel leg can delay the release run but
+          # can't fail the other targets.
+          - os: macos-15-intel
+            arch: x86_64-apple-darwin
+            label: "macOS Intel"
+            rust_target: x86_64-apple-darwin
+            bundles: "app,dmg,updater"
+
           # Windows: force MSI bundling via --bundles. NSIS fails at makensis
           # because our PyInstaller payload approaches its ~2 GB stub limit.
           - os: windows-2022
@@ -291,7 +310,10 @@ jobs:
           case "$TRIPLE" in
             aarch64-apple-darwin|x86_64-apple-darwin)
               # evermeet.cx ships each binary as a separate .zip containing
-              # a single x86_64 Mach-O executable (runs via Rosetta on arm64).
+              # a single x86_64 Mach-O executable — natively correct on the
+              # Intel leg, and runs via Rosetta 2 on the arm64 leg. Both
+              # darwin TRIPLEs therefore bundle the same payload; only the
+              # sidecar filename suffix differs.
               for TOOL in ffmpeg ffprobe; do
                 if [ "$TOOL" = "ffmpeg" ]; then
                   URL="https://evermeet.cx/ffmpeg/getrelease/zip"

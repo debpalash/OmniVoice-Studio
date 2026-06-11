@@ -35,6 +35,19 @@ Download the latest DMG from the
 [Releases page](https://github.com/debpalash/OmniVoice-Studio/releases/latest),
 double-click to mount, drag **OmniVoice Studio.app** into `/Applications`.
 
+Pick the DMG that matches your Mac (check **Apple menu → About This Mac → Chip/Processor**):
+
+| Mac | DMG to download |
+|-----|-----------------|
+| Apple Silicon (M1/M2/M3/M4…) | `OmniVoice.Studio_<version>_aarch64.dmg` |
+| Intel | `OmniVoice.Studio_<version>_x64.dmg` |
+
+The architectures are **not** interchangeable: an Intel Mac cannot run the
+`aarch64` build (Rosetta 2 only translates the other direction — it lets Apple
+Silicon run Intel apps, never the reverse). If a release predates the Intel
+build target and has no `x64` DMG, use the
+[install-from-source path](#install-from-source) above instead.
+
 If the first launch is blocked by macOS Gatekeeper ("OmniVoice Studio cannot be
 opened because the developer cannot be verified"), see the next section — it
 opens with one right-click, no Terminal.
