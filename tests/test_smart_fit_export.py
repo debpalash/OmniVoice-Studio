@@ -422,15 +422,11 @@ class TestRetimeExecutorIntegration:
     def _sandbox_dub_dir(self, tmp_path, monkeypatch):
         """The retime entry points containment-check work/out paths against
         DUB_DIR (path-injection hardening) — point it at the test sandbox.
-
-        Patch the exact module object ``video_retime`` dereferences at call
-        time, not a fresh ``import core.config``: another test in the full
-        suite ``importlib.reload``s core.config, which would leave the guard
-        reading the original module while a fresh import sees the reloaded
-        one — the two diverge and the sandbox patch silently misses (green in
-        isolation, red in the full suite)."""
-        from services import video_retime as _vr
-        monkeypatch.setattr(_vr._config, "DUB_DIR", str(tmp_path))
+        The guard resolves DUB_DIR live from sys.modules at call time, so
+        patching the canonical core.config module is sufficient and survives
+        the full-suite reload ordering."""
+        import core.config as _cfg
+        monkeypatch.setattr(_cfg, "DUB_DIR", str(tmp_path))
 
     def test_single_pass_decision_renders_to_expected_duration(self, test_video, tmp_path):
         decision = asyncio.run(prepare_smart_fit_video(

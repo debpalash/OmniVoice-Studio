@@ -42,7 +42,6 @@ from dataclasses import dataclass
 # Module access (not ``from core.config import DUB_DIR``) so the containment
 # guards below read the live value — tests reload core.config with a
 # sandboxed data dir.
-from core import config as _config
 from services.ffmpeg_utils import probe_duration, probe_frame_rates, run_ffmpeg
 
 logger = logging.getLogger("omnivoice.api")
@@ -261,7 +260,8 @@ async def render_retimed_video(
     # realpath-normalise + containment-check inline at the sink anyway so
     # slices_dir / slice_path / list_path all derive from the validated
     # value (CodeQL does not track guards through helper return values).
-    _base = os.path.realpath(_config.DUB_DIR)
+    from core.config import DUB_DIR as _dub_root
+    _base = os.path.realpath(_dub_root)
     out_path = os.path.realpath(out_path)
     if out_path != _base and not out_path.startswith(_base + os.sep):
         raise RetimeError("retime output path escapes the dub workspace",
@@ -377,7 +377,8 @@ async def prepare_smart_fit_video(
     # realpath-normalise + containment-check inline anyway so the batched
     # render and the returned ``RetimeDecision.file_path`` derive from the
     # validated value (CodeQL does not track guards through helpers).
-    _base = os.path.realpath(_config.DUB_DIR)
+    from core.config import DUB_DIR as _dub_root
+    _base = os.path.realpath(_dub_root)
     work_path = os.path.realpath(work_path)
     if work_path != _base and not work_path.startswith(_base + os.sep):
         raise RetimeError("retime work path escapes the dub workspace",
