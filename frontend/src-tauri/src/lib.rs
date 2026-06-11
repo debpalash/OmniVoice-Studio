@@ -554,61 +554,11 @@ pub fn run() {
                     set_stage(&stage_handle, BootstrapStage::AwaitingSetup);
                     return;
                 }
-                let child = backend::spawn_backend(&app_handle, Some(&stage_handle));
-                if let Ok(mut guard) = app_handle.state::<BackendState>().process.lock() {
-                    *guard = child;
-                }
-                let start = std::time::Instant::now();
-                while start.elapsed() < Duration::from_secs(300) {
-                    if backend::backend_healthy(backend_port()) {
-                        set_stage(&stage_handle, BootstrapStage::Ready);
-                        return;
-                    }
-                    let process_dead = if let Ok(mut guard) = app_handle.state::<BackendState>().process.lock() {
-                        match guard.as_mut() {
-                            Some(child) => match child.try_wait() {
-                                Ok(Some(status)) => Some(status.to_string()),
-                                Ok(None) => None,
-                                Err(_) => Some("unknown".to_string()),
-                            },
-                            None => Some("never started".to_string()),
-                        }
-                    } else {
-                        None
-                    };
-                    if let Some(exit_info) = process_dead {
-                        let err_tail = backend::read_error_log_tail(30);
-                        let msg = if err_tail.is_empty() {
-                            format!("Backend process exited ({}) — no error output captured", exit_info)
-                        } else {
-                            format!(
-                                "Backend process exited ({}):\n{}",
-                                exit_info,
-                                err_tail
-                            )
-                        };
-                        log::error!("Backend died early: {}", msg);
-                        set_stage(
-                            &stage_handle,
-                            BootstrapStage::Failed { message: msg },
-                        );
-                        return;
-                    }
-                    std::thread::sleep(Duration::from_millis(500));
-                }
-                let err_tail = backend::read_error_log_tail(20);
-                let msg = if err_tail.is_empty() {
-                    "Backend did not respond within 300 s".to_string()
-                } else {
-                    format!(
-                        "Backend did not respond within 300 s. Last stderr output:\n{}",
-                        err_tail
-                    )
-                };
-                set_stage(
-                    &stage_handle,
-                    BootstrapStage::Failed { message: msg },
-                );
+                // Spawn + health-poll loop shared with the Retry button —
+                // includes the #314 broken-venv self-heal (quarantine the
+                // venv and rebuild once when the backend exits with
+                // "No pyvenv.cfg file" / code 106).
+                bootstrap::spawn_backend_and_wait(&app_handle, &stage_handle);
             });
             Ok(())
         })
