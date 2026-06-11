@@ -1,5 +1,6 @@
 import os
 import io
+import re
 import time
 import uuid
 import asyncio
@@ -20,6 +21,20 @@ logger = logging.getLogger("omnivoice.api")
 def _unique_stamp() -> str:
     """Return a short unique suffix like '20260415T142301-ab12cd34' for export files."""
     return f"{time.strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4().hex[:8]}"
+
+
+_SAFE_LANG = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
+
+
+def _safe_job_path(job_id: str, *parts: str) -> str:
+    """Join path components under DUB_DIR/<job_id>/ with a realpath
+    containment guard — request-supplied ids/names must never traverse out
+    of the job's directory (same pattern as the per-segment export below)."""
+    base = os.path.realpath(DUB_DIR)
+    cand = os.path.realpath(os.path.join(DUB_DIR, job_id, *parts))
+    if cand != base and not cand.startswith(base + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid path component")
+    return cand
 
 
 def _native_save(source: str, destination: str, display_name: str, media_type: str):
@@ -614,20 +629,12 @@ async def dub_preview_video(
     bg_audio = job.get("no_vocals_path") if preserve_bg else None
     has_bg = bool(bg_audio and os.path.exists(bg_audio))
 
-    base_dub_dir = os.path.realpath(DUB_DIR)
-    job_base_dir = os.path.realpath(os.path.join(base_dub_dir, job_id))
-    if os.path.commonpath([base_dub_dir, job_base_dir]) != base_dub_dir:
-        raise HTTPException(status_code=400, detail="Invalid path parameters")
-
-    exports_dir = os.path.realpath(os.path.join(job_base_dir, "exports"))
-    if os.path.commonpath([job_base_dir, exports_dir]) != job_base_dir:
-        raise HTTPException(status_code=400, detail="Invalid path parameters")
-
+    if not _SAFE_LANG.match(lang):
+        raise HTTPException(status_code=400, detail="Invalid lang")
+    exports_dir = _safe_job_path(job_id, "exports")
     os.makedirs(exports_dir, exist_ok=True)
     bg_suffix = "bg" if (preserve_bg and has_bg) else "nobg"
-    preview_path = os.path.realpath(os.path.join(exports_dir, f"preview_{lang}_{bg_suffix}.mp4"))
-    if os.path.commonpath([exports_dir, preview_path]) != exports_dir:
-        raise HTTPException(status_code=400, detail="Invalid path parameters")
+    preview_path = _safe_job_path(job_id, "exports", f"preview_{lang}_{bg_suffix}.mp4")
 
     track_mtime = os.path.getmtime(track_path)
 
