@@ -232,7 +232,6 @@ def set_llm_endpoint(body: _LLMEndpointBody):
     # reads env at construction) on every call, so there's no singleton to
     # invalidate — the next translate/refine picks up the new values.
     return _llm_endpoint_state()
->>>>>>> 323f0d3 (feat(settings): remote LLM endpoint UI — Ollama/vLLM/LM Studio (Wave 2.4))
 
 
 # ── License acceptance (Phase 3 Plan 03-01 / TTS-05) ──────────────────────
