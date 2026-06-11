@@ -2,6 +2,7 @@ import os
 import time
 import asyncio
 import logging
+import threading
 from concurrent.futures import ThreadPoolExecutor
 
 # ── Lazy imports ─────────────────────────────────────────────────────
@@ -338,6 +339,75 @@ def _install_compile_fallback(_model) -> None:
     _model.generate = _generate_with_compile_fallback
 
 
+# ── #315: thread affinity for cudagraph-compiled models ─────────────────────
+# `torch.compile(mode="reduce-overhead")` captures CUDA graphs, and captured
+# graph state is **thread-local** (torch/_inductor/cudagraph_trees keys its
+# tree manager off the capturing thread). The `_gpu_pool` runs up to
+# `_GPU_WORKER_CAP` threads, so render #1 captures the graph on worker A and a
+# later render dispatched to worker B replays against mismatched cudagraph
+# state — silently corrupting the audio (static / slowed playback, no
+# exception, so the #278 eager fallback never fires). Fix: every call into a
+# cudagraph-compiled model executes on ONE dedicated thread; uncompiled
+# models (CPU / MPS / Windows-no-Triton / compile-disabled) keep the full pool.
+
+_TORCH_COMPILE_MODE = "reduce-overhead"
+# Compile modes that enable CUDA graphs under the hood — these need the
+# single-thread affinity below. "default" / "max-autotune-no-cudagraphs"
+# would not.
+_CUDAGRAPH_COMPILE_MODES = frozenset({"reduce-overhead", "max-autotune"})
+
+_compiled_inference_executor: "ThreadPoolExecutor | None" = None
+_compiled_inference_thread_ident: "int | None" = None
+
+
+def _get_compiled_inference_executor() -> ThreadPoolExecutor:
+    """The single-thread executor that owns ALL inference on a compiled model.
+
+    Created lazily the first time a model is compiled with a cudagraph mode;
+    reused across model reloads (idle unload → reload keeps the same thread,
+    which is fine — a fresh compile simply captures its graphs there too).
+    The worker is spun up eagerly so its thread ident is known for the
+    re-entrancy guard in `_install_compile_thread_affinity`.
+    """
+    global _compiled_inference_executor, _compiled_inference_thread_ident
+    if _compiled_inference_executor is None:
+        _compiled_inference_executor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="compiled-infer",
+        )
+        _compiled_inference_thread_ident = _compiled_inference_executor.submit(
+            threading.get_ident
+        ).result()
+    return _compiled_inference_executor
+
+
+def _install_compile_thread_affinity(_model) -> None:
+    """Pin every ``model.generate`` call to the dedicated compile thread (#315).
+
+    Wraps ``model.generate`` (the single choke point all TTS paths funnel
+    through — generate, archetype previews, dub, stream, batch) so the call
+    body always runs on `_get_compiled_inference_executor()`'s one thread.
+    That makes the thread that *captures* the CUDA graph on the first render
+    and the thread that *replays* it on every later render the same thread,
+    deterministically, regardless of which `_gpu_pool` worker dispatched it.
+
+    Installed AFTER `_install_compile_fallback`, so the call-time order is:
+    caller thread → hop to the dedicated thread → eager-fallback wrapper →
+    real generate (the #278 classification/retry also runs on the dedicated
+    thread, with native tracebacks). The hop is a no-op when already on the
+    dedicated thread — a 1-worker executor submitting to itself would
+    deadlock, so the re-entrancy guard is load-bearing.
+    """
+    executor = _get_compiled_inference_executor()
+    inner_generate = _model.generate
+
+    def _generate_on_compile_thread(*args, **kwargs):
+        if threading.get_ident() == _compiled_inference_thread_ident:
+            return inner_generate(*args, **kwargs)
+        return executor.submit(inner_generate, *args, **kwargs).result()
+
+    _model.generate = _generate_on_compile_thread
+
+
 def _set_loading(sub_stage: str, detail: str = "", error: str | None = None, progress: float | None = None):
     """Update the loading detail dict atomically."""
     _loading_detail["sub_stage"] = sub_stage
@@ -411,7 +481,7 @@ def _load_model_sync():
             if should_torch_compile(device):
                 _set_loading("compiling", "Compiling model (torch.compile)…")
                 try:
-                    _model.llm = torch.compile(_model.llm, mode="reduce-overhead")
+                    _model.llm = torch.compile(_model.llm, mode=_TORCH_COMPILE_MODE)
                 except Exception as compile_exc:
                     # #278: compile is an optimization, never a point of
                     # failure — keep the eager model and remember the failure
@@ -428,6 +498,19 @@ def _load_model_sync():
                     # archs, #278). Wrap generate so that falls back to eager
                     # instead of failing the generation.
                     _install_compile_fallback(_model)
+                    if _TORCH_COMPILE_MODE in _CUDAGRAPH_COMPILE_MODES:
+                        # #315: reduce-overhead uses CUDA graphs, whose
+                        # captured state is thread-local. Pin all inference to
+                        # one dedicated thread so a later render dispatched to
+                        # a different _gpu_pool worker can't replay a graph it
+                        # didn't capture (static / slowed audio from the 2nd
+                        # render onward).
+                        _install_compile_thread_affinity(_model)
+                        logger.info(
+                            "torch.compile mode %r uses CUDA graphs — compiled-model "
+                            "inference pinned to a single dedicated thread (#315).",
+                            _TORCH_COMPILE_MODE,
+                        )
                     logger.info("torch.compile applied.")
         except Exception as e:
             logger.info("torch.compile skipped: %s", e)
