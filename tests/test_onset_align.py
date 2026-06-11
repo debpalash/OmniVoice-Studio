@@ -16,6 +16,7 @@ from services.onset_align import (
     MIN_SEG_DUR_S,
     PRE_ROLL_S,
     detect_speech_onset,
+    detect_speech_onsets,
     snap_segment_starts,
 )
 
@@ -156,3 +157,69 @@ def test_snap_tolerates_malformed_segment_entries():
     n = snap_segment_starts(segs, audio, SR)
     assert n >= 1
     assert segs[2]["start"] == pytest.approx(2.0 - PRE_ROLL_S, abs=0.08)
+
+
+# ── detect_speech_onsets (full-track, #280 item 3) ──────────────────────────
+
+
+def test_onsets_silence_returns_empty():
+    assert detect_speech_onsets(_silence(3.0), SR) == []
+
+
+def test_onsets_empty_or_invalid_audio():
+    assert detect_speech_onsets(np.zeros(0, dtype=np.float32), SR) == []
+    assert detect_speech_onsets(_tone(1.0), 0) == []
+
+
+def test_onsets_two_bursts_yield_two_onsets():
+    # 1 s silence, 1 s tone, 1 s silence, 1 s tone — exactly two rises.
+    audio = np.concatenate([_silence(1.0), _tone(1.0), _silence(1.0), _tone(1.0)])
+    onsets = detect_speech_onsets(audio, SR)
+    assert len(onsets) == 2
+    assert onsets[0] == pytest.approx(1.0, abs=0.06)
+    assert onsets[1] == pytest.approx(3.0, abs=0.06)
+
+
+def test_onsets_speech_at_t0_registers():
+    audio = np.concatenate([_tone(1.0), _silence(2.0)])
+    onsets = detect_speech_onsets(audio, SR)
+    assert len(onsets) == 1
+    assert onsets[0] == pytest.approx(0.0, abs=0.06)
+
+
+def test_onsets_hysteresis_ignores_short_dip():
+    # A 60 ms dip inside a burst (< MIN_ONSET_GAP_S of 150 ms below the
+    # threshold) must NOT register a second onset.
+    audio = np.concatenate([
+        _silence(1.0), _tone(0.5), _silence(0.06), _tone(0.5),
+    ])
+    onsets = detect_speech_onsets(audio, SR)
+    assert len(onsets) == 1
+    assert onsets[0] == pytest.approx(1.0, abs=0.06)
+
+
+def test_onsets_hysteresis_long_gap_registers_new_onset():
+    # A 400 ms gap (> MIN_ONSET_GAP_S) re-arms the detector.
+    audio = np.concatenate([
+        _silence(1.0), _tone(0.5), _silence(0.4), _tone(0.5),
+    ])
+    onsets = detect_speech_onsets(audio, SR)
+    assert len(onsets) == 2
+    assert onsets[1] == pytest.approx(1.9, abs=0.06)
+
+
+def test_onsets_stereo_audio_accepted():
+    mono = np.concatenate([_silence(1.0), _tone(1.0)])
+    stereo = np.stack([mono, mono], axis=1)
+    onsets = detect_speech_onsets(stereo, SR)
+    assert len(onsets) == 1
+    assert onsets[0] == pytest.approx(1.0, abs=0.06)
+
+
+def test_onsets_sorted_ascending():
+    audio = np.concatenate(
+        [_silence(0.5), _tone(0.3)] * 4
+    )
+    onsets = detect_speech_onsets(audio, SR)
+    assert onsets == sorted(onsets)
+    assert len(onsets) == 4

@@ -92,6 +92,52 @@ def detect_speech_onset(
     return start_s + float(above[0]) * (frame_len / sr)
 
 
+# Hysteresis for full-track onset listing: after a frame crosses the
+# threshold, the energy must stay *below* it for at least this long before
+# the next rise counts as a new onset. Stops syllable-internal dips from
+# spamming the timeline with ticks.
+MIN_ONSET_GAP_S = 0.15
+
+
+def detect_speech_onsets(audio: np.ndarray, sr: int) -> list[float]:
+    """Return the times (s) of every speech-like onset across the whole track.
+
+    Powers the timeline editor's snap-to-onset ticks (issue #280, item 3):
+    frame RMS over the full track, single adaptive threshold
+    ``max(RELATIVE_THRESHOLD × peak, ABS_RMS_FLOOR)``, and hysteresis — a
+    new onset registers only when the energy rises above the threshold
+    after at least ``MIN_ONSET_GAP_S`` below it.
+
+    Pure NumPy, identical behaviour on every platform. Returns ``[]`` for
+    empty/silent audio.
+    """
+    if sr <= 0 or audio is None or len(audio) == 0:
+        return []
+    if audio.ndim > 1:
+        audio = audio.mean(axis=1)
+    frame_len = max(1, int(FRAME_S * sr))
+    rms = _frame_rms(audio, frame_len)
+    if rms.size == 0:
+        return []
+    peak = float(rms.max())
+    if peak < ABS_RMS_FLOOR:
+        return []  # whole track is effectively silent
+    threshold = max(RELATIVE_THRESHOLD * peak, ABS_RMS_FLOOR)
+    gap_frames = max(1, int(round(MIN_ONSET_GAP_S / FRAME_S)))
+    frame_s = frame_len / sr
+
+    onsets: list[float] = []
+    below_run = gap_frames  # armed, so speech at t=0 still counts
+    for i, v in enumerate(rms):
+        if v >= threshold:
+            if below_run >= gap_frames:
+                onsets.append(round(i * frame_s, 3))
+            below_run = 0
+        else:
+            below_run += 1
+    return onsets
+
+
 def snap_segment_starts(
     segments: Sequence[dict],
     audio: np.ndarray,
