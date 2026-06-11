@@ -8,6 +8,14 @@
 | 0.2.7 | ⚠️ Legacy stable — security fixes only, upgrade recommended |
 | < 0.2.7 | ❌ No longer supported |
 
+## Model supply chain
+
+Only load models from sources you trust. OmniVoice's supported model sources
+are public Hugging Face repos and official project releases; the loaders avoid
+code-executing formats where possible, but a model *archive* from an untrusted
+private source can carry anything (bundled executables, modified configs).
+Treat privately distributed model files like any other untrusted download.
+
 ## Reporting a Vulnerability
 
 **Please do not open a public issue for security vulnerabilities.**

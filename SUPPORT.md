@@ -9,6 +9,17 @@
 | [GitHub Discussions](https://github.com/debpalash/OmniVoice-Studio/discussions) | Design questions, ideas, show & tell |
 | Security issues | **Never a public issue** — see [SECURITY.md](SECURITY.md) for private reporting |
 
+## Model sources we support
+
+OmniVoice loads local models, and you're free to point it at any model folder
+you trust. **Official support, however, covers only models from verifiable
+public sources** — Hugging Face repos and official project releases with a
+published license and checksums. Privately distributed, paywalled, or
+otherwise unverifiable model files are **use-at-your-own-risk**: we can't
+reproduce or debug problems with a model we can't download, and we can't vouch
+for what's in a private archive. If you do load one, extract only the model
+files themselves (weights, config, tokenizer) — never run bundled executables.
+
 ## Before filing a bug
 
 1. Update to the latest release (or `main` if you follow previews) — fixes ship continuously.
