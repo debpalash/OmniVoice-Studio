@@ -817,7 +817,10 @@ def _save_subtitle_native(job_id: str, content: str, ext: str, display_name: str
     and returned the raw subtitle body, so JSON.parse choked on the SRT cue
     index with "Unexpected non-whitespace character after JSON" (#309).
     """
-    exports_dir = os.path.join(DUB_DIR, job_id, "exports")
+    base_exports_root = os.path.realpath(os.path.abspath(DUB_DIR))
+    exports_dir = os.path.realpath(os.path.join(base_exports_root, job_id, "exports"))
+    if os.path.commonpath([base_exports_root, exports_dir]) != base_exports_root:
+        raise HTTPException(status_code=400, detail="Invalid job id")
     os.makedirs(exports_dir, exist_ok=True)
     tmp_path = os.path.join(exports_dir, f"subtitles_{_unique_stamp()}.{ext}")
     with open(tmp_path, "w", encoding="utf-8") as f:
