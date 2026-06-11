@@ -30,6 +30,14 @@ export async function deleteProfile(id: string): Promise<Response> {
   return apiFetch(`/profiles/${id}`, { method: 'DELETE' });
 }
 
+export async function recordConsent(id: string, formData: FormData): Promise<unknown> {
+  return apiPost(`/profiles/${id}/consent`, formData);
+}
+
+export async function revokeConsent(id: string): Promise<Response> {
+  return apiFetch(`/profiles/${id}/consent`, { method: 'DELETE' });
+}
+
 export async function lockProfile(id: string, formData: FormData): Promise<unknown> {
   return apiPost(`/profiles/${id}/lock`, formData);
 }

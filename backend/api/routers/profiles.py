@@ -234,12 +234,95 @@ async def unlock_profile(profile_id: str):
     event_bus.emit("profiles", {"action": "unlocked", "id": profile_id})
     return {"unlocked": True, "profile_id": profile_id}
 
+# ── Consent lock (parity program Wave 0.2) ─────────────────────────────────
+#
+# A profile becomes "verified own voice" when its owner records themselves
+# reading a consent statement. The recording is provenance, not a voiceprint
+# check — agentic features and gallery sharing gate on the flag; plain local
+# synthesis never does. Spec: docs/competitive-analysis.md Action 22.
+
+_MIN_CONSENT_AUDIO_BYTES = 1000  # same floor as the frontend recorder
+
+
+@router.post("/profiles/{profile_id}/consent")
+async def record_consent(
+    profile_id: str,
+    consent_audio: UploadFile = File(...),
+    consent_text: str = Form(...),
+):
+    if not consent_text.strip():
+        raise HTTPException(status_code=422, detail="consent_text must not be empty")
+    data = await consent_audio.read()
+    if len(data) < _MIN_CONSENT_AUDIO_BYTES:
+        raise HTTPException(status_code=422, detail="consent recording is too short")
+
+    with db_conn() as conn:
+        row = conn.execute(
+            "SELECT id, consent_audio_path FROM voice_profiles WHERE id=?", (profile_id,)
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    ext = os.path.splitext(consent_audio.filename or ".wav")[1] or ".wav"
+    audio_filename = f"{profile_id}_consent{ext}"
+    audio_path = os.path.join(VOICES_DIR, audio_filename)
+    with open(audio_path, "wb") as f:
+        f.write(data)
+
+    # A re-record may change the extension; drop the superseded file.
+    old = row["consent_audio_path"]
+    if old and old != audio_filename:
+        old_path = os.path.join(VOICES_DIR, old)
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    recorded_at = time.time()
+    try:
+        with db_conn() as conn:
+            conn.execute(
+                "UPDATE voice_profiles SET verified_own_voice=1, consent_text=?, "
+                "consent_audio_path=?, consent_recorded_at=? WHERE id=?",
+                (consent_text.strip(), audio_filename, recorded_at, profile_id),
+            )
+    except Exception:
+        if os.path.exists(audio_path):
+            os.remove(audio_path)
+        raise
+    event_bus.emit("profiles", {"action": "consent_recorded", "id": profile_id})
+    return {
+        "id": profile_id,
+        "verified_own_voice": True,
+        "consent_recorded_at": recorded_at,
+    }
+
+
+@router.delete("/profiles/{profile_id}/consent")
+def revoke_consent(profile_id: str):
+    with db_conn() as conn:
+        row = conn.execute(
+            "SELECT consent_audio_path FROM voice_profiles WHERE id=?", (profile_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Profile not found")
+        conn.execute(
+            "UPDATE voice_profiles SET verified_own_voice=0, consent_text='', "
+            "consent_audio_path='', consent_recorded_at=NULL WHERE id=?",
+            (profile_id,),
+        )
+    if row["consent_audio_path"]:
+        path = os.path.join(VOICES_DIR, row["consent_audio_path"])
+        if os.path.exists(path):
+            os.remove(path)
+    event_bus.emit("profiles", {"action": "consent_revoked", "id": profile_id})
+    return {"id": profile_id, "verified_own_voice": False}
+
+
 @router.delete("/profiles/{profile_id}")
 def delete_profile(profile_id: str):
     with db_conn() as conn:
-        row = conn.execute("SELECT ref_audio_path, locked_audio_path FROM voice_profiles WHERE id=?", (profile_id,)).fetchone()
+        row = conn.execute("SELECT ref_audio_path, locked_audio_path, consent_audio_path FROM voice_profiles WHERE id=?", (profile_id,)).fetchone()
         if row:
-            for col in ["ref_audio_path", "locked_audio_path"]:
+            for col in ["ref_audio_path", "locked_audio_path", "consent_audio_path"]:
                 if row[col]:
                     path = os.path.join(VOICES_DIR, row[col])
                     if os.path.exists(path):

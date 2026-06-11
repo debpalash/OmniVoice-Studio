@@ -49,6 +49,10 @@ _BASE_SCHEMA = """
         personality TEXT DEFAULT '',
         description TEXT DEFAULT '',
         is_demo INTEGER DEFAULT 0,
+        verified_own_voice INTEGER DEFAULT 0,
+        consent_text TEXT DEFAULT '',
+        consent_audio_path TEXT DEFAULT '',
+        consent_recorded_at REAL DEFAULT NULL,
         created_at REAL
     );
     CREATE TABLE IF NOT EXISTS generation_history (

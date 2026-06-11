@@ -389,6 +389,18 @@
     "transcription_failed": "Transcription failed: {{message}}"
   },
   "voice_profile": {
+    "verified": "Verified",
+    "consent_title": "Voice ownership",
+    "consent_explain": "Record yourself reading the statement below to verify this is your own voice. Verification will be required for agentic features and community sharing — never for local synthesis.",
+    "consent_statement": "I confirm that this voice profile is my own voice, and I consent to OmniVoice Studio cloning it on my behalf.",
+    "consent_record": "Record consent statement",
+    "consent_stop": "Stop recording",
+    "consent_saved": "Voice ownership verified",
+    "consent_failed": "Verification failed: {{message}}",
+    "consent_verified_explain": "You recorded a consent statement on {{date}}. Revoking removes the recording and the verified status.",
+    "consent_revoke": "Revoke",
+    "consent_revoke_confirm": "Revoke voice-ownership verification? The consent recording will be deleted and agentic features will no longer be able to use this voice.",
+    "consent_revoked": "Verification revoked",
     "test_text": "Hello — this is a test of this voice.",
     "not_found": "Voice not found.",
     "needs_name": "Voice profile needs a name.",

@@ -4,12 +4,14 @@ import { toast } from 'react-hot-toast';
 import { toastErrorWithReport } from '../utils/errorToast';
 import {
   ArrowLeft, Fingerprint, Wand2, Lock, Unlock, Trash2, Play, Save,
-  FolderOpen, Volume2, Clock, Pencil, Check, X, Sparkles,
+  FolderOpen, Volume2, Clock, Pencil, Check, X, Sparkles, ShieldCheck, Mic, Square,
 } from 'lucide-react';
 import { Panel, Button, Input, Textarea, Field, Badge, Segmented, Progress } from '../ui';
 import {
   getProfile, getProfileUsage, updateProfile, deleteProfile, unlockProfile,
+  recordConsent, revokeConsent,
 } from '../api/profiles';
+import useRecording from '../hooks/useRecording';
 import { generateSpeech } from '../api/generate';
 import { API } from '../api/client';
 import './VoiceProfile.css';
@@ -41,6 +43,38 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
   const [testGenerating, setTestGenerating] = useState(false);
   const [testAudioUrl, setTestAudioUrl] = useState(null);
   const testAudioRef = useRef(null);
+
+  // Consent lock (Wave 0.2): record a spoken consent statement to mark the
+  // profile as the owner's own voice. Agentic features and gallery sharing
+  // gate on this flag; local synthesis never does.
+  const [consentSubmitting, setConsentSubmitting] = useState(false);
+  const consentStatement = t('voice_profile.consent_statement');
+  const submitConsent = async (audioFile) => {
+    setConsentSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append('consent_audio', audioFile);
+      fd.append('consent_text', consentStatement);
+      await recordConsent(voiceId, fd);
+      toast.success(t('voice_profile.consent_saved'));
+      await reload();
+    } catch (e) {
+      toastErrorWithReport(t('voice_profile.consent_failed', { message: e.message }), e);
+    } finally {
+      setConsentSubmitting(false);
+    }
+  };
+  const consentRec = useRecording(submitConsent);
+  const onRevokeConsent = async () => {
+    if (!(await askConfirm(t('voice_profile.consent_revoke_confirm')))) return;
+    try {
+      await revokeConsent(voiceId);
+      toast.success(t('voice_profile.consent_revoked'));
+      await reload();
+    } catch (e) {
+      toastErrorWithReport(e.message, e);
+    }
+  };
 
   const reload = useCallback(async () => {
     if (!voiceId) return;
@@ -210,6 +244,9 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
               <h1>{profile.name}</h1>
             )}
             <div className="voice-profile__badges">
+              {!!profile.verified_own_voice && (
+                <Badge tone="success" dot><ShieldCheck size={10} /> {t('voice_profile.verified')}</Badge>
+              )}
               {profile.is_locked
                 ? <Badge tone="warn" dot><Lock size={10} /> {t('voice_profile.locked')}</Badge>
                 : <Badge tone="neutral">{t('voice_profile.free')}</Badge>}
@@ -297,6 +334,51 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
             </span>
             <Button variant="subtle" size="sm" onClick={onUnlock} leading={<Unlock size={12} />}>{t('voice_profile.unlock')}</Button>
           </div>
+        )}
+      </Panel>
+
+      {/* Consent lock (Wave 0.2) — verify this is your own voice */}
+      <Panel
+        variant="flat"
+        padding="md"
+        title={<><ShieldCheck size={12} /> {t('voice_profile.consent_title')}</>}
+      >
+        {profile.verified_own_voice ? (
+          <div className="voice-profile__lock-row">
+            <Badge tone="success" dot><ShieldCheck size={10} /> {t('voice_profile.verified')}</Badge>
+            <span className="voice-profile__lock-hint">
+              {t('voice_profile.consent_verified_explain', {
+                date: profile.consent_recorded_at
+                  ? new Date(profile.consent_recorded_at * 1000).toLocaleDateString()
+                  : '',
+              })}
+            </span>
+            <Button variant="subtle" size="sm" onClick={onRevokeConsent} leading={<X size={12} />}>
+              {t('voice_profile.consent_revoke')}
+            </Button>
+          </div>
+        ) : (
+          <>
+            <p className="voice-profile__readonly">{t('voice_profile.consent_explain')}</p>
+            <blockquote className="voice-profile__readonly voice-profile__readonly--transcript">
+              “{consentStatement}”
+            </blockquote>
+            {consentRec.isRecording ? (
+              <Button variant="danger" size="sm" onClick={consentRec.stopRecording} leading={<Square size={12} />}>
+                {t('voice_profile.consent_stop')} ({consentRec.recordingTime}s)
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={consentRec.startRecording}
+                loading={consentSubmitting || consentRec.isCleaning}
+                leading={!(consentSubmitting || consentRec.isCleaning) && <Mic size={12} />}
+              >
+                {t('voice_profile.consent_record')}
+              </Button>
+            )}
+          </>
         )}
       </Panel>
 

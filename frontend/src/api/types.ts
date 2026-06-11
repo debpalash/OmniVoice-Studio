@@ -116,6 +116,10 @@ export interface Profile {
   description?: string;
   created_at?: string;
   is_locked?: boolean;
+  /** Consent lock (Wave 0.2): owner recorded a spoken consent statement. */
+  verified_own_voice?: boolean | number;
+  consent_text?: string;
+  consent_recorded_at?: number | null;
 }
 
 export interface ProfileUsage {
