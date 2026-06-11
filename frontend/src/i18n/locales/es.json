@@ -1101,6 +1101,7 @@
     "current_target": "Objetivo actual ({{code}})",
     "all_selected_dubs": "Todos los doblajes seleccionados ({{count}})",
     "subs_note": "Los subtítulos se generan a partir del texto del segmento tal como está: edite la tabla de segmentos antes de exportar si detecta errores tipográficos.",
+    "retime_note": "El reajuste de tiempo por segmento recodifica todo el vídeo al exportar: espera que tarde aproximadamente 0,5–2× la duración del vídeo en CPU.",
     "pkg_clips_title": "Clips por segmento (.zip)",
     "pkg_clips_body": "Cada segmento generado como un WAV numerado dentro de un zip: bueno para revisión, publicación de voz en off o creación de conjuntos de datos.",
     "pkg_clips_cta": "Exportar clips zip",

@@ -307,16 +307,61 @@ async def probe_duration(path: str) -> float | None:
         return None
 
 
-async def run_ffmpeg(cmd, timeout: float = 1800.0, capture: bool = True):
+async def probe_frame_rates(path: str) -> "tuple[str, str] | None":
+    """Return (r_frame_rate, avg_frame_rate) strings for the first video
+    stream (e.g. ``("30000/1001", "2997/100")``), or None on any failure.
+
+    A mismatch between the two is the practical VFR signature — used by the
+    Smart Fit retime pipeline to decide whether to normalise with ``fps=``
+    before trim/setpts. Never raises — probing is best-effort.
+    """
+    ffprobe = find_ffprobe()
+    if not ffprobe or not os.path.isfile(path):
+        return None
+    try:
+        proc = await spawn_subprocess(
+            ffprobe, "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=r_frame_rate,avg_frame_rate",
+            "-of", "csv=p=0",
+            path,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await proc.communicate()
+        if proc.returncode != 0:
+            return None
+        parts = stdout.decode().strip().split(",")
+        if len(parts) < 2:
+            return None
+        return parts[0].strip(), parts[1].strip()
+    except Exception as e:
+        logger.debug("probe_frame_rates failed for %s: %s", path, e)
+        return None
+
+
+async def run_ffmpeg(cmd, timeout: float = 1800.0, capture: bool = True,
+                     job_id: "str | None" = None):
     """Run an ffmpeg subprocess with concurrency cap, timeout, and proper cleanup.
 
     Returns (returncode, stdout_bytes, stderr_bytes). Raises asyncio.TimeoutError
     on hard timeout (after killing + reaping the process).
+
+    ``job_id`` (optional) registers the process with the dub pipeline's
+    process tracker so ``/dub/abort`` can kill long export encodes (used by
+    the Smart Fit batched retime). Lazy import avoids a module cycle —
+    dub_pipeline imports this module at top level.
     """
     stdout = asyncio.subprocess.PIPE if capture else asyncio.subprocess.DEVNULL
     stderr = asyncio.subprocess.PIPE
     async with _get_semaphore():
         proc = await _spawn_with_retry(cmd, stdout=stdout, stderr=stderr)
+        if job_id:
+            try:
+                from services.dub_pipeline import register_proc
+                register_proc(job_id, proc)
+            except Exception as e:
+                logger.debug("register_proc failed for %s: %s", job_id, e)
         try:
             try:
                 out, err = await asyncio.wait_for(proc.communicate(), timeout=timeout)
@@ -332,6 +377,12 @@ async def run_ffmpeg(cmd, timeout: float = 1800.0, capture: bool = True):
                 raise
             return proc.returncode, out, err
         finally:
+            if job_id:
+                try:
+                    from services.dub_pipeline import unregister_proc
+                    unregister_proc(job_id, proc)
+                except Exception as e:
+                    logger.debug("unregister_proc failed for %s: %s", job_id, e)
             # Guarantee reaping — prevents zombie pileup under timeouts or errors.
             if proc.returncode is None:
                 try:

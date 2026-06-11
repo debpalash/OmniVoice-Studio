@@ -1100,6 +1100,7 @@
     "current_target": "Mục tiêu hiện tại ({{code}})",
     "all_selected_dubs": "Tất cả các bản lồng tiếng đã chọn ({{count}})",
     "subs_note": "Phụ đề được tạo từ văn bản phân đoạn nguyên trạng — hãy chỉnh sửa bảng phân đoạn trước khi xuất nếu bạn phát hiện lỗi chính tả.",
+    "retime_note": "Việc căn lại thời gian video theo từng phân đoạn sẽ mã hóa lại toàn bộ video khi xuất — dự kiến mất khoảng 0,5–2× thời lượng video trên CPU.",
     "pkg_clips_title": "Clip theo từng đoạn (.zip)",
     "pkg_clips_body": "Mỗi phân đoạn được tạo dưới dạng WAV được đánh số bên trong một tệp zip — phù hợp để đánh giá, đăng bài lồng tiếng hoặc xây dựng tập dữ liệu.",
     "pkg_clips_cta": "Xuất clip zip",

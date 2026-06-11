@@ -1101,6 +1101,7 @@
     "current_target": "Cible actuelle ({{code}})",
     "all_selected_dubs": "Tous les doublages sélectionnés ({{count}})",
     "subs_note": "Les sous-titres sont générés à partir du texte du segment tel quel : modifiez le tableau des segments avant de l'exporter si vous avez repéré des fautes de frappe.",
+    "retime_note": "Le recalage vidéo par segment réencode l'intégralité de la vidéo à l'export — comptez environ 0,5 à 2× la durée de la vidéo sur CPU.",
     "pkg_clips_title": "Clips par segment (.zip)",
     "pkg_clips_body": "Chaque segment généré sous forme de WAV numéroté dans un zip - idéal pour la révision, la publication de voix off ou la création d'un ensemble de données.",
     "pkg_clips_cta": "Exporter les clips zip",

@@ -1100,6 +1100,7 @@
     "current_target": "Alvo atual ({{code}})",
     "all_selected_dubs": "Todas as dublagens selecionadas ({{count}})",
     "subs_note": "As legendas são geradas a partir do texto do segmento como está – edite a tabela de segmentos antes de exportar se você encontrar erros de digitação.",
+    "retime_note": "O reajuste de tempo por segmento recodifica o vídeo inteiro na exportação — espere cerca de 0,5–2× a duração do vídeo na CPU.",
     "pkg_clips_title": "Clipes por segmento (.zip)",
     "pkg_clips_body": "Cada segmento gerado como um WAV numerado dentro de um zip – bom para revisão, postagem de narração ou construção de conjunto de dados.",
     "pkg_clips_cta": "Exportar clipes zip",

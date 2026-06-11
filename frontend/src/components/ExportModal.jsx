@@ -37,6 +37,7 @@ export default function ExportModal({
   triggerDownload,
   handleDubDownload, handleDubAudioDownload, handleAudioExport,
   segmentCount = 0,
+  timingStrategy = '',
   onEnterprise,
 }) {
   const { t } = useTranslation();
@@ -160,7 +161,10 @@ export default function ExportModal({
     targets.forEach(lang => {
       formats.forEach(ext => {
         const name = `subtitles${subsDual ? '_dual' : ''}_${lang}.${ext}`;
-        const url = `${API}/dub/${ext}/${jobId}/${name}?dual=${subsDual ? 1 : 0}`;
+        // `lang` lets the backend pick fitted-timeline cue times when the
+        // track was generated under Smart Fit; inert otherwise.
+        const langQ = lang ? `&lang=${encodeURIComponent(lang)}` : '';
+        const url = `${API}/dub/${ext}/${jobId}/${name}?dual=${subsDual ? 1 : 0}${langQ}`;
         triggerDownload?.(url, name);
       });
     });
@@ -286,6 +290,11 @@ export default function ExportModal({
                   </label>
                 )}
               </Field>
+              {(timingStrategy === 'smart_fit' || timingStrategy === 'stretch_video') && (
+                <div className="export-modal__note">
+                  {t('exportModal.retime_note')}
+                </div>
+              )}
             </div>
           )}
 

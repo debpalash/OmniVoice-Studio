@@ -1100,6 +1100,7 @@
     "current_target": "Mevcut hedef ({{code}})",
     "all_selected_dubs": "Seçilen tüm dublajlar ({{count}})",
     "subs_note": "Alt başlıklar olduğu gibi bölüm metninden oluşturulur; yazım hataları fark ederseniz, dışa aktarmadan önce bölüm tablosunu düzenleyin.",
+    "retime_note": "Segment bazlı video yeniden zamanlama, dışa aktarmada videonun tamamını yeniden kodlar — CPU'da yaklaşık video süresinin 0,5–2 katını bekleyin.",
     "pkg_clips_title": "Segment başına klipler (.zip)",
     "pkg_clips_body": "Oluşturulan her segment, bir zip içinde numaralandırılmış bir WAV olarak; inceleme, seslendirme gönderisi veya veri kümesi oluşturma için iyidir.",
     "pkg_clips_cta": "Klipleri zip olarak dışa aktar",

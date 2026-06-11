@@ -1100,6 +1100,7 @@
     "current_target": "Aktualny cel ({{code}})",
     "all_selected_dubs": "Wszystkie wybrane duby ({{count}})",
     "subs_note": "Napisy są generowane na podstawie tekstu segmentu w niezmienionej postaci — edytuj tabelę segmentów przed eksportem, jeśli zauważysz literówki.",
+    "retime_note": "Przetaktowanie wideo per segment wymaga ponownego kodowania całego wideo przy eksporcie — spodziewaj się około 0,5–2× długości wideo na CPU.",
     "pkg_clips_title": "Klipy segmentowe (.zip)",
     "pkg_clips_body": "Każdy wygenerowany segment w postaci ponumerowanego pliku WAV w zipie — nadaje się do recenzji, wpisów z narracją lub tworzenia zestawu danych.",
     "pkg_clips_cta": "Eksportuj klipy zip",

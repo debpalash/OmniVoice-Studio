@@ -1100,6 +1100,7 @@
     "current_target": "Obiettivo attuale ({{code}})",
     "all_selected_dubs": "Tutti i doppiaggi selezionati ({{count}})",
     "subs_note": "I sottotitoli vengono generati dal testo del segmento così com'è: modifica la tabella dei segmenti prima dell'esportazione se hai individuato errori di battitura.",
+    "retime_note": "Il ritiming video per segmento ricodifica l'intero video durante l'esportazione: prevedi circa 0,5–2× la durata del video su CPU.",
     "pkg_clips_title": "Clip per segmento (.zip)",
     "pkg_clips_body": "Ogni segmento generato come WAV numerato all'interno di un file zip: utile per la revisione, la voce fuori campo o la creazione di set di dati.",
     "pkg_clips_cta": "Esporta clip zip",

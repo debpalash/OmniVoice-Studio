@@ -1100,6 +1100,7 @@
     "current_target": "เป้าหมายปัจจุบัน ({{code}})",
     "all_selected_dubs": "เสียงพากย์ที่เลือกทั้งหมด ({{count}})",
     "subs_note": "Subtitles are generated from segment text as-is — edit the segment table before exporting if you spotted typos.",
+    "retime_note": "การปรับเวลาวิดีโอแบบรายเซกเมนต์จะเข้ารหัสวิดีโอใหม่ทั้งหมดเมื่อส่งออก — คาดว่าจะใช้เวลาประมาณ 0.5–2 เท่าของความยาววิดีโอบน CPU",
     "pkg_clips_title": "คลิปต่อส่วน (.zip)",
     "pkg_clips_body": "ทุกเซ็กเมนต์ที่สร้างขึ้นเป็น WAV ที่มีตัวเลขอยู่ในไฟล์ zip — เหมาะสำหรับการตรวจสอบ โพสต์พากย์เสียง หรือการสร้างชุดข้อมูล",
     "pkg_clips_cta": "ส่งออกไฟล์ zip",

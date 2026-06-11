@@ -1100,6 +1100,7 @@
     "current_target": "Target saat ini ({{code}})",
     "all_selected_dubs": "Semua sulih suara yang dipilih ({{count}})",
     "subs_note": "Subjudul dihasilkan dari teks segmen sebagaimana adanya — edit tabel segmen sebelum mengekspor jika Anda melihat kesalahan ketik.",
+    "retime_note": "Pengaturan ulang waktu video per segmen mengodekan ulang seluruh video saat ekspor — perkirakan sekitar 0,5–2× durasi video pada CPU.",
     "pkg_clips_title": "Klip per segmen (.zip)",
     "pkg_clips_body": "Setiap segmen yang dihasilkan sebagai WAV bernomor di dalam zip — baik untuk peninjauan, postingan sulih suara, atau pembuatan kumpulan data.",
     "pkg_clips_cta": "Ekspor klip zip",

@@ -1100,6 +1100,7 @@
     "current_target": "Nuvarande mål ({{code}})",
     "all_selected_dubs": "Alla valda dubbar ({{count}})",
     "subs_note": "Undertexter genereras från segmenttexten i befintligt skick – redigera segmenttabellen innan du exporterar om du upptäckt stavfel.",
+    "retime_note": "Omtajming av video per segment kodar om hela videon vid export — räkna med ungefär 0,5–2× videons längd på CPU.",
     "pkg_clips_title": "Klipp per segment (.zip)",
     "pkg_clips_body": "Varje genererat segment som en numrerad WAV inuti en zip - bra för granskning, voice-over-inlägg eller datauppsättning.",
     "pkg_clips_cta": "Exportera klipp zip",

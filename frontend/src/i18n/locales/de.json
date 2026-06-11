@@ -1101,6 +1101,7 @@
     "current_target": "Aktuelles Ziel ({{code}})",
     "all_selected_dubs": "Alle ausgewählten Dubs ({{count}})",
     "subs_note": "Untertitel werden unverändert aus dem Segmenttext generiert. Bearbeiten Sie die Segmenttabelle vor dem Exportieren, wenn Sie Tippfehler entdeckt haben.",
+    "retime_note": "Die segmentweise Video-Neutaktung kodiert beim Export das gesamte Video neu — rechnen Sie mit etwa 0,5–2× der Videolänge auf der CPU.",
     "pkg_clips_title": "Clips pro Segment (.zip)",
     "pkg_clips_body": "Jedes generierte Segment als nummeriertes WAV in einer ZIP-Datei – gut für Überprüfungen, Voice-Over-Beiträge oder die Erstellung von Datensätzen.",
     "pkg_clips_cta": "Clips zip exportieren",

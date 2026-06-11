@@ -1100,6 +1100,7 @@
     "current_target": "Huidig doel ({{code}})",
     "all_selected_dubs": "Alle geselecteerde dubs ({{count}})",
     "subs_note": "Ondertitels worden gegenereerd op basis van segmenttekst zoals ze zijn. Bewerk de segmenttabel voordat u deze exporteert als u typefouten tegenkomt.",
+    "retime_note": "Het per segment hertimen van de video hercodeert bij het exporteren de hele video — reken op ongeveer 0,5–2× de videolengte op de CPU.",
     "pkg_clips_title": "Clips per segment (.zip)",
     "pkg_clips_body": "Elk gegenereerd segment als een genummerde WAV in een zip – goed voor beoordeling, voice-overpost of het bouwen van datasets.",
     "pkg_clips_cta": "Clips zip exporteren",

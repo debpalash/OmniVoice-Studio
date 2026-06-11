@@ -990,6 +990,7 @@
     "current_target": "Current target ({{code}})",
     "all_selected_dubs": "All selected dubs ({{count}})",
     "subs_note": "Subtitles are generated from segment text as-is — edit the segment table before exporting if you spotted typos.",
+    "retime_note": "Per-segment video re-timing re-encodes the entire video on export — expect it to take roughly 0.5–2× the video's length on CPU.",
     "pkg_clips_title": "Per-segment clips (.zip)",
     "pkg_clips_body": "Every generated segment as a numbered WAV inside a zip — good for review, voice-over post, or dataset building.",
     "pkg_clips_cta": "Export clips zip",

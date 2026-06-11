@@ -1100,6 +1100,7 @@
     "current_target": "目前目標 ({{code}})",
     "all_selected_dubs": "所有選定的配音 ({{count}})",
     "subs_note": "字幕原樣從片段文字產生 - 如果您發現拼字錯誤，請在匯出之前編輯片段表。",
+    "retime_note": "按片段重新調整影片時長需要在匯出時對整部影片重新編碼——在 CPU 上大約需要影片長度的 0.5–2 倍。",
     "pkg_clips_title": "每段剪輯 (.zip)",
     "pkg_clips_body": "每個產生的片段都是 zip 內編號的 WAV — 適合審閱、配音貼文或資料集建構。",
     "pkg_clips_cta": "匯出剪輯 zip",
