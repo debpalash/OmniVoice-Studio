@@ -658,6 +658,8 @@
     "dual_subs_title": "Esporta i sottotitoli con il testo tradotto in alto e l'originale in corsivo sotto.",
     "burn_subs": "Masterizza i sottotitoli",
     "burn_subs_title": "Rendi i sottotitoli direttamente nel flusso video MP4 (hardsubs). Utilizza il formato doppio sottotitolo quando è attivo il doppio sottotitolo.",
+    "timing_smart_fit": "Adattamento intelligente",
+    "timing_smart_fit_title": "Divide il compito: accelera leggermente l'audio (tono preservato, fino a 1,5×) e rallenta leggermente quel segmento del video (fino a 2×) così il parlato a ritmo naturale ci sta. L'eccedenza viene tagliata e segnalata. L'esportazione ricodifica il video.",
     "default_track": "Traccia predefinita:",
     "original_track": "Originale",
     "selected_dub": "{{code}} (duplicazione selezionata)",
@@ -775,6 +777,20 @@
     "fit_compressed_title": "L'audio TTS è il {{pct}}% dello slot: fortemente compresso.",
     "fit_audio_title": "L'audio si inserisce all'interno dello slot.",
     "fit_ratio_title": "L'audio TTS è il {{pct}}% dello slot."
+  },
+  "timeline": {
+    "track_label": "Timeline dei segmenti",
+    "keyboard_hint": "Le frecce selezionano un segmento · Invio attiva o disattiva la modalità modifica · Canc elimina · S aggancia all'attacco vocale più vicino",
+    "segment_aria": "Segmento {{index}}: da {{start}} a {{end}}",
+    "overlap_warning": "Si sovrappone a un segmento adiacente — le due battute suoneranno insieme",
+    "moved_announce": "Segmento {{index}} spostato a {{start}}",
+    "resized_announce": "Segmento {{index}}: da {{start}} a {{end}}",
+    "deleted_announce": "Segmento {{index}} eliminato",
+    "snapped_announce": "Bordo agganciato all'attacco vocale a {{time}}",
+    "edit_mode_on": "Modalità modifica: le frecce spostano l'inizio, Maiusc la fine, Alt l'intero segmento, Esc termina",
+    "edit_mode_off": "Modalità modifica disattivata",
+    "play_slot": "Riproduci questo intervallo",
+    "preview_dub": "Anteprima del doppiaggio qui"
   },
   "voice": {
     "personality": "Personalità",

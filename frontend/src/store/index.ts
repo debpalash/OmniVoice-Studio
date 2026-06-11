@@ -77,6 +77,7 @@ export const useAppStore = create<AppStore>()(
         reviewMode:                 s.reviewMode,
         showHeaderLiveStats:        s.showHeaderLiveStats,
         timingStrategy:             s.timingStrategy,
+        fitOptions:                 s.fitOptions,
         mode:                       s.mode,
         isSidebarCollapsed:         s.isSidebarCollapsed,
         isSidebarProjectsCollapsed: s.isSidebarProjectsCollapsed,

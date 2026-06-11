@@ -1,0 +1,68 @@
+{
+  "orig_duration": 5.0,
+  "segments": [
+    {
+      "audio_rate": 1.103448,
+      "effective_end": 1.45,
+      "index": 0,
+      "new_end": 1.45,
+      "new_start": 0.0,
+      "orig_end": 1.0,
+      "orig_start": 0.0,
+      "overflow_s": 0.0,
+      "seg_id": "g0",
+      "status": "audio_stretched",
+      "video_ratio": 1.0
+    },
+    {
+      "audio_rate": 1.17444,
+      "effective_end": 2.95,
+      "index": 1,
+      "new_end": 3.2029,
+      "new_start": 1.5,
+      "orig_end": 2.5,
+      "orig_start": 1.5,
+      "overflow_s": 0.0,
+      "seg_id": "g1",
+      "status": "hybrid",
+      "video_ratio": 1.17444
+    },
+    {
+      "audio_rate": 1.0,
+      "effective_end": 5.0,
+      "index": 2,
+      "new_end": 5.2529,
+      "new_start": 3.2529,
+      "orig_end": 4.0,
+      "orig_start": 3.0,
+      "overflow_s": 0.0,
+      "seg_id": "g2",
+      "status": "fits",
+      "video_ratio": 1.0
+    }
+  ],
+  "total_duration": 5.2529,
+  "video_plan": [
+    {
+      "new_end": 1.45,
+      "new_start": 0.0,
+      "orig_end": 1.45,
+      "orig_start": 0.0,
+      "stretch_ratio": 1.0
+    },
+    {
+      "new_end": 3.2029,
+      "new_start": 1.5,
+      "orig_end": 2.95,
+      "orig_start": 1.5,
+      "stretch_ratio": 1.1744
+    },
+    {
+      "new_end": 5.2529,
+      "new_start": 3.2529,
+      "orig_end": 5.0,
+      "orig_start": 3.0,
+      "stretch_ratio": 1.0
+    }
+  ]
+}

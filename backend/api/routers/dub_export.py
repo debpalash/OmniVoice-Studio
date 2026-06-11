@@ -26,17 +26,6 @@ def _unique_stamp() -> str:
 _SAFE_LANG = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
 
 
-def _safe_job_path(job_id: str, *parts: str) -> str:
-    """Join path components under DUB_DIR/<job_id>/ with a realpath
-    containment guard — request-supplied ids/names must never traverse out
-    of the job's directory (same pattern as the per-segment export below)."""
-    base = os.path.realpath(DUB_DIR)
-    cand = os.path.realpath(os.path.join(DUB_DIR, job_id, *parts))
-    if cand != base and not cand.startswith(base + os.sep):
-        raise HTTPException(status_code=400, detail="Invalid path component")
-    return cand
-
-
 def _native_save(source: str, destination: str, display_name: str, media_type: str):
     """Copy a generated export file to a user-chosen destination and return JSON."""
     import shutil
@@ -749,6 +738,75 @@ async def dub_preview_video(
         media_type="video/mp4",
         headers={"Cache-Control": "no-store"},
     )
+
+
+def _compute_onsets_sync(src_path: str) -> list[float]:
+    """Blocking part of onset analysis — runs in a worker thread."""
+    import soundfile as sf
+    from services.onset_align import detect_speech_onsets
+    audio, sr = sf.read(src_path, dtype="float32")
+    return detect_speech_onsets(audio, sr)
+
+
+@router.get("/dub/onsets/{job_id}")
+async def dub_get_onsets(job_id: str):
+    """Speech-onset times for the timeline editor's snap-to-onset ticks (#280).
+
+    Prefers the Demucs-isolated vocals track (clean speech energy); falls
+    back to the mixed audio. Computed once per job and cached as
+    ``onsets.json`` in the job directory; recomputed if the source audio is
+    newer than the cache (e.g. re-ingest into the same job dir).
+    """
+    import json
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    vocals = job.get("vocals_path")
+    mix = job.get("audio_path")
+    if vocals and os.path.exists(vocals):
+        src_path, source = vocals, "vocals"
+    elif mix and os.path.exists(mix):
+        src_path, source = mix, "mix"
+    else:
+        raise HTTPException(status_code=404, detail="No audio track available for onset analysis")
+
+    # Containment inlined (not via _safe_job_path): CodeQL can't track the
+    # sanitizer through a helper's return — the file's established idiom.
+    base = os.path.realpath(DUB_DIR)
+    cache_path = os.path.realpath(os.path.join(base, job_id, "onsets.json"))
+    if not cache_path.startswith(base + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid job id")
+    try:
+        if (
+            os.path.exists(cache_path)
+            and os.path.getmtime(cache_path) >= os.path.getmtime(src_path)
+        ):
+            with open(cache_path, "r", encoding="utf-8") as f:
+                cached = json.load(f)
+            if isinstance(cached, dict) and isinstance(cached.get("onsets"), list):
+                return cached
+    except (OSError, ValueError):
+        pass  # unreadable/corrupt cache → recompute below
+
+    try:
+        onsets = await asyncio.to_thread(_compute_onsets_sync, src_path)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Onset analysis failed: {str(e)[:200]}",
+        )
+
+    payload = {"onsets": onsets, "source": source}
+    try:
+        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+        tmp_path = cache_path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+        os.replace(tmp_path, cache_path)
+    except OSError as e:
+        logger.warning("onsets cache write failed for %s: %s", job_id, e)
+    return payload
 
 
 @router.get("/dub/thumb/{job_id}")

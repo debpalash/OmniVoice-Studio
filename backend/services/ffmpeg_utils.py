@@ -206,6 +206,107 @@ async def _spawn_with_retry(cmd, **kwargs):
     raise last_err if last_err else RuntimeError("spawn failed")
 
 
+def _atempo_chain(ratio: float) -> str:
+    """Build an `atempo=…,atempo=…` filter chain for arbitrary ratios.
+
+    ffmpeg's atempo filter is limited to [0.5, 2.0] per stage. Chaining
+    multiple stages multiplies the effective ratio while keeping each
+    individual stage inside the well-behaved range. Pitch is preserved
+    (WSOLA-style time-domain stretching). ratio > 1 speeds up, < 1
+    slows down.
+    """
+    stages: list[str] = []
+    remaining = ratio
+    while remaining > 2.0:
+        stages.append("atempo=2.0")
+        remaining /= 2.0
+    while remaining < 0.5:
+        stages.append("atempo=0.5")
+        remaining /= 0.5
+    stages.append(f"atempo={remaining:.6f}")
+    return ",".join(stages)
+
+
+async def _pitch_preserving_stretch(wav, target_samples: int, sr: int):
+    """Time-stretch a (1, samples) tensor to `target_samples` while
+    preserving pitch, by piping the audio through `ffmpeg atempo`.
+
+    Async so it never blocks the event loop: it's awaited from the dub
+    generate `_stream` generator, and each ffmpeg call is ~50-100 ms — a
+    synchronous ``subprocess.run`` here froze health-checks / SSE / every
+    concurrent request for the whole multi-segment job.
+
+    Returns a (1, target_samples) tensor on the same device as input.
+    Raises RuntimeError when ffmpeg fails — callers should fall back to
+    naive linear interpolation, accepting the pitch shift, to ensure the
+    output isn't silent.
+    """
+    # Lazy imports keep this module importable in torch-free contexts
+    # (setup scripts, smoke probes) — only the stretch path needs them.
+    import numpy as np
+    import torch
+
+    wl = int(wav.shape[-1])
+    if target_samples <= 0 or wl == target_samples:
+        return wav
+    ratio = wl / target_samples
+    filter_str = _atempo_chain(ratio)
+
+    # Mono float32 via stdin → ffmpeg → stdout. One subprocess per segment,
+    # run off the event loop so concurrent requests stay responsive.
+    arr = wav.detach().cpu().to(torch.float32).numpy().reshape(-1).astype(np.float32, copy=False)
+    proc = await spawn_subprocess(
+        find_ffmpeg(), "-hide_banner", "-loglevel", "error", "-y",
+        "-f", "f32le", "-ar", str(sr), "-ac", "1", "-i", "pipe:0",
+        "-af", filter_str,
+        "-f", "f32le", "-ar", str(sr), "-ac", "1", "pipe:1",
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await proc.communicate(input=arr.tobytes())
+    if proc.returncode != 0 or not stdout:
+        raise RuntimeError(
+            (stderr.decode(errors="replace") or "atempo failed")[:200]
+        )
+    out_arr = np.frombuffer(stdout, dtype=np.float32)
+    # atempo rarely lands exactly on the integer sample count, so
+    # pad/trim to the requested slot length.
+    if len(out_arr) < target_samples:
+        pad = np.zeros(target_samples - len(out_arr), dtype=np.float32)
+        out_arr = np.concatenate([out_arr, pad])
+    elif len(out_arr) > target_samples:
+        out_arr = out_arr[:target_samples]
+    return torch.from_numpy(out_arr.copy()).unsqueeze(0).to(wav.device)
+
+
+async def probe_duration(path: str) -> float | None:
+    """Return a media file's duration in seconds via ffprobe, or None.
+
+    Used by the Smart Fit pipeline to sanity-check source/track lengths
+    without loading the media. Never raises — probing is best-effort.
+    """
+    ffprobe = find_ffprobe()
+    if not ffprobe or not os.path.isfile(path):
+        return None
+    try:
+        proc = await spawn_subprocess(
+            ffprobe, "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            path,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await proc.communicate()
+        if proc.returncode != 0:
+            return None
+        return float(stdout.decode().strip())
+    except Exception as e:
+        logger.debug("probe_duration failed for %s: %s", path, e)
+        return None
+
+
 async def run_ffmpeg(cmd, timeout: float = 1800.0, capture: bool = True):
     """Run an ffmpeg subprocess with concurrency cap, timeout, and proper cleanup.
 

@@ -64,7 +64,56 @@ def segment_fingerprint(seg: dict) -> str:
     """
     payload = {k: _canon_value(k, seg.get(k)) for k in _GEN_INPUT_FIELDS}
     blob = json.dumps(payload, sort_keys=True, ensure_ascii=False)
-    return hashlib.sha1(blob.encode("utf-8")).hexdigest()[:16]
+    return hashlib.sha1(blob.encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
+
+
+# ── Smart Fit (dub-length fitting v2) fingerprints ─────────────────────────
+#
+# Fitting parameters stay OUT of segment_fingerprint on purpose: changing a
+# fit knob (caps, gap guard, strategy) must trigger a RE-MIX of the already
+# rendered natural-rate WAVs (generate with regen_only=[]), never a re-TTS.
+# A separate per-track fingerprint tracks the fit configuration; a dubbed
+# track is stale iff its fit_fp differs OR any segment hash differs.
+
+_FIT_PARAM_FIELDS = (
+    "timing_strategy",
+    "max_audio_only_rate",
+    "audio_rate_cap",
+    "video_slow_cap",
+    "gap_guard_s",
+    "allow_video_retime",
+)
+
+# Server-side defaults (must mirror services.fit_planner.FitParams). Filled
+# in for omitted keys so a fingerprint computed from a fully-populated
+# server view matches one recomputed from a sparse client payload — the
+# same #281 regression class segment_fingerprint already guards against.
+_FIT_PARAM_DEFAULTS = {
+    "timing_strategy": "smart_fit",
+    "max_audio_only_rate": 1.2,
+    "audio_rate_cap": 1.5,
+    "video_slow_cap": 2.0,
+    "gap_guard_s": 0.05,
+    "allow_video_retime": True,
+}
+
+
+def fit_fingerprint(params: dict) -> str:
+    """Deterministic hash of the fit configuration for one dub track.
+
+    Canonicalised with the same `_canon_value` rules as segment
+    fingerprints (int vs float, None/"" vs omitted), plus default-filling
+    so `{}` and `{"audio_rate_cap": 1.5}` hash identically.
+    """
+    params = params or {}
+    payload = {}
+    for k in _FIT_PARAM_FIELDS:
+        v = params.get(k)
+        if v is None or v == "":
+            v = _FIT_PARAM_DEFAULTS[k]
+        payload[k] = _canon_value(k, v)
+    blob = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha1(blob.encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
 
 
 def plan_incremental(

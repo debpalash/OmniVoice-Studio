@@ -658,6 +658,8 @@
     "dual_subs_title": "Exportera undertexter med översatt text överst och originalet kursivt under.",
     "burn_subs": "Bränn undertexter",
     "burn_subs_title": "Återge undertexter direkt i MP4-videoströmmen (hardsubs). Använder formatet med dubbla undertexter när dubbla undertexter är på.",
+    "timing_smart_fit": "Smart anpassning",
+    "timing_smart_fit_title": "Delar upp anpassningen: snabbar upp ljudet något (tonhöjd bevaras, upp till 1,5×) och saktar ner det videosegmentet något (upp till 2×) så att tal i naturligt tempo får plats. Det som ändå inte ryms klipps och flaggas. Export omkodar videon.",
     "default_track": "Standardspår:",
     "original_track": "Original",
     "selected_dub": "{{code}} (vald dub)",
@@ -775,6 +777,20 @@
     "fit_compressed_title": "TTS-ljud är {{pct}}% av kortplatsen — kraftigt komprimerat.",
     "fit_audio_title": "Ljudet passar in i öppningen.",
     "fit_ratio_title": "TTS-ljud är {{pct}}% av kortplatsen."
+  },
+  "timeline": {
+    "track_label": "Segmenttidslinje",
+    "keyboard_hint": "Piltangenterna väljer ett segment · Enter växlar redigeringsläge · Delete tar bort · S fäster vid närmaste talstart",
+    "segment_aria": "Segment {{index}}: {{start}} till {{end}}",
+    "overlap_warning": "Överlappar ett intilliggande segment — båda replikerna spelas samtidigt",
+    "moved_announce": "Segment {{index}} flyttat till {{start}}",
+    "resized_announce": "Segment {{index}}: {{start}} till {{end}}",
+    "deleted_announce": "Segment {{index}} borttaget",
+    "snapped_announce": "Kanten fäst vid talstart vid {{time}}",
+    "edit_mode_on": "Redigeringsläge: pilarna flyttar början, Skift slutet, Alt hela segmentet, Esc avslutar",
+    "edit_mode_off": "Redigeringsläge av",
+    "play_slot": "Spela upp det här avsnittet",
+    "preview_dub": "Förhandslyssna på dubbningen här"
   },
   "voice": {
     "personality": "Personlighet",

@@ -23,6 +23,7 @@ export default function DubSegmentTable({
   segments, profiles, speakerClones, dubStep, dubProgress, previewLoadingId,
   selectedIds, onSelect, onSelectAll, onClearSelection,
   onEditField, onDelete, onRestore, onPreview, onSplit, onMerge, onDirect, onSeek,
+  timelineSelectedId = null,
 }) {
   const { t } = useTranslation();
   const disabled = dubStep === 'generating' || dubStep === 'stopping';
@@ -88,6 +89,19 @@ export default function DubSegmentTable({
     } catch (_) { /* react-window may not be ready yet */ }
   }, [currentSegId, filtered]);
 
+  // Timeline → table sync (#280, item 3): clicking a segment box on the
+  // waveform timeline scrolls its row into view and highlights it.
+  useEffect(() => {
+    if (timelineSelectedId == null || !listRef.current) return;
+    const filteredIdx = filtered.findIndex(s => String(s.id) === String(timelineSelectedId));
+    if (filteredIdx < 0) return;
+    try {
+      listRef.current.scrollToRow({
+        index: filteredIdx, align: 'smart', behavior: 'smooth',
+      });
+    } catch (_) { /* react-window may not be ready yet */ }
+  }, [timelineSelectedId, filtered]);
+
   const rowHeight = useCallback((index) => {
     const s = filtered[index];
     if (!s) return BASE_ROW_HEIGHT;
@@ -97,23 +111,25 @@ export default function DubSegmentTable({
   const rowProps = useMemo(() => ({
     filtered, profiles, speakerClones, disabled, dubStep, dubProgress, previewLoadingId,
     selectedIds, onSelect, onEditField, onDelete, onRestore, onPreview, onSplit, onMerge, onDirect, onSeek,
-    segments, currentSegId,
+    segments, currentSegId, timelineSelectedId,
   }), [filtered, profiles, speakerClones, disabled, dubStep, dubProgress, previewLoadingId,
-      selectedIds, onSelect, onEditField, onDelete, onRestore, onPreview, onSplit, onMerge, onDirect, onSeek, segments, currentSegId]);
+      selectedIds, onSelect, onEditField, onDelete, onRestore, onPreview, onSplit, onMerge, onDirect, onSeek, segments, currentSegId, timelineSelectedId]);
 
-  const Row = useCallback(({ index, style, filtered: fl, profiles: profs, speakerClones: clones, disabled: dis, dubProgress: prog, dubStep: step, previewLoadingId: previewId, selectedIds: sel, onSelect: pick, onEditField: edit, onDelete: del, onRestore: rest, onPreview: prev, onSplit: split, onMerge: merge, onDirect: direct, onSeek: seek, segments: segs, currentSegId: curId }) => {
+  const Row = useCallback(({ index, style, filtered: fl, profiles: profs, speakerClones: clones, disabled: dis, dubProgress: prog, dubStep: step, previewLoadingId: previewId, selectedIds: sel, onSelect: pick, onEditField: edit, onDelete: del, onRestore: rest, onPreview: prev, onSplit: split, onMerge: merge, onDirect: direct, onSeek: seek, segments: segs, currentSegId: curId, timelineSelectedId: tlSel }) => {
     const seg = fl[index];
     if (!seg) return null;
     const absoluteIndex = segs.indexOf(seg);
     const isActive = (step === 'generating' || step === 'stopping') && prog.current === absoluteIndex + 1;
     const isDone = (step === 'generating' || step === 'stopping') && prog.current > absoluteIndex + 1;
     const isPlaying = curId === seg.id;
+    const timelineSelected = tlSel != null && String(tlSel) === String(seg.id);
     const canMerge = index < fl.length - 1;
     return (
       <DubSegmentRow
         seg={seg} idx={index} style={style}
         disabled={dis} isActive={isActive} isDone={isDone}
         isPlaying={isPlaying}
+        timelineSelected={timelineSelected}
         previewLoading={previewId === seg.id}
         selected={sel && sel.has(seg.id)}
         canMerge={canMerge}

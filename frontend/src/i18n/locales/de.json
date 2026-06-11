@@ -659,6 +659,8 @@
     "dual_subs_title": "Exportieren Sie Untertitel mit übersetztem Text oben und kursiv geschriebenem Original darunter.",
     "burn_subs": "Untertitel brennen",
     "burn_subs_title": "Rendern Sie Untertitel direkt in den MP4-Videostream (Hardsubs). Verwendet das Dual-Untertitelformat, wenn Dual-Untertitel aktiviert ist.",
+    "timing_smart_fit": "Intelligente Anpassung",
+    "timing_smart_fit_title": "Teilt die Anpassung auf: Das Audio wird leicht beschleunigt (tonhöhenerhaltend, bis 1,5×) und das Videosegment leicht verlangsamt (bis 2×), damit Sprache in natürlichem Tempo passt. Was darüber hinausgeht, wird gekürzt und markiert. Der Export codiert das Video neu.",
     "default_track": "Standardspur:",
     "original_track": "Original",
     "selected_dub": "{{code}} (Ausgewählter Dub)",
@@ -776,6 +778,20 @@
     "fit_compressed_title": "TTS-Audio macht {{pct}} % des Slots aus – stark komprimiert.",
     "fit_audio_title": "Audio passt in den Steckplatz.",
     "fit_ratio_title": "TTS-Audio macht {{pct}} % des Slots aus."
+  },
+  "timeline": {
+    "track_label": "Segment-Zeitleiste",
+    "keyboard_hint": "Pfeiltasten wählen ein Segment · Enter schaltet den Bearbeitungsmodus um · Entf löscht · S rastet am nächsten Sprecheinsatz ein",
+    "segment_aria": "Segment {{index}}: {{start}} bis {{end}}",
+    "overlap_warning": "Überlappt ein benachbartes Segment — beide Zeilen werden zusammen abgespielt",
+    "moved_announce": "Segment {{index}} verschoben nach {{start}}",
+    "resized_announce": "Segment {{index}}: {{start}} bis {{end}}",
+    "deleted_announce": "Segment {{index}} gelöscht",
+    "snapped_announce": "Kante am Sprecheinsatz bei {{time}} eingerastet",
+    "edit_mode_on": "Bearbeitungsmodus: Pfeile verschieben den Anfang, Umschalt das Ende, Alt das ganze Segment, Esc beendet",
+    "edit_mode_off": "Bearbeitungsmodus aus",
+    "play_slot": "Diesen Abschnitt abspielen",
+    "preview_dub": "Synchro hier vorhören"
   },
   "voice": {
     "personality": "Persönlichkeit",

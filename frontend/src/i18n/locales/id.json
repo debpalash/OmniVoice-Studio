@@ -658,6 +658,8 @@
     "dual_subs_title": "Ekspor subtitle dengan teks terjemahan di atas dan teks asli dicetak miring di bawahnya.",
     "burn_subs": "Bakar subtitle",
     "burn_subs_title": "Render subtitle langsung ke aliran video MP4 (hardsubs). Menggunakan format subtitle ganda saat Subtitle ganda aktif.",
+    "timing_smart_fit": "Penyesuaian Cerdas",
+    "timing_smart_fit_title": "Membagi beban: sedikit mempercepat audio (nada dipertahankan, hingga 1,5×) dan sedikit memperlambat segmen video itu (hingga 2×) agar suara dengan tempo alami muat. Kelebihan di luar batas dipangkas dan ditandai. Ekspor mengenkode ulang video.",
     "default_track": "Lagu Bawaan:",
     "original_track": "Asli",
     "selected_dub": "{{code}} (Suara yang Dipilih)",
@@ -775,6 +777,20 @@
     "fit_compressed_title": "Audio TTS menempati {{pct}}% dari slot — sangat terkompresi.",
     "fit_audio_title": "Audio pas di dalam slot.",
     "fit_ratio_title": "Audio TTS adalah {{pct}}% dari slot."
+  },
+  "timeline": {
+    "track_label": "Lini masa segmen",
+    "keyboard_hint": "Tombol panah memilih segmen · Enter mengalihkan mode edit · Delete menghapus · S menjepret ke awal ucapan terdekat",
+    "segment_aria": "Segmen {{index}}: {{start}} hingga {{end}}",
+    "overlap_warning": "Tumpang tindih dengan segmen di sebelahnya — kedua dialog akan berbunyi bersamaan",
+    "moved_announce": "Segmen {{index}} dipindahkan ke {{start}}",
+    "resized_announce": "Segmen {{index}}: {{start}} hingga {{end}}",
+    "deleted_announce": "Segmen {{index}} dihapus",
+    "snapped_announce": "Tepi dijepretkan ke awal ucapan pada {{time}}",
+    "edit_mode_on": "Mode edit: panah menggeser awal, Shift akhir, Alt seluruh segmen, Esc selesai",
+    "edit_mode_off": "Mode edit nonaktif",
+    "play_slot": "Putar bagian ini",
+    "preview_dub": "Pratinjau sulih suara di sini"
   },
   "voice": {
     "personality": "Kepribadian",

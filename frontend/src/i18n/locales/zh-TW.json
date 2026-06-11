@@ -658,6 +658,8 @@
     "dual_subs_title": "匯出字幕，翻譯文字位於頂部，原始斜體位於下方。",
     "burn_subs": "燒錄字幕",
     "burn_subs_title": "將字幕直接渲染到 MP4 視訊串流中（硬字幕）。當雙字幕開啟時使用雙字幕格式。",
+    "timing_smart_fit": "智慧適配",
+    "timing_smart_fit_title": "兩邊各退一步：音訊稍微加速（保持音高，最高 1.5×），該片段的影片稍微放慢（最高 2×），讓自然語速的配音剛好放得下。超出上限的部分會被裁剪並標記。匯出時會重新編碼影片。",
     "default_track": "預設曲目：",
     "original_track": "原創",
     "selected_dub": "{{code}}（精選配音）",
@@ -775,6 +777,20 @@
     "fit_compressed_title": "TTS 音訊佔插槽的 {{pct}}% — 被嚴重壓縮。",
     "fit_audio_title": "音訊適合插槽內。",
     "fit_ratio_title": "TTS 音訊佔插槽的 {{pct}}%。"
+  },
+  "timeline": {
+    "track_label": "片段時間軸",
+    "keyboard_hint": "方向鍵選擇片段 · Enter 切換編輯模式 · Delete 刪除 · S 吸附到最近的語音起點",
+    "segment_aria": "片段 {{index}}：{{start}} 至 {{end}}",
+    "overlap_warning": "與相鄰片段重疊 — 兩句台詞將同時播放",
+    "moved_announce": "片段 {{index}} 已移動到 {{start}}",
+    "resized_announce": "片段 {{index}}：{{start}} 至 {{end}}",
+    "deleted_announce": "片段 {{index}} 已刪除",
+    "snapped_announce": "邊緣已吸附到 {{time}} 處的語音起點",
+    "edit_mode_on": "編輯模式：方向鍵微調起點，Shift 調整終點，Alt 移動整個片段，Esc 結束",
+    "edit_mode_off": "已離開編輯模式",
+    "play_slot": "播放此區間",
+    "preview_dub": "在此預聽配音"
   },
   "voice": {
     "personality": "個性",

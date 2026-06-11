@@ -658,6 +658,8 @@
     "dual_subs_title": "Eksportuj napisy z przetłumaczonym tekstem na górze i oryginalną kursywą pod spodem.",
     "burn_subs": "Wypal napisy",
     "burn_subs_title": "Renderuj napisy bezpośrednio do strumienia wideo MP4 (hardsub). Używa formatu podwójnych napisów, gdy opcja Podwójne napisy jest włączona.",
+    "timing_smart_fit": "Inteligentne dopasowanie",
+    "timing_smart_fit_title": "Dzieli dopasowanie: lekko przyspiesza dźwięk (z zachowaniem wysokości tonu, do 1,5×) i lekko spowalnia dany fragment wideo (do 2×), aby mowa w naturalnym tempie się zmieściła. Nadmiar jest przycinany i oznaczany. Eksport ponownie koduje wideo.",
     "default_track": "Domyślny utwór:",
     "original_track": "Oryginał",
     "selected_dub": "{{code}} (wybrany dubbing)",
@@ -775,6 +777,20 @@
     "fit_compressed_title": "Dźwięk TTS stanowi {{pct}}% szczeliny — jest mocno skompresowany.",
     "fit_audio_title": "Dźwięk mieści się w gnieździe.",
     "fit_ratio_title": "Dźwięk TTS zajmuje {{pct}}% szczeliny."
+  },
+  "timeline": {
+    "track_label": "Oś czasu segmentów",
+    "keyboard_hint": "Strzałki wybierają segment · Enter przełącza tryb edycji · Delete usuwa · S przyciąga do najbliższego początku mowy",
+    "segment_aria": "Segment {{index}}: od {{start}} do {{end}}",
+    "overlap_warning": "Nakłada się na sąsiedni segment — obie kwestie zagrają jednocześnie",
+    "moved_announce": "Segment {{index}} przesunięty do {{start}}",
+    "resized_announce": "Segment {{index}}: od {{start}} do {{end}}",
+    "deleted_announce": "Segment {{index}} usunięty",
+    "snapped_announce": "Krawędź przyciągnięta do początku mowy w {{time}}",
+    "edit_mode_on": "Tryb edycji: strzałki przesuwają początek, Shift koniec, Alt cały segment, Esc kończy",
+    "edit_mode_off": "Tryb edycji wyłączony",
+    "play_slot": "Odtwórz ten fragment",
+    "preview_dub": "Odsłuchaj dubbing tutaj"
   },
   "voice": {
     "personality": "Osobowość",

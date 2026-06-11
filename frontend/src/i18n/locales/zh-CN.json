@@ -618,6 +618,8 @@
     "dual_subs_title": "导出字幕时上方为翻译文本，下方为原文（斜体）。",
     "burn_subs": "烧录字幕",
     "burn_subs_title": "将字幕直接渲染到 MP4 视频流中。开启双字幕时使用双字幕格式。",
+    "timing_smart_fit": "智能适配",
+    "timing_smart_fit_title": "两边各让一步：音频略微加速（保持音高，最高 1.5×），该片段的视频略微放慢（最高 2×），让自然语速的配音刚好放下。超出上限的部分会被裁剪并标记。导出时会重新编码视频。",
     "default_track": "默认轨道：",
     "original_track": "原声",
     "selected_dub": "{{code}}（选定配音）",
@@ -735,6 +737,20 @@
     "fit_compressed_title": "TTS 音频占插槽的 {{pct}}% — 被严重压缩。",
     "fit_audio_title": "音频适合插槽内。",
     "fit_ratio_title": "TTS 音频占插槽的 {{pct}}%。"
+  },
+  "timeline": {
+    "track_label": "片段时间轴",
+    "keyboard_hint": "方向键选择片段 · Enter 切换编辑模式 · Delete 删除 · S 吸附到最近的语音起点",
+    "segment_aria": "片段 {{index}}：{{start}} 至 {{end}}",
+    "overlap_warning": "与相邻片段重叠 — 两句台词将同时播放",
+    "moved_announce": "片段 {{index}} 已移动到 {{start}}",
+    "resized_announce": "片段 {{index}}：{{start}} 至 {{end}}",
+    "deleted_announce": "片段 {{index}} 已删除",
+    "snapped_announce": "边缘已吸附到 {{time}} 处的语音起点",
+    "edit_mode_on": "编辑模式：方向键微调起点，Shift 调整终点，Alt 移动整个片段，Esc 结束",
+    "edit_mode_off": "已退出编辑模式",
+    "play_slot": "播放此区间",
+    "preview_dub": "在此预听配音"
   },
   "voice": {
     "personality": "风格",

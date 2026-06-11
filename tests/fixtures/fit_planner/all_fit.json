@@ -1,0 +1,48 @@
+{
+  "orig_duration": 6.0,
+  "segments": [
+    {
+      "audio_rate": 1.0,
+      "effective_end": 2.95,
+      "index": 0,
+      "new_end": 2.95,
+      "new_start": 0.0,
+      "orig_end": 2.0,
+      "orig_start": 0.0,
+      "overflow_s": 0.0,
+      "seg_id": "g0",
+      "status": "fits",
+      "video_ratio": 1.0
+    },
+    {
+      "audio_rate": 1.0,
+      "effective_end": 6.0,
+      "index": 1,
+      "new_end": 6.0,
+      "new_start": 3.0,
+      "orig_end": 5.0,
+      "orig_start": 3.0,
+      "overflow_s": 0.0,
+      "seg_id": "g1",
+      "status": "fits",
+      "video_ratio": 1.0
+    }
+  ],
+  "total_duration": 6.0,
+  "video_plan": [
+    {
+      "new_end": 2.95,
+      "new_start": 0.0,
+      "orig_end": 2.95,
+      "orig_start": 0.0,
+      "stretch_ratio": 1.0
+    },
+    {
+      "new_end": 6.0,
+      "new_start": 3.0,
+      "orig_end": 6.0,
+      "orig_start": 3.0,
+      "stretch_ratio": 1.0
+    }
+  ]
+}

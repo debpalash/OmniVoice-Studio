@@ -658,6 +658,8 @@
     "dual_subs_title": "상단에 번역된 텍스트가 있고 하단에 이탤릭체로 표시된 원본이 있는 자막을 내보냅니다.",
     "burn_subs": "자막 굽기",
     "burn_subs_title": "자막을 MP4 비디오 스트림(하드 서브)으로 직접 렌더링합니다. 듀얼 자막이 켜져 있을 때 듀얼 자막 형식을 사용합니다.",
+    "timing_smart_fit": "스마트 핏",
+    "timing_smart_fit_title": "양쪽을 조금씩 조정합니다. 오디오를 약간 빠르게(피치 유지, 최대 1.5배) 하고 해당 구간의 영상을 약간 느리게(최대 2배) 하여 자연스러운 속도의 음성을 맞춥니다. 한도를 넘는 부분은 잘리고 표시됩니다. 내보낼 때 영상을 다시 인코딩합니다.",
     "default_track": "기본 트랙:",
     "original_track": "원본",
     "selected_dub": "{{code}}(선택된 더빙)",
@@ -775,6 +777,20 @@
     "fit_compressed_title": "TTS 오디오는 슬롯의 {{pct}}%입니다. — 심하게 압축되었습니다.",
     "fit_audio_title": "오디오는 슬롯 안에 맞습니다.",
     "fit_ratio_title": "TTS 오디오는 슬롯의 {{pct}}%입니다."
+  },
+  "timeline": {
+    "track_label": "세그먼트 타임라인",
+    "keyboard_hint": "화살표 키로 세그먼트 선택 · Enter로 편집 모드 전환 · Delete로 삭제 · S로 가장 가까운 발화 시작점에 스냅",
+    "segment_aria": "세그먼트 {{index}}: {{start}}부터 {{end}}까지",
+    "overlap_warning": "인접 세그먼트와 겹칩니다 — 두 대사가 동시에 재생됩니다",
+    "moved_announce": "세그먼트 {{index}}을(를) {{start}}(으)로 이동했습니다",
+    "resized_announce": "세그먼트 {{index}}: {{start}}부터 {{end}}까지",
+    "deleted_announce": "세그먼트 {{index}}이(가) 삭제되었습니다",
+    "snapped_announce": "가장자리를 {{time}}의 발화 시작점에 스냅했습니다",
+    "edit_mode_on": "편집 모드: 화살표는 시작, Shift는 끝, Alt는 세그먼트 전체 이동, Esc로 종료",
+    "edit_mode_off": "편집 모드 꺼짐",
+    "play_slot": "이 구간 재생",
+    "preview_dub": "여기서 더빙 미리 듣기"
   },
   "voice": {
     "personality": "성격",
