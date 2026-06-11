@@ -192,6 +192,69 @@ cd frontend/src-tauri && cargo check
 
 ---
 
+---
+
+## What code review looks like
+
+Every PR is reviewed by two AI reviewers before a human looks at it:
+
+- **CodeRabbit** posts a walkthrough (with a sequence diagram, and an ASCII
+  before/after sketch for UI changes), inline findings, and warning-mode
+  pre-merge checks against the project's hard rules.
+- **Greptile** reviews with the same project rubrics and learns from 👍/👎
+  reactions on its comments — react to train it.
+
+Both are advisory, not gating: CI and the maintainer's approval decide. Don't
+be surprised by detailed bot comments minutes after you open a PR — address
+what's right, push back (in a reply) on what's wrong.
+
+**Commit & PR conventions:** conventional-commit style with a scope
+(`fix(dub): …`, `feat(setup): …`) and link the issue (`Closes #N` / `Refs #N`)
+in the title or body.
+
+## Quality gates your PR must pass
+
+- **Cross-platform parity (hard rule):** anything that ships in default mode
+  must behave identically on macOS, Windows, and Linux. Platform-specific
+  *implementation* is fine; platform-divergent *default behavior* is a P0.
+  Platform-only features go behind an explicit opt-in (Settings toggle, env
+  var, or CLI flag).
+- **i18n — all 21 locales (hard rule):** every user-facing string goes through
+  `t('...')` and the key must exist in **all 21** files under
+  `frontend/src/i18n/locales/`. Translate; don't copy English into non-English
+  locales. CI fails on hardcoded CJK outside the allowlist in
+  `tests/test_no_hardcoded_cjk.py` (extend `_ALLOWED_FILES` with a
+  justification for legitimate functional CJK).
+- **DB schema changes** go through an alembic migration with a tested upgrade
+  path — existing `omnivoice_data/` must keep working with no manual steps.
+- **Engine back-compat:** already-installed engines (model weights on disk)
+  must not require reinstall or re-download.
+- **Local-first:** no new outbound calls except GitHub Issues (opt-in
+  reporting) and HuggingFace model downloads. Never log or persist secrets or
+  absolute home paths.
+- **Security posture:** the backend serves loopback HTTP — treat every
+  query/path/form parameter as hostile. User-chosen filesystem destinations
+  are authorized in the Tauri process (save dialog), never via HTTP params.
+
+## Contribution licensing
+
+OmniVoice Studio is **AGPL-3.0-only**, and the maintainer also offers a
+**commercial license** (see [LICENSE](LICENSE)). By submitting a contribution
+you agree that:
+
+1. you have the right to submit it (your own work, or compatibly licensed);
+2. it is licensed to the project under **AGPL-3.0**; and
+3. you grant the project maintainer a perpetual, worldwide, non-exclusive
+   right to also distribute your contribution under the project's commercial
+   license terms.
+
+This inbound grant is what keeps the dual-license model viable. If you can't
+agree to (3) for a particular contribution, say so in the PR and we'll discuss
+before merging. Adding a `Signed-off-by:` line (DCO) to your commits is
+appreciated but not required.
+
+---
+
 ## Need Help?
 
 - **Stuck on setup?** Ask in [Discord #help](https://discord.gg/bzQavDfVV9)

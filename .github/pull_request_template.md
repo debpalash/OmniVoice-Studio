@@ -18,7 +18,7 @@
 - [ ] 📝 Documentation
 - [ ] 🧪 Tests
 - [ ] 🔧 CI / Build
-- [ ] 🚀 Release prep (RC or final)
+- [ ] 🚀 Release prep
 
 ## Testing
 
@@ -33,17 +33,12 @@
 - [ ] No local machine paths, logs, or personal env details in this PR
 - [ ] Version files are in sync (if version bump): `pyproject.toml`, `package.json`, `tauri.conf.json`, `Cargo.toml`
 - [ ] If this PR changes runtime behavior, the regression fixture at `tests/fixtures/omnivoice_data/` still loads green on the `smoke-matrix` CI job (macOS + Windows + Linux)
-- [ ] If this is part of a release, I've read the "Release cadence" section below and confirmed this PR targets the right RC
 
-## Release cadence (read once per RC)
+## Release cadence
 
-OmniVoice ships every minor on a **two-RC cadence**:
-- `vX.Y.0-rc1` — cut from `main` once all GATE-* requirements pass; clean-VM exercise on 4 OSes (per `REL-01`)
-- 48-hour soak (no new commits to release branch except fix-forward)
-- `vX.Y.0` — promotion if rc1 is clean
-
-If your PR touches install / bootstrap / CI, it MUST land before rc1 cut, not between rc1 and the promotion. During a soak, any merge needs explicit OK from the release captain.
-
-## Screenshots
-
-<!-- If applicable, add screenshots or recordings. -->
+OmniVoice ships **continuous-to-main** — no release candidates, no soak windows.
+Every merged PR is immediately part of the rolling preview (`main`, Docker
+`:latest`, the desktop Preview channel). Versioned releases are tagged from
+`main` when it's ready; `main` then bumps to the next patch automatically.
+Users who want stability pin a release tag / Docker `:stable` / the desktop
+Stable channel.

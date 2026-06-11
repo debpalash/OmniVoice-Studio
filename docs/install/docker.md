@@ -8,11 +8,15 @@ it in a normal browser.
 >
 > | Tag | What you get |
 > |-----|--------------|
-> | `:latest` | Most recent versioned release (updated on every `v*` git tag) |
-> | `:0.3.0` | Exact release version |
+> | `:latest` | **Rolling preview** — latest commit on `main` (always one patch ahead of the last release). This is the preview channel; pin `:stable` for production. |
+> | `:stable` | Most recent versioned release (updated on every `v*` git tag) |
+> | `:0.3.6` | Exact release version |
 > | `:0.3` | Latest patch within the 0.3 minor |
-> | `:main` | Latest commit on `main` — may be ahead of the last release |
+> | `:main` | Alias of the same rolling `main` build as `:latest` |
 > | `:sha-xxxxxxx` | Specific commit (produced by manual workflow dispatch) |
+>
+> Versioning rule: `main` always carries *last release + 1 patch*, so `:latest`
+> (preview) version-sorts above `:stable` — upgrades flow naturally.
 >
 > **Note on the update-channel toggle:** The update-channel UI (Settings → About → Update channel) is part of the Tauri desktop app's built-in auto-updater. It does **not** apply to the Docker image — the Docker image is the headless web-server build. To update your Docker deployment, pull the new image tag and recreate the container (`docker compose pull && docker compose up -d`).
 

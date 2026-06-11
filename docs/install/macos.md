@@ -3,6 +3,11 @@
 This page is self-contained: follow it top to bottom and you'll end up with a
 working OmniVoice Studio install on macOS (Apple Silicon or Intel).
 
+> **Intel Macs:** the pre-built `.app`/DMG currently ships **Apple Silicon
+> only** — on Intel, install **from source** (works fully; ASR falls back to
+> CTranslate2). A pre-built Intel bundle is tracked in
+> [#279](https://github.com/debpalash/OmniVoice-Studio/issues/279).
+
 ## Prerequisites
 
 - **macOS 12 (Monterey) or newer** — Apple Silicon or Intel.
