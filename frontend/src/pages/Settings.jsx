@@ -38,6 +38,7 @@ import AppearancePanel from '../components/settings/AppearancePanel';
 import StoragePanel from '../components/settings/StoragePanel';
 import SharingPanel from '../components/settings/SharingPanel';
 import RemoteBackendPanel from '../components/settings/RemoteBackendPanel';
+import MCPBindingsPanel from '../components/settings/MCPBindingsPanel';
 import EngineCompatibilityMatrix from '../components/EngineCompatibilityMatrix';
 import DictationDemo from '../components/DictationDemo';
 import ReportBugButton from '../components/ReportBugButton';
@@ -1337,6 +1338,7 @@ export default function Settings() {
         <>
           <SharingPanel />
           <RemoteBackendPanel />
+          <MCPBindingsPanel />
         </>
       )}
 

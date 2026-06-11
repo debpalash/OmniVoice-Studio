@@ -53,6 +53,14 @@ def create_mcp_server():
             "voice design, and video dubbing in 646 languages."
         ),
     )
+    # Serve the Streamable-HTTP transport at the app root so mounting the whole
+    # app at "/mcp" on the main FastAPI yields the endpoint at "/mcp". FastMCP's
+    # default path is "/mcp", which would double-prefix to "/mcp/mcp" when
+    # sub-mounted. Harmless for the standalone CLI run() path.
+    try:
+        mcp.settings.streamable_http_path = "/"
+    except Exception:
+        pass
 
     # ── Helpers ─────────────────────────────────────────────────────────
 
@@ -75,6 +83,21 @@ def create_mcp_server():
 
     # ── Tools ───────────────────────────────────────────────────────────
 
+    def _current_client_id() -> str | None:
+        """The X-OmniVoice-Client-Id of the calling MCP client, if any.
+
+        FastMCP exposes the HTTP request via its request context on the
+        Streamable-HTTP transport; stdio clients (and any version where the
+        accessor differs) simply resolve to None and fall back to the
+        global default voice."""
+        try:
+            req = mcp.get_context().request_context.request
+            if req is not None:
+                return req.headers.get("x-omnivoice-client-id")
+        except Exception:
+            pass
+        return None
+
     @mcp.tool()
     async def generate_speech(
         text: str,
@@ -89,7 +112,8 @@ def create_mcp_server():
         Args:
             text: The text to synthesize into speech.
             language: Target language (ISO code or 'Auto'). 646 languages supported.
-            profile_id: ID of a saved voice profile to clone. Omit for voice design mode.
+            profile_id: ID of a saved voice profile to clone. Omit to use this
+                agent's bound voice (Settings → MCP), else the global default.
             instruct: Style instruction (e.g. 'whisper', 'excited', 'narrator').
             speed: Speech speed multiplier (0.5–2.0, default 1.0).
             steps: Diffusion steps (8=fast/draft, 16=balanced, 32=quality).
@@ -98,6 +122,17 @@ def create_mcp_server():
             JSON with audio_id, generation_time, audio_duration, and
             base64-encoded WAV data.
         """
+        # Per-agent voice binding (Wave 2.2): explicit arg wins; otherwise
+        # resolve this client's bound profile, then the global default.
+        client_id = _current_client_id()
+        try:
+            from services import mcp_bindings
+            resolved = mcp_bindings.resolve_voice(client_id, profile_id)
+            profile_id = resolved.get("profile_id")
+            mcp_bindings.touch_last_seen(client_id) if client_id else None
+        except Exception:
+            pass  # binding layer unavailable — use whatever was passed
+
         form = {
             "text": text,
             "language": language,
@@ -158,6 +193,34 @@ def create_mcp_server():
             '"ar","hi","tr","nl","pl","sv","da","fi","no","el"'
             '],"note":"Pass any ISO 639 code or set language=Auto for detection."}'
         )
+
+    @mcp.tool()
+    async def transcribe(audio_base64: str, language: str | None = None) -> str:
+        """Transcribe spoken audio to text.
+
+        Args:
+            audio_base64: Base64-encoded audio bytes (wav/mp3/webm/m4a).
+            language: Optional language hint; omit for auto-detect.
+
+        Returns:
+            JSON with the recognized text, language, and duration.
+        """
+        try:
+            raw = base64.b64decode(audio_base64, validate=True)
+        except Exception:
+            return '{"error":"audio_base64 is not valid base64"}'
+        # 200 MB cap — same spirit as voicebox's transcribe gate. Keeps a
+        # buggy/hostile agent from posting an unbounded blob.
+        if len(raw) > 200 * 1024 * 1024:
+            return '{"error":"audio exceeds 200 MB limit"}'
+        data = {}
+        if language:
+            data["language"] = language
+        r = await _api_post_form(
+            "/transcribe", data=data,
+            files={"audio": ("audio.wav", raw, "application/octet-stream")},
+        )
+        return str(r.json())
 
     @mcp.tool()
     async def check_health() -> str:

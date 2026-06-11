@@ -142,6 +142,19 @@ _BASE_SCHEMA = """
         value TEXT NOT NULL,
         updated_at REAL NOT NULL
     );
+
+    -- Wave 2.2: per-agent MCP voice bindings. An MCP client (Claude Code,
+    -- Cursor, …) identified by the X-OmniVoice-Client-Id header it sends is
+    -- bound to a default voice profile / engine. Fresh installs create it
+    -- here; v0.3.x upgrades get it via alembic 0004.
+    CREATE TABLE IF NOT EXISTS mcp_client_bindings (
+        client_id TEXT PRIMARY KEY,
+        label TEXT NOT NULL DEFAULT '',
+        profile_id TEXT,
+        default_engine TEXT,
+        last_seen_at REAL,
+        created_at REAL
+    );
 """
 
 # Only tables/columns this module is allowed to ALTER. Prevents SQL injection via

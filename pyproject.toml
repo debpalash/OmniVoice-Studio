@@ -108,6 +108,7 @@ dependencies = [
     # (Assumption A1 in RESEARCH.md was checked at execute-time and proved
     # false — `cryptography` is not on the install path today).
     "cryptography>=41",
+    "mcp>=1.2",
 ]
 
 [project.optional-dependencies]

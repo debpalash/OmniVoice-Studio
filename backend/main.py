@@ -428,7 +428,23 @@ async def lifespan(app: FastAPI):
         capture_preload_task = asyncio.create_task(_preload_capture_asr())
     else:
         logger.info("Capture ASR preload disabled; dictation ASR will load on first use.")
-    yield
+
+    # ── MCP session manager (Wave 2.2) ────────────────────────────────────
+    # FastMCP's Streamable-HTTP transport needs its session manager running
+    # for the lifetime of the app. It's created lazily by streamable_http_app()
+    # (called in mount_mcp below), so we stack its `run()` context into ours
+    # via AsyncExitStack rather than replacing this lifespan. Best-effort: a
+    # missing/broken MCP layer must never stop the rest of the backend.
+    from contextlib import AsyncExitStack
+    async with AsyncExitStack() as _mcp_stack:
+        _sm = getattr(app.state, "mcp_session_manager", None)
+        if _sm is not None:
+            try:
+                await _mcp_stack.enter_async_context(_sm.run())
+                logger.info("MCP server mounted at /mcp")
+            except Exception as e:
+                logger.warning("MCP session manager failed to start: %s", e)
+        yield
     # ── Graceful shutdown (SIGTERM from Tauri, Ctrl+C, etc.) ────────────
     logger.info("Shutdown: cleaning up…")
     idle_task.cancel()
@@ -749,6 +765,27 @@ app.include_router(tts_stream.router)
 app.include_router(marketplace.router)
 app.include_router(sonitranslate.router)
 app.include_router(settings_router.router)  # Phase 1 AUTH-03 endpoints
+from api.routers import mcp_bindings as _mcp_bindings_router  # noqa: E402
+app.include_router(_mcp_bindings_router.router)  # Wave 2.2 per-agent voice bindings
+
+# ── Mount the MCP server (Wave 2.2) ───────────────────────────────────────
+# FastMCP's Streamable-HTTP app is sub-mounted at /mcp; its session manager is
+# stashed on app.state for the lifespan above to run. Opt-out via
+# OMNIVOICE_MCP_DISABLE=1; best-effort so a missing mcp package or a build
+# without it never breaks startup.
+if os.environ.get("OMNIVOICE_MCP_DISABLE", "").strip().lower() not in ("1", "true", "yes", "on"):
+    try:
+        from mcp_server import create_mcp_server
+
+        _mcp = create_mcp_server()
+        _mcp_app = _mcp.streamable_http_app()
+        app.state.mcp_session_manager = _mcp.session_manager
+        app.mount("/mcp", _mcp_app)
+        logging.getLogger("omnivoice.api").info("MCP app mounted at /mcp")
+    except Exception as _mcp_err:  # noqa: BLE001
+        logging.getLogger("omnivoice.api").info(
+            "MCP server not mounted (%s); /mcp disabled.", _mcp_err
+        )
 
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.exists(frontend_path):
