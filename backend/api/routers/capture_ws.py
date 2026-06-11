@@ -245,6 +245,12 @@ async def _transcribe_buffer_full(chunks: list[bytes]) -> dict:
             if not full_text and segments:
                 full_text = " ".join(s.get("text", "") for s in segments).strip()
 
+            # Wave 1.1: strip Whisper hallucination loops from the final
+            # text (the string that gets auto-pasted). Segments keep the
+            # raw recognition so their timings stay truthful.
+            from services.refinement import collapse_repetitive_artifacts
+            full_text = collapse_repetitive_artifacts(full_text)
+
             duration = max((s.get("end", 0) for s in segments), default=0.0)
 
             return {

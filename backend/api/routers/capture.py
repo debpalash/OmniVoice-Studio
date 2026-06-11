@@ -91,6 +91,11 @@ async def transcribe_audio(
         if not full_text and segments:
             full_text = " ".join(s.get("text", "") for s in segments).strip()
 
+        # Wave 1.1: strip Whisper hallucination loops from the final text.
+        # Segments keep the raw recognition so their timings stay truthful.
+        from services.refinement import collapse_repetitive_artifacts
+        full_text = collapse_repetitive_artifacts(full_text)
+
         # Calculate audio duration from segments if available
         duration = 0.0
         if segments:
