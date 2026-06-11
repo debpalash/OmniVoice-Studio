@@ -268,8 +268,11 @@ def _is_compile_runtime_failure(exc: BaseException) -> bool:
                 filename = (frame.filename or "").replace("\\", "/")
                 if any(marker in filename for marker in _COMPILE_ERR_TB_MARKERS):
                     return True
-        except Exception:
-            pass
+        except Exception as traceback_scan_error:
+            logging.debug(
+                "Skipping traceback marker scan while classifying compile runtime failure: %s",
+                traceback_scan_error,
+            )
         # Follow the chain, honoring `raise ... from None` (the eager-retry
         # path suppresses the original compile error so a genuine eager
         # failure isn't misclassified as a compile failure).
