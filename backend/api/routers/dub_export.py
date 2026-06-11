@@ -374,6 +374,11 @@ async def dub_download(
     dual: bool = Query(False, description="When burn_subs=1, render translated on top of italicised original."),
     out_format: str = Query("m4a", description="Audio-only jobs (#119): output container — wav, m4a, mp3, or flac. Ignored for video jobs."),
 ):
+    # Strict allowlist on the path param BEFORE it reaches any filesystem
+    # path or ffmpeg argv (export dir, retime work path, slice paths). Real
+    # job ids are short uuid slices — alnum/hyphen/underscore only.
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", job_id):
+        raise HTTPException(status_code=400, detail="Invalid job id")
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -529,7 +534,8 @@ async def dub_download(
             job["last_export_warning"] = {"type": "video_retime_fallback", **retime_warning}
             logger.error(
                 "Smart Fit video retime failed for job %s — exporting "
-                "without per-segment retime: %s", job_id, e,
+                "without per-segment retime: %s",
+                job_id.replace("\n", " ").replace("\r", " "), e,
             )
 
     cmd = [ffmpeg, "-i", video_path]
@@ -703,8 +709,8 @@ async def dub_download(
         if retime_decision is not None and retime_decision.mode == "file":
             try:
                 os.remove(retime_decision.file_path)
-            except OSError:
-                pass
+            except OSError as e:
+                logger.debug("cleanup remove failed: %s", e)
 
     if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
         raise HTTPException(status_code=500, detail="ffmpeg mux produced no output file")
@@ -790,6 +796,11 @@ async def dub_preview_video(
     Caches per lang+preserve_bg combination under exports/preview_{lang}_{bg}.mp4.
     Cache is invalidated when the underlying dubbed track mtime is newer than the cache.
     """
+    # Strict allowlist on the path param BEFORE it reaches any filesystem
+    # path or ffmpeg argv (exports dir, preview/retime work paths) — same
+    # boundary check as dub_download.
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", job_id):
+        raise HTTPException(status_code=400, detail="Invalid job id")
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -885,7 +896,8 @@ async def dub_preview_video(
                 retime_decision = None
                 logger.error(
                     "Smart Fit preview retime failed for job %s — previewing "
-                    "without per-segment retime: %s", job_id, e,
+                    "without per-segment retime: %s",
+                    job_id.replace("\n", " ").replace("\r", " "), e,
                 )
 
         cmd = [ffmpeg, "-i", video_path]
@@ -976,8 +988,8 @@ async def dub_preview_video(
         def _discard_tmp():
             try:
                 os.remove(mux_path)
-            except OSError:
-                pass
+            except OSError as e:
+                logger.debug("cleanup remove failed: %s", e)
 
         try:
             rc, _, stderr = await run_ffmpeg(cmd, timeout=900.0, job_id=job_id)

@@ -342,8 +342,8 @@ async def render_retimed_video(
         # must never pick up a half-joined file.
         try:
             os.remove(out_path)
-        except OSError:
-            pass
+        except OSError as e:
+            logger.debug("cleanup remove failed: %s", e)
         raise
     finally:
         shutil.rmtree(slices_dir, ignore_errors=True)

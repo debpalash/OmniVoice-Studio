@@ -5,6 +5,10 @@ import os
 import shutil
 import subprocess
 
+# Leaf module (stdlib-only) — safe to import at module top, unlike
+# services.dub_pipeline which imports this module and would cycle.
+from services.proc_registry import register_proc, unregister_proc
+
 logger = logging.getLogger("omnivoice.api")
 
 # Cap concurrent ffmpeg jobs so macOS posix_spawn can't hit EAGAIN under load.
@@ -348,9 +352,8 @@ async def run_ffmpeg(cmd, timeout: float = 1800.0, capture: bool = True,
     on hard timeout (after killing + reaping the process).
 
     ``job_id`` (optional) registers the process with the dub pipeline's
-    process tracker so ``/dub/abort`` can kill long export encodes (used by
-    the Smart Fit batched retime). Lazy import avoids a module cycle —
-    dub_pipeline imports this module at top level.
+    process tracker (``services.proc_registry``) so ``/dub/abort`` can kill
+    long export encodes (used by the Smart Fit batched retime).
 
     Path-injection note: every filesystem path placed in ``cmd`` by callers
     is realpath-normalised and containment-checked against its workspace
@@ -363,10 +366,12 @@ async def run_ffmpeg(cmd, timeout: float = 1800.0, capture: bool = True,
         proc = await _spawn_with_retry(cmd, stdout=stdout, stderr=stderr)
         if job_id:
             try:
-                from services.dub_pipeline import register_proc
                 register_proc(job_id, proc)
             except Exception as e:
-                logger.debug("register_proc failed for %s: %s", job_id, e)
+                # Newline-strip the id inline — it can originate from a path
+                # param, and the log stream must stay one-event-per-line.
+                logger.debug("register_proc failed for %s: %s",
+                             job_id.replace("\n", " ").replace("\r", " "), e)
         try:
             try:
                 out, err = await asyncio.wait_for(proc.communicate(), timeout=timeout)
@@ -384,10 +389,10 @@ async def run_ffmpeg(cmd, timeout: float = 1800.0, capture: bool = True,
         finally:
             if job_id:
                 try:
-                    from services.dub_pipeline import unregister_proc
                     unregister_proc(job_id, proc)
                 except Exception as e:
-                    logger.debug("unregister_proc failed for %s: %s", job_id, e)
+                    logger.debug("unregister_proc failed for %s: %s",
+                                 job_id.replace("\n", " ").replace("\r", " "), e)
             # Guarantee reaping — prevents zombie pileup under timeouts or errors.
             if proc.returncode is None:
                 try:
