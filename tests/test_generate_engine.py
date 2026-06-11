@@ -21,19 +21,32 @@ import os
 os.environ.setdefault("OMNIVOICE_MODEL", "test")
 os.environ.setdefault("OMNIVOICE_DISABLE_FILE_LOG", "1")
 
+import importlib
+
 from unittest.mock import MagicMock, patch
 
 import pytest
 import torch
 
-from services import tts_backend
+
+def _tts_mod():
+    """Resolve services.tts_backend at RUN time, not import time.
+
+    Pytest imports every test module during collection, but tests/backend/**
+    (which runs before tests/test_*.py) stubs modules in sys.modules and
+    re-imports the services tree — so a module-level ``from services import
+    tts_backend`` binding here can be a stale pre-pollution copy that the app's
+    request-time imports no longer see. Resolving through sys.modules inside
+    each test keeps the patches and the routes on the same module object.
+    """
+    return importlib.import_module("services.tts_backend")
 
 
 def _make_fake_engine(engine_id="fake-engine", *, available=True, own_mastering=False):
     """Build a fresh TTSBackend stub class. Fresh per call so the per-process
     instance cache in api.routers.engines can't leak state across tests."""
 
-    class _FakeEngine(tts_backend.TTSBackend):
+    class _FakeEngine(_tts_mod().TTSBackend):
         id = engine_id
         display_name = "Fake Engine (test)"
         applies_own_mastering = own_mastering
@@ -60,13 +73,18 @@ def _make_fake_engine(engine_id="fake-engine", *, available=True, own_mastering=
     return _FakeEngine
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def client():
+    # Function-scoped, NOT context-managed — running the app lifespan here
+    # (module-scoped `with TestClient(app)`) bound event_bus queues to this
+    # module's event loop and broke teardown when the full suite mixes it
+    # with the non-lifespan TestClients every other test file uses
+    # (test_api.py pattern). Loopback client addr: required by the
+    # router-level require_loopback dependency.
     from fastapi.testclient import TestClient
     from main import app
 
-    with TestClient(app, client=("127.0.0.1", 50000)) as c:
-        yield c
+    return TestClient(app, client=("127.0.0.1", 50000))
 
 
 @pytest.fixture()
@@ -85,7 +103,7 @@ def no_omnivoice_model(monkeypatch):
 def test_generate_honors_settings_selected_engine(client, monkeypatch, no_omnivoice_model):
     """Engine selected via Settings (env/prefs resolution) runs the request."""
     fake = _make_fake_engine()
-    monkeypatch.setitem(tts_backend._REGISTRY, "fake-engine", fake)
+    monkeypatch.setitem(_tts_mod()._REGISTRY, "fake-engine", fake)
     # Env var is the top of the same resolution chain prefs.json feeds
     # (active_backend_id: env > prefs > default).
     monkeypatch.setenv("OMNIVOICE_TTS_BACKEND", "fake-engine")
@@ -106,7 +124,7 @@ def test_generate_honors_settings_selected_engine(client, monkeypatch, no_omnivo
 def test_generate_engine_param_overrides_selection(client, monkeypatch, no_omnivoice_model):
     """Explicit per-request `engine` form field wins, like /ws/tts's `engine`."""
     fake = _make_fake_engine()
-    monkeypatch.setitem(tts_backend._REGISTRY, "fake-engine", fake)
+    monkeypatch.setitem(_tts_mod()._REGISTRY, "fake-engine", fake)
     monkeypatch.delenv("OMNIVOICE_TTS_BACKEND", raising=False)
 
     res = client.post("/generate", data={"text": "Override me", "engine": "fake-engine"})
@@ -125,7 +143,7 @@ def test_generate_unknown_engine_is_400(client, monkeypatch):
 
 def test_generate_unavailable_engine_is_400_with_reason(client, monkeypatch):
     fake = _make_fake_engine(available=False)
-    monkeypatch.setitem(tts_backend._REGISTRY, "fake-engine", fake)
+    monkeypatch.setitem(_tts_mod()._REGISTRY, "fake-engine", fake)
     res = client.post("/generate", data={"text": "x", "engine": "fake-engine"})
     assert res.status_code == 400
     detail = res.json()["detail"]
@@ -162,15 +180,15 @@ def test_generate_respects_applies_own_mastering(client, monkeypatch, no_omnivoi
     """Studio engines (applies_own_mastering=True) skip apply_mastering;
     regular engines still get the broadcast chain — parity with
     /v1/audio/speech and /ws/tts."""
-    from services import audio_dsp
+    audio_dsp = importlib.import_module("services.audio_dsp")  # run-time resolve, see _tts_mod
 
     mastering = MagicMock(side_effect=lambda t, sample_rate=24000: t)
     monkeypatch.setattr(audio_dsp, "apply_mastering", mastering)
 
     studio = _make_fake_engine("fake-studio", own_mastering=True)
     plain = _make_fake_engine("fake-plain", own_mastering=False)
-    monkeypatch.setitem(tts_backend._REGISTRY, "fake-studio", studio)
-    monkeypatch.setitem(tts_backend._REGISTRY, "fake-plain", plain)
+    monkeypatch.setitem(_tts_mod()._REGISTRY, "fake-studio", studio)
+    monkeypatch.setitem(_tts_mod()._REGISTRY, "fake-plain", plain)
 
     res = client.post("/generate", data={"text": "studio", "engine": "fake-studio"})
     assert res.status_code == 200, res.text
