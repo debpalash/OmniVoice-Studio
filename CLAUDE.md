@@ -196,6 +196,8 @@ Everything else (new engines, fancy features) is downstream of "the thing instal
 - Docker: `ghcr.io/debpalash/omnivoice-studio:latest` = **main** (rolling preview); `:X.Y.Z` + `:X.Y` + `:stable` = tagged releases. `:latest` is the preview channel by design — stable users pin `:stable` or a version tag.
 - Do not bump minor/major or invent RCs/codenames without the owner asking. No "defer to next version" labels — scope is absorbed or declined, never re-versioned.
 
+**Docs-sync (hard rule, owner-set 2026-06-11):** any change that alters something these docs describe — README.md, CONTRIBUTING.md, SECURITY.md, SUPPORT.md, LICENSE, or `docs/**` (install flows, Docker tag semantics, platform support, versioning/release behavior, review process, supported versions) — must update those docs **in the same PR** as the change. If a doc impact is discovered after merge, the docs fix is the immediate next commit, not backlog. Stale docs are treated as bugs.
+
 **Localization (hard rule):** No hardcoded non-English (CJK) **user-facing text** anywhere in the codebase except the translation layer (`frontend/src/i18n/`). All UI strings go through i18n (`t('...')` keys in `locales/*.json`); native language names live in `i18n/index.ts` (`LANGUAGES`). Functional CJK is allowed and tracked via the allowlist in `tests/test_no_hardcoded_cjk.py` — text-processing regexes, model/engine vocabulary & identifiers (e.g. CosyVoice speaker IDs), localized error matching, demo/eval data, and test fixtures. CI fails on any hardcoded CJK outside the allowlist; to add legitimate functional CJK, extend `_ALLOWED_FILES` there with a justification.
 
 Other conventions not yet established. Will populate as patterns emerge during development.
