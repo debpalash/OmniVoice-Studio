@@ -1,0 +1,73 @@
+# Canonical feature inventory — the single source of truth that the daily
+# docs-drift job (.github/workflows/docs-drift.yml) diffs against README.md,
+# docs/, and the engine registries via scripts/check-docs-drift.py.
+#
+# When a PR adds or removes an engine or user-facing feature, update this
+# file in the same PR — otherwise the nightly job opens/updates the rolling
+# `docs-drift` issue. Spec: docs/competitive-analysis.md Spec 9a /
+# docs/specs/2026-06-12-elevenlabs-parity-program.md Wave 0.1.
+
+# Each name must appear verbatim in README.md (the Features grid).
+features:
+  - Voice Cloning
+  - Voice Design
+  - Video Dubbing
+  - Dictation Widget
+  - Vocal Isolation
+  - Speaker Diarization
+  - Batch Queue
+  - MCP Server
+  - AI Watermark
+  - 100% Local
+  - GPU Auto-Detect
+  - Extensible
+
+# id: must exactly match the registry keys in backend/services/tts_backend.py
+#     (_REGISTRY eager entries + _LAZY_REGISTRY).
+# readme (optional): a string that must appear in README.md (engine table row).
+# doc (optional): a repo-relative doc file that must exist.
+tts_engines:
+  - id: omnivoice
+    readme: "**OmniVoice** (default)"
+  - id: cosyvoice
+    readme: CosyVoice 3
+    doc: docs/engines/cosyvoice.md
+  - id: kittentts
+    readme: KittenTTS
+  - id: mlx-audio
+    readme: MLX-Audio
+  - id: voxcpm2
+    readme: VoxCPM2
+  - id: moss-tts-nano
+    readme: MOSS-TTS-Nano
+  - id: gpt-sovits
+  - id: sherpa-onnx
+  - id: indextts2
+    doc: docs/engines/indextts.md
+  - id: omnivoice-gguf
+  - id: supertonic3
+
+# Same contract against backend/services/asr_backend.py _REGISTRY.
+asr_engines:
+  - id: whisperx
+    readme: "**WhisperX** (default)"
+  - id: faster-whisper
+    readme: Faster-Whisper
+  - id: mlx-whisper
+    readme: MLX Whisper
+  - id: pytorch-whisper
+    readme: PyTorch Whisper
+  - id: nemo-parakeet
+    readme: Parakeet TDT
+  - id: moonshine
+    readme: Moonshine
+  - id: funasr
+    readme: FunASR
+
+# Doc files that must exist (the install path users are sent to).
+docs:
+  - docs/install/macos.md
+  - docs/install/windows.md
+  - docs/install/linux.md
+  - docs/install/docker.md
+  - docs/install/troubleshooting.md
