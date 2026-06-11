@@ -267,8 +267,14 @@ export default function DubTab(props) {
     setIngestUrl('');
   };
   const hasDubbedTrack = dubStep === 'done' && dubLangCode && dubLangCode !== 'und' && (dubTracks?.length > 0 || !!dubTracks);
+  // Cache-busting nonce, bumped every time a generation completes (see
+  // useDubWorkflow's done handler). The preview URL is otherwise identical
+  // across re-dubs, so the WebView could keep serving the previously
+  // buffered MP4 and the user would see the old dub after editing +
+  // regenerating (#281). The backend ignores `v`.
+  const dubGenNonce = useAppStore(s => s.dubGenNonce);
   const videoSrc = (previewMode === 'dubbed' && hasDubbedTrack)
-    ? `${API}/dub/preview-video/${dubJobId}?lang=${encodeURIComponent(dubLangCode)}&preserve_bg=${preserveBg ? 1 : 0}`
+    ? `${API}/dub/preview-video/${dubJobId}?lang=${encodeURIComponent(dubLangCode)}&preserve_bg=${preserveBg ? 1 : 0}&v=${dubGenNonce}`
     : `${API}/dub/media/${dubJobId}`;
 
   return (

@@ -8,6 +8,7 @@ import { useState, useRef, useCallback } from 'react';
 import { useAppStore } from '../store';
 import { askConfirm } from '../utils/dialog';
 import { apiPost } from '../api/client';
+import { segmentGenInputs } from '../utils/segments';
 
 export default function useSegmentEditing() {
   const dubSegments = useAppStore(s => s.dubSegments);
@@ -161,12 +162,10 @@ export default function useSegmentEditing() {
       return;
     }
     try {
+      // Same payload shape as the generate request (utils/segments.js) so
+      // stored fingerprints actually match unchanged segments (#281).
       const res = await apiPost('/tools/incremental', {
-        segments: dubSegments.map(s => ({
-          id: String(s.id), text: s.text, target_lang: s.target_lang,
-          profile_id: s.profile_id, instruct: s.instruct,
-          speed: s.speed, direction: s.direction,
-        })),
+        segments: dubSegments.map(s => ({ id: String(s.id), ...segmentGenInputs(s) })),
         stored_hashes: lastGenFingerprints,
       });
       setIncrementalPlan({ stale: res.stale, fresh: res.fresh });

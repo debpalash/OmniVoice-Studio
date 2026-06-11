@@ -5,7 +5,7 @@ import {
   dubTranslate, dubGenerate, tasksStreamUrl, tasksCancel,
   transcribeStreamUrl, dubImportSrt,
 } from '../api/dub';
-import { PRESETS } from '../utils/constants';
+import { segmentGenInputs } from '../utils/segments';
 import { apiPost } from '../api/client';
 import { API } from '../api/client';
 import { playPing, isTauri } from '../utils/media';
@@ -392,16 +392,15 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
       const body = {
         segment_ids: dubSegments.map(s => String(s.id)),
         regen_only: regenOnly,
-        segments: dubSegments.map(s => {
-          let fin_prof = s.profile_id || '';
-          let fin_inst = s.instruct || '';
-          if (fin_prof.startsWith('preset:')) {
-            const pr = PRESETS.find(p => p.id === fin_prof.replace('preset:', ''));
-            if (pr) { const parts = Object.values(pr.attrs).filter(v => v !== 'Auto'); if (fin_inst.trim()) parts.push(fin_inst.trim()); fin_inst = parts.join(', '); }
-            fin_prof = '';
-          }
-          return { start: s.start, end: s.end, text: s.text, instruct: fin_inst, profile_id: fin_prof, speed: s.speed || undefined, gain: s.gain !== undefined && s.gain !== 1.0 ? s.gain : undefined, target_lang: s.target_lang || undefined, direction: s.direction || undefined };
-        }),
+        // Generation inputs come from the shared helper so the stored
+        // fingerprints (seg_hashes) match what /tools/incremental recomputes
+        // later — see utils/segments.js (#281).
+        segments: dubSegments.map(s => ({
+          start: s.start,
+          end: s.end,
+          gain: s.gain !== undefined && s.gain !== 1.0 ? s.gain : undefined,
+          ...segmentGenInputs(s),
+        })),
         language: dubLang === 'Auto' ? 'Auto' : dubLang,
         language_code: dubLangCode,
         instruct: dubInstruct,
@@ -434,6 +433,9 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
                 sawDone = true;
                 setDubStep('done');
                 setDubTracks(evt.tracks || []);
+                // Invalidate the dubbed preview-video URL so the player
+                // re-fetches the freshly generated dub (#281).
+                useAppStore.getState().bumpDubGenNonce();
                 // Merge sync_scores (back-compat) and the new richer
                 // fit_status array onto each segment so the row badge can
                 // show truthful "Fits / Overflows +0.4s / Video stretched
@@ -452,7 +454,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
                 if (evt.seg_hashes && Object.keys(evt.seg_hashes).length > 0) {
                   setLastGenFingerprints(evt.seg_hashes);
                 } else {
-                  try { const plan = await apiPost('/tools/incremental', { segments: dubSegments.map(s => ({ id: String(s.id), text: s.text, target_lang: s.target_lang, profile_id: s.profile_id, instruct: s.instruct, speed: s.speed, direction: s.direction })) }); setLastGenFingerprints(plan.fingerprints || {}); } catch (err) { console.warn('Incremental plan fallback failed:', err); }
+                  try { const plan = await apiPost('/tools/incremental', { segments: dubSegments.map(s => ({ id: String(s.id), ...segmentGenInputs(s) })) }); setLastGenFingerprints(plan.fingerprints || {}); } catch (err) { console.warn('Incremental plan fallback failed:', err); }
                 }
               } else if (evt.type === 'cancelled') {
                 wasCancelled = true; setDubStep('editing'); setDubError(t('dub_workflow.generation_aborted')); toast(t('dub_workflow.dubbing_aborted'), { icon: '⏹' });
