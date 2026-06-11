@@ -2957,6 +2957,7 @@ dependencies = [
  "libc",
  "log",
  "reqwest",
+ "semver",
  "serde",
  "serde_json",
  "sysinfo",

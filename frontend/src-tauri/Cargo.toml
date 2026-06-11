@@ -40,6 +40,10 @@ enigo = { version = "0.3", features = ["serde"] }
 ureq = "2"
 # reqwest is used for GitHub Releases API calls (list_releases command).
 reqwest = { version = "0.13", features = ["json"] }
+# semver is used by the channel-aware updater (updater_channel.rs) to rank
+# builds across the stable/preview channels (#326); same major as the
+# `Version` type tauri-plugin-updater re-exports (already in the lockfile).
+semver = "1"
 
 # ── Rust IPC commands (cross-platform) ──
 # get_sysinfo: CPU + RAM metrics without HTTP round-trip
