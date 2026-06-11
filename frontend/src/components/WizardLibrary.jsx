@@ -122,6 +122,11 @@ export default function WizardLibrary() {
         if (!ev?.repo_id) return;
         setProgress((prev) => {
           const cur = prev[ev.repo_id] || { phase: 'active', files: {} };
+          // Lifecycle markers (`install_*`) gate reset/refetch; per-file tqdm
+          // phases ('start'|'progress'|'done') only update byte counts — a
+          // file-level 'done' must NOT clear the repo, multi-file snapshots
+          // finish files long before the repo's `install_done` arrives.
+          // (Full phase taxonomy: SetupProgressEvent in api/setup.ts.)
           if (ev.phase === 'install_start') return { ...prev, [ev.repo_id]: { phase: 'active', files: {} } };
           if (ev.phase === 'install_done' || ev.phase === 'install_error') {
             if (ev.phase === 'install_done') modelsQuery.refetch();

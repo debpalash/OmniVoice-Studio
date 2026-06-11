@@ -125,9 +125,13 @@ Per-OS install guides — pick yours and follow it end-to-end:
 - **Linux** — [docs/install/linux.md](docs/install/linux.md)
 - **Docker** — [docs/install/docker.md](docs/install/docker.md)
 
-Stuck? See [docs/install/troubleshooting.md](docs/install/troubleshooting.md)
-for the top 10 install errors. The in-app error UI deeplinks to those entries
-when something breaks at runtime.
+Stuck? Run the built-in self-check first — **Settings → About → "Run
+self-check"** in the app, or `uv run python backend/main.py --diagnose` from
+a checkout (`--deep` also test-loads the active engine). Then see
+[docs/install/troubleshooting.md](docs/install/troubleshooting.md) for the
+top 10 install errors. The in-app error UI deeplinks to those entries when
+something breaks at runtime, and **Settings → About → "Save diagnostic
+bundle"** packages scrubbed logs + the self-check report for bug reports.
 
 For Hugging Face token setup, see
 [docs/setup/huggingface-token.md](docs/setup/huggingface-token.md). For

@@ -318,6 +318,7 @@ from api.routers import (
     setup,
     gallery,
     archetypes,
+    describe_voice,
     community,
     batch,
     watermark,
@@ -511,6 +512,13 @@ async def global_exception_handler(request: Request, exc: Exception):
     except Exception:
         logger.exception("Failed to write crash log")
     logger.exception("Unhandled exception for %s", request.url)
+    # Structured journal entry (dedup + error_class) — feeds /system/errors/
+    # recent, the diagnostic bundle, and the bug-report pipeline. record()
+    # never raises; a journal failure must not shadow the real error.
+    from core import error_journal
+    _entry = error_journal.record(
+        exc, route=str(request.url.path), trace=traceback.format_exc()
+    )
     # CORSMiddleware doesn't always get a shot at `exception_handler`-created
     # responses, which leaves the browser reporting every 500 as a bare CORS
     # error. Attach the headers manually so the real `detail` bubbles up.
@@ -520,7 +528,11 @@ async def global_exception_handler(request: Request, exc: Exception):
         headers["Access-Control-Allow-Origin"] = origin
         headers["Access-Control-Allow-Credentials"] = "true"
         headers["Vary"] = "Origin"
-    return JSONResponse({"detail": str(exc)}, status_code=500, headers=headers)
+    return JSONResponse(
+        {"detail": str(exc), "error_class": _entry.get("error_class")},
+        status_code=500,
+        headers=headers,
+    )
 
 
 _LOOPBACK_CLIENTS = {"127.0.0.1", "::1"}
@@ -654,6 +666,7 @@ app.include_router(stories.router)
 app.include_router(setup.router)
 app.include_router(gallery.router)
 app.include_router(archetypes.router)
+app.include_router(describe_voice.router)  # issue #317: free-text voice design
 app.include_router(community.router)
 app.include_router(batch.router)
 app.include_router(watermark.router)
@@ -722,7 +735,28 @@ if __name__ == "__main__":
         help="Boot the server, poll /health, exit 0 on success / 1 on timeout. "
              "Used by the release-time installer smoke step in .github/workflows/release.yml.",
     )
+    parser.add_argument(
+        "--diagnose",
+        action="store_true",
+        help="Run the self-check suite (device, ffmpeg, HF token, disk, engines, "
+             "network) without starting the server. Exit 0 if healthy, 1 if any "
+             "check fails. Output is scrubbed — safe to paste into a GitHub issue.",
+    )
+    parser.add_argument(
+        "--deep",
+        action="store_true",
+        help="With --diagnose: also load the active TTS engine and synthesize a "
+             "short utterance. Catches 'installed but broken'. May cold-load the "
+             "model (minutes + a large download on a fresh install).",
+    )
     args, _unknown = parser.parse_known_args()
+
+    if args.diagnose:
+        from core.diagnose import run_diagnostics, format_text
+
+        _report = run_diagnostics(deep=args.deep)
+        print(format_text(_report), flush=True)
+        sys.exit(0 if _report["summary"]["ok"] else 1)
 
     # Single-sourced from OMNIVOICE_PORT so the bare `python main.py` path and
     # `--health-check` agree with the Rust sidecar / uvicorn-CLI `--port`.

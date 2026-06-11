@@ -210,7 +210,13 @@
     "opt_high_pitch": "高音",
     "opt_very_high_pitch": "极高音",
     "opt_whisper": "低语",
-    "style_placeholder": "例如：低语"
+    "style_placeholder": "例如：低语",
+    "stop_playback": "停止播放",
+    "describe_label": "描述你想要的声音",
+    "describe_placeholder": "例如：中年男性，低音调，四川话",
+    "describe_hint": "你的描述会自动设置下方的控件，之后仍可手动微调。（也支持英文描述）",
+    "describe_unmatched": "无法识别：{{items}}",
+    "describe_no_match": "尚未识别出声音特征——试试 deep、elderly、British 或「中年」「低音调」等词。"
   },
   "settings": {
     "title": "设置",
@@ -307,7 +313,17 @@
     "channel_stable": "稳定版",
     "channel_preview": "预览版",
     "channel_set": "更新通道已设置为 {{channel}}",
-    "channel_preview_hint": "预览版跟踪最新的 main 构建——功能更新，但测试较少。若稳定版更新，则回退到稳定版。"
+    "channel_preview_hint": "预览版跟踪最新的 main 构建——功能更新，但测试较少。若稳定版更新，则回退到稳定版。",
+    "self_check": "运行自检",
+    "self_check_failed": "自检失败：{{message}}",
+    "self_check_ok": "正常",
+    "self_check_warn": "警告",
+    "self_check_fail": "未通过",
+    "self_check_healthy": "所有检查均已通过 — 此安装看起来运行正常。",
+    "self_check_attention": "{{count}} 项检查未通过 — 请查看上方提示。",
+    "save_bundle": "保存诊断包",
+    "bundle_saved": "诊断包已保存：{{filename}}",
+    "bundle_failed": "无法生成诊断包：{{message}}"
   },
   "privacy": {
     "desc": "所有数据都在<1>本机</1>运行。您的音频、视频和转录内容不会离开您的电脑，除非您显式使用在线翻译器（Google、DeepL 等）或推送到 HuggingFace。",
@@ -406,9 +422,12 @@
     "mic_denied": "麦克风访问被拒绝",
     "mic_denied_toast": "麦克风访问被拒绝。 {{hint}}",
     "mic_hint_mac": "macOS：打开系统设置 → 隐私和安全 → 麦克风并启用 OmniVoice。",
-    "mic_hint_windows": "Windows：打开设置 → 隐私和安全 → 麦克风并允许 OmniVoice。",
+    "mic_hint_windows": "Windows：打开 设置 → 隐私和安全性 → 麦克风，开启“麦克风访问”和“允许桌面应用访问你的麦克风”，然后允许 OmniVoice。",
     "mic_hint_linux": "Linux：检查您的用户是否在音频组中并且 WebView 是否具有麦克风访问权限。",
-    "transcription_failed": "转录失败：{{message}}"
+    "transcription_failed": "转录失败：{{message}}",
+    "mic_not_found": "未找到麦克风。请连接或启用麦克风后重试。",
+    "mic_in_use": "麦克风被占用或不可用。请关闭可能正在使用它的其他应用后重试。",
+    "mic_error_generic": "无法启动麦克风：{{message}}"
   },
   "logs": {
     "no_tauri_log": "磁盘上尚无 Tauri 日志 — 请通过桌面构建启动以生成",
@@ -628,7 +647,9 @@
     "dialect_label": "方言",
     "dialect_default": "默认",
     "dialect_title": "翻译所用的地区方言与词汇（例如 阿根廷 → “vos sos” 而非 “tú eres”）。由 LLM 引擎（OpenAI/Ollama）和 Cinematic 质量应用。",
-    "dialect_not_applied": "所选方言需要 LLM 才能生效 — 请将引擎切换为 OpenAI/Ollama，或选择 Cinematic 质量。"
+    "num_speakers_label": "说话人",
+    "num_speakers_auto": "自动",
+    "num_speakers_help": "这段视频中有几位说话人？留空则自动检测。如果自动检测将多位说话人合并为一人，请手动指定人数。"
   },
   "glossary": {
     "title": "术语表",
@@ -930,7 +951,9 @@
     "open": "打开",
     "install_required_models": "请先安装以上必需模型。",
     "try_dictation": "试用听写",
-    "next_try_dictation": "下一步：试用听写"
+    "next_try_dictation": "下一步：试用听写",
+    "step_aria": "第 {{num}} 步:{{label}}",
+    "step_completed": "已完成"
   },
   "donate": {
     "title": "支持项目",
@@ -1102,7 +1125,17 @@
     "region_russia": "俄罗斯（镜子）",
     "region_restricted": "受限（镜像）",
     "unknown_error": "未知错误",
-    "retrying": "正在重试..."
+    "retrying": "正在重试...",
+    "hint_readme": "安装包中缺少 README.md。该问题现已自动修复 — 重试应该可以成功。",
+    "hint_python_mirror": "网络无法访问 Python 下载(github.com 发布页)。请在设置 → 网络中切换区域(中国 / 俄罗斯 / 受限会经由镜像),或在系统中安装 Python 3.11+ 让应用直接使用。",
+    "hint_uv_timeout": "下载 uv 时网络超时。请检查网络连接,或在设置 → 网络中尝试其他区域。",
+    "hint_uv_sync": "依赖安装失败。「清理并重试」会删除缓存的 venv 并重新开始。",
+    "hint_build_backend": "Python 构建后端出错。「清理并重试」会移除损坏的 venv,从头重新构建。",
+    "hint_ffmpeg": "ffmpeg 下载失败。这不是致命问题 — 可以重试,或手动安装 ffmpeg。",
+    "hint_port": "端口 3900 已被占用。请关闭其他 OmniVoice 实例或占用该端口的应用。",
+    "hint_silent_crash": "后端无错误信息地崩溃了。「清理并重试」通常能解决 venv 损坏的问题。",
+    "hint_github_blocked": "您的网络可能屏蔽了 GitHub。请从 python.org 安装 Python 3.11+(勾选加入 PATH)后重新启动,或设置 UV_PYTHON_INSTALL_MIRROR — 参见 docs/install/troubleshooting.md。",
+    "hint_default": "请先尝试「重试」。若再次失败,「清理并重试」会从头重建运行环境。"
   },
   "direction": {
     "title": "段 #{{id}} 的方向",
@@ -1127,7 +1160,10 @@
     "title": "这个选项卡遇到了障碍。",
     "desc": "别担心——应用程序的其余部分仍然有效。您可以切换选项卡，或在下面重试。",
     "tryAgain": "再试一次",
-    "openDocs": "打开此错误的文档"
+    "openDocs": "打开此错误的文档",
+    "report": "报告此错误",
+    "searchIssues": "搜索类似问题",
+    "unexpected": "意外错误：{{message}}"
   },
   "keyboard": {
     "title": "键盘快捷键",
@@ -1455,6 +1491,7 @@
     "segments_clean": "段已经干净",
     "cleanup_failed": "清理失败：{{message}}",
     "cinematic_no_llm": "电影质量需要 LLM — 设置 TRANSLATE_BASE_URL + TRANSLATE_API_KEY（Ollama 在本地工作）。回落到快速。",
+    "dialect_not_applied": "所选方言需要 LLM 才能生效 — 请将引擎切换为 OpenAI/Ollama，或选择 Cinematic 质量。",
     "translate_errors": "{{errorCount}}/{{totalCount}} 段失败：{{firstError}}",
     "translated_segments": "翻译的 {{count}} 段 → {{lang}}",
     "translated_cinematic_suffix": "（电影）",

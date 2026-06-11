@@ -14,6 +14,10 @@ working OmniVoice Studio install on Windows 10 / 11 (x64).
   with the **"Desktop development with C++"** workload checked.
 - **Bun** — `powershell -c "irm bun.sh/install.ps1 | iex"`.
 - **FFmpeg** — `winget install Gyan.FFmpeg`.
+- **Git for Windows** (from-source installs only) — `winget install --id Git.Git -e`.
+  You need it for `git clone` anyway, and it includes **Git Bash**, which
+  `bun run desktop-prod` uses to run its build-and-launch script. Without it,
+  `desktop-prod` stops with an error telling you to install it.
 
 ## Install (from source)
 
@@ -28,6 +32,13 @@ bun run desktop-prod
 
 The first launch creates the Python venv via `uv`, syncs deps, and downloads
 model weights. The splash screen shows progress.
+
+> **Note:** `bun run desktop-prod` runs a bash script under the hood. You can
+> launch it from PowerShell or cmd as shown — it finds Git Bash automatically
+> (installed with Git for Windows, see Prerequisites). If no Git Bash is
+> found, it prints instructions instead of failing silently. Alternatives
+> that don't need bash: `bun run desktop` (dev mode) or the pre-built MSI
+> below.
 
 ## Install (pre-built MSI)
 

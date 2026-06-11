@@ -103,7 +103,17 @@
     "region_russia": "روسيا (مرآة)",
     "region_restricted": "مقيد (مرآة)",
     "unknown_error": "خطأ غير معروف",
-    "retrying": "جارٍ إعادة المحاولة..."
+    "retrying": "جارٍ إعادة المحاولة...",
+    "hint_readme": "كان ملف README.md مفقودًا من الحزمة. يُصلَح هذا الآن تلقائيًا — إعادة المحاولة يُفترض أن تنجح.",
+    "hint_python_mirror": "تعذّر على الشبكة الوصول إلى تنزيل Python (إصدار github.com). غيِّر المنطقة في الإعدادات ← الشبكة (الصين / روسيا / المقيّد تمر عبر مرآة)، أو ثبّت Python 3.11+ على مستوى النظام ليستخدمه التطبيق.",
+    "hint_uv_timeout": "انتهت مهلة الشبكة أثناء تنزيل uv. تحقق من اتصالك بالإنترنت أو جرّب منطقة أخرى في الإعدادات ← الشبكة.",
+    "hint_uv_sync": "فشل تثبيت الاعتماديات. «تنظيف وإعادة المحاولة» سيحذف venv المخزّن مؤقتًا ويبدأ من جديد.",
+    "hint_build_backend": "خطأ في واجهة بناء Python. «تنظيف وإعادة المحاولة» يزيل venv المعطوب ليُعاد بناؤه من الصفر.",
+    "hint_ffmpeg": "فشل تنزيل ffmpeg. هذا ليس خطأً حرجًا — أعد المحاولة أو ثبّت ffmpeg يدويًا.",
+    "hint_port": "المنفذ 3900 مستخدم بالفعل. أغلق نسخ OmniVoice الأخرى أو التطبيقات التي تستخدم هذا المنفذ.",
+    "hint_silent_crash": "انهار الخادم الخلفي دون رسالة خطأ. «تنظيف وإعادة المحاولة» غالبًا ما يحل مشاكل venv التالف.",
+    "hint_github_blocked": "قد تحجب شبكتك GitHub. ثبّت Python 3.11+ من python.org (مع الإضافة إلى PATH) وأعد التشغيل، أو عيّن UV_PYTHON_INSTALL_MIRROR — انظر docs/install/troubleshooting.md.",
+    "hint_default": "جرّب «إعادة المحاولة» أولًا. إذا فشلت مجددًا، فإن «تنظيف وإعادة المحاولة» سيعيد بناء البيئة من الصفر."
   },
   "stories": {
     "title": "محرر القصص",
@@ -302,7 +312,13 @@
     "opt_high_pitch": "درجة عالية",
     "opt_very_high_pitch": "درجة عالية جدًا",
     "opt_whisper": "الهمس",
-    "style_placeholder": "على سبيل المثال الهمس"
+    "style_placeholder": "على سبيل المثال الهمس",
+    "stop_playback": "إيقاف التشغيل",
+    "describe_label": "صِف صوتك",
+    "describe_placeholder": "مثال: a warm elderly British storyteller, slightly raspy",
+    "describe_hint": "وصفك (بالإنجليزية) يضبط عناصر التحكم أدناه — ويمكنك تعديلها يدويًا لاحقًا.",
+    "describe_unmatched": "تعذّر التعيين: {{items}}",
+    "describe_no_match": "لم يتم التعرف على سمات صوتية بعد — جرّب كلمات مثل deep أو elderly أو British."
   },
   "about": {
     "app": "التطبيق",
@@ -337,7 +353,17 @@
     "channel_stable": "مستقر",
     "channel_preview": "معاينة",
     "channel_set": "تم ضبط قناة التحديث على {{channel}}",
-    "channel_preview_hint": "تتابع المعاينة أحدث إصدار من main — ميزات أحدث وأقل اختبارًا. تعود إلى المستقر إذا كان هناك إصدار مستقر أحدث."
+    "channel_preview_hint": "تتابع المعاينة أحدث إصدار من main — ميزات أحدث وأقل اختبارًا. تعود إلى المستقر إذا كان هناك إصدار مستقر أحدث.",
+    "self_check": "تشغيل الفحص الذاتي",
+    "self_check_failed": "فشل الفحص الذاتي: {{message}}",
+    "self_check_ok": "سليم",
+    "self_check_warn": "تحذير",
+    "self_check_fail": "فشل",
+    "self_check_healthy": "اجتازت جميع الفحوصات — يبدو هذا التثبيت سليمًا.",
+    "self_check_attention": "فشل {{count}} من الفحوصات — راجع التلميحات أعلاه.",
+    "save_bundle": "حفظ حزمة التشخيص",
+    "bundle_saved": "تم حفظ حزمة التشخيص: {{filename}}",
+    "bundle_failed": "تعذّر إنشاء حزمة التشخيص: {{message}}"
   },
   "privacy": {
     "desc": "كل شيء يعمل على <1>هذا الجهاز</1>. لا يغادر الصوت والفيديو والنصوص جهاز الكمبيوتر الخاص بك أبدًا ما لم تستخدم صراحةً مترجمًا عبر الإنترنت (Google، DeepL، وما إلى ذلك) أو تضغط على HuggingFace.",
@@ -436,9 +462,12 @@
     "mic_denied": "تم رفض الوصول إلى الميكروفون",
     "mic_denied_toast": "تم رفض الوصول إلى الميكروفون. {{hint}}",
     "mic_hint_mac": "macOS: افتح إعدادات النظام ← الخصوصية والأمان ← الميكروفون وقم بتمكين OmniVoice.",
-    "mic_hint_windows": "Windows: افتح الإعدادات ← الخصوصية والأمان ← الميكروفون واسمح لـ OmniVoice.",
+    "mic_hint_windows": "Windows: افتح الإعدادات ← الخصوصية والأمان ← الميكروفون، وفعِّل «الوصول إلى الميكروفون» و«السماح لتطبيقات سطح المكتب بالوصول إلى الميكروفون»، ثم اسمح لـ OmniVoice.",
     "mic_hint_linux": "Linux: تأكد من وجود المستخدم الخاص بك في المجموعة الصوتية وأن WebView لديه حق الوصول إلى الميكروفون.",
-    "transcription_failed": "فشل النسخ: {{message}}"
+    "transcription_failed": "فشل النسخ: {{message}}",
+    "mic_not_found": "لم يتم العثور على ميكروفون. وصِّل ميكروفونًا أو فعِّله ثم حاول مرة أخرى.",
+    "mic_in_use": "الميكروفون مشغول أو غير متاح. أغلق التطبيقات الأخرى التي قد تستخدمه ثم حاول مرة أخرى.",
+    "mic_error_generic": "تعذّر تشغيل الميكروفون: {{message}}"
   },
   "logs": {
     "no_tauri_log": "لم يتم تسجيل دخول Tauri على القرص حتى الآن — قم بتشغيله عبر إصدار سطح المكتب لإنتاج واحد",
@@ -658,7 +687,9 @@
     "dialect_label": "اللهجة",
     "dialect_default": "افتراضي",
     "dialect_title": "اللهجة الإقليمية والمفردات للترجمة (مثل الأرجنتين ← “vos sos” بدلاً من “tú eres”). تُطبَّق بواسطة محركات LLM ‏(OpenAI/Ollama) وجودة Cinematic.",
-    "dialect_not_applied": "تحتاج اللهجة المحددة إلى LLM لتطبيقها — بدّل المحرك إلى OpenAI/Ollama أو اختر جودة Cinematic."
+    "num_speakers_label": "المتحدثون",
+    "num_speakers_auto": "تلقائي",
+    "num_speakers_help": "كم عدد المتحدثين في هذا الفيديو؟ اتركه فارغًا للاكتشاف التلقائي. حدّد رقمًا إذا دمج الاكتشاف التلقائي عدة متحدثين في متحدث واحد."
   },
   "glossary": {
     "title": "مسرد",
@@ -960,7 +991,9 @@
     "open": "مفتوح",
     "install_required_models": "قم بتثبيت النماذج المطلوبة أعلاه للمتابعة.",
     "try_dictation": "حاول الإملاء",
-    "next_try_dictation": "التالي: حاول الإملاء"
+    "next_try_dictation": "التالي: حاول الإملاء",
+    "step_aria": "الخطوة {{num}}: {{label}}",
+    "step_completed": "مكتملة"
   },
   "donate": {
     "title": "الدعم",
@@ -1127,7 +1160,10 @@
     "title": "ضربت علامة التبويب هذه عقبة.",
     "desc": "لا تقلق، فباقي التطبيق لا يزال يعمل. يمكنك تبديل علامات التبويب أو المحاولة مرة أخرى أدناه.",
     "tryAgain": "حاول مرة أخرى",
-    "openDocs": "افتح المستندات لهذا الخطأ"
+    "openDocs": "افتح المستندات لهذا الخطأ",
+    "report": "الإبلاغ عن هذا الخطأ",
+    "searchIssues": "البحث عن مشكلات مشابهة",
+    "unexpected": "خطأ غير متوقع: {{message}}"
   },
   "keyboard": {
     "title": "اختصارات لوحة المفاتيح",
@@ -1455,6 +1491,7 @@
     "segments_clean": "قطاعات نظيفة بالفعل",
     "cleanup_failed": "فشل التنظيف: {{message}}",
     "cinematic_no_llm": "تحتاج الجودة السينمائية إلى شهادة LLM - قم بتعيين TRANSLATE_BASE_URL + TRANSLATE_API_KEY (تعمل Ollama محليًا). العودة إلى سريع.",
+    "dialect_not_applied": "تحتاج اللهجة المحددة إلى LLM لتطبيقها — بدّل المحرك إلى OpenAI/Ollama أو اختر جودة Cinematic.",
     "translate_errors": "{{errorCount}}/{{totalCount}} فشل المقطع (المقاطع): {{firstError}}",
     "translated_segments": "تمت ترجمة {{count}} مقطع (مقاطع) → {{lang}}",
     "translated_cinematic_suffix": "(سينمائي)",

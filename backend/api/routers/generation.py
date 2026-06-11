@@ -59,13 +59,65 @@ def _render_with_pauses(gen_span, segments, sample_rate):
             parts.append(torch.zeros(*shape, dtype=ref.dtype, device=ref.device))
     return torch.cat(parts, dim=-1)
 
+
+def _apply_effect_chain(audio_out, sample_rate, effect_preset, *, skip_mastering=False):
+    """Shared post-DSP for /generate: preset validation → mastering →
+    effect chain → loudness normalization.
+
+    ``skip_mastering`` honors a backend's ``applies_own_mastering`` flag
+    (issue #312): studio engines (e.g. VoxCPM2's native 48 kHz output)
+    opt out of the broadcast Compressor + Reverb chain that's tuned for
+    OmniVoice's 24 kHz clone output. Loudness normalization still runs —
+    it's a benign peak scale. Mirrors ``_run_tts`` in openai_compat.py.
+    """
+    from services.audio_dsp import (
+        EFFECT_PRESETS, apply_mastering, normalize_audio,
+        apply_effects_chain, get_effect_chain,
+    )
+
+    preset = effect_preset or "broadcast"
+    if preset not in EFFECT_PRESETS:
+        raise ValueError(
+            f"Unknown effect preset: {preset!r}. "
+            f"Valid: {list(EFFECT_PRESETS.keys())}"
+        )
+
+    if preset == "raw":
+        # Raw: skip all DSP — return raw model output
+        return audio_out
+
+    if not skip_mastering:
+        audio_out = apply_mastering(audio_out, sample_rate=sample_rate)
+    chain = get_effect_chain(preset)
+    if chain:
+        audio_out = apply_effects_chain(
+            audio_out, sample_rate=sample_rate, chain=chain,
+        )
+    return normalize_audio(audio_out, target_dBFS=-2.0)
+
+
+def _oom_friendly_reraise(e):
+    """Best-effort cache flush + the user-facing OOM hint shared by both
+    inference paths."""
+    import gc
+    import torch
+    gc.collect()
+    if torch.backends.mps.is_available():
+        torch.mps.empty_cache()
+    elif torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    raise RuntimeError(
+        f"TTS engine stopped mid-generation. This usually means it ran out of memory. "
+        f"Try the Flush button to reload the model, then regenerate. Underlying error: {e}"
+    )
+
+
 def _run_inference(
     model, text, language, ref_audio_path, ref_text, instruct, duration,
     num_step, guidance_scale, speed, t_shift, denoise,
     postprocess_output, layer_penalty_factor, position_temperature,
     class_temperature, used_seed, effect_preset="broadcast",
 ):
-    from services.audio_dsp import apply_mastering, normalize_audio, apply_effects_chain, get_effect_chain
     import torch
     try:
         if used_seed is not None:
@@ -108,47 +160,70 @@ def _run_inference(
             )
             audio_out = audios[0]
 
-        # Apply DSP effect preset
-        _effect_preset = effect_preset or "broadcast"
+        # Apply DSP effect preset. The OmniVoice model never masters its own
+        # output, so mastering always runs here (unchanged behavior).
+        return _apply_effect_chain(audio_out, sr, effect_preset)
 
-        # Validate preset ID
-        from services.audio_dsp import EFFECT_PRESETS
-        if _effect_preset not in EFFECT_PRESETS:
-            raise ValueError(
-                f"Unknown effect preset: {_effect_preset!r}. "
-                f"Valid: {list(EFFECT_PRESETS.keys())}"
-            )
-
-        if _effect_preset == "raw":
-            # Raw: skip all DSP — return raw model output
-            return audio_out
-
-        # TODO(#312): this route runs the OmniVoice model directly (not the active
-        # backend), so VoxCPM2 never reaches it. When these routes become
-        # engine-aware, guard with `if not getattr(backend, "applies_own_mastering", False)`.
-        mastered_audio = apply_mastering(audio_out, sample_rate=sr)
-        _chain = get_effect_chain(_effect_preset)
-        if _chain:
-            mastered_audio = apply_effects_chain(
-                mastered_audio, sample_rate=sr, chain=_chain,
-            )
-
-        return normalize_audio(mastered_audio, target_dBFS=-2.0)
-        
     except ValueError as e:
         # Don't wrap validation errors in OOM message
         raise e
     except Exception as e:
-        import gc
-        gc.collect()
-        if torch.backends.mps.is_available():
-            torch.mps.empty_cache()
-        elif torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        raise RuntimeError(
-            f"TTS engine stopped mid-generation. This usually means it ran out of memory. "
-            f"Try the Flush button to reload the model, then regenerate. Underlying error: {e}"
+        _oom_friendly_reraise(e)
+
+
+def _run_backend_inference(
+    backend, text, language, ref_audio_path, ref_text, instruct, duration,
+    num_step, guidance_scale, speed, denoise, postprocess_output,
+    used_seed, effect_preset="broadcast",
+):
+    """Engine-aware twin of :func:`_run_inference` (issue #312).
+
+    Runs the request through a pluggable ``TTSBackend`` adapter instead of the
+    OmniVoice model directly. The adapter protocol is narrower than the
+    OmniVoice-native surface — engine-specific extras (``t_shift``,
+    ``layer_penalty_factor``, …) only exist on the native path, which is why
+    OmniVoice itself still goes through ``_run_inference``.
+    """
+    import torch
+    try:
+        if used_seed is not None:
+            torch.manual_seed(used_seed)
+
+        if language and language.lower() == "auto":
+            language = None
+
+        gen_kwargs = dict(
+            language=language, ref_audio=ref_audio_path, ref_text=ref_text,
+            instruct=instruct, num_step=num_step, guidance_scale=guidance_scale,
+            speed=speed, denoise=denoise, postprocess_output=postprocess_output,
         )
+        sr = backend.sample_rate
+
+        # Inline [pause Nms] markers (issue #276) work for every engine — the
+        # silence stitching is model-free.
+        from omnivoice.utils.text import parse_pause_markers
+        segments = parse_pause_markers(text)
+        has_pause = len(segments) > 1 or (segments and segments[0][1] > 0)
+
+        if has_pause:
+            def _gen_span(span_text):
+                # Per-span duration is left to the engine; an explicit overall
+                # `duration` can't be meaningfully split across spans.
+                return backend.generate(span_text, duration=None, **gen_kwargs)
+            audio_out = _render_with_pauses(_gen_span, segments, sr)
+        else:
+            audio_out = backend.generate(text, duration=duration, **gen_kwargs)
+
+        return _apply_effect_chain(
+            audio_out, sr, effect_preset,
+            skip_mastering=getattr(backend, "applies_own_mastering", False),
+        )
+
+    except ValueError as e:
+        # Don't wrap validation errors in OOM message
+        raise e
+    except Exception as e:
+        _oom_friendly_reraise(e)
 
 
 @router.post("/generate")
@@ -171,8 +246,51 @@ async def generate_speech(
     profile_id: Optional[str] = Form(None),
     seed: Optional[int] = Form(None),
     effect_preset: str = Form("broadcast"),
+    engine: Optional[str] = Form(None),
 ):
-    _model = await get_model()
+    # ── Engine resolution (issue #312) ──────────────────────────────────────
+    # The request runs on the engine selected in Settings (POST /engines/select,
+    # env var OMNIVOICE_TTS_BACKEND wins), or an explicit per-request `engine`
+    # override — same pattern as /ws/tts's `engine` field and /v1/audio/speech's
+    # `model`. Omitting both keeps the historical default (OmniVoice), so
+    # existing API consumers see no change.
+    from services.tts_backend import (
+        OmniVoiceBackend, _mask_hf_tokens, active_backend_id, get_backend_class,
+    )
+
+    engine_id = engine or active_backend_id()
+    try:
+        backend_cls = get_backend_class(engine_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Unknown TTS engine: {engine_id!r}. "
+                "See GET /engines/tts for the list of valid engine ids."
+            ),
+        )
+
+    _model = None
+    _backend = None
+    if backend_cls is OmniVoiceBackend:
+        # OmniVoice keeps its native path: it carries the full advanced
+        # parameter surface (t_shift, layer/position/class controls) that the
+        # generic adapter protocol doesn't. Byte-identical to the old behavior.
+        _model = await get_model()
+    else:
+        try:
+            ok, msg = backend_cls.is_available()
+        except Exception as exc:
+            ok, msg = False, f"{type(exc).__name__}: {exc}"
+        if not ok:
+            raise HTTPException(
+                status_code=400,
+                detail=f"TTS engine '{engine_id}' is not available: {_mask_hf_tokens(msg)}",
+            )
+        # Reuse the per-process instance cache shared with the engine
+        # health-check route so weights load once, not per request.
+        from api.routers.engines import _get_engine_instance
+        _backend = _get_engine_instance(backend_cls)
 
     ref_audio_path = None
     cleanup_ref = False
@@ -230,13 +348,25 @@ async def generate_speech(
     start_time = time.time()
     try:
         loop = asyncio.get_running_loop()
-        audio_tensor = await loop.run_in_executor(
-            _gpu_pool, _run_inference,
-            _model, text, language, ref_audio_path, ref_text, instruct, duration,
-            num_step, guidance_scale, speed, t_shift, denoise,
-            postprocess_output, layer_penalty_factor, position_temperature,
-            class_temperature, used_seed, effect_preset,
-        )
+        if _backend is not None:
+            audio_tensor = await loop.run_in_executor(
+                _gpu_pool, _run_backend_inference,
+                _backend, text, language, ref_audio_path, ref_text, instruct,
+                duration, num_step, guidance_scale, speed, denoise,
+                postprocess_output, used_seed, effect_preset,
+            )
+            # Read after generation: engines with lazy model loading report
+            # their real rate only once weights are up.
+            sample_rate = _backend.sample_rate
+        else:
+            audio_tensor = await loop.run_in_executor(
+                _gpu_pool, _run_inference,
+                _model, text, language, ref_audio_path, ref_text, instruct, duration,
+                num_step, guidance_scale, speed, t_shift, denoise,
+                postprocess_output, layer_penalty_factor, position_temperature,
+                class_temperature, used_seed, effect_preset,
+            )
+            sample_rate = _model.sampling_rate
         # Invisible AudioSeal provenance watermark on the final audio. Embedding
         # was previously only wired into the dub pipeline (dub_generate.py), so
         # plain TTS came out unmarked despite the setting being on. embed_watermark
@@ -245,16 +375,16 @@ async def generate_speech(
         # generation.
         from services.watermark import embed_watermark
         audio_tensor = await loop.run_in_executor(
-            _gpu_pool, embed_watermark, audio_tensor, _model.sampling_rate
+            _gpu_pool, embed_watermark, audio_tensor, sample_rate
         )
         gen_time = round(time.time() - start_time, 2)
 
         audio_id = str(uuid.uuid4())[:8]
         audio_filename = f"{audio_id}.wav"
         audio_path = os.path.join(OUTPUTS_DIR, audio_filename)
-        _safe_torchaudio_save(audio_path, audio_tensor, _model.sampling_rate)
+        _safe_torchaudio_save(audio_path, audio_tensor, sample_rate)
 
-        audio_dur = round(audio_tensor.shape[-1] / _model.sampling_rate, 2)
+        audio_dur = round(audio_tensor.shape[-1] / sample_rate, 2)
 
         with db_conn() as conn:
             conn.execute(
@@ -266,7 +396,7 @@ async def generate_speech(
         event_bus.emit("generation_history", {"action": "created", "id": audio_id})
 
         buffer = io.BytesIO()
-        _safe_torchaudio_save(buffer, audio_tensor, _model.sampling_rate, format="wav")
+        _safe_torchaudio_save(buffer, audio_tensor, sample_rate, format="wav")
         buffer.seek(0)
         wav_bytes = buffer.read()
 

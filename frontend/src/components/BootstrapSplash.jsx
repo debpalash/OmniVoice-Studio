@@ -13,7 +13,7 @@
  * engraved mono section titles, LED step rail, segmented progress meter —
  * so setup → install → model wizard reads as one continuous experience.
  */
-import { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { copyText } from "../utils/copyText";
 import './FirstRunSetup.css';
 import './BootstrapSplash.css';
@@ -56,25 +56,27 @@ const STEPS = [
 
 const MAX_LOG_LINES = 200;
 
-/** Scan logs + error message for known failure patterns and return actionable hints. */
+/** Scan logs + error message for known failure patterns and return i18n keys
+ *  for actionable hints (resolved with `t(...)` at render — English defaults
+ *  live in locales/en.json under `bootstrap.hint_*`). */
 function detectHints(message, logs) {
   const hints = [];
   const all = (message || '') + '\n' + logs.map(l => l.line).join('\n');
-  if (/README\.md/i.test(all))           hints.push('README.md was missing from the bundle. This is now auto-fixed — retry should work.');
+  if (/README\.md/i.test(all))           hints.push('bootstrap.hint_readme');
   // python-build-standalone download failure (issue #57, #60): user's network
   // can't reach the github.com release. We auto-retry with a system-Python
   // fallback in bootstrap.rs, but if that also fails the user needs an actionable next step.
   if (/python-build-standalone|managed-python download failed/i.test(all)) {
-    hints.push('Network couldn\'t reach the Python download (github.com release). Switch your region in Settings → Network (China / Russia / Restricted route through a mirror), or install Python 3.11+ system-wide so the app uses that instead.');
+    hints.push('bootstrap.hint_python_mirror');
   }
-  if (/uv.*download|uv.*install/i.test(all) && /timeout|connection/i.test(all)) hints.push('Network timeout downloading uv. Check your internet connection or try a different region in Settings → Network.');
-  if (/uv sync failed/i.test(all))       hints.push('Dependency install failed. "Clean & Retry" will delete the cached venv and start fresh.');
-  if (/hatchling|build_editable/i.test(all)) hints.push('Python build backend error. "Clean & Retry" removes the broken venv so it rebuilds from scratch.');
-  if (/ffmpeg/i.test(all) && /download|timeout/i.test(all)) hints.push('ffmpeg download failed. This is non-fatal — retry or install ffmpeg manually.');
-  if (/port.*in use|address.*in use/i.test(all)) hints.push('Port 3900 is already in use. Close other instances of OmniVoice or apps using that port.');
-  if (/no error output/i.test(all))      hints.push('Backend crashed silently. "Clean & Retry" often fixes corrupt venv issues.');
-  if (/blocking GitHub|couldn't download Python|python-build-standalone|dns error/i.test(all)) hints.push('Your network may block GitHub. Install Python 3.11+ from python.org (Add to PATH) and relaunch, or set UV_PYTHON_INSTALL_MIRROR — see docs/install/troubleshooting.md.');
-  if (hints.length === 0)                hints.push('Try "Retry" first. If it fails again, "Clean & Retry" will rebuild the environment from scratch.');
+  if (/uv.*download|uv.*install/i.test(all) && /timeout|connection/i.test(all)) hints.push('bootstrap.hint_uv_timeout');
+  if (/uv sync failed/i.test(all))       hints.push('bootstrap.hint_uv_sync');
+  if (/hatchling|build_editable/i.test(all)) hints.push('bootstrap.hint_build_backend');
+  if (/ffmpeg/i.test(all) && /download|timeout/i.test(all)) hints.push('bootstrap.hint_ffmpeg');
+  if (/port.*in use|address.*in use/i.test(all)) hints.push('bootstrap.hint_port');
+  if (/no error output/i.test(all))      hints.push('bootstrap.hint_silent_crash');
+  if (/blocking GitHub|couldn't download Python|python-build-standalone|dns error/i.test(all)) hints.push('bootstrap.hint_github_blocked');
+  if (hints.length === 0)                hints.push('bootstrap.hint_default');
   return hints;
 }
 
@@ -93,17 +95,22 @@ function formatBytes(n) {
   return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
 }
 
-/** Whisper waveform — same speech-cadence silhouette as the setup screen. */
+/** Whisper waveform — same speech-cadence silhouette as the setup screen.
+ *  Memoized like its FirstRunSetup/SetupWizard twins: the splash re-renders
+ *  every poll tick and the silhouette never changes. */
 function Waveform({ bars = 96 }) {
-  const heights = Array.from({ length: bars }, (_, i) => {
-    const t = i / bars;
-    const v = Math.abs(
-      Math.sin(t * Math.PI * 7.3) * 0.55 +
-      Math.sin(t * Math.PI * 2.1 + 1.2) * 0.3 +
-      Math.sin(t * Math.PI * 17.0 + 0.4) * 0.15
-    );
-    return 0.18 + v * 0.82;
-  });
+  const heights = useMemo(
+    () => Array.from({ length: bars }, (_, i) => {
+      const t = i / bars;
+      const v = Math.abs(
+        Math.sin(t * Math.PI * 7.3) * 0.55 +
+        Math.sin(t * Math.PI * 2.1 + 1.2) * 0.3 +
+        Math.sin(t * Math.PI * 17.0 + 0.4) * 0.15
+      );
+      return 0.18 + v * 0.82;
+    }),
+    [bars],
+  );
   return (
     <div className="frs-wave" aria-hidden="true">
       {heights.map((h, i) => (
@@ -386,7 +393,7 @@ export function BootstrapSplash({ stage, message }) {
             <div className="frs-hints">
               <span className="frs-hints__label">💡 {t('bootstrap.what_to_try', 'What to try:')}</span>
               <ul>
-                {detectHints(message, logs).map((h, i) => <li key={i}>{h}</li>)}
+                {detectHints(message, logs).map((key) => <li key={key}>{t(key)}</li>)}
               </ul>
             </div>
             <div className="frs-banner__actions frs-banner__actions--end">

@@ -23,6 +23,7 @@ import AudioTrimmer from '../components/AudioTrimmer';
 import { useAppStore } from '../store';
 import { apiUrl } from '../api/client';
 import { isTauri } from '../utils/media';
+import { claimPlayback, stopActivePlayback } from '../utils/playback';
 import { askConfirm } from '../utils/dialog';
 import { ArchetypeAvatar, ArchetypeIcon, AccentFlag, NowPlaying, USE_CASE_COLOR } from '../utils/archetypeIcons';
 import './VoiceGallery.css';
@@ -81,12 +82,16 @@ export default function VoiceGallery() {
     noticeTimer.current = window.setTimeout(() => setNotice(null), 3500);
   };
 
+  const releaseRef = useRef(null);
+
   const stopPlayback = () => {
     if (audioRef.current) {
       try { audioRef.current.pause(); } catch { /* noop */ }
       audioRef.current = null;
     }
     setPlayingId(null);
+    releaseRef.current?.();
+    releaseRef.current = null;
   };
 
   useEffect(() => () => stopPlayback(), []);
@@ -95,6 +100,9 @@ export default function VoiceGallery() {
   const playUrl = async (fullUrl, id) => {
     if (playingId === id) { stopPlayback(); return; }
     stopPlayback();
+    // Also stop any playback owned by other components (#316) so the new
+    // preview never overlaps a Design-tab preview or a synthesized output.
+    stopActivePlayback();
     setLoadingPreviewId(id);
     try {
       // no-store: preview audio is re-rendered server-side when an archetype is
@@ -111,16 +119,34 @@ export default function VoiceGallery() {
         const src = ctx.createBufferSource();
         src.buffer = decoded;
         src.connect(ctx.destination);
-        src.onended = () => setPlayingId((cur) => (cur === id ? null : cur));
+        src.onended = () => {
+          setPlayingId((cur) => (cur === id ? null : cur));
+          releaseRef.current?.();
+          releaseRef.current = null;
+        };
         src.start();
         audioRef.current = { pause: () => { try { src.stop(); } catch { /* noop */ } ctx.close(); } };
       } else {
         const url = URL.createObjectURL(blob);
         const el = new Audio(url);
-        el.onended = () => { setPlayingId((cur) => (cur === id ? null : cur)); URL.revokeObjectURL(url); };
+        el.onended = () => {
+          setPlayingId((cur) => (cur === id ? null : cur));
+          URL.revokeObjectURL(url);
+          releaseRef.current?.();
+          releaseRef.current = null;
+        };
         await el.play();
         audioRef.current = el;
       }
+      // Register with the global single-playback manager (#316) so any other
+      // component starting audio stops this preview first.
+      releaseRef.current = claimPlayback(() => {
+        if (audioRef.current) {
+          try { audioRef.current.pause(); } catch { /* noop */ }
+          audioRef.current = null;
+        }
+        setPlayingId(null);
+      }, 'gallery-preview');
     } catch (e) {
       stopPlayback();
       flash(t('gallery.preview_failed', { defaultValue: 'Preview unavailable — the voice engine may still be loading.' }));

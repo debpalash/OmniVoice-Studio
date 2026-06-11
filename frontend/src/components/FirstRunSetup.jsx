@@ -167,9 +167,8 @@ export function radioGroupNav(e, values, current, select) {
 }
 
 /** LED radio option — used for install mode, compute and update channel.
- *  Verbosity diet: the description unfolds only on the selected card; the
- *  rest expose it as a tooltip. One expanded card per group keeps the page
- *  calm without hiding information. Roving tabindex: only the selected
+ *  Verbosity diet: descriptions live in the group's fixed caption slot; the
+ *  cards expose them as tooltips. Roving tabindex: only the selected
  *  option is in the tab order; arrows move within the group. */
 function OptionCard({ active, disabled, onSelect, name, desc, badge, compact }) {
   return (
@@ -223,8 +222,10 @@ export default function FirstRunSetup() {
           modelsDir: s.defaults.modelsDir,
           region: s.defaults.region,
           updateChannel: s.defaults.updateChannel,
-          // Pre-select ROCm when the machine looks AMD — detection is shown
-          // on the card, and the user can always flip back to Auto.
+          // Pre-select ROCm only when Rust verified the ROCm userspace is
+          // installed (kind === 'rocm'). A bare AMD GPU without the runtime
+          // reports kind === 'amd': ROCm stays offered but unselected, since
+          // its wheels would silently fall back to CPU on such machines.
           torchVariant: s.hardware?.kind === 'rocm' ? 'rocm' : s.defaults.torchVariant,
           mirrors: { pypiIndex: '', hfEndpoint: '', pythonDownloads: '' },
         });

@@ -104,7 +104,17 @@
     "region_russia": "Rusia (espejo)",
     "region_restricted": "Restringido (espejo)",
     "unknown_error": "Error desconocido",
-    "retrying": "Reintentando…"
+    "retrying": "Reintentando…",
+    "hint_readme": "Faltaba README.md en el paquete. Ya se corrige automáticamente — reintentar debería funcionar.",
+    "hint_python_mirror": "La red no pudo alcanzar la descarga de Python (release de github.com). Cambia la región en Configuración → Red (China / Rusia / Restringido pasan por un mirror) o instala Python 3.11+ en el sistema para que la app lo use.",
+    "hint_uv_timeout": "Tiempo de espera agotado al descargar uv. Comprueba tu conexión a internet o prueba otra región en Configuración → Red.",
+    "hint_uv_sync": "Falló la instalación de dependencias. «Limpiar y reintentar» eliminará el venv en caché y empezará de cero.",
+    "hint_build_backend": "Error del backend de compilación de Python. «Limpiar y reintentar» elimina el venv dañado para reconstruirlo desde cero.",
+    "hint_ffmpeg": "Falló la descarga de ffmpeg. No es fatal — reintenta o instala ffmpeg manualmente.",
+    "hint_port": "El puerto 3900 ya está en uso. Cierra otras instancias de OmniVoice o aplicaciones que usen ese puerto.",
+    "hint_silent_crash": "El backend se cerró sin mensaje de error. «Limpiar y reintentar» suele arreglar problemas de venv corrupto.",
+    "hint_github_blocked": "Tu red puede estar bloqueando GitHub. Instala Python 3.11+ desde python.org (añádelo al PATH) y reinicia, o define UV_PYTHON_INSTALL_MIRROR — consulta docs/install/troubleshooting.md.",
+    "hint_default": "Prueba primero «Reintentar». Si vuelve a fallar, «Limpiar y reintentar» reconstruirá el entorno desde cero."
   },
   "stories": {
     "title": "Editor de historias",
@@ -303,7 +313,13 @@
     "opt_high_pitch": "tono alto",
     "opt_very_high_pitch": "tono muy alto",
     "opt_whisper": "susurrar",
-    "style_placeholder": "por ej. susurrar"
+    "style_placeholder": "por ej. susurrar",
+    "stop_playback": "Detener reproducción",
+    "describe_label": "Describe tu voz",
+    "describe_placeholder": "p. ej. a warm elderly British storyteller, slightly raspy",
+    "describe_hint": "Tu descripción (en inglés) ajusta los controles de abajo; puedes afinarlos después.",
+    "describe_unmatched": "No se pudo asignar: {{items}}",
+    "describe_no_match": "Aún no se reconocen rasgos de voz; prueba palabras como deep, elderly o British."
   },
   "about": {
     "app": "Aplicación",
@@ -338,7 +354,17 @@
     "channel_stable": "Estable",
     "channel_preview": "Vista previa",
     "channel_set": "Canal de actualización configurado en {{channel}}",
-    "channel_preview_hint": "La vista previa sigue la última compilación de main: funciones más nuevas, menos probadas. Vuelve a estable si hay una versión estable más reciente."
+    "channel_preview_hint": "La vista previa sigue la última compilación de main: funciones más nuevas, menos probadas. Vuelve a estable si hay una versión estable más reciente.",
+    "self_check": "Ejecutar autocomprobación",
+    "self_check_failed": "La autocomprobación falló: {{message}}",
+    "self_check_ok": "Correcto",
+    "self_check_warn": "Advertencia",
+    "self_check_fail": "Falló",
+    "self_check_healthy": "Todas las comprobaciones pasaron — esta instalación parece estar en buen estado.",
+    "self_check_attention": "{{count}} comprobación(es) fallaron — consulta las pistas de arriba.",
+    "save_bundle": "Guardar paquete de diagnóstico",
+    "bundle_saved": "Paquete de diagnóstico guardado: {{filename}}",
+    "bundle_failed": "No se pudo crear el paquete de diagnóstico: {{message}}"
   },
   "privacy": {
     "desc": "Todo se ejecuta en <1>esta máquina</1>. Su audio, video y transcripciones nunca salen de su computadora a menos que utilice explícitamente un traductor en línea (Google, DeepL, etc.) o acceda a HuggingFace.",
@@ -437,9 +463,12 @@
     "mic_denied": "Acceso al micrófono denegado",
     "mic_denied_toast": "Acceso al micrófono denegado. {{hint}}",
     "mic_hint_mac": "macOS: abra Configuración del sistema → Privacidad y seguridad → Micrófono y habilite OmniVoice.",
-    "mic_hint_windows": "Windows: abra Configuración → Privacidad y seguridad → Micrófono y permita OmniVoice.",
+    "mic_hint_windows": "Windows: abre Configuración → Privacidad y seguridad → Micrófono, activa 'Acceso al micrófono' y 'Permitir que las aplicaciones de escritorio accedan al micrófono' y permite OmniVoice.",
     "mic_hint_linux": "Linux: verifique que su usuario esté en el grupo de audio y que WebView tenga acceso al micrófono.",
-    "transcription_failed": "Error de transcripción: {{message}}"
+    "transcription_failed": "Error de transcripción: {{message}}",
+    "mic_not_found": "No se encontró ningún micrófono. Conecta o habilita un micrófono e inténtalo de nuevo.",
+    "mic_in_use": "El micrófono está ocupado o no disponible. Cierra otras aplicaciones que puedan estar usándolo e inténtalo de nuevo.",
+    "mic_error_generic": "No se pudo iniciar el micrófono: {{message}}"
   },
   "logs": {
     "no_tauri_log": "Aún no hay ningún registro de Tauri en el disco: inicie a través de la compilación de escritorio para producir uno",
@@ -659,7 +688,9 @@
     "dialect_label": "Dialecto",
     "dialect_default": "Predeterminado",
     "dialect_title": "Dialecto regional y vocabulario para la traducción (p. ej. Argentina → “vos sos” en lugar de “tú eres”). Lo aplican los motores LLM (OpenAI/Ollama) y la calidad Cinematic.",
-    "dialect_not_applied": "El dialecto seleccionado necesita un LLM para aplicarse — cambia el motor a OpenAI/Ollama o elige la calidad Cinematic."
+    "num_speakers_label": "Hablantes",
+    "num_speakers_auto": "Automático",
+    "num_speakers_help": "¿Cuántos hablantes hay en este vídeo? Déjalo vacío para detectarlo automáticamente. Indica un número si la detección automática fusiona varios hablantes en uno."
   },
   "glossary": {
     "title": "Glosario",
@@ -961,7 +992,9 @@
     "open": "Abierto",
     "install_required_models": "Instale los modelos requeridos arriba para continuar.",
     "try_dictation": "Prueba el dictado",
-    "next_try_dictation": "Siguiente: Prueba el dictado"
+    "next_try_dictation": "Siguiente: Prueba el dictado",
+    "step_aria": "Paso {{num}}: {{label}}",
+    "step_completed": "completado"
   },
   "donate": {
     "title": "Soporte",
@@ -1128,7 +1161,10 @@
     "title": "Esta pestaña tuvo un problema.",
     "desc": "No te preocupes, el resto de la aplicación sigue funcionando. Puedes cambiar de pestaña o volver a intentarlo a continuación.",
     "tryAgain": "Inténtalo de nuevo",
-    "openDocs": "Abrir documentos para este error"
+    "openDocs": "Abrir documentos para este error",
+    "report": "Informar de este error",
+    "searchIssues": "Buscar problemas similares",
+    "unexpected": "Error inesperado: {{message}}"
   },
   "keyboard": {
     "title": "Atajos de teclado",
@@ -1456,6 +1492,7 @@
     "segments_clean": "Segmentos ya limpios",
     "cleanup_failed": "Error de limpieza: {{message}}",
     "cinematic_no_llm": "La calidad cinematográfica necesita un LLM: configure TRANSLATE_BASE_URL + TRANSLATE_API_KEY (Ollama funciona localmente). Volviendo a Fast.",
+    "dialect_not_applied": "El dialecto seleccionado necesita un LLM para aplicarse — cambia el motor a OpenAI/Ollama o elige la calidad Cinematic.",
     "translate_errors": "{{errorCount}}/{{totalCount}} segmento(s) fallidos: {{firstError}}",
     "translated_segments": "{{count}} segmento(s) traducido(s) → {{lang}}",
     "translated_cinematic_suffix": "(Cinemático)",

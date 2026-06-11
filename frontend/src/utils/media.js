@@ -4,6 +4,7 @@
  * Extracted from App.jsx to reduce file size and enable independent testing.
  */
 import { API_BASE as _PREVIEW_API, isTauriContext } from './apiBase';
+import { claimPlayback } from './playback';
 
 const isTauri = isTauriContext();
 
@@ -54,6 +55,10 @@ export const fileToMediaUrl = async (file, prevUrls) => {
 /**
  * Play audio from a Blob. Uses Web Audio API in Tauri (blob URLs blocked)
  * and standard Audio() elsewhere.
+ *
+ * Registered with the global playback manager (issue #316): starting any
+ * other preview stops this one, and `stopActivePlayback()` halts it — the
+ * old fire-and-forget version could neither be stopped nor de-overlapped.
  */
 export const playBlobAudio = async (blob) => {
   if (isTauri) {
@@ -66,8 +71,12 @@ export const playBlobAudio = async (blob) => {
       const src = ctx.createBufferSource();
       src.buffer = decoded;
       src.connect(ctx.destination);
+      const release = claimPlayback(() => {
+        try { src.stop(); } catch { /* already stopped */ }
+        ctx.close();
+      }, 'output');
       src.start(0);
-      src.onended = () => ctx.close();
+      src.onended = () => { ctx.close(); release(); };
     } catch (e) {
       console.error('playBlobAudio decode error:', e);
       ctx.close();
@@ -75,8 +84,12 @@ export const playBlobAudio = async (blob) => {
       try {
         const url = URL.createObjectURL(blob);
         const a = new Audio(url);
-        await a.play();
-        a.onended = () => URL.revokeObjectURL(url);
+        const release = claimPlayback(() => {
+          a.pause();
+          URL.revokeObjectURL(url);
+        }, 'output');
+        a.onended = () => { URL.revokeObjectURL(url); release(); };
+        await a.play().catch((err) => { release(); throw err; });
       } catch (e2) {
         console.error('playBlobAudio fallback error:', e2);
       }
@@ -84,8 +97,15 @@ export const playBlobAudio = async (blob) => {
   } else {
     const url = URL.createObjectURL(blob);
     const a = new Audio(url);
-    a.play().catch((e) => console.error('playBlobAudio play error:', e));
-    a.onended = () => URL.revokeObjectURL(url);
+    const release = claimPlayback(() => {
+      a.pause();
+      URL.revokeObjectURL(url);
+    }, 'output');
+    a.onended = () => { URL.revokeObjectURL(url); release(); };
+    a.play().catch((e) => {
+      release();
+      console.error('playBlobAudio play error:', e);
+    });
   }
 };
 

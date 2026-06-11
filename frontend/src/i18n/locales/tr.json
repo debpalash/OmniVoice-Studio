@@ -103,7 +103,17 @@
     "region_russia": "Rusya (ayna)",
     "region_restricted": "Kısıtlanmış (ayna)",
     "unknown_error": "Bilinmeyen hata",
-    "retrying": "Yeniden deneniyor…"
+    "retrying": "Yeniden deneniyor…",
+    "hint_readme": "Pakette README.md eksikti. Bu artık otomatik düzeltiliyor — yeniden denemek işe yaramalı.",
+    "hint_python_mirror": "Ağ, Python indirmesine (github.com sürümü) ulaşamadı. Ayarlar → Ağ bölümünden bölgeyi değiştirin (Çin / Rusya / Kısıtlı bir yansı üzerinden gider) veya uygulamanın kullanması için sisteme Python 3.11+ kurun.",
+    "hint_uv_timeout": "uv indirilirken ağ zaman aşımı oluştu. İnternet bağlantınızı kontrol edin veya Ayarlar → Ağ bölümünden farklı bir bölge deneyin.",
+    "hint_uv_sync": "Bağımlılık kurulumu başarısız oldu. \"Temizle ve Yeniden Dene\" önbellekteki venv'i silip baştan başlar.",
+    "hint_build_backend": "Python derleme arka ucu hatası. \"Temizle ve Yeniden Dene\" bozuk venv'i kaldırır ve sıfırdan yeniden oluşturur.",
+    "hint_ffmpeg": "ffmpeg indirmesi başarısız oldu. Bu kritik değil — yeniden deneyin veya ffmpeg'i elle kurun.",
+    "hint_port": "3900 numaralı bağlantı noktası zaten kullanımda. Diğer OmniVoice kopyalarını veya bu portu kullanan uygulamaları kapatın.",
+    "hint_silent_crash": "Arka uç hata mesajı vermeden çöktü. \"Temizle ve Yeniden Dene\" bozuk venv sorunlarını genellikle çözer.",
+    "hint_github_blocked": "Ağınız GitHub'ı engelliyor olabilir. python.org'dan Python 3.11+ kurun (PATH'e ekleyin) ve yeniden başlatın veya UV_PYTHON_INSTALL_MIRROR ayarlayın — bkz. docs/install/troubleshooting.md.",
+    "hint_default": "Önce \"Yeniden Dene\"yi deneyin. Yine başarısız olursa \"Temizle ve Yeniden Dene\" ortamı sıfırdan kurar."
   },
   "stories": {
     "title": "Hikaye Düzenleyici",
@@ -302,7 +312,13 @@
     "opt_high_pitch": "yüksek perde",
     "opt_very_high_pitch": "çok yüksek perde",
     "opt_whisper": "fısıltı",
-    "style_placeholder": "örneğin fısıltı"
+    "style_placeholder": "örneğin fısıltı",
+    "stop_playback": "Oynatmayı durdur",
+    "describe_label": "Sesinizi tarif edin",
+    "describe_placeholder": "örn. a warm elderly British storyteller, slightly raspy",
+    "describe_hint": "Açıklamanız (İngilizce) aşağıdaki denetimleri ayarlar — sonradan ince ayar yapabilirsiniz.",
+    "describe_unmatched": "Eşlenemedi: {{items}}",
+    "describe_no_match": "Henüz ses özelliği tanınmadı — deep, elderly veya British gibi kelimeler deneyin."
   },
   "about": {
     "app": "Uygulama",
@@ -337,7 +353,17 @@
     "channel_stable": "Kararlı",
     "channel_preview": "Önizleme",
     "channel_set": "Güncelleme kanalı {{channel}} olarak ayarlandı",
-    "channel_preview_hint": "Önizleme en son main yapısını izler — daha yeni özellikler, daha az test. Daha yeni bir kararlı sürüm varsa kararlıya geri döner."
+    "channel_preview_hint": "Önizleme en son main yapısını izler — daha yeni özellikler, daha az test. Daha yeni bir kararlı sürüm varsa kararlıya geri döner.",
+    "self_check": "Öz denetimi çalıştır",
+    "self_check_failed": "Öz denetim başarısız: {{message}}",
+    "self_check_ok": "Tamam",
+    "self_check_warn": "Uyarı",
+    "self_check_fail": "Başarısız",
+    "self_check_healthy": "Tüm denetimler geçti — bu kurulum sağlıklı görünüyor.",
+    "self_check_attention": "{{count}} denetim başarısız — yukarıdaki ipuçlarına bakın.",
+    "save_bundle": "Tanılama paketini kaydet",
+    "bundle_saved": "Tanılama paketi kaydedildi: {{filename}}",
+    "bundle_failed": "Tanılama paketi oluşturulamadı: {{message}}"
   },
   "privacy": {
     "desc": "Her şey <1>bu makine</1> üzerinde çalışıyor. Açıkça bir çevrimiçi çevirmen (Google, DeepL vb.) kullanmadığınız veya HuggingFace'e aktarmadığınız sürece ses, video ve transkriptleriniz asla bilgisayarınızdan ayrılmaz.",
@@ -436,9 +462,12 @@
     "mic_denied": "Mikrofon erişimi reddedildi",
     "mic_denied_toast": "Mikrofon erişimi reddedildi. {{hint}}",
     "mic_hint_mac": "macOS: Sistem Ayarları → Gizlilik ve Güvenlik → Mikrofon'u açın ve OmniVoice'u etkinleştirin.",
-    "mic_hint_windows": "Windows: Ayarlar → Gizlilik ve güvenlik → Mikrofon'u açın ve OmniVoice'a izin verin.",
+    "mic_hint_windows": "Windows: Ayarlar → Gizlilik ve güvenlik → Mikrofon'u açın, 'Mikrofon erişimi' ve 'Masaüstü uygulamalarının mikrofonunuza erişmesine izin ver' seçeneklerini etkinleştirin, ardından OmniVoice'a izin verin.",
     "mic_hint_linux": "Linux: Kullanıcınızın ses grubunda olduğundan ve Web Görünümünün mikrofon erişimine sahip olduğundan emin olun.",
-    "transcription_failed": "Transkripsiyon başarısız oldu: {{message}}"
+    "transcription_failed": "Transkripsiyon başarısız oldu: {{message}}",
+    "mic_not_found": "Mikrofon bulunamadı. Bir mikrofon bağlayın veya etkinleştirin ve tekrar deneyin.",
+    "mic_in_use": "Mikrofon meşgul veya kullanılamıyor. Mikrofonu kullanıyor olabilecek diğer uygulamaları kapatın ve tekrar deneyin.",
+    "mic_error_generic": "Mikrofon başlatılamadı: {{message}}"
   },
   "logs": {
     "no_tauri_log": "Henüz diskte Tauri oturumu açılmadı; bir tane oluşturmak için masaüstü sürümü aracılığıyla başlatın",
@@ -658,7 +687,9 @@
     "dialect_label": "Lehçe",
     "dialect_default": "Varsayılan",
     "dialect_title": "Çeviri için bölgesel lehçe ve söz varlığı (örn. Arjantin → “tú eres” yerine “vos sos”). LLM motorları (OpenAI/Ollama) ve Cinematic kalitesi tarafından uygulanır.",
-    "dialect_not_applied": "Seçilen lehçe için LLM gerekir — motoru OpenAI/Ollama yapın veya Cinematic kalitesini seçin."
+    "num_speakers_label": "Konuşmacılar",
+    "num_speakers_auto": "Otomatik",
+    "num_speakers_help": "Bu videoda kaç konuşmacı var? Otomatik algılama için boş bırakın. Otomatik algılama birden çok konuşmacıyı tek kişide birleştiriyorsa bir sayı girin."
   },
   "glossary": {
     "title": "Sözlük",
@@ -960,7 +991,9 @@
     "open": "Açık",
     "install_required_models": "Devam etmek için yukarıdaki gerekli modelleri yükleyin.",
     "try_dictation": "Dikte etmeyi deneyin",
-    "next_try_dictation": "Sonraki: Dikteyi deneyin"
+    "next_try_dictation": "Sonraki: Dikteyi deneyin",
+    "step_aria": "Adım {{num}}: {{label}}",
+    "step_completed": "tamamlandı"
   },
   "donate": {
     "title": "Destek",
@@ -1127,7 +1160,10 @@
     "title": "Bu sekme bir engele çarptı.",
     "desc": "Endişelenmeyin; uygulamanın geri kalanı hala çalışıyor. Sekmeleri değiştirebilir veya aşağıda tekrar deneyebilirsiniz.",
     "tryAgain": "Tekrar dene",
-    "openDocs": "Bu hata için dokümanları açın"
+    "openDocs": "Bu hata için dokümanları açın",
+    "report": "Bu hatayı bildir",
+    "searchIssues": "Benzer sorunları ara",
+    "unexpected": "Beklenmeyen hata: {{message}}"
   },
   "keyboard": {
     "title": "Klavye kısayolları",
@@ -1455,6 +1491,7 @@
     "segments_clean": "Segmentler zaten temiz",
     "cleanup_failed": "Temizleme başarısız oldu: {{message}}",
     "cinematic_no_llm": "Sinematik kalitenin bir LLM'ye ihtiyacı vardır - TRANSLATE_BASE_URL + TRANSLATE_API_KEY'i ayarlayın (Ollama yerel olarak çalışır). Hızlı'ya geri dönüyorum.",
+    "dialect_not_applied": "Seçilen lehçe için LLM gerekir — motoru OpenAI/Ollama yapın veya Cinematic kalitesini seçin.",
     "translate_errors": "{{errorCount}}/{{totalCount}} segment(ler)i başarısız oldu: {{firstError}}",
     "translated_segments": "{{count}} segment(ler) çevrildi → {{lang}}",
     "translated_cinematic_suffix": "(Sinematik)",

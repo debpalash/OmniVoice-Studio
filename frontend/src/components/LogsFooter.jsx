@@ -457,6 +457,14 @@ export default function LogsFooter() {
                 className={`logs-footer__notif-item logs-footer__notif-item--${notif.level} ${notif.action ? 'logs-footer__notif-item--clickable' : ''}`}
                 onClick={() => {
                   if (!notif.action) return;
+                  // Acting on the crash notice acknowledges it — the backend
+                  // stores the seen crash-log size so it doesn't re-fire
+                  // every session until a NEW crash grows the log.
+                  if (notif.id === 'crash-last-session') {
+                    import('../api/client')
+                      .then(({ API }) => fetch(`${API}/system/crash/ack`, { method: 'POST' }))
+                      .catch(() => {});
+                  }
                   if (notif.action.type === 'navigate') {
                     useAppStore.getState().setMode?.(notif.action.target);
                     setCollapsed(true);

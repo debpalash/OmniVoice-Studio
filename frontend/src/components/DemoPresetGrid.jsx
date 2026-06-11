@@ -15,12 +15,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Play, Pause } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { API } from '../api/client';
+import { claimPlayback, stopActivePlayback } from '../utils/playback';
 import './DemoPresetGrid.css';
 
 export default function DemoPresetGrid({ presets, onUse }) {
   const { t } = useTranslation();
   const [playingId, setPlayingId] = useState(null);
   const audioRef = useRef(null);
+  const releaseRef = useRef(null);
 
   // Stop playback on unmount so leaving the Design tab mid-preview goes
   // silent immediately.
@@ -31,6 +33,8 @@ export default function DemoPresetGrid({ presets, onUse }) {
         audio.pause();
         audio.currentTime = 0;
       }
+      releaseRef.current?.();
+      releaseRef.current = null;
     };
   }, []);
 
@@ -38,10 +42,16 @@ export default function DemoPresetGrid({ presets, onUse }) {
     const audio = audioRef.current;
     if (!audio) return;
     if (playingId === preset.id) {
-      audio.pause();
-      setPlayingId(null);
+      // Our claim's stop pauses the element and clears playingId.
+      stopActivePlayback();
       return;
     }
+    // Claim the global playback slot (#316): stops any other preview/output
+    // that is currently playing before this one starts.
+    releaseRef.current = claimPlayback(() => {
+      audio.pause();
+      setPlayingId(null);
+    }, 'design-preview');
     audio.src = `${API}${preset.preview_url}`;
     audio.currentTime = 0;
     audio.play()
@@ -51,6 +61,8 @@ export default function DemoPresetGrid({ presets, onUse }) {
         // build_demos.sh hasn't been run). Fall back gracefully — the card
         // still works for "Use this design".
         console.warn('Preview playback failed:', e);
+        releaseRef.current?.();
+        releaseRef.current = null;
         setPlayingId(null);
       });
   };
@@ -61,7 +73,11 @@ export default function DemoPresetGrid({ presets, onUse }) {
           plays at a time" invariant without per-card state coordination. */}
       <audio
         ref={audioRef}
-        onEnded={() => setPlayingId(null)}
+        onEnded={() => {
+          setPlayingId(null);
+          releaseRef.current?.();
+          releaseRef.current = null;
+        }}
         preload="none"
       />
       {presets.map((p) => {

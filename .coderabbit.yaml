@@ -7,12 +7,26 @@
 language: "en-US"
 early_access: false
 
+# The review voice: a panel of senior domain experts, not a linter.
+tone_instructions: >-
+  Review as a panel of principal engineers: ML inference, audio DSP, desktop
+  systems, product polish. Cite exact lines, name the failure mode, give the
+  concrete fix. No filler praise; raise nits only when they change a decision.
+
 reviews:
   # "chill" keeps the bot from blocking merges — it comments, it does not gate.
   # Hard gating lives in CI (security.yml) and the constitution's human bar.
   profile: chill
   request_changes_workflow: false
   high_level_summary: true
+  # Every walkthrough gets a visual: mermaid sequence diagrams for the
+  # mechanics, plus (via the summary instructions) an ASCII before/after
+  # sketch when the PR touches UI — so each PR is reviewable at a glance.
+  sequence_diagrams: true
+  high_level_summary_instructions: >-
+    If the PR changes UI (JSX/TSX/CSS/Tauri windows), include a compact ASCII
+    before/after sketch of the affected layout or component. If it changes
+    behavior, include a short mermaid flowchart of the new mechanism.
   review_status: true
   poem: false
 
@@ -39,7 +53,8 @@ reviews:
     - "!**/*.onnx"
     - "!tests/fixtures/**"
 
-  # Encode the project's hard constraints so the bot reviews against them.
+  # One expert lens per subsystem — encode what a passionate senior in each
+  # domain would actually check, beyond what linters and CI already gate.
   path_instructions:
     - path: "**/*.{py,rs,js,jsx,ts,tsx}"
       instructions: >-
@@ -48,18 +63,119 @@ reviews:
         model download, or an explicitly opt-in endpoint. Flag any code that
         persists or logs values matching *TOKEN*/*KEY*/*SECRET* or absolute user
         home paths (/Users/<name>/, C:\\Users\\<name>\\).
+    - path: "backend/services/**/*.py"
+      instructions: >-
+        Review as an ML-inference/audio engineer. Check: thread-safety of model
+        and cache state across the GPU worker pool; device/dtype assumptions
+        that break on one of CUDA/MPS/ROCm/CPU; VRAM lifecycle (load/unload,
+        leaks on the error path); sample-rate, channel-count and tensor-shape
+        assumptions at engine boundaries; blocking calls inside async paths;
+        model download/cache behavior when offline. Engine code must stay
+        backward-compatible with already-installed on-disk model state.
     - path: "backend/**/*.py"
       instructions: >-
         Default features must behave identically on macOS, Windows and Linux.
         Platform-specific implementation is allowed, but a divergent user-visible
         default is a P0 bug — flag it and suggest an opt-in (Settings/env/flag).
         Any DB schema change must go through an alembic migration with an upgrade
-        path; flag direct schema edits. Engine code must stay backward-compatible
-        with already-installed on-disk model state (no forced reinstall).
+        path; flag direct schema edits. The backend serves loopback HTTP: treat
+        every query/path/form param as hostile (path traversal, log injection,
+        CSRF from a browser tab), and never route user-chosen filesystem
+        destinations through HTTP — that authorization belongs in the Tauri
+        process.
+    - path: "frontend/src/**/*.{js,jsx,ts,tsx}"
+      instructions: >-
+        Review as a product-minded senior frontend engineer. Check: stale state
+        and races (async results landing after unmount or after newer requests);
+        every user-visible failure has an actionable, non-technical error
+        message; loading/disabled states during long operations. Every new
+        user-facing string must be an i18n t('...') key present in ALL 21
+        frontend/src/i18n/locales/*.json files — flag hardcoded UI strings and
+        keys missing from any locale.
+    - path: "frontend/src-tauri/**/*.rs"
+      instructions: >-
+        Review as a desktop-systems engineer. Check: every #[tauri::command] is
+        callable from the webview — validate inputs and scope filesystem/process
+        access accordingly; window and webview lifecycle on all three OSes;
+        child-process spawn/exit-code/stderr handling; no unwrap/expect on
+        user-controlled input; platform cfg blocks keep user-visible defaults
+        identical across macOS/Windows/Linux.
+    - path: "tests/**/*.py"
+      instructions: >-
+        Review as a test-infrastructure engineer. Check: the test would fail
+        before the fix and pass after (no tautologies); no sleeps as
+        synchronization; no module-level imports of app modules that go stale
+        under sys.modules pollution (resolve at run time); TestClient instances
+        are function-scoped and not lifespan-bound unless the test needs it;
+        new functional CJK is allowlisted in tests/test_no_hardcoded_cjk.py with
+        a justification.
     - path: ".github/workflows/**"
       instructions: >-
         Pin actions to a major version tag at minimum. Flag any workflow that
         grants write permissions it does not need.
+
+  # Non-gating pre-merge audits of the project's hard rules (warning mode —
+  # the human owner is the gate, these make the checklist visible per-PR).
+  pre_merge_checks:
+    title:
+      mode: warning
+      requirements: >-
+        Conventional-commit style with scope, e.g. "fix(dub): …", and the issue
+        reference in title or body. Never propose a version bump.
+    issue_assessment:
+      mode: warning
+    custom_checks:
+      - name: "Cross-platform default parity"
+        mode: warning
+        instructions: >-
+          If the PR changes any default-mode (out-of-the-box) behavior, verify
+          it behaves identically on macOS, Windows and Linux, or is moved behind
+          an explicit opt-in (Settings toggle, env var, or CLI flag). A
+          platform-divergent default is a P0 per CLAUDE.md — fail this check
+          and say which platform diverges.
+      - name: "i18n completeness (21 locales)"
+        mode: warning
+        instructions: >-
+          For every new or changed t('...') key in frontend code, verify the
+          key exists in all 21 files under frontend/src/i18n/locales/. List any
+          locale files missing the key. Also flag hardcoded user-facing strings
+          that bypass i18n entirely.
+      - name: "Local-first guarantee"
+        mode: warning
+        instructions: >-
+          Verify the PR adds no required cloud calls, accounts, API keys or
+          telemetry. Outbound traffic is only allowed to GitHub Issues (opt-in
+          bug reporting) and HuggingFace model downloads. The app must remain
+          fully functional offline and with reporting disabled.
+      - name: "Backward compatibility"
+        mode: warning
+        instructions: >-
+          Verify existing omnivoice_data/ (voices, projects, settings) and
+          already-installed engine model state keep working without manual
+          migration. Any DB schema change must ship an alembic migration with
+          an upgrade path. Flag anything that would force users to reinstall an
+          engine or re-download model weights.
+
+  finishing_touches:
+    docstrings:
+      enabled: true
+    unit_tests:
+      enabled: true
+
+# Feed the bot the project constitution and docs, and let it accumulate
+# learnings from review conversations ("@coderabbitai always/never …").
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "CLAUDE.md"
+      - "docs/**/*.md"
+  learnings:
+    scope: auto
+  issues:
+    scope: auto
+  pull_requests:
+    scope: auto
 
 chat:
   auto_reply: true

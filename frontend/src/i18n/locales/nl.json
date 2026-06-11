@@ -103,7 +103,17 @@
     "region_russia": "Rusland (spiegel)",
     "region_restricted": "Beperkt (spiegel)",
     "unknown_error": "Onbekende fout",
-    "retrying": "Opnieuw proberen…"
+    "retrying": "Opnieuw proberen…",
+    "hint_readme": "README.md ontbrak in het pakket. Dit wordt nu automatisch hersteld — opnieuw proberen zou moeten werken.",
+    "hint_python_mirror": "Het netwerk kon de Python-download (github.com-release) niet bereiken. Wissel van regio in Instellingen → Netwerk (China / Rusland / Beperkt lopen via een mirror), of installeer Python 3.11+ systeembreed zodat de app die gebruikt.",
+    "hint_uv_timeout": "Netwerk-time-out bij het downloaden van uv. Controleer je internetverbinding of probeer een andere regio in Instellingen → Netwerk.",
+    "hint_uv_sync": "Installatie van afhankelijkheden mislukt. \"Wissen & Opnieuw proberen\" verwijdert de gecachte venv en begint opnieuw.",
+    "hint_build_backend": "Fout in de Python-build-backend. \"Wissen & Opnieuw proberen\" verwijdert de kapotte venv zodat die opnieuw wordt opgebouwd.",
+    "hint_ffmpeg": "ffmpeg-download mislukt. Dit is niet fataal — probeer opnieuw of installeer ffmpeg handmatig.",
+    "hint_port": "Poort 3900 is al in gebruik. Sluit andere OmniVoice-instanties of apps die deze poort gebruiken.",
+    "hint_silent_crash": "De backend is zonder foutmelding gecrasht. \"Wissen & Opnieuw proberen\" verhelpt vaak problemen met een corrupte venv.",
+    "hint_github_blocked": "Je netwerk blokkeert mogelijk GitHub. Installeer Python 3.11+ van python.org (voeg toe aan PATH) en herstart, of stel UV_PYTHON_INSTALL_MIRROR in — zie docs/install/troubleshooting.md.",
+    "hint_default": "Probeer eerst \"Opnieuw proberen\". Mislukt het weer, dan bouwt \"Wissen & Opnieuw proberen\" de omgeving helemaal opnieuw op."
   },
   "stories": {
     "title": "Verhalen-editor",
@@ -302,7 +312,13 @@
     "opt_high_pitch": "hoge toon",
     "opt_very_high_pitch": "zeer hoge toon",
     "opt_whisper": "fluisteren",
-    "style_placeholder": "bijv. fluisteren"
+    "style_placeholder": "bijv. fluisteren",
+    "stop_playback": "Afspelen stoppen",
+    "describe_label": "Beschrijf je stem",
+    "describe_placeholder": "bijv. a warm elderly British storyteller, slightly raspy",
+    "describe_hint": "Je beschrijving (in het Engels) stelt de regelaars hieronder in — je kunt ze daarna bijstellen.",
+    "describe_unmatched": "Kon niet toewijzen: {{items}}",
+    "describe_no_match": "Nog geen stemkenmerken herkend — probeer woorden als deep, elderly of British."
   },
   "about": {
     "app": "App",
@@ -337,7 +353,17 @@
     "channel_stable": "Stabiel",
     "channel_preview": "Voorbeeld",
     "channel_set": "Updatekanaal ingesteld op {{channel}}",
-    "channel_preview_hint": "Voorbeeld volgt de nieuwste main-build — nieuwere functies, minder getest. Valt terug op stabiel als er een nieuwere stabiele release is."
+    "channel_preview_hint": "Voorbeeld volgt de nieuwste main-build — nieuwere functies, minder getest. Valt terug op stabiel als er een nieuwere stabiele release is.",
+    "self_check": "Zelfcontrole uitvoeren",
+    "self_check_failed": "Zelfcontrole mislukt: {{message}}",
+    "self_check_ok": "OK",
+    "self_check_warn": "Waarschuwing",
+    "self_check_fail": "Mislukt",
+    "self_check_healthy": "Alle controles geslaagd — deze installatie ziet er gezond uit.",
+    "self_check_attention": "{{count}} controle(s) mislukt — zie de hints hierboven.",
+    "save_bundle": "Diagnosepakket opslaan",
+    "bundle_saved": "Diagnosepakket opgeslagen: {{filename}}",
+    "bundle_failed": "Kon het diagnosepakket niet maken: {{message}}"
   },
   "privacy": {
     "desc": "Alles draait op <1>deze machine</1>. Uw audio, video en transcripties verlaten uw computer nooit, tenzij u expliciet een online vertaler (Google, DeepL, enz.) gebruikt of naar HuggingFace pusht.",
@@ -436,9 +462,12 @@
     "mic_denied": "Microfoontoegang geweigerd",
     "mic_denied_toast": "Microfoontoegang geweigerd. {{hint}}",
     "mic_hint_mac": "macOS: open Systeeminstellingen → Privacy en beveiliging → Microfoon en schakel OmniVoice in.",
-    "mic_hint_windows": "Windows: open Instellingen → Privacy en beveiliging → Microfoon en sta OmniVoice toe.",
+    "mic_hint_windows": "Windows: open Instellingen → Privacy en beveiliging → Microfoon, schakel 'Microfoontoegang' en 'Desktop-apps toegang geven tot je microfoon' in en sta OmniVoice toe.",
     "mic_hint_linux": "Linux: controleer of uw gebruiker in de audiogroep zit en of de WebView microfoontoegang heeft.",
-    "transcription_failed": "Transcriptie mislukt: {{message}}"
+    "transcription_failed": "Transcriptie mislukt: {{message}}",
+    "mic_not_found": "Geen microfoon gevonden. Sluit een microfoon aan of schakel er een in en probeer het opnieuw.",
+    "mic_in_use": "De microfoon is bezet of niet beschikbaar. Sluit andere apps die hem mogelijk gebruiken en probeer het opnieuw.",
+    "mic_error_generic": "Kon de microfoon niet starten: {{message}}"
   },
   "logs": {
     "no_tauri_log": "Nog geen Tauri-inlogschijf: start via de desktop-build om er een te maken",
@@ -658,7 +687,9 @@
     "dialect_label": "Dialect",
     "dialect_default": "Standaard",
     "dialect_title": "Regionaal dialect en vocabulaire voor de vertaling (bijv. Argentinië → “vos sos” in plaats van “tú eres”). Toegepast door LLM-engines (OpenAI/Ollama) en Cinematic-kwaliteit.",
-    "dialect_not_applied": "Het gekozen dialect heeft een LLM nodig — zet de engine op OpenAI/Ollama of kies Cinematic-kwaliteit."
+    "num_speakers_label": "Sprekers",
+    "num_speakers_auto": "Automatisch",
+    "num_speakers_help": "Hoeveel sprekers zijn er in deze video? Laat leeg voor automatische detectie. Stel een aantal in als de detectie meerdere sprekers samenvoegt tot één."
   },
   "glossary": {
     "title": "Woordenlijst",
@@ -960,7 +991,9 @@
     "open": "Openen",
     "install_required_models": "Installeer de vereiste modellen hierboven om door te gaan.",
     "try_dictation": "Probeer dicteren",
-    "next_try_dictation": "Volgende: Probeer dicteren"
+    "next_try_dictation": "Volgende: Probeer dicteren",
+    "step_aria": "Stap {{num}}: {{label}}",
+    "step_completed": "voltooid"
   },
   "donate": {
     "title": "Ondersteuning",
@@ -1127,7 +1160,10 @@
     "title": "Dit tabblad stuitte op een probleem.",
     "desc": "Maak je geen zorgen: de rest van de app werkt nog steeds. U kunt van tabblad wisselen of het hieronder opnieuw proberen.",
     "tryAgain": "Probeer het opnieuw",
-    "openDocs": "Open documenten voor deze fout"
+    "openDocs": "Open documenten voor deze fout",
+    "report": "Deze bug melden",
+    "searchIssues": "Vergelijkbare problemen zoeken",
+    "unexpected": "Onverwachte fout: {{message}}"
   },
   "keyboard": {
     "title": "Sneltoetsen",
@@ -1455,6 +1491,7 @@
     "segments_clean": "Segmenten zijn al schoon",
     "cleanup_failed": "Opschonen mislukt: {{message}}",
     "cinematic_no_llm": "Filmische kwaliteit heeft een LLM nodig: stel TRANSLATE_BASE_URL + TRANSLATE_API_KEY in (Ollama werkt lokaal). Terugvallend op Snel.",
+    "dialect_not_applied": "Het gekozen dialect heeft een LLM nodig — zet de engine op OpenAI/Ollama of kies Cinematic-kwaliteit.",
     "translate_errors": "{{errorCount}}/{{totalCount}} segment(en) mislukt: {{firstError}}",
     "translated_segments": "Vertaald {{count}} segment(en) → {{lang}}",
     "translated_cinematic_suffix": "(filmisch)",

@@ -1,5 +1,6 @@
 import os
 import io
+import re
 import time
 import uuid
 import asyncio
@@ -20,6 +21,20 @@ logger = logging.getLogger("omnivoice.api")
 def _unique_stamp() -> str:
     """Return a short unique suffix like '20260415T142301-ab12cd34' for export files."""
     return f"{time.strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4().hex[:8]}"
+
+
+_SAFE_LANG = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
+
+
+def _safe_job_path(job_id: str, *parts: str) -> str:
+    """Join path components under DUB_DIR/<job_id>/ with a realpath
+    containment guard — request-supplied ids/names must never traverse out
+    of the job's directory (same pattern as the per-segment export below)."""
+    base = os.path.realpath(DUB_DIR)
+    cand = os.path.realpath(os.path.join(DUB_DIR, job_id, *parts))
+    if cand != base and not cand.startswith(base + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid path component")
+    return cand
 
 
 def _native_save(source: str, destination: str, display_name: str, media_type: str):
@@ -568,6 +583,21 @@ async def dub_get_media(job_id: str):
     ext = os.path.splitext(video_path)[1].lower()
     return FileResponse(video_path, media_type=_MEDIA_TYPES.get(ext, "video/mp4"))
 
+# One mux at a time per preview file. Without this, two overlapping requests
+# (e.g. the <video> element remounting right after a re-dub) both ran ffmpeg
+# against the same output path, and the mtime check below saw the half-written
+# file as a valid cache — serving a truncated MP4 that left the player stuck
+# loading forever (#281).
+_preview_mux_locks: dict[str, asyncio.Lock] = {}
+
+
+def _preview_lock(path: str) -> asyncio.Lock:
+    lock = _preview_mux_locks.get(path)
+    if lock is None:
+        lock = _preview_mux_locks.setdefault(path, asyncio.Lock())
+    return lock
+
+
 @router.get("/dub/preview-video/{job_id}")
 async def dub_preview_video(
     job_id: str,
@@ -599,19 +629,38 @@ async def dub_preview_video(
     bg_audio = job.get("no_vocals_path") if preserve_bg else None
     has_bg = bool(bg_audio and os.path.exists(bg_audio))
 
-    exports_dir = os.path.join(DUB_DIR, job_id, "exports")
+    if not _SAFE_LANG.match(lang):
+        raise HTTPException(status_code=400, detail="Invalid lang")
+    # realpath-normalised + containment-checked inline BEFORE any filesystem
+    # access so the guard dominates every sink (the file's established
+    # pattern — see dub_preview_segment; CodeQL does not track the guard
+    # through a helper's return value).
+    _base = os.path.realpath(DUB_DIR)
+    exports_dir = os.path.realpath(os.path.join(_base, job_id, "exports"))
+    if not exports_dir.startswith(_base + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid job id")
     os.makedirs(exports_dir, exist_ok=True)
     bg_suffix = "bg" if (preserve_bg and has_bg) else "nobg"
-    preview_path = os.path.join(exports_dir, f"preview_{lang}_{bg_suffix}.mp4")
+    preview_path = os.path.realpath(
+        os.path.join(exports_dir, f"preview_{lang}_{bg_suffix}.mp4")
+    )
+    if not preview_path.startswith(_base + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid path")
 
     track_mtime = os.path.getmtime(track_path)
-    cache_ok = (
-        os.path.exists(preview_path)
-        and os.path.getsize(preview_path) > 0
-        and os.path.getmtime(preview_path) >= track_mtime
-    )
 
-    if not cache_ok:
+    def _cache_ok() -> bool:
+        return (
+            os.path.exists(preview_path)
+            and os.path.getsize(preview_path) > 0
+            and os.path.getmtime(preview_path) >= track_mtime
+        )
+
+    async def _mux_preview():
+        # Mux into a temp file and os.replace() into place so a concurrent
+        # reader never sees a partially-written preview (#281: video stuck
+        # loading forever after a re-dub).
+        mux_path = preview_path + ".tmp.mp4"
         ffmpeg = find_ffmpeg()
         stretch_entry = _video_stretch_plan_for(job, lang)
         cmd = [ffmpeg, "-i", video_path]
@@ -662,26 +711,44 @@ async def dub_preview_video(
         # audio length and lose the trailing frame; only use it on the copy path.
         if not stretch_entry:
             cmd += ["-shortest"]
-        cmd += [preview_path, "-y"]
+        cmd += [mux_path, "-y"]
+
+        def _discard_tmp():
+            try:
+                os.remove(mux_path)
+            except OSError:
+                pass
 
         try:
             rc, _, stderr = await run_ffmpeg(cmd, timeout=900.0)
             if rc != 0:
                 raise Exception(stderr.decode(errors="replace") if stderr else "ffmpeg mux non-zero")
+            if not os.path.exists(mux_path) or os.path.getsize(mux_path) == 0:
+                raise Exception("preview mux produced empty file")
         except asyncio.TimeoutError:
+            _discard_tmp()
             raise HTTPException(status_code=504, detail="preview mux timed out")
-        except HTTPException:
-            raise
         except Exception as e:
+            _discard_tmp()
             raise HTTPException(
                 status_code=500,
                 detail=f"ffmpeg failed to build the preview stream: {str(e)[:300]}. This usually means the source video can't be re-encoded on the fly — try downloading the MP4 instead.",
             )
 
-        if not os.path.exists(preview_path) or os.path.getsize(preview_path) == 0:
-            raise HTTPException(status_code=500, detail="preview mux produced empty file")
+        os.replace(mux_path, preview_path)
 
-    return FileResponse(preview_path, media_type="video/mp4")
+    async with _preview_lock(preview_path):
+        if not _cache_ok():
+            await _mux_preview()
+
+    # no-store: the URL is stable across re-dubs, so any HTTP-level caching
+    # in the WebView would keep showing the previous dub after a re-generate
+    # (#281: "edits don't change the result").
+    return FileResponse(
+        preview_path,
+        media_type="video/mp4",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.get("/dub/thumb/{job_id}")
@@ -806,6 +873,12 @@ def _pick_subtitle_text(seg: dict, dual: bool) -> str:
     return f"{translated}\n<i>{original}</i>"
 
 
+# Subtitles deliberately have no ?save_path= variant: they're small text
+# bodies, so the Tauri side fetches them raw and writes the file itself via
+# the save_text_file command — the OS save dialog is the write authorization
+# (#309). The frontend's JSON-envelope save flow stays for binary exports.
+
+
 @router.get("/dub/srt/{job_id}")
 @router.get("/dub/srt/{job_id}/{filename}")
 async def dub_export_srt(job_id: str, dual: bool = False):
@@ -829,10 +902,11 @@ async def dub_export_srt(job_id: str, dual: bool = False):
     srt_content = "\n".join(srt_lines)
     base_name = os.path.splitext(job.get('filename', 'video'))[0]
     suffix = "_dual" if dual else ""
+    dl_name = f"subtitles_{base_name}{suffix}.srt"
     return Response(
         content=srt_content,
         media_type="text/plain",
-        headers={"Content-Disposition": f'attachment; filename="subtitles_{base_name}{suffix}.srt"'},
+        headers={"Content-Disposition": f'attachment; filename="{dl_name}"'},
     )
 
 def _format_vtt_time(seconds):
@@ -865,10 +939,11 @@ async def dub_export_vtt(job_id: str, dual: bool = False):
     vtt_content = "\n".join(vtt_lines)
     base_name = os.path.splitext(job.get('filename', 'video'))[0]
     suffix = "_dual" if dual else ""
+    dl_name = f"subtitles_{base_name}{suffix}.vtt"
     return Response(
         content=vtt_content,
         media_type="text/vtt",
-        headers={"Content-Disposition": f'attachment; filename="subtitles_{base_name}{suffix}.vtt"'},
+        headers={"Content-Disposition": f'attachment; filename="{dl_name}"'},
     )
 
 

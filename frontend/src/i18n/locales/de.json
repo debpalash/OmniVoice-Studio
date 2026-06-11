@@ -104,7 +104,17 @@
     "region_russia": "Russland (Spiegel)",
     "region_restricted": "Eingeschränkt (Spiegel)",
     "unknown_error": "Unbekannter Fehler",
-    "retrying": "Erneuter Versuch…"
+    "retrying": "Erneuter Versuch…",
+    "hint_readme": "README.md fehlte im Paket. Das wird inzwischen automatisch behoben — ein erneuter Versuch sollte funktionieren.",
+    "hint_python_mirror": "Das Netzwerk konnte den Python-Download (github.com-Release) nicht erreichen. Wechseln Sie die Region in Einstellungen → Netzwerk (China / Russland / Eingeschränkt nutzen einen Mirror) oder installieren Sie Python 3.11+ systemweit, damit die App dieses verwendet.",
+    "hint_uv_timeout": "Netzwerk-Timeout beim Herunterladen von uv. Prüfen Sie Ihre Internetverbindung oder wählen Sie eine andere Region unter Einstellungen → Netzwerk.",
+    "hint_uv_sync": "Installation der Abhängigkeiten fehlgeschlagen. „Bereinigen & Wiederholen“ löscht das zwischengespeicherte venv und startet neu.",
+    "hint_build_backend": "Fehler im Python-Build-Backend. „Bereinigen & Wiederholen“ entfernt das defekte venv, sodass es von Grund auf neu aufgebaut wird.",
+    "hint_ffmpeg": "ffmpeg-Download fehlgeschlagen. Das ist nicht kritisch — erneut versuchen oder ffmpeg manuell installieren.",
+    "hint_port": "Port 3900 wird bereits verwendet. Schließen Sie andere OmniVoice-Instanzen oder Programme, die diesen Port nutzen.",
+    "hint_silent_crash": "Das Backend ist ohne Fehlermeldung abgestürzt. „Bereinigen & Wiederholen“ behebt oft Probleme mit einem beschädigten venv.",
+    "hint_github_blocked": "Ihr Netzwerk blockiert möglicherweise GitHub. Installieren Sie Python 3.11+ von python.org (zu PATH hinzufügen) und starten Sie neu, oder setzen Sie UV_PYTHON_INSTALL_MIRROR — siehe docs/install/troubleshooting.md.",
+    "hint_default": "Versuchen Sie zuerst „Wiederholen“. Schlägt es erneut fehl, baut „Bereinigen & Wiederholen“ die Umgebung von Grund auf neu."
   },
   "stories": {
     "title": "Story-Editor",
@@ -303,7 +313,13 @@
     "opt_high_pitch": "hohe Tonlage",
     "opt_very_high_pitch": "sehr hoher Ton",
     "opt_whisper": "flüstern",
-    "style_placeholder": "z.B. flüstern"
+    "style_placeholder": "z.B. flüstern",
+    "stop_playback": "Wiedergabe stoppen",
+    "describe_label": "Beschreibe deine Stimme",
+    "describe_placeholder": "z. B. a warm elderly British storyteller, slightly raspy",
+    "describe_hint": "Deine Beschreibung (auf Englisch) stellt die Regler unten ein — du kannst sie danach weiter anpassen.",
+    "describe_unmatched": "Nicht zuordenbar: {{items}}",
+    "describe_no_match": "Noch keine Stimmmerkmale erkannt — versuche Wörter wie deep, elderly oder British."
   },
   "about": {
     "app": "App",
@@ -338,7 +354,17 @@
     "channel_stable": "Stabil",
     "channel_preview": "Vorschau",
     "channel_set": "Update-Kanal auf {{channel}} gesetzt",
-    "channel_preview_hint": "Die Vorschau folgt dem neuesten main-Build – neuere Funktionen, weniger getestet. Wechselt zurück zu Stabil, wenn eine stabile Version voraus ist."
+    "channel_preview_hint": "Die Vorschau folgt dem neuesten main-Build – neuere Funktionen, weniger getestet. Wechselt zurück zu Stabil, wenn eine stabile Version voraus ist.",
+    "self_check": "Selbsttest ausführen",
+    "self_check_failed": "Selbsttest fehlgeschlagen: {{message}}",
+    "self_check_ok": "OK",
+    "self_check_warn": "Warnung",
+    "self_check_fail": "Fehlgeschlagen",
+    "self_check_healthy": "Alle Prüfungen bestanden — diese Installation sieht gesund aus.",
+    "self_check_attention": "{{count}} Prüfung(en) fehlgeschlagen — siehe Hinweise oben.",
+    "save_bundle": "Diagnosepaket speichern",
+    "bundle_saved": "Diagnosepaket gespeichert: {{filename}}",
+    "bundle_failed": "Diagnosepaket konnte nicht erstellt werden: {{message}}"
   },
   "privacy": {
     "desc": "Alles läuft auf <1>dieser Maschine</1>. Ihre Audio-, Video- und Transkripte verlassen niemals Ihren Computer, es sei denn, Sie verwenden ausdrücklich einen Online-Übersetzer (Google, DeepL usw.) oder pushen an HuggingFace.",
@@ -437,9 +463,12 @@
     "mic_denied": "Mikrofonzugriff verweigert",
     "mic_denied_toast": "Mikrofonzugriff verweigert. {{hint}}",
     "mic_hint_mac": "macOS: Öffnen Sie Systemeinstellungen → Datenschutz und Sicherheit → Mikrofon und aktivieren Sie OmniVoice.",
-    "mic_hint_windows": "Windows: Öffnen Sie Einstellungen → Datenschutz und Sicherheit → Mikrofon und erlauben Sie OmniVoice.",
+    "mic_hint_windows": "Windows: Öffnen Sie Einstellungen → Datenschutz und Sicherheit → Mikrofon, aktivieren Sie 'Mikrofonzugriff' und 'Desktop-Apps den Zugriff auf Ihr Mikrofon erlauben' und erlauben Sie OmniVoice.",
     "mic_hint_linux": "Linux: Überprüfen Sie, ob sich Ihr Benutzer in der Audiogruppe befindet und WebView Zugriff auf das Mikrofon hat.",
-    "transcription_failed": "Transkription fehlgeschlagen: {{message}}"
+    "transcription_failed": "Transkription fehlgeschlagen: {{message}}",
+    "mic_not_found": "Kein Mikrofon gefunden. Schließen Sie ein Mikrofon an oder aktivieren Sie eines und versuchen Sie es erneut.",
+    "mic_in_use": "Das Mikrofon ist belegt oder nicht verfügbar. Schließen Sie andere Apps, die es möglicherweise verwenden, und versuchen Sie es erneut.",
+    "mic_error_generic": "Mikrofon konnte nicht gestartet werden: {{message}}"
   },
   "logs": {
     "no_tauri_log": "Noch kein Tauri-Log auf der Festplatte – starten Sie es über den Desktop-Build, um eines zu erstellen",
@@ -659,7 +688,9 @@
     "dialect_label": "Dialekt",
     "dialect_default": "Standard",
     "dialect_title": "Regionaler Dialekt und Wortschatz für die Übersetzung (z. B. Argentinien → „vos sos“ statt „tú eres“). Wird von LLM-Engines (OpenAI/Ollama) und der Cinematic-Qualität angewendet.",
-    "dialect_not_applied": "Der gewählte Dialekt benötigt ein LLM — wechsle die Engine auf OpenAI/Ollama oder wähle die Cinematic-Qualität."
+    "num_speakers_label": "Sprecher",
+    "num_speakers_auto": "Automatisch",
+    "num_speakers_help": "Wie viele Sprecher sind in diesem Video? Leer lassen für automatische Erkennung. Eine Zahl angeben, falls die Erkennung mehrere Sprecher zu einem zusammenfasst."
   },
   "glossary": {
     "title": "Glossar",
@@ -961,7 +992,9 @@
     "open": "Offen",
     "install_required_models": "Installieren Sie die oben genannten erforderlichen Modelle, um fortzufahren.",
     "try_dictation": "Versuchen Sie es mit Diktat",
-    "next_try_dictation": "Als nächstes: Versuchen Sie es mit dem Diktat"
+    "next_try_dictation": "Als nächstes: Versuchen Sie es mit dem Diktat",
+    "step_aria": "Schritt {{num}}: {{label}}",
+    "step_completed": "abgeschlossen"
   },
   "donate": {
     "title": "Unterstützung",
@@ -1128,7 +1161,10 @@
     "title": "Dieser Tab ist ins Stocken geraten.",
     "desc": "Keine Sorge – der Rest der App funktioniert weiterhin. Sie können die Registerkarten wechseln oder es unten noch einmal versuchen.",
     "tryAgain": "Versuchen Sie es erneut",
-    "openDocs": "Öffnen Sie die Dokumentation zu diesem Fehler"
+    "openDocs": "Öffnen Sie die Dokumentation zu diesem Fehler",
+    "report": "Diesen Fehler melden",
+    "searchIssues": "Ähnliche Probleme suchen",
+    "unexpected": "Unerwarteter Fehler: {{message}}"
   },
   "keyboard": {
     "title": "Tastaturkürzel",
@@ -1456,6 +1492,7 @@
     "segments_clean": "Segmente bereits sauber",
     "cleanup_failed": "Bereinigung fehlgeschlagen: {{message}}",
     "cinematic_no_llm": "Für filmische Qualität ist ein LLM erforderlich – setzen Sie TRANSLATE_BASE_URL + TRANSLATE_API_KEY (Ollama funktioniert lokal). Zurückgreifen auf Fast.",
+    "dialect_not_applied": "Der gewählte Dialekt benötigt ein LLM — wechsle die Engine auf OpenAI/Ollama oder wähle die Cinematic-Qualität.",
     "translate_errors": "{{errorCount}}/{{totalCount}} Segment(e) fehlgeschlagen: {{firstError}}",
     "translated_segments": "{{count}} Segment(e) → {{lang}} übersetzt",
     "translated_cinematic_suffix": "(Filmisch)",

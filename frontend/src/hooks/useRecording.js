@@ -5,9 +5,12 @@
  */
 import { useState, useRef } from 'react';
 import { toast } from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { cleanAudio as apiCleanAudio } from '../api/system';
+import { micErrorMessage } from '../utils/micError';
 
 export default function useRecording(ingestRefAudio) {
+  const { t } = useTranslation();
   const [isRecording, setIsRecording] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -70,7 +73,9 @@ export default function useRecording(ingestRefAudio) {
       }, 100);
 
     } catch (e) {
-      toast.error("Microphone access denied");
+      // Same actionable mapping as the dictation pill: denied → per-OS
+      // settings hint; otherwise no-device / device-busy / generic (#323).
+      toast.error(micErrorMessage(t, e), { duration: 6000 });
     }
   };
 

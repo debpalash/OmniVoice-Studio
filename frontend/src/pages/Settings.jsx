@@ -14,10 +14,12 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Cpu, FileText, Info, ShieldCheck, RefreshCw, Trash2, ExternalLink,
   CheckCircle, AlertCircle, Plug, Download, Copy, Building2, KeyRound,
-  Keyboard, Wifi, Palette,
+  Keyboard, Wifi, Palette, Activity,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { openExternal } from '../api/external';
+import { API } from '../api/client';
+import { addBreadcrumb } from '../utils/breadcrumbs';
 import { Trans, useTranslation } from 'react-i18next';
 import { systemLogs, systemLogsTauri, clearSystemLogs, clearTauriLogs } from '../api/system';
 import i18n, { LANGUAGES } from '../i18n';
@@ -1010,6 +1012,7 @@ export function EnginesTab() {
   // its install / GPU / isolation state.
   const onSelect = useCallback(async (family, backendId) => {
     try {
+      addBreadcrumb(`engine:${family}=${backendId}`);
       const r = await selectEngine(family, backendId);
       toast.success(t('settings.engine_switched', { family: family.toUpperCase(), engine: r.active }));
     } catch (e) {
@@ -1095,6 +1098,46 @@ export default function Settings() {
   }, [t]);
 
   // sysinfo polling is now handled by useSysinfo() hook above
+
+  // Self-check (/system/diagnose) — device, ffmpeg, HF token, disk, engines,
+  // hub reachability. The report comes back pre-scrubbed (backend core/scrub)
+  // so "Copy" output is safe to paste straight into a GitHub issue.
+  const [selfCheck, setSelfCheck] = useState(null);
+  const [selfCheckRunning, setSelfCheckRunning] = useState(false);
+  const runSelfCheck = useCallback(async () => {
+    setSelfCheckRunning(true);
+    try {
+      const r = await fetch(`${API}/system/diagnose`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      setSelfCheck(await r.json());
+    } catch (e) {
+      toast.error(t('about.self_check_failed', { message: e?.message || e }));
+    } finally {
+      setSelfCheckRunning(false);
+    }
+  }, [t]);
+
+  // Diagnostic bundle — zip of self-check + error journal + scrubbed log
+  // tails, saved to the outputs dir and revealed so the user can drag it
+  // onto a GitHub issue (logs never fit in the prefilled-URL report).
+  const [bundleBuilding, setBundleBuilding] = useState(false);
+  const saveDiagnosticBundle = useCallback(async () => {
+    setBundleBuilding(true);
+    try {
+      const r = await fetch(`${API}/system/diagnostic-bundle`, { method: 'POST' });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = await r.json();
+      toast.success(t('about.bundle_saved', { filename: j.filename }));
+      try {
+        const { exportReveal } = await import('../api/exports');
+        await exportReveal({ path: j.path });
+      } catch { /* reveal is best-effort — the toast already names the file */ }
+    } catch (e) {
+      toast.error(t('about.bundle_failed', { message: e?.message || e }));
+    } finally {
+      setBundleBuilding(false);
+    }
+  }, [t]);
 
   const copyDiagnostics = useCallback(async () => {
     const nav = typeof navigator !== 'undefined' ? navigator : {};
@@ -1417,6 +1460,24 @@ export default function Settings() {
             <Button
               variant="subtle"
               size="md"
+              leading={!selfCheckRunning && <Activity size={12} />}
+              onClick={runSelfCheck}
+              loading={selfCheckRunning}
+            >
+              {t('about.self_check')}
+            </Button>
+            <Button
+              variant="subtle"
+              size="md"
+              leading={!bundleBuilding && <Download size={12} />}
+              onClick={saveDiagnosticBundle}
+              loading={bundleBuilding}
+            >
+              {t('about.save_bundle')}
+            </Button>
+            <Button
+              variant="subtle"
+              size="md"
               leading={<Copy size={12} />}
               onClick={copyDiagnostics}
             >
@@ -1447,6 +1508,32 @@ export default function Settings() {
               {t('about.commercial_license')}
             </Button>
           </div>
+          {selfCheck && (
+            <div className="settings-selfcheck">
+              {selfCheck.checks.map((c) => (
+                <Row
+                  key={c.id}
+                  label={c.label}
+                  value={
+                    <span>
+                      <Badge tone={c.status === 'ok' ? 'success' : c.status === 'warn' ? 'warn' : 'danger'}>
+                        {c.status === 'ok'
+                          ? <CheckCircle size={11} />
+                          : <AlertCircle size={11} />} {t(`about.self_check_${c.status}`)}
+                      </Badge>
+                      {' '}{c.detail}
+                      {c.hint && <span className="settings-muted"> — {c.hint}</span>}
+                    </span>
+                  }
+                />
+              ))}
+              <p className="settings-muted">
+                {selfCheck.summary.ok
+                  ? t('about.self_check_healthy')
+                  : t('about.self_check_attention', { count: selfCheck.summary.failures })}
+              </p>
+            </div>
+          )}
         </section>
       )}
 

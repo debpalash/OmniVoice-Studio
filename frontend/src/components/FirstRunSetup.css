@@ -608,7 +608,7 @@
   font-size: 0.66rem;
   line-height: 1.5;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
   color: var(--frs-err);
   background: color-mix(in srgb, var(--frs-err) 8%, transparent);
   border-radius: 8px;
@@ -684,6 +684,10 @@
   .frs-wave__bar { animation: none; }
   .frs-meter--over .frs-meter__fill { animation: none; }
   .frs__hw-dot { animation: none; }
+  /* frs-hw-pulse LEDs: install-step rail (here) + wizard busy LED
+     (SetupWizard.css) both ride this shared sheet. */
+  .frs-step.is-active .frs-step__led,
+  .swiz-lib__led--busy { animation: none; }
   .frs-meter__fill { transition: none; }
 }
 
@@ -794,7 +798,7 @@
   font-size: 0.64rem;
   line-height: 1.55;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
   color: color-mix(in srgb, var(--frs-ink) 70%, transparent);
   background: color-mix(in srgb, var(--frs-bg) 55%, transparent);
   border-radius: 8px;

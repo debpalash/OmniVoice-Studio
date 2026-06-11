@@ -103,7 +103,17 @@
     "region_russia": "러시아 (거울)",
     "region_restricted": "제한됨(미러)",
     "unknown_error": "알 수 없는 오류",
-    "retrying": "재시도 중…"
+    "retrying": "재시도 중…",
+    "hint_readme": "번들에 README.md가 없었습니다. 이제 자동으로 수정됩니다 — 재시도하면 작동할 것입니다.",
+    "hint_python_mirror": "네트워크가 Python 다운로드(github.com 릴리스)에 연결하지 못했습니다. 설정 → 네트워크에서 지역을 변경하거나(중국 / 러시아 / 제한됨은 미러를 경유), 시스템에 Python 3.11+를 설치해 앱이 그것을 사용하게 하세요.",
+    "hint_uv_timeout": "uv 다운로드 중 네트워크 시간이 초과되었습니다. 인터넷 연결을 확인하거나 설정 → 네트워크에서 다른 지역을 시도하세요.",
+    "hint_uv_sync": "의존성 설치에 실패했습니다. \"정리 후 재시도\"는 캐시된 venv를 삭제하고 처음부터 다시 시작합니다.",
+    "hint_build_backend": "Python 빌드 백엔드 오류입니다. \"정리 후 재시도\"는 손상된 venv를 제거하고 처음부터 다시 빌드합니다.",
+    "hint_ffmpeg": "ffmpeg 다운로드에 실패했습니다. 치명적이지 않습니다 — 재시도하거나 ffmpeg를 수동으로 설치하세요.",
+    "hint_port": "포트 3900이 이미 사용 중입니다. 다른 OmniVoice 인스턴스나 해당 포트를 사용하는 앱을 종료하세요.",
+    "hint_silent_crash": "백엔드가 오류 메시지 없이 종료되었습니다. \"정리 후 재시도\"가 손상된 venv 문제를 자주 해결합니다.",
+    "hint_github_blocked": "네트워크가 GitHub을 차단하고 있을 수 있습니다. python.org에서 Python 3.11+를 설치하고(PATH에 추가) 다시 실행하거나 UV_PYTHON_INSTALL_MIRROR를 설정하세요 — docs/install/troubleshooting.md 참고.",
+    "hint_default": "먼저 \"재시도\"를 시도하세요. 다시 실패하면 \"정리 후 재시도\"가 환경을 처음부터 다시 구축합니다."
   },
   "stories": {
     "title": "스토리 편집자",
@@ -302,7 +312,13 @@
     "opt_high_pitch": "높은 음조",
     "opt_very_high_pitch": "매우 높은 음조",
     "opt_whisper": "속삭임",
-    "style_placeholder": "예를 들어 속삭임"
+    "style_placeholder": "예를 들어 속삭임",
+    "stop_playback": "재생 중지",
+    "describe_label": "목소리를 설명하세요",
+    "describe_placeholder": "예: a warm elderly British storyteller, slightly raspy",
+    "describe_hint": "설명(영어)이 아래 컨트롤을 설정합니다. 이후에 직접 조정할 수도 있습니다.",
+    "describe_unmatched": "매핑할 수 없음: {{items}}",
+    "describe_no_match": "아직 인식된 목소리 특징이 없습니다. deep, elderly, British 같은 단어를 사용해 보세요."
   },
   "about": {
     "app": "앱",
@@ -337,7 +353,17 @@
     "channel_stable": "안정 버전",
     "channel_preview": "미리 보기",
     "channel_set": "업데이트 채널이 {{channel}}(으)로 설정됨",
-    "channel_preview_hint": "미리 보기는 최신 main 빌드를 따릅니다. 새로운 기능을 빨리 사용할 수 있지만 테스트는 적습니다. 안정 버전이 더 최신이면 안정 버전으로 대체됩니다."
+    "channel_preview_hint": "미리 보기는 최신 main 빌드를 따릅니다. 새로운 기능을 빨리 사용할 수 있지만 테스트는 적습니다. 안정 버전이 더 최신이면 안정 버전으로 대체됩니다.",
+    "self_check": "자체 점검 실행",
+    "self_check_failed": "자체 점검 실패: {{message}}",
+    "self_check_ok": "정상",
+    "self_check_warn": "경고",
+    "self_check_fail": "실패",
+    "self_check_healthy": "모든 점검 통과 — 이 설치는 정상으로 보입니다.",
+    "self_check_attention": "{{count}}개 점검 실패 — 위의 힌트를 확인하세요.",
+    "save_bundle": "진단 번들 저장",
+    "bundle_saved": "진단 번들 저장됨: {{filename}}",
+    "bundle_failed": "진단 번들을 만들 수 없습니다: {{message}}"
   },
   "privacy": {
     "desc": "모든 것이 <1>이 머신</1>에서 실행됩니다. 온라인 번역기(Google, DeepL 등)를 명시적으로 사용하거나 HuggingFace에 푸시하지 않는 한 귀하의 오디오, 비디오 및 스크립트는 컴퓨터를 떠나지 않습니다.",
@@ -436,9 +462,12 @@
     "mic_denied": "마이크 액세스가 거부되었습니다.",
     "mic_denied_toast": "마이크 액세스가 거부되었습니다. {{hint}}",
     "mic_hint_mac": "macOS: 시스템 설정 → 개인 정보 보호 및 보안 → 마이크를 열고 OmniVoice를 활성화합니다.",
-    "mic_hint_windows": "Windows: 설정 → 개인 정보 보호 및 보안 → 마이크를 열고 OmniVoice를 허용합니다.",
+    "mic_hint_windows": "Windows: 설정 → 개인 정보 및 보안 → 마이크를 열고 '마이크 액세스'와 '데스크톱 앱이 마이크에 액세스하도록 허용'을 켠 다음 OmniVoice를 허용하세요.",
     "mic_hint_linux": "Linux: 사용자가 오디오 그룹에 있고 WebView에 마이크 액세스 권한이 있는지 확인하세요.",
-    "transcription_failed": "스크립트 작성 실패: {{message}}"
+    "transcription_failed": "스크립트 작성 실패: {{message}}",
+    "mic_not_found": "마이크를 찾을 수 없습니다. 마이크를 연결하거나 활성화한 후 다시 시도하세요.",
+    "mic_in_use": "마이크가 사용 중이거나 사용할 수 없습니다. 마이크를 사용 중일 수 있는 다른 앱을 닫고 다시 시도하세요.",
+    "mic_error_generic": "마이크를 시작할 수 없습니다: {{message}}"
   },
   "logs": {
     "no_tauri_log": "아직 디스크에 Tauri 로그가 없습니다. 데스크탑 빌드를 통해 실행하여 생성하세요.",
@@ -658,7 +687,9 @@
     "dialect_label": "방언",
     "dialect_default": "기본값",
     "dialect_title": "번역에 적용할 지역 방언과 어휘 (예: 아르헨티나 → “tú eres” 대신 “vos sos”). LLM 엔진(OpenAI/Ollama)과 Cinematic 품질에서 적용됩니다.",
-    "dialect_not_applied": "선택한 방언을 적용하려면 LLM이 필요합니다 — 엔진을 OpenAI/Ollama로 바꾸거나 Cinematic 품질을 선택하세요."
+    "num_speakers_label": "화자",
+    "num_speakers_auto": "자동",
+    "num_speakers_help": "이 영상에 화자가 몇 명인가요? 비워 두면 자동 감지합니다. 자동 감지가 여러 화자를 한 명으로 합치는 경우 숫자를 지정하세요."
   },
   "glossary": {
     "title": "용어집",
@@ -960,7 +991,9 @@
     "open": "열기",
     "install_required_models": "계속하려면 위의 필수 모델을 설치하세요.",
     "try_dictation": "받아쓰기를 시도해보세요",
-    "next_try_dictation": "다음: 받아쓰기 사용해 보기"
+    "next_try_dictation": "다음: 받아쓰기 사용해 보기",
+    "step_aria": "{{num}}단계: {{label}}",
+    "step_completed": "완료됨"
   },
   "donate": {
     "title": "지원",
@@ -1127,7 +1160,10 @@
     "title": "이 탭에 문제가 발생했습니다.",
     "desc": "걱정하지 마세요. 앱의 나머지 부분은 여전히 작동합니다. 탭을 전환하거나 아래에서 다시 시도해 보세요.",
     "tryAgain": "다시 시도하세요",
-    "openDocs": "이 오류에 대한 문서 열기"
+    "openDocs": "이 오류에 대한 문서 열기",
+    "report": "이 버그 신고",
+    "searchIssues": "유사한 문제 검색",
+    "unexpected": "예기치 않은 오류: {{message}}"
   },
   "keyboard": {
     "title": "키보드 단축키",
@@ -1455,6 +1491,7 @@
     "segments_clean": "세그먼트가 이미 깨끗함",
     "cleanup_failed": "정리 실패: {{message}}",
     "cinematic_no_llm": "영화 품질에는 LLM이 필요합니다. TRANSLATE_BASE_URL + TRANSLATE_API_KEY를 설정하세요(Ollama는 로컬에서 작동함). Fast로 다시 돌아갑니다.",
+    "dialect_not_applied": "선택한 방언을 적용하려면 LLM이 필요합니다 — 엔진을 OpenAI/Ollama로 바꾸거나 Cinematic 품질을 선택하세요.",
     "translate_errors": "{{errorCount}}/{{totalCount}} 세그먼트 실패: {{firstError}}",
     "translated_segments": "번역된 {{count}} 세그먼트 → {{lang}}",
     "translated_cinematic_suffix": "(영화)",

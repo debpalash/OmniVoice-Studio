@@ -38,6 +38,13 @@ class SystemInfoResponse(BaseModel):
     python: str = ""
     platform: str = ""
     arch: str = ""
+    os_version: str = ""
+    cpu_model: str = ""
+    cpu_count: int = 0
+    ram_total_gb: float = 0.0
+    gpu_name: str = ""
+    vram_total_gb: float = 0.0
+    disk_free_gb: float = 0.0
     error: str | None = None
     ffmpeg_ok: bool = False
     ffmpeg_path: str = ""

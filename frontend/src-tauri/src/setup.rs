@@ -205,9 +205,12 @@ pub fn resolved_models_dir<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Opti
 /// completed (or implicitly owned) an install:
 ///   - `setup_complete` in config       → returning user
 ///   - dev tree with a `.venv`          → contributor running from source
-///   - existing bootstrapped venv       → pre-setup-screen install: migrate
-///     silently (mark complete) instead of re-asking questions whose answers
-///     are already on disk.
+///   - existing bootstrapped venv       → pre-setup-screen install (already
+///     owned; `migrate_existing_install_if_needed` marks it complete).
+///
+/// Pure read — safe from `get_setup_state` and any future informational
+/// caller. The migration write lives in `migrate_existing_install_if_needed`
+/// and only runs on the bootstrap thread.
 pub fn is_first_run<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
     let cfg = config::load_config(app);
     if cfg.setup_complete {
@@ -219,13 +222,24 @@ pub fn is_first_run<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
         }
     }
     let existing_venv = crate::bootstrap::venv_python_path(&env_root(app).join("project").join(".venv"));
+    !existing_venv.is_file()
+}
+
+/// Pre-setup-screen install detected (venv on disk, `setup_complete` still
+/// false): mark it complete instead of re-asking questions whose answers are
+/// already on disk. Called once, explicitly, from the bootstrap thread —
+/// keeping `is_first_run` side-effect-free for read-only IPC callers.
+pub fn migrate_existing_install_if_needed<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    let mut cfg = config::load_config(app);
+    if cfg.setup_complete {
+        return;
+    }
+    let existing_venv = crate::bootstrap::venv_python_path(&env_root(app).join("project").join(".venv"));
     if existing_venv.is_file() {
-        let mut cfg = cfg;
+        log::info!("Existing pre-setup-screen install detected — marking setup complete");
         cfg.setup_complete = true;
         config::save_config(app, &cfg);
-        return false;
     }
-    true
 }
 
 // ── IPC payloads ──────────────────────────────────────────────────────────
@@ -253,7 +267,10 @@ pub struct SetupState {
 pub struct HardwareInfo {
     /// Marketing name when detectable ("NVIDIA GeForce RTX 4070 …").
     pub gpu: Option<String>,
-    /// "cuda" | "rocm" | "mps" | "cpu" — which torch path this maps to.
+    /// "cuda" | "rocm" | "amd" | "mps" | "cpu" — which torch path this maps
+    /// to. "rocm" means an AMD GPU *with verified ROCm userspace* (safe to
+    /// pre-select the ROCm wheels); "amd" means an AMD GPU was found but the
+    /// ROCm runtime wasn't — the UI offers ROCm without pre-selecting it.
     pub kind: String,
     /// Human OS name: distro PRETTY_NAME on Linux ("CachyOS", "Ubuntu 24.04"),
     /// "macOS" / "Windows" elsewhere. The install matrix (OS family × distro
@@ -297,6 +314,19 @@ fn os_pretty_name() -> String {
     }
 }
 
+/// ROCm userspace present? A PCI vendor ID alone doesn't mean the HIP/ROCm
+/// runtime is installed — without it the ROCm torch wheels can't run. Cheap
+/// probes only: the canonical install prefix, or `rocminfo` on PATH.
+#[cfg(target_os = "linux")]
+fn rocm_userspace_present() -> bool {
+    if Path::new("/opt/rocm").is_dir() {
+        return true;
+    }
+    std::env::var_os("PATH").is_some_and(|paths| {
+        std::env::split_paths(&paths).any(|p| p.join("rocminfo").is_file())
+    })
+}
+
 fn detect_hardware() -> HardwareInfo {
     use std::process::Command;
     let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(0);
@@ -316,25 +346,37 @@ fn detect_hardware() -> HardwareInfo {
         ram_gb,
     };
 
-    // NVIDIA: nvidia-smi ships with the driver on Linux + Windows.
-    let mut smi = Command::new("nvidia-smi");
-    smi.args(["--query-gpu=name", "--format=csv,noheader"]);
-    // Windows: a GUI app spawning a console binary flashes a cmd window —
-    // on the very first screen a user ever sees. CREATE_NO_WINDOW stops it.
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        smi.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
-    }
-    if let Ok(out) = smi.output() {
-        if out.status.success() {
-            if let Some(name) = String::from_utf8_lossy(&out.stdout).lines().next() {
-                let name = name.trim();
-                if !name.is_empty() {
-                    return base(Some(name.to_string()), "cuda");
-                }
+    // NVIDIA: nvidia-smi ships with the driver on Linux + Windows. It runs
+    // in a helper thread with a short timeout: this probe sits inside the
+    // IPC the setup screen awaits on mount, and a wedged driver can hang
+    // nvidia-smi indefinitely — degrading to CPU beats hanging first-run.
+    // (On timeout the helper thread is abandoned; it exits with the process.)
+    let nvidia_name = {
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let mut smi = Command::new("nvidia-smi");
+            smi.args(["--query-gpu=name", "--format=csv,noheader"]);
+            // Windows: a GUI app spawning a console binary flashes a cmd
+            // window — on the very first screen a user ever sees.
+            // CREATE_NO_WINDOW stops it.
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                smi.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
             }
+            let _ = tx.send(smi.output());
+        });
+        match rx.recv_timeout(std::time::Duration::from_secs(3)) {
+            Ok(Ok(out)) if out.status.success() => String::from_utf8_lossy(&out.stdout)
+                .lines()
+                .next()
+                .map(|n| n.trim().to_string())
+                .filter(|n| !n.is_empty()),
+            _ => None,
         }
+    };
+    if let Some(name) = nvidia_name {
+        return base(Some(name), "cuda");
     }
 
     // Apple Silicon → MPS.
@@ -343,8 +385,12 @@ fn detect_hardware() -> HardwareInfo {
         return base(Some("Apple Silicon".into()), "mps");
     }
 
-    // AMD on Linux: a DRM card with vendor 0x1002 → ROCm candidate. No
-    // marketing name without lspci, so stay generic.
+    // AMD on Linux: a DRM card with vendor 0x1002. Only report "rocm" (and
+    // let the UI pre-select the ROCm wheels) when the ROCm userspace is
+    // actually installed — vendor ID alone doesn't imply HIP/libamdhip64,
+    // and ROCm torch on a stock distro silently falls back to CPU. Without
+    // the runtime it's "amd": informational, ROCm offered but not chosen.
+    // No marketing name without lspci, so stay generic.
     #[cfg(target_os = "linux")]
     {
         if let Ok(entries) = fs::read_dir("/sys/class/drm") {
@@ -352,7 +398,8 @@ fn detect_hardware() -> HardwareInfo {
                 let vendor = e.path().join("device").join("vendor");
                 if let Ok(v) = fs::read_to_string(&vendor) {
                     if v.trim() == "0x1002" {
-                        return base(Some("AMD GPU".into()), "rocm");
+                        let kind = if rocm_userspace_present() { "rocm" } else { "amd" };
+                        return base(Some("AMD GPU".into()), kind);
                     }
                 }
             }
@@ -434,11 +481,29 @@ fn none_if_default(chosen: &Option<String>, default: &Path) -> Option<String> {
         .map(str::to_string)
 }
 
+/// Loopback-only exception to the HTTPS requirement: a local registry/cache
+/// (devpi, bazel-remote, …) can't MITM itself. Host must be exactly
+/// localhost / 127.0.0.1 / [::1], optionally followed by a port or path —
+/// `http://localhost.evil.com` must NOT match.
+fn is_loopback_http(u: &str) -> bool {
+    ["http://localhost", "http://127.0.0.1", "http://[::1]"].iter().any(|prefix| {
+        u.strip_prefix(prefix)
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with(':') || rest.starts_with('/'))
+    })
+}
+
+/// Mirrors feed `UV_PYTHON_INSTALL_MIRROR` / `UV_INDEX_URL` / `HF_ENDPOINT` —
+/// the supply chain for the Python runtime, every wheel, and model weights.
+/// Plaintext http:// would let anyone on the network swap those payloads, so
+/// HTTPS is required (loopback excepted for local registries).
 fn valid_mirror(url: &Option<String>) -> Result<Option<String>, String> {
     match url.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
         None => Ok(None),
-        Some(u) if u.starts_with("http://") || u.starts_with("https://") => Ok(Some(u.to_string())),
-        Some(u) => Err(format!("Mirror URL must start with http(s):// — got: {u}")),
+        Some(u) if u.starts_with("https://") || is_loopback_http(u) => Ok(Some(u.to_string())),
+        Some(u) if u.starts_with("http://") => Err(format!(
+            "Plaintext http:// mirrors are not allowed (packages could be tampered with in transit) — use https:// — got: {u}"
+        )),
+        Some(u) => Err(format!("Mirror URL must start with https:// — got: {u}")),
     }
 }
 
@@ -620,15 +685,37 @@ pub fn complete_setup(
             fs::create_dir_all(dir).map_err(|e| format!("Could not create {}: {e}", dir.display()))?;
         }
     }
-    config::save_config(&app, &cfg);
+    // The plan must actually persist before bootstrap starts — a swallowed
+    // write error here would bootstrap into a stale layout from disk while
+    // the UI reports success.
+    let cfg_path = config::config_path(&app).ok_or("Could not resolve the config file path")?;
+    config::save_config_at(&cfg_path, &cfg)?;
 
+    // Custom paths are home-relative PII — log default-vs-custom flags, not
+    // the raw locations.
+    let custom = |v: &Option<String>| if v.is_some() { "custom" } else { "default" };
     log::info!(
         "Setup complete (mode={}, env={}, data={}, models={}) — starting bootstrap",
         cfg.install_mode,
-        cfg.env_dir.as_deref().unwrap_or("<default>"),
-        cfg.data_dir.as_deref().unwrap_or("<default>"),
-        cfg.models_dir.as_deref().unwrap_or("<default>"),
+        custom(&cfg.env_dir),
+        custom(&cfg.data_dir),
+        custom(&cfg.models_dir),
     );
+
+    // `--setup` re-entry: a backend from the previous configuration may
+    // still be serving. retry_bootstrap would attach to it and the new
+    // env/mirror/layout settings would never apply — tear it down so the
+    // restart spawns with the just-saved plan. (No-op on a true first run:
+    // nothing is listening yet.)
+    if crate::backend::port_in_use(crate::backend_port()) {
+        log::info!(
+            "Backend still running on port {} — restarting it so the new setup applies",
+            crate::backend_port()
+        );
+        crate::backend::kill_orphan_on_port(crate::backend_port());
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+
     set_stage(&state.stage, BootstrapStage::Checking);
     crate::bootstrap::retry_bootstrap(app, state);
     Ok(())
@@ -724,7 +811,7 @@ mod tests {
     }
 
     #[test]
-    fn mirror_validation_requires_http_scheme() {
+    fn mirror_validation_requires_https_scheme() {
         assert_eq!(valid_mirror(&None).unwrap(), None);
         assert_eq!(valid_mirror(&Some("  ".into())).unwrap(), None);
         assert_eq!(
@@ -733,6 +820,20 @@ mod tests {
         );
         assert!(valid_mirror(&Some("ftp://nope".into())).is_err());
         assert!(valid_mirror(&Some("hf-mirror.com".into())).is_err());
+        // Plaintext http:// is a MITM supply-chain path — rejected.
+        assert!(valid_mirror(&Some("http://mirrors.example.com/pypi".into())).is_err());
+        // …except explicit loopback (local registry/cache).
+        assert_eq!(
+            valid_mirror(&Some("http://localhost:8081/simple".into())).unwrap().as_deref(),
+            Some("http://localhost:8081/simple")
+        );
+        assert_eq!(
+            valid_mirror(&Some("http://127.0.0.1/simple".into())).unwrap().as_deref(),
+            Some("http://127.0.0.1/simple")
+        );
+        // Loopback-lookalike hosts must not slip through.
+        assert!(valid_mirror(&Some("http://localhost.evil.com/simple".into())).is_err());
+        assert!(valid_mirror(&Some("http://127.0.0.1.evil.com".into())).is_err());
     }
 
     #[test]
@@ -747,7 +848,7 @@ mod tests {
     #[test]
     fn detect_hardware_never_panics_and_reports_the_full_matrix() {
         let hw = detect_hardware();
-        assert!(["cuda", "rocm", "mps", "cpu"].contains(&hw.kind.as_str()), "kind: {}", hw.kind);
+        assert!(["cuda", "rocm", "amd", "mps", "cpu"].contains(&hw.kind.as_str()), "kind: {}", hw.kind);
         assert!(hw.ram_gb >= 0.0);
         assert!(!hw.os_name.is_empty(), "os_name must always resolve (distro or OS family)");
         assert!(!hw.arch.is_empty(), "arch must always resolve");

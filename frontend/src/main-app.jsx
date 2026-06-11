@@ -15,8 +15,12 @@ import './index.css';
 import App from './App.jsx';
 import RemoteAuthGate from './components/RemoteAuthGate';
 import { installConsoleCapture } from './utils/consoleBuffer.js';
+import { installGlobalErrorHandlers } from './utils/globalErrorHandlers.js';
 
 installConsoleCapture();
+// After console capture so the underlying console.error of each uncaught
+// failure is already in the ring buffer when the toast appears.
+installGlobalErrorHandlers();
 
 const queryClient = new QueryClient({
   defaultOptions: {

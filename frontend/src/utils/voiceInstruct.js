@@ -1,4 +1,6 @@
-import { CATEGORIES } from './constants';
+// Explicit .js extension so this module also loads under plain node ESM
+// (tests/frontend/describeVoice.test.mjs runs via `node --test`).
+import { CATEGORIES } from './constants.js';
 
 // Lowercased tag -> its category name. The engine validator
 // (omnivoice/models/omnivoice.py::_resolve_instruct) accepts ONLY these
@@ -62,4 +64,26 @@ export function buildDesignInstruct(vdStates = {}, freeText = '') {
   }
 
   return { instruct: Object.values(byCategory).join(', '), unsupported, duplicates };
+}
+
+/**
+ * Project the backend's "describe your voice" result (#317) onto a fresh
+ * vdStates object. The description drives the *whole* parameter set — matched
+ * categories get their token, everything else resets to 'Auto' — so retyping
+ * a description never leaves stale tokens from the previous one behind. The
+ * user can still hand-tune any control afterwards.
+ *
+ * Tokens are validated against CATEGORIES so a drifted/older backend can
+ * never inject a value the picker (and the instruct whitelist) doesn't know.
+ *
+ * @param {Record<string, string>} attrs  backend response `attrs`
+ * @returns {Record<string, string>} complete vdStates (every category present)
+ */
+export function mergeDescribedAttrs(attrs = {}) {
+  const out = {};
+  for (const [cat, options] of Object.entries(CATEGORIES)) {
+    const v = attrs?.[cat];
+    out[cat] = v && v !== 'Auto' && options.includes(v) ? v : 'Auto';
+  }
+  return out;
 }
