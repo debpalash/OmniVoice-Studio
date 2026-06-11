@@ -161,6 +161,80 @@ def set_dictation_refinement(body: _RefinementBody):
     return _refinement_state()
 
 
+# ── LLM endpoint (parity program Wave 2.4 / §R2 rung 4) ───────────────────
+# Focused configuration for the OpenAI-compatible LLM endpoint that powers
+# cinematic translate, glossary auto-extract, and dictation refinement.
+# Persistence rides the existing TRANSLATE_BASE_URL / TRANSLATE_API_KEY /
+# TRANSLATE_MODEL env vars (already in system.py PERSISTENT_KEYS, restored
+# at startup) so the resolution path in llm_backend/translator is unchanged.
+
+
+class _LLMEndpointBody(BaseModel):
+    base_url: str | None = None
+    model: str | None = None
+    api_key: str | None = None  # None = leave unchanged; "" = clear
+
+
+def _mask(secret: str | None) -> str | None:
+    if not secret:
+        return None
+    return f"…{secret[-4:]}" if len(secret) > 4 else "set"
+
+
+def _llm_endpoint_state():
+    from services.llm_backend import OpenAICompatBackend
+
+    ok, reason = OpenAICompatBackend.is_available()
+    return {
+        "base_url": os.environ.get("TRANSLATE_BASE_URL", ""),
+        "model": os.environ.get("TRANSLATE_MODEL", ""),
+        "api_key_masked": _mask(
+            os.environ.get("TRANSLATE_API_KEY") or os.environ.get("OPENAI_API_KEY")
+        ),
+        "available": ok,
+        "reason": None if ok else reason,
+    }
+
+
+@router.get("/llm-endpoint")
+def get_llm_endpoint():
+    """Current OpenAI-compatible LLM endpoint config + live availability."""
+    return _llm_endpoint_state()
+
+
+@router.put("/llm-endpoint")
+def set_llm_endpoint(body: _LLMEndpointBody):
+    """Persist base URL / model / API key for the OpenAI-compatible endpoint.
+
+    Reuses the env-var persistence path (prefs.json, restored at startup):
+    base_url -> TRANSLATE_BASE_URL, model -> TRANSLATE_MODEL,
+    api_key -> TRANSLATE_API_KEY. A None field is left unchanged; an empty
+    string clears it. Ollama ignores the key; vLLM / LM Studio require it.
+    """
+    from core.prefs import set_ as prefs_set, delete as prefs_delete
+
+    mapping = {
+        "TRANSLATE_BASE_URL": body.base_url,
+        "TRANSLATE_MODEL": body.model,
+        "TRANSLATE_API_KEY": body.api_key,
+    }
+    for env_key, val in mapping.items():
+        if val is None:
+            continue  # untouched
+        val = val.strip()
+        if val:
+            os.environ[env_key] = val
+            prefs_set(f"env.{env_key}", val)
+        else:
+            os.environ.pop(env_key, None)
+            prefs_delete(f"env.{env_key}")
+    # get_active_llm_backend() builds a fresh backend (and its OpenAI client
+    # reads env at construction) on every call, so there's no singleton to
+    # invalidate — the next translate/refine picks up the new values.
+    return _llm_endpoint_state()
+>>>>>>> 323f0d3 (feat(settings): remote LLM endpoint UI — Ollama/vLLM/LM Studio (Wave 2.4))
+
+
 # ── License acceptance (Phase 3 Plan 03-01 / TTS-05) ──────────────────────
 # Frontend ``SupertonicLicenseDialog`` flips the engine-license bit via this
 # endpoint. The handler is loopback-gated (router-level dep) and the

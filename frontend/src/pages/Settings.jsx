@@ -31,6 +31,7 @@ import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
 import { Tabs, Segmented, Button, Badge, Table, Progress, Select } from '../ui';
 import { useAppStore } from '../store';
 import ApiKeysPanel from '../components/settings/ApiKeysPanel';
+import LLMEndpointPanel from '../components/settings/LLMEndpointPanel';
 import PerformancePanel from '../components/settings/PerformancePanel';
 import RefinementPanel from '../components/settings/RefinementPanel';
 import AppearancePanel from '../components/settings/AppearancePanel';
@@ -1800,6 +1801,9 @@ function CredentialsTab({ info }) {
       {/* Wave 2 AUTH-03 panel — 3-source cascade with Active badge,
           encrypted-at-rest App-source storage, and live whoami status. */}
       <ApiKeysPanel />
+
+      {/* Wave 2.4 — OpenAI-compatible LLM endpoint (Ollama/LM Studio/vLLM). */}
+      <LLMEndpointPanel />
 
       <p className="settings-prose">
         <Trans i18nKey="credentials.desc" components={{ 1: <strong /> }} />
