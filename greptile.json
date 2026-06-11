@@ -1,0 +1,14 @@
+{
+  "$comment": "Greptile per-repo config — https://www.greptile.com/docs/code-review-bot/greptile-json. The Greptile GitHub App is installed; this file tunes its reviews. Dashboard settings are the org-wide fallback.",
+  "instructions": "OmniVoice is a fully-local desktop app (no cloud, no API keys, no telemetry) — flag any new outbound network call that is not GitHub Issues or a HuggingFace model download. Default features must behave identically on macOS, Windows and Linux; a divergent user-visible default is a P0. In every review summary, make the change visual: if the PR touches UI (JSX/TSX/CSS or Tauri window config), include a compact ASCII before/after mockup of the affected layout or component; if it changes behavior or data flow, include a sequence/flow diagram of the new mechanism. Keep diagrams small and strictly faithful to the diff.",
+  "sequenceDiagramSection": {
+    "included": true,
+    "collapsible": true,
+    "defaultOpen": true
+  },
+  "summarySection": {
+    "included": true,
+    "collapsible": true,
+    "defaultOpen": true
+  }
+}

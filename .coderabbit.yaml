@@ -13,6 +13,14 @@ reviews:
   profile: chill
   request_changes_workflow: false
   high_level_summary: true
+  # Every walkthrough gets a visual: mermaid sequence diagrams for the
+  # mechanics, plus (via the summary instructions) an ASCII before/after
+  # sketch when the PR touches UI — so each PR is reviewable at a glance.
+  sequence_diagrams: true
+  high_level_summary_instructions: >-
+    If the PR changes UI (JSX/TSX/CSS/Tauri windows), include a compact ASCII
+    before/after sketch of the affected layout or component. If it changes
+    behavior, include a short mermaid flowchart of the new mechanism.
   review_status: true
   poem: false
 
