@@ -39,6 +39,10 @@ import os
 import shutil
 from dataclasses import dataclass
 
+# Module access (not ``from core.config import DUB_DIR``) so the containment
+# guards below read the live value — tests reload core.config with a
+# sandboxed data dir.
+from core import config as _config
 from services.ffmpeg_utils import probe_duration, probe_frame_rates, run_ffmpeg
 
 logger = logging.getLogger("omnivoice.api")
@@ -253,6 +257,15 @@ async def render_retimed_video(
 
     Raises :class:`RetimeError` on any failure (stage encode/concat/aborted).
     """
+    # ``out_path`` is server-built (under DUB_DIR) by every caller, but
+    # realpath-normalise + containment-check inline at the sink anyway so
+    # slices_dir / slice_path / list_path all derive from the validated
+    # value (CodeQL does not track guards through helper return values).
+    _base = os.path.realpath(_config.DUB_DIR)
+    out_path = os.path.realpath(out_path)
+    if out_path != _base and not out_path.startswith(_base + os.sep):
+        raise RetimeError("retime output path escapes the dub workspace",
+                          stage="plan")
     batches = partition_batches(chunks, batch_size)
     if not batches:
         raise RetimeError("empty retime plan", stage="plan")
@@ -360,6 +373,16 @@ async def prepare_smart_fit_video(
     Raises :class:`RetimeError` when rendering fails — the caller owns the
     fallback ladder (un-retimed export + structured warning).
     """
+    # ``work_path`` is server-built (under DUB_DIR) by every caller, but
+    # realpath-normalise + containment-check inline anyway so the batched
+    # render and the returned ``RetimeDecision.file_path`` derive from the
+    # validated value (CodeQL does not track guards through helpers).
+    _base = os.path.realpath(_config.DUB_DIR)
+    work_path = os.path.realpath(work_path)
+    if work_path != _base and not work_path.startswith(_base + os.sep):
+        raise RetimeError("retime work path escapes the dub workspace",
+                          stage="plan")
+
     chunks = expand_retime_chunks(plan, orig_dur)
     if not chunks or not any(r > 1.0 + 1e-6 for _a, _b, r in chunks):
         return None

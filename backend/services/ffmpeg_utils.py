@@ -351,6 +351,11 @@ async def run_ffmpeg(cmd, timeout: float = 1800.0, capture: bool = True,
     process tracker so ``/dub/abort`` can kill long export encodes (used by
     the Smart Fit batched retime). Lazy import avoids a module cycle —
     dub_pipeline imports this module at top level.
+
+    Path-injection note: every filesystem path placed in ``cmd`` by callers
+    is realpath-normalised and containment-checked against its workspace
+    root (e.g. DUB_DIR) at the call site before the argv is assembled —
+    see api.routers.dub_export and services.video_retime.
     """
     stdout = asyncio.subprocess.PIPE if capture else asyncio.subprocess.DEVNULL
     stderr = asyncio.subprocess.PIPE

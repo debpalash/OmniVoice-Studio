@@ -501,6 +501,15 @@ async def dub_download(
         # A fresh export is a fresh user intent — clear any sticky abort flag
         # from a previous /dub/abort so it can't kill this run's first batch.
         job.pop("aborted", None)
+        # realpath-normalised + containment-checked inline at the sink (the
+        # file's established pattern — CodeQL does not track the guard
+        # through a helper's return value).
+        _base = os.path.realpath(DUB_DIR)
+        retime_work_path = os.path.realpath(
+            os.path.join(exports_dir, f"retimed_{stamp}.mp4")
+        )
+        if retime_work_path != _base and not retime_work_path.startswith(_base + os.sep):
+            raise HTTPException(status_code=400, detail="Invalid export path")
         try:
             retime_decision = await prepare_smart_fit_video(
                 job_id=job_id,
@@ -509,7 +518,7 @@ async def dub_download(
                 plan=retime_entry["plan"],
                 orig_dur=smart_orig_dur,
                 track_dur=smart_track_dur,
-                work_path=os.path.join(exports_dir, f"retimed_{stamp}.mp4"),
+                work_path=retime_work_path,
                 abort_check=lambda: bool(job.get("aborted")),
             )
         except Exception as e:
@@ -848,6 +857,14 @@ async def dub_preview_video(
                 retime_entry.get("total_duration") or track_info.get("duration") or 0.0
             )
             job.pop("aborted", None)  # fresh user intent — clear sticky abort
+            # realpath-normalised + containment-checked inline at the sink
+            # (same pattern as preview_path above — _base is the realpath
+            # of DUB_DIR from the top of this endpoint).
+            retime_work_path = os.path.realpath(os.path.join(
+                exports_dir, f"preview_retimed_{lang}_{bg_suffix}.tmp.mp4",
+            ))
+            if retime_work_path != _base and not retime_work_path.startswith(_base + os.sep):
+                raise HTTPException(status_code=400, detail="Invalid export path")
             try:
                 retime_decision = await prepare_smart_fit_video(
                     job_id=job_id,
@@ -856,9 +873,7 @@ async def dub_preview_video(
                     plan=retime_entry["plan"],
                     orig_dur=smart_orig_dur,
                     track_dur=smart_track_dur,
-                    work_path=os.path.join(
-                        exports_dir, f"preview_retimed_{lang}_{bg_suffix}.tmp.mp4",
-                    ),
+                    work_path=retime_work_path,
                     abort_check=lambda: bool(job.get("aborted")),
                 )
             except Exception as e:

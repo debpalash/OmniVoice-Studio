@@ -418,6 +418,13 @@ def test_video(tmp_path_factory):
 
 @needs_ffmpeg
 class TestRetimeExecutorIntegration:
+    @pytest.fixture(autouse=True)
+    def _sandbox_dub_dir(self, tmp_path, monkeypatch):
+        """The retime entry points containment-check work/out paths against
+        DUB_DIR (path-injection hardening) — point it at the test sandbox."""
+        import core.config as _cfg
+        monkeypatch.setattr(_cfg, "DUB_DIR", str(tmp_path))
+
     def test_single_pass_decision_renders_to_expected_duration(self, test_video, tmp_path):
         decision = asyncio.run(prepare_smart_fit_video(
             job_id=None, ffmpeg=_FFMPEG, video_path=str(test_video),
