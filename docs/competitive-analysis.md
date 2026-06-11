@@ -125,3 +125,38 @@ their docs — **do not open pyvideotrans source files while writing ours**.
   mode, don't adopt.
 - **Patter's telephony stack** — different product. Only the audio/streaming/ops
   pieces above are relevant.
+
+---
+
+## Appendix: engine evaluation — ResembleAI Chatterbox (2026-06-11)
+
+**Verdict: integrate later — not now.** Full facts verified against the HF cards,
+GitHub pyproject, and PyPI (0.1.7, 2026-03-26).
+
+- **License: clean.** MIT on code *and* all three weight variants (original 0.5B EN,
+  Multilingual 23-lang, Turbo 350M) — compatible with our AGPL + commercial
+  dual-license. The "Resemble uses special weight terms" worry did not materialize.
+- **What it would add:** Turbo's inline paralinguistic tags (`[laugh]`, `[cough]`,
+  `[chuckle]`) and the single-knob `exaggeration` expressiveness control — genuinely
+  unique in our roster. Fast English cloning (cloning + speed is a gap; KittenTTS is
+  fast but can't clone). The 23-lang multilingual cloning is **not** differentiating
+  for us (OmniVoice 646, VoxCPM2 30 @ 48 kHz).
+- **Why not now:**
+  1. `chatterbox-tts` hard-pins `torch==2.6.0` + `transformers==5.2.0`; we constrain
+     `torch==2.8.0` and require `transformers>=5.3.0` — **unresolvable in the parent
+     venv**, forcing a dedicated-venv sidecar (IndexTTS2 pattern, ~800–1000 LOC) that
+     downloads a *second multi-GB torch*. The disk/download cost is the price, not
+     the code.
+  2. `resemble-perth` (its built-in PerTh watermarker) is a **git-URL dependency** —
+     unmirrorable on restricted networks, against our bootstrap story. Also untested
+     interaction: PerTh + our AudioSeal = double watermarking.
+  3. MPS is buggy upstream (float64 conversion crash on Turbo; placeholder-storage
+     errors); honest Apple-Silicon support means carrying community patches. Mac-ARM
+     users already get Chatterbox today via our MLX-Audio curated list
+     (`mlx-community/Chatterbox-TTS-4bit`).
+- **Cheapest path / re-eval triggers:** ResembleAI publishes official
+  [chatterbox-turbo-ONNX](https://huggingface.co/ResembleAI/chatterbox-turbo-ONNX)
+  exports. If a 1-day spike proves it runs on plain `onnxruntime`, Turbo slots into
+  the lightweight supertonic3-style sidecar (~700 LOC, **no second torch**) and we
+  get the paralinguistic tags cheaply. Also re-evaluate if upstream relaxes the
+  torch/transformers pins or publishes `resemble-perth` to PyPI.
