@@ -436,8 +436,11 @@
     "mic_denied": "Acesso ao microfone negado",
     "mic_denied_toast": "Acesso ao microfone negado. {{hint}}",
     "mic_hint_mac": "macOS: abra Configurações do sistema → Privacidade e segurança → Microfone e ative OmniVoice.",
-    "mic_hint_windows": "Windows: abra Configurações → Privacidade e segurança → Microfone e permita OmniVoice.",
+    "mic_hint_windows": "Windows: abra Configurações → Privacidade e segurança → Microfone, ative 'Acesso ao microfone' e 'Permitir que aplicativos da área de trabalho acessem seu microfone' e permita o OmniVoice.",
     "mic_hint_linux": "Linux: verifique se seu usuário está no grupo de áudio e se o WebView tem acesso ao microfone.",
+    "mic_not_found": "Nenhum microfone encontrado. Conecte ou ative um microfone e tente novamente.",
+    "mic_in_use": "O microfone está ocupado ou indisponível. Feche outros aplicativos que possam estar usando-o e tente novamente.",
+    "mic_error_generic": "Não foi possível iniciar o microfone: {{message}}",
     "transcription_failed": "Falha na transcrição: {{message}}"
   },
   "logs": {

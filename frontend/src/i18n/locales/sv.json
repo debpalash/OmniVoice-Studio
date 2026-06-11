@@ -436,8 +436,11 @@
     "mic_denied": "Mikrofonåtkomst nekad",
     "mic_denied_toast": "Mikrofonåtkomst nekad. {{hint}}",
     "mic_hint_mac": "macOS: öppna Systeminställningar → Sekretess och säkerhet → Mikrofon och aktivera OmniVoice.",
-    "mic_hint_windows": "Windows: öppna Inställningar → Sekretess och säkerhet → Mikrofon och tillåt OmniVoice.",
+    "mic_hint_windows": "Windows: öppna Inställningar → Sekretess och säkerhet → Mikrofon, aktivera 'Mikrofonåtkomst' och 'Låt skrivbordsappar komma åt din mikrofon' och tillåt sedan OmniVoice.",
     "mic_hint_linux": "Linux: kontrollera att din användare är i ljudgruppen och att WebView har mikrofonåtkomst.",
+    "mic_not_found": "Ingen mikrofon hittades. Anslut eller aktivera en mikrofon och försök igen.",
+    "mic_in_use": "Mikrofonen är upptagen eller otillgänglig. Stäng andra appar som kan använda den och försök igen.",
+    "mic_error_generic": "Kunde inte starta mikrofonen: {{message}}",
     "transcription_failed": "Transkription misslyckades: {{message}}"
   },
   "logs": {

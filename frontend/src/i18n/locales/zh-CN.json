@@ -406,8 +406,11 @@
     "mic_denied": "麦克风访问被拒绝",
     "mic_denied_toast": "麦克风访问被拒绝。 {{hint}}",
     "mic_hint_mac": "macOS：打开系统设置 → 隐私和安全 → 麦克风并启用 OmniVoice。",
-    "mic_hint_windows": "Windows：打开设置 → 隐私和安全 → 麦克风并允许 OmniVoice。",
+    "mic_hint_windows": "Windows：打开 设置 → 隐私和安全性 → 麦克风，开启“麦克风访问”和“允许桌面应用访问你的麦克风”，然后允许 OmniVoice。",
     "mic_hint_linux": "Linux：检查您的用户是否在音频组中并且 WebView 是否具有麦克风访问权限。",
+    "mic_not_found": "未找到麦克风。请连接或启用麦克风后重试。",
+    "mic_in_use": "麦克风被占用或不可用。请关闭可能正在使用它的其他应用后重试。",
+    "mic_error_generic": "无法启动麦克风：{{message}}",
     "transcription_failed": "转录失败：{{message}}"
   },
   "logs": {

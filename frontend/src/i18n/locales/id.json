@@ -436,8 +436,11 @@
     "mic_denied": "Akses mikrofon ditolak",
     "mic_denied_toast": "Akses mikrofon ditolak. {{hint}}",
     "mic_hint_mac": "macOS: buka Pengaturan Sistem → Privasi & Keamanan → Mikrofon dan aktifkan OmniVoice.",
-    "mic_hint_windows": "Windows: buka Pengaturan → Privasi & keamanan → Mikrofon dan izinkan OmniVoice.",
+    "mic_hint_windows": "Windows: buka Pengaturan → Privasi & keamanan → Mikrofon, aktifkan 'Akses mikrofon' dan 'Izinkan aplikasi desktop mengakses mikrofon Anda', lalu izinkan OmniVoice.",
     "mic_hint_linux": "Linux: periksa apakah pengguna Anda ada di grup audio dan WebView memiliki akses mikrofon.",
+    "mic_not_found": "Mikrofon tidak ditemukan. Hubungkan atau aktifkan mikrofon, lalu coba lagi.",
+    "mic_in_use": "Mikrofon sedang sibuk atau tidak tersedia. Tutup aplikasi lain yang mungkin menggunakannya, lalu coba lagi.",
+    "mic_error_generic": "Tidak dapat memulai mikrofon: {{message}}",
     "transcription_failed": "Transkripsi gagal: {{message}}"
   },
   "logs": {

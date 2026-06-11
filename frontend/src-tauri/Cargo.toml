@@ -58,6 +58,11 @@ arboard = "3"
 
 [target.'cfg(windows)'.dependencies]
 zip = { version = "2", default-features = false, features = ["deflate"] }
+# WebView2 PermissionRequested handler: auto-grant media-capture for the
+# app's own origin so getUserMedia() works in the dictation widget (#323).
+# Versions match what wry already locks — no new native code is pulled in.
+webview2-com = "0.38"
+windows-core = "0.61"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

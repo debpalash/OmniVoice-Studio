@@ -436,8 +436,11 @@
     "mic_denied": "麥克風存取被拒絕",
     "mic_denied_toast": "麥克風存取被拒絕。 {{hint}}",
     "mic_hint_mac": "macOS：開啟系統設定 → 隱私和安全 → 麥克風並啟用 OmniVoice。",
-    "mic_hint_windows": "Windows：開啟設定 → 隱私和安全性 → 麥克風並允許 OmniVoice。",
+    "mic_hint_windows": "Windows：開啟 設定 → 隱私權與安全性 → 麥克風，開啟「麥克風存取權」和「允許桌面應用程式存取您的麥克風」，然後允許 OmniVoice。",
     "mic_hint_linux": "Linux：檢查您的使用者是否在音訊群組中且 WebView 是否具有麥克風存取權限。",
+    "mic_not_found": "找不到麥克風。請連接或啟用麥克風後再試一次。",
+    "mic_in_use": "麥克風使用中或無法使用。請關閉可能正在使用它的其他應用程式後再試一次。",
+    "mic_error_generic": "無法啟動麥克風：{{message}}",
     "transcription_failed": "轉錄失敗：{{message}}"
   },
   "logs": {

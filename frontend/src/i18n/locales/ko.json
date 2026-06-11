@@ -436,8 +436,11 @@
     "mic_denied": "마이크 액세스가 거부되었습니다.",
     "mic_denied_toast": "마이크 액세스가 거부되었습니다. {{hint}}",
     "mic_hint_mac": "macOS: 시스템 설정 → 개인 정보 보호 및 보안 → 마이크를 열고 OmniVoice를 활성화합니다.",
-    "mic_hint_windows": "Windows: 설정 → 개인 정보 보호 및 보안 → 마이크를 열고 OmniVoice를 허용합니다.",
+    "mic_hint_windows": "Windows: 설정 → 개인 정보 및 보안 → 마이크를 열고 '마이크 액세스'와 '데스크톱 앱이 마이크에 액세스하도록 허용'을 켠 다음 OmniVoice를 허용하세요.",
     "mic_hint_linux": "Linux: 사용자가 오디오 그룹에 있고 WebView에 마이크 액세스 권한이 있는지 확인하세요.",
+    "mic_not_found": "마이크를 찾을 수 없습니다. 마이크를 연결하거나 활성화한 후 다시 시도하세요.",
+    "mic_in_use": "마이크가 사용 중이거나 사용할 수 없습니다. 마이크를 사용 중일 수 있는 다른 앱을 닫고 다시 시도하세요.",
+    "mic_error_generic": "마이크를 시작할 수 없습니다: {{message}}",
     "transcription_failed": "스크립트 작성 실패: {{message}}"
   },
   "logs": {

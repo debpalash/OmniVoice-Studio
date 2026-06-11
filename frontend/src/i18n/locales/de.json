@@ -437,8 +437,11 @@
     "mic_denied": "Mikrofonzugriff verweigert",
     "mic_denied_toast": "Mikrofonzugriff verweigert. {{hint}}",
     "mic_hint_mac": "macOS: Öffnen Sie Systemeinstellungen → Datenschutz und Sicherheit → Mikrofon und aktivieren Sie OmniVoice.",
-    "mic_hint_windows": "Windows: Öffnen Sie Einstellungen → Datenschutz und Sicherheit → Mikrofon und erlauben Sie OmniVoice.",
+    "mic_hint_windows": "Windows: Öffnen Sie Einstellungen → Datenschutz und Sicherheit → Mikrofon, aktivieren Sie 'Mikrofonzugriff' und 'Desktop-Apps den Zugriff auf Ihr Mikrofon erlauben' und erlauben Sie OmniVoice.",
     "mic_hint_linux": "Linux: Überprüfen Sie, ob sich Ihr Benutzer in der Audiogruppe befindet und WebView Zugriff auf das Mikrofon hat.",
+    "mic_not_found": "Kein Mikrofon gefunden. Schließen Sie ein Mikrofon an oder aktivieren Sie eines und versuchen Sie es erneut.",
+    "mic_in_use": "Das Mikrofon ist belegt oder nicht verfügbar. Schließen Sie andere Apps, die es möglicherweise verwenden, und versuchen Sie es erneut.",
+    "mic_error_generic": "Mikrofon konnte nicht gestartet werden: {{message}}",
     "transcription_failed": "Transkription fehlgeschlagen: {{message}}"
   },
   "logs": {

@@ -8,6 +8,7 @@ import './CaptureWidget.css';
 
 import { API as API_BASE } from '../api/client';
 import { addTranscription } from '../pages/Transcriptions';
+import { micErrorMessage } from '../utils/micError';
 
 // Flip the system tray icon between default and red-dot. No-op when not
 // running inside the Tauri shell (e.g. browser webui, Docker).
@@ -256,19 +257,14 @@ export default function CaptureWidget({ onDismiss }) {
       setTranscript('');
       setPartialText('');
       setDuration(0);
-    } catch {
-      const isMac = navigator.platform?.includes('Mac');
-      const isWindows = navigator.platform?.includes('Win');
-      const hint = isMac
-        ? t('capture.mic_hint_mac')
-        : isWindows
-        ? t('capture.mic_hint_windows')
-        : t('capture.mic_hint_linux');
-      toast.error(t('capture.mic_denied_toast', { hint }), { duration: 6000 });
+    } catch (err) {
+      // Distinguish "permission denied" (→ per-OS settings hint) from
+      // "no device" / "device busy" / anything else (#323).
+      toast.error(micErrorMessage(t, err), { duration: 6000 });
       setTrayRecording(false);
       setState('error');
     }
-  }, [applyResult]);
+  }, [applyResult, t]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {

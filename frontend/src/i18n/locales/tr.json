@@ -436,8 +436,11 @@
     "mic_denied": "Mikrofon erişimi reddedildi",
     "mic_denied_toast": "Mikrofon erişimi reddedildi. {{hint}}",
     "mic_hint_mac": "macOS: Sistem Ayarları → Gizlilik ve Güvenlik → Mikrofon'u açın ve OmniVoice'u etkinleştirin.",
-    "mic_hint_windows": "Windows: Ayarlar → Gizlilik ve güvenlik → Mikrofon'u açın ve OmniVoice'a izin verin.",
+    "mic_hint_windows": "Windows: Ayarlar → Gizlilik ve güvenlik → Mikrofon'u açın, 'Mikrofon erişimi' ve 'Masaüstü uygulamalarının mikrofonunuza erişmesine izin ver' seçeneklerini etkinleştirin, ardından OmniVoice'a izin verin.",
     "mic_hint_linux": "Linux: Kullanıcınızın ses grubunda olduğundan ve Web Görünümünün mikrofon erişimine sahip olduğundan emin olun.",
+    "mic_not_found": "Mikrofon bulunamadı. Bir mikrofon bağlayın veya etkinleştirin ve tekrar deneyin.",
+    "mic_in_use": "Mikrofon meşgul veya kullanılamıyor. Mikrofonu kullanıyor olabilecek diğer uygulamaları kapatın ve tekrar deneyin.",
+    "mic_error_generic": "Mikrofon başlatılamadı: {{message}}",
     "transcription_failed": "Transkripsiyon başarısız oldu: {{message}}"
   },
   "logs": {

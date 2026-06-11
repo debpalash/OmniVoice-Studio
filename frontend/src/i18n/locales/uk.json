@@ -436,8 +436,11 @@
     "mic_denied": "Доступ до мікрофона заборонено",
     "mic_denied_toast": "Доступ до мікрофона заборонено. {{hint}}",
     "mic_hint_mac": "macOS: open System Settings → Privacy & Security → Microphone and enable OmniVoice.",
-    "mic_hint_windows": "Windows: open Settings → Privacy & security → Microphone and allow OmniVoice.",
+    "mic_hint_windows": "Windows: відкрийте Параметри → Конфіденційність і безпека → Мікрофон, увімкніть «Доступ до мікрофона» та «Дозволити класичним програмам доступ до мікрофона», потім дозвольте OmniVoice.",
     "mic_hint_linux": "Linux: check that your user is in the audio group and the WebView has mic access.",
+    "mic_not_found": "Мікрофон не знайдено. Підключіть або ввімкніть мікрофон і спробуйте ще раз.",
+    "mic_in_use": "Мікрофон зайнятий або недоступний. Закрийте інші програми, які можуть його використовувати, і спробуйте ще раз.",
+    "mic_error_generic": "Не вдалося запустити мікрофон: {{message}}",
     "transcription_failed": "Помилка транскрипції: {{message}}"
   },
   "logs": {

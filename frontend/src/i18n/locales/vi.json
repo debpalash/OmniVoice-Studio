@@ -436,8 +436,11 @@
     "mic_denied": "Quyền truy cập micrô bị từ chối",
     "mic_denied_toast": "Quyền truy cập micrô bị từ chối. {{hint}}",
     "mic_hint_mac": "macOS: mở Cài đặt hệ thống → Quyền riêng tư & bảo mật → Micrô và bật OmniVoice.",
-    "mic_hint_windows": "Windows: mở Cài đặt → Quyền riêng tư & bảo mật → Micrô và bật OmniVoice.",
+    "mic_hint_windows": "Windows: mở Cài đặt → Quyền riêng tư & bảo mật → Micrô, bật 'Quyền truy cập micrô' và 'Cho phép ứng dụng máy tính truy cập micrô của bạn', sau đó cho phép OmniVoice.",
     "mic_hint_linux": "Linux: kiểm tra xem người dùng của bạn có thuộc nhóm âm thanh hay không và WebView có quyền truy cập micrô.",
+    "mic_not_found": "Không tìm thấy micrô. Hãy kết nối hoặc bật micrô rồi thử lại.",
+    "mic_in_use": "Micrô đang bận hoặc không khả dụng. Hãy đóng các ứng dụng khác có thể đang sử dụng micrô rồi thử lại.",
+    "mic_error_generic": "Không thể khởi động micrô: {{message}}",
     "transcription_failed": "Phiên âm không thành công: {{message}}"
   },
   "logs": {

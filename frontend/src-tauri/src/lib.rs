@@ -57,6 +57,149 @@ pub struct DictationShortcutState {
 pub const TRAY_ICON_DEFAULT: &[u8] = include_bytes!("../icons/32x32.png");
 pub const TRAY_ICON_RECORDING: &[u8] = include_bytes!("../icons/tray-recording.png");
 
+// ── WebView media-capture permissions ─────────────────────────────────────
+//
+// `getUserMedia()` needs the WebView-engine permission answered, separately
+// from the OS-level microphone permission:
+//
+// - Windows (WebView2): with no `PermissionRequested` handler registered,
+//   WebView2 falls back to its own permission UI. The dictation pill is a
+//   300×64 transparent, undecorated, always-on-top window that can't host
+//   that UI (and is deliberately unfocused so the auto-paste lands in the
+//   target app) — the request dies and getUserMedia() rejects with
+//   NotAllowedError even though Windows already lets the app record (#323:
+//   backend transcribes fine, the pill still says access denied). We answer
+//   media-capture requests in code, for the app's own origin only. The OS
+//   privacy toggle (Settings → Privacy & security → Microphone) still
+//   applies on top.
+// - Linux (WebKitGTK): media-stream must be enabled per-WebView and the
+//   permission request answered programmatically.
+// - macOS (WKWebView): nothing to do here — wry grants media-capture to the
+//   app origin and the user-visible consent is the system TCC prompt driven
+//   by NSMicrophoneUsageDescription in src-tauri/Info.plist.
+
+/// True for origins the app itself serves: the Tauri custom-protocol origin
+/// in production and the Vite dev server / loopback in `tauri dev`.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn is_app_origin(uri: &str) -> bool {
+    let rest = match uri
+        .strip_prefix("https://")
+        .or_else(|| uri.strip_prefix("http://"))
+    {
+        Some(rest) => rest,
+        None => return false,
+    };
+    let host = rest
+        .split(['/', '?', '#'])
+        .next()
+        .unwrap_or("")
+        .split(':')
+        .next()
+        .unwrap_or("");
+    host == "tauri.localhost" || host == "localhost" || host == "127.0.0.1"
+}
+
+#[allow(unused_variables)]
+fn grant_webview_media_permissions(win: &tauri::WebviewWindow) {
+    #[cfg(target_os = "linux")]
+    {
+        let label = win.label().to_string();
+        let _ = win.with_webview(move |webview| {
+            use webkit2gtk::{PermissionRequestExt, SettingsExt, WebViewExt};
+            let wk = webview.inner();
+            if let Some(settings) = WebViewExt::settings(&wk) {
+                settings.set_enable_media_stream(true);
+                settings.set_enable_mediasource(true);
+                settings.set_media_playback_requires_user_gesture(false);
+                log::info!("WebKitGTK: media-stream enabled on '{label}'");
+            }
+            wk.connect_permission_request(|_, request| {
+                request.allow();
+                true
+            });
+        });
+    }
+
+    #[cfg(windows)]
+    {
+        let label = win.label().to_string();
+        let _ = win.with_webview(move |webview| {
+            use webview2_com::Microsoft::Web::WebView2::Win32::{
+                ICoreWebView2, ICoreWebView2PermissionRequestedEventArgs,
+                COREWEBVIEW2_PERMISSION_KIND_CAMERA, COREWEBVIEW2_PERMISSION_KIND_MICROPHONE,
+                COREWEBVIEW2_PERMISSION_KIND_UNKNOWN_PERMISSION,
+                COREWEBVIEW2_PERMISSION_STATE_ALLOW,
+            };
+            use webview2_com::{take_pwstr, PermissionRequestedEventHandler};
+
+            let core = match unsafe { webview.controller().CoreWebView2() } {
+                Ok(core) => core,
+                Err(e) => {
+                    log::warn!("WebView2: CoreWebView2 unavailable on '{label}': {e}");
+                    return;
+                }
+            };
+            let handler = PermissionRequestedEventHandler::create(Box::new(
+                move |_core: Option<ICoreWebView2>,
+                      args: Option<ICoreWebView2PermissionRequestedEventArgs>|
+                      -> windows_core::Result<()> {
+                    let args = match args {
+                        Some(args) => args,
+                        None => return Ok(()),
+                    };
+                    unsafe {
+                        let mut kind = COREWEBVIEW2_PERMISSION_KIND_UNKNOWN_PERMISSION;
+                        args.PermissionKind(&mut kind)?;
+                        if kind != COREWEBVIEW2_PERMISSION_KIND_MICROPHONE
+                            && kind != COREWEBVIEW2_PERMISSION_KIND_CAMERA
+                        {
+                            // Leave non-media permissions to default handling.
+                            return Ok(());
+                        }
+                        let mut uri = windows_core::PWSTR::null();
+                        args.Uri(&mut uri)?;
+                        if is_app_origin(&take_pwstr(uri)) {
+                            args.SetState(COREWEBVIEW2_PERMISSION_STATE_ALLOW)?;
+                        }
+                    }
+                    Ok(())
+                },
+            ));
+            let mut token = 0i64;
+            match unsafe { core.add_PermissionRequested(&handler, &mut token) } {
+                Ok(()) => log::info!("WebView2: media-capture auto-grant active on '{label}'"),
+                Err(e) => log::warn!(
+                    "WebView2: PermissionRequested handler registration failed on '{label}': {e}"
+                ),
+            }
+        });
+    }
+
+    // macOS: intentionally empty — see module comment above.
+}
+
+#[cfg(test)]
+mod media_permission_tests {
+    use super::is_app_origin;
+
+    #[test]
+    fn allows_app_and_dev_origins() {
+        assert!(is_app_origin("http://tauri.localhost/index.html"));
+        assert!(is_app_origin("https://tauri.localhost"));
+        assert!(is_app_origin("http://localhost:3901/"));
+        assert!(is_app_origin("http://127.0.0.1:3901/index.html"));
+    }
+
+    #[test]
+    fn rejects_foreign_origins() {
+        assert!(!is_app_origin("http://tauri.localhost.evil.com/"));
+        assert!(!is_app_origin("https://example.com/"));
+        assert!(!is_app_origin("file:///C:/index.html"));
+        assert!(!is_app_origin("http://localhost.evil.com:3901/"));
+        assert!(!is_app_origin(""));
+    }
+}
+
 // ── Tauri entry ───────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -480,24 +623,16 @@ pub fn run() {
                 }
             }
 
-            // ── Enable microphone / camera on Linux (WebKitGTK) ──────────
-            #[cfg(target_os = "linux")]
-            {
-                if let Some(win) = app.get_webview_window("main") {
-                    let _ = win.with_webview(|webview| {
-                        use webkit2gtk::{WebViewExt, SettingsExt, PermissionRequestExt};
-                        let wk = webview.inner();
-                        if let Some(settings) = WebViewExt::settings(&wk) {
-                            settings.set_enable_media_stream(true);
-                            settings.set_enable_mediasource(true);
-                            settings.set_media_playback_requires_user_gesture(false);
-                            log::info!("WebKitGTK: media-stream enabled");
-                        }
-                        wk.connect_permission_request(|_, request| {
-                            request.allow();
-                            true
-                        });
-                    });
+            // ── WebView media-capture permissions (mic for dictation) ────
+            // BOTH the main window (voice-clone recording) and the dictation
+            // widget need this: the widget is a separate WebView with its own
+            // permission handling. Previously only "main" was covered on
+            // Linux, and Windows had no handler at all — so getUserMedia() in
+            // the dictation pill rejected with NotAllowedError even when the
+            // OS-level mic permission was granted (#323).
+            for label in ["main", "widget"] {
+                if let Some(win) = app.get_webview_window(label) {
+                    grant_webview_media_permissions(&win);
                 }
             }
 
