@@ -321,8 +321,13 @@ def _install_compile_fallback(_model) -> None:
             try:
                 torch = _lazy_torch()
                 torch._dynamo.reset()
-            except Exception:
-                pass
+            except Exception as reset_exc:
+                logger.debug(
+                    "Non-fatal: failed to reset torch._dynamo state after compile failure (%s: %s). "
+                    "Continuing with eager fallback.",
+                    type(reset_exc).__name__,
+                    reset_exc,
+                )
             try:
                 return orig_generate(*args, **kwargs)
             except Exception as eager_exc:
