@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/debpalash-omnivoice-studio-badge.png)](https://mseep.ai/app/debpalash-omnivoice-studio)
+
 <div align="center">
   <img src="docs/logo.png" alt="OmniVoice Logo" width="120" />
   <h1>OmniVoice Studio</h1>
