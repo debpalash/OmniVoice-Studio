@@ -11,14 +11,16 @@
 
 ## Model sources we support
 
-OmniVoice loads local models, and you're free to point it at any model folder
-you trust. **Official support, however, covers only models from verifiable
-public sources** — Hugging Face repos and official project releases with a
-published license and checksums. Privately distributed, paywalled, or
-otherwise unverifiable model files are **use-at-your-own-risk**: we can't
-reproduce or debug problems with a model we can't download, and we can't vouch
-for what's in a private archive. If you do load one, extract only the model
-files themselves (weights, config, tokenizer) — never run bundled executables.
+OmniVoice is built on the idea that everything it runs is **open and available
+to everyone**: free, public models with verifiable sources and licenses
+(Hugging Face repos, official project releases), so the whole community can
+use, test, and debug the same thing.
+
+**We do not support privately sold, paywalled, or gated model files.** A model
+delivered privately can't be verified, reproduced, or shared — it doesn't fit
+the project's goals, and issues involving such models will be politely closed.
+As a general safety rule, never run executables bundled inside any model
+archive.
 
 ## Before filing a bug
 

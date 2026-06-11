@@ -10,11 +10,12 @@
 
 ## Model supply chain
 
-Only load models from sources you trust. OmniVoice's supported model sources
-are public Hugging Face repos and official project releases; the loaders avoid
-code-executing formats where possible, but a model *archive* from an untrusted
-private source can carry anything (bundled executables, modified configs).
-Treat privately distributed model files like any other untrusted download.
+OmniVoice supports models from **public, verifiable sources only** (Hugging
+Face repos, official project releases). Privately sold or gated model files
+are not supported: an archive from a private source can carry anything
+(bundled executables, modified configs), and nobody else can verify or
+reproduce it. Treat any privately distributed model file as an untrusted
+download, and never run executables bundled with model archives.
 
 ## Reporting a Vulnerability
 
