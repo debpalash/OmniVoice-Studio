@@ -636,20 +636,206 @@
 
 .dub-lazy-fallback             { padding: 12px; color: #6b6657; font-size: 0.7rem; }
 
-/* ── Skeleton segment rows (idle state) ──────────────────────── */
+/* ── Landing options — the one pre-upload decision + Advanced disclosure ── */
+.dub-landing-opts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 10px;
+  background: var(--chrome-hover-bg, rgba(255, 255, 255, 0.03));
+}
+.dub-landing-opts__lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--chrome-fg-muted);
+}
+.dub-landing-opts__label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.dub-landing-opts__lang select { max-width: 220px; }
+.dub-landing-opts__adv {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  font-size: 0.7rem;
+  color: var(--chrome-fg-muted);
+  background: transparent;
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill, 999px);
+  cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+.dub-landing-opts__adv:hover { color: var(--chrome-fg); border-color: var(--chrome-border-strong); }
+.dub-landing-adv {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 10px;
+}
+.dub-landing-adv__field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  color: var(--chrome-fg-muted);
+}
+.dub-landing-adv__field--grow { flex: 1; min-width: 200px; }
+.dub-landing-adv__field--grow input { flex: 1; }
+
+/* Demoted ghost export button (single Export ▾ beside the primary Generate). */
+.dub-skel-gen-btn--secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px solid var(--chrome-border);
+  color: var(--chrome-fg-muted);
+  border-radius: 8px;
+  flex: 0 0 auto;
+}
+
+/* ── Multi-language preview switcher (tap a language to hear that dub) ── */
+.dub-lang-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0 8px;
+}
+.dub-lang-pill {
+  padding: 5px 14px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--chrome-fg-muted);
+  background: var(--chrome-hover-bg, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill, 999px);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+}
+.dub-lang-pill:hover {
+  color: var(--chrome-fg);
+  border-color: var(--chrome-border-strong);
+}
+.dub-lang-pill.is-active {
+  color: #1b1b1b;
+  background: var(--chrome-fg, #ebdbb2);
+  border-color: var(--chrome-fg, #ebdbb2);
+}
+
+/* ── Pipeline stepper (top spine) ──────────────────────────────────────
+   Upload → Prepare → Transcribe → Edit → Generate → Export. Done steps and
+   the connectors behind them take the accent; the active step gets a ring;
+   pending steps are dim. */
+.dub-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2px 0;
+  padding: 8px 12px;
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--chrome-border);
+}
+.dub-stepper__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--chrome-fg-dim, #665c54);
+}
+.dub-stepper__step:not(:first-child)::before {
+  content: '';
+  width: 24px;
+  height: 2px;
+  margin: 0 8px;
+  border-radius: 1px;
+  background: var(--chrome-border-strong, rgba(255, 255, 255, 0.12));
+}
+.dub-stepper__step.is-reached:not(:first-child)::before {
+  background: var(--chrome-accent, #d3869b);
+}
+.dub-stepper__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1.5px solid var(--chrome-border-strong, rgba(255, 255, 255, 0.15));
+  color: var(--chrome-fg-dim, #665c54);
+}
+.dub-stepper__step.is-done .dub-stepper__icon {
+  border-color: var(--chrome-accent, #d3869b);
+  color: var(--chrome-accent, #d3869b);
+  background: color-mix(in srgb, var(--chrome-accent, #d3869b) 16%, transparent);
+}
+.dub-stepper__step.is-active .dub-stepper__icon {
+  border-color: var(--chrome-accent, #d3869b);
+  color: var(--chrome-accent, #d3869b);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--chrome-accent, #d3869b) 14%, transparent);
+}
+.dub-stepper__step.is-done .dub-stepper__label,
+.dub-stepper__step.is-active .dub-stepper__label {
+  color: var(--chrome-fg);
+}
+.dub-stepper__spin { animation: dub-stepper-spin 1s linear infinite; }
+@keyframes dub-stepper-spin { to { transform: rotate(360deg); } }
+
+/* ── Skeleton segment rows (idle / pre-transcription state) ─────────────
+   Shimmer bars, not literal placeholder text — the old "0:00.0–0:00.0 /
+   Speaker 1 / Default" wrapped in their narrow cells and read as broken
+   data. Bars have a fixed height so nothing wraps or collides. */
 .dub-skel-table       { flex: 1; max-height: none; overflow-y: auto; min-height: 0; }
-.dub-skel-row         { opacity: 0.15; }
-.dub-skel-cell-time   { width: 55px; }
-.dub-skel-cell-spkr   { width: 50px; font-size: 0.58rem; color: #504945; }
-.dub-skel-cell-text   { flex: 1; height: 18px; background: rgba(255, 255, 255, 0.03); border-radius: 3px; }
-.dub-skel-cell-voice  { width: 90px; font-size: 0.6rem; color: #504945; }
-.dub-skel-cell-acts   { display: flex; gap: 1px; width: 40px; }
+.dub-skel-row         { gap: 6px; }
+.dub-skel-bar {
+  height: 11px;
+  border-radius: 3px;
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.09) 37%,
+    rgba(255, 255, 255, 0.04) 63%);
+  background-size: 400% 100%;
+  animation: dub-skel-shimmer 1.4s ease-in-out infinite;
+}
+.dub-skel-cell-time   { width: 55px; flex: 0 0 55px; }
+.dub-skel-cell-spkr   { width: 44px; flex: 0 0 44px; }
+.dub-skel-cell-text   { flex: 1; min-width: 0; }
+.dub-skel-cell-voice  { width: 70px; flex: 0 0 70px; }
+.dub-skel-cell-acts   { display: flex; gap: 1px; width: 40px; flex: 0 0 40px; }
 .dub-skel-cell-acts__icon { opacity: 0.3; }
-.dub-skel-header-time { width: 55px; }
-.dub-skel-header-spkr { width: 50px; }
+.dub-skel-header-time { width: 55px; flex: 0 0 55px; }
+.dub-skel-header-spkr { width: 44px; flex: 0 0 44px; }
 .dub-skel-header-text { flex: 1; }
-.dub-skel-header-voice{ width: 90px; }
-.dub-skel-header-acts { width: 40px; }
+.dub-skel-header-voice{ width: 70px; flex: 0 0 70px; }
+.dub-skel-header-acts { width: 40px; flex: 0 0 40px; }
+.dub-skel-hint {
+  padding: 10px 8px 4px;
+  font-size: 0.62rem;
+  color: var(--chrome-fg-dim, #665c54);
+  text-align: center;
+}
+
+@keyframes dub-skel-shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
 
 /* Disabled generation controls shown in idle skeleton */
 .dub-skel-gen-btn     { margin-top: 0; flex: 1; padding: 4px 8px; font-size: 0.7rem; opacity: 0.4; }

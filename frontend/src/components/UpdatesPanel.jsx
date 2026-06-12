@@ -1,6 +1,6 @@
 // frontend/src/components/UpdatesPanel.jsx
-// Body of the LogsFooter "Updates" tab: live update row + channel switcher +
-// GitHub releases (changelog/history) list. Data is transient (releasesSlice).
+// Update management panel — lives under Settings → Updates. Shows live update
+// status, channel switcher, and GitHub releases (changelog/history) list.
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, RotateCw, AlertTriangle, RefreshCw, X } from 'lucide-react';

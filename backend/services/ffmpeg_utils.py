@@ -5,6 +5,10 @@ import os
 import shutil
 import subprocess
 
+# Leaf module (stdlib-only) — safe to import at module top, unlike
+# services.dub_pipeline which imports this module and would cycle.
+from services.proc_registry import register_proc, unregister_proc
+
 logger = logging.getLogger("omnivoice.api")
 
 # Cap concurrent ffmpeg jobs so macOS posix_spawn can't hit EAGAIN under load.
@@ -303,20 +307,71 @@ async def probe_duration(path: str) -> float | None:
             return None
         return float(stdout.decode().strip())
     except Exception as e:
-        logger.debug("probe_duration failed for %s: %s", path, e)
+        logger.debug("probe_duration failed for %s: %s", os.path.basename(str(path)), e)
         return None
 
 
-async def run_ffmpeg(cmd, timeout: float = 1800.0, capture: bool = True):
+async def probe_frame_rates(path: str) -> "tuple[str, str] | None":
+    """Return (r_frame_rate, avg_frame_rate) strings for the first video
+    stream (e.g. ``("30000/1001", "2997/100")``), or None on any failure.
+
+    A mismatch between the two is the practical VFR signature — used by the
+    Smart Fit retime pipeline to decide whether to normalise with ``fps=``
+    before trim/setpts. Never raises — probing is best-effort.
+    """
+    ffprobe = find_ffprobe()
+    if not ffprobe or not os.path.isfile(path):
+        return None
+    try:
+        proc = await spawn_subprocess(
+            ffprobe, "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=r_frame_rate,avg_frame_rate",
+            "-of", "csv=p=0",
+            path,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await proc.communicate()
+        if proc.returncode != 0:
+            return None
+        parts = stdout.decode().strip().split(",")
+        if len(parts) < 2:
+            return None
+        return parts[0].strip(), parts[1].strip()
+    except Exception as e:
+        logger.debug("probe_frame_rates failed for %s: %s", os.path.basename(str(path)), e)
+        return None
+
+
+async def run_ffmpeg(cmd, timeout: float = 1800.0, capture: bool = True,
+                     job_id: "str | None" = None):
     """Run an ffmpeg subprocess with concurrency cap, timeout, and proper cleanup.
 
     Returns (returncode, stdout_bytes, stderr_bytes). Raises asyncio.TimeoutError
     on hard timeout (after killing + reaping the process).
+
+    ``job_id`` (optional) registers the process with the dub pipeline's
+    process tracker (``services.proc_registry``) so ``/dub/abort`` can kill
+    long export encodes (used by the Smart Fit batched retime).
+
+    Path-injection note: every filesystem path placed in ``cmd`` by callers
+    is realpath-normalised and containment-checked against its workspace
+    root (e.g. DUB_DIR) at the call site before the argv is assembled —
+    see api.routers.dub_export and services.video_retime.
     """
     stdout = asyncio.subprocess.PIPE if capture else asyncio.subprocess.DEVNULL
     stderr = asyncio.subprocess.PIPE
     async with _get_semaphore():
         proc = await _spawn_with_retry(cmd, stdout=stdout, stderr=stderr)
+        if job_id:
+            try:
+                register_proc(job_id, proc)
+            except Exception as e:
+                # Newline-strip the id inline — it can originate from a path
+                # param, and the log stream must stay one-event-per-line.
+                logger.debug("register_proc failed for %s: %s",
+                             job_id.replace("\n", " ").replace("\r", " "), e)
         try:
             try:
                 out, err = await asyncio.wait_for(proc.communicate(), timeout=timeout)
@@ -332,6 +387,12 @@ async def run_ffmpeg(cmd, timeout: float = 1800.0, capture: bool = True):
                 raise
             return proc.returncode, out, err
         finally:
+            if job_id:
+                try:
+                    unregister_proc(job_id, proc)
+                except Exception as e:
+                    logger.debug("unregister_proc failed for %s: %s",
+                                 job_id.replace("\n", " ").replace("\r", " "), e)
             # Guarantee reaping — prevents zombie pileup under timeouts or errors.
             if proc.returncode is None:
                 try:

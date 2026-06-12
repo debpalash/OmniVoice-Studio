@@ -13,7 +13,8 @@ What's here
 * **Content-hash cache lookup** — `compute_file_hash`, `find_cached_job`.
 * **Safe path resolution** — `safe_job_dir`.
 * **Process lifecycle** — ffmpeg/demucs subprocess tracking + `kill_job_procs`
-  so `POST /dub/abort/{id}` can tear down in-flight work.
+  so `POST /dub/abort/{id}` can tear down in-flight work (implemented in
+  `services.proc_registry`, re-exported here for compatibility).
 * **SSE helpers** — `sse_event`, `prep_event`.
 
 What stays in the router
@@ -44,6 +45,17 @@ from core.config import DUB_DIR
 from fastapi import HTTPException
 from services.ffmpeg_utils import find_ffmpeg, find_ffprobe, _get_semaphore, _spawn_with_retry
 from services.model_manager import get_best_device
+# Process lifecycle moved to its own leaf module so ffmpeg_utils can import
+# it at module top (no dub_pipeline ↔ ffmpeg_utils cycle). Re-exported here —
+# dub_core and tests still alias these names through this module.
+from services.proc_registry import (  # noqa: F401 — re-exports
+    _active_procs,
+    _active_procs_lock,
+    has_active_procs,
+    kill_job_procs,
+    register_proc,
+    unregister_proc,
+)
 from core.db import db_conn
 from core import event_bus
 from core import failure
@@ -56,8 +68,6 @@ logger = logging.getLogger("omnivoice.dub_pipeline")
 
 _dub_jobs: dict[str, dict] = {}
 _dub_jobs_lock = threading.Lock()
-_active_procs: dict[str, list] = {}
-_active_procs_lock = threading.Lock()
 
 _DUB_DIR_REAL = os.path.realpath(DUB_DIR)
 _HASH_BUF_SIZE = 1 << 18  # 256 KB chunks for hashing
@@ -138,42 +148,8 @@ def find_cached_job(content_hash: str, exclude_job_id: str) -> Optional[dict]:
 
 
 # ── Process lifecycle ───────────────────────────────────────────────────────
-
-
-def register_proc(job_id: str, proc) -> None:
-    """Track an in-flight subprocess so /dub/abort can kill it."""
-    with _active_procs_lock:
-        _active_procs.setdefault(job_id, []).append(proc)
-
-
-def unregister_proc(job_id: str, proc) -> None:
-    with _active_procs_lock:
-        lst = _active_procs.get(job_id)
-        if lst and proc in lst:
-            lst.remove(proc)
-        if lst is not None and not lst:
-            _active_procs.pop(job_id, None)
-
-
-def kill_job_procs(job_id: str) -> None:
-    """Kill every subprocess still running under a given job id. Idempotent."""
-    with _active_procs_lock:
-        procs = list(_active_procs.get(job_id, []))
-    for proc in procs:
-        try:
-            if proc.returncode is None:
-                proc.kill()
-        except ProcessLookupError:
-            pass
-        except Exception as e:
-            logger.warning("Failed to kill subprocess for %s: %s", job_id, e)
-    with _active_procs_lock:
-        _active_procs.pop(job_id, None)
-
-
-def has_active_procs(job_id: str) -> bool:
-    with _active_procs_lock:
-        return bool(_active_procs.get(job_id))
+# register_proc / unregister_proc / kill_job_procs / has_active_procs live in
+# services.proc_registry (imported + re-exported above).
 
 
 # ── Job state (in-memory + SQLite fallback) ────────────────────────────────

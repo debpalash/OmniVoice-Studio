@@ -38,6 +38,13 @@ export interface PillState {
   visible: boolean;
   /** Whether the operation is cancellable */
   cancellable: boolean;
+  /**
+   * The workspace mode this operation "belongs to". When the user is already on
+   * that mode, an in-context progress view (e.g. the dub PrepOverlay) is showing
+   * the same thing, so the pill suppresses itself to avoid duplication. The pill
+   * reappears the moment they navigate elsewhere. null = always show.
+   */
+  homeMode: string | null;
 }
 
 export interface PillSlice extends PillState {
@@ -45,6 +52,7 @@ export interface PillSlice extends PillState {
   showPill: (stage: PillStage, label: string, opts?: {
     progress?: number | null;
     cancellable?: boolean;
+    homeMode?: string | null;
   }) => void;
   /** Update progress without changing stage */
   setPillProgress: (progress: number | null) => void;
@@ -66,6 +74,7 @@ const INITIAL: PillState = {
   error: null,
   visible: false,
   cancellable: false,
+  homeMode: null,
 };
 
 export const createPillSlice: StateCreator<PillSlice, [], [], PillSlice> = (set) => ({
@@ -79,6 +88,7 @@ export const createPillSlice: StateCreator<PillSlice, [], [], PillSlice> = (set)
     error: null,
     visible: true,
     cancellable: opts?.cancellable ?? false,
+    homeMode: opts?.homeMode ?? null,
   }),
 
   setPillProgress: (progress) => set({ progress }),

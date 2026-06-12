@@ -482,24 +482,37 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
-    let raf;
+    let raf = null;
     const tick = () => {
-      if (!a.paused) {
-        setCursor(a.currentTime);
-        const { start: s, end: e } = stateRef.current;
-        if (a.currentTime >= e) {
-          if (loop) {
-            try { a.currentTime = s; } catch {}
-          } else {
-            a.pause();
-            setPlaying(false);
-          }
+      if (a.paused) { raf = null; return; }
+      setCursor(a.currentTime);
+      const { start: s, end: e } = stateRef.current;
+      if (a.currentTime >= e) {
+        if (loop) {
+          try { a.currentTime = s; } catch {}
+        } else {
+          a.pause();
+          setPlaying(false);
+          raf = null;
+          return;
         }
       }
       raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    // Only run the playhead loop while audio is actually playing — a
+    // free-running rAF would tick at ~60fps for the trimmer's whole life.
+    const startLoop = () => { if (raf == null) raf = requestAnimationFrame(tick); };
+    const stopLoop = () => { if (raf != null) { cancelAnimationFrame(raf); raf = null; } };
+    a.addEventListener('play', startLoop);
+    a.addEventListener('pause', stopLoop);
+    a.addEventListener('ended', stopLoop);
+    if (!a.paused) startLoop(); // effect re-ran (loop toggled) mid-playback
+    return () => {
+      a.removeEventListener('play', startLoop);
+      a.removeEventListener('pause', stopLoop);
+      a.removeEventListener('ended', stopLoop);
+      stopLoop();
+    };
   }, [loop]);
 
   const duration = end - start;

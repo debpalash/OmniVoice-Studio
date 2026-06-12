@@ -21,6 +21,29 @@
   user-select: none;
 }
 
+/* The footer sits *beside* the nav rail, never under or over it. The rail is
+   a full-window-height grid column (see .app-container in index.css), so the
+   footer is simply inset by the rail's 48px and joins it on the edge. Units
+   live in the app-container coordinate space, so the 48px stays aligned with
+   the rail's 48px grid column under UI-scale zoom. The splash/wizard footers
+   render outside .app-container and stay full-width. */
+.app-container .logs-footer {
+  left: 48px;
+  right: 0;
+}
+.app-container.rail-right .logs-footer {
+  left: 0;
+  right: 48px;
+}
+/* ≤600px the nav rail is hidden — footer reclaims the full width. */
+@media (max-width: 600px) {
+  .app-container .logs-footer,
+  .app-container.rail-right .logs-footer {
+    left: 0;
+    right: 0;
+  }
+}
+
 .logs-footer--collapsed {
   height: var(--chrome-bar-h);
 }
@@ -42,7 +65,7 @@
   z-index: 1;
 }
 .logs-footer__resize:hover {
-  background: rgba(243, 165, 182, 0.35);
+  background: var(--chrome-accent-border);
 }
 
 /* Top bar — always visible */
@@ -65,7 +88,7 @@
   overflow: hidden;
 }
 .logs-footer__title {
-  color: #a89984;
+  color: var(--chrome-fg-muted);
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -112,18 +135,18 @@
 .logs-footer__toggle {
   background: none;
   border: none;
-  color: #a89984;
+  color: var(--chrome-fg-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: var(--chrome-icon-btn);
+  height: var(--chrome-icon-btn);
   border-radius: 3px;
 }
 .logs-footer__toggle:hover {
-  color: #ebdbb2;
-  background: rgba(255, 255, 255, 0.04);
+  color: var(--chrome-fg);
+  background: var(--chrome-hover-bg);
 }
 
 /* Source pills with badges */
@@ -132,24 +155,24 @@
   align-items: center;
   gap: 6px;
   padding: 2px 8px;
-  height: 20px;
+  height: var(--chrome-pill-h);
   border-radius: 3px;
   background: none;
   border: 1px solid transparent;
-  color: #a89984;
+  color: var(--chrome-fg-muted);
   font-size: 11px;
   cursor: pointer;
   transition: all 0.1s;
   font-family: inherit;
 }
 .logs-footer__pill:hover {
-  background: rgba(255, 255, 255, 0.04);
-  color: #ebdbb2;
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
 }
 .logs-footer__pill--active {
-  background: rgba(243, 165, 182, 0.12);
-  border-color: rgba(243, 165, 182, 0.35);
-  color: #f3a5b6;
+  background: var(--chrome-accent-bg);
+  border-color: var(--chrome-accent-border);
+  color: var(--chrome-accent);
 }
 .logs-footer__pill--error {
   color: #fb4934;
@@ -204,8 +227,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: var(--chrome-icon-btn);
+  height: var(--chrome-icon-btn);
   flex-shrink: 0;
   border-radius: 4px;
   color: #7289da;
@@ -226,8 +249,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: var(--chrome-icon-btn);
+  height: var(--chrome-icon-btn);
   flex-shrink: 0;
   border-radius: 4px;
   color: #d3869b;
@@ -236,7 +259,7 @@
   animation: heart-glow 2.5s ease-in-out infinite;
 }
 .logs-footer__donate:hover {
-  color: #f3a5b6;
+  color: var(--chrome-accent);
   transform: scale(1.15);
 }
 .logs-footer__donate svg {
@@ -254,10 +277,10 @@
 .logs-footer__icon-btn {
   background: none;
   border: none;
-  color: #a89984;
+  color: var(--chrome-fg-muted);
   cursor: pointer;
-  width: 22px;
-  height: 22px;
+  width: var(--chrome-icon-btn);
+  height: var(--chrome-icon-btn);
   border-radius: 3px;
   display: flex;
   align-items: center;
@@ -265,8 +288,8 @@
   transition: all 0.1s;
 }
 .logs-footer__icon-btn:hover {
-  color: #ebdbb2;
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--chrome-fg);
+  background: var(--chrome-hover-bg);
 }
 .logs-footer__icon-btn:disabled {
   opacity: 0.4;

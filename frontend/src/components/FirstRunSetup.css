@@ -68,6 +68,11 @@
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
+  /* Breathing room + a soft fade at the cut line so content guillotined by
+     the fold reads as "scroll for more", not as a rendering bug. */
+  padding-bottom: 1rem;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
 }
 
 .frs__loading {
@@ -405,7 +410,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 52ch;
+  max-width: min(52ch, 100%);  /* never force the row wider than its column */
   direction: rtl;       /* ellipsize the head — the tail of a path matters */
   text-align: left;
   margin-top: 0.1rem;
@@ -591,6 +596,12 @@
   font-size: 0.72rem;
   opacity: 0.68;
   font-variant-numeric: tabular-nums;
+  /* Wrap as a clean block under the version plate, not a ragged mid-sentence
+     break hanging off the em-dash. */
+  flex-wrap: wrap;
+  row-gap: 0.2rem;
+  line-height: 1.45;
+  min-width: 0;
 }
 
 .frs__totals-sep { opacity: 0.65; }
@@ -639,6 +650,10 @@
   background: var(--frs-accent);
   color: var(--frs-bg);
   padding: 0.55rem 1.4rem;
+  /* The CTA never wraps — a two-line "Start installation" with the LED
+     floating beside it reads as broken at narrow widths. */
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .frs-btn__led {
@@ -693,19 +708,47 @@
 
 /* ── Responsive: deck collapses gracefully ─────────────────────────────── */
 
-@media (max-width: 980px) {
-  .frs { padding: 1.5rem; }
+/* Height budget — on short windows (the typical first-open size) the
+   masthead ceremony shrinks so the working area + pinned action rows keep
+   their room: smaller serif title, slimmer waveform, tighter check rows. */
+@media (max-height: 820px) {
+  .frs { padding-top: 2.4rem; }
+  .frs-wave { height: 14px; }
+  .frs__title { font-size: clamp(1.35rem, 2.6vw, 1.8rem); }
+  .frs__subtitle { margin-top: 0.15rem; }
+  .frs__scroll { gap: 0.8rem; }
+  .frs-check { padding: 0.32rem 0.7rem; }
+  .frs__foot { padding-bottom: 1rem; }
+}
+
+/* The 7/5 panel grid starts squeezing the storage rows (path + 170px gauge +
+   Change… button) well before 980 — stack the panels earlier. */
+@media (max-width: 1150px) {
   .frs__grid { grid-template-columns: 1fr; }
+  .frs__mirror-fields { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 980px) {
+  /* Keep the top clearance — the native titlebar overlays the window top at
+     every width; only the sides tighten. */
+  .frs { padding: 3.2rem 1.5rem 0; }
   .frs__mirror-fields { grid-template-columns: 1fr; }
+  /* STORAGE rows only (they carry a capacity gauge): label+path on one line,
+     gauge + readout drop to a full-width second line instead of crushing the
+     path. Scoped away from the wizard's .swiz-lib__row rows, which share
+     .frs-row but must stay one compact line (LED · name · size · action). */
+  .frs-row:not(.swiz-lib__row) { flex-wrap: wrap; row-gap: 0.45rem; }
+  .frs-row:not(.swiz-lib__row) .frs-row__text { flex: 1 1 100%; }
+  .frs-row__gauge { width: 100%; min-width: 0; align-items: stretch; }
+  .frs-row:not(.swiz-lib__row) .frs-row__readout { text-align: right; }
 }
 
 @media (max-width: 620px) {
-  .frs { padding: 1rem; }
+  .frs { padding: 3rem 1rem 0; }
   .frs__mast-row { flex-direction: column; align-items: flex-start; gap: 0.8rem; }
   .frs__options--two { grid-template-columns: 1fr; }
-  .frs-row { flex-wrap: wrap; }
-  .frs-row__gauge { width: 100%; }
-  .frs__foot-row { flex-direction: column; align-items: stretch; }
+  .frs__foot-row { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+  .frs__totals { flex-wrap: wrap; }
   .frs-btn--primary { justify-content: center; }
 }
 
@@ -950,7 +993,20 @@
 
 .frs-check__body { display: flex; flex-direction: column; gap: 0.12rem; min-width: 0; }
 .frs-check__title { font-size: 0.78rem; font-weight: 620; }
-.frs-check__detail { font-size: 0.7rem; opacity: 0.6; line-height: 1.45; }
+.frs-check__detail {
+  font-size: 0.7rem;
+  opacity: 0.6;
+  line-height: 1.45;
+  /* One line, head-ellipsized (the tail of a path is the part that matters);
+     the full value lives in the title tooltip. A wrapped 3-line ffmpeg path
+     was single-handedly pushing the wizard's action row below the fold. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  direction: rtl;
+  text-align: left;
+}
 .frs-check__fix { font-size: 0.7rem; line-height: 1.45; }
 .frs-check--fail .frs-check__fix { color: var(--frs-err); }
 .frs-check--warn .frs-check__fix { color: var(--chrome-severity-warn, #d79921); }

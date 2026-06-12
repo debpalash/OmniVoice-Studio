@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperat
 import WaveSurfer from 'wavesurfer.js';
 import MinimapPlugin from 'wavesurfer.js/dist/plugins/minimap.esm.js';
 import TimelinePlugin from 'wavesurfer.js/dist/plugins/timeline.esm.js';
-import { Play, Pause, ZoomIn, ZoomOut, SkipBack, Loader, Keyboard } from 'lucide-react';
+import { Play, Pause, ZoomIn, ZoomOut, SkipBack, Loader, Keyboard, AlertTriangle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import SegmentTrack from './SegmentTrack';
 import './WaveformErrorBoundary.css';
@@ -44,6 +45,7 @@ function WaveformTimeline({
   onSegmentDelete,
   onPreviewSegment,
 }, ref) {
+  const { t } = useTranslation();
   const waveContainerRef = useRef(null);  // div WaveSurfer draws into
   const videoContainerRef = useRef(null); // div we imperatively append the <video> into
   const wsRef         = useRef(null);
@@ -563,14 +565,8 @@ function WaveformTimeline({
     return (
       <div className="waveform-timeline">
         <div className="wfm-error">
-          {sourceMissing ? (
-            <>
-              ⚠ Source media missing — this file may have moved or been deleted.
-              Re-upload the video to continue.
-            </>
-          ) : (
-            <>⚠ Could not load audio from this file</>
-          )}
+          <AlertTriangle size={13} style={{ flexShrink: 0, marginRight: 6 }} />
+          {sourceMissing ? t('waveform.source_missing') : t('waveform.load_failed')}
         </div>
       </div>
     );

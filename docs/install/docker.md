@@ -32,6 +32,12 @@ docker run -d --name omnivoice \
   ghcr.io/debpalash/omnivoice-studio:latest
 ```
 
+> **Docker Hub mirror:** the same images are published to
+> `palashdeb/omnivoice-studio` on Docker Hub with identical tags — swap the
+> image for `palashdeb/omnivoice-studio:latest` if you prefer Docker Hub.
+> Tag semantics (`:latest` = rolling main preview, `:stable`/`:X.Y.Z` =
+> releases) are the same on both registries.
+
 Open [http://localhost:3900](http://localhost:3900). The first run downloads
 ~2.4 GB of model weights — follow `docker logs -f omnivoice` to watch.
 

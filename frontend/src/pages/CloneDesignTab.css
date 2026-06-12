@@ -74,14 +74,32 @@
 .mic-btn .spinner { animation: spin 1s linear infinite; }
 
 /* ── Page layout ─────────────────────────────────────────────── */
+/* One definition column: Prompt stacked over Voice Source (spec §1 restack).
+   The old side-by-side split crammed both panels once the right-side
+   Voices/History column took its 340px — the drop zone, Record button and
+   Transcript/Style fields had no room and read as broken. */
 .clone-split-grid {
   flex: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 6px;
   min-height: 0;
+  overflow-y: auto;
 }
-.clone-panel--overflow-visible { overflow: visible; }
+/* The base .studio-column is a grid with `minmax(0,1fr)` rows — that needs a
+   definite height and collapses to 0 (panels overlapping) inside this
+   auto-height scroll column. Re-flow the columns as natural-height stacks. */
+.clone-split-grid > .studio-column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-height: 0;
+  position: relative;
+}
+.clone-split-grid > .studio-column:first-child { flex: 1 0 auto; z-index: 2; }
+.clone-split-grid > .studio-column:last-child  { z-index: 1; }
+.clone-panel--overflow-visible { overflow: visible; position: relative; z-index: 10; }
 
 /* Label-row alignment variants for this page */
 .label-row--center  { align-items: center; }
@@ -136,12 +154,36 @@
   margin-bottom: 2px;
 }
 
-/* Slider column */
+/* Category controls — compact two-column budget: chip groups (Gender/Age/
+   Pitch/Style) span the full width; the long dropdown facets (English accent,
+   Chinese dialect) sit side-by-side on one row instead of stacking. */
 .clone-sliders-col {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px 12px;
 }
+.clone-cat--chips  { grid-column: 1 / -1; }
+.clone-cat--select { min-width: 0; }
+@media (max-width: 1100px) {
+  .clone-cat--select { grid-column: 1 / -1; }
+}
+
+/* Insertable tag chips: one scrollable line instead of three wrapped rows. */
+.clone-split-grid .tags-container {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+}
+.clone-split-grid .tags-container::-webkit-scrollbar { height: 5px; }
+.clone-split-grid .tags-container::-webkit-scrollbar-thumb {
+  background: var(--chrome-border-strong);
+  border-radius: 3px;
+}
+
+/* Tighter rhythm for the design stack. */
+.describe-voice-block { margin-bottom: 8px; }
+.personality-strip { row-gap: 4px; }
 .clone-slider-kicker {
   margin-left: 6px;
   font-size: 0.58rem;

@@ -14,6 +14,7 @@
  * so setup → install → model wizard reads as one continuous experience.
  */
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { Brush, Check, Clipboard, Globe, Lightbulb } from 'lucide-react';
 import { copyText } from "../utils/copyText";
 import './FirstRunSetup.css';
 import './BootstrapSplash.css';
@@ -378,7 +379,7 @@ export function BootstrapSplash({ stage, message }) {
 
         {showSuggestion && (
           <div className="frs-banner frs-rise" style={{ '--rise': 1 }}>
-            <span>🌐 {t('bootstrap.suggest_lang', { lang: LANGUAGES.find(l => l.code === systemLang)?.label || systemLang })}</span>
+            <span><Globe size={12} /> {t('bootstrap.suggest_lang', { lang: LANGUAGES.find(l => l.code === systemLang)?.label || systemLang })}</span>
             <div className="frs-banner__actions">
               <button type="button" className="frs-btn frs-btn--quiet" onClick={acceptSuggestion}>{t('common.yes', 'Yes')}</button>
               <button type="button" className="frs-btn frs-btn--quiet" onClick={dismissSuggestion}>{t('common.no', 'No')}</button>
@@ -391,7 +392,7 @@ export function BootstrapSplash({ stage, message }) {
             <h2 className="frs-panel__title">{t('bootstrap.failed', 'Setup failed')}</h2>
             <pre className="frs__error">{message || t('bootstrap.unknown_error')}</pre>
             <div className="frs-hints">
-              <span className="frs-hints__label">💡 {t('bootstrap.what_to_try', 'What to try:')}</span>
+              <span className="frs-hints__label"><Lightbulb size={12} /> {t('bootstrap.what_to_try', 'What to try:')}</span>
               <ul>
                 {detectHints(message, logs).map((key) => <li key={key}>{t(key)}</li>)}
               </ul>
@@ -403,7 +404,7 @@ export function BootstrapSplash({ stage, message }) {
                 onClick={handleCleanRetry}
                 disabled={retrying}
               >
-                🧹 {t('bootstrap.clean_retry', 'Clean & Retry')}
+                <Brush size={12} /> {t('bootstrap.clean_retry', 'Clean & Retry')}
               </button>
               <button
                 type="button"
@@ -470,7 +471,9 @@ export function BootstrapSplash({ stage, message }) {
               {logsOpen ? '▾ ' + t('bootstrap.hide_logs', 'Hide logs') : '▸ ' + t('bootstrap.show_logs', 'Show logs')}
             </button>
             <button type="button" className="frs-btn frs-btn--quiet" onClick={handleCopyLogs}>
-              {copied ? '✓ ' + t('bootstrap.copied', 'Copied!') : '📋 ' + t('bootstrap.copy', 'Copy')}
+              {copied
+                ? <><Check size={12} /> {t('bootstrap.copied', 'Copied!')}</>
+                : <><Clipboard size={12} /> {t('bootstrap.copy', 'Copy')}</>}
             </button>
           </div>
           {logsOpen && (

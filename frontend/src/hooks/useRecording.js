@@ -36,7 +36,7 @@ export default function useRecording(ingestRefAudio) {
 
         const blob = new Blob(recordingChunksRef.current, { type: 'audio/webm' });
         if (blob.size < 1000) {
-          toast.error("Recording too short");
+          toast.error(t('recording.too_short', { defaultValue: 'Recording too short' }));
           return;
         }
 
@@ -52,12 +52,12 @@ export default function useRecording(ingestRefAudio) {
           const cleanFile = new File([cleanBlob], cleanFilename, { type: "audio/wav" });
 
           await ingestRefAudio(cleanFile);
-          toast.success("🎙️ Recording cleaned & loaded!");
+          toast.success(t('recording.cleaned_loaded', { defaultValue: 'Recording cleaned & loaded!' }));
         } catch (e) {
           // Fallback: use raw recording without denoising
           const rawFile = new File([blob], "recording.webm", { type: "audio/webm" });
           await ingestRefAudio(rawFile);
-          toast.success("Recording loaded (raw — denoising unavailable)");
+          toast.success(t('recording.loaded_raw', { defaultValue: 'Recording loaded (raw — denoising unavailable)' }));
         } finally {
           setIsCleaning(false);
         }

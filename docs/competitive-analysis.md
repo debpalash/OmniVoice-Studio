@@ -82,7 +82,7 @@ the self-inventory missed `scripts/validate-install-docs.py`, the probe-judge +
 | **Dubbing pipeline** |
 | Full video dub (ASR→translate→TTS→mux) | A– | ❌ | ✅ (1200-line battle-tested pipeline) | ❌ | Two-horse race; we're competitive |
 | Incremental re-dub (change 1 line, regen 1 segment) | A– (#281 fixed) | ❌ | ❌ | ❌ | **We're unique here** |
-| **Dub-length fitting (audio speedup + video slowdown)** | B (Smart Fit Phase A: planner + generate path + fit fingerprints; Phase B = video-retime export) | ❌ | ✅ **`_rate.py` — the crown jewel** | ❌ | Gap closing — Action 1 reimplemented clean-room (`services/fit_planner.py`, [Spec 1](#spec-1--dub-length-fitting-v2)); export-side retime ships in Phase B |
+| **Dub-length fitting (audio speedup + video slowdown)** | A– (Smart Fit complete: planner + generate path + fit fingerprints + two-tier video-retime export with drift absorption and fitted subtitles) | ❌ | ✅ **`_rate.py` — the crown jewel** | ❌ | **Gap closed** — Action 1 reimplemented clean-room (`services/fit_planner.py`, `services/video_retime.py`, [Spec 1](#spec-1--dub-length-fitting-v2)) |
 | Vocal/BGM separation + re-mix | A– (Demucs 4-stem) | ❌ | ✅ (UVR/Spleeter ONNX) | ❌ | Parity; their ONNX models are lighter than Demucs |
 | **Clone refs cut from separated vocals per segment** | 🟡 (speaker_clone refs 5–15 s/speaker) | ❌ | ✅ per-subtitle-line refs | ❌ | Their per-line granularity beats our per-speaker. Action 4 |
 | Speaker diarization → multi-voice dub | B+ (pyannote) | ❌ | ✅ (4 backends incl. CAM++) | ❌ | Parity; their backend choice is wider |

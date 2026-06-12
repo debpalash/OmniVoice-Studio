@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   FolderOpen, History, DownloadCloud, Film, Save, ChevronDown, ChevronUp,
   Fingerprint, Wand2, Lock, Unlock, Trash2, Check, Clock, Play, Loader,
@@ -9,6 +9,7 @@ import { API } from '../api/client';
 import { clearDubHistory } from '../api/dub';
 import { clearHistory as clearGenHistory } from '../api/generate';
 import { Button } from '../ui';
+import WaveformPlayer from './WaveformPlayer';
 import { useAppStore } from '../store';
 import { useTranslation } from 'react-i18next';
 import './Sidebar.css';
@@ -19,6 +20,30 @@ const SIDEBAR_TABS = [
   { id: 'history',   icon: History,      accent: '#d3869b' },
   { id: 'downloads', icon: DownloadCloud, accent: '#8ec07c' },
 ];
+
+/**
+ * Mounts the WaveSurfer-backed player only once its row scrolls into view.
+ * The history list can hold ~50 items; eagerly mounting a WaveformPlayer per
+ * row would spin up that many WaveSurfer instances, each fetching + decoding
+ * its audio file, in the always-mounted sidebar.
+ */
+function LazyWaveformPlayer({ height = 36, className = '', ...rest }) {
+  const holderRef = useRef(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (visible) return;
+    const el = holderRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') { setVisible(true); return; }
+    const obs = new IntersectionObserver(
+      (entries) => { if (entries.some(e => e.isIntersecting)) setVisible(true); },
+      { rootMargin: '120px' },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [visible]);
+  if (visible) return <WaveformPlayer height={height} className={className} {...rest} />;
+  return <div ref={holderRef} className={className} style={{ height }} aria-hidden="true" />;
+}
 
 function timeAgo(ms) {
   const diff = Date.now() - ms;
@@ -377,7 +402,13 @@ export default function Sidebar(props) {
                         ? <div className="history-subtitle history-subtitle--seed">seed {item.seed}</div>
                         : null}
                       {item.audio_path ? (
-                        <audio controls src={`${API}/audio/${item.audio_path}`} className="history-audio" />
+                        <LazyWaveformPlayer
+                          src={`${API}/audio/${item.audio_path}`}
+                          source="history"
+                          height={36}
+                          compact
+                          className="history-audio"
+                        />
                       ) : null}
                       {item.audio_path ? (
                         <div className="history-actions">

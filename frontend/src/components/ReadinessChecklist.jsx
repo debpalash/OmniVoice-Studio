@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { CheckCircle, AlertTriangle, XCircle, Loader } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, Loader, Search, Lightbulb } from 'lucide-react';
 import { usePreflight, useModelStatus } from '../api/hooks';
 import './ReadinessChecklist.css';
 
@@ -96,7 +96,7 @@ export default function ReadinessChecklist({ compact = false, showWhenAllPass = 
     return (
       <div className="readiness-checklist">
         <div className="readiness-checklist__title">
-          <span className="readiness-checklist__title-icon">🔍</span>
+          <span className="readiness-checklist__title-icon"><Search size={14} /></span>
           {t('readiness.checking_system')}
         </div>
       </div>
@@ -137,7 +137,7 @@ export default function ReadinessChecklist({ compact = false, showWhenAllPass = 
     <div className="readiness-checklist">
       <div className="readiness-checklist__title">
         <span className="readiness-checklist__title-icon">
-          {anyFail ? '⚠️' : '✅'}
+          {anyFail ? <AlertTriangle size={14} /> : <CheckCircle size={14} />}
         </span>
         {t('readiness.system_readiness')}
       </div>
@@ -150,7 +150,7 @@ export default function ReadinessChecklist({ compact = false, showWhenAllPass = 
             <div>
               <div className="readiness-checklist__label">{check.label}</div>
               <div className="readiness-checklist__detail">{check.detail}</div>
-              {check.fix && <div className="readiness-checklist__fix">💡 {check.fix}</div>}
+              {check.fix && <div className="readiness-checklist__fix"><Lightbulb size={12} /> {check.fix}</div>}
             </div>
           </li>
         ))}

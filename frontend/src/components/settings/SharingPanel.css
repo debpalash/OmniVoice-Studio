@@ -6,7 +6,7 @@
   margin-bottom: 12px;
   border: 1px solid var(--border, #3c3836);
   border-radius: 8px;
-  background: var(--panel-bg, rgba(255, 255, 255, 0.02));
+  background: var(--color-bg-elev-1);
 }
 .sharingpanel__title {
   display: flex;
@@ -53,10 +53,10 @@
   min-width: 0;
   padding: 6px 8px;
   font-size: 12px;
-  font-family: var(--mono, ui-monospace, monospace);
+  font-family: var(--font-mono);
   border: 1px solid var(--border, #504945);
   border-radius: 6px;
-  background: var(--input-bg, rgba(0, 0, 0, 0.2));
+  background: var(--color-bg-elev-2);
   color: inherit;
   word-break: break-all;
 }
@@ -86,7 +86,7 @@
   color: inherit;
   cursor: pointer;
 }
-.sharingpanel__iconbtn:hover { background: var(--input-bg, rgba(0, 0, 0, 0.2)); }
+.sharingpanel__iconbtn:hover { background: var(--color-bg-elev-2); }
 .sharingpanel__tailscale-absent,
 .sharingpanel__tailscale-present,
 .sharingpanel__tailscale-url {
@@ -109,19 +109,19 @@
 .sharingpanel__envname {
   padding: 2px 6px;
   font-size: 11px;
-  font-family: var(--mono, ui-monospace, monospace);
+  font-family: var(--font-mono);
   border: 1px solid var(--border, #504945);
   border-radius: 4px;
-  background: var(--input-bg, rgba(0, 0, 0, 0.2));
+  background: var(--color-bg-elev-2);
   opacity: 0.85;
 }
 .sharingpanel__portinput {
   width: 100px;
   padding: 5px 8px;
   font-size: 12px;
-  font-family: var(--mono, ui-monospace, monospace);
+  font-family: var(--font-mono);
   border: 1px solid var(--border, #504945);
   border-radius: 6px;
-  background: var(--input-bg, rgba(0, 0, 0, 0.2));
+  background: var(--color-bg-elev-2);
   color: inherit;
 }

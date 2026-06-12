@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { copyText } from "../utils/copyText";
 import { isTauri as _isTauri } from '../utils/media';
 import { normalizeChannel } from '../utils/updateChannel';
@@ -14,7 +14,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Cpu, FileText, Info, ShieldCheck, RefreshCw, Trash2, ExternalLink,
   CheckCircle, AlertCircle, Plug, Download, Copy, Building2, KeyRound,
-  Keyboard, Wifi, Palette, Activity,
+  Keyboard, Wifi, Palette, Activity, ArrowDownToLine,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { openExternal } from '../api/external';
@@ -41,20 +41,22 @@ import RemoteBackendPanel from '../components/settings/RemoteBackendPanel';
 import MCPBindingsPanel from '../components/settings/MCPBindingsPanel';
 import EngineCompatibilityMatrix from '../components/EngineCompatibilityMatrix';
 import DictationDemo from '../components/DictationDemo';
+import UpdatesPanel from '../components/UpdatesPanel';
 import ReportBugButton from '../components/ReportBugButton';
 import './Settings.css';
 
 const TAB_DEFS = [
-  { id: 'general',     icon: FileText,     accent: '#83a598' },
-  { id: 'models',      icon: Cpu,          accent: '#f3a5b6' },
-  { id: 'engines',     icon: Plug,         accent: '#d3869b' },
-  { id: 'capture',     icon: Keyboard,     accent: '#83a598' },
-  { id: 'sharing',     icon: Wifi,         accent: '#83a598' },
-  { id: 'appearance',  icon: Palette,      accent: '#d3869b' },
-  { id: 'credentials', icon: KeyRound,     accent: '#fe8019' },
-  { id: 'logs',        icon: FileText,     accent: '#fabd2f' },
-  { id: 'about',       icon: Info,         accent: '#8ec07c' },
-  { id: 'privacy',     icon: ShieldCheck,  accent: '#b8bb26' },
+  { id: 'general',     icon: FileText,      accent: '#83a598' },
+  { id: 'models',      icon: Cpu,           accent: '#f3a5b6' },
+  { id: 'engines',     icon: Plug,          accent: '#d3869b' },
+  { id: 'capture',     icon: Keyboard,      accent: '#83a598' },
+  { id: 'sharing',     icon: Wifi,          accent: '#83a598' },
+  { id: 'appearance',  icon: Palette,       accent: '#d3869b' },
+  { id: 'credentials', icon: KeyRound,      accent: '#fe8019' },
+  { id: 'updates',     icon: ArrowDownToLine, accent: '#b8bb26' },
+  { id: 'logs',        icon: FileText,      accent: '#fabd2f' },
+  { id: 'about',       icon: Info,          accent: '#8ec07c' },
+  { id: 'privacy',     icon: ShieldCheck,   accent: '#b8bb26' },
 ];
 
 const LOG_SOURCE_DEFS = [
@@ -324,13 +326,16 @@ export function ModelStoreTab({ info, modelBadge }) {
   // Tick counter — forces re-render every second while a download is active
   // so speed/ETA displays update smoothly between SSE events.
   const [, setTick] = useState(0);
+  // Boolean derived from rowState so the interval effect below only re-runs
+  // when activity starts/stops — not on every SSE progress event (several per
+  // second during installs), which would clear + recreate the 1s tick forever.
+  const hasActive = useMemo(() => Object.values(rowState).some(s =>
+    ['install_start', 'active', 'delete_start'].includes(s.phase)), [rowState]);
   useEffect(() => {
-    const hasActive = Object.values(rowState).some(s =>
-      ['install_start', 'active', 'delete_start'].includes(s.phase));
     if (!hasActive) return;
     const iv = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(iv);
-  }, [rowState]);
+  }, [hasActive]);
 
   // HF token inline — compact input in the toolbar
   const [hfToken, setHfToken] = useState('');
@@ -1399,6 +1404,13 @@ export default function Settings() {
                 </span>
               : logs.join('')}
           </div>
+        </section>
+      )}
+
+      {activeTab === 'updates' && (
+        <section className="settings-section">
+          <h2><ArrowDownToLine size={16} color="#b8bb26" /> {t('settings.updates')}</h2>
+          <UpdatesPanel />
         </section>
       )}
 

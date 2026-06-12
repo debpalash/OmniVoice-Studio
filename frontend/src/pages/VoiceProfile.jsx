@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
 import { toastErrorWithReport } from '../utils/errorToast';
@@ -14,6 +14,7 @@ import {
 import useRecording from '../hooks/useRecording';
 import { generateSpeech } from '../api/generate';
 import { API } from '../api/client';
+import WaveformPlayer from '../components/WaveformPlayer';
 import './VoiceProfile.css';
 import { askConfirm } from '../utils/dialog';
 
@@ -42,7 +43,6 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
   const [testText, setTestText] = useState(t('voice_profile.test_text'));
   const [testGenerating, setTestGenerating] = useState(false);
   const [testAudioUrl, setTestAudioUrl] = useState(null);
-  const testAudioRef = useRef(null);
 
   // Consent lock (Wave 0.2): record a spoken consent statement to mark the
   // profile as the owner's own voice. Agentic features and gallery sharing
@@ -172,7 +172,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
       if (testAudioUrl && testAudioUrl.startsWith('blob:')) URL.revokeObjectURL(testAudioUrl);
       const url = URL.createObjectURL(blob);
       setTestAudioUrl(url);
-      setTimeout(() => testAudioRef.current?.play?.(), 80);
+      // Playback (and autoplay) is handled by the shared WaveformPlayer below.
     } catch (e) {
       toastErrorWithReport(t('voice_profile.gen_failed', { message: e.message }), e);
     } finally {
@@ -268,7 +268,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
             <div className="voice-profile__audio-label">
               <Volume2 size={11} /> {profile.is_locked ? t('voice_profile.locked_ref') : t('voice_profile.ref_audio')}
             </div>
-            <audio controls src={audioUrl} className="voice-profile__audio-el" preload="metadata" />
+            <WaveformPlayer src={audioUrl} source="profile-ref" className="voice-profile__audio-el" />
           </div>
         )}
       </Panel>
@@ -411,12 +411,11 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
             {testGenerating ? t('voice_profile.generating') : t('voice_profile.gen_preview')}
           </Button>
           {testAudioUrl && (
-            <audio
-              ref={testAudioRef}
-              controls
+            <WaveformPlayer
               src={testAudioUrl}
+              source="profile-test"
+              autoPlay
               className="voice-profile__tryit-audio"
-              preload="auto"
             />
           )}
         </div>

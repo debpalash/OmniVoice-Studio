@@ -1,6 +1,8 @@
 .voice-preview {
   position: fixed;
-  bottom: 56px;
+  /* Track the LogsFooter's live height so an expanded/resized footer never
+     slides underneath the popover (LogsFooter.jsx writes the variable). */
+  bottom: calc(var(--logs-footer-height, 28px) + 16px);
   right: 16px;
   z-index: 900;
   width: 320px;
@@ -69,11 +71,6 @@
 }
 .voice-preview__audio {
   width: 100%;
-  height: 32px;
-  border-radius: 6px;
-}
-.voice-preview__audio::-webkit-media-controls-panel {
-  background: var(--chrome-hover-bg);
 }
 
 .voice-preview__foot {

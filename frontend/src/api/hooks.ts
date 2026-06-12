@@ -17,6 +17,7 @@ import type { CommunityFilters } from './community';
 export const queryKeys = {
   sysinfo:         ['sysinfo']         as const,
   modelStatus:     ['model-status']    as const,
+  notifications:   ['notifications']   as const,
   systemInfo:      ['system-info']     as const,
   systemLogs:      (tail?: number) => ['system-logs', tail ?? 300] as const,
   tauriLogs:       (tail?: number) => ['tauri-logs',  tail ?? 300] as const,
@@ -39,7 +40,7 @@ export function useSysinfo(enabled = true) {
     queryKey: queryKeys.sysinfo,
     queryFn: systemApi.sysinfo,
     refetchInterval: 5_000,
-    refetchIntervalInBackground: true,
+    refetchIntervalInBackground: false,
     retry: Infinity,
     retryDelay: 1_500,
     enabled,
@@ -63,21 +64,35 @@ export function useModelStatus(enabled = true) {
   });
 }
 
-export function useSystemLogs(tail = 300, enabled = true) {
+// Shared by the header bell (NotificationPanel) and the LogsFooter
+// notifications tab — one request, one cache entry.
+export function useNotifications(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.notifications,
+    queryFn: systemApi.systemNotifications,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+    retry: Infinity,
+    retryDelay: 1_500,
+    enabled,
+  });
+}
+
+export function useSystemLogs(tail = 300, enabled = true, refetchInterval = 10_000) {
   return useQuery({
     queryKey: queryKeys.systemLogs(tail),
     queryFn: () => systemApi.systemLogs(tail),
-    refetchInterval: 10_000,
+    refetchInterval,
     refetchIntervalInBackground: false,
     enabled,
   });
 }
 
-export function useTauriLogs(tail = 300, enabled = true) {
+export function useTauriLogs(tail = 300, enabled = true, refetchInterval = 10_000) {
   return useQuery({
     queryKey: queryKeys.tauriLogs(tail),
     queryFn: () => systemApi.systemLogsTauri(tail),
-    refetchInterval: 10_000,
+    refetchInterval,
     refetchIntervalInBackground: false,
     enabled,
   });

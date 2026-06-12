@@ -14,7 +14,9 @@
 #   :0.3      — major.minor floating tag (updated on every patch within the minor)
 #   :sha-xxxx — specific commit SHA; produced by workflow_dispatch
 #
-# Images land at: ghcr.io/debpalash/omnivoice-studio
+# Images land at: ghcr.io/debpalash/omnivoice-studio AND docker.io/palashdeb/omnivoice-studio
+# (Docker Hub push gated on the DOCKERHUB_USERNAME/DOCKERHUB_TOKEN secrets;
+# if unset the build still pushes to GHCR.)
 #
 # NOTE: the Docker image is the headless web-server build of OmniVoice (FastAPI
 # backend + pre-built React frontend served over HTTP).  The Tauri desktop
@@ -36,6 +38,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  DOCKERHUB_IMAGE: palashdeb/omnivoice-studio
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -58,6 +61,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Docker Hub login — only when the secret is present, so forks / runs
+      # without the credential still publish to GHCR.
+      - name: Check Docker Hub credentials
+        id: dockerhub
+        run: echo "enabled=${{ secrets.DOCKERHUB_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to Docker Hub
+        if: steps.dockerhub.outputs.enabled == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       # Tag strategy (`:sha-<short>` is emitted on every trigger):
       #   v0.3.6 tag push   → :0.3.6, :0.3, :stable, :sha-
       #   main branch push  → :latest, :main, :sha-
@@ -71,7 +87,12 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # Same tag set applied to both registries. The Docker Hub line is
+          # blank when the secret is unset, so metadata-action emits GHCR-only
+          # tags in that case.
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+            ${{ steps.dockerhub.outputs.enabled == 'true' && env.DOCKERHUB_IMAGE || '' }}
           tags: |
             type=semver,pattern={{version}},enable=${{ github.event_name == 'push' }}
             type=semver,pattern={{major}}.{{minor}},enable=${{ github.event_name == 'push' }}

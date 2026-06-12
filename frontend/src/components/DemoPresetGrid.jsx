@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Play, Pause } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { DEMO_ICONS, FALLBACK_VOICE_ICON, stripVoiceEmoji } from '../utils/voiceIcons';
 import { API } from '../api/client';
 import { claimPlayback, stopActivePlayback } from '../utils/playback';
 import './DemoPresetGrid.css';
@@ -82,11 +83,12 @@ export default function DemoPresetGrid({ presets, onUse }) {
       />
       {presets.map((p) => {
         const isPlaying = playingId === p.id;
+        const Icon = DEMO_ICONS[p.id] || FALLBACK_VOICE_ICON;
         return (
           <div key={p.id} className="demo-preset-card">
             <div className="demo-preset-card__head">
-              <span className="demo-preset-card__icon" aria-hidden>{p.icon}</span>
-              <span className="demo-preset-card__name">{p.name}</span>
+              <span className="demo-preset-card__icon" aria-hidden><Icon size={18} /></span>
+              <span className="demo-preset-card__name">{stripVoiceEmoji(p.name)}</span>
             </div>
             <p className="demo-preset-card__desc">{p.description}</p>
             <code className="demo-preset-card__instruct">{p.instruct}</code>

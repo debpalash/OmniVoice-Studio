@@ -1,0 +1,73 @@
+/* WorkspaceVoices — right-side "Saved voices" panel. Row internals reuse the
+   shared .history-* classes (bundled app-wide); this file styles the panel
+   chrome only. Lives stacked above WorkspaceHistory inside .studio-right. */
+
+.wv {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* When the list is empty, shrink to just the header + one-line empty state so
+   the panel below it (e.g. History) gets the room instead of a big void. */
+.wv--collapsed {
+  flex: 0 0 auto;
+}
+
+.wv__head {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--chrome-border);
+}
+
+.wv__title {
+  font-family: var(--chrome-font-mono, var(--font-mono));
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--chrome-fg-muted);
+}
+
+.wv__search { position: relative; }
+
+.wv__search-icon {
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  transform: translateY(-50%);
+  color: var(--color-fg-subtle);
+  pointer-events: none;
+}
+
+.wv__search-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 28px;
+  font-size: 0.78rem;
+  padding: 4px 8px 4px 24px;
+  border-radius: var(--chrome-radius-pill, 999px);
+}
+
+.wv__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+.wv__empty {
+  color: var(--chrome-fg-dim);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  text-align: center;
+  padding: 24px 16px;
+}

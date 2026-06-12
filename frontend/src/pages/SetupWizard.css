@@ -2,12 +2,32 @@
  * comes from the shared studio-console system (frs-* in FirstRunSetup.css);
  * this file only carries the wizard-specific glue. */
 
-/* Slides stack the act's panel + nav with the deck's rhythm. */
+/* Slides stack the act's panel + nav with the deck's rhythm — under a strict
+   space budget: the slide takes whatever height the deck has left, its
+   CONTENT region scrolls, and the .frs-wnav action row is pinned below it so
+   Continue/Back are visible at every window size (they used to fall below
+   the fold on the first-open window). */
 .swiz-slide {
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
+  gap: 0.8rem;
   min-width: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* Every slide is exactly [content, .frs-wnav] — the content half scrolls,
+   with a soft fade at the cut so clipped rows read as "scroll for more". */
+.swiz-slide > :not(.frs-wnav) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 0.6rem;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent);
+}
+.swiz-slide > .frs-wnav {
+  flex-shrink: 0;
+  border-top: 1px solid var(--frs-line, rgba(255, 255, 255, 0.08));
 }
 
 .swiz-note {

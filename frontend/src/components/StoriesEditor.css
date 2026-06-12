@@ -263,7 +263,7 @@
   width: 100%;
   min-height: 96px;
   padding: 8px 10px;
-  background: var(--color-bg-elevated, rgba(0,0,0,0.2));
+  background: var(--color-bg-elev-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   color: var(--color-fg);
@@ -287,7 +287,7 @@
 .stories-editor__split-num {
   width: 64px;
   padding: 4px 6px;
-  background: var(--color-bg-elevated, rgba(0,0,0,0.2));
+  background: var(--color-bg-elev-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   color: var(--color-fg);
@@ -306,7 +306,7 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  background: var(--color-bg-elevated, rgba(0, 0, 0, 0.2));
+  background: var(--color-bg-elev-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
 }
@@ -399,7 +399,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: var(--color-bg-elevated, rgba(0, 0, 0, 0.2));
+  background: var(--color-bg-elev-2);
   border: 1px solid var(--color-border);
   border-radius: 999px;
   color: var(--color-fg);
@@ -451,7 +451,7 @@
 
 /* ── Export format selector ───────────────────────────────────────── */
 .stories-editor__format {
-  background: var(--color-bg-elevated, rgba(0, 0, 0, 0.2));
+  background: var(--color-bg-elev-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   color: var(--color-fg);
@@ -486,10 +486,10 @@
   padding: 7px 10px;
   border-radius: var(--radius-md, 8px);
   border-left: 3px solid var(--color-accent);
-  background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
+  background: var(--color-bg-elev-2);
 }
 .stories-chapter--dragover { outline: 1px dashed var(--color-accent); outline-offset: 2px; }
-.stories-chapter__grip { display: flex; color: var(--color-fg-dim, #a89884); cursor: grab; opacity: 0.4; }
+.stories-chapter__grip { display: flex; color: var(--color-fg-subtle); cursor: grab; opacity: 0.4; }
 .stories-chapter:hover .stories-chapter__grip { opacity: 1; }
 .stories-chapter__icon { flex: none; color: var(--color-accent); }
 .stories-chapter__title {
@@ -505,7 +505,7 @@
   color: var(--color-fg);
   padding: 2px 0;
 }
-.stories-chapter__title::placeholder { color: var(--color-fg-dim, #a89884); font-weight: 600; }
+.stories-chapter__title::placeholder { color: var(--color-fg-subtle); font-weight: 600; }
 .stories-chapter__del {
   flex: none;
   display: flex;
@@ -513,7 +513,7 @@
   border-radius: 6px;
   background: none;
   border: none;
-  color: var(--color-fg-dim, #a89884);
+  color: var(--color-fg-subtle);
   cursor: pointer;
   opacity: 0;
 }

@@ -6,7 +6,7 @@
   margin-bottom: 12px;
   border: 1px solid var(--border, #3c3836);
   border-radius: 8px;
-  background: var(--panel-bg, rgba(255, 255, 255, 0.02));
+  background: var(--color-bg-elev-1);
 }
 .storagepanel__title {
   display: flex;
@@ -32,10 +32,10 @@
   min-width: 0;
   padding: 6px 8px;
   font-size: 12px;
-  font-family: var(--mono, ui-monospace, monospace);
+  font-family: var(--font-mono);
   border: 1px solid var(--border, #504945);
   border-radius: 6px;
-  background: var(--input-bg, rgba(0, 0, 0, 0.2));
+  background: var(--color-bg-elev-2);
   color: inherit;
 }
 .storagepanel__btn {
@@ -54,6 +54,6 @@
 .storagepanel__restart { margin: 0; font-size: 12px; color: var(--warn, #fabd2f); }
 .storagepanel__error {
   font-size: 12px;
-  color: var(--danger, #fb4934);
+  color: var(--color-danger);
   padding: 4px 0;
 }

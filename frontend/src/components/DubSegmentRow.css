@@ -6,15 +6,16 @@
   border-left: 2px solid transparent;
 }
 .segment-active {
-  border-left: 2px solid #d3869b !important;
-  background: rgba(211, 134, 155, 0.08) !important;
+  /* Background comes from index.css's .segment-row.segment-active block
+     (var(--chrome-accent-bg)) — only the border edge is owned here. */
+  border-left: 2px solid var(--chrome-accent) !important;
 }
 .segment-done {
   opacity: 0.6;
   border-left: 2px solid rgba(142, 192, 124, 0.35) !important;
 }
 .segment-selected {
-  background: rgba(211, 134, 155, 0.05) !important;
+  background: color-mix(in srgb, var(--chrome-accent) 5%, transparent) !important;
 }
 
 /* Row containing the current media playhead — distinct from segment-active
@@ -26,7 +27,7 @@
 }
 .segment-row.segment-playing.segment-active {
   /* Generation wins visually when both are true. */
-  box-shadow: inset 2px 0 0 #d3869b;
+  box-shadow: inset 2px 0 0 var(--chrome-accent);
 }
 
 /* Per-cell widths are inherited from the shared grid template defined

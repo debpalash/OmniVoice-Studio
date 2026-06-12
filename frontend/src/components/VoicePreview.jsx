@@ -4,6 +4,8 @@ import { Volume2, Play, Square, Loader, X, Mic } from 'lucide-react';
 import { generateSpeech } from '../api/generate';
 import { PRESETS } from '../utils/constants';
 import { Button } from '../ui';
+import WaveformPlayer from './WaveformPlayer';
+import { stopActivePlayback } from '../utils/playback';
 import './VoicePreview.css';
 
 /**
@@ -26,8 +28,6 @@ export default function VoicePreview({
   const [voiceId, setVoiceId] = useState(initialProfileId);
   const [audioUrl, setAudioUrl] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [playing, setPlaying] = useState(false);
-  const audioRef = useRef(null);
   const abortRef = useRef(null);
 
   // Sync initialProfileId when it changes (e.g. clicking preview on a different profile)
@@ -75,13 +75,7 @@ export default function VoicePreview({
       const blob = await res.blob();
       const urls = await fileToMediaUrl(blob, null);
       setAudioUrl(urls.audioUrl);
-
-      // Auto-play
-      setTimeout(() => {
-        if (audioRef.current) {
-          audioRef.current.play().catch(() => {});
-        }
-      }, 50);
+      // Playback + autoplay handled by the shared WaveformPlayer below.
     } catch (err) {
       if (err.name !== 'AbortError') {
         console.error('Preview generation failed:', err);
@@ -93,11 +87,7 @@ export default function VoicePreview({
 
   const handleStop = () => {
     abortRef.current?.abort();
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-    setPlaying(false);
+    stopActivePlayback();
     setLoading(false);
   };
 
@@ -159,14 +149,11 @@ export default function VoicePreview({
         />
 
         {audioUrl && (
-          <audio
-            ref={audioRef}
+          <WaveformPlayer
             src={audioUrl}
+            source="voice-preview"
+            autoPlay
             className="voice-preview__audio"
-            controls
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onEnded={() => setPlaying(false)}
           />
         )}
       </div>

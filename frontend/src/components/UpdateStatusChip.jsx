@@ -12,7 +12,7 @@ import './UpdateStatusChip.css';
 
 const ICONS = { check: Check, up: ArrowUp, spin: Loader, restart: RotateCw, alert: AlertTriangle };
 
-export default function UpdateStatusChip({ onOpen }) {
+export default function UpdateStatusChip({ onOpen, active = false }) {
   const { t } = useTranslation();
   const status = useAppStore((s) => s.updateStatus);
   const version = useAppStore((s) => s.updateVersion);
@@ -46,7 +46,7 @@ export default function UpdateStatusChip({ onOpen }) {
   return (
     <button
       type="button"
-      className={`update-chip update-chip--${p.variant}`}
+      className={`update-chip update-chip--${p.variant} ${active ? 'update-chip--active' : ''}`}
       onClick={onClick}
       title={t('updates.tab')}
     >

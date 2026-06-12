@@ -414,7 +414,7 @@
   margin: 0 1px;
 }
 .models-row__error {
-  color: var(--chrome-danger, #fb4934); font-size: var(--text-xs);
+  color: var(--chrome-severity-err); font-size: var(--text-xs);
   margin-top: 4px;
 }
 .models-controls {
@@ -423,7 +423,9 @@
 }
 .models-search {
   flex: 1; min-width: 120px;
-  background: var(--chrome-bg-2, #1d1d1d);
+  /* Slightly-raised surface derived from --chrome-bg so themed chrome
+     (midnight/nord/…) carries through; ≈ #1d1d1d on the default theme. */
+  background: color-mix(in srgb, var(--chrome-bg) 94%, white);
   border: 1px solid var(--chrome-border, #2a2a2a);
   border-radius: var(--radius-sm, 6px);
   color: var(--chrome-fg);
@@ -490,7 +492,7 @@
 .settings-credential__input {
   flex: 1;
   max-width: 380px;
-  background: var(--chrome-bg-2, #1d1d1d);
+  background: color-mix(in srgb, var(--chrome-bg) 94%, white);
   border: 1px solid var(--chrome-border);
   border-radius: var(--radius-sm, 6px);
   color: var(--chrome-fg);

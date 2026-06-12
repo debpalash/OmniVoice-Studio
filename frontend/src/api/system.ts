@@ -103,6 +103,24 @@ export async function systemInfo(): Promise<SystemInfo> {
   return apiJson<SystemInfo>('/system/info');
 }
 
+// ── Notifications (polled by header bell + logs footer) ──────────────────
+
+export interface SystemNotification {
+  id: string;
+  level: 'info' | 'warn' | 'error';
+  title?: string;
+  message?: string;
+  action?: { type: string; target: string; label?: string };
+}
+
+export interface NotificationsResponse {
+  notifications: SystemNotification[];
+}
+
+export async function systemNotifications(): Promise<NotificationsResponse> {
+  return apiJson<NotificationsResponse>('/system/notifications');
+}
+
 // ── Logs (polled every 5s) ───────────────────────────────────────────────
 
 export async function systemLogs(tail: number = 300): Promise<LogsResponse> {

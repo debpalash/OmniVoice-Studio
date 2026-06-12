@@ -34,7 +34,7 @@
     "concurrently": "^9.2.1",
     "kill-port-process": "^4.0.2",
     "playwright": "^1.60.0",
-    "turbo": "^2.9.15",
+    "turbo": "^2.9.18",
     "typescript": "^6.0.3",
     "wait-on": "^9.0.10"
   }

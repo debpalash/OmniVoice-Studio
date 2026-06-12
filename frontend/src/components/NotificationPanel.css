@@ -8,7 +8,7 @@
   width: 28px;
   height: 28px;
   background: none;
-  border: 1px solid var(--color-border);
+  border: none;
   border-radius: var(--radius-md);
   color: var(--color-fg-muted);
   cursor: pointer;
@@ -20,12 +20,10 @@
 .notif-trigger:hover {
   color: var(--color-fg);
   background: rgba(255, 255, 255, 0.04);
-  border-color: var(--color-border-strong);
 }
 
 .notif-trigger--has-items {
   color: var(--color-brand);
-  border-color: var(--color-brand);
 }
 
 /* Badge count */

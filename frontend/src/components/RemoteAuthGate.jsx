@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // When LAN sharing is on, a non-loopback request that lacks the PIN gets a 401
 // from the backend middleware. `client.ts` dispatches `ov:pin-required` on that
@@ -7,6 +8,7 @@ import { useEffect, useState } from 'react';
 // by apiFetch on every subsequent request) and reloads so the gated requests
 // retry with the header attached.
 export default function RemoteAuthGate({ children, forceGate = false }) {
+  const { t } = useTranslation();
   const [gated, setGated] = useState(forceGate);
   const [pin, setPin] = useState('');
 
@@ -29,11 +31,11 @@ export default function RemoteAuthGate({ children, forceGate = false }) {
   return (
     <div className="remote-auth-gate" role="dialog" aria-modal="true">
       <form onSubmit={submit} className="remote-auth-gate__card">
-        <h2>Enter access PIN</h2>
-        <p>This OmniVoice instance is shared on the network. Enter the PIN shown on the host.</p>
-        <label htmlFor="ov-pin">Access PIN</label>
+        <h2>{t('remote_gate.title')}</h2>
+        <p>{t('remote_gate.body')}</p>
+        <label htmlFor="ov-pin">{t('remote_gate.label')}</label>
         <input id="ov-pin" inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} autoFocus />
-        <button type="submit">Connect</button>
+        <button type="submit">{t('remote_gate.connect')}</button>
       </form>
     </div>
   );
