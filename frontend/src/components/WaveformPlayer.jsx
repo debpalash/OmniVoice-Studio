@@ -106,18 +106,31 @@ export default function WaveformPlayer({
       return;
     }
     wsRef.current = ws;
+    // Stale-instance guard: a destroy() that throws mid-teardown (observed
+    // under StrictMode double-mount) can leave this instance's media
+    // listeners alive — its handlers must become inert, or its duplicate
+    // 'play' event re-claims the playback slot and stops... ourselves
+    // (the self-pause bug: waveform drew, click silently un-played).
+    let stale = false;
 
     ws.on('ready', () => {
+      if (stale) return;
       setDuration(ws.getDuration());
       setReady(true);
       if (autoPlayRef.current) ws.play().catch(() => {});
     });
-    ws.on('timeupdate', (t) => setCurrentTime(t));
+    ws.on('timeupdate', (t) => { if (!stale) setCurrentTime(t); });
     ws.on('play', () => {
+      if (stale) return;
       setIsPlaying(true);
-      releaseRef.current = claimPlayback(() => { try { ws.pause(); } catch { /* noop */ } }, source);
+      // Idempotent: duplicate 'play' events must not re-claim — claiming
+      // stops the current owner, which would be this very element.
+      if (!releaseRef.current) {
+        releaseRef.current = claimPlayback(() => { try { ws.pause(); } catch { /* noop */ } }, source);
+      }
     });
     ws.on('pause', () => {
+      if (stale) return;
       setIsPlaying(false);
       if (releaseRef.current) { releaseRef.current(); releaseRef.current = null; }
     });
@@ -143,7 +156,11 @@ export default function WaveformPlayer({
     // (No explicit ws.load — `url` in the create options loads via the media el.)
 
     return () => {
+      stale = true;
       if (releaseRef.current) { releaseRef.current(); releaseRef.current = null; }
+      // Detach our handlers BEFORE destroy — if destroy throws mid-teardown
+      // (the swallowed catch below) the listeners must already be gone.
+      try { ws.unAll(); } catch { /* noop */ }
       try { ws.destroy(); } catch { /* already gone */ }
       wsRef.current = null;
     };
