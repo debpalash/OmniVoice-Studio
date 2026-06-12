@@ -258,13 +258,19 @@ async def community_use(item_id: str, name: Optional[str] = Query(None)):
         raise HTTPException(status_code=503, detail=f"Couldn't add this voice right now. Error: {e}")
 
     try:
+        # A community "preset" is a synthetic designed voice (rendered from an
+        # instruct string) → kind='design'; a "voice" carries a real reference
+        # clip → kind='clone'. Setting kind makes the persona-gallery
+        # synthetic-only gating work (§R3) instead of defaulting all imports to
+        # 'clone'.
+        kind = "design" if item["type"] == "preset" else "clone"
         with db_conn() as conn:
             conn.execute(
                 "INSERT INTO voice_profiles "
-                "(id, name, ref_audio_path, ref_text, instruct, language, seed, personality, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "(id, name, ref_audio_path, ref_text, instruct, language, seed, personality, created_at, kind) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (profile_id, profile_name, audio_filename, ref_text, instruct,
-                 item.get("language", "Auto"), None, item["id"], time.time()),
+                 item.get("language", "Auto"), None, item["id"], time.time(), kind),
             )
     except Exception:
         with __import__("contextlib").suppress(OSError):

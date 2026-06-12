@@ -1109,6 +1109,17 @@ PDF/txt/docx (M) → A5 inline tags + per-chapter voices (M) → A6 OCR + Calibr
 shell-out (M) → A7 book→Stories timeline round-trip (L) — the differentiator no
 surveyed tool has.
 
+> **Status (2026-06-13):** the browse-preview-install surface already exists —
+> `VoiceGallery.jsx`'s Community zone over the `omnivoice-gallery` git manifest
+> (`backend/api/routers/community.py`), plus `.omnivoice` bundle export/import
+> (`marketplace.py`). The missing piece for the synthetic-only gate was data
+> integrity: imported community presets and bundle round-trips silently dropped
+> `kind`/`vd_states`, demoting designed personas to clones. Fixed — community
+> "preset" imports as `kind='design'` (a "voice" as `clone`), and bundles now
+> carry `kind`+`vd_states` (old bundles import as clone). This makes the
+> "accept only designed/synthetic" gate enforceable. Still to do: the consent
+> attestation + AudioSeal-on-preview gate and the curation workflow below.
+
 **Persona gallery — the territory is genuinely unoccupied.** The field splits into
 consent-heavy commercial (ElevenLabs Voice Library: live-read Voice Captcha
 verification, human review, sharing limited to professional clones), a consent-free

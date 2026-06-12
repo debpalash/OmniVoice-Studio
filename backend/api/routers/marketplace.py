@@ -58,6 +58,31 @@ MAX_BUNDLE_BYTES = 100 * 1024 * 1024
 # ── Export ──────────────────────────────────────────────────────────────────
 
 
+def _bundle_metadata(profile: dict, **extra) -> dict:
+    """Common .omnivoice metadata for export + publish.
+
+    Captures ``kind`` and ``vd_states`` so a *designed* persona survives the
+    bundle round-trip as a design (not silently demoted to a clone) — required
+    for the synthetic-only gating of the persona gallery (§R3). Old bundles
+    without these keys import as ``kind='clone'`` (backward-compatible).
+    """
+    meta = {
+        "bundle_version": BUNDLE_VERSION,
+        "profile_name": profile.get("name", "Unnamed"),
+        "ref_text": profile.get("ref_text", ""),
+        "instruct": profile.get("instruct", ""),
+        "language": profile.get("language", "Auto"),
+        "personality": profile.get("personality", ""),
+        "seed": profile.get("seed"),
+        "kind": profile.get("kind") or "clone",
+        "vd_states": profile.get("vd_states"),
+        "is_locked": bool(profile.get("is_locked")),
+        "omnivoice_version": APP_VERSION,
+    }
+    meta.update(extra)
+    return meta
+
+
 @router.post("/export/{profile_id}")
 def export_profile(profile_id: str):
     """Export a voice profile as a downloadable .omnivoice bundle (ZIP)."""
@@ -75,19 +100,9 @@ def export_profile(profile_id: str):
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         # Metadata
-        metadata = {
-            "bundle_version": BUNDLE_VERSION,
-            "profile_name": profile.get("name", "Unnamed"),
-            "ref_text": profile.get("ref_text", ""),
-            "instruct": profile.get("instruct", ""),
-            "language": profile.get("language", "Auto"),
-            "personality": profile.get("personality", ""),
-            "seed": profile.get("seed"),
-            "is_locked": bool(profile.get("is_locked")),
-            "created_at": profile.get("created_at"),
-            "exported_at": time.time(),
-            "omnivoice_version": APP_VERSION,
-        }
+        metadata = _bundle_metadata(
+            profile, created_at=profile.get("created_at"), exported_at=time.time(),
+        )
         zf.writestr("metadata.json", json.dumps(metadata, indent=2))
 
         # Reference audio
@@ -191,8 +206,9 @@ async def import_profile(
         conn.execute(
             """INSERT INTO voice_profiles
                (id, name, ref_audio_path, ref_text, instruct, language,
-                seed, personality, is_locked, locked_audio_path, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                seed, personality, is_locked, locked_audio_path, created_at,
+                kind, vd_states)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 profile_id,
                 metadata.get("profile_name", "Imported Voice"),
@@ -205,6 +221,10 @@ async def import_profile(
                 1 if is_locked else 0,
                 locked_audio_filename or "",
                 time.time(),
+                # Preserve the design/clone distinction across the round-trip;
+                # old bundles without these keys import as a clone.
+                metadata.get("kind") or "clone",
+                metadata.get("vd_states"),
             ),
         )
 
@@ -253,19 +273,11 @@ def publish_to_marketplace(
 
     # Build the bundle
     with zipfile.ZipFile(str(bundle_path), "w", zipfile.ZIP_DEFLATED) as zf:
-        metadata = {
-            "bundle_version": BUNDLE_VERSION,
-            "profile_name": profile.get("name", "Unnamed"),
-            "ref_text": profile.get("ref_text", ""),
-            "instruct": profile.get("instruct", ""),
-            "language": profile.get("language", "Auto"),
-            "personality": profile.get("personality", ""),
-            "seed": profile.get("seed"),
-            "is_locked": bool(profile.get("is_locked")),
-            "tags": [t.strip() for t in tags.split(",") if t.strip()],
-            "published_at": time.time(),
-            "omnivoice_version": APP_VERSION,
-        }
+        metadata = _bundle_metadata(
+            profile,
+            tags=[t.strip() for t in tags.split(",") if t.strip()],
+            published_at=time.time(),
+        )
         zf.writestr("metadata.json", json.dumps(metadata, indent=2))
 
         ref_path = profile.get("ref_audio_path")
