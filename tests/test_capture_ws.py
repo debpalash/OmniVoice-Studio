@@ -28,10 +28,10 @@ def client(monkeypatch):
     # Stub the heavy transcription helpers so the test stays in-process.
     from api.routers import capture_ws as cw
 
-    async def fake_partial(_chunks):
+    async def fake_partial(_chunks, **_kw):
         return "hello"
 
-    async def fake_full(_chunks):
+    async def fake_full(_chunks, **_kw):
         return {
             "text": "hello world",
             "segments": [{"start": 0.0, "end": 1.0, "text": "hello world"}],
