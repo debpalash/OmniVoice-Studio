@@ -19,6 +19,7 @@ import WaveSurfer from 'wavesurfer.js';
 import { Play, Pause, Loader } from 'lucide-react';
 import { claimPlayback } from '../utils/playback';
 import { isTauri, fileToMediaUrl } from '../utils/media';
+import { useAppStore } from '../store';
 import './WaveformPlayer.css';
 
 const fmt = (s) => {
@@ -52,6 +53,35 @@ export default function WaveformPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+
+  // Opt-in dictate-over-playback AEC (parity Action 8): while this player is
+  // actually playing AND the pref is on, tap its decoded output as the echo
+  // reference for dictation (published to the far-end bus). Gated on isPlaying
+  // so an AudioContext exists only for the one active player (the global
+  // playback manager stops the others), staying well under the browser's
+  // per-page context cap. When the pref is off the default playback path never
+  // constructs an AudioContext.
+  const aecEnabled = useAppStore((s) => s.aecEnabled);
+  const tapDetachRef = useRef(null);
+  useEffect(() => {
+    let cancelled = false;
+    const el = mediaRef.current || nativeRef.current;
+    if (aecEnabled && isPlaying && el) {
+      import('../utils/aec/playbackTap')
+        .then(({ attachPlaybackTap }) => attachPlaybackTap(el))
+        .then((detach) => {
+          if (cancelled) { try { detach?.(); } catch { /* ignore */ } }
+          else { tapDetachRef.current = detach; }
+        })
+        .catch(() => { /* Web Audio unavailable — dictation still works sans AEC */ });
+    }
+    return () => {
+      cancelled = true;
+      const d = tapDetachRef.current;
+      tapDetachRef.current = null;
+      try { d?.(); } catch { /* ignore */ }
+    };
+  }, [aecEnabled, isPlaying]);
 
   // Resolve Blob/File → playable URL. Strings pass through. In Tauri, blob:
   // URLs don't play in WebKit media elements, so blobs are routed through the

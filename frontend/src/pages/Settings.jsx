@@ -34,6 +34,7 @@ import ApiKeysPanel from '../components/settings/ApiKeysPanel';
 import LLMEndpointPanel from '../components/settings/LLMEndpointPanel';
 import PerformancePanel from '../components/settings/PerformancePanel';
 import RefinementPanel from '../components/settings/RefinementPanel';
+import AecPanel from '../components/settings/AecPanel';
 import AppearancePanel from '../components/settings/AppearancePanel';
 import StoragePanel from '../components/settings/StoragePanel';
 import HFMirrorPanel from '../components/settings/HFMirrorPanel';
@@ -1338,6 +1339,7 @@ export default function Settings() {
           <DictationDemo />
           <HotkeyTab />
           <RefinementPanel />
+          <AecPanel />
         </>
       )}
 

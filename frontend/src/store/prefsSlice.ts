@@ -107,6 +107,16 @@ export interface PrefsSlice {
   setTimingStrategy: (s: TimingStrategy) => void;
   setFitOptions: (o: FitOptions | null) => void;
 
+  /**
+   * Opt-in dictate-over-playback echo cancellation (parity Action 8). When
+   * on, dictation streams raw PCM through the server-side NLMS AEC and the
+   * audio player taps its output as the echo reference, so dictating while
+   * OmniVoice plays audio doesn't transcribe the playback. Default OFF — the
+   * standard MediaRecorder dictation path is unchanged when off.
+   */
+  aecEnabled: boolean;
+  setAecEnabled: (on: boolean) => void;
+
   locale: string;
   setLocale: (l: string) => void;
 
@@ -126,6 +136,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   showHeaderLiveStats: false,
   timingStrategy: 'concise',
   fitOptions: null,
+  aecEnabled: false,
 
   setTranslateQuality:    (q) => set({ translateQuality: q }),
   setDualSubs:            (on) => set({ dualSubs: on }),
@@ -135,6 +146,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   setShowHeaderLiveStats: (on) => set({ showHeaderLiveStats: on }),
   setTimingStrategy:      (s) => set({ timingStrategy: s }),
   setFitOptions:          (o) => set({ fitOptions: o }),
+  setAecEnabled:          (on) => set({ aecEnabled: on }),
 
   locale: typeof navigator !== 'undefined' ? (() => {
     const nav = navigator.language || '';

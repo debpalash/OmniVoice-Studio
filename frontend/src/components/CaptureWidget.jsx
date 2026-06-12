@@ -57,6 +57,21 @@ export default function CaptureWidget({ onDismiss }) {
   const wsHadFinalRef = useRef(false);
   const fallbackTimerRef = useRef(null);
   const startTimeRef = useRef(0);
+  // Opt-in dictate-over-playback AEC (parity Action 8). When on, we capture
+  // raw PCM via an AudioWorklet and tag mic/far-end frames instead of using
+  // MediaRecorder. All AEC state lives in refs so the default path is inert.
+  const aecModeRef = useRef(false);
+  const aecStopRef = useRef(null);     // async teardown of the mic worklet graph
+  const farEndUnsubRef = useRef(null); // unsubscribe from the far-end bus
+
+  const teardownAec = useCallback(async () => {
+    try { farEndUnsubRef.current?.(); } catch { /* ignore */ }
+    farEndUnsubRef.current = null;
+    const stop = aecStopRef.current;
+    aecStopRef.current = null;
+    try { await stop?.(); } catch { /* ignore */ }
+    aecModeRef.current = false;
+  }, []);
 
   // ── Hold-to-talk: listen for tray-dictate (start) and tray-dictate-stop (release) ──
   useEffect(() => {
@@ -180,11 +195,18 @@ export default function CaptureWidget({ onDismiss }) {
         ? 'audio/webm;codecs=opus'
         : 'audio/webm';
 
+      // Read the opt-in AEC pref at start time (avoids a stale closure).
+      const aecOn = useAppStore.getState().aecEnabled === true;
+      aecModeRef.current = aecOn;
+
       // Open WebSocket BEFORE starting recorder
       try {
         // Scheme + host + remote api key all derive from the API base
         // (Wave 2.3) — window.location lies inside the Tauri webview.
-        const ws = new WebSocket(buildWsUrl('/ws/transcribe'));
+        // AEC mode adds ?aec=1 so the server runs the NLMS canceller and
+        // expects tagged raw-PCM frames.
+        const wsPath = aecOn ? '/ws/transcribe?aec=1&sr=16000' : '/ws/transcribe';
+        const ws = new WebSocket(buildWsUrl(wsPath));
         ws.binaryType = 'arraybuffer';
         ws.onopen = () => {
           for (const buf of wsPendingRef.current) {
@@ -236,23 +258,50 @@ export default function CaptureWidget({ onDismiss }) {
         wsRef.current = null;
       }
 
-      const recorder = new MediaRecorder(stream, { mimeType });
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-          e.data.arrayBuffer().then(buf => {
-            const ws = wsRef.current;
-            if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(buf);
-            } else {
-              wsPendingRef.current.push(buf);
-            }
-          });
-        }
-      };
-      recorder.onstop = () => {};
-      recorder.start(250);
-      mediaRecorderRef.current = recorder;
+      if (aecOn) {
+        // AEC path: stream raw PCM. The mic is tagged 0x00; whatever the app
+        // is playing (published to the far-end bus by the audio player) is
+        // tagged 0x01 so the server can cancel the echo. No MediaRecorder and
+        // no WebM POST fallback here — the WS is the only path in this mode.
+        const [{ startMicCapture }, { subscribeFarEnd }, { frameFromFloat, AEC_NEAR, AEC_FAR }] =
+          await Promise.all([
+            import('../utils/aec/micCapture'),
+            import('../utils/aec/farEndBus'),
+            import('../utils/aec/pcm'),
+          ]);
+        const sendTagged = (float32, kind) => {
+          const buf = frameFromFloat(float32, kind);
+          const ws = wsRef.current;
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            try { ws.send(buf); } catch { /* ignore */ }
+          } else {
+            wsPendingRef.current.push(buf);
+          }
+        };
+        aecStopRef.current = await startMicCapture(
+          stream, (f) => sendTagged(f, AEC_NEAR), { sampleRate: 16000 },
+        );
+        farEndUnsubRef.current = subscribeFarEnd((f) => sendTagged(f, AEC_FAR));
+        mediaRecorderRef.current = null;
+      } else {
+        const recorder = new MediaRecorder(stream, { mimeType });
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            chunksRef.current.push(e.data);
+            e.data.arrayBuffer().then(buf => {
+              const ws = wsRef.current;
+              if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(buf);
+              } else {
+                wsPendingRef.current.push(buf);
+              }
+            });
+          }
+        };
+        recorder.onstop = () => {};
+        recorder.start(250);
+        mediaRecorderRef.current = recorder;
+      }
       startTimeRef.current = Date.now();
       setTrayRecording(true);
       setState('recording');
@@ -271,6 +320,11 @@ export default function CaptureWidget({ onDismiss }) {
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
+    }
+    // AEC mode: stop the mic worklet + far-end subscription before EOF so no
+    // stray frames arrive after the end-of-stream signal.
+    if (aecModeRef.current) {
+      teardownAec();
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
@@ -300,10 +354,12 @@ export default function CaptureWidget({ onDismiss }) {
     }
     setTrayRecording(false);
     setState('transcribing');
-  }, []);
+  }, [teardownAec]);
 
   const sendForTranscription = useCallback(async () => {
     if (wsHadFinalRef.current) return;
+    // No WebM blob exists on the AEC path — the WS is the only result channel.
+    if (aecModeRef.current) return;
 
     const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
     const formData = new FormData();
@@ -329,6 +385,7 @@ export default function CaptureWidget({ onDismiss }) {
   }, [captureMode, applyResult]);
 
   const dismiss = async () => {
+    if (aecModeRef.current) teardownAec();
     setState('idle');
     setTranscript('');
     setDuration(0);
