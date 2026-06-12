@@ -249,6 +249,12 @@ samp,
 .app-container.rail-right > .history-panel { grid-column: 1; }
 .app-container.rail-right > .main-content { grid-column: 2; }
 .app-container.rail-right.sidebar-hidden > .main-content { grid-column: 1; }
+/* sidebar-hidden collapses the template to 2 columns — the rail must move to
+   column 2, or it overflows into a phantom column and leaves the reserved
+   48px slot as a dead black gap beside it. */
+.app-container.rail-right.sidebar-hidden > .nav-rail { grid-column: 2; }
+/* …and the same off-by-one under sidebar-collapsed's 3-column template. */
+.app-container.rail-right.sidebar-collapsed > .history-panel { grid-column: 1; }
 .app-container > .nav-rail {
   grid-column: 1;
   grid-row: 2;
