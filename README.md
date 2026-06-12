@@ -124,7 +124,7 @@ Per-OS install guides — pick yours and follow it end-to-end:
 - **macOS** — [docs/install/macos.md](docs/install/macos.md)
 - **Windows** — [docs/install/windows.md](docs/install/windows.md)
 - **Linux** — [docs/install/linux.md](docs/install/linux.md)
-- **Docker** — [docs/install/docker.md](docs/install/docker.md)
+- **Docker** — [docs/install/docker.md](docs/install/docker.md) · [Docker Hub: `palashdeb/omnivoice-studio`](https://hub.docker.com/r/palashdeb/omnivoice-studio)
 
 Stuck? Run the built-in self-check first — **Settings → About → "Run
 self-check"** in the app, or `uv run python backend/main.py --diagnose` from
