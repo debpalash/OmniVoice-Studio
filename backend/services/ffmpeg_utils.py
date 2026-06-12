@@ -23,6 +23,36 @@ def _get_semaphore() -> asyncio.Semaphore:
     return _FFMPEG_SEMAPHORE
 
 
+# Candidate paths that exist but won't run (validated once per process).
+# Windows users hit this as `[WinError 193] %1 is not a valid Win32
+# application` (#360/#361/#362): a corrupt/wrong-arch imageio-ffmpeg
+# download or a WindowsApps alias stub passes `os.path.isfile` / `which`
+# but explodes at spawn. Probe each candidate with `-version` and fall
+# through to the next source instead of returning a time bomb.
+_BINARY_OK: dict[str, bool] = {}
+
+
+def _binary_runs(path: str) -> bool:
+    cached = _BINARY_OK.get(path)
+    if cached is not None:
+        return cached
+    try:
+        subprocess.run(
+            [path, "-version"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=10, check=False,
+        )
+        ok = True
+    except (OSError, subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+        logger.warning(
+            "Rejecting non-runnable ffmpeg/ffprobe candidate %s: %s",
+            os.path.basename(str(path)), e,
+        )
+        ok = False
+    _BINARY_OK[path] = ok
+    return ok
+
+
 def find_ffmpeg():
     """Locate an ffmpeg binary.
 
@@ -37,15 +67,15 @@ def find_ffmpeg():
     env_path = os.environ.get("FFMPEG_PATH")
     if env_path:
         resolved = shutil.which(env_path)
-        if resolved:
+        if resolved and _binary_runs(resolved):
             return resolved
     # 2. imageio-ffmpeg bundled static binary
     try:
         import imageio_ffmpeg
         candidate = imageio_ffmpeg.get_ffmpeg_exe()
-        if candidate and os.path.isfile(candidate):
+        if candidate and os.path.isfile(candidate) and _binary_runs(candidate):
             return candidate
-        logger.debug("imageio_ffmpeg binary not found at %s", candidate)
+        logger.debug("imageio_ffmpeg binary not usable at %s", candidate)
     except Exception as e:
         logger.debug("imageio_ffmpeg unavailable: %s", e)
     # 3. Well-known system paths + PATH lookup
@@ -58,9 +88,10 @@ def find_ffmpeg():
         "ffmpeg",
     ]
     for path in common:
-        if shutil.which(path):
-            return path
-    logger.warning("ffmpeg not found in env, imageio, or system PATH")
+        resolved = shutil.which(path)
+        if resolved and _binary_runs(resolved):
+            return resolved
+    logger.warning("ffmpeg not found (or not runnable) in env, imageio, or system PATH")
     return None
 
 
@@ -84,14 +115,14 @@ def resolve_ffprobe() -> str | None:
             continue
         # The env var may carry either an absolute path to a file OR a bare
         # command name (legacy). Accept both shapes — file first.
-        if os.path.isfile(path):
+        if os.path.isfile(path) and _binary_runs(path):
             return path
         resolved = shutil.which(path)
-        if resolved:
+        if resolved and _binary_runs(resolved):
             return resolved
 
     system_probe = shutil.which("ffprobe")
-    if system_probe:
+    if system_probe and _binary_runs(system_probe):
         return system_probe
     return None
 

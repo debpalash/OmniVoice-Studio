@@ -71,7 +71,33 @@ def test_resolve_ffprobe_falls_back_to_PATH(monkeypatch, tmp_path):
         return None
 
     monkeypatch.setattr(ffmpeg_utils, "shutil", _ShutilStub(_fake_which))
+    # The fake path isn't a real binary — bypass the runnability probe here
+    # (rejection behavior has its own test below).
+    monkeypatch.setattr(ffmpeg_utils, "_binary_runs", lambda _p: True)
     assert ffmpeg_utils.resolve_ffprobe() == fake
+
+
+def test_resolve_ffprobe_rejects_non_runnable_candidate(monkeypatch, tmp_path):
+    """#360/#361/#362: a candidate that exists but cannot execute (corrupt /
+    wrong-arch binary → WinError 193 on Windows) is skipped and the cascade
+    falls through to the next runnable source."""
+    from services import ffmpeg_utils
+
+    broken = tmp_path / "ffprobe-broken"
+    broken.write_bytes(b"\x00\x01not-a-binary")
+    broken.chmod(0o755)
+    good = tmp_path / "ffprobe-good"
+    good.write_text("#!/bin/sh\necho 1\n")
+    good.chmod(0o755)
+
+    monkeypatch.setenv("OMNIVOICE_FFPROBE_PATH", str(broken))
+    monkeypatch.setattr(
+        ffmpeg_utils, "shutil",
+        _ShutilStub(lambda name: str(good) if name == "ffprobe" else None),
+    )
+    ffmpeg_utils._BINARY_OK.clear()
+
+    assert ffmpeg_utils.resolve_ffprobe() == str(good)
 
 
 def test_resolve_ffprobe_returns_None_when_nothing_resolves(monkeypatch):
