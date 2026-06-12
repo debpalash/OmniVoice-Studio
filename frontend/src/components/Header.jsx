@@ -9,6 +9,9 @@ import { useSysinfo } from '../api/hooks';
 
 const VIEW_META = {
   launchpad:  { labelKey: 'header.label_launchpad',  Icon: Globe,       accent: '#f3a5b6', kickerKey: 'header.kicker_studio' },
+  studio:     { labelKey: 'nav.voice',                Icon: Fingerprint, accent: '#d3869b', kickerKey: 'header.kicker_studio' },
+  // Legacy ids — kept so a not-yet-shimmed persisted 'clone'/'design' mode
+  // still renders a sensible header (voice-studio-unification P4).
   clone:      { labelKey: 'header.label_clone',       Icon: Fingerprint, accent: '#d3869b', kickerKey: 'header.kicker_studio' },
   design:     { labelKey: 'header.label_design',      Icon: Wand2,       accent: '#8ec07c', kickerKey: 'header.kicker_studio' },
   dub:        { labelKey: 'header.label_dub',         Icon: Film,        accent: '#fe8019', kickerKey: 'header.kicker_studio' },

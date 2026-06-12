@@ -17,6 +17,10 @@ export type AppMode =
   | 'launchpad'
   | 'generate'
   | 'dub'
+  | 'studio'
+  // Legacy navigation ids — consolidated into 'studio' (voice-studio-unification
+  // P4). Kept in the union so persisted UI state / history items that still say
+  // 'clone'/'design' type-check while the restore shims map them to 'studio'.
   | 'clone'
   | 'design'
   | 'stories'
@@ -25,10 +29,19 @@ export type AppMode =
   | 'batch'
   | 'settings';
 
+/**
+ * The Voice workspace's "Define voice" method (was the Clone/Design tab
+ * split): 'audio' = define from reference audio (old Clone tab), 'design' =
+ * define by described attributes (old Design tab).
+ */
+export type DefineMethod = 'audio' | 'design';
+
 export type SidebarTab = 'projects' | 'history' | 'downloads';
 
 export interface UiSlice {
   mode: AppMode;
+  /** Active definition method inside the Voice ('studio') workspace. */
+  defineMethod: DefineMethod;
   activeProjectId: string | null;
   activeProjectName: string;
   activeVoiceId: string | null;
@@ -36,7 +49,7 @@ export interface UiSlice {
   modeBeforeVoice: AppMode | null;
   /**
    * One-shot hand-off for "use this voice in the synthesis view": the Gallery
-   * (or any view) sets a profile id and navigates to `clone`; App.jsx selects
+   * (or any view) sets a profile id and navigates to `studio`; App.jsx selects
    * that profile once it appears in the loaded profiles list, then clears this.
    */
   pendingProfileId: string | null;
@@ -47,6 +60,7 @@ export interface UiSlice {
   uiScale: number;
 
   setMode: (mode: AppMode) => void;
+  setDefineMethod: (method: DefineMethod) => void;
   setActiveProject: (id: string | null, name?: string) => void;
   setActiveVoiceId: (id: string | null) => void;
   setModeBeforeVoice: (mode: AppMode | null) => void;
@@ -65,6 +79,7 @@ export interface UiSlice {
 
 export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) => ({
   mode: 'launchpad',
+  defineMethod: 'audio',
   activeProjectId: null,
   activeProjectName: '',
   activeVoiceId: null,
@@ -77,6 +92,7 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) 
   uiScale: 1.3,
 
   setMode: (mode) => set({ mode }),
+  setDefineMethod: (method) => set({ defineMethod: method }),
   setActiveProject: (id, name = '') => set({ activeProjectId: id, activeProjectName: name }),
   setActiveVoiceId: (id) => set({ activeVoiceId: id }),
   setModeBeforeVoice: (mode) => set({ modeBeforeVoice: mode }),

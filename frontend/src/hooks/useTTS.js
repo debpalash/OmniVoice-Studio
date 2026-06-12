@@ -32,7 +32,10 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
   const postprocess = useAppStore(s => s.postprocess);
   const duration = useAppStore(s => s.duration);
   const vdStates = useAppStore(s => s.vdStates);
-  const mode = useAppStore(s => s.mode);
+  // Which "Define voice" method is active in the Voice (studio) workspace —
+  // 'audio' (reference clip) vs 'design' (described attributes). Replaces the
+  // old clone/design navigation-mode checks (voice-studio-unification P4).
+  const defineMethod = useAppStore(s => s.defineMethod);
   const setSidebarTab = useAppStore(s => s.setSidebarTab);
 
   const [refAudio, setRefAudio] = useState(null);
@@ -70,8 +73,8 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
 
   const handleGenerate = useCallback(async () => {
     if (!text.trim()) return toast.error(t('tts_errors.enter_text'));
-    if (mode === 'clone' && !refAudio && !selectedProfile) return toast.error(t('tts_errors.upload_or_select'));
-    addBreadcrumb(`generate:start (${mode})`);
+    if (defineMethod === 'audio' && !refAudio && !selectedProfile) return toast.error(t('tts_errors.upload_or_select'));
+    addBreadcrumb(`generate:start (${defineMethod})`);
     setIsGenerating(true);
     setGenerationTime(0);
     const st = Date.now();
@@ -98,7 +101,7 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
       formData.append("postprocess_output", postprocess);
       if (duration) formData.append("duration", parseFloat(duration));
 
-      if (mode === 'clone') {
+      if (defineMethod === 'audio') {
         if (selectedProfile) {
           formData.append("profile_id", selectedProfile);
         } else if (refAudio) {
@@ -171,7 +174,7 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
       clearInterval(timerRef.current);
       setIsGenerating(false);
     }
-  }, [text, mode, selectedProfile, refAudio, refText, language, instruct, steps, cfg, speed, denoise, tShift, posTemp, classTemp, layerPenalty, postprocess, duration, vdStates, loadHistory, setSidebarTab]);
+  }, [text, defineMethod, selectedProfile, refAudio, refText, language, instruct, steps, cfg, speed, denoise, tShift, posTemp, classTemp, layerPenalty, postprocess, duration, vdStates, loadHistory, setSidebarTab]);
 
   return {
     refAudio, setRefAudio,

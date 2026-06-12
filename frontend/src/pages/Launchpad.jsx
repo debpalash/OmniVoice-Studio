@@ -5,6 +5,7 @@ import {
   FileText, HardDrive, Download, ArrowRight,
 } from 'lucide-react';
 import { API } from '../api/client';
+import { useAppStore } from '../store';
 import ReadinessChecklist from '../components/ReadinessChecklist';
 
 function DubThumb({ jobId, fallback }) {
@@ -62,6 +63,10 @@ export default function Launchpad({
   setMode, setIsCompareModalOpen, handleSelectProfile, loadProject,
 }) {
   const { t } = useTranslation();
+  // Clone/Design are no longer separate navigation modes — both cards open
+  // the unified Voice ('studio') workspace preset to the matching method.
+  const setDefineMethod = useAppStore(s => s.setDefineMethod);
+  const openStudio = (method) => { setMode('studio'); setDefineMethod(method); };
   const cloneProfiles = profiles.filter(p => !p.instruct);
   const designProfiles = profiles.filter(p => !!p.instruct);
   const demoProfile = profiles.find(p => p.id === 'demo0001');
@@ -131,10 +136,10 @@ export default function Launchpad({
 
       {/* Action Cards */}
       <div className="lp-actions">
-        <ActionCard hue="#d3869b" Icon={Fingerprint} title={t('launchpad.clone_title')} count={cloneProfiles.length} onClick={() => setMode('clone')}>
+        <ActionCard hue="#d3869b" Icon={Fingerprint} title={t('launchpad.clone_title')} count={cloneProfiles.length} onClick={() => openStudio('audio')}>
           {t('launchpad.clone_desc')}
         </ActionCard>
-        <ActionCard hue="#8ec07c" Icon={Wand2} title={t('launchpad.design_title')} count={designProfiles.length} onClick={() => setMode('design')}>
+        <ActionCard hue="#8ec07c" Icon={Wand2} title={t('launchpad.design_title')} count={designProfiles.length} onClick={() => openStudio('design')}>
           {t('launchpad.design_desc')}
         </ActionCard>
         <ActionCard hue="#fe8019" Icon={Film} title={t('launchpad.dub_title')} count={studioProjects.length} onClick={() => setMode('dub')}>
@@ -191,7 +196,7 @@ export default function Launchpad({
           <span>{t('launchpad.demo_callout')}</span>
           <button
             className="lp-demo-callout__btn"
-            onClick={() => { setMode('clone'); handleSelectProfile(demoProfile); }}
+            onClick={() => { openStudio('audio'); handleSelectProfile(demoProfile); }}
           >
             {t('launchpad.try_it')}
           </button>
@@ -214,7 +219,7 @@ export default function Launchpad({
                         <div className="proj-name">{p.name}</div>
                         <div className="proj-meta">{p.ref_audio_path}</div>
                       </div>
-                      <button className="proj-action" onClick={() => { setMode('clone'); handleSelectProfile(p); }}>{t('launchpad.open')}</button>
+                      <button className="proj-action" onClick={() => { openStudio('audio'); handleSelectProfile(p); }}>{t('launchpad.open')}</button>
                     </div>
                   ))}
                 </div>
@@ -236,7 +241,7 @@ export default function Launchpad({
                         <div className="proj-meta lp-proj-meta--italic">{p.instruct}</div>
                       </div>
                       {p.is_locked && <span className="lp-locked-badge">{t('launchpad.locked')}</span>}
-                      <button className="proj-action" onClick={() => { setMode('design'); handleSelectProfile(p); }}>{t('launchpad.open')}</button>
+                      <button className="proj-action" onClick={() => { openStudio('design'); handleSelectProfile(p); }}>{t('launchpad.open')}</button>
                     </div>
                   ))}
                 </div>

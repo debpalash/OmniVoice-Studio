@@ -107,6 +107,10 @@ function App() {
   }, [locale, theme, font]);
   const mode = useAppStore(s => s.mode);
   const setMode = useAppStore(s => s.setMode);
+  // "Define voice" method inside the Voice (studio) workspace — replaces the
+  // old clone/design navigation split (voice-studio-unification P4).
+  const defineMethod = useAppStore(s => s.defineMethod);
+  const setDefineMethod = useAppStore(s => s.setDefineMethod);
   // Breadcrumb every view change — mode names are a closed set, so this is
   // privacy-safe by construction (see utils/breadcrumbs.js).
   useEffect(() => { addBreadcrumb(`view:${mode}`); }, [mode]);
@@ -163,9 +167,9 @@ function App() {
   const hideSidebar = mode === 'launchpad' || mode === 'settings' || mode === 'voice' || mode === 'donate'
     || mode === 'queue' || mode === 'tools' || mode === 'projects' || mode === 'gallery' || mode === 'enterprise' || mode === 'transcriptions'
     || mode === 'stories'
-    // Voice (clone/design) and Dub workspaces moved their saved voices /
+    // Voice (studio) and Dub workspaces moved their saved voices /
     // projects + history into right-side panels; left sidebar dissolved.
-    || mode === 'clone' || mode === 'design' || mode === 'dub';
+    || mode === 'studio' || mode === 'dub';
   const availableSidebarTabs = [];
   // Generate-tab prefs now live in `generateSlice` (Phase 2.2). Persisted
   // knobs survive reloads via the store's `partialize`.
@@ -236,7 +240,7 @@ function App() {
 
   // ═══ PENDING PROFILE HAND-OFF ═══
   // Views like the Gallery hand a freshly-created profile to the synthesis view
-  // via store.pendingProfileId + setMode('clone'). The profile may not be in the
+  // via store.pendingProfileId + setMode('studio'). The profile may not be in the
   // loaded list yet (it arrives via loadProfiles / the realtime `profiles` event),
   // so we wait for it to appear, select it, then clear the hand-off.
   const pendingProfileId = useAppStore(s => s.pendingProfileId);
@@ -841,7 +845,15 @@ function App() {
   };
 
   const restoreHistory = (item) => {
-    if (item.mode) setMode(item.mode);
+    // History `mode` values stay 'clone'/'design' forever — only the
+    // navigation mode id changed. Map them onto the unified 'studio'
+    // workspace + its define method (voice-studio-unification P4).
+    if (item.mode === 'clone' || item.mode === 'design') {
+      setMode('studio');
+      setDefineMethod(item.mode === 'clone' ? 'audio' : 'design');
+    } else if (item.mode) {
+      setMode(item.mode);
+    }
     if (item.text) setText(item.text);
     if (item.language) setLanguage(item.language);
     if (item.profile_id) setSelectedProfile(item.profile_id);
@@ -1154,7 +1166,6 @@ function App() {
           <ErrorBoundary name="clone-design">
           <Suspense fallback={<LazyFallback />}>
             <CloneDesignTab
-              mode={mode}
               textAreaRef={textAreaRef}
               text={text} setText={setText}
               language={language} setLanguage={setLanguage}
@@ -1194,7 +1205,7 @@ function App() {
           </div>
           <div className="studio-right">
             <WorkspaceVoices
-              mode={mode}
+              defineMethod={defineMethod}
               profiles={profiles}
               selectedProfile={selectedProfile}
               previewLoading={previewLoading}

@@ -18,6 +18,8 @@ import { toast } from 'react-hot-toast';
 export default function useAppData() {
   const mode = useAppStore(s => s.mode);
   const setMode = useAppStore(s => s.setMode);
+  const defineMethod = useAppStore(s => s.defineMethod);
+  const setDefineMethod = useAppStore(s => s.setDefineMethod);
   const uiScale = useAppStore(s => s.uiScale);
   const setUiScale = useAppStore(s => s.setUiScale);
   const setText = useAppStore(s => s.setText);
@@ -134,7 +136,13 @@ export default function useAppData() {
       const saved = JSON.parse(localStorage.getItem('omni_ui') || '{}');
       if (saved.uiScale) setUiScale(saved.uiScale);
       if (saved.text) setText(saved.text);
-      if (saved.mode) setMode(saved.mode);
+      // Legacy shim (voice-studio-unification P4): the old 'clone'/'design'
+      // navigation modes are now one 'studio' workspace; the split lives on
+      // as the defineMethod ('audio'|'design').
+      if (saved.mode === 'clone') { setMode('studio'); setDefineMethod('audio'); }
+      else if (saved.mode === 'design') { setMode('studio'); setDefineMethod('design'); }
+      else if (saved.mode) setMode(saved.mode);
+      if (saved.defineMethod) setDefineMethod(saved.defineMethod);
       if (saved.vdStates) setVdStates(saved.vdStates);
       if (saved.language) setLanguage(saved.language);
       if (saved.isSidebarCollapsed !== undefined) setIsSidebarCollapsed(saved.isSidebarCollapsed);
@@ -164,14 +172,14 @@ export default function useAppData() {
   // ── Persist to localStorage ──
   useEffect(() => {
     localStorage.setItem('omni_ui', JSON.stringify({
-      uiScale, text, mode, vdStates, language,
+      uiScale, text, mode, defineMethod, vdStates, language,
       isSidebarCollapsed, sidebarTab,
       dubJobId, dubFilename, dubDuration, dubSegments,
       dubLang, dubLangCode, dubTracks, dubStep, dubTranscript,
       exportTracks, preserveBg, defaultTrack, exportHistory,
       speed, steps, cfg, denoise, showOverrides
     }));
-  }, [uiScale, text, mode, vdStates, language, isSidebarCollapsed, sidebarTab,
+  }, [uiScale, text, mode, defineMethod, vdStates, language, isSidebarCollapsed, sidebarTab,
     dubJobId, dubFilename, dubDuration, dubSegments, dubLang, dubLangCode,
     dubTracks, dubStep, dubTranscript, exportTracks, preserveBg, defaultTrack,
     exportHistory, speed, steps, cfg, denoise, showOverrides

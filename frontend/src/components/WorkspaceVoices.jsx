@@ -4,8 +4,8 @@
  * Relocates the saved-profile list that used to live in the left Sidebar
  * (the "Designed voices" / "Voice clones" section) to the right column, so
  * the Voice workspace can dissolve the left sidebar entirely. Profiles are
- * scoped by define-method: clone mode shows reference-audio profiles
- * (no instruct), design mode shows designed profiles (have instruct).
+ * scoped by define-method: 'audio' shows reference-audio profiles
+ * (no instruct), 'design' shows designed profiles (have instruct).
  *
  * Card markup + actions mirror the former Sidebar section 1:1 (select,
  * preview, open full profile, try-voice, unlock, delete) so behavior is
@@ -19,7 +19,7 @@ import {
 import './WorkspaceVoices.css';
 
 export default function WorkspaceVoices({
-  mode,
+  defineMethod,
   profiles = [],
   selectedProfile,
   previewLoading,
@@ -35,15 +35,15 @@ export default function WorkspaceVoices({
   const qLower = q.trim().toLowerCase();
 
   const items = useMemo(() => {
-    const byMode = profiles.filter(p => (mode === 'clone' ? !p.instruct : !!p.instruct));
-    if (!qLower) return byMode;
-    return byMode.filter(p =>
+    const byMethod = profiles.filter(p => (defineMethod === 'audio' ? !p.instruct : !!p.instruct));
+    if (!qLower) return byMethod;
+    return byMethod.filter(p =>
       (p.name || '').toLowerCase().includes(qLower) ||
       (p.instruct || '').toLowerCase().includes(qLower)
     );
-  }, [profiles, mode, qLower]);
+  }, [profiles, defineMethod, qLower]);
 
-  const title = mode === 'clone' ? t('sidebar.voice_clones') : t('sidebar.designed_voices');
+  const title = defineMethod === 'audio' ? t('sidebar.voice_clones') : t('sidebar.designed_voices');
 
   return (
     <section className={`wv ${items.length === 0 ? 'wv--collapsed' : ''}`}>
@@ -63,13 +63,13 @@ export default function WorkspaceVoices({
       <div className="wv__scroll">
         {items.length === 0 ? (
           <div className="wv__empty">
-            {mode === 'clone'
+            {defineMethod === 'audio'
               ? t('sidebar.no_clones', { defaultValue: 'No voice clones yet' })
               : t('sidebar.no_designs', { defaultValue: 'No designed voices yet' })}
           </div>
         ) : items.map(proj => {
-          const accent = proj.is_locked ? '#b8bb26' : (mode === 'clone' ? '#d3869b' : '#8ec07c');
-          const KindIcon = proj.is_locked ? Lock : (mode === 'clone' ? Fingerprint : Wand2);
+          const accent = proj.is_locked ? '#b8bb26' : (defineMethod === 'audio' ? '#d3869b' : '#8ec07c');
+          const KindIcon = proj.is_locked ? Lock : (defineMethod === 'audio' ? Fingerprint : Wand2);
           return (
             <div
               key={proj.id}
@@ -79,7 +79,7 @@ export default function WorkspaceVoices({
             >
               <div className="history-row-head">
                 <span className="history-kind" style={{ color: accent, borderColor: `${accent}40` }}>
-                  <KindIcon size={9} /> {proj.is_locked ? t('sidebar.locked') : (mode === 'clone' ? t('sidebar.clone_label') : t('sidebar.design_label'))}
+                  <KindIcon size={9} /> {proj.is_locked ? t('sidebar.locked') : (defineMethod === 'audio' ? t('sidebar.clone_label') : t('sidebar.design_label'))}
                 </span>
                 {proj.is_locked ? <span className="history-meta history-meta--locked">{t('sidebar.consistent')}</span> : null}
               </div>

@@ -1,14 +1,13 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Globe, Fingerprint, Wand2, Film, FolderOpen, Settings2, ArrowLeftRight,
+  Globe, Fingerprint, Film, FolderOpen, Settings2, ArrowLeftRight,
   Library, FileText, BookOpen,
 } from 'lucide-react';
 
 const ITEM_DEFS = [
   { id: 'launchpad',     Icon: Globe,       tKey: 'launchpad',   accent: '#f3a5b6' },
-  { id: 'clone',         Icon: Fingerprint, tKey: 'clone',       accent: '#d3869b' },
-  { id: 'design',        Icon: Wand2,       tKey: 'design',      accent: '#8ec07c' },
+  { id: 'studio',        Icon: Fingerprint, tKey: 'voice',       accent: '#d3869b' },
   { id: 'dub',           Icon: Film,        tKey: 'dub',         accent: '#fe8019' },
   { id: 'stories',       Icon: BookOpen,    tKey: 'stories',     accent: '#fabd2f' },
   { id: 'gallery',       Icon: Library,     tKey: 'gallery',     accent: '#b8bb26' },

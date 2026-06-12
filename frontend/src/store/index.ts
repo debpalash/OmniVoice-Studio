@@ -79,6 +79,7 @@ export const useAppStore = create<AppStore>()(
         timingStrategy:             s.timingStrategy,
         fitOptions:                 s.fitOptions,
         mode:                       s.mode,
+        defineMethod:               s.defineMethod,
         isSidebarCollapsed:         s.isSidebarCollapsed,
         isSidebarProjectsCollapsed: s.isSidebarProjectsCollapsed,
         sidebarTab:                 s.sidebarTab,

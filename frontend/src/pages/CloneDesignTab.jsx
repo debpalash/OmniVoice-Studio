@@ -13,7 +13,8 @@ import { POPULAR_LANGS, PRESETS, TAGS, CATEGORIES } from '../utils/constants';
 import {
   PRESET_ICONS, PERSONALITY_ICONS, FALLBACK_VOICE_ICON, FALLBACK_PERSONALITY_ICON, stripVoiceEmoji,
 } from '../utils/voiceIcons';
-import { Button, Input, Slider, Progress } from '../ui';
+import { Button, Input, Slider, Progress, Segmented } from '../ui';
+import { useAppStore } from '../store';
 import { API, apiPost } from '../api/client';
 import { mergeDescribedAttrs, buildDesignInstruct } from '../utils/voiceInstruct';
 import { listEngines } from '../api/engines';
@@ -22,7 +23,6 @@ import './CloneDesignTab.css';
 
 export default function CloneDesignTab(props) {
   const {
-    mode,
     textAreaRef,
     text, setText,
     language, setLanguage,
@@ -54,6 +54,11 @@ export default function CloneDesignTab(props) {
   } = props;
 
   const { t } = useTranslation();
+  // "Define voice" method — 'audio' (was the Clone tab) | 'design' (was the
+  // Design tab). Lives in the store so navigation shims / profile selection
+  // can preset it (voice-studio-unification P4).
+  const defineMethod = useAppStore(s => s.defineMethod);
+  const setDefineMethod = useAppStore(s => s.setDefineMethod);
   const [activePersonality, setActivePersonality] = useState('');
 
   // ── "Describe your voice" (#317): free-text → design parameters ──────────
@@ -134,8 +139,8 @@ export default function CloneDesignTab(props) {
   });
   const anyTtsReady = !!(enginesData?.tts?.backends || []).some(b => b.available);
 
-  // Demo coach-mark: when the user enters the Clone tab with the bundled
-  // demo profile (demo0001) freshly selected and the textarea is empty,
+  // Demo coach-mark: when the user is on the "From audio" method with the
+  // bundled demo profile (demo0001) freshly selected and the textarea is empty,
   // prefill a punchy starter prompt and show a one-line coach-mark above
   // the textarea. Both auto-dismiss as soon as the user types anything.
   // Tracked via localStorage so we don't re-prefill on every visit.
@@ -144,7 +149,7 @@ export default function CloneDesignTab(props) {
   const [showDemoCoachmark, setShowDemoCoachmark] = useState(false);
 
   useEffect(() => {
-    if (mode !== 'clone') return;
+    if (defineMethod !== 'audio') return;
     if (selectedProfile !== DEMO_PROFILE_ID) return;
     if (typeof window === 'undefined') return;
     if (localStorage.getItem('omnivoice.demoClonePrompted') === '1') return;
@@ -153,14 +158,14 @@ export default function CloneDesignTab(props) {
     setShowDemoCoachmark(true);
     localStorage.setItem('omnivoice.demoClonePrompted', '1');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, selectedProfile]);
+  }, [defineMethod, selectedProfile]);
 
   // "Hear demo" fallback: when no TTS engine is ready and the user is on
   // the demo profile, the Synthesize button is swapped for one that plays
   // the pre-rendered demo_clone_output.wav. This guarantees a working
   // "wow moment" on first launch before any model downloads finish.
   const showHearDemo =
-    mode === 'clone' && selectedProfile === DEMO_PROFILE_ID && !anyTtsReady;
+    defineMethod === 'audio' && selectedProfile === DEMO_PROFILE_ID && !anyTtsReady;
   const demoAudioRef = useRef(null);
   const demoReleaseRef = useRef(null);
   const [demoAudioPlaying, setDemoAudioPlaying] = useState(false);
@@ -227,10 +232,10 @@ export default function CloneDesignTab(props) {
               attribute-preset buttons when the user has not yet typed
               anything and no personality is active. As soon as they
               interact, the grid steps aside for the standard form. */}
-          {mode === 'design' && !text && !activePersonality && demoPresets.length > 0 && (
+          {defineMethod === 'design' && !text && !activePersonality && demoPresets.length > 0 && (
             <DemoPresetGrid presets={demoPresets} onUse={applyDemoPreset} />
           )}
-          {mode === 'design' && (text || activePersonality || demoPresets.length === 0) && (
+          {defineMethod === 'design' && (text || activePersonality || demoPresets.length === 0) && (
             <div className="preset-grid">
               {PRESETS.map(p => {
                 const Icon = PRESET_ICONS[p.id] || FALLBACK_VOICE_ICON;
@@ -243,7 +248,7 @@ export default function CloneDesignTab(props) {
               })}
             </div>
           )}
-          {showDemoCoachmark && mode === 'clone' && selectedProfile === DEMO_PROFILE_ID && (
+          {showDemoCoachmark && defineMethod === 'audio' && selectedProfile === DEMO_PROFILE_ID && (
             <div className="clone-coachmark" role="note">
               <span className="clone-coachmark__icon">💡</span>
               <span className="clone-coachmark__msg">
@@ -262,7 +267,7 @@ export default function CloneDesignTab(props) {
           <textarea
             ref={textAreaRef}
             className="input-base clone-text-area"
-            placeholder={mode === 'clone' ? t('clone.prompt_placeholder') : t('clone.design_placeholder')}
+            placeholder={defineMethod === 'audio' ? t('clone.prompt_placeholder') : t('clone.design_placeholder')}
             value={text}
             onChange={e => {
               setText(e.target.value);
@@ -308,10 +313,26 @@ export default function CloneDesignTab(props) {
       {/* ═══ RIGHT COLUMN: voice source + overrides/synth ═══ */}
       <div className="studio-column">
         <div className="studio-panel">
-        {mode === 'clone' ? (
-          <div>
-            <div className="label-row"><Volume2 className="label-icon" size={14} /> {t('clone.voice_source')}</div>
+        <div className="label-row"><Volume2 className="label-icon" size={14} /> {t('clone.voice_source')}</div>
 
+        {/* Define voice — the method toggle that replaced the Clone/Design
+            tab split: 'From audio' (reference clip) vs 'By design' (described
+            attributes). */}
+        <div className="label-row label-row--spread">
+          <span>{t('clone.define_voice', { defaultValue: 'Define voice' })}</span>
+          <Segmented
+            size="sm"
+            value={defineMethod}
+            onChange={setDefineMethod}
+            items={[
+              { value: 'audio', label: t('clone.define_from_audio', { defaultValue: 'From audio' }) },
+              { value: 'design', label: t('clone.define_by_design', { defaultValue: 'By design' }) },
+            ]}
+          />
+        </div>
+
+        {defineMethod === 'audio' ? (
+          <div>
             {/* Saved voices now live in the right-side WorkspaceVoices panel. */}
 
             {!selectedProfile && (

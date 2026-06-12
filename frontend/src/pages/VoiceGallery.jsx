@@ -66,6 +66,7 @@ export default function VoiceGallery() {
   const viewMode = useAppStore((s) => s.galleryViewMode);
   const setViewMode = useAppStore((s) => s.setGalleryViewMode);
   const setMode = useAppStore((s) => s.setMode);
+  const setDefineMethod = useAppStore((s) => s.setDefineMethod);
   const setPendingProfileId = useAppStore((s) => s.setPendingProfileId);
   const setInstruct = useAppStore((s) => s.setInstruct);
   const setVdStates = useAppStore((s) => s.setVdStates);
@@ -201,7 +202,8 @@ export default function VoiceGallery() {
               // Hand the new profile to the synthesis view and jump there so the
               // user lands ready-to-generate instead of hunting for it in the list.
               setPendingProfileId(r.profile_id);
-              setMode('clone');
+              setMode('studio');
+              setDefineMethod('audio');
             } catch (e) {
               flash(t('gallery.use_failed', { defaultValue: 'Could not create that voice — the engine may be loading.' }));
             }
@@ -209,7 +211,8 @@ export default function VoiceGallery() {
           onDesign={(a) => {
             setVdStates({ ...vdStates, ...a.attrs });
             setInstruct('');
-            setMode('design');
+            setMode('studio');
+            setDefineMethod('design');
           }}
         />
       ) : zone === 'community' ? (
@@ -221,7 +224,7 @@ export default function VoiceGallery() {
           toggleFavorite={toggleFavorite}
           onPlayAudio={(url, id) => playUrl(url, id)}
           flash={flash}
-          onDesign={(instruct) => { setVdStates({ ...vdStates }); setInstruct(instruct); setMode('design'); }}
+          onDesign={(instruct) => { setVdStates({ ...vdStates }); setInstruct(instruct); setMode('studio'); setDefineMethod('design'); }}
         />
       ) : (
         <ImportsZone

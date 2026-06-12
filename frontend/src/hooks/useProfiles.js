@@ -27,6 +27,7 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
   const setInstruct = useAppStore(s => s.setInstruct);
   const setLanguage = useAppStore(s => s.setLanguage);
   const setVdStates = useAppStore(s => s.setVdStates);
+  const setDefineMethod = useAppStore(s => s.setDefineMethod);
   const language = useAppStore(s => s.language);
   const mode = useAppStore(s => s.mode);
   const steps = useAppStore(s => s.steps);
@@ -67,6 +68,9 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
     setRefText(profile.ref_text || '');
     setInstruct(profile.instruct || '');
     if (profile.language && profile.language !== 'Auto') setLanguage(profile.language);
+    // The profile's kind picks the "Define voice" method implicitly: design
+    // profiles open the design controls, everything else the audio path.
+    setDefineMethod(profile.kind === 'design' ? 'design' : 'audio');
     // Design profiles (0005) carry their category picks — restore the sliders
     // so selecting one makes it re-editable, not just re-usable.
     if (profile.kind === 'design' && profile.vd_states) {
@@ -75,7 +79,7 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
         if (parsed && typeof parsed === 'object') setVdStates(parsed);
       } catch { /* malformed stored state — sliders keep their current values */ }
     }
-  }, [setRefText, setInstruct, setLanguage, setVdStates]);
+  }, [setRefText, setInstruct, setLanguage, setVdStates, setDefineMethod]);
 
   /** Save the current design (vd_states + instruct) as a reusable profile.
       The backend renders a deterministic identity sample (seed 42). */
