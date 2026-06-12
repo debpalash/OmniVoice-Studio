@@ -9,7 +9,7 @@ Three user-driven decisions (locked):
 
 Not in scope: changing the Dub or Stories workspaces beyond giving them the same right-side history panel; realtime/streaming synthesis; voice-mixing.
 
-Constraints honored (from `CLAUDE.md`): existing `voice_profiles` / `generation_history` rows keep working with no manual migration (alembic `0004`, tested upgrade path); behavior is identical on macOS/Windows/Linux (pure frontend layout + backend logic, no platform-specific default); changes ship continuous-to-main; any doc that describes the Clone/Design tabs is updated in the same PR (docs-sync rule).
+Constraints honored (from `CLAUDE.md`): existing `voice_profiles` / `generation_history` rows keep working with no manual migration (alembic `0005`, tested upgrade path); behavior is identical on macOS/Windows/Linux (pure frontend layout + backend logic, no platform-specific default); changes ship continuous-to-main; any doc that describes the Clone/Design tabs is updated in the same PR (docs-sync rule).
 
 ---
 
@@ -146,7 +146,7 @@ The **profile is the hub:** the saved-profiles strip (`CloneDesignTab.jsx:319-34
 
 `voice_profiles` today (`backend/core/db.py:39-53`) has no way to represent a design voice as a first-class profile, and `POST /profiles` requires a `ref_audio` file (`backend/api/routers/profiles.py:40`). Add a discriminator and design params; keep audio for identity.
 
-### Migration `0004_unified_profiles` (upstream took `0003` for consent fields) (`backend/migrations/versions/`)
+### Migration `0005_unified_profiles` (0003 consent + 0004 mcp landed upstream) (`backend/migrations/versions/`)
 
 Follow the existing idempotent `_has_column()` pattern (`0002_voice_profile_demo_fields.py`):
 
@@ -240,7 +240,7 @@ Replace the brittle inference (`is_locked` + `instruct` presence) with an explic
 
 1. **P1 — `<WorkspaceHistory>` + right column, no consolidation yet.** Render history on the right of the existing clone/design tabs; remove it from the sidebar. Pure frontend; reuses `<WaveformPlayer>`. Lowest risk, immediate visible win.
 2. **P2 — Layout restack.** Prompt over Voice Source in one `definition` column. Frontend/CSS only.
-3. **P3 — Profile data model.** Migration `0004`, `POST /profiles` optional-audio + `kind`/`vd_states`, generate resolution on `kind`, save/load design profiles. Backend + small frontend.
+3. **P3 — Profile data model.** Migration `0005`, `POST /profiles` optional-audio + `kind`/`vd_states`, generate resolution on `kind`, save/load design profiles. Backend + small frontend.
 4. **P4 — Navigation consolidation.** `clone`+`design` → `studio`; define-method control; rename `CloneDesignTab`→`StudioTab`; legacy-mode shims. Frontend.
 5. **P5 — Extend the right-history pattern** to Dub/Stories ("etc"), and adopt `GET /history?mode=` paging if needed.
 
