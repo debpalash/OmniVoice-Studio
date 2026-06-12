@@ -117,8 +117,8 @@
 .studio-action-bar__overrides {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
+  gap: 4px;     /* 10x P4 8-pt audit: 5 → 4 */
+  padding: 4px 10px;
   font-size: 0.7rem;
   color: var(--chrome-fg-muted);
   background: transparent;
@@ -140,7 +140,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 9px;
+  padding: 4px 8px;     /* 10x P4 8-pt audit: 3px 9px → 4px 8px */
   font-size: 0.66rem;
   color: var(--chrome-fg-muted);
   background: var(--chrome-bg);
@@ -188,7 +188,8 @@
   font-size: 0.62rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--chrome-fg-dim, #665c54);
+  /* 10x P4 contrast: readable kicker — dim (3.91:1 default theme) → muted. */
+  color: var(--chrome-fg-muted, #a89984);
   flex: 0 0 auto;
 }
 .identity-line__recipe {
@@ -208,7 +209,8 @@
   font-size: 0.62rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--chrome-fg-dim, #665c54);
+  /* 10x P4 contrast: readable kicker — dim (3.91:1 default theme) → muted. */
+  color: var(--chrome-fg-muted, #a89984);
   margin-bottom: 6px;
 }
 .starting-points__strip {
@@ -298,7 +300,8 @@
 }
 .describe-voice-hint {
   font-size: 0.62rem;
-  color: var(--chrome-fg-dim);
+  /* 10x P4 contrast: readable hint text — dim (3.91:1 default theme) → muted. */
+  color: var(--chrome-fg-muted);
 }
 .describe-voice-feedback {
   font-size: 0.65rem;
@@ -312,7 +315,7 @@
 .clone-sliders-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 7px 12px;
+  gap: 8px 12px;     /* 10x P4 8-pt audit: 7 → 8 */
 }
 .clone-cat--chips  { grid-column: 1 / -1; }
 .clone-cat--select { min-width: 0; }
@@ -339,7 +342,8 @@
 .clone-slider-kicker {
   margin-left: 6px;
   font-size: 0.58rem;
-  color: var(--chrome-fg-dim);
+  /* 10x P4 contrast: shows the selected value — readable label, dim → muted. */
+  color: var(--chrome-fg-muted);
   font-weight: 500;
 }
 

@@ -1013,6 +1013,20 @@ a:focus:not(:focus-visible),
 input:focus:not(:focus-visible),
 select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
 
+/* 10x P4 (spec §3 a11y gate): one consistent, fully-opaque ring on the
+   studio's 10x controls — shared rule, not per-component restyles. */
+.identity-line:focus-visible,
+.clone-insert-btn:focus-visible,
+.personality-chip:focus-visible,
+.chip:focus-visible,
+.wh__chip:focus-visible,
+.dub-lang-pill:focus-visible,
+.wf-player__btn:focus-visible,
+.studio-action-bar__overrides:focus-visible {
+  outline: 2px solid var(--chrome-accent);
+  outline-offset: 1px;
+}
+
 /* ═══ LAUNCHPAD — chrome frame + restrained motion ═══ */
 .launchpad {
   flex: 1; display: flex; flex-direction: column; overflow-y: auto;

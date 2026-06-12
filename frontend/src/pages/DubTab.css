@@ -977,3 +977,13 @@
   gap: 6px;
   flex-wrap: wrap;
 }
+
+/* ── Reduced motion (10x P4, spec §3): shimmer/pulse die; the stepper
+   spinner holds a static frame. ───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .dub-skel-bar,
+  .dub-idle-drop.is-dragging,
+  .dub-stepper__spin {
+    animation: none;
+  }
+}

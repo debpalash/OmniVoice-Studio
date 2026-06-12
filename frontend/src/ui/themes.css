@@ -104,7 +104,9 @@
 
   --chrome-bg:           #073642;
   --chrome-fg:           #93a1a1;
-  --chrome-fg-muted:     #657b83;
+  /* 10x P4 contrast: was #657b83 (2.92:1 on --chrome-bg) → #899da4 (4.59:1).
+     Same hue (hsl 196°), lightness raised 45%→59% to clear WCAG AA 4.5:1. */
+  --chrome-fg-muted:     #899da4;
   --chrome-fg-dim:       #586e75;
   --chrome-border:       #073642;
 }

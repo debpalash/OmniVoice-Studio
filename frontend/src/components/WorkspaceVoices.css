@@ -27,7 +27,8 @@
   font-size: 0.62rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--chrome-fg-dim, #665c54);
+  /* 10x P4 contrast: readable kicker — dim (3.91:1 default theme) → muted. */
+  color: var(--chrome-fg-muted, #a89984);
   margin-bottom: 6px;
 }
 .wv__active-card {

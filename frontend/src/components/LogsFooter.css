@@ -452,3 +452,12 @@
   color: var(--color-brand);
   white-space: nowrap;
 }
+
+/* ── Reduced motion (10x P4, spec §3): the heart stops glowing; the
+   refresh spinner holds a static frame. ───────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .logs-footer__donate,
+  .logs-footer__icon-btn .spinner {
+    animation: none;
+  }
+}

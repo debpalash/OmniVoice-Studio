@@ -66,6 +66,10 @@
 @media (prefers-reduced-motion: reduce) {
   .floating-pill { animation: none; opacity: 1; }
   .floating-pill--exiting { animation: none; opacity: 0; }
+  /* 10x P4 (spec §3): pulse/sweep loops die too — the dot and the
+     indeterminate bar hold a static frame. */
+  .floating-pill__dot { animation: none; }
+  .floating-pill__progress-fill--indeterminate { animation: none; transform: none; }
 }
 
 /* ── Stage indicator dot ────────────────────────────────────────────── */

@@ -222,6 +222,25 @@ export default function CloneDesignTab(props) {
       });
   };
 
+  // 10x P4 a11y (spec §3): category chip groups are radiogroups with a
+  // roving tabindex — ArrowLeft/ArrowRight move focus AND selection within
+  // the group, per the WAI-ARIA radio-group pattern.
+  const onChipKeyDown = (e, key, options) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const cur = Math.max(0, options.indexOf(vdStates[key]));
+    const next = (cur + (e.key === 'ArrowRight' ? 1 : -1) + options.length) % options.length;
+    setVdStates({ ...vdStates, [key]: options[next] });
+    e.currentTarget.closest('.chip-group')?.querySelectorAll('[role="radio"]')[next]?.focus();
+  };
+
+  // 10x P4 a11y (spec §3): once a generation has run, the persistent status
+  // region below announces its finish — not just its start.
+  const wasGeneratingRef = useRef(false);
+  useEffect(() => {
+    if (isGenerating) wasGeneratingRef.current = true;
+  }, [isGenerating]);
+
   // Partition personalities into legacy chips vs. new demo cards.
   // `is_demo: true` entries get the rich card grid; the rest keep their
   // existing chip-strip rendering (backward-compatible with v0.2.x users
@@ -528,17 +547,25 @@ export default function CloneDesignTab(props) {
                         {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                       </select>
                     ) : (
-                      <div className="chip-group">
-                        {options.map(opt => {
+                      <div className="chip-group" role="radiogroup" aria-label={t(`clone.cat_${key}`)}>
+                        {options.map((opt, i) => {
                           const optTKey = `clone.opt_${opt.replace(/[ -]/g, '_')}`;
                           const optTl = t(optTKey);
                           const optLabel = optTl !== optTKey ? optTl : opt;
+                          const checked = vdStates[key] === opt;
+                          // Roving tabindex: the checked chip is the group's
+                          // single tab stop (first chip if nothing matches).
+                          const roving = checked || (!options.includes(vdStates[key]) && i === 0);
                           return (
                             <button
                               key={opt}
                               type="button"
-                              className={`chip ${vdStates[key] === opt ? 'active' : ''}`}
+                              role="radio"
+                              aria-checked={checked}
+                              tabIndex={roving ? 0 : -1}
+                              className={`chip ${checked ? 'active' : ''}`}
                               onClick={() => setVdStates({ ...vdStates, [key]: opt })}
+                              onKeyDown={e => onChipKeyDown(e, key, options)}
                             >
                               {opt === 'Auto'
                                 ? <span className="chip-auto"><FALLBACK_VOICE_ICON size={11} /> {stripVoiceEmoji(t('clone.opt_Auto'))}</span>
@@ -721,6 +748,18 @@ export default function CloneDesignTab(props) {
             className="clone-footer-cta"
           />
         )}
+        {/* 10x P4 a11y (spec §3): persistent polite live region — screen
+            readers hear generation start AND finish in-workspace, without
+            relying on the FloatingPill. sr-only keeps it out of the
+            action-bar flex flow; static text avoids per-second re-announces
+            from the ticking "Synthesizing… (Ns)" button label. */}
+        <div className="sr-only" role="status" aria-live="polite">
+          {isGenerating
+            ? t('clone.generating_status', { defaultValue: 'Generating audio…' })
+            : wasGeneratingRef.current
+              ? t('clone.generating_done_status', { defaultValue: 'Generation finished' })
+              : null}
+        </div>
     </div>
     </div>
   );
