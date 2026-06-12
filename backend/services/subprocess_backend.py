@@ -69,13 +69,13 @@ MAX_FRAME_BYTES = 64 * 1024 * 1024
 #: set is logged and discarded — prevents a compromised sidecar from
 #: invoking unintended parent code paths. See T-02-04.
 PARENT_INBOUND_OPS = frozenset({
-    "ready", "pong", "audio", "progress", "error",
+    "ready", "pong", "audio", "segments", "progress", "error",
     "gpu_acquire", "gpu_release",
 })
 
 #: Reference list of ops the sidecar accepts (informational — enforced on
 #: the sidecar side, not in this module).
-SIDECAR_INBOUND_OPS = frozenset({"ping", "synthesize", "shutdown"})
+SIDECAR_INBOUND_OPS = frozenset({"ping", "synthesize", "transcribe", "shutdown"})
 
 #: Timeout for the initial ready handshake. Some engines (IndexTTS, large
 #: torch.compile graphs) take 20–25 s to import their dependencies before
