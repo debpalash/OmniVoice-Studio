@@ -464,7 +464,7 @@ export default function CloneDesignTab(props) {
                   return tl !== tKey ? tl : val;
                 };
                 return (
-                  <div key={key}>
+                  <div key={key} className={`clone-cat ${many ? 'clone-cat--select' : 'clone-cat--chips'}`}>
                     <div className="label-row label-row--sm">
                       {t(`clone.cat_${key}`)}
                       <span className="clone-slider-kicker">
