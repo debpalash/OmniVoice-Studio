@@ -204,6 +204,20 @@ def build_chapter_ffmetadata(chapters: list[tuple[str, int]]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def build_concat_list(wav_paths: list[str]) -> str:
+    """Build an ffmpeg concat-demuxer list for the chapter WAVs.
+
+    Each line is ``file '<path>'`` with single quotes escaped the ffmpeg way
+    (``'`` → ``'\\''``), so paths with spaces/quotes can't break the list or
+    inject arguments.
+    """
+    lines = []
+    for p in wav_paths:
+        safe = str(p).replace("'", "'\\''")
+        lines.append(f"file '{safe}'")
+    return "\n".join(lines) + "\n"
+
+
 def build_m4b_cmd(
     ffmpeg: str,
     concat_list_path: str,

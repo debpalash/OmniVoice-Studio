@@ -1067,13 +1067,15 @@ path, mTLS/OAuth (overkill vs bearer + WireGuard), a second thin-client binary.
 
 ### R3 — Audiobook/stories creator + persona gallery
 
-> **Status (2026-06-13):** first cut shipped — `backend/services/audiobook.py`
+> **Status (2026-06-13):** backend shipped — `backend/services/audiobook.py`
 > parses a chapter-delimited script (Markdown `# H1` chapters + inline
 > `[voice:NAME]`; `[pause …]` delegated to the shared `parse_pause_markers`)
-> into a chapter/span plan, with pure FFMETADATA1 + faststart-m4b argv builders
-> and a stub-testable synth orchestration. `POST /audiobook/plan` returns the
-> plan. Deferred: the streaming synth job + chapterized-m4b run, epub/pdf/docx
-> ingest, ACX `loudnorm` mastering, crash-resume, and the UI.
+> into a chapter/span plan, renders each chapter through the active TTS engine
+> (`synthesize_chapter` + `chunked_tts`), and muxes a chapterized **m4b**
+> (FFMETADATA1 chapters). `POST /audiobook/plan` previews the plan;
+> `POST /audiobook` runs the synth job streaming SSE progress (ffmpeg-gated).
+> Deferred: epub/pdf/docx ingest, ACX `loudnorm` mastering, crash-resume, and
+> the UI.
 
 **The production bar** (verified against [ebook2audiobook](https://github.com/DrewThomasson/ebook2audiobook),
 audiblez, epub2tts, abogen, Pandrator): broad ingest (epub/mobi/pdf/docx + OCR for

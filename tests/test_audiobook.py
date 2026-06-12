@@ -10,6 +10,7 @@ import pytest
 from services.audiobook import (
     AudiobookPlan,
     build_chapter_ffmetadata,
+    build_concat_list,
     build_m4b_cmd,
     parse_audiobook_script,
     synthesize_chapter,
@@ -106,6 +107,14 @@ def test_m4b_cmd_shape():
 def test_m4b_cmd_rejects_bad_bitrate():
     cmd = build_m4b_cmd("ffmpeg", "l", "m", "o", bitrate="; rm -rf /")
     assert cmd[cmd.index("-b:a") + 1] == "128k"   # falls back, no injection
+
+
+def test_concat_list_format_and_escaping():
+    out = build_concat_list(["/a/ch0.wav", "/weird/it's here.wav"])
+    lines = out.strip().split("\n")
+    assert lines[0] == "file '/a/ch0.wav'"
+    # Single quote escaped the ffmpeg way: ' -> '\''
+    assert lines[1] == r"file '/weird/it'\''s here.wav'"
 
 
 # ── Orchestration (stub synth) ───────────────────────────────────────────────
