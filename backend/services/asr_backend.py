@@ -931,7 +931,47 @@ class FunASRBackend(ASRBackend):
             pass
 
 
-_REGISTRY: dict[str, type[ASRBackend]] = {
+def _isolated_faster_whisper():
+    """Lazy import so the subprocess_asr → subprocess_backend chain isn't
+    pulled in at registry definition time."""
+    from services.subprocess_asr import IsolatedFasterWhisperBackend
+    return IsolatedFasterWhisperBackend
+
+
+class _LazyASRRegistry(dict):
+    """Registry with one lazily-resolved entry (Wave 4.2). Mirrors the TTS
+    registry's lazy pattern so listing/selecting the crash-isolated ASR
+    backend doesn't import the subprocess stack unless it's used."""
+
+    _LAZY = {"faster-whisper-isolated": _isolated_faster_whisper}
+
+    def __contains__(self, key):
+        return dict.__contains__(self, key) or key in self._LAZY
+
+    def __getitem__(self, key):
+        if dict.__contains__(self, key):
+            return dict.__getitem__(self, key)
+        if key in self._LAZY:
+            cls = self._LAZY[key]()
+            self[key] = cls
+            return cls
+        raise KeyError(key)
+
+    def __iter__(self):
+        seen = set()
+        for k in dict.__iter__(self):
+            seen.add(k)
+            yield k
+        for k in self._LAZY:
+            if k not in seen:
+                yield k
+
+    def items(self):
+        for k in self:
+            yield k, self[k]
+
+
+_REGISTRY: dict[str, type[ASRBackend]] = _LazyASRRegistry({
     "whisperx":        WhisperXBackend,
     "faster-whisper":  FasterWhisperBackend,
     "mlx-whisper":     MLXWhisperBackend,
@@ -939,7 +979,8 @@ _REGISTRY: dict[str, type[ASRBackend]] = {
     "nemo-parakeet":   NeMoASRBackend,
     "moonshine":       MoonshineASRBackend,
     "funasr":          FunASRBackend,
-}
+    # "faster-whisper-isolated": resolved lazily (crash-isolated subprocess).
+})
 
 
 def list_backends() -> list[dict]:

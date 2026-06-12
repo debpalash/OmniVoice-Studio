@@ -113,6 +113,19 @@ def main() -> int:
                     "sample_rate": sr,
                     "n_samples": n_samples,
                 })
+            elif op == "transcribe":
+                # Wave 4.2: echo ASR op — a canned segments result so the
+                # SubprocessASRBackend round-trip + respawn path is testable
+                # without a real ASR engine.
+                _send(stdout, {
+                    "op": "segments",
+                    "result": {
+                        "segments": [{"start": 0.0, "end": 1.0,
+                                      "text": f"echo:{msg.get('audio_path', '')}"}],
+                        "text": f"echo:{msg.get('audio_path', '')}",
+                        "language": "en",
+                    },
+                })
             elif op == "shutdown":
                 return 0
             elif op == "probe_env" and test_mode:
