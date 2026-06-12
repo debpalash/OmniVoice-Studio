@@ -42,6 +42,41 @@ def _safe_put(queue: asyncio.Queue, event) -> None:
             pass
 
 
+# Minimum size for "this snapshot actually contains model weights". An
+# interrupted snapshot_download can leave config/tokenizer files but no
+# weights; the install then looks complete and synthesis later fails with
+# "does not appear to have a file named pytorch_model.bin or
+# model.safetensors" (#352). 5 MB clears every weight format we ship
+# (safetensors/bin shards, onnx, pt, gguf) without false-positiving on
+# config-only aux repos.
+_MIN_WEIGHT_BYTES = 5 * 1024 * 1024
+
+
+def _validate_snapshot_has_weights(repo_id: str, snapshot_path: str) -> None:
+    """Raise OSError when a finished snapshot has no plausible weight file —
+    surfaces the truncated-download class (#352) at install time, where the
+    retry loop and the UI's re-download path can deal with it, instead of at
+    first synthesis with an opaque transformers error."""
+    try:
+        biggest = 0
+        for root, _dirs, files in os.walk(snapshot_path, followlinks=True):
+            for f in files:
+                try:
+                    biggest = max(biggest, os.path.getsize(os.path.join(root, f)))
+                except OSError:
+                    continue
+                if biggest >= _MIN_WEIGHT_BYTES:
+                    return
+    except OSError:
+        return  # can't inspect — don't block the install on the checker itself
+    raise OSError(
+        f"{repo_id}: download finished but no model weights were found in the "
+        "snapshot (largest file "
+        f"{biggest} bytes). The download was likely interrupted — delete the "
+        "model in Settings → Models and install it again."
+    )
+
+
 @router.get("/setup/download-stream")
 async def setup_download_stream():
     """SSE: forward every HuggingFace download tqdm update as a JSON event."""
@@ -158,7 +193,8 @@ async def install_model(req: InstallModelRequest):
             while True:
                 _attempt += 1
                 try:
-                    snapshot_download(**dl_kwargs)
+                    _snapshot_path = snapshot_download(**dl_kwargs)
+                    _validate_snapshot_has_weights(req.repo_id, _snapshot_path)
                     break
                 except (HfHubHTTPError, LocalEntryNotFoundError, OSError) as net_err:
                     if _attempt >= _max_attempts:

@@ -20,13 +20,13 @@ export const GRID_SNAP_MAX_PX_PER_SEC = 40;
 // Segment box palette — was WaveformTimeline's region palette; lives here so
 // both the track and any legend can share it without circular imports.
 export const REGION_COLORS = [
-  'rgba(211,134,155,0.3)',
-  'rgba(131,165,152,0.3)',
-  'rgba(184,187,38,0.3)',
-  'rgba(250,189,47,0.3)',
-  'rgba(142,192,124,0.3)',
-  'rgba(254,128,25,0.3)',
-  'rgba(104,157,106,0.3)',
+  'rgba(211,134,155,0.45)',
+  'rgba(131,165,152,0.45)',
+  'rgba(184,187,38,0.45)',
+  'rgba(250,189,47,0.45)',
+  'rgba(142,192,124,0.45)',
+  'rgba(254,128,25,0.45)',
+  'rgba(104,157,106,0.45)',
 ];
 
 export const timeToPx = (t, pxPerSec) => t * pxPerSec;

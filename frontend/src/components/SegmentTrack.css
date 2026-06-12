@@ -30,7 +30,10 @@
 .seg-track__lane {
   position: relative;
   height: 100%;
-  will-change: transform;
+  /* No `will-change: transform` — the persistent compositor layer it forces
+     made the semi-transparent segment boxes vanish/reappear during playback
+     and drags on some Windows GPU drivers (#373). The lane only translates
+     while scrolling; a permanent layer isn't worth the paint glitch. */
 }
 
 .seg-track__box {

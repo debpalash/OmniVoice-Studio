@@ -537,9 +537,29 @@ def _safe_output_path(name):
 
 @router.get("/history")
 def list_history():
+    """Newest 50 generations whose audio still exists on disk.
+
+    Rows whose WAV was deleted out-of-band (cleared outputs dir, manual
+    cleanup) used to come back anyway and render dead players that 404 on
+    every fetch; prune them here so the UI never sees them again."""
     with db_conn() as conn:
-        rows = conn.execute("SELECT * FROM generation_history ORDER BY created_at DESC LIMIT 50").fetchall()
-    return [dict(r) for r in rows]
+        rows = conn.execute(
+            "SELECT * FROM generation_history ORDER BY created_at DESC LIMIT 50"
+        ).fetchall()
+        alive, stale_ids = [], []
+        for r in rows:
+            p = _safe_output_path(r["audio_path"]) if r["audio_path"] else None
+            if r["audio_path"] and (not p or not os.path.exists(p)):
+                stale_ids.append(r["id"])
+            else:
+                alive.append(dict(r))
+        if stale_ids:
+            conn.executemany(
+                "DELETE FROM generation_history WHERE id=?",
+                [(i,) for i in stale_ids],
+            )
+            logger.info("pruned %d stale history rows (audio file gone)", len(stale_ids))
+    return alive
 
 @router.delete("/history")
 def clear_history():

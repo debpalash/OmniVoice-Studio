@@ -467,9 +467,23 @@ def _load_model_sync():
             logger.info("Preloading PyTorch Whisper with TTS model.")
         else:
             logger.info("Skipping PyTorch Whisper preload; ASR will load on demand.")
-        _model = OmniVoice.from_pretrained(
-            checkpoint, device_map=device, dtype=torch.float16, load_asr=preload_asr,
-        )
+        try:
+            _model = OmniVoice.from_pretrained(
+                checkpoint, device_map=device, dtype=torch.float16, load_asr=preload_asr,
+            )
+        except OSError as e:
+            # #352: a truncated HF cache surfaces here as "does not appear to
+            # have a file named pytorch_model.bin or model.safetensors".
+            # Translate to an actionable message instead of the raw
+            # transformers error.
+            if "does not appear to have a file named" in str(e):
+                raise RuntimeError(
+                    f"The TTS model cache for {checkpoint} is incomplete "
+                    "(weights missing — usually an interrupted download). "
+                    "Open Settings → Models, delete the OmniVoice TTS model, "
+                    "and install it again."
+                ) from e
+            raise
 
         try:
             # plan-02 (#65): gate on Triton availability (+ user setting), not
