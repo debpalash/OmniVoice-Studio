@@ -215,6 +215,7 @@ function App() {
     isVoicePreviewOpen, setIsVoicePreviewOpen,
     voicePreviewProfileId, setVoicePreviewProfileId,
     handleSaveProfile: _handleSaveProfile,
+    handleSaveDesignProfile,
     handleDeleteProfile, handleSelectProfile,
     handlePreviewVoice, handleSegmentPreview,
     handleSaveHistoryAsProfile, handleLockProfile, handleUnlockProfile,
@@ -1135,6 +1136,7 @@ function App() {
               handleSelectProfile={handleSelectProfile}
               handleDeleteProfile={handleDeleteProfile}
               handleSaveProfile={handleSaveProfile}
+              handleSaveDesignProfile={handleSaveDesignProfile}
               handleGenerate={handleGenerate}
               startRecording={startRecording} stopRecording={stopRecording}
               ingestRefAudio={ingestRefAudio}

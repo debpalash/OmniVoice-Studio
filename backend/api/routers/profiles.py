@@ -35,29 +35,86 @@ def list_profiles():
         rows = conn.execute("SELECT * FROM voice_profiles ORDER BY created_at DESC").fetchall()
     return [dict(r) for r in rows]
 
+_DESIGN_SEED = 42  # deterministic sample render, same as archetype previews
+
+
 @router.post("/profiles")
 async def create_profile(
     name: str = Form(...),
-    ref_audio: UploadFile = File(...),
+    ref_audio: Optional[UploadFile] = File(None),
     ref_text: str = Form(""),
     instruct: str = Form(""),
     language: str = Form("Auto"),
     seed: Optional[int] = Form(None),
     personality: str = Form(""),
+    kind: str = Form("clone"),
+    vd_states: Optional[str] = Form(None),
 ):
-    profile_id = str(uuid.uuid4())[:8]
-    ext = os.path.splitext(ref_audio.filename or ".wav")[1]
-    audio_filename = f"{profile_id}{ext}"
-    audio_path = os.path.join(VOICES_DIR, audio_filename)
+    """Create a voice profile (spec: docs/specs/voice-studio-unification.md §5).
 
-    with open(audio_path, "wb") as f:
-        f.write(await ref_audio.read())
+    kind='clone'  — requires `ref_audio` (the user's reference recording).
+    kind='design' — requires `vd_states` (JSON of category picks); the server
+                    renders a deterministic sample WAV (seed 42, same path as
+                    archetype materialization) and stores it as the profile's
+                    reference so the voice identity is stable across runs.
+    """
+    if kind not in ("clone", "design"):
+        raise HTTPException(status_code=422, detail="kind must be 'clone' or 'design'")
+    if kind == "clone" and ref_audio is None:
+        raise HTTPException(status_code=422, detail="clone profiles require ref_audio")
+    if kind == "design":
+        if not (vd_states or "").strip():
+            raise HTTPException(status_code=422, detail="design profiles require vd_states")
+        import json as _json
+        try:
+            parsed = _json.loads(vd_states)
+            if not isinstance(parsed, dict):
+                raise ValueError("not an object")
+        except ValueError:
+            raise HTTPException(status_code=422, detail="vd_states must be a JSON object")
+        if not instruct.strip():
+            raise HTTPException(status_code=422, detail="design profiles require instruct")
+
+    profile_id = str(uuid.uuid4())[:8]
+
+    if kind == "clone":
+        ext = os.path.splitext(ref_audio.filename or ".wav")[1]
+        audio_filename = f"{profile_id}{ext}"
+        audio_path = os.path.join(VOICES_DIR, audio_filename)
+        with open(audio_path, "wb") as f:
+            f.write(await ref_audio.read())
+        used_seed = seed
+    else:
+        # Render the deterministic identity sample through the one shared TTS
+        # path (archetypes' renderer) — never a second inference code path.
+        from pathlib import Path
+        from api.routers.archetypes import _render_archetype_wav
+        audio_filename = f"{profile_id}.wav"
+        audio_path = os.path.join(VOICES_DIR, audio_filename)
+        try:
+            await _render_archetype_wav(
+                {
+                    "language": language,
+                    "sample_script": ref_text,  # optional custom sample line
+                    "instruct": instruct,
+                },
+                Path(audio_path),
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=503,
+                detail=f"could not render the design sample: {e}",
+            )
+        used_seed = seed if seed is not None else _DESIGN_SEED
 
     try:
         with db_conn() as conn:
             conn.execute(
-                "INSERT INTO voice_profiles (id, name, ref_audio_path, ref_text, instruct, language, seed, personality, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (profile_id, name, audio_filename, ref_text, instruct, language, seed, personality, time.time())
+                "INSERT INTO voice_profiles (id, name, ref_audio_path, ref_text, instruct, "
+                "language, seed, personality, kind, vd_states, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (profile_id, name, audio_filename, ref_text, instruct, language,
+                 used_seed, personality, kind, vd_states, time.time())
             )
     except Exception:
         # Clean up orphaned audio file if DB insert fails
@@ -65,7 +122,7 @@ async def create_profile(
             os.remove(audio_path)
         raise
     event_bus.emit("profiles", {"action": "created", "id": profile_id})
-    return {"id": profile_id, "name": name}
+    return {"id": profile_id, "name": name, "kind": kind}
 
 @router.get("/profiles/{profile_id}")
 def get_profile(profile_id: str):

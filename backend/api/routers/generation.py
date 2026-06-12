@@ -356,12 +356,23 @@ async def generate_speech(
     cleanup_ref = False
     used_seed = seed
     resolved_profile_id = None
+    history_mode = None  # profile.kind when a profile drives; else inferred at insert
 
     if profile_id:
         with db_conn() as conn:
             row = conn.execute("SELECT * FROM voice_profiles WHERE id=?", (profile_id,)).fetchone()
         if row:
             resolved_profile_id = profile_id
+            # `kind` is authoritative (0005): 'design' profiles condition on
+            # their deterministic rendered sample + instruct; 'clone' on the
+            # user's reference. Lock always wins (it pins a specific take).
+            # Rows from pre-0004 DBs mid-upgrade may lack the column → fall
+            # back to the legacy is_locked/instruct inference.
+            try:
+                profile_kind = row["kind"] or "clone"
+            except (KeyError, IndexError):
+                profile_kind = "design" if (row["instruct"] and not row["is_locked"] and not row["ref_audio_path"]) else "clone"
+            history_mode = profile_kind
             if row["is_locked"] and row["locked_audio_path"]:
                 ref_audio_path = os.path.join(VOICES_DIR, row["locked_audio_path"])
                 if not ref_text:
@@ -370,7 +381,19 @@ async def generate_speech(
                     instruct = row["instruct"]
                 if used_seed is None and row["seed"] is not None:
                     used_seed = row["seed"]
-            elif row["instruct"] and not row["is_locked"]:
+            elif profile_kind == "design":
+                # Rendered sample (if present) carries the voice identity;
+                # instruct alone is the fallback for legacy archetype rows.
+                ref_audio_path = os.path.join(VOICES_DIR, row["ref_audio_path"]) if row["ref_audio_path"] else None
+                if ref_audio_path and not ref_text and row["ref_text"]:
+                    ref_text = row["ref_text"]
+                if not instruct:
+                    instruct = row["instruct"]
+                if used_seed is None and row["seed"] is not None:
+                    used_seed = row["seed"]
+            elif row["instruct"] and not row["is_locked"] and not row["ref_audio_path"]:
+                # Legacy design-shaped row (pre-0004 archetype materialization
+                # failure path): instruct-only conditioning.
                 if not instruct:
                     instruct = row["instruct"]
                 if used_seed is None and row["seed"] is not None:
@@ -451,7 +474,7 @@ async def generate_speech(
         with db_conn() as conn:
             conn.execute(
                 "INSERT INTO generation_history (id, text, mode, language, instruct, profile_id, audio_path, duration_seconds, generation_time, seed, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                (audio_id, text[:200], "clone" if ref_audio_path else "design",
+                (audio_id, text[:200], history_mode or ("clone" if ref_audio_path else "design"),
                  language or "Auto", instruct or "", resolved_profile_id,
                  audio_filename, audio_dur, gen_time, used_seed, time.time())
             )

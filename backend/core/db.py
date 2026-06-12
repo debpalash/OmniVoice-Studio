@@ -53,6 +53,8 @@ _BASE_SCHEMA = """
         consent_text TEXT DEFAULT '',
         consent_audio_path TEXT DEFAULT '',
         consent_recorded_at REAL DEFAULT NULL,
+        kind TEXT DEFAULT 'clone',
+        vd_states TEXT DEFAULT NULL,
         created_at REAL
     );
     CREATE TABLE IF NOT EXISTS generation_history (

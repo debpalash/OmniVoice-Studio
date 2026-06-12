@@ -12,7 +12,7 @@ import ALL_LANGUAGES from '../languages.json';
 import { POPULAR_LANGS, PRESETS, TAGS, CATEGORIES } from '../utils/constants';
 import { Button, Input, Slider, Progress } from '../ui';
 import { API, apiPost } from '../api/client';
-import { mergeDescribedAttrs } from '../utils/voiceInstruct';
+import { mergeDescribedAttrs, buildDesignInstruct } from '../utils/voiceInstruct';
 import { listEngines } from '../api/engines';
 import { claimPlayback, stopActivePlayback, usePlaybackSource } from '../utils/playback';
 import './CloneDesignTab.css';
@@ -47,7 +47,7 @@ export default function CloneDesignTab(props) {
     isGenerating, generationTime,
     applyPreset, insertTag,
     handleSelectProfile, handleDeleteProfile,
-    handleSaveProfile, handleGenerate,
+    handleSaveProfile, handleSaveDesignProfile, handleGenerate,
     startRecording, stopRecording,
     ingestRefAudio,
   } = props;
@@ -525,6 +525,36 @@ export default function CloneDesignTab(props) {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Save the current design as a reusable profile (0005): the
+                backend renders a deterministic identity sample (seed 42)
+                and stores the slider picks for later re-editing. */}
+            <div className="clone-save-profile">
+              {!showSaveProfile ? (
+                <Button
+                  variant="subtle"
+                  size="sm"
+                  onClick={() => setShowSaveProfile(true)}
+                  leading={<Save size={12} />}
+                >
+                  {t('clone.save_design_as_profile', { defaultValue: 'Save design as profile' })}
+                </Button>
+              ) : (
+                <div className="clone-save-profile__row">
+                  <Input
+                    size="sm"
+                    placeholder={t('clone.profile_name')}
+                    value={profileName}
+                    onChange={e => setProfileName(e.target.value)}
+                  />
+                  <Button variant="subtle" size="sm"
+                    onClick={() => handleSaveDesignProfile(vdStates, buildDesignInstruct(vdStates, instruct), language)}>
+                    {t('clone.save')}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setShowSaveProfile(false)}>{t('clone.cancel')}</Button>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -24,6 +24,7 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
   const setRefText = useAppStore(s => s.setRefText);
   const setInstruct = useAppStore(s => s.setInstruct);
   const setLanguage = useAppStore(s => s.setLanguage);
+  const setVdStates = useAppStore(s => s.setVdStates);
   const language = useAppStore(s => s.language);
   const mode = useAppStore(s => s.mode);
   const steps = useAppStore(s => s.steps);
@@ -64,7 +65,34 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
     setRefText(profile.ref_text || '');
     setInstruct(profile.instruct || '');
     if (profile.language && profile.language !== 'Auto') setLanguage(profile.language);
-  }, [setRefText, setInstruct, setLanguage]);
+    // Design profiles (0005) carry their category picks — restore the sliders
+    // so selecting one makes it re-editable, not just re-usable.
+    if (profile.kind === 'design' && profile.vd_states) {
+      try {
+        const parsed = JSON.parse(profile.vd_states);
+        if (parsed && typeof parsed === 'object') setVdStates(parsed);
+      } catch { /* malformed stored state — sliders keep their current values */ }
+    }
+  }, [setRefText, setInstruct, setLanguage, setVdStates]);
+
+  /** Save the current design (vd_states + instruct) as a reusable profile.
+      The backend renders a deterministic identity sample (seed 42). */
+  const handleSaveDesignProfile = useCallback(async (vdStates, instruct, language) => {
+    if (!profileName.trim()) return toast.error('Need a profile name');
+    const fd = new FormData();
+    fd.append('name', profileName);
+    fd.append('kind', 'design');
+    fd.append('vd_states', JSON.stringify(vdStates || {}));
+    fd.append('instruct', instruct || '');
+    fd.append('language', language || 'Auto');
+    try {
+      await createProfile(fd);
+      setShowSaveProfile(false);
+      setProfileName('');
+      await loadProfiles();
+      toast.success('Design saved as a voice profile');
+    } catch (e) { toast.error(e.message); }
+  }, [profileName, loadProfiles]);
 
   const handlePreviewVoice = useCallback(async (proj, e) => {
     e.stopPropagation();
@@ -204,6 +232,7 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
     isVoicePreviewOpen, setIsVoicePreviewOpen,
     voicePreviewProfileId, setVoicePreviewProfileId,
     handleSaveProfile,
+    handleSaveDesignProfile,
     handleDeleteProfile,
     handleSelectProfile,
     handlePreviewVoice,
