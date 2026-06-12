@@ -152,7 +152,6 @@ def test_migration_0004_downgrade_drops_table(tmp_path):
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("OMNIVOICE_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("OMNIVOICE_MCP_DISABLE", "1")  # don't mount FastMCP for the CRUD test
     import importlib
     for m in ("core.config", "core.db", "services.mcp_bindings"):
         if m in sys.modules:
@@ -162,7 +161,18 @@ def client(tmp_path, monkeypatch):
     import main as _main
     importlib.reload(_main)
     from fastapi.testclient import TestClient
-    return TestClient(_main.app, client=("127.0.0.1", 50000))
+    # No `with` — running the lifespan rebinds module-level event-bus queues
+    # to this loop and contaminates later lifespan tests (Wave 0.2 footgun).
+    try:
+        yield TestClient(_main.app, client=("127.0.0.1", 50000))
+    finally:
+        # Reloading main above poisons the global module for any later test
+        # that does `from main import …`. Reload once more with the default
+        # (project) data dir restored so the shared module is clean again.
+        monkeypatch.undo()
+        importlib.reload(importlib.import_module("core.config"))
+        importlib.reload(importlib.import_module("core.db"))
+        importlib.reload(_main)
 
 
 def test_rest_crud_roundtrip(client):

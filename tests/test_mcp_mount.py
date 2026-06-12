@@ -42,17 +42,22 @@ def _mount_paths(app) -> set[str]:
     return {r.path for r in app.routes if isinstance(r, Mount)}
 
 
-def test_main_mounts_mcp_route():
+def test_main_mounts_mcp_route(monkeypatch):
     """Importing main wires the /mcp mount.
 
     Inspect app.routes rather than driving a TestClient — running the app
     lifespan starts the FastMCP session manager, which binds asyncio queues
     to the test's event loop and contaminates later lifespan-running tests
-    ("bound to a different event loop"). The mount itself happens at import
-    time, so route inspection is the right, loop-free assertion.
+    ("bound to a different event loop"). The mount happens at import time.
+
+    Reload main with the disable flag cleared so this is independent of any
+    earlier test that reloaded main (e.g. with OMNIVOICE_MCP_DISABLE set).
     """
-    from main import app
-    assert "/mcp" in _mount_paths(app)
+    monkeypatch.delenv("OMNIVOICE_MCP_DISABLE", raising=False)
+    import importlib
+    import main as _main
+    importlib.reload(_main)
+    assert "/mcp" in _mount_paths(_main.app)
 
 
 def test_mcp_disable_env_skips_mount(monkeypatch):
