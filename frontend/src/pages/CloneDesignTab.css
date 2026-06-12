@@ -86,8 +86,18 @@
   min-height: 0;
   overflow-y: auto;
 }
-.clone-split-grid > .studio-column { flex: 0 0 auto; min-height: 0; position: relative; }
-.clone-split-grid > .studio-column:first-child { flex: 1 1 auto; z-index: 2; }
+/* The base .studio-column is a grid with `minmax(0,1fr)` rows — that needs a
+   definite height and collapses to 0 (panels overlapping) inside this
+   auto-height scroll column. Re-flow the columns as natural-height stacks. */
+.clone-split-grid > .studio-column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-height: 0;
+  position: relative;
+}
+.clone-split-grid > .studio-column:first-child { flex: 1 0 auto; z-index: 2; }
 .clone-split-grid > .studio-column:last-child  { z-index: 1; }
 .clone-panel--overflow-visible { overflow: visible; position: relative; z-index: 10; }
 
