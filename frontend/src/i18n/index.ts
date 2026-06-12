@@ -2,26 +2,54 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import en from './locales/en.json';
-import zhCN from './locales/zh-CN.json';
-import es from './locales/es.json';
-import fr from './locales/fr.json';
-import de from './locales/de.json';
-import ja from './locales/ja.json';
-import pt from './locales/pt.json';
-import it from './locales/it.json';
-import ru from './locales/ru.json';
-import ko from './locales/ko.json';
-import hi from './locales/hi.json';
-import tr from './locales/tr.json';
-import pl from './locales/pl.json';
-import nl from './locales/nl.json';
-import sv from './locales/sv.json';
-import th from './locales/th.json';
-import vi from './locales/vi.json';
-import id from './locales/id.json';
-import uk from './locales/uk.json';
-import ar from './locales/ar.json';
-import zhTW from './locales/zh-TW.json';
+
+/**
+ * Only English ships in the main bundle (it's the fallback and renders the
+ * first paint). Every other locale is a lazy `import()` — Vite splits each
+ * JSON into its own chunk, fetched the moment that language is detected or
+ * selected. This took the i18n chunk from ~1.8 MB down to just en.json.
+ */
+const LOADERS: Record<string, () => Promise<{ default: Record<string, unknown> }>> = {
+  'zh-CN': () => import('./locales/zh-CN.json'),
+  es: () => import('./locales/es.json'),
+  fr: () => import('./locales/fr.json'),
+  de: () => import('./locales/de.json'),
+  ja: () => import('./locales/ja.json'),
+  pt: () => import('./locales/pt.json'),
+  it: () => import('./locales/it.json'),
+  ru: () => import('./locales/ru.json'),
+  ko: () => import('./locales/ko.json'),
+  hi: () => import('./locales/hi.json'),
+  tr: () => import('./locales/tr.json'),
+  pl: () => import('./locales/pl.json'),
+  nl: () => import('./locales/nl.json'),
+  sv: () => import('./locales/sv.json'),
+  th: () => import('./locales/th.json'),
+  vi: () => import('./locales/vi.json'),
+  id: () => import('./locales/id.json'),
+  uk: () => import('./locales/uk.json'),
+  ar: () => import('./locales/ar.json'),
+  'zh-TW': () => import('./locales/zh-TW.json'),
+};
+
+const loading = new Set<string>();
+
+async function loadLocale(lng: string): Promise<void> {
+  const base = lng in LOADERS ? lng : lng.split('-')[0];
+  const loader = LOADERS[lng] || LOADERS[base];
+  const key = LOADERS[lng] ? lng : base;
+  if (!loader || loading.has(key) || i18n.hasResourceBundle(key, 'translation')) return;
+  loading.add(key);
+  try {
+    const mod = await loader();
+    // deep + overwrite so a re-load after an HMR update wins.
+    i18n.addResourceBundle(key, 'translation', mod.default, true, true);
+  } catch (e) {
+    console.warn(`i18n: failed to load locale "${key}"`, e);
+  } finally {
+    loading.delete(key);
+  }
+}
 
 i18n
   .use(LanguageDetector)
@@ -29,34 +57,28 @@ i18n
   .init({
     resources: {
       en: { translation: en },
-      'zh-CN': { translation: zhCN },
-      es: { translation: es },
-      fr: { translation: fr },
-      de: { translation: de },
-      ja: { translation: ja },
-      pt: { translation: pt },
-      it: { translation: it },
-      ru: { translation: ru },
-      ko: { translation: ko },
-      hi: { translation: hi },
-      tr: { translation: tr },
-      pl: { translation: pl },
-      nl: { translation: nl },
-      sv: { translation: sv },
-      th: { translation: th },
-      vi: { translation: vi },
-      id: { translation: id },
-      uk: { translation: uk },
-      ar: { translation: ar },
-      'zh-TW': { translation: zhTW },
     },
+    // Non-bundled languages arrive via addResourceBundle after a lazy fetch;
+    // don't treat their initial absence as "missing language".
+    partialBundledLanguages: true,
     fallbackLng: 'en',
     interpolation: { escapeValue: false },
     detection: {
       order: ['querystring', 'navigator', 'htmlTag'],
       lookupQuerystring: 'lng',
     },
+    react: {
+      // Re-render not just on language switch but also when a lazily-loaded
+      // bundle lands (addResourceBundle emits 'added') — the UI flashes the
+      // English fallback for the fetch round-trip, then snaps to the locale.
+      bindI18n: 'languageChanged added',
+    },
   });
+
+// Fetch the bundle whenever a non-English language becomes active — covers
+// both the initial browser-detected language and later picker switches.
+i18n.on('languageChanged', (lng) => { void loadLocale(lng); });
+if (i18n.language && i18n.language !== 'en') void loadLocale(i18n.language);
 
 // Selectable UI languages. Native language names live here, in the i18n
 // layer — never hardcoded in component code (see the "no hardcoded

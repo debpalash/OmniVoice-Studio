@@ -8,8 +8,7 @@
  */
 import React from 'react';
 import { Palette } from 'lucide-react';
-import { Segmented, Select } from '../../ui';
-import { useAppStore, FONT_OPTIONS } from '../../store';
+import { useAppStore, FONT_OPTIONS, FONT_STACKS } from '../../store';
 import './AppearancePanel.css';
 
 const THEMES = [
@@ -37,16 +36,19 @@ export default function AppearancePanel() {
 
       <div className="appearance-panel__row">
         <span className="appearance-panel__label">UI scale</span>
-        <Segmented
-          size="xs"
-          value={uiScale}
-          onChange={setUiScale}
-          items={[
-            { value: 1,   label: 'S', title: 'Small UI scale'  },
-            { value: 1.3, label: 'M', title: 'Medium UI scale' },
-            { value: 1.5, label: 'L', title: 'Large UI scale'  },
-          ]}
-        />
+        <div className="appearance-panel__scale">
+          <input
+            type="range"
+            min="0.6"
+            max="1.75"
+            step="0.05"
+            value={uiScale}
+            onChange={(e) => setUiScale(Number(e.target.value))}
+            aria-label="UI scale"
+            aria-valuetext={`${Math.round(uiScale * 100)}%`}
+          />
+          <span className="appearance-panel__scale-val">{Math.round(uiScale * 100)}%</span>
+        </div>
       </div>
 
       <div className="appearance-panel__row">
@@ -68,19 +70,26 @@ export default function AppearancePanel() {
         </div>
       </div>
 
-      <div className="appearance-panel__row">
+      <div className="appearance-panel__row appearance-panel__row--stack">
         <span className="appearance-panel__label">Font</span>
-        <Select
-          size="xs"
-          value={font}
-          onChange={(e) => setFont(e.target.value)}
-          data-testid="appearance-font-select"
-          aria-label="Font"
-        >
+        <div className="appearance-panel__fonts" role="radiogroup" aria-label="Font">
           {FONT_OPTIONS.map(f => (
-            <option key={f.id} value={f.id}>{f.label}</option>
+            <button
+              key={f.id}
+              type="button"
+              role="radio"
+              aria-checked={font === f.id}
+              aria-label={f.label}
+              data-testid={`appearance-font-${f.id}`}
+              className={`appearance-panel__font-tile ${font === f.id ? 'is-active' : ''}`}
+              style={{ fontFamily: FONT_STACKS[f.id] || 'var(--font-sans)' }}
+              onClick={() => setFont(f.id)}
+            >
+              <span className="appearance-panel__font-sample">Ag</span>
+              <span className="appearance-panel__font-name">{f.label}</span>
+            </button>
           ))}
-        </Select>
+        </div>
       </div>
 
       <p className="appearance-panel__help">

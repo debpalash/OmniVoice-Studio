@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { PRESETS } from '../utils/constants';
 import { generateSpeech } from '../api/generate';
 import { Button, Panel, Field, Textarea, Select } from '../ui';
+import WaveformPlayer from './WaveformPlayer';
 import { useTranslation } from 'react-i18next';
 import './CompareModal.css';
 
@@ -179,7 +180,7 @@ function CompareSide({ accent, label, profiles, value, onChange, audio }) {
         </Select>
       </Field>
       {audio ? (
-        <audio src={audio} controls className="ui-compare__audio" />
+        <WaveformPlayer src={audio} source="compare" className="ui-compare__audio" />
       ) : (
         <div className="ui-compare__audio-empty">{t('compare.no_audio')}</div>
       )}

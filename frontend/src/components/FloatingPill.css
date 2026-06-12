@@ -5,8 +5,13 @@
 
 .floating-pill {
   position: fixed;
-  top: 48px;
-  right: 16px;
+  /* Bottom-center (snackbar) so it never collides with the right-side
+     workspace panels (Voice / Dub), the top title bar, or the nav rail.
+     Rides above the LogsFooter at any expanded height (the footer writes
+     --logs-footer-height on :root — see LogsFooter.jsx). */
+  bottom: calc(var(--logs-footer-height, 28px) + 16px);
+  left: 50%;
+  transform: translateX(-50%);
   z-index: var(--z-toast);
   display: flex;
   align-items: center;
@@ -40,12 +45,12 @@
 @keyframes pill-enter {
   from {
     opacity: 0;
-    transform: translateX(24px) scale(0.92);
+    transform: translate(-50%, 14px) scale(0.92);
     filter: blur(4px);
   }
   to {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translate(-50%, 0) scale(1);
     filter: blur(0);
   }
 }
@@ -53,7 +58,7 @@
 @keyframes pill-exit {
   to {
     opacity: 0;
-    transform: translateX(16px) scale(0.95);
+    transform: translate(-50%, 10px) scale(0.95);
     filter: blur(2px);
   }
 }

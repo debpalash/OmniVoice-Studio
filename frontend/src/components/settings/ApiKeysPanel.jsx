@@ -20,6 +20,7 @@
  * fetch with the same `API` base so query params can be appended cleanly.
  */
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CheckCircle2, KeyRound, RefreshCw, Save, Trash2, XCircle } from 'lucide-react';
 import { apiJson, apiPost, API } from '../../api/client';
 import './ApiKeysPanel.css';
@@ -46,6 +47,7 @@ const EMPTY_STATE = {
 };
 
 export default function ApiKeysPanel() {
+  const { t } = useTranslation();
   const [state, setState] = useState(EMPTY_STATE);
   const [loading, setLoading] = useState(false);
   const [tokenInput, setTokenInput] = useState('');
@@ -122,7 +124,7 @@ export default function ApiKeysPanel() {
         </div>
       )}
 
-      <div className="apikeys-rows" role="table" aria-label="HF token sources">
+      <div className="apikeys-rows" role="table" aria-label={t('settings.hf_token_sources', { defaultValue: 'HF token sources' })}>
         {state.sources.map((row) => {
           const isActive = state.active === row.source;
           return (
@@ -170,7 +172,7 @@ export default function ApiKeysPanel() {
                     type="password"
                     className="apikeys-input"
                     placeholder="hf_…"
-                    aria-label="HuggingFace token"
+                    aria-label={t('settings.hf_token_input', { defaultValue: 'HuggingFace token' })}
                     value={tokenInput}
                     onChange={(e) => setTokenInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -210,23 +212,23 @@ export default function ApiKeysPanel() {
           className="apikeys-btn apikeys-btn--ghost"
           onClick={refresh}
           disabled={loading}
-          aria-label="Test now"
-          title="Re-run whoami for every source"
+          aria-label={t('settings.hf_token_test_now', { defaultValue: 'Test now' })}
+          title={t('settings.hf_token_test_now_title', { defaultValue: 'Re-run whoami for every source' })}
         >
-          <RefreshCw size={12} /> Test now
+          <RefreshCw size={12} /> {t('settings.hf_token_test_now', { defaultValue: 'Test now' })}
         </button>
       </div>
 
       {clearOpen && (
-        <div className="apikeys-clear-dialog" role="dialog" aria-label="Clear token">
-          <p>Clear the App-source HuggingFace token?</p>
+        <div className="apikeys-clear-dialog" role="dialog" aria-label={t('settings.hf_token_clear_dialog', { defaultValue: 'Clear token' })}>
+          <p>{t('settings.hf_token_clear_confirm', { defaultValue: 'Clear the App-source HuggingFace token?' })}</p>
           <label className="apikeys-checkbox">
             <input
               type="checkbox"
               checked={alsoClearCli}
               onChange={(e) => setAlsoClearCli(e.target.checked)}
             />{' '}
-            Also clear <code>~/.cache/huggingface/token</code>
+            {t('settings.hf_token_also_clear', { defaultValue: 'Also clear' })} <code>~/.cache/huggingface/token</code>
           </label>
           <div className="apikeys-clear-dialog__actions">
             <button
@@ -237,7 +239,7 @@ export default function ApiKeysPanel() {
                 setAlsoClearCli(false);
               }}
             >
-              Cancel
+              {t('settings.cancel', { defaultValue: 'Cancel' })}
             </button>
             <button
               type="button"
@@ -245,7 +247,7 @@ export default function ApiKeysPanel() {
               onClick={onClear}
               disabled={saving}
             >
-              <Trash2 size={12} /> Clear token
+              <Trash2 size={12} /> {t('settings.hf_token_clear_btn', { defaultValue: 'Clear token' })}
             </button>
           </div>
         </div>

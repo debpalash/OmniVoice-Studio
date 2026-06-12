@@ -1,0 +1,81 @@
+/* WaveformPlayer — the one shared audio player. Accent surfaces use the
+   --color-brand tokens (re-themed per theme in ui/themes.css) so it reads the
+   same in the sidebar, popovers, modals, and full-width panels. */
+
+.wf-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(168, 153, 132, 0.08);
+  border: 1px solid rgba(168, 153, 132, 0.18);
+  box-sizing: border-box;
+}
+
+.wf-player--compact {
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.wf-player__btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--color-fg-inverse);
+  background: var(--color-brand);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.wf-player--compact .wf-player__btn {
+  width: 26px;
+  height: 26px;
+}
+
+.wf-player__btn:hover:not(:disabled) { background: var(--color-brand-hover); }
+.wf-player__btn:active:not(:disabled) { transform: scale(0.94); }
+.wf-player__btn:disabled { opacity: 0.6; cursor: default; }
+
+.wf-player__wave {
+  flex: 1 1 auto;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.wf-player__time {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: rgba(168, 153, 132, 0.85);
+  white-space: nowrap;
+}
+
+.wf-player--compact .wf-player__time { font-size: 10px; }
+
+.wf-player__spin { animation: wf-spin 1s linear infinite; }
+
+/* Stale history rows whose audio file is gone — inert notice, no controls. */
+.wf-player--missing { justify-content: center; opacity: 0.55; }
+.wf-player__missing-msg {
+  font-size: 10.5px;
+  font-style: italic;
+  color: var(--chrome-fg-dim, #665c54);
+}
+
+@keyframes wf-spin { to { transform: rotate(360deg); } }
+
+/* Native fallback element (WebKit decode failure) — keep it full-width so it
+   doesn't look out of place where the waveform would have been. */
+.wf-player__native {
+  width: 100%;
+  height: 34px;
+}

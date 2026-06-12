@@ -6,7 +6,7 @@ import { listProjects } from '../api/projects';
 import { listDubHistory } from '../api/dub';
 import { listExportHistory, exportAction, exportReveal, exportRecord } from '../api/exports';
 import { modelStatus as apiModelStatus } from '../api/system';
-import { useSysinfo, useModelStatus } from '../api/hooks';
+import { useModelStatus } from '../api/hooks';
 import useRealtimeEvents from './useRealtimeEvents';
 import { isTauri, fileToMediaUrl } from '../utils/media';
 import { toast } from 'react-hot-toast';
@@ -70,10 +70,10 @@ export default function useAppData() {
   const [exportHistory, setExportHistory] = useState([]);
   const [showOverrides, setShowOverrides] = useState(false);
 
-  // ── Model status + sysinfo (TanStack Query) ──
-  const sysQuery = useSysinfo();
+  // ── Model status (TanStack Query) ──
+  // Sysinfo lives in Header (the only consumer) so its 5s poll doesn't
+  // re-render the whole App tree.
   const msQuery = useModelStatus();
-  const sysStats = sysQuery.data ?? null;
   const modelStatus = msQuery.data?.status ?? 'idle';
   const modelSubStage = msQuery.data?.sub_stage ?? null;
   const modelDetail = msQuery.data?.detail ?? '';
@@ -180,7 +180,7 @@ export default function useAppData() {
   return {
     profiles, history, dubHistory, studioProjects, exportHistory,
     showOverrides, setShowOverrides,
-    sysStats, modelStatus,
+    modelStatus,
     loadProfiles, loadHistory, loadDubHistory, loadProjects, loadExportHistory,
   };
 }

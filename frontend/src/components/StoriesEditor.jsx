@@ -10,7 +10,7 @@
  * Spec: docs/superpowers/specs/2026-05-30-stories-editor-studio-design.md
  */
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Plus, Play, Trash2, GripVertical, BookOpen, Mic, Download, Scissors, Pause as PauseIcon, Users, X, Upload, Sparkles, SlidersHorizontal, Folder, Layers, Bookmark } from 'lucide-react';
+import { Plus, Play, Trash2, GripVertical, BookOpen, Mic, Download, Scissors, Pause as PauseIcon, Users, X, Upload, Sparkles, SlidersHorizontal, Folder, Layers, Bookmark, FileText, Drama, Timer, ChartColumn, Hourglass, Laugh, Wind, CircleQuestionMark, Zap, CircleCheck, Annoyed } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { Button, Menu } from '../ui';
@@ -87,12 +87,12 @@ function genCastId() {
 // Curated inline emotion/sound tags (a subset of utils/constants TAGS) for the
 // per-line tone drawer. Inserting a tag is the model-native way to direct tone.
 const STORY_TONES = [
-  { tag: '[laughter]', icon: '😄', key: 'laugh' },
-  { tag: '[sigh]', icon: '😮‍💨', key: 'sigh' },
-  { tag: '[question-en]', icon: '❓', key: 'question' },
-  { tag: '[surprise-wa]', icon: '😲', key: 'surprise' },
-  { tag: '[confirmation-en]', icon: '✅', key: 'confirm' },
-  { tag: '[dissatisfaction-hnn]', icon: '😒', key: 'dissatisfaction' },
+  { tag: '[laughter]', icon: Laugh, key: 'laugh' },
+  { tag: '[sigh]', icon: Wind, key: 'sigh' },
+  { tag: '[question-en]', icon: CircleQuestionMark, key: 'question' },
+  { tag: '[surprise-wa]', icon: Zap, key: 'surprise' },
+  { tag: '[confirmation-en]', icon: CircleCheck, key: 'confirm' },
+  { tag: '[dissatisfaction-hnn]', icon: Annoyed, key: 'dissatisfaction' },
 ];
 
 export default function StoriesEditor({ profiles = [] }) {
@@ -569,7 +569,7 @@ export default function StoriesEditor({ profiles = [] }) {
       {/* Tracks */}
       {tracks.length === 0 ? (
         <div className="stories-editor__empty">
-          <span className="stories-editor__empty-icon">📖</span>
+          <BookOpen size={32} className="stories-editor__empty-icon" aria-hidden="true" />
           <p className="stories-editor__empty-text">{t('stories.emptyText')}</p>
           <Button size="sm" onClick={addTrack}><Plus size={13} /> {t('stories.addFirst')}</Button>
         </div>
@@ -707,7 +707,7 @@ export default function StoriesEditor({ profiles = [] }) {
                     <div className="stories-track__tones">
                       {STORY_TONES.map((tn) => (
                         <button key={tn.tag} type="button" className="stories-track__tone" onClick={() => insertTokenInto(track.id, tn.tag)} title={tn.tag}>
-                          <span aria-hidden="true">{tn.icon}</span> {t(`stories.tones.${tn.key}`)}
+                          <tn.icon size={12} aria-hidden="true" /> {t(`stories.tones.${tn.key}`)}
                         </button>
                       ))}
                     </div>
@@ -735,11 +735,11 @@ export default function StoriesEditor({ profiles = [] }) {
       {tracks.length > 0 && (
         <div className="stories-editor__footer">
           <div className="stories-editor__stats">
-            <span className="stories-editor__stat">📝 {t('stories.lines', { count: tracks.length })}</span>
-            <span className="stories-editor__stat">🎭 {t('stories.characters', { count: usedCharacters })}</span>
-            <span className="stories-editor__stat">⏱ {t('stories.minutes', { count: estMinutes })}</span>
-            <span className="stories-editor__stat">📊 {t('stories.chars', { count: totalChars })}</span>
-            {exporting && <span className="stories-editor__stat">⏳ {exportPct}%</span>}
+            <span className="stories-editor__stat"><FileText size={12} aria-hidden="true" /> {t('stories.lines', { count: tracks.length })}</span>
+            <span className="stories-editor__stat"><Drama size={12} aria-hidden="true" /> {t('stories.characters', { count: usedCharacters })}</span>
+            <span className="stories-editor__stat"><Timer size={12} aria-hidden="true" /> {t('stories.minutes', { count: estMinutes })}</span>
+            <span className="stories-editor__stat"><ChartColumn size={12} aria-hidden="true" /> {t('stories.chars', { count: totalChars })}</span>
+            {exporting && <span className="stories-editor__stat"><Hourglass size={12} aria-hidden="true" /> {exportPct}%</span>}
           </div>
         </div>
       )}

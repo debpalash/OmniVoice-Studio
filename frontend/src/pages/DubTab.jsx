@@ -2,10 +2,10 @@ import React, { Suspense, lazy, useState, useEffect, useCallback, useRef } from 
 import { copyText } from "../utils/copyText";
 import { useTranslation } from 'react-i18next';
 import {
-  PanelLeftOpen, PanelLeftClose, Film, Save, UploadCloud, Sparkles, Loader, Square, Users,
+  Film, Save, UploadCloud, Sparkles, Loader, Square, Users,
   FileText, Play, DownloadIcon, Volume2, Link2,
   Languages, ChevronDown, ChevronUp, Wand2, Trash2, Check, Globe, UserSquare2, User, AlertCircle,
-  ExternalLink, Copy,
+  ExternalLink, Copy, Pencil,
 } from 'lucide-react';
 // lucide-react exports DownloadIcon as "Download"; alias here to match App.jsx naming.
 import { Download as Download, RotateCcw } from 'lucide-react';
@@ -131,8 +131,6 @@ export default function DubTab(props) {
   const exportTracks      = useAppStore(s => s.exportTracks);
   const setExportTracks   = useAppStore(s => s.setExportTracks);
   const activeProjectName = useAppStore(s => s.activeProjectName);
-  const isSidebarCollapsed = useAppStore(s => s.isSidebarCollapsed);
-  const setIsSidebarCollapsed = useAppStore(s => s.setIsSidebarCollapsed);
   const translateQuality    = useAppStore(s => s.translateQuality);
   const setTranslateQuality = useAppStore(s => s.setTranslateQuality);
   const dualSubs            = useAppStore(s => s.dualSubs);
@@ -178,6 +176,25 @@ export default function DubTab(props) {
   // Multi-language mode
   const [multiLangMode, setMultiLangMode] = useState(false);
   const [multiLangs, setMultiLangs] = useState([]);
+  // Landing "Advanced" disclosure (pre-upload options).
+  const [landingAdvOpen, setLandingAdvOpen] = useState(false);
+
+  // Generate CTA — when multi-language mode has picks, dub each language
+  // sequentially; every run appends its track to dubbed_tracks, so the
+  // preview switcher pills fill up one by one.
+  const onGenerateClick = useCallback(async () => {
+    if (multiLangMode && multiLangs.length > 0) {
+      try {
+        for (const l of multiLangs) {
+          setDubLang(l.lang); setDubLangCode(l.code); // keep UI/exports in sync
+          // eslint-disable-next-line no-await-in-loop
+          await handleDubGenerate({ langOverride: { language: l.lang, language_code: l.code } });
+        }
+      } catch { /* a failed language stops the batch; its error is already surfaced */ }
+    } else {
+      handleDubGenerate();
+    }
+  }, [multiLangMode, multiLangs, handleDubGenerate, setDubLang, setDubLangCode]);
 
   // Live ETA while generating — elapsed ticks each second; remaining is
   // extrapolated from the current/total rate so it's only meaningful once
@@ -291,27 +308,33 @@ export default function DubTab(props) {
   // buffered MP4 and the user would see the old dub after editing +
   // regenerating (#281). The backend ignores `v`.
   const dubGenNonce = useAppStore(s => s.dubGenNonce);
-  const videoSrc = (previewMode === 'dubbed' && hasDubbedTrack)
-    ? `${API}/dub/preview-video/${dubJobId}?lang=${encodeURIComponent(dubLangCode)}&preserve_bg=${preserveBg ? 1 : 0}&v=${dubGenNonce}`
+  // previewMode is 'original' or a dubbed language code (multi-language switcher).
+  const previewIsDub = previewMode !== 'original' && hasDubbedTrack;
+  const videoSrc = previewIsDub
+    ? `${API}/dub/preview-video/${dubJobId}?lang=${encodeURIComponent(previewMode)}&preserve_bg=${preserveBg ? 1 : 0}&v=${dubGenNonce}`
     : `${API}/dub/media/${dubJobId}`;
+  // When a dub finishes, jump the preview to the freshly-dubbed language so the
+  // result plays immediately — the user can tap back to Original any time.
+  useEffect(() => {
+    if (hasDubbedTrack && previewMode === 'original' && dubLangCode && dubLangCode !== 'und') {
+      setPreviewMode(dubLangCode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasDubbedTrack, dubLangCode]);
 
   return (
     <div className="dub-col">
+      {/* Pipeline spine — shown once a file/job is in play so the user always
+          knows which stage they're at (Upload → … → Export). */}
+      {(dubVideoFile || dubJobId || dubStep !== 'idle') && (
+        <DubPipelineStepper dubStep={dubStep} />
+      )}
       {/* ── Idle: show full editor skeleton with drop zone ── */}
       {showIdleSkeleton && (
         <div className="dub-col">
           {/* Header bar */}
           <div className="dub-head">
             <div className="label-row dub-head__title">
-              <Button
-                variant="icon"
-                iconSize="sm"
-                active={isSidebarCollapsed}
-                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                  title={t('dub.sidebar_toggle')}
-                >
-                  {isSidebarCollapsed ? <PanelLeftOpen size={12} /> : <PanelLeftClose size={12} />}
-                </Button>
                 <Film className="label-icon" size={11} />
                 <span className="dub-head__filename">{dubVideoFile ? dubVideoFile.name : t('dub.video_dubbing_studio')}</span>
               {dubVideoFile && <span className="dub-head__meta">· {(dubVideoFile.size / 1024 / 1024).toFixed(1)} MB</span>}
@@ -509,6 +532,65 @@ export default function DubTab(props) {
                     <span>{t('dub.pull_captions')}</span>
                   </label>
                 </label>
+
+                {/* One decision up front: the target language. Everything else
+                    (speakers, style) hides behind Advanced — ElevenLabs-style
+                    flow, OmniVoice chrome. The pick pre-seeds the editor. */}
+                <div className="dub-landing-opts">
+                  <label className="dub-landing-opts__lang">
+                    <Globe size={13} />
+                    <span className="dub-landing-opts__label">{t('dub.target_language', { defaultValue: 'Dub into' })}</span>
+                    <select
+                      className="input-base input-base--xs"
+                      value={dubLangCode}
+                      onChange={(e) => {
+                        const lc = LANG_CODES.find(l => l.code === e.target.value);
+                        setDubLangCode(e.target.value);
+                        if (lc) setDubLang(lc.label);
+                      }}
+                    >
+                      {LANG_CODES.map(lc => (
+                        <option key={lc.code} value={lc.code}>{lc.label} — {lc.code}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    className="dub-landing-opts__adv"
+                    onClick={() => setLandingAdvOpen(o => !o)}
+                    aria-expanded={landingAdvOpen}
+                  >
+                    {t('dub.advanced', { defaultValue: 'Advanced' })}
+                    {landingAdvOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                  </button>
+                </div>
+                {landingAdvOpen && (
+                  <div className="dub-landing-adv">
+                    <label className="dub-landing-adv__field" title={t('dub.num_speakers_help')}>
+                      <Users size={12} /> {t('dub.num_speakers_label')}
+                      <input
+                        type="number" min={1} max={20} step={1}
+                        className="input-base input-base--xs dub-speakers-input"
+                        placeholder={t('dub.num_speakers_auto')}
+                        value={dubNumSpeakers ?? ''}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value, 10);
+                          setDubNumSpeakers(Number.isFinite(v) && v > 0 ? Math.min(v, 20) : null);
+                        }}
+                      />
+                    </label>
+                    <label className="dub-landing-adv__field dub-landing-adv__field--grow">
+                      <UserSquare2 size={12} /> {t('dub.style')}
+                      <input
+                        type="text"
+                        className="input-base input-base--xs"
+                        placeholder={t('dub.style_placeholder')}
+                        value={dubInstruct}
+                        onChange={(e) => setDubInstruct(e.target.value)}
+                      />
+                    </label>
+                  </div>
+                )}
                 </>
               )}
 
@@ -523,13 +605,15 @@ export default function DubTab(props) {
                   setDubLocalBlobUrl(prev => { fileToMediaUrl(file, prev).then(urls => setDubLocalBlobUrl(urls)); return prev; });
                 }} />
 
-              <div className="dub-cast dub-cast--muted">
-                <div className="dub-cast__row">
-                  <span className="dub-cast__kicker">{t('dub.cast')}</span>
-                  <span className="dub-cast__label">{t('dub.speaker', { n: 1 })}</span>
-                  <span className="dub-cast--muted__chip">{t('dub.default')}</span>
+              {dubVideoFile && (
+                <div className="dub-cast dub-cast--muted">
+                  <div className="dub-cast__row">
+                    <span className="dub-cast__kicker">{t('dub.cast')}</span>
+                    <span className="dub-cast__label">{t('dub.speaker', { n: 1 })}</span>
+                    <span className="dub-cast--muted__chip">{t('dub.default')}</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* RIGHT: Ghost settings + segment table (only when video loaded) */}
@@ -570,39 +654,37 @@ export default function DubTab(props) {
                   <span className="dub-skel-header-voice">{t('dub.voice_col')}</span>
                   <span className="dub-skel-header-acts"></span>
                 </div>
-                {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                  <div key={i} className="segment-row" style={{ opacity: 0.15 + (0.04 * (8 - i)) }}>
-                    <span className="segment-time dub-skel-cell-time">0:00.0–0:00.0</span>
-                    <span className="dub-skel-cell-spkr">Speaker 1</span>
-                    <div className="dub-skel-cell-text" />
-                    <span className="dub-skel-cell-voice">Default</span>
+                {[1, 2, 3, 4, 5, 6].map(i => (
+                  <div key={i} className="segment-row dub-skel-row" style={{ opacity: 0.5 + (0.07 * (6 - i)) }}>
+                    <span className="dub-skel-cell-time dub-skel-bar" />
+                    <span className="dub-skel-cell-spkr dub-skel-bar" />
+                    <div className="dub-skel-cell-text dub-skel-bar" />
+                    <span className="dub-skel-cell-voice dub-skel-bar" />
                     <div className="dub-skel-cell-acts">
                       <span className="segment-del dub-skel-cell-acts__icon"><Trash2 size={9} /></span>
                     </div>
                   </div>
                 ))}
+                <div className="dub-skel-hint">{t('dub.transcript_after_extract', { defaultValue: 'Transcript appears after extraction.' })}</div>
               </div>
             </div>
             ) : null}
           </div>
 
-          {/* Ghost footer */}
-          <div className="studio-panel dub-ghost-footer">
-            <div className="dub-skel-gen-row">
-              <button className="btn-primary dub-skel-gen-btn" disabled>
-                <Play size={11} /> {t('dub.generate_dub')}
-              </button>
-              <button className="btn-primary dub-skel-gen-btn" disabled>
-                <Download size={11} /> {t('dub.export_mp4')}
-              </button>
-              <button className="btn-primary dub-skel-gen-btn" disabled>
-                <Volume2 size={11} /> {t('dub.export_wav')}
-              </button>
-              <button className="btn-primary dub-skel-gen-btn" disabled>
-                <FileText size={11} /> {t('dub.export_srt')}
-              </button>
+          {/* Ghost footer — only once a file is in play; the bare landing stays
+              clean. Generate is the lone primary, exports demoted to one menu. */}
+          {dubVideoFile && (
+            <div className="studio-panel dub-ghost-footer">
+              <div className="dub-skel-gen-row">
+                <button className="btn-primary dub-skel-gen-btn" disabled>
+                  <Play size={11} /> {t('dub.generate_dub')}
+                </button>
+                <button className="dub-skel-gen-btn dub-skel-gen-btn--secondary" disabled>
+                  <Download size={11} /> {t('dub.export_btn', { defaultValue: 'Export' })} <ChevronDown size={10} />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -611,15 +693,6 @@ export default function DubTab(props) {
         <div className="dub-col">
           <div className="dub-head">
             <div className="label-row dub-head__title">
-              <Button
-                variant="icon"
-                iconSize="sm"
-                active={isSidebarCollapsed}
-                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                title={t('dub.sidebar_toggle')}
-              >
-                {isSidebarCollapsed ? <PanelLeftOpen size={12} /> : <PanelLeftClose size={12} />}
-              </Button>
               <FileText className="label-icon" size={11} />
               <span className="dub-head__filename">{dubFilename}</span>
               <span className="dub-head__meta">· {formatTime(dubDuration)} · {dubSegments.length} {t('dub.segs')}</span>
@@ -643,8 +716,11 @@ export default function DubTab(props) {
                     label={t('dub.stop_progress', { current: dubProgress.current, total: dubProgress.total })} />
                 ) : (
                   <>
-                    <FooterBtn sm tone={dubSegments.length ? 'pink' : 'idle'} onClick={() => handleDubGenerate()}
-                      disabled={!dubSegments.length} icon={<Play size={11} />} label={t('dub.generate_dub')} />
+                    <FooterBtn sm tone={dubSegments.length ? 'pink' : 'idle'} onClick={onGenerateClick}
+                      disabled={!dubSegments.length} icon={<Play size={11} />}
+                      label={multiLangMode && multiLangs.length > 1
+                        ? t('dub.generate_dub_multi', { count: multiLangs.length, defaultValue: 'Generate {{count}} dubs' })
+                        : t('dub.generate_dub')} />
                     {dubStep === 'done' && incrementalPlan && incrementalPlan.stale?.length > 0 && (
                       <FooterBtn sm tone="pink"
                         onClick={() => handleDubGenerate({ regenOnly: incrementalPlan.stale, preview: true })}
@@ -666,20 +742,31 @@ export default function DubTab(props) {
             {/* LEFT: Waveform + Video */}
             <div className="studio-panel dub-panel-col">
               {hasDubbedTrack && (
-                <div className="dub-preview-toggle">
-                  <span className="dub-preview-toggle__kicker">{t('dub.preview')}</span>
-                  <Segmented
-                    size="sm"
-                    value={previewMode}
-                    onChange={setPreviewMode}
-                    items={[
-                      { value: 'original', label: t('dub.original_audio') },
-                      { value: 'dubbed',   label: t('dub.dubbed_audio', { code: dubLangCode }) },
-                    ]}
-                  />
-                  {previewMode === 'dubbed' && (
-                    <span className="dub-preview-toggle__hint">{t('dub.first_play_hint')}</span>
-                  )}
+                <div className="dub-lang-switch" role="radiogroup" aria-label={t('dub.preview_language', { defaultValue: 'Preview language' })}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={previewMode === 'original'}
+                    className={`dub-lang-pill ${previewMode === 'original' ? 'is-active' : ''}`}
+                    onClick={() => setPreviewMode('original')}
+                  >
+                    {t('dub.original_audio')}
+                  </button>
+                  {dubTracks.map(code => {
+                    const label = LANG_CODES.find(lc => lc.code === code)?.label || code.toUpperCase();
+                    return (
+                      <button
+                        key={code}
+                        type="button"
+                        role="radio"
+                        aria-checked={previewMode === code}
+                        className={`dub-lang-pill ${previewMode === code ? 'is-active' : ''}`}
+                        onClick={() => setPreviewMode(code)}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
               <WaveformTimeline
@@ -1232,6 +1319,55 @@ function fmtDur(s) {
 const PREP_FULL   = ['download', 'extract', 'demucs', 'scene'];
 const PREP_CACHED = ['download', 'extract', 'cached'];
 
+// ── Pipeline stepper ─────────────────────────────────────────────────────
+// One legible spine for the whole dub journey so the user always knows where
+// they are: Upload → Prepare → Transcribe → Edit → Generate → Export.
+const DUB_PIPELINE = [
+  { id: 'upload',     key: 'dub.phase_upload',     fallback: 'Upload',     Icon: UploadCloud },
+  { id: 'prepare',    key: 'dub.phase_prepare',    fallback: 'Prepare',    Icon: Wand2 },
+  { id: 'transcribe', key: 'dub.phase_transcribe', fallback: 'Transcribe', Icon: FileText },
+  { id: 'edit',       key: 'dub.phase_edit',       fallback: 'Edit',       Icon: Pencil },
+  { id: 'generate',   key: 'dub.phase_generate',   fallback: 'Generate',   Icon: Sparkles },
+  { id: 'export',     key: 'dub.phase_export',     fallback: 'Export',     Icon: Download },
+];
+const DUB_PHASE_BY_STEP = {
+  idle: 0, uploading: 1, transcribing: 2, editing: 3, generating: 4, stopping: 4, done: 5,
+};
+
+function DubPipelineStepper({ dubStep }) {
+  const { t } = useTranslation();
+  const current = DUB_PHASE_BY_STEP[dubStep] ?? 0;
+  const busy = dubStep === 'uploading' || dubStep === 'transcribing'
+    || dubStep === 'generating' || dubStep === 'stopping';
+  return (
+    <div className="dub-stepper" role="list" aria-label={t('dub.pipeline', { defaultValue: 'Dubbing pipeline' })}>
+      {DUB_PIPELINE.map((p, i) => {
+        const done = i < current;
+        const active = i === current;
+        const spinning = active && busy;
+        const Icon = done ? Check : (spinning ? Loader : p.Icon);
+        return (
+          <div
+            key={p.id}
+            role="listitem"
+            className={[
+              'dub-stepper__step',
+              done ? 'is-done' : '',
+              active ? 'is-active' : '',
+              i <= current ? 'is-reached' : '',
+            ].filter(Boolean).join(' ')}
+          >
+            <span className="dub-stepper__icon">
+              <Icon size={13} className={spinning ? 'dub-stepper__spin' : ''} />
+            </span>
+            <span className="dub-stepper__label">{t(p.key, { defaultValue: p.fallback })}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function fmtBytesRate(bps) {
   if (!bps || bps <= 0) return null;
   const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
@@ -1310,7 +1446,7 @@ function PrepOverlay({ stage, progress, onAbort, large = false }) {
             key={s}
             className={`dub-prep-chip ${stage === s ? 'is-active' : ''} ${s === 'cached' ? 'is-cached' : ''}`}
           >
-            {s === 'cached' ? '⚡' : ''}{t(`dub.prep_chip_${s}`, { defaultValue: s })}
+            {t(`dub.prep_chip_${s}`, { defaultValue: s })}
           </span>
         ))}
       </div>

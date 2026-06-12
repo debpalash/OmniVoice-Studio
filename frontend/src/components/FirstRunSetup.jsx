@@ -396,11 +396,11 @@ export default function FirstRunSetup() {
                   onChange={(e) => set({ region: e.target.value })}
                   aria-label={t('firstrun.region_label', 'Download region')}
                 >
-                  <option value="auto">🌐 {t('bootstrap.auto_detect', 'Auto-detect')}</option>
-                  <option value="global">🌐 {t('bootstrap.region_global', 'Global (direct)')}</option>
-                  <option value="china">🇨🇳 {t('bootstrap.region_china', 'China (mirror)')}</option>
-                  <option value="russia">🇷🇺 {t('bootstrap.region_russia', 'Russia (mirror)')}</option>
-                  <option value="restricted">🌍 {t('bootstrap.region_restricted', 'Restricted (mirror)')}</option>
+                  <option value="auto">{t('bootstrap.auto_detect', 'Auto-detect')}</option>
+                  <option value="global">{t('bootstrap.region_global', 'Global (direct)')}</option>
+                  <option value="china">{t('bootstrap.region_china', 'China (mirror)')}</option>
+                  <option value="russia">{t('bootstrap.region_russia', 'Russia (mirror)')}</option>
+                  <option value="restricted">{t('bootstrap.region_restricted', 'Restricted (mirror)')}</option>
                 </select>
               </div>
               <details className="frs__advanced frs__advanced--mast">

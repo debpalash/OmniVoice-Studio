@@ -127,7 +127,7 @@
     "designed_voices": "Designed Voices",
     "dubbing_projects": "Dubbing Projects",
     "empty_hint": "Nothing here yet — pick a card above.",
-    "demo_callout": "👋 Try the demo voice — hit Generate to hear it.",
+    "demo_callout": "Try the demo voice — hit Generate to hear it.",
     "locked": "LOCKED",
     "open": "Open",
     "try_it": "Try it",
@@ -153,7 +153,7 @@
     "synthesize": "Synthesize Audio",
     "stop_playback": "Stop playback",
     "synthesizing": "Synthesizing… ({{seconds}}s)",
-    "drop_audio": "Drop audio here — or click. WAV, MP3, M4A… 🎤",
+    "drop_audio": "Drop audio here — or click. WAV, MP3, M4A…",
     "record": "Record",
     "cleaning": "Cleaning…",
     "using_profile": "Using profile: {{name}}",
@@ -229,6 +229,7 @@
     "sharing": "Sharing",
     "appearance": "Appearance",
     "credentials": "Credentials",
+    "updates": "Updates",
     "proxy": "Proxy",
     "proxy_desc": "HTTP/SOCKS5 proxy for downloads (yt-dlp, HuggingFace). Supports http://, https://, socks5://. Restart required if changed after backend start.",
     "proxy_saved": "Proxy set — yt-dlp will use it for downloads",
@@ -388,6 +389,20 @@
     "mic_error_generic": "Could not start the microphone: {{message}}",
     "transcription_failed": "Transcription failed: {{message}}"
   },
+  "profiles": {
+    "need_name_audio": "Need a name and reference audio",
+    "synthesizing_preview": "Synthesizing preview for {{name}}...",
+    "synthesizing_segment": "Synthesizing segment...",
+    "preview_ready": "Preview ready!",
+    "playback_failed": "Playback failed",
+    "preview_failed": "Preview failed: {{message}}",
+    "saved": "Voice saved to profiles!",
+    "save_failed": "Failed to save voice profile",
+    "locked": "Voice locked! Identity is now consistent across all generations.",
+    "lock_failed": "Failed to lock profile",
+    "unlocked": "Voice unlocked. Generations will vary again.",
+    "unlock_failed": "Failed to unlock profile"
+  },
   "voice_profile": {
     "verified": "Verified",
     "consent_title": "Voice ownership",
@@ -472,8 +487,8 @@
     "dialect_label": "Dialect",
     "dialect_default": "Default",
     "dialect_title": "Regional dialect and vocabulary for the translation (e.g. Argentina → \"vos sos\" instead of \"tú eres\"). Applied by LLM engines (OpenAI/Ollama) and Cinematic quality.",
-    "style": "Style",
-    "style_placeholder": "e.g. female",
+    "style": "Voice style",
+    "style_placeholder": "e.g. calm female narrator",
     "optional": "optional",
     "translate_all": "Translate All",
     "translating": "Translating…",
@@ -492,7 +507,7 @@
     "prep_extract": "Extracting audio…",
     "prep_demucs": "Separating vocals / music (Demucs)…",
     "prep_scene": "Detecting scene cuts…",
-    "prep_cached": "⚡ Using cached results…",
+    "prep_cached": "Using cached results…",
     "prep_preparing": "Preparing…",
     "prep_chip_download": "download",
     "prep_chip_extract": "extract",
@@ -510,7 +525,7 @@
     "time_col": "Time",
     "spkr_col": "Spkr",
     "text_col": "Text",
-    "voice_col": "Voice",
+    "voice_col": "Voice override",
     "segs": "segs",
     "preview": "Preview",
     "original_audio": "Original",
@@ -905,6 +920,7 @@
     "recheck": "Re-check",
     "resolve_blockers": "Resolve the failing checks above to continue.",
     "footer_downloads": "Downloads from huggingface.co",
+    "cache_label": "Model cache",
     "open_finder": "Open in Finder",
     "open": "Open",
     "install_required_models": "Install the required models above to continue.",
@@ -1411,6 +1427,10 @@
     "audio_load_failed": "Audio load failed",
     "unit_seconds": "s"
   },
+  "waveform": {
+    "source_missing": "Source media missing — this file may have moved or been deleted. Re-upload the video to continue.",
+    "load_failed": "Could not load audio from this file"
+  },
   "casting": {
     "title": "Speaker Casting",
     "auto_assign_title": "Auto-assign voices from extracted speaker clones",
@@ -1621,6 +1641,12 @@
     "tailscale_open": "Open in browser",
     "copied": "Copied",
     "tailscale_qr_alt": "QR code for the Tailscale URL"
+  },
+  "remote_gate": {
+    "title": "Enter access PIN",
+    "body": "This OmniVoice instance is shared on the network. Enter the PIN shown on the host.",
+    "label": "Access PIN",
+    "connect": "Connect"
   },
   "reportBug": {
     "label": "Report a bug",

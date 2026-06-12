@@ -143,7 +143,7 @@ export default function CastingView({
                               onClick={() => assign(speaker.id, autoId)}
                             >
                               <Shuffle size={11} />
-                              <span>🎤 {spk}</span>
+                              <span>{spk}</span>
                               {isActiveAuto && <Check size={11} />}
                             </button>
                           );

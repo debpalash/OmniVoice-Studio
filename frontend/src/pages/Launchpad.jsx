@@ -32,7 +32,7 @@ function DubThumb({ jobId, fallback }) {
  * cursor position. Eternal breath ring lives on `.lp-glow-layer::after`
  * and pulses forever whether the card is hovered or not.
  */
-function ActionCard({ hue, Icon, title, accent, count, onClick, children }) {
+function ActionCard({ hue, Icon, title, count, onClick, children }) {
   const handleMouseMove = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
     e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`);
@@ -51,9 +51,7 @@ function ActionCard({ hue, Icon, title, accent, count, onClick, children }) {
       <div className="card-icon">
         <Icon size={18} color={hue} />
       </div>
-      <h3>
-        {title} <span className="lp-action-card__emoji" aria-hidden="true">{accent}</span>
-      </h3>
+      <h3>{title}</h3>
       <p className="card-desc">{children}</p>
     </button>
   );
@@ -133,22 +131,22 @@ export default function Launchpad({
 
       {/* Action Cards */}
       <div className="lp-actions">
-        <ActionCard hue="#d3869b" Icon={Fingerprint} title={t('launchpad.clone_title')} accent="✨" count={cloneProfiles.length} onClick={() => setMode('clone')}>
+        <ActionCard hue="#d3869b" Icon={Fingerprint} title={t('launchpad.clone_title')} count={cloneProfiles.length} onClick={() => setMode('clone')}>
           {t('launchpad.clone_desc')}
         </ActionCard>
-        <ActionCard hue="#8ec07c" Icon={Wand2} title={t('launchpad.design_title')} accent="🧪" count={designProfiles.length} onClick={() => setMode('design')}>
+        <ActionCard hue="#8ec07c" Icon={Wand2} title={t('launchpad.design_title')} count={designProfiles.length} onClick={() => setMode('design')}>
           {t('launchpad.design_desc')}
         </ActionCard>
-        <ActionCard hue="#fe8019" Icon={Film} title={t('launchpad.dub_title')} accent="🎬" count={studioProjects.length} onClick={() => setMode('dub')}>
+        <ActionCard hue="#fe8019" Icon={Film} title={t('launchpad.dub_title')} count={studioProjects.length} onClick={() => setMode('dub')}>
           {t('launchpad.dub_desc')}
         </ActionCard>
-        <ActionCard hue="#83a598" Icon={BookOpen} title={t('launchpad.stories_title')} accent="📖" onClick={() => setMode('stories')}>
+        <ActionCard hue="#83a598" Icon={BookOpen} title={t('launchpad.stories_title')} onClick={() => setMode('stories')}>
           {t('launchpad.stories_desc')}
         </ActionCard>
-        <ActionCard hue="#fabd2f" Icon={LibraryBig} title={t('launchpad.gallery_title')} accent="🎭" onClick={() => setMode('gallery')}>
+        <ActionCard hue="#fabd2f" Icon={LibraryBig} title={t('launchpad.gallery_title')} onClick={() => setMode('gallery')}>
           {t('launchpad.gallery_desc')}
         </ActionCard>
-        <ActionCard hue="#b8bb26" Icon={FileText} title={t('launchpad.transcripts_title')} accent="📝" onClick={() => setMode('transcriptions')}>
+        <ActionCard hue="#b8bb26" Icon={FileText} title={t('launchpad.transcripts_title')} onClick={() => setMode('transcriptions')}>
           {t('launchpad.transcripts_desc')}
         </ActionCard>
       </div>

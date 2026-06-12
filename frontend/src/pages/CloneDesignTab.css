@@ -74,14 +74,22 @@
 .mic-btn .spinner { animation: spin 1s linear infinite; }
 
 /* ── Page layout ─────────────────────────────────────────────── */
+/* One definition column: Prompt stacked over Voice Source (spec §1 restack).
+   The old side-by-side split crammed both panels once the right-side
+   Voices/History column took its 340px — the drop zone, Record button and
+   Transcript/Style fields had no room and read as broken. */
 .clone-split-grid {
   flex: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 6px;
   min-height: 0;
+  overflow-y: auto;
 }
-.clone-panel--overflow-visible { overflow: visible; }
+.clone-split-grid > .studio-column { flex: 0 0 auto; min-height: 0; position: relative; }
+.clone-split-grid > .studio-column:first-child { flex: 1 1 auto; z-index: 2; }
+.clone-split-grid > .studio-column:last-child  { z-index: 1; }
+.clone-panel--overflow-visible { overflow: visible; position: relative; z-index: 10; }
 
 /* Label-row alignment variants for this page */
 .label-row--center  { align-items: center; }

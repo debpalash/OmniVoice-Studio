@@ -66,6 +66,7 @@ export default function VoiceGallery() {
   const viewMode = useAppStore((s) => s.galleryViewMode);
   const setViewMode = useAppStore((s) => s.setGalleryViewMode);
   const setMode = useAppStore((s) => s.setMode);
+  const setPendingProfileId = useAppStore((s) => s.setPendingProfileId);
   const setInstruct = useAppStore((s) => s.setInstruct);
   const setVdStates = useAppStore((s) => s.setVdStates);
   const vdStates = useAppStore((s) => s.vdStates);
@@ -197,7 +198,10 @@ export default function VoiceGallery() {
           onUse={async (a) => {
             try {
               const r = await useArchetypeAsProfile(a.id, a.name);
-              flash(t('gallery.saved_as_profile', { defaultValue: 'Added "{{name}}" to your voices.', name: r.name }));
+              // Hand the new profile to the synthesis view and jump there so the
+              // user lands ready-to-generate instead of hunting for it in the list.
+              setPendingProfileId(r.profile_id);
+              setMode('clone');
             } catch (e) {
               flash(t('gallery.use_failed', { defaultValue: 'Could not create that voice — the engine may be loading.' }));
             }
@@ -284,7 +288,9 @@ function ArchetypesZone({
   return (
     <div className="gallery-content gallery-scroll">
       <div className="facet-bar">
-        <div className="use-case-chips">
+        {/* Three filter lanes (categories · facets · toggles), each its own
+            horizontally-scrollable portion; the view toggle is pinned right. */}
+        <div className="facet-group facet-group--cats use-case-chips">
           <button className={`category-chip ${!filters.use_case ? 'selected' : ''}`} onClick={() => setFilter('use_case', null)}>
             {t('gallery.all', { defaultValue: 'All' })}
           </button>
@@ -301,7 +307,7 @@ function ArchetypesZone({
           ))}
         </div>
 
-        <div className="facet-selects">
+        <div className="facet-group facet-group--facets facet-selects">
           {['gender', 'age', 'pitch', 'accent', 'lang'].map((dim) => (
             <select
               key={dim}
@@ -313,6 +319,9 @@ function ArchetypesZone({
               {FACETS[dim].map((opt) => <option key={opt} value={opt}>{facetLabel(opt)}</option>)}
             </select>
           ))}
+        </div>
+
+        <div className="facet-group facet-group--toggles">
           <label className="facet-toggle">
             <input
               type="checkbox"
@@ -328,10 +337,11 @@ function ArchetypesZone({
           <button className="facet-reset" onClick={() => { resetFilters(); setFavOnly(false); }}>
             <RotateCcw size={12} /> {t('gallery.reset', { defaultValue: 'Reset' })}
           </button>
-          <div className="view-toggle">
-            <button className={viewMode === 'grid' ? 'active' : ''} onClick={() => setViewMode('grid')} title="Grid"><Grid size={14} /></button>
-            <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')} title="List"><List size={14} /></button>
-          </div>
+        </div>
+
+        <div className="view-toggle">
+          <button className={viewMode === 'grid' ? 'active' : ''} onClick={() => setViewMode('grid')} title="Grid"><Grid size={14} /></button>
+          <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')} title="List"><List size={14} /></button>
         </div>
       </div>
 

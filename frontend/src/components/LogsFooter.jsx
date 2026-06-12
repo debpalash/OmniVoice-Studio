@@ -2,13 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { copyText } from "../utils/copyText";
 import {
   ChevronUp, ChevronDown, RefreshCw, Trash2, Copy, Bug, X,
-  AlertTriangle, AlertCircle, Info, FileText, Heart, Download,
+  AlertTriangle, AlertCircle, Info, FileText, Heart,
 } from 'lucide-react';
-import UpdatesPanel from './UpdatesPanel';
-import UpdateStatusChip from './UpdateStatusChip';
+
 import toast from 'react-hot-toast';
 import { clearSystemLogs, clearTauriLogs } from '../api/system';
-import { useSystemLogs, useTauriLogs, useClearLogs, useClearTauriLogs } from '../api/hooks';
+import { useSystemLogs, useTauriLogs, useNotifications, useClearLogs, useClearTauriLogs } from '../api/hooks';
 import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
@@ -27,10 +26,10 @@ const SOURCES = [
   { id: 'backend',  label: 'Backend',  icon: FileText },
   { id: 'frontend', label: 'Frontend', icon: FileText },
   { id: 'tauri',    label: 'Tauri',    icon: FileText },
-  { id: 'updates',  label: 'Updates',  icon: Download },
   // Notifications used to live here as a 4th pill but that duplicated the
   // header's bell+badge (single source of truth for notifications). The
   // footer is logs-only now; bell handles notifications.
+  // Updates tab moved to Settings → Updates (see Settings.jsx).
 ];
 
 const LS_HEIGHT = 'omnivoice.logs.height';
@@ -156,7 +155,6 @@ export default function LogsFooter() {
   // comes from the in-process ring buffer in consoleBuffer.js.
   const [lines, setLines] = useState({ backend: [], frontend: [], tauri: [] });
   const [loading, setLoading] = useState(false);
-  const [notifications, setNotifications] = useState([]);
   const [hfInput, setHfInput] = useState('');
   const scrollRef = useRef(null);
 
@@ -176,8 +174,10 @@ export default function LogsFooter() {
   }, [collapsed, height]);
 
   // ── TanStack Query for backend + tauri logs ────────────────────────────
-  const backendLogs = useSystemLogs(300, true);
-  const tauriLogs   = useTauriLogs(300, true);
+  // While collapsed only the count badge is visible, so poll lazily (45s);
+  // tighten to 10s when the panel is open (same throttle idea as pullFrontend).
+  const backendLogs = useSystemLogs(300, true, collapsed ? 45_000 : 10_000);
+  const tauriLogs   = useTauriLogs(300, true, collapsed ? 45_000 : 10_000);
 
   // Sync query data into local state for the rendering pipeline
   useEffect(() => {
@@ -192,8 +192,16 @@ export default function LogsFooter() {
     }
   }, [tauriLogs.data]);
 
+  // Skip the setLines (and the re-render it forces) when the console ring
+  // buffer hasn't changed since the last pull — same length + same last
+  // timestamp means nothing new arrived.
+  const lastFrontendPull = useRef({ len: -1, t: 0 });
   const pullFrontend = useCallback(() => {
     const raw = getFrontendLogs();
+    const lastT = raw.length ? raw[raw.length - 1].t : 0;
+    const seen = lastFrontendPull.current;
+    if (raw.length === seen.len && lastT === seen.t) return;
+    lastFrontendPull.current = { len: raw.length, t: lastT };
     setLines(prev => ({
       ...prev,
       frontend: raw.map(formatFrontendLine),
@@ -215,23 +223,9 @@ export default function LogsFooter() {
     return () => clearInterval(iv);
   }, [pullFrontend, collapsed]);
 
-  // ── Notifications polling ──────────────────────────────────────────────
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const { API } = await import('../api/client');
-      const res = await fetch(`${API}/system/notifications`);
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data.notifications || []);
-      }
-    } catch { /* backend not ready */ }
-  }, []);
-
-  useEffect(() => {
-    fetchNotifications();
-    const iv = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(iv);
-  }, [fetchNotifications]);
+  // ── Notifications (shared TanStack Query cache with the header bell) ────
+  const notifQuery = useNotifications();
+  const notifications = notifQuery.data?.notifications || [];
 
   // Allow header bell to open notifications tab
   useEffect(() => {
@@ -256,7 +250,6 @@ export default function LogsFooter() {
     backend:  countLevels(lines.backend),
     frontend: countLevels(lines.frontend),
     tauri:    countLevels(lines.tauri),
-    updates:  { error: 0, warn: 0, total: 0 },
     notifications: {
       error: notifications.filter(n => n.level === 'error').length,
       warn: notifications.filter(n => n.level === 'warn').length,
@@ -265,6 +258,16 @@ export default function LogsFooter() {
   }), [lines, notifications]);
 
   const openTo = (id) => { setActive(id); setCollapsed(false); };
+
+  // Combined backend+frontend+tauri counts for the single collapsed "Logs" tab.
+  const mergedCounts = useMemo(() => {
+    const acc = { error: 0, warn: 0, total: 0 };
+    for (const s of SOURCES) {
+      const c = counts[s.id] || { error: 0, warn: 0, total: 0 };
+      acc.error += c.error; acc.warn += c.warn; acc.total += c.total;
+    }
+    return acc;
+  }, [counts]);
 
   // ── Resize handle (drag the top edge) ───────────────────────────────
   const dragRef = useRef(null);
@@ -365,16 +368,29 @@ export default function LogsFooter() {
           >
             {collapsed ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
-          <span className="logs-footer__title">{t('logs.title')}</span>
-          {SOURCES.map(s => (
+          {collapsed ? (
+            /* Collapsed: a single merged "Logs" tab with the combined count.
+               Expanding reveals the per-source filter tabs below. */
             <SourcePill
-              key={s.id}
-              source={s}
-              counts={counts[s.id]}
-              active={!collapsed && active === s.id}
-              onClick={() => (collapsed ? openTo(s.id) : setActive(s.id))}
+              source={{ id: 'logs', label: t('logs.title') }}
+              counts={mergedCounts}
+              active={false}
+              onClick={() => openTo(SOURCES.some(s => s.id === active) ? active : 'backend')}
             />
-          ))}
+          ) : (
+            <>
+              <span className="logs-footer__title">{t('logs.title')}</span>
+              {SOURCES.map(s => (
+                <SourcePill
+                  key={s.id}
+                  source={s}
+                  counts={counts[s.id]}
+                  active={active === s.id}
+                  onClick={() => setActive(s.id)}
+                />
+              ))}
+            </>
+          )}
         </div>
         <div className="logs-footer__right">
           {!collapsed && (
@@ -396,7 +412,6 @@ export default function LogsFooter() {
               </button>
             </div>
           )}
-          <UpdateStatusChip onOpen={() => openTo('updates')} />
           <NetworkToggle />
           <button
             type="button"
@@ -419,13 +434,9 @@ export default function LogsFooter() {
         </div>
       </div>
 
-      {!collapsed && active === 'updates' && (
-        <div className="logs-footer__body">
-          <UpdatesPanel />
-        </div>
-      )}
 
-      {!collapsed && active !== 'notifications' && active !== 'updates' && (
+
+      {!collapsed && active !== 'notifications' && (
         <div ref={scrollRef} className="logs-footer__body">
           {current.length === 0 && (
             <div className="logs-footer__empty">

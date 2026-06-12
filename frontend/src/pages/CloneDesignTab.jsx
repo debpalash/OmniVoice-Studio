@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  PanelLeftOpen, PanelLeftClose, Command, Globe, SlidersHorizontal, Volume2, User,
+  Command, Globe, SlidersHorizontal, Volume2,
   UploadCloud, Square, Mic, Save, UserSquare2, Settings2, ChevronUp, ChevronDown,
-  Sparkles, Play, Trash2, X, Wand2,
+  Sparkles, Play, X, Wand2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
@@ -10,6 +10,9 @@ import SearchableSelect from '../components/SearchableSelect';
 import DemoPresetGrid from '../components/DemoPresetGrid';
 import ALL_LANGUAGES from '../languages.json';
 import { POPULAR_LANGS, PRESETS, TAGS, CATEGORIES } from '../utils/constants';
+import {
+  PRESET_ICONS, PERSONALITY_ICONS, FALLBACK_VOICE_ICON, FALLBACK_PERSONALITY_ICON, stripVoiceEmoji,
+} from '../utils/voiceIcons';
 import { Button, Input, Slider, Progress } from '../ui';
 import { API, apiPost } from '../api/client';
 import { mergeDescribedAttrs } from '../utils/voiceInstruct';
@@ -34,7 +37,6 @@ export default function CloneDesignTab(props) {
     denoise, setDenoise,
     postprocess, setPostprocess,
     showOverrides, setShowOverrides,
-    isSidebarCollapsed, setIsSidebarCollapsed,
     profiles,
     selectedProfile, setSelectedProfile,
     refAudio,
@@ -46,7 +48,6 @@ export default function CloneDesignTab(props) {
     vdStates, setVdStates,
     isGenerating, generationTime,
     applyPreset, insertTag,
-    handleSelectProfile, handleDeleteProfile,
     handleSaveProfile, handleGenerate,
     startRecording, stopRecording,
     ingestRefAudio,
@@ -220,16 +221,6 @@ export default function CloneDesignTab(props) {
       <div className="studio-column">
         <div className="studio-panel">
           <div className="label-row label-row--center">
-            <Button
-              variant="icon"
-              iconSize="sm"
-              active={isSidebarCollapsed}
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              title={t('clone.toggle_sidebar')}
-              className="label-row__kicker"
-            >
-              {isSidebarCollapsed ? <PanelLeftOpen size={12} /> : <PanelLeftClose size={12} />}
-            </Button>
             <Command className="label-icon" size={14} /> {t('clone.prompt')}
           </div>
           {/* Design-tab empty state: 7-card demo grid replaces the bare
@@ -241,9 +232,15 @@ export default function CloneDesignTab(props) {
           )}
           {mode === 'design' && (text || activePersonality || demoPresets.length === 0) && (
             <div className="preset-grid">
-              {PRESETS.map(p => (
-                <button key={p.id} className="preset-btn" onClick={() => applyPreset(p)}>{t(`clone.preset_${p.id}`, { defaultValue: p.name })}</button>
-              ))}
+              {PRESETS.map(p => {
+                const Icon = PRESET_ICONS[p.id] || FALLBACK_VOICE_ICON;
+                return (
+                  <button key={p.id} className="preset-btn" onClick={() => applyPreset(p)}>
+                    <Icon size={13} className="preset-btn__icon" />
+                    {stripVoiceEmoji(t(`clone.preset_${p.id}`, { defaultValue: p.name }))}
+                  </button>
+                );
+              })}
             </div>
           )}
           {showDemoCoachmark && mode === 'clone' && selectedProfile === DEMO_PROFILE_ID && (
@@ -315,31 +312,7 @@ export default function CloneDesignTab(props) {
           <div>
             <div className="label-row"><Volume2 className="label-icon" size={14} /> {t('clone.voice_source')}</div>
 
-            {/* ── VOICE PROFILES ── */}
-            {profiles.length > 0 && (
-              <div className="clone-profile-block">
-                <div className="label-row label-row--sm"><User size={12} /> {t('clone.saved_profiles')}</div>
-                <div className="preset-grid">
-                  {profiles.map(p => (
-                    <div
-                      key={p.id}
-                      className={`preset-btn clone-profile-card ${selectedProfile === p.id ? 'profile-active' : ''}`}
-                      onClick={() => handleSelectProfile(p)}
-                    >
-                      <User size={10} /> {p.name}
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); handleDeleteProfile(p.id); }}
-                        className="clone-profile-delete"
-                        aria-label={t('clone.delete_profile')}
-                      >
-                        <Trash2 size={10} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Saved voices now live in the right-side WorkspaceVoices panel. */}
 
             {!selectedProfile && (
               <div className="clone-drop-row">
@@ -465,17 +438,20 @@ export default function CloneDesignTab(props) {
               <div style={{ marginBottom: 10 }}>
                 <div className="personality-label">{t('voice.pick_personality')}</div>
                 <div className="personality-strip">
-                  {chipPersonalities.map(p => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className={`personality-chip ${activePersonality === p.id ? 'active' : ''}`}
-                      onClick={() => applyPersonality(p)}
-                    >
-                      <span className="personality-chip__icon">{p.icon}</span>
-                      {t(`clone.personality_${p.id}`, { defaultValue: p.name })}
-                    </button>
-                  ))}
+                  {chipPersonalities.map(p => {
+                    const Icon = PERSONALITY_ICONS[p.id] || FALLBACK_PERSONALITY_ICON;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className={`personality-chip ${activePersonality === p.id ? 'active' : ''}`}
+                        onClick={() => applyPersonality(p)}
+                      >
+                        <span className="personality-chip__icon"><Icon size={13} /></span>
+                        {stripVoiceEmoji(t(`clone.personality_${p.id}`, { defaultValue: p.name }))}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -516,7 +492,9 @@ export default function CloneDesignTab(props) {
                               className={`chip ${vdStates[key] === opt ? 'active' : ''}`}
                               onClick={() => setVdStates({ ...vdStates, [key]: opt })}
                             >
-                              {opt === 'Auto' ? t('clone.opt_Auto') : optLabel}
+                              {opt === 'Auto'
+                                ? <span className="chip-auto"><FALLBACK_VOICE_ICON size={11} /> {stripVoiceEmoji(t('clone.opt_Auto'))}</span>
+                                : optLabel}
                             </button>
                           );
                         })}

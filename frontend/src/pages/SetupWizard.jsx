@@ -85,7 +85,7 @@ function PreflightPanel({ report, loading, onRecheck }) {
           <span className="frs-check__led" aria-hidden="true" />
           <div className="frs-check__body">
             <span className="frs-check__title">{c.label}</span>
-            <span className="frs-check__detail">{c.detail}</span>
+            <span className="frs-check__detail" title={c.detail}>{c.detail}</span>
             {c.fix && c.status !== 'pass' && (
               <span className="frs-check__fix">→ {c.fix}</span>
             )}
@@ -309,9 +309,9 @@ export default function SetupWizard({ onReady }) {
         <footer className="frs__foot">
           <div className="frs__foot-row">
             <span className="frs__totals">
-              {t('setup.footer_downloads')} <code>huggingface.co</code>
+              {t('setup.footer_downloads')}
               <span className="frs__totals-sep" aria-hidden="true">·</span>
-              {t('setup_extra.cache_label')} <code>{shortenPath(cachePath)}</code>
+              {t('setup.cache_label', 'Model cache')} <code>{shortenPath(cachePath)}</code>
               {'__TAURI_INTERNALS__' in window && cachePath && (
                 <button
                   type="button"

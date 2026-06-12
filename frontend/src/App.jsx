@@ -27,6 +27,9 @@ const StoriesEditor = lazy(() => import('./components/StoriesEditor'));
 
 import Header from './components/Header';
 import NavRail from './components/NavRail';
+import WorkspaceHistory from './components/WorkspaceHistory';
+import WorkspaceVoices from './components/WorkspaceVoices';
+import WorkspaceProjects from './components/WorkspaceProjects';
 import ErrorBoundary from './components/ErrorBoundary';
 import FloatingPill from './components/FloatingPill';
 // RemoteAuthGate is mounted at the true outermost provider in main-app.jsx so
@@ -159,12 +162,11 @@ function App() {
   const closeVoiceProfile = useAppStore(s => s.closeVoiceProfile);
   const hideSidebar = mode === 'launchpad' || mode === 'settings' || mode === 'voice' || mode === 'donate'
     || mode === 'queue' || mode === 'tools' || mode === 'projects' || mode === 'gallery' || mode === 'enterprise' || mode === 'transcriptions'
-    || mode === 'stories';
-  const availableSidebarTabs = mode === 'dub'
-    ? ['projects', 'history', 'downloads']
-    : (mode === 'clone' || mode === 'design')
-      ? ['projects', 'history']
-      : [];
+    || mode === 'stories'
+    // Voice (clone/design) and Dub workspaces moved their saved voices /
+    // projects + history into right-side panels; left sidebar dissolved.
+    || mode === 'clone' || mode === 'design' || mode === 'dub';
+  const availableSidebarTabs = [];
   // Generate-tab prefs now live in `generateSlice` (Phase 2.2). Persisted
   // knobs survive reloads via the store's `partialize`.
   const text              = useAppStore(s => s.text);
@@ -203,7 +205,7 @@ function App() {
   const {
     profiles, history, dubHistory, studioProjects, exportHistory,
     showOverrides, setShowOverrides,
-    sysStats, modelStatus,
+    modelStatus,
     loadProfiles, loadHistory, loadDubHistory, loadProjects, loadExportHistory,
   } = useAppData();
 
@@ -230,6 +232,30 @@ function App() {
   } = useTTS({ selectedProfile, setSelectedProfile, loadHistory });
 
   const handleSaveProfile = () => _handleSaveProfile(refAudio, refText, instruct, language);
+
+  // ═══ PENDING PROFILE HAND-OFF ═══
+  // Views like the Gallery hand a freshly-created profile to the synthesis view
+  // via store.pendingProfileId + setMode('clone'). The profile may not be in the
+  // loaded list yet (it arrives via loadProfiles / the realtime `profiles` event),
+  // so we wait for it to appear, select it, then clear the hand-off.
+  const pendingProfileId = useAppStore(s => s.pendingProfileId);
+  const setPendingProfileId = useAppStore(s => s.setPendingProfileId);
+  const pendingRefreshRef = useRef(null);
+  useEffect(() => {
+    if (!pendingProfileId) { pendingRefreshRef.current = null; return; }
+    const prof = profiles.find(p => p.id === pendingProfileId);
+    if (prof) {
+      handleSelectProfile(prof);
+      setPendingProfileId(null);
+      pendingRefreshRef.current = null;
+      return;
+    }
+    // Not loaded yet — refresh the list once; the effect re-runs when it arrives.
+    if (pendingRefreshRef.current !== pendingProfileId) {
+      pendingRefreshRef.current = pendingProfileId;
+      loadProfiles();
+    }
+  }, [pendingProfileId, profiles, handleSelectProfile, loadProfiles, setPendingProfileId]);
 
   // A/B Voice Comparison State
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
@@ -677,7 +703,7 @@ function App() {
   // artifacts. No-op when previewSegIds is empty.
   const finalizeTtsBeforeExport = async () => {
     if (!previewSegIds || previewSegIds.length === 0) return;
-    toast(`Upgrading ${previewSegIds.length} preview-quality segment${previewSegIds.length === 1 ? '' : 's'} to full quality…`, { icon: '✨' });
+    toast(i18n.t('dub.upgrading_preview', { count: previewSegIds.length }));
     await handleDubGenerate({ regenOnly: previewSegIds, preview: false });
   };
   const handleDubDownload = async () => {
@@ -919,7 +945,7 @@ function App() {
         hideSidebar ? 'sidebar-hidden' : '',
         navRailSide === 'right' ? 'rail-right' : '',
       ].filter(Boolean).join(' ')}
-      style={{ zoom: uiScale }}
+      style={{ zoom: uiScale, '--ui-scale': uiScale }}
     >
       {pendingTrimFile && (
         <ErrorBoundary name="audio-trimmer">
@@ -944,7 +970,7 @@ function App() {
 
       <Header
         mode={mode} setMode={setMode}
-        sysStats={sysStats} modelStatus={modelStatus}
+        modelStatus={modelStatus}
         doubleClickMaximize={doubleClickMaximize}
         activeProjectName={activeProjectName}
         onFlushMemory={async (unloadModel) => {
@@ -1056,6 +1082,8 @@ function App() {
           </Suspense>
           </ErrorBoundary>
         ) : mode === 'dub' ? (
+          <div className="studio-with-history">
+          <div className="studio-with-history__main">
           <ErrorBoundary name="dub">
           <Suspense fallback={<LazyFallback />}>
             <DubTab
@@ -1101,7 +1129,27 @@ function App() {
             />
           </Suspense>
           </ErrorBoundary>
+          </div>
+          <div className="studio-right">
+            <WorkspaceProjects
+              projects={studioProjects}
+              activeProjectId={activeProjectId}
+              canSave={dubStep !== 'idle' || !!dubVideoFile}
+              saveProject={saveProject}
+              loadProject={loadProject}
+              deleteProject={deleteProject}
+            />
+            <WorkspaceHistory
+              variant="dub"
+              dubHistory={dubHistory}
+              restoreDubHistory={restoreDubHistory}
+              deleteHistory={deleteHistory}
+            />
+          </div>
+          </div>
         ) : (
+          <div className="studio-with-history">
+          <div className="studio-with-history__main">
           <ErrorBoundary name="clone-design">
           <Suspense fallback={<LazyFallback />}>
             <CloneDesignTab
@@ -1141,6 +1189,33 @@ function App() {
             />
           </Suspense>
           </ErrorBoundary>
+          </div>
+          <div className="studio-right">
+            <WorkspaceVoices
+              mode={mode}
+              profiles={profiles}
+              selectedProfile={selectedProfile}
+              previewLoading={previewLoading}
+              handleSelectProfile={handleSelectProfile}
+              handleDeleteProfile={handleDeleteProfile}
+              handlePreviewVoice={handlePreviewVoice}
+              handleUnlockProfile={handleUnlockProfile}
+              openVoiceProfile={openVoiceProfile}
+              onOpenVoicePreview={(profileId) => {
+                setVoicePreviewProfileId(profileId || '');
+                setIsVoicePreviewOpen(true);
+              }}
+            />
+            <WorkspaceHistory
+              history={history}
+              handleSaveHistoryAsProfile={handleSaveHistoryAsProfile}
+              handleLockProfile={handleLockProfile}
+              handleNativeExport={handleNativeExport}
+              restoreHistory={restoreHistory}
+              deleteHistory={deleteHistory}
+            />
+          </div>
+          </div>
         )}
       </div>
 

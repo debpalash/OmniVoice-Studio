@@ -33,11 +33,9 @@
 .dir-error { color: var(--color-warn); font-size: 0.7rem; }
 
 /* ═══ SetupWizard preflight extracted styles ═══ */
-.swiz-loading {
-  display: flex; gap: 8px; align-items: center;
-  justify-content: center; padding: 20px;
-  color: var(--color-fg-muted);
-}
+/* (.swiz-loading lives in pages/SetupWizard.css — the first-run redesign
+   restyled it there; keeping a second copy here made the rendered spinner
+   depend on bundle import order.) */
 .swiz-checklist { display: flex; flex-direction: column; gap: 6px; }
 .swiz-check-icon { flex-shrink: 0; padding-top: 2px; }
 .swiz-check-header {

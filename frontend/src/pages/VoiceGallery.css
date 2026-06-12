@@ -49,30 +49,35 @@
 .category-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  font-size: 0.7rem;
+  gap: 5px;
+  height: 26px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border-radius: var(--chrome-radius-pill, 999px);
+  border: 1px solid var(--chrome-border);
+  background: transparent;
+  color: var(--chrome-fg-muted);
+  font-size: 0.68rem;
+  font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .category-chip:hover {
-  border-color: var(--border-hover);
+  border-color: var(--chrome-border-strong);
+  color: var(--chrome-fg);
 }
 
 .category-chip.selected {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--chrome-accent, var(--accent));
+  border-color: var(--chrome-accent, var(--accent));
+  color: #1b1b1b;
 }
 
 .search-results-panel {
   flex-shrink: 0;
-  background: var(--bg-tertiary);
+  background: var(--color-bg-elev-2);
   border-radius: 8px;
   max-height: 180px;
   overflow: hidden;
@@ -85,7 +90,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 10px;
-  background: var(--bg-secondary);
+  background: var(--color-bg-elev-1);
   font-size: 0.75rem;
   font-weight: 500;
   flex-shrink: 0;
@@ -109,7 +114,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 10px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--chrome-border);
   gap: 8px;
 }
 
@@ -166,10 +171,15 @@
 
 .view-toggle {
   display: flex;
+  align-items: center;
   gap: 2px;
-  background: var(--bg-tertiary);
-  border-radius: 6px;
+  height: 26px;
+  box-sizing: border-box;
+  background: var(--chrome-hover-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 7px;
   padding: 2px;
+  flex: 0 0 auto;
 }
 
 .view-toggle button {
@@ -177,17 +187,20 @@
   align-items: center;
   justify-content: center;
   width: 26px;
-  height: 22px;
+  height: 100%;
   border: none;
   background: transparent;
-  color: var(--text-secondary);
-  border-radius: 4px;
+  color: var(--chrome-fg-muted);
+  border-radius: 6px;
   cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
 }
 
+.view-toggle button:hover { color: var(--chrome-fg); }
+
 .view-toggle button.active {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  background: var(--chrome-bg);
+  color: var(--chrome-fg);
 }
 
 .loading {
@@ -247,13 +260,13 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  background: var(--bg-tertiary);
+  background: var(--color-bg-elev-2);
   border-radius: 8px;
   transition: background 0.15s ease;
 }
 
 .voice-card:hover {
-  background: var(--bg-secondary);
+  background: var(--color-bg-elev-1);
 }
 
 .voice-play {
@@ -263,8 +276,8 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  border: 1px solid var(--chrome-border);
+  background: var(--color-bg-elev-1);
   color: var(--text-primary);
   cursor: pointer;
   flex-shrink: 0;
@@ -319,7 +332,7 @@
 }
 
 .action-btn:hover {
-  background: var(--bg-tertiary);
+  background: var(--color-bg-elev-2);
   color: var(--text-primary);
 }
 
@@ -353,32 +366,92 @@
 
 /* ── Voice Gallery: zone toggle + header ──────────────────────────────── */
 .gallery-sub { margin: 2px 0 0; font-size: 0.72rem; color: var(--text-secondary); }
-.zone-toggle { display: inline-flex; gap: 2px; background: var(--bg-tertiary); border-radius: 8px; padding: 2px; }
-.zone-tab { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border: none; background: transparent; color: var(--text-secondary); border-radius: 6px; font-size: 0.75rem; cursor: pointer; }
-.zone-tab.active { background: var(--bg-secondary); color: var(--text-primary); }
-.gallery-notice { flex-shrink: 0; padding: 7px 10px; background: var(--bg-tertiary); border-left: 3px solid var(--accent); border-radius: 6px; font-size: 0.75rem; color: var(--text-primary); }
+.zone-toggle { display: inline-flex; gap: 2px; background: var(--chrome-hover-bg); border: 1px solid var(--chrome-border); border-radius: 8px; padding: 2px; }
+.zone-tab { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border: none; background: transparent; color: var(--chrome-fg-muted); border-radius: 6px; font-size: 0.75rem; font-weight: 500; cursor: pointer; transition: background var(--dur-fast), color var(--dur-fast); }
+.zone-tab:hover { color: var(--chrome-fg); }
+.zone-tab.active { background: var(--chrome-bg); color: var(--chrome-fg); }
+.gallery-notice { flex-shrink: 0; padding: 7px 10px; background: var(--color-bg-elev-2); border-left: 3px solid var(--accent); border-radius: 6px; font-size: 0.75rem; color: var(--text-primary); }
 
 /* ── Facet filter bar ─────────────────────────────────────────────────── */
-.facet-bar { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; padding-bottom: 8px; }
-.use-case-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+/* One compact line split into three filter lanes — categories · facets ·
+   toggles — each its own horizontally-scrollable portion so a long lane never
+   pushes the others off-screen. The view toggle is pinned at the far right. */
+.facet-bar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  padding: 2px 0 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--chrome-border);
+}
+.facet-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.facet-group::-webkit-scrollbar { height: 5px; }
+.facet-group::-webkit-scrollbar-thumb { background: var(--chrome-border-strong); border-radius: 3px; }
+.facet-group::-webkit-scrollbar-track { background: transparent; }
+/* Width portions: categories get the most room, facets medium, toggles least. */
+.facet-group--cats    { flex: 2.4 1 0; }
+.facet-group--facets  { flex: 1.6 1 0; padding-left: 10px; border-left: 1px solid var(--chrome-border); }
+.facet-group--toggles { flex: 1 1 0;   padding-left: 10px; border-left: 1px solid var(--chrome-border); }
+.view-toggle { flex: 0 0 auto; }
 .chip-emoji { font-size: 0.8rem; line-height: 1; }
-.facet-selects { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+/* Uniform height + box model for every control on the single line. */
+.facet-select,
+.facet-toggle,
+.facet-reset {
+  height: 26px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  border-radius: 7px;
+  font-size: 0.68rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
 /* Native <select> falls back to the OS-default (light) control surface when its
-   background resolves to an undefined var, so pin real dark-chrome tokens. The
-   undefined --border-color/--bg-tertiary read as transparent on the sibling
-   <div> filters (fine on the dark page) but render light on a form control. */
-.facet-select { padding: 5px 8px; border-radius: 8px; border: 1px solid var(--chrome-border); background: var(--chrome-hover-bg); color: var(--chrome-fg); font-size: 0.7rem; cursor: pointer; color-scheme: dark; }
+   background resolves to an undefined var, so pin real dark-chrome tokens. */
+.facet-select {
+  border: 1px solid var(--chrome-border);
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+  color-scheme: dark;
+}
 /* Belt-and-suspenders: explicit dark option list for WebViews that ignore
    color-scheme on the popup (cross-platform parity: WebKit / WebView2 / WebKitGTK). */
 .facet-select option { background: var(--chrome-bg); color: var(--chrome-fg); }
-.facet-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; color: var(--text-secondary); cursor: pointer; }
-.facet-reset { display: inline-flex; align-items: center; gap: 4px; padding: 5px 8px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); border-radius: 8px; font-size: 0.7rem; cursor: pointer; }
-.facet-reset:hover { border-color: var(--border-hover); color: var(--text-primary); }
+/* Whisper / Favorites read as pill toggles matching the dropdowns. */
+.facet-toggle {
+  border: 1px solid var(--chrome-border);
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg-muted);
+}
+.facet-toggle:hover { color: var(--chrome-fg); border-color: var(--chrome-border-strong); }
+.facet-reset {
+  border: 1px solid var(--chrome-border);
+  background: transparent;
+  color: var(--chrome-fg-muted);
+}
+.facet-reset:hover { border-color: var(--chrome-border-strong); color: var(--chrome-fg); }
+/* A small gap separates the view toggle from the filter controls on the line. */
+.facet-selects .view-toggle { margin-left: 2px; }
 
 /* ── Archetype sections + grid ────────────────────────────────────────── */
 .gallery-content.gallery-scroll { overflow-y: auto; }
 .archetype-section { margin-bottom: 14px; }
-.count-badge { margin-left: 6px; padding: 1px 7px; border-radius: 10px; background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.65rem; font-weight: 400; }
+.count-badge { margin-left: 6px; padding: 1px 7px; border-radius: 10px; background: var(--color-bg-elev-2); color: var(--text-secondary); font-size: 0.65rem; font-weight: 400; }
 .archetype-grid.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); gap: 10px; }
 .archetype-grid.list { display: flex; flex-direction: column; gap: 6px; }
 
@@ -462,7 +535,7 @@
 .use-case-chips .category-chip svg { flex-shrink: 0; }
 
 .load-more { display: flex; justify-content: center; padding: 12px 0; }
-.import-explainer { flex-shrink: 0; padding: 8px 10px; margin-bottom: 8px; background: var(--bg-tertiary); border-radius: 8px; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.4; }
+.import-explainer { flex-shrink: 0; padding: 8px 10px; margin-bottom: 8px; background: var(--color-bg-elev-2); border-radius: 8px; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.4; }
 .community-explainer { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .submit-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .submit-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.03); color: var(--text-primary); border-radius: 8px; font-size: 0.7rem; cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease; }

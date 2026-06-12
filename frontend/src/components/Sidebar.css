@@ -252,12 +252,10 @@
   color: var(--chrome-fg-dim);
 }
 
-/* Inline mini-player in generate history */
+/* Inline waveform player in generate history (shared WaveformPlayer) */
 .history-audio {
-  height: 24px;
   margin-top: 4px;
   width: 100%;
-  border-radius: 999px;
 }
 
 /* Restore / re-open icon tiles on history + export rows */

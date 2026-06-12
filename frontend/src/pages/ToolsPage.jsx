@@ -118,7 +118,7 @@ function RateFitTool() {
         <div className="tools-card__out">
           <div className="tools-card__out-row"><strong>{t('tools.ratio')}</strong> <code>{result.rate_ratio?.toFixed?.(2)}</code> {result.error && <Badge tone="warn" size="xs">{result.error}</Badge>}</div>
           <div className="tools-card__out-row"><strong>{t('tools.attempts')}</strong> <code>{result.attempts}</code></div>
-          <div className="tools-card__out-row"><strong>{t('tools.result')}:</strong></div>
+          <div className="tools-card__out-row"><strong>{t('tools.result')}</strong></div>
           <div className="tools-card__result">{result.text}</div>
         </div>
       )}

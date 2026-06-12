@@ -1,5 +1,5 @@
 /* frontend/src/components/UpdatesPanel.css */
-.updates-panel { padding: 8px 12px; overflow-y: auto; font-size: 12px; color: #d5c4a1; }
+.updates-panel { padding: 8px 0; overflow-y: auto; font-size: 12px; color: var(--chrome-fg, #d5c4a1); }
 .updates-panel__live { display: flex; align-items: center; min-height: 26px; }
 .updates-panel__cta {
   display: inline-flex; align-items: center; gap: 6px;
@@ -14,15 +14,15 @@
 .updates-panel__bar span { display: block; height: 100%; background: #b8bb26; }
 .updates-panel__channel { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
 .updates-panel__seg { display: inline-flex; border: 1px solid var(--chrome-border, #3a3a3a); border-radius: 6px; overflow: hidden; }
-.updates-panel__segbtn { background: none; border: none; color: var(--text-dim, #a89984); padding: 2px 10px; font: inherit; cursor: pointer; }
+.updates-panel__segbtn { background: none; border: none; color: var(--chrome-fg-muted); padding: 2px 10px; font: inherit; cursor: pointer; }
 .updates-panel__segbtn.is-active { background: rgba(131,165,152,0.18); color: #ebdbb2; }
-.updates-panel__rel-head { font-weight: 600; color: var(--text-dim, #a89984); margin: 6px 0 4px; }
-.updates-panel__rel-empty { color: var(--text-dim, #a89984); display: inline-flex; gap: 8px; align-items: center; padding: 6px 0; }
+.updates-panel__rel-head { font-weight: 600; color: var(--chrome-fg-muted); margin: 6px 0 4px; }
+.updates-panel__rel-empty { color: var(--chrome-fg-muted); display: inline-flex; gap: 8px; align-items: center; padding: 6px 0; }
 .updates-panel__rel { border-top: 1px solid var(--chrome-border, #2a2a2a); padding: 6px 0; }
 .updates-panel__rel.is-current { background: rgba(184,187,38,0.06); }
 .updates-panel__rel-row { display: flex; align-items: center; gap: 8px; }
 .updates-panel__rel-ver { font-weight: 600; }
 .updates-panel__rel-tag { font-size: 10px; color: #b8bb26; border: 1px solid rgba(184,187,38,0.5); border-radius: 999px; padding: 0 6px; }
 .updates-panel__rel-pre { font-size: 10px; color: #d79921; border: 1px solid rgba(215,153,33,0.5); border-radius: 999px; padding: 0 6px; }
-.updates-panel__rel-date { margin-left: auto; color: var(--text-dim, #a89984); }
+.updates-panel__rel-date { margin-left: auto; color: var(--chrome-fg-muted); }
 .updates-panel__rel-notes { white-space: pre-wrap; overflow-wrap: break-word; margin: 4px 0 0; font-size: 11px; line-height: 1.4; color: #bdae93; }

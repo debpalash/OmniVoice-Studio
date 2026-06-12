@@ -34,6 +34,12 @@ export interface UiSlice {
   activeVoiceId: string | null;
   /** The mode the user was on before opening a voice profile. "Back" restores it. */
   modeBeforeVoice: AppMode | null;
+  /**
+   * One-shot hand-off for "use this voice in the synthesis view": the Gallery
+   * (or any view) sets a profile id and navigates to `clone`; App.jsx selects
+   * that profile once it appears in the loaded profiles list, then clears this.
+   */
+  pendingProfileId: string | null;
   isSidebarCollapsed: boolean;
   isSidebarProjectsCollapsed: boolean;
   sidebarTab: SidebarTab;
@@ -44,6 +50,7 @@ export interface UiSlice {
   setActiveProject: (id: string | null, name?: string) => void;
   setActiveVoiceId: (id: string | null) => void;
   setModeBeforeVoice: (mode: AppMode | null) => void;
+  setPendingProfileId: (id: string | null) => void;
   setIsSidebarCollapsed: (collapsed: boolean) => void;
   setIsSidebarProjectsCollapsed: (collapsed: boolean) => void;
   setSidebarTab: (tab: SidebarTab) => void;
@@ -62,6 +69,7 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) 
   activeProjectName: '',
   activeVoiceId: null,
   modeBeforeVoice: null,
+  pendingProfileId: null,
   isSidebarCollapsed: false,
   isSidebarProjectsCollapsed: false,
   sidebarTab: 'projects',
@@ -72,6 +80,7 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) 
   setActiveProject: (id, name = '') => set({ activeProjectId: id, activeProjectName: name }),
   setActiveVoiceId: (id) => set({ activeVoiceId: id }),
   setModeBeforeVoice: (mode) => set({ modeBeforeVoice: mode }),
+  setPendingProfileId: (id) => set({ pendingProfileId: id }),
   setIsSidebarCollapsed: (collapsed) => set({ isSidebarCollapsed: collapsed }),
   setIsSidebarProjectsCollapsed: (collapsed) => set({ isSidebarProjectsCollapsed: collapsed }),
   setSidebarTab: (tab) => set({ sidebarTab: tab }),

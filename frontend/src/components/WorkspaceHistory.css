@@ -1,0 +1,126 @@
+/* WorkspaceHistory — right-side history panel. Row internals reuse the shared
+   .history-* classes (defined in Sidebar.css, bundled app-wide); this file only
+   styles the panel chrome: header, filter chips, scroll, empty state. */
+
+/* Layout wrapper: the workspace (definition column) + the history aside sit
+   side by side and each scroll independently. Drops to stacked on narrow. */
+.studio-with-history {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.studio-with-history__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .studio-with-history {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+}
+
+/* Right column: Saved voices (top) + History (bottom) stacked, each scrolls. */
+.studio-right {
+  flex: 0 0 340px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--chrome-border);
+  background: var(--chrome-bg);
+}
+
+.wh {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border-top: 1px solid var(--chrome-border-strong, var(--chrome-border));
+}
+
+.wh__head {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--chrome-border);
+}
+
+.wh__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--chrome-font-mono, var(--font-mono));
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--chrome-fg-muted);
+}
+
+.wh__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.wh__chip {
+  flex: 0 0 auto;
+  padding: 2px 10px;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--chrome-fg-muted);
+  background: transparent;
+  border: 1px solid var(--chrome-border-strong);
+  border-radius: var(--chrome-radius-pill, 999px);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.wh__chip:hover {
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+}
+
+.wh__chip.is-active {
+  color: var(--color-brand, #d3869b);
+  background: color-mix(in srgb, var(--color-brand, #d3869b) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand, #d3869b) 35%, transparent);
+}
+
+.wh__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+.wh__empty {
+  color: var(--chrome-fg-dim);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  text-align: center;
+  padding: 32px 16px;
+}
+
+/* On narrow windows the right column drops below the definition column. */
+@media (max-width: 900px) {
+  .studio-right {
+    flex-basis: auto;
+    border-left: none;
+    border-top: 1px solid var(--chrome-border);
+    max-height: 60vh;
+  }
+}
