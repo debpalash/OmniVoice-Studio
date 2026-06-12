@@ -237,14 +237,23 @@
 .history-meta--locked    { color: #b8bb26; font-style: italic; }
 .history-subtitle--italic { font-style: italic; }
 
-/* Generated-history title clamp */
+/* Generated-history title clamp — real line-clamp with an ellipsis, not a
+   max-height guillotine that sliced the third line mid-glyph. Click toggles
+   the full text (see WorkspaceHistory). */
 .history-title--clamp {
   white-space: normal;
   font-weight: 500;
   font-size: 0.74rem;
   line-height: 1.3;
-  max-height: 3em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
+  cursor: pointer;
+}
+.history-title--expanded {
+  -webkit-line-clamp: unset;
+  max-height: none;
 }
 .history-subtitle--seed {
   font-family: var(--font-mono);

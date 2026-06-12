@@ -28,6 +28,17 @@ const FILTERS = [
 ];
 
 /**
+ * Row title for display: drop leading [laughter]/[question-en]-style control
+ * tokens — they're synthesis instructions, not content, and they were eating
+ * the two visible lines. The untouched original stays in the hover tooltip
+ * and in restore/save flows.
+ */
+const displayTitle = (text) => {
+  const stripped = (text || '').replace(/^(\s*\[[^\]]{1,30}\]\s*)+/, '').trim();
+  return stripped || text || '';
+};
+
+/**
  * Defer mounting <WaveformPlayer> (and its audio fetch + waveform decode)
  * until the row scrolls into view — the server returns up to 50 history rows,
  * which would otherwise fire 50 simultaneous fetches on panel mount.
@@ -62,6 +73,7 @@ export default function WorkspaceHistory({
 }) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState('all');
+  const [expanded, setExpanded] = useState(null); // row id with un-clamped title
 
   // Voice workspace = clone + design generations (dub lives in its own workspace).
   const items = useMemo(() => {
@@ -153,8 +165,12 @@ export default function WorkspaceHistory({
                   {item.generation_time ? `${item.generation_time}s` : ''}
                 </span>
               </div>
-              <div className="history-title history-title--clamp" title={item.text}>
-                {item.text}
+              <div
+                className={`history-title history-title--clamp ${expanded === item.id ? 'history-title--expanded' : ''}`}
+                title={item.text}
+                onClick={() => setExpanded(e => (e === item.id ? null : item.id))}
+              >
+                {displayTitle(item.text)}
               </div>
               {item.seed != null && String(item.seed) !== ''
                 ? <div className="history-subtitle history-subtitle--seed">seed {item.seed}</div>
