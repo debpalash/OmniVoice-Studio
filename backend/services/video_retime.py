@@ -277,15 +277,33 @@ async def render_retimed_video(
             if abort_check is not None and abort_check():
                 raise RetimeError("export aborted", stage="aborted")
             is_last = bi == len(batches) - 1
+            # #382: seek the input to this batch's window instead of decoding
+            # from frame 0 every time — without this, batch N pays for
+            # decoding everything before it and long exports go O(n²).
+            # `-ss` before `-i` is frame-accurate under re-encode (ffmpeg
+            # decodes from the prior keyframe and discards up to the target);
+            # decoded timestamps then start at ~0, so chunk times are shifted
+            # into window-relative coordinates for the filter graph.
+            win_start = batch[0][0]
+            win_dur = batch[-1][1] - win_start
+            shifted = [(max(0.0, a - win_start), b - win_start, r) for a, b, r in batch]
             graph, label = build_chunk_filter_graph(
-                batch, "[0:v]",
+                shifted, "[0:v]",
                 fps_norm=fps_norm,
                 out_fps=out_fps,
                 tail_pad_s=tail_pad_s if is_last else 0.0,
             )
             slice_path = os.path.join(slices_dir, f"slice_{bi:04d}.mp4")
+            seek_args = (
+                ["-ss", f"{win_start:.4f}"] if win_start > 1e-4 else []
+            )
             cmd = [
-                ffmpeg, "-hide_banner", "-y", "-i", video_path,
+                ffmpeg, "-hide_banner", "-y",
+                *seek_args,
+                # +0.5s read margin: trim's end is exclusive and fps_norm can
+                # shift a frame; reading slightly past the window is cheap.
+                "-t", f"{win_dur + 0.5:.4f}",
+                "-i", video_path,
                 "-filter_complex", graph, "-map", label, "-an",
                 *VIDEO_ENC_ARGS,
                 "-force_key_frames", "0",
