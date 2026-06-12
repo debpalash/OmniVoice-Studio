@@ -580,9 +580,12 @@ class MLXAudioBackend(TTSBackend):
         try:
             import mlx_audio  # noqa: F401
             return True, "ready"
-        except ImportError as e:
+        # OSError/RuntimeError too: in a PyInstaller bundle mlx's native
+        # dylib/metallib can fail to load even when the package imports —
+        # report unavailable instead of crashing the registry scan (Wave 4.4).
+        except (ImportError, OSError, RuntimeError) as e:
             return False, (
-                f"mlx-audio not installed: {e}. "
+                f"mlx-audio unavailable: {e}. "
                 "This backend is Apple Silicon only — available on mac-ARM dev "
                 "installs; not shipped on Linux/Windows/mac-Intel."
             )

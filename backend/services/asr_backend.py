@@ -511,8 +511,13 @@ class MLXWhisperBackend(ASRBackend):
                 return False, "Apple Silicon (MPS) not available."
             import mlx_whisper  # noqa: F401
             return True, "ready"
-        except ImportError as e:
-            return False, f"mlx-whisper not installed: {e}"
+        # Catch OSError/RuntimeError too, not just ImportError: in a
+        # PyInstaller bundle mlx's native dylib/metallib can fail to load
+        # even when the package imports, raising OSError/RuntimeError. We must
+        # report unavailable (so the picker falls back) rather than crash the
+        # registry scan (Wave 4.4).
+        except (ImportError, OSError, RuntimeError) as e:
+            return False, f"mlx-whisper unavailable: {e}"
 
     def transcribe(self, audio_path: str, *, word_timestamps: bool = True) -> dict:
         import mlx_whisper
