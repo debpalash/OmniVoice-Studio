@@ -204,7 +204,17 @@ async def dub_generate(job_id: str, req: DubRequest):
                 # (see services/speaker_clone.py) live at job["speaker_clones"]
                 # keyed by speaker_id. We use the `auto:` prefix so they can't
                 # collide with persistent voice_profiles.id values.
-                if profile_id and profile_id.startswith("auto:"):
+                # Wave 3.2: a per-segment clone ref (cut from this line's own
+                # source audio) takes precedence over the per-speaker clone.
+                if profile_id and profile_id.startswith("auto-seg:"):
+                    sid = profile_id[len("auto-seg:"):]
+                    info = (job.get("segment_clones") or {}).get(sid)
+                    if info:
+                        ref_audio = info.get("ref_audio")
+                        ref_text = info.get("ref_text")
+                    profile_id = None  # prevent the voice_profiles lookup below
+
+                elif profile_id and profile_id.startswith("auto:"):
                     key = profile_id[len("auto:"):]
                     clones = job.get("speaker_clones") or {}
                     # Match by the safe-name key first, fall back to speaker_id.

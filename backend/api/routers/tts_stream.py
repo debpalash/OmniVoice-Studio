@@ -144,13 +144,26 @@ async def ws_tts(websocket: WebSocket):
                     except Exception:
                         kw["voice"] = voice
 
+                # Wave 1.4: split the request into sentences so the first
+                # sentence's audio streams while later sentences are still
+                # synthesizing — this is the time-to-first-audio win. The
+                # chunker handles abbreviations/acronyms/decimals and CJK /
+                # non-Latin terminators; single-sentence requests behave
+                # exactly like the old single-shot path.
+                from services.sentence_chunker import SentenceChunker
+                _chunker = SentenceChunker(language=(data.get("language") or "en"))
+                sentences = _chunker.push(text)
+                sentences.extend(_chunker.flush())
+                if not sentences:
+                    sentences = [text]
+
                 # Run generation in the GPU pool
                 from services.model_manager import _gpu_pool
                 loop = asyncio.get_running_loop()
 
-                def _generate():
+                def _generate(sentence_text):
                     from services.audio_dsp import apply_mastering, normalize_audio
-                    wav = backend.generate(text, **kw)
+                    wav = backend.generate(sentence_text, **kw)
                     sr_actual = backend.sample_rate
                     # Like _run_tts in openai_compat: studio engines (VoxCPM2)
                     # opt out of the broadcast mastering chain. This is the
@@ -161,38 +174,45 @@ async def ws_tts(websocket: WebSocket):
                     wav = normalize_audio(wav, target_dBFS=-2.0)
                     return wav, sr_actual
 
-                wav_tensor, sr = await loop.run_in_executor(_gpu_pool, _generate)
-
-                # Send metadata after generation so sample_rate is real
-                await websocket.send_json({
-                    "type": "start",
-                    "sample_rate": sr,
-                    "channels": 1,
-                    "format": "pcm16",
-                    "engine": backend.id,
-                })
-
-                # Stream PCM16 chunks over the WebSocket
                 import torch
-                # Convert to 16-bit PCM
-                pcm = (wav_tensor * 32767).clamp(-32768, 32767).to(torch.int16)
-                if pcm.ndim == 2:
-                    pcm = pcm[0]  # mono
-                pcm_bytes = pcm.numpy().tobytes()
+                total_samples = 0
+                sr = backend.sample_rate
+                started = False
 
-                total_samples = len(pcm)
-                sent_samples = 0
-                chunk_bytes = CHUNK_SAMPLES * 2  # 2 bytes per int16 sample
+                for sentence in sentences:
+                    wav_tensor, sr = await loop.run_in_executor(
+                        _gpu_pool, _generate, sentence
+                    )
 
-                while sent_samples < total_samples:
-                    end = min(sent_samples + CHUNK_SAMPLES, total_samples)
-                    start_byte = sent_samples * 2
-                    end_byte = end * 2
-                    chunk = pcm_bytes[start_byte:end_byte]
-                    await websocket.send_bytes(chunk)
-                    sent_samples = end
-                    # Yield to event loop between chunks for responsiveness
-                    await asyncio.sleep(0)
+                    if not started:
+                        # Send metadata after the first generation so
+                        # sample_rate is real (lazy-loading engines report
+                        # their true rate only once weights are up).
+                        await websocket.send_json({
+                            "type": "start",
+                            "sample_rate": sr,
+                            "channels": 1,
+                            "format": "pcm16",
+                            "engine": backend.id,
+                        })
+                        started = True
+
+                    # Convert to 16-bit PCM and stream
+                    pcm = (wav_tensor * 32767).clamp(-32768, 32767).to(torch.int16)
+                    if pcm.ndim == 2:
+                        pcm = pcm[0]  # mono
+                    pcm_bytes = pcm.numpy().tobytes()
+
+                    n_samples = len(pcm)
+                    sent_samples = 0
+                    while sent_samples < n_samples:
+                        end = min(sent_samples + CHUNK_SAMPLES, n_samples)
+                        chunk = pcm_bytes[sent_samples * 2: end * 2]
+                        await websocket.send_bytes(chunk)
+                        sent_samples = end
+                        # Yield to event loop between chunks for responsiveness
+                        await asyncio.sleep(0)
+                    total_samples += n_samples
 
                 gen_time = round(time.perf_counter() - t0, 3)
                 duration = round(total_samples / sr, 3)

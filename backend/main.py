@@ -428,7 +428,23 @@ async def lifespan(app: FastAPI):
         capture_preload_task = asyncio.create_task(_preload_capture_asr())
     else:
         logger.info("Capture ASR preload disabled; dictation ASR will load on first use.")
-    yield
+
+    # ── MCP session manager (Wave 2.2) ────────────────────────────────────
+    # FastMCP's Streamable-HTTP transport needs its session manager running
+    # for the lifetime of the app. It's created lazily by streamable_http_app()
+    # (called in mount_mcp below), so we stack its `run()` context into ours
+    # via AsyncExitStack rather than replacing this lifespan. Best-effort: a
+    # missing/broken MCP layer must never stop the rest of the backend.
+    from contextlib import AsyncExitStack
+    async with AsyncExitStack() as _mcp_stack:
+        _sm = getattr(app.state, "mcp_session_manager", None)
+        if _sm is not None:
+            try:
+                await _mcp_stack.enter_async_context(_sm.run())
+                logger.info("MCP server mounted at /mcp")
+            except Exception as e:
+                logger.warning("MCP session manager failed to start: %s", e)
+        yield
     # ── Graceful shutdown (SIGTERM from Tauri, Ctrl+C, etc.) ────────────
     logger.info("Shutdown: cleaning up…")
     idle_task.cancel()
@@ -593,6 +609,68 @@ class NetworkAccessMiddleware:
         return await self.app(scope, receive, send)
 
 
+class BearerKeyMiddleware:
+    """When OMNIVOICE_API_KEY is set, non-loopback clients must present it on
+    every HTTP + WebSocket request: ``Authorization: Bearer <key>``,
+    ``?api_key=<key>`` (browser WebSockets cannot set headers), or the
+    ``ov_key`` cookie (set on the first successful HTTP auth). Loopback
+    always bypasses — the desktop default is unchanged — and the SPA shell
+    paths stay reachable so a remote UI can load and show what's wrong.
+
+    Inert when the env var is unset (the default). Pure ASGI for the same
+    no-buffering reason as NetworkAccessMiddleware above. Plain-HTTP caveat
+    is documented in docs/remote-gpu.md: the key is sniffable outside a
+    WireGuard (Tailscale) or TLS (tailscale serve) transport.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] not in ("http", "websocket"):
+            return await self.app(scope, receive, send)
+        key = os.environ.get("OMNIVOICE_API_KEY") or ""
+        if not key:
+            return await self.app(scope, receive, send)
+        client = scope["client"][0] if scope.get("client") else None
+        if client in _LOOPBACK_CLIENTS:
+            return await self.app(scope, receive, send)
+        path = scope.get("path", "")
+        if scope["type"] == "http" and (
+            path in _SHELL_PATHS or path.startswith("/assets/") or path.startswith("/favicon")
+        ):
+            return await self.app(scope, receive, send)
+
+        from starlette.requests import HTTPConnection
+
+        conn = HTTPConnection(scope)
+        auth = conn.headers.get("authorization", "")
+        supplied = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
+        if not supplied:
+            supplied = conn.query_params.get("api_key") or conn.cookies.get("ov_key") or ""
+
+        if not secrets.compare_digest(supplied, key):
+            if scope["type"] == "websocket":
+                # Reject the handshake; 1008 = policy violation.
+                await receive()  # consume websocket.connect
+                await send({"type": "websocket.close", "code": 1008})
+                return
+            resp = JSONResponse({"detail": "API key required"}, status_code=401)
+            return await resp(scope, receive, send)
+
+        if scope["type"] == "http" and conn.cookies.get("ov_key") != key:
+            async def send_with_cookie(message):
+                if message["type"] == "http.response.start":
+                    headers = MutableHeaders(scope=message)
+                    headers.append(
+                        "set-cookie", f"ov_key={key}; Path=/; SameSite=Lax"
+                    )
+                await send(message)
+
+            return await self.app(scope, receive, send_with_cookie)
+        return await self.app(scope, receive, send)
+
+
 # UI dev-server port — single-sourced from OMNIVOICE_UI_PORT so a user who
 # moves the Vite dev server off 3901 still gets a matching CORS allow-list.
 def _ui_port() -> int:
@@ -623,6 +701,15 @@ app.add_middleware(
 # Registered AFTER CORS so CORS remains the outermost layer (CORS headers are
 # applied even to the 401 PIN-required responses). Inert unless a PIN is set.
 app.add_middleware(NetworkAccessMiddleware)
+
+# Remote-backend bearer gate (parity program Wave 2.3 / §R2). Inert unless
+# OMNIVOICE_API_KEY is set. Distinct from the PIN gate above: the PIN guards
+# casual LAN-share guests for one session; the API key is the durable
+# credential for running this backend remotely (Tailscale / Docker GPU box).
+# Covers WebSockets too — the PIN gate never did, because every WS endpoint
+# carried its own loopback guard; remote mode is exactly the case where a
+# keyed non-loopback client must reach them.
+app.add_middleware(BearerKeyMiddleware)
 
 app.mount("/audio", StaticFiles(directory=OUTPUTS_DIR), name="audio")
 app.mount("/voice_audio", StaticFiles(directory=VOICES_DIR), name="voice_audio")
@@ -678,6 +765,27 @@ app.include_router(tts_stream.router)
 app.include_router(marketplace.router)
 app.include_router(sonitranslate.router)
 app.include_router(settings_router.router)  # Phase 1 AUTH-03 endpoints
+from api.routers import mcp_bindings as _mcp_bindings_router  # noqa: E402
+app.include_router(_mcp_bindings_router.router)  # Wave 2.2 per-agent voice bindings
+
+# ── Mount the MCP server (Wave 2.2) ───────────────────────────────────────
+# FastMCP's Streamable-HTTP app is sub-mounted at /mcp; its session manager is
+# stashed on app.state for the lifespan above to run. Opt-out via
+# OMNIVOICE_MCP_DISABLE=1; best-effort so a missing mcp package or a build
+# without it never breaks startup.
+if os.environ.get("OMNIVOICE_MCP_DISABLE", "").strip().lower() not in ("1", "true", "yes", "on"):
+    try:
+        from mcp_server import create_mcp_server
+
+        _mcp = create_mcp_server()
+        _mcp_app = _mcp.streamable_http_app()
+        app.state.mcp_session_manager = _mcp.session_manager
+        app.mount("/mcp", _mcp_app)
+        logging.getLogger("omnivoice.api").info("MCP app mounted at /mcp")
+    except Exception as _mcp_err:  # noqa: BLE001
+        logging.getLogger("omnivoice.api").info(
+            "MCP server not mounted (%s); /mcp disabled.", _mcp_err
+        )
 
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.exists(frontend_path):

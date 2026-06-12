@@ -25,7 +25,7 @@ import time
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from api.dependencies import _LOOPBACK_HOSTS
+from api.dependencies import _LOOPBACK_HOSTS, ws_remote_authorized
 
 router = APIRouter()
 logger = logging.getLogger("omnivoice.capture_ws")
@@ -53,8 +53,11 @@ async def ws_transcribe(websocket: WebSocket):
     # WebSocket dependency injection differs across FastAPI versions, so we
     # inline the check before accept(). Without it, any local process could
     # stream the user's microphone over this endpoint.
+    # Wave 2.3 (remote backend): a non-loopback client that presents the
+    # OMNIVOICE_API_KEY bearer is the thin-client dictation case — the mic
+    # lives on the user's machine, the GPU here — and is allowed through.
     host = websocket.client.host if websocket.client else None
-    if host not in _LOOPBACK_HOSTS:
+    if host not in _LOOPBACK_HOSTS and not ws_remote_authorized(websocket):
         await websocket.close(code=1008, reason="loopback origin required")
         return
 
@@ -174,6 +177,15 @@ async def ws_transcribe(websocket: WebSocket):
     if total_bytes > MIN_FINAL_BUFFER_BYTES:
         try:
             result = await _transcribe_buffer_full(audio_chunks)
+            # Wave 2.1: optional local-LLM refinement of the final text.
+            # Off-thread (network call, not GPU); pass-through on any
+            # failure or when no LLM backend is configured. The raw text
+            # always ships too — clients paste refined_text ?? text.
+            if result.get("text"):
+                from services.refinement import maybe_refine
+                refined = await asyncio.to_thread(maybe_refine, result["text"])
+                if refined and refined != result["text"]:
+                    result["refined_text"] = refined
             if not await _safe_send({"type": "final", **result}):
                 logger.debug("Skipped final send — client already disconnected")
         except Exception as e:
@@ -244,6 +256,12 @@ async def _transcribe_buffer_full(chunks: list[bytes]) -> dict:
             full_text = result.get("text", "")
             if not full_text and segments:
                 full_text = " ".join(s.get("text", "") for s in segments).strip()
+
+            # Wave 1.1: strip Whisper hallucination loops from the final
+            # text (the string that gets auto-pasted). Segments keep the
+            # raw recognition so their timings stay truthful.
+            from services.refinement import collapse_repetitive_artifacts
+            full_text = collapse_repetitive_artifacts(full_text)
 
             duration = max((s.get("end", 0) for s in segments), default=0.0)
 

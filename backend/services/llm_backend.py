@@ -106,6 +106,22 @@ class OpenAICompatBackend(LLMBackend):
         return self._client
 
     def chat(self, *, system: str, user: str, timeout: Optional[float] = None) -> str:
+        return self.chat_messages(
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            timeout=timeout,
+        )
+
+    def chat_messages(self, *, messages: list[dict], timeout: Optional[float] = None) -> str:
+        """One-shot completion over a full message list.
+
+        Additive surface for callers that need structured few-shot turns
+        (dictation refinement, Wave 2.1) — small local models pattern-match
+        and echo inline examples, so examples must arrive as prior chat
+        turns, not inside the system prompt.
+        """
         if timeout is None:
             try:
                 timeout = float(os.environ.get("OMNIVOICE_LLM_TIMEOUT", "45"))
@@ -114,10 +130,7 @@ class OpenAICompatBackend(LLMBackend):
         res = self._get_client().chat.completions.create(
             model=self.model_name,
             timeout=timeout,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
+            messages=messages,
         )
         return (res.choices[0].message.content or "").strip()
 
@@ -142,6 +155,9 @@ class OffBackend(LLMBackend):
             "No LLM backend configured. Set TRANSLATE_BASE_URL (+ TRANSLATE_API_KEY) "
             "to use features that need one (Cinematic translate, glossary auto-extract)."
         )
+
+    def chat_messages(self, **kw) -> str:
+        return self.chat(**kw)
 
 
 _REGISTRY: dict[str, type[LLMBackend]] = {

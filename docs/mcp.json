@@ -1,11 +1,14 @@
 {
+  "_comment": "MCP client config for OmniVoice Studio. See docs/mcp.md for both connection modes.",
+  "_streamable_http": "If your MCP client speaks Streamable HTTP, point it directly at the running app: http://localhost:3900/mcp — no separate process needed (the server is mounted on the backend). Send an X-OmniVoice-Client-Id header to bind this agent to a specific voice.",
   "mcpServers": {
     "omnivoice": {
       "command": "python",
-      "args": ["-m", "backend.mcp_server"],
+      "args": ["-m", "backend.mcp_shim"],
       "cwd": "/path/to/OmniVoice-Studio",
       "env": {
-        "OMNIVOICE_API_URL": "http://localhost:3900"
+        "OMNIVOICE_PORT": "3900",
+        "OMNIVOICE_CLIENT_ID": "claude-code"
       }
     }
   }

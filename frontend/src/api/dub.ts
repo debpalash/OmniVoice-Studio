@@ -103,3 +103,24 @@ export async function listDubHistory(): Promise<DubHistoryResponse> {
 export async function clearDubHistory(): Promise<Response> {
   return apiFetch('/dub/history', { method: 'DELETE' });
 }
+
+export interface DubQCResponse {
+  engine: string;
+  total: number;
+  flagged_count: number;
+  drift_threshold: number;
+  segments: {
+    seg_id: string; drift: number; flagged: boolean;
+    recognized_text: string; measured_start: number | null; measured_end: number | null;
+  }[];
+}
+
+/** Wave 3.3: second-pass ASR QC — re-recognize the dubbed audio and flag
+ *  lines whose recognized text drifts from the target. Non-destructive. */
+export async function dubQc(jobId: string, lang?: string, driftThreshold?: number): Promise<DubQCResponse> {
+  const qs = new URLSearchParams();
+  if (lang) qs.set('lang', lang);
+  if (driftThreshold != null) qs.set('drift_threshold', String(driftThreshold));
+  const suffix = qs.toString() ? `?${qs}` : '';
+  return apiPost<DubQCResponse>(`/dub/qc/${jobId}${suffix}`);
+}

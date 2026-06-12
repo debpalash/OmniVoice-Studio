@@ -6,7 +6,7 @@ import { useAppStore } from '../store';
 import { useTranslation } from 'react-i18next';
 import './CaptureWidget.css';
 
-import { API as API_BASE } from '../api/client';
+import { wsUrl as buildWsUrl, apiFetch } from '../api/client';
 import { addTranscription } from '../pages/Transcriptions';
 import { micErrorMessage } from '../utils/micError';
 
@@ -110,7 +110,11 @@ export default function CaptureWidget({ onDismiss }) {
 
   // Apply transcription result → auto-paste → auto-dismiss
   const applyResult = useCallback(async (data) => {
-    setTranscript(data.text || '');
+    // Wave 2.1: the backend may attach an LLM-refined version of the final
+    // text (filler words removed, self-corrections applied). Paste/show the
+    // refined text when present; the raw text is kept in history alongside.
+    const finalText = data.refined_text || data.text || '';
+    setTranscript(finalText);
     setLastEngine(data.engine || '');
     setLastTime(data.transcription_time_s || 0);
     setState('done');
@@ -119,16 +123,16 @@ export default function CaptureWidget({ onDismiss }) {
       addTranscription(data);
     }
 
-    if (data.text) {
+    if (finalText) {
       try {
         // Best-effort WebView copy (works in browser mode). In Tauri the
         // widget window is unfocused on macOS, where WebView clipboard APIs
         // fail silently — so pass the transcript to simulate_paste, which
         // writes the clipboard natively (OS-side) before sending ⌘V (#287).
-        await copyText(data.text);
+        await copyText(finalText);
         try {
           const { invoke } = await import('@tauri-apps/api/core');
-          await invoke('simulate_paste', { text: data.text });
+          await invoke('simulate_paste', { text: finalText });
         } catch { /* not in Tauri */ }
       } catch { /* clipboard API may fail */ }
 
@@ -178,11 +182,9 @@ export default function CaptureWidget({ onDismiss }) {
 
       // Open WebSocket BEFORE starting recorder
       try {
-        const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const wsHost = API_BASE.replace(/^https?:\/\//, '').replace(/\/$/, '')
-          || `${window.location.hostname}:3900`;
-        const wsUrl = `${wsProto}://${wsHost}/ws/transcribe`;
-        const ws = new WebSocket(wsUrl);
+        // Scheme + host + remote api key all derive from the API base
+        // (Wave 2.3) — window.location lies inside the Tauri webview.
+        const ws = new WebSocket(buildWsUrl('/ws/transcribe'));
         ws.binaryType = 'arraybuffer';
         ws.onopen = () => {
           for (const buf of wsPendingRef.current) {
@@ -309,14 +311,12 @@ export default function CaptureWidget({ onDismiss }) {
     formData.append('mode', captureMode);
 
     try {
-      const res = await fetch(`${API_BASE}/transcribe`, {
+      // apiFetch attaches the PIN / remote API key headers (Wave 2.3)
+      // and throws on non-2xx with the server's detail message.
+      const res = await apiFetch('/transcribe', {
         method: 'POST',
         body: formData,
       });
-      if (!res.ok) {
-        const detail = await res.json().catch(() => ({}));
-        throw new Error(detail.detail || `HTTP ${res.status}`);
-      }
       const data = await res.json();
       if (wsHadFinalRef.current) return;
       await applyResult(data);

@@ -49,6 +49,10 @@ _BASE_SCHEMA = """
         personality TEXT DEFAULT '',
         description TEXT DEFAULT '',
         is_demo INTEGER DEFAULT 0,
+        verified_own_voice INTEGER DEFAULT 0,
+        consent_text TEXT DEFAULT '',
+        consent_audio_path TEXT DEFAULT '',
+        consent_recorded_at REAL DEFAULT NULL,
         created_at REAL
     );
     CREATE TABLE IF NOT EXISTS generation_history (
@@ -137,6 +141,19 @@ _BASE_SCHEMA = """
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
         updated_at REAL NOT NULL
+    );
+
+    -- Wave 2.2: per-agent MCP voice bindings. An MCP client (Claude Code,
+    -- Cursor, …) identified by the X-OmniVoice-Client-Id header it sends is
+    -- bound to a default voice profile / engine. Fresh installs create it
+    -- here; v0.3.x upgrades get it via alembic 0004.
+    CREATE TABLE IF NOT EXISTS mcp_client_bindings (
+        client_id TEXT PRIMARY KEY,
+        label TEXT NOT NULL DEFAULT '',
+        profile_id TEXT,
+        default_engine TEXT,
+        last_seen_at REAL,
+        created_at REAL
     );
 """
 

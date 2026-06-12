@@ -1,0 +1,55 @@
+# LLM-judge evals — semantic quality suites, NEVER a gate.
+#
+# Hard rule (parity program Wave 0.3 / competitive-analysis Spec 9b): LLM
+# judges never gate CI. This workflow is scheduled + manual only, the eval
+# step is continue-on-error, and the JSON report is the deliverable
+# (uploaded as an artifact). Deterministic probe judges in ci.yml remain
+# the only gates.
+#
+# On the hosted runner there is no local LLM endpoint, so the run usually
+# reports "skipped — no LLM backend configured"; the workflow exists so the
+# suites run anywhere a TRANSLATE_BASE_URL secret/endpoint is provided
+# (e.g. a self-hosted runner with Ollama).
+
+name: evals
+
+on:
+  schedule:
+    # Weekly, Sundays 04:00 UTC.
+    - cron: "0 4 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evals:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install deps
+        run: uv sync
+
+      - name: Run eval suites (non-gating)
+        continue-on-error: true
+        env:
+          TRANSLATE_BASE_URL: ${{ secrets.EVALS_LLM_BASE_URL }}
+          TRANSLATE_API_KEY: ${{ secrets.EVALS_LLM_API_KEY }}
+        run: uv run python tests/evals/run_evals.py --output eval-report.json
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: eval-report.json
+          if-no-files-found: warn

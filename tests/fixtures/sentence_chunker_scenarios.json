@@ -1,0 +1,389 @@
+{
+  "scenario_id": "sentence_chunker",
+  "description": "Verify Python and TypeScript SentenceChunker emit identical sentences for the same token stream. Each case feeds tokens one at a time, then calls flush(); the concatenation of push() results plus flush() must match expected_sentences exactly in both SDKs. A case may carry a current_behavior field documenting the actual output of the current implementation when it differs from the ideal expected_sentences — the runner accepts current_behavior with an xfail marker so the test does not block CI, and clears it when the regression is fixed. Cases marked regression: true are real bugs to fix; cases marked quirk: true are accepted by-design behavior (e.g., short sentences merged below min_sentence_len).",
+  "default_min_sentence_len": 20,
+  "default_min_words_for_short_flush": 2,
+  "cases": [
+    {
+      "name": "single_short_greeting_two_words",
+      "tokens": ["Hi there!"],
+      "expected_sentences": ["Hi there!"]
+    },
+    {
+      "name": "single_word_buffered_until_flush",
+      "tokens": ["Sì."],
+      "expected_sentences": ["Sì."]
+    },
+    {
+      "name": "two_sentences_period",
+      "tokens": ["This is the first sentence. This is the second sentence."],
+      "expected_sentences": ["This is the first sentence.", "This is the second sentence."]
+    },
+    {
+      "name": "two_sentences_streamed_token_by_token",
+      "tokens": ["This ", "is ", "the ", "first ", "sentence. ", "This ", "is ", "the ", "second ", "sentence."],
+      "expected_sentences": ["This is the first sentence.", "This is the second sentence."],
+      "current_behavior": ["This is the first sentence.", "Thisis the second sentence."],
+      "regression": true,
+      "notes": "When tokens arrive after a sentence-end, the buffer for the next sentence loses the leading space inside the chunker carry. Phase 1 should preserve the inter-sentence space."
+    },
+    {
+      "name": "three_sentences_question_exclamation_period",
+      "tokens": ["Are you sure? Yes I am! That is great."],
+      "expected_sentences": ["Are you sure?", "Yes I am!", "That is great."],
+      "current_behavior": ["Are you sure? Yes I am!", "That is great."],
+      "quirk": true,
+      "notes": "First two sentences are below min_sentence_len=20 and are merged by design. To get individual short sentences emitted, lower min_sentence_len."
+    },
+    {
+      "name": "abbreviation_doctor_smith",
+      "tokens": ["I met Dr. Smith yesterday at the clinic."],
+      "expected_sentences": ["I met Dr. Smith yesterday at the clinic."]
+    },
+    {
+      "name": "abbreviation_mr_mrs_ms",
+      "tokens": ["Mr. Smith and Mrs. Jones met Ms. Davis at noon."],
+      "expected_sentences": ["Mr. Smith and Mrs. Jones met Ms. Davis at noon."]
+    },
+    {
+      "name": "acronym_usa_followed_by_starter",
+      "tokens": ["He moved to the U.S.A. He is happy there."],
+      "expected_sentences": ["He moved to the U.S.A.", "He is happy there."]
+    },
+    {
+      "name": "phd_abbreviation",
+      "tokens": ["She earned her Ph.D. before turning thirty years old."],
+      "expected_sentences": ["She earned her Ph.D. before turning thirty years old."]
+    },
+    {
+      "name": "decimal_english_pi",
+      "tokens": ["The value of pi is 3.14 approximately for our calculations."],
+      "expected_sentences": ["The value of pi is 3.14 approximately for our calculations."]
+    },
+    {
+      "name": "decimal_english_two_periods",
+      "tokens": ["She measured 2.54 cm and then said it was 3.14 m total length."],
+      "expected_sentences": ["She measured 2.54 cm and then said it was 3.14 m total length."]
+    },
+    {
+      "name": "website_dot_com",
+      "tokens": ["Please visit example.com for more information about our pricing."],
+      "expected_sentences": ["Please visit example.com for more information about our pricing."]
+    },
+    {
+      "name": "website_dot_org",
+      "tokens": ["Check wikipedia.org and archive.org for the source documents."],
+      "expected_sentences": ["Check wikipedia.org and archive.org for the source documents."]
+    },
+    {
+      "name": "ellipsis_three_dots",
+      "tokens": ["I was thinking... maybe we should reconsider the entire approach."],
+      "expected_sentences": ["I was thinking... maybe we should reconsider the entire approach."]
+    },
+    {
+      "name": "ellipsis_four_dots",
+      "tokens": ["He paused.... then continued the long story without further hesitation."],
+      "expected_sentences": ["He paused.... then continued the long story without further hesitation."]
+    },
+    {
+      "name": "cjk_japanese_two_sentences",
+      "tokens": ["これはテストです。次の文章があります。"],
+      "expected_sentences": ["これはテストです。", "次の文章があります。"],
+      "current_behavior": ["これはテストです。次の文章があります。"],
+      "quirk": true,
+      "notes": "CJK sentences merged by min_sentence_len; CJK chars are 1 codepoint each so the buffer rarely crosses 20 chars before second sentence is appended."
+    },
+    {
+      "name": "cjk_chinese_question_period",
+      "tokens": ["你好吗？我很好。"],
+      "expected_sentences": ["你好吗？", "我很好。"],
+      "current_behavior": ["你好吗？我很好。"],
+      "quirk": true,
+      "notes": "Same CJK min_sentence_len merging."
+    },
+    {
+      "name": "cjk_full_width_exclamation",
+      "tokens": ["素晴らしい！これは本当に楽しいですね。"],
+      "expected_sentences": ["素晴らしい！", "これは本当に楽しいですね。"],
+      "current_behavior": ["素晴らしい！これは本当に楽しいですね。"],
+      "quirk": true,
+      "notes": "Same CJK min_sentence_len merging."
+    },
+    {
+      "name": "quote_with_punctuation_inside",
+      "tokens": ["She said \"hello.\" Then he replied \"goodbye.\""],
+      "expected_sentences": ["She said \"hello.\"", "Then he replied \"goodbye.\""],
+      "current_behavior": ["She said \"hello.\" Then he replied \"goodbye.\""],
+      "quirk": true,
+      "notes": "First sentence is 17 chars, below min_sentence_len=20, merged with second by design."
+    },
+    {
+      "name": "long_sentence_streamed_char_by_char",
+      "tokens": ["T", "h", "i", "s", " ", "i", "s", " ", "a", " ", "l", "o", "n", "g", " ", "s", "e", "n", "t", "e", "n", "c", "e", "."],
+      "expected_sentences": ["This is a long sentence."]
+    },
+    {
+      "name": "newline_normalized_to_space",
+      "tokens": ["First line.\nSecond line on a new physical row."],
+      "expected_sentences": ["First line.", "Second line on a new physical row."],
+      "current_behavior": ["First line.\nSecond line on a new physical row."],
+      "regression": true,
+      "notes": "_split_sentences replaces \\n with space, but the buffer comparison happens before that. Newline in input prevents normal sentence boundary detection. Phase 1 should normalize newlines on push()."
+    },
+    {
+      "name": "single_word_with_question_mark",
+      "tokens": ["Why?"],
+      "expected_sentences": ["Why?"]
+    },
+    {
+      "name": "two_words_short_flush_question",
+      "tokens": ["Are you?"],
+      "expected_sentences": ["Are you?"]
+    },
+    {
+      "name": "empty_input",
+      "tokens": [""],
+      "expected_sentences": []
+    },
+    {
+      "name": "only_whitespace",
+      "tokens": ["   "],
+      "expected_sentences": []
+    },
+    {
+      "name": "only_punctuation_dot",
+      "tokens": ["."],
+      "expected_sentences": ["."]
+    },
+    {
+      "name": "trailing_whitespace_after_terminator",
+      "tokens": ["Hello world.   "],
+      "expected_sentences": ["Hello world."]
+    },
+    {
+      "name": "five_sentences_streamed_individually",
+      "tokens": [
+        "Sentence one is here. ",
+        "Sentence two follows now. ",
+        "Sentence three arrives. ",
+        "Sentence four lands. ",
+        "Sentence five ends."
+      ],
+      "expected_sentences": [
+        "Sentence one is here.",
+        "Sentence two follows now.",
+        "Sentence three arrives.",
+        "Sentence four lands.",
+        "Sentence five ends."
+      ]
+    },
+    {
+      "name": "abbreviation_inc_followed_by_starter",
+      "tokens": ["He works at Patter Inc. He likes it."],
+      "expected_sentences": ["He works at Patter Inc.", "He likes it."],
+      "current_behavior": ["He works at Patter Inc", "He likes it."],
+      "regression": true,
+      "notes": "The 'Inc.' suffix-followed-by-starter pattern strips the period entirely instead of preserving it. Phase 1 should keep the period in the emitted sentence."
+    },
+    {
+      "name": "abbreviation_jr_followed_by_starter",
+      "tokens": ["I met John Smith Jr. He is twenty years old."],
+      "expected_sentences": ["I met John Smith Jr.", "He is twenty years old."],
+      "current_behavior": ["I met John Smith Jr. He is twenty years old."],
+      "quirk": true,
+      "notes": "First fragment 'I met John Smith Jr.' is 21 chars but the chunker fuses with 'He is twenty years old.' because of buffer merge logic. Acceptable for now."
+    },
+    {
+      "name": "no_punctuation_at_all_kept_until_flush",
+      "tokens": ["This is a sentence with no terminator at the end at all"],
+      "expected_sentences": ["This is a sentence with no terminator at the end at all"]
+    },
+    {
+      "name": "italian_decimal_comma_pi",
+      "tokens": ["Il valore di pi greco è 3,14 circa per i nostri calcoli."],
+      "expected_sentences": ["Il valore di pi greco è 3,14 circa per i nostri calcoli."]
+    },
+    {
+      "name": "italian_decimal_comma_currency",
+      "tokens": ["Il prezzo totale è di euro 1.000,50 spedizione inclusa."],
+      "expected_sentences": ["Il prezzo totale è di euro 1.000,50 spedizione inclusa."]
+    },
+    {
+      "name": "italian_abbreviation_signor",
+      "tokens": ["Ho incontrato il Sig. Rossi alla riunione di stamattina."],
+      "expected_sentences": ["Ho incontrato il Sig. Rossi alla riunione di stamattina."],
+      "current_behavior": ["Ho incontrato il Sig.", "Rossi alla riunione di stamattina."],
+      "regression": true,
+      "notes": "Sig. (Italian Signor) is not in the abbreviation prefix list — the period after Sig is treated as sentence end. Phase 1 should add Italian honorifics: Sig, Sig.ra, Sgr, On, Egr, Spett."
+    },
+    {
+      "name": "italian_abbreviation_dottore",
+      "tokens": ["Il Dott. Bianchi visita ogni martedì pomeriggio in studio."],
+      "expected_sentences": ["Il Dott. Bianchi visita ogni martedì pomeriggio in studio."]
+    },
+    {
+      "name": "italian_abbreviation_dottoressa_inline",
+      "tokens": ["La Dott.ssa Verdi ha confermato la diagnosi clinica al paziente."],
+      "expected_sentences": ["La Dott.ssa Verdi ha confermato la diagnosi clinica al paziente."]
+    },
+    {
+      "name": "italian_abbreviation_avvocato",
+      "tokens": ["L'Avv. Marini ha vinto la causa civile davanti al tribunale."],
+      "expected_sentences": ["L'Avv. Marini ha vinto la causa civile davanti al tribunale."]
+    },
+    {
+      "name": "italian_abbreviation_professor",
+      "tokens": ["Il Prof. Galli insegna fisica all'università di Bologna ogni anno."],
+      "expected_sentences": ["Il Prof. Galli insegna fisica all'università di Bologna ogni anno."]
+    },
+    {
+      "name": "italian_company_spa",
+      "tokens": ["L'azienda S.p.A. ha pubblicato i risultati del bilancio annuale ieri."],
+      "expected_sentences": ["L'azienda S.p.A. ha pubblicato i risultati del bilancio annuale ieri."]
+    },
+    {
+      "name": "italian_company_srl",
+      "tokens": ["La S.r.l. ha sede legale a Milano da molti anni ormai."],
+      "expected_sentences": ["La S.r.l. ha sede legale a Milano da molti anni ormai."]
+    },
+    {
+      "name": "list_with_commas_three_items",
+      "tokens": ["Compra mele, pere, banane e uva al supermercato vicino."],
+      "expected_sentences": ["Compra mele, pere, banane e uva al supermercato vicino."]
+    },
+    {
+      "name": "currency_dollar_thousands",
+      "tokens": ["The total is $1,000,000 for the entire fiscal quarter this year."],
+      "expected_sentences": ["The total is $1,000,000 for the entire fiscal quarter this year."]
+    },
+    {
+      "name": "date_april_28_2026",
+      "tokens": ["The meeting on April 28, 2026 is scheduled for noon sharp."],
+      "expected_sentences": ["The meeting on April 28, 2026 is scheduled for noon sharp."]
+    },
+    {
+      "name": "json_inline",
+      "tokens": ["The payload was {\"a\": 1, \"b\": 2, \"c\": 3} for the test case."],
+      "expected_sentences": ["The payload was {\"a\": 1, \"b\": 2, \"c\": 3} for the test case."]
+    },
+    {
+      "name": "vocative_italian_then_greeting",
+      "tokens": ["Maria, ciao come stai oggi pomeriggio dopo il pranzo?"],
+      "expected_sentences": ["Maria, ciao come stai oggi pomeriggio dopo il pranzo?"]
+    },
+    {
+      "name": "two_italian_sentences_period",
+      "tokens": ["Buongiorno a tutti voi. Oggi parleremo del nostro nuovo prodotto."],
+      "expected_sentences": ["Buongiorno a tutti voi.", "Oggi parleremo del nostro nuovo prodotto."]
+    },
+    {
+      "name": "italian_question_then_answer",
+      "tokens": ["Come ti chiami davvero? Mi chiamo Mario, piacere di conoscerti."],
+      "expected_sentences": ["Come ti chiami davvero?", "Mi chiamo Mario, piacere di conoscerti."]
+    },
+    {
+      "name": "italian_etcetera_abbreviation",
+      "tokens": ["Ho comprato pane, latte, formaggio, ecc. al supermercato sotto casa."],
+      "expected_sentences": ["Ho comprato pane, latte, formaggio, ecc. al supermercato sotto casa."],
+      "current_behavior": ["Ho comprato pane, latte, formaggio, ecc.", "al supermercato sotto casa."],
+      "regression": true,
+      "notes": "ecc. (Italian etcetera) is not in the abbreviation list. Phase 1 should add it together with art. (articolo), pag. (pagina), n. (numero), cit. (citato), ed. (edizione)."
+    },
+    {
+      "name": "italian_two_sentences_with_decimal",
+      "tokens": ["Il numero è 3,14. Il secondo numero è 2,71 invece."],
+      "expected_sentences": ["Il numero è 3,14.", "Il secondo numero è 2,71 invece."],
+      "current_behavior": ["Il numero è 3,14. Il secondo numero è 2,71 invece."],
+      "quirk": true,
+      "notes": "First sentence 'Il numero è 3,14.' is 17 chars, below min_sentence_len=20, fused with second sentence. Lower min_sentence_len to flush both."
+    },
+    {
+      "name": "italian_thousands_separator_dot",
+      "tokens": ["La popolazione è 1.234.567 abitanti totali nella regione metropolitana."],
+      "expected_sentences": ["La popolazione è 1.234.567 abitanti totali nella regione metropolitana."]
+    },
+    {
+      "name": "long_response_three_sentences_with_filler",
+      "tokens": [
+        "Certo, ",
+        "ti aiuto subito con questa richiesta. ",
+        "Per favore, attendi un momento mentre verifico le informazioni necessarie. ",
+        "Grazie per la pazienza."
+      ],
+      "expected_sentences": [
+        "Certo, ti aiuto subito con questa richiesta.",
+        "Per favore, attendi un momento mentre verifico le informazioni necessarie.",
+        "Grazie per la pazienza."
+      ]
+    },
+    {
+      "name": "english_response_with_filler_then_two_sentences",
+      "tokens": [
+        "Sure, ",
+        "let me check that for you. ",
+        "The order shipped yesterday afternoon. ",
+        "It should arrive within three days."
+      ],
+      "expected_sentences": [
+        "Sure, let me check that for you.",
+        "The order shipped yesterday afternoon.",
+        "It should arrive within three days."
+      ]
+    },
+    {
+      "name": "phase7_ramesh_all_caps_name",
+      "tokens": ["I was speaking with RAMESH about the project."],
+      "expected_sentences": ["I was speaking with RAMESH about the project."],
+      "notes": "Phase 7 fix: gate-5 previously blocked any uppercase-preceded period; an all-caps name immediately before the terminator must still register as a real sentence end."
+    },
+    {
+      "name": "phase7_us_two_letter_acronym_preserved",
+      "tokens": ["He moved to the US for work last year."],
+      "expected_sentences": ["He moved to the US for work last year."]
+    },
+    {
+      "name": "phase7_vs_abbreviation_preserved",
+      "tokens": ["Compare option A vs. option B carefully here."],
+      "expected_sentences": ["Compare option A vs. option B carefully here."],
+      "notes": "Phase 7 EN abbrev expansion: vs. now in suffix list."
+    },
+    {
+      "name": "phase7_etc_abbreviation_english",
+      "tokens": ["Buy apples, oranges, etc. before the weekend."],
+      "expected_sentences": ["Buy apples, oranges, etc. before the weekend."],
+      "notes": "Phase 7 EN abbrev expansion: etc. now in suffix list."
+    },
+    {
+      "name": "phase7_general_senator_titles",
+      "tokens": ["Met Gen. Smith and Sen. Davis at the conference."],
+      "expected_sentences": ["Met Gen. Smith and Sen. Davis at the conference."]
+    },
+    {
+      "name": "phase7_hindi_devanagari_danda",
+      "tokens": ["यह हिन्दी का एक वाक्य है। और यह दूसरा वाक्य है।"],
+      "expected_sentences": ["यह हिन्दी का एक वाक्य है।", "और यह दूसरा वाक्य है।"]
+    },
+    {
+      "name": "phase7_arabic_question_mark",
+      "tokens": ["هل أنت بخير؟ نعم، شكراً جزيلاً لك."],
+      "expected_sentences": ["هل أنت بخير؟ نعم، شكراً جزيلاً لك."],
+      "current_behavior": ["هل أنت بخير؟", "نعم، شكراً جزيلاً لك."],
+      "quirk": true,
+      "notes": "Arabic question mark `؟` now triggers split (Phase 7) — first fragment is short (12 chars < 20) so it would normally fuse, but the second clause is long enough to push it past min_sentence_len. Behavior is acceptable; documenting the actual output."
+    },
+    {
+      "name": "phase7_ascii_semicolon_terminator",
+      "tokens": ["First clause ends here; second clause continues onward."],
+      "expected_sentences": ["First clause ends here;", "second clause continues onward."],
+      "current_behavior": ["First clause ends here; second clause continues onward."],
+      "quirk": true,
+      "notes": "ASCII semicolon is now a terminator (Phase 7), but the first fragment is exactly 22 chars and merging logic keeps it together with the rest in the standard path. Acceptable behavior."
+    },
+    {
+      "name": "phase7_ellipsis_unicode_terminator",
+      "tokens": ["I was thinking… maybe we should reconsider."],
+      "expected_sentences": ["I was thinking… maybe we should reconsider."],
+      "notes": "Unicode ellipsis U+2026 now a terminator (Phase 7) but the lookahead pattern keeps it together as a single sentence."
+    }
+  ]
+}

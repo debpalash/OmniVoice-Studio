@@ -31,10 +31,14 @@ import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
 import { Tabs, Segmented, Button, Badge, Table, Progress, Select } from '../ui';
 import { useAppStore } from '../store';
 import ApiKeysPanel from '../components/settings/ApiKeysPanel';
+import LLMEndpointPanel from '../components/settings/LLMEndpointPanel';
 import PerformancePanel from '../components/settings/PerformancePanel';
+import RefinementPanel from '../components/settings/RefinementPanel';
 import AppearancePanel from '../components/settings/AppearancePanel';
 import StoragePanel from '../components/settings/StoragePanel';
 import SharingPanel from '../components/settings/SharingPanel';
+import RemoteBackendPanel from '../components/settings/RemoteBackendPanel';
+import MCPBindingsPanel from '../components/settings/MCPBindingsPanel';
 import EngineCompatibilityMatrix from '../components/EngineCompatibilityMatrix';
 import DictationDemo from '../components/DictationDemo';
 import ReportBugButton from '../components/ReportBugButton';
@@ -1326,10 +1330,17 @@ export default function Settings() {
         <>
           <DictationDemo />
           <HotkeyTab />
+          <RefinementPanel />
         </>
       )}
 
-      {activeTab === 'sharing' && <SharingPanel />}
+      {activeTab === 'sharing' && (
+        <>
+          <SharingPanel />
+          <RemoteBackendPanel />
+          <MCPBindingsPanel />
+        </>
+      )}
 
       {activeTab === 'appearance' && <AppearancePanel />}
 
@@ -1792,6 +1803,9 @@ function CredentialsTab({ info }) {
       {/* Wave 2 AUTH-03 panel — 3-source cascade with Active badge,
           encrypted-at-rest App-source storage, and live whoami status. */}
       <ApiKeysPanel />
+
+      {/* Wave 2.4 — OpenAI-compatible LLM endpoint (Ollama/LM Studio/vLLM). */}
+      <LLMEndpointPanel />
 
       <p className="settings-prose">
         <Trans i18nKey="credentials.desc" components={{ 1: <strong /> }} />

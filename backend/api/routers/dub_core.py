@@ -367,7 +367,11 @@ _prep_event_helper = dub_pipeline.prep_event  # alias; we keep the module-local 
 
 
 @router.get("/dub/transcribe-stream/{job_id}")
-async def dub_transcribe_stream(job_id: str, num_speakers: Optional[int] = None):
+async def dub_transcribe_stream(
+    job_id: str,
+    num_speakers: Optional[int] = None,
+    per_segment_refs: bool = True,
+):
     """Stream per-chunk segments via SSE, then emit diarized final pass.
 
     Pre-flight checks (missing job, missing audio, ASR not loaded) are emitted
@@ -769,12 +773,41 @@ async def dub_transcribe_stream(job_id: str, num_speakers: Optional[int] = None)
                     clones = done.pop().result()
                     break
                 yield _sse_event("ping", {})
-            if clones:
-                job["speaker_clones"] = clones
-                # Default each segment's profile_id to its speaker's auto-clone,
-                # but only if the user hasn't already assigned something.
+            # Wave 3.2: per-segment clone refs. Cut each long-enough segment's
+            # own reference from the vocals so the dub of each line matches the
+            # prosody of its source line. Short lines fall back to the
+            # per-speaker clone below. Default on; the user can force
+            # per-speaker by disabling it (job["per_segment_refs"]).
+            seg_clones = {}
+            job["per_segment_refs"] = per_segment_refs
+            if per_segment_refs:
+                try:
+                    from services.speaker_clone import extract_segment_refs
+                    seg_ids_for_clone = [s.get("id", i) for i, s in enumerate(final_segs)]
+                    seg_clones = await loop.run_in_executor(
+                        _cpu_pool, lambda: extract_segment_refs(
+                            vocals_for_clone, final_segs,
+                            os.path.dirname(vocals_for_clone),
+                            seg_ids=seg_ids_for_clone,
+                        ),
+                    )
+                    if seg_clones:
+                        job["segment_clones"] = seg_clones
+                except Exception as e:
+                    logger.warning("per-segment clone refs skipped: %s", e)
+
+            if clones or seg_clones:
+                if clones:
+                    job["speaker_clones"] = clones
+                # Default each segment's profile_id to its own per-segment ref
+                # when available, else its speaker's auto-clone — but only if
+                # the user hasn't already assigned something.
                 for s in final_segs:
                     if s.get("profile_id"):
+                        continue
+                    sid = str(s.get("id", ""))
+                    if sid and sid in seg_clones:
+                        s["profile_id"] = f"auto-seg:{sid}"
                         continue
                     spk = s.get("speaker_id") or "Speaker 1"
                     if spk in clones:

@@ -1,0 +1,97 @@
+# Docs drift — daily inventory-vs-docs check with a single rolling issue.
+#
+# docs/features.yaml is the canonical inventory; scripts/check-docs-drift.py
+# diffs it against README.md, docs/, and the engine registries. On drift the
+# job updates (or creates) ONE issue labeled `docs-drift` in place — no issue
+# spam — and closes it automatically when the check is clean again.
+#
+# Companion to the PR-gating validate-install-docs.py step in ci.yml.
+# Spec: docs/competitive-analysis.md Spec 9a / parity program Wave 0.1.
+# Rolling-issue pattern adapted from Patter (MIT).
+
+name: docs-drift
+
+on:
+  schedule:
+    # Daily 03:30 UTC — after most merges, before EU morning triage.
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install checker deps
+        run: pip install "pyyaml>=6"
+
+      - name: Check inventory vs README/docs/registries
+        id: drift
+        continue-on-error: true
+        run: python scripts/check-docs-drift.py --output drift-report.md
+
+      - name: Update rolling docs-drift issue
+        uses: actions/github-script@v7
+        env:
+          DRIFT_OUTCOME: ${{ steps.drift.outcome }}
+        with:
+          script: |
+            const fs = require('fs');
+            const drifted = process.env.DRIFT_OUTCOME === 'failure';
+            const { owner, repo } = context.repo;
+            const label = 'docs-drift';
+
+            const open = await github.rest.issues.listForRepo({
+              owner, repo, state: 'open', labels: label, per_page: 5,
+            });
+
+            if (drifted) {
+              let body = '';
+              try {
+                body = fs.readFileSync('drift-report.md', 'utf8');
+              } catch {
+                body = '# Docs drift report\n\nThe checker failed before writing a report — see the workflow run logs.';
+              }
+              body += `\n\n---\n_Last checked by [run ${context.runId}](https://github.com/${owner}/${repo}/actions/runs/${context.runId})._\n`;
+
+              if (open.data.length > 0) {
+                await github.rest.issues.update({
+                  owner, repo, issue_number: open.data[0].number, body,
+                });
+                core.info(`Updated rolling issue #${open.data[0].number}`);
+              } else {
+                const created = await github.rest.issues.create({
+                  owner, repo,
+                  title: 'docs-drift: feature inventory vs docs mismatch',
+                  body,
+                  labels: [label, 'documentation'],
+                });
+                core.info(`Created rolling issue #${created.data.number}`);
+              }
+            } else {
+              for (const issue of open.data) {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: issue.number,
+                  body: 'Drift resolved — nightly check is clean again. Closing automatically.',
+                });
+                await github.rest.issues.update({
+                  owner, repo, issue_number: issue.number, state: 'closed',
+                });
+                core.info(`Closed rolling issue #${issue.number}`);
+              }
+            }
+
+      - name: Surface drift as a failed run
+        if: steps.drift.outcome == 'failure'
+        run: |
+          echo "Docs drift detected — see the rolling docs-drift issue."
+          exit 1

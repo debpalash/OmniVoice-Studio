@@ -9,19 +9,31 @@
 //     that same origin — NOT a hardcoded :3900, which is cross-origin (CORS)
 //     and loopback-only/unreachable from another machine.
 const viteEnv = import.meta.env ?? {};
+// Remote-backend settings (Wave 2.3): user-configured in Settings → Sharing.
+// localStorage so the choice survives restarts; read once at module load —
+// the Settings panel reloads the app on save.
+export const LS_BACKEND_URL = 'ov_backend_url';
+export const LS_API_KEY = 'ov_api_key';
 // Pure + exported for unit testing — takes env + window so tests don't need to
 // re-import the module or stub import.meta.env.
 export function _resolveApiBase(env: any, win: any): string {
   const port = env?.VITE_API_PORT || '3900';
   // Explicit override, in precedence order:
-  //   1. window.__OMNIVOICE_API_BASE__ — RUNTIME global the backend injects
+  //   1. localStorage ov_backend_url — the user's explicit "Remote backend"
+  //      setting (Wave 2.3). Beats everything: it's the one override a
+  //      desktop user sets on purpose, per machine.
+  //   2. window.__OMNIVOICE_API_BASE__ — RUNTIME global the backend injects
   //      into index.html from OMNIVOICE_PUBLIC_API_BASE. The only override that
   //      works on a prebuilt Docker image (VITE_* is inlined at build time).
-  //   2. VITE_OMNIVOICE_API — the build-time var documented for Docker/proxy
+  //   3. VITE_OMNIVOICE_API — the build-time var documented for Docker/proxy
   //      deploys and used by utils/apiBase.ts.
-  //   3. VITE_API_URL — legacy alias.
+  //   4. VITE_API_URL — legacy alias.
+  let stored = '';
+  try {
+    stored = (win && win.localStorage && win.localStorage.getItem(LS_BACKEND_URL)) || '';
+  } catch { /* storage unavailable (privacy mode) */ }
   const runtime = win && typeof win.__OMNIVOICE_API_BASE__ === 'string' ? win.__OMNIVOICE_API_BASE__ : '';
-  const override = runtime || env?.VITE_OMNIVOICE_API || env?.VITE_API_URL;
+  const override = stored || runtime || env?.VITE_OMNIVOICE_API || env?.VITE_API_URL;
   if (override) return String(override).replace(/\/+$/, '');
   if (!win) return `http://127.0.0.1:${port}`;
   if (win.__TAURI__ || win.__TAURI_INTERNALS__) return `http://127.0.0.1:${port}`;
@@ -29,6 +41,27 @@ export function _resolveApiBase(env: any, win: any): string {
   return win.location.origin;
 }
 export const API = _resolveApiBase(viteEnv, typeof window !== 'undefined' ? window : undefined);
+
+function _apiKey(): string | null {
+  try {
+    return typeof localStorage !== 'undefined' ? localStorage.getItem(LS_API_KEY) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Build a ws:// or wss:// URL for a backend WebSocket endpoint.
+ *
+ * Scheme derives from the API base itself (NOT window.location — a Tauri
+ * webview pointing at an https remote must still get wss), and the remote
+ * API key rides as ?api_key= because browser WebSockets can't set headers. */
+export function wsUrl(path: string): string {
+  const base = API.replace(/^http/, 'ws').replace(/\/+$/, '');
+  const url = `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+  const key = _apiKey();
+  if (!key) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}api_key=${encodeURIComponent(key)}`;
+}
 
 // Capture a QR-supplied PIN once on load. When LAN sharing is on, the host's
 // QR code links to `http://<lan-ip>:<port>/?pin=<pin>`; stash it in
@@ -68,11 +101,15 @@ async function readError(res: Response): Promise<string> {
 
 export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Response> {
   const pin = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('ov_pin') : null;
-  // Only modify the request when a PIN is set, so the default call shape
-  // (e.g. FormData posts with no headers / no Content-Type override) is
-  // preserved exactly.
-  const finalOpts: RequestInit = pin
-    ? { ...opts, headers: { ...(opts.headers as Record<string, string> || {}), 'X-OmniVoice-Pin': pin } }
+  const key = _apiKey();
+  // Only modify the request when a PIN/API key is set, so the default call
+  // shape (e.g. FormData posts with no headers / no Content-Type override)
+  // is preserved exactly.
+  const extra: Record<string, string> = {};
+  if (pin) extra['X-OmniVoice-Pin'] = pin;
+  if (key) extra['Authorization'] = `Bearer ${key}`;
+  const finalOpts: RequestInit = Object.keys(extra).length
+    ? { ...opts, headers: { ...(opts.headers as Record<string, string> || {}), ...extra } }
     : opts;
   const res = await fetch(apiUrl(path), finalOpts);
   if (!res.ok) {
