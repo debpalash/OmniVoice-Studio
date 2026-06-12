@@ -74,7 +74,16 @@
     "shortcut_set": "تم ضبط اختصار الإملاء على {{shortcut}}",
     "shortcut_register_failed": "تعذر التسجيل: {{message}}",
     "shortcut_reset": "إعادة التعيين إلى الوضع الافتراضي",
-    "shortcut_reset_failed": "فشلت إعادة التعيين: {{message}}"
+    "shortcut_reset_failed": "فشلت إعادة التعيين: {{message}}",
+    "cancel": "إلغاء",
+    "hf_token_also_clear": "امسح أيضًا",
+    "hf_token_clear_btn": "مسح الرمز",
+    "hf_token_clear_confirm": "هل تريد مسح رمز HuggingFace المحفوظ من التطبيق؟",
+    "hf_token_clear_dialog": "مسح الرمز",
+    "hf_token_input": "رمز HuggingFace",
+    "hf_token_sources": "مصادر رمز HF",
+    "hf_token_test_now": "اختبر الآن",
+    "hf_token_test_now_title": "إعادة تشغيل whoami لكل مصدر"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -319,7 +328,11 @@
     "describe_placeholder": "مثال: a warm elderly British storyteller, slightly raspy",
     "describe_hint": "وصفك (بالإنجليزية) يضبط عناصر التحكم أدناه — ويمكنك تعديلها يدويًا لاحقًا.",
     "describe_unmatched": "تعذّر التعيين: {{items}}",
-    "describe_no_match": "لم يتم التعرف على سمات صوتية بعد — جرّب كلمات مثل deep أو elderly أو British."
+    "describe_no_match": "لم يتم التعرف على سمات صوتية بعد — جرّب كلمات مثل deep أو elderly أو British.",
+    "define_by_design": "بالتصميم",
+    "define_from_audio": "من الصوت",
+    "define_voice": "تحديد الصوت",
+    "save_design_as_profile": "حفظ التصميم كملف تعريف صوتي"
   },
   "about": {
     "app": "التطبيق",
@@ -692,7 +705,14 @@
     "dialect_title": "اللهجة الإقليمية والمفردات للترجمة (مثل الأرجنتين ← “vos sos” بدلاً من “tú eres”). تُطبَّق بواسطة محركات LLM ‏(OpenAI/Ollama) وجودة Cinematic.",
     "num_speakers_label": "المتحدثون",
     "num_speakers_auto": "تلقائي",
-    "num_speakers_help": "كم عدد المتحدثين في هذا الفيديو؟ اتركه فارغًا للاكتشاف التلقائي. حدّد رقمًا إذا دمج الاكتشاف التلقائي عدة متحدثين في متحدث واحد."
+    "num_speakers_help": "كم عدد المتحدثين في هذا الفيديو؟ اتركه فارغًا للاكتشاف التلقائي. حدّد رقمًا إذا دمج الاكتشاف التلقائي عدة متحدثين في متحدث واحد.",
+    "advanced": "متقدم",
+    "cinematic_needs_llm_hint": "تحتاج الجودة السينمائية إلى LLM. قم بتكوينه في الإعدادات → بيانات الاعتماد → نقطة نهاية LLM ‏(يعمل Ollama محليًا، دون الحاجة إلى مفتاح).",
+    "generate_dub_multi": "إنشاء {{count}} دبلجات",
+    "pipeline": "مسار الدبلجة",
+    "preview_language": "لغة المعاينة",
+    "target_language": "الدبلجة إلى",
+    "transcript_after_extract": "يظهر النص بعد الاستخراج."
   },
   "glossary": {
     "title": "مسرد",
@@ -955,7 +975,15 @@
     "save_failed": "لا يمكن حفظ الملف الشخصي.",
     "confirm_delete": "هل تريد حذف \"{{name}}\"؟",
     "trim_load_failed": "تعذر تحميل الصوت للاقتطاع.",
-    "delete": "حذف"
+    "delete": "حذف",
+    "community_empty": "لم يتم تحميل أصوات المجتمع بعد — اتصل بالإنترنت وأعد الفتح، أو كن أول من يرسل صوتًا.",
+    "community_explainer": "إعدادات مسبقة مصممة وأصوات مسجلة يشاركها المجتمع، تُحمَّل من omnivoice-gallery.",
+    "no_designer": "صوت مسجل — استخدم \"استخدم الصوت\" بدلًا من ذلك.",
+    "no_preview": "لا توجد معاينة — أضفه عبر \"استخدم الصوت\" لسماعه.",
+    "submit_failed": "تعذر فتح نموذج الإرسال.",
+    "submit_preset": "إرسال إعداد مسبق",
+    "submit_voice": "إرسال صوت",
+    "zone_community": "المجتمع"
   },
   "transcriptions": {
     "title": "النسخ",
@@ -1337,7 +1365,8 @@
     "dub_label": "يصفه",
     "save_label": "حفظ",
     "lock_identity": "قفل الهوية الصوتية",
-    "in_folder": "في {{folder}}"
+    "in_folder": "في {{folder}}",
+    "search": "بحث…"
   },
   "trimmer": {
     "title": "تقليم الصوت المرجعي",
@@ -1729,5 +1758,16 @@
     "hf_token_saving": "جارٍ الحفظ…",
     "hf_token_saved": "تم حفظ رمز Hugging Face",
     "hf_token_error": "تعذّر حفظ الرمز — أعد المحاولة أو عيّنه لاحقًا في الإعدادات → بيانات الاعتماد."
+  },
+  "history": {
+    "dub_title": "سجل الدبلجة",
+    "empty": "لا شيء هنا بعد — ستظهر مخرجاتك على اليمين.",
+    "empty_dub": "ستظهر دبلجاتك هنا.",
+    "title": "السجل"
+  },
+  "recording": {
+    "cleaned_loaded": "تم تنظيف التسجيل وتحميله!",
+    "loaded_raw": "تم تحميل التسجيل (خام — إزالة الضوضاء غير متاحة)",
+    "too_short": "التسجيل قصير جدًا"
   }
 }

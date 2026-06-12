@@ -74,7 +74,16 @@
     "shortcut_set": "Pintasan dikte disetel ke {{shortcut}}",
     "shortcut_register_failed": "Tidak dapat mendaftar: {{message}}",
     "shortcut_reset": "Atur ulang ke default",
-    "shortcut_reset_failed": "Penyetelan ulang gagal: {{message}}"
+    "shortcut_reset_failed": "Penyetelan ulang gagal: {{message}}",
+    "cancel": "Batalkan",
+    "hf_token_also_clear": "Hapus juga",
+    "hf_token_clear_btn": "Hapus token",
+    "hf_token_clear_confirm": "Hapus token HuggingFace dari sumber Aplikasi?",
+    "hf_token_clear_dialog": "Hapus token",
+    "hf_token_input": "Token HuggingFace",
+    "hf_token_sources": "Sumber token HF",
+    "hf_token_test_now": "Uji sekarang",
+    "hf_token_test_now_title": "Jalankan ulang whoami untuk setiap sumber"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -319,7 +328,11 @@
     "describe_placeholder": "mis. a warm elderly British storyteller, slightly raspy",
     "describe_hint": "Deskripsi Anda (dalam bahasa Inggris) mengatur kontrol di bawah — Anda tetap bisa menyetelnya setelahnya.",
     "describe_unmatched": "Tidak dapat dipetakan: {{items}}",
-    "describe_no_match": "Belum ada ciri suara yang dikenali — coba kata seperti deep, elderly, atau British."
+    "describe_no_match": "Belum ada ciri suara yang dikenali — coba kata seperti deep, elderly, atau British.",
+    "define_by_design": "Lewat desain",
+    "define_from_audio": "Dari audio",
+    "define_voice": "Tentukan suara",
+    "save_design_as_profile": "Simpan desain sebagai profil"
   },
   "about": {
     "app": "Aplikasi",
@@ -692,7 +705,14 @@
     "dialect_title": "Dialek regional dan kosakata untuk terjemahan (mis. Argentina → “vos sos” alih-alih “tú eres”). Diterapkan oleh mesin LLM (OpenAI/Ollama) dan kualitas Cinematic.",
     "num_speakers_label": "Pembicara",
     "num_speakers_auto": "Otomatis",
-    "num_speakers_help": "Berapa banyak pembicara dalam video ini? Biarkan kosong untuk deteksi otomatis. Tetapkan angka jika deteksi otomatis menggabungkan beberapa pembicara menjadi satu."
+    "num_speakers_help": "Berapa banyak pembicara dalam video ini? Biarkan kosong untuk deteksi otomatis. Tetapkan angka jika deteksi otomatis menggabungkan beberapa pembicara menjadi satu.",
+    "advanced": "Lanjutan",
+    "cinematic_needs_llm_hint": "Sinematik memerlukan LLM. Konfigurasikan di Pengaturan → Kredensial → titik akhir LLM (Ollama berjalan secara lokal, tanpa kunci).",
+    "generate_dub_multi": "Hasilkan {{count}} dub",
+    "pipeline": "Alur sulih suara",
+    "preview_language": "Bahasa pratinjau",
+    "target_language": "Sulih suara ke",
+    "transcript_after_extract": "Transkrip muncul setelah ekstraksi."
   },
   "glossary": {
     "title": "Glosarium",
@@ -955,7 +975,15 @@
     "save_failed": "Tidak dapat menyimpan profil.",
     "confirm_delete": "Hapus \"{{name}}\"?",
     "trim_load_failed": "Tidak dapat memuat audio untuk pemangkasan.",
-    "delete": "Hapus"
+    "delete": "Hapus",
+    "community_empty": "Belum ada suara komunitas yang dimuat — sambungkan ke internet lalu buka kembali, atau jadilah yang pertama mengirimkannya.",
+    "community_explainer": "Preset desain dan suara rekaman yang dibagikan komunitas, dimuat dari omnivoice-gallery.",
+    "no_designer": "Suara rekaman — gunakan \"Gunakan suara\" sebagai gantinya.",
+    "no_preview": "Tidak ada pratinjau — tambahkan dengan \"Gunakan suara\" untuk mendengarnya.",
+    "submit_failed": "Tidak dapat membuka formulir pengiriman.",
+    "submit_preset": "Kirim preset",
+    "submit_voice": "Kirim suara",
+    "zone_community": "Komunitas"
   },
   "transcriptions": {
     "title": "Transkripsi",
@@ -1337,7 +1365,8 @@
     "dub_label": "sulih suara",
     "save_label": "Simpan",
     "lock_identity": "Kunci identitas suara",
-    "in_folder": "di {{folder}}"
+    "in_folder": "di {{folder}}",
+    "search": "Cari…"
   },
   "trimmer": {
     "title": "Pangkas audio referensi",
@@ -1729,5 +1758,16 @@
     "hf_token_saving": "menyimpan…",
     "hf_token_saved": "Token Hugging Face tersimpan",
     "hf_token_error": "Gagal menyimpan token — coba lagi atau atur nanti di Pengaturan → Kredensial."
+  },
+  "history": {
+    "dub_title": "Riwayat sulih suara",
+    "empty": "Belum ada apa pun di sini — hasil generasi Anda akan muncul di sebelah kanan.",
+    "empty_dub": "Sulih suara Anda akan muncul di sini.",
+    "title": "Riwayat"
+  },
+  "recording": {
+    "cleaned_loaded": "Rekaman dibersihkan & dimuat!",
+    "loaded_raw": "Rekaman dimuat (mentah — penghilang derau tidak tersedia)",
+    "too_short": "Rekaman terlalu pendek"
   }
 }

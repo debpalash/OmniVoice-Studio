@@ -74,7 +74,16 @@
     "shortcut_set": "Diktatverknüpfung auf {{shortcut}} festgelegt",
     "shortcut_register_failed": "Konnte nicht registriert werden: {{message}}",
     "shortcut_reset": "Auf Standard zurücksetzen",
-    "shortcut_reset_failed": "Zurücksetzen fehlgeschlagen: {{message}}"
+    "shortcut_reset_failed": "Zurücksetzen fehlgeschlagen: {{message}}",
+    "cancel": "Abbrechen",
+    "hf_token_also_clear": "Ebenfalls löschen",
+    "hf_token_clear_btn": "Token löschen",
+    "hf_token_clear_confirm": "Das HuggingFace-Token aus der App-Quelle löschen?",
+    "hf_token_clear_dialog": "Token löschen",
+    "hf_token_input": "HuggingFace-Token",
+    "hf_token_sources": "HF-Token-Quellen",
+    "hf_token_test_now": "Jetzt testen",
+    "hf_token_test_now_title": "whoami für jede Quelle erneut ausführen"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -320,7 +329,11 @@
     "describe_placeholder": "z. B. a warm elderly British storyteller, slightly raspy",
     "describe_hint": "Deine Beschreibung (auf Englisch) stellt die Regler unten ein — du kannst sie danach weiter anpassen.",
     "describe_unmatched": "Nicht zuordenbar: {{items}}",
-    "describe_no_match": "Noch keine Stimmmerkmale erkannt — versuche Wörter wie deep, elderly oder British."
+    "describe_no_match": "Noch keine Stimmmerkmale erkannt — versuche Wörter wie deep, elderly oder British.",
+    "define_by_design": "Per Design",
+    "define_from_audio": "Aus Audio",
+    "define_voice": "Stimme definieren",
+    "save_design_as_profile": "Design als Profil speichern"
   },
   "about": {
     "app": "App",
@@ -693,7 +706,14 @@
     "dialect_title": "Regionaler Dialekt und Wortschatz für die Übersetzung (z. B. Argentinien → „vos sos“ statt „tú eres“). Wird von LLM-Engines (OpenAI/Ollama) und der Cinematic-Qualität angewendet.",
     "num_speakers_label": "Sprecher",
     "num_speakers_auto": "Automatisch",
-    "num_speakers_help": "Wie viele Sprecher sind in diesem Video? Leer lassen für automatische Erkennung. Eine Zahl angeben, falls die Erkennung mehrere Sprecher zu einem zusammenfasst."
+    "num_speakers_help": "Wie viele Sprecher sind in diesem Video? Leer lassen für automatische Erkennung. Eine Zahl angeben, falls die Erkennung mehrere Sprecher zu einem zusammenfasst.",
+    "advanced": "Erweitert",
+    "cinematic_needs_llm_hint": "Filmisch benötigt ein LLM. Konfigurieren Sie eines unter Einstellungen → Anmeldedaten → LLM-Endpunkt (Ollama läuft lokal, kein Schlüssel nötig).",
+    "generate_dub_multi": "{{count}} Dubs generieren",
+    "pipeline": "Dubbing-Pipeline",
+    "preview_language": "Vorschausprache",
+    "target_language": "Dubben in",
+    "transcript_after_extract": "Das Transkript erscheint nach der Extraktion."
   },
   "glossary": {
     "title": "Glossar",
@@ -956,7 +976,15 @@
     "save_failed": "Profil konnte nicht gespeichert werden.",
     "confirm_delete": "„{{name}}“ löschen?",
     "trim_load_failed": "Audio zum Zuschneiden konnte nicht geladen werden.",
-    "delete": "Löschen"
+    "delete": "Löschen",
+    "community_empty": "Noch keine Community-Stimmen geladen — stellen Sie eine Internetverbindung her und öffnen Sie erneut, oder reichen Sie als Erste(r) eine ein.",
+    "community_explainer": "Gestaltete Voreinstellungen und aufgenommene Stimmen aus der Community, geladen aus der omnivoice-gallery.",
+    "no_designer": "Aufgenommene Stimme — verwenden Sie stattdessen „Benutzen Sie die Stimme“.",
+    "no_preview": "Keine Vorschau — fügen Sie sie mit „Benutzen Sie die Stimme“ hinzu, um sie anzuhören.",
+    "submit_failed": "Das Einreichungsformular konnte nicht geöffnet werden.",
+    "submit_preset": "Voreinstellung einreichen",
+    "submit_voice": "Stimme einreichen",
+    "zone_community": "Community"
   },
   "transcriptions": {
     "title": "Transkriptionen",
@@ -1338,7 +1366,8 @@
     "dub_label": "Dub",
     "save_label": "Speichern",
     "lock_identity": "Sprachidentität sperren",
-    "in_folder": "in {{folder}}"
+    "in_folder": "in {{folder}}",
+    "search": "Suchen…"
   },
   "trimmer": {
     "title": "Referenzaudio zuschneiden",
@@ -1730,5 +1759,16 @@
     "hf_token_saving": "speichert…",
     "hf_token_saved": "Hugging-Face-Token gespeichert",
     "hf_token_error": "Token konnte nicht gespeichert werden — erneut versuchen oder später in Einstellungen → Zugangsdaten setzen."
+  },
+  "history": {
+    "dub_title": "Dub-Verlauf",
+    "empty": "Hier ist noch nichts — Ihre Generierungen erscheinen rechts.",
+    "empty_dub": "Ihre Dubs erscheinen hier.",
+    "title": "Verlauf"
+  },
+  "recording": {
+    "cleaned_loaded": "Aufnahme bereinigt & geladen!",
+    "loaded_raw": "Aufnahme geladen (roh — Entrauschen nicht verfügbar)",
+    "too_short": "Aufnahme zu kurz"
   }
 }

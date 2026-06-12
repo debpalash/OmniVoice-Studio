@@ -74,7 +74,16 @@
     "shortcut_set": "Dikteringsgenväg inställd på {{shortcut}}",
     "shortcut_register_failed": "Kunde inte registrera: {{message}}",
     "shortcut_reset": "Återställ till standard",
-    "shortcut_reset_failed": "Återställning misslyckades: {{message}}"
+    "shortcut_reset_failed": "Återställning misslyckades: {{message}}",
+    "cancel": "Avbryt",
+    "hf_token_also_clear": "Rensa också",
+    "hf_token_clear_btn": "Rensa token",
+    "hf_token_clear_confirm": "Rensa HuggingFace-token från App-källan?",
+    "hf_token_clear_dialog": "Rensa token",
+    "hf_token_input": "HuggingFace-token",
+    "hf_token_sources": "HF-tokenkällor",
+    "hf_token_test_now": "Testa nu",
+    "hf_token_test_now_title": "Kör whoami igen för varje källa"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -319,7 +328,11 @@
     "describe_placeholder": "t.ex. a warm elderly British storyteller, slightly raspy",
     "describe_hint": "Din beskrivning (på engelska) ställer in kontrollerna nedan — du kan finjustera dem efteråt.",
     "describe_unmatched": "Kunde inte mappa: {{items}}",
-    "describe_no_match": "Inga röstdrag har känts igen ännu — prova ord som deep, elderly eller British."
+    "describe_no_match": "Inga röstdrag har känts igen ännu — prova ord som deep, elderly eller British.",
+    "define_by_design": "Via design",
+    "define_from_audio": "Från ljud",
+    "define_voice": "Definiera röst",
+    "save_design_as_profile": "Spara design som profil"
   },
   "about": {
     "app": "App",
@@ -692,7 +705,14 @@
     "dialect_title": "Regional dialekt och ordförråd för översättningen (t.ex. Argentina → ”vos sos” i stället för ”tú eres”). Tillämpas av LLM-motorer (OpenAI/Ollama) och Cinematic-kvalitet.",
     "num_speakers_label": "Talare",
     "num_speakers_auto": "Auto",
-    "num_speakers_help": "Hur många talare finns i videon? Lämna tomt för automatisk identifiering. Ange ett antal om identifieringen slår ihop flera talare till en."
+    "num_speakers_help": "Hur många talare finns i videon? Lämna tomt för automatisk identifiering. Ange ett antal om identifieringen slår ihop flera talare till en.",
+    "advanced": "Avancerat",
+    "cinematic_needs_llm_hint": "Filmisk kvalitet behöver en LLM. Konfigurera en i Inställningar → Autentisering → LLM-slutpunkt (Ollama körs lokalt, ingen nyckel behövs).",
+    "generate_dub_multi": "Generera {{count}} dubbar",
+    "pipeline": "Dubbningspipeline",
+    "preview_language": "Förhandsgranskningsspråk",
+    "target_language": "Dubba till",
+    "transcript_after_extract": "Avskriften visas efter extraktionen."
   },
   "glossary": {
     "title": "Ordlista",
@@ -955,7 +975,15 @@
     "save_failed": "Det gick inte att spara profilen.",
     "confirm_delete": "Ta bort \"{{name}}\"?",
     "trim_load_failed": "Det gick inte att ladda ljudet för trimning.",
-    "delete": "Ta bort"
+    "delete": "Ta bort",
+    "community_empty": "Inga communityröster har laddats ännu — anslut till internet och öppna igen, eller bli först med att skicka in en.",
+    "community_explainer": "Designade förinställningar och inspelade röster som delas av communityn, laddade från omnivoice-gallery.",
+    "no_designer": "Inspelad röst — använd \"Använd röst\" i stället.",
+    "no_preview": "Ingen förhandsgranskning — lägg till den med \"Använd röst\" för att höra den.",
+    "submit_failed": "Det gick inte att öppna inskickningsformuläret.",
+    "submit_preset": "Skicka in en förinställning",
+    "submit_voice": "Skicka in en röst",
+    "zone_community": "Community"
   },
   "transcriptions": {
     "title": "Transkriptioner",
@@ -1337,7 +1365,8 @@
     "dub_label": "Dub",
     "save_label": "Spara",
     "lock_identity": "Lås röstidentitet",
-    "in_folder": "i {{folder}}"
+    "in_folder": "i {{folder}}",
+    "search": "Sök…"
   },
   "trimmer": {
     "title": "Trimma referensljud",
@@ -1729,5 +1758,16 @@
     "hf_token_saving": "sparar…",
     "hf_token_saved": "Hugging Face-token sparad",
     "hf_token_error": "Kunde inte spara token — försök igen eller ange den senare i Inställningar → Uppgifter."
+  },
+  "history": {
+    "dub_title": "Dubbhistorik",
+    "empty": "Inget här ännu — dina generationer visas till höger.",
+    "empty_dub": "Dina dubbar visas här.",
+    "title": "Historik"
+  },
+  "recording": {
+    "cleaned_loaded": "Inspelningen rensad och laddad!",
+    "loaded_raw": "Inspelningen laddad (rå — brusreducering otillgänglig)",
+    "too_short": "Inspelningen är för kort"
   }
 }

@@ -212,7 +212,11 @@
     "opt_high_pitch": "high pitch",
     "opt_very_high_pitch": "very high pitch",
     "opt_whisper": "whisper",
-    "style_placeholder": "e.g. whisper"
+    "style_placeholder": "e.g. whisper",
+    "define_by_design": "By design",
+    "define_from_audio": "From audio",
+    "define_voice": "Define voice",
+    "save_design_as_profile": "Save design as profile"
   },
   "settings": {
     "title": "Settings",
@@ -275,7 +279,16 @@
     "shortcut_set": "Dictation shortcut set to {{shortcut}}",
     "shortcut_register_failed": "Couldn't register: {{message}}",
     "shortcut_reset": "Reset to default",
-    "shortcut_reset_failed": "Reset failed: {{message}}"
+    "shortcut_reset_failed": "Reset failed: {{message}}",
+    "cancel": "Cancel",
+    "hf_token_also_clear": "Also clear",
+    "hf_token_clear_btn": "Clear token",
+    "hf_token_clear_confirm": "Clear the App-source HuggingFace token?",
+    "hf_token_clear_dialog": "Clear token",
+    "hf_token_input": "HuggingFace token",
+    "hf_token_sources": "HF token sources",
+    "hf_token_test_now": "Test now",
+    "hf_token_test_now_title": "Re-run whoami for every source"
   },
   "about": {
     "app": "App",
@@ -600,7 +613,14 @@
     "diagnostic_copied": "Diagnostic copied",
     "copy_failed": "Copy failed",
     "open_docs": "Open docs",
-    "copy_diagnostic": "Copy diagnostic"
+    "copy_diagnostic": "Copy diagnostic",
+    "advanced": "Advanced",
+    "cinematic_needs_llm_hint": "Cinematic needs an LLM. Configure one in Settings → Credentials → LLM endpoint (Ollama runs locally, no key needed).",
+    "generate_dub_multi": "Generate {{count}} dubs",
+    "pipeline": "Dubbing pipeline",
+    "preview_language": "Preview language",
+    "target_language": "Dub into",
+    "transcript_after_extract": "Transcript appears after extraction."
   },
   "glossary": {
     "title": "Glossary",
@@ -857,7 +877,15 @@
     "save_failed": "Could not save profile.",
     "confirm_delete": "Delete \"{{name}}\"?",
     "trim_load_failed": "Could not load audio for trimming.",
-    "delete": "Delete"
+    "delete": "Delete",
+    "community_empty": "No community voices loaded yet — connect to the internet and reopen, or be the first to submit one.",
+    "community_explainer": "Designed presets and recorded voices shared by the community, loaded from the omnivoice-gallery.",
+    "no_designer": "Recorded voice — use \"Use voice\" instead.",
+    "no_preview": "No preview — add it with \"Use voice\" to hear it.",
+    "submit_failed": "Could not open the submission form.",
+    "submit_preset": "Submit a preset",
+    "submit_voice": "Submit a voice",
+    "zone_community": "Community"
   },
   "archetypes": {
     "featured": "Featured",
@@ -1362,7 +1390,8 @@
     "dub_label": "Dub",
     "save_label": "Save",
     "lock_identity": "Lock voice identity",
-    "in_folder": "in {{folder}}"
+    "in_folder": "in {{folder}}",
+    "search": "Search…"
   },
   "logs": {
     "no_tauri_log": "No Tauri log on disk yet — launch via the desktop build to produce one",
@@ -1761,5 +1790,16 @@
     "hf_token_saving": "saving…",
     "hf_token_saved": "Hugging Face token saved",
     "hf_token_error": "Could not save the token — try again or set it later in Settings → Credentials."
+  },
+  "history": {
+    "dub_title": "Dub history",
+    "empty": "Nothing here yet — your generations will appear on the right.",
+    "empty_dub": "Your dubs will appear here.",
+    "title": "History"
+  },
+  "recording": {
+    "cleaned_loaded": "Recording cleaned & loaded!",
+    "loaded_raw": "Recording loaded (raw — denoising unavailable)",
+    "too_short": "Recording too short"
   }
 }

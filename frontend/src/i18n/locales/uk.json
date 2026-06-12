@@ -74,7 +74,16 @@
     "shortcut_set": "Ярлик для диктування встановлено на {{shortcut}}",
     "shortcut_register_failed": "Не вдалося зареєструватися: {{message}}",
     "shortcut_reset": "Скинути до замовчування",
-    "shortcut_reset_failed": "Помилка скидання: {{message}}"
+    "shortcut_reset_failed": "Помилка скидання: {{message}}",
+    "cancel": "Скасувати",
+    "hf_token_also_clear": "Також очистити",
+    "hf_token_clear_btn": "Очистити токен",
+    "hf_token_clear_confirm": "Очистити токен HuggingFace із джерела App?",
+    "hf_token_clear_dialog": "Очистити токен",
+    "hf_token_input": "Токен HuggingFace",
+    "hf_token_sources": "Джерела токена HF",
+    "hf_token_test_now": "Перевірити зараз",
+    "hf_token_test_now_title": "Повторно виконати whoami для кожного джерела"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -319,7 +328,11 @@
     "describe_placeholder": "напр. a warm elderly British storyteller, slightly raspy",
     "describe_hint": "Ваш опис (англійською) налаштовує елементи нижче — їх можна підлаштувати вручну.",
     "describe_unmatched": "Не вдалося зіставити: {{items}}",
-    "describe_no_match": "Голосові риси ще не розпізнано — спробуйте слова deep, elderly або British."
+    "describe_no_match": "Голосові риси ще не розпізнано — спробуйте слова deep, elderly або British.",
+    "define_by_design": "За дизайном",
+    "define_from_audio": "З аудіо",
+    "define_voice": "Визначити голос",
+    "save_design_as_profile": "Зберегти дизайн як профіль"
   },
   "about": {
     "app": "додаток",
@@ -692,7 +705,14 @@
     "dialect_title": "Регіональний діалект і лексика перекладу (напр. Аргентина → “vos sos” замість “tú eres”). Застосовується рушіями LLM (OpenAI/Ollama) та якістю Cinematic.",
     "num_speakers_label": "Мовці",
     "num_speakers_auto": "Авто",
-    "num_speakers_help": "Скільки мовців у цьому відео? Залиште порожнім для автовизначення. Вкажіть число, якщо автовизначення об'єднує кількох мовців в одного."
+    "num_speakers_help": "Скільки мовців у цьому відео? Залиште порожнім для автовизначення. Вкажіть число, якщо автовизначення об'єднує кількох мовців в одного.",
+    "advanced": "Розширені",
+    "cinematic_needs_llm_hint": "Для кінематографічної якості потрібен LLM. Налаштуйте його в Налаштування → Облікові дані → LLM endpoint (Ollama працює локально, ключ не потрібен).",
+    "generate_dub_multi": "Згенерувати {{count}} дублів",
+    "pipeline": "Конвеєр дубляжу",
+    "preview_language": "Мова попереднього перегляду",
+    "target_language": "Дублювати мовою",
+    "transcript_after_extract": "Стенограма з’явиться після вилучення."
   },
   "glossary": {
     "title": "Глосарій",
@@ -955,7 +975,15 @@
     "save_failed": "Не вдалося зберегти профіль.",
     "confirm_delete": "Видалити \"{{name}}\"?",
     "trim_load_failed": "Не вдалося завантажити аудіо для обрізання.",
-    "delete": "Видалити"
+    "delete": "Видалити",
+    "community_empty": "Голоси спільноти ще не завантажено — підключіться до інтернету й відкрийте знову, або станьте першим, хто надішле свій.",
+    "community_explainer": "Розроблені пресети та записані голоси, якими поділилася спільнота, завантажені з omnivoice-gallery.",
+    "no_designer": "Записаний голос — натомість скористайтеся \"Використовуйте голос\".",
+    "no_preview": "Немає попереднього перегляду — додайте його через \"Використовуйте голос\", щоб почути.",
+    "submit_failed": "Не вдалося відкрити форму подання.",
+    "submit_preset": "Надіслати пресет",
+    "submit_voice": "Надіслати голос",
+    "zone_community": "Спільнота"
   },
   "transcriptions": {
     "title": "транскрипції",
@@ -1337,7 +1365,8 @@
     "dub_label": "Dub",
     "save_label": "зберегти",
     "lock_identity": "Блокування голосової ідентифікації",
-    "in_folder": "в {{folder}}"
+    "in_folder": "в {{folder}}",
+    "search": "Пошук…"
   },
   "trimmer": {
     "title": "Обрізати контрольне аудіо",
@@ -1729,5 +1758,16 @@
     "hf_token_saving": "збереження…",
     "hf_token_saved": "Токен Hugging Face збережено",
     "hf_token_error": "Не вдалося зберегти токен — повторіть або задайте пізніше в Налаштування → Облікові дані."
+  },
+  "history": {
+    "dub_title": "Історія дубляжу",
+    "empty": "Тут поки порожньо — ваші генерації з’являться праворуч.",
+    "empty_dub": "Ваші дублі з’являться тут.",
+    "title": "Історія"
+  },
+  "recording": {
+    "cleaned_loaded": "Запис очищено та завантажено!",
+    "loaded_raw": "Запис завантажено (необроблений — усунення шуму недоступне)",
+    "too_short": "Запис надто короткий"
   }
 }

@@ -74,7 +74,16 @@
     "shortcut_set": "Phím tắt đọc chính tả được đặt thành {{shortcut}}",
     "shortcut_register_failed": "Không thể đăng ký: {{message}}",
     "shortcut_reset": "Đặt lại về mặc định",
-    "shortcut_reset_failed": "Đặt lại không thành công: {{message}}"
+    "shortcut_reset_failed": "Đặt lại không thành công: {{message}}",
+    "cancel": "Hủy",
+    "hf_token_also_clear": "Đồng thời xóa",
+    "hf_token_clear_btn": "Xóa token",
+    "hf_token_clear_confirm": "Xóa token HuggingFace từ nguồn Ứng dụng?",
+    "hf_token_clear_dialog": "Xóa token",
+    "hf_token_input": "Token HuggingFace",
+    "hf_token_sources": "Nguồn token HF",
+    "hf_token_test_now": "Kiểm tra ngay",
+    "hf_token_test_now_title": "Chạy lại whoami cho mọi nguồn"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -319,7 +328,11 @@
     "describe_placeholder": "vd. a warm elderly British storyteller, slightly raspy",
     "describe_hint": "Mô tả của bạn (bằng tiếng Anh) sẽ thiết lập các điều khiển bên dưới — bạn vẫn có thể tinh chỉnh sau.",
     "describe_unmatched": "Không thể ánh xạ: {{items}}",
-    "describe_no_match": "Chưa nhận ra đặc điểm giọng nói nào — hãy thử các từ như deep, elderly hoặc British."
+    "describe_no_match": "Chưa nhận ra đặc điểm giọng nói nào — hãy thử các từ như deep, elderly hoặc British.",
+    "define_by_design": "Theo thiết kế",
+    "define_from_audio": "Từ âm thanh",
+    "define_voice": "Xác định giọng nói",
+    "save_design_as_profile": "Lưu thiết kế dưới dạng hồ sơ"
   },
   "about": {
     "app": "ứng dụng",
@@ -692,7 +705,14 @@
     "dialect_title": "Phương ngữ và từ vựng vùng miền cho bản dịch (vd. Argentina → “vos sos” thay vì “tú eres”). Áp dụng bởi các engine LLM (OpenAI/Ollama) và chất lượng Cinematic.",
     "num_speakers_label": "Người nói",
     "num_speakers_auto": "Tự động",
-    "num_speakers_help": "Video này có bao nhiêu người nói? Để trống để tự động phát hiện. Đặt một con số nếu tính năng tự động gộp nhiều người nói thành một."
+    "num_speakers_help": "Video này có bao nhiêu người nói? Để trống để tự động phát hiện. Đặt một con số nếu tính năng tự động gộp nhiều người nói thành một.",
+    "advanced": "Nâng cao",
+    "cinematic_needs_llm_hint": "Điện ảnh cần có LLM. Cấu hình trong Cài đặt → Xác thực → Điểm cuối LLM (Ollama chạy cục bộ, không cần khóa).",
+    "generate_dub_multi": "Tạo {{count}} bản lồng tiếng",
+    "pipeline": "Quy trình lồng tiếng",
+    "preview_language": "Ngôn ngữ xem trước",
+    "target_language": "Lồng tiếng sang",
+    "transcript_after_extract": "Bản chép lời sẽ xuất hiện sau khi trích xuất."
   },
   "glossary": {
     "title": "Thuật ngữ",
@@ -955,7 +975,15 @@
     "save_failed": "Không thể lưu hồ sơ.",
     "confirm_delete": "Xóa \"{{name}}\"?",
     "trim_load_failed": "Không thể tải âm thanh để cắt.",
-    "delete": "Xóa"
+    "delete": "Xóa",
+    "community_empty": "Chưa tải được giọng nói cộng đồng nào — hãy kết nối internet rồi mở lại, hoặc trở thành người đầu tiên gửi một giọng nói.",
+    "community_explainer": "Các cài đặt trước được thiết kế và giọng nói ghi âm do cộng đồng chia sẻ, được tải từ omnivoice-gallery.",
+    "no_designer": "Giọng nói ghi âm — hãy dùng \"Sử dụng giọng nói\" thay thế.",
+    "no_preview": "Không có bản xem trước — thêm bằng \"Sử dụng giọng nói\" để nghe thử.",
+    "submit_failed": "Không thể mở biểu mẫu gửi.",
+    "submit_preset": "Gửi cài đặt trước",
+    "submit_voice": "Gửi giọng nói",
+    "zone_community": "Cộng đồng"
   },
   "transcriptions": {
     "title": "Phiên âm",
@@ -1337,7 +1365,8 @@
     "dub_label": "lồng tiếng",
     "save_label": "Lưu",
     "lock_identity": "Khóa nhận dạng giọng nói",
-    "in_folder": "trong {{folder}}"
+    "in_folder": "trong {{folder}}",
+    "search": "Tìm kiếm…"
   },
   "trimmer": {
     "title": "Cắt âm thanh tham chiếu",
@@ -1729,5 +1758,16 @@
     "hf_token_saving": "đang lưu…",
     "hf_token_saved": "Đã lưu token Hugging Face",
     "hf_token_error": "Không thể lưu token — thử lại hoặc đặt sau trong Cài đặt → Thông tin xác thực."
+  },
+  "history": {
+    "dub_title": "Lịch sử lồng tiếng",
+    "empty": "Chưa có gì ở đây — các bản tạo của bạn sẽ xuất hiện ở bên phải.",
+    "empty_dub": "Các bản lồng tiếng của bạn sẽ xuất hiện tại đây.",
+    "title": "Lịch sử"
+  },
+  "recording": {
+    "cleaned_loaded": "Đã làm sạch và tải bản ghi âm!",
+    "loaded_raw": "Đã tải bản ghi âm (thô — không có khử nhiễu)",
+    "too_short": "Bản ghi âm quá ngắn"
   }
 }

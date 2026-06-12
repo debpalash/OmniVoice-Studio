@@ -74,7 +74,16 @@
     "shortcut_set": "Skrót do dyktowania ustawiony na {{shortcut}}",
     "shortcut_register_failed": "Nie udało się zarejestrować: {{message}}",
     "shortcut_reset": "Przywróć ustawienia domyślne",
-    "shortcut_reset_failed": "Resetowanie nie powiodło się: {{message}}"
+    "shortcut_reset_failed": "Resetowanie nie powiodło się: {{message}}",
+    "cancel": "Anuluj",
+    "hf_token_also_clear": "Wyczyść również",
+    "hf_token_clear_btn": "Wyczyść token",
+    "hf_token_clear_confirm": "Wyczyścić token HuggingFace ze źródła „Aplikacja”?",
+    "hf_token_clear_dialog": "Wyczyść token",
+    "hf_token_input": "Token HuggingFace",
+    "hf_token_sources": "Źródła tokenu HF",
+    "hf_token_test_now": "Testuj teraz",
+    "hf_token_test_now_title": "Uruchom ponownie whoami dla każdego źródła"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -319,7 +328,11 @@
     "describe_placeholder": "np. a warm elderly British storyteller, slightly raspy",
     "describe_hint": "Twój opis (po angielsku) ustawia poniższe kontrolki — możesz je potem doprecyzować.",
     "describe_unmatched": "Nie udało się dopasować: {{items}}",
-    "describe_no_match": "Nie rozpoznano jeszcze cech głosu — spróbuj słów takich jak deep, elderly lub British."
+    "describe_no_match": "Nie rozpoznano jeszcze cech głosu — spróbuj słów takich jak deep, elderly lub British.",
+    "define_by_design": "Według projektu",
+    "define_from_audio": "Z audio",
+    "define_voice": "Zdefiniuj głos",
+    "save_design_as_profile": "Zapisz projekt jako profil"
   },
   "about": {
     "app": "Aplikacja",
@@ -692,7 +705,14 @@
     "dialect_title": "Regionalny dialekt i słownictwo tłumaczenia (np. Argentyna → „vos sos” zamiast „tú eres”). Stosowane przez silniki LLM (OpenAI/Ollama) i jakość Cinematic.",
     "num_speakers_label": "Mówcy",
     "num_speakers_auto": "Automatycznie",
-    "num_speakers_help": "Ilu mówców jest w tym wideo? Pozostaw puste, aby wykryć automatycznie. Podaj liczbę, jeśli automatyczne wykrywanie łączy kilku mówców w jednego."
+    "num_speakers_help": "Ilu mówców jest w tym wideo? Pozostaw puste, aby wykryć automatycznie. Podaj liczbę, jeśli automatyczne wykrywanie łączy kilku mówców w jednego.",
+    "advanced": "Zaawansowane",
+    "cinematic_needs_llm_hint": "Tryb Filmowy wymaga LLM. Skonfiguruj go w Ustawienia → Dane uwierzytelniające → Punkt końcowy LLM (Ollama działa lokalnie, bez klucza).",
+    "generate_dub_multi": "Wygeneruj dubbingi ({{count}})",
+    "pipeline": "Proces dubbingu",
+    "preview_language": "Język podglądu",
+    "target_language": "Dubbinguj na",
+    "transcript_after_extract": "Transkrypcja pojawi się po ekstrakcji."
   },
   "glossary": {
     "title": "Glosariusz",
@@ -955,7 +975,15 @@
     "save_failed": "Nie udało się zapisać profilu.",
     "confirm_delete": "Usunąć „{{name}}”?",
     "trim_load_failed": "Nie można wczytać dźwięku do przycięcia.",
-    "delete": "Usuń"
+    "delete": "Usuń",
+    "community_empty": "Nie załadowano jeszcze głosów społeczności — połącz się z internetem i otwórz ponownie albo prześlij pierwszy.",
+    "community_explainer": "Zaprojektowane ustawienia wstępne i nagrane głosy udostępnione przez społeczność, ładowane z omnivoice-gallery.",
+    "no_designer": "Nagrany głos — użyj zamiast tego opcji „Użyj głosu”.",
+    "no_preview": "Brak podglądu — dodaj go opcją „Użyj głosu”, aby odsłuchać.",
+    "submit_failed": "Nie udało się otworzyć formularza zgłoszenia.",
+    "submit_preset": "Prześlij ustawienie wstępne",
+    "submit_voice": "Prześlij głos",
+    "zone_community": "Społeczność"
   },
   "transcriptions": {
     "title": "Transkrypcje",
@@ -1337,7 +1365,8 @@
     "dub_label": "Dub",
     "save_label": "Zapisz",
     "lock_identity": "Zablokuj tożsamość głosową",
-    "in_folder": "w {{folder}}"
+    "in_folder": "w {{folder}}",
+    "search": "Szukaj…"
   },
   "trimmer": {
     "title": "Przytnij dźwięk referencyjny",
@@ -1729,5 +1758,16 @@
     "hf_token_saving": "zapisywanie…",
     "hf_token_saved": "Token Hugging Face zapisany",
     "hf_token_error": "Nie udało się zapisać tokenu — spróbuj ponownie lub ustaw go później w Ustawieniach → Dane logowania."
+  },
+  "history": {
+    "dub_title": "Historia dubbingu",
+    "empty": "Nic tu jeszcze nie ma — Twoje generacje pojawią się po prawej stronie.",
+    "empty_dub": "Tutaj pojawią się Twoje dubbingi.",
+    "title": "Historia"
+  },
+  "recording": {
+    "cleaned_loaded": "Nagranie oczyszczone i załadowane!",
+    "loaded_raw": "Nagranie załadowane (surowe — odszumianie niedostępne)",
+    "too_short": "Nagranie zbyt krótkie"
   }
 }

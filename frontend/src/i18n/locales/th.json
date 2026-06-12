@@ -74,7 +74,16 @@
     "shortcut_set": "ทางลัดการเขียนตามคำบอกตั้งค่าเป็น {{shortcut}}",
     "shortcut_register_failed": "ไม่สามารถลงทะเบียนได้: {{message}}",
     "shortcut_reset": "รีเซ็ตเป็นค่าเริ่มต้น",
-    "shortcut_reset_failed": "การรีเซ็ตล้มเหลว: {{message}}"
+    "shortcut_reset_failed": "การรีเซ็ตล้มเหลว: {{message}}",
+    "cancel": "ยกเลิก",
+    "hf_token_also_clear": "ล้างด้วย",
+    "hf_token_clear_btn": "ล้างโทเค็น",
+    "hf_token_clear_confirm": "ล้างโทเค็น HuggingFace ที่ตั้งจากแอปหรือไม่",
+    "hf_token_clear_dialog": "ล้างโทเค็น",
+    "hf_token_input": "โทเค็น HuggingFace",
+    "hf_token_sources": "แหล่งที่มาของโทเค็น HF",
+    "hf_token_test_now": "ทดสอบตอนนี้",
+    "hf_token_test_now_title": "รัน whoami ใหม่สำหรับทุกแหล่งที่มา"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -319,7 +328,11 @@
     "describe_placeholder": "เช่น a warm elderly British storyteller, slightly raspy",
     "describe_hint": "คำอธิบายของคุณ (ภาษาอังกฤษ) จะตั้งค่าตัวควบคุมด้านล่าง และคุณยังปรับเองได้ภายหลัง",
     "describe_unmatched": "จับคู่ไม่ได้: {{items}}",
-    "describe_no_match": "ยังไม่พบลักษณะเสียง ลองใช้คำอย่าง deep, elderly หรือ British"
+    "describe_no_match": "ยังไม่พบลักษณะเสียง ลองใช้คำอย่าง deep, elderly หรือ British",
+    "define_by_design": "โดยการออกแบบ",
+    "define_from_audio": "จากเสียง",
+    "define_voice": "กำหนดเสียง",
+    "save_design_as_profile": "บันทึกการออกแบบเป็นโปรไฟล์"
   },
   "about": {
     "app": "แอพ",
@@ -692,7 +705,14 @@
     "dialect_title": "สำเนียงถิ่นและคำศัพท์เฉพาะภูมิภาคสำหรับการแปล (เช่น อาร์เจนตินา → “vos sos” แทน “tú eres”) ใช้โดยเอนจิน LLM (OpenAI/Ollama) และคุณภาพ Cinematic",
     "num_speakers_label": "ผู้พูด",
     "num_speakers_auto": "อัตโนมัติ",
-    "num_speakers_help": "วิดีโอนี้มีผู้พูดกี่คน? เว้นว่างเพื่อตรวจหาอัตโนมัติ ระบุจำนวนหากการตรวจหาอัตโนมัติรวมผู้พูดหลายคนเป็นคนเดียว"
+    "num_speakers_help": "วิดีโอนี้มีผู้พูดกี่คน? เว้นว่างเพื่อตรวจหาอัตโนมัติ ระบุจำนวนหากการตรวจหาอัตโนมัติรวมผู้พูดหลายคนเป็นคนเดียว",
+    "advanced": "ขั้นสูง",
+    "cinematic_needs_llm_hint": "คุณภาพระดับภาพยนตร์ต้องใช้ LLM ตั้งค่าได้ที่ การตั้งค่า → สิทธิ์การใช้งาน → ปลายทาง LLM (Ollama ทำงานในเครื่อง ไม่ต้องใช้คีย์)",
+    "generate_dub_multi": "สร้างพากย์ {{count}} รายการ",
+    "pipeline": "ไปป์ไลน์การพากย์",
+    "preview_language": "ภาษาตัวอย่าง",
+    "target_language": "พากย์เป็น",
+    "transcript_after_extract": "ทรานสคริปต์จะปรากฏหลังการแยกเสียง"
   },
   "glossary": {
     "title": "อภิธานศัพท์",
@@ -955,7 +975,15 @@
     "save_failed": "ไม่สามารถบันทึกโปรไฟล์ได้",
     "confirm_delete": "ลบ \"{{name}}\" หรือไม่",
     "trim_load_failed": "ไม่สามารถโหลดเสียงเพื่อตัดแต่งได้",
-    "delete": "ลบ"
+    "delete": "ลบ",
+    "community_empty": "ยังไม่มีเสียงจากชุมชน — เชื่อมต่ออินเทอร์เน็ตแล้วเปิดใหม่ หรือเป็นคนแรกที่ส่งเสียงเข้ามา",
+    "community_explainer": "พรีเซ็ตที่ออกแบบไว้และเสียงที่บันทึกไว้ซึ่งแชร์โดยชุมชน โหลดจาก omnivoice-gallery",
+    "no_designer": "เสียงที่บันทึกไว้ — ใช้ \"ใช้เสียง\" แทน",
+    "no_preview": "ไม่มีตัวอย่าง — เพิ่มด้วย \"ใช้เสียง\" เพื่อฟัง",
+    "submit_failed": "ไม่สามารถเปิดแบบฟอร์มส่งได้",
+    "submit_preset": "ส่งพรีเซ็ต",
+    "submit_voice": "ส่งเสียง",
+    "zone_community": "ชุมชน"
   },
   "transcriptions": {
     "title": "การถอดเสียง",
@@ -1337,7 +1365,8 @@
     "dub_label": "พากย์",
     "save_label": "บันทึก",
     "lock_identity": "ล็อคตัวตนของเสียง",
-    "in_folder": "ใน {{folder}}"
+    "in_folder": "ใน {{folder}}",
+    "search": "ค้นหา…"
   },
   "trimmer": {
     "title": "ตัดเสียงอ้างอิง",
@@ -1729,5 +1758,16 @@
     "hf_token_saving": "กำลังบันทึก…",
     "hf_token_saved": "บันทึกโทเคน Hugging Face แล้ว",
     "hf_token_error": "บันทึกโทเคนไม่สำเร็จ — ลองใหม่ หรือไปตั้งค่าภายหลังที่ การตั้งค่า → ข้อมูลรับรอง"
+  },
+  "history": {
+    "dub_title": "ประวัติการพากย์",
+    "empty": "ยังไม่มีอะไรที่นี่ — ผลงานที่สร้างจะปรากฏทางด้านขวา",
+    "empty_dub": "เสียงพากย์ของคุณจะปรากฏที่นี่",
+    "title": "ประวัติ"
+  },
+  "recording": {
+    "cleaned_loaded": "ทำความสะอาดและโหลดการบันทึกแล้ว!",
+    "loaded_raw": "โหลดการบันทึกแล้ว (ดิบ — ใช้การลดเสียงรบกวนไม่ได้)",
+    "too_short": "การบันทึกสั้นเกินไป"
   }
 }

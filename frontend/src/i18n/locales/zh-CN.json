@@ -216,7 +216,11 @@
     "describe_placeholder": "例如：中年男性，低音调，四川话",
     "describe_hint": "你的描述会自动设置下方的控件，之后仍可手动微调。（也支持英文描述）",
     "describe_unmatched": "无法识别：{{items}}",
-    "describe_no_match": "尚未识别出声音特征——试试 deep、elderly、British 或「中年」「低音调」等词。"
+    "describe_no_match": "尚未识别出声音特征——试试 deep、elderly、British 或「中年」「低音调」等词。",
+    "define_by_design": "通过设计",
+    "define_from_audio": "从音频",
+    "define_voice": "定义声音",
+    "save_design_as_profile": "将设计保存为声音配置"
   },
   "settings": {
     "title": "设置",
@@ -279,7 +283,16 @@
     "shortcut_set": "听写快捷键设置为 {{shortcut}}",
     "shortcut_register_failed": "无法注册：{{message}}",
     "shortcut_reset": "重置为默认值",
-    "shortcut_reset_failed": "重置失败：{{message}}"
+    "shortcut_reset_failed": "重置失败：{{message}}",
+    "cancel": "取消",
+    "hf_token_also_clear": "同时清除",
+    "hf_token_clear_btn": "清除令牌",
+    "hf_token_clear_confirm": "清除“应用”来源的 HuggingFace 令牌？",
+    "hf_token_clear_dialog": "清除令牌",
+    "hf_token_input": "HuggingFace 令牌",
+    "hf_token_sources": "HF 令牌来源",
+    "hf_token_test_now": "立即测试",
+    "hf_token_test_now_title": "对每个来源重新运行 whoami"
   },
   "about": {
     "app": "应用",
@@ -652,7 +665,14 @@
     "dialect_title": "翻译所用的地区方言与词汇（例如 阿根廷 → “vos sos” 而非 “tú eres”）。由 LLM 引擎（OpenAI/Ollama）和 Cinematic 质量应用。",
     "num_speakers_label": "说话人",
     "num_speakers_auto": "自动",
-    "num_speakers_help": "这段视频中有几位说话人？留空则自动检测。如果自动检测将多位说话人合并为一人，请手动指定人数。"
+    "num_speakers_help": "这段视频中有几位说话人？留空则自动检测。如果自动检测将多位说话人合并为一人，请手动指定人数。",
+    "advanced": "高级",
+    "cinematic_needs_llm_hint": "精译需要 LLM。请在 设置 → 凭证 → LLM 端点 中配置（Ollama 在本地运行，无需密钥）。",
+    "generate_dub_multi": "生成 {{count}} 个配音",
+    "pipeline": "配音流程",
+    "preview_language": "预览语言",
+    "target_language": "配音为",
+    "transcript_after_extract": "提取完成后将显示转录文本。"
   },
   "glossary": {
     "title": "术语表",
@@ -915,7 +935,15 @@
     "save_failed": "Could not save profile.",
     "confirm_delete": "Delete \"{{name}}\"?",
     "trim_load_failed": "Could not load audio for trimming.",
-    "delete": "删除"
+    "delete": "删除",
+    "community_empty": "尚未加载社区声音——请联网后重新打开，或成为第一位提交者。",
+    "community_explainer": "由社区分享的设计预设与录制声音，加载自 omnivoice-gallery。",
+    "no_designer": "录制声音——请改用“Use voice”。",
+    "no_preview": "暂无试听——通过“Use voice”添加后即可收听。",
+    "submit_failed": "无法打开提交表单。",
+    "submit_preset": "提交预设",
+    "submit_voice": "提交声音",
+    "zone_community": "社区"
   },
   "transcriptions": {
     "title": "转录记录",
@@ -1337,7 +1365,8 @@
     "dub_label": "配音",
     "save_label": "保存",
     "lock_identity": "锁定语音身份",
-    "in_folder": "在 {{folder}} 中"
+    "in_folder": "在 {{folder}} 中",
+    "search": "搜索…"
   },
   "trimmer": {
     "title": "修剪参考音频",
@@ -1729,5 +1758,16 @@
     "hf_token_saving": "保存中…",
     "hf_token_saved": "Hugging Face 令牌已保存",
     "hf_token_error": "令牌保存失败——请重试，或稍后在设置 → 凭据中设置。"
+  },
+  "history": {
+    "dub_title": "配音历史",
+    "empty": "这里还没有内容——你的生成结果将显示在右侧。",
+    "empty_dub": "你的配音将显示在这里。",
+    "title": "历史"
+  },
+  "recording": {
+    "cleaned_loaded": "录音已清理并加载！",
+    "loaded_raw": "录音已加载（原始音频——降噪不可用）",
+    "too_short": "录音太短"
   }
 }

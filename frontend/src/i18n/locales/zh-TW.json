@@ -74,7 +74,16 @@
     "shortcut_set": "聽寫快捷鍵設定為 {{shortcut}}",
     "shortcut_register_failed": "無法註冊：{{message}}",
     "shortcut_reset": "重設為預設值",
-    "shortcut_reset_failed": "重置失敗：{{message}}"
+    "shortcut_reset_failed": "重置失敗：{{message}}",
+    "cancel": "取消",
+    "hf_token_also_clear": "一併清除",
+    "hf_token_clear_btn": "清除代幣",
+    "hf_token_clear_confirm": "確定要清除 App 來源的 HuggingFace 代幣嗎？",
+    "hf_token_clear_dialog": "清除代幣",
+    "hf_token_input": "HuggingFace 代幣",
+    "hf_token_sources": "HF 代幣來源",
+    "hf_token_test_now": "立即測試",
+    "hf_token_test_now_title": "對每個來源重新執行 whoami"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -319,7 +328,11 @@
     "describe_placeholder": "例如：a warm elderly British storyteller, slightly raspy",
     "describe_hint": "你的描述（英文）會自動設定下方的控制項，之後仍可手動微調。",
     "describe_unmatched": "無法辨識：{{items}}",
-    "describe_no_match": "尚未辨識出聲音特徵——試試 deep、elderly 或 British 等詞。"
+    "describe_no_match": "尚未辨識出聲音特徵——試試 deep、elderly 或 British 等詞。",
+    "define_by_design": "以設計",
+    "define_from_audio": "從音訊",
+    "define_voice": "定義聲音",
+    "save_design_as_profile": "將設計另存為語音設定檔"
   },
   "about": {
     "app": "應用程式",
@@ -692,7 +705,14 @@
     "dialect_title": "翻譯所用的地區方言與詞彙（例如 阿根廷 → “vos sos” 而非 “tú eres”）。由 LLM 引擎（OpenAI/Ollama）與 Cinematic 品質套用。",
     "num_speakers_label": "說話者",
     "num_speakers_auto": "自動",
-    "num_speakers_help": "這段影片中有幾位說話者？留空則自動偵測。若自動偵測將多位說話者合併為一人，請手動指定人數。"
+    "num_speakers_help": "這段影片中有幾位說話者？留空則自動偵測。若自動偵測將多位說話者合併為一人，請手動指定人數。",
+    "advanced": "進階",
+    "cinematic_needs_llm_hint": "電影品質需要 LLM。請在 設定 → 金鑰憑證 → LLM 端點 中設定（Ollama 可在本機執行，無需金鑰）。",
+    "generate_dub_multi": "生成 {{count}} 個配音",
+    "pipeline": "配音流程",
+    "preview_language": "預覽語言",
+    "target_language": "配音成",
+    "transcript_after_extract": "擷取完成後將顯示逐字稿。"
   },
   "glossary": {
     "title": "詞彙表",
@@ -955,7 +975,15 @@
     "save_failed": "無法儲存個人資料。",
     "confirm_delete": "刪除“{{name}}”？",
     "trim_load_failed": "無法載入音訊進行修剪。",
-    "delete": "刪除"
+    "delete": "刪除",
+    "community_empty": "尚未載入任何社群語音 — 請連上網路後重新開啟，或成為第一個投稿的人。",
+    "community_explainer": "由社群分享的設計預設與錄製語音，從 omnivoice-gallery 載入。",
+    "no_designer": "錄製的語音 — 請改用「使用語音」。",
+    "no_preview": "沒有預覽 — 透過「使用語音」加入後即可試聽。",
+    "submit_failed": "無法開啟投稿表單。",
+    "submit_preset": "投稿預設",
+    "submit_voice": "投稿語音",
+    "zone_community": "社群"
   },
   "transcriptions": {
     "title": "轉錄",
@@ -1337,7 +1365,8 @@
     "dub_label": "配音",
     "save_label": "儲存",
     "lock_identity": "鎖定語音身份",
-    "in_folder": "在 {{folder}} 中"
+    "in_folder": "在 {{folder}} 中",
+    "search": "搜尋…"
   },
   "trimmer": {
     "title": "修剪參考音訊",
@@ -1729,5 +1758,16 @@
     "hf_token_saving": "儲存中…",
     "hf_token_saved": "Hugging Face 權杖已儲存",
     "hf_token_error": "權杖儲存失敗——請重試，或稍後在設定 → 憑證中設定。"
+  },
+  "history": {
+    "dub_title": "配音歷史",
+    "empty": "這裡還沒有任何內容 — 你的生成結果將顯示在右側。",
+    "empty_dub": "你的配音將顯示在這裡。",
+    "title": "歷史"
+  },
+  "recording": {
+    "cleaned_loaded": "錄音已清理並載入！",
+    "loaded_raw": "錄音已載入（原始 — 無法降噪）",
+    "too_short": "錄音太短"
   }
 }

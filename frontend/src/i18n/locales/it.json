@@ -74,7 +74,16 @@
     "shortcut_set": "Scorciatoia per la dettatura impostata su {{shortcut}}",
     "shortcut_register_failed": "Impossibile registrarsi: {{message}}",
     "shortcut_reset": "Ripristina le impostazioni predefinite",
-    "shortcut_reset_failed": "Reimpostazione non riuscita: {{message}}"
+    "shortcut_reset_failed": "Reimpostazione non riuscita: {{message}}",
+    "cancel": "Annulla",
+    "hf_token_also_clear": "Cancella anche",
+    "hf_token_clear_btn": "Cancella token",
+    "hf_token_clear_confirm": "Cancellare il token HuggingFace della sorgente App?",
+    "hf_token_clear_dialog": "Cancella token",
+    "hf_token_input": "Token HuggingFace",
+    "hf_token_sources": "Sorgenti del token HF",
+    "hf_token_test_now": "Testa ora",
+    "hf_token_test_now_title": "Riesegui whoami per ogni sorgente"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -319,7 +328,11 @@
     "describe_placeholder": "es. a warm elderly British storyteller, slightly raspy",
     "describe_hint": "La tua descrizione (in inglese) imposta i controlli qui sotto — puoi comunque regolarli dopo.",
     "describe_unmatched": "Impossibile mappare: {{items}}",
-    "describe_no_match": "Nessun tratto vocale riconosciuto — prova parole come deep, elderly o British."
+    "describe_no_match": "Nessun tratto vocale riconosciuto — prova parole come deep, elderly o British.",
+    "define_by_design": "Tramite progettazione",
+    "define_from_audio": "Da audio",
+    "define_voice": "Definisci la voce",
+    "save_design_as_profile": "Salva il progetto come profilo"
   },
   "about": {
     "app": "App",
@@ -692,7 +705,14 @@
     "dialect_title": "Dialetto regionale e lessico per la traduzione (es. Argentina → “vos sos” invece di “tú eres”). Applicato dai motori LLM (OpenAI/Ollama) e dalla qualità Cinematic.",
     "num_speakers_label": "Parlanti",
     "num_speakers_auto": "Auto",
-    "num_speakers_help": "Quanti parlanti ci sono in questo video? Lascia vuoto per il rilevamento automatico. Imposta un numero se il rilevamento unisce più parlanti in uno."
+    "num_speakers_help": "Quanti parlanti ci sono in questo video? Lascia vuoto per il rilevamento automatico. Imposta un numero se il rilevamento unisce più parlanti in uno.",
+    "advanced": "Avanzate",
+    "cinematic_needs_llm_hint": "Cinematografico richiede un LLM. Configurane uno in Impostazioni → Credenziali → endpoint LLM (Ollama funziona in locale, nessuna chiave necessaria).",
+    "generate_dub_multi": "Genera {{count}} doppiaggi",
+    "pipeline": "Pipeline di doppiaggio",
+    "preview_language": "Lingua di anteprima",
+    "target_language": "Doppia in",
+    "transcript_after_extract": "La trascrizione appare dopo l'estrazione."
   },
   "glossary": {
     "title": "Glossario",
@@ -955,7 +975,15 @@
     "save_failed": "Impossibile salvare il profilo.",
     "confirm_delete": "Eliminare \"{{name}}\"?",
     "trim_load_failed": "Impossibile caricare l'audio per il ritaglio.",
-    "delete": "Elimina"
+    "delete": "Elimina",
+    "community_empty": "Nessuna voce della community caricata — connettiti a internet e riapri, oppure sii il primo a inviarne una.",
+    "community_explainer": "Preimpostazioni progettate e voci registrate condivise dalla community, caricate dalla omnivoice-gallery.",
+    "no_designer": "Voce registrata — usa invece \"Usa la voce\".",
+    "no_preview": "Nessuna anteprima — aggiungila con \"Usa la voce\" per ascoltarla.",
+    "submit_failed": "Impossibile aprire il modulo di invio.",
+    "submit_preset": "Invia una preimpostazione",
+    "submit_voice": "Invia una voce",
+    "zone_community": "Community"
   },
   "transcriptions": {
     "title": "Trascrizioni",
@@ -1337,7 +1365,8 @@
     "dub_label": "Duplicare",
     "save_label": "Salva",
     "lock_identity": "Blocca l'identità vocale",
-    "in_folder": "tra {{folder}}"
+    "in_folder": "tra {{folder}}",
+    "search": "Cerca…"
   },
   "trimmer": {
     "title": "Taglia l'audio di riferimento",
@@ -1729,5 +1758,16 @@
     "hf_token_saving": "salvataggio…",
     "hf_token_saved": "Token Hugging Face salvato",
     "hf_token_error": "Impossibile salvare il token — riprova o impostalo dopo in Impostazioni → Credenziali."
+  },
+  "history": {
+    "dub_title": "Cronologia doppiaggi",
+    "empty": "Ancora niente qui — le tue generazioni appariranno sulla destra.",
+    "empty_dub": "I tuoi doppiaggi appariranno qui.",
+    "title": "Cronologia"
+  },
+  "recording": {
+    "cleaned_loaded": "Registrazione pulita e caricata!",
+    "loaded_raw": "Registrazione caricata (grezza — eliminazione del rumore non disponibile)",
+    "too_short": "Registrazione troppo breve"
   }
 }

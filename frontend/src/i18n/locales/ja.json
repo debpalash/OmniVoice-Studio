@@ -74,7 +74,16 @@
     "shortcut_set": "ディクテーションのショートカットが {{shortcut}} に設定されました",
     "shortcut_register_failed": "登録できませんでした: {{message}}",
     "shortcut_reset": "デフォルトにリセットする",
-    "shortcut_reset_failed": "リセットに失敗しました: {{message}}"
+    "shortcut_reset_failed": "リセットに失敗しました: {{message}}",
+    "cancel": "キャンセル",
+    "hf_token_also_clear": "あわせてクリア",
+    "hf_token_clear_btn": "トークンをクリア",
+    "hf_token_clear_confirm": "アプリに保存された HuggingFace トークンをクリアしますか?",
+    "hf_token_clear_dialog": "トークンをクリア",
+    "hf_token_input": "HuggingFace トークン",
+    "hf_token_sources": "HF トークンのソース",
+    "hf_token_test_now": "今すぐテスト",
+    "hf_token_test_now_title": "すべてのソースで whoami を再実行します"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -320,7 +329,11 @@
     "describe_placeholder": "例: a warm elderly British storyteller, slightly raspy",
     "describe_hint": "説明（英語）が下のコントロールを設定します。後から微調整もできます。",
     "describe_unmatched": "対応付けできません: {{items}}",
-    "describe_no_match": "まだ声の特徴を認識できていません。deep、elderly、British などの単語を試してください。"
+    "describe_no_match": "まだ声の特徴を認識できていません。deep、elderly、British などの単語を試してください。",
+    "define_by_design": "デザインで",
+    "define_from_audio": "音声から",
+    "define_voice": "音声の定義",
+    "save_design_as_profile": "デザインをプロファイルとして保存"
   },
   "about": {
     "app": "アプリ",
@@ -693,7 +706,14 @@
     "dialect_title": "翻訳に使う地域の方言と語彙（例: アルゼンチン → “tú eres” ではなく “vos sos”）。LLM エンジン（OpenAI/Ollama）と Cinematic 品質で適用されます。",
     "num_speakers_label": "話者",
     "num_speakers_auto": "自動",
-    "num_speakers_help": "この動画の話者は何人ですか？空欄で自動検出します。自動検出が複数の話者を1人にまとめてしまう場合は人数を指定してください。"
+    "num_speakers_help": "この動画の話者は何人ですか？空欄で自動検出します。自動検出が複数の話者を1人にまとめてしまう場合は人数を指定してください。",
+    "advanced": "詳細設定",
+    "cinematic_needs_llm_hint": "映画的品質には LLM が必要です。設定 → 資格情報 → LLM エンドポイントで設定してください（Ollama はローカルで動作し、キーは不要です）。",
+    "generate_dub_multi": "{{count}} 件のダブを生成",
+    "pipeline": "ダビングパイプライン",
+    "preview_language": "プレビュー言語",
+    "target_language": "吹き替え先",
+    "transcript_after_extract": "文字起こしは抽出後に表示されます。"
   },
   "glossary": {
     "title": "用語集",
@@ -956,7 +976,15 @@
     "save_failed": "プロフィールを保存できませんでした。",
     "confirm_delete": "「{{name}}」を削除しますか?",
     "trim_load_failed": "トリミングするオーディオをロードできませんでした。",
-    "delete": "削除"
+    "delete": "削除",
+    "community_empty": "コミュニティの音声はまだ読み込まれていません — インターネットに接続して開き直すか、最初の投稿者になりましょう。",
+    "community_explainer": "コミュニティが共有したデザイン済みプリセットと録音音声です。omnivoice-gallery から読み込まれます。",
+    "no_designer": "録音された音声です — 代わりに「音声を使用する」をお使いください。",
+    "no_preview": "プレビューはありません — 「音声を使用する」で追加すると聞けます。",
+    "submit_failed": "投稿フォームを開けませんでした。",
+    "submit_preset": "プリセットを投稿",
+    "submit_voice": "音声を投稿",
+    "zone_community": "コミュニティ"
   },
   "transcriptions": {
     "title": "転写",
@@ -1338,7 +1366,8 @@
     "dub_label": "ダブ",
     "save_label": "保存",
     "lock_identity": "音声 ID をロックする",
-    "in_folder": "{{folder}} に"
+    "in_folder": "{{folder}} に",
+    "search": "検索…"
   },
   "trimmer": {
     "title": "リファレンスオーディオをトリミングする",
@@ -1730,5 +1759,16 @@
     "hf_token_saving": "保存中…",
     "hf_token_saved": "Hugging Face トークンを保存しました",
     "hf_token_error": "トークンを保存できませんでした。再試行するか、後で設定 → 認証情報から設定してください。"
+  },
+  "history": {
+    "dub_title": "ダブ履歴",
+    "empty": "まだ何もありません — 生成結果が右側に表示されます。",
+    "empty_dub": "ダブはここに表示されます。",
+    "title": "履歴"
+  },
+  "recording": {
+    "cleaned_loaded": "録音をクリーンアップして読み込みました！",
+    "loaded_raw": "録音を読み込みました（未処理 — ノイズ除去は利用できません）",
+    "too_short": "録音が短すぎます"
   }
 }

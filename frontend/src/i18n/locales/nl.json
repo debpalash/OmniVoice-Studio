@@ -74,7 +74,16 @@
     "shortcut_set": "Dicteersnelkoppeling ingesteld op {{shortcut}}",
     "shortcut_register_failed": "Kon niet registreren: {{message}}",
     "shortcut_reset": "Resetten naar standaard",
-    "shortcut_reset_failed": "Reset mislukt: {{message}}"
+    "shortcut_reset_failed": "Reset mislukt: {{message}}",
+    "cancel": "Annuleer",
+    "hf_token_also_clear": "Ook wissen",
+    "hf_token_clear_btn": "Token wissen",
+    "hf_token_clear_confirm": "De HuggingFace-token uit de app-bron wissen?",
+    "hf_token_clear_dialog": "Token wissen",
+    "hf_token_input": "HuggingFace-token",
+    "hf_token_sources": "HF-tokenbronnen",
+    "hf_token_test_now": "Nu testen",
+    "hf_token_test_now_title": "Voer whoami opnieuw uit voor elke bron"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -319,7 +328,11 @@
     "describe_placeholder": "bijv. a warm elderly British storyteller, slightly raspy",
     "describe_hint": "Je beschrijving (in het Engels) stelt de regelaars hieronder in — je kunt ze daarna bijstellen.",
     "describe_unmatched": "Kon niet toewijzen: {{items}}",
-    "describe_no_match": "Nog geen stemkenmerken herkend — probeer woorden als deep, elderly of British."
+    "describe_no_match": "Nog geen stemkenmerken herkend — probeer woorden als deep, elderly of British.",
+    "define_by_design": "Via ontwerp",
+    "define_from_audio": "Vanuit audio",
+    "define_voice": "Stem definiëren",
+    "save_design_as_profile": "Ontwerp opslaan als profiel"
   },
   "about": {
     "app": "App",
@@ -692,7 +705,14 @@
     "dialect_title": "Regionaal dialect en vocabulaire voor de vertaling (bijv. Argentinië → “vos sos” in plaats van “tú eres”). Toegepast door LLM-engines (OpenAI/Ollama) en Cinematic-kwaliteit.",
     "num_speakers_label": "Sprekers",
     "num_speakers_auto": "Automatisch",
-    "num_speakers_help": "Hoeveel sprekers zijn er in deze video? Laat leeg voor automatische detectie. Stel een aantal in als de detectie meerdere sprekers samenvoegt tot één."
+    "num_speakers_help": "Hoeveel sprekers zijn er in deze video? Laat leeg voor automatische detectie. Stel een aantal in als de detectie meerdere sprekers samenvoegt tot één.",
+    "advanced": "Geavanceerd",
+    "cinematic_needs_llm_hint": "Filmisch heeft een LLM nodig. Stel er een in via Instellingen → Inloggegevens → LLM-eindpunt (Ollama draait lokaal, geen sleutel nodig).",
+    "generate_dub_multi": "{{count}} dubs genereren",
+    "pipeline": "Dubbing-pipeline",
+    "preview_language": "Voorbeeldtaal",
+    "target_language": "Dubben naar",
+    "transcript_after_extract": "Het afschrift verschijnt na extractie."
   },
   "glossary": {
     "title": "Woordenlijst",
@@ -955,7 +975,15 @@
     "save_failed": "Kan profiel niet opslaan.",
     "confirm_delete": "\"{{name}}\" verwijderen?",
     "trim_load_failed": "Kan audio voor bijsnijden niet laden.",
-    "delete": "Verwijderen"
+    "delete": "Verwijderen",
+    "community_empty": "Nog geen community-stemmen geladen — maak verbinding met internet en open opnieuw, of wees de eerste die er een indient.",
+    "community_explainer": "Ontworpen presets en opgenomen stemmen gedeeld door de community, geladen vanuit de omnivoice-gallery.",
+    "no_designer": "Opgenomen stem — gebruik in plaats daarvan \"Gebruik stem\".",
+    "no_preview": "Geen voorbeeld — voeg de stem toe met \"Gebruik stem\" om hem te horen.",
+    "submit_failed": "Het indieningsformulier kon niet worden geopend.",
+    "submit_preset": "Preset indienen",
+    "submit_voice": "Stem indienen",
+    "zone_community": "Community"
   },
   "transcriptions": {
     "title": "Transcripties",
@@ -1337,7 +1365,8 @@
     "dub_label": "Dub",
     "save_label": "Opslaan",
     "lock_identity": "Stemidentiteit vergrendelen",
-    "in_folder": "in {{folder}}"
+    "in_folder": "in {{folder}}",
+    "search": "Zoeken…"
   },
   "trimmer": {
     "title": "Referentie-audio trimmen",
@@ -1729,5 +1758,16 @@
     "hf_token_saving": "opslaan…",
     "hf_token_saved": "Hugging Face-token opgeslagen",
     "hf_token_error": "Token kon niet worden opgeslagen — probeer opnieuw of stel het later in via Instellingen → Inloggegevens."
+  },
+  "history": {
+    "dub_title": "Dubgeschiedenis",
+    "empty": "Hier is nog niets — je generaties verschijnen rechts.",
+    "empty_dub": "Je dubs verschijnen hier.",
+    "title": "Geschiedenis"
+  },
+  "recording": {
+    "cleaned_loaded": "Opname opgeschoond en geladen!",
+    "loaded_raw": "Opname geladen (ruw — ruisonderdrukking niet beschikbaar)",
+    "too_short": "Opname te kort"
   }
 }

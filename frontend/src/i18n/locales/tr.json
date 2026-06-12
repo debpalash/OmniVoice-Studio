@@ -74,7 +74,16 @@
     "shortcut_set": "Dikte kısayolu {{shortcut}} olarak ayarlandı",
     "shortcut_register_failed": "Kaydedilemedi: {{message}}",
     "shortcut_reset": "Varsayılana sıfırla",
-    "shortcut_reset_failed": "Sıfırlama başarısız oldu: {{message}}"
+    "shortcut_reset_failed": "Sıfırlama başarısız oldu: {{message}}",
+    "cancel": "İptal",
+    "hf_token_also_clear": "Ayrıca temizle",
+    "hf_token_clear_btn": "Belirteci temizle",
+    "hf_token_clear_confirm": "Uygulama kaynaklı HuggingFace belirteci temizlensin mi?",
+    "hf_token_clear_dialog": "Belirteci temizle",
+    "hf_token_input": "HuggingFace belirteci",
+    "hf_token_sources": "HF belirteç kaynakları",
+    "hf_token_test_now": "Şimdi test et",
+    "hf_token_test_now_title": "Her kaynak için whoami'yi yeniden çalıştır"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -319,7 +328,11 @@
     "describe_placeholder": "örn. a warm elderly British storyteller, slightly raspy",
     "describe_hint": "Açıklamanız (İngilizce) aşağıdaki denetimleri ayarlar — sonradan ince ayar yapabilirsiniz.",
     "describe_unmatched": "Eşlenemedi: {{items}}",
-    "describe_no_match": "Henüz ses özelliği tanınmadı — deep, elderly veya British gibi kelimeler deneyin."
+    "describe_no_match": "Henüz ses özelliği tanınmadı — deep, elderly veya British gibi kelimeler deneyin.",
+    "define_by_design": "Tasarımla",
+    "define_from_audio": "Sesten",
+    "define_voice": "Sesi tanımla",
+    "save_design_as_profile": "Tasarımı profil olarak kaydet"
   },
   "about": {
     "app": "Uygulama",
@@ -692,7 +705,14 @@
     "dialect_title": "Çeviri için bölgesel lehçe ve söz varlığı (örn. Arjantin → “tú eres” yerine “vos sos”). LLM motorları (OpenAI/Ollama) ve Cinematic kalitesi tarafından uygulanır.",
     "num_speakers_label": "Konuşmacılar",
     "num_speakers_auto": "Otomatik",
-    "num_speakers_help": "Bu videoda kaç konuşmacı var? Otomatik algılama için boş bırakın. Otomatik algılama birden çok konuşmacıyı tek kişide birleştiriyorsa bir sayı girin."
+    "num_speakers_help": "Bu videoda kaç konuşmacı var? Otomatik algılama için boş bırakın. Otomatik algılama birden çok konuşmacıyı tek kişide birleştiriyorsa bir sayı girin.",
+    "advanced": "Gelişmiş",
+    "cinematic_needs_llm_hint": "Sinematik için bir LLM gerekir. Ayarlar → Kimlik Bilgileri → LLM uç noktası bölümünden yapılandırın (Ollama yerel çalışır, anahtar gerekmez).",
+    "generate_dub_multi": "{{count}} dublaj oluştur",
+    "pipeline": "Dublaj hattı",
+    "preview_language": "Önizleme dili",
+    "target_language": "Dublaj dili",
+    "transcript_after_extract": "Transkript, çıkarma işleminden sonra görünür."
   },
   "glossary": {
     "title": "Sözlük",
@@ -955,7 +975,15 @@
     "save_failed": "Profil kaydedilemedi.",
     "confirm_delete": "\"{{name}}\" silinsin mi?",
     "trim_load_failed": "Kırpma için ses yüklenemedi.",
-    "delete": "Sil"
+    "delete": "Sil",
+    "community_empty": "Henüz topluluk sesi yüklenmedi — internete bağlanıp yeniden açın veya ilk gönderen siz olun.",
+    "community_explainer": "Topluluk tarafından paylaşılan tasarlanmış ön ayarlar ve kayıtlı sesler; omnivoice-gallery'den yüklenir.",
+    "no_designer": "Kayıtlı ses — bunun yerine \"Sesi kullan\"ı kullanın.",
+    "no_preview": "Önizleme yok — duymak için \"Sesi kullan\" ile ekleyin.",
+    "submit_failed": "Gönderim formu açılamadı.",
+    "submit_preset": "Ön ayar gönder",
+    "submit_voice": "Ses gönder",
+    "zone_community": "Topluluk"
   },
   "transcriptions": {
     "title": "Transkripsiyonlar",
@@ -1337,7 +1365,8 @@
     "dub_label": "Dublaj",
     "save_label": "Kaydet",
     "lock_identity": "Ses kimliğini kilitle",
-    "in_folder": "{{folder}}'da"
+    "in_folder": "{{folder}}'da",
+    "search": "Ara…"
   },
   "trimmer": {
     "title": "Referans sesini kırp",
@@ -1729,5 +1758,16 @@
     "hf_token_saving": "kaydediliyor…",
     "hf_token_saved": "Hugging Face belirteci kaydedildi",
     "hf_token_error": "Belirteç kaydedilemedi — yeniden deneyin veya sonra Ayarlar → Kimlik bilgileri bölümünden ayarlayın."
+  },
+  "history": {
+    "dub_title": "Dublaj geçmişi",
+    "empty": "Burada henüz bir şey yok — oluşturduklarınız sağda görünecek.",
+    "empty_dub": "Dublajlarınız burada görünecek.",
+    "title": "Geçmiş"
+  },
+  "recording": {
+    "cleaned_loaded": "Kayıt temizlendi ve yüklendi!",
+    "loaded_raw": "Kayıt yüklendi (ham — gürültü giderme kullanılamıyor)",
+    "too_short": "Kayıt çok kısa"
   }
 }
