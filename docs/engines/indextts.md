@@ -132,3 +132,9 @@ research / non-commercial use. Commercial use requires contacting
 `indexspeech@bilibili.com`. See the upstream
 [README](https://github.com/index-tts/index-tts/blob/main/README.md)
 for the full terms.
+
+---
+
+IndexTTS2 runs in a dedicated sidecar venv (it pins `transformers<5`, which
+conflicts with the parent's `transformers>=5.3`). For why that adds disk and
+how uv keeps the cost down, see [Engine venvs & disk usage](disk-usage.md).
