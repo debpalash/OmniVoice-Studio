@@ -36,6 +36,7 @@ import PerformancePanel from '../components/settings/PerformancePanel';
 import RefinementPanel from '../components/settings/RefinementPanel';
 import AppearancePanel from '../components/settings/AppearancePanel';
 import StoragePanel from '../components/settings/StoragePanel';
+import HFMirrorPanel from '../components/settings/HFMirrorPanel';
 import SharingPanel from '../components/settings/SharingPanel';
 import RemoteBackendPanel from '../components/settings/RemoteBackendPanel';
 import MCPBindingsPanel from '../components/settings/MCPBindingsPanel';
@@ -1325,6 +1326,7 @@ export default function Settings() {
       {activeTab === 'models' && (
         <>
           <StoragePanel />
+          <HFMirrorPanel />
           <ModelStoreTab info={info} modelBadge={modelBadge} />
         </>
       )}

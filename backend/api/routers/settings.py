@@ -395,3 +395,60 @@ def set_models_dir(body: _ModelsDirBody):
 
     user_env.set_user_env(_MODELS_DIR_ENV, path)
     return {"configured": path, "effective": _effective_models_dir(), "restart_required": True}
+
+
+# ── HF mirror endpoint (parity program Wave 4.3 / §R4 c) ──────────────────
+# Restricted-network users (e.g. behind the Great Firewall) need to point
+# huggingface_hub at a mirror. HF reads HF_ENDPOINT at import time, so a
+# change takes effect on the next backend start — persisted to the durable
+# per-user env so it survives Tauri/Finder launches that don't inherit a
+# shell. Loopback-gated via the router dep.
+
+_HF_ENDPOINT_ENV = "HF_ENDPOINT"
+
+# A few well-known mirrors, surfaced as quick-picks in the UI. hf-mirror.com
+# is the community mirror most-used in China; the official endpoint clears it.
+_HF_MIRROR_PRESETS = [
+    {"label": "Hugging Face (official)", "url": ""},
+    {"label": "hf-mirror.com (community, China)", "url": "https://hf-mirror.com"},
+]
+
+
+class _HFMirrorBody(BaseModel):
+    url: str = Field("", description="HF_ENDPOINT URL; empty string clears it (official endpoint)")
+
+
+@router.get("/hf-mirror")
+def get_hf_mirror():
+    from core import user_env
+
+    configured = user_env.get_user_env(_HF_ENDPOINT_ENV) or ""
+    return {
+        # The value that will apply after restart (persisted), and what's
+        # live in this process (env may differ until then).
+        "configured": configured,
+        "effective": os.environ.get(_HF_ENDPOINT_ENV, ""),
+        "presets": _HF_MIRROR_PRESETS,
+    }
+
+
+@router.put("/hf-mirror")
+def set_hf_mirror(body: _HFMirrorBody):
+    from core import user_env
+
+    url = (body.url or "").strip().rstrip("/")
+    if url and not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Mirror URL must start with http(s)://")
+    try:
+        if url:
+            user_env.set_user_env(_HF_ENDPOINT_ENV, url)
+            os.environ[_HF_ENDPOINT_ENV] = url  # best-effort for new downloads this session
+        else:
+            user_env.unset_user_env(_HF_ENDPOINT_ENV)
+            os.environ.pop(_HF_ENDPOINT_ENV, None)
+    except Exception:
+        logger.exception("set_hf_mirror failed")
+        raise HTTPException(status_code=500, detail="Failed to persist mirror setting")
+    # HF endpoint is read at import time by huggingface_hub, so the override
+    # is only guaranteed once the backend restarts.
+    return {"configured": url, "restart_required": True, "presets": _HF_MIRROR_PRESETS}
