@@ -34,10 +34,12 @@ from omnivoice.utils.text import parse_pause_markers
 # ``.*`` can't both match the same whitespace run — that overlap is what makes
 # ``[ \t]+(.+)`` polynomial-time on adversarial tabs (ReDoS). Stripped in code.
 _HEADING_RE = re.compile(r"^[ \t]*#[ \t]+(\S.*)$", re.MULTILINE)
-# ``[voice:NAME]`` switches the active narrator for the text that follows. A
-# single ``[^\]]*`` class (stripped in code) avoids the overlapping ``\s*``
-# quantifiers that make ``\s*(...)\s*`` polynomial-time.
-_VOICE_RE = re.compile(r"\[voice:([^\]]*)\]")
+# ``[voice:NAME]`` switches the active narrator for the text that follows. The
+# content class excludes BOTH brackets (``[^\]\[]``) so a run of nested
+# ``[voice:`` prefixes can't create overlapping match attempts across
+# ``finditer`` (the source of the polynomial-time ReDoS). A voice name never
+# contains a bracket; the value is stripped in code.
+_VOICE_RE = re.compile(r"\[voice:([^\]\[]*)\]")
 _BITRATE_RE = re.compile(r"^\d{2,3}k$")
 
 
