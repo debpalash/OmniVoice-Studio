@@ -1074,8 +1074,9 @@ path, mTLS/OAuth (overkill vs bearer + WireGuard), a second thin-client binary.
 > (`synthesize_chapter` + `chunked_tts`), and muxes a chapterized **m4b**
 > (FFMETADATA1 chapters). `POST /audiobook/plan` previews the plan;
 > `POST /audiobook` runs the synth job streaming SSE progress (ffmpeg-gated).
-> Deferred: epub/pdf/docx ingest, ACX `loudnorm` mastering, crash-resume, and
-> the UI.
+> A dedicated **Audiobook** tab (script editor → plan preview → streamed synth
+> → m4b player/download) ships in the frontend. Deferred: epub/pdf/docx ingest,
+> ACX `loudnorm` mastering, and crash-resume.
 
 **The production bar** (verified against [ebook2audiobook](https://github.com/DrewThomasson/ebook2audiobook),
 audiblez, epub2tts, abogen, Pandrator): broad ingest (epub/mobi/pdf/docx + OCR for

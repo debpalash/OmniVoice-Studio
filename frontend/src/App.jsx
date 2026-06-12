@@ -24,6 +24,7 @@ const VoiceGallery = lazy(() => import('./pages/VoiceGallery'));
 const SupportPage = lazy(() => import('./pages/SupportPage'));
 const TranscriptionsPage = lazy(() => import('./pages/Transcriptions'));
 const StoriesEditor = lazy(() => import('./components/StoriesEditor'));
+const AudiobookTab = lazy(() => import('./pages/AudiobookTab'));
 
 import Header from './components/Header';
 import NavRail from './components/NavRail';
@@ -166,7 +167,7 @@ function App() {
   const closeVoiceProfile = useAppStore(s => s.closeVoiceProfile);
   const hideSidebar = mode === 'launchpad' || mode === 'settings' || mode === 'voice' || mode === 'donate'
     || mode === 'queue' || mode === 'tools' || mode === 'projects' || mode === 'gallery' || mode === 'enterprise' || mode === 'transcriptions'
-    || mode === 'stories'
+    || mode === 'stories' || mode === 'audiobook'
     // Voice (studio) and Dub workspaces moved their saved voices /
     // projects + history into right-side panels; left sidebar dissolved.
     || mode === 'studio' || mode === 'dub';
@@ -1065,6 +1066,12 @@ function App() {
           <ErrorBoundary name="stories">
             <Suspense fallback={<LazyFallback />}>
               <StoriesEditor profiles={profiles} />
+            </Suspense>
+          </ErrorBoundary>
+        ) : mode === 'audiobook' ? (
+          <ErrorBoundary name="audiobook">
+            <Suspense fallback={<LazyFallback />}>
+              <AudiobookTab profiles={profiles} />
             </Suspense>
           </ErrorBoundary>
         ) : mode === 'donate' ? (

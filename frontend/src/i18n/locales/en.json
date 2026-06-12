@@ -104,9 +104,26 @@
     "omnidrive": "OmniDrive",
     "settings": "Settings",
     "stories": "Stories",
+    "audiobook": "Audiobook",
     "move_rail_right": "Move rail to the right",
     "move_rail_left": "Move rail to the left",
     "flip_rail": "Flip rail side"
+  },
+  "audiobook": {
+    "title": "Audiobook",
+    "subtitle": "Turn a chapter-delimited script into a chapterized m4b audiobook.",
+    "script": "Script",
+    "script_placeholder": "# Chapter One\nOnce upon a time… [pause 500ms] the end.\n\n# Chapter Two\n[voice:narrator] And so it continued.",
+    "default_voice": "Default voice",
+    "engine_default": "Engine default",
+    "preview_plan": "Preview plan",
+    "create": "Create audiobook",
+    "plan_heading": "Plan — {{count}} chapter(s)",
+    "chapter_meta": "{{spans}} span(s) · {{chars}} chars",
+    "synthesizing": "Synthesizing chapter {{current}} of {{total}} {{title}}",
+    "assembling": "Assembling the m4b…",
+    "ready": "Audiobook ready",
+    "download": "Download m4b"
   },
   "launchpad": {
     "greeting": "hello there",

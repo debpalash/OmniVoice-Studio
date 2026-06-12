@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Globe, Fingerprint, Film, FolderOpen, Settings2, ArrowLeftRight,
-  Library, FileText, BookOpen,
+  Library, FileText, BookOpen, BookMarked,
 } from 'lucide-react';
 
 const ITEM_DEFS = [
@@ -10,6 +10,7 @@ const ITEM_DEFS = [
   { id: 'studio',        Icon: Fingerprint, tKey: 'voice',       accent: '#d3869b' },
   { id: 'dub',           Icon: Film,        tKey: 'dub',         accent: '#fe8019' },
   { id: 'stories',       Icon: BookOpen,    tKey: 'stories',     accent: '#fabd2f' },
+  { id: 'audiobook',     Icon: BookMarked,  tKey: 'audiobook',   accent: '#8ec07c' },
   { id: 'gallery',       Icon: Library,     tKey: 'gallery',     accent: '#b8bb26' },
   { id: 'transcriptions',Icon: FileText,    tKey: 'transcripts', accent: '#d3869b' },
   { id: 'projects',      Icon: FolderOpen,  tKey: 'omnidrive',   accent: '#83a598' },
