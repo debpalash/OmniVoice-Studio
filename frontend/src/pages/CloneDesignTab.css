@@ -74,6 +74,122 @@
 .mic-btn .spinner { animation: spin 1s linear infinite; }
 
 /* ── Page layout ─────────────────────────────────────────────── */
+/* 10x console: scrollable definition content + a pinned action bar. */
+.studio-def-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.studio-action-bar {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--chrome-border);
+  background: var(--chrome-bg);
+  padding: 8px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.studio-action-bar__row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.studio-action-bar__lang {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 220px;
+  min-width: 140px;
+}
+.studio-action-bar__lang > :last-child { flex: 1; min-width: 0; }
+.studio-action-bar__steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 160px;
+  min-width: 120px;
+}
+.studio-action-bar__steps input[type='range'] { flex: 1; min-width: 60px; }
+.studio-action-bar__overrides {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  font-size: 0.7rem;
+  color: var(--chrome-fg-muted);
+  background: transparent;
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill, 999px);
+  cursor: pointer;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+.studio-action-bar__overrides:hover { color: var(--chrome-fg); border-color: var(--chrome-border-strong); }
+
+/* ── Script editor: ⊕ Insert token popover ───────────────────── */
+.clone-script-wrap { position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.clone-insert-btn {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  font-size: 0.66rem;
+  color: var(--chrome-fg-muted);
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill, 999px);
+  cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+.clone-insert-btn:hover, .clone-insert-btn.is-open { color: var(--chrome-fg); border-color: var(--chrome-border-strong); }
+.clone-insert-backdrop { position: fixed; inset: 0; z-index: 19; }
+.clone-insert-pop {
+  position: absolute;
+  right: 8px;
+  bottom: 38px;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 360px;
+  padding: 8px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border-strong);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* ── Starting points: ONE preset lane, edge-faded scroll ─────── */
+.starting-points { margin: 8px 0 12px; }
+.starting-points__label {
+  font-family: var(--chrome-font-mono, var(--font-mono));
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--chrome-fg-dim, #665c54);
+  margin-bottom: 6px;
+}
+.starting-points__strip {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+  /* Overflow honesty (10x §3): clipping reads as "scrolls", never as a
+     cut glyph. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 18px), transparent);
+}
+.starting-points__strip::-webkit-scrollbar { display: none; }
+.starting-points__strip .personality-chip { flex: 0 0 auto; }
+
 /* One definition column: Prompt stacked over Voice Source (spec §1 restack).
    The old side-by-side split crammed both panels once the right-side
    Voices/History column took its 340px — the drop zone, Record button and

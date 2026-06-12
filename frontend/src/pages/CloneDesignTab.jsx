@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Command, Globe, SlidersHorizontal, Volume2,
+  Command, Globe, SlidersHorizontal, Volume2, Plus,
   UploadCloud, Square, Mic, Save, UserSquare2, Settings2, ChevronUp, ChevronDown,
   Sparkles, Play, X, Wand2,
 } from 'lucide-react';
@@ -60,6 +60,7 @@ export default function CloneDesignTab(props) {
   const defineMethod = useAppStore(s => s.defineMethod);
   const setDefineMethod = useAppStore(s => s.setDefineMethod);
   const [activePersonality, setActivePersonality] = useState('');
+  const [insertOpen, setInsertOpen] = useState(false);
 
   // ── "Describe your voice" (#317): free-text → design parameters ──────────
   // Debounced call to the local deterministic mapper (POST /design/describe);
@@ -166,6 +167,18 @@ export default function CloneDesignTab(props) {
   // "wow moment" on first launch before any model downloads finish.
   const showHearDemo =
     defineMethod === 'audio' && selectedProfile === DEMO_PROFILE_ID && !anyTtsReady;
+
+  // Cmd/Ctrl+Enter synthesizes from anywhere in the workspace (10x spec 1.1).
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter') return;
+      e.preventDefault();
+      if (!isGenerating && !showHearDemo) handleGenerate();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGenerating, showHearDemo, handleGenerate]);
   const demoAudioRef = useRef(null);
   const demoReleaseRef = useRef(null);
   const [demoAudioPlaying, setDemoAudioPlaying] = useState(false);
@@ -220,33 +233,19 @@ export default function CloneDesignTab(props) {
   };
 
   return (
+    <div className="studio-def-col">
     <div className="clone-split-grid">
 
-      {/* ═══ LEFT COLUMN: prompt + language/steps ═══ */}
+      {/* ═══ SCRIPT — what should it say ═══ */}
       <div className="studio-column">
         <div className="studio-panel">
           <div className="label-row label-row--center">
-            <Command className="label-icon" size={14} /> {t('clone.prompt')}
+            <Command className="label-icon" size={14} /> {t('clone.script', { defaultValue: 'Script' })}
           </div>
-          {/* Design-tab empty state: 7-card demo grid replaces the bare
-              attribute-preset buttons when the user has not yet typed
-              anything and no personality is active. As soon as they
-              interact, the grid steps aside for the standard form. */}
+          {/* Design-tab empty state: 7-card demo grid until the user
+              interacts; then it steps aside for the standard form. */}
           {defineMethod === 'design' && !text && !activePersonality && demoPresets.length > 0 && (
             <DemoPresetGrid presets={demoPresets} onUse={applyDemoPreset} />
-          )}
-          {defineMethod === 'design' && (text || activePersonality || demoPresets.length === 0) && (
-            <div className="preset-grid">
-              {PRESETS.map(p => {
-                const Icon = PRESET_ICONS[p.id] || FALLBACK_VOICE_ICON;
-                return (
-                  <button key={p.id} className="preset-btn" onClick={() => applyPreset(p)}>
-                    <Icon size={13} className="preset-btn__icon" />
-                    {stripVoiceEmoji(t(`clone.preset_${p.id}`, { defaultValue: p.name }))}
-                  </button>
-                );
-              })}
-            </div>
           )}
           {showDemoCoachmark && defineMethod === 'audio' && selectedProfile === DEMO_PROFILE_ID && (
             <div className="clone-coachmark" role="note">
@@ -264,62 +263,60 @@ export default function CloneDesignTab(props) {
               </button>
             </div>
           )}
-          <textarea
-            ref={textAreaRef}
-            className="input-base clone-text-area"
-            placeholder={defineMethod === 'audio' ? t('clone.prompt_placeholder') : t('clone.design_placeholder')}
-            value={text}
-            onChange={e => {
-              setText(e.target.value);
-              if (showDemoCoachmark) setShowDemoCoachmark(false);
-            }}
-          />
-          <div className="tags-container">
-            {TAGS.map(tag => <button key={tag} className="tag-btn" onClick={() => insertTag(tag)}>{tag}</button>)}
+          <div className="clone-script-wrap">
+            <textarea
+              ref={textAreaRef}
+              className="input-base clone-text-area"
+              placeholder={defineMethod === 'audio' ? t('clone.prompt_placeholder') : t('clone.design_placeholder')}
+              value={text}
+              onChange={e => {
+                setText(e.target.value);
+                if (showDemoCoachmark) setShowDemoCoachmark(false);
+              }}
+            />
+            {/* Expression tokens live behind a popover — fourteen permanent
+                chips were renting the page's best pixels for an occasional
+                power feature (10x spec §1.4). */}
             <button
-              className="tag-btn clone-auto-extract-btn"
-              onClick={() => insertTag('[B EY1 S]')}
+              type="button"
+              className={`clone-insert-btn ${insertOpen ? 'is-open' : ''}`}
+              onClick={() => setInsertOpen(o => !o)}
+              aria-expanded={insertOpen}
+              aria-label={t('clone.insert_token', { defaultValue: 'Insert expression token' })}
             >
-              [CMU]
+              <Plus size={11} /> {t('clone.insert', { defaultValue: 'Insert' })} <ChevronDown size={10} />
             </button>
+            {insertOpen && (
+              <div className="clone-insert-backdrop" onClick={() => setInsertOpen(false)} />
+            )}
+            {insertOpen && (
+              <div className="clone-insert-pop" role="menu">
+                {TAGS.map(tag => (
+                  <button key={tag} className="tag-btn" role="menuitem"
+                    onClick={() => { insertTag(tag); setInsertOpen(false); }}>
+                    {tag}
+                  </button>
+                ))}
+                <button
+                  className="tag-btn clone-auto-extract-btn" role="menuitem"
+                  onClick={() => { insertTag('[B EY1 S]'); setInsertOpen(false); }}
+                >
+                  [CMU]
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="studio-panel clone-panel--overflow-visible">
-          <div className="grid-2">
-            <div>
-              <div className="label-row"><Globe className="label-icon" size={14} /> {t('clone.language')} ({ALL_LANGUAGES.length - 1})</div>
-              <SearchableSelect
-                value={language}
-                options={ALL_LANGUAGES}
-                popular={POPULAR_LANGS}
-                recentsKey="omnivoice.recents.genLang"
-                onChange={setLanguage}
-              />
-            </div>
-            <div>
-              <div className="label-row label-row--spread">
-                <span className="label-row label-row--flush">
-                  <SlidersHorizontal className="label-icon" size={14} /> {t('clone.steps')}
-                </span>
-                <span className="val-bubble">{steps}</span>
-              </div>
-              <input type="range" min="8" max="64" value={steps} onChange={e => setSteps(Number(e.target.value))} />
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* ═══ RIGHT COLUMN: voice source + overrides/synth ═══ */}
+      {/* ═══ VOICE — who says it ═══ */}
       <div className="studio-column">
         <div className="studio-panel">
-        <div className="label-row"><Volume2 className="label-icon" size={14} /> {t('clone.voice_source')}</div>
-
-        {/* Define voice — the method toggle that replaced the Clone/Design
-            tab split: 'From audio' (reference clip) vs 'By design' (described
-            attributes). */}
         <div className="label-row label-row--spread">
-          <span>{t('clone.define_voice', { defaultValue: 'Define voice' })}</span>
+          <span className="label-row label-row--flush">
+            <Volume2 className="label-icon" size={14} /> {t('clone.voice_kicker', { defaultValue: 'Voice' })}
+          </span>
           <Segmented
             size="sm"
             value={defineMethod}
@@ -427,9 +424,9 @@ export default function CloneDesignTab(props) {
           </div>
         ) : (
           <div>
-            {/* ── Describe your voice (#317) — free text drives the controls ── */}
+            {/* ── Describe your voice (#317) — free text drives the controls.
+                The placeholder explains itself; no extra header (10x §1.2). ── */}
             <div className="describe-voice-block">
-              <div className="label-row"><Wand2 className="label-icon" size={14} /> {t('clone.describe_label')}</div>
               <textarea
                 className="input-base describe-voice-area"
                 rows={2}
@@ -450,32 +447,38 @@ export default function CloneDesignTab(props) {
               <div className="describe-voice-hint">{t('clone.describe_hint')}</div>
             </div>
 
-            <div className="label-row"><UserSquare2 className="label-icon" size={14} /> {t('voice.personality')}</div>
-
-            {/* Personality presets — chip-only entries. Demo presets
-                render as full cards in the empty state above; including
-                them here too would duplicate the affordance. */}
-            {chipPersonalities.length > 0 && (
-              <div style={{ marginBottom: 10 }}>
-                <div className="personality-label">{t('voice.pick_personality')}</div>
-                <div className="personality-strip">
-                  {chipPersonalities.map(p => {
-                    const Icon = PERSONALITY_ICONS[p.id] || FALLBACK_PERSONALITY_ICON;
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        className={`personality-chip ${activePersonality === p.id ? 'active' : ''}`}
-                        onClick={() => applyPersonality(p)}
-                      >
-                        <span className="personality-chip__icon"><Icon size={13} /></span>
-                        {stripVoiceEmoji(t(`clone.personality_${p.id}`, { defaultValue: p.name }))}
-                      </button>
-                    );
-                  })}
-                </div>
+            {/* ONE preset system (10x §1.3): personalities + the old PROMPT
+                presets share a single scrollable "Starting points" lane —
+                both set vdStates + instruct; two widgets for one slot was
+                the confusion. */}
+            <div className="starting-points">
+              <div className="starting-points__label">{t('clone.starting_points', { defaultValue: 'Starting points' })}</div>
+              <div className="personality-strip starting-points__strip">
+                {chipPersonalities.map(p => {
+                  const Icon = PERSONALITY_ICONS[p.id] || FALLBACK_PERSONALITY_ICON;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`personality-chip ${activePersonality === p.id ? 'active' : ''}`}
+                      onClick={() => applyPersonality(p)}
+                    >
+                      <span className="personality-chip__icon"><Icon size={13} /></span>
+                      {stripVoiceEmoji(t(`clone.personality_${p.id}`, { defaultValue: p.name }))}
+                    </button>
+                  );
+                })}
+                {PRESETS.map(p => {
+                  const Icon = PRESET_ICONS[p.id] || FALLBACK_VOICE_ICON;
+                  return (
+                    <button key={p.id} type="button" className="personality-chip" onClick={() => applyPreset(p)}>
+                      <span className="personality-chip__icon"><Icon size={13} /></span>
+                      {stripVoiceEmoji(t(`clone.preset_${p.id}`, { defaultValue: p.name }))}
+                    </button>
+                  );
+                })}
               </div>
-            )}
+            </div>
             <div className="clone-sliders-col">
               {Object.entries(CATEGORIES).map(([key, options]) => {
                 const many = options.length > 6;
@@ -559,12 +562,13 @@ export default function CloneDesignTab(props) {
         )}
 
         </div>
+      </div>
+    </div>
 
-        <div className="studio-panel clone-panel--overflow-visible">
-        <div className="override-toggle" onClick={() => setShowOverrides(!showOverrides)}>
-          <span><Settings2 size={14} className="clone-icon-inline" /> {t('clone.production_overrides')}</span>
-          {showOverrides ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </div>
+    {/* ═══ ACTION BAR — pinned to the column bottom (10x §1.1): generation
+        parameters live WITH the button; SYNTHESIZE never scrolls away.
+        Overrides expand upward, above the controls row. ═══ */}
+    <div className="studio-action-bar clone-panel--overflow-visible">
         {showOverrides && (
           <div className="override-content">
             <div className="grid-4">
@@ -607,6 +611,34 @@ export default function CloneDesignTab(props) {
             </div>
           </div>
         )}
+
+        {/* Controls row: language · steps · overrides disclosure */}
+        <div className="studio-action-bar__row">
+          <div className="studio-action-bar__lang">
+            <Globe size={12} className="label-icon" />
+            <SearchableSelect
+              value={language}
+              options={ALL_LANGUAGES}
+              popular={POPULAR_LANGS}
+              recentsKey="omnivoice.recents.genLang"
+              onChange={setLanguage}
+            />
+          </div>
+          <label className="studio-action-bar__steps" title={t('clone.steps')}>
+            <SlidersHorizontal size={12} className="label-icon" />
+            <input type="range" min="8" max="64" value={steps} onChange={e => setSteps(Number(e.target.value))} />
+            <span className="val-bubble">{steps}</span>
+          </label>
+          <button
+            type="button"
+            className="studio-action-bar__overrides"
+            onClick={() => setShowOverrides(!showOverrides)}
+            aria-expanded={showOverrides}
+          >
+            <Settings2 size={13} /> {t('clone.production_overrides')}
+            {showOverrides ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+          </button>
+        </div>
 
         {showHearDemo ? (
           <>
@@ -664,8 +696,7 @@ export default function CloneDesignTab(props) {
             className="clone-footer-cta"
           />
         )}
-        </div>
-      </div>
+    </div>
     </div>
   );
 }
