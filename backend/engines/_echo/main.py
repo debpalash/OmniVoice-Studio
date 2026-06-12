@@ -101,6 +101,12 @@ def main() -> int:
             return 0
 
         op = msg.get("op")
+        # Wave 4.2: deterministic "crash mid-transcription" hook — exit BEFORE
+        # sending any reply so the parent's blocking recv sees a dead pipe
+        # (reply=None). The crash-after-one hook below replies first, so it
+        # can't deterministically exercise the no-reply path.
+        if op == "transcribe" and os.environ.get("OMNIVOICE_ECHO_CRASH_NO_REPLY") == "1":
+            os._exit(1)
         try:
             if op == "ping":
                 _send(stdout, {"op": "pong"})

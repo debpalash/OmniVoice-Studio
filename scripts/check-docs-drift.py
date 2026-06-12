@@ -36,7 +36,7 @@ import yaml
 # ``}`` or ``})`` (the registries are flat string-keyed dict literals).
 _TTS_MARKERS = ("_LAZY_REGISTRY: dict[str, tuple[str, str]] = {",
                 "_REGISTRY: dict[str, type[TTSBackend]] = _LazyRegistry({")
-_ASR_MARKERS = ("_REGISTRY: dict[str, type[ASRBackend]] = {",)
+_ASR_MARKERS = ("_REGISTRY: dict[str, type[ASRBackend]] = _LazyASRRegistry({",)
 
 _KEY_RE = re.compile(r'^\s*"([^"]+)"\s*:')
 

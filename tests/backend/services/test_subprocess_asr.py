@@ -38,7 +38,13 @@ class EchoASRBackend(SubprocessASRBackend):
 
 
 @pytest.fixture
-def asr():
+def asr(monkeypatch):
+    # The echo sidecar self-crashes after one frame when OMNIVOICE_ECHO_CRASH
+    # is set (a sibling subprocess test uses it). Clear it by default so the
+    # non-crash tests here never inherit a leaked flag via os.environ.copy();
+    # the crash test re-sets it explicitly.
+    monkeypatch.delenv("OMNIVOICE_ECHO_CRASH", raising=False)
+    monkeypatch.delenv("OMNIVOICE_ECHO_CRASH_NO_REPLY", raising=False)
     b = EchoASRBackend()
     yield b
     try:
@@ -61,20 +67,18 @@ def test_two_calls_reuse_one_sidecar(asr):
 
 
 def test_crash_mid_transcribe_fails_then_respawns(monkeypatch, asr):
-    # The echo sidecar self-exits after one frame when this env is set —
-    # simulating a CTranslate2 GPU-teardown segfault mid-transcription.
-    monkeypatch.setenv("OMNIVOICE_ECHO_CRASH", "1")
+    # The sidecar exits BEFORE replying — a deterministic dead pipe simulating
+    # a CTranslate2 GPU-teardown segfault mid-transcription.
+    monkeypatch.setenv("OMNIVOICE_ECHO_CRASH_NO_REPLY", "1")
     with pytest.raises(RuntimeError) as ei:
-        # First frame handled (returns segments) then the child exits; the
-        # crash surfaces on the FOLLOWING transcribe whose reply pipe is dead.
-        asr.transcribe("/first.wav")
-        asr.transcribe("/second.wav")
+        asr.transcribe("/boom.wav")
     msg = str(ei.value)
     assert "_echo_asr" in msg  # decorated with the engine id
     assert "device=" in msg
 
-    # Backend is still healthy: a fresh call (crash hook now off) respawns.
-    monkeypatch.delenv("OMNIVOICE_ECHO_CRASH", raising=False)
+    # Backend is still healthy: a fresh call (crash hook off) respawns a new
+    # sidecar via _spawn's dead-process check.
+    monkeypatch.delenv("OMNIVOICE_ECHO_CRASH_NO_REPLY", raising=False)
     result = asr.transcribe("/after.wav")
     assert result["segments"][0]["text"] == "echo:/after.wav"
 

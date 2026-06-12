@@ -38,9 +38,9 @@ _REGISTRY: dict[str, type[TTSBackend]] = _LazyRegistry({
 '''
 
 _ASR_SOURCE = '''
-_REGISTRY: dict[str, type[ASRBackend]] = {
+_REGISTRY: dict[str, type[ASRBackend]] = _LazyASRRegistry({
     "whisperx": WhisperXBackend,
-}
+})
 '''
 
 _INVENTORY = """
