@@ -375,12 +375,17 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
         };
       }));
       if (data.cinematic_skipped === 'no-llm-configured') {
-        toast(t('dub_workflow.cinematic_no_llm'), { icon: 'ℹ️', duration: 7000 });
+        toast(t('dub_workflow.cinematic_no_llm'), { icon: 'ℹ️', duration: 8000 });
+        // #372: the backend fell back to Fast — reflect that in the toggle so
+        // the UI doesn't claim Cinematic while delivering Fast.
+        useAppStore.getState().setTranslateQuality?.('fast');
       }
       // #280: the user picked a dialect but the chosen engine can't honor it
       // (Argos/NLLB/Google in Fast mode). Tell them how to make it count.
-      if (data.dialect && data.dialect_applied === false) {
-        toast(t('dub_workflow.dialect_not_applied'), { icon: 'ℹ️', duration: 7000 });
+      // #372: skip when the cinematic toast above already fired — both at once
+      // sent users in a circle ("pick Cinematic" ↔ "Cinematic needs an LLM").
+      if (data.dialect && data.dialect_applied === false && data.cinematic_skipped !== 'no-llm-configured') {
+        toast(t('dub_workflow.dialect_not_applied'), { icon: 'ℹ️', duration: 8000 });
       }
       if (errors.length) {
         const unique = [...new Set(errors.map(e => e.error))];
