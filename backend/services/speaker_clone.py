@@ -33,6 +33,15 @@ MIN_REF_DURATION_S = 5.0   # below this the clone is thin and unstable
 MAX_REF_DURATION_S = 15.0  # above this is just wasted reference context
 IDEAL_REF_DURATION_S = 8.0  # target window — long enough for prosody, short enough for coverage
 
+# Per-segment clone refs (Wave 3.2): cutting a reference from a single
+# subtitle line gives the dub of that line the prosody/emotion of its source
+# line — but a single line is usually short. We use a lower floor than the
+# per-speaker MIN (5.0): most dialogue lines are 2-6 s, and a 5 s floor would
+# make per-segment refs almost never fire. Below this, the line falls back to
+# the per-speaker reference (which always covers ≥ MIN_REF_DURATION_S). 3.0 s
+# is the empirical floor below which our zero-shot clone gets unstable.
+MIN_SEGMENT_REF_DURATION_S = 3.0
+
 
 def extract_speaker_clones(
     vocals_path: str,
@@ -111,6 +120,74 @@ def extract_speaker_clones(
             ref_path, out[speaker_id]["duration"], len(chosen), "" if len(chosen) == 1 else "s",
         )
 
+    return out
+
+
+def extract_segment_refs(
+    vocals_path: str,
+    segments: list[dict],
+    out_dir: str,
+    *,
+    seg_ids: list | None = None,
+) -> dict[str, dict]:
+    """Per-segment clone references (Wave 3.2 / Spec 4).
+
+    Cut each segment's own slice from the isolated vocals at THAT segment's
+    timestamps, so the dub of each line carries the prosody of its source
+    line — finer-grained than one reference per speaker. Returns a dict keyed
+    by segment id (``seg_ids[i]`` or ``"seg_{i}"``) for segments long enough
+    to clone from:
+
+        {"seg_3": {"ref_audio": "/abs/seg_ref_seg_3.wav",
+                   "ref_text": "the source-language line",
+                   "duration": 4.12}, ...}
+
+    Segments shorter than ``MIN_SEGMENT_REF_DURATION_S`` are omitted — the
+    caller falls back to the per-speaker reference for those (a strict
+    improvement over per-speaker-only, never a regression). Uses the
+    *original* segment timestamps (pre slack-absorption); only the vocals are
+    read, never the raw mix.
+    """
+    if not vocals_path or not os.path.exists(vocals_path) or not segments:
+        return {}
+    try:
+        audio, sr = sf.read(vocals_path, dtype="float32", always_2d=False)
+    except Exception as e:
+        logger.warning("segment_refs: failed to read %s: %s", vocals_path, e)
+        return {}
+    if audio.ndim > 1:
+        audio = audio.mean(axis=1)
+
+    os.makedirs(out_dir, exist_ok=True)
+    out: dict[str, dict] = {}
+    for i, seg in enumerate(segments):
+        seg_id = str(seg_ids[i]) if (seg_ids and i < len(seg_ids)) else f"seg_{i}"
+        start = float(seg.get("start", 0.0))
+        end = float(seg.get("end", 0.0))
+        if end - start < MIN_SEGMENT_REF_DURATION_S:
+            continue
+        s = max(0, int(start * sr))
+        e = min(audio.size, int(end * sr))
+        if e <= s:
+            continue
+        clip = audio[s:e].astype(np.float32, copy=False)
+        ref_path = os.path.join(out_dir, f"seg_ref_{_safe_name(seg_id)}.wav")
+        try:
+            sf.write(ref_path, clip, sr)
+        except Exception as e2:
+            logger.warning("segment_refs: failed to write %s: %s", ref_path, e2)
+            continue
+        # The vocals slice is source-language audio, so the matching
+        # reference transcript is the SOURCE text (text_original), not the
+        # translated `text`. Falls back to text only if no original is kept.
+        ref_text = (seg.get("text_original") or seg.get("text") or "").strip()
+        out[seg_id] = {
+            "ref_audio": ref_path,
+            "ref_text": ref_text,
+            "duration": float(clip.size) / float(sr),
+        }
+    if out:
+        logger.info("segment_refs: wrote %d per-segment reference(s)", len(out))
     return out
 
 
