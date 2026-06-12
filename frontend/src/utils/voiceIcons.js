@@ -44,7 +44,7 @@ export const FALLBACK_VOICE_ICON = Sparkles;
 export const FALLBACK_PERSONALITY_ICON = UserSquare2;
 
 /**
- * Strip emoji/pictographs from an i18n label (keeps CJK like 四川话 intact),
+ * Strip emoji/pictographs from an i18n label (CJK text passes through),
  * collapsing the leftover whitespace. Lets us drop emoji from any locale's
  * string without editing every locale file — the lucide icon renders instead.
  */

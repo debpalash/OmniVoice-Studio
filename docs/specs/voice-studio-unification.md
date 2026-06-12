@@ -30,7 +30,7 @@ Constraints honored (from `CLAUDE.md`): existing `voice_profiles` / `generation_
 │            │ [laughter] [sigh] [question-en] [CMU]         │ │ ⬢ DESIGN             0:01  ⋯  │ │
 │            │                                              │ │ studio                       │ │
 │            │  🔊 VOICE SOURCE                             │ │ ▶ ▕▏▎▍▌▋▊▉▊▋▌▍▎▏  0:00/0:01   │ │
-│            │ ┌──── Saved profiles ───────────  ＋ New ──┐ │ ├────────────────────────────────┤ │
+│            │ ┌──── Saved profiles ───────────  + New ──┐ │ ├────────────────────────────────┤ │
 │            │ │ (◉The Storyteller) ( The Anchor )( Maya )│ │ │ ⬢ DESIGN             0:01  ⋯  │ │
 │            │ └──────────────────────────────────────────┘ │ │ plain                        │ │
 │            │  Define voice:  (◉ From audio) ( By design ) │ │ ▶ ▕▏▎▍▌▋▊▉▊▋▌▍▎▏  0:00/0:01   │ │
@@ -57,7 +57,7 @@ Constraints honored (from `CLAUDE.md`): existing `voice_profiles` / `generation_
 
 ```
  🔊 VOICE SOURCE
-┌──── Saved profiles ─────────────────────────────  ＋ New ──┐
+┌──── Saved profiles ─────────────────────────────  + New ──┐
 │ ( The Storyteller ) ( The Anchor ) (◉ Maya — designed )    │
 └────────────────────────────────────────────────────────────┘
  Define voice:  ( From audio )  (◉ By design )
@@ -138,7 +138,7 @@ No backend involved in this section.
 - The `mode` prop branching inside `CloneDesignTab` (`mode === 'clone' ? … : …`) becomes a local `defineMethod` state (`'audio' | 'design'`), seeded from the selected profile or the last-used method. Generation request shape is unchanged — it already keys off `profile_id` / `ref_audio` / `instruct`, not the tab name.
 - Rename the file `CloneDesignTab.jsx` → `StudioTab.jsx` (keep the export working; update the lazy import in `App.jsx:1128`). NavRail label → "Voice".
 
-The **profile is the hub:** the saved-profiles strip (`CloneDesignTab.jsx:319-342`) moves to the top of Voice Source and is always visible regardless of define method; picking one fills the form and sets the method; "＋ New" clears selection back to a blank definition.
+The **profile is the hub:** the saved-profiles strip (`CloneDesignTab.jsx:319-342`) moves to the top of Voice Source and is always visible regardless of define method; picking one fills the form and sets the method; "+ New" clears selection back to a blank definition.
 
 ---
 
