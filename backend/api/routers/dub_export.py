@@ -1014,8 +1014,9 @@ async def dub_preview_video(
             if retime_decision is not None and retime_decision.mode == "file":
                 try:
                     os.remove(retime_decision.file_path)
-                except OSError:
-                    pass
+                except OSError as e:
+                    # Best-effort scratch cleanup — never fail the export.
+                    logger.debug("retime intermediate cleanup failed: %s", e)
 
         os.replace(mux_path, preview_path)
 
@@ -1217,8 +1218,9 @@ async def dub_qc_pass(job_id: str, lang: str = Query(None), drift_threshold: flo
     try:
         from core import job_store
         job_store.append_event(job_id, f"data: {payload}\n\n")
-    except Exception:
-        pass
+    except Exception as e:
+        # QC event fan-out is best-effort; the scores are already in the response.
+        logger.debug("QC event append failed: %s", e)
 
     return {
         "engine": engine_id,

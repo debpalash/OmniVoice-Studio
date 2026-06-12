@@ -38,6 +38,7 @@ from services.ffmpeg_utils import find_ffmpeg, find_ffprobe
 from services.video_retime import (
     RETIME_BATCH_SIZE,
     RETIME_SINGLE_PASS_MAX_CHUNKS,
+    RetimeError,
     build_chunk_filter_graph,
     expand_retime_chunks,
     is_vfr,
@@ -479,7 +480,7 @@ class TestRetimeExecutorIntegration:
     def test_render_cleans_slices_on_failure(self, tmp_path):
         out_path = tmp_path / "broken.mp4"
         chunks = expand_retime_chunks(_PLAN, _ORIG_DUR)
-        with pytest.raises(Exception):
+        with pytest.raises(RetimeError):
             asyncio.run(render_retimed_video(
                 job_id=None, ffmpeg=_FFMPEG,
                 video_path=str(tmp_path / "missing_input.mp4"),

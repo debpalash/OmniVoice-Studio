@@ -307,7 +307,7 @@ async def probe_duration(path: str) -> float | None:
             return None
         return float(stdout.decode().strip())
     except Exception as e:
-        logger.debug("probe_duration failed for %s: %s", path, e)
+        logger.debug("probe_duration failed for %s: %s", os.path.basename(str(path)), e)
         return None
 
 
@@ -340,7 +340,7 @@ async def probe_frame_rates(path: str) -> "tuple[str, str] | None":
             return None
         return parts[0].strip(), parts[1].strip()
     except Exception as e:
-        logger.debug("probe_frame_rates failed for %s: %s", path, e)
+        logger.debug("probe_frame_rates failed for %s: %s", os.path.basename(str(path)), e)
         return None
 
 

@@ -301,6 +301,10 @@ async def render_retimed_video(
                     stage="encode",
                 )
             if rc != 0:
+                # Negative rc = killed by signal (user cancel via
+                # kill_job_procs) — report as aborted, not a render failure.
+                if rc < 0:
+                    raise RetimeError("retime cancelled", stage="aborted")
                 tail = (stderr or b"").decode(errors="replace")[-300:]
                 raise RetimeError(
                     f"retime batch {bi + 1}/{len(batches)} failed: {tail}",
@@ -333,6 +337,8 @@ async def render_retimed_video(
         except asyncio.TimeoutError:
             raise RetimeError("retime concat join timed out", stage="concat")
         if rc != 0:
+            if rc < 0:
+                raise RetimeError("retime cancelled", stage="aborted")
             tail = (stderr or b"").decode(errors="replace")[-300:]
             raise RetimeError(f"retime concat join failed: {tail}", stage="concat")
         if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
