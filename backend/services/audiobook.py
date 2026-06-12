@@ -29,10 +29,11 @@ from typing import Callable, Optional
 from omnivoice.utils.text import parse_pause_markers
 
 # A Markdown H1 (``# Title``) starts a new chapter. Deeper headings stay in the
-# body as ordinary text (narrated, not chapter breaks). The title is captured
-# greedily and stripped in code — no trailing ``[ \t]*`` quantifier, so the
-# pattern is linear-time on adversarial whitespace (no ReDoS).
-_HEADING_RE = re.compile(r"^[ \t]*#[ \t]+(.+)$", re.MULTILINE)
+# body as ordinary text (narrated, not chapter breaks). The title capture
+# starts with ``\S`` (a non-space) so the leading ``[ \t]+`` and the title's
+# ``.*`` can't both match the same whitespace run — that overlap is what makes
+# ``[ \t]+(.+)`` polynomial-time on adversarial tabs (ReDoS). Stripped in code.
+_HEADING_RE = re.compile(r"^[ \t]*#[ \t]+(\S.*)$", re.MULTILINE)
 # ``[voice:NAME]`` switches the active narrator for the text that follows. A
 # single ``[^\]]*`` class (stripped in code) avoids the overlapping ``\s*``
 # quantifiers that make ``\s*(...)\s*`` polynomial-time.
