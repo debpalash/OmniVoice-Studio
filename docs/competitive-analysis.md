@@ -95,7 +95,7 @@ the self-inventory missed `scripts/validate-install-docs.py`, the probe-judge +
 | Global-hotkey dictation pill | B+ (#323 fixed) | ✅ (v0.5.0, auto-paste **macOS-only**) | ❌ | ❌ | We're ahead on cross-platform (their gap violates our parity rule) |
 | **LLM transcript refinement (filler-word removal)** | ❌ | ✅ local Qwen3 0.6B–4B | ❌ | ❌ | **Gap.** Action 3 |
 | **Captures library (replay / re-transcribe / refine)** | 🟡 (transcription history page) | ✅ richer (v0.5.0) | ❌ | ❌ | Partial gap — we store, they iterate |
-| Dictation while audio plays (echo cancel) | ❌ | ❌ | ❌ | ✅ NLMS AEC | Patter's AEC is portable. Action 8 |
+| Dictation while audio plays (echo cancel) | 🟡 (opt-in server-side NLMS AEC on `/ws/transcribe?aec=1`, backend shipped — Action 8b; frontend far-end wiring pending) | ❌ | ❌ | ✅ NLMS AEC | Ported Patter's NLMS canceller. Action 8 |
 | **Engines & platform** |
 | TTS engine count | B (6) | ✅ 7 | ✅ **33 channels** (22 ASR, 25 translate) | ✅ 7 (cloud) | pyvideotrans = breadth king (incl. cloud); we + voicebox are local-only by design |
 | Engine plugin protocol | B+ (ABC + registry) | ✅ Protocol + ModelConfig registry, **agent skill for adding engines** | ✅ lazy dataclass plugins | ✅ provider SDK | Everyone converged on the same pattern; their `requires_cuda`-gap lesson is free for us |

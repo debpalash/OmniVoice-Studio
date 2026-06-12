@@ -8,6 +8,12 @@ live dictation feedback.
 Protocol:
     → Client sends binary audio frames (16-bit PCM or WebM/Opus blobs)
     ← Server sends JSON messages:
+
+    Opt-in AEC mode (``?aec=1[&sr=16000]``, parity Action 8b): for dictating
+    while the app plays audio. Frames must be raw int16 mono PCM, each tagged
+    with a 1-byte prefix — 0x00 = microphone, 0x01 = playback reference. The
+    server runs an NLMS echo canceller, cleaning the mic against the reference
+    before transcription. Without the param the protocol is unchanged.
         {"type": "partial", "text": "Hello wor..."}      — interim result
         {"type": "final",   "text": "Hello world.",       — committed result
          "segments": [...], "language": "en",
@@ -44,6 +50,56 @@ MIN_BUFFER_BYTES = 64000  # ~2s of 16-bit mono 16kHz — needs enough WebM frame
 # to transcribe whatever the user recorded, even short utterances.
 MIN_FINAL_BUFFER_BYTES = 4000  # ~125ms of 16-bit mono 16kHz
 
+# ── Dictate-over-playback AEC (parity Action 8b, opt-in) ──────────────────
+# Activated by the ``?aec=1`` query param. When OFF (the default), the
+# protocol and behaviour are byte-for-byte unchanged. When ON, the client
+# streams raw int16 mono PCM frames tagged with a 1-byte type prefix so the
+# server can tell mic audio from the playback reference it must cancel:
+_AEC_NEAR = 0x00  # microphone frame (clean it, then buffer for ASR)
+_AEC_FAR = 0x01   # playback reference frame (feed the echo model only)
+
+
+def _demux_aec_frame(data: bytes) -> tuple[str, bytes]:
+    """Split a prefixed AEC binary frame into ``(kind, pcm)``.
+
+    ``kind`` is ``"near"`` (mic) or ``"far"`` (playback reference). An empty
+    or prefix-only frame yields an empty payload. Unknown prefixes are treated
+    as ``"near"`` so a malformed tag degrades to plain dictation rather than
+    dropping audio.
+    """
+    if not data:
+        return "near", b""
+    kind = "far" if data[0] == _AEC_FAR else "near"
+    return kind, data[1:]
+
+
+def _pcm16_to_wav(pcm: bytes, sample_rate: int) -> str | None:
+    """Write raw int16 mono PCM to a temp WAV via stdlib ``wave`` (no ffmpeg).
+
+    Used on the AEC path, where frames are already decoded PCM — the cleaned
+    samples have no container, so the ffmpeg-sniffing ``_chunks_to_wav`` would
+    misdetect them. Returns the temp path, or ``None`` for a too-short buffer.
+    """
+    if not pcm or len(pcm) < 100:
+        return None
+    import wave
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+    tmp.close()
+    try:
+        with wave.open(tmp.name, "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)  # int16
+            wf.setframerate(sample_rate)
+            wf.writeframes(pcm)
+        return tmp.name
+    except Exception as e:
+        logger.debug("PCM->WAV failed: %s", e)
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+        return None
+
 
 @router.websocket("/ws/transcribe")
 async def ws_transcribe(websocket: WebSocket):
@@ -62,6 +118,23 @@ async def ws_transcribe(websocket: WebSocket):
         return
 
     await websocket.accept()
+
+    # Opt-in dictate-over-playback AEC (parity Action 8b). Default OFF →
+    # identical legacy behaviour. When on, frames are 1-byte-tagged raw PCM
+    # and the cleaned mic stream is muxed via stdlib wave (not ffmpeg).
+    aec = None
+    pcm_sr: int | None = None
+    if websocket.query_params.get("aec") in ("1", "true", "on"):
+        try:
+            pcm_sr = int(websocket.query_params.get("sr", "16000"))
+            from services.aec import NlmsEchoCanceller
+            aec = NlmsEchoCanceller(sample_rate=pcm_sr)
+            logger.info("AEC enabled for dictation session (sr=%d)", pcm_sr)
+        except Exception as e:
+            # Bad sr or import failure → fall back to plain dictation.
+            logger.warning("AEC requested but disabled: %s", e)
+            aec = None
+            pcm_sr = None
 
     audio_chunks: list[bytes] = []
     total_bytes = 0
@@ -100,6 +173,16 @@ async def ws_transcribe(websocket: WebSocket):
                         # Empty binary frame also acts as EOF — connection stays open.
                         running = False
                         break
+                    if aec is not None:
+                        # Tagged PCM: route the playback reference into the echo
+                        # model and clean the mic before it reaches the buffer.
+                        kind, payload = _demux_aec_frame(data)
+                        if kind == "far":
+                            aec.push_far_end(payload)
+                            continue
+                        if not payload:
+                            continue
+                        data = aec.process_near_end(payload)
                     audio_chunks.append(data)
                     total_bytes += len(data)
                     last_audio_time = time.monotonic()
@@ -146,7 +229,7 @@ async def ws_transcribe(websocket: WebSocket):
 
             # Transcribe current buffer
             try:
-                text = await _transcribe_buffer(audio_chunks[:])
+                text = await _transcribe_buffer(audio_chunks[:], pcm_sr=pcm_sr)
                 if text and text != partial_text:
                     partial_text = text
                     await _safe_send({
@@ -176,7 +259,7 @@ async def ws_transcribe(websocket: WebSocket):
     # Final transcription on complete buffer — skip if client already gone.
     if total_bytes > MIN_FINAL_BUFFER_BYTES:
         try:
-            result = await _transcribe_buffer_full(audio_chunks)
+            result = await _transcribe_buffer_full(audio_chunks, pcm_sr=pcm_sr)
             # Wave 2.1: optional local-LLM refinement of the final text.
             # Off-thread (network call, not GPU); pass-through on any
             # failure or when no LLM backend is configured. The raw text
@@ -209,10 +292,10 @@ async def ws_transcribe(websocket: WebSocket):
             pass
 
 
-async def _transcribe_buffer(chunks: list[bytes]) -> str:
+async def _transcribe_buffer(chunks: list[bytes], *, pcm_sr: int | None = None) -> str:
     """Quick partial transcription of the current audio buffer."""
 
-    tmp = _chunks_to_wav(chunks)
+    tmp = _pcm16_to_wav(b"".join(chunks), pcm_sr) if pcm_sr else _chunks_to_wav(chunks)
     if tmp is None:
         return ""
 
@@ -235,9 +318,9 @@ async def _transcribe_buffer(chunks: list[bytes]) -> str:
             pass
 
 
-async def _transcribe_buffer_full(chunks: list[bytes]) -> dict:
+async def _transcribe_buffer_full(chunks: list[bytes], *, pcm_sr: int | None = None) -> dict:
     """Full transcription with timing info for the final result."""
-    tmp = _chunks_to_wav(chunks)
+    tmp = _pcm16_to_wav(b"".join(chunks), pcm_sr) if pcm_sr else _chunks_to_wav(chunks)
     if tmp is None:
         return {"text": "", "segments": [], "language": "unknown",
                 "duration_s": 0, "transcription_time_s": 0, "engine": "none"}
