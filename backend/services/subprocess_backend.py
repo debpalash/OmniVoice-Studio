@@ -47,6 +47,8 @@ import struct
 import subprocess
 import sys
 import threading
+import time
+import weakref
 from pathlib import Path
 from typing import Optional
 
@@ -89,6 +91,86 @@ SPAWN_READY_TIMEOUT_S = 30.0
 RECV_TIMEOUT_S = 60.0
 
 
+# ── Idle sidecar reaping (parity Action 13) ─────────────────────────────────
+#
+# A subprocess engine's sidecar holds a process and, for GPU engines, VRAM —
+# for the whole life of the backend, even when the user has moved on to another
+# engine. The default in-process OmniVoice model already idle-unloads via
+# model_manager.idle_worker; this gives the *subprocess* engine class the same
+# treatment: a background reaper shuts down sidecars that have been idle past a
+# timeout, and the next request transparently respawns one (the base already
+# relaunches on a dead process). Reaping is provably safe against an in-flight
+# op because the reaper only acts while holding the per-backend lock acquired
+# NON-blockingly — if an op holds it, the reaper skips that backend this round.
+#
+# Tunable via OMNIVOICE_SIDECAR_IDLE_TIMEOUT_S (seconds; <= 0 disables).
+SIDECAR_IDLE_TIMEOUT_S = float(os.environ.get("OMNIVOICE_SIDECAR_IDLE_TIMEOUT_S", "300"))
+_REAPER_INTERVAL_S = 30.0
+
+#: Weak registry of live SubprocessBackend instances the reaper scans. Weak so
+#: discarded backends (the fresh-per-call instances) don't leak — once GC'd and
+#: their atexit shutdown fires, they drop out on their own.
+_LIVE_BACKENDS: "weakref.WeakSet" = weakref.WeakSet()
+_reaper_started = False
+_reaper_lock = threading.Lock()
+
+
+def reap_idle_sidecars(timeout_s: float | None = None) -> int:
+    """Shut down sidecars idle longer than ``timeout_s``. Returns the count
+    reaped. A non-positive timeout disables reaping (returns 0). Safe to call
+    from any thread — it never touches a backend that is mid-op (it acquires
+    the backend lock non-blockingly and skips on contention)."""
+    timeout = SIDECAR_IDLE_TIMEOUT_S if timeout_s is None else timeout_s
+    if timeout <= 0:
+        return 0
+    reaped = 0
+    for b in list(_LIVE_BACKENDS):
+        proc = getattr(b, "_proc", None)
+        if proc is None or proc.poll() is not None:
+            continue  # no live sidecar to reap
+        if b.idle_seconds() < timeout:
+            continue
+        if not b._lock.acquire(blocking=False):
+            continue  # an op holds the lock → not idle; skip this round
+        try:
+            # Re-check under the lock: an op may have just spawned/used it.
+            proc = b._proc
+            if proc is not None and proc.poll() is None and b.idle_seconds() >= timeout:
+                logger.info(
+                    "[%s] reaping idle sidecar (idle %.0fs ≥ %.0fs) to free its "
+                    "process/VRAM; next request respawns it",
+                    b.id, b.idle_seconds(), timeout,
+                )
+                b.shutdown()  # shutdown() does not take _lock, so no re-entrancy
+                reaped += 1
+        finally:
+            b._lock.release()
+    return reaped
+
+
+def _reaper_loop() -> None:
+    while True:
+        time.sleep(_REAPER_INTERVAL_S)
+        try:
+            reap_idle_sidecars()
+        except Exception:  # pragma: no cover - defensive; a reap error must not kill the thread
+            logger.exception("sidecar idle reaper error")
+
+
+def _ensure_reaper_running() -> None:
+    """Start the daemon reaper thread once, lazily, on first sidecar spawn."""
+    global _reaper_started
+    if _reaper_started or SIDECAR_IDLE_TIMEOUT_S <= 0:
+        return
+    with _reaper_lock:
+        if _reaper_started:
+            return
+        threading.Thread(
+            target=_reaper_loop, name="sidecar-idle-reaper", daemon=True,
+        ).start()
+        _reaper_started = True
+
+
 # ── Base class ─────────────────────────────────────────────────────────────
 
 
@@ -117,10 +199,23 @@ class SubprocessBackend(TTSBackend):
         # can't interleave half-frames on the same pipe.
         self._lock = threading.Lock()
         self._stderr_thread: Optional[threading.Thread] = None
+        # Monotonic timestamp of the last sidecar activity, for the idle reaper
+        # (parity Action 13). Registered in the weak live-backend set so the
+        # reaper can find this instance's sidecar.
+        self._last_used = time.monotonic()
+        _LIVE_BACKENDS.add(self)
         # Idempotent atexit shutdown (Pitfall 6 layer 1). If the interpreter
         # exits without an explicit shutdown call, this still tears down the
         # sidecar tree.
         atexit.register(self.shutdown)
+
+    def _touch(self) -> None:
+        """Mark the sidecar as just-used so the idle reaper leaves it alone."""
+        self._last_used = time.monotonic()
+
+    def idle_seconds(self) -> float:
+        """Seconds since the last sidecar activity (spawn or frame I/O)."""
+        return time.monotonic() - self._last_used
 
     # ── subclass contract ──────────────────────────────────────────────────
 
@@ -203,6 +298,8 @@ class SubprocessBackend(TTSBackend):
                 f"{self.id} sidecar did not signal ready: {frame!r}"
             )
         logger.info("[%s] sidecar ready", self.id)
+        self._touch()
+        _ensure_reaper_running()
 
     def shutdown(self) -> None:
         """Idempotent. Sends {op:shutdown}; falls back to terminate/kill."""
@@ -412,6 +509,7 @@ class SubprocessBackend(TTSBackend):
             return self._recv()
         finally:
             watchdog.cancel()
+            self._touch()  # any reply (or attempt) counts as recent activity
 
     def _timeout_kill(self) -> None:
         proc = self._proc
@@ -488,4 +586,6 @@ __all__ = [
     "MAX_FRAME_BYTES",
     "PARENT_INBOUND_OPS",
     "SIDECAR_INBOUND_OPS",
+    "SIDECAR_IDLE_TIMEOUT_S",
+    "reap_idle_sidecars",
 ]
