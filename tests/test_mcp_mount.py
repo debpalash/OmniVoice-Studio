@@ -37,17 +37,22 @@ def test_streamable_app_serves_at_root_for_submounting():
     assert server.session_manager is not None
 
 
-def test_main_mounts_mcp_route():
-    """Importing main wires /mcp; a GET returns a transport error, not 404."""
-    from fastapi.testclient import TestClient
-    from main import app
+def _mount_paths(app) -> set[str]:
+    from starlette.routing import Mount
+    return {r.path for r in app.routes if isinstance(r, Mount)}
 
-    with TestClient(app) as client:
-        r = client.get("/mcp")
-        # 404 would mean the mount didn't happen. The streamable transport
-        # answers a bare GET with 4xx (needs session negotiation) — that's a
-        # live route.
-        assert r.status_code != 404
+
+def test_main_mounts_mcp_route():
+    """Importing main wires the /mcp mount.
+
+    Inspect app.routes rather than driving a TestClient — running the app
+    lifespan starts the FastMCP session manager, which binds asyncio queues
+    to the test's event loop and contaminates later lifespan-running tests
+    ("bound to a different event loop"). The mount itself happens at import
+    time, so route inspection is the right, loop-free assertion.
+    """
+    from main import app
+    assert "/mcp" in _mount_paths(app)
 
 
 def test_mcp_disable_env_skips_mount(monkeypatch):
@@ -55,9 +60,9 @@ def test_mcp_disable_env_skips_mount(monkeypatch):
     import importlib
     import main as _main
     importlib.reload(_main)
-    from fastapi.testclient import TestClient
-    with TestClient(_main.app) as client:
-        assert client.get("/mcp").status_code == 404  # not mounted
-    # Re-import without the flag so other tests see the default app again.
-    monkeypatch.delenv("OMNIVOICE_MCP_DISABLE", raising=False)
-    importlib.reload(_main)
+    try:
+        assert "/mcp" not in _mount_paths(_main.app)
+    finally:
+        # Restore the default app so other tests see /mcp mounted again.
+        monkeypatch.delenv("OMNIVOICE_MCP_DISABLE", raising=False)
+        importlib.reload(_main)
