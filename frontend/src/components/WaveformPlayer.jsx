@@ -94,8 +94,11 @@ export default function WaveformPlayer({
         // create a detached one: Tauri's WebKit decodes (peaks render) but
         // won't actually output sound for detached/blob-backed media — the
         // same reason WaveformTimeline passes its <video> element.
+        // NOTE: the element's `src` is set in JSX, NOT via the `url` option —
+        // with an external `media`, wavesurfer only fetches `url` for peaks
+        // and never assigns it to the element, leaving play() with nothing
+        // to play (waveform drew, click did nothing).
         media:         mediaRef.current,
-        url:           resolvedUrl,
       });
     } catch (initErr) {
       console.warn('WaveformPlayer: WaveSurfer init failed, native fallback:', initErr);
@@ -146,7 +149,12 @@ export default function WaveformPlayer({
     };
   }, [resolvedUrl, failed, height, source, onEnded]);
 
-  const togglePlay = () => { try { wsRef.current?.playPause(); } catch { /* noop */ } };
+  const togglePlay = () => {
+    // playPause is async — a swallowed rejection here is exactly how the
+    // "click does nothing" bug hid; log it so playback failures are visible.
+    Promise.resolve(wsRef.current?.playPause())
+      .catch((e) => console.warn('WaveformPlayer: play failed:', e));
+  };
 
   if (!resolvedUrl) return null;
 
@@ -180,7 +188,7 @@ export default function WaveformPlayer({
   return (
     <div className={`wf-player ${compact ? 'wf-player--compact' : ''} ${className}`}>
       {/* Hidden but DOM-attached playback element (see WaveSurfer `media`). */}
-      <audio ref={mediaRef} preload="metadata" style={{ display: 'none' }} />
+      <audio ref={mediaRef} src={resolvedUrl} preload="metadata" style={{ display: 'none' }} />
       <button
         type="button"
         className="wf-player__btn"
