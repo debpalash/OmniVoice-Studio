@@ -16,7 +16,7 @@ Scope: the `studio` workspace only (CloneDesignTab + right rail). No backend cha
 │◉ │ ┌──────────────────────────────────────────────────┐ │ │ ◉ Maya — designed            │ │
 │  │ │ You came a long way for an answer you already    │ │ │ male · elderly · very low    │ │
 │◌ │ │ had. Sit. The fire is warm, and the truth▌       │ │ │ ▶ ▁▂▅▇▅▂▁ sample · 0:03      │ │
-│  │ │                                                  │ │ │ [Edit voice]    [＋ New]     │ │
+│  │ │                                                  │ │ │ [Edit voice]    [+ New]     │ │
 │◌ │ │                                       ⊕ Insert ▾ │ │ └──────────────────────────────┘ │
 │  │ └──────────────────────────────────────────────────┘ │                                  │
 │◌ │     └ tag popover: [laughter][sigh][question-…]      │  SAVED VOICES            search ⌕│
@@ -66,7 +66,7 @@ Scope: the `studio` workspace only (CloneDesignTab + right rail). No backend cha
 │ ◉ Maya                     [designed] │   ← identity always visible: who will
 │ male · elderly · very low pitch       │     speak the next Synthesize
 │ ▶ ▁▂▅▇▅▂▁  sample · 0:03              │   ← one-click identity check
-│ [Edit voice]              [＋ New]    │
+│ [Edit voice]              [+ New]    │
 └───────────────────────────────────────┘
 Empty state:  "No voice selected — describe one ←, drop audio, or pick below."
 ```
@@ -87,7 +87,7 @@ Empty state:  "No voice selected — describe one ←, drop audio, or pick below
 
 ## 2 — Right rail: identity first
 
-Order: **ACTIVE VOICE card → Saved voices → History.** The card answers "who will speak when I press Synthesize" — currently invisible until output surprises you. Card shows name, method badge, recipe line, a 3s identity sample (`<WaveformPlayer compact>` of the profile's ref/rendered audio), Edit (loads into the form) and ＋ New (clears). Empty card carries verbs, not absence: *"describe one ←, drop audio, or pick below."* Saved voices shrinks to compact rows (name · badge · play); history unchanged (post-#389).
+Order: **ACTIVE VOICE card → Saved voices → History.** The card answers "who will speak when I press Synthesize" — currently invisible until output surprises you. Card shows name, method badge, recipe line, a 3s identity sample (`<WaveformPlayer compact>` of the profile's ref/rendered audio), Edit (loads into the form) and + New (clears). Empty card carries verbs, not absence: *"describe one ←, drop audio, or pick below."* Saved voices shrinks to compact rows (name · badge · play); history unchanged (post-#389).
 
 ## 3 — Craft rules (the last 2 points live here)
 
