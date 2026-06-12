@@ -62,6 +62,15 @@ export default function CloneDesignTab(props) {
   const [activePersonality, setActivePersonality] = useState('');
   const [insertOpen, setInsertOpen] = useState(false);
 
+  // Identity recipe line (10x §1.5): the non-Auto category picks as one
+  // readable string. All-Auto (nothing chosen yet) starts the chips expanded.
+  const identityPicks = Object.values(vdStates || {}).filter(v => v && v !== 'Auto');
+  const identityRecipe = identityPicks.length
+    ? identityPicks.join(' · ')
+    : t('clone.identity_auto', { defaultValue: 'Auto — the model decides' });
+  const [identityOpen, setIdentityOpen] = useState(() =>
+    !Object.values(vdStates || {}).some(v => v && v !== 'Auto'));
+
   // ── "Describe your voice" (#317): free-text → design parameters ──────────
   // Debounced call to the local deterministic mapper (POST /design/describe);
   // the result overwrites the category controls live, and the user can still
@@ -479,6 +488,21 @@ export default function CloneDesignTab(props) {
                 })}
               </div>
             </div>
+            {/* Identity recipe (10x §1.5): once any category is set, the
+                chip groups collapse to one quiet line — the current voice
+                recipe — and the describe box rewrites it live. All-Auto
+                (first run) starts expanded. */}
+            <button
+              type="button"
+              className="identity-line"
+              onClick={() => setIdentityOpen(o => !o)}
+              aria-expanded={identityOpen}
+            >
+              <span className="identity-line__kicker">{t('clone.identity', { defaultValue: 'Identity' })}</span>
+              <span className="identity-line__recipe">{identityRecipe}</span>
+              {identityOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </button>
+            {identityOpen && (
             <div className="clone-sliders-col">
               {Object.entries(CATEGORIES).map(([key, options]) => {
                 const many = options.length > 6;
@@ -528,6 +552,7 @@ export default function CloneDesignTab(props) {
                 );
               })}
             </div>
+            )}
 
             {/* Save the current design as a reusable profile (0005): the
                 backend renders a deterministic identity sample (seed 42)

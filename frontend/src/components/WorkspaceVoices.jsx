@@ -14,14 +14,18 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Search, Fingerprint, Wand2, Lock, Unlock, Play, Loader, Check, Volume2, Trash2,
+  Search, Fingerprint, Wand2, Lock, Unlock, Play, Loader, Check, Volume2, Trash2, Plus,
 } from 'lucide-react';
+import WaveformPlayer from './WaveformPlayer';
+import { API } from '../api/client';
+import { useAppStore } from '../store';
 import './WorkspaceVoices.css';
 
 export default function WorkspaceVoices({
   defineMethod,
   profiles = [],
   selectedProfile,
+  setSelectedProfile,
   previewLoading,
   handleSelectProfile,
   handleDeleteProfile,
@@ -31,8 +35,13 @@ export default function WorkspaceVoices({
   onOpenVoicePreview,
 }) {
   const { t } = useTranslation();
+  const setDefineMethod = useAppStore(s => s.setDefineMethod);
   const [q, setQ] = useState('');
   const qLower = q.trim().toLowerCase();
+
+  // ACTIVE VOICE card (10x §2): always answer "who speaks when I press
+  // Synthesize". Recipe = instruct (designed) or "your reference clip".
+  const active = profiles.find(p => p.id === selectedProfile) || null;
 
   const items = useMemo(() => {
     const byMethod = profiles.filter(p => (defineMethod === 'audio' ? !p.instruct : !!p.instruct));
@@ -47,6 +56,41 @@ export default function WorkspaceVoices({
 
   return (
     <section className={`wv ${items.length === 0 ? 'wv--collapsed' : ''}`}>
+      {/* ── ACTIVE VOICE ─────────────────────────────────────────────── */}
+      <div className="wv__active">
+        <div className="wv__active-kicker">{t('voices.active', { defaultValue: 'Active voice' })}</div>
+        {active ? (
+          <div className="wv__active-card">
+            <div className="wv__active-row">
+              <span className="wv__active-name">{active.name}</span>
+              <span className="history-kind" style={{ color: active.instruct ? '#8ec07c' : '#d3869b', borderColor: active.instruct ? '#8ec07c40' : '#d3869b40' }}>
+                {active.instruct ? t('sidebar.design_label') : t('sidebar.clone_label')}
+              </span>
+            </div>
+            <div className="wv__active-recipe">
+              {active.instruct || t('voices.active_clone_recipe', { defaultValue: 'Cloned from your reference clip' })}
+            </div>
+            {active.ref_audio_path ? (
+              <WaveformPlayer
+                src={`${API}/profiles/${active.id}/audio`}
+                source="profile-sample"
+                height={26}
+                compact
+              />
+            ) : null}
+            <div className="wv__active-actions">
+              <button type="button" className="history-action-btn" onClick={() => setSelectedProfile?.(null)}>
+                <Plus size={10} /> {t('voices.new', { defaultValue: 'New voice' })}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="wv__active-empty">
+            {t('voices.none_selected', { defaultValue: 'No voice selected — describe one, drop audio, or pick below.' })}
+          </div>
+        )}
+      </div>
+
       <div className="wv__head">
         <span className="wv__title">{title}</span>
         <div className="wv__search">
@@ -66,6 +110,16 @@ export default function WorkspaceVoices({
             {defineMethod === 'audio'
               ? t('sidebar.no_clones', { defaultValue: 'No voice clones yet' })
               : t('sidebar.no_designs', { defaultValue: 'No designed voices yet' })}
+            {/* Empty states carry verbs (10x §2). */}
+            <button
+              type="button"
+              className="wv__empty-cta"
+              onClick={() => setDefineMethod(defineMethod === 'audio' ? 'audio' : 'design')}
+            >
+              {defineMethod === 'audio'
+                ? t('voices.cta_clone', { defaultValue: 'Drop a 3s clip in Voice ← to clone one' })
+                : t('voices.cta_design', { defaultValue: 'Describe one in Voice ← to design it' })}
+            </button>
           </div>
         ) : items.map(proj => {
           const accent = proj.is_locked ? '#b8bb26' : (defineMethod === 'audio' ? '#d3869b' : '#8ec07c');

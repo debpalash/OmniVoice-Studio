@@ -16,6 +16,60 @@
   flex: 0 0 auto;
 }
 
+/* ── Active voice card (10x §2) — identity always visible ─────── */
+.wv__active {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--chrome-border);
+}
+.wv__active-kicker {
+  font-family: var(--chrome-font-mono, var(--font-mono));
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--chrome-fg-dim, #665c54);
+  margin-bottom: 6px;
+}
+.wv__active-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--chrome-accent-border, rgba(211, 134, 155, 0.35));
+  background: var(--chrome-accent-bg, rgba(211, 134, 155, 0.08));
+  border-radius: 10px;
+}
+.wv__active-row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.wv__active-name { font-size: 0.8rem; font-weight: 600; color: var(--chrome-fg); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wv__active-recipe {
+  font-size: 0.68rem;
+  color: var(--chrome-fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wv__active-actions { display: flex; gap: 6px; }
+.wv__active-empty {
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--chrome-fg-muted);
+  padding: 8px 10px;
+  border: 1px dashed var(--chrome-border);
+  border-radius: 10px;
+}
+
+.wv__empty-cta {
+  display: block;
+  margin: 8px auto 0;
+  padding: 4px 10px;
+  font-size: 0.66rem;
+  color: var(--chrome-fg-muted);
+  background: transparent;
+  border: 1px dashed var(--chrome-border);
+  border-radius: var(--chrome-radius-pill, 999px);
+  cursor: default;
+}
+
 .wv__head {
   flex: 0 0 auto;
   display: flex;

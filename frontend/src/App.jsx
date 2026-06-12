@@ -1208,6 +1208,7 @@ function App() {
               defineMethod={defineMethod}
               profiles={profiles}
               selectedProfile={selectedProfile}
+              setSelectedProfile={setSelectedProfile}
               previewLoading={previewLoading}
               handleSelectProfile={handleSelectProfile}
               handleDeleteProfile={handleDeleteProfile}

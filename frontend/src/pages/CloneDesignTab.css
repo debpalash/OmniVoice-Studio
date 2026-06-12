@@ -167,6 +167,40 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
+/* ── Identity recipe line (collapsed category summary) ───────── */
+.identity-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 4px 0 8px;
+  padding: 6px 10px;
+  background: var(--chrome-hover-bg, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--dur-fast);
+}
+.identity-line:hover { border-color: var(--chrome-border-strong); }
+.identity-line__kicker {
+  font-family: var(--chrome-font-mono, var(--font-mono));
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--chrome-fg-dim, #665c54);
+  flex: 0 0 auto;
+}
+.identity-line__recipe {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.74rem;
+  color: var(--chrome-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ── Starting points: ONE preset lane, edge-faded scroll ─────── */
 .starting-points { margin: 8px 0 12px; }
 .starting-points__label {
@@ -213,7 +247,9 @@
   min-height: 0;
   position: relative;
 }
-.clone-split-grid > .studio-column:first-child { flex: 1 0 auto; z-index: 2; }
+/* Natural stacking — forcing the script column to grow left a void between
+   SCRIPT and VOICE; the pinned action bar owns the bottom edge anyway. */
+.clone-split-grid > .studio-column:first-child { flex: 0 0 auto; z-index: 2; }
 .clone-split-grid > .studio-column:last-child  { z-index: 1; }
 .clone-panel--overflow-visible { overflow: visible; position: relative; z-index: 10; }
 
