@@ -1025,9 +1025,21 @@ def _pick_subtitle_text(seg: dict, dual: bool) -> str:
 # (#309). The frontend's JSON-envelope save flow stays for binary exports.
 
 
+def _fitted_cue_times(job: dict, lang: str | None) -> list | None:
+    """Per-segment (start, end) on the fitted timeline when this job used
+    stretch_video; None to use the original segment times. (Wave 3.1.)"""
+    tracks = job.get("dubbed_tracks", {})
+    lc = lang if (lang and lang in tracks) else (next(iter(tracks), None))
+    entry = _video_stretch_plan_for(job, lc) if lc else None
+    if not entry:
+        return None
+    from services.fitted_subtitles import fitted_cues
+    return fitted_cues(job.get("segments", []), entry["plan"])
+
+
 @router.get("/dub/srt/{job_id}")
 @router.get("/dub/srt/{job_id}/{filename}")
-async def dub_export_srt(job_id: str, dual: bool = False):
+async def dub_export_srt(job_id: str, dual: bool = False, lang: str = None):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -1036,12 +1048,16 @@ async def dub_export_srt(job_id: str, dual: bool = False):
     if not segments:
         raise HTTPException(status_code=400, detail="No transcript segments available")
 
+    # Wave 3.1: under stretch_video the dubbed audio plays at fitted
+    # positions, so regenerate the cue timeline from the same stretch plan
+    # ("subtitles track actual dub placement"). No plan → original times.
+    cues = _fitted_cue_times(job, lang)
+
     srt_lines = []
     for i, seg in enumerate(segments):
-        start_ts = _format_srt_time(seg["start"])
-        end_ts = _format_srt_time(seg["end"])
+        s, e = cues[i] if cues else (seg["start"], seg["end"])
         srt_lines.append(f"{i + 1}")
-        srt_lines.append(f"{start_ts} --> {end_ts}")
+        srt_lines.append(f"{_format_srt_time(s)} --> {_format_srt_time(e)}")
         srt_lines.append(_pick_subtitle_text(seg, dual))
         srt_lines.append("")
 
@@ -1064,7 +1080,7 @@ def _format_vtt_time(seconds):
 
 @router.get("/dub/vtt/{job_id}")
 @router.get("/dub/vtt/{job_id}/{filename}")
-async def dub_export_vtt(job_id: str, dual: bool = False):
+async def dub_export_vtt(job_id: str, dual: bool = False, lang: str = None):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -1073,12 +1089,14 @@ async def dub_export_vtt(job_id: str, dual: bool = False):
     if not segments:
         raise HTTPException(status_code=400, detail="No transcript segments available")
 
+    # Wave 3.1: fitted timeline under stretch_video (see SRT export).
+    cues = _fitted_cue_times(job, lang)
+
     vtt_lines = ["WEBVTT", ""]
     for i, seg in enumerate(segments):
-        start_ts = _format_vtt_time(seg["start"])
-        end_ts = _format_vtt_time(seg["end"])
+        s, e = cues[i] if cues else (seg["start"], seg["end"])
         vtt_lines.append(str(i + 1))
-        vtt_lines.append(f"{start_ts} --> {end_ts}")
+        vtt_lines.append(f"{_format_vtt_time(s)} --> {_format_vtt_time(e)}")
         vtt_lines.append(_pick_subtitle_text(seg, dual))
         vtt_lines.append("")
 
