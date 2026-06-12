@@ -225,8 +225,13 @@ def add_punctuation(text: str):
 # A bare `[pause]` uses PAUSE_DEFAULT_MS.
 PAUSE_DEFAULT_MS = 350
 PAUSE_MAX_MS = 10_000
+# The numeric spec is an atomic group ``(?>…)`` so the engine can't backtrack
+# its leading ``\s+`` against the trailing ``\s*`` — that overlap made the
+# pattern polynomial-time on adversarial whitespace (ReDoS). Atomic groups are
+# behavior-preserving here (no valid ``[pause …]`` needs to backtrack into the
+# spec) and require Python ≥3.11, which the project already mandates.
 _PAUSE_RE = re.compile(
-    r"\[\s*pause(?:\s+(\d+(?:\.\d+)?)\s*(ms|s)?)?\s*\]",
+    r"\[\s*pause(?>\s+(\d+(?:\.\d+)?)\s*(ms|s)?)?\s*\]",
     re.IGNORECASE,
 )
 
