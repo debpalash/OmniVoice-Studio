@@ -574,6 +574,21 @@ async def flush_memory(unload_model: bool = False):
 
 # ── Actionable notifications ──────────────────────────────────────────────
 
+_GPU_ARCH_WARNING: "list[str | None]" = []  # [-1] = computed result
+
+
+def _gpu_arch_warning_cached() -> "str | None":
+    """check_device_compatibility() once per process (it lazy-imports torch —
+    too heavy for the 30s notifications poll)."""
+    if not _GPU_ARCH_WARNING:
+        try:
+            from services.model_manager import check_device_compatibility
+            compatible, warning = check_device_compatibility()
+            _GPU_ARCH_WARNING.append(None if compatible else warning)
+        except Exception:
+            _GPU_ARCH_WARNING.append(None)
+    return _GPU_ARCH_WARNING[-1]
+
 
 @router.get("/system/notifications")
 def system_notifications():
@@ -603,6 +618,20 @@ def system_notifications():
                 "type": "navigate",
                 "target": "settings",
             },
+        })
+
+    # 1b. GPU compute capability unsupported by this torch build (#284) —
+    # the model "runs" but emits pure noise, the worst silent failure mode
+    # (RTX 50-series Blackwell sm_120 on pre-cu128 wheels). The loader logs
+    # this, but a log line never reached the affected users — surface it in
+    # the panel. Checked once per process: it lazy-imports torch.
+    gpu_warn = _gpu_arch_warning_cached()
+    if gpu_warn:
+        notes.append({
+            "id": "gpu-arch-unsupported",
+            "level": "error",
+            "title": "GPU not supported by this PyTorch build",
+            "message": gpu_warn + " Until then, output will be noise/garbage.",
         })
 
     # 2. Missing ffmpeg

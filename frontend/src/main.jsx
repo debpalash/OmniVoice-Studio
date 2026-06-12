@@ -31,3 +31,15 @@ window.addEventListener('mousedown', (e) => {
   e.preventDefault();
   doubleClickMaximize();
 });
+
+// #380: after an app update, a still-open window can hold an index.html whose
+// lazy chunks reference old hashed assets that no longer exist on disk —
+// vite surfaces that as "Unable to preload CSS for /assets/…". The documented
+// recovery is a one-time reload to pick up the fresh manifest. The session
+// flag prevents a reload loop if the asset is genuinely missing.
+window.addEventListener('vite:preloadError', (event) => {
+  if (sessionStorage.getItem('omnivoice.preloadErrorReloaded') === '1') return;
+  sessionStorage.setItem('omnivoice.preloadErrorReloaded', '1');
+  event.preventDefault();
+  window.location.reload();
+});
