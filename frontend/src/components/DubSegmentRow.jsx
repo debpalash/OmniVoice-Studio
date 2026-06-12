@@ -188,6 +188,17 @@ function DubSegmentRow({
             <fitBadge.Icon size={8} /> {fitBadge.label}
           </span>
         )}
+        {seg.qc_flagged && (
+          // Wave 3.3: second-pass ASR heard something different from the
+          // target text for this line — worth a re-listen / re-dub.
+          <span
+            className="seg-sync-badge"
+            style={{ color: '#fb4934' }}
+            title={t('segment.qc_verify_title', { heard: seg.qc_recognized || '' })}
+          >
+            <AlertCircle size={8} /> {t('segment.qc_verify')}
+          </span>
+        )}
         {seg.rate_ratio != null && Math.abs(seg.rate_ratio - 1.0) > 0.03 && (
           <span
             className="seg-rate-badge"

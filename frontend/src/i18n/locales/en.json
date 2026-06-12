@@ -661,6 +661,8 @@
     "speaker_title_detected": "Speaker — pick from detected, or type a custom name",
     "speaker_title_custom": "Speaker — type a name (no diarization clones detected)",
     "time_edit_title": "Click to edit start time (m:ss.s). Enter to commit, Esc to cancel.",
+    "qc_verify": "Verify",
+    "qc_verify_title": "Second-pass ASR heard: \"{{heard}}\" — re-listen or re-dub this line.",
     "fit_fits": "Fits",
     "fit_fits_title": "Natural-rate audio fit inside the slot.",
     "fit_overflows": "Overflows +{{seconds}}s",
