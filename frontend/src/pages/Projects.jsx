@@ -3,8 +3,10 @@ import { copyText } from "../utils/copyText";
 import { useTranslation } from 'react-i18next';
 import {
   Search, FolderOpen, Film, Fingerprint, Wand2, Music, Download,
-  LayoutGrid, List as ListIcon, Clock, FileText, Mic,
+  LayoutGrid, List as ListIcon, Clock, FileText, Mic, BookMarked,
 } from 'lucide-react';
+import { apiFetch } from '../api/client';
+import { audioUrl } from '../api/generate';
 import './Projects.css';
 
 /**
@@ -88,9 +90,24 @@ export default function Projects({
     { id: 'dubs',     label: t('projects.dub_projects'),   Icon: Film        },
     { id: 'profiles', label: t('projects.voice_profiles'), Icon: Fingerprint },
     { id: 'transcripts', label: t('projects.transcripts'), Icon: Mic         },
+    { id: 'audiobooks', label: t('projects.audiobooks'),   Icon: BookMarked  },
     { id: 'history',  label: t('projects.history'),        Icon: Music       },
     { id: 'exports',  label: t('projects.exports'),        Icon: Download    },
   ];
+
+  // Finished Audiobook + Story renders (server-side longform library).
+  const [longformJobs, setLongformJobs] = useState([]);
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await apiFetch('/longform/jobs');
+        const data = await res.json();
+        if (alive) setLongformJobs(data.jobs || []);
+      } catch { /* offline / no backend — leave empty */ }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   // Load transcriptions from localStorage (same source as TranscriptionsPage)
   const [transcriptions, setTranscriptions] = useState(() => {
@@ -160,6 +177,20 @@ export default function Projects({
         onClick: () => e.path && onRevealExport?.(e.path),
       });
     }
+    for (const j of longformJobs) {
+      const mins = j.duration_s ? `${Math.round(j.duration_s / 60)} min` : '';
+      list.push({
+        type: 'audiobooks',
+        id: j.job_id,
+        title: j.title || j.output,
+        subtitle: [j.type === 'story' ? t('projects.story') : t('projects.audiobook'),
+                   j.chapters ? `${j.chapters} ch` : '', mins].filter(Boolean).join(' · '),
+        ts: (j.created_at || 0) * 1000,
+        accent: '#d3869b',
+        Icon: BookMarked,
+        onClick: () => j.output && window.open(audioUrl(j.output), '_blank'),
+      });
+    }
     for (const tr of transcriptions) {
       list.push({
         type: 'transcripts',
@@ -176,7 +207,7 @@ export default function Projects({
     }
     list.sort((a, b) => (b.ts || 0) - (a.ts || 0));
     return list;
-  }, [studioProjects, profiles, history, exportHistory, transcriptions, onOpenDub, onOpenProfile, onRevealExport]);
+  }, [studioProjects, profiles, history, exportHistory, transcriptions, longformJobs, onOpenDub, onOpenProfile, onRevealExport, t]);
 
   const counts = useMemo(() => {
     const c = { all: items.length };
