@@ -39,18 +39,23 @@ router = APIRouter()
 
 
 def _safe_cover_path(cover_path: str | None) -> str | None:
-    """Confine a user-supplied cover path to ``OUTPUTS_DIR`` before it can flow
-    into ffmpeg. Returns the real path if it lives under OUTPUTS_DIR (where the
-    /audiobook/cover upload writes), else None — an arbitrary path (e.g.
-    ``/etc/passwd``) is dropped, not read."""
+    """Confine a user-supplied cover to the upload directory before it can flow
+    into ffmpeg.
+
+    Covers only ever come from ``/audiobook/cover``, which writes them to
+    ``OUTPUTS_DIR/audiobook_covers`` with a generated name. We rebuild the path
+    from the basename alone (``os.path.basename`` strips any directory component
+    or ``..`` traversal) joined onto that fixed directory, so no caller-supplied
+    path — absolute or relative — can escape it. Returns the path only if the
+    file actually exists there, else None."""
     if not cover_path:
         return None
     from core.config import OUTPUTS_DIR
-    base = os.path.realpath(OUTPUTS_DIR)
-    real = os.path.realpath(cover_path)
-    if real == base or real.startswith(base + os.sep):
-        return real
-    return None
+    name = os.path.basename(cover_path)
+    if not name:
+        return None
+    candidate = os.path.join(OUTPUTS_DIR, "audiobook_covers", name)
+    return candidate if os.path.isfile(candidate) else None
 
 
 class AudiobookPlanRequest(BaseModel):
