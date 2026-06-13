@@ -118,8 +118,17 @@ jobs:
       # Sync the Docker Hub repository overview from deploy/dockerhub-overview.md.
       # Only on main pushes (the overview tracks the rolling preview) and only
       # when Docker Hub creds are present, mirroring the push gating above.
+      #
+      # continue-on-error: the overview text is cosmetic, and the description
+      # PATCH 403s unless DOCKERHUB_TOKEN carries description-edit scope (many
+      # fine-grained Docker Hub tokens that can push still can't edit the
+      # description). The image build+push is what matters — a creds-scope
+      # mismatch on this cosmetic step must not fail the whole Docker run. To
+      # actually sync the overview, use a token with read/write (incl.
+      # description) scope, or the account password.
       - name: Update Docker Hub description
         if: steps.dockerhub.outputs.enabled == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
