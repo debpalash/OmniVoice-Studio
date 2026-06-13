@@ -373,6 +373,46 @@ def preflight():
         "status": gpu_status, "detail": gpu_detail, "fix": gpu_fix,
     })
 
+    # ── GPU routing for the ACTIVE TTS engine (#21 — no silent CPU fallback).
+    # Distinct from the hardware "gpu" check above: this asks "will the engine
+    # the user actually selected use that GPU on this host?" Built from the same
+    # canonical probe + resolver the Engine Compatibility Matrix uses.
+    try:
+        from services.tts_backend import gpu_routing_verdict
+        gpu_routing = gpu_routing_verdict()
+    except Exception as exc:  # never break preflight on a routing hiccup
+        logger.warning("preflight gpu_routing failed: %s", exc)
+        gpu_routing = None
+    if gpu_routing:
+        _rs = gpu_routing.get("routing_status")
+        _eng = gpu_routing.get("engine") or "active engine"
+        _dev = gpu_routing.get("effective_device") or "?"
+        _why = gpu_routing.get("routing_reason")
+        if _rs == "accelerated" and not _why:
+            r_status, r_detail, r_fix = "pass", f"{_eng} → {_dev} (accelerated)", None
+        elif _rs == "accelerated":  # driver/arch caveat
+            r_status, r_detail, r_fix = "warn", f"{_eng} → {_dev}: {_why}", (
+                "GPU selected but may fail at kernel launch — update drivers / "
+                "reinstall torch for this GPU architecture.")
+        elif _rs == "cpu_fallback":
+            r_status, r_detail, r_fix = "warn", (
+                f"{_eng} runs on CPU here: {_why or 'no GPU path for this host'}"), (
+                "Pick an engine that supports this host's GPU for a speedup, or "
+                "continue on CPU (slower).")
+        elif _rs == "cpu_only":
+            r_status, r_detail, r_fix = "pass", f"{_eng} → cpu (no accelerator on this host)", None
+        elif _rs == "unavailable":
+            r_status, r_detail, r_fix = "fail", (
+                f"{_eng} can't run on this host: {_why or 'needs a GPU this machine lacks'}"), (
+                "Select an engine with a CPU path in Settings → Engines.")
+        else:  # "none" / unknown
+            r_status, r_detail, r_fix = "warn", "No active TTS engine resolved for routing.", (
+                "Pick an engine in Settings → Engines.")
+        checks.append({
+            "id": "gpu_routing", "label": "Active engine routing",
+            "status": r_status, "detail": r_detail, "fix": r_fix,
+        })
+
     # ── Network
     net_ok = _probe_network()
     checks.append({
@@ -400,9 +440,13 @@ def preflight():
             "gpu_available": gpu["available"],
             "gpu_driver": gpu["driver"],
             "gpu_device_name": gpu["device_name"],
+            # Canonical probe (distinguishes ROCm from CUDA):
+            "gpu_family": (gpu_routing or {}).get("host_family", "cpu"),
+            "vram_gb": (gpu_routing or {}).get("vram_gb", 0.0),
             "ram_gb": round(ram, 1),
             "disk_free_gb": round(free, 1),
         },
+        "gpu_routing": gpu_routing,
     }
 
 

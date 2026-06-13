@@ -63,6 +63,24 @@ def test_preflight_device_summary(client):
     }
     assert d["gpu_backend"] in {"cuda", "rocm", "mps", "cpu"}
     assert d["gpu_vendor"] in {"nvidia", "amd", "apple", "intel", "unknown", "none"}
+    # #21: canonical-probe family + VRAM joined the device summary.
+    assert d["gpu_family"] in {"cuda", "rocm", "mps", "xpu", "cpu"}
+    assert isinstance(d["vram_gb"], (int, float))
+
+
+def test_preflight_includes_active_engine_routing(client):
+    """#21: preflight surfaces a routing verdict for the active TTS engine
+    (no silent CPU fallback) — both a `gpu_routing` object and a check entry."""
+    body = client.get("/setup/preflight").json()
+    assert "gpu_routing" in body
+    gr = body["gpu_routing"]
+    if gr is not None:
+        assert gr["routing_status"] in {
+            "accelerated", "cpu_fallback", "cpu_only", "unavailable", "none",
+        }
+        assert "host_family" in gr
+        ids = {c["id"] for c in body["checks"]}
+        assert "gpu_routing" in ids
 
 
 # ── Aggregation logic ────────────────────────────────────────────────────

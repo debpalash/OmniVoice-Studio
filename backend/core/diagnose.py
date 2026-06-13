@@ -4,7 +4,7 @@ One pass over everything a working install needs: Python, compute device,
 ffmpeg, HF token, disk, data-dir permissions, RAM, TTS engines, and (when
 requested) network reachability of the HuggingFace hub. Surfaced two ways:
 
-  - ``GET /system/diagnose`` (Settings > About → "Run self-check")
+  - ``GET /system/diagnose`` (Settings > About -> "Run self-check")
   - ``python main.py --diagnose`` for headless installs / issue triage
 
 Every ``detail``/``hint`` string is passed through ``core.scrub`` before it
@@ -194,6 +194,49 @@ def _check_engines() -> dict:
     return _check("engines", "TTS engines", OK, detail)
 
 
+def _check_gpu_routing() -> dict:
+    """Routing verdict for the active TTS engine on THIS host (#21).
+
+    Surfaces a CPU fallback / unavailable-GPU *before* a slow or failed synth —
+    the no-silent-fallback contract. `cpu_only` on a no-GPU machine is the
+    expected normal state and stays OK (never noise-warns)."""
+    try:
+        from services.tts_backend import gpu_routing_verdict
+        v = gpu_routing_verdict()
+    except Exception as e:
+        return _check("gpu_routing", "GPU routing", WARN, f"could not resolve: {e}")
+
+    status = v.get("routing_status")
+    engine = v.get("engine") or "active engine"
+    dev = v.get("effective_device") or "?"
+    reason = v.get("routing_reason")
+    host = v.get("host_family", "cpu")
+
+    if status == "accelerated":
+        if reason:  # driver/arch caveat — accelerated but at risk
+            return _check("gpu_routing", "GPU routing", WARN,
+                          f"{engine} -> {dev}: {reason}",
+                          "The GPU is selected but may fail at kernel launch — "
+                          "update drivers / reinstall torch for this GPU arch.")
+        return _check("gpu_routing", "GPU routing", OK, f"{engine} -> {dev} (accelerated)")
+    if status == "cpu_fallback":
+        return _check("gpu_routing", "GPU routing", WARN,
+                      f"{engine} runs on CPU: {reason or 'no GPU path for this host'}",
+                      "Pick an engine that supports this host's GPU for a big speedup, "
+                      "or continue on CPU (slower).")
+    if status == "cpu_only":
+        return _check("gpu_routing", "GPU routing", OK,
+                      f"{engine} -> cpu (no accelerator on this host)")
+    if status == "unavailable":
+        return _check("gpu_routing", "GPU routing", FAIL,
+                      f"{engine} can't run on this host: {reason or f'needs a GPU; host is {host}'}",
+                      "Select an engine with a CPU path in Settings -> Engines.")
+    # status == "none" / unknown — no active engine resolved.
+    return _check("gpu_routing", "GPU routing", WARN,
+                  "No active TTS engine resolved for routing.",
+                  "Pick an engine in Settings -> Engines.")
+
+
 _DEEP_TIMEOUT_S = 180
 
 
@@ -298,6 +341,7 @@ def run_diagnostics(include_network: bool = True, deep: bool = False) -> dict:
         _check_data_dir(),
         _check_ram(),
         _check_engines(),
+        _check_gpu_routing(),
     ]
     if include_network:
         checks.append(_check_network())

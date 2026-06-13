@@ -1260,6 +1260,60 @@ def get_backend_class(backend_id: str) -> type[TTSBackend]:
     return _REGISTRY[backend_id]
 
 
+def active_routing() -> dict | None:
+    """Routing verdict for the currently-active TTS engine, or ``None`` if it
+    can't be determined (no engine / probe failure).
+
+    Derived from :func:`list_backends` so the verdict is byte-identical to what
+    the Engine Compatibility Matrix shows for the same engine. Consumed by
+    ``/setup/preflight`` and ``/system/diagnose`` to surface a GPU-routing
+    verdict for the active engine (no silent CPU fallback). Never raises.
+    """
+    try:
+        active = active_backend_id()
+        for b in list_backends():
+            if b.get("id") == active:
+                return {
+                    "engine": active,
+                    "available": b.get("available"),
+                    "effective_device": b.get("effective_device"),
+                    "routing_status": b.get("routing_status"),
+                    "routing_reason": b.get("routing_reason"),
+                }
+    except Exception:
+        # Routing is advisory — never let a probe/registry hiccup break the
+        # caller (preflight/diagnose must stay responsive — local-first).
+        return None
+    return None
+
+
+def gpu_routing_verdict() -> dict:
+    """The GpuRouting payload (see api.schemas.GpuRouting) for the active TTS
+    engine + this host's compute summary. Used by ``/setup/preflight`` and
+    ``/system/diagnose``. Never raises — degrades to a host-only verdict with
+    ``routing_status:"none"`` if the active engine can't be resolved."""
+    from core.device_caps import detect_host_caps
+    try:
+        caps = detect_host_caps()
+        host_family, vram_gb = caps.family, round(caps.vram_gb, 1)
+    except Exception:
+        host_family, vram_gb = "cpu", 0.0
+    r = active_routing()
+    if not r:
+        return {
+            "engine": None, "effective_device": None,
+            "routing_status": "none", "routing_reason": None,
+            "host_family": host_family, "vram_gb": vram_gb,
+        }
+    return {
+        "engine": r.get("engine"),
+        "effective_device": r.get("effective_device"),
+        "routing_status": r.get("routing_status"),
+        "routing_reason": r.get("routing_reason"),
+        "host_family": host_family, "vram_gb": vram_gb,
+    }
+
+
 def active_backend_id() -> str:
     # Env var > persisted UI choice > default. Env wins so power-users can
     # pin a backend without the Settings picker silently undoing it.
