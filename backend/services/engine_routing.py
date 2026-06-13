@@ -102,4 +102,25 @@ def resolve_routing(gpu_compat: tuple[str, ...], caps: HostCaps) -> RoutingResul
     }
 
 
-__all__ = ["RoutingStatus", "RoutingResult", "resolve_routing"]
+def routing_fields(gpu_compat: tuple[str, ...], caps: HostCaps) -> dict:
+    """The three serialization-ready routing keys for a ``list_backends`` entry.
+
+    Resolves routing and applies the redaction contract: ``routing_reason`` is
+    scrubbed via ``core.scrub.scrub_text`` only when truthy, so a ``None`` reason
+    serializes as JSON ``null`` (NOT ``""`` — ``scrub_text(None)`` would coerce
+    to ``""``). Used by tts/asr ``list_backends`` so the scrub rule lives in one
+    place. (LLM emits its own literal ``network``/``n/a``/``null`` fields and
+    does NOT call this.)
+    """
+    from core.scrub import scrub_text
+
+    r = resolve_routing(tuple(gpu_compat or ()), caps)
+    reason = r["routing_reason"]
+    return {
+        "effective_device": r["effective_device"],
+        "routing_status": r["routing_status"],
+        "routing_reason": scrub_text(reason) if reason else None,
+    }
+
+
+__all__ = ["RoutingStatus", "RoutingResult", "resolve_routing", "routing_fields"]

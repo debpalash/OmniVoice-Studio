@@ -1184,7 +1184,10 @@ def list_backends() -> list[dict]:
           "install_hint":   Optional[str],
           "last_error":     Optional[str],          # cached most-recent failure
           "isolation_mode": "in-process" | "subprocess",
-          "gpu_compat":     list[str],              # subset of {cuda, mps, rocm, cpu}
+          "gpu_compat":     list[str],              # subset of {cuda, rocm, mps, xpu, cpu}
+          "effective_device": str,                  # device this engine uses on THIS host
+          "routing_status": "accelerated" | "cpu_fallback" | "cpu_only" | "unavailable",
+          "routing_reason": Optional[str],          # scrubbed; null when none
         }
 
     Guarantees (ENGINE-05): a backend whose `is_available()` raises does
@@ -1204,6 +1207,12 @@ def list_backends() -> list[dict]:
     # class object that no longer == the one this test's subclasses closed
     # over. The marker attribute is set on SubprocessBackend itself, so
     # subclasses inherit it through any re-import path.
+    # Routing is host-aware but the host caps are constant per process, so probe
+    # ONCE here and resolve each engine's effective device against the same caps.
+    from core.device_caps import detect_host_caps
+    from services.engine_routing import routing_fields
+    caps = detect_host_caps()
+
     out: list[dict] = []
     for bid, cls in _REGISTRY.items():
         try:
@@ -1229,6 +1238,7 @@ def list_backends() -> list[dict]:
             isolation = "subprocess"
         else:
             isolation = "in-process"
+        gpu_compat = getattr(cls, "gpu_compat", ("cpu",))
         out.append({
             "id": bid,
             "display_name": cls.display_name,
@@ -1237,7 +1247,9 @@ def list_backends() -> list[dict]:
             "install_hint": _INSTALL_HINTS.get(bid),
             "last_error": _LAST_ERRORS.get(bid),
             "isolation_mode": isolation,
-            "gpu_compat": list(getattr(cls, "gpu_compat", ("cpu",))),
+            "gpu_compat": list(gpu_compat),
+            # effective_device / routing_status / routing_reason (scrubbed):
+            **routing_fields(gpu_compat, caps),
         })
     return out
 

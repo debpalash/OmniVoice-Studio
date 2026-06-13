@@ -1018,15 +1018,66 @@ _REGISTRY: dict[str, type[ASRBackend]] = _LazyASRRegistry({
 })
 
 
+# Short install hints surfaced as tooltips on the Settings → Engines UI
+# (parity with tts_backend._INSTALL_HINTS).
+_INSTALL_HINTS: dict[str, str] = {
+    "whisperx":        "pip install whisperx  (CTranslate2 + wav2vec2 alignment; CUDA or CPU)",
+    "faster-whisper":  "pip install faster-whisper  (CTranslate2; cross-platform, CUDA or CPU)",
+    "mlx-whisper":     "pip install mlx-whisper  (Apple Silicon only)",
+    "pytorch-whisper": "Bundled with transformers — no extra install (CUDA/MPS/CPU)",
+    "nemo-parakeet":   "pip install nemo_toolkit[asr]  (NVIDIA Parakeet; CUDA or CPU)",
+    "moonshine":       "pip install useful-moonshine  (edge/CPU-optimized ASR)",
+    "funasr":          "pip install funasr  (SenseVoiceSmall + FSMN-VAD; CUDA or CPU)",
+}
+
+# Most-recent failure per backend, so a transient probe error survives between
+# Settings refreshes (parity with tts_backend._LAST_ERRORS).
+_LAST_ERRORS: dict[str, str] = {}
+
+
 def list_backends() -> list[dict]:
-    out = []
+    """Enumerate every ASR backend with the **same 11-key shape as TTS** so the
+    Engine Compatibility Matrix renders all families uniformly.
+
+    Per-entry: id, display_name, available, reason (scrubbed), install_hint,
+    last_error, isolation_mode, gpu_compat, effective_device, routing_status,
+    routing_reason. A backend whose ``is_available()`` raises is reported
+    ``available: false`` (never a 500), exactly like TTS.
+    """
+    from core.device_caps import detect_host_caps
+    from core.scrub import scrub_text
+    from services.engine_routing import routing_fields
+    caps = detect_host_caps()
+
+    out: list[dict] = []
     for bid, cls in _REGISTRY.items():
-        ok, msg = cls.is_available()
+        try:
+            ok, msg = cls.is_available()
+        except Exception as exc:
+            ok = False
+            msg = f"{type(exc).__name__}: {exc}"
+            logger.warning(
+                "asr list_backends: %s.is_available() raised — degrading "
+                "gracefully so the picker still renders: %s", bid, msg,
+            )
+        if ok:
+            _LAST_ERRORS.pop(bid, None)
+        else:
+            _LAST_ERRORS[bid] = scrub_text(msg)
+        isolation = "subprocess" if getattr(cls, "_is_subprocess_isolated", False) else "in-process"
+        gpu_compat = getattr(cls, "gpu_compat", ("cpu",))
         out.append({
             "id": bid,
             "display_name": cls.display_name,
             "available": ok,
-            "reason": None if ok else msg,
+            # ASR previously emitted `reason` UNMASKED — scrub it now (closes a
+            # pre-existing token-leak gap, matching TTS's redaction guarantee).
+            "reason": None if ok else scrub_text(msg),
+            "install_hint": _INSTALL_HINTS.get(bid),
+            "last_error": _LAST_ERRORS.get(bid),
+            "isolation_mode": isolation,
+            "gpu_compat": list(gpu_compat),
+            **routing_fields(gpu_compat, caps),
         })
     return out
 

@@ -75,22 +75,60 @@ def _client(app, host="127.0.0.1"):
 # ── /engines response shape (gpu_compat, isolation_mode, last_error) ──────
 
 
+# The full 11-key shape every family now shares (TTS + ASR + LLM parity).
+_REQUIRED_KEYS = {
+    "id", "display_name", "available", "reason",
+    "install_hint", "last_error", "isolation_mode", "gpu_compat",
+    "effective_device", "routing_status", "routing_reason",
+}
+_TTS_ASR_STATUSES = {"accelerated", "cpu_fallback", "cpu_only", "unavailable"}
+_VALID_FAMILIES = {"cuda", "rocm", "mps", "xpu", "cpu"}
+
+
 def test_engines_response_includes_new_fields(fresh_app):
     client = _client(fresh_app)
     r = client.get("/engines")
     assert r.status_code == 200
     body = r.json()
 
-    required = {
-        "id", "display_name", "available", "reason",
-        "install_hint", "last_error", "isolation_mode", "gpu_compat",
-    }
     for entry in body["tts"]["backends"]:
-        missing = required - entry.keys()
+        missing = _REQUIRED_KEYS - entry.keys()
         assert not missing, f"entry {entry.get('id')!r} missing keys: {missing}"
         assert isinstance(entry["gpu_compat"], list)
         assert all(isinstance(x, str) for x in entry["gpu_compat"])
         assert entry["isolation_mode"] in {"in-process", "subprocess"}
+
+
+def test_all_families_share_the_11_key_shape(fresh_app):
+    client = _client(fresh_app)
+    body = client.get("/engines").json()
+    for fam in ("tts", "asr", "llm"):
+        for entry in body[fam]["backends"]:
+            missing = _REQUIRED_KEYS - entry.keys()
+            assert not missing, f"{fam} entry {entry.get('id')!r} missing: {missing}"
+
+
+def test_tts_asr_routing_keys_are_well_formed(fresh_app):
+    client = _client(fresh_app)
+    body = client.get("/engines").json()
+    for fam in ("tts", "asr"):
+        for entry in body[fam]["backends"]:
+            assert entry["routing_status"] in _TTS_ASR_STATUSES
+            assert entry["effective_device"] in _VALID_FAMILIES
+            # routing_reason is a scrubbed str or JSON null — never the empty
+            # string (the None-vs-"" serialization contract).
+            assert entry["routing_reason"] is None or isinstance(entry["routing_reason"], str)
+            assert entry["routing_reason"] != ""
+
+
+def test_llm_entries_are_network_n_a(fresh_app):
+    client = _client(fresh_app)
+    body = client.get("/engines").json()
+    for entry in body["llm"]["backends"]:
+        assert entry["effective_device"] == "network"
+        assert entry["routing_status"] == "n/a"
+        assert entry["routing_reason"] is None
+        assert entry["gpu_compat"] == []
 
 
 def test_indextts2_entry_has_subprocess_isolation_mode(fresh_app):
@@ -118,6 +156,84 @@ def test_gpu_compat_omnivoice_has_cuda_mps_cpu(fresh_app):
     r = client.get("/engines")
     by_id = {b["id"]: b for b in r.json()["tts"]["backends"]}
     assert set(by_id["omnivoice"]["gpu_compat"]) == {"cuda", "mps", "cpu"}
+
+
+# ── select_engine host-routing gate (no silent CPU fallback) ────────────────
+
+
+def _force_cpu_host(monkeypatch):
+    """Pin detect_host_caps() to a CPU-only host so routing is deterministic
+    regardless of the CI runner's actual hardware."""
+    from core.device_caps import HostCaps
+    cpu = HostCaps(family="cpu", available_families=("cpu",))
+    monkeypatch.setattr("core.device_caps.detect_host_caps", lambda: cpu)
+
+
+def test_select_blocks_engine_unavailable_on_this_host(fresh_app, monkeypatch):
+    """A CUDA-only engine (no cpu path) on a CPU host is `unavailable` → 400."""
+    from services import tts_backend as tts_mod
+
+    class CudaOnlyBackend(tts_mod.TTSBackend):
+        id = "cuda-only-test"
+        display_name = "CUDA-only (test)"
+        gpu_compat = ("cuda",)  # no cpu fallback
+
+        @property
+        def sample_rate(self): return 24000
+        @property
+        def supported_languages(self): return ["en"]
+        @classmethod
+        def is_available(cls): return True, "ready"   # deps fine; host is the problem
+        def generate(self, text, **kw): raise NotImplementedError
+
+    _force_cpu_host(monkeypatch)
+    saved = dict(tts_mod._REGISTRY)
+    try:
+        tts_mod._REGISTRY["cuda-only-test"] = CudaOnlyBackend
+        r = _client(fresh_app).post(
+            "/engines/select", json={"family": "tts", "backend_id": "cuda-only-test"})
+        assert r.status_code == 400
+        assert "can't run on this machine" in r.json()["detail"]
+    finally:
+        tts_mod._REGISTRY.clear(); tts_mod._REGISTRY.update(saved)
+
+
+def test_select_allows_cpu_fallback_engine(fresh_app, monkeypatch):
+    """A CUDA+CPU engine on a CPU host is `cpu_fallback` (runs, slower) → allowed."""
+    from services import tts_backend as tts_mod
+
+    class CpuCapableBackend(tts_mod.TTSBackend):
+        id = "cpu-ok-test"
+        display_name = "CPU-capable (test)"
+        gpu_compat = ("cuda", "cpu")
+
+        @property
+        def sample_rate(self): return 24000
+        @property
+        def supported_languages(self): return ["en"]
+        @classmethod
+        def is_available(cls): return True, "ready"
+        def generate(self, text, **kw): raise NotImplementedError
+
+    _force_cpu_host(monkeypatch)
+    saved = dict(tts_mod._REGISTRY)
+    try:
+        tts_mod._REGISTRY["cpu-ok-test"] = CpuCapableBackend
+        r = _client(fresh_app).post(
+            "/engines/select", json={"family": "tts", "backend_id": "cpu-ok-test"})
+        assert r.status_code == 200, r.text
+        assert r.json()["active"] == "cpu-ok-test"
+    finally:
+        tts_mod._REGISTRY.clear(); tts_mod._REGISTRY.update(saved)
+
+
+def test_select_llm_never_routing_gated(fresh_app, monkeypatch):
+    """LLM entries are routing_status 'n/a' — the host gate must never fire."""
+    _force_cpu_host(monkeypatch)
+    # 'off' is always available and has no GPU claim.
+    r = _client(fresh_app).post(
+        "/engines/select", json={"family": "llm", "backend_id": "off"})
+    assert r.status_code == 200, r.text
 
 
 # ── /engines/{id}/health round-trip ────────────────────────────────────────

@@ -144,10 +144,13 @@ def test_list_backends_shape(registry_sandbox):
     """Every entry must contain exactly the documented keys — no more, no less."""
     out = list_backends()
     # `gpu_compat` joined the documented shape in Plan 02-04 alongside the
-    # Engine Compatibility Matrix UI (ENGINE-06).
+    # Engine Compatibility Matrix UI (ENGINE-06). The three routing keys
+    # (effective_device / routing_status / routing_reason) joined in #21 so the
+    # matrix can show the device each engine actually uses on THIS host.
     required = {
         "id", "display_name", "available", "reason",
         "install_hint", "last_error", "isolation_mode", "gpu_compat",
+        "effective_device", "routing_status", "routing_reason",
     }
     for entry in out:
         assert set(entry.keys()) == required, (
