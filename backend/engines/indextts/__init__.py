@@ -79,6 +79,11 @@ class IndexTTS2Backend(SubprocessBackend):
     display_name = "IndexTTS2 (emotion control, duration control, zero-shot)"
     supports_voice_design = False  # requires ref audio for timbre
     _DEFAULT_SAMPLE_RATE = 24000
+    # Explicit so IndexTTS2 stops advertising the inherited CPU-only default:
+    # the sidecar runs the IndexTTS PyTorch model on CUDA when present, else
+    # CPU. ROCm left unclaimed (the sidecar's own venv would need a ROCm torch);
+    # a ROCm host honestly resolves to cpu_fallback.
+    gpu_compat = ("cuda", "cpu")
 
     @classmethod
     def is_available(cls) -> tuple[bool, str]:

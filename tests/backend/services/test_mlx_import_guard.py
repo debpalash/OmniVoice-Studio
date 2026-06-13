@@ -24,11 +24,10 @@ def _block_import(monkeypatch, name, exc):
                                  RuntimeError("metal device init failed"),
                                  ImportError("No module named mlx_whisper")])
 def test_mlx_whisper_unavailable_not_crash(monkeypatch, exc):
-    import torch
-    if not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
-        # is_available short-circuits on non-MPS before importing mlx; force
-        # the MPS branch so the import guard is what we're exercising.
-        monkeypatch.setattr(torch.backends.mps, "is_available", lambda: True, raising=False)
+    # #390: is_available now gates on the shared mlx_supported() platform check
+    # BEFORE importing the package. Force the gate open so this test exercises
+    # the import-guard branch (its actual subject) rather than the platform gate.
+    monkeypatch.setattr("core.device_caps.mlx_supported", lambda: (True, ""))
     from services.asr_backend import MLXWhisperBackend
     _block_import(monkeypatch, "mlx_whisper", exc)
     ok, msg = MLXWhisperBackend.is_available()
@@ -40,8 +39,24 @@ def test_mlx_whisper_unavailable_not_crash(monkeypatch, exc):
                                  RuntimeError("metal init failed"),
                                  ImportError("no mlx_audio")])
 def test_mlx_audio_unavailable_not_crash(monkeypatch, exc):
+    # #390: force the platform gate open (see whisper test above) so the
+    # OSError/RuntimeError import-guard is the code path under test.
+    monkeypatch.setattr("core.device_caps.mlx_supported", lambda: (True, ""))
     from services.tts_backend import MLXAudioBackend
     _block_import(monkeypatch, "mlx_audio", exc)
     ok, msg = MLXAudioBackend.is_available()
     assert ok is False
     assert "mlx-audio" in msg
+
+
+def test_mlx_whisper_unavailable_off_apple_platform(monkeypatch):
+    # The #390 fix itself: on a non-Apple host the platform gate reports
+    # unavailable before any package import (so a stray wheel can't advertise it).
+    monkeypatch.setattr(
+        "core.device_caps.mlx_supported",
+        lambda: (False, "MLX requires Apple Silicon; this host is linux/x86_64"),
+    )
+    from services.asr_backend import MLXWhisperBackend
+    ok, msg = MLXWhisperBackend.is_available()
+    assert ok is False
+    assert "Apple Silicon" in msg

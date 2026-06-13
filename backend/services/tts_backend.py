@@ -593,6 +593,13 @@ class MLXAudioBackend(TTSBackend):
 
     @classmethod
     def is_available(cls) -> tuple[bool, str]:
+        # #390: gate on the shared platform check FIRST, before importing the
+        # package. A stray mlx-audio wheel on Linux/Windows/mac-Intel must never
+        # report available (and must never advertise a usable `mps` route).
+        from core.device_caps import mlx_supported
+        ok, why = mlx_supported()
+        if not ok:
+            return False, why
         try:
             import mlx_audio  # noqa: F401
             return True, "ready"

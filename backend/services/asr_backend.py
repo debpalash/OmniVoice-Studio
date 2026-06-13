@@ -37,6 +37,15 @@ logger = logging.getLogger("omnivoice.asr")
 class ASRBackend(ABC):
     id: str = "base"
     display_name: str = "Base ASR"
+    # Accelerator families this backend can use, in preference order; always
+    # includes a fallback. Subset of {cuda, rocm, mps, xpu, cpu}. Mirrors the
+    # TTSBackend.gpu_compat contract so engine_routing.resolve_routing() can
+    # surface the effective device per host (no silent CPU fallback). The
+    # conservative default is CPU-only; subclasses declare what they really run
+    # on. (ROCm is intentionally NOT claimed yet for any ASR engine — see the
+    # per-engine notes; an unverified `rocm` claim would route ROCm hosts to a
+    # broken GPU path, strictly worse than the honest `cpu_fallback`.)
+    gpu_compat: tuple[str, ...] = ("cpu",)
 
     @classmethod
     @abstractmethod
@@ -61,6 +70,10 @@ class ASRBackend(ABC):
 class WhisperXBackend(ASRBackend):
     id = "whisperx"
     display_name = "WhisperX (faster-whisper + wav2vec2 forced alignment)"
+    # CTranslate2 backend: CUDA fp16 or CPU int8 (see _pick_device). ROCm not
+    # claimed — CTranslate2 has no upstream HIP build, so a ROCm host honestly
+    # gets cpu_fallback rather than a false GPU promise.
+    gpu_compat = ("cuda", "cpu")
 
     def __init__(self):
         self._model_name = os.environ.get("ASR_MODEL_WHISPERX", "large-v3")
@@ -382,6 +395,8 @@ class WhisperXBackend(ASRBackend):
 class FasterWhisperBackend(ASRBackend):
     id = "faster-whisper"
     display_name = "Faster-Whisper (CTranslate2 — Linux/Windows/macOS)"
+    # CTranslate2: CUDA or CPU (no upstream ROCm/HIP build — see WhisperX note).
+    gpu_compat = ("cuda", "cpu")
 
     def __init__(self):
         # Defaulting to the CTranslate2-converted large-v3 repo. Matches
@@ -497,6 +512,7 @@ _MLX_MODEL_TURBO = "mlx-community/whisper-large-v3-turbo"
 class MLXWhisperBackend(ASRBackend):
     id = "mlx-whisper"
     display_name = "MLX Whisper (Apple Silicon CoreML)"
+    gpu_compat = ("mps", "cpu")
 
     def __init__(self, model_name: str | None = None):
         self._model_name = model_name or os.environ.get(
@@ -505,10 +521,14 @@ class MLXWhisperBackend(ASRBackend):
 
     @classmethod
     def is_available(cls) -> tuple[bool, str]:
+        # #390: shared platform gate FIRST — one rule for MLX-Audio + MLX-Whisper.
+        # Returns False on Linux/Windows/mac-Intel before any package import, so
+        # a stray mlx-whisper wheel never reports available or advertises `mps`.
+        from core.device_caps import mlx_supported
+        ok, why = mlx_supported()
+        if not ok:
+            return False, why
         try:
-            import torch
-            if not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
-                return False, "Apple Silicon (MPS) not available."
             import mlx_whisper  # noqa: F401
             return True, "ready"
         # Catch OSError/RuntimeError too, not just ImportError: in a
@@ -566,6 +586,9 @@ class MLXWhisperBackend(ASRBackend):
 class PyTorchWhisperBackend(ASRBackend):
     id = "pytorch-whisper"
     display_name = "PyTorch Whisper (CUDA / CPU via transformers pipeline)"
+    # Pure transformers pipeline → runs wherever torch does (CUDA, MPS, CPU).
+    # ROCm-via-HIP would also work but is left unclaimed pending verification.
+    gpu_compat = ("cuda", "mps", "cpu")
 
     def __init__(self, asr_pipe=None):
         # Reuses the `_asr_pipe` attached to the TTS model when available.
@@ -638,6 +661,11 @@ class NeMoASRBackend(ASRBackend):
     Requires NVIDIA GPU.
     """
     id = "nemo-parakeet"
+    # CUDA-only: is_available() hard-fails without a GPU ("Parakeet TDT requires
+    # NVIDIA GPU (CUDA)"), so declaring a CPU path would be a false claim. On a
+    # CPU host this correctly resolves to routing_status="unavailable", matching
+    # is_available()=False (the matrix suppresses the routing badge there).
+    gpu_compat = ("cuda",)
     display_name = "Parakeet TDT (NVIDIA NeMo — English SOTA)"
 
     def __init__(self):
@@ -746,6 +774,7 @@ class MoonshineASRBackend(ASRBackend):
     Great for live capture and CPU-only environments.
     """
     id = "moonshine"
+    gpu_compat = ("cpu",)  # edge/CPU-optimized by design
     display_name = "Moonshine (edge-optimized, ONNX)"
 
     def __init__(self):
@@ -890,6 +919,7 @@ class FunASRBackend(ASRBackend):
     #182); WhisperX remains the cross-platform default.
     """
     id = "funasr"
+    gpu_compat = ("cuda", "cpu")  # FunASR: CUDA or CPU
     display_name = "FunASR (SenseVoice — 50+ languages, all-in-one)"
 
     def __init__(self):
