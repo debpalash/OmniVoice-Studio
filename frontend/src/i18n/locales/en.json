@@ -145,7 +145,14 @@
     "cached_note": "Reused {{count}} already-rendered chapter(s).",
     "failed_note": "{{count}} chapter(s) failed — click Create again to retry just those.",
     "import": "Import",
-    "import_failed": "Import failed: {{message}}"
+    "import_failed": "Import failed: {{message}}",
+    "lexicon": "Pronunciation",
+    "lex_word": "Word",
+    "lex_say": "Say it as…",
+    "lex_add": "Add word",
+    "lex_remove": "Remove",
+    "markup_help": "Markup reference",
+    "markup_hint": "# Chapter title · [voice:NAME] switch voice · [pause 500ms] / [pause 1s] · [slow]…[/slow] · [fast]…[/fast] · [emphasis]…[/emphasis] · [spell]…[/spell]"
   },
   "launchpad": {
     "greeting": "hello there",

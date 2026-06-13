@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BookMarked, Loader, Download, Image as ImageIcon, X, Play, Upload } from 'lucide-react';
+import { BookMarked, Loader, Download, Image as ImageIcon, X, Play, Upload, Plus } from 'lucide-react';
 
 import {
   audiobookPlan, audiobookGenerate, audiobookUploadCover, audiobookPreviewChapter, audiobookImport,
@@ -38,6 +38,14 @@ export default function AudiobookTab({ profiles = [] }) {
   });
   const [coverFile, setCoverFile] = useState(null);
   const [coverPreview, setCoverPreview] = useState('');
+  // Pronunciation lexicon: editable {word → respelling} rows.
+  const [lex, setLex] = useState([]); // [{ word, say }]
+  const lexDict = () => Object.fromEntries(
+    lex.filter((r) => r.word.trim() && r.say.trim()).map((r) => [r.word.trim(), r.say.trim()]),
+  );
+  const setLexRow = (i, k) => (e) => setLex((rows) => rows.map((r, j) => (j === i ? { ...r, [k]: e.target.value } : r)));
+  const addLexRow = () => setLex((rows) => [...rows, { word: '', say: '' }]);
+  const removeLexRow = (i) => setLex((rows) => rows.filter((_, j) => j !== i));
   const setMetaField = (k) => (e) => setMeta((m) => ({ ...m, [k]: e.target.value }));
 
   const onCoverPick = useCallback((e) => {
@@ -90,13 +98,17 @@ export default function AudiobookTab({ profiles = [] }) {
     setError('');
     setChapterPrev((p) => ({ ...p, [i]: { ...(p[i] || {}), loading: true } }));
     try {
-      const r = await audiobookPreviewChapter({ text, chapter_index: i, default_voice: defaultVoice || null });
+      const lexicon = lexDict();
+      const r = await audiobookPreviewChapter({
+        text, chapter_index: i, default_voice: defaultVoice || null,
+        lexicon: Object.keys(lexicon).length ? lexicon : null,
+      });
       setChapterPrev((p) => ({ ...p, [i]: { url: audioUrl(r.output), loading: false } }));
     } catch (e) {
       setChapterPrev((p) => ({ ...p, [i]: { ...(p[i] || {}), loading: false } }));
       setError(e?.message || String(e));
     }
-  }, [text, defaultVoice]);
+  }, [text, defaultVoice, lex]);
 
   const onCreate = useCallback(async () => {
     setError('');
@@ -114,6 +126,7 @@ export default function AudiobookTab({ profiles = [] }) {
       const metadata = Object.fromEntries(
         Object.entries(meta).filter(([, v]) => v && v.trim()),
       );
+      const lexicon = lexDict();
       const res = await audiobookGenerate({
         text,
         default_voice: defaultVoice || null,
@@ -121,6 +134,7 @@ export default function AudiobookTab({ profiles = [] }) {
         loudness: loudness === 'off' ? null : loudness,
         cover_path,
         metadata: Object.keys(metadata).length ? metadata : null,
+        lexicon: Object.keys(lexicon).length ? lexicon : null,
       });
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -158,7 +172,7 @@ export default function AudiobookTab({ profiles = [] }) {
     } finally {
       setGenerating(false);
     }
-  }, [text, defaultVoice, format, loudness, coverFile, meta]);
+  }, [text, defaultVoice, format, loudness, coverFile, meta, lex]);
 
   const busy = planLoading || generating || importing;
   const canRun = text.trim().length > 0 && !busy;
@@ -273,6 +287,32 @@ export default function AudiobookTab({ profiles = [] }) {
               </div>
             </div>
           </div>
+
+          {/* Pronunciation lexicon */}
+          <div className="audiobook-tab__field">
+            <label className="field-label">{t('audiobook.lexicon')}</label>
+            {lex.map((row, i) => (
+              <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                <input className="input-base" placeholder={t('audiobook.lex_word')}
+                  value={row.word} onChange={setLexRow(i, 'word')} aria-label={t('audiobook.lex_word')} style={{ flex: 1, minWidth: 0 }} />
+                <input className="input-base" placeholder={t('audiobook.lex_say')}
+                  value={row.say} onChange={setLexRow(i, 'say')} aria-label={t('audiobook.lex_say')} style={{ flex: 1, minWidth: 0 }} />
+                <button type="button" className="btn" onClick={() => removeLexRow(i)}
+                  aria-label={t('audiobook.lex_remove')} style={{ padding: 4 }}><X size={14} /></button>
+              </div>
+            ))}
+            <button type="button" className="btn" onClick={addLexRow} style={{ alignSelf: 'flex-start' }}>
+              <Plus size={14} /> {t('audiobook.lex_add')}
+            </button>
+          </div>
+
+          {/* Markup quick reference */}
+          <details className="audiobook-tab__field">
+            <summary className="field-label" style={{ cursor: 'pointer' }}>{t('audiobook.markup_help')}</summary>
+            <p className="muted" style={{ fontSize: '0.72rem', lineHeight: 1.6, marginTop: 6 }}>
+              {t('audiobook.markup_hint')}
+            </p>
+          </details>
 
           {error && <div className="error-banner" role="alert">{error}</div>}
 

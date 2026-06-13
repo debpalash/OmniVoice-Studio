@@ -37,7 +37,7 @@ export interface AudiobookPreview {
 
 /** Render a single chapter to audition it (also warms the resume cache). */
 export async function audiobookPreviewChapter(
-  body: { text: string; chapter_index: number; default_voice?: string | null },
+  body: { text: string; chapter_index: number; default_voice?: string | null; lexicon?: Record<string, string> | null },
 ): Promise<AudiobookPreview> {
   const res = await apiFetch('/audiobook/preview', {
     method: 'POST',
@@ -65,6 +65,7 @@ export interface AudiobookGenerateBody {
   loudness?: 'off' | 'acx' | 'podcast' | null;
   cover_path?: string | null;
   metadata?: AudiobookMetadata | null;
+  lexicon?: Record<string, string> | null;
 }
 
 /**
