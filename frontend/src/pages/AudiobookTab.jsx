@@ -1,9 +1,9 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BookMarked, Loader, Download, Image as ImageIcon, X, Play } from 'lucide-react';
+import { BookMarked, Loader, Download, Image as ImageIcon, X, Play, Upload } from 'lucide-react';
 
 import {
-  audiobookPlan, audiobookGenerate, audiobookUploadCover, audiobookPreviewChapter,
+  audiobookPlan, audiobookGenerate, audiobookUploadCover, audiobookPreviewChapter, audiobookImport,
 } from '../api/audiobook';
 import { audioUrl } from '../api/generate';
 import { splitSSEBuffer, parseSSELine } from '../utils/sseParse';
@@ -51,6 +51,8 @@ export default function AudiobookTab({ profiles = [] }) {
     setCoverPreview('');
   }, [coverPreview]);
 
+  const [importing, setImporting] = useState(false);
+
   const onPreview = useCallback(async () => {
     setError('');
     setPlanLoading(true);
@@ -62,6 +64,23 @@ export default function AudiobookTab({ profiles = [] }) {
       setPlanLoading(false);
     }
   }, [text, defaultVoice]);
+
+  const onImport = useCallback(async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = ''; // allow re-importing the same file
+    if (!f) return;
+    setError('');
+    setImporting(true);
+    try {
+      const r = await audiobookImport(f);
+      setText(r.text);
+      setPlan(null);
+    } catch (err) {
+      setError(t('audiobook.import_failed', { message: err?.message || String(err) }));
+    } finally {
+      setImporting(false);
+    }
+  }, [t]);
 
   const onPreviewChapter = useCallback(async (i) => {
     setError('');
@@ -137,7 +156,7 @@ export default function AudiobookTab({ profiles = [] }) {
     }
   }, [text, defaultVoice, format, loudness, coverFile, meta]);
 
-  const busy = planLoading || generating;
+  const busy = planLoading || generating || importing;
   const canRun = text.trim().length > 0 && !busy;
 
   return (
@@ -192,6 +211,16 @@ export default function AudiobookTab({ profiles = [] }) {
           <option value="podcast">{t('audiobook.loudness_podcast')}</option>
         </select>
 
+        <label className="btn" style={{ cursor: busy ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {importing ? <Loader size={14} className="spin" /> : <Upload size={14} />} {t('audiobook.import')}
+          <input
+            type="file"
+            accept=".txt,.md,.epub"
+            onChange={onImport}
+            disabled={busy}
+            style={{ display: 'none' }}
+          />
+        </label>
         <button className="btn" onClick={onPreview} disabled={!canRun}>
           {planLoading ? <Loader size={14} className="spin" /> : null} {t('audiobook.preview_plan')}
         </button>

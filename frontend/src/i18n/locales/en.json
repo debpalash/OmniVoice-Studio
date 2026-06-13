@@ -143,7 +143,9 @@
     "meta_description": "Description",
     "preview_chapter": "Preview chapter: {{title}}",
     "cached_note": "Reused {{count}} already-rendered chapter(s).",
-    "failed_note": "{{count}} chapter(s) failed — click Create again to retry just those."
+    "failed_note": "{{count}} chapter(s) failed — click Create again to retry just those.",
+    "import": "Import",
+    "import_failed": "Import failed: {{message}}"
   },
   "launchpad": {
     "greeting": "hello there",

@@ -53,6 +53,32 @@ def audiobook_plan(req: AudiobookPlanRequest) -> dict:
 _COVER_MAX_BYTES = 8 * 1024 * 1024
 
 
+@router.post("/audiobook/import")
+async def audiobook_import(file: UploadFile = File(...)) -> dict:
+    """Import a ``.txt``/``.md``/``.epub`` into a chapter-delimited script.
+
+    EPUB is parsed in spine order (stdlib only, local); plain text gets ``# ``
+    headings inserted ahead of obvious chapter-title lines. Returns the script
+    text (for the editor) + the resulting chapter count."""
+    from services.longform_import import chapterize_plaintext, epub_to_chapter_script
+
+    name = (file.filename or "").lower()
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="empty file")
+    if name.endswith(".epub"):
+        try:
+            script = epub_to_chapter_script(data)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"couldn't parse EPUB: {e}")
+    else:
+        script = chapterize_plaintext(data.decode("utf-8", "ignore"))
+    if not script.strip():
+        raise HTTPException(status_code=400, detail="no text found in the file")
+    plan = parse_audiobook_script(script)
+    return {"text": script, "chapters": plan.chapter_count}
+
+
 @router.post("/audiobook/cover")
 async def audiobook_cover(cover: UploadFile = File(...)) -> dict:
     """Upload a cover image; returns a server-side ``path`` to pass back as
