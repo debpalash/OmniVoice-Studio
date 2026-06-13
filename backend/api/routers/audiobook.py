@@ -19,7 +19,7 @@ import json
 import os
 import uuid
 
-from fastapi import APIRouter
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -46,6 +46,32 @@ def audiobook_plan(req: AudiobookPlanRequest) -> dict:
     """Parse a script into a chapter/span plan (pure preview, no synthesis)."""
     plan = parse_audiobook_script(req.text, default_voice=req.default_voice)
     return plan.to_dict()
+
+
+#: Cover size cap mirrors longform_render's guard (8 MB — a book cover, not a
+#: payload). Kept in sync intentionally; the render builder re-validates too.
+_COVER_MAX_BYTES = 8 * 1024 * 1024
+
+
+@router.post("/audiobook/cover")
+async def audiobook_cover(cover: UploadFile = File(...)) -> dict:
+    """Upload a cover image; returns a server-side ``path`` to pass back as
+    ``cover_path`` in the synth request. Validated here (jpg/png + size cap) and
+    again at render time."""
+    from core.config import OUTPUTS_DIR
+
+    ext = os.path.splitext(cover.filename or "")[1].lower()
+    if ext not in (".jpg", ".jpeg", ".png"):
+        raise HTTPException(status_code=400, detail="cover must be a .jpg or .png")
+    data = await cover.read()
+    if not data or len(data) > _COVER_MAX_BYTES:
+        raise HTTPException(status_code=400, detail="cover must be between 1 byte and 8 MB")
+    cover_dir = os.path.join(OUTPUTS_DIR, "audiobook_covers")
+    os.makedirs(cover_dir, exist_ok=True)
+    path = os.path.join(cover_dir, f"{uuid.uuid4().hex[:12]}{ext}")
+    with open(path, "wb") as f:
+        f.write(data)
+    return {"path": path}
 
 
 class AudiobookRequest(BaseModel):

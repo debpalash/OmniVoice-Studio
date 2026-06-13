@@ -28,17 +28,43 @@ export async function audiobookPlan(
   return res.json();
 }
 
+/** Global tags embedded in the output file (player-visible). */
+export interface AudiobookMetadata {
+  title?: string;
+  author?: string;
+  narrator?: string;
+  year?: string;
+  genre?: string;
+  description?: string;
+}
+
+export interface AudiobookGenerateBody {
+  text: string;
+  default_voice?: string | null;
+  bitrate?: string;
+  format?: 'm4b' | 'mp3';
+  loudness?: 'off' | 'acx' | 'podcast' | null;
+  cover_path?: string | null;
+  metadata?: AudiobookMetadata | null;
+}
+
 /**
  * Start the synth job. Returns the raw streaming Response; the caller reads
  * `response.body` with a reader + the sseParse helpers. (apiFetch throws on a
  * non-2xx status, so a returned Response is always a live stream.)
  */
-export async function audiobookGenerate(
-  body: { text: string; default_voice?: string | null; bitrate?: string },
-): Promise<Response> {
+export async function audiobookGenerate(body: AudiobookGenerateBody): Promise<Response> {
   return apiFetch('/audiobook', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+}
+
+/** Upload a cover image; returns the server-side path to pass as `cover_path`. */
+export async function audiobookUploadCover(file: File): Promise<{ path: string }> {
+  const form = new FormData();
+  form.append('cover', file);
+  const res = await apiFetch('/audiobook/cover', { method: 'POST', body: form });
+  return res.json();
 }

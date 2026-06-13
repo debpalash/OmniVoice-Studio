@@ -1,8 +1,8 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BookMarked, Loader, Download } from 'lucide-react';
+import { BookMarked, Loader, Download, Image as ImageIcon, X } from 'lucide-react';
 
-import { audiobookPlan, audiobookGenerate } from '../api/audiobook';
+import { audiobookPlan, audiobookGenerate, audiobookUploadCover } from '../api/audiobook';
 import { audioUrl } from '../api/generate';
 import { splitSSEBuffer, parseSSELine } from '../utils/sseParse';
 
@@ -25,6 +25,28 @@ export default function AudiobookTab({ profiles = [] }) {
   const [error, setError] = useState('');
   const abortRef = useRef(false);
 
+  // Output + metadata (embedded in the file; players show these).
+  const [format, setFormat] = useState('m4b');      // 'm4b' | 'mp3'
+  const [loudness, setLoudness] = useState('off');  // 'off' | 'acx' | 'podcast'
+  const [meta, setMeta] = useState({
+    title: '', author: '', narrator: '', year: '', genre: '', description: '',
+  });
+  const [coverFile, setCoverFile] = useState(null);
+  const [coverPreview, setCoverPreview] = useState('');
+  const setMetaField = (k) => (e) => setMeta((m) => ({ ...m, [k]: e.target.value }));
+
+  const onCoverPick = useCallback((e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setCoverFile(f);
+    setCoverPreview(URL.createObjectURL(f));
+  }, []);
+  const clearCover = useCallback(() => {
+    setCoverFile(null);
+    if (coverPreview) URL.revokeObjectURL(coverPreview);
+    setCoverPreview('');
+  }, [coverPreview]);
+
   const onPreview = useCallback(async () => {
     setError('');
     setPlanLoading(true);
@@ -44,7 +66,22 @@ export default function AudiobookTab({ profiles = [] }) {
     setGenerating(true);
     abortRef.current = false;
     try {
-      const res = await audiobookGenerate({ text, default_voice: defaultVoice || null });
+      let cover_path = null;
+      if (coverFile) {
+        cover_path = (await audiobookUploadCover(coverFile)).path;
+      }
+      // Only send metadata fields the user actually filled in.
+      const metadata = Object.fromEntries(
+        Object.entries(meta).filter(([, v]) => v && v.trim()),
+      );
+      const res = await audiobookGenerate({
+        text,
+        default_voice: defaultVoice || null,
+        format,
+        loudness: loudness === 'off' ? null : loudness,
+        cover_path,
+        metadata: Object.keys(metadata).length ? metadata : null,
+      });
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -75,7 +112,7 @@ export default function AudiobookTab({ profiles = [] }) {
     } finally {
       setGenerating(false);
     }
-  }, [text, defaultVoice]);
+  }, [text, defaultVoice, format, loudness, coverFile, meta]);
 
   const busy = planLoading || generating;
   const canRun = text.trim().length > 0 && !busy;
@@ -112,6 +149,26 @@ export default function AudiobookTab({ profiles = [] }) {
           ))}
         </select>
 
+        <select
+          className="input-base"
+          value={format}
+          onChange={(e) => setFormat(e.target.value)}
+          aria-label={t('audiobook.format')}
+        >
+          <option value="m4b">{t('audiobook.format_m4b')}</option>
+          <option value="mp3">{t('audiobook.format_mp3')}</option>
+        </select>
+        <select
+          className="input-base"
+          value={loudness}
+          onChange={(e) => setLoudness(e.target.value)}
+          aria-label={t('audiobook.loudness')}
+        >
+          <option value="off">{t('audiobook.loudness_off')}</option>
+          <option value="acx">{t('audiobook.loudness_acx')}</option>
+          <option value="podcast">{t('audiobook.loudness_podcast')}</option>
+        </select>
+
         <button className="btn" onClick={onPreview} disabled={!canRun}>
           {planLoading ? <Loader size={14} className="spin" /> : null} {t('audiobook.preview_plan')}
         </button>
@@ -119,6 +176,71 @@ export default function AudiobookTab({ profiles = [] }) {
           {generating ? <Loader size={14} className="spin" /> : null} {t('audiobook.create')}
         </button>
       </div>
+
+      <details className="audiobook-meta" style={{ margin: '8px 0 12px' }}>
+        <summary className="field-label" style={{ cursor: 'pointer' }}>
+          {t('audiobook.details')}
+        </summary>
+        <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
+          {/* Cover picker */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label className="field-label" style={{ margin: 0 }}>{t('audiobook.cover')}</label>
+            <div style={{ position: 'relative', width: 120, height: 120 }}>
+              {coverPreview ? (
+                <>
+                  <img
+                    src={coverPreview}
+                    alt={t('audiobook.cover')}
+                    style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 6 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={clearCover}
+                    aria-label={t('audiobook.cover_remove')}
+                    style={{ position: 'absolute', top: 4, right: 4, padding: 2 }}
+                  >
+                    <X size={14} />
+                  </button>
+                </>
+              ) : (
+                <label
+                  className="input-base"
+                  style={{
+                    width: 120, height: 120, display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer',
+                  }}
+                >
+                  <ImageIcon size={22} />
+                  <span style={{ fontSize: '0.7rem' }}>{t('audiobook.cover_add')}</span>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    onChange={onCoverPick}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+          {/* Metadata fields */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, flex: 1, minWidth: 280 }}>
+            <input className="input-base" placeholder={t('audiobook.meta_title')}
+              value={meta.title} onChange={setMetaField('title')} aria-label={t('audiobook.meta_title')} />
+            <input className="input-base" placeholder={t('audiobook.meta_author')}
+              value={meta.author} onChange={setMetaField('author')} aria-label={t('audiobook.meta_author')} />
+            <input className="input-base" placeholder={t('audiobook.meta_narrator')}
+              value={meta.narrator} onChange={setMetaField('narrator')} aria-label={t('audiobook.meta_narrator')} />
+            <input className="input-base" placeholder={t('audiobook.meta_year')}
+              value={meta.year} onChange={setMetaField('year')} aria-label={t('audiobook.meta_year')} />
+            <input className="input-base" placeholder={t('audiobook.meta_genre')}
+              value={meta.genre} onChange={setMetaField('genre')} aria-label={t('audiobook.meta_genre')} />
+            <input className="input-base" placeholder={t('audiobook.meta_description')}
+              value={meta.description} onChange={setMetaField('description')} aria-label={t('audiobook.meta_description')}
+              style={{ gridColumn: '1 / -1' }} />
+          </div>
+        </div>
+      </details>
 
       {error && <div className="error-banner" role="alert">{error}</div>}
 
