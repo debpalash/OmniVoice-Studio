@@ -18,6 +18,9 @@
 # (Docker Hub push gated on the DOCKERHUB_USERNAME/DOCKERHUB_TOKEN secrets;
 # if unset the build still pushes to GHCR.)
 #
+# On main pushes the Docker Hub repository overview is also synced from
+# deploy/dockerhub-overview.md (source of truth for the hub.docker.com page).
+#
 # NOTE: the Docker image is the headless web-server build of OmniVoice (FastAPI
 # backend + pre-built React frontend served over HTTP).  The Tauri desktop
 # auto-updater and its update-channel toggle are desktop-only features; they do
@@ -111,3 +114,16 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Sync the Docker Hub repository overview from deploy/dockerhub-overview.md.
+      # Only on main pushes (the overview tracks the rolling preview) and only
+      # when Docker Hub creds are present, mirroring the push gating above.
+      - name: Update Docker Hub description
+        if: steps.dockerhub.outputs.enabled == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.DOCKERHUB_IMAGE }}
+          short-description: "Local ElevenLabs alternative: voice cloning, design & video dubbing in 646 languages. No API keys."
+          readme-filepath: ./deploy/dockerhub-overview.md
