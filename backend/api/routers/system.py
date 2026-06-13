@@ -108,24 +108,33 @@ def _ui_port() -> int:
 
 
 def _fast_download_status() -> dict:
-    """Report the Xet fast-download backend state for the Settings UI (FDL-03).
+    """Report the download-acceleration state for the Settings UI (FDL-03).
 
-    Xet (content-defined chunking + parallel byte-range gets) is the IDM/uGet-
-    style fast path for Xet-backed repos — the entire current model catalog.
+    Reports the *runtime* truth, not just whether hf_xet is importable. The app
+    currently sets ``HF_HUB_DISABLE_XET=1`` by default (main.py) — Xet's chunked
+    transfer is fast but its progress bypasses our tqdm patch, so the legacy-LFS
+    path is forced to keep accurate byte progress. So:
+
+      * ``xet_installed`` — hf_xet present
+      * ``xet_active``    — installed AND not disabled via HF_HUB_DISABLE_XET
+      * ``xet_enabled``   — alias of xet_active (what the UI badge keys off)
+
     Must never throw: /system/info is called on every Settings load.
     """
-    enabled = False
+    installed = False
     version = None
     try:
         import hf_xet  # noqa: F401
-        enabled = True
+        installed = True
         try:
             from importlib.metadata import version as _ver
             version = _ver("hf-xet")
         except Exception:
             version = None
     except Exception:
-        enabled = False
+        installed = False
+    disabled = str(os.environ.get("HF_HUB_DISABLE_XET", "")).strip().lower() in {"1", "true", "yes", "on"}
+    active = installed and not disabled
     try:
         from core import prefs
         high_perf = prefs.resolve(
@@ -135,7 +144,13 @@ def _fast_download_status() -> dict:
             str(high_perf).strip().lower() in {"1", "true", "yes", "on"}
     except Exception:
         high_perf = False
-    return {"xet_enabled": enabled, "xet_version": version, "high_performance": bool(high_perf)}
+    return {
+        "xet_installed": installed,
+        "xet_active": active,
+        "xet_enabled": active,  # UI badge: only true when Xet actually runs
+        "xet_version": version,
+        "high_performance": bool(high_perf),
+    }
 
 
 def _has_hf_token() -> bool:

@@ -160,8 +160,14 @@ def complete(repo_id: str) -> None:
             agg._byte_bars["__complete__"] = (int(agg.total_bytes), int(agg.total_bytes))
         if agg._files_total:
             agg._files_done = agg._files_total
+        # Clear the rate window: crediting the full size in one step would
+        # otherwise compute an absurd instantaneous rate (Δbytes over ~0s).
+        agg._samples.clear()
     try:
-        hf_progress.emit(agg.snapshot())
+        snap = agg.snapshot()
+        snap["rate"] = 0.0
+        snap["eta_seconds"] = 0
+        hf_progress.emit(snap)
     except Exception:
         pass
 

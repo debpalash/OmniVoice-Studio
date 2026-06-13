@@ -4,21 +4,34 @@ OmniVoice downloads models from the Hugging Face Hub on first use. This page
 explains how downloads are made fast, how to read the progress, and what to do
 on slow or restricted networks.
 
-## Fast downloads (Xet) — on by default
+## Download backend: legacy LFS by default (accurate progress)
 
-OmniVoice uses **Xet**, Hugging Face's chunked transfer backend. Instead of
-pulling each file as one stream, Xet splits files into content-defined chunks
-and fetches many byte-ranges **in parallel**, skips chunks you already have
-(dedup), and resumes automatically after an interruption. This is the same
-idea as a multi-connection download manager (IDM/uGet), built into the Hub
-client — so there is nothing to install or enable.
+OmniVoice ships `hf_xet` (Hugging Face's chunked, parallel, dedup transfer
+backend — the IDM/uGet-style fast path), **but currently runs with Xet
+disabled** (`HF_HUB_DISABLE_XET=1`, set by the app). Reason: Xet's transfer
+reports progress out-of-band and bypasses the byte-level progress hook, so the
+download UI couldn't show real bytes/speed. Until a proper Xet progress hook
+lands, the app forces the **classic LFS path**, which streams through the
+standard progress reporter and gives accurate downloaded/remaining/speed.
 
-You can confirm it's active: **Settings → Models** shows a **⚡ fast download**
-badge, and **Settings → About** / `GET /system/info` reports
-`fast_download.xet_enabled: true` with the `hf_xet` version. The backend also
-logs one line at startup: `fast download: Xet on (hf_xet X.Y)`.
+State is reported at **Settings → About** / `GET /system/info`:
 
-> Requirement: Xet needs a 64-bit OS (every supported OmniVoice platform).
+- `fast_download.xet_installed` — `hf_xet` present (true)
+- `fast_download.xet_active` — whether Xet actually drives downloads (false by
+  default, because of `HF_HUB_DISABLE_XET`)
+- the **⚡ fast download** badge in **Settings → Models** appears only when Xet
+  is *active*.
+
+The backend logs one line at startup, e.g.
+`downloads: Xet disabled → legacy LFS (hf_xet 1.4.2 installed=True)`.
+
+### Re-enabling Xet (advanced, opt-in)
+
+Power users who want Xet's speed and don't mind coarser progress can set
+`HF_HUB_DISABLE_XET=0`. With Xet active, the overall bar advances by file and
+snaps to the exact total on completion (per-file *byte* speed isn't shown,
+which is exactly why it's off by default). Xet needs a 64-bit OS (all supported
+OmniVoice platforms).
 
 ## Reading the progress
 
@@ -32,10 +45,12 @@ When a download starts you'll see, in order:
    speed and ETA.
 3. **Done** — the bar lands on 100% at the true total size.
 
-> Note: with Xet, files are fetched chunk-by-chunk out of band, so the live
-> *per-byte* speed isn't always observable mid-download — the bar advances by
-> file and snaps to the exact total on completion. Classic (non-Xet) and
-> mirror downloads report continuous byte speed.
+> Note: the exact total and "already cached / to download" split are known
+> up front (a pre-flight resolve), so remaining is accurate from the start.
+> Live per-byte speed appears once a file is large enough to stream over
+> several seconds; very small/fast files may jump straight to done. The bar
+> always lands on the exact total at completion. (If Xet is re-enabled,
+> progress becomes file-granular — see above.)
 
 ## Advanced / opt-in tuning
 

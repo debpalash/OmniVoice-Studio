@@ -16,6 +16,12 @@
 - New `utils/download_aggregator.py`: one source of truth for overall progress. Fed by a byte-sink on the patched tqdm; distinguishes byte bars (unit 'B', keyed by bar id) from the "Fetching N files" count bar; emits one throttled `aggregate` event (bytes_done/total/windowed rate/eta/files).
 - Frontend `Settings.jsx` + `setup.ts`: overall bar driven by the aggregate; bar % = `max(byte%, file%)`; shows cached-skip + files-progress; `⚡ fast download` badge from `/system/info`. i18n keys added to `en.json`.
 
+## Rebase reconciliation (main disabled Xet)
+Rebasing onto latest main surfaced that main now sets **`HF_HUB_DISABLE_XET=1`** (main.py) — a deliberate choice to force the classic LFS path because Xet's progress bypasses the tqdm hook (the exact limitation found here). Reconciled rather than fought:
+- `fast_download` status now reports the **runtime truth**: `xet_installed` + `xet_active` (active = installed AND not disabled) + `xet_enabled` alias. Default `xet_active=false`; the ⚡ badge only shows when Xet actually runs. Startup log: `downloads: Xet disabled → legacy LFS …`.
+- Docs rewritten: default backend is **legacy LFS for accurate progress**; Xet is opt-in via `HF_HUB_DISABLE_XET=0` (coarser progress). The hf-xet pin stays (harmless; ready for a future Xet progress hook).
+- Net: W2's progress is the value either way; W1's "maximize Xet" is dormant by main's design, not removed.
+
 ## Decisions / "use judgment" notes
 - **Xet progress limitation (verified by live smoke).** Under Xet + hf_hub 1.7.2 the per-file **byte** bars never advance `n` and never `close()` through our tqdm (Xet fetches chunks out-of-band). Only the **file-count bar** is live. So: mid-download the overall bar is **file-granular** (moves 0→N files), and `complete()` flushes `bytes_done` to the exact preflight total on success (verified: final `74420620/74420620`, files 4/4). True live byte-speed is only available on classic-LFS/mirror repos (W4). This is a real constraint, not a bug — documented here and worth surfacing in W4 docs.
 - Per-file detail kept inline (existing single-line summary, now aggregate-sourced) rather than a new collapsible panel — limited risk; can revisit.
