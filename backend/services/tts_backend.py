@@ -232,6 +232,22 @@ class OmniVoiceBackend(TTSBackend):
         )
         return audios[0]
 
+    def unload(self) -> None:
+        """Release the OmniVoice model (MM2-02). OmniVoice shares the singleton
+        owned by ``model_manager``, so dropping our local ref isn't enough — we
+        clear the shared one and free GPU memory too. Idempotent and safe before
+        the first generate(). Best-effort: assignment is GIL-atomic, so we don't
+        take the async ``_model_lock`` from this sync path; the registry wraps
+        this call in try/except so a race can never block an engine switch."""
+        self._model = None
+        try:
+            import services.model_manager as mm
+            if mm.model is not None:
+                mm.model = None
+                mm.free_vram()
+        except Exception:
+            pass
+
 
 # ── VoxCPM2 adapter (optional, scaffolded) ──────────────────────────────────
 
@@ -1232,14 +1248,65 @@ def active_backend_id() -> str:
     return prefs.resolve("tts_backend", env="OMNIVOICE_TTS_BACKEND", default="omnivoice")
 
 
+# Cached active backend instance + its id (MM2-01). Without this, every call
+# built a fresh instance and the previous engine's VRAM/sidecar leaked until GC
+# — measurable when switching engines on an 8 GB MPS Mac (root cause behind the
+# #278 comment thread). We now keep one instance per configured backend id and
+# call the outgoing engine's unload() before switching.
+_active_instance: "TTSBackend | None" = None
+_active_instance_id: "str | None" = None
+
+
+def reset_active_backend() -> None:
+    """Unload + clear the cached active backend. For app shutdown and tests.
+    Idempotent and best-effort — a raising unload() never propagates."""
+    global _active_instance, _active_instance_id
+    inst = _active_instance
+    _active_instance = None
+    _active_instance_id = None
+    if inst is not None:
+        try:
+            inst.unload()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("reset_active_backend: %s.unload() raised: %s",
+                           type(inst).__name__, exc)
+
+
 def get_active_tts_backend(*, model=None) -> TTSBackend:
-    """Instantiate the configured backend. Pass `model=` for OmniVoice to
-    reuse an already-loaded model from `model_manager`.
+    """Return the configured backend, reusing a cached instance and releasing
+    the previous engine on a switch (MM2-01).
+
+    Rule: the cache tracks the configured backend id. Switching id always
+    unload()s the outgoing instance first. For OmniVoice with an explicit
+    ``model=`` (caller already holds a loaded model), we return a fresh view
+    over the shared singleton rather than caching it — but a switch *away from*
+    a different engine still triggers that engine's unload().
     """
-    cls = get_backend_class(active_backend_id())
-    if cls is OmniVoiceBackend:
+    global _active_instance, _active_instance_id
+    bid = active_backend_id()
+
+    # Switching engines: release the outgoing one first. Best-effort so a bad
+    # unload() can never block the switch.
+    if _active_instance is not None and _active_instance_id != bid:
+        try:
+            _active_instance.unload()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("engine switch: %s.unload() raised: %s",
+                           type(_active_instance).__name__, exc)
+        _active_instance = None
+        _active_instance_id = None
+
+    cls = get_backend_class(bid)
+    if cls is OmniVoiceBackend and model is not None:
+        # Per-call view over the already-loaded shared singleton; don't cache it
+        # (the model lifecycle is owned by model_manager), but the switch above
+        # already released any *different* previous engine.
         return OmniVoiceBackend(model=model)
-    return cls()
+
+    if _active_instance is None or _active_instance_id != bid:
+        _active_instance = OmniVoiceBackend(model=model) if cls is OmniVoiceBackend else cls()
+        _active_instance_id = bid
+    return _active_instance
 
 
 # ── PEP 562 lazy attribute re-export ───────────────────────────────────────

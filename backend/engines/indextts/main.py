@@ -74,6 +74,24 @@ import traceback
 # Mirrors backend/services/subprocess_backend.py::MAX_FRAME_BYTES.
 MAX_FRAME_BYTES = 64 * 1024 * 1024
 
+
+def _measure_vram_mb() -> float:
+    """This sidecar's own GPU memory in MB, for the loaded-models panel
+    (MM2-08). The parent can't see a child's VRAM, so we self-report it in the
+    pong. Degrades to 0 on CPU / when torch isn't loaded yet — never raises."""
+    try:
+        import torch  # already a dep inside the indextts venv
+        if torch.cuda.is_available():
+            return round(torch.cuda.memory_allocated() / (1024 ** 2), 1)
+        mps = getattr(torch.backends, "mps", None)
+        if mps is not None and mps.is_available():
+            drv = getattr(torch.mps, "driver_allocated_memory", None)
+            if drv:
+                return round(drv() / (1024 ** 2), 1)
+    except Exception:
+        pass
+    return 0.0
+
 # Sample rate IndexTTS-2 emits natively. Advertised in the ready frame so
 # the parent doesn't have to import IndexTTS just to learn the rate.
 INDEXTTS_SAMPLE_RATE = 24000
@@ -282,7 +300,7 @@ def main() -> int:
         op = msg.get("op") if isinstance(msg, dict) else None
         try:
             if op == "ping":
-                _send(stdout, {"op": "pong"})
+                _send(stdout, {"op": "pong", "vram_mb": _measure_vram_mb()})
             elif op == "synthesize":
                 _handle_synthesize(msg, stdout)
             elif op == "shutdown":

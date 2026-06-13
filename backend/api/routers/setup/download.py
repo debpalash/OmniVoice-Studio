@@ -29,6 +29,17 @@ router = APIRouter()
 # Cooldown: prevent rapid re-install after a failure. Maps repo_id → last_fail_time.
 _install_cooldowns: dict[str, float] = {}
 _COOLDOWN_SECS = 60.0
+# Evict cooldown entries older than this so the dict can't grow unbounded across
+# a long-lived process (MM2-06). Anything past the cooldown window is dead state.
+_COOLDOWN_TTL_SECS = 3600.0
+
+
+def _sweep_cooldowns(now: float) -> None:
+    """Drop cooldown entries older than the TTL (MM2-06). Keeps the dict bounded
+    — without this it accumulated one entry per ever-failed repo forever."""
+    stale = [k for k, t in _install_cooldowns.items() if (now - t) > _COOLDOWN_TTL_SECS]
+    for k in stale:
+        _install_cooldowns.pop(k, None)
 
 # Repo_ids the user asked to cancel (FDL-11). Checked between retry attempts.
 # Note: a single in-flight snapshot_download/Xet fetch is not interruptible
@@ -214,22 +225,47 @@ def _safe_put(queue: asyncio.Queue, event) -> None:
 # config-only aux repos.
 _MIN_WEIGHT_BYTES = 5 * 1024 * 1024
 
+# Per-role weight-file floors (MM2-07). A valid model has at least one
+# recognized weight file at or above its extension's floor. ONNX graphs are
+# legitimately small (a complete model can be well under 5 MB), so a single
+# 5 MB rule false-positives on them as "truncated" (#352 over-trigger); give
+# .onnx a lower floor while still rejecting a 0/KB partial. Tensor formats keep
+# the original 5 MB floor.
+_WEIGHT_FLOORS = {
+    ".safetensors": _MIN_WEIGHT_BYTES,
+    ".bin": _MIN_WEIGHT_BYTES,
+    ".ckpt": _MIN_WEIGHT_BYTES,
+    ".pt": _MIN_WEIGHT_BYTES,
+    ".pth": _MIN_WEIGHT_BYTES,
+    ".gguf": _MIN_WEIGHT_BYTES,
+    ".onnx": 64 * 1024,   # a real ONNX graph is ≥ tens of KB; a truncated one is bytes
+}
+
 
 def _validate_snapshot_has_weights(repo_id: str, snapshot_path: str) -> None:
     """Raise OSError when a finished snapshot has no plausible weight file —
     surfaces the truncated-download class (#352) at install time, where the
     retry loop and the UI's re-download path can deal with it, instead of at
-    first synthesis with an opaque transformers error."""
+    first synthesis with an opaque transformers error.
+
+    A snapshot is valid if it contains a recognized weight file meeting its
+    per-extension floor (MM2-07) OR any file ≥ the global 5 MB floor (the
+    original lenient catch — kept so this is never stricter than before)."""
     try:
         biggest = 0
         for root, _dirs, files in os.walk(snapshot_path, followlinks=True):
             for f in files:
                 try:
-                    biggest = max(biggest, os.path.getsize(os.path.join(root, f)))
+                    size = os.path.getsize(os.path.join(root, f))
                 except OSError:
                     continue
-                if biggest >= _MIN_WEIGHT_BYTES:
-                    return
+                biggest = max(biggest, size)
+                ext = os.path.splitext(f)[1].lower()
+                floor = _WEIGHT_FLOORS.get(ext)
+                if floor is not None and size >= floor:
+                    return  # a recognized weight file of plausible size
+                if size >= _MIN_WEIGHT_BYTES:
+                    return  # original lenient catch (non-standard weight names)
     except OSError:
         return  # can't inspect — don't block the install on the checker itself
     raise OSError(
@@ -296,6 +332,7 @@ async def install_model(req: InstallModelRequest):
         )
     # Cooldown guard — don't retry if the same model just failed.
     import time as _time_check
+    _sweep_cooldowns(_time_check.time())  # bound the dict (MM2-06)
     last_fail = _install_cooldowns.get(req.repo_id)
     if last_fail and (_time_check.time() - last_fail) < _COOLDOWN_SECS:
         remaining = int(_COOLDOWN_SECS - (_time_check.time() - last_fail))
@@ -462,6 +499,7 @@ async def install_model(req: InstallModelRequest):
                 "downloaded": 0, "total": 0, "pct": 1.0,
                 "phase": "install_done",
             })
+            _install_cooldowns.pop(req.repo_id, None)  # success clears any cooldown (MM2-06)
             invalidate_cache()
         except _InstallCancelled:
             _resolving.set()

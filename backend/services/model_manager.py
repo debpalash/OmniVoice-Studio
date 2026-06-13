@@ -111,7 +111,8 @@ def __getattr__(name: str):
 model = None  # type: ignore
 _model_lock = asyncio.Lock()
 _last_used = time.time()
-_IDLE_TIMEOUT_SECONDS = IDLE_TIMEOUT_SECONDS
+# Idle timeout is resolved per-tick in _resolve_idle_timeout() (MM2-05) from
+# prefs/env/core.config — no module-level duplicate of IDLE_TIMEOUT_SECONDS.
 
 # ── Loading sub-stage tracker ────────────────────────────────────────
 # Updated by _load_model_sync() so get_model_status() can report
@@ -664,13 +665,28 @@ def get_model_status():
             result["error"] = err
     return result
 
+def _resolve_idle_timeout() -> float:
+    """In-process model idle timeout in seconds (MM2-05): prefs store → env →
+    core.config default, env winning. Resolved per-tick so a settings change
+    takes effect without a restart."""
+    try:
+        from core import prefs
+        return float(prefs.resolve(
+            "idle_timeout_seconds",
+            env="OMNIVOICE_IDLE_TIMEOUT_S",
+            default=IDLE_TIMEOUT_SECONDS,
+        ))
+    except (TypeError, ValueError, ImportError):
+        return float(IDLE_TIMEOUT_SECONDS)
+
+
 async def idle_worker():
     global model
     torch = _lazy_torch()
     while True:
         await asyncio.sleep(30)
         async with _model_lock:
-            if model is not None and time.time() - _last_used > _IDLE_TIMEOUT_SECONDS:
+            if model is not None and time.time() - _last_used > _resolve_idle_timeout():
                 logger.info("Idle timeout reached. Unloading OmniVoice model to free VRAM.")
                 model = None
                 free_vram()

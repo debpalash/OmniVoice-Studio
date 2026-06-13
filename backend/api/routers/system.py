@@ -174,118 +174,23 @@ def model_status():
 
 @router.get("/model/loaded")
 def loaded_models():
-    """Return details about all currently loaded models for the flush dropdown.
-
-    Returns a list of models with name, type, device, and estimated VRAM usage.
-    """
-    import services.model_manager as mm
-
-    models = []
-
-    # 1. TTS model (OmniVoice)
-    if mm.model is not None:
-        device = "unknown"
-        vram_mb = 0
-        try:
-            device = str(next(mm.model.parameters()).device) if hasattr(mm.model, 'parameters') else get_best_device()
-        except Exception:
-            device = get_best_device()
-        try:
-            torch = mm._lazy_torch()
-            if torch.cuda.is_available():
-                vram_mb = torch.cuda.memory_allocated() / (1024 ** 2)
-            elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-                driver = getattr(torch.mps, "driver_allocated_memory", None)
-                if driver:
-                    vram_mb = driver() / (1024 ** 2)
-        except Exception:
-            pass
-        models.append({
-            "id": "tts",
-            "name": "OmniVoice TTS",
-            "checkpoint": os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice"),
-            "device": device,
-            "vram_mb": round(vram_mb, 1),
-            "unloadable": True,
-        })
-
-    # 2. ASR model (WhisperX)
-    if mm.model is not None and hasattr(mm.model, '_asr_pipe') and mm.model._asr_pipe is not None:
-        models.append({
-            "id": "asr",
-            "name": "WhisperX ASR",
-            "checkpoint": os.environ.get("ASR_MODEL", "Systran/faster-whisper-large-v3"),
-            "device": "cpu",
-            "vram_mb": 0,
-            "unloadable": False,  # tied to TTS model lifecycle
-        })
-
-    # 3. Diarization pipeline
-    if mm._diar_pipeline is not None:
-        models.append({
-            "id": "diarization",
-            "name": "Pyannote Diarization",
-            "checkpoint": "pyannote/speaker-diarization-3.1",
-            "device": get_best_device(),
-            "vram_mb": 0,
-            "unloadable": True,
-        })
-
-    # 4. Subprocess engine sidecars (IndexTTS/CosyVoice/etc.) — each holds a
-    #    process and, on GPU, VRAM, until idle-reaped. Surface them as
-    #    unloadable rows so a multi-engine user can free VRAM on demand instead
-    #    of waiting for the idle reaper. VRAM isn't measurable from the parent
-    #    process, so it's reported as 0 with a sidecar-tagged name.
-    try:
-        from services.subprocess_backend import list_live_sidecars
-        for s in list_live_sidecars():
-            models.append({
-                "id": f"sidecar:{s['id']}",
-                "name": f"{s['id']} (sidecar)",
-                "checkpoint": s["id"],
-                "device": get_best_device(),
-                "vram_mb": 0,
-                "unloadable": True,
-            })
-    except Exception:
-        pass  # never let sidecar enumeration break the loaded-models panel
-
-    return {"models": models, "count": len(models)}
+    """List all currently loaded models for the flush dropdown (MM2-04).
+    Thin delegation to the model_lifecycle facade — shape unchanged:
+    ``{models, count}``."""
+    from services import model_lifecycle
+    return model_lifecycle.list_loaded()
 
 
 @router.post("/model/unload/{model_id}")
 async def unload_model(model_id: str):
-    """Unload a specific model by ID."""
-    import services.model_manager as mm
-
-    # Subprocess engine sidecars: ``sidecar:<engine_id>`` frees one, ``sidecars``
-    # frees them all. Busy sidecars (mid-synth) are skipped, not interrupted.
-    if model_id == "sidecars" or model_id.startswith("sidecar:"):
-        from services.subprocess_backend import unload_all_sidecars, unload_sidecar
-        if model_id == "sidecars":
-            n = unload_all_sidecars()
-        else:
-            n = unload_sidecar(model_id.split(":", 1)[1])
-        return {"unloaded": model_id, "success": n > 0, "count": n,
-                **({} if n > 0 else {"reason": "not running or busy"})}
-
-    if model_id == "tts":
-        async with mm._model_lock:
-            if mm.model is not None:
-                mm.model = None
-                mm.free_vram()
-                return {"unloaded": "tts", "success": True}
-        return {"unloaded": "tts", "success": False, "reason": "not loaded"}
-
-    elif model_id == "diarization":
-        if mm._diar_pipeline is not None:
-            mm._diar_pipeline = None
-            mm.free_vram()
-            return {"unloaded": "diarization", "success": True}
-        return {"unloaded": "diarization", "success": False, "reason": "not loaded"}
-
-    else:
-        raise HTTPException(status_code=400, detail=f"Unknown model id: {model_id}")
+    """Unload a specific model by id (MM2-04). Delegates to model_lifecycle;
+    an unknown id maps to HTTP 400. ``tts`` | ``diarization`` |
+    ``sidecar:<id>`` | ``sidecars``."""
+    from services import model_lifecycle
+    try:
+        return await model_lifecycle.unload(model_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/system/info", response_model=SystemInfoResponse)

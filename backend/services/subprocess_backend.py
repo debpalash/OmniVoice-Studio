@@ -103,9 +103,27 @@ RECV_TIMEOUT_S = 60.0
 # op because the reaper only acts while holding the per-backend lock acquired
 # NON-blockingly — if an op holds it, the reaper skips that backend this round.
 #
-# Tunable via OMNIVOICE_SIDECAR_IDLE_TIMEOUT_S (seconds; <= 0 disables).
+# Default idle timeout. The live value is resolved per-tick via
+# _resolve_sidecar_idle_timeout() (MM2-05) so the Settings store can tune it
+# without a restart; the env var still wins. Kept as a module constant for the
+# import-time default and for tests that monkeypatch it.
 SIDECAR_IDLE_TIMEOUT_S = float(os.environ.get("OMNIVOICE_SIDECAR_IDLE_TIMEOUT_S", "300"))
 _REAPER_INTERVAL_S = 30.0
+
+
+def _resolve_sidecar_idle_timeout() -> float:
+    """Idle-reap timeout in seconds (MM2-05): prefs store → env → default, with
+    env winning. ``<= 0`` disables reaping. Resolved lazily so a settings change
+    takes effect without a restart."""
+    from core import prefs
+    try:
+        return float(prefs.resolve(
+            "sidecar_idle_timeout_seconds",
+            env="OMNIVOICE_SIDECAR_IDLE_TIMEOUT_S",
+            default=SIDECAR_IDLE_TIMEOUT_S,
+        ))
+    except (TypeError, ValueError):
+        return SIDECAR_IDLE_TIMEOUT_S
 
 #: Weak registry of live SubprocessBackend instances the reaper scans. Weak so
 #: discarded backends (the fresh-per-call instances) don't leak — once GC'd and
@@ -120,7 +138,7 @@ def reap_idle_sidecars(timeout_s: float | None = None) -> int:
     reaped. A non-positive timeout disables reaping (returns 0). Safe to call
     from any thread — it never touches a backend that is mid-op (it acquires
     the backend lock non-blockingly and skips on contention)."""
-    timeout = SIDECAR_IDLE_TIMEOUT_S if timeout_s is None else timeout_s
+    timeout = _resolve_sidecar_idle_timeout() if timeout_s is None else timeout_s
     if timeout <= 0:
         return 0
     reaped = 0
@@ -192,6 +210,7 @@ def list_live_sidecars() -> list[dict]:
             "id": b.id,
             "pid": proc.pid,
             "idle_seconds": round(b.idle_seconds(), 1),
+            "vram_mb": round(getattr(b, "_vram_mb", 0.0), 1),  # MM2-08; 0 = CPU/unmeasured
         })
     return out
 
@@ -219,7 +238,7 @@ def _reaper_loop() -> None:
 def _ensure_reaper_running() -> None:
     """Start the daemon reaper thread once, lazily, on first sidecar spawn."""
     global _reaper_started
-    if _reaper_started or SIDECAR_IDLE_TIMEOUT_S <= 0:
+    if _reaper_started or _resolve_sidecar_idle_timeout() <= 0:
         return
     with _reaper_lock:
         if _reaper_started:
@@ -262,6 +281,10 @@ class SubprocessBackend(TTSBackend):
         # (parity Action 13). Registered in the weak live-backend set so the
         # reaper can find this instance's sidecar.
         self._last_used = time.monotonic()
+        # Last-known GPU memory the sidecar self-reported in a pong (MM2-08).
+        # 0 = CPU-only or not yet measured. The parent can't measure a child's
+        # VRAM, so this is the only source of a real figure.
+        self._vram_mb = 0.0
         _LIVE_BACKENDS.add(self)
         # Idempotent atexit shutdown (Pitfall 6 layer 1). If the interpreter
         # exits without an explicit shutdown call, this still tears down the
@@ -275,6 +298,16 @@ class SubprocessBackend(TTSBackend):
     def idle_seconds(self) -> float:
         """Seconds since the last sidecar activity (spawn or frame I/O)."""
         return time.monotonic() - self._last_used
+
+    def unload(self) -> None:
+        """Release this engine's sidecar (MM2-02). Routes to the same
+        force-reap path the manual /model/unload endpoint uses, so a busy
+        sidecar (mid-synth) is skipped, not interrupted. Idempotent: a no-op
+        when no sidecar is running. Inherited by every subprocess engine."""
+        try:
+            unload_sidecar(self.id)
+        except Exception:
+            pass
 
     # ── subclass contract ──────────────────────────────────────────────────
 
@@ -435,6 +468,14 @@ class SubprocessBackend(TTSBackend):
                 self._send({"op": "ping"})
                 reply = self._recv_with_timeout(RECV_TIMEOUT_S)
             if reply and reply.get("op") == "pong":
+                # Sidecars may self-report their GPU memory (MM2-08) — the parent
+                # can't measure a child's VRAM. Stash the last-known figure so
+                # list_live_sidecars() can surface a real number instead of 0.
+                if "vram_mb" in reply:
+                    try:
+                        self._vram_mb = float(reply["vram_mb"] or 0)
+                    except (TypeError, ValueError):
+                        pass
                 return True, "pong"
             return False, f"unexpected reply: {reply!r}"
         except Exception as exc:

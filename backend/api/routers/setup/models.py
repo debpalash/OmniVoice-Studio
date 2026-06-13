@@ -220,8 +220,12 @@ def is_cached(repo_id: str) -> bool:
     except Exception as e:
         # scan_cache_dir can raise on Windows (WinError 448 'untrusted mount
         # point'); fall back to a direct disk check so a cached model isn't
-        # mistaken for missing and re-downloaded in a loop (#117/#118).
-        logger.debug("scan_cache_dir failed (%s); using disk fallback", e)
+        # mistaken for missing and re-downloaded in a loop (#117/#118). Logged
+        # at WARNING with the exception type (MM2-09) so this fallback isn't
+        # invisible when triaging a Windows cache report — it previously logged
+        # at DEBUG and never showed at the default level.
+        logger.warning("is_cached: scan_cache_dir failed (%s: %s); using on-disk fallback for %s",
+                       type(e).__name__, e, repo_id)
         return _is_cached_on_disk(repo_id)
 
 
