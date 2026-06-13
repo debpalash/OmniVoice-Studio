@@ -126,13 +126,14 @@ def _resolve_voice(profile_id: str | None) -> dict:
     return out
 
 
-def _build_synth(default_voice: str | None):
-    """Return ``(synth, sample_rate)`` bound to the active TTS engine.
+def _build_synth(default_voice: str | None) -> dict:
+    """Describe how to synthesize for the active TTS engine.
 
-    ``synth(text, voice_id)`` renders one span of text (already pause- and
-    chapter-split) in the given voice and returns a 1-D audio tensor. Voice
-    resolutions are cached per id. The default OmniVoice model takes the native
-    path; other engines go through the generic ``TTSBackend`` adapter.
+    Returns a dict with ``mode``, ``resolve`` (voice-id → resolved refs, cached
+    per id) and ``engine_id``. For OmniVoice it also carries the async
+    ``get_model``; other engines carry a ready ``synth`` + ``sample_rate``.
+    :func:`_prepare_synth` turns this into a uniform ``(synth, sr, resolve,
+    engine_id)`` once the (async) model is in hand.
     """
     from services.tts_backend import OmniVoiceBackend, active_backend_id, get_backend_class
 
@@ -144,11 +145,12 @@ def _build_synth(default_voice: str | None):
             cache[key] = _resolve_voice(key)
         return cache[key]
 
-    cls = get_backend_class(active_backend_id())
+    engine_id = active_backend_id()
+    cls = get_backend_class(engine_id)
     if cls is OmniVoiceBackend:
         from services.model_manager import get_model
-        # get_model() is async; the caller resolves it before threading.
-        return ("omnivoice", resolve, get_model)
+        return {"mode": "omnivoice", "resolve": resolve,
+                "engine_id": engine_id, "get_model": get_model}
 
     backend = cls()
 
@@ -158,14 +160,109 @@ def _build_synth(default_voice: str | None):
             text, language=None, ref_audio=v["ref_audio"],
             ref_text=v["ref_text"], instruct=v["instruct"], duration=None,
         )
-    return ("generic", synth, backend.sample_rate)
+    return {"mode": "generic", "resolve": resolve, "engine_id": engine_id,
+            "synth": synth, "sample_rate": backend.sample_rate}
+
+
+async def _prepare_synth(default_voice: str | None):
+    """Resolve :func:`_build_synth` into ``(synth, sample_rate, resolve,
+    engine_id)`` — awaiting the OmniVoice model load when needed. Shared by the
+    full job and the per-chapter preview."""
+    info = _build_synth(default_voice)
+    resolve, engine_id = info["resolve"], info["engine_id"]
+    if info["mode"] == "omnivoice":
+        model = await info["get_model"]()
+        sr = getattr(model, "sampling_rate", 24000)
+
+        def synth(text, voice_id):
+            v = resolve(voice_id)
+            return model.generate(
+                text=text, language=None, ref_audio=v["ref_audio"],
+                ref_text=v["ref_text"], instruct=v["instruct"], duration=None,
+            )[0]
+        return synth, sr, resolve, engine_id
+    return info["synth"], info["sample_rate"], resolve, engine_id
+
+
+def _render_chapter_cached(chapter, synth, sr, engine_id, resolve, cache_dir):
+    """Render one chapter, content-addressed so a re-run reuses it (resume).
+
+    Returns ``(wav_path, duration_s, was_cached)``. The WAV lives at
+    ``cache_dir/<key>.wav`` where ``key`` is :func:`chapter_cache_key` over the
+    chapter's spans + sample rate + engine + each voice's resolved signature, so
+    an unchanged chapter is never re-synthesized. Runs in the GPU-pool executor.
+    """
+    import wave
+
+    from services.audio_io import atomic_save_wav
+    from services.longform_render import chapter_cache_key
+
+    spans_tuples = [(s.voice_id, s.text, s.pause_ms_after) for s in chapter.spans]
+    sig: dict = {}
+    for s in chapter.spans:
+        k = s.voice_id or ""
+        if k not in sig:
+            v = resolve(s.voice_id)
+            sig[k] = f"{v.get('ref_audio')}|{v.get('instruct')}|{v.get('seed')}"
+    key = chapter_cache_key(spans_tuples, sample_rate=sr, engine_id=engine_id, voice_sig=sig)
+    wav_path = os.path.join(cache_dir, f"{key}.wav")
+
+    if os.path.exists(wav_path):
+        try:
+            with wave.open(wav_path, "rb") as w:
+                dur = w.getnframes() / float(w.getframerate() or sr)
+            return wav_path, dur, True
+        except Exception:
+            pass  # corrupt cache entry — fall through and re-render
+
+    audio, dur = synthesize_chapter(chapter.spans, synth, sr)
+    atomic_save_wav(wav_path, audio, sr)
+    return wav_path, dur, False
+
+
+class AudiobookPreviewRequest(BaseModel):
+    text: str
+    chapter_index: int = 0
+    default_voice: str | None = None
+
+
+@router.post("/audiobook/preview")
+async def audiobook_preview(req: AudiobookPreviewRequest) -> dict:
+    """Render a single chapter so the user can audition it before the full run.
+
+    Reuses the same content-addressed cache as the job, so a preview warms the
+    cache (the later full render reuses it) and a re-preview is instant.
+    """
+    from core.config import OUTPUTS_DIR
+    from services.model_manager import _gpu_pool
+
+    plan = parse_audiobook_script(req.text, default_voice=req.default_voice)
+    if not plan.chapters:
+        raise HTTPException(status_code=400, detail="no chapters parsed from the script")
+    n = len(plan.chapters)
+    if not (0 <= req.chapter_index < n):
+        raise HTTPException(status_code=400, detail=f"chapter_index out of range (0..{n - 1})")
+
+    chapter = plan.chapters[req.chapter_index]
+    cache_dir = os.path.join(OUTPUTS_DIR, "audiobook_cache")
+    os.makedirs(cache_dir, exist_ok=True)
+    synth, sr, resolve, engine_id = await _prepare_synth(req.default_voice)
+    loop = asyncio.get_running_loop()
+    wav_path, dur, was_cached = await loop.run_in_executor(
+        _gpu_pool, _render_chapter_cached, chapter, synth, sr, engine_id, resolve, cache_dir,
+    )
+    return {
+        "output": os.path.relpath(wav_path, OUTPUTS_DIR),  # served via /audio
+        "duration_s": round(dur, 2),
+        "cached": was_cached,
+        "title": chapter.title,
+    }
 
 
 @router.post("/audiobook")
 async def audiobook_synthesize(req: AudiobookRequest):
     """Synthesize a chapterized m4b audiobook, streaming SSE progress."""
     from core.config import OUTPUTS_DIR
-    from services.audio_io import atomic_save_wav
     from services.ffmpeg_utils import find_ffmpeg, run_ffmpeg
     from services.model_manager import _gpu_pool
 
@@ -198,39 +295,44 @@ async def audiobook_synthesize(req: AudiobookRequest):
 
         work = os.path.join(OUTPUTS_DIR, f"audiobook_{job_id}")
         os.makedirs(work, exist_ok=True)
+        # Chapter WAVs are content-addressed in a shared cache so a re-run
+        # (after a failure or interruption) reuses what already rendered — only
+        # the missing/changed chapters synthesize again (resume).
+        cache_dir = os.path.join(OUTPUTS_DIR, "audiobook_cache")
+        os.makedirs(cache_dir, exist_ok=True)
         loop = asyncio.get_running_loop()
 
         try:
-            mode, a, b = _build_synth(req.default_voice)
-            if mode == "omnivoice":
-                resolve, get_model = a, b
-                model = await get_model()
-                sr = getattr(model, "sampling_rate", 24000)
-
-                def synth(text, voice_id):
-                    v = resolve(voice_id)
-                    return model.generate(
-                        text=text, language=None, ref_audio=v["ref_audio"],
-                        ref_text=v["ref_text"], instruct=v["instruct"], duration=None,
-                    )[0]
-            else:
-                synth, sr = a, b
+            synth, sr, resolve, engine_id = await _prepare_synth(req.default_voice)
 
             total = len(plan.chapters)
             chapter_files: list[str] = []
             chapters_meta: list[tuple[str, int]] = []
+            cached_n = 0
+            failed: list[int] = []
             yield _emit({"type": "started", "job_id": job_id, "chapters": total})
 
             for i, chapter in enumerate(plan.chapters):
-                audio, dur = await loop.run_in_executor(
-                    _gpu_pool, synthesize_chapter, chapter.spans, synth, sr,
-                )
-                wav_path = os.path.join(work, f"chapter_{i:03d}.wav")
-                atomic_save_wav(wav_path, audio, sr)
+                try:
+                    wav_path, dur, was_cached = await loop.run_in_executor(
+                        _gpu_pool, _render_chapter_cached,
+                        chapter, synth, sr, engine_id, resolve, cache_dir,
+                    )
+                except Exception as ce:  # isolate a bad chapter — keep going
+                    failed.append(i)
+                    yield _emit({"type": "chapter_error", "index": i, "total": total,
+                                 "title": chapter.title, "error": str(ce)[:200]})
+                    continue
                 chapter_files.append(wav_path)
                 chapters_meta.append((chapter.title, int(round(dur * 1000))))
+                cached_n += 1 if was_cached else 0
                 yield _emit({"type": "chapter", "index": i, "total": total,
-                             "title": chapter.title, "duration_s": round(dur, 2)})
+                             "title": chapter.title, "duration_s": round(dur, 2),
+                             "cached": was_cached})
+
+            if not chapter_files:
+                yield _emit({"type": "error", "error": "all chapters failed to render"})
+                return
 
             yield _emit({"type": "assembling"})
             meta_path = os.path.join(work, "chapters.ffmeta")
@@ -258,7 +360,8 @@ async def audiobook_synthesize(req: AudiobookRequest):
                     pass
             total_s = sum(d for _, d in chapters_meta) / 1000.0
             yield _emit({"type": "done", "output": out_name,
-                         "chapters": total, "duration_s": round(total_s, 2)})
+                         "chapters": len(chapter_files), "duration_s": round(total_s, 2),
+                         "cached_chapters": cached_n, "failed_chapters": failed})
         except Exception as e:  # surface, don't 500 the stream
             if job_store is not None:
                 try:

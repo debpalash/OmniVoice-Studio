@@ -28,6 +28,25 @@ export async function audiobookPlan(
   return res.json();
 }
 
+export interface AudiobookPreview {
+  output: string;       // path under OUTPUTS_DIR, served via /audio
+  duration_s: number;
+  cached: boolean;
+  title: string;
+}
+
+/** Render a single chapter to audition it (also warms the resume cache). */
+export async function audiobookPreviewChapter(
+  body: { text: string; chapter_index: number; default_voice?: string | null },
+): Promise<AudiobookPreview> {
+  const res = await apiFetch('/audiobook/preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
 /** Global tags embedded in the output file (player-visible). */
 export interface AudiobookMetadata {
   title?: string;

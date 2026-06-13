@@ -140,7 +140,10 @@
     "meta_narrator": "Narrator",
     "meta_year": "Year",
     "meta_genre": "Genre",
-    "meta_description": "Description"
+    "meta_description": "Description",
+    "preview_chapter": "Preview chapter: {{title}}",
+    "cached_note": "Reused {{count}} already-rendered chapter(s).",
+    "failed_note": "{{count}} chapter(s) failed — click Create again to retry just those."
   },
   "launchpad": {
     "greeting": "hello there",

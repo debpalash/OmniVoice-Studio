@@ -14,6 +14,7 @@ from services.longform_render import (
     build_ffmetadata,
     build_loudnorm_filter,
     build_render_cmd,
+    chapter_cache_key,
     validate_cover_image,
 )
 
@@ -174,3 +175,40 @@ def test_render_cmd_with_cover(tmp_path):
 def test_render_cmd_drops_invalid_cover(tmp_path):
     cmd = build_render_cmd("ffmpeg", "c", "m", "o.m4b", cover_path=str(tmp_path / "missing.jpg"))
     assert "attached_pic" not in cmd  # silently dropped, render still proceeds
+
+
+# ── chapter cache key (resume) ──────────────────────────────────────────────
+
+_SPANS = [(None, "Once upon a time.", 350), ("narrator", "The end.", 0)]
+
+
+def test_cache_key_deterministic():
+    a = chapter_cache_key(_SPANS, sample_rate=24000, engine_id="omnivoice")
+    b = chapter_cache_key(list(_SPANS), sample_rate=24000, engine_id="omnivoice")
+    assert a == b and len(a) == 20
+
+
+@pytest.mark.parametrize("mutate", [
+    lambda: chapter_cache_key([(None, "Different.", 350), ("narrator", "The end.", 0)],
+                              sample_rate=24000, engine_id="omnivoice"),                       # text
+    lambda: chapter_cache_key([("x", "Once upon a time.", 350), ("narrator", "The end.", 0)],
+                              sample_rate=24000, engine_id="omnivoice"),                       # voice
+    lambda: chapter_cache_key([(None, "Once upon a time.", 500), ("narrator", "The end.", 0)],
+                              sample_rate=24000, engine_id="omnivoice"),                       # pause
+    lambda: chapter_cache_key(list(reversed(_SPANS)), sample_rate=24000, engine_id="omnivoice"),  # order
+    lambda: chapter_cache_key(_SPANS, sample_rate=44100, engine_id="omnivoice"),              # sr
+    lambda: chapter_cache_key(_SPANS, sample_rate=24000, engine_id="kokoro"),                 # engine
+    lambda: chapter_cache_key(_SPANS, sample_rate=24000, engine_id="omnivoice",
+                              voice_sig={"narrator": "ref.wav|warm|7"}),                       # voice sig
+])
+def test_cache_key_changes_on_any_input(mutate):
+    base = chapter_cache_key(_SPANS, sample_rate=24000, engine_id="omnivoice")
+    assert mutate() != base
+
+
+def test_cache_key_voice_sig_order_irrelevant():
+    a = chapter_cache_key(_SPANS, sample_rate=24000, engine_id="omnivoice",
+                          voice_sig={"a": "1", "b": "2"})
+    b = chapter_cache_key(_SPANS, sample_rate=24000, engine_id="omnivoice",
+                          voice_sig={"b": "2", "a": "1"})
+    assert a == b

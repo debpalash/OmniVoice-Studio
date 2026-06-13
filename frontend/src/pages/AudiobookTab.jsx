@@ -1,8 +1,10 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BookMarked, Loader, Download, Image as ImageIcon, X } from 'lucide-react';
+import { BookMarked, Loader, Download, Image as ImageIcon, X, Play } from 'lucide-react';
 
-import { audiobookPlan, audiobookGenerate, audiobookUploadCover } from '../api/audiobook';
+import {
+  audiobookPlan, audiobookGenerate, audiobookUploadCover, audiobookPreviewChapter,
+} from '../api/audiobook';
 import { audioUrl } from '../api/generate';
 import { splitSSEBuffer, parseSSELine } from '../utils/sseParse';
 
@@ -23,6 +25,8 @@ export default function AudiobookTab({ profiles = [] }) {
   const [progress, setProgress] = useState(null); // {current,total,title,assembling}
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
+  const [done, setDone] = useState(null); // {cached_chapters, failed_chapters}
+  const [chapterPrev, setChapterPrev] = useState({}); // index → {url, loading}
   const abortRef = useRef(false);
 
   // Output + metadata (embedded in the file; players show these).
@@ -59,9 +63,22 @@ export default function AudiobookTab({ profiles = [] }) {
     }
   }, [text, defaultVoice]);
 
+  const onPreviewChapter = useCallback(async (i) => {
+    setError('');
+    setChapterPrev((p) => ({ ...p, [i]: { ...(p[i] || {}), loading: true } }));
+    try {
+      const r = await audiobookPreviewChapter({ text, chapter_index: i, default_voice: defaultVoice || null });
+      setChapterPrev((p) => ({ ...p, [i]: { url: audioUrl(r.output), loading: false } }));
+    } catch (e) {
+      setChapterPrev((p) => ({ ...p, [i]: { ...(p[i] || {}), loading: false } }));
+      setError(e?.message || String(e));
+    }
+  }, [text, defaultVoice]);
+
   const onCreate = useCallback(async () => {
     setError('');
     setOutput('');
+    setDone(null);
     setProgress({ current: 0, total: 0 });
     setGenerating(true);
     abortRef.current = false;
@@ -100,8 +117,14 @@ export default function AudiobookTab({ profiles = [] }) {
             setProgress({ current: evt.index + 1, total: evt.total, title: evt.title });
           } else if (evt.type === 'assembling') {
             setProgress((p) => ({ ...(p || {}), assembling: true }));
+          } else if (evt.type === 'chapter_error') {
+            setProgress({ current: evt.index + 1, total: evt.total, title: evt.title });
           } else if (evt.type === 'done') {
             setOutput(evt.output);
+            setDone({
+              cached_chapters: evt.cached_chapters || 0,
+              failed_chapters: evt.failed_chapters || [],
+            });
           } else if (evt.type === 'error') {
             setError(evt.error || 'synthesis failed');
           }
@@ -258,6 +281,16 @@ export default function AudiobookTab({ profiles = [] }) {
       {output && (
         <div className="audiobook-done" style={{ margin: '16px 0' }}>
           <div style={{ marginBottom: 8 }}>✅ {t('audiobook.ready')}</div>
+          {done && done.failed_chapters.length > 0 && (
+            <div className="muted" style={{ marginBottom: 8 }}>
+              {t('audiobook.failed_note', { count: done.failed_chapters.length })}
+            </div>
+          )}
+          {done && done.cached_chapters > 0 && (
+            <div className="muted" style={{ marginBottom: 8 }}>
+              {t('audiobook.cached_note', { count: done.cached_chapters })}
+            </div>
+          )}
           <audio controls src={audioUrl(output)} style={{ width: '100%' }} />
           <div style={{ marginTop: 8 }}>
             <a className="btn" href={audioUrl(output)} download={output}>
@@ -271,14 +304,31 @@ export default function AudiobookTab({ profiles = [] }) {
         <div className="audiobook-plan" style={{ marginTop: 16 }}>
           <h3>{t('audiobook.plan_heading', { count: plan.chapter_count })}</h3>
           <ol>
-            {plan.chapters.map((c, i) => (
-              <li key={i} style={{ marginBottom: 4 }}>
-                <strong>{c.title}</strong>{' '}
-                <span className="muted">
-                  {t('audiobook.chapter_meta', { spans: c.spans.length, chars: c.char_count })}
-                </span>
-              </li>
-            ))}
+            {plan.chapters.map((c, i) => {
+              const prev = chapterPrev[i] || {};
+              return (
+                <li key={i} style={{ marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button
+                      className="btn"
+                      onClick={() => onPreviewChapter(i)}
+                      disabled={prev.loading || busy}
+                      aria-label={t('audiobook.preview_chapter', { title: c.title })}
+                      style={{ padding: '2px 6px' }}
+                    >
+                      {prev.loading ? <Loader size={12} className="spin" /> : <Play size={12} />}
+                    </button>
+                    <strong>{c.title}</strong>{' '}
+                    <span className="muted">
+                      {t('audiobook.chapter_meta', { spans: c.spans.length, chars: c.char_count })}
+                    </span>
+                  </div>
+                  {prev.url && (
+                    <audio controls src={prev.url} style={{ width: '100%', marginTop: 4 }} />
+                  )}
+                </li>
+              );
+            })}
           </ol>
         </div>
       )}

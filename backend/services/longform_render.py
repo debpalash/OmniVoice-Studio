@@ -16,6 +16,8 @@ reimplement it:
     reaches ffmpeg.
   * ``build_render_cmd`` — pure argv for the mux: chapter WAVs + FFMETADATA
     (+ optional cover art, loudness filter), output as ``m4b`` or ``mp3``.
+  * ``chapter_cache_key`` — deterministic content hash so a re-run reuses
+    already-rendered chapters (resume) and re-renders only what changed.
 
 Every function here is pure (string/argv in, string/argv out) so it's unit
 tested without ffmpeg, torch, or a GPU. The impure ffmpeg run lives in the
@@ -24,6 +26,8 @@ caller (the audiobook router today; the stories job tomorrow).
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -51,6 +55,34 @@ _GLOBAL_TAG_KEYS: list[tuple[str, str]] = [
 def _escape_meta(value: str) -> str:
     """Escape an FFMETADATA value (``=``, ``;``, ``#``, ``\\``, newline)."""
     return re.sub(r"([=;#\\\n])", r"\\\1", value or "")
+
+
+# ── Chapter cache key (resume) ──────────────────────────────────────────────
+
+def chapter_cache_key(
+    spans: Iterable[tuple[Optional[str], str, int]],
+    *,
+    sample_rate: int,
+    engine_id: str,
+    voice_sig: Optional[dict] = None,
+) -> str:
+    """Deterministic content hash for a chapter's rendered audio.
+
+    ``spans`` is an ordered list of ``(voice_id, text, pause_ms_after)``. Same
+    inputs → same key → reuse the cached chapter WAV on a re-run (resume); any
+    change (text, voice, order, pauses, sample rate, engine, or a voice's
+    resolved signature) → new key → re-render. ``voice_sig`` maps each voice id
+    to a stable signature string (e.g. ``ref_audio|instruct|seed``) so editing
+    the underlying profile also invalidates the cache.
+    """
+    payload = {
+        "sr": int(sample_rate),
+        "engine": engine_id or "",
+        "spans": [[v, t, int(p)] for (v, t, p) in spans],
+        "voices": {k: voice_sig[k] for k in sorted(voice_sig)} if voice_sig else {},
+    }
+    raw = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:20]
 
 
 # ── Loudness normalization ──────────────────────────────────────────────────
