@@ -126,12 +126,19 @@ def _opf_path(zf: zipfile.ZipFile) -> str:
     return rootfile.get("full-path")
 
 
-def epub_to_chapter_script(data: bytes) -> str:
+def epub_to_chapter_script(
+    data: bytes,
+    *,
+    max_entry_bytes: int = _EPUB_MAX_ENTRY_BYTES,
+    max_total_bytes: int = _EPUB_MAX_TOTAL_BYTES,
+) -> str:
     """Convert EPUB bytes into a ``# Chapter`` / body script in spine order.
 
     Reads the OPF manifest + spine (the publisher's reading order), extracts
     each document's title + visible text, and emits one ``# Title`` block per
-    document with renderable text. Raises ``ValueError`` on a malformed EPUB.
+    document with renderable text. ``max_entry_bytes`` / ``max_total_bytes``
+    bound the *uncompressed* bytes read (zip-bomb guard). Raises ``ValueError``
+    on a malformed EPUB.
     """
     try:
         zf = zipfile.ZipFile(io.BytesIO(data))
@@ -165,9 +172,9 @@ def epub_to_chapter_script(data: bytes) -> str:
             info = zf.getinfo(full)
         except KeyError:
             continue
-        if info.file_size > _EPUB_MAX_ENTRY_BYTES:
+        if info.file_size > max_entry_bytes:
             continue
-        if total + info.file_size > _EPUB_MAX_TOTAL_BYTES:
+        if total + info.file_size > max_total_bytes:
             break
         try:
             raw = zf.read(full)
