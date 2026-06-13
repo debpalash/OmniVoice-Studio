@@ -23,8 +23,23 @@
   align-items: center;
   gap: 8px;
   margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  color: var(--color-fg);
 }
-.audiobook-tab__sub { margin: 2px 0 0; }
+.audiobook-tab__sub { margin: 2px 0 0; color: var(--color-fg-muted); font-size: var(--text-sm); }
+
+/* Field/section labels — chrome mono uppercase, matching the rest of the app's
+   form labels (the bare .field-label class has no global rule). */
+.audiobook-tab .field-label {
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  font-weight: 600;
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  color: var(--chrome-fg-muted);
+}
 .audiobook-tab__actions {
   display: flex;
   align-items: center;

@@ -450,12 +450,10 @@
 .stories-proj--current { background: rgba(184, 187, 38, 0.08); border-radius: var(--radius-sm); }
 
 /* ── Export format selector ───────────────────────────────────────── */
+/* Inherits the canonical chrome look from .input-base; only override the
+   toolbar-select sizing (input-base is full-width by default). */
 .stories-editor__format {
-  background: var(--color-bg-elev-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-fg);
-  font-family: inherit;
+  width: auto;
   font-size: var(--text-xs);
   padding: 3px 6px;
 }

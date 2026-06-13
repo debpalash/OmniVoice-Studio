@@ -480,7 +480,7 @@ export default function StoriesEditor({ profiles = [] }) {
               <Layers size={13} /> {t('stories.stems')}
             </Button>
             <select
-              className="stories-editor__format"
+              className="input-base stories-editor__format"
               value={exportFormat}
               onChange={(e) => setExportFormat(e.target.value)}
               aria-label={t('stories.format')}
