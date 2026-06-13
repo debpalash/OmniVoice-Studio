@@ -82,7 +82,9 @@ def chapter_cache_key(
         "voices": {k: voice_sig[k] for k in sorted(voice_sig)} if voice_sig else {},
     }
     raw = json.dumps(payload, sort_keys=True, ensure_ascii=False)
-    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:20]
+    # Content-addressing only — not a security digest. usedforsecurity=False
+    # keeps bandit's B324 (weak-hash) check quiet.
+    return hashlib.sha1(raw.encode("utf-8"), usedforsecurity=False).hexdigest()[:20]
 
 
 # ── Loudness normalization ──────────────────────────────────────────────────
