@@ -16,6 +16,7 @@ epub/pdf ingest, ACX mastering, crash-resume and the UI remain follow-ups.
 
 import asyncio
 import json
+import logging
 import os
 import uuid
 
@@ -33,7 +34,23 @@ from services.longform_render import (
     build_render_cmd,
 )
 
+logger = logging.getLogger("omnivoice.audiobook")
 router = APIRouter()
+
+
+def _safe_cover_path(cover_path: str | None) -> str | None:
+    """Confine a user-supplied cover path to ``OUTPUTS_DIR`` before it can flow
+    into ffmpeg. Returns the real path if it lives under OUTPUTS_DIR (where the
+    /audiobook/cover upload writes), else None — an arbitrary path (e.g.
+    ``/etc/passwd``) is dropped, not read."""
+    if not cover_path:
+        return None
+    from core.config import OUTPUTS_DIR
+    base = os.path.realpath(OUTPUTS_DIR)
+    real = os.path.realpath(cover_path)
+    if real == base or real.startswith(base + os.sep):
+        return real
+    return None
 
 
 class AudiobookPlanRequest(BaseModel):
@@ -321,7 +338,7 @@ async def _render_longform_sse(
             try:
                 job_store.append_event(job_id, json.dumps(payload))
             except Exception:
-                pass
+                pass  # best-effort job history; never block the stream
         return f"data: {json.dumps(payload)}\n\n"
 
     if not plan.chapters:
@@ -358,10 +375,12 @@ async def _render_longform_sse(
                     _gpu_pool, _render_chapter_cached,
                     chapter, synth, sr, engine_id, resolve, cache_dir,
                 )
-            except Exception as ce:  # isolate a bad chapter — keep going
+            except Exception:  # isolate a bad chapter — keep going
+                logger.warning("[%s] chapter %d (%s) failed to render",
+                               job_id, i, chapter.title, exc_info=True)
                 failed.append(i)
                 yield _emit({"type": "chapter_error", "index": i, "total": total,
-                             "title": chapter.title, "error": str(ce)[:200]})
+                             "title": chapter.title, "error": "chapter failed to render"})
                 continue
             chapter_files.append(wav_path)
             chapters_meta.append((chapter.title, int(round(dur * 1000))))
@@ -387,7 +406,8 @@ async def _render_longform_sse(
         await run_ffmpeg(
             build_render_cmd(
                 ffmpeg, concat_path, meta_path, out_path,
-                fmt=ext, bitrate=bitrate, cover_path=cover_path, loudness=loudness,
+                fmt=ext, bitrate=bitrate, cover_path=_safe_cover_path(cover_path),
+                loudness=loudness,
             ),
             job_id=job_id,
         )
@@ -396,18 +416,20 @@ async def _render_longform_sse(
             try:
                 job_store.mark_done(job_id)
             except Exception:
-                pass
+                pass  # best-effort job history
         total_s = sum(d for _, d in chapters_meta) / 1000.0
         yield _emit({"type": "done", "output": out_name,
                      "chapters": len(chapter_files), "duration_s": round(total_s, 2),
                      "cached_chapters": cached_n, "failed_chapters": failed})
     except Exception as e:  # surface, don't 500 the stream
+        logger.exception("[%s] longform render failed", job_id)
         if job_store is not None:
             try:
                 job_store.mark_failed(job_id, str(e))
             except Exception:
-                pass
-        yield _emit({"type": "error", "error": str(e)[:300]})
+                pass  # best-effort job history
+        # Generic message only — don't leak the stack/exception text to the client.
+        yield _emit({"type": "error", "error": "render failed (see backend log)"})
 
 
 @router.post("/audiobook")
