@@ -126,3 +126,12 @@
   text-align: center;
   padding: 24px 16px;
 }
+
+/* Inline project rename (WorkspaceProjects) — fills the card row like the title. */
+.wv__rename-input {
+  width: 100%;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  margin: 1px 0;
+}

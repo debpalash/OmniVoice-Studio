@@ -2,12 +2,17 @@ import uuid
 import time
 import json
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from core.db import db_conn
 from core import event_bus
 from schemas.requests import ProjectSaveRequest
 
 router = APIRouter()
+
+
+class ProjectRenameRequest(BaseModel):
+    name: str
 
 @router.get("/projects")
 async def list_projects():
@@ -58,6 +63,26 @@ async def update_project(project_id: str, req: ProjectSaveRequest):
         )
     event_bus.emit("projects", {"action": "updated", "id": project_id})
     return {"id": project_id, "name": req.name, "updated_at": now}
+
+@router.patch("/projects/{project_id}")
+async def rename_project(project_id: str, req: ProjectRenameRequest):
+    """Lightweight rename — updates only the project name (and updated_at),
+    without re-serialising the whole state blob like PUT does."""
+    name = req.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Project name cannot be empty")
+    now = time.time()
+    with db_conn() as conn:
+        row = conn.execute("SELECT id FROM studio_projects WHERE id=?", (project_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Project not found")
+        conn.execute(
+            "UPDATE studio_projects SET name=?, updated_at=? WHERE id=?",
+            (name, now, project_id),
+        )
+    event_bus.emit("projects", {"action": "renamed", "id": project_id})
+    return {"id": project_id, "name": name, "updated_at": now}
+
 
 @router.delete("/projects/{project_id}")
 async def delete_project(project_id: str):

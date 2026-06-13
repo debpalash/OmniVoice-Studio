@@ -62,7 +62,7 @@ import { LANG_CODES } from './utils/languages';
 import { formatTime } from './utils/format';
 import { API, apiPost } from './api/client';
 import { flushMemory as apiFlushMemory } from './api/system';
-import { saveProject as apiSaveProject, loadProject as apiLoadProject, deleteProject as apiDeleteProject } from './api/projects';
+import { saveProject as apiSaveProject, loadProject as apiLoadProject, deleteProject as apiDeleteProject, renameProject as apiRenameProject } from './api/projects';
 import { exportAction, exportReveal, exportRecord } from './api/exports';
 
 import { isTauri, doubleClickMaximize, fileToMediaUrl, playBlobAudio, playPing } from './utils/media';
@@ -821,6 +821,16 @@ function App() {
     } catch (err) { toast.error(err.message); }
   };
 
+  const renameProject = async (projectId, nextName) => {
+    const name = (nextName || '').trim();
+    if (!name) return;
+    try {
+      await apiRenameProject(projectId, name);
+      if (activeProjectId === projectId) setActiveProject(projectId, name);
+      loadProjects();
+    } catch (err) { toast.error(err.message); }
+  };
+
   const restoreDubHistory = (item) => {
     try {
       if (!item.job_data) return;
@@ -1108,7 +1118,7 @@ function App() {
           </Suspense>
           </ErrorBoundary>
         ) : mode === 'dub' ? (
-          <div className="studio-with-history">
+          <div className={`studio-with-history ${dubStep === 'idle' ? '' : 'studio-with-history--editing'}`}>
           <div className="studio-with-history__main">
           <ErrorBoundary name="dub">
           <Suspense fallback={<LazyFallback />}>
@@ -1156,6 +1166,10 @@ function App() {
           </Suspense>
           </ErrorBoundary>
           </div>
+          {/* Dub home: the Projects + History landing shows only when no project
+              is being edited. Opening/creating one switches to the full-width
+              editor (dubStep !== 'idle'). */}
+          {dubStep === 'idle' && (
           <div className="studio-right">
             <WorkspaceProjects
               projects={studioProjects}
@@ -1164,6 +1178,7 @@ function App() {
               saveProject={saveProject}
               loadProject={loadProject}
               deleteProject={deleteProject}
+              renameProject={renameProject}
             />
             <WorkspaceHistory
               variant="dub"
@@ -1172,6 +1187,7 @@ function App() {
               deleteHistory={deleteHistory}
             />
           </div>
+          )}
           </div>
         ) : (
           <div className="studio-with-history">

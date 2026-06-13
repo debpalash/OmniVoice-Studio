@@ -8,7 +8,7 @@
  */
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Film, FolderOpen, Trash2, Save } from 'lucide-react';
+import { Search, Film, FolderOpen, Trash2, Save, Pencil, Check, X } from 'lucide-react';
 import { Button } from '../ui';
 import './WorkspaceVoices.css';
 
@@ -34,10 +34,22 @@ export default function WorkspaceProjects({
   saveProject,
   loadProject,
   deleteProject,
+  renameProject,
 }) {
   const { t } = useTranslation();
   const [q, setQ] = useState('');
   const qLower = q.trim().toLowerCase();
+  // Inline rename: which project id is being edited + the draft name.
+  const [editingId, setEditingId] = useState(null);
+  const [draftName, setDraftName] = useState('');
+
+  const startRename = (proj) => { setEditingId(proj.id); setDraftName(proj.name || ''); };
+  const cancelRename = () => { setEditingId(null); setDraftName(''); };
+  const commitRename = (proj) => {
+    const next = draftName.trim();
+    if (next && next !== proj.name) renameProject?.(proj.id, next);
+    cancelRename();
+  };
 
   const items = useMemo(() => {
     if (!qLower) return projects;
@@ -89,7 +101,22 @@ export default function WorkspaceProjects({
                 {timeAgo(proj.updated_at * 1000)}
               </span>
             </div>
-            <div className="history-title">{proj.name}</div>
+            {editingId === proj.id ? (
+              <input
+                className="input-base wv__rename-input"
+                autoFocus
+                value={draftName}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => setDraftName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.stopPropagation(); commitRename(proj); }
+                  else if (e.key === 'Escape') { e.stopPropagation(); cancelRename(); }
+                }}
+                onBlur={() => commitRename(proj)}
+              />
+            ) : (
+              <div className="history-title">{proj.name}</div>
+            )}
             <div className="history-subtitle">
               {proj.duration ? `${Math.round(proj.duration)}s` : 'audio'}
               {(() => {
@@ -98,12 +125,30 @@ export default function WorkspaceProjects({
               })()}
             </div>
             <div className="history-actions">
-              <button className="history-action-btn accent" onClick={(e) => { e.stopPropagation(); loadProject(proj.id); }}>
-                <FolderOpen size={10} /> {t('sidebar.open')}
-              </button>
-              <button className="history-action-btn danger history-action-icon" onClick={(e) => { e.stopPropagation(); deleteProject(proj.id); }} title="Delete">
-                <Trash2 size={10} />
-              </button>
+              {editingId === proj.id ? (
+                <>
+                  <button className="history-action-btn accent" onClick={(e) => { e.stopPropagation(); commitRename(proj); }} title={t('sidebar.rename_save', { defaultValue: 'Save name' })}>
+                    <Check size={10} /> {t('common.save', { defaultValue: 'Save' })}
+                  </button>
+                  <button className="history-action-btn history-action-icon" onClick={(e) => { e.stopPropagation(); cancelRename(); }} title={t('common.cancel', { defaultValue: 'Cancel' })}>
+                    <X size={10} />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="history-action-btn accent" onClick={(e) => { e.stopPropagation(); loadProject(proj.id); }}>
+                    <FolderOpen size={10} /> {t('sidebar.open')}
+                  </button>
+                  {renameProject && (
+                    <button className="history-action-btn history-action-icon" onClick={(e) => { e.stopPropagation(); startRename(proj); }} title={t('sidebar.rename', { defaultValue: 'Rename' })}>
+                      <Pencil size={10} />
+                    </button>
+                  )}
+                  <button className="history-action-btn danger history-action-icon" onClick={(e) => { e.stopPropagation(); deleteProject(proj.id); }} title="Delete">
+                    <Trash2 size={10} />
+                  </button>
+                </>
+              )}
             </div>
           </div>
         ))}

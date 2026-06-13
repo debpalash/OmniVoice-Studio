@@ -14,6 +14,10 @@ export async function loadProject(id: string): Promise<ProjectDetail> {
   return apiJson<ProjectDetail>(`/projects/${id}`);
 }
 
+export async function renameProject(id: string, name: string): Promise<ProjectDetail> {
+  return apiPost<ProjectDetail>(`/projects/${id}`, { name }, { method: 'PATCH' });
+}
+
 export async function deleteProject(id: string): Promise<Response> {
   return apiFetch(`/projects/${id}`, { method: 'DELETE' });
 }

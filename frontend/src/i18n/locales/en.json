@@ -1418,6 +1418,8 @@
     "tab_exports": "Exports",
     "save_project": "Save Dub Project",
     "save_new_project": "Save as New Dub Project",
+    "rename": "Rename",
+    "rename_save": "Save name",
     "dub_projects": "Dub Projects",
     "voice_clones": "Voice Clones",
     "designed_voices": "Designed Voices",
