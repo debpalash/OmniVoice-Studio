@@ -141,3 +141,18 @@ def test_synthesize_empty_spans_is_silent():
     audio, dur = synthesize_chapter([], lambda t, v, s=None: torch.ones(10), 16000)
     assert audio.shape[-1] == 0
     assert dur == 0.0
+
+
+def test_synthesize_chapter_applies_lexicon():
+    torch = pytest.importorskip("torch")
+    seen = []
+
+    def synth(text, voice_id, speed=None):
+        seen.append(text)
+        return torch.ones(100, dtype=torch.float32)
+
+    plan = parse_audiobook_script("Meet Dr Smith.", default_voice="v")
+    synthesize_chapter(plan.chapters[0].spans, synth, 16000, lexicon={"Dr": "Doctor"})
+    # The engine sees the respelled text, never the original "Dr".
+    assert any("Doctor" in t for t in seen)
+    assert not any("Dr " in t or t.endswith(" Dr") for t in seen)

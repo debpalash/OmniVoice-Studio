@@ -148,24 +148,28 @@ def synthesize_chapter(
     sample_rate: int,
     *,
     crossfade_ms: int = 50,
+    lexicon: Optional[dict] = None,
 ):
     """Render a chapter's spans to one waveform via an injected ``synth``.
 
     ``synth(text, voice_id, speed)`` returns a 1-D float32 audio tensor for a
     span of text in the given voice (``speed`` may be ``None`` for the engine
     default). Long spans are split with the ``chunked_tts`` splitter and
-    crossfaded; inter-span ``pause_ms_after`` becomes silence.
+    crossfaded; inter-span ``pause_ms_after`` becomes silence. ``lexicon`` (when
+    given) respells each span's text before chunking so the engine pronounces
+    tricky words correctly; a ``None``/empty lexicon is a no-op pass-through.
 
     Returns ``(audio_tensor, duration_seconds)``. torch + chunked_tts are
     imported lazily so this module stays import-light for the pure parser path.
     """
     import torch
     from services.chunked_tts import concatenate_audio_chunks, split_text_into_chunks
+    from services.pronunciation import apply_lexicon
 
     parts: list = []
     for span in spans:
         if span.text:
-            chunks = split_text_into_chunks(span.text)
+            chunks = split_text_into_chunks(apply_lexicon(span.text, lexicon))
             rendered = [synth(c, span.voice_id, span.speed) for c in chunks]
             rendered = [r for r in rendered if r is not None and getattr(r, "numel", lambda: 0)()]
             if len(rendered) == 1:

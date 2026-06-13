@@ -152,6 +152,8 @@ class AudiobookRequest(BaseModel):
     # Global tags embedded in the output: {title, author, narrator, year,
     # genre, description}. Player-visible (Apple Books / Audible read these).
     metadata: dict | None = None
+    # Optional pronunciation lexicon {word: respelling} applied before synthesis.
+    lexicon: dict | None = None
 
 
 def _resolve_voice(profile_id: str | None) -> dict:
@@ -254,18 +256,21 @@ async def _prepare_synth(default_voice: str | None):
     return info["synth"], info["sample_rate"], resolve, engine_id
 
 
-def _render_chapter_cached(chapter, synth, sr, engine_id, resolve, cache_dir):
+def _render_chapter_cached(chapter, synth, sr, engine_id, resolve, cache_dir, lexicon=None):
     """Render one chapter, content-addressed so a re-run reuses it (resume).
 
     Returns ``(wav_path, duration_s, was_cached)``. The WAV lives at
     ``cache_dir/<key>.wav`` where ``key`` is :func:`chapter_cache_key` over the
-    chapter's spans + sample rate + engine + each voice's resolved signature, so
-    an unchanged chapter is never re-synthesized. Runs in the GPU-pool executor.
+    chapter's spans + sample rate + engine + each voice's resolved signature
+    (+ the lexicon, so a lexicon edit re-renders), so an unchanged chapter is
+    never re-synthesized. Runs in the GPU-pool executor.
     """
+    import json
     import wave
 
     from services.audio_io import atomic_save_wav
     from services.longform_render import chapter_cache_key
+    from services.pronunciation import normalize_lexicon
 
     spans_tuples = [(s.voice_id, s.text, s.pause_ms_after, getattr(s, "speed", None))
                     for s in chapter.spans]
@@ -275,6 +280,10 @@ def _render_chapter_cached(chapter, synth, sr, engine_id, resolve, cache_dir):
         if k not in sig:
             v = resolve(s.voice_id)
             sig[k] = f"{v.get('ref_audio')}|{v.get('ref_text')}|{v.get('instruct')}|{v.get('seed')}"
+    if lexicon:
+        # Fold the lexicon into the cache key so editing pronunciations
+        # invalidates cached chapters (reserved key can't collide with a voice id).
+        sig["\x00lexicon"] = json.dumps(normalize_lexicon(lexicon), sort_keys=True)
     key = chapter_cache_key(spans_tuples, sample_rate=sr, engine_id=engine_id, voice_sig=sig)
     wav_path = os.path.join(cache_dir, f"{key}.wav")
 
@@ -286,7 +295,7 @@ def _render_chapter_cached(chapter, synth, sr, engine_id, resolve, cache_dir):
         except Exception:
             pass  # corrupt cache entry — fall through and re-render
 
-    audio, dur = synthesize_chapter(chapter.spans, synth, sr)
+    audio, dur = synthesize_chapter(chapter.spans, synth, sr, lexicon=lexicon)
     atomic_save_wav(wav_path, audio, sr)
     return wav_path, dur, False
 
@@ -295,6 +304,7 @@ class AudiobookPreviewRequest(BaseModel):
     text: str
     chapter_index: int = 0
     default_voice: str | None = None
+    lexicon: dict | None = None
 
 
 @router.post("/audiobook/preview")
@@ -321,6 +331,7 @@ async def audiobook_preview(req: AudiobookPreviewRequest) -> dict:
     loop = asyncio.get_running_loop()
     wav_path, dur, was_cached = await loop.run_in_executor(
         _gpu_pool, _render_chapter_cached, chapter, synth, sr, engine_id, resolve, cache_dir,
+        req.lexicon,
     )
     return {
         "output": os.path.relpath(wav_path, OUTPUTS_DIR),  # served via /audio
@@ -339,6 +350,7 @@ async def _render_longform_sse(
     loudness: str | None = None,
     cover_path: str | None = None,
     metadata: dict | None = None,
+    lexicon: dict | None = None,
     job_type: str = "audiobook",
 ):
     """Shared chapterized-render SSE generator for Audiobook *and* Stories.
@@ -401,7 +413,7 @@ async def _render_longform_sse(
             try:
                 wav_path, dur, was_cached = await loop.run_in_executor(
                     _gpu_pool, _render_chapter_cached,
-                    chapter, synth, sr, engine_id, resolve, cache_dir,
+                    chapter, synth, sr, engine_id, resolve, cache_dir, lexicon,
                 )
             except Exception:  # isolate a bad chapter — keep going
                 logger.warning("[%s] chapter %d (%s) failed to render",
@@ -468,7 +480,7 @@ async def audiobook_synthesize(req: AudiobookRequest):
         _render_longform_sse(
             plan, default_voice=req.default_voice, fmt=req.format, bitrate=req.bitrate,
             loudness=req.loudness, cover_path=req.cover_path, metadata=req.metadata,
-            job_type="audiobook",
+            lexicon=req.lexicon, job_type="audiobook",
         ),
         media_type="text/event-stream",
     )
@@ -496,6 +508,7 @@ class LongformRenderRequest(BaseModel):
     loudness: str | None = None
     cover_path: str | None = None
     metadata: dict | None = None
+    lexicon: dict | None = None
 
 
 @router.post("/longform/render")
@@ -522,7 +535,7 @@ async def longform_render(req: LongformRenderRequest):
         _render_longform_sse(
             plan, default_voice=req.default_voice, fmt=req.format, bitrate=req.bitrate,
             loudness=req.loudness, cover_path=req.cover_path, metadata=req.metadata,
-            job_type="story",
+            lexicon=req.lexicon, job_type="story",
         ),
         media_type="text/event-stream",
     )
