@@ -246,6 +246,10 @@ function App() {
   // so we wait for it to appear, select it, then clear the hand-off.
   const pendingProfileId = useAppStore(s => s.pendingProfileId);
   const setPendingProfileId = useAppStore(s => s.setPendingProfileId);
+  // Stories projects (storiesSlice) — surfaced in the global Projects view so a
+  // saved story is openable from OmniDrive, like dub projects.
+  const storyProjects = useAppStore(s => s.storyProjects);
+  const loadStoryProject = useAppStore(s => s.loadProject);
   const pendingRefreshRef = useRef(null);
   useEffect(() => {
     if (!pendingProfileId) { pendingRefreshRef.current = null; return; }
@@ -1044,8 +1048,10 @@ function App() {
                 profiles={profiles}
                 history={history}
                 exportHistory={exportHistory}
+                storyProjects={storyProjects}
                 onOpenDub={(id) => { loadProject(id); setMode('dub'); }}
                 onOpenProfile={(id) => { openVoiceProfile(id); }}
+                onOpenStory={(id) => { loadStoryProject(id); setMode('stories'); }}
                 onRevealExport={(path) => { exportReveal({ path }).catch(() => {}); }}
               />
             </Suspense>

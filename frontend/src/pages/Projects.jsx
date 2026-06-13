@@ -3,7 +3,7 @@ import { copyText } from "../utils/copyText";
 import { useTranslation } from 'react-i18next';
 import {
   Search, FolderOpen, Film, Fingerprint, Wand2, Music, Download,
-  LayoutGrid, List as ListIcon, Clock, FileText, Mic, BookMarked,
+  LayoutGrid, List as ListIcon, Clock, FileText, Mic, BookMarked, BookOpen,
 } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import { audioUrl } from '../api/generate';
@@ -76,8 +76,10 @@ export default function Projects({
   profiles = [],
   history = [],
   exportHistory = [],
+  storyProjects = [],
   onOpenDub,           // (projectId) => void — loads project + switches to dub mode
   onOpenProfile,       // (voiceId)   => void
+  onOpenStory,         // (storyId)   => void — loads story + switches to stories mode
   onRevealExport,      // (path)      => void
 }) {
   const [filter, setFilter]   = useState('all');
@@ -88,6 +90,7 @@ export default function Projects({
   const FILTERS = [
     { id: 'all',      label: t('projects.all'),            Icon: FolderOpen  },
     { id: 'dubs',     label: t('projects.dub_projects'),   Icon: Film        },
+    { id: 'stories',  label: t('projects.stories'),        Icon: BookOpen    },
     { id: 'profiles', label: t('projects.voice_profiles'), Icon: Fingerprint },
     { id: 'transcripts', label: t('projects.transcripts'), Icon: Mic         },
     { id: 'audiobooks', label: t('projects.audiobooks'),   Icon: BookMarked  },
@@ -138,6 +141,21 @@ export default function Projects({
         accent: '#fe8019',
         Icon: Film,
         onClick: () => onOpenDub?.(p.id),
+      });
+    }
+    for (const sp of storyProjects) {
+      const tracks = (sp.tracks || []).length;
+      const chars = new Set((sp.cast || []).map((c) => c.id)).size;
+      list.push({
+        type: 'stories',
+        id: sp.id,
+        title: sp.name || t('projects.untitled_story'),
+        subtitle: [tracks ? t('projects.story_lines', { count: tracks }) : '',
+                   chars ? t('projects.story_voices', { count: chars }) : ''].filter(Boolean).join(' · '),
+        ts: sp.updatedAt || 0,
+        accent: '#83a598',
+        Icon: BookOpen,
+        onClick: () => onOpenStory?.(sp.id),
       });
     }
     for (const pr of profiles) {
@@ -207,7 +225,7 @@ export default function Projects({
     }
     list.sort((a, b) => (b.ts || 0) - (a.ts || 0));
     return list;
-  }, [studioProjects, profiles, history, exportHistory, transcriptions, longformJobs, onOpenDub, onOpenProfile, onRevealExport, t]);
+  }, [studioProjects, profiles, history, exportHistory, transcriptions, longformJobs, storyProjects, onOpenDub, onOpenProfile, onOpenStory, onRevealExport, t]);
 
   const counts = useMemo(() => {
     const c = { all: items.length };
