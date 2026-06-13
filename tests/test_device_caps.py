@@ -190,6 +190,17 @@ def test_directml_present_reports_cpu_with_marker():
     assert any(DIRECTML_MARKER in n for n in caps.notes)
 
 
+def test_hybrid_cuda_plus_xpu_keeps_both_in_available():
+    # NVIDIA GPU + Intel iGPU via IPEX: family is the priority pick (cuda) but
+    # available_families must not drop the secondary accelerator.
+    caps = _probe_with({
+        "torch": _torch_mock(cuda_available=True, xpu_available=True),
+        "intel_extension_for_pytorch": types.SimpleNamespace(),
+    })
+    assert caps.family == "cuda"
+    assert caps.available_families == ("cuda", "xpu", "cpu")
+
+
 def test_cpu_only_baseline():
     caps = _probe_with({"torch": _torch_mock()})
     assert caps.family == "cpu"

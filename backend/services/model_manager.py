@@ -228,7 +228,16 @@ def get_best_device():
             logger.info("Using Intel XPU device")
         return "xpu"
 
+    # ── Apple Silicon MPS ────────────────────────────────────────────
+    # Checked BEFORE DirectML to mirror the probe's family-priority order
+    # (cuda > rocm > xpu > mps; DirectML is not a torch family) so the loader
+    # and detect_host_caps() never disagree on a host that somehow exposes both.
+    if family == "mps":
+        return "mps"
+
     # ── DirectML — universal Windows GPU (probe reports this as "cpu") ─
+    # Reached only when no torch family was detected (family == "cpu"), which is
+    # exactly the DirectML case — the probe classifies DirectML hosts as cpu.
     try:
         import torch_directml
         if torch_directml.device_count() > 0:
@@ -236,10 +245,6 @@ def get_best_device():
             return str(torch_directml.device(0))
     except ImportError:
         pass
-
-    # ── Apple Silicon MPS ────────────────────────────────────────────
-    if family == "mps":
-        return "mps"
 
     return "cpu"
 

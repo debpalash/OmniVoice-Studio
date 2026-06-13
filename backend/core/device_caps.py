@@ -46,10 +46,11 @@ KERNEL_RISK_MARKER = "may fail at kernel launch"
 # router reads this marker to explain the neutral badge instead of "no GPU".
 DIRECTML_MARKER = "DirectML device present"
 
-# Mirrors ``wizard._MIN_NVIDIA_DRIVER`` — the minimum NVIDIA driver the bundled
-# CUDA 12.8 runtime needs. Duplicated (not imported) to keep this module free of
-# any dependency on the API/router layer.
-_MIN_NVIDIA_DRIVER = 555
+# NOTE: the NVIDIA driver-version check (min R555 for the bundled CUDA runtime)
+# is intentionally NOT done here — it requires shelling to ``nvidia-smi``, which
+# would put a subprocess on the cold-start probe path. That check stays in
+# ``wizard._detect_gpu`` (preflight), which already runs it. The probe only
+# emits the torch-visible SM-arch caveat (cheap, metadata-only).
 
 
 @dataclass(frozen=True)
@@ -95,7 +96,11 @@ def _probe() -> HostCaps:
         )
 
     notes: list[str] = []
-    family: DeviceFamily = "cpu"
+    # Probe EVERY accelerator independently into this list (don't short-circuit
+    # after the first hit) so `available_families` is honest on hybrid hosts
+    # (e.g. an NVIDIA GPU + an Intel iGPU exposed via IPEX). The preferred
+    # `family` is chosen by priority at the end.
+    detected: list[DeviceFamily] = []
     device_name = ""
     vram_gb = 0.0
     driver: str | None = None
@@ -116,7 +121,7 @@ def _probe() -> HostCaps:
             notes.append("CUDA reports available but device_count==0")
         else:
             is_rocm = getattr(torch.version, "hip", None) is not None
-            family = "rocm" if is_rocm else "cuda"
+            detected.append("rocm" if is_rocm else "cuda")
             if is_rocm:
                 driver = getattr(torch.version, "hip", None)
             if count > 1:
@@ -144,51 +149,63 @@ def _probe() -> HostCaps:
                             f"{KERNEL_RISK_MARKER}"
                         )
             except Exception:
+                # Arch metadata unavailable on this torch build — skip the check
+                # (treated as compatible, exactly as check_device_compatibility).
                 pass
 
     # ── Intel XPU via IPEX ───────────────────────────────────────────────
-    if family == "cpu":
-        try:
-            import intel_extension_for_pytorch  # noqa: F401
-            if hasattr(torch, "xpu") and torch.xpu.is_available():
-                family = "xpu"
+    try:
+        import intel_extension_for_pytorch  # noqa: F401
+        if hasattr(torch, "xpu") and torch.xpu.is_available():
+            detected.append("xpu")
+            if not device_name:
                 try:
                     device_name = torch.xpu.get_device_name(0)
                 except Exception:
+                    # XPU present but unnamed — family classification still holds.
                     pass
-                notes.append("XPU VRAM not queried (unreliable across IPEX versions)")
-        except Exception:
-            pass
+            notes.append("XPU VRAM not queried (unreliable across IPEX versions)")
+    except Exception:
+        # IPEX absent or XPU probe failed — no XPU on this host.
+        pass
 
     # ── Apple Silicon MPS ────────────────────────────────────────────────
-    if family == "cpu":
-        try:
-            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-                family = "mps"
-                device_name = device_name or "Apple Silicon (MPS)"
+    try:
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            detected.append("mps")
+            if not device_name:
+                device_name = "Apple Silicon (MPS)"
+            if not vram_gb:
                 try:
                     import psutil
                     vram_gb = float(psutil.virtual_memory().total) / (1024 ** 3) / 2
                 except Exception:
                     notes.append("psutil unavailable; MPS VRAM unknown")
-        except Exception:
-            pass
+    except Exception:
+        # MPS probe raised on a non-Apple/old torch — treat as no MPS.
+        pass
 
     # ── DirectML — Windows GPU, NOT a torch device family ────────────────
-    if family == "cpu":
-        try:
-            import torch_directml
-            if torch_directml.device_count() > 0:
-                notes.append(
-                    f"{DIRECTML_MARKER} (Windows GPU); torch-family probe treats "
-                    f"as non-accelerated"
-                )
-        except Exception:
-            pass
+    try:
+        import torch_directml
+        if torch_directml.device_count() > 0:
+            notes.append(
+                f"{DIRECTML_MARKER} (Windows GPU); torch-family probe treats "
+                f"as non-accelerated"
+            )
+    except Exception:
+        # torch_directml absent (the common case) — no DirectML on this host.
+        pass
 
-    available: tuple[DeviceFamily, ...] = (
-        (family, "cpu") if family != "cpu" else ("cpu",)
-    )
+    # Preferred family by priority; cpu when nothing accelerated was detected.
+    family: DeviceFamily = "cpu"
+    for pref in ("cuda", "rocm", "xpu", "mps"):
+        if pref in detected:
+            family = pref  # type: ignore[assignment]
+            break
+    # available_families: every detected accelerator + cpu, deduped, cpu last.
+    available: tuple[DeviceFamily, ...] = tuple(dict.fromkeys([*detected, "cpu"]))
+
     return HostCaps(
         family=family,
         available_families=available,
@@ -242,6 +259,7 @@ def mlx_supported() -> tuple[bool, str]:
         if torch.backends.mps.is_available():
             return (True, "")
     except Exception:
+        # MPS query raised — fall through to the conservative unavailable path.
         pass
     return (
         False,
