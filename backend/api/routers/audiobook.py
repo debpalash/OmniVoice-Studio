@@ -33,6 +33,7 @@ from services.longform_render import (
     build_concat_list,
     build_ffmetadata,
     build_render_cmd,
+    prune_cache_dir,
 )
 
 logger = logging.getLogger("omnivoice.audiobook")
@@ -397,6 +398,7 @@ async def _render_longform_sse(
     # front doors: an identical chapter renders once.
     cache_dir = os.path.join(OUTPUTS_DIR, "longform_cache")
     os.makedirs(cache_dir, exist_ok=True)
+    prune_cache_dir(cache_dir)  # bound disk before this job adds its chapters
     loop = asyncio.get_running_loop()
 
     try:

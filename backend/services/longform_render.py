@@ -28,12 +28,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
 _BITRATE_RE = re.compile(r"^\d{2,3}k$")
+#: Default ceiling for the content-addressed chapter cache. Above this, the
+#: oldest cached chapter WAVs are evicted (LRU by mtime). Override via
+#: OMNIVOICE_LONGFORM_CACHE_MAX_GB.
+_CACHE_MAX_BYTES = int(float(os.environ.get("OMNIVOICE_LONGFORM_CACHE_MAX_GB", "2")) * 1024 ** 3)
 _COVER_EXTS = {".jpg", ".jpeg", ".png"}
 _COVER_MAX_BYTES = 8 * 1024 * 1024  # 8 MB — a book cover, not a payload
 
@@ -55,6 +60,48 @@ _GLOBAL_TAG_KEYS: list[tuple[str, str]] = [
 def _escape_meta(value: str) -> str:
     """Escape an FFMETADATA value (``=``, ``;``, ``#``, ``\\``, newline)."""
     return re.sub(r"([=;#\\\n])", r"\\\1", value or "")
+
+
+def prune_cache_dir(cache_dir: str, max_bytes: int = _CACHE_MAX_BYTES) -> tuple[int, int]:
+    """Evict the oldest files in ``cache_dir`` until the total size is within
+    ``max_bytes`` (LRU by mtime). The content-addressed chapter cache otherwise
+    grows without bound — uncompressed WAVs accumulate across every render.
+
+    Best-effort: returns ``(remaining_bytes, removed_count)`` and never raises
+    (a missing dir / unstattable file is just skipped). Call it *before* writing
+    a job's chapters so the fresh ones are never the eviction target.
+    """
+    try:
+        names = os.listdir(cache_dir)
+    except OSError:
+        return (0, 0)
+    entries: list[tuple[float, int, str]] = []
+    total = 0
+    for name in names:
+        p = os.path.join(cache_dir, name)
+        try:
+            if not os.path.isfile(p):
+                continue
+            size = os.path.getsize(p)
+            mtime = os.path.getmtime(p)
+        except OSError:
+            continue
+        entries.append((mtime, size, p))
+        total += size
+    if total <= max_bytes:
+        return (total, 0)
+    entries.sort()  # oldest first
+    removed = 0
+    for _mtime, size, p in entries:
+        if total <= max_bytes:
+            break
+        try:
+            os.remove(p)
+            total -= size
+            removed += 1
+        except OSError:
+            continue
+    return (total, removed)
 
 
 # ── Chapter cache key (resume) ──────────────────────────────────────────────

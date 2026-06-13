@@ -15,6 +15,7 @@ from services.longform_render import (
     build_loudnorm_filter,
     build_render_cmd,
     chapter_cache_key,
+    prune_cache_dir,
     validate_cover_image,
 )
 
@@ -226,3 +227,34 @@ def test_cache_key_voice_sig_order_irrelevant():
     b = chapter_cache_key(_SPANS, sample_rate=24000, engine_id="omnivoice",
                           voice_sig={"b": "2", "a": "1"})
     assert a == b
+
+
+# ── cache eviction ──────────────────────────────────────────────────────────
+
+def _seed(tmp_path, name, size, age_s):
+    import os, time
+    p = tmp_path / name
+    p.write_bytes(b"\0" * size)
+    t = time.time() - age_s
+    os.utime(p, (t, t))
+    return p
+
+
+def test_prune_cache_under_cap_is_noop(tmp_path):
+    _seed(tmp_path, "a.wav", 100, 10)
+    remaining, removed = prune_cache_dir(str(tmp_path), max_bytes=1000)
+    assert removed == 0 and remaining == 100
+
+
+def test_prune_cache_evicts_oldest_first(tmp_path):
+    old = _seed(tmp_path, "old.wav", 600, age_s=100)   # oldest
+    new = _seed(tmp_path, "new.wav", 600, age_s=1)      # newest
+    remaining, removed = prune_cache_dir(str(tmp_path), max_bytes=1000)
+    assert removed == 1
+    assert not old.exists()      # oldest evicted
+    assert new.exists()          # newest kept
+    assert remaining <= 1000
+
+
+def test_prune_cache_missing_dir_is_safe(tmp_path):
+    assert prune_cache_dir(str(tmp_path / "nope")) == (0, 0)
