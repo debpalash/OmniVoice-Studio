@@ -143,6 +143,15 @@ def test_synthesize_empty_spans_is_silent():
     assert dur == 0.0
 
 
+def test_parse_applies_ssml_lite_prosody():
+    plan = parse_audiobook_script("[slow]hush[/slow] normal [spell]USA[/spell]")
+    spans = plan.chapters[0].spans
+    by_text = {s.text: s for s in spans}
+    assert by_text["hush"].speed == 0.85       # [slow] → slower rate
+    assert by_text["normal"].speed is None     # plain → engine default
+    assert "U S A" in by_text                   # [spell] spaces the letters
+
+
 def test_synthesize_chapter_applies_lexicon():
     torch = pytest.importorskip("torch")
     seen = []

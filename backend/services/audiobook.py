@@ -103,14 +103,32 @@ def _parse_spans(body: str, default_voice: Optional[str]) -> list[Span]:
         last = m.end()
     runs.append((cur_voice, body[last:]))
 
+    from services.ssml_lite import parse_ssml_lite, spell_out
+
     for voice, run_text in runs:
-        # Delegate pause handling to the shared parser so the [pause …] dialect
-        # stays identical to single-shot synthesis.
+        # Marker precedence (outer → inner): [voice:] (run split above) →
+        # [pause] (shared dialect) → SSML-lite prosody ([slow]/[fast]/[emphasis]
+        # /[spell]) within the text. The trailing pause attaches to the LAST
+        # SSML segment of the run.
         for span_text, pause_ms in parse_pause_markers(run_text):
             t = span_text.strip()
             if not t and pause_ms == 0:
                 continue  # pure whitespace between markers — nothing to render
-            spans.append(Span(voice_id=voice, text=t, pause_ms_after=pause_ms))
+            rendered: list[tuple[str, Optional[float]]] = []
+            for seg in (parse_ssml_lite(t) if t else []):
+                st = (spell_out(seg["text"]) if seg["spell"] else seg["text"]).strip()
+                if st:
+                    rendered.append((st, seg["speed"]))
+            if not rendered:
+                # Only-markers / empty text but a real pause → carry the silence.
+                if pause_ms > 0:
+                    spans.append(Span(voice_id=voice, text="", pause_ms_after=pause_ms))
+                continue
+            for j, (st, sp) in enumerate(rendered):
+                spans.append(Span(
+                    voice_id=voice, text=st, speed=sp,
+                    pause_ms_after=pause_ms if j == len(rendered) - 1 else 0,
+                ))
     return spans
 
 

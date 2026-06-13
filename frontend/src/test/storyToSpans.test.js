@@ -43,6 +43,17 @@ describe('storyToSpans', () => {
     expect(spans.every((s) => s.speed === 0.8)).toBe(true);
   });
 
+  it('applies inline SSML-lite prosody (overriding the line speed)', () => {
+    const tracks = [{ character: 'narrator', text: 'calm [fast]rush[/fast] [spell]USA[/spell]', speed: 0.9 }];
+    const spans = storyToSpans(tracks, CAST)[0].spans;
+    const calm = spans.find((s) => s.text === 'calm');
+    const rush = spans.find((s) => s.text === 'rush');
+    const usa = spans.find((s) => s.text === 'U S A');
+    expect(calm.speed).toBe(0.9);     // plain → falls back to the line slider
+    expect(rush.speed).toBe(1.15);    // [fast] overrides the line slider
+    expect(usa).toBeTruthy();         // [spell] spelled the letters out
+  });
+
   it('folds [pause] into the previous span', () => {
     const tracks = [{ character: 'narrator', text: 'Wait. [pause 0.5s] Done.' }];
     const spans = storyToSpans(tracks, CAST)[0].spans;
