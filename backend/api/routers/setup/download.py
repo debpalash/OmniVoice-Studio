@@ -108,6 +108,89 @@ def compute_plan(plan_files) -> dict:
     }
 
 
+def _segmented_enabled() -> bool:
+    """Opt-in IDM-style accelerator (FDL-09), default OFF. Most useful when Xet
+    is inactive (the app's default): the legacy-LFS path is single-stream, so
+    this restores parallel speed AND gives real live byte progress."""
+    return _truthy(prefs.resolve(
+        "segmented_downloader", env="OMNIVOICE_SEGMENTED_DOWNLOAD", default=False,
+    ))
+
+
+def _xet_active() -> bool:
+    """True only when hf_xet is installed AND not disabled. The app sets
+    HF_HUB_DISABLE_XET=1 by default, so this is normally False — which is when
+    the segmented accelerator pays off."""
+    import importlib.util
+    if importlib.util.find_spec("hf_xet") is None:
+        return False
+    return os.environ.get("HF_HUB_DISABLE_XET", "").strip().lower() not in {"1", "true", "yes", "on"}
+
+
+def _repo_cancelled(repo_id: str) -> bool:
+    return repo_id in _cancelled
+
+
+def _segmented_snapshot(repo_id: str, *, endpoint: "str | None") -> str:
+    """Fetch every file of a repo via the segmented downloader into the HF
+    cache, mirroring hf_hub_download's blob+snapshot+refs layout so the result
+    is indistinguishable from snapshot_download (FDL-09) — keeping /models
+    install-state, is_cached, and delete working. Feeds real bytes to the
+    aggregator. Raises on any error; the caller falls back to snapshot_download.
+    """
+    import asyncio as _asyncio
+    from huggingface_hub import HfApi, constants as _C
+    from huggingface_hub.file_download import (
+        hf_hub_url, get_hf_file_metadata, repo_folder_name, _create_symlink,
+    )
+    from services.segmented_download import segmented_download
+    from services.token_resolver import resolve as _resolve_token
+
+    token = _resolve_token()
+    api = HfApi(endpoint=endpoint, token=token)
+    info = api.repo_info(repo_id, repo_type="model")
+    commit = info.sha
+    files = [s.rfilename for s in (info.siblings or [])]
+    if not commit or not files:
+        raise RuntimeError("repo_info returned no commit/siblings")
+
+    repo_dir = os.path.join(_C.HF_HUB_CACHE, repo_folder_name(repo_id=repo_id, repo_type="model"))
+    blobs_dir = os.path.join(repo_dir, "blobs")
+    snap_dir = os.path.join(repo_dir, "snapshots", commit)
+    refs_dir = os.path.join(repo_dir, "refs")
+    for d in (blobs_dir, snap_dir, refs_dir):
+        os.makedirs(d, exist_ok=True)
+
+    for rel in files:
+        if _repo_cancelled(repo_id):
+            raise _InstallCancelled()
+        url = hf_hub_url(repo_id, rel, endpoint=endpoint, revision=commit)
+        meta = get_hf_file_metadata(url, token=token)
+        etag = (meta.etag or "").strip('"')
+        if not etag:
+            raise RuntimeError(f"no etag for {rel}")
+        blob_path = os.path.join(blobs_dir, etag)
+        pointer = os.path.join(snap_dir, rel)
+        os.makedirs(os.path.dirname(pointer), exist_ok=True)
+        if not os.path.exists(blob_path):
+            _asyncio.run(segmented_download(
+                meta.location or url, blob_path,
+                token=token, expected_size=meta.size, expected_etag=etag,
+                on_bytes=lambda d, k=rel: download_aggregator.add_bytes(repo_id, k, d),
+                cancel_check=lambda: _repo_cancelled(repo_id),
+            ))
+        if not os.path.lexists(pointer):
+            _create_symlink(blob_path, pointer, new_blob=True)
+
+    # refs/main → commit so scan_cache_dir maps the revision correctly.
+    try:
+        with open(os.path.join(refs_dir, "main"), "w") as f:
+            f.write(commit)
+    except OSError:
+        pass
+    return snap_dir
+
+
 # ── SSE Download Stream ───────────────────────────────────────────────────
 
 def _safe_put(queue: asyncio.Queue, event) -> None:
@@ -329,7 +412,24 @@ async def install_model(req: InstallModelRequest):
                     raise _InstallCancelled()
                 _attempt += 1
                 try:
-                    _snapshot_path = snapshot_download(**dl_kwargs)
+                    # Opt-in segmented accelerator (FDL-09): parallel byte-range
+                    # fetch with real live progress, for the legacy-LFS path.
+                    # Any failure falls through to snapshot_download — the
+                    # accelerator can never compromise a correct install.
+                    _snapshot_path = None
+                    if _attempt == 1 and _segmented_enabled() and not _xet_active():
+                        try:
+                            _snapshot_path = _segmented_snapshot(req.repo_id, endpoint=_endpoint)
+                        except _InstallCancelled:
+                            raise
+                        except Exception as _seg_err:
+                            logger.info(
+                                "segmented download for %s failed (%s); falling back to snapshot_download",
+                                req.repo_id, _seg_err,
+                            )
+                            _snapshot_path = None
+                    if _snapshot_path is None:
+                        _snapshot_path = snapshot_download(**dl_kwargs)
                     _validate_snapshot_has_weights(req.repo_id, _snapshot_path)
                     break
                 except (HfHubHTTPError, LocalEntryNotFoundError, OSError) as net_err:

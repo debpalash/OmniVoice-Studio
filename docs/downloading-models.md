@@ -59,6 +59,7 @@ as environment variables (or via **Settings → API keys / environment**).
 
 | Setting | Env var | Effect |
 |---|---|---|
+| Segmented accelerator | `OMNIVOICE_SEGMENTED_DOWNLOAD=1` | Multi-connection downloader (parallel byte-ranges) for the legacy-LFS path — restores parallel speed **and** shows live byte speed/ETA. Falls back to the normal download on any error; files land in the standard cache. Best paired with Xet disabled (the default). |
 | Max parallel files | `OMNIVOICE_DOWNLOAD_MAX_WORKERS` (default 8) | Files fetched at once. Xet already parallelises *within* a file, so raising this rarely helps and uses more memory. |
 | High-performance mode | `HF_XET_HIGH_PERFORMANCE=1` | Maximum throughput. Needs lots of RAM and bandwidth — can **hurt** low-RAM machines. Leave off unless you have headroom. |
 | Spinning-disk (HDD) | `HF_XET_RECONSTRUCT_WRITE_SEQUENTIALLY=1` | Sequential writes; avoids parallel-write thrash on HDDs. Leave off on SSD/NVMe. |

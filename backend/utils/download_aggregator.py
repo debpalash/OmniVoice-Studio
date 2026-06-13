@@ -157,7 +157,10 @@ def complete(repo_id: str) -> None:
         return
     with agg._lock:
         if agg.total_bytes:
-            agg._byte_bars["__complete__"] = (int(agg.total_bytes), int(agg.total_bytes))
+            # REPLACE all byte bars with one full-total entry so the sum is
+            # exactly total. Never add on top: the segmented path already
+            # accumulated the real bytes, so adding total again would double it.
+            agg._byte_bars = {"__complete__": (int(agg.total_bytes), int(agg.total_bytes))}
         if agg._files_total:
             agg._files_done = agg._files_total
         # Clear the rate window: crediting the full size in one step would

@@ -127,3 +127,17 @@ def test_registry_feed_routes_by_unit_and_finish_clears():
 def test_feed_without_start_is_noop():
     da.finish("never/started")
     da.feed("never/started", "k", "B", 1, 1, False)  # must not raise
+
+
+def test_complete_sets_total_not_double_after_segmented_bytes():
+    # The segmented path accumulates real bytes via add(); complete() must land
+    # on exactly total, not add another full total on top (was a 2x bug).
+    da.start("r/seg", total_bytes=1000, files_total=2)
+    da.add_bytes("r/seg", "fileA", 600)
+    da.add_bytes("r/seg", "fileB", 400)
+    assert da._get("r/seg").snapshot()["bytes_done"] == 1000
+    da.complete("r/seg")
+    snap = da._get("r/seg").snapshot()
+    assert snap["bytes_done"] == 1000          # not 2000
+    assert snap["files_done"] == snap["files_total"] == 2
+    da.finish("r/seg")
