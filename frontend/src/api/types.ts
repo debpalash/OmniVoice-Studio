@@ -12,13 +12,18 @@
 // ── Engines (Phase 3 / 4.6 / Plan 02-04) ─────────────────────────────────
 export type EngineFamily = 'tts' | 'asr' | 'llm';
 
-// `isolation_mode`, `last_error`, `install_hint`, `gpu_compat` arrived
-// in Plan 02-04 alongside the Engine Compatibility Matrix. They're
-// optional in this type because the asr / llm registries don't emit them
-// today (only the TTS registry has been migrated to the extended shape).
-// The matrix UI gates them with `??` / `?.length` so the simpler payload
-// still renders without errors.
-export type GPUTarget = 'cuda' | 'mps' | 'rocm' | 'cpu';
+// `isolation_mode`, `last_error`, `install_hint`, `gpu_compat` arrived in Plan
+// 02-04 alongside the Engine Compatibility Matrix. As of #21 ALL three
+// registries (tts / asr / llm) emit the full shape, plus the routing trio
+// (`effective_device` / `routing_status` / `routing_reason`). They stay
+// optional so the matrix still renders a legacy/older payload that omits them
+// (it gates with `??` / `?.length` and suppresses the routing badge).
+export type GPUTarget = 'cuda' | 'mps' | 'rocm' | 'xpu' | 'cpu';
+// Where an engine actually runs on THIS host. `network` is LLM-only (remote).
+export type EffectiveDevice = GPUTarget | 'network';
+// `n/a` is LLM-only; resolve_routing only ever returns the first four.
+export type RoutingStatus =
+  | 'accelerated' | 'cpu_fallback' | 'cpu_only' | 'unavailable' | 'n/a';
 
 export interface EngineBackend {
   id: string;
@@ -29,6 +34,10 @@ export interface EngineBackend {
   last_error?: string | null;
   isolation_mode?: 'in-process' | 'subprocess';
   gpu_compat?: GPUTarget[];
+  // Routing (#21) — the device this engine uses on this machine + why.
+  effective_device?: EffectiveDevice;
+  routing_status?: RoutingStatus;
+  routing_reason?: string | null;
 }
 
 export interface EngineFamilyResponse {

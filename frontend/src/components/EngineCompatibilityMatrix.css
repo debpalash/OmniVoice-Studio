@@ -223,8 +223,22 @@
   border-color: color-mix(in srgb, #ed1c24 45%, transparent);
   background: color-mix(in srgb, #ed1c24 10%, transparent);
 }
+.engine-matrix__chip--xpu {
+  color: #0071c5;
+  border-color: color-mix(in srgb, #0071c5 45%, transparent);
+  background: color-mix(in srgb, #0071c5 10%, transparent);
+}
 .engine-matrix__chip--cpu {
   /* keep default muted tone for CPU */
+}
+
+/* The device this engine will actually use on THIS host (#21). A ring +
+   brighter foreground so it reads as "selected here" at a glance. */
+.engine-matrix__chip.is-effective {
+  box-shadow: 0 0 0 1px var(--chrome-accent, #fe8019);
+  border-color: var(--chrome-accent, #fe8019);
+  color: var(--chrome-fg, #eee);
+  font-weight: 700;
 }
 
 .engine-matrix__result {

@@ -224,6 +224,84 @@ describe('EngineCompatibilityMatrix', () => {
     resolveHealth({ id: 'indextts2', ok: true, message: 'pong', latency_ms: 50 });
   });
 
+  // ── #21 routing display ────────────────────────────────────────────────
+  function routingResponse() {
+    const base = (over) => ({
+      display_name: over.id, available: true, reason: null, install_hint: null,
+      last_error: null, isolation_mode: 'in-process', ...over,
+    });
+    return {
+      tts: {
+        active: 'accel',
+        backends: [
+          base({ id: 'accel', display_name: 'Accel TTS', gpu_compat: ['cuda', 'mps', 'cpu'],
+                 effective_device: 'cuda', routing_status: 'accelerated', routing_reason: null }),
+          base({ id: 'fallback', display_name: 'Fallback TTS', gpu_compat: ['cuda', 'cpu'],
+                 effective_device: 'cpu', routing_status: 'cpu_fallback',
+                 routing_reason: 'engine has no CUDA path; running on CPU' }),
+          base({ id: 'gone', display_name: 'Unavail TTS', available: false, reason: 'needs cuda',
+                 gpu_compat: ['cuda'], effective_device: 'cuda',
+                 routing_status: 'unavailable', routing_reason: 'requires cuda; this host has cpu' }),
+          // Legacy payload: no routing_* keys → render exactly as before.
+          base({ id: 'legacy', display_name: 'Legacy TTS', gpu_compat: ['cpu'] }),
+        ],
+      },
+      asr: { active: '', backends: [] },
+      llm: {
+        active: 'off',
+        backends: [base({ id: 'off', display_name: 'Off LLM', gpu_compat: [],
+                          effective_device: 'network', routing_status: 'n/a', routing_reason: null })],
+      },
+    };
+  }
+
+  it('highlights the effective device chip + shows an "accelerated" badge', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(routingResponse());
+    render(<EngineCompatibilityMatrix family="tts" apiListEngines={apiListEngines} apiGetEngineHealth={vi.fn()} />);
+    await waitFor(() => screen.getByText('Accel TTS'));
+    const row = screen.getByText('Accel TTS').closest('[role="row"]');
+    expect(within(row).getByText('GPU active')).toBeInTheDocument();
+    // the CUDA chip (effective_device) carries the highlight class
+    expect(within(row).getByText('CUDA').classList.contains('is-effective')).toBe(true);
+    // a non-effective chip does not
+    expect(within(row).getByText('MPS').classList.contains('is-effective')).toBe(false);
+  });
+
+  it('shows a "CPU fallback" badge for a cpu_fallback engine', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(routingResponse());
+    render(<EngineCompatibilityMatrix family="tts" apiListEngines={apiListEngines} apiGetEngineHealth={vi.fn()} />);
+    await waitFor(() => screen.getByText('Fallback TTS'));
+    const row = screen.getByText('Fallback TTS').closest('[role="row"]');
+    expect(within(row).getByText('CPU fallback')).toBeInTheDocument();
+  });
+
+  it('suppresses the routing badge for an unavailable engine', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(routingResponse());
+    render(<EngineCompatibilityMatrix family="tts" apiListEngines={apiListEngines} apiGetEngineHealth={vi.fn()} />);
+    await waitFor(() => screen.getByText('Unavail TTS'));
+    const row = screen.getByText('Unavail TTS').closest('[role="row"]');
+    expect(within(row).queryByText('GPU active')).not.toBeInTheDocument();
+    expect(within(row).queryByText('CPU fallback')).not.toBeInTheDocument();
+  });
+
+  it('renders a legacy (no-routing) payload with no routing badge', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(routingResponse());
+    render(<EngineCompatibilityMatrix family="tts" apiListEngines={apiListEngines} apiGetEngineHealth={vi.fn()} />);
+    await waitFor(() => screen.getByText('Legacy TTS'));
+    const row = screen.getByText('Legacy TTS').closest('[role="row"]');
+    expect(within(row).getByText('CPU')).toBeInTheDocument();             // chip still renders
+    expect(within(row).queryByText('GPU active')).not.toBeInTheDocument(); // no routing badge
+    expect(within(row).queryByText('CPU fallback')).not.toBeInTheDocument();
+  });
+
+  it('shows a "Remote" badge (not device chips) for LLM rows', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(routingResponse());
+    render(<EngineCompatibilityMatrix family="llm" apiListEngines={apiListEngines} apiGetEngineHealth={vi.fn()} />);
+    await waitFor(() => screen.getByText('Off LLM'));
+    const row = screen.getByText('Off LLM').closest('[role="row"]');
+    expect(within(row).getByText('Remote')).toBeInTheDocument();
+  });
+
   it('renders a failure marker when the health route returns ok=false', async () => {
     const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
     const apiGetEngineHealth = vi.fn().mockResolvedValue({

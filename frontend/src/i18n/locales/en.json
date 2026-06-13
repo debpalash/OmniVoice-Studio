@@ -1253,7 +1253,14 @@
     "failed": "failed",
     "acceptLicense": "Accept license",
     "noBackends": "No backends registered.",
-    "switch_failed": "Failed to switch engine"
+    "switch_failed": "Failed to switch engine",
+    "routingAccelerated": "GPU active",
+    "routingCpuFallback": "CPU fallback",
+    "routingCpuOnly": "CPU",
+    "routingRemote": "Remote",
+    "routingUnknown": "Unknown",
+    "routingEffectiveChip": "Runs on {{device}} on this machine",
+    "routingCaveatTitle": "GPU selected, but: {{reason}}"
   },
   "errors": {
     "title": "This tab hit a snag.",

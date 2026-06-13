@@ -71,7 +71,19 @@ const GPU_LABEL = {
   cuda: 'CUDA',
   mps: 'MPS',
   rocm: 'ROCm',
+  xpu: 'XPU',
   cpu: 'CPU',
+};
+
+// routing_status → badge tone + i18n key (#21). `unavailable` is intentionally
+// absent: the availability badge already conveys it, so the routing badge is
+// suppressed there. Any status not in this map (or a legacy payload with no
+// routing_status at all) falls back to a neutral "Unknown" badge / no badge.
+const ROUTING_BADGE = {
+  accelerated:  { tone: 'success', k: 'engines.routingAccelerated' },
+  cpu_fallback: { tone: 'warn',    k: 'engines.routingCpuFallback' },
+  cpu_only:     { tone: 'neutral', k: 'engines.routingCpuOnly' },
+  'n/a':        { tone: 'neutral', k: 'engines.routingRemote' },
 };
 
 const TEST_COOLDOWN_MS = 5000;
@@ -89,6 +101,11 @@ function normalizeEntry(entry) {
     gpu_compat: Array.isArray(entry.gpu_compat) && entry.gpu_compat.length > 0
       ? entry.gpu_compat
       : ['cpu'],
+    // Routing (#21) — may be absent on a legacy/older backend payload, in
+    // which case the matrix renders exactly as before (no routing badge).
+    effective_device: entry.effective_device || null,
+    routing_status: entry.routing_status || null,
+    routing_reason: entry.routing_reason || null,
   };
 }
 
@@ -307,14 +324,45 @@ export default function EngineCompatibilityMatrix({
                     : <Badge tone="warn" size="xs"><AlertTriangle size={10} /> {t('engines.unavailable')}</Badge>}
                 </div>
 
-                {/* GPU compat chips */}
+                {/* GPU compat chips + routing badge (the device this engine
+                    will actually use on THIS machine). LLM (routing 'n/a')
+                    shows a single "Remote" badge instead of device chips. */}
                 <div role="cell" className="engine-matrix__cell engine-matrix__cell--gpu" style={{ width: 170 }}>
                   <div className="engine-matrix__chips">
-                    {b.gpu_compat.map((g) => (
-                      <span key={g} className={`engine-matrix__chip engine-matrix__chip--${g}`}>
-                        {GPU_LABEL[g] || g.toUpperCase()}
-                      </span>
-                    ))}
+                    {b.routing_status === 'n/a' ? (
+                      <Badge tone="neutral" size="xs">{t('engines.routingRemote')}</Badge>
+                    ) : (
+                      <>
+                        {b.gpu_compat.map((g) => {
+                          const isEffective = b.routing_status
+                            && b.routing_status !== 'unavailable'
+                            && g === b.effective_device;
+                          return (
+                            <span
+                              key={g}
+                              className={`engine-matrix__chip engine-matrix__chip--${g}${isEffective ? ' is-effective' : ''}`}
+                              title={isEffective
+                                ? t('engines.routingEffectiveChip', { device: GPU_LABEL[g] || g })
+                                : undefined}
+                            >
+                              {GPU_LABEL[g] || g.toUpperCase()}
+                            </span>
+                          );
+                        })}
+                        {/* Routing badge: known status → toned badge; unknown
+                            status → neutral fallback; suppressed when the row is
+                            unavailable (availability badge covers it) or legacy
+                            (no routing_status → no badge). */}
+                        {b.routing_status && b.available && b.routing_status !== 'unavailable' && (
+                          ROUTING_BADGE[b.routing_status]
+                            ? <Badge tone={ROUTING_BADGE[b.routing_status].tone} size="xs"
+                                     title={b.routing_reason || undefined}>
+                                {t(ROUTING_BADGE[b.routing_status].k)}
+                              </Badge>
+                            : <Badge tone="neutral" size="xs">{t('engines.routingUnknown')}</Badge>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
 
