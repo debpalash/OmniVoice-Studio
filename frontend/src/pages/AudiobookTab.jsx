@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BookMarked, Loader, Download, Image as ImageIcon, X, Play, Upload } from 'lucide-react';
 
@@ -50,6 +50,9 @@ export default function AudiobookTab({ profiles = [] }) {
     if (coverPreview) URL.revokeObjectURL(coverPreview);
     setCoverPreview('');
   }, [coverPreview]);
+  // Revoke the cover blob URL when it's replaced or the tab unmounts (React
+  // doesn't reclaim object URLs on its own).
+  useEffect(() => () => { if (coverPreview) URL.revokeObjectURL(coverPreview); }, [coverPreview]);
 
   const [importing, setImporting] = useState(false);
 

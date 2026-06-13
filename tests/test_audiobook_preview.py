@@ -46,9 +46,10 @@ def test_render_chapter_cache_hit_skips_synth(tmp_path):
     chapter = Chapter(title="C1", spans=[Span(voice_id=None, text="hi", pause_ms_after=0)])
     resolve = lambda _vid: {"ref_audio": None, "instruct": None, "seed": None}  # noqa: E731
 
-    # Pre-seed the cache at the exact key this chapter will hash to.
-    sig = {"": "None|None|None"}
-    key = chapter_cache_key([(None, "hi", 0)], sample_rate=sr, engine_id="eng", voice_sig=sig)
+    # Pre-seed the cache at the exact key this chapter will hash to. The voice
+    # signature is ref_audio|ref_text|instruct|seed (all None here).
+    sig = {"": "None|None|None|None"}
+    key = chapter_cache_key([(None, "hi", 0, None)], sample_rate=sr, engine_id="eng", voice_sig=sig)
     _write_wav(tmp_path / f"{key}.wav", sr=sr, frames=sr // 2)  # 0.5 s
 
     def boom(*_a, **_k):

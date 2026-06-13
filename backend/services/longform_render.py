@@ -205,18 +205,23 @@ def build_render_cmd(
     if not _BITRATE_RE.match(bitrate or ""):
         bitrate = "128k"
     is_mp3 = (fmt or "").lower() == "mp3"
-    have_cover = validate_cover_image(cover_path)
+    # Cover art is embedded for M4B only. The MP3 muxer rejects an
+    # ``attached_pic`` video stream via ``-c:v copy`` (produces a corrupt file
+    # across ffmpeg versions), and a reliable cross-version ID3 APIC path is
+    # finicky — so for MP3 we skip the cover rather than ship a broken file.
+    # M4B is the cover-bearing audiobook format anyway.
+    embed_cover = validate_cover_image(cover_path) and not is_mp3
 
     cmd = [
         ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
         "-f", "concat", "-safe", "0", "-i", str(concat_list_path),
         "-i", str(metadata_path),
     ]
-    if have_cover:
+    if embed_cover:
         cmd += ["-i", str(cover_path)]
 
     cmd += ["-map", "0:a", "-map_metadata", "1"]
-    if have_cover:
+    if embed_cover:
         cmd += ["-map", "2:v", "-disposition:v", "attached_pic"]
 
     filt = build_loudnorm_filter(loudness)
@@ -224,13 +229,10 @@ def build_render_cmd(
         cmd += ["-af", filt]
 
     if is_mp3:
-        cmd += ["-c:a", "libmp3lame", "-b:a", bitrate]
-        if have_cover:
-            cmd += ["-c:v", "copy", "-id3v2_version", "3"]
-        cmd += ["-f", "mp3", str(out_path)]
+        cmd += ["-c:a", "libmp3lame", "-b:a", bitrate, "-f", "mp3", str(out_path)]
     else:  # m4b — AAC in an mp4 container
         cmd += ["-c:a", "aac", "-b:a", bitrate]
-        if have_cover:
+        if embed_cover:
             cmd += ["-c:v", "copy"]
         cmd += ["-movflags", "+faststart", "-f", "mp4", str(out_path)]
     return cmd

@@ -261,7 +261,10 @@ export default function StoriesEditor({ profiles = [] }) {
   const insertPauseInto = useCallback((trackId) => insertTokenInto(trackId, '[pause 0.5s]'), [insertTokenInto]);
 
   const addTrack = useCallback(() => setTracks((prev) => [...prev, makeTrack()]), [setTracks]);
-  const removeTrack = useCallback((id) => setTracks((prev) => prev.filter((tk) => tk.id !== id)), [setTracks]);
+  const removeTrack = useCallback((id) => setTracks((prev) => prev.filter((tk) => {
+    if (tk.id === id && tk.audioUrl) URL.revokeObjectURL(tk.audioUrl);  // free the preview blob
+    return tk.id !== id;
+  })), [setTracks]);
   const updateTrack = useCallback((id, field, value) => {
     setTracks((prev) => prev.map((tk) => (tk.id === id ? { ...tk, [field]: value } : tk)));
   }, [setTracks]);

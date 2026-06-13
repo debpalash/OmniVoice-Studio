@@ -85,6 +85,12 @@ def audiobook_plan(req: AudiobookPlanRequest) -> dict:
 #: Cover size cap mirrors longform_render's guard (8 MB — a book cover, not a
 #: payload). Kept in sync intentionally; the render builder re-validates too.
 _COVER_MAX_BYTES = 8 * 1024 * 1024
+#: Import upload cap — a generous ceiling for a .txt/.md/.epub manuscript that
+#: still stops a memory-exhaustion upload (the whole file is read into RAM).
+_IMPORT_MAX_BYTES = 64 * 1024 * 1024
+#: Upper bound on chapters in a single /longform/render plan — far above any real
+#: book, but stops a pathological request from allocating/holding the job forever.
+_MAX_CHAPTERS = 10_000
 
 
 @router.post("/audiobook/import")
@@ -100,6 +106,8 @@ async def audiobook_import(file: UploadFile = File(...)) -> dict:
     data = await file.read()
     if not data:
         raise HTTPException(status_code=400, detail="empty file")
+    if len(data) > _IMPORT_MAX_BYTES:
+        raise HTTPException(status_code=400, detail="file too large (max 64 MB)")
     if name.endswith(".epub"):
         try:
             script = epub_to_chapter_script(data)
@@ -266,7 +274,7 @@ def _render_chapter_cached(chapter, synth, sr, engine_id, resolve, cache_dir):
         k = s.voice_id or ""
         if k not in sig:
             v = resolve(s.voice_id)
-            sig[k] = f"{v.get('ref_audio')}|{v.get('instruct')}|{v.get('seed')}"
+            sig[k] = f"{v.get('ref_audio')}|{v.get('ref_text')}|{v.get('instruct')}|{v.get('seed')}"
     key = chapter_cache_key(spans_tuples, sample_rate=sr, engine_id=engine_id, voice_sig=sig)
     wav_path = os.path.join(cache_dir, f"{key}.wav")
 
@@ -307,7 +315,7 @@ async def audiobook_preview(req: AudiobookPreviewRequest) -> dict:
         raise HTTPException(status_code=400, detail=f"chapter_index out of range (0..{n - 1})")
 
     chapter = plan.chapters[req.chapter_index]
-    cache_dir = os.path.join(OUTPUTS_DIR, "audiobook_cache")
+    cache_dir = os.path.join(OUTPUTS_DIR, "longform_cache")  # shared with _render_longform_sse
     os.makedirs(cache_dir, exist_ok=True)
     synth, sr, resolve, engine_id = await _prepare_synth(req.default_voice)
     loop = asyncio.get_running_loop()
@@ -496,6 +504,9 @@ async def longform_render(req: LongformRenderRequest):
     cast+lines) through the shared chapterized renderer — same resume, loudness,
     cover, metadata, and output formats as the Audiobook job."""
     from services.audiobook import AudiobookPlan, Chapter, Span
+
+    if len(req.chapters) > _MAX_CHAPTERS:
+        raise HTTPException(status_code=422, detail=f"too many chapters (max {_MAX_CHAPTERS})")
 
     chapters = []
     for i, c in enumerate(req.chapters):

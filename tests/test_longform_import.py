@@ -122,3 +122,23 @@ def test_epub_strips_html_tags():
 def test_epub_bad_zip_raises_valueerror():
     with pytest.raises(ValueError):
         epub_to_chapter_script(b"not a zip at all")
+
+
+def test_epub_total_size_cap_truncates(monkeypatch):
+    import services.longform_import as li
+    # Tiny total cap → only the first chapter's bytes fit; the rest are skipped
+    # (zip-bomb / OOM guard). Each synthetic chapter body is ~?; cap below two.
+    # Cap sits between one and two chapter docs (~1.1 KB uncompressed each), so
+    # the first is read and the rest are skipped.
+    monkeypatch.setattr(li, "_EPUB_MAX_TOTAL_BYTES", 1500)
+    data = _make_epub([("One", "x" * 1000), ("Two", "y" * 1000), ("Three", "z" * 1000)])
+    plan = parse_audiobook_script(epub_to_chapter_script(data))
+    assert 1 <= len(plan.chapters) < 3  # capped before reading all three
+
+
+def test_epub_oversize_entry_skipped(monkeypatch):
+    import services.longform_import as li
+    monkeypatch.setattr(li, "_EPUB_MAX_ENTRY_BYTES", 50)  # smaller than any chapter doc
+    data = _make_epub([("Big", "x" * 500)])
+    with pytest.raises(ValueError):  # all entries skipped → no readable chapters
+        epub_to_chapter_script(data)

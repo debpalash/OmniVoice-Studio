@@ -177,6 +177,18 @@ def test_render_cmd_drops_invalid_cover(tmp_path):
     assert "attached_pic" not in cmd  # silently dropped, render still proceeds
 
 
+def test_render_cmd_mp3_never_embeds_cover(tmp_path):
+    # A valid cover must NOT be wired into an MP3 (the attached_pic + -c:v copy
+    # combo produces a corrupt mp3); m4b is the cover-bearing format.
+    cover = tmp_path / "cover.jpg"
+    cover.write_bytes(b"\xff\xd8\xff" + b"x" * 50)
+    cmd = build_render_cmd("ffmpeg", "c", "m", "o.mp3", fmt="mp3", cover_path=str(cover))
+    assert "libmp3lame" in cmd
+    assert "attached_pic" not in cmd
+    assert str(cover) not in cmd
+    assert "-c:v" not in cmd
+
+
 # ── chapter cache key (resume) ──────────────────────────────────────────────
 
 _SPANS = [(None, "Once upon a time.", 350), ("narrator", "The end.", 0)]
