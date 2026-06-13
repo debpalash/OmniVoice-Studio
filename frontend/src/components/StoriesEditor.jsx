@@ -18,9 +18,12 @@ import { useAppStore } from '../store';
 import { parseStoryText, hasStoryMarkers, applyInlineVoice, insertToken } from '../utils/storyTokens';
 import { parseScript } from '../utils/parseScript';
 import { importToText } from '../utils/importStory';
-import { generateSpeech } from '../api/generate';
+import { generateSpeech, audioUrl } from '../api/generate';
 import { encodeAudio } from '../api/stories';
-import { exportStoryAudio, exportStems, buildCueSheet } from '../utils/storyExport';
+import { longformRender } from '../api/audiobook';
+import { exportStems } from '../utils/storyExport';
+import { storyToSpans } from '../utils/storyToSpans';
+import { splitSSEBuffer, parseSSELine } from '../utils/sseParse';
 import { reorder } from '../utils/storyReorder';
 import { effectiveProfile, castMember, nextCastColor } from '../utils/storyCast';
 import './StoriesEditor.css';
@@ -35,6 +38,16 @@ function download(blob, filename) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+// Trigger a browser download for a same-origin URL (server-rendered file).
+function downloadUrl(url, filename) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 // A chapter line is any track whose text is a markdown heading (`# …`). It
@@ -136,7 +149,7 @@ export default function StoriesEditor({ profiles = [] }) {
   const [expandedLine, setExpandedLine] = useState(null);
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [projectName, setProjectName] = useState('');
-  const [exportFormat, setExportFormat] = useState('wav');
+  const [exportFormat, setExportFormat] = useState('m4b');
   const trackTextRefs = useRef(new Map());
   const fileInputRef = useRef(null);
   const dragId = useRef(null);
@@ -336,28 +349,54 @@ export default function StoriesEditor({ profiles = [] }) {
     download(wavBlob, `${baseName}.wav`);
   }, [exportFormat, t]);
 
+  // Full export now runs on the shared server-side renderer (the Stories +
+  // Audiobook convergence): cast + lines compile to a chapter/span plan and
+  // stream through /longform/render — gaining chapter markers, resume, and
+  // (via the audiobook controls) loudness/metadata. Single-line preview stays
+  // client-side for latency. Stems remain a client export below.
   const generateAll = useCallback(async () => {
     const usable = tracks.filter((tk) => (tk.text || '').trim());
     if (!usable.length || exporting) return;
+    const chapters = storyToSpans(usable, cast);
+    if (!chapters.length) { toast.error(t('stories.exportFailed')); return; }
     setExporting(true);
     setExportPct(0);
     try {
-      const { blob, chapters } = await exportStoryAudio(
-        usable,
-        (tk) => ({ profileId: effectiveProfile(tk, cast), speed: tk.speed || 1.0 }),
-        fetchChunkBlob,
-        (d, total) => setExportPct(total ? Math.round((d / total) * 100) : 0),
-      );
-      await deliver(blob, 'story');
-      if (chapters.length) download(new Blob([buildCueSheet(chapters)], { type: 'text/plain' }), 'story-chapters.txt');
+      const res = await longformRender({
+        chapters,
+        format: exportFormat === 'mp3' ? 'mp3' : 'm4b',
+      });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let total = 0;
+      let output = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const { lines, rest } = splitSSEBuffer(buffer);
+        buffer = rest;
+        for (const line of lines) {
+          const evt = parseSSELine(line);
+          if (!evt) continue;
+          if (evt.type === 'started') total = evt.chapters;
+          else if (evt.type === 'chapter' || evt.type === 'chapter_error') {
+            setExportPct(total ? Math.round(((evt.index + 1) / total) * 100) : 0);
+          } else if (evt.type === 'done') output = evt.output;
+          else if (evt.type === 'error') throw new Error(evt.error || 'render failed');
+        }
+      }
+      if (!output) throw new Error('no output produced');
+      downloadUrl(audioUrl(output), output.split('/').pop());
       toast.success(t('stories.exportDone'));
     } catch (err) {
-      console.warn('Story export failed:', err);
+      console.warn('Story render failed:', err);
       toast.error(t('stories.exportFailed'));
     } finally {
       setExporting(false);
     }
-  }, [tracks, cast, fetchChunkBlob, exporting, deliver, t]);
+  }, [tracks, cast, exporting, exportFormat, t]);
 
   const exportStemsAll = useCallback(async () => {
     const usable = tracks.filter((tk) => (tk.text || '').trim());
@@ -444,7 +483,7 @@ export default function StoriesEditor({ profiles = [] }) {
               aria-label={t('stories.format')}
               title={t('stories.format')}
             >
-              <option value="wav">WAV</option>
+              <option value="m4b">M4B</option>
               <option value="mp3">MP3</option>
             </select>
             <Button size="sm" onClick={generateAll} disabled={tracks.length === 0 || exporting}>

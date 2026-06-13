@@ -95,3 +95,27 @@ export async function audiobookImport(file: File): Promise<{ text: string; chapt
   const res = await apiFetch('/audiobook/import', { method: 'POST', body: form });
   return res.json();
 }
+
+export interface LongformRenderBody {
+  chapters: Array<{ title?: string; spans: Array<{ voice_id: string | null; text: string; pause_ms_after: number }> }>;
+  default_voice?: string | null;
+  bitrate?: string;
+  format?: 'm4b' | 'mp3';
+  loudness?: 'off' | 'acx' | 'podcast' | null;
+  cover_path?: string | null;
+  metadata?: AudiobookMetadata | null;
+}
+
+/**
+ * Render a pre-built chapter/span plan through the shared chapterized renderer
+ * (the convergence endpoint Stories posts to). Returns the raw SSE stream
+ * Response — read `response.body` with the sseParse helpers, same as
+ * `audiobookGenerate`.
+ */
+export async function longformRender(body: LongformRenderBody): Promise<Response> {
+  return apiFetch('/longform/render', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}

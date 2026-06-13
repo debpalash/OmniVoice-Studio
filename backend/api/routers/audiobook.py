@@ -285,115 +285,190 @@ async def audiobook_preview(req: AudiobookPreviewRequest) -> dict:
     }
 
 
-@router.post("/audiobook")
-async def audiobook_synthesize(req: AudiobookRequest):
-    """Synthesize a chapterized m4b audiobook, streaming SSE progress."""
+async def _render_longform_sse(
+    plan,
+    *,
+    default_voice: str | None,
+    fmt: str = "m4b",
+    bitrate: str = "128k",
+    loudness: str | None = None,
+    cover_path: str | None = None,
+    metadata: dict | None = None,
+    job_type: str = "audiobook",
+):
+    """Shared chapterized-render SSE generator for Audiobook *and* Stories.
+
+    Takes a ready ``plan`` (``.chapters`` → ``.title`` + ``.spans``) — Audiobook
+    parses it from a script, Stories compiles it from cast/lines — and renders
+    each chapter (content-addressed cache → resume), isolating per-chapter
+    failures, then muxes the successful chapters into a tagged file. This is the
+    convergence point: one renderer, two front doors.
+    """
     from core.config import OUTPUTS_DIR
     from services.ffmpeg_utils import find_ffmpeg, run_ffmpeg
     from services.model_manager import _gpu_pool
 
+    job_id = uuid.uuid4().hex[:16]
+    try:
+        from core import job_store
+        job_store.create(job_id, type=job_type)
+        job_store.mark_running(job_id)
+    except Exception:
+        job_store = None  # job history is best-effort; never block synthesis
+
+    def _emit(payload: dict) -> str:
+        if job_store is not None:
+            try:
+                job_store.append_event(job_id, json.dumps(payload))
+            except Exception:
+                pass
+        return f"data: {json.dumps(payload)}\n\n"
+
+    if not plan.chapters:
+        yield _emit({"type": "error", "error": "nothing to render (no chapters)"})
+        return
+    ffmpeg = find_ffmpeg()
+    if not ffmpeg:
+        yield _emit({"type": "error", "error": "ffmpeg not available; the output needs it"})
+        return
+
+    work = os.path.join(OUTPUTS_DIR, f"{job_type}_{job_id}")
+    os.makedirs(work, exist_ok=True)
+    # Chapter WAVs are content-addressed in a shared cache so a re-run (after a
+    # failure or interruption) reuses what already rendered — only the
+    # missing/changed chapters synthesize again (resume). Shared across both
+    # front doors: an identical chapter renders once.
+    cache_dir = os.path.join(OUTPUTS_DIR, "longform_cache")
+    os.makedirs(cache_dir, exist_ok=True)
+    loop = asyncio.get_running_loop()
+
+    try:
+        synth, sr, resolve, engine_id = await _prepare_synth(default_voice)
+
+        total = len(plan.chapters)
+        chapter_files: list[str] = []
+        chapters_meta: list[tuple[str, int]] = []
+        cached_n = 0
+        failed: list[int] = []
+        yield _emit({"type": "started", "job_id": job_id, "chapters": total})
+
+        for i, chapter in enumerate(plan.chapters):
+            try:
+                wav_path, dur, was_cached = await loop.run_in_executor(
+                    _gpu_pool, _render_chapter_cached,
+                    chapter, synth, sr, engine_id, resolve, cache_dir,
+                )
+            except Exception as ce:  # isolate a bad chapter — keep going
+                failed.append(i)
+                yield _emit({"type": "chapter_error", "index": i, "total": total,
+                             "title": chapter.title, "error": str(ce)[:200]})
+                continue
+            chapter_files.append(wav_path)
+            chapters_meta.append((chapter.title, int(round(dur * 1000))))
+            cached_n += 1 if was_cached else 0
+            yield _emit({"type": "chapter", "index": i, "total": total,
+                         "title": chapter.title, "duration_s": round(dur, 2),
+                         "cached": was_cached})
+
+        if not chapter_files:
+            yield _emit({"type": "error", "error": "all chapters failed to render"})
+            return
+
+        yield _emit({"type": "assembling"})
+        meta_path = os.path.join(work, "chapters.ffmeta")
+        with open(meta_path, "w", encoding="utf-8") as f:
+            f.write(build_ffmetadata(chapters_meta, global_meta=metadata))
+        concat_path = os.path.join(work, "concat.txt")
+        with open(concat_path, "w", encoding="utf-8") as f:
+            f.write(build_concat_list(chapter_files))
+        ext = "mp3" if (fmt or "").lower() == "mp3" else "m4b"
+        out_name = f"{job_type}_{job_id}.{ext}"
+        out_path = os.path.join(OUTPUTS_DIR, out_name)
+        await run_ffmpeg(
+            build_render_cmd(
+                ffmpeg, concat_path, meta_path, out_path,
+                fmt=ext, bitrate=bitrate, cover_path=cover_path, loudness=loudness,
+            ),
+            job_id=job_id,
+        )
+
+        if job_store is not None:
+            try:
+                job_store.mark_done(job_id)
+            except Exception:
+                pass
+        total_s = sum(d for _, d in chapters_meta) / 1000.0
+        yield _emit({"type": "done", "output": out_name,
+                     "chapters": len(chapter_files), "duration_s": round(total_s, 2),
+                     "cached_chapters": cached_n, "failed_chapters": failed})
+    except Exception as e:  # surface, don't 500 the stream
+        if job_store is not None:
+            try:
+                job_store.mark_failed(job_id, str(e))
+            except Exception:
+                pass
+        yield _emit({"type": "error", "error": str(e)[:300]})
+
+
+@router.post("/audiobook")
+async def audiobook_synthesize(req: AudiobookRequest):
+    """Synthesize a chapterized audiobook from a script, streaming SSE progress."""
     plan = parse_audiobook_script(req.text, default_voice=req.default_voice)
+    return StreamingResponse(
+        _render_longform_sse(
+            plan, default_voice=req.default_voice, fmt=req.format, bitrate=req.bitrate,
+            loudness=req.loudness, cover_path=req.cover_path, metadata=req.metadata,
+            job_type="audiobook",
+        ),
+        media_type="text/event-stream",
+    )
 
-    async def gen():
-        job_id = uuid.uuid4().hex[:16]
-        try:
-            from core import job_store
-            job_store.create(job_id, type="audiobook")
-            job_store.mark_running(job_id)
-        except Exception:
-            job_store = None  # job history is best-effort; never block synthesis
 
-        def _emit(payload: dict) -> str:
-            if job_store is not None:
-                try:
-                    job_store.append_event(job_id, json.dumps(payload))
-                except Exception:
-                    pass
-            return f"data: {json.dumps(payload)}\n\n"
+# ── Shared longform render: Stories (and any future front door) post a plan ──
 
-        if not plan.chapters:
-            yield _emit({"type": "error", "error": "no chapters parsed from the script"})
-            return
-        ffmpeg = find_ffmpeg()
-        if not ffmpeg:
-            yield _emit({"type": "error", "error": "ffmpeg not available; the m4b output needs it"})
-            return
+class LongformSpan(BaseModel):
+    voice_id: str | None = None
+    text: str
+    pause_ms_after: int = 0
 
-        work = os.path.join(OUTPUTS_DIR, f"audiobook_{job_id}")
-        os.makedirs(work, exist_ok=True)
-        # Chapter WAVs are content-addressed in a shared cache so a re-run
-        # (after a failure or interruption) reuses what already rendered — only
-        # the missing/changed chapters synthesize again (resume).
-        cache_dir = os.path.join(OUTPUTS_DIR, "audiobook_cache")
-        os.makedirs(cache_dir, exist_ok=True)
-        loop = asyncio.get_running_loop()
 
-        try:
-            synth, sr, resolve, engine_id = await _prepare_synth(req.default_voice)
+class LongformChapter(BaseModel):
+    title: str = ""
+    spans: list[LongformSpan] = []
 
-            total = len(plan.chapters)
-            chapter_files: list[str] = []
-            chapters_meta: list[tuple[str, int]] = []
-            cached_n = 0
-            failed: list[int] = []
-            yield _emit({"type": "started", "job_id": job_id, "chapters": total})
 
-            for i, chapter in enumerate(plan.chapters):
-                try:
-                    wav_path, dur, was_cached = await loop.run_in_executor(
-                        _gpu_pool, _render_chapter_cached,
-                        chapter, synth, sr, engine_id, resolve, cache_dir,
-                    )
-                except Exception as ce:  # isolate a bad chapter — keep going
-                    failed.append(i)
-                    yield _emit({"type": "chapter_error", "index": i, "total": total,
-                                 "title": chapter.title, "error": str(ce)[:200]})
-                    continue
-                chapter_files.append(wav_path)
-                chapters_meta.append((chapter.title, int(round(dur * 1000))))
-                cached_n += 1 if was_cached else 0
-                yield _emit({"type": "chapter", "index": i, "total": total,
-                             "title": chapter.title, "duration_s": round(dur, 2),
-                             "cached": was_cached})
+class LongformRenderRequest(BaseModel):
+    chapters: list[LongformChapter] = []
+    default_voice: str | None = None
+    bitrate: str = "128k"
+    format: str = "m4b"
+    loudness: str | None = None
+    cover_path: str | None = None
+    metadata: dict | None = None
 
-            if not chapter_files:
-                yield _emit({"type": "error", "error": "all chapters failed to render"})
-                return
 
-            yield _emit({"type": "assembling"})
-            meta_path = os.path.join(work, "chapters.ffmeta")
-            with open(meta_path, "w", encoding="utf-8") as f:
-                f.write(build_ffmetadata(chapters_meta, global_meta=req.metadata))
-            concat_path = os.path.join(work, "concat.txt")
-            with open(concat_path, "w", encoding="utf-8") as f:
-                f.write(build_concat_list(chapter_files))
-            ext = "mp3" if (req.format or "").lower() == "mp3" else "m4b"
-            out_name = f"audiobook_{job_id}.{ext}"
-            out_path = os.path.join(OUTPUTS_DIR, out_name)
-            await run_ffmpeg(
-                build_render_cmd(
-                    ffmpeg, concat_path, meta_path, out_path,
-                    fmt=ext, bitrate=req.bitrate,
-                    cover_path=req.cover_path, loudness=req.loudness,
-                ),
-                job_id=job_id,
-            )
+@router.post("/longform/render")
+async def longform_render(req: LongformRenderRequest):
+    """Render a pre-built chapter/span plan (the Stories Editor's compiled
+    cast+lines) through the shared chapterized renderer — same resume, loudness,
+    cover, metadata, and output formats as the Audiobook job."""
+    from services.audiobook import AudiobookPlan, Chapter, Span
 
-            if job_store is not None:
-                try:
-                    job_store.mark_done(job_id)
-                except Exception:
-                    pass
-            total_s = sum(d for _, d in chapters_meta) / 1000.0
-            yield _emit({"type": "done", "output": out_name,
-                         "chapters": len(chapter_files), "duration_s": round(total_s, 2),
-                         "cached_chapters": cached_n, "failed_chapters": failed})
-        except Exception as e:  # surface, don't 500 the stream
-            if job_store is not None:
-                try:
-                    job_store.mark_failed(job_id, str(e))
-                except Exception:
-                    pass
-            yield _emit({"type": "error", "error": str(e)[:300]})
-
-    return StreamingResponse(gen(), media_type="text/event-stream")
+    chapters = []
+    for i, c in enumerate(req.chapters):
+        # Keep a span if it has text to speak OR a pause to render (pause-only
+        # spans carry inter-line silence with empty text).
+        spans = [Span(voice_id=s.voice_id, text=(s.text or "").strip(),
+                      pause_ms_after=max(0, int(s.pause_ms_after)))
+                 for s in c.spans if ((s.text and s.text.strip()) or s.pause_ms_after > 0)]
+        if spans:
+            chapters.append(Chapter(title=c.title or f"Chapter {i + 1}", spans=spans))
+    plan = AudiobookPlan(chapters=chapters)
+    return StreamingResponse(
+        _render_longform_sse(
+            plan, default_voice=req.default_voice, fmt=req.format, bitrate=req.bitrate,
+            loudness=req.loudness, cover_path=req.cover_path, metadata=req.metadata,
+            job_type="story",
+        ),
+        media_type="text/event-stream",
+    )
