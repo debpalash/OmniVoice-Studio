@@ -37,7 +37,11 @@ _SKIP_EXT = {
 }
 
 # The translation layer: locale JSON + native language names (LANGUAGES).
-_ALLOWED_PREFIXES = ("frontend/src/i18n/",)
+# Plus design-spec docs under docs/specs/, which legitimately quote functional
+# CJK (test-fixture descriptions, model/engine identifiers like CosyVoice
+# speaker IDs, multilingual sample text) — they are documentation, not shipped
+# UI strings, so they belong on the same footing as the allowlisted docs below.
+_ALLOWED_PREFIXES = ("frontend/src/i18n/", "docs/specs/")
 
 # Functional / data / documentation files where CJK is intentional and required.
 _ALLOWED_FILES = {
