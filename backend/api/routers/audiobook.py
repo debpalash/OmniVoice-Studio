@@ -60,8 +60,14 @@ def _safe_cover_path(cover_path: str | None) -> str | None:
     name = os.path.basename(cover_path)
     if not _COVER_NAME_RE.match(name):
         return None  # not a name the upload endpoint could have produced
-    candidate = os.path.join(OUTPUTS_DIR, "audiobook_covers", name)
-    return candidate if os.path.isfile(candidate) else None
+    cover_dir = os.path.realpath(os.path.join(OUTPUTS_DIR, "audiobook_covers"))
+    real = os.path.realpath(os.path.join(cover_dir, name))
+    # Containment check on the resolved path itself — it must live inside the
+    # covers dir. Belt-and-suspenders over the regex+basename above; the
+    # commonpath form is the path-injection barrier static analysis recognizes.
+    if os.path.commonpath([real, cover_dir]) != cover_dir:
+        return None
+    return real if os.path.isfile(real) else None
 
 
 class AudiobookPlanRequest(BaseModel):
