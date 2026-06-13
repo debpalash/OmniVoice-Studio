@@ -49,6 +49,7 @@ export interface SetupProgressEvent {
   phase:
     | 'start' | 'progress' | 'done'
     | 'resolving' | 'install_start' | 'install_retry' | 'install_done' | 'install_error'
+    | 'install_cancelled'
     | 'delete_start' | 'delete_done'
     | 'install_plan' | 'aggregate';
 }

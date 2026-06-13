@@ -401,6 +401,9 @@ export function ModelStoreTab({ info, modelBadge }) {
           if (ev.phase === 'install_error') {
             return { ...prev, [ev.repo_id]: { ...cur, phase: 'install_error', error: ev.error } };
           }
+          if (ev.phase === 'install_cancelled') {
+            return { ...prev, [ev.repo_id]: { ...cur, phase: 'install_cancelled' } };
+          }
           // Pre-flight plan (FDL-05): accurate total/cached/remaining BEFORE
           // bytes flow. Keep the current phase (usually resolving) — the plan
           // is metadata, not a state change.
@@ -444,7 +447,7 @@ export function ModelStoreTab({ info, modelBadge }) {
   // flips server-side info into the row.
   useEffect(() => {
     const term = Object.entries(rowState).find(([, s]) =>
-      ['install_done', 'delete_done', 'install_error'].includes(s.phase));
+      ['install_done', 'delete_done', 'install_error', 'install_cancelled'].includes(s.phase));
     if (!term) return;
     const t = setTimeout(() => {
       modelsQuery.refetch();

@@ -30,6 +30,12 @@ router = APIRouter()
 _install_cooldowns: dict[str, float] = {}
 _COOLDOWN_SECS = 60.0
 
+# Repo_ids the user asked to cancel (FDL-11). Checked between retry attempts.
+# Note: a single in-flight snapshot_download/Xet fetch is not interruptible
+# mid-file in hf_hub 1.7.2 — cancel stops further retries, marks the row
+# cancelled, and clears the cooldown so a cancel isn't rate-limited.
+_cancelled: set[str] = set()
+
 
 def _download_max_workers() -> int:
     """Parallel-FILES worker count for snapshot_download (FDL-02). Default 8 —
@@ -70,6 +76,10 @@ def _truthy(v) -> bool:
     if isinstance(v, bool):
         return v
     return str(v).strip().lower() in {"1", "true", "yes", "on"}
+
+
+class _InstallCancelled(Exception):
+    """Raised inside the install worker when the user cancels (FDL-11)."""
 
 
 def compute_plan(plan_files) -> dict:
@@ -217,6 +227,7 @@ async def install_model(req: InstallModelRequest):
 
     def _do():
         token = hf_progress.current_repo_id.set(req.repo_id)
+        _cancelled.discard(req.repo_id)  # clear any stale cancel from a prior run
         hf_progress.emit({
             "repo_id": req.repo_id,
             "filename": req.repo_id,
@@ -314,6 +325,8 @@ async def install_model(req: InstallModelRequest):
             _max_attempts = 5
             _attempt = 0
             while True:
+                if req.repo_id in _cancelled:
+                    raise _InstallCancelled()
                 _attempt += 1
                 try:
                     _snapshot_path = snapshot_download(**dl_kwargs)
@@ -350,6 +363,17 @@ async def install_model(req: InstallModelRequest):
                 "phase": "install_done",
             })
             invalidate_cache()
+        except _InstallCancelled:
+            _resolving.set()
+            logger.info("model install cancelled: %s", req.repo_id)
+            # A cancel is user intent, not a failure — don't set a cooldown.
+            _install_cooldowns.pop(req.repo_id, None)
+            hf_progress.emit({
+                "repo_id": req.repo_id,
+                "filename": req.repo_id,
+                "downloaded": 0, "total": 0, "pct": 0.0,
+                "phase": "install_cancelled",
+            })
         except Exception as e:
             _resolving.set()
             logger.info("model install failed for %s: %s", req.repo_id, e)
@@ -363,11 +387,26 @@ async def install_model(req: InstallModelRequest):
                 "error": str(e),
             })
         finally:
+            _cancelled.discard(req.repo_id)
             download_aggregator.finish(req.repo_id)
             hf_progress.current_repo_id.reset(token)
 
     loop.create_task(asyncio.to_thread(_do))
     return {"status": "install_started", "repo_id": req.repo_id}
+
+
+@router.post("/models/install/cancel")
+async def cancel_install(req: InstallModelRequest):
+    """Request cancellation of an in-flight install (FDL-11).
+
+    Best-effort: stops further retry attempts and marks the row cancelled. A
+    single in-flight snapshot_download/Xet fetch isn't interruptible mid-file
+    in hf_hub 1.7.2, so an already-streaming file finishes; the cancel takes
+    effect at the next retry boundary. Clears the cooldown so the user can
+    immediately restart."""
+    _cancelled.add(req.repo_id)
+    _install_cooldowns.pop(req.repo_id, None)
+    return {"cancelling": req.repo_id}
 
 
 # ── Delete ─────────────────────────────────────────────────────────────────

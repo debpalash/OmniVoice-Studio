@@ -137,7 +137,9 @@ bundle"** packages scrubbed logs + the self-check report for bug reports.
 For Hugging Face token setup, see
 [docs/setup/huggingface-token.md](docs/setup/huggingface-token.md). For
 diarization-specific gating, see
-[docs/features/diarization.md](docs/features/diarization.md).
+[docs/features/diarization.md](docs/features/diarization.md). For download
+speed, the ⚡ fast-download (Xet) status, and restricted-network / mirror
+options, see [docs/downloading-models.md](docs/downloading-models.md).
 
 ## Screenshots
 

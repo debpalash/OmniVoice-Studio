@@ -29,6 +29,10 @@
 - `frontend typecheck:ci` — exit 0.
 - Live smoke (real install of `mlx-community/whisper-tiny-mlx`, then deleted): `install_plan` exact; aggregate files 0→1→4; final bytes==total; `/system/info` + startup log correct.
 
+## W4 — mirror + cancel + docs (FDL-10..12, shipped)
+- **Mirror (FDL-10):** `snapshot_download(endpoint=…)` honours prefs `hf_endpoint` / env `HF_ENDPOINT` on both preflight and download — per-call, no process-wide mutation. Documented as the classic-LFS (non-Xet) path that restores continuous byte-speed.
+- **Cancel (FDL-11):** `POST /models/install/cancel {repo_id}` sets a cancel flag checked at each retry boundary → emits `install_cancelled`, clears the cooldown (cancel ≠ failure). Limitation: an in-flight single-file fetch isn't interruptible in hf_hub 1.7.2; cancel lands at the next retry boundary. Frontend treats `install_cancelled` as a terminator (clears row + refetch).
+- **Docs (FDL-12):** `docs/downloading-models.md` (Xet fast path, progress semantics incl. the byte-speed limitation, opt-in tuning knobs, mirror/restricted-network, cancel, troubleshooting) + README pointer. Docs-sync rule satisfied in-PR.
+
 ## Deferred
-- **W3** segmented httpx accelerator — low priority per spike (all repos Xet-backed); only helps mirror/non-Xet.
-- **W4** opt-in `HF_ENDPOINT` mirror (`endpoint=` hook already wired) + `docs/downloading-models.md` + cancel endpoint. W4 also restores true byte-speed for the LFS path.
+- **W3** segmented httpx accelerator — low priority per spike (all repos Xet-backed); only helps mirror/non-Xet repos.
