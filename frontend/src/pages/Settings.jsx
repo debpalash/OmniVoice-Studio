@@ -401,6 +401,30 @@ export function ModelStoreTab({ info, modelBadge }) {
           if (ev.phase === 'install_error') {
             return { ...prev, [ev.repo_id]: { ...cur, phase: 'install_error', error: ev.error } };
           }
+          // Pre-flight plan (FDL-05): accurate total/cached/remaining BEFORE
+          // bytes flow. Keep the current phase (usually resolving) — the plan
+          // is metadata, not a state change.
+          if (ev.phase === 'install_plan') {
+            return { ...prev, [ev.repo_id]: { ...cur, plan: {
+              total_bytes: ev.total_bytes ?? null,
+              cached_bytes: ev.cached_bytes ?? null,
+              to_download_bytes: ev.to_download_bytes ?? null,
+              n_files: ev.n_files ?? null,
+              n_cached: ev.n_cached ?? null,
+            } } };
+          }
+          // Overall aggregate (FDL-06): one rolling event that is the source of
+          // truth for the overall bar / speed / remaining / ETA.
+          if (ev.phase === 'aggregate') {
+            return { ...prev, [ev.repo_id]: { ...cur, phase: 'active', agg: {
+              bytes_done: ev.bytes_done ?? 0,
+              total_bytes: ev.total_bytes ?? null,
+              rate: ev.rate ?? 0,
+              eta_seconds: ev.eta_seconds ?? null,
+              files_done: ev.files_done ?? 0,
+              files_total: ev.files_total ?? null,
+            } } };
+          }
           // Per-file tqdm events — aggregate across files.
           const files = { ...cur.files, [ev.filename]: {
             downloaded: ev.downloaded || 0,
@@ -528,10 +552,33 @@ export function ModelStoreTab({ info, modelBadge }) {
       .filter(([, f]) => f.phase !== 'done' && f.rate > 0)
       .reduce((s, [, f]) => s + f.rate, 0);
     const hasFiles = fileList.length > 0;
-    const aggPct = totals.total > 0 ? (totals.downloaded / totals.total) * 100 : null;
     const showBar = ['install_start', 'resolving', 'install_retry', 'active', 'delete_start'].includes(phase);
     const activeFilename = fileList.find(([, f]) => f.phase !== 'done')?.[0];
     const unsupported = m.supported === false;
+
+    // Overall progress: prefer the backend aggregate (FDL-06) — it sums bytes
+    // across all parallel files/chunks and samples a windowed rate, which is
+    // accurate under Xet's parallel fetch. Fall back to per-file summation +
+    // the frontend speed sampler only until the first aggregate event lands.
+    const agg = rs?.agg || null;
+    const plan = rs?.plan || null;
+    const dispDownloaded = agg ? (agg.bytes_done || 0) : totals.downloaded;
+    // Denominator: aggregate total → preflight "to download" → per-file totals.
+    const dispTotal = (agg?.total_bytes ?? plan?.to_download_bytes ?? totals.total) || 0;
+    // Bar %: prefer byte-fraction, but under Xet the byte bars don't advance
+    // mid-download (only the file-count bar does), so fall back to the file
+    // fraction so the bar still moves. Take the max so whichever signal is
+    // live drives it; complete() flushes both to 100% at the end.
+    const bytePct = dispTotal > 0 ? (dispDownloaded / dispTotal) * 100 : 0;
+    const filesTotalForPct = agg?.files_total ?? plan?.n_files ?? 0;
+    const filePct = filesTotalForPct > 0 ? ((agg?.files_done ?? 0) / filesTotalForPct) * 100 : 0;
+    const aggPct = (dispTotal > 0 || filesTotalForPct > 0) ? Math.max(bytePct, filePct) : null;
+    const cachedBytes = plan?.cached_bytes ?? null;
+    const filesTotal = agg?.files_total ?? plan?.n_files ?? (hasFiles ? fileList.length : null);
+    const filesDone = agg?.files_done ?? totals.done;
+    // Backend rate (windowed aggregate) wins over the per-file rate sum.
+    const aggRate = agg?.rate ?? null;
+    const aggEtaSec = agg?.eta_seconds ?? null;
 
     return {
       rs,
@@ -547,6 +594,15 @@ export function ModelStoreTab({ info, modelBadge }) {
       activeFilename,
       unsupported,
       backendRate,
+      agg,
+      plan,
+      dispDownloaded,
+      dispTotal,
+      cachedBytes,
+      filesTotal,
+      filesDone,
+      aggRate,
+      aggEtaSec,
     };
   }, [busy, rowState]);
 
@@ -587,10 +643,15 @@ export function ModelStoreTab({ info, modelBadge }) {
                 <span className="models-row__progresstext">
                   {(() => {
                     if (rt.isDeleting) return t('models.removing_cached');
-                    if (!rt.hasFiles) {
+                    const hasAgg = !!rt.agg;
+                    if (!rt.hasFiles && !hasAgg) {
                       if (rt.phase === 'resolving') {
                         const dots = '.'.repeat((rt.rs?.resolvingStep || 0) % 4);
-                        return `${t('models.resolving_metadata')}${dots}`;
+                        // Once the preflight plan lands we can show the real size
+                        // even before the first byte (FDL-05).
+                        const planBytes = rt.plan?.to_download_bytes;
+                        const planStr = planBytes ? ` · ${fmtBytes(planBytes)} ${t('models.to_download') || 'to download'}` : '';
+                        return `${t('models.resolving_metadata')}${dots}${planStr}`;
                       }
                       if (rt.phase === 'install_retry') {
                         return t('models.retry_attempt', { attempt: rt.rs?.retryAttempt || '?', error: rt.rs?.error || 'reconnecting' });
@@ -598,51 +659,57 @@ export function ModelStoreTab({ info, modelBadge }) {
                       return t('models.connecting_hf');
                     }
 
-                    // We have file events — compute speed
-                    const sp = speedRef.current[m.repo_id];
-                    const now = Date.now();
-                    if (sp && rt.totals.downloaded > 0) {
-                      const dt = (now - sp.lastTime) / 1000;
-                      if (dt >= 1) {
-                        sp.speed = Math.max(0, (rt.totals.downloaded - sp.lastBytes) / dt);
-                        sp.lastBytes = rt.totals.downloaded;
-                        sp.lastTime = now;
+                    // Prefer the backend aggregate's windowed rate (FDL-06).
+                    // Fall back to the frontend sampler only until it arrives.
+                    let speed = rt.aggRate ?? 0;
+                    if (!(speed > 0)) {
+                      const sp = speedRef.current[m.repo_id];
+                      const now = Date.now();
+                      if (sp && rt.dispDownloaded > 0) {
+                        const dt = (now - sp.lastTime) / 1000;
+                        if (dt >= 1) {
+                          sp.speed = Math.max(0, (rt.dispDownloaded - sp.lastBytes) / dt);
+                          sp.lastBytes = rt.dispDownloaded;
+                          sp.lastTime = now;
+                        }
+                      } else {
+                        speedRef.current[m.repo_id] = { lastBytes: rt.dispDownloaded, lastTime: now, speed: 0 };
                       }
-                    } else {
-                      speedRef.current[m.repo_id] = { lastBytes: rt.totals.downloaded, lastTime: now, speed: 0 };
+                      speed = rt.backendRate > 0 ? rt.backendRate : (sp?.speed || 0);
                     }
-                    const speed = rt.backendRate > 0 ? rt.backendRate : (sp?.speed || 0);
 
-                    // If total is unknown and nothing downloaded yet → still resolving
-                    if (rt.totals.total === 0 && rt.totals.downloaded === 0) {
+                    // Total unknown and nothing downloaded yet → still resolving
+                    if (rt.dispTotal === 0 && rt.dispDownloaded === 0) {
                       const activeFile = rt.activeFilename?.split('/').pop();
                       return activeFile
                         ? t('models.resolving_files_active', { count: rt.fileList.length, file: activeFile })
                         : t('models.resolving_files', { count: rt.fileList.length });
                     }
 
-                    // Build the info line
-                    const remaining = rt.totals.total - rt.totals.downloaded;
-                    const etaSec = speed > 0 && rt.totals.total > 0 ? remaining / speed : 0;
+                    // ETA: prefer the backend's, else derive from remaining/speed.
+                    const remaining = Math.max(0, rt.dispTotal - rt.dispDownloaded);
+                    const etaSec = rt.aggEtaSec != null ? rt.aggEtaSec
+                      : (speed > 0 && rt.dispTotal > 0 ? remaining / speed : 0);
                     const etaStr = etaSec > 0
                       ? etaSec < 60 ? `~${Math.ceil(etaSec)}s`
                       : etaSec < 3600 ? `~${Math.ceil(etaSec / 60)}m`
                       : `~${(etaSec / 3600).toFixed(1)}h`
                       : '';
-                    const dlStr = fmtBytes(rt.totals.downloaded) || '0 B';
-                    const totalStr = rt.totals.total > 0 ? fmtBytes(rt.totals.total) : '…';
+                    const dlStr = fmtBytes(rt.dispDownloaded) || '0 B';
+                    const totalStr = rt.dispTotal > 0 ? fmtBytes(rt.dispTotal) : '…';
                     const pctStr = rt.aggPct != null && rt.aggPct > 0 ? `${Math.round(rt.aggPct)}%` : '';
                     const speedStr = speed > 0 ? `${fmtBytes(speed)}/s` : '';
 
                     const parts = [
                       `${dlStr} / ${totalStr}`,
                       pctStr,
-                      speedStr || (rt.totals.downloaded > 0 ? t('models.measuring') : ''),
+                      speedStr || (rt.dispDownloaded > 0 ? t('models.measuring') : ''),
                       etaStr,
                     ].filter(Boolean);
 
                     const extra = [];
-                    if (rt.fileList.length > 1) extra.push(t('models.files_progress', { done: rt.totals.done, total: rt.fileList.length }));
+                    if (rt.cachedBytes > 0) extra.push(`${fmtBytes(rt.cachedBytes)} ${t('models.cached') || 'cached'}`);
+                    if (rt.filesTotal > 1) extra.push(t('models.files_progress', { done: rt.filesDone, total: rt.filesTotal }));
                     if (rt.activeFilename) extra.push(rt.activeFilename.split('/').pop());
 
                     return extra.length
@@ -811,6 +878,19 @@ export function ModelStoreTab({ info, modelBadge }) {
           <span className="models-toolbar__cache" title={data.hf_cache_dir}><code>{data.hf_cache_dir?.replace(/^\/Users\/[^/]+/, '~')}</code></span>
           {info && <span className="models-toolbar__sep">·</span>}
           {info && <span>{modelBadge}</span>}
+          {info?.fast_download?.xet_enabled && (
+            <>
+              <span className="models-toolbar__sep">·</span>
+              <span
+                className="models-toolbar__fast"
+                title={t('models.fast_download_title', {
+                  version: info.fast_download.xet_version || 'Xet',
+                }) || `Fast downloads via Xet ${info.fast_download.xet_version || ''} — parallel chunked transfer`}
+              >
+                ⚡ {t('models.fast_download_badge') || 'fast download'}
+              </span>
+            </>
+          )}
         </div>
         <div className="models-toolbar__actions">
           {/* Compact HF token inline */}

@@ -51,6 +51,31 @@ _listener_counter = itertools.count(1)
 _installed = False
 _install_lock = threading.Lock()
 
+# Set by install() to the TrackedTqdm subclass so call sites can drive it
+# explicitly via snapshot_download(tqdm_class=...) instead of relying solely on
+# the global monkey-patch. Xet feeds bytes into whatever tqdm_class is passed,
+# so this is also the xet-aware progress hook (FDL-02).
+_tracked_tqdm_class: Optional[type] = None
+
+
+def tracked_tqdm_class() -> Optional[type]:
+    """Return the progress-emitting tqdm subclass (or None if install() hasn't
+    run / huggingface_hub's tqdm couldn't be patched). Pass it as
+    ``snapshot_download(tqdm_class=...)`` to drive progress deterministically."""
+    return _tracked_tqdm_class
+
+
+# Optional sink fed every per-file (repo_id, filename, downloaded, total) byte
+# update — used by utils.download_aggregator to build the overall aggregate bar
+# (FDL-06). Kept as a setter to avoid a circular import (this module must not
+# import the aggregator). Signature: fn(repo_id, filename, downloaded, total).
+_byte_sink: Optional[Callable] = None
+
+
+def set_byte_sink(fn: Optional[Callable]) -> None:
+    global _byte_sink
+    _byte_sink = fn
+
 
 def register_listener(cb: Listener) -> int:
     """Register a callback that receives progress events. Returns an id that
@@ -198,6 +223,29 @@ def install() -> None:
                     if rate and rate > 0:
                         event["rate"] = rate  # bytes/sec from tqdm
                     _emit(event)
+                    # Feed the overall aggregator (FDL-06), if wired.
+                    self._feed_sink(done, total, complete=False)
+                except Exception:
+                    pass
+
+            def _feed_sink(self, done, total, *, complete: bool):
+                """Forward a byte/count update to the overall aggregator sink.
+
+                Passes the tqdm `unit` so the aggregator can tell a byte bar
+                (unit 'B') from the "Fetching N files" count bar, and a stable
+                per-bar key (id(self)) because every per-file byte bar shares
+                the default desc 'download' under Xet — keying by desc would
+                collapse them into one.
+                """
+                sink = _byte_sink
+                if sink is None:
+                    return
+                rid = current_repo_id.get()
+                if not rid:
+                    return
+                try:
+                    unit = getattr(self, "unit", None)
+                    sink(rid, id(self), unit, int(done or 0), int(total or 0), complete)
                 except Exception:
                     pass
 
@@ -227,6 +275,17 @@ def install() -> None:
                     pass
 
             def close(self):
+                # Credit the file's full size to the aggregator on close. Under
+                # Xet a per-file byte bar often never increments `n` (Xet fetches
+                # chunks out-of-band), so completion is the only reliable signal
+                # that the file's bytes landed. Harmless for classic LFS bars
+                # (n already == total).
+                try:
+                    total = int(getattr(self, "total", 0) or 0)
+                    if total > 0:
+                        self._feed_sink(total, total, complete=True)
+                except Exception:
+                    pass
                 try:
                     super().close()
                 except OSError:
@@ -235,5 +294,7 @@ def install() -> None:
         # Stash the original for inspection / uninstall, then swap.
         hf_tqdm_module._omnivoice_original_tqdm = original  # type: ignore[attr-defined]
         hf_tqdm_module.tqdm = TrackedTqdm  # type: ignore[assignment]
+        global _tracked_tqdm_class
+        _tracked_tqdm_class = TrackedTqdm
         _installed = True
         logger.info("hf_progress: installed tqdm patch on huggingface_hub.utils.tqdm")

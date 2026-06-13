@@ -35,10 +35,22 @@ export interface SetupProgressEvent {
   rate?: number;
   error?: string;
   attempt?: number;
+  // Pre-flight totals (FDL-05): emitted once before bytes flow.
+  total_bytes?: number | null;
+  cached_bytes?: number | null;
+  to_download_bytes?: number | null;
+  n_files?: number | null;
+  n_cached?: number | null;
+  // Overall aggregate (FDL-06): one rolling event summing all files/chunks.
+  bytes_done?: number;
+  eta_seconds?: number | null;
+  files_done?: number;
+  files_total?: number | null;
   phase:
     | 'start' | 'progress' | 'done'
     | 'resolving' | 'install_start' | 'install_retry' | 'install_done' | 'install_error'
-    | 'delete_start' | 'delete_done';
+    | 'delete_start' | 'delete_done'
+    | 'install_plan' | 'aggregate';
 }
 
 export async function setupStatus(): Promise<SetupStatus> {

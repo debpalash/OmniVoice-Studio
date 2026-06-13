@@ -109,6 +109,17 @@ dependencies = [
     # false — `cryptography` is not on the install path today).
     "cryptography>=41",
     "mcp>=1.2",
+    # Fast model downloads (FDL plan). huggingface_hub arrives transitively via
+    # transformers, but we pin it directly so the Xet fast-download path can't
+    # silently disappear on a resolve, and we pull `hf-xet` explicitly: it is
+    # the content-defined-chunking, parallel byte-range downloader that gives
+    # IDM/uGet-style speed for Xet-backed repos (the entire current model
+    # catalog — see .planning/quick/260613-fdl-fast-model-downloads/SPIKE).
+    # hf-xet is 64-bit only (fine for every OmniVoice target). Do NOT add
+    # `hf_transfer` — it is deprecated in favour of Xet and breaks progress
+    # callbacks (the accurate-progress work in this same plan depends on tqdm).
+    "huggingface_hub>=1.7",
+    "hf-xet>=1.1",
 ]
 
 [project.optional-dependencies]

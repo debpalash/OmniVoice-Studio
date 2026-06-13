@@ -340,6 +340,28 @@ from utils import hf_progress
 # the patched class, not the original.
 hf_progress.install()
 
+# Wire the overall download aggregator's byte sink onto the patched tqdm so
+# parallel per-file updates feed one accurate overall bar (FDL-06).
+try:
+    from utils import download_aggregator
+    download_aggregator.install()
+except Exception:
+    pass
+
+# Log the fast-download (Xet) backend state once at startup (FDL-03) so a slow
+# download report can be triaged from the logs without reproducing.
+try:
+    from api.routers.system import _fast_download_status as _fd_status
+    _fd = _fd_status()
+    logging.getLogger("omnivoice.model").info(
+        "fast download: Xet %s%s, high_perf=%s",
+        "on" if _fd["xet_enabled"] else "OFF",
+        f" (hf_xet {_fd['xet_version']})" if _fd.get("xet_version") else "",
+        _fd["high_performance"],
+    )
+except Exception:
+    pass
+
 
 def _env_flag(name: str, default: bool = False) -> bool:
     value = os.environ.get(name)

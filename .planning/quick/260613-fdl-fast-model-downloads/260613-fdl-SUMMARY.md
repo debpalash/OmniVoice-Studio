@@ -1,0 +1,34 @@
+# SUMMARY — FDL Waves 0–2 (fast model downloads)
+
+**Date:** 2026-06-13 · **Scope shipped:** W0 (spike), W1 (maximize Xet), W2 (accurate progress). W3/W4 deferred.
+
+## What landed
+
+**W0 — spike (FDL-00).** Classified all 25 `models.yaml` repos via the HF API `xetEnabled` field → **25/25 Xet-backed** (incl. both first-run defaults). See `260613-fdl-SPIKE.md`. Verdict: Wave 3 (segmented accelerator) is **LOW priority** — Xet already gives parallel chunked transfer for every shipped model. Detection caveat recorded: `repo_info` siblings on hf_hub **1.7.2** expose no xet metadata; classify via the `xetEnabled` API field, not siblings.
+
+**W1 — maximize + guarantee Xet (FDL-01..04).**
+- `pyproject.toml`: pinned `huggingface_hub>=1.7` + `hf-xet>=1.1` explicitly (was transitive/unpinned); no `hf_transfer`. Resolves to hf_hub 1.7.2 / hf-xet 1.4.2, single version.
+- `download.py`: `install_model` now drives `snapshot_download` with explicit `tqdm_class` (our progress-emitting subclass), `max_workers` (prefs `download_max_workers`, default 8), and `endpoint` (prefs `hf_endpoint` — W4 hook). `apply_xet_env()` applies opt-in `HF_XET_HIGH_PERFORMANCE` + `HF_XET_RECONSTRUCT_WRITE_SEQUENTIALLY` (both default OFF, env wins).
+- `system.py`: `/system/info` now returns `fast_download {xet_enabled, xet_version, high_performance}`; logged once at startup.
+
+**W2 — accurate downloaded/remaining + speed (FDL-05..07).**
+- Preflight `snapshot_download(dry_run=True)` → `compute_plan()` → `install_plan` SSE event with `total_bytes / cached_bytes / to_download_bytes / n_files / n_cached` **before bytes flow**. Degrades to totals=None on gated/older repos.
+- New `utils/download_aggregator.py`: one source of truth for overall progress. Fed by a byte-sink on the patched tqdm; distinguishes byte bars (unit 'B', keyed by bar id) from the "Fetching N files" count bar; emits one throttled `aggregate` event (bytes_done/total/windowed rate/eta/files).
+- Frontend `Settings.jsx` + `setup.ts`: overall bar driven by the aggregate; bar % = `max(byte%, file%)`; shows cached-skip + files-progress; `⚡ fast download` badge from `/system/info`. i18n keys added to `en.json`.
+
+## Decisions / "use judgment" notes
+- **Xet progress limitation (verified by live smoke).** Under Xet + hf_hub 1.7.2 the per-file **byte** bars never advance `n` and never `close()` through our tqdm (Xet fetches chunks out-of-band). Only the **file-count bar** is live. So: mid-download the overall bar is **file-granular** (moves 0→N files), and `complete()` flushes `bytes_done` to the exact preflight total on success (verified: final `74420620/74420620`, files 4/4). True live byte-speed is only available on classic-LFS/mirror repos (W4). This is a real constraint, not a bug — documented here and worth surfacing in W4 docs.
+- Per-file detail kept inline (existing single-line summary, now aggregate-sourced) rather than a new collapsible panel — limited risk; can revisit.
+
+## Drive-by fix
+- `download.py` imported no `os`, but `_validate_snapshot_has_weights` uses `os.walk` → latent `NameError` on every install. Added `import os`.
+
+## Verification
+- `tests/backend/setup/test_download_preflight.py` — 10 pass (compute_plan splits, aggregator byte/count routing, close-credit, windowed rate/eta, registry feed + finish noop).
+- `pytest -k "download or install or model or engine or setup"` — 149 passed, 7 skipped, 0 failed.
+- `frontend typecheck:ci` — exit 0.
+- Live smoke (real install of `mlx-community/whisper-tiny-mlx`, then deleted): `install_plan` exact; aggregate files 0→1→4; final bytes==total; `/system/info` + startup log correct.
+
+## Deferred
+- **W3** segmented httpx accelerator — low priority per spike (all repos Xet-backed); only helps mirror/non-Xet.
+- **W4** opt-in `HF_ENDPOINT` mirror (`endpoint=` hook already wired) + `docs/downloading-models.md` + cancel endpoint. W4 also restores true byte-speed for the LFS path.

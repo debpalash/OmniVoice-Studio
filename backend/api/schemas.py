@@ -34,6 +34,8 @@ class SystemInfoResponse(BaseModel):
     asr_model: str = "unknown"
     translate_provider: str = "unknown"
     has_hf_token: bool = False
+    # Xet fast-download backend state (FDL-03): {xet_enabled, xet_version, high_performance}
+    fast_download: dict | None = None
     device: str = "cpu"
     python: str = ""
     platform: str = ""

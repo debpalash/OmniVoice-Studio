@@ -107,6 +107,37 @@ def _ui_port() -> int:
         return 3901
 
 
+def _fast_download_status() -> dict:
+    """Report the Xet fast-download backend state for the Settings UI (FDL-03).
+
+    Xet (content-defined chunking + parallel byte-range gets) is the IDM/uGet-
+    style fast path for Xet-backed repos — the entire current model catalog.
+    Must never throw: /system/info is called on every Settings load.
+    """
+    enabled = False
+    version = None
+    try:
+        import hf_xet  # noqa: F401
+        enabled = True
+        try:
+            from importlib.metadata import version as _ver
+            version = _ver("hf-xet")
+        except Exception:
+            version = None
+    except Exception:
+        enabled = False
+    try:
+        from core import prefs
+        high_perf = prefs.resolve(
+            "xet_high_performance", env="HF_XET_HIGH_PERFORMANCE", default=False
+        )
+        high_perf = high_perf if isinstance(high_perf, bool) else \
+            str(high_perf).strip().lower() in {"1", "true", "yes", "on"}
+    except Exception:
+        high_perf = False
+    return {"xet_enabled": enabled, "xet_version": version, "high_performance": bool(high_perf)}
+
+
 def _has_hf_token() -> bool:
     # Phase 1 AUTH-01..06 cascade. Delegates to the 3-source resolver
     # (App → Env → HF-CLI) instead of reading env/HF-CLI directly. This
@@ -261,6 +292,7 @@ def system_info():
             "asr_model": os.environ.get("ASR_MODEL", "Systran/faster-whisper-large-v3"),
             "translate_provider": os.environ.get("TRANSLATE_PROVIDER", "google"),
             "has_hf_token": _has_hf_token(),
+            "fast_download": _fast_download_status(),
             "device": get_best_device(),
             "python": sys.version.split()[0],
             "platform": sys.platform,
