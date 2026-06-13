@@ -18,6 +18,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import uuid
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -37,6 +38,11 @@ from services.longform_render import (
 logger = logging.getLogger("omnivoice.audiobook")
 router = APIRouter()
 
+# A cover filename as produced by /audiobook/cover: 12 hex chars + image ext.
+# An exact-match allowlist is the strongest barrier (and the one CodeQL's
+# path-injection query recognizes) — anything else is rejected outright.
+_COVER_NAME_RE = re.compile(r"^[0-9a-f]{12}\.(?:jpg|jpeg|png)$")
+
 
 def _safe_cover_path(cover_path: str | None) -> str | None:
     """Confine a user-supplied cover to the upload directory before it can flow
@@ -52,8 +58,8 @@ def _safe_cover_path(cover_path: str | None) -> str | None:
         return None
     from core.config import OUTPUTS_DIR
     name = os.path.basename(cover_path)
-    if not name:
-        return None
+    if not _COVER_NAME_RE.match(name):
+        return None  # not a name the upload endpoint could have produced
     candidate = os.path.join(OUTPUTS_DIR, "audiobook_covers", name)
     return candidate if os.path.isfile(candidate) else None
 
