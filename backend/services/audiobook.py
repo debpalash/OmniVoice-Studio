@@ -40,7 +40,6 @@ _HEADING_RE = re.compile(r"^[ \t]*#[ \t]+(\S.*)$", re.MULTILINE)
 # ``finditer`` (the source of the polynomial-time ReDoS). A voice name never
 # contains a bracket; the value is stripped in code.
 _VOICE_RE = re.compile(r"\[voice:([^\]\[]*)\]")
-_BITRATE_RE = re.compile(r"^\d{2,3}k$")
 
 
 @dataclass
@@ -178,44 +177,23 @@ def synthesize_chapter(
     return audio, audio.shape[-1] / float(sample_rate)
 
 
-def _escape_meta(value: str) -> str:
-    """Escape an FFMETADATA value (``=``, ``;``, ``#``, ``\\``, newline)."""
-    return re.sub(r"([=;#\\\n])", r"\\\1", value or "")
+# ── ffmpeg / metadata builders ──────────────────────────────────────────────
+#
+# These now live in the shared ``longform_render`` core (Stories + Audiobook
+# converge on one mux). The thin wrappers below preserve the original
+# audiobook-only call sites/signatures; new callers should use
+# ``longform_render`` directly to reach global metadata, cover art, loudness,
+# and mp3 output.
+from services.longform_render import (  # noqa: E402
+    build_concat_list,
+    build_ffmetadata,
+    build_render_cmd,
+)
 
 
 def build_chapter_ffmetadata(chapters: list[tuple[str, int]]) -> str:
-    """Build an FFMETADATA1 document with one ``[CHAPTER]`` per (title, ms).
-
-    ``chapters`` is ordered ``(title, duration_ms)`` pairs; START/END are the
-    cumulative millisecond offsets ffmpeg writes into the m4b chapter table.
-    """
-    lines = [";FFMETADATA1"]
-    start = 0
-    for title, dur_ms in chapters:
-        end = start + max(0, int(dur_ms))
-        lines += [
-            "[CHAPTER]",
-            "TIMEBASE=1/1000",
-            f"START={start}",
-            f"END={end}",
-            f"title={_escape_meta(title)}",
-        ]
-        start = end
-    return "\n".join(lines) + "\n"
-
-
-def build_concat_list(wav_paths: list[str]) -> str:
-    """Build an ffmpeg concat-demuxer list for the chapter WAVs.
-
-    Each line is ``file '<path>'`` with single quotes escaped the ffmpeg way
-    (``'`` → ``'\\''``), so paths with spaces/quotes can't break the list or
-    inject arguments.
-    """
-    lines = []
-    for p in wav_paths:
-        safe = str(p).replace("'", "'\\''")
-        lines.append(f"file '{safe}'")
-    return "\n".join(lines) + "\n"
+    """Backward-compatible alias: chapters-only FFMETADATA (no global tags)."""
+    return build_ffmetadata(chapters)
 
 
 def build_m4b_cmd(
@@ -226,17 +204,8 @@ def build_m4b_cmd(
     *,
     bitrate: str = "128k",
 ) -> list[str]:
-    """Pure argv for muxing chapter WAVs + FFMETADATA into a faststart m4b.
-
-    Input 0 is the concat-demuxer list of chapter WAVs; input 1 is the
-    FFMETADATA file (``-map_metadata 1`` pulls the chapter table from it).
-    """
-    if not _BITRATE_RE.match(bitrate or ""):
-        bitrate = "128k"
-    return [
-        ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
-        "-f", "concat", "-safe", "0", "-i", str(concat_list_path),
-        "-i", str(metadata_path), "-map_metadata", "1",
-        "-c:a", "aac", "-b:a", bitrate,
-        "-movflags", "+faststart", "-f", "mp4", str(out_path),
-    ]
+    """Backward-compatible alias: a chapterized faststart m4b, no cover/loudness."""
+    return build_render_cmd(
+        ffmpeg, concat_list_path, metadata_path, out_path,
+        fmt="m4b", bitrate=bitrate,
+    )

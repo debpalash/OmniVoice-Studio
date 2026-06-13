@@ -24,11 +24,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from services.audiobook import (
-    build_chapter_ffmetadata,
-    build_concat_list,
-    build_m4b_cmd,
     parse_audiobook_script,
     synthesize_chapter,
+)
+from services.longform_render import (
+    build_concat_list,
+    build_ffmetadata,
+    build_render_cmd,
 )
 
 router = APIRouter()
@@ -50,6 +52,12 @@ class AudiobookRequest(BaseModel):
     text: str
     default_voice: str | None = None   # voice profile id; None = engine default
     bitrate: str = "128k"
+    format: str = "m4b"                 # "m4b" | "mp3"
+    loudness: str | None = None         # None/"off" | "acx" | "podcast" (opt-in)
+    cover_path: str | None = None       # server-side path to a jpg/png cover
+    # Global tags embedded in the output: {title, author, narrator, year,
+    # genre, description}. Player-visible (Apple Books / Audible read these).
+    metadata: dict | None = None
 
 
 def _resolve_voice(profile_id: str | None) -> dict:
@@ -201,14 +209,19 @@ async def audiobook_synthesize(req: AudiobookRequest):
             yield _emit({"type": "assembling"})
             meta_path = os.path.join(work, "chapters.ffmeta")
             with open(meta_path, "w", encoding="utf-8") as f:
-                f.write(build_chapter_ffmetadata(chapters_meta))
+                f.write(build_ffmetadata(chapters_meta, global_meta=req.metadata))
             concat_path = os.path.join(work, "concat.txt")
             with open(concat_path, "w", encoding="utf-8") as f:
                 f.write(build_concat_list(chapter_files))
-            out_name = f"audiobook_{job_id}.m4b"
+            ext = "mp3" if (req.format or "").lower() == "mp3" else "m4b"
+            out_name = f"audiobook_{job_id}.{ext}"
             out_path = os.path.join(OUTPUTS_DIR, out_name)
             await run_ffmpeg(
-                build_m4b_cmd(ffmpeg, concat_path, meta_path, out_path, bitrate=req.bitrate),
+                build_render_cmd(
+                    ffmpeg, concat_path, meta_path, out_path,
+                    fmt=ext, bitrate=req.bitrate,
+                    cover_path=req.cover_path, loudness=req.loudness,
+                ),
                 job_id=job_id,
             )
 
