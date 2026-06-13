@@ -60,7 +60,7 @@ def _escape_meta(value: str) -> str:
 # ── Chapter cache key (resume) ──────────────────────────────────────────────
 
 def chapter_cache_key(
-    spans: Iterable[tuple[Optional[str], str, int]],
+    spans: Iterable[tuple],
     *,
     sample_rate: int,
     engine_id: str,
@@ -68,17 +68,18 @@ def chapter_cache_key(
 ) -> str:
     """Deterministic content hash for a chapter's rendered audio.
 
-    ``spans`` is an ordered list of ``(voice_id, text, pause_ms_after)``. Same
-    inputs → same key → reuse the cached chapter WAV on a re-run (resume); any
-    change (text, voice, order, pauses, sample rate, engine, or a voice's
-    resolved signature) → new key → re-render. ``voice_sig`` maps each voice id
-    to a stable signature string (e.g. ``ref_audio|instruct|seed``) so editing
-    the underlying profile also invalidates the cache.
+    ``spans`` is an ordered list of ``(voice_id, text, pause_ms_after[, speed])``
+    (speed optional, defaults to None). Same inputs → same key → reuse the
+    cached chapter WAV on a re-run (resume); any change (text, voice, order,
+    pauses, speed, sample rate, engine, or a voice's resolved signature) → new
+    key → re-render. ``voice_sig`` maps each voice id to a stable signature
+    string (e.g. ``ref_audio|instruct|seed``) so editing the underlying profile
+    also invalidates the cache.
     """
     payload = {
         "sr": int(sample_rate),
         "engine": engine_id or "",
-        "spans": [[v, t, int(p)] for (v, t, p) in spans],
+        "spans": [[s[0], s[1], int(s[2]), (s[3] if len(s) > 3 else None)] for s in spans],
         "voices": {k: voice_sig[k] for k in sorted(voice_sig)} if voice_sig else {},
     }
     raw = json.dumps(payload, sort_keys=True, ensure_ascii=False)

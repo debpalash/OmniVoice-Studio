@@ -97,7 +97,7 @@ export async function audiobookImport(file: File): Promise<{ text: string; chapt
 }
 
 export interface LongformRenderBody {
-  chapters: Array<{ title?: string; spans: Array<{ voice_id: string | null; text: string; pause_ms_after: number }> }>;
+  chapters: Array<{ title?: string; spans: Array<{ voice_id: string | null; text: string; pause_ms_after: number; speed?: number | null }> }>;
   default_voice?: string | null;
   bitrate?: string;
   format?: 'm4b' | 'mp3';

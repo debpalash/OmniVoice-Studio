@@ -15,8 +15,8 @@ describe('storyToSpans', () => {
     const chapters = storyToSpans(tracks, CAST);
     expect(chapters).toHaveLength(1);
     expect(chapters[0].spans).toEqual([
-      { voice_id: 'p_narr', text: 'Once upon a time.', pause_ms_after: 0 },
-      { voice_id: 'p_fox', text: 'Hello there.', pause_ms_after: 0 },
+      { voice_id: 'p_narr', text: 'Once upon a time.', pause_ms_after: 0, speed: null },
+      { voice_id: 'p_fox', text: 'Hello there.', pause_ms_after: 0, speed: null },
     ]);
   });
 
@@ -29,7 +29,7 @@ describe('storyToSpans', () => {
     ];
     const chapters = storyToSpans(tracks, CAST);
     expect(chapters.map((c) => c.title)).toEqual(['Chapter One', 'Chapter Two']);
-    expect(chapters[1].spans[0]).toEqual({ voice_id: 'p_fox', text: 'More.', pause_ms_after: 0 });
+    expect(chapters[1].spans[0]).toEqual({ voice_id: 'p_fox', text: 'More.', pause_ms_after: 0, speed: null });
   });
 
   it('honors a per-line voice override', () => {
@@ -37,11 +37,17 @@ describe('storyToSpans', () => {
     expect(storyToSpans(tracks, CAST)[0].spans[0].voice_id).toBe('p_override');
   });
 
+  it('carries the per-line speed onto its spans', () => {
+    const tracks = [{ character: 'narrator', text: 'Slow. [pause 0.2s] down.', speed: 0.8 }];
+    const spans = storyToSpans(tracks, CAST)[0].spans;
+    expect(spans.every((s) => s.speed === 0.8)).toBe(true);
+  });
+
   it('folds [pause] into the previous span', () => {
     const tracks = [{ character: 'narrator', text: 'Wait. [pause 0.5s] Done.' }];
     const spans = storyToSpans(tracks, CAST)[0].spans;
-    expect(spans[0]).toEqual({ voice_id: 'p_narr', text: 'Wait.', pause_ms_after: 500 });
-    expect(spans[1]).toEqual({ voice_id: 'p_narr', text: 'Done.', pause_ms_after: 0 });
+    expect(spans[0]).toEqual({ voice_id: 'p_narr', text: 'Wait.', pause_ms_after: 500, speed: null });
+    expect(spans[1]).toEqual({ voice_id: 'p_narr', text: 'Done.', pause_ms_after: 0, speed: null });
   });
 
   it('switches voice mid-line on [voice:]', () => {
@@ -65,7 +71,7 @@ describe('storyToSpans', () => {
   it('a leading pause becomes a silent span', () => {
     const tracks = [{ character: 'narrator', text: '[pause 1s] Go.' }];
     const spans = storyToSpans(tracks, CAST)[0].spans;
-    expect(spans[0]).toEqual({ voice_id: 'p_narr', text: '', pause_ms_after: 1000 });
+    expect(spans[0]).toEqual({ voice_id: 'p_narr', text: '', pause_ms_after: 1000, speed: null });
     expect(spans[1].text).toBe('Go.');
   });
 });

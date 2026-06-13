@@ -30,14 +30,15 @@ export function storyToSpans(tracks, cast) {
       continue;
     }
     const profileId = effectiveProfile(tk, cast) || null;
+    const speed = tk.speed || null;  // per-line rate rides through to the engine
     for (const seg of parseStoryText(text, profileId)) {
       if (seg.type === 'pause') {
         const ms = Math.round(seg.seconds * 1000);
         const last = cur.spans[cur.spans.length - 1];
         if (last) last.pause_ms_after += ms;
-        else cur.spans.push({ voice_id: profileId, text: '', pause_ms_after: ms });
+        else cur.spans.push({ voice_id: profileId, text: '', pause_ms_after: ms, speed });
       } else if (seg.text) {
-        cur.spans.push({ voice_id: seg.profileId || null, text: seg.text, pause_ms_after: 0 });
+        cur.spans.push({ voice_id: seg.profileId || null, text: seg.text, pause_ms_after: 0, speed });
       }
     }
   }

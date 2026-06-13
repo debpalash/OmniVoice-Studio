@@ -44,14 +44,20 @@ _VOICE_RE = re.compile(r"\[voice:([^\]\[]*)\]")
 
 @dataclass
 class Span:
-    """One contiguous run of text in a single voice, plus trailing silence."""
+    """One contiguous run of text in a single voice, plus trailing silence.
+
+    ``speed`` (when set) is the per-span rate passed to the engine — Stories'
+    per-line speed slider rides through here so the shared server render honours
+    it the way the old client export did.
+    """
     voice_id: Optional[str]
     text: str
     pause_ms_after: int = 0
+    speed: Optional[float] = None
 
     def to_dict(self) -> dict:
         return {"voice_id": self.voice_id, "text": self.text,
-                "pause_ms_after": self.pause_ms_after}
+                "pause_ms_after": self.pause_ms_after, "speed": self.speed}
 
 
 @dataclass
@@ -138,16 +144,17 @@ def parse_audiobook_script(text: str, *, default_voice: Optional[str] = None) ->
 
 def synthesize_chapter(
     spans: list[Span],
-    synth: Callable[[str, Optional[str]], "object"],
+    synth: Callable[[str, Optional[str], Optional[float]], "object"],
     sample_rate: int,
     *,
     crossfade_ms: int = 50,
 ):
     """Render a chapter's spans to one waveform via an injected ``synth``.
 
-    ``synth(text, voice_id)`` returns a 1-D float32 audio tensor for a span of
-    text in the given voice. Long spans are split with the ``chunked_tts``
-    splitter and crossfaded; inter-span ``pause_ms_after`` becomes silence.
+    ``synth(text, voice_id, speed)`` returns a 1-D float32 audio tensor for a
+    span of text in the given voice (``speed`` may be ``None`` for the engine
+    default). Long spans are split with the ``chunked_tts`` splitter and
+    crossfaded; inter-span ``pause_ms_after`` becomes silence.
 
     Returns ``(audio_tensor, duration_seconds)``. torch + chunked_tts are
     imported lazily so this module stays import-light for the pure parser path.
@@ -159,7 +166,7 @@ def synthesize_chapter(
     for span in spans:
         if span.text:
             chunks = split_text_into_chunks(span.text)
-            rendered = [synth(c, span.voice_id) for c in chunks]
+            rendered = [synth(c, span.voice_id, span.speed) for c in chunks]
             rendered = [r for r in rendered if r is not None and getattr(r, "numel", lambda: 0)()]
             if len(rendered) == 1:
                 parts.append(rendered[0])

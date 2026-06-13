@@ -200,6 +200,8 @@ def test_cache_key_deterministic():
     lambda: chapter_cache_key(_SPANS, sample_rate=24000, engine_id="kokoro"),                 # engine
     lambda: chapter_cache_key(_SPANS, sample_rate=24000, engine_id="omnivoice",
                               voice_sig={"narrator": "ref.wav|warm|7"}),                       # voice sig
+    lambda: chapter_cache_key([(None, "Once upon a time.", 350, 0.8), ("narrator", "The end.", 0)],
+                              sample_rate=24000, engine_id="omnivoice"),                       # speed
 ])
 def test_cache_key_changes_on_any_input(mutate):
     base = chapter_cache_key(_SPANS, sample_rate=24000, engine_id="omnivoice")

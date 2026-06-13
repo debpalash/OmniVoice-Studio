@@ -214,11 +214,12 @@ def _build_synth(default_voice: str | None) -> dict:
 
     backend = cls()
 
-    def synth(text, voice_id):
+    def synth(text, voice_id, speed=None):
         v = resolve(voice_id)
         return backend.generate(
             text, language=None, ref_audio=v["ref_audio"],
             ref_text=v["ref_text"], instruct=v["instruct"], duration=None,
+            speed=float(speed) if speed else 1.0,
         )
     return {"mode": "generic", "resolve": resolve, "engine_id": engine_id,
             "synth": synth, "sample_rate": backend.sample_rate}
@@ -234,11 +235,12 @@ async def _prepare_synth(default_voice: str | None):
         model = await info["get_model"]()
         sr = getattr(model, "sampling_rate", 24000)
 
-        def synth(text, voice_id):
+        def synth(text, voice_id, speed=None):
             v = resolve(voice_id)
             return model.generate(
                 text=text, language=None, ref_audio=v["ref_audio"],
                 ref_text=v["ref_text"], instruct=v["instruct"], duration=None,
+                speed=float(speed) if speed else 1.0,
             )[0]
         return synth, sr, resolve, engine_id
     return info["synth"], info["sample_rate"], resolve, engine_id
@@ -257,7 +259,8 @@ def _render_chapter_cached(chapter, synth, sr, engine_id, resolve, cache_dir):
     from services.audio_io import atomic_save_wav
     from services.longform_render import chapter_cache_key
 
-    spans_tuples = [(s.voice_id, s.text, s.pause_ms_after) for s in chapter.spans]
+    spans_tuples = [(s.voice_id, s.text, s.pause_ms_after, getattr(s, "speed", None))
+                    for s in chapter.spans]
     sig: dict = {}
     for s in chapter.spans:
         k = s.voice_id or ""
@@ -469,6 +472,7 @@ class LongformSpan(BaseModel):
     voice_id: str | None = None
     text: str
     pause_ms_after: int = 0
+    speed: float | None = None
 
 
 class LongformChapter(BaseModel):
@@ -498,7 +502,7 @@ async def longform_render(req: LongformRenderRequest):
         # Keep a span if it has text to speak OR a pause to render (pause-only
         # spans carry inter-line silence with empty text).
         spans = [Span(voice_id=s.voice_id, text=(s.text or "").strip(),
-                      pause_ms_after=max(0, int(s.pause_ms_after)))
+                      pause_ms_after=max(0, int(s.pause_ms_after)), speed=s.speed)
                  for s in c.spans if ((s.text and s.text.strip()) or s.pause_ms_after > 0)]
         if spans:
             chapters.append(Chapter(title=c.title or f"Chapter {i + 1}", spans=spans))

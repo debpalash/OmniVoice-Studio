@@ -124,8 +124,8 @@ def test_synthesize_chapter_stitches_spans_and_silence():
     sr = 16000
     calls = []
 
-    def synth(text, voice_id):
-        calls.append((text, voice_id))
+    def synth(text, voice_id, speed=None):
+        calls.append((text, voice_id, speed))
         return torch.ones(1000, dtype=torch.float32)  # 1000 samples per chunk
 
     plan = parse_audiobook_script("First. [pause 1s] Second.", default_voice="v")
@@ -138,6 +138,6 @@ def test_synthesize_chapter_stitches_spans_and_silence():
 
 def test_synthesize_empty_spans_is_silent():
     torch = pytest.importorskip("torch")
-    audio, dur = synthesize_chapter([], lambda t, v: torch.ones(10), 16000)
+    audio, dur = synthesize_chapter([], lambda t, v, s=None: torch.ones(10), 16000)
     assert audio.shape[-1] == 0
     assert dur == 0.0
