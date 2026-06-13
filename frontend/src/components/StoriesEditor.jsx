@@ -23,7 +23,7 @@ import { encodeAudio } from '../api/stories';
 import { longformRender } from '../api/audiobook';
 import { exportStems } from '../utils/storyExport';
 import { storyToSpans } from '../utils/storyToSpans';
-import { splitSSEBuffer, parseSSELine } from '../utils/sseParse';
+import { consumeLongformStream } from '../utils/longformStream';
 import { reorder } from '../utils/storyReorder';
 import { effectiveProfile, castMember, nextCastColor } from '../utils/storyCast';
 import './StoriesEditor.css';
@@ -369,27 +369,17 @@ export default function StoriesEditor({ profiles = [] }) {
         chapters,
         format: exportFormat === 'mp3' ? 'mp3' : 'm4b',
       });
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
       let total = 0;
       let output = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const { lines, rest } = splitSSEBuffer(buffer);
-        buffer = rest;
-        for (const line of lines) {
-          const evt = parseSSELine(line);
-          if (!evt) continue;
-          if (evt.type === 'started') total = evt.chapters;
-          else if (evt.type === 'chapter' || evt.type === 'chapter_error') {
-            setExportPct(total ? Math.round(((evt.index + 1) / total) * 100) : 0);
-          } else if (evt.type === 'done') output = evt.output;
-          else if (evt.type === 'error') throw new Error(evt.error || 'render failed');
-        }
-      }
+      let streamErr = null;
+      await consumeLongformStream(res, (evt) => {
+        if (evt.type === 'started') total = evt.chapters;
+        else if (evt.type === 'chapter' || evt.type === 'chapter_error') {
+          setExportPct(total ? Math.round(((evt.index + 1) / total) * 100) : 0);
+        } else if (evt.type === 'done') output = evt.output;
+        else if (evt.type === 'error') streamErr = evt.error || 'render failed';
+      });
+      if (streamErr) throw new Error(streamErr);
       if (!output) throw new Error('no output produced');
       downloadUrl(audioUrl(output), output.split('/').pop());
       toast.success(t('stories.exportDone'));

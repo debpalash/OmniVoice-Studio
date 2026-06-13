@@ -6,7 +6,7 @@ import {
   audiobookPlan, audiobookGenerate, audiobookUploadCover, audiobookPreviewChapter, audiobookImport,
 } from '../api/audiobook';
 import { audioUrl } from '../api/generate';
-import { splitSSEBuffer, parseSSELine } from '../utils/sseParse';
+import { consumeLongformStream } from '../utils/longformStream';
 import './AudiobookTab.css';
 
 /**
@@ -136,37 +136,25 @@ export default function AudiobookTab({ profiles = [] }) {
         metadata: Object.keys(metadata).length ? metadata : null,
         lexicon: Object.keys(lexicon).length ? lexicon : null,
       });
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      while (!abortRef.current) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const { lines, rest } = splitSSEBuffer(buffer);
-        buffer = rest;
-        for (const line of lines) {
-          const evt = parseSSELine(line);
-          if (!evt) continue;
-          if (evt.type === 'started') {
-            setProgress({ current: 0, total: evt.chapters });
-          } else if (evt.type === 'chapter') {
-            setProgress({ current: evt.index + 1, total: evt.total, title: evt.title });
-          } else if (evt.type === 'assembling') {
-            setProgress((p) => ({ ...(p || {}), assembling: true }));
-          } else if (evt.type === 'chapter_error') {
-            setProgress({ current: evt.index + 1, total: evt.total, title: evt.title });
-          } else if (evt.type === 'done') {
-            setOutput(evt.output);
-            setDone({
-              cached_chapters: evt.cached_chapters || 0,
-              failed_chapters: evt.failed_chapters || [],
-            });
-          } else if (evt.type === 'error') {
-            setError(evt.error || 'synthesis failed');
-          }
+      await consumeLongformStream(res, (evt) => {
+        if (evt.type === 'started') {
+          setProgress({ current: 0, total: evt.chapters });
+        } else if (evt.type === 'chapter') {
+          setProgress({ current: evt.index + 1, total: evt.total, title: evt.title });
+        } else if (evt.type === 'assembling') {
+          setProgress((p) => ({ ...(p || {}), assembling: true }));
+        } else if (evt.type === 'chapter_error') {
+          setProgress({ current: evt.index + 1, total: evt.total, title: evt.title });
+        } else if (evt.type === 'done') {
+          setOutput(evt.output);
+          setDone({
+            cached_chapters: evt.cached_chapters || 0,
+            failed_chapters: evt.failed_chapters || [],
+          });
+        } else if (evt.type === 'error') {
+          setError(evt.error || 'synthesis failed');
         }
-      }
+      }, { isAborted: () => abortRef.current });
     } catch (e) {
       setError(e?.message || String(e));
     } finally {
