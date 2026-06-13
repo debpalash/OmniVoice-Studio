@@ -229,7 +229,6 @@ from typing import Optional
 _HEADING_RE = re.compile(r"^[ \t]*#[ \t]+(\S.*)$", re.MULTILINE)
 _VOICE_RE = re.compile(r"\[voice:([^\]\[]*)\]")
 
-
 def parse_script_to_spans(
     text: str | None,
     *,
@@ -252,7 +251,6 @@ def parse_script_to_spans(
       * Chapters with no surviving spans are dropped; untitled bodies are numbered
         `Chapter {kept_so_far + 1}` (post-drop numbering).
     """
-
 
 def _parse_chapter_body(  # the reusable line-body layering the JS adapter mirrors
     body: str,
