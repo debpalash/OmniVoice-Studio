@@ -192,11 +192,17 @@ samp,
 
 /* ═══ LAYOUT ═══ */
 .app-container {
-  /* UI scale is applied as `zoom: var(--ui-scale)`. zoom renders from the
-     top-left, so a 100%-wide box shrinks below 100% at scale <1 (leaving an
-     empty margin) and overflows at >1. Size the box to 1/scale of the viewport
-     so `declared × zoom` always equals the viewport and it fills exactly. */
+  /* UI scale is applied as `transform: scale(var(--ui-scale))` (NOT `zoom`).
+     CSS `zoom` is honoured by Chromium (the macOS/Windows webview) but IGNORED
+     by WebKitGTK (the Linux webview) — there the `/scale` sizing below shrank
+     the shell with no matching magnification, leaving black bands on the right
+     and bottom (cross-platform default-parity P0). `transform: scale` scales
+     identically on every engine and doesn't alter how `vw`/`vh` resolve, so
+     `declared (100vw/scale) × scale` always equals the viewport and fills
+     exactly. transform-origin keeps it anchored to the top-left corner. */
   width: calc(100vw / var(--ui-scale, 1));
+  transform: scale(var(--ui-scale, 1));
+  transform-origin: top left;
   max-width: none;
   display: grid;
   /* [rail 48px] [sidebar 180–220] [main 1fr] */

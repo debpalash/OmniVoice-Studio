@@ -959,7 +959,7 @@ function App() {
         hideSidebar ? 'sidebar-hidden' : '',
         navRailSide === 'right' ? 'rail-right' : '',
       ].filter(Boolean).join(' ')}
-      style={{ zoom: uiScale, '--ui-scale': uiScale }}
+      style={{ '--ui-scale': uiScale }}
     >
       {pendingTrimFile && (
         <ErrorBoundary name="audio-trimmer">
