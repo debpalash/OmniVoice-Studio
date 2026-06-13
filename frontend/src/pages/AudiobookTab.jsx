@@ -7,6 +7,7 @@ import {
 } from '../api/audiobook';
 import { audioUrl } from '../api/generate';
 import { splitSSEBuffer, parseSSELine } from '../utils/sseParse';
+import './AudiobookTab.css';
 
 /**
  * AudiobookTab — turn a chapter-delimited script into a chapterized m4b.
@@ -163,207 +164,179 @@ export default function AudiobookTab({ profiles = [] }) {
   const canRun = text.trim().length > 0 && !busy;
 
   return (
-    <div className="audiobook-tab" style={{ maxWidth: 860, margin: '0 auto', padding: '1.5rem' }}>
-      <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <BookMarked size={20} /> {t('audiobook.title')}
-      </h2>
-      <p className="muted">{t('audiobook.subtitle')}</p>
-
-      <label className="field-label">{t('audiobook.script')}</label>
-      <textarea
-        className="input-base"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder={t('audiobook.script_placeholder')}
-        rows={14}
-        style={{ width: '100%', fontFamily: 'monospace' }}
-        aria-label={t('audiobook.script')}
-      />
-
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '12px 0', flexWrap: 'wrap' }}>
-        <label className="field-label" style={{ margin: 0 }}>{t('audiobook.default_voice')}</label>
-        <select
-          className="input-base"
-          value={defaultVoice}
-          onChange={(e) => setDefaultVoice(e.target.value)}
-          aria-label={t('audiobook.default_voice')}
-        >
-          <option value="">{t('audiobook.engine_default')}</option>
-          {profiles.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-
-        <select
-          className="input-base"
-          value={format}
-          onChange={(e) => setFormat(e.target.value)}
-          aria-label={t('audiobook.format')}
-        >
-          <option value="m4b">{t('audiobook.format_m4b')}</option>
-          <option value="mp3">{t('audiobook.format_mp3')}</option>
-        </select>
-        <select
-          className="input-base"
-          value={loudness}
-          onChange={(e) => setLoudness(e.target.value)}
-          aria-label={t('audiobook.loudness')}
-        >
-          <option value="off">{t('audiobook.loudness_off')}</option>
-          <option value="acx">{t('audiobook.loudness_acx')}</option>
-          <option value="podcast">{t('audiobook.loudness_podcast')}</option>
-        </select>
-
-        <label className="btn" style={{ cursor: busy ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          {importing ? <Loader size={14} className="spin" /> : <Upload size={14} />} {t('audiobook.import')}
-          <input
-            type="file"
-            accept=".txt,.md,.epub"
-            onChange={onImport}
-            disabled={busy}
-            style={{ display: 'none' }}
-          />
-        </label>
-        <button className="btn" onClick={onPreview} disabled={!canRun}>
-          {planLoading ? <Loader size={14} className="spin" /> : null} {t('audiobook.preview_plan')}
-        </button>
-        <button className="btn btn-primary" onClick={onCreate} disabled={!canRun}>
-          {generating ? <Loader size={14} className="spin" /> : null} {t('audiobook.create')}
-        </button>
+    <div className="audiobook-tab">
+      <div className="audiobook-tab__head">
+        <div>
+          <h2 className="audiobook-tab__title">
+            <BookMarked size={20} /> {t('audiobook.title')}
+          </h2>
+          <p className="muted audiobook-tab__sub">{t('audiobook.subtitle')}</p>
+        </div>
+        <div className="audiobook-tab__actions">
+          <label className="btn" style={{ cursor: busy ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {importing ? <Loader size={14} className="spin" /> : <Upload size={14} />} {t('audiobook.import')}
+            <input type="file" accept=".txt,.md,.epub" onChange={onImport} disabled={busy} style={{ display: 'none' }} />
+          </label>
+          <button className="btn" onClick={onPreview} disabled={!canRun}>
+            {planLoading ? <Loader size={14} className="spin" /> : null} {t('audiobook.preview_plan')}
+          </button>
+          <button className="btn btn-primary" onClick={onCreate} disabled={!canRun}>
+            {generating ? <Loader size={14} className="spin" /> : null} {t('audiobook.create')}
+          </button>
+        </div>
       </div>
 
-      <details className="audiobook-meta" style={{ margin: '8px 0 12px' }}>
-        <summary className="field-label" style={{ cursor: 'pointer' }}>
-          {t('audiobook.details')}
-        </summary>
-        <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
-          {/* Cover picker */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label className="field-label" style={{ margin: 0 }}>{t('audiobook.cover')}</label>
-            <div style={{ position: 'relative', width: 120, height: 120 }}>
-              {coverPreview ? (
-                <>
-                  <img
-                    src={coverPreview}
-                    alt={t('audiobook.cover')}
-                    style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 6 }}
-                  />
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={clearCover}
-                    aria-label={t('audiobook.cover_remove')}
-                    style={{ position: 'absolute', top: 4, right: 4, padding: 2 }}
-                  >
-                    <X size={14} />
-                  </button>
-                </>
-              ) : (
-                <label
-                  className="input-base"
-                  style={{
-                    width: 120, height: 120, display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer',
-                  }}
-                >
-                  <ImageIcon size={22} />
-                  <span style={{ fontSize: '0.7rem' }}>{t('audiobook.cover_add')}</span>
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg"
-                    onChange={onCoverPick}
-                    style={{ display: 'none' }}
-                  />
-                </label>
-              )}
+      <div className="audiobook-tab__body">
+        {/* Left: script editor fills the height */}
+        <div className="audiobook-tab__script">
+          <label className="field-label">{t('audiobook.script')}</label>
+          <textarea
+            className="input-base"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={t('audiobook.script_placeholder')}
+            aria-label={t('audiobook.script')}
+          />
+        </div>
+
+        {/* Right: settings + results, scrolls independently */}
+        <div className="audiobook-tab__side">
+          <div className="audiobook-tab__field">
+            <label className="field-label">{t('audiobook.default_voice')}</label>
+            <select className="input-base" value={defaultVoice}
+              onChange={(e) => setDefaultVoice(e.target.value)} aria-label={t('audiobook.default_voice')}>
+              <option value="">{t('audiobook.engine_default')}</option>
+              {profiles.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
+            </select>
+          </div>
+
+          <div className="audiobook-tab__duo">
+            <div className="audiobook-tab__field">
+              <label className="field-label">{t('audiobook.format')}</label>
+              <select className="input-base" value={format}
+                onChange={(e) => setFormat(e.target.value)} aria-label={t('audiobook.format')}>
+                <option value="m4b">{t('audiobook.format_m4b')}</option>
+                <option value="mp3">{t('audiobook.format_mp3')}</option>
+              </select>
+            </div>
+            <div className="audiobook-tab__field">
+              <label className="field-label">{t('audiobook.loudness')}</label>
+              <select className="input-base" value={loudness}
+                onChange={(e) => setLoudness(e.target.value)} aria-label={t('audiobook.loudness')}>
+                <option value="off">{t('audiobook.loudness_off')}</option>
+                <option value="acx">{t('audiobook.loudness_acx')}</option>
+                <option value="podcast">{t('audiobook.loudness_podcast')}</option>
+              </select>
             </div>
           </div>
-          {/* Metadata fields */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, flex: 1, minWidth: 280 }}>
-            <input className="input-base" placeholder={t('audiobook.meta_title')}
-              value={meta.title} onChange={setMetaField('title')} aria-label={t('audiobook.meta_title')} />
-            <input className="input-base" placeholder={t('audiobook.meta_author')}
-              value={meta.author} onChange={setMetaField('author')} aria-label={t('audiobook.meta_author')} />
-            <input className="input-base" placeholder={t('audiobook.meta_narrator')}
-              value={meta.narrator} onChange={setMetaField('narrator')} aria-label={t('audiobook.meta_narrator')} />
-            <input className="input-base" placeholder={t('audiobook.meta_year')}
-              value={meta.year} onChange={setMetaField('year')} aria-label={t('audiobook.meta_year')} />
-            <input className="input-base" placeholder={t('audiobook.meta_genre')}
-              value={meta.genre} onChange={setMetaField('genre')} aria-label={t('audiobook.meta_genre')} />
-            <input className="input-base" placeholder={t('audiobook.meta_description')}
-              value={meta.description} onChange={setMetaField('description')} aria-label={t('audiobook.meta_description')}
-              style={{ gridColumn: '1 / -1' }} />
-          </div>
-        </div>
-      </details>
 
-      {error && <div className="error-banner" role="alert">{error}</div>}
-
-      {generating && progress && (
-        <div className="audiobook-progress" role="status" aria-live="polite">
-          {progress.assembling
-            ? t('audiobook.assembling')
-            : t('audiobook.synthesizing', {
-                current: progress.current, total: progress.total,
-                title: progress.title || '',
-              })}
-        </div>
-      )}
-
-      {output && (
-        <div className="audiobook-done" style={{ margin: '16px 0' }}>
-          <div style={{ marginBottom: 8 }}>✅ {t('audiobook.ready')}</div>
-          {done && done.failed_chapters.length > 0 && (
-            <div className="muted" style={{ marginBottom: 8 }}>
-              {t('audiobook.failed_note', { count: done.failed_chapters.length })}
-            </div>
-          )}
-          {done && done.cached_chapters > 0 && (
-            <div className="muted" style={{ marginBottom: 8 }}>
-              {t('audiobook.cached_note', { count: done.cached_chapters })}
-            </div>
-          )}
-          <audio controls src={audioUrl(output)} style={{ width: '100%' }} />
-          <div style={{ marginTop: 8 }}>
-            <a className="btn" href={audioUrl(output)} download={output}>
-              <Download size={14} /> {t('audiobook.download')}
-            </a>
-          </div>
-        </div>
-      )}
-
-      {plan && (
-        <div className="audiobook-plan" style={{ marginTop: 16 }}>
-          <h3>{t('audiobook.plan_heading', { count: plan.chapter_count })}</h3>
-          <ol>
-            {plan.chapters.map((c, i) => {
-              const prev = chapterPrev[i] || {};
-              return (
-                <li key={i} style={{ marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <button
-                      className="btn"
-                      onClick={() => onPreviewChapter(i)}
-                      disabled={prev.loading || busy}
-                      aria-label={t('audiobook.preview_chapter', { title: c.title })}
-                      style={{ padding: '2px 6px' }}
-                    >
-                      {prev.loading ? <Loader size={12} className="spin" /> : <Play size={12} />}
+          {/* Cover + metadata */}
+          <div className="audiobook-tab__field">
+            <label className="field-label">{t('audiobook.details')}</label>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <div style={{ position: 'relative', width: 96, height: 96, flexShrink: 0 }}>
+                {coverPreview ? (
+                  <>
+                    <img src={coverPreview} alt={t('audiobook.cover')}
+                      style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 6 }} />
+                    <button type="button" className="btn" onClick={clearCover}
+                      aria-label={t('audiobook.cover_remove')}
+                      style={{ position: 'absolute', top: 4, right: 4, padding: 2 }}>
+                      <X size={14} />
                     </button>
-                    <strong>{c.title}</strong>{' '}
-                    <span className="muted">
-                      {t('audiobook.chapter_meta', { spans: c.spans.length, chars: c.char_count })}
-                    </span>
-                  </div>
-                  {prev.url && (
-                    <audio controls src={prev.url} style={{ width: '100%', marginTop: 4 }} />
-                  )}
-                </li>
-              );
-            })}
-          </ol>
+                  </>
+                ) : (
+                  <label className="input-base" style={{
+                    width: 96, height: 96, display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer',
+                  }}>
+                    <ImageIcon size={20} />
+                    <span style={{ fontSize: '0.65rem' }}>{t('audiobook.cover_add')}</span>
+                    <input type="file" accept="image/png,image/jpeg" onChange={onCoverPick} style={{ display: 'none' }} />
+                  </label>
+                )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, flex: 1, minWidth: 0 }}>
+                <input className="input-base" placeholder={t('audiobook.meta_title')}
+                  value={meta.title} onChange={setMetaField('title')} aria-label={t('audiobook.meta_title')} />
+                <input className="input-base" placeholder={t('audiobook.meta_author')}
+                  value={meta.author} onChange={setMetaField('author')} aria-label={t('audiobook.meta_author')} />
+                <input className="input-base" placeholder={t('audiobook.meta_narrator')}
+                  value={meta.narrator} onChange={setMetaField('narrator')} aria-label={t('audiobook.meta_narrator')} />
+                <input className="input-base" placeholder={t('audiobook.meta_year')}
+                  value={meta.year} onChange={setMetaField('year')} aria-label={t('audiobook.meta_year')} />
+                <input className="input-base" placeholder={t('audiobook.meta_genre')}
+                  value={meta.genre} onChange={setMetaField('genre')} aria-label={t('audiobook.meta_genre')} />
+                <input className="input-base" placeholder={t('audiobook.meta_description')}
+                  value={meta.description} onChange={setMetaField('description')}
+                  aria-label={t('audiobook.meta_description')} style={{ gridColumn: '1 / -1' }} />
+              </div>
+            </div>
+          </div>
+
+          {error && <div className="error-banner" role="alert">{error}</div>}
+
+          {generating && progress && (
+            <div className="audiobook-progress" role="status" aria-live="polite">
+              {progress.assembling
+                ? t('audiobook.assembling')
+                : t('audiobook.synthesizing', {
+                    current: progress.current, total: progress.total, title: progress.title || '',
+                  })}
+            </div>
+          )}
+
+          {output && (
+            <div className="audiobook-done">
+              <div style={{ marginBottom: 8 }}>✅ {t('audiobook.ready')}</div>
+              {done && done.failed_chapters.length > 0 && (
+                <div className="muted" style={{ marginBottom: 8 }}>
+                  {t('audiobook.failed_note', { count: done.failed_chapters.length })}
+                </div>
+              )}
+              {done && done.cached_chapters > 0 && (
+                <div className="muted" style={{ marginBottom: 8 }}>
+                  {t('audiobook.cached_note', { count: done.cached_chapters })}
+                </div>
+              )}
+              <audio controls src={audioUrl(output)} style={{ width: '100%' }} />
+              <div style={{ marginTop: 8 }}>
+                <a className="btn" href={audioUrl(output)} download={output}>
+                  <Download size={14} /> {t('audiobook.download')}
+                </a>
+              </div>
+            </div>
+          )}
+
+          {plan && (
+            <div className="audiobook-plan">
+              <h3>{t('audiobook.plan_heading', { count: plan.chapter_count })}</h3>
+              <ol style={{ paddingLeft: 18, margin: 0 }}>
+                {plan.chapters.map((c, i) => {
+                  const prev = chapterPrev[i] || {};
+                  return (
+                    <li key={i} style={{ marginBottom: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <button className="btn" onClick={() => onPreviewChapter(i)}
+                          disabled={prev.loading || busy}
+                          aria-label={t('audiobook.preview_chapter', { title: c.title })}
+                          style={{ padding: '2px 6px' }}>
+                          {prev.loading ? <Loader size={12} className="spin" /> : <Play size={12} />}
+                        </button>
+                        <strong>{c.title}</strong>{' '}
+                        <span className="muted">
+                          {t('audiobook.chapter_meta', { spans: c.spans.length, chars: c.char_count })}
+                        </span>
+                      </div>
+                      {prev.url && (<audio controls src={prev.url} style={{ width: '100%', marginTop: 4 }} />)}
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

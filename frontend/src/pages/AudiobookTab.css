@@ -1,0 +1,82 @@
+/* Audiobook tab — full-bleed, full-height layout (matches the other studio
+   tabs). A two-pane body: the script editor fills the left + grows to the
+   window height; settings + results scroll on the right. Collapses to a single
+   column on narrow widths. */
+.audiobook-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 1.25rem 1.5rem;
+  gap: 12px;
+}
+
+.audiobook-tab__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.audiobook-tab__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.audiobook-tab__sub { margin: 2px 0 0; }
+.audiobook-tab__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Body fills the remaining height; min-height:0 lets the textarea shrink. */
+.audiobook-tab__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  gap: 16px;
+}
+
+.audiobook-tab__script {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 6px;
+}
+.audiobook-tab__script textarea {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  resize: none;
+  font-family: var(--font-mono, monospace);
+}
+
+.audiobook-tab__side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.audiobook-tab__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.audiobook-tab__field select { width: 100%; }
+.audiobook-tab__duo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .audiobook-tab__body { grid-template-columns: 1fr; }
+  .audiobook-tab__side { overflow: visible; }
+  .audiobook-tab__script textarea { min-height: 240px; }
+}

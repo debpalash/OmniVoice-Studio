@@ -462,8 +462,9 @@
 
 /* ── Redesign: grouped toolbar, chapter bars, readable column ──────── */
 
-/* Center the editor at a comfortable reading width (header + script align). */
-.stories-editor { max-width: 1040px; margin-inline: auto; }
+/* Full-bleed like the other studio tabs — fill the content area edge to edge
+   instead of a centered column. */
+.stories-editor { width: 100%; }
 
 /* Toolbar: logical clusters (project · content · output) with thin dividers. */
 .stories-editor__actions { flex-wrap: wrap; }
