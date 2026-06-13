@@ -185,6 +185,25 @@ def loaded_models():
             "unloadable": True,
         })
 
+    # 4. Subprocess engine sidecars (IndexTTS/CosyVoice/etc.) — each holds a
+    #    process and, on GPU, VRAM, until idle-reaped. Surface them as
+    #    unloadable rows so a multi-engine user can free VRAM on demand instead
+    #    of waiting for the idle reaper. VRAM isn't measurable from the parent
+    #    process, so it's reported as 0 with a sidecar-tagged name.
+    try:
+        from services.subprocess_backend import list_live_sidecars
+        for s in list_live_sidecars():
+            models.append({
+                "id": f"sidecar:{s['id']}",
+                "name": f"{s['id']} (sidecar)",
+                "checkpoint": s["id"],
+                "device": get_best_device(),
+                "vram_mb": 0,
+                "unloadable": True,
+            })
+    except Exception:
+        pass  # never let sidecar enumeration break the loaded-models panel
+
     return {"models": models, "count": len(models)}
 
 
@@ -192,6 +211,17 @@ def loaded_models():
 async def unload_model(model_id: str):
     """Unload a specific model by ID."""
     import services.model_manager as mm
+
+    # Subprocess engine sidecars: ``sidecar:<engine_id>`` frees one, ``sidecars``
+    # frees them all. Busy sidecars (mid-synth) are skipped, not interrupted.
+    if model_id == "sidecars" or model_id.startswith("sidecar:"):
+        from services.subprocess_backend import unload_all_sidecars, unload_sidecar
+        if model_id == "sidecars":
+            n = unload_all_sidecars()
+        else:
+            n = unload_sidecar(model_id.split(":", 1)[1])
+        return {"unloaded": model_id, "success": n > 0, "count": n,
+                **({} if n > 0 else {"reason": "not running or busy"})}
 
     if model_id == "tts":
         async with mm._model_lock:

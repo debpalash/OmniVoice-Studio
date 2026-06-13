@@ -148,6 +148,65 @@ def reap_idle_sidecars(timeout_s: float | None = None) -> int:
     return reaped
 
 
+def _force_reap(predicate) -> int:
+    """Shut down every live sidecar matching ``predicate`` *now*, ignoring idle
+    time. Returns the count shut down. Busy-guarded exactly like the idle
+    reaper — a sidecar mid-op (lock held) is skipped, never interrupted; the
+    next request transparently respawns whatever was shut down. This backs the
+    user-initiated "free engine VRAM now" path (parity Action 13), distinct
+    from the time-based auto-reaper."""
+    reaped = 0
+    for b in list(_LIVE_BACKENDS):
+        proc = getattr(b, "_proc", None)
+        if proc is None or proc.poll() is not None:
+            continue  # no live sidecar
+        if not predicate(b):
+            continue
+        if not b._lock.acquire(blocking=False):
+            continue  # an op holds the lock → busy; skip (caller may retry)
+        try:
+            proc = b._proc
+            if proc is not None and proc.poll() is None:
+                logger.info(
+                    "[%s] manual sidecar unload (freeing process/VRAM on "
+                    "request); next request respawns it", b.id,
+                )
+                b.shutdown()  # shutdown() does not take _lock, so no re-entrancy
+                reaped += 1
+        finally:
+            b._lock.release()
+    return reaped
+
+
+def list_live_sidecars() -> list[dict]:
+    """Snapshot of subprocess engines with a currently-running sidecar, for the
+    loaded-models panel. Each entry: ``{id, pid, idle_seconds}``. Lets a user
+    see (and free) sidecar VRAM the same way they unload the in-process TTS
+    model."""
+    out: list[dict] = []
+    for b in list(_LIVE_BACKENDS):
+        proc = getattr(b, "_proc", None)
+        if proc is None or proc.poll() is not None:
+            continue
+        out.append({
+            "id": b.id,
+            "pid": proc.pid,
+            "idle_seconds": round(b.idle_seconds(), 1),
+        })
+    return out
+
+
+def unload_sidecar(engine_id: str) -> int:
+    """Force-shut a specific engine's sidecar now (busy-guarded). Returns the
+    number shut down (0 if it wasn't running or was busy)."""
+    return _force_reap(lambda b: b.id == engine_id)
+
+
+def unload_all_sidecars() -> int:
+    """Force-shut every live sidecar now (busy-guarded). Returns the count."""
+    return _force_reap(lambda b: True)
+
+
 def _reaper_loop() -> None:
     while True:
         time.sleep(_REAPER_INTERVAL_S)
@@ -588,4 +647,7 @@ __all__ = [
     "SIDECAR_INBOUND_OPS",
     "SIDECAR_IDLE_TIMEOUT_S",
     "reap_idle_sidecars",
+    "list_live_sidecars",
+    "unload_sidecar",
+    "unload_all_sidecars",
 ]

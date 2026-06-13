@@ -15,7 +15,13 @@ from pathlib import Path
 
 import pytest
 
-from services.subprocess_backend import SubprocessBackend, reap_idle_sidecars
+from services.subprocess_backend import (
+    SubprocessBackend,
+    list_live_sidecars,
+    reap_idle_sidecars,
+    unload_all_sidecars,
+    unload_sidecar,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ECHO_SCRIPT = REPO_ROOT / "backend" / "engines" / "_echo" / "main.py"
@@ -120,3 +126,47 @@ def test_idle_seconds_tracks_activity(echo):
     assert echo.idle_seconds() >= 5.0
     echo._touch()
     assert echo.idle_seconds() < 1.0
+
+
+# ── On-demand manual unload (parity Action 13, "free VRAM now") ──────────────
+
+def test_list_live_sidecars_reports_running(echo):
+    _spawn_alive(echo)
+    entry = next((s for s in list_live_sidecars() if s["id"] == echo.id), None)
+    assert entry is not None
+    assert entry["pid"] == echo._proc.pid
+    assert entry["idle_seconds"] >= 0
+
+
+def test_unload_sidecar_force_kills_regardless_of_idle(echo):
+    _spawn_alive(echo)
+    pid = echo._proc.pid
+    echo._touch()  # freshly used — the idle reaper would leave it alone…
+    assert unload_sidecar(echo.id) == 1  # …but a manual unload frees it now
+    assert echo._proc is None or echo._proc.poll() is not None
+    # Respawns transparently on the next op.
+    ok, _ = echo.health_check()
+    assert ok and echo._proc.pid != pid
+
+
+def test_unload_sidecar_skips_busy(echo):
+    _spawn_alive(echo)
+    acquired = echo._lock.acquire(blocking=False)
+    assert acquired
+    try:
+        assert unload_sidecar(echo.id) == 0  # busy → skipped, not interrupted
+        assert echo._proc is not None and echo._proc.poll() is None
+    finally:
+        echo._lock.release()
+
+
+def test_unload_all_sidecars_includes_this_one(echo):
+    _spawn_alive(echo)
+    assert unload_all_sidecars() >= 1
+    assert echo._proc is None or echo._proc.poll() is not None
+
+
+def test_unload_unknown_sidecar_is_noop(echo):
+    _spawn_alive(echo)
+    assert unload_sidecar("does-not-exist") == 0
+    assert echo._proc is not None and echo._proc.poll() is None  # untouched
