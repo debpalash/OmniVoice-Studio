@@ -642,32 +642,24 @@ def _chapters_done(job_id: str) -> int:
 
 @router.get("/audiobook/jobs")
 def list_resumable_jobs() -> dict:
-    """List interrupted longform renders that can be resumed — a running/failed
-    audiobook or story job that still has a resume manifest on disk. (A job left
-    'running' across an app restart is, by definition, interrupted — nothing
-    survives the process.) The UI offers these for one-click resume."""
+    """List interrupted longform renders that can be resumed — a work dir that
+    still holds a resume manifest (a job left mid-render by a crash/quit). The
+    ids come from scanning the filesystem, so the UI can offer one-click resume."""
     from core import job_store
 
     out = []
-    seen = set()
-    for status in ("running", "failed"):
-        for job in job_store.list_jobs(status=status, limit=100):
-            jid, jtype = job.get("id"), job.get("type")
-            if jtype not in longform_resume.RESUMABLE_TYPES or jid in seen:
-                continue
-            if not longform_resume.has_manifest(jtype, jid):
-                continue
-            seen.add(jid)
-            manifest = longform_resume.read_manifest(jtype, jid) or {}
-            out.append({
-                "job_id": jid,
-                "type": jtype,
-                "status": status,
-                "title": manifest.get("title", ""),
-                "total_chapters": manifest.get("total_chapters", 0),
-                "chapters_done": _chapters_done(jid),
-                "created_at": job.get("created_at"),
-            })
+    for jtype, jid in longform_resume.scan_resumable():
+        manifest = longform_resume.read_manifest(jtype, jid) or {}
+        job = job_store.get(jid) or {}
+        out.append({
+            "job_id": jid,
+            "type": jtype,
+            "status": job.get("status", "interrupted"),
+            "title": manifest.get("title", ""),
+            "total_chapters": manifest.get("total_chapters", 0),
+            "chapters_done": _chapters_done(jid),
+            "created_at": job.get("created_at"),
+        })
     return {"jobs": out}
 
 
@@ -677,25 +669,20 @@ async def resume_longform(job_id: str):
     already-rendered chapters are content-addressed in the shared cache, so they
     return instantly — only the unrendered chapters synthesize again. Streams the
     same SSE event shape as the original render, under the original job_id."""
-    from core import job_store
     from services.audiobook import AudiobookPlan, Chapter, Span
 
-    # job_id is a request-supplied path param — reject anything that isn't the
-    # server-generated safe-token shape before it ever reaches a filesystem path
-    # (py/path-injection; longform_resume also confines, this is the source gate).
-    if not longform_resume._SAFE_ID_RE.match(job_id or ""):
+    # Launder the request-supplied job_id through the trusted filesystem scan:
+    # we only resume an id that scan_resumable() (sourced from os.listdir, never
+    # request input) actually reports. The (job_type, job_id) used from here on
+    # come from that trusted list, so nothing request-controlled reaches a
+    # filesystem path (CodeQL py/path-injection-safe).
+    match = next((pair for pair in longform_resume.scan_resumable()
+                  if pair[1] == job_id), None)
+    if match is None:
         raise HTTPException(status_code=404, detail="No resumable job for that id")
+    job_type, safe_job_id = match
 
-    job = job_store.get(job_id)
-    job_type = (job or {}).get("type")
-    # Fall back to scanning both work-dir prefixes if the job row is gone.
-    if job_type not in longform_resume.RESUMABLE_TYPES:
-        job_type = next((t for t in longform_resume.RESUMABLE_TYPES
-                         if longform_resume.has_manifest(t, job_id)), None)
-    if not job_type:
-        raise HTTPException(status_code=404, detail="No resumable job for that id")
-
-    manifest = longform_resume.read_manifest(job_type, job_id)
+    manifest = longform_resume.read_manifest(job_type, safe_job_id)
     if not manifest:
         raise HTTPException(status_code=404, detail="No resume manifest for that job")
 
@@ -712,7 +699,7 @@ async def resume_longform(job_id: str):
             fmt=p.get("fmt", "m4b"), bitrate=p.get("bitrate", "128k"),
             loudness=p.get("loudness"), cover_path=p.get("cover_path"),
             metadata=p.get("metadata"), lexicon=p.get("lexicon"),
-            job_type=job_type, job_id=job_id, resume=True,
+            job_type=job_type, job_id=safe_job_id, resume=True,
         ),
         media_type="text/event-stream",
     )

@@ -129,3 +129,27 @@ def clear_manifest(job_type: str, job_id: str) -> None:
 def has_manifest(job_type: str, job_id: str) -> bool:
     path = manifest_path(job_type, job_id)
     return bool(path) and os.path.isfile(path)
+
+
+def scan_resumable() -> list[tuple[str, str]]:
+    """Enumerate resumable jobs by scanning OUTPUTS_DIR for ``<type>_<id>``
+    work dirs that hold a ``resume.json``. Returns ``[(job_type, job_id), …]``
+    where every id is sourced from ``os.listdir`` (the trusted filesystem) — NOT
+    from any request input. Callers resume only an id present in this list, so a
+    request-supplied id is laundered through a trusted membership check before it
+    can reach a filesystem path (CodeQL py/path-injection-safe)."""
+    from core.config import OUTPUTS_DIR
+    out: list[tuple[str, str]] = []
+    try:
+        root = os.path.realpath(OUTPUTS_DIR)
+        names = os.listdir(root)
+    except OSError:
+        return out
+    for name in names:
+        for jt in RESUMABLE_TYPES:
+            prefix = f"{jt}_"
+            if name.startswith(prefix) and os.path.isfile(
+                os.path.join(root, name, _MANIFEST_NAME)
+            ):
+                out.append((jt, name[len(prefix):]))
+    return out
