@@ -648,12 +648,13 @@ def list_resumable_jobs() -> dict:
     from core import job_store
 
     out = []
-    for jtype, jid in longform_resume.scan_resumable():
-        manifest = longform_resume.read_manifest(jtype, jid) or {}
+    for e in longform_resume.scan_resumable():
+        jid = e["job_id"]
+        manifest = longform_resume.load_manifest_file(e["manifest_path"]) or {}
         job = job_store.get(jid) or {}
         out.append({
             "job_id": jid,
-            "type": jtype,
+            "type": e["job_type"],
             "status": job.get("status", "interrupted"),
             "title": manifest.get("title", ""),
             "total_chapters": manifest.get("total_chapters", 0),
@@ -671,21 +672,16 @@ async def resume_longform(job_id: str):
     same SSE event shape as the original render, under the original job_id."""
     from services.audiobook import AudiobookPlan, Chapter, Span
 
-    # Launder the request-supplied job_id through the trusted filesystem scan:
-    # we only resume an id that scan_resumable() (sourced from os.listdir, never
-    # request input) actually reports. The (job_type, job_id) used from here on
-    # come from that trusted list, so nothing request-controlled reaches a
-    # filesystem path (CodeQL py/path-injection-safe).
-    # Allow-list guard: the set of resumable ids comes from the trusted
-    # filesystem scan (os.listdir, never request input). The `not in <set>`
-    # membership check is the barrier CodeQL's path-injection query recognizes —
-    # after it, job_id is a known-safe value usable downstream without retainting.
-    resumable = {jid: jt for jt, jid in longform_resume.scan_resumable()}
-    if job_id not in resumable:
+    # Find the requested job among the trusted filesystem scan (every path there
+    # is os.listdir-sourced, never request input) and read its manifest via the
+    # scan's own trusted path — the request job_id is used ONLY to *select* an
+    # entry, never to build a path. No request-controlled value reaches a file
+    # operation (CodeQL py/path-injection-safe).
+    entry = next((e for e in longform_resume.scan_resumable()
+                  if e["job_id"] == job_id), None)
+    if entry is None:
         raise HTTPException(status_code=404, detail="No resumable job for that id")
-    job_type = resumable[job_id]
-
-    manifest = longform_resume.read_manifest(job_type, job_id)
+    manifest = longform_resume.load_manifest_file(entry["manifest_path"])
     if not manifest:
         raise HTTPException(status_code=404, detail="No resume manifest for that job")
 
@@ -696,13 +692,21 @@ async def resume_longform(job_id: str):
     ]
     plan = AudiobookPlan(chapters=chapters)
     p = manifest.get("params", {})
+    # Retire the interrupted job's manifest (trusted scan path) so it stops
+    # showing as resumable once we've kicked off the fresh-id resume.
+    longform_resume.discard_manifest_file(entry["manifest_path"])
+    # Resume under a FRESH job id (job_id=None → a server uuid in the renderer).
+    # The chapter cache is content-addressed (keyed by chapter content, not the
+    # job id), so the already-rendered chapters still hit instantly — only the
+    # unrendered ones synthesize. Using a fresh id means the request's job_id
+    # never names a work dir / output file (defence-in-depth path-injection).
     return StreamingResponse(
         _render_longform_sse(
             plan, default_voice=p.get("default_voice"),
             fmt=p.get("fmt", "m4b"), bitrate=p.get("bitrate", "128k"),
             loudness=p.get("loudness"), cover_path=p.get("cover_path"),
             metadata=p.get("metadata"), lexicon=p.get("lexicon"),
-            job_type=job_type, job_id=job_id, resume=True,
+            job_type=entry["job_type"],
         ),
         media_type="text/event-stream",
     )

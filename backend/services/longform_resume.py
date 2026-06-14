@@ -142,15 +142,18 @@ def has_manifest(job_type: str, job_id: str) -> bool:
     return bool(path) and os.path.isfile(path)
 
 
-def scan_resumable() -> list[tuple[str, str]]:
-    """Enumerate resumable jobs by scanning OUTPUTS_DIR for ``<type>_<id>``
-    work dirs that hold a ``resume.json``. Returns ``[(job_type, job_id), …]``
-    where every id is sourced from ``os.listdir`` (the trusted filesystem) — NOT
-    from any request input. Callers resume only an id present in this list, so a
-    request-supplied id is laundered through a trusted membership check before it
-    can reach a filesystem path (CodeQL py/path-injection-safe)."""
+def scan_resumable() -> list[dict]:
+    """Enumerate resumable jobs by scanning OUTPUTS_DIR for ``<type>_<id>`` work
+    dirs that hold a ``resume.json``.
+
+    Returns ``[{"job_type", "job_id", "manifest_path"}, …]`` where **every path
+    component is sourced from os.listdir** (the trusted filesystem), never from
+    request input. The ``manifest_path`` is built here from the listed dir name,
+    so callers can read it directly without re-deriving a path from a
+    request-supplied id (CodeQL py/path-injection-safe — no tainted value ever
+    reaches a file operation)."""
     from core.config import OUTPUTS_DIR
-    out: list[tuple[str, str]] = []
+    out: list[dict] = []
     try:
         root = os.path.realpath(OUTPUTS_DIR)
         names = os.listdir(root)
@@ -159,8 +162,34 @@ def scan_resumable() -> list[tuple[str, str]]:
     for name in names:
         for jt in RESUMABLE_TYPES:
             prefix = f"{jt}_"
-            if name.startswith(prefix) and os.path.isfile(
-                os.path.join(root, name, _MANIFEST_NAME)
-            ):
-                out.append((jt, name[len(prefix):]))
+            mpath = os.path.join(root, name, _MANIFEST_NAME)
+            if name.startswith(prefix) and os.path.isfile(mpath):
+                out.append({"job_type": jt, "job_id": name[len(prefix):],
+                            "manifest_path": mpath})
     return out
+
+
+def discard_manifest_file(path: str) -> None:
+    """Remove a manifest by a path obtained via :func:`scan_resumable` (trusted,
+    os.listdir-derived). Best-effort — used to retire an interrupted job once
+    it's been resumed under a fresh id."""
+    try:
+        os.remove(path)
+    except OSError:
+        return
+
+
+def load_manifest_file(path: str) -> Optional[dict]:
+    """Read + validate a manifest from a path obtained via :func:`scan_resumable`
+    (a trusted, os.listdir-derived path — NOT a request-derived one). Returns
+    None on missing/unreadable/foreign-shape."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or data.get("version") != MANIFEST_VERSION:
+        return None
+    if not isinstance(data.get("plan"), list):
+        return None
+    return data
