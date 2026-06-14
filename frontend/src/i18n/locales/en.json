@@ -77,6 +77,8 @@
     "removeLine": "Remove line",
     "tune": "Tone & speed",
     "speed": "Speed",
+    "global_speed": "Speed",
+    "global_speed_hint": "Reading speed for all lines without their own speed override",
     "reset": "Reset",
     "tones": {
       "laugh": "Laugh",

@@ -126,6 +126,25 @@ describe('storyToSpans', () => {
     expect(storyToSpans(tracks, CAST)[0].spans[0].speed).toBeNull();
   });
 
+  // ── #415 global speed ──
+
+  it('applies a global speed to lines without a per-track override', () => {
+    const tracks = [
+      { character: 'narrator', text: 'one' },                 // no per-track speed
+      { character: 'narrator', text: 'two', speed: 1.5 },     // per-track override
+    ];
+    const spans = storyToSpans(tracks, CAST, 0.8)[0].spans;
+    expect(spans.find((s) => s.text === 'one').speed).toBe(0.8);   // inherits global
+    expect(spans.find((s) => s.text === 'two').speed).toBe(1.5);   // override wins
+  });
+
+  it('treats global speed 1.0× (and null) as no override', () => {
+    const tracks = [{ character: 'narrator', text: 'hi' }];
+    expect(storyToSpans(tracks, CAST, 1)[0].spans[0].speed).toBeNull();
+    expect(storyToSpans(tracks, CAST, null)[0].spans[0].speed).toBeNull();
+    expect(storyToSpans(tracks, CAST)[0].spans[0].speed).toBeNull(); // default arg
+  });
+
   it('[voice:] reverts to the resolved cast voice, not null', () => {
     const tracks = [{ character: 'c_fox', text: 'hi [voice:p_bob] there [voice:] back' }];
     const spans = storyToSpans(tracks, CAST)[0].spans;

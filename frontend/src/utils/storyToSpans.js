@@ -18,12 +18,19 @@ import { parseChapterBody } from './longformParser';
  *    (cross-track fold) — but a mid-track silent span (from `[voice:x][pause]`)
  *    is kept, matching the server's single-blob behavior.
  *
+ * ``globalSpeed`` (#415) is one reading speed applied to every track that has no
+ * per-track speed of its own — a per-track slider still overrides it. Pass null
+ * (or 1.0×, the engine default) to leave every track at the engine default.
+ *
  * @returns Array<{ title, spans: [{ voice_id, text, pause_ms_after, speed }] }>
  */
-export function storyToSpans(tracks, cast) {
+export function storyToSpans(tracks, cast, globalSpeed = null) {
   const chapters = [];
   let cur = { title: '', spans: [] };
   const flush = () => { if (cur.spans.length) chapters.push(cur); };
+  // 1.0× is the engine default → treat it as "no global override" so we don't
+  // stamp an explicit speed on every span when the control is at rest.
+  const gspeed = (globalSpeed && globalSpeed !== 1) ? globalSpeed : null;
 
   for (const tk of tracks || []) {
     const text = tk.text || '';
@@ -33,7 +40,9 @@ export function storyToSpans(tracks, cast) {
       continue;
     }
     const voiceId = effectiveProfile(tk, cast) || null;
-    const speed = tk.speed || null;  // falsy 0 → null (engine default), per spec
+    // Per-track speed wins; otherwise the global speed; else engine default.
+    // (falsy 0 → fall through to global/null, per the #27 zero-is-default rule.)
+    const speed = tk.speed || gspeed || null;
     const spans = parseChapterBody(text, { defaultVoice: voiceId, defaultSpeed: speed });
     spans.forEach((s, i) => {
       const prev = cur.spans[cur.spans.length - 1];

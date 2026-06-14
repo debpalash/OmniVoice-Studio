@@ -150,6 +150,19 @@ export default function StoriesEditor({ profiles = [] }) {
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [projectName, setProjectName] = useState('');
   const [exportFormat, setExportFormat] = useState('m4b');
+  // Global reading speed (#415): one speed for every line without its own
+  // per-track override. UI preference → persisted in localStorage (survives
+  // restarts; not part of the project state, so no slice migration).
+  const [globalSpeed, setGlobalSpeedState] = useState(() => {
+    try {
+      const v = parseFloat(localStorage.getItem('ov_stories_global_speed'));
+      return Number.isFinite(v) && v >= 0.5 && v <= 2 ? v : 1;
+    } catch { return 1; }
+  });
+  const setGlobalSpeed = useCallback((v) => {
+    setGlobalSpeedState(v);
+    try { localStorage.setItem('ov_stories_global_speed', String(v)); } catch { /* noop */ }
+  }, []);
   const trackTextRefs = useRef(new Map());
   const fileInputRef = useRef(null);
   const dragId = useRef(null);
@@ -360,7 +373,7 @@ export default function StoriesEditor({ profiles = [] }) {
   const generateAll = useCallback(async () => {
     const usable = tracks.filter((tk) => (tk.text || '').trim());
     if (!usable.length || exporting) return;
-    const chapters = storyToSpans(usable, cast);
+    const chapters = storyToSpans(usable, cast, globalSpeed);
     if (!chapters.length) { toast.error(t('stories.exportFailed')); return; }
     setExporting(true);
     setExportPct(0);
@@ -389,7 +402,7 @@ export default function StoriesEditor({ profiles = [] }) {
     } finally {
       setExporting(false);
     }
-  }, [tracks, cast, exporting, exportFormat, t]);
+  }, [tracks, cast, exporting, exportFormat, globalSpeed, t]);
 
   const exportStemsAll = useCallback(async () => {
     const usable = tracks.filter((tk) => (tk.text || '').trim());
@@ -460,6 +473,25 @@ export default function StoriesEditor({ profiles = [] }) {
             <Button size="sm" variant="ghost" onClick={addChapter} aria-label={t('stories.addChapter')}>
               <Bookmark size={13} /> {t('stories.addChapter')}
             </Button>
+          </div>
+
+          <span className="stories-editor__divider" aria-hidden="true" />
+
+          {/* Global reading speed (#415) — one speed for every line that has no
+              per-line override. */}
+          <div className="stories-editor__group">
+            <label className="stories-editor__speed" title={t('stories.global_speed_hint', { defaultValue: 'Reading speed for all lines without their own speed override' })}>
+              <span>{t('stories.global_speed', { defaultValue: 'Speed' })}</span>
+              <input
+                type="range" min="0.5" max="2" step="0.05" value={globalSpeed}
+                onChange={(e) => setGlobalSpeed(parseFloat(e.target.value))}
+                aria-label={t('stories.global_speed', { defaultValue: 'Global reading speed' })}
+              />
+              <span className="stories-editor__speed-val">{globalSpeed.toFixed(2)}×</span>
+              {globalSpeed !== 1 && (
+                <button type="button" className="stories-track__reset" onClick={() => setGlobalSpeed(1)}>{t('stories.reset')}</button>
+              )}
+            </label>
           </div>
 
           <span className="stories-editor__divider" aria-hidden="true" />
