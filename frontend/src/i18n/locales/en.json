@@ -1713,6 +1713,17 @@
     "routingFallback": "Running on CPU — this engine has no GPU path on your machine, so generation will be slower. {{reason}}",
     "routingCaveat": "Using the GPU, but: {{reason}}"
   },
+  "voiceSelector": {
+    "engineDefault": "Engine default",
+    "clone": "Cloned voices",
+    "designed": "Designed voices",
+    "presets": "Presets",
+    "fromVideo": "From video",
+    "missingVoice": "Voice not found (re-pick)",
+    "preview": "Preview voice",
+    "openGallery": "Open in Voice Gallery",
+    "createVoice": "Create a new voice"
+  },
   "sharing": {
     "title": "Sharing & Remote Access",
     "help": "Expose this running OmniVoice instance to your other machines without restarting it. Loopback-only is the default — nothing is shared until you turn it on here.",

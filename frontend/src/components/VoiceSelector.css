@@ -1,0 +1,45 @@
+/* Shared voice picker (#22): the SearchableSelect grows to fill, adornment
+   buttons sit to its right. */
+.voice-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.voice-selector > .ss-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.voice-selector__adornments {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+.voice-selector__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--chrome-border, rgba(255, 255, 255, 0.12));
+  border-radius: 6px;
+  background: transparent;
+  color: var(--chrome-fg-muted, #999);
+  cursor: pointer;
+}
+.voice-selector__btn:hover:not(:disabled) {
+  color: var(--chrome-fg, #eee);
+  border-color: var(--chrome-border-strong, rgba(255, 255, 255, 0.22));
+}
+.voice-selector__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.voice-selector__spin {
+  animation: voice-selector-spin 0.8s linear infinite;
+}
+@keyframes voice-selector-spin {
+  to { transform: rotate(360deg); }
+}
