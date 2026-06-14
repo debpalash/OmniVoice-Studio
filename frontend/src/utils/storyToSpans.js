@@ -1,7 +1,6 @@
-import { parseStoryText } from './storyTokens';
 import { isChapterLine, chapterTitle } from './storyExport';
 import { effectiveProfile } from './storyCast';
-import { parseSsmlLite, spellOut } from './ssmlLite';
+import { parseChapterBody } from './longformParser';
 
 /**
  * Compile the Stories Editor's cast + ordered lines into the chapter/span plan
@@ -9,14 +8,17 @@ import { parseSsmlLite, spellOut } from './ssmlLite';
  * multi-voice story render on the same server-side pipeline as an audiobook
  * (resume, loudness, cover, chapter markers).
  *
- * Rules:
- *  - a line starting with "# " opens a new chapter (its text is the title)
- *  - every spoken line resolves to its effective voice (per-line override →
- *    cast member's voice) and is split on inline `[voice:]`/`[pause]` markers
- *  - a `[pause]` folds into the previous span's trailing silence, or becomes a
- *    silent span if it leads a chapter
+ * The track→canonical adapter (#27): per-track cast voice + speed are resolved
+ * here, then the track's text runs through the ONE canonical voice→pause→SSML
+ * layering (`parseChapterBody`) — the same code the Python parser uses. The
+ * adapter, not the canonical parser, owns the two track-shaped concerns:
+ *  - a `#`-line *inside* a track's text must NOT re-chapter (we call
+ *    parseChapterBody, which never chapter-splits, not parseScriptToSpans);
+ *  - a track's *leading* pause folds into the previous track's last span
+ *    (cross-track fold) — but a mid-track silent span (from `[voice:x][pause]`)
+ *    is kept, matching the server's single-blob behavior.
  *
- * @returns Array<{ title, spans: [{ voice_id, text, pause_ms_after }] }>
+ * @returns Array<{ title, spans: [{ voice_id, text, pause_ms_after, speed }] }>
  */
 export function storyToSpans(tracks, cast) {
   const chapters = [];
@@ -30,24 +32,19 @@ export function storyToSpans(tracks, cast) {
       cur = { title: chapterTitle(text), spans: [] };
       continue;
     }
-    const profileId = effectiveProfile(tk, cast) || null;
-    const speed = tk.speed || null;  // per-line rate rides through to the engine
-    for (const seg of parseStoryText(text, profileId)) {
-      if (seg.type === 'pause') {
-        const ms = Math.round(seg.seconds * 1000);
-        const last = cur.spans[cur.spans.length - 1];
-        if (last) last.pause_ms_after += ms;
-        else cur.spans.push({ voice_id: profileId, text: '', pause_ms_after: ms, speed });
-      } else if (seg.text) {
-        // Inner layer: SSML-lite prosody within the chunk. Inline [slow]/[fast]
-        // /[emphasis] speed overrides the per-line slider; [spell] spaces it out.
-        const vid = seg.profileId || null;
-        for (const s of parseSsmlLite(seg.text)) {
-          const st = (s.spell ? spellOut(s.text) : s.text).trim();
-          if (st) cur.spans.push({ voice_id: vid, text: st, pause_ms_after: 0, speed: s.speed != null ? s.speed : speed });
-        }
+    const voiceId = effectiveProfile(tk, cast) || null;
+    const speed = tk.speed || null;  // falsy 0 → null (engine default), per spec
+    const spans = parseChapterBody(text, { defaultVoice: voiceId, defaultSpeed: speed });
+    spans.forEach((s, i) => {
+      const prev = cur.spans[cur.spans.length - 1];
+      // Cross-track fold: a track that *leads* with a pause merges that silence
+      // onto the previous span instead of emitting a standalone silent span.
+      if (i === 0 && s.text === '' && s.pause_ms_after > 0 && prev) {
+        prev.pause_ms_after += s.pause_ms_after;
+      } else {
+        cur.spans.push(s);
       }
-    }
+    });
   }
   flush();
   return chapters;

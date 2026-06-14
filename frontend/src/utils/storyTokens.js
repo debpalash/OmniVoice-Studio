@@ -17,10 +17,26 @@
  * Whitespace-only chunks between markers are dropped so they don't introduce
  * audible "uhs" from the TTS model.
  */
+import { roundHalfToEven, PAUSE_DEFAULT_MS, PAUSE_MAX_MS } from './longformParser';
 
 // Single pattern that matches either token; the alternation captures the
-// payload in group 1 (pause seconds) or group 2 (voice id).
-const TOKEN_RE = /\[(?:pause\s+(\d+(?:\.\d+)?)\s*s?|voice:\s*([^\]]+))\]/gi;
+// payload in group 1 (pause number), group 2 (pause unit ms|s), group 3 (voice).
+// Widened to the CANONICAL dialect (#27) so the highlight overlay agrees with
+// the render plan: bare [pause], [pause Nms], [pause Ns], [pause N.Ns], and
+// [voice:[^\]\[]*] (empty [voice:] → default; a nested `[` → no match).
+// ReDoS-safe: the unit's `(?:\s*(ms|s))?` is zero-width without a unit, so no
+// two `\s*` overlap on the same whitespace run (mirrors PAUSE_RE).
+const TOKEN_RE = /\[(?:\s*pause(?:\s+(\d+(?:\.\d+)?)(?:\s*(ms|s))?)?\s*|voice:\s*([^\]\[]*))\]/gi;
+
+// Resolve a parsed (number, unit) pause to clamped ms — mirrors text.py:_pause_ms
+// (banker's rounding via the shared roundHalfToEven so highlight == render).
+function _pauseMs(num, unit) {
+  if (num == null) return PAUSE_DEFAULT_MS;
+  const value = parseFloat(num);
+  if (!Number.isFinite(value)) return PAUSE_DEFAULT_MS;
+  const ms = (unit && unit.toLowerCase() === 's') ? value * 1000 : value;
+  return Math.max(0, Math.min(roundHalfToEven(ms), PAUSE_MAX_MS));
+}
 
 export function parseStoryText(text, defaultProfileId = null) {
   const out = [];
@@ -35,16 +51,21 @@ export function parseStoryText(text, defaultProfileId = null) {
       const chunk = text.slice(cursor, match.index).trim();
       if (chunk) out.push({ type: 'chunk', text: chunk, profileId: currentProfile });
     }
-    if (match[1] != null) {
-      const seconds = parseFloat(match[1]);
+    if (match[3] != null) {
+      // voice branch — group 3 is defined even when empty ([voice:] → default)
+      const id = match[3].trim();
+      currentProfile = (id === 'default' || id === '') ? defaultProfileId : id;
+    } else {
+      // pause branch — bare or numbered. ms→seconds; a 0-duration pause is
+      // consumed (not spoken) but shows no overlay (the >0 guard below).
+      const seconds = _pauseMs(match[1] != null ? match[1] : null,
+                              match[2] != null ? match[2] : null) / 1000;
       if (Number.isFinite(seconds) && seconds > 0) {
         out.push({ type: 'pause', seconds });
       }
-    } else if (match[2] != null) {
-      const id = match[2].trim();
-      currentProfile = (id === 'default' || id === '') ? defaultProfileId : id;
     }
     cursor = re.lastIndex;
+    if (re.lastIndex === match.index) re.lastIndex++; // zero-width guard
   }
   if (cursor < text.length) {
     const tail = text.slice(cursor).trim();
@@ -53,9 +74,11 @@ export function parseStoryText(text, defaultProfileId = null) {
   return out;
 }
 
-/** True if `text` contains any inline marker we need to special-case for preview. */
+/** True if `text` contains any inline marker we special-case for preview.
+ *  Widened (#27) to recognize bare [pause] / [pause Nms] so the highlight path
+ *  and the render path agree on which lines carry markers. */
 export function hasStoryMarkers(text) {
-  return /\[(?:pause\s+\d|voice:)/i.test(text || '');
+  return /\[\s*pause\b|\[voice:/i.test(text || '');
 }
 
 /**

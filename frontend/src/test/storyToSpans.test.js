@@ -85,4 +85,54 @@ describe('storyToSpans', () => {
     expect(spans[0]).toEqual({ voice_id: 'p_narr', text: '', pause_ms_after: 1000, speed: null });
     expect(spans[1].text).toBe('Go.');
   });
+
+  // ── §H adapter-specific cases (#27) ──
+
+  it('returns [] for empty / null track lists', () => {
+    expect(storyToSpans([], CAST)).toEqual([]);
+    expect(storyToSpans(null, CAST)).toEqual([]);
+    expect(storyToSpans(undefined, CAST)).toEqual([]);
+  });
+
+  it('honors the canonical pause dialect ([pause], Nms) — never spoken', () => {
+    const tracks = [{ character: 'narrator', text: 'A [pause] B [pause 500ms] C' }];
+    const spans = storyToSpans(tracks, CAST)[0].spans;
+    expect(spans.map((s) => s.text)).toEqual(['A', 'B', 'C']);
+    expect(spans[0].pause_ms_after).toBe(350);   // bare [pause]
+    expect(spans[1].pause_ms_after).toBe(500);   // [pause 500ms]
+  });
+
+  it('## inside a multi-line track text does NOT re-chapter', () => {
+    const tracks = [{ character: 'narrator', text: 'line one\n# not a chapter\nline two' }];
+    const chapters = storyToSpans(tracks, CAST);
+    expect(chapters).toHaveLength(1);
+    // the embedded `#` stays literal in the span text (single chapter body)
+    expect(chapters[0].spans[0].text).toContain('# not a chapter');
+  });
+
+  it('folds a leading pause across tracks into the previous span', () => {
+    const tracks = [
+      { character: 'narrator', text: 'First.' },
+      { character: 'narrator', text: '[pause 1s] Second.' },
+    ];
+    const spans = storyToSpans(tracks, CAST)[0].spans;
+    expect(spans[0]).toEqual({ voice_id: 'p_narr', text: 'First.', pause_ms_after: 1000, speed: null });
+    expect(spans[1].text).toBe('Second.');
+    expect(spans).toHaveLength(2); // no standalone silent span between tracks
+  });
+
+  it('treats per-track speed 0 as null (engine default, not 0×)', () => {
+    const tracks = [{ character: 'narrator', text: 'Hi.', speed: 0 }];
+    expect(storyToSpans(tracks, CAST)[0].spans[0].speed).toBeNull();
+  });
+
+  it('[voice:] reverts to the resolved cast voice, not null', () => {
+    const tracks = [{ character: 'c_fox', text: 'hi [voice:p_bob] there [voice:] back' }];
+    const spans = storyToSpans(tracks, CAST)[0].spans;
+    expect(spans.map((s) => [s.voice_id, s.text])).toEqual([
+      ['p_fox', 'hi'],
+      ['p_bob', 'there'],
+      ['p_fox', 'back'],   // reverts to the cast voice (p_fox), NOT null
+    ]);
+  });
 });

@@ -59,14 +59,17 @@ export function encodeWav(buffer, sampleRate) {
   return ab;
 }
 
-/** A line is a chapter heading if its text starts with a markdown "# ". */
+/** A line is a chapter heading iff it's an H1 with a non-space title (#27:
+ *  narrowed from H1–H6 to match the server's _HEADING_RE — `##`… and `# ` with
+ *  no non-space title narrate as body, not chapter breaks). */
 export function isChapterLine(text) {
-  return /^#{1,6}\s+/.test(String(text || '').trim());
+  return /^#[ \t]+\S/.test(String(text || '').trim());
 }
 
-/** The chapter title — the text after the leading "# ". */
+/** The chapter title — strip only the single leading "# ", remainder verbatim
+ *  (matching the server's raw-title behavior, so `# [voice:x] T` → `[voice:x] T`). */
 export function chapterTitle(text) {
-  return String(text || '').trim().replace(/^#+\s+/, '').trim();
+  return String(text || '').trim().replace(/^#[ \t]+/, '').trim();
 }
 
 /** Format seconds as HH:MM:SS for a chapter cue sheet. */

@@ -41,12 +41,14 @@ describe('storyToScript', () => {
     expect(r.script).toBe('A\n\n[voice:p_b] B');
   });
 
-  it('chapters: single-#, ## downgraded to #, indented un-indented', () => {
+  it('chapters: H1-only (#27) — ## narrates as body, indented # un-indented', () => {
     const r = storyToScript([
       spoken(1, '## Deep'), spoken(2, 'body1'),
       spoken(3, '   # Indented'), spoken(4, 'body2'),
     ], []);
-    expect(r.script).toBe('# Deep\n\nbody1\n\n# Indented\n\nbody2');
+    // #27 convergence: `## Deep` is NOT a heading (H1-only), so it narrates as
+    // body text verbatim; only the indented H1 opens a chapter (un-indented).
+    expect(r.script).toBe('## Deep\n\nbody1\n\n# Indented\n\nbody2');
   });
 
   it('does not double-tag a line that already leads with [voice:sameid]', () => {

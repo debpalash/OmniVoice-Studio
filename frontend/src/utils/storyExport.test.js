@@ -42,12 +42,20 @@ describe('encodeWav', () => {
 });
 
 describe('chapter helpers', () => {
-  it('detects + titles markdown chapter lines', () => {
+  it('detects + titles H1 chapter lines (H1-only, #27)', () => {
     expect(isChapterLine('# Chapter One')).toBe(true);
-    expect(isChapterLine('  ## Part 2 ')).toBe(true);
+    expect(isChapterLine('  # Indented')).toBe(true);   // leading space ok
+    // #27 convergence: H2–H6 narrate as body, not chapter breaks.
+    expect(isChapterLine('  ## Part 2 ')).toBe(false);
+    expect(isChapterLine('### Deep')).toBe(false);
+    // `# ` / `#   ` with no non-space title is body (matches server _HEADING_RE).
+    expect(isChapterLine('# ')).toBe(false);
+    expect(isChapterLine('#   ')).toBe(false);
+    expect(isChapterLine('#Title')).toBe(false);        // needs a space
     expect(isChapterLine('Not a chapter')).toBe(false);
     expect(chapterTitle('# Chapter One')).toBe('Chapter One');
-    expect(chapterTitle('## Part 2')).toBe('Part 2');
+    // strip only the single H1 marker; remainder verbatim (raw-title behavior).
+    expect(chapterTitle('# [voice:x] Title')).toBe('[voice:x] Title');
   });
   it('formats timecodes HH:MM:SS', () => {
     expect(formatTimecode(0)).toBe('00:00:00');
