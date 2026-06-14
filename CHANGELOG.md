@@ -6,6 +6,18 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [Unreleased]
+
+### Added
+- **Portable personas (`.ovsvoice`).** Export any voice as a self-contained,
+  fully-local persona bundle — identity, optional reference clip, consent
+  attestation, SPDX license, and a watermarked preview — and import it back into
+  another OmniVoice install. A privacy toggle ships a **preview-only** bundle so
+  no raw recording of your voice has to travel. Verified-own-voice status can't
+  be forged by hand-editing a bundle (real recording + consent text + attestation
+  required). Legacy `.omnivoice` files still import. See
+  [docs/persona-format.md](docs/persona-format.md). (#29)
+
 ## [0.3.5] — 2026-06-03
 
 ### Fixed
