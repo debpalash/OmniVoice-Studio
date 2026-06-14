@@ -676,13 +676,16 @@ async def resume_longform(job_id: str):
     # request input) actually reports. The (job_type, job_id) used from here on
     # come from that trusted list, so nothing request-controlled reaches a
     # filesystem path (CodeQL py/path-injection-safe).
-    match = next((pair for pair in longform_resume.scan_resumable()
-                  if pair[1] == job_id), None)
-    if match is None:
+    # Allow-list guard: the set of resumable ids comes from the trusted
+    # filesystem scan (os.listdir, never request input). The `not in <set>`
+    # membership check is the barrier CodeQL's path-injection query recognizes —
+    # after it, job_id is a known-safe value usable downstream without retainting.
+    resumable = {jid: jt for jt, jid in longform_resume.scan_resumable()}
+    if job_id not in resumable:
         raise HTTPException(status_code=404, detail="No resumable job for that id")
-    job_type, safe_job_id = match
+    job_type = resumable[job_id]
 
-    manifest = longform_resume.read_manifest(job_type, safe_job_id)
+    manifest = longform_resume.read_manifest(job_type, job_id)
     if not manifest:
         raise HTTPException(status_code=404, detail="No resume manifest for that job")
 
@@ -699,7 +702,7 @@ async def resume_longform(job_id: str):
             fmt=p.get("fmt", "m4b"), bitrate=p.get("bitrate", "128k"),
             loudness=p.get("loudness"), cover_path=p.get("cover_path"),
             metadata=p.get("metadata"), lexicon=p.get("lexicon"),
-            job_type=job_type, job_id=safe_job_id, resume=True,
+            job_type=job_type, job_id=job_id, resume=True,
         ),
         media_type="text/event-stream",
     )
