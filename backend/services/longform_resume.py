@@ -42,9 +42,11 @@ def work_dir(job_type: str, job_id: str) -> Optional[str]:
     crafted ``job_id`` can never reach a foreign path (py/path-injection-safe)."""
     if job_type not in RESUMABLE_TYPES or not _SAFE_ID_RE.match(job_id or ""):
         return None
-    seg = f"{job_type}_{job_id}"
-    # Exact-match allowlist on the full joined component (CodeQL-recognized
-    # barrier): anything not of this exact shape is rejected before the join.
+    # os.path.basename strips any directory component (the sanitizer CodeQL's
+    # path-injection query recognizes — same as audiobook._safe_cover_path), and
+    # the exact-match allowlist on the result is a second barrier: the joined
+    # value is provably a single bare dir name of the expected shape.
+    seg = os.path.basename(f"{job_type}_{job_id}")
     if not _SAFE_SEG_RE.match(seg):
         return None
     from core.config import OUTPUTS_DIR
