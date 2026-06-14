@@ -983,6 +983,12 @@
     "m_ago": "{{count}}m ago",
     "h_ago": "{{count}}h ago"
   },
+  "transcriptionPicker": {
+    "title": "Import from a transcription",
+    "search_placeholder": "Search transcriptions…",
+    "empty": "No transcriptions yet. Record one in the Transcriptions tab.",
+    "empty_search": "No transcriptions match your search."
+  },
   "setup": {
     "welcome": "Welcome",
     "system_check": "System check",

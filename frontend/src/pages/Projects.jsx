@@ -6,6 +6,7 @@ import {
   LayoutGrid, List as ListIcon, Clock, FileText, Mic, BookMarked, BookOpen,
 } from 'lucide-react';
 import { apiFetch } from '../api/client';
+import { loadTranscriptions, TRANSCRIPTION_EVENT } from '../utils/transcriptionsStore';
 import { audioUrl } from '../api/generate';
 import './Projects.css';
 
@@ -113,18 +114,12 @@ export default function Projects({
   }, []);
 
   // Load transcriptions from localStorage (same source as TranscriptionsPage)
-  const [transcriptions, setTranscriptions] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('omni_transcriptions') || '[]'); }
-    catch { return []; }
-  });
+  const [transcriptions, setTranscriptions] = useState(loadTranscriptions);
   // Listen for new transcriptions
   React.useEffect(() => {
-    const handler = () => {
-      try { setTranscriptions(JSON.parse(localStorage.getItem('omni_transcriptions') || '[]')); }
-      catch {}
-    };
-    window.addEventListener('omni:transcription-added', handler);
-    return () => window.removeEventListener('omni:transcription-added', handler);
+    const handler = () => setTranscriptions(loadTranscriptions());
+    window.addEventListener(TRANSCRIPTION_EVENT, handler);
+    return () => window.removeEventListener(TRANSCRIPTION_EVENT, handler);
   }, []);
 
   // Normalise every source into a common shape so the filter + search +
