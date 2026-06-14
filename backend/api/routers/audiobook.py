@@ -387,8 +387,12 @@ async def _render_longform_sse(
     from services.model_manager import _gpu_pool
 
     # Resume reuses the original job_id (continuing the same job row + cached
-    # chapters); a fresh render generates a new one.
-    job_id = job_id or uuid.uuid4().hex[:16]
+    # chapters); a fresh render generates a new one. The id may arrive from the
+    # /resume/{job_id} path param, so strip it to a safe token (no path
+    # separators, no CR/LF) before it ever reaches a filesystem path or a log
+    # line — CodeQL py/path-injection + py/log-injection. Empty after the strip
+    # → a fresh id.
+    job_id = re.sub(r"[^A-Za-z0-9_-]", "", job_id or "")[:64] or uuid.uuid4().hex[:16]
     try:
         from core import job_store
         if not resume:
@@ -413,8 +417,8 @@ async def _render_longform_sse(
                 "metadata": metadata, "lexicon": lexicon,
             },
         ))
-    except Exception as e:  # resume durability is an enhancement; never block the render
-        logger.debug("[%s] resume manifest write skipped: %s", job_id, e)
+    except Exception:  # resume durability is an enhancement; never block the render
+        logger.debug("[%s] resume manifest write skipped", job_id, exc_info=True)
 
     def _emit(payload: dict) -> str:
         if job_store is not None:
@@ -432,7 +436,12 @@ async def _render_longform_sse(
         yield _emit({"type": "error", "error": "ffmpeg not available; the output needs it"})
         return
 
-    work = os.path.join(OUTPUTS_DIR, f"{job_type}_{job_id}")
+    # Confined work dir (job_id is already token-sanitized above; work_dir adds
+    # the basename + realpath barrier so CodeQL sees a clean path).
+    work = longform_resume.work_dir(job_type, job_id)
+    if work is None:
+        yield _emit({"type": "error", "error": "invalid job id"})
+        return
     os.makedirs(work, exist_ok=True)
     # Chapter WAVs are content-addressed in a shared cache so a re-run (after a
     # failure or interruption) reuses what already rendered — only the

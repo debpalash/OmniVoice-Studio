@@ -38,9 +38,14 @@ def work_dir(job_type: str, job_id: str) -> Optional[str]:
     (mirrors profiles._voices_path; py/path-injection-safe)."""
     if job_type not in RESUMABLE_TYPES or not _SAFE_ID_RE.match(job_id or ""):
         return None
+    seg = f"{job_type}_{job_id}"
+    # basename-equality barrier (same shape as profiles._voices_path, which
+    # CodeQL accepts): a dir name with no separator can't traverse out.
+    if os.path.basename(seg) != seg:
+        return None
     from core.config import OUTPUTS_DIR
     root = os.path.realpath(OUTPUTS_DIR)
-    path = os.path.realpath(os.path.join(root, f"{job_type}_{job_id}"))
+    path = os.path.realpath(os.path.join(root, seg))
     if path != root and not path.startswith(root + os.sep):
         return None
     return path
@@ -118,7 +123,7 @@ def clear_manifest(job_type: str, job_id: str) -> None:
     try:
         os.remove(path)
     except OSError:
-        pass
+        return  # best-effort; already gone or unwritable
 
 
 def has_manifest(job_type: str, job_id: str) -> bool:
