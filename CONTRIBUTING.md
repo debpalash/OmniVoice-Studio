@@ -42,10 +42,21 @@ This starts both services:
 ### Desktop App (Tauri)
 
 ```bash
-bun run desktop
+bun run desktop          # dev: hot-reload Tauri shell + backend
+bun run desktop-prod     # production: builds, bundles the backend, then launches
 ```
 
+Both run `uv sync` first (so the Python backend env is set up) and start the
+backend automatically — you do **not** start it separately. Use the exact script
+names: there is no `desktop=prod` (note the **hyphen** in `desktop-prod`).
+`desktop-prod` is Windows-aware (auto-detects bash/git; see `scripts/desktop-prod.mjs`).
+
 Requires [Rust](https://rustup.rs/) and platform-specific Tauri dependencies — see the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
+
+If the app opens but stays on the **setup splash with no buttons**, the Python
+backend didn't finish starting — the splash surfaces the stall reason, a log
+panel, and a **Retry** button (and Settings → Logs → Backend has the full trace).
+The most common from-source cause is `uv` or Python not being on your PATH.
 
 ---
 

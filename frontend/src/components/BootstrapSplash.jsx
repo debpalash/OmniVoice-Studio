@@ -76,6 +76,7 @@ function detectHints(message, logs) {
   if (/ffmpeg/i.test(all) && /download|timeout/i.test(all)) hints.push('bootstrap.hint_ffmpeg');
   if (/port.*in use|address.*in use/i.test(all)) hints.push('bootstrap.hint_port');
   if (/no error output/i.test(all))      hints.push('bootstrap.hint_silent_crash');
+  if (/seems stuck at|never reported ready/i.test(all)) hints.push('bootstrap.hint_stuck');
   if (/blocking GitHub|couldn't download Python|python-build-standalone|dns error/i.test(all)) hints.push('bootstrap.hint_github_blocked');
   if (hints.length === 0)                hints.push('bootstrap.hint_default');
   return hints;
@@ -513,6 +514,17 @@ export function useBootstrapStage(pollMs = 1000) {
     let cancelled = false;
     let timer = null;
     let misses = 0;
+    // Stall watchdog (#474): if the backend hangs in a non-terminal stage and
+    // never reports `ready` (e.g. a failed Python-backend spawn on a from-source
+    // build), the poll loop would otherwise spin forever and trap the user on a
+    // buttonless splash. Track when the (stage,message) last changed; if it
+    // stays put past the stage's budget, flip to `failed` so the existing
+    // hints + Retry + logs surface instead of an info-less infinite spinner.
+    // installing_deps legitimately runs 5–10 min, so it gets a long leash; any
+    // (stage,message) change resets the clock so a live install never trips it.
+    let lastChangeTs = Date.now();
+    let lastKey = '';
+    const stallBudgetMs = (stage) => (stage === 'installing_deps' ? 20 * 60 * 1000 : 120 * 1000);
     const invoke = async () => {
       try {
         const { invoke: tauriInvoke } = await import('@tauri-apps/api/core');
@@ -530,10 +542,28 @@ export function useBootstrapStage(pollMs = 1000) {
           const res = await tauriInvoke('bootstrap_status');
           if (cancelled) return;
           misses = 0;
+          const stage = res.stage || 'ready';
+          const message = res.message || null;
+          // Reset the stall clock whenever something actually changes.
+          const key = `${stage}|${message || ''}`;
+          if (key !== lastKey) { lastKey = key; lastChangeTs = Date.now(); }
           // Rust returns { stage: 'ready' } or { stage: 'failed', message: '…' } etc.
-          setState({ stage: res.stage || 'ready', message: res.message || null });
-          if (res.stage !== 'ready' && res.stage !== 'failed') {
+          if (stage !== 'ready' && stage !== 'failed') {
+            if (Date.now() - lastChangeTs > stallBudgetMs(stage)) {
+              // Stuck — surface it as a failure so Retry/logs/hints appear.
+              setState({
+                stage: 'failed',
+                message: (message ? message + '\n\n' : '') +
+                  `Setup seems stuck at "${stage}" — the backend never reported ready. ` +
+                  `Check the log below, then Retry. If you're running from source, make sure ` +
+                  `\`uv sync\` completed and uv/Python are on your PATH.`,
+              });
+              return;  // stop polling — failed is terminal
+            }
+            setState({ stage, message });
             timer = setTimeout(tick, pollMs);
+          } else {
+            setState({ stage, message });
           }
         } catch {
           // A transient IPC hiccup (e.g. the very first poll racing webview
