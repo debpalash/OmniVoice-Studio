@@ -97,6 +97,8 @@ def embed_watermark(
     waveform: torch.Tensor,
     sample_rate: int,
     message: Optional[list[int]] = None,
+    *,
+    force: bool = False,
 ) -> torch.Tensor:
     """
     Embed an imperceptible watermark into the audio waveform.
@@ -105,11 +107,17 @@ def embed_watermark(
         waveform: Audio tensor of shape (channels, samples) or (1, channels, samples)
         sample_rate: Sample rate of the audio
         message: Optional 16-bit message (list of 0/1). Defaults to OMNI_MESSAGE.
+        force: Keyword-only. When True, bypass the user's invisible-watermark
+            preference (``is_enabled()``) and embed regardless — used by the
+            persona-preview path, which mandates a watermark at package time.
+            It does NOT bypass availability: when AudioSeal isn't installed the
+            call still no-ops and returns the input unchanged. Existing
+            positional call sites default to ``force=False`` (unchanged).
 
     Returns:
         Watermarked waveform (same shape as input).
     """
-    if not is_enabled() or not _check_available():
+    if (not force and not is_enabled()) or not _check_available():
         return waveform
 
     try:
