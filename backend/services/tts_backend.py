@@ -21,7 +21,9 @@ from __future__ import annotations
 import logging
 import os
 import re
+import threading
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 from typing import Optional
 
 import torch
@@ -159,6 +161,63 @@ class TTSBackend(ABC):
 # ── OmniVoice adapter (the current default) ─────────────────────────────────
 
 
+# ── Voice-clone prompt cache (#427) ──────────────────────────────────────────
+# Every cloned generation re-encodes the reference audio from scratch — a fixed
+# per-request latency that compounds on batch/long-form workloads reusing one
+# voice. The OmniVoice model exposes create_voice_clone_prompt(ref) →
+# VoiceClonePrompt + generate(voice_clone_prompt=) to do that encoding ONCE.
+# We cache the prompt (bounded LRU, keyed by ref path + mtime + ref_text) so
+# repeated generations with the same voice skip the encode. Bounded because a
+# VoiceClonePrompt holds tensors (VRAM). Thread-safe (generation runs in a GPU
+# thread pool). Best-effort: any miss/error falls back to the inline ref path,
+# so output is never affected — this is a pure latency optimization.
+_PROMPT_CACHE_MAX = 8
+_prompt_cache: "OrderedDict[tuple, object]" = OrderedDict()
+_prompt_cache_lock = threading.Lock()
+
+
+def _clone_prompt_key(ref_audio: str, ref_text):
+    try:
+        mtime = os.path.getmtime(ref_audio)
+    except OSError:
+        mtime = 0.0
+    return (os.path.abspath(ref_audio), mtime, ref_text or "")
+
+
+def _get_clone_prompt(model, ref_audio: str, ref_text):
+    """Return a cached/precomputed ``VoiceClonePrompt`` for (ref_audio, ref_text),
+    or ``None`` to fall back to the inline ref path. Never raises."""
+    try:
+        key = _clone_prompt_key(ref_audio, ref_text)
+    except Exception:
+        return None
+    with _prompt_cache_lock:
+        hit = _prompt_cache.get(key)
+        if hit is not None:
+            _prompt_cache.move_to_end(key)
+            return hit
+    try:
+        # Encode outside the lock (slow); default preprocess matches the inline
+        # ref_audio path's preprocessing.
+        prompt = model.create_voice_clone_prompt(ref_audio, ref_text=ref_text)
+    except Exception as e:  # noqa: BLE001 — fall back, never break synthesis
+        logger.warning("voice-clone prompt precompute failed; using inline ref: %s", e)
+        return None
+    with _prompt_cache_lock:
+        _prompt_cache[key] = prompt
+        _prompt_cache.move_to_end(key)
+        while len(_prompt_cache) > _PROMPT_CACHE_MAX:
+            _prompt_cache.popitem(last=False)
+    return prompt
+
+
+def clear_clone_prompt_cache() -> None:
+    """Drop all cached voice-clone prompts (frees their tensors). Called on model
+    unload so a flush/engine-switch doesn't strand VRAM."""
+    with _prompt_cache_lock:
+        _prompt_cache.clear()
+
+
 class OmniVoiceBackend(TTSBackend):
     """Wraps `omnivoice.models.omnivoice.OmniVoice`. Zero behaviour change.
 
@@ -217,11 +276,11 @@ class OmniVoiceBackend(TTSBackend):
     def generate(self, text, **kw) -> torch.Tensor:
         self._ensure_loaded()
         language = kw.get("language")
-        audios = self._model.generate(
+        ref_audio = kw.get("ref_audio")
+        ref_text = kw.get("ref_text")
+        gen_kw = dict(
             text=text,
             language=language if language and language != "Auto" else None,
-            ref_audio=kw.get("ref_audio"),
-            ref_text=kw.get("ref_text"),
             instruct=kw.get("instruct"),
             duration=kw.get("duration"),
             num_step=kw.get("num_step", 16),
@@ -230,6 +289,22 @@ class OmniVoiceBackend(TTSBackend):
             denoise=kw.get("denoise", True),
             postprocess_output=kw.get("postprocess_output", True),
         )
+        # #427: when cloning from a reference file, reuse a cached voice-clone
+        # prompt so the reference isn't re-encoded every call. Any failure in the
+        # prompt path falls back to the inline ref — output is identical either
+        # way (the model documents the two as equivalent); this only saves the
+        # repeated encode. The design/instruct path (no ref_audio) is untouched.
+        audios = None
+        if ref_audio:
+            prompt = _get_clone_prompt(self._model, ref_audio, ref_text)
+            if prompt is not None:
+                try:
+                    audios = self._model.generate(voice_clone_prompt=prompt, **gen_kw)
+                except Exception as e:  # noqa: BLE001 — fall back to the inline ref
+                    logger.warning("voice_clone_prompt generate failed; retrying inline ref: %s", e)
+                    audios = None
+        if audios is None:
+            audios = self._model.generate(ref_audio=ref_audio, ref_text=ref_text, **gen_kw)
         return audios[0]
 
     def unload(self) -> None:
@@ -240,6 +315,7 @@ class OmniVoiceBackend(TTSBackend):
         take the async ``_model_lock`` from this sync path; the registry wraps
         this call in try/except so a race can never block an engine switch."""
         self._model = None
+        clear_clone_prompt_cache()  # #427: drop cached prompts so VRAM is freed
         try:
             import services.model_manager as mm
             if mm.model is not None:
