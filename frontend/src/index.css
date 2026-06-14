@@ -179,9 +179,7 @@ samp,
 
 #root {
   display: flex;
-  /* Anchor top-left so the zoom-compensated .app-container (which can be wider
-     than the viewport pre-zoom at scale <1) renders from the corner instead of
-     being centered and clipped. At scale 1 it's exactly viewport-sized anyway. */
+  /* Anchor top-left so the full-viewport .app-container renders from the corner. */
   justify-content: flex-start;
   padding: 0;
   width: 100%;
@@ -192,17 +190,24 @@ samp,
 
 /* ═══ LAYOUT ═══ */
 .app-container {
-  /* UI scale is applied as `transform: scale(var(--ui-scale))` (NOT `zoom`).
-     CSS `zoom` is honoured by Chromium (the macOS/Windows webview) but IGNORED
-     by WebKitGTK (the Linux webview) — there the `/scale` sizing below shrank
-     the shell with no matching magnification, leaving black bands on the right
-     and bottom (cross-platform default-parity P0). `transform: scale` scales
-     identically on every engine and doesn't alter how `vw`/`vh` resolve, so
-     `declared (100vw/scale) × scale` always equals the viewport and fills
-     exactly. transform-origin keeps it anchored to the top-left corner. */
-  width: calc(100vw / var(--ui-scale, 1));
-  transform: scale(var(--ui-scale, 1));
-  transform-origin: top left;
+  /* UI scale (#21 black-band fix — PERMANENT): scale via `zoom`, and the shell
+     ALWAYS occupies the full viewport (`100vw`/`100vh`, NOT `calc(…/scale)`).
+     Why this never black-bands on any engine:
+       • Chromium (macOS/Windows): `zoom` magnifies AND fills — standard browser
+         zoom (the same `style={{zoom:uiScale}}` the bootstrap/wizard wrappers
+         already use here).
+       • WebKitGTK (Linux): `zoom` is a no-op → the UI renders at 1.0× but the
+         shell is still a plain `100vw × 100vh` element → it FILLS the window.
+     The previous approach paired `width: calc(100vw/scale)` with `transform:
+     scale(var(--ui-scale))`; on WebKitGTK the transform wasn't magnifying the
+     shrunk shell, so `calc(100vw/1.3)` (the default scale) left ~⅓ of the
+     window black. Dropping the `/scale` shrink makes a missed magnification
+     degrade to "unscaled but full", never to "shrunk + black band".
+     ⚠️ Do NOT reintroduce `width: calc(100vw / var(--ui-scale))` or
+     `transform: scale(var(--ui-scale))` here — a regression test
+     (src/test/appShellScale.test.js) fails CI if either pattern returns. */
+  width: 100vw;
+  zoom: var(--ui-scale, 1);
   max-width: none;
   display: grid;
   /* [rail 48px] [sidebar 180–220] [main 1fr] */
@@ -217,7 +222,7 @@ samp,
      footer's state. Content columns (not the grid) yield to the fixed footer
      via padding-bottom below, so expanding the logs panel never compresses
      the side menubar. */
-  height: calc(100vh / var(--ui-scale, 1));
+  height: 100vh;
   overflow: hidden;
   transition: grid-template-columns var(--transition-smooth);
 }
