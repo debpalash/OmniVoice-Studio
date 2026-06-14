@@ -19,7 +19,14 @@ const WS_EVENTS_URL = wsUrl('/ws/events');
 // HTTP health-check URL (derived from same base as WS). We poll this before
 // creating the WebSocket so the first attempt doesn't fail with ECONNREFUSED
 // when the Python backend hasn't finished starting Uvicorn (~14s on cold start).
-const HEALTH_CHECK_URL = `${apiUrl()}/model/status`;
+//
+// Must be the auth-exempt liveness endpoint /health (in backend _SHELL_PATHS),
+// NOT /model/status: this is a raw fetch() that does NOT carry the LAN PIN /
+// remote API-key headers apiFetch attaches. In LAN-share / remote-API mode a
+// gated path returns 401, which would reject this probe forever and the
+// WebSocket would never open. /health is exempt from both gates and returns
+// 200 as soon as Uvicorn is up — exactly the liveness signal this probe needs.
+const HEALTH_CHECK_URL = apiUrl('/health');
 
 /**
  * @param {Object} handlers - Map of event kind → callback
