@@ -98,6 +98,30 @@ async def ws_tts(websocket: WebSocket):
                     model = await get_model()
                     backend = get_active_tts_backend(model=model)
 
+                # ── Routing gate (#21 — no silent CPU fallback). WebSockets have
+                # no response headers, so this uses frames: an error frame +
+                # close on `unavailable`, a one-time `routing` frame on
+                # cpu_fallback / accelerated-with-caveat (before any audio).
+                from core.device_caps import detect_host_caps
+                from services.engine_routing import resolve_routing, routing_notice
+                from core.scrub import scrub_text
+                _routing = resolve_routing(
+                    getattr(backend, "gpu_compat", ("cpu",)), detect_host_caps())
+                if _routing["routing_status"] == "unavailable":
+                    await websocket.send_json({
+                        "type": "error",
+                        "detail": scrub_text(_routing["routing_reason"])
+                        or "engine cannot run on this host",
+                    })
+                    continue  # don't stream; wait for the next request
+                _notice = routing_notice(_routing)
+                if _notice:
+                    await websocket.send_json({
+                        "type": "routing",
+                        "status": _notice[0],
+                        "reason": scrub_text(_notice[1]) if _notice[1] else None,
+                    })
+
                 # Build generation kwargs
                 kw: dict = {"speed": data.get("speed", 1.0)}
                 if data.get("language"):

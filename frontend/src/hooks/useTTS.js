@@ -11,6 +11,11 @@ import { addBreadcrumb } from '../utils/breadcrumbs';
 import i18next from 'i18next';
 const t = i18next.t.bind(i18next);
 
+// #21: in-memory de-dup for the synth-time routing toast — a 50-clip batch
+// shouldn't fire one toast per request. Tracks the last status surfaced this
+// session (module scope, no localStorage); resets on full reload.
+let _lastRoutingStatus = null;
+
 /**
  * Encapsulates TTS generation logic, streaming response handling,
  * audio ingestion (with trim gate), and preset/tag helpers.
@@ -143,6 +148,22 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
       const chunks = [];
       let receivedLength = 0;
       const contentLength = parseInt(response.headers.get('Content-Length') || '0', 10);
+
+      // #21: one-time, non-blocking routing notice. The backend sets these
+      // headers only on cpu_fallback / accelerated-with-caveat (never on the
+      // benign cpu_only / clean-accelerated paths), so their mere presence is
+      // the signal. De-duped by status so a batch doesn't spam.
+      const routingStatus = response.headers.get('X-OmniVoice-Routing');
+      if (routingStatus && routingStatus !== _lastRoutingStatus) {
+        _lastRoutingStatus = routingStatus;
+        const reason = response.headers.get('X-OmniVoice-Routing-Reason') || '';
+        if (routingStatus === 'cpu_fallback') {
+          toast(t('tts.routingFallback', { reason }), { icon: '🐢' });
+        } else if (routingStatus === 'accelerated' && reason) {
+          // accelerated is only surfaced WITH a driver/arch caveat reason.
+          toast(t('tts.routingCaveat', { reason }), { icon: '⚠️' });
+        }
+      }
 
       while (true) {
         const { done, value } = await reader.read();

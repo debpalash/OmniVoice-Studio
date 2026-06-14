@@ -352,6 +352,17 @@ async def generate_speech(
         from api.routers.engines import _get_engine_instance
         _backend = _get_engine_instance(backend_cls)
 
+    # ── Routing gate (#21 — no silent CPU fallback). Computed ONCE per request
+    # (host caps are constant; the per-request engine= override bypasses the
+    # /engines/select gate, so this is the only place it's enforced for synth).
+    from core.device_caps import detect_host_caps
+    from services.engine_routing import resolve_routing, routing_notice
+    _routing = resolve_routing(getattr(backend_cls, "gpu_compat", ("cpu",)), detect_host_caps())
+    if _routing["routing_status"] == "unavailable":
+        # The engine needs an accelerator this host lacks and has no CPU path.
+        raise HTTPException(status_code=400, detail=_routing["routing_reason"])
+    _routing_notice = routing_notice(_routing)  # (status, reason) or None
+
     ref_audio_path = None
     cleanup_ref = False
     used_seed = seed
@@ -490,17 +501,26 @@ async def generate_speech(
             for i in range(0, len(wav_bytes), chunk_size):
                 yield wav_bytes[i:i + chunk_size]
 
+        _resp_headers = {
+            "X-Audio-Id": audio_id,
+            "X-Gen-Time": str(gen_time),
+            "X-Audio-Path": audio_filename,
+            "X-Seed": str(used_seed) if used_seed is not None else "",
+            "X-Audio-Duration": str(audio_dur),
+            "Content-Length": str(len(wav_bytes)),
+        }
+        # Routing notice (#21): cpu_fallback or accelerated-with-caveat only;
+        # the WAV body is binary so the header channel is the carrier.
+        if _routing_notice:
+            from services.engine_routing import header_safe_reason
+            _resp_headers["X-OmniVoice-Routing"] = _routing_notice[0]
+            _hr = header_safe_reason(_routing_notice[1])
+            if _hr:
+                _resp_headers["X-OmniVoice-Routing-Reason"] = _hr
         return StreamingResponse(
             _stream_wav(),
             media_type="audio/wav",
-            headers={
-                "X-Audio-Id": audio_id,
-                "X-Gen-Time": str(gen_time),
-                "X-Audio-Path": audio_filename,
-                "X-Seed": str(used_seed) if used_seed is not None else "",
-                "X-Audio-Duration": str(audio_dur),
-                "Content-Length": str(len(wav_bytes)),
-            }
+            headers=_resp_headers,
         )
     except HTTPException:
         raise

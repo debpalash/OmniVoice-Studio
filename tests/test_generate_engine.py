@@ -42,14 +42,18 @@ def _tts_mod():
     return importlib.import_module("services.tts_backend")
 
 
-def _make_fake_engine(engine_id="fake-engine", *, available=True, own_mastering=False):
+def _make_fake_engine(engine_id="fake-engine", *, available=True, own_mastering=False,
+                      gpu_compat=("cpu",)):
     """Build a fresh TTSBackend stub class. Fresh per call so the per-process
     instance cache in api.routers.engines can't leak state across tests."""
+
+    _compat = gpu_compat
 
     class _FakeEngine(_tts_mod().TTSBackend):
         id = engine_id
         display_name = "Fake Engine (test)"
         applies_own_mastering = own_mastering
+        gpu_compat = _compat
         calls: list = []
 
         @property
@@ -150,6 +154,48 @@ def test_generate_unavailable_engine_is_400_with_reason(client, monkeypatch):
     assert "not available" in detail
     assert "deliberately unavailable" in detail
     assert not fake.calls
+
+
+# ── #21 synth-time routing gate ─────────────────────────────────────────────
+
+def _force_host(monkeypatch, family="cpu"):
+    from core.device_caps import HostCaps
+    avail = (family, "cpu") if family != "cpu" else ("cpu",)
+    caps = HostCaps(family=family, available_families=avail)
+    monkeypatch.setattr("core.device_caps.detect_host_caps", lambda: caps)
+
+
+def test_generate_routing_unavailable_is_400(client, monkeypatch, no_omnivoice_model):
+    """A GPU-only engine (no cpu path) on a CPU host → 400 before any synth."""
+    _force_host(monkeypatch, "cpu")
+    fake = _make_fake_engine(gpu_compat=("cuda",))  # no cpu fallback
+    monkeypatch.setitem(_tts_mod()._REGISTRY, "fake-engine", fake)
+    res = client.post("/generate", data={"text": "x", "engine": "fake-engine"})
+    assert res.status_code == 400
+    assert not fake.calls  # never synthesized
+
+
+def test_generate_cpu_fallback_emits_routing_headers(client, monkeypatch, no_omnivoice_model):
+    """An MPS+CPU engine on a CUDA host → cpu_fallback → 200 + routing headers."""
+    _force_host(monkeypatch, "cuda")
+    fake = _make_fake_engine(gpu_compat=("mps", "cpu"))  # no CUDA path
+    monkeypatch.setitem(_tts_mod()._REGISTRY, "fake-engine", fake)
+    res = client.post("/generate", data={"text": "hi", "engine": "fake-engine"})
+    assert res.status_code == 200, res.text
+    assert res.headers.get("x-omnivoice-routing") == "cpu_fallback"
+    reason = res.headers.get("x-omnivoice-routing-reason")
+    assert reason and reason.encode("ascii")  # present + latin-1/ASCII-safe
+    assert len(fake.calls) == 1  # synth still ran (fallback, not block)
+
+
+def test_generate_cpu_only_host_emits_no_routing_header(client, monkeypatch, no_omnivoice_model):
+    """A cpu-capable engine on a no-GPU host is benign cpu_only → no header."""
+    _force_host(monkeypatch, "cpu")
+    fake = _make_fake_engine(gpu_compat=("cpu",))
+    monkeypatch.setitem(_tts_mod()._REGISTRY, "fake-engine", fake)
+    res = client.post("/generate", data={"text": "hi", "engine": "fake-engine"})
+    assert res.status_code == 200, res.text
+    assert "x-omnivoice-routing" not in {k.lower() for k in res.headers}
 
 
 def test_generate_default_path_still_runs_omnivoice(client, monkeypatch, tmp_path):

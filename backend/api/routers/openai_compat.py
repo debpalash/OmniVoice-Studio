@@ -253,6 +253,14 @@ async def create_speech(req: SpeechRequest):
     """Generate audio from text. Compatible with OpenAI's POST /v1/audio/speech."""
     backend = _resolve_engine(req.model)
 
+    # Routing gate (#21 — no silent CPU fallback), identical to REST /generate.
+    from core.device_caps import detect_host_caps
+    from services.engine_routing import resolve_routing, routing_notice
+    _routing = resolve_routing(getattr(backend, "gpu_compat", ("cpu",)), detect_host_caps())
+    if _routing["routing_status"] == "unavailable":
+        raise HTTPException(status_code=400, detail=_routing["routing_reason"])
+    _routing_notice = routing_notice(_routing)  # (status, reason) or None
+
     # Build kwargs for the backend's generate() method
     kw: dict = {
         "speed": req.speed,
@@ -313,13 +321,20 @@ async def create_speech(req: SpeechRequest):
 
     audio_bytes, mime_type, ext = _encode_audio(wav, sr, req.response_format)
 
+    _headers = {
+        "Content-Length": str(len(audio_bytes)),
+        "Content-Disposition": f'inline; filename="speech.{ext}"',
+    }
+    if _routing_notice:
+        from services.engine_routing import header_safe_reason
+        _headers["X-OmniVoice-Routing"] = _routing_notice[0]
+        _hr = header_safe_reason(_routing_notice[1])
+        if _hr:
+            _headers["X-OmniVoice-Routing-Reason"] = _hr
     return StreamingResponse(
         io.BytesIO(audio_bytes),
         media_type=mime_type,
-        headers={
-            "Content-Length": str(len(audio_bytes)),
-            "Content-Disposition": f'inline; filename="speech.{ext}"',
-        },
+        headers=_headers,
     )
 
 

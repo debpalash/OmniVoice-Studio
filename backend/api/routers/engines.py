@@ -270,6 +270,12 @@ class SelectEngineResponse(BaseModel):
     family: str
     active: str
     env_override: bool
+    # Routing verdict for the selected engine on THIS host (#21). Always present
+    # so the UI can show a confirm/warning toast on a cpu_fallback pick without
+    # branching on key presence; defaults match a legacy/degraded row.
+    routing_status: str = "cpu_only"
+    effective_device: str = "cpu"
+    routing_reason: str | None = None
 
 
 @router.post("/engines/select", response_model=SelectEngineResponse)
@@ -305,4 +311,8 @@ def select_engine(req: SelectEngineRequest):
         "family": req.family,
         "active": module.active_backend_id(),
         "env_override": bool(__import__("os").environ.get(f"OMNIVOICE_{req.family.upper()}_BACKEND")),
+        # Echo the routing verdict so the UI can warn on a cpu_fallback pick.
+        "routing_status": entry.get("routing_status", "cpu_only"),
+        "effective_device": entry.get("effective_device", "cpu"),
+        "routing_reason": entry.get("routing_reason"),
     }

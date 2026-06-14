@@ -102,6 +102,33 @@ def resolve_routing(gpu_compat: tuple[str, ...], caps: HostCaps) -> RoutingResul
     }
 
 
+def routing_notice(result: RoutingResult) -> tuple[str, str | None] | None:
+    """`(status, reason)` when a synth-time notice SHOULD be surfaced to the
+    user, else `None`. Surfaced for `cpu_fallback` (always) and for
+    `accelerated` ONLY when it carries a driver/arch caveat reason — everything
+    else (`cpu_only`, clean `accelerated`, `n/a`) is benign and stays silent."""
+    st = result["routing_status"]
+    if st == "cpu_fallback" or (st == "accelerated" and result["routing_reason"]):
+        return (st, result["routing_reason"])
+    return None
+
+
+def header_safe_reason(reason: str | None) -> str | None:
+    """A routing reason made safe for an HTTP header value: scrubbed, then
+    ASCII-sanitized (headers are latin-1; a non-ASCII device name would 500 the
+    response otherwise), **control characters stripped** (a CR/LF could split
+    the header / inject a new one), and length-capped at 256. Returns None for
+    an empty reason. No regex — `.encode`/membership only (CodeQL-clean)."""
+    if not reason:
+        return None
+    from core.scrub import scrub_text
+    ascii_only = scrub_text(reason).encode("ascii", "ignore").decode("ascii")
+    # Drop ASCII control chars (0x00-0x1F + DEL 0x7F) — incl. CR/LF, so the
+    # value can never break out of its header line.
+    cleaned = "".join(c for c in ascii_only if 0x20 <= ord(c) < 0x7F)
+    return cleaned[:256] or None
+
+
 def routing_fields(gpu_compat: tuple[str, ...], caps: HostCaps) -> dict:
     """The three serialization-ready routing keys for a ``list_backends`` entry.
 
@@ -123,4 +150,7 @@ def routing_fields(gpu_compat: tuple[str, ...], caps: HostCaps) -> dict:
     }
 
 
-__all__ = ["RoutingStatus", "RoutingResult", "resolve_routing", "routing_fields"]
+__all__ = [
+    "RoutingStatus", "RoutingResult", "resolve_routing", "routing_fields",
+    "routing_notice", "header_safe_reason",
+]

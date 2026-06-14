@@ -1709,6 +1709,10 @@
     "ignored_unsupported": "Ignored unsupported instruct: {{items}}",
     "ignored_duplicate": "Ignored (category already set): {{items}}"
   },
+  "tts": {
+    "routingFallback": "Running on CPU — this engine has no GPU path on your machine, so generation will be slower. {{reason}}",
+    "routingCaveat": "Using the GPU, but: {{reason}}"
+  },
   "sharing": {
     "title": "Sharing & Remote Access",
     "help": "Expose this running OmniVoice instance to your other machines without restarting it. Loopback-only is the default — nothing is shared until you turn it on here.",

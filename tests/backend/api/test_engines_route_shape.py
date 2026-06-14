@@ -161,12 +161,17 @@ def test_gpu_compat_omnivoice_has_cuda_mps_cpu(fresh_app):
 # ── select_engine host-routing gate (no silent CPU fallback) ────────────────
 
 
-def _force_cpu_host(monkeypatch):
-    """Pin detect_host_caps() to a CPU-only host so routing is deterministic
-    regardless of the CI runner's actual hardware."""
+def _force_host(monkeypatch, family="cpu"):
+    """Pin detect_host_caps() to a specific host family so routing is
+    deterministic regardless of the CI runner's actual hardware."""
     from core.device_caps import HostCaps
-    cpu = HostCaps(family="cpu", available_families=("cpu",))
-    monkeypatch.setattr("core.device_caps.detect_host_caps", lambda: cpu)
+    avail = (family, "cpu") if family != "cpu" else ("cpu",)
+    caps = HostCaps(family=family, available_families=avail)
+    monkeypatch.setattr("core.device_caps.detect_host_caps", lambda: caps)
+
+
+def _force_cpu_host(monkeypatch):
+    _force_host(monkeypatch, "cpu")
 
 
 def test_select_blocks_engine_unavailable_on_this_host(fresh_app, monkeypatch):
@@ -199,13 +204,14 @@ def test_select_blocks_engine_unavailable_on_this_host(fresh_app, monkeypatch):
 
 
 def test_select_allows_cpu_fallback_engine(fresh_app, monkeypatch):
-    """A CUDA+CPU engine on a CPU host is `cpu_fallback` (runs, slower) → allowed."""
+    """An MPS+CPU engine on a CUDA host is `cpu_fallback` (runs, slower) →
+    allowed (not blocked), and the response echoes the routing verdict."""
     from services import tts_backend as tts_mod
 
     class CpuCapableBackend(tts_mod.TTSBackend):
         id = "cpu-ok-test"
         display_name = "CPU-capable (test)"
-        gpu_compat = ("cuda", "cpu")
+        gpu_compat = ("mps", "cpu")  # no CUDA path → cpu_fallback on a CUDA host
 
         @property
         def sample_rate(self): return 24000
@@ -215,14 +221,19 @@ def test_select_allows_cpu_fallback_engine(fresh_app, monkeypatch):
         def is_available(cls): return True, "ready"
         def generate(self, text, **kw): raise NotImplementedError
 
-    _force_cpu_host(monkeypatch)
+    _force_host(monkeypatch, "cuda")
     saved = dict(tts_mod._REGISTRY)
     try:
         tts_mod._REGISTRY["cpu-ok-test"] = CpuCapableBackend
         r = _client(fresh_app).post(
             "/engines/select", json={"family": "tts", "backend_id": "cpu-ok-test"})
         assert r.status_code == 200, r.text
-        assert r.json()["active"] == "cpu-ok-test"
+        body = r.json()
+        assert body["active"] == "cpu-ok-test"
+        # #21: the response echoes the routing verdict for the picked engine.
+        assert body["routing_status"] == "cpu_fallback"
+        assert body["effective_device"] == "cpu"
+        assert body["routing_reason"]
     finally:
         tts_mod._REGISTRY.clear(); tts_mod._REGISTRY.update(saved)
 
