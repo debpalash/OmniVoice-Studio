@@ -42,6 +42,7 @@ from services.longform_render import (
     build_render_cmd,
     prune_cache_dir,
 )
+from services import longform_resume  # pure (no torch) — durable resume manifest
 
 logger = logging.getLogger("omnivoice.audiobook")
 router = APIRouter()
@@ -399,7 +400,6 @@ async def _render_longform_sse(
     # Persist a durable resume manifest (plan + params) so an interrupted render
     # can be resumed later even without the original script. Best-effort.
     try:
-        from services import longform_resume
         title = (metadata or {}).get("title") or (plan.chapters[0].title if plan.chapters else "")
         longform_resume.write_manifest(longform_resume.build_manifest(
             job_id=job_id, job_type=job_type, title=title,
@@ -413,8 +413,8 @@ async def _render_longform_sse(
                 "metadata": metadata, "lexicon": lexicon,
             },
         ))
-    except Exception:
-        pass  # resume durability is an enhancement; never block the render
+    except Exception as e:  # resume durability is an enhancement; never block the render
+        logger.debug("[%s] resume manifest write skipped: %s", job_id, e)
 
     def _emit(payload: dict) -> str:
         if job_store is not None:
@@ -516,11 +516,7 @@ async def _render_longform_sse(
                 pass  # best-effort job history
         # The render finished — drop the resume manifest so this job is no longer
         # offered for resume.
-        try:
-            from services import longform_resume
-            longform_resume.clear_manifest(job_type, job_id)
-        except Exception:
-            pass
+        longform_resume.clear_manifest(job_type, job_id)
         total_s = sum(d for _, d in chapters_meta) / 1000.0
         done = {"type": "done", "output": out_name,
                 "chapters": len(chapter_files), "duration_s": round(total_s, 2),
@@ -642,7 +638,6 @@ def list_resumable_jobs() -> dict:
     'running' across an app restart is, by definition, interrupted — nothing
     survives the process.) The UI offers these for one-click resume."""
     from core import job_store
-    from services import longform_resume
 
     out = []
     seen = set()
@@ -674,8 +669,13 @@ async def resume_longform(job_id: str):
     return instantly — only the unrendered chapters synthesize again. Streams the
     same SSE event shape as the original render, under the original job_id."""
     from core import job_store
-    from services import longform_resume
     from services.audiobook import AudiobookPlan, Chapter, Span
+
+    # job_id is a request-supplied path param — reject anything that isn't the
+    # server-generated safe-token shape before it ever reaches a filesystem path
+    # (py/path-injection; longform_resume also confines, this is the source gate).
+    if not longform_resume._SAFE_ID_RE.match(job_id or ""):
+        raise HTTPException(status_code=404, detail="No resumable job for that id")
 
     job = job_store.get(job_id)
     job_type = (job or {}).get("type")

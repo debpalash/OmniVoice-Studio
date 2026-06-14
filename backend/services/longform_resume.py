@@ -16,22 +16,39 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Optional
 
 MANIFEST_VERSION = 1
 _MANIFEST_NAME = "resume.json"
 # Longform front doors that produce a resumable work dir (job_type → dir prefix).
 RESUMABLE_TYPES = ("audiobook", "story")
+# A job id is server-generated (uuid4 hex) — confine to a strict token so a
+# request-supplied id (the /audiobook/resume/{job_id} path param) can never
+# carry a path separator, `..`, NUL, or anything that escapes OUTPUTS_DIR
+# (CodeQL py/path-injection). Anchored, single bounded quantifier → ReDoS-safe.
+_SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
-def work_dir(job_type: str, job_id: str) -> str:
-    """The per-job work directory ``OUTPUTS_DIR/<job_type>_<job_id>``."""
+def work_dir(job_type: str, job_id: str) -> Optional[str]:
+    """The per-job work directory ``OUTPUTS_DIR/<job_type>_<job_id>``, resolved
+    strictly inside OUTPUTS_DIR. Returns None for an unknown ``job_type``, an
+    id that isn't a bare safe token, or any path that escapes OUTPUTS_DIR after
+    symlink resolution — so a crafted ``job_id`` can never reach a foreign path
+    (mirrors profiles._voices_path; py/path-injection-safe)."""
+    if job_type not in RESUMABLE_TYPES or not _SAFE_ID_RE.match(job_id or ""):
+        return None
     from core.config import OUTPUTS_DIR
-    return os.path.join(OUTPUTS_DIR, f"{job_type}_{job_id}")
+    root = os.path.realpath(OUTPUTS_DIR)
+    path = os.path.realpath(os.path.join(root, f"{job_type}_{job_id}"))
+    if path != root and not path.startswith(root + os.sep):
+        return None
+    return path
 
 
-def manifest_path(job_type: str, job_id: str) -> str:
-    return os.path.join(work_dir(job_type, job_id), _MANIFEST_NAME)
+def manifest_path(job_type: str, job_id: str) -> Optional[str]:
+    d = work_dir(job_type, job_id)
+    return os.path.join(d, _MANIFEST_NAME) if d else None
 
 
 def build_manifest(
@@ -59,9 +76,12 @@ def build_manifest(
 
 def write_manifest(manifest: dict) -> Optional[str]:
     """Persist the manifest to the job work dir. Best-effort — resume is an
-    enhancement, never block the render — returns the path or None on failure."""
+    enhancement, never block the render — returns the path or None on failure /
+    unsafe id."""
+    path = manifest_path(manifest.get("job_type", ""), manifest.get("job_id", ""))
+    if path is None:
+        return None
     try:
-        path = manifest_path(manifest["job_type"], manifest["job_id"])
         os.makedirs(os.path.dirname(path), exist_ok=True)
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
@@ -73,9 +93,13 @@ def write_manifest(manifest: dict) -> Optional[str]:
 
 
 def read_manifest(job_type: str, job_id: str) -> Optional[dict]:
-    """Load a job's resume manifest, or None if absent/unreadable/foreign-shape."""
+    """Load a job's resume manifest, or None if absent/unreadable/foreign-shape/
+    unsafe id."""
+    path = manifest_path(job_type, job_id)
+    if path is None:
+        return None
     try:
-        with open(manifest_path(job_type, job_id), encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
     except (OSError, ValueError):
         return None
@@ -88,11 +112,15 @@ def read_manifest(job_type: str, job_id: str) -> Optional[dict]:
 
 def clear_manifest(job_type: str, job_id: str) -> None:
     """Remove the manifest once a job completes (no resume needed). Best-effort."""
+    path = manifest_path(job_type, job_id)
+    if path is None:
+        return
     try:
-        os.remove(manifest_path(job_type, job_id))
+        os.remove(path)
     except OSError:
         pass
 
 
 def has_manifest(job_type: str, job_id: str) -> bool:
-    return os.path.isfile(manifest_path(job_type, job_id))
+    path = manifest_path(job_type, job_id)
+    return bool(path) and os.path.isfile(path)
