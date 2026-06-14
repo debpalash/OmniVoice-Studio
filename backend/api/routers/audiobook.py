@@ -11,7 +11,13 @@ then mux the chapter WAVs into a chapterized **m4b** (FFMETADATA1 chapters via
 pipeline. ffmpeg-gated — without ffmpeg the job reports an error event and
 stops (the m4b is the only output format).
 
-epub/pdf ingest, ACX mastering, crash-resume and the UI remain follow-ups.
+``GET /audiobook/jobs`` + ``POST /audiobook/resume/{job_id}`` — durable
+crash-resume: an interrupted render persists its plan + params to a
+``resume.json`` manifest in the job work dir, so it can be resumed later (the
+content-addressed chapter cache makes finished chapters instant) even without
+the original script. The resume UI affordance remains a follow-up.
+
+epub/pdf ingest, ACX mastering shipped; the resume UI surface remains a follow-up.
 """
 
 import asyncio
@@ -364,6 +370,8 @@ async def _render_longform_sse(
     metadata: dict | None = None,
     lexicon: dict | None = None,
     job_type: str = "audiobook",
+    job_id: str | None = None,
+    resume: bool = False,
 ):
     """Shared chapterized-render SSE generator for Audiobook *and* Stories.
 
@@ -377,13 +385,36 @@ async def _render_longform_sse(
     from services.ffmpeg_utils import find_ffmpeg, run_ffmpeg
     from services.model_manager import _gpu_pool
 
-    job_id = uuid.uuid4().hex[:16]
+    # Resume reuses the original job_id (continuing the same job row + cached
+    # chapters); a fresh render generates a new one.
+    job_id = job_id or uuid.uuid4().hex[:16]
     try:
         from core import job_store
-        job_store.create(job_id, type=job_type)
+        if not resume:
+            job_store.create(job_id, type=job_type)
         job_store.mark_running(job_id)
     except Exception:
         job_store = None  # job history is best-effort; never block synthesis
+
+    # Persist a durable resume manifest (plan + params) so an interrupted render
+    # can be resumed later even without the original script. Best-effort.
+    try:
+        from services import longform_resume
+        title = (metadata or {}).get("title") or (plan.chapters[0].title if plan.chapters else "")
+        longform_resume.write_manifest(longform_resume.build_manifest(
+            job_id=job_id, job_type=job_type, title=title,
+            plan_chapters=[
+                {"title": c.title, "spans": [s.to_dict() for s in c.spans]}
+                for c in plan.chapters
+            ],
+            params={
+                "default_voice": default_voice, "fmt": fmt, "bitrate": bitrate,
+                "loudness": loudness, "cover_path": cover_path,
+                "metadata": metadata, "lexicon": lexicon,
+            },
+        ))
+    except Exception:
+        pass  # resume durability is an enhancement; never block the render
 
     def _emit(payload: dict) -> str:
         if job_store is not None:
@@ -483,6 +514,13 @@ async def _render_longform_sse(
                 job_store.mark_done(job_id)
             except Exception:
                 pass  # best-effort job history
+        # The render finished — drop the resume manifest so this job is no longer
+        # offered for resume.
+        try:
+            from services import longform_resume
+            longform_resume.clear_manifest(job_type, job_id)
+        except Exception:
+            pass
         total_s = sum(d for _, d in chapters_meta) / 1000.0
         done = {"type": "done", "output": out_name,
                 "chapters": len(chapter_files), "duration_s": round(total_s, 2),
@@ -572,6 +610,100 @@ async def longform_render(req: LongformRenderRequest):
             plan, default_voice=req.default_voice, fmt=req.format, bitrate=req.bitrate,
             loudness=req.loudness, cover_path=req.cover_path, metadata=req.metadata,
             lexicon=req.lexicon, job_type="story",
+        ),
+        media_type="text/event-stream",
+    )
+
+
+# ── Durable resume: interrupted longform renders ────────────────────────────
+
+
+def _chapters_done(job_id: str) -> int:
+    """Count chapters that finished rendering, from the job's persisted events.
+    Best-effort (0 if unavailable) — used only to show resume progress."""
+    try:
+        from core import job_store
+        n = 0
+        for ev in job_store.events_since(job_id, 0, limit=100_000):
+            try:
+                if json.loads(ev["payload"]).get("type") == "chapter":
+                    n += 1
+            except (ValueError, KeyError, TypeError):
+                continue
+        return n
+    except Exception:
+        return 0
+
+
+@router.get("/audiobook/jobs")
+def list_resumable_jobs() -> dict:
+    """List interrupted longform renders that can be resumed — a running/failed
+    audiobook or story job that still has a resume manifest on disk. (A job left
+    'running' across an app restart is, by definition, interrupted — nothing
+    survives the process.) The UI offers these for one-click resume."""
+    from core import job_store
+    from services import longform_resume
+
+    out = []
+    seen = set()
+    for status in ("running", "failed"):
+        for job in job_store.list_jobs(status=status, limit=100):
+            jid, jtype = job.get("id"), job.get("type")
+            if jtype not in longform_resume.RESUMABLE_TYPES or jid in seen:
+                continue
+            if not longform_resume.has_manifest(jtype, jid):
+                continue
+            seen.add(jid)
+            manifest = longform_resume.read_manifest(jtype, jid) or {}
+            out.append({
+                "job_id": jid,
+                "type": jtype,
+                "status": status,
+                "title": manifest.get("title", ""),
+                "total_chapters": manifest.get("total_chapters", 0),
+                "chapters_done": _chapters_done(jid),
+                "created_at": job.get("created_at"),
+            })
+    return {"jobs": out}
+
+
+@router.post("/audiobook/resume/{job_id}")
+async def resume_longform(job_id: str):
+    """Resume an interrupted longform render from its persisted manifest. The
+    already-rendered chapters are content-addressed in the shared cache, so they
+    return instantly — only the unrendered chapters synthesize again. Streams the
+    same SSE event shape as the original render, under the original job_id."""
+    from core import job_store
+    from services import longform_resume
+    from services.audiobook import AudiobookPlan, Chapter, Span
+
+    job = job_store.get(job_id)
+    job_type = (job or {}).get("type")
+    # Fall back to scanning both work-dir prefixes if the job row is gone.
+    if job_type not in longform_resume.RESUMABLE_TYPES:
+        job_type = next((t for t in longform_resume.RESUMABLE_TYPES
+                         if longform_resume.has_manifest(t, job_id)), None)
+    if not job_type:
+        raise HTTPException(status_code=404, detail="No resumable job for that id")
+
+    manifest = longform_resume.read_manifest(job_type, job_id)
+    if not manifest:
+        raise HTTPException(status_code=404, detail="No resume manifest for that job")
+
+    chapters = [
+        Chapter(title=c.get("title", ""),
+                spans=[Span(**s) for s in c.get("spans", [])])
+        for c in manifest["plan"]
+    ]
+    plan = AudiobookPlan(chapters=chapters)
+    p = manifest.get("params", {})
+    return StreamingResponse(
+        _render_longform_sse(
+            plan, default_voice=p.get("default_voice"),
+            fmt=p.get("fmt", "m4b"), bitrate=p.get("bitrate", "128k"),
+            loudness=p.get("loudness"), cover_path=p.get("cover_path"),
+            metadata=p.get("metadata"), lexicon=p.get("lexicon"),
+            job_type=job_type, job_id=job_id, resume=True,
         ),
         media_type="text/event-stream",
     )
