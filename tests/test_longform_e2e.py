@@ -167,3 +167,26 @@ def test_no_ffmpeg_errors_before_synth(tmp_path, monkeypatch):
     events = _collect_events(_plan(("One", "hi")), monkeypatch, out)
     assert events[-1]["type"] == "error" and "ffmpeg" in events[-1]["error"]
     assert not list(p for p in out.iterdir() if p.is_file())
+
+
+def test_acx_emits_mastering_event_and_loudness_block(tmp_path, monkeypatch):
+    """#28: a known loudness preset fires a `mastering` event and adds a
+    `loudness` block to `done` (two-pass on real signal; silent stub → fallback,
+    two_pass False — either way the wiring + event shape are exercised)."""
+    out = tmp_path / "outputs"
+    out.mkdir()
+    events = _collect_events(_plan(("One", "hi")), monkeypatch, out, fmt="m4b", loudness="acx")
+    types = [e["type"] for e in events]
+    assert "mastering" in types
+    done = events[-1]
+    assert done["type"] == "done"
+    assert done["loudness"]["preset"] == "acx"
+    assert "two_pass" in done["loudness"]
+
+
+def test_off_path_emits_no_loudness_block(tmp_path, monkeypatch):
+    out = tmp_path / "outputs"
+    out.mkdir()
+    events = _collect_events(_plan(("One", "hi")), monkeypatch, out, fmt="m4b")  # no loudness
+    assert "mastering" not in [e["type"] for e in events]
+    assert "loudness" not in events[-1]  # legacy done shape preserved

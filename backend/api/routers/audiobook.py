@@ -30,6 +30,7 @@ from services.audiobook import (
     synthesize_chapter,
 )
 from services.longform_render import (
+    LOUDNESS_PRESETS,
     build_concat_list,
     build_ffmetadata,
     build_render_cmd,
@@ -445,11 +446,24 @@ async def _render_longform_sse(
         ext = "mp3" if (fmt or "").lower() == "mp3" else "m4b"
         out_name = f"{job_type}_{job_id}.{ext}"
         out_path = os.path.join(OUTPUTS_DIR, out_name)
+
+        # Two-pass loudness master (#28): for a known preset, measure the
+        # concatenated program first, then feed the measured values back into the
+        # single mux encode. `measured is None` (skip OR any failure) → the mux
+        # falls back to single-pass. Gated identically to the pure builders
+        # (.lower(), no strip), so off/None/unknown/whitespace skip cleanly.
+        measured = None
+        norm = (loudness or "").lower()
+        if norm in LOUDNESS_PRESETS:
+            yield _emit({"type": "mastering", "preset": norm})
+            from services.loudness import measure_loudness
+            measured = await measure_loudness(ffmpeg, concat_path, norm, job_id=job_id)
+
         await run_ffmpeg(
             build_render_cmd(
                 ffmpeg, concat_path, meta_path, out_path,
                 fmt=ext, bitrate=bitrate, cover_path=_safe_cover_path(cover_path),
-                loudness=loudness,
+                loudness=loudness, measured=measured,
             ),
             job_id=job_id,
         )
@@ -460,9 +474,19 @@ async def _render_longform_sse(
             except Exception:
                 pass  # best-effort job history
         total_s = sum(d for _, d in chapters_meta) / 1000.0
-        yield _emit({"type": "done", "output": out_name,
-                     "chapters": len(chapter_files), "duration_s": round(total_s, 2),
-                     "cached_chapters": cached_n, "failed_chapters": failed})
+        done = {"type": "done", "output": out_name,
+                "chapters": len(chapter_files), "duration_s": round(total_s, 2),
+                "cached_chapters": cached_n, "failed_chapters": failed}
+        # Loudness verdict only when a preset was requested — off/None paths keep
+        # the exact legacy `done` shape (additive, old clients unaffected).
+        if norm in LOUDNESS_PRESETS:
+            p = LOUDNESS_PRESETS[norm]
+            done["loudness"] = {
+                "preset": norm, "target_i": p.i, "target_tp": p.tp,
+                "two_pass": measured is not None,
+                "measured_i": measured.input_i if measured else None,
+            }
+        yield _emit(done)
     except Exception as e:  # surface, don't 500 the stream
         logger.exception("[%s] longform render failed", job_id)
         if job_store is not None:
