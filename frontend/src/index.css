@@ -286,21 +286,29 @@ samp,
 .app-container > .main-content > * { position: relative; z-index: 1; }
 .app-container > div { min-width: 0; }
 
-/* ≤1100: auto-collapse sidebar, keep nav + main */
-@media (max-width: 1100px) {
-  .app-container { grid-template-columns: 48px minmax(0, 1fr) !important; }
-  .app-container > .history-panel { display: none !important; }
-  .app-container > .main-content { grid-column: 2 !important; }
-  .app-container.rail-right { grid-template-columns: minmax(0, 1fr) 48px !important; }
-  .app-container.rail-right > .main-content { grid-column: 1 !important; }
-}
+/* Responsive collapse driven by the shell's OWN width (`shell-narrow`/`shell-mini`
+   set in App.jsx from app-container.clientWidth = 100vw/--ui-scale), NOT a
+   viewport @media query. A `@media (max-width)` fires on raw 100vw and so
+   collapses at the wrong threshold whenever --ui-scale ≠ 1 (the layout box is
+   100vw/scale), which crammed the content into a left sliver with a black band.
+   These class rules respond to the actual scaled layout width on every engine. */
 
-/* ≤600: hide nav rail too, full-width main */
-@media (max-width: 600px) {
-  .app-container { grid-template-columns: minmax(0, 1fr) !important; }
-  .app-container > .nav-rail { display: none; }
-  .app-container > .main-content { grid-column: 1 !important; }
-}
+/* ≤1100 effective: auto-collapse the projects/history panel, keep nav + main */
+.app-container.shell-narrow,
+.app-container.shell-mini { grid-template-columns: 48px minmax(0, 1fr) !important; }
+.app-container.shell-narrow > .history-panel,
+.app-container.shell-mini > .history-panel { display: none !important; }
+.app-container.shell-narrow > .main-content,
+.app-container.shell-mini > .main-content { grid-column: 2 !important; }
+.app-container.shell-narrow.rail-right,
+.app-container.shell-mini.rail-right { grid-template-columns: minmax(0, 1fr) 48px !important; }
+.app-container.shell-narrow.rail-right > .main-content,
+.app-container.shell-mini.rail-right > .main-content { grid-column: 1 !important; }
+
+/* ≤600 effective: hide the nav rail too, full-width main */
+.app-container.shell-mini { grid-template-columns: minmax(0, 1fr) !important; }
+.app-container.shell-mini > .nav-rail { display: none; }
+.app-container.shell-mini > .main-content { grid-column: 1 !important; }
 
 /* ═══ PANELS — flat chrome ═══ */
 .glass-panel {

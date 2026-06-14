@@ -83,6 +83,26 @@ function App() {
   // via the store's `partialize`; active project / voice ids stay transient.
   const uiScale = useAppStore(s => s.uiScale);
   const setUiScale = useAppStore(s => s.setUiScale);
+
+  // Responsive shell breakpoints driven off the app-container's OWN width, not
+  // the viewport. The shell is sized `width: calc(100vw / --ui-scale)` then
+  // `transform: scale(--ui-scale)` (the WebKitGTK fix, #407), so the grid lays
+  // out against `100vw/scale` — which `el.clientWidth` reports (transforms don't
+  // change the layout box). Viewport `@media` queries fire on raw `100vw` and so
+  // collapse at the wrong threshold whenever the UI scale ≠ 1, cramming the
+  // content into a sliver. ResizeObserver fires on both window resize and scale
+  // change (the calc width changes), so this stays correct on every engine.
+  const shellRef = useRef(null);
+  const [shellWidth, setShellWidth] = useState(Infinity);
+  useEffect(() => {
+    const el = shellRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => setShellWidth(el.clientWidth));
+    ro.observe(el);
+    setShellWidth(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+  const shellSizeClass = shellWidth <= 600 ? 'shell-mini' : shellWidth <= 1100 ? 'shell-narrow' : '';
   const theme = useAppStore(s => s.theme);
 
   const locale = useAppStore(s => s.locale);
@@ -967,11 +987,13 @@ function App() {
 
   return (
     <div
+      ref={shellRef}
       className={[
         'app-container',
         isSidebarCollapsed ? 'sidebar-collapsed' : '',
         hideSidebar ? 'sidebar-hidden' : '',
         navRailSide === 'right' ? 'rail-right' : '',
+        shellSizeClass,
       ].filter(Boolean).join(' ')}
       style={{ '--ui-scale': uiScale }}
     >
