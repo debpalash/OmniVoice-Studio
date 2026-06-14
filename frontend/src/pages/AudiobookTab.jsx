@@ -8,6 +8,7 @@ import {
 import { audioUrl } from '../api/generate';
 import { consumeLongformStream } from '../utils/longformStream';
 import { useAppStore } from '../store';
+import VoiceSelector from '../components/VoiceSelector';
 import './AudiobookTab.css';
 
 /**
@@ -236,11 +237,12 @@ export default function AudiobookTab({ profiles = [] }) {
         <div className="audiobook-tab__side">
           <div className="audiobook-tab__field">
             <label className="field-label">{t('audiobook.default_voice')}</label>
-            <select className="input-base" value={defaultVoice}
-              onChange={(e) => setDefaultVoice(e.target.value)} aria-label={t('audiobook.default_voice')}>
-              <option value="">{t('audiobook.engine_default')}</option>
-              {profiles.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
-            </select>
+            <VoiceSelector
+              value={defaultVoice}
+              onChange={setDefaultVoice}
+              profiles={profiles}
+              defaultLabel={t('audiobook.engine_default')}
+            />
           </div>
 
           <div className="audiobook-tab__duo">
