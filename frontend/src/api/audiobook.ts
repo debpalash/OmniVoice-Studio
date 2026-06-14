@@ -89,7 +89,7 @@ export async function audiobookUploadCover(file: File): Promise<{ path: string }
   return res.json();
 }
 
-/** Import a .txt/.md/.epub into a chapter-delimited script. */
+/** Import a .txt/.md/.epub/.pdf into a chapter-delimited script. */
 export async function audiobookImport(file: File): Promise<{ text: string; chapters: number }> {
   const form = new FormData();
   form.append('file', file);

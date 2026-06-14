@@ -190,3 +190,62 @@ def epub_to_chapter_script(
     if not blocks:
         raise ValueError("no readable chapters found in the EPUB")
     return "\n\n".join(blocks)
+
+
+# Page-count ceiling for PDF ingestion — a defence against a pathological
+# document tying up the worker. 5000 pages comfortably covers any real book.
+_PDF_MAX_PAGES = 5000
+
+
+def pdf_to_chapter_script(data: bytes, *, max_pages: int = _PDF_MAX_PAGES) -> str:
+    """Convert PDF bytes into a ``# Chapter`` / body script.
+
+    Extracts the embedded text layer page-by-page (in page order), joins it,
+    and runs it through :func:`chapterize_plaintext` so ``Chapter N`` /
+    ``Prologue`` lines become headings — same grammar EPUB and plaintext emit.
+    Unlike EPUB this needs a real parser (``pypdf``, pure-Python, no native
+    deps → identical on every platform).
+
+    Limitations surfaced as ``ValueError`` (the route maps these to a 400 with
+    the message, so the user gets actionable feedback rather than a silent
+    empty import):
+
+    * **Scanned / image-only PDFs** have no text layer — there's nothing to
+      extract without OCR, so we raise rather than return an empty script.
+    * **Password-protected PDFs** that don't open with an empty password can't
+      be read.
+    """
+    from pypdf import PdfReader
+    from pypdf.errors import PdfReadError
+
+    try:
+        reader = PdfReader(io.BytesIO(data))
+    except (PdfReadError, OSError, ValueError) as e:
+        raise ValueError(f"not a valid PDF file: {e}") from e
+
+    if reader.is_encrypted:
+        # Many PDFs are encrypted with an empty user password (owner-locked but
+        # freely readable). Try that; a real password we can't supply.
+        try:
+            if reader.decrypt("") == 0:  # 0 == wrong password
+                raise ValueError("PDF is password-protected")
+        except (NotImplementedError, PdfReadError) as e:
+            raise ValueError(f"can't read this encrypted PDF: {e}") from e
+
+    pages = reader.pages
+    if len(pages) > max_pages:
+        raise ValueError(f"PDF has too many pages (max {max_pages})")
+
+    parts: list[str] = []
+    for page in pages:
+        try:
+            text = page.extract_text() or ""
+        except Exception:  # noqa: BLE001 — one bad page shouldn't kill the import
+            continue
+        if text.strip():
+            parts.append(text)
+
+    if not parts:
+        raise ValueError(
+            "no extractable text — this looks like a scanned or image-only PDF")
+    return chapterize_plaintext("\n\n".join(parts))

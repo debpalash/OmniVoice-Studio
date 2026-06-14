@@ -97,12 +97,17 @@ _MAX_CHAPTERS = 10_000
 
 @router.post("/audiobook/import")
 async def audiobook_import(file: UploadFile = File(...)) -> dict:
-    """Import a ``.txt``/``.md``/``.epub`` into a chapter-delimited script.
+    """Import a ``.txt``/``.md``/``.epub``/``.pdf`` into a chapter-delimited script.
 
-    EPUB is parsed in spine order (stdlib only, local); plain text gets ``# ``
-    headings inserted ahead of obvious chapter-title lines. Returns the script
-    text (for the editor) + the resulting chapter count."""
-    from services.longform_import import chapterize_plaintext, epub_to_chapter_script
+    EPUB is parsed in spine order (stdlib only, local); PDF text is extracted
+    with pypdf (pure-Python) then chapterized; plain text gets ``# `` headings
+    inserted ahead of obvious chapter-title lines. Returns the script text (for
+    the editor) + the resulting chapter count."""
+    from services.longform_import import (
+        chapterize_plaintext,
+        epub_to_chapter_script,
+        pdf_to_chapter_script,
+    )
 
     name = (file.filename or "").lower()
     data = await file.read()
@@ -115,6 +120,11 @@ async def audiobook_import(file: UploadFile = File(...)) -> dict:
             script = epub_to_chapter_script(data)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"couldn't parse EPUB: {e}")
+    elif name.endswith(".pdf"):
+        try:
+            script = pdf_to_chapter_script(data)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"couldn't parse PDF: {e}")
     else:
         script = chapterize_plaintext(data.decode("utf-8", "ignore"))
     if not script.strip():

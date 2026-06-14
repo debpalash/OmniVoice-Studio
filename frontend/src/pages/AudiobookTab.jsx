@@ -209,7 +209,7 @@ export default function AudiobookTab({ profiles = [] }) {
         <div className="audiobook-tab__actions">
           <label className="ui-btn ui-btn--subtle" style={{ cursor: busy ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {importing ? <Loader size={14} className="spin" /> : <Upload size={14} />} {t('audiobook.import')}
-            <input type="file" accept=".txt,.md,.epub" onChange={onImport} disabled={busy} style={{ display: 'none' }} />
+            <input type="file" accept=".txt,.md,.epub,.pdf" onChange={onImport} disabled={busy} style={{ display: 'none' }} />
           </label>
           <button className="ui-btn ui-btn--subtle" onClick={onPreview} disabled={!canRun}>
             {planLoading ? <Loader size={14} className="spin" /> : null} {t('audiobook.preview_plan')}

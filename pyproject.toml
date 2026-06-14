@@ -120,6 +120,11 @@ dependencies = [
     # callbacks (the accurate-progress work in this same plan depends on tqdm).
     "huggingface_hub>=1.7",
     "hf-xet>=1.1",
+    # Audiobook PDF ingest (/audiobook/import). Pure-Python, MIT, zero native
+    # deps → identical behaviour on macOS/Windows/Linux (default-parity rule).
+    # EPUB + plaintext stay stdlib-only; only PDF needs a real parser, and
+    # pypdf is the lightest one that ships no C extensions.
+    "pypdf>=4.0",
 ]
 
 [project.optional-dependencies]

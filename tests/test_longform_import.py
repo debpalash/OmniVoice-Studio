@@ -10,8 +10,51 @@ import zipfile
 
 import pytest
 
-from services.longform_import import chapterize_plaintext, epub_to_chapter_script
+from services.longform_import import (
+    chapterize_plaintext,
+    epub_to_chapter_script,
+    pdf_to_chapter_script,
+)
 from services.audiobook import parse_audiobook_script
+
+
+# ── PDF fixture builder ───────────────────────────────────────────────────
+# A minimal hand-built single-page PDF with a Helvetica text layer, so the PDF
+# tests need no PDF-authoring dependency (mirrors the in-memory-EPUB approach).
+
+def _make_pdf(lines: list[str], *, content_override: bytes | None = None) -> bytes:
+    if content_override is not None:
+        content = content_override
+    else:
+        show = "BT /F1 12 Tf 72 720 Td 16 TL\n"
+        for ln in lines:
+            esc = ln.replace("\\", "\\\\").replace("(", r"\(").replace(")", r"\)")
+            show += f"({esc}) Tj T*\n"
+        show += "ET"
+        content = show.encode("latin-1")
+
+    objs = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+        b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Length " + str(len(content)).encode() + b" >>\nstream\n" + content + b"\nendstream",
+    ]
+    out = io.BytesIO()
+    out.write(b"%PDF-1.4\n")
+    offsets = []
+    for i, body in enumerate(objs, 1):
+        offsets.append(out.tell())
+        out.write(f"{i} 0 obj\n".encode() + body + b"\nendobj\n")
+    xref_pos = out.tell()
+    n = len(objs) + 1
+    out.write(f"xref\n0 {n}\n".encode())
+    out.write(b"0000000000 65535 f \n")
+    for off in offsets:
+        out.write(f"{off:010d} 00000 n \n".encode())
+    out.write(f"trailer\n<< /Size {n} /Root 1 0 R >>\nstartxref\n{xref_pos}\n%%EOF".encode())
+    return out.getvalue()
 
 
 # ── plain text ──────────────────────────────────────────────────────────────
@@ -137,3 +180,42 @@ def test_epub_oversize_entry_skipped():
     data = _make_epub([("Big", "x" * 500)])
     with pytest.raises(ValueError):  # the one entry exceeds the cap → all skipped
         epub_to_chapter_script(data, max_entry_bytes=50)
+
+
+# ── PDF ──────────────────────────────────────────────────────────────────
+
+def test_pdf_extracts_and_chapterizes():
+    data = _make_pdf(["Chapter 1", "Once upon a time.", "Chapter 2", "The end."])
+    script = pdf_to_chapter_script(data)
+    # Chapter-keyword lines from the extracted text become headings …
+    assert "# Chapter 1" in script
+    assert "# Chapter 2" in script
+    # … and the body survives.
+    assert "Once upon a time." in script
+    # And it parses into two chapters via the shared grammar.
+    assert len(parse_audiobook_script(script).chapters) == 2
+
+
+def test_pdf_without_chapter_markers_is_single_chapter():
+    data = _make_pdf(["Just some flowing prose.", "With no chapter headings at all."])
+    script = pdf_to_chapter_script(data)
+    assert "With no chapter headings" in script
+    assert len(parse_audiobook_script(script).chapters) == 1
+
+
+def test_pdf_corrupt_raises_valueerror():
+    with pytest.raises(ValueError):
+        pdf_to_chapter_script(b"this is definitely not a pdf")
+
+
+def test_pdf_image_only_raises_actionable_error():
+    # A valid PDF whose page has no text-showing operators → nothing to extract.
+    data = _make_pdf([], content_override=b"q Q")  # graphics-only, no BT/Tj
+    with pytest.raises(ValueError, match="scanned or image-only"):
+        pdf_to_chapter_script(data)
+
+
+def test_pdf_too_many_pages_guard():
+    data = _make_pdf(["Chapter 1", "Hi."])
+    with pytest.raises(ValueError, match="too many pages"):
+        pdf_to_chapter_script(data, max_pages=0)
