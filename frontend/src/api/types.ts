@@ -136,6 +136,41 @@ export interface ProfileUsage {
   total_segments: number;
 }
 
+// ── Portable persona bundles (.ovsvoice, #29) ──────────────────────────────
+export interface PersonaImportResult {
+  success: boolean;
+  profile_id: string;
+  name: string;
+  kind: ProfileKind | string;
+  verified_own_voice: boolean;
+  preview_only: boolean;
+  license_spdx: string;
+  watermarked_preview: boolean;
+  source_bundle: string;
+  schema_version_ahead: boolean;
+}
+
+export interface PersonaBundleMeta {
+  format: string;                 // "ovsvoice" | "omnivoice-legacy"
+  schema_version: number;
+  name: string;
+  kind: ProfileKind | string;
+  language?: string;
+  personality?: string;
+  is_locked?: boolean;
+  license_spdx: string;
+  tags: string[];
+  preview_only: boolean;
+  watermarked_preview: boolean;
+  consent: null | {
+    verified_claimed: boolean;
+    method: string;
+    has_recording: boolean;
+    would_verify: boolean;
+  };
+  schema_version_ahead: boolean;
+}
+
 // ── Glossary ─────────────────────────────────────────────────────────────
 export interface GlossaryTerm {
   id: number;

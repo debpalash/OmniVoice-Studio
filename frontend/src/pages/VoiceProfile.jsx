@@ -5,11 +5,12 @@ import { toastErrorWithReport } from '../utils/errorToast';
 import {
   ArrowLeft, Fingerprint, Wand2, Lock, Unlock, Trash2, Play, Save,
   FolderOpen, Volume2, Clock, Pencil, Check, X, Sparkles, ShieldCheck, Mic, Square,
+  Download,
 } from 'lucide-react';
 import { Panel, Button, Input, Textarea, Field, Badge, Segmented, Progress } from '../ui';
 import {
   getProfile, getProfileUsage, updateProfile, deleteProfile, unlockProfile,
-  recordConsent, revokeConsent,
+  recordConsent, revokeConsent, exportPersona,
 } from '../api/profiles';
 import useRecording from '../hooks/useRecording';
 import { generateSpeech } from '../api/generate';
@@ -73,6 +74,37 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
       await reload();
     } catch (e) {
       toastErrorWithReport(e.message, e);
+    }
+  };
+
+  // Export this profile as a portable .ovsvoice persona bundle (#29). Default
+  // ships the raw reference clip; the privacy toggle (default ON) strips it so
+  // only the watermarked preview travels.
+  const [exporting, setExporting] = useState(false);
+  const [includeReference, setIncludeReference] = useState(true);
+  const onExportPersona = async () => {
+    setExporting(true);
+    const loadingId = toast.loading(t('voice_profile.persona_exporting', { defaultValue: 'Building persona…' }));
+    try {
+      const blob = await exportPersona(voiceId, { include_reference: includeReference });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const safe = (profile?.name || 'persona').replace(/[^a-zA-Z0-9-_ ]/g, '').trim().replace(/ /g, '_') || 'persona';
+      a.href = url;
+      a.download = `${safe}.ovsvoice`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(t('voice_profile.persona_exported', { defaultValue: 'Persona exported' }), { id: loadingId });
+    } catch (e) {
+      toast.dismiss(loadingId);
+      const msg = String(e?.message || e) === '503'
+        ? t('voice_profile.persona_export_no_audio', { defaultValue: 'This voice has no readable audio to build a preview from.' })
+        : t('voice_profile.persona_export_failed', { defaultValue: 'Export failed.' });
+      toastErrorWithReport(msg, e);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -218,6 +250,22 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
         {!editing && (
           <Button variant="subtle" size="sm" onClick={() => setEditing(true)} leading={<Pencil size={12} />}>
             {t('voice_profile.edit')}
+          </Button>
+        )}
+        {!editing && (
+          <label
+            className="voice-profile__persona-privacy"
+            title={t('voice_profile.persona_include_ref_hint', { defaultValue: 'Include the raw reference clip. Off = share only a watermarked preview (recommended).' })}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11 }}
+          >
+            <input type="checkbox" checked={includeReference} onChange={(e) => setIncludeReference(e.target.checked)} />
+            {t('voice_profile.persona_include_ref', { defaultValue: 'Include voice clip' })}
+          </label>
+        )}
+        {!editing && (
+          <Button variant="subtle" size="sm" onClick={onExportPersona} loading={exporting}
+            leading={!exporting && <Download size={12} />}>
+            {t('voice_profile.persona_export', { defaultValue: 'Export persona' })}
           </Button>
         )}
         <Button variant="danger" size="sm" onClick={onDelete} leading={<Trash2 size={12} />}>

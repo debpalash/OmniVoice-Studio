@@ -8,12 +8,13 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Search, Download, Play, Pause, Trash2, X, Loader, Star,
-  Wand2, UserPlus, Sparkles, RotateCcw, Grid, List, Upload, Scissors, Store, Send,
+  Wand2, UserPlus, Sparkles, RotateCcw, Grid, List, Upload, Scissors, Store, Send, Package,
 } from 'lucide-react';
 import { Button, Input } from '../ui';
 import { useArchetypeCategories, useArchetypes, useGalleryVoices, useCommunityItems } from '../api/hooks';
 import { archetypePreviewUrl, useArchetypeAsProfile } from '../api/archetypes';
 import { addCommunityItem, communitySubmitUrl } from '../api/community';
+import { importPersona } from '../api/profiles';
 import { openExternal } from '../api/external';
 import {
   searchYoutube, downloadYoutubeClip, deleteGalleryVoice,
@@ -526,10 +527,38 @@ function ImportsZone({ t, playingId, loadingPreviewId, onPlayGallery, flash }) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [trimming, setTrimming] = useState(null); // { voice, file }
   const fileRef = useRef(null);
+  const personaRef = useRef(null);
+  const [importingPersona, setImportingPersona] = useState(false);
 
   const voicesQ = useGalleryVoices();
   const voices = voicesQ.data || [];
   const reload = () => voicesQ.refetch();
+
+  // Import a portable .ovsvoice (or legacy .omnivoice) persona bundle (#29).
+  const handlePersonaImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportingPersona(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await importPersona(fd);
+      reload();
+      flash(t('gallery.persona_imported', {
+        defaultValue: 'Imported "{{name}}"{{unverified}}.', name: res.name,
+        unverified: res.verified_own_voice ? '' : t('gallery.persona_unverified_suffix', { defaultValue: ' (unverified)' }),
+      }));
+    } catch (err) {
+      const code = String(err?.message || err);
+      const msg = code.includes('413')
+        ? t('gallery.persona_too_large', { defaultValue: 'That bundle is too large (max 100 MB).' })
+        : t('gallery.persona_import_failed', { defaultValue: 'Could not import that persona bundle.' });
+      flash(msg);
+    } finally {
+      setImportingPersona(false);
+      if (personaRef.current) personaRef.current.value = '';
+    }
+  };
 
   const isUrl = /^https?:\/\//i.test(query.trim());
 
@@ -663,6 +692,12 @@ function ImportsZone({ t, playingId, loadingPreviewId, onPlayGallery, flash }) {
           <input ref={fileRef} type="file" accept="audio/*,video/*" hidden onChange={handleUpload} />
           <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()} title={t('gallery.upload', { defaultValue: 'Upload file' })}>
             <Upload size={14} />
+          </Button>
+          <input ref={personaRef} type="file" accept=".ovsvoice,.omnivoice" hidden onChange={handlePersonaImport} />
+          <Button variant="ghost" size="sm" disabled={importingPersona}
+            onClick={() => personaRef.current?.click()}
+            title={t('gallery.import_persona', { defaultValue: 'Import a .ovsvoice persona bundle' })}>
+            {importingPersona ? <Loader size={14} className="spin" /> : <Package size={14} />}
           </Button>
         </div>
       </div>
