@@ -14,7 +14,6 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from services.ffmpeg_utils import run_ffmpeg
 from services.longform_render import (
     MeasuredLoudness,
     build_loudnorm_measure_cmd,
@@ -43,6 +42,7 @@ async def measure_loudness(
     if filt is None:
         return None  # off / unknown — a normal skip, not an error (no log)
     cmd = build_loudnorm_measure_cmd(ffmpeg, concat_list_path, filt)
+    from services.ffmpeg_utils import run_ffmpeg  # lazy → patchable at source
     try:
         # asyncio.TimeoutError is a subclass of Exception (Py≥3.11) — caught
         # here so a slow measure degrades to single-pass instead of killing the

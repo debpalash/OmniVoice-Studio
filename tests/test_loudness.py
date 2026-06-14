@@ -36,7 +36,7 @@ def _stub(monkeypatch, *, rc=0, err=b"", raises=None, spy=None):
         return (rc, b"", err)
     if spy is not None:
         spy["called"] = False
-    monkeypatch.setattr("services.loudness.run_ffmpeg", fake)
+    monkeypatch.setattr("services.ffmpeg_utils.run_ffmpeg", fake)
 
 
 def test_happy_parses_fixture(monkeypatch):
