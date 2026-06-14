@@ -7,6 +7,7 @@ import {
 } from '../api/audiobook';
 import { audioUrl } from '../api/generate';
 import { consumeLongformStream } from '../utils/longformStream';
+import { useAppStore } from '../store';
 import './AudiobookTab.css';
 
 /**
@@ -18,8 +19,17 @@ import './AudiobookTab.css';
  */
 export default function AudiobookTab({ profiles = [] }) {
   const { t } = useTranslation();
-  const [text, setText] = useState('');
-  const [defaultVoice, setDefaultVoice] = useState('');
+  // Persisted via the unified LongformProject store (#31b) — book identity,
+  // script, voice, and output prefs now survive a tab switch / reload (they
+  // used to live in component useState and evaporate).
+  const text = useAppStore((s) => s.script);
+  const setText = useAppStore((s) => s.setScript);
+  const defaultVoice = useAppStore((s) => s.defaultVoice) ?? '';  // select coerces null→''
+  const setOutputPrefs = useAppStore((s) => s.setOutputPrefs);
+  const setProjectMeta = useAppStore((s) => s.setProjectMeta);
+  const setLexiconStore = useAppStore((s) => s.setLexicon);
+  const storeLexicon = useAppStore((s) => s.lexicon);
+  const setDefaultVoice = (v) => setOutputPrefs({ defaultVoice: v || null });
   const [plan, setPlan] = useState(null);
   const [planLoading, setPlanLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -30,23 +40,44 @@ export default function AudiobookTab({ profiles = [] }) {
   const [chapterPrev, setChapterPrev] = useState({}); // index → {url, loading}
   const abortRef = useRef(false);
 
-  // Output + metadata (embedded in the file; players show these).
-  const [format, setFormat] = useState('m4b');      // 'm4b' | 'mp3'
-  const [loudness, setLoudness] = useState('off');  // 'off' | 'acx' | 'podcast'
-  const [meta, setMeta] = useState({
-    title: '', author: '', narrator: '', year: '', genre: '', description: '',
-  });
+  // Output prefs + metadata (embedded in the file; players show these) — now
+  // store-backed. `meta` is default-filled so every controlled input gets a
+  // defined string (an empty store record never flips a controlled→uncontrolled).
+  const format = useAppStore((s) => s.outputFormat);     // 'm4b' | 'mp3'
+  const setFormat = (v) => setOutputPrefs({ outputFormat: v });
+  const loudness = useAppStore((s) => s.loudness);        // 'off' | 'acx' | 'podcast'
+  const setLoudness = (v) => setOutputPrefs({ loudness: v });
+  const metaStore = useAppStore((s) => s.meta);
+  const meta = { title: '', author: '', narrator: '', year: '', genre: '', description: '', ...metaStore };
+  const setMetaField = (k) => (e) => setProjectMeta({ [k]: e.target.value });
+
+  // Cover stays component-local (a File/blob can't persist to localStorage;
+  // coverRef persistence is a noted follow-up).
   const [coverFile, setCoverFile] = useState(null);
   const [coverPreview, setCoverPreview] = useState('');
-  // Pronunciation lexicon: editable {word → respelling} rows.
+
+  // Pronunciation lexicon: editable {word → respelling} rows. Rows stay LOCAL
+  // (half-typed rows aren't junk-persisted); the filtered dict flushes to the
+  // store so it survives a reload, and hydrates back into rows on mount.
   const [lex, setLex] = useState([]); // [{ word, say }]
+  const lexHydrated = useRef(false);
+  useEffect(() => {
+    if (lexHydrated.current) return;
+    lexHydrated.current = true;
+    const rows = Object.entries(storeLexicon || {}).map(([word, say]) => ({ word, say }));
+    if (rows.length) setLex(rows);
+  }, [storeLexicon]);
   const lexDict = () => Object.fromEntries(
     lex.filter((r) => r.word.trim() && r.say.trim()).map((r) => [r.word.trim(), r.say.trim()]),
   );
+  // Flush the filtered dict to the store whenever rows change (after hydration).
+  useEffect(() => {
+    if (!lexHydrated.current) return;
+    setLexiconStore(lexDict());
+  }, [lex]); // eslint-disable-line react-hooks/exhaustive-deps
   const setLexRow = (i, k) => (e) => setLex((rows) => rows.map((r, j) => (j === i ? { ...r, [k]: e.target.value } : r)));
   const addLexRow = () => setLex((rows) => [...rows, { word: '', say: '' }]);
   const removeLexRow = (i) => setLex((rows) => rows.filter((_, j) => j !== i));
-  const setMetaField = (k) => (e) => setMeta((m) => ({ ...m, [k]: e.target.value }));
 
   const onCoverPick = useCallback((e) => {
     const f = e.target.files?.[0];
