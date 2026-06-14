@@ -2,7 +2,8 @@
 
 Behaviors covered:
 - set_hf_token / get_hf_token round-trips the exact same string
-- Raw bytes in the SQLite `settings.value` column do NOT contain `hf_` —
+- Raw bytes in the SQLite `settings.value` column do NOT contain the plaintext
+  token (nor a long chunk of it) and round-trip back via get_hf_token —
   encrypted at rest, not plaintext
 - clear_hf_token followed by get_hf_token returns None
 - First set generates and stores a per-install salt row
@@ -65,9 +66,14 @@ def test_stored_value_is_encrypted_not_plaintext(isolated_db):
         ).fetchone()
     assert row is not None
     raw = row[0]
-    # If the token leaked into storage in plaintext, this catches it.
-    assert "hf_" not in raw
+    # The stored value must not be the plaintext token. Check the full token and
+    # a long leading chunk — but NOT a 3-char prefix like "hf_": the value is
+    # Fernet urlsafe-base64 (alphabet includes '_'), so a random ciphertext
+    # occasionally contains "hf_" by chance, which made that assertion flaky.
     assert SAMPLE_TOKEN not in raw
+    assert SAMPLE_TOKEN[:16] not in raw  # not even a leading chunk leaks
+    # And it must round-trip — proving it's genuinely encrypted, not just absent.
+    assert settings_store.get_hf_token() == SAMPLE_TOKEN
 
 
 def test_clear_removes_token(isolated_db):
