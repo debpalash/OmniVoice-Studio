@@ -116,6 +116,17 @@ def _oom_friendly_reraise(e):
             f"Disable torch.compile in Settings → Performance, use the Flush "
             f"button to reload the model, then regenerate. Underlying error: {e}"
         ) from e
+    # #437: a Permission-denied / exec failure (e.g. a bundled engine binary
+    # that lost its +x bit) is NOT an OOM — don't send the user to the Flush
+    # button; tell them what's actually wrong.
+    es = str(e)
+    if isinstance(e, PermissionError) or "Permission denied" in es or "Errno 13" in es:
+        raise RuntimeError(
+            f"A required engine binary couldn't be executed (permission denied). "
+            f"This usually means a bundled binary lost its execute bit — reinstall, "
+            f"or run `chmod +x` on the engine binary named in the error. "
+            f"Underlying error: {e}"
+        ) from e
     raise RuntimeError(
         f"TTS engine stopped mid-generation. This usually means it ran out of memory. "
         f"Try the Flush button to reload the model, then regenerate. Underlying error: {e}"

@@ -111,7 +111,21 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
   const finalOpts: RequestInit = Object.keys(extra).length
     ? { ...opts, headers: { ...(opts.headers as Record<string, string> || {}), ...extra } }
     : opts;
-  const res = await fetch(apiUrl(path), finalOpts);
+  let res: Response;
+  try {
+    res = await fetch(apiUrl(path), finalOpts);
+  } catch (e) {
+    // A thrown fetch (TypeError "Failed to fetch" / "NetworkError") means the
+    // request never reached the backend — it's still starting up, crashed, or
+    // the dev server dropped. Surface that as an actionable ApiError instead of
+    // the raw browser string (issues #438/#454/#466). status:0 lets callers
+    // distinguish a transport failure from an HTTP error.
+    throw new ApiError(
+      "Can't reach the local OmniVoice backend — it may still be starting up, or it stopped. " +
+      "Wait a few seconds and try again; if it persists, restart the app (or check Settings → Logs → Backend).",
+      { status: 0, detail: String((e as Error)?.message || e) },
+    );
+  }
   if (!res.ok) {
     // 401 from the LAN PIN middleware on a remote device → surface the gate.
     if (res.status === 401 && typeof window !== 'undefined') {

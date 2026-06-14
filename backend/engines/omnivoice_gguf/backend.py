@@ -353,6 +353,21 @@ def _make_backend_class():
                         f"This clears the quarantine on the .app and its "
                         f"bundled binaries. See docs/install/macos.md."
                     )
+                # Execute bit (issue #437). A `git clone` / zip extract on POSIX
+                # can drop +x, which only surfaces at spawn time as
+                # "[Errno 13] Permission denied" — and the generic synth handler
+                # then mislabels it as out-of-memory. Self-heal here, AFTER the
+                # SHA check has confirmed this is the right file (so we never
+                # chmod a foreign binary). No-op on Windows.
+                if os.name == "posix" and not os.access(bin_path, os.X_OK):
+                    try:
+                        bin_path.chmod(bin_path.stat().st_mode | 0o111)
+                    except OSError:
+                        return False, (
+                            f"GGUF binary {bin_path.name} isn't executable and "
+                            f"couldn't be made so — run `chmod +x {bin_path}` "
+                            f"and retry."
+                        )
                 return True, "ready"
             except Exception as exc:
                 return False, f"{type(exc).__name__}: {exc}"
