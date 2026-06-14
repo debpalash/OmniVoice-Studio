@@ -1,0 +1,50 @@
+name: ✨ Feature request
+description: Suggest an improvement or a new capability.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before filing
+      options:
+        - label: I searched [existing issues](https://github.com/debpalash/OmniVoice-Studio/issues?q=is%3Aissue) and [discussions](https://github.com/debpalash/OmniVoice-Studio/discussions) for this idea.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: The use case / friction this addresses ("When I … I can't …").
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Voice cloning
+        - Voice design
+        - Video dubbing
+        - Real-time dictation
+        - Audiobook / Stories (long-form)
+        - TTS/ASR engines
+        - Install / setup / packaging
+        - Other
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        > OmniVoice is **local-first** — features must work fully offline with no accounts,
+        API keys, or cloud calls, and behave identically on macOS/Windows/Linux. Proposals
+        that fit those constraints are easiest to land.

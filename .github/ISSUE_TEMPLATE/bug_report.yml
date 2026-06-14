@@ -1,0 +1,109 @@
+name: 🐛 Bug report
+description: Something works incorrectly or crashes (not a first-run/install problem — use the install template for those).
+title: "[Bug] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve OmniVoice Studio! 🎙️
+
+        **Fastest path to a fix:** **Settings → About → "Save diagnostic bundle"** makes a
+        zip (self-check + recent errors + scrubbed log tails) — drag it onto this issue and
+        most of the environment questions below are answered automatically.
+        Headless: `python backend/main.py --diagnose` (add `--deep` to test-load the engine).
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before filing
+      options:
+        - label: I searched [existing issues](https://github.com/debpalash/OmniVoice-Studio/issues?q=is%3Aissue) and this isn't a duplicate.
+          required: true
+        - label: I'm on the latest release (or `main`) — older builds may already be fixed.
+          required: false
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, including the exact error text / toast if any.
+      placeholder: "Voice cloning failed with '…' after I clicked Generate."
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows (x64)
+        - Linux (AppImage)
+        - Linux (.deb)
+        - Linux (other / from source)
+        - Docker
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - Desktop app (installer / AppImage)
+        - Docker image
+        - From source (uv sync)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Settings → About (e.g. v0.3.5), or the Docker tag / git SHA.
+      placeholder: "v0.3.5"
+    validations:
+      required: true
+  - type: dropdown
+    id: device
+    attributes:
+      label: Compute device
+      options:
+        - NVIDIA GPU (CUDA)
+        - AMD GPU (ROCm)
+        - Apple Silicon (MPS)
+        - Intel GPU (XPU)
+        - CPU only
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: engine
+    attributes:
+      label: Active TTS/ASR engine
+      description: Settings → Engines (e.g. omnivoice, cosyvoice, indextts2, whisperx).
+      placeholder: "omnivoice"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / diagnostic bundle
+      description: Drag the diagnostic bundle here, or paste relevant lines from **Settings → Logs**. Secrets are scrubbed automatically.
+      render: text
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, the input that triggered it, RAM/VRAM, etc.

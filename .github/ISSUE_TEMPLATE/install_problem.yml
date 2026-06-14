@@ -1,0 +1,86 @@
+name: 🧩 Install / first-run problem
+description: The app won't install, set up, download models, or reach a first working output.
+title: "[Install] "
+labels: ["install", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A first-run that *just works* is the whole point — sorry it didn't. Let's fix it.
+        If the app launched far enough to open Settings, **Settings → About → "Save diagnostic
+        bundle"** captures most of this; otherwise the fields below are enough.
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Where did it fail?
+      options:
+        - App won't launch / blank or broken window
+        - Python / uv environment bootstrap
+        - Model download (HuggingFace)
+        - Engine install (CosyVoice / IndexTTS / MLX / etc.)
+        - First synthesis / dub never completes
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: The error
+      description: The exact message, traceback, or what you see on screen.
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows (x64)
+        - Linux (AppImage)
+        - Linux (.deb)
+        - Linux (other / from source)
+        - Docker
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How are you installing it?
+      options:
+        - Desktop app (installer / AppImage)
+        - Docker image
+        - From source (uv sync)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "v0.3.5 (or installer build / git SHA)"
+    validations:
+      required: true
+  - type: dropdown
+    id: network
+    attributes:
+      label: Network conditions (model/dependency downloads)
+      description: Restricted networks are a known source of bootstrap failures (mirror fallback).
+      options:
+        - Normal / unrestricted
+        - Behind a corporate proxy / firewall
+        - Region with restricted access (e.g. China, Russia)
+        - Offline / air-gapped
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / diagnostic bundle
+      description: Drag a diagnostic bundle, or paste the install/bootstrap log. Headless self-check — `python backend/main.py --diagnose`.
+      render: text
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you already tried?
