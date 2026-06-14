@@ -328,6 +328,7 @@ from api.routers import (
     openai_compat,
     tts_stream,
     marketplace,
+    personas,
     sonitranslate,
     audiobook,
     longform_jobs,
@@ -789,6 +790,7 @@ app.include_router(capture_ws.router)
 app.include_router(openai_compat.router)
 app.include_router(tts_stream.router)
 app.include_router(marketplace.router)
+app.include_router(personas.router)
 app.include_router(sonitranslate.router)
 app.include_router(audiobook.router)
 app.include_router(longform_jobs.router)
