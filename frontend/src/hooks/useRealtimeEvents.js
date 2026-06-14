@@ -12,9 +12,14 @@
  *   { kind: "ping" }  // keepalive, ignored
  */
 import { useEffect, useRef, useCallback } from 'react';
-import { wsUrl } from '../api/client';
+import { wsUrl, apiUrl } from '../api/client';
 
 const WS_EVENTS_URL = wsUrl('/ws/events');
+
+// HTTP health-check URL (derived from same base as WS). We poll this before
+// creating the WebSocket so the first attempt doesn't fail with ECONNREFUSED
+// when the Python backend hasn't finished starting Uvicorn (~14s on cold start).
+const HEALTH_CHECK_URL = `${apiUrl()}/model/status`;
 
 /**
  * @param {Object} handlers - Map of event kind → callback
@@ -33,10 +38,40 @@ export default function useRealtimeEvents(handlers) {
   // Keep handlers ref current without causing reconnects
   useEffect(() => { handlersRef.current = handlers; });
 
+  const scheduleReconnect = useCallback(() => {
+    if (!mountedRef.current) return;
+    const delay = Math.min(2000 * Math.pow(2, retryCountRef.current), 60_000);
+    retryCountRef.current++;
+    reconnectTimerRef.current = setTimeout(connect, delay);
+  }, []);
+
   const connect = useCallback(() => {
     if (!mountedRef.current) return;
     // Don't double-connect
     if (wsRef.current && wsRef.current.readyState <= 1) return;
+
+    // ── Phase 1: Wait for backend HTTP to be reachable ────────────────
+    // Background: the Python backend takes ~14s to import torch/fastapi/etc
+    // before Uvicorn starts. The frontend mounts faster, so the first
+    // WebSocket attempt always fails with code 1006. Polling HTTP first
+    // eliminates that noise and prevents the false "reconnecting" log.
+    fetch(HEALTH_CHECK_URL, { signal: AbortSignal.timeout(2000) })
+      .then(res => {
+        if (!res.ok) throw new Error(`health check returned ${res.status}`);
+        // Backend is up — proceed to Phase 2
+        if (!mountedRef.current) return;
+        if (wsRef.current && wsRef.current.readyState <= 1) return;
+        retryCountRef.current = 0; // reset backoff — health passed
+        openWebSocket();
+      })
+      .catch(() => {
+        // Backend not ready yet — schedule reconnect (no error log)
+        scheduleReconnect();
+      });
+  }, [scheduleReconnect]);
+
+  function openWebSocket() {
+    if (!mountedRef.current) return;
 
     try {
       const ws = new WebSocket(WS_EVENTS_URL);
@@ -84,7 +119,7 @@ export default function useRealtimeEvents(handlers) {
       retryCountRef.current++;
       reconnectTimerRef.current = setTimeout(connect, delay);
     }
-  }, []);
+  }
 
   useEffect(() => {
     mountedRef.current = true;
