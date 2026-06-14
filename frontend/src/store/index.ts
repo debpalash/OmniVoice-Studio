@@ -33,8 +33,8 @@ import type { GenerateSlice } from './generateSlice';
 import { createGenerateSlice } from './generateSlice';
 import type { PillSlice } from './pillSlice';
 import { createPillSlice } from './pillSlice';
-import type { StoriesSlice } from './storiesSlice';
-import { createStoriesSlice } from './storiesSlice';
+import type { LongformSlice } from './longformSlice';
+import { createLongformSlice, genProjectId } from './longformSlice';
 import type { UpdaterSlice } from './updaterSlice';
 import { createUpdaterSlice } from './updaterSlice';
 import type { GallerySlice } from './gallerySlice';
@@ -42,7 +42,7 @@ import { createGallerySlice } from './gallerySlice';
 import type { ReleasesSlice } from './releasesSlice';
 import { createReleasesSlice } from './releasesSlice';
 
-export type AppStore = PrefsSlice & GlossarySlice & UiSlice & DubSlice & GenerateSlice & PillSlice & StoriesSlice & UpdaterSlice & GallerySlice & ReleasesSlice;
+export type AppStore = PrefsSlice & GlossarySlice & UiSlice & DubSlice & GenerateSlice & PillSlice & LongformSlice & UpdaterSlice & GallerySlice & ReleasesSlice;
 
 /**
  * `useAppStore` — single root store. Don't create siblings. Slices compose here.
@@ -60,7 +60,7 @@ export const useAppStore = create<AppStore>()(
       ...createDubSlice(set, get, api),
       ...createGenerateSlice(set, get, api),
       ...createPillSlice(set, get, api),
-      ...createStoriesSlice(set, get, api),
+      ...createLongformSlice(set, get, api),
       ...createUpdaterSlice(set, get, api),  // transient — not in partialize
       ...createGallerySlice(set, get, api),
       ...createReleasesSlice(set, get, api),  // transient — not in partialize
@@ -111,22 +111,55 @@ export const useAppStore = create<AppStore>()(
         cast:          s.cast,
         storyProjects: s.storyProjects,
         currentProjectId: s.currentProjectId,
+        // Long-form shared working fields (#31) — persist so Audiobook
+        // metadata/script/prefs survive a tab switch or reload once bound (#31b).
+        script:        s.script,
+        meta:          s.meta,
+        lexicon:       s.lexicon,
+        coverRef:      s.coverRef,
+        outputFormat:  s.outputFormat,
+        loudness:      s.loudness,
+        defaultVoice:  s.defaultVoice,
+        projectMode:   s.projectMode,
       }),
-      version: 4,
+      version: 5,
       // Drop old persisted shapes rather than crashing the app. Every field
       // has a safe default in its slice, so v1/v2/v3 users pick up v4 defaults
       // for new fields (timingStrategy etc.) and keep any keys we still write
       // today. Upgrade > crash.
       migrate: (persisted, version) => {
-        if (!persisted || typeof persisted !== 'object') return {} as Partial<AppStore>;
+        if (!persisted || typeof persisted !== 'object') return {} as Partial<AppStore>; // D1
+        const p = persisted as any;
         if (version < 4) {
           // v1 → v2 added reviewMode; v2 → v3 added mode/sidebar/generate knobs;
-          // v3 → v4 added timingStrategy. All of those have slice defaults,
-          // so passing through the old keys is sufficient — anything missing
-          // falls through to the slice init.
-          return persisted as Partial<AppStore>;
+          // v3 → v4 added timingStrategy. All of those have slice defaults, so
+          // passing through is sufficient — then fall through to the < 5 branch.
         }
-        return persisted as Partial<AppStore>;
+        if (version < 5) {
+          // #31: each saved Stories project becomes a LongformProject. Defaults
+          // FIRST, real fields LAST (spread wins), so id/name/cast/tracks/
+          // updatedAt always survive; new book-identity fields seed to defaults.
+          // The field name stays `storyProjects` (every consumer reads it), so
+          // no key rename — only the per-project shape is enriched. Never throws;
+          // malformed entries are dropped (D2/D3).
+          const raw = Array.isArray(p.storyProjects) ? p.storyProjects : [];        // D2
+          p.storyProjects = raw
+            .filter((sp: any) => sp && typeof sp === 'object')                       // D3
+            .map((sp: any) => ({
+              id: genProjectId(), name: 'Untitled', mode: 'stories',
+              cast: [], tracks: [], script: '', meta: {}, lexicon: {},
+              coverRef: null, outputFormat: 'm4b', loudness: 'off',
+              defaultVoice: null, updatedAt: 0,
+              ...sp,
+            }));
+          // Loose working fields seed to defaults; absent ones fall through to
+          // slice init. A dangling currentProjectId is harmless (loadProject
+          // no-ops). NB: set `projectMode` (the long-form field), NOT `mode`
+          // (that's the app navigation mode owned by uiSlice).
+          p.projectMode = 'stories';
+          return p as Partial<AppStore>;
+        }
+        return p as Partial<AppStore>; // also covers version > 5 (downgrade→upgrade)
       },
     },
   ),
