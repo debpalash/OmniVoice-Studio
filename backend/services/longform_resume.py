@@ -28,25 +28,34 @@ RESUMABLE_TYPES = ("audiobook", "story")
 # carry a path separator, `..`, NUL, or anything that escapes OUTPUTS_DIR
 # (CodeQL py/path-injection). Anchored, single bounded quantifier → ReDoS-safe.
 _SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+# Exact-match allowlist on the WHOLE work-dir name (the value actually joined
+# onto OUTPUTS_DIR). Validating the joined string itself — not just job_id — is
+# the barrier CodeQL's path-injection query recognizes (same shape as
+# audiobook._safe_cover_path's _COVER_NAME_RE). Mirrors RESUMABLE_TYPES.
+_SAFE_SEG_RE = re.compile(r"^(?:audiobook|story)_[A-Za-z0-9_-]{1,64}$")
 
 
 def work_dir(job_type: str, job_id: str) -> Optional[str]:
     """The per-job work directory ``OUTPUTS_DIR/<job_type>_<job_id>``, resolved
     strictly inside OUTPUTS_DIR. Returns None for an unknown ``job_type``, an
-    id that isn't a bare safe token, or any path that escapes OUTPUTS_DIR after
-    symlink resolution — so a crafted ``job_id`` can never reach a foreign path
-    (mirrors profiles._voices_path; py/path-injection-safe)."""
+    id that isn't a bare safe token, or any path that escapes OUTPUTS_DIR — so a
+    crafted ``job_id`` can never reach a foreign path (py/path-injection-safe)."""
     if job_type not in RESUMABLE_TYPES or not _SAFE_ID_RE.match(job_id or ""):
         return None
     seg = f"{job_type}_{job_id}"
-    # basename-equality barrier (same shape as profiles._voices_path, which
-    # CodeQL accepts): a dir name with no separator can't traverse out.
-    if os.path.basename(seg) != seg:
+    # Exact-match allowlist on the full joined component (CodeQL-recognized
+    # barrier): anything not of this exact shape is rejected before the join.
+    if not _SAFE_SEG_RE.match(seg):
         return None
     from core.config import OUTPUTS_DIR
     root = os.path.realpath(OUTPUTS_DIR)
     path = os.path.realpath(os.path.join(root, seg))
-    if path != root and not path.startswith(root + os.sep):
+    # commonpath containment — the form static analysis recognizes (belt over
+    # the regex). Raises ValueError on mixed drives (Windows) → reject.
+    try:
+        if os.path.commonpath([path, root]) != root:
+            return None
+    except ValueError:
         return None
     return path
 
