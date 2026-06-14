@@ -22,25 +22,8 @@ ingestion, the streaming synth job + UI are deferred follow-ups.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from typing import Callable, Optional
-
-from omnivoice.utils.text import parse_pause_markers
-
-# A Markdown H1 (``# Title``) starts a new chapter. Deeper headings stay in the
-# body as ordinary text (narrated, not chapter breaks). The title capture
-# starts with ``\S`` (a non-space) so the leading ``[ \t]+`` and the title's
-# ``.*`` can't both match the same whitespace run — that overlap is what makes
-# ``[ \t]+(.+)`` polynomial-time on adversarial tabs (ReDoS). Stripped in code.
-_HEADING_RE = re.compile(r"^[ \t]*#[ \t]+(\S.*)$", re.MULTILINE)
-# ``[voice:NAME]`` switches the active narrator for the text that follows. The
-# content class excludes BOTH brackets (``[^\]\[]``) so a run of nested
-# ``[voice:`` prefixes can't create overlapping match attempts across
-# ``finditer`` (the source of the polynomial-time ReDoS). A voice name never
-# contains a bracket; the value is stripped in code.
-_VOICE_RE = re.compile(r"\[voice:([^\]\[]*)\]")
-
 
 @dataclass
 class Span:
@@ -90,73 +73,20 @@ class AudiobookPlan:
         }
 
 
-def _parse_spans(body: str, default_voice: Optional[str]) -> list[Span]:
-    """Split a chapter body into voice-tagged, pause-aware spans."""
-    spans: list[Span] = []
-    cur_voice = default_voice
-    runs: list[tuple[Optional[str], str]] = []
-    last = 0
-    for m in _VOICE_RE.finditer(body):
-        if m.start() > last:
-            runs.append((cur_voice, body[last:m.start()]))
-        cur_voice = (m.group(1).strip() or default_voice)
-        last = m.end()
-    runs.append((cur_voice, body[last:]))
-
-    from services.ssml_lite import parse_ssml_lite, spell_out
-
-    for voice, run_text in runs:
-        # Marker precedence (outer → inner): [voice:] (run split above) →
-        # [pause] (shared dialect) → SSML-lite prosody ([slow]/[fast]/[emphasis]
-        # /[spell]) within the text. The trailing pause attaches to the LAST
-        # SSML segment of the run.
-        for span_text, pause_ms in parse_pause_markers(run_text):
-            t = span_text.strip()
-            if not t and pause_ms == 0:
-                continue  # pure whitespace between markers — nothing to render
-            rendered: list[tuple[str, Optional[float]]] = []
-            for seg in (parse_ssml_lite(t) if t else []):
-                st = (spell_out(seg["text"]) if seg["spell"] else seg["text"]).strip()
-                if st:
-                    rendered.append((st, seg["speed"]))
-            if not rendered:
-                # Only-markers / empty text but a real pause → carry the silence.
-                if pause_ms > 0:
-                    spans.append(Span(voice_id=voice, text="", pause_ms_after=pause_ms))
-                continue
-            for j, (st, sp) in enumerate(rendered):
-                spans.append(Span(
-                    voice_id=voice, text=st, speed=sp,
-                    pause_ms_after=pause_ms if j == len(rendered) - 1 else 0,
-                ))
-    return spans
-
-
 def parse_audiobook_script(text: str, *, default_voice: Optional[str] = None) -> AudiobookPlan:
     """Parse a chapter-delimited script into an :class:`AudiobookPlan`.
 
-    ``# Heading`` lines delimit chapters; text before the first heading becomes
-    an untitled lead-in chapter. Chapters with no renderable spans are dropped.
+    Thin wrapper over the canonical :func:`services.longform_parser.
+    parse_script_to_spans` (the single grammar source of truth, #27); wraps its
+    span dicts in the ``Span``/``Chapter``/``AudiobookPlan`` dataclasses so the
+    four router call sites and ``.to_dict()`` shape are unchanged.
     """
-    text = text or ""
-    matches = list(_HEADING_RE.finditer(text))
-    if not matches:
-        raw = [(None, text)]
-    else:
-        raw = []
-        intro = text[:matches[0].start()]
-        if intro.strip():
-            raw.append((None, intro))
-        for i, m in enumerate(matches):
-            end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
-            raw.append((m.group(1).strip(), text[m.end():end]))
+    from services.longform_parser import parse_script_to_spans
 
-    chapters: list[Chapter] = []
-    for title, body in raw:
-        spans = _parse_spans(body, default_voice)
-        if not spans:
-            continue
-        chapters.append(Chapter(title=title or f"Chapter {len(chapters) + 1}", spans=spans))
+    chapters = [
+        Chapter(title=c["title"], spans=[Span(**s) for s in c["spans"]])
+        for c in parse_script_to_spans(text, default_voice=default_voice)
+    ]
     return AudiobookPlan(chapters=chapters)
 
 
