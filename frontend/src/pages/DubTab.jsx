@@ -5,7 +5,7 @@ import {
   Film, Save, UploadCloud, Sparkles, Loader, Square, Users,
   FileText, Play, DownloadIcon, Volume2, Link2,
   Languages, ChevronDown, ChevronUp, Wand2, Trash2, Check, Globe, UserSquare2, User, AlertCircle,
-  ExternalLink, Copy, Pencil,
+  ExternalLink, Copy, Pencil, ShieldCheck,
 } from 'lucide-react';
 // lucide-react exports DownloadIcon as "Download"; alias here to match App.jsx naming.
 import { Download as Download, RotateCcw } from 'lucide-react';
@@ -20,6 +20,7 @@ import { formatTime } from '../utils/format';
 import { API } from '../api/client';
 import { dialectOptionsFor, dialectLabel, dialectMatchesLang } from '../api/dialects';
 import { listTranslationEngines, installTranslationEngine } from '../api/engines';
+import { dubQc } from '../api/dub';
 import toast from 'react-hot-toast';
 import { toastErrorWithReport } from '../utils/errorToast';
 import { Button, Segmented, Badge, Progress } from '../ui';
@@ -184,6 +185,7 @@ export default function DubTab(props) {
   };
   const [previewMode, setPreviewMode] = useState('original'); // 'original' | 'dubbed'
   const [exportOpen, setExportOpen] = useState(false);
+  const [qcRunning, setQcRunning] = useState(false);
 
   // Multi-language mode
   const [multiLangMode, setMultiLangMode] = useState(false);
@@ -333,6 +335,49 @@ export default function DubTab(props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasDubbedTrack, dubLangCode]);
+
+  // Second-pass timing QC (Wave 3.3): re-recognize the dubbed audio and merge
+  // the per-line drift scores back onto the segments so DubSegmentRow can flag
+  // lines worth a re-listen. Non-destructive — generated text is untouched.
+  const handleDubQc = useCallback(async () => {
+    if (!dubJobId || qcRunning) return;
+    setQcRunning(true);
+    const loadingId = toast.loading(t('dub.qc_running', { defaultValue: 'Checking dub timing…' }));
+    try {
+      const lang = previewMode !== 'original' ? previewMode : undefined;
+      const res = await dubQc(dubJobId, lang);
+      const byId = new Map((res.segments || []).map(q => [String(q.seg_id), q]));
+      setDubSegments(dubSegments.map((s, i) => {
+        const q = byId.get(String(s.id ?? i));
+        if (!q) return s;
+        return {
+          ...s,
+          qc_drift: q.drift,
+          qc_flagged: q.flagged,
+          qc_recognized: q.recognized_text,
+          ...(q.measured_start != null ? { qc_measured_start: q.measured_start, qc_measured_end: q.measured_end } : {}),
+        };
+      }));
+      if (res.flagged_count > 0) {
+        toast(t('dub.qc_result', {
+          flagged: res.flagged_count, total: res.total,
+          defaultValue: '{{flagged}} of {{total}} lines may need a re-listen',
+        }), { icon: '⚠️', id: loadingId, duration: 6000 });
+      } else {
+        toast.success(t('dub.qc_clean', {
+          total: res.total,
+          defaultValue: 'All {{total}} lines match the script',
+        }), { id: loadingId });
+      }
+    } catch (err) {
+      toast.dismiss(loadingId);
+      toastErrorWithReport(
+        t('dub.qc_failed', { message: String(err?.message || err).slice(0, 200),
+          defaultValue: 'Timing check failed: {{message}}' }), err);
+    } finally {
+      setQcRunning(false);
+    }
+  }, [dubJobId, qcRunning, previewMode, dubSegments, setDubSegments, t]);
 
   return (
     <div className="dub-col">
@@ -740,6 +785,14 @@ export default function DubTab(props) {
                         label={t('dub.regen_changed', { count: incrementalPlan.stale.length })} />
                     )}
                   </>
+                )}
+                {dubStep === 'done' && (
+                  <FooterBtn sm tone="idle"
+                    disabled={qcRunning || !dubSegments.length}
+                    onClick={handleDubQc}
+                    icon={qcRunning ? <Loader className="spinner" size={11} /> : <ShieldCheck size={11} />}
+                    title={t('dub.qc_btn', { defaultValue: 'Verify dub timing (second-pass check)' })}
+                    aria-label={t('dub.qc_btn', { defaultValue: 'Verify dub timing (second-pass check)' })} />
                 )}
                 <FooterBtn sm tone={dubStep === 'done' ? 'green' : 'idle'}
                   disabled={dubStep !== 'done' && !dubSegments.length}
