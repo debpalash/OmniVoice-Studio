@@ -1,5 +1,11 @@
 /**
- * SSML-LITE (client port) — keep in sync with backend/services/ssml_lite.py.
+ * SSML-LITE (client port) of backend/services/ssml_lite.py.
+ *
+ * Parity is no longer kept by hand: the canonical longform grammar (#27) is
+ * exercised end-to-end by the shared golden corpus in
+ * tests/fixtures/longform_parser_cases.json, asserted byte-for-byte against
+ * BOTH this port (via longformParser.js → storyToSpans) and the Python parser.
+ * A drift between the two SSML impls fails one of those two suites.
  *
  * Splits one narration line into ordered prosody segments so the Stories Editor
  * compiles the same `[slow]/[fast]/[emphasis]/[spell]` markup the Audiobook
