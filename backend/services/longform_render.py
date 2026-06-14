@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 from dataclasses import dataclass
@@ -168,6 +169,105 @@ def build_loudnorm_filter(preset: Optional[str]) -> Optional[str]:
     return f"loudnorm=I={p.i}:TP={p.tp}:LRA={p.lra}"
 
 
+@dataclass(frozen=True)
+class MeasuredLoudness:
+    """The five loudnorm measure-pass values (FFmpeg JSON keys), all finite
+    floats. Fed back into the second (apply) pass as ``measured_*`` + ``offset``."""
+    input_i: float
+    input_tp: float
+    input_lra: float
+    input_thresh: float
+    target_offset: float
+
+
+def build_loudnorm_measure_filter(preset: Optional[str]) -> Optional[str]:
+    """First-pass loudnorm filter (``print_format=json``) for ``preset``, or
+    ``None`` for off/unknown — mirrors :func:`build_loudnorm_filter`'s lookup
+    (no whitespace stripping) so the same values count as 'no filter'."""
+    if not preset:
+        return None
+    p = LOUDNESS_PRESETS.get(preset.lower())
+    if p is None:
+        return None
+    return f"loudnorm=I={p.i}:TP={p.tp}:LRA={p.lra}:print_format=json"
+
+
+def parse_loudnorm_measure(stderr_text: Optional[str]) -> Optional[MeasuredLoudness]:
+    """Extract the loudnorm measure JSON from ffmpeg stderr → MeasuredLoudness,
+    or ``None`` on ANY failure (caller falls back to single-pass). FFmpeg prints
+    the JSON object amid other non-JSON lines (and possibly a config dump block),
+    so we take the LAST balanced ``{...}`` via a linear brace-depth scan — no
+    regex (CodeQL-safe), O(n), no backtracking — then json.loads + coerce/validate
+    the five required keys to finite floats."""
+    if not stderr_text:
+        return None
+    # Find the last balanced top-level {...} block via a single linear scan.
+    start = -1
+    depth = 0
+    block = None
+    for i, ch in enumerate(stderr_text):
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            if depth > 0:
+                depth -= 1
+                if depth == 0 and start != -1:
+                    block = stderr_text[start:i + 1]  # keep scanning → last wins
+    if block is None:
+        return None
+    try:
+        obj = json.loads(block)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    if not isinstance(obj, dict):
+        return None
+    keys = ("input_i", "input_tp", "input_lra", "input_thresh", "target_offset")
+    vals = {}
+    for k in keys:
+        if k not in obj:
+            return None
+        try:
+            v = float(obj[k])
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(v):  # rejects "-inf"/"inf"/"nan" (silent clip)
+            return None
+        vals[k] = v
+    return MeasuredLoudness(**vals)
+
+
+def build_loudnorm_apply_filter(
+    preset: Optional[str], measured: Optional["MeasuredLoudness"],
+) -> Optional[str]:
+    """Second-pass (apply) loudnorm filter feeding the measured values back in.
+    ``None`` for off/unknown preset OR when ``measured`` is None (so a caller
+    that forgot to branch never emits ``measured_I=None``)."""
+    if not preset or measured is None:
+        return None
+    p = LOUDNESS_PRESETS.get(preset.lower())
+    if p is None:
+        return None
+    return (
+        f"loudnorm=I={p.i}:TP={p.tp}:LRA={p.lra}"
+        f":measured_I={measured.input_i}:measured_TP={measured.input_tp}"
+        f":measured_LRA={measured.input_lra}:measured_thresh={measured.input_thresh}"
+        f":offset={measured.target_offset}:linear=true:print_format=summary"
+    )
+
+
+def build_loudnorm_measure_cmd(ffmpeg: str, concat_list_path: str, filt: str) -> list[str]:
+    """Pure argv for the measure pass: decode the concat list, run the
+    print_format=json loudnorm filter, discard audio to the portable null muxer.
+    Input segment is byte-identical to build_render_cmd so measured == muxed."""
+    return [
+        ffmpeg, "-y", "-hide_banner", "-loglevel", "info",
+        "-f", "concat", "-safe", "0", "-i", str(concat_list_path),
+        "-af", filt, "-f", "null", "-",
+    ]
+
+
 # ── FFMETADATA ──────────────────────────────────────────────────────────────
 
 def build_ffmetadata(
@@ -239,6 +339,7 @@ def build_render_cmd(
     bitrate: str = "128k",
     cover_path: Optional[str] = None,
     loudness: Optional[str] = None,
+    measured: Optional[MeasuredLoudness] = None,
 ) -> list[str]:
     """Pure argv for muxing chapter WAVs + FFMETADATA into a tagged,
     chapter-marked audio file.
@@ -271,7 +372,10 @@ def build_render_cmd(
     if embed_cover:
         cmd += ["-map", "2:v", "-disposition:v", "attached_pic"]
 
-    filt = build_loudnorm_filter(loudness)
+    # Two-pass apply when measured values are present; else single-pass. Both
+    # return None for a non-preset loudness, so the `if filt:` guard below
+    # gives an off-render no -af (byte-identical to today).
+    filt = build_loudnorm_apply_filter(loudness, measured) if measured is not None else build_loudnorm_filter(loudness)
     if filt:
         cmd += ["-af", filt]
 

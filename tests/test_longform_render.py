@@ -10,14 +10,37 @@ import pytest
 
 from services.longform_render import (
     LOUDNESS_PRESETS,
+    MeasuredLoudness,
     build_concat_list,
     build_ffmetadata,
+    build_loudnorm_apply_filter,
     build_loudnorm_filter,
+    build_loudnorm_measure_cmd,
+    build_loudnorm_measure_filter,
     build_render_cmd,
     chapter_cache_key,
+    parse_loudnorm_measure,
     prune_cache_dir,
     validate_cover_image,
 )
+
+# A verified ffmpeg loudnorm measure-JSON fixture (n8.1.1 shape).
+_MEASURE_JSON = """[Parsed_loudnorm_0 @ 0x55]
+{
+    "input_i" : "-21.75",
+    "input_tp" : "-18.06",
+    "input_lra" : "0.00",
+    "input_thresh" : "-31.75",
+    "output_i" : "-19.02",
+    "output_tp" : "-3.01",
+    "normalization_type" : "dynamic",
+    "target_offset" : "0.05"
+}
+[out#0/null @ 0x66] video:0kB audio:1kB
+size=N/A time=00:00:10
+"""
+_MEASURED = MeasuredLoudness(input_i=-21.75, input_tp=-18.06, input_lra=0.0,
+                             input_thresh=-31.75, target_offset=0.05)
 
 
 # ── loudness ────────────────────────────────────────────────────────────────
@@ -258,3 +281,95 @@ def test_prune_cache_evicts_oldest_first(tmp_path):
 
 def test_prune_cache_missing_dir_is_safe(tmp_path):
     assert prune_cache_dir(str(tmp_path / "nope")) == (0, 0)
+
+
+# ── #28 two-pass loudnorm: measure filter ───────────────────────────────────
+
+def test_measure_filter_goldens():
+    assert build_loudnorm_measure_filter("acx") == "loudnorm=I=-19.0:TP=-3.0:LRA=11.0:print_format=json"
+    assert build_loudnorm_measure_filter("podcast") == "loudnorm=I=-16.0:TP=-1.5:LRA=11.0:print_format=json"
+    assert build_loudnorm_measure_filter("ACX") == build_loudnorm_measure_filter("acx")
+
+
+@pytest.mark.parametrize("val", [None, "", "off", "none", "bogus", " acx "])
+def test_measure_filter_off_unknown_whitespace_is_none(val):
+    # mirrors single-pass: no strip, so " acx " is unknown → None
+    assert build_loudnorm_measure_filter(val) is None
+
+
+# ── parse_loudnorm_measure ──────────────────────────────────────────────────
+
+def test_parse_measure_success_picks_last_block_and_ignores_extra_keys():
+    m = parse_loudnorm_measure(_MEASURE_JSON)
+    assert m == _MEASURED
+
+
+def test_parse_measure_last_block_wins_over_config_dump():
+    text = '{"input_i":"1"}\nconfig\n' + _MEASURE_JSON
+    assert parse_loudnorm_measure(text) == _MEASURED
+
+
+@pytest.mark.parametrize("bad", [
+    None, "", "   ", "no braces here", '{ "input_i": "-1"',          # no/unbalanced
+    '{ "input_i": "-1", }', '{ input_i: -1 }',                       # malformed json
+    '{ "input_i":"-1","input_tp":"-3","input_lra":"0","input_thresh":"-30" }',  # missing target_offset
+    '[1,2,3]', '"scalar"',                                           # not an object
+])
+def test_parse_measure_failure_matrix_returns_none(bad):
+    assert parse_loudnorm_measure(bad) is None
+
+
+@pytest.mark.parametrize("badval", ['"n/a"', '""', '"-inf"', '"inf"', '"nan"'])
+def test_parse_measure_rejects_nonnumeric_and_nonfinite(badval):
+    text = ('{ "input_i":%s,"input_tp":"-3","input_lra":"0",'
+            '"input_thresh":"-30","target_offset":"0.0" }') % badval
+    assert parse_loudnorm_measure(text) is None
+
+
+# ── apply filter ────────────────────────────────────────────────────────────
+
+def test_apply_filter_golden():
+    f = build_loudnorm_apply_filter("acx", _MEASURED)
+    assert f == (
+        "loudnorm=I=-19.0:TP=-3.0:LRA=11.0:measured_I=-21.75:measured_TP=-18.06"
+        ":measured_LRA=0.0:measured_thresh=-31.75:offset=0.05:linear=true:print_format=summary"
+    )
+
+
+@pytest.mark.parametrize("preset,measured", [
+    ("off", _MEASURED), (None, _MEASURED), ("bogus", _MEASURED), ("acx", None),
+])
+def test_apply_filter_none_cases(preset, measured):
+    assert build_loudnorm_apply_filter(preset, measured) is None
+
+
+# ── measure cmd argv ────────────────────────────────────────────────────────
+
+def test_measure_cmd_exact_argv():
+    assert build_loudnorm_measure_cmd("ffmpeg", "c.txt", "FILT") == [
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "info",
+        "-f", "concat", "-safe", "0", "-i", "c.txt",
+        "-af", "FILT", "-f", "null", "-",
+    ]
+
+
+# ── build_render_cmd measured branch ────────────────────────────────────────
+
+def test_render_cmd_two_pass_apply_when_measured():
+    cmd = build_render_cmd("ffmpeg", "c.txt", "m.ff", "o.m4b", loudness="acx", measured=_MEASURED)
+    af = cmd[cmd.index("-af") + 1]
+    assert "measured_I=-21.75" in af and "linear=true" in af
+
+
+def test_render_cmd_single_pass_when_measured_none():
+    cmd = build_render_cmd("ffmpeg", "c.txt", "m.ff", "o.m4b", loudness="acx", measured=None)
+    af = cmd[cmd.index("-af") + 1]
+    assert af == "loudnorm=I=-19.0:TP=-3.0:LRA=11.0"   # single-pass, no measured_*
+
+
+def test_render_cmd_off_emits_no_af_even_with_stray_measured():
+    cmd = build_render_cmd("ffmpeg", "c.txt", "m.ff", "o.m4b", loudness="off", measured=_MEASURED)
+    assert "-af" not in cmd
+
+    cmd2 = build_render_cmd("ffmpeg", "c.txt", "m.ff", "o.m4b")  # default: no loudness/measured
+    assert "-af" not in cmd2
