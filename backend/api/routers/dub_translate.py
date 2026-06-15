@@ -168,15 +168,38 @@ def _dialect_flags(req, applied: bool) -> dict:
     return {"dialect": req.dialect, "dialect_applied": bool(applied)}
 
 
+def _guess_lang_from_text(segments) -> str | None:
+    """Best-effort source language from segment text, by script.
+
+    Used only as a last resort when neither the request nor the job carries a
+    detected language. Without this, the bare "en" fallback below forces
+    en -> en on non-English audio (e.g. Korean), which has no Argos package and
+    fails every segment even though ASR detected the language correctly.
+    """
+    text = " ".join((getattr(s, "text", "") or "") for s in (segments or [])[:8])
+    has = lambda lo, hi: any(lo <= ord(c) <= hi for c in text)
+    if has(0x3040, 0x30FF):
+        return "ja"  # Hiragana/Katakana — check before CJK (Japanese uses Kanji too)
+    if has(0xAC00, 0xD7A3) or has(0x1100, 0x11FF):
+        return "ko"  # Hangul
+    if has(0x4E00, 0x9FFF):
+        return "zh"  # CJK ideographs
+    if has(0x0400, 0x04FF):
+        return "ru"  # Cyrillic
+    if has(0x0600, 0x06FF):
+        return "ar"  # Arabic
+    return None
+
+
 def _resolve_source_lang(req: TranslateRequest) -> str:
-    """Pick source language: explicit request > job.source_lang > 'en' fallback."""
+    """Pick source language: explicit request > job.source_lang > text guess > 'en'."""
     if getattr(req, "source_lang", None):
         return req.source_lang
     if getattr(req, "job_id", None):
         job = _get_job(req.job_id)
         if job and job.get("source_lang"):
             return job["source_lang"]
-    return "en"
+    return _guess_lang_from_text(getattr(req, "segments", None)) or "en"
 
 
 def _unload_nllb():
