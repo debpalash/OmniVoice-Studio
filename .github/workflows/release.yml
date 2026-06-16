@@ -725,10 +725,16 @@ jobs:
           tmp=$(mktemp)
           jq --arg v "$NEXT" '.version = $v' frontend/src-tauri/tauri.conf.json > "$tmp"
           mv "$tmp" frontend/src-tauri/tauri.conf.json
+          # frontend/package.json drives __APP_VERSION__ (vite.config.js) — the
+          # first-run footer + every auto bug report. Keep it in lockstep too,
+          # set absolutely (jq) so any prior drift self-heals. (#248-sweep finding)
+          tmp=$(mktemp)
+          jq --arg v "$NEXT" '.version = $v' frontend/package.json > "$tmp"
+          mv "$tmp" frontend/package.json
           sed -i "0,/^version = \"$CURRENT\"/s//version = \"$NEXT\"/" frontend/src-tauri/Cargo.toml
           sed -i "0,/^version = \"$CURRENT\"/s//version = \"$NEXT\"/" pyproject.toml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend/src-tauri/tauri.conf.json frontend/src-tauri/Cargo.toml pyproject.toml
+          git add frontend/src-tauri/tauri.conf.json frontend/package.json frontend/src-tauri/Cargo.toml pyproject.toml
           git commit -m "chore(version): main -> $NEXT after $GITHUB_REF_NAME release"
           git push origin main
