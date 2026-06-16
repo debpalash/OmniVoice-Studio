@@ -733,8 +733,12 @@ jobs:
           mv "$tmp" frontend/package.json
           sed -i "0,/^version = \"$CURRENT\"/s//version = \"$NEXT\"/" frontend/src-tauri/Cargo.toml
           sed -i "0,/^version = \"$CURRENT\"/s//version = \"$NEXT\"/" pyproject.toml
+          # backend/core/version.py last-resort literal — the frozen backend
+          # reads metadata, but keep this in lockstep so a metadata-less context
+          # never reports a stale version (the v0.3.6 build that showed "0.3.5").
+          sed -i "0,/_FALLBACK_VERSION = \"$CURRENT\"/s//_FALLBACK_VERSION = \"$NEXT\"/" backend/core/version.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend/src-tauri/tauri.conf.json frontend/package.json frontend/src-tauri/Cargo.toml pyproject.toml
+          git add frontend/src-tauri/tauri.conf.json frontend/package.json frontend/src-tauri/Cargo.toml pyproject.toml backend/core/version.py
           git commit -m "chore(version): main -> $NEXT after $GITHUB_REF_NAME release"
           git push origin main

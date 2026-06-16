@@ -13,12 +13,18 @@
 # Run:  uv run pyinstaller backend.spec --noconfirm --clean
 import platform
 import sys
-from PyInstaller.utils.hooks import collect_data_files, collect_all, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_all, collect_submodules, copy_metadata
 
 IS_MAC_ARM = sys.platform == "darwin" and platform.machine() == "arm64"
 
 datas = []
 binaries = []
+
+# Bundle the omnivoice package's .dist-info so importlib.metadata.version()
+# resolves inside the frozen build. Without it the backend can't read its own
+# version and falls back to the literal in backend/core/version.py — which is
+# how a 0.3.6 desktop build shipped reporting "0.3.5" in About + bug reports.
+datas += copy_metadata('omnivoice')
 hiddenimports = [
     # Web stack
     'uvicorn', 'uvicorn.logging', 'uvicorn.loops', 'uvicorn.loops.auto',
