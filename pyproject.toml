@@ -125,6 +125,17 @@ dependencies = [
     # EPUB + plaintext stay stdlib-only; only PDF needs a real parser, and
     # pypdf is the lightest one that ships no C extensions.
     "pypdf>=4.0",
+    # LLM client for Cinematic dub refinement, glossary auto-extract, and
+    # LLM-based translation (services.llm_backend / translator / dub_translate
+    # all `from openai import OpenAI`). Talks to any OpenAI-compatible endpoint —
+    # OpenAI, Ollama (http://localhost:11434/v1), LM Studio, vLLM — so it's the
+    # local-first path too (no key, nothing leaves the machine). Pure-Python, no
+    # native deps → identical on macOS/Windows/Linux. Previously undeclared, so
+    # `uv sync` never installed it and Cinematic was dead-on-arrival on every
+    # source install ("Cinematic needs an LLM" even with Ollama running, because
+    # is_available() returned "openai package missing"); the UI's `pip install
+    # openai` hint landed in the wrong interpreter on a managed venv.
+    "openai>=1.40",
 ]
 
 [project.optional-dependencies]
