@@ -31,6 +31,59 @@ from abc import ABC, abstractmethod
 logger = logging.getLogger("omnivoice.asr")
 
 
+def _decode_audio_16k_mono(audio_path: str):
+    """Decode `audio_path` to a 16 kHz mono float32 waveform using OmniVoice's
+    *validated* ffmpeg, instead of whisperx.load_audio's bare ``"ffmpeg"`` PATH
+    lookup.
+
+    whisperx (and openai-whisper) shell out to a literal ``"ffmpeg"`` resolved
+    against the OS PATH. On Windows that resolves to whatever the system finds
+    first — a WindowsApps alias stub or a corrupt/wrong-arch download — which
+    passes `which` but explodes at spawn with ``[WinError 193] %1 is not a valid
+    Win32 application``. whisperx only catches `CalledProcessError`, so the
+    spawn-time `OSError` escapes and the dub/batch path reports the opaque
+    "Transcription produced no segments" (#479). ``find_ffmpeg()`` probes each
+    candidate with ``-version`` and returns a runnable binary (the bundled
+    imageio-ffmpeg / Tauri sidecar) — or None, so we can raise an actionable
+    error. This also fixes the imageio case a PATH-prepend can't: its binary is
+    named ``ffmpeg-<plat>-vN.exe``, not ``ffmpeg``, so bare lookup never finds
+    it. Mirrors whisperx.audio.load_audio's command exactly (16 kHz, mono, s16le).
+    """
+    import subprocess
+
+    import numpy as np
+
+    from services.ffmpeg_utils import find_ffmpeg
+
+    ffmpeg = find_ffmpeg()
+    if not ffmpeg:
+        raise RuntimeError(
+            "Cannot transcribe: ffmpeg is missing or not runnable. Install "
+            "ffmpeg (or let OmniVoice's bundled binary download), then retry. "
+            "On Windows a '[WinError 193]' here means the ffmpeg binary is "
+            "corrupt or the wrong architecture — reinstall it or clear the "
+            "imageio-ffmpeg cache."
+        )
+    cmd = [
+        ffmpeg, "-nostdin", "-threads", "0", "-i", audio_path,
+        "-f", "s16le", "-ac", "1", "-acodec", "pcm_s16le", "-ar", "16000", "-",
+    ]
+    try:
+        out = subprocess.run(cmd, capture_output=True, check=True).stdout
+    except OSError as e:
+        # Belt-and-suspenders: find_ffmpeg() already -version-validated this
+        # binary, so a WinError 193 here is unexpected — surface it clearly
+        # rather than letting it become "no segments".
+        raise RuntimeError(
+            f"ffmpeg at {ffmpeg!r} could not be executed ({e}). Reinstall "
+            "ffmpeg or clear the imageio-ffmpeg cache."
+        ) from e
+    except subprocess.CalledProcessError as e:
+        stderr = (e.stderr or b"").decode(errors="replace")[:500]
+        raise RuntimeError(f"Failed to decode audio for transcription: {stderr}") from e
+    return np.frombuffer(out, np.int16).flatten().astype(np.float32) / 32768.0
+
+
 # ── Protocol ────────────────────────────────────────────────────────────────
 
 
@@ -326,10 +379,13 @@ class WhisperXBackend(ASRBackend):
             return None
 
     def transcribe(self, audio_path: str, *, word_timestamps: bool = True) -> dict:
-        import whisperx
+        import whisperx  # used for whisperx.align() below
         self._ensure_asr()
         logger.info("whisperx transcribing %s (word_timestamps=%s)", audio_path, word_timestamps)
-        audio = whisperx.load_audio(audio_path)
+        # Decode via OmniVoice's validated ffmpeg, NOT whisperx.load_audio's bare
+        # "ffmpeg" PATH lookup which yields [WinError 193] -> "no segments" on
+        # Windows (#479). Same 16 kHz mono s16le array whisperx expects.
+        audio = _decode_audio_16k_mono(audio_path)
         try:
             result = self._asr.transcribe(audio)
         except IndexError:
