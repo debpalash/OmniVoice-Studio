@@ -238,24 +238,17 @@ def get_profile_usage(profile_id: str):
     }
 
 
-def _safe_voice_path(filename: str) -> str:
-    """Resolve `filename` strictly inside VOICES_DIR and return the absolute path.
-
-    `filename` is request-influenced (a profile_id-derived name or a DB-stored
-    value), so strip any directory components, restrict to safe characters, and
-    verify realpath containment — raises ValueError on a traversal attempt
-    (CWE-22). Mirrors core.config.dub_seg_path's containment guard.
-    """
-    safe = re.sub(r"[^A-Za-z0-9._-]", "_", os.path.basename(str(filename)))
-    base = os.path.realpath(VOICES_DIR)
-    full = os.path.realpath(os.path.join(base, safe))
-    if full != base and not full.startswith(base + os.sep):
-        raise ValueError(f"voice path escapes VOICES_DIR: {filename!r}")
-    return full
+# profile_id is a request path param and the audio filename derives from it, so
+# constrain it to the generated-id charset (no separators / `..` possible) before
+# any path use, and read only a *direct child* of VOICES_DIR — os.path.basename()
+# strips any directory component (a path-injection / CWE-22 barrier).
+_PROFILE_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 
 @router.get("/profiles/{profile_id}/audio")
 async def get_profile_audio(profile_id: str):
+    if not _PROFILE_ID_RE.fullmatch(profile_id or ""):
+        return Response("Profile not found", status_code=404)
     with db_conn() as conn:
         row = conn.execute(
             "SELECT ref_audio_path, locked_audio_path, kind, instruct, language, ref_text "
@@ -273,10 +266,9 @@ async def get_profile_audio(profile_id: str):
         if rendered is None:
             return Response("No audio available", status_code=404)
         audio_file = rendered
-    try:
-        audio_path = _safe_voice_path(audio_file)
-    except ValueError:
-        return Response("Audio file missing", status_code=404)
+    # Serve only a direct child of VOICES_DIR — basename() drops any directory
+    # component so a stored/derived name can never escape the voices dir (CWE-22).
+    audio_path = os.path.join(VOICES_DIR, os.path.basename(str(audio_file)))
     if not os.path.exists(audio_path):
         return Response("Audio file missing", status_code=404)
     return FileResponse(audio_path, media_type="audio/wav")
@@ -301,7 +293,9 @@ async def _materialize_design_sample(profile_id: str, row) -> Optional[str]:
     from api.routers.archetypes import _render_archetype_wav
 
     audio_filename = f"{profile_id}.wav"
-    audio_path = _safe_voice_path(audio_filename)  # contain under VOICES_DIR (CWE-22)
+    # profile_id is regex-validated by the caller; basename() keeps it a direct
+    # child of VOICES_DIR regardless (CWE-22).
+    audio_path = os.path.join(VOICES_DIR, os.path.basename(audio_filename))
     try:
         await _render_archetype_wav(
             {

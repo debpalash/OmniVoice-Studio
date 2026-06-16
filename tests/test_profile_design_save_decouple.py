@@ -152,18 +152,12 @@ def test_lazy_sample_renders_on_first_audio_request(iso, monkeypatch):
     assert ref, "the lazily-rendered sample should be persisted on the row"
 
 
-def test_safe_voice_path_contains_request_derived_filenames():
-    """#476 hardening / CWE-22 (CodeQL path-injection): the profile-audio path
-    helper must keep every request-derived filename inside VOICES_DIR, so a
-    crafted profile_id (e.g. ``../../etc/passwd``) can't traverse out."""
-    from api.routers import profiles as prof
-    from core.config import VOICES_DIR
-
-    base = os.path.realpath(VOICES_DIR)
-    assert prof._safe_voice_path("a1b2c3d4.wav").startswith(base + os.sep)
-    for evil in ("../../etc/passwd", "..\\..\\win.ini", "/abs/escape.wav", "a/../../b.wav"):
-        got = prof._safe_voice_path(evil)
-        # Contained: dir components are stripped so the file resolves DIRECTLY
-        # inside VOICES_DIR and can never escape. (A literal ".." substring left
-        # in the basename is harmless once separators are neutralised.)
-        assert os.path.dirname(got) == base, (evil, got)
+def test_traversal_profile_id_is_rejected(iso):
+    """#476 hardening / CWE-22 (CodeQL path-injection): a profile_id carrying
+    path separators / `..` / NUL must 404 at the entry guard, never reaching a
+    filesystem read — the audio endpoint only ever serves a direct child of
+    VOICES_DIR."""
+    _, _, prof = iso
+    for evil in ("../../etc/passwd", "..", "a/b", "foo/../bar", "x\x00y", "/abs", ""):
+        resp = asyncio.run(prof.get_profile_audio(evil))
+        assert getattr(resp, "status_code", None) == 404, (evil, resp)
