@@ -238,6 +238,22 @@ def get_profile_usage(profile_id: str):
     }
 
 
+def _safe_voice_path(filename: str) -> str:
+    """Resolve `filename` strictly inside VOICES_DIR and return the absolute path.
+
+    `filename` is request-influenced (a profile_id-derived name or a DB-stored
+    value), so strip any directory components, restrict to safe characters, and
+    verify realpath containment — raises ValueError on a traversal attempt
+    (CWE-22). Mirrors core.config.dub_seg_path's containment guard.
+    """
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", os.path.basename(str(filename)))
+    base = os.path.realpath(VOICES_DIR)
+    full = os.path.realpath(os.path.join(base, safe))
+    if full != base and not full.startswith(base + os.sep):
+        raise ValueError(f"voice path escapes VOICES_DIR: {filename!r}")
+    return full
+
+
 @router.get("/profiles/{profile_id}/audio")
 async def get_profile_audio(profile_id: str):
     with db_conn() as conn:
@@ -257,7 +273,10 @@ async def get_profile_audio(profile_id: str):
         if rendered is None:
             return Response("No audio available", status_code=404)
         audio_file = rendered
-    audio_path = os.path.join(VOICES_DIR, audio_file)
+    try:
+        audio_path = _safe_voice_path(audio_file)
+    except ValueError:
+        return Response("Audio file missing", status_code=404)
     if not os.path.exists(audio_path):
         return Response("Audio file missing", status_code=404)
     return FileResponse(audio_path, media_type="audio/wav")
@@ -282,7 +301,7 @@ async def _materialize_design_sample(profile_id: str, row) -> Optional[str]:
     from api.routers.archetypes import _render_archetype_wav
 
     audio_filename = f"{profile_id}.wav"
-    audio_path = os.path.join(VOICES_DIR, audio_filename)
+    audio_path = _safe_voice_path(audio_filename)  # contain under VOICES_DIR (CWE-22)
     try:
         await _render_archetype_wav(
             {
