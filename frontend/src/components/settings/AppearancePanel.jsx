@@ -8,6 +8,7 @@
  */
 import React from 'react';
 import { Palette } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAppStore, FONT_OPTIONS, FONT_STACKS } from '../../store';
 import './AppearancePanel.css';
 
@@ -21,6 +22,7 @@ const THEMES = [
 ];
 
 export default function AppearancePanel() {
+  const { t } = useTranslation();
   const uiScale    = useAppStore(s => s.uiScale);
   const setUiScale = useAppStore(s => s.setUiScale);
   const theme      = useAppStore(s => s.theme);
@@ -28,14 +30,18 @@ export default function AppearancePanel() {
   const font       = useAppStore(s => s.font);
   const setFont    = useAppStore(s => s.setFont);
 
+  const scaleLabel = t('settings.ui_scale', { defaultValue: 'UI scale' });
+  const themeLabel = t('settings.color_theme', { defaultValue: 'Color theme' });
+  const fontLabel  = t('settings.font', { defaultValue: 'Font' });
+
   return (
     <section className="appearance-panel" aria-labelledby="appearance-panel-heading">
       <h3 id="appearance-panel-heading" className="appearance-panel__title">
-        <Palette size={14} /> Appearance
+        <Palette size={14} /> {t('settings.appearance', { defaultValue: 'Appearance' })}
       </h3>
 
       <div className="appearance-panel__row">
-        <span className="appearance-panel__label">UI scale</span>
+        <span className="appearance-panel__label">{scaleLabel}</span>
         <div className="appearance-panel__scale">
           <input
             type="range"
@@ -44,7 +50,7 @@ export default function AppearancePanel() {
             step="0.05"
             value={uiScale}
             onChange={(e) => setUiScale(Number(e.target.value))}
-            aria-label="UI scale"
+            aria-label={scaleLabel}
             aria-valuetext={`${Math.round(uiScale * 100)}%`}
           />
           <span className="appearance-panel__scale-val">{Math.round(uiScale * 100)}%</span>
@@ -52,18 +58,18 @@ export default function AppearancePanel() {
       </div>
 
       <div className="appearance-panel__row">
-        <span className="appearance-panel__label">Color theme</span>
-        <div className="appearance-panel__themes" role="radiogroup" aria-label="Color theme">
-          {THEMES.map(t => (
+        <span className="appearance-panel__label">{themeLabel}</span>
+        <div className="appearance-panel__themes" role="radiogroup" aria-label={themeLabel}>
+          {THEMES.map(th => (
             <button
-              key={t.id}
+              key={th.id}
               type="button"
-              className={`appearance-panel__theme-dot ${theme === t.id ? 'is-active' : ''}`}
-              style={{ '--dot-color': t.dot }}
-              onClick={() => setTheme(t.id)}
-              title={t.label}
-              aria-label={`${t.label} theme`}
-              aria-checked={theme === t.id}
+              className={`appearance-panel__theme-dot ${theme === th.id ? 'is-active' : ''}`}
+              style={{ '--dot-color': th.dot }}
+              onClick={() => setTheme(th.id)}
+              title={th.label}
+              aria-label={th.label}
+              aria-checked={theme === th.id}
               role="radio"
             />
           ))}
@@ -71,8 +77,8 @@ export default function AppearancePanel() {
       </div>
 
       <div className="appearance-panel__row appearance-panel__row--stack">
-        <span className="appearance-panel__label">Font</span>
-        <div className="appearance-panel__fonts" role="radiogroup" aria-label="Font">
+        <span className="appearance-panel__label">{fontLabel}</span>
+        <div className="appearance-panel__fonts" role="radiogroup" aria-label={fontLabel}>
           {FONT_OPTIONS.map(f => (
             <button
               key={f.id}
@@ -93,9 +99,10 @@ export default function AppearancePanel() {
       </div>
 
       <p className="appearance-panel__help">
-        These controls used to live in the bottom logs bar — moved here so
-        the footer can stay focused on logs. Changes apply instantly and
-        persist across launches.
+        {t('settings.appearance_help', {
+          defaultValue:
+            'These controls used to live in the bottom logs bar — moved here so the footer can stay focused on logs. Changes apply instantly and persist across launches.',
+        })}
       </p>
     </section>
   );
