@@ -70,13 +70,21 @@ def test_design_requires_vd_states(app_client):
     assert r.status_code == 422
 
 
-def test_design_requires_instruct(app_client):
+def test_design_saveable_without_instruct(app_client, fake_render):
+    """An all-Auto design (empty instruct) is a valid, saveable voice (#476).
+
+    Saving must not gate on a non-empty instruct — synthesis falls back to
+    neutral instruct-only conditioning.
+    """
     client, _ = app_client
     r = client.post(
         "/profiles",
-        data={"name": "D", "kind": "design", "vd_states": json.dumps(_VD)},
+        data={"name": "AllAuto", "kind": "design", "vd_states": json.dumps(_VD)},
     )
-    assert r.status_code == 422
+    assert r.status_code == 200, r.text
+    profile = client.get(f"/profiles/{r.json()['id']}").json()
+    assert profile["kind"] == "design"
+    assert (profile["instruct"] or "") == ""
 
 
 def test_design_rejects_malformed_vd_states(app_client):

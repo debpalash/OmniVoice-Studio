@@ -72,8 +72,10 @@ async def create_profile(
                 raise ValueError("not an object")
         except ValueError:
             raise HTTPException(status_code=422, detail="vd_states must be a JSON object")
-        if not instruct.strip():
-            raise HTTPException(status_code=422, detail="design profiles require instruct")
+        # An all-Auto design (every category left on "Auto") yields an empty
+        # instruct — that's still a valid, saveable voice: synthesis falls back
+        # to neutral instruct-only conditioning (see generation.py design path).
+        # Don't gate save on a non-empty instruct.
 
     profile_id = str(uuid.uuid4())[:8]
 
@@ -85,8 +87,15 @@ async def create_profile(
             f.write(await ref_audio.read())
         used_seed = seed
     else:
-        # Render the deterministic identity sample through the one shared TTS
-        # path (archetypes' renderer) — never a second inference code path.
+        # Saving a design profile is a pure persistence operation — it must not
+        # depend on a loaded TTS model (issue #476: on a fresh model-less Docker
+        # image the render forced a full model load + inference that 503'd, so
+        # the save failed). We try the deterministic identity sample opportunist-
+        # ically through the one shared TTS path (archetypes' renderer, never a
+        # second inference code path); if the engine isn't ready it's rendered
+        # lazily on first preview/use. The row carries vd_states + instruct, so
+        # the voice is fully usable without the sample (synthesis falls back to
+        # instruct-only conditioning — see generation.py's design path).
         from pathlib import Path
         from api.routers.archetypes import _render_archetype_wav
         audio_filename = f"{profile_id}.wav"
@@ -100,11 +109,19 @@ async def create_profile(
                 },
                 Path(audio_path),
             )
-        except Exception as e:
-            raise HTTPException(
-                status_code=503,
-                detail=f"could not render the design sample: {e}",
+        except Exception:
+            # Engine unavailable / OOM / inference failure — defer the sample.
+            # Store the row with no ref_audio_path; the identity sample is
+            # rendered on first preview or use. Never let this block the save.
+            import logging
+            logging.getLogger("omnivoice.profiles").info(
+                "Design profile %s saved with sample pending — "
+                "voice engine not ready; will render on first use", profile_id,
             )
+            if os.path.exists(audio_path):  # partial/blank render: don't keep it
+                with __import__("contextlib").suppress(OSError):
+                    os.remove(audio_path)
+            audio_filename = None
         used_seed = seed if seed is not None else _DESIGN_SEED
 
     try:
@@ -222,18 +239,78 @@ def get_profile_usage(profile_id: str):
 
 
 @router.get("/profiles/{profile_id}/audio")
-def get_profile_audio(profile_id: str):
+async def get_profile_audio(profile_id: str):
     with db_conn() as conn:
-        row = conn.execute("SELECT ref_audio_path, locked_audio_path FROM voice_profiles WHERE id=?", (profile_id,)).fetchone()
+        row = conn.execute(
+            "SELECT ref_audio_path, locked_audio_path, kind, instruct, language, ref_text "
+            "FROM voice_profiles WHERE id=?",
+            (profile_id,),
+        ).fetchone()
     if not row:
         return Response("Profile not found", status_code=404)
     audio_file = row["locked_audio_path"] or row["ref_audio_path"]
     if not audio_file:
-        return Response("No audio available", status_code=404)
+        # A design profile saved before the engine was ready (issue #476) has no
+        # identity sample yet. Render it lazily now — the deterministic seed-42
+        # sample is reproducible, so a deferred render matches a save-time one.
+        rendered = await _materialize_design_sample(profile_id, row)
+        if rendered is None:
+            return Response("No audio available", status_code=404)
+        audio_file = rendered
     audio_path = os.path.join(VOICES_DIR, audio_file)
     if not os.path.exists(audio_path):
         return Response("Audio file missing", status_code=404)
     return FileResponse(audio_path, media_type="audio/wav")
+
+
+async def _materialize_design_sample(profile_id: str, row) -> Optional[str]:
+    """Render a design profile's pending identity sample on first request.
+
+    Returns the stored filename on success, or None if this isn't a renderable
+    design row. Raises HTTPException(503) with a precise "model not ready"
+    message if the engine is genuinely unavailable — saving never depends on
+    this, but a user who explicitly asks for the sample gets a clear signal.
+    """
+    try:
+        kind = row["kind"]
+    except (KeyError, IndexError):
+        kind = "clone"
+    if kind != "design":
+        return None
+
+    from pathlib import Path
+    from api.routers.archetypes import _render_archetype_wav
+
+    audio_filename = f"{profile_id}.wav"
+    audio_path = os.path.join(VOICES_DIR, audio_filename)
+    try:
+        await _render_archetype_wav(
+            {
+                "language": row["language"] or "Auto",
+                "sample_script": row["ref_text"] or "",
+                "instruct": row["instruct"] or "",
+            },
+            Path(audio_path),
+        )
+    except Exception as e:
+        with __import__("contextlib").suppress(OSError):
+            if os.path.exists(audio_path):
+                os.remove(audio_path)
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "The voice engine isn't ready yet, so this designed voice's "
+                "preview sample can't be rendered. Finish setup / download a "
+                f"model, then try again. ({e})"
+            ),
+        )
+
+    with db_conn() as conn:
+        conn.execute(
+            "UPDATE voice_profiles SET ref_audio_path=? WHERE id=?",
+            (audio_filename, profile_id),
+        )
+    return audio_filename
 
 @router.post("/profiles/{profile_id}/lock")
 async def lock_profile(
