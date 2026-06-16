@@ -82,3 +82,28 @@ def unset_user_env(key: str, path: Optional[str] = None) -> None:
     prefix = f"{key}="
     lines = [ln for ln in _read_lines(path) if not ln.startswith(prefix)]
     _write_lines(path, lines)
+
+
+def load_into_environ(path: Optional[str] = None) -> bool:
+    """Load the durable per-user env file into ``os.environ``, **overriding**
+    any value a launcher already injected. Returns True if a file was loaded.
+
+    This file is the in-app Settings source of truth. The desktop launcher
+    (Tauri) injects defaults like ``OMNIVOICE_CACHE_DIR`` (and ``HF_ENDPOINT``)
+    from its *own* config into the backend's environment *before* startup, so
+    loading this file with ``override=False`` meant a models directory the user
+    changed in Settings was silently ignored on every launch — the effective
+    location stayed on the old one no matter how many restarts (#480). Both keys
+    this file can hold are the user's explicit Settings choice and should beat
+    the launcher's default, so we override. Restores this file's documented
+    "values written here take effect on the next backend launch" contract.
+    """
+    path = path or os.environ.get("OMNIVOICE_ENV_FILE") or USER_ENV_PATH
+    if not os.path.isfile(path):
+        return False
+    try:
+        import dotenv
+    except ImportError:
+        return False
+    dotenv.load_dotenv(path, override=True)
+    return True

@@ -43,11 +43,13 @@ try:
     _project_env = os.path.join(os.path.dirname(_backend_dir), ".env")
     if os.path.isfile(_project_env):
         dotenv.load_dotenv(_project_env, override=False)
-    # Also load the durable per-user config so env vars set once survive
-    # Tauri/Finder launches that don't inherit a shell environment.
-    _user_env = os.path.expanduser("~/.config/omnivoice/env")
-    if os.path.isfile(_user_env):
-        dotenv.load_dotenv(_user_env, override=False)
+    # Load the durable per-user config (the in-app Settings source of truth) so
+    # env vars set once survive Tauri/Finder launches that don't inherit a shell
+    # environment. This OVERRIDES launcher-injected defaults: the desktop app
+    # injects a stale OMNIVOICE_CACHE_DIR from its own config before startup, so
+    # without override a models dir changed in Settings was ignored forever (#480).
+    from core.user_env import load_into_environ as _load_user_env
+    _load_user_env()
 except ImportError:
     pass
 
