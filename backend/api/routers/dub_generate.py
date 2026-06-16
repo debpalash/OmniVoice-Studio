@@ -215,17 +215,31 @@ async def dub_generate(job_id: str, req: DubRequest):
                     profile_id = None  # prevent the voice_profiles lookup below
 
                 elif profile_id and profile_id.startswith("auto:"):
-                    key = profile_id[len("auto:"):]
-                    clones = job.get("speaker_clones") or {}
-                    # Match by the safe-name key first, fall back to speaker_id.
-                    auto = None
-                    for spk, info in clones.items():
-                        if spk.lower().replace(" ", "_") == key or spk == key:
-                            auto = info
-                            break
-                    if auto:
-                        ref_audio = auto.get("ref_audio")
-                        ref_text = auto.get("ref_text")
+                    # #486: an `auto:{speaker}` binding still prefers THIS
+                    # segment's own per-segment ref when one exists (cut from
+                    # this line's source audio → matches its prosody), falling
+                    # back to the per-speaker clone otherwise. This keeps the
+                    # Wave 3.2 per-segment-ref quality win while letting every
+                    # segment carry the UI-visible `auto:` id the dub editor's
+                    # Voice dropdown can actually render ("From Video →
+                    # Speaker N"). `seg_id` is closed over from the per-segment
+                    # loop below.
+                    seg_ref = (job.get("segment_clones") or {}).get(str(seg_id))
+                    if seg_ref:
+                        ref_audio = seg_ref.get("ref_audio")
+                        ref_text = seg_ref.get("ref_text")
+                    else:
+                        key = profile_id[len("auto:"):]
+                        clones = job.get("speaker_clones") or {}
+                        # Match by the safe-name key first, fall back to speaker_id.
+                        auto = None
+                        for spk, info in clones.items():
+                            if spk.lower().replace(" ", "_") == key or spk == key:
+                                auto = info
+                                break
+                        if auto:
+                            ref_audio = auto.get("ref_audio")
+                            ref_text = auto.get("ref_text")
                     profile_id = None  # prevent the voice_profiles lookup below
 
                 if profile_id:

@@ -799,19 +799,35 @@ async def dub_transcribe_stream(
             if clones or seg_clones:
                 if clones:
                     job["speaker_clones"] = clones
-                # Default each segment's profile_id to its own per-segment ref
-                # when available, else its speaker's auto-clone — but only if
-                # the user hasn't already assigned something.
+                # Default each segment's profile_id to its detected speaker's
+                # auto-clone — but only if the user hasn't already assigned
+                # something. (#486)
+                #
+                # We prefer the UI-visible `auto:{speaker}` id over the
+                # per-segment `auto-seg:{id}` id even when a per-segment ref
+                # exists, because the dub editor's Voice dropdown only renders
+                # `auto:` options ("From Video → Speaker N"). An `auto-seg:`
+                # value matches no <option>, so the row silently read
+                # "Default" while the speaker was actually bound — exactly the
+                # reported bug. The per-segment ref is NOT lost: dub_generate's
+                # `auto:` branch transparently prefers this segment's own
+                # per-segment ref (job["segment_clones"][seg_id]) when present,
+                # so a row shown as "Speaker 1" still clones from its own line
+                # when that line is long enough.
                 for s in final_segs:
                     if s.get("profile_id"):
-                        continue
-                    sid = str(s.get("id", ""))
-                    if sid and sid in seg_clones:
-                        s["profile_id"] = f"auto-seg:{sid}"
                         continue
                     spk = s.get("speaker_id") or "Speaker 1"
                     if spk in clones:
                         s["profile_id"] = auto_profile_id(spk)
+                        continue
+                    # No per-speaker clone for this speaker (too little usable
+                    # audio overall) but this single line was long enough for
+                    # its own ref — fall back to the per-segment id. The editor
+                    # can't render it, but generation still clones correctly.
+                    sid = str(s.get("id", ""))
+                    if sid and sid in seg_clones:
+                        s["profile_id"] = f"auto-seg:{sid}"
         except Exception as e:
             logger.warning("speaker_clone extraction skipped: %s", e)
 
