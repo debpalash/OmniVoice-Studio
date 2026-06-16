@@ -1053,7 +1053,32 @@
     "platforms": "Platforms",
     "footer": "Every contribution helps push the boundaries of local AI.",
     "back": "Back to Studio",
-    "commercial": "Commercial License"
+    "commercial": "Commercial License",
+    "pill": "Support OmniVoice",
+    "suggested_title": "Pick an amount",
+    "most_common": "most common",
+    "custom": "Custom",
+    "goal": {
+      "title": "Fund Claude Max",
+      "of": "of",
+      "per_month": "/ month",
+      "aria": "{{raised}} of {{goal}} monthly goal",
+      "remaining": "{{amount}} to go",
+      "met": "🎉 Goal met — {{raised}} raised. Thank you!",
+      "social_proof": "Join {{count}} supporters funding local AI"
+    },
+    "postcard": {
+      "title": "Fund Claude Max",
+      "lead_default": "Glad that worked! OmniVoice is free and fully local. If it saves you time, a small monthly chip-in funds the Claude Max behind it.",
+      "lead_first_clone": "Your first voice clone is done — nice! OmniVoice runs entirely on your machine, and your support keeps it that way.",
+      "lead_tenth_dub": "Ten dubs in — you're clearly putting it to work. A small monthly chip-in funds the Claude Max that ships these features.",
+      "lead_sustained": "You've been with OmniVoice for a month. If it's earned a spot in your workflow, consider helping fund what's next.",
+      "chip_in": "Chip in",
+      "later": "Maybe later",
+      "star": "Star on GitHub",
+      "opt_out": "Don't ask again",
+      "dismiss_aria": "Dismiss"
+    }
   },
   "enterprise": {
     "title": "Commercial License",

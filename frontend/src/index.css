@@ -2296,6 +2296,35 @@ div[role="dialog"].audio-trimmer {
   transform: rotate(180deg);
 }
 
+/* ── Quiet "Support" pill (#007) — neutral at rest, warms to accent ── */
+.rail-btn.donate-pill { color: var(--chrome-fg-dim); }
+.rail-btn.donate-pill .donate-pill__heart {
+  font-size: 16px;
+  line-height: 1;
+  filter: grayscale(0.55);
+  opacity: 0.75;
+  transition: filter 0.16s, opacity 0.16s, transform 0.16s;
+}
+.rail-btn.donate-pill:hover {
+  color: var(--chrome-accent);
+  background: color-mix(in srgb, var(--chrome-accent) 10%, transparent);
+}
+.rail-btn.donate-pill:hover .donate-pill__heart {
+  filter: grayscale(0);
+  opacity: 1;
+  transform: scale(1.1);
+}
+.rail-btn.donate-pill.active {
+  color: var(--chrome-accent);
+  background: var(--chrome-accent-bg);
+  border-color: var(--chrome-accent-border);
+}
+.rail-btn.donate-pill.active .donate-pill__heart { filter: grayscale(0); opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .rail-btn.donate-pill .donate-pill__heart { transition: none; }
+  .rail-btn.donate-pill:hover .donate-pill__heart { transform: none; }
+}
+
 
 /* ═══════════════════════════════════════════════════════════
    RESPONSIVE — make every component adapt to viewport width

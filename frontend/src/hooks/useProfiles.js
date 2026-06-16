@@ -7,6 +7,7 @@ import { playBlobAudio } from '../utils/media';
 import { PRESETS } from '../utils/constants';
 import { askConfirm } from '../utils/dialog';
 import { toast } from 'react-hot-toast';
+import { evaluateDonationPrompt } from '../components/donate/evaluateDonationPrompt';
 
 /**
  * Encapsulates voice-profile CRUD, lock/unlock, preview, and save-from-history.
@@ -53,6 +54,9 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
       setShowSaveProfile(false);
       setProfileName('');
       await loadProfiles();
+      // Success-only donation prompt (#007). A saved voice clone is a real
+      // deliverable — and the *first* one triggers the 'first-clone' milestone.
+      evaluateDonationPrompt('clone');
     } catch (e) { toast.error(e.message); }
   }, [profileName, loadProfiles, t]);
 

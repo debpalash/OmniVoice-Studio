@@ -1,0 +1,179 @@
+/* ════════════════════════════════════════════════════════════════════════
+   "Fund Claude Max" goal bar + Pip mascot (spec 007).
+   Reuses real design tokens from index.css / tokens.css:
+   --chrome-*, --space-*, --ease-spring, --font-serif, --chrome-font-mono.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.goal {
+  --goal-accent: var(--chrome-accent);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 6px);
+  width: 100%;
+}
+
+/* ── Header (title + percent) ─────────────────────────────────────────── */
+.goal__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4, 8px);
+}
+.goal__title {
+  font-family: var(--font-serif);
+  font-size: 1.0rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--chrome-fg);
+}
+.goal__pct {
+  font-family: var(--chrome-font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--goal-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Track + fill ─────────────────────────────────────────────────────── */
+.goal__track {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chrome-fg) 8%, transparent);
+  border: 1px solid var(--chrome-border);
+  overflow: visible;            /* let Pip perch above the rail */
+  isolation: isolate;
+}
+.goal__fill {
+  position: absolute;
+  inset: 0;
+  width: calc(var(--goal-pct, 0) * 100%);
+  min-width: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--goal-accent) 70%, #d3869b),
+    var(--goal-accent)
+  );
+  box-shadow: 0 0 12px -2px color-mix(in srgb, var(--goal-accent) 60%, transparent);
+  overflow: hidden;
+  /* grow-in once on mount */
+  animation: goalFill 1s var(--ease-spring) both;
+}
+@keyframes goalFill {
+  0%   { width: 0; }
+  100% { width: calc(var(--goal-pct, 0) * 100%); }
+}
+
+/* ONE shimmer pass over the fill (token @keyframes shimmer in index.css). */
+.goal__shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  /* iteration-count: 1 → a single sweep, not a loop. */
+  animation: shimmer 1.4s ease-out 0.6s 1 both;
+}
+
+/* ── Pip perched on the fill ──────────────────────────────────────────── */
+.goal__pip {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--goal-pct, 0) * 100%);
+  transform: translate(-50%, -50%);
+  color: var(--goal-accent);
+  pointer-events: none;
+  z-index: 1;
+  /* slide Pip to its perch in sync with the fill grow-in */
+  animation: goalPip 1s var(--ease-spring) both;
+}
+@keyframes goalPip {
+  0%   { left: 0; }
+  100% { left: calc(var(--goal-pct, 0) * 100%); }
+}
+
+/* ── Caption ──────────────────────────────────────────────────────────── */
+.goal__caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4, 8px);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--chrome-fg-muted);
+}
+.goal__amounts strong {
+  color: var(--chrome-fg);
+  font-weight: 600;
+}
+.goal__remaining {
+  font-family: var(--chrome-font-mono);
+  font-size: 0.68rem;
+  color: var(--chrome-fg-dim);
+  white-space: nowrap;
+}
+.goal__caption-met {
+  color: var(--chrome-accent);
+  font-weight: 600;
+}
+
+/* ── Goal-met flourish ────────────────────────────────────────────────── */
+.goal--met .goal__fill {
+  background: linear-gradient(90deg, #b8bb26, #8ec07c);
+  box-shadow: 0 0 14px -1px color-mix(in srgb, #b8bb26 60%, transparent);
+}
+.goal--met .goal__pip { color: #b8bb26; }
+.goal--met .goal__pct { color: #b8bb26; }
+
+/* ── Mini variant (inside the postcard toast) ─────────────────────────── */
+.goal--mini { gap: var(--space-2, 4px); }
+.goal--mini .goal__track { height: 8px; }
+.goal--mini .goal__caption { font-size: 0.66rem; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Pip mascot idle animation
+   ════════════════════════════════════════════════════════════════════════ */
+.pip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  filter: drop-shadow(0 1px 4px color-mix(in srgb, currentColor 35%, transparent));
+}
+.pip svg { display: block; overflow: visible; }
+.pip__body { animation: pipBob 2.6s ease-in-out infinite; transform-origin: 50% 100%; }
+.pip--waving .pip__arm {
+  transform-origin: 24px 11px;
+  animation: pipWave 1.8s ease-in-out infinite;
+}
+@keyframes pipBob {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50%      { transform: translateY(-1px) scaleY(1.03); }
+}
+@keyframes pipWave {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  20%           { transform: rotate(-22deg); }
+  40%           { transform: rotate(-6deg); }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Reduced-motion: kill every animation in this stylesheet.
+   ════════════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .goal__fill,
+  .goal__pip,
+  .goal__shimmer,
+  .pip__body,
+  .pip--waving .pip__arm {
+    animation: none !important;
+  }
+  /* still honour the final fill width without the grow-in */
+  .goal__fill { width: calc(var(--goal-pct, 0) * 100%); }
+  .goal__pip { left: calc(var(--goal-pct, 0) * 100%); }
+  .goal__shimmer { display: none; }
+}

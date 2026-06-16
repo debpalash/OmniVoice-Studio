@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Heart, ExternalLink, ArrowLeft, Building2,
@@ -7,9 +7,20 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui';
 import { openExternal } from '../api/external';
+import GoalBar from '../components/donate/GoalBar';
+import { loadDonationProgress, BUNDLED_PROGRESS } from '../api/donation';
 import './DonatePage.css';
 import './EnterprisePage.css';
 import './SupportPage.css';
+
+const SPONSOR_URL = 'https://github.com/sponsors/debpalash';
+// Suggested amounts — middle option ($5) is flagged "most common".
+// None is pre-selected (no dark-pattern default-charge nudge).
+const SUGGESTED_AMOUNTS = [
+  { value: 3,  label: '$3' },
+  { value: 5,  label: '$5', common: true },
+  { value: 10, label: '$10' },
+];
 
 const METHODS = [
   { id: 'github', label: 'GitHub Sponsors', descriptionKey: 'donate.github_desc', url: 'https://github.com/debpalash', icon: '🐙' },
@@ -42,6 +53,15 @@ function LinkCard({ method, style }) {
 /* ── Support (donate) panel ───────────────────────────────────────────── */
 function SupportView() {
   const { t } = useTranslation();
+  const [progress, setProgress] = useState(BUNDLED_PROGRESS);
+  const [amount, setAmount] = useState(null); // none pre-selected by design
+
+  useEffect(() => {
+    let alive = true;
+    loadDonationProgress().then((p) => { if (alive) setProgress(p); });
+    return () => { alive = false; };
+  }, []);
+
   return (
     <div className="support-view">
       <div className="donate-hero">
@@ -54,6 +74,51 @@ function SupportView() {
         </h2>
         <p className="donate-hero__subtitle">{t('donate.hero_desc')}</p>
       </div>
+
+      {/* ── "Fund Claude Max" goal bar + social proof ──────────────────── */}
+      <section className="donate-section donate-goal-section">
+        <GoalBar progress={progress} />
+        <div className="donate-social-proof">
+          <Users size={13} />
+          <span>
+            {t('donate.goal.social_proof', {
+              defaultValue: 'Join {{count}} supporters funding local AI',
+              count: progress.sponsorCount,
+            })}
+          </span>
+        </div>
+      </section>
+
+      {/* ── Suggested amounts (none pre-selected; middle is "most common") ── */}
+      <section className="donate-section">
+        <div className="donate-section__title"><span>{t('donate.suggested_title', { defaultValue: 'Pick an amount' })}</span></div>
+        <div className="donate-amounts" role="group" aria-label={t('donate.suggested_title', { defaultValue: 'Pick an amount' })}>
+          {SUGGESTED_AMOUNTS.map((a) => (
+            <button
+              key={a.value}
+              type="button"
+              className={`donate-amount ${amount === a.value ? 'is-selected' : ''} ${a.common ? 'donate-amount--common' : ''}`}
+              aria-pressed={amount === a.value}
+              onClick={() => { setAmount(a.value); openExternal(SPONSOR_URL); }}
+            >
+              <span className="donate-amount__value">{a.label}</span>
+              {a.common && (
+                <span className="donate-amount__badge">
+                  {t('donate.most_common', { defaultValue: 'most common' })}
+                </span>
+              )}
+            </button>
+          ))}
+          <button
+            type="button"
+            className={`donate-amount donate-amount--custom ${amount === 'custom' ? 'is-selected' : ''}`}
+            aria-pressed={amount === 'custom'}
+            onClick={() => { setAmount('custom'); openExternal(SPONSOR_URL); }}
+          >
+            <span className="donate-amount__value">{t('donate.custom', { defaultValue: 'Custom' })}</span>
+          </button>
+        </div>
+      </section>
 
       <section className="donate-section">
         <div className="donate-section__title"><span>{t('donate.platforms')}</span></div>

@@ -49,6 +49,17 @@ export default function NavRail({ mode, setMode, side = 'left', onFlipSide }) {
         ))}
       </div>
       <div className="rail-bottom">
+        {/* Quiet "Support" pill — warms to the accent on hover, opens the
+            donate page. Sits with the footer nav (Settings / flip). (#007) */}
+        <button
+          onClick={() => setMode('donate')}
+          title={t('donate.pill', { defaultValue: 'Support OmniVoice' })}
+          aria-label={t('donate.pill', { defaultValue: 'Support OmniVoice' })}
+          className={`rail-btn donate-pill ${mode === 'donate' ? 'active' : ''}`}
+        >
+          <span className="donate-pill__heart" aria-hidden="true">🩷</span>
+          <span className="rail-label">{t('donate.pill', { defaultValue: 'Support OmniVoice' })}</span>
+        </button>
         {footerItems.map((it) => (
           <RailBtn key={it.id} {...it} active={mode === it.id} onClick={() => setMode(it.id)} />
         ))}

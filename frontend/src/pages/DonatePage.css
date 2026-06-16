@@ -235,6 +235,84 @@
   padding-bottom: 20px;
 }
 
+/* ── "Fund Claude Max" goal section + social proof ─────────── */
+.donate-goal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--chrome-accent) 4%, transparent);
+  animation: donateCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.donate-social-proof {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--chrome-font-mono);
+  font-size: 0.7rem;
+  color: var(--chrome-fg-muted);
+  letter-spacing: 0.01em;
+}
+.donate-social-proof svg { color: var(--chrome-accent); }
+
+/* ── Suggested amounts ─────────────────────────────────────── */
+.donate-amounts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.donate-amount {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 8px 6px;
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  background: transparent;
+  color: var(--chrome-fg);
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--dur-fast), border-color var(--dur-fast), transform var(--dur-base);
+}
+.donate-amount:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--chrome-accent) 7%, transparent);
+  border-color: color-mix(in srgb, var(--chrome-accent) 40%, transparent);
+}
+.donate-amount.is-selected {
+  border-color: var(--chrome-accent);
+  background: var(--chrome-accent-bg);
+}
+.donate-amount__value {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--chrome-fg);
+}
+.donate-amount--common { border-color: color-mix(in srgb, var(--chrome-accent) 35%, transparent); }
+.donate-amount__badge {
+  font-family: var(--chrome-font-mono);
+  font-size: 0.54rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--chrome-accent);
+  white-space: nowrap;
+}
+.donate-amount--custom .donate-amount__value {
+  font-family: var(--chrome-font-mono);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: var(--chrome-label-track, 0.08em);
+  color: var(--chrome-fg-muted);
+}
+
 /* ── Entry animation ──────────────────────────────────────── */
 @keyframes donateIn {
   0%   { opacity: 0; transform: translateY(16px); }
@@ -246,7 +324,10 @@
   .donate-hero,
   .donate-card,
   .donate-hero__heart,
-  .donate-card__glow {
+  .donate-card__glow,
+  .donate-goal-section,
+  .donate-amount {
     animation: none !important;
   }
+  .donate-amount:hover { transform: none; }
 }

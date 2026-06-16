@@ -41,8 +41,10 @@ import type { GallerySlice } from './gallerySlice';
 import { createGallerySlice } from './gallerySlice';
 import type { ReleasesSlice } from './releasesSlice';
 import { createReleasesSlice } from './releasesSlice';
+import type { DonationSlice } from './donationSlice';
+import { createDonationSlice } from './donationSlice';
 
-export type AppStore = PrefsSlice & GlossarySlice & UiSlice & DubSlice & GenerateSlice & PillSlice & LongformSlice & UpdaterSlice & GallerySlice & ReleasesSlice;
+export type AppStore = PrefsSlice & GlossarySlice & UiSlice & DubSlice & GenerateSlice & PillSlice & LongformSlice & UpdaterSlice & GallerySlice & ReleasesSlice & DonationSlice;
 
 /**
  * `useAppStore` — single root store. Don't create siblings. Slices compose here.
@@ -64,6 +66,7 @@ export const useAppStore = create<AppStore>()(
       ...createUpdaterSlice(set, get, api),  // transient — not in partialize
       ...createGallerySlice(set, get, api),
       ...createReleasesSlice(set, get, api),  // transient — not in partialize
+      ...createDonationSlice(set, get, api),
     }),
     {
       name: 'omnivoice.app',
@@ -121,8 +124,17 @@ export const useAppStore = create<AppStore>()(
         loudness:      s.loudness,
         defaultVoice:  s.defaultVoice,
         projectMode:   s.projectMode,
+        // Donation prompt state (#007) — persist everything EXCEPT
+        // `shownThisSession` so the ≤1/session cap resets on every launch.
+        successCount:    s.successCount,
+        dubCount:        s.dubCount,
+        firstSuccessAt:  s.firstSuccessAt,
+        lastShownAt:     s.lastShownAt,
+        shownCount:      s.shownCount,
+        firedMilestones: s.firedMilestones,
+        optedOut:        s.optedOut,
       }),
-      version: 5,
+      version: 6,
       // Drop old persisted shapes rather than crashing the app. Every field
       // has a safe default in its slice, so v1/v2/v3 users pick up v4 defaults
       // for new fields (timingStrategy etc.) and keep any keys we still write
@@ -157,9 +169,14 @@ export const useAppStore = create<AppStore>()(
           // no-ops). NB: set `projectMode` (the long-form field), NOT `mode`
           // (that's the app navigation mode owned by uiSlice).
           p.projectMode = 'stories';
-          return p as Partial<AppStore>;
+          // fall through to the < 6 branch
         }
-        return p as Partial<AppStore>; // also covers version > 5 (downgrade→upgrade)
+        if (version < 6) {
+          // #007: donation-prompt fields are new. Every field has a safe slice
+          // default (INITIAL_DONATION), so a v5→v6 user simply picks those up —
+          // pass through untouched. Never throws.
+        }
+        return p as Partial<AppStore>; // also covers version > 6 (downgrade→upgrade)
       },
     },
   ),

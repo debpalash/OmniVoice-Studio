@@ -1,0 +1,229 @@
+/* ════════════════════════════════════════════════════════════════════════
+   "Fund Claude Max" kawaii postcard toast (spec 007, Phase 2).
+   Non-blocking — lives in the toast layer, no backdrop, never covers results.
+   Uses real tokens: --chrome-*, --space-*, --ease-spring, --z-toast.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.postcard {
+  position: relative;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 14px 16px 13px;
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--chrome-accent) 7%, #16171a),
+      #131417);
+  border: 1px solid var(--chrome-border-strong);
+  box-shadow:
+    0 18px 48px -16px rgba(0, 0, 0, 0.6),
+    0 0 0 1px color-mix(in srgb, var(--chrome-accent) 12%, transparent);
+  color: var(--chrome-fg);
+  overflow: hidden;
+  isolation: isolate;
+  z-index: var(--z-toast, 1200);
+  animation: postcardIn 0.42s var(--ease-spring) both;
+}
+
+/* dashed "perforation" down the left third — the postcard tear-off look */
+.postcard::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 64px;
+  width: 1px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--chrome-fg) 28%, transparent) 0 4px,
+    transparent 4px 9px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* dot-grain paper texture */
+.postcard__grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  z-index: 0;
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--chrome-fg) 8%, transparent) 0.5px,
+    transparent 0.5px
+  );
+  background-size: 7px 7px;
+}
+
+/* ── Stamp (top-left, the "postage" with Pip) ─────────────────────────── */
+.postcard__stamp {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  width: 40px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--chrome-accent);
+  border: 1.5px dashed color-mix(in srgb, var(--chrome-accent) 50%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--chrome-accent) 10%, transparent);
+  z-index: 1;
+  transform-origin: 50% 50%;
+  animation: stampThunk 0.5s var(--ease-spring) 0.1s both;
+}
+@keyframes stampThunk {
+  0%   { transform: scale(1.7) rotate(-14deg); opacity: 0; }
+  55%  { transform: scale(0.92) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-5deg); opacity: 1; }
+}
+
+/* ── Close (×) ────────────────────────────────────────────────────────── */
+.postcard__close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--chrome-fg-dim);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--chrome-radius-pill);
+  z-index: 2;
+  transition: color var(--dur-fast), background var(--dur-fast);
+}
+.postcard__close:hover { color: var(--chrome-fg); background: var(--chrome-hover-bg); }
+
+/* ── Body (right of the perforation) ──────────────────────────────────── */
+.postcard__body {
+  position: relative;
+  z-index: 1;
+  margin-left: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.postcard__title {
+  font-family: var(--font-serif);
+  font-size: 0.98rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--chrome-fg);
+}
+.postcard__lead {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--chrome-fg-muted);
+}
+
+/* mini GoalBar wrapper — a quiet link to the full Support page */
+.postcard__goal-link {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 2px 0;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+.postcard__goal-link:hover { opacity: 0.92; }
+
+/* ── Actions ──────────────────────────────────────────────────────────── */
+.postcard__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+.postcard__cta {
+  flex: 1;
+  padding: 7px 12px;
+  border-radius: var(--chrome-radius-pill);
+  border: 1px solid var(--chrome-accent-border);
+  background: var(--chrome-accent-bg);
+  color: var(--chrome-fg);
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast), transform var(--dur-base), border-color var(--dur-fast);
+}
+.postcard__cta:hover {
+  background: color-mix(in srgb, var(--chrome-accent) 24%, transparent);
+  border-color: var(--chrome-accent);
+  transform: translateY(-1px);
+}
+.postcard__later {
+  padding: 7px 10px;
+  border-radius: var(--chrome-radius-pill);
+  border: 1px solid var(--chrome-border);
+  background: transparent;
+  color: var(--chrome-fg-muted);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+.postcard__later:hover { color: var(--chrome-fg); border-color: var(--chrome-border-strong); }
+
+/* ── Minor row (star + opt-out) ───────────────────────────────────────── */
+.postcard__minor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+}
+.postcard__star,
+.postcard__optout {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  border: none;
+  background: transparent;
+  font-family: var(--chrome-font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color var(--dur-fast);
+}
+.postcard__star { color: var(--chrome-fg-muted); }
+.postcard__star:hover { color: #fabd2f; }
+.postcard__optout { color: var(--chrome-fg-dim); }
+.postcard__optout:hover { color: var(--chrome-fg-muted); text-decoration: underline; }
+
+/* ── Enter / exit ─────────────────────────────────────────────────────── */
+@keyframes postcardIn {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.postcard.is-leaving {
+  animation: postcardOut 0.28s ease-in forwards;
+}
+@keyframes postcardOut {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(10px) scale(0.97); }
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .postcard,
+  .postcard.is-leaving,
+  .postcard__stamp {
+    animation: none !important;
+  }
+  .postcard__cta:hover { transform: none; }
+}
