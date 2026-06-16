@@ -16,20 +16,35 @@ def test_app_version_matches_installed_package_metadata():
     assert APP_VERSION == version("omnivoice")
 
 
-def test_all_version_files_in_lockstep():
-    """The FIVE version sources must agree: pyproject.toml,
-    frontend/src-tauri/{tauri.conf.json,Cargo.toml}, frontend/package.json, and
-    backend/core/version.py's ``_FALLBACK_VERSION``.
+def test_tauri_version_derives_from_package_json():
+    """tauri.conf.json must NOT carry its own version literal — it derives from
+    package.json (Tauri v2 ``"version": "../package.json"``). package.json is the
+    single source of truth; a re-hardcoded literal here is exactly the drift that
+    shipped a 0.3.6 bundle calling itself 0.3.5."""
+    import json
+    from pathlib import Path
 
-    package.json drives the runtime ``__APP_VERSION__`` (vite.config.js), which
-    shows in the first-run footer and EVERY auto bug report — so a drift ships a
-    v0.3.6 build that calls itself v0.3.5. ``_FALLBACK_VERSION`` is what the
-    *frozen* backend reports when package metadata is unavailable — and it being
-    stuck at "0.3.5" is exactly why the v0.3.6 desktop build reported 0.3.5 in
-    About + bug reports. The release.yml version-bump job must bump all five;
+    root = Path(__file__).resolve().parents[1]
+    tauri_conf = json.loads((root / "frontend/src-tauri/tauri.conf.json").read_text())
+    assert tauri_conf["version"] == "../package.json", (
+        "tauri.conf.json must derive its version from package.json "
+        f'(expected "../package.json", got {tauri_conf["version"]!r})'
+    )
+
+
+def test_all_version_files_in_lockstep():
+    """``frontend/package.json`` is the SINGLE SOURCE OF TRUTH for the app
+    version: vite injects ``__APP_VERSION__`` from it (first-run footer + every
+    bug report), and tauri.conf.json reads its bundle version from it
+    (``"version": "../package.json"``).
+
+    The other three declarations are toolchain-required CI-guarded mirrors —
+    Cargo.toml + pyproject.toml (cargo/uv need a literal) and
+    backend/core/version.py's ``_FALLBACK_VERSION`` (the frozen-backend last
+    resort, whose drift to "0.3.5" is why the v0.3.6 build reported 0.3.5). The
+    release.yml version-bump job bumps the canonical and these mirrors together;
     catch any drift here in CI.
     """
-    import json
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
@@ -40,14 +55,16 @@ def test_all_version_files_in_lockstep():
     def _named_literal(p: Path, name: str) -> str:
         return re.search(rf'(?m)^{name}\s*=\s*"([^"]+)"', p.read_text()).group(1)
 
-    versions = {
+    import json
+
+    canonical = json.loads((root / "frontend/package.json").read_text())["version"]
+    mirrors = {
         "pyproject.toml": _toml_version(root / "pyproject.toml"),
         "Cargo.toml": _toml_version(root / "frontend/src-tauri/Cargo.toml"),
-        "tauri.conf.json": json.loads((root / "frontend/src-tauri/tauri.conf.json").read_text())["version"],
-        "package.json": json.loads((root / "frontend/package.json").read_text())["version"],
         "core/version.py": _named_literal(root / "backend/core/version.py", "_FALLBACK_VERSION"),
     }
-    assert len(set(versions.values())) == 1, f"version files drifted: {versions}"
+    drifted = {k: v for k, v in mirrors.items() if v != canonical}
+    assert not drifted, f"version mirrors drifted from package.json={canonical!r}: {drifted}"
 
 
 def test_fallback_version_resolves_to_pyproject():

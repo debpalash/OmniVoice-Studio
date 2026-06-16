@@ -472,7 +472,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          CONF=frontend/src-tauri/tauri.conf.json
+          # package.json is the single source of truth; tauri.conf.json reads its
+          # version from it ("version": "../package.json"), so stamping
+          # package.json restamps the whole bundle.
+          CONF=frontend/package.json
           BASE=$(jq -r .version "$CONF")
           # MSI/WiX requires the semver pre-release identifier to be numeric-only
           # (and <= 65535). "preview.N" hard-fails the Windows bundler, so the
@@ -789,27 +792,26 @@ jobs:
           RELEASED="${GITHUB_REF_NAME#v}"
           IFS=. read -r MAJ MIN PAT <<< "$RELEASED"
           NEXT="$MAJ.$MIN.$((PAT + 1))"
-          CURRENT=$(jq -r .version frontend/src-tauri/tauri.conf.json)
+          # frontend/package.json is the SINGLE SOURCE OF TRUTH: vite injects
+          # __APP_VERSION__ from it, and tauri.conf.json reads its bundle version
+          # from it ("version": "../package.json"). Read CURRENT from it.
+          CURRENT=$(jq -r .version frontend/package.json)
           if [ "$(printf '%s\n' "$NEXT" "$CURRENT" | sort -V | tail -1)" = "$CURRENT" ] && [ "$NEXT" != "$CURRENT" ]; then
             echo "main is already at $CURRENT (>= $NEXT) — nothing to bump"; exit 0
           fi
-          tmp=$(mktemp)
-          jq --arg v "$NEXT" '.version = $v' frontend/src-tauri/tauri.conf.json > "$tmp"
-          mv "$tmp" frontend/src-tauri/tauri.conf.json
-          # frontend/package.json drives __APP_VERSION__ (vite.config.js) — the
-          # first-run footer + every auto bug report. Keep it in lockstep too,
-          # set absolutely (jq) so any prior drift self-heals. (#248-sweep finding)
+          # Bump the canonical (package.json), set absolutely so any prior drift
+          # self-heals. tauri.conf.json needs no edit — it derives from this.
           tmp=$(mktemp)
           jq --arg v "$NEXT" '.version = $v' frontend/package.json > "$tmp"
           mv "$tmp" frontend/package.json
+          # The remaining files are CI-guarded mirrors (cargo/uv require a
+          # literal; the version.py literal is the frozen-backend last resort) —
+          # bump them in lockstep with the canonical.
           sed -i "0,/^version = \"$CURRENT\"/s//version = \"$NEXT\"/" frontend/src-tauri/Cargo.toml
           sed -i "0,/^version = \"$CURRENT\"/s//version = \"$NEXT\"/" pyproject.toml
-          # backend/core/version.py last-resort literal — the frozen backend
-          # reads metadata, but keep this in lockstep so a metadata-less context
-          # never reports a stale version (the v0.3.6 build that showed "0.3.5").
           sed -i "0,/_FALLBACK_VERSION = \"$CURRENT\"/s//_FALLBACK_VERSION = \"$NEXT\"/" backend/core/version.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend/src-tauri/tauri.conf.json frontend/package.json frontend/src-tauri/Cargo.toml pyproject.toml backend/core/version.py
+          git add frontend/package.json frontend/src-tauri/Cargo.toml pyproject.toml backend/core/version.py
           git commit -m "chore(version): main -> $NEXT after $GITHUB_REF_NAME release"
           git push origin main
