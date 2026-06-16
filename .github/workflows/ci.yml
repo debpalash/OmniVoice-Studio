@@ -92,7 +92,10 @@ jobs:
 
       - name: Install frontend deps
         working-directory: frontend
-        run: bun install
+        # --frozen-lockfile so a frontend/package.json change that forgets to
+        # regenerate the root bun.lock fails HERE (fast) instead of only in the
+        # Docker build (deploy/Dockerfile), which is what reddened main on #485.
+        run: bun install --frozen-lockfile
 
       # checkJs is true in tsconfig for IDE feedback, but 947 pre-existing
       # JS errors remain. Override to false in CI so only .ts files block.
@@ -174,7 +177,10 @@ jobs:
 
       - name: Install frontend deps
         working-directory: frontend
-        run: bun install
+        # --frozen-lockfile so a frontend/package.json change that forgets to
+        # regenerate the root bun.lock fails HERE (fast) instead of only in the
+        # Docker build (deploy/Dockerfile), which is what reddened main on #485.
+        run: bun install --frozen-lockfile
 
       # tauri-build's setup hook reads tauri.conf.json's `frontendDist`
       # ("../dist"), which only exists after a frontend build. Without this,
