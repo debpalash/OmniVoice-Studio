@@ -1,9 +1,16 @@
 # SPIKE-02: Adopt `ModelsLab/omnivoice-singing` as singing variant of the existing engine
 
-**Status:** Proposed (research-supported) — awaiting Phase 2 SubprocessBackend merge
-**Date:** 2026-05-18
+**Status:** ⚠️ **SUPERSEDED (2026-06-14)** by [`specs/006-dubbing-singing-mode/`](../../specs/006-dubbing-singing-mode/spec.md)
+**Date:** 2026-05-18 (superseded 2026-06-14)
 **Decision-makers:** [maintainer]
 **Related:** ROADMAP Phase 4; REQUIREMENTS SING-01..05; `.planning/phases/04-adaptive-specialty-engines-spike-first/04-RESEARCH.md`
+
+> **Superseded:** This chose `ModelsLab/omnivoice-singing` for singing, but that
+> model has **no melody (F0/MIDI) conditioning** — it sings its own melody and
+> cannot follow the *source song* a dub must preserve. SoulX-Singer (arXiv
+> 2602.07803, published after this decision) provides F0/MIDI conditioning and is
+> selected in plan-06. This ADR stays valid only if reframed as an
+> expressive-TTS styling toggle, not melody-matched dubbing.
 
 ## Context
 
