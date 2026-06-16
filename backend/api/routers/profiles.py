@@ -266,10 +266,15 @@ async def get_profile_audio(profile_id: str):
         if rendered is None:
             return Response("No audio available", status_code=404)
         audio_file = rendered
-    # Serve only a direct child of VOICES_DIR — basename() drops any directory
-    # component so a stored/derived name can never escape the voices dir (CWE-22).
-    audio_path = os.path.join(VOICES_DIR, os.path.basename(str(audio_file)))
-    if not os.path.exists(audio_path):
+    # CWE-22: resolve under VOICES_DIR and reject anything that escapes it —
+    # realpath() collapses any `..`, commonpath() confirms containment.
+    base = os.path.realpath(VOICES_DIR)
+    audio_path = os.path.realpath(os.path.join(base, str(audio_file)))
+    try:
+        contained = os.path.commonpath((base, audio_path)) == base
+    except ValueError:  # e.g. different drive on Windows → treat as escape
+        contained = False
+    if not contained or not os.path.exists(audio_path):
         return Response("Audio file missing", status_code=404)
     return FileResponse(audio_path, media_type="audio/wav")
 
@@ -293,9 +298,16 @@ async def _materialize_design_sample(profile_id: str, row) -> Optional[str]:
     from api.routers.archetypes import _render_archetype_wav
 
     audio_filename = f"{profile_id}.wav"
-    # profile_id is regex-validated by the caller; basename() keeps it a direct
-    # child of VOICES_DIR regardless (CWE-22).
-    audio_path = os.path.join(VOICES_DIR, os.path.basename(audio_filename))
+    # CWE-22: resolve under VOICES_DIR and reject any escape before rendering
+    # (realpath collapses `..`, commonpath confirms containment).
+    base = os.path.realpath(VOICES_DIR)
+    audio_path = os.path.realpath(os.path.join(base, audio_filename))
+    try:
+        contained = os.path.commonpath((base, audio_path)) == base
+    except ValueError:
+        contained = False
+    if not contained:
+        raise HTTPException(status_code=400, detail="invalid profile identifier")
     try:
         await _render_archetype_wav(
             {
