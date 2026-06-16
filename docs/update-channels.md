@@ -25,18 +25,24 @@ manifest:
 Both manifests are signed with the same minisign key, so a tampered build is
 rejected regardless of channel.
 
-## For maintainers — cutting a preview build
+## For maintainers — how previews are built
 
-Preview builds are **manual** (no scheduled spend, nothing auto-published):
+Preview builds come from **`main`**, two ways:
 
-1. Go to **Actions → Desktop Release → Run workflow**.
-2. Pick the branch to build (usually `main`).
-3. Set **publish_preview = true** and run.
+- **Nightly (automatic).** A scheduled job (07:00 UTC) rebuilds the rolling
+  `preview` prerelease from `main` — but only when `main` actually moved in the
+  last day, so idle days cost nothing. Preview is never more than ~24h behind
+  `main`.
+- **On demand.** **Actions → Desktop Release → Run workflow**, pick a branch
+  (usually `main`), set **publish_preview = true**. Useful to cut a preview off
+  a feature branch, or to refresh immediately without waiting for the nightly.
 
-This builds the matrix and publishes/updates a single rolling `preview`
-**prerelease** with its own signed `latest.json`. The tagged `latest` stable
-release is never affected. Preview users get the new build on their next check;
-stable users see nothing.
+Either way it builds the matrix and publishes/updates a single rolling
+`preview` **prerelease** — always flagged prerelease, and carrying the same
+platform set as stable (both verified in CI after each preview publish) — with
+its own signed `latest.json`. The tagged `latest` stable release is never
+affected. Preview users get the new build on their next check; stable users see
+nothing.
 
 To stop offering previews, delete the `preview` release/tag on GitHub — the
 Preview channel then falls back to stable.

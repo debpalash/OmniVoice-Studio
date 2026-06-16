@@ -4,12 +4,16 @@
 #   - push of a tag matching `v*` (e.g. `v0.2.0`) → full STABLE release,
 #     publishes artifacts + signed updater manifest (`latest.json`) to the
 #     tag's GH Release. This is the default Stable updater channel.
-#   - workflow_dispatch (publish_preview=true) → builds the selected branch and
-#     publishes a rolling `preview` PRERELEASE with its own signed
-#     `latest.json` at releases/download/preview/. This feeds the opt-in
-#     Preview updater channel (Settings → About → Update channel). The stable
-#     `latest` release is untouched. Run this manually whenever you want to cut
-#     a preview from `main`.
+#   - schedule (nightly, 07:00 UTC) → rolling `preview` PRERELEASE built from
+#     `main` with its own signed `latest.json` at releases/download/preview/.
+#     Feeds the opt-in Preview updater channel (Settings → About → Update
+#     channel). The `preview-gate` job skips the matrix on nights when `main`
+#     didn't move, so an idle day costs only a ~30s gate job — keeping Preview
+#     ≤24h behind `main` at a predictable ~1-matrix/day cost. The stable
+#     `latest` release is untouched.
+#   - workflow_dispatch (publish_preview=true) → the same preview build on
+#     demand from the selected branch (e.g. to preview a feature branch, or to
+#     refresh immediately without waiting for the nightly).
 #   - workflow_dispatch (publish_preview=false) → on-demand build (prior
 #     behavior; draft release named after the branch).
 #
@@ -28,6 +32,10 @@ name: Desktop Release
 on:
   push:
     tags: ['v*']
+  schedule:
+    # 07:00 UTC daily — rolling `preview` prerelease from `main`. The
+    # preview-gate job no-ops the matrix when main hasn't moved in a day.
+    - cron: '0 7 * * *'
   workflow_dispatch:
     inputs:
       draft:
@@ -121,8 +129,41 @@ jobs:
         working-directory: frontend
         run: node --experimental-strip-types --no-warnings --test ../tests/frontend/*.test.mjs
 
+  # Decide preview-vs-stable, and for nightly runs whether `main` actually
+  # moved in the last day. Outputs gate the expensive matrix (`build`) and the
+  # `preview-notes` job, so a no-commit night costs only this ~30s job.
+  preview-gate:
+    name: Preview gate
+    runs-on: ubuntu-22.04
+    outputs:
+      is_preview: ${{ steps.decide.outputs.is_preview }}
+      proceed: ${{ steps.decide.outputs.proceed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - id: decide
+        shell: bash
+        run: |
+          set -euo pipefail
+          event="${{ github.event_name }}"
+          if [ "$event" = "schedule" ] || { [ "$event" = "workflow_dispatch" ] && [ "${{ inputs.publish_preview }}" = "true" ]; }; then
+            echo "is_preview=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_preview=false" >> "$GITHUB_OUTPUT"
+          fi
+          # Nightly: skip the matrix when main hasn't moved in the last day.
+          if [ "$event" = "schedule" ] && [ -z "$(git log --since='25 hours ago' --oneline)" ]; then
+            echo "No new commits on main in the last day — skipping nightly preview."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
-    needs: test
+    needs: [test, preview-gate]
+    # Nightly runs with no new commits on main skip the 4-platform matrix.
+    if: needs.preview-gate.outputs.proceed == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -427,7 +468,7 @@ jobs:
       # the Windows MSI ProductVersion (which strips the prerelease → 0.3.6)
       # is also correctly above the last stable.
       - name: Stamp preview version
-        if: github.event_name == 'workflow_dispatch' && inputs.publish_preview
+        if: needs.preview-gate.outputs.is_preview == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -471,11 +512,11 @@ jobs:
           # rolling `preview` prerelease for the updater's Preview channel.
           # Every other invocation — crucially the `v*` tag-push stable release
           # — evaluates these expressions to exactly their prior values.
-          tagName: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && 'preview' || github.ref_name }}
-          releaseName: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && 'OmniVoice Studio (Preview)' || format('OmniVoice Studio {0}', github.ref_name) }}
+          tagName: ${{ (needs.preview-gate.outputs.is_preview == 'true') && 'preview' || github.ref_name }}
+          releaseName: ${{ (needs.preview-gate.outputs.is_preview == 'true') && 'OmniVoice Studio (Preview)' || format('OmniVoice Studio {0}', github.ref_name) }}
           releaseBody: ${{ steps.changelog.outputs.body }}
-          releaseDraft: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) && 'false' || (inputs.draft || 'true') }}
-          prerelease: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_preview) || false }}
+          releaseDraft: ${{ (needs.preview-gate.outputs.is_preview == 'true') && 'false' || (inputs.draft || 'true') }}
+          prerelease: ${{ needs.preview-gate.outputs.is_preview == 'true' }}
           updaterJsonPreferNsis: false
           includeUpdaterJson: true
 
@@ -661,8 +702,8 @@ jobs:
   # preview-only — stable `v*` releases keep their CHANGELOG section + the
   # appended checksums.
   preview-notes:
-    needs: build
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_preview
+    needs: [build, preview-gate]
+    if: needs.preview-gate.outputs.is_preview == 'true'
     runs-on: ubuntu-22.04
     permissions:
       contents: write
@@ -693,8 +734,38 @@ jobs:
             echo ""
             echo "$CONTRIB"
           } > /tmp/preview-notes.md
-          gh release edit preview --repo "$REPO" --notes-file /tmp/preview-notes.md
+          # --prerelease re-asserts the flag every run: a non-prerelease
+          # `preview` release is eligible to become GitHub's "Latest", which is
+          # the exact URL the Stable updater channel reads — so it must never
+          # flip off.
+          gh release edit preview --repo "$REPO" --prerelease --notes-file /tmp/preview-notes.md
           echo "Applied auto-generated release notes + contributors to the preview release."
+
+      - name: Verify preview updater manifest (prerelease + platform parity)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # The preview release must stay a prerelease (or it can hijack the
+          # Stable channel's releases/latest endpoint), and its updater manifest
+          # must cover every platform stable does (else those users — e.g. Intel
+          # Mac — silently get no preview updates).
+          is_pre=$(gh release view preview --repo "$REPO" --json isPrerelease -q .isPrerelease)
+          test "$is_pre" = "true" || { echo "::error::preview release is not a prerelease"; exit 1; }
+          curl -fsSL "https://github.com/$REPO/releases/download/preview/latest.json" -o /tmp/preview-latest.json
+          curl -fsSL "https://github.com/$REPO/releases/latest/download/latest.json" -o /tmp/stable-latest.json
+          python3 - <<'PY'
+          import json, re
+          prev = json.load(open("/tmp/preview-latest.json"))
+          stab = json.load(open("/tmp/stable-latest.json"))
+          v = prev.get("version", "")
+          assert re.fullmatch(r"\d+\.\d+\.\d+-\d+", v), f"preview version not X.Y.Z-N: {v!r}"
+          pk, sk = set(prev.get("platforms", {})), set(stab.get("platforms", {}))
+          missing = sk - pk
+          assert not missing, f"preview manifest missing platforms vs stable: {sorted(missing)}"
+          print(f"preview manifest OK: {v} platforms={sorted(pk)}")
+          PY
 
   # ── Post-release version bump (versioning hard rule, owner-set 2026-06-11) ──
   # main is always last-release + 1 patch. The moment a stable v* tag is
