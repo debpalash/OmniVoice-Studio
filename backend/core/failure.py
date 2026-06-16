@@ -32,7 +32,7 @@ _REDACTED_VALUE = "***REDACTED***"
 # One-line "what to do" per docs-taxonomy key. Keys mirror error_docs_map's
 # taxonomy; the docs URL itself stays owned by error_docs_map.
 _HINTS: dict[str, str] = {
-    "PKG_RESOURCES_MISSING": "Install setuptools in the backend environment (provides pkg_resources).",
+    "PKG_RESOURCES_MISSING": "Run `uv pip install --reinstall 'setuptools>=75,<80'` in the backend venv (a plain install is skipped when setuptools' metadata is present but its pkg_resources files were removed by antivirus). Restart after.",
     "GATEKEEPER_QUARANTINE": "Clear the macOS quarantine flag (xattr -cr the app), then reopen.",
     "APPIMAGE_WEBKIT_WHITESCREEN": "Launch with WEBKIT_DISABLE_DMABUF_RENDERER=1 set.",
     "HF_AUTH_FAILED": "Set a valid HF_TOKEN in Settings → Hugging Face and retry.",

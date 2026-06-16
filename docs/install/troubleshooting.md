@@ -39,14 +39,27 @@ Before digging through the entries below, let the app diagnose itself:
 "Setting up models" step.
 
 **Cause:** WhisperX (and a couple of its transitive deps) still imports
-`pkg_resources`, which was removed from `setuptools >= 70`. Older `uv sync`
-runs would resolve `setuptools` to a version that no longer ships it.
+`pkg_resources`, which `setuptools >= 80` dropped. `pyproject.toml` pins
+`setuptools>=75,<80` so it stays present — but the venv can still lose it two
+other ways: **(a)** antivirus (commonly Windows Defender) quarantines
+`pkg_resources`' files, or **(b)** a partial/interrupted extract. In both cases
+setuptools' *metadata* remains, so `uv`/`pip` report it "already satisfied" and
+a plain install **no-ops** — the files are never restored.
 
-**Fix:** pull the latest `main`. `pyproject.toml` now pins
-`setuptools>=70,<81` and the WhisperX dep is patched to import from
-`importlib.metadata` first.
+**Fix:** in the backend venv, **force a reinstall** (a plain install won't work
+for the reasons above):
 
-**Linked issue:** [#58](https://github.com/debpalash/OmniVoice-Studio/issues/58)
+```
+uv pip install --reinstall 'setuptools>=75,<80'
+```
+
+then restart. If it recurs, your antivirus is removing the files again — add the
+backend **`.venv`** folder to its exclusions (Windows Security → Virus & threat
+protection → Exclusions). The app's auto-repair now uses `--reinstall` too, so a
+fresh install heals itself.
+
+**Linked issues:** [#58](https://github.com/debpalash/OmniVoice-Studio/issues/58),
+[#248](https://github.com/debpalash/OmniVoice-Studio/issues/248)
 
 ## 2. HF 401 / pyannote license not accepted
 

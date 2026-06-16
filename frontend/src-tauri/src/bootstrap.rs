@@ -733,12 +733,16 @@ the existing venv; newly added dependencies may be missing (#307)",
             if !pr_ok {
                 log::warn!("pkg_resources still missing after repair sync — installing setuptools<80 directly (#248)");
                 emit_log(app, "installing_deps",
-                    "Repairing pkg_resources: installing setuptools<80 (#248)");
+                    "Repairing pkg_resources: force-reinstalling setuptools<80 (#248)");
                 let mut st_cmd = Command::new(&uv_path);
                 scrub_python_env(&mut st_cmd);
                 apply_uv_http_env(&mut st_cmd);
                 st_cmd
-                    .args(["pip", "install", "setuptools>=75,<80"])
+                    // --reinstall: when the venv has setuptools's *metadata* but its
+                // pkg_resources files were removed (antivirus quarantine, partial
+                // extract), a plain `pip install` sees it "already satisfied" and
+                // no-ops — only a forced reinstall re-extracts pkg_resources (#248).
+                .args(["pip", "install", "--reinstall", "setuptools>=75,<80"])
                     .current_dir(&project_dir);
                 match run_streaming(app, "installing_deps", &mut st_cmd) {
                     Ok(ref s) if s.success() => {
@@ -767,9 +771,12 @@ the existing venv; newly added dependencies may be missing (#307)",
                     fail(
                         progress,
                         "pkg_resources is missing from the backend venv and the automatic \
-                         setuptools repair did not restore it. Open a terminal and run \
-                         `uv pip install 'setuptools>=75,<80'` in the backend venv, then \
-                         restart. (#248)",
+                         setuptools repair did not restore it — its files were likely removed \
+                         by antivirus or left by a partial install (the metadata is still there, \
+                         so a plain reinstall is skipped). Open a terminal in the backend venv \
+                         and run `uv pip install --reinstall 'setuptools>=75,<80'`, then restart. \
+                         If it recurs, add the backend `.venv` folder to your antivirus \
+                         exclusions. (#248)",
                     );
                     return None;
                 }
@@ -955,12 +962,16 @@ docs/install/troubleshooting.md).",
         if !pr_ok {
             log::warn!("pkg_resources not importable after uv sync — installing setuptools<80 (#248)");
             emit_log(app, "installing_deps",
-                "pkg_resources missing (setuptools>=80) — installing setuptools<80 to fix (#248)");
+                "pkg_resources missing — force-reinstalling setuptools<80 to fix (#248)");
             let mut st_cmd = Command::new(&uv_path);
             scrub_python_env(&mut st_cmd);
             apply_uv_http_env(&mut st_cmd);
             st_cmd
-                .args(["pip", "install", "setuptools>=75,<80"])
+                // --reinstall: when the venv has setuptools's *metadata* but its
+                // pkg_resources files were removed (antivirus quarantine, partial
+                // extract), a plain `pip install` sees it "already satisfied" and
+                // no-ops — only a forced reinstall re-extracts pkg_resources (#248).
+                .args(["pip", "install", "--reinstall", "setuptools>=75,<80"])
                 .current_dir(&project_dir);
             match run_streaming(app, "installing_deps", &mut st_cmd) {
                 Ok(ref s) if s.success() => {
