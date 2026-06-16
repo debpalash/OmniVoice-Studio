@@ -42,7 +42,21 @@ def load_tauri_config(platform: str | None = None) -> dict:
         override_path = _SRC_TAURI / f"tauri.{platform}.conf.json"
         if override_path.exists():
             base = _deep_merge(base, json.loads(override_path.read_text(encoding="utf-8")))
-    return base
+    return _resolve_version(base)
+
+
+def _resolve_version(config: dict) -> dict:
+    """Resolve a package.json `version` reference the way Tauri does.
+
+    package.json is the single source of truth, so tauri.conf.json carries
+    ``"version": "../package.json"`` (a path Tauri reads at build time) rather
+    than a literal. Resolve it here to the effective bundle version so the
+    config-integrity checks see — and assert parity against — the real value."""
+    v = config.get("version")
+    if isinstance(v, str) and v.endswith("package.json"):
+        pkg = json.loads((_SRC_TAURI / v).resolve().read_text(encoding="utf-8"))
+        config = {**config, "version": pkg.get("version", v)}
+    return config
 
 
 def pyproject_version() -> str:
