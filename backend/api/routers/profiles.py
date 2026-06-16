@@ -266,15 +266,11 @@ async def get_profile_audio(profile_id: str):
         if rendered is None:
             return Response("No audio available", status_code=404)
         audio_file = rendered
-    # CWE-22: resolve under VOICES_DIR and reject anything that escapes it —
-    # realpath() collapses any `..`, commonpath() confirms containment.
-    base = os.path.realpath(VOICES_DIR)
-    audio_path = os.path.realpath(os.path.join(base, str(audio_file)))
-    try:
-        contained = os.path.commonpath((base, audio_path)) == base
-    except ValueError:  # e.g. different drive on Windows → treat as escape
-        contained = False
-    if not contained or not os.path.exists(audio_path):
+    # CWE-22: resolve the DB-stored filename strictly inside VOICES_DIR via the
+    # shared guard — _voices_path() applies the os.path.basename() barrier plus
+    # symlink-resolved containment (same path the consent endpoint trusts).
+    audio_path = _voices_path(str(audio_file))
+    if audio_path is None or not os.path.exists(audio_path):
         return Response("Audio file missing", status_code=404)
     return FileResponse(audio_path, media_type="audio/wav")
 
@@ -298,15 +294,10 @@ async def _materialize_design_sample(profile_id: str, row) -> Optional[str]:
     from api.routers.archetypes import _render_archetype_wav
 
     audio_filename = f"{profile_id}.wav"
-    # CWE-22: resolve under VOICES_DIR and reject any escape before rendering
-    # (realpath collapses `..`, commonpath confirms containment).
-    base = os.path.realpath(VOICES_DIR)
-    audio_path = os.path.realpath(os.path.join(base, audio_filename))
-    try:
-        contained = os.path.commonpath((base, audio_path)) == base
-    except ValueError:
-        contained = False
-    if not contained:
+    # CWE-22: resolve under VOICES_DIR via the shared basename + containment
+    # guard before rendering (rejects any escape).
+    audio_path = _voices_path(audio_filename)
+    if audio_path is None:
         raise HTTPException(status_code=400, detail="invalid profile identifier")
     try:
         await _render_archetype_wav(
