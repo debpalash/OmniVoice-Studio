@@ -2,7 +2,11 @@
    Chrome tokens only: every surface here should rhyme with the status bar. */
 
 /* Tighter page chrome — reclaim whitespace around title and section padding. */
-.settings-page                   { padding: 10px 24px 24px; }
+/* Fill the scroll container so short tabs (Appearance/About/Privacy) render as a
+   full-height panel instead of a stunted box floating in a void. min-height:100%
+   is a FLOOR — tall tabs (Models/Logs) grow past it and scroll as before; if the
+   parent height is ever indeterminate it simply no-ops. */
+.settings-page                   { padding: 10px 24px 24px; display: flex; flex-direction: column; min-height: 100%; box-sizing: border-box; }
 .settings-page h1                { font-size: 1.15rem; margin: 0 0 2px; }
 .settings-page .settings-subtitle{ font-size: 0.72rem; margin-bottom: 14px; }
 .settings-tabs-ui                { margin-bottom: var(--space-3); }
@@ -97,6 +101,10 @@
      sit. The border is tinted by the active tab's accent so the active tab and
      its panel read as connected by a shared border. */
   margin-top: 0;
+  /* Grow to fill the flex-column .settings-page so the bordered panel reaches
+     the viewport bottom on short tabs (only adds space when there's slack —
+     tall tabs keep their natural height + internal scroll). */
+  flex: 1 1 auto;
   padding: var(--space-5) var(--space-5) var(--space-4);
   border: 1px solid color-mix(in srgb, var(--settings-accent) 38%, var(--chrome-border) 62%);
   /* Stronger top: a 2px full-accent edge at the seam with the bar, so the
