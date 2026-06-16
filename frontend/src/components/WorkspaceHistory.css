@@ -20,11 +20,34 @@
   overflow: hidden;
 }
 
-@media (max-width: 900px) {
-  .studio-with-history {
-    flex-direction: column;
-    overflow-y: auto;
-  }
+/* On a narrow shell the workspace + history aside stack vertically. Driven by
+   the shell-width class set in App.jsx from `app-container.clientWidth`, NOT a
+   raw `@media (max-width)`: the shell scales via `zoom`, so a viewport media
+   query fires at the wrong threshold whenever --ui-scale ≠ 1 and dropped the
+   action bar (Synthesize CTA) below the fold (#476). `.shell-narrow`/`.shell-mini`
+   track the real scaled layout width on every engine (index.css:294). */
+.shell-narrow .studio-with-history,
+.shell-mini .studio-with-history {
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* When stacked, the main column must NOT clip its own overflow — its
+   `overflow:hidden` (needed for the side-by-side scroll panes) otherwise trapped
+   the pinned action bar below the fold of the now-scrolling outer column (#476).
+   Letting it grow naturally hands scrolling to `.studio-with-history`, and the
+   action bar below stays reachable; `position:sticky` keeps the Synthesize CTA
+   pinned to the viewport bottom while the script content scrolls. */
+.shell-narrow .studio-with-history__main,
+.shell-mini .studio-with-history__main {
+  overflow: visible;
+  flex: 0 0 auto;
+}
+.shell-narrow .studio-with-history__main .studio-action-bar,
+.shell-mini .studio-with-history__main .studio-action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
 }
 
 /* Right column: Saved voices (top) + History (bottom) stacked, each scrolls. */
@@ -115,12 +138,13 @@
   padding: 32px 16px;
 }
 
-/* On narrow windows the right column drops below the definition column. */
-@media (max-width: 900px) {
-  .studio-right {
-    flex-basis: auto;
-    border-left: none;
-    border-top: 1px solid var(--chrome-border);
-    max-height: 60vh;
-  }
+/* On a narrow shell the right column drops below the definition column. Same
+   shell-class trigger as above (not a viewport media query) so it reflows in
+   lockstep with the stacked layout at the scaled width (#476). */
+.shell-narrow .studio-right,
+.shell-mini .studio-right {
+  flex-basis: auto;
+  border-left: none;
+  border-top: 1px solid var(--chrome-border);
+  max-height: 60vh;
 }

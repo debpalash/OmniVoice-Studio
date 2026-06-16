@@ -136,7 +136,10 @@
 .clone-insert-btn {
   position: absolute;
   right: 8px;
-  bottom: 8px;
+  /* Lifted off the textarea's bottom-right resize grip so the ⊕ button no
+     longer covers the drag handle (#481). The popover's `bottom` offset below
+     is anchored to this row, so they move together. */
+  bottom: 30px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -154,12 +157,17 @@
 .clone-insert-pop {
   position: absolute;
   right: 8px;
-  bottom: 38px;
+  /* Opens upward, clearing the lifted ⊕ button (bottom:30px + its height). */
+  bottom: 60px;
   z-index: 20;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  max-width: 360px;
+  /* Viewport-edge guard (#481): the 14-chip grid can't spill past the window
+     even when the script panel is narrow. The script panel's
+     `.clone-panel--overflow-visible` (applied in the JSX) stops the parent
+     `overflow:auto` from clipping it. */
+  max-width: min(360px, calc(100vw - 16px));
   padding: 8px;
   background: var(--chrome-bg);
   border: 1px solid var(--chrome-border-strong);
@@ -265,7 +273,10 @@
 /* Text input + textarea tweaks */
 .clone-text-area {
   flex: 1;
-  resize: none;
+  /* Re-enable the corner grip (matches base textarea.input-base). The ⊕ Insert
+     button is lifted off the bottom-right so it no longer covers the handle
+     (#481). */
+  resize: vertical;
   min-height: 60px;
   margin-bottom: 6px;
 }

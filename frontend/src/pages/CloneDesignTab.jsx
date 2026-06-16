@@ -266,7 +266,10 @@ export default function CloneDesignTab(props) {
 
       {/* ═══ SCRIPT — what should it say ═══ */}
       <div className="studio-column">
-        <div className="studio-panel">
+        {/* overflow-visible: the ⊕ Insert popover opens above the textarea and
+            must escape the panel's `overflow:auto` box instead of being clipped
+            into its scroll region (#481). */}
+        <div className="studio-panel clone-panel--overflow-visible">
           <div className="label-row label-row--center">
             <Command className="label-icon" size={14} /> {t('clone.script', { defaultValue: 'Script' })}
           </div>
