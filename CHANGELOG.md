@@ -8,7 +8,49 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+_Nothing yet — `main` is at v0.3.6 + 1 patch. New work lands here._
+
+## [0.3.6] — 2026-06-16
+
+A large release (168 commits since v0.3.5). The headline is the **Longform
+suite** — produce full audiobooks and multi-voice stories from text, EPUB, or
+PDF — alongside a real **engine-routing** layer that tells you up front when an
+engine will fall back to CPU instead of finding out mid-synth. Dubbing,
+first-run, and install reliability all get a pass too.
+
 ### Added
+
+- **Longform: Stories + Audiobook editors.** Two new tabs turn long text into
+  finished audio. **Audiobook** takes a script (or imports plain text / EPUB /
+  PDF), auto-splits it into chapters, and renders a chaptered `.m4b` with
+  metadata, cover art, and per-chapter preview/resume. **Stories** is a
+  multi-voice editor — assign a different voice per line, preview, and export
+  the whole thing through the same server-side renderer. Both share one render
+  core (loudness, metadata, cover art) and one live SSE progress stream, and
+  you can convert a project between Story and Audiobook in place.
+  (#402, #403, #404, #408, #409, #411, #412, #413, #426, #435, #436, #447)
+- **Longform: PDF & EPUB ingest.** "Import" on the Audiobook tab accepts EPUB
+  and PDF (not just plain text) and auto-chapters the result, so an existing
+  ebook becomes an audiobook without manual copy-paste. (#412, #459)
+- **Longform: two-pass loudnorm mastering.** Audiobook/Story exports now run a
+  measure-then-normalize loudnorm pass for accurate ACX/podcast loudness
+  targets. A slow or broken measure pass degrades gracefully to single-pass
+  rather than aborting the render. (#449, #455)
+- **Longform: crash-resume.** An interrupted render is resumable without
+  re-submitting the original input — the compiled plan is persisted to the job
+  dir and finished chapters are reused, so a crash mid-book doesn't cost you the
+  whole render. (#470)
+- **Longform: pronunciation control + SSML-lite prosody.** A per-render
+  pronunciation lexicon (word respelling) plus an in-app pronunciation editor
+  and markup reference, and inline prosody markers — `[slow]` / `[fast]` /
+  `[emphasis]` / `[spell]` — for fine-grained delivery. (#419, #421, #422)
+- **Stories: global reading-speed control.** A toolbar slider (0.5–2.0×) sets
+  one speed for every line that doesn't have its own per-line override; the
+  per-line slider still wins. Persisted as a UI preference. (#415, #416)
+- **Unified LongformProject store.** Audiobook metadata, scripts, and prefs
+  persist in a single project store (with a `v4→v5` migration), and finished
+  books/stories now show up alongside other work in **Projects**. (#417, #443,
+  #444)
 - **Portable personas (`.ovsvoice`).** Export any voice as a self-contained,
   fully-local persona bundle — identity, optional reference clip, consent
   attestation, SPDX license, and a watermarked preview — and import it back into
@@ -17,6 +59,183 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   be forged by hand-editing a bundle (real recording + consent text + attestation
   required). Legacy `.omnivoice` files still import. See
   [docs/persona-format.md](docs/persona-format.md). (#29)
+- **Engine routing — no more silent CPU fallback.** A host device probe and
+  routing resolver now decide where each engine actually runs, and the verdict
+  is surfaced before you hit Synthesize: the **Settings → Engines** picker shows
+  a per-engine compatibility matrix, and **preflight** / **diagnose** report the
+  active engine's GPU verdict (accelerated / caveat / CPU-fallback /
+  unavailable). At synth time every TTS entry point (`/generate`,
+  `/v1/audio/speech`) enforces the same routing — an engine that can't use this
+  host's GPU returns an explicit error or an `X-OmniVoice-Routing` header instead
+  of silently dropping to CPU or dying mid-synth. (#21)
+- **Diagnostics suite.** New self-check tooling for when something's wrong: a
+  `/system/diagnose` report (and matching backend `--diagnose`), a persistent
+  **error journal** surfaced in Settings, and a scrubbed **diagnostic bundle**
+  (home dirs stripped to `~/`, no tokens/keys) you can attach to a bug report.
+  Paired with structured GitHub **Issue Forms** (bug / install / feature) for
+  cleaner reports. (#433, #456)
+- **Dubbing: multi-speaker per-speaker voice assignment.** When diarization
+  detects multiple speakers, each segment is now bound to its speaker's cloned
+  voice automatically instead of landing on "Default" and needing manual fixes;
+  per-segment reference clips are still preferred for quality where present. Also
+  adds an optional speaker-count hint for diarization. (#275, #486, #490)
+- **Dubbing: Smart Fit timing + second-pass QC.** A Smart Fit timing strategy
+  (planner, fingerprints, per-segment video retime + drift absorption + fitted
+  subtitles) plus a second-pass ASR QC that flags lines whose dub drifts from the
+  target timing — wired into the dub editor UI. Includes a timeline segment
+  editor (drag, snap-to-onset, keyboard a11y), speech-onset alignment, regional
+  dialect targeting, and per-segment clone references. (#280, #347, #350, #369,
+  #370, #458)
+- **Dubbing: dedicated Dub home.** A projects/history landing for dubbing with
+  project rename. (#435)
+- **Voice Console workspace.** Clone and Design are consolidated into one Voice
+  workspace with right-side panels, a shared waveform player, an identity recipe
+  line / Active-voice card, and a free-text "describe your voice" field that maps
+  natural language to design parameters. (#317, #374, #376, #378, #395, #396,
+  #397)
+- **Unified first-run setup.** Nothing installs until you confirm a plan: pick an
+  install mode (installed / portable), a storage location, and (on restricted
+  networks) custom PyPI/HF/python-build-standalone mirrors — with a
+  minimum-free-space gate before anything downloads. Followed by a guided
+  studio-console wizard with platform-aware hints, resume reassurance, and
+  download ETAs. (#286, #295, #297, #298)
+- **Dictation: local-LLM refinement.** Opt-in local-LLM cleanup of final
+  transcripts (collapsing Whisper hallucination loops), available on both live
+  dictation and the REST `/transcribe` path; plus opt-in NLMS acoustic echo
+  cancellation for dictating over playback. Configure a remote LLM endpoint
+  (Ollama / vLLM / LM Studio) in Settings. (#356, #357, #363, #399, #400, #457)
+- **Unlimited-length TTS + streaming.** Sentence-boundary chunking with
+  crossfade removes the per-generation length cap, and a new sentence-by-sentence
+  `/ws/tts` streams audio as it's produced. An inline `[pause Nms]` marker
+  inserts measured silence in generated speech. (#276, #357, #358)
+- **MCP server v1.** OmniVoice mounts an MCP server on `/mcp` (with a stdio shim
+  and per-agent voice binding) so it can act as a local TTS/STT provider for
+  agentic pipelines. (#368)
+- **Remote-backend access.** Point the desktop UI at a remote backend URL with a
+  bearer key (Tailscale-documented), and an opt-in Hugging Face token field in
+  the setup flow. (#303, #364)
+- **"Fund Claude Max" support experience.** The donate page gets a real goal bar
+  with a "Join N supporters" social-proof line and suggested amounts, plus Pip
+  the mascot and a non-blocking "postcard" toast that appears only *after* a
+  success (a finished dub, a saved clone, a longform export) — never on errors,
+  setup, or first run — with escalating cooldowns and a one-click "don't ask
+  again". (#494)
+
+### Fixed
+
+- **Transcription/dubbing failed when ffmpeg wasn't on `PATH`** (notably on
+  Windows). WhisperX now decodes audio through OmniVoice's own validated ffmpeg
+  binary instead of a bare `PATH` lookup, so ASR works without a system ffmpeg
+  install. (#479)
+- **Translation defaulted the source language to English.** Dubbing/translation
+  now guesses the source language from the text instead of assuming `en`,
+  fixing wrong-direction translations. (#478)
+- **Cinematic / LLM dubbing features failed out of the box** because `openai`
+  wasn't bundled. The client is now a runtime dependency, so those paths work on
+  a fresh install. (#484)
+- **`pkg_resources missing` install dead-end (#248).** The auto-repair ran
+  `uv pip install setuptools`, which `uv` treated as a no-op when setuptools
+  *metadata* was present but its files had been removed (commonly by Windows
+  Defender quarantine or a partial extract). Both repair sites now use
+  `--reinstall` to force re-extraction, and the error/hint text suggests the
+  working command plus an antivirus-exclusion note. (#248)
+- **A stuck backend trapped users on a buttonless splash (#474).** The bootstrap
+  splash now has a per-stage stall watchdog: if a non-terminal stage sits past
+  its budget (20 min for dep install, 120 s otherwise), it flips to the failed
+  state with actionable hints, the live log, and Retry / Clean-&-Retry — instead
+  of polling forever with no way out. (#474)
+- **Changing the model-download location in Settings had no effect (#480).** The
+  desktop launcher injected a stale models dir that overrode the per-user value,
+  so new downloads kept going to the old folder and "Effective location" stayed
+  wrong. The per-user env file now wins, so the in-app Settings path is
+  authoritative. (#480)
+- **Backend crashed on app upgrade with a stale venv (#307).** Dependencies are
+  now synced on upgrade, and a structurally broken venv self-heals instead of
+  exiting `106`. `scalar_fastapi` is now optional so its absence can't break
+  startup. (#307, #314)
+- **`/generate` ignored the selected TTS engine (#312)** and GGUF speech-control
+  parameters weren't forwarded — both now honored. (#306, #312)
+- **TTS generation failed on some GPUs.** `torch.compile` failures now fall back
+  to eager execution so generation never hard-fails on unsupported GPUs, and
+  cudagraph-compiled inference is pinned to one dedicated thread to avoid
+  crashes. (#278, #315)
+- **Re-dub ignored transcript edits (#281).** Fingerprints are canonicalized, the
+  preview cache is busted, and the mux is atomic, so editing the transcript and
+  re-dubbing actually reflects your changes. Translated subtitles now burn in
+  correctly and subtitle save no longer throws a JSON error. (#281, #309)
+- **macOS: app wouldn't open without using Terminal.** Builds are now ad-hoc
+  signed (with signing/notarization verification), so the app launches normally.
+  (#290)
+- **macOS dictation auto-paste stole focus**; it now writes the clipboard
+  natively without grabbing focus, and microphone-permission handling adds OS
+  usage descriptions, a WebView grant handler, and an actionable denied-state UI.
+  (#287, #323)
+- **Clone-reference transcription was broken** (it used a removed transformers
+  pipeline); it now routes through the ASR registry. A crash-isolated
+  faster-whisper subprocess backend keeps an ASR crash from taking down the app.
+  (#308, #393)
+- **Realtime status probe hit a gated route.** It now probes the auth-exempt
+  `/health` instead of the gated `/model/status`, and the UI polls the backend
+  over HTTP before opening the WebSocket to avoid startup `ECONNREFUSED`. (#439,
+  #450)
+- **Non-executable or unreachable engine binaries showed cryptic errors** — these
+  now produce actionable messages. (#437, #438, #454, #466)
+- **Design-profile save was coupled to a TTS render (#476)**, so saving a profile
+  needlessly triggered synthesis; the two are now decoupled. (#476)
+- **UI scale / black bands.** The app shell now scales via `transform: scale` and
+  always fills the viewport, fixing the WebKitGTK black-band issue on Linux and
+  cramped/black layouts at narrow widths — a permanent fix across platforms.
+  (#445, #452)
+- **Clone popover/CTA clipping and a non-resizable textarea** are fixed, the
+  WaveformPlayer no longer pauses itself on play or ignores clicks, and several
+  layout/history-display issues (phantom sidebar gap, title clamping, flicker)
+  are cleaned up. (#379, #384, #398, #481)
+- **Windows: `desktop-prod` now runs from cmd/PowerShell** via a cross-platform
+  launcher, `tqdm` is disabled on non-TTY to avoid an `OSError`, and ffmpeg
+  validation guards against `WinError 193`. (#282, #305, #377)
+- **MLX import hardened** against PyInstaller dylib failures, with a proper
+  platform gate so it's only loaded where it works. (#390)
+
+### Changed
+
+- **Restricted-network support.** A Hugging Face mirror (`HF_ENDPOINT`) setting,
+  custom PyPI / HF / python-build-standalone mirrors in first-run setup, and
+  region presets help installs complete behind restrictive networks. (#286, #391)
+- **Engine memory management.** Subprocess-engine sidecars now unload on demand
+  and idle-reap to free VRAM. (#401, #406)
+- **Faster, more accurate model downloads** via a Xet fast path with accurate
+  progress reporting, plus a model-management cleanup pass. (#424, #428)
+- **Voice profiles unified** under one model with a `kind` discriminator and
+  stored design params, and consent-locked profiles (`verified_own_voice` +
+  spoken-consent flow). (#354, #376)
+- **Updater** preview channel now offers the newest build across channels, and
+  preview versions carry an MSI-legal numeric pre-release stamp. (#293, #326)
+- **Performance.** Voice-clone prompt embeddings are cached, and dub retime
+  batches seek to their window instead of decoding from frame 0. (#387, #427)
+
+### License
+
+- **Relicensed from FSL-1.1-ALv2 to AGPL-3.0 (open-core).** The project is now
+  under the GNU Affero General Public License v3, with a paid commercial license
+  retained for proprietary/closed-source use without AGPL obligations. The
+  bundled `omnivoice/` TTS model package stays Apache-2.0 upstream
+  (AGPL-compatible). Manifests declare `AGPL-3.0-only`; the in-app Commercial
+  License copy and README are updated, and the old "converts to Apache 2.0 after
+  two years" FAQ is removed. In-app commercial-license strings are translated
+  across all 20 locales. (#292)
+
+### CI
+
+- **macOS Intel (x86_64) build target reinstated** on `macos-15-intel`, so Intel
+  Mac users get installers again. (#342)
+- **Docker Hub publishing.** Images now also publish to Docker Hub
+  (`palashdeb/omnivoice-studio`), with the Docker Hub overview maintained in-repo
+  and auto-synced from `main` (sync is non-fatal so it can't redden a build).
+  (#375, #410, #414)
+- **Docs-drift guard.** A daily job compares the canonical feature inventory
+  against README / docs / registries to catch stale docs. (#353)
+- **Security scans never cancel on `main`,** so merge trains no longer leave red
+  ✗ on intermediate commits. (#340)
 
 ## [0.3.5] — 2026-06-03
 
