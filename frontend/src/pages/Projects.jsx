@@ -8,6 +8,7 @@ import {
 import { apiFetch } from '../api/client';
 import { loadTranscriptions, TRANSCRIPTION_EVENT } from '../utils/transcriptionsStore';
 import { audioUrl } from '../api/generate';
+import { playBlobAudio } from '../utils/media';
 import './Projects.css';
 
 /**
@@ -49,6 +50,26 @@ function fmtDuration(sec) {
   const m = Math.floor(n / 60);
   const s = Math.floor(n % 60);
   return `${m}m ${s}s`;
+}
+
+/**
+ * Preview a finished render (audiobook/story) inside the app.
+ *
+ * Previously the card did `window.open(url, '_blank')`. Under Tauri's WebView2
+ * on Windows that handed the file to a new webview/OS media surface, spawning a
+ * separate black playback window with centered controls that the user couldn't
+ * close without force-quitting the whole app (#532). Fetch the file and route
+ * it through the shared single-playback manager instead — identical, in-app
+ * behavior on macOS/Windows/Linux, and starting another preview stops this one.
+ */
+async function playRenderInApp(url) {
+  try {
+    const resp = await fetch(url, { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    await playBlobAudio(await resp.blob());
+  } catch (e) {
+    console.error('[Projects] render playback failed:', e);
+  }
 }
 
 function Card({ kind, accent, title, subtitle, trailing, onClick, IconC }) {
@@ -201,7 +222,7 @@ export default function Projects({
         ts: (j.created_at || 0) * 1000,
         accent: '#d3869b',
         Icon: BookMarked,
-        onClick: () => j.output && window.open(audioUrl(j.output), '_blank'),
+        onClick: () => j.output && playRenderInApp(audioUrl(j.output)),
       });
     }
     for (const tr of transcriptions) {
