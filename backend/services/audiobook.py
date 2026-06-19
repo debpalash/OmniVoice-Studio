@@ -65,10 +65,14 @@ class AudiobookPlan:
     def char_count(self) -> int:
         return sum(c.char_count for c in self.chapters)
 
+    @property
+    def chapter_count(self) -> int:
+        return len(self.chapters)
+
     def to_dict(self) -> dict:
         return {
             "chapters": [c.to_dict() for c in self.chapters],
-            "chapter_count": len(self.chapters),
+            "chapter_count": self.chapter_count,
             "char_count": self.char_count,
         }
 

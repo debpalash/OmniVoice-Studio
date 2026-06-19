@@ -76,6 +76,15 @@ def test_plan_to_dict_shape():
     assert d["chapters"][0]["spans"][0]["text"] == "Hi there."
 
 
+def test_plan_chapter_count_property():
+    # Regression for #543: the /audiobook/import endpoint reads plan.chapter_count
+    # directly (not via to_dict), so the attribute must exist and stay in lockstep
+    # with the serialized key.
+    plan = parse_audiobook_script("# A\nHi.\n# B\nBye.")
+    assert plan.chapter_count == 2
+    assert plan.chapter_count == plan.to_dict()["chapter_count"]
+
+
 # ── FFMETADATA ───────────────────────────────────────────────────────────────
 
 def test_ffmetadata_cumulative_offsets():

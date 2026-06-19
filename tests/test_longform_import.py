@@ -5,10 +5,12 @@ EPUB zip in memory (no fixture file, no new dep).
 """
 from __future__ import annotations
 
+import asyncio
 import io
 import zipfile
 
 import pytest
+from fastapi import UploadFile
 
 from services.longform_import import (
     chapterize_plaintext,
@@ -16,6 +18,7 @@ from services.longform_import import (
     pdf_to_chapter_script,
 )
 from services.audiobook import parse_audiobook_script
+from api.routers.audiobook import audiobook_import
 
 
 # ── PDF fixture builder ───────────────────────────────────────────────────
@@ -219,3 +222,28 @@ def test_pdf_too_many_pages_guard():
     data = _make_pdf(["Chapter 1", "Hi."])
     with pytest.raises(ValueError, match="too many pages"):
         pdf_to_chapter_script(data, max_pages=0)
+
+
+# ── import endpoint ────────────────────────────────────────────────────────
+# Calls the handler directly (no TestClient → no main+torch import), mirroring
+# tests/test_audiobook_cover.py.
+
+def _upload(name: str, data: bytes) -> UploadFile:
+    return UploadFile(io.BytesIO(data), filename=name)
+
+
+def test_import_endpoint_returns_chapter_count():
+    # Regression for #543: parsing succeeded but the endpoint then read
+    # plan.chapter_count, which didn't exist → 500 AttributeError. Covers the
+    # whole class — every import format hits this same return path.
+    pdf = _make_pdf(["Chapter 1", "Once upon a time.", "Chapter 2", "The end."])
+    for name, data in [
+        ("book.pdf", pdf),
+        ("book.md", b"# One\nhello\n\n# Two\nworld"),
+        ("book.txt", b"just a flat blob of narration with no headings"),
+    ]:
+        res = asyncio.run(audiobook_import(_upload(name, data)))
+        assert isinstance(res["chapters"], int) and res["chapters"] >= 1
+        assert res["text"].strip()
+    # The two-chapter inputs parse to exactly two chapters.
+    assert asyncio.run(audiobook_import(_upload("book.pdf", pdf)))["chapters"] == 2
