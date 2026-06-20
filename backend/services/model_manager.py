@@ -35,15 +35,28 @@ from core.config import IDLE_TIMEOUT_SECONDS, CPU_POOL_WORKERS
 logger = logging.getLogger("omnivoice.model")
 
 # Per-TTS-job VRAM headroom estimate. OmniVoice's forward + autoregressive
-# decode peaks around 1.6 GB on a 24 kHz 8-second utterance; we budget 2.5 GB
-# to leave room for the ASR/diarization pipelines that run concurrently in
-# the same process. Tuned empirically — bumps to 3 GB if anyone reports OOM
-# at 16 GB on a multi-segment dub.
-_GPU_VRAM_PER_JOB_GB = 2.5
+# decode peaks around 1.6 GB, but the interactive clone path co-loads WhisperX
+# large-v3 ASR (~3 GB) to transcribe the reference, so a *concurrent* clone job
+# is realistically ~5 GB. The old 2.5 GB budget over-committed: an 8 GB card
+# (~7 GB free) got 2 workers, and two concurrent clone jobs blew past VRAM into
+# a sticky CUDA "illegal memory access" that aborts the whole backend process —
+# the wave of "Can't reach the local backend" crash reports on 8 GB GPUs
+# (#567/#570/#571/#580/#582/#583/#584). Budgeting 5 GB serializes to 1 worker on
+# ≤10 GB cards (no contention → no crash) while 16/24 GB cards still parallelize.
+# Power users override with OMNIVOICE_GPU_WORKERS.
+_GPU_VRAM_PER_JOB_GB = 5.0
 _GPU_WORKER_CAP = 4
 
 _gpu_pool_singleton: "ThreadPoolExecutor | None" = None
 _cpu_pool = ThreadPoolExecutor(max_workers=CPU_POOL_WORKERS)
+
+
+def _workers_for_free_vram(free_gb: float) -> int:
+    """GPU worker count for a given free-VRAM figure: free // per-job budget,
+    floored at 1 and capped at _GPU_WORKER_CAP. Pure so the sizing policy is
+    unit-tested without a GPU (the #567 crash hinged on this returning >1 on
+    8 GB cards)."""
+    return max(1, min(_GPU_WORKER_CAP, int(free_gb // _GPU_VRAM_PER_JOB_GB)))
 
 
 def _pick_gpu_workers() -> int:
@@ -68,7 +81,7 @@ def _pick_gpu_workers() -> int:
         if hasattr(torch, "cuda") and torch.cuda.is_available():
             free_bytes, _total = torch.cuda.mem_get_info()
             free_gb = free_bytes / (1024 ** 3)
-            workers = max(1, min(_GPU_WORKER_CAP, int(free_gb // _GPU_VRAM_PER_JOB_GB)))
+            workers = _workers_for_free_vram(free_gb)
             logger.info(
                 "GPU pool sized to %d worker(s) — %.1f GB free / %.1f GB per job (cap %d)",
                 workers, free_gb, _GPU_VRAM_PER_JOB_GB, _GPU_WORKER_CAP,
