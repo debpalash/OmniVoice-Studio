@@ -6,7 +6,7 @@ import {
   transcribeStreamUrl, dubImportSrt,
 } from '../api/dub';
 import { dialectMatchesLang } from '../api/dialects';
-import { segmentGenInputs } from '../utils/segments';
+import { segmentGenInputs, applySpeakerCloneDefaults } from '../utils/segments';
 import { apiPost } from '../api/client';
 import { API } from '../api/client';
 import { playPing, isTauri } from '../utils/media';
@@ -100,11 +100,14 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
       try {
         const m = JSON.parse(e.data);
         gotFinal = true;
-        setDubSegments((m.segments || []).map((s, i) => ({
+        const normalized = (m.segments || []).map((s, i) => ({
           ...s,
           id: s.id != null ? String(s.id) : String(i),
           text_original: s.text_original || s.text || '',
-        })));
+        }));
+        // #486: bind each segment to its detected speaker's clone up front, so
+        // a 2-speaker dub doesn't land every row on "Default".
+        setDubSegments(applySpeakerCloneDefaults(normalized, m.speaker_clones));
         setDubTranscript(m.full_transcript || '');
         if (m.speaker_clones && typeof m.speaker_clones === 'object') {
           setSpeakerClones(m.speaker_clones);

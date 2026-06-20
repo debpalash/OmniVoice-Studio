@@ -34,3 +34,27 @@ export function segmentGenInputs(s) {
     effect_preset: s.effect_preset || undefined,
   };
 }
+
+/** The `auto:<safe>` profile id for a diarized speaker. Mirrors the backend's
+ *  clone-resolution key (`speaker_id.lower().replace(" ", "_")`) and the
+ *  Voice-dropdown option value in DubTab, so the three always agree. */
+export function autoProfileId(speakerId) {
+  return `auto:${(speakerId || '').toLowerCase().replace(/\s+/g, '_')}`;
+}
+
+/**
+ * #486: auto-assign each diarized segment to its detected speaker's cloned
+ * voice instead of leaving it on "Default". When the backend cloned a speaker
+ * from the video (`speakerClones[speaker_id]` present) and the segment has no
+ * voice chosen yet, default its `profile_id` to that speaker's `auto:` clone.
+ * The user can still override per-speaker or per-segment afterwards — we only
+ * fill an *empty* profile_id, never clobber an explicit choice.
+ */
+export function applySpeakerCloneDefaults(segments, speakerClones) {
+  const clones = (speakerClones && typeof speakerClones === 'object') ? speakerClones : {};
+  if (!Array.isArray(segments) || !Object.keys(clones).length) return segments || [];
+  return segments.map((s) => {
+    if (!s || s.profile_id || !s.speaker_id || !clones[s.speaker_id]) return s;
+    return { ...s, profile_id: autoProfileId(s.speaker_id) };
+  });
+}
