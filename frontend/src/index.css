@@ -196,9 +196,12 @@ samp,
      black bands:
        • Chromium (macOS/Windows): `zoom` magnifies the shrunk layout box back
          to exactly `100vw × 100vh`, so content fits with no clipping.
-       • WebKitGTK (Linux): `zoom` is a no-op → the layout box stays shrunk to
-         `100vw/scale × 100vh/scale` and FILLS the window (no black bands), just
-         rendered slightly smaller.
+       • Older WebKitGTK (Linux): `zoom` is a layout no-op, so the shrunk
+         `100vw/scale` box would leave a black band on the right/bottom AND push
+         the bottom Generate/Settings CTAs off-screen (#523/#524). The App.jsx
+         zoom-layout probe sets `data-zoom-layout=off` on those engines, and the
+         override below renders the shell at 1.0 filling the window (no band, no
+         clip). Newer WebKitGTK that honors zoom keeps the scaled path.
      The old `transform: scale(var(--ui-scale))` approach is what caused black
      bands on WebKitGTK because the transform didn't magnify the shrunk shell.
      ⚠️ Do NOT replace `zoom` with `transform: scale(var(--ui-scale))` — a
@@ -223,6 +226,16 @@ samp,
      the side menubar. */
   overflow: hidden;
   transition: grid-template-columns var(--transition-smooth);
+}
+/* Older WebKitGTK (Linux), where the App.jsx probe found `zoom` is a layout
+   no-op → html[data-zoom-layout=off]: the calc(100vw/scale) box can't be
+   magnified back, so it leaves a black band and clips the bottom Generate/
+   Settings CTAs (#523/#524). Fill the viewport at 1.0 instead — no band, no
+   clip. The probe leaves the zoom path in place on engines that honor zoom. */
+html[data-zoom-layout='off'] .app-container {
+  width: 100vw;
+  height: 100vh;
+  zoom: 1;
 }
 /* Keep scrollable content clear of the fixed footer. The footer writes its
    current height (pre-zoom px — same coordinate space as these children) to
