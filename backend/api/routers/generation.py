@@ -320,6 +320,15 @@ async def generate_speech(
     max_chunk_chars: int = Form(800, ge=0),
     crossfade_ms: int = Form(50, ge=0, le=1000),
 ):
+    # #502: NFC-normalize the input text so decomposed (NFD) diacritics — common
+    # in pasted Vietnamese and other Latin-with-marks text — are composed to the
+    # single codepoints the tokenizer/model expect, instead of base-letter +
+    # combining-mark sequences that render as distorted/garbled speech. NFC is a
+    # no-op for already-composed text; mirrors the duration estimator
+    # (utils/duration.py) so the estimate and the synthesis see the same text.
+    import unicodedata
+    text = unicodedata.normalize("NFC", text)
+
     # ── Engine resolution (issue #312) ──────────────────────────────────────
     # The request runs on the engine selected in Settings (POST /engines/select,
     # env var OMNIVOICE_TTS_BACKEND wins), or an explicit per-request `engine`

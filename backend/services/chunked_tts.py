@@ -42,6 +42,46 @@ _ABBREVIATIONS = frozenset({
 # [pause 300ms] markers). The splitter must never cut inside one.
 _BRACKET_TAG_RE = re.compile(r"\[[^\]]*\]")
 
+# Dense scripts (CJK ideographs, kana, Hangul) where ~1 character = 1 syllable,
+# so an N-char chunk is far more *speech* than N Latin chars. Counted by code
+# point (see _dense_char_count) so there are no literal CJK chars in source.
+def _dense_char_count(text: str) -> int:
+    """Number of CJK / kana / Hangul characters in *text* (dense scripts)."""
+    n = 0
+    for ch in text:
+        o = ord(ch)
+        if (0x3040 <= o <= 0x30FF or 0x3400 <= o <= 0x4DBF
+                or 0x4E00 <= o <= 0x9FFF or 0xAC00 <= o <= 0xD7AF
+                or 0xF900 <= o <= 0xFAFF):
+            n += 1
+    return n
+
+# A chunk that is predominantly dense-script (>= this fraction) gets the smaller
+# limit; below it, the text is mostly spaced/Latin and the full limit applies.
+_DENSE_FRACTION_THRESHOLD = 0.3
+# Speech-per-char multiplier for dense scripts vs Latin (~1 ideograph ≈ 2.5
+# Latin chars of audio). Used to scale the char limit down.
+_DENSE_SPEECH_FACTOR = 2.5
+
+
+def _effective_max_chars(text: str, max_chars: int) -> int:
+    """Scale *max_chars* down for dense-script text (#505).
+
+    Long-form (5+ min) generation degrades — repeated / skipped / mispronounced
+    words — when a single chunk's acoustic sequence gets too long. With CJK /
+    kana / Hangul, ~1 char = 1 syllable, so an 800-char chunk is ~4-5 minutes of
+    audio in one shot, well past the model's reliable range. When a chunk is
+    predominantly dense-script, cap it to ``max_chars / _DENSE_SPEECH_FACTOR``
+    (floored) so each chunk's spoken length stays bounded. Latin / spaced text
+    is unchanged. ``max_chars <= 0`` (chunking disabled) is left untouched.
+    """
+    if max_chars <= 0 or not text:
+        return max_chars
+    dense = _dense_char_count(text)
+    if dense and dense / len(text) >= _DENSE_FRACTION_THRESHOLD:
+        return max(120, min(max_chars, round(max_chars / _DENSE_SPEECH_FACTOR)))
+    return max_chars
+
 
 def split_text_into_chunks(text: str, max_chars: int = DEFAULT_MAX_CHUNK_CHARS) -> List[str]:
     """Split *text* at natural boundaries into chunks of at most *max_chars*.
@@ -54,6 +94,9 @@ def split_text_into_chunks(text: str, max_chars: int = DEFAULT_MAX_CHUNK_CHARS) 
     text = text.strip()
     if not text:
         return []
+    # #505: dense-script text packs far more speech per char, so cap the chunk
+    # smaller to keep each chunk's spoken length in the model's reliable range.
+    max_chars = _effective_max_chars(text, max_chars)
     if max_chars <= 0 or len(text) <= max_chars:
         return [text]
 
