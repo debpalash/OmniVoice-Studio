@@ -89,6 +89,13 @@ design, dubbing, transcription, install, and the Linux UI.
 - **A relocated, copied, or restored backend venv ("No module named
   'encodings'") now self-heals** (rebuilds once) instead of failing on every
   launch.
+- **Non-English voices drifted to English / the wrong language.** A voice
+  profile's stored language wasn't propagated into generation (a German
+  archetype previewed in German but generated in English), the audiobook/longform
+  synth hardcoded `language=None` (a non-English clone could flip language
+  mid-render), and the duration estimator under-allocated frames for decomposed
+  (NFD) diacritic text. The profile/request language is now threaded through both
+  the single-shot and longform paths, and text is NFC-normalized. (#533, #505, #502)
 - The **"Can't reach the local backend" startup-crash wave** (pkg_resources
   #248, `scalar_fastapi` #307, exit-106 broken venv) was fixed in v0.3.6 — this
   release carries those fixes, so updating from v0.3.5/older resolves them.
