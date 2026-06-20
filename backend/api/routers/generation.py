@@ -2,6 +2,7 @@ import os
 import io
 import uuid
 import time
+import random
 import asyncio
 import tempfile
 import contextlib
@@ -463,6 +464,14 @@ async def generate_speech(
         ref_text = await asyncio.get_running_loop().run_in_executor(
             _gpu_pool, transcribe_reference, ref_audio_path
         )
+
+    # #526: materialize a concrete seed when none was supplied (and no profile
+    # pinned one) so the take is reproducible and we can hand it back via the
+    # X-Seed header for the "keep this seed" control. An explicit request seed
+    # or a profile's stored seed still wins — used_seed is only filled when it
+    # is still None here, never overwritten.
+    if used_seed is None:
+        used_seed = random.randint(0, 2**31 - 1)
 
     start_time = time.time()
     try:

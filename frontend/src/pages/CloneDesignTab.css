@@ -420,3 +420,27 @@
   border-radius: 4px;
   border: 1px dashed rgba(255, 255, 255, 0.08);
 }
+
+/* #526: voice-design seed control — show + pin + re-roll. */
+.design-seed {
+  margin-top: var(--space-3, 12px);
+}
+.design-seed__row {
+  display: flex;
+  gap: var(--space-3, 12px);
+  align-items: center;
+}
+.design-seed__input {
+  width: 9rem;
+  flex: 0 0 auto;
+}
+.design-seed__keep {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85em;
+  color: var(--color-fg-muted, #928374);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}

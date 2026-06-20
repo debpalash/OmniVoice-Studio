@@ -46,6 +46,11 @@ export interface GenerateSlice {
   // Voice-design category picks
   vdStates: VDStates;
 
+  // Voice-design seed (#526): the last seed the backend used, and whether to
+  // reuse it on the next synth so voice tweaks stay on the same base timbre.
+  designSeed: number | null;
+  keepSeed: boolean;
+
   setText: (v: string) => void;
   setRefText: (v: string) => void;
   setInstruct: (v: string) => void;
@@ -63,6 +68,9 @@ export interface GenerateSlice {
   setDuration: (v: string) => void;
 
   setVdStates: (v: VDStates | ((prev: VDStates) => VDStates)) => void;
+
+  setDesignSeed: (v: number | null) => void;
+  setKeepSeed: (v: boolean) => void;
 }
 
 const INITIAL_VD: VDStates = {
@@ -93,6 +101,9 @@ export const createGenerateSlice: StateCreator<GenerateSlice, [], [], GenerateSl
 
   vdStates: INITIAL_VD,
 
+  designSeed: null,
+  keepSeed: false,
+
   setText:        (v) => set({ text: v }),
   setRefText:     (v) => set({ refText: v }),
   setInstruct:    (v) => set({ instruct: v }),
@@ -112,4 +123,7 @@ export const createGenerateSlice: StateCreator<GenerateSlice, [], [], GenerateSl
   setVdStates: (v) => set((s) => ({
     vdStates: typeof v === 'function' ? (v as (p: VDStates) => VDStates)(s.vdStates) : v,
   })),
+
+  setDesignSeed: (v) => set({ designSeed: v }),
+  setKeepSeed:   (v) => set({ keepSeed: v }),
 });

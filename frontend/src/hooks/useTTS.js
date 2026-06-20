@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useAppStore } from '../store';
 import { generateSpeech, audioUrlWithCacheBust } from '../api/generate';
+import { pickDesignSeed } from '../utils/seed';
 import { playBlobAudio, playPing } from '../utils/media';
 import { probeAudioDuration } from '../utils/format';
 import { CLONE_MAX_SECONDS, PRESETS } from '../utils/constants';
@@ -42,6 +43,11 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
   // old clone/design navigation-mode checks (voice-studio-unification P4).
   const defineMethod = useAppStore(s => s.defineMethod);
   const setSidebarTab = useAppStore(s => s.setSidebarTab);
+  // Voice-design seed (#526): reuse the pinned seed when "keep this seed" is on
+  // so tweaks stay on the same base timbre; otherwise roll a fresh one.
+  const keepSeed = useAppStore(s => s.keepSeed);
+  const designSeed = useAppStore(s => s.designSeed);
+  const setDesignSeed = useAppStore(s => s.setDesignSeed);
 
   const [refAudio, setRefAudio] = useState(null);
   const [pendingTrimFile, setPendingTrimFile] = useState(null);
@@ -117,8 +123,10 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
         }
         if (instruct) formData.append("instruct", instruct);
       } else {
-        const designSeed = Math.floor(Math.random() * 2147483647);
-        formData.append("seed", designSeed);
+        // #526: reuse the pinned seed when "keep this seed" is on (stable
+        // tweaks), else roll a fresh one. The backend echoes the seed it used
+        // back via X-Seed so the UI can show + pin it.
+        formData.append("seed", pickDesignSeed(keepSeed, designSeed));
         // plan-05 (#132): build a validator-safe instruct (one valid tag per
         // category; drop unsupported free-text) so Synthesize stops failing
         // with "Unsupported instruct items" (#115) / "conflicting items within
@@ -148,6 +156,12 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
       const chunks = [];
       let receivedLength = 0;
       const contentLength = parseInt(response.headers.get('Content-Length') || '0', 10);
+
+      // #526: surface the seed the backend actually used so the Design tab can
+      // display it and offer "keep this seed". Authoritative over the client
+      // guess (covers the profile-seed / materialized-seed paths too).
+      const xSeed = parseInt(response.headers.get('X-Seed') || '', 10);
+      if (Number.isInteger(xSeed)) setDesignSeed(xSeed);
 
       // #21: one-time, non-blocking routing notice. The backend sets these
       // headers only on cpu_fallback / accelerated-with-caveat (never on the
@@ -195,7 +209,7 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
       clearInterval(timerRef.current);
       setIsGenerating(false);
     }
-  }, [text, defineMethod, selectedProfile, refAudio, refText, language, instruct, steps, cfg, speed, denoise, tShift, posTemp, classTemp, layerPenalty, postprocess, duration, vdStates, loadHistory, setSidebarTab]);
+  }, [text, defineMethod, selectedProfile, refAudio, refText, language, instruct, steps, cfg, speed, denoise, tShift, posTemp, classTemp, layerPenalty, postprocess, duration, vdStates, keepSeed, designSeed, setDesignSeed, loadHistory, setSidebarTab]);
 
   return {
     refAudio, setRefAudio,

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Command, Globe, SlidersHorizontal, Volume2, Plus,
   UploadCloud, Square, Mic, Save, UserSquare2, Settings2, ChevronUp, ChevronDown,
-  Sparkles, Play, X, Wand2,
+  Sparkles, Play, X, Wand2, Dice5,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
@@ -59,6 +59,13 @@ export default function CloneDesignTab(props) {
   // can preset it (voice-studio-unification P4).
   const defineMethod = useAppStore(s => s.defineMethod);
   const setDefineMethod = useAppStore(s => s.setDefineMethod);
+  // Voice-design seed (#526): show the seed the last synth used, let the user
+  // pin it ("keep this seed") so tweaks stay on the same base timbre, or roll
+  // a new one.
+  const designSeed = useAppStore(s => s.designSeed);
+  const keepSeed = useAppStore(s => s.keepSeed);
+  const setDesignSeed = useAppStore(s => s.setDesignSeed);
+  const setKeepSeed = useAppStore(s => s.setKeepSeed);
   const [activePersonality, setActivePersonality] = useState('');
   const [insertOpen, setInsertOpen] = useState(false);
 
@@ -425,6 +432,41 @@ export default function CloneDesignTab(props) {
                 <input type="text" className="input-base" value={instruct} onChange={e => setInstruct(e.target.value)} placeholder={t('clone.style_placeholder')} />
               </div>
             </div>
+
+            {/* #526: voice-design seed — show + pin + re-roll so tweaks can
+                stay on the same base timbre. Design mode only. */}
+            {defineMethod === 'design' && (
+              <div className="design-seed">
+                <div className="label-row">{t('clone.seed_label')}</div>
+                <div className="design-seed__row">
+                  <input
+                    type="number"
+                    className="input-base design-seed__input"
+                    value={designSeed ?? ''}
+                    placeholder={t('clone.seed_placeholder')}
+                    onChange={e => {
+                      const v = e.target.value.trim();
+                      if (v === '') { setDesignSeed(null); return; }
+                      const n = parseInt(v, 10);
+                      if (Number.isInteger(n)) { setDesignSeed(n); setKeepSeed(true); }
+                    }}
+                  />
+                  <Button
+                    variant="subtle"
+                    size="sm"
+                    onClick={() => { setDesignSeed(Math.floor(Math.random() * 2147483647)); setKeepSeed(true); }}
+                    leading={<Dice5 size={12} />}
+                    title={t('clone.seed_reroll_hint')}
+                  >
+                    {t('clone.seed_reroll')}
+                  </Button>
+                  <label className="design-seed__keep">
+                    <input type="checkbox" checked={keepSeed} onChange={e => setKeepSeed(e.target.checked)} />
+                    <span>{t('clone.seed_keep')}</span>
+                  </label>
+                </div>
+              </div>
+            )}
 
             {/* Save as profile */}
             {refAudio && !selectedProfile && (
