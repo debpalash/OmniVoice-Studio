@@ -39,7 +39,7 @@ def _resolve(_voice_id):
 def _stub_build_synth(*, fail_on=None):
     """Return a drop-in for `audiobook._build_synth` whose `synth` emits 0.1s of
     silence per span. `fail_on(text)` → raise, to exercise per-chapter faults."""
-    def _factory(default_voice=None):
+    def _factory(default_voice=None, language=None):
         def synth(text, voice_id, speed=None):
             if fail_on is not None and fail_on(text):
                 raise RuntimeError("stub synth deliberately failed")

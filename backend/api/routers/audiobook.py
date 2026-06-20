@@ -164,6 +164,7 @@ async def audiobook_cover(cover: UploadFile = File(...)) -> dict:
 class AudiobookRequest(BaseModel):
     text: str
     default_voice: str | None = None   # voice profile id; None = engine default
+    language: str | None = None        # None/"Auto" → profile language, else autodetect (#505)
     bitrate: str = "128k"
     format: str = "m4b"                 # "m4b" | "mp3"
     loudness: str | None = None         # None/"off" | "acx" | "podcast" (opt-in)
@@ -215,7 +216,35 @@ def _resolve_voice(profile_id: str | None) -> dict:
     return out
 
 
-def _build_synth(default_voice: str | None) -> dict:
+def _resolve_default_language(language: str | None, default_voice: str | None) -> str | None:
+    """Pick the language to thread into the longform synth callable.
+
+    Priority (mirrors the single-shot /generate path, #533): an explicit
+    non-Auto request ``language`` wins; otherwise the selected profile's stored
+    language drives it; otherwise ``None`` (genuine Auto — the engine
+    autodetects, exactly as before). Hardcoding ``None`` here (#505 B2) let the
+    engine re-autodetect per chunk, so a non-English clone flipped to the wrong
+    language on short/ambiguous chapters.
+    """
+    if language and language != "Auto":
+        return language
+    if default_voice:
+        from core.db import db_conn
+        with db_conn() as conn:
+            row = conn.execute(
+                "SELECT language FROM voice_profiles WHERE id=?", (default_voice,)
+            ).fetchone()
+        if row:
+            try:
+                prof_lang = row["language"]
+            except (KeyError, IndexError):
+                prof_lang = None
+            if prof_lang and prof_lang != "Auto":
+                return prof_lang
+    return None
+
+
+def _build_synth(default_voice: str | None, language: str | None = None) -> dict:
     """Describe how to synthesize for the active TTS engine.
 
     Returns a dict with ``mode``, ``resolve`` (voice-id → resolved refs, cached
@@ -223,6 +252,11 @@ def _build_synth(default_voice: str | None) -> dict:
     ``get_model``; other engines carry a ready ``synth`` + ``sample_rate``.
     :func:`_prepare_synth` turns this into a uniform ``(synth, sr, resolve,
     engine_id)`` once the (async) model is in hand.
+
+    ``language`` (already resolved by :func:`_resolve_default_language`) is
+    threaded into every chunk's ``generate`` so a non-English clone stays in its
+    language instead of re-autodetecting per chunk (#505 B2). ``None`` keeps the
+    engine's autodetect behavior unchanged.
     """
     from services.tts_backend import OmniVoiceBackend, active_backend_id, get_backend_class
 
@@ -239,14 +273,14 @@ def _build_synth(default_voice: str | None) -> dict:
     if cls is OmniVoiceBackend:
         from services.model_manager import get_model
         return {"mode": "omnivoice", "resolve": resolve,
-                "engine_id": engine_id, "get_model": get_model}
+                "engine_id": engine_id, "get_model": get_model, "language": language}
 
     backend = cls()
 
     def synth(text, voice_id, speed=None):
         v = resolve(voice_id)
         return backend.generate(
-            text, language=None, ref_audio=v["ref_audio"],
+            text, language=language, ref_audio=v["ref_audio"],
             ref_text=v["ref_text"], instruct=v["instruct"], duration=None,
             speed=float(speed) if speed else 1.0,
         )
@@ -254,20 +288,22 @@ def _build_synth(default_voice: str | None) -> dict:
             "synth": synth, "sample_rate": backend.sample_rate}
 
 
-async def _prepare_synth(default_voice: str | None):
+async def _prepare_synth(default_voice: str | None, language: str | None = None):
     """Resolve :func:`_build_synth` into ``(synth, sample_rate, resolve,
     engine_id)`` — awaiting the OmniVoice model load when needed. Shared by the
-    full job and the per-chapter preview."""
-    info = _build_synth(default_voice)
+    full job and the per-chapter preview. ``language`` is threaded into every
+    chunk so a non-English clone holds its language (#505 B2)."""
+    info = _build_synth(default_voice, language=language)
     resolve, engine_id = info["resolve"], info["engine_id"]
     if info["mode"] == "omnivoice":
+        lang = info["language"]
         model = await info["get_model"]()
         sr = getattr(model, "sampling_rate", 24000)
 
         def synth(text, voice_id, speed=None):
             v = resolve(voice_id)
             return model.generate(
-                text=text, language=None, ref_audio=v["ref_audio"],
+                text=text, language=lang, ref_audio=v["ref_audio"],
                 ref_text=v["ref_text"], instruct=v["instruct"], duration=None,
                 speed=float(speed) if speed else 1.0,
             )[0]
@@ -323,6 +359,7 @@ class AudiobookPreviewRequest(BaseModel):
     text: str
     chapter_index: int = 0
     default_voice: str | None = None
+    language: str | None = None   # None/"Auto" → profile language, else autodetect
     lexicon: dict | None = None
 
 
@@ -346,7 +383,10 @@ async def audiobook_preview(req: AudiobookPreviewRequest) -> dict:
     chapter = plan.chapters[req.chapter_index]
     cache_dir = os.path.join(OUTPUTS_DIR, "longform_cache")  # shared with _render_longform_sse
     os.makedirs(cache_dir, exist_ok=True)
-    synth, sr, resolve, engine_id = await _prepare_synth(req.default_voice)
+    synth, sr, resolve, engine_id = await _prepare_synth(
+        req.default_voice,
+        language=_resolve_default_language(req.language, req.default_voice),
+    )
     loop = asyncio.get_running_loop()
     wav_path, dur, was_cached = await loop.run_in_executor(
         _gpu_pool, _render_chapter_cached, chapter, synth, sr, engine_id, resolve, cache_dir,
@@ -364,6 +404,7 @@ async def _render_longform_sse(
     plan,
     *,
     default_voice: str | None,
+    language: str | None = None,
     fmt: str = "m4b",
     bitrate: str = "128k",
     loudness: str | None = None,
@@ -412,7 +453,8 @@ async def _render_longform_sse(
                 for c in plan.chapters
             ],
             params={
-                "default_voice": default_voice, "fmt": fmt, "bitrate": bitrate,
+                "default_voice": default_voice, "language": language,
+                "fmt": fmt, "bitrate": bitrate,
                 "loudness": loudness, "cover_path": cover_path,
                 "metadata": metadata, "lexicon": lexicon,
             },
@@ -453,7 +495,9 @@ async def _render_longform_sse(
     loop = asyncio.get_running_loop()
 
     try:
-        synth, sr, resolve, engine_id = await _prepare_synth(default_voice)
+        synth, sr, resolve, engine_id = await _prepare_synth(
+            default_voice, language=_resolve_default_language(language, default_voice)
+        )
 
         total = len(plan.chapters)
         chapter_files: list[str] = []
@@ -557,7 +601,8 @@ async def audiobook_synthesize(req: AudiobookRequest):
     plan = parse_audiobook_script(req.text, default_voice=req.default_voice)
     return StreamingResponse(
         _render_longform_sse(
-            plan, default_voice=req.default_voice, fmt=req.format, bitrate=req.bitrate,
+            plan, default_voice=req.default_voice, language=req.language,
+            fmt=req.format, bitrate=req.bitrate,
             loudness=req.loudness, cover_path=req.cover_path, metadata=req.metadata,
             lexicon=req.lexicon, job_type="audiobook",
         ),
@@ -582,6 +627,7 @@ class LongformChapter(BaseModel):
 class LongformRenderRequest(BaseModel):
     chapters: list[LongformChapter] = []
     default_voice: str | None = None
+    language: str | None = None        # None/"Auto" → profile language, else autodetect (#505)
     bitrate: str = "128k"
     format: str = "m4b"
     loudness: str | None = None
@@ -612,7 +658,8 @@ async def longform_render(req: LongformRenderRequest):
     plan = AudiobookPlan(chapters=chapters)
     return StreamingResponse(
         _render_longform_sse(
-            plan, default_voice=req.default_voice, fmt=req.format, bitrate=req.bitrate,
+            plan, default_voice=req.default_voice, language=req.language,
+            fmt=req.format, bitrate=req.bitrate,
             loudness=req.loudness, cover_path=req.cover_path, metadata=req.metadata,
             lexicon=req.lexicon, job_type="story",
         ),
@@ -702,7 +749,7 @@ async def resume_longform(job_id: str):
     # never names a work dir / output file (defence-in-depth path-injection).
     return StreamingResponse(
         _render_longform_sse(
-            plan, default_voice=p.get("default_voice"),
+            plan, default_voice=p.get("default_voice"), language=p.get("language"),
             fmt=p.get("fmt", "m4b"), bitrate=p.get("bitrate", "128k"),
             loudness=p.get("loudness"), cover_path=p.get("cover_path"),
             metadata=p.get("metadata"), lexicon=p.get("lexicon"),

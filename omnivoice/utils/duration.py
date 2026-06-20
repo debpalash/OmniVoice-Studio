@@ -202,7 +202,16 @@ class RuleDurationEstimator:
         return self.weights["default"]
 
     def calculate_total_weight(self, text):
-        """Sums up the normalized weights for a string."""
+        """Sums up the normalized weights for a string.
+
+        Text is NFC-normalized first so decomposed (NFD) input — a base letter
+        followed by a combining tone/diacritic mark (common for Vietnamese and
+        any diacritic script) — collapses onto its precomposed form. Combining
+        marks (U+0300–036F) weigh 0.0, so NFD text under-allocated frames and
+        produced rushed/garbled audio (#502); NFC composition is a no-op for
+        already-precomposed text.
+        """
+        text = unicodedata.normalize("NFC", text)
         return sum(self._get_char_weight(c) for c in text)
 
     def estimate_duration(

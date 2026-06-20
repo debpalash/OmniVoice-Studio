@@ -430,6 +430,20 @@ async def generate_speech(
                     used_seed = row["seed"]
             if language == "Auto":
                 language = None
+            # #533: a profile's stored language must drive generation when the
+            # request didn't pin one. Without this the German (etc.) archetype
+            # generates with language=None and the model drifts to English —
+            # even though the archetype PREVIEW renders correctly (archetypes.py
+            # passes the language). An EXPLICIT non-Auto request language still
+            # wins; we only fill the gap. `row` is a sqlite3.Row, so guard the
+            # column lookup for pre-language DBs mid-upgrade.
+            if language is None:
+                try:
+                    prof_lang = row["language"]
+                except (KeyError, IndexError):
+                    prof_lang = None
+                if prof_lang and prof_lang != "Auto":
+                    language = prof_lang
     elif ref_audio is not None:
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
