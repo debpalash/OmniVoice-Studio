@@ -4,15 +4,16 @@ use std::fs;
 use std::io::{self, BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use tauri::{Emitter, Manager};
 
 use crate::config::get_effective_region;
 use crate::tools::resolve_uv;
-use crate::{BackendState, backend_port};
+use crate::{AppFlags, BackendState, backend_port};
 
 // ── Bootstrap stages ──────────────────────────────────────────────────────
 
@@ -179,6 +180,18 @@ pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<B
         while start.elapsed() < Duration::from_secs(300) {
             if crate::backend::backend_healthy(backend_port()) {
                 set_stage(stage_handle, BootstrapStage::Ready);
+                // #567/#570/#571: once Ready, keep watching the backend child
+                // and respawn it if it dies mid-session, so a crash self-heals
+                // instead of leaving every later request to dead-end on
+                // "Can't reach the local backend". Only one supervisor runs at
+                // a time — Retry can re-enter this function concurrently.
+                if SUPERVISOR_ACTIVE
+                    .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+                    .is_ok()
+                {
+                    supervise_backend(app, stage_handle);
+                    SUPERVISOR_ACTIVE.store(false, Ordering::SeqCst);
+                }
                 return;
             }
             let process_dead = if let Ok(mut guard) = app.state::<BackendState>().process.lock() {
@@ -241,6 +254,131 @@ pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<B
         };
         set_stage(stage_handle, BootstrapStage::Failed { message: msg });
         return;
+    }
+}
+
+// ── Backend supervisor (auto-restart) ─────────────────────────────────────
+//
+// #567/#570/#571: the backend used to be spawned once and never watched again
+// (`spawn_backend_and_wait` returned the instant it was healthy). When the
+// uvicorn process then died mid-session — a CUDA OOM/context fault under a
+// burst of generations, an antivirus kill, any crash — nothing restarted it,
+// so every later request threw connection-refused and the user was stuck on
+// the "Can't reach the local backend" toast until they restarted the whole
+// app. The supervisor closes that gap: after Ready, it watches the child and
+// respawns it (bounded) so a crash self-heals.
+
+/// Only one supervisor loop may run at a time. The launch-time bootstrap and
+/// the Retry button both call `spawn_backend_and_wait` (and can race), so the
+/// first to reach Ready claims this and the rest fall through.
+static SUPERVISOR_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+/// Give up (surface Failed) if the backend dies this many times within
+/// `RESTART_WINDOW` — a deterministic startup crash must not become a
+/// fork-bomb. The #314 broken-venv self-heal stays the venv-failure path; the
+/// supervisor only handles post-Ready deaths.
+const MAX_RESTARTS: usize = 5;
+const RESTART_WINDOW: Duration = Duration::from_secs(60);
+
+fn app_is_quitting(app: &tauri::AppHandle) -> bool {
+    app.try_state::<AppFlags>()
+        .map(|f| f.quitting.load(Ordering::SeqCst))
+        .unwrap_or(false)
+}
+
+/// Returns `Some(exit description)` if the tracked backend child has exited,
+/// `None` if it is still running (or none is tracked — which we never treat as
+/// a death to respawn, to avoid fighting a deliberate teardown).
+fn backend_child_exit(app: &tauri::AppHandle) -> Option<String> {
+    let state = app.try_state::<BackendState>()?;
+    let mut guard = state.process.lock().ok()?;
+    match guard.as_mut() {
+        Some(child) => match child.try_wait() {
+            Ok(Some(status)) => Some(status.to_string()),
+            Ok(None) => None,
+            Err(e) => Some(format!("try_wait error: {e}")),
+        },
+        None => None,
+    }
+}
+
+/// Drop restart timestamps older than `RESTART_WINDOW` and report whether the
+/// remaining count has hit the cap. Pure so the backoff policy is unit-tested
+/// without spawning real processes.
+fn restart_budget_exhausted(times: &mut Vec<Instant>, now: Instant) -> bool {
+    times.retain(|t| now.duration_since(*t) < RESTART_WINDOW);
+    times.len() >= MAX_RESTARTS
+}
+
+/// After the backend is Ready, watch its process and respawn it on an
+/// unexpected exit. Runs on the (otherwise-returning) bootstrap thread and
+/// stops the instant the app is quitting so it never resurrects the backend
+/// during shutdown. Death is detected only via a *confirmed process exit*
+/// (`try_wait`), never a slow health probe, so a busy-but-alive backend is
+/// never killed.
+fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapStage>>) {
+    let mut restart_times: Vec<Instant> = Vec::new();
+    loop {
+        std::thread::sleep(Duration::from_secs(2));
+        if app_is_quitting(app) {
+            return;
+        }
+        let exit_info = match backend_child_exit(app) {
+            Some(info) => info,
+            None => continue, // still running
+        };
+        // The exit may have raced with a shutdown that killed the child.
+        if app_is_quitting(app) {
+            return;
+        }
+        if restart_budget_exhausted(&mut restart_times, Instant::now()) {
+            let tail = crate::backend::read_error_log_tail(30);
+            let msg = format!(
+                "The backend kept crashing ({} times in {}s) and couldn't be kept running. \
+                 Use Clean & Retry, or check Settings → Logs → Backend.{}",
+                MAX_RESTARTS,
+                RESTART_WINDOW.as_secs(),
+                if tail.is_empty() { String::new() } else { format!("\n\nLast output:\n{tail}") },
+            );
+            log::error!("Backend supervisor giving up: {msg}");
+            let _ = app.emit("backend-restart-failed", msg.clone());
+            set_stage(stage_handle, BootstrapStage::Failed { message: msg });
+            return;
+        }
+        restart_times.push(Instant::now());
+        log::warn!("Backend process exited unexpectedly ({exit_info}) — restarting it (#567)");
+        emit_log(app, "starting_backend", "Backend stopped unexpectedly — restarting it automatically");
+        // Frontend listens for this to show a "reconnecting" banner (the splash
+        // poll has already stopped post-Ready, so the stage alone won't show).
+        let _ = app.emit("backend-restarting", exit_info.clone());
+        set_stage(stage_handle, BootstrapStage::StartingBackend);
+        // Clear any orphan still holding the port before the respawn.
+        if crate::backend::port_in_use(backend_port()) {
+            crate::backend::kill_orphan_on_port(backend_port());
+            std::thread::sleep(Duration::from_millis(300));
+        }
+        let child = crate::backend::spawn_backend(app, Some(stage_handle));
+        if let Ok(mut guard) = app.state::<BackendState>().process.lock() {
+            *guard = child;
+        }
+        // Wait (bounded) for the respawn to become healthy. If it dies again
+        // immediately, bail early so the next loop counts it toward the cap.
+        let start = Instant::now();
+        while start.elapsed() < Duration::from_secs(120) {
+            if app_is_quitting(app) {
+                return;
+            }
+            if crate::backend::backend_healthy(backend_port()) {
+                set_stage(stage_handle, BootstrapStage::Ready);
+                let _ = app.emit("backend-restored", ());
+                log::info!("Backend restarted and healthy again");
+                break;
+            }
+            if backend_child_exit(app).is_some() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(500));
+        }
     }
 }
 
@@ -1050,6 +1188,36 @@ mod tests {
         assert_eq!(envs.get("UV_HTTP_TIMEOUT").map(String::as_str), Some("120"));
         assert_eq!(envs.get("UV_HTTP_CONNECT_TIMEOUT").map(String::as_str), Some("30"));
         assert_eq!(envs.get("UV_HTTP_RETRIES").map(String::as_str), Some("5"));
+    }
+
+    #[test]
+    fn restart_budget_caps_respawns_and_prunes_old_ones() {
+        // Supervisor backoff policy (#567): fewer than MAX_RESTARTS deaths
+        // inside the window keeps restarting; hitting the cap gives up.
+        let t0 = Instant::now();
+        let mut times: Vec<Instant> = (0..MAX_RESTARTS - 1).map(|_| t0).collect();
+        assert!(
+            !restart_budget_exhausted(&mut times, t0),
+            "{} deaths in-window is under the cap",
+            MAX_RESTARTS - 1
+        );
+        times.push(t0);
+        assert!(
+            restart_budget_exhausted(&mut times, t0),
+            "{} deaths in-window must trip the cap",
+            MAX_RESTARTS
+        );
+
+        // Restarts older than the window are pruned and never count toward the
+        // cap, so an app left running for hours never crash-loops on stale
+        // history. (Forward Instant arithmetic — always representable.)
+        let later = t0 + RESTART_WINDOW + Duration::from_secs(1);
+        let mut aged: Vec<Instant> = (0..MAX_RESTARTS).map(|_| t0).collect();
+        assert!(
+            !restart_budget_exhausted(&mut aged, later),
+            "deaths older than the window must be pruned, not counted"
+        );
+        assert!(aged.is_empty(), "stale timestamps should have been dropped");
     }
 
     #[test]

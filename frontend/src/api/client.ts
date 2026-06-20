@@ -99,6 +99,12 @@ async function readError(res: Response): Promise<string> {
   }
 }
 
+// Backoff (ms) for retrying a *transport-level* failure — the backend briefly
+// down while the auto-restart supervisor brings it back (#567/#570/#571). One
+// short cascade (~2.9 s total) so a restart window becomes invisible, yet a
+// genuinely-down backend still surfaces the actionable error promptly.
+const TRANSPORT_RETRY_BACKOFF_MS = [400, 900, 1600];
+
 export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Response> {
   const pin = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('ov_pin') : null;
   const key = _apiKey();
@@ -111,30 +117,44 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
   const finalOpts: RequestInit = Object.keys(extra).length
     ? { ...opts, headers: { ...(opts.headers as Record<string, string> || {}), ...extra } }
     : opts;
-  let res: Response;
-  try {
-    res = await fetch(apiUrl(path), finalOpts);
-  } catch (e) {
-    // A thrown fetch (TypeError "Failed to fetch" / "NetworkError") means the
-    // request never reached the backend — it's still starting up, crashed, or
-    // the dev server dropped. Surface that as an actionable ApiError instead of
-    // the raw browser string (issues #438/#454/#466). status:0 lets callers
-    // distinguish a transport failure from an HTTP error.
-    throw new ApiError(
-      "Can't reach the local OmniVoice backend — it may still be starting up, or it stopped. " +
-      "Wait a few seconds and try again; if it persists, restart the app (or check Settings → Logs → Backend).",
-      { status: 0, detail: String((e as Error)?.message || e) },
-    );
-  }
-  if (!res.ok) {
-    // 401 from the LAN PIN middleware on a remote device → surface the gate.
-    if (res.status === 401 && typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('ov:pin-required'));
+  const signal = finalOpts.signal as AbortSignal | null | undefined;
+  let lastDetail = '';
+  for (let attempt = 0; ; attempt++) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    let res: Response;
+    try {
+      res = await fetch(apiUrl(path), finalOpts);
+    } catch (e) {
+      // A thrown fetch (TypeError "Failed to fetch" / "NetworkError") means the
+      // request never reached the backend — it's still starting up, crashed, or
+      // the dev server dropped. The auto-restart supervisor revives it within a
+      // few seconds, so retry a bounded few times with backoff before surfacing
+      // the actionable ApiError, making a brief restart window invisible
+      // (issues #438/#454/#466/#567). Never retry a deliberate abort. status:0
+      // lets callers distinguish a transport failure from an HTTP error.
+      if (signal?.aborted || (e as Error)?.name === 'AbortError') throw e;
+      lastDetail = String((e as Error)?.message || e);
+      if (attempt < TRANSPORT_RETRY_BACKOFF_MS.length) {
+        await new Promise((r) => setTimeout(r, TRANSPORT_RETRY_BACKOFF_MS[attempt]));
+        continue;
+      }
+      throw new ApiError(
+        "Can't reach the local OmniVoice backend — it may still be starting up, or it stopped. " +
+        "Wait a few seconds and try again; if it persists, restart the app (or check Settings → Logs → Backend).",
+        { status: 0, detail: lastDetail },
+      );
     }
-    const detail = await readError(res);
-    throw new ApiError(`${res.status} ${res.statusText}: ${detail}`, { status: res.status, detail });
+    if (!res.ok) {
+      // 401 from the LAN PIN middleware on a remote device → surface the gate.
+      // An HTTP error means the backend *did* respond — never retry it.
+      if (res.status === 401 && typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('ov:pin-required'));
+      }
+      const detail = await readError(res);
+      throw new ApiError(`${res.status} ${res.statusText}: ${detail}`, { status: res.status, detail });
+    }
+    return res;
   }
-  return res;
 }
 
 export async function apiJson<T = unknown>(path: string, opts: RequestInit = {}): Promise<T> {
