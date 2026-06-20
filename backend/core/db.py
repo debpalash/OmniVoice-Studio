@@ -206,6 +206,52 @@ def _migrate(conn, current: int) -> int:
     return current
 
 
+def _reconcile_additive_columns(conn) -> None:
+    """Make the live schema converge to ``_BASE_SCHEMA`` by ADDing any column the
+    canonical schema declares but an existing table is missing — the belt for
+    when alembic can't run on an upgraded DB.
+
+    ``CREATE TABLE IF NOT EXISTS`` (init_db) never adds columns to a table that
+    already exists, the legacy ``_migrate`` only knows pre-0.3 columns, and
+    ``_run_alembic_upgrade`` swallows failures. So a DB whose ``alembic_version``
+    is stamped at a removed revision (e.g. after running a preview build), or
+    where alembic isn't importable in the bundled interpreter, would otherwise
+    lose every alembic-era additive column forever — the ``no such column:
+    consent_audio_path`` 500 (#552/#547), and the same class for
+    ``kind``/``vd_states``/``is_demo``/.... Additive only: never drops or retypes
+    a column, so it is safe and backward-compatible with existing user data. The
+    canonical names/types/defaults come solely from ``_BASE_SCHEMA`` (developer
+    controlled), so the ALTER is injection-safe.
+    """
+    canon = sqlite3.connect(":memory:")
+    try:
+        canon.executescript(_BASE_SCHEMA)
+        _tables_sql = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        live_tables = {r[0] for r in conn.execute(_tables_sql)}
+        for table in (r[0] for r in canon.execute(_tables_sql)):
+            if table not in live_tables:
+                continue  # whole table missing → init_db's CREATE already made it
+            have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+            # (cid, name, type, notnull, dflt_value, pk)
+            for _cid, name, ctype, notnull, dflt, _pk in canon.execute(f"PRAGMA table_info({table})"):
+                if name in have or not _IDENT_RE.match(name):
+                    continue
+                ddl = f'ALTER TABLE "{table}" ADD COLUMN "{name}" {ctype or "TEXT"}'
+                if dflt is not None:
+                    ddl += f" DEFAULT {dflt}"
+                elif notnull:
+                    ddl += " DEFAULT ''"  # SQLite requires a default to ADD a NOT NULL column
+                try:
+                    conn.execute(ddl)
+                    logger.info("schema reconcile: added missing column %s.%s", table, name)
+                except sqlite3.OperationalError as exc:
+                    if "duplicate column" not in str(exc).lower():
+                        logger.warning("schema reconcile ALTER %s.%s failed: %s", table, name, exc)
+        conn.commit()
+    finally:
+        canon.close()
+
+
 def init_db():
     conn = get_db()
     try:
@@ -214,6 +260,11 @@ def init_db():
         new_version = _migrate(conn, version)
         if new_version != version:
             conn.execute(f"PRAGMA user_version = {new_version}")
+        # Converge any alembic-era additive columns that CREATE TABLE IF NOT
+        # EXISTS + the legacy _migrate don't add to a pre-existing table
+        # (consent_audio_path, kind, ...). Runs regardless of whether alembic
+        # below succeeds, so an unrunnable alembic can't leave a 500-ing schema.
+        _reconcile_additive_columns(conn)
         conn.commit()
     finally:
         conn.close()
@@ -227,10 +278,12 @@ def init_db():
 
 def _run_alembic_upgrade() -> None:
     """Best-effort `alembic upgrade head` on startup. Non-fatal: if alembic
-    isn't reachable (e.g. user running a stripped-down install or migrations
-    were already applied out-of-band), log a warning and move on. The
-    _BASE_SCHEMA CREATE TABLE IF NOT EXISTS above guarantees the runtime
-    schema is correct regardless."""
+    isn't reachable (e.g. a stripped-down install) or its version is stamped at
+    a revision no longer in versions/ (e.g. after running a preview build), log
+    a warning and move on. The schema is still kept correct by
+    _reconcile_additive_columns (run in init_db above and again here on failure)
+    — CREATE TABLE IF NOT EXISTS alone does NOT add columns to a pre-existing
+    table, so the reconcile is what actually guarantees additive columns land."""
     try:
         import os
         from alembic import command
@@ -248,6 +301,16 @@ def _run_alembic_upgrade() -> None:
         cfg.set_main_option("sqlalchemy.url", f"sqlite:///{DB_PATH}")
         command.upgrade(cfg, "head")
     except Exception as exc:
-        # Don't block startup on a migration tooling problem. The runtime
-        # schema is already correct via _BASE_SCHEMA.
+        # Don't block startup on a migration tooling problem. Converge the schema
+        # directly so a swallowed failure (alembic not importable, or
+        # alembic_version stamped at a removed revision) still lands the additive
+        # columns instead of 500-ing on `no such column` (#552/#547).
         logger.warning("alembic upgrade head skipped: %s", exc)
+        try:
+            conn = get_db()
+            try:
+                _reconcile_additive_columns(conn)
+            finally:
+                conn.close()
+        except Exception as exc2:  # noqa: BLE001
+            logger.warning("schema reconcile after alembic failure also failed: %s", exc2)
