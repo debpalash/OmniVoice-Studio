@@ -28,6 +28,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { selectEngine } from '../api/engines';
 import { setupDownloadStreamUrl } from '../api/setup';
 import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
+import { resolveAboutVersion } from '../utils/appVersion';
 import { Tabs, Segmented, Button, Badge, Table, Progress, Select } from '../ui';
 import { useAppStore } from '../store';
 import ApiKeysPanel from '../components/settings/ApiKeysPanel';
@@ -1242,7 +1243,7 @@ export default function Settings() {
     const lines = [
       '### OmniVoice Studio diagnostics',
       '',
-      `- **App version:** ${appVersion || '—'}`,
+      `- **App version:** ${resolveAboutVersion(appVersion, info)}`,
       `- **Tauri runtime:** ${tauriVersion || (isTauri() ? '—' : 'web preview')}`,
       `- **Platform:** ${info?.platform || '—'}`,
       `- **Architecture:** ${nav.userAgentData?.platform || nav.platform || '—'}`,
@@ -1505,7 +1506,7 @@ export default function Settings() {
         <section className="settings-section">
           <h2><Info size={16} color="#8ec07c" /> {t('settings.about')}</h2>
           <Row label={t('about.app')}             value="OmniVoice Studio" />
-          <Row label={t('about.version')}         value={appVersion || info?.app_version || '—'} mono />
+          <Row label={t('about.version')}         value={resolveAboutVersion(appVersion, info)} mono />
           <Row label={t('about.tauri_runtime')}   value={tauriVersion || (isTauri() ? '—' : t('about.web_preview'))} mono />
           <Row label={t('about.platform')}        value={info?.platform || '—'} />
           <Row label={t('about.architecture')}    value={info?.arch || '—'} mono />
