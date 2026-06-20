@@ -436,7 +436,7 @@ async def dub_transcribe_stream(
                     )
                 scene_cuts = job.get("scene_cuts") or []
 
-    async def gen():
+    async def _gen_body():
         if preflight_error:
             yield _sse_event("error", {"detail": preflight_error})
             return
@@ -855,6 +855,25 @@ async def dub_transcribe_stream(
             "speaker_clones": job.get("speaker_clones", {}),
         })
         yield _sse_event("done", {})
+
+    async def gen():
+        # Terminal-event guard (#516): the SSE stream must NEVER close without a
+        # terminal event. Any unanticipated exception in the body (e.g. an ASR
+        # load that escapes the per-chunk handler) previously dropped the
+        # connection, which the frontend can only report as "stream dropped,
+        # likely ASR failed" — hiding the real cause. Emit a structured `error`
+        # (with the actionable hint from build_failure) then `done`, so the user
+        # sees the real failure + a Retry instead of a silent disconnect.
+        try:
+            async for ev in _gen_body():
+                yield ev
+        except Exception as e:  # noqa: BLE001 — last-resort stream finalizer
+            logger.exception("transcribe stream crashed (job=%s)", job_id)
+            from core.failure import build_failure
+            f = build_failure(e, stage="transcribe", include_diagnostic=False)
+            detail = f["reason"] + (f" — {f['hint']}" if f.get("hint") else "")
+            yield _sse_event("error", {"detail": detail, "retryable": True})
+            yield _sse_event("done", {})
 
     return StreamingResponse(
         gen(),

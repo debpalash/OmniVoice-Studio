@@ -146,6 +146,72 @@ def test_transcribe_stream_surfaces_model_load_failure(tmp_path, monkeypatch):
     assert "CUDA driver init failed: simulated" in body, body
 
 
+def test_transcribe_stream_never_closes_without_terminal_event(tmp_path, monkeypatch):
+    """Regression #516: an unanticipated exception INSIDE the stream body (one
+    that escapes the per-chunk handler, e.g. segmentation blowing up) must still
+    end the stream with a terminal `error` then `done` — never a silent
+    disconnect (which the UI can only report as "stream dropped, likely ASR
+    failed", hiding the real cause)."""
+    import asyncio
+    import numpy as np
+    from api.routers import dub_core as dc
+
+    job_id = "t_bodycrash"
+    audio = tmp_path / "a.wav"
+    _make_wav(audio, seconds=1.0)
+    dc._dub_jobs[job_id] = {
+        "audio_path": str(audio), "vocals_path": None, "scene_cuts": [],
+    }
+
+    # Model + ASR backend load fine (preflight passes), so the failure happens
+    # mid-body where the terminal-event guard is the only safety net.
+    fake_model = MagicMock()
+    fake_model._asr_pipe = MagicMock()
+
+    async def _ok_model():
+        return fake_model
+
+    class _FakeASR:
+        id = "fake"
+        def transcribe(self, path, *, word_timestamps=True):
+            return {"chunks": [{"text": "hi", "timestamp": (0.0, 0.5)}],
+                    "segments": [], "language": "en"}
+        def unload(self):
+            pass
+
+    monkeypatch.setattr(dc, "get_model", _ok_model)
+    monkeypatch.setattr(
+        "services.asr_backend.get_active_asr_backend",
+        lambda *a, **k: _FakeASR(),
+    )
+    # Make the post-chunk segmentation (outside the per-chunk try/except) blow
+    # up — the exact class of "unanticipated escape" the guard must catch.
+    def _boom_segment(*a, **k):
+        raise RuntimeError("segmentation exploded: simulated")
+    monkeypatch.setattr(dc, "segment_transcript", _boom_segment)
+    # Don't touch the GPU/TTS during the test.
+    monkeypatch.setattr(dc, "offload_tts_for_asr", lambda *a, **k: None)
+
+    async def _collect():
+        resp = await dc.dub_transcribe_stream(job_id)
+        parts = []
+        async for chunk in resp.body_iterator:
+            parts.append(chunk.decode() if isinstance(chunk, (bytes, bytearray)) else str(chunk))
+        return "".join(parts)
+
+    try:
+        body = asyncio.run(_collect())
+    finally:
+        dc._dub_jobs.pop(job_id, None)
+
+    # The stream must end with a terminal error followed by done.
+    assert "event: error" in body, body
+    assert "segmentation exploded: simulated" in body, body
+    err_idx = body.rfind("event: error")
+    done_idx = body.rfind("event: done")
+    assert done_idx > err_idx >= 0, f"error must precede the terminal done: {body}"
+
+
 @pytest.mark.xfail(
     reason="dub_core._transcribe was refactored to route through "
            "services.asr_backend.get_active_asr_backend; the MagicMock fixture "

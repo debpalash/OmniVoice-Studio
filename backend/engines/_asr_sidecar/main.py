@@ -50,6 +50,22 @@ def _recv(stream):
     return json.loads(bytes(body).decode("utf-8"))
 
 
+# NOTE: keep this compute_type fallback in lockstep with
+# services/asr_backend.py:_compute_type_candidates / _is_compute_type_error.
+# This sidecar runs in a child proc with a clean import path, so we duplicate a
+# tiny copy rather than cross-importing the heavy services package (#551).
+def _ct_candidates(device):
+    override = os.environ.get("ASR_COMPUTE_TYPE")
+    if override:
+        return [override]
+    return ["float16", "int8_float16", "int8"] if device == "cuda" else ["int8", "float32"]
+
+
+def _is_ct_error(msg):
+    low = msg.lower()
+    return "compute type" in low or "efficient float16" in low
+
+
 def _get_model():
     global _model
     if _model is None:
@@ -60,8 +76,20 @@ def _get_model():
             device = "cuda" if torch.cuda.is_available() else "cpu"
         except Exception:
             device = "cpu"
-        compute = "float16" if device == "cuda" else "int8"
-        _model = WhisperModel(name, device=device, compute_type=compute)
+        # Degrade fp16 → int8 rather than crash on GPUs without efficient fp16
+        # (older Maxwell/Pascal, GTX 16xx, CTranslate2/cuDNN mismatch) (#551).
+        last_err = None
+        for compute in _ct_candidates(device):
+            try:
+                _model = WhisperModel(name, device=device, compute_type=compute)
+                break
+            except (ValueError, RuntimeError) as e:
+                last_err = e
+                if _is_ct_error(str(e)):
+                    continue
+                raise
+        else:
+            raise last_err
     return _model
 
 

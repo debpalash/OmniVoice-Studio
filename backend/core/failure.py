@@ -37,6 +37,8 @@ _HINTS: dict[str, str] = {
     "APPIMAGE_WEBKIT_WHITESCREEN": "Launch with WEBKIT_DISABLE_DMABUF_RENDERER=1 set.",
     "HF_AUTH_FAILED": "Set a valid HF_TOKEN in Settings → Hugging Face and retry.",
     "PYANNOTE_LICENSE_REQUIRED": "Accept the pyannote model licenses on Hugging Face, then retry.",
+    "COMPUTE_TYPE_UNSUPPORTED": "Your GPU doesn't support float16 — OmniVoice retried on int8. If transcription still fails, set OMNIVOICE/ASR_COMPUTE_TYPE=int8 or use CPU.",
+    "TRANSFORMERS_IMPORT": "Your transformers install is incomplete. Reinstall it (`uv pip install --reinstall transformers`) or switch ASR to faster-whisper (Settings → Models).",
 }
 
 
@@ -55,6 +57,13 @@ def classify(reason: str) -> str:
         return "APPIMAGE_WEBKIT_WHITESCREEN"
     if "pyannote" in low or ("gated" in low and "model" in low) or "accept the" in low:
         return "PYANNOTE_LICENSE_REQUIRED"
+    # ASR robustness (#551 / #549): name the class so the no-segments toast is
+    # actionable. Place before the generic returns so a compute-type/transformers
+    # failure gets its hint rather than falling through to "".
+    if "compute type" in low or "efficient float16" in low:
+        return "COMPUTE_TYPE_UNSUPPORTED"
+    if "could not import module" in low or "autofeatureextractor" in low:
+        return "TRANSFORMERS_IMPORT"
     if ("huggingface" in low or "hf_token" in low or "401" in low or "unauthorized" in low) and (
         "token" in low or "auth" in low or "401" in low or "unauthorized" in low
     ):
