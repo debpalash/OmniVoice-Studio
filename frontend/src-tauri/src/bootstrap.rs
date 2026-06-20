@@ -501,14 +501,20 @@ fn quarantine_broken_venv(venv_dir: &Path) -> bool {
 }
 
 /// Whether a dead backend process looks like it failed because the venv
-/// itself is structurally broken — the CPython venv launcher prints
-/// "No pyvenv.cfg file" and exits with code 106 (`RC_NO_PYVENV_CFG`). Matches
-/// either the message in the captured stderr tail or the exit code in the
-/// `ExitStatus` display ("exit code: 106" on Windows, "exit status: 106" on
-/// Unix). Kept deliberately narrow so ordinary backend crashes never trigger
-/// a venv rebuild.
+/// itself is structurally broken — either the CPython venv launcher's
+/// "No pyvenv.cfg file" + exit 106 (`RC_NO_PYVENV_CFG`), OR a relocated/copied/
+/// restored venv whose interpreter can't bootstrap its own stdlib and aborts
+/// very early with "No module named 'encodings'" (exit 1). Both are
+/// unrunnable-interpreter cases that `uv sync` cannot fix — only a venv rebuild
+/// can — so both route into the rebuild-once self-heal. Matches the message in
+/// the captured stderr tail or the exit code in the `ExitStatus` display
+/// ("exit code: 106" on Windows, "exit status: 106" on Unix). Kept deliberately
+/// narrow (full quoted phrases) so an ordinary backend crash — or an app-level
+/// import error of some 'encodings'-named package — never triggers a rebuild.
 pub fn backend_exit_indicates_broken_venv(exit_info: &str, err_tail: &str) -> bool {
-    err_tail.contains("No pyvenv.cfg file") || exit_info.trim_end().ends_with(": 106")
+    err_tail.contains("No pyvenv.cfg file")
+        || err_tail.contains("No module named 'encodings'")
+        || exit_info.trim_end().ends_with(": 106")
 }
 
 /// Prepare (and on first run, create) the Python venv that will host the
@@ -1204,6 +1210,18 @@ mod tests {
         assert!(!backend_exit_indicates_broken_venv("exit status: 1060", ""));
         assert!(!backend_exit_indicates_broken_venv("signal: 6 (SIGABRT)", ""));
         assert!(!backend_exit_indicates_broken_venv("never started", ""));
+        // A relocated/copied venv whose interpreter can't bootstrap its stdlib
+        // aborts with this exact phrase (exit 1, not 106) — must rebuild.
+        assert!(backend_exit_indicates_broken_venv(
+            "exit status: 1",
+            "ModuleNotFoundError: No module named 'encodings'"
+        ));
+        // ...but an app-level import of an 'encodings'-prefixed package must NOT
+        // (the full quoted phrase guards against this).
+        assert!(!backend_exit_indicates_broken_venv(
+            "exit status: 1",
+            "ModuleNotFoundError: No module named 'encodings_helper'"
+        ));
     }
 
     /// #248: verify that the setuptools repair install uses the correct specifier.

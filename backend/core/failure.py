@@ -39,6 +39,9 @@ _HINTS: dict[str, str] = {
     "PYANNOTE_LICENSE_REQUIRED": "Accept the pyannote model licenses on Hugging Face, then retry.",
     "COMPUTE_TYPE_UNSUPPORTED": "Your GPU doesn't support float16 — OmniVoice retried on int8. If transcription still fails, set OMNIVOICE/ASR_COMPUTE_TYPE=int8 or use CPU.",
     "TRANSFORMERS_IMPORT": "Your transformers install is incomplete. Reinstall it (`uv pip install --reinstall transformers`) or switch ASR to faster-whisper (Settings → Models).",
+    "UNSUPPORTED_VIDEO_URL": "This link isn't a directly downloadable video. Paste a direct video page (e.g. a youtube.com/watch?v=… or douyin.com/video/<id> link), not a share/profile/feed link — or download the file and drop it in directly.",
+    "VIDEO_DOWNLOAD_NETWORK": "The connection to the video server dropped mid-download (often a transient CDN/network blip or a regional rate-limit). Just retry — OmniVoice already cleaned up the partial download. If it keeps failing, check your network/VPN.",
+    "BROKEN_VENV": "The Python backend environment was moved or damaged. OmniVoice rebuilds it automatically on the next launch; if it keeps failing, use Clean & Retry on the setup screen.",
 }
 
 
@@ -68,6 +71,24 @@ def classify(reason: str) -> str:
         "token" in low or "auth" in low or "401" in low or "unauthorized" in low
     ):
         return "HF_AUTH_FAILED"
+    # Video download (#554/#536): a non-downloadable URL shape vs a transient
+    # network drop — both previously surfaced as a bare yt-dlp string with no
+    # next step. UNSUPPORTED first (more specific) so "Unable to download video:
+    # Broken pipe" still classifies as a network blip.
+    if "unsupported url" in low or "no video formats" in low or "is not a valid url" in low:
+        return "UNSUPPORTED_VIDEO_URL"
+    if (
+        "broken pipe" in low
+        or "connection reset" in low
+        or "unable to download video" in low
+        or "remote end closed" in low
+        or "timed out" in low
+    ):
+        return "VIDEO_DOWNLOAD_NETWORK"
+    # A relocated/corrupted venv whose interpreter can't bootstrap its stdlib —
+    # the Rust self-heal rebuilds it; this names the class for the toast.
+    if "no module named 'encodings'" in low:
+        return "BROKEN_VENV"
     return ""
 
 
