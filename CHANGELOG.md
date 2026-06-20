@@ -8,6 +8,15 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+_Nothing yet — `main` is at v0.3.7 + 1 patch. New work lands here._
+
+## [0.3.7] — 2026-06-20
+
+A stabilization release. It tags the startup-crash fixes already on `main` (so
+users hitting "Can't reach the local backend" on v0.3.5/v0.3.6 only need to
+update), and clears the wave of issues reported on the 0.3.6 line across voice
+design, dubbing, transcription, install, and the Linux UI.
+
 ### Added
 
 - **Two opt-in heavyweight TTS engines: MOSS-TTS-v1.5 (8B) and dots.tts (2B).**
@@ -41,6 +50,48 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   click itself. The MIME fix has a backend regression test; the unlock path
   has a Vitest unit test covering idempotency, post-unlock contexts, and
   error isolation. (#510)
+- **Voice Studio "Save design as profile" poisoned the profile with
+  "[object Object]" and then 400'd every generation** ("Unsupported instruct
+  items found in [object Object]"). The save passed the instruct *builder
+  object* to the form instead of its string. Fixed at the source + defended with
+  a coercion helper; the engine now tolerates the sentinel, and a migration
+  heals already-saved profiles. (#550, #545, #542, #537, #530, #525)
+- **Profile / persona / consent endpoints 500'd with `no such column:
+  consent_audio_path`** (and the same class for `kind`/`vd_states`/…) after an
+  in-place upgrade. The alembic migration existed but couldn't always apply
+  (stamped at a removed revision, or alembic not importable) and the failure was
+  swallowed. The runtime schema now self-heals — it ADDs any missing additive
+  column from the canonical schema on startup. (#552, #547)
+- **Generate / Settings / Clone buttons were missing / unpressable on Linux.**
+  The UI-scale fix round-trips correctly on Chromium, but older WebKitGTK treats
+  `zoom` as a layout no-op, leaving a ~23% black band that pushed the bottom CTAs
+  off-screen. The shell now probes the engine and fills the window when `zoom`
+  doesn't lay out. (#523, #524)
+- **The engine "Install" button 500'd with "No virtual environment found."**
+  `uv pip install` now targets the running interpreter (`--python
+  sys.executable`) instead of relying on a venv it couldn't auto-discover.
+  (#529, #527)
+- **Transcription failed with "no segments" on GPUs without efficient float16.**
+  Both CTranslate2 ASR backends now fall back float16 → int8 instead of crashing
+  at model load; a transcribe stream can no longer close without a terminal
+  error event; and an incomplete `transformers` install reports an actionable
+  message instead of "Could not import module 'AutoFeatureExtractor'".
+  (#551, #549, #516)
+- **Audiobook import 500'd** with `'AudiobookPlan' object has no attribute
+  'chapter_count'` for every format (.txt/.md/.epub/.pdf). (#543)
+- **Windows: generated audio auto-played in a separate, un-closeable black
+  window.** Renders now play in-app through the shared playback manager. (#532)
+- **Cryptic video-download errors** now carry actionable hints: an unsupported
+  link shape ("paste a direct video page, not a share/feed link") vs a transient
+  network drop ("just retry — the partial download was cleaned up"). (#554, #536)
+- **About → Version rendered blank in the web/Pinokio build** (no Tauri, backend
+  idle); it now falls back to the build-time version.
+- **A relocated, copied, or restored backend venv ("No module named
+  'encodings'") now self-heals** (rebuilds once) instead of failing on every
+  launch.
+- The **"Can't reach the local backend" startup-crash wave** (pkg_resources
+  #248, `scalar_fastapi` #307, exit-106 broken venv) was fixed in v0.3.6 — this
+  release carries those fixes, so updating from v0.3.5/older resolves them.
 
 ## [0.3.6] — 2026-06-16
 
