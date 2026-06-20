@@ -192,6 +192,46 @@ for the dedicated CosyVoice path.
 
 **Linked issue:** [#55](https://github.com/debpalash/OmniVoice-Studio/issues/55)
 
+## 12. CUDA PyTorch wheel download fails on first run
+
+**Symptom:** first-run setup stops at **Installing dependencies** with a failure
+that mentions `torch` and a `download.pytorch.org` (or `download-r2.pytorch.org`)
+URL — e.g. `Failed to download torch==2.8.0+cu128 …win_amd64.whl`. The app then
+won't launch.
+
+**Cause:** on Windows/Linux NVIDIA machines, OmniVoice installs the CUDA PyTorch
+build (`torch` + `torchaudio`) from PyTorch's own index. That CUDA wheel is
+large (~2.5 GB), so a flaky or restricted network drops it partway. This is a
+download/network problem, **not** a bug in OmniVoice — but the CUDA wheels come
+from a *named, explicit* index that a PyPI mirror (`UV_DEFAULT_INDEX`) cannot
+redirect, so the generic mirror trick doesn't help here.
+
+**Fix, in order:**
+
+1. **Clean & Retry.** Large downloads frequently succeed on a second attempt —
+   OmniVoice already retries each request 5× with long timeouts, and a fresh
+   attempt restarts cleanly.
+2. **Use a VPN** if your network throttles or blocks the PyTorch CDN.
+3. **Provide the wheels manually (offline path).** Download the two wheels that
+   match your machine from a source you *can* reach (the official
+   [pytorch.org](https://pytorch.org/get-started/locally/) wheel index or a
+   regional mirror), then drop them in the wheel folder and **Clean & Retry** —
+   OmniVoice will install from your local copies instead of the network:
+   - Folder: **`<env dir>/wheels`** (the exact path is printed in the error
+     message and in the setup log; `<env dir>` is your chosen install/storage
+     location).
+   - Files: the `torch` **and** `torchaudio` wheels for your exact Python/OS/CUDA
+     — e.g. `torch-2.8.0+cu128-cp311-cp311-win_amd64.whl` and the matching
+     `torchaudio-2.8.0+cu128-cp311-cp311-win_amd64.whl`. They must match the
+     pinned versions (shown in the failing URL).
+   - On retry, OmniVoice re-resolves the install using those local wheels; the
+     rest of the (small) dependencies still come from PyPI/your mirror.
+
+If you don't have an NVIDIA GPU, you don't need the CUDA build at all — a CPU /
+Apple-Silicon install skips this index entirely.
+
+**Linked issue:** [#569](https://github.com/debpalash/OmniVoice-Studio/issues/569)
+
 ## First-run setup fails on a restricted network (GitHub/PyPI blocked)
 
 On networks that block or can't resolve **GitHub**, the first-run bootstrap may

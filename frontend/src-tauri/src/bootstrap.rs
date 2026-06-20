@@ -531,6 +531,31 @@ fn apply_uv_http_env(cmd: &mut Command) {
         .env("UV_HTTP_RETRIES", "5");
 }
 
+/// `<env_root>/wheels` — a local wheel-drop dir uv installs from via
+/// `--find-links`. When a huge wheel can't be pulled on a restricted network
+/// (the ~2.5 GB cu128 torch wheel from download.pytorch.org — #569), the user
+/// downloads the matching wheel, drops it here, and a retry picks it up.
+/// Created so the path always exists to name in the error/docs. It lives under
+/// `env_root` (not `project/`), so it survives Clean & Retry.
+fn wheels_drop_dir<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> PathBuf {
+    let dir = crate::setup::env_root(app).join("wheels");
+    let _ = fs::create_dir_all(&dir);
+    dir
+}
+
+/// True when a `uv sync` failure tail looks like the CUDA torch wheel download
+/// failing (#569). Lets us give torch-specific guidance instead of the generic
+/// "set a PyPI mirror" advice — which can't redirect the explicit, *named*
+/// pytorch-cuda index anyway (uv 0.11 rejects index-name override values, and
+/// `--frozen` pins the exact download.pytorch.org wheel URLs).
+fn sync_failure_is_torch_download(tail: &str) -> bool {
+    let low = tail.to_lowercase();
+    low.contains("download.pytorch.org")
+        || low.contains("download-r2.pytorch.org")
+        || low.contains("pytorch.org/whl")
+        || (low.contains("torch") && (low.contains("failed to download") || low.contains("failed to fetch")))
+}
+
 /// Default PyTorch ROCm wheel index for the opt-in AMD path (#124). ROCm 6.2 is
 /// the current stable wheel set; overridable via OMNIVOICE_TORCH_INDEX.
 const ROCM_TORCH_INDEX: &str = "https://download.pytorch.org/whl/rocm6.2";
@@ -1055,9 +1080,13 @@ the existing venv; newly added dependencies may be missing (#307)",
     if let Some(p) = progress {
         set_stage(p, BootstrapStage::InstallingDeps);
     }
+    let wheels_dir = wheels_drop_dir(app);
     let mut sync_cmd = Command::new(&uv_path);
     scrub_python_env(&mut sync_cmd); // #144: don't inherit AppImage's bundled Python
     apply_uv_http_env(&mut sync_cmd);
+    // #569: let uv install from locally-dropped wheels. (--frozen ignores
+    // find-links, but the non-frozen torch-recovery retry below honors it.)
+    sync_cmd.env("UV_FIND_LINKS", &wheels_dir);
     let has_lockfile = project_dir.join("uv.lock").is_file();
     if has_lockfile {
         sync_cmd
@@ -1075,15 +1104,59 @@ the existing venv; newly added dependencies may be missing (#307)",
     } else if get_effective_region(app) == "china" {
         sync_cmd.env("UV_INDEX_URL", "https://mirrors.aliyun.com/pypi/simple/");
     }
-    let sync_status = run_streaming(app, "installing_deps", &mut sync_cmd);
-    if !matches!(sync_status, Ok(ref s) if s.success()) {
-        fail(
-            progress,
-            "Dependency install (uv sync) failed — often a network drop or a \
-partial cache. \"Clean & Retry\" rebuilds the environment from scratch. If your \
-network blocks PyPI, set UV_DEFAULT_INDEX to a mirror (see \
-docs/install/troubleshooting.md).",
-        );
+    let mut sync_ok = matches!(run_streaming(app, "installing_deps", &mut sync_cmd), Ok(ref s) if s.success());
+
+    // #569: the big cu128 torch wheel (~2.5 GB) is the most common first-run
+    // download failure on restricted networks. If the frozen sync failed on it
+    // AND the user has dropped wheels in the local drop dir, retry NON-frozen
+    // with --find-links so uv re-resolves using the local wheels (verified: a
+    // non-frozen find-links sync installs from a local wheel offline; --frozen
+    // does not). Best-effort: if it can't satisfy from the wheels, it fails
+    // identically to before and the actionable error below still fires.
+    if !sync_ok && has_lockfile {
+        let tail = crate::backend::read_error_log_tail(40);
+        let have_local_wheels = fs::read_dir(&wheels_dir)
+            .map(|mut d| d.next().is_some())
+            .unwrap_or(false);
+        if have_local_wheels && sync_failure_is_torch_download(&tail) {
+            log::warn!(
+                "Frozen sync failed on a torch download; retrying non-frozen with local wheels in {} (#569)",
+                wheels_dir.display()
+            );
+            emit_log(app, "installing_deps", "Retrying the install with the wheels you provided locally…");
+            let mut retry = Command::new(&uv_path);
+            scrub_python_env(&mut retry);
+            apply_uv_http_env(&mut retry);
+            retry.env("UV_FIND_LINKS", &wheels_dir);
+            if let Some(pypi) = custom_mirrors.pypi_index.as_deref() {
+                retry.env("UV_INDEX_URL", pypi);
+            } else if get_effective_region(app) == "china" {
+                retry.env("UV_INDEX_URL", "https://mirrors.aliyun.com/pypi/simple/");
+            }
+            retry.args(["sync", "--no-dev", "--verbose"]).current_dir(&project_dir);
+            sync_ok = matches!(run_streaming(app, "installing_deps", &mut retry), Ok(ref s) if s.success());
+        }
+    }
+
+    if !sync_ok {
+        let tail = crate::backend::read_error_log_tail(40);
+        let msg = if sync_failure_is_torch_download(&tail) {
+            format!(
+                "Couldn't download the CUDA PyTorch package (a ~2.5 GB wheel from download.pytorch.org). \
+This is almost always a dropped or restricted network, not a bug. What to try, in order: \
+(1) \"Clean & Retry\" — large downloads often succeed on a second attempt. \
+(2) Connect through a VPN if your network blocks the PyTorch CDN. \
+(3) Manually download the matching torch and torchaudio wheels (see the link in your error log / \
+pytorch.org), drop them in {}, then \"Clean & Retry\" — the install will use them locally. \
+Details: docs/install/troubleshooting.md (#569).",
+                wheels_dir.display()
+            )
+        } else {
+            "Dependency install (uv sync) failed — often a network drop or a partial cache. \
+\"Clean & Retry\" rebuilds the environment from scratch. If your network blocks PyPI, set a PyPI \
+mirror in Settings → region/mirrors (see docs/install/troubleshooting.md).".to_string()
+        };
+        fail(progress, &msg);
         return None;
     }
 
@@ -1218,6 +1291,24 @@ mod tests {
             "deaths older than the window must be pruned, not counted"
         );
         assert!(aged.is_empty(), "stale timestamps should have been dropped");
+    }
+
+    #[test]
+    fn torch_download_failure_is_detected_for_targeted_help() {
+        // #569: the cu128 torch wheel host (and a torch-named download/fetch
+        // failure) get torch-specific guidance + the local-wheel retry.
+        assert!(sync_failure_is_torch_download(
+            "× Failed to download `torch==2.8.0+cu128`\n  https://download.pytorch.org/whl/cu128/torch-2.8.0%2Bcu128-cp311-cp311-win_amd64.whl"
+        ));
+        assert!(sync_failure_is_torch_download(
+            "error sending request for url (https://download-r2.pytorch.org/whl/cu128/torch-2.8.0.whl)"
+        ));
+        assert!(sync_failure_is_torch_download("Failed to fetch torch wheel"));
+        // An unrelated PyPI failure must NOT be mistaken for the torch case.
+        assert!(!sync_failure_is_torch_download(
+            "Failed to download `numpy==2.0.0` from https://pypi.org/simple"
+        ));
+        assert!(!sync_failure_is_torch_download("some unrelated venv error"));
     }
 
     #[test]
