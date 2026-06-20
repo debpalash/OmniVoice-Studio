@@ -12,26 +12,42 @@ _Nothing yet — `main` is at v0.3.7 + 1 patch. New work lands here._
 
 ## [0.3.7] — 2026-06-20
 
-A stabilization release. It tags the startup-crash fixes already on `main` (so
-users hitting "Can't reach the local backend" on v0.3.5/v0.3.6 only need to
-update), and clears the wave of issues reported on the 0.3.6 line across voice
-design, dubbing, transcription, install, and the Linux UI.
+A stabilization release that clears the wave of issues reported on the 0.3.6
+line — across voice design, dubbing, transcription, install, and the Linux/web
+UI — and lands two more opt-in cloning engines. The throughline is **non-English
+correctness and cross-platform playback**: cloned and designed voices now hold
+their language end-to-end, and audio plays inline in Linux/Android browsers,
+not just macOS. It also carries the v0.3.6 startup-crash fixes, so anyone still
+hitting "Can't reach the local backend" on v0.3.5/v0.3.6 only needs to update.
 
 ### Added
 
 - **Two opt-in heavyweight TTS engines: MOSS-TTS-v1.5 (8B) and dots.tts (2B).**
-  Both are zero-shot voice-cloning engines added per [#498](https://github.com/debpalash/OmniVoice-Studio/issues/498),
-  running in their own isolated subprocess venv (each pins a `transformers`
-  version that conflicts with the parent's `>=5.3` — MOSS `==5.0`, dots.tts
-  `==4.57`) via the same dedicated-venv pattern as IndexTTS-2. Point
-  `OMNIVOICE_MOSS_TTS_V15_DIR` / `OMNIVOICE_DOTS_TTS_DIR` at a local clone to
-  enable. CUDA/CPU only — neither claims Apple-Silicon MPS; dots.tts upstream
-  is Linux/macOS only (gated off on Windows). No change to the default install
-  or its lockfile. See [docs/engines/moss-tts-v15.md](docs/engines/moss-tts-v15.md)
-  and [docs/engines/dots-tts.md](docs/engines/dots-tts.md). (#498)
+  Both are zero-shot voice-cloning engines, each running in its own isolated
+  subprocess venv (they pin a `transformers` version that conflicts with the
+  parent's `>=5.3` — MOSS `==5.0`, dots.tts `==4.57`) via the same dedicated-venv
+  pattern as IndexTTS-2, so they can't disturb the default install or its
+  lockfile. Point `OMNIVOICE_MOSS_TTS_V15_DIR` / `OMNIVOICE_DOTS_TTS_DIR` at a
+  local clone to enable. CUDA/CPU only — neither claims Apple-Silicon MPS, and
+  dots.tts is gated off on Windows (upstream is Linux/macOS only). See
+  [docs/engines/moss-tts-v15.md](docs/engines/moss-tts-v15.md) and
+  [docs/engines/dots-tts.md](docs/engines/dots-tts.md). (#498)
 
 ### Fixed
 
+- **Non-English voices drifted to English / the wrong language.** Three
+  independent root causes, all in the language path: (1) a voice profile's
+  stored language was never read back into generation, so a German archetype
+  that *previewed* in German *generated* in English (the preview passed the
+  language; the user's Generate call didn't); (2) the audiobook/longform synth
+  hardcoded `language=None`, letting the engine re-autodetect per chunk so a
+  non-English clone could flip language mid-render on short/ambiguous lines; and
+  (3) the duration estimator weighted Unicode combining marks at zero, so
+  decomposed (NFD) diacritic text — common for Vietnamese — under-allocated
+  frames and came out rushed. The profile/request language is now threaded
+  through both the single-shot and longform paths (request wins, profile fills
+  the gap), and text is NFC-normalized before duration estimation. Each fix has
+  a fail-before/pass-after regression test. (#533, #505, #502)
 - **Audio playback on Linux Firefox/Chrome and Android Chrome.** Two separate
   root causes both masquerade as "the play button doesn't work" on non-macOS
   browsers — and both are invisible when developing on macOS, which is why they
@@ -62,11 +78,23 @@ design, dubbing, transcription, install, and the Linux UI.
   (stamped at a removed revision, or alembic not importable) and the failure was
   swallowed. The runtime schema now self-heals — it ADDs any missing additive
   column from the canonical schema on startup. (#552, #547)
+- **Stories: the global reading-speed slider was ignored by preview and stem
+  export.** The #415 global speed only flowed through the full longform export;
+  per-segment preview and stem export still resolved a hardcoded `track.speed ||
+  1.0`, so audio played at 1.0× even with the global set to e.g. 0.70×. A shared
+  `effectiveSpeed(track, global)` helper (per-line override → global → engine
+  default) now drives all three generation paths. (#508)
 - **Generate / Settings / Clone buttons were missing / unpressable on Linux.**
   The UI-scale fix round-trips correctly on Chromium, but older WebKitGTK treats
   `zoom` as a layout no-op, leaving a ~23% black band that pushed the bottom CTAs
   off-screen. The shell now probes the engine and fills the window when `zoom`
   doesn't lay out. (#523, #524)
+- **Settings tabs with little content rendered as a stunted box in a black
+  void** (reported on Appearance). The page is now a flex column with a
+  min-height floor — short tabs fill the panel, tall tabs grow and scroll
+  exactly as before. The Appearance panel's previously hardcoded English
+  strings ("UI scale", "Color theme", "Font") were also routed through i18n,
+  per the localization rule. (#507)
 - **The engine "Install" button 500'd with "No virtual environment found."**
   `uv pip install` now targets the running interpreter (`--python
   sys.executable`) instead of relying on a venv it couldn't auto-discover.
@@ -84,21 +112,43 @@ design, dubbing, transcription, install, and the Linux UI.
 - **Cryptic video-download errors** now carry actionable hints: an unsupported
   link shape ("paste a direct video page, not a share/feed link") vs a transient
   network drop ("just retry — the partial download was cleaned up"). (#554, #536)
-- **About → Version rendered blank in the web/Pinokio build** (no Tauri, backend
-  idle); it now falls back to the build-time version.
 - **A relocated, copied, or restored backend venv ("No module named
   'encodings'") now self-heals** (rebuilds once) instead of failing on every
   launch.
-- **Non-English voices drifted to English / the wrong language.** A voice
-  profile's stored language wasn't propagated into generation (a German
-  archetype previewed in German but generated in English), the audiobook/longform
-  synth hardcoded `language=None` (a non-English clone could flip language
-  mid-render), and the duration estimator under-allocated frames for decomposed
-  (NFD) diacritic text. The profile/request language is now threaded through both
-  the single-shot and longform paths, and text is NFC-normalized. (#533, #505, #502)
+- **The donate goal bar showed fabricated progress** ($137.50 / $200, 23
+  sponsors). It now reflects the real figures ($10 / $200, 1 sponsor) in both the
+  runtime JSON and the TypeScript fallback. (#513)
 - The **"Can't reach the local backend" startup-crash wave** (pkg_resources
   #248, `scalar_fastapi` #307, exit-106 broken venv) was fixed in v0.3.6 — this
   release carries those fixes, so updating from v0.3.5/older resolves them.
+
+### Changed
+
+- **Version is now single-sourced from `frontend/package.json`.** Five
+  hand-maintained literals drifting is exactly what shipped a 0.3.6 build that
+  called itself 0.3.5. `package.json` is canonical (vite already injects it as
+  `__APP_VERSION__`), `tauri.conf.json` reads its bundle version from it
+  (`"version": "../package.json"`), and the remaining toolchain-required mirrors
+  (Cargo.toml, pyproject.toml, the frozen-backend fallback) are CI-guarded to
+  stay in lockstep. (#503)
+- **Updater: the Preview channel actually tracks `main` again.** It was stuck at
+  `0.3.5-41` because its only build trigger was a manual dispatch; a nightly
+  rebuild now enforces "preview = main" (no-opping on days `main` didn't move).
+  Two latent hazards are closed: the `preview` release is re-asserted as a
+  prerelease every run (a non-prerelease preview could hijack the Stable
+  channel's "Latest"), and its manifest can no longer silently drop the
+  Intel-Mac (darwin-x86_64) target. (#500)
+
+### Internal
+
+- **The frozen desktop backend reported `0.3.5` regardless of its real version.**
+  In a synced env, `core.version.APP_VERSION` resolves from package metadata
+  (correct, so CI stayed green), but the PyInstaller-frozen build has no
+  `.dist-info`, hit `PackageNotFoundError`, and fell back to a hardcoded literal.
+  The spec now bundles `omnivoice` metadata so the primary path works frozen too,
+  and the resolution chain is metadata → pyproject → named fallback. This also
+  fixes **About → Version rendering blank** in the web/Pinokio build (no Tauri,
+  backend idle), which now falls back to the build-time version. (#501)
 
 ## [0.3.6] — 2026-06-16
 
