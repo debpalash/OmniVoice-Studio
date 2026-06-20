@@ -177,6 +177,16 @@ async def run_pip(args: list[str], timeout: float = 600.0) -> tuple[int, str]:
     """
     base = _installer_cmd()
     using_uv = base[:1] == ["uv"]
+    # Pin `uv pip` to the interpreter the backend ACTUALLY runs under. The desktop
+    # spawns `<venv>/bin/python -m uvicorn` WITHOUT exporting VIRTUAL_ENV, so bare
+    # `uv pip install` finds no venv and 500s with "No virtual environment found"
+    # (#529/#527) — and the `--system` branch below never fires, because the
+    # running interpreter genuinely IS in a venv (uv just can't auto-discover it).
+    # `--python sys.executable` targets the same interpreter _probe()/is_installed()
+    # import from, and takes precedence when both flags are present, so the Docker
+    # `--system` path is unaffected.
+    if using_uv and args and args[0] in ("install", "uninstall") and "--python" not in args:
+        args = [args[0], "--python", sys.executable, *args[1:]]
     if using_uv and not _in_virtualenv() and args and args[0] in ("install", "uninstall") and "--system" not in args:
         args = [args[0], "--system", *args[1:]]
     cmd = base + args
