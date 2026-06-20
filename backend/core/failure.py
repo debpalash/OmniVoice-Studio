@@ -89,6 +89,12 @@ def classify(reason: str) -> str:
     # the Rust self-heal rebuilds it; this names the class for the toast.
     if "no module named 'encodings'" in low:
         return "BROKEN_VENV"
+    # #564: the interpreter starts fine but the backend can't import its OWN
+    # `omnivoice` package (a venv missing the editable install). Same self-heal
+    # class — Clean & Retry / the bootstrap repair rebuilds it. The trailing
+    # quote keeps a legitimately-named `omnivoice_*` helper from matching.
+    if "no module named 'omnivoice'" in low:
+        return "BROKEN_VENV"
     return ""
 
 

@@ -63,6 +63,18 @@ def test_classify_broken_venv_encodings():
     assert failure.classify("No module named 'encodings_helper'") == ""
 
 
+def test_classify_broken_venv_missing_own_package():
+    # #564: the interpreter starts but the backend can't import its own
+    # 'omnivoice' package (editable install missing) → BROKEN_VENV so the toast
+    # points at the self-heal / Clean & Retry instead of a bare import error.
+    assert failure.classify("ModuleNotFoundError: No module named 'omnivoice'") == (
+        "BROKEN_VENV"
+    )
+    # ...but a legitimately-named 'omnivoice_*' helper package must NOT match
+    # (the trailing quote in the matcher is the guard).
+    assert failure.classify("No module named 'omnivoice_helper'") == ""
+
+
 def test_classify_generic_still_empty():
     # A genuinely unknown reason must still classify to "" (no false hint).
     assert failure.classify("some totally unrelated failure") == ""
