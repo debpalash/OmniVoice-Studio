@@ -67,6 +67,22 @@ export function buildDesignInstruct(vdStates = {}, freeText = '') {
 }
 
 /**
+ * Coerce an instruct value to the STRING that belongs in the FormData/payload.
+ * `buildDesignInstruct()` returns `{ instruct, unsupported, duplicates }`, and
+ * passing that object to `FormData.append` string-coerced it to the literal
+ * `"[object Object]"`, poisoning saved design profiles (#550 #545 #542 #537
+ * #530 #525). Always run instruct through this before sending it.
+ *
+ * @param {string | { instruct?: string } | null | undefined} instruct
+ * @returns {string}
+ */
+export function instructToFormValue(instruct) {
+  if (typeof instruct === 'string') return instruct;
+  if (instruct && typeof instruct === 'object') return String(instruct.instruct ?? '');
+  return '';
+}
+
+/**
  * Project the backend's "describe your voice" result (#317) onto a fresh
  * vdStates object. The description drives the *whole* parameter set — matched
  * categories get their token, everything else resets to 'Auto' — so retyping

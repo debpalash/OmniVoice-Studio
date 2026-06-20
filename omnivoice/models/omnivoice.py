@@ -1412,7 +1412,11 @@ def _resolve_instruct(
 
     # Split on both half-width and full-width commas
     raw_items = re.split(r"\s*[,，]\s*", instruct_str)
-    raw_items = [x for x in raw_items if x]
+    # Tolerate the "[object Object]" sentinel a buggy frontend build could have
+    # persisted into voice_profiles.instruct (#550 et al): drop it instead of
+    # 400-ing the whole generation. The 0006 migration heals stored values; this
+    # guards any that slip through (e.g. generation_history rows).
+    raw_items = [x for x in raw_items if x and x.strip().lower() != "[object object]"]
 
     # Validate each item
     unknown = []

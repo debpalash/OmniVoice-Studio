@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildDesignInstruct } from './voiceInstruct';
+import { buildDesignInstruct, instructToFormValue } from './voiceInstruct';
 
 // plan-05 (#132): the Voice Design payload must be a validator-safe instruct —
 // one valid tag per category, no unsupported free-text — so Synthesize stops
@@ -55,5 +55,23 @@ describe('buildDesignInstruct', () => {
     const { instruct, unsupported } = buildDesignInstruct({ Gender: 'nonbinary' }, '');
     expect(instruct).toBe('');
     expect(unsupported).toEqual([]);
+  });
+});
+
+describe('instructToFormValue (#550 [object Object] guard)', () => {
+  it('extracts the string from a buildDesignInstruct() object, never "[object Object]"', () => {
+    const built = buildDesignInstruct({ Gender: 'male' }, '');
+    // the bug: appending the raw object to FormData string-coerces to this
+    expect(String(built)).toBe('[object Object]');
+    expect(typeof instructToFormValue(built)).toBe('string');
+    expect(instructToFormValue(built)).toBe('male');
+    expect(instructToFormValue(built)).not.toBe('[object Object]');
+  });
+
+  it('passes a plain string through and coerces null/garbage to ""', () => {
+    expect(instructToFormValue('male, high pitch')).toBe('male, high pitch');
+    expect(instructToFormValue(null)).toBe('');
+    expect(instructToFormValue(undefined)).toBe('');
+    expect(instructToFormValue({})).toBe('');
   });
 });

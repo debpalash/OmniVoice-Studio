@@ -606,7 +606,7 @@ export default function CloneDesignTab(props) {
                     onChange={e => setProfileName(e.target.value)}
                   />
                   <Button variant="subtle" size="sm"
-                    onClick={() => handleSaveDesignProfile(vdStates, buildDesignInstruct(vdStates, instruct), language)}>
+                    onClick={() => handleSaveDesignProfile(vdStates, buildDesignInstruct(vdStates, instruct).instruct, language)}>
                     {t('clone.save')}
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => setShowSaveProfile(false)}>{t('clone.cancel')}</Button>

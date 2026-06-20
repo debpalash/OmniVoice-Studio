@@ -5,6 +5,7 @@ import { createProfile, deleteProfile as apiDeleteProfile, lockProfile, unlockPr
 import { generateSpeech, audioUrlWithCacheBust } from '../api/generate';
 import { playBlobAudio } from '../utils/media';
 import { PRESETS } from '../utils/constants';
+import { instructToFormValue } from '../utils/voiceInstruct';
 import { askConfirm } from '../utils/dialog';
 import { toast } from 'react-hot-toast';
 import { evaluateDonationPrompt } from '../components/donate/evaluateDonationPrompt';
@@ -93,7 +94,11 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
     fd.append('name', profileName);
     fd.append('kind', 'design');
     fd.append('vd_states', JSON.stringify(vdStates || {}));
-    fd.append('instruct', instruct || '');
+    // Defensive: instruct must be the STRING. buildDesignInstruct() returns an
+    // object — appending it coerced to "[object Object]", poisoning the profile
+    // (#550 et al). instructToFormValue extracts .instruct if an object slips
+    // through, so the field is never garbage.
+    fd.append('instruct', instructToFormValue(instruct));
     fd.append('language', language || 'Auto');
     try {
       await createProfile(fd);

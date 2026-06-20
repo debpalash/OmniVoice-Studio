@@ -106,3 +106,19 @@ def test_every_personality_instruct_is_accepted_by_resolve_instruct():
             f"Personality {p['id']!r} instruct {p['instruct']!r} normalised "
             "to nothing — pick at least one taxonomy token."
         )
+
+
+def test_resolve_instruct_tolerates_object_object_sentinel():
+    """A pre-fix Voice Studio build persisted the literal "[object Object]" into
+    voice_profiles.instruct (#550 et al). _resolve_instruct must DROP that
+    sentinel and not 400 the whole generation, while still rejecting a genuine
+    unsupported token."""
+    resolve_instruct = _import_resolver()
+    # sentinel alone → treated as empty (no ValueError); returns falsy
+    assert not resolve_instruct("[object Object]")
+    assert not resolve_instruct("[OBJECT object]")  # case-insensitive
+    # sentinel mixed with a valid token → the valid token survives, no raise
+    assert resolve_instruct("male, [object Object]") == "male"
+    # a real unsupported token must STILL raise (the #114/#115 user feedback)
+    with pytest.raises(ValueError):
+        resolve_instruct("frobnicate")
