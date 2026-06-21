@@ -113,10 +113,6 @@ GET /tools/effects
 GET /tools/plugins
 GET /v1/audio/voices
 GET /watermark/status
-MOUNT /audio
-MOUNT /demo_audio
-MOUNT /mcp
-MOUNT /voice_audio
 PATCH /gallery/voices/{voice_id}
 PATCH /projects/{project_id}
 POST /api/settings/hf-token

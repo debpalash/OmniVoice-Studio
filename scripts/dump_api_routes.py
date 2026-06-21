@@ -28,24 +28,27 @@ def route_lines(app):
     """Stable, sorted ``"METHODS /path"`` lines for every route on ``app``.
 
     HEAD/OPTIONS are dropped (auto-added by Starlette); WebSocket routes use
-    ``WS`` and sub-app mounts use ``MOUNT`` so the inventory is method-aware.
+    ``WS``. Excludes things that vary by environment and aren't part of the API
+    contract: ``Mount`` routes (StaticFiles / sub-app mounts like ``/demo_audio``,
+    ``/outputs``, ``/mcp`` — they only register when their dir/sub-app exists, so
+    they differ between a dev checkout and a fresh CI runner) and the bare
+    ``GET /`` root (a conditional frontend-serving fallback). HEAD/OPTIONS are
+    dropped (Starlette adds them automatically).
     """
     from starlette.routing import Mount
 
     rows = set()
     for r in app.routes:
         path = getattr(r, "path", None)
-        if not path:  # skip None and the empty-path root mount (not an API route)
+        if not path or path == "/" or isinstance(r, Mount):
             continue
         methods = getattr(r, "methods", None)
         if methods:
             ms = ",".join(sorted(m for m in methods if m not in ("HEAD", "OPTIONS")))
         elif "WebSocket" in type(r).__name__:
             ms = "WS"
-        elif isinstance(r, Mount):
-            ms = "MOUNT"
         else:
-            ms = "-"
+            continue  # non-HTTP, non-WS, non-mount: not part of the API surface
         rows.add(f"{ms} {path}")
     return sorted(rows)
 
@@ -60,8 +63,14 @@ def load_app():
 
 def main():
     lines = route_lines(load_app())
-    SNAPSHOT.write_text(_HEADER + "\n".join(lines) + "\n", encoding="utf-8")
-    print(f"Wrote {len(lines)} routes to {SNAPSHOT.relative_to(_REPO)}")
+    # `--print` dumps to stdout (the inventory test captures this in a subprocess
+    # so importing the app never pollutes the pytest process); default writes the
+    # committed snapshot.
+    if "--print" in sys.argv:
+        sys.stdout.write("\n".join(lines) + "\n")
+    else:
+        SNAPSHOT.write_text(_HEADER + "\n".join(lines) + "\n", encoding="utf-8")
+        sys.stderr.write(f"Wrote {len(lines)} routes to {SNAPSHOT.relative_to(_REPO)}\n")
 
 
 if __name__ == "__main__":
