@@ -9,24 +9,15 @@ _backend_dir = os.path.dirname(os.path.abspath(__file__))
 if _backend_dir not in sys.path:
     sys.path.insert(0, _backend_dir)
 
-# #564: also make the project's OWN `omnivoice` package importable from source.
-# It's normally an editable install, but an interrupted/offline `uv sync` that
-# installed deps but never laid the editable record, an antivirus-quarantined
-# `_editable_impl_omnivoice.pth`, or an upgrade where only the lock-gated drift
-# sync ran can leave that record missing — the backend then boots fine and only
-# fails at the first model call with `No module named 'omnivoice'` (the dub SSE
-# error in #564). The desktop layout always copies `omnivoice/` next to
-# `backend/`, so fall back to importing it from there. Appended (not inserted)
-# so a real site-packages/editable install keeps precedence, and it cannot
-# shadow a legitimately-different `omnivoice`; guarded on the dir existing so
-# it's a no-op in Docker (no sibling `omnivoice/`) and a harmless duplicate in
-# a dev checkout (where the editable install already resolves it).
-_project_root = os.path.dirname(_backend_dir)
-if (
-    os.path.isfile(os.path.join(_project_root, "omnivoice", "__init__.py"))
-    and _project_root not in sys.path
-):
-    sys.path.append(_project_root)
+# #564: also make the project's OWN `omnivoice` package importable from source
+# when the venv's editable install is missing/broken (interrupted/offline
+# `uv sync`, antivirus-quarantined `_editable_impl_omnivoice.pth`, …). Without
+# this the backend boots fine and only fails at the first model call with
+# `No module named 'omnivoice'`. The bootstrap now gates on omnivoice being
+# importable too (re-syncing to re-lay the editable install); this is the
+# runtime safety net. See core/omnivoice_path.py for the full rationale.
+from core.omnivoice_path import ensure_omnivoice_importable
+ensure_omnivoice_importable(_backend_dir)
 
 # Triton is unavailable on Windows — disable torch.compile / dynamo / inductor
 # to prevent TritonMissing errors at inference time. Must be set before torch

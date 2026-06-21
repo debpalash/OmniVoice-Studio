@@ -25,7 +25,16 @@ def _lazy_torch():
 def _lazy_omnivoice():
     global _OmniVoice
     if _OmniVoice is None:
-        from omnivoice.models.omnivoice import OmniVoice as _OV
+        try:
+            from omnivoice.models.omnivoice import OmniVoice as _OV
+        except ModuleNotFoundError:
+            # The venv's editable install is missing/broken (#564). main.py wires
+            # the source fallback at startup, but resolve it here too so the
+            # model-load path self-heals and logs the paths it searched.
+            from core.omnivoice_path import ensure_omnivoice_importable
+            _backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ensure_omnivoice_importable(_backend_dir, logger)
+            from omnivoice.models.omnivoice import OmniVoice as _OV
         _OmniVoice = _OV
     return _OmniVoice
 
@@ -530,6 +539,71 @@ def should_preload_tts_asr() -> bool:
     return _env_flag("OMNIVOICE_PRELOAD_TTS_ASR")
 
 
+def _is_incomplete_cache_error(exc: BaseException) -> bool:
+    """True when `exc` is the truncated-HF-cache class (#352 / #581).
+
+    transformers raises an OSError whose message contains "does not appear to
+    have a file named …" when the on-disk snapshot has config/tokenizer files
+    but no weight shard — the signature of an interrupted download. We match on
+    that phrase (stable across transformers 4.x/5.x) rather than the error type,
+    since the same OSError type covers unrelated I/O failures."""
+    return "does not appear to have a file named" in str(exc)
+
+
+def _hf_offline() -> bool:
+    """Respect HF's offline switches so repair never makes a network call the
+    user opted out of. `snapshot_download` would itself raise offline, but
+    checking up front lets us skip straight to the actionable message."""
+    return _env_flag("HF_HUB_OFFLINE") or _env_flag("TRANSFORMERS_OFFLINE")
+
+
+def _repair_model_cache(checkpoint: str) -> bool:
+    """Re-fetch a checkpoint's missing files in place and report success.
+
+    An interrupted download leaves the cache missing only some files;
+    `snapshot_download` resumes/fills exactly those (already-present, correctly
+    sized blobs are skipped by hash, so a near-complete cache repairs in
+    seconds and a complete one would no-op). Returns False — leaving the caller
+    to surface the actionable delete-and-reinstall message — when repair is
+    impossible (offline) or the re-fetch itself fails (no network, gated repo,
+    full disk). Never raises; repair is best-effort."""
+    if _hf_offline():
+        logger.warning(
+            "Model cache for %s is incomplete but HF offline mode is set — "
+            "cannot auto-repair.", checkpoint,
+        )
+        return False
+    try:
+        from huggingface_hub import snapshot_download
+    except Exception as imp_err:  # pragma: no cover - huggingface_hub is a hard dep
+        logger.warning("Cannot import snapshot_download to repair cache: %s", imp_err)
+        return False
+    logger.info("Auto-repairing incomplete model cache for %s …", checkpoint)
+    dl_kwargs: dict = {"repo_id": checkpoint}
+    endpoint = os.environ.get("HF_ENDPOINT")
+    if endpoint:
+        dl_kwargs["endpoint"] = endpoint
+    if os.name == "nt":
+        # Match the install path (download.py): avoid symlinks on Windows.
+        dl_kwargs["local_dir_use_symlinks"] = False
+    try:
+        snapshot_download(**dl_kwargs)
+    except TypeError:
+        # Older/newer huggingface_hub may not accept local_dir_use_symlinks
+        # on a cache-only call — retry without the optional knob.
+        dl_kwargs.pop("local_dir_use_symlinks", None)
+        try:
+            snapshot_download(**dl_kwargs)
+        except Exception as e:
+            logger.warning("Auto-repair of %s failed: %s", checkpoint, e)
+            return False
+    except Exception as e:
+        logger.warning("Auto-repair of %s failed: %s", checkpoint, e)
+        return False
+    logger.info("Auto-repair of %s completed; retrying model load.", checkpoint)
+    return True
+
+
 def _load_model_sync():
     global model
     from utils.hf_progress import register_listener, unregister_listener
@@ -564,23 +638,43 @@ def _load_model_sync():
             logger.info("Preloading PyTorch Whisper with TTS model.")
         else:
             logger.info("Skipping PyTorch Whisper preload; ASR will load on demand.")
-        try:
-            _model = OmniVoice.from_pretrained(
+        def _load():
+            return OmniVoice.from_pretrained(
                 checkpoint, device_map=device, dtype=torch.float16, load_asr=preload_asr,
             )
+
+        try:
+            _model = _load()
         except OSError as e:
-            # #352: a truncated HF cache surfaces here as "does not appear to
-            # have a file named pytorch_model.bin or model.safetensors".
-            # Translate to an actionable message instead of the raw
-            # transformers error.
-            if "does not appear to have a file named" in str(e):
+            # #352 / #581: a truncated HF cache surfaces here as "does not
+            # appear to have a file named pytorch_model.bin or
+            # model.safetensors". Instead of dead-ending the user with a
+            # manual delete-and-reinstall instruction, try to self-repair: an
+            # interrupted download leaves the cache missing only some files,
+            # and snapshot_download() resumes/fills exactly those (a complete
+            # cache never reaches this branch, so the fast path is untouched).
+            if not _is_incomplete_cache_error(e):
+                raise
+            _set_loading("loading_weights", "Repairing incomplete model cache…")
+            if not _repair_model_cache(checkpoint):
                 raise RuntimeError(
                     f"The TTS model cache for {checkpoint} is incomplete "
                     "(weights missing — usually an interrupted download). "
                     "Open Settings → Models, delete the OmniVoice TTS model, "
                     "and install it again."
                 ) from e
-            raise
+            _set_loading("loading_weights", f"Loading TTS weights on {device}…")
+            try:
+                _model = _load()
+            except OSError as e2:
+                # Repair ran but the cache is still unusable (e.g. the repo
+                # genuinely lacks weights, or the disk is corrupt). Fall back
+                # to the actionable message rather than the raw error.
+                raise RuntimeError(
+                    f"The TTS model cache for {checkpoint} is incomplete and "
+                    "could not be auto-repaired. Open Settings → Models, delete "
+                    "the OmniVoice TTS model, and install it again."
+                ) from e2
 
         try:
             # plan-02 (#65): gate on Triton availability (+ user setting), not
