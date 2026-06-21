@@ -12,6 +12,7 @@ from core.db import db_conn
 from core.config import VOICES_DIR, OUTPUTS_DIR
 from core import event_bus
 from core.personalities import get_personalities
+from omnivoice.utils.voice_design import heal_design_instruct, sanitize_instruct
 
 router = APIRouter()
 
@@ -76,6 +77,13 @@ async def create_profile(
         # instruct — that's still a valid, saveable voice: synthesis falls back
         # to neutral instruct-only conditioning (see generation.py design path).
         # Don't gate save on a non-empty instruct.
+        #
+        # Defence-in-depth against the "[object Object]" / freeform-prose poison
+        # (#550 #571 #594 #596): never persist an instruct the engine validator
+        # would reject. Sanitize the submitted instruct and, if it's unusable,
+        # rebuild the tags from vd_states — so the row is always generation-safe
+        # regardless of which frontend build saved it.
+        instruct = heal_design_instruct(instruct, parsed)
 
     profile_id = str(uuid.uuid4())[:8]
 
@@ -167,6 +175,10 @@ def update_profile(profile_id: str, patch: ProfileUpdate):
             continue
         if col == "name" and not val.strip():
             raise HTTPException(status_code=400, detail="A voice profile needs a name.")
+        if col == "instruct":
+            # Never let an edit persist a validator-rejecting instruct (prose /
+            # "[object Object]"); keep only whitelist tags (#550 #571 #594 #596).
+            val = sanitize_instruct(val)
         fields.append(f"{col} = ?")
         params.append(val.strip() if col in ("name", "language") else val)
     if not fields:

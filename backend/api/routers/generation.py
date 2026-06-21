@@ -17,9 +17,25 @@ from core.config import OUTPUTS_DIR, VOICES_DIR
 from services.model_manager import get_model, _gpu_pool
 from services.audio_io import _safe_torchaudio_save
 from core import event_bus
+from omnivoice.utils.voice_design import heal_design_instruct
 
 router = APIRouter()
 logger = logging.getLogger("omnivoice.generate")
+
+
+def _profile_instruct(row):
+    """Validator-safe instruct for a stored profile row.
+
+    Sanitizes the persisted instruct (dropping the ``"[object Object]"``
+    sentinel / freeform prose that older builds saved) and, for a design row,
+    rebuilds the tags from ``vd_states`` when the stored value is unusable — so
+    a poisoned/legacy profile never 400-s generation (#550 #571 #594 #596).
+    """
+    try:
+        vd = row["vd_states"]
+    except (KeyError, IndexError):
+        vd = None
+    return heal_design_instruct(row["instruct"], vd)
 
 
 def _render_with_pauses(gen_span, segments, sample_rate):
@@ -410,7 +426,7 @@ async def generate_speech(
                 if not ref_text:
                     ref_text = row["ref_text"]
                 if not instruct:
-                    instruct = row["instruct"]
+                    instruct = _profile_instruct(row)
                 if used_seed is None and row["seed"] is not None:
                     used_seed = row["seed"]
             elif profile_kind == "design":
@@ -420,14 +436,14 @@ async def generate_speech(
                 if ref_audio_path and not ref_text and row["ref_text"]:
                     ref_text = row["ref_text"]
                 if not instruct:
-                    instruct = row["instruct"]
+                    instruct = _profile_instruct(row)
                 if used_seed is None and row["seed"] is not None:
                     used_seed = row["seed"]
             elif row["instruct"] and not row["is_locked"] and not row["ref_audio_path"]:
                 # Legacy design-shaped row (pre-0004 archetype materialization
                 # failure path): instruct-only conditioning.
                 if not instruct:
-                    instruct = row["instruct"]
+                    instruct = _profile_instruct(row)
                 if used_seed is None and row["seed"] is not None:
                     used_seed = row["seed"]
             else:

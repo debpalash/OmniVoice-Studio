@@ -28,6 +28,7 @@ from services.incremental import segment_fingerprint, fit_fingerprint
 from services.fit_planner import FitParams, plan_fit
 from services.watermark import embed_watermark
 from api.routers.dub_core import _get_job, _save_job
+from omnivoice.utils.voice_design import heal_design_instruct
 
 logger = logging.getLogger("omnivoice.dub")
 
@@ -258,7 +259,11 @@ async def dub_generate(job_id: str, req: DubRequest):
                             used_seed = row["seed"]
                             
                         if not instruct_str:
-                            instruct_str = row["instruct"]
+                            try:
+                                _vd = row["vd_states"]
+                            except (KeyError, IndexError):
+                                _vd = None
+                            instruct_str = heal_design_instruct(row["instruct"], _vd)
 
                 if used_seed is not None:
                     torch.manual_seed(used_seed)

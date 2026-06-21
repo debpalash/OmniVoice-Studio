@@ -71,20 +71,51 @@ def test_design_requires_vd_states(app_client):
 
 
 def test_design_saveable_without_instruct(app_client, fake_render):
-    """An all-Auto design (empty instruct) is a valid, saveable voice (#476).
+    """An all-Auto design (no picks → empty instruct) is still saveable (#476).
 
     Saving must not gate on a non-empty instruct — synthesis falls back to
     neutral instruct-only conditioning.
     """
     client, _ = app_client
+    all_auto = {"Gender": "Auto", "Age": "Auto", "Pitch": "Auto"}
     r = client.post(
         "/profiles",
-        data={"name": "AllAuto", "kind": "design", "vd_states": json.dumps(_VD)},
+        data={"name": "AllAuto", "kind": "design", "vd_states": json.dumps(all_auto)},
     )
     assert r.status_code == 200, r.text
     profile = client.get(f"/profiles/{r.json()['id']}").json()
     assert profile["kind"] == "design"
     assert (profile["instruct"] or "") == ""
+
+
+def test_design_derives_instruct_from_picks_when_unset(app_client, fake_render):
+    """A design saved with category picks but no explicit instruct must persist
+    a matching instruct derived from vd_states — otherwise the designed voice
+    renders neutral/wrong-gender (#594). Guards the save-time heal."""
+    client, _ = app_client
+    r = client.post(
+        "/profiles",
+        data={"name": "Designed", "kind": "design", "vd_states": json.dumps(_VD)},
+    )
+    assert r.status_code == 200, r.text
+    profile = client.get(f"/profiles/{r.json()['id']}").json()
+    assert profile["instruct"] == "female, young adult, high pitch"
+
+
+def test_design_save_drops_object_object_instruct(app_client, fake_render):
+    """The "[object Object]" poison can never be persisted — it's sanitized and
+    the design is rebuilt from vd_states at save time (#550 #571 #594)."""
+    client, _ = app_client
+    r = client.post(
+        "/profiles",
+        data={
+            "name": "Poisoned", "kind": "design",
+            "vd_states": json.dumps(_VD), "instruct": "[object Object]",
+        },
+    )
+    assert r.status_code == 200, r.text
+    profile = client.get(f"/profiles/{r.json()['id']}").json()
+    assert profile["instruct"] == "female, young adult, high pitch"
 
 
 def test_design_rejects_malformed_vd_states(app_client):
