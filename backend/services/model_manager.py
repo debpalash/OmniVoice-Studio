@@ -3,7 +3,7 @@ import time
 import asyncio
 import logging
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, Executor
 
 # ── Lazy imports ─────────────────────────────────────────────────────
 # torch and OmniVoice are heavy (~2-3s import on Apple Silicon).
@@ -47,7 +47,7 @@ logger = logging.getLogger("omnivoice.model")
 _GPU_VRAM_PER_JOB_GB = 5.0
 _GPU_WORKER_CAP = 4
 
-_gpu_pool_singleton: "ThreadPoolExecutor | None" = None
+_gpu_pool_singleton: "_ResilientGpuPool | None" = None
 _cpu_pool = ThreadPoolExecutor(max_workers=CPU_POOL_WORKERS)
 
 
@@ -100,14 +100,82 @@ def _build_gpu_pool() -> ThreadPoolExecutor:
     return ThreadPoolExecutor(max_workers=workers, thread_name_prefix="gpu-pool")
 
 
-def _get_gpu_pool() -> ThreadPoolExecutor:
-    """Internal accessor. Same singleton as the module-level `_gpu_pool`
-    attribute, but resolvable from inside this module (Python's module
-    `__getattr__` only fires for unresolved lookups from *outside*).
+class _ResilientGpuPool(Executor):
+    """A stable, self-healing wrapper around the GPU `ThreadPoolExecutor`.
+
+    The crash this fixes (#589 #599): `_reset_gpu_pool()` shuts the pool down on
+    a model-load timeout, but consumers that captured the executor *object* at
+    import time (`from services.model_manager import _gpu_pool` at module level —
+    generation, dub_generate, dub_core, dub_translate, openai_compat) kept
+    submitting to the dead pool and got `RuntimeError: cannot schedule new
+    futures after shutdown` on the next generate/dub/translate.
+
+    Making `_gpu_pool` a single long-lived wrapper whose *inner* pool is swapped
+    means those references never go stale: every `submit()` resolves the live
+    pool, and a submit that races a shutdown rebuilds once and retries. Building
+    the inner pool stays lazy so we still size workers after torch's device
+    probe (the reason for the original `__getattr__` indirection).
+    """
+
+    def __init__(self):
+        self._pool: "ThreadPoolExecutor | None" = None
+        self._lock = threading.Lock()
+
+    def _live_pool(self) -> ThreadPoolExecutor:
+        pool = self._pool
+        if pool is None:
+            with self._lock:
+                if self._pool is None:
+                    self._pool = _build_gpu_pool()
+                pool = self._pool
+        return pool
+
+    def submit(self, fn, /, *args, **kwargs):
+        try:
+            return self._live_pool().submit(fn, *args, **kwargs)
+        except RuntimeError as e:
+            # "cannot schedule new futures after shutdown": the inner pool was
+            # reset (or torn down) under us. Rebuild once and retry so a stale
+            # caller self-heals instead of 500-ing. (Interpreter-shutdown races
+            # re-raise on the retry — we don't loop.)
+            if "shutdown" not in str(e).lower():
+                raise
+            with self._lock:
+                self._pool = _build_gpu_pool()
+                pool = self._pool
+            return pool.submit(fn, *args, **kwargs)
+
+    def reset(self) -> None:
+        """Abandon the current worker pool; the next submit builds a fresh one.
+
+        Python can't kill a thread wedged in a timed-out load, but dropping the
+        poisoned pool means a retry gets a clean worker instead of queueing
+        behind the wedged one. The wrapper identity is preserved, so references
+        held by importers stay valid.
+        """
+        with self._lock:
+            pool, self._pool = self._pool, None
+        if pool is not None:
+            try:
+                pool.shutdown(wait=False, cancel_futures=True)
+            except Exception:
+                pass
+
+    def shutdown(self, wait=True, *, cancel_futures=False):
+        with self._lock:
+            pool, self._pool = self._pool, None
+        if pool is not None:
+            pool.shutdown(wait=wait, cancel_futures=cancel_futures)
+
+
+def _get_gpu_pool() -> "_ResilientGpuPool":
+    """Internal accessor for the GPU pool singleton. Same object as the
+    module-level `_gpu_pool` attribute, but resolvable from inside this module
+    (Python's module `__getattr__` only fires for lookups from *outside*).
     """
     global _gpu_pool_singleton
     if _gpu_pool_singleton is None:
-        _gpu_pool_singleton = _build_gpu_pool()
+        _gpu_pool_singleton = _ResilientGpuPool()
     return _gpu_pool_singleton
 
 
@@ -584,19 +652,15 @@ def _model_load_timeout() -> float:
 
 
 def _reset_gpu_pool() -> None:
-    """Drop the GPU pool singleton so the next access builds a fresh one.
+    """Recover from a wedged/timed-out load by abandoning the GPU worker pool.
 
-    Python can't kill the thread stuck in a timed-out load, but abandoning the
-    poisoned single-worker pool means a *retry* gets a clean worker instead of
-    queueing forever behind the wedged one.
+    The resilient wrapper is kept (its identity is shared by every importer);
+    only its inner `ThreadPoolExecutor` is dropped, so the next submit builds a
+    fresh worker. This is what stops stale references from raising "cannot
+    schedule new futures after shutdown" after a reset (#589 #599).
     """
-    global _gpu_pool_singleton
-    pool, _gpu_pool_singleton = _gpu_pool_singleton, None
-    if pool is not None:
-        try:
-            pool.shutdown(wait=False, cancel_futures=True)
-        except Exception:
-            pass
+    if _gpu_pool_singleton is not None:
+        _gpu_pool_singleton.reset()
 
 
 async def _load_model_with_timeout():
