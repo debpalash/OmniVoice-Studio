@@ -173,6 +173,8 @@ def test_transcribe_stream_never_closes_without_terminal_event(tmp_path, monkeyp
 
     class _FakeASR:
         id = "fake"
+        def ensure_loaded(self):  # preflight eager-load (no-op for the fake)
+            pass
         def transcribe(self, path, *, word_timestamps=True):
             return {"chunks": [{"text": "hi", "timestamp": (0.0, 0.5)}],
                     "segments": [], "language": "en"}
@@ -210,6 +212,79 @@ def test_transcribe_stream_never_closes_without_terminal_event(tmp_path, monkeyp
     err_idx = body.rfind("event: error")
     done_idx = body.rfind("event: done")
     assert done_idx > err_idx >= 0, f"error must precede the terminal done: {body}"
+
+
+def test_transcribe_stream_surfaces_asr_load_failure_at_preflight(tmp_path, monkeypatch):
+    """Regression #578: the reported failure mode is the *ASR model* failing to
+    load (WhisperX: faster-whisper weights / CTranslate2-cuDNN mismatch / the
+    torch-2.6 weights-only VAD regression), not the TTS model. Because WhisperX
+    loads lazily inside ``transcribe()``, that failure used to be buried in N
+    per-chunk errors (and the bare error event raced the browser's native
+    connection-drop, so the UI showed the misleading generic "stream dropped …
+    ASR backend failed to load").
+
+    The preflight now eagerly calls ``backend.ensure_loaded()`` so the *real*
+    cause surfaces once, as a structured ``error`` event, ALWAYS followed by a
+    terminal ``done`` (so the stream closes via a named event, never a raw
+    drop the client can only render generically).
+    """
+    import asyncio
+    from api.routers import dub_core as dc
+
+    job_id = "t_asrload"
+    audio = tmp_path / "a.wav"
+    _make_wav(audio, seconds=1.0)
+    dc._dub_jobs[job_id] = {
+        "audio_path": str(audio), "vocals_path": None, "scene_cuts": [],
+    }
+
+    # TTS model loads fine; the *ASR backend* fails to load — the #578 case.
+    fake_model = MagicMock()
+    fake_model._asr_pipe = None
+
+    async def _ok_model():
+        return fake_model
+
+    class _BoomASR:
+        id = "whisperx"
+        def ensure_loaded(self):
+            raise RuntimeError(
+                "Could not load library libcudnn_ops_infer.so.8: simulated"
+            )
+        def transcribe(self, path, *, word_timestamps=True):  # pragma: no cover
+            raise AssertionError("transcribe must not run when load fails")
+        def unload(self):
+            pass
+
+    monkeypatch.setattr(dc, "get_model", _ok_model)
+    monkeypatch.setattr(
+        "services.asr_backend.get_active_asr_backend",
+        lambda *a, **k: _BoomASR(),
+    )
+
+    async def _collect():
+        resp = await dc.dub_transcribe_stream(job_id)
+        parts = []
+        async for chunk in resp.body_iterator:
+            parts.append(chunk.decode() if isinstance(chunk, (bytes, bytearray)) else str(chunk))
+        return "".join(parts)
+
+    try:
+        body = asyncio.run(_collect())
+    finally:
+        dc._dub_jobs.pop(job_id, None)
+
+    # Real cause surfaced as a structured error, not the generic "stream dropped".
+    assert "event: error" in body, body
+    assert "ASR backend initialization failed" in body, body
+    assert "libcudnn_ops_infer.so.8: simulated" in body, body
+    assert "stream dropped" not in body, body
+    # And it must be followed by a terminal `done` so the client closes via a
+    # named event — never a bare error+connection-drop (which races the
+    # browser's native EventSource error and loses the real cause).
+    err_idx = body.find("event: error")
+    done_idx = body.find("event: done")
+    assert done_idx > err_idx >= 0, f"error must be followed by terminal done: {body}"
 
 
 @pytest.mark.xfail(

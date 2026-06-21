@@ -425,10 +425,22 @@ async def dub_transcribe_stream(
                 try:
                     # The PyTorch-Whisper backend lazily builds its own pipeline
                     # when no preloaded `_asr_pipe` is present (issue #255), so it
-                    # no longer needs OMNIVOICE_PRELOAD_TTS_ASR=1 — don't reject it
-                    # here; any load failure surfaces per-chunk with a real cause.
+                    # no longer needs OMNIVOICE_PRELOAD_TTS_ASR=1.
                     _asr_backend = get_active_asr_backend(asr_pipe=getattr(_model, "_asr_pipe", None))
+                    # Eagerly load the model HERE so a real load failure (e.g.
+                    # WhisperX: missing weights, CTranslate2/cuDNN mismatch, the
+                    # torch-2.6 weights-only VAD regression) surfaces once, with
+                    # its actual cause, as a clean preflight `error` event —
+                    # instead of being buried in N cryptic per-chunk failures
+                    # and retried on every chunk (#578). Run in a thread so the
+                    # (blocking) load doesn't stall the event loop.
+                    _ensure_loaded = getattr(_asr_backend, "ensure_loaded", None)
+                    if callable(_ensure_loaded):
+                        await asyncio.get_running_loop().run_in_executor(
+                            _gpu_pool, _ensure_loaded
+                        )
                 except Exception as e:
+                    logger.exception("transcribe preflight: ASR load failed (job=%s)", job_id)
                     from core.failure import build_failure
                     f = build_failure(e, stage="transcribe-preflight", include_diagnostic=False)
                     preflight_error = "ASR backend initialization failed: " + f["reason"] + (
@@ -438,7 +450,14 @@ async def dub_transcribe_stream(
 
     async def _gen_body():
         if preflight_error:
-            yield _sse_event("error", {"detail": preflight_error})
+            # Always follow a terminal `error` with `done` so the stream closes
+            # via a named event, not a raw connection drop. A bare error+close
+            # races the browser's native EventSource error (which carries no
+            # `data`); if that native error wins, the client falls back to the
+            # misleading generic "stream dropped … ASR backend failed" message
+            # and the real cause (in `detail`) is lost (#578).
+            yield _sse_event("error", {"detail": preflight_error, "retryable": True})
+            yield _sse_event("done", {})
             return
         import math
         import tempfile
@@ -453,7 +472,9 @@ async def dub_transcribe_stream(
         try:
             audio_np, sr = await loop.run_in_executor(_cpu_pool, _load)
         except Exception as e:
-            yield _sse_event("error", {"detail": f"audio load failed: {e}"})
+            # Terminal error → always emit `done` (see preflight note, #578).
+            yield _sse_event("error", {"detail": f"audio load failed: {e}", "retryable": True})
+            yield _sse_event("done", {})
             return
 
         total = float(len(audio_np)) / float(sr) if sr else 0.0
