@@ -21,6 +21,15 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   respected — repair never makes a network call the user opted out of — and if
   the re-fetch still can't fix it, the actionable delete-and-reinstall message
   is preserved as the fallback. (#581)
+- **"cannot schedule new futures after shutdown" no longer breaks generate/dub
+  after a slow first load.** When a model load timed out, the backend reset its
+  GPU worker pool to recover — but several request handlers had captured the old
+  pool object at import time and kept submitting to it, so every subsequent
+  generate, dub, transcribe, or translate failed with `cannot schedule new
+  futures after shutdown` (a 500, or "Can't reach the local backend" when it
+  took the worker down). The GPU pool is now a single self-healing handle whose
+  worker pool is rebuilt on demand, so a reset can never strand an in-flight or
+  later request. No settings change; the recovery is automatic. (#589 #599)
 
 ## [0.3.7] — 2026-06-20
 
