@@ -23,7 +23,7 @@
     <a href="https://github.com/debpalash/OmniVoice-Studio/issues"><img src="https://img.shields.io/github/issues/debpalash/OmniVoice-Studio?style=flat-square&color=ef4444" alt="Issues" /></a>
     <a href="https://discord.gg/bzQavDfVV9"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord" /></a>
     <a href="https://ko-fi.com/debpalash"><img src="https://img.shields.io/badge/Ko--fi-Support_Us-FF5E5B?style=flat-square&logo=ko-fi&logoColor=white" alt="Ko-fi" /></a>
-    <a href="https://github.com/sponsors/debpalash"><img src="https://img.shields.io/badge/GitHub-Sponsor-ff69b4?style=flat-square&logo=github&logoColor=white" alt="GitHub Sponsors" /></a>
+    <a href="https://paypal.me/palashCoder"><img src="https://img.shields.io/badge/PayPal-Donate-00457C?style=flat-square&logo=paypal&logoColor=white" alt="PayPal" /></a>
   </p>
 </div>
 
@@ -388,8 +388,6 @@ OmniVoice Studio is built by one developer using Claude Code and AI agents — a
 <a href="https://ko-fi.com/debpalash"><img src="https://img.shields.io/badge/Ko--fi-Support_❤️-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Ko-fi" /></a>
 &nbsp;&nbsp;
 <a href="https://paypal.me/palashCoder"><img src="https://img.shields.io/badge/PayPal-Donate-00457C?style=for-the-badge&logo=paypal&logoColor=white" alt="PayPal" /></a>
-&nbsp;&nbsp;
-<a href="https://github.com/sponsors/debpalash"><img src="https://img.shields.io/badge/GitHub-Sponsor-ff69b4?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Sponsors" /></a>
 
 <br/>
 <sub>Every dollar goes directly to agent bills — keeping OmniVoice development continuous.</sub>

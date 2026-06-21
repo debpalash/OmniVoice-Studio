@@ -27,6 +27,7 @@ export type AppMode =
   | 'voice'
   | 'tools'
   | 'batch'
+  | 'contact'
   | 'settings';
 
 /**

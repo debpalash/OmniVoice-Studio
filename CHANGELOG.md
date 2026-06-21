@@ -8,6 +8,23 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+### Added
+
+- **A dedicated Contact page.** Discord, email, GitHub issues, and the project
+  website (palash.dev) as clean one-tap rows, reachable from the footer — so
+  reaching the maker is never more than a click away.
+
+### Changed
+
+- **Donations now go through Ko-fi or PayPal (GitHub Sponsors removed).** GitHub
+  Sponsors isn't available, so the Support page no longer routes there: pick an
+  amount (now $10 / $20 / $50) and then choose Ko-fi or PayPal — PayPal carries
+  the amount straight into checkout. `.github/FUNDING.yml` and the README badges
+  were updated to match.
+- **Simplified the Commercial License page.** Trimmed the six-tile benefit grid
+  and FAQ down to the three things that actually drive the decision (you own the
+  output, no per-minute cost, direct support) plus one clear "request a quote"
+  contact — less wall-of-text, faster to act on.
 ### Fixed
 
 - **An interrupted model download now self-repairs instead of dead-ending.**
@@ -21,6 +38,27 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   respected — repair never makes a network call the user opted out of — and if
   the re-fetch still can't fix it, the actionable delete-and-reinstall message
   is preserved as the fallback. (#581)
+- **Dubbing a YouTube URL no longer dies on a transient "Broken pipe."**
+  Pasting a video link could fail outright with `download: Unable to download
+  video: [Errno 32] Broken pipe` — a broken pipe raised while the write side of
+  a pipe closes mid-stream (a killed ffmpeg merge child, a CDN reset during
+  muxing). yt-dlp's own per-fragment retries don't cover that case, so a single
+  transient blip aborted the whole ingest. The URL download now retries up to
+  twice on broken-pipe / network-drop failures, wiping the partial download
+  between attempts, and only surfaces the (already-actionable) "connection
+  dropped — just retry" hint after the retries are exhausted. Unsupported links
+  still fail fast with their own hint — no wasted retries. (#579, #598)
+- **`No module named 'omnivoice'` on installs whose venv lost its editable
+  record.** An interrupted or offline `uv sync` (common during an in-place
+  upgrade) could install all dependencies yet never lay the editable install of
+  the project's own `omnivoice` package — or an antivirus quarantine could
+  remove it. The venv still started uvicorn, so the bootstrap's health gate
+  passed it through, and the app only failed at the first generate/dub with
+  `No module named 'omnivoice'`. The bootstrap now also verifies `omnivoice` is
+  importable (via a cheap `find_spec`, no torch load) and forces a repair
+  `uv sync` that re-lays the editable install when it isn't; the backend also
+  resolves `omnivoice` from its bundled source tree at runtime as a safety net.
+  No reinstall needed — relaunch and it self-repairs. (#564)
 - **"cannot schedule new futures after shutdown" no longer breaks generate/dub
   after a slow first load.** When a model load timed out, the backend reset its
   GPU worker pool to recover — but several request handlers had captured the old

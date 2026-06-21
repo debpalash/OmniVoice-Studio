@@ -435,6 +435,46 @@ def _ensure_browser_playable_mp4(video_path: str) -> str:
     return video_path
 
 
+# Bounded retry for transient download failures (#579/#598). yt-dlp's own
+# `retries`/`fragment_retries` cover per-fragment HTTP flakes, but a broken
+# pipe ([Errno 32]) raised while the write side of a pipe closes mid-stream
+# (a killed ffmpeg merge child, a CDN reset during muxing) aborts the whole
+# `extract_info` call and is NOT covered by them — so a single transient blip
+# failed the entire ingest with a raw "Broken pipe". We add a small download-
+# level retry on top, cleaning up the partial download between attempts so a
+# half-written `original.*` can't poison the next try.
+_YT_DOWNLOAD_RETRIES = 2  # total attempts = 1 + retries = 3
+
+
+def _is_transient_download_error(exc: BaseException) -> bool:
+    """True when a download failure is worth retrying (broken pipe / net drop).
+
+    Reuses the single failure taxonomy (`VIDEO_DOWNLOAD_NETWORK`) rather than a
+    parallel keyword list, so "what counts as transient" stays single-sourced
+    with the error-hint classification. ``BrokenPipeError``/``ConnectionError``
+    are matched by class too, since a bare instance may be wrapped or re-raised
+    with a stripped message that no longer contains "broken pipe".
+    """
+    if isinstance(exc, (BrokenPipeError, ConnectionError)):
+        return True
+    return failure.classify(str(exc)) == "VIDEO_DOWNLOAD_NETWORK"
+
+
+def _cleanup_partial_download(job_dir: str) -> None:
+    """Remove any half-written `original.*` files before a retry.
+
+    A partial download left on disk would otherwise be picked up as a "finished"
+    file by the post-download codec probe, or collide with the next attempt's
+    output. Best-effort — never raises on the failure path.
+    """
+    import glob
+    for stale in glob.glob(os.path.join(job_dir, "original.*")):
+        try:
+            os.remove(stale)
+        except OSError:
+            pass
+
+
 def yt_download_sync(
     url: str,
     job_dir: str,
@@ -493,15 +533,36 @@ def yt_download_sync(
     }
     if progress_hook is not None:
         ydl_opts["progress_hooks"] = [progress_hook]
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        path = ydl.prepare_filename(info)
-        root, _ = os.path.splitext(path)
-        mp4 = root + ".mp4"
-        if os.path.exists(mp4):
-            video_path = mp4
-        else:
-            video_path = path
+
+    # Download with a bounded retry on transient/broken-pipe-class failures
+    # (#579/#598). A broken pipe mid-mux isn't recoverable inside yt-dlp's own
+    # fragment retries, but a fresh `extract_info` usually succeeds. Between
+    # attempts we wipe the partial `original.*` so a half-written file can't be
+    # mistaken for a finished download.
+    info = None
+    path = None
+    for attempt in range(_YT_DOWNLOAD_RETRIES + 1):
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                path = ydl.prepare_filename(info)
+            break
+        except Exception as exc:
+            _cleanup_partial_download(job_dir)
+            if attempt < _YT_DOWNLOAD_RETRIES and _is_transient_download_error(exc):
+                logger.warning(
+                    "Transient download failure for %s (attempt %d/%d): %s — retrying",
+                    url, attempt + 1, _YT_DOWNLOAD_RETRIES + 1, exc,
+                )
+                time.sleep(2 * (attempt + 1))  # brief, increasing backoff
+                continue
+            raise
+    root, _ = os.path.splitext(path)
+    mp4 = root + ".mp4"
+    if os.path.exists(mp4):
+        video_path = mp4
+    else:
+        video_path = path
     # Browser-playability guard: WKWebView (Tauri on macOS) refuses to
     # decode VP9/AV1 video and Opus audio even when they're wrapped in an
     # mp4 container, and refuses .webm/.mkv outright. We probe the actual
