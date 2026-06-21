@@ -57,7 +57,10 @@ def test_get_model_times_out_and_resets_pool(model_manager, monkeypatch):
         with pytest.raises(RuntimeError, match="timed out"):
             asyncio.run(mm.get_model())
         assert mm.model is None                 # no half-loaded model
-        assert mm._gpu_pool_singleton is None    # poisoned pool was dropped
+        # The resilient wrapper survives (importers hold its identity); only its
+        # inner worker pool is dropped, so a retry builds a fresh worker.
+        assert mm._gpu_pool_singleton is not None
+        assert mm._gpu_pool_singleton._pool is None
         assert not mm._model_lock.locked()       # lock released for a retry
     finally:
         release.set()  # let the orphaned worker exit immediately
