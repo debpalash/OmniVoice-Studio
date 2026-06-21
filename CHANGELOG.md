@@ -104,6 +104,14 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   worker pool is rebuilt on demand, so a reset can never strand an in-flight or
   later request. No settings change; the recovery is automatic. (#589 #599)
 
+### CI
+
+- **Feature-coverage test system.** A backend route-inventory test diffs all 213
+  HTTP/WebSocket endpoints against a committed snapshot (plus a critical-endpoint
+  guard and a route-count floor), and a frontend feature-coverage test asserts
+  every app mode is wired to a page and every feature has its i18n namespace — so
+  an endpoint or page silently disappearing now fails CI on every PR.
+
 ## [0.3.7] — 2026-06-20
 
 A stabilization release that clears the wave of issues reported on the 0.3.6
