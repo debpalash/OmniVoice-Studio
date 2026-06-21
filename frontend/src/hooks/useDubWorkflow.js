@@ -80,6 +80,13 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
     const numSpeakers = useAppStore.getState().dubNumSpeakers;
     const evt = new EventSource(transcribeStreamUrl(jobId, numSpeakers));
     let gotFinal = false;
+    // Latch the real cause from a named `error` event. EventSource also fires
+    // its *native* error (no `data`) on any connection close, which can race
+    // and win against the backend's structured `error` event — if it did, we
+    // used to throw away the real cause and show the generic "stream dropped …
+    // ASR backend failed" message (#578). Holding the detail here lets the
+    // native-close handler surface the real cause instead.
+    let lastErrorDetail = null;
     const close = () => { try { evt.close(); } catch {} };
     const onAbortSignal = () => { close(); reject(Object.assign(new Error('aborted'), { name: 'AbortError' })); };
     ctrl.signal.addEventListener('abort', onAbortSignal, { once: true });
@@ -125,7 +132,18 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
     evt.addEventListener('done', () => { close(); ctrl.signal.removeEventListener('abort', onAbortSignal); resolve(); });
     evt.addEventListener('aborted', () => { close(); ctrl.signal.removeEventListener('abort', onAbortSignal); reject(Object.assign(new Error('aborted'), { name: 'AbortError' })); });
     evt.addEventListener('error', (e) => {
-      try { const m = e.data ? JSON.parse(e.data) : null; if (m && m.detail) { close(); reject(new Error(m.detail)); return; } } catch {}
+      // A named `error` event carries the real cause in `data.detail`. Latch
+      // it AND reject with it. The backend now always follows it with `done`,
+      // but we reject eagerly here so the cause survives even if the native
+      // connection-drop error arrives first/concurrently (#578).
+      try {
+        const m = e.data ? JSON.parse(e.data) : null;
+        if (m && m.detail) { lastErrorDetail = m.detail; close(); reject(new Error(m.detail)); return; }
+      } catch { /* malformed error payload — fall through */ }
+      // No fresh detail on this event (native EventSource connection error).
+      // If we already saw a structured error, surface its cause, not the
+      // generic message.
+      if (lastErrorDetail) { close(); reject(new Error(lastErrorDetail)); return; }
       if (gotFinal) { close(); resolve(); return; }
       close();
       reject(new Error('Transcribe stream dropped before emitting any segments. Likely ASR backend failed to load — check backend log + Settings → Models.'));

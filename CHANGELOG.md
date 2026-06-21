@@ -8,7 +8,25 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
-_Nothing yet — `main` is at v0.3.7 + 1 patch. New work lands here._
+### Fixed
+
+- **"Transcribe stream dropped … Likely ASR backend failed to load" now shows
+  the *real* reason.** When transcription failed to load its ASR model (the
+  reported case was WhisperX on Windows — typically a faster-whisper /
+  CTranslate2-cuDNN mismatch, a missing model download, or the torch-2.6
+  weights-only VAD regression), the UI dead-ended on a generic "stream dropped"
+  message with no actionable cause. Two root causes: (1) WhisperX loads lazily
+  *inside* transcription, so the load failure was buried in per-chunk errors and
+  retried on every chunk; the transcribe pre-flight now eagerly loads the ASR
+  model (new `ASRBackend.ensure_loaded()`), surfacing the genuine cause once, up
+  front, as a structured error. (2) Pre-flight and audio-load errors closed the
+  SSE stream with a bare `error` and no terminal `done`, so the browser's native
+  EventSource connection-drop could race and win against the structured error —
+  discarding the real cause and falling back to the generic message; every
+  terminal error now emits `done`, and the frontend latches the structured cause
+  so a connection drop can't overwrite it. Net: WhisperX load failures are
+  diagnosable instead of a silent dead-end. Fail-before/pass-after regression
+  test included. (#578)
 
 ## [0.3.7] — 2026-06-20
 
