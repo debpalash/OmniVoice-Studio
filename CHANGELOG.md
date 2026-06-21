@@ -27,6 +27,17 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   contact — less wall-of-text, faster to act on.
 ### Fixed
 
+- **`No module named 'omnivoice'` on installs whose venv lost its editable
+  record.** An interrupted or offline `uv sync` (common during an in-place
+  upgrade) could install all dependencies yet never lay the editable install of
+  the project's own `omnivoice` package — or an antivirus quarantine could
+  remove it. The venv still started uvicorn, so the bootstrap's health gate
+  passed it through, and the app only failed at the first generate/dub with
+  `No module named 'omnivoice'`. The bootstrap now also verifies `omnivoice` is
+  importable (via a cheap `find_spec`, no torch load) and forces a repair
+  `uv sync` that re-lays the editable install when it isn't; the backend also
+  resolves `omnivoice` from its bundled source tree at runtime as a safety net.
+  No reinstall needed — relaunch and it self-repairs. (#564)
 - **"cannot schedule new futures after shutdown" no longer breaks generate/dub
   after a slow first load.** When a model load timed out, the backend reset its
   GPU worker pool to recover — but several request handlers had captured the old

@@ -771,7 +771,33 @@ manually, then relaunch.",
         } else {
             false
         };
-        if matches!(uvicorn_check, Ok(ref s) if s.success()) && pkg_resources_ok {
+        // #564: a venv can pass the uvicorn + pkg_resources gates yet still be
+        // unable to import its OWN `omnivoice` package — an interrupted/offline
+        // `uv sync` installed deps but never laid the editable record, or an
+        // antivirus quarantine removed `_editable_impl_omnivoice.pth`. The
+        // backend then boots fine and only fails at the first model call with
+        // "No module named 'omnivoice'". Verify it here so we force a repair
+        // sync (which re-lays the editable install) instead of handing back a
+        // broken venv. `find_spec` resolves the package WITHOUT importing it, so
+        // this stays cheap — a real `import omnivoice` would pull in torch.
+        let omnivoice_ok = if matches!(uvicorn_check, Ok(ref s) if s.success()) {
+            let mut ov_check = Command::new(&venv_py);
+            scrub_python_env(&mut ov_check);
+            matches!(
+                ov_check
+                    .args([
+                        "-c",
+                        "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('omnivoice') else 1)",
+                    ])
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status(),
+                Ok(ref s) if s.success()
+            )
+        } else {
+            false
+        };
+        if matches!(uvicorn_check, Ok(ref s) if s.success()) && pkg_resources_ok && omnivoice_ok {
             // Always sync source dirs from bundle so code fixes land on
             // existing installs without requiring a full clean+reinstall.
             let resource_dir = app.path().resource_dir().ok();
@@ -847,13 +873,17 @@ the existing venv; newly added dependencies may be missing (#307)",
             return Some((venv_py, backend_dir));
         }
         if matches!(uvicorn_check, Ok(ref s) if s.success()) {
-            // uvicorn is fine but pkg_resources is missing (#248): setuptools>=80 was
-            // installed before the <80 pin landed (issue #224). Force a repair sync
-            // to downgrade setuptools to a version that ships pkg_resources.
+            // uvicorn is fine but pkg_resources (#248) and/or the omnivoice
+            // editable install (#564) is missing. pkg_resources: setuptools>=80
+            // (installed before the <80 pin in #224) dropped the bundled module.
+            // omnivoice: an interrupted/offline sync never laid the editable
+            // record. Either way a repair `uv sync` re-pins setuptools AND
+            // re-lays the editable install, so force it rather than hand back a
+            // venv that crashes at the first model call.
             log::warn!(
-                "Venv at {} is missing pkg_resources (setuptools>=80 pre-dates the <80 pin) \
-— re-running uv sync to repair (#248)",
-                venv_dir.display()
+                "Venv at {} starts uvicorn but failed a runtime-import gate \
+(pkg_resources_ok={}, omnivoice_ok={}) — re-running uv sync to repair (#248 #564)",
+                venv_dir.display(), pkg_resources_ok, omnivoice_ok
             );
         } else {
             log::warn!(
