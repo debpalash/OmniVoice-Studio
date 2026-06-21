@@ -69,6 +69,7 @@ _ALLOWED_FILES = {
     "omnivoice/models/omnivoice.py",              # instruct-mode vocabulary
     "omnivoice/utils/duration.py",
     "omnivoice/utils/voice_design.py",            # EN/CJK attribute maps
+    "backend/migrations/versions/0007_rebuild_poisoned_design_instruct.py",  # frozen CJK dialect-tag snapshot for the instruct heal (#564)
     # Localized error matching (classify OS errors reported in Chinese, #72)
     "frontend/src/utils/errorDocsMap.ts",
     # WER evaluation data
