@@ -8,7 +8,18 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
-_Nothing yet — `main` is at v0.3.7 + 1 patch. New work lands here._
+### Fixed
+
+- **Dubbing a YouTube URL no longer dies on a transient "Broken pipe."**
+  Pasting a video link could fail outright with `download: Unable to download
+  video: [Errno 32] Broken pipe` — a broken pipe raised while the write side of
+  a pipe closes mid-stream (a killed ffmpeg merge child, a CDN reset during
+  muxing). yt-dlp's own per-fragment retries don't cover that case, so a single
+  transient blip aborted the whole ingest. The URL download now retries up to
+  twice on broken-pipe / network-drop failures, wiping the partial download
+  between attempts, and only surfaces the (already-actionable) "connection
+  dropped — just retry" hint after the retries are exhausted. Unsupported links
+  still fail fast with their own hint — no wasted retries. (#579, #598)
 
 ## [0.3.7] — 2026-06-20
 
