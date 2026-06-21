@@ -157,3 +157,14 @@
   .support-toggle__opt svg { transition: none; }
   .support-view { animation: none; }
 }
+
+/* Contact page — the small monospace channel value under each card's
+   description (e.g. "discord.gg/…", "palash.dev"). */
+.contact-card__value {
+  margin-top: 4px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  color: var(--text-muted, #928374);
+  opacity: 0.85;
+  word-break: break-all;
+}

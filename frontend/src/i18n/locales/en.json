@@ -1066,6 +1066,8 @@
     "suggested_title": "Pick an amount",
     "most_common": "most common",
     "custom": "Custom",
+    "choose_method": "Choose how to give",
+    "choose_method_amount": "Continue with ${{amount}}",
     "goal": {
       "title": "Fund Claude Max",
       "of": "of",
@@ -1093,6 +1095,8 @@
     "desc": "Professional licensing and technical support for commercial users.",
     "back": "Back to Studio",
     "badge": "Commercial License",
+    "hero_simple": "OmniVoice Studio is free and open-source under the AGPL-3.0 — including for commercial and internal business use. You only need a commercial license to embed it in a closed-source product without AGPL’s copyleft obligations.",
+    "contact_lead": "Pricing is quoted per deployment so it fits your team and workload. Tell me your use case and I’ll get you a quote.",
     "hero_title": "Ship AI voices in production",
     "hero_desc": "OmniVoice Studio is free and open-source software under the GNU Affero General Public License v3 (AGPL-3.0) — free to use, including for commercial and internal business use. A commercial license is needed only if you want to embed OmniVoice Studio in a closed-source or proprietary product or service without AGPL-3.0's copyleft obligations.",
     "hero_note": "Use, self-hosting, and commercial use are all free under the AGPL-3.0 — including at scale. AGPL is a network-copyleft license: if you modify OmniVoice and offer that modified version to others over a network, you must share your modified source under the same terms. A commercial license lifts those copyleft obligations for proprietary, closed-source deployments. Pricing tiers are coming soon — get in touch in the meantime.",
@@ -1546,6 +1550,8 @@
     "join_discord_aria": "Join our Discord community",
     "support_project": "Support this project",
     "support_project_aria": "Support this project",
+    "contact": "Contact",
+    "contact_aria": "Open the contact page",
     "empty_frontend_short": "No frontend console output yet.",
     "empty_lines": "No lines.",
     "all_clear": "✅ All clear — no issues detected",
@@ -1860,6 +1866,18 @@
     "other_ways": "Other ways to help",
     "star_github": "Star on GitHub",
     "join_discord": "Join Discord"
+  },
+  "contact": {
+    "hero_title": "Get in touch",
+    "hero_desc": "Questions, bugs, licensing, or just to say hi — here’s how to reach me.",
+    "discord": "Discord",
+    "discord_desc": "Chat with the community and get help fast.",
+    "email": "Email",
+    "email_desc": "Licensing, partnerships, or anything private.",
+    "issues": "GitHub Issues",
+    "issues_desc": "Report a bug or request a feature.",
+    "website": "Website",
+    "website_desc": "More about the project and the maker."
   },
   "firstrun": {
     "loading": "Preparing setup…",
