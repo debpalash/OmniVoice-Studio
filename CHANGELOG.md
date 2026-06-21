@@ -8,7 +8,19 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
-_Nothing yet — `main` is at v0.3.7 + 1 patch. New work lands here._
+### Fixed
+
+- **An interrupted model download now self-repairs instead of dead-ending.**
+  When the OmniVoice TTS cache was missing weight shards (the usual aftermath of
+  an interrupted first download), the next synthesize failed with a 500 and a
+  "delete the model and install it again" instruction — a manual dead-end. The
+  backend now detects the truncated-cache error on load, re-fetches just the
+  missing files via `snapshot_download` (already-present blobs are skipped, so a
+  near-complete cache repairs in seconds and a healthy cache is never touched),
+  and retries the load automatically. Offline mode (`HF_HUB_OFFLINE`) is
+  respected — repair never makes a network call the user opted out of — and if
+  the re-fetch still can't fix it, the actionable delete-and-reinstall message
+  is preserved as the fallback. (#581)
 
 ## [0.3.7] — 2026-06-20
 
