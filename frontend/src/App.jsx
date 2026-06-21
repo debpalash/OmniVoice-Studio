@@ -22,6 +22,7 @@ const LogsFooter = lazy(() => import('./components/LogsFooter'));
 const ProjectsPage = lazy(() => import('./pages/Projects'));
 const VoiceGallery = lazy(() => import('./pages/VoiceGallery'));
 const SupportPage = lazy(() => import('./pages/SupportPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
 const TranscriptionsPage = lazy(() => import('./pages/Transcriptions'));
 const StoriesEditor = lazy(() => import('./components/StoriesEditor'));
 const AudiobookTab = lazy(() => import('./pages/AudiobookTab'));
@@ -205,7 +206,7 @@ function App() {
   const openVoiceProfile = useAppStore(s => s.openVoiceProfile);
   const closeVoiceProfile = useAppStore(s => s.closeVoiceProfile);
   const hideSidebar = mode === 'launchpad' || mode === 'settings' || mode === 'voice' || mode === 'donate'
-    || mode === 'queue' || mode === 'tools' || mode === 'projects' || mode === 'gallery' || mode === 'enterprise' || mode === 'transcriptions'
+    || mode === 'queue' || mode === 'tools' || mode === 'projects' || mode === 'gallery' || mode === 'enterprise' || mode === 'contact' || mode === 'transcriptions'
     || mode === 'stories' || mode === 'audiobook'
     // Voice (studio) and Dub workspaces moved their saved voices /
     // projects + history into right-side panels; left sidebar dissolved.
@@ -1141,6 +1142,12 @@ function App() {
           <ErrorBoundary name="enterprise">
             <Suspense fallback={<LazyFallback />}>
               <SupportPage initialView="license" onBack={() => setMode('launchpad')} />
+            </Suspense>
+          </ErrorBoundary>
+        ) : mode === 'contact' ? (
+          <ErrorBoundary name="contact">
+            <Suspense fallback={<LazyFallback />}>
+              <ContactPage onBack={() => setMode('launchpad')} />
             </Suspense>
           </ErrorBoundary>
         ) : mode === 'launchpad' ? (

@@ -8,7 +8,23 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
-_Nothing yet — `main` is at v0.3.7 + 1 patch. New work lands here._
+### Added
+
+- **A dedicated Contact page.** Discord, email, GitHub issues, and the project
+  website (palash.dev) as clean one-tap rows, reachable from the footer — so
+  reaching the maker is never more than a click away.
+
+### Changed
+
+- **Donations now go through Ko-fi or PayPal (GitHub Sponsors removed).** GitHub
+  Sponsors isn't available, so the Support page no longer routes there: pick an
+  amount (now $10 / $20 / $50) and then choose Ko-fi or PayPal — PayPal carries
+  the amount straight into checkout. `.github/FUNDING.yml` and the README badges
+  were updated to match.
+- **Simplified the Commercial License page.** Trimmed the six-tile benefit grid
+  and FAQ down to the three things that actually drive the decision (you own the
+  output, no per-minute cost, direct support) plus one clear "request a quote"
+  contact — less wall-of-text, faster to act on.
 
 ## [0.3.7] — 2026-06-20
 
