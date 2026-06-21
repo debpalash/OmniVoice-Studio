@@ -25,7 +25,16 @@ def _lazy_torch():
 def _lazy_omnivoice():
     global _OmniVoice
     if _OmniVoice is None:
-        from omnivoice.models.omnivoice import OmniVoice as _OV
+        try:
+            from omnivoice.models.omnivoice import OmniVoice as _OV
+        except ModuleNotFoundError:
+            # The venv's editable install is missing/broken (#564). main.py wires
+            # the source fallback at startup, but resolve it here too so the
+            # model-load path self-heals and logs the paths it searched.
+            from core.omnivoice_path import ensure_omnivoice_importable
+            _backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ensure_omnivoice_importable(_backend_dir, logger)
+            from omnivoice.models.omnivoice import OmniVoice as _OV
         _OmniVoice = _OV
     return _OmniVoice
 
