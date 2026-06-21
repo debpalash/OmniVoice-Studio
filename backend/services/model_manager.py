@@ -3,7 +3,7 @@ import time
 import asyncio
 import logging
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, Executor
 
 # ── Lazy imports ─────────────────────────────────────────────────────
 # torch and OmniVoice are heavy (~2-3s import on Apple Silicon).
@@ -25,7 +25,16 @@ def _lazy_torch():
 def _lazy_omnivoice():
     global _OmniVoice
     if _OmniVoice is None:
-        from omnivoice.models.omnivoice import OmniVoice as _OV
+        try:
+            from omnivoice.models.omnivoice import OmniVoice as _OV
+        except ModuleNotFoundError:
+            # The venv's editable install is missing/broken (#564). main.py wires
+            # the source fallback at startup, but resolve it here too so the
+            # model-load path self-heals and logs the paths it searched.
+            from core.omnivoice_path import ensure_omnivoice_importable
+            _backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ensure_omnivoice_importable(_backend_dir, logger)
+            from omnivoice.models.omnivoice import OmniVoice as _OV
         _OmniVoice = _OV
     return _OmniVoice
 
@@ -47,7 +56,7 @@ logger = logging.getLogger("omnivoice.model")
 _GPU_VRAM_PER_JOB_GB = 5.0
 _GPU_WORKER_CAP = 4
 
-_gpu_pool_singleton: "ThreadPoolExecutor | None" = None
+_gpu_pool_singleton: "_ResilientGpuPool | None" = None
 _cpu_pool = ThreadPoolExecutor(max_workers=CPU_POOL_WORKERS)
 
 
@@ -100,14 +109,82 @@ def _build_gpu_pool() -> ThreadPoolExecutor:
     return ThreadPoolExecutor(max_workers=workers, thread_name_prefix="gpu-pool")
 
 
-def _get_gpu_pool() -> ThreadPoolExecutor:
-    """Internal accessor. Same singleton as the module-level `_gpu_pool`
-    attribute, but resolvable from inside this module (Python's module
-    `__getattr__` only fires for unresolved lookups from *outside*).
+class _ResilientGpuPool(Executor):
+    """A stable, self-healing wrapper around the GPU `ThreadPoolExecutor`.
+
+    The crash this fixes (#589 #599): `_reset_gpu_pool()` shuts the pool down on
+    a model-load timeout, but consumers that captured the executor *object* at
+    import time (`from services.model_manager import _gpu_pool` at module level —
+    generation, dub_generate, dub_core, dub_translate, openai_compat) kept
+    submitting to the dead pool and got `RuntimeError: cannot schedule new
+    futures after shutdown` on the next generate/dub/translate.
+
+    Making `_gpu_pool` a single long-lived wrapper whose *inner* pool is swapped
+    means those references never go stale: every `submit()` resolves the live
+    pool, and a submit that races a shutdown rebuilds once and retries. Building
+    the inner pool stays lazy so we still size workers after torch's device
+    probe (the reason for the original `__getattr__` indirection).
+    """
+
+    def __init__(self):
+        self._pool: "ThreadPoolExecutor | None" = None
+        self._lock = threading.Lock()
+
+    def _live_pool(self) -> ThreadPoolExecutor:
+        pool = self._pool
+        if pool is None:
+            with self._lock:
+                if self._pool is None:
+                    self._pool = _build_gpu_pool()
+                pool = self._pool
+        return pool
+
+    def submit(self, fn, /, *args, **kwargs):
+        try:
+            return self._live_pool().submit(fn, *args, **kwargs)
+        except RuntimeError as e:
+            # "cannot schedule new futures after shutdown": the inner pool was
+            # reset (or torn down) under us. Rebuild once and retry so a stale
+            # caller self-heals instead of 500-ing. (Interpreter-shutdown races
+            # re-raise on the retry — we don't loop.)
+            if "shutdown" not in str(e).lower():
+                raise
+            with self._lock:
+                self._pool = _build_gpu_pool()
+                pool = self._pool
+            return pool.submit(fn, *args, **kwargs)
+
+    def reset(self) -> None:
+        """Abandon the current worker pool; the next submit builds a fresh one.
+
+        Python can't kill a thread wedged in a timed-out load, but dropping the
+        poisoned pool means a retry gets a clean worker instead of queueing
+        behind the wedged one. The wrapper identity is preserved, so references
+        held by importers stay valid.
+        """
+        with self._lock:
+            pool, self._pool = self._pool, None
+        if pool is not None:
+            try:
+                pool.shutdown(wait=False, cancel_futures=True)
+            except Exception:
+                pass
+
+    def shutdown(self, wait=True, *, cancel_futures=False):
+        with self._lock:
+            pool, self._pool = self._pool, None
+        if pool is not None:
+            pool.shutdown(wait=wait, cancel_futures=cancel_futures)
+
+
+def _get_gpu_pool() -> "_ResilientGpuPool":
+    """Internal accessor for the GPU pool singleton. Same object as the
+    module-level `_gpu_pool` attribute, but resolvable from inside this module
+    (Python's module `__getattr__` only fires for lookups from *outside*).
     """
     global _gpu_pool_singleton
     if _gpu_pool_singleton is None:
-        _gpu_pool_singleton = _build_gpu_pool()
+        _gpu_pool_singleton = _ResilientGpuPool()
     return _gpu_pool_singleton
 
 
@@ -462,6 +539,71 @@ def should_preload_tts_asr() -> bool:
     return _env_flag("OMNIVOICE_PRELOAD_TTS_ASR")
 
 
+def _is_incomplete_cache_error(exc: BaseException) -> bool:
+    """True when `exc` is the truncated-HF-cache class (#352 / #581).
+
+    transformers raises an OSError whose message contains "does not appear to
+    have a file named …" when the on-disk snapshot has config/tokenizer files
+    but no weight shard — the signature of an interrupted download. We match on
+    that phrase (stable across transformers 4.x/5.x) rather than the error type,
+    since the same OSError type covers unrelated I/O failures."""
+    return "does not appear to have a file named" in str(exc)
+
+
+def _hf_offline() -> bool:
+    """Respect HF's offline switches so repair never makes a network call the
+    user opted out of. `snapshot_download` would itself raise offline, but
+    checking up front lets us skip straight to the actionable message."""
+    return _env_flag("HF_HUB_OFFLINE") or _env_flag("TRANSFORMERS_OFFLINE")
+
+
+def _repair_model_cache(checkpoint: str) -> bool:
+    """Re-fetch a checkpoint's missing files in place and report success.
+
+    An interrupted download leaves the cache missing only some files;
+    `snapshot_download` resumes/fills exactly those (already-present, correctly
+    sized blobs are skipped by hash, so a near-complete cache repairs in
+    seconds and a complete one would no-op). Returns False — leaving the caller
+    to surface the actionable delete-and-reinstall message — when repair is
+    impossible (offline) or the re-fetch itself fails (no network, gated repo,
+    full disk). Never raises; repair is best-effort."""
+    if _hf_offline():
+        logger.warning(
+            "Model cache for %s is incomplete but HF offline mode is set — "
+            "cannot auto-repair.", checkpoint,
+        )
+        return False
+    try:
+        from huggingface_hub import snapshot_download
+    except Exception as imp_err:  # pragma: no cover - huggingface_hub is a hard dep
+        logger.warning("Cannot import snapshot_download to repair cache: %s", imp_err)
+        return False
+    logger.info("Auto-repairing incomplete model cache for %s …", checkpoint)
+    dl_kwargs: dict = {"repo_id": checkpoint}
+    endpoint = os.environ.get("HF_ENDPOINT")
+    if endpoint:
+        dl_kwargs["endpoint"] = endpoint
+    if os.name == "nt":
+        # Match the install path (download.py): avoid symlinks on Windows.
+        dl_kwargs["local_dir_use_symlinks"] = False
+    try:
+        snapshot_download(**dl_kwargs)
+    except TypeError:
+        # Older/newer huggingface_hub may not accept local_dir_use_symlinks
+        # on a cache-only call — retry without the optional knob.
+        dl_kwargs.pop("local_dir_use_symlinks", None)
+        try:
+            snapshot_download(**dl_kwargs)
+        except Exception as e:
+            logger.warning("Auto-repair of %s failed: %s", checkpoint, e)
+            return False
+    except Exception as e:
+        logger.warning("Auto-repair of %s failed: %s", checkpoint, e)
+        return False
+    logger.info("Auto-repair of %s completed; retrying model load.", checkpoint)
+    return True
+
+
 def _load_model_sync():
     global model
     from utils.hf_progress import register_listener, unregister_listener
@@ -496,23 +638,43 @@ def _load_model_sync():
             logger.info("Preloading PyTorch Whisper with TTS model.")
         else:
             logger.info("Skipping PyTorch Whisper preload; ASR will load on demand.")
-        try:
-            _model = OmniVoice.from_pretrained(
+        def _load():
+            return OmniVoice.from_pretrained(
                 checkpoint, device_map=device, dtype=torch.float16, load_asr=preload_asr,
             )
+
+        try:
+            _model = _load()
         except OSError as e:
-            # #352: a truncated HF cache surfaces here as "does not appear to
-            # have a file named pytorch_model.bin or model.safetensors".
-            # Translate to an actionable message instead of the raw
-            # transformers error.
-            if "does not appear to have a file named" in str(e):
+            # #352 / #581: a truncated HF cache surfaces here as "does not
+            # appear to have a file named pytorch_model.bin or
+            # model.safetensors". Instead of dead-ending the user with a
+            # manual delete-and-reinstall instruction, try to self-repair: an
+            # interrupted download leaves the cache missing only some files,
+            # and snapshot_download() resumes/fills exactly those (a complete
+            # cache never reaches this branch, so the fast path is untouched).
+            if not _is_incomplete_cache_error(e):
+                raise
+            _set_loading("loading_weights", "Repairing incomplete model cache…")
+            if not _repair_model_cache(checkpoint):
                 raise RuntimeError(
                     f"The TTS model cache for {checkpoint} is incomplete "
                     "(weights missing — usually an interrupted download). "
                     "Open Settings → Models, delete the OmniVoice TTS model, "
                     "and install it again."
                 ) from e
-            raise
+            _set_loading("loading_weights", f"Loading TTS weights on {device}…")
+            try:
+                _model = _load()
+            except OSError as e2:
+                # Repair ran but the cache is still unusable (e.g. the repo
+                # genuinely lacks weights, or the disk is corrupt). Fall back
+                # to the actionable message rather than the raw error.
+                raise RuntimeError(
+                    f"The TTS model cache for {checkpoint} is incomplete and "
+                    "could not be auto-repaired. Open Settings → Models, delete "
+                    "the OmniVoice TTS model, and install it again."
+                ) from e2
 
         try:
             # plan-02 (#65): gate on Triton availability (+ user setting), not
@@ -584,19 +746,15 @@ def _model_load_timeout() -> float:
 
 
 def _reset_gpu_pool() -> None:
-    """Drop the GPU pool singleton so the next access builds a fresh one.
+    """Recover from a wedged/timed-out load by abandoning the GPU worker pool.
 
-    Python can't kill the thread stuck in a timed-out load, but abandoning the
-    poisoned single-worker pool means a *retry* gets a clean worker instead of
-    queueing forever behind the wedged one.
+    The resilient wrapper is kept (its identity is shared by every importer);
+    only its inner `ThreadPoolExecutor` is dropped, so the next submit builds a
+    fresh worker. This is what stops stale references from raising "cannot
+    schedule new futures after shutdown" after a reset (#589 #599).
     """
-    global _gpu_pool_singleton
-    pool, _gpu_pool_singleton = _gpu_pool_singleton, None
-    if pool is not None:
-        try:
-            pool.shutdown(wait=False, cancel_futures=True)
-        except Exception:
-            pass
+    if _gpu_pool_singleton is not None:
+        _gpu_pool_singleton.reset()
 
 
 async def _load_model_with_timeout():

@@ -129,6 +129,22 @@ class ASRBackend(ABC):
         that already speak the shape plug in with zero adapter work.
         """
 
+    def ensure_loaded(self) -> None:
+        """Eagerly load the model weights, raising the real cause on failure.
+
+        Backends load lazily inside ``transcribe()`` by default, so a load
+        failure (missing weights, CUDA/cuDNN mismatch, torch-2.6 weights-only
+        VAD regression, import error) first surfaces buried in per-chunk
+        errors — and is retried on *every* chunk. The transcribe preflight
+        calls this so the genuine cause is surfaced once, up front, as a clean
+        terminal error event instead of N cryptic per-chunk failures (#578).
+
+        Default is a no-op; backends that hold a heavy model override it to
+        trigger their lazy loader. It MUST raise the underlying exception (not
+        swallow it) so the caller can classify and surface it.
+        """
+        pass
+
     def unload(self) -> None:
         """Release the model from memory."""
         pass
@@ -170,6 +186,13 @@ class WhisperXBackend(ASRBackend):
             return True, "ready"
         except ImportError as e:
             return False, f"whisperx not installed: {e}"
+
+    def ensure_loaded(self) -> None:
+        # Surface a whisperx/CTranslate2/torch load failure at preflight (once,
+        # with the real cause) instead of buried per-chunk and retried N times
+        # (#578). Re-raises whatever `_ensure_asr` raises after its fp16→int8
+        # and OOM→CPU fallbacks are exhausted.
+        self._ensure_asr()
 
     def _ensure_asr(self):
         if self._asr is not None:
