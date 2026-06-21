@@ -8,7 +8,26 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
-_Nothing yet — `main` is at v0.3.7 + 1 patch. New work lands here._
+### Fixed
+
+- **Dubbing: the PLAY button on the dubbed-video preview did nothing.** Same
+  autoplay-policy trap that #510 fixed for the standalone audio player, but the
+  dub editor's timeline player was missed. WaveSurfer builds its `AudioContext`
+  at mount — before any user gesture — so on Windows WebView2 (and Linux
+  Firefox/Chrome, Android Chrome) it stays `"suspended"`; `playPause()` then
+  resolves with no sound and the preview just sits there. Every playback entry
+  point in the dub timeline (the toolbar Play button and the per-segment "play
+  this slot") now resumes the context via the shared `unlockAudio()` on the
+  click before starting playback, and swallowed play() rejections are logged
+  instead of hidden. A source-contract regression test pins the invariant so a
+  future refactor can't quietly reintroduce a silent play path. macOS is
+  unaffected (its context was never blocked). (#595)
+- **Voice design: the script text field couldn't be expanded.** The Script
+  textarea was a `flex: 1` item inside a flex column, so flex-grow recomputed
+  its height on every reflow and snapped the user's drag back — `resize:
+  vertical` is silently ignored on a flex-grown item in Chromium/WebView2. The
+  field now owns its own height (starts taller, and the corner grip grows it
+  reliably on every platform). (#595)
 
 ## [0.3.7] — 2026-06-20
 

@@ -5,6 +5,7 @@ import TimelinePlugin from 'wavesurfer.js/dist/plugins/timeline.esm.js';
 import { Play, Pause, ZoomIn, ZoomOut, SkipBack, Loader, Keyboard, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
+import { unlockAudio } from '../utils/audioUnlock';
 import SegmentTrack from './SegmentTrack';
 import './WaveformErrorBoundary.css';
 
@@ -489,7 +490,10 @@ function WaveformTimeline({
   // timeupdate watcher wired in the init effect. Used by the SegmentTrack
   // ("play this slot") on whatever media the player currently holds, so it
   // respects the original/dubbed preview toggle for free.
-  const playRange = useCallback((start, end) => {
+  const playRange = useCallback(async (start, end) => {
+    // Same autoplay-policy unlock as togglePlay (#595): resume the suspended
+    // AudioContext on this user gesture before kicking off playback.
+    try { await unlockAudio(); } catch { /* ignore */ }
     playRangeEndRef.current = end;
     const ws = wsRef.current;
     if (ws) {
@@ -517,14 +521,22 @@ function WaveformTimeline({
     }
   }, []);
 
-  const togglePlay = useCallback(() => {
+  const togglePlay = useCallback(async () => {
+    // Browser autoplay policy (Linux FF/Chrome, Windows WebView2, Android
+    // Chrome): WaveSurfer's AudioContext is constructed at mount — before any
+    // user gesture — and stays "suspended", so playPause() resolves without a
+    // sound and the dub video preview just sits there (#595, same class as
+    // #510 already fixed in WaveformPlayer). This click IS the gesture —
+    // explicitly resume before play. No-op on macOS where it never blocked.
+    try { await unlockAudio(); } catch { /* play() will surface real errors */ }
     if (wsRef.current) {
-      wsRef.current.playPause();
+      try { await wsRef.current.playPause(); }
+      catch (e) { console.warn('WaveformTimeline: play failed:', e); }
     } else if (mediaElRef.current) {
       // Fallback: control the native media element directly
       const el = mediaElRef.current;
       if (el.paused) {
-        el.play().catch(() => {});
+        el.play().catch((e) => console.warn('WaveformTimeline: play failed:', e));
       } else {
         el.pause();
       }

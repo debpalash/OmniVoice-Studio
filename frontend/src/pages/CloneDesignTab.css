@@ -272,12 +272,16 @@
 
 /* Text input + textarea tweaks */
 .clone-text-area {
-  flex: 1;
-  /* Re-enable the corner grip (matches base textarea.input-base). The ⊕ Insert
-     button is lifted off the bottom-right so it no longer covers the handle
-     (#481). */
+  /* #595: the script field "couldn't be expanded". It was `flex: 1` inside a
+     flex column, so flex-grow recomputed its height on every reflow and
+     snapped the user's drag back — `resize: vertical` is silently ignored on a
+     flex-grown item in Chromium/WebView2 (Windows). Drop flex-grow (`flex: 0 1
+     auto`) so the textarea owns its height: it starts at min-height and the
+     corner grip now grows it reliably on every platform. The ⊕ Insert button is
+     lifted off the bottom-right so it doesn't cover the grip (#481). */
+  flex: 0 1 auto;
   resize: vertical;
-  min-height: 60px;
+  min-height: 160px;
   margin-bottom: 6px;
 }
 .clone-auto-extract-btn { border-color: #b8bb26; color: #b8bb26; }
