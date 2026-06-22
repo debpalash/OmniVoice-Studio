@@ -10,6 +10,14 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Added
 
+- **Confucius4-TTS engine scaffold (opt-in, #590).** Plumbing for the
+  netease-youdao LLM-based 14-language cross-lingual zero-shot cloning engine —
+  registration, dedicated Python 3.10/CUDA venv bootstrap, and the sidecar wire
+  protocol, mirroring the dots.tts/MOSS pattern. Gated behind
+  `OMNIVOICE_CONFUCIUS4_TTS_DIR` so it is completely inert until opted in. The
+  sidecar's synthesis calls are README-derived and need on-hardware validation
+  before the engine is production-ready (see docs/engines/confucius4-tts.md).
+
 - **Tagged scripts auto-cast into a multi-voice podcast/audiobook.** Paste a
   `[Alice] … [Bob] …` script into Stories and hit Auto-cast: it now recognizes
   the `[Name]` tag format (alongside the existing `NAME:` screenplay and quoted

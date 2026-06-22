@@ -1158,6 +1158,12 @@ _LAZY_REGISTRY: dict[str, tuple[str, str]] = {
     # IndexTTS2. Lazy for the same import-cycle reason as the entries above.
     "moss-tts-v15": ("engines.moss_tts_v15", "MossTTSV15Backend"),
     "dots-tts": ("engines.dots_tts", "DotsTTSBackend"),
+    # Issue #590: Confucius4-TTS (netease-youdao) — LLM-based, 14-language
+    # cross-lingual zero-shot cloning, Apache-2.0. Opt-in + subprocess-isolated
+    # (own Python 3.10 + CUDA venv) like the entries above. ⚠️ scaffold: the
+    # sidecar's synthesis API is README-derived and needs hardware validation;
+    # it's gated behind OMNIVOICE_CONFUCIUS4_TTS_DIR so it's inert until enabled.
+    "confucius4-tts": ("engines.confucius4", "Confucius4Backend"),
 }
 
 
