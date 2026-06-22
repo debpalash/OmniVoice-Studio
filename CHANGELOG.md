@@ -34,6 +34,14 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   contact — less wall-of-text, faster to act on.
 ### Fixed
 
+- **First-run demo voice is back.** The bundled demo clip
+  (`backend/assets/samples/demo_voice.wav`) was a build artifact that never got
+  committed, so it shipped absent — onboarding logged "Demo audio not found" and
+  seeded nothing, leaving a brand-new install with an empty Launchpad and no
+  `/demo_audio` route. The clip is now committed (it's already un-ignored and
+  bundled via the Tauri `backend` resource), so first-run seeds the demo voice
+  on every platform; onboarding still degrades gracefully (with a regenerate
+  hint) if it's ever absent. (#621)
 - **Multi-speaker dubbing: two speakers' turns merged onto one line are now
   split apart.** Segmentation groups words into sentences *before* diarization
   runs, so a back-and-forth exchange could land in a single segment; the speaker
