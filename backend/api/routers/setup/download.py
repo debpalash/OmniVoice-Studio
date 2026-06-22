@@ -21,7 +21,17 @@ from pydantic import BaseModel
 from core import prefs
 from utils import hf_progress
 from utils import download_aggregator
-from .models import KNOWN_MODELS, invalidate_cache
+# Weight-floor scan (MM2-07 / #352) lives in ``models.py`` — the lowest module in
+# the setup import graph — so install-time validation here, the first-run
+# install-state detector (#622), and load-time repair share one set of floors and
+# can't drift apart. ``_MIN_WEIGHT_BYTES``/``_WEIGHT_FLOORS`` re-exported for tests.
+from .models import (  # noqa: F401
+    KNOWN_MODELS,
+    invalidate_cache,
+    snapshot_has_weights,
+    _MIN_WEIGHT_BYTES,
+    _WEIGHT_FLOORS,
+)
 
 logger = logging.getLogger("omnivoice.setup.download")
 router = APIRouter()
@@ -223,51 +233,26 @@ def _safe_put(queue: asyncio.Queue, event) -> None:
 # model.safetensors" (#352). 5 MB clears every weight format we ship
 # (safetensors/bin shards, onnx, pt, gguf) without false-positiving on
 # config-only aux repos.
-_MIN_WEIGHT_BYTES = 5 * 1024 * 1024
-
-# Per-role weight-file floors (MM2-07). A valid model has at least one
-# recognized weight file at or above its extension's floor. ONNX graphs are
-# legitimately small (a complete model can be well under 5 MB), so a single
-# 5 MB rule false-positives on them as "truncated" (#352 over-trigger); give
-# .onnx a lower floor while still rejecting a 0/KB partial. Tensor formats keep
-# the original 5 MB floor.
-_WEIGHT_FLOORS = {
-    ".safetensors": _MIN_WEIGHT_BYTES,
-    ".bin": _MIN_WEIGHT_BYTES,
-    ".ckpt": _MIN_WEIGHT_BYTES,
-    ".pt": _MIN_WEIGHT_BYTES,
-    ".pth": _MIN_WEIGHT_BYTES,
-    ".gguf": _MIN_WEIGHT_BYTES,
-    ".onnx": 64 * 1024,   # a real ONNX graph is ≥ tens of KB; a truncated one is bytes
-}
-
-
 def _validate_snapshot_has_weights(repo_id: str, snapshot_path: str) -> None:
     """Raise OSError when a finished snapshot has no plausible weight file —
     surfaces the truncated-download class (#352) at install time, where the
     retry loop and the UI's re-download path can deal with it, instead of at
     first synthesis with an opaque transformers error.
 
-    A snapshot is valid if it contains a recognized weight file meeting its
-    per-extension floor (MM2-07) OR any file ≥ the global 5 MB floor (the
-    original lenient catch — kept so this is never stricter than before)."""
+    Delegates the weight check to ``models.snapshot_has_weights`` (single source of
+    the floors); only the install-time error message lives here."""
+    if snapshot_has_weights(snapshot_path):
+        return
+    biggest = 0
     try:
-        biggest = 0
         for root, _dirs, files in os.walk(snapshot_path, followlinks=True):
             for f in files:
                 try:
-                    size = os.path.getsize(os.path.join(root, f))
+                    biggest = max(biggest, os.path.getsize(os.path.join(root, f)))
                 except OSError:
                     continue
-                biggest = max(biggest, size)
-                ext = os.path.splitext(f)[1].lower()
-                floor = _WEIGHT_FLOORS.get(ext)
-                if floor is not None and size >= floor:
-                    return  # a recognized weight file of plausible size
-                if size >= _MIN_WEIGHT_BYTES:
-                    return  # original lenient catch (non-standard weight names)
     except OSError:
-        return  # can't inspect — don't block the install on the checker itself
+        pass
     raise OSError(
         f"{repo_id}: download finished but no model weights were found in the "
         "snapshot (largest file "

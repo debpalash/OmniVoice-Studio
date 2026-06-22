@@ -146,6 +146,94 @@ def _hub_cache_roots() -> list[str]:
     return roots
 
 
+# ── Weight-presence (truncated-cache) detection ─────────────────────────────
+# A cache that downloaded config/tokenizer files but not the weight shard still
+# occupies bytes on disk, so a size-only "installed" check (#352/#581/#606) reads
+# it as installed and the first-run wizard hides the re-download button, stranding
+# the user (#622). These helpers tell a *complete* snapshot from a truncated one by
+# checking for a plausible weight file — the same class `download.py` guards at
+# install time and `model_manager.py` repairs at load time. Shared here (the lowest
+# module in the setup import graph; `download.py` imports from this module) so the
+# floors live in exactly one place and can't drift between the three call sites.
+
+_MIN_WEIGHT_BYTES = 5 * 1024 * 1024  # tensor formats: a real shard is ≥ a few MB
+
+# Per-extension floors. ONNX graphs are legitimately small (a complete model can be
+# well under 5 MB), so they get a lower floor that still rejects a bytes-only partial.
+_WEIGHT_FLOORS = {
+    ".safetensors": _MIN_WEIGHT_BYTES,
+    ".bin": _MIN_WEIGHT_BYTES,
+    ".ckpt": _MIN_WEIGHT_BYTES,
+    ".pt": _MIN_WEIGHT_BYTES,
+    ".pth": _MIN_WEIGHT_BYTES,
+    ".gguf": _MIN_WEIGHT_BYTES,
+    ".onnx": 64 * 1024,
+}
+
+
+def snapshot_has_weights(snapshot_path: str) -> bool:
+    """True when a finished snapshot dir holds a plausible weight file.
+
+    A snapshot is complete if it contains a recognized weight file meeting its
+    per-extension floor OR any file ≥ the global 5 MB floor (the lenient catch for
+    non-standard weight names). Returns True when the path can't be inspected — an
+    un-walkable dir must never be reported as truncated, only a confirmed weight-less
+    one. `getsize` follows symlinks, so HF's snapshot→blob links resolve correctly;
+    a broken link (missing blob) raises OSError and is skipped, i.e. counts as absent.
+    """
+    try:
+        for root, _dirs, files in os.walk(snapshot_path, followlinks=True):
+            for f in files:
+                try:
+                    size = os.path.getsize(os.path.join(root, f))
+                except OSError:
+                    continue
+                ext = os.path.splitext(f)[1].lower()
+                floor = _WEIGHT_FLOORS.get(ext)
+                if floor is not None and size >= floor:
+                    return True
+                if size >= _MIN_WEIGHT_BYTES:
+                    return True
+    except OSError:
+        return True  # can't inspect — don't mislabel as truncated
+    return False
+
+
+def _snapshot_dirs(repo_id: str) -> list[str]:
+    """Existing snapshot revision dirs for a repo across the candidate cache roots."""
+    name = _repo_dir_name(repo_id)
+    dirs: list[str] = []
+    for root in _hub_cache_roots():
+        snaps = os.path.join(root, name, "snapshots")
+        try:
+            for rev in os.listdir(snaps):
+                rev_dir = os.path.join(snaps, rev)
+                if os.path.isdir(rev_dir):
+                    dirs.append(rev_dir)
+        except OSError:
+            continue
+    return dirs
+
+
+def cache_is_complete(model: dict) -> bool:
+    """True when this model's on-disk cache is usable (not a truncated download).
+
+    Config-only repos (``config_only: true`` in models.yaml — e.g. pyannote's
+    diarisation pipeline, whose real weights live in referenced sub-repos) carry no
+    weight file of their own, so the weight check would false-positive them as
+    incomplete (#622 caveat). They're exempt: cache presence alone means complete.
+    A weight-bearing repo is complete only if at least one of its snapshots has
+    weights; if no snapshot dir is found on disk we can't prove truncation, so we
+    don't downgrade (the size-based caller already decided it's cached).
+    """
+    if model.get("config_only"):
+        return True
+    dirs = _snapshot_dirs(model["repo_id"])
+    if not dirs:
+        return True
+    return any(snapshot_has_weights(d) for d in dirs)
+
+
 def _is_cached_on_disk(repo_id: str) -> bool:
     """Direct-filesystem fallback for is_cached when scan_cache_dir is unavailable.
 
@@ -286,9 +374,15 @@ def list_models():
     out = []
     for m in KNOWN_MODELS:
         cached = cached_by_repo.get(m["repo_id"])
+        on_disk = cached is not None and cached["size_on_disk"] > 0
+        # A size-positive cache can still be a truncated download (config landed,
+        # weight shard didn't). Treat that as not-installed + incomplete so the
+        # wizard re-offers the download instead of stranding the user (#622).
+        incomplete = on_disk and not cache_is_complete(m)
         out.append({
             **m,
-            "installed": cached is not None and cached["size_on_disk"] > 0,
+            "installed": on_disk and not incomplete,
+            "incomplete": incomplete,
             "size_on_disk_bytes": cached["size_on_disk"] if cached else 0,
             "nb_files": cached["nb_files"] if cached else 0,
             "supported": _model_supported(m),
@@ -383,6 +477,9 @@ def recommendations():
     entries = []
     for rid in recommended_ids:
         meta = known_by_id.get(rid, {})
+        # Mirror /models: a truncated cache (weights missing) is not installed, so
+        # the wizard counts it toward the remaining download instead of "all set".
+        installed = rid in cached_ids and cache_is_complete(meta or {"repo_id": rid})
         entries.append({
             "repo_id": rid,
             "label": meta.get("label", rid),
@@ -390,7 +487,7 @@ def recommendations():
             "size_gb": meta.get("size_gb", 0),
             "required": bool(meta.get("required", False)),
             "note": meta.get("note"),
-            "installed": rid in cached_ids,
+            "installed": installed,
         })
 
     to_download_gb = sum(e["size_gb"] for e in entries if not e["installed"])
