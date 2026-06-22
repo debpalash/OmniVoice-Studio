@@ -34,6 +34,15 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   contact — less wall-of-text, faster to act on.
 ### Fixed
 
+- **A silent startup hang now leaves a diagnostic instead of nothing.** On some
+  setups the backend could load all model weights and then hang forever before
+  "Application startup complete" — no error, no crash, an unusable app (reported
+  as a Mac M1 hang after `Loading weights: 527/527`, #632). A startup watchdog
+  now dumps every thread's stack to the error log if startup stalls past a
+  window (default 5 min, `OMNIVOICE_STARTUP_WATCHDOG_S` to tune, `0` to disable),
+  so the deadlock is captured rather than invisible. It's disarmed the instant
+  startup finishes, so a normal (even slow-first-download) boot never trips it.
+  (#632)
 - **Multi-speaker dubbing: two speakers' turns merged onto one line are now
   split apart.** Segmentation groups words into sentences *before* diarization
   runs, so a back-and-forth exchange could land in a single segment; the speaker

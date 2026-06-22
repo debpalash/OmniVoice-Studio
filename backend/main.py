@@ -387,6 +387,25 @@ def _env_flag(name: str, default: bool = False) -> bool:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup watchdog (#632): a silent hang during startup (e.g. a model-load /
+    # MCP deadlock on some platforms) means "Application startup complete" never
+    # logs and the app sits forever with no error. If startup hasn't finished
+    # within the window, dump every thread's stack to stderr (→ backend_err.log)
+    # so the hang point is captured instead of invisible. Cancelled the instant
+    # startup completes, so a normal (even slow-download) boot never trips it.
+    # Tune with OMNIVOICE_STARTUP_WATCHDOG_S (seconds; 0 disables). Best-effort —
+    # never let the diagnostic itself break startup.
+    _watchdog_armed = False
+    try:
+        import faulthandler
+        _wd = float(os.environ.get("OMNIVOICE_STARTUP_WATCHDOG_S", "300"))
+        if _wd > 0 and hasattr(faulthandler, "dump_traceback_later"):
+            faulthandler.dump_traceback_later(_wd, repeat=False, exit=False)
+            _watchdog_armed = True
+            logger.info("Startup watchdog armed: thread dump if startup exceeds %.0fs (#632).", _wd)
+    except Exception:
+        pass
+
     init_db()
     # Network sharing is loopback-only by default; the PIN middleware stays
     # inert until enable() sets a PIN. Seed the (disabled) state so the
@@ -483,6 +502,13 @@ async def lifespan(app: FastAPI):
                 logger.info("MCP server mounted at /mcp")
             except Exception as e:
                 logger.warning("MCP session manager failed to start: %s", e)
+        # Startup finished — disarm the hang watchdog before serving (#632).
+        if _watchdog_armed:
+            try:
+                import faulthandler
+                faulthandler.cancel_dump_traceback_later()
+            except Exception:
+                pass
         yield
     # ── Graceful shutdown (SIGTERM from Tauri, Ctrl+C, etc.) ────────────
     logger.info("Shutdown: cleaning up…")
