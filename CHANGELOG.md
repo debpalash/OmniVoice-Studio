@@ -34,6 +34,17 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   contact — less wall-of-text, faster to act on.
 ### Fixed
 
+- **Multi-speaker dubbing: two speakers' turns merged onto one line are now
+  split apart.** Segmentation groups words into sentences *before* diarization
+  runs, so a back-and-forth exchange could land in a single segment; the speaker
+  pass then only *relabelled* that segment with its majority speaker, losing the
+  turn boundary (the second half of #486; the per-speaker voice auto-assign was
+  fixed earlier in #490). A new post-diarization pass re-splits any segment whose
+  words span more than one speaker at the word-level boundary, assigning each
+  piece its own speaker. Single-speaker segments pass through **byte-for-byte
+  unchanged**, so single-speaker dubs and their timing never move, and a lone
+  mis-attributed word (diarization noise) is smoothed rather than causing a
+  spurious split. (#486)
 - **Designed voices saved with a bad style no longer render wrong or crash
   generation.** A designed voice could persist an `instruct` the engine
   validator rejects — either the literal `"[object Object]"` from an old build,

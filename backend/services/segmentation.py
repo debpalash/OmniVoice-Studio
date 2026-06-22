@@ -542,3 +542,146 @@ def assign_speakers_heuristic(segments: List[dict]) -> List[dict]:
         s["speaker_id"] = f"Speaker {current}"
         last_end = s["end"]
     return segments
+
+
+# ── Speaker-aware re-split (#486) ────────────────────────────────────────────
+#
+# Segmentation runs BEFORE diarization and groups words by sentence/duration
+# only, so one segment can span two speakers' turns. assign_speakers_* then only
+# *relabels* each segment with its majority speaker — the boundary is lost and a
+# two-speaker exchange reads as one line. This pass re-splits such a segment at
+# the word-level speaker boundary, after diarization.
+#
+# Hard invariant (the single-speaker no-regression guarantee): a segment whose
+# words all map to ONE speaker is returned byte-for-byte unchanged — same dict,
+# id, text, start, end — so single-speaker dubs and their timing never move.
+
+def _word_speaker(w: "Word", turns: Sequence[tuple]) -> Optional[str]:
+    """Majority-overlap speaker label for a word; midpoint membership as a
+    fallback; ``None`` when the word has no diarization coverage at all."""
+    acc: dict = {}
+    for ts, te, label in turns:
+        left = max(w.start, ts)
+        right = min(w.end, te)
+        if right > left:
+            acc[label] = acc.get(label, 0.0) + (right - left)
+    if acc:
+        return max(acc.items(), key=lambda kv: kv[1])[0]
+    mid = (w.start + w.end) / 2.0
+    for ts, te, label in turns:
+        if ts <= mid <= te:
+            return label
+    return None
+
+
+def _fill_and_smooth(labels: List[Optional[str]]) -> List[Optional[str]]:
+    """Forward/back-fill gaps (words with no coverage inherit a neighbor) and
+    smooth single-word flips, so one mis-attributed word inside a speaker's run
+    (diarization noise) doesn't trigger a spurious split."""
+    out = list(labels)
+    n = len(out)
+    last = None
+    for i in range(n):
+        if out[i] is None:
+            out[i] = last
+        else:
+            last = out[i]
+    nxt = None
+    for i in range(n - 1, -1, -1):
+        if out[i] is None:
+            out[i] = nxt
+        else:
+            nxt = out[i]
+    for i in range(1, n - 1):
+        if out[i] != out[i - 1] and out[i - 1] == out[i + 1]:
+            out[i] = out[i - 1]
+    return out
+
+
+def _resplit_core(
+    segments: List[dict], words: Sequence["Word"], turns: Sequence[tuple],
+) -> List[dict]:
+    """Split each segment that spans >1 speaker at the word-level boundary.
+
+    ``turns`` is a normalised list of ``(start, end, speaker_label)``. Single-
+    speaker segments are passed through untouched. Pieces keep the segment's
+    outer start/end (preserving any onset-snap) and use word times for interior
+    boundaries, so the pieces exactly cover the original span.
+    """
+    if not turns or not words:
+        return segments
+    ordered = sorted(words, key=lambda w: (w.start, w.end))
+    out: List[dict] = []
+    for seg in segments:
+        s0, s1 = seg["start"], seg["end"]
+        seg_words = [w for w in ordered if min(w.end, s1) - max(w.start, s0) > 1e-6]
+        if len(seg_words) < 2:
+            out.append(seg)
+            continue
+        labels = _fill_and_smooth([_word_speaker(w, turns) for w in seg_words])
+        if len({l for l in labels if l is not None}) <= 1:
+            out.append(seg)  # single speaker (or unknown) → byte-for-byte unchanged
+            continue
+        runs: List[tuple] = []
+        for w, label in zip(seg_words, labels):
+            if runs and runs[-1][0] == label:
+                runs[-1][1].append(w)
+            else:
+                runs.append((label, [w]))
+        n_runs = len(runs)
+        piece_no = 0
+        for k, (label, ws) in enumerate(runs):
+            text = _clean(" ".join(w.text for w in ws))
+            if not text:
+                continue
+            piece = dict(seg)
+            piece["text"] = text
+            piece["start"] = s0 if k == 0 else ws[0].start
+            piece["end"] = s1 if k == n_runs - 1 else ws[-1].end
+            if label:
+                piece["speaker_id"] = label
+            if piece_no > 0:
+                piece["id"] = f"{seg.get('id', 'seg')}-{piece_no}"
+                if "text_original" in piece:
+                    piece["text_original"] = text
+            elif "text_original" in piece:
+                piece["text_original"] = text
+            out.append(piece)
+            piece_no += 1
+    return out
+
+
+def _diar_speaker_label(raw) -> str:
+    """``SPEAKER_00`` → ``Speaker 1`` (mirrors assign_speakers_from_diarization)."""
+    try:
+        return f"Speaker {int(str(raw).split('_')[-1]) + 1}"
+    except (ValueError, AttributeError):
+        return str(raw)
+
+
+def resplit_segments_by_diarization(
+    segments: List[dict], words: Sequence["Word"], diarization,
+) -> List[dict]:
+    """Speaker-aware re-split using a pyannote diarization result (#486)."""
+    turns = [
+        (turn.start, turn.end, _diar_speaker_label(spk))
+        for turn, _, spk in diarization.itertracks(yield_label=True)
+    ]
+    return _resplit_core(segments, words, turns)
+
+
+def resplit_segments_by_turns(
+    segments: List[dict], words: Sequence["Word"], turns: Sequence[dict],
+) -> List[dict]:
+    """Speaker-aware re-split using inline ASR speaker turns (FunASR cam++).
+
+    ``speaker`` is used verbatim (FunASR already labels ``"Speaker N"``), matching
+    :func:`assign_speakers_from_turns`."""
+    norm = [
+        (t["start"], t["end"], t["speaker"])
+        for t in (turns or [])
+        if t.get("speaker") is not None
+        and t.get("start") is not None
+        and t.get("end") is not None
+    ]
+    return _resplit_core(segments, words, norm)

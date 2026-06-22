@@ -23,6 +23,9 @@ from services.segmentation import (
     assign_speakers_from_diarization,
     assign_speakers_from_turns,
     assign_speakers_heuristic,
+    resplit_segments_by_diarization,
+    resplit_segments_by_turns,
+    _words_from_whisper,
     clean_up_segments,
 )
 from services.onset_align import snap_segment_starts
@@ -491,6 +494,9 @@ async def dub_transcribe_stream(
             logger.warning("offload_tts_for_asr failed (continuing): %s", e)
 
         all_segments: list[dict] = []
+        # Words (global-timeline) retained so diarization can re-split a segment
+        # that spans two speakers' turns at the word boundary (#486).
+        all_words: list = []
         detected_lang = None
         next_seg_id = 0
         chunk_errors: list[str] = []
@@ -574,6 +580,12 @@ async def dub_transcribe_stream(
                 detected_lang = part["language"]
             asr_speaker_turns.extend(part.get("speaker_turns") or [])
             chunk_segs = segment_transcript(part, duration=t1, scene_cuts=scene_cuts)
+            # Same word source segment_transcript used (already global-timeline),
+            # kept for the post-diarization speaker re-split (#486).
+            try:
+                all_words.extend(_words_from_whisper(part))
+            except Exception:
+                pass
             # #280: Whisper often stretches a segment's start back over
             # leading music/silence (classic case: speech begins at 0:03,
             # transcript says 0.0 → the dub plays 3 s early). Snap starts
@@ -652,7 +664,10 @@ async def dub_transcribe_stream(
             # use its speaker turns directly and skip pyannote entirely (#182).
             if asr_speaker_turns:
                 logger.info("Using inline ASR diarization (%d turns); skipping pyannote.", len(asr_speaker_turns))
-                return assign_speakers_from_turns(all_segments, asr_speaker_turns), None
+                assigned = assign_speakers_from_turns(all_segments, asr_speaker_turns)
+                # #486: split any segment that spans two speakers' turns at the
+                # word boundary (single-speaker segments pass through unchanged).
+                return resplit_segments_by_turns(assigned, all_words, asr_speaker_turns), None
 
             from services.model_manager import (
                 DIARIZATION_ERR_LICENSE,
@@ -729,7 +744,10 @@ async def dub_transcribe_stream(
                     diar = diar_pipe(asr_audio_target, num_speakers=num_speakers)
                 else:
                     diar = diar_pipe(asr_audio_target)
-                return assign_speakers_from_diarization(all_segments, diar), None
+                assigned = assign_speakers_from_diarization(all_segments, diar)
+                # #486: split any segment that spans two speakers' turns at the
+                # word boundary (single-speaker segments pass through unchanged).
+                return resplit_segments_by_diarization(assigned, all_words, diar), None
             except Exception as e:
                 logger.error(f"Diarization failed: {e}")
                 # Mid-run failure — classify against the same sentinels so a
