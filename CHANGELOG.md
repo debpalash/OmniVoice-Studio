@@ -10,6 +10,13 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Added
 
+- **Tagged scripts auto-cast into a multi-voice podcast/audiobook.** Paste a
+  `[Alice] … [Bob] …` script into Stories and hit Auto-cast: it now recognizes
+  the `[Name]` tag format (alongside the existing `NAME:` screenplay and quoted
+  prose), builds the cast, and assigns a voice per character automatically.
+  Editing one line only re-synthesizes that line on export (the chapter cache
+  is content-addressed), and inline markers like `[pause]` / `[voice:…]` are
+  never mistaken for speakers. (#487)
 - **A dedicated Contact page.** Discord, email, GitHub issues, and the project
   website (palash.dev) as clean one-tap rows, reachable from the footer — so
   reaching the maker is never more than a click away.

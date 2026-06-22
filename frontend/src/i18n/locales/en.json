@@ -37,7 +37,7 @@
     "pasteSplit": "Paste & Split",
     "import": "Import",
     "autocast": "Auto-cast",
-    "autocastHint": "Detect who's speaking and assign voices automatically",
+    "autocastHint": "Detect who's speaking — tagged ([Name]), screenplay (NAME:), or quoted prose — and assign voices automatically",
     "autocastEmpty": "Nothing to auto-cast — paste or import a story first.",
     "autocastDone": "Auto-cast {{lines}} lines across {{voices}} voice(s)",
     "importFailed": "Couldn't read that file.",

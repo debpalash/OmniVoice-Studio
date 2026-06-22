@@ -1,14 +1,16 @@
 /**
  * parseScript — turn pasted prose or a screenplay into attributed lines.
  *
- * Two formats are recognised, paragraph by paragraph:
+ * Three formats are recognised:
+ *   0. Tagged script: `[Alice] dialogue` / `[Bob] dialogue` (podcast/audiobook
+ *      style, #487) — auto-detected and parsed by `parseTaggedScript`.
  *   1. Screenplay:  `NAME: dialogue`            → { speaker: NAME, text }
  *   2. Prose:       narration with "quoted" bits → narration goes to the
  *                   Narrator; each quote is attributed to a nearby dialogue
  *                   tag ("said the fox" / "the fox asked").
  *
  * Returns an ordered array of { speaker, text }. Pure + testable; the caller
- * maps speakers → cast members. Speaker "Narrator" is the default fallback.
+ * maps speakers → cast members (autoCast). Speaker "Narrator" is the default.
  */
 
 const TAG_VERBS =
@@ -39,10 +41,75 @@ function attributionName(before, after) {
   return hit ? hit[1] : null;
 }
 
+// ── Tagged-script format: `[Name] dialogue` (#487) ──────────────────────────
+//
+// Inline markers like [pause], [pause 500ms], [voice:ID], [fast], [spell] must
+// NOT be mistaken for speaker tags. A speaker tag is a `[...]` at line start
+// whose bracket content has no `:` (rules out [voice:…]) and whose first word
+// isn't a reserved marker keyword. Everything the parser emits keeps the same
+// { speaker, text } shape as parseScript, so autoCast works unchanged.
+const _RESERVED_MARKERS = new Set([
+  'pause', 'voice', 'fast', 'slow', 'spell', 'laughter', 'sigh', 'breath',
+  'whisper', 'emphasis', 'em', 'break',
+]);
+const _SPEAKER_TAG = /^\s*\[([^\]:]+)\]\s*(.*)$/;
+
+function _isSpeakerTag(name) {
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return false;
+  const first = trimmed.toLowerCase().replace(/^\//, '').split(/\s+/)[0];
+  return !_RESERVED_MARKERS.has(first);
+}
+
+/** True when the text uses `[Name]` speaker tags (so parseScript routes here). */
+export function hasSpeakerTags(text) {
+  return String(text || '')
+    .split(/\r?\n/)
+    .some((line) => {
+      const m = line.match(_SPEAKER_TAG);
+      return !!(m && _isSpeakerTag(m[1]));
+    });
+}
+
+/**
+ * Parse a `[Name] …` tagged script into ordered { speaker, text } lines.
+ * A speaker's block runs until the next `[Name]` tag (multi-line dialogue is
+ * joined). Any prose before the first tag is attributed to the Narrator.
+ */
+export function parseTaggedScript(text) {
+  const out = [];
+  const src = String(text || '').replace(/\r\n/g, '\n').trim();
+  if (!src) return out;
+
+  let cur = { speaker: 'Narrator', parts: [] };
+  const flush = () => {
+    const t = cur.parts.join('\n').trim();
+    if (t) out.push({ speaker: cur.speaker, text: t });
+    cur = { speaker: cur.speaker, parts: [] };
+  };
+
+  for (const line of src.split('\n')) {
+    const m = line.match(_SPEAKER_TAG);
+    if (m && _isSpeakerTag(m[1])) {
+      flush();
+      cur.speaker = normalizeSpeaker(m[1]);
+      if (m[2] && m[2].trim()) cur.parts.push(m[2].trim());
+    } else if (line.trim()) {
+      cur.parts.push(line.trim());
+    }
+  }
+  flush();
+  return out;
+}
+
 export function parseScript(text) {
   const out = [];
   const src = String(text || '').replace(/\r\n/g, '\n').trim();
   if (!src) return out;
+
+  // Tagged scripts (`[Alice] …`) are unambiguous — handle them first so a
+  // pasted podcast/audiobook script auto-casts without any format toggle (#487).
+  if (hasSpeakerTags(src)) return parseTaggedScript(src);
 
   const paras = src
     .split(/\n\s*\n/)
