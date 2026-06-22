@@ -460,6 +460,20 @@ def _is_transient_download_error(exc: BaseException) -> bool:
     return failure.classify(str(exc)) == "VIDEO_DOWNLOAD_NETWORK"
 
 
+# YouTube serves some videos' high-quality formats signature-protected to the
+# default player client, so the media download 403s even though extraction
+# worked. Forcing an alternate client commonly bypasses it; on a 403 we escalate
+# through these (in order) before giving up (#625).
+_YT_PLAYER_CLIENTS = ["tv", "android", "web_safari"]
+
+
+def _is_forbidden_download_error(exc: BaseException) -> bool:
+    """True for an HTTP 403 — not transient (the same client keeps 403ing), but
+    often fixable by switching the YouTube player client."""
+    s = str(exc)
+    return "403" in s or "Forbidden" in s
+
+
 def _cleanup_partial_download(job_dir: str) -> None:
     """Remove any half-written `original.*` files before a retry.
 
@@ -541,7 +555,9 @@ def yt_download_sync(
     # mistaken for a finished download.
     info = None
     path = None
-    for attempt in range(_YT_DOWNLOAD_RETRIES + 1):
+    transient_used = 0
+    client_idx = 0
+    while True:
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
@@ -549,12 +565,27 @@ def yt_download_sync(
             break
         except Exception as exc:
             _cleanup_partial_download(job_dir)
-            if attempt < _YT_DOWNLOAD_RETRIES and _is_transient_download_error(exc):
+            # 403 Forbidden: not transient — escalate the YouTube player client,
+            # which commonly bypasses a signature-protected format set (#625).
+            if _is_forbidden_download_error(exc) and client_idx < len(_YT_PLAYER_CLIENTS):
+                client = _YT_PLAYER_CLIENTS[client_idx]
+                client_idx += 1
+                ydl_opts = {**ydl_opts, "extractor_args": {"youtube": {"player_client": [client]}}}
+                logger.warning(
+                    "Download 403 for %s — retrying with player_client=%s (#625)", url, client,
+                )
+                continue
+            # Transient/broken-pipe: a fresh extract_info usually succeeds
+            # (#579/#598). A 403 never counts here — it's escalated above.
+            if (transient_used < _YT_DOWNLOAD_RETRIES
+                    and _is_transient_download_error(exc)
+                    and not _is_forbidden_download_error(exc)):
+                transient_used += 1
                 logger.warning(
                     "Transient download failure for %s (attempt %d/%d): %s — retrying",
-                    url, attempt + 1, _YT_DOWNLOAD_RETRIES + 1, exc,
+                    url, transient_used, _YT_DOWNLOAD_RETRIES, exc,
                 )
-                time.sleep(2 * (attempt + 1))  # brief, increasing backoff
+                time.sleep(2 * transient_used)  # brief, increasing backoff
                 continue
             raise
     root, _ = os.path.splitext(path)

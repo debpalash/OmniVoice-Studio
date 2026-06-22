@@ -34,6 +34,21 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   contact — less wall-of-text, faster to act on.
 ### Fixed
 
+- **Dubbing a YouTube link that 403s now retries with a different player
+  client.** Some videos serve their formats signature-protected to the default
+  player client, so the media download fails with `HTTP Error 403: Forbidden`
+  even though extraction worked — and a plain retry keeps 403ing. The URL
+  download now escalates the YouTube player client (tv → android → web_safari)
+  on a 403, which commonly bypasses it, before surfacing the actionable error.
+  (#625)
+- **A synth glitch that produced unreadable audio is now caught instead of a
+  misleading "out of memory".** A numerical glitch in the model (seen on Apple
+  Silicon/MPS) could leave NaN/∞ samples, which wrote a WAV that then failed
+  decoding with an opaque `ffmpeg returned error code: 183 / Invalid data` — and
+  the generic error handler labelled it "ran out of memory". Non-finite samples
+  are now sanitized to silence before any encode (so the WAV is always
+  decodable), and a genuine decode failure is reported as "unreadable audio —
+  Flush and regenerate", not OOM. (#629)
 - **A silent startup hang now leaves a diagnostic instead of nothing.** On some
   setups the backend could load all model weights and then hang forever before
   "Application startup complete" — no error, no crash, an unusable app (reported

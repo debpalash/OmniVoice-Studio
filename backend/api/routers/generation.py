@@ -77,6 +77,23 @@ def _render_with_pauses(gen_span, segments, sample_rate):
     return torch.cat(parts, dim=-1)
 
 
+def _sanitize_audio(audio_out):
+    """Replace non-finite samples (NaN / ±inf) with silence so a model glitch
+    can't produce an unreadable WAV (#629). Returns the input unchanged when it's
+    already finite or isn't a tensor. Never raises."""
+    try:
+        import torch
+        if torch.is_tensor(audio_out) and not bool(torch.isfinite(audio_out).all()):
+            logger.warning(
+                "Generated audio contained non-finite samples (NaN/inf) — "
+                "sanitizing to silence to keep the WAV decodable (#629)."
+            )
+            return torch.nan_to_num(audio_out, nan=0.0, posinf=0.0, neginf=0.0)
+    except Exception:
+        pass
+    return audio_out
+
+
 def _apply_effect_chain(audio_out, sample_rate, effect_preset, *, skip_mastering=False):
     """Shared post-DSP for /generate: preset validation → mastering →
     effect chain → loudness normalization.
@@ -91,6 +108,14 @@ def _apply_effect_chain(audio_out, sample_rate, effect_preset, *, skip_mastering
         EFFECT_PRESETS, apply_mastering, normalize_audio,
         apply_effects_chain, get_effect_chain,
     )
+
+    # #629: a numerical glitch in the model (observed on MPS) can leave NaN/±inf
+    # samples, which write an unreadable WAV that then fails decoding with an
+    # opaque "ffmpeg returned error code: 183 / Invalid data" — surfaced to the
+    # user as a misleading "ran out of memory". Replace non-finite samples with
+    # silence here, before any DSP/encode touches the audio, so the output is
+    # always a valid WAV. Covers the raw path too (it returns just below).
+    audio_out = _sanitize_audio(audio_out)
 
     preset = effect_preset or "broadcast"
     if preset not in EFFECT_PRESETS:
@@ -143,6 +168,15 @@ def _oom_friendly_reraise(e):
             f"This usually means a bundled binary lost its execute bit — reinstall, "
             f"or run `chmod +x` on the engine binary named in the error. "
             f"Underlying error: {e}"
+        ) from e
+    # #629: a decode/ffmpeg failure on the rendered audio is NOT out of memory —
+    # it's unreadable audio (usually a transient numerical glitch). Say so rather
+    # than sending the user down the OOM path.
+    if "ffmpeg returned error" in es or "Decoding failed" in es or "Invalid data found" in es:
+        raise RuntimeError(
+            f"The engine produced unreadable audio (a decode step failed) — this is "
+            f"usually a transient glitch. Use the Flush button to reload the model, "
+            f"then regenerate. Underlying error: {e}"
         ) from e
     raise RuntimeError(
         f"TTS engine stopped mid-generation. This usually means it ran out of memory. "
