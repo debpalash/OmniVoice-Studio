@@ -14,6 +14,10 @@
 #   required   (optional) — true if the app needs this model to function
 #   platforms  (optional) — restrict to specific OS+arch tags (e.g. darwin-arm64, cuda)
 #   note       (optional) — shown in the UI as a tooltip/footnote
+#   config_only (optional) — true for pipeline repos that ship no weight file of
+#                            their own (weights live in referenced sub-repos). Such
+#                            a cache is legitimately tiny, so the truncated-download
+#                            (weights-missing) detector must NOT flag it incomplete.
 # ─────────────────────────────────────────────────────────────────────────
 
 models:
@@ -122,6 +126,7 @@ models:
     label: "pyannote speaker diarisation (multi-speaker videos)"
     role: Diarisation
     size_gb: 0.8
+    config_only: true  # pipeline repo; real weights live in referenced sub-repos
     note: "Needs an HF_TOKEN with license accepted."
 
   # ── Optional TTS ──────────────────────────────────────────────────────
