@@ -61,9 +61,15 @@ def seed_sample_project():
         if count > 0:
             return  # Not first run — skip
 
-        # Check if demo audio exists
+        # The demo clip is committed at backend/assets/samples/demo_voice.wav and
+        # bundled with the app (#621). If it's somehow absent (e.g. a partial
+        # checkout), skip the seed gracefully rather than seeding a profile that
+        # points at a missing file — run scripts/build_demos.sh to regenerate it.
         if not os.path.isfile(_DEMO_AUDIO):
-            logger.warning("Demo audio not found at %s — skipping onboarding seed", _DEMO_AUDIO)
+            logger.warning(
+                "Demo audio not found at %s — skipping onboarding seed "
+                "(regenerate with scripts/build_demos.sh)", _DEMO_AUDIO,
+            )
             return
 
         # Copy demo audio to voices directory
