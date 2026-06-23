@@ -34,6 +34,14 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   contact — less wall-of-text, faster to act on.
 ### Fixed
 
+- **Backend no longer hangs on startup (unreachable, no error) on Apple-Silicon Macs.**
+  The MCP session manager could hang on its anyio task group during lifespan
+  startup (observed on M1, #632); because that start was awaited before the server
+  began serving, "Application startup complete" never fired and the whole backend
+  was unreachable. The MCP start is now timeout-bounded (`OMNIVOICE_MCP_START_TIMEOUT_S`,
+  default 30s) — a hang becomes a logged warning and the backend serves normally
+  without MCP, instead of wedging. (#632)
+
 - **Dubbing a URL no longer fails with `[Errno 22] Invalid argument` on Windows.**
   yt-dlp stamps the downloaded file's modified-time with the video's upload
   date; an out-of-range/invalid timestamp makes the `os.utime` call raise

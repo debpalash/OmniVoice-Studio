@@ -385,6 +385,48 @@ def _env_flag(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _mcp_start_timeout_s() -> float:
+    """Seconds to wait for the MCP session manager to start before giving up
+    and serving without it (#632). Overridable via OMNIVOICE_MCP_START_TIMEOUT_S."""
+    raw = os.environ.get("OMNIVOICE_MCP_START_TIMEOUT_S", "")
+    try:
+        v = float(raw)
+        if v > 0:
+            return v
+    except (TypeError, ValueError):
+        pass
+    return 30.0
+
+
+async def _enter_mcp_session_manager(stack, session_manager, *, timeout: float) -> bool:
+    """Best-effort start of the FastMCP Streamable-HTTP session manager.
+
+    Returns True if it mounted. The MCP layer is explicitly best-effort: it must
+    never wedge backend startup. The earlier guard only caught *exceptions*, but
+    on some platforms (observed: Apple-Silicon M1, #632) ``session_manager.run()``
+    can *hang* on its anyio task group — and an awaited hang means
+    "Application startup complete" never fires, so the whole backend is
+    unreachable with no error. Bounding the enter with a timeout converts that
+    hang into a logged warning + a backend that still serves (just without MCP).
+    """
+    if session_manager is None:
+        return False
+    try:
+        await asyncio.wait_for(
+            stack.enter_async_context(session_manager.run()), timeout=timeout
+        )
+        return True
+    except asyncio.TimeoutError:
+        logger.warning(
+            "MCP session manager did not start within %.0fs (#632); serving "
+            "without MCP. Set OMNIVOICE_MCP_START_TIMEOUT_S to adjust.", timeout,
+        )
+        return False
+    except Exception as e:
+        logger.warning("MCP session manager failed to start: %s", e)
+        return False
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup watchdog (#632): a silent hang during startup (e.g. a model-load /
@@ -496,12 +538,10 @@ async def lifespan(app: FastAPI):
     from contextlib import AsyncExitStack
     async with AsyncExitStack() as _mcp_stack:
         _sm = getattr(app.state, "mcp_session_manager", None)
-        if _sm is not None:
-            try:
-                await _mcp_stack.enter_async_context(_sm.run())
-                logger.info("MCP server mounted at /mcp")
-            except Exception as e:
-                logger.warning("MCP session manager failed to start: %s", e)
+        if await _enter_mcp_session_manager(
+            _mcp_stack, _sm, timeout=_mcp_start_timeout_s()
+        ):
+            logger.info("MCP server mounted at /mcp")
         # Startup finished — disarm the hang watchdog before serving (#632).
         if _watchdog_armed:
             try:
