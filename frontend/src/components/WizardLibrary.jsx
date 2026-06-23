@@ -23,6 +23,24 @@ import { listEngines, selectEngine } from '../api/engines';
 
 const fmtGB = (gb) => (gb == null ? '' : `${gb.toFixed(gb < 10 ? 1 : 0)} GB`);
 
+/** Human-readable byte size, e.g. 734003200 -> "700 MB", 1610612736 -> "1.5 GB". */
+export function fmtBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '';
+  const mb = bytes / (1024 * 1024);
+  if (mb < 1024) return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
+  const gb = mb / 1024;
+  return `${gb < 10 ? gb.toFixed(1) : Math.round(gb)} GB`;
+}
+
+/** Instantaneous download rate, e.g. 5452595 -> "5.2 MB/s". Blank when idle. */
+export function fmtRate(bytesPerSec) {
+  if (!Number.isFinite(bytesPerSec) || bytesPerSec <= 0) return '';
+  const mb = bytesPerSec / (1024 * 1024);
+  if (mb >= 1) return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB/s`;
+  const kb = bytesPerSec / 1024;
+  return `${Math.max(1, Math.round(kb))} KB/s`;
+}
+
 /**
  * A model is a "platform pick" when it explicitly targets one of THIS host's
  * platform tags (the MLX mac-ARM speedups, CUDA-tuned variants, …) — the best
@@ -38,19 +56,21 @@ export function isPlatformPick(model, platformTags) {
   );
 }
 
-/** Aggregate one repo's SSE file events: percent done + ETA from rates. */
-function aggregate(files) {
+/** Aggregate one repo's SSE file events: percent + ETA + live rate + remaining.
+ * Exported (pure) so the speed/remaining math is unit-testable. */
+export function aggregate(files) {
   let done = 0;
   let total = 0;
   let rate = 0;
-  for (const f of Object.values(files)) {
+  for (const f of Object.values(files || {})) {
     done += f.downloaded || 0;
     total += f.total || 0;
     if ((f.total || 0) > (f.downloaded || 0)) rate += f.rate || 0;
   }
   const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : null;
-  const etaSec = rate > 0 && total > done ? (total - done) / rate : null;
-  return { pct, etaSec };
+  const remaining = total > done ? total - done : null;
+  const etaSec = rate > 0 && remaining ? remaining / rate : null;
+  return { pct, etaSec, rate, remaining };
 }
 
 function formatEta(seconds) {
@@ -198,8 +218,21 @@ export default function WizardLibrary() {
 
   const modelRow = (m, chip, chipTone, note) => {
     const p = progress[m.repo_id];
-    const { pct, etaSec } = p ? aggregate(p.files) : { pct: null, etaSec: null };
+    const { pct, etaSec, rate, remaining } = p
+      ? aggregate(p.files)
+      : { pct: null, etaSec: null, rate: 0, remaining: null };
     const downloading = !!p;
+    // Live telemetry line: "5.2 MB/s · 700 MB left · ~3m". Each part only shows
+    // once the SSE stream has the data, so early on it degrades to "downloading…".
+    const rateStr = fmtRate(rate);
+    const remainStr = fmtBytes(remaining);
+    const etaStr = etaSec != null ? formatEta(etaSec) : '';
+    const statParts = [
+      pct != null ? `${pct}%` : null,
+      rateStr || null,
+      remainStr ? t('firstrun.size_left', { size: remainStr, defaultValue: '{{size}} left' }) : null,
+      etaStr ? t('firstrun.eta_left', { eta: etaStr, defaultValue: '~{{eta}} left' }) : null,
+    ].filter(Boolean);
     return (
       <Row
         key={m.repo_id}
@@ -215,8 +248,7 @@ export default function WizardLibrary() {
           <span className="swiz-lib__state">✓</span>
         ) : downloading ? (
           <span className="swiz-lib__state swiz-lib__state--busy">
-            {pct != null ? `${pct}%` : t('firstrun.lib_downloading', 'downloading…')}
-            {etaSec != null && ` · ${t('firstrun.eta_left', { eta: formatEta(etaSec), defaultValue: '~{{eta}} left' })}`}
+            {statParts.length ? statParts.join(' · ') : t('firstrun.lib_downloading', 'downloading…')}
           </span>
         ) : (
           <button type="button" className="frs-btn frs-btn--quiet swiz-lib__act" onClick={() => install(m.repo_id)}>
