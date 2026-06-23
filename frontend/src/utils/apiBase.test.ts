@@ -3,7 +3,7 @@
  *
  * Covers the four-branch resolver:
  *   1. VITE_OMNIVOICE_API override always wins.
- *   2. Tauri webview context → localhost:3900.
+ *   2. Tauri webview context → 127.0.0.1:3900 (IPv4; not "localhost" — Windows IPv6).
  *   3. Plain browser context → window.location.hostname:3900.
  *   4. SSR / no-window fallback → localhost:3900.
  */
@@ -75,10 +75,13 @@ describe("apiBase.getApiBase", () => {
     mod._setEnvOverrideForTesting(undefined);
   });
 
-  it("returns localhost:3900 in Tauri context", async () => {
+  it("returns 127.0.0.1:3900 (NOT localhost) in Tauri context — Windows IPv6 fix", async () => {
+    // The backend binds IPv4 127.0.0.1 only; "localhost" can resolve to ::1 on
+    // Windows and miss it, causing "Can't reach the local backend" on the media/
+    // preview path. Must be the numeric IPv4 address (matches api/client.ts).
     (window as Window).__TAURI_INTERNALS__ = {};
     const { getApiBase } = await import("./apiBase");
-    expect(getApiBase()).toBe("http://localhost:3900");
+    expect(getApiBase()).toBe("http://127.0.0.1:3900");
   });
 
   it("returns window.location.hostname:3900 in plain browser context (LAN IP)", async () => {

@@ -78,15 +78,20 @@ export const playBlobAudio = async (blob) => {
       src.start(0);
       src.onended = () => { ctx.close(); release(); };
     } catch (e) {
-      console.error('playBlobAudio decode error:', e);
+      // Expected & recovered on WebView2 (Windows): decodeAudioData decodes the
+      // WHOLE file into one PCM AudioBuffer and chokes on long-form audiobook/
+      // story renders (.m4b / AAC) — a `warn`, not a red ERROR, since the
+      // streaming fallback below recovers it. (The scary "decode error" line
+      // users saw in Logs → Frontend was this expected branch, logged at error
+      // level even when playback succeeded.)
+      console.warn('playBlobAudio: Web Audio decode failed, falling back to streamed playback:', e?.message || e);
       ctx.close();
-      // Fallback (#653): decodeAudioData decodes the WHOLE file into one PCM
-      // AudioBuffer — it chokes on long-form audiobook/story renders (.m4b / AAC)
-      // on WebView2. And a blob: URL won't play in an <audio> element under
-      // Tauri's WebKit (see fileToMediaUrl above), so the old createObjectURL
-      // fallback silently played nothing. Instead, upload to the backend preview
-      // endpoint (ffmpeg-extracts a streamable WAV) and play the HTTP URL — the
-      // same path video previews already use. Streams; no whole-file decode.
+      // Fallback (#653): a blob: URL won't play in an <audio> element under
+      // Tauri's WebKit (see fileToMediaUrl above), so upload to the backend
+      // preview endpoint (ffmpeg-extracts a streamable WAV) and play the HTTP
+      // URL — the same path video previews already use. Streams; no whole-file
+      // decode. NOTE: _PREVIEW_API must be 127.0.0.1 (not localhost) or this
+      // fetch misses the IPv4 backend on Windows (see utils/apiBase.ts).
       try {
         const form = new FormData();
         form.append('video', blob, 'preview.audio');
@@ -99,7 +104,8 @@ export const playBlobAudio = async (blob) => {
         a.onended = () => { release(); };
         await a.play().catch((err) => { release(); throw err; });
       } catch (e2) {
-        console.error('playBlobAudio fallback error:', e2);
+        // Real failure — both decode AND the streamed fallback failed.
+        console.error('playBlobAudio: streamed fallback also failed:', e2?.message || e2);
       }
     }
   } else {
