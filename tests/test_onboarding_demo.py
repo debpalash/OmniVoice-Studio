@@ -34,6 +34,49 @@ def test_demo_clip_is_committed_and_valid():
         assert w.getframerate() > 0
 
 
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def test_demo_clip_is_not_gitignored():
+    """`.gitignore` has a blanket `*.wav`; the clip survives only via the
+    `!backend/assets/samples/*.wav` allowlist. If that allowlist is ever
+    weakened the file becomes ignored — and any build tool that walks with
+    gitignore semantics (the `ignore` crate, `git archive`, Docker) would drop
+    it from the bundle while it still sits in the repo. Pin that it is NOT
+    ignored so the silent-drop class can't return (#621/#633)."""
+    import shutil
+    import subprocess
+    if shutil.which("git") is None:
+        import pytest
+        pytest.skip("git not available")
+    rel = "backend/assets/samples/demo_voice.wav"
+    # `git check-ignore` exits 0 (and echoes the path) when the path IS ignored.
+    res = subprocess.run(
+        ["git", "check-ignore", rel], cwd=_ROOT,
+        capture_output=True, text=True,
+    )
+    assert res.returncode != 0 and not res.stdout.strip(), (
+        f"{rel} is gitignored — the un-ignore allowlist in .gitignore was lost. "
+        "Restore `!backend/assets/samples/*.wav` or the clip drops from builds."
+    )
+
+
+def test_backend_is_a_bundled_tauri_resource():
+    """The clip ships only because the whole `backend/` tree is a Tauri bundle
+    resource. If that entry is removed, the asset (and the backend) stops
+    shipping. Pin it."""
+    import json
+    conf = os.path.join(_ROOT, "frontend", "src-tauri", "tauri.conf.json")
+    if not os.path.isfile(conf):
+        import pytest
+        pytest.skip("tauri.conf.json not found")
+    resources = json.load(open(conf)).get("bundle", {}).get("resources", []) or []
+    assert any(str(r).rstrip("/").endswith("backend") for r in resources), (
+        "backend/ is no longer a bundle resource in tauri.conf.json — the demo "
+        "clip and the backend source would stop shipping with the app."
+    )
+
+
 def _table_sql():
     return (
         "CREATE TABLE voice_profiles (id TEXT PRIMARY KEY, name TEXT, "
