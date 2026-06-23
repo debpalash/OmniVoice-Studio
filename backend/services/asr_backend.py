@@ -23,12 +23,59 @@ faster-whisper because it's available on every platform we ship to).
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
 from abc import ABC, abstractmethod
 
 logger = logging.getLogger("omnivoice.asr")
+
+# A single ASR transcribe must never block a request indefinitely. The chunked
+# dub pipeline already bounds each chunk (OMNIVOICE_TRANSCRIBE_CHUNK_TIMEOUT_S);
+# the *whole-file* paths (dub QC re-transcribe, dictation, OpenAI-compat) ran
+# unbounded, so a slow/stuck transcribe — e.g. large-v3 on a VRAM-starved GPU
+# where the resident TTS model contends for memory — hung the request *and* tied
+# up a GPU-pool worker, surfacing in the UI as the misleading "can't reach the
+# local backend" (TamKieu / Vietnam report). Bound them so a hang becomes a fast,
+# actionable error instead. Generous default (whole-file large-v3 on CPU is slow
+# but valid); override with the env var for very long single files.
+ASR_TRANSCRIBE_TIMEOUT_S = float(os.environ.get("OMNIVOICE_ASR_TRANSCRIBE_TIMEOUT_S", "300.0"))
+
+
+class ASRTimeoutError(TimeoutError):
+    """Raised when a whole-file transcribe exceeds ASR_TRANSCRIBE_TIMEOUT_S.
+
+    Carries a user-actionable message: the backend is alive (this is not a
+    connection failure) — the ASR model is too heavy for the available compute.
+    """
+
+
+async def run_transcribe_guarded(executor, fn, *, what: str = "ASR",
+                                 timeout: float = ASR_TRANSCRIBE_TIMEOUT_S):
+    """Run a blocking transcribe ``fn`` in ``executor`` with a hard wall-clock
+    bound. On timeout, raise :class:`ASRTimeoutError` with guidance instead of
+    letting the request hang forever.
+
+    NOTE: ``run_in_executor`` cannot cancel the underlying thread, so the worker
+    stays busy after a timeout — the message tells the user to restart and
+    reduce ASR load, which is the only real remedy for a starved GPU.
+    """
+    loop = asyncio.get_running_loop()
+    fut = loop.run_in_executor(executor, fn)
+    try:
+        return await asyncio.wait_for(fut, timeout=timeout)
+    except asyncio.TimeoutError:
+        raise ASRTimeoutError(
+            f"{what} transcription exceeded {timeout:.0f}s and was abandoned — "
+            "the backend is running, but the ASR model is too heavy for the "
+            "available compute. Most often the GPU is VRAM-starved: the resident "
+            "TTS model and a large ASR model (large-v3) contend for memory. "
+            "Fixes: Flush the TTS model to free VRAM, pick a smaller ASR model "
+            "in Settings → Models, or set ASR to CPU. Then restart the app to "
+            "clear the stuck worker. (Raise OMNIVOICE_ASR_TRANSCRIBE_TIMEOUT_S "
+            "for very long single files.)"
+        )
 
 
 def _compute_type_candidates(device: str) -> list[str]:

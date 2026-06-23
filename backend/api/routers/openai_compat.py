@@ -384,12 +384,15 @@ async def create_transcription(
     try:
         backend = get_active_asr_backend()
 
-        # Run transcription in the thread pool to avoid blocking the event loop
-        loop = asyncio.get_running_loop()
+        # Run transcription in the thread pool to avoid blocking the event loop,
+        # bounded so a stuck/starved ASR returns a 504 with guidance instead of
+        # hanging the request forever (see run_transcribe_guarded).
+        from services.asr_backend import run_transcribe_guarded
         word_ts = response_format == "verbose_json"
-        result = await loop.run_in_executor(
+        result = await run_transcribe_guarded(
             _gpu_pool,
             lambda: backend.transcribe(tmp_path, word_timestamps=word_ts),
+            what="OpenAI",
         )
 
         # Extract the full text from segments
@@ -456,6 +459,12 @@ async def create_transcription(
         # Default: json
         return TranscriptionResponse(text=full_text)
 
+    except HTTPException:
+        raise
+    except TimeoutError as e:
+        # ASRTimeoutError (subclass): backend alive, ASR too heavy for compute.
+        logger.warning("OpenAI transcription timed out: %s", e)
+        raise HTTPException(status_code=504, detail=str(e))
     except Exception as e:
         logger.exception("OpenAI transcription failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

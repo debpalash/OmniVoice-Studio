@@ -286,6 +286,42 @@ files land where the app looks.)
 
 **Linked issue:** [#622](https://github.com/debpalash/OmniVoice-Studio/issues/622)
 
+## 14. "Can't reach the local backend" *during* transcription / dubbing
+
+**Symptom:** the app worked at startup (you reached the main menu and the model
+loaded), but the moment you **dub a video, transcribe, or dictate**, it spins for
+a long time and then shows **"Can't reach the local backend."** The backend log
+ends right after a line like `whisperx transcribing …tmpXXXX.wav` with nothing
+after it — i.e. the backend is **alive**, the *transcription* is what stalled.
+
+**Cause:** this is **not** a connection, download, or "network mirror" problem —
+the backend started fine. The ASR model (WhisperX/faster-whisper **large-v3**) is
+too heavy for the available compute and the transcribe call runs for minutes,
+which the UI surfaces as an unreachable backend. The usual trigger is **VRAM
+starvation on NVIDIA**: the resident TTS model and a large ASR model contend for
+memory on an 8 GB-class GPU (the log shows e.g. `GPU pool sized … 7.0 GB free`).
+CPU-only machines hit the same wall on long clips.
+
+> There is **no "Network → Restricted/Global mirror" toggle** in Settings — that
+> control (the footer/Sharing **Network** button) is for **LAN sharing**, not
+> downloads. If someone pointed you there for this error, it was the wrong knob.
+
+**Fix — reduce ASR load (any one of these):**
+
+1. **Pick a smaller ASR model / engine** in **Settings → Models** — e.g.
+   faster-whisper **medium** or **small**, instead of large-v3. Biggest win on
+   low-VRAM GPUs.
+2. **Free VRAM**: **Flush the TTS model** before dubbing so ASR isn't competing
+   for memory, or
+3. **Run ASR on CPU** (slower but reliable) if your GPU is small.
+4. **Test with a 10-second clip** first — if that returns quickly, it confirms a
+   compute/VRAM limit rather than a true hang.
+
+Newer builds **bound** whole-file transcription: instead of hanging, it now fails
+after a timeout with this exact guidance. Tune the bound with
+`OMNIVOICE_ASR_TRANSCRIBE_TIMEOUT_S` (seconds; default 300) — **raise** it for
+very long single files, **lower** it to fail faster on a small machine.
+
 ## First-run setup fails on a restricted network (GitHub/PyPI blocked)
 
 On networks that block or can't resolve **GitHub**, the first-run bootstrap may
