@@ -232,6 +232,60 @@ Apple-Silicon install skips this index entirely.
 
 **Linked issue:** [#569](https://github.com/debpalash/OmniVoice-Studio/issues/569)
 
+## 13. Stuck on the download page / incomplete model cache ("only `refs/`")
+
+**Symptom:** the setup screen never finishes the model download and you can't
+reach the main app. Looking in the HF cache, a model folder
+(`models--k2-fsa--OmniVoice`, `models--Systran--faster-whisper-large-v3`) has
+`refs/` and maybe `config.json` but **no weight files** (`blobs/` empty or tiny).
+
+**Cause:** the download started but the large weight shards never finished —
+almost always the connection **dropping, throttling, or being blocked** mid-pull
+(corporate/school proxy, VPN, antivirus quarantining the multi-GB file, or a
+region where `huggingface.co` is slow/blocked). The app retries and verifies
+weights, but a connection that *trickles* rather than dies can stall for a long
+time.
+
+**Fix — force a clean re-download:**
+
+1. **Fully quit OmniVoice.** Check Task Manager (Windows) / Activity Monitor
+   (macOS) and end any leftover `omnivoice` / `python` process — a half-running
+   one keeps the cache locked.
+2. **Delete the incomplete model folder(s) entirely** from the HF cache (the
+   whole `models--…` folder, not just `refs/`). Leave other models alone:
+   - `models--k2-fsa--OmniVoice`
+   - `models--Systran--faster-whisper-large-v3`
+3. **Relaunch** — the download page re-pulls from scratch.
+
+**If it stalls again at the same spot**, the download is being blocked — try, in
+order:
+
+- **Antivirus/firewall** — temporarily disable it for the download (large model
+  files are a common false-positive quarantine), then re-enable.
+- **Connection** — use a stable, direct connection; pause any VPN; avoid
+  corporate/school networks.
+- **Region mirror** — if `huggingface.co` is slow/blocked where you are, set a
+  mirror **before** launching and relaunch:
+  - macOS/Linux: `export HF_ENDPOINT=https://hf-mirror.com`
+  - Windows (PowerShell): `[Environment]::SetEnvironmentVariable("HF_ENDPOINT","https://hf-mirror.com","User")`
+
+**Manual fallback** (if downloads keep failing), pull the weights yourself into
+the same cache, then relaunch:
+
+```bash
+pip install -U "huggingface_hub[cli]"
+huggingface-cli download k2-fsa/OmniVoice
+huggingface-cli download Systran/faster-whisper-large-v3
+```
+
+(If OmniVoice uses a custom models directory, set `HF_HOME` to it first so the
+files land where the app looks.)
+
+> Newer builds detect an incomplete cache and re-offer the download instead of
+> stranding you on this page — update once the fix is in your channel.
+
+**Linked issue:** [#622](https://github.com/debpalash/OmniVoice-Studio/issues/622)
+
 ## First-run setup fails on a restricted network (GitHub/PyPI blocked)
 
 On networks that block or can't resolve **GitHub**, the first-run bootstrap may
