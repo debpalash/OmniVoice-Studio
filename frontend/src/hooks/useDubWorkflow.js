@@ -18,6 +18,26 @@ import i18next from 'i18next';
 const t = i18next.t.bind(i18next);
 
 /**
+ * True when a dub error means the job no longer exists on the backend — a
+ * persisted `dubJobId` outlived the backend's in-memory job store (the backend
+ * restarted, or the job was cleaned up). The backend reports this as
+ * "Job not found. It may have been cleaned up or was never created." (dub_core)
+ * or "This dub session has expired or was never created…" (dub_generate). That
+ * is an EXPECTED stale-session state on resume/retry, not a bug — so the UI
+ * should reset to a clean slate and invite a fresh upload rather than fire an
+ * error toast with a "report a bug" prompt (#660). Exported + pure for testing.
+ */
+export function isExpiredDubJobError(err) {
+  const m = (err && err.message ? String(err.message) : '').toLowerCase();
+  return (
+    m.includes('job not found') ||
+    m.includes('session has expired') ||
+    m.includes('was never created') ||
+    m.includes('cleaned up')
+  );
+}
+
+/**
  * Encapsulates the entire dub pipeline workflow:
  *   upload → prep → transcribe → translate → generate → export
  *
@@ -64,6 +84,19 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
 
   const dubAbortCtrlRef = useRef(null);
   const dubClientJobIdRef = useRef(null);
+
+  // Reset a stale dub session (the persisted job is gone server-side, #660):
+  // clear the dead id/state, drop any pill, and prompt a fresh upload with a
+  // calm info toast — never a bug-report prompt, since this is expected.
+  const _resetStaleDubSession = useCallback(() => {
+    setDubJobId(''); setDubTaskId(''); setDubSegments([]); setDubError('');
+    setDubStep('idle'); setTranscribeStart(null);
+    try { useAppStore.getState().dismissPill(); } catch { /* no pill */ }
+    toast(
+      t('dub_workflow.session_expired', 'This dub session expired or was cleaned up — re-upload your video to start a new one.'),
+      { icon: 'ℹ️', duration: 7000 },
+    );
+  }, [setDubJobId, setDubTaskId, setDubSegments, setDubError, setDubStep]);
 
   // Timer for transcribe elapsed
   useEffect(() => {
@@ -311,9 +344,10 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
     } catch (err) {
       setTranscribeStart(null);
       if (err.name === 'AbortError') { toast(t('dub_workflow.retry_cancelled')); setDubStep('idle'); }
+      else if (isExpiredDubJobError(err)) { _resetStaleDubSession(); }
       else { setDubError(err.message); setDubStep('idle'); toastErrorWithReport(t('dub_workflow.transcription_failed', { message: err.message }), err); }
     } finally { dubAbortCtrlRef.current = null; }
-  }, [dubJobId, setDubError, setDubSegments, setDubStep, _waitForTranscribe, loadProjects]);
+  }, [dubJobId, setDubError, setDubSegments, setDubStep, _waitForTranscribe, loadProjects, _resetStaleDubSession]);
 
   const handleDubImportSrt = useCallback(async (file) => {
     if (!dubJobId) {
@@ -338,11 +372,12 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
       toast.success(noteParts.join(' · '), { duration: 6000 });
       loadProjects();
     } catch (err) {
+      if (isExpiredDubJobError(err)) { _resetStaleDubSession(); return; }
       const msg = err?.message || t('dub_workflow.srt_import_failed');
       setDubError(msg);
       toast.error(msg);
     }
-  }, [dubJobId, setDubError, setDubSegments, setDubStep, loadProjects]);
+  }, [dubJobId, setDubError, setDubSegments, setDubStep, loadProjects, _resetStaleDubSession]);
 
   const handleCleanupSegments = useCallback(async () => {
     if (!dubJobId || !dubSegments.length) return;
