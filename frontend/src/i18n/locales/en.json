@@ -1261,7 +1261,8 @@
     "hint_silent_crash": "Backend crashed silently. \"Clean & Retry\" often fixes corrupt venv issues.",
     "hint_github_blocked": "Your network may block GitHub. Install Python 3.11+ from python.org (Add to PATH) and relaunch, or set UV_PYTHON_INSTALL_MIRROR — see docs/install/troubleshooting.md.",
     "hint_stuck": "The backend didn't finish starting. From source, run `uv sync` first and make sure `uv` and Python are on your PATH, then Retry. Check the log below (or Settings → Logs → Backend) for the exact stall point.",
-    "hint_default": "Try \"Retry\" first. If it fails again, \"Clean & Retry\" will rebuild the environment from scratch."
+    "hint_default": "Try \"Retry\" first. If it fails again, \"Clean & Retry\" will rebuild the environment from scratch.",
+    "lines": "{{count}} lines"
   },
   "direction": {
     "title": "Direction for segment #{{id}}",

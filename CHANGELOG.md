@@ -34,6 +34,13 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   contact — less wall-of-text, faster to act on.
 ### Fixed
 
+- **First-run setup splash no longer shows a raw `bootstrap.lines` key in English.**
+  The log-line counter string was present in 4 locales but missing from the `en`
+  reference, so English (and 16 other locales falling back to it) rendered the
+  literal key instead of "{{count}} lines". Added it to `en`. Also removed 160
+  dead `gallery.cat_*` keys (renamed to `archetypes.use_*` long ago) orphaned
+  across 20 non-English locales, clearing the i18n orphan-key advisory.
+
 - **Backend no longer hangs on startup (unreachable, no error) on Apple-Silicon Macs.**
   The MCP session manager could hang on its anyio task group during lifespan
   startup (observed on M1, #632); because that start was awaited before the server

@@ -49,11 +49,13 @@ def test_coverage_reports_lowest(tmp_path):
 
 def test_real_locales_spec(probe_report):
     """Blocking: all real locale files are valid JSON. Orphan-key/coverage run as
-    advisory — the suite stays green while the report surfaces the real finding
-    (non-en locales carry gallery.cat_*/bootstrap.lines keys absent from en)."""
+    advisory. The orphans were cleaned up — dead `gallery.cat_*` keys (renamed to
+    `archetypes.use_*`) removed from all non-en locales, and the used-but-missing
+    `bootstrap.lines` added to en — so the orphan-key judge now passes and guards
+    against regressions."""
     spec = probe_spec.load_spec(_SPEC)
     results = probe_spec.run_judges(spec, {"locales_dir": _LOCALES})
     probe_report.record(spec, results)
     assert probe_spec.blocking_failures(results) == []
-    # The advisory orphan-key finding is present (proof the suite surfaces it).
-    assert any(r.name == "locale_no_orphan_keys" and r.advisory and r.passed is False for r in results)
+    # Orphan-key judge now passes: no non-en locale carries a key absent from en.
+    assert any(r.name == "locale_no_orphan_keys" and r.passed for r in results)
