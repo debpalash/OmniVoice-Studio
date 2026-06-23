@@ -18,6 +18,7 @@
     "desktop-prod": "bun scripts/desktop-prod.mjs",
     "desktop-prod:run": "bun scripts/desktop-prod.mjs --skip-build",
     "desktop-prod:upgrade": "bun scripts/desktop-prod.mjs --keep-data",
+    "desktop-prod:keep-models": "bun scripts/desktop-prod.mjs --keep-models",
     "desktop-prod:pill": "bun scripts/desktop-prod.mjs --pill",
     "desktop-prod:run:pill": "bun scripts/desktop-prod.mjs --skip-build --pill",
     "build": "turbo run build",

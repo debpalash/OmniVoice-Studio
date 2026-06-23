@@ -67,19 +67,24 @@ fi
 # ── Flags ──────────────────────────────────────────────────────────────────
 SKIP_BUILD=false
 KEEP_DATA=false
+KEEP_MODELS=false
 PILL_MODE=false
 
 for arg in "$@"; do
   case "$arg" in
-    --skip-build) SKIP_BUILD=true ;;
-    --keep-data)  KEEP_DATA=true ;;
-    --pill)       PILL_MODE=true ;;
+    --skip-build)  SKIP_BUILD=true ;;
+    --keep-data)   KEEP_DATA=true ;;
+    --keep-models) KEEP_MODELS=true ;;
+    --pill)        PILL_MODE=true ;;
     -h|--help)
-      echo "Usage: $0 [--skip-build] [--keep-data] [--pill]"
+      echo "Usage: $0 [--skip-build] [--keep-data] [--keep-models] [--pill]"
       echo ""
-      echo "  --skip-build  Skip cargo build, use last compiled binary"
-      echo "  --keep-data   Don't wipe app data (test upgrade path)"
-      echo "  --pill        Launch in dictation-widget mode (no main window)"
+      echo "  --skip-build   Skip cargo build, use last compiled binary"
+      echo "  --keep-data    Don't wipe app data (test upgrade path)"
+      echo "  --keep-models  Wipe app/backend data for a fresh app, but KEEP the"
+      echo "                 HF model cache — fresh first-run without re-downloading"
+      echo "                 the multi-GB weights. Ignored when --keep-data is set."
+      echo "  --pill         Launch in dictation-widget mode (no main window)"
       exit 0
       ;;
   esac
@@ -109,7 +114,17 @@ if [ "$KEEP_DATA" = false ]; then
   fi
 
   # 2. HF model cache (downloaded .safetensors, tokenizers, etc.)
-  if [ -d "${HF_CACHE}" ]; then
+  #    --keep-models preserves it so a "fresh app" run doesn't re-pull multi-GB
+  #    weights (the model-download is the slow, bandwidth-heavy part of a clean
+  #    run; everything else still resets for an honest first-run emulation).
+  if [ "$KEEP_MODELS" = true ]; then
+    if [ -d "${HF_CACHE}" ]; then
+      HF_SIZE=$(du -sh "${HF_CACHE}" 2>/dev/null | cut -f1)
+      echo "   ◆ HF cache:     ${HF_CACHE} (${HF_SIZE}) — KEPT (--keep-models)"
+    else
+      echo "   ○ HF cache:     (already clean)"
+    fi
+  elif [ -d "${HF_CACHE}" ]; then
     HF_SIZE=$(du -sh "${HF_CACHE}" 2>/dev/null | cut -f1)
     echo "   ✗ HF cache:     ${HF_CACHE} (${HF_SIZE})"
     rm -rf "${HF_CACHE}"
