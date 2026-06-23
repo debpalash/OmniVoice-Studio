@@ -80,15 +80,23 @@ export const playBlobAudio = async (blob) => {
     } catch (e) {
       console.error('playBlobAudio decode error:', e);
       ctx.close();
-      // Fallback: try the standard Audio() path even in Tauri
+      // Fallback (#653): decodeAudioData decodes the WHOLE file into one PCM
+      // AudioBuffer — it chokes on long-form audiobook/story renders (.m4b / AAC)
+      // on WebView2. And a blob: URL won't play in an <audio> element under
+      // Tauri's WebKit (see fileToMediaUrl above), so the old createObjectURL
+      // fallback silently played nothing. Instead, upload to the backend preview
+      // endpoint (ffmpeg-extracts a streamable WAV) and play the HTTP URL — the
+      // same path video previews already use. Streams; no whole-file decode.
       try {
-        const url = URL.createObjectURL(blob);
+        const form = new FormData();
+        form.append('video', blob, 'preview.audio');
+        const res = await fetch(`${_PREVIEW_API}/preview/upload`, { method: 'POST', body: form });
+        if (!res.ok) throw new Error(`preview upload failed: ${res.status}`);
+        const data = await res.json();
+        const url = `${_PREVIEW_API}${data.audioUrl || data.url}`;
         const a = new Audio(url);
-        const release = claimPlayback(() => {
-          a.pause();
-          URL.revokeObjectURL(url);
-        }, 'output');
-        a.onended = () => { URL.revokeObjectURL(url); release(); };
+        const release = claimPlayback(() => { a.pause(); }, 'output');
+        a.onended = () => { release(); };
         await a.play().catch((err) => { release(); throw err; });
       } catch (e2) {
         console.error('playBlobAudio fallback error:', e2);

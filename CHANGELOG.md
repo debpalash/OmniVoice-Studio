@@ -41,6 +41,14 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   contact — less wall-of-text, faster to act on.
 ### Fixed
 
+- **In-app preview of finished audiobooks/stories now plays on Windows.**
+  The preview decoded the entire render into one in-memory PCM buffer via Web
+  Audio `decodeAudioData`, which fails on long-form `.m4b`/AAC under WebView2
+  (`EncodingError: Unable to decode audio data`), and the blob-URL fallback can't
+  play in a Tauri `<audio>` element — so nothing played. The fallback now uploads
+  to the preview endpoint (ffmpeg-extracts a streamable WAV) and plays the HTTP
+  URL, the same path video previews use. Short TTS previews are unchanged. (#653)
+
 - **First-run setup splash no longer shows a raw `bootstrap.lines` key in English.**
   The log-line counter string was present in 4 locales but missing from the `en`
   reference, so English (and 16 other locales falling back to it) rendered the
