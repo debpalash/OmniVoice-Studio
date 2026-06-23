@@ -23,6 +23,13 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Changed
 
+- **First-run setup is calmer and surfaces the best models for your machine.**
+  Dimmed and tightened the setup descriptions (less wordy, more compact). The
+  "Models & engines" step now shows the **platform-tuned** optional models up-front
+  with a green "recommended" tag and their catalog note — e.g. MLX Whisper on
+  Apple Silicon, CUDA-tuned variants on NVIDIA — instead of burying every optional
+  model behind the fold (the universal long tail still folds).
+
 - **Donations now go through Ko-fi or PayPal (GitHub Sponsors removed).** GitHub
   Sponsors isn't available, so the Support page no longer routes there: pick an
   amount (now $10 / $20 / $50) and then choose Ko-fi or PayPal — PayPal carries

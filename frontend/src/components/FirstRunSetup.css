@@ -117,12 +117,12 @@
 }
 
 .frs__subtitle {
-  margin: 0.5rem 0 0;
-  font-size: 0.8rem;
-  line-height: 1.5;
-  opacity: 0.72;
-  max-width: 62ch;
-  min-height: 3em;            /* two lines reserved — stage swaps don't shift */
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  opacity: 0.55;
+  max-width: 58ch;
+  min-height: 2.4em;          /* two lines reserved — stage swaps don't shift */
 }
 
 .frs__mast-meta {
@@ -324,10 +324,10 @@
 
 .frs__opt-caption {
   margin: 0;
-  font-size: 0.7rem;
-  line-height: 1.45;
-  opacity: 0.68;
-  min-height: 2.9em;          /* exactly two lines reserved */
+  font-size: 0.68rem;
+  line-height: 1.4;
+  opacity: 0.5;
+  min-height: 2.4em;          /* two lines reserved — stage swaps don't shift */
 }
 
 /* ── Detected hardware readout (Compute panel) ─────────────────────────── */

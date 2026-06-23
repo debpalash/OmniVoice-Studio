@@ -374,7 +374,7 @@ export default function FirstRunSetup() {
             <div className="frs__mast-text">
               <h1 className="frs__title">{t('firstrun.title', 'Set up OmniVoice Studio')}</h1>
               <p className="frs__subtitle">
-                {t('firstrun.subtitle', 'Nothing is installed yet — review where everything goes, then start. You can change these later in Settings.')}
+                {t('firstrun.subtitle', "Nothing's installed yet — review where everything goes, then start. Change it later in Settings.")}
               </p>
             </div>
             <div className="frs__mast-meta">
@@ -438,7 +438,7 @@ export default function FirstRunSetup() {
                   active={!portable}
                   onSelect={() => set({ installMode: 'installed' })}
                   name={t('firstrun.mode_installed', 'Installed')}
-                  desc={t('firstrun.mode_installed_desc', 'Uses standard system folders. Recommended for most users.')}
+                  desc={t('firstrun.mode_installed_desc', 'Standard system folders. Recommended.')}
                 />
                 <OptionCard
                   active={portable}
@@ -452,7 +452,7 @@ export default function FirstRunSetup() {
               </div>
               <GroupCaption text={portable
                 ? t('firstrun.mode_portable_desc', 'Everything lives in one folder next to the app — move it to another disk or machine as a unit.')
-                : t('firstrun.mode_installed_desc', 'Uses standard system folders. Recommended for most users.')} />
+                : t('firstrun.mode_installed_desc', 'Standard system folders. Recommended.')} />
             </Panel>
 
             <Panel title={t('firstrun.storage_title', 'Storage')} delay={2}>
@@ -519,7 +519,7 @@ export default function FirstRunSetup() {
                   active={plan.torchVariant === 'auto'}
                   onSelect={() => set({ torchVariant: 'auto' })}
                   name={t('firstrun.compute_auto', 'Auto (NVIDIA CUDA / Apple MPS / CPU)')}
-                  desc={t('firstrun.compute_auto_desc', 'Picks the best backend on this machine at runtime — CUDA on NVIDIA, MPS on Apple Silicon, CPU otherwise.')}
+                  desc={t('firstrun.compute_auto_desc', 'Best backend picked at runtime — CUDA on NVIDIA, MPS on Apple Silicon, else CPU.')}
                   badge={hw?.kind === 'cuda' || hw?.kind === 'mps'
                     ? t('firstrun.compute_match', { defaultValue: 'matches this machine' })
                     : null}
@@ -539,7 +539,7 @@ export default function FirstRunSetup() {
               </div>
               <GroupCaption text={plan.torchVariant === 'rocm'
                 ? t('firstrun.compute_rocm_desc', 'Installs PyTorch ROCm wheels for AMD graphics cards on Linux. Leave on Auto if unsure.')
-                : t('firstrun.compute_auto_desc', 'Picks the best backend on this machine at runtime — CUDA on NVIDIA, MPS on Apple Silicon, CPU otherwise.')} />
+                : t('firstrun.compute_auto_desc', 'Best backend picked at runtime — CUDA on NVIDIA, MPS on Apple Silicon, else CPU.')} />
             </Panel>
 
             <Panel title={t('firstrun.channel_label', 'Update channel')} delay={3}>
@@ -554,19 +554,19 @@ export default function FirstRunSetup() {
                   active={plan.updateChannel === 'stable'}
                   onSelect={() => set({ updateChannel: 'stable' })}
                   name={t('firstrun.channel_stable', 'Stable')}
-                  desc={t('firstrun.channel_stable_desc', 'Tested releases only — updates arrive after community validation.')}
+                  desc={t('firstrun.channel_stable_desc', 'Tested releases only, after community validation.')}
                 />
                 <OptionCard
                   compact
                   active={plan.updateChannel === 'preview'}
                   onSelect={() => set({ updateChannel: 'preview' })}
                   name={t('firstrun.channel_preview', 'Preview (latest main)')}
-                  desc={t('firstrun.channel_preview_desc', 'Rolling builds from the latest main — new engines and fixes first, occasional rough edges.')}
+                  desc={t('firstrun.channel_preview_desc', 'Latest main — new engines and fixes first, occasional rough edges.')}
                 />
               </div>
               <GroupCaption text={plan.updateChannel === 'preview'
-                ? t('firstrun.channel_preview_desc', 'Rolling builds from the latest main — new engines and fixes first, occasional rough edges.')
-                : t('firstrun.channel_stable_desc', 'Tested releases only — updates arrive after community validation.')} />
+                ? t('firstrun.channel_preview_desc', 'Latest main — new engines and fixes first, occasional rough edges.')
+                : t('firstrun.channel_stable_desc', 'Tested releases only, after community validation.')} />
             </Panel>
           </div>
         </div>

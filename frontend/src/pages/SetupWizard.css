@@ -127,6 +127,14 @@
   background: color-mix(in srgb, var(--frs-ink) 7%, transparent);
 }
 
+/* Platform-tuned optional models (e.g. MLX on Apple Silicon) — surfaced by
+   default with a positive "recommended" tone so the platform's best picks are
+   visible without expanding the tail. */
+.swiz-lib__chip--rec {
+  color: color-mix(in srgb, var(--frs-ok) 85%, var(--frs-ink));
+  background: color-mix(in srgb, var(--frs-ok) 14%, transparent);
+}
+
 .swiz-lib__state {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.64rem;

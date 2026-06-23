@@ -23,6 +23,21 @@ import { listEngines, selectEngine } from '../api/engines';
 
 const fmtGB = (gb) => (gb == null ? '' : `${gb.toFixed(gb < 10 ? 1 : 0)} GB`);
 
+/**
+ * A model is a "platform pick" when it explicitly targets one of THIS host's
+ * platform tags (the MLX mac-ARM speedups, CUDA-tuned variants, …) — the best
+ * optional models for this machine, surfaced by default instead of buried in
+ * the tail. Models with no `platforms` field are universal (not a pick — they
+ * ride the fold). Pure + exported so the split is unit-testable.
+ */
+export function isPlatformPick(model, platformTags) {
+  return (
+    Array.isArray(model?.platforms) &&
+    Array.isArray(platformTags) &&
+    model.platforms.some((p) => platformTags.includes(p))
+  );
+}
+
 /** Aggregate one repo's SSE file events: percent done + ETA from rates. */
 function aggregate(files) {
   let done = 0;
@@ -100,6 +115,13 @@ export default function WizardLibrary() {
     return Array.isArray(list) ? list : (list?.models ?? []);
   }, [modelsQuery.data]);
 
+  // Host platform tags (e.g. ['darwin', 'darwin-arm64']) so we can surface the
+  // models tuned for THIS machine by default instead of burying them.
+  const platformTags = useMemo(() => {
+    const d = modelsQuery.data;
+    return Array.isArray(d) ? [] : (d?.platform_tags ?? []);
+  }, [modelsQuery.data]);
+
   // Engines: TTS family only on first run — the family the studio speaks with.
   useEffect(() => {
     let cancelled = false;
@@ -168,9 +190,13 @@ export default function WizardLibrary() {
 
   const supported = models.filter((m) => m.supported !== false);
   const required = supported.filter((m) => m.required);
-  const optional = supported.filter((m) => !m.required);
+  const optionalAll = supported.filter((m) => !m.required);
+  // Platform-tuned optionals lead (shown by default); the universal long tail
+  // still folds behind a quiet count.
+  const platformPicks = optionalAll.filter((m) => isPlatformPick(m, platformTags));
+  const tail = optionalAll.filter((m) => !isPlatformPick(m, platformTags));
 
-  const modelRow = (m, chip, chipTone) => {
+  const modelRow = (m, chip, chipTone, note) => {
     const p = progress[m.repo_id];
     const { pct, etaSec } = p ? aggregate(p.files) : { pct: null, etaSec: null };
     const downloading = !!p;
@@ -184,7 +210,7 @@ export default function WizardLibrary() {
         size={fmtGB(m.size_gb)}
         sub={downloading ? (
           <span className="swiz-lib__bar"><span style={{ width: `${pct ?? 4}%` }} /></span>
-        ) : null}
+        ) : (note || null)}
         action={m.installed ? (
           <span className="swiz-lib__state">✓</span>
         ) : downloading ? (
@@ -204,6 +230,10 @@ export default function WizardLibrary() {
   return (
     <div className="swiz-lib">
       {required.map((m) => modelRow(m, t('firstrun.chip_required', 'required'), 'req'))}
+
+      {/* Optional models tuned for THIS machine — shown by default with the
+          catalog note explaining why (e.g. "5× faster on Apple Silicon"). */}
+      {platformPicks.map((m) => modelRow(m, t('firstrun.chip_recommended', 'recommended'), 'rec', m.note))}
 
       {(engines?.backends ?? []).map((b) => (
         <Row
@@ -232,12 +262,12 @@ export default function WizardLibrary() {
         />
       ))}
 
-      {optional.length > 0 && !showTail && (
+      {tail.length > 0 && !showTail && (
         <button type="button" className="frs-btn frs-btn--quiet swiz-lib__more" onClick={() => setShowTail(true)}>
-          ▸ {t('firstrun.lib_show_all', { count: optional.length, defaultValue: 'Show {{count}} optional models' })}
+          ▸ {t('firstrun.lib_show_all', { count: tail.length, defaultValue: 'Show {{count}} more models' })}
         </button>
       )}
-      {showTail && optional.map((m) => modelRow(m, t('firstrun.chip_optional', 'optional'), 'opt'))}
+      {showTail && tail.map((m) => modelRow(m, t('firstrun.chip_optional', 'optional'), 'opt'))}
       {Object.keys(progress).length > 0 && (
         <p className="frs__trust">
           {t('firstrun.resume_note', 'Interrupted downloads resume automatically — closing the app is safe.')}
