@@ -146,6 +146,45 @@ def _track_samples(job_dir):
 # ── Audio-only stretch ─────────────────────────────────────────────────
 
 
+def test_final_dub_track_is_watermarked_after_assembly(patched_generate, monkeypatch):
+    """The final mix, including pre-roll silence, must be watermarked."""
+    run, model, job, job_dir = patched_generate
+    import api.routers.dub_generate as dg
+    from services import watermark
+    import torchaudio
+
+    marker = 0.03125
+    watermark_calls: list[int] = []
+
+    def fake_embed(wav, sr):
+        watermark_calls.append(int(wav.shape[-1]))
+        out = wav.clone()
+        out[..., : min(128, out.shape[-1])] = marker
+        return out
+
+    def fake_detect(wav, sr):
+        head = wav[..., : min(128, wav.shape[-1])]
+        expected = torch.full_like(head, marker)
+        return {"is_watermarked": bool(torch.any(torch.isclose(head, expected, atol=1e-3)))}
+
+    monkeypatch.setattr(dg, "embed_watermark", fake_embed)
+    monkeypatch.setattr(watermark, "detect_watermark", fake_detect)
+
+    job["duration"] = 3.0
+    # The first second is silent pre-roll. If watermarking happens only on
+    # per-segment WAVs, detect_watermark cannot see the marker at track head.
+    segs = [{"start": 1.0, "end": 2.0, "text": "0.5:hola"}]
+    _done(run(_body(segs, timing_strategy="concise")))
+
+    final_wav, sr = torchaudio.load(str(job_dir / "dubbed_es.wav"))
+    assert watermark.detect_watermark(final_wav, sr)["is_watermarked"] is True
+    assert watermark_calls == [int(job["duration"] * SR)]
+
+    seg_wav, _ = torchaudio.load(str(job_dir / "seg_0.wav"))
+    seg_head = seg_wav[..., : min(128, seg_wav.shape[-1])]
+    assert not torch.any(torch.isclose(seg_head, torch.full_like(seg_head, marker), atol=1e-3))
+
+
 def test_smart_fit_audio_only_stretch_keeps_original_duration(patched_generate):
     run, model, job, job_dir = patched_generate
     # seg0 [0,1] natural 0.5s → fits.  seg1 [2,3] is last → slot extends to
