@@ -153,6 +153,75 @@ class ASRBackend(ABC):
 # ── WhisperX (cross-platform default — forced-alignment word timing) ────────
 
 
+def _harden_speechbrain_lazy_imports() -> None:
+    """Make speechbrain 1.x's lazy-import guard fire on Windows too (#630/#611/#647).
+
+    speechbrain 1.x exposes optional integrations (``k2_fsa``, ``numba`` losses,
+    ``spacy``/``flair`` nlp) as ``LazyModule`` redirects living in ``sys.modules``.
+    Stray introspection — PyTorch's op-registration machinery, pickling, a
+    ``dir()``/``hasattr`` walk — touches one of these during ``whisperx.load_model``
+    (pyannote → speechbrain), which would *actually* import the optional package.
+    speechbrain guards against that by suppressing the import when the triggering
+    frame is the stdlib ``inspect`` module — but the check is
+    ``filename.endswith("/inspect.py")``, a hardcoded POSIX separator. On Windows
+    the frame filename uses backslashes (``...\\Lib\\inspect.py``), so the guard
+    misses, the redirect imports ``speechbrain.integrations.k2_fsa`` → ``import k2``
+    → k2 isn't installed → ``ImportError: Lazy import of LazyModule(...k2_fsa...)
+    failed``. That bubbles out of WhisperX and aborts transcription with zero
+    segments. WhisperX is the *default* ASR, so this is a Windows-only break of a
+    cross-platform-default feature (P0 parity).
+
+    Fix the whole class — every optional-integration redirect, not just k2 — by
+    re-implementing ``LazyModule.ensure_module`` with an ``os.sep``-agnostic
+    basename check. Idempotent and a no-op on macOS/Linux (basename match is a
+    strict superset of the old forward-slash check) and when speechbrain is
+    absent. A genuine access from real user code with k2 missing still raises
+    ImportError unchanged — only inspect-triggered spurious imports are
+    suppressed, on every platform.
+    """
+    try:
+        from speechbrain.utils import importutils as _iu
+    except Exception:  # speechbrain not installed / import side-effect — nothing to harden
+        return
+    if getattr(_iu.LazyModule, "_omnivoice_xplat_guard", False):
+        return
+    import importlib as _importlib
+    import inspect as _inspect
+    import sys as _sys
+    import warnings as _warnings
+
+    def ensure_module(self, stacklevel):
+        importer_frame = None
+        try:
+            importer_frame = _inspect.getframeinfo(_sys._getframe(stacklevel + 1))
+        except AttributeError:
+            _warnings.warn(
+                "Failed to inspect frame to check if we should ignore importing a "
+                "module lazily (OmniVoice cross-platform guard)."
+            )
+        if importer_frame is not None:
+            # Normalise BOTH separators explicitly (not os.path.basename, which is
+            # host-dependent) so the guard is correct regardless of which os.path
+            # flavour is active. Upstream's `.endswith("/inspect.py")` matched only
+            # POSIX paths — that is the Windows-only bug (#630/#611/#647).
+            base = importer_frame.filename.replace("\\", "/").rsplit("/", 1)[-1]
+            if base == "inspect.py":
+                raise AttributeError()
+        if self.lazy_module is None:
+            try:
+                if self.package is None:
+                    self.lazy_module = _importlib.import_module(self.target)
+                else:
+                    self.lazy_module = _importlib.import_module(f".{self.target}", self.package)
+            except Exception as e:  # noqa: BLE001 — match upstream: wrap as ImportError
+                raise ImportError(f"Lazy import of {repr(self)} failed") from e
+        return self.lazy_module
+
+    _iu.LazyModule.ensure_module = ensure_module
+    _iu.LazyModule._omnivoice_xplat_guard = True
+    logger.debug("speechbrain LazyModule guard hardened for cross-platform inspect.py check")
+
+
 class WhisperXBackend(ASRBackend):
     id = "whisperx"
     display_name = "WhisperX (faster-whisper + wav2vec2 forced alignment)"
@@ -197,6 +266,10 @@ class WhisperXBackend(ASRBackend):
     def _ensure_asr(self):
         if self._asr is not None:
             return
+        # Patch speechbrain's lazy-import guard BEFORE whisperx pulls in pyannote
+        # → speechbrain, or a stray k2_fsa redirect import aborts ASR on Windows
+        # (#630/#611/#647). No-op on macOS/Linux and when speechbrain is absent.
+        _harden_speechbrain_lazy_imports()
         import whisperx
         logger.info(
             "whisperx loading ASR %s on %s (%s)",
