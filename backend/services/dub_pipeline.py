@@ -534,6 +534,12 @@ def yt_download_sync(
         "quiet": True,
         "no_warnings": True,
         "restrictfilenames": True,
+        # Don't stamp the downloaded file's mtime with the video's upload date
+        # (#642): on Windows an out-of-range/invalid timestamp makes the os.utime
+        # call raise `[Errno 22] Invalid argument`, failing the whole ingest. We
+        # download to a throwaway `original.*` and never use its mtime, so skip
+        # it entirely (equivalent to yt-dlp's --no-mtime).
+        "updatetime": False,
         "socket_timeout": 30,
         # Resilience against YouTube CDN flakes: a single empty fragment
         # (commonly the very last one — "Did not get any data blocks")

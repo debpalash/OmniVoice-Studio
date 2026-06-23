@@ -34,6 +34,13 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   contact — less wall-of-text, faster to act on.
 ### Fixed
 
+- **Dubbing a URL no longer fails with `[Errno 22] Invalid argument` on Windows.**
+  yt-dlp stamps the downloaded file's modified-time with the video's upload
+  date; an out-of-range/invalid timestamp makes the `os.utime` call raise
+  `[Errno 22]` and aborts the whole URL ingest. OmniVoice downloads to a throwaway
+  file and never uses its mtime, so it now skips the stamp entirely
+  (`updatetime=False`). (#642)
+
 - **Dubbing a YouTube link that 403s now retries with a different player
   client.** Some videos serve their formats signature-protected to the default
   player client, so the media download fails with `HTTP Error 403: Forbidden`
