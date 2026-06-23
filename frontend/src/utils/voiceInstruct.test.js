@@ -27,6 +27,22 @@ describe('buildDesignInstruct', () => {
     expect(duplicates).toEqual([]);
   });
 
+  it('clone path (#612): non-EN/ZH free-text yields no instruct, all items flagged unsupported', () => {
+    // The clone synthesize path runs free-text through buildDesignInstruct({}, …)
+    // exactly like this. A Vietnamese description must NOT reach the backend (it
+    // 400s with "Unsupported instruct items"); it drops to "" + a warn bucket so
+    // the UI shows a localized toast and synthesis still proceeds (no style).
+    const { instruct, unsupported } = buildDesignInstruct({}, 'quảng cáo, sôi nổi và thu hút');
+    expect(instruct).toBe('');
+    expect(unsupported).toEqual(['quảng cáo', 'sôi nổi và thu hút']);
+  });
+
+  it('clone path keeps valid style tags while dropping prose in the same field', () => {
+    const { instruct, unsupported } = buildDesignInstruct({}, 'whisper, sôi nổi');
+    expect(instruct).toBe('whisper');
+    expect(unsupported).toEqual(['sôi nổi']);
+  });
+
   it('buckets a valid tag outranked by a dropdown as a duplicate, not unsupported (#114)', () => {
     const { instruct, unsupported, duplicates } = buildDesignInstruct({ Pitch: 'low pitch' }, 'high pitch');
     expect(instruct).toBe('low pitch'); // dropdown wins the category

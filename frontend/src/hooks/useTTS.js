@@ -121,7 +121,22 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
           formData.append("ref_audio", safeBlob, refAudio.name || "audio.wav");
           formData.append("ref_text", refText);
         }
-        if (instruct) formData.append("instruct", instruct);
+        // #612: a clone's free-text style field also passes through the backend
+        // instruct whitelist, so raw prose (e.g. a non-EN/ZH description like the
+        // Vietnamese report) 400s with "Unsupported instruct items". Apply the
+        // SAME validator-safe guard the design path uses: keep valid style tags,
+        // drop the rest, and surface a localized warning toast — never round-trip
+        // a 400. vdStates is empty here (clone has no design sliders).
+        if (instruct) {
+          const { instruct: safeInstruct, unsupported, duplicates } = buildDesignInstruct({}, instruct);
+          if (unsupported.length) {
+            toast(t('tts_errors.ignored_unsupported', { items: unsupported.join(', ') }), { icon: '⚠️' });
+          }
+          if (duplicates.length) {
+            toast(t('tts_errors.ignored_duplicate', { items: duplicates.join(', ') }), { icon: '⚠️' });
+          }
+          if (safeInstruct) formData.append("instruct", safeInstruct);
+        }
       } else {
         // #526: reuse the pinned seed when "keep this seed" is on (stable
         // tweaks), else roll a fresh one. The backend echoes the seed it used
