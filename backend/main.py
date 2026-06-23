@@ -398,33 +398,54 @@ def _mcp_start_timeout_s() -> float:
     return 30.0
 
 
-async def _enter_mcp_session_manager(stack, session_manager, *, timeout: float) -> bool:
-    """Best-effort start of the FastMCP Streamable-HTTP session manager.
+async def _serve_mcp(session_manager, ready: "asyncio.Event", stop: "asyncio.Event") -> None:
+    """Own the MCP session manager's full enter→exit lifecycle in ONE task.
 
-    Returns True if it mounted. The MCP layer is explicitly best-effort: it must
-    never wedge backend startup. The earlier guard only caught *exceptions*, but
-    on some platforms (observed: Apple-Silicon M1, #632) ``session_manager.run()``
-    can *hang* on its anyio task group — and an awaited hang means
-    "Application startup complete" never fires, so the whole backend is
-    unreachable with no error. Bounding the enter with a timeout converts that
-    hang into a logged warning + a backend that still serves (just without MCP).
+    FastMCP's ``run()`` opens an anyio task group, and anyio requires the cancel
+    scope to be exited in the *same task* that entered it. So we must NOT enter
+    it via ``wait_for`` (which runs the enter in a throwaway sub-task) or on the
+    lifespan task and exit it elsewhere — either raises "Attempted to exit cancel
+    scope in a different task". This coroutine enters and exits the context
+    itself: it signals ``ready`` once mounted, then idles until ``stop``.
     """
-    if session_manager is None:
-        return False
     try:
-        await asyncio.wait_for(
-            stack.enter_async_context(session_manager.run()), timeout=timeout
-        )
-        return True
+        async with session_manager.run():
+            ready.set()
+            await stop.wait()
+    except Exception as e:
+        logger.warning("MCP session manager stopped: %s", e)
+    finally:
+        ready.set()  # never leave startup blocked on the readiness wait
+
+
+async def _start_mcp_session_manager(session_manager, *, timeout: float):
+    """Start MCP off the startup critical path; wait up to ``timeout`` for it to
+    signal ready. Returns ``(task, stop_event, mounted)``.
+
+    The MCP layer is best-effort and must never wedge backend startup. On some
+    platforms (observed: Apple-Silicon M1, #632) ``run()`` can *hang* on its
+    anyio task group; the old code awaited the enter before serving, so the hang
+    meant "Application startup complete" never fired and the whole backend was
+    unreachable with no error. Now the enter lives in its own task and we only
+    *optionally* wait on a ready signal — a hang becomes a logged warning + a
+    backend that serves normally without MCP.
+    """
+    stop = asyncio.Event()
+    if session_manager is None:
+        return None, stop, False
+    ready = asyncio.Event()
+    task = asyncio.create_task(_serve_mcp(session_manager, ready, stop))
+    try:
+        await asyncio.wait_for(ready.wait(), timeout=timeout)
+        mounted = not task.done()  # ready is also set on failure → not mounted
     except asyncio.TimeoutError:
         logger.warning(
-            "MCP session manager did not start within %.0fs (#632); serving "
-            "without MCP. Set OMNIVOICE_MCP_START_TIMEOUT_S to adjust.", timeout,
+            "MCP session manager did not signal ready within %.0fs (#632); "
+            "serving without waiting. Set OMNIVOICE_MCP_START_TIMEOUT_S to adjust.",
+            timeout,
         )
-        return False
-    except Exception as e:
-        logger.warning("MCP session manager failed to start: %s", e)
-        return False
+        mounted = False
+    return task, stop, mounted
 
 
 @asynccontextmanager
@@ -530,28 +551,37 @@ async def lifespan(app: FastAPI):
         logger.info("Capture ASR preload disabled; dictation ASR will load on first use.")
 
     # ── MCP session manager (Wave 2.2) ────────────────────────────────────
-    # FastMCP's Streamable-HTTP transport needs its session manager running
-    # for the lifetime of the app. It's created lazily by streamable_http_app()
-    # (called in mount_mcp below), so we stack its `run()` context into ours
-    # via AsyncExitStack rather than replacing this lifespan. Best-effort: a
-    # missing/broken MCP layer must never stop the rest of the backend.
-    from contextlib import AsyncExitStack
-    async with AsyncExitStack() as _mcp_stack:
-        _sm = getattr(app.state, "mcp_session_manager", None)
-        if await _enter_mcp_session_manager(
-            _mcp_stack, _sm, timeout=_mcp_start_timeout_s()
-        ):
-            logger.info("MCP server mounted at /mcp")
-        # Startup finished — disarm the hang watchdog before serving (#632).
-        if _watchdog_armed:
-            try:
-                import faulthandler
-                faulthandler.cancel_dump_traceback_later()
-            except Exception:
-                pass
-        yield
+    # FastMCP's Streamable-HTTP transport needs its session manager running for
+    # the lifetime of the app. Run it in its OWN task that owns the full
+    # enter→exit lifecycle (anyio task-affinity, see _serve_mcp) and only wait,
+    # with a timeout, for it to signal ready — so a hang on its anyio group
+    # (observed on M1, #632) can never wedge "Application startup complete".
+    _sm = getattr(app.state, "mcp_session_manager", None)
+    mcp_task, mcp_stop, mcp_mounted = await _start_mcp_session_manager(
+        _sm, timeout=_mcp_start_timeout_s()
+    )
+    if mcp_mounted:
+        logger.info("MCP server mounted at /mcp")
+    # Startup finished — disarm the hang watchdog before serving (#632).
+    if _watchdog_armed:
+        try:
+            import faulthandler
+            faulthandler.cancel_dump_traceback_later()
+        except Exception:
+            pass
+    yield
     # ── Graceful shutdown (SIGTERM from Tauri, Ctrl+C, etc.) ────────────
     logger.info("Shutdown: cleaning up…")
+    # Stop MCP first — signal its task to exit its own anyio context (correct
+    # task-affinity), then bound the wait so a wedged manager can't hang exit.
+    mcp_stop.set()
+    if mcp_task is not None:
+        try:
+            await asyncio.wait_for(mcp_task, timeout=5.0)
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            pass
+        except Exception:
+            pass
     idle_task.cancel()
     worker_task.cancel()
     # Wait for tasks to finish their current iteration
