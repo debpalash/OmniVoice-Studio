@@ -53,3 +53,31 @@ def test_generic_failure_still_uses_oom_hint():
     with pytest.raises(RuntimeError) as ei:
         _oom_friendly_reraise(RuntimeError("CUDA error: out of memory"))
     assert "ran out of memory" in str(ei.value)
+
+
+def test_unsupported_instruct_is_a_validation_error_not_oom():
+    # #664: free-form prose in the instruct field must surface as a 400-mapped
+    # ValueError with the instruct guidance — NOT a 500 "ran out of memory".
+    err = ValueError(
+        "Unsupported instruct items found in Speak with high energy:\n"
+        "  'Speak with high energy' -> 'speak with high energy' (unsupported)\n\n"
+        "Valid English items: male, whisper, ..."
+    )
+    with pytest.raises(ValueError) as ei:
+        _oom_friendly_reraise(err)
+    msg = str(ei.value)
+    assert "Unsupported instruct items" in msg
+    assert "ran out of memory" not in msg
+
+
+def test_instruct_error_wrapped_in_runtimeerror_is_still_validation():
+    # A lower layer can wrap the original ValueError; we must classify on the
+    # message signature, not the type, so the route still returns a clean 400.
+    err = RuntimeError(
+        "model.generate failed: Conflicting instruct items within the same "
+        "category: 'male' vs 'female'."
+    )
+    with pytest.raises(ValueError) as ei:
+        _oom_friendly_reraise(err)
+    assert "Conflicting instruct items" in str(ei.value)
+    assert "ran out of memory" not in str(ei.value)

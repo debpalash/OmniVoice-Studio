@@ -178,6 +178,20 @@ def _oom_friendly_reraise(e):
             f"usually a transient glitch. Use the Flush button to reload the model, "
             f"then regenerate. Underlying error: {e}"
         ) from e
+    # #664: a bad voice-design instruct (free-form prose, mixed EN/ZH, or
+    # conflicting tags) raises "Unsupported instruct items …" / "Cannot mix …
+    # in a single instruct" / "Conflicting instruct items …" from omnivoice's
+    # _resolve_instruct. That's a USER-INPUT validation error, not an OOM. Match
+    # on the message signature (NOT the type — a lower layer can wrap the original
+    # ValueError, which is why the route's `except ValueError` guard misses it)
+    # and re-raise as a clean ValueError so the route returns a 400 with the
+    # instruct guidance, instead of a 500 telling the user to Flush for memory
+    # they never ran out of. (Complements the client-side guard in #658/#612.)
+    _low = es.lower()
+    if ("unsupported instruct items" in _low
+            or "conflicting instruct items" in _low
+            or "in a single instruct" in _low):
+        raise ValueError(es) from e
     raise RuntimeError(
         f"TTS engine stopped mid-generation. This usually means it ran out of memory. "
         f"Try the Flush button to reload the model, then regenerate. Underlying error: {e}"
