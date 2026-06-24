@@ -168,6 +168,14 @@
      `.clone-panel--overflow-visible` (applied in the JSX) stops the parent
      `overflow:auto` from clipping it. */
   max-width: min(360px, calc(100vw - 16px));
+  /* Vertical guard: the popover opens upward, and with 15 chips wrapping to
+     several rows it used to grow unbounded and clip off the TOP of the window
+     (the ⊕ button can sit high in a tall script panel). Cap the height to the
+     space above the button and scroll the overflow, so the whole list always
+     stays in view instead of shooting past the app's top edge. */
+  max-height: min(280px, calc(100vh - 120px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 8px;
   background: var(--chrome-bg);
   border: 1px solid var(--chrome-border-strong);
