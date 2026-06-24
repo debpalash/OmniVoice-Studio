@@ -8,6 +8,18 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+## [0.3.8] — 2026-06-24
+
+A stability-focused release that makes first-run and Windows "just work." It
+clears the wave of **"Can't reach the local backend"** reports at the source —
+the 8 GB-card OOM crash, the slow-load future-scheduling break, a Windows-only
+WhisperX load failure, and transcription stalls that *looked* like a dead backend
+are all fixed or now fail with a clear, actionable message. Downloads are faster
+out of the box (parallel segmented transfer on by default) and the Hugging Face
+token that speeds them up is front-and-center on setup. Plus first-run polish,
+faster long-form previews on Windows, multi-voice story casting, and a friendlier
+batch of error messages across dub, generate, and design.
+
 ### Added
 
 - **Tagged scripts auto-cast into a multi-voice podcast/audiobook.** Paste a
@@ -20,6 +32,17 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - **A dedicated Contact page.** Discord, email, GitHub issues, and the project
   website (palash.dev) as clean one-tap rows, reachable from the footer — so
   reaching the maker is never more than a click away.
+- **Live download speed, remaining size, and ETA on first-run setup.** The
+  Models & Engines step now shows `38% · 5.2 MB/s · 1.2 GB left · ~3m` while a
+  model downloads, instead of a bare "downloading…". (#657)
+- **Turn off auto-play of the preview after a render.** New Settings →
+  Appearance toggle, "Auto-play preview" (on by default) — switch it off so a
+  finished clip doesn't start playing on its own, ideal when batch-generating
+  segments. (#666)
+- **App version in the status bar, one click from updates.** A `v<version>`
+  badge sits by the network icon in the bottom bar; clicking it opens Settings →
+  Updates, and it grows a pulsing dot the moment a new version is ready to
+  install. (#671)
 
 ### Changed
 
@@ -39,6 +62,16 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   and FAQ down to the three things that actually drive the decision (you own the
   output, no per-minute cost, direct support) plus one clear "request a quote"
   contact — less wall-of-text, faster to act on.
+- **Model downloads are faster out of the box.** The built-in multi-connection
+  (segmented) downloader — parallel byte-ranges with live speed/ETA — is now on
+  by default, so the legacy-LFS path is no longer single-stream and slow. It
+  falls back to the normal download on any error, so it can never compromise a
+  correct install (`OMNIVOICE_SEGMENTED_DOWNLOAD=0` to disable). (#669)
+- **The Hugging Face token is now front-and-center on first-run.** Was a
+  collapsed "advanced" fold almost nobody opened; it's now a prominent card right
+  above Continue, framed around what it actually buys you — authenticated, faster,
+  more reliable downloads (higher rate limits, fewer stalls) — with a one-click
+  "get a free token" link. (#657, #669)
 ### Fixed
 
 - **In-app preview of finished audiobooks/stories now plays on Windows.**
@@ -204,6 +237,38 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   took the worker down). The GPU pool is now a single self-healing handle whose
   worker pool is rebuilt on demand, so a reset can never strand an in-flight or
   later request. No settings change; the recovery is automatic. (#589 #599)
+- **Transcription / dubbing works on Windows again.** WhisperX failed to load on
+  Windows because speechbrain's guard that suppresses stray optional-integration
+  imports used a POSIX-only path check, so a `k2_fsa` import error aborted the
+  whole transcription. Fixed cross-platform — covers the entire class of optional
+  integrations, not just k2. (#630 #611 #647)
+- **A slow transcription no longer looks like a dead backend.** Whole-file
+  transcribe paths (dub QC, dictation, OpenAI-compat) ran unbounded, so a
+  VRAM-starved `large-v3` could spin for minutes and hold a GPU worker — surfacing
+  as "Can't reach the local backend". They're now time-bounded and return a clear,
+  actionable 504 (free VRAM / pick a smaller ASR model / use CPU) instead of
+  hanging. New troubleshooting section documents it. (#656)
+- **Windows preview playback fixed.** The audiobook/clone preview's streaming
+  fallback fetched `localhost`, which on Windows resolves to IPv6 and missed the
+  IPv4-only backend — so previews failed with "decode error" / "no supported
+  sources". The preview API now targets `127.0.0.1` (matching the main client),
+  and the expected decode→stream fallback is logged calmly instead of as a scary
+  error. (#653 #659)
+- **A stale dub session resets cleanly instead of erroring.** Reopening the Dub
+  tab after the backend restarted tried to resume a job that no longer existed and
+  surfaced "Job not found" as a bug-report error. It now quietly clears the dead
+  session and invites a fresh upload. (#660)
+- **A bad voice-style instruct is a clear 400, not a scary 500.** Typing free-form
+  prose (or a non-English description) into the style/instruct field returned a
+  500 telling you to Flush for memory you never ran out of; it now returns a clean
+  400 that lists the valid style tags. The Voice Clone UI also drops unrecognized
+  style text locally and generates anyway. (#664 #612)
+- **The ⊕ Insert token popover stays on screen.** On Voice Clone it could grow
+  tall enough to clip off the top of the window; it's now a compact, scrollable
+  box anchored above the button. (#672)
+- **First-run no longer hangs on Apple Silicon.** The MCP session-manager startup
+  is now timeout-bounded so a slow/stuck mount can't wedge the whole backend boot
+  on M1. (#632)
 
 ### CI
 
