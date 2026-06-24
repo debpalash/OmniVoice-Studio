@@ -1955,9 +1955,12 @@
     "first_sound_done": "That voice? Generated seconds ago, locally. Welcome in.",
     "hf_token_title": "Hugging Face token — faster, more reliable downloads (optional)",
     "hf_token_hint": "A free account token gives authenticated downloads (faster, higher rate limits, fewer stalls) and unlocks gated models like speaker diarization for multi-speaker dubbing (pyannote). Stays on this machine.",
+    "hf_token_card_title": "Add a free Hugging Face token for faster downloads",
+    "hf_token_get": "Don't have a token? Get one free →",
     "hf_token_save": "Save",
     "hf_token_saving": "saving…",
     "hf_token_saved": "Hugging Face token saved",
+    "hf_token_saved_fast": "Hugging Face token saved — downloads are now faster",
     "hf_token_error": "Could not save the token — try again or set it later in Settings → Credentials."
   },
   "history": {

@@ -130,11 +130,15 @@ def compute_plan(plan_files) -> dict:
 
 
 def _segmented_enabled() -> bool:
-    """Opt-in IDM-style accelerator (FDL-09), default OFF. Most useful when Xet
-    is inactive (the app's default): the legacy-LFS path is single-stream, so
-    this restores parallel speed AND gives real live byte progress."""
+    """IDM-style multi-connection accelerator (FDL-09), default **ON**. The app
+    forces the legacy-LFS path (HF_HUB_DISABLE_XET=1) for clear progress, but that
+    path is single-stream and slow — this restores parallel byte-range speed AND
+    real live progress, and falls back to snapshot_download on any error so it
+    can never compromise a correct install. Default-on so first-run downloads are
+    fast out of the box (pairs with an HF token for higher rate limits); set
+    OMNIVOICE_SEGMENTED_DOWNLOAD=0 to force the single-stream path."""
     return _truthy(prefs.resolve(
-        "segmented_downloader", env="OMNIVOICE_SEGMENTED_DOWNLOAD", default=False,
+        "segmented_downloader", env="OMNIVOICE_SEGMENTED_DOWNLOAD", default=True,
     ))
 
 
@@ -434,10 +438,11 @@ async def install_model(req: InstallModelRequest):
                     raise _InstallCancelled()
                 _attempt += 1
                 try:
-                    # Opt-in segmented accelerator (FDL-09): parallel byte-range
-                    # fetch with real live progress, for the legacy-LFS path.
-                    # Any failure falls through to snapshot_download — the
-                    # accelerator can never compromise a correct install.
+                    # Segmented accelerator (FDL-09, default ON): parallel
+                    # byte-range fetch with real live progress, for the
+                    # legacy-LFS path. Any failure falls through to
+                    # snapshot_download — the accelerator can never compromise a
+                    # correct install.
                     _snapshot_path = None
                     if _attempt == 1 and _segmented_enabled() and not _xet_active():
                         try:

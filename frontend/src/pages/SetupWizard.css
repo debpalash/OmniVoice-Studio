@@ -171,8 +171,38 @@
 
 .swiz-lib__more { align-self: flex-start; }
 
-/* Optional HF token — quiet disclosure at the bottom of the library. */
-.swiz-lib__hf { margin-top: 0.3rem; }
-.swiz-lib__hf-body { display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.45rem; max-width: 460px; }
+/* HF token — prominent card just above Continue (was a quiet fold). A free
+   token = authenticated, faster downloads, so we surface + encourage it. */
+.swiz-lib__hfcard {
+  margin-top: 0.9rem;
+  padding: 0.8rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  max-width: 560px;
+  border: 1px solid color-mix(in srgb, var(--frs-accent, #d3869b) 38%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--frs-accent, #d3869b) 8%, transparent);
+}
+.swiz-lib__hfcard.is-saved {
+  border-color: color-mix(in srgb, var(--frs-ok, #b8bb26) 45%, transparent);
+  background: color-mix(in srgb, var(--frs-ok, #b8bb26) 9%, transparent);
+}
+.swiz-lib__hfcard-main { display: flex; gap: 0.6rem; align-items: flex-start; }
+.swiz-lib__hfcard-icon { font-size: 1.1rem; line-height: 1.3; }
+.swiz-lib__hfcard-text { display: flex; flex-direction: column; gap: 0.2rem; }
+.swiz-lib__hfcard-title { font-weight: 600; font-size: 0.92rem; }
+.swiz-lib__hfcard-hint { margin: 0; font-size: 0.78rem; opacity: 0.66; line-height: 1.4; }
+.swiz-lib__hfcard-save { white-space: nowrap; }
+.swiz-lib__hfcard-link {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.78rem;
+  color: var(--frs-accent, #d3869b);
+  cursor: pointer;
+  text-decoration: underline;
+}
 .swiz-lib__hf-row { display: flex; gap: 0.45rem; }
 .swiz-lib__hf-row .frs-input { flex: 1; }
