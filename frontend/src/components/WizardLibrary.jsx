@@ -57,8 +57,22 @@ export function isPlatformPick(model, platformTags) {
   );
 }
 
-/** Aggregate one repo's SSE file events: percent + ETA + live rate + remaining.
- * Exported (pure) so the speed/remaining math is unit-testable. */
+/** Overall progress from the backend's authoritative `aggregate` SSE event.
+ * This is the TRUSTWORTHY source: under parallel/segmented fetch the per-file
+ * tqdm events are unreliable (big weight shards may report total/rate as 0),
+ * so summing them on the frontend gave wrong numbers — e.g. "8% · 1 KB/s ·
+ * 0.0 MB left". The backend computes one windowed rate + ETA + bytes_done /
+ * total_bytes (seeded by the dry-run preflight), which is what we render. Pure
+ * + exported for unit tests. Returns null until totals are known. */
+export function progressFromAgg(agg) {
+  if (!agg || !(agg.totalBytes > 0)) return null;
+  const pct = Math.min(100, Math.round((agg.bytesDone / agg.totalBytes) * 100));
+  const remaining = agg.totalBytes > agg.bytesDone ? agg.totalBytes - agg.bytesDone : null;
+  return { pct, remaining, rate: agg.rate || 0, etaSec: agg.etaSeconds ?? null };
+}
+
+/** Fallback: aggregate one repo's per-file SSE events when the authoritative
+ * `aggregate` event hasn't arrived yet. Exported (pure) for unit tests. */
 export function aggregate(files) {
   let done = 0;
   let total = 0;
@@ -177,6 +191,20 @@ export default function WizardLibrary() {
             delete next[ev.repo_id];
             return next;
           }
+          // Authoritative overall progress (download_aggregator): one windowed
+          // rate + ETA + bytes_done/total_bytes for the whole repo. Preferred
+          // over summing per-file events, which is unreliable under parallel/
+          // segmented fetch (the source of the "8% · 1 KB/s · 0.0 MB left" bug).
+          if (ev.phase === 'aggregate') {
+            return { ...prev, [ev.repo_id]: { ...cur, agg: {
+              bytesDone: ev.bytes_done || 0,
+              totalBytes: ev.total_bytes || 0,
+              rate: ev.rate || 0,
+              etaSeconds: ev.eta_seconds ?? null,
+              filesDone: ev.files_done || 0,
+              filesTotal: ev.files_total || 0,
+            } } };
+          }
           if (!ev.filename) return prev;
           const files = { ...cur.files, [ev.filename]: { downloaded: ev.downloaded || 0, total: ev.total || 0, rate: ev.rate || 0 } };
           return { ...prev, [ev.repo_id]: { ...cur, files } };
@@ -219,9 +247,11 @@ export default function WizardLibrary() {
 
   const modelRow = (m, chip, chipTone, note) => {
     const p = progress[m.repo_id];
-    const { pct, etaSec, rate, remaining } = p
-      ? aggregate(p.files)
-      : { pct: null, etaSec: null, rate: 0, remaining: null };
+    // Prefer the backend's authoritative aggregate; fall back to per-file sums
+    // only until that event arrives (then to nulls when nothing's streaming).
+    const { pct, etaSec, rate, remaining } =
+      progressFromAgg(p?.agg) ||
+      (p ? aggregate(p.files) : { pct: null, etaSec: null, rate: 0, remaining: null });
     const downloading = !!p;
     // Live telemetry line: "5.2 MB/s · 700 MB left · ~3m". Each part only shows
     // once the SSE stream has the data, so early on it degrades to "downloading…".

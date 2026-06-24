@@ -1,5 +1,37 @@
 import { describe, it, expect } from 'vitest';
-import { aggregate, fmtBytes, fmtRate } from '../components/WizardLibrary.jsx';
+import { aggregate, progressFromAgg, fmtBytes, fmtRate } from '../components/WizardLibrary.jsx';
+
+describe('progressFromAgg — backend authoritative aggregate event', () => {
+  it('computes pct + remaining + rate + ETA from real totals (not the buggy per-file sum)', () => {
+    // 8% of 2.4 GB must show ~2.2 GB left — NOT "0.0 MB left" (#657 follow-up bug).
+    const TOTAL = 2.4 * 1024 * 1024 * 1024;   // 2.4 GiB, matching the "2.4 GB" label
+    const agg = {
+      bytesDone: 0.08 * TOTAL,
+      totalBytes: TOTAL,
+      rate: 5.2 * 1024 * 1024,  // 5.2 MB/s
+      etaSeconds: 405,
+    };
+    const r = progressFromAgg(agg);
+    expect(r.pct).toBe(8);
+    expect(r.remaining).toBeCloseTo(0.92 * TOTAL, 0);
+    expect(fmtBytes(r.remaining)).toBe('2.2 GB');     // not 0.0 MB
+    expect(fmtRate(r.rate)).toBe('5.2 MB/s');          // not 1 KB/s
+    expect(r.etaSec).toBe(405);
+  });
+
+  it('returns null until totals are known (so the row falls back / shows downloading…)', () => {
+    expect(progressFromAgg(null)).toBeNull();
+    expect(progressFromAgg({ bytesDone: 100, totalBytes: 0 })).toBeNull();
+    expect(progressFromAgg({ bytesDone: 100 })).toBeNull();
+  });
+
+  it('caps pct at 100 and treats no-remaining as null', () => {
+    const r = progressFromAgg({ bytesDone: 2_576_980_377, totalBytes: 2_576_980_377, rate: 0, etaSeconds: null });
+    expect(r.pct).toBe(100);
+    expect(r.remaining).toBeNull();
+    expect(r.etaSec).toBeNull();
+  });
+});
 
 describe('aggregate — download telemetry from SSE file events', () => {
   it('sums bytes, computes pct, remaining, rate and ETA', () => {
