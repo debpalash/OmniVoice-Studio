@@ -1,3 +1,5 @@
+> **Superseded (2026-06-25)** by [00-roadmap-elevenlabs-parity.md](00-roadmap-elevenlabs-parity.md) and specs 01–03. Retained for historical context.
+
 # Stories Editor & Audiobook — Maturity Spec
 
 > Compiled 2026-06-13. Targets the v0.3.x continuous-to-main line. Grounds every
