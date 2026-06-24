@@ -1,66 +1,53 @@
 /* Settings → Appearance panel.
-   Mirrors the layout of PerformancePanel (Wave 2 INST-12) so all the
-   per-section Settings sub-panels read consistently. */
+   Built on the shared Settings primitives (SettingsSection / SettingRow);
+   only the scale slider, theme-dot swatches, and font-preview tiles carry
+   panel-specific chrome — all routed through --chrome-* tokens so they theme
+   correctly across every theme. */
 
-.appearance-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.02);
+/* The font grid is taller than one line and wants the row's full width — let
+   its control span and top-align instead of right-aligning a single control. */
+.appearance-panel__row--fonts .st-row__control {
+  align-self: flex-start;
+  justify-self: stretch;
+  display: block;
+  text-align: left;
 }
 
-.appearance-panel__title {
-  display: flex;
+/* UI scale slider + live percentage readout */
+.appearance-panel__scale {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
-  letter-spacing: 0.02em;
+  gap: var(--space-3);
+  min-width: 200px;
 }
 
-.appearance-panel__row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
+.appearance-panel__scale input[type='range'] {
+  flex: 1;
+  min-width: 140px;
+  accent-color: var(--chrome-accent);
 }
 
-.appearance-panel__label {
-  min-width: 100px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.65);
+.appearance-panel__scale-val {
+  min-width: 42px;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+  color: var(--chrome-fg);
+  text-align: right;
 }
 
-.appearance-panel__toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.82);
-  cursor: pointer;
-}
-
-.appearance-panel__toggle input {
-  cursor: pointer;
-}
-
+/* Color-theme swatches */
 .appearance-panel__themes {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-3);
 }
 
 .appearance-panel__theme-dot {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.18);
-  background: var(--dot-color, #888);
+  border: 2px solid var(--chrome-border);
+  background: var(--dot-color, var(--chrome-fg-dim));
   cursor: pointer;
   padding: 0;
   transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
@@ -68,89 +55,56 @@
 
 .appearance-panel__theme-dot:hover {
   transform: scale(1.1);
-  border-color: rgba(255, 255, 255, 0.4);
+  border-color: var(--chrome-border-strong);
 }
 
 .appearance-panel__theme-dot.is-active {
-  border-color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
-}
-
-.appearance-panel__row--stack {
-  align-items: flex-start;
-}
-
-/* UI scale slider + live percentage readout */
-.appearance-panel__scale {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 200px;
-}
-
-.appearance-panel__scale input[type='range'] {
-  flex: 1;
-  min-width: 140px;
-}
-
-.appearance-panel__scale-val {
-  min-width: 42px;
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.85);
-  text-align: right;
+  border-color: var(--chrome-fg);
+  box-shadow: 0 0 0 2px var(--chrome-hover-bg);
 }
 
 /* Font picker — grid of live previews instead of a select box */
 .appearance-panel__fonts {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 8px;
-  flex: 1;
+  gap: var(--space-3);
+  width: 100%;
   min-width: 0;
 }
 
 .appearance-panel__font-tile {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.85);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  background: var(--chrome-bg);
+  color: var(--chrome-fg);
   cursor: pointer;
   text-align: left;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .appearance-panel__font-tile:hover {
-  border-color: rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--chrome-border-strong);
+  background: var(--chrome-hover-bg);
 }
 
 .appearance-panel__font-tile.is-active {
-  border-color: var(--color-brand, #d3869b);
-  box-shadow: 0 0 0 1px var(--color-brand, #d3869b) inset;
+  border-color: var(--chrome-accent);
+  box-shadow: 0 0 0 1px var(--chrome-accent) inset;
 }
 
 .appearance-panel__font-sample {
   font-size: 20px;
   line-height: 1;
   flex: 0 0 auto;
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--chrome-fg);
 }
 
 .appearance-panel__font-name {
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: var(--text-sm);
+  color: var(--chrome-fg-muted);
   /* name renders in the tile's font too — keep it the same family */
-}
-
-.appearance-panel__help {
-  margin: 4px 0 0;
-  font-size: 11.5px;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.5);
 }

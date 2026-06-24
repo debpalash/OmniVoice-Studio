@@ -54,14 +54,14 @@ describe('AppearancePanel — auto-play preview toggle (#666)', () => {
   it('defaults to ON (preserves existing auto-play behavior)', () => {
     expect(useAppStore.getState().autoPlayPreview).toBe(true);
     render(<AppearancePanel />);
-    expect(screen.getByTestId('autoplay-preview')).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Auto-play preview' })).toBeChecked();
   });
 
   it('toggling off updates the store so renders no longer auto-play', () => {
     render(<AppearancePanel />);
-    fireEvent.click(screen.getByTestId('autoplay-preview'));
+    fireEvent.click(screen.getByRole('switch', { name: 'Auto-play preview' }));
     expect(useAppStore.getState().autoPlayPreview).toBe(false);
-    expect(screen.getByTestId('autoplay-preview')).not.toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Auto-play preview' })).not.toBeChecked();
     // restore default for other tests
     useAppStore.getState().setAutoPlayPreview(true);
   });

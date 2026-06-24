@@ -15,6 +15,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { HardDrive } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiJson, apiFetch } from '../../api/client';
+import { SettingsSection, SettingRow, InfoHint } from './primitives';
 import './StoragePanel.css';
 
 export default function StoragePanel() {
@@ -71,58 +72,72 @@ export default function StoragePanel() {
   };
 
   return (
-    <section className="storagepanel" aria-labelledby="storagepanel-heading">
-      <h3 id="storagepanel-heading" className="storagepanel__title">
-        <HardDrive size={14} /> Models directory
-      </h3>
-
+    <SettingsSection
+      className="storagepanel"
+      icon={HardDrive}
+      title="Models directory"
+      actions={
+        <InfoHint label="Models directory">
+          Where model weights download (the HuggingFace / Torch cache). Point this
+          at a larger or faster drive — useful when your system drive is small.
+          Changes apply on the next restart.
+        </InfoHint>
+      }
+    >
       {error && <div className="storagepanel__error" role="alert">{error}</div>}
 
-      <p id="storagepanel-help" className="storagepanel__help">
-        Where model weights download (the HuggingFace / Torch cache). Point this
-        at a larger or faster drive — useful when your system drive is small.
-        Changes apply on the next restart.
-      </p>
+      <SettingRow
+        align="start"
+        title="Cache location"
+        subtitle="Where model weights download"
+        control={
+          <div className="storagepanel__field">
+            <input
+              className="storagepanel__input"
+              type="text"
+              value={input}
+              placeholder={def || '~/.cache/huggingface'}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={saving || loading}
+              spellCheck={false}
+              aria-label="Models directory"
+              data-testid="models-dir-input"
+            />
+            <button
+              className="storagepanel__btn"
+              onClick={() => save(input.trim())}
+              disabled={saving || loading}
+              data-testid="models-dir-save"
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              className="storagepanel__btn storagepanel__btn--ghost"
+              onClick={() => { setInput(''); save(''); }}
+              disabled={saving || loading || !configured}
+              title="Revert to the default cache location"
+            >
+              Reset
+            </button>
+          </div>
+        }
+      />
 
-      <div className="storagepanel__row">
-        <input
-          className="storagepanel__input"
-          type="text"
-          value={input}
-          placeholder={def || '~/.cache/huggingface'}
-          onChange={(e) => setInput(e.target.value)}
-          disabled={saving || loading}
-          spellCheck={false}
-          aria-labelledby="storagepanel-heading"
-          aria-describedby="storagepanel-help"
-          data-testid="models-dir-input"
-        />
-        <button
-          className="storagepanel__btn"
-          onClick={() => save(input.trim())}
-          disabled={saving || loading}
-          data-testid="models-dir-save"
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-        <button
-          className="storagepanel__btn storagepanel__btn--ghost"
-          onClick={() => { setInput(''); save(''); }}
-          disabled={saving || loading || !configured}
-          title="Revert to the default cache location"
-        >
-          Reset
-        </button>
-      </div>
+      <SettingRow
+        title="Effective now"
+        control={<>{effective || '…'}</>}
+        mono
+      />
 
-      <p className="storagepanel__meta">
-        Effective now: <code>{effective || '…'}</code>
-        {configured ? <> · configured: <code>{configured}</code></> : <> · using default</>}
-      </p>
+      <SettingRow
+        title="Configured"
+        control={<>{configured || 'using default'}</>}
+        mono
+      />
 
       {restart && (
         <p className="storagepanel__restart">↻ Restart OmniVoice to use the new location.</p>
       )}
-    </section>
+    </SettingsSection>
   );
 }

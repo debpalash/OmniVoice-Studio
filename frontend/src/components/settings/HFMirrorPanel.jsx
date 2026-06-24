@@ -12,6 +12,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Globe } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
+import { SettingsSection, SettingRow } from './primitives';
 import './PerformancePanel.css';
 
 export default function HFMirrorPanel() {
@@ -57,38 +58,41 @@ export default function HFMirrorPanel() {
   if (!state) return null;
 
   return (
-    <section className="perfpanel" aria-labelledby="hfmirror-heading">
-      <h3 id="hfmirror-heading" className="perfpanel__title">
-        <Globe size={14} /> Hugging Face mirror
-      </h3>
-      <p className="perfpanel__help">
-        On a restricted network, route model downloads through a mirror.
-        Applies after a restart. Leave empty for the official endpoint.
-      </p>
-
+    <SettingsSection
+      icon={Globe}
+      title="Hugging Face mirror"
+      description="Route model downloads through a mirror on a restricted network."
+    >
       {error && <div className="perfpanel__error" role="alert">{error}</div>}
 
-      <div className="perfpanel__row" style={{ flexWrap: 'wrap', gap: 6 }}>
-        {state.presets.map((p) => (
-          <button key={p.label} type="button" onClick={() => save(p.url)}
-            disabled={saving} data-testid={`hf-preset-${p.url || 'official'}`}>
-            {p.label}
-          </button>
-        ))}
-      </div>
+      <SettingRow
+        title="Mirror preset"
+        hint="On a restricted network, route model downloads through a mirror. Applies after a restart. Leave empty for the official endpoint."
+        control={
+          <div className="perfpanel__row" style={{ flexWrap: 'wrap', gap: 6 }}>
+            {state.presets.map((p) => (
+              <button key={p.label} type="button" onClick={() => save(p.url)}
+                disabled={saving} data-testid={`hf-preset-${p.url || 'official'}`}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
-      <label className="perfpanel__row">
-        <span className="perfpanel__label">HF_ENDPOINT</span>
-        <input type="text" value={url} onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://hf-mirror.com" style={{ flex: 1 }} data-testid="hf-mirror-url" />
-        <button type="button" onClick={() => save(url)} disabled={saving} data-testid="hf-mirror-save">
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-      </label>
-
-      {restart && (
-        <p className="perfpanel__help">Restart the app for the mirror change to take effect.</p>
-      )}
-    </section>
+      <SettingRow
+        title="HF_ENDPOINT"
+        subtitle={restart ? 'Restart the app for the change to take effect.' : undefined}
+        control={
+          <>
+            <input type="text" value={url} onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://hf-mirror.com" style={{ flex: 1, minWidth: 180 }} data-testid="hf-mirror-url" />
+            <button type="button" onClick={() => save(url)} disabled={saving} data-testid="hf-mirror-save">
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </>
+        }
+      />
+    </SettingsSection>
   );
 }

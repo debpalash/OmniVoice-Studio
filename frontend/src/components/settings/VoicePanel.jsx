@@ -37,6 +37,7 @@ import { useInstallModel, useDeleteModel } from '../../api/hooks';
 import { setupDownloadStreamUrl } from '../../api/setup';
 import { isTauri as _isTauri } from '../../utils/media';
 import { Badge, Progress, Segmented } from '../../ui';
+import { SettingsSection, SettingRow, SettingsToggle } from './primitives';
 import './VoicePanel.css';
 
 /** Native confirm dialog in Tauri, window.confirm in the web UI. Mirrors the
@@ -237,51 +238,38 @@ export default function VoicePanel() {
   const shortcutLabel = shortcut || DEFAULT_SHORTCUT;
 
   return (
-    <section className="voicepanel" aria-labelledby="voicepanel-heading">
-      <header className="voicepanel__head">
-        <h2 id="voicepanel-heading" className="voicepanel__title">
-          <Mic size={16} color="#83a598" /> {t('voicePanel.title')}
-        </h2>
-        <p className="voicepanel__subtitle">{t('voicePanel.subtitle')}</p>
-      </header>
-
-      <div className="voicepanel__card">
-        {!engineAvailable && (
-          <div className="voicepanel__warn" role="alert">
-            <AlertTriangle size={13} />
-            <span>{engineReason || t('voicePanel.engine_unavailable')}</span>
-          </div>
-        )}
-
-        {/* 1 — Enable Voice Dictation */}
-        <div className="voicepanel__row">
-          <div className="voicepanel__row-text">
-            <span className="voicepanel__row-label">{t('voicePanel.enable_label')}</span>
-            <span className="voicepanel__row-sub">
-              {t('voicePanel.enable_sub', { shortcut: shortcutLabel })}
-            </span>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={enabled}
-            aria-label={t('voicePanel.enable_label')}
-            className={`voicepanel__switch ${enabled ? 'is-on' : ''}`}
-            onClick={() => setEnabled(!enabled)}
-            data-testid="dictation-enabled"
-          >
-            <span className="voicepanel__switch-knob" />
-          </button>
+    <SettingsSection
+      className="voicepanel"
+      icon={Mic}
+      accent="var(--chrome-accent)"
+      title={t('voicePanel.title')}
+      description={t('voicePanel.subtitle')}
+    >
+      {!engineAvailable && (
+        <div className="voicepanel__warn" role="alert">
+          <AlertTriangle size={13} />
+          <span>{engineReason || t('voicePanel.engine_unavailable')}</span>
         </div>
+      )}
 
-        <hr className="voicepanel__divider" />
+      {/* 1 — Enable Voice Dictation */}
+      <SettingRow
+        title={t('voicePanel.enable_label')}
+        subtitle={t('voicePanel.enable_sub', { shortcut: shortcutLabel })}
+        control={
+          <SettingsToggle
+            checked={enabled}
+            onChange={setEnabled}
+            aria-label={t('voicePanel.enable_label')}
+          />
+        }
+      />
 
-        {/* 2 — Dictation Mode */}
-        <div className="voicepanel__row">
-          <div className="voicepanel__row-text">
-            <span className="voicepanel__row-label">{t('voicePanel.mode_label')}</span>
-            <span className="voicepanel__row-sub">{t('voicePanel.mode_sub')}</span>
-          </div>
+      {/* 2 — Dictation Mode */}
+      <SettingRow
+        title={t('voicePanel.mode_label')}
+        subtitle={t('voicePanel.mode_sub')}
+        control={
           <Segmented
             size="sm"
             value={mode}
@@ -291,19 +279,16 @@ export default function VoicePanel() {
               { value: 'hold', label: t('voicePanel.mode_hold') },
             ]}
           />
-        </div>
+        }
+      />
 
-        <hr className="voicepanel__divider" />
-
-        {/* 3 — Speech Model */}
-        <div className="voicepanel__row voicepanel__row--model">
-          <div className="voicepanel__row-text">
-            <span className="voicepanel__row-label">{t('voicePanel.model_label')}</span>
-            <span className="voicepanel__row-sub">
-              {selected ? modelDesc(selected) : t('voicePanel.model_sub')}
-            </span>
-          </div>
-
+      {/* 3 — Speech Model */}
+      <SettingRow
+        className="voicepanel__row--model"
+        align="start"
+        title={t('voicePanel.model_label')}
+        subtitle={selected ? modelDesc(selected) : t('voicePanel.model_sub')}
+        control={
           <div className="voicepanel__dropdown" ref={dropdownRef}>
             <button
               type="button"
@@ -398,8 +383,8 @@ export default function VoicePanel() {
               </ul>
             )}
           </div>
-        </div>
-      </div>
-    </section>
+        }
+      />
+    </SettingsSection>
   );
 }

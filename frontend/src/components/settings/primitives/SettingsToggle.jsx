@@ -19,6 +19,7 @@ export default function SettingsToggle({
   disabled = false,
   id,
   'aria-label': ariaLabel,
+  ...rest
 }) {
   return (
     <label className={`st-toggle ${checked ? 'is-on' : ''} ${disabled ? 'is-disabled' : ''}`.trim()}>
@@ -31,6 +32,7 @@ export default function SettingsToggle({
         disabled={disabled}
         aria-label={ariaLabel}
         onChange={(e) => onChange?.(e.target.checked)}
+        {...rest}
       />
       <span className="st-toggle__track" aria-hidden="true">
         <span className="st-toggle__knob" />

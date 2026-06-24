@@ -12,36 +12,37 @@
 import React from 'react';
 import { Volume2 } from 'lucide-react';
 import { useAppStore } from '../../store';
-import './PerformancePanel.css';
+import { SettingsSection, SettingRow, SettingsToggle } from './primitives';
 
 export default function AecPanel() {
   const aecEnabled = useAppStore((s) => s.aecEnabled);
   const setAecEnabled = useAppStore((s) => s.setAecEnabled);
 
   return (
-    <section className="perfpanel" aria-labelledby="aecpanel-heading">
-      <h3 id="aecpanel-heading" className="perfpanel__title">
-        <Volume2 size={14} /> Dictate while audio plays
-      </h3>
-
-      <p className="perfpanel__help">
-        Cancels OmniVoice's own playback out of the microphone so you can
-        dictate while a preview, dub, or video is playing — without the
-        transcript picking up what the app is saying. Adds a small amount of
-        audio processing; leave it off if you never dictate over playback.
-      </p>
-
-      <label className="perfpanel__row" title="Server-side NLMS echo cancellation">
-        <input
-          type="checkbox"
-          className="perfpanel__checkbox"
-          checked={aecEnabled}
-          onChange={(e) => setAecEnabled(e.target.checked)}
-          data-testid="aec-enabled"
-        />
-        <span className="perfpanel__label">Enable echo cancellation for dictation</span>
-        <span className="perfpanel__badge">experimental</span>
-      </label>
-    </section>
+    <SettingsSection
+      icon={Volume2}
+      title="Dictate while audio plays"
+      description="Cancel OmniVoice's own playback out of the microphone."
+    >
+      <SettingRow
+        title="Enable echo cancellation for dictation"
+        subtitle="experimental"
+        hint={
+          <>
+            Cancels OmniVoice's own playback out of the microphone so you can
+            dictate while a preview, dub, or video is playing — without the
+            transcript picking up what the app is saying. Adds a small amount of
+            audio processing; leave it off if you never dictate over playback.
+          </>
+        }
+        control={
+          <SettingsToggle
+            checked={aecEnabled}
+            onChange={setAecEnabled}
+            aria-label="Enable echo cancellation for dictation"
+          />
+        }
+      />
+    </SettingsSection>
   );
 }

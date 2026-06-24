@@ -20,6 +20,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { BookA, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { apiJson, apiFetch } from '../../api/client';
+import { SettingsSection, SettingRow } from './primitives';
 import './PerformancePanel.css';
 
 const TYPES = ['respelling', 'ipa', 'cmu'];
@@ -109,84 +110,103 @@ export default function PronunciationPanel() {
   const typeLabel = (ty) => t(`pronunciation.type_${ty}`, ty);
 
   return (
-    <section className="perfpanel" aria-labelledby="pron-heading">
-      <h3 id="pron-heading" className="perfpanel__title">
-        <BookA size={14} /> {t('pronunciation.title')}
-      </h3>
-      <p className="perfpanel__help">{t('pronunciation.help')}</p>
+    <SettingsSection
+      icon={BookA}
+      title={t('pronunciation.title')}
+    >
+      <SettingRow
+        title={t('pronunciation.title')}
+        hint={t('pronunciation.help')}
+        control={null}
+      />
 
       {error && <div className="perfpanel__error" role="alert">{error}</div>}
 
       {entries.length === 0 && (
-        <p className="perfpanel__help" data-testid="pron-empty">{t('pronunciation.empty')}</p>
+        <SettingRow
+          title={<span data-testid="pron-empty">{t('pronunciation.empty')}</span>}
+          control={null}
+        />
       )}
 
       {entries.map((e) => (
-        <div className="perfpanel__row" key={e.id}>
-          <input
-            type="checkbox"
-            checked={!!e.enabled}
-            onChange={() => onToggle(e)}
-            aria-label={t('pronunciation.enabled')}
-            data-testid={`pron-toggle-${e.id}`}
-          />
-          <span className="perfpanel__label" style={{ flex: 1 }}>
-            <strong>{e.term}</strong> → {e.replacement || '—'}
-          </span>
-          <span className="perfpanel__badge">{typeLabel(e.type)}</span>
-          <span className="perfpanel__badge">{scopeLabel(e.scope || e.language)}</span>
-          <button
-            type="button"
-            onClick={() => onDelete(e.id)}
-            aria-label={t('pronunciation.remove', { term: e.term })}
-            data-testid={`pron-del-${e.id}`}
-          >
-            <Trash2 size={12} />
-          </button>
-        </div>
+        <SettingRow
+          key={e.id}
+          title={<><strong>{e.term}</strong> → {e.replacement || '—'}</>}
+          control={
+            <>
+              <input
+                type="checkbox"
+                checked={!!e.enabled}
+                onChange={() => onToggle(e)}
+                aria-label={t('pronunciation.enabled')}
+                data-testid={`pron-toggle-${e.id}`}
+              />
+              <span className="perfpanel__badge">{typeLabel(e.type)}</span>
+              <span className="perfpanel__badge">{scopeLabel(e.scope || e.language)}</span>
+              <button
+                type="button"
+                onClick={() => onDelete(e.id)}
+                aria-label={t('pronunciation.remove', { term: e.term })}
+                data-testid={`pron-del-${e.id}`}
+              >
+                <Trash2 size={12} />
+              </button>
+            </>
+          }
+        />
       ))}
 
-      <div className="perfpanel__row">
-        <input
-          type="text"
-          value={term}
-          onChange={(ev) => setTerm(ev.target.value)}
-          placeholder={t('pronunciation.term_placeholder')}
-          style={{ flex: 1 }}
-          data-testid="pron-term"
-        />
-        <input
-          type="text"
-          value={replacement}
-          onChange={(ev) => setReplacement(ev.target.value)}
-          placeholder={t('pronunciation.replacement_placeholder')}
-          style={{ flex: 1 }}
-          data-testid="pron-replacement"
-        />
-        <select value={type} onChange={(ev) => setType(ev.target.value)} data-testid="pron-type">
-          {TYPES.map((ty) => <option key={ty} value={ty}>{typeLabel(ty)}</option>)}
-        </select>
-        <input
-          type="text"
-          value={language}
-          onChange={(ev) => setLanguage(ev.target.value)}
-          placeholder={t('pronunciation.lang_label')}
-          style={{ width: 90 }}
-          data-testid="pron-language"
-        />
-        <button type="button" onClick={onAdd} data-testid="pron-add">{t('pronunciation.add')}</button>
-      </div>
+      <SettingRow
+        title={t('pronunciation.add')}
+        align="start"
+        control={
+          <div className="perfpanel__row" style={{ flexWrap: 'wrap', gap: 6 }}>
+            <input
+              type="text"
+              value={term}
+              onChange={(ev) => setTerm(ev.target.value)}
+              placeholder={t('pronunciation.term_placeholder')}
+              style={{ flex: 1, minWidth: 120 }}
+              data-testid="pron-term"
+            />
+            <input
+              type="text"
+              value={replacement}
+              onChange={(ev) => setReplacement(ev.target.value)}
+              placeholder={t('pronunciation.replacement_placeholder')}
+              style={{ flex: 1, minWidth: 120 }}
+              data-testid="pron-replacement"
+            />
+            <select value={type} onChange={(ev) => setType(ev.target.value)} data-testid="pron-type">
+              {TYPES.map((ty) => <option key={ty} value={ty}>{typeLabel(ty)}</option>)}
+            </select>
+            <input
+              type="text"
+              value={language}
+              onChange={(ev) => setLanguage(ev.target.value)}
+              placeholder={t('pronunciation.lang_label')}
+              style={{ width: 90 }}
+              data-testid="pron-language"
+            />
+            <button type="button" onClick={onAdd} data-testid="pron-add">{t('pronunciation.add')}</button>
+          </div>
+        }
+      />
 
-      <div className="perfpanel__row">
-        <input
-          type="text"
-          value={testText}
-          onChange={(ev) => onTest(ev.target.value)}
-          placeholder={t('pronunciation.test_placeholder')}
-          style={{ flex: 1 }}
-          data-testid="pron-test-input"
-        />
-      </div>
+      <SettingRow
+        title={t('pronunciation.test_placeholder')}
+        control={
+          <input
+            type="text"
+            value={testText}
+            onChange={(ev) => onTest(ev.target.value)}
+            placeholder={t('pronunciation.test_placeholder')}
+            style={{ flex: 1, minWidth: 200 }}
+            data-testid="pron-test-input"
+          />
+        }
+      />
       {testOut && (
         <p className="perfpanel__help" data-testid="pron-test-out">
           {testOut.changed
@@ -194,6 +214,6 @@ export default function PronunciationPanel() {
             : t('pronunciation.test_nochange')}
         </p>
       )}
-    </section>
+    </SettingsSection>
   );
 }

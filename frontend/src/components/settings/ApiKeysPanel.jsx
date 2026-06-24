@@ -23,6 +23,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, KeyRound, RefreshCw, Save, Trash2, XCircle } from 'lucide-react';
 import { apiJson, apiPost, API } from '../../api/client';
+import { SettingsSection, InfoHint } from './primitives';
 import './ApiKeysPanel.css';
 
 const SOURCE_LABELS = {
@@ -107,17 +108,27 @@ export default function ApiKeysPanel() {
     }
   };
 
-  return (
-    <section className="apikeys-panel" aria-labelledby="apikeys-heading">
-      <h3 id="apikeys-heading" className="apikeys-panel__title">
-        <KeyRound size={14} /> HuggingFace token
-      </h3>
-      <p className="apikeys-panel__intro">
-        OmniVoice walks three sources in priority order (App → Env → HF CLI).
-        The first source with a token that survives a live <code>whoami</code> check
-        is the <strong>Active</strong> source.
-      </p>
+  const testNowLabel = t('settings.hf_token_test_now', { defaultValue: 'Test now' });
 
+  return (
+    <SettingsSection
+      className="apikeys-panel"
+      icon={KeyRound}
+      title="HuggingFace token"
+      description="Resolved across three sources in priority order — App, Env, HF CLI."
+      actions={
+        <button
+          type="button"
+          className="apikeys-btn apikeys-btn--ghost"
+          onClick={refresh}
+          disabled={loading}
+          aria-label={testNowLabel}
+          title={t('settings.hf_token_test_now_title', { defaultValue: 'Re-run whoami for every source' })}
+        >
+          <RefreshCw size={12} /> {testNowLabel}
+        </button>
+      }
+    >
       {error && (
         <div className="apikeys-panel__error" role="alert">
           {error}
@@ -135,7 +146,10 @@ export default function ApiKeysPanel() {
               data-source={row.source}
             >
               <div className="apikeys-row__head">
-                <span className="apikeys-row__name">{SOURCE_LABELS[row.source]}</span>
+                <span className="apikeys-row__name">
+                  {SOURCE_LABELS[row.source]}
+                  <InfoHint>{SOURCE_HELP[row.source]}</InfoHint>
+                </span>
                 {isActive && (
                   <span className="apikeys-badge apikeys-badge--active">Active</span>
                 )}
@@ -165,7 +179,6 @@ export default function ApiKeysPanel() {
                   </span>
                 )}
               </div>
-              <p className="apikeys-row__help">{SOURCE_HELP[row.source]}</p>
               {row.source === 'app' && (
                 <div className="apikeys-row__actions">
                   <input
@@ -206,19 +219,6 @@ export default function ApiKeysPanel() {
         })}
       </div>
 
-      <div className="apikeys-panel__footer">
-        <button
-          type="button"
-          className="apikeys-btn apikeys-btn--ghost"
-          onClick={refresh}
-          disabled={loading}
-          aria-label={t('settings.hf_token_test_now', { defaultValue: 'Test now' })}
-          title={t('settings.hf_token_test_now_title', { defaultValue: 'Re-run whoami for every source' })}
-        >
-          <RefreshCw size={12} /> {t('settings.hf_token_test_now', { defaultValue: 'Test now' })}
-        </button>
-      </div>
-
       {clearOpen && (
         <div className="apikeys-clear-dialog" role="dialog" aria-label={t('settings.hf_token_clear_dialog', { defaultValue: 'Clear token' })}>
           <p>{t('settings.hf_token_clear_confirm', { defaultValue: 'Clear the App-source HuggingFace token?' })}</p>
@@ -252,6 +252,6 @@ export default function ApiKeysPanel() {
           </div>
         </div>
       )}
-    </section>
+    </SettingsSection>
   );
 }

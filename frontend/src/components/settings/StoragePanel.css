@@ -1,59 +1,70 @@
-.storagepanel {
+/* Settings → Models directory panel.
+   Built on the shared Settings primitives; only the path field + Save/Reset
+   buttons and the restart/error notices carry panel-specific chrome, all routed
+   through --chrome-* tokens so they theme correctly across every theme. */
+
+/* The path input + Save/Reset cluster sits inside a SettingRow control. */
+.storagepanel__field {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  margin-bottom: 12px;
-  border: 1px solid var(--border, #3c3836);
-  border-radius: 8px;
-  background: var(--color-bg-elev-1);
-}
-.storagepanel__title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-}
-.storagepanel__help {
-  margin: 0;
-  font-size: 12px;
-  opacity: 0.8;
-}
-.storagepanel__row {
-  display: flex;
-  gap: 8px;
+  gap: var(--space-3);
   align-items: center;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
+
 .storagepanel__input {
   flex: 1 1 280px;
   min-width: 0;
-  padding: 6px 8px;
-  font-size: 12px;
-  font-family: var(--font-mono);
-  border: 1px solid var(--border, #504945);
-  border-radius: 6px;
-  background: var(--color-bg-elev-2);
-  color: inherit;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-base);
+  font-family: var(--chrome-font-mono);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  background: var(--chrome-input-bg);
+  color: var(--chrome-fg);
 }
+
+.storagepanel__input::placeholder { color: var(--chrome-fg-dim); }
+
+.storagepanel__input:focus-visible {
+  outline: none;
+  border-color: var(--chrome-accent);
+  box-shadow: var(--focus-ring);
+}
+
 .storagepanel__btn {
-  padding: 6px 12px;
-  font-size: 12px;
-  border: 1px solid var(--border, #504945);
-  border-radius: 6px;
-  background: var(--accent, #83a598);
-  color: #1d2021;
+  flex: none;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-base);
+  font-family: var(--font-sans);
+  border: 1px solid transparent;
+  border-radius: var(--chrome-radius-pill);
+  background: var(--chrome-accent);
+  color: var(--chrome-bg);
   cursor: pointer;
 }
+
 .storagepanel__btn:disabled { opacity: 0.5; cursor: default; }
-.storagepanel__btn--ghost { background: transparent; color: inherit; }
-.storagepanel__meta { margin: 0; font-size: 11px; opacity: 0.7; }
-.storagepanel__meta code { font-size: 11px; }
-.storagepanel__restart { margin: 0; font-size: 12px; color: var(--warn, #fabd2f); }
+
+.storagepanel__btn--ghost {
+  background: transparent;
+  color: var(--chrome-fg-muted);
+  border-color: var(--chrome-border);
+}
+
+.storagepanel__btn--ghost:hover:not(:disabled) {
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+}
+
+.storagepanel__restart {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-base);
+  color: var(--chrome-severity-warn);
+}
+
 .storagepanel__error {
-  font-size: 12px;
-  color: var(--color-danger);
-  padding: 4px 0;
+  margin-bottom: var(--space-3);
+  font-size: var(--text-base);
+  color: var(--chrome-severity-err);
 }

@@ -15,6 +15,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Brain, CheckCircle2, XCircle } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
+import { SettingsSection, SettingRow } from './primitives';
 import './PerformancePanel.css';
 
 const PRESETS = [
@@ -73,53 +74,65 @@ export default function LLMEndpointPanel() {
   if (!state) return null;
 
   return (
-    <section className="perfpanel" aria-labelledby="llmendpoint-heading">
-      <h3 id="llmendpoint-heading" className="perfpanel__title">
-        <Brain size={14} /> LLM endpoint
-      </h3>
-      <p className="perfpanel__help">
-        Powers cinematic translation, glossary auto-extract, and dictation
-        refinement. Any OpenAI-compatible server: Ollama, LM Studio, vLLM, or
-        a hosted API. Stays opt-in — features only call it when you enable them.
-      </p>
+    <SettingsSection
+      icon={Brain}
+      title="LLM endpoint"
+      description="Powers cinematic translate, glossary extract, and dictation refinement."
+    >
+      <SettingRow
+        title="Preset"
+        hint="Powers cinematic translation, glossary auto-extract, and dictation refinement. Any OpenAI-compatible server: Ollama, LM Studio, vLLM, or a hosted API. Stays opt-in — features only call it when you enable them."
+        control={
+          <div className="perfpanel__row" style={{ flexWrap: 'wrap', gap: 6 }}>
+            {PRESETS.map((p) => (
+              <button type="button" key={p[0]} onClick={() => applyPreset(p)} data-testid={`llm-preset-${p[0]}`}>
+                {p[0]}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
-      <div className="perfpanel__row" style={{ flexWrap: 'wrap', gap: 6 }}>
-        {PRESETS.map((p) => (
-          <button type="button" key={p[0]} onClick={() => applyPreset(p)} data-testid={`llm-preset-${p[0]}`}>
-            {p[0]}
-          </button>
-        ))}
-      </div>
-
-      <label className="perfpanel__row">
-        <span className="perfpanel__label">Base URL</span>
-        <input type="text" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)}
-          placeholder="http://localhost:11434/v1" style={{ flex: 1 }} data-testid="llm-base-url" />
-      </label>
-      <label className="perfpanel__row">
-        <span className="perfpanel__label">Model</span>
-        <input type="text" value={model} onChange={(e) => setModel(e.target.value)}
-          placeholder="llama3.1" style={{ flex: 1 }} data-testid="llm-model" />
-      </label>
-      <label className="perfpanel__row">
-        <span className="perfpanel__label">API key</span>
-        <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-          placeholder={state.api_key_masked ? `stored (${state.api_key_masked}) — type to replace` : 'optional (Ollama needs none)'}
-          style={{ flex: 1 }} data-testid="llm-api-key" />
-      </label>
+      <SettingRow
+        title="Base URL"
+        control={
+          <input type="text" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)}
+            placeholder="http://localhost:11434/v1" style={{ flex: 1, minWidth: 200 }} data-testid="llm-base-url" />
+        }
+      />
+      <SettingRow
+        title="Model"
+        control={
+          <input type="text" value={model} onChange={(e) => setModel(e.target.value)}
+            placeholder="llama3.1" style={{ flex: 1, minWidth: 200 }} data-testid="llm-model" />
+        }
+      />
+      <SettingRow
+        title="API key"
+        control={
+          <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+            placeholder={state.api_key_masked ? `stored (${state.api_key_masked}) — type to replace` : 'optional (Ollama needs none)'}
+            style={{ flex: 1, minWidth: 200 }} data-testid="llm-api-key" />
+        }
+      />
 
       {error && <div className="perfpanel__error" role="alert">{error}</div>}
 
-      <div className="perfpanel__row">
-        <button type="button" onClick={onSave} disabled={saving} data-testid="llm-save">
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-        <span className="perfpanel__badge" role="status">
-          {state.available
-            ? <><CheckCircle2 size={11} /> reachable</>
-            : <><XCircle size={11} /> {state.reason || 'not configured'}</>}
-        </span>
-      </div>
-    </section>
+      <SettingRow
+        title="Connection"
+        control={
+          <>
+            <button type="button" onClick={onSave} disabled={saving} data-testid="llm-save">
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            <span className="perfpanel__badge" role="status">
+              {state.available
+                ? <><CheckCircle2 size={11} /> reachable</>
+                : <><XCircle size={11} /> {state.reason || 'not configured'}</>}
+            </span>
+          </>
+        }
+      />
+    </SettingsSection>
   );
 }

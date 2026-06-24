@@ -10,6 +10,7 @@ import React from 'react';
 import { Palette } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore, FONT_OPTIONS, FONT_STACKS } from '../../store';
+import { SettingsSection, SettingRow, InfoHint, SettingsToggle } from './primitives';
 import './AppearancePanel.css';
 
 const THEMES = [
@@ -37,99 +38,102 @@ export default function AppearancePanel() {
   const fontLabel  = t('settings.font', { defaultValue: 'Font' });
 
   return (
-    <section className="appearance-panel" aria-labelledby="appearance-panel-heading">
-      <h3 id="appearance-panel-heading" className="appearance-panel__title">
-        <Palette size={14} /> {t('settings.appearance', { defaultValue: 'Appearance' })}
-      </h3>
-
-      <div className="appearance-panel__row">
-        <span className="appearance-panel__label">{scaleLabel}</span>
-        <div className="appearance-panel__scale">
-          <input
-            type="range"
-            min="0.6"
-            max="1.75"
-            step="0.05"
-            value={uiScale}
-            onChange={(e) => setUiScale(Number(e.target.value))}
-            aria-label={scaleLabel}
-            aria-valuetext={`${Math.round(uiScale * 100)}%`}
-          />
-          <span className="appearance-panel__scale-val">{Math.round(uiScale * 100)}%</span>
-        </div>
-      </div>
-
-      <div className="appearance-panel__row">
-        <span className="appearance-panel__label">{themeLabel}</span>
-        <div className="appearance-panel__themes" role="radiogroup" aria-label={themeLabel}>
-          {THEMES.map(th => (
-            <button
-              key={th.id}
-              type="button"
-              className={`appearance-panel__theme-dot ${theme === th.id ? 'is-active' : ''}`}
-              style={{ '--dot-color': th.dot }}
-              onClick={() => setTheme(th.id)}
-              title={th.label}
-              aria-label={th.label}
-              aria-checked={theme === th.id}
-              role="radio"
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="appearance-panel__row appearance-panel__row--stack">
-        <span className="appearance-panel__label">{fontLabel}</span>
-        <div className="appearance-panel__fonts" role="radiogroup" aria-label={fontLabel}>
-          {FONT_OPTIONS.map(f => (
-            <button
-              key={f.id}
-              type="button"
-              role="radio"
-              aria-checked={font === f.id}
-              aria-label={f.label}
-              data-testid={`appearance-font-${f.id}`}
-              className={`appearance-panel__font-tile ${font === f.id ? 'is-active' : ''}`}
-              style={{ fontFamily: FONT_STACKS[f.id] || 'var(--font-sans)' }}
-              onClick={() => setFont(f.id)}
-            >
-              <span className="appearance-panel__font-sample">Ag</span>
-              <span className="appearance-panel__font-name">{f.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="appearance-panel__row">
-        <span className="appearance-panel__label">
-          {t('settings.autoplay_preview', { defaultValue: 'Auto-play preview' })}
-        </span>
-        <label
-          className="appearance-panel__toggle"
-          title={t('settings.autoplay_preview_hint', {
-            defaultValue: 'When off, a finished render no longer starts playing on its own — useful when batch-generating segments (#666).',
+    <SettingsSection
+      className="appearance-panel"
+      icon={Palette}
+      title={t('settings.appearance', { defaultValue: 'Appearance' })}
+      actions={
+        <InfoHint label={t('settings.appearance', { defaultValue: 'Appearance' })}>
+          {t('settings.appearance_help', {
+            defaultValue:
+              'These controls used to live in the bottom logs bar — moved here so the footer can stay focused on logs. Changes apply instantly and persist across launches.',
           })}
-        >
-          <input
-            type="checkbox"
-            checked={autoPlayPreview}
-            onChange={(e) => setAutoPlayPreview(e.target.checked)}
-            data-testid="autoplay-preview"
-          />
-          <span>
-            {t('settings.autoplay_preview_label', {
-              defaultValue: 'Play the output as soon as a render finishes',
-            })}
-          </span>
-        </label>
-      </div>
+        </InfoHint>
+      }
+    >
+      <SettingRow
+        title={scaleLabel}
+        control={
+          <div className="appearance-panel__scale">
+            <input
+              type="range"
+              min="0.6"
+              max="1.75"
+              step="0.05"
+              value={uiScale}
+              onChange={(e) => setUiScale(Number(e.target.value))}
+              aria-label={scaleLabel}
+              aria-valuetext={`${Math.round(uiScale * 100)}%`}
+            />
+            <span className="appearance-panel__scale-val">{Math.round(uiScale * 100)}%</span>
+          </div>
+        }
+      />
 
-      <p className="appearance-panel__help">
-        {t('settings.appearance_help', {
-          defaultValue:
-            'These controls used to live in the bottom logs bar — moved here so the footer can stay focused on logs. Changes apply instantly and persist across launches.',
+      <SettingRow
+        title={themeLabel}
+        control={
+          <div className="appearance-panel__themes" role="radiogroup" aria-label={themeLabel}>
+            {THEMES.map(th => (
+              <button
+                key={th.id}
+                type="button"
+                className={`appearance-panel__theme-dot ${theme === th.id ? 'is-active' : ''}`}
+                style={{ '--dot-color': th.dot }}
+                onClick={() => setTheme(th.id)}
+                title={th.label}
+                aria-label={th.label}
+                aria-checked={theme === th.id}
+                role="radio"
+              />
+            ))}
+          </div>
+        }
+      />
+
+      <SettingRow
+        className="appearance-panel__row--fonts"
+        align="start"
+        title={fontLabel}
+        control={
+          <div className="appearance-panel__fonts" role="radiogroup" aria-label={fontLabel}>
+            {FONT_OPTIONS.map(f => (
+              <button
+                key={f.id}
+                type="button"
+                role="radio"
+                aria-checked={font === f.id}
+                aria-label={f.label}
+                data-testid={`appearance-font-${f.id}`}
+                className={`appearance-panel__font-tile ${font === f.id ? 'is-active' : ''}`}
+                style={{ fontFamily: FONT_STACKS[f.id] || 'var(--font-sans)' }}
+                onClick={() => setFont(f.id)}
+              >
+                <span className="appearance-panel__font-sample">Ag</span>
+                <span className="appearance-panel__font-name">{f.label}</span>
+              </button>
+            ))}
+          </div>
+        }
+      />
+
+      <SettingRow
+        title={t('settings.autoplay_preview', { defaultValue: 'Auto-play preview' })}
+        subtitle={t('settings.autoplay_preview_label', {
+          defaultValue: 'Play the output as soon as a render finishes',
         })}
-      </p>
-    </section>
+        hint={t('settings.autoplay_preview_hint', {
+          defaultValue: 'When off, a finished render no longer starts playing on its own — useful when batch-generating segments (#666).',
+        })}
+        control={
+          <SettingsToggle
+            checked={autoPlayPreview}
+            onChange={setAutoPlayPreview}
+            id="autoplay-preview"
+            aria-label={t('settings.autoplay_preview', { defaultValue: 'Auto-play preview' })}
+          />
+        }
+      />
+    </SettingsSection>
   );
 }

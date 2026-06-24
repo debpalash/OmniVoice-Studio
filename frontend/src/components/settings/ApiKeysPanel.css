@@ -1,80 +1,51 @@
 /* Settings → API Keys panel — Wave 2 AUTH-03 UI. Styled to match the existing
-   Credentials tab + LogsFooter palette (var(--chrome-*) tokens). */
-
-.apikeys-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 12px 0;
-}
-
-.apikeys-panel__title {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: var(--chrome-fg);
-  letter-spacing: -0.005em;
-}
-
-.apikeys-panel__intro {
-  margin: 0;
-  font-size: 0.8rem;
-  line-height: 1.55;
-  color: var(--chrome-fg-muted);
-}
-
-.apikeys-panel__intro code {
-  font-family: var(--font-mono);
-  background: var(--chrome-hover-bg);
-  padding: 0 4px;
-  border-radius: 3px;
-  font-size: 0.8em;
-}
+   Credentials tab + LogsFooter palette (var(--chrome-*) tokens only — every
+   surface themes across all 6 themes; never hardcode a color). */
 
 .apikeys-panel__error {
-  padding: 8px 10px;
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
   background: color-mix(in srgb, var(--chrome-severity-err) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--chrome-severity-err) 35%, transparent);
   border-radius: var(--chrome-radius-pill);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: var(--chrome-severity-err);
 }
 
 .apikeys-rows {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .apikeys-row {
   border: 1px solid var(--chrome-border);
   border-radius: var(--chrome-radius-pill);
-  padding: 12px 14px;
+  padding: var(--space-4) var(--space-4);
   background: var(--chrome-bg);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .apikeys-row--active {
-  border-left: 2px solid var(--chrome-accent, #8ec07c);
-  background: color-mix(in srgb, var(--chrome-accent, #8ec07c) 5%, var(--chrome-bg));
+  border-left: 2px solid var(--chrome-accent);
+  background: color-mix(in srgb, var(--chrome-accent) 5%, var(--chrome-bg));
 }
 
 .apikeys-row__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-3);
 }
 
 .apikeys-row__name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   font-weight: 500;
-  font-size: 0.85rem;
+  font-size: var(--text-md);
   color: var(--chrome-fg);
 }
 
@@ -89,16 +60,16 @@
 }
 
 .apikeys-badge--active {
-  background: color-mix(in srgb, var(--chrome-accent, #8ec07c) 25%, transparent);
-  color: var(--chrome-accent, #8ec07c);
+  background: color-mix(in srgb, var(--chrome-accent) 25%, transparent);
+  color: var(--chrome-accent);
 }
 
 .apikeys-row__meta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
-  font-size: 0.78rem;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
   color: var(--chrome-fg-muted);
 }
 
@@ -110,57 +81,50 @@
   gap: 4px;
 }
 
-.apikeys-row__set { color: var(--chrome-severity-ok, #8ec07c); }
-.apikeys-row__unset { color: var(--chrome-severity-warn, #fabd2f); }
-.apikeys-row__whoami--ok { color: var(--chrome-severity-ok, #8ec07c); }
+.apikeys-row__set { color: var(--chrome-severity-ok); }
+.apikeys-row__unset { color: var(--chrome-severity-warn); }
+.apikeys-row__whoami--ok { color: var(--chrome-severity-ok); }
 .apikeys-row__whoami--bad { color: var(--chrome-severity-err); }
 
 .apikeys-row__masked {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   background: var(--chrome-hover-bg);
   padding: 1px 6px;
   border-radius: 4px;
 }
 
-.apikeys-row__help {
-  margin: 2px 0 0;
-  font-size: 0.74rem;
-  color: var(--chrome-fg-muted);
-  line-height: 1.45;
-}
-
 .apikeys-row__actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 6px;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
   flex-wrap: wrap;
 }
 
 .apikeys-input {
   flex: 1 1 220px;
   min-width: 220px;
-  padding: 6px 10px;
+  padding: var(--space-2) var(--space-3);
   background: var(--chrome-hover-bg);
   border: 1px solid var(--chrome-border);
   border-radius: var(--chrome-radius-pill);
   color: var(--chrome-fg);
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
 }
 
 .apikeys-input:focus {
   outline: none;
-  border-color: var(--chrome-accent, #83a598);
+  border-color: var(--chrome-accent);
 }
 
 .apikeys-btn {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 6px 12px;
-  font-size: 0.76rem;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
   font-weight: 500;
   border-radius: var(--chrome-radius-pill);
   border: 1px solid var(--chrome-border);
@@ -179,8 +143,8 @@
 }
 
 .apikeys-btn--save {
-  background: color-mix(in srgb, var(--chrome-accent, #83a598) 25%, var(--chrome-bg));
-  border-color: var(--chrome-accent, #83a598);
+  background: color-mix(in srgb, var(--chrome-accent) 25%, var(--chrome-bg));
+  border-color: var(--chrome-accent);
 }
 
 .apikeys-btn--danger {
@@ -192,29 +156,24 @@
   background: transparent;
 }
 
-.apikeys-panel__footer {
-  display: flex;
-  justify-content: flex-end;
-}
-
 .apikeys-clear-dialog {
-  margin-top: 4px;
-  padding: 12px 14px;
+  margin-top: var(--space-3);
+  padding: var(--space-4) var(--space-4);
   border: 1px solid color-mix(in srgb, var(--chrome-severity-err) 35%, var(--chrome-border));
   border-radius: var(--chrome-radius-pill);
   background: color-mix(in srgb, var(--chrome-severity-err) 6%, var(--chrome-bg));
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-3);
 }
 
 .apikeys-clear-dialog p {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--text-md);
 }
 
 .apikeys-checkbox {
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: var(--chrome-fg-muted);
   display: inline-flex;
   align-items: center;
@@ -224,5 +183,5 @@
 .apikeys-clear-dialog__actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-3);
 }
