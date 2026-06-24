@@ -16,6 +16,7 @@ DELETE /models/{repo_id:path}
 DELETE /profiles/{profile_id}
 DELETE /profiles/{profile_id}/consent
 DELETE /projects/{project_id}
+DELETE /pronunciation/{entry_id}
 GET /api/mcp/bindings
 GET /api/settings/dictation-refinement
 GET /api/settings/hf-mirror
@@ -93,6 +94,8 @@ GET /profiles/{profile_id}/audio
 GET /profiles/{profile_id}/usage
 GET /projects
 GET /projects/{project_id}
+GET /pronunciation
+GET /pronunciation/export
 GET /setup/download-stream
 GET /setup/preflight
 GET /setup/recommendations
@@ -177,6 +180,9 @@ POST /profiles/{profile_id}/consent
 POST /profiles/{profile_id}/lock
 POST /profiles/{profile_id}/unlock
 POST /projects
+POST /pronunciation
+POST /pronunciation/import
+POST /pronunciation/test
 POST /setup/warmup
 POST /stories/encode
 POST /system/crash/ack
@@ -209,6 +215,7 @@ PUT /api/settings/storage/models-dir
 PUT /glossary/{project_id}/{term_id}
 PUT /profiles/{profile_id}
 PUT /projects/{project_id}
+PUT /pronunciation/{entry_id}
 WS /ws/events
 WS /ws/transcribe
 WS /ws/tts

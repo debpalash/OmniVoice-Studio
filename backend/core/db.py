@@ -157,6 +157,22 @@ _BASE_SCHEMA = """
         last_seen_at REAL,
         created_at REAL
     );
+
+    -- Expressive-TTS Spec 01 Phase 1: user pronunciation dictionary. A
+    -- per-language word→respelling map applied as pure text substitution
+    -- before synthesis (Settings → Pronunciation). Fresh installs create it
+    -- here; existing DBs get it via alembic 0008_pronunciation_dictionary.
+    -- Both paths converge on this identical schema (dual-path discipline).
+    CREATE TABLE IF NOT EXISTS pronunciation_entries (
+        id TEXT PRIMARY KEY,
+        term TEXT NOT NULL,
+        replacement TEXT NOT NULL DEFAULT '',
+        type TEXT NOT NULL DEFAULT 'respelling',
+        language TEXT NOT NULL DEFAULT '*',
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at REAL
+    );
+    CREATE INDEX IF NOT EXISTS idx_pron_lang ON pronunciation_entries(language);
 """
 
 # Only tables/columns this module is allowed to ALTER. Prevents SQL injection via

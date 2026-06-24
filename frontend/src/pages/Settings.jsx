@@ -43,6 +43,7 @@ import HFMirrorPanel from '../components/settings/HFMirrorPanel';
 import SharingPanel from '../components/settings/SharingPanel';
 import RemoteBackendPanel from '../components/settings/RemoteBackendPanel';
 import MCPBindingsPanel from '../components/settings/MCPBindingsPanel';
+import PronunciationPanel from '../components/settings/PronunciationPanel';
 import EngineCompatibilityMatrix from '../components/EngineCompatibilityMatrix';
 import DictationDemo from '../components/DictationDemo';
 import UpdatesPanel from '../components/UpdatesPanel';
@@ -1419,6 +1420,7 @@ export default function Settings() {
       {activeTab === 'general' && (
         <>
           <GeneralTab />
+          <PronunciationPanel />
           <PerformancePanel />
         </>
       )}

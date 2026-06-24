@@ -383,6 +383,11 @@ async def generate_speech(
     # boundaries and crossfaded. 0 disables chunking (whole text to engine).
     max_chunk_chars: int = Form(800, ge=0),
     crossfade_ms: int = Form(50, ge=0, le=1000),
+    # Expressive-TTS Spec 01: apply the user pronunciation dictionary + inline
+    # [[…]] overrides to the text before synthesis. Default ON; the global
+    # OMNIVOICE_PRONUNCIATION pref can disable it for power users. Omitting it
+    # with an empty dictionary is byte-identical to legacy behavior.
+    pronounce: bool = Form(True),
 ):
     # #502: NFC-normalize the input text so decomposed (NFD) diacritics — common
     # in pasted Vietnamese and other Latin-with-marks text — are composed to the
@@ -545,6 +550,36 @@ async def generate_speech(
     # is still None here, never overwritten.
     if used_seed is None:
         used_seed = random.randint(0, 2**31 - 1)
+
+    # Expressive-TTS Spec 01: apply the user pronunciation dictionary + inline
+    # [[…]] one-off overrides to the text, here — AFTER `language` is fully
+    # resolved (a profile may fill it above) so per-language entries match the
+    # real render language, and BEFORE the text reaches either inference path
+    # (native OmniVoice or a pluggable backend) and the chunk splitter. This is
+    # the single point user text → normalized text → model, so the transform
+    # covers generate for every engine. Pure text substitution → identical on
+    # mac/Win/Linux. A disabled pref or empty dictionary is a pass-through, so
+    # plain text stays byte-identical (#G5 backward-compat).
+    from core import prefs as _prefs
+    _pron_env = os.environ.get("OMNIVOICE_PRONUNCIATION")
+    if _pron_env is not None:
+        # Env wins (power-user override); "0"/"false"/"no"/"off" disable it.
+        _pron_enabled = _pron_env.strip().lower() not in ("0", "false", "no", "off", "")
+    else:
+        _pron_enabled = bool(_prefs.get("pronunciation_enabled", True))
+    if pronounce and _pron_enabled:
+        from services.pronunciation import apply_pronunciation, load_entries_from_db
+        try:
+            _pron_rows = load_entries_from_db()
+        except Exception:  # noqa: BLE001 — table missing / DB locked → no-op
+            _pron_rows = []
+        text = apply_pronunciation(text, _pron_rows, language)
+    else:
+        # Even with the dictionary off, inline [[…]] overrides are an explicit,
+        # in-text authoring choice → always honored (and never left as literal
+        # double-bracket text the model would mispronounce).
+        from services.pronunciation import apply_inline_overrides
+        text = apply_inline_overrides(text)
 
     start_time = time.time()
     try:

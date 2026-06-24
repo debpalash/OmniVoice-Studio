@@ -21,6 +21,18 @@ of error messages across dub, generate, and design.
 
 ### Added
 
+- **A user pronunciation dictionary that actually changes the audio.** Settings →
+  General → Pronunciation lets you teach the engine how to say tricky words —
+  each entry replaces a term with a respelling (`GIF` → `jiff`) right before
+  synthesis, so it works on **every** engine, not just one. Scope an entry
+  Global or to a single language (a German rule never fires on an English
+  render), with longest-match-first, word-boundary-aware, case-insensitive
+  substitution. For one-offs, write `[[word|respelling]]` inline in your text —
+  it overrides the dictionary for that occurrence and never persists. A built-in
+  Test field previews the substitution with no model call. Pure text transform,
+  identical on macOS/Windows/Linux; plain text stays byte-identical, existing
+  data upgrades cleanly via an additive migration. (Expressive-TTS Spec 01)
+
 - **Live, faster-than-real-time dictation via a new sherpa-onnx ASR engine.**
   Pick one of seven small ONNX speech-to-text models (Parakeet TDT v3/v2,
   streaming Zipformer EN/ZH/bilingual, streaming Paraformer, multilingual

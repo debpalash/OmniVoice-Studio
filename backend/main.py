@@ -345,6 +345,7 @@ from api.routers import (
     sonitranslate,
     audiobook,
     longform_jobs,
+    pronunciation,  # Expressive-TTS Spec 01: user pronunciation dictionary
     settings as settings_router,  # Phase 1 AUTH-03: HF token save/clear/state
 )
 from utils import hf_progress
@@ -918,6 +919,7 @@ app.include_router(personas.router)
 app.include_router(sonitranslate.router)
 app.include_router(audiobook.router)
 app.include_router(longform_jobs.router)
+app.include_router(pronunciation.router)  # Expressive-TTS Spec 01: pronunciation dictionary
 app.include_router(settings_router.router)  # Phase 1 AUTH-03 endpoints
 from api.routers import mcp_bindings as _mcp_bindings_router  # noqa: E402
 app.include_router(_mcp_bindings_router.router)  # Wave 2.2 per-agent voice bindings
