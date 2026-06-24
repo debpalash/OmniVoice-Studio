@@ -2027,7 +2027,10 @@
     "hf_token_saving": "saving…",
     "hf_token_saved": "Hugging Face token saved",
     "hf_token_saved_fast": "Hugging Face token saved — downloads are now faster",
-    "hf_token_error": "Could not save the token — try again or set it later in Settings → Credentials."
+    "hf_token_error": "Could not save the token — try again or set it later in Settings → Credentials.",
+    "hf_token_inline_prompt": "Speed up downloads with a free Hugging Face token",
+    "hf_token_inline_ph": "Paste hf_… token (optional)",
+    "hf_token_get_short": "Get one free →"
   },
   "history": {
     "dub_title": "Dub history",

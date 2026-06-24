@@ -36,11 +36,6 @@
   flex-shrink: 0;
   margin: 0;
 }
-.swiz-hfpin .swiz-lib__hfcard-hint {
-  font-size: 0.72rem;
-  line-height: 1.45;
-  opacity: 0.7;
-}
 
 .swiz-note {
   margin: 0;
@@ -183,38 +178,40 @@
 
 .swiz-lib__more { align-self: flex-start; }
 
-/* HF token — prominent card just above Continue (was a quiet fold). A free
-   token = authenticated, faster downloads, so we surface + encourage it. */
-.swiz-lib__hfcard {
-  margin-top: 0.9rem;
-  padding: 0.8rem 0.9rem;
+/* HF token — a compact single-line input pinned with the Continue action.
+   Paste a token, Save; a free token = authenticated, faster downloads. */
+.swiz-hfbar {
   display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  max-width: 560px;
-  border: 1px solid color-mix(in srgb, var(--frs-accent, #d3869b) 38%, transparent);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--frs-accent, #d3869b) 8%, transparent);
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--frs-accent, #d3869b) 32%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--frs-accent, #d3869b) 7%, transparent);
+  font-size: 0.8rem;
 }
-.swiz-lib__hfcard.is-saved {
+.swiz-hfbar.is-saved {
   border-color: color-mix(in srgb, var(--frs-ok, #b8bb26) 45%, transparent);
   background: color-mix(in srgb, var(--frs-ok, #b8bb26) 9%, transparent);
 }
-.swiz-lib__hfcard-main { display: flex; gap: 0.6rem; align-items: flex-start; }
-.swiz-lib__hfcard-icon { font-size: 1.1rem; line-height: 1.3; }
-.swiz-lib__hfcard-text { display: flex; flex-direction: column; gap: 0.2rem; }
-.swiz-lib__hfcard-title { font-weight: 600; font-size: 0.92rem; }
-.swiz-lib__hfcard-hint { margin: 0; font-size: 0.78rem; opacity: 0.66; line-height: 1.4; }
-.swiz-lib__hfcard-save { white-space: nowrap; }
-.swiz-lib__hfcard-link {
-  align-self: flex-start;
+.swiz-hfbar__icon { font-size: 1rem; line-height: 1; }
+.swiz-hfbar__prompt { font-weight: 600; }
+.swiz-hfbar__input { flex: 1 1 180px; min-width: 130px; }
+.swiz-hfbar__save { white-space: nowrap; }
+.swiz-hfbar__link {
   background: none;
   border: none;
   padding: 0;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: var(--frs-accent, #d3869b);
   cursor: pointer;
   text-decoration: underline;
+  white-space: nowrap;
 }
-.swiz-lib__hf-row { display: flex; gap: 0.45rem; }
-.swiz-lib__hf-row .frs-input { flex: 1; }
+.swiz-hfbar__done { font-weight: 600; color: var(--frs-ok, #b8bb26); }
+.swiz-hfbar__err { flex-basis: 100%; font-size: 0.76rem; color: var(--frs-err, #fb4934); }
+/* On a tight width drop the prose prompt; the placeholder still explains it. */
+@media (max-width: 560px) {
+  .swiz-hfbar__prompt { display: none; }
+}

@@ -3,13 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { openExternal } from '../api/external';
 
 /**
- * HfTokenCard — the optional "add a free Hugging Face token for faster
- * downloads" card. Lifted out of the model library so the wizard can pin it
- * right next to the Continue / "Waiting for required models…" button (always
- * visible, no scrolling through the model list to find it). A free token gives
- * authenticated downloads — faster, higher rate limits, fewer stalls — and
- * unlocks gated models (pyannote speaker diarization). Persisted via the same
- * `set-env` endpoint Settings uses, so it survives restarts.
+ * HfTokenCard — a compact, single-line Hugging Face token input that lives in
+ * the wizard's pinned action area, right by the "Waiting for required models…"
+ * / Continue button. It takes only the HF token: paste it, Save, done. A free
+ * token gives authenticated downloads (faster, higher rate limits, fewer
+ * stalls) and unlocks gated models (pyannote diarization). Persisted via the
+ * same `set-env` endpoint Settings uses, so it survives restarts.
  *
  * @param {string=} className extra class on the root (e.g. layout pinning).
  */
@@ -37,56 +36,54 @@ export default function HfTokenCard({ className = '' }) {
     }
   };
 
-  return (
-    <div className={`swiz-lib__hfcard ${hfState === 'saved' ? 'is-saved' : ''} ${className}`.trim()}>
-      <div className="swiz-lib__hfcard-main">
-        <span className="swiz-lib__hfcard-icon" aria-hidden="true">⚡</span>
-        <div className="swiz-lib__hfcard-text">
-          <div className="swiz-lib__hfcard-title">
-            {hfState === 'saved'
-              ? `✓ ${t('firstrun.hf_token_saved_fast', 'Hugging Face token saved — downloads are now faster')}`
-              : t('firstrun.hf_token_card_title', 'Add a free Hugging Face token for faster downloads')}
-          </div>
-          <p className="swiz-lib__hfcard-hint">
-            {t('firstrun.hf_token_hint', 'A free account token gives authenticated downloads (faster, higher rate limits, fewer stalls) and unlocks gated models like speaker diarization for multi-speaker dubbing (pyannote). Stays on this machine.')}
-          </p>
-        </div>
+  if (hfState === 'saved') {
+    return (
+      <div className={`swiz-hfbar is-saved ${className}`.trim()}>
+        <span className="swiz-hfbar__done">
+          <span aria-hidden="true">✓</span>{' '}
+          {t('firstrun.hf_token_saved_fast', 'Hugging Face token saved — downloads are now faster')}
+        </span>
       </div>
-      {hfState !== 'saved' && (
-        <>
-          <div className="swiz-lib__hf-row">
-            <input
-              className="frs-input"
-              type="password"
-              placeholder="hf_…"
-              value={hfToken}
-              autoComplete="off"
-              onChange={(e) => { setHfToken(e.target.value); if (hfState !== 'idle') setHfState('idle'); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') saveHfToken(); }}
-              aria-label={t('firstrun.hf_token_card_title', 'Add a free Hugging Face token for faster downloads')}
-            />
-            <button
-              type="button"
-              className="frs-btn frs-btn--primary swiz-lib__hfcard-save"
-              disabled={!hfToken.trim() || hfState === 'saving'}
-              onClick={saveHfToken}
-            >
-              {hfState === 'saving'
-                ? t('firstrun.hf_token_saving', 'saving…')
-                : t('firstrun.hf_token_save', 'Save')}
-            </button>
-          </div>
-          <button
-            type="button"
-            className="swiz-lib__hfcard-link"
-            onClick={() => openExternal('https://huggingface.co/settings/tokens')}
-          >
-            {t('firstrun.hf_token_get', "Don't have a token? Get one free →")}
-          </button>
-        </>
-      )}
+    );
+  }
+
+  return (
+    <div className={`swiz-hfbar ${className}`.trim()}>
+      <span className="swiz-hfbar__icon" aria-hidden="true">⚡</span>
+      <span className="swiz-hfbar__prompt">
+        {t('firstrun.hf_token_inline_prompt', 'Speed up downloads with a free Hugging Face token')}
+      </span>
+      <input
+        className="frs-input swiz-hfbar__input"
+        type="password"
+        placeholder={t('firstrun.hf_token_inline_ph', 'Paste hf_… token (optional)')}
+        value={hfToken}
+        autoComplete="off"
+        onChange={(e) => { setHfToken(e.target.value); if (hfState !== 'idle') setHfState('idle'); }}
+        onKeyDown={(e) => { if (e.key === 'Enter') saveHfToken(); }}
+        aria-label={t('firstrun.hf_token_card_title', 'Add a free Hugging Face token for faster downloads')}
+      />
+      <button
+        type="button"
+        className="frs-btn frs-btn--primary swiz-hfbar__save"
+        disabled={!hfToken.trim() || hfState === 'saving'}
+        onClick={saveHfToken}
+      >
+        {hfState === 'saving'
+          ? t('firstrun.hf_token_saving', 'saving…')
+          : t('firstrun.hf_token_save', 'Save')}
+      </button>
+      <button
+        type="button"
+        className="swiz-hfbar__link"
+        onClick={() => openExternal('https://huggingface.co/settings/tokens')}
+      >
+        {t('firstrun.hf_token_get_short', 'Get one free →')}
+      </button>
       {hfState === 'error' && (
-        <p className="frs__blocker">{t('firstrun.hf_token_error', 'Could not save the token — try again or set it later in Settings → Credentials.')}</p>
+        <span className="swiz-hfbar__err">
+          {t('firstrun.hf_token_error', 'Could not save the token — try again or set it later in Settings → Credentials.')}
+        </span>
       )}
     </div>
   );
