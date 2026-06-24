@@ -69,6 +69,8 @@ asr_engines:
     readme: Moonshine
   - id: funasr
     readme: FunASR
+  - id: sherpa-onnx-asr
+    readme: "**sherpa-onnx** (live dictation)"
 
 # Doc files that must exist (the install path users are sent to).
 docs:
