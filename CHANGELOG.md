@@ -6,7 +6,18 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
-## [Unreleased]
+## [0.3.8] — 2026-06-24
+
+A stability-focused release that makes first-run and Windows "just work" — and
+ships **live, faster-than-real-time local dictation**. It clears the wave of
+**"Can't reach the local backend"** reports at the source — the 8 GB-card OOM
+crash, the slow-load future-scheduling break, a Windows-only WhisperX load
+failure, and transcription stalls that *looked* like a dead backend are all
+fixed or now fail with a clear, actionable message. Downloads are faster out of
+the box (parallel segmented transfer on by default) and the Hugging Face token
+that speeds them up is front-and-center on setup. Plus first-run polish, faster
+long-form previews on Windows, multi-voice story casting, and a friendlier batch
+of error messages across dub, generate, and design.
 
 ### Added
 
@@ -30,22 +41,9 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   its download and switches to it once ready. **Toggle vs Hold** is wired for
   both the desktop global hotkey and the in-app Ctrl/Cmd+Shift+Space fallback, so
   the behaviour is identical on macOS, Windows, and Linux. While you speak, the
-  dictation pill shows the transcript building **live**, and each sentence is
-  pasted into the focused field as you pause — not only at the end.
-
-## [0.3.8] — 2026-06-24
-
-A stability-focused release that makes first-run and Windows "just work." It
-clears the wave of **"Can't reach the local backend"** reports at the source —
-the 8 GB-card OOM crash, the slow-load future-scheduling break, a Windows-only
-WhisperX load failure, and transcription stalls that *looked* like a dead backend
-are all fixed or now fail with a clear, actionable message. Downloads are faster
-out of the box (parallel segmented transfer on by default) and the Hugging Face
-token that speeds them up is front-and-center on setup. Plus first-run polish,
-faster long-form previews on Windows, multi-voice story casting, and a friendlier
-batch of error messages across dub, generate, and design.
-
-### Added
+  dictation pill shows the transcript building **live**, and words type straight
+  into the focused field *as you speak* — self-correcting with backspaces as the
+  streaming recognizer refines, with clipboard-paste as an automatic fallback.
 
 - **Tagged scripts auto-cast into a multi-voice podcast/audiobook.** Paste a
   `[Alice] … [Bob] …` script into Stories and hit Auto-cast: it now recognizes
