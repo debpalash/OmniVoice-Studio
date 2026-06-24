@@ -234,7 +234,12 @@ def entries_for_language(entries, language: Optional[str]) -> dict[str, str]:
 #
 #   [[gif|jiff]]      → replaces the literal "gif" → "jiff" for this occurrence
 #   [[Nuh-VAD-uh]]    → the bracket content itself is spoken (brackets stripped)
-_INLINE_RE = re.compile(r"\[\[([^\]]*)\]\]")
+# Bounded inner repetition ({0,256}) keeps this strictly linear: ``[^\]]`` also
+# matches ``[``, so an unbounded run of ``[`` with no closing ``]]`` would let the
+# engine re-scan O(n) content from O(n) start positions (polynomial ReDoS). The
+# bound caps per-position work; an inline override is a short respelling, so 256
+# chars is far more than any real ``[[term|replacement]]`` needs.
+_INLINE_RE = re.compile(r"\[\[([^\]]{0,256})\]\]")
 
 
 def apply_inline_overrides(text: str) -> str:

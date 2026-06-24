@@ -212,8 +212,12 @@ def update_entry(entry_id: str, patch: PronEntryUpdate):
                 detail="PUT body was empty. Include at least one field to change, or DELETE the entry.",
             )
         params.append(entry_id)
+        # nosec B608 - `fields` are fixed literal assignments ("term = ?", …) from
+        # the allowlist above; every user value is a bound `?` parameter, never
+        # interpolated. The f-string only joins constant column fragments.
         conn.execute(
-            f"UPDATE pronunciation_entries SET {', '.join(fields)} WHERE id = ?", params
+            f"UPDATE pronunciation_entries SET {', '.join(fields)} WHERE id = ?",  # nosec B608
+            params,
         )
         row = conn.execute(
             "SELECT id, term, replacement, type, language, enabled, created_at "
