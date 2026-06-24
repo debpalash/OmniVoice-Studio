@@ -17,7 +17,7 @@
 }
 /* Every slide is exactly [content, .frs-wnav] — the content half scrolls,
    with a soft fade at the cut so clipped rows read as "scroll for more". */
-.swiz-slide > :not(.frs-wnav) {
+.swiz-slide > :not(.frs-wnav):not(.swiz-hfpin) {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -28,6 +28,18 @@
 .swiz-slide > .frs-wnav {
   flex-shrink: 0;
   border-top: 1px solid var(--frs-line, rgba(255, 255, 255, 0.08));
+}
+/* The HF-token card is pinned with the action row (not part of the scrolling
+   model list) so it's always visible right by Continue — see it, click it,
+   drop in a token without scrolling. Compact so it doesn't crowd the button. */
+.swiz-slide > .swiz-hfpin {
+  flex-shrink: 0;
+  margin: 0;
+}
+.swiz-hfpin .swiz-lib__hfcard-hint {
+  font-size: 0.72rem;
+  line-height: 1.45;
+  opacity: 0.7;
 }
 
 .swiz-note {

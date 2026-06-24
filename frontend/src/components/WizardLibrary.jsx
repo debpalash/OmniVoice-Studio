@@ -20,7 +20,6 @@ import { toast } from 'react-hot-toast';
 import { useModels, useInstallModel } from '../api/hooks';
 import { setupDownloadStreamUrl } from '../api/setup';
 import { listEngines, selectEngine } from '../api/engines';
-import { openExternal } from '../api/external';
 
 const fmtGB = (gb) => (gb == null ? '' : `${gb.toFixed(gb < 10 ? 1 : 0)} GB`);
 
@@ -119,31 +118,7 @@ export default function WizardLibrary() {
   const [progress, setProgress] = useState({}); // { repo_id: { phase, files } }
   const [showTail, setShowTail] = useState(false);
   const [switching, setSwitching] = useState(null);
-  const [hfToken, setHfToken] = useState('');
-  const [hfState, setHfState] = useState('idle'); // idle | saving | saved | error
   const esRef = useRef(null);
-
-  // Optional HF token: unlocks gated models (e.g. pyannote speaker
-  // diarization). Same persistence endpoint Settings uses — the backend
-  // writes it durably so it survives restarts.
-  const saveHfToken = async () => {
-    const value = hfToken.trim();
-    if (!value || hfState === 'saving') return;
-    setHfState('saving');
-    try {
-      const { API } = await import('../api/client');
-      const res = await fetch(`${API}/system/set-env`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'HF_TOKEN', value }),
-      });
-      if (!res.ok) throw new Error(String(res.status));
-      setHfState('saved');
-      setHfToken('');
-    } catch {
-      setHfState('error');
-    }
-  };
 
   const models = useMemo(() => {
     const list = modelsQuery.data;
@@ -336,62 +311,6 @@ export default function WizardLibrary() {
           {t('firstrun.resume_note', 'Interrupted downloads resume automatically — closing the app is safe.')}
         </p>
       )}
-      {/* Prominent, always-visible (no longer a collapsed "advanced" fold that
-          nobody opened) and positioned right above Continue. A free token gives
-          authenticated downloads — faster, higher rate limits, fewer stalls — so
-          first-run setup finishes quicker. Encouraged, not hidden (#657 → owner
-          follow-up). */}
-      <div className={`swiz-lib__hfcard ${hfState === 'saved' ? 'is-saved' : ''}`}>
-        <div className="swiz-lib__hfcard-main">
-          <span className="swiz-lib__hfcard-icon" aria-hidden="true">⚡</span>
-          <div className="swiz-lib__hfcard-text">
-            <div className="swiz-lib__hfcard-title">
-              {hfState === 'saved'
-                ? `✓ ${t('firstrun.hf_token_saved_fast', 'Hugging Face token saved — downloads are now faster')}`
-                : t('firstrun.hf_token_card_title', 'Add a free Hugging Face token for faster downloads')}
-            </div>
-            <p className="swiz-lib__hfcard-hint">
-              {t('firstrun.hf_token_hint', 'A free account token gives authenticated downloads (faster, higher rate limits, fewer stalls) and unlocks gated models like speaker diarization for multi-speaker dubbing (pyannote). Stays on this machine.')}
-            </p>
-          </div>
-        </div>
-        {hfState !== 'saved' && (
-          <>
-            <div className="swiz-lib__hf-row">
-              <input
-                className="frs-input"
-                type="password"
-                placeholder="hf_…"
-                value={hfToken}
-                autoComplete="off"
-                onChange={(e) => { setHfToken(e.target.value); if (hfState !== 'idle') setHfState('idle'); }}
-                onKeyDown={(e) => { if (e.key === 'Enter') saveHfToken(); }}
-                aria-label={t('firstrun.hf_token_card_title', 'Add a free Hugging Face token for faster downloads')}
-              />
-              <button
-                type="button"
-                className="frs-btn frs-btn--primary swiz-lib__hfcard-save"
-                disabled={!hfToken.trim() || hfState === 'saving'}
-                onClick={saveHfToken}
-              >
-                {hfState === 'saving'
-                  ? t('firstrun.hf_token_saving', 'saving…')
-                  : t('firstrun.hf_token_save', 'Save')}
-              </button>
-            </div>
-            <button
-              type="button"
-              className="swiz-lib__hfcard-link"
-              onClick={() => openExternal('https://huggingface.co/settings/tokens')}
-            >
-              {t('firstrun.hf_token_get', "Don't have a token? Get one free →")}
-            </button>
-          </>
-        )}
-        {hfState === 'error' && (
-          <p className="frs__blocker">{t('firstrun.hf_token_error', 'Could not save the token — try again or set it later in Settings → Credentials.')}</p>
-        )}
-      </div>
     </div>
   );
 }

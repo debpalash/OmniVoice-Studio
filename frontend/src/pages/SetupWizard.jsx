@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader } from 'lucide-react';
 import { useSetupStatus, usePreflight } from '../api/hooks';
 import WizardLibrary from '../components/WizardLibrary';
+import HfTokenCard from '../components/HfTokenCard';
 import DictationDemo from '../components/DictationDemo';
 import '../components/FirstRunSetup.css';
 import './SetupWizard.css';
@@ -251,6 +252,10 @@ export default function SetupWizard({ onReady }) {
                 </p>
               )}
             </section>
+            {/* Pinned next to Continue (not buried at the bottom of the
+                scrolling model list) so it's visible without scrolling — you
+                can see it and drop in a token right by the action. */}
+            <HfTokenCard className="swiz-hfpin" />
             <div className="frs-wnav frs-rise" style={{ '--rise': 2 }}>
               <button type="button" className="frs-btn frs-btn--quiet" onClick={() => setStep(0)}>
                 ← {t('setup.back')}
