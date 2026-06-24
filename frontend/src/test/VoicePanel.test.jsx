@@ -77,7 +77,7 @@ describe('VoicePanel', () => {
     expect(screen.getByText('Enable Voice Dictation')).toBeInTheDocument();
     expect(screen.getByText('Dictation Mode')).toBeInTheDocument();
     // The switch reflects the enabled pref.
-    expect(screen.getByTestId('dictation-enabled')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('switch', { name: 'Enable Voice Dictation' })).toBeChecked();
     // The dropdown trigger shows the selected model once models load.
     await waitFor(() => expect(screen.getByTestId('dictation-model-trigger')).toHaveTextContent('Parakeet TDT v3'));
   });
@@ -111,7 +111,7 @@ describe('VoicePanel', () => {
 
   it('toggles the enable switch through the store write-through', async () => {
     render(withI18n(<VoicePanel />));
-    fireEvent.click(screen.getByTestId('dictation-enabled'));
+    fireEvent.click(screen.getByRole('switch', { name: 'Enable Voice Dictation' }));
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/dictation/prefs', { enabled: false }));
   });
 });
