@@ -61,6 +61,29 @@ fresh install heals itself.
 **Linked issues:** [#58](https://github.com/debpalash/OmniVoice-Studio/issues/58),
 [#248](https://github.com/debpalash/OmniVoice-Studio/issues/248)
 
+### 1a. Model load fails: `[Errno 2] No such file or directory: '…/transformers/…/modeling_*.py'`
+
+**Symptom:** the System Check / model load fails with e.g.
+`[Errno 2] No such file or directory:
+'…/site-packages/transformers/models/qwen3/modeling_qwen3.py'`.
+
+**Cause:** same class as §1 — a **corrupted/incomplete `transformers` install**.
+A model load lazily resolves a module file that's **missing from `site-packages`**
+(an interrupted `uv sync`, antivirus quarantine, or a partial update). The
+package's metadata is intact, so a plain install no-ops and never restores the
+file. Restarting does **not** help (the file is still gone).
+
+**Fix:** force-reinstall transformers in the backend venv, then restart:
+
+```
+uv pip install --reinstall transformers
+```
+
+Or, as a quick workaround, switch ASR to **faster-whisper** in
+**Settings → Models**. If it recurs, add the backend **`.venv`** to your
+antivirus exclusions (see §1). Newer builds classify this error and show the
+reinstall hint directly instead of a bare path + "try restarting".
+
 ## 2. HF 401 / pyannote license not accepted
 
 **Symptom:** dubbing fails with `HfHubHTTPError: 401 Client Error: Unauthorized

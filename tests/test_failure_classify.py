@@ -34,6 +34,28 @@ def test_classify_transformers_import():
     assert evt["hint"], "transformers-import failure must carry an actionable hint"
 
 
+def test_classify_corrupted_transformers_file():
+    # A missing transformers module file (interrupted uv sync / AV / partial
+    # update) surfaces as FileNotFoundError, not ImportError — it must still
+    # classify as TRANSFORMERS_IMPORT so the user gets "reinstall", not "restart".
+    posix = (
+        "[Errno 2] No such file or directory: "
+        "'/Users/u/Library/Application Support/com.x/project/.venv/lib/python3.11/"
+        "site-packages/transformers/models/qwen3/modeling_qwen3.py'"
+    )
+    win = (
+        "[Errno 2] No such file or directory: "
+        r"'C:\Users\u\AppData\Local\com.x\project\.venv\Lib\site-packages\transformers"
+        r"\models\qwen3\modeling_qwen3.py'"
+    )
+    assert failure.classify(posix) == "TRANSFORMERS_IMPORT"
+    assert failure.classify(win) == "TRANSFORMERS_IMPORT"
+    f = failure.build_failure(FileNotFoundError(posix), stage="model-load", include_diagnostic=False)
+    assert "reinstall" in f["hint"].lower()
+    # A missing file from an UNRELATED package must NOT be mislabelled as transformers.
+    assert failure.classify("[Errno 2] No such file or directory: '/x/site-packages/numpy/core/foo.py'") == ""
+
+
 def test_classify_video_download_classes():
     # #554: a non-downloadable link shape → actionable "paste a direct video URL".
     assert failure.classify("Unsupported URL: https://www.douyin.com/discover") == (

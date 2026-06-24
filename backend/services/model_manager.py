@@ -724,9 +724,19 @@ def _load_model_sync():
         logger.info("OmniVoice model loaded successfully.")
         return _model
     except Exception as exc:
-        err_msg = str(exc)
+        # Surface an ACTIONABLE, sanitized error in /model/status (it's shown in
+        # the first-run System Check). build_failure classifies the cause and
+        # attaches a fix hint — e.g. a corrupted transformers install
+        # ([Errno 2] … modeling_*.py) now says "reinstall transformers" instead
+        # of an unhelpful raw path + "try restarting" — and strips the home dir.
+        try:
+            from core.failure import build_failure
+            _f = build_failure(exc, stage="model-load", include_diagnostic=False)
+            err_msg = _f["reason"] + (f" — {_f['hint']}" if _f.get("hint") else "")
+        except Exception:  # never let failure-formatting mask the real error
+            err_msg = str(exc)
         _set_loading("error", "Model loading failed", error=err_msg)
-        logger.error("Model loading failed: %s", err_msg)
+        logger.error("Model loading failed: %s", str(exc))
         raise
     finally:
         unregister_listener(lid)
