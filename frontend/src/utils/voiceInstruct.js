@@ -67,6 +67,29 @@ export function buildDesignInstruct(vdStates = {}, freeText = '') {
 }
 
 /**
+ * Which `profile_id` (if any) to forward in DESIGN mode.
+ *
+ * Design mode generates a voice from attributes (the `instruct` built from the
+ * sliders). A *clone* profile (reference audio, no instruct) must NOT be sent:
+ * the backend would clone that voice, and its gender/timbre then overrides the
+ * design attributes — so e.g. "Male" appears to do nothing (#674). A *design*
+ * profile (carries an instruct) is fine to forward (re-render a designed voice).
+ *
+ * Conservative: only a KNOWN clone is suppressed; an unknown id (profiles not
+ * loaded yet) or a design profile passes through, preserving existing behavior.
+ *
+ * @param {string} selectedProfile  selected profile id (or '')
+ * @param {Array}  profiles         loaded profiles ({ id, instruct? })
+ * @returns {string|null} the id to send, or null to omit it
+ */
+export function designModeProfileId(selectedProfile, profiles) {
+  if (!selectedProfile) return null;
+  const p = (profiles || []).find((x) => x && x.id === selectedProfile);
+  if (p && !p.instruct) return null;   // known clone → omit so it can't hijack the design
+  return selectedProfile;
+}
+
+/**
  * Coerce an instruct value to the STRING that belongs in the FormData/payload.
  * `buildDesignInstruct()` returns `{ instruct, unsupported, duplicates }`, and
  * passing that object to `FormData.append` string-coerced it to the literal

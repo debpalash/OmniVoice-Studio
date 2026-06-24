@@ -275,7 +275,7 @@ function App() {
     textAreaRef,
     ingestRefAudio, insertTag, applyPreset,
     handleGenerate,
-  } = useTTS({ selectedProfile, setSelectedProfile, loadHistory });
+  } = useTTS({ selectedProfile, setSelectedProfile, loadHistory, profiles });
 
   const handleSaveProfile = () => _handleSaveProfile(refAudio, refText, instruct, language);
 

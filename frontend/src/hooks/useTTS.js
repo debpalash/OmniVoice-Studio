@@ -5,7 +5,7 @@ import { pickDesignSeed } from '../utils/seed';
 import { playBlobAudio, playPing } from '../utils/media';
 import { probeAudioDuration } from '../utils/format';
 import { CLONE_MAX_SECONDS, PRESETS } from '../utils/constants';
-import { buildDesignInstruct } from '../utils/voiceInstruct';
+import { buildDesignInstruct, designModeProfileId } from '../utils/voiceInstruct';
 import { toast } from 'react-hot-toast';
 import { toastErrorWithReport } from '../utils/errorToast';
 import { addBreadcrumb } from '../utils/breadcrumbs';
@@ -21,7 +21,7 @@ let _lastRoutingStatus = null;
  * Encapsulates TTS generation logic, streaming response handling,
  * audio ingestion (with trim gate), and preset/tag helpers.
  */
-export default function useTTS({ selectedProfile, setSelectedProfile, loadHistory }) {
+export default function useTTS({ selectedProfile, setSelectedProfile, loadHistory, profiles }) {
   const text = useAppStore(s => s.text);
   const setText = useAppStore(s => s.setText);
   const language = useAppStore(s => s.language);
@@ -154,8 +154,12 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
           toast(t('tts_errors.ignored_duplicate', { items: duplicates.join(', ') }), { icon: '⚠️' });
         }
         if (finalInstruct) formData.append("instruct", finalInstruct);
-        if (selectedProfile) {
-          formData.append("profile_id", selectedProfile);
+        // #674: in design mode, never forward a CLONE profile_id — its reference
+        // voice would override the design attributes (e.g. "Male" has no effect).
+        // Design profiles still pass through (re-render a designed voice).
+        const designProfileId = designModeProfileId(selectedProfile, profiles);
+        if (designProfileId) {
+          formData.append("profile_id", designProfileId);
         }
       }
 

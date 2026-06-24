@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildDesignInstruct, instructToFormValue } from './voiceInstruct';
+import { buildDesignInstruct, instructToFormValue, designModeProfileId } from './voiceInstruct';
 
 // plan-05 (#132): the Voice Design payload must be a validator-safe instruct —
 // one valid tag per category, no unsupported free-text — so Synthesize stops
@@ -71,6 +71,30 @@ describe('buildDesignInstruct', () => {
     const { instruct, unsupported } = buildDesignInstruct({ Gender: 'nonbinary' }, '');
     expect(instruct).toBe('');
     expect(unsupported).toEqual([]);
+  });
+});
+
+describe('designModeProfileId (#674 — clone must not hijack design attributes)', () => {
+  const profiles = [
+    { id: 'clone1', name: 'My Clone' },                 // no instruct → clone
+    { id: 'clone2', name: 'Demo', instruct: '' },        // empty instruct → clone
+    { id: 'design1', name: 'Narrator', instruct: 'male, low pitch' }, // design
+  ];
+
+  it('suppresses a known clone profile (so gender/timbre comes from the attributes)', () => {
+    expect(designModeProfileId('clone1', profiles)).toBeNull();
+    expect(designModeProfileId('clone2', profiles)).toBeNull();
+  });
+
+  it('forwards a design profile (re-render a designed voice)', () => {
+    expect(designModeProfileId('design1', profiles)).toBe('design1');
+  });
+
+  it('omits when nothing is selected; passes through an unknown id (profiles not loaded)', () => {
+    expect(designModeProfileId('', profiles)).toBeNull();
+    expect(designModeProfileId(null, profiles)).toBeNull();
+    expect(designModeProfileId('not-loaded-yet', [])).toBe('not-loaded-yet');
+    expect(designModeProfileId('x', undefined)).toBe('x');
   });
 });
 
