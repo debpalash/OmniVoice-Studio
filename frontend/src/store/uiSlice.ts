@@ -54,6 +54,13 @@ export interface UiSlice {
    * that profile once it appears in the loaded profiles list, then clears this.
    */
   pendingProfileId: string | null;
+  /**
+   * One-shot hand-off for "open Settings on a specific tab": a caller (e.g. the
+   * footer version badge) sets the tab id and navigates to `settings`; the
+   * Settings page consumes it as its initial/active tab, then clears it. Mirrors
+   * `pendingProfileId`.
+   */
+  pendingSettingsTab: string | null;
   isSidebarCollapsed: boolean;
   isSidebarProjectsCollapsed: boolean;
   sidebarTab: SidebarTab;
@@ -66,6 +73,9 @@ export interface UiSlice {
   setActiveVoiceId: (id: string | null) => void;
   setModeBeforeVoice: (mode: AppMode | null) => void;
   setPendingProfileId: (id: string | null) => void;
+  setPendingSettingsTab: (tab: string | null) => void;
+  /** Navigate to Settings on a specific tab in one call. */
+  openSettingsTab: (tab: string) => void;
   setIsSidebarCollapsed: (collapsed: boolean) => void;
   setIsSidebarProjectsCollapsed: (collapsed: boolean) => void;
   setSidebarTab: (tab: SidebarTab) => void;
@@ -86,6 +96,7 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) 
   activeVoiceId: null,
   modeBeforeVoice: null,
   pendingProfileId: null,
+  pendingSettingsTab: null,
   isSidebarCollapsed: false,
   isSidebarProjectsCollapsed: false,
   sidebarTab: 'projects',
@@ -98,6 +109,8 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) 
   setActiveVoiceId: (id) => set({ activeVoiceId: id }),
   setModeBeforeVoice: (mode) => set({ modeBeforeVoice: mode }),
   setPendingProfileId: (id) => set({ pendingProfileId: id }),
+  setPendingSettingsTab: (tab) => set({ pendingSettingsTab: tab }),
+  openSettingsTab: (tab) => set({ pendingSettingsTab: tab, mode: 'settings' }),
   setIsSidebarCollapsed: (collapsed) => set({ isSidebarCollapsed: collapsed }),
   setIsSidebarProjectsCollapsed: (collapsed) => set({ isSidebarProjectsCollapsed: collapsed }),
   setSidebarTab: (tab) => set({ sidebarTab: tab }),

@@ -219,6 +219,50 @@
   gap: 2px;
 }
 
+/* Clickable app-version badge → Settings → Updates (sits by the network icon) */
+.logs-footer__version {
+  background: none;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0 6px;
+  height: var(--chrome-icon-btn);
+  border-radius: 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--chrome-fg, #ebdbb2);
+  opacity: 0.55;
+  transition: opacity 0.15s, color 0.15s;
+}
+.logs-footer__version:hover {
+  opacity: 1;
+  color: var(--chrome-accent, #b8bb26);
+  text-decoration: underline;
+}
+/* Update-available: highlight the badge + a pulsing notification dot. */
+.logs-footer__version--update {
+  position: relative;
+  opacity: 1;
+  color: var(--chrome-accent, #b8bb26);
+  font-weight: 600;
+}
+.logs-footer__version-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: var(--chrome-accent, #b8bb26);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--chrome-accent, #b8bb26) 60%, transparent);
+  animation: version-dot-pulse 2s ease-in-out infinite;
+  vertical-align: middle;
+}
+@keyframes version-dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--chrome-accent, #b8bb26) 55%, transparent); }
+  50%      { box-shadow: 0 0 0 4px color-mix(in srgb, var(--chrome-accent, #b8bb26) 0%, transparent); }
+}
+
 /* Discord button */
 .logs-footer__discord {
   background: none;

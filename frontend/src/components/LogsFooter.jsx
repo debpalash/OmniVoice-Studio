@@ -12,6 +12,7 @@ import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import NetworkToggle from './NetworkToggle';
+import { APP_VERSION } from '../utils/appVersion';
 import './LogsFooter.css';
 
 /**
@@ -142,6 +143,10 @@ export default function LogsFooter() {
   }
   const [collapsed, setCollapsed] = useState(true);
   const { t } = useTranslation();
+  // Update availability drives the footer version badge's notification dot.
+  const updateStatus = useAppStore((s) => s.updateStatus);
+  const updateVersion = useAppStore((s) => s.updateVersion);
+  const updateReady = updateStatus === 'available' || updateStatus === 'ready';
   const [height, setHeight] = useState(() => {
     const v = Number(localStorage.getItem(LS_HEIGHT));
     return Number.isFinite(v) && v >= MIN_H && v <= MAX_H ? v : 300;
@@ -412,6 +417,20 @@ export default function LogsFooter() {
               </button>
             </div>
           )}
+          <button
+            type="button"
+            className={`logs-footer__version ${updateReady ? 'logs-footer__version--update' : ''}`}
+            onClick={() => useAppStore.getState().openSettingsTab?.('updates')}
+            title={updateReady
+              ? t('logs.update_available', { version: updateVersion || '', defaultValue: 'Update available ({{version}}) — click to update' })
+              : t('logs.version_updates', { defaultValue: 'Check for updates' })}
+            aria-label={updateReady
+              ? t('logs.update_available_aria', { version: updateVersion || '', defaultValue: 'Update available ({{version}}) — open updates' })
+              : t('logs.version_updates_aria', { defaultValue: 'Open updates — app version {{v}}', v: APP_VERSION })}
+          >
+            v{APP_VERSION}
+            {updateReady && <span className="logs-footer__version-dot" aria-hidden="true" />}
+          </button>
           <NetworkToggle />
           <button
             type="button"

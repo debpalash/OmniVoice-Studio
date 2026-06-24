@@ -1157,7 +1157,11 @@ async function askConfirm(message, title = 'Confirm') {
 
 export default function Settings() {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState('models');
+  // One-shot deep-link: a caller (e.g. the footer version badge → Updates) can
+  // set `pendingSettingsTab` and navigate here; consume it as the initial tab.
+  const pendingSettingsTab = useAppStore((s) => s.pendingSettingsTab);
+  const setPendingSettingsTab = useAppStore((s) => s.setPendingSettingsTab);
+  const [activeTab, setActiveTab] = useState(() => pendingSettingsTab || 'models');
   const [logSource, setLogSource] = useState('backend');
   const [logs, setLogs] = useState([]);
   const [logMeta, setLogMeta] = useState({ path: '', exists: false });
@@ -1166,6 +1170,16 @@ export default function Settings() {
   const [tauriVersion, setTauriVersion] = useState(null);
   const [updateState, setUpdateState] = useState('idle'); // idle|checking|downloading|uptodate|error
   const updateChannel = useAppStore((s) => s.updateChannel);
+
+  // Consume a one-shot deep-link tab (covers the case where Settings is already
+  // open and the value changes after mount); clear it so a later plain open of
+  // Settings doesn't jump tabs.
+  useEffect(() => {
+    if (pendingSettingsTab) {
+      setActiveTab(pendingSettingsTab);
+      setPendingSettingsTab(null);
+    }
+  }, [pendingSettingsTab, setPendingSettingsTab]);
 
   // TanStack Query — shared cache with App.jsx, no duplicate requests
   const { data: hw } = useSysinfo();
