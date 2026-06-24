@@ -81,6 +81,7 @@ export const useAppStore = create<AppStore>()(
         showHeaderLiveStats:        s.showHeaderLiveStats,
         timingStrategy:             s.timingStrategy,
         fitOptions:                 s.fitOptions,
+        autoPlayPreview:            s.autoPlayPreview,
         mode:                       s.mode,
         defineMethod:               s.defineMethod,
         isSidebarCollapsed:         s.isSidebarCollapsed,

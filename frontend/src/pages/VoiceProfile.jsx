@@ -16,6 +16,7 @@ import useRecording from '../hooks/useRecording';
 import { generateSpeech } from '../api/generate';
 import { API } from '../api/client';
 import WaveformPlayer from '../components/WaveformPlayer';
+import { useAppStore } from '../store';
 import './VoiceProfile.css';
 import { askConfirm } from '../utils/dialog';
 
@@ -33,6 +34,7 @@ import { askConfirm } from '../utils/dialog';
  */
 export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted }) {
   const { t } = useTranslation();
+  const autoPlayPreview = useAppStore(s => s.autoPlayPreview);
   const [profile, setProfile] = useState(null);
   const [usage, setUsage] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -462,7 +464,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
             <WaveformPlayer
               src={testAudioUrl}
               source="profile-test"
-              autoPlay
+              autoPlay={autoPlayPreview}
               className="voice-profile__tryit-audio"
             />
           )}

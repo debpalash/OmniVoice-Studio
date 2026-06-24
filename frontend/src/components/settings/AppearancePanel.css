@@ -36,6 +36,19 @@
   color: rgba(255, 255, 255, 0.65);
 }
 
+.appearance-panel__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+}
+
+.appearance-panel__toggle input {
+  cursor: pointer;
+}
+
 .appearance-panel__themes {
   display: inline-flex;
   align-items: center;

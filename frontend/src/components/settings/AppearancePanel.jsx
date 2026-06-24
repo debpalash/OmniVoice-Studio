@@ -29,6 +29,8 @@ export default function AppearancePanel() {
   const setTheme   = useAppStore(s => s.setTheme);
   const font       = useAppStore(s => s.font);
   const setFont    = useAppStore(s => s.setFont);
+  const autoPlayPreview    = useAppStore(s => s.autoPlayPreview);
+  const setAutoPlayPreview = useAppStore(s => s.setAutoPlayPreview);
 
   const scaleLabel = t('settings.ui_scale', { defaultValue: 'UI scale' });
   const themeLabel = t('settings.color_theme', { defaultValue: 'Color theme' });
@@ -96,6 +98,30 @@ export default function AppearancePanel() {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="appearance-panel__row">
+        <span className="appearance-panel__label">
+          {t('settings.autoplay_preview', { defaultValue: 'Auto-play preview' })}
+        </span>
+        <label
+          className="appearance-panel__toggle"
+          title={t('settings.autoplay_preview_hint', {
+            defaultValue: 'When off, a finished render no longer starts playing on its own — useful when batch-generating segments (#666).',
+          })}
+        >
+          <input
+            type="checkbox"
+            checked={autoPlayPreview}
+            onChange={(e) => setAutoPlayPreview(e.target.checked)}
+            data-testid="autoplay-preview"
+          />
+          <span>
+            {t('settings.autoplay_preview_label', {
+              defaultValue: 'Play the output as soon as a render finishes',
+            })}
+          </span>
+        </label>
       </div>
 
       <p className="appearance-panel__help">

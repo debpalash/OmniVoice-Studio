@@ -117,6 +117,15 @@ export interface PrefsSlice {
   aecEnabled: boolean;
   setAecEnabled: (on: boolean) => void;
 
+  /**
+   * Auto-play the output preview as soon as a render finishes (Voice Clone /
+   * Design / profile preview). Default ON — preserves the long-standing
+   * behavior. Users batch-generating segments (#666) can turn it off so each
+   * finished clip doesn't start playing on its own.
+   */
+  autoPlayPreview: boolean;
+  setAutoPlayPreview: (on: boolean) => void;
+
   locale: string;
   setLocale: (l: string) => void;
 
@@ -137,6 +146,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   timingStrategy: 'concise',
   fitOptions: null,
   aecEnabled: false,
+  autoPlayPreview: true,
 
   setTranslateQuality:    (q) => set({ translateQuality: q }),
   setDualSubs:            (on) => set({ dualSubs: on }),
@@ -147,6 +157,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   setTimingStrategy:      (s) => set({ timingStrategy: s }),
   setFitOptions:          (o) => set({ fitOptions: o }),
   setAecEnabled:          (on) => set({ aecEnabled: on }),
+  setAutoPlayPreview:     (on) => set({ autoPlayPreview: on }),
 
   locale: typeof navigator !== 'undefined' ? (() => {
     const nav = navigator.language || '';

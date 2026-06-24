@@ -5,6 +5,7 @@ import { generateSpeech } from '../api/generate';
 import { PRESETS } from '../utils/constants';
 import { Button } from '../ui';
 import WaveformPlayer from './WaveformPlayer';
+import { useAppStore } from '../store';
 import { stopActivePlayback } from '../utils/playback';
 import './VoicePreview.css';
 
@@ -24,6 +25,7 @@ export default function VoicePreview({
   fileToMediaUrl,
 }) {
   const { t } = useTranslation();
+  const autoPlayPreview = useAppStore(s => s.autoPlayPreview);
   const [text, setText] = useState(() => t('voicePreview.default_text'));
   const [voiceId, setVoiceId] = useState(initialProfileId);
   const [audioUrl, setAudioUrl] = useState(null);
@@ -152,7 +154,7 @@ export default function VoicePreview({
           <WaveformPlayer
             src={audioUrl}
             source="voice-preview"
-            autoPlay
+            autoPlay={autoPlayPreview}
             className="voice-preview__audio"
           />
         )}

@@ -49,3 +49,20 @@ describe('AppearancePanel — global font selection', () => {
     expect(document.documentElement.style.getPropertyValue('--font-sans')).toBe('');
   });
 });
+
+describe('AppearancePanel — auto-play preview toggle (#666)', () => {
+  it('defaults to ON (preserves existing auto-play behavior)', () => {
+    expect(useAppStore.getState().autoPlayPreview).toBe(true);
+    render(<AppearancePanel />);
+    expect(screen.getByTestId('autoplay-preview')).toBeChecked();
+  });
+
+  it('toggling off updates the store so renders no longer auto-play', () => {
+    render(<AppearancePanel />);
+    fireEvent.click(screen.getByTestId('autoplay-preview'));
+    expect(useAppStore.getState().autoPlayPreview).toBe(false);
+    expect(screen.getByTestId('autoplay-preview')).not.toBeChecked();
+    // restore default for other tests
+    useAppStore.getState().setAutoPlayPreview(true);
+  });
+});
