@@ -120,6 +120,76 @@ models:
     size_gb: 0.05
     note: "Smallest/fastest Moonshine, sub-200ms latency. Lower accuracy than base. Requires moonshine-onnx."
 
+  # ── sherpa-onnx live dictation (ONNX, CPU, streaming + offline) ────────
+  # Live faster-than-real-time dictation via the k2-fsa/sherpa-onnx runtime.
+  # `engine: sherpa-onnx`, `dictation_id` (backend model id), and `tag`
+  # (offline | streaming) are extra fields the model-store list passes through
+  # so the dictation UI can filter/group these (role=ASR, engine=sherpa-onnx).
+  # Requires `uv add sherpa-onnx` (CPU wheels, all platforms).
+
+  - repo_id: "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8"
+    label: "Parakeet TDT v3 (sherpa-onnx — dictation, 25 EU langs)"
+    role: ASR
+    size_gb: 0.18
+    engine: sherpa-onnx
+    dictation_id: sherpa-parakeet-tdt-v3
+    tag: offline
+    note: "Recommended live-dictation default. CPU, int8 ONNX. Requires sherpa-onnx."
+
+  - repo_id: "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8"
+    label: "Parakeet TDT v2 (sherpa-onnx — dictation, English)"
+    role: ASR
+    size_gb: 0.17
+    engine: sherpa-onnx
+    dictation_id: sherpa-parakeet-tdt-v2
+    tag: offline
+    note: "English live dictation. CPU, int8 ONNX. Requires sherpa-onnx."
+
+  - repo_id: "csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20"
+    label: "Zipformer Bilingual (sherpa-onnx — streaming, zh+en)"
+    role: ASR
+    size_gb: 0.13
+    engine: sherpa-onnx
+    dictation_id: sherpa-zipformer-bilingual-zh-en
+    tag: streaming
+    note: "True streaming partials as you speak (zh+en). CPU. Requires sherpa-onnx."
+
+  - repo_id: "csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en"
+    label: "Paraformer Bilingual (sherpa-onnx — streaming, zh+en)"
+    role: ASR
+    size_gb: 0.115
+    engine: sherpa-onnx
+    dictation_id: sherpa-paraformer-bilingual-zh-en
+    tag: streaming
+    note: "True streaming partials (zh+en). CPU. Requires sherpa-onnx."
+
+  - repo_id: "csukuangfj/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17"
+    label: "Zipformer Streaming EN 20M (sherpa-onnx — streaming, English)"
+    role: ASR
+    size_gb: 0.128
+    engine: sherpa-onnx
+    dictation_id: sherpa-zipformer-en-20m
+    tag: streaming
+    note: "Tiny English streaming model, very low latency. CPU. Requires sherpa-onnx."
+
+  - repo_id: "csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23"
+    label: "Zipformer Streaming ZH 14M (sherpa-onnx — streaming, Chinese)"
+    role: ASR
+    size_gb: 0.074
+    engine: sherpa-onnx
+    dictation_id: sherpa-zipformer-zh-14m
+    tag: streaming
+    note: "Tiny Chinese streaming model, very low latency. CPU. Requires sherpa-onnx."
+
+  - repo_id: "csukuangfj/sherpa-onnx-whisper-tiny"
+    label: "Whisper Tiny (sherpa-onnx — dictation, 90+ langs)"
+    role: ASR
+    size_gb: 0.116
+    engine: sherpa-onnx
+    dictation_id: sherpa-whisper-tiny
+    tag: offline
+    note: "Multilingual offline dictation (auto-detect). CPU, int8 ONNX. Requires sherpa-onnx."
+
   # ── Diarisation ───────────────────────────────────────────────────────
 
   - repo_id: "pyannote/speaker-diarization-3.1"

@@ -101,6 +101,30 @@ def _pcm16_to_wav(pcm: bytes, sample_rate: int) -> str | None:
         return None
 
 
+def _select_sherpa_spec(websocket: WebSocket):
+    """Resolve the sherpa dictation model for this WS session, or None.
+
+    A ``?model=<id>`` query param wins (the frontend can pin a model per
+    session); otherwise the persisted ``dictation.model_id`` pref is used (only
+    when dictation is enabled). Returns the :class:`SherpaModelSpec` or None
+    (None → the legacy Whisper/WebM path runs unchanged).
+    """
+    try:
+        from services import sherpa_dictation as sd
+    except Exception:
+        return None
+    requested = websocket.query_params.get("model")
+    if requested:
+        return sd.get_spec(requested)  # explicit selection (may be None if bad)
+    # Fall back to the persisted dictation pref.
+    try:
+        from services.asr_backend import dictation_model_id
+        mid = dictation_model_id()
+    except Exception:
+        mid = None
+    return sd.get_spec(mid) if mid else None
+
+
 @router.websocket("/ws/transcribe")
 async def ws_transcribe(websocket: WebSocket):
     """Stream audio in, get partial + final transcription out."""
@@ -118,6 +142,24 @@ async def ws_transcribe(websocket: WebSocket):
         return
 
     await websocket.accept()
+
+    # Live-dictation engine selection. When a sherpa-onnx model is selected
+    # (via ?model= or the dictation.model_id pref) AND sherpa is installed,
+    # run the dedicated low-latency handler. Otherwise fall through to the
+    # legacy Whisper/WebM path, byte-for-byte unchanged.
+    spec = _select_sherpa_spec(websocket)
+    if spec is not None:
+        from services.asr_backend import SherpaDictationBackend
+        ok, _reason = SherpaDictationBackend.is_available()
+        if ok:
+            if spec.streaming:
+                await _run_sherpa_streaming(websocket, spec)
+            else:
+                await _run_sherpa_offline(websocket, spec)
+            return
+        # sherpa not installed → fall through to the legacy path so the user
+        # still gets dictation (just not live partials).
+        logger.info("sherpa dictation selected but unavailable — legacy path")
 
     # Opt-in dictate-over-playback AEC (parity Action 8b). Default OFF →
     # identical legacy behaviour. When on, frames are 1-byte-tagged raw PCM
@@ -286,6 +328,321 @@ async def ws_transcribe(websocket: WebSocket):
         })
 
     if not client_disconnected:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
+# ── sherpa-onnx live dictation handlers ─────────────────────────────────────
+#
+# Both handlers read raw int16 mono PCM frames (reusing the AEC framing: an
+# opt-in 1-byte type prefix when ?aec=1, else bare PCM) at ?sr= (default 16000).
+# This is the low-latency transport — no WebM/ffmpeg in the hot path.
+
+# How often the offline-kind handler re-decodes the growing buffer for a live
+# partial (streaming-kind decodes every frame, no cadence needed).
+SHERPA_OFFLINE_PARTIAL_S = float(os.environ.get("OMNIVOICE_SHERPA_OFFLINE_PARTIAL", "0.8"))
+
+
+def _pcm16_to_f32(pcm: bytes):
+    """int16 little-endian mono PCM bytes → float32 numpy in [-1, 1]."""
+    import numpy as np
+    if not pcm:
+        return np.zeros(0, dtype=np.float32)
+    # Guard against an odd trailing byte from a split frame.
+    if len(pcm) % 2:
+        pcm = pcm[:-1]
+    return np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
+
+
+async def _sherpa_session(websocket: WebSocket):
+    """Shared WS receive setup for the sherpa handlers.
+
+    Returns ``(get_frame, state)`` where ``get_frame`` is an async callable
+    that yields the next near-end (mic) PCM bytes, ``b""`` for a keepalive/ref
+    frame, or ``None`` on EOF/disconnect. ``state`` carries sample rate, AEC,
+    and the disconnect flag for the caller's finaliser.
+    """
+    pcm_sr = 16000
+    try:
+        pcm_sr = int(websocket.query_params.get("sr", "16000"))
+    except (TypeError, ValueError):
+        pcm_sr = 16000
+    aec = None
+    if websocket.query_params.get("aec") in ("1", "true", "on"):
+        try:
+            from services.aec import NlmsEchoCanceller
+            aec = NlmsEchoCanceller(sample_rate=pcm_sr)
+        except Exception as e:
+            logger.warning("AEC requested but disabled (sherpa): %s", e)
+            aec = None
+    return pcm_sr, aec
+
+
+async def _recv_pcm_frame(websocket: WebSocket, aec):
+    """Receive one frame; return (kind, pcm_bytes).
+
+    kind ∈ {"near","eof","skip"}. Demuxes AEC-tagged frames when ``aec`` is on
+    and feeds the playback reference into the canceller. A text "EOF" or an
+    empty/closed socket yields kind "eof".
+    """
+    msg = await websocket.receive()
+    mtype = msg.get("type")
+    if mtype == "websocket.disconnect":
+        return "eof", b""
+    if mtype != "websocket.receive":
+        return "skip", b""
+    data = msg.get("bytes")
+    if data is not None:
+        if len(data) == 0:
+            return "eof", b""
+        if aec is not None:
+            kind, payload = _demux_aec_frame(data)
+            if kind == "far":
+                aec.push_far_end(payload)
+                return "skip", b""
+            if not payload:
+                return "skip", b""
+            return "near", aec.process_near_end(payload)
+        return "near", data
+    if msg.get("text") == "EOF":
+        return "eof", b""
+    return "skip", b""
+
+
+async def _run_sherpa_streaming(websocket: WebSocket, spec):
+    """True streaming: feed the OnlineRecognizer frame-by-frame, emit `partial`
+    every time the decoded text grows, and `final` on sherpa's endpoint (silence)
+    detection and on EOF. <300ms perceived latency on CPU for the tiny models.
+    """
+    import numpy as np
+    from services.asr_backend import SherpaDictationBackend
+
+    pcm_sr, aec = await _sherpa_session(websocket)
+    logger.info("sherpa streaming dictation: model=%s sr=%d aec=%s",
+                spec.id, pcm_sr, bool(aec))
+
+    backend = SherpaDictationBackend(model_id=spec.id)
+    # Build the recognizer off the event loop (download-on-first-use + ONNX
+    # session init can take a moment); keep the socket responsive.
+    try:
+        await asyncio.to_thread(backend.ensure_loaded)
+    except Exception as e:
+        logger.error("sherpa streaming load failed: %s", e)
+        try:
+            await websocket.send_json({"type": "error", "detail": str(e)})
+            await websocket.close()
+        except Exception:
+            pass
+        return
+    rec = backend._rec
+    stream = rec.create_stream()
+
+    last_partial = ""
+    committed: list[str] = []     # finalized utterances this session
+    client_disconnected = False
+
+    async def _send(payload) -> bool:
+        nonlocal client_disconnected
+        if client_disconnected:
+            return False
+        try:
+            await websocket.send_json(payload)
+            return True
+        except Exception:
+            client_disconnected = True
+            return False
+
+    def _decode_after_feed(pcm: bytes):
+        """Blocking: feed one PCM frame, decode, return (text, is_endpoint).
+        Runs in a thread so the ONNX work never blocks the event loop."""
+        samples = _pcm16_to_f32(pcm)
+        if len(samples):
+            stream.accept_waveform(pcm_sr, samples)
+        while rec.is_ready(stream):
+            rec.decode_stream(stream)
+        endpoint = rec.is_endpoint(stream)
+        text = (rec.get_result(stream) or "").strip()
+        return text, endpoint
+
+    def _flush_final():
+        """Blocking: pad + drain the stream for the trailing utterance."""
+        tail = np.zeros(int(0.5 * pcm_sr), dtype=np.float32)
+        stream.accept_waveform(pcm_sr, tail)
+        stream.input_finished()
+        while rec.is_ready(stream):
+            rec.decode_stream(stream)
+        return (rec.get_result(stream) or "").strip()
+
+    try:
+        while True:
+            kind, pcm = await _recv_pcm_frame(websocket, aec)
+            if kind == "eof":
+                break
+            if kind == "skip":
+                continue
+            text, endpoint = await asyncio.to_thread(_decode_after_feed, pcm)
+            if endpoint:
+                # Commit this utterance; reset for the next one.
+                if text:
+                    committed.append(text)
+                    await _send({"type": "final", "text": text,
+                                 "segments": [{"start": 0.0, "end": None, "text": text}],
+                                 "language": "auto", "engine": backend.id})
+                rec.reset(stream)
+                last_partial = ""
+            elif text and text != last_partial:
+                last_partial = text
+                await _send({"type": "partial", "text": text})
+    except WebSocketDisconnect:
+        client_disconnected = True
+    except Exception as e:
+        logger.warning("sherpa streaming loop ended: %s", e)
+        client_disconnected = True
+
+    # Drain the trailing (un-endpointed) utterance on EOF.
+    try:
+        tail_text = await asyncio.to_thread(_flush_final)
+    except Exception as e:
+        logger.debug("sherpa streaming flush failed: %s", e)
+        tail_text = ""
+    if tail_text and tail_text != (committed[-1] if committed else None):
+        committed.append(tail_text)
+
+    full = " ".join(t for t in committed if t).strip()
+    segments = [{"start": 0.0, "end": None, "text": t} for t in committed if t]
+    if not client_disconnected:
+        if full:
+            try:
+                from services.refinement import maybe_refine
+                refined = await asyncio.to_thread(maybe_refine, full)
+            except Exception:
+                refined = None
+            payload = {"type": "final", "text": full, "segments": segments,
+                       "language": "auto", "engine": backend.id}
+            if refined and refined != full:
+                payload["refined_text"] = refined
+            await _send(payload)
+        else:
+            await _send({"type": "final", "text": "", "segments": [],
+                         "language": "auto", "engine": backend.id})
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
+async def _run_sherpa_offline(websocket: WebSocket, spec):
+    """Offline-kind sherpa model with live partials: buffer raw PCM and
+    re-decode the growing buffer every ~800ms so the user still sees text
+    appear while speaking; finalize on EOF/silence."""
+    from services.asr_backend import SherpaDictationBackend
+
+    pcm_sr, aec = await _sherpa_session(websocket)
+    logger.info("sherpa offline dictation: model=%s sr=%d aec=%s",
+                spec.id, pcm_sr, bool(aec))
+
+    backend = SherpaDictationBackend(model_id=spec.id)
+    try:
+        await asyncio.to_thread(backend.ensure_loaded)
+    except Exception as e:
+        logger.error("sherpa offline load failed: %s", e)
+        try:
+            await websocket.send_json({"type": "error", "detail": str(e)})
+            await websocket.close()
+        except Exception:
+            pass
+        return
+
+    buf = bytearray()
+    last_partial = ""
+    running = True
+    client_disconnected = False
+    last_audio = time.monotonic()
+
+    async def _send(payload) -> bool:
+        nonlocal client_disconnected
+        if client_disconnected:
+            return False
+        try:
+            await websocket.send_json(payload)
+            return True
+        except Exception:
+            client_disconnected = True
+            return False
+
+    def _decode_buffer() -> str:
+        samples = _pcm16_to_f32(bytes(buf))
+        if not len(samples):
+            return ""
+        return backend._decode_offline(samples, pcm_sr)
+
+    async def receive():
+        nonlocal running, client_disconnected, last_audio
+        try:
+            while running:
+                kind, pcm = await _recv_pcm_frame(websocket, aec)
+                if kind == "eof":
+                    running = False
+                    break
+                if kind == "skip":
+                    continue
+                buf.extend(pcm)
+                last_audio = time.monotonic()
+        except WebSocketDisconnect:
+            client_disconnected = True
+            running = False
+        except Exception as e:
+            logger.debug("sherpa offline receive ended: %s", e)
+            running = False
+
+    async def partials():
+        nonlocal last_partial, running
+        while running:
+            await asyncio.sleep(SHERPA_OFFLINE_PARTIAL_S)
+            if not running or len(buf) < 2000:
+                continue
+            try:
+                text = await asyncio.to_thread(_decode_buffer)
+            except Exception as e:
+                logger.debug("sherpa offline partial failed: %s", e)
+                continue
+            if text and text != last_partial:
+                last_partial = text
+                await _send({"type": "partial", "text": text})
+
+    recv_task = asyncio.create_task(receive())
+    part_task = asyncio.create_task(partials())
+    await asyncio.wait([recv_task, part_task], return_when=asyncio.FIRST_COMPLETED)
+    running = False
+    for t in (recv_task, part_task):
+        if not t.done():
+            t.cancel()
+            try:
+                await t
+            except (asyncio.CancelledError, Exception):
+                pass
+
+    try:
+        full = await asyncio.to_thread(_decode_buffer)
+    except Exception as e:
+        logger.error("sherpa offline final failed: %s", e)
+        full = ""
+    full = (full or "").strip()
+    segments = [{"start": 0.0, "end": None, "text": full}] if full else []
+    if not client_disconnected:
+        payload = {"type": "final", "text": full, "segments": segments,
+                   "language": "auto", "engine": backend.id}
+        if full:
+            try:
+                from services.refinement import maybe_refine
+                refined = await asyncio.to_thread(maybe_refine, full)
+                if refined and refined != full:
+                    payload["refined_text"] = refined
+            except Exception:
+                pass
+        await _send(payload)
         try:
             await websocket.close()
         except Exception:

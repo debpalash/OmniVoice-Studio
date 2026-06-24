@@ -36,6 +36,8 @@ GET /community/items
 GET /community/manifest
 GET /community/sources
 GET /community/submit-url
+GET /dictation/models
+GET /dictation/prefs
 GET /docs
 GET /dub/audio/{job_id}
 GET /dub/download-audio/{job_id}
@@ -129,6 +131,7 @@ POST /batch/jobs/{job_id}/cancel
 POST /clean-audio
 POST /community/items/{item_id}/use
 POST /design/describe
+POST /dictation/prefs
 POST /dub/abort/{job_id}
 POST /dub/cleanup-segments/{job_id}
 POST /dub/generate/{job_id}

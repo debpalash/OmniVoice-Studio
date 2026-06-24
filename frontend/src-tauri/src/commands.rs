@@ -299,6 +299,47 @@ pub fn simulate_paste(text: Option<String>) -> Result<(), String> {
     Ok(())
 }
 
+// ── Simulate live typing ──────────────────────────────────────────────────
+
+/// Type a string at the current cursor and/or emit N backspaces, for live
+/// word-by-word dictation (text appears in the focused field as you speak).
+///
+/// `backspaces` are sent FIRST (to retract characters a streaming recognizer
+/// revised), then `text` is typed. Either may be empty/zero, so a single call
+/// can correct-then-type in one round trip.
+///
+/// Cross-platform: `enigo`'s `.text()` synthesizes Unicode key events on macOS
+/// (CGEvent), Windows (`SendInput` w/ `KEYEVENTF_UNICODE`), and Linux (X11/
+/// libei). Backspace is a plain virtual-key `Click`, identical on all three.
+/// On macOS this reuses the SAME accessibility permission `simulate_paste`
+/// already requires (both go through `enigo` → CGEvent); no new grant needed.
+///
+/// Returns `Err` if the input layer is unavailable (e.g. accessibility not
+/// granted) so the JS caller can fall back to the clipboard+paste path for
+/// that segment without double-inserting.
+#[tauri::command]
+pub fn simulate_type(text: Option<String>, backspaces: Option<u32>) -> Result<(), String> {
+    let mut enigo = Enigo::new(&EnigoSettings::default())
+        .map_err(|e| format!("Failed to init keyboard sim: {e}"))?;
+
+    let n = backspaces.unwrap_or(0);
+    for _ in 0..n {
+        enigo
+            .key(Key::Backspace, Direction::Click)
+            .map_err(|e| format!("backspace failed: {e}"))?;
+    }
+
+    if let Some(t) = text {
+        if !t.is_empty() {
+            enigo
+                .text(&t)
+                .map_err(|e| format!("type failed: {e}"))?;
+        }
+    }
+
+    Ok(())
+}
+
 // ── Tray icon swap ────────────────────────────────────────────────────────
 
 #[tauri::command]

@@ -136,6 +136,14 @@ dependencies = [
     # is_available() returned "openai package missing"); the UI's `pip install
     # openai` hint landed in the wrong interpreter on a managed venv.
     "openai>=1.40",
+    # sherpa-onnx live-dictation ASR engine (CPU, cross-platform). The thin
+    # `sherpa-onnx` wheel declares `sherpa-onnx-core` only in its *wheel*
+    # metadata (not the sdist), so uv's resolver does NOT pull it transitively
+    # — without core, `import sherpa_onnx` fails at load time (missing
+    # libonnxruntime). Pin core EXPLICITLY so the lock captures it and Docker's
+    # frozen `uv sync` installs a working engine on every platform.
+    "sherpa-onnx>=1.13.3",
+    "sherpa-onnx-core>=1.13.3",
 ]
 
 [project.optional-dependencies]

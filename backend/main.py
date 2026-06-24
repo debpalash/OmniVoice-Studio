@@ -337,6 +337,7 @@ from api.routers import (
     events,
     capture,
     capture_ws,
+    dictation,
     openai_compat,
     tts_stream,
     marketplace,
@@ -909,6 +910,7 @@ app.include_router(watermark.router)
 app.include_router(events.router)
 app.include_router(capture.router)
 app.include_router(capture_ws.router)
+app.include_router(dictation.router)
 app.include_router(openai_compat.router)
 app.include_router(tts_stream.router)
 app.include_router(marketplace.router)

@@ -1,0 +1,311 @@
+/* Settings → Capture → Voice panel. Matches the Settings-section visual
+   language (chrome tokens, pill radii) used elsewhere in Settings. */
+
+.voicepanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 12px;
+}
+
+.voicepanel__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.voicepanel__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--chrome-fg);
+}
+
+.voicepanel__subtitle {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--chrome-fg-muted);
+}
+
+.voicepanel__card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--chrome-border, rgba(255, 255, 255, 0.08));
+  background: var(--chrome-panel-bg, rgba(255, 255, 255, 0.02));
+  border-radius: 12px;
+  padding: 4px 14px;
+}
+
+.voicepanel__warn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  color: var(--chrome-severity-warn, #fabd2f);
+  background: color-mix(in srgb, var(--chrome-severity-warn, #fabd2f) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chrome-severity-warn, #fabd2f) 32%, transparent);
+  border-radius: 8px;
+}
+
+.voicepanel__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+}
+
+.voicepanel__row--model {
+  align-items: flex-start;
+}
+
+.voicepanel__row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.voicepanel__row-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--chrome-fg);
+}
+
+.voicepanel__row-sub {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--chrome-fg-muted);
+}
+
+.voicepanel__divider {
+  margin: 0;
+  border: none;
+  border-top: 1px solid var(--chrome-border, rgba(255, 255, 255, 0.06));
+}
+
+/* ── Toggle switch ─────────────────────────────────────────────────────── */
+.voicepanel__switch {
+  position: relative;
+  flex: none;
+  width: 42px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--chrome-hover-bg, rgba(255, 255, 255, 0.12));
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.voicepanel__switch.is-on {
+  background: var(--chrome-accent, #83a598);
+}
+
+.voicepanel__switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.16s ease;
+}
+
+.voicepanel__switch.is-on .voicepanel__switch-knob {
+  transform: translateX(18px);
+}
+
+.voicepanel__switch:focus-visible {
+  outline: 2px solid var(--chrome-accent, #83a598);
+  outline-offset: 2px;
+}
+
+/* ── Speech-model dropdown ─────────────────────────────────────────────── */
+.voicepanel__dropdown {
+  position: relative;
+  flex: none;
+  width: 260px;
+  max-width: 50%;
+}
+
+.voicepanel__dd-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 11px;
+  font-size: 0.84rem;
+  color: var(--chrome-fg);
+  background: var(--chrome-input-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--chrome-border, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.voicepanel__dd-trigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.voicepanel__dd-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voicepanel__dd-chev {
+  flex: none;
+  transition: transform 0.15s ease;
+  color: var(--chrome-fg-muted);
+}
+
+.voicepanel__dd-chev.is-open {
+  transform: rotate(180deg);
+}
+
+.voicepanel__dd-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  width: 360px;
+  max-width: 80vw;
+  max-height: 380px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+  background: var(--chrome-menu-bg, #1d1d22);
+  border: 1px solid var(--chrome-border, rgba(255, 255, 255, 0.1));
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.voicepanel__dd-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  border-radius: 8px;
+}
+
+.voicepanel__dd-item.is-selected {
+  background: var(--chrome-hover-bg, rgba(255, 255, 255, 0.06));
+}
+
+.voicepanel__dd-item:hover {
+  background: var(--chrome-hover-bg, rgba(255, 255, 255, 0.08));
+}
+
+.voicepanel__dd-itembtn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 9px 4px 9px 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--chrome-fg);
+}
+
+.voicepanel__dd-check {
+  flex: none;
+  width: 16px;
+  margin-top: 1px;
+  color: var(--chrome-accent, #83a598);
+}
+
+.voicepanel__dd-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.voicepanel__dd-itemtop {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.voicepanel__dd-itemname {
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.voicepanel__dd-size {
+  font-size: 0.74rem;
+  color: var(--chrome-fg-muted);
+  margin-left: auto;
+}
+
+.voicepanel__dd-itemdesc {
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--chrome-fg-muted);
+}
+
+.voicepanel__dd-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+.voicepanel__dd-progress > :first-child {
+  flex: 1 1 auto;
+}
+
+.voicepanel__dd-progresstext {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--chrome-fg-muted);
+}
+
+.voicepanel__dd-action {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding: 9px 6px 0 0;
+}
+
+.voicepanel__iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--chrome-fg-muted);
+  cursor: pointer;
+}
+
+.voicepanel__iconbtn:hover {
+  background: var(--chrome-hover-bg, rgba(255, 255, 255, 0.1));
+  color: var(--chrome-fg);
+}
+
+.voicepanel__spin {
+  animation: voicepanel-spin 0.9s linear infinite;
+  color: var(--chrome-fg-muted);
+}
+
+@keyframes voicepanel-spin {
+  to { transform: rotate(360deg); }
+}

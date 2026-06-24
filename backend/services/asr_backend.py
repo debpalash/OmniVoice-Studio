@@ -1167,6 +1167,148 @@ class MoonshineASRBackend(ASRBackend):
         self._transcriber = None
 
 
+# ── sherpa-onnx live dictation (ONNX, CPU, streaming + offline) ─────────────
+
+
+def _load_audio_16k_mono_f32(audio_path: str):
+    """Decode any audio file to 16 kHz mono float32 in [-1, 1] for sherpa.
+
+    Prefers soundfile (WAV/FLAC — the dictation buffers are already WAV) and
+    resamples to 16 kHz when needed; falls back to OmniVoice's validated ffmpeg
+    for containers soundfile can't read (WebM/Opus). 16 kHz is sherpa's cheapest
+    feed; it resamples internally too, but doing it here keeps the contract tight.
+    """
+    import numpy as np
+    try:
+        import soundfile as sf
+        data, sr = sf.read(audio_path, dtype="float32", always_2d=False)
+        if getattr(data, "ndim", 1) > 1:
+            data = data.mean(axis=1)
+        data = np.ascontiguousarray(data, dtype=np.float32)
+        if sr != 16000:
+            # Lightweight linear resample — adequate for ASR features.
+            n = int(round(len(data) * 16000 / sr))
+            if n > 0:
+                xp = np.linspace(0.0, 1.0, num=len(data), endpoint=False)
+                x = np.linspace(0.0, 1.0, num=n, endpoint=False)
+                data = np.interp(x, xp, data).astype(np.float32)
+            sr = 16000
+        return data, sr
+    except Exception:
+        # Container soundfile can't read (WebM/Opus) — use the validated ffmpeg
+        # path, which already yields 16 kHz mono float32.
+        return _decode_audio_16k_mono(audio_path), 16000
+
+
+class SherpaDictationBackend(ASRBackend):
+    """k2-fsa/sherpa-onnx ONNX dictation engine (CPU, live + offline).
+
+    One :class:`ASRBackend` instance is bound to one of the seven sherpa
+    dictation models (see :mod:`services.sherpa_dictation`). For the offline
+    ``transcribe(path)`` contract it runs an ``OfflineRecognizer`` for offline
+    models and a one-shot ``OnlineRecognizer`` decode for streaming models
+    (so ``POST /transcribe`` works for every sherpa model). The *live* WS path
+    drives the streaming recognizer incrementally — see ``capture_ws.py``.
+
+    CPU provider only (cross-platform default-parity rule); no CUDA dep.
+    """
+    id = "sherpa-onnx-asr"
+    display_name = "Sherpa-ONNX dictation (live, CPU — streaming + offline)"
+    gpu_compat = ("cpu",)
+
+    def __init__(self, model_id: str | None = None):
+        from services import sherpa_dictation as _sd
+        mid = model_id or os.environ.get(
+            "OMNIVOICE_SHERPA_ASR_MODEL", _sd.DEFAULT_MODEL_ID
+        )
+        spec = _sd.get_spec(mid)
+        if spec is None:
+            raise ValueError(
+                f"Unknown sherpa dictation model {mid!r}. Known: "
+                f"{[s.id for s in _sd.list_specs()]}"
+            )
+        self._spec = spec
+        self._rec = None  # lazy OfflineRecognizer / OnlineRecognizer
+
+    @property
+    def spec(self):
+        return self._spec
+
+    @property
+    def streaming(self) -> bool:
+        return self._spec.streaming
+
+    @classmethod
+    def is_available(cls) -> tuple[bool, str]:
+        from services.sherpa_dictation import sherpa_available
+        return sherpa_available()
+
+    def ensure_loaded(self) -> None:
+        self._ensure_rec()
+
+    def _ensure_rec(self):
+        if self._rec is not None:
+            return
+        from services import sherpa_dictation as _sd
+        if self._spec.streaming:
+            self._rec = _sd.build_online_recognizer(self._spec)
+        else:
+            self._rec = _sd.build_offline_recognizer(self._spec)
+
+    def transcribe(self, audio_path: str, *, word_timestamps: bool = True) -> dict:
+        self._ensure_rec()
+        logger.info(
+            "sherpa-onnx dictation transcribing %s (model=%s, kind=%s)",
+            audio_path, self._spec.id, self._spec.kind,
+        )
+        samples, sr = _load_audio_16k_mono_f32(audio_path)
+        if self._spec.streaming:
+            text = self._decode_online_oneshot(samples, sr)
+        else:
+            text = self._decode_offline(samples, sr)
+        return _sherpa_result(text, samples, sr)
+
+    def _decode_offline(self, samples, sr) -> str:
+        s = self._rec.create_stream()
+        s.accept_waveform(sr, samples)
+        self._rec.decode_stream(s)
+        return (s.result.text or "").strip()
+
+    def _decode_online_oneshot(self, samples, sr) -> str:
+        """One-shot decode of a whole buffer through the streaming recognizer
+        (for the non-streaming ``transcribe()`` / partial re-decode path)."""
+        import numpy as np
+        s = self._rec.create_stream()
+        s.accept_waveform(sr, samples)
+        tail = np.zeros(int(0.5 * sr), dtype=np.float32)
+        s.accept_waveform(sr, tail)
+        s.input_finished()
+        while self._rec.is_ready(s):
+            self._rec.decode_stream(s)
+        return (self._rec.get_result(s) or "").strip()
+
+    def unload(self) -> None:
+        self._rec = None
+        import gc
+        gc.collect()
+
+
+def _sherpa_result(text: str, samples, sr) -> dict:
+    """Normalise a sherpa decode to OmniVoice's ``{chunks, segments, language,
+    text}`` contract. sherpa gives plain text (no VAD split), so emit a single
+    segment spanning the buffer — same shape Moonshine uses."""
+    text = (text or "").strip()
+    try:
+        duration = round(len(samples) / float(sr), 3)
+    except Exception:
+        duration = None
+    segments = []
+    if text:
+        segments.append({"text": text, "start": 0.0, "end": duration, "words": []})
+    chunks = [{"text": s["text"], "timestamp": (s["start"], s["end"])} for s in segments]
+    return {"chunks": chunks, "segments": segments, "language": "auto", "text": text}
+
+
 # ── Registry ────────────────────────────────────────────────────────────────
 
 
@@ -1329,6 +1471,7 @@ _REGISTRY: dict[str, type[ASRBackend]] = _LazyASRRegistry({
     "nemo-parakeet":   NeMoASRBackend,
     "moonshine":       MoonshineASRBackend,
     "funasr":          FunASRBackend,
+    "sherpa-onnx-asr": SherpaDictationBackend,
     # "faster-whisper-isolated": resolved lazily (crash-isolated subprocess).
 })
 
@@ -1343,6 +1486,7 @@ _INSTALL_HINTS: dict[str, str] = {
     "nemo-parakeet":   "pip install nemo_toolkit[asr]  (NVIDIA Parakeet; CUDA or CPU)",
     "moonshine":       "pip install useful-moonshine  (edge/CPU-optimized ASR)",
     "funasr":          "pip install funasr  (SenseVoiceSmall + FSMN-VAD; CUDA or CPU)",
+    "sherpa-onnx-asr": "uv add sherpa-onnx  (ONNX live dictation; CPU, cross-platform)",
 }
 
 # Most-recent failure per backend, so a transient probe error survives between
@@ -1497,40 +1641,91 @@ def transcribe_reference(audio_path: str) -> str | None:
 
 
 _capture_backend: ASRBackend | None = None
+# The sherpa model id the cached capture backend was built for, so a model
+# switch in Settings rebuilds the singleton instead of serving the old model.
+_capture_backend_key: str | None = None
+
+
+def dictation_model_id() -> str | None:
+    """The selected sherpa dictation model id, or None when dictation is off /
+    no sherpa model is chosen. Env var wins (power-user pin), then prefs."""
+    explicit = os.environ.get("OMNIVOICE_SHERPA_ASR_MODEL")
+    if explicit:
+        return explicit
+    try:
+        from core import prefs
+        if not prefs.get("dictation.enabled", True):
+            return None
+        mid = prefs.get("dictation.model_id")
+    except Exception:
+        return None
+    from services.sherpa_dictation import is_sherpa_model
+    return mid if is_sherpa_model(mid) else None
 
 
 def get_capture_asr_backend() -> ASRBackend:
     """Pick the fastest ASR engine for capture / dictation.
 
-    Priority order (speed-first — word alignment is unnecessary for
-    dictation, so we skip WhisperX's forced-alignment overhead):
+    Selection order:
 
-      1. mlx-whisper Turbo  — Apple Silicon, ~5× faster than large-v3
-      2. mlx-whisper large  — still native Metal, faster than CPU int8
-      3. faster-whisper     — cross-platform CTranslate2 fallback
-      4. pytorch-whisper    — last resort
+      0. sherpa-onnx dictation — when ``dictation.model_id`` names one of the
+         seven sherpa models (live/CPU; the new live-dictation path).
+      1. mlx-whisper Turbo     — Apple Silicon, ~5× faster than large-v3
+      2. mlx-whisper large     — still native Metal, faster than CPU int8
+      3. faster-whisper        — cross-platform CTranslate2 fallback
+      4. pytorch-whisper       — last resort
 
     The caller should also pass ``word_timestamps=False`` to the returned
     backend to skip per-word timing and shave another ~30% latency.
 
-    Returns a cached singleton so the model stays warm between calls.
+    Returns a cached singleton so the model stays warm between calls; the
+    singleton is rebuilt if the selected sherpa model changes.
     """
-    global _capture_backend
-    if _capture_backend is not None:
+    global _capture_backend, _capture_backend_key
+
+    # 0. Honor an explicit sherpa dictation model selection.
+    sherpa_id = dictation_model_id()
+    if sherpa_id:
+        ok, _ = SherpaDictationBackend.is_available()
+        if ok:
+            if not (isinstance(_capture_backend, SherpaDictationBackend)
+                    and _capture_backend_key == sherpa_id):
+                try:
+                    _capture_backend = SherpaDictationBackend(model_id=sherpa_id)
+                    _capture_backend_key = sherpa_id
+                except Exception as e:  # noqa: BLE001 — fall through to Whisper
+                    logger.warning(
+                        "sherpa dictation model %r unavailable (%s) — falling "
+                        "back to Whisper capture engine", sherpa_id, e,
+                    )
+                    _capture_backend = None
+                    _capture_backend_key = None
+            if _capture_backend is not None:
+                return _capture_backend
+        else:
+            logger.info(
+                "dictation.model_id=%r selected but sherpa-onnx not installed — "
+                "falling back to Whisper capture engine", sherpa_id,
+            )
+
+    if _capture_backend is not None and _capture_backend_key is None:
         return _capture_backend
 
     # Prefer MLX Turbo on Apple Silicon
     ok, _ = MLXWhisperBackend.is_available()
     if ok:
         _capture_backend = MLXWhisperBackend(model_name=_MLX_MODEL_TURBO)
+        _capture_backend_key = None
         return _capture_backend
 
     # Fall back to faster-whisper (CPU int8 on non-Apple)
     ok, _ = FasterWhisperBackend.is_available()
     if ok:
         _capture_backend = FasterWhisperBackend()
+        _capture_backend_key = None
         return _capture_backend
 
     # Last resort
     _capture_backend = PyTorchWhisperBackend()
+    _capture_backend_key = None
     return _capture_backend

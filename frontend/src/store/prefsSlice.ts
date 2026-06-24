@@ -7,9 +7,18 @@
  * the storage round-trip once instead of per-field.
  */
 import type { StateCreator } from 'zustand';
+import { apiJson, apiPost } from '../api/client';
 
 export type TranslateQuality = 'fast' | 'cinematic';
 export type ThemeId = 'gruvbox' | 'midnight' | 'nord' | 'solarized' | 'rose-pine' | 'catppuccin';
+
+/** Dictation start/stop semantics — mirror of the backend `dictation.mode`. */
+export type DictationMode = 'toggle' | 'hold';
+
+/** Default sherpa dictation model id — matches the backend
+ * `sherpa_dictation.DEFAULT_MODEL_ID`. Used only as the pre-hydration seed;
+ * the authoritative value comes from `GET /dictation/prefs`. */
+export const DEFAULT_DICTATION_MODEL_ID = 'sherpa-parakeet-tdt-v3';
 
 /**
  * Global UI font. Applied app-wide by overriding the `--font-sans` CSS custom
@@ -118,6 +127,34 @@ export interface PrefsSlice {
   setAecEnabled: (on: boolean) => void;
 
   /**
+   * Live-dictation prefs — MIRRORED from the backend `GET /dictation/prefs`
+   * (the backend `prefs.json` `dictation.*` namespace is the source of truth).
+   * On app init we hydrate these from the backend; every setter write-throughs
+   * to `POST /dictation/prefs` so the capture engine and the UI never diverge.
+   * They're intentionally NOT in `partialize` (store/index.ts) — the backend
+   * owns them, so persisting a stale localStorage copy would fight the server.
+   *
+   *   • dictationEnabled  — master on/off for the dictation hotkey.
+   *   • dictationMode     — 'toggle' (press to start, press to stop) | 'hold'
+   *                          (record while the key is held).
+   *   • dictationModelId  — the selected sherpa-onnx model id (e.g.
+   *                          'sherpa-parakeet-tdt-v3'); drives `?model=` on the
+   *                          live `/ws/transcribe` socket.
+   */
+  dictationEnabled: boolean;
+  dictationMode: DictationMode;
+  dictationModelId: string;
+  /** Local-only flag: true once the backend prefs have been hydrated, so the
+   * Voice panel can avoid flashing defaults before the first load. */
+  dictationLoaded: boolean;
+  /** Optimistic local set + write-through to POST /dictation/prefs. */
+  setDictationEnabled: (on: boolean) => void;
+  setDictationMode: (mode: DictationMode) => void;
+  setDictationModelId: (id: string) => void;
+  /** Hydrate from GET /dictation/prefs (called once on app init). */
+  loadDictationPrefs: () => Promise<void>;
+
+  /**
    * Auto-play the output preview as soon as a render finishes (Voice Clone /
    * Design / profile preview). Default ON — preserves the long-standing
    * behavior. Users batch-generating segments (#666) can turn it off so each
@@ -136,7 +173,20 @@ export interface PrefsSlice {
   setFont: (id: FontId) => void;
 }
 
-export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (set) => ({
+/** Map a `GET/POST /dictation/prefs` response → the store's dictation fields.
+ * Tolerant of partial/garbage payloads so a malformed response can never wedge
+ * the store. */
+function _dictationFromPrefs(p: any): Partial<PrefsSlice> {
+  const out: Partial<PrefsSlice> = {};
+  if (p && typeof p === 'object') {
+    if (typeof p.enabled === 'boolean') out.dictationEnabled = p.enabled;
+    if (p.mode === 'toggle' || p.mode === 'hold') out.dictationMode = p.mode;
+    if (typeof p.model_id === 'string' && p.model_id) out.dictationModelId = p.model_id;
+  }
+  return out;
+}
+
+export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (set, get) => ({
   translateQuality: 'fast',
   dualSubs: false,
   burnSubs: false,
@@ -148,6 +198,13 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   aecEnabled: false,
   autoPlayPreview: true,
 
+  // Seeds only — overwritten by loadDictationPrefs() on init. The backend
+  // default is enabled:true / mode:'toggle' / model:Parakeet TDT v3.
+  dictationEnabled: true,
+  dictationMode: 'toggle',
+  dictationModelId: DEFAULT_DICTATION_MODEL_ID,
+  dictationLoaded: false,
+
   setTranslateQuality:    (q) => set({ translateQuality: q }),
   setDualSubs:            (on) => set({ dualSubs: on }),
   setBurnSubs:            (on) => set({ burnSubs: on }),
@@ -158,6 +215,45 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   setFitOptions:          (o) => set({ fitOptions: o }),
   setAecEnabled:          (on) => set({ aecEnabled: on }),
   setAutoPlayPreview:     (on) => set({ autoPlayPreview: on }),
+
+  // ── Dictation prefs (backend-backed) ──────────────────────────────────
+  // Each setter is optimistic (update the store immediately so the UI is
+  // snappy) then write-throughs to POST /dictation/prefs, which returns the
+  // full authoritative prefs — we re-sync from that so a backend rejection
+  // (400 on a bad value) or normalisation (repo_id → canonical id) can't leave
+  // the UI out of step. A failed write rolls the optimistic value back.
+  setDictationEnabled: (on) => {
+    const prev = get().dictationEnabled;
+    set({ dictationEnabled: on });
+    apiPost('/dictation/prefs', { enabled: on })
+      .then((p: any) => set(_dictationFromPrefs(p)))
+      .catch(() => set({ dictationEnabled: prev }));
+  },
+  setDictationMode: (mode) => {
+    const prev = get().dictationMode;
+    set({ dictationMode: mode });
+    apiPost('/dictation/prefs', { mode })
+      .then((p: any) => set(_dictationFromPrefs(p)))
+      .catch(() => set({ dictationMode: prev }));
+  },
+  setDictationModelId: (id) => {
+    const prev = get().dictationModelId;
+    set({ dictationModelId: id });
+    apiPost('/dictation/prefs', { model_id: id })
+      .then((p: any) => set(_dictationFromPrefs(p)))
+      .catch(() => set({ dictationModelId: prev }));
+  },
+  loadDictationPrefs: async () => {
+    try {
+      const p = await apiJson<any>('/dictation/prefs');
+      set({ ..._dictationFromPrefs(p), dictationLoaded: true });
+    } catch {
+      // Backend not ready / older build without the route — keep the seeds and
+      // mark loaded so the panel renders defaults rather than a perpetual
+      // spinner. A later manual interaction will retry the write-through.
+      set({ dictationLoaded: true });
+    }
+  },
 
   locale: typeof navigator !== 'undefined' ? (() => {
     const nav = navigator.language || '';

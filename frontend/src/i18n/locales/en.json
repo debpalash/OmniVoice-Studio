@@ -464,6 +464,37 @@
     "mic_error_generic": "Could not start the microphone: {{message}}",
     "transcription_failed": "Transcription failed: {{message}}"
   },
+  "voicePanel": {
+    "title": "Voice",
+    "subtitle": "Local speech-to-text dictation with on-device models.",
+    "enable_label": "Enable Voice Dictation",
+    "enable_sub": "Press {{shortcut}} to dictate text into any focused pane.",
+    "mode_label": "Dictation Mode",
+    "mode_sub": "Toggle: press once to start, again to stop. Hold: dictate while the key is held.",
+    "mode_toggle": "Toggle",
+    "mode_hold": "Hold",
+    "model_label": "Speech Model",
+    "model_sub": "Pick the on-device model used for dictation.",
+    "badge_offline": "offline",
+    "badge_streaming": "streaming",
+    "badge_recommended": "recommended",
+    "download_model": "Download model",
+    "delete_model": "Delete model",
+    "downloading": "Downloading…",
+    "downloading_pct": "Downloading {{pct}}%",
+    "delete_confirm": "Delete the \"{{label}}\" speech model? You can re-download it later.",
+    "delete_confirm_title": "Delete speech model",
+    "engine_unavailable": "The live-dictation engine isn't available on this install. Dictation falls back to the standard transcription path.",
+    "model_desc": {
+      "sherpa-parakeet-tdt-v3": "Recommended. Fast, accurate dictation across 25 European languages.",
+      "sherpa-parakeet-tdt-v2": "Fast, accurate English-only dictation.",
+      "sherpa-zipformer-bilingual-zh-en": "Streaming Chinese + English with live partials.",
+      "sherpa-paraformer-bilingual-zh-en": "Streaming Chinese + English, compact model.",
+      "sherpa-zipformer-en-20m": "Tiny streaming English model — lowest latency.",
+      "sherpa-zipformer-zh-14m": "Tiny streaming Chinese model — lowest latency.",
+      "sherpa-whisper-tiny": "Multilingual (90+ languages) with auto language detection."
+    }
+  },
   "profiles": {
     "need_name_audio": "Need a name and reference audio",
     "synthesizing_preview": "Synthesizing preview for {{name}}...",

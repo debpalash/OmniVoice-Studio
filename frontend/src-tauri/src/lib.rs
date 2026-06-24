@@ -253,6 +253,7 @@ pub fn run() {
             commands::read_log_tail,
             commands::hf_cache_scan,
             commands::simulate_paste,
+            commands::simulate_type,
             commands::set_tray_recording,
             commands::quit_app,
             commands::save_text_file,
