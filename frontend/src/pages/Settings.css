@@ -50,6 +50,14 @@
   flex-wrap: wrap;
 }
 
+/* Inline button cluster under a SettingRow group (e.g. record/save/reset). */
+.settings-actions-row {
+  display: flex;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+  flex-wrap: wrap;
+}
+
 /* We're migrating to the ui/ Tabs primitive — keep a thin class so the old
    .settings-tabs gradient-above space stays; the Tabs primitive itself
    carries visual styling. */
@@ -68,6 +76,10 @@
   flex-wrap: wrap;
   max-width: 100%;
   row-gap: 3px;
+  /* Settings has 11 sub-tabs — tighten the per-tab padding/gap so the row packs
+     more pills before it has to wrap, while the wrap below stays as a safety
+     net on very narrow panes. (Labels were shortened in en.json too.) */
+  gap: 2px;
   /* Border-connect: the bar opens at the bottom into the content panel — flat
      bottom corners + no bottom border so the panel below reads as one
      continuous outlined container attached to the tabs. */
@@ -80,6 +92,7 @@
    pink, so that colour can be echoed on the content edge below as the visual
    "connection". --ui-tab-accent is set per-trigger by the Tabs primitive.
    Scoped to the settings nav only. */
+.ui-tabs.settings-tabs-ui .ui-tabs__tab { padding-left: 10px; padding-right: 10px; }
 .ui-tabs.settings-tabs-ui .ui-tabs__tab.is-active {
   background: color-mix(in srgb, var(--ui-tab-accent) 14%, transparent);
   color: var(--ui-tab-accent);

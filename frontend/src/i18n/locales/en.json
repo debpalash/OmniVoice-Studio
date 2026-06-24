@@ -374,7 +374,11 @@
     "hf_token_input": "HuggingFace token",
     "hf_token_sources": "HF token sources",
     "hf_token_test_now": "Test now",
-    "hf_token_test_now_title": "Re-run whoami for every source"
+    "hf_token_test_now_title": "Re-run whoami for every source",
+    "advanced": "Advanced",
+    "shortcut": "Dictation shortcut",
+    "credentials_desc": "API keys and tokens, set for this session.",
+    "credentials_more": "More providers"
   },
   "about": {
     "app": "App",
@@ -1421,7 +1425,9 @@
     "popular_label": "Popular",
     "showing_of": "Showing {{shown}} of {{total}}. Type to search…",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "more_info": "More info",
+    "learn_more": "Learn more"
   },
   "keyboard": {
     "title": "Keyboard shortcuts",

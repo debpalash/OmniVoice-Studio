@@ -1,0 +1,277 @@
+/* ─────────────────────────────────────────────────────────────────
+   Settings primitives — chrome tokens + space scale ONLY.
+   Never hardcode a color: every surface here themes across all 6 themes
+   because it derives from --chrome-* / --space-* / --text-*.
+   ───────────────────────────────────────────────────────────────── */
+
+/* ── SettingsSection ──────────────────────────────────────────── */
+.st-section {
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  padding: var(--space-6) var(--space-6);
+  margin-bottom: var(--space-5);
+}
+.st-section + .st-section { margin-top: 0; }
+
+.st-section__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.st-section__icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--chrome-radius-pill);
+  color: var(--chrome-fg-muted);
+  background: var(--chrome-hover-bg);
+  border: 1px solid var(--chrome-border);
+  /* Tint the tile toward the accent the icon color carries. */
+  background: color-mix(in srgb, currentColor 12%, var(--chrome-bg));
+  border-color: color-mix(in srgb, currentColor 26%, var(--chrome-border));
+}
+.st-section__titles {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  /* nudge the title to optically center against the 26px icon tile */
+  padding-top: 1px;
+}
+.st-section__title {
+  margin: 0;
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  font-weight: 600;
+  color: var(--chrome-fg);
+  text-transform: uppercase;
+  letter-spacing: var(--chrome-label-track);
+  line-height: 1.4;
+}
+.st-section__desc {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--chrome-fg-dim);
+  line-height: 1.5;
+  /* one line only — long copy belongs in an InfoHint */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.st-section__actions {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: var(--space-4);
+}
+.st-section__body { display: block; }
+
+/* ── SettingRow ───────────────────────────────────────────────── */
+.st-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--chrome-border);
+  font-family: var(--font-sans);
+}
+.st-row:last-child { border-bottom: none; }
+.st-row--align-start { align-items: flex-start; }
+/* When there is no leading icon the first (auto) column collapses to 0; the
+   label still starts flush because the grid gap only applies between cells. */
+.st-row:not(:has(.st-row__icon)) { grid-template-columns: 0 1fr auto; }
+
+.st-row__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--chrome-fg-dim);
+}
+.st-row__label {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.st-row__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--chrome-fg);
+  font-weight: 500;
+  font-size: var(--text-md);
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+}
+.st-row__subtitle {
+  color: var(--chrome-fg-dim);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  /* keep subtitles to a single visual line per the contract */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.st-row__control {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  text-align: right;
+}
+.st-row__control--mono {
+  font-family: var(--chrome-font-mono);
+  font-size: var(--text-base);
+  color: var(--chrome-fg-muted);
+  font-variant-numeric: tabular-nums;
+  /* data values can be long paths — allow them to wrap rather than overflow */
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* ── InfoHint ─────────────────────────────────────────────────── */
+.st-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--chrome-fg-dim);
+  cursor: help;
+  line-height: 0;
+  border-radius: var(--chrome-radius-pill);
+  transition: color 120ms ease;
+}
+.st-hint:hover,
+.st-hint:focus-visible { color: var(--chrome-fg-muted); }
+.st-hint:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.st-hint__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 260px;
+}
+.st-hint__prose {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+.st-hint__link {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--chrome-accent);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+}
+.st-hint__link:hover { text-decoration: underline; }
+
+/* ── SettingsToggle ───────────────────────────────────────────── */
+.st-toggle {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  width: 42px;
+  height: 24px;
+  cursor: pointer;
+}
+.st-toggle.is-disabled { cursor: not-allowed; opacity: 0.5; }
+/* The real control — visually hidden but focusable and hit-testable. */
+.st-toggle__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+.st-toggle__track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--chrome-hover-bg);
+  transition: background 0.16s ease;
+}
+.st-toggle.is-on .st-toggle__track { background: var(--chrome-accent); }
+.st-toggle__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--chrome-bg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  transition: transform 0.16s ease;
+}
+.st-toggle.is-on .st-toggle__knob { transform: translateX(18px); }
+.st-toggle__input:focus-visible ~ .st-toggle__track {
+  outline: 2px solid var(--chrome-accent);
+  outline-offset: 2px;
+}
+
+/* ── Collapsible ──────────────────────────────────────────────── */
+.st-collapsible {
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  margin-top: var(--space-4);
+  overflow: hidden;
+}
+.st-collapsible__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-4) var(--space-5);
+  border: none;
+  background: transparent;
+  color: var(--chrome-fg-muted);
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--chrome-label-track);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.st-collapsible__head:hover { background: var(--chrome-hover-bg); color: var(--chrome-fg); }
+.st-collapsible__head:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.st-collapsible__chevron {
+  flex: none;
+  color: var(--chrome-fg-dim);
+  transition: transform 160ms ease;
+}
+.st-collapsible.is-open .st-collapsible__chevron { transform: rotate(180deg); }
+.st-collapsible__icon { display: inline-flex; color: var(--chrome-fg-dim); }
+.st-collapsible__title { flex: 1 1 auto; text-align: left; }
+.st-collapsible__badge {
+  flex: none;
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  color: var(--chrome-fg-dim);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.st-collapsible__body {
+  padding: var(--space-2) var(--space-5) var(--space-4);
+  border-top: 1px solid var(--chrome-border);
+}
+/* Inside a collapsible the last row shouldn't double its bottom padding. */
+.st-collapsible__body > .st-row:last-child { padding-bottom: 0; }
