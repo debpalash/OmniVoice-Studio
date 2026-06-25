@@ -92,7 +92,7 @@ export default function AppearancePanel() {
       />
 
       <SettingRow
-        className="appearance-panel__row--fonts"
+        className="appearance-panel__row--fonts st-row--stack"
         align="start"
         title={fontLabel}
         control={
@@ -121,9 +121,6 @@ export default function AppearancePanel() {
         title={t('settings.autoplay_preview', { defaultValue: 'Auto-play preview' })}
         subtitle={t('settings.autoplay_preview_label', {
           defaultValue: 'Play the output as soon as a render finishes',
-        })}
-        hint={t('settings.autoplay_preview_hint', {
-          defaultValue: 'When off, a finished render no longer starts playing on its own — useful when batch-generating segments (#666).',
         })}
         control={
           <SettingsToggle

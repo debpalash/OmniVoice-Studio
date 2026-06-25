@@ -85,6 +85,7 @@ export default function PerformancePanel() {
       <SettingRow
         title="Disable torch.compile (Windows)"
         subtitle={!isWindows ? (platform === null ? '…' : 'not applicable') : undefined}
+        note={isWindows ? 'Falls back to eager mode — fixes Triton OOM on <16 GB GPUs.' : undefined}
         hint={
           <>
             Workaround for{' '}
@@ -114,6 +115,7 @@ export default function PerformancePanel() {
 
       <SettingRow
         title="Show live system metrics in header"
+        note="Adds a live RAM / CPU / VRAM monitor to the top bar (off by default)."
         hint={
           <>
             Default off — the header keeps the model-status badge and Flush

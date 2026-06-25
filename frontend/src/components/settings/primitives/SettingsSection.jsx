@@ -33,7 +33,7 @@ export default function SettingsSection({
             style={accent ? { color: accent } : undefined}
             aria-hidden="true"
           >
-            <Icon size={15} />
+            <Icon size={14} />
           </span>
         )}
         <div className="st-section__titles">

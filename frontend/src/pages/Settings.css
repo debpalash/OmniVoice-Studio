@@ -6,12 +6,10 @@
    full-height panel instead of a stunted box floating in a void. min-height:100%
    is a FLOOR — tall tabs (Models/Logs) grow past it and scroll as before; if the
    parent height is ever indeterminate it simply no-ops. */
-.settings-page                   { padding: 10px 24px 24px; display: flex; flex-direction: column; min-height: 100%; box-sizing: border-box; }
-.settings-page h1                { font-size: 1.15rem; margin: 0 0 2px; }
-.settings-page .settings-subtitle{ font-size: 0.72rem; margin-bottom: 14px; }
+.settings-page                   { padding: var(--space-5) var(--space-7) var(--space-7); display: flex; flex-direction: column; min-height: 100%; box-sizing: border-box; }
+.settings-page h1                { font-size: var(--text-lg); margin: 0 0 2px; }
+.settings-page .settings-subtitle{ font-size: var(--text-base); margin-bottom: var(--space-5); }
 .settings-tabs-ui                { margin-bottom: var(--space-3); }
-
-.settings-section--compact       { padding: 8px 10px; margin-bottom: 8px; }
 
 .settings-row__mono     { font-family: var(--chrome-font-mono); color: var(--chrome-fg-muted); }
 .settings-muted         { color: var(--chrome-fg-dim); font-size: var(--text-md); font-family: var(--font-sans); }
@@ -19,7 +17,7 @@
   margin: 0 0 var(--space-5);
   color: var(--chrome-fg-muted);
   line-height: 1.6;
-  font-size: 0.82rem;
+  font-size: var(--text-md);
   font-family: var(--font-sans);
 }
 .settings-prose strong  { color: var(--chrome-fg); font-weight: 600; }
@@ -64,72 +62,61 @@
 /* The .settings-content bridge owns the gap below the bar (see below). */
 .settings-tabs-ui { margin-bottom: 0; }
 
-/* The settings sub-nav has 10 tabs (General…Privacy). The base .ui-tabs is a
-   non-wrapping inline-flex row, so on a narrow Settings pane the later tabs
-   (Credentials/Logs/About/Privacy) overflow and clip out of view. Scope a wrap
-   to this nav only (the shared primitive is unchanged) so every tab stays
-   reachable — the pill bar grows to 2 rows instead of running off-screen.
-   `.ui-tabs.settings-tabs-ui` outranks `.ui-tabs` so the overrides take
-   regardless of stylesheet order. */
-.ui-tabs.settings-tabs-ui {
-  display: flex;
-  flex-wrap: wrap;
-  max-width: 100%;
-  row-gap: 3px;
-  /* Settings has 11 sub-tabs — tighten the per-tab padding/gap so the row packs
-     more pills before it has to wrap, while the wrap below stays as a safety
-     net on very narrow panes. (Labels were shortened in en.json too.) */
-  gap: 2px;
-  /* Border-connect: the bar opens at the bottom into the content panel — flat
-     bottom corners + no bottom border so the panel below reads as one
-     continuous outlined container attached to the tabs. */
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  border-bottom: 0;
-}
-
-/* Active tab adopts its own semantic accent (TAB_DEFS) instead of the global
-   pink, so that colour can be echoed on the content edge below as the visual
-   "connection". --ui-tab-accent is set per-trigger by the Tabs primitive.
-   Scoped to the settings nav only. */
-.ui-tabs.settings-tabs-ui .ui-tabs__tab { padding-left: 10px; padding-right: 10px; }
+/* ── Tab nav: single-accent, no rainbow ───────────────────────────
+   The active tab uses the one global --chrome-accent (TAB_DEFS no longer
+   carries per-tab accents). At ≥760px the nav becomes a sticky vertical
+   rail; below that it's a single no-wrap horizontal scroll strip. */
 .ui-tabs.settings-tabs-ui .ui-tabs__tab.is-active {
-  background: color-mix(in srgb, var(--ui-tab-accent) 14%, transparent);
-  color: var(--ui-tab-accent);
-  border-color: color-mix(in srgb, var(--ui-tab-accent) 42%, transparent);
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+  border-color: transparent;
+  box-shadow: inset 2px 0 0 var(--chrome-accent);
 }
 .ui-tabs.settings-tabs-ui .ui-tabs__tab.is-active .ui-tabs__icon {
-  color: var(--ui-tab-accent);
+  color: var(--chrome-accent);
 }
 
-/* Tab → content connection. The panel opens with a hairline painted in the
-   active tab's accent (threaded in as --settings-accent by Settings.jsx), so
-   the coloured active tab above and the coloured content edge below read as a
-   single unit — subtle (a 1px rule blended toward the chrome border), not a
-   slab, and wrap-proof (colour carries the meaning, not position). The margin
-   + padding give the panel deliberate breathing room under the bar. */
-.settings-content {
-  /* Attached directly under the bar (no gap) as a 3-sided panel with an open
-     top — the bar + panel form one outlined container, split where the tabs
-     sit. The border is tinted by the active tab's accent so the active tab and
-     its panel read as connected by a shared border. */
-  margin-top: 0;
-  /* Grow to fill the flex-column .settings-page so the bordered panel reaches
-     the viewport bottom on short tabs (only adds space when there's slack —
-     tall tabs keep their natural height + internal scroll). */
-  flex: 1 1 auto;
-  padding: var(--space-5) var(--space-5) var(--space-4);
-  border: 1px solid color-mix(in srgb, var(--settings-accent) 38%, var(--chrome-border) 62%);
-  /* Stronger top: a 2px full-accent edge at the seam with the bar, so the
-     active tab's colour visibly "feeds" into the panel it opens. Top corners
-     stay square to butt against the bar above; bottom corners round off. */
-  border-top: 2px solid var(--settings-accent);
-  border-bottom-left-radius: var(--chrome-radius-pill);
-  border-bottom-right-radius: var(--chrome-radius-pill);
-  transition: border-color var(--dur-fast, 120ms) var(--ease-out, ease);
+/* ── Wide (≥760px): vertical rail + content column ──────────────── */
+@media (min-width: 760px) {
+  .settings-page { display: grid; grid-template-columns: 168px 1fr; gap: var(--space-5); align-content: start; }
+  .settings-page h1,
+  .settings-page .settings-subtitle { grid-column: 1 / -1; }
+  .ui-tabs.settings-tabs-ui {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-1);
+    border: none;
+    background: transparent;
+    position: sticky;
+    top: var(--space-5);
+    align-self: start;
+  }
+  .ui-tabs.settings-tabs-ui .ui-tabs__tab { justify-content: flex-start; width: 100%; }
 }
-/* The bar's accent already cues the active tab; inside the connected panel the
-   first card sits flush to the panel's inner padding (no extra top margin). */
+
+/* ── Narrow (<760px): horizontal no-wrap scroll strip ───────────── */
+@media (max-width: 759.98px) {
+  .ui-tabs.settings-tabs-ui {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: var(--space-1);
+    margin-bottom: var(--space-4);
+  }
+  .ui-tabs.settings-tabs-ui::-webkit-scrollbar { display: none; }
+}
+
+/* ── Content panel: a calm reading column — label↔control stay close on wide
+   screens. ~760px keeps inline rows premium; expansive controls (font/theme
+   grids, Models/Engines tables) get the full width via the opt-outs below. */
+.settings-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 760px;
+  align-self: start;   /* size to content — don't stretch to the taller nav rail */
+}
+/* The Models/Engines table wants the full width — opt those panels out. */
+.settings-content:has(.models-table) { max-width: none; }
 .settings-content > :first-child { margin-top: 0; }
 
 /* ── Engines tab ─────────────────────────────────────────────── */
@@ -161,7 +148,7 @@
   border-left: 2px solid var(--chrome-border-strong);
   border-radius: var(--chrome-radius-pill);
   font-family: var(--font-sans);
-  font-size: 0.78rem;
+  font-size: var(--text-md);
   color: var(--chrome-fg-muted);
   flex-wrap: wrap;
 }
@@ -178,24 +165,6 @@
 .engines-list__reason    { flex-basis: 100%; font-size: var(--text-xs); color: var(--chrome-fg-dim); font-family: var(--font-sans); padding-left: var(--space-4); }
 
 /* ── Models tab ──────────────────────────────────────────────── */
-.reco-banner {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 6px var(--space-4);
-  margin-bottom: var(--space-3);
-  border: 1px solid color-mix(in srgb, #8ec07c 30%, transparent);
-  border-left: 2px solid #8ec07c;
-  border-radius: var(--chrome-radius-pill);
-  background: color-mix(in srgb, #8ec07c 5%, transparent);
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  color: var(--chrome-fg-muted);
-}
-.reco-banner__text   { flex: 1; }
-.reco-banner__text strong { color: var(--chrome-fg); font-weight: 600; }
-.reco-banner__size   { color: var(--chrome-fg-dim); font-size: var(--text-xs); }
-
 .models-row__tag {
   margin-left: var(--space-2);
   padding: 1px 6px;
@@ -237,10 +206,10 @@
 .reco-banner {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-  padding: 5px 10px;
-  border-radius: 8px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--chrome-radius-pill);
   font-size: var(--text-xs);
   color: var(--chrome-fg-muted);
   border: 1px solid;
@@ -254,8 +223,8 @@
 .reco-banner--pending {
   flex-direction: column;
   align-items: stretch;
-  gap: 4px;
-  padding: 8px 12px 10px;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-4);
   border-color: color-mix(in srgb, #f3a5b6 25%, transparent);
   border-left-color: #f3a5b6;
   background: linear-gradient(135deg, color-mix(in srgb, #f3a5b6 4%, transparent), color-mix(in srgb, #d3869b 2%, transparent));
@@ -273,7 +242,7 @@
 }
 .reco-banner__title {
   font-weight: 600;
-  font-size: 0.76rem;
+  font-size: var(--text-md);
   color: var(--chrome-fg);
 }
 .reco-banner__btns {
@@ -284,8 +253,8 @@
 .reco-banner__grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0 16px;
-  font-size: 0.68rem;
+  gap: 0 var(--space-5);
+  font-size: var(--text-sm);
   line-height: 1.6;
 }
 .reco-banner__model {
@@ -300,11 +269,11 @@
 .reco-banner__model--ok { color: var(--chrome-fg); }
 .reco-banner__model-size {
   font-family: var(--chrome-font-mono);
-  font-size: 0.6rem;
+  font-size: var(--text-2xs);
   color: var(--chrome-fg-dim);
 }
 .reco-banner__req {
-  font-size: 0.54rem;
+  font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #d3869b;
@@ -315,7 +284,7 @@
 }
 
 /* Table — dense rows, fixed-width action column. */
-.models-table                { border-radius: 8px; }
+.models-table                { border-radius: var(--chrome-radius-pill); }
 .models-table .ui-table-header { padding: 5px var(--space-3); }
 .models-table__body          { max-height: 560px; overflow-y: auto; position: relative; }
 .models-table__header        { align-items: center; }
@@ -362,7 +331,7 @@
 }
 
 /* Inside the wizard embed the table stretches to fill — no fixed cap. */
-.setup-wizard__embed .settings-section--compact {
+.setup-wizard__embed .st-section {
   display: flex; flex-direction: column; height: 100%; min-height: 0;
 }
 .setup-wizard__embed .models-table {
@@ -379,7 +348,7 @@
   right: 0;
   top: 0;
   width: 100%;
-  padding: 10px var(--space-3);
+  padding: var(--space-5) var(--space-3);
   border-bottom: 1px solid var(--chrome-border);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
@@ -442,21 +411,9 @@
   display: flex; align-items: center; gap: var(--space-2);
   margin: var(--space-2) 0;
 }
-.models-search {
-  flex: 1; min-width: 120px;
-  /* Slightly-raised surface derived from --chrome-bg so themed chrome
-     (midnight/nord/…) carries through; ≈ #1d1d1d on the default theme. */
-  background: color-mix(in srgb, var(--chrome-bg) 94%, white);
-  border: 1px solid var(--chrome-border, #2a2a2a);
-  border-radius: var(--radius-sm, 6px);
-  color: var(--chrome-fg);
-  padding: 6px 10px;
-  font-size: var(--text-xs);
-}
-.models-search:focus {
-  outline: none;
-  border-color: var(--chrome-accent, #fabd2f);
-}
+/* Visuals come from .st-input (SettingsInput); .models-search only adds the
+   in-toolbar flex sizing. */
+.models-search.st-input { flex: 1; min-width: 120px; font-size: var(--text-xs); }
 .models-row__size     { font-family: var(--chrome-font-mono); font-size: var(--text-xs); color: var(--chrome-fg-muted); font-variant-numeric: tabular-nums; }
 
 .models-row__actions {
@@ -480,70 +437,8 @@
 
 /* ── Engines tab: rows are NOT virtualised, so override the absolute
      positioning that .models-row inherits from the Models tab. ───── */
-.settings-section--compact > .models-table > .models-table__body > .models-row {
+.st-section > .models-table > .models-table__body > .models-row {
   position: relative;
   top: auto;
 }
 
-/* ── Credentials tab ────────────────────────────────────────── */
-.settings-credential {
-  margin-bottom: var(--space-5);
-  padding-bottom: var(--space-5);
-  border-bottom: 1px solid var(--chrome-border);
-}
-.settings-credential:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-
-.settings-credential__header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-2);
-}
-.settings-credential__label {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--chrome-fg);
-  font-family: var(--font-sans);
-}
-.settings-credential__row {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-}
-.settings-credential__input {
-  flex: 1;
-  max-width: 380px;
-  background: color-mix(in srgb, var(--chrome-bg) 94%, white);
-  border: 1px solid var(--chrome-border);
-  border-radius: var(--radius-sm, 6px);
-  color: var(--chrome-fg);
-  font-size: var(--text-sm);
-  font-family: var(--chrome-font-mono);
-  padding: 6px 10px;
-}
-.settings-credential__input:focus {
-  outline: none;
-  border-color: var(--chrome-accent, #fabd2f);
-}
-.settings-credential__help {
-  margin: var(--space-2) 0 0;
-  font-size: var(--text-xs);
-  color: var(--chrome-fg-dim);
-  font-family: var(--font-sans);
-  line-height: 1.6;
-}
-.settings-credential__help a {
-  color: var(--chrome-accent, #d3869b);
-  text-decoration: none;
-}
-.settings-credential__help a:hover { text-decoration: underline; }
-
-.settings-section__subtitle {
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--chrome-fg-dim);
-  margin: var(--space-5) 0 var(--space-3);
-  font-family: var(--chrome-font-mono);
-}

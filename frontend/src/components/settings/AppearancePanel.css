@@ -4,31 +4,27 @@
    panel-specific chrome — all routed through --chrome-* tokens so they theme
    correctly across every theme. */
 
-/* The font grid is taller than one line and wants the row's full width — let
-   its control span and top-align instead of right-aligning a single control. */
-.appearance-panel__row--fonts .st-row__control {
-  align-self: flex-start;
-  justify-self: stretch;
-  display: block;
-  text-align: left;
-}
+/* The font picker spans the row's full width (st-row--stack) so its tiles lay
+   out as a horizontal grid instead of a squeezed right-aligned column. */
+.appearance-panel__row--fonts .st-row__control { display: block; }
 
 /* UI scale slider + live percentage readout */
 .appearance-panel__scale {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-3);
-  min-width: 200px;
+  gap: var(--space-4);
+  min-width: 220px;
 }
 
 .appearance-panel__scale input[type='range'] {
   flex: 1;
-  min-width: 140px;
+  min-width: 160px;
   accent-color: var(--chrome-accent);
+  cursor: pointer;
 }
 
 .appearance-panel__scale-val {
-  min-width: 42px;
+  min-width: 40px;
   font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
   color: var(--chrome-fg);
@@ -39,34 +35,37 @@
 .appearance-panel__themes {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 .appearance-panel__theme-dot {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2px solid var(--chrome-border);
+  border: none;
   background: var(--dot-color, var(--chrome-fg-dim));
   cursor: pointer;
   padding: 0;
-  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  /* Crisp ring drawn outside the dot — calm by default, accent-free until active. */
+  box-shadow: 0 0 0 1px var(--chrome-border), 0 0 0 3px transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .appearance-panel__theme-dot:hover {
-  transform: scale(1.1);
-  border-color: var(--chrome-border-strong);
+  transform: scale(1.12);
+  box-shadow: 0 0 0 1px var(--chrome-border-strong);
 }
 
 .appearance-panel__theme-dot.is-active {
-  border-color: var(--chrome-fg);
-  box-shadow: 0 0 0 2px var(--chrome-hover-bg);
+  box-shadow:
+    0 0 0 2px var(--chrome-bg),
+    0 0 0 3px var(--chrome-fg);
 }
 
 /* Font picker — grid of live previews instead of a select box */
 .appearance-panel__fonts {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
   gap: var(--space-3);
   width: 100%;
   min-width: 0;
@@ -75,15 +74,16 @@
 .appearance-panel__font-tile {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-3);
+  gap: var(--space-4);
+  min-height: 44px;
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--chrome-border);
   border-radius: var(--chrome-radius-pill);
   background: var(--chrome-bg);
   color: var(--chrome-fg);
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .appearance-panel__font-tile:hover {
@@ -93,18 +93,26 @@
 
 .appearance-panel__font-tile.is-active {
   border-color: var(--chrome-accent);
+  background: color-mix(in srgb, var(--chrome-accent) 6%, var(--chrome-bg));
   box-shadow: 0 0 0 1px var(--chrome-accent) inset;
 }
 
 .appearance-panel__font-sample {
-  font-size: 20px;
+  font-size: 21px;
   line-height: 1;
   flex: 0 0 auto;
+  color: var(--chrome-fg);
+}
+
+.appearance-panel__font-tile.is-active .appearance-panel__font-name {
   color: var(--chrome-fg);
 }
 
 .appearance-panel__font-name {
   font-size: var(--text-sm);
   color: var(--chrome-fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   /* name renders in the tile's font too — keep it the same family */
 }

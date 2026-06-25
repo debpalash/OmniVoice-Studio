@@ -30,7 +30,7 @@ import { setupDownloadStreamUrl } from '../api/setup';
 import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
 import { resolveAboutVersion } from '../utils/appVersion';
 import { Tabs, Segmented, Button, Badge, Table, Progress, Select } from '../ui';
-import { SettingsSection, SettingRow, Collapsible } from '../components/settings/primitives';
+import { SettingsSection, SettingRow, SettingsInput, Collapsible } from '../components/settings/primitives';
 import { useAppStore } from '../store';
 import ApiKeysPanel from '../components/settings/ApiKeysPanel';
 import LLMEndpointPanel from '../components/settings/LLMEndpointPanel';
@@ -55,17 +55,17 @@ import './Settings.css';
 // engine stack (Models/Engines), feature areas (Capture/Sharing), secrets
 // (Credentials), maintenance (Updates/Logs), and reference (About/Privacy).
 const TAB_DEFS = [
-  { id: 'general',     icon: Settings2,       accent: '#83a598' },
-  { id: 'appearance',  icon: Palette,         accent: '#d3869b' },
-  { id: 'models',      icon: Cpu,             accent: '#f3a5b6' },
-  { id: 'engines',     icon: Plug,            accent: '#d3869b' },
-  { id: 'capture',     icon: Keyboard,        accent: '#83a598' },
-  { id: 'sharing',     icon: Wifi,            accent: '#83a598' },
-  { id: 'credentials', icon: KeyRound,        accent: '#fe8019' },
-  { id: 'updates',     icon: ArrowDownToLine, accent: '#b8bb26' },
-  { id: 'logs',        icon: FileText,        accent: '#fabd2f' },
-  { id: 'about',       icon: Info,            accent: '#8ec07c' },
-  { id: 'privacy',     icon: ShieldCheck,     accent: '#b8bb26' },
+  { id: 'general',     icon: Settings2 },
+  { id: 'appearance',  icon: Palette },
+  { id: 'models',      icon: Cpu },
+  { id: 'engines',     icon: Plug },
+  { id: 'capture',     icon: Keyboard },
+  { id: 'sharing',     icon: Wifi },
+  { id: 'credentials', icon: KeyRound },
+  { id: 'updates',     icon: ArrowDownToLine },
+  { id: 'logs',        icon: FileText },
+  { id: 'about',       icon: Info },
+  { id: 'privacy',     icon: ShieldCheck },
 ];
 
 const LOG_SOURCE_DEFS = [
@@ -187,7 +187,7 @@ function GeneralTab() {
   };
 
   return (
-    <SettingsSection icon={Settings2} accent="#83a598" title={t('settings.general')}>
+    <SettingsSection icon={Settings2} title={t('settings.general')}>
       <SettingRow
         icon={Globe}
         title={t('settings.language')}
@@ -215,56 +215,62 @@ function GeneralTab() {
       />
 
       <Collapsible title={t('settings.advanced')} icon={Settings2}>
-        <div className="settings-credential">
-          <div className="settings-credential__header">
-            <label className="settings-credential__label">{t('settings.proxy')}</label>
-            {proxySaved && <Badge tone="success" size="xs">{t('credentials.saved')}</Badge>}
-          </div>
-          <p className="settings-credential__help">{t('settings.proxy_desc')}</p>
-          <div className="settings-credential__row">
-            <input
-              type="text"
-              className="settings-credential__input"
-              placeholder="http://127.0.0.1:7890 or socks5://127.0.0.1:7890"
-              value={proxyUrl}
-              onChange={e => setProxyUrl(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && saveProxy()}
-            />
-            <Button size="sm" variant="subtle" onClick={saveProxy} loading={proxySaving} disabled={!proxyUrl.trim()}>
-              {t('credentials.save')}
-            </Button>
-            {proxySaved && (
-              <Button size="sm" variant="ghost" onClick={clearProxy} loading={proxySaving}>
-                {t('settings.proxy_clear')}
+        <SettingRow
+          align="start"
+          className="st-row--stack"
+          title={
+            <>
+              {t('settings.proxy')}
+              {proxySaved && <Badge tone="success" size="xs">{t('credentials.saved')}</Badge>}
+            </>
+          }
+          note={t('settings.proxy_desc')}
+          control={
+            <>
+              <SettingsInput
+                placeholder="http://127.0.0.1:7890 or socks5://127.0.0.1:7890"
+                value={proxyUrl}
+                onChange={e => setProxyUrl(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveProxy()}
+              />
+              <Button size="sm" variant="subtle" onClick={saveProxy} loading={proxySaving} disabled={!proxyUrl.trim()}>
+                {t('credentials.save')}
               </Button>
-            )}
-          </div>
-        </div>
+              {proxySaved && (
+                <Button size="sm" variant="ghost" onClick={clearProxy} loading={proxySaving}>
+                  {t('settings.proxy_clear')}
+                </Button>
+              )}
+            </>
+          }
+        />
 
-        <div className="settings-credential">
-          <div className="settings-credential__header">
-            <label className="settings-credential__label">{t('settings.ffmpeg')}</label>
-            <Badge tone={ffmpegOk ? 'success' : 'warn'} size="xs">
-              {ffmpegOk ? t('settings.ffmpeg_found') : t('settings.ffmpeg_missing')}
-            </Badge>
-          </div>
-          <p className="settings-credential__help">
-            {ffmpegCurrent ? `${t('settings.ffmpeg_current')}: ${ffmpegCurrent}` : t('settings.ffmpeg_desc')}
-          </p>
-          <div className="settings-credential__row">
-            <input
-              type="text"
-              className="settings-credential__input"
-              placeholder="D:\ffmpeg\bin\ffmpeg.exe"
-              value={ffmpegPath}
-              onChange={e => setFfmpegPath(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && saveFfmpeg()}
-            />
-            <Button size="sm" variant="subtle" onClick={saveFfmpeg} loading={ffmpegSaving} disabled={!ffmpegPath.trim()}>
-              {t('credentials.save')}
-            </Button>
-          </div>
-        </div>
+        <SettingRow
+          align="start"
+          className="st-row--stack"
+          title={
+            <>
+              {t('settings.ffmpeg')}
+              <Badge tone={ffmpegOk ? 'success' : 'warn'} size="xs">
+                {ffmpegOk ? t('settings.ffmpeg_found') : t('settings.ffmpeg_missing')}
+              </Badge>
+            </>
+          }
+          note={ffmpegCurrent ? `${t('settings.ffmpeg_current')}: ${ffmpegCurrent}` : t('settings.ffmpeg_desc')}
+          control={
+            <>
+              <SettingsInput
+                placeholder="D:\ffmpeg\bin\ffmpeg.exe"
+                value={ffmpegPath}
+                onChange={e => setFfmpegPath(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveFfmpeg()}
+              />
+              <Button size="sm" variant="subtle" onClick={saveFfmpeg} loading={ffmpegSaving} disabled={!ffmpegPath.trim()}>
+                {t('credentials.save')}
+              </Button>
+            </>
+          }
+        />
       </Collapsible>
     </SettingsSection>
   );
@@ -862,7 +868,7 @@ export function ModelStoreTab({ info, modelBadge }) {
 
   if (loading && !data) {
     return (
-      <SettingsSection icon={Cpu} accent="#f3a5b6" title={t('settings.models')}>
+      <SettingsSection icon={Cpu} title={t('settings.models')}>
         <div className="settings-muted">{t('common.loading')}</div>
       </SettingsSection>
     );
@@ -870,7 +876,7 @@ export function ModelStoreTab({ info, modelBadge }) {
   if (!data) return null;
 
   return (
-    <section className="settings-section settings-section--compact">
+    <section className="st-section">
       <div className="models-toolbar">
         <div className="models-toolbar__stats">
           <span><strong>{fmtBytes(data.total_installed_bytes)}</strong></span>
@@ -1008,7 +1014,7 @@ export function ModelStoreTab({ info, modelBadge }) {
             }),
           ]}
         />
-        <input
+        <SettingsInput
           type="search"
           className="models-search"
           placeholder={t('models.search_placeholder')}
@@ -1112,7 +1118,7 @@ export function EnginesTab() {
   }, []);
 
   return (
-    <section className="settings-section settings-section--compact">
+    <section className="st-section">
       <div className="models-toolbar">
         <div className="models-toolbar__stats">
           <Segmented
@@ -1396,13 +1402,8 @@ export default function Settings() {
   : status?.status === 'loading' ? <Badge tone="warn"><RefreshCw size={11} className="spinner" /> {t('models.loading_badge')}</Badge>
                                  : <Badge tone="warn">{t('models.idle_badge')}</Badge>;
 
-  // The active tab's accent (from TAB_DEFS) threads down to the content edge as
-  // --settings-accent, so the coloured active tab and the content panel read as
-  // one connected unit (see .settings-content in Settings.css).
-  const activeAccent = TAB_DEFS.find((d) => d.id === activeTab)?.accent || 'var(--chrome-accent)';
-
   return (
-    <div className="settings-page" style={{ '--settings-accent': activeAccent }}>
+    <div className="settings-page">
       <Tabs
         items={TAB_DEFS.map(def => ({ ...def, label: t(`settings.${def.id}`) }))}
         value={activeTab}
@@ -1454,7 +1455,6 @@ export default function Settings() {
       {activeTab === 'logs' && (
         <SettingsSection
           icon={FileText}
-          accent="#fabd2f"
           title={t('settings.logs')}
           actions={
             <>
@@ -1508,13 +1508,13 @@ export default function Settings() {
       )}
 
       {activeTab === 'updates' && (
-        <SettingsSection icon={ArrowDownToLine} accent="#b8bb26" title={t('settings.updates')}>
+        <SettingsSection icon={ArrowDownToLine} title={t('settings.updates')}>
           <UpdatesPanel />
         </SettingsSection>
       )}
 
       {activeTab === 'about' && (
-        <SettingsSection icon={Info} accent="#8ec07c" title={t('settings.about')}>
+        <SettingsSection icon={Info} title={t('settings.about')}>
           <Row label={t('about.app')}             value="OmniVoice Studio" />
           <Row label={t('about.version')}         value={resolveAboutVersion(appVersion, info)} mono />
           <Row label={t('about.tauri_runtime')}   value={tauriVersion || (isTauri() ? '—' : t('about.web_preview'))} mono />
@@ -1657,7 +1657,7 @@ export default function Settings() {
       )}
 
       {activeTab === 'privacy' && (
-        <SettingsSection icon={ShieldCheck} accent="#b8bb26" title={t('settings.privacy')}>
+        <SettingsSection icon={ShieldCheck} title={t('settings.privacy')}>
           <p className="settings-prose">
             <Trans i18nKey="privacy.desc" components={{ 1: <strong /> }} />
           </p>
@@ -1817,7 +1817,6 @@ function HotkeyTab() {
   return (
     <SettingsSection
       icon={Keyboard}
-      accent="#83a598"
       title={t('settings.shortcut')}
     >
       {!tauri && (
@@ -1904,7 +1903,6 @@ function CredentialsTab({ info }) {
   return (
     <SettingsSection
       icon={KeyRound}
-      accent="#fe8019"
       title={t('settings.credentials')}
       description={t('settings.credentials_desc')}
     >
@@ -1920,41 +1918,50 @@ function CredentialsTab({ info }) {
           <Trans i18nKey="credentials.desc" components={{ 1: <strong /> }} />
         </p>
         {CREDENTIAL_FIELDS.filter(f => f.key !== 'HF_TOKEN').map(field => (
-          <div key={field.key} className="settings-credential">
-            <div className="settings-credential__header">
-              <label className="settings-credential__label">{t(field.labelKey)}</label>
-              {field.key === 'HF_TOKEN' && (
-                <Badge tone={info?.has_hf_token || saved.HF_TOKEN ? 'success' : 'warn'} size="xs">
-                  {info?.has_hf_token || saved.HF_TOKEN ? t('credentials.saved') : t('credentials.not_set')}
-                </Badge>
-              )}
-            </div>
-            <div className="settings-credential__row">
-              <input
-                type={field.isPassword ? 'password' : 'text'}
-                className="settings-credential__input"
-                placeholder={field.placeholderKey}
-                value={values[field.key] || ''}
-                onChange={e => setValues(prev => ({ ...prev, [field.key]: e.target.value }))}
-                onKeyDown={e => e.key === 'Enter' && save(field.key)}
-              />
-              <Button
-                size="sm"
-                variant="subtle"
-                loading={saving === field.key}
-                onClick={() => save(field.key)}
-                disabled={!(values[field.key] || '').trim()}
-              >
-                {t('credentials.save')}
-              </Button>
-            </div>
-            <p className="settings-credential__help">
-              {t(field.helpKey)}
-              {field.link && (
-                <> <a href="#" onClick={e => { e.preventDefault(); openExternal(field.link); }}>{t('credentials.get_token')}</a></>
-              )}
-            </p>
-          </div>
+          <SettingRow
+            key={field.key}
+            align="start"
+            className="st-row--stack"
+            title={
+              <>
+                {t(field.labelKey)}
+                {field.key === 'HF_TOKEN' && (
+                  <Badge tone={info?.has_hf_token || saved.HF_TOKEN ? 'success' : 'warn'} size="xs">
+                    {info?.has_hf_token || saved.HF_TOKEN ? t('credentials.saved') : t('credentials.not_set')}
+                  </Badge>
+                )}
+              </>
+            }
+            note={
+              <>
+                {t(field.helpKey)}
+                {field.link && (
+                  <> <a href="#" onClick={e => { e.preventDefault(); openExternal(field.link); }}>{t('credentials.get_token')}</a></>
+                )}
+              </>
+            }
+            control={
+              <>
+                <SettingsInput
+                  type={field.isPassword ? 'password' : 'text'}
+                  mono
+                  placeholder={field.placeholderKey}
+                  value={values[field.key] || ''}
+                  onChange={e => setValues(prev => ({ ...prev, [field.key]: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && save(field.key)}
+                />
+                <Button
+                  size="sm"
+                  variant="subtle"
+                  loading={saving === field.key}
+                  onClick={() => save(field.key)}
+                  disabled={!(values[field.key] || '').trim()}
+                >
+                  {t('credentials.save')}
+                </Button>
+              </>
+            }
+          />
         ))}
       </Collapsible>
     </SettingsSection>
