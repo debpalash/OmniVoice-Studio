@@ -6,7 +6,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
-## [0.3.8] — 2026-06-24
+## [0.3.8] — 2026-06-26
 
 A stability-focused release that makes first-run and Windows "just work" — and
 ships **live, faster-than-real-time local dictation**. It clears the wave of
@@ -81,6 +81,17 @@ of error messages across dub, generate, and design.
 
 ### Changed
 
+- **The Settings pages got a full redesign — cleaner, denser, responsive.** A
+  shared design system replaces the old patchwork: a left icon nav-rail,
+  sentence-case section titles (no more debug-log uppercase), exactly one muted
+  description per row, unified toggles/inputs, full-width content with proper
+  padding, and horizontal font/theme pickers. Premium and compact instead of
+  sparse and cluttered, and it adapts cleanly to window width. (#686, #690, #696)
+- **Adding a Hugging Face token on first-run is now a one-line input right by
+  Continue.** Was a bulky card buried at the bottom of the model list; it's now a
+  compact "paste a token, Save" bar pinned next to the "Waiting for required
+  models…" button, so you can add it (for faster, authenticated downloads)
+  without scrolling. (#687, #688)
 - **First-run setup is calmer and surfaces the best models for your machine.**
   Dimmed and tightened the setup descriptions (less wordy, more compact). The
   "Models & engines" step now shows the **platform-tuned** optional models up-front
@@ -109,6 +120,22 @@ of error messages across dub, generate, and design.
   "get a free token" link. (#657, #669)
 ### Fixed
 
+- **A misconfigured `OMNIVOICE_MODEL` no longer bricks model load with a 500.**
+  A stale or leaked TTS *engine id* (e.g. `omnivoice`) reaching the model loader
+  used to fail every launch with *"omnivoice is not a local folder and is not a
+  valid model identifier."* It now self-heals — only a real HF repo id
+  (`org/repo`) or an explicit local path is honored; anything else falls back to
+  the default with a logged warning. (#693)
+- **ASR no longer crashes the dub/transcribe preflight when CTranslate2's native
+  library can't load.** On hardened kernels / newer glibc (e.g. WSL2) the
+  CTranslate2 `.so` is rejected with *"cannot enable executable stack"* — an
+  OSError the WhisperX/faster-whisper checks didn't catch, so it took down the
+  whole preflight. They now report the engine as unavailable and auto-detect
+  falls back to PyTorch-Whisper instead of dead-ending. (#692)
+- **The stale-dub-session recovery now also covers the first upload/ingest, not
+  just retry/import.** A dubbing job that vanished server-side during the initial
+  transcribe flow showed the scary *"Job not found … report a bug"* toast; it
+  now resets gracefully and invites a fresh upload, like the other paths. (#695)
 - **In-app preview of finished audiobooks/stories now plays on Windows.**
   The preview decoded the entire render into one in-memory PCM buffer via Web
   Audio `decodeAudioData`, which fails on long-form `.m4b`/AAC under WebView2
