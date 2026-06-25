@@ -87,6 +87,7 @@ export default function StoragePanel() {
       {error && <div className="storagepanel__error" role="alert">{error}</div>}
 
       <SettingRow
+        className="st-row--stack"
         align="start"
         title="Cache location"
         subtitle="Where model weights download"

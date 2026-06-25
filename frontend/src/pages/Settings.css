@@ -106,17 +106,18 @@
   .ui-tabs.settings-tabs-ui::-webkit-scrollbar { display: none; }
 }
 
-/* ── Content panel: a calm reading column — label↔control stay close on wide
-   screens. ~760px keeps inline rows premium; expansive controls (font/theme
-   grids, Models/Engines tables) get the full width via the opt-outs below. */
+/* ── Content panel: fills the 1fr column on every page. Owner asked for genuine
+   full-width usage — no narrow reading column, no dead right-hand gutter. A
+   generous max-width keeps lines from sprawling on ultra-wide monitors, with
+   the column left-aligned so it stays flush to the nav rail. The page's own
+   padding (--space-7 sides) plus section padding gives both-side breathing
+   room; per-row rules below keep values/inputs from going flush or overflowing. */
 .settings-content {
   flex: 1 1 auto;
   min-width: 0;
-  max-width: 760px;
+  max-width: 1280px;
   align-self: start;   /* size to content — don't stretch to the taller nav rail */
 }
-/* The Models/Engines table wants the full width — opt those panels out. */
-.settings-content:has(.models-table) { max-width: none; }
 .settings-content > :first-child { margin-top: 0; }
 
 /* ── Engines tab ─────────────────────────────────────────────── */

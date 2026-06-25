@@ -131,6 +131,10 @@
   min-width: 0;
   max-width: 60%;
   text-align: right;
+  box-sizing: border-box;
+  /* Breathing room so controls (toggles, dots, inputs, values) never sit flush
+     against the section's right border. */
+  padding-right: 2px;
   /* Short control values must never wrap mid-word. Long data values opt back
      into wrapping via the --mono rule below. */
   white-space: nowrap;
@@ -140,9 +144,15 @@
   font-size: var(--text-base);
   color: var(--chrome-fg-muted);
   font-variant-numeric: tabular-nums;
-  /* data values can be long paths — allow them to wrap rather than overflow */
+  /* Data values are paths ("Effective now" / "Configured"). Let them use more
+     of the row, but NEVER break mid-word — only at real path boundaries (/ etc).
+     overflow-wrap:anywhere is the last-resort break point; word-break:normal
+     keeps it from chopping inside a word the way break-word did. */
+  max-width: 75%;
   white-space: normal;
-  word-break: break-word;
+  word-break: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 
 /* ── Input rows: label on top, full-width control row below ─────
@@ -172,6 +182,8 @@
 .st-input {
   width: 100%;
   min-width: 0;
+  max-width: min(360px, 100%);
+  box-sizing: border-box;
   background: color-mix(in srgb, var(--chrome-bg) 94%, white);
   border: 1px solid var(--chrome-border);
   border-radius: var(--chrome-radius-pill);
@@ -180,6 +192,11 @@
   font-size: var(--text-sm);
   padding: var(--space-3) var(--space-4);
 }
+/* In a stacked/full-width row the input is the primary control — let it use the
+   row width instead of the 360px right-aligned cap. */
+.st-row--stack .st-input { max-width: 100%; }
+/* The Models search lives in a flex toolbar where it should stretch to fill. */
+.models-search.st-input { max-width: none; }
 .st-input--mono { font-family: var(--chrome-font-mono); }
 .st-input:focus { outline: none; border-color: var(--chrome-accent); }
 .st-input:disabled { opacity: 0.5; cursor: not-allowed; }

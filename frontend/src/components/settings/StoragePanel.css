@@ -3,18 +3,23 @@
    buttons and the restart/error notices carry panel-specific chrome, all routed
    through --chrome-* tokens so they theme correctly across every theme. */
 
-/* The path input + Save/Reset cluster sits inside a SettingRow control. */
+/* The path input + Save/Reset cluster sits inside a SettingRow control. The row
+   is `--stack`, so the cluster gets the full row width below the label. */
 .storagepanel__field {
   display: flex;
   gap: var(--space-3);
   align-items: center;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  width: 100%;
 }
 
 .storagepanel__input {
   flex: 1 1 280px;
+  /* Path inputs read best wide, but cap so they don't sprawl edge-to-edge on an
+     ultra-wide window. Never overflow the panel: min-width:0 + border-box. */
+  max-width: 520px;
   min-width: 0;
+  box-sizing: border-box;
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-base);
   font-family: var(--chrome-font-mono);

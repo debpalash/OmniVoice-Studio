@@ -66,6 +66,7 @@ export default function HFMirrorPanel() {
       {error && <div className="perfpanel__error" role="alert">{error}</div>}
 
       <SettingRow
+        className="st-row--stack"
         title="Mirror preset"
         hint="On a restricted network, route model downloads through a mirror. Applies after a restart. Leave empty for the official endpoint."
         control={
@@ -81,12 +82,13 @@ export default function HFMirrorPanel() {
       />
 
       <SettingRow
+        className="st-row--stack"
         title="HF_ENDPOINT"
         subtitle={restart ? 'Restart the app for the change to take effect.' : undefined}
         control={
           <>
-            <input type="text" value={url} onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://hf-mirror.com" style={{ flex: 1, minWidth: 180 }} data-testid="hf-mirror-url" />
+            <input className="st-input st-input--mono" type="text" value={url} onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://hf-mirror.com" data-testid="hf-mirror-url" />
             <button type="button" onClick={() => save(url)} disabled={saving} data-testid="hf-mirror-save">
               {saving ? 'Saving…' : 'Save'}
             </button>
