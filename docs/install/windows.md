@@ -19,6 +19,7 @@ working OmniVoice Studio install on Windows 10 / 11 (x64).
   `bun run desktop-prod` uses to run its build-and-launch script. Without it,
   `desktop-prod` stops with an error telling you to install it.
 - **Rust / Cargo** (required for building from source only) — `winget install Rust.Rustup` or download `rustup-init.exe` from [rustup.rs](https://rustup.rs/).
+  After installing Rustup, close and reopen PowerShell before running `bun run desktop-prod`.
 
 ## Install (from source)
 
