@@ -81,3 +81,19 @@ def test_instruct_error_wrapped_in_runtimeerror_is_still_validation():
         _oom_friendly_reraise(err)
     assert "Conflicting instruct items" in str(ei.value)
     assert "ran out of memory" not in str(ei.value)
+
+
+def test_winerror_193_is_a_corrupt_binary_not_oom():
+    # #705: a corrupt / wrong-architecture native component (torch, ffmpeg, an
+    # engine binary) fails on Windows with "[WinError 193] %1 is not a valid
+    # Win32 application". That is NOT OOM and Flush won't help — say so.
+    err = RuntimeError(
+        "TTS engine stopped mid-generation: [WinError 193] %1 is not a valid "
+        "Win32 application"
+    )
+    with pytest.raises(RuntimeError) as ei:
+        _oom_friendly_reraise(err)
+    msg = str(ei.value)
+    assert "WinError 193" in msg
+    assert "corrupt" in msg or "wrong architecture" in msg
+    assert "ran out of memory" not in msg

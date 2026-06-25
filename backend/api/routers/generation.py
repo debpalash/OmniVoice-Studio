@@ -192,6 +192,17 @@ def _oom_friendly_reraise(e):
             or "conflicting instruct items" in _low
             or "in a single instruct" in _low):
         raise ValueError(es) from e
+    # #705: a corrupt or wrong-architecture native component (a .dll / .pyd / .exe
+    # — torch, ffmpeg, or a bundled engine binary) fails to load/spawn on Windows
+    # with "[WinError 193] %1 is not a valid Win32 application". That is NOT OOM,
+    # and Flush won't help — reinstalling/repairing the component is the real fix.
+    if "winerror 193" in _low or "is not a valid win32 application" in _low:
+        raise RuntimeError(
+            f"A native component (a DLL / .pyd / .exe — e.g. torch, ffmpeg, or an "
+            f"engine binary) is corrupt or built for the wrong architecture "
+            f"([WinError 193]). Reinstall or repair that component — the Flush "
+            f"button won't help here. Underlying error: {e}"
+        ) from e
     raise RuntimeError(
         f"TTS engine stopped mid-generation. This usually means it ran out of memory. "
         f"Try the Flush button to reload the model, then regenerate. Underlying error: {e}"

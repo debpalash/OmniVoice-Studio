@@ -120,6 +120,12 @@ of error messages across dub, generate, and design.
   "get a free token" link. (#657, #669)
 ### Fixed
 
+- **A corrupt or wrong-architecture native component no longer masquerades as
+  "out of memory."** A synth failure caused by a bad `.dll`/`.pyd`/`.exe` on
+  Windows (`[WinError 193] %1 is not a valid Win32 application` — e.g. torch,
+  ffmpeg, or an engine binary) was labelled *"ran out of memory — try Flush,"*
+  sending users down the wrong path. It now says the component is corrupt or
+  built for the wrong architecture and to reinstall/repair it. (#705)
 - **File drag-and-drop works on macOS again.** The app's drop zones use HTML5
   file drops, but Tauri intercepts OS drag-and-drop by default (`dragDropEnabled`)
   and swallowed the files before the webview saw them — most visibly on macOS
