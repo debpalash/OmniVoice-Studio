@@ -302,6 +302,13 @@ class WhisperXBackend(ASRBackend):
             return True, "ready"
         except ImportError as e:
             return False, f"whisperx not installed: {e}"
+        except Exception as e:  # noqa: BLE001
+            # The import can fail while loading a native dep — CTranslate2's .so
+            # is rejected by hardened kernels / newer glibc with "cannot enable
+            # executable stack" (#692), an OSError, not an ImportError. An
+            # availability probe must REPORT 'unusable here', never raise, so
+            # engine selection falls back instead of crashing the ASR preflight.
+            return False, f"whisperx failed to load ({type(e).__name__}): {e}"
 
     def ensure_loaded(self) -> None:
         # Surface a whisperx/CTranslate2/torch load failure at preflight (once,
@@ -667,6 +674,11 @@ class FasterWhisperBackend(ASRBackend):
             return True, "ready"
         except ImportError as e:
             return False, f"faster-whisper not installed: {e}"
+        except Exception as e:  # noqa: BLE001
+            # faster-whisper pulls in CTranslate2, whose .so is rejected by
+            # hardened kernels / newer glibc ("cannot enable executable stack",
+            # #692) — an OSError. Report unavailable so we fall back, not crash.
+            return False, f"faster-whisper failed to load ({type(e).__name__}): {e}"
 
     def _ensure_model(self):
         if self._model is not None:
@@ -1541,6 +1553,22 @@ def list_backends() -> list[dict]:
     return out
 
 
+def _probe_available(cls) -> bool:
+    """``is_available()`` that never raises. A probe that explodes (e.g. a native
+    lib that refuses to load — CTranslate2's exec-stack rejection, #692) means the
+    engine is unusable on this host, so treat it as unavailable and fall through
+    to the next candidate rather than crash engine selection."""
+    try:
+        ok, _ = cls.is_available()
+        return bool(ok)
+    except Exception:  # noqa: BLE001
+        logger.warning(
+            "ASR auto-detect: %s.is_available() raised — treating as unavailable",
+            cls.__name__, exc_info=True,
+        )
+        return False
+
+
 def _auto_detect() -> str:
     """Pick the best available ASR engine for the current hardware.
 
@@ -1559,17 +1587,14 @@ def _auto_detect() -> str:
       4. pytorch-whisper — last resort; requires the TTS model to be loaded
                           so it can reuse `_asr_pipe`.
     """
-    ok, _ = WhisperXBackend.is_available()
-    if ok:
+    if _probe_available(WhisperXBackend):
         return "whisperx"
-    ok, _ = FasterWhisperBackend.is_available()
-    if ok:
+    if _probe_available(FasterWhisperBackend):
         return "faster-whisper"
     try:
         import torch
         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-            ok, _ = MLXWhisperBackend.is_available()
-            if ok:
+            if _probe_available(MLXWhisperBackend):
                 return "mlx-whisper"
     except Exception:
         pass
