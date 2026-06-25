@@ -846,8 +846,11 @@ async def preload_model():
         return  # already loaded
     try:
         # Check if the required model checkpoint exists before attempting
-        # a heavy load that would fail and pollute startup logs.
-        checkpoint = os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice")
+        # a heavy load that would fail and pollute startup logs. Use the same
+        # resolver as the load path (#693) so a leaked engine id in
+        # OMNIVOICE_MODEL can't make this model_info() probe fail and silently
+        # disable warm-up (then the first /generate eats the full load).
+        checkpoint = resolve_omnivoice_checkpoint()
         try:
             from huggingface_hub import model_info
             model_info(checkpoint, timeout=5)

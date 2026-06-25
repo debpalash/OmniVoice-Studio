@@ -60,7 +60,7 @@ def list_loaded() -> dict:
         models.append({
             "id": "tts",
             "name": "OmniVoice TTS",
-            "checkpoint": os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice"),
+            "checkpoint": mm.resolve_omnivoice_checkpoint(),  # #693: effective checkpoint, not a leaked raw value
             "device": device,
             "vram_mb": round(_tts_vram_mb(), 1),
             "unloadable": True,

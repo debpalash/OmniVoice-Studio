@@ -196,7 +196,7 @@ def _oom_friendly_reraise(e):
     # — torch, ffmpeg, or a bundled engine binary) fails to load/spawn on Windows
     # with "[WinError 193] %1 is not a valid Win32 application". That is NOT OOM,
     # and Flush won't help — reinstalling/repairing the component is the real fix.
-    if "winerror 193" in _low or "is not a valid win32 application" in _low:
+    if "[winerror 193]" in _low or "is not a valid win32 application" in _low:
         raise RuntimeError(
             f"A native component (a DLL / .pyd / .exe — e.g. torch, ffmpeg, or an "
             f"engine binary) is corrupt or built for the wrong architecture "

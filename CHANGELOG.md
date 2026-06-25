@@ -137,7 +137,10 @@ of error messages across dub, generate, and design.
   used to fail every launch with *"omnivoice is not a local folder and is not a
   valid model identifier."* It now self-heals — only a real HF repo id
   (`org/repo`) or an explicit local path is honored; anything else falls back to
-  the default with a logged warning. (#693)
+  the default with a logged warning. Every consumer of the setting routes through
+  the same resolver, so a bad value also can't silently disable model warm-up,
+  mislabel the Settings checkpoint, or get baked into an exported persona bundle.
+  (#693)
 - **ASR no longer crashes the dub/transcribe preflight when CTranslate2's native
   library can't load.** On hardened kernels / newer glibc (e.g. WSL2) the
   CTranslate2 `.so` is rejected with *"cannot enable executable stack"* — an
