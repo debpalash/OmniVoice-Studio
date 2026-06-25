@@ -289,10 +289,11 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
     } catch (err) {
       setDubPrepStage(null);
       if (err.name === 'AbortError') { toast(t('dub_workflow.upload_cancelled')); setDubStep('idle'); useAppStore.getState().dismissPill(); }
+      else if (isExpiredDubJobError(err)) { _resetStaleDubSession(); }
       else { setDubError(err.message); setDubStep('idle'); toastErrorWithReport(t('dub_workflow.upload_failed', { message: err.message }), err); useAppStore.getState().errorPill(err.message); }
       setTranscribeStart(null);
     } finally { dubAbortCtrlRef.current = null; }
-  }, [setDubStep, setDubError, setDubFailure, setDubTracks, setDubPrepStage, setDubJobId, setDubFilename, setDubTaskId, setDubSegments, _waitForPrep, _waitForTranscribe, loadProjects, loadProfiles]);
+  }, [setDubStep, setDubError, setDubFailure, setDubTracks, setDubPrepStage, setDubJobId, setDubFilename, setDubTaskId, setDubSegments, _waitForPrep, _waitForTranscribe, loadProjects, loadProfiles, _resetStaleDubSession]);
 
   const handleDubIngestUrl = useCallback(async (url, opts = {}) => {
     const clean = (url || '').trim();
@@ -321,10 +322,11 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
     } catch (err) {
       setDubPrepStage(null);
       if (err.name === 'AbortError') { toast(t('dub_workflow.ingest_cancelled')); setDubStep('idle'); useAppStore.getState().dismissPill(); }
+      else if (isExpiredDubJobError(err)) { _resetStaleDubSession(); }
       else { setDubError(err.message); setDubStep('idle'); toastErrorWithReport(t('dub_workflow.ingest_failed', { message: err.message }), err); useAppStore.getState().errorPill(err.message); }
       setTranscribeStart(null);
     } finally { dubAbortCtrlRef.current = null; }
-  }, [setDubStep, setDubError, setDubFailure, setDubTracks, setDubPrepStage, setDubJobId, setDubTaskId, setDubSegments, _waitForPrep, _waitForTranscribe, loadProjects, loadProfiles]);
+  }, [setDubStep, setDubError, setDubFailure, setDubTracks, setDubPrepStage, setDubJobId, setDubTaskId, setDubSegments, _waitForPrep, _waitForTranscribe, loadProjects, loadProfiles, _resetStaleDubSession]);
 
   const handleDubAbort = useCallback(async () => {
     const jobId = dubClientJobIdRef.current || dubJobId;
