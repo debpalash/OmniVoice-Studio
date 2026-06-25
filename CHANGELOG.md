@@ -120,6 +120,12 @@ of error messages across dub, generate, and design.
   "get a free token" link. (#657, #669)
 ### Fixed
 
+- **File drag-and-drop works on macOS again.** The app's drop zones use HTML5
+  file drops, but Tauri intercepts OS drag-and-drop by default (`dragDropEnabled`)
+  and swallowed the files before the webview saw them — most visibly on macOS
+  WKWebView, and fully broken on macOS 26 (Tahoe), where dropping a file did
+  nothing. Disabled the interception so the webview handles native HTML5 drops
+  on every platform. (#700)
 - **A misconfigured `OMNIVOICE_MODEL` no longer bricks model load with a 500.**
   A stale or leaked TTS *engine id* (e.g. `omnivoice`) reaching the model loader
   used to fail every launch with *"omnivoice is not a local folder and is not a
