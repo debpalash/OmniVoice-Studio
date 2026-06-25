@@ -604,6 +604,37 @@ def _repair_model_cache(checkpoint: str) -> bool:
     return True
 
 
+_DEFAULT_OMNIVOICE_CHECKPOINT = "k2-fsa/OmniVoice"
+
+
+def resolve_omnivoice_checkpoint() -> str:
+    """Resolve the OmniVoice TTS checkpoint from ``OMNIVOICE_MODEL``, self-healing
+    a misconfigured value.
+
+    A valid checkpoint is either a HuggingFace repo id (``org/repo`` — contains a
+    ``/``) or an existing local directory. A bare token like ``"omnivoice"`` — a
+    TTS *engine id* that leaked into ``OMNIVOICE_MODEL`` (e.g. a stale pref/env) —
+    is neither, and would crash model load with *"omnivoice is not a local folder
+    and is not a valid model identifier listed on huggingface.co/models"* (#693).
+    Fall back to the default rather than 500 on every launch.
+    """
+    checkpoint = os.environ.get("OMNIVOICE_MODEL", _DEFAULT_OMNIVOICE_CHECKPOINT).strip()
+    if not checkpoint:
+        return _DEFAULT_OMNIVOICE_CHECKPOINT
+    # Honor a HF repo id (org/repo) or an EXPLICIT local path (absolute, or with
+    # a path separator). A bare token like "omnivoice" must NOT be treated as a
+    # local dir even if a cwd-relative folder happens to share its name — that
+    # is exactly the engine-id leak (#693), so self-heal to the default.
+    if "/" in checkpoint or "\\" in checkpoint or os.path.isabs(checkpoint):
+        return checkpoint
+    logger.warning(
+        "OMNIVOICE_MODEL=%r is not a HuggingFace repo id (org/repo) or a local "
+        "path — falling back to %s (#693).",
+        checkpoint, _DEFAULT_OMNIVOICE_CHECKPOINT,
+    )
+    return _DEFAULT_OMNIVOICE_CHECKPOINT
+
+
 def _load_model_sync():
     global model
     from utils.hf_progress import register_listener, unregister_listener
@@ -630,7 +661,7 @@ def _load_model_sync():
         OmniVoice = _lazy_omnivoice()
         device = get_best_device()
 
-        checkpoint = os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice")
+        checkpoint = resolve_omnivoice_checkpoint()
         _set_loading("loading_weights", f"Loading TTS weights on {device}…")
         logger.info("Loading OmniVoice model on device: %s", device)
         preload_asr = should_preload_tts_asr()
