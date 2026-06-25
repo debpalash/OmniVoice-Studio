@@ -18,6 +18,7 @@ working OmniVoice Studio install on Windows 10 / 11 (x64).
   You need it for `git clone` anyway, and it includes **Git Bash**, which
   `bun run desktop-prod` uses to run its build-and-launch script. Without it,
   `desktop-prod` stops with an error telling you to install it.
+- **Rust / Cargo** (required for building from source only) — `winget install Rust.Rustup` or download `rustup-init.exe` from [rustup.rs](https://rustup.rs/).
 
 ## Install (from source)
 

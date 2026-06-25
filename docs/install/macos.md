@@ -15,6 +15,7 @@ working OmniVoice Studio install on macOS (Apple Silicon or Intel).
 - **Bun** — `curl -fsSL https://bun.sh/install | bash`.
 - **Xcode Command Line Tools** — `xcode-select --install`.
 - **FFmpeg** (used by the dubbing + capture pipelines) — `brew install ffmpeg`.
+- **Rust / Cargo** (required for building from source only) — `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` or `brew install rust`.
 
 Optional but recommended:
 
