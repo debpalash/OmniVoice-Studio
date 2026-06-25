@@ -8,16 +8,20 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [0.3.8] — 2026-06-26
 
-A stability-focused release that makes first-run and Windows "just work" — and
-ships **live, faster-than-real-time local dictation**. It clears the wave of
+A stability-focused release that makes first-run and Windows "just work," ships
+**live, faster-than-real-time local dictation** and a **user pronunciation
+dictionary**, and gives **Settings a full redesign**. It clears the wave of
 **"Can't reach the local backend"** reports at the source — the 8 GB-card OOM
 crash, the slow-load future-scheduling break, a Windows-only WhisperX load
-failure, and transcription stalls that *looked* like a dead backend are all
-fixed or now fail with a clear, actionable message. Downloads are faster out of
-the box (parallel segmented transfer on by default) and the Hugging Face token
-that speeds them up is front-and-center on setup. Plus first-run polish, faster
-long-form previews on Windows, multi-voice story casting, and a friendlier batch
-of error messages across dub, generate, and design.
+failure, an ASR engine that couldn't load CTranslate2 on newer Linux/WSL, and
+transcription stalls that *looked* like a dead backend are all fixed or now fail
+with a clear, actionable message. **macOS gets native file drag-and-drop back**
+(including macOS 26 Tahoe). Downloads are faster out of the box (parallel
+segmented transfer on by default) and the Hugging Face token that speeds them up
+is front-and-center on setup. Plus multi-voice story casting, faster long-form
+previews on Windows, and a friendlier, more honest batch of error messages
+across dub, generate, and design (a corrupt-binary failure no longer poses as
+"out of memory," a bad model id self-heals, and a stale dub job resets cleanly).
 
 ### Added
 
