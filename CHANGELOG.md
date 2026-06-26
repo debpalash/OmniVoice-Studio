@@ -124,6 +124,14 @@ across dub, generate, and design (a corrupt-binary failure no longer poses as
   "get a free token" link. (#657, #669)
 ### Fixed
 
+- **Long-video dubs no longer spike RAM during assembly.** Dub generation used
+  to hold every segment's audio in memory until the whole track was mixed, so a
+  50-video batch or a single feature-length dub could exhaust RAM and crash. Each
+  segment now streams to disk as it's rendered and the final track is assembled
+  from those files via a 30s-chunk memmap writer, keeping memory flat regardless
+  of video length. Per-segment download WAVs and the final track stay correctly
+  watermarked (marked once at synthesis, no double-mark), and zero/negative-length
+  segments no longer crash the run. (#639)
 - **A corrupt or wrong-architecture native component no longer masquerades as
   "out of memory."** A synth failure caused by a bad `.dll`/`.pyd`/`.exe` on
   Windows (`[WinError 193] %1 is not a valid Win32 application` — e.g. torch,

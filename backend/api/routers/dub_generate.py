@@ -107,6 +107,123 @@ async def dub_generate(job_id: str, req: DubRequest):
         all_segment_wavs = []
         sync_scores = []
 
+        # Throttle the device cache flush. empty_cache() is a synchronous
+        # device stall, so calling it every segment (as the old code did)
+        # serialised the GPU loop; the batched-I/O design it replaced kept
+        # it off the hot path on purpose. Flush every ~16 releases instead —
+        # frequent enough to bound VRAM, rare enough to stay invisible.
+        _RELEASE_FLUSH_EVERY = 16
+        _release_count = {"n": 0}
+
+        def _release_audio_tensors(*objs) -> None:
+            """Best-effort VRAM cleanup after a segment is safely on disk.
+
+            Tensors are freed by the callers' own ``del`` once they fall out
+            of scope; this only throttles the device cache flush. ``*objs`` is
+            kept for call-site compatibility but intentionally unused — a local
+            ``del`` here would only unbind the parameter, never the caller's
+            reference.
+            """
+            _release_count["n"] += 1
+            if _release_count["n"] % _RELEASE_FLUSH_EVERY != 0:
+                return
+            try:
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                    torch.mps.empty_cache()
+            except Exception:
+                pass
+
+        # mix_<id> scratch WAVs written for silence/cached-fail/error slots are
+        # pure assembly inputs (no preview/regen contract), so they're deleted
+        # once the final track is written.
+        _mix_temp_paths: list[str] = []
+
+        def _store_mix_wav(start: float, end: float, wav: torch.Tensor, sr: int, seg_key: str):
+            """Write one segment to disk and keep only its path in the mix manifest.
+
+            A zero/negative-length buffer is never written (``atomic_save_wav``
+            raises on empty audio); instead a harmless zero-length in-memory
+            entry is returned, which the assembly tolerates via its ``e > s``
+            guard.
+            """
+            if wav.shape[-1] <= 0:
+                return (start, end, torch.zeros(1, 0), sr)
+            path = dub_seg_path(job_id, seg_key)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            atomic_save_wav(path, wav.detach().cpu(), sr)
+            if seg_key.startswith("mix_"):
+                _mix_temp_paths.append(path)
+            _release_audio_tensors(wav)
+            return (start, end, path, sr)
+
+        def _entry_num_samples(entry) -> int:
+            # Zero/negative-duration slots are kept as in-memory tensors (never
+            # written to disk); report their length directly.
+            if isinstance(entry[2], torch.Tensor):
+                return int(entry[2].shape[-1])
+            try:
+                info = torchaudio.info(entry[2])
+                return int(info.num_frames)
+            except Exception:
+                wav, _sr = torchaudio.load(entry[2])
+                n = int(wav.shape[-1])
+                _release_audio_tensors(wav)
+                return n
+
+        def _load_entry_wav(entry, target_sr: int) -> torch.Tensor:
+            if isinstance(entry[2], torch.Tensor):
+                return entry[2]
+            wav, loaded_sr = torchaudio.load(entry[2])
+            if loaded_sr != target_sr:
+                import torchaudio.functional as AF
+                wav = AF.resample(wav, loaded_sr, target_sr)
+            return wav
+
+        def _write_memmap_wav_atomic(target_path: str, samples, sample_rate: int) -> None:
+            """Write a mono float32 memmap to int16 WAV without loading it all.
+
+            Intentionally does NOT watermark: the final track is assembled from
+            per-segment WAVs that were already watermarked once at synthesis
+            time (see the seg-write path below), exactly as ``main`` does.
+            Re-marking here would double-mark every segment in the final mix.
+            """
+            import tempfile
+            import wave
+            import numpy as np
+
+            target_dir = os.path.dirname(target_path) or "."
+            target_base = os.path.basename(target_path)
+            fd, tmp_path = tempfile.mkstemp(
+                prefix=f".{target_base}.",
+                suffix=".wav",
+                dir=target_dir,
+            )
+            os.close(fd)
+            chunk_samples = max(sample_rate * 30, 1)
+            try:
+                with wave.open(tmp_path, "wb") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(sample_rate)
+                    total_len = int(samples.shape[0])
+                    for off in range(0, total_len, chunk_samples):
+                        chunk = np.array(samples[off: off + chunk_samples], dtype=np.float32, copy=True)
+                        if chunk.size == 0:
+                            continue
+                        np.nan_to_num(chunk, copy=False, nan=0.0, posinf=1.0, neginf=-1.0)
+                        chunk = np.clip(chunk, -1.0, 1.0)
+                        pcm = (chunk * 32767.0).astype("<i2", copy=False)
+                        wf.writeframes(pcm.tobytes())
+                os.replace(tmp_path, target_path)
+            except BaseException:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
+
         # Phase 4.1 — partial regen. If `regen_only` is set, we only run TTS
         # on segments whose id is in that set; the others reuse their existing
         # `seg_i.wav` on disk and slot into the final mix unchanged.
@@ -126,9 +243,9 @@ async def dub_generate(job_id: str, req: DubRequest):
         # reorder; index-keyed readers (preview/export) resolve via this manifest.
         job["seg_order"] = [seg_ids[k] if k < len(seg_ids) else f"seg_{k}" for k in range(len(req.segments))]
 
-        # Deferred disk writes: collect (index, tensor, sr, seg_id, fingerprint,
-        # num_step) tuples during the hot loop and batch-flush after all TTS
-        # completes. Eliminates ~200ms/seg of synchronous I/O from the GPU path.
+        # Per-segment metadata to persist after the hot loop. Audio itself is
+        # written immediately and only file paths are kept, so long videos don't
+        # retain every generated tensor in RAM until final assembly.
         _pending_seg_writes: list[tuple] = []
 
         # Phase 4.1 bench instrumentation: measure where incremental time goes.
@@ -150,8 +267,16 @@ async def dub_generate(job_id: str, req: DubRequest):
             seg_duration = seg.end - seg.start
             if seg_duration <= 0.05 or not seg.text.strip():
                 sr = _model.sampling_rate
-                silence = torch.zeros(1, int(seg_duration * sr))
-                all_segment_wavs.append((seg.start, seg.end, silence, sr))
+                # max(0, …): a zero/negative-duration slot must not feed a
+                # negative length to torch.zeros (raises) — _store_mix_wav
+                # turns the empty buffer into a harmless in-memory entry.
+                silence = torch.zeros(1, max(0, int(seg_duration * sr)))
+                all_segment_wavs.append(_store_mix_wav(seg.start, seg.end, silence, sr, f"mix_{seg_id}"))
+                try:
+                    del silence
+                except Exception:
+                    pass
+                _release_audio_tensors()
                 sync_scores.append(1.0)
                 continue
 
@@ -182,7 +307,12 @@ async def dub_generate(job_id: str, req: DubRequest):
                                 cached_wav = torch.nn.functional.pad(cached_wav, (0, target_samples - current_samples))
                             elif current_samples > target_samples:
                                 cached_wav = cached_wav[..., :target_samples]
-                        all_segment_wavs.append((seg.start, seg.end, cached_wav, _model.sampling_rate))
+                        all_segment_wavs.append(_store_mix_wav(seg.start, seg.end, cached_wav, _model.sampling_rate, f"mix_{seg_id}"))
+                        try:
+                            del cached_wav
+                        except Exception:
+                            pass
+                        _release_audio_tensors()
                         sync_scores.append(getattr(seg, 'sync_ratio', None) or 1.0)
                         _t_cache += time.perf_counter() - _t_cache_0
                         continue
@@ -191,8 +321,13 @@ async def dub_generate(job_id: str, req: DubRequest):
                         # is broken — cleaner than aborting the whole mix.
                         yield f"data: {json.dumps({'type': 'warning', 'segment': i, 'message': f'cached seg lost, padding silence: {str(e)[:120]}'})}\n\n"
                 sr = _model.sampling_rate
-                silence = torch.zeros(1, int(seg_duration * sr))
-                all_segment_wavs.append((seg.start, seg.end, silence, sr))
+                silence = torch.zeros(1, max(0, int(seg_duration * sr)))
+                all_segment_wavs.append(_store_mix_wav(seg.start, seg.end, silence, sr, f"mix_{seg_id}"))
+                try:
+                    del silence
+                except Exception:
+                    pass
+                _release_audio_tensors()
                 sync_scores.append(1.0)
                 continue
 
@@ -457,7 +592,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                 except Exception as e:
                     logger.debug("seg fingerprint skipped for %s: %s", seg_id, e)
 
-                _pending_seg_writes.append((i, audio_tensor, _model.sampling_rate, seg_id, _seg_fp, _num_step))
+                _pending_seg_writes.append((i, _model.sampling_rate, seg_id, _seg_fp, _num_step))
 
                 # RVC needs the WAV on disk, so write it immediately only
                 # when RVC is active (uncommon path).
@@ -479,32 +614,54 @@ async def dub_generate(job_id: str, req: DubRequest):
                     except Exception as e:
                         yield f"data: {json.dumps({'type': 'warning', 'segment': i, 'message': f'RVC skipped: {str(e)[:120]}'})}\n\n"
 
-                all_segment_wavs.append((seg.start, seg.end, audio_tensor, _model.sampling_rate))
+                # Watermark this FRESH TTS output exactly once, right before it
+                # is persisted. The same seg_<id>.wav is BOTH the downloadable
+                # per-segment file AND the assembly input for the final track,
+                # so marking it here (and nowhere else) gives the downloadable
+                # WAV its mark back and the final mix inherits it — no double-
+                # mark. Cached-reuse audio is already marked; silence/zero slots
+                # carry no speech to mark, so neither is re-watermarked.
+                audio_tensor = embed_watermark(audio_tensor, _model.sampling_rate)
+
+                seg_wav_path = dub_seg_path(job_id, seg_id)
+                try:
+                    # Keep the existing per-segment WAV contract for previews
+                    # and partial regeneration, but do not keep the tensor in RAM.
+                    atomic_save_wav(seg_wav_path, audio_tensor, _model.sampling_rate)
+                except Exception as e:
+                    logger.warning("seg write failed for %s: %s", seg_id, e)
+                    # If the durable segment write fails, still preserve a mix
+                    # copy so this generation can finish.
+                    all_segment_wavs.append(_store_mix_wav(seg.start, seg.end, audio_tensor, _model.sampling_rate, f"mix_{seg_id}"))
+                    try:
+                        del audio_tensor
+                    except Exception:
+                        pass
+                    _release_audio_tensors()
+                else:
+                    all_segment_wavs.append((seg.start, seg.end, seg_wav_path, _model.sampling_rate))
+                    try:
+                        del audio_tensor
+                    except Exception:
+                        pass
+                    _release_audio_tensors()
             except Exception as e:
                 yield f"data: {json.dumps({'type': 'error', 'segment': i, 'error': str(e)})}\n\n"
                 sr = _model.sampling_rate
-                all_segment_wavs.append((seg.start, seg.end, torch.zeros(1, int(seg_duration * sr)), sr))
+                all_segment_wavs.append(_store_mix_wav(seg.start, seg.end, torch.zeros(1, max(0, int(seg_duration * sr))), sr, f"mix_{seg_id}"))
                 sync_scores.append(1.0)
 
         _t_loop_end = time.perf_counter()
 
         yield f"data: {json.dumps({'type': 'assembling'})}\n\n"
 
-        # ── Batch disk-write phase ────────────────────────────────────
-        # Flush all per-segment WAVs and fingerprints in one burst now
-        # that the GPU-hot loop is done. This keeps I/O off the critical
-        # path and cuts ~200ms × N_segments of latency.
+        # ── Batch metadata phase ──────────────────────────────────────
+        # Per-segment WAVs were written during the loop to keep RAM bounded.
+        # Flush only lightweight fingerprints/quality metadata here.
         _t_diskw_0 = time.perf_counter()
         hashes = job.setdefault("seg_hashes", {})
         quality_map = job.setdefault("seg_num_step", {})
-        for (_si, _wav, _sr, _sid, _fp, _nstep) in _pending_seg_writes:
-            seg_wav_path = dub_seg_path(job_id, _sid)
-            try:
-                # Apply invisible watermark before writing to disk
-                _wav = embed_watermark(_wav, _sr)
-                atomic_save_wav(seg_wav_path, _wav, _sr)
-            except Exception as e:
-                logger.warning("deferred seg write failed for %s: %s", _sid, e)
+        for (_si, _sr, _sid, _fp, _nstep) in _pending_seg_writes:
             if _fp is not None:
                 hashes[_sid] = _fp
             quality_map[_sid] = _nstep
@@ -532,8 +689,8 @@ async def dub_generate(job_id: str, req: DubRequest):
 
         if strategy == "stretch_video":
             cursor = 0.0
-            for i, (orig_start, orig_end, wav, _) in enumerate(all_segment_wavs):
-                wl_i = wav.shape[-1]
+            for i, (orig_start, orig_end, wav_path, _) in enumerate(all_segment_wavs):
+                wl_i = _entry_num_samples((orig_start, orig_end, wav_path, sr))
                 natural_dur = (wl_i / sr) if wl_i > 0 else max(0.0, orig_end - orig_start)
                 if i == 0:
                     # Preserve the pre-roll (silence before the first seg).
@@ -583,9 +740,9 @@ async def dub_generate(job_id: str, req: DubRequest):
                         "start": s,
                         "end": e,
                     }
-                    for i, (s, e, _w, _) in enumerate(all_segment_wavs)
+                    for i, (s, e, _path, _) in enumerate(all_segment_wavs)
                 ],
-                [w.shape[-1] / sr for (_s, _e, w, _) in all_segment_wavs],
+                [_entry_num_samples(entry) / sr for entry in all_segment_wavs],
                 orig_total_dur,
                 fit_params,
             )
@@ -598,183 +755,245 @@ async def dub_generate(job_id: str, req: DubRequest):
         # not from the plan — so subtitles land exactly on the audio.
         fitted_cues: list[dict] = []
 
-        full_audio = torch.zeros(1, total_samples)
+        lang_code = req.language_code or "und"
+        track_path = os.path.join(DUB_DIR, job_id, f"dubbed_{lang_code}.wav")
+        os.makedirs(os.path.dirname(track_path), exist_ok=True)
 
-        for i, (start, end, wav, _) in enumerate(all_segment_wavs):
-            seg_ref = req.segments[i] if i < len(req.segments) else None
-            seg_gain = getattr(seg_ref, "gain", None) if seg_ref is not None else None
-            seg_gain = seg_gain if seg_gain is not None else 1.0
-            seg_gain = max(0.0, min(2.0, seg_gain))
-            adjusted = wav * seg_gain
-            wl = adjusted.shape[-1]
-            natural_dur = wl / sr if wl > 0 else 0.0
-            orig_dur = max(0.0, end - start)
+        import gc
+        import tempfile
+        import numpy as np
 
-            if strategy == "stretch_video":
-                # Mode B: audio at natural rate, placed on the stretched
-                # timeline. No trim, no atempo. dub_export handles the video.
-                new_start, _new_end = new_layout[i]
-                place_at = new_start
-                fit_status.append({
-                    "status": "video_stretched",
-                    "stretch_ratio": round(natural_dur / max(orig_dur, 1e-3), 3),
-                })
+        mix_samples = max(total_samples, 1)
+        fd, mix_path = tempfile.mkstemp(
+            prefix=f".{os.path.basename(track_path)}.mix.",
+            suffix=".f32",
+            dir=os.path.dirname(track_path),
+        )
+        os.close(fd)
+        try:
+            with open(mix_path, "r+b") as mix_file:
+                mix_file.truncate(mix_samples * 4)
+            mix_audio = np.memmap(mix_path, dtype=np.float32, mode="r+", shape=(mix_samples,))
 
-            elif strategy == "smart_fit":
-                # Smart Fit: apply the planner's audio_rate via the same
-                # pitch-preserving atempo pipe strict_slot uses, place the
-                # result at the planned new_start, and hard-trim whatever
-                # the caps couldn't absorb. The video side (video_ratio per
-                # chunk) is persisted below for the export pipeline.
-                sf = fit_plan.segments[i]
-                place_at = sf.new_start
-                if sf.audio_rate > 1.0 + 1e-6 and wl > 0:
-                    target = max(1, int(round(wl / sf.audio_rate)))
-                    try:
-                        adjusted = await _pitch_preserving_stretch(
-                            adjusted, target, sr,
-                        )
-                    except Exception as e:
-                        logger.warning(
-                            "atempo stretch failed for seg %d (%.2f×), "
-                            "falling back to linear interp: %s",
-                            i, sf.audio_rate, e,
-                        )
-                        adjusted = torch.nn.functional.interpolate(
-                            adjusted.unsqueeze(0),
-                            size=target,
-                            mode='linear',
-                            align_corners=False,
-                        ).squeeze(0)
-                    wl = adjusted.shape[-1]
-                # Residual overflow → hard-trim to the segment's new video
-                # slot (fade below keeps the cut pop-free).
-                new_slot_samples = int(max(0.0, sf.new_end - sf.new_start) * sr)
-                if new_slot_samples > 0 and wl > new_slot_samples:
-                    adjusted = adjusted[..., :new_slot_samples]
-                    wl = adjusted.shape[-1]
-                # Truthful per-segment verdict for the UI badge.
-                entry = {"status": sf.status}
-                if sf.audio_rate > 1.0 + 1e-6:
-                    entry["audio_rate"] = round(sf.audio_rate, 3)
-                if sf.video_ratio > 1.0 + 1e-6:
-                    entry["video_ratio"] = round(sf.video_ratio, 3)
-                if sf.overflow_s > 0:
-                    entry["overflow_s"] = round(sf.overflow_s, 3)
-                fit_status.append(entry)
-                # Cue times from the ACTUAL stretched sample positions.
-                fitted_cues.append({
-                    "id": sf.seg_id,
-                    "start": round(place_at, 4),
-                    "end": round(place_at + wl / sr, 4),
-                })
+            for i, (start, end, wav_path, _) in enumerate(all_segment_wavs):
+                seg_ref = req.segments[i] if i < len(req.segments) else None
+                seg_gain = getattr(seg_ref, "gain", None) if seg_ref is not None else None
+                seg_gain = seg_gain if seg_gain is not None else 1.0
+                seg_gain = max(0.0, min(2.0, seg_gain))
+                wav = _load_entry_wav((start, end, wav_path, sr), sr)
+                adjusted = wav * seg_gain
+                if adjusted.ndim == 2 and adjusted.shape[0] > 1:
+                    adjusted = adjusted.mean(dim=0, keepdim=True)
+                wl = adjusted.shape[-1]
+                natural_dur = wl / sr if wl > 0 else 0.0
+                orig_dur = max(0.0, end - start)
 
-            elif strategy == "concise":
-                # Mode A: never compress. Allow the audio to extend into the
-                # silent gap before the next seg (existing heuristic) plus
-                # any extra `overflow_budget_s`. Beyond that, hard-trim with
-                # a short fade so we never overlap the next speaker.
-                place_at = start
-                effective_end = end
-                if i + 1 < len(all_segment_wavs):
-                    next_start = all_segment_wavs[i + 1][0]
-                    gap = next_start - end
-                    if gap > GAP_OVERFLOW_BUFFER_S:
-                        effective_end = end + min(
-                            gap - GAP_OVERFLOW_BUFFER_S, GAP_OVERFLOW_MAX_S,
-                        )
-                effective_end += overflow_budget_s
-                slot_samples_eff = int(max(0.0, (effective_end - start)) * sr)
-                if slot_samples_eff > 0 and wl > slot_samples_eff:
-                    overflow_s = (wl - slot_samples_eff) / sr
-                    adjusted = adjusted[..., :slot_samples_eff]
-                    wl = adjusted.shape[-1]
+                if strategy == "stretch_video":
+                    # Mode B: audio at natural rate, placed on the stretched
+                    # timeline. No trim, no atempo. dub_export handles the video.
+                    new_start, _new_end = new_layout[i]
+                    place_at = new_start
                     fit_status.append({
-                        "status": "overflows",
-                        "overflow_s": round(overflow_s, 3),
+                        "status": "video_stretched",
+                        "stretch_ratio": round(natural_dur / max(orig_dur, 1e-3), 3),
                     })
-                else:
-                    fit_status.append({"status": "fits"})
 
-            else:
-                # strict_slot (legacy): preserve the previous atempo / trim /
-                # off semantics so existing callers and back-compat tests
-                # keep passing.
-                place_at = start
-                effective_end = end
-                if i + 1 < len(all_segment_wavs):
-                    next_start = all_segment_wavs[i + 1][0]
-                    gap = next_start - end
-                    if gap > GAP_OVERFLOW_BUFFER_S:
-                        effective_end = end + min(
-                            gap - GAP_OVERFLOW_BUFFER_S, GAP_OVERFLOW_MAX_S,
-                        )
-                slot_samples = int(max(0.0, (effective_end - start)) * sr)
-                if slot_fit != "off" and slot_samples > 0 and wl > slot_samples:
-                    if slot_fit == "time_stretch":
-                        ratio = wl / slot_samples
-                        capped_ratio = min(ratio, MAX_STRETCH_RATIO)
-                        capped_target = int(wl / capped_ratio)
+                elif strategy == "smart_fit":
+                    # Smart Fit: apply the planner's audio_rate via the same
+                    # pitch-preserving atempo pipe strict_slot uses, place the
+                    # result at the planned new_start, and hard-trim whatever
+                    # the caps couldn't absorb. The video side (video_ratio per
+                    # chunk) is persisted below for the export pipeline.
+                    sf = fit_plan.segments[i]
+                    place_at = sf.new_start
+                    if sf.audio_rate > 1.0 + 1e-6 and wl > 0:
+                        target = max(1, int(round(wl / sf.audio_rate)))
                         try:
                             adjusted = await _pitch_preserving_stretch(
-                                adjusted, capped_target, sr,
+                                adjusted, target, sr,
                             )
-                            if adjusted.shape[-1] > slot_samples:
-                                adjusted = adjusted[..., :slot_samples]
-                            if ratio > MAX_STRETCH_RATIO:
-                                logger.info(
-                                    "seg %d compression %.2f× exceeded cap; "
-                                    "stretched to %.2f×, tail trimmed",
-                                    i, ratio, capped_ratio,
-                                )
                         except Exception as e:
                             logger.warning(
                                 "atempo stretch failed for seg %d (%.2f×), "
                                 "falling back to linear interp: %s",
-                                i, ratio, e,
+                                i, sf.audio_rate, e,
                             )
                             adjusted = torch.nn.functional.interpolate(
                                 adjusted.unsqueeze(0),
-                                size=slot_samples,
+                                size=target,
                                 mode='linear',
                                 align_corners=False,
                             ).squeeze(0)
-                    else:  # "trim"
-                        adjusted = adjusted[..., :slot_samples]
+                        wl = adjusted.shape[-1]
+                    # Residual overflow → hard-trim to the segment's new video
+                    # slot (fade below keeps the cut pop-free).
+                    new_slot_samples = int(max(0.0, sf.new_end - sf.new_start) * sr)
+                    if new_slot_samples > 0 and wl > new_slot_samples:
+                        adjusted = adjusted[..., :new_slot_samples]
+                        wl = adjusted.shape[-1]
+                    # Truthful per-segment verdict for the UI badge.
+                    entry = {"status": sf.status}
+                    if sf.audio_rate > 1.0 + 1e-6:
+                        entry["audio_rate"] = round(sf.audio_rate, 3)
+                    if sf.video_ratio > 1.0 + 1e-6:
+                        entry["video_ratio"] = round(sf.video_ratio, 3)
+                    if sf.overflow_s > 0:
+                        entry["overflow_s"] = round(sf.overflow_s, 3)
+                    fit_status.append(entry)
+                    # Cue times from the ACTUAL stretched sample positions.
+                    fitted_cues.append({
+                        "id": sf.seg_id,
+                        "start": round(place_at, 4),
+                        "end": round(place_at + wl / sr, 4),
+                    })
+
+                elif strategy == "concise":
+                    # Mode A: never compress. Allow the audio to extend into the
+                    # silent gap before the next seg (existing heuristic) plus
+                    # any extra `overflow_budget_s`. Beyond that, hard-trim with
+                    # a short fade so we never overlap the next speaker.
+                    place_at = start
+                    effective_end = end
+                    if i + 1 < len(all_segment_wavs):
+                        next_start = all_segment_wavs[i + 1][0]
+                        gap = next_start - end
+                        if gap > GAP_OVERFLOW_BUFFER_S:
+                            effective_end = end + min(
+                                gap - GAP_OVERFLOW_BUFFER_S, GAP_OVERFLOW_MAX_S,
+                            )
+                    effective_end += overflow_budget_s
+                    slot_samples_eff = int(max(0.0, (effective_end - start)) * sr)
+                    if slot_samples_eff > 0 and wl > slot_samples_eff:
+                        overflow_s = (wl - slot_samples_eff) / sr
+                        adjusted = adjusted[..., :slot_samples_eff]
+                        wl = adjusted.shape[-1]
+                        fit_status.append({
+                            "status": "overflows",
+                            "overflow_s": round(overflow_s, 3),
+                        })
+                    else:
+                        fit_status.append({"status": "fits"})
+
+                else:
+                    # strict_slot (legacy): preserve the previous atempo / trim /
+                    # off semantics so existing callers and back-compat tests
+                    # keep passing.
+                    place_at = start
+                    effective_end = end
+                    if i + 1 < len(all_segment_wavs):
+                        next_start = all_segment_wavs[i + 1][0]
+                        gap = next_start - end
+                        if gap > GAP_OVERFLOW_BUFFER_S:
+                            effective_end = end + min(
+                                gap - GAP_OVERFLOW_BUFFER_S, GAP_OVERFLOW_MAX_S,
+                            )
+                    slot_samples = int(max(0.0, (effective_end - start)) * sr)
+                    if slot_fit != "off" and slot_samples > 0 and wl > slot_samples:
+                        if slot_fit == "time_stretch":
+                            ratio = wl / slot_samples
+                            capped_ratio = min(ratio, MAX_STRETCH_RATIO)
+                            capped_target = int(wl / capped_ratio)
+                            try:
+                                adjusted = await _pitch_preserving_stretch(
+                                    adjusted, capped_target, sr,
+                                )
+                                if adjusted.shape[-1] > slot_samples:
+                                    adjusted = adjusted[..., :slot_samples]
+                                if ratio > MAX_STRETCH_RATIO:
+                                    logger.info(
+                                        "seg %d compression %.2f× exceeded cap; "
+                                        "stretched to %.2f×, tail trimmed",
+                                        i, ratio, capped_ratio,
+                                    )
+                            except Exception as e:
+                                logger.warning(
+                                    "atempo stretch failed for seg %d (%.2f×), "
+                                    "falling back to linear interp: %s",
+                                    i, ratio, e,
+                                )
+                                adjusted = torch.nn.functional.interpolate(
+                                    adjusted.unsqueeze(0),
+                                    size=slot_samples,
+                                    mode='linear',
+                                    align_corners=False,
+                                ).squeeze(0)
+                        else:  # "trim"
+                            adjusted = adjusted[..., :slot_samples]
+                        wl = adjusted.shape[-1]
+                    fit_status.append({
+                        "status": "fits",
+                        "compression_applied": (slot_fit == "time_stretch"
+                                                and wl != int(natural_dur * sr)),
+                    })
+
+                # Common: short fades to avoid pops, then mix into disk-backed audio.
+                fade_ms = 15
+                fade_samples = int((fade_ms / 1000.0) * sr)
+                if wl > fade_samples * 2:
+                    ramp_up = torch.linspace(0, 1, fade_samples, device=adjusted.device)
+                    ramp_down = torch.linspace(1, 0, fade_samples, device=adjusted.device)
+                    adjusted[0, :fade_samples] *= ramp_up
+                    adjusted[0, -fade_samples:] *= ramp_down
+
+                s = int(place_at * sr)
+                if s < 0:
+                    adjusted = adjusted[..., -s:]
                     wl = adjusted.shape[-1]
-                fit_status.append({
-                    "status": "fits",
-                    "compression_applied": (slot_fit == "time_stretch"
-                                            and wl != int(natural_dur * sr)),
-                })
+                    s = 0
+                e = min(s + wl, total_samples)
+                if s < total_samples and e > s:
+                    mix_len = e - s
+                    seg_np = (
+                        adjusted[:, :mix_len]
+                        .detach()
+                        .cpu()
+                        .to(torch.float32)
+                        .clamp(-1.0, 1.0)
+                        .squeeze(0)
+                        .numpy()
+                    )
+                    mix_audio[s:e] += seg_np
+                try:
+                    del wav, adjusted
+                except Exception:
+                    pass
+                _release_audio_tensors()
 
-            # Common: short fades to avoid pops, then mix into full_audio.
-            fade_ms = 15
-            fade_samples = int((fade_ms / 1000.0) * sr)
-            if wl > fade_samples * 2:
-                ramp_up = torch.linspace(0, 1, fade_samples, device=adjusted.device)
-                ramp_down = torch.linspace(1, 0, fade_samples, device=adjusted.device)
-                adjusted[0, :fade_samples] *= ramp_up
-                adjusted[0, -fade_samples:] *= ramp_down
-
-            s = int(place_at * sr)
-            e = min(s + wl, total_samples)
-            if s < total_samples:
-                full_audio[:, s:e] += adjusted[:, :e - s]
-
-        lang_code = req.language_code or "und"
-        track_path = os.path.join(DUB_DIR, job_id, f"dubbed_{lang_code}.wav")
-        _t_save_0 = time.perf_counter()
-        # Apply invisible watermark to the final assembled track
-        full_audio = embed_watermark(full_audio, sr)
-        atomic_save_wav(track_path, full_audio, sr)
-        _t_save = time.perf_counter() - _t_save_0
-        _t_mix = _t_save_0 - _t_loop_end
+            _t_save_0 = time.perf_counter()
+            mix_audio.flush()
+            _write_memmap_wav_atomic(track_path, mix_audio[:mix_samples], sr)
+            _t_save = time.perf_counter() - _t_save_0
+            _t_mix = _t_save_0 - _t_loop_end
+        finally:
+            try:
+                mix_audio.flush()
+                mix_mmap = getattr(mix_audio, "_mmap", None)
+                if mix_mmap is not None:
+                    mix_mmap.close()
+            except Exception:
+                pass
+            try:
+                del mix_audio
+            except Exception:
+                pass
+            gc.collect()
+            try:
+                os.unlink(mix_path)
+            except OSError:
+                pass
+            # The final track is written; the mix_<id> scratch WAVs (silence /
+            # cached-fail / error slots) have served their only purpose as
+            # assembly inputs and would otherwise leak into the job dir.
+            for _mp in _mix_temp_paths:
+                try:
+                    os.unlink(_mp)
+                except OSError:
+                    pass
         # Per-track metadata. For stretch_video, the dub wav is at the new
         # (longer) timeline, so we record its actual duration here too — the
         # mux step needs this to know whether to use the original video as-is
         # or stretch it per the plan.
-        track_dur = full_audio.shape[-1] / sr if full_audio.shape[-1] > 0 else 0.0
+        track_dur = total_samples / sr if total_samples > 0 else 0.0
         job["dubbed_tracks"][lang_code] = {
             "path": track_path,
             "language": req.language,
