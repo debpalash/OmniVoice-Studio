@@ -82,7 +82,11 @@
    ~32px title-only, ~40px when a description wraps under the title. */
 .st-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  /* minmax(0, 1fr) so a long title can't push the control column off the right
+     edge; the label shrinks (its children wrap / ellipsis) instead of forcing
+     row overflow. Pairs with the page grid's minmax(0,1fr) to keep every row
+     contained within the available width. */
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 1px var(--space-5);             /* tight row-gap, breathable col-gap */
   padding: var(--space-4) 0;           /* 8px → ~34px title-only row */

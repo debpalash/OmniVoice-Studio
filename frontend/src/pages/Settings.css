@@ -78,7 +78,13 @@
 
 /* ── Wide (≥760px): vertical rail + content column ──────────────── */
 @media (min-width: 760px) {
-  .settings-page { display: grid; grid-template-columns: 168px 1fr; gap: var(--space-5); align-content: start; }
+  /* minmax(0, 1fr) — NOT 1fr (= minmax(auto,1fr)) — so the content track can
+     shrink below its content's min-size. Without the 0 minimum, a non-shrinking
+     child (a nowrap status pill, a long path) forces the track wider than the
+     viewport and clips at the window edge, which max-width on .settings-content
+     can't claw back. This is the responsive-containment guarantee for EVERY
+     settings page (they all share this grid). */
+  .settings-page { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: var(--space-5); align-content: start; }
   .settings-page h1,
   .settings-page .settings-subtitle { grid-column: 1 / -1; }
   .ui-tabs.settings-tabs-ui {
