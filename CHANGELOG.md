@@ -149,6 +149,11 @@ across dub, generate, and design (a corrupt-binary failure no longer poses as
   ffmpeg, or an engine binary) was labelled *"ran out of memory — try Flush,"*
   sending users down the wrong path. It now says the component is corrupt or
   built for the wrong architecture and to reinstall/repair it. (#705)
+- **A "[Errno 32] Broken pipe" mid-generation no longer poses as "out of
+  memory."** When the desktop app that launched the backend closes or relaunches,
+  the backend's output pipe breaks and a synth can fail with `[Errno 32] Broken
+  pipe`. That was labelled *"ran out of memory — try Flush,"* which never helps;
+  it now tells you the backend lost its pipe and to restart the app. (#715)
 - **File drag-and-drop works on macOS again.** The app's drop zones use HTML5
   file drops, but Tauri intercepts OS drag-and-drop by default (`dragDropEnabled`)
   and swallowed the files before the webview saw them — most visibly on macOS

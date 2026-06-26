@@ -204,6 +204,20 @@ def _oom_friendly_reraise(e):
             f"([WinError 193]). Reinstall or repair that component — the Flush "
             f"button won't help here. Underlying error: {e}"
         ) from e
+    # #715: a "[Errno 32] Broken pipe" (BrokenPipeError) surfacing from
+    # generation is NOT out of memory — it means the backend's stdout/stderr
+    # pipe to the desktop shell that launched it closed mid-render (an orphaned
+    # backend whose parent shell exited or relaunched). main.py wraps
+    # sys.stdout/stderr to swallow EPIPE, but a C-level write inside the native
+    # engine/torch can still raise one past that guard. Flush won't help —
+    # relaunching the app re-parents the backend to a live shell.
+    if isinstance(e, BrokenPipeError) or "broken pipe" in _low or "errno 32" in _low:
+        raise RuntimeError(
+            f"The backend lost its output pipe mid-generation — the desktop app "
+            f"that launched it closed or relaunched ([Errno 32] Broken pipe). "
+            f"Restart the app and try again; the Flush button won't help here. "
+            f"Underlying error: {e}"
+        ) from e
     raise RuntimeError(
         f"TTS engine stopped mid-generation. This usually means it ran out of memory. "
         f"Try the Flush button to reload the model, then regenerate. Underlying error: {e}"
