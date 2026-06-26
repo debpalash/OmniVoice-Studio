@@ -12,7 +12,8 @@ from typing import Optional
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
 
-from core.db import db_conn
+import sqlite3
+from core.db import db_conn, ensure_schema
 from core.config import OUTPUTS_DIR, VOICES_DIR
 from services.model_manager import get_model, _gpu_pool
 from services.audio_io import _safe_torchaudio_save
@@ -635,13 +636,29 @@ async def generate_speech(
 
         audio_dur = round(audio_tensor.shape[-1] / sample_rate, 2)
 
-        with db_conn() as conn:
-            conn.execute(
-                "INSERT INTO generation_history (id, text, mode, language, instruct, profile_id, audio_path, duration_seconds, generation_time, seed, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                (audio_id, text[:200], history_mode or ("clone" if ref_audio_path else "design"),
-                 language or "Auto", instruct or "", resolved_profile_id,
-                 audio_filename, audio_dur, gen_time, used_seed, time.time())
-            )
+        # #710: the clip is already generated and saved above. A history-write
+        # failure — e.g. "no such table: generation_history" on a DB that missed
+        # schema init — must NOT 500 the user's generation. Self-heal the schema
+        # once and retry; if it still fails, log and return the audio anyway.
+        def _write_history():
+            with db_conn() as conn:
+                conn.execute(
+                    "INSERT INTO generation_history (id, text, mode, language, instruct, profile_id, audio_path, duration_seconds, generation_time, seed, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                    (audio_id, text[:200], history_mode or ("clone" if ref_audio_path else "design"),
+                     language or "Auto", instruct or "", resolved_profile_id,
+                     audio_filename, audio_dur, gen_time, used_seed, time.time())
+                )
+        try:
+            _write_history()
+        except sqlite3.OperationalError as e:
+            logger.warning("generation history write failed (%s); healing schema + retrying", e)
+            try:
+                ensure_schema()
+                _write_history()
+            except Exception as e2:
+                logger.warning("history write still failed after schema heal; returning audio anyway: %s", e2)
+        except Exception as e:
+            logger.warning("generation history write failed; returning audio anyway: %s", e)
         event_bus.emit("generation_history", {"action": "created", "id": audio_id})
 
         buffer = io.BytesIO()

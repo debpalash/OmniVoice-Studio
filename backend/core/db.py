@@ -268,6 +268,26 @@ def _reconcile_additive_columns(conn) -> None:
         canon.close()
 
 
+def ensure_schema() -> None:
+    """Idempotently ensure the base tables + additive columns exist.
+
+    A runtime self-heal for a DB that somehow missed init — e.g. a write hitting
+    ``no such table: generation_history`` (#710) because ``init_db()``'s
+    ``executescript`` never took on that DB. Safe to call anytime: it's just
+    ``CREATE ... IF NOT EXISTS`` plus the additive-only column reconcile, so it
+    never drops or retypes anything and is backward-compatible with user data.
+    Cheaper than ``init_db()`` (skips the legacy ``_migrate`` + alembic), so a
+    write path can call it on a schema error and retry without a 500.
+    """
+    conn = get_db()
+    try:
+        conn.executescript(_BASE_SCHEMA)
+        _reconcile_additive_columns(conn)
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def init_db():
     conn = get_db()
     try:

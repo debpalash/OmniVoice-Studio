@@ -124,6 +124,12 @@ across dub, generate, and design (a corrupt-binary failure no longer poses as
   "get a free token" link. (#657, #669)
 ### Fixed
 
+- **A synth that succeeded no longer 500s because of a history-logging hiccup.**
+  If the local database somehow missed schema init, recording the clip to
+  generation history failed with *"no such table: generation_history"* and
+  surfaced as a 500 — even though the audio had already been generated and saved.
+  The write now self-heals the schema and retries, and a history-logging failure
+  never fails the generation: you get your audio regardless. (#710)
 - **Long-video dubs no longer spike RAM during assembly.** Dub generation used
   to hold every segment's audio in memory until the whole track was mixed, so a
   50-video batch or a single feature-length dub could exhaust RAM and crash. Each
