@@ -551,6 +551,15 @@ def yt_download_sync(
         "extractor_retries": 5,
         "skip_unavailable_fragments": True,
     }
+    # #712: the format selector above pulls separate video+audio streams, so
+    # yt-dlp muxes them via ffmpeg (merge_output_format=mp4). yt-dlp only looks
+    # for ffmpeg on PATH and aborts with "you have requested merging of multiple
+    # formats but ffmpeg is not installed" — but OmniVoice's ffmpeg is often a
+    # bundled Tauri sidecar / imageio-ffmpeg binary that isn't on PATH (common on
+    # Windows). Point yt-dlp at the exact ffmpeg we resolve so the merge works.
+    _ffmpeg_bin = find_ffmpeg()
+    if _ffmpeg_bin:
+        ydl_opts["ffmpeg_location"] = _ffmpeg_bin
     if progress_hook is not None:
         ydl_opts["progress_hooks"] = [progress_hook]
 

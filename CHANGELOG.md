@@ -124,6 +124,11 @@ across dub, generate, and design (a corrupt-binary failure no longer poses as
   "get a free token" link. (#657, #669)
 ### Fixed
 
+- **Dubbing a video URL no longer fails with "ffmpeg is not installed."** yt-dlp
+  downloads video and audio as separate streams and muxes them with ffmpeg, but
+  it only looked on PATH — so on Windows (where OmniVoice's ffmpeg is a bundled
+  sidecar / `imageio-ffmpeg` binary off PATH) the merge aborted before the dub
+  could start. yt-dlp is now pointed at the same ffmpeg OmniVoice resolves. (#712)
 - **A synth that succeeded no longer 500s because of a history-logging hiccup.**
   If the local database somehow missed schema init, recording the clip to
   generation history failed with *"no such table: generation_history"* and
