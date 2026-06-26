@@ -159,6 +159,19 @@
   line-height: 1.45;
 }
 
+/* Belt-and-suspenders: any text-ish input / select inside a control must be
+   able to shrink and can NEVER overflow the row — regardless of an inline width
+   or min-width a panel hard-codes (e.g. RemoteBackend's inputs). Pairs with the
+   page/row minmax(0,1fr) grids so no Settings page can spill a control past the
+   available width. Excludes toggles/checkboxes/radios (fixed-size by design). */
+.st-row__control input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.st-row__control select,
+.st-row__control textarea {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 /* ── Input rows: label on top, full-width control row below ─────
    Used where the control is a text input + buttons that needs the full
    width (proxy / ffmpeg / credentials), not a squeezed right-aligned slot. */

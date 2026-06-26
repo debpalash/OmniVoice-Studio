@@ -67,6 +67,7 @@ export default function RemoteBackendPanel() {
       }
     >
       <SettingRow
+        className="st-row--stack"
         title="Backend URL"
         control={
           <input
@@ -74,12 +75,13 @@ export default function RemoteBackendPanel() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="http://gpu-box.tailnet.ts.net:3900"
-            style={{ flex: 1, minWidth: 220 }}
+            className="st-input st-input--mono"
             data-testid="remote-backend-url"
           />
         }
       />
       <SettingRow
+        className="st-row--stack"
         title="API key"
         control={
           <input
@@ -87,7 +89,7 @@ export default function RemoteBackendPanel() {
             value={key}
             onChange={(e) => setKey(e.target.value)}
             placeholder="value of OMNIVOICE_API_KEY on the server"
-            style={{ flex: 1, minWidth: 220 }}
+            className="st-input"
             data-testid="remote-backend-key"
           />
         }
