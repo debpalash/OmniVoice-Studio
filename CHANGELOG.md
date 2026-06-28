@@ -175,6 +175,17 @@ across dub, generate, and design (a corrupt-binary failure no longer poses as
   OSError the WhisperX/faster-whisper checks didn't catch, so it took down the
   whole preflight. They now report the engine as unavailable and auto-detect
   falls back to PyTorch-Whisper instead of dead-ending. (#692)
+- **A wedged transcription can no longer take the whole backend offline ("Can't
+  reach the local backend").** On some Windows + CUDA setups a whisperx/CTranslate2
+  transcribe hangs hard and never returns. Because ASR shares a small (1–2 worker)
+  GPU pool with TTS, one stuck worker starved every other request — so the next
+  thing you did (often a TTS *generate*) failed with "can't reach backend" even
+  though the process was alive. Two fixes: every whole-file transcribe path (dub
+  whole-file, batch, and live dictation) is now wall-clock **bounded** like the
+  dub QC / dictation / OpenAI paths already were; and on timeout the poisoned GPU
+  worker is **abandoned and the pool rebuilt**, so capacity is restored without
+  restarting the app. You still get an actionable message (Flush VRAM / pick a
+  smaller ASR model) for the durable fix. (#730)
 - **The stale-dub-session recovery now also covers the first upload/ingest, not
   just retry/import.** A dubbing job that vanished server-side during the initial
   transcribe flow showed the scary *"Job not found … report a bug"* toast; it

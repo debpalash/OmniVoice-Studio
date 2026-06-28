@@ -57,23 +57,44 @@ async def run_transcribe_guarded(executor, fn, *, what: str = "ASR",
     bound. On timeout, raise :class:`ASRTimeoutError` with guidance instead of
     letting the request hang forever.
 
-    NOTE: ``run_in_executor`` cannot cancel the underlying thread, so the worker
-    stays busy after a timeout — the message tells the user to restart and
-    reduce ASR load, which is the only real remedy for a starved GPU.
+    ``run_in_executor`` cannot cancel the underlying thread, so a wedged
+    transcribe (a CTranslate2 / whisperx / VAD hang seen on some Windows + CUDA
+    setups, #730) keeps occupying its GPU-pool worker. With a 1–2 worker pool
+    that starves every *other* request — including TTS generate — and the next
+    thing the user does surfaces as "Can't reach the local backend" even though
+    the process is alive. So on timeout we also ``reset()`` the pool when it
+    supports it (``_ResilientGpuPool``): the wedged thread is abandoned and the
+    next submit gets a fresh worker, restoring capacity without an app restart.
+    The orphaned thread still holds its VRAM until the process exits, which is
+    why the message still recommends a smaller ASR model / Flush as the durable
+    fix. Executors without ``reset`` (a plain ThreadPoolExecutor in tests) just
+    get the bound + actionable error.
     """
     loop = asyncio.get_running_loop()
     fut = loop.run_in_executor(executor, fn)
     try:
         return await asyncio.wait_for(fut, timeout=timeout)
     except asyncio.TimeoutError:
+        # Free the poisoned pool so a hung transcribe can't keep starving TTS /
+        # other ASR work (the "can't reach backend" symptom, #730).
+        _reset = getattr(executor, "reset", None)
+        if callable(_reset):
+            try:
+                _reset()
+                logger.warning(
+                    "%s transcription exceeded %.0fs — abandoned the GPU-pool "
+                    "worker to restore capacity (#730).", what, timeout,
+                )
+            except Exception:
+                logger.exception("GPU pool reset after ASR timeout failed")
         raise ASRTimeoutError(
             f"{what} transcription exceeded {timeout:.0f}s and was abandoned — "
             "the backend is running, but the ASR model is too heavy for the "
             "available compute. Most often the GPU is VRAM-starved: the resident "
             "TTS model and a large ASR model (large-v3) contend for memory. "
-            "Fixes: Flush the TTS model to free VRAM, pick a smaller ASR model "
-            "in Settings → Models, or set ASR to CPU. Then restart the app to "
-            "clear the stuck worker. (Raise OMNIVOICE_ASR_TRANSCRIBE_TIMEOUT_S "
+            "Capacity was restored automatically, but for a durable fix Flush the "
+            "TTS model to free VRAM, pick a smaller ASR model in Settings → "
+            "Models, or set ASR to CPU. (Raise OMNIVOICE_ASR_TRANSCRIBE_TIMEOUT_S "
             "for very long single files.)"
         )
 

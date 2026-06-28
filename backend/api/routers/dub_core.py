@@ -1017,7 +1017,12 @@ async def dub_transcribe(job_id: str):
     try:
         loop = asyncio.get_running_loop()
         try:
-            segments_result = await loop.run_in_executor(_gpu_pool, _transcribe)
+            # Bound the whole-file transcribe (#730): a wedged whisperx/CTranslate2
+            # call would otherwise hold its GPU-pool worker forever and starve
+            # every other request into a "can't reach backend". run_transcribe_guarded
+            # also resets the pool on timeout so capacity is restored.
+            from services.asr_backend import run_transcribe_guarded
+            segments_result = await run_transcribe_guarded(_gpu_pool, _transcribe, what="Dub")
         except asyncio.CancelledError:
             job["aborted"] = True
             raise

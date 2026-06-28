@@ -658,15 +658,17 @@ async def _transcribe_buffer(chunks: list[bytes], *, pcm_sr: int | None = None) 
 
     try:
         from services.model_manager import _gpu_pool
-        from services.asr_backend import get_capture_asr_backend
+        from services.asr_backend import get_capture_asr_backend, run_transcribe_guarded
 
         def _run():
             backend = get_capture_asr_backend()
             result = backend.transcribe(tmp, word_timestamps=False)
             return result.get("text", "")
 
-        loop = asyncio.get_running_loop()
-        text = await loop.run_in_executor(_gpu_pool, _run)
+        # Bound dictation transcribes (#730): a wedged whisperx/CTranslate2 call
+        # must not hold its GPU-pool worker forever and starve TTS / other ASR
+        # into a "can't reach backend"; on timeout the pool is reset to recover.
+        text = await run_transcribe_guarded(_gpu_pool, _run, what="Dictation")
         return text.strip()
     finally:
         try:
@@ -684,7 +686,7 @@ async def _transcribe_buffer_full(chunks: list[bytes], *, pcm_sr: int | None = N
 
     try:
         from services.model_manager import _gpu_pool
-        from services.asr_backend import get_capture_asr_backend
+        from services.asr_backend import get_capture_asr_backend, run_transcribe_guarded
 
         def _run():
             backend = get_capture_asr_backend()
@@ -719,8 +721,9 @@ async def _transcribe_buffer_full(chunks: list[bytes], *, pcm_sr: int | None = N
                 "engine": backend.id,
             }
 
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(_gpu_pool, _run)
+        # Bounded + pool-resetting on timeout (#730), same rationale as the
+        # partial path above.
+        return await run_transcribe_guarded(_gpu_pool, _run, what="Dictation")
     finally:
         try:
             os.unlink(tmp)

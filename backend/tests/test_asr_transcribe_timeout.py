@@ -67,3 +67,49 @@ def test_fast_transcribe_passes_through():
 def test_timeout_error_is_a_timeouterror_subclass():
     # Routers that catch broad TimeoutError (openai_compat) must also catch ours.
     assert issubclass(ASRTimeoutError, TimeoutError)
+
+
+def test_timeout_resets_a_resilient_pool_to_restore_capacity():
+    # #730: a wedged transcribe holds its GPU-pool worker forever; with a 1-2
+    # worker pool that starves TTS generate and surfaces as "can't reach
+    # backend". On timeout, run_transcribe_guarded must reset() a pool that
+    # supports it (the real _ResilientGpuPool) so the next submit gets a fresh
+    # worker — capacity restored without an app restart.
+    class _FakePool(ThreadPoolExecutor):
+        def __init__(self):
+            super().__init__(max_workers=1)
+            self.reset_calls = 0
+
+        def reset(self):
+            self.reset_calls += 1
+
+    pool = _FakePool()
+
+    def _hang():
+        time.sleep(5)
+        return "never"
+
+    async def _go():
+        with pytest.raises(ASRTimeoutError):
+            await run_transcribe_guarded(pool, _hang, what="Dub", timeout=0.2)
+
+    asyncio.run(_go())
+    assert pool.reset_calls == 1
+    pool.shutdown(wait=False)
+
+
+def test_timeout_without_reset_capable_pool_does_not_crash():
+    # A plain ThreadPoolExecutor (no reset) must still bound + raise cleanly —
+    # the reset() is best-effort, never required.
+    pool = ThreadPoolExecutor(max_workers=1)
+
+    def _hang():
+        time.sleep(5)
+        return "never"
+
+    async def _go():
+        with pytest.raises(ASRTimeoutError):
+            await run_transcribe_guarded(pool, _hang, what="QC", timeout=0.2)
+
+    asyncio.run(_go())
+    pool.shutdown(wait=False)
