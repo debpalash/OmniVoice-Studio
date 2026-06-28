@@ -34,6 +34,25 @@ from services import dub_pipeline
 router = APIRouter()
 logger = logging.getLogger("omnivoice.api")
 
+
+def _reset_pool_on_wedge(pool) -> None:
+    """Abandon a GPU pool whose worker is wedged on a timed-out transcribe (#730).
+
+    Python can't kill the stuck thread, but dropping the poisoned pool means the
+    next submit (the next chunk, or a concurrent TTS generate) gets a fresh
+    worker instead of queueing behind the wedged one — the same recovery the
+    whole-file paths get inside ``run_transcribe_guarded``. Best-effort and a
+    no-op for a pool without ``reset`` (a plain executor), so it never raises on
+    the failure path it's trying to recover from.
+    """
+    _reset = getattr(pool, "reset", None)
+    if callable(_reset):
+        try:
+            _reset()
+        except Exception:
+            logger.exception("GPU pool reset after transcribe timeout failed")
+
+
 # ── Legacy-name aliases to services/dub_pipeline.py ────────────────────────
 # Phase 2.4 moved the business logic into a service. Other routers
 # (dub_generate, dub_translate, dub_export) + internal call sites below still
@@ -568,6 +587,11 @@ async def dub_transcribe_stream(
                     "Transcribe chunk %d/%d timed out after %.0fs (job=%s)",
                     i + 1, chunks_n, TRANSCRIBE_CHUNK_TIMEOUT_S, job_id,
                 )
+                # #730: the wedged chunk thread keeps holding its GPU-pool worker.
+                # Abandon the poisoned pool so the next chunk (and any TTS work)
+                # gets a fresh worker instead of queueing behind the stuck one —
+                # same recovery the whole-file paths get via run_transcribe_guarded.
+                _reset_pool_on_wedge(_gpu_pool)
                 part = {
                     "chunks": [], "language": None,
                     "error": f"Chunk {i+1} timed out after {TRANSCRIBE_CHUNK_TIMEOUT_S:.0f}s — "
