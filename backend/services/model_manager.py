@@ -578,7 +578,6 @@ def _repair_model_cache(checkpoint: str) -> bool:
     except Exception as imp_err:  # pragma: no cover - huggingface_hub is a hard dep
         logger.warning("Cannot import snapshot_download to repair cache: %s", imp_err)
         return False
-    logger.info("Auto-repairing incomplete model cache for %s …", checkpoint)
     dl_kwargs: dict = {"repo_id": checkpoint}
     endpoint = os.environ.get("HF_ENDPOINT")
     if endpoint:
@@ -586,22 +585,50 @@ def _repair_model_cache(checkpoint: str) -> bool:
     if os.name == "nt":
         # Match the install path (download.py): avoid symlinks on Windows.
         dl_kwargs["local_dir_use_symlinks"] = False
-    try:
-        snapshot_download(**dl_kwargs)
-    except TypeError:
-        # Older/newer huggingface_hub may not accept local_dir_use_symlinks
-        # on a cache-only call — retry without the optional knob.
-        dl_kwargs.pop("local_dir_use_symlinks", None)
+
+    def _attempt() -> None:
+        """One snapshot_download, tolerating an hf_hub that rejects the optional
+        symlink knob. Lets real failures (network, gated repo, disk) propagate."""
         try:
             snapshot_download(**dl_kwargs)
+        except TypeError:
+            # Older/newer huggingface_hub may not accept local_dir_use_symlinks
+            # on a cache-only call — retry without the optional knob.
+            dl_kwargs.pop("local_dir_use_symlinks", None)
+            snapshot_download(**dl_kwargs)
+
+    # Bounded retries (#739): an incomplete cache *is* an interrupted download, so
+    # a single transient blip mid-repair shouldn't drop the user back to a manual
+    # delete-and-reinstall. snapshot_download resumes between attempts (present,
+    # correctly-sized blobs are skipped by hash), so each retry continues where
+    # the last left off — cheap and idempotent. Counts/backoff are env-tunable
+    # for restricted networks and kept fast (backoff=0) in tests.
+    try:
+        retries = max(1, int(os.environ.get("OMNIVOICE_MODEL_REPAIR_RETRIES", "3")))
+    except ValueError:
+        retries = 3
+    try:
+        backoff = max(0.0, float(os.environ.get("OMNIVOICE_MODEL_REPAIR_BACKOFF_S", "2")))
+    except ValueError:
+        backoff = 2.0
+
+    logger.info(
+        "Auto-repairing incomplete model cache for %s (up to %d attempt(s)) …",
+        checkpoint, retries,
+    )
+    for attempt in range(1, retries + 1):
+        try:
+            _attempt()
+            logger.info("Auto-repair of %s completed; retrying model load.", checkpoint)
+            return True
         except Exception as e:
-            logger.warning("Auto-repair of %s failed: %s", checkpoint, e)
-            return False
-    except Exception as e:
-        logger.warning("Auto-repair of %s failed: %s", checkpoint, e)
-        return False
-    logger.info("Auto-repair of %s completed; retrying model load.", checkpoint)
-    return True
+            logger.warning(
+                "Auto-repair of %s attempt %d/%d failed: %s",
+                checkpoint, attempt, retries, e,
+            )
+            if attempt < retries and backoff:
+                time.sleep(backoff * attempt)
+    return False
 
 
 _DEFAULT_OMNIVOICE_CHECKPOINT = "k2-fsa/OmniVoice"

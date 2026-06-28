@@ -142,8 +142,52 @@ def test_repair_returns_false_when_download_fails(model_manager, monkeypatch):
     """A failed re-fetch (no network, gated repo) returns False, never raises."""
     import huggingface_hub
 
+    calls = []
+
     def boom(**kwargs):
+        calls.append(kwargs)
         raise OSError("network down")
 
     monkeypatch.setattr(huggingface_hub, "snapshot_download", boom)
+    monkeypatch.setenv("OMNIVOICE_MODEL_REPAIR_BACKOFF_S", "0")  # no real sleeps
+    monkeypatch.setenv("OMNIVOICE_MODEL_REPAIR_RETRIES", "3")
     assert model_manager._repair_model_cache("test/checkpoint") is False
+    # #739: a transient failure must be retried, not given up on after one try.
+    assert len(calls) == 3
+
+
+def test_repair_retries_then_succeeds(model_manager, monkeypatch):
+    """#739: a flaky connection that drops twice then completes must self-heal —
+    the repair retries snapshot_download and returns True, so the user is never
+    sent to a manual delete-and-reinstall for a transient blip."""
+    import huggingface_hub
+
+    attempts = {"n": 0}
+
+    def flaky(**kwargs):
+        attempts["n"] += 1
+        if attempts["n"] < 3:
+            raise OSError("connection reset")
+        return "/cache/test/checkpoint"
+
+    monkeypatch.setattr(huggingface_hub, "snapshot_download", flaky)
+    monkeypatch.setenv("OMNIVOICE_MODEL_REPAIR_BACKOFF_S", "0")
+    monkeypatch.setenv("OMNIVOICE_MODEL_REPAIR_RETRIES", "3")
+    assert model_manager._repair_model_cache("test/checkpoint") is True
+    assert attempts["n"] == 3
+
+
+def test_repair_retries_are_env_tunable(model_manager, monkeypatch):
+    """A restricted network can lower/raise the attempt count; a single attempt
+    must still work (no off-by-one that skips the only try)."""
+    import huggingface_hub
+
+    calls = []
+    monkeypatch.setattr(
+        huggingface_hub, "snapshot_download",
+        lambda **k: calls.append(k) or (_ for _ in ()).throw(OSError("down")),
+    )
+    monkeypatch.setenv("OMNIVOICE_MODEL_REPAIR_BACKOFF_S", "0")
+    monkeypatch.setenv("OMNIVOICE_MODEL_REPAIR_RETRIES", "1")
+    assert model_manager._repair_model_cache("test/checkpoint") is False
+    assert len(calls) == 1

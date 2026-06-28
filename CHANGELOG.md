@@ -322,7 +322,10 @@ across dub, generate, and design (a corrupt-binary failure no longer poses as
   and retries the load automatically. Offline mode (`HF_HUB_OFFLINE`) is
   respected — repair never makes a network call the user opted out of — and if
   the re-fetch still can't fix it, the actionable delete-and-reinstall message
-  is preserved as the fallback. (#581)
+  is preserved as the fallback. (#581) The repair now also **retries** the
+  re-fetch (3 attempts, resuming each time) so a single transient blip — the very
+  thing that interrupts a download in the first place — doesn't bounce you back
+  to a manual reinstall; tune with `OMNIVOICE_MODEL_REPAIR_RETRIES`. (#739)
 - **Dubbing a YouTube URL no longer dies on a transient "Broken pipe."**
   Pasting a video link could fail outright with `download: Unable to download
   video: [Errno 32] Broken pipe` — a broken pipe raised while the write side of
