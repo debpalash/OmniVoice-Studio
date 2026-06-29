@@ -325,7 +325,11 @@ across dub, generate, and design (a corrupt-binary failure no longer poses as
   is preserved as the fallback. (#581) The repair now also **retries** the
   re-fetch (3 attempts, resuming each time) so a single transient blip — the very
   thing that interrupts a download in the first place — doesn't bounce you back
-  to a manual reinstall; tune with `OMNIVOICE_MODEL_REPAIR_RETRIES`. (#739)
+  to a manual reinstall; tune with `OMNIVOICE_MODEL_REPAIR_RETRIES`. And if a
+  resume-repair still won't load — the signature of a *corrupt* file that kept
+  its size, which a resume trusts and never re-fetches — it now **force
+  re-downloads** the model files once before giving up, so even a bit-rotted
+  cache self-heals without a manual reinstall. (#739)
 - **Dubbing a YouTube URL no longer dies on a transient "Broken pipe."**
   Pasting a video link could fail outright with `download: Unable to download
   video: [Errno 32] Broken pipe` — a broken pipe raised while the write side of

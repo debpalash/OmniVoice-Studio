@@ -557,7 +557,7 @@ def _hf_offline() -> bool:
     return _env_flag("HF_HUB_OFFLINE") or _env_flag("TRANSFORMERS_OFFLINE")
 
 
-def _repair_model_cache(checkpoint: str) -> bool:
+def _repair_model_cache(checkpoint: str, *, force: bool = False) -> bool:
     """Re-fetch a checkpoint's missing files in place and report success.
 
     An interrupted download leaves the cache missing only some files;
@@ -566,7 +566,13 @@ def _repair_model_cache(checkpoint: str) -> bool:
     seconds and a complete one would no-op). Returns False — leaving the caller
     to surface the actionable delete-and-reinstall message — when repair is
     impossible (offline) or the re-fetch itself fails (no network, gated repo,
-    full disk). Never raises; repair is best-effort."""
+    full disk). Never raises; repair is best-effort.
+
+    ``force=True`` passes ``force_download`` so the re-fetch replaces files that
+    are *present but corrupt* — a truncated/garbled blob that still has the right
+    size won't be re-fetched by the default resume (#739). It re-downloads the
+    whole snapshot, so it's the last resort the load path only reaches after a
+    plain resume-repair didn't fix the cache."""
     if _hf_offline():
         logger.warning(
             "Model cache for %s is incomplete but HF offline mode is set — "
@@ -582,6 +588,9 @@ def _repair_model_cache(checkpoint: str) -> bool:
     endpoint = os.environ.get("HF_ENDPOINT")
     if endpoint:
         dl_kwargs["endpoint"] = endpoint
+    if force:
+        # Replace present-but-corrupt blobs that resume would trust by size.
+        dl_kwargs["force_download"] = True
     if os.name == "nt":
         # Match the install path (download.py): avoid symlinks on Windows.
         dl_kwargs["local_dir_use_symlinks"] = False
@@ -725,14 +734,36 @@ def _load_model_sync():
             try:
                 _model = _load()
             except OSError as e2:
-                # Repair ran but the cache is still unusable (e.g. the repo
-                # genuinely lacks weights, or the disk is corrupt). Fall back
-                # to the actionable message rather than the raw error.
-                raise RuntimeError(
-                    f"The TTS model cache for {checkpoint} is incomplete and "
-                    "could not be auto-repaired. Open Settings → Models, delete "
-                    "the OmniVoice TTS model, and install it again."
-                ) from e2
+                # Resume-repair ran but the cache is still unusable. The usual
+                # cause beyond "repo genuinely lacks weights" is a blob that's
+                # present with the right size but corrupt — snapshot_download's
+                # resume trusts it and never re-fetches it (#739). Force a full
+                # re-download (replaces corrupt blobs) and retry once more before
+                # falling back to the manual delete-and-reinstall message.
+                if _is_incomplete_cache_error(e2):
+                    _set_loading("loading_weights", "Re-downloading model files…")
+                    if _repair_model_cache(checkpoint, force=True):
+                        try:
+                            _model = _load()
+                        except OSError as e3:
+                            raise RuntimeError(
+                                f"The TTS model cache for {checkpoint} is incomplete "
+                                "and could not be auto-repaired. Open Settings → "
+                                "Models, delete the OmniVoice TTS model, and install "
+                                "it again."
+                            ) from e3
+                    else:
+                        raise RuntimeError(
+                            f"The TTS model cache for {checkpoint} is incomplete and "
+                            "could not be auto-repaired. Open Settings → Models, "
+                            "delete the OmniVoice TTS model, and install it again."
+                        ) from e2
+                else:
+                    raise RuntimeError(
+                        f"The TTS model cache for {checkpoint} is incomplete and "
+                        "could not be auto-repaired. Open Settings → Models, delete "
+                        "the OmniVoice TTS model, and install it again."
+                    ) from e2
 
         try:
             # plan-02 (#65): gate on Triton availability (+ user setting), not
