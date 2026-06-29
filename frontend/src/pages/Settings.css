@@ -6,7 +6,17 @@
    full-height panel instead of a stunted box floating in a void. min-height:100%
    is a FLOOR — tall tabs (Models/Logs) grow past it and scroll as before; if the
    parent height is ever indeterminate it simply no-ops. */
-.settings-page                   { padding: var(--space-5) var(--space-7) var(--space-7); display: flex; flex-direction: column; min-height: 100%; box-sizing: border-box; }
+.settings-page                   {
+  padding: var(--space-5) var(--space-7) var(--space-7);
+  display: flex; flex-direction: column; min-height: 100%; box-sizing: border-box;
+  /* Center the whole settings block (nav rail + content) as a unit so a wide
+     window doesn't leave everything jammed against the left with a dead void on
+     the right. The cap = rail + gap + content measure + the L/R page padding,
+     so the content track lands exactly at --settings-measure. */
+  width: 100%;
+  max-width: calc(var(--settings-rail) + var(--space-5) + var(--settings-measure) + 2 * var(--space-7));
+  margin-inline: auto;
+}
 .settings-page h1                { font-size: var(--text-lg); margin: 0 0 2px; }
 .settings-page .settings-subtitle{ font-size: var(--text-base); margin-bottom: var(--space-5); }
 .settings-tabs-ui                { margin-bottom: var(--space-3); }

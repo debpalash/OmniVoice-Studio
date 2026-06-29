@@ -50,7 +50,7 @@
      edge-to-edge (the "too spread out" report). The measure caps the content
      column at a readable width — like macOS System Settings — instead of the
      old 1280px; the rail token keeps the nav width in lockstep with the grid. */
-  --settings-measure: 720px;
+  --settings-measure: 660px;
   --settings-rail:    168px;
 
   /* ── Radius ─────────────────────────────────────────────────────── */
