@@ -261,9 +261,6 @@ pub fn run() {
             commands::set_dictation_shortcut,
             commands::get_launch_as_widget,
             commands::set_launch_as_widget,
-            commands::enable_pill_autostart,
-            commands::disable_pill_autostart,
-            commands::is_pill_autostart_enabled,
         ])
         .setup(move |app| {
             app.handle().plugin(tauri_plugin_dialog::init())?;
