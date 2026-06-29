@@ -169,6 +169,27 @@ class MyEngineBackend(TTSBackend):
 
 ---
 
+## Frontend file structure & size limits
+
+Frontend code stays modular so an edit loads one small file, not a 1900-line
+one. The rules:
+
+- **Size caps:** **soft 300 lines**, **hard 500 lines** per `.jsx`/`.css` file.
+  Anything over 500 lines must be split.
+- **Pages are thin orchestrators.** A file in `frontend/src/pages/` is just
+  layout + routing + state wiring that composes feature components — no inline
+  sub-component over ~50 lines.
+- **One component per file.** Co-locate `Foo.jsx` + `Foo.css` + `Foo.test.jsx`
+  together in a per-page feature folder under `frontend/src/components/` (e.g.
+  `components/settings/`, `components/dub/`).
+- **Shared bits go in a `primitives/` folder** inside the feature folder
+  (`components/settings/primitives/` is the existing example).
+- **Enforced by ESLint `max-lines`** (`max: 500`) — **warn-only for now** so it
+  never breaks CI, with the goal of upgrading to `error` once the backlog of
+  oversized files clears.
+
+---
+
 ## Commit Messages
 
 Write clear, concise messages. The PR title becomes the squash-merge commit.

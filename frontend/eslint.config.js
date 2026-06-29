@@ -24,6 +24,9 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // Modularization guardrail (warn-only so CI stays green). See
+      // CONTRIBUTING.md → "Frontend file structure & size limits".
+      'max-lines': ['warn', { max: 500, skipBlankLines: true, skipComments: true }],
     },
   },
 ])
