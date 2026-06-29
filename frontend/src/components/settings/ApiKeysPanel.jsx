@@ -22,7 +22,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, KeyRound, RefreshCw, Save, Trash2, XCircle } from 'lucide-react';
-import { apiJson, apiPost, API } from '../../api/client';
+import { apiJson, apiPost, apiFetch, API } from '../../api/client';
 import { SettingsSection, InfoHint } from './primitives';
 import './ApiKeysPanel.css';
 
@@ -96,8 +96,7 @@ export default function ApiKeysPanel() {
     try {
       const qs = alsoClearCli ? '?also_clear_hf_cli=true' : '';
       const url = `${API}/api/settings/hf-token${qs}`;
-      const res = await fetch(url, { method: 'DELETE' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await apiFetch(url, { method: 'DELETE' });
       setClearOpen(false);
       setAlsoClearCli(false);
       await refresh();

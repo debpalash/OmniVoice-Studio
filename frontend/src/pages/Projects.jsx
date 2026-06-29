@@ -64,8 +64,7 @@ function fmtDuration(sec) {
  */
 async function playRenderInApp(url) {
   try {
-    const resp = await fetch(url, { cache: 'no-store' });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const resp = await apiFetch(url, { cache: 'no-store' });
     await playBlobAudio(await resp.blob());
   } catch (e) {
     console.error('[Projects] render playback failed:', e);

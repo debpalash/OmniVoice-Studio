@@ -22,13 +22,12 @@ export default function HfTokenCard({ className = '' }) {
     if (!value || hfState === 'saving') return;
     setHfState('saving');
     try {
-      const { API } = await import('../api/client');
-      const res = await fetch(`${API}/system/set-env`, {
+      const { apiFetch } = await import('../api/client');
+      await apiFetch('/system/set-env', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'HF_TOKEN', value }),
       });
-      if (!res.ok) throw new Error(String(res.status));
       setHfState('saved');
       setHfToken('');
     } catch {

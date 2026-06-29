@@ -5,6 +5,7 @@
  */
 import { API_BASE as _PREVIEW_API, isTauriContext } from './apiBase';
 import { claimPlayback } from './playback';
+import { apiFetch } from '../api/client';
 
 const isTauri = isTauriContext();
 
@@ -36,7 +37,7 @@ export const fileToMediaUrl = async (file, prevUrls) => {
     try {
       const form = new FormData();
       form.append('video', file, file.name || 'media.wav');
-      const res = await fetch(`${_PREVIEW_API}/preview/upload`, { method: 'POST', body: form });
+      const res = await apiFetch(`${_PREVIEW_API}/preview/upload`, { method: 'POST', body: form });
       const data = await res.json();
       return {
         videoUrl: `${_PREVIEW_API}${data.url}`,
@@ -95,8 +96,7 @@ export const playBlobAudio = async (blob) => {
       try {
         const form = new FormData();
         form.append('video', blob, 'preview.audio');
-        const res = await fetch(`${_PREVIEW_API}/preview/upload`, { method: 'POST', body: form });
-        if (!res.ok) throw new Error(`preview upload failed: ${res.status}`);
+        const res = await apiFetch(`${_PREVIEW_API}/preview/upload`, { method: 'POST', body: form });
         const data = await res.json();
         const url = `${_PREVIEW_API}${data.audioUrl || data.url}`;
         const a = new Audio(url);

@@ -5,6 +5,7 @@
 // native save dialog instead; calling that dialog when no Tauri runtime is
 // present throws "Cannot read properties of undefined (reading 'invoke')"
 // (issue #256), so callers must guard on isTauri and route here otherwise.
+import { apiFetch } from '../api/client';
 
 /**
  * Parse a download filename out of a Content-Disposition header.
@@ -30,9 +31,11 @@ export function parseFilenameFromContentDisposition(header) {
  * filename, falling back to `fallbackName`. Returns the filename used.
  *
  * `deps` lets tests inject fetch/document/url without a real DOM + network.
+ * The default fetch is `apiFetch`, so backend downloads carry the LAN-share
+ * PIN / remote API-key headers (a raw fetch would 401 under remote-backend).
  */
 export async function browserDownload(url, fallbackName, deps = {}) {
-  const _fetch = deps.fetch ?? globalThis.fetch;
+  const _fetch = deps.fetch ?? apiFetch;
   const doc = deps.document ?? globalThis.document;
   const urlApi = deps.url ?? globalThis.URL;
 

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import { createProfile, deleteProfile as apiDeleteProfile, lockProfile, unlockProfile } from '../api/profiles';
 import { generateSpeech, audioUrlWithCacheBust } from '../api/generate';
+import { apiFetch } from '../api/client';
 import { playBlobAudio } from '../utils/media';
 import { PRESETS } from '../utils/constants';
 import { instructToFormValue } from '../utils/voiceInstruct';
@@ -192,8 +193,7 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
   const handleSaveHistoryAsProfile = useCallback(async (item) => {
     try {
       const pName = `Voice ${new Date().toLocaleTimeString('en', {hour:'2-digit', minute:'2-digit'})} — ${(item.mode||'design').toUpperCase()}`;
-      const response = await fetch(audioUrlWithCacheBust(item.audio_path));
-      if (!response.ok) throw new Error("Audio not found");
+      const response = await apiFetch(audioUrlWithCacheBust(item.audio_path));
       const blob = await response.blob();
       const file = new File([blob], item.audio_path, { type: "audio/wav" });
 

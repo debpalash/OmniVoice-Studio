@@ -499,7 +499,7 @@ export default function LogsFooter() {
                   // every session until a NEW crash grows the log.
                   if (notif.id === 'crash-last-session') {
                     import('../api/client')
-                      .then(({ API }) => fetch(`${API}/system/crash/ack`, { method: 'POST' }))
+                      .then(({ apiFetch }) => apiFetch('/system/crash/ack', { method: 'POST' }))
                       .catch(() => {});
                   }
                   if (notif.action.type === 'navigate') {

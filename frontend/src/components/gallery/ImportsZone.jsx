@@ -10,7 +10,7 @@ import {
   saveVoiceAsProfile, uploadVoiceClip, previewVoiceUrl,
 } from '../../api/gallery';
 import AudioTrimmer from '../AudioTrimmer';
-import { apiUrl } from '../../api/client';
+import { apiFetch } from '../../api/client';
 import { askConfirm } from '../../utils/dialog';
 
 // ── My Imports zone (neutral importer) ───────────────────────────────────────
@@ -140,8 +140,7 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
 
   const handleTrimClick = async (v) => {
     try {
-      const resp = await fetch(apiUrl(previewVoiceUrl(v.id)));
-      if (!resp.ok) throw new Error('fetch failed');
+      const resp = await apiFetch(previewVoiceUrl(v.id));
       const blob = await resp.blob();
       const file = new File([blob], `${v.name}.wav`, { type: 'audio/wav' });
       setTrimming({ voice: v, file });

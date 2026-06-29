@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CATEGORIES } from '../utils/constants';
 import { Segmented } from '../ui';
 import { useAppStore } from '../store';
-import { API, apiPost } from '../api/client';
+import { API, apiPost, apiFetch } from '../api/client';
 import { mergeDescribedAttrs } from '../utils/voiceInstruct';
 import { listEngines } from '../api/engines';
 import { claimPlayback, stopActivePlayback, usePlaybackSource } from '../utils/playback';
@@ -119,7 +119,7 @@ export default function CloneDesignTab(props) {
   // Fetch personality presets from backend
   const { data: personalities = [] } = useQuery({
     queryKey: ['personalities'],
-    queryFn: () => fetch(`${API}/personalities`).then(r => r.json()),
+    queryFn: () => apiFetch(`${API}/personalities`).then(r => r.json()),
     staleTime: Infinity,
   });
 

@@ -38,20 +38,15 @@ export default function CredentialsTab({ info }) {
     if (!value) return;
     setSaving(key);
     try {
-      const { API } = await import('../../api/client');
-      const res = await fetch(`${API}/system/set-env`, {
+      const { apiFetch } = await import('../../api/client');
+      await apiFetch('/system/set-env', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, value }),
       });
-      if (res.ok) {
-        toast.success(t('credentials.saved_session', { key }));
-        setSaved(prev => ({ ...prev, [key]: true }));
-        setValues(prev => ({ ...prev, [key]: '' }));
-      } else {
-        const d = await res.json().catch(() => ({}));
-        toast.error(d.detail || t('credentials.save_failed'));
-      }
+      toast.success(t('credentials.saved_session', { key }));
+      setSaved(prev => ({ ...prev, [key]: true }));
+      setValues(prev => ({ ...prev, [key]: '' }));
     } catch (e) {
       toast.error(t('credentials.save_error', { message: e.message }));
     } finally {

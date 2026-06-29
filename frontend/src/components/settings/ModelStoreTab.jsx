@@ -79,21 +79,16 @@ export default function ModelStoreTab({ info, modelBadge }) {
     if (!value) return;
     setHfSaving(true);
     try {
-      const { API } = await import('../../api/client');
-      const res = await fetch(`${API}/system/set-env`, {
+      const { apiFetch } = await import('../../api/client');
+      await apiFetch('/system/set-env', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'HF_TOKEN', value }),
       });
-      if (res.ok) {
-        toast.success(t('models.hf_token_set_toast'));
-        setHfSaved(true);
-        setHfToken('');
-        setHfExpanded(false);
-      } else {
-        const d = await res.json().catch(() => ({}));
-        toast.error(d.detail || t('models.hf_token_save_failed'));
-      }
+      toast.success(t('models.hf_token_set_toast'));
+      setHfSaved(true);
+      setHfToken('');
+      setHfExpanded(false);
     } catch (e) { toast.error(t('settings.save_failed', { message: e.message })); }
     finally { setHfSaving(false); }
   };

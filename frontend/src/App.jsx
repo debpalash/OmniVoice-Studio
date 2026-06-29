@@ -59,7 +59,7 @@ import {
   POPULAR_LANGS, POPULAR_ISO, TAGS, CATEGORIES, PRESETS, CLONE_MAX_SECONDS,
 } from './utils/constants';
 import { LANG_CODES } from './utils/languages';
-import { API } from './api/client';
+import { API, apiFetch } from './api/client';
 import { flushMemory as apiFlushMemory } from './api/system';
 import { saveProject as apiSaveProject, loadProject as apiLoadProject, deleteProject as apiDeleteProject, renameProject as apiRenameProject } from './api/projects';
 import { exportAction, exportReveal, exportRecord } from './api/exports';
@@ -480,8 +480,7 @@ function App() {
         // voice warm without depending on seeded profiles.
         fd.append('instruct', 'A warm, friendly narrator voice, medium pace');
         fd.append('num_step', '16');
-        const res = await fetch(`${API}/generate`, { method: 'POST', body: fd });
-        if (!res.ok) return;
+        const res = await apiFetch(`${API}/generate`, { method: 'POST', body: fd });
         const blob = await res.blob();
         await playBlobAudio(blob);
         toast.success(i18n.t('firstrun.first_sound_done'), { duration: 7000 });
@@ -674,11 +673,7 @@ function App() {
         // pick is the write authorization, and the backend never handles a
         // destination path (#309).
         if (['srt', 'vtt'].includes(extGuess)) {
-          const res = await fetch(url);
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.detail || 'Save failed');
-          }
+          const res = await apiFetch(url);
           const text = await res.text();
           const { invoke } = await import('@tauri-apps/api/core');
           await invoke('save_text_file', { path: destPath, contents: text });
@@ -691,11 +686,7 @@ function App() {
         }
 
         const sep = url.includes('?') ? '&' : '?';
-        const res = await fetch(`${url}${sep}save_path=${encodeURIComponent(destPath)}`);
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.detail || 'Save failed');
-        }
+        const res = await apiFetch(`${url}${sep}save_path=${encodeURIComponent(destPath)}`);
         // Every save_path-aware endpoint returns a JSON envelope. Guard the
         // content-type so a raw-body response surfaces as a clear error
         // instead of a cryptic JSON.parse failure (#309).
@@ -905,7 +896,7 @@ function App() {
     if (!(await askConfirm('Delete this history item?'))) return;
     try {
       const endpoint = type === 'dub' ? `${API}/dub/history/${id}` : `${API}/history/${id}`;
-      await fetch(endpoint, { method: 'DELETE' });
+      await apiFetch(endpoint, { method: 'DELETE' });
       if (type === 'dub') {
         loadDubHistory();
       } else {

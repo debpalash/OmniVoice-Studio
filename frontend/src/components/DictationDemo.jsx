@@ -23,7 +23,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Play, Pause, Keyboard, Mic, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { API } from '../api/client';
+import { API, apiFetch } from '../api/client';
 import { Button } from '../ui';
 import './DictationDemo.css';
 
@@ -72,8 +72,8 @@ export default function DictationDemo({ embedded = false }) {
   // demo if not, mirroring DubbingDemo's missing-manifest behavior.
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API}${SCRIPTS[0].wav}`, { method: 'HEAD' })
-      .then((r) => { if (!cancelled) setAssetsAvailable(r.ok); })
+    apiFetch(`${API}${SCRIPTS[0].wav}`, { method: 'HEAD' })
+      .then(() => { if (!cancelled) setAssetsAvailable(true); })
       .catch(() => { if (!cancelled) setAssetsAvailable(false); });
     return () => { cancelled = true; };
   }, []);
@@ -148,16 +148,11 @@ export default function DictationDemo({ embedded = false }) {
       [script.id]: { state: 'loading', text: '', error: '' },
     }));
     try {
-      const wavRes = await fetch(`${API}${script.wav}`);
-      if (!wavRes.ok) throw new Error(`Could not fetch sample: ${wavRes.status}`);
+      const wavRes = await apiFetch(`${API}${script.wav}`);
       const blob = await wavRes.blob();
       const fd = new FormData();
       fd.append('audio', blob, `${script.id}.wav`);
-      const tRes = await fetch(`${API}/transcribe`, { method: 'POST', body: fd });
-      if (!tRes.ok) {
-        const errBody = await tRes.text().catch(() => '');
-        throw new Error(`Transcribe failed (${tRes.status}): ${errBody.slice(0, 120)}`);
-      }
+      const tRes = await apiFetch(`${API}/transcribe`, { method: 'POST', body: fd });
       const json = await tRes.json();
       setTranscripts((prev) => ({
         ...prev,

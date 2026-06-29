@@ -13,7 +13,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Play, Film, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { API } from '../api/client';
+import { API, apiFetch } from '../api/client';
 import './DubbingDemo.css';
 
 export default function DubbingDemo({ onDismiss }) {
@@ -27,11 +27,8 @@ export default function DubbingDemo({ onDismiss }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API}/demo_audio/demo/dubbing/manifest.json`)
-      .then(r => {
-        if (!r.ok) throw new Error(`manifest ${r.status}`);
-        return r.json();
-      })
+    apiFetch(`${API}/demo_audio/demo/dubbing/manifest.json`)
+      .then(r => r.json())
       .then(j => { if (!cancelled) setManifest(j); })
       .catch(e => { if (!cancelled) setError(e?.message || String(e)); });
     return () => { cancelled = true; };
