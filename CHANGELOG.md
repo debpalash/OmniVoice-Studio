@@ -6,7 +6,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
-## [0.3.8] — 2026-06-26
+## [0.3.8] — 2026-06-29
 
 A stability-focused release that makes first-run and Windows "just work," ships
 **live, faster-than-real-time local dictation** and a **user pronunciation
@@ -180,12 +180,12 @@ across dub, generate, and design (a corrupt-binary failure no longer poses as
   transcribe hangs hard and never returns. Because ASR shares a small (1–2 worker)
   GPU pool with TTS, one stuck worker starved every other request — so the next
   thing you did (often a TTS *generate*) failed with "can't reach backend" even
-  though the process was alive. Two fixes: every whole-file transcribe path (dub
-  whole-file, batch, and live dictation) is now wall-clock **bounded** like the
-  dub QC / dictation / OpenAI paths already were; and on timeout the poisoned GPU
-  worker is **abandoned and the pool rebuilt**, so capacity is restored without
-  restarting the app. You still get an actionable message (Flush VRAM / pick a
-  smaller ASR model) for the durable fix. (#730)
+  though the process was alive. Two fixes: every transcribe path — whole-file
+  (dub whole-file, batch, live dictation) **and** the chunked dub stream — is now
+  wall-clock **bounded** like the dub QC / dictation / OpenAI paths already were;
+  and on timeout the poisoned GPU worker is **abandoned and the pool rebuilt**, so
+  capacity is restored without restarting the app. You still get an actionable
+  message (Flush VRAM / pick a smaller ASR model) for the durable fix. (#730)
 - **The stale-dub-session recovery now also covers the first upload/ingest, not
   just retry/import.** A dubbing job that vanished server-side during the initial
   transcribe flow showed the scary *"Job not found … report a bug"* toast; it
@@ -400,6 +400,12 @@ across dub, generate, and design (a corrupt-binary failure no longer poses as
   guard and a route-count floor), and a frontend feature-coverage test asserts
   every app mode is wired to a page and every feature has its i18n namespace — so
   an endpoint or page silently disappearing now fails CI on every PR.
+- **`bun desktop` no longer kills its own dev backend.** The dev launcher runs the
+  API and the Tauri app side-by-side, but the app's backend manager would "take
+  ownership" of port 3900 and kill the API the moment it booted (before it was
+  healthy), tearing the whole session down. The dev app now sets
+  `TAURI_SKIP_BACKEND` so it attaches to the running API instead of fighting it —
+  production launch is unaffected. (#745)
 
 ## [0.3.7] — 2026-06-20
 
