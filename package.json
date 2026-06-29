@@ -8,7 +8,7 @@
     "setup:api": "uv sync && uv run python scripts/setup.py",
     "dev:api": "uv run uvicorn main:app --app-dir backend --host 0.0.0.0 --port 3900 --reload --reload-dir backend",
     "dev:frontend": "bun run --cwd frontend dev",
-    "dev:desktop": "bun run --cwd frontend desktop",
+    "dev:desktop": "TAURI_SKIP_BACKEND=1 bun run --cwd frontend desktop",
     "wait:api": "wait-on -t 300000 http-get://localhost:3900/system/info",
     "wait:frontend": "wait-on -t 120000 http://localhost:5173",
     "predev": "kill-port 3900 3901 || true",
