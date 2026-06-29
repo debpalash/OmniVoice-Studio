@@ -105,6 +105,13 @@ jobs:
         working-directory: frontend
         run: bun run typecheck:ci
 
+      # oxlint gate — fast Rust linter, blocks on errors so lint debt can't
+      # re-accumulate (warnings, incl. the react-compiler advisories in
+      # `lint:hooks`, are non-blocking). See frontend/.oxlintrc.json.
+      - name: Frontend lint (oxlint)
+        working-directory: frontend
+        run: bun run lint
+
       - name: Run Vitest (frontend)
         working-directory: frontend
         run: bunx vitest run

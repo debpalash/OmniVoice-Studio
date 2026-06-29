@@ -128,7 +128,7 @@ export default function AudiobookTab({ profiles = [] }) {
 
   const onPreviewChapter = useCallback(async (i) => {
     setError('');
-    setChapterPrev((p) => ({ ...p, [i]: { ...(p[i] || {}), loading: true } }));
+    setChapterPrev((p) => ({ ...p, [i]: { ...p[i], loading: true } }));
     try {
       const lexicon = lexDict();
       const r = await audiobookPreviewChapter({
@@ -137,7 +137,7 @@ export default function AudiobookTab({ profiles = [] }) {
       });
       setChapterPrev((p) => ({ ...p, [i]: { url: audioUrl(r.output), loading: false } }));
     } catch (e) {
-      setChapterPrev((p) => ({ ...p, [i]: { ...(p[i] || {}), loading: false } }));
+      setChapterPrev((p) => ({ ...p, [i]: { ...p[i], loading: false } }));
       setError(e?.message || String(e));
     }
   }, [text, defaultVoice, lex]);
@@ -174,7 +174,7 @@ export default function AudiobookTab({ profiles = [] }) {
         } else if (evt.type === 'chapter') {
           setProgress({ current: evt.index + 1, total: evt.total, title: evt.title });
         } else if (evt.type === 'assembling') {
-          setProgress((p) => ({ ...(p || {}), assembling: true }));
+          setProgress((p) => ({ ...p, assembling: true }));
         } else if (evt.type === 'chapter_error') {
           setProgress({ current: evt.index + 1, total: evt.total, title: evt.title });
         } else if (evt.type === 'done') {

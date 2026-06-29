@@ -87,7 +87,6 @@ export default function ReadinessChecklist({ compact = false, showWhenAllPass = 
   // Determine if all critical checks pass
   const allPass = checks.every(c => c.status === 'pass' || c.status === 'warn');
   const anyFail = checks.some(c => c.status === 'fail');
-  const criticalFails = checks.filter(c => c.status === 'fail');
 
   // Hide when everything is fine (unless explicitly asked to show)
   if (!showWhenAllPass && allPass && !isLoading) return null;

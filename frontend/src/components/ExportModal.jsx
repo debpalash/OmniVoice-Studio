@@ -35,7 +35,7 @@ export default function ExportModal({
   burnSubs, setBurnSubs,
   API,
   triggerDownload,
-  handleDubDownload, handleDubAudioDownload, handleAudioExport,
+  handleDubDownload, handleAudioExport,
   segmentCount = 0,
   timingStrategy = '',
   onEnterprise,
@@ -80,7 +80,6 @@ export default function ExportModal({
     return out;
   }, [dubTracks, t]);
 
-  const dubOnlyTracks = useMemo(() => allTracks.filter(t => t.kind === 'dub'), [allTracks]);
   const selectedTracks = allTracks.filter(t => exportTracks[t.code] !== false);
   const selectedDubs = selectedTracks.filter(t => t.kind === 'dub');
 

@@ -1,4 +1,4 @@
-import React, { useCallback, isValidElement } from 'react';
+import React, { isValidElement } from 'react';
 import * as RadixMenu from '@radix-ui/react-dropdown-menu';
 import { ChevronRight } from 'lucide-react';
 import './Menu.css';

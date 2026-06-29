@@ -48,7 +48,7 @@ export default function WaveformPlayer({
   useEffect(() => { autoPlayRef.current = autoPlay; }, [autoPlay]);
 
   const [resolvedUrl, setResolvedUrl] = useState(null);
-  const [ready, setReady] = useState(false);
+  const [, setReady] = useState(false);
   const [failed, setFailed] = useState(false);   // WaveSurfer unavailable → native fallback
   const [missing, setMissing] = useState(false); // source 404s (stale history) → inert notice
   const [isPlaying, setIsPlaying] = useState(false);

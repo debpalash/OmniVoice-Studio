@@ -115,7 +115,7 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
   if (pin) extra['X-OmniVoice-Pin'] = pin;
   if (key) extra['Authorization'] = `Bearer ${key}`;
   const finalOpts: RequestInit = Object.keys(extra).length
-    ? { ...opts, headers: { ...(opts.headers as Record<string, string> || {}), ...extra } }
+    ? { ...opts, headers: { ...(opts.headers as Record<string, string>), ...extra } }
     : opts;
   const signal = finalOpts.signal as AbortSignal | null | undefined;
   let lastDetail = '';
@@ -171,7 +171,7 @@ export async function apiPost<T = unknown>(
   if (body instanceof FormData) {
     init.body = body;
   } else if (body !== undefined) {
-    init.headers = { 'Content-Type': 'application/json', ...(opts.headers as Record<string, string> || {}) };
+    init.headers = { 'Content-Type': 'application/json', ...(opts.headers as Record<string, string>) };
     init.body = JSON.stringify(body);
   }
   return apiJson<T>(path, init);

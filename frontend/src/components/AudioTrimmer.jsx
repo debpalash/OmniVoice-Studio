@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Scissors, Play, Pause, Check, ZoomIn, ZoomOut, Maximize2, Repeat } from 'lucide-react';
 import {
   clamp, encodeWav, computePeaksFromChannel, computePeaksAsync, pickTickInterval,
@@ -11,9 +11,6 @@ import { useTranslation } from 'react-i18next';
 import './AudioTrimmer.css';
 
 const EDGE_GRAB_PX = 10;
-
-const computePeaks = (buffer, buckets = DEFAULT_PEAK_BUCKETS) =>
-  computePeaksFromChannel(buffer.getChannelData(0), buckets);
 
 function fmtSec(t, precision = 2) {
   if (!isFinite(t)) return '0.00s';

@@ -256,7 +256,7 @@ function JobCard({ job, onCancel, onDelete, t }) {
       {/* Output downloads for done jobs */}
       {job.status === 'done' && job.outputs && Object.keys(job.outputs).length > 0 && (
         <div className="batch-queue__card-outputs">
-          {Object.entries(job.outputs).map(([lang, path]) => (
+          {Object.entries(job.outputs).map(([lang]) => (
             <a
               key={lang}
               className="batch-queue__card-dl"

@@ -163,6 +163,7 @@ export default function VoiceGallery() {
           onPreview={(a) => playUrl(archetypePreviewUrl(a.id), a.id)}
           onUse={async (a) => {
             try {
+              // eslint-disable-next-line react-hooks/rules-of-hooks -- useArchetypeAsProfile is an API call, not a React hook
               const r = await useArchetypeAsProfile(a.id, a.name);
               // Hand the new profile to the synthesis view and jump there so the
               // user lands ready-to-generate instead of hunting for it in the list.

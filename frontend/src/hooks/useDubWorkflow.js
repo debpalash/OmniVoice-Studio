@@ -9,7 +9,7 @@ import { dialectMatchesLang } from '../api/dialects';
 import { segmentGenInputs, applySpeakerCloneDefaults } from '../utils/segments';
 import { apiPost } from '../api/client';
 import { API } from '../api/client';
-import { playPing, isTauri } from '../utils/media';
+import { playPing } from '../utils/media';
 import { toast } from 'react-hot-toast';
 import { toastErrorWithReport } from '../utils/errorToast';
 import { addBreadcrumb } from '../utils/breadcrumbs';

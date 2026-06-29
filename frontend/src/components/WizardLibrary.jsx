@@ -288,6 +288,7 @@ export default function WizardLibrary() {
               type="button"
               className="frs-btn frs-btn--quiet swiz-lib__act"
               disabled={switching === b.id}
+              // eslint-disable-next-line react-hooks/rules-of-hooks -- useEngine is an action fn, not a React hook
               onClick={() => useEngine(b.id)}
             >
               {t('firstrun.lib_use', 'Use')}

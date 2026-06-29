@@ -18,7 +18,7 @@ export const PAUSE_MAX_MS = 10000;
 // body. Moved-equivalent of audiobook.py _HEADING_RE. Global+multiline.
 const HEADING_RE = /^[ \t]*#[ \t]+(\S.*)$/gm;
 // [voice:NAME] — content excludes BOTH brackets (mirrors _VOICE_RE).
-const VOICE_RE = /\[voice:([^\]\[]*)\]/g;
+const VOICE_RE = /\[voice:([^\][]*)\]/g;
 // Pause dialect mirroring omnivoice.utils.text._PAUSE_RE. JS has no atomic
 // group; the unit's own `(?:\s*(ms|s))?` is zero-width when no unit follows, so
 // the trailing `\s*` is the ONLY consumer of trailing whitespace — no two `\s*`

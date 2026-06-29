@@ -231,9 +231,6 @@ export default function Settings() {
     }
   }, [updateChannel, t]);
 
-  // refreshInfo polling replaced by TanStack Query (useSystemInfo + useModelStatus)
-  const refreshInfo = useCallback(() => {}, []);
-
   const refreshLogs = useCallback(async () => {
     setLoadingLogs(true);
     try {

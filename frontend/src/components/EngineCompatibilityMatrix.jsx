@@ -125,7 +125,7 @@ export default function EngineCompatibilityMatrix({
   const [activeFamily, setActiveFamily] = useState(family);
   // Phase 3 Plan 03-01 / TTS-05: which engine has its license dialog
   // currently open, or null. Only one dialog is ever open at a time.
-  const [licenseDialogFor, setLicenseDialogFor] = useState(null);
+  const [, setLicenseDialogFor] = useState(null);
 
   // health state keyed by engine id:
   //   { [id]: { inflight: boolean, ok?: boolean, message?: string,

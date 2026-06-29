@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, BookOpen, Sparkles, Check, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, BookOpen, Sparkles, Check, ChevronDown, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Panel, Button, Input, Badge } from '../ui';
 import {

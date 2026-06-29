@@ -7,7 +7,7 @@ import {
 
 import toast from 'react-hot-toast';
 import { clearSystemLogs, clearTauriLogs } from '../api/system';
-import { useSystemLogs, useTauriLogs, useNotifications, useClearLogs, useClearTauriLogs } from '../api/hooks';
+import { useSystemLogs, useTauriLogs, useNotifications } from '../api/hooks';
 import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
@@ -160,7 +160,6 @@ export default function LogsFooter() {
   // comes from the in-process ring buffer in consoleBuffer.js.
   const [lines, setLines] = useState({ backend: [], frontend: [], tauri: [] });
   const [loading, setLoading] = useState(false);
-  const [hfInput, setHfInput] = useState('');
   const scrollRef = useRef(null);
 
   useEffect(() => localStorage.setItem(LS_HEIGHT, String(height)), [height]);
@@ -344,7 +343,6 @@ export default function LogsFooter() {
 
   // ── Render ──────────────────────────────────────────────────────────
   const current = lines[active] || [];
-  const notifCounts = { error: 0, warn: notifications.filter(n => n.level === 'warn').length + notifications.filter(n => n.level === 'error').length, total: notifications.length };
 
   return (
     <div className={['logs-footer', collapsed ? 'logs-footer--collapsed' : 'logs-footer--open'].join(' ')}

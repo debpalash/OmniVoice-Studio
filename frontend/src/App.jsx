@@ -39,7 +39,6 @@ import FloatingPill from './components/FloatingPill';
 // main studio return below. Do not re-wrap here — double-gating renders two
 // PIN dialogs.
 
-import useRealtimeEvents from './hooks/useRealtimeEvents';
 import { BootstrapSplash, useBootstrapStage } from './components/BootstrapSplash';
 
 import './components/Misc.css';
@@ -60,13 +59,12 @@ import {
   POPULAR_LANGS, POPULAR_ISO, TAGS, CATEGORIES, PRESETS, CLONE_MAX_SECONDS,
 } from './utils/constants';
 import { LANG_CODES } from './utils/languages';
-import { formatTime } from './utils/format';
-import { API, apiPost } from './api/client';
+import { API } from './api/client';
 import { flushMemory as apiFlushMemory } from './api/system';
 import { saveProject as apiSaveProject, loadProject as apiLoadProject, deleteProject as apiDeleteProject, renameProject as apiRenameProject } from './api/projects';
 import { exportAction, exportReveal, exportRecord } from './api/exports';
 
-import { isTauri, doubleClickMaximize, fileToMediaUrl, playBlobAudio, playPing } from './utils/media';
+import { isTauri, doubleClickMaximize, fileToMediaUrl, playBlobAudio } from './utils/media';
 import { browserDownload } from './utils/download';
 import { checkForUpdate, fetchAppVersion } from './utils/updater';
 import { syncChannel } from './utils/channelControl';
@@ -83,7 +81,6 @@ function App() {
   // Mode + uiScale + sidebar-collapsed persist across reloads automatically
   // via the store's `partialize`; active project / voice ids stay transient.
   const uiScale = useAppStore(s => s.uiScale);
-  const setUiScale = useAppStore(s => s.setUiScale);
 
   // Responsive shell breakpoints driven off the app-container's OWN width, not
   // the viewport. The shell is sized `width: calc(100vw / --ui-scale)` then
@@ -338,42 +335,28 @@ function App() {
   const setDubDialect      = useAppStore(s => s.setDubDialect);
   const dubInstruct        = useAppStore(s => s.dubInstruct);
   const setDubInstruct     = useAppStore(s => s.setDubInstruct);
-  const dubProgress        = useAppStore(s => s.dubProgress);
   const setDubProgress     = useAppStore(s => s.setDubProgress);
   const dubFilename        = useAppStore(s => s.dubFilename);
   const setDubFilename     = useAppStore(s => s.setDubFilename);
   const dubDuration        = useAppStore(s => s.dubDuration);
   const setDubDuration     = useAppStore(s => s.setDubDuration);
-  const dubError           = useAppStore(s => s.dubError);
   const setDubError        = useAppStore(s => s.setDubError);
   const dubTracks          = useAppStore(s => s.dubTracks);
   const setDubTracks       = useAppStore(s => s.setDubTracks);
   const dubTranscript      = useAppStore(s => s.dubTranscript);
   const setDubTranscript   = useAppStore(s => s.setDubTranscript);
-  const isTranslating      = useAppStore(s => s.isTranslating);
-  const setIsTranslating   = useAppStore(s => s.setIsTranslating);
   const preserveBg         = useAppStore(s => s.preserveBg);
   const setPreserveBg      = useAppStore(s => s.setPreserveBg);
   const defaultTrack       = useAppStore(s => s.defaultTrack);
   const setDefaultTrack    = useAppStore(s => s.setDefaultTrack);
   const exportTracks       = useAppStore(s => s.exportTracks);
-  const setExportTracks    = useAppStore(s => s.setExportTracks);
   const previewSegIds      = useAppStore(s => s.previewSegIds);
-  const setPreviewSegIds   = useAppStore(s => s.setPreviewSegIds);
   const speakerClones      = useAppStore(s => s.speakerClones);
   const setSpeakerClones   = useAppStore(s => s.setSpeakerClones);
-  const dubTaskId          = useAppStore(s => s.dubTaskId);
-  const setDubTaskId       = useAppStore(s => s.setDubTaskId);
-  const dubPrepStage       = useAppStore(s => s.dubPrepStage);
-  const setDubPrepStage    = useAppStore(s => s.setDubPrepStage);
 
-  const translateQuality = useAppStore(s => s.translateQuality);
-  const setTranslateQuality = useAppStore(s => s.setTranslateQuality);
-  const glossaryTerms = useAppStore(s => s.glossaryTerms);
   const setGlossaryTerms = useAppStore(s => s.setGlossaryTerms);
   const dualSubs = useAppStore(s => s.dualSubs);
   const burnSubs = useAppStore(s => s.burnSubs);
-  const setDualSubs = useAppStore(s => s.setDualSubs);
 
   // ── UNDO / REDO + SEGMENT EDITING ──
   // Must come before useDubWorkflow because the dub generate handler needs
@@ -383,12 +366,12 @@ function App() {
     segmentEditField, segmentDelete, segmentRestoreOriginal,
     segmentSplit, segmentMerge, segmentMoveResize,
     timelineSelSegId, setTimelineSelSegId,
-    selectedSegIds, setSelectedSegIds,
+    selectedSegIds,
     toggleSegSelect, selectAllSegs, clearSegSelection,
     bulkApplyToSelected, bulkDeleteSelected,
     directionSegId, openDirection, closeDirection, saveDirection,
-    lastGenFingerprints, setLastGenFingerprints,
-    incrementalPlan, setIncrementalPlan,
+    setLastGenFingerprints,
+    incrementalPlan,
     recomputeIncremental,
   } = useSegmentEditing();
 
@@ -397,7 +380,7 @@ function App() {
   const {
     translateProvider, setTranslateProvider,
     showTranscript, setShowTranscript,
-    previewAudios, setPreviewAudios,
+    setPreviewAudios,
     transcribeElapsed,
     handleDubUpload: _handleDubUpload, handleDubIngestUrl,
     handleDubAbort, handleDubRetryTranscribe,

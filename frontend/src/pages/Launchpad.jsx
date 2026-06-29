@@ -59,7 +59,7 @@ function ActionCard({ hue, Icon, title, count, onClick, children }) {
 }
 
 export default function Launchpad({
-  profiles, studioProjects, dubHistory, exportHistory = [],
+  profiles, studioProjects, exportHistory = [],
   setMode, setIsCompareModalOpen, handleSelectProfile, loadProject,
 }) {
   const { t } = useTranslation();

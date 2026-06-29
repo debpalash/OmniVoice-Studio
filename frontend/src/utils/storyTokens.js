@@ -26,7 +26,7 @@ import { roundHalfToEven, PAUSE_DEFAULT_MS, PAUSE_MAX_MS } from './longformParse
 // [voice:[^\]\[]*] (empty [voice:] → default; a nested `[` → no match).
 // ReDoS-safe: the unit's `(?:\s*(ms|s))?` is zero-width without a unit, so no
 // two `\s*` overlap on the same whitespace run (mirrors PAUSE_RE).
-const TOKEN_RE = /\[(?:\s*pause(?:\s+(\d+(?:\.\d+)?)(?:\s*(ms|s))?)?\s*|voice:\s*([^\]\[]*))\]/gi;
+const TOKEN_RE = /\[(?:\s*pause(?:\s+(\d+(?:\.\d+)?)(?:\s*(ms|s))?)?\s*|voice:\s*([^\][]*))\]/gi;
 
 // Resolve a parsed (number, unit) pause to clamped ms — mirrors text.py:_pause_ms
 // (banker's rounding via the shared roundHalfToEven so highlight == render).

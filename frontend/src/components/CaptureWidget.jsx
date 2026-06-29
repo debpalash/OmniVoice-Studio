@@ -136,8 +136,8 @@ export default function CaptureWidget({ onDismiss }) {
   const [captureMode] = useState(() =>
     localStorage.getItem(LS_CAPTURE_MODE) || 'fast'
   );
-  const [lastEngine, setLastEngine] = useState('');
-  const [lastTime, setLastTime] = useState(0);
+  const [, setLastEngine] = useState('');
+  const [, setLastTime] = useState(0);
   const [partialText, setPartialText] = useState('');
 
   // Live-dictation prefs (mirrored from the backend dictation.* namespace).
