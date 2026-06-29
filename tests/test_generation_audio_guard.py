@@ -102,6 +102,22 @@ def test_broken_pipe_is_a_lost_pipe_not_oom():
         assert "ran out of memory" not in msg
 
 
+def test_no_kernel_image_is_an_unsupported_gpu_not_oom():
+    # #756: a GPU whose compute capability isn't in the torch build's arch list
+    # (Pascal sm_61 on new wheels, Blackwell sm_120 on old wheels) raises "CUDA
+    # error: no kernel image is available for execution". That's NOT OOM and Flush
+    # won't help — point at CPU / a matching torch.
+    err = RuntimeError(
+        "CUDA error: no kernel image is available for execution on the device"
+    )
+    with pytest.raises(RuntimeError) as ei:
+        _oom_friendly_reraise(err)
+    msg = str(ei.value)
+    assert "GPU isn't supported" in msg or "isn't supported by the installed" in msg
+    assert "CPU" in msg
+    assert "ran out of memory" not in msg
+
+
 def test_winerror_193_is_a_corrupt_binary_not_oom():
     # #705: a corrupt / wrong-architecture native component (torch, ffmpeg, an
     # engine binary) fails on Windows with "[WinError 193] %1 is not a valid

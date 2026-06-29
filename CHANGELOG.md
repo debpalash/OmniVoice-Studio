@@ -149,6 +149,15 @@ across dub, generate, and design (a corrupt-binary failure no longer poses as
   ffmpeg, or an engine binary) was labelled *"ran out of memory — try Flush,"*
   sending users down the wrong path. It now says the component is corrupt or
   built for the wrong architecture and to reinstall/repair it. (#705)
+- **An unsupported GPU now falls back to CPU instead of 500-ing every generate.**
+  When the installed PyTorch build has no kernels for your GPU's compute
+  capability — a too-old card (Pascal / GTX 10-series) or a too-new one (Blackwell
+  RTX 50-series on pre-cu128 wheels) — CUDA failed at launch with the cryptic
+  `CUDA error: no kernel image is available for execution`. The backend now
+  detects that up front and runs on CPU (slower, but it works), and any raw
+  occurrence is reported as "your GPU isn't supported — switch to CPU or install a
+  matching PyTorch," not a Flush-the-memory dead end. Force the GPU anyway with
+  `OMNIVOICE_FORCE_CUDA=1`. (#756)
 - **A "[Errno 32] Broken pipe" mid-generation no longer poses as "out of
   memory."** When the desktop app that launched the backend closes or relaunches,
   the backend's output pipe breaks and a synth can fail with `[Errno 32] Broken
