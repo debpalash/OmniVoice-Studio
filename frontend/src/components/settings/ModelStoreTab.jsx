@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
-  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
@@ -8,35 +7,24 @@ import {
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
-  Cpu, RefreshCw, Trash2, ExternalLink, CheckCircle, Download, KeyRound,
+  Cpu, RefreshCw, KeyRound,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { openExternal } from '../../api/external';
 import { setupDownloadStreamUrl } from '../../api/setup';
 import { useModels, useRecommendations, useInstallModel, useDeleteModel } from '../../api/hooks';
-import { Button, Badge, Table, Progress, Segmented } from '../../ui';
+import { Button, Segmented } from '../../ui';
 import { SettingsSection, SettingsInput } from './primitives';
 import { askConfirm } from './native';
+import { fmtBytes } from './models/format';
+import { computeRowRuntime } from './models/runtime';
+import { makeModelColumns } from './models/columns';
+import RecoBanner from './models/RecoBanner';
+import ModelsTable from './models/ModelsTable';
 
 const MODEL_ROLE_ORDER = ['tts', 'asr', 'diarisation', 'diarization', 'llm'];
 const MODEL_ROLE_LABEL = { all: 'All', tts: 'TTS', asr: 'ASR', diarisation: 'Diarisation', diarization: 'Diarisation', llm: 'LLM', other: 'Other' };
-
-function fmtBytes(n) {
-  if (n == null || n < 0) return '—';
-  if (n === 0) return '0 B';
-  if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(2)} GB`;
-  if (n >= 1024 ** 2) return `${(n / 1024 ** 2).toFixed(1)} MB`;
-  return `${Math.round(n / 1024)} KB`;
-}
-
-/** Deterministic muted HSL color from an org/user name in a repo_id. */
-function orgColor(repoId) {
-  const org = (repoId || '').split('/')[0];
-  let h = 0;
-  for (let i = 0; i < org.length; i++) h = (h * 31 + org.charCodeAt(i)) & 0xffff;
-  return `hsl(${h % 360}, 35%, 28%)`;
-}
 
 /**
  * Model store — list every known HF model, show install state, let the
@@ -280,296 +268,15 @@ export default function ModelStoreTab({ info, modelBadge }) {
     setColumnFilters(currentRole === 'all' ? [] : [{ id: 'role', value: currentRole }]);
   }, [currentRole]);
 
-  const getRowRuntime = React.useCallback((m) => {
-    const rs = rowState[m.repo_id];
-    const rowBusy = busy.has(m.repo_id);
-    const isInstalling = rs?.phase === 'install_start' || (rs?.phase === 'active' && !rs.files && !rs.error);
-    const isDeleting = rs?.phase === 'delete_start';
-    const phase = rs?.phase;
-    const fileList = rs?.files ? Object.entries(rs.files) : [];
-    const totals = fileList.reduce((a, [, f]) => ({
-      downloaded: a.downloaded + (f.downloaded || 0),
-      total: a.total + (f.total || 0),
-      done: a.done + (f.phase === 'done' ? 1 : 0),
-    }), { downloaded: 0, total: 0, done: 0 });
-    // Sum backend-reported rate from active (non-done) files
-    const backendRate = fileList
-      .filter(([, f]) => f.phase !== 'done' && f.rate > 0)
-      .reduce((s, [, f]) => s + f.rate, 0);
-    const hasFiles = fileList.length > 0;
-    const showBar = ['install_start', 'resolving', 'install_retry', 'active', 'delete_start'].includes(phase);
-    const activeFilename = fileList.find(([, f]) => f.phase !== 'done')?.[0];
-    const unsupported = m.supported === false;
+  const getRowRuntime = React.useCallback(
+    (m) => computeRowRuntime(m, rowState, busy),
+    [busy, rowState],
+  );
 
-    // Overall progress: prefer the backend aggregate (FDL-06) — it sums bytes
-    // across all parallel files/chunks and samples a windowed rate, which is
-    // accurate under Xet's parallel fetch. Fall back to per-file summation +
-    // the frontend speed sampler only until the first aggregate event lands.
-    const agg = rs?.agg || null;
-    const plan = rs?.plan || null;
-    const dispDownloaded = agg ? (agg.bytes_done || 0) : totals.downloaded;
-    // Denominator: aggregate total → preflight "to download" → per-file totals.
-    const dispTotal = (agg?.total_bytes ?? plan?.to_download_bytes ?? totals.total) || 0;
-    // Bar %: prefer byte-fraction, but under Xet the byte bars don't advance
-    // mid-download (only the file-count bar does), so fall back to the file
-    // fraction so the bar still moves. Take the max so whichever signal is
-    // live drives it; complete() flushes both to 100% at the end.
-    const bytePct = dispTotal > 0 ? (dispDownloaded / dispTotal) * 100 : 0;
-    const filesTotalForPct = agg?.files_total ?? plan?.n_files ?? 0;
-    const filePct = filesTotalForPct > 0 ? ((agg?.files_done ?? 0) / filesTotalForPct) * 100 : 0;
-    const aggPct = (dispTotal > 0 || filesTotalForPct > 0) ? Math.max(bytePct, filePct) : null;
-    const cachedBytes = plan?.cached_bytes ?? null;
-    const filesTotal = agg?.files_total ?? plan?.n_files ?? (hasFiles ? fileList.length : null);
-    const filesDone = agg?.files_done ?? totals.done;
-    // Backend rate (windowed aggregate) wins over the per-file rate sum.
-    const aggRate = agg?.rate ?? null;
-    const aggEtaSec = agg?.eta_seconds ?? null;
-
-    return {
-      rs,
-      rowBusy,
-      isInstalling,
-      isDeleting,
-      phase,
-      fileList,
-      totals,
-      hasFiles,
-      aggPct,
-      showBar,
-      activeFilename,
-      unsupported,
-      backendRate,
-      agg,
-      plan,
-      dispDownloaded,
-      dispTotal,
-      cachedBytes,
-      filesTotal,
-      filesDone,
-      aggRate,
-      aggEtaSec,
-    };
-  }, [busy, rowState]);
-
-  const columns = React.useMemo(() => [
-    {
-      id: 'name',
-      accessorFn: m => `${m.label || ''} ${m.repo_id || ''}`,
-      header: t('models.column_model'),
-      size: 260,
-      meta: { className: 'models-row__name' },
-      cell: ({ row }) => {
-        const m = row.original;
-        const rt = getRowRuntime(m);
-        return (
-          <>
-            <span className="models-row__title">
-              <span
-                className="models-row__avatar"
-                style={{ background: orgColor(m.repo_id) }}
-                title={m.repo_id.split('/')[0]}
-              >
-                {m.repo_id.split('/')[0].slice(0, 2).toUpperCase()}
-              </span>
-              {m.label}
-              {m.required && <span className="models-row__tag">{t('models.required_tag')}</span>}
-            </span>
-            <span className="models-row__repo">
-              <code>{m.repo_id}</code>
-              {m.note && <span className="models-row__note"> · {m.note}</span>}
-            </span>
-            {rt.showBar && (
-              <div className="models-row__progressline">
-                <Progress
-                  value={rt.aggPct}
-                  tone={rt.isDeleting ? 'warn' : 'brand'}
-                  size="xs"
-                />
-                <span className="models-row__progresstext">
-                  {(() => {
-                    if (rt.isDeleting) return t('models.removing_cached');
-                    const hasAgg = !!rt.agg;
-                    if (!rt.hasFiles && !hasAgg) {
-                      if (rt.phase === 'resolving') {
-                        const dots = '.'.repeat((rt.rs?.resolvingStep || 0) % 4);
-                        // Once the preflight plan lands we can show the real size
-                        // even before the first byte (FDL-05).
-                        const planBytes = rt.plan?.to_download_bytes;
-                        const planStr = planBytes ? ` · ${fmtBytes(planBytes)} ${t('models.to_download') || 'to download'}` : '';
-                        return `${t('models.resolving_metadata')}${dots}${planStr}`;
-                      }
-                      if (rt.phase === 'install_retry') {
-                        return t('models.retry_attempt', { attempt: rt.rs?.retryAttempt || '?', error: rt.rs?.error || 'reconnecting' });
-                      }
-                      return t('models.connecting_hf');
-                    }
-
-                    // Prefer the backend aggregate's windowed rate (FDL-06).
-                    // Fall back to the frontend sampler only until it arrives.
-                    let speed = rt.aggRate ?? 0;
-                    if (!(speed > 0)) {
-                      const sp = speedRef.current[m.repo_id];
-                      const now = Date.now();
-                      if (sp && rt.dispDownloaded > 0) {
-                        const dt = (now - sp.lastTime) / 1000;
-                        if (dt >= 1) {
-                          sp.speed = Math.max(0, (rt.dispDownloaded - sp.lastBytes) / dt);
-                          sp.lastBytes = rt.dispDownloaded;
-                          sp.lastTime = now;
-                        }
-                      } else {
-                        speedRef.current[m.repo_id] = { lastBytes: rt.dispDownloaded, lastTime: now, speed: 0 };
-                      }
-                      speed = rt.backendRate > 0 ? rt.backendRate : (sp?.speed || 0);
-                    }
-
-                    // Total unknown and nothing downloaded yet → still resolving
-                    if (rt.dispTotal === 0 && rt.dispDownloaded === 0) {
-                      const activeFile = rt.activeFilename?.split('/').pop();
-                      return activeFile
-                        ? t('models.resolving_files_active', { count: rt.fileList.length, file: activeFile })
-                        : t('models.resolving_files', { count: rt.fileList.length });
-                    }
-
-                    // ETA: prefer the backend's, else derive from remaining/speed.
-                    const remaining = Math.max(0, rt.dispTotal - rt.dispDownloaded);
-                    const etaSec = rt.aggEtaSec != null ? rt.aggEtaSec
-                      : (speed > 0 && rt.dispTotal > 0 ? remaining / speed : 0);
-                    const etaStr = etaSec > 0
-                      ? etaSec < 60 ? `~${Math.ceil(etaSec)}s`
-                      : etaSec < 3600 ? `~${Math.ceil(etaSec / 60)}m`
-                      : `~${(etaSec / 3600).toFixed(1)}h`
-                      : '';
-                    const dlStr = fmtBytes(rt.dispDownloaded) || '0 B';
-                    const totalStr = rt.dispTotal > 0 ? fmtBytes(rt.dispTotal) : '…';
-                    const pctStr = rt.aggPct != null && rt.aggPct > 0 ? `${Math.round(rt.aggPct)}%` : '';
-                    const speedStr = speed > 0 ? `${fmtBytes(speed)}/s` : '';
-
-                    const parts = [
-                      `${dlStr} / ${totalStr}`,
-                      pctStr,
-                      speedStr || (rt.dispDownloaded > 0 ? t('models.measuring') : ''),
-                      etaStr,
-                    ].filter(Boolean);
-
-                    const extra = [];
-                    if (rt.cachedBytes > 0) extra.push(`${fmtBytes(rt.cachedBytes)} ${t('models.cached') || 'cached'}`);
-                    if (rt.filesTotal > 1) extra.push(t('models.files_progress', { done: rt.filesDone, total: rt.filesTotal }));
-                    if (rt.activeFilename) extra.push(rt.activeFilename.split('/').pop());
-
-                    return extra.length
-                      ? `${parts.join(' · ')}  ⸱  ${extra.join(' · ')}`
-                      : parts.join(' · ');
-                  })()}
-                </span>
-              </div>
-            )}
-            {rt.phase === 'install_error' && rt.rs?.error && (
-              <span className="models-row__error">{t('models.install_error', { error: rt.rs.error })}</span>
-            )}
-          </>
-        );
-      },
-    },
-    {
-      id: 'role',
-      accessorFn: m => (m.role || 'other').toLowerCase(),
-      header: t('models.column_role'),
-      size: 58,
-      filterFn: (row, id, value) => !value || row.getValue(id) === value,
-      cell: ({ row }) => <span className="models-row__role">{MODEL_ROLE_LABEL[row.getValue('role')] || row.original.role || 'Other'}</span>,
-    },
-    {
-      id: 'size',
-      accessorFn: m => m.installed ? (m.size_on_disk_bytes || 0) : (m.size_gb || 0) * 1024 ** 3,
-      header: t('models.column_size'),
-      size: 68,
-      meta: { align: 'right', className: 'models-row__size' },
-      cell: ({ row }) => {
-        const m = row.original;
-        const rt = getRowRuntime(m);
-        // During active download, show live downloaded / total
-        if (rt.showBar && rt.hasFiles && rt.totals.total > 0) {
-          return <span className="models-row__size-live">{fmtBytes(rt.totals.downloaded)}<span className="models-row__size-sep">/</span>{fmtBytes(rt.totals.total)}</span>;
-        }
-        return m.installed ? fmtBytes(m.size_on_disk_bytes) : `${m.size_gb} GB`;
-      },
-    },
-    {
-      id: 'status',
-      accessorFn: m => m.installed ? 2 : (m.supported === false ? 0 : 1),
-      header: t('models.column_status'),
-      size: 96,
-      meta: { align: 'center', className: 'models-row__status' },
-      cell: ({ row }) => {
-        const m = row.original;
-        const rt = getRowRuntime(m);
-        return rt.isInstalling
-          ? <Badge tone="warn" size="xs"><Download size={10} /> {rt.aggPct != null ? `${Math.round(rt.aggPct)}%` : t('models.downloading')}</Badge>
-          : rt.isDeleting
-            ? <Badge tone="warn" size="xs"><Trash2 size={10} /> {t('models.deleting')}</Badge>
-            : rt.rowBusy
-              ? <Badge tone="warn" size="xs"><RefreshCw size={10} className="spinner" /> {t('models.working')}</Badge>
-              : m.installed
-                ? <Badge tone="success" size="xs">{t('models.installed')}</Badge>
-                : rt.unsupported
-                  ? <Badge tone="neutral" size="xs">{(m.platforms || []).join(', ')}</Badge>
-                  : <Badge tone="neutral" size="xs">{t('models.not_installed')}</Badge>;
-      },
-    },
-    {
-      id: 'actions',
-      header: '',
-      size: 90,
-      enableSorting: false,
-      meta: { align: 'right', className: 'models-row__actions' },
-      cell: ({ row }) => {
-        const m = row.original;
-        const rt = getRowRuntime(m);
-        return (
-          <>
-            <Button
-              variant="icon" iconSize="sm"
-              onClick={() => openExternal(`https://huggingface.co/${m.repo_id}`)}
-              title={t('models.view_on_hf')}
-              aria-label={t('models.view_on_hf')}
-            >
-              <ExternalLink size={11} />
-            </Button>
-            {!m.installed && !rt.rowBusy && !rt.isInstalling && !rt.unsupported && (
-              <Button
-                variant="subtle" size="sm"
-                onClick={() => onInstall(m.repo_id)}
-                leading={<Download size={11} />}
-              >
-                {t('models.install_btn')}
-              </Button>
-            )}
-            {m.installed && !rt.rowBusy && !rt.isDeleting && (
-              <>
-                <Button
-                  variant="icon" iconSize="sm"
-                  onClick={() => onReinstall(m.repo_id)}
-                  title={t('models.reinstall_btn')}
-                  aria-label={t('models.reinstall_btn')}
-                >
-                  <RefreshCw size={11} />
-                </Button>
-                <Button
-                  variant="icon" iconSize="sm"
-                  onClick={() => onDelete(m.repo_id)}
-                  title={t('models.delete_btn')}
-                  aria-label={t('models.delete_btn')}
-                >
-                  <Trash2 size={11} />
-                </Button>
-              </>
-            )}
-          </>
-        );
-      },
-    },
-  ], [getRowRuntime, onDelete, onInstall, onReinstall, t]);
+  const columns = React.useMemo(
+    () => makeModelColumns({ t, getRowRuntime, speedRef, MODEL_ROLE_LABEL, onInstall, onDelete, onReinstall }),
+    [getRowRuntime, onDelete, onInstall, onReinstall, t],
+  );
 
   const table = useReactTable({
     data: allModels,
@@ -680,57 +387,14 @@ export default function ModelStoreTab({ info, modelBadge }) {
         </div>
       </div>
 
-      {reco && reco.all_installed && (
-        <div className="reco-banner reco-banner--ok">
-          <CheckCircle size={12} color="#8ec07c" />
-          <span className="flex-1">{t('models.reco_installed_for', { device: reco.device.label })}</span>
-          <span className="reco-banner__gb">{reco.total_gb} GB</span>
-        </div>
-      )}
-      {reco && !reco.all_installed && (
-        <div className="reco-banner reco-banner--pending">
-          <div className="reco-banner__top">
-            <span className="reco-banner__title">{t('models.reco_for', { device: reco.device.label })}</span>
-            <div className="reco-banner__btns">
-              {(() => {
-                const requiredMissing = reco.models.filter(m => m.required && !m.installed);
-                const requiredGb = requiredMissing.reduce((s, m) => s + m.size_gb, 0);
-                if (requiredMissing.length === 0) return null;
-                return (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={async () => {
-                      setInstallingReco(true);
-                      try {
-                        await Promise.all(requiredMissing.map(m => installMutation.mutateAsync(m.repo_id)));
-                        toast.success(t('models.started_downloading_required', { count: requiredMissing.length }));
-                      } catch (e) { toast.error(t('models.install_failed', { message: e.message || e })); }
-                      finally { setInstallingReco(false); }
-                    }}
-                    disabled={installingReco}
-                    leading={installingReco ? <RefreshCw size={12} className="spinner" /> : null}
-                  >
-                    {installingReco ? t('models.starting') : t('models.required_size', { size: requiredGb.toFixed(1) })}
-                  </Button>
-                );
-              })()}
-              <Button variant="subtle" size="sm" onClick={onInstallRecommended} disabled={installingReco}>
-                {t('models.all_size', { size: reco.download_gb_remaining })}
-              </Button>
-            </div>
-          </div>
-          <div className="reco-banner__grid">
-            {reco.models.map(m => (
-              <span key={m.repo_id} className={`reco-banner__model ${m.installed ? 'reco-banner__model--ok' : ''}`}>
-                {m.installed ? '✓' : '○'} {m.label}
-                <span className="reco-banner__model-size">{m.size_gb}</span>
-                {m.required && <span className="reco-banner__req">{t('models.req_tag')}</span>}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      <RecoBanner
+        reco={reco}
+        t={t}
+        installMutation={installMutation}
+        installingReco={installingReco}
+        setInstallingReco={setInstallingReco}
+        onInstallRecommended={onInstallRecommended}
+      />
 
       <div className="models-controls">
         <Segmented
@@ -762,75 +426,14 @@ export default function ModelStoreTab({ info, modelBadge }) {
         />
       </div>
 
-      <Table className="models-table">
-        <div className="ui-table-header models-table__header">
-          {table.getHeaderGroups().map(headerGroup => (
-            <React.Fragment key={headerGroup.id}>
-              {headerGroup.headers.map(header => {
-                const meta = header.column.columnDef.meta || {};
-                const canSort = header.column.getCanSort();
-                return (
-                  <button
-                    key={header.id}
-                    type="button"
-                    className={[
-                      'ui-table-header__cell',
-                      `ui-table-header__cell--align-${meta.align || 'left'}`,
-                      canSort ? 'models-table__sort' : 'models-table__sort--off',
-                    ].join(' ')}
-                    style={{ width: header.column.columnDef.size, flex: header.column.id === 'name' ? '1 1 auto' : '0 0 auto' }}
-                    onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
-                    disabled={!canSort}
-                    title={canSort ? t('models.sort_by', { column: String(header.column.columnDef.header || '') }) : undefined}
-                  >
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                    {header.column.getIsSorted() === 'asc' && <span className="models-table__sortmark">↑</span>}
-                    {header.column.getIsSorted() === 'desc' && <span className="models-table__sortmark">↓</span>}
-                  </button>
-                );
-              })}
-            </React.Fragment>
-          ))}
-        </div>
-        <div ref={tableBodyRef} className="models-table__body">
-          <div className="models-table__virtual" style={{ height: rowVirtualizer.getTotalSize() }}>
-            {rowVirtualizer.getVirtualItems().map(virtualRow => {
-              const row = tableRows[virtualRow.index];
-              const m = row.original;
-              const rt = getRowRuntime(m);
-              return (
-                <div
-                  key={row.id}
-                  className={`models-row ${m.installed ? 'is-ok' : 'is-off'}${rt.unsupported ? ' is-unsupported' : ''}`}
-                  data-index={virtualRow.index}
-                  ref={rowVirtualizer.measureElement}
-                  style={{ transform: `translateY(${virtualRow.start}px)` }}
-                >
-                  {row.getVisibleCells().map(cell => {
-                    const meta = cell.column.columnDef.meta || {};
-                    return (
-                      <div
-                        key={cell.id}
-                        className={`models-row__cell ${meta.className || ''}`}
-                        style={{
-                          width: cell.column.columnDef.size,
-                          flex: cell.column.id === 'name' ? '1 1 auto' : '0 0 auto',
-                          textAlign: meta.align || undefined,
-                        }}
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-            {tableRows.length === 0 && (
-              <div className="models-table__empty">{t('models.no_matches')}</div>
-            )}
-          </div>
-        </div>
-      </Table>
+      <ModelsTable
+        table={table}
+        tableRows={tableRows}
+        rowVirtualizer={rowVirtualizer}
+        tableBodyRef={tableBodyRef}
+        getRowRuntime={getRowRuntime}
+        t={t}
+      />
     </section>
   );
 }
