@@ -1,11 +1,10 @@
-import React, { Suspense, lazy, useState, useEffect, useCallback, useRef } from 'react';
-import { copyText } from "../utils/copyText";
+import { Suspense, lazy, useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Film, Save, UploadCloud, Sparkles, Loader, Square, Users,
   FileText, Play, DownloadIcon, Volume2, Link2,
   Languages, ChevronDown, ChevronUp, Wand2, Trash2, Check, Globe, UserSquare2, User, AlertCircle,
-  ExternalLink, Copy, Pencil, ShieldCheck,
+  ShieldCheck,
 } from 'lucide-react';
 // lucide-react exports DownloadIcon as "Download"; alias here to match App.jsx naming.
 import { Download as Download, RotateCcw } from 'lucide-react';
@@ -25,11 +24,15 @@ import toast from 'react-hot-toast';
 import { toastErrorWithReport } from '../utils/errorToast';
 import { Button, Segmented, Badge, Progress } from '../ui';
 import useTimelineOnsets from '../hooks/useTimelineOnsets';
-import { openDocsFor, classifyError } from '../utils/errorDocsMap';
 import GlossaryPanel from '../components/GlossaryPanel';
 import ExportModal from '../components/ExportModal';
 import MultiLangPicker from '../components/MultiLangPicker';
 import DubbingDemo from '../components/DubbingDemo';
+import DubFailureNotice from '../components/dub/DubFailureNotice';
+import DubPipelineStepper from '../components/dub/DubPipelineStepper';
+import PrepOverlay from '../components/dub/PrepOverlay';
+import TranscribeOverlay from '../components/dub/TranscribeOverlay';
+import FooterBtn from '../components/dub/FooterBtn';
 import './DubTab.css';
 
 const DubSegmentTable = lazy(() => import('../components/DubSegmentTable'));
@@ -37,40 +40,6 @@ const DubSegmentTable = lazy(() => import('../components/DubSegmentTable'));
 const LazyFallback = () => (
   <div className="dub-lazy-fallback">Loading…</div>
 );
-
-/** plan-04 (#131): actionable failure detail — hint + docs deeplink + a copyable
- *  diagnostic block — shown beneath the error badge when the backend sent a
- *  structured failure. */
-function DubFailureNotice({ failure }) {
-  const { t } = useTranslation();
-  if (!failure) return null;
-  const topic = failure.docsTopic || classifyError(failure.reason);
-  const copyDiagnostic = async () => {
-    try {
-      await copyText(failure.diagnostic || failure.reason);
-      toast.success(t('dub.diagnostic_copied'));
-    } catch {
-      toast.error(t('dub.copy_failed'));
-    }
-  };
-  return (
-    <div className="dub-failure-notice">
-      {failure.hint && <span className="dub-failure-notice__hint">{failure.hint}</span>}
-      <div className="dub-failure-notice__actions">
-        {topic && (
-          <Button variant="subtle" size="sm" onClick={() => openDocsFor(topic)}>
-            <ExternalLink size={11} /> {t('dub.open_docs')}
-          </Button>
-        )}
-        {failure.diagnostic && (
-          <Button variant="subtle" size="sm" onClick={copyDiagnostic}>
-            <Copy size={11} /> {t('dub.copy_diagnostic')}
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export default function DubTab(props) {
   const { t, i18n } = useTranslation();
@@ -1390,203 +1359,3 @@ function fmtDur(s) {
   const sec = s % 60;
   return sec ? `${m}m ${sec}s` : `${m}m`;
 }
-
-const PREP_FULL   = ['download', 'extract', 'demucs', 'scene'];
-const PREP_CACHED = ['download', 'extract', 'cached'];
-
-// ── Pipeline stepper ─────────────────────────────────────────────────────
-// One legible spine for the whole dub journey so the user always knows where
-// they are: Upload → Prepare → Transcribe → Edit → Generate → Export.
-const DUB_PIPELINE = [
-  { id: 'upload',     key: 'dub.phase_upload',     fallback: 'Upload',     Icon: UploadCloud },
-  { id: 'prepare',    key: 'dub.phase_prepare',    fallback: 'Prepare',    Icon: Wand2 },
-  { id: 'transcribe', key: 'dub.phase_transcribe', fallback: 'Transcribe', Icon: FileText },
-  { id: 'edit',       key: 'dub.phase_edit',       fallback: 'Edit',       Icon: Pencil },
-  { id: 'generate',   key: 'dub.phase_generate',   fallback: 'Generate',   Icon: Sparkles },
-  { id: 'export',     key: 'dub.phase_export',     fallback: 'Export',     Icon: Download },
-];
-const DUB_PHASE_BY_STEP = {
-  idle: 0, uploading: 1, transcribing: 2, editing: 3, generating: 4, stopping: 4, done: 5,
-};
-
-function DubPipelineStepper({ dubStep }) {
-  const { t } = useTranslation();
-  const current = DUB_PHASE_BY_STEP[dubStep] ?? 0;
-  const busy = dubStep === 'uploading' || dubStep === 'transcribing'
-    || dubStep === 'generating' || dubStep === 'stopping';
-  return (
-    <div className="dub-stepper" role="list" aria-label={t('dub.pipeline', { defaultValue: 'Dubbing pipeline' })}>
-      {DUB_PIPELINE.map((p, i) => {
-        const done = i < current;
-        const active = i === current;
-        const spinning = active && busy;
-        const Icon = done ? Check : (spinning ? Loader : p.Icon);
-        return (
-          <div
-            key={p.id}
-            role="listitem"
-            className={[
-              'dub-stepper__step',
-              done ? 'is-done' : '',
-              active ? 'is-active' : '',
-              i <= current ? 'is-reached' : '',
-            ].filter(Boolean).join(' ')}
-          >
-            <span className="dub-stepper__icon">
-              <Icon size={13} className={spinning ? 'dub-stepper__spin' : ''} />
-            </span>
-            <span className="dub-stepper__label">{t(p.key, { defaultValue: p.fallback })}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function fmtBytesRate(bps) {
-  if (!bps || bps <= 0) return null;
-  const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
-  let v = bps, i = 0;
-  while (v >= 1024 && i < units.length - 1) { v /= 1024; i += 1; }
-  return `${v < 10 ? v.toFixed(1) : Math.round(v)} ${units[i]}`;
-}
-
-function fmtEta(seconds) {
-  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return null;
-  const s = Math.round(seconds);
-  if (s < 60) return `${s}s left`;
-  const m = Math.floor(s / 60), rem = s % 60;
-  return rem ? `${m}m ${rem}s left` : `${m}m left`;
-}
-
-/**
- * PrepOverlay — the prepare-upload stage indicator.
- * `large` makes the surrounding frame bigger (used for the empty-state drop zone).
- */
-function PrepOverlay({ stage, progress, onAbort, large = false }) {
-  const { t } = useTranslation();
-  const LABEL = {
-    download: t('dub.prep_download'),
-    extract:  t('dub.prep_extract'),
-    demucs:   t('dub.prep_demucs'),
-    scene:    t('dub.prep_scene'),
-    cached:   t('dub.prep_cached'),
-  };
-  const stages = stage === 'cached' ? PREP_CACHED : PREP_FULL;
-  // Elapsed-time ticker for the current stage. Reset whenever
-  // stageStartedAt changes (i.e. the backend transitions stages).
-  const [elapsedS, setElapsedS] = useState(0);
-  const startedAt = progress?.stageStartedAt ?? null;
-  useEffect(() => {
-    if (!startedAt) { setElapsedS(0); return undefined; }
-    setElapsedS(Math.floor((Date.now() - startedAt) / 1000));
-    const iv = setInterval(() => {
-      setElapsedS(Math.floor((Date.now() - startedAt) / 1000));
-    }, 1000);
-    return () => clearInterval(iv);
-  }, [startedAt]);
-
-  const pct = progress?.percent;
-  const hasPct = typeof pct === 'number' && pct >= 0 && pct <= 100;
-  const speed = stage === 'download' ? fmtBytesRate(progress?.speedBps) : null;
-  const eta   = fmtEta(progress?.etaS);
-  const elapsedLabel = startedAt ? (elapsedS < 60 ? `${elapsedS}s` : `${Math.floor(elapsedS / 60)}m ${elapsedS % 60}s`) : null;
-  const detailBits = [
-    hasPct ? `${pct}%` : null,
-    elapsedLabel ? t('dub.prep_elapsed', { time: elapsedLabel }) : null,
-    speed,
-    eta,
-  ].filter(Boolean);
-  const note = stage === 'demucs' && !hasPct
-    ? t('dub.prep_demucs_note')
-    : null;
-
-  const body = (
-    <>
-      <Loader className="spinner" size={large ? 28 : 20} color="#d3869b" />
-      <span className="dub-prep-overlay__title" style={{ fontSize: large ? '0.95rem' : '0.85rem' }}>
-        {LABEL[stage] || t('dub.prep_preparing')}
-      </span>
-      {hasPct && (
-        <div className="dub-prep-bar" aria-label={`${pct}%`}>
-          <div className="dub-prep-bar__fill" style={{ width: `${pct}%` }} />
-        </div>
-      )}
-      {detailBits.length > 0 && (
-        <span className="dub-prep-overlay__detail">{detailBits.join(' · ')}</span>
-      )}
-      <div className={`dub-prep-chips ${large ? 'dub-prep-chips--lg' : ''}`}>
-        {stages.map(s => (
-          <span
-            key={s}
-            className={`dub-prep-chip ${stage === s ? 'is-active' : ''} ${s === 'cached' ? 'is-cached' : ''}`}
-          >
-            {t(`dub.prep_chip_${s}`, { defaultValue: s })}
-          </span>
-        ))}
-      </div>
-      {note && (
-        <span className="dub-prep-overlay__note">{note}</span>
-      )}
-      <Button variant="danger" size="sm" onClick={onAbort} leading={<Square size={11} />}>
-        {t('dub.prep_stop')}
-      </Button>
-    </>
-  );
-  return large
-    ? <div className="dub-prep-overlay dub-prep-overlay--large">{body}</div>
-    : <div className="dub-prep-overlay">{body}</div>;
-}
-
-/**
- * TranscribeOverlay — Whisper progress + ETA while transcribing.
- */
-function TranscribeOverlay({ elapsed, duration, onAbort }) {
-  const { t } = useTranslation();
-  const est = duration > 0 ? Math.max(10, Math.ceil(duration / 60) * 3 + 8) : 0;
-  const mm = Math.floor(elapsed / 60);
-  const ss = String(elapsed % 60).padStart(2, '0');
-  return (
-    <div className="dub-trans-overlay">
-      <div className="dub-trans-overlay__head">
-        <Loader className="spinner" size={18} color="#d3869b" />
-        <span className="dub-trans-overlay__title">{t('dub.transcribing')}</span>
-      </div>
-      <div className="dub-trans-overlay__stats">
-        <span>⏱ {mm}:{ss} {t('dub.elapsed')}</span>
-        {est > 0 && <span>~{Math.max(0, est - elapsed)}{t('dub.remaining')}</span>}
-      </div>
-      {duration > 0 && (
-        <div className="dub-trans-overlay__bar">
-          <Progress value={Math.min(95, (elapsed / est) * 100)} tone="brand" size="sm" />
-        </div>
-      )}
-      <Button variant="danger" size="sm" onClick={onAbort} leading={<Square size={11} />}>
-        {t('dub.prep_stop')}
-      </Button>
-    </div>
-  );
-}
-
-/**
- * FooterBtn — the gradient-per-tone download button family in the action footer.
- * Uses the legacy .btn-primary as the shape/hover base, just picks a tone class.
- * forwardRef so <Menu> can wire its triggerRef to the underlying button —
- * without this the Export menu can't compute coords and never opens.
- */
-const FooterBtn = React.forwardRef(function FooterBtn(
-  { tone = 'idle', sm = false, disabled, onClick, icon, label, ...rest },
-  ref,
-) {
-  const cls = [
-    'btn-primary',
-    'dub-footer-btn',
-    sm && 'dub-footer-btn--sm',
-    `dub-footer-btn--${tone}`,
-  ].filter(Boolean).join(' ');
-  return (
-    <button ref={ref} className={cls} disabled={disabled} onClick={onClick} {...rest}>
-      {icon} {label}
-    </button>
-  );
-});
