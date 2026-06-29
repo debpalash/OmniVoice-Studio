@@ -30,6 +30,13 @@
 
 .perfpanel__row {
   display: inline-flex;
+  /* Shared button/badge row across 6+ panels (RemoteBackend, HFMirror,
+     LLMEndpoint, Pronunciation, MCPBindings, …). Without these it ran off the
+     right edge on narrow content — wrap instead of overflow, and never exceed
+     the container; min-width:0 lets text children ellipsis rather than push out. */
+  flex-wrap: wrap;
+  max-width: 100%;
+  min-width: 0;
   align-items: center;
   gap: 8px;
   cursor: pointer;

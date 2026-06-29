@@ -13,12 +13,15 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-4);
-  min-width: 220px;
+  /* Was a rigid 220px floor that overflowed the control column when the row
+     stacked on narrow content. Prefer ~220 but allow it to shrink. */
+  min-width: 0;
+  width: clamp(160px, 100%, 260px);
 }
 
 .appearance-panel__scale input[type='range'] {
   flex: 1;
-  min-width: 160px;
+  min-width: 0;
   accent-color: var(--chrome-accent);
   cursor: pointer;
 }

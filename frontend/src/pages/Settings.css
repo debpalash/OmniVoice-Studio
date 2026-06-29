@@ -84,7 +84,7 @@
      viewport and clips at the window edge, which max-width on .settings-content
      can't claw back. This is the responsive-containment guarantee for EVERY
      settings page (they all share this grid). */
-  .settings-page { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: var(--space-5); align-content: start; }
+  .settings-page { display: grid; grid-template-columns: var(--settings-rail) minmax(0, 1fr); gap: var(--space-5); align-content: start; }
   .settings-page h1,
   .settings-page .settings-subtitle { grid-column: 1 / -1; }
   .ui-tabs.settings-tabs-ui {
@@ -121,8 +121,16 @@
 .settings-content {
   flex: 1 1 auto;
   min-width: 0;
-  max-width: 1280px;
+  /* Cap the reading measure so rows don't sprawl edge-to-edge on wide windows
+     (the "too spread out" report). Left-aligned under the nav rail, macOS-style;
+     the extra space falls to the right as plain whitespace, not stretched rows. */
+  max-width: var(--settings-measure);
   align-self: start;   /* size to content — don't stretch to the taller nav rail */
+  /* Make this the container the rows measure against. The nav rail steals
+     ~180px, so a *viewport* breakpoint misjudges the real content width — a
+     container query lets rows stack on their ACTUAL width instead (#primitives). */
+  container-type: inline-size;
+  container-name: settings;
 }
 .settings-content > :first-child { margin-top: 0; }
 

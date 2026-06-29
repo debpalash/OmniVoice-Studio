@@ -154,6 +154,16 @@ across dub, generate, and design (a corrupt-binary failure no longer poses as
   the backend's output pipe breaks and a synth can fail with `[Errno 32] Broken
   pipe`. That was labelled *"ran out of memory — try Flush,"* which never helps;
   it now tells you the backend lost its pipe and to restart the app. (#715)
+- **Settings content no longer sprawls or spills out of view.** The content
+  column capped at 1280px, so on wide windows rows stretched edge-to-edge with a
+  big empty gap between each label and its control ("too spread out"), and a few
+  panels (API keys, the shared button rows, appearance scale) used rigid pixel
+  widths that pushed controls past the card's padding on narrow content. Now the
+  content sits at a readable measure (a single `--settings-measure` token), the
+  shared button/badge rows wrap instead of overflowing, rigid widths can shrink,
+  and rows decide whether to sit side-by-side or stack based on their **actual**
+  width (a container query) — not the viewport, which the 168px nav rail skews.
+  Everything stays inside its padding, edge to edge, on every width. (#696)
 - **File drag-and-drop works on macOS again.** The app's drop zones use HTML5
   file drops, but Tauri intercepts OS drag-and-drop by default (`dragDropEnabled`)
   and swallowed the files before the webview saw them — most visibly on macOS

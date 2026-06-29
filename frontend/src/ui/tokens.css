@@ -45,6 +45,14 @@
   --space-8:  32px;
   --space-9:  44px;
 
+  /* ── Settings layout ────────────────────────────────────────────────
+     One source of truth for the Settings shell so the content can't sprawl
+     edge-to-edge (the "too spread out" report). The measure caps the content
+     column at a readable width — like macOS System Settings — instead of the
+     old 1280px; the rail token keeps the nav width in lockstep with the grid. */
+  --settings-measure: 720px;
+  --settings-rail:    168px;
+
   /* ── Radius ─────────────────────────────────────────────────────── */
   --radius-xs:  2px;
   --radius-sm:  3px;

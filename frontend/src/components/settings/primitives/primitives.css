@@ -189,7 +189,19 @@
 }
 .st-row--stack .st-row__control .st-input { flex: 1 1 220px; }
 
-/* ── Narrow: stack the row so the control drops below the label ── */
+/* ── Narrow: stack the row so the control drops below the label ──
+   Two triggers, same outcome (idempotent):
+   1. Container query on the settings content width — the correct signal, since
+      the 168px nav rail makes the *viewport* width lie about how much room a row
+      actually has. This catches the case where the window is "wide" (≥760px) but
+      the content column is only ~530px and a side-by-side row would be cramped.
+   2. The legacy viewport media query, kept as a fallback for any .st-row used
+      OUTSIDE the settings container (no `settings` ancestor → no container query).
+*/
+@container settings (max-width: 600px) {
+  .st-row { grid-template-columns: 1fr; gap: var(--space-2); }
+  .st-row__control { justify-self: start; max-width: 100%; text-align: left; white-space: normal; }
+}
 @media (max-width: 560px) {
   .st-row { grid-template-columns: 1fr; gap: var(--space-2); }
   .st-row__control { justify-self: start; max-width: 100%; text-align: left; }

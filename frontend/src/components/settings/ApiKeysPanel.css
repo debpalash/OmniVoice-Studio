@@ -103,8 +103,13 @@
 }
 
 .apikeys-input {
+  /* flex-basis already prefers 220px; a rigid min-width:220 only stopped the
+     input from shrinking, so it escaped the row's cap and overflowed on narrow
+     content. min-width:0 lets flexbox shrink it; it still grows to fill. */
   flex: 1 1 220px;
-  min-width: 220px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: var(--space-2) var(--space-3);
   background: var(--chrome-hover-bg);
   border: 1px solid var(--chrome-border);
