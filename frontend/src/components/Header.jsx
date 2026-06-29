@@ -106,12 +106,10 @@ export default function Header({
     if (!flushOpen) return;
     const fetchModels = async () => {
       try {
-        const { API } = await import('../api/client');
-        const res = await fetch(`${API}/model/loaded`);
-        if (res.ok) {
-          const data = await res.json();
-          setLoadedModels(data.models || []);
-        }
+        const { apiFetch } = await import('../api/client');
+        const res = await apiFetch('/model/loaded');
+        const data = await res.json();
+        setLoadedModels(data.models || []);
       } catch {}
     };
     fetchModels();
@@ -133,11 +131,9 @@ export default function Header({
   const unloadModel = async (modelId) => {
     setUnloading(modelId);
     try {
-      const { API } = await import('../api/client');
-      const res = await fetch(`${API}/model/unload/${modelId}`, { method: 'POST' });
-      if (res.ok) {
-        setLoadedModels(prev => prev.filter(m => m.id !== modelId));
-      }
+      const { apiFetch } = await import('../api/client');
+      await apiFetch(`/model/unload/${modelId}`, { method: 'POST' });
+      setLoadedModels(prev => prev.filter(m => m.id !== modelId));
     } catch {} finally {
       setUnloading(null);
     }

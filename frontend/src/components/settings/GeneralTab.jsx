@@ -39,20 +39,15 @@ export default function GeneralTab() {
     const value = ffmpegPath.trim();
     setFfmpegSaving(true);
     try {
-      const { API } = await import('../../api/client');
-      const r = await fetch(`${API}/system/set-env`, {
+      const { apiFetch } = await import('../../api/client');
+      await apiFetch('/system/set-env', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'FFMPEG_PATH', value }),
       });
-      if (r.ok) {
-        toast.success(t('settings.ffmpeg_saved'));
-        setFfmpegPath('');
-        queryClient.invalidateQueries({ queryKey: queryKeys.systemInfo });
-      } else {
-        const d = await r.json().catch(() => ({}));
-        toast.error(d.detail || t('credentials.save_failed'));
-      }
+      toast.success(t('settings.ffmpeg_saved'));
+      setFfmpegPath('');
+      queryClient.invalidateQueries({ queryKey: queryKeys.systemInfo });
     } catch (e) { toast.error(t('settings.save_failed', { message: e.message })); }
     finally { setFfmpegSaving(false); }
   };
@@ -67,28 +62,23 @@ export default function GeneralTab() {
     const value = proxyUrl.trim();
     setProxySaving(true);
     try {
-      const { API } = await import('../../api/client');
-      const setEnv = (key, val) => fetch(`${API}/system/set-env`, {
+      const { apiFetch } = await import('../../api/client');
+      const setEnv = (key, val) => apiFetch('/system/set-env', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, value: val }),
       });
-      const r = await setEnv('HTTP_PROXY', value);
-      if (r.ok) {
-        await Promise.all([
-          setEnv('HTTPS_PROXY', value),
-          setEnv('ALL_PROXY', value),
-          setEnv('http_proxy', value),
-          setEnv('https_proxy', value),
-          setEnv('all_proxy', value),
-        ]);
-        toast.success(t('settings.proxy_saved'));
-        setProxySaved(true);
-        queryClient.invalidateQueries({ queryKey: queryKeys.systemInfo });
-      } else {
-        const d = await r.json().catch(() => ({}));
-        toast.error(d.detail || t('settings.proxy_save_failed'));
-      }
+      await setEnv('HTTP_PROXY', value);
+      await Promise.all([
+        setEnv('HTTPS_PROXY', value),
+        setEnv('ALL_PROXY', value),
+        setEnv('http_proxy', value),
+        setEnv('https_proxy', value),
+        setEnv('all_proxy', value),
+      ]);
+      toast.success(t('settings.proxy_saved'));
+      setProxySaved(true);
+      queryClient.invalidateQueries({ queryKey: queryKeys.systemInfo });
     } catch (e) { toast.error(t('settings.save_failed', { message: e.message })); }
     finally { setProxySaving(false); }
   };
@@ -96,8 +86,8 @@ export default function GeneralTab() {
   const clearProxy = async () => {
     setProxySaving(true);
     try {
-      const { API } = await import('../../api/client');
-      const setEnv = (key, val) => fetch(`${API}/system/set-env`, {
+      const { apiFetch } = await import('../../api/client');
+      const setEnv = (key, val) => apiFetch('/system/set-env', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, value: val }),

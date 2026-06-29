@@ -7,7 +7,7 @@ import {
 } from '../api/dub';
 import { dialectMatchesLang } from '../api/dialects';
 import { segmentGenInputs, applySpeakerCloneDefaults } from '../utils/segments';
-import { apiPost } from '../api/client';
+import { apiPost, apiFetch } from '../api/client';
 import { API } from '../api/client';
 import { playPing } from '../utils/media';
 import { toast } from 'react-hot-toast';
@@ -495,7 +495,7 @@ export default function useDubWorkflow({ loadProjects, loadProfiles, loadDubHist
       };
       const data = await dubGenerate(dubJobId, body);
       setDubTaskId(data.task_id);
-      const streamRes = await fetch(tasksStreamUrl(data.task_id));
+      const streamRes = await apiFetch(tasksStreamUrl(data.task_id));
       const reader = streamRes.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';

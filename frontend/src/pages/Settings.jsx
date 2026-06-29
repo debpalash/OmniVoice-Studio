@@ -8,7 +8,7 @@ import {
   Keyboard, Wifi, Palette, ArrowDownToLine, Settings2,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { API } from '../api/client';
+import { API, apiFetch } from '../api/client';
 import { useTranslation } from 'react-i18next';
 import { systemLogs, systemLogsTauri, clearSystemLogs, clearTauriLogs } from '../api/system';
 import { useSysinfo, useModelStatus, useSystemInfo } from '../api/hooks';
@@ -119,8 +119,7 @@ export default function Settings() {
   const runSelfCheck = useCallback(async () => {
     setSelfCheckRunning(true);
     try {
-      const r = await fetch(`${API}/system/diagnose`);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const r = await apiFetch(`${API}/system/diagnose`);
       setSelfCheck(await r.json());
     } catch (e) {
       toast.error(t('about.self_check_failed', { message: e?.message || e }));
@@ -136,8 +135,7 @@ export default function Settings() {
   const saveDiagnosticBundle = useCallback(async () => {
     setBundleBuilding(true);
     try {
-      const r = await fetch(`${API}/system/diagnostic-bundle`, { method: 'POST' });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const r = await apiFetch(`${API}/system/diagnostic-bundle`, { method: 'POST' });
       const j = await r.json();
       toast.success(t('about.bundle_saved', { filename: j.filename }));
       try {
