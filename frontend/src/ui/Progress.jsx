@@ -1,12 +1,8 @@
 import React from 'react';
-import * as RadixProgress from '@radix-ui/react-progress';
-
-const ROOT = 'ui-progress w-full bg-[rgba(0,0,0,0.3)] rounded-sm overflow-hidden relative';
+import { Progress as ShadcnProgress } from '@/components/ui/progress.tsx';
+import { cn } from '@/lib/utils';
 
 const SIZES = { xs: 'h-[2px]', sm: 'h-[4px]', md: 'h-[6px]' };
-
-const FILL =
-  'ui-progress__fill relative h-full transition-[width] duration-[var(--dur-slow)] ease-[var(--ease-out)]';
 
 const TONES = {
   brand: 'bg-[linear-gradient(90deg,var(--color-brand),var(--color-accent))]',
@@ -16,8 +12,12 @@ const TONES = {
 };
 
 /**
- * Progress — determinate or indeterminate progress bar.
- * Backed by @radix-ui/react-progress for proper ARIA value attributes.
+ * Progress — determinate or indeterminate progress bar. Thin wrapper over the
+ * shadcn/ui Progress (src/components/ui/progress.tsx, itself on
+ * @radix-ui/react-progress) that preserves the legacy prop API and layers on the
+ * per-tone gradient fill, sizes, shimmer overlay, and indeterminate mode. The
+ * `ui-progress` / `ui-progress__fill` / `has-shimmer` / `is-indeterminate` class
+ * hooks drive the shimmer + indeterminate keyframes in residual.css.
  *
  * @param value       0–100 when determinate. Omit for indeterminate.
  * @param tone        'brand' (default) | 'success' | 'warn' | 'danger'
@@ -39,18 +39,23 @@ export default function Progress({
   const clamped = indeterminate ? null : Math.max(0, Math.min(100, safeValue));
 
   return (
-    <RadixProgress.Root
+    <ShadcnProgress
       value={clamped}
-      max={100}
+      indeterminate={indeterminate}
       // `ui-progress` + `is-indeterminate` are retained class hooks for the
-      // shimmer / indeterminate CSS rules in Progress.css (keyframes + ::after).
-      className={`${ROOT} ${SIZES[size] ?? SIZES.sm} ${indeterminate ? 'is-indeterminate' : ''} ${className}`}
+      // shimmer / indeterminate CSS rules in residual.css (keyframes + ::after).
+      className={cn(
+        'ui-progress rounded-sm',
+        SIZES[size] ?? SIZES.sm,
+        indeterminate && 'is-indeterminate',
+        className,
+      )}
+      indicatorClassName={cn(
+        'ui-progress__fill transition-[width] duration-[var(--dur-slow)] ease-[var(--ease-out)]',
+        TONES[tone] ?? TONES.brand,
+        showShimmer && 'has-shimmer',
+      )}
       {...rest}
-    >
-      <RadixProgress.Indicator
-        className={`${FILL} ${TONES[tone] ?? TONES.brand} ${showShimmer ? 'has-shimmer' : ''}`}
-        style={indeterminate ? undefined : { width: `${clamped}%` }}
-      />
-    </RadixProgress.Root>
+    />
   );
 }

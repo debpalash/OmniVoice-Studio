@@ -1,36 +1,16 @@
 import React from 'react';
+import { Badge as ShadcnBadge } from '@/components/ui/badge.tsx';
+import { cn } from '@/lib/utils';
 
-// Base chrome chip — mono uppercase pill. Background + border are set per-tone
-// (every tone specifies both), so they are NOT in the base to avoid utility
-// ordering ambiguity with the tone overrides.
-const BASE =
-  'inline-flex items-center gap-[2px] rounded-[var(--chrome-radius-pill)] font-mono font-semibold tracking-[var(--chrome-label-track)] uppercase whitespace-nowrap select-none leading-[1.2]';
-
-// tones — `color` drives the dot fill (currentColor); border + fill are explicit
-// so the badge reads as a chrome chip, not a filled pill.
-const TONES = {
-  neutral:
-    'text-[var(--chrome-fg-muted)] [border:1px_solid_var(--chrome-border-strong)] bg-transparent',
-  brand:
-    'text-[var(--chrome-accent)] [border:1px_solid_var(--chrome-accent-border)] bg-[var(--chrome-accent-bg)]',
-  success:
-    'text-[var(--chrome-severity-ok)] [border:1px_solid_color-mix(in_srgb,var(--chrome-severity-ok)_45%,transparent)] bg-[color-mix(in_srgb,var(--chrome-severity-ok)_10%,transparent)]',
-  warn: 'text-[var(--chrome-severity-warn)] [border:1px_solid_color-mix(in_srgb,var(--chrome-severity-warn)_45%,transparent)] bg-[color-mix(in_srgb,var(--chrome-severity-warn)_10%,transparent)]',
-  danger:
-    'text-[var(--chrome-severity-err)] [border:1px_solid_color-mix(in_srgb,var(--chrome-severity-err)_45%,transparent)] bg-[color-mix(in_srgb,var(--chrome-severity-err)_10%,transparent)]',
-  info: 'text-[#83a598] [border:1px_solid_color-mix(in_srgb,#83a598_45%,transparent)] bg-[color-mix(in_srgb,#83a598_10%,transparent)]',
-  violet:
-    'text-[var(--chrome-fg-muted)] [border:1px_solid_var(--chrome-border-strong)] bg-transparent',
-};
-
-const SIZES = {
-  xs: 'px-[6px] py-0 text-[11px]',
-  sm: 'px-[7px] py-[1px] text-[11px]',
-};
+// Legacy tone names that the shadcn Badge CVA understands as `variant` values.
+const TONES = ['neutral', 'brand', 'success', 'warn', 'danger', 'info', 'violet'];
 
 /**
- * Badge — small status pill. Replaces the various inline-styled pills
- * scattered through Header, Sidebar, and history views.
+ * Badge — small status pill. Thin wrapper over the shadcn/ui Badge
+ * (src/components/ui/badge.tsx) that preserves the legacy prop API: the `tone`
+ * maps to the shadcn `variant`, `size` passes straight through, and `dot`
+ * renders the leading status dot. Each tone is styled with palette token
+ * utilities in the CVA, so it recolors with every [data-theme].
  *
  * @param tone 'neutral' | 'brand' | 'success' | 'warn' | 'danger' | 'info' | 'violet'
  * @param size 'xs' | 'sm'
@@ -43,13 +23,13 @@ export default function Badge({
   children,
   ...rest
 }) {
+  const variant = TONES.includes(tone) ? tone : 'neutral';
   return (
-    <span
-      className={`ui-badge ${BASE} ${TONES[tone] ?? TONES.neutral} ${SIZES[size] ?? SIZES.sm} ${className}`}
-      {...rest}
-    >
-      {/* `ui-badge__dot` retained so the externally-applied `.ui-badge--pulse`
-          modifier (Header status badge) can still animate the dot via CSS. */}
+    // `ui-badge` is retained so the externally-applied `.ui-badge--pulse`
+    // modifier (Header status badge) can still animate the dot via CSS.
+    <ShadcnBadge variant={variant} size={size} className={cn('ui-badge', className)} {...rest}>
+      {/* `ui-badge__dot` retained so `.ui-badge--pulse .ui-badge__dot` keyframes
+          (residual.css) can still drive the pulse animation. */}
       {dot && (
         <span
           className="ui-badge__dot h-[5px] w-[5px] rounded-full bg-current"
@@ -57,6 +37,6 @@ export default function Badge({
         />
       )}
       {children}
-    </span>
+    </ShadcnBadge>
   );
 }

@@ -118,16 +118,12 @@
 }
 
 /* from Segmented (ui/Segmented.css) */
-/* Container, options, sizes, hover + active are Tailwind utilities in
-   Segmented.jsx now. Only the focus-visible ring survives here: the global
-   `:focus-visible` rule in index.css is UNLAYERED, so it wins over any
-   layered Tailwind utility regardless of specificity. This component-scoped
-   override is likewise unlayered, so it keeps beating the global ring — a
-   precedence relationship a layered utility class can't reproduce. */
-.ui-seg__opt:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
+/* Segmented now renders through the shadcn/ui ToggleGroup (the `seg` variant in
+   src/components/ui/toggle.tsx); its options no longer carry the `.ui-seg__opt`
+   class. The former `.ui-seg__opt:focus-visible` override is obsolete — keyboard
+   focus falls through to the global unlayered `:focus-visible` ring in
+   index.css, which already paints the same brand ring, so no per-option rule is
+   needed. */
 
 /* ── components ────────────────────────────────────────────────────────── */
 
