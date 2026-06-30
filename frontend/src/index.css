@@ -1180,39 +1180,10 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
   75%      { transform: translate(60px,  -30px) scale(0.95); }
 }
 
-.lp-hero {
-  padding: 42px 44px 24px;
-  position: relative; z-index: 1;
-}
-.lp-kicker {
-  font-family: var(--chrome-font-mono);
-  font-size: var(--chrome-label-size);
-  font-weight: 600;
-  letter-spacing: var(--chrome-label-track);
-  text-transform: uppercase;
-  color: var(--chrome-fg-muted);
-}
-
-/* Hero H1 — Source Serif 4 at display size. Eternal halo glow sits behind
-   the text (::before via the new lp-hero__halo span so we can z-layer
-   without re-scoping the h1 itself); animated sweep underneath. */
-.lp-hero__title {
-  font-size: 2.75rem; font-weight: 400; margin: 0;
-  color: var(--chrome-fg);
-  font-family: var(--font-serif);
-  letter-spacing: -0.02em;
-  line-height: 1.04;
-  display: inline-block; position: relative;
-  font-optical-sizing: auto;
-  /* Paint containing block for halo / sweep absolute children */
-  padding: 0 4px;
-}
-.lp-hero__title em {
-  font-style: italic; font-weight: 400;
-  color: var(--chrome-accent);
-  /* Italic text sits a hair above serif baseline; nudge it back down. */
-  position: relative;
-}
+/* Hero H1 halo + sweep — eternal glow behind the (now utility-styled) <h1>
+   and an animated accent line underneath. Kept here because they are pure
+   ::pseudo/@keyframes decoration on absolutely-positioned spans, and the
+   sweep is reused cross-page by ContactPage/SupportPage/DonatePage. */
 .lp-hero__halo {
   position: absolute;
   inset: -16px -24px;
@@ -1251,35 +1222,15 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
   0%, 100% { transform: scaleX(0.35); opacity: 0.35; }
   50%      { transform: scaleX(1);    opacity: 0.85; }
 }
-/* Legacy squiggle span — hidden for back-compat if ever rendered. */
-.lp-hero h1 .lp-underline { display: none; }
-.lp-hero p {
-  margin: 14px 0 0; color: var(--chrome-fg-muted); font-size: 0.82rem;
-  font-family: var(--font-sans);
-  font-weight: 400; max-width: 560px; line-height: 1.6;
-}
-.lp-hero p .lp-pill {
-  display: inline-block; padding: 1px 8px;
-  border-radius: var(--chrome-radius-pill);
-  background: var(--chrome-accent-bg);
-  border: 1px solid var(--chrome-accent-border);
-  color: var(--chrome-accent);
-  font-family: var(--chrome-font-mono);
-  font-weight: 500; font-size: 0.72rem;
-  transform: none;
-  margin: 0 2px;
-}
-
 /* Action cards — flat chrome frame, painted with:
      • an always-on breath ring (the "eternal glow")
      • a cursor-tracked spotlight that fires on hover
    `--card-hue` (inline style) drives everything — background tint, icon,
    accent border, glow color — so each card's personality flows from one
-   hex value. `isolation: isolate` contains the pseudo-layer z-stack. */
-.lp-actions {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
-  padding: 4px 44px; position: relative; z-index: 1;
-}
+   hex value. `isolation: isolate` contains the pseudo-layer z-stack.
+   (The `.lp-actions` grid container is utility-styled inline on the
+   component; only the card itself keeps a class here for its pseudo
+   spotlight / breath-ring layers and nth-child stagger.) */
 .lp-action-card {
   background: transparent;
   border: 1px solid var(--chrome-border);
@@ -1312,14 +1263,6 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
   transform: scale(1.05);
   box-shadow: 0 0 18px -2px color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 45%, transparent);
 }
-.lp-action-card__emoji {
-  display: inline-block;
-  margin-left: 2px;
-  /* Keep emoji out of the uppercase tracking of the h3 */
-  text-transform: none;
-  letter-spacing: 0;
-}
-
 /* ── Glow layer (spotlight + breath ring) ────────────────────────── */
 .lp-glow-layer {
   position: absolute;
@@ -1408,129 +1351,6 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
   background: var(--chrome-bg);
 }
 
-/* Sections — softer headings */
-.lp-section {
-  padding: 28px 44px 40px; position: relative; z-index: 1;
-}
-/* Section titles on the launchpad — same chrome label treatment as the
-   sidebar / settings headings and the LOGS label in the footer. Drops
-   the Fraunces serif heading style so the three section dividers
-   ("Cloned Voices", "Designed Voices", "Dubbing Projects") rhyme with
-   the rest of the app's labels. */
-.lp-section-title {
-  font-family: var(--chrome-font-mono);
-  font-size: var(--chrome-label-size);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: var(--chrome-label-track);
-  color: var(--chrome-fg-muted);
-  margin: 0 0 12px;
-  display: flex; align-items: center; gap: 8px;
-}
-.lp-section-title::after {
-  content: ""; flex: 1; height: 1px;
-  background-image: radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px);
-  background-size: 6px 1px;
-}
-
-/* ── Launchpad extracted layout classes ──────────────────── */
-.lp-hero__row {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  gap: 24px; flex-wrap: wrap;
-}
-.lp-hero__col { max-width: 640px; }
-.lp-hero__kicker-row {
-  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
-}
-.lp-hero__wave-group {
-  display: flex; align-items: center; gap: 2px; height: 22px;
-}
-.lp-section__grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-}
-.lp-col { display: flex; flex-direction: column; gap: 8px; }
-.lp-proj-icon--clone  { background: rgba(211,134,155,0.1); }
-.lp-proj-icon--design { background: rgba(142,192,124,0.1); }
-.lp-proj-icon--locked { background: rgba(184,187,38,0.1); }
-.lp-proj-icon--dub    { background: rgba(254,128,25,0.1); overflow: hidden; }
-.lp-proj-icon--file   { background: rgba(250,189,47,0.1); }
-.lp-proj-meta--italic { font-style: italic; }
-
-/* Recent files (OmniDrive) strip on the Launchpad */
-.lp-files__head {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  margin-bottom: 12px;
-}
-.lp-files__head .lp-section-title { margin: 0; }
-.lp-files__head .lp-section-title::after { display: none; }
-.lp-view-all {
-  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
-  border: none; background: transparent; cursor: pointer; padding: 2px 4px;
-  font-family: var(--chrome-font-mono); font-size: var(--chrome-label-size);
-  font-weight: 600; text-transform: uppercase; letter-spacing: var(--chrome-label-track);
-  color: var(--chrome-fg-muted); transition: color 0.15s ease;
-}
-.lp-view-all:hover { color: #fabd2f; }
-.lp-files__grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px;
-}
-.lp-file-card {
-  width: 100%; font: inherit; color: inherit; text-align: left; cursor: pointer;
-}
-.lp-locked-badge {
-  font-family: var(--chrome-font-mono);
-  font-size: var(--chrome-label-size);
-  letter-spacing: var(--chrome-label-track);
-  padding: 1px 7px;
-  border-radius: var(--chrome-radius-pill);
-  background: color-mix(in srgb, #b8bb26 10%, transparent);
-  border: 1px solid color-mix(in srgb, #b8bb26 40%, transparent);
-  color: #b8bb26; font-weight: 600;
-}
-.lp-empty {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  position: relative; z-index: 1;
-}
-.lp-empty__inner { text-align: center; max-width: 360px; }
-.lp-empty__bars {
-  display: flex; justify-content: center; gap: 3px;
-  margin-bottom: 16px; opacity: 0.3;
-}
-.lp-empty__hint {
-  font-family: var(--chrome-font-mono);
-  font-size: 0.8rem; color: var(--chrome-fg-muted); margin: 0;
-}
-.lp-dub-thumb {
-  width: 100%; height: 100%; object-fit: cover;
-  border-radius: inherit; display: block;
-}
-
-/* ── Demo-profile callout ────────────────────────────────── */
-.lp-demo-callout {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 18px; margin: 8px 44px 0;
-  background: color-mix(in srgb, var(--chrome-accent) 8%, var(--chrome-bg));
-  border: 1px solid var(--chrome-accent-border);
-  border-radius: var(--chrome-radius-pill);
-  font-size: 0.76rem; color: var(--chrome-fg);
-  position: relative; z-index: 1;
-  animation: lpFadeUp 0.5s cubic-bezier(0.4,0,0.2,1) both;
-}
-.lp-demo-callout__icon { font-size: 1.1rem; }
-.lp-demo-callout__btn {
-  margin-left: auto; padding: 4px 14px;
-  font-family: var(--font-sans); font-size: 0.7rem; font-weight: 600;
-  border-radius: var(--chrome-radius-pill);
-  background: var(--chrome-accent-bg);
-  border: 1px solid var(--chrome-accent-border);
-  color: var(--chrome-accent); cursor: pointer;
-  transition: background var(--dur-fast);
-}
-.lp-demo-callout__btn:hover {
-  background: color-mix(in srgb, var(--chrome-accent) 22%, transparent);
-}
-
 /* ── Personality picker strip ────────────────────────────── */
 .personality-strip {
   display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
@@ -1565,76 +1385,6 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
   letter-spacing: var(--chrome-label-track);
   color: var(--chrome-fg-muted);
   margin-bottom: 6px;
-}
-
-/* Project rows — chrome-radius pills so the launchpad project list
-   rhymes with the Projects page cards. Dropped the squircle corners,
-   the translate-X hover, and the icon rotation/scale micro-animation
-   — they read as playful overlay on a chrome frame; simple hover-tint
-   fits the status-bar visual language instead. */
-.lp-project-card {
-  background: var(--chrome-bg);
-  border: 1px solid var(--chrome-border);
-  border-radius: var(--chrome-radius-pill);
-  padding: 10px 14px;
-  transition: background 0.15s, border-color 0.15s;
-  display: flex; align-items: center; gap: 12px;
-}
-.lp-project-card:hover {
-  background: var(--chrome-hover-bg);
-  border-color: var(--chrome-border-strong);
-}
-.lp-project-card .proj-icon {
-  width: 32px; height: 32px;
-  border-radius: var(--chrome-radius-pill);
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-}
-.lp-project-card .proj-info { flex: 1; min-width: 0; }
-.lp-project-card .proj-name {
-  font-family: var(--font-sans);
-  font-size: 0.78rem; font-weight: 600; color: var(--chrome-fg);
-  letter-spacing: 0.01em;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.lp-project-card .proj-meta {
-  font-family: var(--chrome-font-mono);
-  font-size: 0.62rem; color: var(--chrome-fg-dim); margin-top: 2px; font-weight: 400;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.lp-project-card .proj-action {
-  font-family: var(--font-sans);
-  font-size: 0.7rem; font-weight: 500; padding: 4px 12px;
-  border-radius: var(--chrome-radius-pill);
-  background: transparent;
-  border: 1px solid var(--chrome-border-strong);
-  color: var(--chrome-fg-muted); cursor: pointer;
-  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
-  flex-shrink: 0;
-  white-space: nowrap;
-  letter-spacing: 0.02em;
-}
-.lp-project-card .proj-action:hover {
-  background: var(--chrome-hover-bg); color: var(--chrome-fg);
-  border-color: var(--chrome-fg-muted);
-  transform: none;
-}
-
-/* Launchpad A/B Compare trigger — flat chrome accent button, no rotation. */
-.lp-ab-compare {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 14px;
-  font-family: var(--font-sans);
-  font-size: 0.72rem; font-weight: 500;
-  letter-spacing: 0.02em;
-  color: var(--chrome-accent);
-  background: var(--chrome-accent-bg);
-  border: 1px solid var(--chrome-accent-border);
-  border-radius: var(--chrome-radius-pill);
-  cursor: pointer; flex-shrink: 0;
-  transition: background var(--dur-fast), border-color var(--dur-fast);
-}
-.lp-ab-compare:hover {
-  background: color-mix(in srgb, var(--chrome-accent) 22%, transparent);
 }
 
 /* Staggered fade-in */
@@ -2368,25 +2118,16 @@ div[role="dialog"].audio-trimmer {
 
 /* ── Launchpad ── */
 @media (max-width: 900px) {
-  .lp-hero { padding: 24px 20px 16px; }
-  .lp-hero h1 { font-size: 1.8rem; }
-  .lp-hero p { font-size: 0.85rem; }
-  .lp-actions { padding: 0 20px 16px; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
   .lp-action-card { min-width: 0; padding: 14px 12px; }
   .lp-action-card:nth-child(1),
   .lp-action-card:nth-child(2),
   .lp-action-card:nth-child(3) { transform: none; }
-  .lp-section { padding: 0 20px 24px; }
 }
 @media (max-width: 640px) {
-  .lp-hero h1 { font-size: 1.4rem; }
-  .lp-hero p { font-size: 0.78rem; max-width: 100%; }
-  .lp-actions { grid-template-columns: 1fr; padding: 0 12px 12px; }
   .lp-action-card { min-height: auto; padding: 12px 10px; }
   .lp-action-card h3 { font-size: 0.88rem; }
   .lp-action-card .card-desc { font-size: 0.68rem; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
   .lp-action-card .card-icon { width: 28px; height: 28px; }
-  .lp-section { padding: 0 12px 16px; }
 }
 
 /* ── Studio panels — tighter on small screens ── */
