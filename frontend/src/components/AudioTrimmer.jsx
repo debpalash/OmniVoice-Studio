@@ -17,7 +17,6 @@ import {
 } from '../utils/audioTrim.js';
 import { Dialog, Button } from '../ui';
 import { useTranslation } from 'react-i18next';
-import './AudioTrimmer.css';
 
 const EDGE_GRAB_PX = 10;
 

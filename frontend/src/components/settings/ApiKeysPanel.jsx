@@ -24,7 +24,6 @@ import { useTranslation } from 'react-i18next';
 import { CheckCircle2, KeyRound, RefreshCw, Save, Trash2, XCircle } from 'lucide-react';
 import { apiJson, apiPost, apiFetch, API } from '../../api/client';
 import { SettingsSection, InfoHint } from './primitives';
-import './ApiKeysPanel.css';
 
 const SOURCE_LABELS = {
   app: 'OmniVoice (encrypted, recommended)',

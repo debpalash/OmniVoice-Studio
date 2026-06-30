@@ -1,6 +1,5 @@
 import React from 'react';
 import * as RadixProgress from '@radix-ui/react-progress';
-import './Progress.css';
 
 const ROOT = 'ui-progress w-full bg-[rgba(0,0,0,0.3)] rounded-sm overflow-hidden relative';
 

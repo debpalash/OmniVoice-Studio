@@ -4,7 +4,6 @@ import { Wrench, Sparkles, Activity, Target } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Panel, Button, Input, Field, Textarea, Badge } from '../ui';
 import { apiPost } from '../api/client';
-import './ToolsPage.css';
 
 /**
  * ToolsPage — Phase 4.6 surface. Standalone utilities independent of the

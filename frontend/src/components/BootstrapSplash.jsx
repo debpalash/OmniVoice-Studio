@@ -17,7 +17,6 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Brush, Check, Clipboard, Globe, Lightbulb } from 'lucide-react';
 import { copyText } from '../utils/copyText';
 import './FirstRunSetup.css';
-import './BootstrapSplash.css';
 import { useTranslation } from 'react-i18next';
 import i18n, { LANGUAGES } from '../i18n';
 import { useAppStore } from '../store';

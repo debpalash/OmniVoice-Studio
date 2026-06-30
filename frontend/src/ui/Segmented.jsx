@@ -1,6 +1,5 @@
 import React from 'react';
 import * as ToggleGroup from '@radix-ui/react-toggle-group';
-import './Segmented.css';
 
 const ROOT =
   'ui-seg inline-flex gap-[2px] bg-[rgba(0,0,0,0.28)] p-[3px] rounded-[var(--radius-pill)] [border:1px_solid_var(--color-border)] shrink';

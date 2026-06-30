@@ -17,7 +17,6 @@ import { useTranslation } from 'react-i18next';
 import { DEMO_ICONS, FALLBACK_VOICE_ICON, stripVoiceEmoji } from '../utils/voiceIcons';
 import { API } from '../api/client';
 import { claimPlayback, stopActivePlayback } from '../utils/playback';
-import './DemoPresetGrid.css'; // .demo-preset-card__preview[aria-pressed] only
 
 export default function DemoPresetGrid({ presets, onUse }) {
   const { t } = useTranslation();

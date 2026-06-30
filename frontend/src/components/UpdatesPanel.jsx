@@ -9,7 +9,6 @@ import { useAppStore } from '../store';
 import { installUpdate, checkForUpdate } from '../utils/updater';
 import { prepareReleases } from '../utils/updatePresentation';
 import { setChannel } from '../utils/channelControl';
-import './UpdatesPanel.css';
 
 export default function UpdatesPanel() {
   const { t } = useTranslation();

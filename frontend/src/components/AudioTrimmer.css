@@ -1,8 +1,0 @@
-/* AudioTrimmer — canvas-specific styles, uses Dialog/Button from ui/. */
-
-.audio-trimmer {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  outline: none;
-}

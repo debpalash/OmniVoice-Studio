@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { Mic, Search, Clock, Languages } from 'lucide-react';
 import { Dialog, Input } from '../ui';
 import { loadTranscriptions, TRANSCRIPTION_EVENT } from '../utils/transcriptionsStore';
-import './TranscriptionPicker.css';
 
 /**
  * A controlled modal that lets the user seed long-form work from a past

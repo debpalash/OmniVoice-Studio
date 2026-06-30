@@ -5,7 +5,6 @@ import React, { forwardRef } from 'react';
 // the retained glass rule and external contextual overrides
 // (`.glossary-panel .ui-panel__body`, `.voice-profile__hero .ui-panel__body`)
 // still match.
-import './Panel.css';
 
 /* Token-faithful utilities. App ships Tailwind v4 without Preflight and themes
  * override `--color-*`, so colors/borders/shadows use arbitrary properties

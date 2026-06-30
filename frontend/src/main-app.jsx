@@ -12,6 +12,10 @@ import '@fontsource-variable/source-serif-4';
 import './i18n'; // ← initialise i18next before any component renders
 import './ui';
 import './index.css';
+// Consolidated post-Tailwind-migration residual rules (formerly ~15 per-component
+// stub stylesheets). Loaded right after index.css to preserve the previous
+// cascade order (these are intentionally unlayered — see styles/residual.css).
+import './styles/residual.css';
 import App from './App.jsx';
 import RemoteAuthGate from './components/RemoteAuthGate';
 import { installConsoleCapture } from './utils/consoleBuffer.js';

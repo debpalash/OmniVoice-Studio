@@ -1,5 +1,4 @@
 import React from 'react';
-import './Badge.css';
 
 // Base chrome chip — mono uppercase pill. Background + border are set per-tone
 // (every tone specifies both), so they are NOT in the base to avoid utility

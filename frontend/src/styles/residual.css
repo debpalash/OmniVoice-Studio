@@ -1,0 +1,332 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   residual.css — consolidated post-Tailwind-migration stub rules.
+
+   After the Tailwind v4 migration most component styling moved to utility
+   classes on the JSX. What remained were a handful of tiny per-component
+   stylesheets holding only the few rules that *can't* be expressed as layered
+   utilities — @keyframes-driven animations, focus-visible rings, glass
+   surfaces, a <select> caret, ::before/::after pseudos, and attribute-selector
+   overrides that must out-rank Tailwind's @layer utilities.
+
+   These were ~15 separate files, each imported by its own component. They are
+   ALL plain global class selectors, so the file boundary bought nothing — this
+   file collapses them into one, loaded once at app root (main-app.jsx) and once
+   in the visual harness (harness.jsx), preserving the previous load order
+   (always after index.css).
+
+   CRITICAL: every rule here is intentionally UNLAYERED. The migration relies on
+   the fact that unlayered CSS beats anything inside Tailwind's `@layer
+   utilities`, regardless of specificity. Do NOT wrap any of this in `@layer` —
+   that would drop these rules below the utilities they are meant to override
+   (focus rings, hover backgrounds, element resets, etc.) and silently change
+   the rendering. Each block is moved verbatim from its origin file; the
+   "from <Component>" header above each block records provenance.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ── ui primitives ─────────────────────────────────────────────────────── */
+
+/* from Badge (ui/Badge.css) */
+/* All static chrome (base, sizes, tones, dot) now lives as Tailwind utility
+   classes in Badge.jsx. Only the pulse modifier survives here: it is driven by
+   the externally-applied `.ui-badge--pulse` parent class (Header status badge)
+   targeting the dot via a descendant selector + the global `pulse` keyframes —
+   a relationship Tailwind utilities on the component itself can't express. */
+.ui-badge--pulse .ui-badge__dot {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* from Input (ui/Input.css) — native <select> caret only */
+/* The shared input/textarea/select shell, sizes, states, and the Field
+   wrapper are now Tailwind utilities in Input.jsx. Only the <select> caret
+   remains here: an SVG data-URI background (with its appearance reset, caret
+   placement, padding-right for the arrow, and hover border) that isn't
+   practical to express as a utility. */
+.ui-select {
+  appearance: none;
+  padding-right: 20px;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23a1a1aa%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  background-size: 0.42rem auto;
+  cursor: pointer;
+}
+.ui-select:hover {
+  border-color: var(--color-border-strong);
+}
+
+/* from Panel (ui/Panel.css) — glass surface only */
+/* Layout, border, radius, padding, header/title/actions, and the solid/flat
+   variants are now Tailwind utilities in Panel.jsx. Only the glass variant's
+   backdrop-filter + layered gradient surface and the ::before top-edge
+   highlight remain here — none of these are expressible as utilities (the app
+   ships Tailwind v4 without the filter/backdrop `--tw-*` plumbing, and ::before
+   is a pseudo-element). */
+
+/* glass — warm backdrop-filter card (replaces legacy .glass-panel) */
+.ui-panel--glass {
+  background:
+    radial-gradient(500px 240px at 15% 0%,   rgba(251, 188, 148, 0.05) 0%, transparent 70%),
+    radial-gradient(500px 280px at 100% 100%, rgba(211, 134, 155, 0.045) 0%, transparent 70%),
+    linear-gradient(160deg, rgba(47, 41, 39, 0.82) 0%, rgba(38, 33, 31, 0.82) 100%);
+  backdrop-filter: var(--glass-blur-md);
+  -webkit-backdrop-filter: var(--glass-blur-md);
+}
+.ui-panel--glass::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.08) 30%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.08) 70%,
+    rgba(255, 255, 255, 0)
+  );
+  pointer-events: none;
+}
+
+/* from Progress (ui/Progress.css) */
+/* Track, sizes, fill base, and the per-tone gradient fills are Tailwind
+   utilities in Progress.jsx now. What remains here can't be expressed by
+   utilities: the shimmer overlay (a `::after` pseudo-element + keyframes) and
+   the indeterminate sliding bar (a descendant rule + keyframes). Both hook off
+   the retained `ui-progress` / `ui-progress__fill` / `has-shimmer` /
+   `is-indeterminate` class names. */
+.ui-progress__fill.has-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  background-size: 200% 100%;
+  animation: ui-shimmer 1.5s linear infinite;
+}
+@keyframes ui-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+/* indeterminate: sliding bar ~30% wide */
+.ui-progress.is-indeterminate .ui-progress__fill {
+  width: 30%;
+  animation: ui-progress-indet 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@keyframes ui-progress-indet {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(433%); } /* (100% - 30%) / 30% * 100 + 100 */
+}
+
+/* from Segmented (ui/Segmented.css) */
+/* Container, options, sizes, hover + active are Tailwind utilities in
+   Segmented.jsx now. Only the focus-visible ring survives here: the global
+   `:focus-visible` rule in index.css is UNLAYERED, so it wins over any
+   layered Tailwind utility regardless of specificity. This component-scoped
+   override is likewise unlayered, so it keeps beating the global ring — a
+   precedence relationship a layered utility class can't reproduce. */
+.ui-seg__opt:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ── components ────────────────────────────────────────────────────────── */
+
+/* from AudioTrimmer (components/AudioTrimmer.css) */
+/* AudioTrimmer — canvas-specific styles, uses Dialog/Button from ui/. */
+.audio-trimmer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  outline: none;
+}
+
+/* from DemoPresetGrid (components/DemoPresetGrid.css) */
+/* Demo preset grid — empty state of the Voice Design tab.
+   Layout/typography moved to Tailwind utilities on DemoPresetGrid.jsx.
+   Kept here: the active-preview state, an attribute selector
+   ([aria-pressed="true"]) that must stay unlayered so it wins over the
+   button's hover utilities. */
+.demo-preset-card__preview[aria-pressed="true"] {
+  background: rgba(243, 165, 182, 0.18);
+  border-color: rgba(243, 165, 182, 0.4);
+  color: #fff9ef;
+}
+
+/* from MultiLangPicker (components/MultiLangPicker.css) */
+/* Dropdown */
+.multi-lang__drop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: var(--z-overlay);
+  margin-top: 4px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border-strong);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  max-height: 260px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: mlp-in 0.15s ease-out;
+}
+@keyframes mlp-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* from ReadinessChecklist (components/ReadinessChecklist.css) */
+/* System readiness panel showing pass/warn/fail gates
+   for ASR model, TTS engine, LLM, ffmpeg, GPU, etc. */
+.readiness-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--color-bg-elev-1);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+}
+
+/* ── Status icons ───────────────────────────────────────────────────── */
+
+.readiness-checklist__status--pass { color: var(--color-success); }
+.readiness-checklist__status--warn { color: var(--color-accent); }
+.readiness-checklist__status--fail { color: var(--color-danger); }
+.readiness-checklist__status--loading {
+  color: var(--color-fg-subtle);
+  animation: rc-spin 1s linear infinite;
+}
+
+@keyframes rc-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* from TranscriptionPicker (components/TranscriptionPicker.css) */
+/* __search / __list / __row base / __text / __meta base / __empty layout →
+   Tailwind utilities in TranscriptionPicker.jsx. The `__search > *` and
+   `__meta span` combinators + the row :hover/:focus-visible states stay here
+   (focus-visible must stay unlayered to beat the global focus reset). */
+.txn-picker__search > * { flex: 1 1 auto; min-width: 0; }
+.txn-picker__row:hover, .txn-picker__row:focus-visible {
+  border-color: var(--chrome-accent, #fe8019);
+  background: color-mix(in srgb, var(--chrome-accent, #fe8019) 8%, transparent);
+}
+.txn-picker__meta span { display: inline-flex; align-items: center; gap: 3px; }
+
+/* from UpdatesPanel (components/UpdatesPanel.css) */
+.updates-panel { padding: 8px 0; overflow-y: auto; font-size: 12px; color: var(--chrome-fg, #d5c4a1); }
+.updates-panel__live { display: flex; align-items: center; min-height: 26px; }
+.updates-panel__cta {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(184,187,38,0.14); border: 1px solid rgba(184,187,38,0.5);
+  color: #b8bb26; border-radius: 999px; padding: 3px 10px; font: inherit; cursor: pointer;
+}
+.updates-panel__ok, .updates-panel__err, .updates-panel__progress { display: inline-flex; align-items: center; gap: 8px; }
+.updates-panel__err { color: #fb4934; }
+.updates-panel__link { background: none; border: none; color: #83a598; cursor: pointer; font: inherit; display: inline-flex; align-items: center; gap: 3px; }
+.updates-panel__icon { background: none; border: none; color: #fb4934; cursor: pointer; padding: 0 2px; }
+.updates-panel__bar { display: inline-block; width: 80px; height: 3px; background: rgba(255,255,255,0.12); border-radius: 2px; overflow: hidden; }
+.updates-panel__bar span { display: block; height: 100%; background: #b8bb26; }
+.updates-panel__channel { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.updates-panel__seg { display: inline-flex; border: 1px solid var(--chrome-border, #3a3a3a); border-radius: 6px; overflow: hidden; }
+.updates-panel__segbtn { background: none; border: none; color: var(--chrome-fg-muted); padding: 2px 10px; font: inherit; cursor: pointer; }
+.updates-panel__segbtn.is-active { background: rgba(131,165,152,0.18); color: #ebdbb2; }
+.updates-panel__rel-head { font-weight: 600; color: var(--chrome-fg-muted); margin: 6px 0 4px; }
+.updates-panel__rel-empty { color: var(--chrome-fg-muted); display: inline-flex; gap: 8px; align-items: center; padding: 6px 0; }
+.updates-panel__rel { border-top: 1px solid var(--chrome-border, #2a2a2a); padding: 6px 0; }
+.updates-panel__rel.is-current { background: rgba(184,187,38,0.06); }
+.updates-panel__rel-row { display: flex; align-items: center; gap: 8px; }
+.updates-panel__rel-ver { font-weight: 600; }
+.updates-panel__rel-tag { font-size: 10px; color: #b8bb26; border: 1px solid rgba(184,187,38,0.5); border-radius: 999px; padding: 0 6px; }
+.updates-panel__rel-pre { font-size: 10px; color: #d79921; border: 1px solid rgba(215,153,33,0.5); border-radius: 999px; padding: 0 6px; }
+.updates-panel__rel-date { margin-left: auto; color: var(--chrome-fg-muted); }
+.updates-panel__rel-notes { white-space: pre-wrap; overflow-wrap: break-word; margin: 4px 0 0; font-size: 11px; line-height: 1.4; color: #bdae93; }
+
+/* from VoiceSelector (components/VoiceSelector.css) */
+/* Shared voice picker (#22): the SearchableSelect grows to fill, adornment
+   buttons sit to its right.
+   .voice-selector / __adornments / __btn base layout → Tailwind utilities in
+   VoiceSelector.jsx. The `> .ss-wrap` child combinator, the __btn :hover/
+   :disabled states, and the spin animation stay here. */
+.voice-selector > .ss-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.voice-selector__btn:hover:not(:disabled) {
+  color: var(--chrome-fg, #eee);
+  border-color: var(--chrome-border-strong, rgba(255, 255, 255, 0.22));
+}
+.voice-selector__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.voice-selector__spin {
+  animation: voice-selector-spin 0.8s linear infinite;
+}
+@keyframes voice-selector-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* from ApiKeysPanel (components/settings/ApiKeysPanel.css) */
+/* Settings → API Keys panel — Wave 2 AUTH-03 UI. Most of this panel's chrome
+   now lives in Tailwind utilities on the JSX. The rules kept here are the
+   source/row card + the "Active" badge: ApiKeysPanel.test.jsx selects them by
+   class name (`.apikeys-row`, `.apikeys-row--active`, `.apikeys-badge--active`),
+   so they stay as a stable contract. All surfaces still route through
+   var(--chrome-*) tokens so they theme across all 6 themes. */
+.apikeys-row {
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  padding: var(--space-4) var(--space-4);
+  background: var(--chrome-bg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.apikeys-row--active {
+  border-left: 2px solid var(--chrome-accent);
+  background: color-mix(in srgb, var(--chrome-accent) 5%, var(--chrome-bg));
+}
+
+.apikeys-badge {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg-muted);
+}
+
+.apikeys-badge--active {
+  background: color-mix(in srgb, var(--chrome-accent) 25%, transparent);
+  color: var(--chrome-accent);
+}
+
+/* ── pages ─────────────────────────────────────────────────────────────── */
+
+/* from ToolsPage (pages/ToolsPage.css) */
+/* Layout/spacing/box rules now live as Tailwind utilities in ToolsPage.jsx.
+   Only the rules below remain: the `<h1>` font-family + the descendant
+   `code`/`pre` typography — both fight the unlayered global element rules in
+   index.css (h1 → font-sans, code/pre → font-variant-numeric), which would win
+   over @layer utilities, so they stay as plain CSS. */
+.tools-page__bar h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.tools-card__out code { font-family: var(--font-mono); color: var(--color-fg); }
+.tools-card__out pre  { margin: var(--space-2) 0 0; font-family: var(--font-mono); overflow-x: auto; white-space: pre-wrap; }

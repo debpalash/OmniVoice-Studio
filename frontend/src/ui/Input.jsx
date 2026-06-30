@@ -3,7 +3,6 @@ import React, { forwardRef, useId } from 'react';
 // data-URI arrow background + its hover border) — an SVG data-URI background
 // that's impractical to express as a utility. Everything else is utilities
 // below.
-import './Input.css';
 
 /* Token-faithful utilities. App ships Tailwind v4 without Preflight and themes
  * override the design tokens, so colors/borders/shadows/transitions use

@@ -2,7 +2,6 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle, AlertTriangle, XCircle, Loader, Search, Lightbulb } from 'lucide-react';
 import { usePreflight, useModelStatus } from '../api/hooks';
-import './ReadinessChecklist.css';
 
 /**
  * ReadinessChecklist — system readiness panel.

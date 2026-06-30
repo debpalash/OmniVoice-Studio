@@ -34,6 +34,10 @@ import '@fontsource-variable/source-serif-4';
 import '../../ui/tokens.css';
 import '../../ui/themes.css';
 import '../../index.css';
+// Residual unlayered rules the migrated components rely on (pulse/focus/caret/
+// glass/etc.) now live in one shared file instead of per-component stubs the
+// component .jsx used to import — load it here so harness snapshots match prod.
+import '../../styles/residual.css';
 
 import { SPECS } from './specs.jsx';
 import { applyProviders } from './providers.jsx';

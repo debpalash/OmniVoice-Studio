@@ -3,7 +3,6 @@ import { Play, Loader, ExternalLink, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import SearchableSelect from './SearchableSelect';
 import { PRESETS } from '../utils/constants';
-import './VoiceSelector.css';
 
 /**
  * Shared voice picker (#22) — one searchable, grouped control used everywhere a

@@ -3,7 +3,6 @@ import { X, Search, Globe, Plus } from 'lucide-react';
 import { POPULAR_LANGS } from '../utils/constants';
 import { LANG_CODES } from '../utils/languages';
 import { useTranslation } from 'react-i18next';
-import './MultiLangPicker.css';
 
 /**
  * MultiLangPicker — chip-based multi-language selector for batch dubbing.
