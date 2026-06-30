@@ -147,11 +147,11 @@ export default function CompareModal({
               value={compareText}
               onChange={(e) => setCompareText(e.target.value)}
               rows={2}
-              className="compare-textarea--noresize"
+              className="resize-none"
             />
           </Field>
 
-          <div className="ui-compare__grid">
+          <div className="ui-compare__grid grid grid-cols-2 gap-[var(--space-6)] mt-[var(--space-5)]">
             <CompareSide
               accent="var(--color-brand)"
               label={t('compare.voice_a')}

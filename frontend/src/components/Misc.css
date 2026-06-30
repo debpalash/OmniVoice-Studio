@@ -57,9 +57,6 @@
 }
 .app-lazy-fallback { padding: 12px; color: #6b6657; font-size: 0.7rem; }
 
-/* ═══ CompareModal extracted ═══ */
-.compare-textarea--noresize { resize: none; }
-
 /* ═══ AudioTrimmer play button ═══ */
 .audio-trimmer__play-btn {
   color: var(--color-success);

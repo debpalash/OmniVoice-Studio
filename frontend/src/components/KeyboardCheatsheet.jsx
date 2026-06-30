@@ -1,10 +1,14 @@
 import React from 'react';
-import { Command, X } from 'lucide-react';
+import { Command } from 'lucide-react';
 import { Trans, useTranslation } from 'react-i18next';
-import './KeyboardCheatsheet.css';
+import { Dialog } from '../ui';
 
 function Kbd({ children }) {
-  return <span className="kcs-kbd">{children}</span>;
+  return (
+    <span className="inline-flex h-[22px] min-w-[28px] items-center justify-center gap-[2px] rounded-[var(--chrome-radius-pill)] border border-[var(--chrome-border-strong)] bg-[var(--chrome-hover-bg)] px-2 py-[2px] font-mono text-[0.7rem] font-medium text-[var(--chrome-fg)]">
+      {children}
+    </span>
+  );
 }
 
 export default function KeyboardCheatsheet({ open, onClose }) {
@@ -52,53 +56,57 @@ export default function KeyboardCheatsheet({ open, onClose }) {
     },
   ];
 
-  if (!open) return null;
   return (
-    <div onClick={onClose} className="kcs-overlay">
-      <div onClick={(e) => e.stopPropagation()} className="kcs-panel">
-        <div className="kcs-header">
-          <div className="kcs-header__left">
-            <Command size={16} color="var(--chrome-accent)" />
-            <h2 className="kcs-title">{t('keyboard.title')}</h2>
-          </div>
-          <button onClick={onClose} className="kcs-close">
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="kcs-grid">
-          {SECTIONS.map((sec) => (
-            <div key={sec.title}>
-              <div className="kcs-section-title">{sec.title}</div>
-              <div className="kcs-items">
-                {sec.items.map(([keys, desc]) => (
-                  <div key={keys} className="kcs-row">
-                    <span className="kcs-desc">{desc}</span>
-                    <span className="kcs-keys">
-                      {keys.split(' / ').map((group, i, arr) => (
-                        <React.Fragment key={group}>
-                          <span className="kcs-key-group">
-                            {group.split('+').map((k) => (
-                              <Kbd key={k}>{k}</Kbd>
-                            ))}
-                          </span>
-                          {i < arr.length - 1 && <span className="kcs-or">{t('keyboard.or')}</span>}
-                        </React.Fragment>
-                      ))}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="kcs-footer">
+    <Dialog
+      open={open}
+      onClose={onClose}
+      size="lg"
+      title={
+        <span className="inline-flex items-center gap-[10px]">
+          <Command size={16} color="var(--chrome-accent)" />
+          {t('keyboard.title')}
+        </span>
+      }
+      footer={
+        <span className="flex-1 text-center text-[0.72rem] text-[var(--chrome-fg-dim)]">
           <Trans i18nKey="keyboard.footer" components={{ 1: <Kbd /> }}>
             {'Press <1>?</1> any time to open this.'}
           </Trans>
-        </div>
+        </span>
+      }
+    >
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-[18px]">
+        {SECTIONS.map((sec) => (
+          <div key={sec.title}>
+            <div className="mb-[10px] border-b border-[var(--chrome-border)] pb-[6px] font-mono text-[length:var(--chrome-label-size)] font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
+              {sec.title}
+            </div>
+            <div className="flex flex-col gap-[6px]">
+              {sec.items.map(([keys, desc]) => (
+                <div key={keys} className="flex items-center justify-between gap-[10px]">
+                  <span className="text-[0.8rem] text-[var(--chrome-fg-muted)]">{desc}</span>
+                  <span className="flex shrink-0 gap-[3px]">
+                    {keys.split(' / ').map((group, i, arr) => (
+                      <React.Fragment key={group}>
+                        <span className="flex gap-[2px]">
+                          {group.split('+').map((k) => (
+                            <Kbd key={k}>{k}</Kbd>
+                          ))}
+                        </span>
+                        {i < arr.length - 1 && (
+                          <span className="self-center text-[0.7rem] text-[var(--chrome-fg-dim)]">
+                            {t('keyboard.or')}
+                          </span>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
-    </div>
+    </Dialog>
   );
 }

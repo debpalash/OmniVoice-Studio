@@ -11,7 +11,6 @@ import {
   clearGlossary,
   autoExtractGlossary,
 } from '../api/glossary';
-import './GlossaryPanel.css';
 
 export default function GlossaryPanel({
   projectId,
@@ -76,7 +75,7 @@ export default function GlossaryPanel({
   const onUpdate = async (id, patch) => {
     try {
       const row = await updateGlossaryTerm(projectId, id, patch);
-      const next = terms.map((t) => (t.id === id ? row : t));
+      const next = terms.map((term) => (term.id === id ? row : term));
       setTerms(next);
       pushChange(next);
     } catch (e) {
@@ -87,7 +86,7 @@ export default function GlossaryPanel({
   const onDelete = async (id) => {
     try {
       await deleteGlossaryTerm(projectId, id);
-      const next = terms.filter((t) => t.id !== id);
+      const next = terms.filter((term) => term.id !== id);
       setTerms(next);
       pushChange(next);
     } catch (e) {
@@ -135,7 +134,7 @@ export default function GlossaryPanel({
     }
   };
 
-  const autoCount = terms.filter((t) => t.auto).length;
+  const autoCount = terms.filter((term) => term.auto).length;
   const manualCount = terms.length - autoCount;
 
   return (
@@ -146,7 +145,7 @@ export default function GlossaryPanel({
       title={
         <>
           <BookOpen size={13} /> {t('glossary.title')}
-          <span className="glossary-panel__counts">
+          <span className="ml-[var(--space-3)] text-[length:var(--text-xs)] font-medium text-[var(--color-fg-subtle)]">
             {t('glossary.count', { count: terms.length })}
             {autoCount > 0 && <> · {t('glossary.auto_count', { count: autoCount })}</>}
           </span>
@@ -183,97 +182,109 @@ export default function GlossaryPanel({
         </>
       }
     >
-      {!projectId ? (
-        <div className="glossary-panel__empty">{t('glossary.empty_save')}</div>
-      ) : (
-        <>
-          <table className="glossary-panel__table">
-            <thead>
-              <tr>
-                <th>{t('glossary.source')}</th>
-                <th>{t('glossary.target')}</th>
-                <th>{t('glossary.note')}</th>
-                <th className="glossary-panel__col-kind" aria-label="auto / manual"></th>
-                <th className="glossary-panel__col-action" aria-label="delete"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && !terms.length && (
+      <div className="max-h-[35vh] overflow-y-auto">
+        {!projectId ? (
+          <div className="p-[var(--space-5)] text-center text-[length:var(--text-md)] text-[var(--color-fg-subtle)]">
+            {t('glossary.empty_save')}
+          </div>
+        ) : (
+          <>
+            <table className="w-full border-collapse text-[length:var(--text-sm)] [&_td]:border-b [&_td]:border-b-white/[0.04] [&_td]:px-[6px] [&_td]:py-[3px] [&_td]:text-left [&_td]:align-middle [&_th]:border-b [&_th]:border-b-[var(--color-border)] [&_th]:px-[6px] [&_th]:py-[3px] [&_th]:text-left [&_th]:align-middle [&_th]:text-[length:var(--text-xs)] [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.04em] [&_th]:text-[var(--color-fg-subtle)]">
+              <thead>
                 <tr>
-                  <td colSpan={5} className="glossary-panel__muted">
-                    {t('common.loading')}
+                  <th>{t('glossary.source')}</th>
+                  <th>{t('glossary.target')}</th>
+                  <th>{t('glossary.note')}</th>
+                  <th className="w-[60px]" aria-label="auto / manual"></th>
+                  <th className="w-[26px]" aria-label="delete"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && !terms.length && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="p-[var(--space-5)] text-center italic text-[var(--color-fg-subtle)]"
+                    >
+                      {t('common.loading')}
+                    </td>
+                  </tr>
+                )}
+                {!loading && !terms.length && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="p-[var(--space-5)] text-center italic text-[var(--color-fg-subtle)]"
+                    >
+                      {t('glossary.no_terms')}
+                    </td>
+                  </tr>
+                )}
+                {terms.map((term) => (
+                  <GlossaryRow
+                    key={term.id}
+                    term={term}
+                    onUpdate={(patch) => onUpdate(term.id, patch)}
+                    onDelete={() => onDelete(term.id)}
+                  />
+                ))}
+                <tr className="border-t border-dashed border-[var(--color-border)] [&>td]:py-[4px]">
+                  <td>
+                    <Input
+                      size="sm"
+                      placeholder={t('glossary.source_placeholder', { lang: sourceLang })}
+                      value={draft.source}
+                      onChange={(e) => setDraft({ ...draft, source: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') onAdd();
+                      }}
+                    />
+                  </td>
+                  <td>
+                    <Input
+                      size="sm"
+                      placeholder={t('glossary.target_placeholder', { lang: targetLang || '—' })}
+                      value={draft.target}
+                      onChange={(e) => setDraft({ ...draft, target: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') onAdd();
+                      }}
+                    />
+                  </td>
+                  <td>
+                    <Input
+                      size="sm"
+                      placeholder={t('glossary.note_placeholder')}
+                      value={draft.note}
+                      onChange={(e) => setDraft({ ...draft, note: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') onAdd();
+                      }}
+                    />
+                  </td>
+                  <td />
+                  <td>
+                    <Button
+                      variant="subtle"
+                      iconSize="sm"
+                      disabled={!draft.source.trim() || !draft.target.trim()}
+                      onClick={onAdd}
+                      title={t('glossary.add_term')}
+                    >
+                      <Plus size={10} />
+                    </Button>
                   </td>
                 </tr>
-              )}
-              {!loading && !terms.length && (
-                <tr>
-                  <td colSpan={5} className="glossary-panel__muted">
-                    {t('glossary.no_terms')}
-                  </td>
-                </tr>
-              )}
-              {terms.map((t) => (
-                <GlossaryRow
-                  key={t.id}
-                  term={t}
-                  onUpdate={(patch) => onUpdate(t.id, patch)}
-                  onDelete={() => onDelete(t.id)}
-                />
-              ))}
-              <tr className="glossary-panel__row--new">
-                <td>
-                  <Input
-                    size="sm"
-                    placeholder={t('glossary.source_placeholder', { lang: sourceLang })}
-                    value={draft.source}
-                    onChange={(e) => setDraft({ ...draft, source: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') onAdd();
-                    }}
-                  />
-                </td>
-                <td>
-                  <Input
-                    size="sm"
-                    placeholder={t('glossary.target_placeholder', { lang: targetLang || '—' })}
-                    value={draft.target}
-                    onChange={(e) => setDraft({ ...draft, target: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') onAdd();
-                    }}
-                  />
-                </td>
-                <td>
-                  <Input
-                    size="sm"
-                    placeholder={t('glossary.note_placeholder')}
-                    value={draft.note}
-                    onChange={(e) => setDraft({ ...draft, note: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') onAdd();
-                    }}
-                  />
-                </td>
-                <td />
-                <td>
-                  <Button
-                    variant="subtle"
-                    iconSize="sm"
-                    disabled={!draft.source.trim() || !draft.target.trim()}
-                    onClick={onAdd}
-                    title={t('glossary.add_term')}
-                  >
-                    <Plus size={10} />
-                  </Button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          {manualCount > 0 && targetLang && (
-            <div className="glossary-panel__hint">{t('glossary.hint')}</div>
-          )}
-        </>
-      )}
+              </tbody>
+            </table>
+            {manualCount > 0 && targetLang && (
+              <div className="mt-[var(--space-3)] px-[var(--space-3)] py-[2px] text-[length:var(--text-2xs)] italic text-[var(--color-fg-subtle)]">
+                {t('glossary.hint')}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </Panel>
   );
 }
@@ -333,7 +344,7 @@ function GlossaryRow({ term, onUpdate, onDelete }) {
           />
         </td>
         <td />
-        <td className="glossary-panel__row-actions">
+        <td className="flex justify-end gap-[var(--space-1)]">
           <Button variant="subtle" iconSize="sm" onClick={save} title={t('common.save')}>
             <Check size={10} />
           </Button>
@@ -352,9 +363,11 @@ function GlossaryRow({ term, onUpdate, onDelete }) {
 
   return (
     <tr onDoubleClick={() => setEditing(true)}>
-      <td className="glossary-panel__cell-src">{term.source}</td>
-      <td className="glossary-panel__cell-tgt">{term.target}</td>
-      <td className="glossary-panel__cell-note">{term.note}</td>
+      <td className="font-medium text-[var(--color-fg)]">{term.source}</td>
+      <td className="font-medium text-[var(--color-brand)]">{term.target}</td>
+      <td className="text-[length:var(--text-xs)] italic text-[var(--color-fg-subtle)]">
+        {term.note}
+      </td>
       <td>
         {term.auto ? (
           <Badge tone="violet" size="xs">
@@ -366,7 +379,7 @@ function GlossaryRow({ term, onUpdate, onDelete }) {
           </Badge>
         )}
       </td>
-      <td className="glossary-panel__row-actions">
+      <td className="flex justify-end gap-[var(--space-1)]">
         <Button variant="danger" iconSize="sm" onClick={onDelete} title={t('common.delete')}>
           <Trash2 size={10} />
         </Button>

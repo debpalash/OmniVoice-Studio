@@ -3,9 +3,10 @@
    ExportModal's drawer chrome so the two read as siblings.
 
    Mechanical layout/typography rules now live as Tailwind utilities on the
-   JSX. What stays here: the fixed overlay positioning, the sheet chrome +
-   slide-up animation, and `.ui-compare__grid` (its responsive collapse is
-   driven by media queries here AND in index.css). */
+   JSX (including the two-column compare grid base). What stays here is the
+   irreducible non-modal drawer presentation: fixed overlay positioning + the
+   sheet chrome + slide-up keyframe. The `.ui-compare__grid` responsive
+   collapse to one column on narrow widths is owned by index.css. */
 
 .compare-drawer {
   position: fixed;
@@ -36,15 +37,4 @@
 @keyframes compare-drawer-slide-up {
   from { transform: translateY(100%); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
-}
-
-.ui-compare__grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-6);
-  margin-top: var(--space-5);
-}
-
-@media (max-width: 600px) {
-  .ui-compare__grid { grid-template-columns: 1fr; }
 }
