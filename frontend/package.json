@@ -21,7 +21,9 @@
     "test:legacy": "node --experimental-strip-types --no-warnings --test ../tests/frontend/*.test.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "test:visual": "playwright test --config=playwright.visual.config.ts",
+    "test:visual:update": "playwright test --config=playwright.visual.config.ts --update-snapshots"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
