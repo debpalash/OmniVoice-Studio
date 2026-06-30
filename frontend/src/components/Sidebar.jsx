@@ -196,7 +196,9 @@ export default function Sidebar(props) {
       className={`glass-panel history-panel sidebar flex flex-col ${isSidebarCollapsed ? 'is-collapsed' : ''}`}
     >
       {/* Tab bar — only tabs relevant to the current view */}
-      <div className="sidebar__tabs flex gap-[var(--space-2)] px-[var(--space-2)] py-[var(--space-1)] [border-bottom:1px_solid_var(--chrome-border)] bg-[var(--chrome-bg)] shrink-0 justify-center">
+      <div
+        className={`sidebar__tabs flex gap-[var(--space-2)] px-[var(--space-2)] [border-bottom:1px_solid_var(--chrome-border)] bg-[var(--chrome-bg)] shrink-0 justify-center ${isSidebarCollapsed ? 'flex-col py-[var(--space-3)] items-center' : 'py-[var(--space-1)]'}`}
+      >
         {SIDEBAR_TABS.filter((t) => availableTabs.includes(t.id)).map(
           ({ id, icon: Icon, accent }) => (
             <button
@@ -244,7 +246,7 @@ export default function Sidebar(props) {
       )}
 
       <div
-        className={`sidebar__scroll flex-1 overflow-y-auto px-[4px] py-[3px] flex flex-col items-stretch gap-0 ${isSidebarCollapsed ? 'is-collapsed' : ''}`}
+        className={`sidebar__scroll flex-1 overflow-y-auto px-[4px] flex flex-col ${isSidebarCollapsed ? 'py-[8px] items-center gap-[8px]' : 'py-[3px] items-stretch gap-0'}`}
       >
         {/* ── PROJECTS TAB ── */}
         {sidebarTab === 'projects' && (

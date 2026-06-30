@@ -1,22 +1,16 @@
 /* Sidebar — page-specific layout + accents, base comes from ui/ primitives. */
 
-/* .sidebar base (flex column) + .sidebar__tabs layout → Tailwind utilities in
-   Sidebar.jsx. Collapsed-mode combinator overrides stay here (unlayered). */
-.sidebar.is-collapsed .sidebar__tabs {
-  flex-direction: column;
-  padding: var(--space-3) var(--space-2);
-  align-items: center;
-}
+/* .sidebar base (flex column) + .sidebar__tabs layout (incl. its collapsed
+   variant) → Tailwind utilities in Sidebar.jsx. The .sidebar__tab collapsed
+   override stays here: the .sidebar__tab base is still unlayered CSS below, so
+   the collapsed combinator must also be unlayered to win the cascade over it.
+   (Collapsed icon size is handled by the JSX `size` prop, not CSS.) */
 .sidebar.is-collapsed .sidebar__tab {
   max-width: 100%;
   padding: 0;
   width: 36px;
   height: 36px;
   flex: none;
-}
-.sidebar.is-collapsed .sidebar__tab svg {
-  width: 18px;
-  height: 18px;
 }
 
 .sidebar__tab {
@@ -99,10 +93,11 @@
 /* .sidebar__empty + __empty-icon/__empty-title/__empty-sub → utilities in
    Sidebar.jsx (EmptyState). Collapsed-hide combinator below stays here. */
 
-/* Hide text-heavy blocks when sidebar is collapsed to icon-only width */
+/* Hide the empty-state card when collapsed to icon-only width. EmptyState is a
+   shared component with no collapsed-state prop, so the hide stays a parent-
+   state combinator here. (The subtitle + search blocks are already gated out of
+   the JSX when collapsed, so they need no CSS hide.) */
 .sidebar.is-collapsed .sidebar__empty     { display: none; }
-.sidebar.is-collapsed .sidebar__subtitle  { display: none; }
-.sidebar.is-collapsed .sidebar__search    { display: none; }
 
 /* Section label — matches the status-bar's "LOGS" uppercase treatment.
    Labels are displays (not buttons) but this one IS clickable (collapses
@@ -130,12 +125,7 @@
    combinator above stays here. */
 
 /* ── Scrollable body + collapsed-mode tweaks ─────────────────── */
-/* .sidebar__scroll base → utilities in Sidebar.jsx; .is-collapsed stays here. */
-.sidebar__scroll.is-collapsed {
-  padding: 8px 4px;
-  align-items: center;
-  gap: 8px;
-}
+/* .sidebar__scroll base + its collapsed-mode tweaks → utilities in Sidebar.jsx. */
 
 /* Preset rows that don't need a computed accent */
 .history-item--dub       { --row-accent: #83a598; }
