@@ -5,7 +5,6 @@
 import React from 'react';
 import { Bell } from 'lucide-react';
 import { useNotifications } from '../api/hooks';
-import './NotificationPanel.css';
 
 export default function NotificationPanel() {
   // Shared TanStack Query cache entry with LogsFooter — one 30s poll.

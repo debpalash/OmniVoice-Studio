@@ -21,7 +21,6 @@ import { useAppStore } from '../store';
 import ProfileHeader from '../components/profile/ProfileHeader';
 import ProfileDetails from '../components/profile/ProfileDetails';
 import ProfileActivity from '../components/profile/ProfileActivity';
-import './VoiceProfile.css';
 import { askConfirm } from '../utils/dialog';
 
 /**
@@ -236,15 +235,15 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
 
   if (loading && !profile) {
     return (
-      <div className="voice-profile voice-profile--loading">
-        <Sparkles className="spinner" size={24} color="#d3869b" />
+      <div className="flex flex-1 flex-col items-center justify-center gap-[var(--space-4)] px-[var(--space-6)] py-[var(--space-5)] text-fg-muted [font-size:var(--text-md)]">
+        <Sparkles className="animate-spin text-brand" size={24} />
         <span>{t('common.loading')}</span>
       </div>
     );
   }
   if (!profile) {
     return (
-      <div className="voice-profile voice-profile--empty">
+      <div className="flex flex-1 flex-col items-center justify-center gap-[var(--space-4)] px-[var(--space-6)] py-[var(--space-5)] text-fg-muted [font-size:var(--text-md)]">
         <p>{t('voice_profile.not_found')}</p>
         <Button variant="subtle" onClick={onBack} leading={<ArrowLeft size={12} />}>
           {t('common.back')}
@@ -261,7 +260,7 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
   const audioUrl = `${API}/profiles/${voiceId}/audio?t=${profile.is_locked ? 'locked' : 'ref'}`;
 
   return (
-    <div className="voice-profile">
+    <div className="flex min-h-0 flex-1 flex-col gap-[var(--space-5)] overflow-y-auto px-[var(--space-6)] py-[var(--space-5)]">
       <ProfileHeader
         profile={profile}
         isDesign={isDesign}

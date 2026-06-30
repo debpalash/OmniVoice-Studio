@@ -21,7 +21,6 @@ import { apiFetch } from '../api/client';
 import { loadTranscriptions, TRANSCRIPTION_EVENT } from '../utils/transcriptionsStore';
 import { audioUrl } from '../api/generate';
 import { playBlobAudio } from '../utils/media';
-import './Projects.css';
 
 /**
  * OmniDrive — browse everything (studio dubs, voice profiles, generation
@@ -83,26 +82,39 @@ async function playRenderInApp(url) {
   }
 }
 
-function Card({ kind, accent, title, subtitle, trailing, onClick, IconC }) {
+function Card({ kind, accent, title, subtitle, trailing, onClick, IconC, view }) {
+  const list = view === 'list';
   return (
     <button
       type="button"
-      className="projects__card"
+      className={`flex cursor-pointer rounded-[var(--chrome-radius-pill)] border border-[var(--chrome-border)] [border-left:3px_solid_var(--card-accent,var(--chrome-accent))] bg-[var(--chrome-bg)] text-left [font-family:inherit] text-[var(--chrome-fg)] transition-[border-color,background,transform] duration-[0.12s] hover:border-[var(--chrome-border-strong)] hover:bg-[color-mix(in_srgb,var(--card-accent,var(--chrome-accent))_5%,var(--chrome-bg))] active:translate-y-[1px] ${
+        list
+          ? 'flex-row items-center gap-[14px] px-[12px] py-[6px]'
+          : 'flex-col gap-[6px] px-[12px] py-[10px]'
+      }`}
       onClick={onClick}
       style={{ '--card-accent': accent }}
     >
-      <div className="projects__card-head">
-        <span className="projects__card-kind">
+      <div
+        className={`flex items-center justify-between gap-[8px] ${list ? 'w-[110px] shrink-0' : ''}`}
+      >
+        <span className="inline-flex items-center gap-[4px] [font-family:var(--chrome-font-mono)] text-[10px] font-semibold uppercase [letter-spacing:var(--chrome-label-track)] text-[var(--card-accent,var(--chrome-accent))]">
           {IconC && <IconC size={11} />}
           {kind}
         </span>
-        <span className="projects__card-trailing">{trailing}</span>
+        <span className="text-[10.5px] text-[var(--chrome-fg-dim)]">{trailing}</span>
       </div>
-      <div className="projects__card-title" title={title}>
+      <div
+        className={`overflow-hidden text-ellipsis whitespace-nowrap text-[0.92rem] font-semibold text-[var(--chrome-fg)] ${list ? 'flex-1' : ''}`}
+        title={title}
+      >
         {title}
       </div>
       {subtitle && (
-        <div className="projects__card-sub" title={subtitle}>
+        <div
+          className={`overflow-hidden text-ellipsis whitespace-nowrap text-[0.74rem] text-[var(--chrome-fg-dim)] ${list ? 'w-[120px] shrink-0' : ''}`}
+          title={subtitle}
+        >
           {subtitle}
         </div>
       )}
@@ -304,42 +316,47 @@ export default function Projects({
   }, [items, filter, query]);
 
   return (
-    <div className="projects flex flex-col h-full min-h-0 bg-[var(--bg)] text-[var(--text-primary)]">
-      <div className="projects__header flex shrink-0 items-center gap-[12px] px-[18px] py-[12px] [border-bottom:1px_solid_var(--chrome-border)] bg-[var(--chrome-bg)]">
-        <h1 className="projects__title">{t('projects.title')}</h1>
-        <div className="projects__toolbar flex flex-1 items-center justify-end gap-[8px]">
-          <div className="projects__search flex flex-1 items-center gap-[6px] h-[var(--chrome-pill-h)] max-w-[420px] px-[10px] [border:1px_solid_var(--chrome-border)] rounded-[var(--chrome-radius-pill)] bg-[var(--chrome-hover-bg)] text-[var(--chrome-fg-muted)]">
+    <div className="flex h-full min-h-0 flex-col bg-[var(--bg)] text-[var(--text-primary)]">
+      <div className="flex shrink-0 items-center gap-[12px] px-[18px] py-[12px] [border-bottom:1px_solid_var(--chrome-border)] bg-[var(--chrome-bg)]">
+        <h1 className="m-0 shrink-0 [font-family:var(--font-sans)] text-[0.92rem] font-semibold tracking-[0.02em] text-[var(--chrome-fg)]">
+          {t('projects.title')}
+        </h1>
+        <div className="flex flex-1 items-center justify-end gap-[8px]">
+          <div className="flex h-[var(--chrome-pill-h)] max-w-[420px] flex-1 items-center gap-[6px] rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-border)] bg-[var(--chrome-hover-bg)] px-[10px] text-[var(--chrome-fg-muted)]">
             <Search size={12} />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t('projects.search_placeholder')}
               spellCheck={false}
+              className="min-w-0 flex-1 border-0 bg-transparent text-[12px] [font-family:inherit] text-[var(--chrome-fg)] outline-none placeholder:text-[var(--chrome-fg-dim)]"
             />
           </div>
-          <div className="projects__view-toggle inline-flex gap-[1px] overflow-hidden [border:1px_solid_var(--chrome-border)] rounded-[var(--chrome-radius-pill)] bg-[var(--chrome-hover-bg)]">
-            <button
-              className={view === 'grid' ? 'is-active' : ''}
-              onClick={() => setView('grid')}
-              title={t('projects.card_grid')}
-              type="button"
-            >
-              <LayoutGrid size={12} />
-            </button>
-            <button
-              className={view === 'list' ? 'is-active' : ''}
-              onClick={() => setView('list')}
-              title={t('projects.list')}
-              type="button"
-            >
-              <ListIcon size={12} />
-            </button>
+          <div className="inline-flex gap-[1px] overflow-hidden rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-border)] bg-[var(--chrome-hover-bg)]">
+            {[
+              { id: 'grid', Icon: LayoutGrid, title: t('projects.card_grid') },
+              { id: 'list', Icon: ListIcon, title: t('projects.list') },
+            ].map(({ id, Icon, title }) => (
+              <button
+                key={id}
+                className={`inline-flex h-[var(--chrome-pill-h)] w-[26px] cursor-pointer items-center justify-center border-0 bg-transparent transition-all duration-[0.1s] ${
+                  view === id
+                    ? 'bg-[var(--chrome-accent-bg)] text-[var(--chrome-accent)]'
+                    : 'text-[var(--chrome-fg-muted)] hover:text-[var(--chrome-fg)]'
+                }`}
+                onClick={() => setView(id)}
+                title={title}
+                type="button"
+              >
+                <Icon size={12} />
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="projects__body grid flex-1 grid-cols-[200px_minmax(0,1fr)] min-h-0">
-        <aside className="projects__rail flex flex-col gap-[2px] overflow-y-auto px-[8px] py-[10px] [border-right:1px_solid_var(--chrome-border)] bg-[var(--chrome-bg)]">
+      <div className="grid min-h-0 flex-1 grid-cols-[200px_minmax(0,1fr)]">
+        <aside className="flex flex-col gap-[2px] overflow-y-auto px-[8px] py-[10px] [border-right:1px_solid_var(--chrome-border)] bg-[var(--chrome-bg)]">
           {FILTERS.map((f) => {
             const FI = f.Icon;
             const n = counts[f.id] ?? 0;
@@ -347,22 +364,36 @@ export default function Projects({
               <button
                 key={f.id}
                 type="button"
-                className={`projects__rail-item ${filter === f.id ? 'is-active' : ''}`}
+                className={`flex h-[28px] cursor-pointer items-center gap-[8px] rounded-[var(--chrome-radius-pill)] border px-[10px] py-[6px] text-left text-[12px] [font-family:inherit] transition-all duration-[0.12s] ${
+                  filter === f.id
+                    ? 'border-[var(--chrome-accent-border)] bg-[var(--chrome-accent-bg)] text-[var(--chrome-accent)]'
+                    : 'border-transparent bg-transparent text-[var(--chrome-fg-muted)] hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--chrome-fg)]'
+                }`}
                 onClick={() => setFilter(f.id)}
               >
                 <FI size={12} />
-                <span>{f.label}</span>
-                <span className="projects__rail-count">{n}</span>
+                <span className="flex-1">{f.label}</span>
+                <span
+                  className={`[font-family:var(--chrome-font-mono)] text-[10.5px] [font-variant-numeric:tabular-nums] ${
+                    filter === f.id ? 'text-[var(--chrome-accent)]' : 'text-[var(--chrome-fg-dim)]'
+                  }`}
+                >
+                  {n}
+                </span>
               </button>
             );
           })}
         </aside>
 
         <section
-          className={`projects__content projects__content--${view} px-[18px] py-[14px] overflow-y-auto min-h-0`}
+          className={`min-h-0 overflow-y-auto px-[18px] py-[14px] ${
+            view === 'list'
+              ? 'flex flex-col gap-[4px]'
+              : 'grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[10px] [align-content:start]'
+          }`}
         >
           {visible.length === 0 && (
-            <div className="projects__empty [grid-column:1/-1] flex flex-col items-center gap-[8px] px-[16px] py-[48px] text-center text-[var(--chrome-fg-dim)]">
+            <div className="flex flex-col items-center gap-[8px] px-[16px] py-[48px] text-center text-[var(--chrome-fg-dim)] [grid-column:1/-1]">
               <FolderOpen size={28} />
               <p className="max-w-[380px] m-0 text-[0.82rem] leading-[1.5]">
                 {query ? t('projects.no_matches', { query }) : t('projects.empty_hint')}
@@ -377,13 +408,14 @@ export default function Projects({
               title={it.title}
               subtitle={it.subtitle}
               trailing={
-                <span className="projects__card-time">
+                <span className="inline-flex items-center gap-[3px] [font-family:var(--chrome-font-mono)]">
                   <Clock size={10} />
                   {fmtTime(it.ts)}
                 </span>
               }
               onClick={it.onClick}
               IconC={it.Icon}
+              view={view}
             />
           ))}
         </section>

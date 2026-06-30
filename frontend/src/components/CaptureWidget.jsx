@@ -825,24 +825,28 @@ export default function CaptureWidget({ onDismiss }) {
       <span className="capture-pill__dot" />
 
       {/* Content */}
-      <div className="capture-pill__content">
-        <span className="capture-pill__label">
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[12.5px] font-medium tracking-[0.01em]">
           {emoji} {label}
         </span>
       </div>
 
       {/* Timer */}
       {(state === 'recording' || state === 'transcribing') && (
-        <span className="capture-pill__timer">{formatElapsed(duration)}</span>
+        <span className="shrink-0 font-mono text-[11px] font-medium tracking-[0.03em] text-white/50">
+          {formatElapsed(duration)}
+        </span>
       )}
 
       {/* Transcribing spinner */}
-      {state === 'transcribing' && <Loader size={14} className="capture-pill__spinner" />}
+      {state === 'transcribing' && (
+        <Loader size={14} className="shrink-0 text-white/40 motion-safe:animate-spin" />
+      )}
 
       {/* Dismiss — only on done/error */}
       {(state === 'done' || state === 'error') && (
         <button
-          className="capture-pill__dismiss"
+          className="flex h-[20px] w-[20px] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-white/[0.06] p-0 text-white/40 transition-[background,color] duration-[0.15s] hover:bg-white/[0.12] hover:text-white/80"
           onClick={dismiss}
           aria-label={t('common.dismiss')}
         >

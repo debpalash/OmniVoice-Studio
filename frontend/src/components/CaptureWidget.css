@@ -107,76 +107,18 @@
   50%      { opacity: 0.4; transform: scale(0.6); }
 }
 
-/* ── Content ────────────────────────────────────────────────────────── */
-
-.capture-pill__content {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.capture-pill__label {
-  font-weight: 500;
-  font-size: 12.5px;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: block;
-}
-
-/* ── Timer ──────────────────────────────────────────────────────────── */
-
-.capture-pill__timer {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
-  letter-spacing: 0.03em;
-  flex-shrink: 0;
-}
-
-/* ── Spinner ────────────────────────────────────────────────────────── */
-
-.capture-pill__spinner {
-  flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.4);
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* ── Dismiss button ─────────────────────────────────────────────────── */
-
-.capture-pill__dismiss {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.4);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s ease, color 0.15s ease;
-  padding: 0;
-}
-
-.capture-pill__dismiss:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.8);
-}
+/* ── Content / timer / dismiss ──────────────────────────────────────────
+   Layout + (theme-less, hardcoded-white) colors for the pill's content,
+   label, timer, transcribing spinner, and dismiss button now live as
+   Tailwind utilities on the JSX (the spinner uses `motion-safe:animate-spin`
+   so it self-disables under reduced motion). Only the irreducible glass
+   shell, state borders, and keyframe-driven dot/enter animations remain. */
 
 /* ── Reduced motion ─────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
   .capture-pill { animation: none; opacity: 1; }
   .capture-pill__dot { animation: none !important; }
-  .capture-pill__spinner { animation: none; }
 }
 
 /* ── Widget-mode body (standalone Tauri window) ─────────────────────── */

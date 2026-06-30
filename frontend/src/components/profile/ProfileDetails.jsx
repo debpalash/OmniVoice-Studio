@@ -46,7 +46,7 @@ export default function ProfileDetails({
           ) : null
         }
       >
-        <div className="voice-profile__grid-2">
+        <div className="grid grid-cols-[1fr] gap-[var(--space-5)] min-[700px]:grid-cols-[1fr_1fr]">
           <Field label={t('voice_profile.style_instruct')}>
             {editing ? (
               <Textarea
@@ -56,7 +56,9 @@ export default function ProfileDetails({
                 placeholder={t('voice_profile.style_placeholder')}
               />
             ) : (
-              <div className="voice-profile__readonly">{profile.instruct || <em>— none —</em>}</div>
+              <div className="min-h-[1.4em] rounded-[var(--radius-md)] border border-border bg-bg-elev-2 px-[var(--space-4)] py-[var(--space-3)] text-fg [font-size:var(--text-md)]">
+                {profile.instruct || <em className="italic text-fg-subtle">— none —</em>}
+              </div>
             )}
           </Field>
           <Field label={t('voice_profile.language')}>
@@ -67,7 +69,9 @@ export default function ProfileDetails({
                 placeholder={t('clone.auto')}
               />
             ) : (
-              <div className="voice-profile__readonly">{profile.language || 'Auto'}</div>
+              <div className="min-h-[1.4em] rounded-[var(--radius-md)] border border-border bg-bg-elev-2 px-[var(--space-4)] py-[var(--space-3)] text-fg [font-size:var(--text-md)]">
+                {profile.language || 'Auto'}
+              </div>
             )}
           </Field>
         </div>
@@ -80,17 +84,19 @@ export default function ProfileDetails({
               placeholder={t('clone.optional')}
             />
           ) : (
-            <div className="voice-profile__readonly voice-profile__readonly--transcript">
-              {profile.ref_text || <em>— none —</em>}
+            <div className="min-h-[1.4em] rounded-[var(--radius-md)] border border-border bg-bg-elev-2 px-[var(--space-4)] py-[var(--space-3)] text-fg [font-size:var(--text-md)] leading-[1.5]">
+              {profile.ref_text || <em className="italic text-fg-subtle">— none —</em>}
             </div>
           )}
         </Field>
         {profile.is_locked && !editing && (
-          <div className="voice-profile__lock-row">
+          <div className="mt-[var(--space-4)] flex flex-wrap items-center gap-[var(--space-4)] rounded-[var(--radius-md)] border border-[rgba(250,189,47,0.25)] bg-[rgba(250,189,47,0.06)] px-[var(--space-4)] py-[var(--space-3)]">
             <Badge tone="warn" dot>
               <Lock size={10} /> {t('voice_profile.locked')}
             </Badge>
-            <span className="voice-profile__lock-hint">{t('voice_profile.locked_explain')}</span>
+            <span className="min-w-[200px] flex-1 text-fg-muted [font-size:var(--text-base)]">
+              {t('voice_profile.locked_explain')}
+            </span>
             <Button variant="subtle" size="sm" onClick={onUnlock} leading={<Unlock size={12} />}>
               {t('voice_profile.unlock')}
             </Button>
@@ -109,11 +115,11 @@ export default function ProfileDetails({
         }
       >
         {profile.verified_own_voice ? (
-          <div className="voice-profile__lock-row">
+          <div className="mt-[var(--space-4)] flex flex-wrap items-center gap-[var(--space-4)] rounded-[var(--radius-md)] border border-[rgba(250,189,47,0.25)] bg-[rgba(250,189,47,0.06)] px-[var(--space-4)] py-[var(--space-3)]">
             <Badge tone="success" dot>
               <ShieldCheck size={10} /> {t('voice_profile.verified')}
             </Badge>
-            <span className="voice-profile__lock-hint">
+            <span className="min-w-[200px] flex-1 text-fg-muted [font-size:var(--text-base)]">
               {t('voice_profile.consent_verified_explain', {
                 date: profile.consent_recorded_at
                   ? new Date(profile.consent_recorded_at * 1000).toLocaleDateString()
@@ -126,8 +132,10 @@ export default function ProfileDetails({
           </div>
         ) : (
           <>
-            <p className="voice-profile__readonly">{t('voice_profile.consent_explain')}</p>
-            <blockquote className="voice-profile__readonly voice-profile__readonly--transcript">
+            <p className="min-h-[1.4em] rounded-[var(--radius-md)] border border-border bg-bg-elev-2 px-[var(--space-4)] py-[var(--space-3)] text-fg [font-size:var(--text-md)]">
+              {t('voice_profile.consent_explain')}
+            </p>
+            <blockquote className="min-h-[1.4em] rounded-[var(--radius-md)] border border-border bg-bg-elev-2 px-[var(--space-4)] py-[var(--space-3)] text-fg [font-size:var(--text-md)] leading-[1.5]">
               “{consentStatement}”
             </blockquote>
             {consentRec.isRecording ? (
