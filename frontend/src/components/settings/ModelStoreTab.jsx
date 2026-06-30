@@ -13,7 +13,7 @@ import { openExternal } from '../../api/external';
 import { setupDownloadStreamUrl } from '../../api/setup';
 import { useModels, useRecommendations, useInstallModel, useDeleteModel } from '../../api/hooks';
 import { Button, Segmented } from '../../ui';
-import { SettingsSection, SettingsInput } from './primitives';
+import { SettingsSection, SettingsInput, SETTINGS_SECTION_SURFACE } from './primitives';
 import { askConfirm } from './native';
 import { fmtBytes } from './models/format';
 import { computeRowRuntime } from './models/runtime';
@@ -405,7 +405,7 @@ export default function ModelStoreTab({ info, modelBadge }) {
   if (!data) return null;
 
   return (
-    <section className="st-section">
+    <section className={SETTINGS_SECTION_SURFACE} data-slot="settings-section">
       <div className="models-toolbar">
         <div className="models-toolbar__stats">
           <span>

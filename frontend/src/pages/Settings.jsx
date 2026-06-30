@@ -357,8 +357,8 @@ export default function Settings() {
       />
 
       {/* Content column — fills the 1fr track; establishes the `settings`
-          container so primitives.css's `@container settings` row-stacking still
-          fires on the real content width (the rail steals ~168px). */}
+          container so SettingRow's `@max-[600px]/settings:` row-stacking variant
+          still fires on the real content width (the rail steals ~168px). */}
       <div className="min-w-0 max-w-[var(--settings-measure)] flex-auto self-start [container-type:inline-size] [container-name:settings] [&>*:first-child]:mt-0">
         {activeTab === 'general' && (
           <>

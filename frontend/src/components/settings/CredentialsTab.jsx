@@ -112,7 +112,7 @@ export default function CredentialsTab({ info }) {
           <SettingRow
             key={field.key}
             align="start"
-            className="st-row--stack"
+            stack
             title={
               <>
                 {t(field.labelKey)}

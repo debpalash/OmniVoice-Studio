@@ -8,7 +8,7 @@
 
 /* The model row's control is taller than a single line — top-align it. Reaches
    into the SettingRow primitive's control wrapper. */
-.voicepanel__row--model .st-row__control { align-self: flex-start; }
+.voicepanel__row--model [data-slot='setting-row-control'] { align-self: flex-start; }
 
 .voicepanel__dd-chev {
   flex: none;

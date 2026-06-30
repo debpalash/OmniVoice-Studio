@@ -60,8 +60,9 @@
 }
 
 /* The content panel (fills the 1fr track, caps the reading measure, and
-   establishes the `settings` container query that primitives.css's row-stacking
-   depends on) is Tailwind on Settings.jsx now — see the content `<div>` there. */
+   establishes the `settings` container query that SettingRow's
+   `@max-[600px]/settings:` row-stacking variant depends on) is Tailwind on
+   Settings.jsx now — see the content `<div>` there. */
 
 /* ── Engines tab ─────────────────────────────────────────────── */
 .engines-family            { margin-bottom: var(--space-5); }
@@ -275,7 +276,7 @@
 }
 
 /* Inside the wizard embed the table stretches to fill — no fixed cap. */
-.setup-wizard__embed .st-section {
+.setup-wizard__embed [data-slot='settings-section'] {
   display: flex; flex-direction: column; height: 100%; min-height: 0;
 }
 .setup-wizard__embed .models-table {
@@ -352,9 +353,9 @@
   display: flex; align-items: center; gap: var(--space-2);
   margin: var(--space-2) 0;
 }
-/* Visuals come from .st-input (SettingsInput); .models-search only adds the
-   in-toolbar flex sizing. */
-.models-search.st-input { flex: 1; min-width: 120px; font-size: var(--text-xs); }
+/* Visuals come from SettingsInput; .models-search only adds the in-toolbar flex
+   sizing + lifts the primitive's 360px cap so the search fills the toolbar. */
+.models-search { flex: 1; min-width: 120px; max-width: none; font-size: var(--text-xs); }
 .models-row__size     { font-family: var(--chrome-font-mono); font-size: var(--text-xs); color: var(--chrome-fg-muted); font-variant-numeric: tabular-nums; }
 
 .models-row__actions {
@@ -378,7 +379,7 @@
 
 /* ── Engines tab: rows are NOT virtualised, so override the absolute
      positioning that .models-row inherits from the Models tab. ───── */
-.st-section > .models-table > .models-table__body > .models-row {
+[data-slot='settings-section'] > .models-table > .models-table__body > .models-row {
   position: relative;
   top: auto;
 }

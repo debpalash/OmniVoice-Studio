@@ -6,6 +6,7 @@ import { selectEngine } from '../../api/engines';
 import { Segmented } from '../../ui';
 import { useAppStore } from '../../store';
 import EngineCompatibilityMatrix from '../EngineCompatibilityMatrix';
+import { SETTINGS_SECTION_SURFACE } from './primitives';
 
 export default function EnginesTab() {
   const { t } = useTranslation();
@@ -29,7 +30,7 @@ export default function EnginesTab() {
   }, []);
 
   return (
-    <section className="st-section">
+    <section className={SETTINGS_SECTION_SURFACE} data-slot="settings-section">
       <div className="models-toolbar">
         <div className="models-toolbar__stats">
           <Segmented

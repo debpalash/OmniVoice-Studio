@@ -152,7 +152,7 @@ export default function GeneralTab() {
       <Collapsible title={t('settings.advanced')} icon={Settings2}>
         <SettingRow
           align="start"
-          className="st-row--stack"
+          stack
           title={
             <>
               {t('settings.proxy')}
@@ -192,7 +192,7 @@ export default function GeneralTab() {
 
         <SettingRow
           align="start"
-          className="st-row--stack"
+          stack
           title={
             <>
               {t('settings.ffmpeg')}

@@ -98,7 +98,7 @@ export default function StoragePanel() {
       )}
 
       <SettingRow
-        className="st-row--stack"
+        stack
         align="start"
         title="Cache location"
         subtitle="Where model weights download"

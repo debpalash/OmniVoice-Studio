@@ -21,10 +21,16 @@ export default function InfoHint({ children, label, learnMoreHref }) {
   const ariaLabel = label || t('common.more_info', 'More info');
 
   const content = (
-    <div className="st-hint__content">
-      <div className="st-hint__prose">{children}</div>
+    <div className="flex flex-col gap-[var(--space-3)] max-w-[260px]">
+      <div className="[font-family:var(--font-sans)] text-[length:var(--text-base)] leading-[1.5]">
+        {children}
+      </div>
       {learnMoreHref && (
-        <button type="button" className="st-hint__link" onClick={() => openExternal(learnMoreHref)}>
+        <button
+          type="button"
+          className="self-start p-0 border-0 bg-transparent text-[color:var(--chrome-accent)] [font-family:var(--font-sans)] text-[length:var(--text-base)] font-semibold cursor-pointer hover:underline"
+          onClick={() => openExternal(learnMoreHref)}
+        >
           {t('common.learn_more', 'Learn more')} →
         </button>
       )}
@@ -35,7 +41,7 @@ export default function InfoHint({ children, label, learnMoreHref }) {
     <Tooltip content={content} placement="top">
       <button
         type="button"
-        className="st-hint"
+        className="inline-flex items-center justify-center p-0 m-0 border-0 bg-transparent text-[color:var(--chrome-fg-dim)] cursor-help leading-[0] rounded-[var(--chrome-radius-pill)] transition-[color] duration-[120ms] hover:text-[color:var(--chrome-fg-muted)] focus-visible:text-[color:var(--chrome-fg-muted)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
         aria-label={ariaLabel}
         onClick={(e) => e.preventDefault()}
       >

@@ -8,13 +8,12 @@
 //    import { SettingsSection, SettingRow, InfoHint,
 //             SettingsToggle, Collapsible } from './primitives';
 //
-//  All styling lives in primitives.css (chrome tokens + space scale only),
-//  imported once here so any consumer pulls it in.
+//  All styling now lives as Tailwind utilities on the OmniVoice `--chrome-*` /
+//  `--space-*` token bridge directly on each primitive's JSX (FAST-mode shadcn
+//  migration) — there is no longer a primitives.css stylesheet to import.
 // ─────────────────────────────────────────────────────────────────
 
-import './primitives.css';
-
-export { default as SettingsSection } from './SettingsSection.jsx';
+export { default as SettingsSection, SETTINGS_SECTION_SURFACE } from './SettingsSection.jsx';
 export { default as SettingRow } from './SettingRow.jsx';
 export { default as SettingsInput } from './SettingsInput.jsx';
 export { default as InfoHint } from './InfoHint.jsx';

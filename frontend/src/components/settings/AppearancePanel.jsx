@@ -99,7 +99,8 @@ export default function AppearancePanel() {
       />
 
       <SettingRow
-        className="appearance-panel__row--fonts st-row--stack"
+        className="appearance-panel__row--fonts"
+        stack
         align="start"
         title={fontLabel}
         control={

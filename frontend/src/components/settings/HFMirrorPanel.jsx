@@ -12,7 +12,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Globe } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
-import { SettingsSection, SettingRow } from './primitives';
+import { SettingsSection, SettingRow, SettingsInput } from './primitives';
 import './PerformancePanel.css';
 
 export default function HFMirrorPanel() {
@@ -72,7 +72,7 @@ export default function HFMirrorPanel() {
       )}
 
       <SettingRow
-        className="st-row--stack"
+        stack
         title="Mirror preset"
         hint="On a restricted network, route model downloads through a mirror. Applies after a restart. Leave empty for the official endpoint."
         control={
@@ -93,13 +93,13 @@ export default function HFMirrorPanel() {
       />
 
       <SettingRow
-        className="st-row--stack"
+        stack
         title="HF_ENDPOINT"
         subtitle={restart ? 'Restart the app for the change to take effect.' : undefined}
         control={
           <>
-            <input
-              className="st-input st-input--mono"
+            <SettingsInput
+              mono
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}

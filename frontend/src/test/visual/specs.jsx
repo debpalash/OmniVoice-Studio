@@ -28,9 +28,8 @@ import SettingsToggle from '../../components/settings/primitives/SettingsToggle.
 // Rendered here across all 3 themes to prove the bridge keeps them on-palette.
 import { Button as ShadcnButton } from '../../components/ui/button.tsx';
 import { Input as ShadcnInput } from '../../components/ui/input.tsx';
-// SettingRow / SettingsToggle styling lives in the primitives stylesheet,
-// normally pulled in via the primitives barrel — import it directly here.
-import '../../components/settings/primitives/primitives.css';
+// SettingRow / SettingsToggle styling is now Tailwind utilities on the token
+// bridge (FAST-mode shadcn migration) — no primitives stylesheet to import.
 import './harness.css';
 
 // ── PAGE / PANEL specs (opt-in providers) ─────────────────────────────────
