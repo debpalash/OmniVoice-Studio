@@ -60,7 +60,7 @@ export default function DesignMethodPanel({
                 The placeholder explains itself; no extra header (10x §1.2). ── */}
       <div className="mb-[8px]">
         <textarea
-          className="input-base describe-voice-area"
+          className="input-base w-full resize-y min-h-[44px] mb-1"
           rows={2}
           placeholder={t('clone.describe_placeholder')}
           value={describeText}
@@ -89,7 +89,7 @@ export default function DesignMethodPanel({
         <div className="font-[var(--chrome-font-mono)] text-[0.62rem] uppercase tracking-[0.06em] text-[var(--chrome-fg-muted)] mb-[6px]">
           {t('clone.starting_points', { defaultValue: 'Starting points' })}
         </div>
-        <div className="personality-strip starting-points__strip">
+        <div className="flex flex-nowrap gap-[6px] mb-[10px] overflow-x-auto pb-[2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-mask-image:linear-gradient(90deg,transparent,#000_12px,#000_calc(100%-18px),transparent)] [mask-image:linear-gradient(90deg,transparent,#000_12px,#000_calc(100%-18px),transparent)]">
           {chipPersonalities.map((p) => {
             const Icon = PERSONALITY_ICONS[p.id] || FALLBACK_PERSONALITY_ICON;
             return (
@@ -130,7 +130,7 @@ export default function DesignMethodPanel({
                 (first run) starts expanded. */}
       <button
         type="button"
-        className="identity-line"
+        className="flex items-center gap-[8px] w-full mt-[4px] mb-[8px] px-[10px] py-[6px] bg-[var(--chrome-hover-bg)] border border-[var(--chrome-border)] rounded-[8px] cursor-pointer text-left transition-[border-color] duration-[var(--dur-fast)] hover:border-[var(--chrome-border-strong)] focus-visible:[outline:2px_solid_var(--chrome-accent)] focus-visible:[outline-offset:1px]"
         onClick={() => setIdentityOpen((o) => !o)}
         aria-expanded={identityOpen}
       >
@@ -152,11 +152,8 @@ export default function DesignMethodPanel({
               return tl !== tKey ? tl : val;
             };
             return (
-              <div
-                key={key}
-                className={`clone-cat ${many ? 'clone-cat--select' : 'clone-cat--chips'}`}
-              >
-                <div className="label-row label-row--sm">
+              <div key={key} className={many ? 'min-w-0 max-[1100px]:col-[1/-1]' : 'col-[1/-1]'}>
+                <div className="label-row text-[0.7rem]">
                   {t(`clone.cat_${key}`)}
                   <span className="ml-[6px] text-[0.58rem] text-[var(--chrome-fg-muted)] font-medium">
                     {vdStates[key] === 'Auto'
@@ -234,7 +231,7 @@ export default function DesignMethodPanel({
             {t('clone.save_design_as_profile', { defaultValue: 'Save design as profile' })}
           </Button>
         ) : (
-          <div className="clone-save-profile__row flex gap-[var(--space-3)] items-center">
+          <div className="flex gap-[var(--space-3)] items-center [&>:first-child]:flex-1">
             <Input
               size="sm"
               placeholder={t('clone.profile_name')}

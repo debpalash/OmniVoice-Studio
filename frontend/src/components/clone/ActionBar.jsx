@@ -52,12 +52,12 @@ export default function ActionBar({
   wasGeneratingRef,
 }) {
   return (
-    <div className="studio-action-bar clone-panel--overflow-visible">
+    <div className="studio-action-bar overflow-visible relative z-[10]">
       {showOverrides && (
         <div className="override-content">
           <div className="grid [grid-template-columns:repeat(auto-fit,minmax(120px,1fr))] gap-[6px] max-[500px]:grid-cols-2">
             <div>
-              <div className="label-row label-row--spread">
+              <div className="label-row justify-between">
                 <span>CFG</span>
                 <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
                   {cfg}
@@ -73,7 +73,7 @@ export default function ActionBar({
               />
             </div>
             <div>
-              <div className="label-row label-row--spread">
+              <div className="label-row justify-between">
                 <span>{t('clone.speed')}</span>
                 <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
                   {speed}x
@@ -89,7 +89,7 @@ export default function ActionBar({
               />
             </div>
             <div>
-              <div className="label-row label-row--spread">
+              <div className="label-row justify-between">
                 <span>{t('clone.tshift')}</span>
                 <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
                   {tShift}
@@ -105,7 +105,7 @@ export default function ActionBar({
               />
             </div>
             <div>
-              <div className="label-row label-row--spread">
+              <div className="label-row justify-between">
                 <span>{t('clone.pos_temp')}</span>
                 <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
                   {posTemp}
@@ -121,7 +121,7 @@ export default function ActionBar({
               />
             </div>
             <div>
-              <div className="label-row label-row--spread">
+              <div className="label-row justify-between">
                 <span>{t('clone.class_temp')}</span>
                 <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
                   {classTemp}
@@ -137,7 +137,7 @@ export default function ActionBar({
               />
             </div>
             <div>
-              <div className="label-row label-row--spread">
+              <div className="label-row justify-between">
                 <span>{t('clone.layer_pen')}</span>
                 <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
                   {layerPenalty}
@@ -158,7 +158,7 @@ export default function ActionBar({
               </div>
               <input
                 type="text"
-                className="input-base clone-duration-input"
+                className="input-base text-[0.8rem]"
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
                 placeholder={t('clone.auto')}
@@ -187,8 +187,8 @@ export default function ActionBar({
       )}
 
       {/* Controls row: language · steps · overrides disclosure */}
-      <div className="studio-action-bar__row">
-        <div className="studio-action-bar__lang">
+      <div className="flex items-center gap-[16px] min-w-0">
+        <div className="flex items-center gap-[6px] flex-[1_1_220px] min-w-[140px] [&>:last-child]:flex-1 [&>:last-child]:min-w-0">
           <Globe size={12} className="label-icon" />
           <SearchableSelect
             value={language}
@@ -198,7 +198,10 @@ export default function ActionBar({
             onChange={setLanguage}
           />
         </div>
-        <label className="studio-action-bar__steps" title={t('clone.steps')}>
+        <label
+          className="flex items-center gap-[6px] flex-[1_1_160px] min-w-[120px] [&_input]:flex-1 [&_input]:min-w-[60px]"
+          title={t('clone.steps')}
+        >
           <SlidersHorizontal size={12} className="label-icon" />
           <input
             type="range"
@@ -213,7 +216,7 @@ export default function ActionBar({
         </label>
         <button
           type="button"
-          className="studio-action-bar__overrides"
+          className="inline-flex items-center gap-[4px] px-[10px] py-[4px] text-[0.7rem] text-[var(--chrome-fg-muted)] bg-transparent border border-[var(--chrome-border)] rounded-[var(--chrome-radius-pill)] cursor-pointer whitespace-nowrap flex-none transition-[color,border-color] duration-[var(--dur-fast)] hover:text-[var(--chrome-fg)] hover:border-[var(--chrome-border-strong)] focus-visible:[outline:2px_solid_var(--chrome-accent)] focus-visible:[outline-offset:1px]"
           onClick={() => setShowOverrides(!showOverrides)}
           aria-expanded={showOverrides}
         >
@@ -229,7 +232,7 @@ export default function ActionBar({
             block
             onClick={playDemoOutput}
             leading={<Play size={14} />}
-            className="clone-footer-cta"
+            className="mt-[6px]"
           >
             {demoAudioPlaying ? t('demo.stop_demo') : t('demo.hear_demo')}
           </Button>
@@ -254,7 +257,7 @@ export default function ActionBar({
           block
           onClick={stopActivePlayback}
           leading={<Square size={14} />}
-          className="clone-footer-cta"
+          className="mt-[6px]"
         >
           {t('clone.stop_playback')}
         </Button>
@@ -265,7 +268,7 @@ export default function ActionBar({
           loading={isGenerating}
           onClick={handleGenerate}
           leading={!isGenerating && <Play size={14} />}
-          className="clone-footer-cta"
+          className="mt-[6px]"
         >
           {isGenerating
             ? t('clone.synthesizing', { seconds: generationTime })
@@ -277,7 +280,7 @@ export default function ActionBar({
           value={Math.min((generationTime / 8) * 100, 95)}
           tone="brand"
           size="sm"
-          className="clone-footer-cta"
+          className="mt-[6px]"
         />
       )}
       {/* 10x P4 a11y (spec §3): persistent polite live region — screen

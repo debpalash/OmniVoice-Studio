@@ -802,13 +802,10 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
 
 /* 10x P4 (spec §3 a11y gate): one consistent, fully-opaque ring on the
    studio's 10x controls — shared rule, not per-component restyles. */
-.identity-line:focus-visible,
-.clone-insert-btn:focus-visible,
 .personality-chip:focus-visible,
 .chip:focus-visible,
 .wh__chip:focus-visible,
-.wf-player__btn:focus-visible,
-.studio-action-bar__overrides:focus-visible {
+.wf-player__btn:focus-visible {
   outline: 2px solid var(--chrome-accent);
   outline-offset: 1px;
 }
@@ -1442,9 +1439,25 @@ div[role="dialog"].audio-trimmer {
 .studio-panel::before { display: none; }
 .studio-panel > * { position: relative; z-index: 1; }
 
-.studio-column {
-  display: grid; grid-template-rows: minmax(0, 1fr) auto;
-  gap: 6px; min-height: 0;
+/* `.studio-column` removed (fast shadcn): its only consumers were Clone's two
+   columns, now built from Tailwind utilities in CloneDesignTab.jsx +
+   ScriptPanel.jsx. The dub area uses `.studio-panel` directly, not a column
+   wrapper. */
+
+/* Clone's pinned Synthesize action bar (ActionBar.jsx). Relocated here from the
+   deleted CloneDesignTab.css: WorkspaceHistory.css adds a `position: sticky`
+   override to `.studio-action-bar` in the narrow shell (the #476 CTA-clipping
+   fix, guarded by test/workspaceHistoryReflow.test.js), so this stays a shell
+   class rather than inline utilities. Its __row/__lang/__steps/__overrides
+   children migrated to Tailwind utilities at the usage site. */
+.studio-action-bar {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--chrome-border);
+  background: var(--chrome-bg);
+  padding: 8px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1452,7 +1465,9 @@ div[role="dialog"].audio-trimmer {
    ════════════════════════════════════════════════════════════ */
 
 /* DubTab split grid → single column is handled inline in DubTab.jsx /
-   IdleSkeleton.jsx via Tailwind max-[1000px]:grid-cols-1 utilities. */
+   IdleSkeleton.jsx via Tailwind max-[1000px]:grid-cols-1 utilities.
+   Clone's split is a single-column flex stack at every width (built from
+   Tailwind utilities in CloneDesignTab.jsx) — no narrow override needed. */
 
 /* .grid-2 / .grid-4 responsive collapse → Tailwind max-[700px]/max-[500px]
    variants inline at the usage sites (P4). .grid-3 was already dead (no base

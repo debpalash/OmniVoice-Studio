@@ -48,10 +48,10 @@ export default function AudioMethodPanel({
           />
           <label
             htmlFor="audio-upload"
-            // Migrated `.file-drag` → utilities. `is-dragging` stays as a JS-toggled
-            // state marker, matched via the `[&.is-dragging]:` variant. `clone-drop-zone`
-            // (out-of-scope `clone-` family, unlayered) still wins the padding override.
-            className="clone-drop-zone [border:1px_dashed_var(--chrome-border-strong)] rounded-[var(--chrome-radius-pill)] p-[10px] text-center cursor-pointer flex flex-col items-center gap-[4px] bg-transparent [transition:border-color_var(--dur-fast),background_var(--dur-fast)] hover:[border-color:var(--chrome-accent)] hover:bg-[var(--chrome-accent-bg)] [&.is-dragging]:[border-color:var(--chrome-accent)] [&.is-dragging]:bg-[var(--chrome-accent-bg)]"
+            // Migrated `.file-drag` + the old `.clone-drop-zone` padding override →
+            // utilities (fast shadcn, CloneDesignTab.css deleted). `is-dragging` stays
+            // a JS-toggled state marker, matched via the `[&.is-dragging]:` variant.
+            className="flex-1 [border:1px_dashed_var(--chrome-border-strong)] rounded-[var(--chrome-radius-pill)] p-[6px] text-center cursor-pointer flex flex-col items-center gap-[4px] bg-transparent [transition:border-color_var(--dur-fast),background_var(--dur-fast)] hover:[border-color:var(--chrome-accent)] hover:bg-[var(--chrome-accent-bg)] [&.is-dragging]:[border-color:var(--chrome-accent)] [&.is-dragging]:bg-[var(--chrome-accent-bg)]"
             onDragOver={(e) => {
               e.preventDefault();
               e.currentTarget.classList.add('is-dragging');
@@ -135,7 +135,7 @@ export default function AudioMethodPanel({
           <div className="flex gap-[var(--space-3)] items-center">
             <input
               type="number"
-              className="input-base design-seed__input"
+              className="input-base w-[9rem] flex-none"
               value={designSeed ?? ''}
               placeholder={t('clone.seed_placeholder')}
               onChange={(e) => {
@@ -188,7 +188,7 @@ export default function AudioMethodPanel({
               {t('clone.save_as_profile')}
             </Button>
           ) : (
-            <div className="clone-save-profile__row flex gap-[var(--space-3)] items-center">
+            <div className="flex gap-[var(--space-3)] items-center [&>:first-child]:flex-1">
               <Input
                 size="sm"
                 placeholder={t('clone.profile_name')}
