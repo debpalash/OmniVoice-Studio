@@ -1,53 +1,10 @@
-/* ── Input / Textarea / Select — shared shell ────────────────────── */
+/* ── Input primitive — native <select> caret only ──────────────────────
+   The shared input/textarea/select shell, sizes, states, and the Field
+   wrapper are now Tailwind utilities in Input.jsx. Only the <select> caret
+   remains here: an SVG data-URI background (with its appearance reset, caret
+   placement, padding-right for the arrow, and hover border) that isn't
+   practical to express as a utility. */
 
-.ui-input {
-  width: 100%;
-  background: var(--color-bg-elev-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-fg);
-  font-family: var(--font-sans);
-  transition:
-    background var(--dur-base) var(--ease-out),
-    border-color var(--dur-base) var(--ease-out),
-    box-shadow var(--dur-base) var(--ease-out);
-  box-sizing: border-box;
-}
-.ui-input::placeholder { color: rgba(168, 153, 132, 0.5); }
-.ui-input:focus {
-  outline: none;
-  border-color: rgba(211, 134, 155, 0.5);
-  background: rgba(0, 0, 0, 0.35);
-  box-shadow:
-    0 0 0 2px rgba(211, 134, 155, 0.12),
-    var(--shadow-inset);
-}
-.ui-input:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.ui-input[aria-invalid="true"] {
-  border-color: rgba(251, 73, 52, 0.45);
-}
-.ui-input[aria-invalid="true"]:focus {
-  box-shadow:
-    0 0 0 2px rgba(251, 73, 52, 0.15),
-    var(--shadow-inset);
-}
-
-/* sizes */
-.ui-input--size-sm { padding: 3px 6px;  font-size: var(--text-sm);  }
-.ui-input--size-md { padding: 4px 8px;  font-size: var(--text-base);}
-.ui-input--size-lg { padding: 6px 10px; font-size: var(--text-md);  }
-
-/* textarea */
-.ui-textarea {
-  min-height: 60px;
-  resize: vertical;
-  line-height: 1.5;
-}
-
-/* select — restore the caret icon */
 .ui-select {
   appearance: none;
   padding-right: 20px;
@@ -57,38 +14,6 @@
   background-size: 0.42rem auto;
   cursor: pointer;
 }
-.ui-select:hover { border-color: var(--color-border-strong); }
-
-/* ── Field wrapper ───────────────────────────────────────────────── */
-.ui-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-}
-.ui-field__label {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  color: var(--color-fg-muted);
-  letter-spacing: 0.02em;
-}
-.ui-field__control { position: relative; display: flex; align-items: center; }
-.ui-field__icon {
-  position: absolute;
-  left: 7px;
-  display: inline-flex;
-  color: var(--color-fg-subtle);
-  pointer-events: none;
-}
-.ui-field__control:has(.ui-field__icon) .ui-input { padding-left: 22px; }
-.ui-field__hint {
-  font-size: var(--text-2xs);
-  color: var(--color-fg-subtle);
-  margin-top: var(--space-1);
-}
-.ui-field__error {
-  font-size: var(--text-2xs);
-  color: var(--color-danger);
-  margin-top: var(--space-1);
-  font-weight: var(--weight-medium);
+.ui-select:hover {
+  border-color: var(--color-border-strong);
 }

@@ -11,10 +11,11 @@
 // ─────────────────────────────────────────────────────────────────
 
 import React from 'react';
-import { Download, Mic, Sparkles, Trash2 } from 'lucide-react';
+import { Download, Mic, Search, Sparkles, Trash2 } from 'lucide-react';
 
 import Badge from '../../ui/Badge.jsx';
 import Button from '../../ui/Button.jsx';
+import { Field, Input, Select, Textarea } from '../../ui/Input.jsx';
 import Panel from '../../ui/Panel.jsx';
 import Progress from '../../ui/Progress.jsx';
 import Segmented from '../../ui/Segmented.jsx';
@@ -195,6 +196,41 @@ export const SPECS = {
           </Panel>
         </Spec>
       </>
+    ),
+  },
+
+  Input: {
+    render: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 300 }}>
+        <Spec label="sizes">
+          <Input size="sm" placeholder="Small" />
+          <Input size="md" placeholder="Medium" />
+          <Input size="lg" placeholder="Large" />
+        </Spec>
+        <Spec label="states">
+          <Input placeholder="Default" />
+          <Input defaultValue="Disabled" disabled />
+          <Input defaultValue="Invalid" aria-invalid="true" />
+        </Spec>
+        <Spec label="textarea / select">
+          <Textarea placeholder="Textarea" rows={2} />
+          <Select defaultValue="b">
+            <option value="a">Option A</option>
+            <option value="b">Option B</option>
+          </Select>
+        </Spec>
+        <Spec label="field">
+          <Field label="Name" hint="Your full name">
+            <Input placeholder="Jane Doe" />
+          </Field>
+          <Field label="Email" error="Required field">
+            <Input placeholder="you@example.com" />
+          </Field>
+          <Field label="Search" icon={<Search size={13} />}>
+            <Input placeholder="Search…" />
+          </Field>
+        </Spec>
+      </div>
     ),
   },
 

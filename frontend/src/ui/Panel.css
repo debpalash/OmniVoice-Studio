@@ -1,12 +1,10 @@
-/* ── Panel primitive ─────────────────────────────────────────────── */
-
-.ui-panel {
-  position: relative;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border-warm);
-  overflow: hidden;
-  color: var(--color-fg);
-}
+/* ── Panel primitive — glass surface only ─────────────────────────────
+   Layout, border, radius, padding, header/title/actions, and the solid/flat
+   variants are now Tailwind utilities in Panel.jsx. Only the glass variant's
+   backdrop-filter + layered gradient surface and the ::before top-edge
+   highlight remain here — none of these are expressible as utilities (the app
+   ships Tailwind v4 without the filter/backdrop `--tw-*` plumbing, and ::before
+   is a pseudo-element). */
 
 /* glass — warm backdrop-filter card (replaces legacy .glass-panel) */
 .ui-panel--glass {
@@ -32,48 +30,3 @@
   );
   pointer-events: none;
 }
-
-/* solid — opaque elevated surface */
-.ui-panel--solid {
-  background: linear-gradient(160deg, #2a2624 0%, #201c1b 100%);
-  box-shadow: var(--shadow-md);
-}
-
-/* flat — inline, no elevation, just a subtle border */
-.ui-panel--flat {
-  background: rgba(0, 0, 0, 0.08);
-  border-color: var(--color-border);
-}
-
-/* Padding scale */
-.ui-panel--pad-none .ui-panel__body { padding: 0; }
-.ui-panel--pad-sm   .ui-panel__body { padding: var(--space-4); }
-.ui-panel--pad-md   .ui-panel__body { padding: var(--space-5); }
-.ui-panel--pad-lg   .ui-panel__body { padding: var(--space-6); }
-
-/* Header */
-.ui-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--color-border);
-  gap: var(--space-4);
-}
-.ui-panel__title {
-  font-size: var(--text-md);
-  font-weight: var(--weight-bold);
-  color: var(--color-fg);
-  letter-spacing: -0.01em;
-  display: flex; align-items: center; gap: var(--space-3);
-  min-width: 0;
-}
-.ui-panel__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-shrink: 0;
-}
-
-/* When there's a header, kill the body's top padding for visual balance */
-.ui-panel__header + .ui-panel__body { padding-top: var(--space-4); }

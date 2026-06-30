@@ -17,6 +17,7 @@ export const COMPONENTS = [
   'Slider',
   'Table',
   'Tabs',
+  'Input',
 ] as const;
 
 export const THEMES = ['default', 'midnight', 'catppuccin'] as const;
