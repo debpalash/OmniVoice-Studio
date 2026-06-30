@@ -32,6 +32,8 @@ export default function AppearancePanel() {
   const setFont = useAppStore((s) => s.setFont);
   const autoPlayPreview = useAppStore((s) => s.autoPlayPreview);
   const setAutoPlayPreview = useAppStore((s) => s.setAutoPlayPreview);
+  const showHeaderLiveStats = useAppStore((s) => s.showHeaderLiveStats);
+  const setShowHeaderLiveStats = useAppStore((s) => s.setShowHeaderLiveStats);
 
   const scaleLabel = t('settings.ui_scale', { defaultValue: 'UI scale' });
   const themeLabel = t('settings.color_theme', { defaultValue: 'Color theme' });
@@ -140,6 +142,24 @@ export default function AppearancePanel() {
             onChange={setAutoPlayPreview}
             id="autoplay-preview"
             aria-label={t('settings.autoplay_preview', { defaultValue: 'Auto-play preview' })}
+          />
+        }
+      />
+
+      <SettingRow
+        title={t('settings.header_live_stats', {
+          defaultValue: 'Show live system metrics in header',
+        })}
+        subtitle={t('settings.header_live_stats_desc', {
+          defaultValue: 'Adds a live RAM / CPU / VRAM monitor to the top bar (off by default).',
+        })}
+        control={
+          <SettingsToggle
+            checked={showHeaderLiveStats}
+            onChange={setShowHeaderLiveStats}
+            aria-label={t('settings.header_live_stats', {
+              defaultValue: 'Show live system metrics in header',
+            })}
           />
         }
       />

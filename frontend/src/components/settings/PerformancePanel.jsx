@@ -18,8 +18,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Cpu } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
-import { useAppStore } from '../../store';
 import { SettingsSection, SettingRow, SettingsToggle } from './primitives';
+import RestartBadge from './RestartBadge';
 import './PerformancePanel.css';
 
 export default function PerformancePanel() {
@@ -28,11 +28,6 @@ export default function PerformancePanel() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-
-  // Header live-metrics toggle (default OFF). Persisted via the Zustand
-  // app store so it survives reload without a separate API round-trip.
-  const showHeaderLiveStats = useAppStore((s) => s.showHeaderLiveStats);
-  const setShowHeaderLiveStats = useAppStore((s) => s.setShowHeaderLiveStats);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -83,7 +78,12 @@ export default function PerformancePanel() {
       )}
 
       <SettingRow
-        title="Disable torch.compile (Windows)"
+        title={
+          <>
+            Disable torch.compile (Windows)
+            <RestartBadge />
+          </>
+        }
         subtitle={!isWindows ? (platform === null ? '…' : 'not applicable') : undefined}
         note={isWindows ? 'Falls back to eager mode — fixes Triton OOM on <16 GB GPUs.' : undefined}
         hint={
@@ -108,25 +108,6 @@ export default function PerformancePanel() {
             disabled={!isWindows || saving || loading}
             aria-label="Disable torch.compile (Windows)"
             data-testid="torch-compile-toggle"
-          />
-        }
-      />
-
-      <SettingRow
-        title="Show live system metrics in header"
-        note="Adds a live RAM / CPU / VRAM monitor to the top bar (off by default)."
-        hint={
-          <>
-            Default off — the header keeps the model-status badge and Flush button always visible
-            because they're action-relevant, but RAM / CPU / VRAM counters are noise on the welcome
-            screen. Turn this on if you want a live resource monitor in the top bar.
-          </>
-        }
-        control={
-          <SettingsToggle
-            checked={showHeaderLiveStats}
-            onChange={setShowHeaderLiveStats}
-            aria-label="Show live system metrics in header"
           />
         }
       />

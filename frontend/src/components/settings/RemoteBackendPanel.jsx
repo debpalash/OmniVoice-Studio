@@ -14,6 +14,7 @@ import React, { useState } from 'react';
 import { Server } from 'lucide-react';
 import { LS_BACKEND_URL, LS_API_KEY, API } from '../../api/client';
 import { SettingsSection, SettingRow, InfoHint, SettingsInput } from './primitives';
+import RestartBadge from './RestartBadge';
 import './PerformancePanel.css';
 
 const REMOTE_GPU_DOCS_URL =
@@ -60,10 +61,13 @@ export default function RemoteBackendPanel() {
       title="Remote backend"
       description="Run inference on another machine; leave the URL empty for the local backend."
       actions={
-        <InfoHint learnMoreHref={REMOTE_GPU_DOCS_URL}>
-          Start the backend on the other machine with <code>OMNIVOICE_API_KEY</code> set, reach it
-          over your tailnet, and point this app at it.
-        </InfoHint>
+        <>
+          <RestartBadge />
+          <InfoHint learnMoreHref={REMOTE_GPU_DOCS_URL}>
+            Start the backend on the other machine with <code>OMNIVOICE_API_KEY</code> set, reach it
+            over your tailnet, and point this app at it.
+          </InfoHint>
+        </>
       }
     >
       <SettingRow

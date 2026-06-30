@@ -12,20 +12,24 @@ import {
 import { useTranslation } from 'react-i18next';
 import { openExternal } from '../../api/external';
 import { resolveAboutVersion } from '../../utils/appVersion';
-import { Segmented, Button, Badge } from '../../ui';
-import { SettingsSection, SettingRow } from './primitives';
+import { Button, Badge } from '../../ui';
+import { SettingsSection } from './primitives';
 import { useAppStore } from '../../store';
 import { isTauri } from './native';
 import Row from './Row';
 
+/**
+ * Settings → About.
+ *
+ * Identity + diagnostics only. The device / RAM / VRAM / backend readouts moved
+ * to Performance & Device; the data/outputs paths moved to Storage; the update
+ * channel + endpoint moved to Updates (the single update home). What remains is
+ * app identity, the HF-token quick status, and the diagnostics actions.
+ */
 export default function AboutTab({
   appVersion,
   tauriVersion,
   info,
-  hw,
-  status,
-  updateChannel,
-  changeChannel,
   checkForUpdates,
   updateState,
   selfCheck,
@@ -46,89 +50,11 @@ export default function AboutTab({
         value={tauriVersion || (isTauri() ? '—' : t('about.web_preview'))}
         mono
       />
-      <Row label={t('about.platform')} value={info?.platform || '—'} />
-      <Row label={t('about.architecture')} value={info?.arch || '—'} mono />
-      <Row label={t('about.python')} value={info?.python || '—'} mono />
-      <Row label={t('about.compute_device')} value={info?.device || '—'} mono />
-      <Row
-        label={t('about.gpu_active')}
-        value={
-          hw?.gpu_active ? (
-            <Badge tone="success">
-              <CheckCircle size={11} /> {t('about.yes')}
-            </Badge>
-          ) : (
-            <Badge tone="neutral">{t('about.no')}</Badge>
-          )
-        }
-      />
-      <Row
-        label={t('about.ram')}
-        value={hw ? `${hw.ram?.toFixed(2)} / ${hw.total_ram?.toFixed(2)} GB` : '—'}
-        mono
-      />
-      <Row label={t('about.vram')} value={hw ? `${hw.vram?.toFixed(2)} GB` : '—'} mono />
-      <Row
-        label={t('about.backend')}
-        value={
-          <Badge
-            tone={
-              status?.status === 'ready'
-                ? 'success'
-                : status?.status === 'loading'
-                  ? 'warn'
-                  : 'neutral'
-            }
-          >
-            {status?.status || 'unknown'}
-          </Badge>
-        }
-      />
-      <Row
-        label={t('about.active_model')}
-        value={status?.repo_id || info?.model_checkpoint || '—'}
-        mono
-      />
-      <Row label={t('about.asr_model')} value={info?.asr_model || '—'} mono />
-      <Row label={t('about.translator')} value={info?.translate_provider || '—'} />
       <Row
         label={t('about.hf_token')}
         value={info?.has_hf_token ? t('about.yes') : t('about.no')}
       />
-      <Row label={t('about.data_dir')} value={info?.data_dir || '—'} mono />
-      <Row label={t('about.outputs')} value={info?.outputs_dir || '—'} mono />
-      <Row label={t('about.crash_log')} value={info?.crash_log_path || '—'} mono />
-      {/* Auto-updater + channel toggle are desktop-only (Tauri). The Docker
-          web build updates by pulling a new image tag, so hide these rows
-          there to avoid a non-functional control (issue #249). */}
-      {isTauri() && (
-        <>
-          <SettingRow
-            title={t('about.update_channel')}
-            hint={updateChannel === 'preview' ? t('about.channel_preview_hint') : undefined}
-            control={
-              <Segmented
-                size="xs"
-                value={updateChannel}
-                onChange={changeChannel}
-                items={[
-                  { value: 'stable', label: t('about.channel_stable') },
-                  { value: 'preview', label: t('about.channel_preview') },
-                ]}
-              />
-            }
-          />
-          <Row
-            label={t('about.update_endpoint')}
-            value={
-              updateChannel === 'preview'
-                ? 'releases/download/preview/latest.json'
-                : 'releases/latest/download/latest.json'
-            }
-            mono
-          />
-        </>
-      )}
+
       <div className="settings-link-row mt-[var(--space-5)] flex flex-wrap gap-[var(--space-4)]">
         {isTauri() && (
           <Button

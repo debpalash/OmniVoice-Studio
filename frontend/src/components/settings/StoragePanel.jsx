@@ -16,6 +16,7 @@ import { HardDrive } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiJson, apiFetch } from '../../api/client';
 import { SettingsSection, SettingRow, InfoHint } from './primitives';
+import RestartBadge from './RestartBadge';
 
 export default function StoragePanel() {
   const [configured, setConfigured] = useState('');
@@ -82,10 +83,14 @@ export default function StoragePanel() {
       icon={HardDrive}
       title="Models directory"
       actions={
-        <InfoHint label="Models directory">
-          Where model weights download (the HuggingFace / Torch cache). Point this at a larger or
-          faster drive — useful when your system drive is small. Changes apply on the next restart.
-        </InfoHint>
+        <>
+          <RestartBadge />
+          <InfoHint label="Models directory">
+            Where model weights download (the HuggingFace / Torch cache). Point this at a larger or
+            faster drive — useful when your system drive is small. Changes apply on the next
+            restart.
+          </InfoHint>
+        </>
       }
     >
       {error && (

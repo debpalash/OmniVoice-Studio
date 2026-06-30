@@ -1,22 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { copyText } from '../utils/copyText';
 import { normalizeChannel } from '../utils/updateChannel';
-import { setChannel } from '../utils/channelControl';
-import {
-  Cpu,
-  FileText,
-  Info,
-  ShieldCheck,
-  RefreshCw,
-  CheckCircle,
-  Plug,
-  KeyRound,
-  Keyboard,
-  Wifi,
-  Palette,
-  ArrowDownToLine,
-  Settings2,
-} from 'lucide-react';
+import { CheckCircle, RefreshCw, ArrowDownToLine } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { API, apiFetch } from '../api/client';
 import { useTranslation } from 'react-i18next';
@@ -24,15 +9,17 @@ import { systemLogs, systemLogsTauri, clearSystemLogs, clearTauriLogs } from '..
 import { useSysinfo, useModelStatus, useSystemInfo } from '../api/hooks';
 import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
 import { resolveAboutVersion } from '../utils/appVersion';
-import { Tabs, Badge } from '../ui';
+import { Badge } from '../ui';
 import { SettingsSection } from '../components/settings/primitives';
 import { useAppStore } from '../store';
-import PerformancePanel from '../components/settings/PerformancePanel';
+// Panels — re-hosted as-is; the redesign reorganizes them, not their logic.
+import PerformanceDeviceTab from '../components/settings/PerformanceDeviceTab';
 import RefinementPanel from '../components/settings/RefinementPanel';
 import AecPanel from '../components/settings/AecPanel';
 import VoicePanel from '../components/settings/VoicePanel';
 import AppearancePanel from '../components/settings/AppearancePanel';
 import StoragePanel from '../components/settings/StoragePanel';
+import StorageTab from '../components/settings/StorageTab';
 import HFMirrorPanel from '../components/settings/HFMirrorPanel';
 import SharingPanel from '../components/settings/SharingPanel';
 import RemoteBackendPanel from '../components/settings/RemoteBackendPanel';
@@ -44,60 +31,96 @@ import GeneralTab from '../components/settings/GeneralTab';
 import ModelStoreTab from '../components/settings/ModelStoreTab';
 import EnginesTab from '../components/settings/EnginesTab';
 import HotkeyTab from '../components/settings/HotkeyTab';
-import CredentialsTab from '../components/settings/CredentialsTab';
+import TranslationTab from '../components/settings/TranslationTab';
+import NetworkTab from '../components/settings/NetworkTab';
+import ApiKeysPanel from '../components/settings/ApiKeysPanel';
 import AboutTab from '../components/settings/AboutTab';
 import PrivacyTab from '../components/settings/PrivacyTab';
 import LogsTab from '../components/settings/LogsTab';
+import SettingsSidebar from '../components/settings/SettingsSidebar';
+import SettingsSearch from '../components/settings/SettingsSearch';
+import RestartBadge from '../components/settings/RestartBadge';
+import {
+  CATEGORY_BY_ID,
+  matchCategories,
+  resolveCategoryId,
+} from '../components/settings/settingsCategories';
 import { isTauri, askConfirm } from '../components/settings/native';
 import './Settings.css';
 
-// Ordered as a logical flow: setup basics first (General/Appearance), then the
-// engine stack (Models/Engines), feature areas (Capture/Sharing), secrets
-// (Credentials), maintenance (Updates/Logs), and reference (About/Privacy).
-const TAB_DEFS = [
-  { id: 'general', icon: Settings2 },
-  { id: 'appearance', icon: Palette },
-  { id: 'models', icon: Cpu },
-  { id: 'engines', icon: Plug },
-  { id: 'capture', icon: Keyboard },
-  { id: 'sharing', icon: Wifi },
-  { id: 'credentials', icon: KeyRound },
-  { id: 'updates', icon: ArrowDownToLine },
-  { id: 'logs', icon: FileText },
-  { id: 'about', icon: Info },
-  { id: 'privacy', icon: ShieldCheck },
-];
+// Persist the last-opened category so re-opening Settings lands where you left.
+const LS_CATEGORY = 'omnivoice.settings.category';
 
+/**
+ * Settings — a sidebar-nav + content-pane hub (macOS System Settings / VS Code
+ * style). This is a thin orchestrator: it owns the active-category state, the
+ * search filter, and the shared data/handlers that LogsTab / AboutTab / Updates
+ * need, then delegates each category's UI to its panel(s) via renderCategory().
+ *
+ * The IA (groups → categories) lives in settingsCategories.jsx; the sidebar and
+ * search box are extracted components. See that registry for the full mapping.
+ */
 export default function Settings() {
   const { t } = useTranslation();
-  // One-shot deep-link: a caller (e.g. the footer version badge → Updates) can
-  // set `pendingSettingsTab` and navigate here; consume it as the initial tab.
+
+  // One-shot deep-link (e.g. footer version badge → Updates). Legacy tab ids are
+  // mapped to the new category ids by resolveCategoryId().
   const pendingSettingsTab = useAppStore((s) => s.pendingSettingsTab);
   const setPendingSettingsTab = useAppStore((s) => s.setPendingSettingsTab);
-  const [activeTab, setActiveTab] = useState(() => pendingSettingsTab || 'models');
-  const [logSource, setLogSource] = useState('backend');
-  const [logs, setLogs] = useState([]);
-  const [logMeta, setLogMeta] = useState({ path: '', exists: false });
-  const [loadingLogs, setLoadingLogs] = useState(false);
-  const [appVersion, setAppVersion] = useState(null);
-  const [tauriVersion, setTauriVersion] = useState(null);
-  const [updateState, setUpdateState] = useState('idle'); // idle|checking|downloading|uptodate|error
-  const updateChannel = useAppStore((s) => s.updateChannel);
 
-  // Consume a one-shot deep-link tab (covers the case where Settings is already
-  // open and the value changes after mount); clear it so a later plain open of
-  // Settings doesn't jump tabs.
+  const [active, setActiveRaw] = useState(() => {
+    if (pendingSettingsTab) return resolveCategoryId(pendingSettingsTab);
+    try {
+      return resolveCategoryId(localStorage.getItem(LS_CATEGORY));
+    } catch {
+      return resolveCategoryId(null);
+    }
+  });
+  const [query, setQuery] = useState('');
+
+  const setActive = useCallback((id) => {
+    const next = resolveCategoryId(id);
+    setActiveRaw(next);
+    try {
+      localStorage.setItem(LS_CATEGORY, next);
+    } catch {
+      /* private mode / quota — non-fatal */
+    }
+  }, []);
+
+  // Consume a one-shot deep-link tab even when Settings is already mounted.
   useEffect(() => {
     if (pendingSettingsTab) {
-      setActiveTab(pendingSettingsTab);
+      setActive(pendingSettingsTab);
       setPendingSettingsTab(null);
     }
-  }, [pendingSettingsTab, setPendingSettingsTab]);
+  }, [pendingSettingsTab, setPendingSettingsTab, setActive]);
 
-  // TanStack Query — shared cache with App.jsx, no duplicate requests
+  // Search → filtered category ids. Label-aware so it matches translated names.
+  const visibleIds = useMemo(
+    () => matchCategories(query, (c) => t(c.labelKey, { defaultValue: c.defaultLabel })),
+    [query, t],
+  );
+  const visibleSet = useMemo(() => new Set(visibleIds), [visibleIds]);
+
+  // Bonus: typing a query that matches a *setting* (or another category) jumps
+  // selection to the first match when the current category falls out of view.
+  useEffect(() => {
+    if (!query.trim()) return;
+    if (visibleIds.length > 0 && !visibleSet.has(active)) {
+      setActiveRaw(visibleIds[0]);
+    }
+  }, [query, visibleIds, visibleSet, active]);
+
+  // ── Shared data (TanStack Query — shared cache with App.jsx) ───────────────
   const { data: hw } = useSysinfo();
   const { data: status } = useModelStatus();
   const { data: info } = useSystemInfo();
+  const updateChannel = useAppStore((s) => s.updateChannel);
+
+  const [appVersion, setAppVersion] = useState(null);
+  const [tauriVersion, setTauriVersion] = useState(null);
+  const [updateState, setUpdateState] = useState('idle');
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -112,23 +135,7 @@ export default function Settings() {
     })();
   }, []);
 
-  const changeChannel = useCallback(
-    async (ch) => {
-      try {
-        const next = await setChannel(useAppStore.getState(), ch);
-        toast.success(t('about.channel_set', { channel: t(`about.channel_${next}`) }));
-      } catch (e) {
-        toast.error(t('settings.channel_set_failed', { message: e?.message || e }));
-      }
-    },
-    [t],
-  );
-
-  // sysinfo polling is now handled by useSysinfo() hook above
-
-  // Self-check (/system/diagnose) — device, ffmpeg, HF token, disk, engines,
-  // hub reachability. The report comes back pre-scrubbed (backend core/scrub)
-  // so "Copy" output is safe to paste straight into a GitHub issue.
+  // ── Diagnostics (About) ────────────────────────────────────────────────────
   const [selfCheck, setSelfCheck] = useState(null);
   const [selfCheckRunning, setSelfCheckRunning] = useState(false);
   const runSelfCheck = useCallback(async () => {
@@ -143,9 +150,6 @@ export default function Settings() {
     }
   }, [t]);
 
-  // Diagnostic bundle — zip of self-check + error journal + scrubbed log
-  // tails, saved to the outputs dir and revealed so the user can drag it
-  // onto a GitHub issue (logs never fit in the prefilled-URL report).
   const [bundleBuilding, setBundleBuilding] = useState(false);
   const saveDiagnosticBundle = useCallback(async () => {
     setBundleBuilding(true);
@@ -207,9 +211,8 @@ export default function Settings() {
       }`,
       `- **User agent:** ${ua}`,
     ];
-    const text = lines.join('\n');
     try {
-      await copyText(text);
+      await copyText(lines.join('\n'));
       toast.success(t('settings.diagnostics_copied'));
     } catch (e) {
       toast.error(t('settings.copy_failed', { message: e?.message || e }));
@@ -257,6 +260,12 @@ export default function Settings() {
     }
   }, [updateChannel, t]);
 
+  // ── Logs ────────────────────────────────────────────────────────────────────
+  const [logSource, setLogSource] = useState('backend');
+  const [logs, setLogs] = useState([]);
+  const [logMeta, setLogMeta] = useState({ path: '', exists: false });
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
   const refreshLogs = useCallback(async () => {
     setLoadingLogs(true);
     try {
@@ -285,8 +294,8 @@ export default function Settings() {
   }, [logSource, t]);
 
   useEffect(() => {
-    if (activeTab === 'logs') refreshLogs();
-  }, [activeTab, logSource, refreshLogs]);
+    if (active === 'logs') refreshLogs();
+  }, [active, logSource, refreshLogs]);
 
   const onClearLogs = async () => {
     if (logSource === 'frontend') {
@@ -342,43 +351,24 @@ export default function Settings() {
       <Badge tone="warn">{t('models.idle_badge')}</Badge>
     );
 
-  return (
-    // Page chrome (formerly `.settings-page` in Settings.css/index.css) is now
-    // Tailwind on the token bridge: a centered, scrollable column that becomes a
-    // [rail | content] grid at ≥760px. The rail's internal look + the narrow
-    // horizontal-scroll strip stay in Settings.css (`.settings-tabs-ui`), which
-    // must remain unlayered to override the shared shadcn Tabs primitive.
-    <div className="flex min-h-full w-full max-w-[calc(var(--settings-rail)_+_var(--space-5)_+_var(--settings-measure)_+_2_*_var(--space-7))] mx-auto box-border flex-1 flex-col overflow-y-auto bg-[var(--chrome-bg)] p-[var(--space-5)_var(--space-7)_var(--space-7)] font-sans min-[760px]:grid min-[760px]:[grid-template-columns:var(--settings-rail)_minmax(0,1fr)] min-[760px]:gap-[var(--space-5)] min-[760px]:[align-content:start]">
-      <Tabs
-        items={TAB_DEFS.map((def) => ({ ...def, label: t(`settings.${def.id}`) }))}
-        value={activeTab}
-        onChange={setActiveTab}
-        className="settings-tabs-ui"
-      />
-
-      {/* Content column — fills the 1fr track; establishes the `settings`
-          container so SettingRow's `@max-[600px]/settings:` row-stacking variant
-          still fires on the real content width (the rail steals ~168px). */}
-      <div className="min-w-0 max-w-[var(--settings-measure)] flex-auto self-start [container-type:inline-size] [container-name:settings] [&>*:first-child]:mt-0">
-        {activeTab === 'general' && (
-          <>
-            <GeneralTab />
-            <PronunciationPanel />
-            <PerformancePanel />
-          </>
-        )}
-
-        {activeTab === 'models' && (
+  const renderCategory = (id) => {
+    switch (id) {
+      case 'appearance':
+        return <AppearancePanel />;
+      case 'general':
+        return <GeneralTab />;
+      case 'engines':
+        return <EnginesTab />;
+      case 'models':
+        return (
           <>
             <StoragePanel />
             <HFMirrorPanel />
             <ModelStoreTab info={info} modelBadge={modelBadge} />
           </>
-        )}
-
-        {activeTab === 'engines' && <EnginesTab />}
-
-        {activeTab === 'capture' && (
+        );
+      case 'dictation':
+        return (
           <>
             <VoicePanel />
             <DictationDemo />
@@ -386,21 +376,37 @@ export default function Settings() {
             <RefinementPanel />
             <AecPanel />
           </>
-        )}
-
-        {activeTab === 'sharing' && (
+        );
+      case 'pronunciation':
+        return <PronunciationPanel />;
+      case 'translation':
+        return <TranslationTab />;
+      case 'performance':
+        return <PerformanceDeviceTab />;
+      case 'storage':
+        return <StorageTab />;
+      case 'network':
+        return <NetworkTab />;
+      case 'sharing':
+        return (
           <>
             <SharingPanel />
             <RemoteBackendPanel />
             <MCPBindingsPanel />
           </>
-        )}
-
-        {activeTab === 'appearance' && <AppearancePanel />}
-
-        {activeTab === 'credentials' && <CredentialsTab info={info} />}
-
-        {activeTab === 'logs' && (
+        );
+      case 'credentials':
+        return <ApiKeysPanel />;
+      case 'updates':
+        return (
+          <SettingsSection icon={ArrowDownToLine} title={t('settings.updates')}>
+            <UpdatesPanel />
+          </SettingsSection>
+        );
+      case 'privacy':
+        return <PrivacyTab info={info} />;
+      case 'logs':
+        return (
           <LogsTab
             logSource={logSource}
             setLogSource={setLogSource}
@@ -410,23 +416,13 @@ export default function Settings() {
             refreshLogs={refreshLogs}
             onClearLogs={onClearLogs}
           />
-        )}
-
-        {activeTab === 'updates' && (
-          <SettingsSection icon={ArrowDownToLine} title={t('settings.updates')}>
-            <UpdatesPanel />
-          </SettingsSection>
-        )}
-
-        {activeTab === 'about' && (
+        );
+      case 'about':
+        return (
           <AboutTab
             appVersion={appVersion}
             tauriVersion={tauriVersion}
             info={info}
-            hw={hw}
-            status={status}
-            updateChannel={updateChannel}
-            changeChannel={changeChannel}
             checkForUpdates={checkForUpdates}
             updateState={updateState}
             selfCheck={selfCheck}
@@ -436,9 +432,43 @@ export default function Settings() {
             saveDiagnosticBundle={saveDiagnosticBundle}
             copyDiagnostics={copyDiagnostics}
           />
-        )}
+        );
+      default:
+        return null;
+    }
+  };
 
-        {activeTab === 'privacy' && <PrivacyTab info={info} />}
+  const cat = CATEGORY_BY_ID[active] || CATEGORY_BY_ID.general;
+  const CatIcon = cat.icon;
+
+  return (
+    // [ rail | content ] hub. Below 760px the rail collapses to a dropdown (in
+    // SettingsSidebar) and the layout stacks. The content column establishes the
+    // `settings` container so SettingRow's `@max-[600px]/settings:` stacking
+    // variant still fires on the real content width.
+    <div className="flex min-h-full w-full max-w-[calc(var(--settings-rail)_+_var(--space-5)_+_var(--settings-measure)_+_2_*_var(--space-7))] mx-auto box-border flex-1 flex-col overflow-y-auto bg-[var(--chrome-bg)] p-[var(--space-5)_var(--space-7)_var(--space-7)] font-sans min-[760px]:grid min-[760px]:[grid-template-columns:var(--settings-rail)_minmax(0,1fr)] min-[760px]:gap-[var(--space-5)] min-[760px]:[align-content:start]">
+      <aside className="mb-[var(--space-4)] min-[760px]:sticky min-[760px]:top-[var(--space-5)] min-[760px]:mb-0 min-[760px]:self-start">
+        <SettingsSearch value={query} onChange={setQuery} />
+        <SettingsSidebar visibleIds={visibleSet} active={active} onSelect={setActive} />
+      </aside>
+
+      <div className="min-w-0 max-w-[var(--settings-measure)] flex-auto self-start [container-type:inline-size] [container-name:settings]">
+        <header className="mb-[var(--space-4)] flex items-center gap-[var(--space-3)]">
+          {CatIcon && (
+            <span
+              className="shrink-0 inline-flex items-center justify-center w-[26px] h-[26px] rounded-[var(--chrome-radius-pill)] text-[color:var(--chrome-accent)] bg-[color-mix(in_srgb,var(--chrome-accent)_12%,var(--chrome-bg))] border border-[color-mix(in_srgb,var(--chrome-accent)_26%,var(--chrome-border))]"
+              aria-hidden="true"
+            >
+              <CatIcon size={15} />
+            </span>
+          )}
+          <h1 className="m-0 flex-auto [font-family:var(--font-sans)] text-[length:var(--text-lg)] font-bold tracking-[-0.01em] text-[color:var(--chrome-fg)]">
+            {t(cat.labelKey, { defaultValue: cat.defaultLabel })}
+          </h1>
+          {cat.restart && <RestartBadge />}
+        </header>
+
+        <div className="[&>*:first-child]:mt-0">{renderCategory(active)}</div>
       </div>
     </div>
   );

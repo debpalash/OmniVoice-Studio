@@ -13,6 +13,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Globe } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
 import { SettingsSection, SettingRow, SettingsInput } from './primitives';
+import RestartBadge from './RestartBadge';
 import './PerformancePanel.css';
 
 export default function HFMirrorPanel() {
@@ -64,6 +65,7 @@ export default function HFMirrorPanel() {
       icon={Globe}
       title="Hugging Face mirror"
       description="Route model downloads through a mirror on a restricted network."
+      actions={<RestartBadge />}
     >
       {error && (
         <div className="perfpanel__error" role="alert">
