@@ -28,6 +28,10 @@ tauri-plugin-process = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-single-instance = "2"
+# Bottom-center placement of the dictation pill/widget window. Replaces the
+# hand-rolled primary-monitor geometry + LogicalPosition math. tray-icon
+# feature enabled because the app ships a system tray (TrayIconBuilder).
+tauri-plugin-positioner = { version = "2", features = ["tray-icon"] }
 
 # Cross-platform keyboard simulation for auto-paste after dictation
 enigo = { version = "0.3", features = ["serde"] }

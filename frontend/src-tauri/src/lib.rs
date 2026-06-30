@@ -23,6 +23,7 @@ use std::time::Duration;
 use tauri::{Emitter, Manager};
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::TrayIconBuilder;
+use tauri_plugin_positioner::{Position, WindowExt};
 
 use crate::bootstrap::{BootstrapStage, BootstrapState, set_stage};
 use crate::config::{default_dictation_shortcut, load_config};
@@ -234,6 +235,7 @@ pub fn run() {
                 let _ = win.set_focus();
             }
         }))
+        .plugin(tauri_plugin_positioner::init())
         .invoke_handler(tauri::generate_handler![
             bootstrap::bootstrap_status,
             bootstrap::get_bootstrap_logs,
@@ -345,19 +347,9 @@ pub fn run() {
                                     // Show the widget window (works in both pill + studio mode)
                                     if let Some(win) = app_handle.get_webview_window("widget") {
                                         // Position pill at bottom-center — WhisperFlow / Ghost-Pepper
-                                        // style. 80px margin from bottom clears macOS dock + Windows
-                                        // taskbar + most Linux panels. Same math on all platforms.
-                                        if let Ok(Some(monitor)) = win.primary_monitor() {
-                                            let size = monitor.size();
-                                            let scale = monitor.scale_factor();
-                                            let logical_w = size.width as f64 / scale;
-                                            let logical_h = size.height as f64 / scale;
-                                            let x = (logical_w / 2.0 - 150.0) as i32;
-                                            let y = (logical_h - 64.0 - 80.0) as i32;
-                                            let _ = win.set_position(tauri::Position::Logical(
-                                                tauri::LogicalPosition::new(x as f64, y as f64),
-                                            ));
-                                        } else {
+                                        // style — via tauri-plugin-positioner. Falls back to center()
+                                        // if the plugin can't resolve the monitor geometry.
+                                        if win.move_window(Position::BottomCenter).is_err() {
                                             let _ = win.center();
                                         }
                                         let _ = win.show();
@@ -521,17 +513,7 @@ pub fn run() {
                                 if win.is_visible().unwrap_or(false) {
                                     let _ = app.emit("tray-dictate-stop", ());
                                 } else {
-                                    if let Ok(Some(monitor)) = win.primary_monitor() {
-                                        let size = monitor.size();
-                                        let scale = monitor.scale_factor();
-                                        let logical_w = size.width as f64 / scale;
-                                        let logical_h = size.height as f64 / scale;
-                                        let x = (logical_w / 2.0 - 150.0) as i32;
-                                        let y = (logical_h - 64.0 - 80.0) as i32;
-                                        let _ = win.set_position(tauri::Position::Logical(
-                                            tauri::LogicalPosition::new(x as f64, y as f64),
-                                        ));
-                                    } else {
+                                    if win.move_window(Position::BottomCenter).is_err() {
                                         let _ = win.center();
                                     }
                                     let _ = win.show();
@@ -593,17 +575,7 @@ pub fn run() {
                         // regardless of what window-state restored. The denylist
                         // above should handle it, but belt-and-braces.
                         let _ = win.hide();
-                        if let Ok(Some(monitor)) = win.primary_monitor() {
-                            let size = monitor.size();
-                            let scale = monitor.scale_factor();
-                            let logical_w = size.width as f64 / scale;
-                            let logical_h = size.height as f64 / scale;
-                            let x = (logical_w / 2.0 - 150.0) as i32;
-                            let y = (logical_h - 64.0 - 80.0) as i32;
-                            let _ = win.set_position(tauri::Position::Logical(
-                                tauri::LogicalPosition::new(x as f64, y as f64),
-                            ));
-                        } else {
+                        if win.move_window(Position::BottomCenter).is_err() {
                             let _ = win.center();
                         }
                         log::info!("Pill mode: widget window pre-positioned at bottom-center (hidden until activated)");
