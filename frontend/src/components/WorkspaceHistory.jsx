@@ -111,7 +111,7 @@ export default function WorkspaceHistory({
                 className="history-item history-item--dub"
                 onClick={() => restoreDubHistory(item)}
               >
-                <div className="history-row-head">
+                <div className="flex items-center justify-between gap-2 min-w-0">
                   <span className="history-kind history-kind--audio">
                     <Film size={9} /> {t('sidebar.dub_label')}
                   </span>
@@ -191,7 +191,7 @@ export default function WorkspaceHistory({
             const KindIcon = item.mode === 'clone' ? Fingerprint : Wand2;
             return (
               <div key={item.id} className="history-item" style={{ '--row-accent': accent }}>
-                <div className="history-row-head">
+                <div className="flex items-center justify-between gap-2 min-w-0">
                   <span
                     className="history-kind"
                     style={{ color: accent, borderColor: `${accent}40` }}

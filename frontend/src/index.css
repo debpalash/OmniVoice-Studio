@@ -1509,11 +1509,7 @@ div[role="dialog"].audio-trimmer {
   opacity: 1; background: #b8bb26;
 }
 
-/* Header row: kind pill + time */
-.history-row-head {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 8px; min-width: 0;
-}
+/* Header row container migrated to utilities: flex items-center justify-between gap-2 min-w-0 */
 .history-kind {
   display: inline-flex; align-items: center; gap: 4px;
   font-family: var(--chrome-font-mono);

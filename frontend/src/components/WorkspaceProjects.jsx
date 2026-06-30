@@ -102,7 +102,7 @@ export default function WorkspaceProjects({
               className={`history-item history-item--dub ${activeProjectId === proj.id ? 'project-active' : ''}`}
               onClick={() => loadProject(proj.id)}
             >
-              <div className="history-row-head">
+              <div className="flex items-center justify-between gap-2 min-w-0">
                 <span className="history-kind history-kind--audio">
                   <Film size={9} /> {t('sidebar.dub_label')}
                 </span>

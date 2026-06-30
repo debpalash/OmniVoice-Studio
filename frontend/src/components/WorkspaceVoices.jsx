@@ -168,7 +168,7 @@ export default function WorkspaceVoices({
                 style={{ '--row-accent': accent }}
                 onClick={() => handleSelectProfile(proj)}
               >
-                <div className="history-row-head">
+                <div className="flex items-center justify-between gap-2 min-w-0">
                   <span
                     className="history-kind"
                     style={{ color: accent, borderColor: `${accent}40` }}
