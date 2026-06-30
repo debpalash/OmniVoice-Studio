@@ -58,7 +58,7 @@ export default function LogsTab({
           </Badge>
         )}
       </div>
-      <div className="settings-log">
+      <div className="bg-[var(--chrome-bg)] [border:1px_solid_var(--chrome-border)] rounded-[var(--chrome-radius-pill)] px-[12px] py-[10px] max-h-[280px] overflow-auto font-mono text-[0.72rem] text-[var(--chrome-fg-muted)] whitespace-pre-wrap break-words">
         {logs.length === 0 ? (
           <span className="settings-log__empty font-sans text-[var(--chrome-fg-dim)]">
             {logSource === 'frontend'

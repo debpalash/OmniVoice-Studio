@@ -2205,56 +2205,11 @@ div[role="dialog"].audio-trimmer {
 .settings-page .settings-subtitle {
   color: var(--chrome-fg-muted); font-size: 0.78rem; margin-bottom: 24px;
 }
-/* Settings section — chrome-flat frame to match the rest of the app.
-   Keeps the content-forward padding; drops the warm gradient + squircle
-   corners + drop-shadow so it reads as a panel, not a jewel. */
-.settings-section {
-  background: var(--chrome-bg);
-  border: 1px solid var(--chrome-border);
-  border-radius: var(--chrome-radius-pill);
-  padding: 14px 18px; margin-bottom: 12px;
-}
-/* Section heading — chrome label, same typographic rhythm as "LOGS"
-   and sidebar section titles. */
-.settings-section h2 {
-  font-family: var(--chrome-font-mono);
-  font-size: var(--chrome-label-size);
-  font-weight: 600;
-  color: var(--chrome-fg-muted);
-  text-transform: uppercase;
-  letter-spacing: var(--chrome-label-track);
-  margin: 0 0 10px; display: flex; align-items: center; gap: 8px;
-}
-.settings-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 0; border-bottom: 1px solid var(--chrome-border);
-  font-family: var(--font-sans);
-  font-size: 0.76rem;
-}
-.settings-row:last-child { border-bottom: none; }
-.settings-row .label { color: var(--chrome-fg); font-weight: 500; letter-spacing: 0.01em; }
-/* Informational readout, not a button — no pill shell. The monospace
-   font alone signals "this is data"; bg/border would masquerade as
-   interactive. */
-.settings-row .value {
-  color: var(--chrome-fg-muted);
-  font-family: var(--chrome-font-mono);
-  font-size: 0.76rem;
-  background: transparent;
-  border: none;
-  padding: 0;
-}
-.settings-log {
-  background: var(--chrome-bg);
-  border: 1px solid var(--chrome-border);
-  border-radius: var(--chrome-radius-pill);
-  padding: 10px 12px;
-  max-height: 280px; overflow: auto;
-  font-family: var(--chrome-font-mono);
-  font-size: 0.72rem; color: var(--chrome-fg-muted);
-  white-space: pre-wrap; word-break: break-word;
-}
-/* ═══ Settings — badge, tabs, subtabs migrated to ui/Badge + ui/Tabs + ui/Segmented ═══ */
+/* ═══ Settings — badge, tabs, subtabs migrated to ui/Badge + ui/Tabs + ui/Segmented.
+   The legacy section/row frames are gone too (P4): .settings-section + h2 and
+   .settings-row(.label/.value) were superseded by the st-section primitive
+   (components/settings/primitives/SettingsSection.jsx), and .settings-log moved
+   to Tailwind utilities inline in components/settings/LogsTab.jsx. ═══ */
 
 /* Studio panels — flat chrome surface. Radial warmth + paper grain removed
    so Clone / Design / Dub panes sit on the same neutral frame as the rest
