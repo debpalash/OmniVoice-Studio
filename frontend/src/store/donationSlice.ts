@@ -26,7 +26,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const GRACE_SUCCESSES = 3;
 
 /** Milestone identifiers — each fires at most once ever. */
-export type MilestoneId = 'first-clone' | 'tenth-dub' | 'sustained-30d';
+type MilestoneId = 'first-clone' | 'tenth-dub' | 'sustained-30d';
 
 export interface DonationState {
   /** Total successful "value" events seen (clone saved, dub done, longform done…). */
@@ -47,7 +47,7 @@ export interface DonationState {
   shownThisSession: boolean;
 }
 
-export interface DonationDecision {
+interface DonationDecision {
   show: boolean;
   /** Why we decided to show (milestone id) or not (reason string). */
   reason: string;
@@ -78,7 +78,7 @@ export interface DonationSlice extends DonationState {
   resetDonationSession: () => void;
 }
 
-export type DonationSuccessKind = 'clone' | 'dub' | 'longform' | 'generic';
+type DonationSuccessKind = 'clone' | 'dub' | 'longform' | 'generic';
 
 export const INITIAL_DONATION: DonationState = {
   successCount: 0,

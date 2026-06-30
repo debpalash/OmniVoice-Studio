@@ -15,10 +15,10 @@ import type { StateCreator } from 'zustand';
  * that binding is the follow-up slice (#31b). This slice ships the data model +
  * migration + the `convertMode` seam #24 will consume.
  *
- * Deprecated aliases (`StoryProject`/`StoriesSlice`/`createStoriesSlice`) are
- * re-exported so the slice rename breaks no import.
+ * Deprecated alias (`createStoriesSlice`) is re-exported so the slice rename
+ * breaks no import.
  */
-export interface StoryTrack {
+interface StoryTrack {
   id: number;
   character: string;            // CastMember.id
   text: string;
@@ -57,7 +57,7 @@ export interface CoverRef {
   serverPath: string | null;
 }
 
-export interface LongformProject {
+interface LongformProject {
   id: string;
   name: string;
   mode: LongformMode;
@@ -242,7 +242,5 @@ export const createLongformSlice: StateCreator<LongformSlice, [], [], LongformSl
     set((s) => ({ storyProjects: s.storyProjects.map((p) => (p.id === id ? { ...p, name } : p)) })),
 });
 
-// ── Deprecated aliases (one-PR bridge so the slice rename breaks no import) ──
-export type StoryProject = LongformProject;
-export type StoriesSlice = LongformSlice;
+// ── Deprecated alias (one-PR bridge so the slice rename breaks no import) ──
 export const createStoriesSlice = createLongformSlice;

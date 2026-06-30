@@ -11,7 +11,7 @@
  */
 import type { StateCreator } from 'zustand';
 
-export type PillStage =
+type PillStage =
   | 'idle'
   | 'loading-model'
   | 'recording'
@@ -23,7 +23,7 @@ export type PillStage =
   | 'done'
   | 'error';
 
-export interface PillState {
+interface PillState {
   /** Current stage of the pill */
   stage: PillStage;
   /** Human-readable label for the current stage (e.g. "Loading ASR model…") */

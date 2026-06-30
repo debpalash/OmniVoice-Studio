@@ -1,11 +1,11 @@
 import { apiFetch } from './client';
 
-export interface AudiobookSpan {
+interface AudiobookSpan {
   voice_id: string | null;
   text: string;
   pause_ms_after: number;
 }
-export interface AudiobookChapter {
+interface AudiobookChapter {
   title: string;
   char_count: number;
   spans: AudiobookSpan[];
@@ -48,7 +48,7 @@ export async function audiobookPreviewChapter(
 }
 
 /** Global tags embedded in the output file (player-visible). */
-export interface AudiobookMetadata {
+interface AudiobookMetadata {
   title?: string;
   author?: string;
   narrator?: string;

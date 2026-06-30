@@ -5,7 +5,7 @@
  */
 import { apiJson } from './client';
 
-export interface CommunityItem {
+interface CommunityItem {
   id: string;
   type: 'preset' | 'voice';
   name: string;
@@ -29,14 +29,6 @@ export interface CommunityPage {
   items: CommunityItem[];
 }
 
-export interface CommunityManifest {
-  sources: string[];
-  packs: any[];
-  items: CommunityItem[];
-  count: number;
-  offline: boolean;
-}
-
 export interface CommunityFilters {
   use_case?: string | null;
   gender?: string | null;
@@ -56,11 +48,6 @@ export const listCommunityItems = (filters: CommunityFilters = {}): Promise<Comm
   const q = qs.toString();
   return apiJson(`/community/items${q ? `?${q}` : ''}`);
 };
-
-export const communityManifest = (refresh = false): Promise<CommunityManifest> =>
-  apiJson(`/community/manifest?refresh=${refresh}`);
-
-export const communitySources = (): Promise<{ sources: string[] }> => apiJson('/community/sources');
 
 export const communitySubmitUrl = (type: 'preset' | 'voice'): Promise<{ url: string }> =>
   apiJson(`/community/submit-url?type=${type}`);

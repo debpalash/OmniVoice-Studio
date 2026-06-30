@@ -9,16 +9,16 @@
 import type { StateCreator } from 'zustand';
 import { apiJson, apiPost } from '../api/client';
 
-export type TranslateQuality = 'fast' | 'cinematic';
-export type ThemeId = 'gruvbox' | 'midnight' | 'nord' | 'solarized' | 'rose-pine' | 'catppuccin';
+type TranslateQuality = 'fast' | 'cinematic';
+type ThemeId = 'gruvbox' | 'midnight' | 'nord' | 'solarized' | 'rose-pine' | 'catppuccin';
 
 /** Dictation start/stop semantics — mirror of the backend `dictation.mode`. */
-export type DictationMode = 'toggle' | 'hold';
+type DictationMode = 'toggle' | 'hold';
 
 /** Default sherpa dictation model id — matches the backend
  * `sherpa_dictation.DEFAULT_MODEL_ID`. Used only as the pre-hydration seed;
  * the authoritative value comes from `GET /dictation/prefs`. */
-export const DEFAULT_DICTATION_MODEL_ID = 'sherpa-parakeet-tdt-v3';
+const DEFAULT_DICTATION_MODEL_ID = 'sherpa-parakeet-tdt-v3';
 
 /**
  * Global UI font. Applied app-wide by overriding the `--font-sans` CSS custom
@@ -27,7 +27,7 @@ export const DEFAULT_DICTATION_MODEL_ID = 'sherpa-parakeet-tdt-v3';
  * `:root` Inter stack takes over. All stacks are SYSTEM-SAFE — no web-font
  * downloads, so this works identically offline across macOS/Windows/Linux.
  */
-export type FontId = 'default' | 'system' | 'serif' | 'mono' | 'rounded' | 'readable';
+type FontId = 'default' | 'system' | 'serif' | 'mono' | 'rounded' | 'readable';
 
 export const FONT_OPTIONS: { id: FontId; label: string }[] = [
   { id: 'default',  label: 'Inter (default)' },
@@ -57,14 +57,14 @@ export const FONT_STACKS: Record<FontId, string | null> = {
  * without lip-sync drift. `strict_slot` is the legacy compress-to-fit
  * path, retained for back-compat.
  */
-export type TimingStrategy = 'concise' | 'smart_fit' | 'stretch_video' | 'strict_slot';
+type TimingStrategy = 'concise' | 'smart_fit' | 'stretch_video' | 'strict_slot';
 
 /**
  * Knob overrides for the `smart_fit` strategy. `null` (default) sends no
  * `fit_options` and the backend uses its canonical FitParams defaults —
  * identical behavior on every platform out of the box.
  */
-export interface FitOptions {
+interface FitOptions {
   max_audio_only_rate?: number;
   audio_rate_cap?: number;
   video_slow_cap?: number;

@@ -1,6 +1,6 @@
 import { API, apiJson, apiPost, apiFetch } from './client';
 
-export interface MissingModel {
+interface MissingModel {
   repo_id: string;
   label: string;
 }
@@ -14,52 +14,8 @@ export interface SetupStatus {
   enough_disk: boolean;
 }
 
-/**
- * One event on the `/setup/download-stream` SSE feed. Two families share it:
- *
- * - per-file tqdm updates from `utils/hf_progress.py`:
- *   `'start' | 'progress' | 'done'` (with `filename`/`downloaded`/`total`/`rate`)
- * - repo lifecycle markers from `routers/setup/download.py`:
- *   `'resolving' | 'install_start' | 'install_retry' | 'install_done' |
- *    'install_error' | 'delete_start' | 'delete_done'`
- *
- * Reducers (WizardLibrary, Settings model store) key resets/refetches off the
- * lifecycle phases and byte math off the per-file phases.
- */
-export interface SetupProgressEvent {
-  repo_id?: string;
-  filename: string;
-  downloaded: number;
-  total: number;
-  pct: number;
-  rate?: number;
-  error?: string;
-  attempt?: number;
-  // Pre-flight totals (FDL-05): emitted once before bytes flow.
-  total_bytes?: number | null;
-  cached_bytes?: number | null;
-  to_download_bytes?: number | null;
-  n_files?: number | null;
-  n_cached?: number | null;
-  // Overall aggregate (FDL-06): one rolling event summing all files/chunks.
-  bytes_done?: number;
-  eta_seconds?: number | null;
-  files_done?: number;
-  files_total?: number | null;
-  phase:
-    | 'start' | 'progress' | 'done'
-    | 'resolving' | 'install_start' | 'install_retry' | 'install_done' | 'install_error'
-    | 'install_cancelled'
-    | 'delete_start' | 'delete_done'
-    | 'install_plan' | 'aggregate';
-}
-
 export async function setupStatus(): Promise<SetupStatus> {
   return apiJson<SetupStatus>('/setup/status');
-}
-
-export async function setupWarmup(): Promise<{ status: string }> {
-  return apiPost<{ status: string }>('/setup/warmup');
 }
 
 export function setupDownloadStreamUrl(): string {
@@ -68,7 +24,7 @@ export function setupDownloadStreamUrl(): string {
 
 // ── Model store ───────────────────────────────────────────────────────────
 
-export interface KnownModel {
+interface KnownModel {
   repo_id: string;
   label: string;
   role: 'TTS' | 'ASR' | 'Diarisation' | string;
@@ -96,7 +52,7 @@ export async function installModel(repo_id: string): Promise<{ status: string; r
 
 // ── Device-aware model recommendation ─────────────────────────────────────
 
-export interface RecommendedModel {
+interface RecommendedModel {
   repo_id: string;
   label: string;
   role: string;
@@ -140,9 +96,9 @@ export async function deleteModel(repo_id: string): Promise<{ deleted: boolean; 
 
 // ── Pre-flight system check ───────────────────────────────────────────────
 
-export type CheckStatus = 'pass' | 'warn' | 'fail';
+type CheckStatus = 'pass' | 'warn' | 'fail';
 
-export interface PreflightCheck {
+interface PreflightCheck {
   id: string;
   label: string;
   status: CheckStatus;
@@ -150,7 +106,7 @@ export interface PreflightCheck {
   fix: string | null;
 }
 
-export interface PreflightDevice {
+interface PreflightDevice {
   os: string;
   arch: string;
   gpu_vendor: 'nvidia' | 'amd' | 'apple' | 'intel' | 'unknown' | 'none';

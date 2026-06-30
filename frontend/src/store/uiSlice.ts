@@ -35,9 +35,9 @@ export type AppMode =
  * split): 'audio' = define from reference audio (old Clone tab), 'design' =
  * define by described attributes (old Design tab).
  */
-export type DefineMethod = 'audio' | 'design';
+type DefineMethod = 'audio' | 'design';
 
-export type SidebarTab = 'projects' | 'history' | 'downloads';
+type SidebarTab = 'projects' | 'history' | 'downloads';
 
 export interface UiSlice {
   mode: AppMode;

@@ -109,7 +109,7 @@ export function buildCueSheet(chapters) {
  * @param onProgress      (done, total) => void
  * @returns { blob: Blob, chapters: [{time,title}], durationSec: number }
  */
-export async function exportStoryAudio(tracks, resolveOpts, fetchChunkBlob, onProgress) {
+async function exportStoryAudio(tracks, resolveOpts, fetchChunkBlob, onProgress) {
   const Ctx = window.AudioContext || window.webkitAudioContext;
   const ctx = new Ctx();
   const sr = ctx.sampleRate;

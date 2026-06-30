@@ -155,7 +155,7 @@ export async function computePeaksAsync(channel, buckets = DEFAULT_PEAK_BUCKETS,
   return peaks;
 }
 
-export async function probeDuration(file) {
+async function probeDuration(file) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const a = new Audio();

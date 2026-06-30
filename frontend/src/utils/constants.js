@@ -47,12 +47,3 @@ export const PRESETS = [
 
 export const CLONE_MAX_SECONDS = 15;
 
-// Instruct items recognised by the backend validator. Items outside this set
-// cause ValidationFailed at generation time.
-export const VALID_INSTRUCT_ITEMS = [
-  'american accent', 'australian accent', 'british accent', 'canadian accent',
-  'child', 'chinese accent', 'elderly', 'female', 'high pitch', 'indian accent',
-  'japanese accent', 'korean accent', 'low pitch', 'male', 'middle-aged',
-  'moderate pitch', 'portuguese accent', 'russian accent', 'teenager',
-  'very high pitch', 'very low pitch', 'whisper', 'young adult',
-];

@@ -86,5 +86,3 @@ export const Select = forwardRef(function Select(
     </select>
   );
 });
-
-export default Input;

@@ -54,5 +54,3 @@ export function evaluateDonationPrompt(kind = 'generic', opts = {}) {
   );
   return true;
 }
-
-export default evaluateDonationPrompt;

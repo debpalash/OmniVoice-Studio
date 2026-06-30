@@ -14,7 +14,7 @@
  */
 import type { StateCreator } from 'zustand';
 
-export type VDCategory =
+type VDCategory =
   | 'Gender'
   | 'Age'
   | 'Pitch'
@@ -22,7 +22,7 @@ export type VDCategory =
   | 'EnglishAccent'
   | 'ChineseDialect';
 
-export type VDStates = Record<VDCategory, string>;
+type VDStates = Record<VDCategory, string>;
 
 export interface GenerateSlice {
   // Prompt + source

@@ -142,14 +142,6 @@ export function useSetupStatus() {
   });
 }
 
-export function useGalleryCategories() {
-  return useQuery({
-    queryKey: queryKeys.galleryCategories,
-    queryFn: galleryApi.listCategories,
-    staleTime: 60_000,
-  });
-}
-
 export function useGalleryVoices(params?: any) {
   return useQuery({
     queryKey: queryKeys.galleryVoices(params),
@@ -187,14 +179,6 @@ export function useCommunityItems(filters: CommunityFilters = {}) {
   });
 }
 
-export function useCommunityManifest(refresh = false) {
-  return useQuery({
-    queryKey: queryKeys.communityManifest(refresh),
-    queryFn: () => communityApi.communityManifest(refresh),
-    staleTime: 5 * 60_000,
-  });
-}
-
 // ── Mutations ────────────────────────────────────────────────────────────
 
 export function useInstallModel() {
@@ -221,33 +205,3 @@ export function useDeleteModel() {
   });
 }
 
-export function useFlushMemory() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (unloadModel: boolean) => systemApi.flushMemory(unloadModel),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.sysinfo });
-      qc.invalidateQueries({ queryKey: queryKeys.modelStatus });
-    },
-  });
-}
-
-export function useClearLogs() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => systemApi.clearSystemLogs(),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.systemLogs() });
-    },
-  });
-}
-
-export function useClearTauriLogs() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => systemApi.clearTauriLogs(),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.tauriLogs() });
-    },
-  });
-}

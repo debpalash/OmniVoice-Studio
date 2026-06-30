@@ -70,7 +70,7 @@ async function fetchJsonWithTimeout(url, timeoutMs = 2500) {
 
 /** Environment lines for the report body. Best-effort — every fetch is
  * optional so a dead backend still yields a usable report. */
-export async function captureContext() {
+async function captureContext() {
   const lines = [
     `**Version:** \`${APP_VERSION}\``,
     `**Platform:** \`${navigator?.userAgent || 'unknown'}\``,

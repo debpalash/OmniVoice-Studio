@@ -7,7 +7,7 @@
  */
 import { apiJson, apiUrl } from './client';
 
-export interface ArchetypeFacets {
+interface ArchetypeFacets {
   gender: string | null;
   age: string | null;
   pitch: string | null;
@@ -16,7 +16,7 @@ export interface ArchetypeFacets {
   lang: string;
 }
 
-export interface Archetype {
+interface Archetype {
   id: string;
   name: string;
   icon: string;
@@ -67,9 +67,6 @@ export const listArchetypes = (filters: ArchetypeFilters = {}): Promise<Archetyp
   const q = qs.toString();
   return apiJson(`/archetypes${q ? `?${q}` : ''}`);
 };
-
-export const getArchetype = (id: string): Promise<Archetype> =>
-  apiJson(`/archetypes/${encodeURIComponent(id)}`);
 
 /** Full URL for an archetype preview clip (use as an <audio> src). */
 export const archetypePreviewUrl = (id: string): string =>

@@ -46,7 +46,7 @@ function _pauseMs(num, unit) {
 }
 
 /** Mirror of text.py:parse_pause_markers → [[spanText, pauseMsAfter], …]. */
-export function parsePauseMarkers(text) {
+function parsePauseMarkers(text) {
   if (!text || text.indexOf('[') === -1) return [[text, 0]];
   const segments = [];
   let last = 0;
@@ -72,7 +72,7 @@ export function parsePauseMarkers(text) {
 }
 
 /** Mirror of the voice-split in _parse_chapter_body → [[voiceId, runText], …]. */
-export function parseVoiceRuns(body, defaultVoice) {
+function parseVoiceRuns(body, defaultVoice) {
   const runs = [];
   let curVoice = defaultVoice;
   let last = 0;

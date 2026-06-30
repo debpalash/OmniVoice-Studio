@@ -17,11 +17,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
-import type { PrefsSlice, FontId } from './prefsSlice';
+import type { PrefsSlice } from './prefsSlice';
 import { createPrefsSlice, FONT_OPTIONS, FONT_STACKS } from './prefsSlice';
 
 // Re-export font preference tables so panels can import from the store root.
-export type { FontId };
 export { FONT_OPTIONS, FONT_STACKS };
 import type { GlossarySlice } from './glossarySlice';
 import { createGlossarySlice } from './glossarySlice';

@@ -15,7 +15,7 @@ export const MAX_OVERLAP = 0.2;
 // Snap radius in *pixels* — converted to seconds via pxPerSec at call sites.
 export const SNAP_PX = 8;
 // Below this zoom the integer-second grid joins the snap candidates.
-export const GRID_SNAP_MAX_PX_PER_SEC = 40;
+const GRID_SNAP_MAX_PX_PER_SEC = 40;
 
 // Segment box palette — was WaveformTimeline's region palette; lives here so
 // both the track and any legend can share it without circular imports.
@@ -28,9 +28,6 @@ export const REGION_COLORS = [
   'rgba(254,128,25,0.45)',
   'rgba(104,157,106,0.45)',
 ];
-
-export const timeToPx = (t, pxPerSec) => t * pxPerSec;
-export const pxToTime = (px, pxPerSec) => (pxPerSec > 0 ? px / pxPerSec : 0);
 
 /**
  * visibleSegmentRange — windowing for the virtualized track.

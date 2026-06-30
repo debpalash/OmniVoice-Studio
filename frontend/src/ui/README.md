@@ -196,18 +196,6 @@ Every design decision is a token in [`tokens.css`](./tokens.css). Colour, spacin
 
 Import the barrel (`import '../ui'`) once in `main.jsx` and the tokens load for the whole app.
 
-## Motion
-
-JS-side constants mirror the CSS motion tokens:
-
-```jsx
-import { DURATION, EASING, tx } from '../ui';
-
-<div style={{ transition: tx('opacity', 'transform') }} />
-```
-
-Prefer CSS transitions with `var(--dur-*)` and `var(--ease-*)` when possible. Drop to JS motion only for choreographed animations (Framer Motion, react-spring, etc.).
-
 ## Do / Don't
 
 ### ✅ Do

@@ -6,7 +6,7 @@ import { normalizeChannel } from '../utils/updateChannel';
  * idle → checking → available → downloading(progress) → ready → (relaunch)
  *                 ↘ idle (up to date)        ↘ error → idle (retry/dismiss)
  */
-export type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error';
+type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error';
 
 export interface UpdaterSlice {
   updateStatus: UpdateStatus;

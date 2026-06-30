@@ -17,7 +17,7 @@
 import type { StateCreator } from 'zustand';
 import type { EffectPreset } from '../api/engines';
 
-export type DubStep =
+type DubStep =
   | 'idle'
   | 'uploading'
   | 'transcribing'
@@ -26,16 +26,16 @@ export type DubStep =
   | 'stopping'
   | 'done';
 
-export type DubPrepStage = 'download' | 'extract' | 'demucs' | 'scene' | null;
+type DubPrepStage = 'download' | 'extract' | 'demucs' | 'scene' | null;
 
-export interface DubProgress {
+interface DubProgress {
   current: number;
   total: number;
   text: string;
 }
 
 /** Per-stage progress for the prep pipeline (download, demucs). */
-export interface DubPrepProgress {
+interface DubPrepProgress {
   percent: number | null;       // 0–100, or null if not known yet
   speedBps: number | null;      // download speed in bytes/sec, when relevant
   etaS: number | null;          // ETA in seconds, when known
@@ -43,7 +43,7 @@ export interface DubPrepProgress {
 }
 
 /** Segments are a loose shape — many optional fields added over time. */
-export type DubSegment = Record<string, unknown> & { id: string; text: string };
+type DubSegment = Record<string, unknown> & { id: string; text: string };
 
 type Updater<T> = T | ((prev: T) => T);
 
@@ -53,7 +53,7 @@ function resolve<T>(updater: Updater<T>, prev: T): T {
 
 /** Structured pipeline failure (plan-04 #131) — carries the specific cause,
  *  an actionable hint, an optional docs-topic key, and a copyable diagnostic. */
-export interface DubFailure {
+interface DubFailure {
   reason: string;
   errorClass?: string;
   stage?: string;

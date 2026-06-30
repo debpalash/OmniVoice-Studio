@@ -19,7 +19,7 @@
  */
 export const SLOW_SPEED = 0.85;
 export const FAST_SPEED = 1.15;
-export const EMPHASIS_SPEED = 0.92;
+const EMPHASIS_SPEED = 0.92;
 
 const TAGS = {
   slow: { speed: SLOW_SPEED, spell: null, emphasis: null },

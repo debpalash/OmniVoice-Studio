@@ -105,7 +105,7 @@ export async function systemInfo(): Promise<SystemInfo> {
 
 // ── Notifications (polled by header bell + logs footer) ──────────────────
 
-export interface SystemNotification {
+interface SystemNotification {
   id: string;
   level: 'info' | 'warn' | 'error';
   title?: string;

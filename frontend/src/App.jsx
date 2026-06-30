@@ -498,9 +498,9 @@ function App() {
     if (typeof window === 'undefined') return;
     if (!('__TAURI_INTERNALS__' in window)) return;
     if (import.meta.env.DEV) return;
-    // Non-blocking: surface availability into the store. The UpdateStatusChip
-    // in LogsFooter lets the user install + restart when they choose (with a
-    // progress bar), so an update never interrupts in-flight work.
+    // Non-blocking: surface update availability into the store so the user can
+    // choose to install + restart (with a progress bar) from Settings → Updates,
+    // so an update never interrupts in-flight work.
     fetchAppVersion().then(v => useAppStore.getState().setAppVersion(v));
     syncChannel(useAppStore.getState());
     checkForUpdate(useAppStore.getState());

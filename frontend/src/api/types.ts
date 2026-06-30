@@ -18,14 +18,14 @@ export type EngineFamily = 'tts' | 'asr' | 'llm';
 // (`effective_device` / `routing_status` / `routing_reason`). They stay
 // optional so the matrix still renders a legacy/older payload that omits them
 // (it gates with `??` / `?.length` and suppresses the routing badge).
-export type GPUTarget = 'cuda' | 'mps' | 'rocm' | 'xpu' | 'cpu';
+type GPUTarget = 'cuda' | 'mps' | 'rocm' | 'xpu' | 'cpu';
 // Where an engine actually runs on THIS host. `network` is LLM-only (remote).
-export type EffectiveDevice = GPUTarget | 'network';
+type EffectiveDevice = GPUTarget | 'network';
 // `n/a` is LLM-only; resolve_routing only ever returns the first four.
-export type RoutingStatus =
+type RoutingStatus =
   | 'accelerated' | 'cpu_fallback' | 'cpu_only' | 'unavailable' | 'n/a';
 
-export interface EngineBackend {
+interface EngineBackend {
   id: string;
   display_name: string;
   available: boolean;
@@ -40,7 +40,7 @@ export interface EngineBackend {
   routing_reason?: string | null;
 }
 
-export interface EngineFamilyResponse {
+interface EngineFamilyResponse {
   active: string;
   backends: EngineBackend[];
 }
@@ -113,7 +113,7 @@ export interface ProjectDetail extends ProjectSummary {
 }
 
 // ── Profiles (voice library) ─────────────────────────────────────────────
-export type ProfileKind = 'clone' | 'design';
+type ProfileKind = 'clone' | 'design';
 
 export interface Profile {
   id: string;
@@ -188,7 +188,7 @@ export interface AutoExtractResponse {
 }
 
 // ── Dub pipeline ─────────────────────────────────────────────────────────
-export interface DubJobMeta {
+interface DubJobMeta {
   id: string;
   status: string;
   filename?: string;
@@ -200,18 +200,6 @@ export interface DubJobMeta {
 
 export interface DubHistoryResponse {
   jobs: DubJobMeta[];
-}
-
-export interface DubSegment {
-  start: number;
-  end: number;
-  text: string;
-  instruct?: string;
-  profile_id?: string;
-  speed?: number;
-  gain?: number;
-  target_lang?: string;
-  effect_preset?: string;
 }
 
 export interface DubTranslateResponse {

@@ -10,9 +10,9 @@
  */
 import type { StateCreator } from 'zustand';
 
-export type GalleryZone = 'archetypes' | 'imports' | 'community';
+type GalleryZone = 'archetypes' | 'imports' | 'community';
 
-export interface ArchetypeFilterState {
+interface ArchetypeFilterState {
   use_case: string | null;
   gender: string | null;
   age: string | null;
@@ -22,7 +22,7 @@ export interface ArchetypeFilterState {
   lang: string | null;
 }
 
-export const EMPTY_ARCHETYPE_FILTERS: ArchetypeFilterState = {
+const EMPTY_ARCHETYPE_FILTERS: ArchetypeFilterState = {
   use_case: null,
   gender: null,
   age: null,
