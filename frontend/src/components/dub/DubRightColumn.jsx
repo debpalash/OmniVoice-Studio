@@ -7,7 +7,7 @@ import { LANG_CODES } from '../../utils/languages';
 
 const DubSegmentTable = lazy(() => import('../DubSegmentTable'));
 
-const LazyFallback = () => <div className="dub-lazy-fallback">Loading…</div>;
+const LazyFallback = () => <div className="p-[12px] text-[#6b6657] text-[0.7rem]">Loading…</div>;
 
 export default function DubRightColumn({
   t,
@@ -200,7 +200,7 @@ export default function DubRightColumn({
 
       {selectedSegIds.size > 0 && (
         <div className="dub-bulk-row dub-bulk-row--select">
-          <span className="dub-bulk-row__label-brand">
+          <span className="text-brand font-bold whitespace-nowrap">
             {t('dub.selected_count', { count: selectedSegIds.size })}
           </span>
           <select

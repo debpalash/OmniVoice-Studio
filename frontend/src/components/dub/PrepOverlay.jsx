@@ -77,7 +77,7 @@ function PrepOverlay({ stage, progress, onAbort, large = false }) {
   const body = (
     <>
       <Loader className="spinner" size={large ? 28 : 20} color="#d3869b" />
-      <span className="dub-prep-overlay__title" style={{ fontSize: large ? '0.95rem' : '0.85rem' }}>
+      <span className="text-fg font-medium" style={{ fontSize: large ? '0.95rem' : '0.85rem' }}>
         {LABEL[stage] || t('dub.prep_preparing')}
       </span>
       {hasPct && (
@@ -86,9 +86,13 @@ function PrepOverlay({ stage, progress, onAbort, large = false }) {
         </div>
       )}
       {detailBits.length > 0 && (
-        <span className="dub-prep-overlay__detail">{detailBits.join(' · ')}</span>
+        <span className="text-[var(--text-xs)] text-fg-subtle [font-variant-numeric:tabular-nums] tracking-[0.02em]">
+          {detailBits.join(' · ')}
+        </span>
       )}
-      <div className={`dub-prep-chips ${large ? 'dub-prep-chips--lg' : ''}`}>
+      <div
+        className={`flex gap-[var(--space-2)] text-[var(--text-xs)] text-fg-subtle ${large ? 'dub-prep-chips--lg' : ''}`}
+      >
         {stages.map((s) => (
           <span
             key={s}
@@ -98,16 +102,22 @@ function PrepOverlay({ stage, progress, onAbort, large = false }) {
           </span>
         ))}
       </div>
-      {note && <span className="dub-prep-overlay__note">{note}</span>}
+      {note && (
+        <span className="text-[var(--text-xs)] text-fg-subtle max-w-[min(320px,90vw)] text-center">
+          {note}
+        </span>
+      )}
       <Button variant="danger" size="sm" onClick={onAbort} leading={<Square size={11} />}>
         {t('dub.prep_stop')}
       </Button>
     </>
   );
   return large ? (
-    <div className="dub-prep-overlay dub-prep-overlay--large">{body}</div>
+    <div className="flex flex-col items-center gap-[var(--space-5)] dub-prep-overlay--large">
+      {body}
+    </div>
   ) : (
-    <div className="dub-prep-overlay">{body}</div>
+    <div className="flex flex-col items-center gap-[var(--space-5)]">{body}</div>
   );
 }
 

@@ -4,25 +4,11 @@
 /* Top-bar — anchors to the top of the workspace, claims the full width
    above the video + segment-table split. Drop the card chrome so it reads
    as a header strip, not a floating panel. */
-.dub-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 5px 12px;
-  flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.015);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: var(--radius-md);
-  margin: 0 0 2px 0;
-}
+/* .dub-head strip + filename/meta/project/actions/primary → Tailwind utilities
+   (DubHeader.jsx, IdleSkeleton.jsx). .dub-head__title stays: it coexists with
+   the unlayered global .label-row rule (which it overrides), so a utility would
+   lose to it. */
 .dub-head__title     { display: flex; align-items: center; gap: var(--space-3); margin-bottom: 0; min-width: 0; flex: 1; }
-.dub-head__actions   { display: flex; gap: var(--space-2); align-items: center; flex-shrink: 0; }
-/* Primary actions (Generate/Export/Stop) relocated onto the header bar; a thin
-   divider separates them from Save/Reset and sm FooterBtns keep it compact. */
-.dub-head__primary   { display: flex; gap: var(--space-2); align-items: center; padding-left: var(--space-2); border-left: 1px solid var(--color-border, #3a3a3a); }
-.dub-head__filename  { font-weight: var(--weight-semibold); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-fg); }
-.dub-head__meta      { color: var(--color-fg-muted); font-weight: 400; white-space: nowrap; font-size: 0.72rem; }
-.dub-head__project   { color: #b8bb26; margin-left: var(--space-3); white-space: nowrap; font-size: 0.72rem; }
 
 /* ── Preview toggle wrapper (above waveform) ─────────────────── */
 .dub-preview-toggle {
@@ -52,12 +38,8 @@
 }
 
 /* ── Prep stage chips (upload/preparation flow) ──────────────── */
-.dub-prep-chips {
-  display: flex;
-  gap: var(--space-2);
-  font-size: var(--text-xs);
-  color: var(--color-fg-subtle);
-}
+/* .dub-prep-chips container → utilities (PrepOverlay.jsx). The --lg modifier and
+   the .dub-prep-chip items below stay (state/modifier combinators). */
 .dub-prep-chip {
   padding: 1px 6px;
   border-radius: var(--radius-xs);
@@ -79,12 +61,8 @@
 .dub-prep-chips--lg .dub-prep-chip.is-active { font-weight: var(--weight-semibold); }
 
 /* ── Prep / Transcribe overlays ──────────────────────────────── */
-.dub-prep-overlay {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-5);
-}
+/* .dub-prep-overlay base + __title/__note/__detail → utilities (PrepOverlay.jsx).
+   The --large modifier (and its descendant .dub-prep-bar override) stays. */
 .dub-prep-overlay--large {
   flex: 1;
   justify-content: center;
@@ -94,22 +72,6 @@
   border: 2px dashed rgba(211, 134, 155, 0.2);
   border-radius: var(--radius-xl);
   background: rgba(211, 134, 155, 0.03);
-}
-.dub-prep-overlay__title {
-  color: var(--color-fg);
-  font-weight: var(--weight-medium);
-}
-.dub-prep-overlay__note {
-  font-size: var(--text-xs);
-  color: var(--color-fg-subtle);
-  max-width: min(320px, 90vw);
-  text-align: center;
-}
-.dub-prep-overlay__detail {
-  font-size: var(--text-xs);
-  color: var(--color-fg-subtle);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
 }
 .dub-prep-bar {
   width: min(240px, 85vw);
@@ -126,32 +88,13 @@
   transition: width 220ms ease-out;
 }
 
-.dub-trans-overlay {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-5);
-  width: 100%;
-}
-.dub-trans-overlay__head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-.dub-trans-overlay__title {
-  color: var(--color-fg);
-  font-weight: var(--weight-medium);
-  font-size: var(--text-lg);
-}
+/* .dub-trans-overlay base + __head/__title/__bar → utilities (TranscribeOverlay.jsx).
+   __stats stays: it's targeted by the unlayered global tabular-nums rule in index.css. */
 .dub-trans-overlay__stats {
   display: flex;
   gap: var(--space-6);
   font-size: var(--text-md);
   color: var(--color-fg-muted);
-}
-.dub-trans-overlay__bar {
-  width: 80%;
-  max-width: 340px;
 }
 
 /* ── Bulk selection + Apply-voice rows ───────────────────────── */
@@ -168,10 +111,10 @@
 .dub-bulk-row--select { background: rgba(211, 134, 155, 0.08); border: 1px solid rgba(211, 134, 155, 0.25); }
 
 .dub-bulk-row__label-success { color: var(--color-success); font-weight: var(--weight-bold); white-space: nowrap; }
-.dub-bulk-row__label-brand   { color: var(--color-brand);   font-weight: var(--weight-bold); white-space: nowrap; }
+/* .dub-bulk-row__label-brand → utilities (DubRightColumn.jsx). */
 
 /* ── Footer status banner ────────────────────────────────────── */
-.dub-footer-banner { margin-bottom: var(--space-2); }
+/* .dub-footer-banner → utilities (DubFooter.jsx, IdleSkeleton.jsx). */
 .dub-footer-banner__badge { display: inline-flex; }
 
 /* ── Output options row (checkboxes + default track) ─────────── */
@@ -258,10 +201,10 @@
 .dub-compression-warn strong { color: #fabd2f; font-weight: var(--weight-semibold); }
 
 /* ── Utility: column flex that fills remaining height ────────── */
-.dub-col            { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+/* .dub-col + .dub-split-1/.dub-split-2 → utilities (DubTab.jsx, IdleSkeleton.jsx).
+   .dub-panel-col stays: it sits on .studio-panel (unlayered) and overrides its
+   overflow, so a utility would lose. */
 .dub-panel-col      { margin-bottom: 0; overflow: hidden; display: flex; flex-direction: column; }
-.dub-split-2        { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; flex: 1; min-height: 0; overflow: hidden; }
-.dub-split-1        { display: grid; grid-template-columns: 1fr; gap: 6px; flex: 1; min-height: 0; }
 
 /* ── Idle / drop-zone skeleton ───────────────────────────────── */
 .dub-idle-drop {
@@ -350,9 +293,10 @@
 
 .dub-hidden-file { display: none; }
 
-.dub-change-row       { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+/* .dub-change-row + .dub-speakers-hint → utilities (IdleSkeleton.jsx).
+   .dub-change-row__cta stays: it sits on .btn-primary (unlayered) and overrides
+   its margin-top, so a utility would lose. */
 .dub-change-row__cta  { flex: 1; margin-top: 0; }
-.dub-speakers-hint    { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted, #a89984); white-space: nowrap; }
 .dub-speakers-input   { width: 52px; margin-left: 4px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border, #3c3836); background: var(--input-bg, #282828); color: inherit; font-size: 12px; }
 
 /* Compact disabled inputs in the idle skeleton */
@@ -632,9 +576,9 @@
 .dub-bulk-row__clear           { margin-left: auto; }
 
 /* Footer banner gapping */
-.dub-footer-banner__badge-gap  { margin-left: 6px; }
+/* .dub-footer-banner__badge-gap → utilities (DubFooter.jsx). */
 
-.dub-lazy-fallback             { padding: 12px; color: #6b6657; font-size: 0.7rem; }
+/* .dub-lazy-fallback → utilities (DubRightColumn.jsx). */
 
 /* ── Landing options — the one pre-upload decision + Advanced disclosure ── */
 .dub-landing-opts {
@@ -961,22 +905,8 @@
   background: color-mix(in srgb, #fe8019 10%, transparent) !important;
 }
 
-/* plan-04 (#131): actionable failure detail beneath the error badge. */
-.dub-failure-notice {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 4px;
-}
-.dub-failure-notice__hint {
-  font-size: 11px;
-  opacity: 0.85;
-}
-.dub-failure-notice__actions {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
+/* plan-04 (#131): actionable failure detail beneath the error badge.
+   .dub-failure-notice + __hint/__actions → Tailwind utilities (DubFailureNotice.jsx). */
 
 /* ── Reduced motion (10x P4, spec §3): shimmer/pulse die; the stepper
    spinner holds a static frame. ───────────────────────────────────────── */

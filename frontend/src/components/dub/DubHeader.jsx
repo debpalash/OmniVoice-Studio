@@ -33,18 +33,22 @@ export default function DubHeader({
   setExportOpen,
 }) {
   return (
-    <div className="dub-head">
+    <div className="flex justify-between items-center px-[12px] py-[5px] shrink-0 bg-[rgba(255,255,255,0.015)] [border:1px_solid_rgba(255,255,255,0.04)] rounded-md mb-[2px]">
       <div className="label-row dub-head__title">
         <FileText className="label-icon" size={11} />
-        <span className="dub-head__filename">{dubFilename}</span>
-        <span className="dub-head__meta">
+        <span className="font-semibold text-[0.85rem] overflow-hidden text-ellipsis whitespace-nowrap text-fg">
+          {dubFilename}
+        </span>
+        <span className="text-fg-muted font-normal whitespace-nowrap text-[0.72rem]">
           · {formatTime(dubDuration)} · {dubSegments.length} {t('dub.segs')}
         </span>
         {activeProjectName && activeProjectName !== dubFilename && (
-          <span className="dub-head__project">— {activeProjectName}</span>
+          <span className="text-[#b8bb26] ml-[var(--space-3)] whitespace-nowrap text-[0.72rem]">
+            — {activeProjectName}
+          </span>
         )}
       </div>
-      <div className="dub-head__actions">
+      <div className="flex gap-[var(--space-2)] items-center shrink-0">
         {/* Icon-only secondary actions (tooltips carry the labels);
                   Generate Dub keeps its label as the primary verb. */}
         <Button
@@ -66,7 +70,7 @@ export default function DubHeader({
           <RotateCcw size={12} />
         </Button>
         {/* Primary actions live on the header bar (compact) — moved up from the footer. */}
-        <div className="dub-head__primary">
+        <div className="flex gap-[var(--space-2)] items-center pl-[var(--space-2)] [border-left:1px_solid_var(--color-border,#3a3a3a)]">
           {dubStep === 'stopping' ? (
             <FooterBtn
               sm

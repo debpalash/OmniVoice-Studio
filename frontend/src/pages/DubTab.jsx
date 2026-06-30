@@ -407,7 +407,7 @@ export default function DubTab(props) {
   }, [dubJobId, qcRunning, previewMode, dubSegments, setDubSegments, t]);
 
   return (
-    <div className="dub-col">
+    <div className="flex-1 flex flex-col min-h-0">
       {/* Pipeline spine — shown once a file/job is in play so the user always
           knows which stage they're at (Upload → … → Export). */}
       {(dubVideoFile || dubJobId || dubStep !== 'idle') && <DubPipelineStepper dubStep={dubStep} />}
@@ -457,7 +457,7 @@ export default function DubTab(props) {
 
       {/* ── After transcription: side-by-side editor ── */}
       {dubJobId && (dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done') && (
-        <div className="dub-col">
+        <div className="flex-1 flex flex-col min-h-0">
           <DubHeader
             t={t}
             dubFilename={dubFilename}
@@ -478,7 +478,7 @@ export default function DubTab(props) {
             handleDubQc={handleDubQc}
             setExportOpen={setExportOpen}
           />
-          <div className="dub-split-grid dub-split-2">
+          <div className="dub-split-grid grid grid-cols-2 gap-[6px] flex-1 min-h-0 overflow-hidden">
             <DubLeftColumn
               hasDubbedTrack={hasDubbedTrack}
               t={t}

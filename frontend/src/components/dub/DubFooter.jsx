@@ -17,26 +17,26 @@ export default function DubFooter({
   return (
     <div className="studio-panel dub-footer-panel">
       {dubStep === 'done' && (
-        <div className="dub-footer-banner">
+        <div className="mb-[var(--space-2)]">
           <Badge tone="success">
             <Check size={11} /> {t('dub.tracks_done', { tracks: dubTracks.join(', ') })}
           </Badge>
           {incrementalPlan && incrementalPlan.stale?.length > 0 && (
-            <Badge tone="warn" className="dub-footer-banner__badge-gap">
+            <Badge tone="warn" className="ml-[6px]">
               {t('dub.segments_changed', { count: incrementalPlan.stale.length })}
             </Badge>
           )}
           {incrementalPlan &&
             incrementalPlan.stale?.length === 0 &&
             incrementalPlan.fresh?.length > 0 && (
-              <Badge tone="neutral" className="dub-footer-banner__badge-gap">
+              <Badge tone="neutral" className="ml-[6px]">
                 {t('dub.all_up_to_date', { count: incrementalPlan.fresh.length })}
               </Badge>
             )}
         </div>
       )}
       {dubError && (
-        <div className="dub-footer-banner">
+        <div className="mb-[var(--space-2)]">
           <Badge tone="danger">
             <AlertCircle size={11} /> {dubError}
           </Badge>

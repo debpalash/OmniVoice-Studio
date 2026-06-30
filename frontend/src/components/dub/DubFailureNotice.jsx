@@ -21,9 +21,9 @@ function DubFailureNotice({ failure }) {
     }
   };
   return (
-    <div className="dub-failure-notice">
-      {failure.hint && <span className="dub-failure-notice__hint">{failure.hint}</span>}
-      <div className="dub-failure-notice__actions">
+    <div className="flex flex-col gap-[4px] mt-[4px]">
+      {failure.hint && <span className="text-[11px] opacity-[0.85]">{failure.hint}</span>}
+      <div className="flex gap-[6px] flex-wrap">
         {topic && (
           <Button variant="subtle" size="sm" onClick={() => openDocsFor(topic)}>
             <ExternalLink size={11} /> {t('dub.open_docs')}

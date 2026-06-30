@@ -11,10 +11,10 @@ function TranscribeOverlay({ elapsed, duration, onAbort }) {
   const mm = Math.floor(elapsed / 60);
   const ss = String(elapsed % 60).padStart(2, '0');
   return (
-    <div className="dub-trans-overlay">
-      <div className="dub-trans-overlay__head">
+    <div className="flex flex-col items-center gap-[var(--space-5)] w-full">
+      <div className="flex items-center gap-[var(--space-4)]">
         <Loader className="spinner" size={18} color="#d3869b" />
-        <span className="dub-trans-overlay__title">{t('dub.transcribing')}</span>
+        <span className="text-fg font-medium text-[var(--text-lg)]">{t('dub.transcribing')}</span>
       </div>
       <div className="dub-trans-overlay__stats">
         <span>
@@ -28,7 +28,7 @@ function TranscribeOverlay({ elapsed, duration, onAbort }) {
         )}
       </div>
       {duration > 0 && (
-        <div className="dub-trans-overlay__bar">
+        <div className="w-[80%] max-w-[340px]">
           <Progress value={Math.min(95, (elapsed / est) * 100)} tone="brand" size="sm" />
         </div>
       )}

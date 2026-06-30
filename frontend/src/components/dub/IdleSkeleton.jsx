@@ -67,24 +67,26 @@ export default function IdleSkeleton({
   setDubInstruct,
 }) {
   return (
-    <div className="dub-col">
+    <div className="flex-1 flex flex-col min-h-0">
       {/* Header bar */}
-      <div className="dub-head">
+      <div className="flex justify-between items-center px-[12px] py-[5px] shrink-0 bg-[rgba(255,255,255,0.015)] [border:1px_solid_rgba(255,255,255,0.04)] rounded-md mb-[2px]">
         <div className="label-row dub-head__title">
           <Film className="label-icon" size={11} />
-          <span className="dub-head__filename">
+          <span className="font-semibold text-[0.85rem] overflow-hidden text-ellipsis whitespace-nowrap text-fg">
             {dubVideoFile ? dubVideoFile.name : t('dub.video_dubbing_studio')}
           </span>
           {dubVideoFile && (
-            <span className="dub-head__meta">
+            <span className="text-fg-muted font-normal whitespace-nowrap text-[0.72rem]">
               · {(dubVideoFile.size / 1024 / 1024).toFixed(1)} MB
             </span>
           )}
           {activeProjectName && activeProjectName !== dubFilename && (
-            <span className="dub-head__project">— {activeProjectName}</span>
+            <span className="text-[#b8bb26] ml-[var(--space-3)] whitespace-nowrap text-[0.72rem]">
+              — {activeProjectName}
+            </span>
           )}
         </div>
-        <div className="dub-head__actions">
+        <div className="flex gap-[var(--space-2)] items-center shrink-0">
           <Button
             variant="subtle"
             size="sm"
@@ -111,7 +113,7 @@ export default function IdleSkeleton({
               Surfaces the backend error detail and offers one-click retry,
               which re-runs the ASR stream on the same job without re-uploading. */}
       {dubError && dubJobId && dubStep === 'idle' && (
-        <div className="dub-footer-banner">
+        <div className="mb-[var(--space-2)]">
           <Badge tone="danger">
             <AlertCircle size={11} /> {dubError}
           </Badge>
@@ -151,7 +153,9 @@ export default function IdleSkeleton({
       )}
 
       {/* SPLIT LAYOUT skeleton */}
-      <div className={`dub-split-grid ${dubVideoFile ? 'dub-split-2' : 'dub-split-1'}`}>
+      <div
+        className={`dub-split-grid ${dubVideoFile ? 'grid grid-cols-2 gap-[6px] flex-1 min-h-0 overflow-hidden' : 'grid grid-cols-1 gap-[6px] flex-1 min-h-0'}`}
+      >
         {/* LEFT */}
         <div className="studio-panel dub-panel-col">
           {dubVideoFile ? (
@@ -177,7 +181,7 @@ export default function IdleSkeleton({
                   ) : null
                 }
               />
-              <div className="dub-change-row">
+              <div className="flex gap-[8px] mt-[8px] items-center">
                 <label htmlFor="video-upload" className="dub-idle-upload-label">
                   <Film size={13} /> {t('dub.change_file')}
                 </label>
@@ -202,7 +206,10 @@ export default function IdleSkeleton({
                     />
                   </label>
                 )}
-                <label className="dub-speakers-hint" title={t('dub.num_speakers_help')}>
+                <label
+                  className="inline-flex items-center gap-[5px] text-[12px] text-[var(--muted,#a89984)] whitespace-nowrap"
+                  title={t('dub.num_speakers_help')}
+                >
                   <Users size={13} /> {t('dub.num_speakers_label')}
                   <input
                     type="number"
