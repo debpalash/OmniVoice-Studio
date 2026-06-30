@@ -1,56 +1,7 @@
-/* ── Notification Panel ────────────────────────────────────────────── */
-
-.notif-trigger {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: none;
-  border: none;
-  border-radius: var(--radius-md);
-  color: var(--color-fg-muted);
-  cursor: pointer;
-  transition: all 0.15s;
-  padding: 0;
-  flex-shrink: 0;
-}
-
-.notif-trigger:hover {
-  color: var(--color-fg);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.notif-trigger--has-items {
-  color: var(--color-brand);
-}
-
-/* Badge count */
-.notif-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 14px;
-  height: 14px;
-  background: var(--color-danger, #cc241d);
-  color: #fff;
-  font-size: 9px;
-  font-weight: 700;
-  font-family: var(--font-mono);
-  border-radius: 7px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 3px;
-  line-height: 1;
-  pointer-events: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-}
-
-.notif-badge--warn {
-  background: var(--color-warn, #d79921);
-}
+/* ── Notification Panel ──────────────────────────────────────────────
+   The header bell trigger + its count badge are now Tailwind utilities on
+   the JSX. The dropdown-panel / item / inline-HF-input rules below remain
+   here. */
 
 /* Dropdown panel */
 .notif-panel {

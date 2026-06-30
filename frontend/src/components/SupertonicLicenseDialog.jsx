@@ -82,13 +82,18 @@ export default function SupertonicLicenseDialog({ open, onClose, onAccepted }) {
       }}
     >
       <div className="supertonic-license__card">
-        <h2 id="supertonic-license-title" className="supertonic-license__title">
+        <h2
+          id="supertonic-license-title"
+          className="mx-0 mt-0 mb-[0.5rem] text-[1.05rem] font-semibold tracking-[0.01em]"
+        >
           {t('license.title')}
         </h2>
 
-        <p className="supertonic-license__intro">{t('license.intro')}</p>
+        <p className="mx-0 mt-0 mb-[1rem] text-[0.9rem] leading-[1.5] opacity-[0.85]">
+          {t('license.intro')}
+        </p>
 
-        <div className="supertonic-license__sections">
+        <div className="mb-[1rem] grid gap-[0.85rem]">
           <section className="supertonic-license__section">
             <h3>{t('license.sdk_heading')}</h3>
             <p>{t('license.sdk_desc')}</p>
@@ -96,7 +101,7 @@ export default function SupertonicLicenseDialog({ open, onClose, onAccepted }) {
               href={LICENSE_URLS.code}
               target="_blank"
               rel="noopener noreferrer"
-              className="supertonic-license__link"
+              className="text-[0.83rem] text-[var(--accent,#8ab4f8)] no-underline hover:underline focus-visible:underline"
             >
               {t('license.read_mit')}
             </a>
@@ -109,16 +114,18 @@ export default function SupertonicLicenseDialog({ open, onClose, onAccepted }) {
               href={LICENSE_URLS.model}
               target="_blank"
               rel="noopener noreferrer"
-              className="supertonic-license__link"
+              className="text-[0.83rem] text-[var(--accent,#8ab4f8)] no-underline hover:underline focus-visible:underline"
             >
               {t('license.read_openrail')}
             </a>
           </section>
         </div>
 
-        <p className="supertonic-license__footer">{t('license.footer')}</p>
+        <p className="mx-0 mt-0 mb-[1.1rem] text-[0.78rem] leading-[1.5] opacity-[0.7]">
+          {t('license.footer')}
+        </p>
 
-        <div className="supertonic-license__actions">
+        <div className="flex justify-end gap-[0.5rem]">
           <button
             type="button"
             className="supertonic-license__btn supertonic-license__btn--secondary"

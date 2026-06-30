@@ -1,3 +1,10 @@
+/* BatchAddDialog — most layout/typography rules are now Tailwind utilities
+   on the JSX. What stays here: the fixed overlay + backdrop, the card chrome
+   and its open animation, the drop zone (its hover / drag-over state combo
+   `.batch-add__drop.is-over` is toggled imperatively), the `<select>` sizing
+   override on top of the global `.input-base`, and the toggle (which styles a
+   descendant `input`). */
+
 .batch-add-overlay {
   position: fixed;
   inset: 0;
@@ -25,46 +32,6 @@
   to   { opacity: 1; transform: scale(1); }
 }
 
-.batch-add__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--chrome-border);
-}
-.batch-add__title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--chrome-fg);
-}
-.batch-add__close {
-  background: none;
-  border: none;
-  color: var(--chrome-fg-muted);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
-  transition: background 0.15s;
-}
-.batch-add__close:hover {
-  background: var(--chrome-hover-bg);
-}
-
-.batch-add__body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
 .batch-add__drop {
   display: flex;
   flex-direction: column;
@@ -85,74 +52,7 @@
   background: rgba(255,255,255,0.02);
   color: var(--chrome-fg);
 }
-.batch-add__drop-hint {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  color: var(--chrome-fg-dim);
-}
-.batch-add__file-input {
-  display: none;
-}
 
-.batch-add__files {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.batch-add__kicker {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--chrome-fg-dim);
-  margin-bottom: 4px;
-}
-.batch-add__file-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  background: var(--chrome-hover-bg);
-  border-radius: 6px;
-  font-size: 0.76rem;
-}
-.batch-add__file-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--chrome-fg);
-}
-.batch-add__file-size {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: var(--chrome-fg-dim);
-  flex-shrink: 0;
-}
-.batch-add__file-x {
-  background: none;
-  border: none;
-  color: var(--chrome-fg-dim);
-  cursor: pointer;
-  padding: 2px;
-  border-radius: 4px;
-}
-.batch-add__file-x:hover { color: var(--color-danger); }
-
-.batch-add__settings {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.batch-add__field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
 .batch-add__select {
   font-size: 0.78rem;
 }
@@ -165,17 +65,3 @@
   cursor: pointer;
 }
 .batch-add__toggle input { cursor: pointer; }
-
-.batch-add__foot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 18px;
-  border-top: 1px solid var(--chrome-border);
-}
-.batch-add__estimate {
-  flex: 1;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: var(--chrome-fg-dim);
-}

@@ -21,14 +21,16 @@ export default function NotificationPanel() {
 
   return (
     <button
-      className={`notif-trigger ${count > 0 ? 'notif-trigger--has-items' : ''}`}
+      className={`relative flex h-[28px] w-[28px] shrink-0 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0 transition-all duration-[0.15s] hover:bg-[rgba(255,255,255,0.04)] hover:text-fg ${count > 0 ? 'text-brand' : 'text-fg-muted'}`}
       onClick={openNotifications}
       aria-label={`Notifications (${count})`}
       title="Notifications"
     >
       <Bell size={14} />
       {count > 0 && (
-        <span className={`notif-badge ${hasErrors ? '' : hasWarns ? 'notif-badge--warn' : ''}`}>
+        <span
+          className={`pointer-events-none absolute -top-[4px] -right-[4px] flex h-[14px] min-w-[14px] items-center justify-center rounded-[7px] px-[3px] font-mono text-[9px] font-bold leading-none text-white shadow-[0_1px_3px_rgba(0,0,0,0.4)] ${!hasErrors && hasWarns ? 'bg-warn' : 'bg-danger'}`}
+        >
           {count}
         </span>
       )}

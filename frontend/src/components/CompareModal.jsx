@@ -119,14 +119,17 @@ export default function CompareModal({
       aria-label={t('compare.title')}
     >
       <div className="compare-drawer__sheet" ref={drawerRef}>
-        <header className="compare-drawer__head">
-          <span className="compare-drawer__handle" aria-hidden="true" />
-          <span className="compare-drawer__title">
+        <header className="relative flex items-center gap-[var(--space-3)] p-[10px_var(--space-4)] [border-bottom:1px_solid_var(--chrome-border)] [background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]">
+          <span
+            className="absolute top-[4px] left-1/2 -translate-x-1/2 w-[36px] h-[3px] rounded-[2px] bg-[var(--chrome-border-strong)]"
+            aria-hidden="true"
+          />
+          <span className="inline-flex items-center gap-[6px] [font-family:var(--font-display,inherit)] text-[length:var(--text-md)] font-semibold text-[var(--chrome-fg)]">
             <Scale size={14} /> {t('compare.title')}
           </span>
           <button
             type="button"
-            className="compare-drawer__close"
+            className="ml-auto inline-flex h-[var(--chrome-icon-btn,22px)] w-[var(--chrome-icon-btn,22px)] cursor-pointer items-center justify-center rounded-[var(--chrome-radius-pill)] bg-transparent text-[var(--chrome-fg-muted)] [border:1px_solid_transparent] transition-[background,color,border-color] duration-[var(--dur-fast)] hover:border-[var(--chrome-border-strong)] hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--chrome-fg)]"
             onClick={onClose}
             aria-label={t('compare.close')}
           >
@@ -134,8 +137,10 @@ export default function CompareModal({
           </button>
         </header>
 
-        <div className="compare-drawer__body">
-          <p className="ui-compare__desc">{t('compare.desc')}</p>
+        <div className="overflow-y-auto p-[var(--space-4)]">
+          <p className="mx-0 mt-0 mb-[var(--space-5)] text-[length:var(--text-base)] text-fg-muted leading-[1.5]">
+            {t('compare.desc')}
+          </p>
 
           <Field label={t('compare.test_phrase')}>
             <Textarea
@@ -166,7 +171,7 @@ export default function CompareModal({
           </div>
         </div>
 
-        <footer className="compare-drawer__foot">
+        <footer className="flex justify-end gap-[var(--space-2)] bg-[var(--chrome-bg)] p-[var(--space-3)_var(--space-4)] [border-top:1px_solid_var(--chrome-border)]">
           <Button variant="ghost" onClick={onClose}>
             {t('compare.close_btn')}
           </Button>
@@ -189,7 +194,10 @@ function CompareSide({ accent, label, profiles, value, onChange, audio }) {
   const { t } = useTranslation();
   return (
     <Panel variant="flat" padding="sm">
-      <h3 className="ui-compare__head" style={{ color: accent }}>
+      <h3
+        className="mx-0 mt-0 mb-[var(--space-4)] flex items-center justify-center gap-[var(--space-3)] [font-family:var(--font-display)] text-[length:var(--text-lg)] [font-weight:var(--weight-bold)]"
+        style={{ color: accent }}
+      >
         <Fingerprint size={14} /> {label}
       </h3>
       <Field>
@@ -208,9 +216,11 @@ function CompareSide({ accent, label, profiles, value, onChange, audio }) {
         </Select>
       </Field>
       {audio ? (
-        <WaveformPlayer src={audio} source="compare" className="ui-compare__audio" />
+        <WaveformPlayer src={audio} source="compare" className="mt-[var(--space-3)] w-full" />
       ) : (
-        <div className="ui-compare__audio-empty">{t('compare.no_audio')}</div>
+        <div className="mt-[var(--space-3)] flex h-[32px] items-center justify-center rounded-sm bg-bg-elev-2 text-[length:var(--text-sm)] italic text-fg-subtle">
+          {t('compare.no_audio')}
+        </div>
       )}
     </Panel>
   );

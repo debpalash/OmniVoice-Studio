@@ -3,6 +3,12 @@
  * Uses the same CSS-variable palette as BootstrapSplash so the modal
  * blends with the rest of the app chrome regardless of the user's
  * light/dark theme.
+ *
+ * Mechanical title/intro/sections/link/footer/actions rules are now Tailwind
+ * utilities on the JSX. What stays here: the fixed overlay + backdrop, the
+ * card chrome (color-mix border + shadow), the section block (which styles
+ * unclassed `h3`/`p`/`code` descendants via color-mix), and the buttons
+ * (color-mix hover/focus states gated by `:not(:disabled)`).
  */
 
 .supertonic-license {
@@ -26,26 +32,6 @@
   padding: 1.75rem 1.75rem 1.5rem;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
   text-align: left;
-}
-
-.supertonic-license__title {
-  margin: 0 0 0.5rem;
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.supertonic-license__intro {
-  margin: 0 0 1rem;
-  font-size: 0.9rem;
-  opacity: 0.85;
-  line-height: 1.5;
-}
-
-.supertonic-license__sections {
-  display: grid;
-  gap: 0.85rem;
-  margin-bottom: 1rem;
 }
 
 .supertonic-license__section {
@@ -77,30 +63,6 @@
   border-radius: 3px;
   font-family: 'JetBrains Mono', 'Menlo', monospace;
   font-size: 0.78rem;
-}
-
-.supertonic-license__link {
-  font-size: 0.83rem;
-  color: var(--accent, #8ab4f8);
-  text-decoration: none;
-}
-
-.supertonic-license__link:hover,
-.supertonic-license__link:focus-visible {
-  text-decoration: underline;
-}
-
-.supertonic-license__footer {
-  margin: 0 0 1.1rem;
-  font-size: 0.78rem;
-  opacity: 0.7;
-  line-height: 1.5;
-}
-
-.supertonic-license__actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
 }
 
 .supertonic-license__btn {

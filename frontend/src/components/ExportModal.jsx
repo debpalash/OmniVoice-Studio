@@ -266,30 +266,39 @@ export default function ExportModal({
       aria-label={t('exportModal.export_options')}
     >
       <div className="export-drawer__sheet" ref={drawerRef}>
-        <header className="export-drawer__head">
-          <span className="export-drawer__handle" aria-hidden="true" />
-          <span className="export-modal__title-inner">
+        <header className="relative flex items-center gap-[var(--space-3)] p-[6px_var(--space-4)_10px] [border-bottom:1px_solid_var(--chrome-border)] [background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]">
+          <span
+            className="absolute top-[4px] left-1/2 -translate-x-1/2 w-[36px] h-[3px] rounded-[2px] bg-[var(--chrome-border-strong)]"
+            aria-hidden="true"
+          />
+          <span className="inline-flex items-center gap-[var(--space-2)]">
             <Download size={13} /> {t('exportModal.export')}
-            {filename && <span className="export-modal__filename">· {filename}</span>}
+            {filename && (
+              <span className="ml-[var(--space-2)] max-w-[260px] overflow-hidden text-ellipsis whitespace-nowrap [font-family:var(--chrome-font-mono)] text-[length:var(--text-sm)] text-[var(--chrome-fg-muted)]">
+                · {filename}
+              </span>
+            )}
           </span>
           <button
             type="button"
-            className="export-drawer__close"
+            className="ml-auto inline-flex h-[var(--chrome-icon-btn,22px)] w-[var(--chrome-icon-btn,22px)] cursor-pointer items-center justify-center rounded-[var(--chrome-radius-pill)] bg-transparent text-[var(--chrome-fg-muted)] [border:1px_solid_transparent] transition-[background,color,border-color] duration-[var(--dur-fast)] hover:border-[var(--chrome-border-strong)] hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--chrome-fg)]"
             onClick={onClose}
             aria-label={t('exportModal.close_drawer')}
           >
             <X size={13} />
           </button>
         </header>
-        <div className="export-modal export-modal--drawer">
+        <div className="flex flex-col gap-[var(--space-4)] overflow-y-auto p-[var(--space-3)_var(--space-4)_var(--space-4)]">
           {/* Preset chips */}
-          <div className="export-modal__presets">
-            <span className="export-modal__kicker">{t('exportModal.presets')}</span>
+          <div className="flex flex-wrap items-center gap-[var(--space-2)] pb-[var(--space-3)] [border-bottom:1px_solid_var(--chrome-border)]">
+            <span className="inline-flex items-center gap-[4px] uppercase [font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
+              {t('exportModal.presets')}
+            </span>
             {Object.entries(PRESETS).map(([k, v]) => (
               <button
                 key={k}
                 type="button"
-                className="export-modal__preset-chip"
+                className="inline-flex cursor-pointer items-center gap-[4px] rounded-[var(--chrome-radius-pill)] bg-transparent px-[8px] py-[3px] font-sans text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)] [border:1px_solid_var(--chrome-border)] transition-[background,color,border-color] duration-[var(--dur-fast)] hover:border-[var(--chrome-border-strong)] hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--chrome-fg)]"
                 onClick={() => applyPreset(k)}
                 title={t('exportModal.preset_title', { tab: v.tab, label: t(v.labelKey) })}
               >
@@ -299,9 +308,9 @@ export default function ExportModal({
           </div>
 
           {/* Track checklist — shared across tabs */}
-          <div className="export-modal__tracks">
-            <div className="export-modal__section-head">
-              <span className="export-modal__kicker">
+          <div className="flex flex-col gap-[var(--space-2)]">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-[4px] uppercase [font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
                 <Globe size={9} /> {t('exportModal.tracks')}
               </span>
               <div className="export-modal__track-quick">
@@ -318,7 +327,7 @@ export default function ExportModal({
                 </button>
               </div>
             </div>
-            <div className="export-modal__track-row">
+            <div className="flex flex-wrap gap-[6px]">
               {allTracks.map((track) => {
                 const on = exportTracks[track.code] !== false;
                 return (
@@ -327,7 +336,9 @@ export default function ExportModal({
                     className={`export-modal__track ${on ? 'is-on' : ''} ${track.kind === 'original' ? 'is-original' : 'is-dub'}`}
                   >
                     <input type="checkbox" checked={on} onChange={() => toggleTrack(track.code)} />
-                    <span className="export-modal__track-label">{track.label}</span>
+                    <span className="[font-family:var(--chrome-font-mono)] tracking-[0.02em]">
+                      {track.label}
+                    </span>
                     {track.kind === 'dub' && track.code === dubLangCode && (
                       <Badge tone="brand" size="xs">
                         {t('exportModal.primary')}
@@ -340,7 +351,7 @@ export default function ExportModal({
           </div>
 
           {/* Tabs */}
-          <div className="export-modal__tabs">
+          <div className="flex gap-[var(--space-1)] [border-bottom:1px_solid_var(--chrome-border)]">
             <button
               type="button"
               className={`export-modal__tab ${tab === 'video' ? 'is-active' : ''}`}
@@ -372,9 +383,9 @@ export default function ExportModal({
           </div>
 
           {/* Tab body */}
-          <div className="export-modal__body">
+          <div className="min-h-[160px]">
             {tab === 'video' && (
-              <div className="export-modal__grid">
+              <div className="grid grid-cols-2 gap-x-[var(--space-5)] gap-y-[var(--space-4)]">
                 <Field label={t('exportModal.container')}>
                   <Segmented
                     size="sm"
@@ -435,13 +446,15 @@ export default function ExportModal({
                   )}
                 </Field>
                 {(timingStrategy === 'smart_fit' || timingStrategy === 'stretch_video') && (
-                  <div className="export-modal__note">{t('exportModal.retime_note')}</div>
+                  <div className="col-span-full rounded-[2px] bg-[var(--chrome-hover-bg)] p-[var(--space-2)_var(--space-3)] text-[length:var(--text-xs)] text-[var(--chrome-fg-dim)] [border-left:2px_solid_var(--chrome-border-strong)]">
+                    {t('exportModal.retime_note')}
+                  </div>
                 )}
               </div>
             )}
 
             {tab === 'audio' && (
-              <div className="export-modal__grid">
+              <div className="grid grid-cols-2 gap-x-[var(--space-5)] gap-y-[var(--space-4)]">
                 <Field label={t('exportModal.format')}>
                   <Segmented
                     size="sm"
@@ -480,7 +493,7 @@ export default function ExportModal({
                   />
                   {audioBatch === 'primary' && (
                     <select
-                      className="input-base input-base--xs export-modal__mt6"
+                      className="input-base input-base--xs mt-[6px]"
                       value={audioPrimaryLang}
                       onChange={(e) => setAudioPrimaryLang(e.target.value)}
                     >
@@ -506,7 +519,7 @@ export default function ExportModal({
             )}
 
             {tab === 'subs' && (
-              <div className="export-modal__grid">
+              <div className="grid grid-cols-2 gap-x-[var(--space-5)] gap-y-[var(--space-4)]">
                 <Field label={t('exportModal.format')}>
                   <Segmented
                     size="sm"
@@ -547,12 +560,14 @@ export default function ExportModal({
                     ]}
                   />
                 </Field>
-                <div className="export-modal__note">{t('exportModal.subs_note')}</div>
+                <div className="col-span-full rounded-[2px] bg-[var(--chrome-hover-bg)] p-[var(--space-2)_var(--space-3)] text-[length:var(--text-xs)] text-[var(--chrome-fg-dim)] [border-left:2px_solid_var(--chrome-border-strong)]">
+                  {t('exportModal.subs_note')}
+                </div>
               </div>
             )}
 
             {tab === 'pkg' && (
-              <div className="export-modal__pkg-grid">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-[var(--space-3)]">
                 <PkgCard
                   icon={<Package size={14} />}
                   title={t('exportModal.pkg_clips_title')}
@@ -580,13 +595,13 @@ export default function ExportModal({
           </div>
 
           {/* Commercial license notice */}
-          <div className="export-modal__license-notice">
+          <div className="flex items-center gap-[6px] p-[5px_var(--space-3)] [font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-dim)] [border-top:1px_solid_var(--chrome-border)]">
             <Building2 size={11} />
             <span>
               {t('exportModal.license_text')}{' '}
               <button
                 type="button"
-                className="export-modal__license-link"
+                className="cursor-pointer p-0 text-[var(--chrome-accent)] underline underline-offset-2 [font:inherit] border-0 bg-transparent hover:text-[var(--chrome-fg)]"
                 onClick={() => {
                   onClose();
                   onEnterprise?.();
@@ -599,14 +614,19 @@ export default function ExportModal({
           </div>
 
           {/* Summary footer */}
-          <div className="export-modal__summary">
-            <div className="export-modal__summary-left">
-              <span className="export-modal__kicker">{t('exportModal.output')}</span>
-              <code className="export-modal__summary-name" title={filenamePreview}>
+          <div className="flex items-center justify-between gap-[var(--space-3)] pt-[var(--space-3)] [border-top:1px_solid_var(--chrome-border)]">
+            <div className="flex min-w-0 items-center gap-[var(--space-2)]">
+              <span className="inline-flex items-center gap-[4px] uppercase [font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
+                {t('exportModal.output')}
+              </span>
+              <code
+                className="max-w-[340px] overflow-hidden text-ellipsis whitespace-nowrap rounded-[2px] bg-[var(--chrome-hover-bg)] px-[8px] py-[3px] [font-family:var(--chrome-font-mono)] text-[length:var(--text-xs)] text-[var(--chrome-fg)]"
+                title={filenamePreview}
+              >
                 {filenamePreview}
               </code>
             </div>
-            <div className="export-modal__summary-right">
+            <div className="inline-flex gap-[var(--space-2)]">
               {tab !== 'pkg' && (
                 <>
                   <Button variant="ghost" size="sm" onClick={onClose}>
@@ -640,10 +660,16 @@ export default function ExportModal({
 
 function Field({ label, hint, children }) {
   return (
-    <div className="export-modal__field">
-      <div className="export-modal__field-head">
-        <span className="export-modal__field-label">{label}</span>
-        {hint && <span className="export-modal__field-hint">{hint}</span>}
+    <div className="flex flex-col gap-[6px]">
+      <div className="flex flex-col gap-[2px]">
+        <span className="uppercase [font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
+          {label}
+        </span>
+        {hint && (
+          <span className="text-[length:var(--text-xs)] text-[var(--chrome-fg-dim)] leading-[1.4]">
+            {hint}
+          </span>
+        )}
       </div>
       {children}
     </div>
@@ -652,12 +678,16 @@ function Field({ label, hint, children }) {
 
 function PkgCard({ icon, title, body, onClick, cta, ghost = false }) {
   return (
-    <div className={`export-modal__pkg-card ${ghost ? 'is-ghost' : ''}`}>
-      <div className="export-modal__pkg-head">
+    <div
+      className={`flex flex-col gap-[8px] rounded-[var(--chrome-radius-pill)] bg-[var(--chrome-bg)] p-[var(--space-3)] [border:1px_solid_var(--chrome-border)] ${ghost ? 'opacity-[0.75]' : ''}`}
+    >
+      <div className="inline-flex items-center gap-[6px] font-medium text-[length:var(--text-sm)] text-[var(--chrome-fg)]">
         {icon}
         <span>{title}</span>
       </div>
-      <p className="export-modal__pkg-body">{body}</p>
+      <p className="m-0 flex-1 text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)] leading-[1.4]">
+        {body}
+      </p>
       <Button
         variant={ghost ? 'subtle' : 'primary'}
         size="sm"

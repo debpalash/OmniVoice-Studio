@@ -53,16 +53,20 @@ export default function BatchAddDialog({
   return (
     <div className="batch-add-overlay" onClick={onClose}>
       <div className="batch-add" onClick={(e) => e.stopPropagation()}>
-        <div className="batch-add__head">
-          <span className="batch-add__title">
+        <div className="flex items-center justify-between p-[14px_18px] [border-bottom:1px_solid_var(--chrome-border)]">
+          <span className="flex items-center gap-[6px] font-mono text-[0.78rem] font-semibold uppercase tracking-[0.04em] text-[var(--chrome-fg)]">
             <Plus size={13} /> {t('batch.add_to_queue_title')}
           </span>
-          <button type="button" className="batch-add__close" onClick={onClose}>
+          <button
+            type="button"
+            className="cursor-pointer rounded-[6px] border-0 bg-transparent p-[4px] text-[var(--chrome-fg-muted)] transition-[background] duration-[0.15s] hover:bg-[var(--chrome-hover-bg)]"
+            onClick={onClose}
+          >
             <X size={13} />
           </button>
         </div>
 
-        <div className="batch-add__body">
+        <div className="flex flex-1 flex-col gap-[14px] overflow-y-auto p-[16px_18px]">
           {/* Drop zone */}
           <div
             className="batch-add__drop"
@@ -79,14 +83,16 @@ export default function BatchAddDialog({
           >
             <Upload size={24} />
             <span>{t('batch.drop_hint_text')}</span>
-            <span className="batch-add__drop-hint">{t('batch.drop_formats')}</span>
+            <span className="font-mono text-[0.65rem] text-[var(--chrome-fg-dim)]">
+              {t('batch.drop_formats')}
+            </span>
           </div>
           <input
             ref={fileInputRef}
             type="file"
             accept="video/*"
             multiple
-            className="batch-add__file-input"
+            className="hidden"
             onChange={(e) => {
               const added = Array.from(e.target.files);
               if (added.length) setFiles((prev) => [...prev, ...added]);
@@ -96,18 +102,27 @@ export default function BatchAddDialog({
 
           {/* File list */}
           {files.length > 0 && (
-            <div className="batch-add__files">
-              <span className="batch-add__kicker">
+            <div className="flex flex-col gap-[4px]">
+              <span className="mb-[4px] flex items-center gap-[4px] font-mono text-[0.62rem] font-semibold uppercase tracking-[0.04em] text-[var(--chrome-fg-dim)]">
                 {t('batch.files_kicker', { count: files.length })}
               </span>
               {files.map((f, i) => (
-                <div key={`${f.name}-${i}`} className="batch-add__file-row">
+                <div
+                  key={`${f.name}-${i}`}
+                  className="flex items-center gap-[6px] rounded-[6px] bg-[var(--chrome-hover-bg)] p-[4px_8px] text-[0.76rem]"
+                >
                   <Film size={10} />
-                  <span className="batch-add__file-name">{f.name}</span>
-                  <span className="batch-add__file-size">
+                  <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--chrome-fg)]">
+                    {f.name}
+                  </span>
+                  <span className="shrink-0 font-mono text-[0.68rem] text-[var(--chrome-fg-dim)]">
                     {t('batch.file_size_mb', { size: (f.size / 1024 / 1024).toFixed(1) })}
                   </span>
-                  <button type="button" className="batch-add__file-x" onClick={() => removeFile(i)}>
+                  <button
+                    type="button"
+                    className="cursor-pointer rounded-[4px] border-0 bg-transparent p-[2px] text-[var(--chrome-fg-dim)] hover:text-[var(--color-danger)]"
+                    onClick={() => removeFile(i)}
+                  >
                     <X size={9} />
                   </button>
                 </div>
@@ -116,16 +131,18 @@ export default function BatchAddDialog({
           )}
 
           {/* Settings */}
-          <div className="batch-add__settings">
-            <div className="batch-add__field">
-              <span className="batch-add__kicker">
+          <div className="flex flex-col gap-[12px]">
+            <div className="flex flex-col gap-[6px]">
+              <span className="mb-[4px] flex items-center gap-[4px] font-mono text-[0.62rem] font-semibold uppercase tracking-[0.04em] text-[var(--chrome-fg-dim)]">
                 <Globe size={9} /> {t('batch.target_languages')}
               </span>
               <MultiLangPicker selected={langs} onChange={setLangs} />
             </div>
 
-            <div className="batch-add__field">
-              <span className="batch-add__kicker">{t('batch.voice_kicker')}</span>
+            <div className="flex flex-col gap-[6px]">
+              <span className="mb-[4px] flex items-center gap-[4px] font-mono text-[0.62rem] font-semibold uppercase tracking-[0.04em] text-[var(--chrome-fg-dim)]">
+                {t('batch.voice_kicker')}
+              </span>
               <select
                 className="input-base batch-add__select"
                 value={voiceId}
@@ -166,8 +183,8 @@ export default function BatchAddDialog({
           </div>
         </div>
 
-        <div className="batch-add__foot">
-          <span className="batch-add__estimate">
+        <div className="flex items-center gap-[8px] p-[12px_18px] [border-top:1px_solid_var(--chrome-border)]">
+          <span className="flex-1 font-mono text-[0.68rem] text-[var(--chrome-fg-dim)]">
             {files.length > 0 && langs.length > 0
               ? t('batch.estimate', {
                   videos: files.length,
