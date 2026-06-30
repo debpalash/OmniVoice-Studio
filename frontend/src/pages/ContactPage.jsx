@@ -3,8 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ExternalLink, MessageCircle, Mail, Bug, Globe } from 'lucide-react';
 import { Button } from '../ui';
 import { openExternal } from '../api/external';
-import './DonatePage.css';
-import './SupportPage.css';
 
 // All outward contact channels in one place (#contact). Values are the same
 // ones used across the app (donate/license footers) so there's a single source.
@@ -68,31 +66,34 @@ export default function ContactPage({ onBack }) {
   const { t } = useTranslation();
 
   return (
-    <div className="support-page donate-page flex flex-1 flex-col overflow-y-auto relative isolate bg-[var(--chrome-bg)]">
+    <div className="relative isolate flex flex-1 flex-col overflow-y-auto bg-[var(--chrome-bg)]">
       <div className="lp-aurora" aria-hidden="true">
         <span className="lp-aurora__blob lp-aurora__blob--pink" />
         <span className="lp-aurora__blob lp-aurora__blob--green" />
         <span className="lp-aurora__blob lp-aurora__blob--amber" />
       </div>
 
-      <div className="support-page__topbar relative z-[2] flex items-center justify-between gap-[12px] pt-[16px] px-[44px]">
+      <div className="relative z-[2] flex items-center justify-between gap-3 px-11 pt-4">
         <Button variant="subtle" size="sm" onClick={onBack} leading={<ArrowLeft size={14} />}>
           {t('donate.back')}
         </Button>
-        <span className="support-page__spacer w-[96px] shrink-0" aria-hidden="true" />
+        <span className="w-24 shrink-0" aria-hidden="true" />
       </div>
 
-      <div className="support-page__content donate-page__content support-page__content--support relative z-[1] mx-auto flex w-full max-w-[640px] flex-col gap-[24px] px-[32px] pb-[40px]">
-        <div className="support-view">
-          <div className="donate-hero">
-            <div className="donate-hero__icon-wrap">
-              <MessageCircle size={24} className="donate-hero__heart" />
-            </div>
-            <h2 className="donate-hero__title">
+      <div className="relative z-[1] mx-auto flex w-full max-w-[640px] flex-1 flex-col justify-center gap-6 px-8 pb-10">
+        <div className="flex flex-col gap-6">
+          <div className="text-center">
+            <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-md border border-[color-mix(in_srgb,#d3869b_30%,transparent)] bg-[color-mix(in_srgb,#d3869b_12%,transparent)]">
+              <MessageCircle
+                size={24}
+                className="text-[#f3a5b6] drop-shadow-[0_0_12px_rgba(243,165,182,0.5)]"
+              />
+            </span>
+            <h2 className="relative inline-block font-serif text-[2rem] font-normal leading-tight tracking-[-0.02em] text-[var(--chrome-fg)]">
               {t('contact.hero_title', { defaultValue: 'Get in touch' })}
               <span className="lp-hero__sweep" aria-hidden="true" />
             </h2>
-            <p className="donate-hero__subtitle mx-auto mt-[10px] max-w-[480px] font-sans text-[0.8rem] leading-[1.65] text-[var(--chrome-fg-muted)]">
+            <p className="mx-auto mt-2.5 max-w-[480px] font-sans text-[0.8rem] leading-[1.65] text-[var(--chrome-fg-muted)]">
               {t('contact.hero_desc', {
                 defaultValue:
                   'Questions, bugs, licensing, or just to say hi — here’s how to reach me.',
@@ -100,40 +101,37 @@ export default function ContactPage({ onBack }) {
             </p>
           </div>
 
-          <section className="donate-section">
-            <div className="donate-grid support-methods grid grid-cols-[1fr] gap-[10px]">
-              {CHANNELS.map((c, i) => {
-                const Icon = c.icon;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className="donate-card donate-card--link lp-glow-card"
-                    style={{ '--anim-i': i, '--card-hue': c.hue }}
-                    onClick={() => openExternal(c.url)}
-                  >
-                    <span className="donate-card__glow" aria-hidden="true" />
-                    <div className="donate-card__icon">
-                      <Icon size={20} />
-                    </div>
-                    <div className="donate-card__body">
-                      <div className="donate-card__label">
-                        {t(c.labelKey, { defaultValue: c.labelDefault })}
-                      </div>
-                      <div className="donate-card__desc">
-                        {t(c.descKey, { defaultValue: c.descDefault })}
-                      </div>
-                      <div className="contact-card__value mt-[4px] font-mono text-[11px] text-[var(--text-muted,#928374)] opacity-[0.85] [word-break:break-all]">
-                        {c.value}
-                      </div>
-                    </div>
-                    <div className="donate-card__arrow">
-                      <ExternalLink size={14} />
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+          <section className="grid grid-cols-1 gap-2.5">
+            {CHANNELS.map((c) => {
+              const Icon = c.icon;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => openExternal(c.url)}
+                  style={{ '--card-hue': c.hue }}
+                  className="flex w-full items-center gap-3 overflow-hidden rounded-md border border-border bg-transparent px-3.5 py-2.5 text-left transition-colors hover:border-[color-mix(in_srgb,var(--card-hue)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--card-hue)_6%,transparent)]"
+                >
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[color-mix(in_srgb,var(--card-hue)_22%,transparent)] bg-[color-mix(in_srgb,var(--card-hue)_10%,transparent)]">
+                    <Icon size={20} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-mono text-xs font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg)]">
+                      {t(c.labelKey, { defaultValue: c.labelDefault })}
+                    </span>
+                    <span className="block font-sans text-[0.68rem] leading-snug text-[var(--chrome-fg-muted)]">
+                      {t(c.descKey, { defaultValue: c.descDefault })}
+                    </span>
+                    <span className="mt-1 block break-all font-mono text-[11px] text-[var(--chrome-fg-muted)] opacity-85">
+                      {c.value}
+                    </span>
+                  </span>
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border text-[var(--chrome-fg-muted)]">
+                    <ExternalLink size={14} />
+                  </span>
+                </button>
+              );
+            })}
           </section>
         </div>
       </div>
