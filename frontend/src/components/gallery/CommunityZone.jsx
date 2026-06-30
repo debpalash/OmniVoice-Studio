@@ -31,14 +31,14 @@ export default function CommunityZone({
 
   return (
     <div className="gallery-content gallery-scroll">
-      <div className="import-explainer community-explainer">
+      <div className="shrink-0 px-[10px] py-[8px] mb-[8px] bg-bg-elev-2 rounded-[8px] text-[0.72rem] text-[var(--text-secondary)] leading-[1.4] flex items-center justify-between gap-[12px] flex-wrap">
         <span>
           {t('gallery.community_explainer', {
             defaultValue:
               'Designed presets and recorded voices shared by the community, loaded from the omnivoice-gallery.',
           })}
         </span>
-        <div className="submit-actions">
+        <div className="flex gap-[6px] shrink-0">
           <button className="submit-btn" onClick={() => submit('preset')}>
             <Send size={13} /> {t('gallery.submit_preset', { defaultValue: 'Submit a preset' })}
           </button>

@@ -1,21 +1,4 @@
-.voice-gallery {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px;
-  height: 100%;
-  overflow: hidden;
-}
-
-.gallery-header {
-  flex-shrink: 0;
-}
-
-.header-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+/* .voice-gallery / .gallery-header / .header-top → Tailwind utilities in VoiceGallery.jsx. */
 
 .header-text h2 {
   font-size: 1.1rem;
@@ -24,17 +7,7 @@
   color: var(--text-primary);
 }
 
-.gallery-search {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.search-row {
-  display: flex;
-  gap: 6px;
-}
+/* .gallery-search / .search-row base → Tailwind utilities in ImportsZone.jsx. */
 
 .search-row .input-wrapper {
   flex: 1;
@@ -75,26 +48,7 @@
   color: #1b1b1b;
 }
 
-.search-results-panel {
-  flex-shrink: 0;
-  background: var(--color-bg-elev-2);
-  border-radius: 8px;
-  max-height: 180px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 10px;
-  background: var(--color-bg-elev-1);
-  font-size: 0.75rem;
-  font-weight: 500;
-  flex-shrink: 0;
-}
+/* .search-results-panel / .panel-header → Tailwind utilities in ImportsZone.jsx. */
 
 .close-btn {
   background: none;
@@ -104,10 +58,7 @@
   padding: 2px;
 }
 
-.results-list {
-  overflow-y: auto;
-  flex: 1;
-}
+/* .results-list → Tailwind utilities in ImportsZone.jsx. */
 
 .result-row {
   display: flex;
@@ -122,25 +73,7 @@
   border: none;
 }
 
-.result-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.result-title {
-  font-size: 0.75rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.result-meta {
-  font-size: 0.65rem;
-  color: var(--text-secondary);
-}
+/* .result-info / .result-title / .result-meta → Tailwind utilities in ImportsZone.jsx. */
 
 .gallery-content {
   flex: 1;
@@ -150,18 +83,7 @@
   overflow: hidden;
 }
 
-.content-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 8px;
-  flex-shrink: 0;
-}
-
-.content-title {
-  font-size: 0.85rem;
-  font-weight: 500;
-}
+/* .content-header / .content-title base → Tailwind utilities in ArchetypesZone.jsx + ImportsZone.jsx. */
 
 .content-title .count {
   font-weight: 400;
@@ -240,14 +162,8 @@
   font-size: 0.8rem;
 }
 
-.voice-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  overflow-y: auto;
-  flex: 1;
-  padding-right: 4px;
-}
+/* .voice-list base → Tailwind utilities in ImportsZone.jsx (the .grid variant + its
+   descendant overrides below stay in CSS). */
 
 .voice-list.grid {
   display: grid;
@@ -289,34 +205,8 @@
   color: #fff;
 }
 
-.voice-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.voice-name {
-  font-size: 0.8rem;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.voice-meta {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 0.65rem;
-  color: var(--text-secondary);
-}
-
-.voice-actions {
-  display: flex;
-  gap: 3px;
-}
+/* .voice-info / .voice-name / .voice-meta / .voice-actions base → Tailwind utilities
+   in ImportsZone.jsx (the .voice-list.grid descendant overrides below stay in CSS). */
 
 .action-btn {
   display: flex;
@@ -365,7 +255,7 @@
 }
 
 /* ── Voice Gallery: zone toggle + header ──────────────────────────────── */
-.gallery-sub { margin: 2px 0 0; font-size: 0.72rem; color: var(--text-secondary); }
+/* .gallery-sub → Tailwind utilities in VoiceGallery.jsx. */
 .zone-toggle { display: inline-flex; gap: 2px; background: var(--chrome-hover-bg); border: 1px solid var(--chrome-border); border-radius: 8px; padding: 2px; }
 .zone-tab { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border: none; background: transparent; color: var(--chrome-fg-muted); border-radius: 6px; font-size: 0.75rem; font-weight: 500; cursor: pointer; transition: background var(--dur-fast), color var(--dur-fast); }
 .zone-tab:hover { color: var(--chrome-fg); }
@@ -450,8 +340,7 @@
 
 /* ── Archetype sections + grid ────────────────────────────────────────── */
 .gallery-content.gallery-scroll { overflow-y: auto; }
-.archetype-section { margin-bottom: 14px; }
-.count-badge { margin-left: 6px; padding: 1px 7px; border-radius: 10px; background: var(--color-bg-elev-2); color: var(--text-secondary); font-size: 0.65rem; font-weight: 400; }
+/* .archetype-section / .count-badge → Tailwind utilities in ArchetypesZone.jsx + ImportsZone.jsx. */
 .archetype-grid.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); gap: 10px; }
 .archetype-grid.list { display: flex; flex-direction: column; gap: 6px; }
 
@@ -471,14 +360,12 @@
 .archetype-card.playing { border-color: var(--card-accent, var(--accent)); box-shadow: 0 0 0 1px var(--card-accent, var(--accent)), 0 6px 22px rgba(0, 0, 0, 0.4); }
 
 /* Header: avatar tile + title + favorite */
-.arch-head { display: flex; align-items: center; gap: 10px; }
+/* .arch-head → Tailwind utilities in ArchetypeCard.jsx. */
 .arch-avatar { position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 11px; }
 .arch-avatar-flag { position: absolute; right: -4px; bottom: -4px; display: flex; line-height: 0; border-radius: 3px; overflow: hidden; box-shadow: 0 0 0 2px var(--bg-tertiary, #1d2021); }
 .accent-flag { display: block; border-radius: 2px; }
 .flag-globe { color: var(--text-secondary); }
-.arch-title { flex: 1; min-width: 0; }
-.archetype-name { font-size: 0.84rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.archetype-sub { font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* .arch-title / .archetype-name / .archetype-sub → Tailwind utilities in ArchetypeCard.jsx. */
 
 .fav-btn { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: none; background: transparent; color: var(--text-secondary); border-radius: 7px; cursor: pointer; transition: color 0.15s ease, background 0.15s ease; }
 .fav-btn:hover { color: #fabd2f; background: rgba(255, 255, 255, 0.05); }
@@ -488,12 +375,12 @@
    voice has no accent/whisper chip) with a reserved min-height so every card
    shares the same vertical rhythm and the action rows line up across the grid
    instead of floating at ragged heights. */
-.archetype-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; min-height: 21px; }
+/* .archetype-chips → Tailwind utilities in ArchetypeCard.jsx. */
 .facet-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 7px; background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); font-size: 0.64rem; line-height: 1.6; }
 .facet-chip.with-flag { padding-left: 5px; }
 
 /* Footer actions */
-.arch-foot { display: flex; align-items: center; gap: 6px; margin-top: auto; }
+/* .arch-foot → Tailwind utilities in ArchetypeCard.jsx. */
 .preview-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border: 1px solid rgba(255, 255, 255, 0.09); background: rgba(255, 255, 255, 0.03); color: var(--text-primary); border-radius: 8px; font-size: 0.7rem; cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease; }
 .preview-btn:hover { border-color: var(--card-accent, var(--accent)); color: var(--card-accent, var(--accent)); }
 /* Primary action — tonal by default (a low-alpha wash of the card accent with
@@ -534,9 +421,7 @@
 /* Category chips: lucide icon + label */
 .use-case-chips .category-chip svg { flex-shrink: 0; }
 
-.load-more { display: flex; justify-content: center; padding: 12px 0; }
-.import-explainer { flex-shrink: 0; padding: 8px 10px; margin-bottom: 8px; background: var(--color-bg-elev-2); border-radius: 8px; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.4; }
-.community-explainer { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.submit-actions { display: flex; gap: 6px; flex-shrink: 0; }
+/* .load-more / .import-explainer / .community-explainer / .submit-actions
+   → Tailwind utilities in ArchetypesZone.jsx, CommunityZone.jsx + ImportsZone.jsx. */
 .submit-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.03); color: var(--text-primary); border-radius: 8px; font-size: 0.7rem; cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease; }
 .submit-btn:hover { border-color: var(--accent); color: var(--accent); }

@@ -215,15 +215,15 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
 
   return (
     <div className="gallery-content">
-      <div className="import-explainer">
+      <div className="shrink-0 px-[10px] py-[8px] mb-[8px] bg-bg-elev-2 rounded-[8px] text-[0.72rem] text-[var(--text-secondary)] leading-[1.4]">
         {t('gallery.import_explainer', {
           defaultValue:
             'Paste a URL you have the rights to (or upload a file), trim the part you need, and save it as a voice. You are responsible for the licensing of anything you import.',
         })}
       </div>
 
-      <div className="gallery-search">
-        <div className="search-row">
+      <div className="shrink-0 flex flex-col gap-[10px]">
+        <div className="search-row flex gap-[6px]">
           <Input
             placeholder={t('gallery.import_placeholder', {
               defaultValue: 'Paste a video/audio URL, or type to search…',
@@ -280,8 +280,8 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
       </div>
 
       {results.length > 0 && (
-        <div className="search-results-panel">
-          <div className="panel-header">
+        <div className="shrink-0 bg-bg-elev-2 rounded-[8px] max-h-[180px] overflow-hidden flex flex-col">
+          <div className="flex justify-between items-center px-[10px] py-[8px] bg-bg-elev-1 text-[0.75rem] font-medium shrink-0">
             <span>
               {t('gallery.search_results', {
                 defaultValue: '{{count}} results',
@@ -292,12 +292,14 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
               <X size={14} />
             </button>
           </div>
-          <div className="results-list">
+          <div className="overflow-y-auto flex-1">
             {results.map((r, i) => (
               <div key={i} className="result-row">
-                <div className="result-info">
-                  <span className="result-title">{r.title}</span>
-                  <span className="result-meta">{r.duration || '?'}s</span>
+                <div className="flex-1 min-w-0 flex flex-col gap-[2px]">
+                  <span className="text-[0.75rem] truncate">{r.title}</span>
+                  <span className="text-[0.65rem] text-[var(--text-secondary)]">
+                    {r.duration || '?'}s
+                  </span>
                 </div>
                 <Button size="sm" onClick={() => handleDownload(r)} disabled={isDownloading}>
                   <Download size={12} /> {t('gallery.import', { defaultValue: 'Import' })}
@@ -308,10 +310,12 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
         </div>
       )}
 
-      <div className="content-header">
-        <div className="content-title">
+      <div className="flex justify-between items-center pb-[8px] shrink-0">
+        <div className="text-[0.85rem] font-medium">
           {t('gallery.my_imports', { defaultValue: 'My Imports' })}
-          <span className="count-badge">{voices.length}</span>
+          <span className="ml-[6px] px-[7px] py-[1px] rounded-[10px] bg-bg-elev-2 text-[var(--text-secondary)] text-[0.65rem] font-normal">
+            {voices.length}
+          </span>
         </div>
       </div>
 
@@ -326,7 +330,7 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
           })}
         </div>
       ) : (
-        <div className="voice-list">
+        <div className="flex flex-col gap-[4px] overflow-y-auto flex-1 pr-[4px]">
           {voices.map((v) => (
             <div key={v.id} className="voice-card">
               <button className="voice-play" onClick={() => onPlayGallery(v)}>
@@ -338,11 +342,13 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
                   <Play size={16} />
                 )}
               </button>
-              <div className="voice-info">
-                <span className="voice-name">{v.name}</span>
-                <span className="voice-meta">{Math.round(v.duration || 0)}s</span>
+              <div className="flex-1 min-w-0 flex flex-col gap-[1px]">
+                <span className="text-[0.8rem] font-medium truncate">{v.name}</span>
+                <span className="flex items-center gap-[3px] text-[0.65rem] text-[var(--text-secondary)]">
+                  {Math.round(v.duration || 0)}s
+                </span>
               </div>
-              <div className="voice-actions">
+              <div className="flex gap-[3px]">
                 <button
                   className="action-btn"
                   onClick={() => handleTrimClick(v)}

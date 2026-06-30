@@ -35,9 +35,12 @@ export default function ScriptPanel({
           <DemoPresetGrid presets={demoPresets} onUse={applyDemoPreset} />
         )}
         {showDemoCoachmark && defineMethod === 'audio' && selectedProfile === DEMO_PROFILE_ID && (
-          <div className="clone-coachmark" role="note">
-            <span className="clone-coachmark__icon">💡</span>
-            <span className="clone-coachmark__msg">{t('demo.clone_coachmark')}</span>
+          <div
+            className="flex items-center gap-[8px] px-[10px] py-[6px] mb-[8px] rounded-[8px] bg-[rgba(243,165,182,0.08)] [border:1px_solid_rgba(243,165,182,0.25)] text-[11px] text-fg"
+            role="note"
+          >
+            <span className="text-[14px] leading-none">💡</span>
+            <span className="flex-1">{t('demo.clone_coachmark')}</span>
             <button
               type="button"
               className="clone-coachmark__close"
@@ -48,7 +51,7 @@ export default function ScriptPanel({
             </button>
           </div>
         )}
-        <div className="clone-script-wrap">
+        <div className="relative flex-1 flex flex-col min-h-0">
           <textarea
             ref={textAreaRef}
             className="input-base clone-text-area"
@@ -77,7 +80,7 @@ export default function ScriptPanel({
             <ChevronDown size={10} />
           </button>
           {insertOpen && (
-            <div className="clone-insert-backdrop" onClick={() => setInsertOpen(false)} />
+            <div className="fixed inset-0 z-[19]" onClick={() => setInsertOpen(false)} />
           )}
           {insertOpen && (
             <div className="clone-insert-pop" role="menu">

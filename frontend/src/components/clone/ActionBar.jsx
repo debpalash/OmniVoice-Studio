@@ -152,8 +152,8 @@ export default function ActionBar({
                 placeholder={t('clone.auto')}
               />
             </div>
-            <div className="clone-prod-col">
-              <label className="clone-prod-check">
+            <div className="flex flex-col gap-[6px]">
+              <label className="text-[0.75rem] flex items-center gap-[6px] cursor-pointer">
                 <input
                   type="checkbox"
                   checked={denoise}
@@ -161,7 +161,7 @@ export default function ActionBar({
                 />{' '}
                 {t('clone.denoise')}
               </label>
-              <label className="clone-prod-check">
+              <label className="text-[0.75rem] flex items-center gap-[6px] cursor-pointer">
                 <input
                   type="checkbox"
                   checked={postprocess}
@@ -219,7 +219,9 @@ export default function ActionBar({
           >
             {demoAudioPlaying ? t('demo.stop_demo') : t('demo.hear_demo')}
           </Button>
-          <div className="clone-hear-demo-chip">{t('demo.prerendered_chip')}</div>
+          <div className="mt-[6px] px-[8px] py-[4px] text-[10px] text-center text-fg-muted bg-white/[0.03] rounded-md [border:1px_dashed_rgba(255,255,255,0.08)]">
+            {t('demo.prerendered_chip')}
+          </div>
           <audio
             ref={demoAudioRef}
             onEnded={() => {

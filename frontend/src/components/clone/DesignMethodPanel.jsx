@@ -38,7 +38,7 @@ export default function DesignMethodPanel({
     <div>
       {/* ── Describe your voice (#317) — free text drives the controls.
                 The placeholder explains itself; no extra header (10x §1.2). ── */}
-      <div className="describe-voice-block">
+      <div className="mb-[8px]">
         <textarea
           className="input-base describe-voice-area"
           rows={2}
@@ -47,24 +47,26 @@ export default function DesignMethodPanel({
           onChange={onDescribeChange}
         />
         {describeText.trim() && !describeMatchedAny && (
-          <div className="describe-voice-feedback" role="status">
+          <div className="text-[0.65rem] text-[#d79921] mb-[2px]" role="status">
             {t('clone.describe_no_match')}
           </div>
         )}
         {describeMatchedAny && describeUnmatched.length > 0 && (
-          <div className="describe-voice-feedback" role="status">
+          <div className="text-[0.65rem] text-[#d79921] mb-[2px]" role="status">
             {t('clone.describe_unmatched', { items: describeUnmatched.join(', ') })}
           </div>
         )}
-        <div className="describe-voice-hint">{t('clone.describe_hint')}</div>
+        <div className="text-[0.62rem] text-[var(--chrome-fg-muted)]">
+          {t('clone.describe_hint')}
+        </div>
       </div>
 
       {/* ONE preset system (10x §1.3): personalities + the old PROMPT
                 presets share a single scrollable "Starting points" lane —
                 both set vdStates + instruct; two widgets for one slot was
                 the confusion. */}
-      <div className="starting-points">
-        <div className="starting-points__label">
+      <div className="mt-[8px] mr-0 mb-[12px] ml-0">
+        <div className="font-[var(--chrome-font-mono)] text-[0.62rem] uppercase tracking-[0.06em] text-[var(--chrome-fg-muted)] mb-[6px]">
           {t('clone.starting_points', { defaultValue: 'Starting points' })}
         </div>
         <div className="personality-strip starting-points__strip">
@@ -112,14 +114,16 @@ export default function DesignMethodPanel({
         onClick={() => setIdentityOpen((o) => !o)}
         aria-expanded={identityOpen}
       >
-        <span className="identity-line__kicker">
+        <span className="font-[var(--chrome-font-mono)] text-[0.62rem] uppercase tracking-[0.06em] text-[var(--chrome-fg-muted)] flex-none">
           {t('clone.identity', { defaultValue: 'Identity' })}
         </span>
-        <span className="identity-line__recipe">{identityRecipe}</span>
+        <span className="flex-1 min-w-0 text-[0.74rem] text-[var(--chrome-fg)] truncate">
+          {identityRecipe}
+        </span>
         {identityOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
       </button>
       {identityOpen && (
-        <div className="clone-sliders-col">
+        <div className="grid grid-cols-[1fr_1fr] gap-x-[12px] gap-y-[8px]">
           {Object.entries(CATEGORIES).map(([key, options]) => {
             const many = options.length > 6;
             const optLabel = (val) => {
@@ -134,7 +138,7 @@ export default function DesignMethodPanel({
               >
                 <div className="label-row label-row--sm">
                   {t(`clone.cat_${key}`)}
-                  <span className="clone-slider-kicker">
+                  <span className="ml-[6px] text-[0.58rem] text-[var(--chrome-fg-muted)] font-medium">
                     {vdStates[key] === 'Auto'
                       ? t('clone.auto_kicker')
                       : `· ${optLabel(vdStates[key])}`}
@@ -195,7 +199,7 @@ export default function DesignMethodPanel({
       {/* Save the current design as a reusable profile (0005): the
                 backend renders a deterministic identity sample (seed 42)
                 and stores the slider picks for later re-editing. */}
-      <div className="clone-save-profile">
+      <div className="mt-[var(--space-4)]">
         {!showSaveProfile ? (
           <Button
             variant="subtle"
@@ -206,7 +210,7 @@ export default function DesignMethodPanel({
             {t('clone.save_design_as_profile', { defaultValue: 'Save design as profile' })}
           </Button>
         ) : (
-          <div className="clone-save-profile__row">
+          <div className="clone-save-profile__row flex gap-[var(--space-3)] items-center">
             <Input
               size="sm"
               placeholder={t('clone.profile_name')}

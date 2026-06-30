@@ -34,7 +34,7 @@ export default function AudioMethodPanel({
       {/* Saved voices now live in the right-side WorkspaceVoices panel. */}
 
       {!selectedProfile && (
-        <div className="clone-drop-row">
+        <div className="flex gap-[8px] items-stretch">
           <input
             type="file"
             accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg"
@@ -69,11 +69,7 @@ export default function AudioMethodPanel({
           >
             <UploadCloud color="#a89984" size={18} />
             <p>
-              {refAudio ? (
-                <span className="clone-drop-filename">{refAudio.name}</span>
-              ) : (
-                t('clone.drop_audio')
-              )}
+              {refAudio ? <span className="text-fg">{refAudio.name}</span> : t('clone.drop_audio')}
             </p>
           </label>
 
@@ -88,8 +84,8 @@ export default function AudioMethodPanel({
       )}
 
       {selectedProfile && (
-        <div className="clone-profile-banner">
-          <span className="clone-profile-banner__label">
+        <div className="p-[var(--space-4)] bg-[rgba(142,192,124,0.08)] [border:1px_solid_rgba(142,192,124,0.2)] rounded-lg text-[var(--text-md)] mb-[var(--space-4)] flex items-center gap-[var(--space-4)]">
+          <span className="text-success flex-1">
             {t('clone.using_profile', {
               name: profiles.find((p) => p.id === selectedProfile)?.name,
             })}
@@ -105,7 +101,7 @@ export default function AudioMethodPanel({
         </div>
       )}
 
-      <div className="grid-2 grid-2--indent">
+      <div className="grid-2 mt-[6px]">
         <div>
           <div className="label-row">{t('clone.transcript')}</div>
           <input
@@ -131,9 +127,9 @@ export default function AudioMethodPanel({
       {/* #526: voice-design seed — show + pin + re-roll so tweaks can
                 stay on the same base timbre. Design mode only. */}
       {defineMethod === 'design' && (
-        <div className="design-seed">
+        <div className="mt-[var(--space-3)]">
           <div className="label-row">{t('clone.seed_label')}</div>
-          <div className="design-seed__row">
+          <div className="flex gap-[var(--space-3)] items-center">
             <input
               type="number"
               className="input-base design-seed__input"
@@ -164,7 +160,7 @@ export default function AudioMethodPanel({
             >
               {t('clone.seed_reroll')}
             </Button>
-            <label className="design-seed__keep">
+            <label className="inline-flex items-center gap-[6px] text-[0.85em] text-fg-muted cursor-pointer select-none whitespace-nowrap">
               <input
                 type="checkbox"
                 checked={keepSeed}
@@ -178,7 +174,7 @@ export default function AudioMethodPanel({
 
       {/* Save as profile */}
       {refAudio && !selectedProfile && (
-        <div className="clone-save-profile">
+        <div className="mt-[var(--space-4)]">
           {!showSaveProfile ? (
             <Button
               variant="subtle"
@@ -189,7 +185,7 @@ export default function AudioMethodPanel({
               {t('clone.save_as_profile')}
             </Button>
           ) : (
-            <div className="clone-save-profile__row">
+            <div className="clone-save-profile__row flex gap-[var(--space-3)] items-center">
               <Input
                 size="sm"
                 placeholder={t('clone.profile_name')}

@@ -14,25 +14,8 @@
 }
 .clone-profile-delete:hover { opacity: 1; }
 
-.clone-profile-banner {
-  padding: var(--space-4);
-  background: rgba(142, 192, 124, 0.08);
-  border: 1px solid rgba(142, 192, 124, 0.2);
-  border-radius: var(--radius-lg);
-  font-size: var(--text-md);
-  margin-bottom: var(--space-4);
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-.clone-profile-banner__label { color: var(--color-success); flex: 1; }
-
-.clone-save-profile      { margin-top: var(--space-4); }
-.clone-save-profile__row {
-  display: flex;
-  gap: var(--space-3);
-  align-items: center;
-}
+/* .clone-profile-banner(+__label), .clone-save-profile(+__row base) → Tailwind utilities
+   in AudioMethodPanel.jsx + DesignMethodPanel.jsx. */
 .clone-save-profile__row > :first-child { flex: 1; }
 
 /* ── Record / Cleaning / Recording mic button ────────────────── */
@@ -75,13 +58,7 @@
 
 /* ── Page layout ─────────────────────────────────────────────── */
 /* 10x console: scrollable definition content + a pinned action bar. */
-.studio-def-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  min-width: 0;
-}
+/* .studio-def-col → Tailwind utilities in CloneDesignTab.jsx. */
 
 .studio-action-bar {
   flex: 0 0 auto;
@@ -132,7 +109,7 @@
 .studio-action-bar__overrides:hover { color: var(--chrome-fg); border-color: var(--chrome-border-strong); }
 
 /* ── Script editor: ⊕ Insert token popover ───────────────────── */
-.clone-script-wrap { position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+/* .clone-script-wrap → Tailwind utilities in ScriptPanel.jsx. */
 .clone-insert-btn {
   position: absolute;
   right: 8px;
@@ -153,7 +130,7 @@
   transition: color var(--dur-fast), border-color var(--dur-fast);
 }
 .clone-insert-btn:hover, .clone-insert-btn.is-open { color: var(--chrome-fg); border-color: var(--chrome-border-strong); }
-.clone-insert-backdrop { position: fixed; inset: 0; z-index: 19; }
+/* .clone-insert-backdrop → Tailwind utilities in ScriptPanel.jsx. */
 .clone-insert-pop {
   position: absolute;
   right: 8px;
@@ -199,36 +176,12 @@
   transition: border-color var(--dur-fast);
 }
 .identity-line:hover { border-color: var(--chrome-border-strong); }
-.identity-line__kicker {
-  font-family: var(--chrome-font-mono, var(--font-mono));
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  /* 10x P4 contrast: readable kicker — dim (3.91:1 default theme) → muted. */
-  color: var(--chrome-fg-muted, #a89984);
-  flex: 0 0 auto;
-}
-.identity-line__recipe {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.74rem;
-  color: var(--chrome-fg);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+/* .identity-line__kicker / .identity-line__recipe → Tailwind utilities in DesignMethodPanel.jsx
+   (the .identity-line button base stays in CSS — it has an index.css :focus-visible rule). */
 
 /* ── Starting points: ONE preset lane, edge-faded scroll ─────── */
-.starting-points { margin: 8px 0 12px; }
-.starting-points__label {
-  font-family: var(--chrome-font-mono, var(--font-mono));
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  /* 10x P4 contrast: readable kicker — dim (3.91:1 default theme) → muted. */
-  color: var(--chrome-fg-muted, #a89984);
-  margin-bottom: 6px;
-}
+/* .starting-points / .starting-points__label → Tailwind utilities in DesignMethodPanel.jsx
+   (the __strip scroll lane below stays in CSS — mask-image + scrollbar pseudo + descendant). */
 .starting-points__strip {
   flex-wrap: nowrap;
   overflow-x: auto;
@@ -300,46 +253,26 @@
 .clone-profile-card     { position: relative; }
 
 /* File-drop + record-button row */
-.clone-drop-row {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
-}
+/* .clone-drop-row → Tailwind utilities in AudioMethodPanel.jsx (.clone-drop-zone stays:
+   it overrides the unlayered .file-drag padding, which a utility can't beat). */
 .clone-drop-zone        { padding: 6px; flex: 1; }
-.clone-drop-filename    { color: var(--color-fg); }
+/* .clone-drop-filename / .grid-2--indent → Tailwind utilities in AudioMethodPanel.jsx. */
 
-/* Grid-2 margin */
-.grid-2--indent         { margin-top: 6px; }
-
-/* "Describe your voice" free-text block (issue #317) */
-.describe-voice-block {
-  margin-bottom: 12px;
-}
+/* "Describe your voice" free-text block (issue #317) — base block margin + hint + feedback
+   → Tailwind utilities in DesignMethodPanel.jsx (.describe-voice-area stays: it interacts
+   with the unlayered textarea.input-base reset). */
 .describe-voice-area {
   width: 100%;
   resize: vertical;
   min-height: 44px;
   margin-bottom: 4px;
 }
-.describe-voice-hint {
-  font-size: 0.62rem;
-  /* 10x P4 contrast: readable hint text — dim (3.91:1 default theme) → muted. */
-  color: var(--chrome-fg-muted);
-}
-.describe-voice-feedback {
-  font-size: 0.65rem;
-  color: #d79921;
-  margin-bottom: 2px;
-}
 
 /* Category controls — compact two-column budget: chip groups (Gender/Age/
    Pitch/Style) span the full width; the long dropdown facets (English accent,
    Chinese dialect) sit side-by-side on one row instead of stacking. */
-.clone-sliders-col {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px 12px;     /* 10x P4 8-pt audit: 7 → 8 */
-}
+/* .clone-sliders-col → Tailwind utilities in DesignMethodPanel.jsx (the conditional
+   .clone-cat--chips / .clone-cat--select variants + their media query stay in CSS). */
 .clone-cat--chips  { grid-column: 1 / -1; }
 .clone-cat--select { min-width: 0; }
 @media (max-width: 1100px) {
@@ -360,29 +293,11 @@
 }
 
 /* Tighter rhythm for the design stack. */
-.describe-voice-block { margin-bottom: 8px; }
+/* .describe-voice-block margin + .clone-slider-kicker → Tailwind utilities in DesignMethodPanel.jsx. */
 .personality-strip { row-gap: 4px; }
-.clone-slider-kicker {
-  margin-left: 6px;
-  font-size: 0.58rem;
-  /* 10x P4 contrast: shows the selected value — readable label, dim → muted. */
-  color: var(--chrome-fg-muted);
-  font-weight: 500;
-}
 
 /* Production-overrides column */
-.clone-prod-col {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.clone-prod-check {
-  font-size: 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
+/* .clone-prod-col / .clone-prod-check → Tailwind utilities in ActionBar.jsx. */
 .clone-icon-inline { vertical-align: middle; margin-right: 4px; }
 
 /* Footer buttons */
@@ -390,20 +305,8 @@
 
 /* Demo coach-mark — shown once above the textarea on first visit to the
    bundled demo profile. Auto-dismisses when the user types. */
-.clone-coachmark {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  margin-bottom: 8px;
-  border-radius: 8px;
-  background: rgba(243, 165, 182, 0.08);
-  border: 1px solid rgba(243, 165, 182, 0.25);
-  font-size: 11px;
-  color: var(--color-fg, currentColor);
-}
-.clone-coachmark__icon { font-size: 14px; line-height: 1; }
-.clone-coachmark__msg  { flex: 1; }
+/* .clone-coachmark(+__icon,+__msg) → Tailwind utilities in ScriptPanel.jsx
+   (the __close button + its :hover stay in CSS). */
 .clone-coachmark__close {
   border: 0;
   background: transparent;
@@ -422,37 +325,13 @@
 /* "Hear demo" chip — shown under the play button when no TTS engine is
    ready and the user is on the demo profile. Tells them they're hearing a
    pre-rendered sample, not a live synthesis. */
-.clone-hear-demo-chip {
-  margin-top: 6px;
-  padding: 4px 8px;
-  font-size: 10px;
-  text-align: center;
-  color: var(--color-fg-muted, #928374);
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 4px;
-  border: 1px dashed rgba(255, 255, 255, 0.08);
-}
+/* .clone-hear-demo-chip → Tailwind utilities in ActionBar.jsx. */
 
-/* #526: voice-design seed control — show + pin + re-roll. */
-.design-seed {
-  margin-top: var(--space-3, 12px);
-}
-.design-seed__row {
-  display: flex;
-  gap: var(--space-3, 12px);
-  align-items: center;
-}
+/* #526: voice-design seed control — show + pin + re-roll.
+   .design-seed / .design-seed__row / .design-seed__keep → Tailwind utilities in
+   AudioMethodPanel.jsx (.design-seed__input stays: it overrides the unlayered
+   .input-base width, which a utility can't beat). */
 .design-seed__input {
   width: 9rem;
   flex: 0 0 auto;
-}
-.design-seed__keep {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.85em;
-  color: var(--color-fg-muted, #928374);
-  cursor: pointer;
-  user-select: none;
-  white-space: nowrap;
 }

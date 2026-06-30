@@ -37,11 +37,17 @@ export default function ArchetypeCard({
       className={`archetype-card ${viewMode} ${isPlaying ? 'playing' : ''}`}
       style={{ '--card-accent': color }}
     >
-      <div className="arch-head">
+      <div className="flex items-center gap-[10px]">
         <ArchetypeAvatar item={a} />
-        <div className="arch-title">
-          <div className="archetype-name">{a.name}</div>
-          {sub && <div className="archetype-sub">{sub}</div>}
+        <div className="flex-1 min-w-0">
+          <div className="text-[0.84rem] font-semibold text-[var(--text-primary)] truncate">
+            {a.name}
+          </div>
+          {sub && (
+            <div className="text-[0.68rem] text-[var(--text-secondary)] mt-[2px] truncate">
+              {sub}
+            </div>
+          )}
         </div>
         <button
           className={`fav-btn ${isFavorite ? 'on' : ''}`}
@@ -54,7 +60,7 @@ export default function ArchetypeCard({
 
       {/* Always render the chip row (even when empty) so every card shares the
           same height and the action rows align across the grid. */}
-      <div className="archetype-chips">
+      <div className="flex flex-wrap items-center gap-[5px] min-h-[21px]">
         {accentLabel && (
           <span className="facet-chip with-flag">
             <AccentFlag accent={a.facets.accent} lang={a.language} size={14} />
@@ -68,7 +74,7 @@ export default function ArchetypeCard({
         )}
       </div>
 
-      <div className="arch-foot">
+      <div className="flex items-center gap-[6px] mt-auto">
         <button
           className="preview-btn"
           onClick={() => onPreview(a)}

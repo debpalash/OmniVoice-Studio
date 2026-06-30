@@ -206,9 +206,9 @@ export default function ArchetypesZone({
       </div>
 
       {showFeatured && (
-        <section className="archetype-section">
-          <div className="content-header">
-            <div className="content-title">
+        <section className="mb-[14px]">
+          <div className="flex justify-between items-center pb-[8px] shrink-0">
+            <div className="text-[0.85rem] font-medium">
               {t('archetypes.featured', { defaultValue: 'Featured' })}
             </div>
           </div>
@@ -220,11 +220,13 @@ export default function ArchetypesZone({
         </section>
       )}
 
-      <section className="archetype-section">
-        <div className="content-header">
-          <div className="content-title">
+      <section className="mb-[14px]">
+        <div className="flex justify-between items-center pb-[8px] shrink-0">
+          <div className="text-[0.85rem] font-medium">
             {t('archetypes.browse_all', { defaultValue: 'Browse all' })}
-            <span className="count-badge">{total}</span>
+            <span className="ml-[6px] px-[7px] py-[1px] rounded-[10px] bg-bg-elev-2 text-[var(--text-secondary)] text-[0.65rem] font-normal">
+              {total}
+            </span>
           </div>
         </div>
         {browseQ.isLoading ? (
@@ -244,7 +246,7 @@ export default function ArchetypesZone({
               </div>
             )}
             {offset + BROWSE_PAGE < total && !favOnly && (
-              <div className="load-more">
+              <div className="flex justify-center py-[12px]">
                 <Button
                   variant="ghost"
                   onClick={() => setOffset(offset + BROWSE_PAGE)}

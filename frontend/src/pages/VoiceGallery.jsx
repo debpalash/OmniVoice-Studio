@@ -147,12 +147,12 @@ export default function VoiceGallery() {
   };
 
   return (
-    <div className="voice-gallery">
-      <div className="gallery-header">
-        <div className="header-top">
+    <div className="flex flex-col gap-[12px] p-[12px] h-full overflow-hidden">
+      <div className="shrink-0">
+        <div className="flex justify-between items-center">
           <div className="header-text">
             <h2>{t('gallery.title', { defaultValue: 'OmniVoice Gallery' })}</h2>
-            <p className="gallery-sub">
+            <p className="mt-[2px] mr-0 mb-0 ml-0 text-[0.72rem] text-[var(--text-secondary)]">
               {t('gallery.subtitle', {
                 defaultValue: 'Hundreds of ready-made designed voices — pick one and go.',
               })}
