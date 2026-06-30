@@ -196,11 +196,11 @@ function DubSegmentRow({
         onClick={(e) => onSelect(seg.id, idx, e.shiftKey)}
         disabled={disabled}
         style={{ accentColor: '#d3869b' }}
-        className="seg-check"
+        className="cursor-pointer justify-self-center"
         title={t('segment.select_title')}
       />
-      <span className="segment-time seg-time">
-        <span className="seg-time-row">
+      <span className="segment-time flex flex-col min-w-0 overflow-hidden tabular-nums">
+        <span className="flex items-baseline gap-[2px] min-w-0">
           <input
             type="text"
             className="seg-time-input"
@@ -229,11 +229,13 @@ function DubSegmentRow({
               }
             }}
           />
-          <span className="seg-time-sep">–</span>
-          <span className="seg-time-end">{formatTime(seg.end)}</span>
+          <span className="text-[var(--chrome-fg-muted)]">–</span>
+          <span className="text-[var(--chrome-fg-muted)] text-[0.62rem]">
+            {formatTime(seg.end)}
+          </span>
           {seg.speed && seg.speed !== 1.0 && (
             <span
-              className="seg-speed-badge"
+              className="text-[0.52rem] ml-[1px]"
               style={{ color: seg.speed > 1 ? '#d3869b' : '#8ec07c' }}
             >
               {seg.speed.toFixed(2)}x
@@ -241,7 +243,11 @@ function DubSegmentRow({
           )}
         </span>
         {fitBadge && (
-          <span className="seg-sync-badge" style={{ color: fitBadge.color }} title={fitBadge.title}>
+          <span
+            className="text-[0.48rem] mt-[1px] inline-flex items-center gap-[1px]"
+            style={{ color: fitBadge.color }}
+            title={fitBadge.title}
+          >
             <fitBadge.Icon size={8} /> {fitBadge.label}
           </span>
         )}
@@ -249,7 +255,7 @@ function DubSegmentRow({
           // Wave 3.3: second-pass ASR heard something different from the
           // target text for this line — worth a re-listen / re-dub.
           <span
-            className="seg-sync-badge"
+            className="text-[0.48rem] mt-[1px] inline-flex items-center gap-[1px]"
             style={{ color: '#fb4934' }}
             title={t('segment.qc_verify_title', { heard: seg.qc_recognized || '' })}
           >
@@ -258,7 +264,7 @@ function DubSegmentRow({
         )}
         {seg.rate_ratio != null && Math.abs(seg.rate_ratio - 1.0) > 0.03 && (
           <span
-            className="seg-rate-badge"
+            className="text-[0.48rem] mt-[1px] tabular-nums"
             style={{
               color:
                 seg.rate_ratio > 1.15 ? '#fb4934' : seg.rate_ratio < 0.85 ? '#83a598' : '#a89984',
@@ -327,13 +333,18 @@ function DubSegmentRow({
           }
         />
         {seg.text_original && seg.text_original !== seg.text && (
-          <span className="seg-orig-row">
-            <span className="seg-orig-label">{t('segment.orig_label')}</span>
-            <span className="seg-orig-text" title={seg.text_original}>
+          <span className="text-[0.52rem] text-[#6b6657] flex items-center gap-[3px] px-[2px] overflow-hidden">
+            <span className="opacity-80 uppercase font-semibold text-[0.48rem] text-[#7c6f64]">
+              {t('segment.orig_label')}
+            </span>
+            <span
+              className="flex-1 whitespace-nowrap overflow-hidden text-ellipsis"
+              title={seg.text_original}
+            >
               {seg.text_original}
             </span>
             {overBudget && (
-              <span className="seg-budget-warn">
+              <span className="text-[#fabd2f] text-[0.48rem]">
                 {Math.round((seg.text.length / seg.text_original.length) * 100)}%
               </span>
             )}
@@ -341,7 +352,7 @@ function DubSegmentRow({
               onClick={() => onRestore(seg.id)}
               disabled={disabled}
               title={t('segment.restore_title')}
-              className="seg-restore-btn"
+              className="bg-transparent border-none text-[#83a598] cursor-pointer p-0 text-[0.52rem]"
             >
               ↺
             </button>

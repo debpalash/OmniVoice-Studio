@@ -1,4 +1,10 @@
-/* ═══ DubSegmentRow extracted layout styles ═══ */
+/* ═══ DubSegmentRow extracted layout styles ═══
+   Per-cell badge/label/time-span layout now lives in Tailwind utilities on
+   DubSegmentRow.jsx. Kept here: the row + its generation/selection/playhead
+   state classes (shared with DubSegmentTable.css + index.css, !important,
+   compound selectors), the text inputs (font:inherit + focus rings), and the
+   select/range/actions cells whose `input-base` / `input[type=range]` siblings
+   are unlayered and would otherwise beat utilities in the cascade. */
 
 /* Row transition — smooth bg/border changes during generation */
 .segment-row {
@@ -30,22 +36,8 @@
   box-shadow: inset 2px 0 0 var(--chrome-accent);
 }
 
-/* Per-cell widths are inherited from the shared grid template defined
-   in DubSegmentTable.css (--seg-grid-cols). Cells here only control
-   intra-cell layout: stacking, font, overflow. */
-.seg-check {
-  cursor: pointer;
-  justify-self: center;
-}
-.seg-time {
-  min-width: 0; overflow: hidden;
-  display: flex; flex-direction: column;
-  font-variant-numeric: tabular-nums;
-}
-.seg-time-row {
-  display: flex; align-items: baseline; gap: 2px;
-  min-width: 0;
-}
+/* Time + speaker inputs: `font: inherit` and the focus ring don't map to
+   utilities cleanly, so they stay here. */
 .seg-time-input {
   background: transparent;
   border: none;
@@ -61,22 +53,6 @@
   outline: 1px solid var(--chrome-accent);
   outline-offset: 1px;
   background: var(--chrome-hover-bg);
-}
-.seg-time-sep { color: var(--chrome-fg-muted); }
-.seg-time-end {
-  color: var(--chrome-fg-muted);
-  font-size: 0.62rem;
-}
-.seg-sync-badge {
-  font-size: 0.48rem; margin-top: 1px;
-  display: inline-flex; align-items: center; gap: 1px;
-}
-.seg-rate-badge {
-  font-size: 0.48rem; margin-top: 1px;
-  font-variant-numeric: tabular-nums;
-}
-.seg-speed-badge {
-  font-size: 0.52rem; margin-left: 1px;
 }
 .seg-speaker-input {
   width: 100%;
@@ -96,6 +72,8 @@
   background: var(--chrome-hover-bg);
   color: var(--chrome-fg);
 }
+/* Descendant override of the shared (unlayered) .segment-input — must stay
+   unlayered to win over index.css. */
 .seg-text-col {
   display: flex; flex-direction: column; gap: 1px;
   min-width: 0; overflow: hidden;
@@ -103,23 +81,8 @@
 .seg-text-col .segment-input {
   width: 100%; min-width: 0;
 }
-.seg-orig-row {
-  font-size: 0.52rem; color: #6b6657;
-  display: flex; align-items: center; gap: 3px;
-  padding: 0 2px; overflow: hidden;
-}
-.seg-orig-label {
-  opacity: 0.8; text-transform: uppercase; font-weight: 600;
-  font-size: 0.48rem; color: #7c6f64;
-}
-.seg-orig-text {
-  flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.seg-budget-warn { color: #fabd2f; font-size: 0.48rem; }
-.seg-restore-btn {
-  background: none; border: none; color: #83a598;
-  cursor: pointer; padding: 0; font-size: 0.52rem;
-}
+/* Selects carry `input-base` (unlayered) — these size/padding overrides must
+   stay unlayered too, else input-base would win over a utilities-layer class. */
 .seg-lang-select {
   width: 100%; min-width: 0; font-size: 0.6rem; padding: 1px 2px;
 }
@@ -127,6 +90,7 @@
   width: 100%; min-width: 0; font-size: 0.6rem; padding: 1px 4px;
   overflow: hidden; text-overflow: ellipsis;
 }
+/* Range slider — overrides the unlayered input[type=range] base. */
 .seg-gain-slider {
   width: 100%; min-width: 0; padding: 0; margin: 0;
   height: 3px;

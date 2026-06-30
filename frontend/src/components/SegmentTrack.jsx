@@ -468,20 +468,23 @@ export default function SegmentTrack({
   const windowed = effSegments.slice(lo, hi);
 
   return (
-    <div className={`seg-track ${disabled ? 'is-disabled' : ''}`} ref={hostRef}>
+    <div
+      className={`seg-track relative w-full select-none mt-[2px] ${disabled ? 'is-disabled' : ''}`}
+      ref={hostRef}
+    >
       <canvas
         ref={canvasRef}
-        className="seg-track__onsets"
+        className="block w-full pointer-events-none"
         style={{ height: ONSET_STRIP_H }}
         aria-hidden="true"
       />
       <div
         ref={viewportRef}
-        className={`seg-track__viewport ${selfScroll ? 'seg-track__viewport--scroll' : ''}`}
+        className={`relative w-full h-[40px] overflow-hidden ${selfScroll ? 'seg-track__viewport--scroll' : ''}`}
         onScroll={selfScroll ? (e) => setInnerScroll(e.currentTarget.scrollLeft) : undefined}
       >
         <div
-          className="seg-track__lane"
+          className="relative h-full"
           role="listbox"
           aria-label={t('timeline.track_label')}
           aria-orientation="horizontal"
@@ -541,16 +544,19 @@ export default function SegmentTrack({
                 onBlur={onBoxBlur}
               >
                 {!disabled && (
-                  <span className="seg-track__handle seg-track__handle--l" data-handle="start" />
+                  <span
+                    className="seg-track__handle--l absolute top-0 bottom-0 w-[6px] cursor-ew-resize z-[2]"
+                    data-handle="start"
+                  />
                 )}
-                <span className="seg-track__label">
+                <span className="flex-1 min-w-0 px-[8px] text-[9px] leading-[1.2] text-[#ebdbb2] whitespace-nowrap overflow-hidden text-ellipsis pointer-events-none">
                   {s.text?.length > 32 ? `${s.text.slice(0, 30)}…` : s.text || ''}
                 </span>
                 {isSel && !disabled && width > 64 && (
-                  <span className="seg-track__actions">
+                  <span className="inline-flex gap-[2px] mr-[8px] z-[3]">
                     <button
                       type="button"
-                      className="seg-track__action-btn"
+                      className="inline-flex items-center justify-center w-[16px] h-[16px] p-0 border border-[rgba(168,153,132,0.4)] rounded-sm bg-[rgba(40,40,40,0.85)] text-[#ebdbb2] cursor-pointer hover:border-[#d3869b] hover:text-[#d3869b]"
                       aria-label={t('timeline.play_slot')}
                       title={t('timeline.play_slot')}
                       onPointerDown={(ev) => ev.stopPropagation()}
@@ -564,7 +570,7 @@ export default function SegmentTrack({
                     {onPreviewSegment && (
                       <button
                         type="button"
-                        className="seg-track__action-btn"
+                        className="inline-flex items-center justify-center w-[16px] h-[16px] p-0 border border-[rgba(168,153,132,0.4)] rounded-sm bg-[rgba(40,40,40,0.85)] text-[#ebdbb2] cursor-pointer hover:border-[#d3869b] hover:text-[#d3869b]"
                         aria-label={t('timeline.preview_dub')}
                         title={t('timeline.preview_dub')}
                         onPointerDown={(ev) => ev.stopPropagation()}
@@ -579,14 +585,21 @@ export default function SegmentTrack({
                   </span>
                 )}
                 {!disabled && (
-                  <span className="seg-track__handle seg-track__handle--r" data-handle="end" />
+                  <span
+                    className="seg-track__handle--r absolute top-0 bottom-0 w-[6px] cursor-ew-resize z-[2]"
+                    data-handle="end"
+                  />
                 )}
               </div>
             );
           })}
         </div>
         {playheadX >= 0 && playheadX <= viewWidth && (
-          <div className="seg-track__playhead" style={{ left: playheadX }} aria-hidden="true" />
+          <div
+            className="absolute top-0 bottom-0 w-px bg-[#d3869b] opacity-80 pointer-events-none"
+            style={{ left: playheadX }}
+            aria-hidden="true"
+          />
         )}
       </div>
       <div className="seg-track__sr-announce" aria-live="polite" role="status">

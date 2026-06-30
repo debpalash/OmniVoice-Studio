@@ -100,12 +100,12 @@ export default function DubbingDemo({ onDismiss }) {
 
   return (
     <div className="dubbing-demo">
-      <header className="dubbing-demo__head">
-        <div className="dubbing-demo__title">
+      <header className="flex items-center justify-between gap-[12px]">
+        <div className="inline-flex items-center gap-[6px] text-[12px] font-bold text-fg">
           <Film size={13} /> {t('demo.dubbing_title')}
         </div>
-        <div className="dubbing-demo__head-actions">
-          <label className="dubbing-demo__sync">
+        <div className="inline-flex items-center gap-[8px]">
+          <label className="dubbing-demo__sync inline-flex items-center gap-[5px] text-[11px] text-fg-muted cursor-pointer select-none">
             <input
               type="checkbox"
               checked={syncPlay}
@@ -116,7 +116,7 @@ export default function DubbingDemo({ onDismiss }) {
           {onDismiss && (
             <button
               type="button"
-              className="dubbing-demo__dismiss"
+              className="border-0 bg-transparent text-fg-muted cursor-pointer px-[4px] py-[2px] rounded-md inline-flex hover:bg-[rgba(255,255,255,0.05)] hover:text-fg"
               onClick={onDismiss}
               aria-label={t('demo.dubbing_dismiss')}
             >
@@ -126,9 +126,9 @@ export default function DubbingDemo({ onDismiss }) {
         </div>
       </header>
 
-      <div className="dubbing-demo__players">
-        <div className="dubbing-demo__pane">
-          <div className="dubbing-demo__pane-label">
+      <div className="dubbing-demo__players grid grid-cols-2 gap-[12px]">
+        <div className="dubbing-demo__pane flex flex-col gap-[6px]">
+          <div className="dubbing-demo__pane-label text-[11px] font-semibold text-fg">
             {source.label} <span>· {t('demo.original_tag')}</span>
           </div>
           <video
@@ -138,10 +138,12 @@ export default function DubbingDemo({ onDismiss }) {
             playsInline
             preload="metadata"
           />
-          <p className="dubbing-demo__caption">{source.script}</p>
+          <p className="m-0 text-[10.5px] leading-[1.4] text-fg-muted px-[6px] py-[4px] bg-bg-elev-3 rounded-md">
+            {source.script}
+          </p>
         </div>
-        <div className="dubbing-demo__pane">
-          <div className="dubbing-demo__pane-label">
+        <div className="dubbing-demo__pane flex flex-col gap-[6px]">
+          <div className="dubbing-demo__pane-label text-[11px] font-semibold text-fg">
             {dubbed.label} <span>· {t('demo.dubbed_tag')}</span>
           </div>
           <video
@@ -152,19 +154,24 @@ export default function DubbingDemo({ onDismiss }) {
             preload="metadata"
             dir={dubbed.dir}
           />
-          <p className="dubbing-demo__caption" dir={dubbed.dir}>
+          <p
+            className="m-0 text-[10.5px] leading-[1.4] text-fg-muted px-[6px] py-[4px] bg-bg-elev-3 rounded-md"
+            dir={dubbed.dir}
+          >
             {dubbed.script}
           </p>
         </div>
       </div>
 
-      <div className="dubbing-demo__picker">
-        <span className="dubbing-demo__picker-label">{t('demo.dubbing_picker')}</span>
+      <div className="flex flex-wrap items-center gap-[6px] pt-[4px]">
+        <span className="text-[10px] text-fg-muted uppercase tracking-[0.05em] mr-[4px]">
+          {t('demo.dubbing_picker')}
+        </span>
         {manifest.dubbed.map((d) => (
           <button
             key={d.code}
             type="button"
-            className={`dubbing-demo__chip ${pickedCode === d.code ? 'is-active' : ''}`}
+            className={`dubbing-demo__chip text-[11px] px-[10px] py-[3px] rounded-[999px] border border-border bg-transparent text-fg-muted cursor-pointer [transition:background_100ms_ease,border-color_100ms_ease,color_100ms_ease] hover:bg-[rgba(255,255,255,0.04)] hover:text-fg ${pickedCode === d.code ? 'is-active' : ''}`}
             onClick={() => setPickedCode(d.code)}
           >
             {d.label}
@@ -173,7 +180,11 @@ export default function DubbingDemo({ onDismiss }) {
       </div>
 
       {onDismiss && (
-        <button type="button" className="dubbing-demo__cta" onClick={onDismiss}>
+        <button
+          type="button"
+          className="self-end inline-flex items-center gap-[6px] px-[12px] py-[6px] text-[11px] font-semibold rounded-lg border border-[rgba(243,165,182,0.4)] bg-[rgba(243,165,182,0.12)] text-fg cursor-pointer hover:bg-[rgba(243,165,182,0.22)]"
+          onClick={onDismiss}
+        >
           <Play size={12} /> {t('demo.dubbing_cta')}
         </button>
       )}

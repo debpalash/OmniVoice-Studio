@@ -215,14 +215,14 @@ export default function DictationDemo({ embedded = false }) {
 
   return (
     <section className={`dictation-demo ${embedded ? 'dictation-demo--embedded' : ''}`}>
-      <header className="dictation-demo__head">
-        <h3 className="dictation-demo__title">
+      <header className="flex items-center justify-between gap-[12px] flex-wrap">
+        <h3 className="inline-flex items-center gap-[6px] m-0 text-[13px] font-bold text-fg">
           <Mic size={14} /> {t('demo.dictation_title')}
         </h3>
         {statusBadge}
       </header>
 
-      <p className="dictation-demo__lede">
+      <p className="m-0 text-[11px] leading-[1.45] text-fg-muted">
         {showScripts
           ? t('demo.dictation_lede')
           : t(
@@ -239,13 +239,22 @@ export default function DictationDemo({ embedded = false }) {
             const isPlaying = playingId === s.id;
             const tx = transcripts[s.id] || {};
             return (
-              <div key={s.id} className="dictation-demo__card">
-                <div className="dictation-demo__card-head">
-                  <span className="dictation-demo__lang">{s.language}</span>
-                  <span className="dictation-demo__card-label">{t(s.labelKey)}</span>
+              <div
+                key={s.id}
+                className="flex flex-col gap-[6px] px-[12px] py-[10px] rounded-[8px] border border-border bg-[rgba(0,0,0,0.15)]"
+              >
+                <div className="flex items-center gap-[8px] text-[10px] text-fg-muted">
+                  <span className="font-mono text-[9px] px-[5px] py-[1px] rounded-sm bg-[rgba(255,255,255,0.06)] uppercase tracking-[0.04em]">
+                    {s.language}
+                  </span>
+                  <span className="font-semibold text-[11px] text-fg normal-case">
+                    {t(s.labelKey)}
+                  </span>
                 </div>
-                <blockquote className="dictation-demo__script">{s.text}</blockquote>
-                <div className="dictation-demo__card-actions">
+                <blockquote className="m-0 px-[8px] py-[6px] text-[11.5px] leading-[1.45] border-l-2 border-l-[rgba(243,165,182,0.4)] bg-[rgba(255,255,255,0.02)] text-fg italic">
+                  {s.text}
+                </blockquote>
+                <div className="flex gap-[6px] mt-[2px]">
                   <Button
                     size="sm"
                     variant="subtle"
@@ -273,12 +282,12 @@ export default function DictationDemo({ embedded = false }) {
                   </Button>
                 </div>
                 {tx.state === 'ok' && (
-                  <div className="dictation-demo__result dictation-demo__result--ok">
+                  <div className="dictation-demo__result--ok flex items-start gap-[6px] text-[11px] px-[8px] py-[6px] rounded-lg leading-[1.4]">
                     <CheckCircle2 size={11} /> <em>{tx.text}</em>
                   </div>
                 )}
                 {tx.state === 'fail' && (
-                  <div className="dictation-demo__result dictation-demo__result--fail">
+                  <div className="dictation-demo__result--fail flex items-start gap-[6px] text-[11px] px-[8px] py-[6px] rounded-lg leading-[1.4]">
                     <AlertTriangle size={11} /> {tx.error}
                   </div>
                 )}
