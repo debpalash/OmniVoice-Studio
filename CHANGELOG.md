@@ -6,6 +6,37 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [Unreleased]
+
+### Changed
+
+- **Settings is now a sidebar-nav hub instead of an 11-tab strip.** The whole
+  page was rebuilt from scratch as a grouped left-rail navigator (with a
+  search/filter box) plus a scrollable content pane — the macOS System Settings /
+  VS Code layout. Settings are organized into four groups and sixteen
+  categories: **General** (Appearance · General), **Voice & Engines** (Engines ·
+  Models · Dictation · Pronunciation · Translation), **System** (Performance &
+  Device · Storage · Network · Sharing & Remote · Credentials), and **App**
+  (Updates · Privacy & Reporting · Logs · About). Every existing control keeps
+  its behavior and store/API bindings — this is a reorganization, not a rewrite.
+  Typing in the search box filters the category list and jumps to the first
+  match, and the rail collapses to a dropdown navigator below 760px so the full
+  IA stays reachable on a narrow window. Categories whose changes need a backend
+  restart (Models, Performance & Device, Sharing & Remote) carry a "restart
+  required" badge.
+
+### Added
+
+- **A dedicated Translation pane.** Translation quality (Fast / Cinematic), the
+  OpenAI-compatible LLM endpoint, and the DeepL / Microsoft / generic translator
+  API keys now live together in one place instead of being scattered across
+  General and Credentials.
+- **A dedicated Network pane.** The HTTP/SOCKS proxy and FFmpeg-path controls
+  (previously buried in General → Advanced) are promoted to their own category.
+- **Factory reset in Storage.** A confirm-dialog-guarded action that clears the
+  locally-saved UI preferences and reloads — without touching your voices,
+  projects, or generated audio on disk.
+
 ## [0.3.8] — 2026-06-29
 
 A stability-focused release that makes first-run and Windows "just work," ships
