@@ -1,12 +1,18 @@
 import React, { isValidElement } from 'react';
-import * as RadixMenu from '@radix-ui/react-dropdown-menu';
-import { ChevronRight } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import './Menu.css';
 
 /**
  * Menu — floating action menu triggered by a child element.
- * Backed by @radix-ui/react-dropdown-menu for keyboard navigation,
- * collision-aware positioning, and proper ARIA attributes.
+ * Backed by shadcn/ui DropdownMenu (which wraps @radix-ui/react-dropdown-menu)
+ * for keyboard navigation, collision-aware positioning, enter/exit animation,
+ * and proper ARIA attributes.
  *
  * @param children   exactly one child — the trigger element
  * @param items      array of items or 'separator' strings
@@ -47,41 +53,39 @@ export default function Menu({
   }
 
   return (
-    <RadixMenu.Root {...rootProps}>
-      <RadixMenu.Trigger asChild disabled={disabled}>
+    <DropdownMenu {...rootProps}>
+      <DropdownMenuTrigger asChild disabled={disabled}>
         {children}
-      </RadixMenu.Trigger>
-      <RadixMenu.Portal>
-        <RadixMenu.Content
-          side={side}
-          align={align}
-          sideOffset={4}
-          avoidCollisions
-          collisionPadding={8}
-          className={`ui-menu ui-menu--below ui-menu--${align}`}
-          style={width ? { width } : undefined}
-        >
-          {items.map((item, i) => {
-            if (item === 'separator' || item?.type === 'separator') {
-              return <RadixMenu.Separator key={`sep-${i}`} className="ui-menu__separator" />;
-            }
-            const Icon = item.icon;
-            return (
-              <RadixMenu.Item
-                key={item.id ?? i}
-                className={`ui-menu__item ${item.destructive ? 'is-destructive' : ''} ${item.disabled ? 'is-disabled' : ''}`}
-                disabled={item.disabled}
-                onSelect={() => item.onSelect?.()}
-              >
-                {Icon && <Icon size={12} className="ui-menu__icon" />}
-                <span className="ui-menu__label">{item.label}</span>
-                {item.shortcut && <span className="ui-menu__shortcut">{item.shortcut}</span>}
-                {item.trailing}
-              </RadixMenu.Item>
-            );
-          })}
-        </RadixMenu.Content>
-      </RadixMenu.Portal>
-    </RadixMenu.Root>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        side={side}
+        align={align}
+        sideOffset={4}
+        avoidCollisions
+        collisionPadding={8}
+        className="ui-menu"
+        style={width ? { width } : undefined}
+      >
+        {items.map((item, i) => {
+          if (item === 'separator' || item?.type === 'separator') {
+            return <DropdownMenuSeparator key={`sep-${i}`} className="ui-menu__separator" />;
+          }
+          const Icon = item.icon;
+          return (
+            <DropdownMenuItem
+              key={item.id ?? i}
+              className={`ui-menu__item ${item.destructive ? 'is-destructive' : ''} ${item.disabled ? 'is-disabled' : ''}`}
+              disabled={item.disabled}
+              onSelect={() => item.onSelect?.()}
+            >
+              {Icon && <Icon size={12} className="ui-menu__icon" />}
+              <span className="ui-menu__label">{item.label}</span>
+              {item.shortcut && <span className="ui-menu__shortcut">{item.shortcut}</span>}
+              {item.trailing}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

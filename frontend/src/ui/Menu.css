@@ -1,9 +1,14 @@
 /* ── Menu primitive ─────────────────────────────────────────────── */
+/* Backed by shadcn/ui DropdownMenu (src/components/ui/dropdown-menu.tsx).
+   shadcn's DropdownMenuContent owns positioning (Radix anchored placement, set
+   via inline styles) and the enter/exit animation (data-[state]/data-[side] +
+   tw-animate-css). What remains here is the OmniVoice glass SURFACE + the item
+   rows — applied via the `.ui-menu*` classes the wrapper passes through.
+   `.ui-menu` is unlayered so it wins over shadcn's layered
+   `bg-popover`/`border`/`rounded-md`/`shadow-md` defaults. Position must NOT be
+   declared here — it would fight Radix's anchored placement. */
 
 .ui-menu {
-  /* Position is set by Radix via inline styles — declaring `position` here
-   * (especially `fixed`) fights its anchored placement and can cause the
-   * popover to render against the viewport edge instead of the trigger. */
   z-index: var(--z-overlay);
   min-width: 160px;
   max-width: 320px;
@@ -17,20 +22,6 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
-  animation-duration: var(--dur-fast);
-  animation-timing-function: var(--ease-out);
-  animation-fill-mode: both;
-}
-.ui-menu--below { animation-name: ui-menu-pop-down; transform-origin: top; }
-.ui-menu--above { animation-name: ui-menu-pop-up;   transform-origin: bottom; }
-
-@keyframes ui-menu-pop-down {
-  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0)    scale(1);    }
-}
-@keyframes ui-menu-pop-up {
-  from { opacity: 0; transform: translateY( 4px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0)    scale(1);    }
 }
 
 .ui-menu__item {

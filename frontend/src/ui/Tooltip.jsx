@@ -1,10 +1,11 @@
 import React from 'react';
-import * as RadixTooltip from '@radix-ui/react-tooltip';
+import { Tooltip as ShadcnTooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import './Tooltip.css';
 
 /**
  * Tooltip — keyboard-accessible replacement for `title=`.
- * Backed by @radix-ui/react-tooltip for collision-aware positioning.
+ * Backed by shadcn/ui Tooltip (which wraps @radix-ui/react-tooltip) for
+ * collision-aware positioning + enter/exit animation.
  *
  * @param content    tooltip body (string or node)
  * @param placement  'top' | 'bottom' | 'left' | 'right'
@@ -17,20 +18,14 @@ export default function Tooltip({ content, placement = 'top', delay = 300, child
   const sideMap = { top: 'top', bottom: 'bottom', left: 'left', right: 'right' };
   const side = sideMap[placement] || 'top';
 
+  // shadcn's <Tooltip> supplies its own TooltipProvider; passing delayDuration
+  // to the Root overrides that provider's default so the `delay` prop is honored.
   return (
-    <RadixTooltip.Provider delayDuration={delay}>
-      <RadixTooltip.Root>
-        <RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
-        <RadixTooltip.Portal>
-          <RadixTooltip.Content
-            side={side}
-            sideOffset={5}
-            className={`ui-tooltip ui-tooltip--${placement}`}
-          >
-            {content}
-          </RadixTooltip.Content>
-        </RadixTooltip.Portal>
-      </RadixTooltip.Root>
-    </RadixTooltip.Provider>
+    <ShadcnTooltip delayDuration={delay}>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side={side} sideOffset={5} showArrow={false} className="ui-tooltip">
+        {content}
+      </TooltipContent>
+    </ShadcnTooltip>
   );
 }

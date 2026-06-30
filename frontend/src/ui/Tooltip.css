@@ -1,13 +1,12 @@
 /* ── Tooltip primitive ──────────────────────────────────────────── */
-
-.ui-tooltip-wrap {
-  position: relative;
-  display: inline-flex;
-}
+/* Backed by shadcn/ui Tooltip (src/components/ui/tooltip.tsx). shadcn's
+   TooltipContent owns positioning (Radix Popper) and the enter/exit animation
+   (data-[state]/data-[side] + tw-animate-css). What remains here is only the
+   OmniVoice tooltip SURFACE, applied via the `.ui-tooltip` class the wrapper
+   passes to TooltipContent — unlayered, so it wins over shadcn's layered
+   `bg-primary`/`text-primary-foreground`/`rounded-md`/`px-3 py-1.5` defaults. */
 
 .ui-tooltip {
-  position: absolute;
-  z-index: var(--z-overlay);
   background: #0f0e0d;
   color: var(--color-fg);
   font-family: var(--font-sans);
@@ -19,38 +18,5 @@
   box-shadow: var(--shadow-md);
   white-space: nowrap;
   pointer-events: none;
-  animation: ui-tooltip-in 0.15s var(--ease-out);
   max-width: 240px;
-}
-
-@keyframes ui-tooltip-in {
-  from { opacity: 0; transform: translate(-50%, 4px); }
-  to   { opacity: 1; transform: translate(-50%, 0); }
-}
-
-/* placements */
-.ui-tooltip--top {
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-}
-.ui-tooltip--bottom {
-  top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  animation: ui-tooltip-in-b 0.15s var(--ease-out);
-}
-@keyframes ui-tooltip-in-b {
-  from { opacity: 0; transform: translate(-50%, -4px); }
-  to   { opacity: 1; transform: translate(-50%, 0); }
-}
-.ui-tooltip--left {
-  right: calc(100% + 6px);
-  top: 50%;
-  transform: translateY(-50%);
-}
-.ui-tooltip--right {
-  left: calc(100% + 6px);
-  top: 50%;
-  transform: translateY(-50%);
 }
