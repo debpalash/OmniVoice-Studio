@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Check, Zap } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { openExternal } from '../api/external';
+import { Button, Input } from '../ui';
 
 /**
  * HfTokenCard — a compact, single-line Hugging Face token input that lives in
@@ -37,9 +40,14 @@ export default function HfTokenCard({ className = '' }) {
 
   if (hfState === 'saved') {
     return (
-      <div className={`swiz-hfbar is-saved ${className}`.trim()}>
-        <span className="swiz-hfbar__done">
-          <span aria-hidden="true">✓</span>{' '}
+      <div
+        className={cn(
+          'flex flex-wrap items-center gap-2 rounded-md border border-success/45 bg-success/[0.09] px-3 py-2 text-sm',
+          className,
+        )}
+      >
+        <span className="inline-flex items-center gap-1.5 font-semibold text-success">
+          <Check size={14} aria-hidden="true" />
           {t('firstrun.hf_token_saved_fast', 'Hugging Face token saved — downloads are now faster')}
         </span>
       </div>
@@ -47,15 +55,19 @@ export default function HfTokenCard({ className = '' }) {
   }
 
   return (
-    <div className={`swiz-hfbar ${className}`.trim()}>
-      <span className="swiz-hfbar__icon" aria-hidden="true">
-        ⚡
-      </span>
-      <span className="swiz-hfbar__prompt">
+    <div
+      className={cn(
+        'flex flex-wrap items-center gap-2 rounded-md border border-primary/30 bg-primary/[0.07] px-3 py-2 text-sm',
+        className,
+      )}
+    >
+      <Zap size={16} className="shrink-0 text-primary" aria-hidden="true" />
+      <span className="font-semibold max-[560px]:hidden">
         {t('firstrun.hf_token_inline_prompt', 'Speed up downloads with a free Hugging Face token')}
       </span>
-      <input
-        className="frs-input swiz-hfbar__input"
+      <Input
+        size="sm"
+        className="min-w-[130px] flex-1 basis-[180px]"
         type="password"
         placeholder={t('firstrun.hf_token_inline_ph', 'Paste hf_… token (optional)')}
         value={hfToken}
@@ -72,25 +84,25 @@ export default function HfTokenCard({ className = '' }) {
           'Add a free Hugging Face token for faster downloads',
         )}
       />
-      <button
-        type="button"
-        className="frs-btn frs-btn--primary swiz-hfbar__save"
+      <Button
+        variant="primary"
+        size="sm"
         disabled={!hfToken.trim() || hfState === 'saving'}
         onClick={saveHfToken}
       >
         {hfState === 'saving'
           ? t('firstrun.hf_token_saving', 'saving…')
           : t('firstrun.hf_token_save', 'Save')}
-      </button>
+      </Button>
       <button
         type="button"
-        className="swiz-hfbar__link"
+        className="cursor-pointer appearance-none whitespace-nowrap border-0 bg-transparent p-0 text-[0.76rem] text-primary underline hover:no-underline"
         onClick={() => openExternal('https://huggingface.co/settings/tokens')}
       >
         {t('firstrun.hf_token_get_short', 'Get one free →')}
       </button>
       {hfState === 'error' && (
-        <span className="swiz-hfbar__err">
+        <span className="basis-full text-[0.76rem] text-danger">
           {t(
             'firstrun.hf_token_error',
             'Could not save the token — try again or set it later in Settings → Credentials.',

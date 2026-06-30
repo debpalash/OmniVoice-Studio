@@ -13,13 +13,19 @@
  * progress rides the same SSE stream the Settings model store uses; the
  * full management surface (search, HF token, deletes) stays in Settings —
  * a first run needs a checklist, not a store.
+ *
+ * Built on standard shadcn primitives (Badge / Button / Progress) + Tailwind
+ * utilities themed by the palette tokens.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
+import { Check, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useModels, useInstallModel } from '../api/hooks';
 import { setupDownloadStreamUrl } from '../api/setup';
 import { listEngines, selectEngine } from '../api/engines';
+import { Badge, Button } from '../ui';
 
 const fmtGB = (gb) => (gb == null ? '' : `${gb.toFixed(gb < 10 ? 1 : 0)} GB`);
 
@@ -93,22 +99,36 @@ function formatEta(seconds) {
   return `${Math.round(seconds / 60)}m`;
 }
 
+// LED dot tone per row state.
+const LED_TONE = {
+  ok: 'bg-success shadow-[0_0_5px_1px_color-mix(in_srgb,var(--color-success)_50%,transparent)]',
+  active: 'bg-primary shadow-[0_0_6px_1px_var(--color-brand-glow)]',
+  busy: 'bg-primary fr-pulse',
+  off: 'bg-fg-subtle/40',
+};
+
+// Chip Badge tone per chip category.
+const CHIP_TONE = { req: 'brand', rec: 'success', eng: 'neutral', opt: 'neutral' };
+
 function Row({ led, name, chip, chipTone, size, action, sub }) {
   return (
-    <div className="frs-row swiz-lib__row">
-      <span className={`swiz-lib__led swiz-lib__led--${led}`} aria-hidden="true" />
-      <div className="frs-row__text">
-        <span className="frs-row__label">
+    <div className="flex items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-bg-elev-3">
+      <span
+        className={cn('h-1.5 w-1.5 shrink-0 rounded-full', LED_TONE[led] || LED_TONE.off)}
+        aria-hidden="true"
+      />
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="flex items-center gap-2 text-sm font-semibold">
           {name}
           {chip && (
-            <span className={`frs-opt__badge swiz-lib__chip swiz-lib__chip--${chipTone}`}>
+            <Badge tone={CHIP_TONE[chipTone] || 'neutral'} size="xs">
               {chip}
-            </span>
+            </Badge>
           )}
         </span>
-        {sub && <span className="swiz-lib__sub">{sub}</span>}
+        {sub && <span className="block min-w-0">{sub}</span>}
       </div>
-      <span className="frs-row__readout">{size}</span>
+      <span className="shrink-0 font-mono text-[0.64rem] tabular-nums text-fg-muted">{size}</span>
       {action}
     </div>
   );
@@ -279,8 +299,11 @@ export default function WizardLibrary() {
         size={fmtGB(m.size_gb)}
         sub={
           downloading ? (
-            <span className="swiz-lib__bar">
-              <span style={{ width: `${pct ?? 4}%` }} />
+            <span className="block h-[3px] max-w-[280px] overflow-hidden rounded-full bg-fg/[0.08]">
+              <span
+                className="block h-full rounded-full bg-primary transition-[width] duration-300"
+                style={{ width: `${pct ?? 4}%` }}
+              />
             </span>
           ) : (
             note || null
@@ -288,21 +311,17 @@ export default function WizardLibrary() {
         }
         action={
           m.installed ? (
-            <span className="swiz-lib__state">✓</span>
+            <Check size={14} className="shrink-0 text-success" aria-hidden="true" />
           ) : downloading ? (
-            <span className="swiz-lib__state swiz-lib__state--busy">
+            <span className="shrink-0 font-mono text-[0.64rem] tabular-nums text-primary">
               {statParts.length
                 ? statParts.join(' · ')
                 : t('firstrun.lib_downloading', 'downloading…')}
             </span>
           ) : (
-            <button
-              type="button"
-              className="frs-btn frs-btn--quiet swiz-lib__act"
-              onClick={() => install(m.repo_id)}
-            >
+            <Button variant="ghost" size="sm" onClick={() => install(m.repo_id)}>
               {t('firstrun.lib_download', 'Download')}
-            </button>
+            </Button>
           )
         }
       />
@@ -310,7 +329,7 @@ export default function WizardLibrary() {
   };
 
   return (
-    <div className="swiz-lib">
+    <div className="flex max-h-[min(56vh,620px)] flex-col gap-1 overflow-y-auto">
       {required.map((m) => modelRow(m, t('firstrun.chip_required', 'required'), 'req'))}
 
       {/* Optional models tuned for THIS machine — shown by default with the
@@ -329,21 +348,24 @@ export default function WizardLibrary() {
           size=""
           action={
             b.id === engines.active ? (
-              <span className="swiz-lib__state swiz-lib__state--active">
+              <span className="shrink-0 font-mono text-[0.64rem] text-primary">
                 {t('firstrun.lib_active', 'active')}
               </span>
             ) : b.available ? (
-              <button
-                type="button"
-                className="frs-btn frs-btn--quiet swiz-lib__act"
+              <Button
+                variant="ghost"
+                size="sm"
                 disabled={switching === b.id}
                 // eslint-disable-next-line react-hooks/rules-of-hooks -- useEngine is an action fn, not a React hook
                 onClick={() => useEngine(b.id)}
               >
                 {t('firstrun.lib_use', 'Use')}
-              </button>
+              </Button>
             ) : (
-              <span className="swiz-lib__state" title={b.reason || undefined}>
+              <span
+                className="shrink-0 font-mono text-[0.64rem] text-fg-muted"
+                title={b.reason || undefined}
+              >
                 {t('firstrun.lib_in_settings', 'install later in Settings')}
               </span>
             )
@@ -352,21 +374,22 @@ export default function WizardLibrary() {
       ))}
 
       {tail.length > 0 && !showTail && (
-        <button
-          type="button"
-          className="frs-btn frs-btn--quiet swiz-lib__more"
+        <Button
+          variant="ghost"
+          size="sm"
+          className="self-start"
           onClick={() => setShowTail(true)}
+          leading={<ChevronRight size={12} />}
         >
-          ▸{' '}
           {t('firstrun.lib_show_all', {
             count: tail.length,
             defaultValue: 'Show {{count}} more models',
           })}
-        </button>
+        </Button>
       )}
       {showTail && tail.map((m) => modelRow(m, t('firstrun.chip_optional', 'optional'), 'opt'))}
       {Object.keys(progress).length > 0 && (
-        <p className="frs__trust">
+        <p className="m-0 text-xs text-fg-subtle">
           {t(
             'firstrun.resume_note',
             'Interrupted downloads resume automatically — closing the app is safe.',

@@ -1,5 +1,5 @@
 /**
- * First-run install setup screen — "studio console" treatment.
+ * First-run install setup screen.
  *
  * Rendered by BootstrapSplash while the Rust side is parked in the
  * `awaiting_setup` stage — nothing has been downloaded or installed yet.
@@ -10,19 +10,19 @@
  * authority). "Start installation" is the only thing that kicks off the
  * bootstrap.
  *
- * Design language: powering on a piece of studio hardware. Serif masthead
- * (Source Serif 4), engraved mono panel labels (IBM Plex Mono), a breathing
- * waveform, and disk space rendered as LED capacity meters. Desktop-first:
- * a wide two-column deck of rack panels floating directly on the backdrop
- * (no outer chassis box), collapsing to one column on narrow windows. All
- * motion is CSS-only (transform/opacity) and honors prefers-reduced-motion;
- * every asset is bundled — a first run may be on a restricted network.
+ * Built on standard shadcn primitives (Button/Input/Select/Progress/Badge)
+ * + Tailwind utilities themed by the OmniVoice palette tokens. The only
+ * bespoke CSS left is the breathing-waveform / rise-in keyframes in
+ * firstrun.css. All motion honors prefers-reduced-motion; every asset is
+ * bundled — a first run may be on a restricted network.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { cn } from '@/lib/utils';
 import i18n, { LANGUAGES } from '../i18n';
 import { useAppStore } from '../store';
-import './FirstRunSetup.css';
+import { Badge, Button, Input, Progress, Select } from '../ui';
+import './firstrun.css';
 
 const APP_VERSION = __APP_VERSION__ || '0.0.0';
 const GIB = 1024 * 1024 * 1024;
@@ -78,11 +78,11 @@ function Waveform({ bars = 96 }) {
     [bars],
   );
   return (
-    <div className="frs-wave" aria-hidden="true">
+    <div className="fr-wave" aria-hidden="true">
       {heights.map((h, i) => (
         <span
           key={i}
-          className="frs-wave__bar"
+          className="fr-wave__bar"
           style={{ '--h': h, '--d': `${(i * 73) % 1400}ms` }}
         />
       ))}
@@ -90,30 +90,46 @@ function Waveform({ bars = 96 }) {
   );
 }
 
-/**
- * LED capacity meter: how much of the volume's free space this install
- * consumes. Lit = consumed by the install, dim = remaining headroom.
- * Overflows (need > free) clamp to full and switch to the alarm color.
- */
+/** Capacity meter: how much of the volume's free space this install consumes.
+ *  Switches to the danger tone when the install would overflow the disk. */
 function CapacityMeter({ need, free }) {
   const ratio = free > 0 ? need / free : 1;
   const pct = Math.min(100, Math.max(3, ratio * 100));
   return (
-    <div
-      className={`frs-meter ${ratio > 1 ? 'frs-meter--over' : ''}`}
-      role="img"
+    <Progress
+      value={pct}
+      tone={ratio > 1 ? 'danger' : 'brand'}
+      size="md"
+      className="w-full"
       aria-label={`${fmtGB(need)} / ${fmtGB(free)}`}
-    >
-      <span className="frs-meter__fill" style={{ width: `${pct}%` }} />
-    </div>
+    />
   );
 }
 
-/** One storage location row: label, path, space readout, Change… picker.
- *  The LED meter only appears when it carries information — the disk is
- *  getting tight (install would consume >35% of free space) or blocked.
- *  At 449 GB free vs 9 GB needed a bar is a meaningless sliver; a quiet
- *  one-line readout is cleaner. */
+/** Engraved mono section label with a rule trailing off to the right. */
+function SectionLabel({ children }) {
+  return (
+    <h2 className="m-0 flex items-center gap-2 font-mono text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-fg-muted">
+      <span>{children}</span>
+      <span
+        className="h-px flex-1 bg-gradient-to-r from-border-strong to-transparent"
+        aria-hidden="true"
+      />
+    </h2>
+  );
+}
+
+/** One first-run section: rise-in stagger + engraved label + content. */
+function Section({ title, delay = 0, className = '', children }) {
+  return (
+    <section className={cn('fr-rise flex flex-col gap-2.5', className)} style={{ '--rise': delay }}>
+      <SectionLabel>{title}</SectionLabel>
+      {children}
+    </section>
+  );
+}
+
+/** One storage location row: label, path, space readout, Change… picker. */
 function StorageRow({ label, desc, path, need, check, onPick }) {
   const { t } = useTranslation();
   const lowSpace = check?.freeBytes != null && check.freeBytes < need;
@@ -121,18 +137,29 @@ function StorageRow({ label, desc, path, need, check, onPick }) {
   const blocked = lowSpace || notWritable;
   const tight = check?.freeBytes != null && need / check.freeBytes > 0.35;
   return (
-    <div className={`frs-row ${blocked ? 'frs-row--blocked' : ''}`}>
-      <div className="frs-row__text" title={desc}>
-        <span className="frs-row__label">{label}</span>
-        <code className="frs-row__path" title={path}>
+    <div
+      className={cn(
+        'flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md px-3 py-2 transition-colors hover:bg-bg-elev-3',
+        blocked &&
+          'bg-danger/[0.06] shadow-[inset_2px_0_0_var(--color-danger)] hover:bg-danger/[0.06]',
+      )}
+    >
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5" title={desc}>
+        <span className="text-sm font-semibold">{label}</span>
+        <code className="truncate font-mono text-[0.66rem] text-fg-muted" title={path} dir="rtl">
           {path}
         </code>
       </div>
-      <div className="frs-row__gauge flex flex-col items-end gap-[0.3rem] min-w-[170px] shrink-0">
+      <div className="flex min-w-[170px] shrink-0 flex-col items-end gap-1">
         {(blocked || tight) && check?.freeBytes != null && (
           <CapacityMeter need={need} free={check.freeBytes} />
         )}
-        <span className={`frs-row__readout ${lowSpace ? 'is-low' : ''}`}>
+        <span
+          className={cn(
+            'whitespace-nowrap font-mono text-[0.64rem] tabular-nums text-fg-muted',
+            lowSpace && 'font-bold text-danger',
+          )}
+        >
           {check == null ? (
             t('firstrun.checking', 'checking…')
           ) : notWritable ? (
@@ -147,24 +174,11 @@ function StorageRow({ label, desc, path, need, check, onPick }) {
         </span>
       </div>
       {onPick && (
-        <button type="button" className="frs-btn frs-btn--quiet" onClick={onPick}>
+        <Button variant="ghost" size="sm" onClick={onPick}>
           {t('firstrun.change', 'Change…')}
-        </button>
+        </Button>
       )}
     </div>
-  );
-}
-
-/** Section: engraved mono title + rule — structure by line, not by box. */
-function Panel({ title, delay, className = '', children }) {
-  return (
-    <section
-      className={`frs-panel frs-rise relative flex flex-col gap-[0.6rem] ${className}`}
-      style={{ '--rise': delay }}
-    >
-      <h2 className="frs-panel__title">{title}</h2>
-      {children}
-    </section>
   );
 }
 
@@ -182,26 +196,40 @@ export function radioGroupNav(e, values, current, select) {
   select(next);
 }
 
-/** LED radio option — used for install mode, compute and update channel.
- *  Verbosity diet: descriptions live in the group's fixed caption slot; the
- *  cards expose them as tooltips. Roving tabindex: only the selected
- *  option is in the tab order; arrows move within the group. */
-function OptionCard({ active, disabled, onSelect, name, desc, badge, compact }) {
+/** Radio option card — used for install mode, compute and update channel.
+ *  Roving tabindex: only the selected option is in the tab order; arrows move
+ *  within the group. The leading dot lights when selected. */
+function OptionCard({ active, disabled, onSelect, name, desc, badge }) {
   return (
     <button
       type="button"
       role="radio"
       aria-checked={active}
       tabIndex={active ? 0 : -1}
-      className={`frs-opt ${compact ? 'frs-opt--compact' : ''} ${active ? 'is-active' : ''}`}
       disabled={disabled}
       title={desc}
       onClick={() => !disabled && onSelect()}
+      className={cn(
+        'flex flex-col gap-1 rounded-md border px-3 py-2.5 text-left transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        active ? 'border-primary bg-primary/10' : 'border-border bg-bg-elev-2 hover:bg-bg-elev-1',
+        disabled && 'cursor-not-allowed opacity-40 hover:bg-bg-elev-2',
+      )}
     >
-      <span className="frs-opt__led" aria-hidden="true" />
-      <span className="frs-opt__head flex items-baseline gap-[0.5rem] flex-wrap">
-        <span className="frs-opt__name">{name}</span>
-        {badge && <span className="frs-opt__badge">{badge}</span>}
+      <span className="flex flex-wrap items-center gap-2">
+        <span
+          className={cn(
+            'h-1.5 w-1.5 shrink-0 rounded-full',
+            active ? 'bg-primary shadow-[0_0_6px_1px_var(--color-brand-glow)]' : 'bg-fg-subtle/40',
+          )}
+          aria-hidden="true"
+        />
+        <span className="text-sm font-semibold">{name}</span>
+        {badge && (
+          <Badge tone="success" size="xs">
+            {badge}
+          </Badge>
+        )}
       </span>
     </button>
   );
@@ -211,9 +239,18 @@ function OptionCard({ active, disabled, onSelect, name, desc, badge, compact }) 
  *  option's description swaps in — the layout never shifts on selection. */
 function GroupCaption({ text }) {
   return (
-    <p className="frs__opt-caption" aria-live="polite">
+    <p className="m-0 min-h-[2.4em] text-xs leading-snug text-fg-subtle" aria-live="polite">
       {text}
     </p>
+  );
+}
+
+/** Mono error block shown for server / submit failures. */
+function ErrorBox({ children }) {
+  return (
+    <pre className="m-0 overflow-x-auto whitespace-pre-wrap break-words rounded-md bg-danger/10 px-3 py-2 font-mono text-[0.66rem] leading-relaxed text-danger shadow-[inset_2px_0_0_var(--color-danger)]">
+      {children}
+    </pre>
   );
 }
 
@@ -365,15 +402,12 @@ export default function FirstRunSetup() {
 
   if (!setup || !plan) {
     return (
-      <div className="frs">
-        <div className="frs__atmo" aria-hidden="true" />
-        <div className="frs__loading">
-          {serverError ? (
-            <pre className="frs__error">{serverError}</pre>
-          ) : (
-            t('firstrun.loading', 'Preparing setup…')
-          )}
-        </div>
+      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-bg px-6 font-sans text-fg">
+        {serverError ? (
+          <ErrorBox>{serverError}</ErrorBox>
+        ) : (
+          <div className="text-sm text-fg-muted">{t('firstrun.loading', 'Preparing setup…')}</div>
+        )}
       </div>
     );
   }
@@ -397,52 +431,35 @@ export default function FirstRunSetup() {
   const rocmAvailable = setup.os === 'linux';
 
   return (
-    <div className="frs">
-      <div className="frs__atmo" aria-hidden="true" />
-      <div className="frs__deck relative w-full max-w-[1240px] m-0 flex flex-col flex-[1_1_auto] min-h-0 min-w-0">
-        <div className="frs__scroll">
-          {/* ── Masthead: waveform + serif headline + serial plate ────────── */}
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center overflow-hidden bg-bg px-6 pt-12 font-sans text-fg">
+      <div className="flex w-full max-w-[1100px] flex-1 flex-col">
+        <div className="flex flex-1 flex-col gap-5 overflow-y-auto pb-4">
+          {/* ── Masthead: waveform + headline + language/region ──────────── */}
           <header
-            className="frs__mast frs-rise pb-[0.4rem]"
+            className="fr-rise flex flex-col gap-3 pb-1"
             style={{ '--rise': 0 }}
             data-tauri-drag-region
           >
             <Waveform />
             {/* Journey rail: this page is stage 1 of the install flow. */}
-            <nav
-              className="frs-wsteps frs-wsteps--journey flex items-center gap-[0.9rem] flex-wrap"
-              aria-label={t('firstrun.title', 'Set up OmniVoice Studio')}
-            >
-              <span className="frs-wstep is-active">
-                <span className="frs-wstep__led" aria-hidden="true" />
-                {t('firstrun.stage_setup', 'Setup')}
-              </span>
-              <span className="frs-wstep">
-                <span className="frs-wstep__led" aria-hidden="true" />
-                {t('firstrun.installing_title', 'Installing')}
-              </span>
-              <span className="frs-wstep">
-                <span className="frs-wstep__led" aria-hidden="true" />
-                {t('firstrun.stage_models', 'Models & engines')}
-              </span>
-            </nav>
-            <div className="frs__mast-row flex items-end justify-between gap-[2rem] mt-[1rem]">
-              <div className="frs__mast-text">
-                <h1 className="frs__title">{t('firstrun.title', 'Set up OmniVoice Studio')}</h1>
-                <p className="frs__subtitle">
+            <JourneyRail active="setup" t={t} />
+            <div className="mt-2 flex flex-wrap items-end justify-between gap-6">
+              <div className="min-w-0">
+                <h1 className="m-0 font-serif text-[clamp(1.6rem,3vw,2.2rem)] font-semibold leading-tight tracking-tight">
+                  {t('firstrun.title', 'Set up OmniVoice Studio')}
+                </h1>
+                <p className="mt-1.5 max-w-[58ch] text-sm leading-snug text-fg-muted">
                   {t(
                     'firstrun.subtitle',
                     "Nothing's installed yet — review where everything goes, then start. Change it later in Settings.",
                   )}
                 </p>
               </div>
-              <div className="frs__mast-meta flex flex-col items-end gap-[0.45rem] shrink-0">
-                {/* Language + download region live together: the two "where am
-                  I" choices, settled before anything else. Custom mirrors
-                  hang quietly beneath them, where they belong. */}
-                <div className="frs__mast-selects flex items-center gap-[0.5rem]">
-                  <select
-                    className="frs-select frs-select--lang"
+              <div className="flex shrink-0 flex-col items-end gap-2">
+                {/* Language + download region: the two "where am I" choices. */}
+                <div className="flex items-center gap-2">
+                  <Select
+                    size="sm"
                     value={locale}
                     onChange={(e) => {
                       setLocale(e.target.value);
@@ -455,9 +472,9 @@ export default function FirstRunSetup() {
                         {l.label}
                       </option>
                     ))}
-                  </select>
-                  <select
-                    className="frs-select frs-select--lang"
+                  </Select>
+                  <Select
+                    size="sm"
                     value={plan.region}
                     onChange={(e) => set({ region: e.target.value })}
                     aria-label={t('firstrun.region_label', 'Download region')}
@@ -473,11 +490,13 @@ export default function FirstRunSetup() {
                     <option value="restricted">
                       {t('bootstrap.region_restricted', 'Restricted (mirror)')}
                     </option>
-                  </select>
+                  </Select>
                 </div>
-                <details className="frs__advanced frs__advanced--mast">
-                  <summary>{t('firstrun.mirrors_title', 'Custom mirrors (advanced)')}</summary>
-                  <div className="frs__mirror-fields">
+                <details className="text-right">
+                  <summary className="cursor-pointer select-none font-mono text-[0.62rem] uppercase tracking-wide text-fg-muted hover:text-fg">
+                    {t('firstrun.mirrors_title', 'Custom mirrors (advanced)')}
+                  </summary>
+                  <div className="mt-2 grid min-w-[320px] gap-2 text-left">
                     {[
                       [
                         'pypiIndex',
@@ -495,10 +514,12 @@ export default function FirstRunSetup() {
                         'https://gh-proxy.com/…',
                       ],
                     ].map(([field, label, ph]) => (
-                      <label key={field} className="frs-field">
-                        <span>{label}</span>
-                        <input
-                          className="frs-input"
+                      <label key={field} className="flex flex-col gap-1">
+                        <span className="font-mono text-[0.6rem] uppercase tracking-wide text-fg-muted">
+                          {label}
+                        </span>
+                        <Input
+                          size="sm"
                           type="url"
                           placeholder={ph}
                           value={plan.mirrors[field]}
@@ -515,11 +536,11 @@ export default function FirstRunSetup() {
           </header>
 
           {/* ── Wide deck: storage rail (left) + decision rail (right) ────── */}
-          <div className="frs__grid grid grid-cols-[minmax(0,7fr)_minmax(0,5fr)] gap-[1.1rem] items-start">
-            <div className="frs__col frs__col--main flex flex-col gap-[1.1rem] min-w-0">
-              <Panel title={t('firstrun.mode_title', 'Install mode')} delay={1}>
+          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[7fr_5fr]">
+            <div className="flex min-w-0 flex-col gap-5">
+              <Section title={t('firstrun.mode_title', 'Install mode')} delay={1}>
                 <div
-                  className="frs__options frs__options--two"
+                  className="grid grid-cols-1 gap-2.5 sm:grid-cols-2"
                   role="radiogroup"
                   aria-label={t('firstrun.mode_title', 'Install mode')}
                   onKeyDown={(e) =>
@@ -568,9 +589,9 @@ export default function FirstRunSetup() {
                       : t('firstrun.mode_installed_desc', 'Standard system folders. Recommended.')
                   }
                 />
-              </Panel>
+              </Section>
 
-              <Panel title={t('firstrun.storage_title', 'Storage')} delay={2}>
+              <Section title={t('firstrun.storage_title', 'Storage')} delay={2}>
                 {portable ? (
                   <StorageRow
                     label={t('firstrun.portable_folder', 'Portable folder')}
@@ -616,25 +637,27 @@ export default function FirstRunSetup() {
                     />
                   </>
                 )}
-              </Panel>
+              </Section>
             </div>
 
-            <div className="frs__col frs__col--side flex flex-col gap-[1.1rem] min-w-0">
-              <Panel title={t('firstrun.compute_title', 'Compute')} delay={2}>
+            <div className="flex min-w-0 flex-col gap-5">
+              <Section title={t('firstrun.compute_title', 'Compute')} delay={2}>
                 {hwLine && (
-                  <div
-                    className="frs__hw flex items-center gap-[0.5rem] p-[0.1rem_0.1rem_0.3rem] min-w-0"
-                    title={hwLine}
-                  >
-                    <span className="frs__hw-dot" aria-hidden="true" />
-                    <span className="frs__hw-label">
+                  <div className="flex min-w-0 items-center gap-2 pb-1" title={hwLine}>
+                    <span
+                      className="h-1.5 w-1.5 shrink-0 rounded-full bg-success shadow-[0_0_6px_1px_color-mix(in_srgb,var(--color-success)_60%,transparent)] fr-pulse"
+                      aria-hidden="true"
+                    />
+                    <span className="shrink-0 font-mono text-[0.58rem] uppercase tracking-wide text-fg-muted">
                       {t('firstrun.compute_detected', { defaultValue: 'Detected' })}
                     </span>
-                    <span className="frs__hw-value">{hwLine}</span>
+                    <span className="truncate font-mono text-[0.66rem] tabular-nums text-fg">
+                      {hwLine}
+                    </span>
                   </div>
                 )}
                 <div
-                  className="frs__options"
+                  className="grid gap-2.5"
                   role="radiogroup"
                   aria-label={t('firstrun.compute_title', 'Compute')}
                   onKeyDown={(e) =>
@@ -647,7 +670,6 @@ export default function FirstRunSetup() {
                   }
                 >
                   <OptionCard
-                    compact
                     active={plan.torchVariant === 'auto'}
                     onSelect={() => set({ torchVariant: 'auto' })}
                     name={t('firstrun.compute_auto', 'Auto (NVIDIA CUDA / Apple MPS / CPU)')}
@@ -663,7 +685,6 @@ export default function FirstRunSetup() {
                   />
                   {rocmAvailable && (
                     <OptionCard
-                      compact
                       active={plan.torchVariant === 'rocm'}
                       onSelect={() => set({ torchVariant: 'rocm' })}
                       name={t('firstrun.compute_rocm', 'AMD GPU (ROCm, Linux)')}
@@ -692,11 +713,11 @@ export default function FirstRunSetup() {
                         )
                   }
                 />
-              </Panel>
+              </Section>
 
-              <Panel title={t('firstrun.channel_label', 'Update channel')} delay={3}>
+              <Section title={t('firstrun.channel_label', 'Update channel')} delay={3}>
                 <div
-                  className="frs__options"
+                  className="grid gap-2.5"
                   role="radiogroup"
                   aria-label={t('firstrun.channel_label', 'Update channel')}
                   onKeyDown={(e) =>
@@ -706,7 +727,6 @@ export default function FirstRunSetup() {
                   }
                 >
                   <OptionCard
-                    compact
                     active={plan.updateChannel === 'stable'}
                     onSelect={() => set({ updateChannel: 'stable' })}
                     name={t('firstrun.channel_stable', 'Stable')}
@@ -716,7 +736,6 @@ export default function FirstRunSetup() {
                     )}
                   />
                   <OptionCard
-                    compact
                     active={plan.updateChannel === 'preview'}
                     onSelect={() => set({ updateChannel: 'preview' })}
                     name={t('firstrun.channel_preview', 'Preview (latest main)')}
@@ -739,16 +758,19 @@ export default function FirstRunSetup() {
                         )
                   }
                 />
-              </Panel>
+              </Section>
             </div>
           </div>
         </div>
 
-        {/* ── Footer: gate + arm ────────────────────────────────────────── */}
-        <footer className="frs__foot frs-rise" style={{ '--rise': 5 }}>
-          {serverError && <pre className="frs__error">{serverError}</pre>}
+        {/* ── Footer: gate + arm ──────────────────────────────────────────── */}
+        <footer
+          className="fr-rise flex shrink-0 flex-col gap-2 border-t border-border bg-bg pt-3 pb-6"
+          style={{ '--rise': 5 }}
+        >
+          {serverError && <ErrorBox>{serverError}</ErrorBox>}
           {spaceBlocker && (
-            <p className="frs__blocker">
+            <p className="m-0 text-sm text-danger">
               {t('firstrun.insufficient_space', {
                 need: fmtGB(spaceBlocker.need),
                 free: fmtGB(spaceBlocker.free),
@@ -758,38 +780,32 @@ export default function FirstRunSetup() {
             </p>
           )}
           {blockers.some((b) => b.key === 'not_writable') && (
-            <p className="frs__blocker">
+            <p className="m-0 text-sm text-danger">
               {t(
                 'firstrun.blocked_not_writable',
                 'A chosen folder is not writable — pick a different location.',
               )}
             </p>
           )}
-          <div className="frs__foot-row flex items-center justify-between gap-[1rem]">
-            <span className="frs__totals">
-              <span className="frs__plate">OVS&thinsp;·&thinsp;v{APP_VERSION}</span>
-              <span className="frs__totals-sep" aria-hidden="true">
-                —
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <span className="inline-flex flex-wrap items-baseline gap-2 text-xs tabular-nums text-fg-muted">
+              <span className="whitespace-nowrap font-mono text-[0.62rem] tracking-[0.14em] text-fg-subtle">
+                OVS&thinsp;·&thinsp;v{APP_VERSION}
               </span>
+              <span aria-hidden="true">—</span>
               {t('firstrun.total_required', {
                 size: fmtGB(combinedNeed),
                 defaultValue: 'Total disk needed: ~{{size}} (one-time download on first use)',
               })}
             </span>
-            <button
-              type="button"
-              className={`frs-btn frs-btn--primary ${!blocked && !submitting ? 'is-armed' : ''}`}
-              disabled={blocked || submitting}
-              onClick={start}
-            >
-              <span className="frs-btn__led" aria-hidden="true" />
+            <Button variant="primary" disabled={blocked || submitting} onClick={start}>
               {submitting
                 ? t('firstrun.starting', 'Starting…')
                 : t('firstrun.start', 'Start installation')}
-            </button>
+            </Button>
           </div>
           {/* The product's whole thesis, said where the user decides. */}
-          <p className="frs__trust">
+          <p className="m-0 text-xs text-fg-subtle">
             {t(
               'firstrun.trust_line',
               'Everything runs and stays on this machine — no account, no cloud, no telemetry.',
@@ -798,5 +814,48 @@ export default function FirstRunSetup() {
         </footer>
       </div>
     </div>
+  );
+}
+
+/** Three-stage breadcrumb shared by the setup + install acts. */
+export function JourneyRail({ active, t }) {
+  const stages = [
+    ['setup', t('firstrun.stage_setup', 'Setup')],
+    ['installing', t('firstrun.installing_title', 'Installing')],
+    ['models', t('firstrun.stage_models', 'Models & engines')],
+  ];
+  const activeIdx = stages.findIndex(([id]) => id === active);
+  return (
+    <nav
+      className="flex flex-wrap items-center gap-x-5 gap-y-2"
+      aria-label={t('firstrun.title', 'Set up OmniVoice Studio')}
+    >
+      {stages.map(([id, label], i) => {
+        const isActive = i === activeIdx;
+        const isDone = i < activeIdx;
+        return (
+          <span
+            key={id}
+            className={cn(
+              'inline-flex items-center gap-1.5 font-mono text-[0.62rem] font-semibold uppercase tracking-[0.14em]',
+              isActive ? 'text-fg' : isDone ? 'text-fg-muted' : 'text-fg-subtle/60',
+            )}
+          >
+            <span
+              className={cn(
+                'h-1.5 w-1.5 rounded-full',
+                isActive
+                  ? 'bg-primary shadow-[0_0_6px_1px_var(--color-brand-glow)]'
+                  : isDone
+                    ? 'bg-success'
+                    : 'bg-fg-subtle/40',
+              )}
+              aria-hidden="true"
+            />
+            {label}
+          </span>
+        );
+      })}
+    </nav>
   );
 }

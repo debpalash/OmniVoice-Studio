@@ -32,28 +32,6 @@
 .dir-rate-down { color: var(--color-info); }
 .dir-error { color: var(--color-warn); font-size: 0.7rem; }
 
-/* ═══ SetupWizard preflight extracted styles ═══ */
-/* (.swiz-loading lives in pages/SetupWizard.css — the first-run redesign
-   restyled it there; keeping a second copy here made the rendered spinner
-   depend on bundle import order.) */
-.swiz-checklist { display: flex; flex-direction: column; gap: 6px; }
-.swiz-check-icon { flex-shrink: 0; padding-top: 2px; }
-.swiz-check-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding-bottom: 4px; margin-bottom: 2px;
-  border-bottom: 1px solid var(--chrome-border, rgba(255,255,255,0.06));
-}
-.swiz-check-header__label {
-  font-size: 0.78rem; font-weight: 600;
-  color: var(--color-fg-muted, #a89984);
-  text-transform: uppercase; letter-spacing: 0.04em;
-}
-.swiz-missing { text-align: center; font-size: 0.78rem; margin: 0; }
-.swiz-status-loading {
-  display: flex; gap: 8px; align-items: center;
-  justify-content: center; color: var(--color-fg-muted);
-}
-
 /* ═══ App.jsx startup / wizard extracted styles ═══ */
 .app-startup {
   display: flex; align-items: center; justify-content: center;
