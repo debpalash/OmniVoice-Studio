@@ -216,7 +216,6 @@ h1, h2, h3, h4 {
 .segment-time,
 .segment-table code,
 .ui-table-toolbar__meta,
-.hq-stats,
 .dub-gen-overlay__stats,
 .dub-trans-overlay__stats,
 .logs-footer__count,
@@ -430,236 +429,24 @@ html[data-zoom-layout='off'] .app-container {
   padding-right: 8px;
 }
 
-/* ── Header columns ──────────────────────────────────────────── */
-.hq-col-left {
-  display: flex; align-items: center; gap: 14px;
-  justify-self: start; min-width: 0;
-}
-.hq-col-left__spacer   { min-width: 80px; flex-shrink: 0; }
-.hq-col-center {
-  display: flex; align-items: center; gap: 8px;
-  justify-self: center;
-  pointer-events: none;
-  white-space: nowrap;
-}
-.hq-col-right {
-  display: flex; align-items: center; justify-content: flex-end;
-  gap: 12px; justify-self: end;
-  min-width: 0; overflow: visible;
-}
-
-/* Logo */
-.hq-logo-mark   { transform: none; }
-.hq-logo-word {
-  font-size: 0.92rem; font-weight: 600; color: var(--chrome-fg);
-  letter-spacing: 0.02em;
-  font-family: var(--font-sans);
-  font-style: normal;
-}
-.hq-logo-word__accent { color: var(--chrome-accent); }
-
-/* Breadcrumb chevron spacing + inline-icon spacing */
-.hq-breadcrumb-sep  { margin: 0 2px; }
-.hq-view-icon       { margin-right: 4px; vertical-align: -1px; }
-
-/* Stats readout — informational, not a button. No outer pill/shell;
-   the thin vertical dividers between groups do the visual grouping. */
-.hq-stats {
-  display: flex;
-  gap: 10px;
-  font-family: var(--chrome-font-mono);
-  font-size: 10.5px;
-  color: var(--chrome-fg-dim);
-  background: transparent;
-  height: var(--chrome-pill-h);
-  padding: 0;
-  border: none;
-  white-space: nowrap;
-  flex-shrink: 1;
-  align-items: center;
-  overflow: hidden;
-}
-.hq-stats__key     { color: var(--chrome-fg-muted); font-weight: 600; }
-.hq-stats__key--gpu-active { color: var(--chrome-severity-ok); }
-.hq-stats__sep {
-  border-left: 1px solid var(--chrome-border);
-  padding-left: 6px;
-}
-.hq-stats__status-wrap {
-  border-left: 1px solid var(--chrome-border);
-  padding-left: 6px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.hq-stats__status-badge {
-  border: none !important;
-  background: transparent !important;
-  padding: 0 !important;
-  text-transform: none !important;
-  letter-spacing: 0 !important;
-  font-weight: 600 !important;
-}
-.hq-flush-btn      { margin-left: 2px; }
-.hq-reload-btn     { flex-shrink: 0; }
-
-/* Flush dropdown — portalled to document.body, positioned dynamically via JS */
-.hq-flush-dropdown {
-  position: fixed;
-  width: 260px;
-  background: var(--color-bg-elev-1);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  z-index: 9999;
-  padding: 4px 0;
-  animation: flush-slide 0.12s ease-out;
-}
 @keyframes flush-slide {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
-}
-.hq-flush-dropdown__header {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--color-fg-subtle);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 6px 12px 4px;
-}
-.hq-flush-dropdown__empty {
-  padding: 12px;
-  font-size: 11px;
-  color: var(--color-fg-muted);
-  text-align: center;
-}
-.hq-flush-dropdown__item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 12px;
-  gap: 8px;
-}
-.hq-flush-dropdown__item:hover { background: rgba(255,255,255,0.03); }
-.hq-flush-dropdown__info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.hq-flush-dropdown__name { font-size: 12px; color: var(--color-fg); font-weight: 500; }
-.hq-flush-dropdown__meta { font-size: 10px; color: var(--color-fg-subtle); font-family: var(--font-mono); }
-.hq-flush-dropdown__unload {
-  font-size: 10px; font-weight: 600;
-  color: var(--color-brand);
-  background: rgba(211,134,155,0.1);
-  border: 1px solid rgba(211,134,155,0.2);
-  border-radius: var(--radius-pill);
-  padding: 2px 8px; cursor: pointer;
-  flex-shrink: 0;
-}
-.hq-flush-dropdown__unload:hover { background: rgba(211,134,155,0.2); }
-.hq-flush-dropdown__divider { height: 1px; background: var(--color-border); margin: 4px 0; }
-.hq-flush-dropdown__action {
-  display: flex; align-items: center; gap: 6px;
-  width: 100%; padding: 6px 12px;
-  font-size: 12px; color: var(--color-fg);
-  background: none; border: none; cursor: pointer;
-  text-align: left;
-}
-.hq-flush-dropdown__action:hover { background: rgba(255,255,255,0.04); }
-.hq-flush-dropdown__action--danger { color: #fb4934; }
-.hq-flush-dropdown__action--danger:hover { background: rgba(251,73,52,0.08); }
-/* Decorative wavy SVG ribbon was removed — the flat chrome gets its
-   separation from the hairline `border-bottom` above, matching the
-   LogsFooter's top edge. */
-
-/* HQ breadcrumb — informational label, not a button. No pill shell. */
-.hq-view-title {
-  display: inline-flex; align-items: center; gap: 6px;
-  height: var(--chrome-pill-h);
-  padding: 0;
-  background: transparent;
-  border: none;
-  font-family: var(--font-sans);
-}
-.hq-view-dot {
-  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
-  animation: hqPulse 2.4s ease-in-out infinite;
 }
 @keyframes hqPulse {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.15); opacity: 0.7; }
 }
-.hq-view-kicker {
-  font-size: var(--chrome-label-size);
-  font-weight: 600;
-  letter-spacing: var(--chrome-label-track);
-  text-transform: uppercase;
-  color: var(--chrome-fg-muted);
-}
-.hq-view-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-family: var(--font-sans);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-.hq-view-project {
-  font-family: var(--font-sans);
-  font-size: 0.68rem; font-weight: 500;
-  color: var(--chrome-fg-muted);
-  max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-.hq-wave {
-  display: inline-flex; align-items: center; gap: 2px; height: 16px;
-  padding: 0 6px;
-  opacity: 0.35;
-  transition: opacity 0.2s;
-}
-.hq-wave.is-active { opacity: 1; }
-
 /* Responsive header — hide low-priority elements as width tightens.
    Priority (least → most important):
    reload → wave → kicker+chevron → project name → stats pill → S/M/L picker
    → dot → logo wordmark. Label + icon always visible.
 */
 
-/* ≤1500: drop dev reload + kicker + first chevron */
+/* ≤1500: drop dev reload (kicker + first chevron now handled by utilities on
+   the elements themselves in Header.jsx) */
 @media (max-width: 1500px) {
-  .hq-view-kicker { display: none; }
-  .hq-view-title > svg.lucide-chevron-right:first-of-type { display: none; }
   .header-area button[title="Force Reload UI"] { display: none; }
-}
-
-/* ≤1350: drop mini-waveform */
-@media (max-width: 1350px) {
-  .hq-wave { display: none; }
-}
-
-/* ≤1200: drop active project name */
-@media (max-width: 1200px) {
-  .hq-view-project { display: none; }
-}
-
-/* ≤1080: hide RAM/CPU text, keep VRAM + status + flush */
-@media (max-width: 1080px) {
-  .hq-stats > span:not(.hq-stats__status-wrap):not(.hq-stats__sep) { display: none; }
-}
-
-/* ≤960: shrink breadcrumb, hide S/M/L scale picker */
-@media (max-width: 960px) {
-  .hq-view-title { gap: 5px; }
-  .hq-view-label { font-size: 0.78rem; }
-  .hq-scale { display: none; }
-}
-
-/* ≤850: hide stats pill entirely */
-@media (max-width: 850px) {
-  .hq-stats { display: none !important; }
-}
-
-/* ≤820: drop pulsing dot + shrink logo */
-@media (max-width: 820px) {
-  .hq-view-dot { display: none; }
 }
 
 /* ≤720: hide logo wordmark, keep icon only */
@@ -677,13 +464,6 @@ html[data-zoom-layout='off'] .app-container {
 .header-area > div { min-width: 0; overflow: hidden; }
 .header-area > div:nth-child(2),
 .header-area > div:nth-child(3) { overflow: visible; }
-.hq-wave-bar {
-  display: inline-block; width: 2.5px; border-radius: 2px;
-  transition: opacity 0.2s;
-}
-.hq-wave-bar.active {
-  animation: hqBounce 1.3s ease-in-out infinite;
-}
 @keyframes hqBounce {
   0%, 100% { transform: scaleY(0.6); opacity: 0.75; }
   50% { transform: scaleY(1.25); opacity: 1; }

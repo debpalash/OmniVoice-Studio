@@ -90,11 +90,14 @@ const VIEW_META = {
 function WaveBars({ color = '#f3a5b6', active }) {
   const heights = [4, 9, 5, 11, 6, 10, 5, 8];
   return (
-    <div className={`hq-wave ${active ? 'is-active' : ''}`} aria-hidden="true">
+    <div
+      className={`inline-flex items-center gap-[2px] h-[16px] px-[6px] transition-opacity duration-200 max-[1351px]:hidden ${active ? 'opacity-100' : 'opacity-[0.35]'}`}
+      aria-hidden="true"
+    >
       {heights.map((h, i) => (
         <span
           key={i}
-          className={active ? 'hq-wave-bar active' : 'hq-wave-bar'}
+          className={`inline-block w-[2.5px] rounded-[2px] transition-opacity duration-200 ${active ? '[animation:hqBounce_1.3s_ease-in-out_infinite]' : ''}`}
           style={{
             // Height + color are per-instance; animation-delay is per-bar.
             // These three are genuinely dynamic so stay inline.
@@ -214,20 +217,31 @@ export default function Header({
   return (
     <div className="header-area" data-tauri-drag-region onDoubleClick={doubleClickMaximize}>
       {/* Left: view title + breadcrumb */}
-      <div className="hq-col-left">
-        <div className="hq-col-left__spacer" />
-        <div className="hq-view-title">
-          <span className="hq-view-dot" style={dotStyle} />
-          <span className="hq-view-kicker">{t(view.kickerKey)}</span>
-          <ChevronRight size={10} color="#504945" className="hq-breadcrumb-sep" />
-          <span className="hq-view-label" style={labelStyle}>
-            <ViewIcon size={12} className="hq-view-icon" />
+      <div className="flex items-center gap-[14px] justify-self-start min-w-0">
+        <div className="min-w-[80px] shrink-0" />
+        <div className="inline-flex items-center gap-[6px] h-[var(--chrome-pill-h)] [font-family:var(--font-sans)] max-[961px]:gap-[5px]">
+          <span
+            className="w-[7px] h-[7px] rounded-full shrink-0 [animation:hqPulse_2.4s_ease-in-out_infinite] max-[821px]:hidden"
+            style={dotStyle}
+          />
+          <span className="text-[length:var(--chrome-label-size)] font-semibold tracking-[var(--chrome-label-track)] uppercase text-[var(--chrome-fg-muted)] max-[1501px]:hidden">
+            {t(view.kickerKey)}
+          </span>
+          <ChevronRight size={10} color="#504945" className="mx-[2px] max-[1501px]:hidden" />
+          <span
+            className="inline-flex items-center gap-1 [font-family:var(--font-sans)] text-[0.72rem] font-semibold tracking-[0.02em] max-[961px]:text-[0.78rem]"
+            style={labelStyle}
+          >
+            <ViewIcon size={12} className="mr-1 align-[-1px]" />
             {t(view.labelKey)}
           </span>
           {activeProjectName ? (
             <>
-              <ChevronRight size={10} color="#504945" className="hq-breadcrumb-sep" />
-              <span className="hq-view-project" title={activeProjectName}>
+              <ChevronRight size={10} color="#504945" className="mx-[2px]" />
+              <span
+                className="[font-family:var(--font-sans)] text-[0.68rem] font-medium text-[var(--chrome-fg-muted)] max-w-[180px] overflow-hidden text-ellipsis whitespace-nowrap max-[1201px]:hidden"
+                title={activeProjectName}
+              >
                 {activeProjectName}
               </span>
             </>
@@ -240,7 +254,7 @@ export default function Header({
             title={t('common.reload')}
             onClick={() => window.location.reload()}
             leading={<RefreshCw size={9} />}
-            className="hq-reload-btn"
+            className="shrink-0"
           >
             {t('common.reload')}
           </Button>
@@ -248,7 +262,7 @@ export default function Header({
       </div>
 
       {/* Center: logo */}
-      <div className="hq-col-center">
+      <div className="flex items-center gap-2 justify-self-center pointer-events-none whitespace-nowrap">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="20"
@@ -259,7 +273,6 @@ export default function Header({
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="hq-logo-mark"
         >
           <circle cx="12" cy="12" r="10" opacity="0.18" fill="#f3a5b6" />
           <circle cx="12" cy="12" r="10" />
@@ -267,36 +280,37 @@ export default function Header({
           <path d="M8 9v6" />
           <path d="M16 9v6" />
         </svg>
-        <span className="hq-logo-word">
-          Omni<span className="hq-logo-word__accent">Voice</span>
+        <span className="text-[0.92rem] font-semibold text-[var(--chrome-fg)] tracking-[0.02em] [font-family:var(--font-sans)] not-italic">
+          Omni<span className="text-[var(--chrome-accent)]">Voice</span>
         </span>
       </div>
 
       {/* Right: wave + sys stats. UI scale (S/M/L) lives in the bottom
           LogsFooter bar so all app-wide chrome sits together. */}
-      <div className="hq-col-right">
+      <div className="flex items-center justify-end gap-3 justify-self-end min-w-0 overflow-visible">
         <NotificationPanel onNavigate={setMode} />
         <WaveBars
           color={view.accent}
           active={modelStatus === 'ready' || modelStatus === 'loading'}
         />
         {sysStats && (
-          <div className="hq-stats">
+          <div className="flex items-center gap-[10px] [font-family:var(--chrome-font-mono)] text-[10.5px] text-[var(--chrome-fg-dim)] bg-transparent h-[var(--chrome-pill-h)] whitespace-nowrap shrink overflow-hidden tabular-nums slashed-zero max-[851px]:hidden!">
             {showLiveStats && (
               <>
-                <span>
-                  <b className="hq-stats__key">RAM</b> {sysStats.ram.toFixed(1)}/
-                  {sysStats.total_ram.toFixed(0)}G
+                <span className="max-[1081px]:hidden">
+                  <b className="text-[var(--chrome-fg-muted)] font-semibold">RAM</b>{' '}
+                  {sysStats.ram.toFixed(1)}/{sysStats.total_ram.toFixed(0)}G
                 </span>
-                <span>
-                  <b className="hq-stats__key">CPU</b> {sysStats.cpu.toFixed(0)}%
+                <span className="max-[1081px]:hidden">
+                  <b className="text-[var(--chrome-fg-muted)] font-semibold">CPU</b>{' '}
+                  {sysStats.cpu.toFixed(0)}%
                 </span>
                 <span
-                  className="hq-stats__sep"
+                  className="[border-left:1px_solid_var(--chrome-border)] pl-[6px]"
                   aria-label={`VRAM usage: ${sysStats.vram.toFixed(1)} gigabytes`}
                 >
                   <b
-                    className={`hq-stats__key ${sysStats.gpu_active ? 'hq-stats__key--gpu-active' : ''}`}
+                    className={`font-semibold ${sysStats.gpu_active ? 'text-[var(--chrome-severity-ok)]' : 'text-[var(--chrome-fg-muted)]'}`}
                   >
                     VRAM
                   </b>{' '}
@@ -304,7 +318,7 @@ export default function Header({
                 </span>
               </>
             )}
-            <span className="hq-stats__status-wrap">
+            <span className="[border-left:1px_solid_var(--chrome-border)] pl-[6px] flex items-center gap-1">
               <Badge
                 tone={
                   modelStatus === 'ready'
@@ -315,7 +329,7 @@ export default function Header({
                 }
                 size="xs"
                 dot
-                className={`hq-stats__status-badge ${modelStatus === 'loading' ? 'ui-badge--pulse' : ''}`}
+                className={`[border:none]! bg-transparent! p-0! normal-case! tracking-normal! font-semibold! ${modelStatus === 'loading' ? 'ui-badge--pulse' : ''}`}
               >
                 {modelStatus === 'ready'
                   ? t('header.status_ready')
@@ -335,32 +349,41 @@ export default function Header({
                   leading={!flushing && <Zap size={8} />}
                   trailing={<ChevronDown size={8} />}
                   onClick={() => setFlushOpen((o) => !o)}
-                  className="hq-flush-btn"
+                  className="ml-[2px]"
                 >
                   {t('header.flush')}
                 </Button>
                 {flushOpen &&
                   createPortal(
                     <div
-                      className="hq-flush-dropdown"
+                      className="fixed w-[260px] bg-[var(--color-bg-elev-1)] [border:1px_solid_var(--color-border)] rounded-[var(--radius-lg)] [box-shadow:0_8px_24px_rgba(0,0,0,0.5)] z-[9999] py-[4px] [animation:flush-slide_0.12s_ease-out]"
                       style={{ top: dropdownPos.top, left: dropdownPos.left }}
                       ref={dropdownRef}
                     >
-                      <div className="hq-flush-dropdown__header">{t('header.loaded_models')}</div>
+                      <div className="text-[10px] font-semibold text-[var(--color-fg-subtle)] uppercase tracking-[0.5px] pt-[6px] px-[12px] pb-[4px]">
+                        {t('header.loaded_models')}
+                      </div>
                       {loadedModels.length === 0 ? (
-                        <div className="hq-flush-dropdown__empty">{t('header.no_models')}</div>
+                        <div className="p-[12px] text-[11px] text-[var(--color-fg-muted)] text-center">
+                          {t('header.no_models')}
+                        </div>
                       ) : (
                         loadedModels.map((m) => (
-                          <div key={m.id} className="hq-flush-dropdown__item">
-                            <div className="hq-flush-dropdown__info">
-                              <span className="hq-flush-dropdown__name">{m.name}</span>
-                              <span className="hq-flush-dropdown__meta">
+                          <div
+                            key={m.id}
+                            className="flex items-center justify-between py-[6px] px-[12px] gap-2 hover:bg-[rgba(255,255,255,0.03)]"
+                          >
+                            <div className="flex flex-col gap-[1px] min-w-0">
+                              <span className="text-[12px] text-[var(--color-fg)] font-medium">
+                                {m.name}
+                              </span>
+                              <span className="text-[10px] text-[var(--color-fg-subtle)] [font-family:var(--font-mono)]">
                                 {m.device} {m.vram_mb > 0 ? `· ${m.vram_mb.toFixed(0)} MB` : ''}
                               </span>
                             </div>
                             {m.unloadable && (
                               <button
-                                className="hq-flush-dropdown__unload"
+                                className="text-[10px] font-semibold text-[var(--color-brand)] bg-[rgba(211,134,155,0.1)] [border:1px_solid_rgba(211,134,155,0.2)] rounded-[var(--radius-pill)] py-[2px] px-[8px] cursor-pointer shrink-0 hover:bg-[rgba(211,134,155,0.2)]"
                                 onClick={() => unloadModel(m.id)}
                                 disabled={unloading === m.id}
                                 aria-label={`Unload ${m.name}`}
@@ -371,9 +394,9 @@ export default function Header({
                           </div>
                         ))
                       )}
-                      <div className="hq-flush-dropdown__divider" />
+                      <div className="h-[1px] bg-[var(--color-border)] my-[4px]" />
                       <button
-                        className="hq-flush-dropdown__action"
+                        className="flex items-center gap-[6px] w-full py-[6px] px-[12px] text-[12px] text-[var(--color-fg)] bg-transparent border-none cursor-pointer text-left hover:bg-[rgba(255,255,255,0.04)]"
                         onClick={async () => {
                           setFlushing(true);
                           setFlushOpen(false);
@@ -387,7 +410,7 @@ export default function Header({
                         <Zap size={10} /> {t('header.flush_caches')}
                       </button>
                       <button
-                        className="hq-flush-dropdown__action hq-flush-dropdown__action--danger"
+                        className="flex items-center gap-[6px] w-full py-[6px] px-[12px] text-[12px] text-[#fb4934] bg-transparent border-none cursor-pointer text-left hover:bg-[rgba(251,73,52,0.08)]"
                         onClick={async () => {
                           setFlushing(true);
                           setFlushOpen(false);
