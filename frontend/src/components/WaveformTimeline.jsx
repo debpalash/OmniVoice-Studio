@@ -25,6 +25,14 @@ import { unlockAudio } from '../utils/audioUnlock';
 import SegmentTrack from './SegmentTrack';
 import './WaveformErrorBoundary.css';
 
+// Transport-control button chrome (migrated from the .waveform-btn family in
+// index.css). UA <button> padding/font are intentionally left untouched — the
+// app ships without a preflight reset, so this matches the pre-migration look.
+const WF_BTN_BASE =
+  'flex h-[22px] w-[22px] cursor-pointer items-center justify-center rounded-[4px] [transition:all_var(--transition-smooth)] disabled:cursor-not-allowed disabled:opacity-30';
+const WF_BTN = `${WF_BTN_BASE} bg-[rgba(255,255,255,0.04)] text-[color:var(--text-secondary)] [border:1px_solid_rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.1)] hover:text-[color:var(--text-primary)] hover:[border-color:rgba(255,255,255,0.12)]`;
+const WF_BTN_PLAY = `${WF_BTN_BASE} bg-[var(--chrome-accent-bg)] text-[color:var(--chrome-accent)] [border:1px_solid_var(--chrome-accent-border)] hover:bg-[color-mix(in_srgb,var(--chrome-accent)_22%,transparent)] hover:shadow-none`;
+
 /**
  * WaveformTimeline
  *
@@ -709,7 +717,7 @@ function WaveformTimeline(
   // ── Error fallback ──────────────────────────────────────────────────────────
   if (loadError) {
     return (
-      <div className="waveform-timeline">
+      <div className="mb-[6px]">
         <div className="wfm-error">
           <AlertTriangle size={13} style={{ flexShrink: 0, marginRight: 6 }} />
           {sourceMissing ? t('waveform.source_missing') : t('waveform.load_failed')}
@@ -719,11 +727,7 @@ function WaveformTimeline(
   }
 
   return (
-    <div
-      className="waveform-timeline wfm-layout"
-      role="region"
-      aria-label="Audio waveform timeline"
-    >
+    <div className="mb-[6px] wfm-layout" role="region" aria-label="Audio waveform timeline">
       {/* Video + Waveform stacked vertically */}
       <div className="wfm-stack">
         {/* Video preview — pinned to its aspect ratio so we don't letterbox
@@ -776,10 +780,14 @@ function WaveformTimeline(
       </div>
 
       {/* Controls */}
-      <div className="waveform-controls wfm-controls" role="toolbar" aria-label="Playback controls">
-        <div className="waveform-controls-left">
+      <div
+        className="flex items-center justify-between gap-[4px] wfm-controls"
+        role="toolbar"
+        aria-label="Playback controls"
+      >
+        <div className="flex items-center gap-[4px]">
           <button
-            className="waveform-btn"
+            className={WF_BTN}
             onClick={() => seekTo(0)}
             title="Restart"
             aria-label="Restart playback"
@@ -787,23 +795,26 @@ function WaveformTimeline(
             <SkipBack size={11} />
           </button>
           <button
-            className="waveform-btn waveform-btn-play"
+            className={WF_BTN_PLAY}
             onClick={togglePlay}
             disabled={!ready}
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
             {isPlaying ? <Pause size={11} /> : <Play size={11} />}
           </button>
-          <span className="waveform-time" aria-live="off">
+          <span
+            className="rounded-[3px] bg-[var(--chrome-hover-bg)] px-[5px] py-[1px] text-[0.62rem] text-[color:var(--chrome-fg-muted)] [border:1px_solid_var(--chrome-border)] [font-family:var(--font-mono)] [font-variant-numeric:tabular-nums]"
+            aria-live="off"
+          >
             {fmt(currentTime)} / {fmt(duration)}
           </span>
           <span className="wfm-kbd-hint" title="J/K/L: rewind, play/pause, forward">
             <Keyboard size={10} />
           </span>
         </div>
-        <div className="waveform-controls-right">
+        <div className="flex items-center gap-[4px]">
           <button
-            className="waveform-btn"
+            className={WF_BTN}
             onClick={() => setZoom((z) => Math.max(10, z - 20))}
             aria-label="Zoom out"
           >
@@ -815,11 +826,11 @@ function WaveformTimeline(
             max="300"
             value={zoom}
             onChange={(e) => setZoom(Number(e.target.value))}
-            className="waveform-zoom-slider"
+            className="!mt-0 !h-[2px] !w-[60px]"
             aria-label="Zoom level"
           />
           <button
-            className="waveform-btn"
+            className={WF_BTN}
             onClick={() => setZoom((z) => Math.min(300, z + 20))}
             aria-label="Zoom in"
           >

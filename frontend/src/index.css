@@ -750,13 +750,10 @@ audio::-webkit-media-controls-time-remaining-display { color: var(--chrome-fg); 
 .segment-play:hover { background: var(--chrome-hover-bg); color: var(--chrome-fg); border-color: var(--chrome-border-strong); }
 
 /* ═══ WAVEFORM TIMELINE ═══ */
-.waveform-timeline { margin-bottom: 6px; }
-
-.waveform-video-preview {
-  margin-bottom: 4px; border-radius: var(--radius);
-  overflow: hidden; border: 1px solid rgba(255,255,255,0.06); background: #1d2021;
-}
-
+/* .waveform-container is kept as a styling hook for the WaveSurfer-generated
+   region DOM ([data-id^="wavesurfer-region"]) below — those elements aren't
+   rendered in JSX, so they can't carry Tailwind utilities. The rest of the
+   waveform-* family migrated to utilities on WaveformTimeline.jsx (P4). */
 .waveform-container {
   background: rgba(0,0,0,0.22);
   border: 1px solid rgba(255,255,255,0.05);
@@ -772,56 +769,7 @@ audio::-webkit-media-controls-time-remaining-display { color: var(--chrome-fg); 
   border-radius: 3px !important;
 }
 
-.waveform-controls {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-top: 4px; gap: 4px;
-}
-.waveform-controls-left { display: flex; align-items: center; gap: 4px; }
-.waveform-controls-right { display: flex; align-items: center; gap: 4px; }
-
-.waveform-btn {
-  width: 22px; height: 22px;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
-  color: var(--text-secondary); border-radius: 4px; cursor: pointer;
-  transition: all var(--transition-smooth);
-}
-.waveform-btn:hover {
-  background: rgba(255,255,255,0.1); color: var(--text-primary);
-  border-color: rgba(255,255,255,0.12);
-}
-.waveform-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-.waveform-btn-play {
-  background: var(--chrome-accent-bg); border-color: var(--chrome-accent-border); color: var(--chrome-accent);
-}
-.waveform-btn-play:hover {
-  background: color-mix(in srgb, var(--chrome-accent) 22%, transparent);
-  box-shadow: none;
-}
-
-.waveform-time {
-  font-size: 0.62rem; font-family: var(--chrome-font-mono); color: var(--chrome-fg-muted);
-  padding: 1px 5px; background: var(--chrome-hover-bg); border-radius: 3px;
-  border: 1px solid var(--chrome-border);
-  font-variant-numeric: tabular-nums;
-}
-
-.waveform-zoom-slider {
-  width: 60px !important; height: 2px !important; margin-top: 0 !important;
-}
-
-/* ═══ MULTI-TRACK ═══ */
-.waveform-track-bg {
-  position: absolute; left: 0; right: 0; height: 26px;
-  background: rgba(255,255,255,0.015);
-  border-bottom: 1px dashed rgba(255,255,255,0.04);
-  pointer-events: none; z-index: 1;
-}
-.waveform-track-bg:nth-child(1) { top: 0px; }
-.waveform-track-bg:nth-child(2) { top: 26px; }
-.waveform-track-bg:nth-child(3) { top: 52px; }
-
+/* ═══ MULTI-TRACK (WaveSurfer region DOM) ═══ */
 .waveform-container [data-id^="wavesurfer-region"] {
   top: 52px !important;
   height: 26px !important;
@@ -1726,13 +1674,10 @@ div[role="dialog"].audio-trimmer {
 }
 
 /* ── Waveform timeline — reduce height on small screens ──
-   Track geometry shrinks with the container: 3 tracks of 18px so the
-   region row (track 3) stays inside the 60px box. */
+   The container shrinks to 60px and the WaveSurfer region row drops to an
+   18px lane pinned at top:36px so it stays inside the smaller box. */
 @media (max-width: 800px) {
   .waveform-container { height: 60px !important; }
-  .waveform-track-bg { height: 18px; }
-  .waveform-track-bg:nth-child(2) { top: 18px; }
-  .waveform-track-bg:nth-child(3) { top: 36px; }
   .waveform-container [data-id^="wavesurfer-region"] {
     top: 36px !important;
     height: 18px !important;
