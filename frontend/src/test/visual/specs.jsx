@@ -29,6 +29,18 @@ import SettingsToggle from '../../components/settings/primitives/SettingsToggle.
 import '../../components/settings/primitives/primitives.css';
 import './harness.css';
 
+// ── PAGE / PANEL specs (opt-in providers) ─────────────────────────────────
+// Unlike the pure leaf specs above, these render real Settings panels that
+// depend on the Zustand store, react-i18next, react-query, and direct api/*
+// fetches. Each declares a `providers` block (see ./providers.jsx) that seeds
+// that infrastructure with representative data so the panel renders with NO
+// backend. The `providers` key is what flips the harness into wrapped mode —
+// leaf specs without it are byte-for-byte unaffected.
+import AppearancePanel from '../../components/settings/AppearancePanel.jsx';
+import GeneralTab from '../../components/settings/GeneralTab.jsx';
+import StoragePanel from '../../components/settings/StoragePanel.jsx';
+import { queryKeys } from '../../api/hooks.ts';
+
 function Spec({ label, children }) {
   return (
     <div className="visual-spec">
@@ -310,5 +322,71 @@ export const SPECS = {
         </Spec>
       </>
     ),
+  },
+
+  // ── Panels (provider-wrapped) ────────────────────────────────────────────
+
+  // Store + i18n only — the simplest page-level target. Aligns the store's
+  // active `theme` with the rendered data-theme variant so the highlighted
+  // theme dot matches the snapshot's palette.
+  AppearancePanel: {
+    width: 640,
+    providers: {
+      store: ({ theme }) => ({
+        theme: theme === 'default' ? 'gruvbox' : theme,
+        uiScale: 1,
+        font: 'inter',
+        autoPlayPreview: true,
+      }),
+    },
+    render: () => <AppearancePanel />,
+  },
+
+  // Store + i18n + a seeded react-query cache. `useSystemInfo()` would
+  // otherwise spin forever with no backend; we pre-fill its cache entry with
+  // a representative payload so the ffmpeg badge + advanced rows render real.
+  GeneralTab: {
+    width: 640,
+    providers: {
+      store: ({ theme }) => ({
+        locale: 'en',
+        theme: theme === 'default' ? 'gruvbox' : theme,
+      }),
+      query: (qc) => {
+        qc.setQueryData(queryKeys.systemInfo, {
+          app_version: '0.3.6',
+          python: '3.12.4',
+          platform: 'macOS-15.0-arm64',
+          device: 'mps',
+          ffmpeg_ok: true,
+          ffmpeg_path: '/opt/homebrew/bin/ffmpeg',
+          proxy_url: '',
+          has_hf_token: true,
+        });
+      },
+    },
+    render: () => <GeneralTab />,
+  },
+
+  // Direct api/* fetch on mount (no react-query) — exercises the fetch stub.
+  // StoragePanel GETs /api/settings/storage/models-dir as it mounts; the stub
+  // returns a representative payload so it renders its loaded state, not the
+  // error fallback a missing backend would otherwise produce.
+  StoragePanel: {
+    width: 640,
+    providers: {
+      fetch: (url) => {
+        if (url.includes('/api/settings/storage/models-dir')) {
+          return {
+            configured: '',
+            effective: '/Users/~/Library/Caches/huggingface',
+            default: '/Users/~/Library/Caches/huggingface',
+            restart_required: false,
+          };
+        }
+        return undefined;
+      },
+    },
+    render: () => <StoragePanel />,
   },
 };

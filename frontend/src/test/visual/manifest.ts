@@ -18,6 +18,11 @@ export const COMPONENTS = [
   'Table',
   'Tabs',
   'Input',
+  // Provider-wrapped PANEL specs — rendered with a seeded store / i18n /
+  // react-query / fetch (see specs.jsx `providers`). Same snapshot loop.
+  'AppearancePanel',
+  'GeneralTab',
+  'StoragePanel',
 ] as const;
 
 export const THEMES = ['default', 'midnight', 'catppuccin'] as const;

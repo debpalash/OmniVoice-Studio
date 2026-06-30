@@ -19,6 +19,13 @@
   line-height: 1.5;
 }
 
+/* Page/panel specs (providers opt-in) render a single full-width surface
+   rather than a row of leaf variants — switch to a block so the panel fills
+   the wider, configurable frame exactly as it does in the real Settings. */
+.visual-root--page {
+  display: block;
+}
+
 .visual-spec {
   display: flex;
   flex-direction: column;

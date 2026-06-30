@@ -36,24 +36,41 @@ import '../../ui/themes.css';
 import '../../index.css';
 
 import { SPECS } from './specs.jsx';
+import { applyProviders } from './providers.jsx';
 
 const params = new URLSearchParams(window.location.search);
 const componentName = params.get('component') || '';
 const theme = params.get('theme') || 'default';
 const spec = SPECS[componentName];
 
+// Pure leaf specs render bare (unchanged). A spec that declares a `providers`
+// block opts into the store / i18n / react-query / fetch wrapper (see
+// ./providers.jsx) so a PAGE or PANEL can render with no backend. Seeding
+// happens here, before first render, so the very first paint has its data.
+const Wrap = spec?.providers ? applyProviders(spec.providers, { theme }) : null;
+
 function Harness() {
   // Default theme (Gruvbox Dark) is the bare :root tokens — no data-theme.
   // Every other theme is applied via the [data-theme="…"] selector in
   // ui/themes.css, set on the wrapper so the token overrides cascade in.
   const themeAttr = theme === 'default' ? {} : { 'data-theme': theme };
+  const content = spec ? (
+    spec.render()
+  ) : (
+    <div className="visual-root__error">Unknown component: {componentName || '(none)'}</div>
+  );
+  // Pages/panels need a wider, deterministic frame than the 460px leaf frame.
+  // A provider-spec defaults to 720px; a spec can override with `width`.
+  const isPage = Boolean(spec?.providers);
+  const widthStyle = spec?.width ? { width: spec.width } : isPage ? { width: 720 } : undefined;
   return (
-    <div id="visual-root" className="visual-root" {...themeAttr}>
-      {spec ? (
-        spec.render()
-      ) : (
-        <div className="visual-root__error">Unknown component: {componentName || '(none)'}</div>
-      )}
+    <div
+      id="visual-root"
+      className={`visual-root${isPage ? ' visual-root--page' : ''}`}
+      style={widthStyle}
+      {...themeAttr}
+    >
+      {Wrap ? <Wrap>{content}</Wrap> : content}
     </div>
   );
 }
