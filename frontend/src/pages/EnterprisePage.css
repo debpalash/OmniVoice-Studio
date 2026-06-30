@@ -35,14 +35,10 @@
   padding-top: 32px;
   animation: entIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-.ent-hero__kicker {
-  font-family: var(--chrome-font-mono);
-  font-size: var(--chrome-label-size);
-  font-weight: 600;
-  letter-spacing: var(--chrome-label-track);
-  text-transform: uppercase;
-  color: var(--chrome-fg-muted);
-}
+/* .ent-hero__kicker / .ent-hero__subtitle (base) / .ent-why__grid /
+   .ent-why__label / .ent-why__desc are now Tailwind utilities in
+   SupportPage.jsx (LicenseView). The rest stays — keyframes, ::before/::after
+   dividers, :hover combinators, color-mix accents, !important, details markers. */
 .ent-hero__title {
   font-family: var(--font-serif);
   font-size: 2.4rem;
@@ -53,14 +49,6 @@
   position: relative;
   display: inline-block;
   line-height: 1.1;
-}
-.ent-hero__subtitle {
-  font-family: var(--font-sans);
-  font-size: 0.85rem;
-  color: var(--chrome-fg-muted);
-  line-height: 1.65;
-  max-width: 540px;
-  margin: 16px auto 0;
 }
 .ent-hero__subtitle strong {
   color: var(--chrome-fg);
@@ -93,11 +81,6 @@
 }
 
 /* ── Why grid ─────────────────────────────────────────────── */
-.ent-why__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px;
-}
 .ent-why__card {
   padding: 14px 16px;
   border: 1px solid var(--chrome-border);
@@ -121,22 +104,6 @@
   color: #d3869b;
   margin-bottom: 10px;
 }
-.ent-why__label {
-  font-family: var(--chrome-font-mono);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--chrome-fg);
-  letter-spacing: var(--chrome-label-track);
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-.ent-why__desc {
-  font-family: var(--font-sans);
-  font-size: 0.72rem;
-  color: var(--chrome-fg-muted);
-  line-height: 1.5;
-}
-
 /* ── Pricing — coming-soon panel ──────────────────────────── */
 .ent-coming-soon {
   display: flex;

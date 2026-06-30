@@ -50,7 +50,7 @@ export default function LogsTab({
         onChange={setLogSource}
       />
 
-      <div className="settings-log-meta">
+      <div className="settings-log-meta flex items-center gap-[var(--space-4)] my-[var(--space-4)] font-mono text-[var(--text-base)] text-[var(--chrome-fg-dim)]">
         <span>{logMeta.path || '—'}</span>
         {logSource === 'tauri' && !logMeta.exists && (
           <Badge tone="warn">
@@ -60,7 +60,7 @@ export default function LogsTab({
       </div>
       <div className="settings-log">
         {logs.length === 0 ? (
-          <span className="settings-log__empty">
+          <span className="settings-log__empty font-sans text-[var(--chrome-fg-dim)]">
             {logSource === 'frontend'
               ? t('logs.empty_frontend')
               : logSource === 'tauri'

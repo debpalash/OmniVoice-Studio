@@ -2,18 +2,9 @@
    segmented toggle. Reuses the donate/enterprise chrome (DonatePage.css,
    EnterprisePage.css); this file only owns the toggle + panel transitions. */
 
-/* Top bar: Back · toggle (centered) · spacer */
-.support-page__topbar {
-  padding: 16px 44px 0;
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-/* Mirrors the Back button's footprint so the toggle sits visually centered. */
-.support-page__spacer { width: 96px; flex-shrink: 0; }
+/* `.support-page__topbar` base + `.support-page__spacer` base are now Tailwind
+   utilities in SupportPage.jsx / ContactPage.jsx; their @media (max-width:540px)
+   overrides stay below. */
 
 /* ── Segmented toggle ─────────────────────────────────────────────────── */
 .support-toggle {
@@ -104,22 +95,9 @@
   justify-content: center;
 }
 
-/* Donation methods stack in a single clean column — three full-width rows,
-   no orphaned card in a half-empty second row. */
-.support-methods {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-}
-
-/* ── "Other ways to help" chips ───────────────────────────────────────────
-   Non-monetary support (star, Discord) as quiet ghost pills, centered. */
-.support-chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-}
+/* `.support-methods` (single-column grid) + `.support-chips` (centered flex
+   wrap) are now Tailwind utilities in the JSX. `.support-chip` stays — it has
+   :hover state + transitions + a descendant svg color. */
 .support-chip {
   display: inline-flex;
   align-items: center;
@@ -158,13 +136,5 @@
   .support-view { animation: none; }
 }
 
-/* Contact page — the small monospace channel value under each card's
-   description (e.g. "discord.gg/…", "palash.dev"). */
-.contact-card__value {
-  margin-top: 4px;
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 11px;
-  color: var(--text-muted, #928374);
-  opacity: 0.85;
-  word-break: break-all;
-}
+/* `.contact-card__value` (the small monospace channel value under each Contact
+   card) is now a Tailwind utility set in ContactPage.jsx. */

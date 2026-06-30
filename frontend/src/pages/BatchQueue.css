@@ -1,19 +1,13 @@
-.batch-queue {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-5) var(--space-6);
-  min-height: 0;
-  overflow-y: auto;
-}
+/* Layout / spacing / typography / box styling now live as Tailwind utilities in
+   BatchQueue.jsx. What stays here:
+   - `.batch-queue__bar h1`: fights the unlayered global `h1` rule (font-sans),
+     so it must out-specify it from a non-utility rule.
+   - the `.batch-queue__card` transition + its `--running`/`--failed` border
+     modifiers: the modifier class is built from a dynamic template string, so
+     the pair stays as CSS rather than a JS class map.
+   - `.batch-queue__progress-fill` + its `::after` shimmer (pseudo-element,
+     layered gradient, keyframes) — not expressible as utilities. */
 
-.batch-queue__bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  flex-shrink: 0;
-}
 .batch-queue__bar h1 {
   margin: 0;
   font-family: var(--font-display);
@@ -24,86 +18,15 @@
   align-items: center;
   gap: var(--space-3);
 }
-.batch-queue__bar-spacer { flex: 1; }
 
-.batch-queue__tabs { flex-shrink: 0; }
-
-.batch-queue__empty {
-  text-align: center;
-  color: var(--color-fg-muted);
-}
-.batch-queue__empty-sub { font-size: var(--text-sm); color: var(--color-fg-subtle); }
-
-.batch-queue__list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  flex: 1;
-  min-height: 0;
-}
-
-/* ── Cards ──────────────────────────────────────────────────────────── */
+/* ── Cards (transition + status border modifiers) ───────────────────── */
 
 .batch-queue__card            { transition: border-color var(--dur-fast); }
 .batch-queue__card--running   { border-color: rgba(211, 134, 155, 0.4); }
 .batch-queue__card--failed    { border-color: rgba(251, 73, 52, 0.35); }
 
-.batch-queue__card-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  margin-bottom: var(--space-2);
-}
-.batch-queue__card-filename {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--color-fg);
-  font-weight: var(--weight-semibold);
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.batch-queue__card-spacer { flex: 1; }
-.batch-queue__card-age {
-  font-size: var(--text-xs);
-  color: var(--color-fg-subtle);
-  font-variant-numeric: tabular-nums;
-}
+/* ── Progress fill (gradient + shimmer pseudo-element) ──────────────── */
 
-/* ── Languages row ────────────────────────────────────────────────── */
-
-.batch-queue__card-langs {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-  color: var(--color-fg-muted);
-  font-size: var(--text-xs);
-}
-.batch-queue__card-lang {
-  background: var(--color-bg-elev-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 1px 6px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-/* ── Progress bar ─────────────────────────────────────────────────── */
-
-.batch-queue__progress {
-  margin: var(--space-2) 0 var(--space-3);
-}
-.batch-queue__progress-bar {
-  height: 6px;
-  background: var(--color-bg-elev-2);
-  border-radius: 3px;
-  overflow: hidden;
-  position: relative;
-}
 .batch-queue__progress-fill {
   height: 100%;
   border-radius: 3px;
@@ -123,95 +46,4 @@
   0%   { opacity: 0; }
   50%  { opacity: 1; }
   100% { opacity: 0; }
-}
-
-.batch-queue__progress-info {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
-  font-size: var(--text-xs);
-  color: var(--color-fg-muted);
-}
-.batch-queue__progress-stage {
-  font-weight: var(--weight-semibold);
-  color: var(--color-fg);
-}
-.batch-queue__progress-lang {
-  background: var(--color-bg-elev-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 0 4px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-}
-.batch-queue__progress-segs {
-  font-variant-numeric: tabular-nums;
-}
-.batch-queue__progress-pct {
-  margin-left: auto;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--color-fg);
-  font-weight: var(--weight-semibold);
-}
-
-/* ── Meta / Error ─────────────────────────────────────────────────── */
-
-.batch-queue__card-meta {
-  font-size: var(--text-xs);
-  color: var(--color-fg-muted);
-  margin-top: var(--space-1);
-}
-.batch-queue__card-error {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  margin-top: var(--space-3);
-  background: rgba(251, 73, 52, 0.06);
-  border: 1px solid rgba(251, 73, 52, 0.25);
-  border-radius: var(--radius-sm);
-  color: var(--color-danger);
-  font-size: var(--text-sm);
-  line-height: 1.4;
-}
-
-/* ── Output downloads ─────────────────────────────────────────────── */
-
-.batch-queue__card-outputs {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  margin-top: var(--space-3);
-}
-.batch-queue__card-dl {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 3px 10px;
-  font-size: var(--text-xs);
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  background: var(--color-bg-elev-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-fg);
-  text-decoration: none;
-  transition: all var(--dur-fast);
-}
-.batch-queue__card-dl:hover {
-  background: var(--color-bg-elev-3);
-  border-color: rgba(211, 134, 155, 0.5);
-  color: #f3a5b6;
-}
-
-/* ── Actions row ──────────────────────────────────────────────────── */
-
-.batch-queue__card-actions {
-  display: flex;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
-  justify-content: flex-end;
 }

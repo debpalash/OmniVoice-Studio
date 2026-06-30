@@ -1,23 +1,19 @@
 /* Audiobook tab — full-bleed, full-height layout (matches the other studio
    tabs). A two-pane body: the script editor fills the left + grows to the
    window height; settings + results scroll on the right. Collapses to a single
-   column on narrow widths. */
-.audiobook-tab {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  box-sizing: border-box;
-  padding: 1.25rem 1.5rem;
-  gap: 12px;
-}
+   column on narrow widths.
 
-.audiobook-tab__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
+   Layout / spacing now live as Tailwind utilities in AudiobookTab.jsx. What
+   stays here:
+   - `.audiobook-tab__title` — an `<h2>` whose font-family (serif) fights the
+     unlayered global `h1..h4` rule (font-sans), which would win over utilities.
+   - `.audiobook-tab .field-label` — scoped override of the shared `.field-label`
+     class (descendant compound).
+   - `.audiobook-tab__script textarea` / `.audiobook-tab__field select` —
+     descendant element styling on tags rendered by `<Textarea>`/`<select>`.
+   - the `@media (max-width: 900px)` block — Tailwind's breakpoints differ from
+     this custom one, so the responsive collapse stays in CSS. */
+
 .audiobook-tab__title {
   display: flex;
   align-items: center;
@@ -28,7 +24,6 @@
   font-weight: var(--weight-semibold);
   color: var(--color-fg);
 }
-.audiobook-tab__sub { margin: 2px 0 0; color: var(--color-fg-muted); font-size: var(--text-sm); }
 
 /* Field/section labels — chrome mono uppercase, matching the rest of the app's
    form labels (the bare .field-label class has no global rule). */
@@ -40,28 +35,7 @@
   text-transform: uppercase;
   color: var(--chrome-fg-muted);
 }
-.audiobook-tab__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
 
-/* Body fills the remaining height; min-height:0 lets the textarea shrink. */
-.audiobook-tab__body {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
-  gap: 16px;
-}
-
-.audiobook-tab__script {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  gap: 6px;
-}
 .audiobook-tab__script textarea {
   flex: 1 1 auto;
   min-height: 0;
@@ -70,25 +44,7 @@
   font-family: var(--font-mono, monospace);
 }
 
-.audiobook-tab__side {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-.audiobook-tab__field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
 .audiobook-tab__field select { width: 100%; }
-.audiobook-tab__duo {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
 
 @media (max-width: 900px) {
   .audiobook-tab__body { grid-template-columns: 1fr; }

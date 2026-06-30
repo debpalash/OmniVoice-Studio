@@ -139,8 +139,8 @@ export default function BatchQueue({ onBack }) {
   );
 
   return (
-    <div className="batch-queue">
-      <div className="batch-queue__bar">
+    <div className="batch-queue flex flex-1 flex-col gap-[var(--space-4)] min-h-0 overflow-y-auto px-[var(--space-6)] py-[var(--space-5)]">
+      <div className="batch-queue__bar flex shrink-0 items-center gap-[var(--space-4)]">
         {onBack && (
           <Button variant="ghost" size="sm" onClick={onBack}>
             {t('batch.back')}
@@ -149,7 +149,7 @@ export default function BatchQueue({ onBack }) {
         <h1>
           <Activity size={15} /> {t('batch.title')}
         </h1>
-        <div className="batch-queue__bar-spacer" />
+        <div className="batch-queue__bar-spacer flex-1" />
         <Button
           variant="subtle"
           size="sm"
@@ -169,17 +169,17 @@ export default function BatchQueue({ onBack }) {
         </Button>
       </div>
 
-      <Tabs items={TABS} value={tab} onChange={setTab} className="batch-queue__tabs" />
+      <Tabs items={TABS} value={tab} onChange={setTab} className="batch-queue__tabs shrink-0" />
 
       {jobs.length === 0 && !loading && (
-        <Panel variant="flat" padding="lg" className="batch-queue__empty">
+        <Panel variant="flat" padding="lg" className="batch-queue__empty text-center text-fg-muted">
           <div>
             <p>
               {tab === 'active' && t('batch.no_active')}
               {tab === 'done' && t('batch.no_completed')}
               {tab === 'failed' && t('batch.no_failed')}
             </p>
-            <p className="batch-queue__empty-sub">
+            <p className="batch-queue__empty-sub text-[var(--text-sm)] text-fg-subtle">
               {tab === 'active' && t('batch.drop_hint')}
               {tab === 'done' && 'Nothing has completed recently.'}
               {tab === 'failed' && 'No failed jobs — enjoy the silence.'}
@@ -188,7 +188,7 @@ export default function BatchQueue({ onBack }) {
         </Panel>
       )}
 
-      <div className="batch-queue__list">
+      <div className="batch-queue__list flex flex-1 flex-col gap-[var(--space-3)] min-h-0">
         {jobs.map((j) => (
           <JobCard key={j.id} job={j} onCancel={handleCancel} onDelete={handleDelete} t={t} />
         ))}
@@ -237,16 +237,16 @@ function JobCard({ job, onCancel, onDelete, t }) {
       padding="md"
       className={`batch-queue__card batch-queue__card--${job.status}`}
     >
-      <div className="batch-queue__card-head">
+      <div className="batch-queue__card-head flex flex-wrap items-center gap-[var(--space-3)] mb-[var(--space-2)]">
         <Badge tone={st.tone} dot>
           <StIcon size={10} /> {t(st.label)}
         </Badge>
-        <span className="batch-queue__card-filename">
+        <span className="batch-queue__card-filename inline-flex items-center gap-[var(--space-2)] font-mono text-[var(--text-xs)] font-semibold text-fg">
           <Film size={10} /> {job.filename}
         </span>
-        <span className="batch-queue__card-spacer" />
+        <span className="batch-queue__card-spacer flex-1" />
         <span
-          className="batch-queue__card-age"
+          className="batch-queue__card-age text-[var(--text-xs)] text-fg-subtle [font-variant-numeric:tabular-nums]"
           title={new Date((job.created_at || 0) * 1000).toLocaleString()}
         >
           {ageLabel}
@@ -254,10 +254,13 @@ function JobCard({ job, onCancel, onDelete, t }) {
       </div>
 
       {/* Languages */}
-      <div className="batch-queue__card-langs">
+      <div className="batch-queue__card-langs flex items-center gap-[var(--space-2)] mb-[var(--space-3)] text-[var(--text-xs)] text-fg-muted">
         <Globe size={9} />
         {job.langs.map((l) => (
-          <span key={l} className="batch-queue__card-lang">
+          <span
+            key={l}
+            className="batch-queue__card-lang rounded-sm [border:1px_solid_var(--color-border)] bg-bg-elev-2 px-[6px] py-[1px] font-mono text-[10px] uppercase tracking-[0.05em]"
+          >
             {l}
           </span>
         ))}
@@ -265,52 +268,56 @@ function JobCard({ job, onCancel, onDelete, t }) {
 
       {/* Progress bar for running jobs */}
       {job.status === 'running' && progress && (
-        <div className="batch-queue__progress">
-          <div className="batch-queue__progress-bar">
+        <div className="batch-queue__progress mt-[var(--space-2)] mb-[var(--space-3)]">
+          <div className="batch-queue__progress-bar relative h-[6px] overflow-hidden rounded-[3px] bg-bg-elev-2">
             <div
               className="batch-queue__progress-fill"
               style={{ width: `${Math.min(100, pct)}%` }}
             />
           </div>
-          <div className="batch-queue__progress-info">
-            <span className="batch-queue__progress-stage">{stageLabel}</span>
+          <div className="batch-queue__progress-info flex items-center gap-[var(--space-3)] mt-[var(--space-2)] text-[var(--text-xs)] text-fg-muted">
+            <span className="batch-queue__progress-stage font-semibold text-fg">{stageLabel}</span>
             {progress.current_lang && (
-              <span className="batch-queue__progress-lang">{progress.current_lang}</span>
+              <span className="batch-queue__progress-lang rounded-sm [border:1px_solid_var(--color-border)] bg-bg-elev-2 px-[4px] font-mono text-[10px] uppercase">
+                {progress.current_lang}
+              </span>
             )}
             {progress.current_segment != null && progress.total_segments && (
-              <span className="batch-queue__progress-segs">
+              <span className="batch-queue__progress-segs [font-variant-numeric:tabular-nums]">
                 {t('batch.seg', {
                   current: progress.current_segment,
                   total: progress.total_segments,
                 })}
               </span>
             )}
-            <span className="batch-queue__progress-pct">{pct}%</span>
+            <span className="batch-queue__progress-pct ml-auto font-mono [font-variant-numeric:tabular-nums] font-semibold text-fg">
+              {pct}%
+            </span>
           </div>
         </div>
       )}
 
       {/* Duration for completed jobs */}
       {duration != null && (
-        <div className="batch-queue__card-meta">
+        <div className="batch-queue__card-meta mt-[var(--space-1)] text-[var(--text-xs)] text-fg-muted">
           {t('batch.completed_in', { duration: formatDuration(duration) })}
         </div>
       )}
 
       {/* Error display */}
       {job.error && (
-        <div className="batch-queue__card-error">
+        <div className="batch-queue__card-error flex items-start gap-[var(--space-2)] mt-[var(--space-3)] rounded-sm [border:1px_solid_rgba(251,73,52,0.25)] bg-[rgba(251,73,52,0.06)] p-[var(--space-3)] text-[var(--text-sm)] leading-[1.4] text-danger">
           <AlertCircle size={11} /> {job.error}
         </div>
       )}
 
       {/* Output downloads for done jobs */}
       {job.status === 'done' && job.outputs && Object.keys(job.outputs).length > 0 && (
-        <div className="batch-queue__card-outputs">
+        <div className="batch-queue__card-outputs flex flex-wrap gap-[var(--space-2)] mt-[var(--space-3)]">
           {Object.entries(job.outputs).map(([lang]) => (
             <a
               key={lang}
-              className="batch-queue__card-dl"
+              className="batch-queue__card-dl inline-flex items-center gap-[var(--space-2)] rounded-sm [border:1px_solid_var(--color-border)] bg-bg-elev-2 px-[10px] py-[3px] font-mono text-[var(--text-xs)] uppercase text-fg no-underline [transition:all_var(--dur-fast)] hover:bg-bg-elev-3 hover:[border-color:rgba(211,134,155,0.5)] hover:text-[#f3a5b6]"
               href={`${API}/batch/download/${job.id}/${lang}`}
               download
             >
@@ -321,7 +328,7 @@ function JobCard({ job, onCancel, onDelete, t }) {
       )}
 
       {/* Actions */}
-      <div className="batch-queue__card-actions">
+      <div className="batch-queue__card-actions flex justify-end gap-[var(--space-2)] mt-[var(--space-3)]">
         {(job.status === 'queued' || job.status === 'running') && (
           <Button
             variant="ghost"

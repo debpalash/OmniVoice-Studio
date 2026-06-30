@@ -236,15 +236,17 @@ export default function AudiobookTab({ profiles = [] }) {
   const canRun = text.trim().length > 0 && !busy;
 
   return (
-    <div className="audiobook-tab">
-      <div className="audiobook-tab__head">
+    <div className="audiobook-tab flex flex-col h-full box-border px-[1.5rem] py-[1.25rem] gap-[12px]">
+      <div className="audiobook-tab__head flex flex-wrap items-start justify-between gap-[16px]">
         <div>
           <h2 className="audiobook-tab__title">
             <BookMarked size={20} /> {t('audiobook.title')}
           </h2>
-          <p className="muted audiobook-tab__sub">{t('audiobook.subtitle')}</p>
+          <p className="muted audiobook-tab__sub mt-[2px] text-[var(--text-sm)] text-fg-muted">
+            {t('audiobook.subtitle')}
+          </p>
         </div>
-        <div className="audiobook-tab__actions">
+        <div className="audiobook-tab__actions flex flex-wrap items-center gap-[8px]">
           <label
             className="ui-btn ui-btn--subtle"
             style={{
@@ -274,9 +276,9 @@ export default function AudiobookTab({ profiles = [] }) {
         </div>
       </div>
 
-      <div className="audiobook-tab__body">
+      <div className="audiobook-tab__body grid flex-auto grid-cols-[minmax(0,1fr)_minmax(300px,380px)] gap-[16px] min-h-0">
         {/* Left: script editor fills the height */}
-        <div className="audiobook-tab__script">
+        <div className="audiobook-tab__script flex flex-col min-h-0 gap-[6px]">
           <label className="field-label">{t('audiobook.script')}</label>
           <textarea
             className="input-base"
@@ -288,8 +290,8 @@ export default function AudiobookTab({ profiles = [] }) {
         </div>
 
         {/* Right: settings + results, scrolls independently */}
-        <div className="audiobook-tab__side">
-          <div className="audiobook-tab__field">
+        <div className="audiobook-tab__side flex flex-col gap-[12px] min-h-0 overflow-y-auto pr-[4px]">
+          <div className="audiobook-tab__field flex flex-col gap-[4px]">
             <label className="field-label">{t('audiobook.default_voice')}</label>
             <VoiceSelector
               value={defaultVoice}
@@ -299,8 +301,8 @@ export default function AudiobookTab({ profiles = [] }) {
             />
           </div>
 
-          <div className="audiobook-tab__duo">
-            <div className="audiobook-tab__field">
+          <div className="audiobook-tab__duo grid grid-cols-[1fr_1fr] gap-[8px]">
+            <div className="audiobook-tab__field flex flex-col gap-[4px]">
               <label className="field-label">{t('audiobook.format')}</label>
               <select
                 className="input-base"
@@ -312,7 +314,7 @@ export default function AudiobookTab({ profiles = [] }) {
                 <option value="mp3">{t('audiobook.format_mp3')}</option>
               </select>
             </div>
-            <div className="audiobook-tab__field">
+            <div className="audiobook-tab__field flex flex-col gap-[4px]">
               <label className="field-label">{t('audiobook.loudness')}</label>
               <select
                 className="input-base"
@@ -328,7 +330,7 @@ export default function AudiobookTab({ profiles = [] }) {
           </div>
 
           {/* Cover + metadata */}
-          <div className="audiobook-tab__field">
+          <div className="audiobook-tab__field flex flex-col gap-[4px]">
             <label className="field-label">{t('audiobook.details')}</label>
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
               <div style={{ position: 'relative', width: 96, height: 96, flexShrink: 0 }}>
@@ -431,7 +433,7 @@ export default function AudiobookTab({ profiles = [] }) {
           </div>
 
           {/* Pronunciation lexicon */}
-          <div className="audiobook-tab__field">
+          <div className="audiobook-tab__field flex flex-col gap-[4px]">
             <label className="field-label">{t('audiobook.lexicon')}</label>
             {lex.map((row, i) => (
               <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
@@ -472,7 +474,7 @@ export default function AudiobookTab({ profiles = [] }) {
           </div>
 
           {/* Markup quick reference */}
-          <details className="audiobook-tab__field">
+          <details className="audiobook-tab__field flex flex-col gap-[4px]">
             <summary className="field-label" style={{ cursor: 'pointer' }}>
               {t('audiobook.markup_help')}
             </summary>

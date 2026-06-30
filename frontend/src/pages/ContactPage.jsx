@@ -68,21 +68,21 @@ export default function ContactPage({ onBack }) {
   const { t } = useTranslation();
 
   return (
-    <div className="support-page donate-page">
+    <div className="support-page donate-page flex flex-1 flex-col overflow-y-auto relative isolate bg-[var(--chrome-bg)]">
       <div className="lp-aurora" aria-hidden="true">
         <span className="lp-aurora__blob lp-aurora__blob--pink" />
         <span className="lp-aurora__blob lp-aurora__blob--green" />
         <span className="lp-aurora__blob lp-aurora__blob--amber" />
       </div>
 
-      <div className="support-page__topbar">
+      <div className="support-page__topbar relative z-[2] flex items-center justify-between gap-[12px] pt-[16px] px-[44px]">
         <Button variant="subtle" size="sm" onClick={onBack} leading={<ArrowLeft size={14} />}>
           {t('donate.back')}
         </Button>
-        <span className="support-page__spacer" aria-hidden="true" />
+        <span className="support-page__spacer w-[96px] shrink-0" aria-hidden="true" />
       </div>
 
-      <div className="support-page__content donate-page__content support-page__content--support">
+      <div className="support-page__content donate-page__content support-page__content--support relative z-[1] mx-auto flex w-full max-w-[640px] flex-col gap-[24px] px-[32px] pb-[40px]">
         <div className="support-view">
           <div className="donate-hero">
             <div className="donate-hero__icon-wrap">
@@ -92,7 +92,7 @@ export default function ContactPage({ onBack }) {
               {t('contact.hero_title', { defaultValue: 'Get in touch' })}
               <span className="lp-hero__sweep" aria-hidden="true" />
             </h2>
-            <p className="donate-hero__subtitle">
+            <p className="donate-hero__subtitle mx-auto mt-[10px] max-w-[480px] font-sans text-[0.8rem] leading-[1.65] text-[var(--chrome-fg-muted)]">
               {t('contact.hero_desc', {
                 defaultValue:
                   'Questions, bugs, licensing, or just to say hi — here’s how to reach me.',
@@ -101,7 +101,7 @@ export default function ContactPage({ onBack }) {
           </div>
 
           <section className="donate-section">
-            <div className="donate-grid support-methods">
+            <div className="donate-grid support-methods grid grid-cols-[1fr] gap-[10px]">
               {CHANNELS.map((c, i) => {
                 const Icon = c.icon;
                 return (
@@ -123,7 +123,9 @@ export default function ContactPage({ onBack }) {
                       <div className="donate-card__desc">
                         {t(c.descKey, { defaultValue: c.descDefault })}
                       </div>
-                      <div className="contact-card__value">{c.value}</div>
+                      <div className="contact-card__value mt-[4px] font-mono text-[11px] text-[var(--text-muted,#928374)] opacity-[0.85] [word-break:break-all]">
+                        {c.value}
+                      </div>
                     </div>
                     <div className="donate-card__arrow">
                       <ExternalLink size={14} />

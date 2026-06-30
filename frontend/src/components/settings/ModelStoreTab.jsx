@@ -396,7 +396,9 @@ export default function ModelStoreTab({ info, modelBadge }) {
   if (loading && !data) {
     return (
       <SettingsSection icon={Cpu} title={t('settings.models')}>
-        <div className="settings-muted">{t('common.loading')}</div>
+        <div className="settings-muted font-sans text-[var(--text-md)] text-[var(--chrome-fg-dim)]">
+          {t('common.loading')}
+        </div>
       </SettingsSection>
     );
   }

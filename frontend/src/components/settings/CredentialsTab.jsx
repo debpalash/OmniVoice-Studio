@@ -105,7 +105,7 @@ export default function CredentialsTab({ info }) {
       <LLMEndpointPanel />
 
       <Collapsible title={t('settings.credentials_more')} icon={KeyRound}>
-        <p className="settings-prose">
+        <p className="settings-prose m-0 mb-[var(--space-5)] font-sans text-[var(--text-md)] leading-[1.6] text-[var(--chrome-fg-muted)]">
           <Trans i18nKey="credentials.desc" components={{ 1: <strong /> }} />
         </p>
         {CREDENTIAL_FIELDS.filter((f) => f.key !== 'HF_TOKEN').map((field) => (

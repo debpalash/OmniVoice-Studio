@@ -125,21 +125,28 @@ export default function TranscriptionsPage() {
   };
 
   return (
-    <div className="txn-page" role="region" aria-label={t('transcriptions.title')}>
+    <div
+      className="txn-page flex flex-col h-full px-[24px] py-[20px] gap-[16px] font-sans"
+      role="region"
+      aria-label={t('transcriptions.title')}
+    >
       {/* Header */}
-      <div className="txn-header">
-        <div className="txn-header__left">
-          <h1 className="txn-header__title">
+      <div className="txn-header flex flex-wrap items-center justify-between gap-[12px]">
+        <div className="txn-header__left flex items-center gap-[12px]">
+          <h1 className="txn-header__title flex items-center gap-[8px] text-[var(--text-xl)] font-semibold text-fg">
             <FileText size={20} />
             {t('transcriptions.title')}
           </h1>
-          <span className="txn-header__count">
+          <span className="txn-header__count rounded-[var(--radius-pill)] [border:1px_solid_var(--color-border)] bg-bg-elev-1 px-[10px] py-[2px] text-[var(--text-xs)] text-fg-subtle">
             {t('transcriptions.entries', { count: transcriptions.length })}
           </span>
         </div>
-        <div className="txn-header__right">
-          <div className="txn-search">
-            <Search size={13} className="txn-search__icon" />
+        <div className="txn-header__right flex items-center gap-[6px]">
+          <div className="txn-search relative flex items-center">
+            <Search
+              size={13}
+              className="txn-search__icon absolute left-[10px] pointer-events-none text-fg-subtle"
+            />
             <input
               className="txn-search__input"
               placeholder={t('transcriptions.search_placeholder')}
@@ -172,16 +179,16 @@ export default function TranscriptionsPage() {
       </div>
 
       {/* Content */}
-      <div className="txn-content">
+      <div className="txn-content grid flex-1 grid-cols-[1fr_1fr] gap-[12px] min-h-0">
         {/* List */}
-        <div className="txn-list" role="list">
+        <div className="txn-list flex flex-col gap-[4px] overflow-y-auto pr-[4px]" role="list">
           {filtered.length === 0 ? (
-            <div className="txn-empty">
-              <Mic size={32} className="txn-empty__icon" />
-              <p className="txn-empty__title">
+            <div className="txn-empty flex h-full flex-col items-center justify-center gap-[8px] px-[20px] py-[40px] text-center text-fg-muted">
+              <Mic size={32} className="txn-empty__icon opacity-30" />
+              <p className="txn-empty__title m-0 text-[var(--text-sm)] font-medium text-fg">
                 {search ? t('transcriptions.empty_search_title') : t('transcriptions.empty_title')}
               </p>
-              <p className="txn-empty__desc">
+              <p className="txn-empty__desc m-0 max-w-[280px] text-[var(--text-xs)] leading-[1.6] text-fg-muted">
                 {search ? t('transcriptions.empty_search_desc') : t('transcriptions.empty_desc')}
               </p>
             </div>
@@ -193,20 +200,22 @@ export default function TranscriptionsPage() {
                 className={`txn-item ${selectedId === t.id ? 'txn-item--active' : ''}`}
                 onClick={() => setSelectedId(t.id)}
               >
-                <div className="txn-item__text">
+                <div className="txn-item__text mb-[6px] text-[var(--text-sm)] leading-[1.5] text-fg [word-break:break-word]">
                   {t.text.length > 120 ? t.text.slice(0, 120) + '…' : t.text}
                 </div>
-                <div className="txn-item__meta">
-                  <span className="txn-item__time">
+                <div className="txn-item__meta flex items-center gap-[10px] text-[10px] text-fg-subtle">
+                  <span className="txn-item__time flex items-center gap-[3px]">
                     <Clock size={10} /> {formatTime(t.timestamp)}
                   </span>
                   {t.language && t.language !== 'unknown' && (
-                    <span className="txn-item__lang">
+                    <span className="txn-item__lang flex items-center gap-[3px]">
                       <Languages size={10} /> {t.language}
                     </span>
                   )}
                   {t.duration_s > 0 && (
-                    <span className="txn-item__dur">{t.duration_s.toFixed(1)}s</span>
+                    <span className="txn-item__dur flex items-center gap-[3px]">
+                      {t.duration_s.toFixed(1)}s
+                    </span>
                   )}
                 </div>
               </div>
@@ -216,12 +225,12 @@ export default function TranscriptionsPage() {
 
         {/* Detail panel */}
         {selected && (
-          <div className="txn-detail">
-            <div className="txn-detail__header">
-              <span className="txn-detail__time">
+          <div className="txn-detail flex flex-col [border:1px_solid_var(--color-border)] bg-bg-elev-1 rounded-lg overflow-hidden">
+            <div className="txn-detail__header flex items-center justify-between px-[14px] py-[10px] [border-bottom:1px_solid_var(--color-border)]">
+              <span className="txn-detail__time text-[var(--text-xs)] text-fg-muted">
                 {new Date(selected.timestamp).toLocaleString()}
               </span>
-              <div className="txn-detail__actions">
+              <div className="txn-detail__actions flex gap-[4px]">
                 <Button size="sm" variant="ghost" onClick={() => copyText(selected.text)}>
                   <Copy size={12} /> {t('transcriptions.copy')}
                 </Button>
@@ -230,18 +239,23 @@ export default function TranscriptionsPage() {
                 </Button>
               </div>
             </div>
-            <div className="txn-detail__body">
-              <p className="txn-detail__text">{selected.text}</p>
+            <div className="txn-detail__body flex-1 p-[14px] overflow-y-auto">
+              <p className="txn-detail__text m-0 text-[var(--text-sm)] leading-[1.7] whitespace-pre-wrap text-fg">
+                {selected.text}
+              </p>
             </div>
             {selected.segments && selected.segments.length > 0 && (
-              <div className="txn-detail__segments">
+              <div className="txn-detail__segments [border-top:1px_solid_var(--color-border)] px-[14px] py-[10px] max-h-[200px] overflow-y-auto">
                 <h4 className="txn-detail__seg-title">{t('transcriptions.segments_title')}</h4>
                 {selected.segments.map((seg, i) => (
-                  <div key={i} className="txn-detail__seg">
-                    <span className="txn-detail__seg-time">
+                  <div
+                    key={i}
+                    className="txn-detail__seg flex gap-[8px] py-[3px] text-[var(--text-xs)]"
+                  >
+                    <span className="txn-detail__seg-time shrink-0 font-mono text-fg-subtle min-w-[80px]">
                       {seg.start.toFixed(1)}s – {seg.end.toFixed(1)}s
                     </span>
-                    <span className="txn-detail__seg-text">{seg.text}</span>
+                    <span className="txn-detail__seg-text text-fg">{seg.text}</span>
                   </div>
                 ))}
               </div>

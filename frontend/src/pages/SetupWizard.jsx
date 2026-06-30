@@ -77,7 +77,7 @@ function PreflightPanel({ report, loading, onRecheck }) {
   const { t } = useTranslation();
   if (loading && !report) {
     return (
-      <div className="swiz-loading">
+      <div className="swiz-loading flex items-center gap-[0.5rem] text-[0.78rem] opacity-65 py-[0.4rem]">
         <Loader className="spinner" size={14} /> {t('setup.probing')}
       </div>
     );
@@ -91,7 +91,7 @@ function PreflightPanel({ report, loading, onRecheck }) {
           ↻ {t('setup.recheck')}
         </button>
       </h2>
-      <div className="swiz-checks">
+      <div className="swiz-checks grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-x-[1.6rem] gap-y-[0.55rem] items-start">
         {report.checks.map((c) => (
           <div key={c.id} className={`frs-check frs-check--${c.status}`}>
             <span className="frs-check__led" aria-hidden="true" />
@@ -232,7 +232,10 @@ export default function SetupWizard({ onReady }) {
             no welcome ceremony (the journey rail + setup page already
             oriented them). */}
         {step === 0 && (
-          <div className="swiz-slide" key="step-0">
+          <div
+            className="swiz-slide flex flex-col gap-[0.8rem] min-w-0 flex-auto min-h-0"
+            key="step-0"
+          >
             <div className="frs-rise" style={{ '--rise': 1 }}>
               <PreflightPanel report={pre} loading={preLoading} onRecheck={recheckPreflight} />
             </div>
@@ -261,7 +264,10 @@ export default function SetupWizard({ onReady }) {
             Required models gate continue; engines and the optional tail
             ride in the same inventory. */}
         {step === 1 && (
-          <div className="swiz-slide" key="step-1">
+          <div
+            className="swiz-slide flex flex-col gap-[0.8rem] min-w-0 flex-auto min-h-0"
+            key="step-1"
+          >
             <section
               className="frs-panel frs-rise relative flex flex-col gap-[0.6rem]"
               style={{ '--rise': 1 }}
@@ -269,7 +275,7 @@ export default function SetupWizard({ onReady }) {
               <h2 className="frs-panel__title">{t('firstrun.stage_models', 'Models & engines')}</h2>
               <WizardLibrary />
               {!modelsReady && status?.missing?.length > 0 && (
-                <p className="swiz-note swiz-note--warn">
+                <p className="swiz-note swiz-note--warn m-0 text-[0.74rem] leading-[1.5] opacity-60">
                   {t('setup.still_needed')} {status.missing.map((m) => m.label).join(', ')}
                 </p>
               )}
@@ -299,13 +305,16 @@ export default function SetupWizard({ onReady }) {
         {/* 2. Dictation — guided walkthrough. Skippable (per cross-platform
             parity rule: some users genuinely don't want dictation). */}
         {step === 2 && (
-          <div className="swiz-slide" key="step-2">
+          <div
+            className="swiz-slide flex flex-col gap-[0.8rem] min-w-0 flex-auto min-h-0"
+            key="step-2"
+          >
             <section
               className="frs-panel frs-rise relative flex flex-col gap-[0.6rem]"
               style={{ '--rise': 1 }}
             >
               <h2 className="frs-panel__title">{t('setup.try_dictation')}</h2>
-              <div className="frs-embed">
+              <div className="frs-embed max-h-[min(58vh,640px)] overflow-y-auto rounded-[10px]">
                 <DictationDemo />
               </div>
             </section>
@@ -331,7 +340,7 @@ export default function SetupWizard({ onReady }) {
         )}
 
         {!status && step > 0 && (
-          <div className="swiz-loading">
+          <div className="swiz-loading flex items-center gap-[0.5rem] text-[0.78rem] opacity-65 py-[0.4rem]">
             <Loader className="spinner" size={14} /> {t('setup.checking')}
           </div>
         )}

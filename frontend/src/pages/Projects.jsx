@@ -304,11 +304,11 @@ export default function Projects({
   }, [items, filter, query]);
 
   return (
-    <div className="projects">
-      <div className="projects__header">
+    <div className="projects flex flex-col h-full min-h-0 bg-[var(--bg)] text-[var(--text-primary)]">
+      <div className="projects__header flex shrink-0 items-center gap-[12px] px-[18px] py-[12px] [border-bottom:1px_solid_var(--chrome-border)] bg-[var(--chrome-bg)]">
         <h1 className="projects__title">{t('projects.title')}</h1>
-        <div className="projects__toolbar">
-          <div className="projects__search">
+        <div className="projects__toolbar flex flex-1 items-center justify-end gap-[8px]">
+          <div className="projects__search flex flex-1 items-center gap-[6px] h-[var(--chrome-pill-h)] max-w-[420px] px-[10px] [border:1px_solid_var(--chrome-border)] rounded-[var(--chrome-radius-pill)] bg-[var(--chrome-hover-bg)] text-[var(--chrome-fg-muted)]">
             <Search size={12} />
             <input
               value={query}
@@ -317,7 +317,7 @@ export default function Projects({
               spellCheck={false}
             />
           </div>
-          <div className="projects__view-toggle">
+          <div className="projects__view-toggle inline-flex gap-[1px] overflow-hidden [border:1px_solid_var(--chrome-border)] rounded-[var(--chrome-radius-pill)] bg-[var(--chrome-hover-bg)]">
             <button
               className={view === 'grid' ? 'is-active' : ''}
               onClick={() => setView('grid')}
@@ -338,8 +338,8 @@ export default function Projects({
         </div>
       </div>
 
-      <div className="projects__body">
-        <aside className="projects__rail">
+      <div className="projects__body grid flex-1 grid-cols-[200px_minmax(0,1fr)] min-h-0">
+        <aside className="projects__rail flex flex-col gap-[2px] overflow-y-auto px-[8px] py-[10px] [border-right:1px_solid_var(--chrome-border)] bg-[var(--chrome-bg)]">
           {FILTERS.map((f) => {
             const FI = f.Icon;
             const n = counts[f.id] ?? 0;
@@ -358,11 +358,15 @@ export default function Projects({
           })}
         </aside>
 
-        <section className={`projects__content projects__content--${view}`}>
+        <section
+          className={`projects__content projects__content--${view} px-[18px] py-[14px] overflow-y-auto min-h-0`}
+        >
           {visible.length === 0 && (
-            <div className="projects__empty">
+            <div className="projects__empty [grid-column:1/-1] flex flex-col items-center gap-[8px] px-[16px] py-[48px] text-center text-[var(--chrome-fg-dim)]">
               <FolderOpen size={28} />
-              <p>{query ? t('projects.no_matches', { query }) : t('projects.empty_hint')}</p>
+              <p className="max-w-[380px] m-0 text-[0.82rem] leading-[1.5]">
+                {query ? t('projects.no_matches', { query }) : t('projects.empty_hint')}
+              </p>
             </div>
           )}
           {visible.map((it) => (

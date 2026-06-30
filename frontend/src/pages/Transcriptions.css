@@ -1,68 +1,16 @@
 /* ── Transcriptions Page ───────────────────────────────────────────── */
+/* Layout / spacing / typography / box styling now live as Tailwind utilities
+   in Transcriptions.jsx. What stays here:
+   - `.txn-search__input` + `:focus` + `::placeholder` — placeholder is a
+     pseudo-element; kept whole so the focus/placeholder pair reads together.
+   - `.txn-list` scrollbar pseudo-elements.
+   - `.txn-item` + `:hover` + `--active` — the hover/active border-color
+     specificity interplay (hover out-specifies active in source) is preserved
+     by keeping all three as unlayered CSS.
+   - `.txn-detail__seg-title` — an `<h4>` whose margin + letter-spacing fight
+     the unlayered global `h1..h4` rule, which would win over @layer utilities. */
 
-.txn-page {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding: 20px 24px;
-  gap: 16px;
-  font-family: var(--font-sans);
-}
-
-/* Header */
-.txn-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.txn-header__left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.txn-header__title {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
-  color: var(--color-fg);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-}
-
-.txn-header__count {
-  font-size: var(--text-xs);
-  color: var(--color-fg-subtle);
-  background: var(--color-bg-elev-1);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  padding: 2px 10px;
-}
-
-.txn-header__right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Search */
-.txn-search {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.txn-search__icon {
-  position: absolute;
-  left: 10px;
-  color: var(--color-fg-subtle);
-  pointer-events: none;
-}
-
+/* Search input */
 .txn-search__input {
   width: 220px;
   background: var(--color-bg-elev-1);
@@ -84,63 +32,14 @@
   color: var(--color-fg-subtle);
 }
 
-/* Content layout */
-.txn-content {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  min-height: 0;
-}
-
-/* List */
-.txn-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
+/* List scrollbar */
 .txn-list::-webkit-scrollbar { width: 5px; }
 .txn-list::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 3px;
 }
 
-/* Empty state */
-.txn-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  gap: 8px;
-  text-align: center;
-  color: var(--color-fg-muted);
-  padding: 40px 20px;
-}
-
-.txn-empty__icon {
-  opacity: 0.3;
-}
-
-.txn-empty__title {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  color: var(--color-fg);
-  margin: 0;
-}
-
-.txn-empty__desc {
-  font-size: var(--text-xs);
-  color: var(--color-fg-muted);
-  max-width: 280px;
-  line-height: 1.6;
-  margin: 0;
-}
-
-/* Item */
+/* Item (resting + hover + active state interplay) */
 .txn-item {
   padding: 10px 12px;
   background: var(--color-bg-elev-1);
@@ -159,80 +58,7 @@
   box-shadow: 0 0 0 1px var(--color-brand-glow);
 }
 
-.txn-item__text {
-  font-size: var(--text-sm);
-  color: var(--color-fg);
-  line-height: 1.5;
-  margin-bottom: 6px;
-  word-break: break-word;
-}
-
-.txn-item__meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 10px;
-  color: var(--color-fg-subtle);
-}
-
-.txn-item__time,
-.txn-item__lang,
-.txn-item__dur {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-
-/* Detail panel */
-.txn-detail {
-  display: flex;
-  flex-direction: column;
-  background: var(--color-bg-elev-1);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
-
-.txn-detail__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.txn-detail__time {
-  font-size: var(--text-xs);
-  color: var(--color-fg-muted);
-}
-
-.txn-detail__actions {
-  display: flex;
-  gap: 4px;
-}
-
-.txn-detail__body {
-  flex: 1;
-  padding: 14px;
-  overflow-y: auto;
-}
-
-.txn-detail__text {
-  font-size: var(--text-sm);
-  color: var(--color-fg);
-  line-height: 1.7;
-  white-space: pre-wrap;
-  margin: 0;
-}
-
-/* Segments */
-.txn-detail__segments {
-  border-top: 1px solid var(--color-border);
-  padding: 10px 14px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
+/* Segments heading (h4 — fights global heading rule) */
 .txn-detail__seg-title {
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
@@ -240,22 +66,4 @@
   margin: 0 0 6px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-}
-
-.txn-detail__seg {
-  display: flex;
-  gap: 8px;
-  padding: 3px 0;
-  font-size: var(--text-xs);
-}
-
-.txn-detail__seg-time {
-  flex-shrink: 0;
-  font-family: var(--font-mono);
-  color: var(--color-fg-subtle);
-  min-width: 80px;
-}
-
-.txn-detail__seg-text {
-  color: var(--color-fg);
 }

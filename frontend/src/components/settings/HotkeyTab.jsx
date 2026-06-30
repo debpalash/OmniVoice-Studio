@@ -114,7 +114,7 @@ export default function HotkeyTab() {
   return (
     <SettingsSection icon={Keyboard} title={t('settings.shortcut')}>
       {!tauri && (
-        <p className="settings-prose">
+        <p className="settings-prose m-0 mb-[var(--space-5)] font-sans text-[var(--text-md)] leading-[1.6] text-[var(--chrome-fg-muted)]">
           <Trans i18nKey="capture.desc" components={{ 1: <kbd /> }} />
         </p>
       )}
@@ -127,7 +127,7 @@ export default function HotkeyTab() {
         mono
       />
 
-      <div className="settings-actions-row">
+      <div className="settings-actions-row mt-[var(--space-5)] flex flex-wrap gap-[var(--space-4)]">
         <Button
           size="sm"
           variant="subtle"

@@ -7,14 +7,8 @@
    CONTENT region scrolls, and the .frs-wnav action row is pinned below it so
    Continue/Back are visible at every window size (they used to fall below
    the fold on the first-open window). */
-.swiz-slide {
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-  min-width: 0;
-  flex: 1 1 auto;
-  min-height: 0;
-}
+/* `.swiz-slide` base (flex column) is now a Tailwind utility set in
+   SetupWizard.jsx; its child-combinator rules below stay as CSS. */
 /* Every slide is exactly [content, .frs-wnav] — the content half scrolls,
    with a soft fade at the cut so clipped rows read as "scroll for more". */
 .swiz-slide > :not(.frs-wnav):not(.swiz-hfpin) {
@@ -37,13 +31,8 @@
   margin: 0;
 }
 
-.swiz-note {
-  margin: 0;
-  font-size: 0.74rem;
-  line-height: 1.5;
-  opacity: 0.6;
-}
-
+/* `.swiz-note` base is now a Tailwind utility set in SetupWizard.jsx; the
+   `--warn` modifier (uses a --frs token) stays as CSS. */
 .swiz-note--warn {
   opacity: 1;
   color: var(--chrome-severity-warn, #d79921);
@@ -55,31 +44,9 @@
 /* Preflight checks flow into responsive columns so the list stays short on a
    wide/maximized window instead of one tall single column. Collapses to a
    single column on narrow windows. */
-.swiz-checks {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  column-gap: 1.6rem;
-  row-gap: 0.55rem;
-  align-items: start;
-}
-
-.swiz-loading {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.78rem;
-  opacity: 0.65;
-  padding: 0.4rem 0;
-}
-
-/* Embedded Settings panels (Model Store / Engines / DictationDemo) manage
- * their own internals; cap their height so the act scrolls inside itself
- * rather than pushing the nav off-screen. */
-.frs-embed {
-  max-height: min(58vh, 640px);
-  overflow-y: auto;
-  border-radius: 10px;
-}
+/* `.swiz-checks` (responsive grid), `.swiz-loading` (flex row), and the
+   `.frs-embed` height cap are now Tailwind utilities in SetupWizard.jsx.
+   (`.frs-embed { min-width: 0 }` still lives in FirstRunSetup.css.) */
 
 /* ── Unified library list (models + engines, one grammar) ─────────────── */
 

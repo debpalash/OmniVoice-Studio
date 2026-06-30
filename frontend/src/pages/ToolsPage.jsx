@@ -13,8 +13,8 @@ import './ToolsPage.css';
 export default function ToolsPage({ onBack }) {
   const { t } = useTranslation();
   return (
-    <div className="tools-page">
-      <div className="tools-page__bar">
+    <div className="tools-page flex flex-1 flex-col gap-[var(--space-5)] min-h-0 overflow-y-auto px-[var(--space-6)] py-[var(--space-5)]">
+      <div className="tools-page__bar flex shrink-0 items-center gap-[var(--space-4)]">
         {onBack && (
           <Button variant="ghost" size="sm" onClick={onBack}>
             {t('common.back')}
@@ -25,7 +25,7 @@ export default function ToolsPage({ onBack }) {
         </h1>
       </div>
 
-      <div className="tools-page__grid">
+      <div className="tools-page__grid grid grid-cols-[repeat(auto-fit,minmax(380px,1fr))] gap-[var(--space-5)]">
         <DirectorTool />
         <RateFitTool />
         <ProbeTool />
@@ -62,7 +62,9 @@ function DirectorTool() {
         </>
       }
     >
-      <p className="tools-card__desc">{t('tools.directorial_desc')}</p>
+      <p className="tools-card__desc m-0 mb-[var(--space-4)] text-[var(--text-base)] leading-[1.5] text-fg-muted">
+        {t('tools.directorial_desc')}
+      </p>
       <Field label={t('tools.direction')}>
         <Textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
@@ -70,8 +72,8 @@ function DirectorTool() {
         {t('tools.parse')}
       </Button>
       {result && (
-        <div className="tools-card__out">
-          <div className="tools-card__out-row">
+        <div className="tools-card__out mt-[var(--space-4)] rounded-sm [border:1px_solid_var(--color-border)] bg-bg-elev-2 p-[var(--space-4)] text-[var(--text-sm)]">
+          <div className="tools-card__out-row mb-[var(--space-2)]">
             <strong>{t('tools.method')}</strong>{' '}
             <Badge tone={result.method === 'llm' ? 'violet' : 'neutral'}>{result.method}</Badge>
             {result.error && (
@@ -80,13 +82,13 @@ function DirectorTool() {
               </Badge>
             )}
           </div>
-          <div className="tools-card__out-row">
+          <div className="tools-card__out-row mb-[var(--space-2)]">
             <strong>{t('tools.tts_instruct')}</strong> <code>{result.instruct_prompt || '—'}</code>
           </div>
-          <div className="tools-card__out-row">
+          <div className="tools-card__out-row mb-[var(--space-2)]">
             <strong>{t('tools.translate_hint')}</strong> <em>{result.translate_hint || '—'}</em>
           </div>
-          <div className="tools-card__out-row">
+          <div className="tools-card__out-row mb-[var(--space-2)]">
             <strong>{t('tools.rate_bias')}</strong> <code>{result.rate_bias?.toFixed?.(2)}</code>
           </div>
           <details>
@@ -139,11 +141,13 @@ function RateFitTool() {
         </>
       }
     >
-      <p className="tools-card__desc">{t('tools.speech_rate_desc')}</p>
+      <p className="tools-card__desc m-0 mb-[var(--space-4)] text-[var(--text-base)] leading-[1.5] text-fg-muted">
+        {t('tools.speech_rate_desc')}
+      </p>
       <Field label={t('tools.translated_line')}>
         <Textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
-      <div className="tools-card__row">
+      <div className="tools-card__row mb-[var(--space-4)] grid grid-cols-[1fr_1fr] gap-[var(--space-4)]">
         <Field label={t('tools.slot_seconds')}>
           <Input size="sm" value={slot} onChange={(e) => setSlot(e.target.value)} />
         </Field>
@@ -155,8 +159,8 @@ function RateFitTool() {
         {t('tools.fit')}
       </Button>
       {result && (
-        <div className="tools-card__out">
-          <div className="tools-card__out-row">
+        <div className="tools-card__out mt-[var(--space-4)] rounded-sm [border:1px_solid_var(--color-border)] bg-bg-elev-2 p-[var(--space-4)] text-[var(--text-sm)]">
+          <div className="tools-card__out-row mb-[var(--space-2)]">
             <strong>{t('tools.ratio')}</strong> <code>{result.rate_ratio?.toFixed?.(2)}</code>{' '}
             {result.error && (
               <Badge tone="warn" size="xs">
@@ -164,13 +168,15 @@ function RateFitTool() {
               </Badge>
             )}
           </div>
-          <div className="tools-card__out-row">
+          <div className="tools-card__out-row mb-[var(--space-2)]">
             <strong>{t('tools.attempts')}</strong> <code>{result.attempts}</code>
           </div>
-          <div className="tools-card__out-row">
+          <div className="tools-card__out-row mb-[var(--space-2)]">
             <strong>{t('tools.result')}</strong>
           </div>
-          <div className="tools-card__result">{result.text}</div>
+          <div className="tools-card__result mt-[var(--space-2)] rounded-sm [border:1px_solid_rgba(211,134,155,0.25)] bg-[rgba(211,134,155,0.08)] p-[var(--space-3)] text-[var(--text-md)] text-fg">
+            {result.text}
+          </div>
         </div>
       )}
     </Panel>
@@ -205,7 +211,9 @@ function ProbeTool() {
         </>
       }
     >
-      <p className="tools-card__desc">{t('tools.probe_desc')}</p>
+      <p className="tools-card__desc m-0 mb-[var(--space-4)] text-[var(--text-base)] leading-[1.5] text-fg-muted">
+        {t('tools.probe_desc')}
+      </p>
       <Field label={t('tools.absolute_path')}>
         <Input
           size="sm"
@@ -218,7 +226,10 @@ function ProbeTool() {
         {t('tools.probe')}
       </Button>
       {result && (
-        <details open className="tools-card__out">
+        <details
+          open
+          className="tools-card__out mt-[var(--space-4)] rounded-sm [border:1px_solid_var(--color-border)] bg-bg-elev-2 p-[var(--space-4)] text-[var(--text-sm)]"
+        >
           <summary>{t('tools.result')}</summary>
           <pre>{JSON.stringify(result, null, 2)}</pre>
         </details>

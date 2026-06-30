@@ -129,7 +129,7 @@ export default function AboutTab({
           />
         </>
       )}
-      <div className="settings-link-row">
+      <div className="settings-link-row mt-[var(--space-5)] flex flex-wrap gap-[var(--space-4)]">
         {isTauri() && (
           <Button
             variant="primary"
@@ -204,12 +204,17 @@ export default function AboutTab({
                     {t(`about.self_check_${c.status}`)}
                   </Badge>{' '}
                   {c.detail}
-                  {c.hint && <span className="settings-muted"> — {c.hint}</span>}
+                  {c.hint && (
+                    <span className="settings-muted font-sans text-[var(--text-md)] text-[var(--chrome-fg-dim)]">
+                      {' '}
+                      — {c.hint}
+                    </span>
+                  )}
                 </span>
               }
             />
           ))}
-          <p className="settings-muted">
+          <p className="settings-muted font-sans text-[var(--text-md)] text-[var(--chrome-fg-dim)]">
             {selfCheck.summary.ok
               ? t('about.self_check_healthy')
               : t('about.self_check_attention', { count: selfCheck.summary.failures })}

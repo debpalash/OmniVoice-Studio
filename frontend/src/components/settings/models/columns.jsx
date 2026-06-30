@@ -48,7 +48,7 @@ export function makeModelColumns({
               {m.note && <span className="models-row__note"> · {m.note}</span>}
             </span>
             {rt.showBar && (
-              <div className="models-row__progressline">
+              <div className="models-row__progressline flex flex-col gap-[3px] mt-[6px]">
                 <Progress value={rt.aggPct} tone={rt.isDeleting ? 'warn' : 'brand'} size="xs" />
                 <span className="models-row__progresstext">
                   {(() => {

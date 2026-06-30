@@ -3,15 +3,11 @@
    .lp-aurora__blob, .lp-hero__sweep, .lp-glow-card from the Launchpad
    styles so there's zero visual divergence. */
 
-.donate-page {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  background: var(--chrome-bg);
-  position: relative;
-  isolation: isolate;
-}
+/* .donate-page + .donate-page__content + .donate-hero__subtitle + .donate-footer
+   + .donate-social-proof (base) + .donate-amounts are now Tailwind utilities in
+   SupportPage.jsx / ContactPage.jsx. Everything below stays as CSS — it carries
+   keyframes, ::before/::after dividers, :hover combinators, color-mix accents,
+   the --card-hue/--anim-i custom props, and the reduced-motion overrides. */
 
 /* ── Top bar (Back + Commercial License) ──────────────────── */
 .donate-page__topbar {
@@ -22,19 +18,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-}
-
-/* ── Content container ─────────────────────────────────────── */
-.donate-page__content {
-  position: relative;
-  z-index: 1;
-  max-width: 640px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 0 32px 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
 }
 
 /* ── Hero ──────────────────────────────────────────────────── */
@@ -76,15 +59,6 @@
   display: inline-block;
   line-height: 1.1;
 }
-.donate-hero__subtitle {
-  font-family: var(--font-sans);
-  font-size: 0.8rem;
-  color: var(--chrome-fg-muted);
-  line-height: 1.65;
-  max-width: 480px;
-  margin: 10px auto 0;
-}
-
 /* ── Section dividers ─────────────────────────────────────── */
 .donate-section__title {
   display: flex;
@@ -225,16 +199,6 @@
   background: color-mix(in srgb, var(--card-hue, #d3869b) 8%, transparent);
 }
 
-/* ── Footer ───────────────────────────────────────────────── */
-.donate-footer {
-  text-align: center;
-  font-family: var(--chrome-font-mono);
-  font-size: 0.72rem;
-  color: var(--chrome-fg-dim);
-  letter-spacing: 0.02em;
-  padding-bottom: 20px;
-}
-
 /* ── "Fund Claude Max" goal section + social proof ─────────── */
 .donate-goal-section {
   display: flex;
@@ -246,24 +210,9 @@
   background: color-mix(in srgb, var(--chrome-accent) 4%, transparent);
   animation: donateCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-.donate-social-proof {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-family: var(--chrome-font-mono);
-  font-size: 0.7rem;
-  color: var(--chrome-fg-muted);
-  letter-spacing: 0.01em;
-}
 .donate-social-proof svg { color: var(--chrome-accent); }
 
 /* ── Suggested amounts ─────────────────────────────────────── */
-.donate-amounts {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-}
 .donate-amount {
   position: relative;
   display: flex;

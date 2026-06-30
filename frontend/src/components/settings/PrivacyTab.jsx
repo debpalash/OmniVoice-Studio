@@ -10,7 +10,7 @@ export default function PrivacyTab({ info }) {
 
   return (
     <SettingsSection icon={ShieldCheck} title={t('settings.privacy')}>
-      <p className="settings-prose">
+      <p className="settings-prose m-0 mb-[var(--space-5)] font-sans text-[var(--text-md)] leading-[1.6] text-[var(--chrome-fg-muted)]">
         <Trans i18nKey="privacy.desc" components={{ 1: <strong /> }} />
       </p>
       <Row

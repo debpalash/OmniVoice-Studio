@@ -1,26 +1,22 @@
 /* Projects page — browse all project types in one place. Uses the same
    chrome tokens as the top/bottom bars so the page frame reads as a
-   continuation of the studio shell. */
+   continuation of the studio shell.
 
-.projects {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  background: var(--bg);
-  color: var(--text-primary);
-}
+   Layout / spacing / container styling now live as Tailwind utilities in
+   Projects.jsx. What stays here:
+   - `.projects__title` — an `<h1>` whose letter-spacing fights the unlayered
+     global `h1..h4` rule (which would win over @layer utilities).
+   - `.projects__search input` + `::placeholder` — descendant input reset +
+     placeholder pseudo-element.
+   - `.projects__view-toggle button` + states — descendant <button> reset with
+     `:hover`/`.is-active` variants.
+   - `.projects__rail-item` cluster — descendant span, `:hover`, `.is-active`,
+     and the compound `.is-active .projects__rail-count` selector.
+   - `.projects__content--grid` / `--list` and the list-view `.projects__card*`
+     overrides — modifier display + descendant-combinator overrides.
+   - all `.projects__card*` — <button> reset, the `--card-accent` custom prop,
+     `:hover`/`:active`, gradient color-mix, and text-ellipsis. */
 
-/* ── Header strip — title + search + view toggle ────────────────── */
-.projects__header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 18px;
-  border-bottom: 1px solid var(--chrome-border);
-  background: var(--chrome-bg);
-  flex-shrink: 0;
-}
 .projects__title {
   font-family: var(--font-sans);
   font-size: 0.92rem;
@@ -30,26 +26,7 @@
   margin: 0;
   flex-shrink: 0;
 }
-.projects__toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  justify-content: flex-end;
-}
-.projects__search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: var(--chrome-pill-h);
-  padding: 0 10px;
-  background: var(--chrome-hover-bg);
-  border: 1px solid var(--chrome-border);
-  border-radius: var(--chrome-radius-pill);
-  color: var(--chrome-fg-muted);
-  flex: 1;
-  max-width: 420px;
-}
+
 .projects__search input {
   background: transparent;
   border: none;
@@ -62,14 +39,6 @@
 }
 .projects__search input::placeholder { color: var(--chrome-fg-dim); }
 
-.projects__view-toggle {
-  display: inline-flex;
-  gap: 1px;
-  border: 1px solid var(--chrome-border);
-  border-radius: var(--chrome-radius-pill);
-  overflow: hidden;
-  background: var(--chrome-hover-bg);
-}
 .projects__view-toggle button {
   background: transparent;
   border: none;
@@ -88,23 +57,6 @@
   color: var(--chrome-accent);
 }
 
-/* ── Body: filter rail + content pane ──────────────────────────── */
-.projects__body {
-  display: grid;
-  grid-template-columns: 200px minmax(0, 1fr);
-  flex: 1;
-  min-height: 0;
-}
-
-.projects__rail {
-  border-right: 1px solid var(--chrome-border);
-  background: var(--chrome-bg);
-  padding: 10px 8px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
 .projects__rail-item {
   display: flex;
   align-items: center;
@@ -139,12 +91,7 @@
 }
 .projects__rail-item.is-active .projects__rail-count { color: var(--chrome-accent); }
 
-/* ── Content: card grid / list view ────────────────────────────── */
-.projects__content {
-  padding: 14px 18px;
-  overflow-y: auto;
-  min-height: 0;
-}
+/* ── Content view modifiers (display differs per view) ─────────────── */
 .projects__content--grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -156,18 +103,6 @@
   flex-direction: column;
   gap: 4px;
 }
-
-.projects__empty {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 48px 16px;
-  color: var(--chrome-fg-dim);
-  text-align: center;
-}
-.projects__empty p { max-width: 380px; margin: 0; font-size: 0.82rem; line-height: 1.5; }
 
 /* ── Cards ─────────────────────────────────────────────────────── */
 .projects__card {

@@ -99,13 +99,15 @@ function SupportView() {
           {t('donate.hero_title')}
           <span className="lp-hero__sweep" aria-hidden="true" />
         </h2>
-        <p className="donate-hero__subtitle">{t('donate.hero_desc')}</p>
+        <p className="donate-hero__subtitle mx-auto mt-[10px] max-w-[480px] font-sans text-[0.8rem] leading-[1.65] text-[var(--chrome-fg-muted)]">
+          {t('donate.hero_desc')}
+        </p>
       </div>
 
       {/* ── "Fund Claude Max" goal bar + social proof ──────────────────── */}
       <section className="donate-section donate-goal-section">
         <GoalBar progress={progress} />
-        <div className="donate-social-proof">
+        <div className="donate-social-proof flex items-center justify-center gap-[6px] font-mono text-[0.7rem] tracking-[0.01em] text-[var(--chrome-fg-muted)]">
           <Users size={13} />
           <span>
             {t('donate.goal.social_proof', {
@@ -124,7 +126,7 @@ function SupportView() {
           <span>{t('donate.suggested_title', { defaultValue: 'Pick an amount' })}</span>
         </div>
         <div
-          className="donate-amounts"
+          className="donate-amounts grid grid-cols-[repeat(4,1fr)] gap-[8px]"
           role="group"
           aria-label={t('donate.suggested_title', { defaultValue: 'Pick an amount' })}
         >
@@ -170,7 +172,7 @@ function SupportView() {
               : t('donate.choose_method', { defaultValue: 'Choose how to give' })}
           </span>
         </div>
-        <div className="donate-grid support-methods">
+        <div className="donate-grid support-methods grid grid-cols-[1fr] gap-[10px]">
           {METHODS.map((m, i) => (
             <LinkCard
               key={m.id}
@@ -188,7 +190,7 @@ function SupportView() {
         <div className="donate-section__title">
           <span>{t('support.other_ways')}</span>
         </div>
-        <div className="support-chips">
+        <div className="support-chips flex flex-wrap justify-center gap-[10px]">
           <button
             type="button"
             className="support-chip"
@@ -206,7 +208,9 @@ function SupportView() {
         </div>
       </section>
 
-      <div className="donate-footer">{t('donate.footer')}</div>
+      <div className="donate-footer pb-[20px] text-center font-mono text-[0.72rem] tracking-[0.02em] text-[var(--chrome-fg-dim)]">
+        {t('donate.footer')}
+      </div>
     </div>
   );
 }
@@ -234,12 +238,14 @@ function LicenseView() {
   return (
     <div className="support-view">
       <div className="ent-hero">
-        <span className="ent-hero__kicker">{t('enterprise.badge')}</span>
+        <span className="ent-hero__kicker font-mono text-[var(--chrome-label-size)] font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
+          {t('enterprise.badge')}
+        </span>
         <h2 className="ent-hero__title">
           {t('enterprise.hero_title')}
           <span className="lp-hero__sweep" aria-hidden="true" />
         </h2>
-        <p className="ent-hero__subtitle">
+        <p className="ent-hero__subtitle mx-auto mt-[16px] max-w-[540px] font-sans text-[0.85rem] leading-[1.65] text-[var(--chrome-fg-muted)]">
           {t('enterprise.hero_simple', {
             defaultValue:
               'OmniVoice Studio is free and open-source under the AGPL-3.0 — including for commercial and internal business use. You only need a commercial license to embed it in a closed-source product without AGPL’s copyleft obligations.',
@@ -248,14 +254,18 @@ function LicenseView() {
       </div>
 
       <section className="ent-why">
-        <div className="ent-why__grid">
+        <div className="ent-why__grid grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-[10px]">
           {WHY_ITEMS.map(({ icon: Icon, label, desc }) => (
             <div key={label} className="ent-why__card">
               <div className="ent-why__icon">
                 <Icon size={16} />
               </div>
-              <div className="ent-why__label">{label}</div>
-              <div className="ent-why__desc">{desc}</div>
+              <div className="ent-why__label mb-[4px] font-mono text-[0.75rem] font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg)]">
+                {label}
+              </div>
+              <div className="ent-why__desc font-sans text-[0.72rem] leading-[1.5] text-[var(--chrome-fg-muted)]">
+                {desc}
+              </div>
             </div>
           ))}
         </div>
@@ -307,7 +317,7 @@ export default function SupportPage({ onBack, initialView = 'support' }) {
   const [view, setView] = useState(initialView === 'license' ? 'license' : 'support');
 
   return (
-    <div className="support-page donate-page">
+    <div className="support-page donate-page flex flex-1 flex-col overflow-y-auto relative isolate bg-[var(--chrome-bg)]">
       {/* Aurora backdrop — shared with the Launchpad */}
       <div className="lp-aurora" aria-hidden="true">
         <span className="lp-aurora__blob lp-aurora__blob--pink" />
@@ -316,7 +326,7 @@ export default function SupportPage({ onBack, initialView = 'support' }) {
       </div>
 
       {/* Top bar: Back (left) · toggle (center) · spacer (right, balances Back) */}
-      <div className="support-page__topbar">
+      <div className="support-page__topbar relative z-[2] flex items-center justify-between gap-[12px] pt-[16px] px-[44px]">
         <Button variant="subtle" size="sm" onClick={onBack} leading={<ArrowLeft size={14} />}>
           {t('donate.back')}
         </Button>
@@ -343,7 +353,7 @@ export default function SupportPage({ onBack, initialView = 'support' }) {
           </button>
         </div>
 
-        <span className="support-page__spacer" aria-hidden="true" />
+        <span className="support-page__spacer w-[96px] shrink-0" aria-hidden="true" />
       </div>
 
       {/* key={view} remounts the panel so its entry animations replay on toggle.
@@ -351,7 +361,7 @@ export default function SupportPage({ onBack, initialView = 'support' }) {
           it doesn't float at the top of an empty page; License stays top-aligned
           since it's tall enough to fill on its own. */}
       <div
-        className={`support-page__content donate-page__content support-page__content--${view}`}
+        className={`support-page__content donate-page__content support-page__content--${view} relative z-[1] mx-auto flex w-full max-w-[640px] flex-col gap-[24px] px-[32px] pb-[40px]`}
         key={view}
       >
         {view === 'support' ? <SupportView /> : <LicenseView />}
