@@ -7,6 +7,355 @@
    future `npx shadcn add` components render their animations out of the box. */
 @import "tw-animate-css";
 
+/* ════════════════════════════════════════════════════════════════════
+   CONSOLIDATED FOUNDATION (P5 — single foundation file)
+   Folded in from the former src/ui/tokens.css + src/ui/themes.css so the
+   design-token foundation lives in ONE file. The ORDER of the three groups
+   below is load-bearing — it reproduces the exact pre-consolidation
+   cross-file load order (ui/index.js imported tokens.css then themes.css,
+   and main-app.jsx imported index.css after that):
+     1. tokens.css's :root          — the extra (non-@theme) token scale
+     2. themes.css's [data-theme=…]  — per-theme semantic + chrome overrides
+     3. (further below) the @theme bridge + index.css's own :root + rules
+   The [data-theme] blocks intentionally sit AFTER the token :root but
+   BEFORE index.css's legacy/chrome :root: those chrome tokens (--chrome-*)
+   are declared in BOTH a plain :root and the [data-theme] blocks at EQUAL
+   specificity, so source order decides — index.css's :root must stay last
+   to keep chrome resolving exactly as it did before. Do NOT reorder these
+   groups (the tokenParity + visual suites guard this).
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ────────────────────────────────────────────────────────────────────
+   OmniVoice design tokens — single source of truth.
+   Extends the legacy vars in index.css :root. Do not duplicate here.
+   New tokens should land in this file, not in index.css.
+   ──────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── Color scale (semantic) ─────────────────────────────────────── */
+  /* The semantic --color-* base tokens are the single source of truth in
+     index.css's `@theme` block (so Tailwind v4 owns them and they can't
+     drift). `[data-theme]` overrides in themes.css are unlayered, so they
+     still win over the @theme base. Only tokens NOT in @theme live here. */
+  /* legacy aliases live in index.css: --primary, --accent, --bg, etc. */
+
+  --color-muted-mono:    #d5c4a1;
+
+  /* ── Spacing (4px base) ─────────────────────────────────────────── */
+  --space-0:   0;
+  --space-1:   2px;
+  --space-2:   4px;
+  --space-3:   6px;     /* alias: --gap */
+  --space-4:   8px;
+  --space-5:  12px;
+  --space-6:  16px;
+  --space-7:  24px;
+  --space-8:  32px;
+  --space-9:  44px;
+
+  /* ── Settings layout ────────────────────────────────────────────────
+     One source of truth for the Settings shell so the content can't sprawl
+     edge-to-edge (the "too spread out" report). The measure caps the content
+     column at a readable width — like macOS System Settings — instead of the
+     old 1280px; the rail token keeps the nav width in lockstep with the grid. */
+  --settings-measure: 660px;
+  --settings-rail:    168px;
+
+  /* ── Radius ─────────────────────────────────────────────────────── */
+  /* --radius-xs..xl are the single source of truth in index.css's @theme.
+     Only --radius-pill (not in @theme) lives here. */
+  --radius-pill: 999px;
+
+  /* ── Typography (Option A — Codex-inspired stack) ──────────────────
+     Inter for UI/body (closest OSS Söhne analog), IBM Plex Mono for chrome
+     labels + data + logs (warmer than Geist Mono, pairs with OpenAI's feel),
+     Source Serif 4 for hero moments only. Variable faces where possible so
+     weight 400–700 comes from a single file download.
+     --font-sans / --font-mono / --font-serif are the single source of truth
+     in index.css's @theme (full stacks). Only the aliases below live here. */
+  --font-display: var(--font-serif);
+  --font-ui:      var(--font-sans);
+
+  --text-2xs:   0.58rem;
+  --text-xs:    0.62rem;
+  --text-sm:    0.68rem;
+  --text-base:  0.72rem;
+  --text-md:    0.78rem;
+  --text-lg:    0.88rem;
+  --text-xl:    1.05rem;
+  --text-2xl:   1.4rem;
+
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+  --weight-black:    800;
+
+  /* ── Elevation ──────────────────────────────────────────────────── */
+  --shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md:    0 2px 8px rgba(0, 0, 0, 0.4);        /* alias: --glass-shadow */
+  --shadow-lg:    0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  --shadow-xl:    0 20px 40px -10px rgba(0, 0, 0, 0.6);
+  --shadow-glow:  0 0 12px var(--color-brand-glow);
+  --shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+
+  /* ── Motion ─────────────────────────────────────────────────────── */
+  --dur-instant: 0.08s;
+  --dur-fast:    0.12s;      /* alias: --transition-fast */
+  --dur-base:    0.2s;       /* alias: --transition-smooth duration */
+  --dur-slow:    0.3s;
+  --dur-xslow:   0.5s;
+
+  --ease-out:    cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.6, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* ── Z-index scale ──────────────────────────────────────────────── */
+  --z-base:     1;
+  --z-docked:   10;
+  --z-sticky:   100;
+  --z-overlay:  1000;
+  --z-dialog:   1100;
+  --z-toast:    1200;
+  --z-max:      9999;
+
+  /* ── Focus ring (unified) ──────────────────────────────────────── */
+  --focus-ring:
+    0 0 0 2px var(--color-bg),
+    0 0 0 4px rgba(211, 134, 155, 0.45);
+
+  /* ── Glass effects ──────────────────────────────────────────────── */
+  --glass-blur-sm: blur(6px);
+  --glass-blur-md: blur(16px) saturate(140%);       /* alias: --blur */
+  --glass-blur-lg: blur(24px) saturate(160%);
+}
+
+/* ── Launch animation ─────────────────────────────────────────── */
+@keyframes ui-app-launch {
+  from { opacity: 0; transform: translateY(6px) scale(0.995); filter: blur(6px); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);     filter: blur(0);   }
+}
+@keyframes ui-app-launch-reduced {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+#root {
+  animation: ui-app-launch 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  #root { animation: ui-app-launch-reduced 180ms ease-out both; }
+}
+
+/* Skeleton shimmer utility for first-load placeholders */
+@keyframes ui-skel-shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position:  200% 0; }
+}
+.ui-skel {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  background-size: 200% 100%;
+  animation: ui-skel-shimmer 1.6s linear infinite;
+  border-radius: var(--radius-md);
+}
+
+/* ────────────────────────────────────────────────────────────────────
+   OmniVoice theme definitions.
+
+   Each theme overrides the semantic tokens defined in tokens.css.
+   The active theme is set via a `data-theme` attribute on <html>.
+   Default (no attribute) = Gruvbox Dark.
+
+   Usage:
+     document.documentElement.setAttribute('data-theme', 'midnight');
+
+   shadcn/ui note: the shadcn semantic tokens (--color-background, -primary,
+   -card, -muted-foreground, -destructive, -ring, …) are bridged in index.css
+   to the OmniVoice --color-* tokens BELOW (e.g. --color-primary → --color-brand).
+   So every [data-theme] block here recolors shadcn components automatically —
+   overriding --color-brand/-bg/-danger/etc. is all that's needed; there is no
+   separate shadcn token block to maintain per theme.
+   ──────────────────────────────────────────────────────────────────── */
+
+/* ── Midnight Blue ─────────────────────────────────────────────────── */
+[data-theme="midnight"] {
+  --color-fg:            #e2e8f0;
+  --color-fg-muted:      #94a3b8;
+  --color-fg-subtle:     #64748b;
+  --color-fg-inverse:    #0f172a;
+
+  --color-bg:            #0f172a;
+  --color-bg-elev-1:     rgba(30, 41, 59, 0.85);
+  --color-bg-elev-2:     rgba(15, 23, 42, 0.40);
+  --color-bg-elev-3:     rgba(30, 41, 59, 0.30);
+
+  --color-border:        rgba(148, 163, 184, 0.10);
+  --color-border-strong: rgba(148, 163, 184, 0.20);
+  --color-border-warm:   rgba(139, 92, 246, 0.12);
+
+  --color-brand:         #8b5cf6;
+  --color-brand-hover:   #7c3aed;
+  --color-brand-glow:    rgba(139, 92, 246, 0.35);
+
+  --color-accent:        #f59e0b;
+  --color-success:       #10b981;
+  --color-warn:          #f97316;
+  --color-danger:        #ef4444;
+  --color-info:          #3b82f6;
+
+  /* Chrome overrides for components using legacy vars */
+  --chrome-bg:           #1e293b;
+  --chrome-fg:           #e2e8f0;
+  --chrome-fg-muted:     #94a3b8;
+  --chrome-fg-dim:       #475569;
+  --chrome-border:       #334155;
+}
+
+/* ── Nord ──────────────────────────────────────────────────────────── */
+[data-theme="nord"] {
+  --color-fg:            #eceff4;
+  --color-fg-muted:      #d8dee9;
+  --color-fg-subtle:     #4c566a;
+  --color-fg-inverse:    #2e3440;
+
+  --color-bg:            #2e3440;
+  --color-bg-elev-1:     rgba(59, 66, 82, 0.85);
+  --color-bg-elev-2:     rgba(46, 52, 64, 0.40);
+  --color-bg-elev-3:     rgba(59, 66, 82, 0.25);
+
+  --color-border:        rgba(216, 222, 233, 0.08);
+  --color-border-strong: rgba(216, 222, 233, 0.15);
+  --color-border-warm:   rgba(136, 192, 208, 0.10);
+
+  --color-brand:         #88c0d0;
+  --color-brand-hover:   #81a1c1;
+  --color-brand-glow:    rgba(136, 192, 208, 0.3);
+
+  --color-accent:        #ebcb8b;
+  --color-success:       #a3be8c;
+  --color-warn:          #d08770;
+  --color-danger:        #bf616a;
+  --color-info:          #5e81ac;
+
+  --chrome-bg:           #3b4252;
+  --chrome-fg:           #eceff4;
+  --chrome-fg-muted:     #d8dee9;
+  --chrome-fg-dim:       #4c566a;
+  --chrome-border:       #434c5e;
+}
+
+/* ── Solarized Dark ────────────────────────────────────────────────── */
+[data-theme="solarized"] {
+  --color-fg:            #839496;
+  --color-fg-muted:      #657b83;
+  --color-fg-subtle:     #586e75;
+  --color-fg-inverse:    #fdf6e3;
+
+  --color-bg:            #002b36;
+  --color-bg-elev-1:     rgba(7, 54, 66, 0.90);
+  --color-bg-elev-2:     rgba(0, 43, 54, 0.40);
+  --color-bg-elev-3:     rgba(7, 54, 66, 0.25);
+
+  --color-border:        rgba(131, 148, 150, 0.10);
+  --color-border-strong: rgba(131, 148, 150, 0.18);
+  --color-border-warm:   rgba(181, 137, 0, 0.10);
+
+  --color-brand:         #268bd2;
+  --color-brand-hover:   #2aa198;
+  --color-brand-glow:    rgba(38, 139, 210, 0.3);
+
+  --color-accent:        #b58900;
+  --color-success:       #859900;
+  --color-warn:          #cb4b16;
+  --color-danger:        #dc322f;
+  --color-info:          #6c71c4;
+
+  --chrome-bg:           #073642;
+  --chrome-fg:           #93a1a1;
+  /* 10x P4 contrast: was #657b83 (2.92:1 on --chrome-bg) → #899da4 (4.59:1).
+     Same hue (hsl 196°), lightness raised 45%→59% to clear WCAG AA 4.5:1. */
+  --chrome-fg-muted:     #899da4;
+  --chrome-fg-dim:       #586e75;
+  --chrome-border:       #073642;
+}
+
+/* ── Rose Pine ─────────────────────────────────────────────────────── */
+[data-theme="rose-pine"] {
+  --color-fg:            #e0def4;
+  --color-fg-muted:      #908caa;
+  --color-fg-subtle:     #6e6a86;
+  --color-fg-inverse:    #191724;
+
+  --color-bg:            #191724;
+  --color-bg-elev-1:     rgba(30, 27, 42, 0.90);
+  --color-bg-elev-2:     rgba(25, 23, 36, 0.40);
+  --color-bg-elev-3:     rgba(38, 35, 58, 0.30);
+
+  --color-border:        rgba(144, 140, 170, 0.10);
+  --color-border-strong: rgba(144, 140, 170, 0.18);
+  --color-border-warm:   rgba(235, 188, 186, 0.10);
+
+  --color-brand:         #ebbcba;
+  --color-brand-hover:   #eb6f92;
+  --color-brand-glow:    rgba(235, 188, 186, 0.3);
+
+  --color-accent:        #f6c177;
+  --color-success:       #9ccfd8;
+  --color-warn:          #f6c177;
+  --color-danger:        #eb6f92;
+  --color-info:          #c4a7e7;
+
+  --chrome-bg:           #1f1d2e;
+  --chrome-fg:           #e0def4;
+  --chrome-fg-muted:     #908caa;
+  --chrome-fg-dim:       #6e6a86;
+  --chrome-border:       #26233a;
+}
+
+/* ── Catppuccin Mocha ──────────────────────────────────────────────── */
+[data-theme="catppuccin"] {
+  --color-fg:            #cdd6f4;
+  --color-fg-muted:      #a6adc8;
+  --color-fg-subtle:     #6c7086;
+  --color-fg-inverse:    #1e1e2e;
+
+  --color-bg:            #1e1e2e;
+  --color-bg-elev-1:     rgba(49, 50, 68, 0.85);
+  --color-bg-elev-2:     rgba(30, 30, 46, 0.40);
+  --color-bg-elev-3:     rgba(49, 50, 68, 0.25);
+
+  --color-border:        rgba(166, 173, 200, 0.08);
+  --color-border-strong: rgba(166, 173, 200, 0.16);
+  --color-border-warm:   rgba(245, 194, 231, 0.10);
+
+  --color-brand:         #cba6f7;
+  --color-brand-hover:   #b4befe;
+  --color-brand-glow:    rgba(203, 166, 247, 0.3);
+
+  --color-accent:        #f9e2af;
+  --color-success:       #a6e3a1;
+  --color-warn:          #fab387;
+  --color-danger:        #f38ba8;
+  --color-info:          #89b4fa;
+
+  --chrome-bg:           #313244;
+  --chrome-fg:           #cdd6f4;
+  --chrome-fg-muted:     #a6adc8;
+  --chrome-fg-dim:       #585b70;
+  --chrome-border:       #45475a;
+}
+
+/* ── System-preference sync ────────────────────────────────────────── */
+/* When theme is "auto", the light theme activates on light-mode OS.
+   Currently we don't ship a light theme; this is scaffolding for
+   community contributions. */
+@media (prefers-color-scheme: light) {
+  [data-theme="auto"] {
+    /* Future light theme tokens go here */
+  }
+}
+
 /* ── Map design tokens → Tailwind v4 theme ──────────────────────────── */
 @theme {
   /* Colors — semantic */
@@ -45,9 +394,10 @@
   --radius-xl: 10px;
 
   /* Fonts — full font stacks. These are the single source of truth; the
-     identical declarations were removed from ui/tokens.css (which, being
-     unlayered, used to win — so these literals carry the exact stacks that
-     were computed before the de-dup, preserving every resolved value). */
+     identical declarations were removed from the former ui/tokens.css :root
+     (now consolidated above; being unlayered, that copy used to win — so
+     these literals carry the exact stacks that were computed before the
+     de-dup, preserving every resolved value). */
   --font-sans:    'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Söhne', 'Helvetica Neue', Arial, sans-serif;
   --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
   --font-serif:   'Source Serif 4 Variable', 'Source Serif 4', 'Söhne Breit', Georgia, serif;
@@ -61,8 +411,9 @@
    `@theme inline` emits Tailwind utilities (bg-background, text-foreground,
    bg-primary, bg-card, text-muted-foreground, border-input, ring-ring,
    bg-destructive, …) whose values reference the OmniVoice `--color-*` tokens
-   *by name*. Because those tokens are re-declared per theme in ui/themes.css,
-   theme switching recolors every shadcn component automatically — there is no
+   *by name*. Because those tokens are re-declared per theme in the
+   [data-theme] blocks above, theme switching recolors every shadcn
+   component automatically — there is no
    separate per-theme shadcn block to keep in sync.
 
    Notes:
@@ -144,7 +495,7 @@
   --chrome-severity-ok:   #8ec07c;
   --chrome-radius-pill:   3px;
   --chrome-hover-bg:      rgba(255, 255, 255, 0.04);
-  /* Chrome-label face is IBM Plex Mono now — defined in ui/tokens.css as
+  /* Chrome-label face is IBM Plex Mono now — defined in the @theme block as
      --font-mono. Keep this alias so existing `var(--chrome-font-mono)` rules
      don't need to change; it just picks up the new face automatically. */
   --chrome-font-mono:     var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);

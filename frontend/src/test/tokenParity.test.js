@@ -14,22 +14,28 @@ import { resolve } from 'node:path';
  * font stacks differed), so the `@theme` literals were dead, losing
  * duplicates.
  *
+ * P5 consolidation: `ui/tokens.css` was folded into `src/index.css`, so its
+ * old default `:root` is now the `:root` block in index.css that carries the
+ * extra (non-@theme) token scale — identified here by `--color-muted-mono`.
+ * The drift guard still holds against that block.
+ *
  * After the de-dup, each of those tokens is declared exactly once. This test
  * fails if the drift ever returns: if a `--color-*` / `--radius-*` /
- * `--font-*` token is declared in BOTH the `@theme` block and tokens.css's
- * default `:root` with DIFFERENT values (the silent-loser bug), or — more
- * strictly — if it is duplicated at all (re-introducing the second home).
+ * `--font-*` token is declared in BOTH the `@theme` block and the token
+ * `:root` with DIFFERENT values (the silent-loser bug), or — more strictly —
+ * if it is duplicated at all (re-introducing the second home).
  *
- * Note: `[data-theme=...]` overrides in themes.css are intentionally NOT
- * checked here — those are unlayered theme overrides that are SUPPOSED to
- * re-declare `--color-*` to beat the `@theme` base.
+ * Note: `[data-theme=...]` theme overrides are intentionally NOT checked
+ * here — those are unlayered theme overrides that are SUPPOSED to re-declare
+ * `--color-*` to beat the `@theme` base.
  */
 
 const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
-/** Extract the body of the first `<opener> {` block via brace matching. */
-function blockBody(css, opener) {
-  const start = css.indexOf(opener);
+/** Extract the body of the first `<opener> {` block via brace matching.
+ *  `from` lets callers skip past earlier blocks (e.g. an earlier `:root`). */
+function blockBody(css, opener, from = 0) {
+  const start = css.indexOf(opener, from);
   if (start === -1) throw new Error(`could not find "${opener}" block`);
   let i = css.indexOf('{', start);
   let depth = 0;
@@ -58,16 +64,20 @@ function parseTokens(body) {
 const TARGET = /^--(color|radius|font)-/;
 
 const indexCss = stripComments(readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8'));
-const tokensCss = stripComments(readFileSync(resolve(process.cwd(), 'src/ui/tokens.css'), 'utf8'));
 
 const theme = parseTokens(blockBody(indexCss, '@theme'));
-const root = parseTokens(blockBody(tokensCss, ':root'));
+// The former ui/tokens.css `:root` is now a `:root` block inside index.css.
+// Locate it by its signature token so we test the right block regardless of
+// how many other `:root` blocks the consolidated file contains.
+const tokenRootMarker = indexCss.indexOf('--color-muted-mono');
+const tokenRootStart = indexCss.lastIndexOf(':root', tokenRootMarker);
+const root = parseTokens(blockBody(indexCss, ':root', tokenRootStart));
 
 const themeTargets = Object.keys(theme).filter((k) => TARGET.test(k));
 const rootTargets = Object.keys(root).filter((k) => TARGET.test(k));
 const overlap = themeTargets.filter((k) => k in root);
 
-describe('design-token parity: @theme vs ui/tokens.css', () => {
+describe('design-token parity: @theme vs token :root (consolidated in index.css)', () => {
   it('parses real tokens from both sources (sanity)', () => {
     // @theme owns the color/radius/font scale.
     expect(theme['--color-fg']).toBe('#ebdbb2');

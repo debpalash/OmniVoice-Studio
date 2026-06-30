@@ -6,11 +6,13 @@
 //  (No '@/' alias is configured in vite.config.js — use a relative path.)
 //
 //  Tokens are imported once here so any file that reaches for a primitive
-//  also pulls in the full token scale.
+//  also pulls in the full token scale. The token foundation (formerly
+//  ui/tokens.css + ui/themes.css) was consolidated into src/index.css (P5),
+//  so importing it here preserves that side-effect for every primitive
+//  consumer.
 // ─────────────────────────────────────────────────────────────────
 
-import './tokens.css';
-import './themes.css';
+import '../index.css';
 
 export { default as Button } from './Button.jsx';
 export { default as Panel } from './Panel.jsx';

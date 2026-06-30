@@ -31,8 +31,9 @@ import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import '@fontsource-variable/source-serif-4';
-import '../../ui/tokens.css';
-import '../../ui/themes.css';
+// Token foundation (formerly ui/tokens.css + ui/themes.css) is consolidated
+// into index.css (P5), so this single import pulls in the full token scale +
+// every [data-theme] block — same cascade order as production (main-app.jsx).
 import '../../index.css';
 // Residual unlayered rules the migrated components rely on (pulse/focus/caret/
 // glass/etc.) now live in one shared file instead of per-component stubs the
