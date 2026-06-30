@@ -276,7 +276,10 @@ export default function VoicePanel() {
       description={t('voicePanel.subtitle')}
     >
       {!engineAvailable && (
-        <div className="voicepanel__warn" role="alert">
+        <div
+          className="mb-[var(--space-4)] flex items-center gap-[var(--space-3)] rounded-[var(--chrome-radius-pill)] [border:1px_solid_color-mix(in_srgb,var(--chrome-severity-warn)_32%,transparent)] bg-[color-mix(in_srgb,var(--chrome-severity-warn)_12%,transparent)] px-[var(--space-4)] py-[var(--space-3)] text-[length:var(--text-sm)] text-[var(--chrome-severity-warn)]"
+          role="alert"
+        >
           <AlertTriangle size={13} />
           <span>{engineReason || t('voicePanel.engine_unavailable')}</span>
         </div>
@@ -319,25 +322,26 @@ export default function VoicePanel() {
         title={t('voicePanel.model_label')}
         subtitle={selected ? modelDesc(selected) : t('voicePanel.model_sub')}
         control={
-          <div className="voicepanel__dropdown" ref={dropdownRef}>
+          <div
+            className="relative w-auto min-w-[200px] max-w-[280px] flex-none text-left"
+            ref={dropdownRef}
+          >
             <button
               type="button"
-              className="voicepanel__dd-trigger"
+              className="flex w-full cursor-pointer items-center justify-between gap-[8px] rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-border,rgba(255,255,255,0.1))] bg-[var(--chrome-input-bg,rgba(255,255,255,0.04))] px-[var(--space-4)] py-[var(--space-3)] text-left text-[length:var(--text-md)] text-[var(--chrome-fg)] disabled:cursor-not-allowed disabled:opacity-60"
               aria-haspopup="listbox"
               aria-expanded={open}
               disabled={loading || models.length === 0}
               onClick={() => setOpen((o) => !o)}
               data-testid="dictation-model-trigger"
             >
-              <span className="voicepanel__dd-name">
-                {selected ? selected.label : t('common.loading')}
-              </span>
+              <span className="truncate">{selected ? selected.label : t('common.loading')}</span>
               <ChevronDown size={14} className={`voicepanel__dd-chev ${open ? 'is-open' : ''}`} />
             </button>
 
             {open && (
               <ul
-                className="voicepanel__dd-list"
+                className="absolute right-0 top-[calc(100%_+_6px)] z-40 m-0 max-h-[380px] w-[360px] max-w-[80vw] list-none overflow-y-auto rounded-[10px] [border:1px_solid_var(--chrome-border,rgba(255,255,255,0.1))] bg-[var(--chrome-menu-bg,#1d1d22)] p-[5px] shadow-[0_12px_32px_rgba(0,0,0,0.45)]"
                 role="listbox"
                 aria-label={t('voicePanel.model_label')}
               >
@@ -349,20 +353,24 @@ export default function VoicePanel() {
                   return (
                     <li
                       key={m.id}
-                      className={`voicepanel__dd-item ${isSel ? 'is-selected' : ''}`}
+                      className={`flex items-start gap-[4px] rounded-[8px] hover:bg-[var(--chrome-hover-bg,rgba(255,255,255,0.08))] ${
+                        isSel ? 'bg-[var(--chrome-hover-bg,rgba(255,255,255,0.06))]' : ''
+                      }`}
                       role="option"
                       aria-selected={isSel}
                     >
                       <button
                         type="button"
-                        className="voicepanel__dd-itembtn"
+                        className="flex min-w-0 flex-[1_1_auto] cursor-pointer items-start gap-[8px] border-0 bg-transparent pb-[9px] pl-[8px] pr-[4px] pt-[9px] text-left text-[var(--chrome-fg)]"
                         onClick={() => onPick(m)}
                         data-testid={`dictation-model-${m.id}`}
                       >
-                        <span className="voicepanel__dd-check">{isSel && <Check size={14} />}</span>
-                        <span className="voicepanel__dd-body">
-                          <span className="voicepanel__dd-itemtop">
-                            <span className="voicepanel__dd-itemname">{m.label}</span>
+                        <span className="mt-[1px] w-[16px] flex-none text-[var(--chrome-accent,#83a598)]">
+                          {isSel && <Check size={14} />}
+                        </span>
+                        <span className="flex min-w-0 flex-col gap-[4px]">
+                          <span className="flex flex-wrap items-center gap-[6px]">
+                            <span className="text-[0.86rem] font-semibold">{m.label}</span>
                             <Badge tone="neutral" size="xs">
                               {m.tag === 'streaming'
                                 ? t('voicePanel.badge_streaming')
@@ -373,13 +381,17 @@ export default function VoicePanel() {
                                 {t('voicePanel.badge_recommended')}
                               </Badge>
                             )}
-                            <span className="voicepanel__dd-size">{fmtSize(m.size_gb)}</span>
+                            <span className="ml-auto text-[0.74rem] text-[var(--chrome-fg-muted)]">
+                              {fmtSize(m.size_gb)}
+                            </span>
                           </span>
-                          <span className="voicepanel__dd-itemdesc">{modelDesc(m)}</span>
+                          <span className="text-[0.76rem] leading-[1.4] text-[var(--chrome-fg-muted)]">
+                            {modelDesc(m)}
+                          </span>
                           {installing && (
                             <span className="voicepanel__dd-progress">
                               <Progress value={rs.pct ?? null} tone="brand" size="xs" />
-                              <span className="voicepanel__dd-progresstext">
+                              <span className="flex-none text-[0.72rem] text-[var(--chrome-fg-muted)]">
                                 {rs.pct != null && rs.pct > 0
                                   ? t('voicePanel.downloading_pct', { pct: Math.round(rs.pct) })
                                   : t('voicePanel.downloading')}
@@ -391,13 +403,13 @@ export default function VoicePanel() {
 
                       {/* Right-edge affordance: download (not installed), spinner
                           (installing/deleting), or delete (installed). */}
-                      <span className="voicepanel__dd-action">
+                      <span className="flex flex-none items-center pb-0 pl-0 pr-[6px] pt-[9px]">
                         {installing || deleting ? (
                           <Loader size={14} className="voicepanel__spin" />
                         ) : m.installed ? (
                           <button
                             type="button"
-                            className="voicepanel__iconbtn"
+                            className="inline-flex h-[26px] w-[26px] cursor-pointer items-center justify-center rounded-[6px] border-0 bg-transparent p-0 text-[var(--chrome-fg-muted)] hover:bg-[var(--chrome-hover-bg,rgba(255,255,255,0.1))] hover:text-[var(--chrome-fg)]"
                             title={t('voicePanel.delete_model')}
                             aria-label={t('voicePanel.delete_model')}
                             onClick={(e) => {
@@ -411,7 +423,7 @@ export default function VoicePanel() {
                         ) : (
                           <button
                             type="button"
-                            className="voicepanel__iconbtn"
+                            className="inline-flex h-[26px] w-[26px] cursor-pointer items-center justify-center rounded-[6px] border-0 bg-transparent p-0 text-[var(--chrome-fg-muted)] hover:bg-[var(--chrome-hover-bg,rgba(255,255,255,0.1))] hover:text-[var(--chrome-fg)]"
                             title={t('voicePanel.download_model')}
                             aria-label={t('voicePanel.download_model')}
                             onClick={(e) => {

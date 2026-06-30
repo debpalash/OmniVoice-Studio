@@ -1,46 +1,18 @@
 /* Settings → Appearance panel.
-   Built on the shared Settings primitives (SettingsSection / SettingRow);
-   only the scale slider, theme-dot swatches, and font-preview tiles carry
-   panel-specific chrome — all routed through --chrome-* tokens so they theme
-   correctly across every theme. */
+   Built on the shared Settings primitives (SettingsSection / SettingRow).
+   Mechanical layout (scale slider, scale readout, theme/font containers) now
+   lives in Tailwind utilities on the JSX; only the rules below stay here:
+   they reach into a child primitive (.st-row__control), or carry stateful
+   transitions / multi-layer box-shadow rings that are not 1:1 utility-safe.
+   All still route through --chrome-* tokens so they theme across every theme. */
 
 /* The font picker spans the row's full width (st-row--stack) so its tiles lay
-   out as a horizontal grid instead of a squeezed right-aligned column. */
+   out as a horizontal grid instead of a squeezed right-aligned column. Reaches
+   into the SettingRow primitive's control wrapper — kept as CSS. */
 .appearance-panel__row--fonts .st-row__control { display: block; }
 
-/* UI scale slider + live percentage readout */
-.appearance-panel__scale {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-4);
-  /* Was a rigid 220px floor that overflowed the control column when the row
-     stacked on narrow content. Prefer ~220 but allow it to shrink. */
-  min-width: 0;
-  width: clamp(160px, 100%, 260px);
-}
-
-.appearance-panel__scale input[type='range'] {
-  flex: 1;
-  min-width: 0;
-  accent-color: var(--chrome-accent);
-  cursor: pointer;
-}
-
-.appearance-panel__scale-val {
-  min-width: 40px;
-  font-variant-numeric: tabular-nums;
-  font-size: var(--text-sm);
-  color: var(--chrome-fg);
-  text-align: right;
-}
-
-/* Color-theme swatches */
-.appearance-panel__themes {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-
+/* Color-theme swatches — stateful ring (hover scale + is-active multi-layer
+   box-shadow) with transitions; kept as CSS. */
 .appearance-panel__theme-dot {
   width: 18px;
   height: 18px;
@@ -65,15 +37,8 @@
     0 0 0 3px var(--chrome-fg);
 }
 
-/* Font picker — grid of live previews instead of a select box */
-.appearance-panel__fonts {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
-  gap: var(--space-3);
-  width: 100%;
-  min-width: 0;
-}
-
+/* Font picker tiles — live previews with stateful border/background/box-shadow
+   transitions and an is-active inset ring; kept as CSS. */
 .appearance-panel__font-tile {
   display: flex;
   align-items: center;

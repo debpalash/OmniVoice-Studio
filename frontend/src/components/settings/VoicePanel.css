@@ -1,60 +1,14 @@
-/* Settings → Capture → Voice panel. Built on the shared Settings primitives
-   (SettingsSection / SettingRow / SettingsToggle); only the engine-warn banner
-   and the speech-model dropdown carry panel-specific chrome — all tokenised. */
+/* Settings → Capture → Voice panel. The engine-warn banner and most of the
+   speech-model dropdown chrome now live in Tailwind utilities on the JSX. The
+   rules kept here can't be expressed 1:1 as utilities: a descendant rule that
+   reaches into the SettingRow primitive, the chevron's transform transition
+   (Tailwind's `rotate-*` targets the `rotate` property, not `transform`, so it
+   wouldn't animate via this transition), a child-combinator on the progress
+   row, and the spinner keyframe animation. All tokenised. */
 
-/* Subtle-warning banner shown when the dictation engine isn't available. */
-.voicepanel__warn {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--text-sm);
-  color: var(--chrome-severity-warn);
-  background: color-mix(in srgb, var(--chrome-severity-warn) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--chrome-severity-warn) 32%, transparent);
-  border-radius: var(--chrome-radius-pill);
-}
-
-/* The model row's control is taller than a single line — top-align it. */
+/* The model row's control is taller than a single line — top-align it. Reaches
+   into the SettingRow primitive's control wrapper. */
 .voicepanel__row--model .st-row__control { align-self: flex-start; }
-
-/* ── Speech-model dropdown ─────────────────────────────────────────────── */
-.voicepanel__dropdown {
-  position: relative;
-  flex: none;
-  width: auto;
-  min-width: 200px;
-  max-width: 280px;
-  text-align: left;
-}
-
-.voicepanel__dd-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--text-md);
-  color: var(--chrome-fg);
-  background: var(--chrome-input-bg, rgba(255, 255, 255, 0.04));
-  border: 1px solid var(--chrome-border, rgba(255, 255, 255, 0.1));
-  border-radius: var(--chrome-radius-pill);
-  cursor: pointer;
-  text-align: left;
-}
-
-.voicepanel__dd-trigger:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.voicepanel__dd-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .voicepanel__dd-chev {
   flex: none;
@@ -66,91 +20,6 @@
   transform: rotate(180deg);
 }
 
-.voicepanel__dd-list {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 40;
-  width: 360px;
-  max-width: 80vw;
-  max-height: 380px;
-  overflow-y: auto;
-  margin: 0;
-  padding: 5px;
-  list-style: none;
-  background: var(--chrome-menu-bg, #1d1d22);
-  border: 1px solid var(--chrome-border, rgba(255, 255, 255, 0.1));
-  border-radius: 10px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
-}
-
-.voicepanel__dd-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-  border-radius: 8px;
-}
-
-.voicepanel__dd-item.is-selected {
-  background: var(--chrome-hover-bg, rgba(255, 255, 255, 0.06));
-}
-
-.voicepanel__dd-item:hover {
-  background: var(--chrome-hover-bg, rgba(255, 255, 255, 0.08));
-}
-
-.voicepanel__dd-itembtn {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 9px 4px 9px 8px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  color: var(--chrome-fg);
-}
-
-.voicepanel__dd-check {
-  flex: none;
-  width: 16px;
-  margin-top: 1px;
-  color: var(--chrome-accent, #83a598);
-}
-
-.voicepanel__dd-body {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.voicepanel__dd-itemtop {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.voicepanel__dd-itemname {
-  font-size: 0.86rem;
-  font-weight: 600;
-}
-
-.voicepanel__dd-size {
-  font-size: 0.74rem;
-  color: var(--chrome-fg-muted);
-  margin-left: auto;
-}
-
-.voicepanel__dd-itemdesc {
-  font-size: 0.76rem;
-  line-height: 1.4;
-  color: var(--chrome-fg-muted);
-}
-
 .voicepanel__dd-progress {
   display: flex;
   align-items: center;
@@ -160,38 +29,6 @@
 
 .voicepanel__dd-progress > :first-child {
   flex: 1 1 auto;
-}
-
-.voicepanel__dd-progresstext {
-  flex: none;
-  font-size: 0.72rem;
-  color: var(--chrome-fg-muted);
-}
-
-.voicepanel__dd-action {
-  display: flex;
-  align-items: center;
-  flex: none;
-  padding: 9px 6px 0 0;
-}
-
-.voicepanel__iconbtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  color: var(--chrome-fg-muted);
-  cursor: pointer;
-}
-
-.voicepanel__iconbtn:hover {
-  background: var(--chrome-hover-bg, rgba(255, 255, 255, 0.1));
-  color: var(--chrome-fg);
 }
 
 .voicepanel__spin {

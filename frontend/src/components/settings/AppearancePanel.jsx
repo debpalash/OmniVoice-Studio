@@ -54,7 +54,7 @@ export default function AppearancePanel() {
       <SettingRow
         title={scaleLabel}
         control={
-          <div className="appearance-panel__scale">
+          <div className="inline-flex w-[clamp(160px,100%,260px)] min-w-0 items-center gap-[var(--space-4)]">
             <input
               type="range"
               min="0.6"
@@ -64,8 +64,11 @@ export default function AppearancePanel() {
               onChange={(e) => setUiScale(Number(e.target.value))}
               aria-label={scaleLabel}
               aria-valuetext={`${Math.round(uiScale * 100)}%`}
+              className="min-w-0 flex-1 cursor-pointer accent-[var(--chrome-accent)]"
             />
-            <span className="appearance-panel__scale-val">{Math.round(uiScale * 100)}%</span>
+            <span className="min-w-[40px] text-right text-[length:var(--text-sm)] tabular-nums text-[var(--chrome-fg)]">
+              {Math.round(uiScale * 100)}%
+            </span>
           </div>
         }
       />
@@ -73,7 +76,11 @@ export default function AppearancePanel() {
       <SettingRow
         title={themeLabel}
         control={
-          <div className="appearance-panel__themes" role="radiogroup" aria-label={themeLabel}>
+          <div
+            className="inline-flex items-center gap-[var(--space-4)]"
+            role="radiogroup"
+            aria-label={themeLabel}
+          >
             {THEMES.map((th) => (
               <button
                 key={th.id}
@@ -96,7 +103,11 @@ export default function AppearancePanel() {
         align="start"
         title={fontLabel}
         control={
-          <div className="appearance-panel__fonts" role="radiogroup" aria-label={fontLabel}>
+          <div
+            className="grid w-full min-w-0 grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-[var(--space-3)]"
+            role="radiogroup"
+            aria-label={fontLabel}
+          >
             {FONT_OPTIONS.map((f) => (
               <button
                 key={f.id}

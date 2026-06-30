@@ -1,22 +1,9 @@
-/* Settings → API Keys panel — Wave 2 AUTH-03 UI. Styled to match the existing
-   Credentials tab + LogsFooter palette (var(--chrome-*) tokens only — every
-   surface themes across all 6 themes; never hardcode a color). */
-
-.apikeys-panel__error {
-  padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-4);
-  background: color-mix(in srgb, var(--chrome-severity-err) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--chrome-severity-err) 35%, transparent);
-  border-radius: var(--chrome-radius-pill);
-  font-size: var(--text-sm);
-  color: var(--chrome-severity-err);
-}
-
-.apikeys-rows {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
+/* Settings → API Keys panel — Wave 2 AUTH-03 UI. Most of this panel's chrome
+   now lives in Tailwind utilities on the JSX. The rules kept here are the
+   source/row card + the "Active" badge: ApiKeysPanel.test.jsx selects them by
+   class name (`.apikeys-row`, `.apikeys-row--active`, `.apikeys-badge--active`),
+   so they stay as a stable contract. All surfaces still route through
+   var(--chrome-*) tokens so they theme across all 6 themes. */
 
 .apikeys-row {
   border: 1px solid var(--chrome-border);
@@ -33,22 +20,6 @@
   background: color-mix(in srgb, var(--chrome-accent) 5%, var(--chrome-bg));
 }
 
-.apikeys-row__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.apikeys-row__name {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-weight: 500;
-  font-size: var(--text-md);
-  color: var(--chrome-fg);
-}
-
 .apikeys-badge {
   font-size: 0.66rem;
   text-transform: uppercase;
@@ -62,131 +33,4 @@
 .apikeys-badge--active {
   background: color-mix(in srgb, var(--chrome-accent) 25%, transparent);
   color: var(--chrome-accent);
-}
-
-.apikeys-row__meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  font-size: var(--text-sm);
-  color: var(--chrome-fg-muted);
-}
-
-.apikeys-row__set,
-.apikeys-row__unset,
-.apikeys-row__whoami {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.apikeys-row__set { color: var(--chrome-severity-ok); }
-.apikeys-row__unset { color: var(--chrome-severity-warn); }
-.apikeys-row__whoami--ok { color: var(--chrome-severity-ok); }
-.apikeys-row__whoami--bad { color: var(--chrome-severity-err); }
-
-.apikeys-row__masked {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  background: var(--chrome-hover-bg);
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-
-.apikeys-row__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.apikeys-input {
-  /* flex-basis already prefers 220px; a rigid min-width:220 only stopped the
-     input from shrinking, so it escaped the row's cap and overflowed on narrow
-     content. min-width:0 lets flexbox shrink it; it still grows to fill. */
-  flex: 1 1 220px;
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-  padding: var(--space-2) var(--space-3);
-  background: var(--chrome-hover-bg);
-  border: 1px solid var(--chrome-border);
-  border-radius: var(--chrome-radius-pill);
-  color: var(--chrome-fg);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-}
-
-.apikeys-input:focus {
-  outline: none;
-  border-color: var(--chrome-accent);
-}
-
-.apikeys-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  border-radius: var(--chrome-radius-pill);
-  border: 1px solid var(--chrome-border);
-  background: var(--chrome-bg);
-  color: var(--chrome-fg);
-  cursor: pointer;
-}
-
-.apikeys-btn:hover:not(:disabled) {
-  background: var(--chrome-hover-bg);
-}
-
-.apikeys-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.apikeys-btn--save {
-  background: color-mix(in srgb, var(--chrome-accent) 25%, var(--chrome-bg));
-  border-color: var(--chrome-accent);
-}
-
-.apikeys-btn--danger {
-  color: var(--chrome-severity-err);
-  border-color: color-mix(in srgb, var(--chrome-severity-err) 35%, var(--chrome-border));
-}
-
-.apikeys-btn--ghost {
-  background: transparent;
-}
-
-.apikeys-clear-dialog {
-  margin-top: var(--space-3);
-  padding: var(--space-4) var(--space-4);
-  border: 1px solid color-mix(in srgb, var(--chrome-severity-err) 35%, var(--chrome-border));
-  border-radius: var(--chrome-radius-pill);
-  background: color-mix(in srgb, var(--chrome-severity-err) 6%, var(--chrome-bg));
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.apikeys-clear-dialog p {
-  margin: 0;
-  font-size: var(--text-md);
-}
-
-.apikeys-checkbox {
-  font-size: var(--text-sm);
-  color: var(--chrome-fg-muted);
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.apikeys-clear-dialog__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-3);
 }
