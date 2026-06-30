@@ -16,7 +16,7 @@ function TranscribeOverlay({ elapsed, duration, onAbort }) {
         <Loader className="spinner" size={18} color="#d3869b" />
         <span className="text-fg font-medium text-[var(--text-lg)]">{t('dub.transcribing')}</span>
       </div>
-      <div className="dub-trans-overlay__stats">
+      <div className="flex gap-[var(--space-6)] text-[length:var(--text-md)] text-fg-muted [font-variant-numeric:tabular-nums_slashed-zero]">
         <span>
           ⏱ {mm}:{ss} {t('dub.elapsed')}
         </span>

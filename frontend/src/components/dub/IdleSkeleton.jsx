@@ -26,6 +26,9 @@ import PrepOverlay from './PrepOverlay';
 import TranscribeOverlay from './TranscribeOverlay';
 import { LANG_CODES } from '../../utils/languages';
 
+const SPEAKERS_INPUT =
+  'w-[52px] ml-[4px] px-[6px] py-[4px] rounded-[6px] border border-[var(--border,#3c3836)] bg-[var(--input-bg,#282828)] text-inherit text-[12px]';
+
 export default function IdleSkeleton({
   t,
   dubVideoFile,
@@ -154,7 +157,11 @@ export default function IdleSkeleton({
 
       {/* SPLIT LAYOUT skeleton */}
       <div
-        className={`dub-split-grid ${dubVideoFile ? 'grid grid-cols-2 gap-[6px] flex-1 min-h-0 overflow-hidden' : 'grid grid-cols-1 gap-[6px] flex-1 min-h-0'}`}
+        className={
+          dubVideoFile
+            ? 'grid grid-cols-2 max-[1000px]:grid-cols-1 max-[1000px]:grid-rows-[auto_1fr] gap-[6px] flex-1 min-h-0 overflow-hidden'
+            : 'grid grid-cols-1 gap-[6px] flex-1 min-h-0'
+        }
       >
         {/* LEFT */}
         <div className="studio-panel dub-panel-col">
@@ -219,7 +226,7 @@ export default function IdleSkeleton({
                     min={1}
                     max={20}
                     step={1}
-                    className="dub-speakers-input"
+                    className={SPEAKERS_INPUT}
                     placeholder={t('dub.num_speakers_auto')}
                     value={dubNumSpeakers ?? ''}
                     disabled={dubStep === 'uploading' || dubStep === 'transcribing'}
@@ -229,8 +236,9 @@ export default function IdleSkeleton({
                     }}
                   />
                 </label>
-                <button
-                  className="btn-primary dub-change-row__cta"
+                <Button
+                  variant="primary"
+                  className="flex-1"
                   onClick={handleDubUpload}
                   disabled={dubStep === 'uploading' || dubStep === 'transcribing'}
                 >
@@ -243,7 +251,7 @@ export default function IdleSkeleton({
                       <Sparkles size={14} /> {t('dub.upload_transcribe')}
                     </>
                   )}
-                </button>
+                </Button>
               </div>
             </>
           ) : dubStep === 'uploading' ? (
@@ -335,7 +343,7 @@ export default function IdleSkeleton({
                   </button>
                 </div>
                 <label
-                  className="dub-ingest-sub-opt"
+                  className="flex items-center gap-[6px] mt-[6px] px-[6px] py-[4px] text-[0.62rem] text-fg-muted cursor-pointer rounded-[4px] bg-[rgba(255,255,255,0.02)] hover:text-fg hover:bg-[rgba(255,255,255,0.05)]"
                   title={t('dub.pull_captions_title')}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -343,6 +351,7 @@ export default function IdleSkeleton({
                 >
                   <input
                     type="checkbox"
+                    className="m-0 accent-[#d3869b]"
                     checked={fetchYtSubs}
                     onChange={(e) => setFetchYtSubs(e.target.checked)}
                     onClick={(e) => e.stopPropagation()}
@@ -361,7 +370,7 @@ export default function IdleSkeleton({
                     {t('dub.target_language', { defaultValue: 'Dub into' })}
                   </span>
                   <select
-                    className="input-base input-base--xs"
+                    className="input-base text-[0.65rem]"
                     value={dubLangCode}
                     onChange={(e) => {
                       const lc = LANG_CODES.find((l) => l.code === e.target.value);
@@ -378,7 +387,7 @@ export default function IdleSkeleton({
                 </label>
                 <button
                   type="button"
-                  className="dub-landing-opts__adv"
+                  className="inline-flex items-center gap-[5px] px-[10px] py-[5px] text-[0.7rem] text-[var(--chrome-fg-muted)] bg-transparent border border-[var(--chrome-border)] rounded-[var(--chrome-radius-pill,999px)] cursor-pointer transition-colors hover:text-[var(--chrome-fg)] hover:border-[var(--chrome-border-strong)]"
                   onClick={() => setLandingAdvOpen((o) => !o)}
                   aria-expanded={landingAdvOpen}
                 >
@@ -398,7 +407,7 @@ export default function IdleSkeleton({
                       min={1}
                       max={20}
                       step={1}
-                      className="input-base input-base--xs dub-speakers-input"
+                      className={SPEAKERS_INPUT}
                       placeholder={t('dub.num_speakers_auto')}
                       value={dubNumSpeakers ?? ''}
                       onChange={(e) => {
@@ -411,7 +420,7 @@ export default function IdleSkeleton({
                     <UserSquare2 size={12} /> {t('dub.style')}
                     <input
                       type="text"
-                      className="input-base input-base--xs"
+                      className="input-base text-[0.65rem]"
                       placeholder={t('dub.style_placeholder')}
                       value={dubInstruct}
                       onChange={(e) => setDubInstruct(e.target.value)}
@@ -471,13 +480,13 @@ export default function IdleSkeleton({
                 <div className="label-row">
                   <Globe className="label-icon" size={9} /> {t('dub.language')}
                 </div>
-                <select className="input-base input-base--xs" disabled>
+                <select className="input-base text-[0.65rem]" disabled>
                   <option>{t('dub.auto')}</option>
                 </select>
               </div>
               <div className="flex-1 min-w-[80px]">
                 <div className="label-row">{t('dub.iso_code')}</div>
-                <select className="input-base input-base--xs" disabled>
+                <select className="input-base text-[0.65rem]" disabled>
                   <option>en — {t('dub.original_audio')}</option>
                 </select>
               </div>
@@ -486,7 +495,7 @@ export default function IdleSkeleton({
                   <UserSquare2 className="label-icon" size={9} /> {t('dub.style')}
                 </div>
                 <input
-                  className="input-base input-base--xs"
+                  className="input-base text-[0.65rem]"
                   disabled
                   placeholder={t('dub.style_placeholder')}
                 />
@@ -544,12 +553,15 @@ export default function IdleSkeleton({
       {/* Ghost footer — only once a file is in play; the bare landing stays
               clean. Generate is the lone primary, exports demoted to one menu. */}
       {dubVideoFile && (
-        <div className="studio-panel dub-ghost-footer">
+        <div className="studio-panel px-[8px] py-[4px] shrink-0">
           <div className="flex gap-[4px]">
-            <button className="btn-primary dub-skel-gen-btn" disabled>
+            <Button variant="primary" className="flex-1 opacity-40" disabled>
               <Play size={11} /> {t('dub.generate_dub')}
-            </button>
-            <button className="dub-skel-gen-btn dub-skel-gen-btn--secondary" disabled>
+            </Button>
+            <button
+              className="inline-flex items-center gap-[5px] bg-transparent border border-[var(--chrome-border)] text-[var(--chrome-fg-muted)] rounded-[8px] flex-[0_0_auto] px-[8px] py-[4px] text-[0.7rem] opacity-40"
+              disabled
+            >
               <Download size={11} /> {t('dub.export_btn', { defaultValue: 'Export' })}{' '}
               <ChevronDown size={10} />
             </button>

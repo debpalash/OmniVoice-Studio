@@ -14,7 +14,7 @@ import DubHeader from '../components/dub/DubHeader';
 import DubLeftColumn from '../components/dub/DubLeftColumn';
 import DubRightColumn from '../components/dub/DubRightColumn';
 import DubFooter from '../components/dub/DubFooter';
-import './DubTab.css';
+import '../components/dub/dub.css';
 
 export default function DubTab(props) {
   const { t, i18n } = useTranslation();
@@ -478,7 +478,7 @@ export default function DubTab(props) {
             handleDubQc={handleDubQc}
             setExportOpen={setExportOpen}
           />
-          <div className="dub-split-grid grid grid-cols-2 gap-[6px] flex-1 min-h-0 overflow-hidden">
+          <div className="grid grid-cols-2 max-[1000px]:grid-cols-1 max-[1000px]:grid-rows-[auto_1fr] gap-[6px] flex-1 min-h-0 overflow-hidden">
             <DubLeftColumn
               hasDubbedTrack={hasDubbedTrack}
               t={t}

@@ -1,0 +1,269 @@
+/* Dub Studio — irreducible CSS that can't live as Tailwind utilities:
+   keyframe-driven motion (stepper spin, idle-drop pulse, skeleton shimmer),
+   ::before connectors, and a few rules that must override other *global*
+   design-system classes (.studio-panel / .label-row / .override-toggle /
+   .segment-del) where a utility would lose on cascade. Everything else in the
+   dub feature is plain Tailwind utilities on the components. */
+
+/* ── Title strip — coexists with the global .label-row it sits on ── */
+.dub-head__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: 0;
+  min-width: 0;
+  flex: 1;
+}
+
+/* ── Column flex that fills height — overrides .studio-panel overflow ── */
+.dub-panel-col {
+  margin-bottom: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Pipeline stepper (top spine) ─────────────────────────────────────── */
+.dub-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2px 0;
+  padding: 8px 12px;
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--chrome-border);
+}
+.dub-stepper__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--chrome-fg-dim, #665c54);
+}
+.dub-stepper__step:not(:first-child)::before {
+  content: '';
+  width: 24px;
+  height: 2px;
+  margin: 0 8px;
+  border-radius: 1px;
+  background: var(--chrome-border-strong, rgba(255, 255, 255, 0.12));
+}
+.dub-stepper__step.is-reached:not(:first-child)::before {
+  background: var(--chrome-accent, #d3869b);
+}
+.dub-stepper__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1.5px solid var(--chrome-border-strong, rgba(255, 255, 255, 0.15));
+  color: var(--chrome-fg-dim, #665c54);
+}
+.dub-stepper__step.is-done .dub-stepper__icon {
+  border-color: var(--chrome-accent, #d3869b);
+  color: var(--chrome-accent, #d3869b);
+  background: color-mix(in srgb, var(--chrome-accent, #d3869b) 16%, transparent);
+}
+.dub-stepper__step.is-active .dub-stepper__icon {
+  border-color: var(--chrome-accent, #d3869b);
+  color: var(--chrome-accent, #d3869b);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--chrome-accent, #d3869b) 14%, transparent);
+}
+.dub-stepper__step.is-done .dub-stepper__label,
+.dub-stepper__step.is-active .dub-stepper__label {
+  color: var(--chrome-fg);
+}
+.dub-stepper__spin { animation: dub-stepper-spin 1s linear infinite; }
+@keyframes dub-stepper-spin { to { transform: rotate(360deg); } }
+
+/* ── Idle / drop-zone ─────────────────────────────────────────────────── */
+.dub-idle-drop {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  border: 2px dashed rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  transition: background 0.3s, border-color 0.3s;
+  margin: 2px;
+  background: transparent;
+}
+@keyframes dub-pulse {
+  0%, 100% { border-color: rgba(211, 134, 155, 0.3); background: rgba(211, 134, 155, 0.04); }
+  50%      { border-color: rgba(211, 134, 155, 0.6); background: rgba(211, 134, 155, 0.08); }
+}
+.dub-idle-drop.is-dragging {
+  border-color: #d3869b;
+  background: rgba(211, 134, 155, 0.05);
+  animation: dub-pulse 1.2s ease-in-out infinite;
+}
+.dub-idle-drop__puck {
+  width: 60px; height: 60px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(211, 134, 155, 0.06);
+  border: 1px solid rgba(211, 134, 155, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.dub-idle-drop:hover .dub-idle-drop__puck {
+  transform: scale(1.08);
+  box-shadow: 0 0 24px rgba(211, 134, 155, 0.15);
+}
+.dub-ingest-row__cta {
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #665c54;
+  cursor: default;
+}
+.dub-ingest-row__cta.is-ready {
+  background: rgba(211, 134, 155, 0.15);
+  border-color: rgba(211, 134, 155, 0.3);
+  color: var(--color-brand);
+  cursor: pointer;
+}
+
+/* ── Landing options — descendants override global element styling ── */
+.dub-landing-opts__lang select { max-width: 220px; }
+.dub-landing-adv__field--grow { flex: 1; min-width: 200px; }
+.dub-landing-adv__field--grow input { flex: 1; }
+
+/* ── Transcript toggle — sits on the global .override-toggle ── */
+.dub-transcript-toggle__inner {
+  margin-top: 0;
+  padding: 3px var(--space-3);
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  color: var(--chrome-fg-muted);
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+}
+.dub-transcript-toggle__inner:hover { color: var(--chrome-fg); }
+.dub-skel-transcript-toggle__inner { margin-top: 0; padding: 2px 6px; font-size: 0.65rem; opacity: 0.3; cursor: default; }
+
+/* ── Prep / Transcribe overlays ───────────────────────────────────────── */
+.dub-prep-overlay--large {
+  flex: 1;
+  justify-content: center;
+  gap: var(--space-6);
+  padding: var(--space-5);
+  margin: var(--space-2);
+  border: 2px dashed rgba(211, 134, 155, 0.2);
+  border-radius: var(--radius-xl);
+  background: rgba(211, 134, 155, 0.03);
+}
+.dub-prep-bar {
+  width: min(240px, 85vw);
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.dub-prep-overlay--large .dub-prep-bar { width: 320px; height: 5px; }
+.dub-prep-bar__fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(211, 134, 155, 0.75), rgba(211, 134, 155, 1));
+  border-radius: inherit;
+  transition: width 220ms ease-out;
+}
+.dub-prep-chip {
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--color-fg-subtle);
+}
+.dub-prep-chip.is-active {
+  background: rgba(211, 134, 155, 0.20);
+  border-color: rgba(211, 134, 155, 0.30);
+  color: var(--color-brand);
+}
+.dub-prep-chip.is-active.is-cached {
+  background: rgba(142, 192, 124, 0.20);
+  border-color: rgba(142, 192, 124, 0.30);
+  color: var(--color-success);
+}
+.dub-prep-chips--lg .dub-prep-chip { padding: 2px 8px; border-radius: var(--radius-sm); font-weight: var(--weight-regular); }
+.dub-prep-chips--lg .dub-prep-chip.is-active { font-weight: var(--weight-semibold); }
+
+/* ── Cast strip — --muted overrides descend onto __label/__kicker ── */
+.dub-cast__pair         { display: flex; align-items: center; gap: 3px; padding: 1px 5px; border-radius: var(--radius-sm); transition: background 0.2s ease; }
+.dub-cast__pair:hover   { background: rgba(255, 255, 255, 0.03); }
+.dub-cast__select       { width: 95px; padding: 1px 3px; font-size: 0.60rem; }
+.dub-cast--muted        { background: transparent; border-color: var(--chrome-border); }
+.dub-cast--muted .dub-cast__label,
+.dub-cast--muted .dub-cast__kicker { color: var(--chrome-fg-dim); }
+
+/* ── Multi-language preview switcher ──────────────────────────────────── */
+.dub-lang-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0 8px;
+}
+.dub-lang-pill {
+  padding: 5px 14px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--chrome-fg-muted);
+  background: var(--chrome-hover-bg, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill, 999px);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+}
+.dub-lang-pill:hover {
+  color: var(--chrome-fg);
+  border-color: var(--chrome-border-strong);
+}
+.dub-lang-pill.is-active {
+  color: #1b1b1b;
+  background: var(--chrome-fg, #ebdbb2);
+  border-color: var(--chrome-fg, #ebdbb2);
+}
+.dub-lang-pill:focus-visible {
+  outline: 2px solid var(--chrome-accent);
+  outline-offset: 1px;
+}
+
+/* ── Skeleton segment rows (shimmer bars) ─────────────────────────────── */
+.dub-skel-table       { flex: 1; max-height: none; overflow-y: auto; min-height: 0; }
+.dub-skel-row         { gap: 6px; }
+.dub-skel-bar {
+  height: 11px;
+  border-radius: 3px;
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.09) 37%,
+    rgba(255, 255, 255, 0.04) 63%);
+  background-size: 400% 100%;
+  animation: dub-skel-shimmer 1.4s ease-in-out infinite;
+}
+.dub-skel-cell-acts__icon { opacity: 0.3; }
+@keyframes dub-skel-shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+
+/* ── Reduced motion: shimmer/pulse die; stepper spinner holds a frame ── */
+@media (prefers-reduced-motion: reduce) {
+  .dub-skel-bar,
+  .dub-idle-drop.is-dragging,
+  .dub-stepper__spin {
+    animation: none;
+  }
+}

@@ -216,8 +216,6 @@ h1, h2, h3, h4 {
 .segment-time,
 .segment-table code,
 .ui-table-toolbar__meta,
-.dub-gen-overlay__stats,
-.dub-trans-overlay__stats,
 .logs-footer__count,
 [data-tabular] {
   font-variant-numeric: tabular-nums slashed-zero;
@@ -809,7 +807,6 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
 .personality-chip:focus-visible,
 .chip:focus-visible,
 .wh__chip:focus-visible,
-.dub-lang-pill:focus-visible,
 .wf-player__btn:focus-visible,
 .studio-action-bar__overrides:focus-visible {
   outline: 2px solid var(--chrome-accent);
@@ -1465,15 +1462,8 @@ div[role="dialog"].audio-trimmer {
    RESPONSIVE — make every component adapt to viewport width
    ════════════════════════════════════════════════════════════ */
 
-/* ── DubTab + CloneDesignTab split grids → single column ── */
-@media (max-width: 1000px) {
-  .dub-split-grid {
-    grid-template-columns: 1fr !important;
-    grid-template-rows: auto 1fr !important;
-  }
-  /* .clone-split-grid is single-column at every width now (spec §1 restack —
-     see CloneDesignTab.css); no narrow-viewport override needed. */
-}
+/* DubTab split grid → single column is handled inline in DubTab.jsx /
+   IdleSkeleton.jsx via Tailwind max-[1000px]:grid-cols-1 utilities. */
 
 /* .grid-2 / .grid-4 responsive collapse → Tailwind max-[700px]/max-[500px]
    variants inline at the usage sites (P4). .grid-3 was already dead (no base
@@ -1502,30 +1492,8 @@ div[role="dialog"].audio-trimmer {
   .studio-panel { padding: 8px 6px; }
 }
 
-/* ── DubTab settings bar wrap ── */
-@media (max-width: 900px) {
-  .dub-settings-bar {
-    flex-direction: column !important;
-    gap: 6px !important;
-  }
-  .dub-settings-bar > div { min-width: 0 !important; width: 100%; }
-}
-
-/* ── DubTab footer buttons — wrap on narrow ── */
-@media (max-width: 800px) {
-  .dub-footer-btns {
-    flex-wrap: wrap !important;
-  }
-  .dub-footer-btns .btn-primary {
-    min-width: 80px;
-    flex: 1 1 calc(50% - 4px) !important;
-  }
-}
-@media (max-width: 500px) {
-  .dub-footer-btns .btn-primary {
-    flex: 1 1 100% !important;
-  }
-}
+/* DubTab settings-bar wrap is handled inline in DubLeftColumn.jsx via Tailwind
+   max-[900px]:gap utilities (the bar is already a flex-column at every width). */
 
 /* ── Segment table — tighter columns ── */
 @media (max-width: 800px) {

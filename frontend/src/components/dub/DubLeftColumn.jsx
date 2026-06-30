@@ -18,6 +18,21 @@ import { POPULAR_LANGS, PRESETS } from '../../utils/constants';
 import { dialectOptionsFor, dialectLabel, dialectMatchesLang } from '../../api/dialects';
 import toast from 'react-hot-toast';
 
+// ── Translation-settings bar utility class clusters ──────────────────────
+const SETTINGS_SUMMARY =
+  'flex items-center gap-[var(--space-2)] px-[var(--space-3)] py-[3px] mb-[3px] bg-[var(--chrome-bg)] border border-[var(--chrome-border)] rounded-[var(--chrome-radius-pill)] font-[family-name:var(--font-sans)] text-[0.66rem] text-[var(--chrome-fg-muted)]';
+const SUMMARY_TRIGGER =
+  'inline-flex items-center gap-[5px] flex-1 min-w-0 bg-transparent border-none text-fg-muted cursor-pointer py-[2px] px-0 [font:inherit] text-left';
+const SETTINGS_BAR =
+  'flex flex-col gap-[3px] max-[900px]:gap-[6px] mb-[4px] px-[8px] py-[4px] bg-[var(--chrome-bg)] border border-[var(--chrome-border)] rounded-[var(--chrome-radius-pill)]';
+const FIELD = 'flex flex-col gap-[1px] min-w-0';
+const FIELD_RESP = 'max-[960px]:basis-full max-[960px]:min-w-0';
+const FIELD_LABEL =
+  'label-row !text-[0.58rem] !text-fg-muted !m-0 whitespace-nowrap overflow-hidden text-ellipsis';
+const FIELD_INPUT = 'input-base !w-full !text-[0.65rem] !px-[5px] !py-[3px]';
+const ENGINE_CHIP =
+  'ml-[6px] px-[6px] py-[1px] text-[0.55rem] leading-[1.4] bg-[rgba(211,134,155,0.14)] border border-[rgba(211,134,155,0.35)] text-[#d3869b] rounded-[999px] whitespace-nowrap transition-colors';
+
 export default function DubLeftColumn({
   hasDubbedTrack,
   t,
@@ -125,15 +140,15 @@ export default function DubLeftColumn({
         disabled={dubStep === 'generating' || dubStep === 'stopping'}
         overlayContent={
           dubStep === 'generating' || dubStep === 'stopping' ? (
-            <div className="dub-gen-overlay">
-              <div className="dub-gen-overlay__head">
+            <div className="flex flex-col items-center gap-[6px] w-full p-[10px] backdrop-blur-[2px]">
+              <div className="flex items-center gap-[6px]">
                 {dubStep === 'stopping' ? (
                   <Loader className="spinner" size={14} color="#a89984" />
                 ) : (
                   <Sparkles className="spinner" size={14} color="#d3869b" />
                 )}
                 <span
-                  className={`dub-gen-overlay__title ${dubStep === 'stopping' ? 'is-stopping' : ''}`}
+                  className={`font-semibold text-[0.75rem] [font-variant-numeric:tabular-nums] tracking-[0.01em] ${dubStep === 'stopping' ? 'text-fg-muted' : 'text-fg'}`}
                 >
                   {dubStep === 'stopping'
                     ? t('dub.stopping')
@@ -142,7 +157,7 @@ export default function DubLeftColumn({
               </div>
               {dubStep === 'generating' && (
                 <>
-                  <div className="dub-gen-overlay__stats">
+                  <div className="flex gap-[var(--space-4)] text-[0.65rem] text-fg-muted [font-variant-numeric:tabular-nums]">
                     <span>
                       ⏱ {fmtDur(genElapsed)} {t('dub.elapsed')}
                     </span>
@@ -152,7 +167,7 @@ export default function DubLeftColumn({
                       </span>
                     )}
                   </div>
-                  <div className="dub-gen-overlay__bar">
+                  <div className="w-[80%] max-w-[240px] my-[1px]">
                     <Progress
                       value={
                         dubProgress.total ? (dubProgress.current / dubProgress.total) * 100 : 0
@@ -162,7 +177,7 @@ export default function DubLeftColumn({
                     />
                   </div>
                   {dubProgress.text && (
-                    <span className="dub-gen-overlay__text">{dubProgress.text}</span>
+                    <span className="text-[0.62rem] text-fg-muted">{dubProgress.text}</span>
                   )}
                 </>
               )}
@@ -177,9 +192,12 @@ export default function DubLeftColumn({
                   dropdown. It's also pre-selected on the segments so "new
                   language = same speaker's voice" works by default. */}
       {dubSegments.some((s) => s.speaker_id) && (
-        <div className="dub-cast">
-          <div className="dub-cast__row">
-            <span className="dub-cast__kicker" title={t('dub.cast_title')}>
+        <div className="mt-[2px] px-[var(--space-3)] py-[3px] bg-[var(--chrome-bg)] rounded-[var(--chrome-radius-pill)] border border-[var(--chrome-border)]">
+          <div className="flex gap-[var(--space-2)] items-center flex-wrap">
+            <span
+              className="font-[family-name:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] text-[var(--chrome-fg-muted)] tracking-[var(--chrome-label-track)] uppercase font-semibold"
+              title={t('dub.cast_title')}
+            >
               {t('dub.cast')}
             </span>
             {[...new Set(dubSegments.map((s) => s.speaker_id).filter(Boolean))].map((spk) => {
@@ -187,7 +205,9 @@ export default function DubLeftColumn({
               const clone = speakerClones[spk];
               return (
                 <div key={spk} className="dub-cast__pair">
-                  <span className="dub-cast__label">{spk}:</span>
+                  <span className="font-[family-name:var(--chrome-font-mono)] text-[0.62rem] text-[var(--chrome-fg)]">
+                    {spk}:
+                  </span>
                   <select
                     className="input-base dub-cast__select"
                     value={dubSegments.find((s) => s.speaker_id === spk)?.profile_id || ''}
@@ -234,21 +254,22 @@ export default function DubLeftColumn({
 
       {/* Translation settings — collapsed or expanded */}
       {!settingsOpen && (
-        <div className="dub-settings-summary">
+        <div className={SETTINGS_SUMMARY}>
           <button
             type="button"
-            className="dub-settings-summary__trigger"
+            className={SUMMARY_TRIGGER}
             onClick={() => setSettingsOpen(true)}
             title={t('dub.edit_settings')}
           >
             <ChevronDown size={10} />
             <span>
-              <strong>{dubLang}</strong> · {dubLangCode} · {translateQuality} ·{' '}
+              <strong className="text-[var(--chrome-fg)] font-semibold">{dubLang}</strong> ·{' '}
+              {dubLangCode} · {translateQuality} ·{' '}
               <span style={{ color: activeEngineUnavailable ? '#fb4934' : '#b8bb26' }}>●</span>{' '}
               {translateProvider}
             </span>
             {dubInstruct && (
-              <span className="dub-settings-summary__style">
+              <span className="text-[var(--chrome-fg-dim)] italic ml-[var(--space-2)]">
                 {t('dub.style_label_prefix')}
                 {dubInstruct}
               </span>
@@ -281,22 +302,22 @@ export default function DubLeftColumn({
         </div>
       )}
       {settingsOpen && (
-        <div className="dub-settings-bar">
-          <div className="dub-settings-bar__fields">
+        <div className={SETTINGS_BAR}>
+          <div className="flex flex-wrap gap-x-[6px] gap-y-[4px] items-end">
             <button
               type="button"
-              className="dub-settings-summary__trigger dub-settings-close"
+              className={`${SUMMARY_TRIGGER} flex-[0_0_auto] !px-[4px] self-center`}
               onClick={() => setSettingsOpen(false)}
               title={t('dub.collapse_settings')}
             >
               <ChevronUp size={10} />
             </button>
-            <div className="dub-settings-field dub-settings-field--lang">
-              <div className="label-row">
+            <div className={`${FIELD} flex-[1_1_100px] min-w-[70px] ${FIELD_RESP}`}>
+              <div className={FIELD_LABEL}>
                 <Globe className="label-icon" size={9} /> {t('dub.language')}
               </div>
               <select
-                className="input-base dub-cast__select"
+                className={FIELD_INPUT}
                 value={dubLang}
                 onChange={(e) => {
                   const lang = e.target.value;
@@ -328,10 +349,10 @@ export default function DubLeftColumn({
                 </optgroup>
               </select>
             </div>
-            <div className="dub-settings-field dub-settings-field--iso">
-              <div className="label-row">{t('dub.iso_code')}</div>
+            <div className={`${FIELD} flex-[0_1_72px] min-w-[52px] ${FIELD_RESP}`}>
+              <div className={FIELD_LABEL}>{t('dub.iso_code')}</div>
               <select
-                className="input-base dub-cast__select"
+                className={FIELD_INPUT}
                 value={dubLangCode}
                 onChange={(e) => {
                   const code = e.target.value;
@@ -350,12 +371,12 @@ export default function DubLeftColumn({
                       languages with curated variants; region names come from
                       Intl.DisplayNames so they localize with the UI for free. */}
             {dialectOptionsFor(dubLangCode).length > 0 && (
-              <div className="dub-settings-field dub-settings-field--dialect">
-                <div className="label-row" title={t('dub.dialect_title')}>
+              <div className={`${FIELD} flex-[0_1_110px] min-w-[80px] ${FIELD_RESP}`}>
+                <div className={FIELD_LABEL} title={t('dub.dialect_title')}>
                   {t('dub.dialect_label')}
                 </div>
                 <select
-                  className="input-base dub-cast__select"
+                  className={FIELD_INPUT}
                   value={dialectMatchesLang(dubDialect, dubLangCode) ? dubDialect : ''}
                   onChange={(e) => setDubDialect(e.target.value)}
                 >
@@ -368,13 +389,13 @@ export default function DubLeftColumn({
                 </select>
               </div>
             )}
-            <div className="dub-settings-field dub-settings-field--engine">
-              <div className="label-row">
+            <div className={`${FIELD} flex-[1.4_1_130px] min-w-[90px] ${FIELD_RESP}`}>
+              <div className={FIELD_LABEL}>
                 {t('dub.engine_label')}
                 {activeEngineUnavailable && !enginesSandboxed && (
                   <button
                     type="button"
-                    className="dub-engine-install-chip"
+                    className={`${ENGINE_CHIP} cursor-pointer hover:bg-[rgba(211,134,155,0.22)] disabled:opacity-55 disabled:cursor-default disabled:italic`}
                     onClick={() => handleInstallEngine(translateProvider)}
                     disabled={engineInstalling === translateProvider}
                     title={t('dub.install_engine')}
@@ -386,7 +407,7 @@ export default function DubLeftColumn({
                 )}
                 {activeEngineUnavailable && enginesSandboxed && (
                   <span
-                    className="dub-engine-install-chip dub-engine-install-chip--disabled"
+                    className={`${ENGINE_CHIP} opacity-55 cursor-default italic`}
                     title={t('dub.install_disabled_title')}
                   >
                     {t('dub.needs_dev_install')}
@@ -394,7 +415,7 @@ export default function DubLeftColumn({
                 )}
               </div>
               <select
-                className="input-base dub-engine-select"
+                className={FIELD_INPUT}
                 value={translateProvider}
                 onChange={(e) => setTranslateProvider(e.target.value)}
               >
@@ -407,11 +428,12 @@ export default function DubLeftColumn({
                 ))}
               </select>
             </div>
-            <div className="dub-settings-field dub-settings-field--quality">
-              <div className="label-row" title={t('dub.quality_title')}>
+            <div className={`${FIELD} flex-[0_1_auto] min-w-[80px] ${FIELD_RESP}`}>
+              <div className={FIELD_LABEL} title={t('dub.quality_title')}>
                 {t('dub.quality_label')}
               </div>
               <Segmented
+                className="w-full"
                 size="sm"
                 value={translateQuality}
                 onChange={(v) => {
@@ -436,22 +458,27 @@ export default function DubLeftColumn({
                 ]}
               />
             </div>
-            <div className="dub-settings-field dub-settings-field--style">
-              <div className="label-row">
+            <div className={`${FIELD} flex-[1_1_90px] min-w-[64px] ${FIELD_RESP}`}>
+              <div className={FIELD_LABEL}>
                 <UserSquare2 className="label-icon" size={9} /> {t('dub.style')}{' '}
-                <span className="dub-settings-field__hint">{t('dub.optional')}</span>
+                <span className="text-[0.52rem] text-fg-subtle italic ml-[2px]">
+                  {t('dub.optional')}
+                </span>
               </div>
               <input
-                className="input-base input-base--xs"
+                className={FIELD_INPUT}
                 placeholder={t('dub.style_placeholder')}
                 value={dubInstruct}
                 onChange={(e) => setDubInstruct(e.target.value)}
               />
             </div>
-            <div className="dub-settings-field dub-settings-field--multi">
-              <label className="dub-multi-toggle">
+            <div
+              className={`${FIELD} basis-full pt-[3px] border-t border-[var(--chrome-border)] mt-[1px]`}
+            >
+              <label className="flex items-center gap-[6px] text-[0.65rem] text-[var(--chrome-fg-muted)] cursor-pointer mb-[2px]">
                 <input
                   type="checkbox"
+                  className="accent-[var(--chrome-accent)] cursor-pointer"
                   checked={multiLangMode}
                   onChange={(e) => setMultiLangMode(e.target.checked)}
                 />
@@ -466,7 +493,7 @@ export default function DubLeftColumn({
               )}
             </div>
           </div>
-          <div className="dub-settings-bar__actions">
+          <div className="flex justify-end gap-[6px] flex-wrap">
             <Button
               variant="subtle"
               size="sm"
