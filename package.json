@@ -26,7 +26,8 @@
     "test:frontend": "node --test tests/frontend/*.test.mjs",
     "smoke-test": "bash scripts/smoke-test.sh",
     "smoke-test:quick": "bash scripts/smoke-test.sh --skip-build --skip-model",
-    "smoke-test:upgrade": "bash scripts/smoke-test.sh --keep-data --skip-build"
+    "smoke-test:upgrade": "bash scripts/smoke-test.sh --keep-data --skip-build",
+    "deps:check": "taze -r --maturity-period 7"
   },
   "workspaces": [
     "frontend"
@@ -35,6 +36,7 @@
     "concurrently": "^9.2.1",
     "kill-port-process": "^4.0.2",
     "playwright": "^1.60.0",
+    "taze": "^19.14.1",
     "turbo": "^2.9.18",
     "typescript": "^6.0.3",
     "wait-on": "^9.0.10"
