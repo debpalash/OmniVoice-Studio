@@ -159,7 +159,7 @@ class MyEngineBackend(TTSBackend):
 
 - **Components**: Functional components with hooks
 - **State**: Zustand stores in `src/stores/`, organized by slice
-- **CSS**: Vanilla CSS in component-level files — no Tailwind
+- **CSS**: **Utilities-first** — use Tailwind v4 utility classes (mapped to the design tokens in `src/ui/tokens.css` via the `@theme` block in `src/index.css`) for layout, spacing, and typography. Keep component-level `.css` files only for what utilities can't express cleanly: glassmorphism/`backdrop-filter`, `@keyframes`, pseudo-elements, `:has()`, and theme-specific rules. New components should not reflexively spawn a `.css` file. (Migration in progress — see `docs/css-to-tailwind-migration.md`.)
 - **Naming**: `PascalCase` for components, `camelCase` for hooks and utils
 
 ### Rust (Tauri)
