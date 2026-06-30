@@ -155,9 +155,9 @@ export default function WorkspaceHistory({
   }
 
   return (
-    <aside className="wh">
-      <div className="wh__head">
-        <span className="wh__title">
+    <aside className="flex-[1_1_0] flex flex-col min-h-0 overflow-hidden border-t border-solid border-t-[var(--chrome-border-strong,var(--chrome-border))]">
+      <div className="flex-[0_0_auto] flex flex-col gap-[8px] py-[10px] px-[12px] border-b border-solid border-b-[var(--chrome-border)]">
+        <span className="inline-flex items-center gap-[6px] [font-family:var(--chrome-font-mono,var(--font-mono))] text-[0.72rem] font-semibold [letter-spacing:0.04em] uppercase text-[color:var(--chrome-fg-muted)]">
           <History size={13} /> {t('history.title', { defaultValue: 'History' })}
         </span>
         <div className="flex flex-wrap gap-[4px]">
@@ -178,9 +178,9 @@ export default function WorkspaceHistory({
         </div>
       </div>
 
-      <div className="wh__scroll">
+      <div className="flex-[1_1_auto] min-h-0 overflow-y-auto flex flex-col gap-[8px] p-[8px]">
         {items.length === 0 ? (
-          <div className="wh__empty">
+          <div className="text-[color:var(--chrome-fg-dim)] text-[0.72rem] [line-height:1.5] text-center py-[32px] px-[16px]">
             {t('history.empty', {
               defaultValue: 'Nothing here yet — your generations will appear on the right.',
             })}

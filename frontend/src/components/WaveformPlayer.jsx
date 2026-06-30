@@ -21,7 +21,6 @@ import { claimPlayback } from '../utils/playback';
 import { isTauri, fileToMediaUrl } from '../utils/media';
 import { unlockAudio } from '../utils/audioUnlock';
 import { useAppStore } from '../store';
-import './WaveformPlayer.css';
 
 const fmt = (s) => {
   if (!isFinite(s) || s < 0) s = 0;
@@ -277,9 +276,15 @@ export default function WaveformPlayer({
   if (missing) {
     return (
       <div
-        className={`wf-player wf-player--missing ${compact ? 'wf-player--compact' : ''} ${className}`}
+        className={`flex items-center justify-center w-full min-w-0 box-border opacity-55 border border-solid border-[rgba(168,153,132,0.18)] bg-[rgba(168,153,132,0.08)] ${
+          compact
+            ? 'gap-[8px] py-[4px] px-[8px] rounded-[8px]'
+            : 'gap-[10px] py-[6px] px-[10px] rounded-[10px]'
+        } ${className}`}
       >
-        <span className="wf-player__missing-msg">audio file missing</span>
+        <span className="text-[10.5px] italic text-[color:var(--chrome-fg-dim,#665c54)]">
+          audio file missing
+        </span>
       </div>
     );
   }
@@ -290,7 +295,7 @@ export default function WaveformPlayer({
     return (
       <audio
         ref={nativeRef}
-        className={`wf-player__native ${className}`}
+        className={`w-full h-[34px] ${className}`}
         controls
         src={resolvedUrl}
         autoPlay={autoPlay}
@@ -322,20 +327,38 @@ export default function WaveformPlayer({
   }
 
   return (
-    <div className={`wf-player ${compact ? 'wf-player--compact' : ''} ${className}`}>
+    <div
+      className={`flex items-center w-full min-w-0 box-border border border-solid border-[rgba(168,153,132,0.18)] bg-[rgba(168,153,132,0.08)] ${
+        compact
+          ? 'gap-[8px] py-[4px] px-[8px] rounded-[8px]'
+          : 'gap-[10px] py-[6px] px-[10px] rounded-[10px]'
+      } ${className}`}
+    >
       {/* Hidden but DOM-attached playback element (see WaveSurfer `media`). */}
       <audio ref={mediaRef} src={resolvedUrl} preload="metadata" style={{ display: 'none' }} />
+      {/* `wf-player__btn` class kept as the focus-visible hook (shared a11y ring
+          in index.css); all other button visuals are Tailwind utilities. */}
       <button
         type="button"
-        className="wf-player__btn"
+        className={`wf-player__btn flex-[0_0_auto] inline-flex items-center justify-center border-none rounded-full cursor-pointer text-[color:var(--color-fg-inverse)] bg-[var(--color-brand)] [transition:background_0.15s_ease,transform_0.1s_ease] enabled:hover:bg-[var(--color-brand-hover)] enabled:active:scale-[0.94] disabled:opacity-60 disabled:cursor-default ${
+          compact ? 'w-[26px] h-[26px]' : 'w-[30px] h-[30px]'
+        }`}
         onClick={togglePlay}
         disabled={!resolvedUrl}
         aria-label={isPlaying ? 'Pause' : 'Play'}
       >
         {isPlaying ? <Pause size={compact ? 13 : 15} /> : <Play size={compact ? 13 : 15} />}
       </button>
-      <div className="wf-player__wave" ref={containerRef} style={{ height }} />
-      <span className="wf-player__time">
+      <div
+        className="flex-[1_1_auto] min-w-0 cursor-pointer"
+        ref={containerRef}
+        style={{ height }}
+      />
+      <span
+        className={`flex-[0_0_auto] [font-variant-numeric:tabular-nums] text-[color:rgba(168,153,132,0.85)] whitespace-nowrap ${
+          compact ? 'text-[10px]' : 'text-[11px]'
+        }`}
+      >
         {fmt(currentTime)} / {fmt(duration)}
       </span>
     </div>
