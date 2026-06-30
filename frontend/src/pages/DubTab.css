@@ -241,29 +241,9 @@
   transform: scale(1.08);
   box-shadow: 0 0 24px rgba(211, 134, 155, 0.15);
 }
-.dub-idle-drop__lines    { text-align: center; }
-.dub-idle-drop__title    { font-size: 0.9rem; color: var(--color-fg); font-weight: 500; margin-bottom: 4px; }
-.dub-idle-drop__sub      { font-size: 0.7rem; color: #665c54; }
-
-.dub-ingest-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  padding: 6px 10px;
-  margin-top: 10px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 6px;
-  width: min(420px, 80%);
-}
-.dub-ingest-row__input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--color-fg);
-  font-size: 0.75rem;
-}
+/* .dub-idle-drop__lines/__title/__sub + .dub-ingest-row/__input → utilities
+   (IdleSkeleton.jsx). .dub-idle-drop base/__puck stay (pulse keyframes + hover);
+   .dub-ingest-row__cta stays (.is-ready modifier interplay). */
 .dub-ingest-row__cta {
   padding: 3px 10px;
   border-radius: 4px;
@@ -280,18 +260,7 @@
   cursor: pointer;
 }
 
-.dub-idle-upload-label {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  color: var(--color-fg-muted);
-}
-
-.dub-hidden-file { display: none; }
+/* .dub-idle-upload-label + .dub-hidden-file → utilities (IdleSkeleton.jsx). */
 
 /* .dub-change-row + .dub-speakers-hint → utilities (IdleSkeleton.jsx).
    .dub-change-row__cta stays: it sits on .btn-primary (unlayered) and overrides
@@ -301,21 +270,10 @@
 
 /* Compact disabled inputs in the idle skeleton */
 .input-base--xs              { font-size: 0.65rem; }
-.dub-skel-translate-btn {
-  padding: 3px 8px;
-  background: rgba(131, 165, 152, 0.08);
-  border: 1px solid rgba(131, 165, 152, 0.12);
-  color: #504945;
-  border-radius: 4px;
-  font-size: 0.62rem;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  white-space: nowrap;
-}
-.dub-skel-transcript-toggle        { margin-bottom: 4px; }
+/* .dub-skel-translate-btn + .dub-skel-transcript-toggle + .dub-inline-icon →
+   utilities (IdleSkeleton.jsx). __inner stays: it sits on .override-toggle
+   (unlayered) and overrides its margin/padding, so a utility would lose. */
 .dub-skel-transcript-toggle__inner { margin-top: 0; padding: 2px 6px; font-size: 0.65rem; opacity: 0.3; cursor: default; }
-.dub-inline-icon                   { vertical-align: middle; margin-right: 3px; }
 
 .dub-ghost-footer                  { padding: 4px 8px; flex-shrink: 0; }
 
@@ -581,29 +539,8 @@
 /* .dub-lazy-fallback → utilities (DubRightColumn.jsx). */
 
 /* ── Landing options — the one pre-upload decision + Advanced disclosure ── */
-.dub-landing-opts {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 10px;
-  padding: 8px 10px;
-  border: 1px solid var(--chrome-border);
-  border-radius: 10px;
-  background: var(--chrome-hover-bg, rgba(255, 255, 255, 0.03));
-}
-.dub-landing-opts__lang {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  color: var(--chrome-fg-muted);
-}
-.dub-landing-opts__label {
-  font-size: 0.72rem;
-  font-weight: 500;
-  white-space: nowrap;
-}
+/* .dub-landing-opts + __lang/__label → utilities (IdleSkeleton.jsx). __lang
+   keeps its class for the descendant select rule below; __adv stays (:hover). */
 .dub-landing-opts__lang select { max-width: 220px; }
 .dub-landing-opts__adv {
   display: inline-flex;
@@ -619,23 +556,8 @@
   transition: color var(--dur-fast), border-color var(--dur-fast);
 }
 .dub-landing-opts__adv:hover { color: var(--chrome-fg); border-color: var(--chrome-border-strong); }
-.dub-landing-adv {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin-top: 6px;
-  padding: 8px 10px;
-  border: 1px solid var(--chrome-border);
-  border-radius: 10px;
-}
-.dub-landing-adv__field {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.7rem;
-  color: var(--chrome-fg-muted);
-}
+/* .dub-landing-adv + __field base → utilities (IdleSkeleton.jsx). __field keeps
+   its class for the --grow modifier + descendant input rule below. */
 .dub-landing-adv__field--grow { flex: 1; min-width: 200px; }
 .dub-landing-adv__field--grow input { flex: 1; }
 
@@ -758,23 +680,10 @@
   background-size: 400% 100%;
   animation: dub-skel-shimmer 1.4s ease-in-out infinite;
 }
-.dub-skel-cell-time   { width: 55px; flex: 0 0 55px; }
-.dub-skel-cell-spkr   { width: 44px; flex: 0 0 44px; }
-.dub-skel-cell-text   { flex: 1; min-width: 0; }
-.dub-skel-cell-voice  { width: 70px; flex: 0 0 70px; }
-.dub-skel-cell-acts   { display: flex; gap: 1px; width: 40px; flex: 0 0 40px; }
+/* .dub-skel-cell-* and -header-* cells + .dub-skel-hint → utilities
+   (IdleSkeleton.jsx). __icon stays: it sits on .segment-del (unlayered) and
+   overrides its opacity, so a utility would lose. */
 .dub-skel-cell-acts__icon { opacity: 0.3; }
-.dub-skel-header-time { width: 55px; flex: 0 0 55px; }
-.dub-skel-header-spkr { width: 44px; flex: 0 0 44px; }
-.dub-skel-header-text { flex: 1; }
-.dub-skel-header-voice{ width: 70px; flex: 0 0 70px; }
-.dub-skel-header-acts { width: 40px; flex: 0 0 40px; }
-.dub-skel-hint {
-  padding: 10px 8px 4px;
-  font-size: 0.62rem;
-  color: var(--chrome-fg-dim, #665c54);
-  text-align: center;
-}
 
 @keyframes dub-skel-shimmer {
   0%   { background-position: 100% 0; }
@@ -783,13 +692,8 @@
 
 /* Disabled generation controls shown in idle skeleton */
 .dub-skel-gen-btn     { margin-top: 0; flex: 1; padding: 4px 8px; font-size: 0.7rem; opacity: 0.4; }
-.dub-skel-gen-row     { display: flex; gap: 4px; }
-.dub-skel-settings    {
-  display: flex; gap: 4px; margin-bottom: 4px;
-  flex-wrap: wrap; align-items: flex-end; opacity: 0.4;
-}
-.dub-skel-field       { flex: 1; min-width: 90px; }
-.dub-skel-field--sm   { flex: 1; min-width: 80px; }
+/* .dub-skel-gen-row + .dub-skel-settings + .dub-skel-field/--sm → utilities
+   (IdleSkeleton.jsx). .dub-skel-gen-btn stays (sits on .btn-primary, unlayered). */
 
 /* ── Generating overlay (on top of waveform) ─────────────────── */
 .dub-gen-overlay          { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; padding: 10px; backdrop-filter: blur(2px); }
@@ -801,41 +705,18 @@
 .dub-gen-overlay__stats   { display: flex; gap: var(--space-4); font-size: 0.65rem; color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
 
 /* ── Cast / speaker-voices strip below waveform ──────────────── */
-.dub-cast {
-  margin-top: 2px;
-  padding: 3px var(--space-3);
-  background: var(--chrome-bg);
-  border-radius: var(--chrome-radius-pill);
-  border: 1px solid var(--chrome-border);
-}
-.dub-cast__row          { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
-.dub-cast__kicker {
-  font-family: var(--chrome-font-mono);
-  font-size: var(--chrome-label-size);
-  color: var(--chrome-fg-muted);
-  letter-spacing: var(--chrome-label-track);
-  text-transform: uppercase;
-  font-weight: 600;
-}
+/* .dub-cast base + __row + __kicker/__label base + --muted__chip → utilities
+   (IdleSkeleton.jsx). .dub-cast / __kicker / __label keep their classes so the
+   .dub-cast--muted (and its descendant) overrides below still apply; __pair
+   (:hover) and __select (real cast, not the skeleton) stay. */
 .dub-cast__pair         { display: flex; align-items: center; gap: 3px; padding: 1px 5px; border-radius: var(--radius-sm); transition: background 0.2s ease; }
 .dub-cast__pair:hover   { background: rgba(255, 255, 255, 0.03); }
-.dub-cast__label        { font-family: var(--chrome-font-mono); font-size: 0.62rem; color: var(--chrome-fg); }
 .dub-cast__select       { width: 95px; padding: 1px 3px; font-size: 0.60rem; }
 
 /* Muted placeholder cast strip shown in the idle skeleton */
 .dub-cast--muted        { background: transparent; border-color: var(--chrome-border); }
 .dub-cast--muted .dub-cast__label,
 .dub-cast--muted .dub-cast__kicker { color: var(--chrome-fg-dim); }
-.dub-cast--muted__chip {
-  font-family: var(--chrome-font-mono);
-  font-size: 0.62rem;
-  color: var(--chrome-fg-dim);
-  padding: 1px 6px;
-  background: transparent;
-  border: 1px solid var(--chrome-border);
-  border-radius: var(--chrome-radius-pill);
-}
-
 /* ── Output options row (footer) ─────────────────────────────── */
 .dub-outputs-title      { font-weight: 600; color: var(--color-fg); }
 .dub-outputs-default    { font-size: 0.6rem; padding: 2px 4px; width: 120px; }

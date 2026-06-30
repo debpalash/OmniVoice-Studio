@@ -131,7 +131,7 @@ export default function IdleSkeleton({
           {handleDubImportSrt && (
             <label
               htmlFor="srt-import-banner-input"
-              className="dub-idle-upload-label"
+              className="flex items-center gap-[6px] px-[12px] py-[6px] bg-[rgba(255,255,255,0.05)] [border:1px_solid_rgba(255,255,255,0.1)] rounded-[6px] cursor-pointer text-[0.8rem] text-fg-muted"
               title={t('dub.import_srt')}
               style={{ cursor: 'pointer' }}
             >
@@ -182,13 +182,16 @@ export default function IdleSkeleton({
                 }
               />
               <div className="flex gap-[8px] mt-[8px] items-center">
-                <label htmlFor="video-upload" className="dub-idle-upload-label">
+                <label
+                  htmlFor="video-upload"
+                  className="flex items-center gap-[6px] px-[12px] py-[6px] bg-[rgba(255,255,255,0.05)] [border:1px_solid_rgba(255,255,255,0.1)] rounded-[6px] cursor-pointer text-[0.8rem] text-fg-muted"
+                >
                   <Film size={13} /> {t('dub.change_file')}
                 </label>
                 {dubJobId && handleDubImportSrt && (
                   <label
                     htmlFor="srt-import-input"
-                    className="dub-idle-upload-label"
+                    className="flex items-center gap-[6px] px-[12px] py-[6px] bg-[rgba(255,255,255,0.05)] [border:1px_solid_rgba(255,255,255,0.1)] rounded-[6px] cursor-pointer text-[0.8rem] text-fg-muted"
                     title={t('dub.import_srt')}
                     style={{ cursor: 'pointer' }}
                   >
@@ -289,11 +292,16 @@ export default function IdleSkeleton({
                 <div className="dub-idle-drop__puck">
                   <UploadCloud color="#d3869b" size={28} />
                 </div>
-                <div className="dub-idle-drop__lines">
-                  <div className="dub-idle-drop__title">{t('dub.drop_here')}</div>
-                  <div className="dub-idle-drop__sub">{t('dub.supported_formats')}</div>
+                <div className="text-center">
+                  <div className="text-[0.9rem] text-fg font-medium mb-[4px]">
+                    {t('dub.drop_here')}
+                  </div>
+                  <div className="text-[0.7rem] text-[#665c54]">{t('dub.supported_formats')}</div>
                 </div>
-                <div className="dub-ingest-row" onClick={(e) => e.preventDefault()}>
+                <div
+                  className="flex gap-[6px] items-center px-[10px] py-[6px] mt-[10px] bg-[rgba(255,255,255,0.02)] [border:1px_solid_rgba(255,255,255,0.06)] rounded-[6px] w-[min(420px,80%)]"
+                  onClick={(e) => e.preventDefault()}
+                >
                   <Link2 size={13} color="#a89984" />
                   <input
                     type="text"
@@ -311,7 +319,7 @@ export default function IdleSkeleton({
                         onIngestUrl();
                       }
                     }}
-                    className="dub-ingest-row__input"
+                    className="flex-1 bg-transparent border-none outline-none text-fg text-[0.75rem]"
                   />
                   <button
                     type="button"
@@ -346,10 +354,10 @@ export default function IdleSkeleton({
               {/* One decision up front: the target language. Everything else
                     (speakers, style) hides behind Advanced — ElevenLabs-style
                     flow, OmniVoice chrome. The pick pre-seeds the editor. */}
-              <div className="dub-landing-opts">
-                <label className="dub-landing-opts__lang">
+              <div className="flex items-center justify-between gap-[10px] mt-[10px] px-[10px] py-[8px] [border:1px_solid_var(--chrome-border)] rounded-[10px] bg-[var(--chrome-hover-bg)]">
+                <label className="dub-landing-opts__lang inline-flex items-center gap-[7px] min-w-0 text-[var(--chrome-fg-muted)]">
                   <Globe size={13} />
-                  <span className="dub-landing-opts__label">
+                  <span className="text-[0.72rem] font-medium whitespace-nowrap">
                     {t('dub.target_language', { defaultValue: 'Dub into' })}
                   </span>
                   <select
@@ -379,8 +387,11 @@ export default function IdleSkeleton({
                 </button>
               </div>
               {landingAdvOpen && (
-                <div className="dub-landing-adv">
-                  <label className="dub-landing-adv__field" title={t('dub.num_speakers_help')}>
+                <div className="flex flex-wrap items-center gap-[12px] mt-[6px] px-[10px] py-[8px] [border:1px_solid_var(--chrome-border)] rounded-[10px]">
+                  <label
+                    className="dub-landing-adv__field inline-flex items-center gap-[6px] text-[0.7rem] text-[var(--chrome-fg-muted)]"
+                    title={t('dub.num_speakers_help')}
+                  >
                     <Users size={12} /> {t('dub.num_speakers_label')}
                     <input
                       type="number"
@@ -396,7 +407,7 @@ export default function IdleSkeleton({
                       }}
                     />
                   </label>
-                  <label className="dub-landing-adv__field dub-landing-adv__field--grow">
+                  <label className="dub-landing-adv__field dub-landing-adv__field--grow inline-flex items-center gap-[6px] text-[0.7rem] text-[var(--chrome-fg-muted)]">
                     <UserSquare2 size={12} /> {t('dub.style')}
                     <input
                       type="text"
@@ -415,7 +426,7 @@ export default function IdleSkeleton({
             type="file"
             accept="video/*,audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.opus,.wma"
             id="video-upload"
-            className="dub-hidden-file"
+            className="hidden"
             onChange={(e) => {
               const file = e.target.files[0];
               if (!file) return;
@@ -436,11 +447,17 @@ export default function IdleSkeleton({
           />
 
           {dubVideoFile && (
-            <div className="dub-cast dub-cast--muted">
-              <div className="dub-cast__row">
-                <span className="dub-cast__kicker">{t('dub.cast')}</span>
-                <span className="dub-cast__label">{t('dub.speaker', { n: 1 })}</span>
-                <span className="dub-cast--muted__chip">{t('dub.default')}</span>
+            <div className="dub-cast dub-cast--muted mt-[2px] px-[var(--space-3)] py-[3px] bg-[var(--chrome-bg)] rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-border)]">
+              <div className="flex gap-[var(--space-2)] items-center flex-wrap">
+                <span className="dub-cast__kicker font-[family-name:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] text-[var(--chrome-fg-muted)] tracking-[var(--chrome-label-track)] uppercase font-semibold">
+                  {t('dub.cast')}
+                </span>
+                <span className="dub-cast__label font-[family-name:var(--chrome-font-mono)] text-[0.62rem] text-[var(--chrome-fg)]">
+                  {t('dub.speaker', { n: 1 })}
+                </span>
+                <span className="font-[family-name:var(--chrome-font-mono)] text-[0.62rem] text-[var(--chrome-fg-dim)] px-[6px] py-[1px] bg-transparent [border:1px_solid_var(--chrome-border)] rounded-[var(--chrome-radius-pill)]">
+                  {t('dub.default')}
+                </span>
               </div>
             </div>
           )}
@@ -449,8 +466,8 @@ export default function IdleSkeleton({
         {/* RIGHT: Ghost settings + segment table (only when video loaded) */}
         {dubVideoFile ? (
           <div className="studio-panel dub-panel-col">
-            <div className="dub-skel-settings">
-              <div className="dub-skel-field">
+            <div className="flex gap-[4px] mb-[4px] flex-wrap items-end opacity-40">
+              <div className="flex-1 min-w-[90px]">
                 <div className="label-row">
                   <Globe className="label-icon" size={9} /> {t('dub.language')}
                 </div>
@@ -458,13 +475,13 @@ export default function IdleSkeleton({
                   <option>{t('dub.auto')}</option>
                 </select>
               </div>
-              <div className="dub-skel-field--sm">
+              <div className="flex-1 min-w-[80px]">
                 <div className="label-row">{t('dub.iso_code')}</div>
                 <select className="input-base input-base--xs" disabled>
                   <option>en — {t('dub.original_audio')}</option>
                 </select>
               </div>
-              <div className="dub-skel-field">
+              <div className="flex-1 min-w-[90px]">
                 <div className="label-row">
                   <UserSquare2 className="label-icon" size={9} /> {t('dub.style')}
                 </div>
@@ -474,25 +491,28 @@ export default function IdleSkeleton({
                   placeholder={t('dub.style_placeholder')}
                 />
               </div>
-              <button disabled className="dub-skel-translate-btn">
+              <button
+                disabled
+                className="px-[8px] py-[3px] bg-[rgba(131,165,152,0.08)] [border:1px_solid_rgba(131,165,152,0.12)] text-[#504945] rounded-[4px] text-[0.62rem] flex items-center gap-[3px] whitespace-nowrap"
+              >
                 <Languages size={10} /> {t('dub.translate_all')}
               </button>
             </div>
-            <div className="dub-skel-transcript-toggle">
+            <div className="mb-[4px]">
               <div className="override-toggle dub-skel-transcript-toggle__inner">
                 <span>
-                  <FileText size={10} className="dub-inline-icon" /> {t('dub.transcript')}
+                  <FileText size={10} className="align-middle mr-[3px]" /> {t('dub.transcript')}
                 </span>
                 <ChevronDown size={10} />
               </div>
             </div>
             <div className="segment-table dub-skel-table">
               <div className="segment-header">
-                <span className="dub-skel-header-time">{t('dub.time_col')}</span>
-                <span className="dub-skel-header-spkr">{t('dub.spkr_col')}</span>
-                <span className="dub-skel-header-text">{t('dub.text_col')}</span>
-                <span className="dub-skel-header-voice">{t('dub.voice_col')}</span>
-                <span className="dub-skel-header-acts"></span>
+                <span className="w-[55px] flex-[0_0_55px]">{t('dub.time_col')}</span>
+                <span className="w-[44px] flex-[0_0_44px]">{t('dub.spkr_col')}</span>
+                <span className="flex-1">{t('dub.text_col')}</span>
+                <span className="w-[70px] flex-[0_0_70px]">{t('dub.voice_col')}</span>
+                <span className="w-[40px] flex-[0_0_40px]"></span>
               </div>
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div
@@ -500,18 +520,18 @@ export default function IdleSkeleton({
                   className="segment-row dub-skel-row"
                   style={{ opacity: 0.5 + 0.07 * (6 - i) }}
                 >
-                  <span className="dub-skel-cell-time dub-skel-bar" />
-                  <span className="dub-skel-cell-spkr dub-skel-bar" />
-                  <div className="dub-skel-cell-text dub-skel-bar" />
-                  <span className="dub-skel-cell-voice dub-skel-bar" />
-                  <div className="dub-skel-cell-acts">
+                  <span className="dub-skel-bar w-[55px] flex-[0_0_55px]" />
+                  <span className="dub-skel-bar w-[44px] flex-[0_0_44px]" />
+                  <div className="dub-skel-bar flex-1 min-w-0" />
+                  <span className="dub-skel-bar w-[70px] flex-[0_0_70px]" />
+                  <div className="flex gap-[1px] w-[40px] flex-[0_0_40px]">
                     <span className="segment-del dub-skel-cell-acts__icon">
                       <Trash2 size={9} />
                     </span>
                   </div>
                 </div>
               ))}
-              <div className="dub-skel-hint">
+              <div className="px-[8px] pt-[10px] pb-[4px] text-[0.62rem] text-[var(--chrome-fg-dim)] text-center">
                 {t('dub.transcript_after_extract', {
                   defaultValue: 'Transcript appears after extraction.',
                 })}
@@ -525,7 +545,7 @@ export default function IdleSkeleton({
               clean. Generate is the lone primary, exports demoted to one menu. */}
       {dubVideoFile && (
         <div className="studio-panel dub-ghost-footer">
-          <div className="dub-skel-gen-row">
+          <div className="flex gap-[4px]">
             <button className="btn-primary dub-skel-gen-btn" disabled>
               <Play size={11} /> {t('dub.generate_dub')}
             </button>
