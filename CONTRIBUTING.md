@@ -159,7 +159,7 @@ class MyEngineBackend(TTSBackend):
 
 - **Components**: Functional components with hooks
 - **State**: Zustand stores in `src/stores/`, organized by slice
-- **CSS**: **Utilities-first** — use Tailwind v4 utility classes (mapped to the design tokens in `src/ui/tokens.css` via the `@theme` block in `src/index.css`) for layout, spacing, and typography. Keep component-level `.css` files only for what utilities can't express cleanly: glassmorphism/`backdrop-filter`, `@keyframes`, pseudo-elements, `:has()`, and theme-specific rules. New components should not reflexively spawn a `.css` file. (Migration in progress — see `docs/css-to-tailwind-migration.md`.)
+- **CSS**: **Utilities-first + shadcn/ui.** UI is built on the shadcn/ui primitives in `src/components/ui/` (wrapped by the `src/ui/` barrel and themed to the OmniVoice palette), composed with Tailwind v4 utility classes mapped to the design tokens in the `@theme` / `[data-theme]` blocks of `src/index.css` — the **single token-foundation file** (`tokens.css`/`themes.css` were consolidated into it). Keep component-level `.css` files only for what utilities genuinely can't express: glassmorphism/`backdrop-filter`, `@keyframes`, pseudo-elements, `:has()`, cascade overrides of unlayered rules, and styling hooks on library-generated DOM (virtualized rows, WaveSurfer). New components should **not** spawn a `.css` file — reach for shadcn primitives + utilities first. (The CSS→Tailwind/shadcn migration is largely complete; see `docs/shadcn-migration.md`. The remaining `.css` is the irreducible set above.)
 - **Naming**: `PascalCase` for components, `camelCase` for hooks and utils
 
 ### Rust (Tauri)
