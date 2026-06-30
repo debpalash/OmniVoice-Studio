@@ -2,6 +2,12 @@ import { Command, Plus, ChevronDown } from 'lucide-react';
 import DemoPresetGrid from '../DemoPresetGrid';
 import { TAGS } from '../../utils/constants';
 
+// `.tag-btn` (special-token chips in the Insert menu) migrated from index.css to
+// Tailwind utilities (shadcn P4). Flat chrome pill, mono face — token utilities
+// reference the same --chrome-* vars the old rule used, so the look is unchanged.
+const TAG_BTN =
+  'border border-[var(--chrome-border)] bg-transparent text-[var(--chrome-fg-muted)] px-[9px] py-[3px] rounded-[var(--chrome-radius-pill)] font-[var(--chrome-font-mono)] font-medium text-[0.66rem] whitespace-nowrap cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--chrome-fg)] hover:border-[var(--chrome-border-strong)]';
+
 export default function ScriptPanel({
   t,
   defineMethod,
@@ -87,7 +93,7 @@ export default function ScriptPanel({
               {TAGS.map((tag) => (
                 <button
                   key={tag}
-                  className="tag-btn"
+                  className={TAG_BTN}
                   role="menuitem"
                   onClick={() => {
                     insertTag(tag);
@@ -98,7 +104,7 @@ export default function ScriptPanel({
                 </button>
               ))}
               <button
-                className="tag-btn clone-auto-extract-btn"
+                className={`${TAG_BTN} clone-auto-extract-btn`}
                 role="menuitem"
                 onClick={() => {
                   insertTag('[B EY1 S]');

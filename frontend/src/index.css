@@ -782,18 +782,7 @@ input[type="range"]::-webkit-slider-thumb:active {
 
 /* ═══ TAGS ═══ */
 .tags-container { display: flex; flex-wrap: wrap; gap: 3px; margin: 4px 0; }
-.tag-btn {
-  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
-  color: var(--text-secondary); padding: 2px 6px; border-radius: 3px;
-  font-size: 0.65rem; cursor: pointer; transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast); white-space: nowrap;
-  font-family: var(--chrome-font-mono);
-}
-.tag-btn:hover {
-  background: var(--chrome-hover-bg); color: var(--chrome-fg);
-  border-color: var(--chrome-border-strong);
-  transform: none;
-}
-.tag-btn:active { transform: none; }
+/* .tag-btn → Tailwind utilities inline in clone/ScriptPanel.jsx (P4). */
 
 .file-drag {
   border: 1px dashed var(--chrome-border-strong); border-radius: var(--chrome-radius-pill); padding: 10px;
@@ -903,18 +892,8 @@ audio::-webkit-media-controls-time-remaining-display { color: var(--chrome-fg); 
 .preset-grid {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 4px; margin-bottom: 6px;
 }
-.preset-btn {
-  background: rgba(94,106,210,0.06); border: 1px solid rgba(94,106,210,0.15);
-  color: #c7d2fe; padding: 3px 6px; border-radius: 4px; font-size: 0.65rem;
-  cursor: pointer; transition: all var(--transition-smooth); text-align: left;
-  display: flex; align-items: center; gap: 3px;
-}
-.preset-btn:hover {
-  background: rgba(94,106,210,0.15); border-color: #a78bfa;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(94,106,210,0.15);
-}
-.preset-btn:active { transform: translateY(0); }
+/* .preset-btn removed (P4) — the class had zero remaining usages in the app
+   (the shadcn Button `preset` variant covers preset buttons now). */
 
 /* ═══ SEGMENT TABLE ═══ */
 .segment-table {
@@ -1535,28 +1514,8 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
 .personality-strip {
   display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
 }
-.personality-chip {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 5px 12px;
-  font-family: var(--font-sans); font-size: 0.72rem; font-weight: 500;
-  border-radius: var(--chrome-radius-pill);
-  background: transparent;
-  border: 1px solid var(--chrome-border);
-  color: var(--chrome-fg-muted); cursor: pointer;
-  transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
-}
-.personality-chip:hover {
-  background: var(--chrome-hover-bg);
-  border-color: var(--chrome-border-strong);
-  color: var(--chrome-fg);
-}
-.personality-chip.active {
-  background: var(--chrome-accent-bg);
-  border-color: var(--chrome-accent-border);
-  color: var(--chrome-accent);
-}
-.personality-chip__icon { display: inline-flex; align-items: center; }
-.chip-group .chip .chip-auto,
+/* .personality-chip / .personality-chip__icon → Tailwind utilities inline in
+   clone/DesignMethodPanel.jsx (P4). */
 .chip-auto { display: inline-flex; align-items: center; gap: 3px; }
 .personality-label {
   font-family: var(--chrome-font-mono);
@@ -1802,93 +1761,24 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
   box-shadow: 0 0 0 3px rgba(243, 165, 182, 0.12), inset 0 1px 2px rgba(0,0,0,0.25);
 }
 
-/* Preset chips — flat chrome pills. No rotation, no gradient, no squircle. */
+/* Preset chips — flat chrome pills. No rotation, no gradient, no squircle.
+   The `.preset-btn` rules were removed in P4 (zero usages); only the grid
+   layout remains. */
 .preset-grid {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 6px;
-}
-.preset-btn {
-  font-family: var(--font-sans) !important;
-  font-weight: 500 !important; font-size: 0.74rem !important;
-  letter-spacing: 0.02em !important;
-  padding: 6px 12px !important;
-  border-radius: var(--chrome-radius-pill) !important;
-  background: transparent !important;
-  border: 1px solid var(--chrome-border) !important;
-  color: var(--chrome-fg-muted) !important;
-  box-shadow: none;
-  transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
-  cursor: pointer;
-  display: inline-flex; align-items: center; gap: 5px;
-}
-.preset-btn:nth-child(3n+1),
-.preset-btn:nth-child(3n+2),
-.preset-btn:nth-child(3n+3) { transform: none; }
-.preset-btn:hover:not(:disabled) {
-  transform: none;
-  background: var(--chrome-hover-bg);
-  color: var(--chrome-fg);
-  border-color: var(--chrome-border-strong);
-  box-shadow: none;
-}
-.preset-btn.profile-active {
-  background: var(--chrome-accent-bg) !important;
-  border-color: var(--chrome-accent-border) !important;
-  color: var(--chrome-accent) !important;
-  transform: none;
-  box-shadow: none;
 }
 
 /* Tag / special-token chips — flat chrome, mono, no rotation */
 .tags-container {
   display: flex; flex-wrap: wrap; gap: 4px;
 }
-.tag-btn {
-  transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
-  font-family: var(--chrome-font-mono) !important;
-  font-weight: 500 !important;
-  font-size: 0.66rem !important;
-  padding: 3px 9px !important;
-  border-radius: var(--chrome-radius-pill) !important;
-  background: transparent !important;
-  border: 1px solid var(--chrome-border) !important;
-  color: var(--chrome-fg-muted) !important;
-  cursor: pointer;
-}
-.tag-btn:hover {
-  transform: none;
-  background: var(--chrome-hover-bg) !important;
-  color: var(--chrome-fg) !important;
-  border-color: var(--chrome-border-strong) !important;
-}
+/* .tag-btn → Tailwind utilities inline in clone/ScriptPanel.jsx (P4). */
 
-/* Chip-group for voice design attributes */
-.chip-group {
-  display: flex; flex-wrap: wrap; gap: 4px;
-}
-.chip-group .chip {
-  font-family: var(--font-sans);
-  font-weight: 500; font-size: 0.68rem;
-  padding: 3px 10px;
-  border-radius: var(--chrome-radius-pill);
-  background: transparent;
-  border: 1px solid var(--chrome-border);
-  color: var(--chrome-fg-muted); cursor: pointer;
-  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
-  white-space: nowrap;
-}
-.chip-group .chip:hover {
-  transform: none;
-  color: var(--chrome-fg);
-  background: var(--chrome-hover-bg);
-  border-color: var(--chrome-border-strong);
-}
-.chip-group .chip.active {
-  background: var(--chrome-accent-bg);
-  border-color: var(--chrome-accent-border);
-  color: var(--chrome-accent);
-  box-shadow: none;
-}
+/* .chip-group / .chip-group .chip → Tailwind utilities inline in
+   clone/DesignMethodPanel.jsx (P4). The `chip-group` class name is kept on the
+   container purely as a JS hook (CloneDesignTab's roving-tabindex keyboard nav
+   does `closest('.chip-group')`); its layout is now flex utilities on the div. */
 
 /* Textarea — flat chrome surface for design/clone prompt box */
 textarea.input-base {
@@ -2461,9 +2351,6 @@ div[role="dialog"].audio-trimmer {
 @media (max-width: 500px) {
   .preset-grid { grid-template-columns: 1fr !important; }
 }
-
-/* ── Chip groups — wrap gracefully ── */
-.chip-group { flex-wrap: wrap; }
 
 /* ── Compare modal — stack on narrow ── */
 @media (max-width: 800px) {

@@ -193,7 +193,8 @@
   mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 18px), transparent);
 }
 .starting-points__strip::-webkit-scrollbar { display: none; }
-.starting-points__strip .personality-chip { flex: 0 0 auto; }
+/* The personality chips' non-shrink sizing (was `.personality-chip { flex:0 0 auto }`)
+   moved onto the chips as the `flex-none` utility in DesignMethodPanel.jsx (P4). */
 
 /* One definition column: Prompt stacked over Voice Source (spec §1 restack).
    The old side-by-side split crammed both panels once the right-side

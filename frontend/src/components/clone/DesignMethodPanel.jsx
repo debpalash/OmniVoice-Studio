@@ -10,6 +10,26 @@ import {
 } from '../../utils/voiceIcons';
 import { buildDesignInstruct } from '../../utils/voiceInstruct';
 
+// Chip / personality-chip class families migrated from index.css to Tailwind
+// utilities (shadcn P4). The token utilities reference the same --chrome-* vars
+// the old `.personality-chip` / `.chip-group .chip` rules used, so the look is
+// unchanged and still recolors with every [data-theme]. Active = chrome accent
+// (pink), matching the rest of the app's selection accent.
+// `focus-visible` ring matches the studio's shared 10x a11y rule (index.css):
+// an opaque accent outline at 1px offset, on top of the app's global ring.
+const CHIP_FOCUS =
+  'focus-visible:[outline:2px_solid_var(--chrome-accent)] focus-visible:[outline-offset:1px]';
+const PCHIP_BASE = `inline-flex items-center gap-[5px] px-[12px] py-[5px] font-[var(--font-sans)] text-[0.72rem] font-medium rounded-[var(--chrome-radius-pill)] border bg-transparent flex-none cursor-pointer transition-colors duration-[120ms] ${CHIP_FOCUS}`;
+const PCHIP_INACTIVE =
+  'border-[var(--chrome-border)] text-[var(--chrome-fg-muted)] hover:bg-[var(--chrome-hover-bg)] hover:border-[var(--chrome-border-strong)] hover:text-[var(--chrome-fg)]';
+const PCHIP_ACTIVE =
+  'bg-[var(--chrome-accent-bg)] border-[var(--chrome-accent-border)] text-[var(--chrome-accent)]';
+const CHIP_BASE = `font-[var(--font-sans)] font-medium text-[0.68rem] px-[10px] py-[3px] rounded-[var(--chrome-radius-pill)] border bg-transparent whitespace-nowrap cursor-pointer transition-colors duration-[120ms] ${CHIP_FOCUS}`;
+const CHIP_INACTIVE =
+  'border-[var(--chrome-border)] text-[var(--chrome-fg-muted)] hover:text-[var(--chrome-fg)] hover:bg-[var(--chrome-hover-bg)] hover:border-[var(--chrome-border-strong)]';
+const CHIP_ACTIVE =
+  'bg-[var(--chrome-accent-bg)] border-[var(--chrome-accent-border)] text-[var(--chrome-accent)]';
+
 export default function DesignMethodPanel({
   t,
   describeText,
@@ -76,10 +96,10 @@ export default function DesignMethodPanel({
               <button
                 key={p.id}
                 type="button"
-                className={`personality-chip ${activePersonality === p.id ? 'active' : ''}`}
+                className={`${PCHIP_BASE} ${activePersonality === p.id ? PCHIP_ACTIVE : PCHIP_INACTIVE}`}
                 onClick={() => applyPersonality(p)}
               >
-                <span className="personality-chip__icon">
+                <span className="inline-flex items-center">
                   <Icon size={13} />
                 </span>
                 {stripVoiceEmoji(t(`clone.personality_${p.id}`, { defaultValue: p.name }))}
@@ -92,10 +112,10 @@ export default function DesignMethodPanel({
               <button
                 key={p.id}
                 type="button"
-                className="personality-chip"
+                className={`${PCHIP_BASE} ${PCHIP_INACTIVE}`}
                 onClick={() => applyPreset(p)}
               >
-                <span className="personality-chip__icon">
+                <span className="inline-flex items-center">
                   <Icon size={13} />
                 </span>
                 {stripVoiceEmoji(t(`clone.preset_${p.id}`, { defaultValue: p.name }))}
@@ -157,7 +177,11 @@ export default function DesignMethodPanel({
                     ))}
                   </select>
                 ) : (
-                  <div className="chip-group" role="radiogroup" aria-label={t(`clone.cat_${key}`)}>
+                  <div
+                    className="chip-group flex flex-wrap gap-1"
+                    role="radiogroup"
+                    aria-label={t(`clone.cat_${key}`)}
+                  >
                     {options.map((opt, i) => {
                       const optTKey = `clone.opt_${opt.replace(/[ -]/g, '_')}`;
                       const optTl = t(optTKey);
@@ -173,7 +197,7 @@ export default function DesignMethodPanel({
                           role="radio"
                           aria-checked={checked}
                           tabIndex={roving ? 0 : -1}
-                          className={`chip ${checked ? 'active' : ''}`}
+                          className={`${CHIP_BASE} ${checked ? CHIP_ACTIVE : CHIP_INACTIVE}`}
                           onClick={() => setVdStates({ ...vdStates, [key]: opt })}
                           onKeyDown={(e) => onChipKeyDown(e, key, options)}
                         >
