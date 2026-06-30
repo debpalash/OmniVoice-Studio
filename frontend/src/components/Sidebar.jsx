@@ -38,6 +38,11 @@ const SIDEBAR_TABS = [
   { id: 'downloads', icon: DownloadCloud, accent: '#8ec07c' },
 ];
 
+// Collapsed-mode restore/open tile (history + export rows). Base box layout;
+// the per-kind text color is appended at each call site.
+const SIDEBAR_TILE =
+  'sidebar-tile w-[36px] h-[36px] shrink-0 flex justify-center items-center rounded-[6px] cursor-pointer bg-[rgba(255,255,255,0.05)] [border:1px_solid_transparent]';
+
 /**
  * Mounts the WaveSurfer-backed player only once its row scrolls into view.
  * The history list can hold ~50 items; eagerly mounting a WaveformPlayer per
@@ -188,10 +193,10 @@ export default function Sidebar(props) {
 
   return (
     <div
-      className={`glass-panel history-panel sidebar ${isSidebarCollapsed ? 'is-collapsed' : ''}`}
+      className={`glass-panel history-panel sidebar flex flex-col ${isSidebarCollapsed ? 'is-collapsed' : ''}`}
     >
       {/* Tab bar — only tabs relevant to the current view */}
-      <div className="sidebar__tabs">
+      <div className="sidebar__tabs flex gap-[var(--space-2)] px-[var(--space-2)] py-[var(--space-1)] [border-bottom:1px_solid_var(--chrome-border)] bg-[var(--chrome-bg)] shrink-0 justify-center">
         {SIDEBAR_TABS.filter((t) => availableTabs.includes(t.id)).map(
           ({ id, icon: Icon, accent }) => (
             <button
@@ -202,15 +207,22 @@ export default function Sidebar(props) {
               title={`${tabLabel[id]} (${tabCount[id]})`}
             >
               <Icon size={isSidebarCollapsed ? 18 : 13} />
-              {tabCount[id] > 0 && <span className="sidebar__tab-badge">{tabCount[id]}</span>}
+              {tabCount[id] > 0 && (
+                <span className="sidebar__tab-badge absolute -top-[2px] -right-[2px] font-mono text-[8px] font-bold min-w-[14px] h-[14px] leading-[14px] text-center px-[3px] py-0 rounded-[99px] bg-[color-mix(in_srgb,var(--sidebar-tab-accent)_25%,transparent)] text-[var(--sidebar-tab-accent)]">
+                  {tabCount[id]}
+                </span>
+              )}
             </button>
           ),
         )}
       </div>
 
       {!isSidebarCollapsed && (
-        <div className="sidebar__search">
-          <Search size={10} className="sidebar__search-icon" />
+        <div className="sidebar__search px-[4px] pt-[3px] pb-[2px] shrink-0 relative">
+          <Search
+            size={10}
+            className="sidebar__search-icon absolute left-[16px] top-1/2 -translate-y-1/2 text-[var(--color-fg-subtle)] pointer-events-none"
+          />
           <input
             className="input-base sidebar__search-input"
             placeholder="Search…"
@@ -231,7 +243,9 @@ export default function Sidebar(props) {
         </div>
       )}
 
-      <div className={`sidebar__scroll ${isSidebarCollapsed ? 'is-collapsed' : ''}`}>
+      <div
+        className={`sidebar__scroll flex-1 overflow-y-auto px-[4px] py-[3px] flex flex-col items-stretch gap-0 ${isSidebarCollapsed ? 'is-collapsed' : ''}`}
+      >
         {/* ── PROJECTS TAB ── */}
         {sidebarTab === 'projects' && (
           <>
@@ -261,7 +275,7 @@ export default function Sidebar(props) {
 
             {!isSidebarCollapsed && (
               <div
-                className="sidebar__section-title"
+                className="sidebar__section-title font-mono text-[length:var(--chrome-label-size)] font-semibold tracking-[var(--chrome-label-track)] uppercase text-[color:var(--chrome-fg-muted)] mb-[var(--space-2)] flex justify-between items-center cursor-pointer py-[4px] px-0"
                 onClick={() => setIsSidebarProjectsCollapsed(!isSidebarProjectsCollapsed)}
               >
                 <span>
@@ -510,7 +524,12 @@ export default function Sidebar(props) {
                   rotSeed={proj.id}
                 >
                   {defineMethod === 'audio' ? <Fingerprint size={18} /> : <Wand2 size={18} />}
-                  {proj.is_locked && <Lock size={8} className="sidebar__icon-tile__lock" />}
+                  {proj.is_locked && (
+                    <Lock
+                      size={8}
+                      className="sidebar__icon-tile__lock absolute bottom-[2px] right-[2px] text-[#b8bb26]"
+                    />
+                  )}
                 </IconTile>
               ))}
           </>
@@ -520,7 +539,9 @@ export default function Sidebar(props) {
         {sidebarTab === 'history' && (
           <>
             {!isSidebarCollapsed && (
-              <div className="sidebar__subtitle">{t('sidebar.history_subtitle')}</div>
+              <div className="sidebar__subtitle text-[length:var(--text-sm)] text-[color:var(--text-secondary)] mb-[var(--space-4)]">
+                {t('sidebar.history_subtitle')}
+              </div>
             )}
             {history.length + dubHistory.length === 0 ? (
               <EmptyState
@@ -680,7 +701,7 @@ export default function Sidebar(props) {
                   key={`dub-${item.id}`}
                   title={`Dub: ${item.filename}`}
                   onClick={() => restoreDubHistory(item)}
-                  className="sidebar-tile sidebar-tile--audio"
+                  className={`${SIDEBAR_TILE} text-[#83a598]`}
                 >
                   <Film size={18} />
                 </div>
@@ -692,7 +713,7 @@ export default function Sidebar(props) {
                   key={item.id}
                   title={`${item.mode || 'history'}: ${item.text}`}
                   onClick={() => restoreHistory(item)}
-                  className={`sidebar-tile ${item.mode === 'clone' ? 'sidebar-tile--clone' : 'sidebar-tile--design'}`}
+                  className={`${SIDEBAR_TILE} ${item.mode === 'clone' ? 'text-[#d3869b]' : 'text-[#b8bb26]'}`}
                 >
                   {item.mode === 'clone' ? <Fingerprint size={18} /> : <Wand2 size={18} />}
                 </div>
@@ -717,7 +738,9 @@ export default function Sidebar(props) {
         {sidebarTab === 'downloads' && (
           <>
             {!isSidebarCollapsed && (
-              <div className="sidebar__subtitle">{t('sidebar.recent_exports')}</div>
+              <div className="sidebar__subtitle text-[length:var(--text-sm)] text-[color:var(--text-secondary)] mb-[var(--space-4)]">
+                {t('sidebar.recent_exports')}
+              </div>
             )}
             {exportHistory.length === 0 ? (
               <EmptyState
@@ -775,7 +798,7 @@ export default function Sidebar(props) {
                       key={item.id}
                       title={`Exported: ${item.filename}\nClick to open folder`}
                       onClick={() => revealInFolder(item.destination_path)}
-                      className={`sidebar-tile ${item.mode === 'audio' ? 'sidebar-tile--audio' : 'sidebar-tile--success'}`}
+                      className={`${SIDEBAR_TILE} ${item.mode === 'audio' ? 'text-[#83a598]' : 'text-[#8ec07c]'}`}
                     >
                       <FolderOpen size={18} />
                     </div>
@@ -794,10 +817,17 @@ export default function Sidebar(props) {
  */
 function EmptyState({ icon: Icon, title, hint }) {
   return (
-    <div className="sidebar__empty">
-      <Icon size={28} className="sidebar__empty-icon" />
-      <p className="sidebar__empty-title">{title}</p>
-      <p className="sidebar__empty-sub">{hint}</p>
+    <div className="sidebar__empty text-[var(--chrome-fg-muted)] text-center px-[12px] py-[24px] font-sans">
+      <Icon
+        size={28}
+        className="sidebar__empty-icon opacity-30 mb-[var(--space-4)] text-[var(--chrome-fg-dim)]"
+      />
+      <p className="sidebar__empty-title text-[0.82rem] m-0 mb-[var(--space-2)] text-[var(--chrome-fg)] font-medium tracking-[0.02em]">
+        {title}
+      </p>
+      <p className="sidebar__empty-sub text-[0.7rem] m-0 text-[var(--chrome-fg-dim)] leading-[1.5]">
+        {hint}
+      </p>
     </div>
   );
 }
@@ -812,7 +842,7 @@ function IconTile({ children, title, onClick, active, rotSeed }) {
     <div
       title={title}
       onClick={onClick}
-      className={`sidebar__icon-tile ${active ? 'is-active' : ''}`}
+      className={`sidebar__icon-tile w-[36px] h-[36px] shrink-0 flex justify-center items-center rounded-[var(--chrome-radius-pill)] cursor-pointer relative bg-transparent [border:1px_solid_transparent] text-[var(--chrome-fg-muted)] [transition:background_var(--dur-fast)_var(--ease-out),border-color_var(--dur-fast)_var(--ease-out),color_var(--dur-fast)_var(--ease-out)] ${active ? 'is-active' : ''}`}
       style={{ transform: `rotate(${tilt}deg)` }}
     >
       {children}

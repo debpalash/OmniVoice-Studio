@@ -69,7 +69,7 @@ export default function TranscriptionPicker({ open, onClose, onPick }) {
   return (
     <Dialog open={open} onClose={onClose} title={t('transcriptionPicker.title')} size="md">
       {rows.length > 0 && (
-        <div className="txn-picker__search">
+        <div className="txn-picker__search flex items-center gap-[6px] mb-[10px] text-[var(--chrome-fg-muted,#999)]">
           <Search size={13} />
           <Input
             size="sm"
@@ -82,7 +82,7 @@ export default function TranscriptionPicker({ open, onClose, onPick }) {
       )}
 
       {visible.length === 0 ? (
-        <div className="txn-picker__empty">
+        <div className="txn-picker__empty flex flex-col items-center gap-[8px] px-[12px] py-[28px] text-[var(--chrome-fg-muted,#999)] text-center">
           <Mic size={24} />
           <p>
             {rows.length === 0
@@ -91,21 +91,24 @@ export default function TranscriptionPicker({ open, onClose, onPick }) {
           </p>
         </div>
       ) : (
-        <div className="txn-picker__list" role="list">
+        <div
+          className="txn-picker__list flex flex-col gap-[6px] max-h-[50vh] overflow-y-auto"
+          role="list"
+        >
           {visible.map((r) => (
             <button
               type="button"
               key={r.key}
-              className="txn-picker__row"
+              className="txn-picker__row flex flex-col gap-[4px] w-full text-left px-[10px] py-[8px] cursor-pointer [border:1px_solid_var(--chrome-border,rgba(255,255,255,0.12))] rounded-[6px] bg-transparent text-[var(--chrome-fg,#eee)]"
               onClick={() => {
                 onPick(r.entry);
                 onClose();
               }}
             >
-              <span className="txn-picker__text">
+              <span className="txn-picker__text text-[length:var(--text-sm,0.85rem)] leading-[1.35]">
                 {r.text.length > 120 ? `${r.text.slice(0, 120)}…` : r.text}
               </span>
-              <span className="txn-picker__meta">
+              <span className="txn-picker__meta flex gap-[10px] flex-wrap text-[0.7rem] text-[var(--chrome-fg-muted,#999)]">
                 {r.time && (
                   <span>
                     <Clock size={10} /> {r.time}

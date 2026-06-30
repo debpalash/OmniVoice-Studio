@@ -60,22 +60,29 @@ export default function GoalBar({ mini = false, progress: injected = null, class
 
   return (
     <div
-      className={['goal', mini ? 'goal--mini' : 'goal--page', met ? 'goal--met' : '', className]
+      className={[
+        'goal [--goal-accent:var(--chrome-accent)] flex flex-col gap-[var(--space-3,6px)] w-full',
+        mini ? 'goal--mini' : 'goal--page',
+        met ? 'goal--met' : '',
+        className,
+      ]
         .filter(Boolean)
         .join(' ')}
       style={{ '--goal-pct': pct }}
     >
       {!mini && (
-        <div className="goal__head">
-          <span className="goal__title">
+        <div className="goal__head flex items-baseline justify-between gap-[var(--space-4,8px)]">
+          <span className="goal__title font-serif text-[1rem] font-medium tracking-[-0.01em] text-[var(--chrome-fg)]">
             {t('donate.goal.title', { defaultValue: 'Fund Claude Max' })}
           </span>
-          <span className="goal__pct">{pctLabel}%</span>
+          <span className="goal__pct font-mono text-[0.78rem] font-semibold text-[var(--goal-accent)] [font-variant-numeric:tabular-nums]">
+            {pctLabel}%
+          </span>
         </div>
       )}
 
       <div
-        className="goal__track"
+        className="goal__track relative h-[12px] rounded-[999px] bg-[color-mix(in_srgb,var(--chrome-fg)_8%,transparent)] [border:1px_solid_var(--chrome-border)] overflow-visible isolate"
         role="progressbar"
         aria-valuenow={pctLabel}
         aria-valuemin={0}
@@ -96,9 +103,9 @@ export default function GoalBar({ mini = false, progress: injected = null, class
         )}
       </div>
 
-      <div className="goal__caption">
+      <div className="goal__caption flex items-baseline justify-between gap-[var(--space-4,8px)] font-sans text-[0.72rem] text-[var(--chrome-fg-muted)]">
         {met ? (
-          <span className="goal__caption-met">
+          <span className="goal__caption-met text-[var(--chrome-accent)] font-semibold">
             {t('donate.goal.met', {
               defaultValue: '🎉 Goal met — {{raised}} raised. Thank you!',
               raised: raisedStr,
@@ -111,7 +118,7 @@ export default function GoalBar({ mini = false, progress: injected = null, class
               {t('donate.goal.per_month', { defaultValue: '/ month' })}
             </span>
             {!mini && (
-              <span className="goal__remaining">
+              <span className="goal__remaining font-mono text-[0.68rem] text-[var(--chrome-fg-dim)] whitespace-nowrap">
                 {t('donate.goal.remaining', {
                   defaultValue: '{{amount}} to go',
                   amount: formatMoney(Math.max(0, data.goal - data.raised), data.currency),

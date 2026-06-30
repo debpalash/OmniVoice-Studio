@@ -1,40 +1,9 @@
-/* Engine Compatibility Matrix (Plan 02-04 / ENGINE-06) */
-
-.engine-matrix {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3, 8px);
-}
-
-.engine-matrix--loading,
-.engine-matrix--error {
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.engine-matrix__muted {
-  color: var(--chrome-fg-muted, #888);
-  font-size: 13px;
-}
-
-.engine-matrix__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.engine-matrix__title {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--chrome-fg, currentColor);
-}
+/* Engine Compatibility Matrix (Plan 02-04 / ENGINE-06)
+   Layout / spacing / typography moved to Tailwind utilities in
+   EngineCompatibilityMatrix.jsx. What stays here: the horizontally-scrolling
+   table shape (shared min-width across header + body), the disclosure summary
+   triangle (pseudo-elements), and the GPU chip color system (dynamic variant
+   classes + the tested `.is-effective` ring). */
 
 .engine-matrix__table {
   width: 100%;
@@ -52,101 +21,9 @@
   min-width: 840px;
 }
 
-/* Fixed-width cells must not shrink below their column width (that shrink was
-   what caused the overlap); the name column keeps a sane floor and still grows. */
-.engine-matrix__cell { flex-shrink: 0; }
-.engine-matrix__cell--name { min-width: 200px; }
-
-.engine-matrix__body {
-  display: flex;
-  flex-direction: column;
-  /* Bottom gutter so the last row never sits flush against a footer/nav bar
-     when the matrix lives inside a scroll container (e.g. SetupWizard step 4). */
-  padding-bottom: 12px;
-}
-
-.engine-matrix__row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 8px 10px;
-  border-top: 1px solid var(--chrome-border, rgba(255,255,255,0.06));
-  min-height: 56px;
-}
-
-.engine-matrix__row.is-off {
-  opacity: 0.78;
-}
-
-.engine-matrix__cell {
-  display: flex;
-  align-items: center;
-}
-
-.engine-matrix__cell--name {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  min-width: 0;
-}
-
-.engine-matrix__cell--center {
-  justify-content: center;
-}
-
-.engine-matrix__cell--gpu {
-  align-items: center;
-}
-
-.engine-matrix__cell--actions {
-  justify-content: flex-end;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.engine-matrix__name {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--chrome-fg, currentColor);
-}
-
-.engine-matrix__id {
-  font-family: var(--chrome-font-mono, ui-monospace, SFMono-Regular, monospace);
-  font-size: 11px;
-  color: var(--chrome-fg-muted, #888);
-}
-
-.engine-matrix__reason {
-  font-size: 12px;
-  color: var(--chrome-severity-warn, #d79921);
-  display: block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.engine-matrix__hint {
-  font-size: 11px;
-  color: var(--chrome-fg-muted, #888);
-}
-
-.engine-matrix__last-error {
-  font-size: 11px;
-  color: var(--chrome-severity-err, #cc241d);
-  display: block;
-}
-
 /* Disclosure for unavailable-row details: keeps the row a single line until
    the user opts in to see the why. Drastically reduces vertical noise on
    first-paint of the matrix. */
-.engine-matrix__why {
-  font-size: 11px;
-  margin-top: 2px;
-}
-
 .engine-matrix__why-summary {
   cursor: pointer;
   color: var(--chrome-fg-muted, #888);
@@ -176,21 +53,6 @@
 
 .engine-matrix__why[open] .engine-matrix__why-summary::before {
   transform: rotate(90deg);
-}
-
-.engine-matrix__why-body {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-top: 4px;
-  padding-left: 12px;
-  border-left: 2px solid var(--chrome-border, rgba(255,255,255,0.08));
-}
-
-.engine-matrix__chips {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 4px;
 }
 
 .engine-matrix__chip {
@@ -239,51 +101,4 @@
   border-color: var(--chrome-accent, #fe8019);
   color: var(--chrome-fg, #eee);
   font-weight: 700;
-}
-
-.engine-matrix__result {
-  font-size: 11px;
-  font-family: var(--chrome-font-mono, ui-monospace, monospace);
-}
-
-.engine-matrix__result--ok {
-  color: var(--chrome-severity-ok, #98971a);
-}
-
-.engine-matrix__result--fail {
-  color: var(--chrome-severity-err, #cc241d);
-}
-
-/* Two-line tab label: family name prominent, active engine subdued.
-   Makes the segmented control read as a control (tap me, navigate)
-   rather than a status line ("TTS · omnivoice"). */
-.engine-matrix__tab-label {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-  line-height: 1.1;
-  padding: 1px 2px;
-}
-
-.engine-matrix__tab-family {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.engine-matrix__tab-active {
-  font-size: 9px;
-  font-family: var(--chrome-font-mono, ui-monospace, monospace);
-  opacity: 0.65;
-  text-transform: lowercase;
-  letter-spacing: 0;
-  margin-top: 1px;
-}
-
-.engine-matrix__empty {
-  padding: 24px;
-  text-align: center;
-  color: var(--chrome-fg-muted, #888);
-  font-size: 13px;
 }

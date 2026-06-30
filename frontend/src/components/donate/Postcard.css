@@ -82,124 +82,29 @@
 }
 
 /* ── Close (×) ────────────────────────────────────────────────────────── */
-.postcard__close {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  color: var(--chrome-fg-dim);
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-  border-radius: var(--chrome-radius-pill);
-  z-index: 2;
-  transition: color var(--dur-fast), background var(--dur-fast);
-}
+/* Layout/reset moved to utilities in Postcard.jsx; :hover stays here. */
 .postcard__close:hover { color: var(--chrome-fg); background: var(--chrome-hover-bg); }
 
 /* ── Body (right of the perforation) ──────────────────────────────────── */
-.postcard__body {
-  position: relative;
-  z-index: 1;
-  margin-left: 60px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.postcard__title {
-  font-family: var(--font-serif);
-  font-size: 0.98rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  color: var(--chrome-fg);
-}
-.postcard__lead {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: 0.72rem;
-  line-height: 1.5;
-  color: var(--chrome-fg-muted);
-}
+/* .postcard__body / __title / __lead → utilities in Postcard.jsx. */
 
-/* mini GoalBar wrapper — a quiet link to the full Support page */
-.postcard__goal-link {
-  display: block;
-  width: 100%;
-  padding: 0;
-  margin: 2px 0;
-  background: transparent;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-}
+/* mini GoalBar wrapper — a quiet link to the full Support page.
+   Layout/reset → utilities in Postcard.jsx; :hover stays here. */
 .postcard__goal-link:hover { opacity: 0.92; }
 
 /* ── Actions ──────────────────────────────────────────────────────────── */
-.postcard__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 2px;
-}
-.postcard__cta {
-  flex: 1;
-  padding: 7px 12px;
-  border-radius: var(--chrome-radius-pill);
-  border: 1px solid var(--chrome-accent-border);
-  background: var(--chrome-accent-bg);
-  color: var(--chrome-fg);
-  font-family: var(--font-sans);
-  font-size: 0.74rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--dur-fast), transform var(--dur-base), border-color var(--dur-fast);
-}
+/* .postcard__actions / __cta / __later base → utilities in Postcard.jsx.
+   Interactive :hover states stay here. */
 .postcard__cta:hover {
   background: color-mix(in srgb, var(--chrome-accent) 24%, transparent);
   border-color: var(--chrome-accent);
   transform: translateY(-1px);
 }
-.postcard__later {
-  padding: 7px 10px;
-  border-radius: var(--chrome-radius-pill);
-  border: 1px solid var(--chrome-border);
-  background: transparent;
-  color: var(--chrome-fg-muted);
-  font-family: var(--font-sans);
-  font-size: 0.72rem;
-  cursor: pointer;
-  transition: color var(--dur-fast), border-color var(--dur-fast);
-}
 .postcard__later:hover { color: var(--chrome-fg); border-color: var(--chrome-border-strong); }
 
 /* ── Minor row (star + opt-out) ───────────────────────────────────────── */
-.postcard__minor {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 2px;
-}
-.postcard__star,
-.postcard__optout {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 0;
-  border: none;
-  background: transparent;
-  font-family: var(--chrome-font-mono);
-  font-size: 0.64rem;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  transition: color var(--dur-fast);
-}
+/* .postcard__minor + the shared __star/__optout base → utilities in
+   Postcard.jsx. Per-button color + :hover stay here. */
 .postcard__star { color: var(--chrome-fg-muted); }
 .postcard__star:hover { color: #fabd2f; }
 .postcard__optout { color: var(--chrome-fg-dim); }

@@ -4,46 +4,12 @@
    --chrome-*, --space-*, --ease-spring, --font-serif, --chrome-font-mono.
    ════════════════════════════════════════════════════════════════════════ */
 
-.goal {
-  --goal-accent: var(--chrome-accent);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3, 6px);
-  width: 100%;
-}
-
-/* ── Header (title + percent) ─────────────────────────────────────────── */
-.goal__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-4, 8px);
-}
-.goal__title {
-  font-family: var(--font-serif);
-  font-size: 1.0rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  color: var(--chrome-fg);
-}
-.goal__pct {
-  font-family: var(--chrome-font-mono);
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--goal-accent);
-  font-variant-numeric: tabular-nums;
-}
+/* .goal root (layout + the --goal-accent default), __head, __title, __pct, and
+   __track base → Tailwind utilities in GoalBar.jsx. The --goal-accent value is
+   declared as an arbitrary property on the root there; .goal--met / .goal--mini
+   overrides + the animated fill/pip/shimmer stay here. */
 
 /* ── Track + fill ─────────────────────────────────────────────────────── */
-.goal__track {
-  position: relative;
-  height: 12px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--chrome-fg) 8%, transparent);
-  border: 1px solid var(--chrome-border);
-  overflow: visible;            /* let Pip perch above the rail */
-  isolation: isolate;
-}
 .goal__fill {
   position: absolute;
   inset: 0;
@@ -98,27 +64,10 @@
 }
 
 /* ── Caption ──────────────────────────────────────────────────────────── */
-.goal__caption {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-4, 8px);
-  font-family: var(--font-sans);
-  font-size: 0.72rem;
-  color: var(--chrome-fg-muted);
-}
+/* .goal__caption / __remaining / __caption-met → utilities in GoalBar.jsx.
+   The `.goal__amounts strong` descendant rule stays (element combinator). */
 .goal__amounts strong {
   color: var(--chrome-fg);
-  font-weight: 600;
-}
-.goal__remaining {
-  font-family: var(--chrome-font-mono);
-  font-size: 0.68rem;
-  color: var(--chrome-fg-dim);
-  white-space: nowrap;
-}
-.goal__caption-met {
-  color: var(--chrome-accent);
   font-weight: 600;
 }
 

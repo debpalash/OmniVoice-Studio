@@ -1,16 +1,7 @@
 /* Sidebar — page-specific layout + accents, base comes from ui/ primitives. */
 
-.sidebar               { display: flex; flex-direction: column; }
-
-.sidebar__tabs {
-  display: flex;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  border-bottom: 1px solid var(--chrome-border);
-  background: var(--chrome-bg);
-  flex-shrink: 0;
-  justify-content: center;
-}
+/* .sidebar base (flex column) + .sidebar__tabs layout → Tailwind utilities in
+   Sidebar.jsx. Collapsed-mode combinator overrides stay here (unlayered). */
 .sidebar.is-collapsed .sidebar__tabs {
   flex-direction: column;
   padding: var(--space-3) var(--space-2);
@@ -59,37 +50,10 @@
   outline: none;
   box-shadow: var(--focus-ring);
 }
-.sidebar__tab-badge {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  font-family: var(--chrome-font-mono);
-  font-size: 8px;
-  font-weight: 700;
-  min-width: 14px;
-  height: 14px;
-  line-height: 14px;
-  text-align: center;
-  padding: 0 3px;
-  border-radius: 99px;
-  background: color-mix(in srgb, var(--sidebar-tab-accent) 25%, transparent);
-  color: var(--sidebar-tab-accent);
-}
+/* .sidebar__tab-badge → utilities in Sidebar.jsx (positioned mono count pill). */
 
 /* ── Search ─────────────────────────────────────────────────── */
-.sidebar__search {
-  padding: 3px 4px 2px 4px;
-  flex-shrink: 0;
-  position: relative;
-}
-.sidebar__search-icon {
-  position: absolute;
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-fg-subtle);
-  pointer-events: none;
-}
+/* .sidebar__search + .sidebar__search-icon → utilities in Sidebar.jsx. */
 .sidebar__search-input {
   width: 100%;
   font-size: var(--text-sm);
@@ -132,15 +96,8 @@
 .sidebar__clear:hover { opacity: 1; }
 
 /* ── Empty-state placeholders ───────────────────────────────── */
-.sidebar__empty {
-  color: var(--chrome-fg-muted);
-  text-align: center;
-  padding: 24px 12px;
-  font-family: var(--font-sans);
-}
-.sidebar__empty-icon   { opacity: 0.3; margin-bottom: var(--space-4); color: var(--chrome-fg-dim); }
-.sidebar__empty-title  { font-size: 0.82rem; margin: 0 0 var(--space-2); color: var(--chrome-fg); font-weight: 500; letter-spacing: 0.02em; }
-.sidebar__empty-sub    { font-size: 0.7rem; margin: 0; color: var(--chrome-fg-dim); line-height: 1.5; }
+/* .sidebar__empty + __empty-icon/__empty-title/__empty-sub → utilities in
+   Sidebar.jsx (EmptyState). Collapsed-hide combinator below stays here. */
 
 /* Hide text-heavy blocks when sidebar is collapsed to icon-only width */
 .sidebar.is-collapsed .sidebar__empty     { display: none; }
@@ -151,43 +108,13 @@
    Labels are displays (not buttons) but this one IS clickable (collapses
    the section), so the chevron on the right signals interactivity while
    the text keeps the chrome label typography. */
-.sidebar__section-title {
-  font-family: var(--chrome-font-mono);
-  font-size: var(--chrome-label-size);
-  font-weight: 600;
-  letter-spacing: var(--chrome-label-track);
-  text-transform: uppercase;
-  color: var(--chrome-fg-muted);
-  margin-bottom: var(--space-2);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  padding: 4px 0;
-}
+/* .sidebar__section-title base → utilities in Sidebar.jsx; :hover stays here
+   (unlayered, so it wins over the layered base color utility). */
 .sidebar__section-title:hover { color: var(--chrome-fg); }
 
 /* ── Collapsed-mode icon tiles — chrome square buttons ────────── */
-.sidebar__icon-tile {
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  /* Squircle corners dropped in favour of chrome-radius to match the
-     NavRail and footer icon buttons. Same transparent-until-hover
-     treatment since these are interactive. */
-  border-radius: var(--chrome-radius-pill);
-  cursor: pointer;
-  position: relative;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--chrome-fg-muted);
-  transition: background var(--dur-fast) var(--ease-out),
-              border-color var(--dur-fast) var(--ease-out),
-              color var(--dur-fast) var(--ease-out);
-}
+/* .sidebar__icon-tile base (layout + transition) → utilities in Sidebar.jsx
+   (IconTile). Interactive :hover/.is-active states stay here. */
 .sidebar__icon-tile:hover {
   background: var(--chrome-hover-bg);
   color: var(--chrome-fg);
@@ -197,30 +124,13 @@
   border-color: var(--chrome-accent-border);
   color: var(--chrome-accent);
 }
-.sidebar__icon-tile__lock {
-  position: absolute;
-  bottom: 2px;
-  right: 2px;
-  color: #b8bb26;
-}
+/* .sidebar__icon-tile__lock → utilities in Sidebar.jsx. */
 
-/* Generic small dot at top of history list */
-.sidebar__subtitle {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  margin-bottom: var(--space-4);
-}
+/* .sidebar__subtitle base → utilities in Sidebar.jsx; collapsed-hide
+   combinator above stays here. */
 
 /* ── Scrollable body + collapsed-mode tweaks ─────────────────── */
-.sidebar__scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 3px 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0;
-}
+/* .sidebar__scroll base → utilities in Sidebar.jsx; .is-collapsed stays here. */
 .sidebar__scroll.is-collapsed {
   padding: 8px 4px;
   align-items: center;
@@ -267,20 +177,6 @@
   width: 100%;
 }
 
-/* Restore / re-open icon tiles on history + export rows */
-.sidebar-tile {
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 6px;
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid transparent;
-}
-.sidebar-tile--audio   { color: #83a598; }
-.sidebar-tile--clone   { color: #d3869b; }
-.sidebar-tile--design  { color: #b8bb26; }
-.sidebar-tile--success { color: #8ec07c; }
+/* Restore / re-open icon tiles on history + export rows.
+   .sidebar-tile base + per-kind color variants → utilities in Sidebar.jsx
+   (SIDEBAR_TILE const + inline text color). */

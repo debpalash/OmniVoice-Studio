@@ -221,14 +221,22 @@ export default function EngineCompatibilityMatrix({
 
   if (loading && !data) {
     return (
-      <section className="engine-matrix engine-matrix--loading" aria-busy="true">
-        <span className="engine-matrix__muted">{t('engines.loading')}</span>
+      <section
+        className="engine-matrix engine-matrix--loading flex flex-col gap-[8px] items-center p-[16px]"
+        aria-busy="true"
+      >
+        <span className="engine-matrix__muted text-[color:var(--chrome-fg-muted,#888)] text-[13px]">
+          {t('engines.loading')}
+        </span>
       </section>
     );
   }
   if (error && !data) {
     return (
-      <section className="engine-matrix engine-matrix--error" role="alert">
+      <section
+        className="engine-matrix engine-matrix--error flex flex-col gap-[8px] items-center p-[16px]"
+        role="alert"
+      >
         <AlertTriangle size={14} /> {t('engines.couldNotLoad', { message: error })}
         <Button size="sm" variant="subtle" onClick={reload} leading={<RefreshCw size={11} />}>
           {t('engines.retry')}
@@ -241,9 +249,9 @@ export default function EngineCompatibilityMatrix({
   const activeBackendId = activeId ?? familyData.active;
 
   return (
-    <section className="engine-matrix">
-      <header className="engine-matrix__head">
-        <h3 className="engine-matrix__title">
+    <section className="engine-matrix flex flex-col gap-[var(--space-3,8px)]">
+      <header className="engine-matrix__head flex items-center justify-between gap-[12px]">
+        <h3 className="engine-matrix__title inline-flex items-center gap-[6px] m-0 text-[13px] font-semibold text-[color:var(--chrome-fg,currentColor)]">
           <Layers size={14} /> {t('engines.matrixTitle')}
         </h3>
         <Button
@@ -269,9 +277,13 @@ export default function EngineCompatibilityMatrix({
               engine: data[f].active,
             }),
             label: (
-              <span className="engine-matrix__tab-label">
-                <span className="engine-matrix__tab-family">{FAMILY_META[f].label}</span>
-                <span className="engine-matrix__tab-active">{data[f].active}</span>
+              <span className="engine-matrix__tab-label inline-flex flex-col items-center gap-0 leading-[1.1] px-[2px] py-[1px]">
+                <span className="engine-matrix__tab-family text-[12px] font-bold tracking-[0.02em]">
+                  {FAMILY_META[f].label}
+                </span>
+                <span className="engine-matrix__tab-active text-[9px] font-mono opacity-[0.65] lowercase tracking-[0] mt-[1px]">
+                  {data[f].active}
+                </span>
               </span>
             ),
           }))}
@@ -284,7 +296,7 @@ export default function EngineCompatibilityMatrix({
         aria-label={t('engines.engineCompatLabel', { family: activeFamily })}
       >
         <Table.Header columns={COLUMNS} />
-        <div className="engine-matrix__body" role="rowgroup">
+        <div className="engine-matrix__body flex flex-col pb-[12px]" role="rowgroup">
           {backends.map((b) => {
             const isActive = b.id === activeBackendId;
             const health = healthByEngine[b.id];
@@ -293,15 +305,15 @@ export default function EngineCompatibilityMatrix({
                 key={b.id}
                 role="row"
                 data-engine-id={b.id}
-                className={`engine-matrix__row ${b.available ? 'is-ok' : 'is-off'}`}
+                className={`engine-matrix__row flex items-start gap-[8px] py-[8px] px-[10px] [border-top:1px_solid_var(--chrome-border,rgba(255,255,255,0.06))] min-h-[56px] ${b.available ? '' : 'opacity-[0.78]'}`}
               >
                 {/* Engine name + reason / install_hint */}
                 <div
                   role="cell"
-                  className="engine-matrix__cell engine-matrix__cell--name"
+                  className="engine-matrix__cell engine-matrix__cell--name flex shrink-0 flex-col items-start gap-[2px] min-w-0"
                   style={{ flex: 3 }}
                 >
-                  <span className="engine-matrix__name">
+                  <span className="engine-matrix__name inline-flex items-center gap-[6px] font-semibold text-[13px] text-[color:var(--chrome-fg,currentColor)]">
                     {b.display_name}
                     {isActive && (
                       <Badge tone="brand" size="xs">
@@ -309,28 +321,42 @@ export default function EngineCompatibilityMatrix({
                       </Badge>
                     )}
                   </span>
-                  <code className="engine-matrix__id">{b.id}</code>
+                  <code className="engine-matrix__id font-mono text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
+                    {b.id}
+                  </code>
                   {/* For available rows, show install_hint inline (one line — usually
                       a parenthetical like "(bundled — no extra install needed)").
                       For unavailable rows, collapse reason + install_hint + last_error
                       into a single disclosure so unavailable rows don't dwarf the matrix. */}
                   {b.available && b.install_hint && (
-                    <span className="engine-matrix__hint" title={b.install_hint}>
+                    <span
+                      className="engine-matrix__hint text-[11px] text-[color:var(--chrome-fg-muted,#888)]"
+                      title={b.install_hint}
+                    >
                       {b.install_hint}
                     </span>
                   )}
                   {!b.available && (b.reason || b.install_hint || b.last_error) && (
-                    <details className="engine-matrix__why">
+                    <details className="engine-matrix__why text-[11px] mt-[2px]">
                       <summary className="engine-matrix__why-summary">
                         {t('engines.whyUnavailable')}
                       </summary>
-                      <div className="engine-matrix__why-body">
-                        {b.reason && <span className="engine-matrix__reason">{b.reason}</span>}
+                      <div className="engine-matrix__why-body flex flex-col gap-[3px] mt-[4px] pl-[12px] [border-left:2px_solid_var(--chrome-border,rgba(255,255,255,0.08))]">
+                        {b.reason && (
+                          <span className="engine-matrix__reason text-[12px] text-[color:var(--chrome-severity-warn,#d79921)] block max-w-full overflow-hidden text-ellipsis">
+                            {b.reason}
+                          </span>
+                        )}
                         {b.install_hint && b.install_hint !== b.reason && (
-                          <span className="engine-matrix__hint">{b.install_hint}</span>
+                          <span className="engine-matrix__hint text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
+                            {b.install_hint}
+                          </span>
                         )}
                         {b.last_error && b.last_error !== b.reason && (
-                          <span className="engine-matrix__last-error" data-testid="last-error">
+                          <span
+                            className="engine-matrix__last-error text-[11px] text-[color:var(--chrome-severity-err,#cc241d)] block"
+                            data-testid="last-error"
+                          >
                             {t('engines.lastError', { error: b.last_error })}
                           </span>
                         )}
@@ -342,7 +368,7 @@ export default function EngineCompatibilityMatrix({
                 {/* Install state */}
                 <div
                   role="cell"
-                  className="engine-matrix__cell engine-matrix__cell--center"
+                  className="engine-matrix__cell engine-matrix__cell--center flex items-center shrink-0 justify-center"
                   style={{ width: 130 }}
                   title={
                     b.available
@@ -366,10 +392,10 @@ export default function EngineCompatibilityMatrix({
                     shows a single "Remote" badge instead of device chips. */}
                 <div
                   role="cell"
-                  className="engine-matrix__cell engine-matrix__cell--gpu"
+                  className="engine-matrix__cell engine-matrix__cell--gpu flex items-center shrink-0"
                   style={{ width: 170 }}
                 >
-                  <div className="engine-matrix__chips">
+                  <div className="engine-matrix__chips inline-flex flex-wrap gap-[4px]">
                     {b.routing_status === 'n/a' ? (
                       <Badge tone="neutral" size="xs">
                         {t('engines.routingRemote')}
@@ -423,7 +449,7 @@ export default function EngineCompatibilityMatrix({
                 {/* Isolation mode */}
                 <div
                   role="cell"
-                  className="engine-matrix__cell engine-matrix__cell--center"
+                  className="engine-matrix__cell engine-matrix__cell--center flex items-center shrink-0 justify-center"
                   style={{ width: 110 }}
                   title={
                     b.isolation_mode === 'subprocess'
@@ -443,7 +469,7 @@ export default function EngineCompatibilityMatrix({
                     manual install can hit "Re-check" inside the disclosure. */}
                 <div
                   role="cell"
-                  className="engine-matrix__cell engine-matrix__cell--actions"
+                  className="engine-matrix__cell engine-matrix__cell--actions flex items-center shrink-0 justify-end gap-[6px] flex-wrap"
                   style={{ width: 220 }}
                 >
                   {b.available && (
@@ -474,7 +500,7 @@ export default function EngineCompatibilityMatrix({
                   )}
                   {health && !health.inflight && (
                     <span
-                      className={`engine-matrix__result engine-matrix__result--${health.ok ? 'ok' : 'fail'}`}
+                      className={`engine-matrix__result text-[11px] font-mono ${health.ok ? 'text-[color:var(--chrome-severity-ok,#98971a)]' : 'text-[color:var(--chrome-severity-err,#cc241d)]'}`}
                       data-testid={`health-result-${b.id}`}
                       title={health.message}
                     >
@@ -512,7 +538,10 @@ export default function EngineCompatibilityMatrix({
             );
           })}
           {backends.length === 0 && (
-            <div className="engine-matrix__empty" role="row">
+            <div
+              className="engine-matrix__empty p-[24px] text-center text-[color:var(--chrome-fg-muted,#888)] text-[13px]"
+              role="row"
+            >
               <span role="cell">{t('engines.noBackends')}</span>
             </div>
           )}

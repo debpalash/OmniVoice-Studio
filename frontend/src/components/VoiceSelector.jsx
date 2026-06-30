@@ -35,6 +35,11 @@ import './VoiceSelector.css';
  * @param {string}   [recentsKey='']  persist recents under this key (real ids only)
  * @param {string}   [placeholder]    trigger placeholder when nothing resolves
  */
+// Adornment icon-button (preview / gallery / create). Layout + reset as
+// utilities; :hover/:disabled states stay in VoiceSelector.css.
+const VOICE_SELECTOR_BTN =
+  'voice-selector__btn inline-flex items-center justify-center w-[26px] h-[26px] p-0 [border:1px_solid_var(--chrome-border,rgba(255,255,255,0.12))] rounded-[6px] bg-transparent text-[var(--chrome-fg-muted,#999)] cursor-pointer';
+
 export default function VoiceSelector({
   value = '',
   onChange,
@@ -132,7 +137,7 @@ export default function VoiceSelector({
   const isRecentable = (v) => !!v && !v.startsWith('preset:') && !v.startsWith('auto:');
 
   return (
-    <div className="voice-selector">
+    <div className="voice-selector flex items-center gap-[6px] min-w-0">
       <SearchableSelect
         value={value}
         onChange={onChange}
@@ -146,11 +151,11 @@ export default function VoiceSelector({
         buttonClassName={buttonClassName}
       />
       {(onPreview || onJumpToGallery || onCreateVoice) && (
-        <div className="voice-selector__adornments">
+        <div className="voice-selector__adornments inline-flex items-center gap-[2px] flex-[0_0_auto]">
           {onPreview && (
             <button
               type="button"
-              className="voice-selector__btn"
+              className={VOICE_SELECTOR_BTN}
               onClick={() => onPreview(value)}
               disabled={previewLoading}
               aria-label={t('voiceSelector.preview')}
@@ -166,7 +171,7 @@ export default function VoiceSelector({
           {onJumpToGallery && (
             <button
               type="button"
-              className="voice-selector__btn"
+              className={VOICE_SELECTOR_BTN}
               onClick={() => onJumpToGallery()}
               aria-label={t('voiceSelector.openGallery')}
               title={t('voiceSelector.openGallery')}
@@ -177,7 +182,7 @@ export default function VoiceSelector({
           {onCreateVoice && (
             <button
               type="button"
-              className="voice-selector__btn"
+              className={VOICE_SELECTOR_BTN}
               onClick={() => onCreateVoice()}
               aria-label={t('voiceSelector.createVoice')}
               title={t('voiceSelector.createVoice')}
