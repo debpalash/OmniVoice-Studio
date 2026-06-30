@@ -1,33 +1,38 @@
 import React, { forwardRef, useId } from 'react';
-// Input.css now holds ONLY the native <select> caret (appearance reset +
-// data-URI arrow background + its hover border) — an SVG data-URI background
-// that's impractical to express as a utility. Everything else is utilities
-// below.
+import { cva } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
+import { Input as ShadcnInput, inputBaseClass } from '@/components/ui/input.tsx';
+import { Textarea as ShadcnTextarea } from '@/components/ui/textarea.tsx';
+// The native <select> caret (appearance reset + data-URI arrow background + its
+// hover border) lives in src/styles/residual.css under `.ui-select` — an SVG
+// data-URI background that's impractical to express as a utility.
 
-/* Token-faithful utilities. App ships Tailwind v4 without Preflight and themes
- * override the design tokens, so colors/borders/shadows/transitions use
- * arbitrary properties referencing the exact original variables; @theme-mapped
- * tokens use named utilities (text-fg, bg-bg-elev-2, rounded-md, text-danger…)
- * which resolve to the same `var(--…)` and track themes. */
-
-// Shared shell for <input> / <textarea> / <select>.
-const SHELL =
-  'w-full box-border bg-bg-elev-2 rounded-md text-fg font-sans [border:1px_solid_var(--color-border)] ' +
-  '[transition:background_var(--dur-base)_var(--ease-out),border-color_var(--dur-base)_var(--ease-out),box-shadow_var(--dur-base)_var(--ease-out)] ' +
-  'placeholder:[color:rgba(168,153,132,0.5)] ' +
-  'focus:outline-none focus:[border-color:rgba(211,134,155,0.5)] focus:[background-color:rgba(0,0,0,0.35)] ' +
-  'focus:[box-shadow:0_0_0_2px_rgba(211,134,155,0.12),var(--shadow-inset)] ' +
-  'disabled:opacity-40 disabled:cursor-not-allowed ' +
-  'aria-[invalid=true]:[border-color:rgba(251,73,52,0.45)] ' +
-  'aria-[invalid=true]:focus:[box-shadow:0_0_0_2px_rgba(251,73,52,0.15),var(--shadow-inset)]';
-
-const SIZE = {
-  sm: 'px-[6px] py-[3px] [font-size:var(--text-sm)]',
-  md: 'px-[8px] py-[4px] [font-size:var(--text-base)]',
-  lg: 'px-[10px] py-[6px] [font-size:var(--text-md)]',
-};
-
-const cx = (...parts) => parts.filter(Boolean).join(' ');
+/* OmniVoice form primitives, now BACKED BY shadcn/ui (src/components/ui/*) while
+ * keeping the exact same exports + prop APIs the app already imports:
+ *   import { Field, Input, Textarea, Select } from '../ui';
+ *
+ * Input / Textarea render the shadcn components (palette-coherent via the token
+ * bridge in index.css — chrome border, brand focus ring, destructive invalid
+ * state, all theme-tracking). Select stays a NATIVE <select> — many call sites
+ * (DubSegmentTable, CompareModal, GeneralTab) depend on `onChange={(e) =>
+ * …e.target.value}`, which Radix's value-only Select would break — but is given
+ * the same shadcn shell (`inputBaseClass`) so all three look identical.
+ *
+ * `fieldSizeVariants` is the OmniVoice size scale layered over the shadcn shell:
+ * it swaps the shell's fixed `h-9` for padding-based sizing (the established
+ * compact look) and restores the filled `bg-bg-elev-2` surface. Named utilities
+ * only, so tailwind-merge resolves them cleanly over the shell defaults; the
+ * `md:` font-size variants override the shell's responsive `md:text-sm`. */
+const fieldSizeVariants = cva('h-auto bg-bg-elev-2', {
+  variants: {
+    size: {
+      sm: 'px-1.5 py-0.5 text-xs md:text-xs',
+      md: 'px-2 py-1 text-sm md:text-sm',
+      lg: 'px-2.5 py-1.5 text-base md:text-base',
+    },
+  },
+  defaultVariants: { size: 'md' },
+});
 
 /**
  * Field — optional wrapper for label + input + hint/error.
@@ -50,7 +55,7 @@ export function Field({ label, hint, error, icon, children }) {
     };
     // Replaces the `:has(.ui-field__icon) .ui-input { padding-left }` selector:
     // when an icon is present, push the control's text past it.
-    if (icon) props.className = cx(child.props.className, 'pl-[22px]');
+    if (icon) props.className = cn(child.props.className, 'pl-[22px]');
     return React.cloneElement(child, props);
   });
 
@@ -97,32 +102,41 @@ export function Field({ label, hint, error, icon, children }) {
 
 /**
  * Input — text / number / email / url input.
- * Replaces bare <input className="input-base" />.
+ * Backed by the shadcn <Input> shell + the OmniVoice size scale.
  */
 export const Input = forwardRef(function Input({ size = 'md', className = '', ...rest }, ref) {
-  return <input ref={ref} className={cx(SHELL, SIZE[size] || SIZE.md, className)} {...rest} />;
+  return <ShadcnInput ref={ref} className={cn(fieldSizeVariants({ size }), className)} {...rest} />;
 });
 
 /**
  * Textarea — multi-line input with optional auto-sizing.
+ * Backed by the shadcn <Textarea> shell; `field-sizing-fixed` keeps the classic
+ * rows-driven sizing the call sites expect (shadcn defaults to content-sizing).
  */
 export const Textarea = forwardRef(function Textarea(
   { size = 'md', rows = 3, className = '', ...rest },
   ref,
 ) {
   return (
-    <textarea
+    <ShadcnTextarea
       ref={ref}
       rows={rows}
-      className={cx(SHELL, SIZE[size] || SIZE.md, 'min-h-[60px] resize-y leading-[1.5]', className)}
+      className={cn(
+        fieldSizeVariants({ size }),
+        'field-sizing-fixed min-h-[60px] resize-y leading-[1.5]',
+        className,
+      )}
       {...rest}
     />
   );
 });
 
 /**
- * Select — styled native select (keeps keyboard + accessibility for free).
- * The `ui-select` class carries the caret (data-URI arrow) from Input.css.
+ * Select — styled NATIVE select (keeps keyboard + accessibility + the
+ * `onChange={(e) => …}` event shape every call site relies on). Wears the same
+ * shadcn shell as Input via `inputBaseClass`; the `ui-select` class carries the
+ * caret (data-URI arrow) from residual.css. `block` neutralises the shell's
+ * `flex` so the native control renders normally.
  */
 export const Select = forwardRef(function Select(
   { size = 'md', className = '', children, ...rest },
@@ -131,7 +145,12 @@ export const Select = forwardRef(function Select(
   return (
     <select
       ref={ref}
-      className={cx(SHELL, SIZE[size] || SIZE.md, 'ui-select', className)}
+      className={cn(
+        inputBaseClass,
+        fieldSizeVariants({ size }),
+        'ui-select block cursor-pointer',
+        className,
+      )}
       {...rest}
     >
       {children}

@@ -1,6 +1,6 @@
 # Migration — OmniVoice `ui/` Primitives → shadcn/ui (Tailwind v4)
 
-**Status:** Foundation landed · **Drafted:** 2026-06-30 · **Type:** Incremental component-library adoption, no intended visual change
+**Status:** Foundation landed · P1 form primitives landed (Input/Select/Textarea/Slider backed by shadcn; Table foundation added) · **Drafted:** 2026-06-30 · **Type:** Incremental component-library adoption, no intended visual change
 **Owner stance:** wants a clean, conventional component base (shadcn) without re-skinning the app · **This plan's recommendation:** adopt shadcn *primitives* behind the existing prop APIs, themed by the OmniVoice palette via a token bridge; migrate in waves; never big-bang. See §6.
 
 ## Why
@@ -73,7 +73,7 @@ The existing `ui/*` primitives have call sites all over the app. The migration m
 | `Button.jsx` (`primary`/`subtle`/`ghost`/`danger`/`chip`/`preset`/`icon`, `size sm/md`, `loading`, `block`, `leading/trailing`) | `components/ui/button.tsx` | `primary→default`, `subtle→outline`, `ghost→ghost`, `danger→destructive`; `chip`/`preset`/`icon` stay as OmniVoice-only variants added to the `cva` map; `size md→default`; `loading` (spinner + disable), `block` (`w-full`), `leading/trailing` (slot children) wrapped in the JS layer |
 | `Input.jsx` `Input` | `components/ui/input.tsx` | `size sm/md/lg` → extend the shadcn `cva` (shadcn ships one size) or map to padding classes; `aria-invalid` already shared |
 | `Input.jsx` `Textarea` | `npx shadcn add textarea` | same `size` bridge |
-| `Input.jsx` `Select` | keep native + `ui-select` caret, or `npx shadcn add select` (Radix) — decide per call-site needs |
+| `Input.jsx` `Select` | **Decided: kept NATIVE** + `ui-select` caret, wearing the shadcn shell (`inputBaseClass`). The Radix `select.tsx` was added to `components/ui/` for *new* call sites, but the primitive stays native because DubSegmentTable/CompareModal/GeneralTab depend on `onChange={(e) => …e.target.value}`, which Radix's value-only `onValueChange` would break |
 | `Input.jsx` `Field` | keep as a composition wrapper around `shadcn label` + control |
 | `Badge.jsx` | `npx shadcn add badge` | `tone` → `variant` map |
 | `Tabs.jsx` | `npx shadcn add tabs` (Radix; already a dep) | `items`/`value`/`onChange` → controlled `Tabs` |
@@ -94,6 +94,13 @@ Init + token bridge + `cn()` + 2 proof components + baselines + this doc. No app
 ### P1 — Primitives (swap implementation behind existing APIs)
 Convert `ui/Button.jsx` and `ui/Input.jsx` into thin wrappers over `components/ui/button.tsx` / `input.tsx`, porting the OmniVoice-only variants into the shadcn `cva`. Add a baseline-PR → conversion-PR pair per primitive (same recipe as the CSS→Tailwind plan §4). Then `Badge`, `Tabs`, `Progress`, `Slider`, `Segmented`, `Panel` one at a time.
 - **Success:** the visual harness shows the existing component specs (`Button`, `Input`, …) unchanged within tolerance after each swap; call sites untouched.
+
+**Landed (form/data primitives).** `ui/Input.jsx` (`Input`/`Textarea`/`Select`/`Field`) and `ui/Slider.jsx` now wrap the shadcn components, exports + prop APIs unchanged:
+- `input.tsx` exports `inputBaseClass` (the shell, no behaviour change — `ShadcnInput` baseline byte-identical); new `textarea.tsx`, `select.tsx` (+`@radix-ui/react-select`), `slider.tsx`, `table.tsx` added to `components/ui/`.
+- `Input`/`Textarea` render the shadcn components; a small `fieldSizeVariants` `cva` (named palette utilities, tailwind-merge-clean) restores the OmniVoice padding-based `sm/md/lg` scale + filled `bg-bg-elev-2` over the shell.
+- `Select` stays native (see §4); `Slider` keeps its number-based `onChange` + label/value-bubble chrome around the shadcn `Slider`, tuned via the `data-slot` track/thumb selectors.
+- **`Table` deliberately NOT rerouted.** `ui/Table.jsx` is a flex-`<div>` chrome wrapper whose `.ui-table*`/`.segment-table` global classes (Table.css) are a SHARED CONTRACT used directly by ModelsTable / DubSegmentTable / EngineCompatibilityMatrix (virtualised react-window lists needing the div/flex layout, not a semantic `<table>`). The shadcn `table.tsx` is provided for new tabular data only; `Table.jsx` and its global classes are untouched. Its toolbar inherits the shadcn-backed `Input`/`Button` for free.
+- **Verified:** only the 3 `Input-*` baselines moved (palette-coherent across default/midnight/catppuccin); `Slider`/`Table` stayed within tolerance. `vitest` 641 green; `oxlint` 0 errors; `oxfmt --check` clean; `vite build` green; `bun install --frozen-lockfile` in sync.
 
 ### P2 — Usages (adopt shadcn directly where it's cleaner)
 New UI uses `@/components/ui/*` directly. High-traffic surfaces (Settings tabs, dialogs) migrate off the wrappers to native shadcn where the prop bridge adds no value. `npx shadcn add dialog/dropdown-menu/tooltip` to replace the hand-wrapped Radix usages (these need `tw-animate-css`, already imported).

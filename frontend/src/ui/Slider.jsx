@@ -1,10 +1,12 @@
 import React, { forwardRef, useId } from 'react';
-import * as RadixSlider from '@radix-ui/react-slider';
+import { cn } from '@/lib/utils';
+import { Slider as ShadcnSlider } from '@/components/ui/slider.tsx';
 
 /**
  * Slider — styled horizontal range input.
- * Backed by @radix-ui/react-slider for full keyboard accessibility
- * (arrow keys, Home/End) and proper ARIA value announcements.
+ * Backed by the shadcn <Slider> (which wraps @radix-ui/react-slider for full
+ * keyboard accessibility — arrow keys, Home/End — and ARIA value announcements),
+ * with the OmniVoice label + value-bubble chrome around it. Prop API unchanged.
  *
  * @param value       controlled number
  * @param onChange    receives the new number (not the event)
@@ -44,24 +46,24 @@ const Slider = forwardRef(function Slider(
         </label>
       )}
       <div className="flex items-center gap-[var(--space-3)]">
-        <RadixSlider.Root
+        <ShadcnSlider
           ref={ref}
           id={id}
-          className="relative flex h-5 flex-1 cursor-pointer touch-none select-none items-center"
+          // Tighten the shadcn track to the OmniVoice scale via the data-slot
+          // selectors the component exposes; keeps the thin-track look.
+          className={cn(
+            'flex-1 cursor-pointer',
+            isSm
+              ? '[&_[data-slot=slider-track]]:h-[2px] [&_[data-slot=slider-thumb]]:size-2.5'
+              : '[&_[data-slot=slider-track]]:h-[3px] [&_[data-slot=slider-thumb]]:size-3',
+          )}
           value={[Number(value)]}
           onValueChange={([v]) => onChange?.(v)}
           min={min}
           max={max}
           step={step}
           {...rest}
-        >
-          <RadixSlider.Track
-            className={`relative grow rounded-[2px] bg-[rgba(255,255,255,0.08)] ${isSm ? 'h-[2px]' : 'h-[3px]'}`}
-          >
-            <RadixSlider.Range className="absolute h-full rounded-[2px] bg-brand" />
-          </RadixSlider.Track>
-          <RadixSlider.Thumb className="block h-3 w-3 cursor-pointer rounded-full border-2 border-bg bg-fg shadow-[var(--shadow-sm)] outline-none [transition:transform_var(--dur-fast)_var(--ease-spring),background_var(--dur-fast)] hover:[transform:scale(1.25)] focus-visible:shadow-[var(--focus-ring)] active:bg-brand active:[transform:scale(1.1)]" />
-        </RadixSlider.Root>
+        />
         {showValue && (
           <span
             className={`min-w-[2em] shrink-0 rounded-sm border border-border bg-bg-elev-2 text-center font-mono text-fg tabular-nums ${
