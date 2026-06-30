@@ -128,7 +128,7 @@ function StorageRow({ label, desc, path, need, check, onPick }) {
           {path}
         </code>
       </div>
-      <div className="frs-row__gauge">
+      <div className="frs-row__gauge flex flex-col items-end gap-[0.3rem] min-w-[170px] shrink-0">
         {(blocked || tight) && check?.freeBytes != null && (
           <CapacityMeter need={need} free={check.freeBytes} />
         )}
@@ -158,7 +158,10 @@ function StorageRow({ label, desc, path, need, check, onPick }) {
 /** Section: engraved mono title + rule — structure by line, not by box. */
 function Panel({ title, delay, className = '', children }) {
   return (
-    <section className={`frs-panel frs-rise ${className}`} style={{ '--rise': delay }}>
+    <section
+      className={`frs-panel frs-rise relative flex flex-col gap-[0.6rem] ${className}`}
+      style={{ '--rise': delay }}
+    >
       <h2 className="frs-panel__title">{title}</h2>
       {children}
     </section>
@@ -196,7 +199,7 @@ function OptionCard({ active, disabled, onSelect, name, desc, badge, compact }) 
       onClick={() => !disabled && onSelect()}
     >
       <span className="frs-opt__led" aria-hidden="true" />
-      <span className="frs-opt__head">
+      <span className="frs-opt__head flex items-baseline gap-[0.5rem] flex-wrap">
         <span className="frs-opt__name">{name}</span>
         {badge && <span className="frs-opt__badge">{badge}</span>}
       </span>
@@ -396,14 +399,18 @@ export default function FirstRunSetup() {
   return (
     <div className="frs">
       <div className="frs__atmo" aria-hidden="true" />
-      <div className="frs__deck">
+      <div className="frs__deck relative w-full max-w-[1240px] m-0 flex flex-col flex-[1_1_auto] min-h-0 min-w-0">
         <div className="frs__scroll">
           {/* ── Masthead: waveform + serif headline + serial plate ────────── */}
-          <header className="frs__mast frs-rise" style={{ '--rise': 0 }} data-tauri-drag-region>
+          <header
+            className="frs__mast frs-rise pb-[0.4rem]"
+            style={{ '--rise': 0 }}
+            data-tauri-drag-region
+          >
             <Waveform />
             {/* Journey rail: this page is stage 1 of the install flow. */}
             <nav
-              className="frs-wsteps frs-wsteps--journey"
+              className="frs-wsteps frs-wsteps--journey flex items-center gap-[0.9rem] flex-wrap"
               aria-label={t('firstrun.title', 'Set up OmniVoice Studio')}
             >
               <span className="frs-wstep is-active">
@@ -419,7 +426,7 @@ export default function FirstRunSetup() {
                 {t('firstrun.stage_models', 'Models & engines')}
               </span>
             </nav>
-            <div className="frs__mast-row">
+            <div className="frs__mast-row flex items-end justify-between gap-[2rem] mt-[1rem]">
               <div className="frs__mast-text">
                 <h1 className="frs__title">{t('firstrun.title', 'Set up OmniVoice Studio')}</h1>
                 <p className="frs__subtitle">
@@ -429,11 +436,11 @@ export default function FirstRunSetup() {
                   )}
                 </p>
               </div>
-              <div className="frs__mast-meta">
+              <div className="frs__mast-meta flex flex-col items-end gap-[0.45rem] shrink-0">
                 {/* Language + download region live together: the two "where am
                   I" choices, settled before anything else. Custom mirrors
                   hang quietly beneath them, where they belong. */}
-                <div className="frs__mast-selects">
+                <div className="frs__mast-selects flex items-center gap-[0.5rem]">
                   <select
                     className="frs-select frs-select--lang"
                     value={locale}
@@ -508,8 +515,8 @@ export default function FirstRunSetup() {
           </header>
 
           {/* ── Wide deck: storage rail (left) + decision rail (right) ────── */}
-          <div className="frs__grid">
-            <div className="frs__col frs__col--main">
+          <div className="frs__grid grid grid-cols-[minmax(0,7fr)_minmax(0,5fr)] gap-[1.1rem] items-start">
+            <div className="frs__col frs__col--main flex flex-col gap-[1.1rem] min-w-0">
               <Panel title={t('firstrun.mode_title', 'Install mode')} delay={1}>
                 <div
                   className="frs__options frs__options--two"
@@ -612,10 +619,13 @@ export default function FirstRunSetup() {
               </Panel>
             </div>
 
-            <div className="frs__col frs__col--side">
+            <div className="frs__col frs__col--side flex flex-col gap-[1.1rem] min-w-0">
               <Panel title={t('firstrun.compute_title', 'Compute')} delay={2}>
                 {hwLine && (
-                  <div className="frs__hw" title={hwLine}>
+                  <div
+                    className="frs__hw flex items-center gap-[0.5rem] p-[0.1rem_0.1rem_0.3rem] min-w-0"
+                    title={hwLine}
+                  >
                     <span className="frs__hw-dot" aria-hidden="true" />
                     <span className="frs__hw-label">
                       {t('firstrun.compute_detected', { defaultValue: 'Detected' })}
@@ -755,7 +765,7 @@ export default function FirstRunSetup() {
               )}
             </p>
           )}
-          <div className="frs__foot-row">
+          <div className="frs__foot-row flex items-center justify-between gap-[1rem]">
             <span className="frs__totals">
               <span className="frs__plate">OVS&thinsp;·&thinsp;v{APP_VERSION}</span>
               <span className="frs__totals-sep" aria-hidden="true">

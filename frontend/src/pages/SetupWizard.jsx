@@ -84,7 +84,7 @@ function PreflightPanel({ report, loading, onRecheck }) {
   }
   if (!report) return null;
   return (
-    <section className="frs-panel">
+    <section className="frs-panel relative flex flex-col gap-[0.6rem]">
       <h2 className="frs-panel__title">
         {t('setup.system_preflight')}
         <button type="button" className="frs-btn frs-btn--quiet swiz-recheck" onClick={onRecheck}>
@@ -122,7 +122,7 @@ function StepperNav({ step, maxUnlockedStep, onStep }) {
     t('setup.try_dictation'),
   ];
   return (
-    <nav className="frs-wsteps" data-tauri-drag-region>
+    <nav className="frs-wsteps flex items-center gap-[0.9rem] flex-wrap" data-tauri-drag-region>
       {stepLabels.map((label, i) => (
         <button
           key={label}
@@ -200,16 +200,16 @@ export default function SetupWizard({ onReady }) {
   return (
     <div className="frs swiz">
       <div className="frs__atmo" aria-hidden="true" />
-      <div className="frs__deck">
+      <div className="frs__deck relative w-full max-w-[1240px] m-0 flex flex-col flex-[1_1_auto] min-h-0 min-w-0">
         {/* ── Masthead: identical identity to setup + install acts ──────── */}
         <header
-          className="frs__mast frs-rise"
+          className="frs__mast frs-rise pb-[0.4rem]"
           style={{ '--rise': 0 }}
           data-tauri-drag-region
           onDoubleClick={doubleClickMaximize}
         >
           <Waveform />
-          <div className="frs__mast-row">
+          <div className="frs__mast-row flex items-end justify-between gap-[2rem] mt-[1rem]">
             <div className="frs__mast-text">
               <h1 className="frs__title" data-tauri-drag-region>
                 OmniVoice Studio
@@ -218,7 +218,7 @@ export default function SetupWizard({ onReady }) {
                 {STEP_SUBTITLES[step]}
               </p>
             </div>
-            <div className="frs__mast-meta">
+            <div className="frs__mast-meta flex flex-col items-end gap-[0.45rem] shrink-0">
               <StepperNav
                 step={step}
                 maxUnlockedStep={preflightOk ? (modelsReady ? 2 : 1) : 0}
@@ -262,7 +262,10 @@ export default function SetupWizard({ onReady }) {
             ride in the same inventory. */}
         {step === 1 && (
           <div className="swiz-slide" key="step-1">
-            <section className="frs-panel frs-rise" style={{ '--rise': 1 }}>
+            <section
+              className="frs-panel frs-rise relative flex flex-col gap-[0.6rem]"
+              style={{ '--rise': 1 }}
+            >
               <h2 className="frs-panel__title">{t('firstrun.stage_models', 'Models & engines')}</h2>
               <WizardLibrary />
               {!modelsReady && status?.missing?.length > 0 && (
@@ -297,7 +300,10 @@ export default function SetupWizard({ onReady }) {
             parity rule: some users genuinely don't want dictation). */}
         {step === 2 && (
           <div className="swiz-slide" key="step-2">
-            <section className="frs-panel frs-rise" style={{ '--rise': 1 }}>
+            <section
+              className="frs-panel frs-rise relative flex flex-col gap-[0.6rem]"
+              style={{ '--rise': 1 }}
+            >
               <h2 className="frs-panel__title">{t('setup.try_dictation')}</h2>
               <div className="frs-embed">
                 <DictationDemo />
@@ -331,7 +337,7 @@ export default function SetupWizard({ onReady }) {
         )}
 
         <footer className="frs__foot">
-          <div className="frs__foot-row">
+          <div className="frs__foot-row flex items-center justify-between gap-[1rem]">
             <span className="frs__totals">
               {t('setup.footer_downloads')}
               <span className="frs__totals-sep" aria-hidden="true">

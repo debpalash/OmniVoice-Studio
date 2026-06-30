@@ -46,17 +46,9 @@
 
 /* ── Deck: the whole console, borderless, wide ─────────────────────────── */
 
-.frs__deck {
-  position: relative;
-  width: 100%;
-  max-width: 1240px;
-  margin: 0;
-  flex: 1 1 auto;           /* fill the column height; the inner region scrolls */
-  min-height: 0;            /* let the inner scroll region shrink + scroll */
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
+/* .frs__deck base layout → Tailwind utilities in JSX
+   (relative w-full max-w-[1240px] m-0 flex flex-col flex-[1_1_auto] min-h-0 min-w-0).
+   The --focus max-width override below stays in CSS. */
 
 /* Scrollable region: masthead + decision grid. Only this scrolls — the action
    bar (.frs__foot) is a sibling below it, so it stays flush at the bottom with
@@ -95,17 +87,11 @@
 
 /* ── Masthead ──────────────────────────────────────────────────────────── */
 
-.frs__mast {
-  padding-bottom: 0.4rem;
-}
+/* .frs__mast → Tailwind utility in JSX (pb-[0.4rem]). */
 
-.frs__mast-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 2rem;
-  margin-top: 1rem;
-}
+/* .frs__mast-row base → Tailwind utilities in JSX
+   (flex items-end justify-between gap-[2rem] mt-[1rem]); the max-width:620px
+   column override below stays in CSS. */
 
 .frs__title {
   margin: 0;
@@ -125,19 +111,9 @@
   min-height: 2.4em;          /* two lines reserved — stage swaps don't shift */
 }
 
-.frs__mast-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.45rem;
-  flex-shrink: 0;
-}
-
-.frs__mast-selects {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
+/* .frs__mast-meta → Tailwind utilities in JSX
+   (flex flex-col items-end gap-[0.45rem] shrink-0).
+   .frs__mast-selects → flex items-center gap-[0.5rem]. */
 
 /* Mirrors hang under the region select they extend; the fields open as a
    right-aligned column so the masthead stays balanced. */
@@ -192,29 +168,16 @@
 
 /* ── Wide grid: storage rail (left, 7fr) + decision rail (right, 5fr) ──── */
 
-.frs__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  gap: 1.1rem;
-  align-items: start;
-}
-
-.frs__col {
-  display: flex;
-  flex-direction: column;
-  gap: 1.1rem;
-  min-width: 0;
-}
+/* .frs__grid base → Tailwind utilities in JSX
+   (grid grid-cols-[minmax(0,7fr)_minmax(0,5fr)] gap-[1.1rem] items-start);
+   the responsive single-column overrides below stay in CSS.
+   .frs__col → flex flex-col gap-[1.1rem] min-w-0. */
 
 /* ── Sections: no boxes — an engraved title rule and whitespace carry the
    structure. Borders appear only where state demands them. ─────────────── */
 
-.frs-panel {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
+/* .frs-panel base → Tailwind utilities in JSX
+   (relative flex flex-col gap-[0.6rem]); .frs-panel__title rule stays below. */
 
 .frs-panel__title {
   margin: 0;
@@ -294,12 +257,8 @@
     inset 0 0 2px rgba(255, 255, 255, 0.5);
 }
 
-.frs-opt__head {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
+/* .frs-opt__head → Tailwind utilities in JSX
+   (flex items-baseline gap-[0.5rem] flex-wrap). */
 
 .frs-opt__name { font-size: 0.82rem; font-weight: 650; letter-spacing: 0.01em; }
 
@@ -332,13 +291,8 @@
 
 /* ── Detected hardware readout (Compute panel) ─────────────────────────── */
 
-.frs__hw {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.1rem 0.1rem 0.3rem;
-  min-width: 0;
-}
+/* .frs__hw → Tailwind utilities in JSX
+   (flex items-center gap-[0.5rem] p-[0.1rem_0.1rem_0.3rem] min-w-0). */
 
 .frs__hw-dot {
   width: 6px;
@@ -416,15 +370,9 @@
   margin-top: 0.1rem;
 }
 
-.frs-row__gauge {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.3rem;
-  min-width: 170px;
-  flex-shrink: 0;
-}
-
+/* .frs-row__gauge base → Tailwind utilities in JSX
+   (flex flex-col items-end gap-[0.3rem] min-w-[170px] shrink-0); the
+   descendant meter rule + the max-width:980px overrides stay in CSS. */
 .frs-row__gauge .frs-meter { width: 100%; }
 
 /* One quiet line: "needs ~9 GB · 449 GB free". */
@@ -582,12 +530,9 @@
   border-top: 1px solid var(--frs-line);
 }
 
-.frs__foot-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
+/* .frs__foot-row base → Tailwind utilities in JSX
+   (flex items-center justify-between gap-[1rem]); the max-width:620px
+   column override below stays in CSS. */
 
 .frs__totals {
   display: inline-flex;
@@ -819,11 +764,7 @@
 
 /* ── Live log panel ────────────────────────────────────────────────────── */
 
-.frs-log__bar {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
+/* .frs-log__bar → Tailwind utilities in JSX (flex items-center gap-[0.4rem]). */
 
 .frs-log__meta {
   margin-left: auto;
@@ -860,12 +801,8 @@
   background: color-mix(in srgb, var(--frs-accent) 8%, transparent);
 }
 
-.frs-banner__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
+/* .frs-banner__actions base → Tailwind utilities in JSX
+   (flex items-center gap-[0.4rem]); the --end modifier stays in CSS. */
 .frs-banner__actions--end { justify-content: flex-end; margin-top: 0.3rem; }
 
 /* ── Failure hints ─────────────────────────────────────────────────────── */
@@ -885,12 +822,9 @@
 
 /* ── Wizard chrome (model/engine selection act) ────────────────────────── */
 
-.frs-wsteps {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  flex-wrap: wrap;
-}
+/* .frs-wsteps base → Tailwind utilities in JSX
+   (flex items-center gap-[0.9rem] flex-wrap); the --journey variant (gap +
+   margin-top + cursor) stays in CSS. */
 
 .frs-wstep {
   display: inline-flex;

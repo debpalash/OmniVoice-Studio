@@ -376,13 +376,17 @@ export function BootstrapSplash({ stage, message }) {
   return (
     <div className="frs">
       <div className="frs__atmo" aria-hidden="true" />
-      <div className="frs__deck frs__deck--focus">
+      <div className="frs__deck frs__deck--focus relative w-full max-w-[1240px] m-0 flex flex-col flex-[1_1_auto] min-h-0 min-w-0">
         {/* ── Masthead: same identity as the setup screen ───────────────── */}
-        <header className="frs__mast frs-rise" style={{ '--rise': 0 }} data-tauri-drag-region>
+        <header
+          className="frs__mast frs-rise pb-[0.4rem]"
+          style={{ '--rise': 0 }}
+          data-tauri-drag-region
+        >
           <Waveform />
           {/* Journey rail: act 2 of the install flow (setup already done). */}
           <nav
-            className="frs-wsteps frs-wsteps--journey"
+            className="frs-wsteps frs-wsteps--journey flex items-center gap-[0.9rem] flex-wrap"
             aria-label={t('bootstrap.title', 'OmniVoice Studio')}
           >
             <span className="frs-wstep is-done">
@@ -398,15 +402,15 @@ export function BootstrapSplash({ stage, message }) {
               {t('firstrun.stage_models', 'Models & engines')}
             </span>
           </nav>
-          <div className="frs__mast-row">
+          <div className="frs__mast-row flex items-end justify-between gap-[2rem] mt-[1rem]">
             <div className="frs__mast-text">
               <h1 className="frs__title">{t('bootstrap.title', 'OmniVoice Studio')}</h1>
               <p className="frs__subtitle" aria-live="polite">
                 {label}
               </p>
             </div>
-            <div className="frs__mast-meta">
-              <div className="frs__mast-selects">
+            <div className="frs__mast-meta flex flex-col items-end gap-[0.45rem] shrink-0">
+              <div className="frs__mast-selects flex items-center gap-[0.5rem]">
                 <select
                   className="frs-select frs-select--lang"
                   value={locale}
@@ -444,7 +448,7 @@ export function BootstrapSplash({ stage, message }) {
                 lang: LANGUAGES.find((l) => l.code === systemLang)?.label || systemLang,
               })}
             </span>
-            <div className="frs-banner__actions">
+            <div className="frs-banner__actions flex items-center gap-[0.4rem]">
               <button type="button" className="frs-btn frs-btn--quiet" onClick={acceptSuggestion}>
                 {t('common.yes', 'Yes')}
               </button>
@@ -456,7 +460,10 @@ export function BootstrapSplash({ stage, message }) {
         )}
 
         {isFailed ? (
-          <section className="frs-panel frs-rise" style={{ '--rise': 1 }}>
+          <section
+            className="frs-panel frs-rise relative flex flex-col gap-[0.6rem]"
+            style={{ '--rise': 1 }}
+          >
             <h2 className="frs-panel__title">{t('bootstrap.failed', 'Setup failed')}</h2>
             <pre className="frs__error">{message || t('bootstrap.unknown_error')}</pre>
             <div className="frs-hints">
@@ -469,7 +476,7 @@ export function BootstrapSplash({ stage, message }) {
                 ))}
               </ul>
             </div>
-            <div className="frs-banner__actions frs-banner__actions--end">
+            <div className="frs-banner__actions frs-banner__actions--end flex items-center gap-[0.4rem]">
               <button
                 type="button"
                 className="frs-btn frs-btn--quiet"
@@ -490,7 +497,10 @@ export function BootstrapSplash({ stage, message }) {
             </div>
           </section>
         ) : (
-          <section className="frs-panel frs-rise" style={{ '--rise': 1 }}>
+          <section
+            className="frs-panel frs-rise relative flex flex-col gap-[0.6rem]"
+            style={{ '--rise': 1 }}
+          >
             <h2 className="frs-panel__title">{t('firstrun.installing_title', 'Installing')}</h2>
             {/* Overall journey meter — the same LED segments as the setup
                 screen's disk gate, now measuring progress instead of space. */}
@@ -546,14 +556,17 @@ export function BootstrapSplash({ stage, message }) {
         )}
 
         {/* ── Live log — always reachable, quiet by design ───────────────── */}
-        <section className="frs-panel frs-rise" style={{ '--rise': 2 }}>
+        <section
+          className="frs-panel frs-rise relative flex flex-col gap-[0.6rem]"
+          style={{ '--rise': 2 }}
+        >
           <h2 className="frs-panel__title">
             {t('firstrun.activity_title', 'Activity')}
             <span className="frs-log__meta">
               {logs.length > 0 && t('bootstrap.lines', { count: logs.length })}
             </span>
           </h2>
-          <div className="frs-log__bar">
+          <div className="frs-log__bar flex items-center gap-[0.4rem]">
             <button
               type="button"
               className="frs-btn frs-btn--quiet"
@@ -585,7 +598,7 @@ export function BootstrapSplash({ stage, message }) {
         </section>
 
         <footer className="frs__foot frs-rise" style={{ '--rise': 3 }}>
-          <div className="frs__foot-row">
+          <div className="frs__foot-row flex items-center justify-between gap-[1rem]">
             <span className="frs__totals">
               <span className="frs__plate">OVS&thinsp;·&thinsp;v{APP_VERSION}</span>
             </span>
