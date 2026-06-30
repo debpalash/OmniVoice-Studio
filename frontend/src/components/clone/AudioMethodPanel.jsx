@@ -48,7 +48,10 @@ export default function AudioMethodPanel({
           />
           <label
             htmlFor="audio-upload"
-            className="file-drag clone-drop-zone"
+            // Migrated `.file-drag` → utilities. `is-dragging` stays as a JS-toggled
+            // state marker, matched via the `[&.is-dragging]:` variant. `clone-drop-zone`
+            // (out-of-scope `clone-` family, unlayered) still wins the padding override.
+            className="clone-drop-zone [border:1px_dashed_var(--chrome-border-strong)] rounded-[var(--chrome-radius-pill)] p-[10px] text-center cursor-pointer flex flex-col items-center gap-[4px] bg-transparent [transition:border-color_var(--dur-fast),background_var(--dur-fast)] hover:[border-color:var(--chrome-accent)] hover:bg-[var(--chrome-accent-bg)] [&.is-dragging]:[border-color:var(--chrome-accent)] [&.is-dragging]:bg-[var(--chrome-accent-bg)]"
             onDragOver={(e) => {
               e.preventDefault();
               e.currentTarget.classList.add('is-dragging');
@@ -68,7 +71,7 @@ export default function AudioMethodPanel({
             }}
           >
             <UploadCloud color="#a89984" size={18} />
-            <p>
+            <p className="m-0 text-[0.72rem] text-[color:var(--chrome-fg-muted)] font-[family-name:var(--font-sans)] font-medium">
               {refAudio ? <span className="text-fg">{refAudio.name}</span> : t('clone.drop_audio')}
             </p>
           </label>

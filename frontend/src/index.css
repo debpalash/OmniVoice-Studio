@@ -564,18 +564,8 @@ input[type="range"]::-webkit-slider-thumb:active {
 .tags-container { display: flex; flex-wrap: wrap; gap: 3px; margin: 4px 0; }
 /* .tag-btn → Tailwind utilities inline in clone/ScriptPanel.jsx (P4). */
 
-.file-drag {
-  border: 1px dashed var(--chrome-border-strong); border-radius: var(--chrome-radius-pill); padding: 10px;
-  text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px;
-  background: transparent;
-  transition: background var(--dur-fast), border-color var(--dur-fast);
-}
-.file-drag:hover,
-.file-drag.is-dragging {
-  border-color: var(--chrome-accent); background: var(--chrome-accent-bg);
-  box-shadow: none;
-}
-.file-drag p { margin: 0; font-size: 0.72rem; color: var(--chrome-fg-muted); }
+/* .file-drag (+ :hover/.is-dragging/p) → Tailwind utilities inline in
+   clone/AudioMethodPanel.jsx (P4). is-dragging stays a JS-toggled marker. */
 
 /* ═══ PROGRESS — migrated to ui/Progress primitive. ═══ */
 
@@ -1169,108 +1159,11 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
 }
 
 /* ── Searchable combobox ─────────────────────────────────── */
-.ss-wrap { position: relative; width: 100%; }
-.ss-trigger {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 6px; width: 100%; text-align: left; cursor: pointer;
-  font-family: inherit;
-}
-.ss-trigger:disabled { cursor: not-allowed; opacity: 0.5; }
-.ss-trigger-label {
-  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  color: var(--text-primary);
-}
-.ss-chev { color: var(--text-secondary); flex-shrink: 0; }
-.ss-sm .ss-trigger { font-size: 0.65rem; padding: 4px 8px; }
-.ss-md .ss-trigger { font-size: 0.75rem; }
-
-.ss-pop {
-  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-  z-index: 1000;
-  background: rgba(29, 32, 33, 0.98);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-  backdrop-filter: blur(12px);
-  overflow: hidden;
-  min-width: 220px;
-  max-width: min(360px, 90vw);
-}
-.ss-search {
-  position: relative;
-  padding: 6px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  display: flex; align-items: center; gap: 6px;
-}
-.ss-search-icon {
-  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-  color: var(--text-secondary); pointer-events: none;
-}
-.ss-search-input {
-  flex: 1; width: 100%;
-  background: rgba(0,0,0,0.25);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 4px;
-  padding: 5px 8px 5px 24px;
-  font-size: 0.72rem; color: var(--text-primary);
-  outline: none;
-  font-family: inherit;
-}
-.ss-search-input:focus { border-color: rgba(250, 189, 47, 0.4); }
-
-.ss-list {
-  max-height: 280px;
-  overflow-y: auto;
-  padding: 2px 0;
-}
-.ss-list::-webkit-scrollbar { width: 6px; }
-.ss-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-
-.ss-group-label {
-  padding: 4px 10px 2px;
-  font-size: 0.55rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-secondary);
-  opacity: 0.7;
-  display: flex; align-items: center; gap: 4px;
-}
-
-.ss-option {
-  display: flex; align-items: center; gap: 6px;
-  padding: 5px 10px;
-  font-size: 0.72rem;
-  color: var(--text-primary);
-  cursor: pointer;
-  user-select: none;
-}
-.ss-option:hover, .ss-option.ss-hl {
-  background: rgba(250, 189, 47, 0.12);
-  color: var(--accent);
-}
-.ss-option.ss-sel {
-  background: rgba(142, 192, 124, 0.1);
-  color: #8ec07c;
-  font-weight: 500;
-}
-.ss-option.ss-sel.ss-hl {
-  background: rgba(250, 189, 47, 0.18);
-}
-.ss-option-label {
-  flex: 1;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.ss-kind-icon { color: var(--text-secondary); flex-shrink: 0; }
-.ss-check { color: #8ec07c; flex-shrink: 0; }
-
-.ss-empty, .ss-more {
-  padding: 8px 10px;
-  font-size: 0.65rem;
-  color: var(--text-secondary);
-  font-style: italic;
-  text-align: center;
-}
-.ss-more { border-top: 1px solid rgba(255,255,255,0.04); }
+/* .ss-* (wrap/trigger/label/chev/sm/md/pop/search/list/group-label/option/
+   hl/sel/kind-icon/check/empty/more) → Tailwind utilities inline in
+   components/SearchableSelect.jsx (P4). The `ss-wrap` class name is retained
+   there (no longer styled here) only as a marker for residual.css's
+   `.voice-selector > .ss-wrap` cross-file child combinator. */
 
 /* ═══ PERSONALITY PASS — shared controls ═══ */
 
@@ -1390,23 +1283,9 @@ textarea.input-base::placeholder {
   margin-top: 4px;
 }
 
-/* Searchable select popup — flat chrome, no warm gradient, no wobbly radius */
-.ss-popover, .ss-menu, .ss-dropdown {
-  background: var(--chrome-bg) !important;
-  border: 1px solid var(--chrome-border-strong) !important;
-  border-radius: var(--chrome-radius-pill) !important;
-  box-shadow: 0 14px 32px -14px rgba(0,0,0,0.6) !important;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-.ss-item {
-  font-family: var(--font-sans) !important;
-  color: var(--chrome-fg-muted) !important;
-}
-.ss-item:hover, .ss-item.active, .ss-highlighted {
-  background: var(--chrome-hover-bg) !important;
-  color: var(--chrome-fg) !important;
-}
+/* .ss-popover/.ss-menu/.ss-dropdown/.ss-item/.ss-highlighted removed (P4):
+   dead rules — SearchableSelect.jsx renders its own popup markup and never
+   emitted these class names (zero JSX usages). */
 
 /* Transcript block */
 .override-toggle + div {
@@ -1466,18 +1345,8 @@ div[role="dialog"].audio-trimmer {
   border-radius: var(--chrome-radius-pill);
 }
 
-/* File drop zone — flat chrome, no squircle, no hover lift */
-.file-drag {
-  border-radius: var(--chrome-radius-pill) !important;
-  transition: border-color var(--dur-fast), background var(--dur-fast);
-}
-.file-drag:hover {
-  transform: none;
-}
-.file-drag p {
-  font-family: var(--font-sans);
-  font-weight: 500;
-}
+/* File drop zone — flat chrome → Tailwind utilities inline in
+   clone/AudioMethodPanel.jsx (P4). */
 
 /* Section tab buttons (sidebar) */
 /* Sidebar item — compact card with hover-reveal actions */
