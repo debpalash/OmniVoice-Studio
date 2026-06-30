@@ -22,6 +22,8 @@ import { audioUrl } from '../api/generate';
 import { consumeLongformStream } from '../utils/longformStream';
 import { useAppStore } from '../store';
 import VoiceSelector from '../components/VoiceSelector';
+import { Button } from '../ui';
+import { buttonVariants } from '@/components/ui/button.tsx';
 import './AudiobookTab.css';
 
 /**
@@ -248,7 +250,7 @@ export default function AudiobookTab({ profiles = [] }) {
         </div>
         <div className="audiobook-tab__actions flex flex-wrap items-center gap-[8px]">
           <label
-            className="ui-btn ui-btn--subtle"
+            className={buttonVariants({ variant: 'subtle', size: 'omniMd' })}
             style={{
               cursor: busy ? 'default' : 'pointer',
               display: 'inline-flex',
@@ -266,13 +268,13 @@ export default function AudiobookTab({ profiles = [] }) {
               style={{ display: 'none' }}
             />
           </label>
-          <button className="ui-btn ui-btn--subtle" onClick={onPreview} disabled={!canRun}>
+          <Button variant="subtle" onClick={onPreview} disabled={!canRun}>
             {planLoading ? <Loader size={14} className="spin" /> : null}{' '}
             {t('audiobook.preview_plan')}
-          </button>
-          <button className="ui-btn ui-btn--primary" onClick={onCreate} disabled={!canRun}>
+          </Button>
+          <Button variant="primary" onClick={onCreate} disabled={!canRun}>
             {generating ? <Loader size={14} className="spin" /> : null} {t('audiobook.create')}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -341,19 +343,19 @@ export default function AudiobookTab({ profiles = [] }) {
                       alt={t('audiobook.cover')}
                       style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 6 }}
                     />
-                    <button
-                      type="button"
-                      className="ui-btn ui-btn--icon"
+                    <Button
+                      variant="icon"
+                      iconSize="sm"
                       onClick={clearCover}
                       aria-label={t('audiobook.cover_remove')}
                       style={{ position: 'absolute', top: 4, right: 4 }}
                     >
                       <X size={14} />
-                    </button>
+                    </Button>
                   </>
                 ) : (
                   <label
-                    className="ui-btn ui-btn--subtle"
+                    className={buttonVariants({ variant: 'subtle', size: 'omniMd' })}
                     style={{
                       width: 96,
                       height: 96,
@@ -453,24 +455,24 @@ export default function AudiobookTab({ profiles = [] }) {
                   aria-label={t('audiobook.lex_say')}
                   style={{ flex: 1, minWidth: 0 }}
                 />
-                <button
-                  type="button"
-                  className="ui-btn ui-btn--icon"
+                <Button
+                  variant="icon"
+                  iconSize="sm"
                   onClick={() => removeLexRow(i)}
                   aria-label={t('audiobook.lex_remove')}
                 >
                   <X size={14} />
-                </button>
+                </Button>
               </div>
             ))}
-            <button
-              type="button"
-              className="ui-btn ui-btn--subtle"
+            <Button
+              variant="subtle"
               onClick={addLexRow}
+              leading={<Plus size={14} />}
               style={{ alignSelf: 'flex-start' }}
             >
-              <Plus size={14} /> {t('audiobook.lex_add')}
-            </button>
+              {t('audiobook.lex_add')}
+            </Button>
           </div>
 
           {/* Markup quick reference */}
@@ -516,7 +518,11 @@ export default function AudiobookTab({ profiles = [] }) {
               )}
               <audio controls src={audioUrl(output)} style={{ width: '100%' }} />
               <div style={{ marginTop: 8 }}>
-                <a className="ui-btn ui-btn--subtle" href={audioUrl(output)} download={output}>
+                <a
+                  className={buttonVariants({ variant: 'subtle', size: 'omniMd' })}
+                  href={audioUrl(output)}
+                  download={output}
+                >
                   <Download size={14} /> {t('audiobook.download')}
                 </a>
               </div>
@@ -532,8 +538,9 @@ export default function AudiobookTab({ profiles = [] }) {
                   return (
                     <li key={i} style={{ marginBottom: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <button
-                          className="ui-btn ui-btn--icon"
+                        <Button
+                          variant="icon"
+                          iconSize="sm"
                           onClick={() => onPreviewChapter(i)}
                           disabled={prev.loading || busy}
                           aria-label={t('audiobook.preview_chapter', { title: c.title })}
@@ -543,7 +550,7 @@ export default function AudiobookTab({ profiles = [] }) {
                           ) : (
                             <Play size={12} />
                           )}
-                        </button>
+                        </Button>
                         <strong>{c.title}</strong>{' '}
                         <span className="muted">
                           {t('audiobook.chapter_meta', {

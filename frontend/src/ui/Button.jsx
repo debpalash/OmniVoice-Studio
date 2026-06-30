@@ -2,13 +2,12 @@ import React, { forwardRef } from 'react';
 import { Loader } from 'lucide-react';
 import { Button as ShadcnButton } from '@/components/ui/button.tsx';
 import { cn } from '@/lib/utils';
-// Button.css is retained ONLY for external raw-class consumers (AudiobookTab.jsx
-// uses `.ui-btn--{subtle,primary,icon}` directly). The Button COMPONENT below is
-// now a thin wrapper over the shadcn/ui Button (src/components/ui/button.tsx) and
-// no longer emits the `.ui-btn*` classes, so the stylesheet does not double-apply
-// to component instances. Keep the import so those legacy classes still load
-// app-wide.
-import './Button.css';
+// The legacy global `.ui-btn*` stylesheet (ui/Button.css) was deleted in the
+// shadcn P4 button wave: every consumer now goes through this component (or the
+// shadcn `buttonVariants()` helper for non-<button> elements like the Audiobook
+// download <a> / file-picker <label>), so the Button COMPONENT below is a thin
+// wrapper over the shadcn/ui Button (src/components/ui/button.tsx) — it emits the
+// CVA palette utilities, no `.ui-btn*` classes remain anywhere.
 
 /* ── Prop API → shadcn CVA mapping ───────────────────────────────────────
  * This wrapper preserves the exact legacy prop surface (variant / size /

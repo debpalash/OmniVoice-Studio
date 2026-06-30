@@ -2567,8 +2567,8 @@ svg.lucide {
 /* ── Native file inputs — themed "Choose file" chip ───────────────────────
    Every in-app file input is currently hidden behind a themed label, but
    any visible <input type="file"> (future panels, the LAN/share web view,
-   dev surfaces) must not render the OS-default grey button. Mirrors
-   .ui-btn--subtle (ui/Button.css). */
+   dev surfaces) must not render the OS-default grey button. Mirrors the
+   shadcn `subtle` button variant (components/ui/button.tsx). */
 input[type="file"] {
   color: var(--chrome-fg-muted);
   font-size: var(--text-xs);
