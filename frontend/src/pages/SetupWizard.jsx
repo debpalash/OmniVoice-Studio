@@ -15,7 +15,9 @@ const doubleClickMaximize = async () => {
     if (!('__TAURI_INTERNALS__' in window)) return;
     const { getCurrentWindow } = await import('@tauri-apps/api/window');
     getCurrentWindow().toggleMaximize();
-  } catch { /* non-tauri preview — ignore */ }
+  } catch {
+    /* non-tauri preview — ignore */
+  }
 };
 
 /** Shorten an absolute path for display: /Users/foo/.cache/x → ~/.cache/x */
@@ -24,7 +26,9 @@ function shortenPath(p) {
   try {
     const home = p.match(/^(\/Users\/[^/]+|\/home\/[^/]+|C:\\Users\\[^\\]+)/)?.[0];
     if (home) return p.replace(home, '~');
-  } catch { /* fallthrough */ }
+  } catch {
+    /* fallthrough */
+  }
   return p;
 }
 
@@ -34,27 +38,34 @@ async function revealPath(path) {
     if (!('__TAURI_INTERNALS__' in window)) return;
     const { revealItemInDir } = await import('@tauri-apps/plugin-opener');
     await revealItemInDir(path);
-  } catch { /* ignore — probably web preview */ }
+  } catch {
+    /* ignore — probably web preview */
+  }
 }
 
 /** Whisper waveform — the journey's signature, same as setup + install. */
 function Waveform({ bars = 96 }) {
   const heights = useMemo(
-    () => Array.from({ length: bars }, (_, i) => {
-      const t = i / bars;
-      const v = Math.abs(
-        Math.sin(t * Math.PI * 7.3) * 0.55 +
-        Math.sin(t * Math.PI * 2.1 + 1.2) * 0.3 +
-        Math.sin(t * Math.PI * 17.0 + 0.4) * 0.15
-      );
-      return 0.18 + v * 0.82;
-    }),
+    () =>
+      Array.from({ length: bars }, (_, i) => {
+        const t = i / bars;
+        const v = Math.abs(
+          Math.sin(t * Math.PI * 7.3) * 0.55 +
+            Math.sin(t * Math.PI * 2.1 + 1.2) * 0.3 +
+            Math.sin(t * Math.PI * 17.0 + 0.4) * 0.15,
+        );
+        return 0.18 + v * 0.82;
+      }),
     [bars],
   );
   return (
     <div className="frs-wave" aria-hidden="true">
       {heights.map((h, i) => (
-        <span key={i} className="frs-wave__bar" style={{ '--h': h, '--d': `${(i * 73) % 1400}ms` }} />
+        <span
+          key={i}
+          className="frs-wave__bar"
+          style={{ '--h': h, '--d': `${(i * 73) % 1400}ms` }}
+        />
       ))}
     </div>
   );
@@ -81,18 +92,18 @@ function PreflightPanel({ report, loading, onRecheck }) {
         </button>
       </h2>
       <div className="swiz-checks">
-      {report.checks.map((c) => (
-        <div key={c.id} className={`frs-check frs-check--${c.status}`}>
-          <span className="frs-check__led" aria-hidden="true" />
-          <div className="frs-check__body">
-            <span className="frs-check__title">{c.label}</span>
-            <span className="frs-check__detail" title={c.detail}>{c.detail}</span>
-            {c.fix && c.status !== 'pass' && (
-              <span className="frs-check__fix">→ {c.fix}</span>
-            )}
+        {report.checks.map((c) => (
+          <div key={c.id} className={`frs-check frs-check--${c.status}`}>
+            <span className="frs-check__led" aria-hidden="true" />
+            <div className="frs-check__body">
+              <span className="frs-check__title">{c.label}</span>
+              <span className="frs-check__detail" title={c.detail}>
+                {c.detail}
+              </span>
+              {c.fix && c.status !== 'pass' && <span className="frs-check__fix">→ {c.fix}</span>}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
       </div>
     </section>
   );
@@ -105,18 +116,20 @@ function StepperNav({ step, maxUnlockedStep, onStep }) {
   // Three steps, no welcome ceremony: the journey rail + setup page already
   // oriented the user. Models + engines share one act (required gate +
   // optional extras).
-  const stepLabels = [t('setup.system_check'), t('firstrun.stage_models', 'Models & engines'), t('setup.try_dictation')];
+  const stepLabels = [
+    t('setup.system_check'),
+    t('firstrun.stage_models', 'Models & engines'),
+    t('setup.try_dictation'),
+  ];
   return (
     <nav className="frs-wsteps" data-tauri-drag-region>
       {stepLabels.map((label, i) => (
         <button
           key={label}
           type="button"
-          className={[
-            'frs-wstep',
-            step === i ? 'is-active' : '',
-            step > i ? 'is-done' : '',
-          ].filter(Boolean).join(' ')}
+          className={['frs-wstep', step === i ? 'is-active' : '', step > i ? 'is-done' : '']
+            .filter(Boolean)
+            .join(' ')}
           // The rail mirrors the continue buttons' gates: jumping past an
           // unmet gate (preflight, required models) would let "Enter studio"
           // clear setupNeeded without the checks ever passing.
@@ -124,8 +137,8 @@ function StepperNav({ step, maxUnlockedStep, onStep }) {
           onClick={() => i <= maxUnlockedStep && onStep(i)}
           aria-current={step === i ? 'step' : undefined}
           aria-label={
-            t('setup.step_aria', { num: i + 1, label, defaultValue: 'Step {{num}}: {{label}}' })
-            + (step > i ? ` (${t('setup.step_completed', 'completed')})` : '')
+            t('setup.step_aria', { num: i + 1, label, defaultValue: 'Step {{num}}: {{label}}' }) +
+            (step > i ? ` (${t('setup.step_completed', 'completed')})` : '')
           }
         >
           <span className="frs-wstep__led" aria-hidden="true" />
@@ -157,9 +170,9 @@ export default function SetupWizard({ onReady }) {
 
   // TanStack Query — shared cache, auto-refetch on step 2 (models)
   const setupQuery = useSetupStatus();
-  const preQuery   = usePreflight();
-  const status     = setupQuery.data ?? null;
-  const pre        = preQuery.data ?? null;
+  const preQuery = usePreflight();
+  const status = setupQuery.data ?? null;
+  const pre = preQuery.data ?? null;
   const preLoading = preQuery.isLoading;
 
   // Poll setup status every 4s while on Models step
@@ -169,7 +182,9 @@ export default function SetupWizard({ onReady }) {
     return () => clearInterval(iv);
   }, [step, setupQuery]);
 
-  const recheckPreflight = useCallback(() => { preQuery.refetch(); }, [preQuery]);
+  const recheckPreflight = useCallback(() => {
+    preQuery.refetch();
+  }, [preQuery]);
 
   const modelsReady = !!status?.models_ready;
   const preflightOk = !!pre?.ok;
@@ -186,7 +201,6 @@ export default function SetupWizard({ onReady }) {
     <div className="frs swiz">
       <div className="frs__atmo" aria-hidden="true" />
       <div className="frs__deck">
-
         {/* ── Masthead: identical identity to setup + install acts ──────── */}
         <header
           className="frs__mast frs-rise"
@@ -197,8 +211,12 @@ export default function SetupWizard({ onReady }) {
           <Waveform />
           <div className="frs__mast-row">
             <div className="frs__mast-text">
-              <h1 className="frs__title" data-tauri-drag-region>OmniVoice Studio</h1>
-              <p className="frs__subtitle" data-tauri-drag-region>{STEP_SUBTITLES[step]}</p>
+              <h1 className="frs__title" data-tauri-drag-region>
+                OmniVoice Studio
+              </h1>
+              <p className="frs__subtitle" data-tauri-drag-region>
+                {STEP_SUBTITLES[step]}
+              </p>
             </div>
             <div className="frs__mast-meta">
               <StepperNav
@@ -229,7 +247,9 @@ export default function SetupWizard({ onReady }) {
               >
                 <span className="frs-btn__led" aria-hidden="true" />
                 {preflightOk
-                  ? (pre?.has_warnings ? t('setup.continue_warn') : t('setup.continue_ok'))
+                  ? pre?.has_warnings
+                    ? t('setup.continue_warn')
+                    : t('setup.continue_ok')
                   : t('setup.continue_blocked')}
               </button>
             </div>
@@ -247,8 +267,7 @@ export default function SetupWizard({ onReady }) {
               <WizardLibrary />
               {!modelsReady && status?.missing?.length > 0 && (
                 <p className="swiz-note swiz-note--warn">
-                  {t('setup.still_needed')}{' '}
-                  {status.missing.map(m => m.label).join(', ')}
+                  {t('setup.still_needed')} {status.missing.map((m) => m.label).join(', ')}
                 </p>
               )}
             </section>
@@ -315,7 +334,9 @@ export default function SetupWizard({ onReady }) {
           <div className="frs__foot-row">
             <span className="frs__totals">
               {t('setup.footer_downloads')}
-              <span className="frs__totals-sep" aria-hidden="true">·</span>
+              <span className="frs__totals-sep" aria-hidden="true">
+                ·
+              </span>
               {t('setup.cache_label', 'Model cache')} <code>{shortenPath(cachePath)}</code>
               {'__TAURI_INTERNALS__' in window && cachePath && (
                 <button

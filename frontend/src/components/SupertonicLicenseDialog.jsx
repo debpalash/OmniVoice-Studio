@@ -86,16 +86,12 @@ export default function SupertonicLicenseDialog({ open, onClose, onAccepted }) {
           {t('license.title')}
         </h2>
 
-        <p className="supertonic-license__intro">
-          {t('license.intro')}
-        </p>
+        <p className="supertonic-license__intro">{t('license.intro')}</p>
 
         <div className="supertonic-license__sections">
           <section className="supertonic-license__section">
             <h3>{t('license.sdk_heading')}</h3>
-            <p>
-              {t('license.sdk_desc')}
-            </p>
+            <p>{t('license.sdk_desc')}</p>
             <a
               href={LICENSE_URLS.code}
               target="_blank"
@@ -108,9 +104,7 @@ export default function SupertonicLicenseDialog({ open, onClose, onAccepted }) {
 
           <section className="supertonic-license__section">
             <h3>{t('license.model_heading')}</h3>
-            <p>
-              {t('license.model_desc')}
-            </p>
+            <p>{t('license.model_desc')}</p>
             <a
               href={LICENSE_URLS.model}
               target="_blank"
@@ -122,9 +116,7 @@ export default function SupertonicLicenseDialog({ open, onClose, onAccepted }) {
           </section>
         </div>
 
-        <p className="supertonic-license__footer">
-          {t('license.footer')}
-        </p>
+        <p className="supertonic-license__footer">{t('license.footer')}</p>
 
         <div className="supertonic-license__actions">
           <button
@@ -149,4 +141,3 @@ export default function SupertonicLicenseDialog({ open, onClose, onAccepted }) {
     </div>
   );
 }
-

@@ -12,8 +12,8 @@ import { segmentGenInputs } from '../utils/segments';
 import { commitMoveResize } from '../utils/timeline';
 
 export default function useSegmentEditing() {
-  const dubSegments = useAppStore(s => s.dubSegments);
-  const setDubSegments = useAppStore(s => s.setDubSegments);
+  const dubSegments = useAppStore((s) => s.dubSegments);
+  const setDubSegments = useAppStore((s) => s.setDubSegments);
 
   // ── Undo / Redo ──
   const undoStack = useRef([]);
@@ -47,15 +47,21 @@ export default function useSegmentEditing() {
 
   // Stable handlers for virtualized segment rows. Use functional updates so
   // they don't depend on dubSegments identity (avoids row re-renders).
-  const segmentEditField = useCallback((id, field, value) => {
-    pushUndo(dubSegments);
-    setDubSegments(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
-  }, [dubSegments]);
+  const segmentEditField = useCallback(
+    (id, field, value) => {
+      pushUndo(dubSegments);
+      setDubSegments((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
+    },
+    [dubSegments],
+  );
 
-  const segmentDelete = useCallback((id) => {
-    pushUndo(dubSegments);
-    setDubSegments(prev => prev.filter(s => s.id !== id));
-  }, [dubSegments]);
+  const segmentDelete = useCallback(
+    (id) => {
+      pushUndo(dubSegments);
+      setDubSegments((prev) => prev.filter((s) => s.id !== id));
+    },
+    [dubSegments],
+  );
 
   // Timeline drag/resize commit (#280, item 3). Called ONCE per gesture by
   // SegmentTrack (live drag positions stay in component state); keyboard
@@ -64,111 +70,156 @@ export default function useSegmentEditing() {
   // edited the wrong segment after a split. commitMoveResize() preserves
   // fingerprint parity (move never touches generation inputs; resize only
   // changes `speed`, dropping the key at 1.0).
-  const segmentMoveResize = useCallback((id, { start, end }, opts = {}) => {
-    const { undo = true } = opts;
-    if (undo) pushUndo(dubSegments);
-    setDubSegments(prev => prev.map(s =>
-      String(s.id) === String(id) ? commitMoveResize(s, { start, end }) : s));
-  }, [dubSegments]);
+  const segmentMoveResize = useCallback(
+    (id, { start, end }, opts = {}) => {
+      const { undo = true } = opts;
+      if (undo) pushUndo(dubSegments);
+      setDubSegments((prev) =>
+        prev.map((s) => (String(s.id) === String(id) ? commitMoveResize(s, { start, end }) : s)),
+      );
+    },
+    [dubSegments],
+  );
 
   // Timeline selection — syncs the segment table (scroll + highlight).
   const [timelineSelSegId, setTimelineSelSegId] = useState(null);
 
-  const segmentRestoreOriginal = useCallback((id) => {
-    pushUndo(dubSegments);
-    setDubSegments(prev => prev.map(s => s.id === id
-      ? { ...s, text: s.text_original || s.text, translate_error: undefined }
-      : s));
-  }, [dubSegments]);
+  const segmentRestoreOriginal = useCallback(
+    (id) => {
+      pushUndo(dubSegments);
+      setDubSegments((prev) =>
+        prev.map((s) =>
+          s.id === id ? { ...s, text: s.text_original || s.text, translate_error: undefined } : s,
+        ),
+      );
+    },
+    [dubSegments],
+  );
 
   // Segment multi-select
   const [selectedSegIds, setSelectedSegIds] = useState(new Set());
   const lastSelectedIdxRef = useRef(null);
 
-  const toggleSegSelect = useCallback((id, idx, shift) => {
-    setSelectedSegIds(prev => {
-      const next = new Set(prev);
-      if (shift && lastSelectedIdxRef.current !== null) {
-        const [a, b] = [lastSelectedIdxRef.current, idx].sort((x, y) => x - y);
-        for (let i = a; i <= b; i++) {
-          const s = dubSegments[i];
-          if (s) next.add(s.id);
+  const toggleSegSelect = useCallback(
+    (id, idx, shift) => {
+      setSelectedSegIds((prev) => {
+        const next = new Set(prev);
+        if (shift && lastSelectedIdxRef.current !== null) {
+          const [a, b] = [lastSelectedIdxRef.current, idx].sort((x, y) => x - y);
+          for (let i = a; i <= b; i++) {
+            const s = dubSegments[i];
+            if (s) next.add(s.id);
+          }
+        } else {
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          lastSelectedIdxRef.current = idx;
         }
-      } else {
-        if (next.has(id)) next.delete(id); else next.add(id);
-        lastSelectedIdxRef.current = idx;
-      }
-      return next;
-    });
-  }, [dubSegments]);
+        return next;
+      });
+    },
+    [dubSegments],
+  );
 
   const selectAllSegs = useCallback((segs) => {
-    setSelectedSegIds(new Set(segs.map(s => s.id)));
+    setSelectedSegIds(new Set(segs.map((s) => s.id)));
   }, []);
 
   const clearSegSelection = useCallback(() => setSelectedSegIds(new Set()), []);
 
   // Bulk actions
-  const bulkApplyToSelected = useCallback((patch) => {
-    if (!selectedSegIds.size) return;
-    pushUndo(dubSegments);
-    setDubSegments(prev => prev.map(s => selectedSegIds.has(s.id) ? { ...s, ...patch } : s));
-  }, [dubSegments, selectedSegIds]);
+  const bulkApplyToSelected = useCallback(
+    (patch) => {
+      if (!selectedSegIds.size) return;
+      pushUndo(dubSegments);
+      setDubSegments((prev) =>
+        prev.map((s) => (selectedSegIds.has(s.id) ? { ...s, ...patch } : s)),
+      );
+    },
+    [dubSegments, selectedSegIds],
+  );
 
   const bulkDeleteSelected = useCallback(async () => {
     if (!selectedSegIds.size) return;
-    if (!(await askConfirm(`Delete ${selectedSegIds.size} selected segment${selectedSegIds.size === 1 ? '' : 's'}?`))) return;
+    if (
+      !(await askConfirm(
+        `Delete ${selectedSegIds.size} selected segment${selectedSegIds.size === 1 ? '' : 's'}?`,
+      ))
+    )
+      return;
     pushUndo(dubSegments);
-    setDubSegments(prev => prev.filter(s => !selectedSegIds.has(s.id)));
+    setDubSegments((prev) => prev.filter((s) => !selectedSegIds.has(s.id)));
     setSelectedSegIds(new Set());
   }, [dubSegments, selectedSegIds]);
 
   // Split at text cursor. Time split proportional to cursor position in text.
-  const segmentSplit = useCallback((id, cursorPos) => {
-    pushUndo(dubSegments);
-    setDubSegments(prev => {
-      const idx = prev.findIndex(s => s.id === id);
-      if (idx < 0) return prev;
-      const seg = prev[idx];
-      const text = seg.text || '';
-      const pos = Math.max(1, Math.min(cursorPos, text.length - 1));
-      const ratio = text.length > 0 ? pos / text.length : 0.5;
-      const midT = seg.start + (seg.end - seg.start) * ratio;
-      const left = { ...seg, id: `${seg.id}_a`, text: text.slice(0, pos).trim(), end: midT, text_original: text.slice(0, pos).trim() };
-      const right = { ...seg, id: `${seg.id}_b`, text: text.slice(pos).trim(), start: midT, text_original: text.slice(pos).trim() };
-      return [...prev.slice(0, idx), left, right, ...prev.slice(idx + 1)];
-    });
-  }, [dubSegments]);
+  const segmentSplit = useCallback(
+    (id, cursorPos) => {
+      pushUndo(dubSegments);
+      setDubSegments((prev) => {
+        const idx = prev.findIndex((s) => s.id === id);
+        if (idx < 0) return prev;
+        const seg = prev[idx];
+        const text = seg.text || '';
+        const pos = Math.max(1, Math.min(cursorPos, text.length - 1));
+        const ratio = text.length > 0 ? pos / text.length : 0.5;
+        const midT = seg.start + (seg.end - seg.start) * ratio;
+        const left = {
+          ...seg,
+          id: `${seg.id}_a`,
+          text: text.slice(0, pos).trim(),
+          end: midT,
+          text_original: text.slice(0, pos).trim(),
+        };
+        const right = {
+          ...seg,
+          id: `${seg.id}_b`,
+          text: text.slice(pos).trim(),
+          start: midT,
+          text_original: text.slice(pos).trim(),
+        };
+        return [...prev.slice(0, idx), left, right, ...prev.slice(idx + 1)];
+      });
+    },
+    [dubSegments],
+  );
 
   // Merge segment with its next sibling.
-  const segmentMerge = useCallback((id) => {
-    pushUndo(dubSegments);
-    setDubSegments(prev => {
-      const idx = prev.findIndex(s => s.id === id);
-      if (idx < 0 || idx >= prev.length - 1) return prev;
-      const a = prev[idx];
-      const b = prev[idx + 1];
-      const merged = {
-        ...a,
-        text: `${a.text || ''} ${b.text || ''}`.trim(),
-        text_original: `${a.text_original || a.text || ''} ${b.text_original || b.text || ''}`.trim(),
-        end: b.end,
-      };
-      return [...prev.slice(0, idx), merged, ...prev.slice(idx + 2)];
-    });
-  }, [dubSegments]);
+  const segmentMerge = useCallback(
+    (id) => {
+      pushUndo(dubSegments);
+      setDubSegments((prev) => {
+        const idx = prev.findIndex((s) => s.id === id);
+        if (idx < 0 || idx >= prev.length - 1) return prev;
+        const a = prev[idx];
+        const b = prev[idx + 1];
+        const merged = {
+          ...a,
+          text: `${a.text || ''} ${b.text || ''}`.trim(),
+          text_original:
+            `${a.text_original || a.text || ''} ${b.text_original || b.text || ''}`.trim(),
+          end: b.end,
+        };
+        return [...prev.slice(0, idx), merged, ...prev.slice(idx + 2)];
+      });
+    },
+    [dubSegments],
+  );
 
   // Direction editor state
   const [directionSegId, setDirectionSegId] = useState(null);
   const openDirection = useCallback((seg) => setDirectionSegId(seg.id), []);
   const closeDirection = useCallback(() => setDirectionSegId(null), []);
-  const saveDirection = useCallback((value) => {
-    if (!directionSegId) return;
-    pushUndo(dubSegments);
-    setDubSegments(prev => prev.map(s => s.id === directionSegId
-      ? { ...s, direction: value || undefined }
-      : s));
-  }, [directionSegId, dubSegments]);
+  const saveDirection = useCallback(
+    (value) => {
+      if (!directionSegId) return;
+      pushUndo(dubSegments);
+      setDubSegments((prev) =>
+        prev.map((s) => (s.id === directionSegId ? { ...s, direction: value || undefined } : s)),
+      );
+    },
+    [directionSegId, dubSegments],
+  );
 
   // Incremental plan — tracks which segments changed since last generate
   const [lastGenFingerprints, setLastGenFingerprints] = useState({});
@@ -183,7 +234,7 @@ export default function useSegmentEditing() {
       // Same payload shape as the generate request (utils/segments.js) so
       // stored fingerprints actually match unchanged segments (#281).
       const res = await apiPost('/tools/incremental', {
-        segments: dubSegments.map(s => ({ id: String(s.id), ...segmentGenInputs(s) })),
+        segments: dubSegments.map((s) => ({ id: String(s.id), ...segmentGenInputs(s) })),
         stored_hashes: lastGenFingerprints,
       });
       setIncrementalPlan({ stale: res.stale, fresh: res.fresh });
@@ -194,21 +245,38 @@ export default function useSegmentEditing() {
 
   return {
     // Undo/Redo
-    undo, redo, pushUndo, editSegments,
+    undo,
+    redo,
+    pushUndo,
+    editSegments,
     // Per-segment operations
-    segmentEditField, segmentDelete, segmentRestoreOriginal,
-    segmentSplit, segmentMerge, segmentMoveResize,
+    segmentEditField,
+    segmentDelete,
+    segmentRestoreOriginal,
+    segmentSplit,
+    segmentMerge,
+    segmentMoveResize,
     // Timeline selection (waveform ↔ table sync)
-    timelineSelSegId, setTimelineSelSegId,
+    timelineSelSegId,
+    setTimelineSelSegId,
     // Multi-select
-    selectedSegIds, setSelectedSegIds,
-    toggleSegSelect, selectAllSegs, clearSegSelection,
-    bulkApplyToSelected, bulkDeleteSelected,
+    selectedSegIds,
+    setSelectedSegIds,
+    toggleSegSelect,
+    selectAllSegs,
+    clearSegSelection,
+    bulkApplyToSelected,
+    bulkDeleteSelected,
     // Direction editor
-    directionSegId, openDirection, closeDirection, saveDirection,
+    directionSegId,
+    openDirection,
+    closeDirection,
+    saveDirection,
     // Incremental plan
-    lastGenFingerprints, setLastGenFingerprints,
-    incrementalPlan, setIncrementalPlan,
+    lastGenFingerprints,
+    setLastGenFingerprints,
+    incrementalPlan,
+    setIncrementalPlan,
     recomputeIncremental,
   };
 }

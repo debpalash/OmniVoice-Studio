@@ -1,13 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Activity, RefreshCw, CheckCircle, AlertCircle, Square, Circle,
-  Trash2, Download, XCircle, Film, Globe,
+  Activity,
+  RefreshCw,
+  CheckCircle,
+  AlertCircle,
+  Square,
+  Circle,
+  Trash2,
+  Download,
+  XCircle,
+  Film,
+  Globe,
 } from 'lucide-react';
 import { Panel, Button, Badge, Tabs } from '../ui';
-import {
-  listBatchJobs, cancelBatchJob, deleteBatchJob, enqueueBatchJob,
-} from '../api/batch';
+import { listBatchJobs, cancelBatchJob, deleteBatchJob, enqueueBatchJob } from '../api/batch';
 import { API } from '../api/client';
 import BatchAddDialog from '../components/BatchAddDialog';
 import toast from 'react-hot-toast';
@@ -22,29 +29,32 @@ import './BatchQueue.css';
  */
 
 const STATUS_TONE = {
-  queued:    { tone: 'neutral', icon: Circle,      label: 'batch.status_queued'    },
-  running:   { tone: 'brand',   icon: Activity,    label: 'batch.status_running'   },
-  done:      { tone: 'success', icon: CheckCircle, label: 'batch.status_done'      },
-  failed:    { tone: 'danger',  icon: AlertCircle, label: 'batch.status_failed'    },
-  cancelled: { tone: 'warn',    icon: Square,      label: 'batch.status_cancelled' },
+  queued: { tone: 'neutral', icon: Circle, label: 'batch.status_queued' },
+  running: { tone: 'brand', icon: Activity, label: 'batch.status_running' },
+  done: { tone: 'success', icon: CheckCircle, label: 'batch.status_done' },
+  failed: { tone: 'danger', icon: AlertCircle, label: 'batch.status_failed' },
+  cancelled: { tone: 'warn', icon: Square, label: 'batch.status_cancelled' },
 };
 
 const STAGE_LABELS = {
-  extract:    'batch.stage_extract',
+  extract: 'batch.stage_extract',
   transcribe: 'batch.stage_transcribe',
-  translate:  'batch.stage_translate',
-  generate:   'batch.stage_generate',
-  mix:        'batch.stage_mix',
-  done:       'batch.stage_complete',
+  translate: 'batch.stage_translate',
+  generate: 'batch.stage_generate',
+  mix: 'batch.stage_mix',
+  done: 'batch.stage_complete',
 };
 
 export default function BatchQueue({ onBack }) {
   const { t } = useTranslation();
-  const TABS = useMemo(() => [
-    { id: 'active',   label: t('batch.active'),    icon: Activity     },
-    { id: 'done',     label: t('batch.completed'), icon: CheckCircle },
-    { id: 'failed',   label: t('batch.failed'),    icon: AlertCircle  },
-  ], [t]);
+  const TABS = useMemo(
+    () => [
+      { id: 'active', label: t('batch.active'), icon: Activity },
+      { id: 'done', label: t('batch.completed'), icon: CheckCircle },
+      { id: 'failed', label: t('batch.failed'), icon: AlertCircle },
+    ],
+    [t],
+  );
   const [tab, setTab] = useState('active');
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -62,7 +72,9 @@ export default function BatchQueue({ onBack }) {
     }
   }, [tab]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
   // Poll active tab every 3s for live progress
   useEffect(() => {
@@ -71,64 +83,93 @@ export default function BatchQueue({ onBack }) {
     return () => clearInterval(iv);
   }, [tab, reload]);
 
-  const handleEnqueue = useCallback(async (files, settings) => {
-    const langCodes = settings.langs.map(l => l.code);
-    let success = 0;
-    for (const file of files) {
-      try {
-        await enqueueBatchJob(file, langCodes, settings.voiceId || undefined, settings.preserveBg);
-        success++;
-      } catch (e) {
-        toastErrorWithReport(t('batch.enqueue_failed', { name: file.name, message: e.message }), e);
+  const handleEnqueue = useCallback(
+    async (files, settings) => {
+      const langCodes = settings.langs.map((l) => l.code);
+      let success = 0;
+      for (const file of files) {
+        try {
+          await enqueueBatchJob(
+            file,
+            langCodes,
+            settings.voiceId || undefined,
+            settings.preserveBg,
+          );
+          success++;
+        } catch (e) {
+          toastErrorWithReport(
+            t('batch.enqueue_failed', { name: file.name, message: e.message }),
+            e,
+          );
+        }
       }
-    }
-    if (success > 0) {
-      toast.success(t('batch.enqueued', { count: success }));
-      setTab('active');
-      reload();
-    }
-  }, [t, reload]);
+      if (success > 0) {
+        toast.success(t('batch.enqueued', { count: success }));
+        setTab('active');
+        reload();
+      }
+    },
+    [t, reload],
+  );
 
-  const handleCancel = useCallback(async (id) => {
-    try {
-      await cancelBatchJob(id);
-      toast.success(t('batch.job_cancelled'));
-      reload();
-    } catch (e) {
-      toastErrorWithReport(t('batch.cancel_failed', { message: e.message }), e);
-    }
-  }, [t, reload]);
+  const handleCancel = useCallback(
+    async (id) => {
+      try {
+        await cancelBatchJob(id);
+        toast.success(t('batch.job_cancelled'));
+        reload();
+      } catch (e) {
+        toastErrorWithReport(t('batch.cancel_failed', { message: e.message }), e);
+      }
+    },
+    [t, reload],
+  );
 
-  const handleDelete = useCallback(async (id) => {
-    try {
-      await deleteBatchJob(id);
-      toast.success(t('batch.job_deleted'));
-      reload();
-    } catch (e) {
-      toastErrorWithReport(t('batch.delete_failed', { message: e.message }), e);
-    }
-  }, [t, reload]);
+  const handleDelete = useCallback(
+    async (id) => {
+      try {
+        await deleteBatchJob(id);
+        toast.success(t('batch.job_deleted'));
+        reload();
+      } catch (e) {
+        toastErrorWithReport(t('batch.delete_failed', { message: e.message }), e);
+      }
+    },
+    [t, reload],
+  );
 
   return (
     <div className="batch-queue">
       <div className="batch-queue__bar">
-        {onBack && <Button variant="ghost" size="sm" onClick={onBack}>{t('batch.back')}</Button>}
-        <h1><Activity size={15} /> {t('batch.title')}</h1>
+        {onBack && (
+          <Button variant="ghost" size="sm" onClick={onBack}>
+            {t('batch.back')}
+          </Button>
+        )}
+        <h1>
+          <Activity size={15} /> {t('batch.title')}
+        </h1>
         <div className="batch-queue__bar-spacer" />
-        <Button variant="subtle" size="sm" onClick={reload} loading={loading} leading={<RefreshCw size={11} />}>
+        <Button
+          variant="subtle"
+          size="sm"
+          onClick={reload}
+          loading={loading}
+          leading={<RefreshCw size={11} />}
+        >
           {t('batch.refresh')}
         </Button>
-        <Button variant="primary" size="sm" onClick={() => setAddOpen(true)} leading={<PlusIcon size={11} />}>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => setAddOpen(true)}
+          leading={<PlusIcon size={11} />}
+        >
           {t('batch.add_videos')}
         </Button>
       </div>
 
-      <Tabs
-        items={TABS}
-        value={tab}
-        onChange={setTab}
-        className="batch-queue__tabs"
-      />
+      <Tabs items={TABS} value={tab} onChange={setTab} className="batch-queue__tabs" />
 
       {jobs.length === 0 && !loading && (
         <Panel variant="flat" padding="lg" className="batch-queue__empty">
@@ -148,29 +189,28 @@ export default function BatchQueue({ onBack }) {
       )}
 
       <div className="batch-queue__list">
-        {jobs.map(j => (
-          <JobCard
-            key={j.id}
-            job={j}
-            onCancel={handleCancel}
-            onDelete={handleDelete}
-            t={t}
-          />
+        {jobs.map((j) => (
+          <JobCard key={j.id} job={j} onCancel={handleCancel} onDelete={handleDelete} t={t} />
         ))}
       </div>
 
-      <BatchAddDialog
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        onEnqueue={handleEnqueue}
-      />
+      <BatchAddDialog open={addOpen} onClose={() => setAddOpen(false)} onEnqueue={handleEnqueue} />
     </div>
   );
 }
 
 function PlusIcon({ size }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <line x1="12" y1="5" x2="12" y2="19" />
       <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
@@ -183,17 +223,20 @@ function JobCard({ job, onCancel, onDelete, t }) {
 
   const ageLabel = formatAge((Date.now() / 1000 - (job.created_at || 0)) * 1000);
 
-  const duration = job.finished_at && job.started_at
-    ? Math.max(0, job.finished_at - job.started_at)
-    : null;
+  const duration =
+    job.finished_at && job.started_at ? Math.max(0, job.finished_at - job.started_at) : null;
 
   const progress = job.progress;
-  const stageLabelKey = progress ? (STAGE_LABELS[progress.stage] || progress.stage) : null;
+  const stageLabelKey = progress ? STAGE_LABELS[progress.stage] || progress.stage : null;
   const stageLabel = stageLabelKey ? t(stageLabelKey) : null;
   const pct = progress?.percent ?? 0;
 
   return (
-    <Panel variant="flat" padding="md" className={`batch-queue__card batch-queue__card--${job.status}`}>
+    <Panel
+      variant="flat"
+      padding="md"
+      className={`batch-queue__card batch-queue__card--${job.status}`}
+    >
       <div className="batch-queue__card-head">
         <Badge tone={st.tone} dot>
           <StIcon size={10} /> {t(st.label)}
@@ -202,7 +245,10 @@ function JobCard({ job, onCancel, onDelete, t }) {
           <Film size={10} /> {job.filename}
         </span>
         <span className="batch-queue__card-spacer" />
-        <span className="batch-queue__card-age" title={new Date((job.created_at || 0) * 1000).toLocaleString()}>
+        <span
+          className="batch-queue__card-age"
+          title={new Date((job.created_at || 0) * 1000).toLocaleString()}
+        >
           {ageLabel}
         </span>
       </div>
@@ -210,8 +256,10 @@ function JobCard({ job, onCancel, onDelete, t }) {
       {/* Languages */}
       <div className="batch-queue__card-langs">
         <Globe size={9} />
-        {job.langs.map(l => (
-          <span key={l} className="batch-queue__card-lang">{l}</span>
+        {job.langs.map((l) => (
+          <span key={l} className="batch-queue__card-lang">
+            {l}
+          </span>
         ))}
       </div>
 
@@ -231,7 +279,10 @@ function JobCard({ job, onCancel, onDelete, t }) {
             )}
             {progress.current_segment != null && progress.total_segments && (
               <span className="batch-queue__progress-segs">
-                {t('batch.seg', { current: progress.current_segment, total: progress.total_segments })}
+                {t('batch.seg', {
+                  current: progress.current_segment,
+                  total: progress.total_segments,
+                })}
               </span>
             )}
             <span className="batch-queue__progress-pct">{pct}%</span>
@@ -272,12 +323,22 @@ function JobCard({ job, onCancel, onDelete, t }) {
       {/* Actions */}
       <div className="batch-queue__card-actions">
         {(job.status === 'queued' || job.status === 'running') && (
-          <Button variant="ghost" size="xs" onClick={() => onCancel(job.id)} leading={<XCircle size={10} />}>
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => onCancel(job.id)}
+            leading={<XCircle size={10} />}
+          >
             {t('batch.cancel')}
           </Button>
         )}
         {(job.status === 'done' || job.status === 'failed' || job.status === 'cancelled') && (
-          <Button variant="ghost" size="xs" onClick={() => onDelete(job.id)} leading={<Trash2 size={10} />}>
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => onDelete(job.id)}
+            leading={<Trash2 size={10} />}
+          >
             {t('batch.delete')}
           </Button>
         )}

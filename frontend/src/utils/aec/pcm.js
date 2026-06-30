@@ -5,7 +5,7 @@
 // Audio) so they can be unit-tested without an AudioContext.
 
 export const AEC_NEAR = 0x00; // microphone frame
-export const AEC_FAR = 0x01;  // playback-reference frame
+export const AEC_FAR = 0x01; // playback-reference frame
 
 /**
  * Convert Float32 samples in [-1, 1] to Int16Array (clamped). Mirrors the
@@ -33,9 +33,7 @@ export function tagFrame(int16, kind) {
   const pcm = int16 instanceof Int16Array ? int16 : new Int16Array(int16);
   const buf = new ArrayBuffer(1 + pcm.byteLength);
   new DataView(buf).setUint8(0, kind);
-  new Uint8Array(buf, 1).set(
-    new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength),
-  );
+  new Uint8Array(buf, 1).set(new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength));
   return buf;
 }
 

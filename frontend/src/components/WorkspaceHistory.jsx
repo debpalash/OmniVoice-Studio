@@ -14,8 +14,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  History, Fingerprint, Wand2, Film, Save, Lock, Download as DownloadIcon,
-  FolderOpen, Trash2,
+  History,
+  Fingerprint,
+  Wand2,
+  Film,
+  Save,
+  Lock,
+  Download as DownloadIcon,
+  FolderOpen,
+  Trash2,
 } from 'lucide-react';
 import WaveformPlayer from './WaveformPlayer';
 import { API } from '../api/client';
@@ -50,7 +57,9 @@ function LazyWaveform({ height = 36, className = '', ...rest }) {
     const node = ref.current;
     if (!node || visible) return;
     const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
+      ([entry]) => {
+        if (entry.isIntersecting) setVisible(true);
+      },
       { rootMargin: '100px' },
     );
     obs.observe(node);
@@ -61,7 +70,7 @@ function LazyWaveform({ height = 36, className = '', ...rest }) {
 }
 
 export default function WorkspaceHistory({
-  variant = 'voice',           // 'voice' (clone/design synth) | 'dub'
+  variant = 'voice', // 'voice' (clone/design synth) | 'dub'
   history = [],
   dubHistory = [],
   restoreDubHistory,
@@ -77,8 +86,8 @@ export default function WorkspaceHistory({
 
   // Voice workspace = clone + design generations (dub lives in its own workspace).
   const items = useMemo(() => {
-    const synth = history.filter(h => h.mode === 'clone' || h.mode === 'design');
-    return filter === 'all' ? synth : synth.filter(h => h.mode === filter);
+    const synth = history.filter((h) => h.mode === 'clone' || h.mode === 'design');
+    return filter === 'all' ? synth : synth.filter((h) => h.mode === filter);
   }, [history, filter]);
 
   // ── Dub variant: a flat list of dub jobs, no clone/design filter. ──
@@ -95,32 +104,51 @@ export default function WorkspaceHistory({
             <div className="wh__empty">
               {t('history.empty_dub', { defaultValue: 'Your dubs will appear here.' })}
             </div>
-          ) : dubHistory.map(item => (
-            <div
-              key={`dub-${item.id}`}
-              className="history-item history-item--dub"
-              onClick={() => restoreDubHistory(item)}
-            >
-              <div className="history-row-head">
-                <span className="history-kind history-kind--audio">
-                  <Film size={9} /> {t('sidebar.dub_label')}
-                </span>
-                <span className="history-meta">{item.segments_count} segs · {Math.round(item.duration || 0)}s</span>
+          ) : (
+            dubHistory.map((item) => (
+              <div
+                key={`dub-${item.id}`}
+                className="history-item history-item--dub"
+                onClick={() => restoreDubHistory(item)}
+              >
+                <div className="history-row-head">
+                  <span className="history-kind history-kind--audio">
+                    <Film size={9} /> {t('sidebar.dub_label')}
+                  </span>
+                  <span className="history-meta">
+                    {item.segments_count} segs · {Math.round(item.duration || 0)}s
+                  </span>
+                </div>
+                <div className="history-title">{item.filename}</div>
+                <div className="history-subtitle">
+                  {[item.language, item.language_code]
+                    .filter((v) => v && v !== 'und' && v !== 'Auto')
+                    .join(' · ') || 'Auto'}
+                </div>
+                <div className="history-actions">
+                  <button
+                    className="history-action-btn accent"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      restoreDubHistory(item);
+                    }}
+                  >
+                    <FolderOpen size={10} /> {t('sidebar.open')}
+                  </button>
+                  <button
+                    className="history-action-btn danger history-action-icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteHistory(item.id, 'dub');
+                    }}
+                    title="Delete"
+                  >
+                    <Trash2 size={10} />
+                  </button>
+                </div>
               </div>
-              <div className="history-title">{item.filename}</div>
-              <div className="history-subtitle">
-                {[item.language, item.language_code].filter(v => v && v !== 'und' && v !== 'Auto').join(' · ') || 'Auto'}
-              </div>
-              <div className="history-actions">
-                <button className="history-action-btn accent" onClick={(e) => { e.stopPropagation(); restoreDubHistory(item); }}>
-                  <FolderOpen size={10} /> {t('sidebar.open')}
-                </button>
-                <button className="history-action-btn danger history-action-icon" onClick={(e) => { e.stopPropagation(); deleteHistory(item.id, 'dub'); }} title="Delete">
-                  <Trash2 size={10} />
-                </button>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </aside>
     );
@@ -133,7 +161,7 @@ export default function WorkspaceHistory({
           <History size={13} /> {t('history.title', { defaultValue: 'History' })}
         </span>
         <div className="wh__filters">
-          {FILTERS.map(f => (
+          {FILTERS.map((f) => (
             <button
               key={f.id}
               type="button"
@@ -149,73 +177,105 @@ export default function WorkspaceHistory({
       <div className="wh__scroll">
         {items.length === 0 ? (
           <div className="wh__empty">
-            {t('history.empty', { defaultValue: 'Nothing here yet — your generations will appear on the right.' })}
+            {t('history.empty', {
+              defaultValue: 'Nothing here yet — your generations will appear on the right.',
+            })}
           </div>
-        ) : items.map(item => {
-          const accent = item.mode === 'clone' ? '#d3869b' : '#b8bb26';
-          const KindIcon = item.mode === 'clone' ? Fingerprint : Wand2;
-          return (
-            <div key={item.id} className="history-item" style={{ '--row-accent': accent }}>
-              <div className="history-row-head">
-                <span className="history-kind" style={{ color: accent, borderColor: `${accent}40` }}>
-                  <KindIcon size={9} /> {item.mode || 'synth'}
-                </span>
-                <span className="history-meta">
-                  {item.language && item.language !== 'Auto' ? `${item.language} · ` : ''}
-                  {item.generation_time ? `${item.generation_time}s` : ''}
-                </span>
-              </div>
-              <div
-                className={`history-title history-title--clamp ${expanded === item.id ? 'history-title--expanded' : ''}`}
-                title={item.text}
-                onClick={() => setExpanded(e => (e === item.id ? null : item.id))}
-              >
-                {displayTitle(item.text)}
-              </div>
-              {item.seed != null && String(item.seed) !== ''
-                ? <div className="history-subtitle history-subtitle--seed">seed {item.seed}</div>
-                : null}
-              {item.audio_path ? (
-                <LazyWaveform
-                  src={`${API}/audio/${item.audio_path}`}
-                  source="history"
-                  height={36}
-                  compact
-                  className="history-audio"
-                />
-              ) : null}
-              {item.audio_path ? (
-                <div className="history-actions">
-                  <button className="history-action-btn accent" onClick={(e) => { e.stopPropagation(); handleSaveHistoryAsProfile(item); }}>
-                    <Save size={10} /> {t('sidebar.save_label')}
-                  </button>
-                  {item.profile_id ? (
-                    <button className="history-action-btn accent history-action-icon"
-                      onClick={(e) => { e.stopPropagation(); handleLockProfile(item.profile_id, item.id, item.seed); }}
-                      title={t('sidebar.lock_identity')}>
-                      <Lock size={10} />
-                    </button>
-                  ) : null}
-                  <button className="history-action-btn history-action-icon"
-                    onClick={(e) => handleNativeExport(e, item.audio_path, item.audio_path, item.mode)}
-                    title="Export">
-                    <DownloadIcon size={10} />
-                  </button>
-                  <button className="history-action-btn history-action-icon"
-                    onClick={(e) => { e.stopPropagation(); restoreHistory(item); }}
-                    title="Load config">
-                    <FolderOpen size={10} />
-                  </button>
-                  <button className="history-action-btn danger history-action-icon"
-                    onClick={(e) => { e.stopPropagation(); deleteHistory(item.id, 'synth'); }}
-                    title="Delete">
-                    <Trash2 size={10} />
-                  </button>
+        ) : (
+          items.map((item) => {
+            const accent = item.mode === 'clone' ? '#d3869b' : '#b8bb26';
+            const KindIcon = item.mode === 'clone' ? Fingerprint : Wand2;
+            return (
+              <div key={item.id} className="history-item" style={{ '--row-accent': accent }}>
+                <div className="history-row-head">
+                  <span
+                    className="history-kind"
+                    style={{ color: accent, borderColor: `${accent}40` }}
+                  >
+                    <KindIcon size={9} /> {item.mode || 'synth'}
+                  </span>
+                  <span className="history-meta">
+                    {item.language && item.language !== 'Auto' ? `${item.language} · ` : ''}
+                    {item.generation_time ? `${item.generation_time}s` : ''}
+                  </span>
                 </div>
-              ) : null}
-            </div>
-          );
-        })}
+                <div
+                  className={`history-title history-title--clamp ${expanded === item.id ? 'history-title--expanded' : ''}`}
+                  title={item.text}
+                  onClick={() => setExpanded((e) => (e === item.id ? null : item.id))}
+                >
+                  {displayTitle(item.text)}
+                </div>
+                {item.seed != null && String(item.seed) !== '' ? (
+                  <div className="history-subtitle history-subtitle--seed">seed {item.seed}</div>
+                ) : null}
+                {item.audio_path ? (
+                  <LazyWaveform
+                    src={`${API}/audio/${item.audio_path}`}
+                    source="history"
+                    height={36}
+                    compact
+                    className="history-audio"
+                  />
+                ) : null}
+                {item.audio_path ? (
+                  <div className="history-actions">
+                    <button
+                      className="history-action-btn accent"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSaveHistoryAsProfile(item);
+                      }}
+                    >
+                      <Save size={10} /> {t('sidebar.save_label')}
+                    </button>
+                    {item.profile_id ? (
+                      <button
+                        className="history-action-btn accent history-action-icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleLockProfile(item.profile_id, item.id, item.seed);
+                        }}
+                        title={t('sidebar.lock_identity')}
+                      >
+                        <Lock size={10} />
+                      </button>
+                    ) : null}
+                    <button
+                      className="history-action-btn history-action-icon"
+                      onClick={(e) =>
+                        handleNativeExport(e, item.audio_path, item.audio_path, item.mode)
+                      }
+                      title="Export"
+                    >
+                      <DownloadIcon size={10} />
+                    </button>
+                    <button
+                      className="history-action-btn history-action-icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        restoreHistory(item);
+                      }}
+                      title="Load config"
+                    >
+                      <FolderOpen size={10} />
+                    </button>
+                    <button
+                      className="history-action-btn danger history-action-icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteHistory(item.id, 'synth');
+                      }}
+                      title="Delete"
+                    >
+                      <Trash2 size={10} />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })
+        )}
       </div>
     </aside>
   );

@@ -14,16 +14,32 @@ const FACETS = {
   age: ['child', 'teenager', 'young adult', 'middle-aged', 'elderly'],
   pitch: ['very low pitch', 'low pitch', 'moderate pitch', 'high pitch', 'very high pitch'],
   accent: [
-    'american accent', 'british accent', 'australian accent', 'canadian accent',
-    'indian accent', 'chinese accent', 'japanese accent', 'korean accent',
-    'portuguese accent', 'russian accent',
+    'american accent',
+    'british accent',
+    'australian accent',
+    'canadian accent',
+    'indian accent',
+    'chinese accent',
+    'japanese accent',
+    'korean accent',
+    'portuguese accent',
+    'russian accent',
   ],
   // English + Chinese come from the generated catalog; the rest are curated
   // multilingual designed voices. Values must match the archetype `language`
   // field (a languages.json entry) exactly — that drives the backend filter.
   lang: [
-    'English', 'Chinese', 'Spanish', 'French', 'German', 'Italian',
-    'Portuguese', 'Russian', 'Hindi', 'Japanese', 'Korean',
+    'English',
+    'Chinese',
+    'Spanish',
+    'French',
+    'German',
+    'Italian',
+    'Portuguese',
+    'Russian',
+    'Hindi',
+    'Japanese',
+    'Korean',
   ],
 };
 
@@ -31,16 +47,31 @@ const hasActiveFilters = (f) => Object.values(f).some((v) => v !== null && v !==
 
 // ── Archetypes zone ─────────────────────────────────────────────────────────
 export default function ArchetypesZone({
-  t, filters, setFilter, resetFilters, favorites, toggleFavorite,
-  viewMode, setViewMode, playingId, loadingPreviewId, onPreview, onUse, onDesign,
+  t,
+  filters,
+  setFilter,
+  resetFilters,
+  favorites,
+  toggleFavorite,
+  viewMode,
+  setViewMode,
+  playingId,
+  loadingPreviewId,
+  onPreview,
+  onUse,
+  onDesign,
 }) {
   const [favOnly, setFavOnly] = useState(false);
   const [offset, setOffset] = useState(0);
-  useEffect(() => { setOffset(0); }, [filters]);
+  useEffect(() => {
+    setOffset(0);
+  }, [filters]);
 
   const cleanFilters = useMemo(() => {
     const out = {};
-    Object.entries(filters).forEach(([k, v]) => { if (v !== null && v !== '') out[k] = v; });
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v !== null && v !== '') out[k] = v;
+    });
     return out;
   }, [filters]);
 
@@ -71,11 +102,16 @@ export default function ArchetypesZone({
   // NOTE: no `key` here — React keys must be passed directly on the element,
   // not spread in (spreading a `key` prop triggers a dev warning + is ignored).
   const cardProps = (a) => ({
-    a, t, viewMode,
+    a,
+    t,
+    viewMode,
     isFavorite: favSet.has(a.id),
     isPlaying: playingId === a.id,
     isLoadingPreview: loadingPreviewId === a.id,
-    onPreview, onUse, onDesign, onToggleFavorite: toggleFavorite,
+    onPreview,
+    onUse,
+    onDesign,
+    onToggleFavorite: toggleFavorite,
   });
 
   return (
@@ -84,7 +120,10 @@ export default function ArchetypesZone({
         {/* Three filter lanes (categories · facets · toggles), each its own
             horizontally-scrollable portion; the view toggle is pinned right. */}
         <div className="facet-group facet-group--cats use-case-chips">
-          <button className={`category-chip ${!filters.use_case ? 'selected' : ''}`} onClick={() => setFilter('use_case', null)}>
+          <button
+            className={`category-chip ${!filters.use_case ? 'selected' : ''}`}
+            onClick={() => setFilter('use_case', null)}
+          >
             {t('gallery.all', { defaultValue: 'All' })}
           </button>
           {categories.map((c) => (
@@ -108,8 +147,14 @@ export default function ArchetypesZone({
               value={filters[dim] ?? ''}
               onChange={(e) => setFilter(dim, e.target.value || null)}
             >
-              <option value="">{t(`archetypes.facet_${dim}`, { defaultValue: titleCase(dim) })}</option>
-              {FACETS[dim].map((opt) => <option key={opt} value={opt}>{facetLabel(opt)}</option>)}
+              <option value="">
+                {t(`archetypes.facet_${dim}`, { defaultValue: titleCase(dim) })}
+              </option>
+              {FACETS[dim].map((opt) => (
+                <option key={opt} value={opt}>
+                  {facetLabel(opt)}
+                </option>
+              ))}
             </select>
           ))}
         </div>
@@ -124,25 +169,53 @@ export default function ArchetypesZone({
             {t('archetypes.facet_whisper', { defaultValue: 'Whisper' })}
           </label>
           <label className="facet-toggle">
-            <input type="checkbox" checked={favOnly} onChange={(e) => setFavOnly(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={favOnly}
+              onChange={(e) => setFavOnly(e.target.checked)}
+            />
             <Star size={12} /> {t('gallery.favorites', { defaultValue: 'Favorites' })}
           </label>
-          <button className="facet-reset" onClick={() => { resetFilters(); setFavOnly(false); }}>
+          <button
+            className="facet-reset"
+            onClick={() => {
+              resetFilters();
+              setFavOnly(false);
+            }}
+          >
             <RotateCcw size={12} /> {t('gallery.reset', { defaultValue: 'Reset' })}
           </button>
         </div>
 
         <div className="view-toggle">
-          <button className={viewMode === 'grid' ? 'active' : ''} onClick={() => setViewMode('grid')} title="Grid"><Grid size={14} /></button>
-          <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')} title="List"><List size={14} /></button>
+          <button
+            className={viewMode === 'grid' ? 'active' : ''}
+            onClick={() => setViewMode('grid')}
+            title="Grid"
+          >
+            <Grid size={14} />
+          </button>
+          <button
+            className={viewMode === 'list' ? 'active' : ''}
+            onClick={() => setViewMode('list')}
+            title="List"
+          >
+            <List size={14} />
+          </button>
         </div>
       </div>
 
       {showFeatured && (
         <section className="archetype-section">
-          <div className="content-header"><div className="content-title">{t('archetypes.featured', { defaultValue: 'Featured' })}</div></div>
+          <div className="content-header">
+            <div className="content-title">
+              {t('archetypes.featured', { defaultValue: 'Featured' })}
+            </div>
+          </div>
           <div className={`archetype-grid ${viewMode}`}>
-            {applyFav(featured).map((a) => <ArchetypeCard key={a.id} {...cardProps(a)} />)}
+            {applyFav(featured).map((a) => (
+              <ArchetypeCard key={a.id} {...cardProps(a)} />
+            ))}
           </div>
         </section>
       )}
@@ -155,18 +228,28 @@ export default function ArchetypesZone({
           </div>
         </div>
         {browseQ.isLoading ? (
-          <div className="loading"><Loader className="spin" size={18} /></div>
+          <div className="loading">
+            <Loader className="spin" size={18} />
+          </div>
         ) : (
           <>
             <div className={`archetype-grid ${viewMode}`}>
-              {applyFav(browse).map((a) => <ArchetypeCard key={a.id} {...cardProps(a)} />)}
+              {applyFav(browse).map((a) => (
+                <ArchetypeCard key={a.id} {...cardProps(a)} />
+              ))}
             </div>
             {applyFav(browse).length === 0 && (
-              <div className="empty">{t('gallery.no_matches', { defaultValue: 'No voices match these filters.' })}</div>
+              <div className="empty">
+                {t('gallery.no_matches', { defaultValue: 'No voices match these filters.' })}
+              </div>
             )}
             {offset + BROWSE_PAGE < total && !favOnly && (
               <div className="load-more">
-                <Button variant="ghost" onClick={() => setOffset(offset + BROWSE_PAGE)} disabled={browseQ.isFetching}>
+                <Button
+                  variant="ghost"
+                  onClick={() => setOffset(offset + BROWSE_PAGE)}
+                  disabled={browseQ.isFetching}
+                >
                   {browseQ.isFetching ? <Loader className="spin" size={14} /> : null}
                   {t('gallery.load_more', { defaultValue: 'Load more' })}
                 </Button>

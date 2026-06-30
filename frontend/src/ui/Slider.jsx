@@ -35,7 +35,11 @@ const Slider = forwardRef(function Slider(
 
   return (
     <div className={`ui-slider ui-slider--size-${size} ${className}`}>
-      {label && <label htmlFor={id} className="ui-slider__label">{label}</label>}
+      {label && (
+        <label htmlFor={id} className="ui-slider__label">
+          {label}
+        </label>
+      )}
       <div className="ui-slider__row">
         <RadixSlider.Root
           ref={ref}

@@ -31,8 +31,8 @@ export default function PerformancePanel() {
 
   // Header live-metrics toggle (default OFF). Persisted via the Zustand
   // app store so it survives reload without a separate API round-trip.
-  const showHeaderLiveStats = useAppStore(s => s.showHeaderLiveStats);
-  const setShowHeaderLiveStats = useAppStore(s => s.setShowHeaderLiveStats);
+  const showHeaderLiveStats = useAppStore((s) => s.showHeaderLiveStats);
+  const setShowHeaderLiveStats = useAppStore((s) => s.setShowHeaderLiveStats);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -96,10 +96,9 @@ export default function PerformancePanel() {
             >
               #65
             </a>{' '}
-            — Windows users may hit Triton / <code>torch.compile</code> OOM
-            during model load on GPUs with &lt;16 GB VRAM. Enabling this sets{' '}
-            <code>TORCH_COMPILE_DISABLE=1</code> on engine subprocesses, which
-            falls back to eager mode. macOS and Linux are unaffected.
+            — Windows users may hit Triton / <code>torch.compile</code> OOM during model load on
+            GPUs with &lt;16 GB VRAM. Enabling this sets <code>TORCH_COMPILE_DISABLE=1</code> on
+            engine subprocesses, which falls back to eager mode. macOS and Linux are unaffected.
           </>
         }
         control={
@@ -118,10 +117,9 @@ export default function PerformancePanel() {
         note="Adds a live RAM / CPU / VRAM monitor to the top bar (off by default)."
         hint={
           <>
-            Default off — the header keeps the model-status badge and Flush
-            button always visible because they're action-relevant, but RAM /
-            CPU / VRAM counters are noise on the welcome screen. Turn this on
-            if you want a live resource monitor in the top bar.
+            Default off — the header keeps the model-status badge and Flush button always visible
+            because they're action-relevant, but RAM / CPU / VRAM counters are noise on the welcome
+            screen. Turn this on if you want a live resource monitor in the top bar.
           </>
         }
         control={

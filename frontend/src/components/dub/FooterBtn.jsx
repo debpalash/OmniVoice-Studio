@@ -15,7 +15,9 @@ const FooterBtn = React.forwardRef(function FooterBtn(
     'dub-footer-btn',
     sm && 'dub-footer-btn--sm',
     `dub-footer-btn--${tone}`,
-  ].filter(Boolean).join(' ');
+  ]
+    .filter(Boolean)
+    .join(' ');
   return (
     <button ref={ref} className={cls} disabled={disabled} onClick={onClick} {...rest}>
       {icon} {label}

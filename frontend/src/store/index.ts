@@ -43,7 +43,17 @@ import { createReleasesSlice } from './releasesSlice';
 import type { DonationSlice } from './donationSlice';
 import { createDonationSlice } from './donationSlice';
 
-export type AppStore = PrefsSlice & GlossarySlice & UiSlice & DubSlice & GenerateSlice & PillSlice & LongformSlice & UpdaterSlice & GallerySlice & ReleasesSlice & DonationSlice;
+export type AppStore = PrefsSlice &
+  GlossarySlice &
+  UiSlice &
+  DubSlice &
+  GenerateSlice &
+  PillSlice &
+  LongformSlice &
+  UpdaterSlice &
+  GallerySlice &
+  ReleasesSlice &
+  DonationSlice;
 
 /**
  * `useAppStore` — single root store. Don't create siblings. Slices compose here.
@@ -62,9 +72,9 @@ export const useAppStore = create<AppStore>()(
       ...createGenerateSlice(set, get, api),
       ...createPillSlice(set, get, api),
       ...createLongformSlice(set, get, api),
-      ...createUpdaterSlice(set, get, api),  // transient — not in partialize
+      ...createUpdaterSlice(set, get, api), // transient — not in partialize
       ...createGallerySlice(set, get, api),
-      ...createReleasesSlice(set, get, api),  // transient — not in partialize
+      ...createReleasesSlice(set, get, api), // transient — not in partialize
       ...createDonationSlice(set, get, api),
     }),
     {
@@ -72,67 +82,73 @@ export const useAppStore = create<AppStore>()(
       storage: createJSONStorage(() => localStorage),
       // Only persist user prefs + glossary. Pipeline / transient state is opt-out.
       partialize: (s) => ({
-        translateQuality:           s.translateQuality,
-        dualSubs:                   s.dualSubs,
-        burnSubs:                   s.burnSubs,
-        glossaryVisible:            s.glossaryVisible,
-        reviewMode:                 s.reviewMode,
-        showHeaderLiveStats:        s.showHeaderLiveStats,
-        timingStrategy:             s.timingStrategy,
-        fitOptions:                 s.fitOptions,
-        autoPlayPreview:            s.autoPlayPreview,
-        mode:                       s.mode,
-        defineMethod:               s.defineMethod,
-        isSidebarCollapsed:         s.isSidebarCollapsed,
+        translateQuality: s.translateQuality,
+        dualSubs: s.dualSubs,
+        burnSubs: s.burnSubs,
+        glossaryVisible: s.glossaryVisible,
+        reviewMode: s.reviewMode,
+        showHeaderLiveStats: s.showHeaderLiveStats,
+        timingStrategy: s.timingStrategy,
+        fitOptions: s.fitOptions,
+        autoPlayPreview: s.autoPlayPreview,
+        mode: s.mode,
+        defineMethod: s.defineMethod,
+        isSidebarCollapsed: s.isSidebarCollapsed,
         isSidebarProjectsCollapsed: s.isSidebarProjectsCollapsed,
-        sidebarTab:                 s.sidebarTab,
-        uiScale:                    s.uiScale,
-        locale:                     s.locale,
-        theme:                      s.theme,
-        font:                       s.font,
+        sidebarTab: s.sidebarTab,
+        uiScale: s.uiScale,
+        locale: s.locale,
+        theme: s.theme,
+        font: s.font,
         // Generate-tab prefs — users expect their synthesis knobs to stick.
-        language:      s.language,
-        speed:         s.speed,
-        steps:         s.steps,
-        cfg:           s.cfg,
-        tShift:        s.tShift,
-        posTemp:       s.posTemp,
-        classTemp:     s.classTemp,
-        layerPenalty:  s.layerPenalty,
-        denoise:       s.denoise,
-        postprocess:   s.postprocess,
-        vdStates:      s.vdStates,
+        language: s.language,
+        speed: s.speed,
+        steps: s.steps,
+        cfg: s.cfg,
+        tShift: s.tShift,
+        posTemp: s.posTemp,
+        classTemp: s.classTemp,
+        layerPenalty: s.layerPenalty,
+        denoise: s.denoise,
+        postprocess: s.postprocess,
+        vdStates: s.vdStates,
         // Voice gallery — favorites + view/zone/filter preferences stick.
         favoriteArchetypeIds: s.favoriteArchetypeIds,
-        galleryViewMode:      s.galleryViewMode,
-        galleryZone:          s.galleryZone,
-        archetypeFilters:     s.archetypeFilters,
+        galleryViewMode: s.galleryViewMode,
+        galleryZone: s.galleryZone,
+        archetypeFilters: s.archetypeFilters,
         // Stories Editor — persist the project; strip transient runtime fields
         // (generating, audioUrl) so a dead blob: URL / stuck spinner never rehydrates.
-        storyTracks:   s.storyTracks.map(({ id, character, text, profileId, emotion, speed }) =>
-                          ({ id, character, text, profileId, emotion, speed })),
-        cast:          s.cast,
+        storyTracks: s.storyTracks.map(({ id, character, text, profileId, emotion, speed }) => ({
+          id,
+          character,
+          text,
+          profileId,
+          emotion,
+          speed,
+        })),
+        cast: s.cast,
         storyProjects: s.storyProjects,
         currentProjectId: s.currentProjectId,
         // Long-form shared working fields (#31) — persist so Audiobook
         // metadata/script/prefs survive a tab switch or reload once bound (#31b).
-        script:        s.script,
-        meta:          s.meta,
-        lexicon:       s.lexicon,
-        coverRef:      s.coverRef,
-        outputFormat:  s.outputFormat,
-        loudness:      s.loudness,
-        defaultVoice:  s.defaultVoice,
-        projectMode:   s.projectMode,
+        script: s.script,
+        meta: s.meta,
+        lexicon: s.lexicon,
+        coverRef: s.coverRef,
+        outputFormat: s.outputFormat,
+        loudness: s.loudness,
+        defaultVoice: s.defaultVoice,
+        projectMode: s.projectMode,
         // Donation prompt state (#007) — persist everything EXCEPT
         // `shownThisSession` so the ≤1/session cap resets on every launch.
-        successCount:    s.successCount,
-        dubCount:        s.dubCount,
-        firstSuccessAt:  s.firstSuccessAt,
-        lastShownAt:     s.lastShownAt,
-        shownCount:      s.shownCount,
+        successCount: s.successCount,
+        dubCount: s.dubCount,
+        firstSuccessAt: s.firstSuccessAt,
+        lastShownAt: s.lastShownAt,
+        shownCount: s.shownCount,
         firedMilestones: s.firedMilestones,
-        optedOut:        s.optedOut,
+        optedOut: s.optedOut,
       }),
       version: 6,
       // Drop old persisted shapes rather than crashing the app. Every field
@@ -154,14 +170,23 @@ export const useAppStore = create<AppStore>()(
           // The field name stays `storyProjects` (every consumer reads it), so
           // no key rename — only the per-project shape is enriched. Never throws;
           // malformed entries are dropped (D2/D3).
-          const raw = Array.isArray(p.storyProjects) ? p.storyProjects : [];        // D2
+          const raw = Array.isArray(p.storyProjects) ? p.storyProjects : []; // D2
           p.storyProjects = raw
-            .filter((sp: any) => sp && typeof sp === 'object')                       // D3
+            .filter((sp: any) => sp && typeof sp === 'object') // D3
             .map((sp: any) => ({
-              id: genProjectId(), name: 'Untitled', mode: 'stories',
-              cast: [], tracks: [], script: '', meta: {}, lexicon: {},
-              coverRef: null, outputFormat: 'm4b', loudness: 'off',
-              defaultVoice: null, updatedAt: 0,
+              id: genProjectId(),
+              name: 'Untitled',
+              mode: 'stories',
+              cast: [],
+              tracks: [],
+              script: '',
+              meta: {},
+              lexicon: {},
+              coverRef: null,
+              outputFormat: 'm4b',
+              loudness: 'off',
+              defaultVoice: null,
+              updatedAt: 0,
               ...sp,
             }));
           // Loose working fields seed to defaults; absent ones fall through to

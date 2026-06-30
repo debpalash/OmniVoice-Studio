@@ -60,12 +60,8 @@ describe('DemoPresetGrid', () => {
   // Regression for #316 — single-playback invariant. jsdom doesn't implement
   // HTMLMediaElement playback, so stub play/pause and assert coordination.
   it('starting a second preview stops the first (single playback, #316)', async () => {
-    const play = vi
-      .spyOn(window.HTMLMediaElement.prototype, 'play')
-      .mockResolvedValue(undefined);
-    const pause = vi
-      .spyOn(window.HTMLMediaElement.prototype, 'pause')
-      .mockImplementation(() => {});
+    const play = vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    const pause = vi.spyOn(window.HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
     try {
       render(withI18n(<DemoPresetGrid presets={PRESETS} onUse={vi.fn()} />));
 
@@ -86,12 +82,8 @@ describe('DemoPresetGrid', () => {
   });
 
   it('clicking a playing preview stops it (#316)', async () => {
-    const play = vi
-      .spyOn(window.HTMLMediaElement.prototype, 'play')
-      .mockResolvedValue(undefined);
-    const pause = vi
-      .spyOn(window.HTMLMediaElement.prototype, 'pause')
-      .mockImplementation(() => {});
+    const play = vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    const pause = vi.spyOn(window.HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
     try {
       render(withI18n(<DemoPresetGrid presets={PRESETS} onUse={vi.fn()} />));
 

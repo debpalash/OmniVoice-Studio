@@ -24,11 +24,7 @@ export default function Tabs({
   ...rest
 }) {
   return (
-    <RadixTabs.Root
-      value={value}
-      onValueChange={onChange}
-      activationMode="manual"
-    >
+    <RadixTabs.Root value={value} onValueChange={onChange} activationMode="manual">
       <RadixTabs.List
         className={`ui-tabs ui-tabs--${variant} ui-tabs--size-${size} ${className}`}
         {...rest}

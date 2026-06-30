@@ -21,63 +21,91 @@ export default function DubTab(props) {
   const {
     // Props that stay prop-threaded: non-serialisable state + handlers that
     // close over App.jsx's scope (uploads, SSE wiring, project CRUD, etc.).
-    dubVideoFile, dubLocalBlobUrl,
-    transcribeElapsed, translateProvider, setTranslateProvider,
-    showTranscript, setShowTranscript,
+    dubVideoFile,
+    dubLocalBlobUrl,
+    transcribeElapsed,
+    translateProvider,
+    setTranslateProvider,
+    showTranscript,
+    setShowTranscript,
     onGlossaryChange,
     profiles,
     segmentPreviewLoading,
     selectedSegIds,
-    setDubVideoFile, setDubLocalBlobUrl,
-    handleDubAbort, handleDubUpload, handleDubIngestUrl, handleDubRetryTranscribe, handleDubStop, handleDubGenerate, handleDubImportSrt,
-    handleDubDownload, handleDubAudioDownload, handleAudioExport,
+    setDubVideoFile,
+    setDubLocalBlobUrl,
+    handleDubAbort,
+    handleDubUpload,
+    handleDubIngestUrl,
+    handleDubRetryTranscribe,
+    handleDubStop,
+    handleDubGenerate,
+    handleDubImportSrt,
+    handleDubDownload,
+    handleDubAudioDownload,
+    handleAudioExport,
     speakerClones = {},
-    handleSegmentPreview, onDirectSegment, handleTranslateAll, handleCleanupSegments,
+    handleSegmentPreview,
+    onDirectSegment,
+    handleTranslateAll,
+    handleCleanupSegments,
     incrementalPlan,
-    triggerDownload, fileToMediaUrl,
-    editSegments, saveProject, resetDub,
-    segmentEditField, segmentDelete, segmentRestoreOriginal, segmentSplit, segmentMerge,
-    segmentMoveResize, timelineSelSegId, setTimelineSelSegId,
-    toggleSegSelect, selectAllSegs, clearSegSelection,
-    bulkApplyToSelected, bulkDeleteSelected,
+    triggerDownload,
+    fileToMediaUrl,
+    editSegments,
+    saveProject,
+    resetDub,
+    segmentEditField,
+    segmentDelete,
+    segmentRestoreOriginal,
+    segmentSplit,
+    segmentMerge,
+    segmentMoveResize,
+    timelineSelSegId,
+    setTimelineSelSegId,
+    toggleSegSelect,
+    selectAllSegs,
+    clearSegSelection,
+    bulkApplyToSelected,
+    bulkDeleteSelected,
   } = props;
 
   // ── Store reads (Phase 2.2) — drop ~30 props from the App.jsx contract.
-  const dubJobId          = useAppStore(s => s.dubJobId);
-  const dubStep           = useAppStore(s => s.dubStep);
-  const setDubStep        = useAppStore(s => s.setDubStep);
-  const setDubInputType   = useAppStore(s => s.setDubInputType);
-  const dubPrepStage      = useAppStore(s => s.dubPrepStage);
-  const dubPrepProgress   = useAppStore(s => s.dubPrepProgress);
-  const dubFilename       = useAppStore(s => s.dubFilename);
-  const dubDuration       = useAppStore(s => s.dubDuration);
-  const dubSegments       = useAppStore(s => s.dubSegments);
-  const setDubSegments    = useAppStore(s => s.setDubSegments);
-  const dubTranscript     = useAppStore(s => s.dubTranscript);
-  const dubLang           = useAppStore(s => s.dubLang);
-  const setDubLang        = useAppStore(s => s.setDubLang);
-  const dubLangCode       = useAppStore(s => s.dubLangCode);
-  const setDubLangCode    = useAppStore(s => s.setDubLangCode);
-  const dubNumSpeakers    = useAppStore(s => s.dubNumSpeakers);
-  const setDubNumSpeakers = useAppStore(s => s.setDubNumSpeakers);
-  const dubDialect        = useAppStore(s => s.dubDialect);
-  const setDubDialect     = useAppStore(s => s.setDubDialect);
-  const dubInstruct       = useAppStore(s => s.dubInstruct);
-  const setDubInstruct    = useAppStore(s => s.setDubInstruct);
-  const dubTracks         = useAppStore(s => s.dubTracks);
-  const dubError          = useAppStore(s => s.dubError);
-  const dubFailure        = useAppStore(s => s.dubFailure);
-  const dubProgress       = useAppStore(s => s.dubProgress);
-  const isTranslating     = useAppStore(s => s.isTranslating);
-  const preserveBg        = useAppStore(s => s.preserveBg);
-  const setPreserveBg     = useAppStore(s => s.setPreserveBg);
-  const defaultTrack      = useAppStore(s => s.defaultTrack);
-  const setDefaultTrack   = useAppStore(s => s.setDefaultTrack);
-  const exportTracks      = useAppStore(s => s.exportTracks);
-  const setExportTracks   = useAppStore(s => s.setExportTracks);
-  const activeProjectName = useAppStore(s => s.activeProjectName);
-  const translateQuality    = useAppStore(s => s.translateQuality);
-  const setTranslateQuality = useAppStore(s => s.setTranslateQuality);
+  const dubJobId = useAppStore((s) => s.dubJobId);
+  const dubStep = useAppStore((s) => s.dubStep);
+  const setDubStep = useAppStore((s) => s.setDubStep);
+  const setDubInputType = useAppStore((s) => s.setDubInputType);
+  const dubPrepStage = useAppStore((s) => s.dubPrepStage);
+  const dubPrepProgress = useAppStore((s) => s.dubPrepProgress);
+  const dubFilename = useAppStore((s) => s.dubFilename);
+  const dubDuration = useAppStore((s) => s.dubDuration);
+  const dubSegments = useAppStore((s) => s.dubSegments);
+  const setDubSegments = useAppStore((s) => s.setDubSegments);
+  const dubTranscript = useAppStore((s) => s.dubTranscript);
+  const dubLang = useAppStore((s) => s.dubLang);
+  const setDubLang = useAppStore((s) => s.setDubLang);
+  const dubLangCode = useAppStore((s) => s.dubLangCode);
+  const setDubLangCode = useAppStore((s) => s.setDubLangCode);
+  const dubNumSpeakers = useAppStore((s) => s.dubNumSpeakers);
+  const setDubNumSpeakers = useAppStore((s) => s.setDubNumSpeakers);
+  const dubDialect = useAppStore((s) => s.dubDialect);
+  const setDubDialect = useAppStore((s) => s.setDubDialect);
+  const dubInstruct = useAppStore((s) => s.dubInstruct);
+  const setDubInstruct = useAppStore((s) => s.setDubInstruct);
+  const dubTracks = useAppStore((s) => s.dubTracks);
+  const dubError = useAppStore((s) => s.dubError);
+  const dubFailure = useAppStore((s) => s.dubFailure);
+  const dubProgress = useAppStore((s) => s.dubProgress);
+  const isTranslating = useAppStore((s) => s.isTranslating);
+  const preserveBg = useAppStore((s) => s.preserveBg);
+  const setPreserveBg = useAppStore((s) => s.setPreserveBg);
+  const defaultTrack = useAppStore((s) => s.defaultTrack);
+  const setDefaultTrack = useAppStore((s) => s.setDefaultTrack);
+  const exportTracks = useAppStore((s) => s.exportTracks);
+  const setExportTracks = useAppStore((s) => s.setExportTracks);
+  const activeProjectName = useAppStore((s) => s.activeProjectName);
+  const translateQuality = useAppStore((s) => s.translateQuality);
+  const setTranslateQuality = useAppStore((s) => s.setTranslateQuality);
   // #372: live LLM availability so the Cinematic toggle can refuse the pick
   // (instead of looping the user between two warnings). null until loaded.
   const [llmEndpoint, setLlmEndpoint] = useState(null);
@@ -85,19 +113,28 @@ export default function DubTab(props) {
     let cancelled = false;
     import('../api/client').then(({ apiJson }) =>
       apiJson('/api/settings/llm-endpoint')
-        .then(d => { if (!cancelled) setLlmEndpoint(d); })
-        .catch(() => { /* backend mid-boot — guard simply stays permissive */ })
+        .then((d) => {
+          if (!cancelled) setLlmEndpoint(d);
+        })
+        .catch(() => {
+          /* backend mid-boot — guard simply stays permissive */
+        }),
     );
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
-  const dualSubs            = useAppStore(s => s.dualSubs);
-  const setDualSubs         = useAppStore(s => s.setDualSubs);
-  const burnSubs            = useAppStore(s => s.burnSubs);
-  const setBurnSubs         = useAppStore(s => s.setBurnSubs);
-  const timingStrategy      = useAppStore(s => s.timingStrategy);
-  const setTimingStrategy   = useAppStore(s => s.setTimingStrategy);
+  const dualSubs = useAppStore((s) => s.dualSubs);
+  const setDualSubs = useAppStore((s) => s.setDualSubs);
+  const burnSubs = useAppStore((s) => s.burnSubs);
+  const setBurnSubs = useAppStore((s) => s.setBurnSubs);
+  const timingStrategy = useAppStore((s) => s.timingStrategy);
+  const setTimingStrategy = useAppStore((s) => s.setTimingStrategy);
 
-  const showIdleSkeleton = !(dubJobId && (dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done'));
+  const showIdleSkeleton = !(
+    dubJobId &&
+    (dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done')
+  );
   // Imperative handle to the post-job waveform so the transcript table can
   // seek the player when the user clicks a row.
   const waveformRef = useRef(null);
@@ -107,14 +144,18 @@ export default function DubTab(props) {
   // Speech-onset ticks for the timeline editor (#280, item 3). Lazy: only
   // fetched while the editor is live; re-fetched after a re-transcription
   // because the step leaves and re-enters the editing state.
-  const editorActive = !!dubJobId && (dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done');
+  const editorActive =
+    !!dubJobId && (dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done');
   const { onsets: timelineOnsets } = useTimelineOnsets(dubJobId, editorActive);
   // "Preview dub here" from a timeline box: park the player at the slot
   // start (so the video frame matches), then synthesize + play the line.
-  const onTimelinePreviewSegment = useCallback((seg) => {
-    seekWaveform(seg.start);
-    handleSegmentPreview?.(seg, { preventDefault() {} });
-  }, [seekWaveform, handleSegmentPreview]);
+  const onTimelinePreviewSegment = useCallback(
+    (seg) => {
+      seekWaveform(seg.start);
+      handleSegmentPreview?.(seg, { preventDefault() {} });
+    },
+    [seekWaveform, handleSegmentPreview],
+  );
   const [ingestUrl, setIngestUrl] = useState('');
   // Dubbing demo: show the side-by-side player above the drop zone on
   // first-run / no-project state. localStorage flag persists dismissal
@@ -125,7 +166,11 @@ export default function DubTab(props) {
   });
   const dismissDubDemo = () => {
     setDemoDismissed(true);
-    try { localStorage.setItem('omnivoice.dubbingDemoDismissed', '1'); } catch { /* noop */ }
+    try {
+      localStorage.setItem('omnivoice.dubbingDemoDismissed', '1');
+    } catch {
+      /* noop */
+    }
   };
   const [previewMode, setPreviewMode] = useState('original'); // 'original' | 'dubbed'
   const [exportOpen, setExportOpen] = useState(false);
@@ -144,11 +189,14 @@ export default function DubTab(props) {
     if (multiLangMode && multiLangs.length > 0) {
       try {
         for (const l of multiLangs) {
-          setDubLang(l.lang); setDubLangCode(l.code); // keep UI/exports in sync
+          setDubLang(l.lang);
+          setDubLangCode(l.code); // keep UI/exports in sync
           // eslint-disable-next-line no-await-in-loop
           await handleDubGenerate({ langOverride: { language: l.lang, language_code: l.code } });
         }
-      } catch { /* a failed language stops the batch; its error is already surfaced */ }
+      } catch {
+        /* a failed language stops the batch; its error is already surfaced */
+      }
     } else {
       handleDubGenerate();
     }
@@ -159,7 +207,10 @@ export default function DubTab(props) {
   // at least one segment has rendered and ~2s of clock has passed.
   const [genElapsed, setGenElapsed] = useState(0);
   useEffect(() => {
-    if (dubStep !== 'generating') { setGenElapsed(0); return; }
+    if (dubStep !== 'generating') {
+      setGenElapsed(0);
+      return;
+    }
     const start = Date.now();
     setGenElapsed(0);
     const id = setInterval(() => setGenElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
@@ -187,8 +238,10 @@ export default function DubTab(props) {
       setEngines([]);
     }
   }, []);
-  useEffect(() => { refreshEngines(); }, [refreshEngines]);
-  const activeEngineEntry = engines.find(e => e.id === translateProvider);
+  useEffect(() => {
+    refreshEngines();
+  }, [refreshEngines]);
+  const activeEngineEntry = engines.find((e) => e.id === translateProvider);
   const activeEngineUnavailable = activeEngineEntry && !activeEngineEntry.installed;
   const handleInstallEngine = async (engineId) => {
     if (!engineId || enginesSandboxed) return;
@@ -198,7 +251,11 @@ export default function DubTab(props) {
       const res = await installTranslationEngine(engineId);
       await refreshEngines();
       if (res.restart_required) {
-        toast(t('dub.install_restart', { engine: engineId }), { icon: '🔄', id: progressToast, duration: 7000 });
+        toast(t('dub.install_restart', { engine: engineId }), {
+          icon: '🔄',
+          id: progressToast,
+          duration: 7000,
+        });
       } else if (res.status === 'already_installed') {
         toast(t('dub.install_already', { engine: engineId }), { icon: 'ℹ️', id: progressToast });
       } else {
@@ -206,7 +263,10 @@ export default function DubTab(props) {
       }
     } catch (err) {
       toast.dismiss(progressToast);
-      toastErrorWithReport(t('dub.install_failed', { message: String(err.message || err).slice(0, 200) }), err);
+      toastErrorWithReport(
+        t('dub.install_failed', { message: String(err.message || err).slice(0, 200) }),
+        err,
+      );
     } finally {
       setEngineInstalling(null);
     }
@@ -217,30 +277,34 @@ export default function DubTab(props) {
   // without an extra click on first open. They stay an accordion so the
   // user can collapse them once happy with the choice.
   const [settingsOpen, setSettingsOpen] = useState(true);
-  const hasAnyTranslation = dubSegments.some(s => s.text_original && s.text_original !== s.text);
+  const hasAnyTranslation = dubSegments.some((s) => s.text_original && s.text_original !== s.text);
 
   // Glossary: hide behind a chip when empty, auto-open once terms exist.
-  const glossaryTermCount = useAppStore(s => s.glossaryTerms.length);
+  const glossaryTermCount = useAppStore((s) => s.glossaryTerms.length);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [glossaryHidden, setGlossaryHidden] = useState(false);
   const glossaryVisible = glossaryOpen || (glossaryTermCount > 0 && !glossaryHidden);
 
   // Phase 4.3 — between-stage checkpoint banner.
-  const reviewMode = useAppStore(s => s.reviewMode);
+  const reviewMode = useAppStore((s) => s.reviewMode);
   const [dismissedStages, setDismissedStages] = useState(() => new Set());
-  const hasTranslations = dubSegments.some(s => s.text_original && s.text_original !== s.text);
+  const hasTranslations = dubSegments.some((s) => s.text_original && s.text_original !== s.text);
   const checkpointStage =
-    dubStep === 'editing' && !hasTranslations ? 'asr'
-    : dubStep === 'editing' && hasTranslations ? 'translate'
-    : dubStep === 'done' ? 'done'
-    : null;
-  const showCheckpoint = reviewMode === 'on' && checkpointStage && !dismissedStages.has(checkpointStage);
+    dubStep === 'editing' && !hasTranslations
+      ? 'asr'
+      : dubStep === 'editing' && hasTranslations
+        ? 'translate'
+        : dubStep === 'done'
+          ? 'done'
+          : null;
+  const showCheckpoint =
+    reviewMode === 'on' && checkpointStage && !dismissedStages.has(checkpointStage);
   const onCheckpointContinue = () => {
     if (checkpointStage === 'asr') handleTranslateAll?.();
     else if (checkpointStage === 'translate') handleDubGenerate?.();
   };
   const onCheckpointDismiss = () => {
-    setDismissedStages(prev => {
+    setDismissedStages((prev) => {
       const next = new Set(prev);
       if (checkpointStage) next.add(checkpointStage);
       return next;
@@ -259,13 +323,17 @@ export default function DubTab(props) {
     });
     setIngestUrl('');
   };
-  const hasDubbedTrack = dubStep === 'done' && dubLangCode && dubLangCode !== 'und' && (dubTracks?.length > 0 || !!dubTracks);
+  const hasDubbedTrack =
+    dubStep === 'done' &&
+    dubLangCode &&
+    dubLangCode !== 'und' &&
+    (dubTracks?.length > 0 || !!dubTracks);
   // Cache-busting nonce, bumped every time a generation completes (see
   // useDubWorkflow's done handler). The preview URL is otherwise identical
   // across re-dubs, so the WebView could keep serving the previously
   // buffered MP4 and the user would see the old dub after editing +
   // regenerating (#281). The backend ignores `v`.
-  const dubGenNonce = useAppStore(s => s.dubGenNonce);
+  const dubGenNonce = useAppStore((s) => s.dubGenNonce);
   // previewMode is 'original' or a dubbed language code (multi-language switcher).
   const previewIsDub = previewMode !== 'original' && hasDubbedTrack;
   const videoSrc = previewIsDub
@@ -290,34 +358,49 @@ export default function DubTab(props) {
     try {
       const lang = previewMode !== 'original' ? previewMode : undefined;
       const res = await dubQc(dubJobId, lang);
-      const byId = new Map((res.segments || []).map(q => [String(q.seg_id), q]));
-      setDubSegments(dubSegments.map((s, i) => {
-        const q = byId.get(String(s.id ?? i));
-        if (!q) return s;
-        return {
-          ...s,
-          qc_drift: q.drift,
-          qc_flagged: q.flagged,
-          qc_recognized: q.recognized_text,
-          ...(q.measured_start != null ? { qc_measured_start: q.measured_start, qc_measured_end: q.measured_end } : {}),
-        };
-      }));
+      const byId = new Map((res.segments || []).map((q) => [String(q.seg_id), q]));
+      setDubSegments(
+        dubSegments.map((s, i) => {
+          const q = byId.get(String(s.id ?? i));
+          if (!q) return s;
+          return {
+            ...s,
+            qc_drift: q.drift,
+            qc_flagged: q.flagged,
+            qc_recognized: q.recognized_text,
+            ...(q.measured_start != null
+              ? { qc_measured_start: q.measured_start, qc_measured_end: q.measured_end }
+              : {}),
+          };
+        }),
+      );
       if (res.flagged_count > 0) {
-        toast(t('dub.qc_result', {
-          flagged: res.flagged_count, total: res.total,
-          defaultValue: '{{flagged}} of {{total}} lines may need a re-listen',
-        }), { icon: '⚠️', id: loadingId, duration: 6000 });
+        toast(
+          t('dub.qc_result', {
+            flagged: res.flagged_count,
+            total: res.total,
+            defaultValue: '{{flagged}} of {{total}} lines may need a re-listen',
+          }),
+          { icon: '⚠️', id: loadingId, duration: 6000 },
+        );
       } else {
-        toast.success(t('dub.qc_clean', {
-          total: res.total,
-          defaultValue: 'All {{total}} lines match the script',
-        }), { id: loadingId });
+        toast.success(
+          t('dub.qc_clean', {
+            total: res.total,
+            defaultValue: 'All {{total}} lines match the script',
+          }),
+          { id: loadingId },
+        );
       }
     } catch (err) {
       toast.dismiss(loadingId);
       toastErrorWithReport(
-        t('dub.qc_failed', { message: String(err?.message || err).slice(0, 200),
-          defaultValue: 'Timing check failed: {{message}}' }), err);
+        t('dub.qc_failed', {
+          message: String(err?.message || err).slice(0, 200),
+          defaultValue: 'Timing check failed: {{message}}',
+        }),
+        err,
+      );
     } finally {
       setQcRunning(false);
     }
@@ -327,23 +410,196 @@ export default function DubTab(props) {
     <div className="dub-col">
       {/* Pipeline spine — shown once a file/job is in play so the user always
           knows which stage they're at (Upload → … → Export). */}
-      {(dubVideoFile || dubJobId || dubStep !== 'idle') && (
-        <DubPipelineStepper dubStep={dubStep} />
-      )}
+      {(dubVideoFile || dubJobId || dubStep !== 'idle') && <DubPipelineStepper dubStep={dubStep} />}
       {/* ── Idle: show full editor skeleton with drop zone ── */}
       {showIdleSkeleton && (
-        <IdleSkeleton t={t} dubVideoFile={dubVideoFile} activeProjectName={activeProjectName} dubFilename={dubFilename} dubError={dubError} dubJobId={dubJobId} dubStep={dubStep} dubFailure={dubFailure} handleDubRetryTranscribe={handleDubRetryTranscribe} handleDubImportSrt={handleDubImportSrt} dubLocalBlobUrl={dubLocalBlobUrl} dubPrepStage={dubPrepStage} dubPrepProgress={dubPrepProgress} handleDubAbort={handleDubAbort} transcribeElapsed={transcribeElapsed} dubDuration={dubDuration} dubNumSpeakers={dubNumSpeakers} setDubNumSpeakers={setDubNumSpeakers} handleDubUpload={handleDubUpload} demoDismissed={demoDismissed} dismissDubDemo={dismissDubDemo} setDubVideoFile={setDubVideoFile} setDubInputType={setDubInputType} setDubStep={setDubStep} fileToMediaUrl={fileToMediaUrl} setDubLocalBlobUrl={setDubLocalBlobUrl} ingestUrl={ingestUrl} setIngestUrl={setIngestUrl} onIngestUrl={onIngestUrl} fetchYtSubs={fetchYtSubs} setFetchYtSubs={setFetchYtSubs} dubLangCode={dubLangCode} setDubLangCode={setDubLangCode} setDubLang={setDubLang} landingAdvOpen={landingAdvOpen} setLandingAdvOpen={setLandingAdvOpen} dubInstruct={dubInstruct} setDubInstruct={setDubInstruct} />
+        <IdleSkeleton
+          t={t}
+          dubVideoFile={dubVideoFile}
+          activeProjectName={activeProjectName}
+          dubFilename={dubFilename}
+          dubError={dubError}
+          dubJobId={dubJobId}
+          dubStep={dubStep}
+          dubFailure={dubFailure}
+          handleDubRetryTranscribe={handleDubRetryTranscribe}
+          handleDubImportSrt={handleDubImportSrt}
+          dubLocalBlobUrl={dubLocalBlobUrl}
+          dubPrepStage={dubPrepStage}
+          dubPrepProgress={dubPrepProgress}
+          handleDubAbort={handleDubAbort}
+          transcribeElapsed={transcribeElapsed}
+          dubDuration={dubDuration}
+          dubNumSpeakers={dubNumSpeakers}
+          setDubNumSpeakers={setDubNumSpeakers}
+          handleDubUpload={handleDubUpload}
+          demoDismissed={demoDismissed}
+          dismissDubDemo={dismissDubDemo}
+          setDubVideoFile={setDubVideoFile}
+          setDubInputType={setDubInputType}
+          setDubStep={setDubStep}
+          fileToMediaUrl={fileToMediaUrl}
+          setDubLocalBlobUrl={setDubLocalBlobUrl}
+          ingestUrl={ingestUrl}
+          setIngestUrl={setIngestUrl}
+          onIngestUrl={onIngestUrl}
+          fetchYtSubs={fetchYtSubs}
+          setFetchYtSubs={setFetchYtSubs}
+          dubLangCode={dubLangCode}
+          setDubLangCode={setDubLangCode}
+          setDubLang={setDubLang}
+          landingAdvOpen={landingAdvOpen}
+          setLandingAdvOpen={setLandingAdvOpen}
+          dubInstruct={dubInstruct}
+          setDubInstruct={setDubInstruct}
+        />
       )}
 
       {/* ── After transcription: side-by-side editor ── */}
       {dubJobId && (dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done') && (
         <div className="dub-col">
-          <DubHeader t={t} dubFilename={dubFilename} dubDuration={dubDuration} dubSegments={dubSegments} activeProjectName={activeProjectName} saveProject={saveProject} resetDub={resetDub} dubStep={dubStep} handleDubStop={handleDubStop} dubProgress={dubProgress} onGenerateClick={onGenerateClick} multiLangMode={multiLangMode} multiLangs={multiLangs} incrementalPlan={incrementalPlan} handleDubGenerate={handleDubGenerate} qcRunning={qcRunning} handleDubQc={handleDubQc} setExportOpen={setExportOpen} />
+          <DubHeader
+            t={t}
+            dubFilename={dubFilename}
+            dubDuration={dubDuration}
+            dubSegments={dubSegments}
+            activeProjectName={activeProjectName}
+            saveProject={saveProject}
+            resetDub={resetDub}
+            dubStep={dubStep}
+            handleDubStop={handleDubStop}
+            dubProgress={dubProgress}
+            onGenerateClick={onGenerateClick}
+            multiLangMode={multiLangMode}
+            multiLangs={multiLangs}
+            incrementalPlan={incrementalPlan}
+            handleDubGenerate={handleDubGenerate}
+            qcRunning={qcRunning}
+            handleDubQc={handleDubQc}
+            setExportOpen={setExportOpen}
+          />
           <div className="dub-split-grid dub-split-2">
-            <DubLeftColumn hasDubbedTrack={hasDubbedTrack} t={t} previewMode={previewMode} setPreviewMode={setPreviewMode} dubTracks={dubTracks} videoSrc={videoSrc} waveformRef={waveformRef} dubJobId={dubJobId} dubSegments={dubSegments} timelineOnsets={timelineOnsets} timelineSelSegId={timelineSelSegId} setTimelineSelSegId={setTimelineSelSegId} incrementalPlan={incrementalPlan} segmentMoveResize={segmentMoveResize} segmentDelete={segmentDelete} onTimelinePreviewSegment={onTimelinePreviewSegment} dubStep={dubStep} dubProgress={dubProgress} fmtDur={fmtDur} genElapsed={genElapsed} genRemaining={genRemaining} speakerClones={speakerClones} setDubSegments={setDubSegments} profiles={profiles} settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} dubLang={dubLang} dubLangCode={dubLangCode} translateQuality={translateQuality} activeEngineUnavailable={activeEngineUnavailable} translateProvider={translateProvider} dubInstruct={dubInstruct} setDubInstruct={setDubInstruct} handleTranslateAll={handleTranslateAll} isTranslating={isTranslating} hasAnyTranslation={hasAnyTranslation} handleCleanupSegments={handleCleanupSegments} setDubLang={setDubLang} setDubLangCode={setDubLangCode} dubDialect={dubDialect} setDubDialect={setDubDialect} i18n={i18n} enginesSandboxed={enginesSandboxed} handleInstallEngine={handleInstallEngine} engineInstalling={engineInstalling} activeEngineEntry={activeEngineEntry} engines={engines} setTranslateProvider={setTranslateProvider} setTranslateQuality={setTranslateQuality} llmEndpoint={llmEndpoint} multiLangMode={multiLangMode} setMultiLangMode={setMultiLangMode} multiLangs={multiLangs} setMultiLangs={setMultiLangs} editSegments={editSegments} />
-            <DubRightColumn t={t} preserveBg={preserveBg} setPreserveBg={setPreserveBg} dualSubs={dualSubs} setDualSubs={setDualSubs} burnSubs={burnSubs} setBurnSubs={setBurnSubs} defaultTrack={defaultTrack} setDefaultTrack={setDefaultTrack} dubLangCode={dubLangCode} dubTracks={dubTracks} timingStrategy={timingStrategy} setTimingStrategy={setTimingStrategy} dubTranscript={dubTranscript} showTranscript={showTranscript} setShowTranscript={setShowTranscript} dubJobId={dubJobId} glossaryVisible={glossaryVisible} setGlossaryOpen={setGlossaryOpen} setGlossaryHidden={setGlossaryHidden} glossaryTermCount={glossaryTermCount} dubLang={dubLang} dubSegments={dubSegments} onGlossaryChange={onGlossaryChange} selectedSegIds={selectedSegIds} bulkApplyToSelected={bulkApplyToSelected} speakerClones={speakerClones} profiles={profiles} clearSegSelection={clearSegSelection} bulkDeleteSelected={bulkDeleteSelected} showCheckpoint={showCheckpoint} checkpointStage={checkpointStage} onCheckpointContinue={onCheckpointContinue} onCheckpointDismiss={onCheckpointDismiss} isTranslating={isTranslating} segmentPreviewLoading={segmentPreviewLoading} toggleSegSelect={toggleSegSelect} selectAllSegs={selectAllSegs} segmentEditField={segmentEditField} segmentDelete={segmentDelete} segmentRestoreOriginal={segmentRestoreOriginal} handleSegmentPreview={handleSegmentPreview} onDirectSegment={onDirectSegment} segmentSplit={segmentSplit} segmentMerge={segmentMerge} seekWaveform={seekWaveform} timelineSelSegId={timelineSelSegId} dubStep={dubStep} dubProgress={dubProgress} />
+            <DubLeftColumn
+              hasDubbedTrack={hasDubbedTrack}
+              t={t}
+              previewMode={previewMode}
+              setPreviewMode={setPreviewMode}
+              dubTracks={dubTracks}
+              videoSrc={videoSrc}
+              waveformRef={waveformRef}
+              dubJobId={dubJobId}
+              dubSegments={dubSegments}
+              timelineOnsets={timelineOnsets}
+              timelineSelSegId={timelineSelSegId}
+              setTimelineSelSegId={setTimelineSelSegId}
+              incrementalPlan={incrementalPlan}
+              segmentMoveResize={segmentMoveResize}
+              segmentDelete={segmentDelete}
+              onTimelinePreviewSegment={onTimelinePreviewSegment}
+              dubStep={dubStep}
+              dubProgress={dubProgress}
+              fmtDur={fmtDur}
+              genElapsed={genElapsed}
+              genRemaining={genRemaining}
+              speakerClones={speakerClones}
+              setDubSegments={setDubSegments}
+              profiles={profiles}
+              settingsOpen={settingsOpen}
+              setSettingsOpen={setSettingsOpen}
+              dubLang={dubLang}
+              dubLangCode={dubLangCode}
+              translateQuality={translateQuality}
+              activeEngineUnavailable={activeEngineUnavailable}
+              translateProvider={translateProvider}
+              dubInstruct={dubInstruct}
+              setDubInstruct={setDubInstruct}
+              handleTranslateAll={handleTranslateAll}
+              isTranslating={isTranslating}
+              hasAnyTranslation={hasAnyTranslation}
+              handleCleanupSegments={handleCleanupSegments}
+              setDubLang={setDubLang}
+              setDubLangCode={setDubLangCode}
+              dubDialect={dubDialect}
+              setDubDialect={setDubDialect}
+              i18n={i18n}
+              enginesSandboxed={enginesSandboxed}
+              handleInstallEngine={handleInstallEngine}
+              engineInstalling={engineInstalling}
+              activeEngineEntry={activeEngineEntry}
+              engines={engines}
+              setTranslateProvider={setTranslateProvider}
+              setTranslateQuality={setTranslateQuality}
+              llmEndpoint={llmEndpoint}
+              multiLangMode={multiLangMode}
+              setMultiLangMode={setMultiLangMode}
+              multiLangs={multiLangs}
+              setMultiLangs={setMultiLangs}
+              editSegments={editSegments}
+            />
+            <DubRightColumn
+              t={t}
+              preserveBg={preserveBg}
+              setPreserveBg={setPreserveBg}
+              dualSubs={dualSubs}
+              setDualSubs={setDualSubs}
+              burnSubs={burnSubs}
+              setBurnSubs={setBurnSubs}
+              defaultTrack={defaultTrack}
+              setDefaultTrack={setDefaultTrack}
+              dubLangCode={dubLangCode}
+              dubTracks={dubTracks}
+              timingStrategy={timingStrategy}
+              setTimingStrategy={setTimingStrategy}
+              dubTranscript={dubTranscript}
+              showTranscript={showTranscript}
+              setShowTranscript={setShowTranscript}
+              dubJobId={dubJobId}
+              glossaryVisible={glossaryVisible}
+              setGlossaryOpen={setGlossaryOpen}
+              setGlossaryHidden={setGlossaryHidden}
+              glossaryTermCount={glossaryTermCount}
+              dubLang={dubLang}
+              dubSegments={dubSegments}
+              onGlossaryChange={onGlossaryChange}
+              selectedSegIds={selectedSegIds}
+              bulkApplyToSelected={bulkApplyToSelected}
+              speakerClones={speakerClones}
+              profiles={profiles}
+              clearSegSelection={clearSegSelection}
+              bulkDeleteSelected={bulkDeleteSelected}
+              showCheckpoint={showCheckpoint}
+              checkpointStage={checkpointStage}
+              onCheckpointContinue={onCheckpointContinue}
+              onCheckpointDismiss={onCheckpointDismiss}
+              isTranslating={isTranslating}
+              segmentPreviewLoading={segmentPreviewLoading}
+              toggleSegSelect={toggleSegSelect}
+              selectAllSegs={selectAllSegs}
+              segmentEditField={segmentEditField}
+              segmentDelete={segmentDelete}
+              segmentRestoreOriginal={segmentRestoreOriginal}
+              handleSegmentPreview={handleSegmentPreview}
+              onDirectSegment={onDirectSegment}
+              segmentSplit={segmentSplit}
+              segmentMerge={segmentMerge}
+              seekWaveform={seekWaveform}
+              timelineSelSegId={timelineSelSegId}
+              dubStep={dubStep}
+              dubProgress={dubProgress}
+            />
           </div>
-          <DubFooter t={t} dubStep={dubStep} dubTracks={dubTracks} incrementalPlan={incrementalPlan} dubError={dubError} dubFailure={dubFailure} exportTracks={exportTracks} setExportTracks={setExportTracks} dubSegments={dubSegments} translateQuality={translateQuality} />
+          <DubFooter
+            t={t}
+            dubStep={dubStep}
+            dubTracks={dubTracks}
+            incrementalPlan={incrementalPlan}
+            dubError={dubError}
+            dubFailure={dubFailure}
+            exportTracks={exportTracks}
+            setExportTracks={setExportTracks}
+            dubSegments={dubSegments}
+            translateQuality={translateQuality}
+          />
         </div>
       )}
 
@@ -354,11 +610,16 @@ export default function DubTab(props) {
         filename={dubFilename}
         dubTracks={dubTracks}
         dubLangCode={dubLangCode}
-        preserveBg={preserveBg} setPreserveBg={setPreserveBg}
-        defaultTrack={defaultTrack} setDefaultTrack={setDefaultTrack}
-        exportTracks={exportTracks} setExportTracks={setExportTracks}
-        dualSubs={dualSubs} setDualSubs={setDualSubs}
-        burnSubs={burnSubs} setBurnSubs={setBurnSubs}
+        preserveBg={preserveBg}
+        setPreserveBg={setPreserveBg}
+        defaultTrack={defaultTrack}
+        setDefaultTrack={setDefaultTrack}
+        exportTracks={exportTracks}
+        setExportTracks={setExportTracks}
+        dualSubs={dualSubs}
+        setDualSubs={setDualSubs}
+        burnSubs={burnSubs}
+        setBurnSubs={setBurnSubs}
         API={API}
         triggerDownload={triggerDownload}
         handleDubDownload={handleDubDownload}

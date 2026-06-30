@@ -29,10 +29,10 @@ export default function AecPanel() {
         subtitle="experimental"
         hint={
           <>
-            Cancels OmniVoice's own playback out of the microphone so you can
-            dictate while a preview, dub, or video is playing — without the
-            transcript picking up what the app is saying. Adds a small amount of
-            audio processing; leave it off if you never dictate over playback.
+            Cancels OmniVoice's own playback out of the microphone so you can dictate while a
+            preview, dub, or video is playing — without the transcript picking up what the app is
+            saying. Adds a small amount of audio processing; leave it off if you never dictate over
+            playback.
           </>
         }
         control={

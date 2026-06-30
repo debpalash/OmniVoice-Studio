@@ -40,7 +40,9 @@ const Button = forwardRef(function Button(
     loading && 'is-loading',
     block && 'ui-btn--block',
     className,
-  ].filter(Boolean).join(' ');
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <button
@@ -54,10 +56,10 @@ const Button = forwardRef(function Button(
     >
       {loading ? (
         <Loader size={variant === 'icon' ? 10 : 12} className="ui-btn__spinner" />
-      ) : leading}
-      {variant !== 'icon' && children != null && (
-        <span className="ui-btn__label">{children}</span>
+      ) : (
+        leading
       )}
+      {variant !== 'icon' && children != null && <span className="ui-btn__label">{children}</span>}
       {variant === 'icon' && children}
       {trailing}
     </button>

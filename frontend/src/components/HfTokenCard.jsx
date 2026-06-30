@@ -48,7 +48,9 @@ export default function HfTokenCard({ className = '' }) {
 
   return (
     <div className={`swiz-hfbar ${className}`.trim()}>
-      <span className="swiz-hfbar__icon" aria-hidden="true">⚡</span>
+      <span className="swiz-hfbar__icon" aria-hidden="true">
+        ⚡
+      </span>
       <span className="swiz-hfbar__prompt">
         {t('firstrun.hf_token_inline_prompt', 'Speed up downloads with a free Hugging Face token')}
       </span>
@@ -58,9 +60,17 @@ export default function HfTokenCard({ className = '' }) {
         placeholder={t('firstrun.hf_token_inline_ph', 'Paste hf_… token (optional)')}
         value={hfToken}
         autoComplete="off"
-        onChange={(e) => { setHfToken(e.target.value); if (hfState !== 'idle') setHfState('idle'); }}
-        onKeyDown={(e) => { if (e.key === 'Enter') saveHfToken(); }}
-        aria-label={t('firstrun.hf_token_card_title', 'Add a free Hugging Face token for faster downloads')}
+        onChange={(e) => {
+          setHfToken(e.target.value);
+          if (hfState !== 'idle') setHfState('idle');
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') saveHfToken();
+        }}
+        aria-label={t(
+          'firstrun.hf_token_card_title',
+          'Add a free Hugging Face token for faster downloads',
+        )}
       />
       <button
         type="button"
@@ -81,7 +91,10 @@ export default function HfTokenCard({ className = '' }) {
       </button>
       {hfState === 'error' && (
         <span className="swiz-hfbar__err">
-          {t('firstrun.hf_token_error', 'Could not save the token — try again or set it later in Settings → Credentials.')}
+          {t(
+            'firstrun.hf_token_error',
+            'Could not save the token — try again or set it later in Settings → Credentials.',
+          )}
         </span>
       )}
     </div>

@@ -36,9 +36,9 @@ interface DubProgress {
 
 /** Per-stage progress for the prep pipeline (download, demucs). */
 interface DubPrepProgress {
-  percent: number | null;       // 0–100, or null if not known yet
-  speedBps: number | null;      // download speed in bytes/sec, when relevant
-  etaS: number | null;          // ETA in seconds, when known
+  percent: number | null; // 0–100, or null if not known yet
+  speedBps: number | null; // download speed in bytes/sec, when relevant
+  etaS: number | null; // ETA in seconds, when known
   stageStartedAt: number | null; // ms epoch; used for elapsed-time display
 }
 
@@ -117,12 +117,15 @@ export interface DubSlice {
   // are speaker_id (e.g. "Speaker 1"), values are {ref_audio, ref_text,
   // duration, source_count}. Enables the cross-lingual "same voice in a
   // new language" dubbing flow.
-  speakerClones: Record<string, {
-    ref_audio: string;
-    ref_text: string;
-    duration: number;
-    source_count: number;
-  }>;
+  speakerClones: Record<
+    string,
+    {
+      ref_audio: string;
+      ref_text: string;
+      duration: number;
+      source_count: number;
+    }
+  >;
 
   // ── Effect Presets ────────────────────────────────────────────────────
   segmentEffectPresets: Record<string, string>;
@@ -166,14 +169,38 @@ export interface DubSlice {
   resetDubState: () => void;
 }
 
-const INITIAL: Omit<DubSlice,
-  | 'setDubJobId' | 'setDubStep' | 'setDubInputType' | 'setDubTaskId' | 'setDubPrepStage'
-  | 'setDubPrepProgress' | 'setDubCurrentSegId'
-  | 'setDubProgress' | 'setDubError' | 'setDubFailure' | 'setIsTranslating' | 'setDubSegments'
-  | 'setDubTranscript' | 'setDubFilename' | 'setDubDuration' | 'setDubTracks' | 'bumpDubGenNonce'
-  | 'setDubLang' | 'setDubLangCode' | 'setDubNumSpeakers' | 'setDubDialect' | 'setDubInstruct' | 'setPreserveBg'
-  | 'setDefaultTrack' | 'setExportTracks' | 'setPreviewSegIds' | 'setSpeakerClones'
-  | 'setSegmentEffectPreset' | 'setAvailableEffectPresets' | 'resetDubState'
+const INITIAL: Omit<
+  DubSlice,
+  | 'setDubJobId'
+  | 'setDubStep'
+  | 'setDubInputType'
+  | 'setDubTaskId'
+  | 'setDubPrepStage'
+  | 'setDubPrepProgress'
+  | 'setDubCurrentSegId'
+  | 'setDubProgress'
+  | 'setDubError'
+  | 'setDubFailure'
+  | 'setIsTranslating'
+  | 'setDubSegments'
+  | 'setDubTranscript'
+  | 'setDubFilename'
+  | 'setDubDuration'
+  | 'setDubTracks'
+  | 'bumpDubGenNonce'
+  | 'setDubLang'
+  | 'setDubLangCode'
+  | 'setDubNumSpeakers'
+  | 'setDubDialect'
+  | 'setDubInstruct'
+  | 'setPreserveBg'
+  | 'setDefaultTrack'
+  | 'setExportTracks'
+  | 'setPreviewSegIds'
+  | 'setSpeakerClones'
+  | 'setSegmentEffectPreset'
+  | 'setAvailableEffectPresets'
+  | 'resetDubState'
 > = {
   dubJobId: null,
   dubStep: 'idle',
@@ -209,33 +236,33 @@ const INITIAL: Omit<DubSlice,
 export const createDubSlice: StateCreator<DubSlice, [], [], DubSlice> = (set, get) => ({
   ...INITIAL,
 
-  setDubJobId:     (v) => set((s) => ({ dubJobId:     resolve(v, s.dubJobId) })),
-  setDubStep:      (v) => set((s) => ({ dubStep:      resolve(v, s.dubStep) })),
+  setDubJobId: (v) => set((s) => ({ dubJobId: resolve(v, s.dubJobId) })),
+  setDubStep: (v) => set((s) => ({ dubStep: resolve(v, s.dubStep) })),
   setDubInputType: (v) => set((s) => ({ dubInputType: resolve(v, s.dubInputType) })),
-  setDubTaskId:    (v) => set((s) => ({ dubTaskId:    resolve(v, s.dubTaskId) })),
+  setDubTaskId: (v) => set((s) => ({ dubTaskId: resolve(v, s.dubTaskId) })),
   setDubPrepStage: (v) => set((s) => ({ dubPrepStage: resolve(v, s.dubPrepStage) })),
   setDubPrepProgress: (v) => set((s) => ({ dubPrepProgress: resolve(v, s.dubPrepProgress) })),
-  setDubProgress:  (v) => set((s) => ({ dubProgress:  resolve(v, s.dubProgress) })),
+  setDubProgress: (v) => set((s) => ({ dubProgress: resolve(v, s.dubProgress) })),
   setDubCurrentSegId: (v) => set((s) => ({ dubCurrentSegId: resolve(v, s.dubCurrentSegId) })),
-  setDubError:     (v) => set((s) => ({ dubError:     resolve(v, s.dubError) })),
-  setDubFailure:   (v) => set((s) => ({ dubFailure:   resolve(v, s.dubFailure) })),
-  setIsTranslating:(v) => set((s) => ({ isTranslating:resolve(v, s.isTranslating) })),
-  setDubSegments:  (v) => set((s) => ({ dubSegments:  resolve(v, s.dubSegments) })),
-  setDubTranscript:(v) => set((s) => ({ dubTranscript:resolve(v, s.dubTranscript) })),
-  setDubFilename:  (v) => set((s) => ({ dubFilename:  resolve(v, s.dubFilename) })),
-  setDubDuration:  (v) => set((s) => ({ dubDuration:  resolve(v, s.dubDuration) })),
-  setDubTracks:    (v) => set((s) => ({ dubTracks:    resolve(v, s.dubTracks) })),
+  setDubError: (v) => set((s) => ({ dubError: resolve(v, s.dubError) })),
+  setDubFailure: (v) => set((s) => ({ dubFailure: resolve(v, s.dubFailure) })),
+  setIsTranslating: (v) => set((s) => ({ isTranslating: resolve(v, s.isTranslating) })),
+  setDubSegments: (v) => set((s) => ({ dubSegments: resolve(v, s.dubSegments) })),
+  setDubTranscript: (v) => set((s) => ({ dubTranscript: resolve(v, s.dubTranscript) })),
+  setDubFilename: (v) => set((s) => ({ dubFilename: resolve(v, s.dubFilename) })),
+  setDubDuration: (v) => set((s) => ({ dubDuration: resolve(v, s.dubDuration) })),
+  setDubTracks: (v) => set((s) => ({ dubTracks: resolve(v, s.dubTracks) })),
   bumpDubGenNonce: () => set(() => ({ dubGenNonce: Date.now() })),
-  setDubLang:      (v) => set((s) => ({ dubLang:      resolve(v, s.dubLang) })),
-  setDubLangCode:  (v) => set((s) => ({ dubLangCode:  resolve(v, s.dubLangCode) })),
+  setDubLang: (v) => set((s) => ({ dubLang: resolve(v, s.dubLang) })),
+  setDubLangCode: (v) => set((s) => ({ dubLangCode: resolve(v, s.dubLangCode) })),
   setDubNumSpeakers: (v) => set((s) => ({ dubNumSpeakers: resolve(v, s.dubNumSpeakers) })),
-  setDubDialect:   (v) => set((s) => ({ dubDialect:   resolve(v, s.dubDialect) })),
-  setDubInstruct:  (v) => set((s) => ({ dubInstruct:  resolve(v, s.dubInstruct) })),
-  setPreserveBg:   (v) => set((s) => ({ preserveBg:   resolve(v, s.preserveBg) })),
+  setDubDialect: (v) => set((s) => ({ dubDialect: resolve(v, s.dubDialect) })),
+  setDubInstruct: (v) => set((s) => ({ dubInstruct: resolve(v, s.dubInstruct) })),
+  setPreserveBg: (v) => set((s) => ({ preserveBg: resolve(v, s.preserveBg) })),
   setDefaultTrack: (v) => set((s) => ({ defaultTrack: resolve(v, s.defaultTrack) })),
   setExportTracks: (v) => set((s) => ({ exportTracks: resolve(v, s.exportTracks) })),
-  setPreviewSegIds:(v) => set((s) => ({ previewSegIds:resolve(v, s.previewSegIds) })),
-  setSpeakerClones:(v) => set((s) => ({ speakerClones: resolve(v, s.speakerClones) })),
+  setPreviewSegIds: (v) => set((s) => ({ previewSegIds: resolve(v, s.previewSegIds) })),
+  setSpeakerClones: (v) => set((s) => ({ speakerClones: resolve(v, s.speakerClones) })),
   setSegmentEffectPreset: (segId, presetId) =>
     set((s) => ({
       segmentEffectPresets: { ...s.segmentEffectPresets, [segId]: presetId },

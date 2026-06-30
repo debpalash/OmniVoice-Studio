@@ -8,7 +8,10 @@ export async function probeAudioDuration(file) {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
     const a = new Audio();
-    const done = (v) => { URL.revokeObjectURL(url); resolve(v); };
+    const done = (v) => {
+      URL.revokeObjectURL(url);
+      resolve(v);
+    };
     a.addEventListener('loadedmetadata', () => done(isFinite(a.duration) ? a.duration : null));
     a.addEventListener('error', () => done(null));
     a.src = url;

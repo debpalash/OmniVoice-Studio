@@ -7,9 +7,9 @@
 // rules-of-hooks, no-undef, max-lines, react-refresh) is turned OFF here so the
 // two tools don't double-report. Drop this file once oxlint's JS-plugin support
 // graduates from alpha and can run eslint-plugin-react-hooks directly.
-import reactHooks from 'eslint-plugin-react-hooks'
-import globals from 'globals'
-import { defineConfig, globalIgnores } from 'eslint/config'
+import reactHooks from 'eslint-plugin-react-hooks';
+import globals from 'globals';
+import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
   globalIgnores(['dist']),
@@ -30,4 +30,4 @@ export default defineConfig([
       'react-hooks/rules-of-hooks': 'off',
     },
   },
-])
+]);

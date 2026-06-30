@@ -3,10 +3,35 @@
 // scale, and a CSS-animated "now playing" equalizer.
 import React from 'react';
 import {
-  BookOpen, MessagesSquare, MessageSquare, Drama, Smartphone, Tv, Megaphone,
-  GraduationCap, Library, Mic, Moon, Wand2, Smile, Headphones, Coffee, Skull,
-  Bird, Shield, Sparkles, Ghost, Radio, Zap, Video, Trophy, Clapperboard, Gem,
-  Music, Lightbulb, Globe,
+  BookOpen,
+  MessagesSquare,
+  MessageSquare,
+  Drama,
+  Smartphone,
+  Tv,
+  Megaphone,
+  GraduationCap,
+  Library,
+  Mic,
+  Moon,
+  Wand2,
+  Smile,
+  Headphones,
+  Coffee,
+  Skull,
+  Bird,
+  Shield,
+  Sparkles,
+  Ghost,
+  Radio,
+  Zap,
+  Video,
+  Trophy,
+  Clapperboard,
+  Gem,
+  Music,
+  Lightbulb,
+  Globe,
 } from 'lucide-react';
 import US from 'country-flag-icons/react/3x2/US';
 import GB from 'country-flag-icons/react/3x2/GB';
@@ -21,10 +46,35 @@ import RU from 'country-flag-icons/react/3x2/RU';
 
 // lucide component name → component (icon identity comes from the backend).
 const ICONS = {
-  BookOpen, MessagesSquare, MessageSquare, Drama, Smartphone, Tv, Megaphone,
-  GraduationCap, Library, Mic, Moon, Wand2, Smile, Headphones, Coffee, Skull,
-  Bird, Shield, Sparkles, Ghost, Radio, Zap, Video, Trophy, Clapperboard, Gem,
-  Music, Lightbulb, Globe,
+  BookOpen,
+  MessagesSquare,
+  MessageSquare,
+  Drama,
+  Smartphone,
+  Tv,
+  Megaphone,
+  GraduationCap,
+  Library,
+  Mic,
+  Moon,
+  Wand2,
+  Smile,
+  Headphones,
+  Coffee,
+  Skull,
+  Bird,
+  Shield,
+  Sparkles,
+  Ghost,
+  Radio,
+  Zap,
+  Video,
+  Trophy,
+  Clapperboard,
+  Gem,
+  Music,
+  Lightbulb,
+  Globe,
 };
 
 // One accent color per use-case (gruvbox palette, matches the app theme).
@@ -75,7 +125,10 @@ export function AccentFlag({ accent, lang, size = 14 }) {
 export function NowPlaying({ color }) {
   return (
     <span className="now-playing" style={color ? { color } : undefined} aria-hidden="true">
-      <i /><i /><i /><i />
+      <i />
+      <i />
+      <i />
+      <i />
     </span>
   );
 }
@@ -86,7 +139,12 @@ export function ArchetypeAvatar({ item, size = 44 }) {
   return (
     <div
       className="arch-avatar"
-      style={{ width: size, height: size, background: tint(color, 0.14), borderColor: tint(color, 0.32) }}
+      style={{
+        width: size,
+        height: size,
+        background: tint(color, 0.14),
+        borderColor: tint(color, 0.32),
+      }}
     >
       <ArchetypeIcon name={item.icon} size={Math.round(size * 0.46)} color={color} />
       <span className="arch-avatar-flag">

@@ -14,27 +14,31 @@ describe('describeMicError', () => {
       const d = describeMicError(err(name), 'windows');
       expect(d.key).toBe('capture.mic_denied_toast');
       expect(d.hintKey).toBe('capture.mic_hint_windows');
-    }
+    },
   );
 
   it('picks the per-platform hint key', () => {
     expect(describeMicError(err('NotAllowedError'), 'mac').hintKey).toBe('capture.mic_hint_mac');
-    expect(describeMicError(err('NotAllowedError'), 'windows').hintKey).toBe('capture.mic_hint_windows');
-    expect(describeMicError(err('NotAllowedError'), 'linux').hintKey).toBe('capture.mic_hint_linux');
+    expect(describeMicError(err('NotAllowedError'), 'windows').hintKey).toBe(
+      'capture.mic_hint_windows',
+    );
+    expect(describeMicError(err('NotAllowedError'), 'linux').hintKey).toBe(
+      'capture.mic_hint_linux',
+    );
   });
 
   it.each(['NotFoundError', 'DevicesNotFoundError', 'OverconstrainedError'])(
     'maps %s to mic_not_found',
     (name) => {
       expect(describeMicError(err(name), 'windows')).toEqual({ key: 'capture.mic_not_found' });
-    }
+    },
   );
 
   it.each(['NotReadableError', 'TrackStartError', 'AbortError'])(
     'maps %s to mic_in_use',
     (name) => {
       expect(describeMicError(err(name), 'linux')).toEqual({ key: 'capture.mic_in_use' });
-    }
+    },
   );
 
   it('falls back to a generic message carrying the error text', () => {
@@ -57,13 +61,13 @@ describe('micErrorMessage', () => {
 
   it('interpolates the translated hint into the denied toast', () => {
     expect(micErrorMessage(t, err('NotAllowedError'), 'windows')).toBe(
-      'capture.mic_denied_toast|hint=capture.mic_hint_windows'
+      'capture.mic_denied_toast|hint=capture.mic_hint_windows',
     );
   });
 
   it('passes the raw message through for unknown errors', () => {
     expect(micErrorMessage(t, err('WeirdError', 'no device bus'), 'linux')).toBe(
-      'capture.mic_error_generic|message=no device bus'
+      'capture.mic_error_generic|message=no device bus',
     );
   });
 
@@ -74,7 +78,9 @@ describe('micErrorMessage', () => {
 
 describe('detectPlatform / micHintKey', () => {
   it('detects from navigator.userAgentData.platform first', () => {
-    expect(detectPlatform({ userAgentData: { platform: 'Windows' }, platform: 'MacIntel' })).toBe('windows');
+    expect(detectPlatform({ userAgentData: { platform: 'Windows' }, platform: 'MacIntel' })).toBe(
+      'windows',
+    );
   });
 
   it('falls back to navigator.platform', () => {

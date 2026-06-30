@@ -72,11 +72,12 @@ export function classifyError(error: unknown): ErrorClass | null {
   // (English + Chinese 已损坏 per issue #72). Lower-case test is safe;
   // '已损坏' is unaffected by lowercasing.
   if (
-    /quarantine/.test(lower)
-    || /gatekeeper/.test(lower)
-    || /\bdamaged\b/.test(lower)
-    || /已损坏/.test(message || '')
-  ) return 'GATEKEEPER_QUARANTINE';
+    /quarantine/.test(lower) ||
+    /gatekeeper/.test(lower) ||
+    /\bdamaged\b/.test(lower) ||
+    /已损坏/.test(message || '')
+  )
+    return 'GATEKEEPER_QUARANTINE';
   return null;
 }
 

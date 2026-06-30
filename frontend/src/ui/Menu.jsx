@@ -28,9 +28,9 @@ export default function Menu({
   // Map our placement string to Radix side + align
   const sideMap = {
     'bottom-start': { side: 'bottom', align: 'start' },
-    'bottom-end':   { side: 'bottom', align: 'end' },
-    'top-start':    { side: 'top',    align: 'start' },
-    'top-end':      { side: 'top',    align: 'end' },
+    'bottom-end': { side: 'bottom', align: 'end' },
+    'top-start': { side: 'top', align: 'start' },
+    'top-end': { side: 'top', align: 'end' },
   };
   const { side, align } = sideMap[placement] || sideMap['bottom-start'];
 

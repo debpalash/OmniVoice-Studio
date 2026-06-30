@@ -71,8 +71,14 @@ describe('dictation prefs store wiring', () => {
 
   it('re-syncs the model id from the POST response (repo_id → canonical id)', async () => {
     // The user picks via repo_id; the backend normalises to the canonical id.
-    apiPost.mockResolvedValue({ enabled: true, mode: 'toggle', model_id: 'sherpa-parakeet-tdt-v2' });
-    useAppStore.getState().setDictationModelId('csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8');
+    apiPost.mockResolvedValue({
+      enabled: true,
+      mode: 'toggle',
+      model_id: 'sherpa-parakeet-tdt-v2',
+    });
+    useAppStore
+      .getState()
+      .setDictationModelId('csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8');
     await flush();
     expect(useAppStore.getState().dictationModelId).toBe('sherpa-parakeet-tdt-v2');
   });

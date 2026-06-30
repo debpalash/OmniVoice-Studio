@@ -114,9 +114,11 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) 
   setIsSidebarCollapsed: (collapsed) => set({ isSidebarCollapsed: collapsed }),
   setIsSidebarProjectsCollapsed: (collapsed) => set({ isSidebarProjectsCollapsed: collapsed }),
   setSidebarTab: (tab) => set({ sidebarTab: tab }),
-  setShowCheatsheet: (open) => set((s) => ({
-    showCheatsheet: typeof open === 'function' ? (open as (p: boolean) => boolean)(s.showCheatsheet) : open,
-  })),
+  setShowCheatsheet: (open) =>
+    set((s) => ({
+      showCheatsheet:
+        typeof open === 'function' ? (open as (p: boolean) => boolean)(s.showCheatsheet) : open,
+    })),
   setUiScale: (scale) => set({ uiScale: scale }),
 
   openVoiceProfile: (id) => {

@@ -15,7 +15,7 @@
  */
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Brush, Check, Clipboard, Globe, Lightbulb } from 'lucide-react';
-import { copyText } from "../utils/copyText";
+import { copyText } from '../utils/copyText';
 import './FirstRunSetup.css';
 import './BootstrapSplash.css';
 import { useTranslation } from 'react-i18next';
@@ -30,7 +30,27 @@ const getSystemLanguage = () => {
   if (typeof navigator === 'undefined') return 'en';
   const navLang = navigator.language || (navigator.languages && navigator.languages[0]) || 'en';
   if (navLang.toLowerCase().includes('tw') || navLang.toLowerCase().includes('hk')) return 'zh-TW';
-  const match = ['zh-CN', 'es', 'fr', 'de', 'ja', 'pt', 'it', 'ru', 'ko', 'hi', 'tr', 'pl', 'nl', 'sv', 'th', 'vi', 'id', 'uk', 'ar'].find(code => navLang.startsWith(code.split('-')[0]));
+  const match = [
+    'zh-CN',
+    'es',
+    'fr',
+    'de',
+    'ja',
+    'pt',
+    'it',
+    'ru',
+    'ko',
+    'hi',
+    'tr',
+    'pl',
+    'nl',
+    'sv',
+    'th',
+    'vi',
+    'id',
+    'uk',
+    'ar',
+  ].find((code) => navLang.startsWith(code.split('-')[0]));
   return match || 'en';
 };
 
@@ -38,13 +58,13 @@ const getSystemLanguage = () => {
 const APP_VERSION = __APP_VERSION__ || '0.0.0';
 
 const STAGE_LABEL = {
-  checking:           'Checking environment…',
-  downloading_uv:     'Downloading uv (Python package manager)…',
-  creating_venv:      'Creating Python virtual environment…',
-  installing_deps:    'Installing dependencies — first run, 5–10 min.',
-  starting_backend:   'Starting backend…',
-  ready:              'Ready',
-  failed:             'Setup failed',
+  checking: 'Checking environment…',
+  downloading_uv: 'Downloading uv (Python package manager)…',
+  creating_venv: 'Creating Python virtual environment…',
+  installing_deps: 'Installing dependencies — first run, 5–10 min.',
+  starting_backend: 'Starting backend…',
+  ready: 'Ready',
+  failed: 'Setup failed',
 };
 
 const STEPS = [
@@ -62,23 +82,25 @@ const MAX_LOG_LINES = 200;
  *  live in locales/en.json under `bootstrap.hint_*`). */
 function detectHints(message, logs) {
   const hints = [];
-  const all = (message || '') + '\n' + logs.map(l => l.line).join('\n');
-  if (/README\.md/i.test(all))           hints.push('bootstrap.hint_readme');
+  const all = (message || '') + '\n' + logs.map((l) => l.line).join('\n');
+  if (/README\.md/i.test(all)) hints.push('bootstrap.hint_readme');
   // python-build-standalone download failure (issue #57, #60): user's network
   // can't reach the github.com release. We auto-retry with a system-Python
   // fallback in bootstrap.rs, but if that also fails the user needs an actionable next step.
   if (/python-build-standalone|managed-python download failed/i.test(all)) {
     hints.push('bootstrap.hint_python_mirror');
   }
-  if (/uv.*download|uv.*install/i.test(all) && /timeout|connection/i.test(all)) hints.push('bootstrap.hint_uv_timeout');
-  if (/uv sync failed/i.test(all))       hints.push('bootstrap.hint_uv_sync');
+  if (/uv.*download|uv.*install/i.test(all) && /timeout|connection/i.test(all))
+    hints.push('bootstrap.hint_uv_timeout');
+  if (/uv sync failed/i.test(all)) hints.push('bootstrap.hint_uv_sync');
   if (/hatchling|build_editable/i.test(all)) hints.push('bootstrap.hint_build_backend');
   if (/ffmpeg/i.test(all) && /download|timeout/i.test(all)) hints.push('bootstrap.hint_ffmpeg');
   if (/port.*in use|address.*in use/i.test(all)) hints.push('bootstrap.hint_port');
-  if (/no error output/i.test(all))      hints.push('bootstrap.hint_silent_crash');
+  if (/no error output/i.test(all)) hints.push('bootstrap.hint_silent_crash');
   if (/seems stuck at|never reported ready/i.test(all)) hints.push('bootstrap.hint_stuck');
-  if (/blocking GitHub|couldn't download Python|python-build-standalone|dns error/i.test(all)) hints.push('bootstrap.hint_github_blocked');
-  if (hints.length === 0)                hints.push('bootstrap.hint_default');
+  if (/blocking GitHub|couldn't download Python|python-build-standalone|dns error/i.test(all))
+    hints.push('bootstrap.hint_github_blocked');
+  if (hints.length === 0) hints.push('bootstrap.hint_default');
   return hints;
 }
 
@@ -93,7 +115,10 @@ function formatBytes(n) {
   const units = ['B', 'KB', 'MB', 'GB'];
   let i = 0;
   let v = n;
-  while (v >= 1024 && i < units.length - 1) { v /= 1024; i += 1; }
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i += 1;
+  }
   return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
 }
 
@@ -102,21 +127,26 @@ function formatBytes(n) {
  *  every poll tick and the silhouette never changes. */
 function Waveform({ bars = 96 }) {
   const heights = useMemo(
-    () => Array.from({ length: bars }, (_, i) => {
-      const t = i / bars;
-      const v = Math.abs(
-        Math.sin(t * Math.PI * 7.3) * 0.55 +
-        Math.sin(t * Math.PI * 2.1 + 1.2) * 0.3 +
-        Math.sin(t * Math.PI * 17.0 + 0.4) * 0.15
-      );
-      return 0.18 + v * 0.82;
-    }),
+    () =>
+      Array.from({ length: bars }, (_, i) => {
+        const t = i / bars;
+        const v = Math.abs(
+          Math.sin(t * Math.PI * 7.3) * 0.55 +
+            Math.sin(t * Math.PI * 2.1 + 1.2) * 0.3 +
+            Math.sin(t * Math.PI * 17.0 + 0.4) * 0.15,
+        );
+        return 0.18 + v * 0.82;
+      }),
     [bars],
   );
   return (
     <div className="frs-wave" aria-hidden="true">
       {heights.map((h, i) => (
-        <span key={i} className="frs-wave__bar" style={{ '--h': h, '--d': `${(i * 73) % 1400}ms` }} />
+        <span
+          key={i}
+          className="frs-wave__bar"
+          style={{ '--h': h, '--d': `${(i * 73) % 1400}ms` }}
+        />
       ))}
     </div>
   );
@@ -124,8 +154,8 @@ function Waveform({ bars = 96 }) {
 
 export function BootstrapSplash({ stage, message }) {
   const { t } = useTranslation();
-  const locale = useAppStore(s => s.locale);
-  const setLocale = useAppStore(s => s.setLocale);
+  const locale = useAppStore((s) => s.locale);
+  const setLocale = useAppStore((s) => s.setLocale);
 
   const handleLocaleChange = (id) => {
     setLocale(id);
@@ -163,7 +193,7 @@ export function BootstrapSplash({ stage, message }) {
   const [retrying, setRetrying] = useState(false);
   const logRef = useRef(null);
   const prevProgRef = useRef(null); // {bytes, t} — last progress event
-  const rateRef = useRef(0);        // EMA bytes/sec across events
+  const rateRef = useRef(0); // EMA bytes/sec across events
 
   const handleRetry = async () => {
     if (retrying) return;
@@ -172,8 +202,11 @@ export function BootstrapSplash({ stage, message }) {
       const { invoke } = await import('@tauri-apps/api/core');
       setLogs([]);
       await invoke('retry_bootstrap');
-    } catch (e) { console.error('retry failed', e); }
-    finally { setRetrying(false); }
+    } catch (e) {
+      console.error('retry failed', e);
+    } finally {
+      setRetrying(false);
+    }
   };
 
   const handleCleanRetry = async () => {
@@ -184,8 +217,11 @@ export function BootstrapSplash({ stage, message }) {
       const { invoke } = await import('@tauri-apps/api/core');
       setLogs([]);
       await invoke('clean_and_retry_bootstrap');
-    } catch (e) { console.error('clean retry failed', e); }
-    finally { setRetrying(false); }
+    } catch (e) {
+      console.error('clean retry failed', e);
+    } finally {
+      setRetrying(false);
+    }
   };
 
   // Load persisted region on mount.
@@ -196,7 +232,9 @@ export function BootstrapSplash({ stage, message }) {
         const { invoke } = await import('@tauri-apps/api/core');
         const r = await invoke('get_region');
         if (r) setRegionState(r);
-      } catch { /* older build without region support */ }
+      } catch {
+        /* older build without region support */
+      }
     })();
   }, []);
 
@@ -205,7 +243,9 @@ export function BootstrapSplash({ stage, message }) {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('set_region', { region: newRegion });
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
   };
 
   // Subscribe to live log + progress events from the Rust bootstrap.
@@ -228,11 +268,17 @@ export function BootstrapSplash({ stage, message }) {
         try {
           const buffered = await invoke('get_bootstrap_logs');
           if (!cancelled && Array.isArray(buffered) && buffered.length > 0) {
-            setLogs(buffered.map(({ stage: s, line }) => ({
-              stage: s, line, t: Date.now(),
-            })));
+            setLogs(
+              buffered.map(({ stage: s, line }) => ({
+                stage: s,
+                line,
+                t: Date.now(),
+              })),
+            );
           }
-        } catch { /* command may not exist in older builds */ }
+        } catch {
+          /* command may not exist in older builds */
+        }
 
         // Subscribe to live events for anything new from here on.
         unlistenLog = await listen('bootstrap-log', (e) => {
@@ -241,11 +287,9 @@ export function BootstrapSplash({ stage, message }) {
           setLogs((prev) => {
             // Deduplicate against backfill by checking the last few lines.
             const lastFew = prev.slice(-5);
-            if (lastFew.some(l => l.stage === s && l.line === line)) return prev;
+            if (lastFew.some((l) => l.stage === s && l.line === line)) return prev;
             const next = prev.concat([{ stage: s, line, t: Date.now() }]);
-            return next.length > MAX_LOG_LINES
-              ? next.slice(next.length - MAX_LOG_LINES)
-              : next;
+            return next.length > MAX_LOG_LINES ? next.slice(next.length - MAX_LOG_LINES) : next;
           });
         });
         unlistenProgress = await listen('bootstrap-progress', (e) => {
@@ -287,16 +331,18 @@ export function BootstrapSplash({ stage, message }) {
   }, [isFailed]);
 
   const handleCopyLogs = () => {
-    const logText = logs.length === 0
-      ? 'No log output captured.'
-      : logs.map(l => `[${l.stage}] ${l.line}`).join('\n');
-    const full = isFailed && message
-      ? `ERROR: ${message}\n\n--- Bootstrap Logs ---\n${logText}`
-      : logText;
-    copyText(full).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {});
+    const logText =
+      logs.length === 0
+        ? 'No log output captured.'
+        : logs.map((l) => `[${l.stage}] ${l.line}`).join('\n');
+    const full =
+      isFailed && message ? `ERROR: ${message}\n\n--- Bootstrap Logs ---\n${logText}` : logText;
+    copyText(full)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {});
   };
 
   const stageProgress = progress && progress.stage === stage ? progress : null;
@@ -315,7 +361,13 @@ export function BootstrapSplash({ stage, message }) {
   // the hook order stable.)
   if (stage === 'awaiting_setup') {
     return (
-      <Suspense fallback={<div className="frs"><div className="frs__atmo" /></div>}>
+      <Suspense
+        fallback={
+          <div className="frs">
+            <div className="frs__atmo" />
+          </div>
+        }
+      >
         <FirstRunSetup />
       </Suspense>
     );
@@ -325,12 +377,14 @@ export function BootstrapSplash({ stage, message }) {
     <div className="frs">
       <div className="frs__atmo" aria-hidden="true" />
       <div className="frs__deck frs__deck--focus">
-
         {/* ── Masthead: same identity as the setup screen ───────────────── */}
         <header className="frs__mast frs-rise" style={{ '--rise': 0 }} data-tauri-drag-region>
           <Waveform />
           {/* Journey rail: act 2 of the install flow (setup already done). */}
-          <nav className="frs-wsteps frs-wsteps--journey" aria-label={t('bootstrap.title', 'OmniVoice Studio')}>
+          <nav
+            className="frs-wsteps frs-wsteps--journey"
+            aria-label={t('bootstrap.title', 'OmniVoice Studio')}
+          >
             <span className="frs-wstep is-done">
               <span className="frs-wstep__led" aria-hidden="true" />
               {t('firstrun.stage_setup', 'Setup')}
@@ -347,7 +401,9 @@ export function BootstrapSplash({ stage, message }) {
           <div className="frs__mast-row">
             <div className="frs__mast-text">
               <h1 className="frs__title">{t('bootstrap.title', 'OmniVoice Studio')}</h1>
-              <p className="frs__subtitle" aria-live="polite">{label}</p>
+              <p className="frs__subtitle" aria-live="polite">
+                {label}
+              </p>
             </div>
             <div className="frs__mast-meta">
               <div className="frs__mast-selects">
@@ -358,7 +414,9 @@ export function BootstrapSplash({ stage, message }) {
                   aria-label={t('firstrun.language', 'Language')}
                 >
                   {LANGUAGES.map((l) => (
-                    <option key={l.code} value={l.code}>{l.label}</option>
+                    <option key={l.code} value={l.code}>
+                      {l.label}
+                    </option>
                   ))}
                 </select>
                 <select
@@ -380,10 +438,19 @@ export function BootstrapSplash({ stage, message }) {
 
         {showSuggestion && (
           <div className="frs-banner frs-rise" style={{ '--rise': 1 }}>
-            <span><Globe size={12} /> {t('bootstrap.suggest_lang', { lang: LANGUAGES.find(l => l.code === systemLang)?.label || systemLang })}</span>
+            <span>
+              <Globe size={12} />{' '}
+              {t('bootstrap.suggest_lang', {
+                lang: LANGUAGES.find((l) => l.code === systemLang)?.label || systemLang,
+              })}
+            </span>
             <div className="frs-banner__actions">
-              <button type="button" className="frs-btn frs-btn--quiet" onClick={acceptSuggestion}>{t('common.yes', 'Yes')}</button>
-              <button type="button" className="frs-btn frs-btn--quiet" onClick={dismissSuggestion}>{t('common.no', 'No')}</button>
+              <button type="button" className="frs-btn frs-btn--quiet" onClick={acceptSuggestion}>
+                {t('common.yes', 'Yes')}
+              </button>
+              <button type="button" className="frs-btn frs-btn--quiet" onClick={dismissSuggestion}>
+                {t('common.no', 'No')}
+              </button>
             </div>
           </div>
         )}
@@ -393,9 +460,13 @@ export function BootstrapSplash({ stage, message }) {
             <h2 className="frs-panel__title">{t('bootstrap.failed', 'Setup failed')}</h2>
             <pre className="frs__error">{message || t('bootstrap.unknown_error')}</pre>
             <div className="frs-hints">
-              <span className="frs-hints__label"><Lightbulb size={12} /> {t('bootstrap.what_to_try', 'What to try:')}</span>
+              <span className="frs-hints__label">
+                <Lightbulb size={12} /> {t('bootstrap.what_to_try', 'What to try:')}
+              </span>
               <ul>
-                {detectHints(message, logs).map((key) => <li key={key}>{t(key)}</li>)}
+                {detectHints(message, logs).map((key) => (
+                  <li key={key}>{t(key)}</li>
+                ))}
               </ul>
             </div>
             <div className="frs-banner__actions frs-banner__actions--end">
@@ -423,7 +494,13 @@ export function BootstrapSplash({ stage, message }) {
             <h2 className="frs-panel__title">{t('firstrun.installing_title', 'Installing')}</h2>
             {/* Overall journey meter — the same LED segments as the setup
                 screen's disk gate, now measuring progress instead of space. */}
-            <div className="frs-meter frs-meter--progress" role="progressbar" aria-valuenow={Math.round(overallPct)} aria-valuemin={0} aria-valuemax={100}>
+            <div
+              className="frs-meter frs-meter--progress"
+              role="progressbar"
+              aria-valuenow={Math.round(overallPct)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
               <span className="frs-meter__fill" style={{ width: `${overallPct}%` }} />
             </div>
             <ol className="frs-steps">
@@ -440,21 +517,30 @@ export function BootstrapSplash({ stage, message }) {
                   {i === stepIndex && stageProgress && (
                     <span className="frs-step__bytes">
                       {formatBytes(stageProgress.bytes_done)}
-                      {stageProgress.bytes_total > 0 ? ` / ${formatBytes(stageProgress.bytes_total)}` : ''}
+                      {stageProgress.bytes_total > 0
+                        ? ` / ${formatBytes(stageProgress.bytes_total)}`
+                        : ''}
                       {pctFromBytes != null ? ` (${pctFromBytes}%)` : ''}
-                      {stageProgress.bytes_total > 0 && rateRef.current > 0 && stageProgress.bytes_done < stageProgress.bytes_total && (
+                      {stageProgress.bytes_total > 0 &&
+                        rateRef.current > 0 &&
+                        stageProgress.bytes_done < stageProgress.bytes_total &&
                         ` · ${t('firstrun.eta_left', {
-                          eta: formatEta((stageProgress.bytes_total - stageProgress.bytes_done) / rateRef.current),
+                          eta: formatEta(
+                            (stageProgress.bytes_total - stageProgress.bytes_done) /
+                              rateRef.current,
+                          ),
                           defaultValue: '~{{eta}} left',
-                        })}`
-                      )}
+                        })}`}
                     </span>
                   )}
                 </li>
               ))}
             </ol>
             <p className="frs__trust">
-              {t('firstrun.resume_note', 'Interrupted downloads resume automatically — closing the app is safe.')}
+              {t(
+                'firstrun.resume_note',
+                'Interrupted downloads resume automatically — closing the app is safe.',
+              )}
             </p>
           </section>
         )}
@@ -468,13 +554,25 @@ export function BootstrapSplash({ stage, message }) {
             </span>
           </h2>
           <div className="frs-log__bar">
-            <button type="button" className="frs-btn frs-btn--quiet" onClick={() => setLogsOpen(v => !v)}>
-              {logsOpen ? '▾ ' + t('bootstrap.hide_logs', 'Hide logs') : '▸ ' + t('bootstrap.show_logs', 'Show logs')}
+            <button
+              type="button"
+              className="frs-btn frs-btn--quiet"
+              onClick={() => setLogsOpen((v) => !v)}
+            >
+              {logsOpen
+                ? '▾ ' + t('bootstrap.hide_logs', 'Hide logs')
+                : '▸ ' + t('bootstrap.show_logs', 'Show logs')}
             </button>
             <button type="button" className="frs-btn frs-btn--quiet" onClick={handleCopyLogs}>
-              {copied
-                ? <><Check size={12} /> {t('bootstrap.copied', 'Copied!')}</>
-                : <><Clipboard size={12} /> {t('bootstrap.copy', 'Copy')}</>}
+              {copied ? (
+                <>
+                  <Check size={12} /> {t('bootstrap.copied', 'Copied!')}
+                </>
+              ) : (
+                <>
+                  <Clipboard size={12} /> {t('bootstrap.copy', 'Copy')}
+                </>
+              )}
             </button>
           </div>
           {logsOpen && (
@@ -507,9 +605,18 @@ export function useBootstrapStage(pollMs = 1000) {
   const [state, setState] = useState({ stage: 'checking', message: null });
 
   useEffect(() => {
-    if (typeof window === 'undefined') { setState({ stage: 'ready', message: null }); return; }
-    if (!('__TAURI_INTERNALS__' in window)) { setState({ stage: 'ready', message: null }); return; }
-    if (import.meta.env.DEV) { setState({ stage: 'ready', message: null }); return; }
+    if (typeof window === 'undefined') {
+      setState({ stage: 'ready', message: null });
+      return;
+    }
+    if (!('__TAURI_INTERNALS__' in window)) {
+      setState({ stage: 'ready', message: null });
+      return;
+    }
+    if (import.meta.env.DEV) {
+      setState({ stage: 'ready', message: null });
+      return;
+    }
 
     let cancelled = false;
     let timer = null;
@@ -535,7 +642,10 @@ export function useBootstrapStage(pollMs = 1000) {
     };
     (async () => {
       const tauriInvoke = await invoke();
-      if (!tauriInvoke) { setState({ stage: 'ready', message: null }); return; }
+      if (!tauriInvoke) {
+        setState({ stage: 'ready', message: null });
+        return;
+      }
       const tick = async () => {
         if (cancelled) return;
         try {
@@ -546,19 +656,23 @@ export function useBootstrapStage(pollMs = 1000) {
           const message = res.message || null;
           // Reset the stall clock whenever something actually changes.
           const key = `${stage}|${message || ''}`;
-          if (key !== lastKey) { lastKey = key; lastChangeTs = Date.now(); }
+          if (key !== lastKey) {
+            lastKey = key;
+            lastChangeTs = Date.now();
+          }
           // Rust returns { stage: 'ready' } or { stage: 'failed', message: '…' } etc.
           if (stage !== 'ready' && stage !== 'failed') {
             if (Date.now() - lastChangeTs > stallBudgetMs(stage)) {
               // Stuck — surface it as a failure so Retry/logs/hints appear.
               setState({
                 stage: 'failed',
-                message: (message ? message + '\n\n' : '') +
+                message:
+                  (message ? message + '\n\n' : '') +
                   `Setup seems stuck at "${stage}" — the backend never reported ready. ` +
                   `Check the log below, then Retry. If you're running from source, make sure ` +
                   `\`uv sync\` completed and uv/Python are on your PATH.`,
               });
-              return;  // stop polling — failed is terminal
+              return; // stop polling — failed is terminal
             }
             setState({ stage, message });
             timer = setTimeout(tick, pollMs);

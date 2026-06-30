@@ -25,7 +25,7 @@ export default function VoicePreview({
   fileToMediaUrl,
 }) {
   const { t } = useTranslation();
-  const autoPlayPreview = useAppStore(s => s.autoPlayPreview);
+  const autoPlayPreview = useAppStore((s) => s.autoPlayPreview);
   const [text, setText] = useState(() => t('voicePreview.default_text'));
   const [voiceId, setVoiceId] = useState(initialProfileId);
   const [audioUrl, setAudioUrl] = useState(null);
@@ -48,7 +48,7 @@ export default function VoicePreview({
     try {
       const fd = new FormData();
       fd.append('text', text);
-      fd.append('num_step', '8');         // fast preview
+      fd.append('num_step', '8'); // fast preview
       fd.append('guidance_scale', '2.0');
       fd.append('speed', '1.0');
       fd.append('denoise', 'true');
@@ -58,13 +58,15 @@ export default function VoicePreview({
       let instruct = '';
 
       if (profileId.startsWith('preset:')) {
-        const pr = PRESETS.find(p => p.id === profileId.replace('preset:', ''));
+        const pr = PRESETS.find((p) => p.id === profileId.replace('preset:', ''));
         if (pr) {
-          instruct = Object.values(pr.attrs).filter(v => v !== 'Auto').join(', ');
+          instruct = Object.values(pr.attrs)
+            .filter((v) => v !== 'Auto')
+            .join(', ');
         }
         profileId = '';
       } else {
-        const match = profiles.find(p => p.id === profileId);
+        const match = profiles.find((p) => p.id === profileId);
         if (match?.instruct) instruct = match.instruct;
       }
 
@@ -115,27 +117,37 @@ export default function VoicePreview({
         <select
           className="input-base voice-preview__select"
           value={voiceId}
-          onChange={e => setVoiceId(e.target.value)}
+          onChange={(e) => setVoiceId(e.target.value)}
         >
           <option value="">{t('voicePreview.default_voice')}</option>
-          {profiles.filter(p => !p.instruct).length > 0 && (
+          {profiles.filter((p) => !p.instruct).length > 0 && (
             <optgroup label={t('voicePreview.clone_profiles')}>
-              {profiles.filter(p => !p.instruct).map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
+              {profiles
+                .filter((p) => !p.instruct)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
             </optgroup>
           )}
-          {profiles.filter(p => !!p.instruct).length > 0 && (
+          {profiles.filter((p) => !!p.instruct).length > 0 && (
             <optgroup label={t('voicePreview.designed_voices')}>
-              {profiles.filter(p => !!p.instruct).map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
+              {profiles
+                .filter((p) => !!p.instruct)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
             </optgroup>
           )}
           {PRESETS.length > 0 && (
             <optgroup label={t('voicePreview.presets')}>
-              {PRESETS.map(p => (
-                <option key={p.id} value={`preset:${p.id}`}>{p.name}</option>
+              {PRESETS.map((p) => (
+                <option key={p.id} value={`preset:${p.id}`}>
+                  {p.name}
+                </option>
               ))}
             </optgroup>
           )}
@@ -144,7 +156,7 @@ export default function VoicePreview({
         <textarea
           className="input-base voice-preview__text"
           value={text}
-          onChange={e => setText(e.target.value)}
+          onChange={(e) => setText(e.target.value)}
           rows={2}
           placeholder={t('voicePreview.placeholder')}
           spellCheck={false}
@@ -182,4 +194,3 @@ export default function VoicePreview({
     </div>
   );
 }
-

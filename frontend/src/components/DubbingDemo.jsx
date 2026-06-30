@@ -28,10 +28,16 @@ export default function DubbingDemo({ onDismiss }) {
   useEffect(() => {
     let cancelled = false;
     apiFetch(`${API}/demo_audio/demo/dubbing/manifest.json`)
-      .then(r => r.json())
-      .then(j => { if (!cancelled) setManifest(j); })
-      .catch(e => { if (!cancelled) setError(e?.message || String(e)); });
-    return () => { cancelled = true; };
+      .then((r) => r.json())
+      .then((j) => {
+        if (!cancelled) setManifest(j);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e?.message || String(e));
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Sync the two players when syncPlay is on — play/pause/seek the
@@ -49,8 +55,12 @@ export default function DubbingDemo({ onDismiss }) {
         dst.play().catch(() => {});
       }
     };
-    const onPause = (dst) => () => { if (!dst.paused) dst.pause(); };
-    const onSeek = (src, dst) => () => { dst.currentTime = src.currentTime; };
+    const onPause = (dst) => () => {
+      if (!dst.paused) dst.pause();
+    };
+    const onSeek = (src, dst) => () => {
+      dst.currentTime = src.currentTime;
+    };
 
     const aPlay = onPlay(a, b);
     const bPlay = onPlay(b, a);
@@ -79,15 +89,11 @@ export default function DubbingDemo({ onDismiss }) {
     return null; // No demo manifest yet — silently fall through to drop zone.
   }
   if (!manifest) {
-    return (
-      <div className="dubbing-demo dubbing-demo--loading">
-        {t('demo.dubbing_loading')}
-      </div>
-    );
+    return <div className="dubbing-demo dubbing-demo--loading">{t('demo.dubbing_loading')}</div>;
   }
 
   const source = manifest.source;
-  const dubbed = manifest.dubbed?.find(d => d.code === pickedCode) || manifest.dubbed?.[0];
+  const dubbed = manifest.dubbed?.find((d) => d.code === pickedCode) || manifest.dubbed?.[0];
   if (!dubbed) return null;
 
   const base = `${API}/demo_audio/demo/dubbing`;
@@ -103,7 +109,7 @@ export default function DubbingDemo({ onDismiss }) {
             <input
               type="checkbox"
               checked={syncPlay}
-              onChange={e => setSyncPlay(e.target.checked)}
+              onChange={(e) => setSyncPlay(e.target.checked)}
             />
             {t('demo.dubbing_sync')}
           </label>
@@ -122,7 +128,9 @@ export default function DubbingDemo({ onDismiss }) {
 
       <div className="dubbing-demo__players">
         <div className="dubbing-demo__pane">
-          <div className="dubbing-demo__pane-label">{source.label} <span>· {t('demo.original_tag')}</span></div>
+          <div className="dubbing-demo__pane-label">
+            {source.label} <span>· {t('demo.original_tag')}</span>
+          </div>
           <video
             ref={sourceRef}
             src={`${base}/${source.video}`}
@@ -144,13 +152,15 @@ export default function DubbingDemo({ onDismiss }) {
             preload="metadata"
             dir={dubbed.dir}
           />
-          <p className="dubbing-demo__caption" dir={dubbed.dir}>{dubbed.script}</p>
+          <p className="dubbing-demo__caption" dir={dubbed.dir}>
+            {dubbed.script}
+          </p>
         </div>
       </div>
 
       <div className="dubbing-demo__picker">
         <span className="dubbing-demo__picker-label">{t('demo.dubbing_picker')}</span>
-        {manifest.dubbed.map(d => (
+        {manifest.dubbed.map((d) => (
           <button
             key={d.code}
             type="button"
@@ -163,11 +173,7 @@ export default function DubbingDemo({ onDismiss }) {
       </div>
 
       {onDismiss && (
-        <button
-          type="button"
-          className="dubbing-demo__cta"
-          onClick={onDismiss}
-        >
+        <button type="button" className="dubbing-demo__cta" onClick={onDismiss}>
           <Play size={12} /> {t('demo.dubbing_cta')}
         </button>
       )}

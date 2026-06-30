@@ -1,7 +1,5 @@
 import React from 'react';
-import {
-  RefreshCw, Trash2, ExternalLink, Download,
-} from 'lucide-react';
+import { RefreshCw, Trash2, ExternalLink, Download } from 'lucide-react';
 import { openExternal } from '../../../api/external';
 import { Button, Badge, Progress } from '../../../ui';
 import { fmtBytes, orgColor } from './format';
@@ -25,7 +23,7 @@ export function makeModelColumns({
   return [
     {
       id: 'name',
-      accessorFn: m => `${m.label || ''} ${m.repo_id || ''}`,
+      accessorFn: (m) => `${m.label || ''} ${m.repo_id || ''}`,
       header: t('models.column_model'),
       size: 260,
       meta: { className: 'models-row__name' },
@@ -51,11 +49,7 @@ export function makeModelColumns({
             </span>
             {rt.showBar && (
               <div className="models-row__progressline">
-                <Progress
-                  value={rt.aggPct}
-                  tone={rt.isDeleting ? 'warn' : 'brand'}
-                  size="xs"
-                />
+                <Progress value={rt.aggPct} tone={rt.isDeleting ? 'warn' : 'brand'} size="xs" />
                 <span className="models-row__progresstext">
                   {(() => {
                     if (rt.isDeleting) return t('models.removing_cached');
@@ -66,11 +60,16 @@ export function makeModelColumns({
                         // Once the preflight plan lands we can show the real size
                         // even before the first byte (FDL-05).
                         const planBytes = rt.plan?.to_download_bytes;
-                        const planStr = planBytes ? ` · ${fmtBytes(planBytes)} ${t('models.to_download') || 'to download'}` : '';
+                        const planStr = planBytes
+                          ? ` · ${fmtBytes(planBytes)} ${t('models.to_download') || 'to download'}`
+                          : '';
                         return `${t('models.resolving_metadata')}${dots}${planStr}`;
                       }
                       if (rt.phase === 'install_retry') {
-                        return t('models.retry_attempt', { attempt: rt.rs?.retryAttempt || '?', error: rt.rs?.error || 'reconnecting' });
+                        return t('models.retry_attempt', {
+                          attempt: rt.rs?.retryAttempt || '?',
+                          error: rt.rs?.error || 'reconnecting',
+                        });
                       }
                       return t('models.connecting_hf');
                     }
@@ -89,31 +88,46 @@ export function makeModelColumns({
                           sp.lastTime = now;
                         }
                       } else {
-                        speedRef.current[m.repo_id] = { lastBytes: rt.dispDownloaded, lastTime: now, speed: 0 };
+                        speedRef.current[m.repo_id] = {
+                          lastBytes: rt.dispDownloaded,
+                          lastTime: now,
+                          speed: 0,
+                        };
                       }
-                      speed = rt.backendRate > 0 ? rt.backendRate : (sp?.speed || 0);
+                      speed = rt.backendRate > 0 ? rt.backendRate : sp?.speed || 0;
                     }
 
                     // Total unknown and nothing downloaded yet → still resolving
                     if (rt.dispTotal === 0 && rt.dispDownloaded === 0) {
                       const activeFile = rt.activeFilename?.split('/').pop();
                       return activeFile
-                        ? t('models.resolving_files_active', { count: rt.fileList.length, file: activeFile })
+                        ? t('models.resolving_files_active', {
+                            count: rt.fileList.length,
+                            file: activeFile,
+                          })
                         : t('models.resolving_files', { count: rt.fileList.length });
                     }
 
                     // ETA: prefer the backend's, else derive from remaining/speed.
                     const remaining = Math.max(0, rt.dispTotal - rt.dispDownloaded);
-                    const etaSec = rt.aggEtaSec != null ? rt.aggEtaSec
-                      : (speed > 0 && rt.dispTotal > 0 ? remaining / speed : 0);
-                    const etaStr = etaSec > 0
-                      ? etaSec < 60 ? `~${Math.ceil(etaSec)}s`
-                      : etaSec < 3600 ? `~${Math.ceil(etaSec / 60)}m`
-                      : `~${(etaSec / 3600).toFixed(1)}h`
-                      : '';
+                    const etaSec =
+                      rt.aggEtaSec != null
+                        ? rt.aggEtaSec
+                        : speed > 0 && rt.dispTotal > 0
+                          ? remaining / speed
+                          : 0;
+                    const etaStr =
+                      etaSec > 0
+                        ? etaSec < 60
+                          ? `~${Math.ceil(etaSec)}s`
+                          : etaSec < 3600
+                            ? `~${Math.ceil(etaSec / 60)}m`
+                            : `~${(etaSec / 3600).toFixed(1)}h`
+                        : '';
                     const dlStr = fmtBytes(rt.dispDownloaded) || '0 B';
                     const totalStr = rt.dispTotal > 0 ? fmtBytes(rt.dispTotal) : '…';
-                    const pctStr = rt.aggPct != null && rt.aggPct > 0 ? `${Math.round(rt.aggPct)}%` : '';
+                    const pctStr =
+                      rt.aggPct != null && rt.aggPct > 0 ? `${Math.round(rt.aggPct)}%` : '';
                     const speedStr = speed > 0 ? `${fmtBytes(speed)}/s` : '';
 
                     const parts = [
@@ -124,8 +138,12 @@ export function makeModelColumns({
                     ].filter(Boolean);
 
                     const extra = [];
-                    if (rt.cachedBytes > 0) extra.push(`${fmtBytes(rt.cachedBytes)} ${t('models.cached') || 'cached'}`);
-                    if (rt.filesTotal > 1) extra.push(t('models.files_progress', { done: rt.filesDone, total: rt.filesTotal }));
+                    if (rt.cachedBytes > 0)
+                      extra.push(`${fmtBytes(rt.cachedBytes)} ${t('models.cached') || 'cached'}`);
+                    if (rt.filesTotal > 1)
+                      extra.push(
+                        t('models.files_progress', { done: rt.filesDone, total: rt.filesTotal }),
+                      );
                     if (rt.activeFilename) extra.push(rt.activeFilename.split('/').pop());
 
                     return extra.length
@@ -136,7 +154,9 @@ export function makeModelColumns({
               </div>
             )}
             {rt.phase === 'install_error' && rt.rs?.error && (
-              <span className="models-row__error">{t('models.install_error', { error: rt.rs.error })}</span>
+              <span className="models-row__error">
+                {t('models.install_error', { error: rt.rs.error })}
+              </span>
             )}
           </>
         );
@@ -144,15 +164,19 @@ export function makeModelColumns({
     },
     {
       id: 'role',
-      accessorFn: m => (m.role || 'other').toLowerCase(),
+      accessorFn: (m) => (m.role || 'other').toLowerCase(),
       header: t('models.column_role'),
       size: 58,
       filterFn: (row, id, value) => !value || row.getValue(id) === value,
-      cell: ({ row }) => <span className="models-row__role">{MODEL_ROLE_LABEL[row.getValue('role')] || row.original.role || 'Other'}</span>,
+      cell: ({ row }) => (
+        <span className="models-row__role">
+          {MODEL_ROLE_LABEL[row.getValue('role')] || row.original.role || 'Other'}
+        </span>
+      ),
     },
     {
       id: 'size',
-      accessorFn: m => m.installed ? (m.size_on_disk_bytes || 0) : (m.size_gb || 0) * 1024 ** 3,
+      accessorFn: (m) => (m.installed ? m.size_on_disk_bytes || 0 : (m.size_gb || 0) * 1024 ** 3),
       header: t('models.column_size'),
       size: 68,
       meta: { align: 'right', className: 'models-row__size' },
@@ -161,31 +185,52 @@ export function makeModelColumns({
         const rt = getRowRuntime(m);
         // During active download, show live downloaded / total
         if (rt.showBar && rt.hasFiles && rt.totals.total > 0) {
-          return <span className="models-row__size-live">{fmtBytes(rt.totals.downloaded)}<span className="models-row__size-sep">/</span>{fmtBytes(rt.totals.total)}</span>;
+          return (
+            <span className="models-row__size-live">
+              {fmtBytes(rt.totals.downloaded)}
+              <span className="models-row__size-sep">/</span>
+              {fmtBytes(rt.totals.total)}
+            </span>
+          );
         }
         return m.installed ? fmtBytes(m.size_on_disk_bytes) : `${m.size_gb} GB`;
       },
     },
     {
       id: 'status',
-      accessorFn: m => m.installed ? 2 : (m.supported === false ? 0 : 1),
+      accessorFn: (m) => (m.installed ? 2 : m.supported === false ? 0 : 1),
       header: t('models.column_status'),
       size: 96,
       meta: { align: 'center', className: 'models-row__status' },
       cell: ({ row }) => {
         const m = row.original;
         const rt = getRowRuntime(m);
-        return rt.isInstalling
-          ? <Badge tone="warn" size="xs"><Download size={10} /> {rt.aggPct != null ? `${Math.round(rt.aggPct)}%` : t('models.downloading')}</Badge>
-          : rt.isDeleting
-            ? <Badge tone="warn" size="xs"><Trash2 size={10} /> {t('models.deleting')}</Badge>
-            : rt.rowBusy
-              ? <Badge tone="warn" size="xs"><RefreshCw size={10} className="spinner" /> {t('models.working')}</Badge>
-              : m.installed
-                ? <Badge tone="success" size="xs">{t('models.installed')}</Badge>
-                : rt.unsupported
-                  ? <Badge tone="neutral" size="xs">{(m.platforms || []).join(', ')}</Badge>
-                  : <Badge tone="neutral" size="xs">{t('models.not_installed')}</Badge>;
+        return rt.isInstalling ? (
+          <Badge tone="warn" size="xs">
+            <Download size={10} />{' '}
+            {rt.aggPct != null ? `${Math.round(rt.aggPct)}%` : t('models.downloading')}
+          </Badge>
+        ) : rt.isDeleting ? (
+          <Badge tone="warn" size="xs">
+            <Trash2 size={10} /> {t('models.deleting')}
+          </Badge>
+        ) : rt.rowBusy ? (
+          <Badge tone="warn" size="xs">
+            <RefreshCw size={10} className="spinner" /> {t('models.working')}
+          </Badge>
+        ) : m.installed ? (
+          <Badge tone="success" size="xs">
+            {t('models.installed')}
+          </Badge>
+        ) : rt.unsupported ? (
+          <Badge tone="neutral" size="xs">
+            {(m.platforms || []).join(', ')}
+          </Badge>
+        ) : (
+          <Badge tone="neutral" size="xs">
+            {t('models.not_installed')}
+          </Badge>
+        );
       },
     },
     {
@@ -200,7 +245,8 @@ export function makeModelColumns({
         return (
           <>
             <Button
-              variant="icon" iconSize="sm"
+              variant="icon"
+              iconSize="sm"
               onClick={() => openExternal(`https://huggingface.co/${m.repo_id}`)}
               title={t('models.view_on_hf')}
               aria-label={t('models.view_on_hf')}
@@ -209,7 +255,8 @@ export function makeModelColumns({
             </Button>
             {!m.installed && !rt.rowBusy && !rt.isInstalling && !rt.unsupported && (
               <Button
-                variant="subtle" size="sm"
+                variant="subtle"
+                size="sm"
                 onClick={() => onInstall(m.repo_id)}
                 leading={<Download size={11} />}
               >
@@ -219,7 +266,8 @@ export function makeModelColumns({
             {m.installed && !rt.rowBusy && !rt.isDeleting && (
               <>
                 <Button
-                  variant="icon" iconSize="sm"
+                  variant="icon"
+                  iconSize="sm"
                   onClick={() => onReinstall(m.repo_id)}
                   title={t('models.reinstall_btn')}
                   aria-label={t('models.reinstall_btn')}
@@ -227,7 +275,8 @@ export function makeModelColumns({
                   <RefreshCw size={11} />
                 </Button>
                 <Button
-                  variant="icon" iconSize="sm"
+                  variant="icon"
+                  iconSize="sm"
                   onClick={() => onDelete(m.repo_id)}
                   title={t('models.delete_btn')}
                   aria-label={t('models.delete_btn')}

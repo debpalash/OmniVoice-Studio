@@ -32,7 +32,10 @@ export default function DirectionDialog({ open, seg, onSave, onClose }) {
   }, [open, seg?.id, seg?.direction]);
 
   const runPreview = async () => {
-    if (!text.trim()) { setPreview(null); return; }
+    if (!text.trim()) {
+      setPreview(null);
+      return;
+    }
     setParsing(true);
     try {
       setPreview(await apiPost('/tools/direction', { text }));
@@ -48,7 +51,9 @@ export default function DirectionDialog({ open, seg, onSave, onClose }) {
     try {
       await onSave?.(text.trim());
       onClose?.();
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!open) return null;
@@ -58,35 +63,53 @@ export default function DirectionDialog({ open, seg, onSave, onClose }) {
       open
       onClose={onClose}
       size="md"
-      title={<><Sparkles size={14} /> {t('direction.title', { id: seg?.id?.slice?.(0, 6) || '' })}</>}
+      title={
+        <>
+          <Sparkles size={14} /> {t('direction.title', { id: seg?.id?.slice?.(0, 6) || '' })}
+        </>
+      }
       footer={
         <>
           {seg?.direction && (
             <Button
-              variant="ghost" size="sm"
-              onClick={() => { setText(''); }}
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setText('');
+              }}
               leading={<X size={11} />}
               className="dir-clear-btn"
             >
               {t('direction.clear')}
             </Button>
           )}
-          <Button variant="ghost" onClick={onClose}>{t('direction.cancel')}</Button>
-          <Button variant="primary" onClick={save} loading={saving}>{t('direction.saveDirection')}</Button>
+          <Button variant="ghost" onClick={onClose}>
+            {t('direction.cancel')}
+          </Button>
+          <Button variant="primary" onClick={save} loading={saving}>
+            {t('direction.saveDirection')}
+          </Button>
         </>
       }
     >
-      <p className="direction-dialog__desc">
-        {t('direction.desc')}
-      </p>
+      <p className="direction-dialog__desc">{t('direction.desc')}</p>
 
-      <Field label={t('direction.label')} hint={
-        seg?.text ? <>{t('direction.lineHint', { text: seg.text.slice(0, 80) + (seg.text.length > 80 ? '…' : '') })}</> : null
-      }>
+      <Field
+        label={t('direction.label')}
+        hint={
+          seg?.text ? (
+            <>
+              {t('direction.lineHint', {
+                text: seg.text.slice(0, 80) + (seg.text.length > 80 ? '…' : ''),
+              })}
+            </>
+          ) : null
+        }
+      >
         <Textarea
           rows={3}
           value={text}
-          onChange={e => setText(e.target.value)}
+          onChange={(e) => setText(e.target.value)}
           placeholder={t('direction.placeholder')}
           autoFocus
         />
@@ -94,7 +117,8 @@ export default function DirectionDialog({ open, seg, onSave, onClose }) {
 
       <div className="dir-preview-actions">
         <Button
-          variant="subtle" size="sm"
+          variant="subtle"
+          size="sm"
           onClick={runPreview}
           loading={parsing}
           disabled={!text.trim()}
@@ -111,15 +135,27 @@ export default function DirectionDialog({ open, seg, onSave, onClose }) {
       {preview && (
         <div className="direction-dialog__preview">
           <div>
-            <strong>{t('direction.ttsInstruct')}</strong> <code>{preview.instruct_prompt || t('direction.nothingParsed')}</code>
+            <strong>{t('direction.ttsInstruct')}</strong>{' '}
+            <code>{preview.instruct_prompt || t('direction.nothingParsed')}</code>
           </div>
           <div>
             <strong>{t('direction.translateHint')}</strong> <em>{preview.translate_hint || '—'}</em>
           </div>
           <div>
-            <strong>{t('direction.rateBias')}</strong> <code>{preview.rate_bias?.toFixed?.(2)}</code>
-            {preview.rate_bias > 1.05 && <> · <span className="dir-rate-up">{t('direction.speedsUp')}</span></>}
-            {preview.rate_bias < 0.95 && <> · <span className="dir-rate-down">{t('direction.slowsDown')}</span></>}
+            <strong>{t('direction.rateBias')}</strong>{' '}
+            <code>{preview.rate_bias?.toFixed?.(2)}</code>
+            {preview.rate_bias > 1.05 && (
+              <>
+                {' '}
+                · <span className="dir-rate-up">{t('direction.speedsUp')}</span>
+              </>
+            )}
+            {preview.rate_bias < 0.95 && (
+              <>
+                {' '}
+                · <span className="dir-rate-down">{t('direction.slowsDown')}</span>
+              </>
+            )}
           </div>
           {Object.keys(preview.tokens || {}).length > 0 && (
             <details>
@@ -127,11 +163,7 @@ export default function DirectionDialog({ open, seg, onSave, onClose }) {
               <pre>{JSON.stringify(preview.tokens, null, 2)}</pre>
             </details>
           )}
-          {preview.error && (
-            <div className="dir-error">
-              {preview.error}
-            </div>
-          )}
+          {preview.error && <div className="dir-error">{preview.error}</div>}
         </div>
       )}
     </Dialog>

@@ -19,10 +19,26 @@ import { SettingsSection, SettingRow, SettingsToggle } from './primitives';
 import './PerformancePanel.css';
 
 const FLAG_ROWS = [
-  ['auto', 'Refine dictation with the local LLM', 'Master switch — applied to final transcripts only, never live partials. The raw transcript is always kept in History.'],
-  ['smart_cleanup', 'Remove filler words & add punctuation', '"so um like the meeting is at 3pm you know" → "So the meeting is at 3pm."'],
-  ['self_correction', 'Apply spoken self-corrections', '"at seven no actually six am" → "at six am"'],
-  ['preserve_technical', 'Preserve technical terms & spoken symbols', '"index dot tsx" → "index.tsx"; identifiers stay verbatim'],
+  [
+    'auto',
+    'Refine dictation with the local LLM',
+    'Master switch — applied to final transcripts only, never live partials. The raw transcript is always kept in History.',
+  ],
+  [
+    'smart_cleanup',
+    'Remove filler words & add punctuation',
+    '"so um like the meeting is at 3pm you know" → "So the meeting is at 3pm."',
+  ],
+  [
+    'self_correction',
+    'Apply spoken self-corrections',
+    '"at seven no actually six am" → "at six am"',
+  ],
+  [
+    'preserve_technical',
+    'Preserve technical terms & spoken symbols',
+    '"index dot tsx" → "index.tsx"; identifiers stay verbatim',
+  ],
 ];
 
 export default function RefinementPanel() {
@@ -39,7 +55,9 @@ export default function RefinementPanel() {
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const onToggle = async (key, next) => {
     setSaving(true);
@@ -72,7 +90,11 @@ export default function RefinementPanel() {
           : 'Needs a local LLM endpoint — until then, raw transcripts paste unchanged.'
       }
     >
-      {error && <div className="perfpanel__error" role="alert">{error}</div>}
+      {error && (
+        <div className="perfpanel__error" role="alert">
+          {error}
+        </div>
+      )}
 
       {FLAG_ROWS.map(([key, label, help]) => (
         <SettingRow

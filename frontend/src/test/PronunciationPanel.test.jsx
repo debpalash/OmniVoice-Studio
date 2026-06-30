@@ -21,8 +21,24 @@ vi.mock('../api/client', () => ({
 import PronunciationPanel from '../components/settings/PronunciationPanel';
 
 const ENTRIES = [
-  { id: 'e1', term: 'GIF', replacement: 'jiff', type: 'respelling', language: '*', scope: '*', enabled: true },
-  { id: 'e2', term: 'Nevada', replacement: 'Nuh-VAD-uh', type: 'respelling', language: 'en', scope: 'en', enabled: false },
+  {
+    id: 'e1',
+    term: 'GIF',
+    replacement: 'jiff',
+    type: 'respelling',
+    language: '*',
+    scope: '*',
+    enabled: true,
+  },
+  {
+    id: 'e2',
+    term: 'Nevada',
+    replacement: 'Nuh-VAD-uh',
+    type: 'respelling',
+    language: 'en',
+    scope: 'en',
+    enabled: false,
+  },
 ];
 
 function withI18n(node) {
@@ -63,7 +79,13 @@ describe('PronunciationPanel', () => {
     expect(path).toBe('/pronunciation');
     expect(opts.method).toBe('POST');
     const body = JSON.parse(opts.body);
-    expect(body).toMatchObject({ term: 'SQL', replacement: 'sequel', type: 'respelling', language: '*', enabled: true });
+    expect(body).toMatchObject({
+      term: 'SQL',
+      replacement: 'sequel',
+      type: 'respelling',
+      language: '*',
+      enabled: true,
+    });
   });
 
   it('does not POST when the term is blank', async () => {
@@ -79,7 +101,9 @@ describe('PronunciationPanel', () => {
     render(withI18n(<PronunciationPanel />));
     await screen.findByText('GIF');
     fireEvent.click(screen.getByTestId('pron-del-e1'));
-    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith('/pronunciation/e1', { method: 'DELETE' }));
+    await waitFor(() =>
+      expect(apiFetch).toHaveBeenCalledWith('/pronunciation/e1', { method: 'DELETE' }),
+    );
   });
 
   it('PUTs the enabled toggle', async () => {

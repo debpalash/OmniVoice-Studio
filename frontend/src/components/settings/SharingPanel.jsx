@@ -17,7 +17,7 @@
  *   POST /system/tailscale/disable  → {ok}
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { copyText } from "../../utils/copyText";
+import { copyText } from '../../utils/copyText';
 import QRCode from 'qrcode';
 import { Wifi, Globe, Copy, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -59,7 +59,9 @@ export default function SharingPanel() {
         if (!ctrl.aborted) setPorts(null);
       }
     })();
-    return () => { ctrl.aborted = true; };
+    return () => {
+      ctrl.aborted = true;
+    };
   }, []);
 
   const saveSharePort = async () => {
@@ -98,12 +100,17 @@ export default function SharingPanel() {
   useEffect(() => {
     const ctrl = { aborted: false };
     refresh(ctrl);
-    return () => { ctrl.aborted = true; };
+    return () => {
+      ctrl.aborted = true;
+    };
   }, [refresh]);
 
   // Render a QR for the Tailscale URL when one is available; cancel-safe.
   useEffect(() => {
-    if (!url) { setQr(''); return; }
+    if (!url) {
+      setQr('');
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -113,7 +120,9 @@ export default function SharingPanel() {
         if (!cancelled) setQr('');
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [url]);
 
   const enable = async () => {
@@ -154,7 +163,10 @@ export default function SharingPanel() {
     }
   };
 
-  const copy = (text) => { copyText(text); toast.success(t('sharing.copied')); };
+  const copy = (text) => {
+    copyText(text);
+    toast.success(t('sharing.copied'));
+  };
 
   const installed = !!status?.installed;
   const running = !!status?.running;
@@ -193,7 +205,9 @@ export default function SharingPanel() {
             title={t('sharing.backend_port')}
             subtitle={<code className="sharingpanel__envname">OMNIVOICE_PORT</code>}
             control={
-              <code className="sharingpanel__addr" data-testid="port-backend">{ports.backend_port}</code>
+              <code className="sharingpanel__addr" data-testid="port-backend">
+                {ports.backend_port}
+              </code>
             }
           />
 
@@ -201,7 +215,9 @@ export default function SharingPanel() {
             title={t('sharing.ui_port')}
             subtitle={<code className="sharingpanel__envname">OMNIVOICE_UI_PORT</code>}
             control={
-              <code className="sharingpanel__addr" data-testid="port-ui">{ports.ui_port}</code>
+              <code className="sharingpanel__addr" data-testid="port-ui">
+                {ports.ui_port}
+              </code>
             }
           />
 
@@ -238,9 +254,7 @@ export default function SharingPanel() {
       {/* ── Tailscale (advanced / power-user) ────────────────────────── */}
       <Collapsible icon={Globe} title={t('sharing.tailscale_title')} defaultOpen>
         <div data-testid="sharing-tailscale">
-          {loading && !status && (
-            <SettingRow title={t('sharing.tailscale_checking')} />
-          )}
+          {loading && !status && <SettingRow title={t('sharing.tailscale_checking')} />}
 
           {status && !installed && (
             <div className="sharingpanel__tailscale-absent" data-testid="tailscale-absent">
@@ -265,7 +279,9 @@ export default function SharingPanel() {
             <div className="sharingpanel__tailscale-present">
               {!url ? (
                 <SettingRow
-                  title={running ? t('sharing.tailscale_running') : t('sharing.tailscale_not_logged_in')}
+                  title={
+                    running ? t('sharing.tailscale_running') : t('sharing.tailscale_not_logged_in')
+                  }
                   control={
                     <button
                       type="button"
@@ -304,7 +320,11 @@ export default function SharingPanel() {
                       <ExternalLink size={12} />
                     </button>
                   </div>
-                  {note && <p className="sharingpanel__note" data-testid="tailscale-note">{note}</p>}
+                  {note && (
+                    <p className="sharingpanel__note" data-testid="tailscale-note">
+                      {note}
+                    </p>
+                  )}
                   {qr && (
                     <img
                       className="sharingpanel__qr"

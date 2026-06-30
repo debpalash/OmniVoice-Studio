@@ -55,7 +55,8 @@ export default function DemoPresetGrid({ presets, onUse }) {
     }, 'design-preview');
     audio.src = `${API}${preset.preview_url}`;
     audio.currentTime = 0;
-    audio.play()
+    audio
+      .play()
       .then(() => setPlayingId(preset.id))
       .catch((e) => {
         // Most common failure: WAV missing on disk (someone deleted it or
@@ -87,7 +88,9 @@ export default function DemoPresetGrid({ presets, onUse }) {
         return (
           <div key={p.id} className="demo-preset-card">
             <div className="demo-preset-card__head">
-              <span className="demo-preset-card__icon" aria-hidden><Icon size={18} /></span>
+              <span className="demo-preset-card__icon" aria-hidden>
+                <Icon size={18} />
+              </span>
               <span className="demo-preset-card__name">{stripVoiceEmoji(p.name)}</span>
             </div>
             <p className="demo-preset-card__desc">{p.description}</p>

@@ -9,8 +9,8 @@ import EngineCompatibilityMatrix from '../EngineCompatibilityMatrix';
 
 export default function EnginesTab() {
   const { t } = useTranslation();
-  const reviewMode = useAppStore(s => s.reviewMode);
-  const setReviewMode = useAppStore(s => s.setReviewMode);
+  const reviewMode = useAppStore((s) => s.reviewMode);
+  const setReviewMode = useAppStore((s) => s.setReviewMode);
 
   // Plan 02-04 / ENGINE-06 — engine selection is wired through the
   // matrix component's optional onSelect callback so the matrix doubles
@@ -20,7 +20,9 @@ export default function EnginesTab() {
     try {
       addBreadcrumb(`engine:${family}=${backendId}`);
       const r = await selectEngine(family, backendId);
-      toast.success(t('settings.engine_switched', { family: family.toUpperCase(), engine: r.active }));
+      toast.success(
+        t('settings.engine_switched', { family: family.toUpperCase(), engine: r.active }),
+      );
     } catch (e) {
       toast.error(e.message || t('engines.switch_failed'));
     }
@@ -35,14 +37,12 @@ export default function EnginesTab() {
             value={reviewMode}
             onChange={setReviewMode}
             items={[
-              { value: 'on',  label: t('engines.review_on') },
+              { value: 'on', label: t('engines.review_on') },
               { value: 'off', label: t('engines.review_off') },
             ]}
           />
           <span className="models-toolbar__sep">·</span>
-          <span>
-            {reviewMode === 'on' ? t('engines.banners_on') : t('engines.banners_off')}
-          </span>
+          <span>{reviewMode === 'on' ? t('engines.banners_on') : t('engines.banners_off')}</span>
         </div>
       </div>
 

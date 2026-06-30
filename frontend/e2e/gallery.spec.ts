@@ -18,7 +18,9 @@ test.describe('OmniVoice Gallery', () => {
     expect(bg).toBe('rgba(255, 255, 255, 0.04)');
   });
 
-  test('opening an archetype in the Designer mounts the design view (no chunk-load failure)', async ({ page }) => {
+  test('opening an archetype in the Designer mounts the design view (no chunk-load failure)', async ({
+    page,
+  }) => {
     const errors = collectErrors(page);
     await gotoMode(page, 'gallery');
 
@@ -29,9 +31,9 @@ test.describe('OmniVoice Gallery', () => {
 
     // The design view (CloneDesignTab — the lazy chunk that failed when Vite
     // was down) must mount. Its prompt/personality UI is the tell.
-    await expect(
-      page.getByText(/personality|prompt|steps/i).first()
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/personality|prompt|steps/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
 
     await expect(page.getByText(/this tab hit a snag/i)).toHaveCount(0);
     expect(errors.fatal, errors.fatal.join('\n')).toEqual([]);

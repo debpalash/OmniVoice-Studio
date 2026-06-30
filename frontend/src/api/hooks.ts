@@ -15,21 +15,21 @@ import type { CommunityFilters } from './community';
 
 // ── Keys (prevents typos, enables targeted invalidation) ─────────────────
 export const queryKeys = {
-  sysinfo:         ['sysinfo']         as const,
-  modelStatus:     ['model-status']    as const,
-  notifications:   ['notifications']   as const,
-  systemInfo:      ['system-info']     as const,
-  systemLogs:      (tail?: number) => ['system-logs', tail ?? 300] as const,
-  tauriLogs:       (tail?: number) => ['tauri-logs',  tail ?? 300] as const,
-  models:          ['models']          as const,
+  sysinfo: ['sysinfo'] as const,
+  modelStatus: ['model-status'] as const,
+  notifications: ['notifications'] as const,
+  systemInfo: ['system-info'] as const,
+  systemLogs: (tail?: number) => ['system-logs', tail ?? 300] as const,
+  tauriLogs: (tail?: number) => ['tauri-logs', tail ?? 300] as const,
+  models: ['models'] as const,
   recommendations: ['recommendations'] as const,
-  preflight:       ['preflight']       as const,
-  setupStatus:     ['setup-status']    as const,
-  galleryVoices:   (params?: any) => ['gallery-voices', params] as const,
+  preflight: ['preflight'] as const,
+  setupStatus: ['setup-status'] as const,
+  galleryVoices: (params?: any) => ['gallery-voices', params] as const,
   galleryCategories: ['gallery-categories'] as const,
   archetypeCategories: ['archetype-categories'] as const,
-  archetypes:      (filters?: any) => ['archetypes', filters] as const,
-  communityItems:  (filters?: any) => ['community-items', filters] as const,
+  archetypes: (filters?: any) => ['archetypes', filters] as const,
+  communityItems: (filters?: any) => ['community-items', filters] as const,
   communityManifest: (refresh?: boolean) => ['community-manifest', !!refresh] as const,
 };
 
@@ -204,4 +204,3 @@ export function useDeleteModel() {
     },
   });
 }
-

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { copyText } from "../utils/copyText";
+import { copyText } from '../utils/copyText';
 import { X, Loader } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAppStore } from '../store';
@@ -16,7 +16,9 @@ async function setTrayRecording(recording) {
   try {
     const { invoke } = await import('@tauri-apps/api/core');
     await invoke('set_tray_recording', { recording });
-  } catch { /* not in Tauri */ }
+  } catch {
+    /* not in Tauri */
+  }
 }
 
 const LS_CAPTURE_MODE = 'omni_capture_mode';
@@ -91,8 +93,12 @@ async function pasteSegment(text) {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('simulate_paste', { text });
-    } catch { /* not in Tauri — WebView clipboard copy above already ran */ }
-  } catch { /* clipboard unavailable */ }
+    } catch {
+      /* not in Tauri — WebView clipboard copy above already ran */
+    }
+  } catch {
+    /* clipboard unavailable */
+  }
 }
 
 // Live, word-by-word typing of the in-flight utterance into whatever app has
@@ -133,9 +139,7 @@ export default function CaptureWidget({ onDismiss }) {
   const [state, setState] = useState('idle'); // idle | recording | transcribing | done | error
   const [transcript, setTranscript] = useState('');
   const [duration, setDuration] = useState(0);
-  const [captureMode] = useState(() =>
-    localStorage.getItem(LS_CAPTURE_MODE) || 'fast'
-  );
+  const [captureMode] = useState(() => localStorage.getItem(LS_CAPTURE_MODE) || 'fast');
   const [, setLastEngine] = useState('');
   const [, setLastTime] = useState(0);
   const [partialText, setPartialText] = useState('');
@@ -151,8 +155,12 @@ export default function CaptureWidget({ onDismiss }) {
   // re-subscribing on every pref change.
   const modeRef = useRef(dictationMode);
   const enabledRef = useRef(dictationEnabled);
-  useEffect(() => { modeRef.current = dictationMode; }, [dictationMode]);
-  useEffect(() => { enabledRef.current = dictationEnabled; }, [dictationEnabled]);
+  useEffect(() => {
+    modeRef.current = dictationMode;
+  }, [dictationMode]);
+  useEffect(() => {
+    enabledRef.current = dictationEnabled;
+  }, [dictationEnabled]);
 
   // Sherpa live-streaming session refs. `sherpaModeRef` flips on at start when a
   // sherpa model is selected; `committedRef` accumulates per-utterance finals so
@@ -189,15 +197,23 @@ export default function CaptureWidget({ onDismiss }) {
   // raw PCM via an AudioWorklet and tag mic/far-end frames instead of using
   // MediaRecorder. All AEC state lives in refs so the default path is inert.
   const aecModeRef = useRef(false);
-  const aecStopRef = useRef(null);     // async teardown of the mic worklet graph
+  const aecStopRef = useRef(null); // async teardown of the mic worklet graph
   const farEndUnsubRef = useRef(null); // unsubscribe from the far-end bus
 
   const teardownAec = useCallback(async () => {
-    try { farEndUnsubRef.current?.(); } catch { /* ignore */ }
+    try {
+      farEndUnsubRef.current?.();
+    } catch {
+      /* ignore */
+    }
     farEndUnsubRef.current = null;
     const stop = aecStopRef.current;
     aecStopRef.current = null;
-    try { await stop?.(); } catch { /* ignore */ }
+    try {
+      await stop?.();
+    } catch {
+      /* ignore */
+    }
     aecModeRef.current = false;
   }, []);
 
@@ -205,7 +221,9 @@ export default function CaptureWidget({ onDismiss }) {
   // widget runs in its own Tauri webview (a separate JS context from the main
   // window), so it loads the prefs itself rather than relying on the Settings
   // window having loaded them.
-  useEffect(() => { loadDictationPrefs(); }, [loadDictationPrefs]);
+  useEffect(() => {
+    loadDictationPrefs();
+  }, [loadDictationPrefs]);
 
   // ── Tray hotkey: tray-dictate (start) + tray-dictate-stop (release) ──
   // Toggle mode: tray-dictate flips start↔stop, tray-dictate-stop is ignored
@@ -237,7 +255,9 @@ export default function CaptureWidget({ onDismiss }) {
             stopRecording();
           }
         });
-      } catch { /* not in Tauri */ }
+      } catch {
+        /* not in Tauri */
+      }
     })();
     return () => {
       if (unlistenStart) unlistenStart();
@@ -251,8 +271,7 @@ export default function CaptureWidget({ onDismiss }) {
   // keyup stops. The Ctrl/Cmd+Shift+Space combo matches the documented default
   // shortcut; the desktop app's user-rebindable accelerator is a Tauri concern.
   useEffect(() => {
-    const isCombo = (e) =>
-      (e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'Space';
+    const isCombo = (e) => (e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'Space';
     const onKeyDown = (e) => {
       if (!isCombo(e)) return;
       e.preventDefault();
@@ -270,7 +289,8 @@ export default function CaptureWidget({ onDismiss }) {
     const onKeyUp = (e) => {
       // Hold mode stops as soon as Space (or a modifier) is released.
       if (modeRef.current !== 'hold') return;
-      if (e.code !== 'Space' && e.key !== 'Meta' && e.key !== 'Control' && e.key !== 'Shift') return;
+      if (e.code !== 'Space' && e.key !== 'Meta' && e.key !== 'Control' && e.key !== 'Shift')
+        return;
       if (state === 'recording') stopRecording();
     };
     window.addEventListener('keydown', onKeyDown);
@@ -292,87 +312,103 @@ export default function CaptureWidget({ onDismiss }) {
   }, [state]);
 
   // Apply transcription result → auto-paste → auto-dismiss
-  const applyResult = useCallback(async (data) => {
-    // Wave 2.1: the backend may attach an LLM-refined version of the final
-    // text (filler words removed, self-corrections applied). Paste/show the
-    // refined text when present; the raw text is kept in history alongside.
-    const finalText = data.refined_text || data.text || '';
-    setTranscript(finalText);
-    setLastEngine(data.engine || '');
-    setLastTime(data.transcription_time_s || 0);
-    setState('done');
+  const applyResult = useCallback(
+    async (data) => {
+      // Wave 2.1: the backend may attach an LLM-refined version of the final
+      // text (filler words removed, self-corrections applied). Paste/show the
+      // refined text when present; the raw text is kept in history alongside.
+      const finalText = data.refined_text || data.text || '';
+      setTranscript(finalText);
+      setLastEngine(data.engine || '');
+      setLastTime(data.transcription_time_s || 0);
+      setState('done');
 
-    if (data.text) {
-      addTranscription(data);
-    }
+      if (data.text) {
+        addTranscription(data);
+      }
 
-    if (finalText) {
-      try {
-        // Best-effort WebView copy (works in browser mode). In Tauri the
-        // widget window is unfocused on macOS, where WebView clipboard APIs
-        // fail silently — so pass the transcript to simulate_paste, which
-        // writes the clipboard natively (OS-side) before sending ⌘V (#287).
-        await copyText(finalText);
+      if (finalText) {
         try {
-          const { invoke } = await import('@tauri-apps/api/core');
-          await invoke('simulate_paste', { text: finalText });
-        } catch { /* not in Tauri */ }
-      } catch { /* clipboard API may fail */ }
+          // Best-effort WebView copy (works in browser mode). In Tauri the
+          // widget window is unfocused on macOS, where WebView clipboard APIs
+          // fail silently — so pass the transcript to simulate_paste, which
+          // writes the clipboard natively (OS-side) before sending ⌘V (#287).
+          await copyText(finalText);
+          try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('simulate_paste', { text: finalText });
+          } catch {
+            /* not in Tauri */
+          }
+        } catch {
+          /* clipboard API may fail */
+        }
 
-      // Auto-dismiss after 1.5s
-      setTimeout(async () => {
-        setState('idle');
-        setTranscript('');
-        setDuration(0);
-        try {
-          const { getCurrentWindow } = await import('@tauri-apps/api/window');
-          await getCurrentWindow().hide();
-        } catch { /* not in Tauri */ }
-        if (onDismiss) onDismiss();
-      }, 1500);
-    } else {
-      // No speech — auto-dismiss after 2.5s
-      setTimeout(async () => {
-        setState('idle');
-        setTranscript('');
-        setDuration(0);
-        try {
-          const { getCurrentWindow } = await import('@tauri-apps/api/window');
-          await getCurrentWindow().hide();
-        } catch { /* not in Tauri */ }
-        if (onDismiss) onDismiss();
-      }, 2500);
-    }
-  }, [onDismiss]);
+        // Auto-dismiss after 1.5s
+        setTimeout(async () => {
+          setState('idle');
+          setTranscript('');
+          setDuration(0);
+          try {
+            const { getCurrentWindow } = await import('@tauri-apps/api/window');
+            await getCurrentWindow().hide();
+          } catch {
+            /* not in Tauri */
+          }
+          if (onDismiss) onDismiss();
+        }, 1500);
+      } else {
+        // No speech — auto-dismiss after 2.5s
+        setTimeout(async () => {
+          setState('idle');
+          setTranscript('');
+          setDuration(0);
+          try {
+            const { getCurrentWindow } = await import('@tauri-apps/api/window');
+            await getCurrentWindow().hide();
+          } catch {
+            /* not in Tauri */
+          }
+          if (onDismiss) onDismiss();
+        }, 2500);
+      }
+    },
+    [onDismiss],
+  );
 
   // Finalise a sherpa LIVE-streaming session. The per-utterance finals were
   // already pasted into the focused field as the user paused, so this does NOT
   // re-paste — it shows the authoritative full transcript in the pill, records
   // it in history, and auto-dismisses. The EOF-summary `final` (or an early
   // socket close) drives this.
-  const finalizeSession = useCallback(async (data) => {
-    const fullText = data.refined_text || data.text || '';
-    setTranscript(fullText);
-    setLastEngine(data.engine || 'sherpa-onnx-asr');
-    setLastTime(data.transcription_time_s || 0);
-    setState('done');
-    // NB: history was already recorded per-utterance as each `final` was pasted
-    // live (see the message handler), so finalisation does NOT re-record — that
-    // would duplicate the session. It only resolves the pill + auto-dismisses.
-    setPartialText('');
-    committedRef.current = [];
-    const delay = fullText ? 1500 : 2500;
-    setTimeout(async () => {
-      setState('idle');
-      setTranscript('');
-      setDuration(0);
-      try {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window');
-        await getCurrentWindow().hide();
-      } catch { /* not in Tauri */ }
-      if (onDismiss) onDismiss();
-    }, delay);
-  }, [onDismiss]);
+  const finalizeSession = useCallback(
+    async (data) => {
+      const fullText = data.refined_text || data.text || '';
+      setTranscript(fullText);
+      setLastEngine(data.engine || 'sherpa-onnx-asr');
+      setLastTime(data.transcription_time_s || 0);
+      setState('done');
+      // NB: history was already recorded per-utterance as each `final` was pasted
+      // live (see the message handler), so finalisation does NOT re-record — that
+      // would duplicate the session. It only resolves the pill + auto-dismisses.
+      setPartialText('');
+      committedRef.current = [];
+      const delay = fullText ? 1500 : 2500;
+      setTimeout(async () => {
+        setState('idle');
+        setTranscript('');
+        setDuration(0);
+        try {
+          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          await getCurrentWindow().hide();
+        } catch {
+          /* not in Tauri */
+        }
+        if (onDismiss) onDismiss();
+      }, delay);
+    },
+    [onDismiss],
+  );
 
   // Type the recognizer's latest revision of the in-flight utterance into the
   // focused field, reconciling against what we typed before via a prefix diff.
@@ -408,7 +444,7 @@ export default function CaptureWidget({ onDismiss }) {
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 }
+        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 },
       });
       streamRef.current = stream;
       chunksRef.current = [];
@@ -457,7 +493,9 @@ export default function CaptureWidget({ onDismiss }) {
         ws.binaryType = 'arraybuffer';
         ws.onopen = () => {
           for (const buf of wsPendingRef.current) {
-            try { ws.send(buf); } catch {}
+            try {
+              ws.send(buf);
+            } catch {}
           }
           wsPendingRef.current = [];
         };
@@ -502,7 +540,9 @@ export default function CaptureWidget({ onDismiss }) {
                     fallbackTimerRef.current = null;
                   }
                   finalizeSession(msg);
-                  try { ws.close(); } catch {}
+                  try {
+                    ws.close();
+                  } catch {}
                 } else if (cls === 'utterance') {
                   // A per-utterance commit. Reconcile the focused field to the
                   // recognizer's AUTHORITATIVE final for this utterance (it can
@@ -536,20 +576,26 @@ export default function CaptureWidget({ onDismiss }) {
                   fallbackTimerRef.current = null;
                 }
                 applyResult(msg);
-                try { ws.close(); } catch {}
+                try {
+                  ws.close();
+                } catch {}
               }
             } else if (msg.type === 'error') {
               if (fallbackTimerRef.current) {
                 clearTimeout(fallbackTimerRef.current);
                 fallbackTimerRef.current = null;
               }
-              try { ws.close(); } catch {}
+              try {
+                ws.close();
+              } catch {}
               wsRef.current = null;
               if (!wsHadFinalRef.current) sendForTranscription();
             }
           } catch {}
         };
-        ws.onerror = () => { wsRef.current = null; };
+        ws.onerror = () => {
+          wsRef.current = null;
+        };
         ws.onclose = () => {
           wsRef.current = null;
           if (sherpaModeRef.current) {
@@ -563,9 +609,9 @@ export default function CaptureWidget({ onDismiss }) {
             return;
           }
           if (
-            !wsHadFinalRef.current
-            && mediaRecorderRef.current
-            && mediaRecorderRef.current.state === 'inactive'
+            !wsHadFinalRef.current &&
+            mediaRecorderRef.current &&
+            mediaRecorderRef.current.state === 'inactive'
           ) {
             if (fallbackTimerRef.current) {
               clearTimeout(fallbackTimerRef.current);
@@ -587,14 +633,15 @@ export default function CaptureWidget({ onDismiss }) {
         //   • AEC on → frames are 1-byte tagged (0x00 mic / 0x01 far-end) and the
         //     audio player's output is subscribed as the echo reference.
         const [{ startMicCapture }, { frameFromFloat, floatToInt16, AEC_NEAR, AEC_FAR }] =
-          await Promise.all([
-            import('../utils/aec/micCapture'),
-            import('../utils/aec/pcm'),
-          ]);
+          await Promise.all([import('../utils/aec/micCapture'), import('../utils/aec/pcm')]);
         const sendBuf = (buf) => {
           const ws = wsRef.current;
           if (ws && ws.readyState === WebSocket.OPEN) {
-            try { ws.send(buf); } catch { /* ignore */ }
+            try {
+              ws.send(buf);
+            } catch {
+              /* ignore */
+            }
           } else {
             wsPendingRef.current.push(buf);
           }
@@ -605,9 +652,9 @@ export default function CaptureWidget({ onDismiss }) {
           // sherpa handler sees the cleaned near-end PCM.
           const { subscribeFarEnd } = await import('../utils/aec/farEndBus');
           const sendTagged = (float32, kind) => sendBuf(frameFromFloat(float32, kind));
-          aecStopRef.current = await startMicCapture(
-            stream, (f) => sendTagged(f, AEC_NEAR), { sampleRate: 16000 },
-          );
+          aecStopRef.current = await startMicCapture(stream, (f) => sendTagged(f, AEC_NEAR), {
+            sampleRate: 16000,
+          });
           farEndUnsubRef.current = subscribeFarEnd((f) => sendTagged(f, AEC_FAR));
         } else {
           // Untagged int16 frames for the plain sherpa live path. Send the
@@ -628,7 +675,7 @@ export default function CaptureWidget({ onDismiss }) {
         recorder.ondataavailable = (e) => {
           if (e.data.size > 0) {
             chunksRef.current.push(e.data);
-            e.data.arrayBuffer().then(buf => {
+            e.data.arrayBuffer().then((buf) => {
               const ws = wsRef.current;
               if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(buf);
@@ -668,13 +715,17 @@ export default function CaptureWidget({ onDismiss }) {
       teardownAec();
     }
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
     // Signal EOF to WebSocket
     const ws = wsRef.current;
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-      const sendEof = () => { try { ws.send('EOF'); } catch {} };
+      const sendEof = () => {
+        try {
+          ws.send('EOF');
+        } catch {}
+      };
       if (ws.readyState === WebSocket.OPEN) {
         sendEof();
       } else {
@@ -687,7 +738,9 @@ export default function CaptureWidget({ onDismiss }) {
       fallbackTimerRef.current = setTimeout(() => {
         fallbackTimerRef.current = null;
         if (!wsHadFinalRef.current) {
-          try { wsRef.current?.close(); } catch {}
+          try {
+            wsRef.current?.close();
+          } catch {}
           wsRef.current = null;
           sendForTranscription();
         }
@@ -734,7 +787,9 @@ export default function CaptureWidget({ onDismiss }) {
     try {
       const { getCurrentWindow } = await import('@tauri-apps/api/window');
       await getCurrentWindow().hide();
-    } catch { /* not in Tauri */ }
+    } catch {
+      /* not in Tauri */
+    }
     if (onDismiss) onDismiss();
   };
 
@@ -778,19 +833,19 @@ export default function CaptureWidget({ onDismiss }) {
 
       {/* Timer */}
       {(state === 'recording' || state === 'transcribing') && (
-        <span className="capture-pill__timer">
-          {formatElapsed(duration)}
-        </span>
+        <span className="capture-pill__timer">{formatElapsed(duration)}</span>
       )}
 
       {/* Transcribing spinner */}
-      {state === 'transcribing' && (
-        <Loader size={14} className="capture-pill__spinner" />
-      )}
+      {state === 'transcribing' && <Loader size={14} className="capture-pill__spinner" />}
 
       {/* Dismiss — only on done/error */}
       {(state === 'done' || state === 'error') && (
-        <button className="capture-pill__dismiss" onClick={dismiss} aria-label={t('common.dismiss')}>
+        <button
+          className="capture-pill__dismiss"
+          onClick={dismiss}
+          aria-label={t('common.dismiss')}
+        >
           <X size={12} />
         </button>
       )}

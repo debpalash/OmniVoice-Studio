@@ -23,12 +23,9 @@ const Panel = forwardRef(function Panel(
   },
   ref,
 ) {
-  const classes = [
-    'ui-panel',
-    `ui-panel--${variant}`,
-    `ui-panel--pad-${padding}`,
-    className,
-  ].filter(Boolean).join(' ');
+  const classes = ['ui-panel', `ui-panel--${variant}`, `ui-panel--pad-${padding}`, className]
+    .filter(Boolean)
+    .join(' ');
 
   const hasHeader = title != null || actions != null;
 

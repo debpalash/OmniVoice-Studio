@@ -14,13 +14,7 @@
  */
 import type { StateCreator } from 'zustand';
 
-type VDCategory =
-  | 'Gender'
-  | 'Age'
-  | 'Pitch'
-  | 'Style'
-  | 'EnglishAccent'
-  | 'ChineseDialect';
+type VDCategory = 'Gender' | 'Age' | 'Pitch' | 'Style' | 'EnglishAccent' | 'ChineseDialect';
 
 type VDStates = Record<VDCategory, string>;
 
@@ -104,26 +98,27 @@ export const createGenerateSlice: StateCreator<GenerateSlice, [], [], GenerateSl
   designSeed: null,
   keepSeed: false,
 
-  setText:        (v) => set({ text: v }),
-  setRefText:     (v) => set({ refText: v }),
-  setInstruct:    (v) => set({ instruct: v }),
-  setLanguage:    (v) => set({ language: v }),
+  setText: (v) => set({ text: v }),
+  setRefText: (v) => set({ refText: v }),
+  setInstruct: (v) => set({ instruct: v }),
+  setLanguage: (v) => set({ language: v }),
 
-  setSpeed:        (v) => set({ speed: v }),
-  setSteps:        (v) => set({ steps: v }),
-  setCfg:          (v) => set({ cfg: v }),
-  setTShift:       (v) => set({ tShift: v }),
-  setPosTemp:      (v) => set({ posTemp: v }),
-  setClassTemp:    (v) => set({ classTemp: v }),
+  setSpeed: (v) => set({ speed: v }),
+  setSteps: (v) => set({ steps: v }),
+  setCfg: (v) => set({ cfg: v }),
+  setTShift: (v) => set({ tShift: v }),
+  setPosTemp: (v) => set({ posTemp: v }),
+  setClassTemp: (v) => set({ classTemp: v }),
   setLayerPenalty: (v) => set({ layerPenalty: v }),
-  setDenoise:      (v) => set({ denoise: v }),
-  setPostprocess:  (v) => set({ postprocess: v }),
-  setDuration:     (v) => set({ duration: v }),
+  setDenoise: (v) => set({ denoise: v }),
+  setPostprocess: (v) => set({ postprocess: v }),
+  setDuration: (v) => set({ duration: v }),
 
-  setVdStates: (v) => set((s) => ({
-    vdStates: typeof v === 'function' ? (v as (p: VDStates) => VDStates)(s.vdStates) : v,
-  })),
+  setVdStates: (v) =>
+    set((s) => ({
+      vdStates: typeof v === 'function' ? (v as (p: VDStates) => VDStates)(s.vdStates) : v,
+    })),
 
   setDesignSeed: (v) => set({ designSeed: v }),
-  setKeepSeed:   (v) => set({ keepSeed: v }),
+  setKeepSeed: (v) => set({ keepSeed: v }),
 });

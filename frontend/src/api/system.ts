@@ -56,10 +56,8 @@ const VRAM_CACHE_TTL = 15_000;
 export async function sysinfo(): Promise<SysinfoData> {
   // Rust provides CPU + RAM; VRAM stays at 0. We merge with the Python
   // endpoint to get GPU data when available.
-  const rustData = await invokeOrFetch<SysinfoData>(
-    'get_sysinfo',
-    undefined,
-    () => apiJson<SysinfoData>('/sysinfo'),
+  const rustData = await invokeOrFetch<SysinfoData>('get_sysinfo', undefined, () =>
+    apiJson<SysinfoData>('/sysinfo'),
   );
 
   // If we got data from Rust (vram=0), enrich with Python's VRAM data
@@ -124,18 +122,14 @@ export async function systemNotifications(): Promise<NotificationsResponse> {
 // ── Logs (polled every 5s) ───────────────────────────────────────────────
 
 export async function systemLogs(tail: number = 300): Promise<LogsResponse> {
-  return invokeOrFetch<LogsResponse>(
-    'read_log_tail',
-    { source: 'backend', tail },
-    () => apiJson<LogsResponse>(`/system/logs?tail=${tail}`),
+  return invokeOrFetch<LogsResponse>('read_log_tail', { source: 'backend', tail }, () =>
+    apiJson<LogsResponse>(`/system/logs?tail=${tail}`),
   );
 }
 
 export async function systemLogsTauri(tail: number = 300): Promise<LogsResponse> {
-  return invokeOrFetch<LogsResponse>(
-    'read_log_tail',
-    { source: 'tauri', tail },
-    () => apiJson<LogsResponse>(`/system/logs/tauri?tail=${tail}`),
+  return invokeOrFetch<LogsResponse>('read_log_tail', { source: 'tauri', tail }, () =>
+    apiJson<LogsResponse>(`/system/logs/tauri?tail=${tail}`),
   );
 }
 

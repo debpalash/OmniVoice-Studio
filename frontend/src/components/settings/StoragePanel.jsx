@@ -44,7 +44,9 @@ export default function StoragePanel() {
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const save = async (path) => {
     setSaving(true);
@@ -62,7 +64,11 @@ export default function StoragePanel() {
       const b = await res.json();
       setConfigured(b?.configured || '');
       setRestart(Boolean(b?.restart_required));
-      toast.success(path ? 'Models directory saved — restart to apply' : 'Reverted to default — restart to apply');
+      toast.success(
+        path
+          ? 'Models directory saved — restart to apply'
+          : 'Reverted to default — restart to apply',
+      );
       refresh();
     } catch (e) {
       setError(e?.message || 'Failed to save models directory');
@@ -78,13 +84,16 @@ export default function StoragePanel() {
       title="Models directory"
       actions={
         <InfoHint label="Models directory">
-          Where model weights download (the HuggingFace / Torch cache). Point this
-          at a larger or faster drive — useful when your system drive is small.
-          Changes apply on the next restart.
+          Where model weights download (the HuggingFace / Torch cache). Point this at a larger or
+          faster drive — useful when your system drive is small. Changes apply on the next restart.
         </InfoHint>
       }
     >
-      {error && <div className="storagepanel__error" role="alert">{error}</div>}
+      {error && (
+        <div className="storagepanel__error" role="alert">
+          {error}
+        </div>
+      )}
 
       <SettingRow
         className="st-row--stack"
@@ -114,7 +123,10 @@ export default function StoragePanel() {
             </button>
             <button
               className="storagepanel__btn storagepanel__btn--ghost"
-              onClick={() => { setInput(''); save(''); }}
+              onClick={() => {
+                setInput('');
+                save('');
+              }}
               disabled={saving || loading || !configured}
               title="Revert to the default cache location"
             >
@@ -124,17 +136,9 @@ export default function StoragePanel() {
         }
       />
 
-      <SettingRow
-        title="Effective now"
-        control={<>{effective || '…'}</>}
-        mono
-      />
+      <SettingRow title="Effective now" control={<>{effective || '…'}</>} mono />
 
-      <SettingRow
-        title="Configured"
-        control={<>{configured || 'using default'}</>}
-        mono
-      />
+      <SettingRow title="Configured" control={<>{configured || 'using default'}</>} mono />
 
       {restart && (
         <p className="storagepanel__restart">↻ Restart OmniVoice to use the new location.</p>

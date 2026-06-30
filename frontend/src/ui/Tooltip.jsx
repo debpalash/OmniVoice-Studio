@@ -10,12 +10,7 @@ import './Tooltip.css';
  * @param placement  'top' | 'bottom' | 'left' | 'right'
  * @param delay      ms before showing (default 300)
  */
-export default function Tooltip({
-  content,
-  placement = 'top',
-  delay = 300,
-  children,
-}) {
+export default function Tooltip({ content, placement = 'top', delay = 300, children }) {
   if (!content) return children;
 
   // Map our placement names to Radix side names
@@ -25,9 +20,7 @@ export default function Tooltip({
   return (
     <RadixTooltip.Provider delayDuration={delay}>
       <RadixTooltip.Root>
-        <RadixTooltip.Trigger asChild>
-          {children}
-        </RadixTooltip.Trigger>
+        <RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
         <RadixTooltip.Portal>
           <RadixTooltip.Content
             side={side}

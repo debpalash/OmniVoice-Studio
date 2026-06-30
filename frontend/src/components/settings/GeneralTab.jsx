@@ -11,10 +11,10 @@ import { useAppStore } from '../../store';
 
 export default function GeneralTab() {
   const { t } = useTranslation();
-  const locale = useAppStore(s => s.locale);
-  const setLocale = useAppStore(s => s.setLocale);
-  const theme = useAppStore(s => s.theme);
-  const setTheme = useAppStore(s => s.setTheme);
+  const locale = useAppStore((s) => s.locale);
+  const setLocale = useAppStore((s) => s.setLocale);
+  const theme = useAppStore((s) => s.theme);
+  const setTheme = useAppStore((s) => s.setTheme);
   const { data: sysInfo } = useSystemInfo();
   const [proxyUrl, setProxyUrl] = useState('');
   const [proxySaved, setProxySaved] = useState(false);
@@ -48,8 +48,11 @@ export default function GeneralTab() {
       toast.success(t('settings.ffmpeg_saved'));
       setFfmpegPath('');
       queryClient.invalidateQueries({ queryKey: queryKeys.systemInfo });
-    } catch (e) { toast.error(t('settings.save_failed', { message: e.message })); }
-    finally { setFfmpegSaving(false); }
+    } catch (e) {
+      toast.error(t('settings.save_failed', { message: e.message }));
+    } finally {
+      setFfmpegSaving(false);
+    }
   };
 
   const handleLocaleChange = (e) => {
@@ -63,11 +66,12 @@ export default function GeneralTab() {
     setProxySaving(true);
     try {
       const { apiFetch } = await import('../../api/client');
-      const setEnv = (key, val) => apiFetch('/system/set-env', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, value: val }),
-      });
+      const setEnv = (key, val) =>
+        apiFetch('/system/set-env', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, value: val }),
+        });
       await setEnv('HTTP_PROXY', value);
       await Promise.all([
         setEnv('HTTPS_PROXY', value),
@@ -79,19 +83,23 @@ export default function GeneralTab() {
       toast.success(t('settings.proxy_saved'));
       setProxySaved(true);
       queryClient.invalidateQueries({ queryKey: queryKeys.systemInfo });
-    } catch (e) { toast.error(t('settings.save_failed', { message: e.message })); }
-    finally { setProxySaving(false); }
+    } catch (e) {
+      toast.error(t('settings.save_failed', { message: e.message }));
+    } finally {
+      setProxySaving(false);
+    }
   };
 
   const clearProxy = async () => {
     setProxySaving(true);
     try {
       const { apiFetch } = await import('../../api/client');
-      const setEnv = (key, val) => apiFetch('/system/set-env', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, value: val }),
-      });
+      const setEnv = (key, val) =>
+        apiFetch('/system/set-env', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, value: val }),
+        });
       await Promise.all([
         setEnv('HTTP_PROXY', ''),
         setEnv('HTTPS_PROXY', ''),
@@ -104,8 +112,11 @@ export default function GeneralTab() {
       setProxySaved(false);
       toast.success(t('settings.proxy_cleared'));
       queryClient.invalidateQueries({ queryKey: queryKeys.systemInfo });
-    } catch (e) { toast.error(t('settings.clear_failed', { message: e.message })); }
-    finally { setProxySaving(false); }
+    } catch (e) {
+      toast.error(t('settings.clear_failed', { message: e.message }));
+    } finally {
+      setProxySaving(false);
+    }
   };
 
   return (
@@ -116,7 +127,9 @@ export default function GeneralTab() {
         control={
           <Select size="sm" value={locale} onChange={handleLocaleChange}>
             {LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code}>{l.label}</option>
+              <option key={l.code} value={l.code}>
+                {l.label}
+              </option>
             ))}
           </Select>
         }
@@ -125,7 +138,7 @@ export default function GeneralTab() {
         icon={Palette}
         title={t('settings.theme')}
         control={
-          <Select size="sm" value={theme} onChange={e => setTheme(e.target.value)}>
+          <Select size="sm" value={theme} onChange={(e) => setTheme(e.target.value)}>
             <option value="gruvbox">Gruvbox</option>
             <option value="midnight">Midnight</option>
             <option value="nord">Nord</option>
@@ -143,7 +156,11 @@ export default function GeneralTab() {
           title={
             <>
               {t('settings.proxy')}
-              {proxySaved && <Badge tone="success" size="xs">{t('credentials.saved')}</Badge>}
+              {proxySaved && (
+                <Badge tone="success" size="xs">
+                  {t('credentials.saved')}
+                </Badge>
+              )}
             </>
           }
           note={t('settings.proxy_desc')}
@@ -152,10 +169,16 @@ export default function GeneralTab() {
               <SettingsInput
                 placeholder="http://127.0.0.1:7890 or socks5://127.0.0.1:7890"
                 value={proxyUrl}
-                onChange={e => setProxyUrl(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && saveProxy()}
+                onChange={(e) => setProxyUrl(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && saveProxy()}
               />
-              <Button size="sm" variant="subtle" onClick={saveProxy} loading={proxySaving} disabled={!proxyUrl.trim()}>
+              <Button
+                size="sm"
+                variant="subtle"
+                onClick={saveProxy}
+                loading={proxySaving}
+                disabled={!proxyUrl.trim()}
+              >
                 {t('credentials.save')}
               </Button>
               {proxySaved && (
@@ -178,16 +201,26 @@ export default function GeneralTab() {
               </Badge>
             </>
           }
-          note={ffmpegCurrent ? `${t('settings.ffmpeg_current')}: ${ffmpegCurrent}` : t('settings.ffmpeg_desc')}
+          note={
+            ffmpegCurrent
+              ? `${t('settings.ffmpeg_current')}: ${ffmpegCurrent}`
+              : t('settings.ffmpeg_desc')
+          }
           control={
             <>
               <SettingsInput
                 placeholder="D:\ffmpeg\bin\ffmpeg.exe"
                 value={ffmpegPath}
-                onChange={e => setFfmpegPath(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && saveFfmpeg()}
+                onChange={(e) => setFfmpegPath(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && saveFfmpeg()}
               />
-              <Button size="sm" variant="subtle" onClick={saveFfmpeg} loading={ffmpegSaving} disabled={!ffmpegPath.trim()}>
+              <Button
+                size="sm"
+                variant="subtle"
+                onClick={saveFfmpeg}
+                loading={ffmpegSaving}
+                disabled={!ffmpegPath.trim()}
+              >
                 {t('credentials.save')}
               </Button>
             </>

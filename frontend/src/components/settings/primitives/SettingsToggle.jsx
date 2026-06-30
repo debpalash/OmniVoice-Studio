@@ -22,7 +22,9 @@ export default function SettingsToggle({
   ...rest
 }) {
   return (
-    <label className={`st-toggle ${checked ? 'is-on' : ''} ${disabled ? 'is-disabled' : ''}`.trim()}>
+    <label
+      className={`st-toggle ${checked ? 'is-on' : ''} ${disabled ? 'is-disabled' : ''}`.trim()}
+    >
       <input
         type="checkbox"
         role="switch"

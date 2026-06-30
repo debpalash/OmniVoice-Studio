@@ -24,11 +24,7 @@ export default function InfoHint({ children, label, learnMoreHref }) {
     <div className="st-hint__content">
       <div className="st-hint__prose">{children}</div>
       {learnMoreHref && (
-        <button
-          type="button"
-          className="st-hint__link"
-          onClick={() => openExternal(learnMoreHref)}
-        >
+        <button type="button" className="st-hint__link" onClick={() => openExternal(learnMoreHref)}>
           {t('common.learn_more', 'Learn more')} →
         </button>
       )}

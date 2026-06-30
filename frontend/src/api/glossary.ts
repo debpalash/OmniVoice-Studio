@@ -5,7 +5,10 @@ export async function listGlossary(projectId: string): Promise<GlossaryTerm[]> {
   return apiJson<GlossaryTerm[]>(`/glossary/${encodeURIComponent(projectId)}`);
 }
 
-export async function addGlossaryTerm(projectId: string, term: Partial<GlossaryTerm>): Promise<GlossaryTerm> {
+export async function addGlossaryTerm(
+  projectId: string,
+  term: Partial<GlossaryTerm>,
+): Promise<GlossaryTerm> {
   return apiPost<GlossaryTerm>(`/glossary/${encodeURIComponent(projectId)}`, term);
 }
 
@@ -22,14 +25,20 @@ export async function updateGlossaryTerm(
   return r.json() as Promise<GlossaryTerm>;
 }
 
-export async function deleteGlossaryTerm(projectId: string, termId: number): Promise<DeletedResponse> {
+export async function deleteGlossaryTerm(
+  projectId: string,
+  termId: number,
+): Promise<DeletedResponse> {
   const r = await apiFetch(`/glossary/${encodeURIComponent(projectId)}/${termId}`, {
     method: 'DELETE',
   });
   return r.json() as Promise<DeletedResponse>;
 }
 
-export async function clearGlossary(projectId: string, onlyAuto: boolean = false): Promise<DeletedResponse> {
+export async function clearGlossary(
+  projectId: string,
+  onlyAuto: boolean = false,
+): Promise<DeletedResponse> {
   const qs = onlyAuto ? '?only_auto=true' : '';
   const r = await apiFetch(`/glossary/${encodeURIComponent(projectId)}${qs}`, {
     method: 'DELETE',

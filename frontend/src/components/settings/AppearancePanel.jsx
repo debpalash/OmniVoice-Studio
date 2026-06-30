@@ -14,28 +14,28 @@ import { SettingsSection, SettingRow, InfoHint, SettingsToggle } from './primiti
 import './AppearancePanel.css';
 
 const THEMES = [
-  { id: 'gruvbox',    label: 'Gruvbox',    dot: '#d3869b' },
-  { id: 'midnight',   label: 'Midnight',   dot: '#8b5cf6' },
-  { id: 'nord',       label: 'Nord',       dot: '#88c0d0' },
-  { id: 'solarized',  label: 'Solarized',  dot: '#268bd2' },
-  { id: 'rose-pine',  label: 'Rosé Pine',  dot: '#ebbcba' },
+  { id: 'gruvbox', label: 'Gruvbox', dot: '#d3869b' },
+  { id: 'midnight', label: 'Midnight', dot: '#8b5cf6' },
+  { id: 'nord', label: 'Nord', dot: '#88c0d0' },
+  { id: 'solarized', label: 'Solarized', dot: '#268bd2' },
+  { id: 'rose-pine', label: 'Rosé Pine', dot: '#ebbcba' },
   { id: 'catppuccin', label: 'Catppuccin', dot: '#cba6f7' },
 ];
 
 export default function AppearancePanel() {
   const { t } = useTranslation();
-  const uiScale    = useAppStore(s => s.uiScale);
-  const setUiScale = useAppStore(s => s.setUiScale);
-  const theme      = useAppStore(s => s.theme);
-  const setTheme   = useAppStore(s => s.setTheme);
-  const font       = useAppStore(s => s.font);
-  const setFont    = useAppStore(s => s.setFont);
-  const autoPlayPreview    = useAppStore(s => s.autoPlayPreview);
-  const setAutoPlayPreview = useAppStore(s => s.setAutoPlayPreview);
+  const uiScale = useAppStore((s) => s.uiScale);
+  const setUiScale = useAppStore((s) => s.setUiScale);
+  const theme = useAppStore((s) => s.theme);
+  const setTheme = useAppStore((s) => s.setTheme);
+  const font = useAppStore((s) => s.font);
+  const setFont = useAppStore((s) => s.setFont);
+  const autoPlayPreview = useAppStore((s) => s.autoPlayPreview);
+  const setAutoPlayPreview = useAppStore((s) => s.setAutoPlayPreview);
 
   const scaleLabel = t('settings.ui_scale', { defaultValue: 'UI scale' });
   const themeLabel = t('settings.color_theme', { defaultValue: 'Color theme' });
-  const fontLabel  = t('settings.font', { defaultValue: 'Font' });
+  const fontLabel = t('settings.font', { defaultValue: 'Font' });
 
   return (
     <SettingsSection
@@ -74,7 +74,7 @@ export default function AppearancePanel() {
         title={themeLabel}
         control={
           <div className="appearance-panel__themes" role="radiogroup" aria-label={themeLabel}>
-            {THEMES.map(th => (
+            {THEMES.map((th) => (
               <button
                 key={th.id}
                 type="button"
@@ -97,7 +97,7 @@ export default function AppearancePanel() {
         title={fontLabel}
         control={
           <div className="appearance-panel__fonts" role="radiogroup" aria-label={fontLabel}>
-            {FONT_OPTIONS.map(f => (
+            {FONT_OPTIONS.map((f) => (
               <button
                 key={f.id}
                 type="button"

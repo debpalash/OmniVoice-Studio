@@ -33,7 +33,9 @@ export function evaluateDonationPrompt(kind = 'generic', opts = {}) {
   // Postcard falls back to the bundled snapshot if this is slow/offline.
   let progress = null;
   loadDonationProgress()
-    .then((p) => { progress = p; })
+    .then((p) => {
+      progress = p;
+    })
     .catch(() => {});
 
   toast.custom(
@@ -43,12 +45,15 @@ export function evaluateDonationPrompt(kind = 'generic', opts = {}) {
         milestone={decision.milestone}
         progress={progress}
         onDismiss={() => toast.dismiss(id)}
-        onOptOut={() => { useAppStore.getState().optOutOfDonation(); toast.dismiss(id); }}
+        onOptOut={() => {
+          useAppStore.getState().optOutOfDonation();
+          toast.dismiss(id);
+        }}
       />
     ),
     {
       id,
-      duration: 12000,        // auto-dismiss ~12s
+      duration: 12000, // auto-dismiss ~12s
       position: 'bottom-right',
     },
   );

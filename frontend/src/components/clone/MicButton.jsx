@@ -20,7 +20,12 @@ export default function MicButton({ isCleaning, isRecording, recordingTime, onSt
     );
   }
   return (
-    <button type="button" onClick={onStart} className="mic-btn mic-btn--idle" title={t('clone.record')}>
+    <button
+      type="button"
+      onClick={onStart}
+      className="mic-btn mic-btn--idle"
+      title={t('clone.record')}
+    >
       <Mic size={18} />
       <span>{t('clone.record')}</span>
     </button>

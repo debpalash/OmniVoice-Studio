@@ -21,7 +21,11 @@ const _listeners = new Set();
 
 const notify = () => {
   for (const l of _listeners) {
-    try { l(); } catch { /* listener errors must not break playback */ }
+    try {
+      l();
+    } catch {
+      /* listener errors must not break playback */
+    }
   }
 };
 
@@ -55,7 +59,11 @@ export function stopActivePlayback() {
   if (!_current) return;
   const { stop } = _current;
   _current = null; // clear first so re-entrant release() calls are no-ops
-  try { stop(); } catch { /* already-stopped handles must not throw */ }
+  try {
+    stop();
+  } catch {
+    /* already-stopped handles must not throw */
+  }
   notify();
 }
 

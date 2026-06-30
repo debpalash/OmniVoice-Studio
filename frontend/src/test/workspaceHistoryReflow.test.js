@@ -16,10 +16,7 @@ import { resolve } from 'node:path';
  */
 // Strip /* … */ comments so the guard checks real declarations, not the
 // warning comment that quotes the forbidden `@media (max-width)` pattern.
-const raw = readFileSync(
-  resolve(process.cwd(), 'src/components/WorkspaceHistory.css'),
-  'utf8',
-);
+const raw = readFileSync(resolve(process.cwd(), 'src/components/WorkspaceHistory.css'), 'utf8');
 const css = raw.replace(/\/\*[\s\S]*?\*\//g, '');
 
 describe('workspace narrow-shell reflow (#476 CTA-clipping guard)', () => {

@@ -9,12 +9,16 @@ const readRecents = (key) => {
   try {
     const raw = window.localStorage.getItem(key);
     return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 };
 
 const writeRecents = (key, list) => {
   if (!key || typeof window === 'undefined') return;
-  try { window.localStorage.setItem(key, JSON.stringify(list.slice(0, 8))); } catch {}
+  try {
+    window.localStorage.setItem(key, JSON.stringify(list.slice(0, 8)));
+  } catch {}
 };
 
 const normalize = (s) => (s || '').toString().toLowerCase();
@@ -51,11 +55,14 @@ export default function SearchableSelect({
   const inputRef = useRef(null);
 
   const getVal = useCallback((o) => (typeof o === 'string' ? o : o?.value), []);
-  const getLabel = useCallback((o) => {
-    if (renderLabel) return renderLabel(o);
-    if (typeof o === 'string') return o;
-    return o?.label ?? o?.value ?? '';
-  }, [renderLabel]);
+  const getLabel = useCallback(
+    (o) => {
+      if (renderLabel) return renderLabel(o);
+      if (typeof o === 'string') return o;
+      return o?.label ?? o?.value ?? '';
+    },
+    [renderLabel],
+  );
 
   const byVal = useMemo(() => {
     const m = new Map();
@@ -65,13 +72,15 @@ export default function SearchableSelect({
 
   const currentLabel = useMemo(() => {
     const o = byVal.get(value);
-    return o ? getLabel(o) : (value || placeholder);
+    return o ? getLabel(o) : value || placeholder;
   }, [byVal, value, getLabel, placeholder]);
 
   const filtered = useMemo(() => {
     const q = normalize(query);
     if (!q) return options;
-    return options.filter(o => normalize(getLabel(o)).includes(q) || normalize(getVal(o)).includes(q));
+    return options.filter(
+      (o) => normalize(getLabel(o)).includes(q) || normalize(getVal(o)).includes(q),
+    );
   }, [options, query, getLabel, getVal]);
 
   const pinned = useMemo(() => {
@@ -80,13 +89,19 @@ export default function SearchableSelect({
     const seen = new Set();
     for (const v of recents) {
       const o = byVal.get(v);
-      if (o && !seen.has(v)) { out.push({ o, kind: 'recent' }); seen.add(v); }
+      if (o && !seen.has(v)) {
+        out.push({ o, kind: 'recent' });
+        seen.add(v);
+      }
       if (out.length >= 5) break;
     }
     for (const v of popular) {
       if (seen.has(v)) continue;
       const o = byVal.get(v);
-      if (o) { out.push({ o, kind: 'popular' }); seen.add(v); }
+      if (o) {
+        out.push({ o, kind: 'popular' });
+        seen.add(v);
+      }
       if (out.length >= 12) break;
     }
     return out;
@@ -129,7 +144,7 @@ export default function SearchableSelect({
     const v = getVal(o);
     onChange?.(v);
     if (recentsKey && isRecentable(v)) {
-      const next = [v, ...recents.filter(r => r !== v)].slice(0, 8);
+      const next = [v, ...recents.filter((r) => r !== v)].slice(0, 8);
       setRecents(next);
       writeRecents(recentsKey, next);
     }
@@ -137,13 +152,20 @@ export default function SearchableSelect({
   };
 
   const onKey = (e) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(h => Math.min(flatItems.length - 1, h + 1)); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight(h => Math.max(0, h - 1)); }
-    else if (e.key === 'Enter') {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlight((h) => Math.min(flatItems.length - 1, h + 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlight((h) => Math.max(0, h - 1));
+    } else if (e.key === 'Enter') {
       e.preventDefault();
       const item = flatItems[highlight];
       if (item) commit(item.o);
-    } else if (e.key === 'Escape') { e.preventDefault(); setOpen(false); }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setOpen(false);
+    }
   };
 
   const sizeCls = size === 'sm' ? 'ss-sm' : 'ss-md';
@@ -154,7 +176,7 @@ export default function SearchableSelect({
         type="button"
         className={`${buttonClassName} ss-trigger`}
         style={buttonStyle}
-        onClick={() => !disabled && setOpen(o => !o)}
+        onClick={() => !disabled && setOpen((o) => !o)}
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -173,60 +195,78 @@ export default function SearchableSelect({
               className="ss-search-input"
               placeholder={t('common.search')}
               value={query}
-              onChange={e => { setQuery(e.target.value); setHighlight(0); }}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setHighlight(0);
+              }}
               onKeyDown={onKey}
             />
           </div>
 
           <div ref={listRef} className="ss-list">
-            {flatItems.length === 0 && (
-              <div className="ss-empty">{t('common.no_matches')}</div>
-            )}
+            {flatItems.length === 0 && <div className="ss-empty">{t('common.no_matches')}</div>}
 
             {pinned.length > 0 && (
               <div className="ss-group-label">
-                {recents.length ? <><Clock size={9}/> {t('common.recent_and_popular')}</> : <><Star size={9}/> {t('common.popular_label')}</>}
+                {recents.length ? (
+                  <>
+                    <Clock size={9} /> {t('common.recent_and_popular')}
+                  </>
+                ) : (
+                  <>
+                    <Star size={9} /> {t('common.popular_label')}
+                  </>
+                )}
               </div>
             )}
 
-            {(() => { let lastGroup; return flatItems.map((it, idx) => {
-              const v = getVal(it.o);
-              const selected = v === value;
-              const highlighted = idx === highlight;
-              // Group header: emitted lazily on the first MAIN row of a new
-              // group whose option carries a non-empty groupLabel (#22). Pinned
-              // recent/popular rows never trigger a header. `lastGroup` advances
-              // only on main rows so a pinned row can't swallow the first header.
-              const showHeader =
-                renderGroupHeaders &&
-                it.kind === 'main' &&
-                it.o && it.o.groupLabel &&
-                it.o.group !== lastGroup;
-              if (it.kind === 'main') lastGroup = it.o?.group;
-              return (
-                <React.Fragment key={`${it.kind}-${v}-${idx}`}>
-                  {showHeader && <div className="ss-group-label">{it.o.groupLabel}</div>}
-                  <div
-                    data-idx={idx}
-                    className={`ss-option ${highlighted ? 'ss-hl' : ''} ${selected ? 'ss-sel' : ''}`}
-                    onMouseEnter={() => setHighlight(idx)}
-                    onMouseDown={(e) => { e.preventDefault(); commit(it.o); }}
-                    role="option"
-                    aria-selected={selected}
-                  >
-                    {it.kind === 'recent' && <Clock size={9} className="ss-kind-icon"/>}
-                    {it.kind === 'popular' && <Star size={9} className="ss-kind-icon"/>}
-                    <span className="ss-option-label">
-                      {renderOption ? renderOption(it.o) : getLabel(it.o)}
-                    </span>
-                    {selected && <Check size={10} className="ss-check"/>}
-                  </div>
-                </React.Fragment>
-              );
-            }); })()}
+            {(() => {
+              let lastGroup;
+              return flatItems.map((it, idx) => {
+                const v = getVal(it.o);
+                const selected = v === value;
+                const highlighted = idx === highlight;
+                // Group header: emitted lazily on the first MAIN row of a new
+                // group whose option carries a non-empty groupLabel (#22). Pinned
+                // recent/popular rows never trigger a header. `lastGroup` advances
+                // only on main rows so a pinned row can't swallow the first header.
+                const showHeader =
+                  renderGroupHeaders &&
+                  it.kind === 'main' &&
+                  it.o &&
+                  it.o.groupLabel &&
+                  it.o.group !== lastGroup;
+                if (it.kind === 'main') lastGroup = it.o?.group;
+                return (
+                  <React.Fragment key={`${it.kind}-${v}-${idx}`}>
+                    {showHeader && <div className="ss-group-label">{it.o.groupLabel}</div>}
+                    <div
+                      data-idx={idx}
+                      className={`ss-option ${highlighted ? 'ss-hl' : ''} ${selected ? 'ss-sel' : ''}`}
+                      onMouseEnter={() => setHighlight(idx)}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        commit(it.o);
+                      }}
+                      role="option"
+                      aria-selected={selected}
+                    >
+                      {it.kind === 'recent' && <Clock size={9} className="ss-kind-icon" />}
+                      {it.kind === 'popular' && <Star size={9} className="ss-kind-icon" />}
+                      <span className="ss-option-label">
+                        {renderOption ? renderOption(it.o) : getLabel(it.o)}
+                      </span>
+                      {selected && <Check size={10} className="ss-check" />}
+                    </div>
+                  </React.Fragment>
+                );
+              });
+            })()}
 
             {!query && filtered.length > MAX_DISPLAY && (
-              <div className="ss-more">{t('common.showing_of', { shown: MAX_DISPLAY, total: filtered.length })}</div>
+              <div className="ss-more">
+                {t('common.showing_of', { shown: MAX_DISPLAY, total: filtered.length })}
+              </div>
             )}
           </div>
         </div>

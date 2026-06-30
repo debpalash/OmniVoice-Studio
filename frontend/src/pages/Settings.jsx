@@ -1,11 +1,21 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { copyText } from "../utils/copyText";
+import { copyText } from '../utils/copyText';
 import { normalizeChannel } from '../utils/updateChannel';
 import { setChannel } from '../utils/channelControl';
 import {
-  Cpu, FileText, Info, ShieldCheck, RefreshCw,
-  CheckCircle, Plug, KeyRound,
-  Keyboard, Wifi, Palette, ArrowDownToLine, Settings2,
+  Cpu,
+  FileText,
+  Info,
+  ShieldCheck,
+  RefreshCw,
+  CheckCircle,
+  Plug,
+  KeyRound,
+  Keyboard,
+  Wifi,
+  Palette,
+  ArrowDownToLine,
+  Settings2,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { API, apiFetch } from '../api/client';
@@ -45,17 +55,17 @@ import './Settings.css';
 // engine stack (Models/Engines), feature areas (Capture/Sharing), secrets
 // (Credentials), maintenance (Updates/Logs), and reference (About/Privacy).
 const TAB_DEFS = [
-  { id: 'general',     icon: Settings2 },
-  { id: 'appearance',  icon: Palette },
-  { id: 'models',      icon: Cpu },
-  { id: 'engines',     icon: Plug },
-  { id: 'capture',     icon: Keyboard },
-  { id: 'sharing',     icon: Wifi },
+  { id: 'general', icon: Settings2 },
+  { id: 'appearance', icon: Palette },
+  { id: 'models', icon: Cpu },
+  { id: 'engines', icon: Plug },
+  { id: 'capture', icon: Keyboard },
+  { id: 'sharing', icon: Wifi },
   { id: 'credentials', icon: KeyRound },
-  { id: 'updates',     icon: ArrowDownToLine },
-  { id: 'logs',        icon: FileText },
-  { id: 'about',       icon: Info },
-  { id: 'privacy',     icon: ShieldCheck },
+  { id: 'updates', icon: ArrowDownToLine },
+  { id: 'logs', icon: FileText },
+  { id: 'about', icon: Info },
+  { id: 'privacy', icon: ShieldCheck },
 ];
 
 export default function Settings() {
@@ -96,18 +106,23 @@ export default function Settings() {
         const app = await import('@tauri-apps/api/app');
         setAppVersion(await app.getVersion());
         if (app.getTauriVersion) setTauriVersion(await app.getTauriVersion());
-      } catch { /* web preview */ }
+      } catch {
+        /* web preview */
+      }
     })();
   }, []);
 
-  const changeChannel = useCallback(async (ch) => {
-    try {
-      const next = await setChannel(useAppStore.getState(), ch);
-      toast.success(t('about.channel_set', { channel: t(`about.channel_${next}`) }));
-    } catch (e) {
-      toast.error(t('settings.channel_set_failed', { message: e?.message || e }));
-    }
-  }, [t]);
+  const changeChannel = useCallback(
+    async (ch) => {
+      try {
+        const next = await setChannel(useAppStore.getState(), ch);
+        toast.success(t('about.channel_set', { channel: t(`about.channel_${next}`) }));
+      } catch (e) {
+        toast.error(t('settings.channel_set_failed', { message: e?.message || e }));
+      }
+    },
+    [t],
+  );
 
   // sysinfo polling is now handled by useSysinfo() hook above
 
@@ -141,7 +156,9 @@ export default function Settings() {
       try {
         const { exportReveal } = await import('../api/exports');
         await exportReveal({ path: j.path });
-      } catch { /* reveal is best-effort — the toast already names the file */ }
+      } catch {
+        /* reveal is best-effort — the toast already names the file */
+      }
     } catch (e) {
       toast.error(t('about.bundle_failed', { message: e?.message || e }));
     } finally {
@@ -153,7 +170,13 @@ export default function Settings() {
     const nav = typeof navigator !== 'undefined' ? navigator : {};
     const ua = nav.userAgent || '—';
     const lang = nav.language || '—';
-    const tz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return '—'; } })();
+    const tz = (() => {
+      try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone;
+      } catch {
+        return '—';
+      }
+    })();
     const fmtGB = (v) => (typeof v === 'number' ? `${v.toFixed(2)} GB` : '—');
     const lines = [
       '### OmniVoice Studio diagnostics',
@@ -177,9 +200,11 @@ export default function Settings() {
       `- **Outputs directory:** ${info?.outputs_dir || '—'}`,
       `- **Crash log:** ${info?.crash_log_path || '—'}`,
       `- **Update channel:** ${updateChannel}`,
-      `- **Update endpoint:** ${updateChannel === 'preview'
-        ? 'https://github.com/debpalash/OmniVoice-Studio/releases/download/preview/latest.json'
-        : 'https://github.com/debpalash/OmniVoice-Studio/releases/latest/download/latest.json'}`,
+      `- **Update endpoint:** ${
+        updateChannel === 'preview'
+          ? 'https://github.com/debpalash/OmniVoice-Studio/releases/download/preview/latest.json'
+          : 'https://github.com/debpalash/OmniVoice-Studio/releases/latest/download/latest.json'
+      }`,
       `- **User agent:** ${ua}`,
     ];
     const text = lines.join('\n');
@@ -217,7 +242,10 @@ export default function Settings() {
         }),
         { title: t('settings.updater_available_title'), kind: 'info' },
       );
-      if (!proceed) { setUpdateState('idle'); return; }
+      if (!proceed) {
+        setUpdateState('idle');
+        return;
+      }
       setUpdateState('downloading');
       const tid = toast.loading(t('settings.updater_downloading', { version: update.version }));
       await invoke('install_update', { channel });
@@ -262,14 +290,21 @@ export default function Settings() {
 
   const onClearLogs = async () => {
     if (logSource === 'frontend') {
-      if (!(await askConfirm(t('settings.clear_frontend_confirm'), t('settings.clear_frontend_title')))) return;
+      if (
+        !(await askConfirm(
+          t('settings.clear_frontend_confirm'),
+          t('settings.clear_frontend_title'),
+        ))
+      )
+        return;
       clearFrontendLogs();
       toast.success(t('settings.frontend_logs_cleared'));
       setLogs([]);
       return;
     }
     if (logSource === 'tauri') {
-      if (!(await askConfirm(t('settings.clear_tauri_confirm'), t('settings.clear_tauri_title')))) return;
+      if (!(await askConfirm(t('settings.clear_tauri_confirm'), t('settings.clear_tauri_title'))))
+        return;
       try {
         const r = await clearTauriLogs();
         if (!r?.cleared?.length) {
@@ -283,7 +318,8 @@ export default function Settings() {
       }
       return;
     }
-    if (!(await askConfirm(t('settings.clear_backend_confirm'), t('settings.clear_backend_title')))) return;
+    if (!(await askConfirm(t('settings.clear_backend_confirm'), t('settings.clear_backend_title'))))
+      return;
     try {
       await clearSystemLogs();
       toast.success(t('settings.backend_logs_cleared'));
@@ -294,101 +330,108 @@ export default function Settings() {
   };
 
   const modelBadge =
-    status?.status === 'ready'   ? <Badge tone="success"><CheckCircle size={11} /> {t('models.ready_badge')}</Badge>
-  : status?.status === 'loading' ? <Badge tone="warn"><RefreshCw size={11} className="spinner" /> {t('models.loading_badge')}</Badge>
-                                 : <Badge tone="warn">{t('models.idle_badge')}</Badge>;
+    status?.status === 'ready' ? (
+      <Badge tone="success">
+        <CheckCircle size={11} /> {t('models.ready_badge')}
+      </Badge>
+    ) : status?.status === 'loading' ? (
+      <Badge tone="warn">
+        <RefreshCw size={11} className="spinner" /> {t('models.loading_badge')}
+      </Badge>
+    ) : (
+      <Badge tone="warn">{t('models.idle_badge')}</Badge>
+    );
 
   return (
     <div className="settings-page">
       <Tabs
-        items={TAB_DEFS.map(def => ({ ...def, label: t(`settings.${def.id}`) }))}
+        items={TAB_DEFS.map((def) => ({ ...def, label: t(`settings.${def.id}`) }))}
         value={activeTab}
         onChange={setActiveTab}
         className="settings-tabs-ui"
       />
 
       <div className="settings-content">
-      {activeTab === 'general' && (
-        <>
-          <GeneralTab />
-          <PronunciationPanel />
-          <PerformancePanel />
-        </>
-      )}
+        {activeTab === 'general' && (
+          <>
+            <GeneralTab />
+            <PronunciationPanel />
+            <PerformancePanel />
+          </>
+        )}
 
-      {activeTab === 'models' && (
-        <>
-          <StoragePanel />
-          <HFMirrorPanel />
-          <ModelStoreTab info={info} modelBadge={modelBadge} />
-        </>
-      )}
+        {activeTab === 'models' && (
+          <>
+            <StoragePanel />
+            <HFMirrorPanel />
+            <ModelStoreTab info={info} modelBadge={modelBadge} />
+          </>
+        )}
 
-      {activeTab === 'engines' && <EnginesTab />}
+        {activeTab === 'engines' && <EnginesTab />}
 
-      {activeTab === 'capture' && (
-        <>
-          <VoicePanel />
-          <DictationDemo />
-          <HotkeyTab />
-          <RefinementPanel />
-          <AecPanel />
-        </>
-      )}
+        {activeTab === 'capture' && (
+          <>
+            <VoicePanel />
+            <DictationDemo />
+            <HotkeyTab />
+            <RefinementPanel />
+            <AecPanel />
+          </>
+        )}
 
-      {activeTab === 'sharing' && (
-        <>
-          <SharingPanel />
-          <RemoteBackendPanel />
-          <MCPBindingsPanel />
-        </>
-      )}
+        {activeTab === 'sharing' && (
+          <>
+            <SharingPanel />
+            <RemoteBackendPanel />
+            <MCPBindingsPanel />
+          </>
+        )}
 
-      {activeTab === 'appearance' && <AppearancePanel />}
+        {activeTab === 'appearance' && <AppearancePanel />}
 
-      {activeTab === 'credentials' && <CredentialsTab info={info} />}
+        {activeTab === 'credentials' && <CredentialsTab info={info} />}
 
-      {activeTab === 'logs' && (
-        <LogsTab
-          logSource={logSource}
-          setLogSource={setLogSource}
-          logs={logs}
-          logMeta={logMeta}
-          loadingLogs={loadingLogs}
-          refreshLogs={refreshLogs}
-          onClearLogs={onClearLogs}
-        />
-      )}
+        {activeTab === 'logs' && (
+          <LogsTab
+            logSource={logSource}
+            setLogSource={setLogSource}
+            logs={logs}
+            logMeta={logMeta}
+            loadingLogs={loadingLogs}
+            refreshLogs={refreshLogs}
+            onClearLogs={onClearLogs}
+          />
+        )}
 
-      {activeTab === 'updates' && (
-        <SettingsSection icon={ArrowDownToLine} title={t('settings.updates')}>
-          <UpdatesPanel />
-        </SettingsSection>
-      )}
+        {activeTab === 'updates' && (
+          <SettingsSection icon={ArrowDownToLine} title={t('settings.updates')}>
+            <UpdatesPanel />
+          </SettingsSection>
+        )}
 
-      {activeTab === 'about' && (
-        <AboutTab
-          appVersion={appVersion}
-          tauriVersion={tauriVersion}
-          info={info}
-          hw={hw}
-          status={status}
-          updateChannel={updateChannel}
-          changeChannel={changeChannel}
-          checkForUpdates={checkForUpdates}
-          updateState={updateState}
-          selfCheck={selfCheck}
-          selfCheckRunning={selfCheckRunning}
-          runSelfCheck={runSelfCheck}
-          bundleBuilding={bundleBuilding}
-          saveDiagnosticBundle={saveDiagnosticBundle}
-          copyDiagnostics={copyDiagnostics}
-        />
-      )}
+        {activeTab === 'about' && (
+          <AboutTab
+            appVersion={appVersion}
+            tauriVersion={tauriVersion}
+            info={info}
+            hw={hw}
+            status={status}
+            updateChannel={updateChannel}
+            changeChannel={changeChannel}
+            checkForUpdates={checkForUpdates}
+            updateState={updateState}
+            selfCheck={selfCheck}
+            selfCheckRunning={selfCheckRunning}
+            runSelfCheck={runSelfCheck}
+            bundleBuilding={bundleBuilding}
+            saveDiagnosticBundle={saveDiagnosticBundle}
+            copyDiagnostics={copyDiagnostics}
+          />
+        )}
 
-      {activeTab === 'privacy' && <PrivacyTab info={info} />}
+        {activeTab === 'privacy' && <PrivacyTab info={info} />}
       </div>
     </div>
   );
 }
-

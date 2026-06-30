@@ -13,7 +13,9 @@ import { Mic, Copy, Trash2, Search, Clock, Languages, FileText, Download } from 
 import { Button } from '../ui';
 import { toast } from 'react-hot-toast';
 import {
-  loadTranscriptions, TRANSCRIPTIONS_KEY, TRANSCRIPTION_EVENT,
+  loadTranscriptions,
+  TRANSCRIPTIONS_KEY,
+  TRANSCRIPTION_EVENT,
 } from '../utils/transcriptionsStore';
 import './Transcriptions.css';
 
@@ -57,30 +59,35 @@ export default function TranscriptionsPage() {
   const filtered = useMemo(() => {
     if (!search.trim()) return transcriptions;
     const q = search.toLowerCase();
-    return transcriptions.filter(t =>
-      t.text.toLowerCase().includes(q) ||
-      (t.language || '').toLowerCase().includes(q)
+    return transcriptions.filter(
+      (t) => t.text.toLowerCase().includes(q) || (t.language || '').toLowerCase().includes(q),
     );
   }, [transcriptions, search]);
 
   const selected = useMemo(
-    () => transcriptions.find(t => t.id === selectedId),
-    [transcriptions, selectedId]
+    () => transcriptions.find((t) => t.id === selectedId),
+    [transcriptions, selectedId],
   );
 
-  const copyText = useCallback((text) => {
-    copyText(text).then(
-      () => toast.success(t('transcriptions.copied')),
-      () => toast.error(t('transcriptions.copy_failed'))
-    );
-  }, [t]);
+  const copyText = useCallback(
+    (text) => {
+      copyText(text).then(
+        () => toast.success(t('transcriptions.copied')),
+        () => toast.error(t('transcriptions.copy_failed')),
+      );
+    },
+    [t],
+  );
 
-  const deleteEntry = useCallback((id) => {
-    const next = transcriptions.filter(t => t.id !== id);
-    setTranscriptions(next);
-    saveTranscriptions(next);
-    if (selectedId === id) setSelectedId(null);
-  }, [transcriptions, selectedId]);
+  const deleteEntry = useCallback(
+    (id) => {
+      const next = transcriptions.filter((t) => t.id !== id);
+      setTranscriptions(next);
+      saveTranscriptions(next);
+      if (selectedId === id) setSelectedId(null);
+    },
+    [transcriptions, selectedId],
+  );
 
   const clearAll = useCallback(() => {
     setTranscriptions([]);
@@ -90,7 +97,7 @@ export default function TranscriptionsPage() {
 
   const exportAll = useCallback(() => {
     const text = transcriptions
-      .map(t => `[${new Date(t.timestamp).toLocaleString()}] (${t.language})\n${t.text}\n`)
+      .map((t) => `[${new Date(t.timestamp).toLocaleString()}] (${t.language})\n${t.text}\n`)
       .join('\n---\n\n');
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -109,7 +116,12 @@ export default function TranscriptionsPage() {
     if (diff < 60000) return t('transcriptions.just_now');
     if (diff < 3600000) return t('transcriptions.m_ago', { count: Math.floor(diff / 60000) });
     if (diff < 86400000) return t('transcriptions.h_ago', { count: Math.floor(diff / 3600000) });
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   return (
@@ -121,7 +133,9 @@ export default function TranscriptionsPage() {
             <FileText size={20} />
             {t('transcriptions.title')}
           </h1>
-          <span className="txn-header__count">{t('transcriptions.entries', { count: transcriptions.length })}</span>
+          <span className="txn-header__count">
+            {t('transcriptions.entries', { count: transcriptions.length })}
+          </span>
         </div>
         <div className="txn-header__right">
           <div className="txn-search">
@@ -130,16 +144,26 @@ export default function TranscriptionsPage() {
               className="txn-search__input"
               placeholder={t('transcriptions.search_placeholder')}
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               aria-label={t('transcriptions.search_placeholder')}
             />
           </div>
           {transcriptions.length > 0 && (
             <>
-              <Button size="sm" variant="ghost" onClick={exportAll} title={t('transcriptions.export_title')}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={exportAll}
+                title={t('transcriptions.export_title')}
+              >
                 <Download size={13} /> {t('transcriptions.export')}
               </Button>
-              <Button size="sm" variant="ghost" onClick={clearAll} title={t('transcriptions.clear_title')}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={clearAll}
+                title={t('transcriptions.clear_title')}
+              >
                 <Trash2 size={13} /> {t('transcriptions.clear')}
               </Button>
             </>
@@ -158,14 +182,11 @@ export default function TranscriptionsPage() {
                 {search ? t('transcriptions.empty_search_title') : t('transcriptions.empty_title')}
               </p>
               <p className="txn-empty__desc">
-                {search
-                  ? t('transcriptions.empty_search_desc')
-                  : t('transcriptions.empty_desc')
-                }
+                {search ? t('transcriptions.empty_search_desc') : t('transcriptions.empty_desc')}
               </p>
             </div>
           ) : (
-            filtered.map(t => (
+            filtered.map((t) => (
               <div
                 key={t.id}
                 role="listitem"

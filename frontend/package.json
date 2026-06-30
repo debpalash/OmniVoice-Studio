@@ -1,7 +1,7 @@
 {
   "name": "omnivoice-studio",
-  "private": true,
   "version": "0.3.8",
+  "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
@@ -11,6 +11,8 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "lint:hooks": "eslint .",
+    "format": "oxfmt --write",
+    "format:check": "oxfmt --check",
     "knip": "knip",
     "typecheck": "tsc --noEmit",
     "typecheck:ci": "tsc --noEmit --checkJs false",
@@ -69,6 +71,7 @@
     "globals": "^17.6.0",
     "jsdom": "^29.1.1",
     "knip": "^6.23.0",
+    "oxfmt": "^0.57.0",
     "oxlint": "^1.71.0",
     "playwright-core": "1.61.0",
     "typescript": "^6.0.3",

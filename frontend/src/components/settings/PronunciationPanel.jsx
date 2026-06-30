@@ -45,7 +45,9 @@ export default function PronunciationPanel() {
     }
   }, [t]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const onAdd = async () => {
     if (!term.trim()) return;
@@ -62,7 +64,10 @@ export default function PronunciationPanel() {
           enabled: true,
         }),
       });
-      setTerm(''); setReplacement(''); setLanguage(''); setType('respelling');
+      setTerm('');
+      setReplacement('');
+      setLanguage('');
+      setType('respelling');
       refresh();
     } catch (e) {
       setError(e?.message || t('pronunciation.save_error'));
@@ -93,7 +98,10 @@ export default function PronunciationPanel() {
 
   const onTest = async (value) => {
     setTestText(value);
-    if (!value.trim()) { setTestOut(null); return; }
+    if (!value.trim()) {
+      setTestOut(null);
+      return;
+    }
     try {
       const r = await apiJson('/pronunciation/test', {
         method: 'POST',
@@ -110,17 +118,14 @@ export default function PronunciationPanel() {
   const typeLabel = (ty) => t(`pronunciation.type_${ty}`, ty);
 
   return (
-    <SettingsSection
-      icon={BookA}
-      title={t('pronunciation.title')}
-    >
-      <SettingRow
-        title={t('pronunciation.title')}
-        hint={t('pronunciation.help')}
-        control={null}
-      />
+    <SettingsSection icon={BookA} title={t('pronunciation.title')}>
+      <SettingRow title={t('pronunciation.title')} hint={t('pronunciation.help')} control={null} />
 
-      {error && <div className="perfpanel__error" role="alert">{error}</div>}
+      {error && (
+        <div className="perfpanel__error" role="alert">
+          {error}
+        </div>
+      )}
 
       {entries.length === 0 && (
         <SettingRow
@@ -132,7 +137,11 @@ export default function PronunciationPanel() {
       {entries.map((e) => (
         <SettingRow
           key={e.id}
-          title={<><strong>{e.term}</strong> → {e.replacement || '—'}</>}
+          title={
+            <>
+              <strong>{e.term}</strong> → {e.replacement || '—'}
+            </>
+          }
           control={
             <>
               <input
@@ -178,8 +187,16 @@ export default function PronunciationPanel() {
               style={{ flex: 1, minWidth: 120 }}
               data-testid="pron-replacement"
             />
-            <select value={type} onChange={(ev) => setType(ev.target.value)} data-testid="pron-type">
-              {TYPES.map((ty) => <option key={ty} value={ty}>{typeLabel(ty)}</option>)}
+            <select
+              value={type}
+              onChange={(ev) => setType(ev.target.value)}
+              data-testid="pron-type"
+            >
+              {TYPES.map((ty) => (
+                <option key={ty} value={ty}>
+                  {typeLabel(ty)}
+                </option>
+              ))}
             </select>
             <input
               type="text"
@@ -189,7 +206,9 @@ export default function PronunciationPanel() {
               style={{ width: 90 }}
               data-testid="pron-language"
             />
-            <button type="button" onClick={onAdd} data-testid="pron-add">{t('pronunciation.add')}</button>
+            <button type="button" onClick={onAdd} data-testid="pron-add">
+              {t('pronunciation.add')}
+            </button>
           </div>
         }
       />
@@ -209,9 +228,13 @@ export default function PronunciationPanel() {
       />
       {testOut && (
         <p className="perfpanel__help" data-testid="pron-test-out">
-          {testOut.changed
-            ? <>{t('pronunciation.test_result')} <strong>{testOut.substituted}</strong></>
-            : t('pronunciation.test_nochange')}
+          {testOut.changed ? (
+            <>
+              {t('pronunciation.test_result')} <strong>{testOut.substituted}</strong>
+            </>
+          ) : (
+            t('pronunciation.test_nochange')
+          )}
         </p>
       )}
     </SettingsSection>

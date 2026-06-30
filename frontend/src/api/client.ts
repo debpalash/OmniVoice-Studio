@@ -31,8 +31,11 @@ export function _resolveApiBase(env: any, win: any): string {
   let stored = '';
   try {
     stored = (win && win.localStorage && win.localStorage.getItem(LS_BACKEND_URL)) || '';
-  } catch { /* storage unavailable (privacy mode) */ }
-  const runtime = win && typeof win.__OMNIVOICE_API_BASE__ === 'string' ? win.__OMNIVOICE_API_BASE__ : '';
+  } catch {
+    /* storage unavailable (privacy mode) */
+  }
+  const runtime =
+    win && typeof win.__OMNIVOICE_API_BASE__ === 'string' ? win.__OMNIVOICE_API_BASE__ : '';
   const override = stored || runtime || env?.VITE_OMNIVOICE_API || env?.VITE_API_URL;
   if (override) return String(override).replace(/\/+$/, '');
   if (!win) return `http://127.0.0.1:${port}`;
@@ -70,7 +73,9 @@ if (typeof window !== 'undefined') {
   try {
     const p = new URL(window.location.href).searchParams.get('pin');
     if (p) sessionStorage.setItem('ov_pin', p);
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
 }
 
 export class ApiError extends Error {
@@ -140,7 +145,7 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
       }
       throw new ApiError(
         "Can't reach the local OmniVoice backend — it may still be starting up, or it stopped. " +
-        "Wait a few seconds and try again; if it persists, restart the app (or check Settings → Logs → Backend).",
+          'Wait a few seconds and try again; if it persists, restart the app (or check Settings → Logs → Backend).',
         { status: 0, detail: lastDetail },
       );
     }
@@ -151,7 +156,10 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
         window.dispatchEvent(new Event('ov:pin-required'));
       }
       const detail = await readError(res);
-      throw new ApiError(`${res.status} ${res.statusText}: ${detail}`, { status: res.status, detail });
+      throw new ApiError(`${res.status} ${res.statusText}: ${detail}`, {
+        status: res.status,
+        detail,
+      });
     }
     return res;
   }
@@ -171,7 +179,10 @@ export async function apiPost<T = unknown>(
   if (body instanceof FormData) {
     init.body = body;
   } else if (body !== undefined) {
-    init.headers = { 'Content-Type': 'application/json', ...(opts.headers as Record<string, string>) };
+    init.headers = {
+      'Content-Type': 'application/json',
+      ...(opts.headers as Record<string, string>),
+    };
     init.body = JSON.stringify(body);
   }
   return apiJson<T>(path, init);

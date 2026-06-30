@@ -12,8 +12,8 @@ export default function NotificationPanel() {
   const { data } = useNotifications();
   const notifs = data?.notifications || [];
   const count = notifs.length;
-  const hasErrors = notifs.some(n => n.level === 'error');
-  const hasWarns = notifs.some(n => n.level === 'warn');
+  const hasErrors = notifs.some((n) => n.level === 'error');
+  const hasWarns = notifs.some((n) => n.level === 'warn');
 
   const openNotifications = () => {
     window.dispatchEvent(new CustomEvent('omni:open-notifications'));

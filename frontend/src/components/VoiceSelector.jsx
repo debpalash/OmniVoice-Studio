@@ -156,9 +156,11 @@ export default function VoiceSelector({
               aria-label={t('voiceSelector.preview')}
               title={t('voiceSelector.preview')}
             >
-              {previewLoading
-                ? <Loader size={13} className="voice-selector__spin" />
-                : <Play size={13} />}
+              {previewLoading ? (
+                <Loader size={13} className="voice-selector__spin" />
+              ) : (
+                <Play size={13} />
+              )}
             </button>
           )}
           {onJumpToGallery && (

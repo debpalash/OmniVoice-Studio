@@ -12,13 +12,7 @@ import { ChevronDown } from 'lucide-react';
  * @param {ReactNode=}  badge       optional small node shown after the title (count/state)
  * @param {ReactNode}   children    the collapsible body
  */
-export default function Collapsible({
-  title,
-  icon: Icon,
-  defaultOpen = false,
-  badge,
-  children,
-}) {
+export default function Collapsible({ title, icon: Icon, defaultOpen = false, badge, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className={`st-collapsible ${open ? 'is-open' : ''}`.trim()}>

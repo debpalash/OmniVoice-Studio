@@ -32,7 +32,7 @@ const fmt = (s) => {
 
 export default function WaveformPlayer({
   src,
-  source = 'output',   // global-playback-manager label
+  source = 'output', // global-playback-manager label
   autoPlay = false,
   height = 44,
   compact = false,
@@ -41,15 +41,17 @@ export default function WaveformPlayer({
 }) {
   const containerRef = useRef(null);
   const nativeRef = useRef(null);
-  const mediaRef = useRef(null);   // in-DOM <audio> driven by WaveSurfer
+  const mediaRef = useRef(null); // in-DOM <audio> driven by WaveSurfer
   const wsRef = useRef(null);
   const releaseRef = useRef(null);
   const autoPlayRef = useRef(autoPlay);
-  useEffect(() => { autoPlayRef.current = autoPlay; }, [autoPlay]);
+  useEffect(() => {
+    autoPlayRef.current = autoPlay;
+  }, [autoPlay]);
 
   const [resolvedUrl, setResolvedUrl] = useState(null);
   const [, setReady] = useState(false);
-  const [failed, setFailed] = useState(false);   // WaveSurfer unavailable → native fallback
+  const [failed, setFailed] = useState(false); // WaveSurfer unavailable → native fallback
   const [missing, setMissing] = useState(false); // source 404s (stale history) → inert notice
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -71,16 +73,29 @@ export default function WaveformPlayer({
       import('../utils/aec/playbackTap')
         .then(({ attachPlaybackTap }) => attachPlaybackTap(el))
         .then((detach) => {
-          if (cancelled) { try { detach?.(); } catch { /* ignore */ } }
-          else { tapDetachRef.current = detach; }
+          if (cancelled) {
+            try {
+              detach?.();
+            } catch {
+              /* ignore */
+            }
+          } else {
+            tapDetachRef.current = detach;
+          }
         })
-        .catch(() => { /* Web Audio unavailable — dictation still works sans AEC */ });
+        .catch(() => {
+          /* Web Audio unavailable — dictation still works sans AEC */
+        });
     }
     return () => {
       cancelled = true;
       const d = tapDetachRef.current;
       tapDetachRef.current = null;
-      try { d?.(); } catch { /* ignore */ }
+      try {
+        d?.();
+      } catch {
+        /* ignore */
+      }
     };
   }, [aecEnabled, isPlaying]);
 
@@ -88,14 +103,26 @@ export default function WaveformPlayer({
   // URLs don't play in WebKit media elements, so blobs are routed through the
   // backend preview endpoint (same path the rest of the app uses).
   useEffect(() => {
-    if (!src) { setResolvedUrl(null); return; }
-    if (typeof src === 'string') { setResolvedUrl(src); return; }
+    if (!src) {
+      setResolvedUrl(null);
+      return;
+    }
+    if (typeof src === 'string') {
+      setResolvedUrl(src);
+      return;
+    }
     if (isTauri) {
       let cancelled = false;
       fileToMediaUrl(src, null)
-        .then(urls => { if (!cancelled) setResolvedUrl(urls.audioUrl); })
-        .catch(() => { if (!cancelled) setResolvedUrl(URL.createObjectURL(src)); });
-      return () => { cancelled = true; };
+        .then((urls) => {
+          if (!cancelled) setResolvedUrl(urls.audioUrl);
+        })
+        .catch(() => {
+          if (!cancelled) setResolvedUrl(URL.createObjectURL(src));
+        });
+      return () => {
+        cancelled = true;
+      };
     }
     const u = URL.createObjectURL(src);
     setResolvedUrl(u);
@@ -106,21 +133,24 @@ export default function WaveformPlayer({
   useEffect(() => {
     setMissing(false); // a new url gets a fresh chance
     if (!resolvedUrl || failed || !containerRef.current || !mediaRef.current) return;
-    setReady(false); setIsPlaying(false); setDuration(0); setCurrentTime(0);
+    setReady(false);
+    setIsPlaying(false);
+    setDuration(0);
+    setCurrentTime(0);
 
     let ws;
     try {
       ws = WaveSurfer.create({
-        container:     containerRef.current,
-        waveColor:     'rgba(168,153,132,0.45)',
+        container: containerRef.current,
+        waveColor: 'rgba(168,153,132,0.45)',
         progressColor: 'rgba(211,134,155,0.75)',
-        cursorColor:   '#d3869b',
-        cursorWidth:   2,
+        cursorColor: '#d3869b',
+        cursorWidth: 2,
         height,
-        barWidth:      2,
-        barGap:        1,
-        barRadius:     2,
-        normalize:     true,
+        barWidth: 2,
+        barGap: 1,
+        barRadius: 2,
+        normalize: true,
         // Drive a REAL in-DOM <audio> element instead of letting WaveSurfer
         // create a detached one: Tauri's WebKit decodes (peaks render) but
         // won't actually output sound for detached/blob-backed media — the
@@ -129,7 +159,7 @@ export default function WaveformPlayer({
         // with an external `media`, wavesurfer only fetches `url` for peaks
         // and never assigns it to the element, leaving play() with nothing
         // to play (waveform drew, click did nothing).
-        media:         mediaRef.current,
+        media: mediaRef.current,
       });
     } catch (initErr) {
       console.warn('WaveformPlayer: WaveSurfer init failed, native fallback:', initErr);
@@ -150,24 +180,38 @@ export default function WaveformPlayer({
       setReady(true);
       if (autoPlayRef.current) ws.play().catch(() => {});
     });
-    ws.on('timeupdate', (t) => { if (!stale) setCurrentTime(t); });
+    ws.on('timeupdate', (t) => {
+      if (!stale) setCurrentTime(t);
+    });
     ws.on('play', () => {
       if (stale) return;
       setIsPlaying(true);
       // Idempotent: duplicate 'play' events must not re-claim — claiming
       // stops the current owner, which would be this very element.
       if (!releaseRef.current) {
-        releaseRef.current = claimPlayback(() => { try { ws.pause(); } catch { /* noop */ } }, source);
+        releaseRef.current = claimPlayback(() => {
+          try {
+            ws.pause();
+          } catch {
+            /* noop */
+          }
+        }, source);
       }
     });
     ws.on('pause', () => {
       if (stale) return;
       setIsPlaying(false);
-      if (releaseRef.current) { releaseRef.current(); releaseRef.current = null; }
+      if (releaseRef.current) {
+        releaseRef.current();
+        releaseRef.current = null;
+      }
     });
     ws.on('finish', () => {
       setIsPlaying(false);
-      if (releaseRef.current) { releaseRef.current(); releaseRef.current = null; }
+      if (releaseRef.current) {
+        releaseRef.current();
+        releaseRef.current = null;
+      }
       if (onEnded) onEnded();
     });
     ws.on('error', (err) => {
@@ -188,11 +232,22 @@ export default function WaveformPlayer({
 
     return () => {
       stale = true;
-      if (releaseRef.current) { releaseRef.current(); releaseRef.current = null; }
+      if (releaseRef.current) {
+        releaseRef.current();
+        releaseRef.current = null;
+      }
       // Detach our handlers BEFORE destroy — if destroy throws mid-teardown
       // (the swallowed catch below) the listeners must already be gone.
-      try { ws.unAll(); } catch { /* noop */ }
-      try { ws.destroy(); } catch { /* already gone */ }
+      try {
+        ws.unAll();
+      } catch {
+        /* noop */
+      }
+      try {
+        ws.destroy();
+      } catch {
+        /* already gone */
+      }
       wsRef.current = null;
     };
   }, [resolvedUrl, failed, height, source, onEnded]);
@@ -202,7 +257,11 @@ export default function WaveformPlayer({
     // AudioContext starts suspended until a user gesture. This click IS the
     // gesture — explicitly resume so the subsequent play() succeeds. No-op
     // on macOS where the context was never blocked.
-    try { await unlockAudio(); } catch { /* ignore — play() will surface errors */ }
+    try {
+      await unlockAudio();
+    } catch {
+      /* ignore — play() will surface errors */
+    }
     // playPause is async — a swallowed rejection here is exactly how the
     // "click does nothing" bug hid; log it so playback failures are visible.
     try {
@@ -217,7 +276,9 @@ export default function WaveformPlayer({
   // Source file no longer exists (stale history row) — inert notice, no retries.
   if (missing) {
     return (
-      <div className={`wf-player wf-player--missing ${compact ? 'wf-player--compact' : ''} ${className}`}>
+      <div
+        className={`wf-player wf-player--missing ${compact ? 'wf-player--compact' : ''} ${className}`}
+      >
         <span className="wf-player__missing-msg">audio file missing</span>
       </div>
     );
@@ -233,9 +294,28 @@ export default function WaveformPlayer({
         controls
         src={resolvedUrl}
         autoPlay={autoPlay}
-        onPlay={() => { releaseRef.current = claimPlayback(() => { try { nativeRef.current?.pause(); } catch { /* noop */ } }, source); }}
-        onPause={() => { if (releaseRef.current) { releaseRef.current(); releaseRef.current = null; } }}
-        onEnded={() => { if (releaseRef.current) { releaseRef.current(); releaseRef.current = null; } if (onEnded) onEnded(); }}
+        onPlay={() => {
+          releaseRef.current = claimPlayback(() => {
+            try {
+              nativeRef.current?.pause();
+            } catch {
+              /* noop */
+            }
+          }, source);
+        }}
+        onPause={() => {
+          if (releaseRef.current) {
+            releaseRef.current();
+            releaseRef.current = null;
+          }
+        }}
+        onEnded={() => {
+          if (releaseRef.current) {
+            releaseRef.current();
+            releaseRef.current = null;
+          }
+          if (onEnded) onEnded();
+        }}
         onError={() => setMissing(true)}
       />
     );
@@ -255,7 +335,9 @@ export default function WaveformPlayer({
         {isPlaying ? <Pause size={compact ? 13 : 15} /> : <Play size={compact ? 13 : 15} />}
       </button>
       <div className="wf-player__wave" ref={containerRef} style={{ height }} />
-      <span className="wf-player__time">{fmt(currentTime)} / {fmt(duration)}</span>
+      <span className="wf-player__time">
+        {fmt(currentTime)} / {fmt(duration)}
+      </span>
     </div>
   );
 }

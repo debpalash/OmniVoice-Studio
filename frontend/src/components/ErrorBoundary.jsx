@@ -66,18 +66,11 @@ export default class ErrorBoundary extends React.Component {
       <div className="errbnd-wrap">
         <div className="errbnd-card">
           <AlertCircle size={32} color="var(--chrome-severity-err)" className="errbnd-icon" />
-          <h2 className="errbnd-title">
-            {i18next.t('errors.title')}
-          </h2>
-          <p className="errbnd-desc">
-            {i18next.t('errors.desc')}
-          </p>
+          <h2 className="errbnd-title">{i18next.t('errors.title')}</h2>
+          <p className="errbnd-desc">{i18next.t('errors.desc')}</p>
           <pre className="errbnd-trace">{msg}</pre>
           <div className="errbnd-actions">
-            <button
-              onClick={this.reset}
-              className="btn-primary errbnd-retry"
-            >
+            <button onClick={this.reset} className="btn-primary errbnd-retry">
               <RefreshCw size={12} /> {i18next.t('errors.tryAgain')}
             </button>
             <button

@@ -15,8 +15,14 @@ export default function ToolsPage({ onBack }) {
   return (
     <div className="tools-page">
       <div className="tools-page__bar">
-        {onBack && <Button variant="ghost" size="sm" onClick={onBack}>{t('common.back')}</Button>}
-        <h1><Wrench size={15} /> {t('tools.title')}</h1>
+        {onBack && (
+          <Button variant="ghost" size="sm" onClick={onBack}>
+            {t('common.back')}
+          </Button>
+        )}
+        <h1>
+          <Wrench size={15} /> {t('tools.title')}
+        </h1>
       </div>
 
       <div className="tools-page__grid">
@@ -28,7 +34,6 @@ export default function ToolsPage({ onBack }) {
   );
 }
 
-
 function DirectorTool() {
   const { t } = useTranslation();
   const [text, setText] = useState('make this feel urgent and surprised');
@@ -37,20 +42,29 @@ function DirectorTool() {
 
   const run = async () => {
     setBusy(true);
-    try { setResult(await apiPost('/tools/direction', { text })); }
-    catch (e) { toast.error(t('tools.parse_failed', { message: e.message })); }
-    finally { setBusy(false); }
+    try {
+      setResult(await apiPost('/tools/direction', { text }));
+    } catch (e) {
+      toast.error(t('tools.parse_failed', { message: e.message }));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <Panel variant="flat" padding="md" className="tools-card"
-      title={<><Sparkles size={13} /> {t('tools.directorial_ai')}</>}
+    <Panel
+      variant="flat"
+      padding="md"
+      className="tools-card"
+      title={
+        <>
+          <Sparkles size={13} /> {t('tools.directorial_ai')}
+        </>
+      }
     >
-      <p className="tools-card__desc">
-        {t('tools.directorial_desc')}
-      </p>
+      <p className="tools-card__desc">{t('tools.directorial_desc')}</p>
       <Field label={t('tools.direction')}>
-        <Textarea rows={2} value={text} onChange={e => setText(e.target.value)} />
+        <Textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
       <Button variant="primary" size="sm" loading={busy} onClick={run}>
         {t('tools.parse')}
@@ -58,12 +72,23 @@ function DirectorTool() {
       {result && (
         <div className="tools-card__out">
           <div className="tools-card__out-row">
-            <strong>{t('tools.method')}</strong> <Badge tone={result.method === 'llm' ? 'violet' : 'neutral'}>{result.method}</Badge>
-            {result.error && <Badge tone="warn" size="xs">{result.error}</Badge>}
+            <strong>{t('tools.method')}</strong>{' '}
+            <Badge tone={result.method === 'llm' ? 'violet' : 'neutral'}>{result.method}</Badge>
+            {result.error && (
+              <Badge tone="warn" size="xs">
+                {result.error}
+              </Badge>
+            )}
           </div>
-          <div className="tools-card__out-row"><strong>{t('tools.tts_instruct')}</strong> <code>{result.instruct_prompt || '—'}</code></div>
-          <div className="tools-card__out-row"><strong>{t('tools.translate_hint')}</strong> <em>{result.translate_hint || '—'}</em></div>
-          <div className="tools-card__out-row"><strong>{t('tools.rate_bias')}</strong> <code>{result.rate_bias?.toFixed?.(2)}</code></div>
+          <div className="tools-card__out-row">
+            <strong>{t('tools.tts_instruct')}</strong> <code>{result.instruct_prompt || '—'}</code>
+          </div>
+          <div className="tools-card__out-row">
+            <strong>{t('tools.translate_hint')}</strong> <em>{result.translate_hint || '—'}</em>
+          </div>
+          <div className="tools-card__out-row">
+            <strong>{t('tools.rate_bias')}</strong> <code>{result.rate_bias?.toFixed?.(2)}</code>
+          </div>
           <details>
             <summary>{t('tools.tokens')}</summary>
             <pre>{JSON.stringify(result.tokens, null, 2)}</pre>
@@ -78,7 +103,6 @@ function DirectorTool() {
   );
 }
 
-
 function RateFitTool() {
   const { t } = useTranslation();
   const [text, setText] = useState('Tatsächlich das Spiel zu verändern.');
@@ -90,42 +114,68 @@ function RateFitTool() {
   const run = async () => {
     setBusy(true);
     try {
-      setResult(await apiPost('/tools/rate-fit', {
-        text, slot_seconds: Number(slot), target_lang: lang,
-      }));
-    } catch (e) { toast.error(t('tools.fit_failed', { message: e.message })); }
-    finally { setBusy(false); }
+      setResult(
+        await apiPost('/tools/rate-fit', {
+          text,
+          slot_seconds: Number(slot),
+          target_lang: lang,
+        }),
+      );
+    } catch (e) {
+      toast.error(t('tools.fit_failed', { message: e.message }));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <Panel variant="flat" padding="md" className="tools-card"
-      title={<><Target size={13} /> {t('tools.speech_rate_fit')}</>}
+    <Panel
+      variant="flat"
+      padding="md"
+      className="tools-card"
+      title={
+        <>
+          <Target size={13} /> {t('tools.speech_rate_fit')}
+        </>
+      }
     >
-      <p className="tools-card__desc">
-        {t('tools.speech_rate_desc')}
-      </p>
+      <p className="tools-card__desc">{t('tools.speech_rate_desc')}</p>
       <Field label={t('tools.translated_line')}>
-        <Textarea rows={2} value={text} onChange={e => setText(e.target.value)} />
+        <Textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
       <div className="tools-card__row">
-        <Field label={t('tools.slot_seconds')}><Input size="sm" value={slot} onChange={e => setSlot(e.target.value)} /></Field>
-        <Field label={t('tools.target_language')}><Input size="sm" value={lang} onChange={e => setLang(e.target.value)} /></Field>
+        <Field label={t('tools.slot_seconds')}>
+          <Input size="sm" value={slot} onChange={(e) => setSlot(e.target.value)} />
+        </Field>
+        <Field label={t('tools.target_language')}>
+          <Input size="sm" value={lang} onChange={(e) => setLang(e.target.value)} />
+        </Field>
       </div>
       <Button variant="primary" size="sm" loading={busy} onClick={run}>
         {t('tools.fit')}
       </Button>
       {result && (
         <div className="tools-card__out">
-          <div className="tools-card__out-row"><strong>{t('tools.ratio')}</strong> <code>{result.rate_ratio?.toFixed?.(2)}</code> {result.error && <Badge tone="warn" size="xs">{result.error}</Badge>}</div>
-          <div className="tools-card__out-row"><strong>{t('tools.attempts')}</strong> <code>{result.attempts}</code></div>
-          <div className="tools-card__out-row"><strong>{t('tools.result')}</strong></div>
+          <div className="tools-card__out-row">
+            <strong>{t('tools.ratio')}</strong> <code>{result.rate_ratio?.toFixed?.(2)}</code>{' '}
+            {result.error && (
+              <Badge tone="warn" size="xs">
+                {result.error}
+              </Badge>
+            )}
+          </div>
+          <div className="tools-card__out-row">
+            <strong>{t('tools.attempts')}</strong> <code>{result.attempts}</code>
+          </div>
+          <div className="tools-card__out-row">
+            <strong>{t('tools.result')}</strong>
+          </div>
           <div className="tools-card__result">{result.text}</div>
         </div>
       )}
     </Panel>
   );
 }
-
 
 function ProbeTool() {
   const { t } = useTranslation();
@@ -135,20 +185,34 @@ function ProbeTool() {
 
   const run = async () => {
     setBusy(true);
-    try { setResult(await apiPost('/tools/probe', { path })); }
-    catch (e) { toast.error(t('tools.probe_failed', { message: e.message })); }
-    finally { setBusy(false); }
+    try {
+      setResult(await apiPost('/tools/probe', { path }));
+    } catch (e) {
+      toast.error(t('tools.probe_failed', { message: e.message }));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <Panel variant="flat" padding="md" className="tools-card"
-      title={<><Activity size={13} /> {t('tools.probe_file')}</>}
+    <Panel
+      variant="flat"
+      padding="md"
+      className="tools-card"
+      title={
+        <>
+          <Activity size={13} /> {t('tools.probe_file')}
+        </>
+      }
     >
-      <p className="tools-card__desc">
-        {t('tools.probe_desc')}
-      </p>
+      <p className="tools-card__desc">{t('tools.probe_desc')}</p>
       <Field label={t('tools.absolute_path')}>
-        <Input size="sm" value={path} onChange={e => setPath(e.target.value)} placeholder={t('tools.probe_placeholder')} />
+        <Input
+          size="sm"
+          value={path}
+          onChange={(e) => setPath(e.target.value)}
+          placeholder={t('tools.probe_placeholder')}
+        />
       </Field>
       <Button variant="primary" size="sm" loading={busy} onClick={run} disabled={!path.trim()}>
         {t('tools.probe')}

@@ -43,8 +43,14 @@ export default function WorkspaceProjects({
   const [editingId, setEditingId] = useState(null);
   const [draftName, setDraftName] = useState('');
 
-  const startRename = (proj) => { setEditingId(proj.id); setDraftName(proj.name || ''); };
-  const cancelRename = () => { setEditingId(null); setDraftName(''); };
+  const startRename = (proj) => {
+    setEditingId(proj.id);
+    setDraftName(proj.name || '');
+  };
+  const cancelRename = () => {
+    setEditingId(null);
+    setDraftName('');
+  };
   const commitRename = (proj) => {
     const next = draftName.trim();
     if (next && next !== proj.name) renameProject?.(proj.id, next);
@@ -53,13 +59,15 @@ export default function WorkspaceProjects({
 
   const items = useMemo(() => {
     if (!qLower) return projects;
-    return projects.filter(p => (p.name || '').toLowerCase().includes(qLower));
+    return projects.filter((p) => (p.name || '').toLowerCase().includes(qLower));
   }, [projects, qLower]);
 
   return (
     <section className={`wv ${items.length === 0 ? 'wv--collapsed' : ''}`}>
       <div className="wv__head">
-        <span className="wv__title">{t('sidebar.dub_projects', { defaultValue: 'Dub projects' })}</span>
+        <span className="wv__title">
+          {t('sidebar.dub_projects', { defaultValue: 'Dub projects' })}
+        </span>
         {canSave && (
           <Button
             variant="subtle"
@@ -77,7 +85,7 @@ export default function WorkspaceProjects({
             className="input-base wv__search-input"
             placeholder={t('sidebar.search', { defaultValue: 'Search…' })}
             value={q}
-            onChange={e => setQ(e.target.value)}
+            onChange={(e) => setQ(e.target.value)}
           />
         </div>
       </div>
@@ -87,71 +95,115 @@ export default function WorkspaceProjects({
           <div className="wv__empty">
             {t('sidebar.no_dub_projects', { defaultValue: 'No dub projects yet' })}
           </div>
-        ) : items.map(proj => (
-          <div
-            key={proj.id}
-            className={`history-item history-item--dub ${activeProjectId === proj.id ? 'project-active' : ''}`}
-            onClick={() => loadProject(proj.id)}
-          >
-            <div className="history-row-head">
-              <span className="history-kind history-kind--audio">
-                <Film size={9} /> {t('sidebar.dub_label')}
-              </span>
-              <span className="history-meta" title={new Date(proj.updated_at * 1000).toLocaleString()}>
-                {timeAgo(proj.updated_at * 1000)}
-              </span>
-            </div>
-            {editingId === proj.id ? (
-              <input
-                className="input-base wv__rename-input"
-                autoFocus
-                value={draftName}
-                onClick={(e) => e.stopPropagation()}
-                onChange={(e) => setDraftName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') { e.stopPropagation(); commitRename(proj); }
-                  else if (e.key === 'Escape') { e.stopPropagation(); cancelRename(); }
-                }}
-                onBlur={() => commitRename(proj)}
-              />
-            ) : (
-              <div className="history-title">{proj.name}</div>
-            )}
-            <div className="history-subtitle">
-              {proj.duration ? `${Math.round(proj.duration)}s` : 'audio'}
-              {(() => {
-                const basename = proj.video_path ? proj.video_path.split(/[\\/]/).pop() : '';
-                return basename && basename !== proj.name ? ` · ${basename}` : '';
-              })()}
-            </div>
-            <div className="history-actions">
+        ) : (
+          items.map((proj) => (
+            <div
+              key={proj.id}
+              className={`history-item history-item--dub ${activeProjectId === proj.id ? 'project-active' : ''}`}
+              onClick={() => loadProject(proj.id)}
+            >
+              <div className="history-row-head">
+                <span className="history-kind history-kind--audio">
+                  <Film size={9} /> {t('sidebar.dub_label')}
+                </span>
+                <span
+                  className="history-meta"
+                  title={new Date(proj.updated_at * 1000).toLocaleString()}
+                >
+                  {timeAgo(proj.updated_at * 1000)}
+                </span>
+              </div>
               {editingId === proj.id ? (
-                <>
-                  <button className="history-action-btn accent" onClick={(e) => { e.stopPropagation(); commitRename(proj); }} title={t('sidebar.rename_save', { defaultValue: 'Save name' })}>
-                    <Check size={10} /> {t('common.save', { defaultValue: 'Save' })}
-                  </button>
-                  <button className="history-action-btn history-action-icon" onClick={(e) => { e.stopPropagation(); cancelRename(); }} title={t('common.cancel', { defaultValue: 'Cancel' })}>
-                    <X size={10} />
-                  </button>
-                </>
+                <input
+                  className="input-base wv__rename-input"
+                  autoFocus
+                  value={draftName}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => setDraftName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.stopPropagation();
+                      commitRename(proj);
+                    } else if (e.key === 'Escape') {
+                      e.stopPropagation();
+                      cancelRename();
+                    }
+                  }}
+                  onBlur={() => commitRename(proj)}
+                />
               ) : (
-                <>
-                  <button className="history-action-btn accent" onClick={(e) => { e.stopPropagation(); loadProject(proj.id); }}>
-                    <FolderOpen size={10} /> {t('sidebar.open')}
-                  </button>
-                  {renameProject && (
-                    <button className="history-action-btn history-action-icon" onClick={(e) => { e.stopPropagation(); startRename(proj); }} title={t('sidebar.rename', { defaultValue: 'Rename' })}>
-                      <Pencil size={10} />
-                    </button>
-                  )}
-                  <button className="history-action-btn danger history-action-icon" onClick={(e) => { e.stopPropagation(); deleteProject(proj.id); }} title="Delete">
-                    <Trash2 size={10} />
-                  </button>
-                </>
+                <div className="history-title">{proj.name}</div>
               )}
+              <div className="history-subtitle">
+                {proj.duration ? `${Math.round(proj.duration)}s` : 'audio'}
+                {(() => {
+                  const basename = proj.video_path ? proj.video_path.split(/[\\/]/).pop() : '';
+                  return basename && basename !== proj.name ? ` · ${basename}` : '';
+                })()}
+              </div>
+              <div className="history-actions">
+                {editingId === proj.id ? (
+                  <>
+                    <button
+                      className="history-action-btn accent"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        commitRename(proj);
+                      }}
+                      title={t('sidebar.rename_save', { defaultValue: 'Save name' })}
+                    >
+                      <Check size={10} /> {t('common.save', { defaultValue: 'Save' })}
+                    </button>
+                    <button
+                      className="history-action-btn history-action-icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        cancelRename();
+                      }}
+                      title={t('common.cancel', { defaultValue: 'Cancel' })}
+                    >
+                      <X size={10} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      className="history-action-btn accent"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        loadProject(proj.id);
+                      }}
+                    >
+                      <FolderOpen size={10} /> {t('sidebar.open')}
+                    </button>
+                    {renameProject && (
+                      <button
+                        className="history-action-btn history-action-icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startRename(proj);
+                        }}
+                        title={t('sidebar.rename', { defaultValue: 'Rename' })}
+                      >
+                        <Pencil size={10} />
+                      </button>
+                    )}
+                    <button
+                      className="history-action-btn danger history-action-icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteProject(proj.id);
+                      }}
+                      title="Delete"
+                    >
+                      <Trash2 size={10} />
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </section>
   );

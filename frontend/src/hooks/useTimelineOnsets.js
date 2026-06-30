@@ -33,7 +33,9 @@ export default function useTimelineOnsets(jobId, active = true) {
       .catch(() => {
         if (!cancelled) setData({ key: jobId, onsets: EMPTY, source: null });
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [jobId, active]);
 
   const fresh = active && data.key === jobId;

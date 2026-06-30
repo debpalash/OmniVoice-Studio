@@ -22,8 +22,7 @@ type GPUTarget = 'cuda' | 'mps' | 'rocm' | 'xpu' | 'cpu';
 // Where an engine actually runs on THIS host. `network` is LLM-only (remote).
 type EffectiveDevice = GPUTarget | 'network';
 // `n/a` is LLM-only; resolve_routing only ever returns the first four.
-type RoutingStatus =
-  | 'accelerated' | 'cpu_fallback' | 'cpu_only' | 'unavailable' | 'n/a';
+type RoutingStatus = 'accelerated' | 'cpu_fallback' | 'cpu_only' | 'unavailable' | 'n/a';
 
 interface EngineBackend {
   id: string;
@@ -151,7 +150,7 @@ export interface PersonaImportResult {
 }
 
 export interface PersonaBundleMeta {
-  format: string;                 // "ovsvoice" | "omnivoice-legacy"
+  format: string; // "ovsvoice" | "omnivoice-legacy"
   schema_version: number;
   name: string;
   kind: ProfileKind | string;
@@ -203,7 +202,13 @@ export interface DubHistoryResponse {
 }
 
 export interface DubTranslateResponse {
-  segments: { id: string; text: string; text_original?: string; rate_ratio?: number; rate_error?: string }[];
+  segments: {
+    id: string;
+    text: string;
+    text_original?: string;
+    rate_ratio?: number;
+    rate_error?: string;
+  }[];
 }
 
 // ── Generic ──────────────────────────────────────────────────────────────

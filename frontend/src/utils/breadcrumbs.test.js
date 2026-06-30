@@ -8,10 +8,7 @@ describe('breadcrumbs', () => {
   it('records actions in order', () => {
     addBreadcrumb('view:clone');
     addBreadcrumb('generate:start (clone)');
-    expect(getBreadcrumbs().map((b) => b.action)).toEqual([
-      'view:clone',
-      'generate:start (clone)',
-    ]);
+    expect(getBreadcrumbs().map((b) => b.action)).toEqual(['view:clone', 'generate:start (clone)']);
   });
 
   it('collapses immediate repeats so render storms cannot flush the ring', () => {

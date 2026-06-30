@@ -25,19 +25,19 @@ export const REDACTED = '***REDACTED***';
 // Thresholds mirror backend/core/scrub.py: long enough that identifiers
 // like `hf_hub` or `sk-learn` survive, short enough that real tokens don't.
 const TOKEN_PATTERNS = [
-  /hf_[A-Za-z0-9]{30,}/g,            // HuggingFace
-  /github_pat_[A-Za-z0-9_]{20,}/g,   // GitHub fine-grained PAT
-  /gh[pousr]_[A-Za-z0-9]{30,}/g,     // GitHub classic tokens
-  /sk-[A-Za-z0-9_-]{20,}/g,          // OpenAI-style API keys
+  /hf_[A-Za-z0-9]{30,}/g, // HuggingFace
+  /github_pat_[A-Za-z0-9_]{20,}/g, // GitHub fine-grained PAT
+  /gh[pousr]_[A-Za-z0-9]{30,}/g, // GitHub classic tokens
+  /sk-[A-Za-z0-9_-]{20,}/g, // OpenAI-style API keys
 ];
 
 const HOME_PATTERNS = [
   // Windows-with-forward-slashes must run BEFORE the bare macOS shape, or
   // `/Users/<name>` inside `C:/Users/<name>` gets eaten first, leaving `C:~`.
   /(?:file:\/\/\/)?[A-Za-z]:\/Users\/[^/\s"']+/g, // Windows, forward slashes (webview stacks, file:/// URLs)
-  /\/Users\/[^/\s"']+/g,                       // macOS
-  /\/home\/[^/\s"']+/g,                        // Linux
-  /[A-Za-z]:\\Users\\[^\\\s"']+/g,             // Windows, backslashes
+  /\/Users\/[^/\s"']+/g, // macOS
+  /\/home\/[^/\s"']+/g, // Linux
+  /[A-Za-z]:\\Users\\[^\\\s"']+/g, // Windows, backslashes
 ];
 
 /** Redact credential-shaped substrings and home directories. */
@@ -91,13 +91,17 @@ async function captureContext() {
       if (j?.ram_total_gb) lines.push(`**RAM:** \`${j.ram_total_gb} GB\``);
       if (j?.disk_free_gb) lines.push(`**Disk free:** \`${j.disk_free_gb} GB\``);
     }
-  } catch { /* backend down, stalled, or timed out — partial context is fine */ }
+  } catch {
+    /* backend down, stalled, or timed out — partial context is fine */
+  }
 
   try {
     const j = await fetchJsonWithTimeout(`${API}/engines`);
     const active = j?.tts?.active;
     if (active) lines.push(`**Active TTS engine:** \`${active}\``);
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
 
   return lines.join('\n');
 }
@@ -136,9 +140,7 @@ export async function buildBugReportUrl({ title = '[Bug] ', error } = {}) {
   // Action names only (see utils/breadcrumbs.js privacy rules) — still
   // scrubbed as belt-and-braces, and the user reviews it all on github.com.
   const crumbs = scrubText(formatBreadcrumbs());
-  const crumbSection = crumbs
-    ? ['## Recent actions', '', '```', crumbs, '```', '']
-    : [];
+  const crumbSection = crumbs ? ['## Recent actions', '', '```', crumbs, '```', ''] : [];
 
   let body = [
     '<!-- Click Submit at the bottom of this page to file the issue.',
@@ -174,7 +176,7 @@ export async function buildBugReportUrl({ title = '[Bug] ', error } = {}) {
 export function buildIssueSearchUrl(error) {
   const msg = scrubText(error?.message || String(error || ''));
   const terms = msg
-    .replace(/[^a-zA-Z\s]/g, ' ')      // drop numbers/punctuation — machine-specific
+    .replace(/[^a-zA-Z\s]/g, ' ') // drop numbers/punctuation — machine-specific
     .split(/\s+/)
     .filter((w) => w.length > 2)
     .slice(0, 6)

@@ -22,12 +22,20 @@ describe('TranscriptionPicker', () => {
 
   it('lists entries and hides empty-text rows', () => {
     seed([
-      { id: 1, text: 'Hello world', language: 'en', duration_s: 3, timestamp: new Date().toISOString() },
+      {
+        id: 1,
+        text: 'Hello world',
+        language: 'en',
+        duration_s: 3,
+        timestamp: new Date().toISOString(),
+      },
       { id: 2, text: '   ', language: 'en', timestamp: new Date().toISOString() }, // hidden
     ]);
     render(<TranscriptionPicker open onClose={vi.fn()} onPick={vi.fn()} />);
     expect(screen.getByText('Hello world')).toBeInTheDocument();
-    expect(screen.getAllByRole('button').filter((b) => b.className.includes('txn-picker__row'))).toHaveLength(1);
+    expect(
+      screen.getAllByRole('button').filter((b) => b.className.includes('txn-picker__row')),
+    ).toHaveLength(1);
   });
 
   it('clicking a row calls onPick with the original entry, then onClose', () => {

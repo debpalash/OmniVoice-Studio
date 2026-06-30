@@ -77,7 +77,9 @@ i18n
 
 // Fetch the bundle whenever a non-English language becomes active — covers
 // both the initial browser-detected language and later picker switches.
-i18n.on('languageChanged', (lng) => { void loadLocale(lng); });
+i18n.on('languageChanged', (lng) => {
+  void loadLocale(lng);
+});
 if (i18n.language && i18n.language !== 'en') void loadLocale(i18n.language);
 
 // Selectable UI languages. Native language names live here, in the i18n

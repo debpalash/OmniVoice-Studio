@@ -5,8 +5,14 @@ import { toastErrorWithReport } from '../utils/errorToast';
 import { ArrowLeft, Fingerprint, Wand2, Sparkles } from 'lucide-react';
 import { Button } from '../ui';
 import {
-  getProfile, getProfileUsage, updateProfile, deleteProfile, unlockProfile,
-  recordConsent, revokeConsent, exportPersona,
+  getProfile,
+  getProfileUsage,
+  updateProfile,
+  deleteProfile,
+  unlockProfile,
+  recordConsent,
+  revokeConsent,
+  exportPersona,
 } from '../api/profiles';
 import useRecording from '../hooks/useRecording';
 import { generateSpeech } from '../api/generate';
@@ -32,7 +38,7 @@ import { askConfirm } from '../utils/dialog';
  */
 export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted }) {
   const { t } = useTranslation();
-  const autoPlayPreview = useAppStore(s => s.autoPlayPreview);
+  const autoPlayPreview = useAppStore((s) => s.autoPlayPreview);
   const [profile, setProfile] = useState(null);
   const [usage, setUsage] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -84,24 +90,35 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
   const [includeReference, setIncludeReference] = useState(true);
   const onExportPersona = async () => {
     setExporting(true);
-    const loadingId = toast.loading(t('voice_profile.persona_exporting', { defaultValue: 'Building persona…' }));
+    const loadingId = toast.loading(
+      t('voice_profile.persona_exporting', { defaultValue: 'Building persona…' }),
+    );
     try {
       const blob = await exportPersona(voiceId, { include_reference: includeReference });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      const safe = (profile?.name || 'persona').replace(/[^a-zA-Z0-9-_ ]/g, '').trim().replace(/ /g, '_') || 'persona';
+      const safe =
+        (profile?.name || 'persona')
+          .replace(/[^a-zA-Z0-9-_ ]/g, '')
+          .trim()
+          .replace(/ /g, '_') || 'persona';
       a.href = url;
       a.download = `${safe}.ovsvoice`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toast.success(t('voice_profile.persona_exported', { defaultValue: 'Persona exported' }), { id: loadingId });
+      toast.success(t('voice_profile.persona_exported', { defaultValue: 'Persona exported' }), {
+        id: loadingId,
+      });
     } catch (e) {
       toast.dismiss(loadingId);
-      const msg = String(e?.message || e) === '503'
-        ? t('voice_profile.persona_export_no_audio', { defaultValue: 'This voice has no readable audio to build a preview from.' })
-        : t('voice_profile.persona_export_failed', { defaultValue: 'Export failed.' });
+      const msg =
+        String(e?.message || e) === '503'
+          ? t('voice_profile.persona_export_no_audio', {
+              defaultValue: 'This voice has no readable audio to build a preview from.',
+            })
+          : t('voice_profile.persona_export_failed', { defaultValue: 'Export failed.' });
       toastErrorWithReport(msg, e);
     } finally {
       setExporting(false);
@@ -129,12 +146,17 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
     }
   }, [voiceId]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
-  useEffect(() => () => {
-    // Clean up any blob URL when the page unmounts.
-    if (testAudioUrl && testAudioUrl.startsWith('blob:')) URL.revokeObjectURL(testAudioUrl);
-  }, [testAudioUrl]);
+  useEffect(
+    () => () => {
+      // Clean up any blob URL when the page unmounts.
+      if (testAudioUrl && testAudioUrl.startsWith('blob:')) URL.revokeObjectURL(testAudioUrl);
+    },
+    [testAudioUrl],
+  );
 
   const saveEdits = async () => {
     if (!draft.name.trim()) {
@@ -224,7 +246,9 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
     return (
       <div className="voice-profile voice-profile--empty">
         <p>{t('voice_profile.not_found')}</p>
-        <Button variant="subtle" onClick={onBack} leading={<ArrowLeft size={12} />}>{t('common.back')}</Button>
+        <Button variant="subtle" onClick={onBack} leading={<ArrowLeft size={12} />}>
+          {t('common.back')}
+        </Button>
       </div>
     );
   }

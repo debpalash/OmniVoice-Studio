@@ -25,11 +25,16 @@ export default function UpdatesPanel() {
   const dismissUpdate = useAppStore((s) => s.dismissUpdate);
   const dubStep = useAppStore((s) => s.dubStep);
 
-  useEffect(() => { loadReleases(channel); }, [channel, loadReleases]);
+  useEffect(() => {
+    loadReleases(channel);
+  }, [channel, loadReleases]);
 
   const busy = dubStep === 'generating';
   const onInstall = () => {
-    if (busy) { toast(t('update.busy'), { icon: '⏳' }); return; }
+    if (busy) {
+      toast(t('update.busy'), { icon: '⏳' });
+      return;
+    }
     installUpdate(useAppStore.getState());
   };
   const rows = prepareReleases(releases, channel, appVersion);
@@ -39,13 +44,16 @@ export default function UpdatesPanel() {
       <div className="updates-panel__live">
         {status === 'available' && (
           <button className="updates-panel__cta" onClick={onInstall}>
-            <Download size={13} /> {t('update.available', { version: version || '' })} · {t('update.install')}
+            <Download size={13} /> {t('update.available', { version: version || '' })} ·{' '}
+            {t('update.install')}
           </button>
         )}
         {status === 'downloading' && (
           <span className="updates-panel__progress">
             {t('update.downloading', { pct: Math.round(progress) })}
-            <span className="updates-panel__bar"><span style={{ width: `${progress}%` }} /></span>
+            <span className="updates-panel__bar">
+              <span style={{ width: `${progress}%` }} />
+            </span>
           </span>
         )}
         {status === 'ready' && (
@@ -56,14 +64,25 @@ export default function UpdatesPanel() {
         {status === 'error' && (
           <span className="updates-panel__err">
             <AlertTriangle size={13} /> {error || t('update.failed')}
-            <button className="updates-panel__link" onClick={onInstall}>{t('update.retry')}</button>
-            <button className="updates-panel__icon" onClick={dismissUpdate} aria-label={t('update.dismiss')}><X size={13} /></button>
+            <button className="updates-panel__link" onClick={onInstall}>
+              {t('update.retry')}
+            </button>
+            <button
+              className="updates-panel__icon"
+              onClick={dismissUpdate}
+              aria-label={t('update.dismiss')}
+            >
+              <X size={13} />
+            </button>
           </span>
         )}
         {(status === 'idle' || status === 'checking') && (
           <span className="updates-panel__ok">
             {t('updates.up_to_date', { version: appVersion || '' })}
-            <button className="updates-panel__link" onClick={() => checkForUpdate(useAppStore.getState())}>
+            <button
+              className="updates-panel__link"
+              onClick={() => checkForUpdate(useAppStore.getState())}
+            >
               <RefreshCw size={12} /> {t('updates.check_now')}
             </button>
           </span>
@@ -72,7 +91,11 @@ export default function UpdatesPanel() {
 
       <div className="updates-panel__channel">
         <span>{t('about.update_channel')}</span>
-        <div className="updates-panel__seg" role="radiogroup" aria-label={t('about.update_channel')}>
+        <div
+          className="updates-panel__seg"
+          role="radiogroup"
+          aria-label={t('about.update_channel')}
+        >
           {['stable', 'preview'].map((c) => (
             <button
               key={c}
@@ -80,7 +103,13 @@ export default function UpdatesPanel() {
               role="radio"
               aria-checked={channel === c}
               className={`updates-panel__segbtn ${channel === c ? 'is-active' : ''}`}
-              onClick={() => setChannel(useAppStore.getState(), c).catch((e) => toast(t('settings.channel_set_failed', { message: e?.message || e }), { icon: '⚠️' }))}
+              onClick={() =>
+                setChannel(useAppStore.getState(), c).catch((e) =>
+                  toast(t('settings.channel_set_failed', { message: e?.message || e }), {
+                    icon: '⚠️',
+                  }),
+                )
+              }
             >
               {t(`about.channel_${c}`)}
             </button>
@@ -93,19 +122,28 @@ export default function UpdatesPanel() {
         {releasesStatus === 'error' && (
           <div className="updates-panel__rel-empty">
             {t('updates.load_error')}
-            <button className="updates-panel__link" onClick={() => loadReleases(channel)}>{t('updates.retry_load')}</button>
+            <button className="updates-panel__link" onClick={() => loadReleases(channel)}>
+              {t('updates.retry_load')}
+            </button>
           </div>
         )}
-        {releasesStatus === 'loading' && <div className="updates-panel__rel-empty">{t('updates.loading')}</div>}
+        {releasesStatus === 'loading' && (
+          <div className="updates-panel__rel-empty">{t('updates.loading')}</div>
+        )}
         {releasesStatus === 'loaded' && rows.length === 0 && (
           <div className="updates-panel__rel-empty">{t('updates.none')}</div>
         )}
         {rows.map((r) => (
-          <div key={r.name || r.version} className={`updates-panel__rel ${r.current ? 'is-current' : ''}`}>
+          <div
+            key={r.name || r.version}
+            className={`updates-panel__rel ${r.current ? 'is-current' : ''}`}
+          >
             <div className="updates-panel__rel-row">
               <span className="updates-panel__rel-ver">v{r.version}</span>
               {r.current && <span className="updates-panel__rel-tag">{t('updates.current')}</span>}
-              {r.prerelease && <span className="updates-panel__rel-pre">{t('updates.prerelease')}</span>}
+              {r.prerelease && (
+                <span className="updates-panel__rel-pre">{t('updates.prerelease')}</span>
+              )}
               <span className="updates-panel__rel-date">{r.date}</span>
             </div>
             {r.notes && <pre className="updates-panel__rel-notes">{r.notes}</pre>}

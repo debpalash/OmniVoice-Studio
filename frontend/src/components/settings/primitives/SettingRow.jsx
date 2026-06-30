@@ -45,9 +45,7 @@ export default function SettingRow({
         {/* One muted description line, max. `subtitle` wins; `note` is a
             fallback. This makes the double-description bug structurally
             impossible regardless of what a panel passes. */}
-        {(subtitle || note) && (
-          <span className="st-row__subtitle">{subtitle || note}</span>
-        )}
+        {(subtitle || note) && <span className="st-row__subtitle">{subtitle || note}</span>}
       </div>
       {control != null && (
         <div className={`st-row__control ${mono ? 'st-row__control--mono' : ''}`.trim()}>

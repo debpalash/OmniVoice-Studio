@@ -85,7 +85,7 @@ export function buildDesignInstruct(vdStates = {}, freeText = '') {
 export function designModeProfileId(selectedProfile, profiles) {
   if (!selectedProfile) return null;
   const p = (profiles || []).find((x) => x && x.id === selectedProfile);
-  if (p && !p.instruct) return null;   // known clone → omit so it can't hijack the design
+  if (p && !p.instruct) return null; // known clone → omit so it can't hijack the design
   return selectedProfile;
 }
 

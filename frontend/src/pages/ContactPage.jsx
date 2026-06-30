@@ -1,8 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  ArrowLeft, ExternalLink, MessageCircle, Mail, Bug, Globe,
-} from 'lucide-react';
+import { ArrowLeft, ExternalLink, MessageCircle, Mail, Bug, Globe } from 'lucide-react';
 import { Button } from '../ui';
 import { openExternal } from '../api/external';
 import './DonatePage.css';
@@ -95,7 +93,10 @@ export default function ContactPage({ onBack }) {
               <span className="lp-hero__sweep" aria-hidden="true" />
             </h2>
             <p className="donate-hero__subtitle">
-              {t('contact.hero_desc', { defaultValue: 'Questions, bugs, licensing, or just to say hi — here’s how to reach me.' })}
+              {t('contact.hero_desc', {
+                defaultValue:
+                  'Questions, bugs, licensing, or just to say hi — here’s how to reach me.',
+              })}
             </p>
           </div>
 
@@ -112,13 +113,21 @@ export default function ContactPage({ onBack }) {
                     onClick={() => openExternal(c.url)}
                   >
                     <span className="donate-card__glow" aria-hidden="true" />
-                    <div className="donate-card__icon"><Icon size={20} /></div>
+                    <div className="donate-card__icon">
+                      <Icon size={20} />
+                    </div>
                     <div className="donate-card__body">
-                      <div className="donate-card__label">{t(c.labelKey, { defaultValue: c.labelDefault })}</div>
-                      <div className="donate-card__desc">{t(c.descKey, { defaultValue: c.descDefault })}</div>
+                      <div className="donate-card__label">
+                        {t(c.labelKey, { defaultValue: c.labelDefault })}
+                      </div>
+                      <div className="donate-card__desc">
+                        {t(c.descKey, { defaultValue: c.descDefault })}
+                      </div>
                       <div className="contact-card__value">{c.value}</div>
                     </div>
-                    <div className="donate-card__arrow"><ExternalLink size={14} /></div>
+                    <div className="donate-card__arrow">
+                      <ExternalLink size={14} />
+                    </div>
                   </button>
                 );
               })}

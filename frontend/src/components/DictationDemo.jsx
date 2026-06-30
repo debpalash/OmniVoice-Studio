@@ -73,9 +73,15 @@ export default function DictationDemo({ embedded = false }) {
   useEffect(() => {
     let cancelled = false;
     apiFetch(`${API}${SCRIPTS[0].wav}`, { method: 'HEAD' })
-      .then(() => { if (!cancelled) setAssetsAvailable(true); })
-      .catch(() => { if (!cancelled) setAssetsAvailable(false); });
-    return () => { cancelled = true; };
+      .then(() => {
+        if (!cancelled) setAssetsAvailable(true);
+      })
+      .catch(() => {
+        if (!cancelled) setAssetsAvailable(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Read the registered hotkey on mount.
@@ -94,7 +100,9 @@ export default function DictationDemo({ embedded = false }) {
         if (!cancelled) setHotkeyState('unknown');
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Subscribe to dictation events: the moment the user presses their
@@ -116,8 +124,16 @@ export default function DictationDemo({ embedded = false }) {
       }
     })();
     return () => {
-      try { unlistenStart && unlistenStart(); } catch { /* noop */ }
-      try { unlistenStop && unlistenStop(); } catch { /* noop */ }
+      try {
+        unlistenStart && unlistenStart();
+      } catch {
+        /* noop */
+      }
+      try {
+        unlistenStop && unlistenStop();
+      } catch {
+        /* noop */
+      }
     };
   }, []);
 
@@ -131,7 +147,8 @@ export default function DictationDemo({ embedded = false }) {
     }
     audio.src = `${API}${script.wav}`;
     audio.currentTime = 0;
-    audio.play()
+    audio
+      .play()
       .then(() => setPlayingId(script.id))
       .catch((e) => {
         console.warn('Sample playback failed:', e);
@@ -208,59 +225,67 @@ export default function DictationDemo({ embedded = false }) {
       <p className="dictation-demo__lede">
         {showScripts
           ? t('demo.dictation_lede')
-          : t('demo.dictation_lede_hotkey_only',
-              'Hold the shortcut above anywhere on your desktop, speak, release — the text lands in whatever app has focus. Press it now to verify it works.')}
+          : t(
+              'demo.dictation_lede_hotkey_only',
+              'Hold the shortcut above anywhere on your desktop, speak, release — the text lands in whatever app has focus. Press it now to verify it works.',
+            )}
       </p>
 
       <audio ref={audioRef} onEnded={() => setPlayingId(null)} preload="none" />
 
       {showScripts && (
-      <div className="dictation-demo__scripts">
-        {SCRIPTS.map((s) => {
-          const isPlaying = playingId === s.id;
-          const tx = transcripts[s.id] || {};
-          return (
-            <div key={s.id} className="dictation-demo__card">
-              <div className="dictation-demo__card-head">
-                <span className="dictation-demo__lang">{s.language}</span>
-                <span className="dictation-demo__card-label">{t(s.labelKey)}</span>
-              </div>
-              <blockquote className="dictation-demo__script">{s.text}</blockquote>
-              <div className="dictation-demo__card-actions">
-                <Button
-                  size="sm"
-                  variant="subtle"
-                  onClick={() => togglePlay(s)}
-                  leading={isPlaying ? <Pause size={11} /> : <Play size={11} />}
-                  aria-label={isPlaying ? t('demo.aria_pause', { label: t(s.labelKey) }) : t('demo.aria_hear', { label: t(s.labelKey) })}
-                >
-                  {isPlaying ? t('demo.dictation_stop') : t('demo.dictation_hear')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="subtle"
-                  onClick={() => replay(s)}
-                  loading={tx.state === 'loading'}
-                  leading={tx.state !== 'loading' && <Mic size={11} />}
-                  aria-label={t('demo.aria_replay', { label: t(s.labelKey) })}
-                >
-                  {tx.state === 'loading' ? t('demo.dictation_transcribing') : t('demo.dictation_replay')}
-                </Button>
-              </div>
-              {tx.state === 'ok' && (
-                <div className="dictation-demo__result dictation-demo__result--ok">
-                  <CheckCircle2 size={11} /> <em>{tx.text}</em>
+        <div className="dictation-demo__scripts">
+          {SCRIPTS.map((s) => {
+            const isPlaying = playingId === s.id;
+            const tx = transcripts[s.id] || {};
+            return (
+              <div key={s.id} className="dictation-demo__card">
+                <div className="dictation-demo__card-head">
+                  <span className="dictation-demo__lang">{s.language}</span>
+                  <span className="dictation-demo__card-label">{t(s.labelKey)}</span>
                 </div>
-              )}
-              {tx.state === 'fail' && (
-                <div className="dictation-demo__result dictation-demo__result--fail">
-                  <AlertTriangle size={11} /> {tx.error}
+                <blockquote className="dictation-demo__script">{s.text}</blockquote>
+                <div className="dictation-demo__card-actions">
+                  <Button
+                    size="sm"
+                    variant="subtle"
+                    onClick={() => togglePlay(s)}
+                    leading={isPlaying ? <Pause size={11} /> : <Play size={11} />}
+                    aria-label={
+                      isPlaying
+                        ? t('demo.aria_pause', { label: t(s.labelKey) })
+                        : t('demo.aria_hear', { label: t(s.labelKey) })
+                    }
+                  >
+                    {isPlaying ? t('demo.dictation_stop') : t('demo.dictation_hear')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="subtle"
+                    onClick={() => replay(s)}
+                    loading={tx.state === 'loading'}
+                    leading={tx.state !== 'loading' && <Mic size={11} />}
+                    aria-label={t('demo.aria_replay', { label: t(s.labelKey) })}
+                  >
+                    {tx.state === 'loading'
+                      ? t('demo.dictation_transcribing')
+                      : t('demo.dictation_replay')}
+                  </Button>
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                {tx.state === 'ok' && (
+                  <div className="dictation-demo__result dictation-demo__result--ok">
+                    <CheckCircle2 size={11} /> <em>{tx.text}</em>
+                  </div>
+                )}
+                {tx.state === 'fail' && (
+                  <div className="dictation-demo__result dictation-demo__result--fail">
+                    <AlertTriangle size={11} /> {tx.error}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
     </section>
   );

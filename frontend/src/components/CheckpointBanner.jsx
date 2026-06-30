@@ -25,7 +25,11 @@ const STAGE_ICONS = {
 
 const STAGE_KEYS = {
   asr: { title: 'checkpoint.asr_title', cta: 'checkpoint.asr_cta', hint: 'checkpoint.asr_hint' },
-  translate: { title: 'checkpoint.translate_title', cta: 'checkpoint.translate_cta', hint: 'checkpoint.translate_hint' },
+  translate: {
+    title: 'checkpoint.translate_title',
+    cta: 'checkpoint.translate_cta',
+    hint: 'checkpoint.translate_hint',
+  },
   done: { title: 'checkpoint.done_title', cta: null, hint: 'checkpoint.done_hint' },
 };
 
@@ -47,18 +51,12 @@ export default function CheckpointBanner({ stage, count, onContinue, onDismiss, 
       <Icon size={14} color={icons.accent} className="ckpt-icon" />
       <div className="ckpt-body">
         <div className="ckpt-head">
-          <span className="ckpt-title">
-            {t(keys.title)}
-          </span>
+          <span className="ckpt-title">{t(keys.title)}</span>
           {typeof count === 'number' && (
-            <span className="ckpt-count">
-              {t('checkpoint.segment', { count })}
-            </span>
+            <span className="ckpt-count">{t('checkpoint.segment', { count })}</span>
           )}
         </div>
-        <span className="ckpt-hint">
-          {t(keys.hint)}
-        </span>
+        <span className="ckpt-hint">{t(keys.hint)}</span>
       </div>
       {keys.cta && onContinue && (
         <Button

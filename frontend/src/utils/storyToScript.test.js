@@ -1,8 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { storyToScript } from './storyToScript';
 
-const spoken = (id, text, character = 'narrator', profileId = null) =>
-  ({ id, character, text, profileId, emotion: null, speed: null });
+const spoken = (id, text, character = 'narrator', profileId = null) => ({
+  id,
+  character,
+  text,
+  profileId,
+  emotion: null,
+  speed: null,
+});
 
 describe('storyToScript', () => {
   it('empty / degenerate input → empty export', () => {
@@ -25,7 +31,7 @@ describe('storyToScript', () => {
     const tracks = [
       spoken(1, 'A', 'narrator', 'p_main'),
       spoken(2, 'B', 'narrator', 'p_main'),
-      spoken(3, 'C', 'c_fox'),       // resolves to p_fox via cast
+      spoken(3, 'C', 'c_fox'), // resolves to p_fox via cast
     ];
     const r = storyToScript(tracks, cast);
     expect(r.defaultVoice).toBe('p_main');
@@ -33,29 +39,29 @@ describe('storyToScript', () => {
   });
 
   it('tie-break picks the earliest first occurrence', () => {
-    const r = storyToScript([
-      spoken(1, 'A', 'narrator', 'p_a'),
-      spoken(2, 'B', 'narrator', 'p_b'),
-    ], []);
-    expect(r.defaultVoice).toBe('p_a');   // 1–1 tie → earliest
+    const r = storyToScript(
+      [spoken(1, 'A', 'narrator', 'p_a'), spoken(2, 'B', 'narrator', 'p_b')],
+      [],
+    );
+    expect(r.defaultVoice).toBe('p_a'); // 1–1 tie → earliest
     expect(r.script).toBe('A\n\n[voice:p_b] B');
   });
 
   it('chapters: H1-only (#27) — ## narrates as body, indented # un-indented', () => {
-    const r = storyToScript([
-      spoken(1, '## Deep'), spoken(2, 'body1'),
-      spoken(3, '   # Indented'), spoken(4, 'body2'),
-    ], []);
+    const r = storyToScript(
+      [spoken(1, '## Deep'), spoken(2, 'body1'), spoken(3, '   # Indented'), spoken(4, 'body2')],
+      [],
+    );
     // #27 convergence: `## Deep` is NOT a heading (H1-only), so it narrates as
     // body text verbatim; only the indented H1 opens a chapter (un-indented).
     expect(r.script).toBe('## Deep\n\nbody1\n\n# Indented\n\nbody2');
   });
 
   it('does not double-tag a line that already leads with [voice:sameid]', () => {
-    const r = storyToScript([
-      spoken(1, 'A', 'narrator', 'p_main'),
-      spoken(2, '[voice:p_fox] hi', 'narrator', 'p_fox'),
-    ], []);
+    const r = storyToScript(
+      [spoken(1, 'A', 'narrator', 'p_main'), spoken(2, '[voice:p_fox] hi', 'narrator', 'p_fox')],
+      [],
+    );
     // p_main is default (1 vs 1 tie, earliest) → line 2 switches to p_fox but
     // already leads with the tag → not doubled.
     expect(r.script).toBe('A\n\n[voice:p_fox] hi');

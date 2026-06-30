@@ -5,7 +5,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import VoiceSelector from '../components/VoiceSelector';
 
 const PROFILES = [
-  { id: 'p_clone', name: 'Aria' },               // falsy instruct → clone
+  { id: 'p_clone', name: 'Aria' }, // falsy instruct → clone
   { id: 'p_design', name: 'Narrator', instruct: 'warm, deep' }, // designed
 ];
 
@@ -47,9 +47,9 @@ describe('VoiceSelector', () => {
     open();
     expect(screen.getByText('Presets')).toBeInTheDocument();
     // the first preset row commits a preset: value
-    const presetRow = screen.getAllByRole('option').find(
-      (el) => el.textContent && /Authoritative|Preset|🎙/.test(el.textContent),
-    );
+    const presetRow = screen
+      .getAllByRole('option')
+      .find((el) => el.textContent && /Authoritative|Preset|🎙/.test(el.textContent));
     // fall back to any non-default option if preset names change
     fireEvent.mouseDown(presetRow || screen.getAllByRole('option')[1]);
     expect(onChange.mock.calls[0][0]).toMatch(/^preset:/);
@@ -58,8 +58,12 @@ describe('VoiceSelector', () => {
   it('slugs from-video speakers to auto:<slug> (byte-identical to dub)', () => {
     const onChange = vi.fn();
     render(
-      <VoiceSelector value="" onChange={onChange} profiles={[]}
-        speakerClones={{ 'Speaker 1': {} }} />,
+      <VoiceSelector
+        value=""
+        onChange={onChange}
+        profiles={[]}
+        speakerClones={{ 'Speaker 1': {} }}
+      />,
     );
     open();
     expect(screen.getByText('From video')).toBeInTheDocument();
@@ -72,12 +76,19 @@ describe('VoiceSelector', () => {
     render(<VoiceSelector value="p_gone" onChange={onChange} profiles={PROFILES} />);
     // trigger shows a human label, not the raw id
     expect(screen.getByRole('button', { name: /Voice not found/ })).toBeInTheDocument();
-    expect(onChange).not.toHaveBeenCalled();  // value preserved
+    expect(onChange).not.toHaveBeenCalled(); // value preserved
   });
 
   it('does NOT record sentinel values (engine-default) as recents', () => {
     const onChange = vi.fn();
-    render(<VoiceSelector value="p_clone" onChange={onChange} profiles={PROFILES} recentsKey="vs_test" />);
+    render(
+      <VoiceSelector
+        value="p_clone"
+        onChange={onChange}
+        profiles={PROFILES}
+        recentsKey="vs_test"
+      />,
+    );
     open();
     // pick engine default ('')
     fireEvent.mouseDown(screen.getByText('Engine default'));
@@ -97,7 +108,12 @@ describe('VoiceSelector', () => {
   it('renders a preview button only when onPreview is provided, passing the current value', () => {
     const onPreview = vi.fn();
     const { rerender } = render(
-      <VoiceSelector value="p_clone" onChange={vi.fn()} profiles={PROFILES} onPreview={onPreview} />,
+      <VoiceSelector
+        value="p_clone"
+        onChange={vi.fn()}
+        profiles={PROFILES}
+        onPreview={onPreview}
+      />,
     );
     const previewBtn = screen.getByRole('button', { name: /Preview voice/ });
     fireEvent.click(previewBtn);
@@ -110,8 +126,13 @@ describe('VoiceSelector', () => {
 
   it('disables the preview button while previewLoading', () => {
     render(
-      <VoiceSelector value="p_clone" onChange={vi.fn()} profiles={PROFILES}
-        onPreview={vi.fn()} previewLoading />,
+      <VoiceSelector
+        value="p_clone"
+        onChange={vi.fn()}
+        profiles={PROFILES}
+        onPreview={vi.fn()}
+        previewLoading
+      />,
     );
     expect(screen.getByRole('button', { name: /Preview voice/ })).toBeDisabled();
   });

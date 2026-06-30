@@ -12,8 +12,8 @@ import './MultiLangPicker.css';
  * searchable dropdown with Popular + All Languages sections.
  */
 export default function MultiLangPicker({
-  selected = [],         // array of { lang: string, code: string }
-  onChange,              // (newSelected) => void
+  selected = [], // array of { lang: string, code: string }
+  onChange, // (newSelected) => void
   disabled = false,
 }) {
   const { t } = useTranslation();
@@ -37,7 +37,7 @@ export default function MultiLangPicker({
     if (dropOpen && inputRef.current) inputRef.current.focus();
   }, [dropOpen]);
 
-  const selectedCodes = useMemo(() => new Set(selected.map(s => s.code)), [selected]);
+  const selectedCodes = useMemo(() => new Set(selected.map((s) => s.code)), [selected]);
 
   const addLang = (lang, code) => {
     if (selectedCodes.has(code)) return;
@@ -46,31 +46,35 @@ export default function MultiLangPicker({
   };
 
   const removeLang = (code) => {
-    onChange(selected.filter(s => s.code !== code));
+    onChange(selected.filter((s) => s.code !== code));
   };
 
   const filteredLangs = useMemo(() => {
     const q = query.toLowerCase().trim();
-    return LANG_CODES.filter(lc =>
-      !selectedCodes.has(lc.code) &&
-      (!q || lc.label.toLowerCase().includes(q) || lc.code.toLowerCase().includes(q))
+    return LANG_CODES.filter(
+      (lc) =>
+        !selectedCodes.has(lc.code) &&
+        (!q || lc.label.toLowerCase().includes(q) || lc.code.toLowerCase().includes(q)),
     );
   }, [query, selectedCodes]);
 
   const popularFiltered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    return POPULAR_LANGS
-      .map(lang => {
-        const match = LANG_CODES.find(lc => lc.label.toLowerCase() === lang.toLowerCase());
-        return match ? { lang, code: match.code } : null;
-      })
-      .filter(item => item && !selectedCodes.has(item.code) && (!q || item.lang.toLowerCase().includes(q) || item.code.includes(q)));
+    return POPULAR_LANGS.map((lang) => {
+      const match = LANG_CODES.find((lc) => lc.label.toLowerCase() === lang.toLowerCase());
+      return match ? { lang, code: match.code } : null;
+    }).filter(
+      (item) =>
+        item &&
+        !selectedCodes.has(item.code) &&
+        (!q || item.lang.toLowerCase().includes(q) || item.code.includes(q)),
+    );
   }, [query, selectedCodes]);
 
   return (
     <div className="multi-lang" ref={dropRef}>
       <div className="multi-lang__chips">
-        {selected.map(s => (
+        {selected.map((s) => (
           <span key={s.code} className="multi-lang__chip">
             <Globe size={9} />
             <span>{s.code}</span>
@@ -111,7 +115,7 @@ export default function MultiLangPicker({
             <input
               ref={inputRef}
               value={query}
-              onChange={e => setQuery(e.target.value)}
+              onChange={(e) => setQuery(e.target.value)}
               placeholder={t('dub.search_languages')}
               spellCheck={false}
             />
@@ -120,7 +124,7 @@ export default function MultiLangPicker({
             {popularFiltered.length > 0 && (
               <>
                 <div className="multi-lang__section">{t('dub.popular')}</div>
-                {popularFiltered.map(item => (
+                {popularFiltered.map((item) => (
                   <button
                     key={item.code}
                     type="button"
@@ -134,7 +138,7 @@ export default function MultiLangPicker({
               </>
             )}
             <div className="multi-lang__section">{t('dub.all_languages')}</div>
-            {filteredLangs.slice(0, 50).map(lc => (
+            {filteredLangs.slice(0, 50).map((lc) => (
               <button
                 key={lc.code}
                 type="button"

@@ -56,7 +56,12 @@ export function parseSsmlLite(text) {
     if (!chunk) return;
     const props = resolve(stack);
     const prev = segments[segments.length - 1];
-    if (prev && prev.speed === props.speed && prev.spell === props.spell && prev.emphasis === props.emphasis) {
+    if (
+      prev &&
+      prev.speed === props.speed &&
+      prev.spell === props.spell &&
+      prev.emphasis === props.emphasis
+    ) {
       prev.text += chunk;
       return;
     }
@@ -72,7 +77,10 @@ export function parseSsmlLite(text) {
     const name = m[2].toLowerCase();
     if (isClose) {
       for (let i = stack.length - 1; i >= 0; i--) {
-        if (stack[i] === name) { stack.splice(i, 1); break; }
+        if (stack[i] === name) {
+          stack.splice(i, 1);
+          break;
+        }
       }
     } else {
       stack.push(name);

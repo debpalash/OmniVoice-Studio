@@ -1,9 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Heart, ExternalLink, ArrowLeft, Building2,
-  Shield, Zap, Users, Headphones, Mail,
-  Star, MessageCircle,
+  Heart,
+  ExternalLink,
+  ArrowLeft,
+  Building2,
+  Shield,
+  Zap,
+  Users,
+  Headphones,
+  Mail,
+  Star,
+  MessageCircle,
 } from 'lucide-react';
 import { Button } from '../ui';
 import { openExternal } from '../api/external';
@@ -26,7 +34,13 @@ const SUGGESTED_AMOUNTS = [
 
 const METHODS = [
   { id: 'kofi', label: 'Ko-fi', descriptionKey: 'donate.coffee_desc', url: KOFI_URL, icon: '☕' },
-  { id: 'paypal', label: 'PayPal', descriptionKey: 'donate.paypal_desc', url: PAYPAL_URL, icon: '💳' },
+  {
+    id: 'paypal',
+    label: 'PayPal',
+    descriptionKey: 'donate.paypal_desc',
+    url: PAYPAL_URL,
+    icon: '💳',
+  },
 ];
 
 // PayPal.me carries the chosen amount straight into the checkout; Ko-fi opens
@@ -67,8 +81,12 @@ function SupportView() {
 
   useEffect(() => {
     let alive = true;
-    loadDonationProgress().then((p) => { if (alive) setProgress(p); });
-    return () => { alive = false; };
+    loadDonationProgress().then((p) => {
+      if (alive) setProgress(p);
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   return (
@@ -102,8 +120,14 @@ function SupportView() {
           Selecting only *records* the amount — the supporter then chooses
           Ko-fi or PayPal below, and PayPal carries the amount through. */}
       <section className="donate-section">
-        <div className="donate-section__title"><span>{t('donate.suggested_title', { defaultValue: 'Pick an amount' })}</span></div>
-        <div className="donate-amounts" role="group" aria-label={t('donate.suggested_title', { defaultValue: 'Pick an amount' })}>
+        <div className="donate-section__title">
+          <span>{t('donate.suggested_title', { defaultValue: 'Pick an amount' })}</span>
+        </div>
+        <div
+          className="donate-amounts"
+          role="group"
+          aria-label={t('donate.suggested_title', { defaultValue: 'Pick an amount' })}
+        >
           {SUGGESTED_AMOUNTS.map((a) => (
             <button
               key={a.value}
@@ -126,7 +150,9 @@ function SupportView() {
             aria-pressed={amount === 'custom'}
             onClick={() => setAmount(amount === 'custom' ? null : 'custom')}
           >
-            <span className="donate-amount__value">{t('donate.custom', { defaultValue: 'Custom' })}</span>
+            <span className="donate-amount__value">
+              {t('donate.custom', { defaultValue: 'Custom' })}
+            </span>
           </button>
         </div>
       </section>
@@ -137,13 +163,21 @@ function SupportView() {
         <div className="donate-section__title">
           <span>
             {typeof amount === 'number'
-              ? t('donate.choose_method_amount', { defaultValue: 'Continue with ${{amount}}', amount })
+              ? t('donate.choose_method_amount', {
+                  defaultValue: 'Continue with ${{amount}}',
+                  amount,
+                })
               : t('donate.choose_method', { defaultValue: 'Choose how to give' })}
           </span>
         </div>
         <div className="donate-grid support-methods">
           {METHODS.map((m, i) => (
-            <LinkCard key={m.id} method={m} amount={typeof amount === 'number' ? amount : null} style={{ '--anim-i': i, '--card-hue': '#d3869b' }} />
+            <LinkCard
+              key={m.id}
+              method={m}
+              amount={typeof amount === 'number' ? amount : null}
+              style={{ '--anim-i': i, '--card-hue': '#d3869b' }}
+            />
           ))}
         </div>
       </section>
@@ -151,7 +185,9 @@ function SupportView() {
       {/* Non-monetary ways to help — gives people who can't (or don't want to)
           donate a real way to support, and balances out the panel. */}
       <section className="donate-section">
-        <div className="donate-section__title"><span>{t('support.other_ways')}</span></div>
+        <div className="donate-section__title">
+          <span>{t('support.other_ways')}</span>
+        </div>
         <div className="support-chips">
           <button
             type="button"
@@ -178,8 +214,8 @@ function SupportView() {
 /* ── Commercial License panel ─────────────────────────────────────────── */
 const LICENSE_EMAIL = 'OmniVoice@palash.dev';
 const LICENSE_MAILTO =
-  'mailto:OmniVoice@palash.dev?subject=OmniVoice Commercial License Inquiry'
-  + '&body=Hi Palash,%0A%0AI%27d like to talk about a commercial license for OmniVoice Studio.%0A%0AOrganization:%0ATeam size:%0AUse case:%0A';
+  'mailto:OmniVoice@palash.dev?subject=OmniVoice Commercial License Inquiry' +
+  '&body=Hi Palash,%0A%0AI%27d like to talk about a commercial license for OmniVoice Studio.%0A%0AOrganization:%0ATeam size:%0AUse case:%0A';
 
 function LicenseView() {
   const { t } = useTranslation();
@@ -189,7 +225,11 @@ function LicenseView() {
   const WHY_ITEMS = [
     { icon: Shield, label: t('enterprise.benefit_ip'), desc: t('enterprise.benefit_ip_desc') },
     { icon: Zap, label: t('enterprise.benefit_cost'), desc: t('enterprise.benefit_cost_desc') },
-    { icon: Headphones, label: t('enterprise.benefit_support'), desc: t('enterprise.benefit_support_desc') },
+    {
+      icon: Headphones,
+      label: t('enterprise.benefit_support'),
+      desc: t('enterprise.benefit_support_desc'),
+    },
   ];
   return (
     <div className="support-view">
@@ -199,16 +239,21 @@ function LicenseView() {
           {t('enterprise.hero_title')}
           <span className="lp-hero__sweep" aria-hidden="true" />
         </h2>
-        <p className="ent-hero__subtitle">{t('enterprise.hero_simple', {
-          defaultValue: 'OmniVoice Studio is free and open-source under the AGPL-3.0 — including for commercial and internal business use. You only need a commercial license to embed it in a closed-source product without AGPL’s copyleft obligations.',
-        })}</p>
+        <p className="ent-hero__subtitle">
+          {t('enterprise.hero_simple', {
+            defaultValue:
+              'OmniVoice Studio is free and open-source under the AGPL-3.0 — including for commercial and internal business use. You only need a commercial license to embed it in a closed-source product without AGPL’s copyleft obligations.',
+          })}
+        </p>
       </div>
 
       <section className="ent-why">
         <div className="ent-why__grid">
           {WHY_ITEMS.map(({ icon: Icon, label, desc }) => (
             <div key={label} className="ent-why__card">
-              <div className="ent-why__icon"><Icon size={16} /></div>
+              <div className="ent-why__icon">
+                <Icon size={16} />
+              </div>
               <div className="ent-why__label">{label}</div>
               <div className="ent-why__desc">{desc}</div>
             </div>
@@ -220,9 +265,12 @@ function LicenseView() {
           is simply "tell me about your use case". */}
       <section className="ent-tiers-section">
         <div className="ent-coming-soon">
-          <p>{t('enterprise.contact_lead', {
-            defaultValue: 'Pricing is quoted per deployment so it fits your team and workload. Tell me your use case and I’ll get you a quote.',
-          })}</p>
+          <p>
+            {t('enterprise.contact_lead', {
+              defaultValue:
+                'Pricing is quoted per deployment so it fits your team and workload. Tell me your use case and I’ll get you a quote.',
+            })}
+          </p>
           <button
             type="button"
             className="ent-coming-soon__cta"
@@ -302,7 +350,10 @@ export default function SupportPage({ onBack, initialView = 'support' }) {
           The --support modifier vertically centers the (short) Support panel so
           it doesn't float at the top of an empty page; License stays top-aligned
           since it's tall enough to fill on its own. */}
-      <div className={`support-page__content donate-page__content support-page__content--${view}`} key={view}>
+      <div
+        className={`support-page__content donate-page__content support-page__content--${view}`}
+        key={view}
+      >
         {view === 'support' ? <SupportView /> : <LicenseView />}
       </div>
     </div>

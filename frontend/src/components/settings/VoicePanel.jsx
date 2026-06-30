@@ -26,9 +26,7 @@
  * the documented Ctrl/Cmd+Shift+Space default label.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Mic, Check, Download, Trash2, ChevronDown, Loader, AlertTriangle,
-} from 'lucide-react';
+import { Mic, Check, Download, Trash2, ChevronDown, Loader, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
 import { useAppStore } from '../../store';
@@ -47,7 +45,9 @@ async function askConfirm(message, title = 'Confirm') {
     try {
       const { ask } = await import('@tauri-apps/plugin-dialog');
       return ask(message, { title, kind: 'warning' });
-    } catch { /* dialog plugin unavailable — fall through */ }
+    } catch {
+      /* dialog plugin unavailable — fall through */
+    }
   }
   return Promise.resolve(typeof window !== 'undefined' ? window.confirm(message) : true);
 }
@@ -93,13 +93,18 @@ export default function VoicePanel() {
 
   // Hydrate prefs from the backend on mount (write-through setters keep them in
   // sync after that).
-  useEffect(() => { loadPrefs(); }, [loadPrefs]);
+  useEffect(() => {
+    loadPrefs();
+  }, [loadPrefs]);
 
   // Read the registered dictation shortcut the same way HotkeyTab does.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!_isTauri) { setShortcut(DEFAULT_SHORTCUT); return; }
+      if (!_isTauri) {
+        setShortcut(DEFAULT_SHORTCUT);
+        return;
+      }
       try {
         const { invoke } = await import('@tauri-apps/api/core');
         const v = await invoke('get_dictation_shortcut');
@@ -108,7 +113,9 @@ export default function VoicePanel() {
         if (!cancelled) setShortcut(DEFAULT_SHORTCUT);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const loadModels = React.useCallback(async () => {
@@ -124,7 +131,9 @@ export default function VoicePanel() {
     }
   }, []);
 
-  useEffect(() => { loadModels(); }, [loadModels]);
+  useEffect(() => {
+    loadModels();
+  }, [loadModels]);
 
   // Subscribe to the model-store SSE so install progress shows inline here too.
   // We only track the aggregate percent + lifecycle phase per repo — the full
@@ -138,11 +147,16 @@ export default function VoicePanel() {
         if (!ev?.repo_id) return;
         setRowState((prev) => {
           const cur = prev[ev.repo_id] || {};
-          if (ev.phase === 'install_start') return { ...prev, [ev.repo_id]: { phase: 'active', pct: 0 } };
-          if (ev.phase === 'install_done') return { ...prev, [ev.repo_id]: { phase: 'install_done', pct: 100 } };
-          if (ev.phase === 'install_error') return { ...prev, [ev.repo_id]: { phase: 'install_error', error: ev.error } };
-          if (ev.phase === 'install_cancelled') return { ...prev, [ev.repo_id]: { phase: 'install_cancelled' } };
-          if (ev.phase === 'delete_done') return { ...prev, [ev.repo_id]: { phase: 'delete_done' } };
+          if (ev.phase === 'install_start')
+            return { ...prev, [ev.repo_id]: { phase: 'active', pct: 0 } };
+          if (ev.phase === 'install_done')
+            return { ...prev, [ev.repo_id]: { phase: 'install_done', pct: 100 } };
+          if (ev.phase === 'install_error')
+            return { ...prev, [ev.repo_id]: { phase: 'install_error', error: ev.error } };
+          if (ev.phase === 'install_cancelled')
+            return { ...prev, [ev.repo_id]: { phase: 'install_cancelled' } };
+          if (ev.phase === 'delete_done')
+            return { ...prev, [ev.repo_id]: { phase: 'delete_done' } };
           if (ev.phase === 'aggregate') {
             const total = ev.total_bytes || 0;
             const bytePct = total > 0 ? (ev.bytes_done / total) * 100 : 0;
@@ -156,7 +170,9 @@ export default function VoicePanel() {
           }
           return prev;
         });
-      } catch { /* keepalive */ }
+      } catch {
+        /* keepalive */
+      }
     };
     return () => es.close();
   }, []);
@@ -165,11 +181,16 @@ export default function VoicePanel() {
   // flag flips, then clear the terminal row so it reverts to the list state.
   useEffect(() => {
     const term = Object.entries(rowState).find(([, s]) =>
-      ['install_done', 'delete_done', 'install_error', 'install_cancelled'].includes(s.phase));
+      ['install_done', 'delete_done', 'install_error', 'install_cancelled'].includes(s.phase),
+    );
     if (!term) return;
     const id = setTimeout(() => {
       loadModels();
-      setRowState((prev) => { const n = { ...prev }; delete n[term[0]]; return n; });
+      setRowState((prev) => {
+        const n = { ...prev };
+        delete n[term[0]];
+        return n;
+      });
     }, 800);
     return () => clearTimeout(id);
   }, [rowState, loadModels]);
@@ -180,7 +201,9 @@ export default function VoicePanel() {
     const onDown = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setOpen(false);
     };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
     window.addEventListener('mousedown', onDown);
     window.addEventListener('keydown', onKey);
     return () => {
@@ -200,7 +223,11 @@ export default function VoicePanel() {
       await installMutation.mutateAsync(repoId);
     } catch (e) {
       toast.error(e?.message || String(e));
-      setRowState((p) => { const n = { ...p }; delete n[repoId]; return n; });
+      setRowState((p) => {
+        const n = { ...p };
+        delete n[repoId];
+        return n;
+      });
     }
   };
 
@@ -215,7 +242,11 @@ export default function VoicePanel() {
       await deleteMutation.mutateAsync(model.repo_id);
     } catch (e) {
       toast.error(e?.message || String(e));
-      setRowState((p) => { const n = { ...p }; delete n[model.repo_id]; return n; });
+      setRowState((p) => {
+        const n = { ...p };
+        delete n[model.repo_id];
+        return n;
+      });
     }
   };
 
@@ -232,8 +263,7 @@ export default function VoicePanel() {
 
   // Human-readable, i18n-keyed description per model id (one line each). Falls
   // back to the backend `languages` string when a key is missing.
-  const modelDesc = (m) =>
-    t(`voicePanel.model_desc.${m.id}`, { defaultValue: m.languages || '' });
+  const modelDesc = (m) => t(`voicePanel.model_desc.${m.id}`, { defaultValue: m.languages || '' });
 
   const shortcutLabel = shortcut || DEFAULT_SHORTCUT;
 
@@ -306,31 +336,42 @@ export default function VoicePanel() {
             </button>
 
             {open && (
-              <ul className="voicepanel__dd-list" role="listbox" aria-label={t('voicePanel.model_label')}>
+              <ul
+                className="voicepanel__dd-list"
+                role="listbox"
+                aria-label={t('voicePanel.model_label')}
+              >
                 {models.map((m) => {
                   const rs = rowState[m.repo_id];
                   const installing = rs && rs.phase === 'active';
                   const deleting = rs && rs.phase === 'deleting';
-                  const isSel = m.id === (selected?.id);
+                  const isSel = m.id === selected?.id;
                   return (
-                    <li key={m.id} className={`voicepanel__dd-item ${isSel ? 'is-selected' : ''}`} role="option" aria-selected={isSel}>
+                    <li
+                      key={m.id}
+                      className={`voicepanel__dd-item ${isSel ? 'is-selected' : ''}`}
+                      role="option"
+                      aria-selected={isSel}
+                    >
                       <button
                         type="button"
                         className="voicepanel__dd-itembtn"
                         onClick={() => onPick(m)}
                         data-testid={`dictation-model-${m.id}`}
                       >
-                        <span className="voicepanel__dd-check">
-                          {isSel && <Check size={14} />}
-                        </span>
+                        <span className="voicepanel__dd-check">{isSel && <Check size={14} />}</span>
                         <span className="voicepanel__dd-body">
                           <span className="voicepanel__dd-itemtop">
                             <span className="voicepanel__dd-itemname">{m.label}</span>
                             <Badge tone="neutral" size="xs">
-                              {m.tag === 'streaming' ? t('voicePanel.badge_streaming') : t('voicePanel.badge_offline')}
+                              {m.tag === 'streaming'
+                                ? t('voicePanel.badge_streaming')
+                                : t('voicePanel.badge_offline')}
                             </Badge>
                             {m.recommended && (
-                              <Badge tone="success" size="xs">{t('voicePanel.badge_recommended')}</Badge>
+                              <Badge tone="success" size="xs">
+                                {t('voicePanel.badge_recommended')}
+                              </Badge>
                             )}
                             <span className="voicepanel__dd-size">{fmtSize(m.size_gb)}</span>
                           </span>
@@ -359,7 +400,10 @@ export default function VoicePanel() {
                             className="voicepanel__iconbtn"
                             title={t('voicePanel.delete_model')}
                             aria-label={t('voicePanel.delete_model')}
-                            onClick={(e) => { e.stopPropagation(); onDelete(m); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDelete(m);
+                            }}
                             data-testid={`dictation-delete-${m.id}`}
                           >
                             <Trash2 size={13} />
@@ -370,7 +414,10 @@ export default function VoicePanel() {
                             className="voicepanel__iconbtn"
                             title={t('voicePanel.download_model')}
                             aria-label={t('voicePanel.download_model')}
-                            onClick={(e) => { e.stopPropagation(); onInstall(m.repo_id); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onInstall(m.repo_id);
+                            }}
                             data-testid={`dictation-install-${m.id}`}
                           >
                             <Download size={13} />

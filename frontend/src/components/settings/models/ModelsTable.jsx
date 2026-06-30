@@ -7,13 +7,20 @@ import { Table } from '../../../ui';
  * virtualizer, and row runtime resolver are all created by the host
  * ModelStoreTab and passed in.
  */
-export default function ModelsTable({ table, tableRows, rowVirtualizer, tableBodyRef, getRowRuntime, t }) {
+export default function ModelsTable({
+  table,
+  tableRows,
+  rowVirtualizer,
+  tableBodyRef,
+  getRowRuntime,
+  t,
+}) {
   return (
     <Table className="models-table">
       <div className="ui-table-header models-table__header">
-        {table.getHeaderGroups().map(headerGroup => (
+        {table.getHeaderGroups().map((headerGroup) => (
           <React.Fragment key={headerGroup.id}>
-            {headerGroup.headers.map(header => {
+            {headerGroup.headers.map((header) => {
               const meta = header.column.columnDef.meta || {};
               const canSort = header.column.getCanSort();
               return (
@@ -25,14 +32,27 @@ export default function ModelsTable({ table, tableRows, rowVirtualizer, tableBod
                     `ui-table-header__cell--align-${meta.align || 'left'}`,
                     canSort ? 'models-table__sort' : 'models-table__sort--off',
                   ].join(' ')}
-                  style={{ width: header.column.columnDef.size, flex: header.column.id === 'name' ? '1 1 auto' : '0 0 auto' }}
+                  style={{
+                    width: header.column.columnDef.size,
+                    flex: header.column.id === 'name' ? '1 1 auto' : '0 0 auto',
+                  }}
                   onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                   disabled={!canSort}
-                  title={canSort ? t('models.sort_by', { column: String(header.column.columnDef.header || '') }) : undefined}
+                  title={
+                    canSort
+                      ? t('models.sort_by', {
+                          column: String(header.column.columnDef.header || ''),
+                        })
+                      : undefined
+                  }
                 >
                   {flexRender(header.column.columnDef.header, header.getContext())}
-                  {header.column.getIsSorted() === 'asc' && <span className="models-table__sortmark">↑</span>}
-                  {header.column.getIsSorted() === 'desc' && <span className="models-table__sortmark">↓</span>}
+                  {header.column.getIsSorted() === 'asc' && (
+                    <span className="models-table__sortmark">↑</span>
+                  )}
+                  {header.column.getIsSorted() === 'desc' && (
+                    <span className="models-table__sortmark">↓</span>
+                  )}
                 </button>
               );
             })}
@@ -41,7 +61,7 @@ export default function ModelsTable({ table, tableRows, rowVirtualizer, tableBod
       </div>
       <div ref={tableBodyRef} className="models-table__body">
         <div className="models-table__virtual" style={{ height: rowVirtualizer.getTotalSize() }}>
-          {rowVirtualizer.getVirtualItems().map(virtualRow => {
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const row = tableRows[virtualRow.index];
             const m = row.original;
             const rt = getRowRuntime(m);
@@ -53,7 +73,7 @@ export default function ModelsTable({ table, tableRows, rowVirtualizer, tableBod
                 ref={rowVirtualizer.measureElement}
                 style={{ transform: `translateY(${virtualRow.start}px)` }}
               >
-                {row.getVisibleCells().map(cell => {
+                {row.getVisibleCells().map((cell) => {
                   const meta = cell.column.columnDef.meta || {};
                   return (
                     <div

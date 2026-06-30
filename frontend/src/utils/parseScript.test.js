@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  parseScript, normalizeSpeaker, parseTaggedScript, hasSpeakerTags,
-} from './parseScript';
+import { parseScript, normalizeSpeaker, parseTaggedScript, hasSpeakerTags } from './parseScript';
 
 const L = '“'; // “
 const R = '”'; // ”
@@ -92,9 +90,7 @@ describe('parseTaggedScript — [Name] tagged scripts (#487)', () => {
     // [pause]/[voice:…]/[fast] are synthesis markers, not character tags — they
     // stay inside the (Narrator) text, never become a cast member.
     const r = parseTaggedScript('[Alice] Wait [pause 500ms] for it [voice:default].');
-    expect(r).toEqual([
-      { speaker: 'Alice', text: 'Wait [pause 500ms] for it [voice:default].' },
-    ]);
+    expect(r).toEqual([{ speaker: 'Alice', text: 'Wait [pause 500ms] for it [voice:default].' }]);
     expect(hasSpeakerTags('Just narration [pause] here.\n[voice:x] more')).toBe(false);
   });
 

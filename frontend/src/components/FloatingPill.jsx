@@ -25,28 +25,28 @@ function formatElapsed(ms) {
 
 const STAGE_LABELS = {
   'loading-model': '🧠',
-  'recording':     '🎙️',
-  'transcribing':  '📝',
-  'translating':   '🌐',
-  'generating':    '🔊',
-  'exporting':     '📦',
-  'refining':      '✨',
-  'done':          '✅',
-  'error':         '❌',
+  recording: '🎙️',
+  transcribing: '📝',
+  translating: '🌐',
+  generating: '🔊',
+  exporting: '📦',
+  refining: '✨',
+  done: '✅',
+  error: '❌',
 };
 
 export default function FloatingPill() {
   const { t } = useTranslation();
-  const visible    = useAppStore(s => s.visible);
-  const stage      = useAppStore(s => s.stage);
-  const label      = useAppStore(s => s.label);
-  const progress   = useAppStore(s => s.progress);
-  const startedAt  = useAppStore(s => s.startedAt);
-  const error      = useAppStore(s => s.error);
-  const cancellable = useAppStore(s => s.cancellable);
-  const homeMode   = useAppStore(s => s.homeMode);
-  const mode       = useAppStore(s => s.mode);
-  const dismissPill = useAppStore(s => s.dismissPill);
+  const visible = useAppStore((s) => s.visible);
+  const stage = useAppStore((s) => s.stage);
+  const label = useAppStore((s) => s.label);
+  const progress = useAppStore((s) => s.progress);
+  const startedAt = useAppStore((s) => s.startedAt);
+  const error = useAppStore((s) => s.error);
+  const cancellable = useAppStore((s) => s.cancellable);
+  const homeMode = useAppStore((s) => s.homeMode);
+  const mode = useAppStore((s) => s.mode);
+  const dismissPill = useAppStore((s) => s.dismissPill);
 
   const [elapsed, setElapsed] = useState(0);
   const [exiting, setExiting] = useState(false);
@@ -91,7 +91,9 @@ export default function FloatingPill() {
         exiting ? 'floating-pill--exiting' : '',
         isDone ? 'floating-pill--done' : '',
         isError ? 'floating-pill--error' : '',
-      ].filter(Boolean).join(' ')}
+      ]
+        .filter(Boolean)
+        .join(' ')}
       role="status"
       aria-live="polite"
     >
@@ -109,11 +111,11 @@ export default function FloatingPill() {
           {isActive && elapsed > 0 && (
             <span className="floating-pill__timer">{formatElapsed(elapsed)}</span>
           )}
-          {progress !== null && isActive && (
-            <span>{Math.round(progress)}%</span>
-          )}
+          {progress !== null && isActive && <span>{Math.round(progress)}%</span>}
           {isError && error && (
-            <span className="floating-pill__error" title={error}>{error}</span>
+            <span className="floating-pill__error" title={error}>
+              {error}
+            </span>
           )}
         </div>
 
@@ -124,7 +126,9 @@ export default function FloatingPill() {
               className={[
                 'floating-pill__progress-fill',
                 progress === null ? 'floating-pill__progress-fill--indeterminate' : '',
-              ].filter(Boolean).join(' ')}
+              ]
+                .filter(Boolean)
+                .join(' ')}
               style={progress !== null ? { width: `${progress}%` } : undefined}
             />
           </div>

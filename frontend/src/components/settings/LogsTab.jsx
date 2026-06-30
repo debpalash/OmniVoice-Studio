@@ -6,9 +6,9 @@ import { SettingsSection } from './primitives';
 import ReportBugButton from '../ReportBugButton';
 
 const LOG_SOURCE_DEFS = [
-  { value: 'backend',  key: 'backend' },
+  { value: 'backend', key: 'backend' },
   { value: 'frontend', key: 'frontend' },
-  { value: 'tauri',    key: 'tauri' },
+  { value: 'tauri', key: 'tauri' },
 ];
 
 export default function LogsTab({
@@ -38,19 +38,14 @@ export default function LogsTab({
           >
             {t('common.refresh')}
           </Button>
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={onClearLogs}
-            leading={<Trash2 size={11} />}
-          >
+          <Button variant="danger" size="sm" onClick={onClearLogs} leading={<Trash2 size={11} />}>
             {t('common.clear')}
           </Button>
         </>
       }
     >
       <Segmented
-        items={LOG_SOURCE_DEFS.map(d => ({ ...d, label: t(`common.${d.key}`) }))}
+        items={LOG_SOURCE_DEFS.map((d) => ({ ...d, label: t(`common.${d.key}`) }))}
         value={logSource}
         onChange={setLogSource}
       />
@@ -64,15 +59,17 @@ export default function LogsTab({
         )}
       </div>
       <div className="settings-log">
-        {logs.length === 0
-          ? <span className="settings-log__empty">
-              {logSource === 'frontend'
-                ? t('logs.empty_frontend')
-                : logSource === 'tauri'
-                  ? t('logs.empty_tauri')
-                  : t('logs.empty_backend')}
-            </span>
-          : logs.join('')}
+        {logs.length === 0 ? (
+          <span className="settings-log__empty">
+            {logSource === 'frontend'
+              ? t('logs.empty_frontend')
+              : logSource === 'tauri'
+                ? t('logs.empty_tauri')
+                : t('logs.empty_backend')}
+          </span>
+        ) : (
+          logs.join('')
+        )}
       </div>
     </SettingsSection>
   );

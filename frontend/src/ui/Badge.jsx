@@ -17,10 +17,7 @@ export default function Badge({
   ...rest
 }) {
   return (
-    <span
-      className={`ui-badge ui-badge--${tone} ui-badge--size-${size} ${className}`}
-      {...rest}
-    >
+    <span className={`ui-badge ui-badge--${tone} ui-badge--size-${size} ${className}`} {...rest}>
       {dot && <span className="ui-badge__dot" aria-hidden="true" />}
       {children}
     </span>

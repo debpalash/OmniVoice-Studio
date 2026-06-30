@@ -15,8 +15,8 @@
 import './primitives.css';
 
 export { default as SettingsSection } from './SettingsSection.jsx';
-export { default as SettingRow }      from './SettingRow.jsx';
-export { default as SettingsInput }   from './SettingsInput.jsx';
-export { default as InfoHint }        from './InfoHint.jsx';
-export { default as SettingsToggle }  from './SettingsToggle.jsx';
-export { default as Collapsible }     from './Collapsible.jsx';
+export { default as SettingRow } from './SettingRow.jsx';
+export { default as SettingsInput } from './SettingsInput.jsx';
+export { default as InfoHint } from './InfoHint.jsx';
+export { default as SettingsToggle } from './SettingsToggle.jsx';
+export { default as Collapsible } from './Collapsible.jsx';

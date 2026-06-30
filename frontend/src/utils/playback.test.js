@@ -65,7 +65,9 @@ describe('playback manager', () => {
   });
 
   it('survives a stop callback that throws', () => {
-    claimPlayback(() => { throw new Error('already closed'); }, 'a');
+    claimPlayback(() => {
+      throw new Error('already closed');
+    }, 'a');
     expect(() => stopActivePlayback()).not.toThrow();
     expect(activePlaybackSource()).toBeNull();
   });

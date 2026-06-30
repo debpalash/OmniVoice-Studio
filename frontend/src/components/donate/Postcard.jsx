@@ -26,14 +26,36 @@ const STAR_URL = 'https://github.com/debpalash/OmniVoice-Studio';
  */
 function leadKey(milestone) {
   switch (milestone) {
-    case 'first-clone':   return { k: 'donate.postcard.lead_first_clone', d: 'Your first voice clone is done — nice! OmniVoice runs entirely on your machine, and your support keeps it that way.' };
-    case 'tenth-dub':     return { k: 'donate.postcard.lead_tenth_dub', d: "Ten dubs in — you're clearly putting it to work. A small monthly chip-in funds the Claude Max that ships these features." };
-    case 'sustained-30d': return { k: 'donate.postcard.lead_sustained', d: "You've been with OmniVoice for a month. If it's earned a spot in your workflow, consider helping fund what's next." };
-    default:              return { k: 'donate.postcard.lead_default', d: 'Glad that worked! OmniVoice is free and fully local. If it saves you time, a small monthly chip-in funds the Claude Max behind it.' };
+    case 'first-clone':
+      return {
+        k: 'donate.postcard.lead_first_clone',
+        d: 'Your first voice clone is done — nice! OmniVoice runs entirely on your machine, and your support keeps it that way.',
+      };
+    case 'tenth-dub':
+      return {
+        k: 'donate.postcard.lead_tenth_dub',
+        d: "Ten dubs in — you're clearly putting it to work. A small monthly chip-in funds the Claude Max that ships these features.",
+      };
+    case 'sustained-30d':
+      return {
+        k: 'donate.postcard.lead_sustained',
+        d: "You've been with OmniVoice for a month. If it's earned a spot in your workflow, consider helping fund what's next.",
+      };
+    default:
+      return {
+        k: 'donate.postcard.lead_default',
+        d: 'Glad that worked! OmniVoice is free and fully local. If it saves you time, a small monthly chip-in funds the Claude Max behind it.',
+      };
   }
 }
 
-export default function Postcard({ t: tt, milestone = null, progress = null, onDismiss, onOptOut }) {
+export default function Postcard({
+  t: tt,
+  milestone = null,
+  progress = null,
+  onDismiss,
+  onOptOut,
+}) {
   const { t } = useTranslation();
   const lead = leadKey(milestone);
 
@@ -50,11 +72,7 @@ export default function Postcard({ t: tt, milestone = null, progress = null, onD
   };
 
   return (
-    <div
-      className={`postcard ${tt?.visible ? '' : 'is-leaving'}`}
-      role="status"
-      aria-live="polite"
-    >
+    <div className={`postcard ${tt?.visible ? '' : 'is-leaving'}`} role="status" aria-live="polite">
       {/* dot-grain texture + perforation are pure CSS pseudo-elements */}
       <span className="postcard__grain" aria-hidden="true" />
 

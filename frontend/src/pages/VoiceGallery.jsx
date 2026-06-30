@@ -53,7 +53,11 @@ export default function VoiceGallery() {
 
   const stopPlayback = () => {
     if (audioRef.current) {
-      try { audioRef.current.pause(); } catch { /* noop */ }
+      try {
+        audioRef.current.pause();
+      } catch {
+        /* noop */
+      }
       audioRef.current = null;
     }
     setPlayingId(null);
@@ -65,7 +69,10 @@ export default function VoiceGallery() {
 
   // Fetch a preview clip and play it (Tauri blocks blob: URLs → Web Audio).
   const playUrl = async (fullUrl, id) => {
-    if (playingId === id) { stopPlayback(); return; }
+    if (playingId === id) {
+      stopPlayback();
+      return;
+    }
     stopPlayback();
     // Also stop any playback owned by other components (#316) so the new
     // preview never overlaps a Design-tab preview or a synthesized output.
@@ -92,7 +99,16 @@ export default function VoiceGallery() {
           releaseRef.current = null;
         };
         src.start();
-        audioRef.current = { pause: () => { try { src.stop(); } catch { /* noop */ } ctx.close(); } };
+        audioRef.current = {
+          pause: () => {
+            try {
+              src.stop();
+            } catch {
+              /* noop */
+            }
+            ctx.close();
+          },
+        };
       } else {
         const url = URL.createObjectURL(blob);
         const el = new Audio(url);
@@ -109,14 +125,22 @@ export default function VoiceGallery() {
       // component starting audio stops this preview first.
       releaseRef.current = claimPlayback(() => {
         if (audioRef.current) {
-          try { audioRef.current.pause(); } catch { /* noop */ }
+          try {
+            audioRef.current.pause();
+          } catch {
+            /* noop */
+          }
           audioRef.current = null;
         }
         setPlayingId(null);
       }, 'gallery-preview');
     } catch (e) {
       stopPlayback();
-      flash(t('gallery.preview_failed', { defaultValue: 'Preview unavailable — the voice engine may still be loading.' }));
+      flash(
+        t('gallery.preview_failed', {
+          defaultValue: 'Preview unavailable — the voice engine may still be loading.',
+        }),
+      );
     } finally {
       setLoadingPreviewId(null);
     }
@@ -129,17 +153,28 @@ export default function VoiceGallery() {
           <div className="header-text">
             <h2>{t('gallery.title', { defaultValue: 'OmniVoice Gallery' })}</h2>
             <p className="gallery-sub">
-              {t('gallery.subtitle', { defaultValue: 'Hundreds of ready-made designed voices — pick one and go.' })}
+              {t('gallery.subtitle', {
+                defaultValue: 'Hundreds of ready-made designed voices — pick one and go.',
+              })}
             </p>
           </div>
           <div className="zone-toggle">
-            <button className={`zone-tab ${zone === 'archetypes' ? 'active' : ''}`} onClick={() => setZone('archetypes')}>
+            <button
+              className={`zone-tab ${zone === 'archetypes' ? 'active' : ''}`}
+              onClick={() => setZone('archetypes')}
+            >
               <Sparkles size={14} /> {t('gallery.zone_archetypes', { defaultValue: 'Archetypes' })}
             </button>
-            <button className={`zone-tab ${zone === 'community' ? 'active' : ''}`} onClick={() => setZone('community')}>
+            <button
+              className={`zone-tab ${zone === 'community' ? 'active' : ''}`}
+              onClick={() => setZone('community')}
+            >
               <Store size={14} /> {t('gallery.zone_community', { defaultValue: 'Community' })}
             </button>
-            <button className={`zone-tab ${zone === 'imports' ? 'active' : ''}`} onClick={() => setZone('imports')}>
+            <button
+              className={`zone-tab ${zone === 'imports' ? 'active' : ''}`}
+              onClick={() => setZone('imports')}
+            >
               <Upload size={14} /> {t('gallery.zone_imports', { defaultValue: 'My Imports' })}
             </button>
           </div>
@@ -171,7 +206,11 @@ export default function VoiceGallery() {
               setMode('studio');
               setDefineMethod('audio');
             } catch (e) {
-              flash(t('gallery.use_failed', { defaultValue: 'Could not create that voice — the engine may be loading.' }));
+              flash(
+                t('gallery.use_failed', {
+                  defaultValue: 'Could not create that voice — the engine may be loading.',
+                }),
+              );
             }
           }}
           onDesign={(a) => {
@@ -190,7 +229,12 @@ export default function VoiceGallery() {
           toggleFavorite={toggleFavorite}
           onPlayAudio={(url, id) => playUrl(url, id)}
           flash={flash}
-          onDesign={(instruct) => { setVdStates({ ...vdStates }); setInstruct(instruct); setMode('studio'); setDefineMethod('design'); }}
+          onDesign={(instruct) => {
+            setVdStates({ ...vdStates });
+            setInstruct(instruct);
+            setMode('studio');
+            setDefineMethod('design');
+          }}
         />
       ) : (
         <ImportsZone

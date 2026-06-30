@@ -7,7 +7,9 @@ export function clamp(v, lo, hi) {
 export function encodeWav(samples, sampleRate) {
   const buf = new ArrayBuffer(44 + samples.length * 2);
   const view = new DataView(buf);
-  const writeStr = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+  const writeStr = (off, s) => {
+    for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
+  };
   writeStr(0, 'RIFF');
   view.setUint32(4, 36 + samples.length * 2, true);
   writeStr(8, 'WAVE');
@@ -36,13 +38,17 @@ export function computePeaksFromChannel(channel, buckets = DEFAULT_PEAK_BUCKETS)
   for (let b = 0; b < eff; b++) {
     const s = Math.floor(b * step);
     const e = Math.min(n, Math.floor((b + 1) * step));
-    let mn = 1, mx = -1;
+    let mn = 1,
+      mx = -1;
     for (let i = s; i < e; i++) {
       const v = channel[i];
       if (v < mn) mn = v;
       if (v > mx) mx = v;
     }
-    if (mx < mn) { mn = 0; mx = 0; }
+    if (mx < mn) {
+      mn = 0;
+      mx = 0;
+    }
     peaks[b * 2] = mn;
     peaks[b * 2 + 1] = mx;
   }
@@ -136,13 +142,17 @@ export async function computePeaksAsync(channel, buckets = DEFAULT_PEAK_BUCKETS,
   for (let b = 0; b < eff; b++) {
     const s = Math.floor(b * step);
     const e = Math.min(n, Math.floor((b + 1) * step));
-    let mn = 1, mx = -1;
+    let mn = 1,
+      mx = -1;
     for (let i = s; i < e; i++) {
       const v = channel[i];
       if (v < mn) mn = v;
       if (v > mx) mx = v;
     }
-    if (mx < mn) { mn = 0; mx = 0; }
+    if (mx < mn) {
+      mn = 0;
+      mx = 0;
+    }
     peaks[b * 2] = mn;
     peaks[b * 2 + 1] = mx;
     if ((b & (YIELD_EVERY - 1)) === 0) {
@@ -160,9 +170,28 @@ async function probeDuration(file) {
     const url = URL.createObjectURL(file);
     const a = new Audio();
     a.preload = 'metadata';
-    const cleanup = () => { try { URL.revokeObjectURL(url); } catch {} };
-    a.addEventListener('loadedmetadata', () => { const d = a.duration; cleanup(); resolve(isFinite(d) ? d : 0); }, { once: true });
-    a.addEventListener('error', () => { cleanup(); reject(new Error('metadata failed')); }, { once: true });
+    const cleanup = () => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {}
+    };
+    a.addEventListener(
+      'loadedmetadata',
+      () => {
+        const d = a.duration;
+        cleanup();
+        resolve(isFinite(d) ? d : 0);
+      },
+      { once: true },
+    );
+    a.addEventListener(
+      'error',
+      () => {
+        cleanup();
+        reject(new Error('metadata failed'));
+      },
+      { once: true },
+    );
     a.src = url;
   });
 }

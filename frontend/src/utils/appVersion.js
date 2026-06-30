@@ -2,8 +2,7 @@
 // The build's own version, always present regardless of Tauri presence or
 // backend liveness — the always-correct source per the version-lockstep rule
 // (it comes from package.json, kept in lockstep with the other version files).
-export const APP_VERSION =
-  (typeof __APP_VERSION__ !== 'undefined' && __APP_VERSION__) || 'unknown';
+export const APP_VERSION = (typeof __APP_VERSION__ !== 'undefined' && __APP_VERSION__) || 'unknown';
 
 /**
  * Resolve the version shown in Settings → About / the diagnostics block. Prefer

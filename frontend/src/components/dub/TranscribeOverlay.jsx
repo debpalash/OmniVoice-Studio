@@ -17,8 +17,15 @@ function TranscribeOverlay({ elapsed, duration, onAbort }) {
         <span className="dub-trans-overlay__title">{t('dub.transcribing')}</span>
       </div>
       <div className="dub-trans-overlay__stats">
-        <span>⏱ {mm}:{ss} {t('dub.elapsed')}</span>
-        {est > 0 && <span>~{Math.max(0, est - elapsed)}{t('dub.remaining')}</span>}
+        <span>
+          ⏱ {mm}:{ss} {t('dub.elapsed')}
+        </span>
+        {est > 0 && (
+          <span>
+            ~{Math.max(0, est - elapsed)}
+            {t('dub.remaining')}
+          </span>
+        )}
       </div>
       {duration > 0 && (
         <div className="dub-trans-overlay__bar">

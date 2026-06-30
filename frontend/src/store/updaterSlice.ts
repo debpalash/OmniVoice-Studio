@@ -36,9 +36,18 @@ export const createUpdaterSlice: StateCreator<UpdaterSlice, [], [], UpdaterSlice
   updateError: null,
   setUpdateChecking: () => set({ updateStatus: 'checking', updateError: null }),
   setUpdateAvailable: (version, notes) =>
-    set({ updateStatus: 'available', updateVersion: version, updateNotes: notes, updateError: null }),
+    set({
+      updateStatus: 'available',
+      updateVersion: version,
+      updateNotes: notes,
+      updateError: null,
+    }),
   setUpdateIdle: () => set({ updateStatus: 'idle', updateProgress: 0 }),
-  setUpdateProgress: (pct) => set({ updateStatus: 'downloading', updateProgress: Math.max(0, Math.min(100, Math.round(pct))) }),
+  setUpdateProgress: (pct) =>
+    set({
+      updateStatus: 'downloading',
+      updateProgress: Math.max(0, Math.min(100, Math.round(pct))),
+    }),
   setUpdateReady: () => set({ updateStatus: 'ready', updateProgress: 100 }),
   setUpdateError: (msg) => set({ updateStatus: 'error', updateError: msg }),
   dismissUpdate: () => set({ updateStatus: 'idle', updateError: null, updateProgress: 0 }),

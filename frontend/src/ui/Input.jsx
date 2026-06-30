@@ -24,13 +24,29 @@ export function Field({ label, hint, error, icon, children }) {
 
   return (
     <div className={`ui-field ${error ? 'is-error' : ''}`}>
-      {label && <label htmlFor={id} className="ui-field__label">{label}</label>}
+      {label && (
+        <label htmlFor={id} className="ui-field__label">
+          {label}
+        </label>
+      )}
       <div className="ui-field__control">
-        {icon && <span className="ui-field__icon" aria-hidden="true">{icon}</span>}
+        {icon && (
+          <span className="ui-field__icon" aria-hidden="true">
+            {icon}
+          </span>
+        )}
         {enriched}
       </div>
-      {error && <div id={`${id}-err`}  className="ui-field__error">{error}</div>}
-      {!error && hint && <div id={`${id}-hint`} className="ui-field__hint">{hint}</div>}
+      {error && (
+        <div id={`${id}-err`} className="ui-field__error">
+          {error}
+        </div>
+      )}
+      {!error && hint && (
+        <div id={`${id}-hint`} className="ui-field__hint">
+          {hint}
+        </div>
+      )}
     </div>
   );
 }
@@ -39,17 +55,8 @@ export function Field({ label, hint, error, icon, children }) {
  * Input — text / number / email / url input.
  * Replaces bare <input className="input-base" />.
  */
-export const Input = forwardRef(function Input(
-  { size = 'md', className = '', ...rest },
-  ref,
-) {
-  return (
-    <input
-      ref={ref}
-      className={`ui-input ui-input--size-${size} ${className}`}
-      {...rest}
-    />
-  );
+export const Input = forwardRef(function Input({ size = 'md', className = '', ...rest }, ref) {
+  return <input ref={ref} className={`ui-input ui-input--size-${size} ${className}`} {...rest} />;
 });
 
 /**

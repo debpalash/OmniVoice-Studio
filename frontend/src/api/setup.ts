@@ -84,7 +84,9 @@ export async function getRecommendations(): Promise<Recommendations> {
   return apiJson<Recommendations>('/setup/recommendations');
 }
 
-export async function deleteModel(repo_id: string): Promise<{ deleted: boolean; repo_id: string; freed_bytes: number }> {
+export async function deleteModel(
+  repo_id: string,
+): Promise<{ deleted: boolean; repo_id: string; freed_bytes: number }> {
   // HF repo_ids look like "owner/name" — encode each segment so special chars
   // are escaped but the literal "/" survives into FastAPI's `:path` converter.
   // encodeURIComponent on the whole string would turn "/" into "%2F", which
@@ -128,4 +130,3 @@ export interface PreflightReport {
 export async function preflight(): Promise<PreflightReport> {
   return apiJson<PreflightReport>('/setup/preflight');
 }
-

@@ -13,8 +13,8 @@ function Toolbar({
   search,
   onSearch,
   searchPlaceholder = 'Search…',
-  meta,                // right-aligned summary (e.g. "42/42 · 3 sel")
-  children,            // extra filter controls between search and meta
+  meta, // right-aligned summary (e.g. "42/42 · 3 sel")
+  children, // extra filter controls between search and meta
   className = '',
   ...rest
 }) {

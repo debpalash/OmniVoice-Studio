@@ -20,18 +20,18 @@ import type { StateCreator } from 'zustand';
  */
 interface StoryTrack {
   id: number;
-  character: string;            // CastMember.id
+  character: string; // CastMember.id
   text: string;
-  profileId: string | null;     // per-line voice override (else inherits cast)
-  emotion: string | null;       // per-line tone/instruct (Phase 3)
-  speed: number | null;         // per-line speed override (Phase 3)
+  profileId: string | null; // per-line voice override (else inherits cast)
+  emotion: string | null; // per-line tone/instruct (Phase 3)
+  speed: number | null; // per-line speed override (Phase 3)
 }
 
 export interface CastMember {
   id: string;
   name: string;
   color: string;
-  profileId: string | null;     // the voice this character speaks in
+  profileId: string | null; // the voice this character speaks in
 }
 
 export type LongformMode = 'stories' | 'audiobook';
@@ -102,15 +102,19 @@ export interface LongformSlice {
   setCharacterVoice: (castId: string, profileId: string | null) => void;
   // Shared-field actions (new):
   setScript: (script: string) => void;
-  setProjectMeta: (patch: Partial<LongformMeta>) => void;   // merge (I1)
-  setLexicon: (lexicon: Record<string, string>) => void;    // replace (I3)
-  setOutputPrefs: (patch: { outputFormat?: 'm4b' | 'mp3'; loudness?: 'off' | 'acx' | 'podcast'; defaultVoice?: string | null }) => void; // merge (I2)
+  setProjectMeta: (patch: Partial<LongformMeta>) => void; // merge (I1)
+  setLexicon: (lexicon: Record<string, string>) => void; // replace (I3)
+  setOutputPrefs: (patch: {
+    outputFormat?: 'm4b' | 'mp3';
+    loudness?: 'off' | 'acx' | 'podcast';
+    defaultVoice?: string | null;
+  }) => void; // merge (I2)
   setCoverRef: (ref: CoverRef | null) => void;
-  convertMode: (mode: LongformMode) => void;                // flips mode only (#24 seam)
+  convertMode: (mode: LongformMode) => void; // flips mode only (#24 seam)
   // Project lifecycle:
   saveProject: (name: string) => void;
-  loadProject: (id: string) => void;                        // restores FULL working surface, default-filled
-  newProject: (mode?: LongformMode) => void;                // clears FULL surface; mode defaults 'stories'
+  loadProject: (id: string) => void; // restores FULL working surface, default-filled
+  newProject: (mode?: LongformMode) => void; // clears FULL surface; mode defaults 'stories'
   deleteProject: (id: string) => void;
   renameProject: (id: string, name: string) => void;
 }
@@ -138,10 +142,20 @@ export function genProjectId(): string {
 
 // Strip transient runtime fields before snapshotting into a saved project.
 function snapshotTracks(tracks: StoryTrack[]): StoryTrack[] {
-  return tracks.map(({ id, character, text, profileId, emotion, speed }) => ({ id, character, text, profileId, emotion, speed }));
+  return tracks.map(({ id, character, text, profileId, emotion, speed }) => ({
+    id,
+    character,
+    text,
+    profileId,
+    emotion,
+    speed,
+  }));
 }
 
-export const createLongformSlice: StateCreator<LongformSlice, [], [], LongformSlice> = (set, get) => ({
+export const createLongformSlice: StateCreator<LongformSlice, [], [], LongformSlice> = (
+  set,
+  get,
+) => ({
   storyTracks: [],
   cast: DEFAULT_CAST.map((c) => ({ ...c })),
   storyProjects: [],
@@ -165,24 +179,32 @@ export const createLongformSlice: StateCreator<LongformSlice, [], [], LongformSl
     set((s) => ({ cast: s.cast.map((c) => (c.id === castId ? { ...c, profileId } : c)) })),
 
   setScript: (script) => set({ script }),
-  setProjectMeta: (patch) => set((s) => ({ meta: { ...s.meta, ...patch } })),   // I1 merge
-  setLexicon: (lexicon) => set({ lexicon: { ...lexicon } }),                    // I3 replace
-  setOutputPrefs: (patch) => set((s) => ({                                      // I2 merge
-    outputFormat: patch.outputFormat ?? s.outputFormat,
-    loudness: patch.loudness ?? s.loudness,
-    defaultVoice: patch.defaultVoice !== undefined ? patch.defaultVoice : s.defaultVoice,
-  })),
+  setProjectMeta: (patch) => set((s) => ({ meta: { ...s.meta, ...patch } })), // I1 merge
+  setLexicon: (lexicon) => set({ lexicon: { ...lexicon } }), // I3 replace
+  setOutputPrefs: (patch) =>
+    set((s) => ({
+      // I2 merge
+      outputFormat: patch.outputFormat ?? s.outputFormat,
+      loudness: patch.loudness ?? s.loudness,
+      defaultVoice: patch.defaultVoice !== undefined ? patch.defaultVoice : s.defaultVoice,
+    })),
   setCoverRef: (coverRef) => set({ coverRef: coverRef ? { ...coverRef } : null }),
   convertMode: (mode) => {
-    if (mode !== 'stories' && mode !== 'audiobook') return;   // G3
-    if (get().projectMode === mode) return;                  // G2 idempotent
-    set({ projectMode: mode });                              // G1: flag only, content untouched
+    if (mode !== 'stories' && mode !== 'audiobook') return; // G3
+    if (get().projectMode === mode) return; // G2 idempotent
+    set({ projectMode: mode }); // G1: flag only, content untouched
   },
 
   saveProject: (name) =>
     set((s) => {
       const id = s.currentProjectId || genProjectId();
-      const ts = (() => { try { return Date.now(); } catch { return 0; } })();
+      const ts = (() => {
+        try {
+          return Date.now();
+        } catch {
+          return 0;
+        }
+      })();
       const proj: LongformProject = {
         id,
         name: name || 'Untitled',
@@ -200,14 +222,16 @@ export const createLongformSlice: StateCreator<LongformSlice, [], [], LongformSl
       };
       const exists = s.storyProjects.some((p) => p.id === id);
       return {
-        storyProjects: exists ? s.storyProjects.map((p) => (p.id === id ? proj : p)) : [...s.storyProjects, proj],
+        storyProjects: exists
+          ? s.storyProjects.map((p) => (p.id === id ? proj : p))
+          : [...s.storyProjects, proj],
         currentProjectId: id,
       };
     }),
 
   loadProject: (id) => {
     const p = get().storyProjects.find((x) => x.id === id);
-    if (!p) return;                          // E5: no-op when id missing
+    if (!p) return; // E5: no-op when id missing
     set({
       storyTracks: (p.tracks || []).map((t) => ({ ...t })),
       cast: (p.cast || DEFAULT_CAST).map((c) => ({ ...c })),
@@ -218,20 +242,21 @@ export const createLongformSlice: StateCreator<LongformSlice, [], [], LongformSl
       outputFormat: p.outputFormat ?? SLICE_DEFAULTS.outputFormat,
       loudness: p.loudness ?? SLICE_DEFAULTS.loudness,
       defaultVoice: p.defaultVoice ?? SLICE_DEFAULTS.defaultVoice,
-      projectMode: p.mode === 'audiobook' ? 'audiobook' : 'stories',   // E3 default-safe
+      projectMode: p.mode === 'audiobook' ? 'audiobook' : 'stories', // E3 default-safe
       currentProjectId: id,
     });
   },
 
-  newProject: (mode = 'stories') => set({
-    storyTracks: [],
-    cast: DEFAULT_CAST.map((c) => ({ ...c })),
-    ...SLICE_DEFAULTS,
-    meta: { ...SLICE_DEFAULTS.meta },
-    lexicon: { ...SLICE_DEFAULTS.lexicon },
-    projectMode: mode === 'audiobook' ? 'audiobook' : 'stories',
-    currentProjectId: null,
-  }),
+  newProject: (mode = 'stories') =>
+    set({
+      storyTracks: [],
+      cast: DEFAULT_CAST.map((c) => ({ ...c })),
+      ...SLICE_DEFAULTS,
+      meta: { ...SLICE_DEFAULTS.meta },
+      lexicon: { ...SLICE_DEFAULTS.lexicon },
+      projectMode: mode === 'audiobook' ? 'audiobook' : 'stories',
+      currentProjectId: null,
+    }),
 
   deleteProject: (id) =>
     set((s) => ({

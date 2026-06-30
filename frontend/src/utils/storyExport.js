@@ -36,18 +36,20 @@ export function encodeWav(buffer, sampleRate) {
   const n = buffer.length;
   const ab = new ArrayBuffer(44 + n * 2);
   const dv = new DataView(ab);
-  const writeStr = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+  const writeStr = (o, s) => {
+    for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i));
+  };
   writeStr(0, 'RIFF');
   dv.setUint32(4, 36 + n * 2, true);
   writeStr(8, 'WAVE');
   writeStr(12, 'fmt ');
-  dv.setUint32(16, 16, true);          // PCM chunk size
-  dv.setUint16(20, 1, true);           // PCM format
-  dv.setUint16(22, 1, true);           // mono
+  dv.setUint32(16, 16, true); // PCM chunk size
+  dv.setUint16(20, 1, true); // PCM format
+  dv.setUint16(22, 1, true); // mono
   dv.setUint32(24, sampleRate, true);
   dv.setUint32(28, sampleRate * 2, true); // byte rate (mono * 2 bytes)
-  dv.setUint16(32, 2, true);           // block align
-  dv.setUint16(34, 16, true);          // bits per sample
+  dv.setUint16(32, 2, true); // block align
+  dv.setUint16(34, 16, true); // bits per sample
   writeStr(36, 'data');
   dv.setUint32(40, n * 2, true);
   let o = 44;
@@ -69,7 +71,10 @@ export function isChapterLine(text) {
 /** The chapter title — strip only the single leading "# ", remainder verbatim
  *  (matching the server's raw-title behavior, so `# [voice:x] T` → `[voice:x] T`). */
 export function chapterTitle(text) {
-  return String(text || '').trim().replace(/^#[ \t]+/, '').trim();
+  return String(text || '')
+    .trim()
+    .replace(/^#[ \t]+/, '')
+    .trim();
 }
 
 /** Format seconds as HH:MM:SS for a chapter cue sheet. */
@@ -88,7 +93,10 @@ export function tracksByCharacter(tracks) {
   for (const tk of tracks || []) {
     if (isChapterLine(tk.text)) continue;
     const key = tk.character || 'narrator';
-    if (!(key in idx)) { idx[key] = groups.length; groups.push({ character: key, tracks: [] }); }
+    if (!(key in idx)) {
+      idx[key] = groups.length;
+      groups.push({ character: key, tracks: [] });
+    }
     groups[idx[key]].tracks.push(tk);
   }
   return groups;
@@ -116,7 +124,10 @@ async function exportStoryAudio(tracks, resolveOpts, fetchChunkBlob, onProgress)
   try {
     const plan = [];
     for (const tk of tracks) {
-      if (isChapterLine(tk.text)) { plan.push({ chapter: chapterTitle(tk.text) }); continue; }
+      if (isChapterLine(tk.text)) {
+        plan.push({ chapter: chapterTitle(tk.text) });
+        continue;
+      }
       const opts = resolveOpts(tk) || {};
       for (const seg of parseStoryText(tk.text || '', opts.profileId)) {
         plan.push(seg.type === 'chunk' ? { ...seg, speed: opts.speed } : seg);
@@ -128,15 +139,20 @@ async function exportStoryAudio(tracks, resolveOpts, fetchChunkBlob, onProgress)
     const buffers = [];
     const chapters = [];
     for (const item of plan) {
-      if (item.chapter !== undefined) { chapters.push({ time: sampleCursor / sr, title: item.chapter }); continue; }
+      if (item.chapter !== undefined) {
+        chapters.push({ time: sampleCursor / sr, title: item.chapter });
+        continue;
+      }
       if (item.type === 'pause') {
         const b = silenceBuffer(item.seconds, sr);
-        buffers.push(b); sampleCursor += b.length;
+        buffers.push(b);
+        sampleCursor += b.length;
         continue;
       }
       const blob = await fetchChunkBlob(item.text, item.profileId, item.speed);
       const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
-      buffers.push(decoded); sampleCursor += decoded.length; // resamples to ctx.sampleRate → safe to concat
+      buffers.push(decoded);
+      sampleCursor += decoded.length; // resamples to ctx.sampleRate → safe to concat
       onProgress?.(++done, chunkCount);
     }
     const combined = concatBuffers(buffers, sr);

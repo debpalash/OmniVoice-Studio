@@ -17,9 +17,10 @@ export interface AudiobookPlan {
 }
 
 /** Parse a script into a chapter/span plan (pure preview, no synthesis). */
-export async function audiobookPlan(
-  body: { text: string; default_voice?: string | null },
-): Promise<AudiobookPlan> {
+export async function audiobookPlan(body: {
+  text: string;
+  default_voice?: string | null;
+}): Promise<AudiobookPlan> {
   const res = await apiFetch('/audiobook/plan', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -29,16 +30,19 @@ export async function audiobookPlan(
 }
 
 export interface AudiobookPreview {
-  output: string;       // path under OUTPUTS_DIR, served via /audio
+  output: string; // path under OUTPUTS_DIR, served via /audio
   duration_s: number;
   cached: boolean;
   title: string;
 }
 
 /** Render a single chapter to audition it (also warms the resume cache). */
-export async function audiobookPreviewChapter(
-  body: { text: string; chapter_index: number; default_voice?: string | null; lexicon?: Record<string, string> | null },
-): Promise<AudiobookPreview> {
+export async function audiobookPreviewChapter(body: {
+  text: string;
+  chapter_index: number;
+  default_voice?: string | null;
+  lexicon?: Record<string, string> | null;
+}): Promise<AudiobookPreview> {
   const res = await apiFetch('/audiobook/preview', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -98,7 +102,15 @@ export async function audiobookImport(file: File): Promise<{ text: string; chapt
 }
 
 export interface LongformRenderBody {
-  chapters: Array<{ title?: string; spans: Array<{ voice_id: string | null; text: string; pause_ms_after: number; speed?: number | null }> }>;
+  chapters: Array<{
+    title?: string;
+    spans: Array<{
+      voice_id: string | null;
+      text: string;
+      pause_ms_after: number;
+      speed?: number | null;
+    }>;
+  }>;
   default_voice?: string | null;
   bitrate?: string;
   format?: 'm4b' | 'mp3';

@@ -50,11 +50,7 @@ export default function Dialog({
         >
           {(title || dismissable) && (
             <header className="ui-dialog__header">
-              {title && (
-                <RadixDialog.Title className="ui-dialog__title">
-                  {title}
-                </RadixDialog.Title>
-              )}
+              {title && <RadixDialog.Title className="ui-dialog__title">{title}</RadixDialog.Title>}
               {dismissable && (
                 <RadixDialog.Close asChild>
                   <Button variant="icon" iconSize="sm" aria-label="Close">

@@ -3,14 +3,18 @@ import { useTranslation } from 'react-i18next';
 import { Loader, Square } from 'lucide-react';
 import { Button } from '../../ui';
 
-const PREP_FULL   = ['download', 'extract', 'demucs', 'scene'];
+const PREP_FULL = ['download', 'extract', 'demucs', 'scene'];
 const PREP_CACHED = ['download', 'extract', 'cached'];
 
 function fmtBytesRate(bps) {
   if (!bps || bps <= 0) return null;
   const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
-  let v = bps, i = 0;
-  while (v >= 1024 && i < units.length - 1) { v /= 1024; i += 1; }
+  let v = bps,
+    i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i += 1;
+  }
   return `${v < 10 ? v.toFixed(1) : Math.round(v)} ${units[i]}`;
 }
 
@@ -18,7 +22,8 @@ function fmtEta(seconds) {
   if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return null;
   const s = Math.round(seconds);
   if (s < 60) return `${s}s left`;
-  const m = Math.floor(s / 60), rem = s % 60;
+  const m = Math.floor(s / 60),
+    rem = s % 60;
   return rem ? `${m}m ${rem}s left` : `${m}m left`;
 }
 
@@ -30,10 +35,10 @@ function PrepOverlay({ stage, progress, onAbort, large = false }) {
   const { t } = useTranslation();
   const LABEL = {
     download: t('dub.prep_download'),
-    extract:  t('dub.prep_extract'),
-    demucs:   t('dub.prep_demucs'),
-    scene:    t('dub.prep_scene'),
-    cached:   t('dub.prep_cached'),
+    extract: t('dub.prep_extract'),
+    demucs: t('dub.prep_demucs'),
+    scene: t('dub.prep_scene'),
+    cached: t('dub.prep_cached'),
   };
   const stages = stage === 'cached' ? PREP_CACHED : PREP_FULL;
   // Elapsed-time ticker for the current stage. Reset whenever
@@ -41,7 +46,10 @@ function PrepOverlay({ stage, progress, onAbort, large = false }) {
   const [elapsedS, setElapsedS] = useState(0);
   const startedAt = progress?.stageStartedAt ?? null;
   useEffect(() => {
-    if (!startedAt) { setElapsedS(0); return undefined; }
+    if (!startedAt) {
+      setElapsedS(0);
+      return undefined;
+    }
     setElapsedS(Math.floor((Date.now() - startedAt) / 1000));
     const iv = setInterval(() => {
       setElapsedS(Math.floor((Date.now() - startedAt) / 1000));
@@ -52,17 +60,19 @@ function PrepOverlay({ stage, progress, onAbort, large = false }) {
   const pct = progress?.percent;
   const hasPct = typeof pct === 'number' && pct >= 0 && pct <= 100;
   const speed = stage === 'download' ? fmtBytesRate(progress?.speedBps) : null;
-  const eta   = fmtEta(progress?.etaS);
-  const elapsedLabel = startedAt ? (elapsedS < 60 ? `${elapsedS}s` : `${Math.floor(elapsedS / 60)}m ${elapsedS % 60}s`) : null;
+  const eta = fmtEta(progress?.etaS);
+  const elapsedLabel = startedAt
+    ? elapsedS < 60
+      ? `${elapsedS}s`
+      : `${Math.floor(elapsedS / 60)}m ${elapsedS % 60}s`
+    : null;
   const detailBits = [
     hasPct ? `${pct}%` : null,
     elapsedLabel ? t('dub.prep_elapsed', { time: elapsedLabel }) : null,
     speed,
     eta,
   ].filter(Boolean);
-  const note = stage === 'demucs' && !hasPct
-    ? t('dub.prep_demucs_note')
-    : null;
+  const note = stage === 'demucs' && !hasPct ? t('dub.prep_demucs_note') : null;
 
   const body = (
     <>
@@ -79,7 +89,7 @@ function PrepOverlay({ stage, progress, onAbort, large = false }) {
         <span className="dub-prep-overlay__detail">{detailBits.join(' · ')}</span>
       )}
       <div className={`dub-prep-chips ${large ? 'dub-prep-chips--lg' : ''}`}>
-        {stages.map(s => (
+        {stages.map((s) => (
           <span
             key={s}
             className={`dub-prep-chip ${stage === s ? 'is-active' : ''} ${s === 'cached' ? 'is-cached' : ''}`}
@@ -88,17 +98,17 @@ function PrepOverlay({ stage, progress, onAbort, large = false }) {
           </span>
         ))}
       </div>
-      {note && (
-        <span className="dub-prep-overlay__note">{note}</span>
-      )}
+      {note && <span className="dub-prep-overlay__note">{note}</span>}
       <Button variant="danger" size="sm" onClick={onAbort} leading={<Square size={11} />}>
         {t('dub.prep_stop')}
       </Button>
     </>
   );
-  return large
-    ? <div className="dub-prep-overlay dub-prep-overlay--large">{body}</div>
-    : <div className="dub-prep-overlay">{body}</div>;
+  return large ? (
+    <div className="dub-prep-overlay dub-prep-overlay--large">{body}</div>
+  ) : (
+    <div className="dub-prep-overlay">{body}</div>
+  );
 }
 
 export default PrepOverlay;

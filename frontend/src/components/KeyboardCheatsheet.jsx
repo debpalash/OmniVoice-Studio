@@ -78,7 +78,9 @@ export default function KeyboardCheatsheet({ open, onClose }) {
                       {keys.split(' / ').map((group, i, arr) => (
                         <React.Fragment key={group}>
                           <span className="kcs-key-group">
-                            {group.split('+').map((k) => <Kbd key={k}>{k}</Kbd>)}
+                            {group.split('+').map((k) => (
+                              <Kbd key={k}>{k}</Kbd>
+                            ))}
                           </span>
                           {i < arr.length - 1 && <span className="kcs-or">{t('keyboard.or')}</span>}
                         </React.Fragment>

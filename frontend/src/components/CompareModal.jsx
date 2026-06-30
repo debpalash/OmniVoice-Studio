@@ -9,24 +9,39 @@ import { useTranslation } from 'react-i18next';
 import './CompareModal.css';
 
 export default function CompareModal({
-  open, onClose,
+  open,
+  onClose,
   profiles,
-  compareText, setCompareText,
-  compareVoiceA, setCompareVoiceA,
-  compareVoiceB, setCompareVoiceB,
-  compareResultA, setCompareResultA,
-  compareResultB, setCompareResultB,
-  compareProgress, setCompareProgress,
-  isComparing, setIsComparing,
-  steps, cfg, speed, denoise, postprocess,
-  fileToMediaUrl, loadHistory,
+  compareText,
+  setCompareText,
+  compareVoiceA,
+  setCompareVoiceA,
+  compareVoiceB,
+  setCompareVoiceB,
+  compareResultA,
+  setCompareResultA,
+  compareResultB,
+  setCompareResultB,
+  compareProgress,
+  setCompareProgress,
+  isComparing,
+  setIsComparing,
+  steps,
+  cfg,
+  speed,
+  denoise,
+  postprocess,
+  fileToMediaUrl,
+  loadHistory,
 }) {
   const drawerRef = useRef(null);
   const { t } = useTranslation();
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
     const onPointer = (e) => {
       if (drawerRef.current && !drawerRef.current.contains(e.target)) onClose?.();
     };
@@ -52,14 +67,14 @@ export default function CompareModal({
       let fin_prof = voiceId;
       let fin_inst = '';
       if (fin_prof.startsWith('preset:')) {
-        const pr = PRESETS.find(p => p.id === fin_prof.replace('preset:', ''));
+        const pr = PRESETS.find((p) => p.id === fin_prof.replace('preset:', ''));
         if (pr) {
-          const parts = Object.values(pr.attrs).filter(v => v !== 'Auto');
+          const parts = Object.values(pr.attrs).filter((v) => v !== 'Auto');
           fin_inst = parts.join(', ');
         }
         fin_prof = '';
-      } else if (profiles.find(p => p.id === fin_prof)?.instruct) {
-        fin_inst = profiles.find(p => p.id === fin_prof).instruct;
+      } else if (profiles.find((p) => p.id === fin_prof)?.instruct) {
+        fin_inst = profiles.find((p) => p.id === fin_prof).instruct;
       }
       if (fin_prof) formData.append('profile_id', fin_prof);
       if (fin_inst) formData.append('instruct', fin_inst);
@@ -97,7 +112,12 @@ export default function CompareModal({
   if (!open) return null;
 
   return (
-    <div className="compare-drawer" role="dialog" aria-modal="false" aria-label={t('compare.title')}>
+    <div
+      className="compare-drawer"
+      role="dialog"
+      aria-modal="false"
+      aria-label={t('compare.title')}
+    >
       <div className="compare-drawer__sheet" ref={drawerRef}>
         <header className="compare-drawer__head">
           <span className="compare-drawer__handle" aria-hidden="true" />
@@ -115,14 +135,12 @@ export default function CompareModal({
         </header>
 
         <div className="compare-drawer__body">
-          <p className="ui-compare__desc">
-            {t('compare.desc')}
-          </p>
+          <p className="ui-compare__desc">{t('compare.desc')}</p>
 
           <Field label={t('compare.test_phrase')}>
             <Textarea
               value={compareText}
-              onChange={e => setCompareText(e.target.value)}
+              onChange={(e) => setCompareText(e.target.value)}
               rows={2}
               className="compare-textarea--noresize"
             />
@@ -149,7 +167,9 @@ export default function CompareModal({
         </div>
 
         <footer className="compare-drawer__foot">
-          <Button variant="ghost" onClick={onClose}>{t('compare.close_btn')}</Button>
+          <Button variant="ghost" onClick={onClose}>
+            {t('compare.close_btn')}
+          </Button>
           <Button
             variant="primary"
             loading={isComparing}
@@ -157,7 +177,7 @@ export default function CompareModal({
             onClick={runCompare}
             leading={!isComparing && <Play size={12} />}
           >
-            {isComparing ? (compareProgress || t('compare.comparing')) : t('compare.compare_btn')}
+            {isComparing ? compareProgress || t('compare.comparing') : t('compare.compare_btn')}
           </Button>
         </footer>
       </div>
@@ -173,10 +193,18 @@ function CompareSide({ accent, label, profiles, value, onChange, audio }) {
         <Fingerprint size={14} /> {label}
       </h3>
       <Field>
-        <Select value={value} onChange={e => onChange(e.target.value)}>
+        <Select value={value} onChange={(e) => onChange(e.target.value)}>
           <option value="">{t('compare.select_voice')}</option>
-          {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          {PRESETS.map(p => <option key={p.id} value={`preset:${p.id}`}>{p.name} {t('compare.preset_suffix')}</option>)}
+          {profiles.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+          {PRESETS.map((p) => (
+            <option key={p.id} value={`preset:${p.id}`}>
+              {p.name} {t('compare.preset_suffix')}
+            </option>
+          ))}
         </Select>
       </Field>
       {audio ? (

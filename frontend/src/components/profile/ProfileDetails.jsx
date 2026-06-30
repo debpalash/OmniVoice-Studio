@@ -6,8 +6,19 @@ import { Panel, Button, Input, Textarea, Field, Badge } from '../../ui';
  * VoiceProfile page. Pure presentation; state/handlers live in the parent.
  */
 export default function ProfileDetails({
-  profile, editing, draft, setDraft, saving, cancelEdits, saveEdits,
-  onUnlock, onRevokeConsent, consentStatement, consentRec, consentSubmitting, t,
+  profile,
+  editing,
+  draft,
+  setDraft,
+  saving,
+  cancelEdits,
+  saveEdits,
+  onUnlock,
+  onRevokeConsent,
+  consentStatement,
+  consentRec,
+  consentSubmitting,
+  t,
 }) {
   return (
     <>
@@ -16,12 +27,24 @@ export default function ProfileDetails({
         variant="flat"
         padding="md"
         title={<>{t('voice_profile.details')}</>}
-        actions={editing ? (
-          <>
-            <Button variant="ghost"   size="sm" onClick={cancelEdits} leading={<X size={12} />}>{t('common.cancel')}</Button>
-            <Button variant="primary" size="sm" onClick={saveEdits}   loading={saving} leading={!saving && <Check size={12} />}>{t('common.save')}</Button>
-          </>
-        ) : null}
+        actions={
+          editing ? (
+            <>
+              <Button variant="ghost" size="sm" onClick={cancelEdits} leading={<X size={12} />}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={saveEdits}
+                loading={saving}
+                leading={!saving && <Check size={12} />}
+              >
+                {t('common.save')}
+              </Button>
+            </>
+          ) : null
+        }
       >
         <div className="voice-profile__grid-2">
           <Field label={t('voice_profile.style_instruct')}>
@@ -29,20 +52,18 @@ export default function ProfileDetails({
               <Textarea
                 rows={2}
                 value={draft.instruct}
-                onChange={e => setDraft({ ...draft, instruct: e.target.value })}
+                onChange={(e) => setDraft({ ...draft, instruct: e.target.value })}
                 placeholder={t('voice_profile.style_placeholder')}
               />
             ) : (
-              <div className="voice-profile__readonly">
-                {profile.instruct || <em>— none —</em>}
-              </div>
+              <div className="voice-profile__readonly">{profile.instruct || <em>— none —</em>}</div>
             )}
           </Field>
           <Field label={t('voice_profile.language')}>
             {editing ? (
               <Input
                 value={draft.language}
-                onChange={e => setDraft({ ...draft, language: e.target.value })}
+                onChange={(e) => setDraft({ ...draft, language: e.target.value })}
                 placeholder={t('clone.auto')}
               />
             ) : (
@@ -55,7 +76,7 @@ export default function ProfileDetails({
             <Textarea
               rows={2}
               value={draft.ref_text}
-              onChange={e => setDraft({ ...draft, ref_text: e.target.value })}
+              onChange={(e) => setDraft({ ...draft, ref_text: e.target.value })}
               placeholder={t('clone.optional')}
             />
           ) : (
@@ -66,11 +87,13 @@ export default function ProfileDetails({
         </Field>
         {profile.is_locked && !editing && (
           <div className="voice-profile__lock-row">
-            <Badge tone="warn" dot><Lock size={10} /> {t('voice_profile.locked')}</Badge>
-            <span className="voice-profile__lock-hint">
-              {t('voice_profile.locked_explain')}
-            </span>
-            <Button variant="subtle" size="sm" onClick={onUnlock} leading={<Unlock size={12} />}>{t('voice_profile.unlock')}</Button>
+            <Badge tone="warn" dot>
+              <Lock size={10} /> {t('voice_profile.locked')}
+            </Badge>
+            <span className="voice-profile__lock-hint">{t('voice_profile.locked_explain')}</span>
+            <Button variant="subtle" size="sm" onClick={onUnlock} leading={<Unlock size={12} />}>
+              {t('voice_profile.unlock')}
+            </Button>
           </div>
         )}
       </Panel>
@@ -79,11 +102,17 @@ export default function ProfileDetails({
       <Panel
         variant="flat"
         padding="md"
-        title={<><ShieldCheck size={12} /> {t('voice_profile.consent_title')}</>}
+        title={
+          <>
+            <ShieldCheck size={12} /> {t('voice_profile.consent_title')}
+          </>
+        }
       >
         {profile.verified_own_voice ? (
           <div className="voice-profile__lock-row">
-            <Badge tone="success" dot><ShieldCheck size={10} /> {t('voice_profile.verified')}</Badge>
+            <Badge tone="success" dot>
+              <ShieldCheck size={10} /> {t('voice_profile.verified')}
+            </Badge>
             <span className="voice-profile__lock-hint">
               {t('voice_profile.consent_verified_explain', {
                 date: profile.consent_recorded_at
@@ -102,7 +131,12 @@ export default function ProfileDetails({
               “{consentStatement}”
             </blockquote>
             {consentRec.isRecording ? (
-              <Button variant="danger" size="sm" onClick={consentRec.stopRecording} leading={<Square size={12} />}>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={consentRec.stopRecording}
+                leading={<Square size={12} />}
+              >
                 {t('voice_profile.consent_stop')} ({consentRec.recordingTime}s)
               </Button>
             ) : (

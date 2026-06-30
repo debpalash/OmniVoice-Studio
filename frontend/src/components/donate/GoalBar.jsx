@@ -1,12 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Pip from './Pip';
-import {
-  BUNDLED_PROGRESS,
-  loadDonationProgress,
-  progressPct,
-  isGoalMet,
-} from '../../api/donation';
+import { BUNDLED_PROGRESS, loadDonationProgress, progressPct, isGoalMet } from '../../api/donation';
 import './DonateGoal.css';
 
 /**
@@ -44,10 +39,14 @@ export default function GoalBar({ mini = false, progress: injected = null, class
   const [fetched, setFetched] = useState(BUNDLED_PROGRESS);
 
   useEffect(() => {
-    if (injected) return undefined;        // caller owns the data — skip fetch
+    if (injected) return undefined; // caller owns the data — skip fetch
     let alive = true;
-    loadDonationProgress().then((p) => { if (alive) setFetched(p); });
-    return () => { alive = false; };
+    loadDonationProgress().then((p) => {
+      if (alive) setFetched(p);
+    });
+    return () => {
+      alive = false;
+    };
   }, [injected]);
 
   const data = injected || fetched;
@@ -61,12 +60,9 @@ export default function GoalBar({ mini = false, progress: injected = null, class
 
   return (
     <div
-      className={[
-        'goal',
-        mini ? 'goal--mini' : 'goal--page',
-        met ? 'goal--met' : '',
-        className,
-      ].filter(Boolean).join(' ')}
+      className={['goal', mini ? 'goal--mini' : 'goal--page', met ? 'goal--met' : '', className]
+        .filter(Boolean)
+        .join(' ')}
       style={{ '--goal-pct': pct }}
     >
       {!mini && (
@@ -111,12 +107,7 @@ export default function GoalBar({ mini = false, progress: injected = null, class
         ) : (
           <>
             <span className="goal__amounts">
-              <strong>{raisedStr}</strong>
-              {' '}
-              {t('donate.goal.of', { defaultValue: 'of' })}
-              {' '}
-              {goalStr}
-              {' '}
+              <strong>{raisedStr}</strong> {t('donate.goal.of', { defaultValue: 'of' })} {goalStr}{' '}
               {t('donate.goal.per_month', { defaultValue: '/ month' })}
             </span>
             {!mini && (

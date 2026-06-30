@@ -35,24 +35,35 @@ export default function TranscriptionPicker({ open, onClose, onPick }) {
     if (diff < 60000) return t('transcriptions.just_now');
     if (diff < 3600000) return t('transcriptions.m_ago', { count: Math.floor(diff / 60000) });
     if (diff < 86400000) return t('transcriptions.h_ago', { count: Math.floor(diff / 3600000) });
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   // Per-row display normalization; hide empty-text rows entirely.
-  const rows = useMemo(() => entries
-    .map((e, idx) => ({
-      entry: e,
-      key: e?.id ?? idx,
-      text: String(e?.text ?? ''),
-      language: e?.language && e.language !== 'unknown' ? e.language : null,
-      duration: typeof e?.duration_s === 'number' && e.duration_s > 0 ? e.duration_s : null,
-      time: formatTime(e?.timestamp),
-    }))
-    .filter((r) => r.text.trim()), [entries]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rows = useMemo(
+    () =>
+      entries
+        .map((e, idx) => ({
+          entry: e,
+          key: e?.id ?? idx,
+          text: String(e?.text ?? ''),
+          language: e?.language && e.language !== 'unknown' ? e.language : null,
+          duration: typeof e?.duration_s === 'number' && e.duration_s > 0 ? e.duration_s : null,
+          time: formatTime(e?.timestamp),
+        }))
+        .filter((r) => r.text.trim()),
+    [entries],
+  ); // eslint-disable-line react-hooks/exhaustive-deps
 
   const q = search.trim().toLowerCase();
   const visible = q
-    ? rows.filter((r) => r.text.toLowerCase().includes(q) || (r.language || '').toLowerCase().includes(q))
+    ? rows.filter(
+        (r) => r.text.toLowerCase().includes(q) || (r.language || '').toLowerCase().includes(q),
+      )
     : rows;
 
   return (
@@ -73,7 +84,11 @@ export default function TranscriptionPicker({ open, onClose, onPick }) {
       {visible.length === 0 ? (
         <div className="txn-picker__empty">
           <Mic size={24} />
-          <p>{rows.length === 0 ? t('transcriptionPicker.empty') : t('transcriptionPicker.empty_search')}</p>
+          <p>
+            {rows.length === 0
+              ? t('transcriptionPicker.empty')
+              : t('transcriptionPicker.empty_search')}
+          </p>
         </div>
       ) : (
         <div className="txn-picker__list" role="list">
@@ -82,14 +97,25 @@ export default function TranscriptionPicker({ open, onClose, onPick }) {
               type="button"
               key={r.key}
               className="txn-picker__row"
-              onClick={() => { onPick(r.entry); onClose(); }}
+              onClick={() => {
+                onPick(r.entry);
+                onClose();
+              }}
             >
               <span className="txn-picker__text">
                 {r.text.length > 120 ? `${r.text.slice(0, 120)}…` : r.text}
               </span>
               <span className="txn-picker__meta">
-                {r.time && <span><Clock size={10} /> {r.time}</span>}
-                {r.language && <span><Languages size={10} /> {r.language}</span>}
+                {r.time && (
+                  <span>
+                    <Clock size={10} /> {r.time}
+                  </span>
+                )}
+                {r.language && (
+                  <span>
+                    <Languages size={10} /> {r.language}
+                  </span>
+                )}
                 {r.duration && <span>{r.duration.toFixed(1)}s</span>}
               </span>
             </button>

@@ -33,7 +33,9 @@ export default function HFMirrorPanel() {
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const save = async (value) => {
     setSaving(true);
@@ -63,7 +65,11 @@ export default function HFMirrorPanel() {
       title="Hugging Face mirror"
       description="Route model downloads through a mirror on a restricted network."
     >
-      {error && <div className="perfpanel__error" role="alert">{error}</div>}
+      {error && (
+        <div className="perfpanel__error" role="alert">
+          {error}
+        </div>
+      )}
 
       <SettingRow
         className="st-row--stack"
@@ -72,8 +78,13 @@ export default function HFMirrorPanel() {
         control={
           <div className="perfpanel__row" style={{ flexWrap: 'wrap', gap: 6 }}>
             {state.presets.map((p) => (
-              <button key={p.label} type="button" onClick={() => save(p.url)}
-                disabled={saving} data-testid={`hf-preset-${p.url || 'official'}`}>
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => save(p.url)}
+                disabled={saving}
+                data-testid={`hf-preset-${p.url || 'official'}`}
+              >
                 {p.label}
               </button>
             ))}
@@ -87,9 +98,20 @@ export default function HFMirrorPanel() {
         subtitle={restart ? 'Restart the app for the change to take effect.' : undefined}
         control={
           <>
-            <input className="st-input st-input--mono" type="text" value={url} onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://hf-mirror.com" data-testid="hf-mirror-url" />
-            <button type="button" onClick={() => save(url)} disabled={saving} data-testid="hf-mirror-save">
+            <input
+              className="st-input st-input--mono"
+              type="text"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://hf-mirror.com"
+              data-testid="hf-mirror-url"
+            />
+            <button
+              type="button"
+              onClick={() => save(url)}
+              disabled={saving}
+              data-testid="hf-mirror-save"
+            >
               {saving ? 'Saving…' : 'Save'}
             </button>
           </>

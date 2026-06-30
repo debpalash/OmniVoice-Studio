@@ -23,7 +23,12 @@ export interface TranslationEnginesResponse {
   sandboxed: boolean;
 }
 export interface InstallEngineResponse {
-  status: 'installed' | 'already_installed' | 'installed_but_probe_failed' | 'uninstalled' | 'no_op';
+  status:
+    | 'installed'
+    | 'already_installed'
+    | 'installed_but_probe_failed'
+    | 'uninstalled'
+    | 'no_op';
   engine: string;
   package?: string;
   log_tail?: string;
@@ -34,7 +39,10 @@ export async function listEngines(): Promise<AllEnginesResponse> {
   return apiJson<AllEnginesResponse>('/engines');
 }
 
-export async function selectEngine(family: EngineFamily, backendId: string): Promise<SelectEngineResponse> {
+export async function selectEngine(
+  family: EngineFamily,
+  backendId: string,
+): Promise<SelectEngineResponse> {
   return apiPost<SelectEngineResponse>('/engines/select', { family, backend_id: backendId });
 }
 

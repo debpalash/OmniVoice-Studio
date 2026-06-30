@@ -1,9 +1,21 @@
 import React, { useMemo, useState } from 'react';
-import { copyText } from "../utils/copyText";
+import { copyText } from '../utils/copyText';
 import { useTranslation } from 'react-i18next';
 import {
-  Search, FolderOpen, Film, Fingerprint, Wand2, Music, Download,
-  LayoutGrid, List as ListIcon, Clock, FileText, Mic, BookMarked, BookOpen,
+  Search,
+  FolderOpen,
+  Film,
+  Fingerprint,
+  Wand2,
+  Music,
+  Download,
+  LayoutGrid,
+  List as ListIcon,
+  Clock,
+  FileText,
+  Mic,
+  BookMarked,
+  BookOpen,
 } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import { loadTranscriptions, TRANSCRIPTION_EVENT } from '../utils/transcriptionsStore';
@@ -36,9 +48,9 @@ function fmtTime(ts) {
   if (!Number.isFinite(d)) return '';
   const diff = Date.now() - d;
   const s = Math.floor(diff / 1000);
-  if (s < 60)     return `${s}s ago`;
-  if (s < 3600)   return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400)  return `${Math.floor(s / 3600)}h ago`;
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
 }
 
@@ -86,8 +98,14 @@ function Card({ kind, accent, title, subtitle, trailing, onClick, IconC }) {
         </span>
         <span className="projects__card-trailing">{trailing}</span>
       </div>
-      <div className="projects__card-title" title={title}>{title}</div>
-      {subtitle && <div className="projects__card-sub" title={subtitle}>{subtitle}</div>}
+      <div className="projects__card-title" title={title}>
+        {title}
+      </div>
+      {subtitle && (
+        <div className="projects__card-sub" title={subtitle}>
+          {subtitle}
+        </div>
+      )}
     </button>
   );
 }
@@ -98,25 +116,25 @@ export default function Projects({
   history = [],
   exportHistory = [],
   storyProjects = [],
-  onOpenDub,           // (projectId) => void — loads project + switches to dub mode
-  onOpenProfile,       // (voiceId)   => void
-  onOpenStory,         // (storyId)   => void — loads story + switches to stories mode
-  onRevealExport,      // (path)      => void
+  onOpenDub, // (projectId) => void — loads project + switches to dub mode
+  onOpenProfile, // (voiceId)   => void
+  onOpenStory, // (storyId)   => void — loads story + switches to stories mode
+  onRevealExport, // (path)      => void
 }) {
-  const [filter, setFilter]   = useState('all');
-  const [query, setQuery]     = useState('');
-  const [view, setView]       = useState('grid');  // grid | list
+  const [filter, setFilter] = useState('all');
+  const [query, setQuery] = useState('');
+  const [view, setView] = useState('grid'); // grid | list
   const { t } = useTranslation();
 
   const FILTERS = [
-    { id: 'all',      label: t('projects.all'),            Icon: FolderOpen  },
-    { id: 'dubs',     label: t('projects.dub_projects'),   Icon: Film        },
-    { id: 'stories',  label: t('projects.stories'),        Icon: BookOpen    },
+    { id: 'all', label: t('projects.all'), Icon: FolderOpen },
+    { id: 'dubs', label: t('projects.dub_projects'), Icon: Film },
+    { id: 'stories', label: t('projects.stories'), Icon: BookOpen },
     { id: 'profiles', label: t('projects.voice_profiles'), Icon: Fingerprint },
-    { id: 'transcripts', label: t('projects.transcripts'), Icon: Mic         },
-    { id: 'audiobooks', label: t('projects.audiobooks'),   Icon: BookMarked  },
-    { id: 'history',  label: t('projects.history'),        Icon: Music       },
-    { id: 'exports',  label: t('projects.exports'),        Icon: Download    },
+    { id: 'transcripts', label: t('projects.transcripts'), Icon: Mic },
+    { id: 'audiobooks', label: t('projects.audiobooks'), Icon: BookMarked },
+    { id: 'history', label: t('projects.history'), Icon: Music },
+    { id: 'exports', label: t('projects.exports'), Icon: Download },
   ];
 
   // Finished Audiobook + Story renders (server-side longform library).
@@ -128,9 +146,13 @@ export default function Projects({
         const res = await apiFetch('/longform/jobs');
         const data = await res.json();
         if (alive) setLongformJobs(data.jobs || []);
-      } catch { /* offline / no backend — leave empty */ }
+      } catch {
+        /* offline / no backend — leave empty */
+      }
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // Load transcriptions from localStorage (same source as TranscriptionsPage)
@@ -165,8 +187,12 @@ export default function Projects({
         type: 'stories',
         id: sp.id,
         title: sp.name || t('projects.untitled_story'),
-        subtitle: [tracks ? t('projects.story_lines', { count: tracks }) : '',
-                   chars ? t('projects.story_voices', { count: chars }) : ''].filter(Boolean).join(' · '),
+        subtitle: [
+          tracks ? t('projects.story_lines', { count: tracks }) : '',
+          chars ? t('projects.story_voices', { count: chars }) : '',
+        ]
+          .filter(Boolean)
+          .join(' · '),
         ts: sp.updatedAt || 0,
         accent: '#83a598',
         Icon: BookOpen,
@@ -216,8 +242,13 @@ export default function Projects({
         type: 'audiobooks',
         id: j.job_id,
         title: j.title || j.output,
-        subtitle: [j.type === 'story' ? t('projects.story') : t('projects.audiobook'),
-                   j.chapters ? `${j.chapters} ch` : '', mins].filter(Boolean).join(' · '),
+        subtitle: [
+          j.type === 'story' ? t('projects.story') : t('projects.audiobook'),
+          j.chapters ? `${j.chapters} ch` : '',
+          mins,
+        ]
+          .filter(Boolean)
+          .join(' · '),
         ts: (j.created_at || 0) * 1000,
         accent: '#d3869b',
         Icon: BookMarked,
@@ -229,7 +260,9 @@ export default function Projects({
         type: 'transcripts',
         id: tr.id || String(Math.random()),
         title: (tr.text || t('projects.transcription')).slice(0, 120),
-        subtitle: [tr.language, tr.duration_s ? `${Math.round(tr.duration_s)}s` : ''].filter(Boolean).join(' · '),
+        subtitle: [tr.language, tr.duration_s ? `${Math.round(tr.duration_s)}s` : '']
+          .filter(Boolean)
+          .join(' · '),
         ts: tr.timestamp ? Date.parse(tr.timestamp) : 0,
         accent: '#83a598',
         Icon: FileText,
@@ -240,7 +273,20 @@ export default function Projects({
     }
     list.sort((a, b) => (b.ts || 0) - (a.ts || 0));
     return list;
-  }, [studioProjects, profiles, history, exportHistory, transcriptions, longformJobs, storyProjects, onOpenDub, onOpenProfile, onOpenStory, onRevealExport, t]);
+  }, [
+    studioProjects,
+    profiles,
+    history,
+    exportHistory,
+    transcriptions,
+    longformJobs,
+    storyProjects,
+    onOpenDub,
+    onOpenProfile,
+    onOpenStory,
+    onRevealExport,
+    t,
+  ]);
 
   const counts = useMemo(() => {
     const c = { all: items.length };
@@ -250,7 +296,7 @@ export default function Projects({
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return items.filter(it => {
+    return items.filter((it) => {
       if (filter !== 'all' && it.type !== filter) return false;
       if (!q) return true;
       return (it.title + ' ' + (it.subtitle || '')).toLowerCase().includes(q);
@@ -266,7 +312,7 @@ export default function Projects({
             <Search size={12} />
             <input
               value={query}
-              onChange={e => setQuery(e.target.value)}
+              onChange={(e) => setQuery(e.target.value)}
               placeholder={t('projects.search_placeholder')}
               spellCheck={false}
             />
@@ -294,7 +340,7 @@ export default function Projects({
 
       <div className="projects__body">
         <aside className="projects__rail">
-          {FILTERS.map(f => {
+          {FILTERS.map((f) => {
             const FI = f.Icon;
             const n = counts[f.id] ?? 0;
             return (
@@ -319,14 +365,19 @@ export default function Projects({
               <p>{query ? t('projects.no_matches', { query }) : t('projects.empty_hint')}</p>
             </div>
           )}
-          {visible.map(it => (
+          {visible.map((it) => (
             <Card
               key={`${it.type}:${it.id}`}
               kind={it.type.toUpperCase()}
               accent={it.accent}
               title={it.title}
               subtitle={it.subtitle}
-              trailing={<span className="projects__card-time"><Clock size={10} />{fmtTime(it.ts)}</span>}
+              trailing={
+                <span className="projects__card-time">
+                  <Clock size={10} />
+                  {fmtTime(it.ts)}
+                </span>
+              }
               onClick={it.onClick}
               IconC={it.Icon}
             />

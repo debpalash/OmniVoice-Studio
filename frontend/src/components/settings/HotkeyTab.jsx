@@ -10,8 +10,8 @@ import { isTauri } from './native';
 // string, e.g. "CmdOrCtrl+Shift+Space". Returns null when only modifiers
 // are held (the user hasn't picked a "real" key yet).
 function keyEventToAccelerator(e) {
-  const isMacLike = typeof navigator !== 'undefined'
-    && /Mac|iPad|iPhone|iPod/.test(navigator.platform || '');
+  const isMacLike =
+    typeof navigator !== 'undefined' && /Mac|iPad|iPhone|iPod/.test(navigator.platform || '');
   const mods = [];
   if (e.metaKey) mods.push(isMacLike ? 'Cmd' : 'Super');
   if (e.ctrlKey) mods.push('Ctrl');
@@ -112,25 +112,18 @@ export default function HotkeyTab() {
   };
 
   return (
-    <SettingsSection
-      icon={Keyboard}
-      title={t('settings.shortcut')}
-    >
+    <SettingsSection icon={Keyboard} title={t('settings.shortcut')}>
       {!tauri && (
         <p className="settings-prose">
           <Trans i18nKey="capture.desc" components={{ 1: <kbd /> }} />
         </p>
       )}
 
-      <SettingRow
-        title={t('capture.active_shortcut')}
-        control={current || '—'}
-        mono
-      />
+      <SettingRow title={t('capture.active_shortcut')} control={current || '—'} mono />
       <SettingRow
         title={recording ? t('capture.press_key') : t('capture.new_shortcut')}
         hint={<Trans i18nKey="capture.desc_detail" components={{ 1: <code />, 2: <code /> }} />}
-        control={recording ? t('capture.listening') : (pending || '—')}
+        control={recording ? t('capture.listening') : pending || '—'}
         mono
       />
 
@@ -138,7 +131,10 @@ export default function HotkeyTab() {
         <Button
           size="sm"
           variant="subtle"
-          onClick={() => { setPending(''); setRecording(true); }}
+          onClick={() => {
+            setPending('');
+            setRecording(true);
+          }}
           disabled={!tauri || saving}
           leading={<Keyboard size={12} />}
         >
@@ -152,12 +148,7 @@ export default function HotkeyTab() {
         >
           {t('capture.save')}
         </Button>
-        <Button
-          size="sm"
-          variant="subtle"
-          onClick={resetDefault}
-          disabled={!tauri || saving}
-        >
+        <Button size="sm" variant="subtle" onClick={resetDefault} disabled={!tauri || saving}>
           {t('capture.reset_default')}
         </Button>
       </div>

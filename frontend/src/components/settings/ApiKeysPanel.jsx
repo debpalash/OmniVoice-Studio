@@ -33,7 +33,7 @@ const SOURCE_LABELS = {
 };
 
 const SOURCE_HELP = {
-  app: 'Stored encrypted in OmniVoice\'s local SQLite store. Set or clear here.',
+  app: "Stored encrypted in OmniVoice's local SQLite store. Set or clear here.",
   env: 'Set via HF_TOKEN in your shell. Read-only from the UI.',
   'hf-cli': 'Written by `huggingface-cli login`. Read-only from the UI.',
 };
@@ -122,7 +122,9 @@ export default function ApiKeysPanel() {
           onClick={refresh}
           disabled={loading}
           aria-label={testNowLabel}
-          title={t('settings.hf_token_test_now_title', { defaultValue: 'Re-run whoami for every source' })}
+          title={t('settings.hf_token_test_now_title', {
+            defaultValue: 'Re-run whoami for every source',
+          })}
         >
           <RefreshCw size={12} /> {testNowLabel}
         </button>
@@ -134,7 +136,11 @@ export default function ApiKeysPanel() {
         </div>
       )}
 
-      <div className="apikeys-rows" role="table" aria-label={t('settings.hf_token_sources', { defaultValue: 'HF token sources' })}>
+      <div
+        className="apikeys-rows"
+        role="table"
+        aria-label={t('settings.hf_token_sources', { defaultValue: 'HF token sources' })}
+      >
         {state.sources.map((row) => {
           const isActive = state.active === row.source;
           return (
@@ -149,9 +155,7 @@ export default function ApiKeysPanel() {
                   {SOURCE_LABELS[row.source]}
                   <InfoHint>{SOURCE_HELP[row.source]}</InfoHint>
                 </span>
-                {isActive && (
-                  <span className="apikeys-badge apikeys-badge--active">Active</span>
-                )}
+                {isActive && <span className="apikeys-badge apikeys-badge--active">Active</span>}
               </div>
               <div className="apikeys-row__meta">
                 {row.set ? (
@@ -159,9 +163,7 @@ export default function ApiKeysPanel() {
                     <span className="apikeys-row__set" aria-label="set">
                       <CheckCircle2 size={12} /> set
                     </span>
-                    {row.masked && (
-                      <code className="apikeys-row__masked">{row.masked}</code>
-                    )}
+                    {row.masked && <code className="apikeys-row__masked">{row.masked}</code>}
                     {row.whoami_ok ? (
                       <span className="apikeys-row__whoami apikeys-row__whoami--ok">
                         <CheckCircle2 size={12} /> {row.whoami_user || 'verified'}
@@ -219,15 +221,24 @@ export default function ApiKeysPanel() {
       </div>
 
       {clearOpen && (
-        <div className="apikeys-clear-dialog" role="dialog" aria-label={t('settings.hf_token_clear_dialog', { defaultValue: 'Clear token' })}>
-          <p>{t('settings.hf_token_clear_confirm', { defaultValue: 'Clear the App-source HuggingFace token?' })}</p>
+        <div
+          className="apikeys-clear-dialog"
+          role="dialog"
+          aria-label={t('settings.hf_token_clear_dialog', { defaultValue: 'Clear token' })}
+        >
+          <p>
+            {t('settings.hf_token_clear_confirm', {
+              defaultValue: 'Clear the App-source HuggingFace token?',
+            })}
+          </p>
           <label className="apikeys-checkbox">
             <input
               type="checkbox"
               checked={alsoClearCli}
               onChange={(e) => setAlsoClearCli(e.target.checked)}
             />{' '}
-            {t('settings.hf_token_also_clear', { defaultValue: 'Also clear' })} <code>~/.cache/huggingface/token</code>
+            {t('settings.hf_token_also_clear', { defaultValue: 'Also clear' })}{' '}
+            <code>~/.cache/huggingface/token</code>
           </label>
           <div className="apikeys-clear-dialog__actions">
             <button
@@ -246,7 +257,8 @@ export default function ApiKeysPanel() {
               onClick={onClear}
               disabled={saving}
             >
-              <Trash2 size={12} /> {t('settings.hf_token_clear_btn', { defaultValue: 'Clear token' })}
+              <Trash2 size={12} />{' '}
+              {t('settings.hf_token_clear_btn', { defaultValue: 'Clear token' })}
             </button>
           </div>
         </div>

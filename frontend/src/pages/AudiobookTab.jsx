@@ -1,9 +1,22 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BookMarked, Loader, Download, Image as ImageIcon, X, Play, Upload, Plus } from 'lucide-react';
+import {
+  BookMarked,
+  Loader,
+  Download,
+  Image as ImageIcon,
+  X,
+  Play,
+  Upload,
+  Plus,
+} from 'lucide-react';
 
 import {
-  audiobookPlan, audiobookGenerate, audiobookUploadCover, audiobookPreviewChapter, audiobookImport,
+  audiobookPlan,
+  audiobookGenerate,
+  audiobookUploadCover,
+  audiobookPreviewChapter,
+  audiobookImport,
 } from '../api/audiobook';
 import { audioUrl } from '../api/generate';
 import { consumeLongformStream } from '../utils/longformStream';
@@ -25,7 +38,7 @@ export default function AudiobookTab({ profiles = [] }) {
   // used to live in component useState and evaporate).
   const text = useAppStore((s) => s.script);
   const setText = useAppStore((s) => s.setScript);
-  const defaultVoice = useAppStore((s) => s.defaultVoice) ?? '';  // select coerces null→''
+  const defaultVoice = useAppStore((s) => s.defaultVoice) ?? ''; // select coerces null→''
   const setOutputPrefs = useAppStore((s) => s.setOutputPrefs);
   const setProjectMeta = useAppStore((s) => s.setProjectMeta);
   const setLexiconStore = useAppStore((s) => s.setLexicon);
@@ -44,12 +57,20 @@ export default function AudiobookTab({ profiles = [] }) {
   // Output prefs + metadata (embedded in the file; players show these) — now
   // store-backed. `meta` is default-filled so every controlled input gets a
   // defined string (an empty store record never flips a controlled→uncontrolled).
-  const format = useAppStore((s) => s.outputFormat);     // 'm4b' | 'mp3'
+  const format = useAppStore((s) => s.outputFormat); // 'm4b' | 'mp3'
   const setFormat = (v) => setOutputPrefs({ outputFormat: v });
-  const loudness = useAppStore((s) => s.loudness);        // 'off' | 'acx' | 'podcast'
+  const loudness = useAppStore((s) => s.loudness); // 'off' | 'acx' | 'podcast'
   const setLoudness = (v) => setOutputPrefs({ loudness: v });
   const metaStore = useAppStore((s) => s.meta);
-  const meta = { title: '', author: '', narrator: '', year: '', genre: '', description: '', ...metaStore };
+  const meta = {
+    title: '',
+    author: '',
+    narrator: '',
+    year: '',
+    genre: '',
+    description: '',
+    ...metaStore,
+  };
   const setMetaField = (k) => (e) => setProjectMeta({ [k]: e.target.value });
 
   // Cover stays component-local (a File/blob can't persist to localStorage;
@@ -68,15 +89,17 @@ export default function AudiobookTab({ profiles = [] }) {
     const rows = Object.entries(storeLexicon || {}).map(([word, say]) => ({ word, say }));
     if (rows.length) setLex(rows);
   }, [storeLexicon]);
-  const lexDict = () => Object.fromEntries(
-    lex.filter((r) => r.word.trim() && r.say.trim()).map((r) => [r.word.trim(), r.say.trim()]),
-  );
+  const lexDict = () =>
+    Object.fromEntries(
+      lex.filter((r) => r.word.trim() && r.say.trim()).map((r) => [r.word.trim(), r.say.trim()]),
+    );
   // Flush the filtered dict to the store whenever rows change (after hydration).
   useEffect(() => {
     if (!lexHydrated.current) return;
     setLexiconStore(lexDict());
   }, [lex]); // eslint-disable-line react-hooks/exhaustive-deps
-  const setLexRow = (i, k) => (e) => setLex((rows) => rows.map((r, j) => (j === i ? { ...r, [k]: e.target.value } : r)));
+  const setLexRow = (i, k) => (e) =>
+    setLex((rows) => rows.map((r, j) => (j === i ? { ...r, [k]: e.target.value } : r)));
   const addLexRow = () => setLex((rows) => [...rows, { word: '', say: '' }]);
   const removeLexRow = (i) => setLex((rows) => rows.filter((_, j) => j !== i));
 
@@ -93,7 +116,12 @@ export default function AudiobookTab({ profiles = [] }) {
   }, [coverPreview]);
   // Revoke the cover blob URL when it's replaced or the tab unmounts (React
   // doesn't reclaim object URLs on its own).
-  useEffect(() => () => { if (coverPreview) URL.revokeObjectURL(coverPreview); }, [coverPreview]);
+  useEffect(
+    () => () => {
+      if (coverPreview) URL.revokeObjectURL(coverPreview);
+    },
+    [coverPreview],
+  );
 
   const [importing, setImporting] = useState(false);
 
@@ -109,38 +137,46 @@ export default function AudiobookTab({ profiles = [] }) {
     }
   }, [text, defaultVoice]);
 
-  const onImport = useCallback(async (e) => {
-    const f = e.target.files?.[0];
-    e.target.value = ''; // allow re-importing the same file
-    if (!f) return;
-    setError('');
-    setImporting(true);
-    try {
-      const r = await audiobookImport(f);
-      setText(r.text);
-      setPlan(null);
-    } catch (err) {
-      setError(t('audiobook.import_failed', { message: err?.message || String(err) }));
-    } finally {
-      setImporting(false);
-    }
-  }, [t]);
+  const onImport = useCallback(
+    async (e) => {
+      const f = e.target.files?.[0];
+      e.target.value = ''; // allow re-importing the same file
+      if (!f) return;
+      setError('');
+      setImporting(true);
+      try {
+        const r = await audiobookImport(f);
+        setText(r.text);
+        setPlan(null);
+      } catch (err) {
+        setError(t('audiobook.import_failed', { message: err?.message || String(err) }));
+      } finally {
+        setImporting(false);
+      }
+    },
+    [t],
+  );
 
-  const onPreviewChapter = useCallback(async (i) => {
-    setError('');
-    setChapterPrev((p) => ({ ...p, [i]: { ...p[i], loading: true } }));
-    try {
-      const lexicon = lexDict();
-      const r = await audiobookPreviewChapter({
-        text, chapter_index: i, default_voice: defaultVoice || null,
-        lexicon: Object.keys(lexicon).length ? lexicon : null,
-      });
-      setChapterPrev((p) => ({ ...p, [i]: { url: audioUrl(r.output), loading: false } }));
-    } catch (e) {
-      setChapterPrev((p) => ({ ...p, [i]: { ...p[i], loading: false } }));
-      setError(e?.message || String(e));
-    }
-  }, [text, defaultVoice, lex]);
+  const onPreviewChapter = useCallback(
+    async (i) => {
+      setError('');
+      setChapterPrev((p) => ({ ...p, [i]: { ...p[i], loading: true } }));
+      try {
+        const lexicon = lexDict();
+        const r = await audiobookPreviewChapter({
+          text,
+          chapter_index: i,
+          default_voice: defaultVoice || null,
+          lexicon: Object.keys(lexicon).length ? lexicon : null,
+        });
+        setChapterPrev((p) => ({ ...p, [i]: { url: audioUrl(r.output), loading: false } }));
+      } catch (e) {
+        setChapterPrev((p) => ({ ...p, [i]: { ...p[i], loading: false } }));
+        setError(e?.message || String(e));
+      }
+    },
+    [text, defaultVoice, lex],
+  );
 
   const onCreate = useCallback(async () => {
     setError('');
@@ -155,9 +191,7 @@ export default function AudiobookTab({ profiles = [] }) {
         cover_path = (await audiobookUploadCover(coverFile)).path;
       }
       // Only send metadata fields the user actually filled in.
-      const metadata = Object.fromEntries(
-        Object.entries(meta).filter(([, v]) => v && v.trim()),
-      );
+      const metadata = Object.fromEntries(Object.entries(meta).filter(([, v]) => v && v.trim()));
       const lexicon = lexDict();
       const res = await audiobookGenerate({
         text,
@@ -168,25 +202,29 @@ export default function AudiobookTab({ profiles = [] }) {
         metadata: Object.keys(metadata).length ? metadata : null,
         lexicon: Object.keys(lexicon).length ? lexicon : null,
       });
-      await consumeLongformStream(res, (evt) => {
-        if (evt.type === 'started') {
-          setProgress({ current: 0, total: evt.chapters });
-        } else if (evt.type === 'chapter') {
-          setProgress({ current: evt.index + 1, total: evt.total, title: evt.title });
-        } else if (evt.type === 'assembling') {
-          setProgress((p) => ({ ...p, assembling: true }));
-        } else if (evt.type === 'chapter_error') {
-          setProgress({ current: evt.index + 1, total: evt.total, title: evt.title });
-        } else if (evt.type === 'done') {
-          setOutput(evt.output);
-          setDone({
-            cached_chapters: evt.cached_chapters || 0,
-            failed_chapters: evt.failed_chapters || [],
-          });
-        } else if (evt.type === 'error') {
-          setError(evt.error || 'synthesis failed');
-        }
-      }, { isAborted: () => abortRef.current });
+      await consumeLongformStream(
+        res,
+        (evt) => {
+          if (evt.type === 'started') {
+            setProgress({ current: 0, total: evt.chapters });
+          } else if (evt.type === 'chapter') {
+            setProgress({ current: evt.index + 1, total: evt.total, title: evt.title });
+          } else if (evt.type === 'assembling') {
+            setProgress((p) => ({ ...p, assembling: true }));
+          } else if (evt.type === 'chapter_error') {
+            setProgress({ current: evt.index + 1, total: evt.total, title: evt.title });
+          } else if (evt.type === 'done') {
+            setOutput(evt.output);
+            setDone({
+              cached_chapters: evt.cached_chapters || 0,
+              failed_chapters: evt.failed_chapters || [],
+            });
+          } else if (evt.type === 'error') {
+            setError(evt.error || 'synthesis failed');
+          }
+        },
+        { isAborted: () => abortRef.current },
+      );
     } catch (e) {
       setError(e?.message || String(e));
     } finally {
@@ -207,12 +245,28 @@ export default function AudiobookTab({ profiles = [] }) {
           <p className="muted audiobook-tab__sub">{t('audiobook.subtitle')}</p>
         </div>
         <div className="audiobook-tab__actions">
-          <label className="ui-btn ui-btn--subtle" style={{ cursor: busy ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            {importing ? <Loader size={14} className="spin" /> : <Upload size={14} />} {t('audiobook.import')}
-            <input type="file" accept=".txt,.md,.epub,.pdf" onChange={onImport} disabled={busy} style={{ display: 'none' }} />
+          <label
+            className="ui-btn ui-btn--subtle"
+            style={{
+              cursor: busy ? 'default' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            {importing ? <Loader size={14} className="spin" /> : <Upload size={14} />}{' '}
+            {t('audiobook.import')}
+            <input
+              type="file"
+              accept=".txt,.md,.epub,.pdf"
+              onChange={onImport}
+              disabled={busy}
+              style={{ display: 'none' }}
+            />
           </label>
           <button className="ui-btn ui-btn--subtle" onClick={onPreview} disabled={!canRun}>
-            {planLoading ? <Loader size={14} className="spin" /> : null} {t('audiobook.preview_plan')}
+            {planLoading ? <Loader size={14} className="spin" /> : null}{' '}
+            {t('audiobook.preview_plan')}
           </button>
           <button className="ui-btn ui-btn--primary" onClick={onCreate} disabled={!canRun}>
             {generating ? <Loader size={14} className="spin" /> : null} {t('audiobook.create')}
@@ -248,16 +302,24 @@ export default function AudiobookTab({ profiles = [] }) {
           <div className="audiobook-tab__duo">
             <div className="audiobook-tab__field">
               <label className="field-label">{t('audiobook.format')}</label>
-              <select className="input-base" value={format}
-                onChange={(e) => setFormat(e.target.value)} aria-label={t('audiobook.format')}>
+              <select
+                className="input-base"
+                value={format}
+                onChange={(e) => setFormat(e.target.value)}
+                aria-label={t('audiobook.format')}
+              >
                 <option value="m4b">{t('audiobook.format_m4b')}</option>
                 <option value="mp3">{t('audiobook.format_mp3')}</option>
               </select>
             </div>
             <div className="audiobook-tab__field">
               <label className="field-label">{t('audiobook.loudness')}</label>
-              <select className="input-base" value={loudness}
-                onChange={(e) => setLoudness(e.target.value)} aria-label={t('audiobook.loudness')}>
+              <select
+                className="input-base"
+                value={loudness}
+                onChange={(e) => setLoudness(e.target.value)}
+                aria-label={t('audiobook.loudness')}
+              >
                 <option value="off">{t('audiobook.loudness_off')}</option>
                 <option value="acx">{t('audiobook.loudness_acx')}</option>
                 <option value="podcast">{t('audiobook.loudness_podcast')}</option>
@@ -272,39 +334,98 @@ export default function AudiobookTab({ profiles = [] }) {
               <div style={{ position: 'relative', width: 96, height: 96, flexShrink: 0 }}>
                 {coverPreview ? (
                   <>
-                    <img src={coverPreview} alt={t('audiobook.cover')}
-                      style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 6 }} />
-                    <button type="button" className="ui-btn ui-btn--icon" onClick={clearCover}
+                    <img
+                      src={coverPreview}
+                      alt={t('audiobook.cover')}
+                      style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 6 }}
+                    />
+                    <button
+                      type="button"
+                      className="ui-btn ui-btn--icon"
+                      onClick={clearCover}
                       aria-label={t('audiobook.cover_remove')}
-                      style={{ position: 'absolute', top: 4, right: 4 }}>
+                      style={{ position: 'absolute', top: 4, right: 4 }}
+                    >
                       <X size={14} />
                     </button>
                   </>
                 ) : (
-                  <label className="ui-btn ui-btn--subtle" style={{
-                    width: 96, height: 96, display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer',
-                  }}>
+                  <label
+                    className="ui-btn ui-btn--subtle"
+                    style={{
+                      width: 96,
+                      height: 96,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 4,
+                      cursor: 'pointer',
+                    }}
+                  >
                     <ImageIcon size={20} />
                     <span style={{ fontSize: '0.65rem' }}>{t('audiobook.cover_add')}</span>
-                    <input type="file" accept="image/png,image/jpeg" onChange={onCoverPick} style={{ display: 'none' }} />
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      onChange={onCoverPick}
+                      style={{ display: 'none' }}
+                    />
                   </label>
                 )}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, flex: 1, minWidth: 0 }}>
-                <input className="input-base" placeholder={t('audiobook.meta_title')}
-                  value={meta.title} onChange={setMetaField('title')} aria-label={t('audiobook.meta_title')} />
-                <input className="input-base" placeholder={t('audiobook.meta_author')}
-                  value={meta.author} onChange={setMetaField('author')} aria-label={t('audiobook.meta_author')} />
-                <input className="input-base" placeholder={t('audiobook.meta_narrator')}
-                  value={meta.narrator} onChange={setMetaField('narrator')} aria-label={t('audiobook.meta_narrator')} />
-                <input className="input-base" placeholder={t('audiobook.meta_year')}
-                  value={meta.year} onChange={setMetaField('year')} aria-label={t('audiobook.meta_year')} />
-                <input className="input-base" placeholder={t('audiobook.meta_genre')}
-                  value={meta.genre} onChange={setMetaField('genre')} aria-label={t('audiobook.meta_genre')} />
-                <input className="input-base" placeholder={t('audiobook.meta_description')}
-                  value={meta.description} onChange={setMetaField('description')}
-                  aria-label={t('audiobook.meta_description')} style={{ gridColumn: '1 / -1' }} />
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 8,
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              >
+                <input
+                  className="input-base"
+                  placeholder={t('audiobook.meta_title')}
+                  value={meta.title}
+                  onChange={setMetaField('title')}
+                  aria-label={t('audiobook.meta_title')}
+                />
+                <input
+                  className="input-base"
+                  placeholder={t('audiobook.meta_author')}
+                  value={meta.author}
+                  onChange={setMetaField('author')}
+                  aria-label={t('audiobook.meta_author')}
+                />
+                <input
+                  className="input-base"
+                  placeholder={t('audiobook.meta_narrator')}
+                  value={meta.narrator}
+                  onChange={setMetaField('narrator')}
+                  aria-label={t('audiobook.meta_narrator')}
+                />
+                <input
+                  className="input-base"
+                  placeholder={t('audiobook.meta_year')}
+                  value={meta.year}
+                  onChange={setMetaField('year')}
+                  aria-label={t('audiobook.meta_year')}
+                />
+                <input
+                  className="input-base"
+                  placeholder={t('audiobook.meta_genre')}
+                  value={meta.genre}
+                  onChange={setMetaField('genre')}
+                  aria-label={t('audiobook.meta_genre')}
+                />
+                <input
+                  className="input-base"
+                  placeholder={t('audiobook.meta_description')}
+                  value={meta.description}
+                  onChange={setMetaField('description')}
+                  aria-label={t('audiobook.meta_description')}
+                  style={{ gridColumn: '1 / -1' }}
+                />
               </div>
             </div>
           </div>
@@ -314,35 +435,66 @@ export default function AudiobookTab({ profiles = [] }) {
             <label className="field-label">{t('audiobook.lexicon')}</label>
             {lex.map((row, i) => (
               <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-                <input className="input-base" placeholder={t('audiobook.lex_word')}
-                  value={row.word} onChange={setLexRow(i, 'word')} aria-label={t('audiobook.lex_word')} style={{ flex: 1, minWidth: 0 }} />
-                <input className="input-base" placeholder={t('audiobook.lex_say')}
-                  value={row.say} onChange={setLexRow(i, 'say')} aria-label={t('audiobook.lex_say')} style={{ flex: 1, minWidth: 0 }} />
-                <button type="button" className="ui-btn ui-btn--icon" onClick={() => removeLexRow(i)}
-                  aria-label={t('audiobook.lex_remove')}><X size={14} /></button>
+                <input
+                  className="input-base"
+                  placeholder={t('audiobook.lex_word')}
+                  value={row.word}
+                  onChange={setLexRow(i, 'word')}
+                  aria-label={t('audiobook.lex_word')}
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+                <input
+                  className="input-base"
+                  placeholder={t('audiobook.lex_say')}
+                  value={row.say}
+                  onChange={setLexRow(i, 'say')}
+                  aria-label={t('audiobook.lex_say')}
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+                <button
+                  type="button"
+                  className="ui-btn ui-btn--icon"
+                  onClick={() => removeLexRow(i)}
+                  aria-label={t('audiobook.lex_remove')}
+                >
+                  <X size={14} />
+                </button>
               </div>
             ))}
-            <button type="button" className="ui-btn ui-btn--subtle" onClick={addLexRow} style={{ alignSelf: 'flex-start' }}>
+            <button
+              type="button"
+              className="ui-btn ui-btn--subtle"
+              onClick={addLexRow}
+              style={{ alignSelf: 'flex-start' }}
+            >
               <Plus size={14} /> {t('audiobook.lex_add')}
             </button>
           </div>
 
           {/* Markup quick reference */}
           <details className="audiobook-tab__field">
-            <summary className="field-label" style={{ cursor: 'pointer' }}>{t('audiobook.markup_help')}</summary>
+            <summary className="field-label" style={{ cursor: 'pointer' }}>
+              {t('audiobook.markup_help')}
+            </summary>
             <p className="muted" style={{ fontSize: '0.72rem', lineHeight: 1.6, marginTop: 6 }}>
               {t('audiobook.markup_hint')}
             </p>
           </details>
 
-          {error && <div className="error-banner" role="alert">{error}</div>}
+          {error && (
+            <div className="error-banner" role="alert">
+              {error}
+            </div>
+          )}
 
           {generating && progress && (
             <div className="audiobook-progress" role="status" aria-live="polite">
               {progress.assembling
                 ? t('audiobook.assembling')
                 : t('audiobook.synthesizing', {
-                    current: progress.current, total: progress.total, title: progress.title || '',
+                    current: progress.current,
+                    total: progress.total,
+                    title: progress.title || '',
                   })}
             </div>
           )}
@@ -378,17 +530,29 @@ export default function AudiobookTab({ profiles = [] }) {
                   return (
                     <li key={i} style={{ marginBottom: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <button className="ui-btn ui-btn--icon" onClick={() => onPreviewChapter(i)}
+                        <button
+                          className="ui-btn ui-btn--icon"
+                          onClick={() => onPreviewChapter(i)}
                           disabled={prev.loading || busy}
-                          aria-label={t('audiobook.preview_chapter', { title: c.title })}>
-                          {prev.loading ? <Loader size={12} className="spin" /> : <Play size={12} />}
+                          aria-label={t('audiobook.preview_chapter', { title: c.title })}
+                        >
+                          {prev.loading ? (
+                            <Loader size={12} className="spin" />
+                          ) : (
+                            <Play size={12} />
+                          )}
                         </button>
                         <strong>{c.title}</strong>{' '}
                         <span className="muted">
-                          {t('audiobook.chapter_meta', { spans: c.spans.length, chars: c.char_count })}
+                          {t('audiobook.chapter_meta', {
+                            spans: c.spans.length,
+                            chars: c.char_count,
+                          })}
                         </span>
                       </div>
-                      {prev.url && (<audio controls src={prev.url} style={{ width: '100%', marginTop: 4 }} />)}
+                      {prev.url && (
+                        <audio controls src={prev.url} style={{ width: '100%', marginTop: 4 }} />
+                      )}
                     </li>
                   );
                 })}

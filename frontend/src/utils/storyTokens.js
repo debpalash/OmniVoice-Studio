@@ -34,7 +34,7 @@ function _pauseMs(num, unit) {
   if (num == null) return PAUSE_DEFAULT_MS;
   const value = parseFloat(num);
   if (!Number.isFinite(value)) return PAUSE_DEFAULT_MS;
-  const ms = (unit && unit.toLowerCase() === 's') ? value * 1000 : value;
+  const ms = unit && unit.toLowerCase() === 's' ? value * 1000 : value;
   return Math.max(0, Math.min(roundHalfToEven(ms), PAUSE_MAX_MS));
 }
 
@@ -54,12 +54,12 @@ export function parseStoryText(text, defaultProfileId = null) {
     if (match[3] != null) {
       // voice branch — group 3 is defined even when empty ([voice:] → default)
       const id = match[3].trim();
-      currentProfile = (id === 'default' || id === '') ? defaultProfileId : id;
+      currentProfile = id === 'default' || id === '' ? defaultProfileId : id;
     } else {
       // pause branch — bare or numbered. ms→seconds; a 0-duration pause is
       // consumed (not spoken) but shows no overlay (the >0 guard below).
-      const seconds = _pauseMs(match[1] != null ? match[1] : null,
-                              match[2] != null ? match[2] : null) / 1000;
+      const seconds =
+        _pauseMs(match[1] != null ? match[1] : null, match[2] != null ? match[2] : null) / 1000;
       if (Number.isFinite(seconds) && seconds > 0) {
         out.push({ type: 'pause', seconds });
       }

@@ -52,7 +52,10 @@ export const listCommunityItems = (filters: CommunityFilters = {}): Promise<Comm
 export const communitySubmitUrl = (type: 'preset' | 'voice'): Promise<{ url: string }> =>
   apiJson(`/community/submit-url?type=${type}`);
 
-export const addCommunityItem = (id: string, name?: string): Promise<{ profile_id: string; name: string }> => {
+export const addCommunityItem = (
+  id: string,
+  name?: string,
+): Promise<{ profile_id: string; name: string }> => {
   const q = name ? `?name=${encodeURIComponent(name)}` : '';
   return apiJson(`/community/items/${encodeURIComponent(id)}/use${q}`, { method: 'POST' });
 };

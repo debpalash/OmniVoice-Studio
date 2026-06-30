@@ -61,8 +61,8 @@ export default function RemoteBackendPanel() {
       description="Run inference on another machine; leave the URL empty for the local backend."
       actions={
         <InfoHint learnMoreHref={REMOTE_GPU_DOCS_URL}>
-          Start the backend on the other machine with <code>OMNIVOICE_API_KEY</code>{' '}
-          set, reach it over your tailnet, and point this app at it.
+          Start the backend on the other machine with <code>OMNIVOICE_API_KEY</code> set, reach it
+          over your tailnet, and point this app at it.
         </InfoHint>
       }
     >

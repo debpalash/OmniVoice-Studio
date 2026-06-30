@@ -7,8 +7,15 @@ import WaveformPlayer from '../WaveformPlayer';
  * page. Pure presentation; state/handlers live in the parent VoiceProfile.
  */
 export default function ProfileActivity({
-  t, testText, setTestText, testGenerating, runTest, testAudioUrl,
-  autoPlayPreview, usage, onOpenProject,
+  t,
+  testText,
+  setTestText,
+  testGenerating,
+  runTest,
+  testAudioUrl,
+  autoPlayPreview,
+  usage,
+  onOpenProject,
 }) {
   return (
     <>
@@ -16,16 +23,17 @@ export default function ProfileActivity({
       <Panel
         variant="flat"
         padding="md"
-        title={<><Play size={13} /> {t('voice_profile.try_voice')}</>}
+        title={
+          <>
+            <Play size={13} /> {t('voice_profile.try_voice')}
+          </>
+        }
       >
-        <Field
-          label={t('voice_profile.test_phrase')}
-          hint={t('voice_profile.test_help')}
-        >
+        <Field label={t('voice_profile.test_phrase')} hint={t('voice_profile.test_help')}>
           <Textarea
             rows={2}
             value={testText}
-            onChange={e => setTestText(e.target.value)}
+            onChange={(e) => setTestText(e.target.value)}
             placeholder={t('voice_profile.test_placeholder')}
           />
         </Field>
@@ -54,9 +62,7 @@ export default function ProfileActivity({
       {/* Usage */}
       <Panel variant="flat" padding="md" title={<>{t('voice_profile.used_title')}</>}>
         {!usage || (!usage.synth_total && !usage.projects?.length) ? (
-          <div className="voice-profile__usage-empty">
-            {t('voice_profile.used_empty')}
-          </div>
+          <div className="voice-profile__usage-empty">{t('voice_profile.used_empty')}</div>
         ) : (
           <>
             <div className="voice-profile__usage-counts">
@@ -72,7 +78,7 @@ export default function ProfileActivity({
             </div>
             {usage.projects.length > 0 && (
               <ul className="voice-profile__usage-list">
-                {usage.projects.slice(0, 10).map(p => (
+                {usage.projects.slice(0, 10).map((p) => (
                   <li key={p.project_id}>
                     <button
                       type="button"

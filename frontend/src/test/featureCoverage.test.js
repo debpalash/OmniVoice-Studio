@@ -16,7 +16,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const _dir = path.dirname(fileURLToPath(import.meta.url));
-const SRC = path.resolve(_dir, '..');        // frontend/src
+const SRC = path.resolve(_dir, '..'); // frontend/src
 const read = (p) => fs.readFileSync(path.join(SRC, p), 'utf8');
 
 // Legacy/alias modes intentionally kept in the union but routed elsewhere
@@ -25,7 +25,10 @@ const LEGACY_MODES = new Set(['clone', 'design', 'generate', 'batch']);
 
 function appModes() {
   const ts = read('store/uiSlice.ts');
-  const block = ts.slice(ts.indexOf('export type AppMode'), ts.indexOf(';', ts.indexOf('export type AppMode')));
+  const block = ts.slice(
+    ts.indexOf('export type AppMode'),
+    ts.indexOf(';', ts.indexOf('export type AppMode')),
+  );
   return [...block.matchAll(/\|\s*'([a-z]+)'/g)].map((m) => m[1]);
 }
 
@@ -35,9 +38,7 @@ describe('webUI feature coverage', () => {
   it('every non-legacy AppMode has a render branch in App.jsx', () => {
     const modes = appModes();
     expect(modes.length).toBeGreaterThan(10); // sanity: union parsed
-    const missing = modes.filter(
-      (m) => !LEGACY_MODES.has(m) && !app.includes(`mode === '${m}'`),
-    );
+    const missing = modes.filter((m) => !LEGACY_MODES.has(m) && !app.includes(`mode === '${m}'`));
     expect(missing, `AppModes with no render branch in App.jsx: ${missing.join(', ')}`).toEqual([]);
   });
 
@@ -47,7 +48,9 @@ describe('webUI feature coverage', () => {
     const missing = imports
       .map(([, dir, name]) => `${dir}/${name}`)
       .filter((rel) => {
-        return !['.jsx', '.tsx', '.js', '.ts'].some((ext) => fs.existsSync(path.join(SRC, rel + ext)));
+        return !['.jsx', '.tsx', '.js', '.ts'].some((ext) =>
+          fs.existsSync(path.join(SRC, rel + ext)),
+        );
       });
     expect(missing, `lazy() imports with no file: ${missing.join(', ')}`).toEqual([]);
   });
@@ -56,12 +59,33 @@ describe('webUI feature coverage', () => {
     const en = JSON.parse(read('i18n/locales/en.json'));
     // One namespace per shipped feature surface.
     const required = [
-      'launchpad', 'dub', 'dub_workflow', 'clone', 'stories', 'audiobook',
-      'gallery', 'projects', 'transcriptions', 'settings', 'engines',
-      'donate', 'enterprise', 'contact', 'tools', 'batch', 'voice',
-      'history', 'glossary', 'network', 'header', 'nav', 'common',
+      'launchpad',
+      'dub',
+      'dub_workflow',
+      'clone',
+      'stories',
+      'audiobook',
+      'gallery',
+      'projects',
+      'transcriptions',
+      'settings',
+      'engines',
+      'donate',
+      'enterprise',
+      'contact',
+      'tools',
+      'batch',
+      'voice',
+      'history',
+      'glossary',
+      'network',
+      'header',
+      'nav',
+      'common',
     ];
     const missing = required.filter((k) => !(k in en));
-    expect(missing, `feature i18n namespaces missing from en.json: ${missing.join(', ')}`).toEqual([]);
+    expect(missing, `feature i18n namespaces missing from en.json: ${missing.join(', ')}`).toEqual(
+      [],
+    );
   });
 });

@@ -1,8 +1,16 @@
 import React, { memo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  CheckCircle, AlertCircle, Circle, Trash2, Loader, Headphones, Scissors, Merge,
-  MoreHorizontal, Sparkles,
+  CheckCircle,
+  AlertCircle,
+  Circle,
+  Trash2,
+  Loader,
+  Headphones,
+  Scissors,
+  Merge,
+  MoreHorizontal,
+  Sparkles,
 } from 'lucide-react';
 import { formatTime } from '../utils/format';
 import { LANG_CODES } from '../utils/languages';
@@ -22,11 +30,15 @@ function rowClass(isActive, isDone, selected, isPlaying, timelineSelected) {
 // then the literal midpoint as a last resort.
 function bestSplitPoint(text) {
   const mid = Math.floor(text.length / 2);
-  let best = -1, bestDist = Infinity;
+  let best = -1,
+    bestDist = Infinity;
   for (let i = 0; i < text.length; i++) {
     if (SENTENCE_END.test(text[i])) {
       const d = Math.abs(i + 1 - mid);
-      if (d < bestDist) { best = i + 1; bestDist = d; }
+      if (d < bestDist) {
+        best = i + 1;
+        bestDist = d;
+      }
     }
   }
   if (best > 0 && best < text.length) return best;
@@ -47,9 +59,28 @@ function parseTime(s) {
 }
 
 function DubSegmentRow({
-  seg, idx, style, disabled, isActive, isDone, isPlaying, previewLoading, selected,
-  profiles, speakerClones, onEditField, onDelete, onRestore, onPreview, onSelect, onSplit, onMerge, canMerge,
-  onDirect, onSeek, timelineSelected,
+  seg,
+  idx,
+  style,
+  disabled,
+  isActive,
+  isDone,
+  isPlaying,
+  previewLoading,
+  selected,
+  profiles,
+  speakerClones,
+  onEditField,
+  onDelete,
+  onRestore,
+  onPreview,
+  onSelect,
+  onSplit,
+  onMerge,
+  canMerge,
+  onDirect,
+  onSeek,
+  timelineSelected,
 }) {
   const { t } = useTranslation();
   const textInputRef = useRef(null);
@@ -75,7 +106,12 @@ function DubSegmentRow({
   let fitBadge = null;
   if (fitStatus) {
     if (fitStatus.status === 'fits') {
-      fitBadge = { color: '#b8bb26', Icon: CheckCircle, label: t('segment.fit_fits'), title: t('segment.fit_fits_title') };
+      fitBadge = {
+        color: '#b8bb26',
+        Icon: CheckCircle,
+        label: t('segment.fit_fits'),
+        title: t('segment.fit_fits_title'),
+      };
     } else if (fitStatus.status === 'overflows') {
       const over = fitStatus.overflow_s || 0;
       fitBadge = {
@@ -96,16 +132,31 @@ function DubSegmentRow({
   } else if (seg.sync_ratio !== undefined) {
     const r = seg.sync_ratio;
     if (r > 1.25) {
-      fitBadge = { color: '#fb4934', Icon: AlertCircle, label: `${Math.round(r * 100)}%`, title: t('segment.fit_compressed_title', { pct: Math.round(r * 100) }) };
+      fitBadge = {
+        color: '#fb4934',
+        Icon: AlertCircle,
+        label: `${Math.round(r * 100)}%`,
+        title: t('segment.fit_compressed_title', { pct: Math.round(r * 100) }),
+      };
     } else if (r >= 0.95 && r <= 1.05) {
-      fitBadge = { color: '#b8bb26', Icon: CheckCircle, label: t('segment.fit_fits'), title: t('segment.fit_audio_title') };
+      fitBadge = {
+        color: '#b8bb26',
+        Icon: CheckCircle,
+        label: t('segment.fit_fits'),
+        title: t('segment.fit_audio_title'),
+      };
     } else {
-      fitBadge = { color: '#fabd2f', Icon: Circle, label: `${Math.round(r * 100)}%`, title: t('segment.fit_ratio_title', { pct: Math.round(r * 100) }) };
+      fitBadge = {
+        color: '#fabd2f',
+        Icon: Circle,
+        label: `${Math.round(r * 100)}%`,
+        title: t('segment.fit_ratio_title', { pct: Math.round(r * 100) }),
+      };
     }
   }
 
-  const overBudget = seg.text_original
-    && seg.text.length > Math.ceil(seg.text_original.length * CHAR_BUDGET_RATIO);
+  const overBudget =
+    seg.text_original && seg.text.length > Math.ceil(seg.text_original.length * CHAR_BUDGET_RATIO);
 
   const handleTextKeyDown = (e) => {
     if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
@@ -133,7 +184,11 @@ function DubSegmentRow({
   };
 
   return (
-    <div style={style} className={rowClass(isActive, isDone, selected, isPlaying, timelineSelected)} onClick={handleRowClick}>
+    <div
+      style={style}
+      className={rowClass(isActive, isDone, selected, isPlaying, timelineSelected)}
+      onClick={handleRowClick}
+    >
       <input
         type="checkbox"
         checked={!!selected}
@@ -156,7 +211,10 @@ function DubSegmentRow({
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               if (e.key === 'Enter') e.target.blur();
-              if (e.key === 'Escape') { e.target.value = formatTime(seg.start); e.target.blur(); }
+              if (e.key === 'Escape') {
+                e.target.value = formatTime(seg.start);
+                e.target.blur();
+              }
             }}
             onBlur={(e) => {
               const v = parseTime(e.target.value);
@@ -174,17 +232,16 @@ function DubSegmentRow({
           <span className="seg-time-sep">–</span>
           <span className="seg-time-end">{formatTime(seg.end)}</span>
           {seg.speed && seg.speed !== 1.0 && (
-            <span className="seg-speed-badge" style={{ color: seg.speed > 1 ? '#d3869b' : '#8ec07c' }}>
+            <span
+              className="seg-speed-badge"
+              style={{ color: seg.speed > 1 ? '#d3869b' : '#8ec07c' }}
+            >
               {seg.speed.toFixed(2)}x
             </span>
           )}
         </span>
         {fitBadge && (
-          <span
-            className="seg-sync-badge"
-            style={{ color: fitBadge.color }}
-            title={fitBadge.title}
-          >
+          <span className="seg-sync-badge" style={{ color: fitBadge.color }} title={fitBadge.title}>
             <fitBadge.Icon size={8} /> {fitBadge.label}
           </span>
         )}
@@ -202,8 +259,14 @@ function DubSegmentRow({
         {seg.rate_ratio != null && Math.abs(seg.rate_ratio - 1.0) > 0.03 && (
           <span
             className="seg-rate-badge"
-            style={{ color: seg.rate_ratio > 1.15 ? '#fb4934' : seg.rate_ratio < 0.85 ? '#83a598' : '#a89984' }}
-            title={t('segment.rate_title', { ratio: seg.rate_ratio.toFixed(2), error: seg.rate_error || '' })}
+            style={{
+              color:
+                seg.rate_ratio > 1.15 ? '#fb4934' : seg.rate_ratio < 0.85 ? '#83a598' : '#a89984',
+            }}
+            title={t('segment.rate_title', {
+              ratio: seg.rate_ratio.toFixed(2),
+              error: seg.rate_error || '',
+            })}
           >
             📖 {seg.rate_ratio.toFixed(2)}×
           </span>
@@ -218,13 +281,17 @@ function DubSegmentRow({
         disabled={disabled}
         list={speakerOptions.length ? speakerListId : undefined}
         placeholder={speakerOptions.length ? t('segment.speaker_pick') : ''}
-        title={speakerOptions.length
-          ? t('segment.speaker_title_detected')
-          : t('segment.speaker_title_custom')}
+        title={
+          speakerOptions.length
+            ? t('segment.speaker_title_detected')
+            : t('segment.speaker_title_custom')
+        }
       />
       {speakerOptions.length > 0 && (
         <datalist id={speakerListId}>
-          {speakerOptions.map(spk => <option key={spk} value={spk} />)}
+          {speakerOptions.map((spk) => (
+            <option key={spk} value={spk} />
+          ))}
         </datalist>
       )}
 
@@ -237,17 +304,26 @@ function DubSegmentRow({
           onKeyDown={handleTextKeyDown}
           onKeyUp={captureCursor}
           onSelect={captureCursor}
-          onClick={(e) => { e.stopPropagation(); captureCursor(e); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            captureCursor(e);
+          }}
           disabled={disabled}
-          title={seg.translate_error
-            ? t('segment.translate_error_title', { error: seg.translate_error })
-            : overBudget
-              ? t('segment.budget_title', { pct: Math.round((seg.text.length / seg.text_original.length) * 100) })
-              : t('segment.text_title')}
+          title={
+            seg.translate_error
+              ? t('segment.translate_error_title', { error: seg.translate_error })
+              : overBudget
+                ? t('segment.budget_title', {
+                    pct: Math.round((seg.text.length / seg.text_original.length) * 100),
+                  })
+                : t('segment.text_title')
+          }
           style={
-            overBudget ? { borderColor: 'rgba(250,189,47,0.6)', background: 'rgba(250,189,47,0.06)' }
-            : seg.translate_error ? { borderColor: 'rgba(251,73,52,0.5)' }
-            : undefined
+            overBudget
+              ? { borderColor: 'rgba(250,189,47,0.6)', background: 'rgba(250,189,47,0.06)' }
+              : seg.translate_error
+                ? { borderColor: 'rgba(251,73,52,0.5)' }
+                : undefined
           }
         />
         {seg.text_original && seg.text_original !== seg.text && (
@@ -280,8 +356,10 @@ function DubSegmentRow({
         onChange={(e) => onEditField(seg.id, 'target_lang', e.target.value)}
       >
         <option value="">{t('segment.lang_default')}</option>
-        {LANG_CODES.map(lc => (
-          <option key={lc.code} value={lc.code}>{lc.code.toUpperCase()}</option>
+        {LANG_CODES.map((lc) => (
+          <option key={lc.code} value={lc.code}>
+            {lc.code.toUpperCase()}
+          </option>
         ))}
       </select>
 
@@ -294,33 +372,49 @@ function DubSegmentRow({
         <option value="">{t('segment.voice_default')}</option>
         {speakerClones && Object.keys(speakerClones).length > 0 && (
           <optgroup label={t('segment.from_video')}>
-            {Object.keys(speakerClones).map(spk => {
+            {Object.keys(speakerClones).map((spk) => {
               const autoId = `auto:${(spk || '').toLowerCase().replace(/\s+/g, '_')}`;
-              return <option key={autoId} value={autoId}>🎤 {spk}</option>;
+              return (
+                <option key={autoId} value={autoId}>
+                  🎤 {spk}
+                </option>
+              );
             })}
           </optgroup>
         )}
         {profiles.length > 0 && (
           <optgroup label={t('segment.clone_profiles')}>
-            {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
           </optgroup>
         )}
         {PRESETS.length > 0 && (
           <optgroup label={t('segment.design_presets')}>
-            {PRESETS.map(p => <option key={p.id} value={`preset:${p.id}`}>{p.name}</option>)}
+            {PRESETS.map((p) => (
+              <option key={p.id} value={`preset:${p.id}`}>
+                {p.name}
+              </option>
+            ))}
           </optgroup>
         )}
       </select>
 
       <input
         type="range"
-        min="0" max="200"
+        min="0"
+        max="200"
         value={Math.round((seg.gain ?? 1.0) * 100)}
         title={`${Math.round((seg.gain ?? 1.0) * 100)}%`}
         disabled={disabled}
         onChange={(e) => onEditField(seg.id, 'gain', Number(e.target.value) / 100)}
         className="seg-gain-slider"
-        style={{ accentColor: (seg.gain ?? 1.0) > 1.2 ? '#fb4934' : (seg.gain ?? 1.0) < 0.5 ? '#83a598' : '#a89984' }}
+        style={{
+          accentColor:
+            (seg.gain ?? 1.0) > 1.2 ? '#fb4934' : (seg.gain ?? 1.0) < 0.5 ? '#83a598' : '#a89984',
+        }}
       />
 
       <div className="seg-actions">
@@ -376,16 +470,16 @@ function DubSegmentRow({
           <button
             className={`segment-play ${seg.direction ? 'has-direction' : ''}`}
             disabled={disabled}
-            title={seg.direction ? t('segment.direction_title', { dir: seg.direction }) : t('segment.more_actions_title')}
+            title={
+              seg.direction
+                ? t('segment.direction_title', { dir: seg.direction })
+                : t('segment.more_actions_title')
+            }
           >
             {seg.direction ? <Sparkles size={9} /> : <MoreHorizontal size={9} />}
           </button>
         </Menu>
-        <button
-          className="segment-del"
-          disabled={disabled}
-          onClick={() => onDelete(seg.id)}
-        >
+        <button className="segment-del" disabled={disabled} onClick={() => onDelete(seg.id)}>
           <Trash2 size={9} />
         </button>
       </div>
@@ -393,19 +487,21 @@ function DubSegmentRow({
   );
 }
 
-export default memo(DubSegmentRow, (prev, next) => (
-  prev.seg === next.seg &&
-  prev.disabled === next.disabled &&
-  prev.isActive === next.isActive &&
-  prev.isDone === next.isDone &&
-  prev.isPlaying === next.isPlaying &&
-  prev.timelineSelected === next.timelineSelected &&
-  prev.previewLoading === next.previewLoading &&
-  prev.onDirect === next.onDirect &&
-  prev.onSeek === next.onSeek &&
-  prev.selected === next.selected &&
-  prev.canMerge === next.canMerge &&
-  prev.profiles === next.profiles &&
-  prev.speakerClones === next.speakerClones &&
-  prev.idx === next.idx
-));
+export default memo(
+  DubSegmentRow,
+  (prev, next) =>
+    prev.seg === next.seg &&
+    prev.disabled === next.disabled &&
+    prev.isActive === next.isActive &&
+    prev.isDone === next.isDone &&
+    prev.isPlaying === next.isPlaying &&
+    prev.timelineSelected === next.timelineSelected &&
+    prev.previewLoading === next.previewLoading &&
+    prev.onDirect === next.onDirect &&
+    prev.onSeek === next.onSeek &&
+    prev.selected === next.selected &&
+    prev.canMerge === next.canMerge &&
+    prev.profiles === next.profiles &&
+    prev.speakerClones === next.speakerClones &&
+    prev.idx === next.idx,
+);

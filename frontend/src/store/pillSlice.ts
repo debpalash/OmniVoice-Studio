@@ -49,11 +49,15 @@ interface PillState {
 
 export interface PillSlice extends PillState {
   /** Push a new pill state. Resets startedAt automatically. */
-  showPill: (stage: PillStage, label: string, opts?: {
-    progress?: number | null;
-    cancellable?: boolean;
-    homeMode?: string | null;
-  }) => void;
+  showPill: (
+    stage: PillStage,
+    label: string,
+    opts?: {
+      progress?: number | null;
+      cancellable?: boolean;
+      homeMode?: string | null;
+    },
+  ) => void;
   /** Update progress without changing stage */
   setPillProgress: (progress: number | null) => void;
   /** Update label without changing stage */
@@ -80,16 +84,17 @@ const INITIAL: PillState = {
 export const createPillSlice: StateCreator<PillSlice, [], [], PillSlice> = (set) => ({
   ...INITIAL,
 
-  showPill: (stage, label, opts) => set({
-    stage,
-    label,
-    progress: opts?.progress ?? null,
-    startedAt: Date.now(),
-    error: null,
-    visible: true,
-    cancellable: opts?.cancellable ?? false,
-    homeMode: opts?.homeMode ?? null,
-  }),
+  showPill: (stage, label, opts) =>
+    set({
+      stage,
+      label,
+      progress: opts?.progress ?? null,
+      startedAt: Date.now(),
+      error: null,
+      visible: true,
+      cancellable: opts?.cancellable ?? false,
+      homeMode: opts?.homeMode ?? null,
+    }),
 
   setPillProgress: (progress) => set({ progress }),
   setPillLabel: (label) => set({ label }),
@@ -107,16 +112,17 @@ export const createPillSlice: StateCreator<PillSlice, [], [], PillSlice> = (set)
     });
     // Auto-dismiss after 3s
     setTimeout(() => {
-      set((s) => s.stage === 'done' ? INITIAL : s);
+      set((s) => (s.stage === 'done' ? INITIAL : s));
     }, 3000);
   },
 
-  errorPill: (error) => set({
-    stage: 'error',
-    label: 'Error',
-    progress: null,
-    error,
-    cancellable: false,
-    visible: true,
-  }),
+  errorPill: (error) =>
+    set({
+      stage: 'error',
+      label: 'Error',
+      progress: null,
+      error,
+      cancellable: false,
+      visible: true,
+    }),
 });

@@ -1,25 +1,90 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
-import { Globe, Fingerprint, Wand2, Film, FolderOpen, RefreshCw, Settings2, ChevronRight, ChevronDown, Zap, Building2, Library, FileText, Trash2 } from 'lucide-react';
+import {
+  Globe,
+  Fingerprint,
+  Wand2,
+  Film,
+  FolderOpen,
+  RefreshCw,
+  Settings2,
+  ChevronRight,
+  ChevronDown,
+  Zap,
+  Building2,
+  Library,
+  FileText,
+  Trash2,
+} from 'lucide-react';
 import { Button, Badge } from '../ui';
 import NotificationPanel from './NotificationPanel';
 import { useAppStore } from '../store';
 import { useSysinfo } from '../api/hooks';
 
 const VIEW_META = {
-  launchpad:  { labelKey: 'header.label_launchpad',  Icon: Globe,       accent: '#f3a5b6', kickerKey: 'header.kicker_studio' },
-  studio:     { labelKey: 'nav.voice',                Icon: Fingerprint, accent: '#d3869b', kickerKey: 'header.kicker_studio' },
+  launchpad: {
+    labelKey: 'header.label_launchpad',
+    Icon: Globe,
+    accent: '#f3a5b6',
+    kickerKey: 'header.kicker_studio',
+  },
+  studio: {
+    labelKey: 'nav.voice',
+    Icon: Fingerprint,
+    accent: '#d3869b',
+    kickerKey: 'header.kicker_studio',
+  },
   // Legacy ids — kept so a not-yet-shimmed persisted 'clone'/'design' mode
   // still renders a sensible header (voice-studio-unification P4).
-  clone:      { labelKey: 'header.label_clone',       Icon: Fingerprint, accent: '#d3869b', kickerKey: 'header.kicker_studio' },
-  design:     { labelKey: 'header.label_design',      Icon: Wand2,       accent: '#8ec07c', kickerKey: 'header.kicker_studio' },
-  dub:        { labelKey: 'header.label_dub',         Icon: Film,        accent: '#fe8019', kickerKey: 'header.kicker_studio' },
-  projects:   { labelKey: 'header.label_projects',    Icon: FolderOpen,  accent: '#83a598', kickerKey: 'header.kicker_library' },
-  gallery:    { labelKey: 'header.label_gallery',     Icon: Library,     accent: '#b8bb26', kickerKey: 'header.kicker_library' },
-  transcriptions: { labelKey: 'header.label_transcriptions', Icon: FileText, accent: '#d3869b', kickerKey: 'header.kicker_library' },
-  settings:   { labelKey: 'header.label_settings',    Icon: Settings2,   accent: '#fabd2f', kickerKey: 'header.kicker_preferences' },
-  enterprise: { labelKey: 'header.label_enterprise',  Icon: Building2,   accent: '#fe8019', kickerKey: 'header.kicker_licensing' },
+  clone: {
+    labelKey: 'header.label_clone',
+    Icon: Fingerprint,
+    accent: '#d3869b',
+    kickerKey: 'header.kicker_studio',
+  },
+  design: {
+    labelKey: 'header.label_design',
+    Icon: Wand2,
+    accent: '#8ec07c',
+    kickerKey: 'header.kicker_studio',
+  },
+  dub: {
+    labelKey: 'header.label_dub',
+    Icon: Film,
+    accent: '#fe8019',
+    kickerKey: 'header.kicker_studio',
+  },
+  projects: {
+    labelKey: 'header.label_projects',
+    Icon: FolderOpen,
+    accent: '#83a598',
+    kickerKey: 'header.kicker_library',
+  },
+  gallery: {
+    labelKey: 'header.label_gallery',
+    Icon: Library,
+    accent: '#b8bb26',
+    kickerKey: 'header.kicker_library',
+  },
+  transcriptions: {
+    labelKey: 'header.label_transcriptions',
+    Icon: FileText,
+    accent: '#d3869b',
+    kickerKey: 'header.kicker_library',
+  },
+  settings: {
+    labelKey: 'header.label_settings',
+    Icon: Settings2,
+    accent: '#fabd2f',
+    kickerKey: 'header.kicker_preferences',
+  },
+  enterprise: {
+    labelKey: 'header.label_enterprise',
+    Icon: Building2,
+    accent: '#fe8019',
+    kickerKey: 'header.kicker_licensing',
+  },
 };
 
 function WaveBars({ color = '#f3a5b6', active }) {
@@ -44,8 +109,12 @@ function WaveBars({ color = '#f3a5b6', active }) {
 }
 
 export default function Header({
-  mode, setMode, modelStatus, doubleClickMaximize,
-  activeProjectName, onFlushMemory,
+  mode,
+  setMode,
+  modelStatus,
+  doubleClickMaximize,
+  activeProjectName,
+  onFlushMemory,
 }) {
   const { t } = useTranslation();
   // Sysinfo is subscribed here (not in App via useAppData) so the 5s poll
@@ -55,7 +124,7 @@ export default function Header({
   // Default OFF — chrome shouldn't double as a resource monitor. Power users
   // flip this on via Settings → Performance. Idle/Ready/Loading badge +
   // Flush button stay visible regardless (action-relevant).
-  const showLiveStats = useAppStore(s => s.showHeaderLiveStats);
+  const showLiveStats = useAppStore((s) => s.showHeaderLiveStats);
   const [flushing, setFlushing] = useState(false);
   const [flushOpen, setFlushOpen] = useState(false);
   const [loadedModels, setLoadedModels] = useState([]);
@@ -133,20 +202,17 @@ export default function Header({
     try {
       const { apiFetch } = await import('../api/client');
       await apiFetch(`/model/unload/${modelId}`, { method: 'POST' });
-      setLoadedModels(prev => prev.filter(m => m.id !== modelId));
-    } catch {} finally {
+      setLoadedModels((prev) => prev.filter((m) => m.id !== modelId));
+    } catch {
+    } finally {
       setUnloading(null);
     }
   };
   // Dynamic accent color must stay inline — it's driven by the current view.
-  const dotStyle   = { background: view.accent, boxShadow: `0 0 10px ${view.accent}90` };
+  const dotStyle = { background: view.accent, boxShadow: `0 0 10px ${view.accent}90` };
   const labelStyle = { color: view.accent };
   return (
-    <div
-      className="header-area"
-      data-tauri-drag-region
-      onDoubleClick={doubleClickMaximize}
-    >
+    <div className="header-area" data-tauri-drag-region onDoubleClick={doubleClickMaximize}>
       {/* Left: view title + breadcrumb */}
       <div className="hq-col-left">
         <div className="hq-col-left__spacer" />
@@ -161,7 +227,9 @@ export default function Header({
           {activeProjectName ? (
             <>
               <ChevronRight size={10} color="#504945" className="hq-breadcrumb-sep" />
-              <span className="hq-view-project" title={activeProjectName}>{activeProjectName}</span>
+              <span className="hq-view-project" title={activeProjectName}>
+                {activeProjectName}
+              </span>
             </>
           ) : null}
         </div>
@@ -181,7 +249,18 @@ export default function Header({
 
       {/* Center: logo */}
       <div className="hq-col-center">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f3a5b6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="hq-logo-mark">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#f3a5b6"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="hq-logo-mark"
+        >
           <circle cx="12" cy="12" r="10" opacity="0.18" fill="#f3a5b6" />
           <circle cx="12" cy="12" r="10" />
           <path d="M12 6v12" />
@@ -197,26 +276,52 @@ export default function Header({
           LogsFooter bar so all app-wide chrome sits together. */}
       <div className="hq-col-right">
         <NotificationPanel onNavigate={setMode} />
-        <WaveBars color={view.accent} active={modelStatus === 'ready' || modelStatus === 'loading'} />
+        <WaveBars
+          color={view.accent}
+          active={modelStatus === 'ready' || modelStatus === 'loading'}
+        />
         {sysStats && (
           <div className="hq-stats">
             {showLiveStats && (
               <>
-                <span><b className="hq-stats__key">RAM</b> {sysStats.ram.toFixed(1)}/{sysStats.total_ram.toFixed(0)}G</span>
-                <span><b className="hq-stats__key">CPU</b> {sysStats.cpu.toFixed(0)}%</span>
-                <span className="hq-stats__sep" aria-label={`VRAM usage: ${sysStats.vram.toFixed(1)} gigabytes`}>
-                  <b className={`hq-stats__key ${sysStats.gpu_active ? 'hq-stats__key--gpu-active' : ''}`}>VRAM</b> {sysStats.vram.toFixed(1)}G
+                <span>
+                  <b className="hq-stats__key">RAM</b> {sysStats.ram.toFixed(1)}/
+                  {sysStats.total_ram.toFixed(0)}G
+                </span>
+                <span>
+                  <b className="hq-stats__key">CPU</b> {sysStats.cpu.toFixed(0)}%
+                </span>
+                <span
+                  className="hq-stats__sep"
+                  aria-label={`VRAM usage: ${sysStats.vram.toFixed(1)} gigabytes`}
+                >
+                  <b
+                    className={`hq-stats__key ${sysStats.gpu_active ? 'hq-stats__key--gpu-active' : ''}`}
+                  >
+                    VRAM
+                  </b>{' '}
+                  {sysStats.vram.toFixed(1)}G
                 </span>
               </>
             )}
             <span className="hq-stats__status-wrap">
               <Badge
-                tone={modelStatus === 'ready' ? 'success' : modelStatus === 'loading' ? 'warn' : 'neutral'}
+                tone={
+                  modelStatus === 'ready'
+                    ? 'success'
+                    : modelStatus === 'loading'
+                      ? 'warn'
+                      : 'neutral'
+                }
                 size="xs"
                 dot
                 className={`hq-stats__status-badge ${modelStatus === 'loading' ? 'ui-badge--pulse' : ''}`}
               >
-                {modelStatus === 'ready' ? t('header.status_ready') : modelStatus === 'loading' ? t('header.status_loading') : t('header.status_idle')}
+                {modelStatus === 'ready'
+                  ? t('header.status_ready')
+                  : modelStatus === 'loading'
+                    ? t('header.status_loading')
+                    : t('header.status_idle')}
               </Badge>
             </span>
             {onFlushMemory && (
@@ -229,66 +334,75 @@ export default function Header({
                   loading={flushing}
                   leading={!flushing && <Zap size={8} />}
                   trailing={<ChevronDown size={8} />}
-                  onClick={() => setFlushOpen(o => !o)}
+                  onClick={() => setFlushOpen((o) => !o)}
                   className="hq-flush-btn"
                 >
                   {t('header.flush')}
                 </Button>
-                {flushOpen && createPortal(
-                  <div
-                    className="hq-flush-dropdown"
-                    style={{ top: dropdownPos.top, left: dropdownPos.left }}
-                    ref={dropdownRef}
-                  >
-                    <div className="hq-flush-dropdown__header">{t('header.loaded_models')}</div>
-                    {loadedModels.length === 0 ? (
-                      <div className="hq-flush-dropdown__empty">{t('header.no_models')}</div>
-                    ) : (
-                      loadedModels.map(m => (
-                        <div key={m.id} className="hq-flush-dropdown__item">
-                          <div className="hq-flush-dropdown__info">
-                            <span className="hq-flush-dropdown__name">{m.name}</span>
-                            <span className="hq-flush-dropdown__meta">
-                              {m.device} {m.vram_mb > 0 ? `· ${m.vram_mb.toFixed(0)} MB` : ''}
-                            </span>
+                {flushOpen &&
+                  createPortal(
+                    <div
+                      className="hq-flush-dropdown"
+                      style={{ top: dropdownPos.top, left: dropdownPos.left }}
+                      ref={dropdownRef}
+                    >
+                      <div className="hq-flush-dropdown__header">{t('header.loaded_models')}</div>
+                      {loadedModels.length === 0 ? (
+                        <div className="hq-flush-dropdown__empty">{t('header.no_models')}</div>
+                      ) : (
+                        loadedModels.map((m) => (
+                          <div key={m.id} className="hq-flush-dropdown__item">
+                            <div className="hq-flush-dropdown__info">
+                              <span className="hq-flush-dropdown__name">{m.name}</span>
+                              <span className="hq-flush-dropdown__meta">
+                                {m.device} {m.vram_mb > 0 ? `· ${m.vram_mb.toFixed(0)} MB` : ''}
+                              </span>
+                            </div>
+                            {m.unloadable && (
+                              <button
+                                className="hq-flush-dropdown__unload"
+                                onClick={() => unloadModel(m.id)}
+                                disabled={unloading === m.id}
+                                aria-label={`Unload ${m.name}`}
+                              >
+                                {unloading === m.id ? '…' : t('header.unload')}
+                              </button>
+                            )}
                           </div>
-                          {m.unloadable && (
-                            <button
-                              className="hq-flush-dropdown__unload"
-                              onClick={() => unloadModel(m.id)}
-                              disabled={unloading === m.id}
-                              aria-label={`Unload ${m.name}`}
-                            >
-                              {unloading === m.id ? '…' : t('header.unload')}
-                            </button>
-                          )}
-                        </div>
-                      ))
-                    )}
-                    <div className="hq-flush-dropdown__divider" />
-                    <button
-                      className="hq-flush-dropdown__action"
-                      onClick={async () => {
-                        setFlushing(true);
-                        setFlushOpen(false);
-                        try { await onFlushMemory(false); } finally { setFlushing(false); }
-                      }}
-                    >
-                      <Zap size={10} /> {t('header.flush_caches')}
-                    </button>
-                    <button
-                      className="hq-flush-dropdown__action hq-flush-dropdown__action--danger"
-                      onClick={async () => {
-                        setFlushing(true);
-                        setFlushOpen(false);
-                        try { await onFlushMemory(true); } finally { setFlushing(false); }
-                      }}
-                    >
-                      <Trash2 size={10} /> {t('header.unload_all_flush')}
-                    </button>
-                  </div>,
-                  document.body
-                )}
+                        ))
+                      )}
+                      <div className="hq-flush-dropdown__divider" />
+                      <button
+                        className="hq-flush-dropdown__action"
+                        onClick={async () => {
+                          setFlushing(true);
+                          setFlushOpen(false);
+                          try {
+                            await onFlushMemory(false);
+                          } finally {
+                            setFlushing(false);
+                          }
+                        }}
+                      >
+                        <Zap size={10} /> {t('header.flush_caches')}
+                      </button>
+                      <button
+                        className="hq-flush-dropdown__action hq-flush-dropdown__action--danger"
+                        onClick={async () => {
+                          setFlushing(true);
+                          setFlushOpen(false);
+                          try {
+                            await onFlushMemory(true);
+                          } finally {
+                            setFlushing(false);
+                          }
+                        }}
+                      >
+                        <Trash2 size={10} /> {t('header.unload_all_flush')}
+                      </button>
+                    </div>,
+                    document.body,
+                  )}
               </div>
             )}
           </div>

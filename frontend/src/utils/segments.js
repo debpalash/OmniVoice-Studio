@@ -16,9 +16,9 @@ export function segmentGenInputs(s) {
   let profileId = s.profile_id || '';
   let instruct = s.instruct || '';
   if (profileId.startsWith('preset:')) {
-    const pr = PRESETS.find(p => p.id === profileId.replace('preset:', ''));
+    const pr = PRESETS.find((p) => p.id === profileId.replace('preset:', ''));
     if (pr) {
-      const parts = Object.values(pr.attrs).filter(v => v !== 'Auto');
+      const parts = Object.values(pr.attrs).filter((v) => v !== 'Auto');
       if (instruct.trim()) parts.push(instruct.trim());
       instruct = parts.join(', ');
     }
@@ -51,7 +51,7 @@ export function autoProfileId(speakerId) {
  * fill an *empty* profile_id, never clobber an explicit choice.
  */
 export function applySpeakerCloneDefaults(segments, speakerClones) {
-  const clones = (speakerClones && typeof speakerClones === 'object') ? speakerClones : {};
+  const clones = speakerClones && typeof speakerClones === 'object' ? speakerClones : {};
   if (!Array.isArray(segments) || !Object.keys(clones).length) return segments || [];
   return segments.map((s) => {
     if (!s || s.profile_id || !s.speaker_id || !clones[s.speaker_id]) return s;

@@ -28,7 +28,11 @@ describe('scriptToStory', () => {
   });
 
   it('leading [voice:default] / [voice:] → narrator, tag stripped', () => {
-    expect(scriptToStory('[voice:default] hi').tracks[0]).toMatchObject({ text: 'hi', profileId: null, character: 'narrator' });
+    expect(scriptToStory('[voice:default] hi').tracks[0]).toMatchObject({
+      text: 'hi',
+      profileId: null,
+      character: 'narrator',
+    });
     expect(scriptToStory('[voice:] hi').tracks[0]).toMatchObject({ text: 'hi', profileId: null });
   });
 
@@ -48,7 +52,7 @@ describe('scriptToStory', () => {
   it('two ids slugging to the same value get unique cast ids', () => {
     const r = scriptToStory('[voice:p.fox] a\n[voice:p-fox] b', []);
     const ids = r.cast.map((c) => c.id);
-    expect(new Set(ids).size).toBe(ids.length);   // all unique
+    expect(new Set(ids).size).toBe(ids.length); // all unique
   });
 
   it('normalizes CRLF and drops blank lines', () => {
@@ -71,11 +75,18 @@ describe('round-trip render-equivalence', () => {
       { id: 'c_fox', name: 'Fox', color: '#d3869b', profileId: 'p_fox' },
     ];
     const tracks = [
-      { id: 1, character: 'narrator', text: 'Once upon a time.', profileId: null, emotion: null, speed: null },
+      {
+        id: 1,
+        character: 'narrator',
+        text: 'Once upon a time.',
+        profileId: null,
+        emotion: null,
+        speed: null,
+      },
       { id: 2, character: 'c_fox', text: 'Hello!', profileId: null, emotion: null, speed: null },
     ];
     const { script, defaultVoice } = storyToScript(tracks, cast);
-    expect(defaultVoice).toBeNull();  // 1 narrator vs 1 fox tie → earliest = narrator(null)
+    expect(defaultVoice).toBeNull(); // 1 narrator vs 1 fox tie → earliest = narrator(null)
     const round = scriptToStory(script, [{ id: 'p_fox', name: 'Fox' }]);
     expect(round.tracks.map((t) => t.text)).toEqual(['Once upon a time.', 'Hello!']);
     expect(round.tracks[1].profileId).toBe('p_fox');

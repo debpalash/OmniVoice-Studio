@@ -4,14 +4,28 @@
  * stable backend/constants id so labels stay in i18n and only the glyph swaps.
  */
 import {
-  Megaphone, Baby, Wind, PartyPopper, BookOpen, Flame,
-  Smile, Tv, Wand2, Briefcase, Zap,
-  Headphones, Skull, Mic, Moon, Sparkles, UserSquare2,
+  Megaphone,
+  Baby,
+  Wind,
+  PartyPopper,
+  BookOpen,
+  Flame,
+  Smile,
+  Tv,
+  Wand2,
+  Briefcase,
+  Zap,
+  Headphones,
+  Skull,
+  Mic,
+  Moon,
+  Sparkles,
+  UserSquare2,
 } from 'lucide-react';
 
 // PRESETS (utils/constants.js) — quick design starting points.
 export const PRESET_ICONS = {
-  narrator: Megaphone,        // "Authoritative"
+  narrator: Megaphone, // "Authoritative"
   excited_child: Baby,
   anxious_whisper: Wind,
   surprised_woman: PartyPopper,
