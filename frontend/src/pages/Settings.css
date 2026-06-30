@@ -1,37 +1,14 @@
 /* Settings page — page-specific styles layered over the design system.
    Chrome tokens only: every surface here should rhyme with the status bar. */
 
-/* Tighter page chrome — reclaim whitespace around title and section padding. */
-/* Fill the scroll container so short tabs (Appearance/About/Privacy) render as a
-   full-height panel instead of a stunted box floating in a void. min-height:100%
-   is a FLOOR — tall tabs (Models/Logs) grow past it and scroll as before; if the
-   parent height is ever indeterminate it simply no-ops. */
-.settings-page                   {
-  padding: var(--space-5) var(--space-7) var(--space-7);
-  display: flex; flex-direction: column; min-height: 100%; box-sizing: border-box;
-  /* Center the whole settings block (nav rail + content) as a unit so a wide
-     window doesn't leave everything jammed against the left with a dead void on
-     the right. The cap = rail + gap + content measure + the L/R page padding,
-     so the content track lands exactly at --settings-measure. */
-  width: 100%;
-  max-width: calc(var(--settings-rail) + var(--space-5) + var(--settings-measure) + 2 * var(--space-7));
-  margin-inline: auto;
-}
-.settings-page h1                { font-size: var(--text-lg); margin: 0 0 2px; }
-.settings-page .settings-subtitle{ font-size: var(--text-base); margin-bottom: var(--space-5); }
-.settings-tabs-ui                { margin-bottom: var(--space-3); }
-
-.settings-row__mono     { font-family: var(--chrome-font-mono); color: var(--chrome-fg-muted); }
-/* .settings-muted, .settings-prose (base), .settings-log-meta, .settings-log__empty,
-   .settings-link-row, .settings-actions-row, .models-row__progressline are now
-   Tailwind utilities in the settings/* tab components. The .settings-prose strong
-   override stays (descendant selector). .settings-section__head-* are unused in
-   JSX today, so they stay until a consumer needs them. */
+/* The page chrome itself (`.settings-page` layout + centering + the ≥760px
+   [rail | content] grid, and `.settings-content`) now lives as Tailwind on the
+   token bridge directly in Settings.jsx. What remains here is the page-specific
+   styling the shared primitives can't carry: the tab-rail look (which must stay
+   unlayered to win over the shadcn Tabs primitive), the `.settings-prose strong`
+   emphasis (a descendant override still used across tabs), and the Models /
+   Engines / recommendation rules consumed by their sub-components. */
 .settings-prose strong  { color: var(--chrome-fg); font-weight: 600; }
-
-.settings-section__head-row     { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
-.settings-section__head-left    { display: flex; align-items: center; gap: var(--space-4); }
-.settings-section__head-actions { display: flex; gap: var(--space-3); }
 
 /* We're migrating to the ui/ Tabs primitive — keep a thin class so the old
    .settings-tabs gradient-above space stays; the Tabs primitive itself
@@ -53,17 +30,10 @@
   color: var(--chrome-accent);
 }
 
-/* ── Wide (≥760px): vertical rail + content column ──────────────── */
+/* ── Wide (≥760px): vertical rail beside the content column ─────────
+   The page grid that creates the [rail | content] tracks lives as Tailwind on
+   Settings.jsx; this block only turns the tab strip into that left-hand rail. */
 @media (min-width: 760px) {
-  /* minmax(0, 1fr) — NOT 1fr (= minmax(auto,1fr)) — so the content track can
-     shrink below its content's min-size. Without the 0 minimum, a non-shrinking
-     child (a nowrap status pill, a long path) forces the track wider than the
-     viewport and clips at the window edge, which max-width on .settings-content
-     can't claw back. This is the responsive-containment guarantee for EVERY
-     settings page (they all share this grid). */
-  .settings-page { display: grid; grid-template-columns: var(--settings-rail) minmax(0, 1fr); gap: var(--space-5); align-content: start; }
-  .settings-page h1,
-  .settings-page .settings-subtitle { grid-column: 1 / -1; }
   .ui-tabs.settings-tabs-ui {
     flex-direction: column;
     align-items: stretch;
@@ -89,27 +59,9 @@
   .ui-tabs.settings-tabs-ui::-webkit-scrollbar { display: none; }
 }
 
-/* ── Content panel: fills the 1fr column on every page. Owner asked for genuine
-   full-width usage — no narrow reading column, no dead right-hand gutter. A
-   generous max-width keeps lines from sprawling on ultra-wide monitors, with
-   the column left-aligned so it stays flush to the nav rail. The page's own
-   padding (--space-7 sides) plus section padding gives both-side breathing
-   room; per-row rules below keep values/inputs from going flush or overflowing. */
-.settings-content {
-  flex: 1 1 auto;
-  min-width: 0;
-  /* Cap the reading measure so rows don't sprawl edge-to-edge on wide windows
-     (the "too spread out" report). Left-aligned under the nav rail, macOS-style;
-     the extra space falls to the right as plain whitespace, not stretched rows. */
-  max-width: var(--settings-measure);
-  align-self: start;   /* size to content — don't stretch to the taller nav rail */
-  /* Make this the container the rows measure against. The nav rail steals
-     ~180px, so a *viewport* breakpoint misjudges the real content width — a
-     container query lets rows stack on their ACTUAL width instead (#primitives). */
-  container-type: inline-size;
-  container-name: settings;
-}
-.settings-content > :first-child { margin-top: 0; }
+/* The content panel (fills the 1fr track, caps the reading measure, and
+   establishes the `settings` container query that primitives.css's row-stacking
+   depends on) is Tailwind on Settings.jsx now — see the content `<div>` there. */
 
 /* ── Engines tab ─────────────────────────────────────────────── */
 .engines-family            { margin-bottom: var(--space-5); }

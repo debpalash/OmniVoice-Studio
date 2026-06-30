@@ -343,7 +343,12 @@ export default function Settings() {
     );
 
   return (
-    <div className="settings-page">
+    // Page chrome (formerly `.settings-page` in Settings.css/index.css) is now
+    // Tailwind on the token bridge: a centered, scrollable column that becomes a
+    // [rail | content] grid at ≥760px. The rail's internal look + the narrow
+    // horizontal-scroll strip stay in Settings.css (`.settings-tabs-ui`), which
+    // must remain unlayered to override the shared shadcn Tabs primitive.
+    <div className="flex min-h-full w-full max-w-[calc(var(--settings-rail)_+_var(--space-5)_+_var(--settings-measure)_+_2_*_var(--space-7))] mx-auto box-border flex-1 flex-col overflow-y-auto bg-[var(--chrome-bg)] p-[var(--space-5)_var(--space-7)_var(--space-7)] font-sans min-[760px]:grid min-[760px]:[grid-template-columns:var(--settings-rail)_minmax(0,1fr)] min-[760px]:gap-[var(--space-5)] min-[760px]:[align-content:start]">
       <Tabs
         items={TAB_DEFS.map((def) => ({ ...def, label: t(`settings.${def.id}`) }))}
         value={activeTab}
@@ -351,7 +356,10 @@ export default function Settings() {
         className="settings-tabs-ui"
       />
 
-      <div className="settings-content">
+      {/* Content column — fills the 1fr track; establishes the `settings`
+          container so primitives.css's `@container settings` row-stacking still
+          fires on the real content width (the rail steals ~168px). */}
+      <div className="min-w-0 max-w-[var(--settings-measure)] flex-auto self-start [container-type:inline-size] [container-name:settings] [&>*:first-child]:mt-0">
         {activeTab === 'general' && (
           <>
             <GeneralTab />

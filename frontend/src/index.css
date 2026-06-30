@@ -1419,22 +1419,11 @@ div[role="dialog"].audio-trimmer {
   border-radius: 0 !important;
 }
 
-/* ═══ SETTINGS PAGE ═══ */
-.settings-page {
-  flex: 1; display: flex; flex-direction: column; overflow-y: auto;
-  background: var(--chrome-bg);
-  padding: 28px 40px 48px;
-  font-family: var(--font-sans);
-}
-.settings-page h1 {
-  font-family: var(--font-sans);
-  font-weight: 600; font-size: 1.4rem; margin: 0 0 6px;
-  color: var(--chrome-fg); letter-spacing: -0.01em;
-}
-.settings-page .settings-subtitle {
-  color: var(--chrome-fg-muted); font-size: 0.78rem; margin-bottom: 24px;
-}
-/* ═══ Settings — badge, tabs, subtabs migrated to ui/Badge + ui/Tabs + ui/Segmented.
+/* ═══ Settings — page chrome (`.settings-page` layout / padding / scroll / the
+   ≥760px [rail | content] grid + `.settings-content`) is now Tailwind on the
+   token bridge in src/pages/Settings.jsx; the page-specific tab-rail look and
+   the Models / Engines rules that can't migrate stay in src/pages/Settings.css.
+   Badge, tabs, subtabs migrated to ui/Badge + ui/Tabs + ui/Segmented.
    The legacy section/row frames are gone too (P4): .settings-section + h2 and
    .settings-row(.label/.value) were superseded by the st-section primitive
    (components/settings/primitives/SettingsSection.jsx), and .settings-log moved
