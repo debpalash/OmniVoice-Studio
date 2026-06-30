@@ -7,6 +7,13 @@
 
    Usage:
      document.documentElement.setAttribute('data-theme', 'midnight');
+
+   shadcn/ui note: the shadcn semantic tokens (--color-background, -primary,
+   -card, -muted-foreground, -destructive, -ring, …) are bridged in index.css
+   to the OmniVoice --color-* tokens BELOW (e.g. --color-primary → --color-brand).
+   So every [data-theme] block here recolors shadcn components automatically —
+   overriding --color-brand/-bg/-danger/etc. is all that's needed; there is no
+   separate shadcn token block to maintain per theme.
    ──────────────────────────────────────────────────────────────────── */
 
 /* ── Midnight Blue ─────────────────────────────────────────────────── */

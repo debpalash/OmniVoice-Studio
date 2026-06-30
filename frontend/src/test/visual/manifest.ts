@@ -18,6 +18,9 @@ export const COMPONENTS = [
   'Table',
   'Tabs',
   'Input',
+  // shadcn/ui proof components (themed via the OmniVoice token bridge).
+  'ShadcnButton',
+  'ShadcnInput',
   // Provider-wrapped PANEL specs — rendered with a seeded store / i18n /
   // react-query / fetch (see specs.jsx `providers`). Same snapshot loop.
   'AppearancePanel',

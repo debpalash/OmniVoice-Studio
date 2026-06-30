@@ -24,6 +24,10 @@ import Table from '../../ui/Table.jsx';
 import Tabs from '../../ui/Tabs.jsx';
 import SettingRow from '../../components/settings/primitives/SettingRow.jsx';
 import SettingsToggle from '../../components/settings/primitives/SettingsToggle.jsx';
+// shadcn/ui proof components — themed via the OmniVoice token bridge (index.css).
+// Rendered here across all 3 themes to prove the bridge keeps them on-palette.
+import { Button as ShadcnButton } from '../../components/ui/button.tsx';
+import { Input as ShadcnInput } from '../../components/ui/input.tsx';
 // SettingRow / SettingsToggle styling lives in the primitives stylesheet,
 // normally pulled in via the primitives barrel — import it directly here.
 import '../../components/settings/primitives/primitives.css';
@@ -180,6 +184,56 @@ export const SPECS = {
           </Button>
         </Spec>
       </>
+    ),
+  },
+
+  ShadcnButton: {
+    render: () => (
+      <>
+        <Spec label="variants">
+          <ShadcnButton>Default</ShadcnButton>
+          <ShadcnButton variant="secondary">Secondary</ShadcnButton>
+          <ShadcnButton variant="outline">Outline</ShadcnButton>
+          <ShadcnButton variant="ghost">Ghost</ShadcnButton>
+          <ShadcnButton variant="destructive">Destructive</ShadcnButton>
+          <ShadcnButton variant="link">Link</ShadcnButton>
+        </Spec>
+        <Spec label="sizes / icon">
+          <ShadcnButton size="sm">Small</ShadcnButton>
+          <ShadcnButton size="default">Default</ShadcnButton>
+          <ShadcnButton size="lg">Large</ShadcnButton>
+          <ShadcnButton size="icon" aria-label="Sparkles">
+            <Sparkles />
+          </ShadcnButton>
+        </Spec>
+        <Spec label="leading icon / disabled">
+          <ShadcnButton>
+            <Download /> Download
+          </ShadcnButton>
+          <ShadcnButton variant="outline">
+            <Mic /> Record
+          </ShadcnButton>
+          <ShadcnButton disabled>Disabled</ShadcnButton>
+        </Spec>
+      </>
+    ),
+  },
+
+  ShadcnInput: {
+    render: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 300 }}>
+        <Spec label="states">
+          <ShadcnInput placeholder="Default" />
+          <ShadcnInput defaultValue="With value" />
+          <ShadcnInput defaultValue="Disabled" disabled />
+          <ShadcnInput placeholder="Invalid" aria-invalid="true" />
+        </Spec>
+        <Spec label="types">
+          <ShadcnInput type="email" placeholder="you@example.com" />
+          <ShadcnInput type="password" defaultValue="secret" />
+          <ShadcnInput type="file" />
+        </Spec>
+      </div>
     ),
   },
 

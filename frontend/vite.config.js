@@ -16,6 +16,10 @@ export default defineConfig({
   resolve: {
     preserveSymlinks: false,
     alias: {
+      // shadcn/ui convention: `@/…` resolves to `src/…` (mirrored in
+      // tsconfig.json `paths` so the type-checker agrees). Lets shadcn
+      // primitives import `@/lib/utils` and `npx shadcn add` work unmodified.
+      '@': path.resolve(__dirname, 'src'),
       '@tauri-apps/plugin-dialog': path.resolve(
         __dirname,
         'node_modules/@tauri-apps/plugin-dialog/dist-js/index.js',

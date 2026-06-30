@@ -1,6 +1,11 @@
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
+/* tw-animate-css — keyframes + animate-* utilities the shadcn primitives use
+   for enter/exit transitions (Dialog/Dropdown/etc.). Foundation-only for now:
+   Button/Input don't reference it, but it's part of the shadcn v4 baseline so
+   future `npx shadcn add` components render their animations out of the box. */
+@import "tw-animate-css";
 
 /* ── Map design tokens → Tailwind v4 theme ──────────────────────────── */
 @theme {
@@ -46,6 +51,58 @@
   --font-sans:    'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Söhne', 'Helvetica Neue', Arial, sans-serif;
   --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
   --font-serif:   'Source Serif 4 Variable', 'Source Serif 4', 'Söhne Breit', Georgia, serif;
+}
+
+/* ── shadcn/ui semantic token bridge ─────────────────────────────────────
+   Maps shadcn's component token vocabulary onto OmniVoice's EXISTING palette
+   so shadcn primitives (src/components/ui/*) inherit the current look instead
+   of shadcn's default grayscale.
+
+   `@theme inline` emits Tailwind utilities (bg-background, text-foreground,
+   bg-primary, bg-card, text-muted-foreground, border-input, ring-ring,
+   bg-destructive, …) whose values reference the OmniVoice `--color-*` tokens
+   *by name*. Because those tokens are re-declared per theme in ui/themes.css,
+   theme switching recolors every shadcn component automatically — there is no
+   separate per-theme shadcn block to keep in sync.
+
+   Notes:
+   • `bg-accent`/`text-accent` and `border-border` already exist (the base
+     @theme above declares --color-accent and --color-border), so shadcn's
+     `accent` and `border` reuse them unchanged — re-emitting them here would be
+     a self-referential no-op, so they're intentionally omitted.
+   • The --radius-* scale (xs..xl) is left untouched; only the new shadcn
+     `--radius` base is added (→ --radius-lg = 6px). shadcn's rounded-md picks
+     up OmniVoice's existing --radius-md (4px), staying on-palette.
+   • --primary-foreground / --accent-foreground / --destructive-foreground use
+     --color-fg-inverse (dark) — matches the existing Button primary, which
+     paints dark text on the bright brand/accent fill across every theme. */
+:root {
+  --radius: var(--radius-lg);
+}
+@theme inline {
+  --color-background:           var(--color-bg);
+  --color-foreground:           var(--color-fg);
+
+  --color-card:                 var(--color-bg-elev-1);
+  --color-card-foreground:      var(--color-fg);
+  --color-popover:              var(--color-bg-elev-1);
+  --color-popover-foreground:   var(--color-fg);
+
+  --color-primary:              var(--color-brand);
+  --color-primary-foreground:   var(--color-fg-inverse);
+
+  --color-secondary:            var(--color-bg-elev-2);
+  --color-secondary-foreground: var(--color-fg);
+  --color-muted:                var(--color-bg-elev-2);
+  --color-muted-foreground:     var(--color-fg-muted);
+
+  --color-accent-foreground:    var(--color-fg-inverse);
+
+  --color-destructive:          var(--color-danger);
+  --color-destructive-foreground: var(--color-fg-inverse);
+
+  --color-input:                var(--color-border);
+  --color-ring:                 var(--color-brand);
 }
 
 /* Font imports removed — the chrome token system uses only system monospace
