@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Loader, Star, RotateCcw, Grid, List } from 'lucide-react';
-import { Button } from '../../ui';
+import { Button, Select, Segmented } from '../../ui';
 import { useArchetypeCategories, useArchetypes } from '../../api/hooks';
 import { ArchetypeIcon } from '../../utils/archetypeIcons';
 import { titleCase, facetLabel } from './constants';
@@ -114,36 +114,49 @@ export default function ArchetypesZone({
     onToggleFavorite: toggleFavorite,
   });
 
+  const facetGroup =
+    'flex items-center gap-[5px] flex-nowrap min-w-0 overflow-x-auto overflow-y-hidden [scrollbar-width:thin]';
+  const facetToggle =
+    'inline-flex items-center gap-[5px] h-[26px] box-border px-[9px] rounded-[7px] border border-[var(--chrome-border)] bg-[var(--chrome-hover-bg)] text-[var(--chrome-fg-muted)] text-[0.68rem] whitespace-nowrap cursor-pointer hover:text-[var(--chrome-fg)] hover:border-[color:var(--chrome-border-strong)]';
+  const gridClass =
+    viewMode === 'grid'
+      ? 'grid grid-cols-[repeat(auto-fill,minmax(248px,1fr))] gap-[10px]'
+      : 'flex flex-col gap-[6px]';
+
   return (
-    <div className="gallery-content gallery-scroll">
-      <div className="facet-bar">
+    <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
+      <div className="flex flex-row items-center gap-[10px] flex-nowrap shrink-0 pt-[2px] pb-[10px] mb-[8px] border-b border-[var(--chrome-border)]">
         {/* Three filter lanes (categories · facets · toggles), each its own
             horizontally-scrollable portion; the view toggle is pinned right. */}
-        <div className="facet-group facet-group--cats use-case-chips">
-          <button
-            className={`category-chip ${!filters.use_case ? 'selected' : ''}`}
+        <div className={`${facetGroup} flex-[2.4_1_0]`}>
+          <Button
+            variant="chip"
+            active={!filters.use_case}
             onClick={() => setFilter('use_case', null)}
           >
             {t('gallery.all', { defaultValue: 'All' })}
-          </button>
+          </Button>
           {categories.map((c) => (
-            <button
+            <Button
               key={c.id}
-              className={`category-chip ${filters.use_case === c.id ? 'selected' : ''}`}
+              variant="chip"
+              active={filters.use_case === c.id}
+              leading={<ArchetypeIcon name={c.icon} size={13} />}
               onClick={() => setFilter('use_case', filters.use_case === c.id ? null : c.id)}
               title={c.name}
             >
-              <ArchetypeIcon name={c.icon} size={13} />
               {t(`archetypes.use_${c.id}`, { defaultValue: c.name })}
-            </button>
+            </Button>
           ))}
         </div>
 
-        <div className="facet-group facet-group--facets facet-selects">
+        <div
+          className={`${facetGroup} flex-[1.6_1_0] pl-[10px] border-l border-[var(--chrome-border)]`}
+        >
           {['gender', 'age', 'pitch', 'accent', 'lang'].map((dim) => (
-            <select
+            <Select
               key={dim}
-              className="facet-select"
+              size="sm"
               value={filters[dim] ?? ''}
               onChange={(e) => setFilter(dim, e.target.value || null)}
             >
@@ -155,12 +168,14 @@ export default function ArchetypesZone({
                   {facetLabel(opt)}
                 </option>
               ))}
-            </select>
+            </Select>
           ))}
         </div>
 
-        <div className="facet-group facet-group--toggles">
-          <label className="facet-toggle">
+        <div
+          className={`${facetGroup} flex-[1_1_0] pl-[10px] border-l border-[var(--chrome-border)]`}
+        >
+          <label className={facetToggle}>
             <input
               type="checkbox"
               checked={filters.whisper === true}
@@ -168,7 +183,7 @@ export default function ArchetypesZone({
             />
             {t('archetypes.facet_whisper', { defaultValue: 'Whisper' })}
           </label>
-          <label className="facet-toggle">
+          <label className={facetToggle}>
             <input
               type="checkbox"
               checked={favOnly}
@@ -176,33 +191,28 @@ export default function ArchetypesZone({
             />
             <Star size={12} /> {t('gallery.favorites', { defaultValue: 'Favorites' })}
           </label>
-          <button
-            className="facet-reset"
+          <Button
+            variant="ghost"
+            size="sm"
+            leading={<RotateCcw size={12} />}
             onClick={() => {
               resetFilters();
               setFavOnly(false);
             }}
           >
-            <RotateCcw size={12} /> {t('gallery.reset', { defaultValue: 'Reset' })}
-          </button>
+            {t('gallery.reset', { defaultValue: 'Reset' })}
+          </Button>
         </div>
 
-        <div className="view-toggle">
-          <button
-            className={viewMode === 'grid' ? 'active' : ''}
-            onClick={() => setViewMode('grid')}
-            title="Grid"
-          >
-            <Grid size={14} />
-          </button>
-          <button
-            className={viewMode === 'list' ? 'active' : ''}
-            onClick={() => setViewMode('list')}
-            title="List"
-          >
-            <List size={14} />
-          </button>
-        </div>
+        <Segmented
+          size="xs"
+          value={viewMode}
+          onChange={setViewMode}
+          items={[
+            { value: 'grid', label: <Grid size={14} />, title: 'Grid' },
+            { value: 'list', label: <List size={14} />, title: 'List' },
+          ]}
+        />
       </div>
 
       {showFeatured && (
@@ -212,7 +222,7 @@ export default function ArchetypesZone({
               {t('archetypes.featured', { defaultValue: 'Featured' })}
             </div>
           </div>
-          <div className={`archetype-grid ${viewMode}`}>
+          <div className={gridClass}>
             {applyFav(featured).map((a) => (
               <ArchetypeCard key={a.id} {...cardProps(a)} />
             ))}
@@ -230,18 +240,18 @@ export default function ArchetypesZone({
           </div>
         </div>
         {browseQ.isLoading ? (
-          <div className="loading">
+          <div className="flex items-center justify-center p-[24px] text-[var(--text-secondary)]">
             <Loader className="spin" size={18} />
           </div>
         ) : (
           <>
-            <div className={`archetype-grid ${viewMode}`}>
+            <div className={gridClass}>
               {applyFav(browse).map((a) => (
                 <ArchetypeCard key={a.id} {...cardProps(a)} />
               ))}
             </div>
             {applyFav(browse).length === 0 && (
-              <div className="empty">
+              <div className="flex flex-col items-center justify-center px-[16px] py-[32px] text-[var(--text-secondary)] text-center">
                 {t('gallery.no_matches', { defaultValue: 'No voices match these filters.' })}
               </div>
             )}

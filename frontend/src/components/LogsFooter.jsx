@@ -92,35 +92,76 @@ function SeverityIcon({ level, size = 11 }) {
 // fields (uiScale, theme, setUiScale, setTheme) are unchanged; only the
 // rendering moved.
 
-// Count badge base (layout/typography). The severity color variants
-// (--error/--warn) remain in LogsFooter.css.
-const BADGE =
+// ── Tailwind utility-string presets (replacing the old `logs-footer__*` BEM
+// classes). Chrome palette is referenced via `--chrome-*` arbitrary values so
+// the footer keeps its fixed dark-chrome look (same tokens Header uses).
+// Severity colors stay as literal arbitrary values (#fb4934 / #fabd2f /
+// #83a598) — NOT text-danger/text-accent — so the footer chrome stays fixed
+// across themes (the token utilities recolor per [data-theme]).
+
+const ICON_BTN =
+  'flex items-center justify-center w-[var(--chrome-icon-btn)] h-[var(--chrome-icon-btn)] ' +
+  'rounded-[3px] bg-transparent border-0 cursor-pointer transition-all ' +
+  '[color:var(--chrome-fg-muted)] hover:[color:var(--chrome-fg)] hover:[background:var(--chrome-hover-bg)] ' +
+  'disabled:opacity-40 disabled:cursor-not-allowed';
+
+// Report button: same shell but hovers warn-yellow instead of chrome-fg.
+const ICON_BTN_REPORT =
+  'flex items-center justify-center w-[var(--chrome-icon-btn)] h-[var(--chrome-icon-btn)] ' +
+  'rounded-[3px] bg-transparent border-0 cursor-pointer transition-all ' +
+  '[color:var(--chrome-fg-muted)] hover:[color:#fabd2f] hover:[background:var(--chrome-hover-bg)]';
+
+const PILL_BASE =
+  'inline-flex items-center gap-[6px] px-[8px] py-[2px] h-[var(--chrome-pill-h)] rounded-[3px] ' +
+  'bg-transparent border text-[11px] cursor-pointer transition-all [font-family:inherit] ' +
+  'hover:[background:var(--chrome-hover-bg)] hover:[color:var(--chrome-fg)]';
+
+// Count-badge layout/typography (severity bg+color appended per case).
+const BADGE_LAYOUT =
   'inline-flex items-center justify-center min-w-[18px] px-[5px] h-[14px] rounded-[7px] ' +
-  'text-[10px] font-semibold [background:rgba(255,255,255,0.08)] [color:var(--chrome-fg)] ' +
-  '[font-family:var(--chrome-font-mono)]';
+  'text-[10px] font-semibold [font-family:var(--chrome-font-mono)]';
+const BADGE_NEUTRAL = `${BADGE_LAYOUT} [background:rgba(255,255,255,0.08)] [color:var(--chrome-fg)]`;
+const BADGE_ERROR = `${BADGE_LAYOUT} [background:rgba(251,73,52,0.2)] [color:#fb4934]`;
+const BADGE_WARN = `${BADGE_LAYOUT} [background:rgba(250,189,47,0.2)] [color:#fabd2f]`;
+
+const DISCORD_BTN =
+  'flex items-center justify-center w-[var(--chrome-icon-btn)] h-[var(--chrome-icon-btn)] shrink-0 ' +
+  'rounded-[4px] bg-transparent border-0 cursor-pointer [color:#7289da] opacity-60 ' +
+  'transition-[color,opacity,transform] duration-150 hover:opacity-100 hover:[color:#5865F2] hover:scale-110';
+
+const DONATE_BTN =
+  'flex items-center justify-center w-[var(--chrome-icon-btn)] h-[var(--chrome-icon-btn)] shrink-0 ' +
+  'rounded-[4px] bg-transparent border-0 cursor-pointer [color:#d3869b] ml-[4px] ' +
+  'transition-[color,transform] duration-150 hover:[color:var(--chrome-accent)] hover:scale-[1.15] ' +
+  '[animation:heart-glow_2.5s_ease-in-out_infinite] motion-reduce:[animation:none]';
 
 function SourcePill({ source, counts, active, onClick }) {
   const hasErrors = counts.error > 0;
   const hasWarns = counts.warn > 0;
+  // Severity color wins over active wins over muted (matches old cascade).
+  const colorClass = hasErrors
+    ? '[color:#fb4934]'
+    : hasWarns
+      ? '[color:#fabd2f]'
+      : active
+        ? '[color:var(--chrome-accent)]'
+        : '[color:var(--chrome-fg-muted)]';
+  const activeClass = active
+    ? '[background:var(--chrome-accent-bg)] [border-color:var(--chrome-accent-border)]'
+    : 'border-transparent';
   return (
     <button
       type="button"
-      className={[
-        'logs-footer__pill',
-        active ? 'logs-footer__pill--active' : '',
-        hasErrors ? 'logs-footer__pill--error' : hasWarns ? 'logs-footer__pill--warn' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
+      className={`${PILL_BASE} ${activeClass} ${colorClass}`}
       onClick={onClick}
       aria-label={`${source.label} logs${hasErrors ? `, ${counts.error} errors` : hasWarns ? `, ${counts.warn} warnings` : ''}`}
     >
       <span className="font-medium">{source.label}</span>
-      {hasErrors && <span className={`${BADGE} logs-footer__badge--error`}>{counts.error}</span>}
-      {!hasErrors && hasWarns && (
-        <span className={`${BADGE} logs-footer__badge--warn`}>{counts.warn}</span>
+      {hasErrors && <span className={BADGE_ERROR}>{counts.error}</span>}
+      {!hasErrors && hasWarns && <span className={BADGE_WARN}>{counts.warn}</span>}
+      {!hasErrors && !hasWarns && counts.total > 0 && (
+        <span className={BADGE_NEUTRAL}>{counts.total}</span>
       )}
-      {!hasErrors && !hasWarns && counts.total > 0 && <span className={BADGE}>{counts.total}</span>}
     </button>
   );
 }
@@ -398,7 +439,7 @@ export default function LogsFooter() {
               belong in always-visible chrome. */}
           <button
             type="button"
-            className="logs-footer__toggle"
+            className={ICON_BTN}
             onClick={() => setCollapsed((c) => !c)}
             title={collapsed ? t('logs.expand') : t('logs.collapse')}
             aria-label={collapsed ? t('logs.expand_aria') : t('logs.collapse_aria')}
@@ -436,16 +477,16 @@ export default function LogsFooter() {
           {!collapsed && (
             <div className="flex items-center gap-[2px]">
               <button
-                className="logs-footer__icon-btn"
+                className={ICON_BTN}
                 onClick={refreshAll}
                 disabled={loading}
                 title={t('logs.refresh')}
                 aria-label={t('logs.refresh_aria')}
               >
-                <RefreshCw size={12} className={loading ? 'spinner' : ''} />
+                <RefreshCw size={12} className={loading ? 'motion-safe:animate-spin' : ''} />
               </button>
               <button
-                className="logs-footer__icon-btn"
+                className={ICON_BTN}
                 onClick={onCopy}
                 title={t('logs.copy_visible')}
                 aria-label={t('logs.copy_visible_aria')}
@@ -453,7 +494,7 @@ export default function LogsFooter() {
                 <Copy size={12} />
               </button>
               <button
-                className="logs-footer__icon-btn"
+                className={ICON_BTN}
                 onClick={onClear}
                 title={t('logs.clear')}
                 aria-label={t('logs.clear_aria')}
@@ -461,7 +502,7 @@ export default function LogsFooter() {
                 <Trash2 size={12} />
               </button>
               <button
-                className="logs-footer__icon-btn logs-footer__icon-btn--report"
+                className={ICON_BTN_REPORT}
                 onClick={onReportIssue}
                 title={t('logs.report_issue')}
                 aria-label={t('logs.report_issue_aria')}
@@ -469,7 +510,7 @@ export default function LogsFooter() {
                 <Bug size={12} />
               </button>
               <button
-                className="logs-footer__icon-btn"
+                className={ICON_BTN}
                 onClick={() => setCollapsed(true)}
                 title={t('logs.close')}
                 aria-label={t('logs.close_aria')}
@@ -480,7 +521,14 @@ export default function LogsFooter() {
           )}
           <button
             type="button"
-            className={`logs-footer__version ${updateReady ? 'logs-footer__version--update' : ''}`}
+            className={
+              'shrink-0 px-[6px] h-[var(--chrome-icon-btn)] rounded-[4px] bg-transparent border-0 cursor-pointer ' +
+              'text-[11px] [font-variant-numeric:tabular-nums] tracking-[0.02em] transition-[opacity,color] duration-150 ' +
+              'hover:opacity-100 hover:[color:var(--chrome-accent)] hover:underline ' +
+              (updateReady
+                ? 'relative opacity-100 font-semibold [color:var(--chrome-accent)]'
+                : 'opacity-55 [color:var(--chrome-fg)]')
+            }
             onClick={() => useAppStore.getState().openSettingsTab?.('updates')}
             title={
               updateReady
@@ -503,12 +551,17 @@ export default function LogsFooter() {
             }
           >
             v{APP_VERSION}
-            {updateReady && <span className="logs-footer__version-dot" aria-hidden="true" />}
+            {updateReady && (
+              <span
+                className="inline-block w-[6px] h-[6px] ml-[5px] rounded-full align-middle [background:var(--chrome-accent)] [animation:version-dot-pulse_2s_ease-in-out_infinite]"
+                aria-hidden="true"
+              />
+            )}
           </button>
           <NetworkToggle />
           <button
             type="button"
-            className="logs-footer__discord"
+            className={DISCORD_BTN}
             onClick={() => {
               import('../api/external').then((m) =>
                 m.openExternal('https://discord.gg/bzQavDfVV9'),
@@ -523,7 +576,7 @@ export default function LogsFooter() {
           </button>
           <button
             type="button"
-            className="logs-footer__discord"
+            className={DISCORD_BTN}
             onClick={() => useAppStore.getState().setMode?.('contact')}
             title={t('logs.contact', { defaultValue: 'Contact' })}
             aria-label={t('logs.contact_aria', { defaultValue: 'Open the contact page' })}
@@ -532,7 +585,7 @@ export default function LogsFooter() {
           </button>
           <button
             type="button"
-            className="logs-footer__donate"
+            className={DONATE_BTN}
             onClick={() => useAppStore.getState().setMode?.('donate')}
             title={t('logs.support_project')}
             aria-label={t('logs.support_project_aria')}
@@ -543,7 +596,10 @@ export default function LogsFooter() {
       </div>
 
       {!collapsed && active !== 'notifications' && (
-        <div ref={scrollRef} className="logs-footer__body">
+        <div
+          ref={scrollRef}
+          className="logs-footer__body flex-1 min-h-0 overflow-y-auto overflow-x-auto py-[4px] px-[8px] select-text"
+        >
           {current.length === 0 && (
             <div className="p-[12px] [color:var(--chrome-fg-dim)] not-italic text-[11px] text-center">
               {active === 'frontend' ? t('logs.empty_frontend_short') : t('logs.empty_lines')}
@@ -551,15 +607,29 @@ export default function LogsFooter() {
           )}
           {current.map((line, i) => {
             const level = classifyLine(line);
+            const lineBg =
+              level === 'error'
+                ? '[background:rgba(251,73,52,0.06)]'
+                : level === 'warn'
+                  ? '[background:rgba(250,189,47,0.04)]'
+                  : '';
+            const lineColor =
+              level === 'error'
+                ? '[color:#fb4934]'
+                : level === 'warn'
+                  ? '[color:#fabd2f]'
+                  : '[color:#ebdbb2]';
             return (
               <div
                 key={i}
-                className={`flex items-start gap-[6px] px-[2px] py-[1px] rounded-[2px] logs-footer__line--${level}`}
+                className={`flex items-start gap-[6px] px-[2px] py-[1px] rounded-[2px] ${lineBg}`}
               >
                 <span className="pt-[2px] shrink-0">
                   <SeverityIcon level={level} />
                 </span>
-                <pre className="logs-footer__line-text m-0 p-0 [font-family:inherit] text-[11.5px] leading-[1.5] whitespace-pre-wrap [word-break:break-word] [color:#ebdbb2] flex-1">
+                <pre
+                  className={`m-0 p-0 [font-family:inherit] text-[11.5px] leading-[1.5] whitespace-pre-wrap [word-break:break-word] flex-1 ${lineColor}`}
+                >
                   {typeof line === 'string' ? line : JSON.stringify(line)}
                 </pre>
               </div>
@@ -569,50 +639,65 @@ export default function LogsFooter() {
       )}
 
       {!collapsed && active === 'notifications' && (
-        <div className="logs-footer__body flex flex-col gap-[2px] px-[8px] py-[6px]">
+        <div className="logs-footer__body flex flex-col gap-[2px] px-[8px] py-[6px] flex-1 min-h-0 overflow-y-auto select-text">
           {notifications.length === 0 ? (
             <div className="p-[12px] [color:var(--chrome-fg-dim)] not-italic text-[11px] text-center">
               {t('logs.all_clear')}
             </div>
           ) : (
-            notifications.map((notif) => (
-              <div
-                key={notif.id}
-                className={`flex gap-[8px] items-start px-[10px] py-[8px] rounded-md [background:rgba(255,255,255,0.02)] [border:1px_solid_transparent] hover:[background:rgba(255,255,255,0.04)] logs-footer__notif-item--${notif.level} ${notif.action ? 'logs-footer__notif-item--clickable' : ''}`}
-                onClick={() => {
-                  if (!notif.action) return;
-                  // Acting on the crash notice acknowledges it — the backend
-                  // stores the seen crash-log size so it doesn't re-fire
-                  // every session until a NEW crash grows the log.
-                  if (notif.id === 'crash-last-session') {
-                    import('../api/client')
-                      .then(({ apiFetch }) => apiFetch('/system/crash/ack', { method: 'POST' }))
-                      .catch(() => {});
-                  }
-                  if (notif.action.type === 'navigate') {
-                    useAppStore.getState().setMode?.(notif.action.target);
-                    setCollapsed(true);
-                  } else if (notif.action.type === 'link') {
-                    import('../api/external').then((m) => m.openExternal(notif.action.target));
-                  }
-                }}
-                role={notif.action ? 'button' : undefined}
-                tabIndex={notif.action ? 0 : undefined}
-              >
-                <span className="shrink-0 mt-[2px]">
-                  <SeverityIcon level={notif.level} />
-                </span>
-                <div className="logs-footer__notif-content flex flex-col gap-[2px] flex-1 min-w-0">
-                  <strong>{notif.title}</strong>
-                  <span className="text-[11px] text-fg-muted leading-[1.5]">{notif.message}</span>
-                </div>
-                {notif.action && (
-                  <span className="shrink-0 text-[11px] font-semibold text-brand whitespace-nowrap">
-                    {notif.action.label} →
+            notifications.map((notif) => {
+              // Severity border-left (literal colors, fixed across themes) +
+              // 1px transparent on the other sides for layout parity.
+              const sides =
+                '[border-top:1px_solid_transparent] [border-right:1px_solid_transparent] [border-bottom:1px_solid_transparent]';
+              const notifBorder =
+                notif.level === 'error'
+                  ? `[border-left:2px_solid_#fb4934] ${sides}`
+                  : notif.level === 'warn'
+                    ? `[border-left:2px_solid_#fabd2f] ${sides}`
+                    : `[border-left:2px_solid_#83a598] ${sides}`;
+              const notifHover = notif.action
+                ? 'cursor-pointer hover:[background:rgba(255,255,255,0.06)]'
+                : 'hover:[background:rgba(255,255,255,0.04)]';
+              return (
+                <div
+                  key={notif.id}
+                  className={`flex gap-[8px] items-start px-[10px] py-[8px] rounded-md [background:rgba(255,255,255,0.02)] ${notifBorder} ${notifHover}`}
+                  onClick={() => {
+                    if (!notif.action) return;
+                    // Acting on the crash notice acknowledges it — the backend
+                    // stores the seen crash-log size so it doesn't re-fire
+                    // every session until a NEW crash grows the log.
+                    if (notif.id === 'crash-last-session') {
+                      import('../api/client')
+                        .then(({ apiFetch }) => apiFetch('/system/crash/ack', { method: 'POST' }))
+                        .catch(() => {});
+                    }
+                    if (notif.action.type === 'navigate') {
+                      useAppStore.getState().setMode?.(notif.action.target);
+                      setCollapsed(true);
+                    } else if (notif.action.type === 'link') {
+                      import('../api/external').then((m) => m.openExternal(notif.action.target));
+                    }
+                  }}
+                  role={notif.action ? 'button' : undefined}
+                  tabIndex={notif.action ? 0 : undefined}
+                >
+                  <span className="shrink-0 mt-[2px]">
+                    <SeverityIcon level={notif.level} />
                   </span>
-                )}
-              </div>
-            ))
+                  <div className="flex flex-col gap-[2px] flex-1 min-w-0">
+                    <strong className="text-[12px] [color:var(--color-fg)]">{notif.title}</strong>
+                    <span className="text-[11px] text-fg-muted leading-[1.5]">{notif.message}</span>
+                  </div>
+                  {notif.action && (
+                    <span className="shrink-0 text-[11px] font-semibold text-brand whitespace-nowrap">
+                      {notif.action.label} →
+                    </span>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
       )}

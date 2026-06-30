@@ -213,8 +213,13 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
     }
   };
 
+  const voicePlay =
+    'flex items-center justify-center w-[28px] h-[28px] rounded-full border border-[var(--chrome-border)] bg-bg-elev-1 text-[var(--text-primary)] cursor-pointer flex-shrink-0 hover:bg-[var(--accent)] hover:border-[color:var(--accent)] hover:text-white';
+  const actionBtn =
+    'flex items-center justify-center w-[24px] h-[24px] bg-transparent text-[var(--text-secondary)] rounded-[4px] cursor-pointer hover:bg-bg-elev-2 hover:text-[var(--text-primary)]';
+
   return (
-    <div className="gallery-content">
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
       <div className="shrink-0 px-[10px] py-[8px] mb-[8px] bg-bg-elev-2 rounded-[8px] text-[0.72rem] text-[var(--text-secondary)] leading-[1.4]">
         {t('gallery.import_explainer', {
           defaultValue:
@@ -223,8 +228,9 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
       </div>
 
       <div className="shrink-0 flex flex-col gap-[10px]">
-        <div className="search-row flex gap-[6px]">
+        <div className="flex gap-[6px]">
           <Input
+            className="flex-1"
             placeholder={t('gallery.import_placeholder', {
               defaultValue: 'Paste a video/audio URL, or type to search…',
             })}
@@ -288,13 +294,19 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
                 count: results.length,
               })}
             </span>
-            <button className="close-btn" onClick={() => setResults([])}>
+            <button
+              className="bg-none border-none text-[var(--text-secondary)] cursor-pointer p-[2px]"
+              onClick={() => setResults([])}
+            >
               <X size={14} />
             </button>
           </div>
           <div className="overflow-y-auto flex-1">
             {results.map((r, i) => (
-              <div key={i} className="result-row">
+              <div
+                key={i}
+                className="flex justify-between items-center px-[10px] py-[8px] gap-[8px] border-b border-[var(--chrome-border)] last:border-0"
+              >
                 <div className="flex-1 min-w-0 flex flex-col gap-[2px]">
                   <span className="text-[0.75rem] truncate">{r.title}</span>
                   <span className="text-[0.65rem] text-[var(--text-secondary)]">
@@ -320,11 +332,11 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
       </div>
 
       {voicesQ.isLoading ? (
-        <div className="loading">
+        <div className="flex items-center justify-center p-[24px] text-[var(--text-secondary)]">
           <Loader className="spin" size={18} />
         </div>
       ) : voices.length === 0 ? (
-        <div className="empty">
+        <div className="flex flex-col items-center justify-center px-[16px] py-[32px] text-[var(--text-secondary)] text-center">
           {t('gallery.no_imports', {
             defaultValue: 'Nothing imported yet. Paste a URL above to get started.',
           })}
@@ -332,8 +344,11 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
       ) : (
         <div className="flex flex-col gap-[4px] overflow-y-auto flex-1 pr-[4px]">
           {voices.map((v) => (
-            <div key={v.id} className="voice-card">
-              <button className="voice-play" onClick={() => onPlayGallery(v)}>
+            <div
+              key={v.id}
+              className="flex items-center gap-[8px] px-[10px] py-[8px] bg-bg-elev-2 rounded-[8px] transition-colors hover:bg-bg-elev-1"
+            >
+              <button className={voicePlay} onClick={() => onPlayGallery(v)}>
                 {loadingPreviewId === v.id ? (
                   <Loader className="spin" size={16} />
                 ) : playingId === v.id ? (
@@ -350,21 +365,21 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
               </div>
               <div className="flex gap-[3px]">
                 <button
-                  className="action-btn"
+                  className={actionBtn}
                   onClick={() => handleTrimClick(v)}
                   title={t('gallery.trim', { defaultValue: 'Trim' })}
                 >
                   <Scissors size={14} />
                 </button>
                 <button
-                  className="action-btn"
+                  className={actionBtn}
                   onClick={() => handleSaveProfile(v)}
                   title={t('gallery.use_voice', { defaultValue: 'Use voice' })}
                 >
                   <UserPlus size={14} />
                 </button>
                 <button
-                  className="action-btn danger"
+                  className="flex items-center justify-center w-[24px] h-[24px] bg-transparent text-[var(--text-secondary)] rounded-[4px] cursor-pointer hover:bg-[#3d1f1f] hover:text-[#fb4934]"
                   onClick={() => handleDelete(v)}
                   title={t('gallery.delete', { defaultValue: 'Delete' })}
                 >

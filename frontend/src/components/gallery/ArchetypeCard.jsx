@@ -12,7 +12,6 @@ import { facetLabel } from './constants';
 export default function ArchetypeCard({
   a,
   t,
-  viewMode,
   isFavorite,
   isPlaying,
   isLoadingPreview,
@@ -32,11 +31,18 @@ export default function ArchetypeCard({
     ? facetLabel(a.facets.accent)
     : dialect || (a.language === 'Chinese' ? 'Chinese' : null);
 
+  const cardBase =
+    'group relative flex flex-col gap-[10px] p-[13px] rounded-[13px] ' +
+    'bg-[linear-gradient(180deg,rgba(255,255,255,0.038),rgba(255,255,255,0.012))] border ' +
+    'transition-[transform,border-color,box-shadow] duration-150 ' +
+    'hover:-translate-y-[2px] hover:shadow-[0_6px_22px_rgba(0,0,0,0.4)] ' +
+    'motion-reduce:transition-none motion-reduce:hover:translate-y-0';
+  const cardState = isPlaying
+    ? 'border-[color:var(--card-accent)] shadow-[0_0_0_1px_var(--card-accent),0_6px_22px_rgba(0,0,0,0.4)]'
+    : 'border-white/[0.07] hover:border-white/[0.13]';
+
   return (
-    <div
-      className={`archetype-card ${viewMode} ${isPlaying ? 'playing' : ''}`}
-      style={{ '--card-accent': color }}
-    >
+    <div className={`${cardBase} ${cardState}`} style={{ '--card-accent': color }}>
       <div className="flex items-center gap-[10px]">
         <ArchetypeAvatar item={a} />
         <div className="flex-1 min-w-0">
@@ -50,7 +56,9 @@ export default function ArchetypeCard({
           )}
         </div>
         <button
-          className={`fav-btn ${isFavorite ? 'on' : ''}`}
+          className={`flex-shrink-0 flex items-center justify-center w-[26px] h-[26px] rounded-[7px] cursor-pointer transition-colors hover:bg-white/[0.05] ${
+            isFavorite ? 'text-[#fabd2f]' : 'text-[var(--text-secondary)] hover:text-[#fabd2f]'
+          }`}
           onClick={() => onToggleFavorite(a.id)}
           title={t('gallery.favorite', { defaultValue: 'Favorite' })}
         >
@@ -62,13 +70,13 @@ export default function ArchetypeCard({
           same height and the action rows align across the grid. */}
       <div className="flex flex-wrap items-center gap-[5px] min-h-[21px]">
         {accentLabel && (
-          <span className="facet-chip with-flag">
+          <span className="inline-flex items-center gap-[5px] pl-[5px] pr-[8px] py-[2px] rounded-[7px] bg-white/[0.05] text-[var(--text-secondary)] text-[0.64rem] leading-[1.6]">
             <AccentFlag accent={a.facets.accent} lang={a.language} size={14} />
             {accentLabel}
           </span>
         )}
         {a.facets.whisper && (
-          <span className="facet-chip">
+          <span className="inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[7px] bg-white/[0.05] text-[var(--text-secondary)] text-[0.64rem] leading-[1.6]">
             {t('archetypes.facet_whisper', { defaultValue: 'Whisper' })}
           </span>
         )}
@@ -76,7 +84,7 @@ export default function ArchetypeCard({
 
       <div className="flex items-center gap-[6px] mt-auto">
         <button
-          className="preview-btn"
+          className="inline-flex items-center gap-[6px] px-[11px] py-[6px] border border-white/[0.09] bg-white/[0.03] text-[var(--text-primary)] rounded-[8px] text-[0.7rem] cursor-pointer transition-colors hover:border-[color:var(--card-accent)] hover:text-[var(--card-accent)]"
           onClick={() => onPreview(a)}
           title={t('gallery.preview', { defaultValue: 'Preview' })}
         >
@@ -89,11 +97,14 @@ export default function ArchetypeCard({
           )}
           <span>{t('gallery.preview', { defaultValue: 'Preview' })}</span>
         </button>
-        <button className="use-btn" onClick={() => onUse(a)}>
+        <button
+          className="flex-1 inline-flex items-center justify-center gap-[6px] px-[10px] py-[6px] rounded-[8px] border border-[color:color-mix(in_srgb,var(--card-accent)_36%,transparent)] bg-[color-mix(in_srgb,var(--card-accent)_13%,transparent)] text-[var(--card-accent)] text-[0.72rem] font-semibold cursor-pointer transition-colors hover:bg-[var(--card-accent)] hover:border-[color:var(--card-accent)] hover:text-[#1d2021] focus-visible:bg-[var(--card-accent)] focus-visible:border-[color:var(--card-accent)] focus-visible:text-[#1d2021]"
+          onClick={() => onUse(a)}
+        >
           <UserPlus size={14} /> {t('gallery.use_voice', { defaultValue: 'Use voice' })}
         </button>
         <button
-          className="designer-btn"
+          className="inline-flex items-center justify-center w-[30px] h-[30px] flex-shrink-0 border border-white/[0.09] bg-white/[0.03] text-[var(--text-secondary)] rounded-[8px] cursor-pointer opacity-50 transition-[opacity,border-color,color] duration-150 group-hover:opacity-100 focus-visible:opacity-100 hover:text-[var(--card-accent)] hover:border-[color:var(--card-accent)]"
           onClick={() => onDesign(a)}
           title={t('gallery.open_designer', { defaultValue: 'Open in Designer' })}
         >

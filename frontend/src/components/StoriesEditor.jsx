@@ -61,7 +61,21 @@ import { storyToSpans } from '../utils/storyToSpans';
 import { consumeLongformStream } from '../utils/longformStream';
 import { reorder } from '../utils/storyReorder';
 import { effectiveProfile, effectiveSpeed, castMember, nextCastColor } from '../utils/storyCast';
-import './StoriesEditor.css';
+
+// ── Shared class strings (replacing the old stories-* BEM chrome) ─────────
+const ADD_BTN =
+  'inline-flex items-center gap-[4px] bg-transparent border border-border text-fg [font-size:var(--text-xs)] px-[8px] py-[3px] rounded-sm cursor-pointer hover:border-accent hover:text-accent';
+const NAME_INPUT =
+  'bg-bg-elev-2 border border-border rounded-sm text-fg [font-size:var(--text-xs)] px-[8px] py-[4px]';
+const SELECT_CHROME =
+  'bg-bg-elev-2 border border-border rounded-md text-fg [font-size:var(--text-xs)] px-[6px] py-[4px] [font-family:var(--font-sans)] [color-scheme:dark]';
+const DEL_BTN =
+  'bg-transparent text-fg-subtle cursor-pointer w-[22px] h-[22px] flex items-center justify-center rounded-sm hover:enabled:text-danger hover:enabled:bg-white/[0.06] disabled:opacity-35 disabled:cursor-not-allowed';
+const RESET_BTN =
+  'bg-transparent border border-border text-fg-subtle [font-size:var(--text-xs)] px-[8px] py-[2px] rounded-sm cursor-pointer hover:text-fg';
+const SPEED_RANGE = 'w-[120px]';
+const TRACK_BTN =
+  'w-[20px] h-[20px] flex items-center justify-center bg-transparent text-fg-subtle cursor-pointer rounded-sm [transition:color_0.15s,background_0.15s] p-0 hover:bg-white/[0.06]';
 
 // Trigger a browser download for a Blob.
 function download(blob, filename) {
@@ -611,7 +625,7 @@ export default function StoriesEditor({ profiles = [] }) {
       {/* Header / toolbar */}
       <div className="flex items-center justify-between gap-[12px]">
         <div>
-          <h2 className="stories-editor__title">
+          <h2 className="font-serif [font-size:var(--text-xl)] [font-weight:var(--weight-semibold)] text-fg m-0 flex items-center gap-[8px]">
             <BookOpen size={18} /> {t('stories.title')}
           </h2>
           <p className="text-fg-muted [font-size:var(--text-sm)]">{t('stories.subtitle')}</p>
@@ -690,7 +704,7 @@ export default function StoriesEditor({ profiles = [] }) {
               per-line override. */}
           <div className="inline-flex items-center gap-[4px]">
             <label
-              className="stories-editor__speed"
+              className="inline-flex items-center gap-[8px] [font-size:var(--text-xs)] text-fg-subtle"
               title={t('stories.global_speed_hint', {
                 defaultValue: 'Reading speed for all lines without their own speed override',
               })}
@@ -704,14 +718,13 @@ export default function StoriesEditor({ profiles = [] }) {
                 value={globalSpeed}
                 onChange={(e) => setGlobalSpeed(parseFloat(e.target.value))}
                 aria-label={t('stories.global_speed', { defaultValue: 'Global reading speed' })}
+                className={SPEED_RANGE}
               />
-              <span className="stories-editor__speed-val">{globalSpeed.toFixed(2)}×</span>
+              <span className="[font-family:var(--font-mono)] text-fg min-w-[44px]">
+                {globalSpeed.toFixed(2)}×
+              </span>
               {globalSpeed !== 1 && (
-                <button
-                  type="button"
-                  className="stories-track__reset"
-                  onClick={() => setGlobalSpeed(1)}
-                >
+                <button type="button" className={RESET_BTN} onClick={() => setGlobalSpeed(1)}>
                   {t('stories.reset')}
                 </button>
               )}
@@ -735,7 +748,7 @@ export default function StoriesEditor({ profiles = [] }) {
               <Layers size={13} /> {t('stories.stems')}
             </Button>
             <select
-              className="input-base stories-editor__format"
+              className="input-base w-auto [font-size:var(--text-xs)] px-[6px] py-[3px]"
               value={exportFormat}
               onChange={(e) => setExportFormat(e.target.value)}
               aria-label={t('stories.format')}
@@ -762,13 +775,13 @@ export default function StoriesEditor({ profiles = [] }) {
             <span className="[font-size:var(--text-xs)] font-semibold uppercase tracking-[0.06em] text-accent">
               {t('stories.projects')}
             </span>
-            <button type="button" className="stories-cast__add" onClick={newStory}>
+            <button type="button" className={ADD_BTN} onClick={newStory}>
               <Plus size={12} /> {t('stories.newStory')}
             </button>
           </div>
           <div className="flex items-center gap-[8px]">
             <input
-              className="stories-cast__name flex-1"
+              className={`${NAME_INPUT} flex-1`}
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
               placeholder={t('stories.untitled')}
@@ -781,18 +794,18 @@ export default function StoriesEditor({ profiles = [] }) {
           {storyProjects.map((p) => (
             <div
               key={p.id}
-              className={`flex items-center gap-[8px] ${p.id === currentProjectId ? 'stories-proj--current' : ''}`}
+              className={`flex items-center gap-[8px] ${p.id === currentProjectId ? 'bg-[rgba(184,187,38,0.08)] rounded-sm' : ''}`}
             >
               <button
                 type="button"
-                className="stories-proj__open"
+                className="flex-1 inline-flex items-center gap-[6px] bg-transparent text-fg [font-size:var(--text-xs)] text-left cursor-pointer px-[2px] py-[4px] hover:text-accent"
                 onClick={() => openProject(p.id)}
               >
                 <Folder size={12} /> {p.name}
               </button>
               <button
                 type="button"
-                className="stories-cast__del"
+                className={DEL_BTN}
                 onClick={() => deleteProject(p.id)}
                 aria-label={t('stories.deleteProject')}
               >
@@ -819,7 +832,7 @@ export default function StoriesEditor({ profiles = [] }) {
             <span className="[font-size:var(--text-xs)] font-semibold uppercase tracking-[0.06em] text-accent">
               {t('stories.castTitle')}
             </span>
-            <button type="button" className="stories-cast__add" onClick={addCharacter}>
+            <button type="button" className={ADD_BTN} onClick={addCharacter}>
               <Plus size={12} /> {t('stories.addCharacter')}
             </button>
           </div>
@@ -830,13 +843,13 @@ export default function StoriesEditor({ profiles = [] }) {
                 style={{ background: c.color }}
               />
               <input
-                className="stories-cast__name"
+                className={`${NAME_INPUT} flex-[0_0_140px]`}
                 value={c.name}
                 onChange={(e) => upsertCastMember({ ...c, name: e.target.value })}
                 aria-label={t('stories.characterName')}
               />
               <select
-                className="stories-cast__select"
+                className={`${SELECT_CHROME} flex-1`}
                 value={c.profileId || ''}
                 onChange={(e) => setCharacterVoice(c.id, e.target.value || null)}
                 aria-label={`${c.name} ${t('stories.voice')}`}
@@ -850,7 +863,7 @@ export default function StoriesEditor({ profiles = [] }) {
               </select>
               <button
                 type="button"
-                className="stories-cast__del"
+                className={DEL_BTN}
                 onClick={() => deleteCharacter(c.id)}
                 disabled={c.id === 'narrator'}
                 title={
@@ -878,7 +891,7 @@ export default function StoriesEditor({ profiles = [] }) {
           aria-label={t('stories.pasteSplit')}
         >
           <textarea
-            className="stories-editor__split-text"
+            className="w-full min-h-[96px] px-[10px] py-[8px] bg-bg-elev-2 border border-border rounded-sm text-fg [font-family:var(--font-sans)] [font-size:var(--text-sm)] resize-y"
             placeholder={t('stories.splitPlaceholder')}
             value={splitText}
             onChange={(e) => setSplitText(e.target.value)}
@@ -895,7 +908,7 @@ export default function StoriesEditor({ profiles = [] }) {
                 step={10}
                 value={splitMax}
                 onChange={(e) => setSplitMax(parseInt(e.target.value, 10) || 180)}
-                className="stories-editor__split-num"
+                className="w-[64px] px-[6px] py-[4px] bg-bg-elev-2 border border-border rounded-sm text-fg [font-family:var(--font-mono)] [font-size:var(--text-xs)]"
               />
             </label>
             <span className="flex-1 [font-size:var(--text-xs)] text-fg-subtle">
@@ -943,7 +956,7 @@ export default function StoriesEditor({ profiles = [] }) {
           </Button>
         </div>
       ) : (
-        <div className="stories-editor__tracks" role="list">
+        <div className="flex-1 flex flex-col gap-[6px] overflow-y-auto pr-[4px]" role="list">
           {tracks.map((track) => {
             const dragProps = {
               draggable: true,
@@ -974,19 +987,24 @@ export default function StoriesEditor({ profiles = [] }) {
                   key={track.id}
                   role="listitem"
                   className={[
-                    'stories-chapter',
-                    dragOver === track.id ? 'stories-chapter--dragover' : '',
+                    'group flex items-center gap-[8px] mt-[16px] mb-[4px] px-[10px] py-[7px] rounded-md [border-left:3px_solid_var(--color-accent)] bg-bg-elev-2',
+                    dragOver === track.id
+                      ? '[outline:1px_dashed_var(--color-accent)] outline-offset-[2px]'
+                      : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
                   {...dragProps}
                 >
-                  <div className="stories-chapter__grip" aria-hidden="true">
+                  <div
+                    className="flex text-fg-subtle cursor-grab opacity-40 group-hover:opacity-100"
+                    aria-hidden="true"
+                  >
                     <GripVertical size={14} />
                   </div>
-                  <Bookmark size={15} className="stories-chapter__icon" aria-hidden="true" />
+                  <Bookmark size={15} className="flex-none text-accent" aria-hidden="true" />
                   <input
-                    className="stories-chapter__title"
+                    className="flex-1 min-w-0 bg-transparent border-none outline-none [font-family:inherit] [font-size:0.95rem] font-bold [letter-spacing:0.01em] text-fg px-0 py-[2px] placeholder:text-fg-subtle placeholder:font-semibold"
                     value={title}
                     onChange={(e) => updateTrack(track.id, 'text', `# ${e.target.value}`)}
                     placeholder={t('stories.addChapter')}
@@ -994,7 +1012,7 @@ export default function StoriesEditor({ profiles = [] }) {
                   />
                   <button
                     type="button"
-                    className="stories-chapter__del"
+                    className="flex-none flex p-[4px] rounded-[6px] bg-transparent border-none text-fg-subtle cursor-pointer opacity-0 group-hover:opacity-70 hover:opacity-100 hover:text-danger"
                     onClick={(e) => {
                       e.stopPropagation();
                       removeTrack(track.id);
@@ -1016,22 +1034,29 @@ export default function StoriesEditor({ profiles = [] }) {
                 key={track.id}
                 role="listitem"
                 className={[
-                  'stories-track',
-                  activeTrack === track.id ? 'stories-track--active' : '',
-                  track.character === 'narrator' ? 'stories-track--narrator' : '',
-                  dragOver === track.id ? 'stories-track--dragover' : '',
+                  'group grid [grid-template-columns:32px_1fr_160px_100px_44px] gap-[8px] items-center px-[10px] py-[8px] bg-bg-elev-1 border border-border rounded-lg [transition:border-color_0.15s,box-shadow_0.15s] cursor-grab flex-wrap hover:border-border-strong hover:[box-shadow:var(--shadow-sm)]',
+                  activeTrack === track.id
+                    ? 'border-brand [box-shadow:0_0_0_1px_var(--color-brand-glow)]'
+                    : '',
+                  track.character === 'narrator'
+                    ? '[border-left:3px_solid_var(--color-accent)]'
+                    : '',
+                  dragOver === track.id ? '[box-shadow:inset_0_2px_0_0_var(--color-accent)]' : '',
                 ]
                   .filter(Boolean)
                   .join(' ')}
                 onClick={() => setActiveTrack(track.id)}
                 {...dragProps}
               >
-                <div className="stories-track__grip" aria-hidden="true">
+                <div
+                  className="flex items-center justify-center text-fg-subtle cursor-grab active:cursor-grabbing"
+                  aria-hidden="true"
+                >
                   <GripVertical size={14} />
                 </div>
 
                 <textarea
-                  className="stories-track__text"
+                  className="w-full bg-bg-elev-2 border border-transparent rounded-md text-fg [font-family:var(--font-sans)] [font-size:var(--text-sm)] px-[8px] py-[6px] resize-none min-h-[36px] leading-[1.5] [transition:border-color_0.15s] focus:border-brand focus:outline-none"
                   ref={(el) => {
                     if (el) trackTextRefs.current.set(track.id, el);
                     else trackTextRefs.current.delete(track.id);
@@ -1045,11 +1070,11 @@ export default function StoriesEditor({ profiles = [] }) {
 
                 <div className="flex items-center gap-[6px]">
                   <span
-                    className="stories-track__voice-dot w-[10px] h-[10px] rounded-full shrink-0"
+                    className="w-[10px] h-[10px] rounded-full shrink-0"
                     style={{ background: member ? member.color : '#a89984' }}
                   />
                   <select
-                    className="stories-track__voice-select"
+                    className={`${SELECT_CHROME} flex-1`}
                     value={track.character}
                     onChange={(e) => updateTrack(track.id, 'character', e.target.value)}
                     aria-label={t('stories.character')}
@@ -1063,7 +1088,7 @@ export default function StoriesEditor({ profiles = [] }) {
                 </div>
 
                 <select
-                  className="stories-track__character"
+                  className="[font-size:var(--text-xs)] text-fg-muted bg-bg-elev-2 border border-border [border-radius:var(--radius-pill)] px-[8px] py-[2px] text-center max-w-[100px] overflow-hidden text-ellipsis whitespace-nowrap [color-scheme:dark]"
                   value={track.profileId || ''}
                   onChange={(e) => updateTrack(track.id, 'profileId', e.target.value || null)}
                   aria-label={t('stories.voice')}
@@ -1078,7 +1103,11 @@ export default function StoriesEditor({ profiles = [] }) {
                   ))}
                 </select>
 
-                <div className="stories-track__actions">
+                <div
+                  className={`flex gap-[4px] [transition:opacity_0.12s_ease] ${
+                    activeTrack === track.id ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'
+                  }`}
+                >
                   <Menu
                     placement="bottom-end"
                     items={[
@@ -1098,7 +1127,7 @@ export default function StoriesEditor({ profiles = [] }) {
                     ]}
                   >
                     <button
-                      className="stories-track__btn"
+                      className={`${TRACK_BTN} hover:text-fg`}
                       onClick={(e) => e.stopPropagation()}
                       title={t('stories.inlineVoiceHint')}
                       aria-label={t('stories.inlineVoice')}
@@ -1107,7 +1136,7 @@ export default function StoriesEditor({ profiles = [] }) {
                     </button>
                   </Menu>
                   <button
-                    className={`stories-track__btn ${expandedLine === track.id ? 'stories-track__btn--on' : ''}`}
+                    className={`${TRACK_BTN} hover:text-fg ${expandedLine === track.id ? 'text-accent bg-white/[0.06]' : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       setExpandedLine((id) => (id === track.id ? null : track.id));
@@ -1118,7 +1147,7 @@ export default function StoriesEditor({ profiles = [] }) {
                     <SlidersHorizontal size={12} />
                   </button>
                   <button
-                    className="stories-track__btn"
+                    className={`${TRACK_BTN} hover:text-fg`}
                     onClick={(e) => {
                       e.stopPropagation();
                       insertPauseInto(track.id);
@@ -1129,7 +1158,7 @@ export default function StoriesEditor({ profiles = [] }) {
                     <PauseIcon size={12} />
                   </button>
                   <button
-                    className="stories-track__btn"
+                    className={`${TRACK_BTN} hover:text-fg`}
                     onClick={(e) => {
                       e.stopPropagation();
                       previewTrack(track);
@@ -1141,7 +1170,7 @@ export default function StoriesEditor({ profiles = [] }) {
                     {track.generating ? <Mic size={12} className="spinner" /> : <Play size={12} />}
                   </button>
                   <button
-                    className="stories-track__btn stories-track__btn--delete"
+                    className={`${TRACK_BTN} hover:text-danger`}
                     onClick={(e) => {
                       e.stopPropagation();
                       removeTrack(track.id);
@@ -1163,7 +1192,7 @@ export default function StoriesEditor({ profiles = [] }) {
                         <button
                           key={tn.tag}
                           type="button"
-                          className="stories-track__tone"
+                          className="inline-flex items-center gap-[4px] bg-bg-elev-2 border border-border rounded-full text-fg [font-size:var(--text-xs)] px-[9px] py-[3px] cursor-pointer hover:border-accent hover:text-accent"
                           onClick={() => insertTokenInto(track.id, tn.tag)}
                           title={tn.tag}
                         >
@@ -1171,7 +1200,7 @@ export default function StoriesEditor({ profiles = [] }) {
                         </button>
                       ))}
                     </div>
-                    <label className="stories-track__speed">
+                    <label className="inline-flex items-center gap-[8px] [font-size:var(--text-xs)] text-fg-subtle">
                       <span>{t('stories.speed')}</span>
                       <input
                         type="range"
@@ -1181,14 +1210,15 @@ export default function StoriesEditor({ profiles = [] }) {
                         value={track.speed || 1}
                         onChange={(e) => updateTrack(track.id, 'speed', parseFloat(e.target.value))}
                         aria-label={t('stories.speed')}
+                        className={SPEED_RANGE}
                       />
-                      <span className="stories-track__speed-val">
+                      <span className="[font-family:var(--font-mono)] text-fg min-w-[44px]">
                         {(track.speed || 1).toFixed(2)}×
                       </span>
                       {track.speed != null && (
                         <button
                           type="button"
-                          className="stories-track__reset"
+                          className={RESET_BTN}
                           onClick={() => updateTrack(track.id, 'speed', null)}
                         >
                           {t('stories.reset')}

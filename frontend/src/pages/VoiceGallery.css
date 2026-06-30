@@ -1,427 +1,70 @@
-/* .voice-gallery / .gallery-header / .header-top → Tailwind utilities in VoiceGallery.jsx. */
+/* VoiceGallery.css — trimmed to the irreducible bits after the shadcn/Tailwind
+   migration. Everything layout/chrome moved to Tailwind utilities in the gallery
+   JSX. What remains is only what isn't cleanly expressible as utilities OR is
+   rendered by an out-of-scope file:
 
-.header-text h2 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 0;
-  color: var(--text-primary);
-}
-
-/* .gallery-search / .search-row base → Tailwind utilities in ImportsZone.jsx. */
-
-.search-row .input-wrapper {
-  flex: 1;
-}
-
-.categories-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.category-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 26px;
-  box-sizing: border-box;
-  padding: 0 10px;
-  border-radius: var(--chrome-radius-pill, 999px);
-  border: 1px solid var(--chrome-border);
-  background: transparent;
-  color: var(--chrome-fg-muted);
-  font-size: 0.68rem;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.category-chip:hover {
-  border-color: var(--chrome-border-strong);
-  color: var(--chrome-fg);
-}
-
-.category-chip.selected {
-  background: var(--chrome-accent, var(--accent));
-  border-color: var(--chrome-accent, var(--accent));
-  color: #1b1b1b;
-}
-
-/* .search-results-panel / .panel-header → Tailwind utilities in ImportsZone.jsx. */
-
-.close-btn {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 2px;
-}
-
-/* .results-list → Tailwind utilities in ImportsZone.jsx. */
-
-.result-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--chrome-border);
-  gap: 8px;
-}
-
-.result-row:last-child {
-  border: none;
-}
-
-/* .result-info / .result-title / .result-meta → Tailwind utilities in ImportsZone.jsx. */
-
-.gallery-content {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* .content-header / .content-title base → Tailwind utilities in ArchetypesZone.jsx + ImportsZone.jsx. */
-
-.content-title .count {
-  font-weight: 400;
-  color: var(--text-secondary);
-  margin-left: 4px;
-}
-
-.view-toggle {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  height: 26px;
-  box-sizing: border-box;
-  background: var(--chrome-hover-bg);
-  border: 1px solid var(--chrome-border);
-  border-radius: 7px;
-  padding: 2px;
-  flex: 0 0 auto;
-}
-
-.view-toggle button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 100%;
-  border: none;
-  background: transparent;
-  color: var(--chrome-fg-muted);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background var(--dur-fast), color var(--dur-fast);
-}
-
-.view-toggle button:hover { color: var(--chrome-fg); }
-
-.view-toggle button.active {
-  background: var(--chrome-bg);
-  color: var(--chrome-fg);
-}
-
-.loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  color: var(--text-secondary);
-}
+   • .spin — app-wide spinner class. NOTE: this is NOT in index.css (only
+     `@keyframes spin` + `.spinner` are), and it's used beyond the gallery
+     (e.g. src/pages/AudiobookTab.jsx), so it must live here. Do not delete.
+   • .now-playing equalizer (+ @keyframes eq) and the .arch-avatar / flag
+     classes are all rendered by src/utils/archetypeIcons.jsx (out of scope),
+     which ships no CSS of its own — keep them here. */
 
 .spin {
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 32px 16px;
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-.empty svg {
-  opacity: 0.4;
-  margin-bottom: 8px;
-}
-
-.empty p {
-  margin: 2px 0;
-  font-size: 0.8rem;
-}
-
-/* .voice-list base → Tailwind utilities in ImportsZone.jsx (the .grid variant + its
-   descendant overrides below stay in CSS). */
-
-.voice-list.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 8px;
-}
-
-.voice-card {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  background: var(--color-bg-elev-2);
-  border-radius: 8px;
-  transition: background 0.15s ease;
-}
-
-.voice-card:hover {
-  background: var(--color-bg-elev-1);
-}
-
-.voice-play {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1px solid var(--chrome-border);
-  background: var(--color-bg-elev-1);
-  color: var(--text-primary);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.voice-play:hover {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-
-/* .voice-info / .voice-name / .voice-meta / .voice-actions base → Tailwind utilities
-   in ImportsZone.jsx (the .voice-list.grid descendant overrides below stay in CSS). */
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.action-btn:hover {
-  background: var(--color-bg-elev-2);
-  color: var(--text-primary);
-}
-
-.action-btn.danger:hover {
-  background: #3d1f1f;
-  color: #fb4934;
-}
-
-.voice-list.grid .voice-card {
-  flex-direction: column;
-  align-items: stretch;
-  padding: 10px;
-  text-align: center;
-}
-
-.voice-list.grid .voice-play {
-  width: 100%;
-  height: 32px;
-  border-radius: 6px;
-  margin-bottom: 6px;
-}
-
-.voice-list.grid .voice-info {
-  align-items: center;
-}
-
-.voice-list.grid .voice-actions {
-  justify-content: center;
-  margin-top: 6px;
-}
-
-/* ── Voice Gallery: zone toggle + header ──────────────────────────────── */
-/* .gallery-sub → Tailwind utilities in VoiceGallery.jsx. */
-.zone-toggle { display: inline-flex; gap: 2px; background: var(--chrome-hover-bg); border: 1px solid var(--chrome-border); border-radius: 8px; padding: 2px; }
-.zone-tab { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border: none; background: transparent; color: var(--chrome-fg-muted); border-radius: 6px; font-size: 0.75rem; font-weight: 500; cursor: pointer; transition: background var(--dur-fast), color var(--dur-fast); }
-.zone-tab:hover { color: var(--chrome-fg); }
-.zone-tab.active { background: var(--chrome-bg); color: var(--chrome-fg); }
-.gallery-notice { flex-shrink: 0; padding: 7px 10px; background: var(--color-bg-elev-2); border-left: 3px solid var(--accent); border-radius: 6px; font-size: 0.75rem; color: var(--text-primary); }
-
-/* ── Facet filter bar ─────────────────────────────────────────────────── */
-/* One compact line split into three filter lanes — categories · facets ·
-   toggles — each its own horizontally-scrollable portion so a long lane never
-   pushes the others off-screen. The view toggle is pinned at the far right. */
-.facet-bar {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: nowrap;
-  flex-shrink: 0;
-  padding: 2px 0 10px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid var(--chrome-border);
-}
-.facet-group {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: nowrap;
-  min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-}
-.facet-group::-webkit-scrollbar { height: 5px; }
-.facet-group::-webkit-scrollbar-thumb { background: var(--chrome-border-strong); border-radius: 3px; }
-.facet-group::-webkit-scrollbar-track { background: transparent; }
-/* Width portions: categories get the most room, facets medium, toggles least. */
-.facet-group--cats    { flex: 2.4 1 0; }
-.facet-group--facets  { flex: 1.6 1 0; padding-left: 10px; border-left: 1px solid var(--chrome-border); }
-.facet-group--toggles { flex: 1 1 0;   padding-left: 10px; border-left: 1px solid var(--chrome-border); }
-.view-toggle { flex: 0 0 auto; }
-.chip-emoji { font-size: 0.8rem; line-height: 1; }
-/* Uniform height + box model for every control on the single line. */
-.facet-select,
-.facet-toggle,
-.facet-reset {
-  height: 26px;
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0 9px;
-  border-radius: 7px;
-  font-size: 0.68rem;
-  white-space: nowrap;
-  cursor: pointer;
-}
-/* Native <select> falls back to the OS-default (light) control surface when its
-   background resolves to an undefined var, so pin real dark-chrome tokens. */
-.facet-select {
-  border: 1px solid var(--chrome-border);
-  background: var(--chrome-hover-bg);
-  color: var(--chrome-fg);
-  color-scheme: dark;
-}
-/* Belt-and-suspenders: explicit dark option list for WebViews that ignore
-   color-scheme on the popup (cross-platform parity: WebKit / WebView2 / WebKitGTK). */
-.facet-select option { background: var(--chrome-bg); color: var(--chrome-fg); }
-/* Whisper / Favorites read as pill toggles matching the dropdowns. */
-.facet-toggle {
-  border: 1px solid var(--chrome-border);
-  background: var(--chrome-hover-bg);
-  color: var(--chrome-fg-muted);
-}
-.facet-toggle:hover { color: var(--chrome-fg); border-color: var(--chrome-border-strong); }
-.facet-reset {
-  border: 1px solid var(--chrome-border);
-  background: transparent;
-  color: var(--chrome-fg-muted);
-}
-.facet-reset:hover { border-color: var(--chrome-border-strong); color: var(--chrome-fg); }
-/* A small gap separates the view toggle from the filter controls on the line. */
-.facet-selects .view-toggle { margin-left: 2px; }
-
-/* ── Archetype sections + grid ────────────────────────────────────────── */
-.gallery-content.gallery-scroll { overflow-y: auto; }
-/* .archetype-section / .count-badge → Tailwind utilities in ArchetypesZone.jsx + ImportsZone.jsx. */
-.archetype-grid.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); gap: 10px; }
-.archetype-grid.list { display: flex; flex-direction: column; gap: 6px; }
-
-/* Card surface — a real, elevated tile so cards read as cards on the dark bg. */
-.archetype-card {
+/* Color-coded avatar tile + flag badge (archetypeIcons.jsx → ArchetypeAvatar). */
+.arch-avatar {
   position: relative;
+  flex-shrink: 0;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 13px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.012));
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 13px;
-  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 11px;
 }
-.archetype-card:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, 0.13); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.4); }
-.archetype-card.playing { border-color: var(--card-accent, var(--accent)); box-shadow: 0 0 0 1px var(--card-accent, var(--accent)), 0 6px 22px rgba(0, 0, 0, 0.4); }
-
-/* Header: avatar tile + title + favorite */
-/* .arch-head → Tailwind utilities in ArchetypeCard.jsx. */
-.arch-avatar { position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 11px; }
-.arch-avatar-flag { position: absolute; right: -4px; bottom: -4px; display: flex; line-height: 0; border-radius: 3px; overflow: hidden; box-shadow: 0 0 0 2px var(--bg-tertiary, #1d2021); }
-.accent-flag { display: block; border-radius: 2px; }
-.flag-globe { color: var(--text-secondary); }
-/* .arch-title / .archetype-name / .archetype-sub → Tailwind utilities in ArchetypeCard.jsx. */
-
-.fav-btn { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: none; background: transparent; color: var(--text-secondary); border-radius: 7px; cursor: pointer; transition: color 0.15s ease, background 0.15s ease; }
-.fav-btn:hover { color: #fabd2f; background: rgba(255, 255, 255, 0.05); }
-.fav-btn.on { color: #fabd2f; }
-
-/* Facet chips (accent chip carries its flag). Always rendered (even when a
-   voice has no accent/whisper chip) with a reserved min-height so every card
-   shares the same vertical rhythm and the action rows line up across the grid
-   instead of floating at ragged heights. */
-/* .archetype-chips → Tailwind utilities in ArchetypeCard.jsx. */
-.facet-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 7px; background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); font-size: 0.64rem; line-height: 1.6; }
-.facet-chip.with-flag { padding-left: 5px; }
-
-/* Footer actions */
-/* .arch-foot → Tailwind utilities in ArchetypeCard.jsx. */
-.preview-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border: 1px solid rgba(255, 255, 255, 0.09); background: rgba(255, 255, 255, 0.03); color: var(--text-primary); border-radius: 8px; font-size: 0.7rem; cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease; }
-.preview-btn:hover { border-color: var(--card-accent, var(--accent)); color: var(--card-accent, var(--accent)); }
-/* Primary action — tonal by default (a low-alpha wash of the card accent with
-   accent-colored text), going solid only on hover/focus. This keeps the grid
-   calm at rest — the eye lands on the voice names, not a field of saturated
-   color blocks — while the CTA still "lights up" on the card you're pointing
-   at. The per-category hue is preserved as identity, just dialed down. */
-.use-btn {
-  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 6px 10px; border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--card-accent, var(--accent)) 36%, transparent);
-  background: color-mix(in srgb, var(--card-accent, var(--accent)) 13%, transparent);
-  color: var(--card-accent, var(--accent));
-  font-size: 0.72rem; font-weight: 600; cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+.arch-avatar-flag {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: flex;
+  line-height: 0;
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: 0 0 0 2px var(--bg-tertiary, #1d2021);
 }
-.use-btn:hover, .use-btn:focus-visible {
-  background: var(--card-accent, var(--accent));
-  border-color: var(--card-accent, var(--accent));
-  color: #1d2021;
+.accent-flag {
+  display: block;
+  border-radius: 2px;
 }
-/* Designer/open-in-designer is a tertiary action — keep it quiet at rest and
-   reveal it on card hover/focus so it isn't competing on every tile. */
-.designer-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex-shrink: 0; border: 1px solid rgba(255, 255, 255, 0.09); background: rgba(255, 255, 255, 0.03); color: var(--text-secondary); border-radius: 8px; cursor: pointer; opacity: 0.5; transition: opacity 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
-.archetype-card:hover .designer-btn, .designer-btn:focus-visible { opacity: 1; }
-.designer-btn:hover { color: var(--card-accent, var(--accent)); border-color: var(--card-accent, var(--accent)); }
+.flag-globe {
+  color: var(--text-secondary);
+}
 
-/* Animated "now playing" equalizer */
-.now-playing { display: inline-flex; align-items: flex-end; gap: 2px; width: 15px; height: 14px; }
-.now-playing i { width: 2.5px; background: currentcolor; border-radius: 1px; transform-origin: bottom; animation: eq 0.9s ease-in-out infinite; }
+/* Animated "now playing" equalizer (archetypeIcons.jsx → NowPlaying). */
+.now-playing {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 15px;
+  height: 14px;
+}
+.now-playing i {
+  width: 2.5px;
+  background: currentcolor;
+  border-radius: 1px;
+  transform-origin: bottom;
+  animation: eq 0.9s ease-in-out infinite;
+}
 .now-playing i:nth-child(1) { height: 45%; animation-delay: 0s; }
 .now-playing i:nth-child(2) { height: 80%; animation-delay: 0.15s; }
 .now-playing i:nth-child(3) { height: 60%; animation-delay: 0.3s; }
 .now-playing i:nth-child(4) { height: 95%; animation-delay: 0.45s; }
-@keyframes eq { 0%, 100% { transform: scaleY(0.4); } 50% { transform: scaleY(1); } }
-@media (prefers-reduced-motion: reduce) { .now-playing i { animation: none; } .archetype-card { transition: none; } .archetype-card:hover { transform: none; } }
-
-/* Category chips: lucide icon + label */
-.use-case-chips .category-chip svg { flex-shrink: 0; }
-
-/* .load-more / .import-explainer / .community-explainer / .submit-actions
-   → Tailwind utilities in ArchetypesZone.jsx, CommunityZone.jsx + ImportsZone.jsx. */
-.submit-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.03); color: var(--text-primary); border-radius: 8px; font-size: 0.7rem; cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease; }
-.submit-btn:hover { border-color: var(--accent); color: var(--accent); }
+@keyframes eq {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .now-playing i { animation: none; }
+}

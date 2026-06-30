@@ -7,6 +7,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Sparkles, Store, Upload } from 'lucide-react';
+import { Segmented } from '../ui';
 import { archetypePreviewUrl, useArchetypeAsProfile } from '../api/archetypes';
 import { previewVoiceUrl } from '../api/gallery';
 import { useAppStore } from '../store';
@@ -146,42 +147,56 @@ export default function VoiceGallery() {
     }
   };
 
+  const zoneItems = [
+    {
+      value: 'archetypes',
+      label: (
+        <span className="inline-flex items-center gap-[5px]">
+          <Sparkles size={14} /> {t('gallery.zone_archetypes', { defaultValue: 'Archetypes' })}
+        </span>
+      ),
+    },
+    {
+      value: 'community',
+      label: (
+        <span className="inline-flex items-center gap-[5px]">
+          <Store size={14} /> {t('gallery.zone_community', { defaultValue: 'Community' })}
+        </span>
+      ),
+    },
+    {
+      value: 'imports',
+      label: (
+        <span className="inline-flex items-center gap-[5px]">
+          <Upload size={14} /> {t('gallery.zone_imports', { defaultValue: 'My Imports' })}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-[12px] p-[12px] h-full overflow-hidden">
       <div className="shrink-0">
         <div className="flex justify-between items-center">
-          <div className="header-text">
-            <h2>{t('gallery.title', { defaultValue: 'OmniVoice Gallery' })}</h2>
+          <div>
+            <h2 className="text-[1.1rem] font-semibold m-0 text-[var(--text-primary)]">
+              {t('gallery.title', { defaultValue: 'OmniVoice Gallery' })}
+            </h2>
             <p className="mt-[2px] mr-0 mb-0 ml-0 text-[0.72rem] text-[var(--text-secondary)]">
               {t('gallery.subtitle', {
                 defaultValue: 'Hundreds of ready-made designed voices — pick one and go.',
               })}
             </p>
           </div>
-          <div className="zone-toggle">
-            <button
-              className={`zone-tab ${zone === 'archetypes' ? 'active' : ''}`}
-              onClick={() => setZone('archetypes')}
-            >
-              <Sparkles size={14} /> {t('gallery.zone_archetypes', { defaultValue: 'Archetypes' })}
-            </button>
-            <button
-              className={`zone-tab ${zone === 'community' ? 'active' : ''}`}
-              onClick={() => setZone('community')}
-            >
-              <Store size={14} /> {t('gallery.zone_community', { defaultValue: 'Community' })}
-            </button>
-            <button
-              className={`zone-tab ${zone === 'imports' ? 'active' : ''}`}
-              onClick={() => setZone('imports')}
-            >
-              <Upload size={14} /> {t('gallery.zone_imports', { defaultValue: 'My Imports' })}
-            </button>
-          </div>
+          <Segmented items={zoneItems} value={zone} onChange={setZone} />
         </div>
       </div>
 
-      {notice && <div className="gallery-notice">{notice}</div>}
+      {notice && (
+        <div className="shrink-0 px-[10px] py-[7px] bg-bg-elev-2 border-l-[3px] border-l-[color:var(--accent)] rounded-[6px] text-[0.75rem] text-[var(--text-primary)]">
+          {notice}
+        </div>
+      )}
 
       {zone === 'archetypes' ? (
         <ArchetypesZone
