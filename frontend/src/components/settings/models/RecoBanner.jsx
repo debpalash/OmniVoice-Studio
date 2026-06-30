@@ -19,22 +19,24 @@ export default function RecoBanner({
   if (!reco) return null;
   if (reco.all_installed) {
     return (
-      <div className="reco-banner reco-banner--ok">
+      <div className="mb-[var(--space-2)] flex items-center gap-[var(--space-3)] rounded-[var(--chrome-radius-pill)] [border:1px_solid] [border-left-width:2px] [border-color:color-mix(in_srgb,#8ec07c_30%,transparent)] [border-left-color:#8ec07c] bg-[color-mix(in_srgb,#8ec07c_4%,transparent)] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)]">
         <CheckCircle size={12} color="#8ec07c" />
         <span className="flex-1">
           {t('models.reco_installed_for', { device: reco.device.label })}
         </span>
-        <span className="reco-banner__gb">{reco.total_gb} GB</span>
+        <span className="text-[length:var(--text-2xs)] text-[var(--chrome-fg-dim)]">
+          {reco.total_gb} GB
+        </span>
       </div>
     );
   }
   return (
-    <div className="reco-banner reco-banner--pending">
-      <div className="reco-banner__top">
-        <span className="reco-banner__title">
+    <div className="mb-[var(--space-2)] flex flex-col items-stretch gap-[var(--space-2)] rounded-[var(--chrome-radius-pill)] [border:1px_solid] [border-left-width:2px] [border-color:color-mix(in_srgb,#f3a5b6_25%,transparent)] [border-left-color:#f3a5b6] bg-[linear-gradient(135deg,color-mix(in_srgb,#f3a5b6_4%,transparent),color-mix(in_srgb,#d3869b_2%,transparent))] px-[var(--space-4)] pb-[var(--space-4)] pt-[var(--space-3)] text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)] shadow-[0_0_12px_color-mix(in_srgb,#f3a5b6_6%,transparent)]">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[length:var(--text-md)] font-semibold text-[var(--chrome-fg)]">
           {t('models.reco_for', { device: reco.device.label })}
         </span>
-        <div className="reco-banner__btns">
+        <div className="flex flex-shrink-0 gap-1">
           {(() => {
             const requiredMissing = reco.models.filter((m) => m.required && !m.installed);
             const requiredGb = requiredMissing.reduce((s, m) => s + m.size_gb, 0);
@@ -77,15 +79,23 @@ export default function RecoBanner({
           </Button>
         </div>
       </div>
-      <div className="reco-banner__grid">
+      <div className="grid grid-cols-2 gap-x-[var(--space-5)] gap-y-0 text-[length:var(--text-sm)] leading-[1.6]">
         {reco.models.map((m) => (
           <span
             key={m.repo_id}
-            className={`reco-banner__model ${m.installed ? 'reco-banner__model--ok' : ''}`}
+            className={`inline-flex items-center gap-1 overflow-hidden text-ellipsis whitespace-nowrap ${
+              m.installed ? 'text-[var(--chrome-fg)]' : 'text-[var(--chrome-fg-muted)]'
+            }`}
           >
             {m.installed ? '✓' : '○'} {m.label}
-            <span className="reco-banner__model-size">{m.size_gb}</span>
-            {m.required && <span className="reco-banner__req">{t('models.req_tag')}</span>}
+            <span className="font-[family-name:var(--chrome-font-mono)] text-[length:var(--text-2xs)] text-[var(--chrome-fg-dim)]">
+              {m.size_gb}
+            </span>
+            {m.required && (
+              <span className="rounded-[999px] [border:1px_solid_color-mix(in_srgb,#d3869b_30%,transparent)] px-[3px] py-0 text-[length:var(--text-2xs)] uppercase leading-[1.5] tracking-[0.04em] text-[#d3869b]">
+                {t('models.req_tag')}
+              </span>
+            )}
           </span>
         ))}
       </div>

@@ -406,22 +406,26 @@ export default function ModelStoreTab({ info, modelBadge }) {
 
   return (
     <section className={SETTINGS_SECTION_SURFACE} data-slot="settings-section">
-      <div className="models-toolbar">
-        <div className="models-toolbar__stats">
+      <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)] px-[2px] pb-[6px] pt-[2px] font-[family-name:var(--chrome-font-mono)] text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)] max-[580px]:flex-col max-[580px]:items-start">
+        <div className="inline-flex flex-wrap items-center gap-[var(--space-2)]">
           <span>
-            <strong>{fmtBytes(data.total_installed_bytes)}</strong>
+            <strong className="font-semibold text-[var(--chrome-fg)]">
+              {fmtBytes(data.total_installed_bytes)}
+            </strong>
           </span>
-          <span className="models-toolbar__sep">·</span>
-          <span className="models-toolbar__cache" title={data.hf_cache_dir}>
-            <code>{data.hf_cache_dir?.replace(/^\/Users\/[^/]+/, '~')}</code>
+          <span className="text-[var(--chrome-fg-dim)]">·</span>
+          <span title={data.hf_cache_dir}>
+            <code className="font-[family-name:var(--chrome-font-mono)] text-[length:var(--text-xs)] text-[var(--chrome-fg)]">
+              {data.hf_cache_dir?.replace(/^\/Users\/[^/]+/, '~')}
+            </code>
           </span>
-          {info && <span className="models-toolbar__sep">·</span>}
+          {info && <span className="text-[var(--chrome-fg-dim)]">·</span>}
           {info && <span>{modelBadge}</span>}
           {info?.fast_download?.xet_enabled && (
             <>
-              <span className="models-toolbar__sep">·</span>
+              <span className="text-[var(--chrome-fg-dim)]">·</span>
               <span
-                className="models-toolbar__fast"
+                className="text-[var(--chrome-accent)]"
                 title={
                   t('models.fast_download_title', {
                     version: info.fast_download.xet_version || 'Xet',
@@ -434,11 +438,11 @@ export default function ModelStoreTab({ info, modelBadge }) {
             </>
           )}
         </div>
-        <div className="models-toolbar__actions">
+        <div className="inline-flex items-center gap-[var(--space-2)]">
           {/* Compact HF token inline */}
           {!hfTokenSet && !hfExpanded && (
             <button
-              className="models-toolbar__hf-btn"
+              className="inline-flex cursor-pointer items-center gap-1 rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-border)] bg-transparent px-[var(--space-2)] py-[2px] text-[var(--chrome-fg-muted)] hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--chrome-fg)]"
               onClick={() => setHfExpanded(true)}
               title={t('models.hf_set_title')}
             >
@@ -446,10 +450,10 @@ export default function ModelStoreTab({ info, modelBadge }) {
             </button>
           )}
           {!hfTokenSet && hfExpanded && (
-            <div className="models-toolbar__hf-row">
+            <div className="inline-flex items-center gap-[var(--space-2)]">
               <input
                 type="password"
-                className="models-toolbar__hf-input"
+                className="min-w-0 rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-border)] bg-[var(--chrome-input-bg)] px-[var(--space-2)] py-[2px] font-[family-name:var(--chrome-font-mono)] text-[length:var(--text-xs)] text-[var(--chrome-fg)] placeholder:text-[var(--chrome-fg-dim)] focus-visible:border-[var(--chrome-accent)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
                 placeholder="hf_xxxxxxxxxxxx"
                 value={hfToken}
                 onChange={(e) => setHfToken(e.target.value)}
@@ -470,7 +474,7 @@ export default function ModelStoreTab({ info, modelBadge }) {
               </Button>
               <a
                 href="#"
-                className="models-toolbar__hf-link"
+                className="text-[var(--chrome-accent)] no-underline hover:underline"
                 onClick={(e) => {
                   e.preventDefault();
                   openExternal('https://huggingface.co/settings/tokens');
@@ -482,7 +486,7 @@ export default function ModelStoreTab({ info, modelBadge }) {
             </div>
           )}
           {hfTokenSet && (
-            <span className="models-toolbar__hf-ok">
+            <span className="inline-flex items-center gap-1 text-[var(--chrome-severity-ok)]">
               <KeyRound size={10} /> ✓
             </span>
           )}
@@ -507,12 +511,12 @@ export default function ModelStoreTab({ info, modelBadge }) {
         onInstallRecommended={onInstallRecommended}
       />
 
-      <div className="models-controls">
+      <div className="my-[var(--space-2)] flex items-center gap-[var(--space-2)] max-[580px]:flex-col max-[580px]:items-stretch">
         <Segmented
           size="sm"
           value={currentRole}
           onChange={setActiveRole}
-          className="models-roletabs"
+          className="mb-[6px] mt-[4px]"
           items={[
             {
               value: 'all',
@@ -529,7 +533,7 @@ export default function ModelStoreTab({ info, modelBadge }) {
         />
         <SettingsInput
           type="search"
-          className="models-search"
+          className="max-w-none flex-1 text-[length:var(--text-xs)] min-w-[120px]"
           placeholder={t('models.search_placeholder')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}

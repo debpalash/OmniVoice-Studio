@@ -31,8 +31,8 @@ export default function EnginesTab() {
 
   return (
     <section className={SETTINGS_SECTION_SURFACE} data-slot="settings-section">
-      <div className="models-toolbar">
-        <div className="models-toolbar__stats">
+      <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)] px-[2px] pb-[6px] pt-[2px] font-[family-name:var(--chrome-font-mono)] text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)] max-[580px]:flex-col max-[580px]:items-start">
+        <div className="inline-flex flex-wrap items-center gap-[var(--space-2)]">
           <Segmented
             size="xs"
             value={reviewMode}
@@ -42,7 +42,7 @@ export default function EnginesTab() {
               { value: 'off', label: t('engines.review_off') },
             ]}
           />
-          <span className="models-toolbar__sep">·</span>
+          <span className="text-[var(--chrome-fg-dim)]">·</span>
           <span>{reviewMode === 'on' ? t('engines.banners_on') : t('engines.banners_off')}</span>
         </div>
       </div>
