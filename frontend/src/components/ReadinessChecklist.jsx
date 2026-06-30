@@ -111,8 +111,8 @@ export default function ReadinessChecklist({ compact = false, showWhenAllPass = 
   if (isLoading) {
     return (
       <div className="readiness-checklist">
-        <div className="readiness-checklist__title">
-          <span className="readiness-checklist__title-icon">
+        <div className="flex items-center gap-[var(--space-3)] font-semibold [font-size:var(--text-md)] text-fg m-0 mb-[var(--space-2)]">
+          <span className="[font-size:var(--text-lg)]">
             <Search size={14} />
           </span>
           {t('readiness.checking_system')}
@@ -126,7 +126,7 @@ export default function ReadinessChecklist({ compact = false, showWhenAllPass = 
     const issues = checks.filter((c) => c.status !== 'pass');
     if (issues.length === 0) {
       return (
-        <div className="readiness-checklist__all-pass">
+        <div className="flex items-center gap-[var(--space-3)] py-[var(--space-3)] px-[var(--space-4)] bg-[rgba(142,192,124,0.08)] border border-solid border-[rgba(142,192,124,0.15)] rounded-md text-success font-medium [font-size:var(--text-sm)]">
           <CheckCircle size={14} />
           {t('readiness.all_ready')}
         </div>
@@ -134,17 +134,22 @@ export default function ReadinessChecklist({ compact = false, showWhenAllPass = 
     }
     return (
       <div className="readiness-checklist">
-        <ul className="readiness-checklist__list">
+        <ul className="list-none m-0 p-0 flex flex-col gap-[var(--space-2)]">
           {issues.map((check) => (
-            <li key={check.id} className="readiness-checklist__item">
+            <li
+              key={check.id}
+              className="flex items-start gap-[var(--space-3)] py-[var(--space-2)] px-[var(--space-3)] rounded-sm [transition:background_var(--dur-fast)_var(--ease-out)] hover:bg-bg-elev-3"
+            >
               <span
-                className={`readiness-checklist__status readiness-checklist__status--${check.status}`}
+                className={`shrink-0 w-[16px] h-[16px] flex items-center justify-center mt-[1px] readiness-checklist__status readiness-checklist__status--${check.status}`}
               >
                 <StatusIcon status={check.status} />
               </span>
               <div>
-                <div className="readiness-checklist__label">{check.label}</div>
-                {check.fix && <div className="readiness-checklist__fix">{check.fix}</div>}
+                <div className="font-medium text-fg">{check.label}</div>
+                {check.fix && (
+                  <div className="[font-size:var(--text-xs)] text-accent mt-[2px]">{check.fix}</div>
+                )}
               </div>
             </li>
           ))}
@@ -155,25 +160,30 @@ export default function ReadinessChecklist({ compact = false, showWhenAllPass = 
 
   return (
     <div className="readiness-checklist">
-      <div className="readiness-checklist__title">
-        <span className="readiness-checklist__title-icon">
+      <div className="flex items-center gap-[var(--space-3)] font-semibold [font-size:var(--text-md)] text-fg m-0 mb-[var(--space-2)]">
+        <span className="[font-size:var(--text-lg)]">
           {anyFail ? <AlertTriangle size={14} /> : <CheckCircle size={14} />}
         </span>
         {t('readiness.system_readiness')}
       </div>
-      <ul className="readiness-checklist__list">
+      <ul className="list-none m-0 p-0 flex flex-col gap-[var(--space-2)]">
         {checks.map((check) => (
-          <li key={check.id} className="readiness-checklist__item">
+          <li
+            key={check.id}
+            className="flex items-start gap-[var(--space-3)] py-[var(--space-2)] px-[var(--space-3)] rounded-sm [transition:background_var(--dur-fast)_var(--ease-out)] hover:bg-bg-elev-3"
+          >
             <span
-              className={`readiness-checklist__status readiness-checklist__status--${check.status}`}
+              className={`shrink-0 w-[16px] h-[16px] flex items-center justify-center mt-[1px] readiness-checklist__status readiness-checklist__status--${check.status}`}
             >
               <StatusIcon status={check.status} />
             </span>
             <div>
-              <div className="readiness-checklist__label">{check.label}</div>
-              <div className="readiness-checklist__detail">{check.detail}</div>
+              <div className="font-medium text-fg">{check.label}</div>
+              <div className="[font-size:var(--text-xs)] text-fg-muted mt-[1px]">
+                {check.detail}
+              </div>
               {check.fix && (
-                <div className="readiness-checklist__fix">
+                <div className="[font-size:var(--text-xs)] text-accent mt-[2px]">
                   <Lightbulb size={12} /> {check.fix}
                 </div>
               )}

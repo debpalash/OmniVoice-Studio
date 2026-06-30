@@ -93,15 +93,15 @@ export default function WorkspaceHistory({
   // ── Dub variant: a flat list of dub jobs, no clone/design filter. ──
   if (variant === 'dub') {
     return (
-      <aside className="wh">
-        <div className="wh__head">
-          <span className="wh__title">
+      <aside className="flex-[1_1_0] flex flex-col min-h-0 overflow-hidden border-t border-solid border-t-[var(--chrome-border-strong,var(--chrome-border))]">
+        <div className="flex-[0_0_auto] flex flex-col gap-[8px] py-[10px] px-[12px] border-b border-solid border-b-[var(--chrome-border)]">
+          <span className="inline-flex items-center gap-[6px] [font-family:var(--chrome-font-mono,var(--font-mono))] text-[0.72rem] font-semibold [letter-spacing:0.04em] uppercase text-[color:var(--chrome-fg-muted)]">
             <History size={13} /> {t('history.dub_title', { defaultValue: 'Dub history' })}
           </span>
         </div>
-        <div className="wh__scroll">
+        <div className="flex-[1_1_auto] min-h-0 overflow-y-auto flex flex-col gap-[8px] p-[8px]">
           {dubHistory.length === 0 ? (
-            <div className="wh__empty">
+            <div className="text-[color:var(--chrome-fg-dim)] text-[0.72rem] [line-height:1.5] text-center py-[32px] px-[16px]">
               {t('history.empty_dub', { defaultValue: 'Your dubs will appear here.' })}
             </div>
           ) : (
@@ -160,12 +160,16 @@ export default function WorkspaceHistory({
         <span className="wh__title">
           <History size={13} /> {t('history.title', { defaultValue: 'History' })}
         </span>
-        <div className="wh__filters">
+        <div className="flex flex-wrap gap-[4px]">
           {FILTERS.map((f) => (
             <button
               key={f.id}
               type="button"
-              className={`wh__chip ${filter === f.id ? 'is-active' : ''}`}
+              className={`flex-[0_0_auto] py-[2px] px-[10px] text-[0.68rem] font-medium border border-solid rounded-[var(--chrome-radius-pill,999px)] cursor-pointer [transition:background_0.15s_ease,color_0.15s_ease,border-color_0.15s_ease] ${
+                filter === f.id
+                  ? 'text-[color:var(--color-brand,#d3869b)] bg-[color-mix(in_srgb,var(--color-brand,#d3869b)_12%,transparent)] border-[color-mix(in_srgb,var(--color-brand,#d3869b)_35%,transparent)]'
+                  : 'bg-transparent text-[color:var(--chrome-fg-muted)] border-[var(--chrome-border-strong)] hover:bg-[var(--chrome-hover-bg)] hover:text-[color:var(--chrome-fg)]'
+              }`}
               onClick={() => setFilter(f.id)}
             >
               {t(`history.filter_${f.id}`, { defaultValue: f.label })}

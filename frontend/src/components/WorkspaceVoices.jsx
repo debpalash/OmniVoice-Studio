@@ -70,14 +70,16 @@ export default function WorkspaceVoices({
   return (
     <section className={`wv ${items.length === 0 ? 'wv--collapsed' : ''}`}>
       {/* ── ACTIVE VOICE ─────────────────────────────────────────────── */}
-      <div className="wv__active">
-        <div className="wv__active-kicker">
+      <div className="flex-[0_0_auto] py-[10px] px-[12px] border-b border-solid border-b-[var(--chrome-border)]">
+        <div className="[font-family:var(--chrome-font-mono,var(--font-mono))] text-[0.62rem] uppercase [letter-spacing:0.06em] text-[color:var(--chrome-fg-muted,#a89984)] mb-[6px]">
           {t('voices.active', { defaultValue: 'Active voice' })}
         </div>
         {active ? (
-          <div className="wv__active-card">
-            <div className="wv__active-row">
-              <span className="wv__active-name">{active.name}</span>
+          <div className="flex flex-col gap-[6px] py-[8px] px-[10px] border border-solid border-[var(--chrome-accent-border,rgba(211,134,155,0.35))] bg-[var(--chrome-accent-bg,rgba(211,134,155,0.08))] rounded-[10px]">
+            <div className="flex items-center gap-[8px] justify-between">
+              <span className="text-[0.8rem] font-semibold text-[color:var(--chrome-fg)] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                {active.name}
+              </span>
               <span
                 className="history-kind"
                 style={{
@@ -88,7 +90,7 @@ export default function WorkspaceVoices({
                 {active.instruct ? t('sidebar.design_label') : t('sidebar.clone_label')}
               </span>
             </div>
-            <div className="wv__active-recipe">
+            <div className="text-[0.68rem] text-[color:var(--chrome-fg-muted)] whitespace-nowrap overflow-hidden text-ellipsis">
               {active.instruct ||
                 t('voices.active_clone_recipe', {
                   defaultValue: 'Cloned from your reference clip',
@@ -102,7 +104,7 @@ export default function WorkspaceVoices({
                 compact
               />
             ) : null}
-            <div className="wv__active-actions">
+            <div className="flex gap-[6px]">
               <button
                 type="button"
                 className="history-action-btn"
@@ -113,7 +115,7 @@ export default function WorkspaceVoices({
             </div>
           </div>
         ) : (
-          <div className="wv__active-empty">
+          <div className="text-[0.7rem] [line-height:1.5] text-[color:var(--chrome-fg-muted)] py-[8px] px-[10px] border border-dashed border-[var(--chrome-border)] rounded-[10px]">
             {t('voices.none_selected', {
               defaultValue: 'No voice selected — describe one, drop audio, or pick below.',
             })}
@@ -143,7 +145,7 @@ export default function WorkspaceVoices({
             {/* Empty states carry verbs (10x §2). */}
             <button
               type="button"
-              className="wv__empty-cta"
+              className="block mt-[8px] mx-auto py-[4px] px-[10px] text-[0.66rem] text-[color:var(--chrome-fg-muted)] bg-transparent border border-dashed border-[var(--chrome-border)] rounded-[var(--chrome-radius-pill,999px)] cursor-default"
               onClick={() => setDefineMethod(defineMethod === 'audio' ? 'audio' : 'design')}
             >
               {defineMethod === 'audio'

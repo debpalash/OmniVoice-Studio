@@ -98,55 +98,14 @@
 }
 
 /* ── Content area ───────────────────────────────────────────────────── */
-
-.floating-pill__content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.floating-pill__label {
-  font-weight: var(--weight-medium);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.floating-pill__meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  font-size: var(--text-xs);
-  color: var(--color-fg-muted);
-}
-
-.floating-pill__timer {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  color: var(--color-fg-subtle);
-  letter-spacing: 0.03em;
-}
-
-.floating-pill__error {
-  font-size: var(--text-xs);
-  color: var(--color-danger);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+/* .floating-pill__content / __label / __meta / __timer / __error layout
+   moved to Tailwind utilities on the JSX. The base __label rule lives there
+   too; the unlayered `.floating-pill--done .floating-pill__label` override
+   below still wins (utilities are low-priority @layer). */
 
 /* ── Mini progress bar ──────────────────────────────────────────────── */
-
-.floating-pill__progress {
-  width: 100%;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--color-bg-elev-2);
-  overflow: hidden;
-  margin-top: 2px;
-}
+/* .floating-pill__progress (track) moved to Tailwind utilities on the JSX.
+   The fill (base + indeterminate) stays here — it has !important + animation. */
 
 .floating-pill__progress-fill {
   height: 100%;
@@ -166,27 +125,7 @@
 }
 
 /* ── Dismiss button ─────────────────────────────────────────────────── */
-
-.floating-pill__dismiss {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: var(--color-fg-subtle);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background var(--dur-fast) var(--ease-out),
-              color var(--dur-fast) var(--ease-out);
-}
-
-.floating-pill__dismiss:hover {
-  background: rgba(255,255,255,0.08);
-  color: var(--color-fg);
-}
+/* .floating-pill__dismiss + :hover moved to Tailwind utilities on the JSX. */
 
 /* ── Done stage — green tint ────────────────────────────────────────── */
 

@@ -703,7 +703,7 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
       }
     >
       <div ref={containerRef} tabIndex={-1} className="audio-trimmer">
-        <div className="audio-trimmer__meta">
+        <div className="flex gap-[var(--space-6)] items-center [font-size:var(--text-base)] text-fg-muted">
           <span>
             {decoding
               ? t('trimmer.decoding')
@@ -711,13 +711,15 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
                 ? `${t('trimmer.meta_length', { duration: fmtHMS(audioMeta.duration), sampleRate: audioMeta.sampleRate })}${peakProgress > 0 && peakProgress < 1 ? ` · ${t('trimmer.meta_rendering', { percent: Math.round(peakProgress * 100) })}` : ''}`
                 : '…'}
           </span>
-          <span className="audio-trimmer__hint">{t('trimmer.keyboard_hint')}</span>
+          <span className="ml-auto text-fg-subtle [font-size:var(--text-2xs)]">
+            {t('trimmer.keyboard_hint')}
+          </span>
         </div>
 
-        {error && <div className="audio-trimmer__error">{error}</div>}
+        {error && <div className="text-danger [font-size:var(--text-md)]">{error}</div>}
 
         {/* Zoom controls */}
-        <div className="audio-trimmer__toolbar">
+        <div className="flex gap-[var(--space-2)] items-center">
           <Button
             variant="subtle"
             iconSize="md"
@@ -754,7 +756,7 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
           >
             {t('trimmer.fit_sel_btn')}
           </Button>
-          <div className="audio-trimmer__view-info">
+          <div className="ml-auto [font-size:var(--text-sm)] text-fg-subtle tabular-nums">
             {t('trimmer.view_range', {
               start: fmtHMS(viewStart),
               end: fmtHMS(viewEnd),
@@ -764,15 +766,24 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
         </div>
 
         {/* Ruler */}
-        <canvas ref={rulerRef} className="audio-trimmer__ruler" />
+        <canvas
+          ref={rulerRef}
+          className="w-full h-[18px] bg-[#141414] rounded-md border-b border-solid border-b-[rgba(255,255,255,0.05)]"
+        />
 
         {/* Waveform */}
-        <canvas ref={waveRef} onMouseDown={onCanvasDown} className="audio-trimmer__wave" />
+        <canvas
+          ref={waveRef}
+          onMouseDown={onCanvasDown}
+          className="w-full h-[160px] bg-[#0f1112] rounded-lg border border-solid border-[rgba(255,255,255,0.05)] cursor-crosshair touch-none"
+        />
 
         {/* Numeric fields */}
-        <div className="audio-trimmer__fields">
-          <label className="trim-field">
-            <span className="trim-field__label">{t('trimmer.start_label')}</span>
+        <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-[var(--space-4)] items-center">
+          <label className="flex items-center gap-[var(--space-2)] bg-[#0f1112] border border-solid border-border rounded-md px-[6px] py-[2px]">
+            <span className="[font-size:var(--text-xs)] text-fg-subtle uppercase [letter-spacing:0.05em] font-semibold">
+              {t('trimmer.start_label')}
+            </span>
             <input
               type="text"
               inputMode="decimal"
@@ -785,12 +796,16 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
                   commitStartInput();
                 }
               }}
-              className="trim-field__input"
+              className="bg-transparent border-0 outline-none text-fg [font-size:var(--text-md)] px-[6px] py-[4px] w-full min-w-[60px] font-mono"
             />
-            <span className="trim-field__unit">{t('trimmer.unit_seconds')}</span>
+            <span className="[font-size:var(--text-xs)] text-fg-subtle">
+              {t('trimmer.unit_seconds')}
+            </span>
           </label>
-          <label className="trim-field">
-            <span className="trim-field__label">{t('trimmer.end_label')}</span>
+          <label className="flex items-center gap-[var(--space-2)] bg-[#0f1112] border border-solid border-border rounded-md px-[6px] py-[2px]">
+            <span className="[font-size:var(--text-xs)] text-fg-subtle uppercase [letter-spacing:0.05em] font-semibold">
+              {t('trimmer.end_label')}
+            </span>
             <input
               type="text"
               inputMode="decimal"
@@ -803,17 +818,23 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
                   commitEndInput();
                 }
               }}
-              className="trim-field__input"
+              className="bg-transparent border-0 outline-none text-fg [font-size:var(--text-md)] px-[6px] py-[4px] w-full min-w-[60px] font-mono"
             />
-            <span className="trim-field__unit">{t('trimmer.unit_seconds')}</span>
+            <span className="[font-size:var(--text-xs)] text-fg-subtle">
+              {t('trimmer.unit_seconds')}
+            </span>
           </label>
-          <div className="trim-field trim-field--readonly">
-            <span className="trim-field__label">{t('trimmer.length_label')}</span>
-            <span className={`trim-field__value ${tooLong ? 'is-err' : ''}`}>
+          <div className="flex items-center gap-[var(--space-2)] bg-[#0f1112] border border-solid border-border rounded-md px-[6px] py-[2px] cursor-default">
+            <span className="[font-size:var(--text-xs)] text-fg-subtle uppercase [letter-spacing:0.05em] font-semibold">
+              {t('trimmer.length_label')}
+            </span>
+            <span
+              className={`px-[6px] py-[4px] font-mono [font-size:var(--text-md)] flex-1 ${tooLong ? 'text-danger' : 'text-[#b8bb26]'}`}
+            >
               {(duration_ms / 1000).toFixed(2)}
               {t('trimmer.unit_seconds')}
             </span>
-            <span className="trim-field__unit">
+            <span className="[font-size:var(--text-xs)] text-fg-subtle">
               {tooLong
                 ? t('trimmer.too_long', { max: maxSeconds })
                 : tooShort
@@ -833,7 +854,7 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
         </div>
 
         {/* Play / Action row */}
-        <div className="audio-trimmer__actions">
+        <div className="flex gap-[var(--space-4)] items-center flex-wrap">
           <Button
             variant="subtle"
             onClick={togglePlay}
@@ -843,9 +864,11 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
           >
             {playing ? t('trimmer.pause') : t('trimmer.preview_selection')}
           </Button>
-          <span className="audio-trimmer__kbd-hint">{t('trimmer.play_hint')}</span>
+          <span className="[font-size:var(--text-base)] text-fg-subtle">
+            {t('trimmer.play_hint')}
+          </span>
 
-          <div className="audio-trimmer__actions-right">
+          <div className="ml-auto flex gap-[var(--space-4)]">
             <Button variant="ghost" onClick={onCancel}>
               {t('trimmer.cancel')}
             </Button>
@@ -860,12 +883,7 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
           </div>
         </div>
 
-        <audio
-          ref={audioRef}
-          preload="auto"
-          onEnded={() => setPlaying(false)}
-          className="audio-trimmer__audio"
-        />
+        <audio ref={audioRef} preload="auto" onEnded={() => setPlaying(false)} className="hidden" />
       </div>
     </Dialog>
   );

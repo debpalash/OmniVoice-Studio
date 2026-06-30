@@ -101,19 +101,24 @@ export default function FloatingPill() {
       <span className={`floating-pill__dot floating-pill__dot--${stage}`} />
 
       {/* Content */}
-      <div className="floating-pill__content">
-        <span className="floating-pill__label">
+      <div className="floating-pill__content flex-1 min-w-0 flex flex-col gap-[2px]">
+        <span className="floating-pill__label font-medium whitespace-nowrap overflow-hidden text-ellipsis">
           {stageEmoji} {label}
         </span>
 
         {/* Meta row: timer + progress text */}
-        <div className="floating-pill__meta">
+        <div className="floating-pill__meta flex items-center gap-[var(--space-3)] [font-size:var(--text-xs)] text-fg-muted">
           {isActive && elapsed > 0 && (
-            <span className="floating-pill__timer">{formatElapsed(elapsed)}</span>
+            <span className="floating-pill__timer font-mono [font-size:var(--text-2xs)] text-fg-subtle [letter-spacing:0.03em]">
+              {formatElapsed(elapsed)}
+            </span>
           )}
           {progress !== null && isActive && <span>{Math.round(progress)}%</span>}
           {isError && error && (
-            <span className="floating-pill__error" title={error}>
+            <span
+              className="floating-pill__error [font-size:var(--text-xs)] text-danger whitespace-nowrap overflow-hidden text-ellipsis"
+              title={error}
+            >
               {error}
             </span>
           )}
@@ -121,7 +126,7 @@ export default function FloatingPill() {
 
         {/* Mini progress bar */}
         {isActive && (
-          <div className="floating-pill__progress">
+          <div className="floating-pill__progress w-full h-[3px] rounded-[2px] bg-bg-elev-2 overflow-hidden mt-[2px]">
             <div
               className={[
                 'floating-pill__progress-fill',
@@ -137,7 +142,7 @@ export default function FloatingPill() {
 
       {/* Dismiss / cancel button */}
       <button
-        className="floating-pill__dismiss"
+        className="floating-pill__dismiss flex items-center justify-center w-[20px] h-[20px] rounded-full border-0 bg-transparent text-fg-subtle cursor-pointer flex-shrink-0 [transition:background_var(--dur-fast)_var(--ease-out),color_var(--dur-fast)_var(--ease-out)] hover:bg-[rgba(255,255,255,0.08)] hover:text-fg"
         onClick={handleDismiss}
         title={cancellable ? t('common.cancel') : t('common.dismiss')}
         aria-label={cancellable ? t('common.cancelOp') : t('common.dismissStatus')}

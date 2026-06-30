@@ -72,16 +72,19 @@ export default function MultiLangPicker({
   }, [query, selectedCodes]);
 
   return (
-    <div className="multi-lang" ref={dropRef}>
-      <div className="multi-lang__chips">
+    <div className="relative" ref={dropRef}>
+      <div className="flex flex-wrap gap-[4px] items-center min-h-[28px]">
         {selected.map((s) => (
-          <span key={s.code} className="multi-lang__chip">
+          <span
+            key={s.code}
+            className="inline-flex items-center gap-[4px] px-[8px] py-[2px] bg-[var(--chrome-hover-bg)] border border-solid border-[var(--chrome-border)] rounded-full [font-family:var(--font-mono)] text-[0.68rem] font-medium text-[color:var(--chrome-fg)] uppercase"
+          >
             <Globe size={9} />
             <span>{s.code}</span>
             {!disabled && (
               <button
                 type="button"
-                className="multi-lang__chip-x"
+                className="bg-transparent border-0 text-[color:var(--chrome-fg-muted)] cursor-pointer p-0 flex items-center rounded-full [transition:color_0.15s] hover:text-danger"
                 onClick={() => removeLang(s.code)}
                 aria-label={`Remove ${s.lang}`}
               >
@@ -93,7 +96,7 @@ export default function MultiLangPicker({
         {!disabled && (
           <button
             type="button"
-            className="multi-lang__add"
+            className="flex items-center justify-center w-[24px] h-[24px] rounded-full border border-dashed border-[var(--chrome-border)] bg-transparent text-[color:var(--chrome-fg-muted)] cursor-pointer [transition:all_0.15s] hover:bg-[var(--chrome-hover-bg)] hover:text-[color:var(--chrome-fg)] hover:border-solid"
             onClick={() => setDropOpen(!dropOpen)}
             title={t('dub.add_language')}
           >
@@ -103,14 +106,14 @@ export default function MultiLangPicker({
       </div>
 
       {selected.length > 0 && (
-        <div className="multi-lang__summary">
+        <div className="[font-family:var(--font-mono)] text-[0.62rem] text-[color:var(--chrome-fg-dim)] mt-[4px]">
           {t('dub.languages_selected', { count: selected.length })}
         </div>
       )}
 
       {dropOpen && (
         <div className="multi-lang__drop">
-          <div className="multi-lang__search">
+          <div className="flex items-center gap-[6px] px-[10px] py-[8px] border-b border-solid border-b-[var(--chrome-border)] text-[color:var(--chrome-fg-muted)]">
             <Search size={10} />
             <input
               ref={inputRef}
@@ -118,44 +121,55 @@ export default function MultiLangPicker({
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t('dub.search_languages')}
               spellCheck={false}
+              className="flex-1 bg-transparent border-0 outline-none text-[color:var(--chrome-fg)] [font-family:var(--font-sans)] text-[0.78rem]"
             />
           </div>
-          <div className="multi-lang__list">
+          <div className="overflow-y-auto flex-1 py-[4px]">
             {popularFiltered.length > 0 && (
               <>
-                <div className="multi-lang__section">{t('dub.popular')}</div>
+                <div className="[font-family:var(--font-mono)] text-[0.62rem] font-semibold uppercase [letter-spacing:0.04em] text-[color:var(--chrome-fg-dim)] pt-[6px] px-[10px] pb-[2px]">
+                  {t('dub.popular')}
+                </div>
                 {popularFiltered.map((item) => (
                   <button
                     key={item.code}
                     type="button"
-                    className="multi-lang__option"
+                    className="flex items-center gap-[8px] w-full px-[10px] py-[5px] bg-transparent border-0 text-[color:var(--chrome-fg)] [font-family:var(--font-sans)] text-[0.76rem] cursor-pointer text-left [transition:background_0.1s] hover:bg-[var(--chrome-hover-bg)]"
                     onClick={() => addLang(item.lang, item.code)}
                   >
-                    <span className="multi-lang__option-code">{item.code}</span>
+                    <span className="[font-family:var(--font-mono)] text-[0.68rem] text-[color:var(--chrome-accent)] min-w-[28px] font-semibold">
+                      {item.code}
+                    </span>
                     <span>{item.lang}</span>
                   </button>
                 ))}
               </>
             )}
-            <div className="multi-lang__section">{t('dub.all_languages')}</div>
+            <div className="[font-family:var(--font-mono)] text-[0.62rem] font-semibold uppercase [letter-spacing:0.04em] text-[color:var(--chrome-fg-dim)] pt-[6px] px-[10px] pb-[2px]">
+              {t('dub.all_languages')}
+            </div>
             {filteredLangs.slice(0, 50).map((lc) => (
               <button
                 key={lc.code}
                 type="button"
-                className="multi-lang__option"
+                className="flex items-center gap-[8px] w-full px-[10px] py-[5px] bg-transparent border-0 text-[color:var(--chrome-fg)] [font-family:var(--font-sans)] text-[0.76rem] cursor-pointer text-left [transition:background_0.1s] hover:bg-[var(--chrome-hover-bg)]"
                 onClick={() => addLang(lc.label, lc.code)}
               >
-                <span className="multi-lang__option-code">{lc.code}</span>
+                <span className="[font-family:var(--font-mono)] text-[0.68rem] text-[color:var(--chrome-accent)] min-w-[28px] font-semibold">
+                  {lc.code}
+                </span>
                 <span>{lc.label}</span>
               </button>
             ))}
             {filteredLangs.length > 50 && (
-              <div className="multi-lang__more">
+              <div className="px-[10px] py-[8px] text-[0.7rem] text-[color:var(--chrome-fg-dim)] text-center">
                 {t('dub.more_to_narrow', { count: filteredLangs.length - 50 })}
               </div>
             )}
             {filteredLangs.length === 0 && popularFiltered.length === 0 && (
-              <div className="multi-lang__empty">{t('dub.no_matches')}</div>
+              <div className="px-[10px] py-[8px] text-[0.7rem] text-[color:var(--chrome-fg-dim)] text-center">
+                {t('dub.no_matches')}
+              </div>
             )}
           </div>
         </div>

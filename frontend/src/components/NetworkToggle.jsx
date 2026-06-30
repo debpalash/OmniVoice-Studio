@@ -7,7 +7,6 @@ import { Wifi, WifiOff, Copy, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiJson, apiPost } from '../api/client';
 import { openExternal } from '../api/external';
-import './NetworkToggle.css';
 
 export default function NetworkToggle() {
   const { t } = useTranslation();
@@ -79,9 +78,9 @@ export default function NetworkToggle() {
   };
 
   return (
-    <div className="net-toggle">
+    <div className="relative inline-flex items-center flex-shrink-0">
       <button
-        className={`net-toggle__pill ${st.enabled ? 'net-toggle__pill--on' : ''}`}
+        className={`inline-flex items-center gap-[5px] py-[2px] px-[8px] h-[20px] rounded-sm font-medium text-[11px] [font-family:inherit] cursor-pointer [transition:all_0.1s] border border-solid disabled:opacity-50 disabled:cursor-not-allowed ${st.enabled ? 'bg-[rgba(184,187,38,0.12)] border-[rgba(184,187,38,0.4)] text-[#b8bb26] hover:bg-[rgba(184,187,38,0.18)]' : 'bg-transparent border-transparent text-[#a89984] hover:bg-[rgba(255,255,255,0.04)] hover:text-fg'}`}
         onClick={st.enabled ? () => setOpen((o) => !o) : () => setConfirming((c) => !c)}
         disabled={busy}
         title={st.enabled ? t('network.sharing_on_title') : t('network.share_on_network')}
@@ -93,19 +92,28 @@ export default function NetworkToggle() {
       </button>
 
       {!st.enabled && confirming && (
-        <div className="net-toggle__panel net-toggle__panel--confirm">
-          <div className="net-toggle__panel-title">{t('network.share_confirm_title')}</div>
-          <p className="net-toggle__hint">{t('network.share_confirm_hint')}</p>
-          <div className="net-toggle__confirm-actions">
+        <div className="absolute bottom-[calc(100%+8px)] right-0 z-[60] w-[248px] flex flex-col gap-[8px] p-[12px] bg-[var(--chrome-bg,#1d2021)] border border-solid border-[rgba(184,187,38,0.35)] rounded-[8px] shadow-[0_8px_24px_rgba(0,0,0,0.45)] text-fg">
+          <div className="text-[11px] font-semibold uppercase [letter-spacing:0.06em] text-[#b8bb26]">
+            {t('network.share_confirm_title')}
+          </div>
+          <p className="m-0 text-[11px] [line-height:1.5] text-[#a89984]">
+            {t('network.share_confirm_hint')}
+          </p>
+          <div className="flex gap-[6px] mt-[8px]">
             <button
               type="button"
-              className="net-toggle__cancel"
+              className="bg-transparent border border-solid border-[var(--border,#504945)] [color:inherit] text-[11px] [font-family:inherit] py-[5px] px-[12px] rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={() => setConfirming(false)}
               disabled={busy}
             >
               {t('common.cancel')}
             </button>
-            <button type="button" className="net-toggle__enable" onClick={enable} disabled={busy}>
+            <button
+              type="button"
+              className="bg-[rgba(184,187,38,0.15)] border border-solid border-[rgba(184,187,38,0.4)] text-[#b8bb26] text-[11px] font-semibold [font-family:inherit] py-[5px] px-[12px] rounded-md cursor-pointer hover:bg-[rgba(184,187,38,0.25)] disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={enable}
+              disabled={busy}
+            >
               {busy ? t('network.enabling') : t('network.enable')}
             </button>
           </div>
@@ -113,23 +121,30 @@ export default function NetworkToggle() {
       )}
 
       {st.enabled && open && (
-        <div className="net-toggle__panel">
-          <div className="net-toggle__panel-title">{t('network.shared_title')}</div>
+        <div className="absolute bottom-[calc(100%+8px)] right-0 z-[60] w-[248px] flex flex-col gap-[8px] p-[12px] bg-[var(--chrome-bg,#1d2021)] border border-solid border-[rgba(184,187,38,0.35)] rounded-[8px] shadow-[0_8px_24px_rgba(0,0,0,0.45)] text-fg">
+          <div className="text-[11px] font-semibold uppercase [letter-spacing:0.06em] text-[#b8bb26]">
+            {t('network.shared_title')}
+          </div>
           {(st.lan_addresses || []).length === 0 && (
-            <p className="net-toggle__hint">{t('network.no_interface')}</p>
+            <p className="m-0 text-[11px] [line-height:1.5] text-[#a89984]">
+              {t('network.no_interface')}
+            </p>
           )}
           {(st.lan_addresses || []).map((ip) => {
             const url = `http://${ip}:${st.share_port}/?pin=${st.pin}`;
             return (
-              <div key={ip} className="net-toggle__row">
-                <div className="net-toggle__row-main">
-                  <code className="net-toggle__addr">
+              <div
+                key={ip}
+                className="flex flex-col items-center gap-[8px] p-[8px] rounded-lg bg-[rgba(255,255,255,0.03)] border border-solid border-[rgba(255,255,255,0.05)]"
+              >
+                <div className="flex items-center justify-between gap-[8px] w-full">
+                  <code className="[font-family:var(--chrome-font-mono,var(--font-mono,monospace))] text-[11.5px] text-fg break-all">
                     {ip}:{st.share_port}
                   </code>
-                  <div className="net-toggle__row-actions">
+                  <div className="flex items-center gap-[2px] flex-shrink-0">
                     <button
                       type="button"
-                      className="net-toggle__iconbtn"
+                      className="bg-transparent border-0 text-[#a89984] cursor-pointer w-[22px] h-[22px] rounded-sm flex items-center justify-center [transition:all_0.1s] hover:text-[#b8bb26] hover:bg-[rgba(255,255,255,0.06)]"
                       onClick={() => copy(url)}
                       aria-label={`Copy ${ip}`}
                       title={t('network.copy_link')}
@@ -138,7 +153,7 @@ export default function NetworkToggle() {
                     </button>
                     <button
                       type="button"
-                      className="net-toggle__iconbtn"
+                      className="bg-transparent border-0 text-[#a89984] cursor-pointer w-[22px] h-[22px] rounded-sm flex items-center justify-center [transition:all_0.1s] hover:text-[#b8bb26] hover:bg-[rgba(255,255,255,0.06)]"
                       onClick={() => openExternal(url)}
                       aria-label={`Open ${ip}`}
                       title={t('network.open_in_browser')}
@@ -149,7 +164,7 @@ export default function NetworkToggle() {
                 </div>
                 {qrs[ip] && (
                   <img
-                    className="net-toggle__qr"
+                    className="block w-[104px] h-[104px] rounded-md bg-[#fff] p-[4px]"
                     src={qrs[ip]}
                     alt={t('network.qr_alt', { ip })}
                     width={104}
@@ -159,10 +174,18 @@ export default function NetworkToggle() {
               </div>
             );
           })}
-          <div className="net-toggle__pin">
-            {t('network.pin')} <strong>{st.pin}</strong>
+          <div className="text-[12px] text-[#a89984] text-center">
+            {t('network.pin')}{' '}
+            <strong className="[font-family:var(--chrome-font-mono,var(--font-mono,monospace))] text-[14px] [letter-spacing:0.12em] text-[#b8bb26]">
+              {st.pin}
+            </strong>
           </div>
-          <button type="button" className="net-toggle__off" onClick={disable} disabled={busy}>
+          <button
+            type="button"
+            className="bg-[rgba(251,73,52,0.12)] border border-solid border-[rgba(251,73,52,0.35)] text-danger text-[11px] font-semibold [font-family:inherit] py-[5px] px-[10px] rounded-md cursor-pointer [transition:all_0.1s] hover:bg-[rgba(251,73,52,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={disable}
+            disabled={busy}
+          >
             {t('network.stop_sharing')}
           </button>
         </div>
