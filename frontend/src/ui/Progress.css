@@ -1,29 +1,10 @@
 /* ── Progress primitive ─────────────────────────────────────────── */
-
-.ui-progress {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  position: relative;
-}
-
-/* sizes */
-.ui-progress--size-xs { height: 2px; }
-.ui-progress--size-sm { height: 4px; }
-.ui-progress--size-md { height: 6px; }
-
-/* tones (fill colour) */
-.ui-progress--brand   .ui-progress__fill { background: linear-gradient(90deg, var(--color-brand),  var(--color-accent)); }
-.ui-progress--success .ui-progress__fill { background: linear-gradient(90deg, var(--color-success), var(--color-accent)); }
-.ui-progress--warn    .ui-progress__fill { background: linear-gradient(90deg, var(--color-accent),  var(--color-warn));   }
-.ui-progress--danger  .ui-progress__fill { background: linear-gradient(90deg, var(--color-danger),  var(--color-warn));   }
-
-.ui-progress__fill {
-  height: 100%;
-  transition: width var(--dur-slow) var(--ease-out);
-  position: relative;
-}
+/* Track, sizes, fill base, and the per-tone gradient fills are Tailwind
+   utilities in Progress.jsx now. What remains here can't be expressed by
+   utilities: the shimmer overlay (a `::after` pseudo-element + keyframes) and
+   the indeterminate sliding bar (a descendant rule + keyframes). Both hook off
+   the retained `ui-progress` / `ui-progress__fill` / `has-shimmer` /
+   `is-indeterminate` class names. */
 
 .ui-progress__fill.has-shimmer::after {
   content: '';

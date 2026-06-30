@@ -16,6 +16,8 @@ import { Download, Sparkles, Trash2 } from 'lucide-react';
 import Badge from '../../ui/Badge.jsx';
 import Button from '../../ui/Button.jsx';
 import Panel from '../../ui/Panel.jsx';
+import Progress from '../../ui/Progress.jsx';
+import Segmented from '../../ui/Segmented.jsx';
 import SettingRow from '../../components/settings/primitives/SettingRow.jsx';
 import SettingsToggle from '../../components/settings/primitives/SettingsToggle.jsx';
 // SettingRow / SettingsToggle styling lives in the primitives stylesheet,
@@ -55,6 +57,65 @@ export const SPECS = {
           <Badge tone="warn" size="sm">
             sm
           </Badge>
+        </Spec>
+      </>
+    ),
+  },
+
+  Segmented: {
+    render: () => (
+      <>
+        <Spec label="sm — middle active">
+          <Segmented
+            size="sm"
+            value="b"
+            onChange={() => {}}
+            items={[
+              { value: 'a', label: 'One' },
+              { value: 'b', label: 'Two' },
+              { value: 'c', label: 'Three' },
+            ]}
+          />
+        </Spec>
+        <Spec label="xs — first active">
+          <Segmented
+            size="xs"
+            value="a"
+            onChange={() => {}}
+            items={[
+              { value: 'a', label: 'Alpha' },
+              { value: 'b', label: 'Beta' },
+            ]}
+          />
+        </Spec>
+      </>
+    ),
+  },
+
+  Progress: {
+    render: () => (
+      <>
+        <Spec label="tones @ 65%">
+          {['brand', 'success', 'warn', 'danger'].map((tone) => (
+            <div key={tone} style={{ width: '200px' }}>
+              <Progress tone={tone} value={65} />
+            </div>
+          ))}
+        </Spec>
+        <Spec label="sizes @ 40%">
+          {['xs', 'sm', 'md'].map((size) => (
+            <div key={size} style={{ width: '200px' }}>
+              <Progress size={size} value={40} />
+            </div>
+          ))}
+        </Spec>
+        <Spec label="indeterminate / no-shimmer">
+          <div style={{ width: '200px' }}>
+            <Progress />
+          </div>
+          <div style={{ width: '200px' }}>
+            <Progress value={50} shimmer={false} />
+          </div>
         </Spec>
       </>
     ),

@@ -6,6 +6,14 @@
 //
 // THEMES: 'default' is the bare-:root Gruvbox Dark; every other name maps to
 // a [data-theme="…"] block in ui/themes.css.
-export const COMPONENTS = ['Badge', 'Button', 'Panel', 'SettingRow', 'SettingsToggle'] as const;
+export const COMPONENTS = [
+  'Badge',
+  'Segmented',
+  'Progress',
+  'Button',
+  'Panel',
+  'SettingRow',
+  'SettingsToggle',
+] as const;
 
 export const THEMES = ['default', 'midnight', 'catppuccin'] as const;

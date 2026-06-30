@@ -2,6 +2,20 @@ import React from 'react';
 import * as RadixProgress from '@radix-ui/react-progress';
 import './Progress.css';
 
+const ROOT = 'ui-progress w-full bg-[rgba(0,0,0,0.3)] rounded-sm overflow-hidden relative';
+
+const SIZES = { xs: 'h-[2px]', sm: 'h-[4px]', md: 'h-[6px]' };
+
+const FILL =
+  'ui-progress__fill relative h-full transition-[width] duration-[var(--dur-slow)] ease-[var(--ease-out)]';
+
+const TONES = {
+  brand: 'bg-[linear-gradient(90deg,var(--color-brand),var(--color-accent))]',
+  success: 'bg-[linear-gradient(90deg,var(--color-success),var(--color-accent))]',
+  warn: 'bg-[linear-gradient(90deg,var(--color-accent),var(--color-warn))]',
+  danger: 'bg-[linear-gradient(90deg,var(--color-danger),var(--color-warn))]',
+};
+
 /**
  * Progress — determinate or indeterminate progress bar.
  * Backed by @radix-ui/react-progress for proper ARIA value attributes.
@@ -29,11 +43,13 @@ export default function Progress({
     <RadixProgress.Root
       value={clamped}
       max={100}
-      className={`ui-progress ui-progress--${tone} ui-progress--size-${size} ${indeterminate ? 'is-indeterminate' : ''} ${className}`}
+      // `ui-progress` + `is-indeterminate` are retained class hooks for the
+      // shimmer / indeterminate CSS rules in Progress.css (keyframes + ::after).
+      className={`${ROOT} ${SIZES[size] ?? SIZES.sm} ${indeterminate ? 'is-indeterminate' : ''} ${className}`}
       {...rest}
     >
       <RadixProgress.Indicator
-        className={`ui-progress__fill ${showShimmer ? 'has-shimmer' : ''}`}
+        className={`${FILL} ${TONES[tone] ?? TONES.brand} ${showShimmer ? 'has-shimmer' : ''}`}
         style={indeterminate ? undefined : { width: `${clamped}%` }}
       />
     </RadixProgress.Root>

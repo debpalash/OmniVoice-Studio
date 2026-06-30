@@ -1,41 +1,12 @@
 /* ── Segmented primitive ────────────────────────────────────────── */
+/* Container, options, sizes, hover + active are Tailwind utilities in
+   Segmented.jsx now. Only the focus-visible ring survives here: the global
+   `:focus-visible` rule in index.css is UNLAYERED, so it wins over any
+   layered Tailwind utility regardless of specificity. This component-scoped
+   override is likewise unlayered, so it keeps beating the global ring — a
+   precedence relationship a layered utility class can't reproduce. */
 
-.ui-seg {
-  display: inline-flex;
-  gap: 2px;
-  background: rgba(0, 0, 0, 0.28);
-  padding: 3px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border);
-  flex-shrink: 1;
-}
-
-.ui-seg__opt {
-  font-family: var(--font-ui);
-  font-weight: var(--weight-black);
-  border: 0;
-  border-radius: var(--radius-pill);
-  cursor: pointer;
-  background: transparent;
-  color: var(--color-fg-subtle);
-  white-space: nowrap;
-  transition:
-    background var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out);
-}
-.ui-seg__opt:hover:not(.is-active) {
-  color: var(--color-fg);
-  background: rgba(255, 255, 255, 0.04);
-}
-.ui-seg__opt.is-active {
-  background: rgba(243, 165, 182, 0.25);
-  color: #fff9ef;
-}
 .ui-seg__opt:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
 }
-
-/* sizes */
-.ui-seg--size-xs .ui-seg__opt { padding: 2px 9px; font-size: var(--text-2xs); }
-.ui-seg--size-sm .ui-seg__opt { padding: 3px 10px; font-size: var(--text-xs); }
