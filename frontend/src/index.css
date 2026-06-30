@@ -39,10 +39,13 @@
   --radius-lg:  6px;
   --radius-xl: 10px;
 
-  /* Fonts */
-  --font-sans:    'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --font-serif:   'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif;
+  /* Fonts — full font stacks. These are the single source of truth; the
+     identical declarations were removed from ui/tokens.css (which, being
+     unlayered, used to win — so these literals carry the exact stacks that
+     were computed before the de-dup, preserving every resolved value). */
+  --font-sans:    'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Söhne', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
+  --font-serif:   'Source Serif 4 Variable', 'Source Serif 4', 'Söhne Breit', Georgia, serif;
 }
 
 /* Font imports removed — the chrome token system uses only system monospace
