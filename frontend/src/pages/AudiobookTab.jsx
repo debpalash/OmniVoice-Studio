@@ -26,6 +26,11 @@ import { Button } from '../ui';
 import { buttonVariants } from '@/components/ui/button.tsx';
 import './AudiobookTab.css';
 
+// Chrome-mono uppercase form label (was the scoped `.audiobook-tab .field-label`
+// rule; `.field-label` has no global styling, so it's reproduced as utilities).
+const FIELD_LABEL =
+  '[font-family:var(--chrome-font-mono)] [font-size:var(--chrome-label-size)] font-semibold [letter-spacing:var(--chrome-label-track)] uppercase [color:var(--chrome-fg-muted)]';
+
 /**
  * AudiobookTab — turn a chapter-delimited script into a chapterized m4b.
  *
@@ -241,9 +246,13 @@ export default function AudiobookTab({ profiles = [] }) {
     <div className="audiobook-tab flex flex-col h-full box-border px-[1.5rem] py-[1.25rem] gap-[12px]">
       <div className="audiobook-tab__head flex flex-wrap items-start justify-between gap-[16px]">
         <div>
-          <h2 className="audiobook-tab__title">
+          <div
+            role="heading"
+            aria-level={2}
+            className="flex items-center gap-[8px] m-0 [font-family:var(--font-serif)] [font-size:var(--text-xl)] [font-weight:var(--weight-semibold)] text-fg"
+          >
             <BookMarked size={20} /> {t('audiobook.title')}
-          </h2>
+          </div>
           <p className="muted audiobook-tab__sub mt-[2px] text-[var(--text-sm)] text-fg-muted">
             {t('audiobook.subtitle')}
           </p>
@@ -278,10 +287,10 @@ export default function AudiobookTab({ profiles = [] }) {
         </div>
       </div>
 
-      <div className="audiobook-tab__body grid flex-auto grid-cols-[minmax(0,1fr)_minmax(300px,380px)] gap-[16px] min-h-0">
+      <div className="audiobook-tab__body grid flex-auto grid-cols-[minmax(0,1fr)_minmax(300px,380px)] max-[900px]:grid-cols-1 gap-[16px] min-h-0">
         {/* Left: script editor fills the height */}
         <div className="audiobook-tab__script flex flex-col min-h-0 gap-[6px]">
-          <label className="field-label">{t('audiobook.script')}</label>
+          <label className={FIELD_LABEL}>{t('audiobook.script')}</label>
           <textarea
             className="input-base"
             value={text}
@@ -292,9 +301,9 @@ export default function AudiobookTab({ profiles = [] }) {
         </div>
 
         {/* Right: settings + results, scrolls independently */}
-        <div className="audiobook-tab__side flex flex-col gap-[12px] min-h-0 overflow-y-auto pr-[4px]">
+        <div className="audiobook-tab__side flex flex-col gap-[12px] min-h-0 overflow-y-auto max-[900px]:overflow-visible pr-[4px]">
           <div className="audiobook-tab__field flex flex-col gap-[4px]">
-            <label className="field-label">{t('audiobook.default_voice')}</label>
+            <label className={FIELD_LABEL}>{t('audiobook.default_voice')}</label>
             <VoiceSelector
               value={defaultVoice}
               onChange={setDefaultVoice}
@@ -305,7 +314,7 @@ export default function AudiobookTab({ profiles = [] }) {
 
           <div className="audiobook-tab__duo grid grid-cols-[1fr_1fr] gap-[8px]">
             <div className="audiobook-tab__field flex flex-col gap-[4px]">
-              <label className="field-label">{t('audiobook.format')}</label>
+              <label className={FIELD_LABEL}>{t('audiobook.format')}</label>
               <select
                 className="input-base"
                 value={format}
@@ -317,7 +326,7 @@ export default function AudiobookTab({ profiles = [] }) {
               </select>
             </div>
             <div className="audiobook-tab__field flex flex-col gap-[4px]">
-              <label className="field-label">{t('audiobook.loudness')}</label>
+              <label className={FIELD_LABEL}>{t('audiobook.loudness')}</label>
               <select
                 className="input-base"
                 value={loudness}
@@ -333,7 +342,7 @@ export default function AudiobookTab({ profiles = [] }) {
 
           {/* Cover + metadata */}
           <div className="audiobook-tab__field flex flex-col gap-[4px]">
-            <label className="field-label">{t('audiobook.details')}</label>
+            <label className={FIELD_LABEL}>{t('audiobook.details')}</label>
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
               <div style={{ position: 'relative', width: 96, height: 96, flexShrink: 0 }}>
                 {coverPreview ? (
@@ -436,7 +445,7 @@ export default function AudiobookTab({ profiles = [] }) {
 
           {/* Pronunciation lexicon */}
           <div className="audiobook-tab__field flex flex-col gap-[4px]">
-            <label className="field-label">{t('audiobook.lexicon')}</label>
+            <label className={FIELD_LABEL}>{t('audiobook.lexicon')}</label>
             {lex.map((row, i) => (
               <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
                 <input
@@ -477,7 +486,7 @@ export default function AudiobookTab({ profiles = [] }) {
 
           {/* Markup quick reference */}
           <details className="audiobook-tab__field flex flex-col gap-[4px]">
-            <summary className="field-label" style={{ cursor: 'pointer' }}>
+            <summary className={FIELD_LABEL} style={{ cursor: 'pointer' }}>
               {t('audiobook.markup_help')}
             </summary>
             <p className="muted" style={{ fontSize: '0.72rem', lineHeight: 1.6, marginTop: 6 }}>

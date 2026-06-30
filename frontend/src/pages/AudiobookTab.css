@@ -1,40 +1,9 @@
-/* Audiobook tab — full-bleed, full-height layout (matches the other studio
-   tabs). A two-pane body: the script editor fills the left + grows to the
-   window height; settings + results scroll on the right. Collapses to a single
-   column on narrow widths.
-
-   Layout / spacing now live as Tailwind utilities in AudiobookTab.jsx. What
-   stays here:
-   - `.audiobook-tab__title` — an `<h2>` whose font-family (serif) fights the
-     unlayered global `h1..h4` rule (font-sans), which would win over utilities.
-   - `.audiobook-tab .field-label` — scoped override of the shared `.field-label`
-     class (descendant compound).
-   - `.audiobook-tab__script textarea` / `.audiobook-tab__field select` —
-     descendant element styling on tags rendered by `<Textarea>`/`<select>`.
-   - the `@media (max-width: 900px)` block — Tailwind's breakpoints differ from
-     this custom one, so the responsive collapse stays in CSS. */
-
-.audiobook-tab__title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-family: var(--font-serif);
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
-  color: var(--color-fg);
-}
-
-/* Field/section labels — chrome mono uppercase, matching the rest of the app's
-   form labels (the bare .field-label class has no global rule). */
-.audiobook-tab .field-label {
-  font-family: var(--chrome-font-mono);
-  font-size: var(--chrome-label-size);
-  font-weight: 600;
-  letter-spacing: var(--chrome-label-track);
-  text-transform: uppercase;
-  color: var(--chrome-fg-muted);
-}
+/* Only the genuinely-irreducible bit remains: the script editor's <textarea>.
+   It has to override the unlayered global `textarea.input-base` (min-height /
+   resize) — which a utilities-layer class can't win against — and it needs a
+   custom 900px breakpoint floor when the two-pane body collapses to one column.
+   Everything else (title, field labels, the body/side responsive collapse) now
+   lives as Tailwind utilities in AudiobookTab.jsx. */
 
 .audiobook-tab__script textarea {
   flex: 1 1 auto;
@@ -44,10 +13,6 @@
   font-family: var(--font-mono, monospace);
 }
 
-.audiobook-tab__field select { width: 100%; }
-
 @media (max-width: 900px) {
-  .audiobook-tab__body { grid-template-columns: 1fr; }
-  .audiobook-tab__side { overflow: visible; }
   .audiobook-tab__script textarea { min-height: 240px; }
 }

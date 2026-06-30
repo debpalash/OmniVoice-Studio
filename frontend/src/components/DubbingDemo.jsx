@@ -14,7 +14,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Play, Film, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { API, apiFetch } from '../api/client';
-import './DubbingDemo.css';
+
+// Shared container surface for the demo + its loading placeholder.
+const SHELL = 'rounded-[10px] border border-border bg-[rgba(255,255,255,0.02)]';
 
 export default function DubbingDemo({ onDismiss }) {
   const { t } = useTranslation();
@@ -89,7 +91,11 @@ export default function DubbingDemo({ onDismiss }) {
     return null; // No demo manifest yet — silently fall through to drop zone.
   }
   if (!manifest) {
-    return <div className="dubbing-demo dubbing-demo--loading">{t('demo.dubbing_loading')}</div>;
+    return (
+      <div className={`${SHELL} p-[18px] text-center text-[11px] text-fg-muted`}>
+        {t('demo.dubbing_loading')}
+      </div>
+    );
   }
 
   const source = manifest.source;
@@ -99,17 +105,18 @@ export default function DubbingDemo({ onDismiss }) {
   const base = `${API}/demo_audio/demo/dubbing`;
 
   return (
-    <div className="dubbing-demo">
+    <div className={`${SHELL} flex flex-col gap-[10px] p-[14px]`}>
       <header className="flex items-center justify-between gap-[12px]">
         <div className="inline-flex items-center gap-[6px] text-[12px] font-bold text-fg">
           <Film size={13} /> {t('demo.dubbing_title')}
         </div>
         <div className="inline-flex items-center gap-[8px]">
-          <label className="dubbing-demo__sync inline-flex items-center gap-[5px] text-[11px] text-fg-muted cursor-pointer select-none">
+          <label className="inline-flex items-center gap-[5px] text-[11px] text-fg-muted cursor-pointer select-none">
             <input
               type="checkbox"
               checked={syncPlay}
               onChange={(e) => setSyncPlay(e.target.checked)}
+              className="accent-[#f3a5b6]"
             />
             {t('demo.dubbing_sync')}
           </label>
@@ -126,10 +133,13 @@ export default function DubbingDemo({ onDismiss }) {
         </div>
       </header>
 
-      <div className="dubbing-demo__players grid grid-cols-2 gap-[12px]">
-        <div className="dubbing-demo__pane flex flex-col gap-[6px]">
-          <div className="dubbing-demo__pane-label text-[11px] font-semibold text-fg">
-            {source.label} <span>· {t('demo.original_tag')}</span>
+      <div className="grid grid-cols-2 max-[720px]:grid-cols-1 gap-[12px]">
+        <div className="flex flex-col gap-[6px]">
+          <div className="text-[11px] font-semibold text-fg">
+            {source.label}{' '}
+            <span className="font-normal text-fg-muted text-[10px] ml-[4px] uppercase tracking-[0.05em]">
+              · {t('demo.original_tag')}
+            </span>
           </div>
           <video
             ref={sourceRef}
@@ -137,14 +147,18 @@ export default function DubbingDemo({ onDismiss }) {
             controls
             playsInline
             preload="metadata"
+            className="w-full rounded-[6px] bg-black [outline:1px_solid_rgba(255,255,255,0.06)] [outline-offset:-1px]"
           />
           <p className="m-0 text-[10.5px] leading-[1.4] text-fg-muted px-[6px] py-[4px] bg-bg-elev-3 rounded-md">
             {source.script}
           </p>
         </div>
-        <div className="dubbing-demo__pane flex flex-col gap-[6px]">
-          <div className="dubbing-demo__pane-label text-[11px] font-semibold text-fg">
-            {dubbed.label} <span>· {t('demo.dubbed_tag')}</span>
+        <div className="flex flex-col gap-[6px]">
+          <div className="text-[11px] font-semibold text-fg">
+            {dubbed.label}{' '}
+            <span className="font-normal text-fg-muted text-[10px] ml-[4px] uppercase tracking-[0.05em]">
+              · {t('demo.dubbed_tag')}
+            </span>
           </div>
           <video
             ref={dubbedRef}
@@ -153,6 +167,7 @@ export default function DubbingDemo({ onDismiss }) {
             playsInline
             preload="metadata"
             dir={dubbed.dir}
+            className="w-full rounded-[6px] bg-black [outline:1px_solid_rgba(255,255,255,0.06)] [outline-offset:-1px]"
           />
           <p
             className="m-0 text-[10.5px] leading-[1.4] text-fg-muted px-[6px] py-[4px] bg-bg-elev-3 rounded-md"
@@ -171,7 +186,7 @@ export default function DubbingDemo({ onDismiss }) {
           <button
             key={d.code}
             type="button"
-            className={`dubbing-demo__chip text-[11px] px-[10px] py-[3px] rounded-[999px] border border-border bg-transparent text-fg-muted cursor-pointer [transition:background_100ms_ease,border-color_100ms_ease,color_100ms_ease] hover:bg-[rgba(255,255,255,0.04)] hover:text-fg ${pickedCode === d.code ? 'is-active' : ''}`}
+            className={`text-[11px] px-[10px] py-[3px] rounded-[999px] border border-border bg-transparent text-fg-muted cursor-pointer [transition:background_100ms_ease,border-color_100ms_ease,color_100ms_ease] hover:bg-[rgba(255,255,255,0.04)] hover:text-fg ${pickedCode === d.code ? 'bg-[rgba(243,165,182,0.18)] border-[rgba(243,165,182,0.45)] text-[#fff9ef]' : ''}`}
             onClick={() => setPickedCode(d.code)}
           >
             {d.label}

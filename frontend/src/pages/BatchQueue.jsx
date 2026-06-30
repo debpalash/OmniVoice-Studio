@@ -36,6 +36,12 @@ const STATUS_TONE = {
   cancelled: { tone: 'warn', icon: Square, label: 'batch.status_cancelled' },
 };
 
+// Per-status card border accent (was .batch-queue__card--{status} in CSS).
+const CARD_BORDER = {
+  running: 'border-[rgba(211,134,155,0.4)]',
+  failed: 'border-[rgba(251,73,52,0.35)]',
+};
+
 const STAGE_LABELS = {
   extract: 'batch.stage_extract',
   transcribe: 'batch.stage_transcribe',
@@ -146,9 +152,13 @@ export default function BatchQueue({ onBack }) {
             {t('batch.back')}
           </Button>
         )}
-        <h1>
+        <div
+          role="heading"
+          aria-level={1}
+          className="m-0 inline-flex items-center gap-[var(--space-3)] [font-family:var(--font-display)] [font-size:var(--text-xl)] [font-weight:var(--weight-bold)] text-fg"
+        >
           <Activity size={15} /> {t('batch.title')}
-        </h1>
+        </div>
         <div className="batch-queue__bar-spacer flex-1" />
         <Button
           variant="subtle"
@@ -235,7 +245,7 @@ function JobCard({ job, onCancel, onDelete, t }) {
     <Panel
       variant="flat"
       padding="md"
-      className={`batch-queue__card batch-queue__card--${job.status}`}
+      className={`[transition:border-color_var(--dur-fast)] ${CARD_BORDER[job.status] || ''}`}
     >
       <div className="batch-queue__card-head flex flex-wrap items-center gap-[var(--space-3)] mb-[var(--space-2)]">
         <Badge tone={st.tone} dot>

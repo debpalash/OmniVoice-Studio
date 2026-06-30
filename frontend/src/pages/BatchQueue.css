@@ -1,31 +1,7 @@
-/* Layout / spacing / typography / box styling now live as Tailwind utilities in
-   BatchQueue.jsx. What stays here:
-   - `.batch-queue__bar h1`: fights the unlayered global `h1` rule (font-sans),
-     so it must out-specify it from a non-utility rule.
-   - the `.batch-queue__card` transition + its `--running`/`--failed` border
-     modifiers: the modifier class is built from a dynamic template string, so
-     the pair stays as CSS rather than a JS class map.
-   - `.batch-queue__progress-fill` + its `::after` shimmer (pseudo-element,
-     layered gradient, keyframes) — not expressible as utilities. */
-
-.batch-queue__bar h1 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-xl);
-  font-weight: var(--weight-bold);
-  color: var(--color-fg);
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-/* ── Cards (transition + status border modifiers) ───────────────────── */
-
-.batch-queue__card            { transition: border-color var(--dur-fast); }
-.batch-queue__card--running   { border-color: rgba(211, 134, 155, 0.4); }
-.batch-queue__card--failed    { border-color: rgba(251, 73, 52, 0.35); }
-
-/* ── Progress fill (gradient + shimmer pseudo-element) ──────────────── */
+/* Only the genuinely-irreducible bit remains: the running-job progress fill's
+   gradient + its ::after shimmer (pseudo-element + keyframes) — not expressible
+   as Tailwind utilities. Everything else (layout, the bar heading, the per-status
+   card border accents) now lives as utilities in BatchQueue.jsx. */
 
 .batch-queue__progress-fill {
   height: 100%;

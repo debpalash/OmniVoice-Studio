@@ -17,7 +17,6 @@ import {
   TRANSCRIPTIONS_KEY,
   TRANSCRIPTION_EVENT,
 } from '../utils/transcriptionsStore';
-import './Transcriptions.css';
 
 function saveTranscriptions(list) {
   localStorage.setItem(TRANSCRIPTIONS_KEY, JSON.stringify(list));
@@ -148,7 +147,7 @@ export default function TranscriptionsPage() {
               className="txn-search__icon absolute left-[10px] pointer-events-none text-fg-subtle"
             />
             <input
-              className="txn-search__input"
+              className="w-[220px] bg-bg-elev-1 [border:1px_solid_var(--color-border)] rounded-[var(--radius-md)] text-fg [font-size:var(--text-sm)] [font-family:var(--font-sans)] [padding:6px_10px_6px_30px] [transition:border-color_0.15s] focus:border-brand focus:outline-none placeholder:text-fg-subtle"
               placeholder={t('transcriptions.search_placeholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -197,7 +196,11 @@ export default function TranscriptionsPage() {
               <div
                 key={t.id}
                 role="listitem"
-                className={`txn-item ${selectedId === t.id ? 'txn-item--active' : ''}`}
+                className={`py-[10px] px-[12px] bg-bg-elev-1 [border:1px_solid_var(--color-border)] rounded-[var(--radius-lg)] cursor-pointer [transition:border-color_0.15s,box-shadow_0.15s] hover:[border-color:var(--color-border-strong)] ${
+                  selectedId === t.id
+                    ? '[border-color:var(--color-brand)] [box-shadow:0_0_0_1px_var(--color-brand-glow)]'
+                    : ''
+                }`}
                 onClick={() => setSelectedId(t.id)}
               >
                 <div className="txn-item__text mb-[6px] text-[var(--text-sm)] leading-[1.5] text-fg [word-break:break-word]">
@@ -246,7 +249,9 @@ export default function TranscriptionsPage() {
             </div>
             {selected.segments && selected.segments.length > 0 && (
               <div className="txn-detail__segments [border-top:1px_solid_var(--color-border)] px-[14px] py-[10px] max-h-[200px] overflow-y-auto">
-                <h4 className="txn-detail__seg-title">{t('transcriptions.segments_title')}</h4>
+                <div className="[font-size:var(--text-xs)] [font-weight:var(--weight-semibold)] text-fg-muted m-0 mb-[6px] uppercase tracking-[0.5px]">
+                  {t('transcriptions.segments_title')}
+                </div>
                 {selected.segments.map((seg, i) => (
                   <div
                     key={i}

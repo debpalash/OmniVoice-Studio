@@ -25,7 +25,11 @@ import { Play, Pause, Keyboard, Mic, CheckCircle2, AlertTriangle } from 'lucide-
 import { useTranslation } from 'react-i18next';
 import { API, apiFetch } from '../api/client';
 import { Button } from '../ui';
-import './DictationDemo.css';
+
+// Shared status-pill base; per-state color/bg/border appended below. The gruvbox
+// status hues are intentionally preserved (palette kept) as arbitrary utilities.
+const STATUS_BASE =
+  'inline-flex items-center gap-[6px] text-[11px] px-[8px] py-[3px] rounded-[999px] border';
 
 const SCRIPTS = [
   {
@@ -187,19 +191,28 @@ export default function DictationDemo({ embedded = false }) {
     switch (hotkeyState) {
       case 'verified':
         return (
-          <span className="dictation-demo__status dictation-demo__status--ok">
+          <span
+            className={`${STATUS_BASE} border-[rgba(152,151,26,0.35)] bg-[rgba(152,151,26,0.12)] text-[#b8bb26]`}
+          >
             <CheckCircle2 size={12} /> {t('demo.dictation_status_ok')}
           </span>
         );
       case 'registered':
         return (
-          <span className="dictation-demo__status dictation-demo__status--pending">
-            <Keyboard size={12} /> {t('demo.dictation_status_pending')} <code>{shortcut}</code>
+          <span
+            className={`${STATUS_BASE} border-[rgba(215,153,33,0.30)] bg-[rgba(215,153,33,0.10)] text-[#fabd2f]`}
+          >
+            <Keyboard size={12} /> {t('demo.dictation_status_pending')}{' '}
+            <code className="font-mono text-[10px] px-[4px] py-[1px] bg-[rgba(0,0,0,0.3)] rounded-[3px]">
+              {shortcut}
+            </code>
           </span>
         );
       default:
         return (
-          <span className="dictation-demo__status dictation-demo__status--warn">
+          <span
+            className={`${STATUS_BASE} border-[rgba(204,36,29,0.30)] bg-[rgba(204,36,29,0.10)] text-[#fb4934]`}
+          >
             <AlertTriangle size={12} /> {t('demo.dictation_status_warn')}
           </span>
         );
@@ -214,7 +227,13 @@ export default function DictationDemo({ embedded = false }) {
   const showScripts = assetsAvailable !== false;
 
   return (
-    <section className={`dictation-demo ${embedded ? 'dictation-demo--embedded' : ''}`}>
+    <section
+      className={`dictation-demo flex flex-col gap-[10px] ${
+        embedded
+          ? 'mb-[12px]'
+          : 'p-[14px] rounded-[10px] border border-border bg-[rgba(255,255,255,0.02)] mb-[16px]'
+      }`}
+    >
       <header className="flex items-center justify-between gap-[12px] flex-wrap">
         <h3 className="inline-flex items-center gap-[6px] m-0 text-[13px] font-bold text-fg">
           <Mic size={14} /> {t('demo.dictation_title')}
@@ -234,7 +253,7 @@ export default function DictationDemo({ embedded = false }) {
       <audio ref={audioRef} onEnded={() => setPlayingId(null)} preload="none" />
 
       {showScripts && (
-        <div className="dictation-demo__scripts">
+        <div className="dictation-demo__scripts grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-[10px]">
           {SCRIPTS.map((s) => {
             const isPlaying = playingId === s.id;
             const tx = transcripts[s.id] || {};
@@ -282,12 +301,12 @@ export default function DictationDemo({ embedded = false }) {
                   </Button>
                 </div>
                 {tx.state === 'ok' && (
-                  <div className="dictation-demo__result--ok flex items-start gap-[6px] text-[11px] px-[8px] py-[6px] rounded-lg leading-[1.4]">
-                    <CheckCircle2 size={11} /> <em>{tx.text}</em>
+                  <div className="flex items-start gap-[6px] text-[11px] px-[8px] py-[6px] rounded-lg leading-[1.4] text-[#b8bb26] bg-[rgba(152,151,26,0.08)] border border-[rgba(152,151,26,0.25)]">
+                    <CheckCircle2 size={11} /> <em className="not-italic">{tx.text}</em>
                   </div>
                 )}
                 {tx.state === 'fail' && (
-                  <div className="dictation-demo__result--fail flex items-start gap-[6px] text-[11px] px-[8px] py-[6px] rounded-lg leading-[1.4]">
+                  <div className="flex items-start gap-[6px] text-[11px] px-[8px] py-[6px] rounded-lg leading-[1.4] text-[#fb4934] bg-[rgba(204,36,29,0.08)] border border-[rgba(204,36,29,0.25)]">
                     <AlertTriangle size={11} /> {tx.error}
                   </div>
                 )}
