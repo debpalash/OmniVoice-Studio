@@ -54,51 +54,7 @@
   border: 1px solid rgba(255,255,255,0.04); color: #a89984; font-size: 0.7rem;
 }
 
-/* ═══ ErrorBoundary extracted styles ═══ */
-.errbnd-wrap {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  padding: 32px; font-family: var(--font-sans);
-}
-.errbnd-card {
-  max-width: 520px; width: 100%; padding: 22px; text-align: center;
-  background: var(--chrome-bg);
-  border: 1px solid color-mix(in srgb, var(--chrome-severity-err) 35%, transparent);
-  border-left: 2px solid var(--chrome-severity-err);
-  border-radius: var(--chrome-radius-pill);
-}
-.errbnd-icon { margin-bottom: 10px; }
-.errbnd-title {
-  font-family: var(--font-serif); font-style: italic;
-  font-size: 1.6rem; font-weight: 400;
-  color: var(--chrome-fg); margin: 0 0 6px; letter-spacing: -0.01em;
-}
-.errbnd-desc {
-  color: var(--chrome-fg-muted); font-size: 0.82rem;
-  margin: 0 0 12px; line-height: 1.5;
-}
-.errbnd-trace {
-  text-align: left; font-size: 0.72rem; color: var(--chrome-severity-err);
-  background: var(--chrome-hover-bg); padding: 8px 10px;
-  border-radius: var(--chrome-radius-pill);
-  border: 1px solid var(--chrome-border);
-  max-height: 140px; overflow: auto; margin: 0 0 14px;
-  font-family: var(--font-mono);
-}
-.errbnd-actions {
-  display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
-}
-.errbnd-retry,
-.errbnd-docs {
-  padding: 6px 14px; font-size: 0.78rem; font-weight: 500;
-  display: inline-flex; align-items: center; gap: 6px;
-}
-.errbnd-docs {
-  background: transparent;
-  color: var(--chrome-fg);
-  border: 1px solid var(--chrome-border);
-  border-radius: var(--chrome-radius-pill);
-  cursor: pointer;
-}
-.errbnd-docs:hover {
-  background: var(--chrome-hover-bg);
-}
+/* NOTE: the ErrorBoundary (`errbnd-*`) styles that used to live here were
+   migrated to Tailwind utilities on ErrorBoundary.jsx (shadcn fast-mode wave).
+   Only the WaveformTimeline `wfm-*` layout rules above remain — this file is
+   still imported by WaveformTimeline.jsx. */

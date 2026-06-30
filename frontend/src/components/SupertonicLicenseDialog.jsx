@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
 import { apiPost } from '../api/client';
-import './SupertonicLicenseDialog.css';
+import { Dialog, Button } from '../ui';
 
 /**
  * Supertonic-3 license acceptance modal (Phase 3 Plan 03-01 / TTS-05).
@@ -24,9 +24,13 @@ import './SupertonicLicenseDialog.css';
  * github.com / huggingface.co. We only need their explicit click to
  * Accept.
  *
+ * Built on the shadcn-backed `src/ui` Dialog primitive (Radix dialog:
+ * focus-trap, scroll-lock, ESC-to-close, ARIA). While a POST is in flight
+ * the dialog is non-dismissable so the user can't close mid-save.
+ *
  * Props:
  *   - open: boolean         ‑‑ controls visibility
- *   - onClose: () => void   ‑‑ user clicked Cancel / clicked outside
+ *   - onClose: () => void   ‑‑ user clicked Cancel / dismissed
  *   - onAccepted: () => void‑‑ user clicked Accept and POST succeeded
  */
 
@@ -35,19 +39,16 @@ const LICENSE_URLS = {
   model: 'https://huggingface.co/Supertone/supertonic-3/blob/main/LICENSE',
 };
 
+const LINK_CLS =
+  'text-[0.83rem] text-[color:var(--accent,#8ab4f8)] no-underline hover:underline focus-visible:underline';
+const SECTION_CLS = 'rounded-lg border border-white/10 bg-white/[0.04] px-[0.9rem] py-3';
+const SECTION_H_CLS =
+  'm-0 mb-[0.3rem] text-[0.85rem] font-semibold uppercase tracking-[0.02em] opacity-85';
+const SECTION_P_CLS = 'm-0 mb-2 text-[0.85rem] leading-[1.5] opacity-90';
+
 export default function SupertonicLicenseDialog({ open, onClose, onAccepted }) {
   const { t } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
-
-  // Escape closes the dialog ‑‑ mirrors browser-standard modal UX.
-  useEffect(() => {
-    if (!open) return undefined;
-    function onKey(e) {
-      if (e.key === 'Escape' && !submitting) onClose();
-    }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose, submitting]);
 
   const accept = useCallback(async () => {
     setSubmitting(true);
@@ -67,84 +68,61 @@ export default function SupertonicLicenseDialog({ open, onClose, onAccepted }) {
     }
   }, [onAccepted, onClose, t]);
 
-  if (!open) return null;
-
   return (
-    <div
-      className="supertonic-license"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="supertonic-license-title"
-      onClick={(e) => {
-        // Click outside the card closes the dialog ‑‑ but only when the
-        // click landed on the backdrop, not on a child element.
-        if (e.target === e.currentTarget && !submitting) onClose();
-      }}
-    >
-      <div className="supertonic-license__card">
-        <h2
-          id="supertonic-license-title"
-          className="mx-0 mt-0 mb-[0.5rem] text-[1.05rem] font-semibold tracking-[0.01em]"
-        >
-          {t('license.title')}
-        </h2>
-
-        <p className="mx-0 mt-0 mb-[1rem] text-[0.9rem] leading-[1.5] opacity-[0.85]">
-          {t('license.intro')}
-        </p>
-
-        <div className="mb-[1rem] grid gap-[0.85rem]">
-          <section className="supertonic-license__section">
-            <h3>{t('license.sdk_heading')}</h3>
-            <p>{t('license.sdk_desc')}</p>
-            <a
-              href={LICENSE_URLS.code}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[0.83rem] text-[var(--accent,#8ab4f8)] no-underline hover:underline focus-visible:underline"
-            >
-              {t('license.read_mit')}
-            </a>
-          </section>
-
-          <section className="supertonic-license__section">
-            <h3>{t('license.model_heading')}</h3>
-            <p>{t('license.model_desc')}</p>
-            <a
-              href={LICENSE_URLS.model}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[0.83rem] text-[var(--accent,#8ab4f8)] no-underline hover:underline focus-visible:underline"
-            >
-              {t('license.read_openrail')}
-            </a>
-          </section>
-        </div>
-
-        <p className="mx-0 mt-0 mb-[1.1rem] text-[0.78rem] leading-[1.5] opacity-[0.7]">
-          {t('license.footer')}
-        </p>
-
-        <div className="flex justify-end gap-[0.5rem]">
-          <button
-            type="button"
-            className="supertonic-license__btn supertonic-license__btn--secondary"
-            onClick={onClose}
-            disabled={submitting}
-          >
+    <Dialog
+      open={open}
+      onClose={onClose}
+      size="md"
+      dismissable={!submitting}
+      title={t('license.title')}
+      footer={
+        <>
+          <Button variant="subtle" onClick={onClose} disabled={submitting}>
             {t('common.cancel')}
-          </button>
-          <button
-            type="button"
-            className="supertonic-license__btn supertonic-license__btn--primary"
+          </Button>
+          <Button
+            variant="primary"
             onClick={accept}
             disabled={submitting}
+            loading={submitting}
             autoFocus
           >
             {submitting ? t('license.saving') : t('license.accept')}
-          </button>
-        </div>
+          </Button>
+        </>
+      }
+    >
+      <p className="m-0 mb-4 text-[0.9rem] leading-[1.5] opacity-85">{t('license.intro')}</p>
+
+      <div className="mb-1 grid gap-[0.85rem]">
+        <section className={SECTION_CLS}>
+          <h3 className={SECTION_H_CLS}>{t('license.sdk_heading')}</h3>
+          <p className={SECTION_P_CLS}>{t('license.sdk_desc')}</p>
+          <a
+            href={LICENSE_URLS.code}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={LINK_CLS}
+          >
+            {t('license.read_mit')}
+          </a>
+        </section>
+
+        <section className={SECTION_CLS}>
+          <h3 className={SECTION_H_CLS}>{t('license.model_heading')}</h3>
+          <p className={SECTION_P_CLS}>{t('license.model_desc')}</p>
+          <a
+            href={LICENSE_URLS.model}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={LINK_CLS}
+          >
+            {t('license.read_openrail')}
+          </a>
+        </section>
       </div>
-    </div>
+
+      <p className="m-0 mt-3 text-[0.78rem] leading-[1.5] opacity-70">{t('license.footer')}</p>
+    </Dialog>
   );
 }

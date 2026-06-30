@@ -16,7 +16,29 @@ import {
   Building2,
 } from 'lucide-react';
 import { Button, Segmented, Badge } from '../ui';
-import './ExportModal.css';
+
+// ── Tailwind class fragments for the stateful chrome that used to live in
+// ExportModal.css (track chips, tab strip, toggles). Kept as module constants
+// so the conditional state logic reads cleanly at the call sites.
+const TRACK_BASE =
+  'inline-flex items-center gap-[6px] px-[10px] py-[4px] rounded-[var(--chrome-radius-pill)] border text-[length:var(--text-sm)] cursor-pointer transition-[border-color,color,background] duration-[var(--dur-fast)]';
+const trackCls = (on, kind) => {
+  if (on && kind === 'dub')
+    return `${TRACK_BASE} border-[var(--chrome-accent-border)] bg-[var(--chrome-accent-bg)] text-[var(--chrome-accent)]`;
+  if (on)
+    return `${TRACK_BASE} border-[var(--chrome-border-strong)] bg-[var(--chrome-hover-bg)] text-[var(--chrome-fg)]`;
+  return `${TRACK_BASE} border-[var(--chrome-border)] text-[var(--chrome-fg-muted)]`;
+};
+const TAB_BASE =
+  'inline-flex items-center gap-[6px] px-[12px] py-[6px] bg-transparent border-0 border-b-2 cursor-pointer text-[length:var(--text-sm)] transition-[color,border-color] duration-[var(--dur-fast)]';
+const tabCls = (active) =>
+  active
+    ? `${TAB_BASE} border-b-[var(--chrome-accent)] text-[var(--chrome-accent)]`
+    : `${TAB_BASE} border-b-transparent text-[var(--chrome-fg-muted)] hover:text-[var(--chrome-fg)]`;
+const TOGGLE_CLS =
+  'inline-flex items-center gap-[6px] text-[length:var(--text-sm)] text-[var(--chrome-fg)] cursor-pointer [&_input]:accent-[var(--color-brand)]';
+const TOGGLE_INDENT_CLS =
+  'inline-flex items-center gap-[6px] ml-[var(--space-4)] text-[length:var(--text-sm)] text-[var(--chrome-fg-muted)] cursor-pointer [&_input]:accent-[var(--color-brand)]';
 
 /**
  * ExportModal — comprehensive export panel for the dubbing studio.
@@ -260,12 +282,15 @@ export default function ExportModal({
 
   return createPortal(
     <div
-      className="export-drawer"
+      className="pointer-events-none fixed inset-x-0 bottom-[var(--logs-footer-height,28px)] z-[90] flex justify-center"
       role="dialog"
       aria-modal="false"
       aria-label={t('exportModal.export_options')}
     >
-      <div className="export-drawer__sheet" ref={drawerRef}>
+      <div
+        className="pointer-events-auto flex w-[min(880px,calc(100vw-24px))] max-h-[min(70vh,560px)] flex-col overflow-hidden rounded-t-lg border border-b-0 border-[var(--chrome-border-strong)] bg-[var(--chrome-bg)] shadow-[0_-8px_24px_rgba(0,0,0,0.45),0_-1px_0_var(--chrome-border)_inset] animate-in fade-in slide-in-from-bottom-full duration-200"
+        ref={drawerRef}
+      >
         <header className="relative flex items-center gap-[var(--space-3)] p-[6px_var(--space-4)_10px] [border-bottom:1px_solid_var(--chrome-border)] [background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]">
           <span
             className="absolute top-[4px] left-1/2 -translate-x-1/2 w-[36px] h-[3px] rounded-[2px] bg-[var(--chrome-border-strong)]"
@@ -313,7 +338,7 @@ export default function ExportModal({
               <span className="inline-flex items-center gap-[4px] uppercase [font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
                 <Globe size={9} /> {t('exportModal.tracks')}
               </span>
-              <div className="export-modal__track-quick">
+              <div className="inline-flex items-center gap-[4px] text-[length:var(--text-xs)] text-[var(--chrome-fg-dim)] [&_button]:cursor-pointer [&_button]:border-none [&_button]:bg-transparent [&_button]:px-[4px] [&_button]:py-[2px] [&_button]:text-[length:var(--text-xs)] [&_button]:text-[var(--chrome-fg-muted)] [&_button:hover]:text-[var(--chrome-fg)]">
                 <button type="button" onClick={() => setAllTracks(true)}>
                   {t('exportModal.track_all')}
                 </button>
@@ -331,11 +356,13 @@ export default function ExportModal({
               {allTracks.map((track) => {
                 const on = exportTracks[track.code] !== false;
                 return (
-                  <label
-                    key={track.code}
-                    className={`export-modal__track ${on ? 'is-on' : ''} ${track.kind === 'original' ? 'is-original' : 'is-dub'}`}
-                  >
-                    <input type="checkbox" checked={on} onChange={() => toggleTrack(track.code)} />
+                  <label key={track.code} className={trackCls(on, track.kind)}>
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={() => toggleTrack(track.code)}
+                      className="m-0 accent-[var(--color-brand)]"
+                    />
                     <span className="[font-family:var(--chrome-font-mono)] tracking-[0.02em]">
                       {track.label}
                     </span>
@@ -354,30 +381,22 @@ export default function ExportModal({
           <div className="flex gap-[var(--space-1)] [border-bottom:1px_solid_var(--chrome-border)]">
             <button
               type="button"
-              className={`export-modal__tab ${tab === 'video' ? 'is-active' : ''}`}
+              className={tabCls(tab === 'video')}
               onClick={() => setTab('video')}
             >
               <Film size={10} /> {t('exportModal.tab_video')}
             </button>
             <button
               type="button"
-              className={`export-modal__tab ${tab === 'audio' ? 'is-active' : ''}`}
+              className={tabCls(tab === 'audio')}
               onClick={() => setTab('audio')}
             >
               <Volume2 size={10} /> {t('exportModal.tab_audio')}
             </button>
-            <button
-              type="button"
-              className={`export-modal__tab ${tab === 'subs' ? 'is-active' : ''}`}
-              onClick={() => setTab('subs')}
-            >
+            <button type="button" className={tabCls(tab === 'subs')} onClick={() => setTab('subs')}>
               <FileText size={10} /> {t('exportModal.tab_subs')}
             </button>
-            <button
-              type="button"
-              className={`export-modal__tab ${tab === 'pkg' ? 'is-active' : ''}`}
-              onClick={() => setTab('pkg')}
-            >
+            <button type="button" className={tabCls(tab === 'pkg')} onClick={() => setTab('pkg')}>
               <Package size={10} /> {t('exportModal.tab_pkg')}
             </button>
           </div>
@@ -416,7 +435,7 @@ export default function ExportModal({
                   </select>
                 </Field>
                 <Field label={t('exportModal.bg_audio')}>
-                  <label className="export-modal__toggle">
+                  <label className={TOGGLE_CLS}>
                     <input
                       type="checkbox"
                       checked={preserveBg}
@@ -426,7 +445,7 @@ export default function ExportModal({
                   </label>
                 </Field>
                 <Field label={t('exportModal.subs_in_video')}>
-                  <label className="export-modal__toggle">
+                  <label className={TOGGLE_CLS}>
                     <input
                       type="checkbox"
                       checked={burnSubs}
@@ -435,7 +454,7 @@ export default function ExportModal({
                     {t('exportModal.hardsub')}
                   </label>
                   {burnSubs && (
-                    <label className="export-modal__toggle export-modal__toggle--indent">
+                    <label className={TOGGLE_INDENT_CLS}>
                       <input
                         type="checkbox"
                         checked={!!dualSubs}
@@ -506,7 +525,7 @@ export default function ExportModal({
                   )}
                 </Field>
                 <Field label={t('exportModal.bg_audio')}>
-                  <label className="export-modal__toggle">
+                  <label className={TOGGLE_CLS}>
                     <input
                       type="checkbox"
                       checked={preserveBg}

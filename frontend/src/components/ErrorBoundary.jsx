@@ -4,7 +4,7 @@ import i18next from 'i18next';
 import { classifyError, openDocsFor } from '../utils/errorDocsMap';
 import { openExternal } from '../api/external';
 import { buildBugReportUrl, buildIssueSearchUrl } from '../utils/bugReport';
-import './WaveformErrorBoundary.css';
+import { Button } from '../ui';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -63,40 +63,58 @@ export default class ErrorBoundary extends React.Component {
 
     const msg = this.state.error?.message || String(this.state.error);
     return (
-      <div className="errbnd-wrap">
-        <div className="errbnd-card">
-          <AlertCircle size={32} color="var(--chrome-severity-err)" className="errbnd-icon" />
-          <h2 className="errbnd-title">{i18next.t('errors.title')}</h2>
-          <p className="errbnd-desc">{i18next.t('errors.desc')}</p>
-          <pre className="errbnd-trace">{msg}</pre>
-          <div className="errbnd-actions">
-            <button onClick={this.reset} className="btn-primary errbnd-retry">
-              <RefreshCw size={12} /> {i18next.t('errors.tryAgain')}
-            </button>
-            <button
-              type="button"
+      <div className="flex flex-1 items-center justify-center p-8 font-sans">
+        <div className="w-full max-w-[520px] rounded-[var(--chrome-radius-pill)] border border-[color:color-mix(in_srgb,var(--chrome-severity-err)_35%,transparent)] border-l-2 border-l-[var(--chrome-severity-err)] bg-[var(--chrome-bg)] p-[22px] text-center">
+          <AlertCircle
+            size={32}
+            color="var(--chrome-severity-err)"
+            className="mb-2.5 inline-block"
+          />
+          <h2 className="m-0 mb-1.5 font-serif text-[1.6rem] font-normal italic tracking-[-0.01em] text-[var(--chrome-fg)]">
+            {i18next.t('errors.title')}
+          </h2>
+          <p className="m-0 mb-3 text-[0.82rem] leading-[1.5] text-[var(--chrome-fg-muted)]">
+            {i18next.t('errors.desc')}
+          </p>
+          <pre className="m-0 mb-3.5 max-h-[140px] overflow-auto rounded-[var(--chrome-radius-pill)] border border-[var(--chrome-border)] bg-[var(--chrome-hover-bg)] px-2.5 py-2 text-left font-mono text-[0.72rem] text-[var(--chrome-severity-err)]">
+            {msg}
+          </pre>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={this.reset}
+              leading={<RefreshCw size={12} />}
+            >
+              {i18next.t('errors.tryAgain')}
+            </Button>
+            <Button
+              variant="subtle"
+              size="sm"
               onClick={this.openDocs}
-              className="btn-secondary errbnd-docs"
               title={i18next.t('errors.openDocs')}
+              leading={<BookOpen size={12} />}
             >
-              <BookOpen size={12} /> {i18next.t('errors.openDocs')}
-            </button>
-            <button
-              type="button"
+              {i18next.t('errors.openDocs')}
+            </Button>
+            <Button
+              variant="subtle"
+              size="sm"
               onClick={this.searchIssues}
-              className="btn-secondary errbnd-search"
               title={i18next.t('errors.searchIssues')}
+              leading={<Search size={12} />}
             >
-              <Search size={12} /> {i18next.t('errors.searchIssues')}
-            </button>
-            <button
-              type="button"
+              {i18next.t('errors.searchIssues')}
+            </Button>
+            <Button
+              variant="subtle"
+              size="sm"
               onClick={this.report}
-              className="btn-secondary errbnd-report"
               title={i18next.t('reportBug.title')}
+              leading={<Bug size={12} />}
             >
-              <Bug size={12} /> {i18next.t('errors.report')}
-            </button>
+              {i18next.t('errors.report')}
+            </Button>
           </div>
         </div>
       </div>

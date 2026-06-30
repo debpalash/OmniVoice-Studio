@@ -12,9 +12,10 @@ import {
 import { toastErrorWithReport } from '../utils/errorToast';
 import { useTranslation } from 'react-i18next';
 import { listEngines, getEngineHealth } from '../api/engines';
+import { ChevronRight } from 'lucide-react';
 import { Badge, Button, Segmented, Table } from '../ui';
+import { cn } from '@/lib/utils';
 import SupertonicLicenseDialog from './SupertonicLicenseDialog';
-import './EngineCompatibilityMatrix.css';
 
 /** Engines that gate first use behind an in-app license acceptance dialog.
  *  Phase 3 Plan 03-01 ‑‑ Supertonic-3 today; future OpenRAIL-M engines
@@ -83,6 +84,24 @@ const GPU_LABEL = {
   xpu: 'XPU',
   cpu: 'CPU',
 };
+
+// GPU compat chip — base + per-device tint. Migrated from
+// EngineCompatibilityMatrix.css (the `.engine-matrix__chip*` color system).
+const CHIP_BASE =
+  'inline-block px-[6px] py-px text-[10px] font-mono font-semibold tracking-[0.04em] uppercase rounded border select-none';
+const CHIP_DEVICE = {
+  cuda: 'text-[#76b900] border-[color:color-mix(in_srgb,#76b900_45%,transparent)] bg-[color:color-mix(in_srgb,#76b900_10%,transparent)]',
+  mps: 'text-[#b8b8b8] border-[color:color-mix(in_srgb,#b8b8b8_45%,transparent)] bg-[color:color-mix(in_srgb,#b8b8b8_10%,transparent)]',
+  rocm: 'text-[#ed1c24] border-[color:color-mix(in_srgb,#ed1c24_45%,transparent)] bg-[color:color-mix(in_srgb,#ed1c24_10%,transparent)]',
+  xpu: 'text-[#0071c5] border-[color:color-mix(in_srgb,#0071c5_45%,transparent)] bg-[color:color-mix(in_srgb,#0071c5_10%,transparent)]',
+  cpu: 'text-[color:var(--chrome-fg-muted,#888)] border-[color:var(--chrome-border-strong,rgba(255,255,255,0.18))] bg-transparent',
+};
+// The "device this host actually uses" highlight (#21). `is-effective` is kept
+// as a literal marker class — the matrix test asserts the chip carries it.
+const CHIP_EFFECTIVE =
+  'is-effective shadow-[0_0_0_1px_var(--chrome-accent,#fe8019)] border-[var(--chrome-accent,#fe8019)] text-[color:var(--chrome-fg,#eee)] font-bold';
+const chipCls = (device, effective) =>
+  cn(CHIP_BASE, CHIP_DEVICE[device] || CHIP_DEVICE.cpu, effective && CHIP_EFFECTIVE);
 
 // routing_status → badge tone + i18n key (#21). `unavailable` is intentionally
 // absent: the availability badge already conveys it, so the routing badge is
@@ -291,12 +310,12 @@ export default function EngineCompatibilityMatrix({
       )}
 
       <Table
-        className="engine-matrix__table"
+        className="w-full overflow-x-auto [&_.ui-table-header]:min-w-[840px]"
         role="table"
         aria-label={t('engines.engineCompatLabel', { family: activeFamily })}
       >
         <Table.Header columns={COLUMNS} />
-        <div className="engine-matrix__body flex flex-col pb-[12px]" role="rowgroup">
+        <div className="flex min-w-[840px] flex-col pb-[12px]" role="rowgroup">
           {backends.map((b) => {
             const isActive = b.id === activeBackendId;
             const health = healthByEngine[b.id];
@@ -337,8 +356,12 @@ export default function EngineCompatibilityMatrix({
                     </span>
                   )}
                   {!b.available && (b.reason || b.install_hint || b.last_error) && (
-                    <details className="engine-matrix__why text-[11px] mt-[2px]">
-                      <summary className="engine-matrix__why-summary">
+                    <details className="group text-[11px] mt-[2px]">
+                      <summary className="flex cursor-pointer list-none select-none items-center gap-[4px] py-px text-[color:var(--chrome-fg-muted,#888)] hover:text-[color:var(--chrome-fg,currentColor)] [&::-webkit-details-marker]:hidden">
+                        <ChevronRight
+                          size={10}
+                          className="transition-transform duration-[120ms] group-open:rotate-90"
+                        />
                         {t('engines.whyUnavailable')}
                       </summary>
                       <div className="engine-matrix__why-body flex flex-col gap-[3px] mt-[4px] pl-[12px] [border-left:2px_solid_var(--chrome-border,rgba(255,255,255,0.08))]">
@@ -410,7 +433,7 @@ export default function EngineCompatibilityMatrix({
                           return (
                             <span
                               key={g}
-                              className={`engine-matrix__chip engine-matrix__chip--${g}${isEffective ? ' is-effective' : ''}`}
+                              className={chipCls(g, isEffective)}
                               title={
                                 isEffective
                                   ? t('engines.routingEffectiveChip', { device: GPU_LABEL[g] || g })
