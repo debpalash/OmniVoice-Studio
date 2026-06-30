@@ -603,16 +603,20 @@ export default function StoriesEditor({ profiles = [] }) {
   const profileName = (id) => (profiles.find((p) => p.id === id) || {}).name;
 
   return (
-    <div className="stories-editor" role="region" aria-label="Stories editor">
+    <div
+      className="flex flex-col h-full w-full gap-[12px] p-[16px] font-sans"
+      role="region"
+      aria-label="Stories editor"
+    >
       {/* Header / toolbar */}
-      <div className="stories-editor__header">
+      <div className="flex items-center justify-between gap-[12px]">
         <div>
           <h2 className="stories-editor__title">
             <BookOpen size={18} /> {t('stories.title')}
           </h2>
-          <p className="stories-editor__subtitle">{t('stories.subtitle')}</p>
+          <p className="text-fg-muted [font-size:var(--text-sm)]">{t('stories.subtitle')}</p>
         </div>
-        <div className="stories-editor__actions">
+        <div className="flex flex-wrap gap-[6px]">
           <input
             ref={fileInputRef}
             type="file"
@@ -622,7 +626,7 @@ export default function StoriesEditor({ profiles = [] }) {
           />
 
           {/* Project */}
-          <div className="stories-editor__group">
+          <div className="inline-flex items-center gap-[4px]">
             <Button
               size="sm"
               variant="ghost"
@@ -641,10 +645,13 @@ export default function StoriesEditor({ profiles = [] }) {
             </Button>
           </div>
 
-          <span className="stories-editor__divider" aria-hidden="true" />
+          <span
+            className="self-stretch w-px min-h-[18px] mx-[4px] bg-border opacity-70"
+            aria-hidden="true"
+          />
 
           {/* Content */}
-          <div className="stories-editor__group">
+          <div className="inline-flex items-center gap-[4px]">
             <Button
               size="sm"
               variant="ghost"
@@ -674,11 +681,14 @@ export default function StoriesEditor({ profiles = [] }) {
             </Button>
           </div>
 
-          <span className="stories-editor__divider" aria-hidden="true" />
+          <span
+            className="self-stretch w-px min-h-[18px] mx-[4px] bg-border opacity-70"
+            aria-hidden="true"
+          />
 
           {/* Global reading speed (#415) — one speed for every line that has no
               per-line override. */}
-          <div className="stories-editor__group">
+          <div className="inline-flex items-center gap-[4px]">
             <label
               className="stories-editor__speed"
               title={t('stories.global_speed_hint', {
@@ -708,10 +718,13 @@ export default function StoriesEditor({ profiles = [] }) {
             </label>
           </div>
 
-          <span className="stories-editor__divider" aria-hidden="true" />
+          <span
+            className="self-stretch w-px min-h-[18px] mx-[4px] bg-border opacity-70"
+            aria-hidden="true"
+          />
 
           {/* Output */}
-          <div className="stories-editor__group">
+          <div className="inline-flex items-center gap-[4px]">
             <Button
               size="sm"
               variant="ghost"
@@ -740,16 +753,22 @@ export default function StoriesEditor({ profiles = [] }) {
 
       {/* Projects panel */}
       {projectsOpen && (
-        <div className="stories-cast" role="region" aria-label={t('stories.projects')}>
-          <div className="stories-cast__head">
-            <span className="stories-editor__panel-title">{t('stories.projects')}</span>
+        <div
+          className="flex flex-col gap-[8px] p-[12px] bg-bg-elev-2 [border:1px_solid_var(--color-border)] rounded-sm"
+          role="region"
+          aria-label={t('stories.projects')}
+        >
+          <div className="flex items-center justify-between">
+            <span className="[font-size:var(--text-xs)] font-semibold uppercase tracking-[0.06em] text-accent">
+              {t('stories.projects')}
+            </span>
             <button type="button" className="stories-cast__add" onClick={newStory}>
               <Plus size={12} /> {t('stories.newStory')}
             </button>
           </div>
-          <div className="stories-cast__row">
+          <div className="flex items-center gap-[8px]">
             <input
-              className="stories-cast__name stories-proj__name"
+              className="stories-cast__name flex-1"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
               placeholder={t('stories.untitled')}
@@ -762,7 +781,7 @@ export default function StoriesEditor({ profiles = [] }) {
           {storyProjects.map((p) => (
             <div
               key={p.id}
-              className={`stories-cast__row ${p.id === currentProjectId ? 'stories-proj--current' : ''}`}
+              className={`flex items-center gap-[8px] ${p.id === currentProjectId ? 'stories-proj--current' : ''}`}
             >
               <button
                 type="button"
@@ -782,23 +801,34 @@ export default function StoriesEditor({ profiles = [] }) {
             </div>
           ))}
           {storyProjects.length === 0 && (
-            <p className="stories-editor__hint">{t('stories.noProjects')}</p>
+            <p className="m-0 [font-size:var(--text-xs)] text-fg-subtle">
+              {t('stories.noProjects')}
+            </p>
           )}
         </div>
       )}
 
       {/* Cast panel */}
       {castOpen && (
-        <div className="stories-cast" role="region" aria-label={t('stories.castTitle')}>
-          <div className="stories-cast__head">
-            <span className="stories-editor__panel-title">{t('stories.castTitle')}</span>
+        <div
+          className="flex flex-col gap-[8px] p-[12px] bg-bg-elev-2 [border:1px_solid_var(--color-border)] rounded-sm"
+          role="region"
+          aria-label={t('stories.castTitle')}
+        >
+          <div className="flex items-center justify-between">
+            <span className="[font-size:var(--text-xs)] font-semibold uppercase tracking-[0.06em] text-accent">
+              {t('stories.castTitle')}
+            </span>
             <button type="button" className="stories-cast__add" onClick={addCharacter}>
               <Plus size={12} /> {t('stories.addCharacter')}
             </button>
           </div>
           {cast.map((c) => (
-            <div key={c.id} className="stories-cast__row">
-              <span className="stories-cast__dot" style={{ background: c.color }} />
+            <div key={c.id} className="flex items-center gap-[8px]">
+              <span
+                className="w-[10px] h-[10px] rounded-full shrink-0"
+                style={{ background: c.color }}
+              />
               <input
                 className="stories-cast__name"
                 value={c.name}
@@ -833,7 +863,9 @@ export default function StoriesEditor({ profiles = [] }) {
             </div>
           ))}
           {profiles.length === 0 && (
-            <p className="stories-editor__hint">{t('stories.noProfiles')}</p>
+            <p className="m-0 [font-size:var(--text-xs)] text-fg-subtle">
+              {t('stories.noProfiles')}
+            </p>
           )}
         </div>
       )}
@@ -841,7 +873,7 @@ export default function StoriesEditor({ profiles = [] }) {
       {/* Paste & split */}
       {splitOpen && (
         <div
-          className="stories-editor__split-panel"
+          className="flex flex-col gap-[8px] p-[12px] my-[8px] [border:1px_solid_var(--color-border)] rounded-md [background:rgba(255,255,255,0.02)]"
           role="region"
           aria-label={t('stories.pasteSplit')}
         >
@@ -853,8 +885,8 @@ export default function StoriesEditor({ profiles = [] }) {
             rows={6}
             aria-label={t('stories.splitPlaceholder')}
           />
-          <div className="stories-editor__split-controls">
-            <label className="stories-editor__split-label">
+          <div className="flex items-center gap-[12px] flex-wrap">
+            <label className="flex items-center gap-[6px] [font-size:var(--text-xs)] text-fg-muted">
               {t('stories.maxChars')}
               <input
                 type="number"
@@ -866,7 +898,7 @@ export default function StoriesEditor({ profiles = [] }) {
                 className="stories-editor__split-num"
               />
             </label>
-            <span className="stories-editor__split-hint">
+            <span className="flex-1 [font-size:var(--text-xs)] text-fg-subtle">
               {splitText
                 ? t('stories.segmentsHint', {
                     count: splitIntoChunks(splitText, splitMax).length,
@@ -901,9 +933,11 @@ export default function StoriesEditor({ profiles = [] }) {
 
       {/* Tracks */}
       {tracks.length === 0 ? (
-        <div className="stories-editor__empty">
-          <BookOpen size={32} className="stories-editor__empty-icon" aria-hidden="true" />
-          <p className="stories-editor__empty-text">{t('stories.emptyText')}</p>
+        <div className="flex-1 flex flex-col items-center justify-center gap-[12px] text-fg-muted text-center">
+          <BookOpen size={32} className="text-[2rem] opacity-40" aria-hidden="true" />
+          <p className="[font-size:var(--text-sm)] max-w-[320px] leading-[1.6]">
+            {t('stories.emptyText')}
+          </p>
           <Button size="sm" onClick={addTrack}>
             <Plus size={13} /> {t('stories.addFirst')}
           </Button>
@@ -1009,9 +1043,9 @@ export default function StoriesEditor({ profiles = [] }) {
                   aria-label={`${member ? member.name : ''} ${t('stories.text')}`}
                 />
 
-                <div className="stories-track__voice">
+                <div className="flex items-center gap-[6px]">
                   <span
-                    className="stories-track__voice-dot"
+                    className="stories-track__voice-dot w-[10px] h-[10px] rounded-full shrink-0"
                     style={{ background: member ? member.color : '#a89984' }}
                   />
                   <select
@@ -1120,8 +1154,11 @@ export default function StoriesEditor({ profiles = [] }) {
                 </div>
 
                 {expandedLine === track.id && (
-                  <div className="stories-track__drawer" onClick={(e) => e.stopPropagation()}>
-                    <div className="stories-track__tones">
+                  <div
+                    className="basis-full flex flex-wrap items-center gap-[12px] mt-[8px] pt-[8px] [border-top:1px_solid_var(--color-border)]"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex flex-wrap gap-[4px]">
                       {STORY_TONES.map((tn) => (
                         <button
                           key={tn.tag}
@@ -1168,25 +1205,25 @@ export default function StoriesEditor({ profiles = [] }) {
 
       {/* Footer stats */}
       {tracks.length > 0 && (
-        <div className="stories-editor__footer">
-          <div className="stories-editor__stats">
-            <span className="stories-editor__stat">
+        <div className="flex items-center justify-between pt-[8px] [border-top:1px_solid_var(--color-border)]">
+          <div className="[font-size:var(--text-xs)] text-fg-subtle flex gap-[12px]">
+            <span className="flex items-center gap-[4px]">
               <FileText size={12} aria-hidden="true" />{' '}
               {t('stories.lines', { count: tracks.length })}
             </span>
-            <span className="stories-editor__stat">
+            <span className="flex items-center gap-[4px]">
               <Drama size={12} aria-hidden="true" />{' '}
               {t('stories.characters', { count: usedCharacters })}
             </span>
-            <span className="stories-editor__stat">
+            <span className="flex items-center gap-[4px]">
               <Timer size={12} aria-hidden="true" /> {t('stories.minutes', { count: estMinutes })}
             </span>
-            <span className="stories-editor__stat">
+            <span className="flex items-center gap-[4px]">
               <ChartColumn size={12} aria-hidden="true" />{' '}
               {t('stories.chars', { count: totalChars })}
             </span>
             {exporting && (
-              <span className="stories-editor__stat">
+              <span className="flex items-center gap-[4px]">
                 <Hourglass size={12} aria-hidden="true" /> {exportPct}%
               </span>
             )}

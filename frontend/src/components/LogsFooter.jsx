@@ -92,6 +92,13 @@ function SeverityIcon({ level, size = 11 }) {
 // fields (uiScale, theme, setUiScale, setTheme) are unchanged; only the
 // rendering moved.
 
+// Count badge base (layout/typography). The severity color variants
+// (--error/--warn) remain in LogsFooter.css.
+const BADGE =
+  'inline-flex items-center justify-center min-w-[18px] px-[5px] h-[14px] rounded-[7px] ' +
+  'text-[10px] font-semibold [background:rgba(255,255,255,0.08)] [color:var(--chrome-fg)] ' +
+  '[font-family:var(--chrome-font-mono)]';
+
 function SourcePill({ source, counts, active, onClick }) {
   const hasErrors = counts.error > 0;
   const hasWarns = counts.warn > 0;
@@ -108,16 +115,12 @@ function SourcePill({ source, counts, active, onClick }) {
       onClick={onClick}
       aria-label={`${source.label} logs${hasErrors ? `, ${counts.error} errors` : hasWarns ? `, ${counts.warn} warnings` : ''}`}
     >
-      <span className="logs-footer__pill-label">{source.label}</span>
-      {hasErrors && (
-        <span className="logs-footer__badge logs-footer__badge--error">{counts.error}</span>
-      )}
+      <span className="font-medium">{source.label}</span>
+      {hasErrors && <span className={`${BADGE} logs-footer__badge--error`}>{counts.error}</span>}
       {!hasErrors && hasWarns && (
-        <span className="logs-footer__badge logs-footer__badge--warn">{counts.warn}</span>
+        <span className={`${BADGE} logs-footer__badge--warn`}>{counts.warn}</span>
       )}
-      {!hasErrors && !hasWarns && counts.total > 0 && (
-        <span className="logs-footer__badge">{counts.total}</span>
-      )}
+      {!hasErrors && !hasWarns && counts.total > 0 && <span className={BADGE}>{counts.total}</span>}
     </button>
   );
 }
@@ -382,14 +385,14 @@ export default function LogsFooter() {
       {!collapsed && (
         <div
           ref={dragRef}
-          className="logs-footer__resize"
+          className="absolute top-[-2px] left-0 right-0 h-[5px] cursor-ns-resize z-[1] hover:[background:var(--chrome-accent-border)]"
           onMouseDown={onDragStart}
           title={t('logs.drag_resize')}
         />
       )}
 
-      <div className="logs-footer__bar">
-        <div className="logs-footer__left">
+      <div className="flex items-center justify-between h-[28px] px-[8px] gap-[8px] [border-bottom:1px_solid_rgba(255,255,255,0.04)] shrink-0">
+        <div className="flex items-center gap-[8px] min-w-0 flex-1 overflow-hidden">
           {/* UI scale + theme picker moved to Settings → Appearance.
               Footer is logs-focused now; rarely-used display prefs don't
               belong in always-visible chrome. */}
@@ -414,7 +417,9 @@ export default function LogsFooter() {
             />
           ) : (
             <>
-              <span className="logs-footer__title">{t('logs.title')}</span>
+              <span className="[color:var(--chrome-fg-muted)] text-[11px] uppercase tracking-[0.06em] mr-[4px]">
+                {t('logs.title')}
+              </span>
               {SOURCES.map((s) => (
                 <SourcePill
                   key={s.id}
@@ -427,9 +432,9 @@ export default function LogsFooter() {
             </>
           )}
         </div>
-        <div className="logs-footer__right">
+        <div className="flex items-center gap-[4px] shrink-0">
           {!collapsed && (
-            <div className="logs-footer__actions">
+            <div className="flex items-center gap-[2px]">
               <button
                 className="logs-footer__icon-btn"
                 onClick={refreshAll}
@@ -540,18 +545,21 @@ export default function LogsFooter() {
       {!collapsed && active !== 'notifications' && (
         <div ref={scrollRef} className="logs-footer__body">
           {current.length === 0 && (
-            <div className="logs-footer__empty">
+            <div className="p-[12px] [color:var(--chrome-fg-dim)] not-italic text-[11px] text-center">
               {active === 'frontend' ? t('logs.empty_frontend_short') : t('logs.empty_lines')}
             </div>
           )}
           {current.map((line, i) => {
             const level = classifyLine(line);
             return (
-              <div key={i} className={`logs-footer__line logs-footer__line--${level}`}>
-                <span className="logs-footer__line-icon">
+              <div
+                key={i}
+                className={`flex items-start gap-[6px] px-[2px] py-[1px] rounded-[2px] logs-footer__line--${level}`}
+              >
+                <span className="pt-[2px] shrink-0">
                   <SeverityIcon level={level} />
                 </span>
-                <pre className="logs-footer__line-text">
+                <pre className="logs-footer__line-text m-0 p-0 [font-family:inherit] text-[11.5px] leading-[1.5] whitespace-pre-wrap [word-break:break-word] [color:#ebdbb2] flex-1">
                   {typeof line === 'string' ? line : JSON.stringify(line)}
                 </pre>
               </div>
@@ -561,14 +569,16 @@ export default function LogsFooter() {
       )}
 
       {!collapsed && active === 'notifications' && (
-        <div className="logs-footer__body logs-footer__notif-body">
+        <div className="logs-footer__body flex flex-col gap-[2px] px-[8px] py-[6px]">
           {notifications.length === 0 ? (
-            <div className="logs-footer__empty">{t('logs.all_clear')}</div>
+            <div className="p-[12px] [color:var(--chrome-fg-dim)] not-italic text-[11px] text-center">
+              {t('logs.all_clear')}
+            </div>
           ) : (
             notifications.map((notif) => (
               <div
                 key={notif.id}
-                className={`logs-footer__notif-item logs-footer__notif-item--${notif.level} ${notif.action ? 'logs-footer__notif-item--clickable' : ''}`}
+                className={`flex gap-[8px] items-start px-[10px] py-[8px] rounded-md [background:rgba(255,255,255,0.02)] [border:1px_solid_transparent] hover:[background:rgba(255,255,255,0.04)] logs-footer__notif-item--${notif.level} ${notif.action ? 'logs-footer__notif-item--clickable' : ''}`}
                 onClick={() => {
                   if (!notif.action) return;
                   // Acting on the crash notice acknowledges it — the backend
@@ -589,15 +599,17 @@ export default function LogsFooter() {
                 role={notif.action ? 'button' : undefined}
                 tabIndex={notif.action ? 0 : undefined}
               >
-                <span className="logs-footer__notif-icon">
+                <span className="shrink-0 mt-[2px]">
                   <SeverityIcon level={notif.level} />
                 </span>
-                <div className="logs-footer__notif-content">
+                <div className="logs-footer__notif-content flex flex-col gap-[2px] flex-1 min-w-0">
                   <strong>{notif.title}</strong>
-                  <span className="logs-footer__notif-msg">{notif.message}</span>
+                  <span className="text-[11px] text-fg-muted leading-[1.5]">{notif.message}</span>
                 </div>
                 {notif.action && (
-                  <span className="logs-footer__notif-action">{notif.action.label} →</span>
+                  <span className="shrink-0 text-[11px] font-semibold text-brand whitespace-nowrap">
+                    {notif.action.label} →
+                  </span>
                 )}
               </div>
             ))

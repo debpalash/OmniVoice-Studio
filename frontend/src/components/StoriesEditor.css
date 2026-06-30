@@ -1,22 +1,10 @@
 /* ── Stories / Audiobook Editor ─────────────────────────────────────── */
-
-.stories-editor {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 12px;
-  padding: 16px;
-  font-family: var(--font-sans);
-}
-
-/* ── Header ───────────────────────────────────────────────────────── */
-
-.stories-editor__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
+/* Layout/spacing/typography for the editor shell, header, panels, stats and
+   the cast/split rows now live as Tailwind utilities in StoriesEditor.jsx.
+   What remains here is the hard-to-express stuff: the track grid + its
+   hover/active/drag combinators, native control chrome (textarea/select/range/
+   buttons + their focus/hover/disabled states), pseudo-element scrollbars, the
+   per-character color palette attribute selectors, and the chapter bar. */
 
 .stories-editor__title {
   font-family: var(--font-serif);
@@ -27,16 +15,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.stories-editor__subtitle {
-  color: var(--color-fg-muted);
-  font-size: var(--text-sm);
-}
-
-.stories-editor__actions {
-  display: flex;
-  gap: 6px;
 }
 
 /* ── Track list ───────────────────────────────────────────────────── */
@@ -120,12 +98,6 @@
 }
 
 /* Voice selector */
-.stories-track__voice {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .stories-track__voice-select {
   flex: 1;
   background: var(--color-bg-elev-2);
@@ -135,13 +107,6 @@
   font-size: var(--text-xs);
   padding: 4px 6px;
   font-family: var(--font-sans);
-}
-
-.stories-track__voice-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
 }
 
 /* Character tag */
@@ -189,53 +154,6 @@
   color: var(--color-danger);
 }
 
-/* ── Empty state ──────────────────────────────────────────────────── */
-
-.stories-editor__empty {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  color: var(--color-fg-muted);
-  text-align: center;
-}
-
-.stories-editor__empty-icon {
-  font-size: 2rem;
-  opacity: 0.4;
-}
-
-.stories-editor__empty-text {
-  font-size: var(--text-sm);
-  max-width: 320px;
-  line-height: 1.6;
-}
-
-/* ── Footer / generate bar ────────────────────────────────────────── */
-
-.stories-editor__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 0 0;
-  border-top: 1px solid var(--color-border);
-}
-
-.stories-editor__stats {
-  font-size: var(--text-xs);
-  color: var(--color-fg-subtle);
-  display: flex;
-  gap: 12px;
-}
-
-.stories-editor__stat {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
 /* ── Character color palette ──────────────────────────────────────── */
 
 .stories-track__voice-dot[data-char="narrator"]  { background: var(--color-accent); }
@@ -249,16 +167,6 @@
 
 /* ── Paste & auto-split panel ────────────────────────────────────── */
 
-.stories-editor__split-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  margin: 8px 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.02);
-}
 .stories-editor__split-text {
   width: 100%;
   min-height: 96px;
@@ -271,19 +179,6 @@
   font-size: var(--text-sm);
   resize: vertical;
 }
-.stories-editor__split-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.stories-editor__split-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--text-xs);
-  color: var(--color-fg-muted);
-}
 .stories-editor__split-num {
   width: 64px;
   padding: 4px 6px;
@@ -294,34 +189,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-xs);
 }
-.stories-editor__split-hint {
-  flex: 1;
-  font-size: var(--text-xs);
-  color: var(--color-fg-subtle);
-}
-
 /* ── Cast panel ───────────────────────────────────────────────────── */
-.stories-cast {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  background: var(--color-bg-elev-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-}
-.stories-cast__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.stories-editor__panel-title {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-accent);
-}
 .stories-cast__add {
   display: inline-flex;
   align-items: center;
@@ -336,17 +204,6 @@
   cursor: pointer;
 }
 .stories-cast__add:hover { border-color: var(--color-accent); color: var(--color-accent); }
-.stories-cast__row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.stories-cast__dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
 .stories-cast__name {
   flex: 0 0 140px;
   background: var(--color-bg, rgba(0, 0, 0, 0.2));
@@ -372,11 +229,6 @@
 }
 .stories-cast__del:hover:not(:disabled) { color: #fb4934; background: rgba(255, 255, 255, 0.06); }
 .stories-cast__del:disabled { opacity: 0.35; cursor: not-allowed; }
-.stories-editor__hint {
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--color-fg-subtle);
-}
 
 /* ── Drag-to-reorder ──────────────────────────────────────────────── */
 .stories-track { cursor: grab; flex-wrap: wrap; }
@@ -384,17 +236,6 @@
 
 /* ── Per-line tone/speed drawer ───────────────────────────────────── */
 .stories-track__btn--on { color: var(--color-accent); background: rgba(255, 255, 255, 0.06); }
-.stories-track__drawer {
-  flex-basis: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--color-border);
-}
-.stories-track__tones { display: flex; flex-wrap: wrap; gap: 4px; }
 .stories-track__tone {
   display: inline-flex;
   align-items: center;
@@ -431,7 +272,6 @@
 .stories-track__reset:hover { color: var(--color-fg); }
 
 /* ── Projects panel ───────────────────────────────────────────────── */
-.stories-proj__name { flex: 1; }
 .stories-proj__open {
   flex: 1;
   display: inline-flex;
@@ -459,22 +299,6 @@
 }
 
 /* ── Redesign: grouped toolbar, chapter bars, readable column ──────── */
-
-/* Full-bleed like the other studio tabs — fill the content area edge to edge
-   instead of a centered column. */
-.stories-editor { width: 100%; }
-
-/* Toolbar: logical clusters (project · content · output) with thin dividers. */
-.stories-editor__actions { flex-wrap: wrap; }
-.stories-editor__group { display: inline-flex; align-items: center; gap: 4px; }
-.stories-editor__divider {
-  align-self: stretch;
-  width: 1px;
-  min-height: 18px;
-  margin: 0 4px;
-  background: var(--color-border);
-  opacity: 0.7;
-}
 
 /* Chapter = a section heading, not a voiced line. */
 .stories-chapter {

@@ -53,47 +53,13 @@
   min-height: 180px;
 }
 
-/* Drag handle — 4 px strip on the top edge. Cursor + subtle hover
-   hint so it feels grabbable. */
-.logs-footer__resize {
-  position: absolute;
-  top: -2px;
-  left: 0;
-  right: 0;
-  height: 5px;
-  cursor: ns-resize;
-  z-index: 1;
-}
-.logs-footer__resize:hover {
-  background: var(--chrome-accent-border);
-}
-
-/* Top bar — always visible */
-.logs-footer__bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 28px;
-  padding: 0 8px;
-  gap: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  flex-shrink: 0;
-}
-.logs-footer__left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-}
-.logs-footer__title {
-  color: var(--chrome-fg-muted);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-right: 4px;
-}
+/* Drag handle, top bar, left/right clusters, title, badge base, log-line base,
+   and the notification panel layout now live as Tailwind utilities in
+   LogsFooter.jsx. What stays here is the chrome chrome: the fixed footer shell
+   (it's the anchor for the `.app-container .logs-footer` inset combinators + the
+   ≤600px media query), every interactive button with its hover/disabled/animation
+   states, the severity color modifiers + their descendant overrides, scrollbar
+   pseudo-elements, and the @keyframes. */
 /* Thin vertical divider between the UI-scale toggle (leftmost) and the
    Logs title + source pills. Keeps the two distinct control groups from
    visually running into each other. */
@@ -180,23 +146,6 @@
 .logs-footer__pill--warn {
   color: #fabd2f;
 }
-.logs-footer__pill-label {
-  font-weight: 500;
-}
-.logs-footer__badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  padding: 0 5px;
-  height: 14px;
-  border-radius: 7px;
-  font-size: 10px;
-  font-weight: 600;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--chrome-fg);
-  font-family: var(--chrome-font-mono);
-}
 .logs-footer__badge--error {
   background: rgba(251, 73, 52, 0.2);
   color: #fb4934;
@@ -207,18 +156,6 @@
 }
 
 /* Action buttons on the right */
-.logs-footer__right {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-.logs-footer__actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
 /* Clickable app-version badge → Settings → Updates (sits by the network icon) */
 .logs-footer__version {
   background: none;
@@ -361,89 +298,29 @@
 .logs-footer__body::-webkit-scrollbar        { width: 8px; height: 8px; }
 .logs-footer__body::-webkit-scrollbar-thumb  { background: rgba(255, 255, 255, 0.08); border-radius: 4px; }
 .logs-footer__body::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
-.logs-footer__empty {
-  padding: 12px;
-  color: var(--chrome-fg-dim);
-  font-style: normal;
-  font-size: 11px;
-  text-align: center;
-}
 
-.logs-footer__line {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 1px 2px;
-  border-radius: 2px;
-}
 .logs-footer__line--error {
   background: rgba(251, 73, 52, 0.06);
 }
 .logs-footer__line--warn {
   background: rgba(250, 189, 47, 0.04);
 }
-.logs-footer__line-icon {
-  padding-top: 2px;
-  flex-shrink: 0;
-}
-.logs-footer__line-text {
-  margin: 0;
-  padding: 0;
-  font-family: inherit;
-  font-size: 11.5px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: #ebdbb2;
-  flex: 1;
-}
+/* line-text base lives in JSX utilities; these severity overrides recolor it. */
 .logs-footer__line--error .logs-footer__line-text { color: #fb4934; }
 .logs-footer__line--warn  .logs-footer__line-text { color: #fabd2f; }
 
 /* ── Notification panel in footer ────────────────────────────────── */
-
-.logs-footer__notif-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 8px;
-}
-
-.logs-footer__notif-item {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  padding: 8px 10px;
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid transparent;
-}
-.logs-footer__notif-item:hover { background: rgba(255, 255, 255, 0.04); }
+/* notif-body / notif-item base+hover / notif-icon / notif-content layout /
+   notif-msg / notif-action are utilities in JSX. The severity border-left
+   modifiers, the clickable hover, and the `notif-content strong` rule stay. */
 
 .logs-footer__notif-item--warn  { border-left: 2px solid #fabd2f; }
 .logs-footer__notif-item--error { border-left: 2px solid #fb4934; }
 .logs-footer__notif-item--info  { border-left: 2px solid #83a598; }
 
-.logs-footer__notif-icon {
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.logs-footer__notif-content {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
 .logs-footer__notif-content strong {
   font-size: 12px;
   color: var(--color-fg);
-}
-.logs-footer__notif-msg {
-  font-size: 11px;
-  color: var(--color-fg-muted);
-  line-height: 1.5;
 }
 
 .logs-footer__notif-link {
@@ -488,14 +365,6 @@
 
 .logs-footer__notif-item--clickable { cursor: pointer; }
 .logs-footer__notif-item--clickable:hover { background: rgba(255, 255, 255, 0.06); }
-
-.logs-footer__notif-action {
-  flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-brand);
-  white-space: nowrap;
-}
 
 /* ── Reduced motion (10x P4, spec §3): the heart stops glowing; the
    refresh spinner holds a static frame. ───────────────────────────────── */
