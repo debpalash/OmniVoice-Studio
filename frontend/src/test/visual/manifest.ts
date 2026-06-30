@@ -14,6 +14,9 @@ export const COMPONENTS = [
   'Panel',
   'SettingRow',
   'SettingsToggle',
+  'Slider',
+  'Table',
+  'Tabs',
 ] as const;
 
 export const THEMES = ['default', 'midnight', 'catppuccin'] as const;

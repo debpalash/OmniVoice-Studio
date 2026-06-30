@@ -11,13 +11,16 @@
 // ─────────────────────────────────────────────────────────────────
 
 import React from 'react';
-import { Download, Sparkles, Trash2 } from 'lucide-react';
+import { Download, Mic, Sparkles, Trash2 } from 'lucide-react';
 
 import Badge from '../../ui/Badge.jsx';
 import Button from '../../ui/Button.jsx';
 import Panel from '../../ui/Panel.jsx';
 import Progress from '../../ui/Progress.jsx';
 import Segmented from '../../ui/Segmented.jsx';
+import Slider from '../../ui/Slider.jsx';
+import Table from '../../ui/Table.jsx';
+import Tabs from '../../ui/Tabs.jsx';
 import SettingRow from '../../components/settings/primitives/SettingRow.jsx';
 import SettingsToggle from '../../components/settings/primitives/SettingsToggle.jsx';
 // SettingRow / SettingsToggle styling lives in the primitives stylesheet,
@@ -35,6 +38,18 @@ function Spec({ label, children }) {
 }
 
 const BADGE_TONES = ['neutral', 'brand', 'success', 'warn', 'danger', 'info', 'violet'];
+
+const TAB_ITEMS = [
+  { id: 'clone', label: 'Clone', icon: Mic },
+  { id: 'design', label: 'Design', icon: Sparkles },
+  { id: 'dub', label: 'Dub' },
+];
+
+const TABLE_COLS = [
+  { key: 'name', label: 'Voice', flex: 2 },
+  { key: 'lang', label: 'Lang', width: 80 },
+  { key: 'dur', label: 'Length', width: 70, align: 'right' },
+];
 
 export const SPECS = {
   Badge: {
@@ -212,6 +227,50 @@ export const SPECS = {
         <Spec label="disabled">
           <SettingsToggle checked disabled onChange={() => {}} aria-label="Disabled on" />
           <SettingsToggle checked={false} disabled onChange={() => {}} aria-label="Disabled off" />
+        </Spec>
+      </>
+    ),
+  },
+
+  Slider: {
+    render: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%' }}>
+        <Spec label="md + label">
+          <Slider value={42} onChange={() => {}} label="Stability" />
+        </Spec>
+        <Spec label="sm">
+          <Slider value={70} onChange={() => {}} size="sm" />
+        </Spec>
+        <Spec label="no value bubble">
+          <Slider value={30} onChange={() => {}} showValue={false} />
+        </Spec>
+      </div>
+    ),
+  },
+
+  Table: {
+    render: () => (
+      <div style={{ display: 'flex', width: '100%', height: 160 }}>
+        <Table>
+          <Table.Toolbar search="voice" onSearch={() => {}} meta="42/42 · 3 sel" />
+          <Table.Header columns={TABLE_COLS} />
+          <div style={{ flex: 1 }} />
+        </Table>
+      </div>
+    ),
+  },
+
+  Tabs: {
+    render: () => (
+      <>
+        <Spec label="pill (md)">
+          <Tabs items={TAB_ITEMS} value="clone" onChange={() => {}} />
+        </Spec>
+        <Spec label="pill (sm)">
+          <Tabs items={TAB_ITEMS} value="design" onChange={() => {}} size="sm" />
+        </Spec>
+        <Spec label="underline">
+          <Tabs items={TAB_ITEMS} value="dub" onChange={() => {}} variant="underline" />
         </Spec>
       </>
     ),

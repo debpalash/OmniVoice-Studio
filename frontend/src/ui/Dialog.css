@@ -44,42 +44,8 @@
   animation: ui-dialog-pop var(--dur-base) var(--ease-spring);
 }
 
-/* sizes */
-.ui-dialog--sm { max-width: 380px; }
-.ui-dialog--md { max-width: 560px; }
-.ui-dialog--lg { max-width: 780px; }
-.ui-dialog--xl { max-width: 1080px; }
-
-.ui-dialog__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-5) var(--space-6);
-  border-bottom: 1px solid var(--color-border);
-  gap: var(--space-4);
-  flex-shrink: 0;
-}
-.ui-dialog__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
-  font-weight: var(--weight-bold);
-  letter-spacing: -0.01em;
-  color: var(--color-fg);
-}
-
-.ui-dialog__body {
-  padding: var(--space-6);
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.ui-dialog__footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-3);
-  padding: var(--space-4) var(--space-6);
-  border-top: 1px solid var(--color-border);
-  flex-shrink: 0;
-}
+/* sizes — the per-size max-width now lives in Dialog.jsx (DIALOG_MAX_W) as
+   `max-w-[…]` utilities. The header / title / body / footer box-model +
+   typography were likewise converted to utilities in Dialog.jsx. Only the
+   glass surface + fixed centering + open/close keyframes remain here, since
+   those can't be reduced to utilities. */
