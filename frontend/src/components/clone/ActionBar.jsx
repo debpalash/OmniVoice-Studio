@@ -55,11 +55,13 @@ export default function ActionBar({
     <div className="studio-action-bar clone-panel--overflow-visible">
       {showOverrides && (
         <div className="override-content">
-          <div className="grid-4">
+          <div className="grid [grid-template-columns:repeat(auto-fit,minmax(120px,1fr))] gap-[6px] max-[500px]:grid-cols-2">
             <div>
               <div className="label-row label-row--spread">
                 <span>CFG</span>
-                <span className="val-bubble">{cfg}</span>
+                <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
+                  {cfg}
+                </span>
               </div>
               <input
                 type="range"
@@ -73,7 +75,9 @@ export default function ActionBar({
             <div>
               <div className="label-row label-row--spread">
                 <span>{t('clone.speed')}</span>
-                <span className="val-bubble">{speed}x</span>
+                <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
+                  {speed}x
+                </span>
               </div>
               <input
                 type="range"
@@ -87,7 +91,9 @@ export default function ActionBar({
             <div>
               <div className="label-row label-row--spread">
                 <span>{t('clone.tshift')}</span>
-                <span className="val-bubble">{tShift}</span>
+                <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
+                  {tShift}
+                </span>
               </div>
               <input
                 type="range"
@@ -101,7 +107,9 @@ export default function ActionBar({
             <div>
               <div className="label-row label-row--spread">
                 <span>{t('clone.pos_temp')}</span>
-                <span className="val-bubble">{posTemp}</span>
+                <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
+                  {posTemp}
+                </span>
               </div>
               <input
                 type="range"
@@ -115,7 +123,9 @@ export default function ActionBar({
             <div>
               <div className="label-row label-row--spread">
                 <span>{t('clone.class_temp')}</span>
-                <span className="val-bubble">{classTemp}</span>
+                <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
+                  {classTemp}
+                </span>
               </div>
               <input
                 type="range"
@@ -129,7 +139,9 @@ export default function ActionBar({
             <div>
               <div className="label-row label-row--spread">
                 <span>{t('clone.layer_pen')}</span>
-                <span className="val-bubble">{layerPenalty}</span>
+                <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
+                  {layerPenalty}
+                </span>
               </div>
               <input
                 type="range"
@@ -195,7 +207,9 @@ export default function ActionBar({
             value={steps}
             onChange={(e) => setSteps(Number(e.target.value))}
           />
-          <span className="val-bubble">{steps}</span>
+          <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
+            {steps}
+          </span>
         </label>
         <button
           type="button"

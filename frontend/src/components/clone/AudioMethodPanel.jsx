@@ -101,7 +101,7 @@ export default function AudioMethodPanel({
         </div>
       )}
 
-      <div className="grid-2 mt-[6px]">
+      <div className="grid grid-cols-2 gap-[6px] max-[700px]:grid-cols-1 mt-[6px]">
         <div>
           <div className="label-row">{t('clone.transcript')}</div>
           <input

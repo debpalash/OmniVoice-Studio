@@ -699,8 +699,8 @@ html[data-zoom-layout='off'] .app-container {
 /* ═══ TABS — migrated to ui/Tabs primitive; legacy .tabs/.tab removed. ═══ */
 
 /* ═══ GRID SYSTEMS ═══ */
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; }
+/* .grid-2 / .grid-4 → Tailwind utilities (grid + grid-cols + responsive
+   max-[…] variants) inline in AudioMethodPanel.jsx / clone/ActionBar.jsx (P4). */
 
 /* Shared section-label style across workspace pages (Clone / Design /
    Dub) — rhymes with the status bar's "LOGS" label and the Sidebar
@@ -778,11 +778,7 @@ input[type="range"]::-webkit-slider-thumb:active {
   transform: scale(1.1);
   background: var(--primary);
 }
-.val-bubble {
-  font-size: 0.65rem; background: rgba(0,0,0,0.35); padding: 1px 5px; border-radius: 3px;
-  border: 1px solid rgba(255,255,255,0.04);
-  font-variant-numeric: tabular-nums;
-}
+/* .val-bubble → Tailwind utilities inline in clone/ActionBar.jsx (P4). */
 
 /* ═══ TAGS ═══ */
 .tags-container { display: flex; flex-wrap: wrap; gap: 3px; margin: 4px 0; }
@@ -2411,15 +2407,9 @@ div[role="dialog"].audio-trimmer {
      see CloneDesignTab.css); no narrow-viewport override needed. */
 }
 
-/* ── Grid utilities collapse ── */
-@media (max-width: 700px) {
-  .grid-2 { grid-template-columns: 1fr !important; }
-  .grid-3 { grid-template-columns: 1fr 1fr !important; }
-}
-@media (max-width: 500px) {
-  .grid-3 { grid-template-columns: 1fr !important; }
-  .grid-4 { grid-template-columns: 1fr 1fr !important; }
-}
+/* .grid-2 / .grid-4 responsive collapse → Tailwind max-[700px]/max-[500px]
+   variants inline at the usage sites (P4). .grid-3 was already dead (no base
+   rule, no usages) and is dropped with them. */
 
 /* ── Launchpad ── */
 @media (max-width: 900px) {
