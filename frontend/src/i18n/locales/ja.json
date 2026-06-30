@@ -11,7 +11,9 @@
     "omnidrive": "オムニドライブ",
     "move_rail_right": "レールを右に移動します",
     "move_rail_left": "レールを左に移動します",
-    "flip_rail": "レール側を反転"
+    "flip_rail": "レール側を反転",
+    "voice": "声",
+    "audiobook": "オーディオブック"
   },
   "settings": {
     "general": "一般",
@@ -83,7 +85,53 @@
     "hf_token_input": "HuggingFace トークン",
     "hf_token_sources": "HF トークンのソース",
     "hf_token_test_now": "今すぐテスト",
-    "hf_token_test_now_title": "すべてのソースで whoami を再実行します"
+    "hf_token_test_now_title": "すべてのソースで whoami を再実行します",
+    "color_theme": "カラーテーマ",
+    "font": "フォント",
+    "autoplay_preview": "自動再生プレビュー",
+    "autoplay_preview_label": "レンダリングが終了したらすぐに出力を再生します",
+    "autoplay_preview_hint": "オフにすると、完成したレンダリングは自動的に再生を開始しなくなり、セグメントをバッチ生成するときに便利です。",
+    "appearance_help": "これらのコントロールは以前は下部のログ バーにありましたが、フッターがログに集中できるようにここに移動されました。変更は即座に適用され、起動後も維持されます。",
+    "advanced": "上級者向け",
+    "shortcut": "ディクテーションのショートカット",
+    "credentials_desc": "このセッションに設定された API キーとトークン。",
+    "credentials_more": "さらに多くのプロバイダー",
+    "group_general": "一般",
+    "group_voice": "音声とエンジン",
+    "group_system": "システム",
+    "group_app": "アプリ",
+    "search_placeholder": "検索設定…",
+    "restart_required": "再起動が必要です",
+    "applies_now": "今すぐ適用",
+    "dictation": "ディクテーション",
+    "pronunciation": "発音",
+    "translation": "翻訳",
+    "network": "ネットワーク",
+    "performance": "パフォーマンスとデバイス",
+    "storage": "ストレージ",
+    "device": "デバイスとコンピューティング",
+    "device_desc": "ライブハードウェアとバックエンドの読み出し。",
+    "network_desc": "ダウンロードとメディア処理のためのプロキシ パスと FFmpeg パス。",
+    "translation_desc": "吹き替えがダイアログをどのように翻訳するのか、そしてどのエンジンがそれを行うのか。",
+    "translate_quality": "翻訳の品質",
+    "translate_quality_desc": "「速い」とは文字通り、速いという意味です。 Cinematic は自然なフレージングのために LLM を使用します。",
+    "translate_fast": "速い",
+    "translate_cinematic": "映画的な",
+    "translation_providers": "翻訳プロバイダー",
+    "translation_providers_desc": "このセッション用に設定されたオンライン翻訳者の API キー。",
+    "review_mode": "レビューモード",
+    "review_mode_desc": "パイプライン ステージ間で一時停止して、ASR/翻訳出力を確認できるようにします。",
+    "header_live_stats": "ライブシステムメトリクスをヘッダーに表示",
+    "header_live_stats_desc": "ライブ RAM / CPU / VRAM モニターをトップバーに追加します (デフォルトではオフ)。",
+    "storage_desc": "OmniVoice がデータと出力を保管する場所。",
+    "factory_reset": "工場出荷時設定にリセット",
+    "factory_reset_desc": "すべてのアプリ内設定をデフォルトにリセットします。ファイルはそのまま残ります。",
+    "factory_reset_body": "ローカルに保存された設定 (テーマ、言語、ダブノブ、ギャラリーのお気に入り、その他の UI 設定) をクリアします。ディスク上の音声、プロジェクト、生成されたオーディオは削除されません。",
+    "factory_reset_confirm_title": "設定をリセットしますか?",
+    "factory_reset_confirm": "リセットしてリロードする",
+    "factory_reset_confirm_body": "これにより、保存されている UI 設定がすべてクリアされ、アプリがリロードされます。ディスク上の音声、プロジェクト、出力は影響を受けません。続く？",
+    "factory_reset_done": "設定がクリアされました — 再読み込み中…",
+    "factory_reset_failed": "リセットに失敗しました"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -124,7 +172,8 @@
     "hint_port": "ポート 3900 は既に使用中です。他の OmniVoice インスタンスや、そのポートを使うアプリを終了してください。",
     "hint_silent_crash": "バックエンドがエラーメッセージなしでクラッシュしました。「クリーンアップして再試行」で venv の破損が直ることがよくあります。",
     "hint_github_blocked": "ネットワークが GitHub をブロックしている可能性があります。python.org から Python 3.11+ をインストール(PATH に追加)して再起動するか、UV_PYTHON_INSTALL_MIRROR を設定してください — docs/install/troubleshooting.md を参照。",
-    "hint_default": "まず「再試行」を試してください。再び失敗する場合、「クリーンアップして再試行」が環境をゼロから再構築します。"
+    "hint_default": "まず「再試行」を試してください。再び失敗する場合、「クリーンアップして再試行」が環境をゼロから再構築します。",
+    "hint_stuck": "バックエンドの起動が完了していません。ソースから、最初に「uv sync」を実行し、「uv」と Python が PATH 上にあることを確認してから、再試行します。正確なストール ポイントについては、以下のログ (または [設定] → [ログ] → [バックエンド]) を確認してください。"
   },
   "stories": {
     "title": "ストーリーエディター",
@@ -194,7 +243,9 @@
     "minutes": "~{{count}} 分",
     "chars": "{{count}} 文字",
     "exportDone": "オーディオブックをダウンロードしました",
-    "exportFailed": "エクスポートに失敗しました — バックエンドが実行中であることを確認してください。"
+    "exportFailed": "エクスポートに失敗しました — バックエンドが実行中であることを確認してください。",
+    "global_speed": "速度",
+    "global_speed_hint": "独自の速度オーバーライドを行わないすべての行の読み取り速度"
   },
   "common": {
     "open": "開く",
@@ -223,7 +274,9 @@
     "popular_label": "人気のある",
     "showing_of": "{{total}} の {{shown}} を表示しています。検索するには入力してください…",
     "yes": "はい",
-    "no": "いいえ"
+    "no": "いいえ",
+    "more_info": "詳細情報",
+    "learn_more": "さらに詳しく"
   },
   "launchpad": {
     "greeting": "こんにちは。",
@@ -254,7 +307,9 @@
     "transcripts_desc": "オーディオやビデオを 646 言語で編集可能、検索可能なテキストに変換します。",
     "recent_files": "最近のファイル",
     "view_all_files": "すべてのファイルを表示する",
-    "file": "ファイル"
+    "file": "ファイル",
+    "audiobook_title": "オーディオブック",
+    "audiobook_desc": "長いスクリプトや EPUB を、表紙、メタデータ、1 人のナレーターを含む章付きのオーディオブックに変換します。"
   },
   "clone": {
     "prompt": "プロンプト",
@@ -333,7 +388,12 @@
     "define_by_design": "デザインで",
     "define_from_audio": "音声から",
     "define_voice": "音声の定義",
-    "save_design_as_profile": "デザインをプロファイルとして保存"
+    "save_design_as_profile": "デザインをプロファイルとして保存",
+    "seed_label": "種子",
+    "seed_placeholder": "毎回ランダム",
+    "seed_keep": "この種を保管しておいてください",
+    "seed_reroll": "新しい種",
+    "seed_reroll_hint": "新しいランダムシードをロールして保持します"
   },
   "about": {
     "app": "アプリ",
@@ -457,7 +517,14 @@
     "failed": "失敗しました",
     "acceptLicense": "ライセンスに同意する",
     "noBackends": "バックエンドが登録されていません。",
-    "switch_failed": "エンジンの切り替えに失敗しました"
+    "switch_failed": "エンジンの切り替えに失敗しました",
+    "routingAccelerated": "GPUがアクティブです",
+    "routingCpuFallback": "CPUフォールバック",
+    "routingCpuOnly": "CPU",
+    "routingRemote": "リモート",
+    "routingUnknown": "不明",
+    "routingEffectiveChip": "このマシンの {{device}} で実行されます",
+    "routingCaveatTitle": "GPU が選択されましたが: {{reason}}"
   },
   "capture": {
     "desc": "グローバル ホットキーはデスクトップ アプリでのみ機能します。 Web UI は、ウィンドウにフォーカスがある間、ページ内 <1>Ctrl+Shift+Space</1> ショートカットを使用します。",
@@ -520,7 +587,13 @@
     "log_copied": "{{source}} ログをコピーしました",
     "copy_failed": "コピーに失敗しました: {{message}}",
     "report_copied": "診断レポートがコピーされました — GitHub の問題に貼り付けます。",
-    "report_failed": "レポートが失敗しました: {{message}}"
+    "report_failed": "レポートが失敗しました: {{message}}",
+    "version_updates": "アップデートをチェックする",
+    "version_updates_aria": "オープンアップデート — アプリバージョン {{v}}",
+    "update_available": "利用可能なアップデート ({{version}}) — クリックしてアップデート",
+    "update_available_aria": "利用可能なアップデート ({{version}}) — アップデートを開く",
+    "contact": "お問い合わせ",
+    "contact_aria": "お問い合わせページを開く"
   },
   "voice_profile": {
     "test_text": "こんにちは — これはこの音声のテストです。",
@@ -564,7 +637,26 @@
     "projects_count_one": "{{count}} プロジェクト",
     "projects_count_other": "{{count}} プロジェクト",
     "dubbed_segments_one": "{{count}} ダビングされたセグメント",
-    "dubbed_segments_other": "{{count}} ダビングされたセグメント"
+    "dubbed_segments_other": "{{count}} ダビングされたセグメント",
+    "verified": "確認済み",
+    "persona_export": "ペルソナのエクスポート",
+    "persona_exporting": "ペルソナの構築…",
+    "persona_exported": "エクスポートされたペルソナ",
+    "persona_export_no_audio": "この音声には、プレビューを作成するための判読可能な音声がありません。",
+    "persona_export_failed": "エクスポートに失敗しました。",
+    "persona_include_ref": "ボイスクリップを含める",
+    "persona_include_ref_hint": "生のリファレンス クリップを含めます。オフ = 透かし入りのプレビューのみを共有します (推奨)。",
+    "consent_title": "音声の所有権",
+    "consent_explain": "以下の声明を読んでいる自分の声を録音して、これがあなた自身の声であることを確認してください。エージェント機能とコミュニティ共有には検証が必要ですが、ローカル合成では決して必要ありません。",
+    "consent_statement": "私は、この音声プロファイルが私自身の声であることを確認し、OmniVoice Studio が私の代わりにそれを複製することに同意します。",
+    "consent_record": "同意声明を記録する",
+    "consent_stop": "録音を停止する",
+    "consent_saved": "音声の所有権が確認されました",
+    "consent_failed": "検証に失敗しました: {{message}}",
+    "consent_verified_explain": "{{date}} に同意ステートメントを記録しました。取り消すと、記録と検証済みステータスが削除されます。",
+    "consent_revoke": "取り消し",
+    "consent_revoke_confirm": "音声所有権の確認を取り消しますか?同意の録音は削除され、エージェント機能はこの音声を使用できなくなります。",
+    "consent_revoked": "検証が取り消されました"
   },
   "dub": {
     "transcribe": "転写する",
@@ -713,7 +805,12 @@
     "pipeline": "ダビングパイプライン",
     "preview_language": "プレビュー言語",
     "target_language": "吹き替え先",
-    "transcript_after_extract": "文字起こしは抽出後に表示されます。"
+    "transcript_after_extract": "文字起こしは抽出後に表示されます。",
+    "qc_btn": "ダビングタイミングの検証（2パス目チェック）",
+    "qc_running": "ダビングのタイミングを確認中…",
+    "qc_result": "{{total}} 行中 {{flagged}} 行は再試行が必要な可能性があります",
+    "qc_clean": "すべての {{total}} 行がスクリプトと一致します",
+    "qc_failed": "タイミング チェックに失敗しました: {{message}}"
   },
   "glossary": {
     "title": "用語集",
@@ -798,7 +895,9 @@
     "fit_stretched_title": "ストレッチ ビデオ モード: このセグメントのビデオは、自然なダブ オーディオに合わせて {{ratio}}× まで遅くされました。",
     "fit_compressed_title": "TTS オーディオはスロットの {{pct}}% であり、高度に圧縮されています。",
     "fit_audio_title": "オーディオはスロット内に収まります。",
-    "fit_ratio_title": "TTS オーディオはスロットの {{pct}}% です。"
+    "fit_ratio_title": "TTS オーディオはスロットの {{pct}}% です。",
+    "qc_verify": "検証する",
+    "qc_verify_title": "2 パス目の ASR は次のように聞きました: 「{{heard}}」 — この行をもう一度聞くか、再ダビングします。"
   },
   "timeline": {
     "track_label": "セグメントタイムライン",
@@ -873,7 +972,16 @@
     "export": "エクスポート",
     "transcription": "転写",
     "designed_voice": "デザインされた音声",
-    "cloned_voice": "クローン音声"
+    "cloned_voice": "クローン音声",
+    "stories": "ストーリー",
+    "untitled_story": "題名のない物語",
+    "story_lines": "{{count}}行",
+    "story_lines_plural": "{{count}} 行",
+    "story_voices": "{{count}} の声",
+    "story_voices_plural": "{{count}} の声",
+    "audiobooks": "オーディオブック",
+    "audiobook": "オーディオブック",
+    "story": "ストーリー"
   },
   "batch": {
     "title": "一括ダビング",
@@ -976,7 +1084,12 @@
     "submit_failed": "投稿フォームを開けませんでした。",
     "submit_preset": "プリセットを投稿",
     "submit_voice": "音声を投稿",
-    "zone_community": "コミュニティ"
+    "zone_community": "コミュニティ",
+    "import_persona": ".ovsvoice ペルソナ バンドルをインポートする",
+    "persona_imported": "「{{name}}」{{unverified}} をインポートしました。",
+    "persona_unverified_suffix": "(未確認)",
+    "persona_too_large": "そのバンドルは大きすぎます (最大 100 MB)。",
+    "persona_import_failed": "そのペルソナ バンドルをインポートできませんでした。"
   },
   "transcriptions": {
     "title": "転写",
@@ -1031,7 +1144,8 @@
     "try_dictation": "ディクテーションを試してみる",
     "next_try_dictation": "次へ: ディクテーションを試してみる",
     "step_aria": "ステップ {{num}}: {{label}}",
-    "step_completed": "完了"
+    "step_completed": "完了",
+    "cache_label": "モデルキャッシュ"
   },
   "donate": {
     "title": "サポート",
@@ -1044,7 +1158,34 @@
     "platforms": "プラットフォーム",
     "footer": "あらゆる貢献は、ローカル AI の限界を押し広げるのに役立ちます。",
     "back": "スタジオに戻る",
-    "commercial": "商用ライセンス"
+    "commercial": "商用ライセンス",
+    "pill": "オムニボイスのサポート",
+    "suggested_title": "金額を選択してください",
+    "most_common": "最も一般的な",
+    "custom": "カスタム",
+    "choose_method": "与え方を選ぶ",
+    "choose_method_amount": "${{amount}} に進む",
+    "goal": {
+      "title": "クロード・マックス基金",
+      "of": "の",
+      "per_month": "/月",
+      "aria": "月間目標 {{raised}}/{{goal}}",
+      "remaining": "{{amount}} 行きます",
+      "met": "🎉 目標達成 — {{raised}} が発生しました。ありがとう！",
+      "social_proof": "{{count}} サポーターに参加してローカル AI に資金を提供しましょう"
+    },
+    "postcard": {
+      "title": "クロード・マックス基金",
+      "lead_default": "うまくいってよかったです！ OmniVoice は無料で完全にローカルです。時間を節約できるのであれば、毎月少額のチップインがその背後にいるクロード・マックスに資金を提供します。",
+      "lead_first_clone": "最初の音声クローンが完成しました。いいですね! OmniVoice は完全にマシン上で実行され、サポートがその状態を維持します。",
+      "lead_tenth_dub": "10 個のダブが入っています。明らかに効果を発揮しています。これらの機能を提供する Claude Max には、毎月少額のチップインが資金として提供されます。",
+      "lead_sustained": "OmniVoice を利用して 1 か月になります。ワークフローにそれが組み込まれている場合は、次の活動に資金を提供することを検討してください。",
+      "chip_in": "チップイン",
+      "later": "たぶん後で",
+      "star": "GitHub でスターを付ける",
+      "opt_out": "二度と聞かないでください",
+      "dismiss_aria": "解雇する"
+    }
   },
   "enterprise": {
     "title": "商用ライセンス",
@@ -1073,7 +1214,9 @@
     "benefit_source_desc": "スタックを完全に可視化します。ライセンス条項内で監査、フォーク、適応を行います。",
     "benefit_lang": "646の言語",
     "benefit_lang_desc": "人間レベルの品質で 646 言語の文字起こし、翻訳、吹き替えを行います。",
-    "hero_note": "利用、セルフホスティング、商用利用はすべて AGPL-3.0 の下で無料です（大規模利用も含む）。AGPL はネットワーク・コピーレフト型ライセンスです。OmniVoice を改変し、その改変版をネットワーク経由で他者に提供する場合、改変したソースコードを同じ条件で公開する必要があります。商用ライセンスを取得すると、プロプライエタリ／クローズドソースの展開についてこのコピーレフト義務が免除されます。料金プランは近日公開予定です。それまでの間はお問い合わせください。"
+    "hero_note": "利用、セルフホスティング、商用利用はすべて AGPL-3.0 の下で無料です（大規模利用も含む）。AGPL はネットワーク・コピーレフト型ライセンスです。OmniVoice を改変し、その改変版をネットワーク経由で他者に提供する場合、改変したソースコードを同じ条件で公開する必要があります。商用ライセンスを取得すると、プロプライエタリ／クローズドソースの展開についてこのコピーレフト義務が免除されます。料金プランは近日公開予定です。それまでの間はお問い合わせください。",
+    "hero_simple": "OmniVoice Studio は、AGPL-3.0 に基づく無料のオープンソースであり、商用および社内ビジネスでの使用も含まれます。 AGPL のコピーレフト義務なしで、クローズドソース製品に埋め込むには商用ライセンスのみが必要です。",
+    "contact_lead": "価格は展開ごとに見積もられるため、チームとワークロードに適合します。使用例を教えてください。見積もりを出します。"
   },
   "exportModal": {
     "export": "エクスポート",
@@ -1359,7 +1502,9 @@
     "save_label": "保存",
     "lock_identity": "音声 ID をロックする",
     "in_folder": "{{folder}} に",
-    "search": "検索…"
+    "search": "検索…",
+    "rename": "名前の変更",
+    "rename_save": "名前を保存する"
   },
   "trimmer": {
     "title": "リファレンスオーディオをトリミングする",
@@ -1488,7 +1633,11 @@
     "loading_badge": "読み込み中…",
     "idle_badge": "アイドル状態",
     "started_downloading_required_one": "{{count}} 必須モデルのダウンロードを開始しました",
-    "started_downloading_required_other": "{{count}} 必須モデルのダウンロードを開始しました"
+    "started_downloading_required_other": "{{count}} 必須モデルのダウンロードを開始しました",
+    "to_download": "ダウンロードする",
+    "cached": "キャッシュされた",
+    "fast_download_badge": "高速ダウンロード",
+    "fast_download_title": "Xet {{version}} による高速ダウンロード — 並列チャンク転送"
   },
   "enterprise_faq": {
     "q_internal_tools": "内部ツールにはライセンスが必要ですか?",
@@ -1554,7 +1703,8 @@
     "delete_history_confirm": "この履歴項目を削除しますか?",
     "history_deleted": "履歴項目が削除されました",
     "restored_state": "前世代の状態を復元",
-    "upgrading_preview": "{{count}} プレビュー品質のセグメントをフル品質にアップグレードしています…"
+    "upgrading_preview": "{{count}} プレビュー品質のセグメントをフル品質にアップグレードしています…",
+    "session_expired": "このダビング セッションは期限切れかクリーンアップされました。新しいビデオを開始するにはビデオを再アップロードしてください。"
   },
   "tts_errors": {
     "enter_text": "テキストを入力してください",
@@ -1750,7 +1900,15 @@
     "hf_token_save": "保存",
     "hf_token_saving": "保存中…",
     "hf_token_saved": "Hugging Face トークンを保存しました",
-    "hf_token_error": "トークンを保存できませんでした。再試行するか、後で設定 → 認証情報から設定してください。"
+    "hf_token_error": "トークンを保存できませんでした。再試行するか、後で設定 → 認証情報から設定してください。",
+    "chip_recommended": "推奨される",
+    "size_left": "{{size}} 残っています",
+    "hf_token_card_title": "ダウンロードを高速化するために無料の Hugging Face トークンを追加します",
+    "hf_token_get": "トークンをお持ちでない場合は、 1 つ無料で入手 →",
+    "hf_token_saved_fast": "ハグフェイストークンが保存されました — ダウンロードが速くなりました",
+    "hf_token_inline_prompt": "無料の Hugging Face トークンでダウンロードを高速化",
+    "hf_token_inline_ph": "hf_… トークンを貼り付けます (オプション)",
+    "hf_token_get_short": "1 つ無料で入手 →"
   },
   "history": {
     "dub_title": "ダブ履歴",
@@ -1762,5 +1920,163 @@
     "cleaned_loaded": "録音をクリーンアップして読み込みました！",
     "loaded_raw": "録音を読み込みました（未処理 — ノイズ除去は利用できません）",
     "too_short": "録音が短すぎます"
+  },
+  "pronunciation": {
+    "title": "発音辞典",
+    "help": "エンジンに難しい言葉の言い方を教えます。各エントリは合成前に単語をリスペリングに置き換えるので、すべてのエンジンに適用されます。エントリの範囲を 1 つの言語にするか、グローバルのままにします。インラインでは、[[word|respelling]] は辞書を 1 回オーバーライドします。",
+    "term": "期間",
+    "term_placeholder": "単語またはフレーズ (GIF など)",
+    "replacement": "交換",
+    "replacement_placeholder": "リスペリング (例: jiff)",
+    "scope": "範囲",
+    "global": "グローバル",
+    "type": "タイプ",
+    "type_respelling": "綴り直し",
+    "type_ipa": "IPA",
+    "type_cmu": "CMU",
+    "enabled": "有効",
+    "add": "エントリを追加",
+    "remove": "{{term}} を削除",
+    "empty": "まだエントリーはありません。発音が間違っている単語を修正するには、上に 1 つ追加します。",
+    "test_label": "文をテストする",
+    "test_placeholder": "文を入力して置換をプレビューします…",
+    "test_result": "次のように話されます。",
+    "test_nochange": "一致するエントリはありません - 書かれたとおりに話されています。",
+    "load_error": "発音辞書を読み込めませんでした。",
+    "save_error": "そのエントリを保存できませんでした。",
+    "lang_label": "言語コード (en、de など)、またはグローバルの場合は空白のままにします"
+  },
+  "audiobook": {
+    "title": "オーディオブック",
+    "subtitle": "チャプター区切りのスクリプトをチャプター化された m4b オーディオブックに変換します。",
+    "script": "スクリプト",
+    "script_placeholder": "# 第一章\nむかしむかし… [500 ミリ秒停止] 終了。\n\n# 第二章\n[音声:ナレーター] そして、それは続きました。",
+    "default_voice": "デフォルトボイス",
+    "engine_default": "エンジンのデフォルト",
+    "preview_plan": "プレビュープラン",
+    "create": "オーディオブックを作成する",
+    "plan_heading": "計画 — {{count}} 章",
+    "chapter_meta": "{{spans}} スパン · {{chars}} 文字",
+    "synthesizing": "{{total}} {{title}} の章 {{current}} を合成中",
+    "assembling": "オーディオブックを組み立てています…",
+    "ready": "オーディオブック対応",
+    "download": "ダウンロード",
+    "format": "フォーマット",
+    "format_m4b": "M4B (章)",
+    "format_mp3": "MP3",
+    "loudness": "ラウドネス",
+    "loudness_off": "ラウドネス: オフ",
+    "loudness_acx": "正規化 (ACX)",
+    "loudness_podcast": "ノーマライズ (ポッドキャスト)",
+    "details": "表紙と詳細",
+    "cover": "カバー",
+    "cover_add": "カバーを追加する",
+    "cover_remove": "カバーを外す",
+    "meta_title": "タイトル",
+    "meta_author": "著者",
+    "meta_narrator": "ナレーター",
+    "meta_year": "年",
+    "meta_genre": "ジャンル",
+    "meta_description": "説明",
+    "preview_chapter": "プレビュー章: {{title}}",
+    "cached_note": "すでにレンダリングされた {{count}} 章を再利用しました。",
+    "failed_note": "{{count}} 章が失敗しました — [作成] をもう一度クリックして、それらの章だけを再試行します。",
+    "import": "インポート",
+    "import_failed": "インポートに失敗しました: {{message}}",
+    "lexicon": "発音",
+    "lex_word": "言葉",
+    "lex_say": "こう言ってください…",
+    "lex_add": "単語を追加",
+    "lex_remove": "削除",
+    "markup_help": "マークアップリファレンス",
+    "markup_hint": "# 章タイトル · [voice:NAME] 音声切り替え · [500ms 一時停止] / [1 秒一時停止] · [遅い]…[/遅い] · [速い]…[/速い] · [強調]…[/強調] · [呪文]…[/呪文]"
+  },
+  "voicePanel": {
+    "title": "声",
+    "subtitle": "オンデバイスモデルを使用したローカルの音声からテキストへのディクテーション。",
+    "enable_label": "音声ディクテーションを有効にする",
+    "enable_sub": "{{shortcut}} を押して、フォーカスのあるペインにテキストを入力します。",
+    "mode_label": "ディクテーションモード",
+    "mode_sub": "トグル: 1 回押すと開始し、もう一度押すと停止します。 Hold: キーを押したままにします。",
+    "mode_toggle": "トグル",
+    "mode_hold": "ホールド",
+    "model_label": "音声モデル",
+    "model_sub": "ディクテーションに使用するオンデバイス モデルを選択します。",
+    "badge_offline": "オフライン",
+    "badge_streaming": "ストリーミング",
+    "badge_recommended": "推奨される",
+    "download_model": "ダウンロードモデル",
+    "delete_model": "モデルの削除",
+    "downloading": "ダウンロード中…",
+    "downloading_pct": "{{pct}}% をダウンロード中",
+    "delete_confirm": "「{{label}}」音声モデルを削除しますか?後で再ダウンロードできます。",
+    "delete_confirm_title": "音声モデルの削除",
+    "engine_unavailable": "このインストールではライブディクテーション エンジンは利用できません。ディクテーションは標準の文字起こしパスにフォールバックします。",
+    "model_desc": {
+      "sherpa-parakeet-tdt-v3": "おすすめです。 25 のヨーロッパ言語にわたる高速かつ正確なディクテーション。",
+      "sherpa-parakeet-tdt-v2": "高速かつ正確な英語のみのディクテーション。",
+      "sherpa-zipformer-bilingual-zh-en": "中国語 + 英語のライブ部分をストリーミングします。",
+      "sherpa-paraformer-bilingual-zh-en": "中国語+英語ストリーミング、コンパクトモデル。",
+      "sherpa-zipformer-en-20m": "小さなストリーミング英語モデル — レイテンシが最も低い。",
+      "sherpa-zipformer-zh-14m": "小さなストリーミング中国語モデル - 遅延が最も低い。",
+      "sherpa-whisper-tiny": "自動言語検出機能を備えた多言語 (90 以上の言語)。"
+    }
+  },
+  "profiles": {
+    "need_name_audio": "名前と参考音声が必要です",
+    "synthesizing_preview": "{{name}} のプレビューを合成しています...",
+    "synthesizing_segment": "セグメントを合成中...",
+    "preview_ready": "プレビューの準備ができました!",
+    "playback_failed": "再生に失敗しました",
+    "preview_failed": "プレビューが失敗しました: {{message}}",
+    "saved": "音声をプロフィールに保存しました!",
+    "save_failed": "音声プロファイルの保存に失敗しました",
+    "locked": "音声ロックされてる！アイデンティティはすべての世代にわたって一貫しています。",
+    "lock_failed": "プロファイルのロックに失敗しました",
+    "unlocked": "音声ロックが解除されました。また世代が変わります。",
+    "unlock_failed": "プロファイルのロックを解除できませんでした"
+  },
+  "transcriptionPicker": {
+    "title": "文字起こしからインポートする",
+    "search_placeholder": "文字起こしを検索…",
+    "empty": "まだ転写はありません。 「文字起こし」タブで 1 つを録音します。",
+    "empty_search": "検索に一致する文字起こしはありません。"
+  },
+  "waveform": {
+    "source_missing": "ソース メディアが見つかりません - このファイルは移動または削除された可能性があります。続行するにはビデオを再アップロードしてください。",
+    "load_failed": "このファイルからオーディオをロードできませんでした"
+  },
+  "tts": {
+    "routingFallback": "CPU 上で実行 — このエンジンにはマシン上に GPU パスがないため、生成は遅くなります。 {{reason}}",
+    "routingCaveat": "GPU を使用しますが: {{reason}}"
+  },
+  "voiceSelector": {
+    "engineDefault": "エンジンのデフォルト",
+    "clone": "クローン音声",
+    "designed": "デザインされた音声",
+    "presets": "プリセット",
+    "fromVideo": "ビデオから",
+    "missingVoice": "音声が見つかりません (再選択)",
+    "preview": "プレビュー音声",
+    "openGallery": "ボイスギャラリーで開く",
+    "createVoice": "新しい音声を作成する"
+  },
+  "remote_gate": {
+    "title": "アクセスPINを入力してください",
+    "body": "この OmniVoice インスタンスはネットワーク上で共有されます。ホストに表示されている PIN を入力します。",
+    "label": "アクセスPIN",
+    "connect": "接続する"
+  },
+  "contact": {
+    "hero_title": "連絡する",
+    "hero_desc": "質問、バグ、ライセンス、または単にご挨拶など、私に連絡する方法は次のとおりです。",
+    "discord": "不和",
+    "discord_desc": "コミュニティとチャットして、すぐに助けを得ましょう。",
+    "email": "電子メール",
+    "email_desc": "ライセンス、パートナーシップ、その他プライベートなもの。",
+    "issues": "GitHubの問題",
+    "issues_desc": "バグを報告するか、機能をリクエストしてください。",
+    "website": "ウェブサイト",
+    "website_desc": "プロジェクトとメーカーについて詳しく説明します。"
   }
 }

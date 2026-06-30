@@ -11,7 +11,9 @@
     "omnidrive": "OmniDrive",
     "move_rail_right": "Pindahkan rel ke kanan",
     "move_rail_left": "Pindahkan rel ke kiri",
-    "flip_rail": "Balik sisi rel"
+    "flip_rail": "Balik sisi rel",
+    "voice": "Suara",
+    "audiobook": "Buku Audio"
   },
   "settings": {
     "general": "Umum",
@@ -83,7 +85,53 @@
     "hf_token_input": "Token HuggingFace",
     "hf_token_sources": "Sumber token HF",
     "hf_token_test_now": "Uji sekarang",
-    "hf_token_test_now_title": "Jalankan ulang whoami untuk setiap sumber"
+    "hf_token_test_now_title": "Jalankan ulang whoami untuk setiap sumber",
+    "color_theme": "Tema warna",
+    "font": "huruf",
+    "autoplay_preview": "Pratinjau putar otomatis",
+    "autoplay_preview_label": "Putar hasilnya segera setelah render selesai",
+    "autoplay_preview_hint": "Jika tidak aktif, render yang sudah selesai tidak lagi dapat diputar sendiri — berguna saat membuat segmen secara batch.",
+    "appearance_help": "Kontrol ini dulunya berada di bilah log bawah — dipindahkan ke sini sehingga footer dapat tetap fokus pada log. Perubahan berlaku seketika dan tetap ada di seluruh peluncuran.",
+    "advanced": "Lanjutan",
+    "shortcut": "Pintasan dikte",
+    "credentials_desc": "Kunci dan token API, ditetapkan untuk sesi ini.",
+    "credentials_more": "Lebih banyak penyedia",
+    "group_general": "Umum",
+    "group_voice": "Suara & Mesin",
+    "group_system": "Sistem",
+    "group_app": "Aplikasi",
+    "search_placeholder": "Setelan penelusuran…",
+    "restart_required": "Diperlukan mulai ulang",
+    "applies_now": "Berlaku sekarang",
+    "dictation": "Dikte",
+    "pronunciation": "Pengucapan",
+    "translation": "Terjemahan",
+    "network": "Jaringan",
+    "performance": "Performa & Perangkat",
+    "storage": "Penyimpanan",
+    "device": "Perangkat & komputasi",
+    "device_desc": "Pembacaan perangkat keras dan backend langsung.",
+    "network_desc": "Jalur proxy dan FFmpeg untuk pengunduhan dan pemrosesan media.",
+    "translation_desc": "Bagaimana sulih suara menerjemahkan dialog, dan mesin mana yang melakukannya.",
+    "translate_quality": "Kualitas terjemahan",
+    "translate_quality_desc": "Cepat itu literal dan cepat; Sinematik menggunakan LLM untuk ungkapan alami.",
+    "translate_fast": "Cepat",
+    "translate_cinematic": "Sinematik",
+    "translation_providers": "Penyedia terjemahan",
+    "translation_providers_desc": "Kunci API untuk penerjemah online, disetel untuk sesi ini.",
+    "review_mode": "Modus tinjauan",
+    "review_mode_desc": "Jeda di antara tahapan alur sehingga Anda dapat meninjau ASR/output terjemahan.",
+    "header_live_stats": "Tampilkan metrik sistem langsung di header",
+    "header_live_stats_desc": "Menambahkan monitor RAM/CPU/VRAM langsung ke bilah atas (dinonaktifkan secara default).",
+    "storage_desc": "Tempat OmniVoice menyimpan data dan keluaran Anda.",
+    "factory_reset": "Reset pabrik",
+    "factory_reset_desc": "Reset semua preferensi dalam aplikasi ke defaultnya. File Anda tetap tidak tersentuh.",
+    "factory_reset_body": "Menghapus pengaturan yang disimpan secara lokal (tema, bahasa, kenop sulih suara, favorit galeri, dan preferensi UI lainnya). Itu TIDAK menghapus suara, proyek, atau audio yang dihasilkan pada disk.",
+    "factory_reset_confirm_title": "Setel ulang preferensi?",
+    "factory_reset_confirm": "Setel ulang dan muat ulang",
+    "factory_reset_confirm_body": "Ini menghapus semua preferensi UI yang tersimpan dan memuat ulang aplikasi. Suara, proyek, dan keluaran Anda pada disk tidak terpengaruh. Melanjutkan?",
+    "factory_reset_done": "Preferensi dihapus — memuat ulang…",
+    "factory_reset_failed": "Penyetelan ulang gagal"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -123,7 +171,9 @@
     "hint_port": "Port 3900 sudah digunakan. Tutup instans OmniVoice lain atau aplikasi yang memakai port itu.",
     "hint_silent_crash": "Backend berhenti tanpa pesan kesalahan. \"Bersihkan & Coba Lagi\" sering memperbaiki masalah venv yang rusak.",
     "hint_github_blocked": "Jaringan Anda mungkin memblokir GitHub. Pasang Python 3.11+ dari python.org (tambahkan ke PATH) lalu jalankan ulang, atau setel UV_PYTHON_INSTALL_MIRROR — lihat docs/install/troubleshooting.md.",
-    "hint_default": "Coba \"Coba Lagi\" dulu. Jika gagal lagi, \"Bersihkan & Coba Lagi\" akan membangun ulang lingkungan dari awal."
+    "hint_default": "Coba \"Coba Lagi\" dulu. Jika gagal lagi, \"Bersihkan & Coba Lagi\" akan membangun ulang lingkungan dari awal.",
+    "hint_stuck": "Backend belum selesai dimulai. Dari sumber, jalankan `uv sync` terlebih dahulu dan pastikan `uv` dan Python ada di PATH Anda, lalu Coba Lagi. Periksa log di bawah (atau Pengaturan → Log → Backend) untuk mengetahui titik penghentian yang tepat.",
+    "lines": "{{count}} baris"
   },
   "stories": {
     "title": "Editor Cerita",
@@ -193,7 +243,9 @@
     "minutes": "~{{count}} mnt",
     "chars": "{{count}} karakter",
     "exportDone": "Buku audio diunduh",
-    "exportFailed": "Ekspor gagal — periksa apakah backend sedang berjalan."
+    "exportFailed": "Ekspor gagal — periksa apakah backend sedang berjalan.",
+    "global_speed": "Kecepatan",
+    "global_speed_hint": "Kecepatan membaca untuk semua lini tanpa mengesampingkan kecepatannya sendiri"
   },
   "common": {
     "open": "Buka",
@@ -222,7 +274,9 @@
     "popular_label": "Populer",
     "showing_of": "Menampilkan {{shown}} dari {{total}}. Ketik untuk mencari…",
     "yes": "Ya",
-    "no": "Tidak"
+    "no": "Tidak",
+    "more_info": "Informasi lebih lanjut",
+    "learn_more": "Pelajari lebih lanjut"
   },
   "launchpad": {
     "greeting": "halo",
@@ -253,7 +307,9 @@
     "transcripts_desc": "Ubah audio atau video menjadi teks yang dapat diedit dan dicari — dalam 646 bahasa.",
     "recent_files": "File terbaru",
     "view_all_files": "Lihat semua file",
-    "file": "Mengajukan"
+    "file": "Mengajukan",
+    "audiobook_title": "Buku Audio",
+    "audiobook_desc": "Ubah skrip panjang atau EPUB menjadi buku audio berbab — sampul, metadata, satu narator."
   },
   "clone": {
     "prompt": "Cepat",
@@ -332,7 +388,12 @@
     "define_by_design": "Lewat desain",
     "define_from_audio": "Dari audio",
     "define_voice": "Tentukan suara",
-    "save_design_as_profile": "Simpan desain sebagai profil"
+    "save_design_as_profile": "Simpan desain sebagai profil",
+    "seed_label": "Benih",
+    "seed_placeholder": "acak setiap saat",
+    "seed_keep": "Simpan benih ini",
+    "seed_reroll": "Benih baru",
+    "seed_reroll_hint": "Gulung benih acak baru dan simpan"
   },
   "about": {
     "app": "Aplikasi",
@@ -456,7 +517,14 @@
     "failed": "gagal",
     "acceptLicense": "Terima lisensi",
     "noBackends": "Tidak ada backend yang terdaftar.",
-    "switch_failed": "Gagal mengganti mesin"
+    "switch_failed": "Gagal mengganti mesin",
+    "routingAccelerated": "GPU aktif",
+    "routingCpuFallback": "Penggantian CPU",
+    "routingCpuOnly": "CPU",
+    "routingRemote": "Terpencil",
+    "routingUnknown": "Tidak diketahui",
+    "routingEffectiveChip": "Berjalan pada {{device}} di mesin ini",
+    "routingCaveatTitle": "GPU dipilih, tetapi: {{reason}}"
   },
   "capture": {
     "desc": "Tombol pintas global hanya berfungsi di aplikasi desktop. UI web menggunakan pintasan <1>Ctrl+Shift+Space</1> dalam halaman saat jendela memiliki fokus.",
@@ -519,7 +587,13 @@
     "log_copied": "Menyalin {{source}} log",
     "copy_failed": "Penyalinan gagal: {{message}}",
     "report_copied": "Laporan diagnostik disalin — tempelkan ke masalah GitHub.",
-    "report_failed": "Laporan gagal: {{message}}"
+    "report_failed": "Laporan gagal: {{message}}",
+    "version_updates": "Periksa pembaruan",
+    "version_updates_aria": "Buka pembaruan — versi aplikasi {{v}}",
+    "update_available": "Pembaruan tersedia ({{version}}) — klik untuk memperbarui",
+    "update_available_aria": "Pembaruan tersedia ({{version}}) — membuka pembaruan",
+    "contact": "Kontak",
+    "contact_aria": "Buka halaman kontak"
   },
   "voice_profile": {
     "test_text": "Halo - ini adalah ujian untuk suara ini.",
@@ -563,7 +637,26 @@
     "projects_count_one": "proyek {{count}}",
     "projects_count_other": "{{count}} proyek",
     "dubbed_segments_one": "{{count}} segmen yang di-dubbing",
-    "dubbed_segments_other": "{{count}} segmen yang di-dubbing"
+    "dubbed_segments_other": "{{count}} segmen yang di-dubbing",
+    "verified": "Terverifikasi",
+    "persona_export": "Ekspor kepribadian",
+    "persona_exporting": "Membangun kepribadian…",
+    "persona_exported": "Persona diekspor",
+    "persona_export_no_audio": "Suara ini tidak memiliki audio yang dapat dibaca untuk membuat pratinjau.",
+    "persona_export_failed": "Ekspor gagal.",
+    "persona_include_ref": "Sertakan klip suara",
+    "persona_include_ref_hint": "Sertakan klip referensi mentah. Nonaktif = hanya membagikan pratinjau yang diberi watermark (disarankan).",
+    "consent_title": "Kepemilikan suara",
+    "consent_explain": "Rekam diri Anda saat membaca pernyataan di bawah ini untuk memverifikasi bahwa ini adalah suara Anda sendiri. Verifikasi akan diperlukan untuk fitur agen dan berbagi komunitas — tidak pernah untuk sintesis lokal.",
+    "consent_statement": "Saya mengonfirmasi bahwa profil suara ini adalah suara saya sendiri, dan saya menyetujui OmniVoice Studio mengkloningnya atas nama saya.",
+    "consent_record": "Catat pernyataan persetujuan",
+    "consent_stop": "Berhenti merekam",
+    "consent_saved": "Kepemilikan suara diverifikasi",
+    "consent_failed": "Verifikasi gagal: {{message}}",
+    "consent_verified_explain": "Anda mencatat pernyataan persetujuan pada {{date}}. Mencabut akan menghapus rekaman dan status terverifikasi.",
+    "consent_revoke": "Cabut",
+    "consent_revoke_confirm": "Cabut verifikasi kepemilikan suara? Rekaman persetujuan akan dihapus dan fitur agen tidak dapat lagi menggunakan suara ini.",
+    "consent_revoked": "Verifikasi dicabut"
   },
   "dub": {
     "transcribe": "Transkripsikan",
@@ -712,7 +805,12 @@
     "pipeline": "Alur sulih suara",
     "preview_language": "Bahasa pratinjau",
     "target_language": "Sulih suara ke",
-    "transcript_after_extract": "Transkrip muncul setelah ekstraksi."
+    "transcript_after_extract": "Transkrip muncul setelah ekstraksi.",
+    "qc_btn": "Verifikasi waktu sulih suara (pemeriksaan jalur kedua)",
+    "qc_running": "Memeriksa waktu sulih suara…",
+    "qc_result": "{{flagged}} dari {{total}} baris mungkin perlu didengarkan ulang",
+    "qc_clean": "Semua baris {{total}} cocok dengan skrip",
+    "qc_failed": "Pemeriksaan waktu gagal: {{message}}"
   },
   "glossary": {
     "title": "Glosarium",
@@ -797,7 +895,9 @@
     "fit_stretched_title": "Mode Peregangan Video: video segmen ini diperlambat ke {{ratio}}× agar sesuai dengan audio sulih suara alami.",
     "fit_compressed_title": "Audio TTS menempati {{pct}}% dari slot — sangat terkompresi.",
     "fit_audio_title": "Audio pas di dalam slot.",
-    "fit_ratio_title": "Audio TTS adalah {{pct}}% dari slot."
+    "fit_ratio_title": "Audio TTS adalah {{pct}}% dari slot.",
+    "qc_verify": "Verifikasi",
+    "qc_verify_title": "ASR lintasan kedua mendengar: \"{{heard}}\" — dengarkan ulang atau sulih suara ulang baris ini."
   },
   "timeline": {
     "track_label": "Lini masa segmen",
@@ -872,7 +972,16 @@
     "export": "Ekspor",
     "transcription": "Transkripsi",
     "designed_voice": "Suara yang dirancang",
-    "cloned_voice": "Suara kloning"
+    "cloned_voice": "Suara kloning",
+    "stories": "Cerita",
+    "untitled_story": "Cerita tanpa judul",
+    "story_lines": "baris {{count}}",
+    "story_lines_plural": "{{count}} baris",
+    "story_voices": "{{count}} suara",
+    "story_voices_plural": "{{count}} suara",
+    "audiobooks": "Buku audio",
+    "audiobook": "Buku Audio",
+    "story": "Cerita"
   },
   "batch": {
     "title": "Sulih suara batch",
@@ -975,7 +1084,12 @@
     "submit_failed": "Tidak dapat membuka formulir pengiriman.",
     "submit_preset": "Kirim preset",
     "submit_voice": "Kirim suara",
-    "zone_community": "Komunitas"
+    "zone_community": "Komunitas",
+    "import_persona": "Impor bundel persona .ovsvoice",
+    "persona_imported": "Mengimpor \"{{name}}\"{{unverified}}.",
+    "persona_unverified_suffix": "(belum diverifikasi)",
+    "persona_too_large": "Paket tersebut terlalu besar (maks 100 MB).",
+    "persona_import_failed": "Tidak dapat mengimpor paket persona tersebut."
   },
   "transcriptions": {
     "title": "Transkripsi",
@@ -1030,7 +1144,8 @@
     "try_dictation": "Coba dikte",
     "next_try_dictation": "Berikutnya: Coba dikte",
     "step_aria": "Langkah {{num}}: {{label}}",
-    "step_completed": "selesai"
+    "step_completed": "selesai",
+    "cache_label": "Tembolok model"
   },
   "donate": {
     "title": "Dukungan",
@@ -1043,7 +1158,34 @@
     "platforms": "Platform",
     "footer": "Setiap kontribusi membantu mendorong batasan AI lokal.",
     "back": "Kembali ke Studio",
-    "commercial": "Lisensi Komersial"
+    "commercial": "Lisensi Komersial",
+    "pill": "Mendukung OmniVoice",
+    "suggested_title": "Pilih jumlah",
+    "most_common": "paling umum",
+    "custom": "Adat",
+    "choose_method": "Pilih cara memberi",
+    "choose_method_amount": "Lanjutkan dengan ${{amount}}",
+    "goal": {
+      "title": "Dana Claude Max",
+      "of": "dari",
+      "per_month": "/ bulan",
+      "aria": "{{raised}} dari {{goal}} sasaran bulanan",
+      "remaining": "{{amount}} untuk berangkat",
+      "met": "🎉 Sasaran tercapai — {{raised}} dinaikkan. Terima kasih!",
+      "social_proof": "Bergabunglah dengan pendukung {{count}} yang mendanai AI lokal"
+    },
+    "postcard": {
+      "title": "Dana Claude Max",
+      "lead_default": "Senang itu berhasil! OmniVoice gratis dan sepenuhnya lokal. Jika ini menghemat waktu Anda, chip-in bulanan kecil akan mendanai Claude Max di belakangnya.",
+      "lead_first_clone": "Klon suara pertama Anda selesai — bagus! OmniVoice berjalan sepenuhnya di mesin Anda, dan dukungan Anda menjaganya tetap seperti itu.",
+      "lead_tenth_dub": "Sepuluh sulih suara - Anda jelas berhasil. Chip-in bulanan kecil mendanai Claude Max yang mengirimkan fitur-fitur ini.",
+      "lead_sustained": "Anda telah menggunakan OmniVoice selama sebulan. Jika hal ini mendapat tempat dalam alur kerja Anda, pertimbangkan untuk membantu mendanai langkah selanjutnya.",
+      "chip_in": "ikut serta",
+      "later": "Mungkin nanti",
+      "star": "Bintangi di GitHub",
+      "opt_out": "Jangan bertanya lagi",
+      "dismiss_aria": "Singkirkan"
+    }
   },
   "enterprise": {
     "title": "Lisensi Komersial",
@@ -1072,7 +1214,9 @@
     "benefit_source_desc": "Visibilitas penuh ke dalam tumpukan. Audit, fork, dan adaptasi sesuai ketentuan lisensi.",
     "benefit_lang": "646 bahasa",
     "benefit_lang_desc": "Transkripsikan, terjemahkan, dan sulih suara dalam 646 bahasa dengan kualitas setingkat manusia.",
-    "hero_note": "Penggunaan, self-hosting, dan penggunaan komersial semuanya gratis di bawah AGPL-3.0 — termasuk dalam skala besar. AGPL adalah lisensi copyleft jaringan: jika Anda memodifikasi OmniVoice dan menawarkan versi modifikasi itu kepada orang lain melalui jaringan, Anda harus membagikan kode sumber modifikasi Anda dengan ketentuan yang sama. Lisensi komersial menghapus kewajiban copyleft tersebut untuk penerapan proprietary closed-source. Paket harga segera hadir — sementara itu, hubungi kami."
+    "hero_note": "Penggunaan, self-hosting, dan penggunaan komersial semuanya gratis di bawah AGPL-3.0 — termasuk dalam skala besar. AGPL adalah lisensi copyleft jaringan: jika Anda memodifikasi OmniVoice dan menawarkan versi modifikasi itu kepada orang lain melalui jaringan, Anda harus membagikan kode sumber modifikasi Anda dengan ketentuan yang sama. Lisensi komersial menghapus kewajiban copyleft tersebut untuk penerapan proprietary closed-source. Paket harga segera hadir — sementara itu, hubungi kami.",
+    "hero_simple": "OmniVoice Studio gratis dan bersumber terbuka di bawah AGPL-3.0 — termasuk untuk penggunaan komersial dan bisnis internal. Anda hanya memerlukan lisensi komersial untuk menyematkannya dalam produk sumber tertutup tanpa kewajiban copyleft AGPL.",
+    "contact_lead": "Harga dikutip per penerapan sehingga sesuai dengan tim dan beban kerja Anda. Ceritakan kasus penggunaan Anda dan saya akan memberi Anda penawaran."
   },
   "exportModal": {
     "export": "Ekspor",
@@ -1358,7 +1502,9 @@
     "save_label": "Simpan",
     "lock_identity": "Kunci identitas suara",
     "in_folder": "di {{folder}}",
-    "search": "Cari…"
+    "search": "Cari…",
+    "rename": "Ganti nama",
+    "rename_save": "Simpan nama"
   },
   "trimmer": {
     "title": "Pangkas audio referensi",
@@ -1487,7 +1633,11 @@
     "loading_badge": "Memuat…",
     "idle_badge": "Menganggur",
     "started_downloading_required_one": "Mulai mengunduh {{count}} model yang diperlukan",
-    "started_downloading_required_other": "Mulai mengunduh {{count}} model yang diperlukan"
+    "started_downloading_required_other": "Mulai mengunduh {{count}} model yang diperlukan",
+    "to_download": "untuk mengunduh",
+    "cached": "di-cache",
+    "fast_download_badge": "unduh cepat",
+    "fast_download_title": "Pengunduhan cepat melalui Xet {{version}} — transfer potongan paralel"
   },
   "enterprise_faq": {
     "q_internal_tools": "Apakah saya memerlukan lisensi untuk alat internal?",
@@ -1553,7 +1703,8 @@
     "delete_history_confirm": "Hapus item riwayat ini?",
     "history_deleted": "Item riwayat dihapus",
     "restored_state": "Memulihkan keadaan generasi sebelumnya",
-    "upgrading_preview": "Meningkatkan {{count}} segmen kualitas pratinjau ke kualitas penuh…"
+    "upgrading_preview": "Meningkatkan {{count}} segmen kualitas pratinjau ke kualitas penuh…",
+    "session_expired": "Sesi sulih suara ini telah habis masa berlakunya atau telah dibersihkan — unggah ulang video Anda untuk memulai yang baru."
   },
   "tts_errors": {
     "enter_text": "Silakan masukkan teks",
@@ -1749,7 +1900,15 @@
     "hf_token_save": "Simpan",
     "hf_token_saving": "menyimpan…",
     "hf_token_saved": "Token Hugging Face tersimpan",
-    "hf_token_error": "Gagal menyimpan token — coba lagi atau atur nanti di Pengaturan → Kredensial."
+    "hf_token_error": "Gagal menyimpan token — coba lagi atau atur nanti di Pengaturan → Kredensial.",
+    "chip_recommended": "direkomendasikan",
+    "size_left": "{{size}} kiri",
+    "hf_token_card_title": "Tambahkan token Hugging Face gratis untuk pengunduhan lebih cepat",
+    "hf_token_get": "Tidak punya tokennya? Dapatkan satu gratis →",
+    "hf_token_saved_fast": "Token Hugging Face disimpan — pengunduhan kini lebih cepat",
+    "hf_token_inline_prompt": "Percepat pengunduhan dengan token Hugging Face gratis",
+    "hf_token_inline_ph": "Tempel hf_… token (opsional)",
+    "hf_token_get_short": "Dapatkan satu gratis →"
   },
   "history": {
     "dub_title": "Riwayat sulih suara",
@@ -1761,5 +1920,163 @@
     "cleaned_loaded": "Rekaman dibersihkan & dimuat!",
     "loaded_raw": "Rekaman dimuat (mentah — penghilang derau tidak tersedia)",
     "too_short": "Rekaman terlalu pendek"
+  },
+  "pronunciation": {
+    "title": "Kamus pengucapan",
+    "help": "Ajari mesin cara mengucapkan kata-kata rumit. Setiap entri menggantikan kata dengan ejaan ulang sebelum sintesis, sehingga berlaku di setiap mesin. Lingkup entri ke satu bahasa atau biarkan Global. Inline, [[word|respelling]] menimpa kamus satu kali.",
+    "term": "Istilah",
+    "term_placeholder": "kata atau frasa (misalnya GIF)",
+    "replacement": "Penggantian",
+    "replacement_placeholder": "mengeja ulang (misalnya jiff)",
+    "scope": "Ruang lingkup",
+    "global": "Global",
+    "type": "Ketik",
+    "type_respelling": "Menolak",
+    "type_ipa": "IPA",
+    "type_cmu": "CMU",
+    "enabled": "Diaktifkan",
+    "add": "Tambahkan entri",
+    "remove": "Hapus {{term}}",
+    "empty": "Belum ada entri. Tambahkan satu di atas untuk memperbaiki kata yang salah diucapkan.",
+    "test_label": "Uji sebuah kalimat",
+    "test_placeholder": "Ketikkan kalimat untuk melihat pratinjau substitusi…",
+    "test_result": "Akan diucapkan sebagai:",
+    "test_nochange": "Tidak ada entri yang cocok — diucapkan seperti tertulis.",
+    "load_error": "Tidak dapat memuat kamus pengucapan.",
+    "save_error": "Tidak dapat menyimpan entri itu.",
+    "lang_label": "Kode bahasa (misalnya en, de) atau biarkan kosong untuk Global"
+  },
+  "audiobook": {
+    "title": "Buku Audio",
+    "subtitle": "Ubah skrip yang dibatasi bab menjadi buku audio m4b yang diberi bab.",
+    "script": "naskah",
+    "script_placeholder": "# Bab Satu\nSuatu ketika… [pause 500ms] berakhir.\n\n# Bab Dua\n[suara: narator] Dan hal itu berlanjut.",
+    "default_voice": "Suara bawaan",
+    "engine_default": "Default mesin",
+    "preview_plan": "Rencana pratinjau",
+    "create": "Buat buku audio",
+    "plan_heading": "Rencana — {{count}} bab",
+    "chapter_meta": "{{spans}} rentang · {{chars}} karakter",
+    "synthesizing": "Mensintesis bab {{current}} dari {{total}} {{title}}",
+    "assembling": "Merakit buku audio…",
+    "ready": "Buku audio sudah siap",
+    "download": "Unduh",
+    "format": "Format",
+    "format_m4b": "M4B (bab)",
+    "format_mp3": "MP3",
+    "loudness": "Kenyaringan",
+    "loudness_off": "Kenyaringan: mati",
+    "loudness_acx": "Normalisasi (ACX)",
+    "loudness_podcast": "Normalisasi (podcast)",
+    "details": "Sampul & detail",
+    "cover": "Penutup",
+    "cover_add": "Tambahkan penutup",
+    "cover_remove": "Hapus penutup",
+    "meta_title": "Judul",
+    "meta_author": "Penulis",
+    "meta_narrator": "Narator",
+    "meta_year": "Tahun",
+    "meta_genre": "Aliran",
+    "meta_description": "Deskripsi",
+    "preview_chapter": "Bab pratinjau: {{title}}",
+    "cached_note": "Menggunakan kembali {{count}} bab yang sudah dirender.",
+    "failed_note": "{{count}} bab gagal — klik Buat lagi untuk mencoba lagi bab tersebut.",
+    "import": "Impor",
+    "import_failed": "Impor gagal: {{message}}",
+    "lexicon": "Pengucapan",
+    "lex_word": "Kata",
+    "lex_say": "Katakan sebagai…",
+    "lex_add": "Tambahkan kata",
+    "lex_remove": "Hapus",
+    "markup_help": "Referensi markup",
+    "markup_hint": "# Judul bab · [suara:NAMA] ganti suara · [jeda 500 md] / [jeda 1 detik] · [lambat]…[/lambat] · [cepat]…[/cepat] · [penekanan]…[/penekanan] · [mantra]…[/mantra]"
+  },
+  "voicePanel": {
+    "title": "Suara",
+    "subtitle": "Dikte ucapan-ke-teks lokal dengan model di perangkat.",
+    "enable_label": "Aktifkan Dikte Suara",
+    "enable_sub": "Tekan {{shortcut}} untuk mendiktekan teks ke dalam panel fokus mana pun.",
+    "mode_label": "Mode Dikte",
+    "mode_sub": "Beralih: tekan sekali untuk memulai, sekali lagi untuk berhenti. Tahan: mendiktekan saat kunci dipegang.",
+    "mode_toggle": "Beralih",
+    "mode_hold": "Tahan",
+    "model_label": "Model Pidato",
+    "model_sub": "Pilih model pada perangkat yang digunakan untuk dikte.",
+    "badge_offline": "luring",
+    "badge_streaming": "streaming",
+    "badge_recommended": "direkomendasikan",
+    "download_model": "Unduh modelnya",
+    "delete_model": "Hapus modelnya",
+    "downloading": "Mengunduh…",
+    "downloading_pct": "Mengunduh {{pct}}%",
+    "delete_confirm": "Hapus model ucapan \"{{label}}\"? Anda dapat mengunduhnya kembali nanti.",
+    "delete_confirm_title": "Hapus model ucapan",
+    "engine_unavailable": "Mesin pendiktean langsung tidak tersedia pada instalasi ini. Dikte kembali ke jalur transkripsi standar.",
+    "model_desc": {
+      "sherpa-parakeet-tdt-v3": "Direkomendasikan. Dikte yang cepat dan akurat dalam 25 bahasa Eropa.",
+      "sherpa-parakeet-tdt-v2": "Dikte khusus bahasa Inggris yang cepat dan akurat.",
+      "sherpa-zipformer-bilingual-zh-en": "Streaming bahasa Mandarin + Inggris dengan siaran langsung sebagian.",
+      "sherpa-paraformer-bilingual-zh-en": "Streaming bahasa Mandarin + Inggris, model ringkas.",
+      "sherpa-zipformer-en-20m": "Model streaming bahasa Inggris yang kecil — latensi terendah.",
+      "sherpa-zipformer-zh-14m": "Model streaming kecil Tiongkok — latensi terendah.",
+      "sherpa-whisper-tiny": "Multibahasa (90+ bahasa) dengan deteksi bahasa otomatis."
+    }
+  },
+  "profiles": {
+    "need_name_audio": "Butuh nama dan referensi audio",
+    "synthesizing_preview": "Mensintesis pratinjau untuk {{name}}...",
+    "synthesizing_segment": "Mensintesis segmen...",
+    "preview_ready": "Pratinjau siap!",
+    "playback_failed": "Pemutaran gagal",
+    "preview_failed": "Pratinjau gagal: {{message}}",
+    "saved": "Suara disimpan ke profil!",
+    "save_failed": "Gagal menyimpan profil suara",
+    "locked": "Suara terkunci! Identitas sekarang konsisten di semua generasi.",
+    "lock_failed": "Gagal mengunci profil",
+    "unlocked": "Suara tidak terkunci. Generasi akan bervariasi lagi.",
+    "unlock_failed": "Gagal membuka kunci profil"
+  },
+  "transcriptionPicker": {
+    "title": "Impor dari transkripsi",
+    "search_placeholder": "Telusuri transkripsi…",
+    "empty": "Belum ada transkripsi. Rekam satu di tab Transkripsi.",
+    "empty_search": "Tidak ada transkripsi yang cocok dengan penelusuran Anda."
+  },
+  "waveform": {
+    "source_missing": "Media sumber hilang — file ini mungkin telah dipindahkan atau dihapus. Upload ulang video untuk melanjutkan.",
+    "load_failed": "Tidak dapat memuat audio dari file ini"
+  },
+  "tts": {
+    "routingFallback": "Berjalan pada CPU — mesin ini tidak memiliki jalur GPU pada mesin Anda, sehingga pembuatannya akan lebih lambat. {{reason}}",
+    "routingCaveat": "Menggunakan GPU, tetapi: {{reason}}"
+  },
+  "voiceSelector": {
+    "engineDefault": "Default mesin",
+    "clone": "Suara kloning",
+    "designed": "Suara yang dirancang",
+    "presets": "Preset",
+    "fromVideo": "Dari video",
+    "missingVoice": "Suara tidak ditemukan (pilih ulang)",
+    "preview": "Pratinjau suara",
+    "openGallery": "Buka di Galeri Suara",
+    "createVoice": "Ciptakan suara baru"
+  },
+  "remote_gate": {
+    "title": "Masukkan PIN akses",
+    "body": "Mesin virtual OmniVoice ini dibagikan di jaringan. Masukkan PIN yang tertera pada host.",
+    "label": "Akses PIN",
+    "connect": "Hubungkan"
+  },
+  "contact": {
+    "hero_title": "Hubungi kami",
+    "hero_desc": "Pertanyaan, bug, perizinan, atau sekadar menyapa — inilah cara menghubungi saya.",
+    "discord": "Perselisihan",
+    "discord_desc": "Ngobrol dengan komunitas dan dapatkan bantuan dengan cepat.",
+    "email": "Surel",
+    "email_desc": "Perizinan, kemitraan, atau apa pun yang bersifat pribadi.",
+    "issues": "Masalah GitHub",
+    "issues_desc": "Laporkan bug atau minta fitur.",
+    "website": "Situs web",
+    "website_desc": "Lebih lanjut tentang proyek dan pembuatnya."
   }
 }

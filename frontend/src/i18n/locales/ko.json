@@ -11,7 +11,9 @@
     "omnidrive": "옴니드라이브",
     "move_rail_right": "레일을 오른쪽으로 이동",
     "move_rail_left": "레일을 왼쪽으로 이동",
-    "flip_rail": "레일 측면 뒤집기"
+    "flip_rail": "레일 측면 뒤집기",
+    "voice": "음성",
+    "audiobook": "Audiobook"
   },
   "settings": {
     "general": "일반",
@@ -83,7 +85,53 @@
     "hf_token_input": "HuggingFace 토큰",
     "hf_token_sources": "HF 토큰 소스",
     "hf_token_test_now": "지금 테스트",
-    "hf_token_test_now_title": "모든 소스에 대해 whoami 다시 실행"
+    "hf_token_test_now_title": "모든 소스에 대해 whoami 다시 실행",
+    "color_theme": "색상 테마",
+    "font": "글꼴",
+    "autoplay_preview": "자동재생 미리보기",
+    "autoplay_preview_label": "렌더링이 완료되자마자 출력 재생",
+    "autoplay_preview_hint": "끄면 완성된 렌더가 더 이상 자체적으로 재생을 시작하지 않습니다. 이는 세그먼트를 일괄 생성할 때 유용합니다.",
+    "appearance_help": "하단 로그 표시줄에 있던 이러한 컨트롤은 바닥글이 로그에 계속 집중할 수 있도록 여기로 이동되었습니다. 변경 사항은 즉시 적용되며 출시 후에도 지속됩니다.",
+    "advanced": "고급",
+    "shortcut": "받아쓰기 단축키",
+    "credentials_desc": "이 세션에 대해 설정된 API 키 및 토큰입니다.",
+    "credentials_more": "더 많은 제공업체",
+    "group_general": "일반",
+    "group_voice": "음성 및 엔진",
+    "group_system": "시스템",
+    "group_app": "앱",
+    "search_placeholder": "검색 설정…",
+    "restart_required": "다시 시작해야 함",
+    "applies_now": "지금 적용",
+    "dictation": "받아쓰기",
+    "pronunciation": "발음",
+    "translation": "번역",
+    "network": "네트워크",
+    "performance": "성능 및 장치",
+    "storage": "저장",
+    "device": "장치 및 컴퓨팅",
+    "device_desc": "라이브 하드웨어 및 백엔드 판독.",
+    "network_desc": "다운로드 및 미디어 처리를 위한 프록시 및 FFmpeg 경로.",
+    "translation_desc": "더빙이 대화를 번역하는 방법과 이를 수행하는 엔진은 무엇입니까?",
+    "translate_quality": "번역 품질",
+    "translate_quality_desc": "빠르다는 것은 말 그대로 빠르다는 뜻입니다. Cinematic은 자연스러운 표현을 위해 LLM을 사용합니다.",
+    "translate_fast": "빠르게",
+    "translate_cinematic": "시네마틱",
+    "translation_providers": "번역 제공업체",
+    "translation_providers_desc": "이 세션에 대해 설정된 온라인 번역기용 API 키입니다.",
+    "review_mode": "검토 모드",
+    "review_mode_desc": "ASR/번역 출력을 검토할 수 있도록 파이프라인 단계 사이에 일시 중지합니다.",
+    "header_live_stats": "헤더에 실시간 시스템 측정항목 표시",
+    "header_live_stats_desc": "상단 표시줄에 라이브 RAM/CPU/VRAM 모니터를 추가합니다(기본적으로 꺼져 있음).",
+    "storage_desc": "OmniVoice가 데이터와 출력을 보관하는 곳입니다.",
+    "factory_reset": "공장 초기화",
+    "factory_reset_desc": "모든 인앱 환경설정을 기본값으로 재설정합니다. 귀하의 파일은 그대로 유지됩니다.",
+    "factory_reset_body": "로컬에 저장된 설정(테마, 언어, 더빙 노브, 갤러리 즐겨찾기 및 기타 UI 기본 설정)을 지웁니다. 디스크에 있는 음성, 프로젝트 또는 생성된 오디오는 삭제되지 않습니다.",
+    "factory_reset_confirm_title": "환경설정을 재설정하시겠습니까?",
+    "factory_reset_confirm": "재설정 및 새로고침",
+    "factory_reset_confirm_body": "This clears all saved UI preferences and reloads the app. Your voices, projects, and outputs on disk are not affected. 계속하다?",
+    "factory_reset_done": "환경설정이 삭제되었습니다 — 새로고침 중…",
+    "factory_reset_failed": "재설정 실패"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -123,7 +171,9 @@
     "hint_port": "포트 3900이 이미 사용 중입니다. 다른 OmniVoice 인스턴스나 해당 포트를 사용하는 앱을 종료하세요.",
     "hint_silent_crash": "백엔드가 오류 메시지 없이 종료되었습니다. \"정리 후 재시도\"가 손상된 venv 문제를 자주 해결합니다.",
     "hint_github_blocked": "네트워크가 GitHub을 차단하고 있을 수 있습니다. python.org에서 Python 3.11+를 설치하고(PATH에 추가) 다시 실행하거나 UV_PYTHON_INSTALL_MIRROR를 설정하세요 — docs/install/troubleshooting.md 참고.",
-    "hint_default": "먼저 \"재시도\"를 시도하세요. 다시 실패하면 \"정리 후 재시도\"가 환경을 처음부터 다시 구축합니다."
+    "hint_default": "먼저 \"재시도\"를 시도하세요. 다시 실패하면 \"정리 후 재시도\"가 환경을 처음부터 다시 구축합니다.",
+    "hint_stuck": "백엔드 시작이 완료되지 않았습니다. 소스에서 먼저 'uv sync'를 실행하고 'uv'와 Python이 PATH에 있는지 확인한 다음 다시 시도하세요. 정확한 정지 지점은 아래 로그(또는 설정 → 로그 → 백엔드)를 확인하세요.",
+    "lines": "{{count}} 라인"
   },
   "stories": {
     "title": "스토리 편집자",
@@ -193,7 +243,9 @@
     "minutes": "~{{count}}분",
     "chars": "{{count}}자",
     "exportDone": "오디오북 다운로드됨",
-    "exportFailed": "내보내기 실패 - 백엔드가 실행 중인지 확인하세요."
+    "exportFailed": "내보내기 실패 - 백엔드가 실행 중인지 확인하세요.",
+    "global_speed": "속도",
+    "global_speed_hint": "자체 속도 재정의 없이 모든 라인에 대한 읽기 속도"
   },
   "common": {
     "open": "열기",
@@ -222,7 +274,9 @@
     "popular_label": "인기",
     "showing_of": "{{total}} 중 {{shown}} 표시 중 검색하려면 입력하세요…",
     "yes": "예",
-    "no": "아니요"
+    "no": "아니요",
+    "more_info": "추가 정보",
+    "learn_more": "자세히 알아보기"
   },
   "launchpad": {
     "greeting": "안녕하세요",
@@ -253,7 +307,9 @@
     "transcripts_desc": "646개 언어로 오디오나 비디오를 편집 및 검색 가능한 텍스트로 변환하세요.",
     "recent_files": "최근 파일",
     "view_all_files": "모든 파일 보기",
-    "file": "파일"
+    "file": "파일",
+    "audiobook_title": "오디오북",
+    "audiobook_desc": "긴 스크립트나 EPUB를 표지, 메타데이터, 내레이터 1명으로 구성된 오디오북으로 바꿔보세요."
   },
   "clone": {
     "prompt": "프롬프트",
@@ -332,7 +388,12 @@
     "define_by_design": "디자인으로",
     "define_from_audio": "오디오에서",
     "define_voice": "음성 정의",
-    "save_design_as_profile": "디자인을 프로필로 저장"
+    "save_design_as_profile": "디자인을 프로필로 저장",
+    "seed_label": "종자",
+    "seed_placeholder": "매번 무작위로",
+    "seed_keep": "이 씨앗을 보관하세요",
+    "seed_reroll": "새로운 씨앗",
+    "seed_reroll_hint": "새로운 무작위 시드를 굴려 유지하세요."
   },
   "about": {
     "app": "앱",
@@ -456,7 +517,14 @@
     "failed": "실패했다",
     "acceptLicense": "라이선스 수락",
     "noBackends": "등록된 백엔드가 없습니다.",
-    "switch_failed": "엔진을 전환하지 못했습니다."
+    "switch_failed": "엔진을 전환하지 못했습니다.",
+    "routingAccelerated": "GPU 활성",
+    "routingCpuFallback": "CPU 대체",
+    "routingCpuOnly": "CPU",
+    "routingRemote": "원격",
+    "routingUnknown": "알 수 없음",
+    "routingEffectiveChip": "이 머신의 {{device}}에서 실행됩니다.",
+    "routingCaveatTitle": "GPU가 선택되었지만: {{reason}}"
   },
   "capture": {
     "desc": "전역 단축키는 데스크톱 앱에서만 작동합니다. 웹 UI는 창에 포커스가 있는 동안 페이지 내 <1>Ctrl+Shift+Space</1> 단축키를 사용합니다.",
@@ -519,7 +587,13 @@
     "log_copied": "{{source}} 로그를 복사했습니다.",
     "copy_failed": "복사 실패: {{message}}",
     "report_copied": "진단 보고서가 복사되었습니다. GitHub 문제에 붙여넣으세요.",
-    "report_failed": "보고 실패: {{message}}"
+    "report_failed": "보고 실패: {{message}}",
+    "version_updates": "업데이트 확인",
+    "version_updates_aria": "업데이트 열기 — 앱 버전 {{v}}",
+    "update_available": "업데이트 가능({{version}}) — 업데이트하려면 클릭하세요.",
+    "update_available_aria": "업데이트 가능({{version}}) - 업데이트 공개",
+    "contact": "연락처",
+    "contact_aria": "연락처 페이지 열기"
   },
   "voice_profile": {
     "test_text": "안녕하세요. 이 목소리에 대한 테스트입니다.",
@@ -563,7 +637,26 @@
     "projects_count_one": "{{count}} 프로젝트",
     "projects_count_other": "{{count}} 프로젝트",
     "dubbed_segments_one": "{{count}} 더빙된 세그먼트",
-    "dubbed_segments_other": "{{count}} 더빙된 세그먼트"
+    "dubbed_segments_other": "{{count}} 더빙된 세그먼트",
+    "verified": "확인됨",
+    "persona_export": "페르소나 내보내기",
+    "persona_exporting": "페르소나 구축…",
+    "persona_exported": "페르소나를 내보냈습니다.",
+    "persona_export_no_audio": "이 음성에는 미리보기를 구성할 수 있는 읽을 수 있는 오디오가 없습니다.",
+    "persona_export_failed": "내보내기에 실패했습니다.",
+    "persona_include_ref": "음성 클립 포함",
+    "persona_include_ref_hint": "원시 참조 클립을 포함합니다. 끄기 = 워터마크가 표시된 미리보기만 공유합니다(권장).",
+    "consent_title": "음성 소유권",
+    "consent_explain": "아래 설명을 읽는 자신을 녹음하여 이것이 귀하의 목소리인지 확인하십시오. 에이전트 기능 및 커뮤니티 공유에는 확인이 필요하며 로컬 합성에는 확인이 필요하지 않습니다.",
+    "consent_statement": "나는 이 음성 프로필이 내 목소리임을 확인하며 OmniVoice Studio가 나를 대신하여 이 프로필을 복제하는 데 동의합니다.",
+    "consent_record": "동의서 녹음",
+    "consent_stop": "녹음 중지",
+    "consent_saved": "음성 소유권이 확인되었습니다.",
+    "consent_failed": "확인 실패: {{message}}",
+    "consent_verified_explain": "{{date}}에 동의서를 녹음했습니다. 취소하면 녹음 및 확인된 상태가 제거됩니다.",
+    "consent_revoke": "취소",
+    "consent_revoke_confirm": "음성 소유권 확인을 취소하시겠습니까? 동의 녹음이 삭제되고 에이전트 기능에서 더 이상 이 음성을 사용할 수 없게 됩니다.",
+    "consent_revoked": "인증이 취소되었습니다."
   },
   "dub": {
     "transcribe": "전사",
@@ -712,7 +805,12 @@
     "pipeline": "더빙 파이프라인",
     "preview_language": "미리보기 언어",
     "target_language": "더빙할 언어",
-    "transcript_after_extract": "추출이 끝나면 대본이 표시됩니다."
+    "transcript_after_extract": "추출이 끝나면 대본이 표시됩니다.",
+    "qc_btn": "더빙 타이밍 확인(두 번째 통과 확인)",
+    "qc_running": "더빙 타이밍 확인 중…",
+    "qc_result": "{{total}} 줄 중 {{flagged}} 줄을 다시 들어야 할 수 있습니다.",
+    "qc_clean": "모든 {{total}} 줄은 스크립트와 일치합니다.",
+    "qc_failed": "타이밍 확인 실패: {{message}}"
   },
   "glossary": {
     "title": "용어집",
@@ -797,7 +895,9 @@
     "fit_stretched_title": "비디오 늘이기 모드: 자연스러운 더빙 오디오에 맞추기 위해 이 세그먼트의 비디오가 {{ratio}}× 속도로 느려졌습니다.",
     "fit_compressed_title": "TTS 오디오는 슬롯의 {{pct}}%입니다. — 심하게 압축되었습니다.",
     "fit_audio_title": "오디오는 슬롯 안에 맞습니다.",
-    "fit_ratio_title": "TTS 오디오는 슬롯의 {{pct}}%입니다."
+    "fit_ratio_title": "TTS 오디오는 슬롯의 {{pct}}%입니다.",
+    "qc_verify": "확인",
+    "qc_verify_title": "두 번째 패스 ASR 수신: \"{{heard}}\" — 이 라인을 다시 듣거나 다시 더빙합니다."
   },
   "timeline": {
     "track_label": "세그먼트 타임라인",
@@ -872,7 +972,16 @@
     "export": "수출",
     "transcription": "전사",
     "designed_voice": "디자인된 목소리",
-    "cloned_voice": "복제된 음성"
+    "cloned_voice": "복제된 음성",
+    "stories": "스토리",
+    "untitled_story": "제목없는 이야기",
+    "story_lines": "{{count}} 라인",
+    "story_lines_plural": "{{count}} 라인",
+    "story_voices": "{{count}} 목소리",
+    "story_voices_plural": "{{count}} 목소리",
+    "audiobooks": "오디오북",
+    "audiobook": "오디오북",
+    "story": "스토리"
   },
   "batch": {
     "title": "일괄 더빙",
@@ -975,7 +1084,12 @@
     "submit_failed": "제출 양식을 열 수 없습니다.",
     "submit_preset": "프리셋 제출",
     "submit_voice": "음성 제출",
-    "zone_community": "커뮤니티"
+    "zone_community": "커뮤니티",
+    "import_persona": ".ovsvoice 페르소나 번들 가져오기",
+    "persona_imported": "\"{{name}}\"{{unverified}}을(를) 가져왔습니다.",
+    "persona_unverified_suffix": "(확인되지 않음)",
+    "persona_too_large": "번들이 너무 큽니다(최대 100MB).",
+    "persona_import_failed": "해당 페르소나 번들을 가져올 수 없습니다."
   },
   "transcriptions": {
     "title": "전사",
@@ -1030,7 +1144,8 @@
     "try_dictation": "받아쓰기를 시도해보세요",
     "next_try_dictation": "다음: 받아쓰기 사용해 보기",
     "step_aria": "{{num}}단계: {{label}}",
-    "step_completed": "완료됨"
+    "step_completed": "완료됨",
+    "cache_label": "모델 캐시"
   },
   "donate": {
     "title": "지원",
@@ -1043,7 +1158,34 @@
     "platforms": "플랫폼",
     "footer": "모든 기여는 로컬 AI의 경계를 넓히는 데 도움이 됩니다.",
     "back": "스튜디오로 돌아가기",
-    "commercial": "상업용 라이센스"
+    "commercial": "상업용 라이센스",
+    "pill": "옴니보이스 지원",
+    "suggested_title": "금액을 선택하세요",
+    "most_common": "가장 일반적인",
+    "custom": "맞춤",
+    "choose_method": "주는 방법을 선택하세요",
+    "choose_method_amount": "${{amount}}로 계속",
+    "goal": {
+      "title": "클로드 맥스 기금",
+      "of": "의",
+      "per_month": "/월",
+      "aria": "{{goal}} 월 목표 중 {{raised}}",
+      "remaining": "{{amount}} 가다",
+      "met": "🎉 목표 달성 — {{raised}} 모금되었습니다. 감사합니다!",
+      "social_proof": "지역 AI에 자금을 지원하는 {{count}} 지지자들과 함께하세요"
+    },
+    "postcard": {
+      "title": "클로드 맥스 기금",
+      "lead_default": "효과가 있어서 다행이에요! OmniVoice는 무료이며 완전히 로컬입니다. 시간을 절약할 수 있다면 매월 소액의 칩인을 통해 Claude Max에 자금을 지원할 수 있습니다.",
+      "lead_first_clone": "첫 번째 음성 복제가 완료되었습니다. 좋습니다! OmniVoice는 전적으로 귀하의 컴퓨터에서 실행되며 귀하의 지원은 이를 그대로 유지합니다.",
+      "lead_tenth_dub": "10개의 더빙이 포함되어 있습니다. 확실히 효과를 발휘하고 계십니다. 이러한 기능을 제공하는 Claude Max에는 매월 소액의 칩인 자금이 지원됩니다.",
+      "lead_sustained": "OmniVoice를 사용한 지 한 달이 되었습니다. 귀하의 작업 흐름에서 한 자리를 차지했다면 다음 단계에 자금을 지원하는 것을 고려해 보십시오.",
+      "chip_in": "칩인",
+      "later": "어쩌면 나중에",
+      "star": "GitHub의 스타",
+      "opt_out": "다시 묻지 마세요",
+      "dismiss_aria": "닫기"
+    }
   },
   "enterprise": {
     "title": "상업용 라이센스",
@@ -1072,7 +1214,9 @@
     "benefit_source_desc": "스택에 대한 완전한 가시성. 라이선스 조건 내에서 감사, 분기 및 조정합니다.",
     "benefit_lang": "646개 언어",
     "benefit_lang_desc": "인간 수준의 품질로 646개 언어로 전사, 번역, 더빙하세요.",
-    "hero_note": "사용, 자체 호스팅, 상업적 이용 모두 AGPL-3.0에 따라 무료이며, 대규모 사용도 마찬가지입니다. AGPL은 네트워크 카피레프트 라이선스입니다. OmniVoice를 수정하여 그 수정 버전을 네트워크를 통해 다른 사람에게 제공하는 경우, 동일한 조건으로 수정된 소스 코드를 공개해야 합니다. 상업용 라이선스를 구매하면 독점·클로즈드 소스 배포에 대해 이러한 카피레프트 의무가 면제됩니다. 가격 정책은 곧 공개됩니다. 그동안은 문의해 주세요."
+    "hero_note": "사용, 자체 호스팅, 상업적 이용 모두 AGPL-3.0에 따라 무료이며, 대규모 사용도 마찬가지입니다. AGPL은 네트워크 카피레프트 라이선스입니다. OmniVoice를 수정하여 그 수정 버전을 네트워크를 통해 다른 사람에게 제공하는 경우, 동일한 조건으로 수정된 소스 코드를 공개해야 합니다. 상업용 라이선스를 구매하면 독점·클로즈드 소스 배포에 대해 이러한 카피레프트 의무가 면제됩니다. 가격 정책은 곧 공개됩니다. 그동안은 문의해 주세요.",
+    "hero_simple": "OmniVoice Studio는 상업용 및 내부 업무용을 포함하여 AGPL-3.0에 따른 무료 오픈 소스입니다. AGPL의 카피레프트 의무 없이 비공개 소스 제품에 포함하려면 상용 라이선스만 필요합니다.",
+    "contact_lead": "가격은 배포별로 견적되므로 팀과 워크로드에 적합합니다. 사용 사례를 알려주시면 견적을 받아보겠습니다."
   },
   "exportModal": {
     "export": "수출",
@@ -1358,7 +1502,9 @@
     "save_label": "저장",
     "lock_identity": "음성 신원 잠금",
     "in_folder": "{{folder}}에서",
-    "search": "검색…"
+    "search": "검색…",
+    "rename": "이름 바꾸기",
+    "rename_save": "이름 저장"
   },
   "trimmer": {
     "title": "참조 오디오 다듬기",
@@ -1487,7 +1633,11 @@
     "loading_badge": "로드 중…",
     "idle_badge": "유휴",
     "started_downloading_required_one": "{{count}} 필수 모델 다운로드 시작",
-    "started_downloading_required_other": "{{count}} 필수 모델 다운로드 시작"
+    "started_downloading_required_other": "{{count}} 필수 모델 다운로드 시작",
+    "to_download": "다운로드하다",
+    "cached": "캐시된",
+    "fast_download_badge": "빠른 다운로드",
+    "fast_download_title": "Xet {{version}}을 통한 빠른 다운로드 — 병렬 청크 전송"
   },
   "enterprise_faq": {
     "q_internal_tools": "내부 도구에 대한 라이선스가 필요합니까?",
@@ -1553,7 +1703,8 @@
     "delete_history_confirm": "이 기록 항목을 삭제하시겠습니까?",
     "history_deleted": "기록 항목이 삭제되었습니다.",
     "restored_state": "이전 세대 상태를 복원했습니다.",
-    "upgrading_preview": "{{count}} 미리보기 품질 세그먼트를 전체 품질로 업그레이드하는 중…"
+    "upgrading_preview": "{{count}} 미리보기 품질 세그먼트를 전체 품질로 업그레이드하는 중…",
+    "session_expired": "이 더빙 세션이 만료되었거나 정리되었습니다. 새 동영상을 시작하려면 동영상을 다시 업로드하세요."
   },
   "tts_errors": {
     "enter_text": "텍스트를 입력해주세요",
@@ -1749,7 +1900,15 @@
     "hf_token_save": "저장",
     "hf_token_saving": "저장 중…",
     "hf_token_saved": "Hugging Face 토큰 저장됨",
-    "hf_token_error": "토큰을 저장하지 못했습니다 — 다시 시도하거나 나중에 설정 → 자격 증명에서 설정하세요."
+    "hf_token_error": "토큰을 저장하지 못했습니다 — 다시 시도하거나 나중에 설정 → 자격 증명에서 설정하세요.",
+    "chip_recommended": "추천",
+    "size_left": "{{size}} 남음",
+    "hf_token_card_title": "더 빠른 다운로드를 위해 무료 Hugging Face 토큰을 추가하세요.",
+    "hf_token_get": "토큰이 없나요? 하나를 무료로 받으세요 →",
+    "hf_token_saved_fast": "Hugging Face 토큰이 저장되었습니다. 이제 다운로드가 더 빨라졌습니다.",
+    "hf_token_inline_prompt": "무료 Hugging Face 토큰으로 다운로드 속도를 높이세요",
+    "hf_token_inline_ph": "hf_… 토큰 붙여넣기(선택 사항)",
+    "hf_token_get_short": "하나를 무료로 받으세요 →"
   },
   "history": {
     "dub_title": "더빙 기록",
@@ -1761,5 +1920,163 @@
     "cleaned_loaded": "녹음이 정리되어 로드되었습니다!",
     "loaded_raw": "녹음이 로드되었습니다 (원본 — 노이즈 제거 사용 불가)",
     "too_short": "녹음이 너무 짧습니다"
+  },
+  "pronunciation": {
+    "title": "Pronunciation dictionary",
+    "help": "까다로운 단어를 말하는 방법을 엔진에 가르칩니다. 각 항목은 합성 전에 단어를 철자로 대체하므로 모든 엔진에 적용됩니다. 항목 범위를 한 언어로 지정하거나 전역으로 둡니다. 인라인에서는 [[word|respelling]]이 사전을 한 번 재정의합니다.",
+    "term": "기간",
+    "term_placeholder": "word or phrase (e.g. GIF)",
+    "replacement": "교체",
+    "replacement_placeholder": "respelling (e.g. jiff)",
+    "scope": "범위",
+    "global": "글로벌",
+    "type": "유형",
+    "type_respelling": "Respelling",
+    "type_ipa": "IPA",
+    "type_cmu": "CMU",
+    "enabled": "활성화됨",
+    "add": "항목 추가",
+    "remove": "Remove {{term}}",
+    "empty": "아직 항목이 없습니다. Add one above to fix a mispronounced word.",
+    "test_label": "Test a sentence",
+    "test_placeholder": "Type a sentence to preview the substitution…",
+    "test_result": "Will be spoken as:",
+    "test_nochange": "일치하는 항목이 없습니다. 쓰여진 대로 말합니다.",
+    "load_error": "Couldn't load the pronunciation dictionary.",
+    "save_error": "해당 항목을 저장할 수 없습니다.",
+    "lang_label": "언어 코드(예: en, de) 또는 글로벌의 경우 비워 두세요."
+  },
+  "audiobook": {
+    "title": "Audiobook",
+    "subtitle": "장으로 구분된 스크립트를 장으로 구분된 m4b 오디오북으로 바꿔보세요.",
+    "script": "스크립트",
+    "script_placeholder": "# Chapter One\nOnce upon a time… [pause 500ms] the end.\n\n# Chapter Two\n[voice:narrator] And so it continued.",
+    "default_voice": "Default voice",
+    "engine_default": "Engine default",
+    "preview_plan": "Preview plan",
+    "create": "Create audiobook",
+    "plan_heading": "계획 — {{count}} 장",
+    "chapter_meta": "{{spans}} span(s) · {{chars}} chars",
+    "synthesizing": "{{total}} {{title}}의 {{current}} 장을 합성하는 중",
+    "assembling": "Assembling the audiobook…",
+    "ready": "Audiobook ready",
+    "download": "다운로드",
+    "format": "형식",
+    "format_m4b": "M4B(챕터)",
+    "format_mp3": "MP3",
+    "loudness": "음량",
+    "loudness_off": "음량: 꺼짐",
+    "loudness_acx": "정규화(ACX)",
+    "loudness_podcast": "정규화(팟캐스트)",
+    "details": "표지 및 세부정보",
+    "cover": "표지",
+    "cover_add": "표지 추가",
+    "cover_remove": "커버 제거",
+    "meta_title": "제목",
+    "meta_author": "작성자",
+    "meta_narrator": "내레이터",
+    "meta_year": "연도",
+    "meta_genre": "장르",
+    "meta_description": "설명",
+    "preview_chapter": "미리보기 장: {{title}}",
+    "cached_note": "이미 렌더링된 {{count}} 챕터를 재사용했습니다.",
+    "failed_note": "{{count}} 챕터 실패 — 해당 챕터만 다시 시도하려면 생성을 다시 클릭하세요.",
+    "import": "가져오기",
+    "import_failed": "가져오기 실패: {{message}}",
+    "lexicon": "발음",
+    "lex_word": "말씀",
+    "lex_say": "다음과 같이 말하세요…",
+    "lex_add": "단어 추가",
+    "lex_remove": "제거",
+    "markup_help": "마크업 참조",
+    "markup_hint": "# 장 제목 · [음성:이름] 음성 전환 · [500ms 일시 정지] / [1초 일시 정지] · [느리게]…[/slow] · [빠르게]…[/fast] · [강조]…[/emphasis] · [주문]…[/spell]"
+  },
+  "voicePanel": {
+    "title": "음성",
+    "subtitle": "Local speech-to-text dictation with on-device models.",
+    "enable_label": "음성 받아쓰기 활성화",
+    "enable_sub": "Press {{shortcut}} to dictate text into any focused pane.",
+    "mode_label": "받아쓰기 모드",
+    "mode_sub": "토글: 한 번 누르면 시작되고 다시 누르면 중지됩니다. 길게 누르기: 키를 누르고 있는 동안 지시합니다.",
+    "mode_toggle": "토글",
+    "mode_hold": "보류",
+    "model_label": "음성 모델",
+    "model_sub": "받아쓰기에 사용되는 기기 내 모델을 선택하세요.",
+    "badge_offline": "오프라인",
+    "badge_streaming": "스트리밍",
+    "badge_recommended": "추천",
+    "download_model": "모델 다운로드",
+    "delete_model": "모델 삭제",
+    "downloading": "다운로드 중…",
+    "downloading_pct": "{{pct}}% 다운로드 중",
+    "delete_confirm": "'{{label}}' 음성 모델을 삭제하시겠습니까? 나중에 다시 다운로드할 수 있습니다.",
+    "delete_confirm_title": "음성 모델 삭제",
+    "engine_unavailable": "The live-dictation engine isn't available on this install. Dictation falls back to the standard transcription path.",
+    "model_desc": {
+      "sherpa-parakeet-tdt-v3": "추천합니다. Fast, accurate dictation across 25 European languages.",
+      "sherpa-parakeet-tdt-v2": "빠르고 정확한 영어 전용 받아쓰기.",
+      "sherpa-zipformer-bilingual-zh-en": "라이브 부분으로 중국어 + 영어 스트리밍.",
+      "sherpa-paraformer-bilingual-zh-en": "중국어 + 영어 스트리밍, 컴팩트 모델.",
+      "sherpa-zipformer-en-20m": "작은 스트리밍 영어 모델 - 지연 시간이 가장 낮습니다.",
+      "sherpa-zipformer-zh-14m": "작은 스트리밍 중국 모델 - 지연 시간이 가장 낮습니다.",
+      "sherpa-whisper-tiny": "Multilingual (90+ languages) with auto language detection."
+    }
+  },
+  "profiles": {
+    "need_name_audio": "이름과 참조 오디오가 필요합니다.",
+    "synthesizing_preview": "{{name}}의 미리보기를 합성하는 중...",
+    "synthesizing_segment": "세그먼트 합성 중...",
+    "preview_ready": "미리보기가 준비되었습니다!",
+    "playback_failed": "재생 실패",
+    "preview_failed": "미리보기 실패: {{message}}",
+    "saved": "프로필에 음성이 저장되었습니다!",
+    "save_failed": "음성 프로필을 저장하지 못했습니다.",
+    "locked": "음성이 잠겼습니다! Identity is now consistent across all generations.",
+    "lock_failed": "프로필을 잠그지 못했습니다.",
+    "unlocked": "음성 잠금이 해제되었습니다. 세대가 다시 달라질 것입니다.",
+    "unlock_failed": "프로필을 잠금 해제하지 못했습니다."
+  },
+  "transcriptionPicker": {
+    "title": "전사에서 가져오기",
+    "search_placeholder": "스크립트 검색…",
+    "empty": "아직 스크립트가 없습니다. 전사 탭에서 하나를 녹음하세요.",
+    "empty_search": "검색어와 일치하는 스크립트가 없습니다."
+  },
+  "waveform": {
+    "source_missing": "소스 미디어 누락 — 이 파일이 이동되었거나 삭제되었을 수 있습니다. 계속하려면 동영상을 다시 업로드하세요.",
+    "load_failed": "이 파일에서 오디오를 로드할 수 없습니다."
+  },
+  "tts": {
+    "routingFallback": "CPU에서 실행 — 이 엔진은 컴퓨터에 GPU 경로가 없으므로 생성 속도가 느려집니다. {{reason}}",
+    "routingCaveat": "GPU를 사용하지만: {{reason}}"
+  },
+  "voiceSelector": {
+    "engineDefault": "엔진 기본값",
+    "clone": "복제된 목소리",
+    "designed": "디자인된 목소리",
+    "presets": "사전 설정",
+    "fromVideo": "비디오에서",
+    "missingVoice": "음성을 찾을 수 없음(다시 선택)",
+    "preview": "음성 미리보기",
+    "openGallery": "음성 갤러리에서 열기",
+    "createVoice": "새 목소리 만들기"
+  },
+  "remote_gate": {
+    "title": "액세스 PIN을 입력하세요.",
+    "body": "이 OmniVoice 인스턴스는 네트워크에서 공유됩니다. 호스트에 표시된 PIN을 입력하세요.",
+    "label": "PIN 액세스",
+    "connect": "연결하다"
+  },
+  "contact": {
+    "hero_title": "연락하세요",
+    "hero_desc": "질문, 버그, 라이센싱 또는 간단한 인사말 등 제게 연락하는 방법은 다음과 같습니다.",
+    "discord": "불화",
+    "discord_desc": "커뮤니티와 채팅하고 빠르게 도움을 받으세요.",
+    "email": "이메일",
+    "email_desc": "라이센스, 파트너십 또는 개인적인 모든 것.",
+    "issues": "GitHub 문제",
+    "issues_desc": "버그를 신고하거나 기능을 요청하세요.",
+    "website": "웹사이트",
+    "website_desc": "프로젝트와 제작자에 대해 자세히 알아보세요."
   }
 }

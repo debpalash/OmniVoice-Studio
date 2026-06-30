@@ -11,7 +11,9 @@
     "omnidrive": "OmniDrive",
     "move_rail_right": "Rayı sağa kaydır",
     "move_rail_left": "Rayı sola taşı",
-    "flip_rail": "Ray tarafını çevir"
+    "flip_rail": "Ray tarafını çevir",
+    "voice": "Ses",
+    "audiobook": "Sesli kitap"
   },
   "settings": {
     "general": "Genel",
@@ -83,7 +85,53 @@
     "hf_token_input": "HuggingFace belirteci",
     "hf_token_sources": "HF belirteç kaynakları",
     "hf_token_test_now": "Şimdi test et",
-    "hf_token_test_now_title": "Her kaynak için whoami'yi yeniden çalıştır"
+    "hf_token_test_now_title": "Her kaynak için whoami'yi yeniden çalıştır",
+    "color_theme": "Renk teması",
+    "font": "Yazı tipi",
+    "autoplay_preview": "Otomatik oynatma önizlemesi",
+    "autoplay_preview_label": "İşleme biter bitmez çıktıyı oynat",
+    "autoplay_preview_hint": "Kapatıldığında, bitmiş bir işleme artık kendi başına oynatılmaya başlamaz; toplu segmentler oluştururken kullanışlıdır.",
+    "appearance_help": "Bu kontroller eskiden alt günlük çubuğunda bulunuyordu; alt bilginin günlüklere odaklanabilmesi için buraya taşındı. Değişiklikler anında uygulanır ve lansmanlar boyunca devam eder.",
+    "advanced": "Gelişmiş",
+    "shortcut": "Dikte kısayolu",
+    "credentials_desc": "Bu oturum için ayarlanan API anahtarları ve belirteçleri.",
+    "credentials_more": "Daha fazla sağlayıcı",
+    "group_general": "Genel",
+    "group_voice": "Ses ve Motorlar",
+    "group_system": "Sistem",
+    "group_app": "Uygulama",
+    "search_placeholder": "Arama ayarları…",
+    "restart_required": "Yeniden başlatma gerekli",
+    "applies_now": "Şimdi geçerli",
+    "dictation": "Dikte",
+    "pronunciation": "Telaffuz",
+    "translation": "Çeviri",
+    "network": "Ağ",
+    "performance": "Performans ve Cihaz",
+    "storage": "Depolama",
+    "device": "Cihaz ve bilgi işlem",
+    "device_desc": "Canlı donanım ve arka uç okumaları.",
+    "network_desc": "İndirmeler ve medya işleme için proxy ve FFmpeg yolları.",
+    "translation_desc": "Dublaj diyaloğu nasıl çevirir ve bunu hangi motor yapar?",
+    "translate_quality": "Çeviri kalitesi",
+    "translate_quality_desc": "Hızlı gerçek ve hızlıdır; Sinematik, doğal ifadeler için LLM'yi kullanır.",
+    "translate_fast": "Hızlı",
+    "translate_cinematic": "Sinematik",
+    "translation_providers": "Çeviri sağlayıcıları",
+    "translation_providers_desc": "Çevrimiçi çevirmenlere yönelik API anahtarları, bu oturum için ayarlandı.",
+    "review_mode": "İnceleme modu",
+    "review_mode_desc": "ASR / çeviri çıktısını gözden geçirebilmek için ardışık düzen aşamaları arasında duraklayın.",
+    "header_live_stats": "Başlıkta canlı sistem ölçümlerini göster",
+    "header_live_stats_desc": "Üst çubuğa canlı bir RAM / CPU / VRAM monitörü ekler (varsayılan olarak kapalıdır).",
+    "storage_desc": "OmniVoice'un verilerinizi ve çıktılarınızı sakladığı yer.",
+    "factory_reset": "Fabrika ayarlarına sıfırlama",
+    "factory_reset_desc": "Tüm uygulama içi tercihleri varsayılan değerlerine sıfırlayın. Dosyalarınız dokunulmadan kalır.",
+    "factory_reset_body": "Yerel olarak kaydedilen ayarları (tema, dil, dub düğmeleri, galeri favorileri ve diğer kullanıcı arayüzü tercihleri) temizler. Seslerinizi, projelerinizi veya diskte oluşturulan sesleri SİLMEZ.",
+    "factory_reset_confirm_title": "Tercihler sıfırlansın mı?",
+    "factory_reset_confirm": "Sıfırla ve yeniden yükle",
+    "factory_reset_confirm_body": "Bu, kayıtlı tüm kullanıcı arayüzü tercihlerini temizler ve uygulamayı yeniden yükler. Diskteki sesleriniz, projeleriniz ve çıktılarınız etkilenmez. Devam etmek?",
+    "factory_reset_done": "Tercihler temizlendi — yeniden yükleniyor…",
+    "factory_reset_failed": "Sıfırlama başarısız oldu"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -123,7 +171,9 @@
     "hint_port": "3900 numaralı bağlantı noktası zaten kullanımda. Diğer OmniVoice kopyalarını veya bu portu kullanan uygulamaları kapatın.",
     "hint_silent_crash": "Arka uç hata mesajı vermeden çöktü. \"Temizle ve Yeniden Dene\" bozuk venv sorunlarını genellikle çözer.",
     "hint_github_blocked": "Ağınız GitHub'ı engelliyor olabilir. python.org'dan Python 3.11+ kurun (PATH'e ekleyin) ve yeniden başlatın veya UV_PYTHON_INSTALL_MIRROR ayarlayın — bkz. docs/install/troubleshooting.md.",
-    "hint_default": "Önce \"Yeniden Dene\"yi deneyin. Yine başarısız olursa \"Temizle ve Yeniden Dene\" ortamı sıfırdan kurar."
+    "hint_default": "Önce \"Yeniden Dene\"yi deneyin. Yine başarısız olursa \"Temizle ve Yeniden Dene\" ortamı sıfırdan kurar.",
+    "hint_stuck": "Arka ucun başlatılması tamamlanmadı. Kaynaktan, önce \"uv senkronizasyonunu\" çalıştırın ve \"uv\" ile Python'un PATH'inizde olduğundan emin olun, ardından Yeniden Dene. Tam durma noktası için aşağıdaki günlüğü (veya Ayarlar → Günlükler → Arka uç) kontrol edin.",
+    "lines": "{{count}} satır"
   },
   "stories": {
     "title": "Hikaye Düzenleyici",
@@ -193,7 +243,9 @@
     "minutes": "~{{count}} dk.",
     "chars": "{{count}} karakter",
     "exportDone": "Sesli kitap indirildi",
-    "exportFailed": "Dışa aktarma başarısız oldu — arka ucun çalıştığını kontrol edin."
+    "exportFailed": "Dışa aktarma başarısız oldu — arka ucun çalıştığını kontrol edin.",
+    "global_speed": "Hız",
+    "global_speed_hint": "Kendi hız geçersiz kılma özelliği olmadan tüm satırlar için okuma hızı"
   },
   "common": {
     "open": "Açık",
@@ -222,7 +274,9 @@
     "popular_label": "Popüler",
     "showing_of": "{{total}} / {{shown}} gösteriliyor. Aramak için yazın…",
     "yes": "Evet",
-    "no": "Hayır"
+    "no": "Hayır",
+    "more_info": "Daha fazla bilgi",
+    "learn_more": "Daha fazla bilgi edinin"
   },
   "launchpad": {
     "greeting": "merhaba orada",
@@ -253,7 +307,9 @@
     "transcripts_desc": "Sesi veya videoyu 646 dilde düzenlenebilir, aranabilir metne dönüştürün.",
     "recent_files": "Son dosyalar",
     "view_all_files": "Tüm dosyaları görüntüle",
-    "file": "Dosya"
+    "file": "Dosya",
+    "audiobook_title": "Sesli kitap",
+    "audiobook_desc": "Uzun bir metni veya EPUB'u bölümlü bir sesli kitaba dönüştürün; kapaklar, meta veriler ve tek bir anlatıcı."
   },
   "clone": {
     "prompt": "İstemi",
@@ -332,7 +388,12 @@
     "define_by_design": "Tasarımla",
     "define_from_audio": "Sesten",
     "define_voice": "Sesi tanımla",
-    "save_design_as_profile": "Tasarımı profil olarak kaydet"
+    "save_design_as_profile": "Tasarımı profil olarak kaydet",
+    "seed_label": "tohum",
+    "seed_placeholder": "her seferinde rastgele",
+    "seed_keep": "Bu tohumu sakla",
+    "seed_reroll": "Yeni tohum",
+    "seed_reroll_hint": "Yeni bir rastgele tohum yuvarlayın ve saklayın"
   },
   "about": {
     "app": "Uygulama",
@@ -456,7 +517,14 @@
     "failed": "başarısız oldu",
     "acceptLicense": "Lisansı kabul et",
     "noBackends": "Kayıtlı arka uç yok.",
-    "switch_failed": "Motor değiştirilemedi"
+    "switch_failed": "Motor değiştirilemedi",
+    "routingAccelerated": "GPU etkin",
+    "routingCpuFallback": "CPU geri dönüşü",
+    "routingCpuOnly": "CPU",
+    "routingRemote": "Uzaktan",
+    "routingUnknown": "Bilinmiyor",
+    "routingEffectiveChip": "Bu makinede {{device}} tarihinde çalışıyor",
+    "routingCaveatTitle": "GPU seçildi, ancak: {{reason}}"
   },
   "capture": {
     "desc": "Genel kısayol tuşları yalnızca masaüstü uygulamasında çalışır. Web kullanıcı arayüzü, pencere odaktayken sayfa içi <1>Ctrl+Shift+Space</1> kısayolunu kullanır.",
@@ -519,7 +587,13 @@
     "log_copied": "{{source}} günlüğü kopyalandı",
     "copy_failed": "Kopyalama başarısız oldu: {{message}}",
     "report_copied": "Teşhis raporu kopyalandı; onu bir GitHub sorununa yapıştırın.",
-    "report_failed": "Rapor başarısız oldu: {{message}}"
+    "report_failed": "Rapor başarısız oldu: {{message}}",
+    "version_updates": "Güncellemeleri kontrol edin",
+    "version_updates_aria": "Güncellemeleri aç — uygulama sürümü {{v}}",
+    "update_available": "Güncelleme mevcut ({{version}}) — güncellemek için tıklayın",
+    "update_available_aria": "Güncelleme mevcut ({{version}}) — güncellemeleri aç",
+    "contact": "İletişim",
+    "contact_aria": "İletişim sayfasını aç"
   },
   "voice_profile": {
     "test_text": "Merhaba — bu, bu sesin bir testidir.",
@@ -563,7 +637,26 @@
     "projects_count_one": "{{count}} projesi",
     "projects_count_other": "{{count}} projeler",
     "dubbed_segments_one": "{{count}} dublajlı bölüm",
-    "dubbed_segments_other": "{{count}} dublajlı bölümler"
+    "dubbed_segments_other": "{{count}} dublajlı bölümler",
+    "verified": "Doğrulandı",
+    "persona_export": "Kişiyi dışa aktar",
+    "persona_exporting": "Kişilik oluşturmak…",
+    "persona_exported": "Kişi dışa aktarıldı",
+    "persona_export_no_audio": "Bu sesin önizleme oluşturulabilecek okunabilir sesi yok.",
+    "persona_export_failed": "Dışa aktarma başarısız oldu.",
+    "persona_include_ref": "Ses klibini dahil et",
+    "persona_include_ref_hint": "Ham referans klibini ekleyin. Kapalı = yalnızca filigranlı önizlemeyi paylaşın (önerilir).",
+    "consent_title": "Ses sahipliği",
+    "consent_explain": "Bunun kendi sesiniz olduğunu doğrulamak için aşağıdaki ifadeyi okurken kendinizi kaydedin. Ajans özellikleri ve topluluk paylaşımı için doğrulama gerekli olacaktır; asla yerel sentez için değil.",
+    "consent_statement": "Bu ses profilinin kendi sesim olduğunu onaylıyorum ve OmniVoice Studio'nun bunu benim adıma klonlamasına izin veriyorum.",
+    "consent_record": "Onay beyanını kaydedin",
+    "consent_stop": "Kaydı durdur",
+    "consent_saved": "Ses sahipliği doğrulandı",
+    "consent_failed": "Doğrulama başarısız oldu: {{message}}",
+    "consent_verified_explain": "{{date}} tarihinde bir izin beyanı kaydettiniz. İptal etme, kaydı ve doğrulanmış durumunu kaldırır.",
+    "consent_revoke": "İptal et",
+    "consent_revoke_confirm": "Ses sahipliği doğrulaması iptal edilsin mi? İzin kaydı silinecek ve temsilci özellikleri artık bu sesi kullanamayacak.",
+    "consent_revoked": "Doğrulama iptal edildi"
   },
   "dub": {
     "transcribe": "Metne dönüştür",
@@ -712,7 +805,12 @@
     "pipeline": "Dublaj hattı",
     "preview_language": "Önizleme dili",
     "target_language": "Dublaj dili",
-    "transcript_after_extract": "Transkript, çıkarma işleminden sonra görünür."
+    "transcript_after_extract": "Transkript, çıkarma işleminden sonra görünür.",
+    "qc_btn": "Dub zamanlamasını doğrulayın (ikinci geçiş kontrolü)",
+    "qc_running": "Dub zamanlaması kontrol ediliyor…",
+    "qc_result": "{{flagged}} / {{total}} satırların yeniden dinlenmesi gerekebilir",
+    "qc_clean": "Tüm {{total}} satırları komut dosyasıyla eşleşiyor",
+    "qc_failed": "Zamanlama kontrolü başarısız oldu: {{message}}"
   },
   "glossary": {
     "title": "Sözlük",
@@ -797,7 +895,9 @@
     "fit_stretched_title": "Uzatılmış Video modu: Bu bölümün videosu, doğal dub sese uyacak şekilde {{ratio}}× değerine yavaşlatıldı.",
     "fit_compressed_title": "TTS sesi yuvanın %{{pct}}'si kadardır ve yoğun şekilde sıkıştırılmıştır.",
     "fit_audio_title": "Ses yuvanın içine sığar.",
-    "fit_ratio_title": "TTS sesi yuvanın %{{pct}} kadarıdır."
+    "fit_ratio_title": "TTS sesi yuvanın %{{pct}} kadarıdır.",
+    "qc_verify": "Doğrula",
+    "qc_verify_title": "İkinci geçiş ASR şunu duydu: \"{{heard}}\" — bu satırı yeniden dinleyin veya yeniden dublajlayın."
   },
   "timeline": {
     "track_label": "Segment zaman çizelgesi",
@@ -872,7 +972,16 @@
     "export": "İhracat",
     "transcription": "Transkripsiyon",
     "designed_voice": "Tasarlanmış ses",
-    "cloned_voice": "Klonlanmış ses"
+    "cloned_voice": "Klonlanmış ses",
+    "stories": "Hikayeler",
+    "untitled_story": "Başlıksız hikaye",
+    "story_lines": "{{count}} satırı",
+    "story_lines_plural": "{{count}} satır",
+    "story_voices": "{{count}} ses",
+    "story_voices_plural": "{{count}} sesler",
+    "audiobooks": "Sesli kitaplar",
+    "audiobook": "Sesli kitap",
+    "story": "Hikaye"
   },
   "batch": {
     "title": "Toplu dublaj",
@@ -975,7 +1084,12 @@
     "submit_failed": "Gönderim formu açılamadı.",
     "submit_preset": "Ön ayar gönder",
     "submit_voice": "Ses gönder",
-    "zone_community": "Topluluk"
+    "zone_community": "Topluluk",
+    "import_persona": "Bir .ovsvoice kişi paketini içe aktarın",
+    "persona_imported": "\"{{name}}\"{{unverified}} içe aktarıldı.",
+    "persona_unverified_suffix": "(doğrulanmadı)",
+    "persona_too_large": "Bu paket çok büyük (en fazla 100 MB).",
+    "persona_import_failed": "Bu kişisel paket içe aktarılamadı."
   },
   "transcriptions": {
     "title": "Transkripsiyonlar",
@@ -1030,7 +1144,8 @@
     "try_dictation": "Dikte etmeyi deneyin",
     "next_try_dictation": "Sonraki: Dikteyi deneyin",
     "step_aria": "Adım {{num}}: {{label}}",
-    "step_completed": "tamamlandı"
+    "step_completed": "tamamlandı",
+    "cache_label": "Model önbelleği"
   },
   "donate": {
     "title": "Destek",
@@ -1043,7 +1158,34 @@
     "platforms": "Platformlar",
     "footer": "Her katkı, yerel yapay zekanın sınırlarını zorlamaya yardımcı olur.",
     "back": "Studio'ya geri dön",
-    "commercial": "Ticari Lisans"
+    "commercial": "Ticari Lisans",
+    "pill": "OmniVoice'u destekleyin",
+    "suggested_title": "Bir miktar seçin",
+    "most_common": "en yaygın",
+    "custom": "Özel",
+    "choose_method": "Nasıl vereceğinizi seçin",
+    "choose_method_amount": "${{amount}} ile devam et",
+    "goal": {
+      "title": "Claude Max'e fon sağlayın",
+      "of": "arasında",
+      "per_month": "/ ay",
+      "aria": "{{raised}} / {{goal}} aylık hedef",
+      "remaining": "{{amount}} gitmek",
+      "met": "🎉 Hedefe ulaşıldı — {{raised}} yükseldi. Teşekkür ederim!",
+      "social_proof": "Yerel yapay zekayı finanse eden {{count}} destekçilerine katılın"
+    },
+    "postcard": {
+      "title": "Claude Max'e fon sağlayın",
+      "lead_default": "İşe yaradığına sevindim! OmniVoice ücretsizdir ve tamamen yereldir. Size zaman kazandıracaksa, aylık küçük bir chip-in, arkasındaki Claude Max'e fon sağlar.",
+      "lead_first_clone": "İlk ses klonunuz tamamlandı — güzel! OmniVoice tamamen makinenizde çalışır ve desteğiniz de bu şekilde kalmasını sağlar.",
+      "lead_tenth_dub": "On dublaj - açıkça işe koyuyorsunuz. Küçük bir aylık chip-in, bu özellikleri sunan Claude Max'e fon sağlıyor.",
+      "lead_sustained": "Bir aydır OmniVoice'la birliktesiniz. İş akışınızda bir yer kazanmışsa, bir sonraki adımın finansmanına yardımcı olmayı düşünün.",
+      "chip_in": "Çip yapın",
+      "later": "Belki daha sonra",
+      "star": "GitHub'da yıldız",
+      "opt_out": "Bir daha sorma",
+      "dismiss_aria": "Reddet"
+    }
   },
   "enterprise": {
     "title": "Ticari Lisans",
@@ -1072,7 +1214,9 @@
     "benefit_source_desc": "Yığına tam görünürlük. Lisans koşulları dahilinde denetleyin, çatallayın ve uyarlayın.",
     "benefit_lang": "646 dil",
     "benefit_lang_desc": "646 dilde insan düzeyinde kaliteyle metne dönüştürün, tercüme edin ve dublaj yapın.",
-    "hero_note": "Kullanım, kendi sunucunuzda barındırma ve ticari kullanım AGPL-3.0 kapsamında tamamen ücretsizdir — büyük ölçekte bile. AGPL bir ağ copyleft lisansıdır: OmniVoice'u değiştirir ve bu değiştirilmiş sürümü ağ üzerinden başkalarına sunarsanız, değiştirilmiş kaynak kodunuzu aynı koşullarla paylaşmanız gerekir. Ticari lisans, tescilli ve kapalı kaynaklı dağıtımlar için bu copyleft yükümlülüklerini kaldırır. Fiyatlandırma planları yakında — bu arada bizimle iletişime geçin."
+    "hero_note": "Kullanım, kendi sunucunuzda barındırma ve ticari kullanım AGPL-3.0 kapsamında tamamen ücretsizdir — büyük ölçekte bile. AGPL bir ağ copyleft lisansıdır: OmniVoice'u değiştirir ve bu değiştirilmiş sürümü ağ üzerinden başkalarına sunarsanız, değiştirilmiş kaynak kodunuzu aynı koşullarla paylaşmanız gerekir. Ticari lisans, tescilli ve kapalı kaynaklı dağıtımlar için bu copyleft yükümlülüklerini kaldırır. Fiyatlandırma planları yakında — bu arada bizimle iletişime geçin.",
+    "hero_simple": "OmniVoice Studio, ticari ve dahili iş kullanımı da dahil olmak üzere, AGPL-3.0 kapsamında ücretsiz ve açık kaynaktır. AGPL'nin copyleft yükümlülükleri olmadan kapalı kaynaklı bir ürüne yerleştirmek için yalnızca ticari bir lisansa ihtiyacınız vardır.",
+    "contact_lead": "Fiyatlandırma, ekibinize ve iş yükünüze uyacak şekilde dağıtım başına belirtilir. Bana kullanım durumunuzu söyleyin, ben de size bir fiyat teklifi vereyim."
   },
   "exportModal": {
     "export": "İhracat",
@@ -1358,7 +1502,9 @@
     "save_label": "Kaydet",
     "lock_identity": "Ses kimliğini kilitle",
     "in_folder": "{{folder}}'da",
-    "search": "Ara…"
+    "search": "Ara…",
+    "rename": "Yeniden adlandır",
+    "rename_save": "Adı kaydet"
   },
   "trimmer": {
     "title": "Referans sesini kırp",
@@ -1487,7 +1633,11 @@
     "loading_badge": "Yükleniyor…",
     "idle_badge": "Boşta",
     "started_downloading_required_one": "{{count}} gerekli modeli indirmeye başlandı",
-    "started_downloading_required_other": "{{count}} gerekli model indirilmeye başlandı"
+    "started_downloading_required_other": "{{count}} gerekli model indirilmeye başlandı",
+    "to_download": "indirmek için",
+    "cached": "önbelleğe alınmış",
+    "fast_download_badge": "hızlı indirme",
+    "fast_download_title": "Xet {{version}} aracılığıyla hızlı indirmeler — paralel yığın halinde aktarım"
   },
   "enterprise_faq": {
     "q_internal_tools": "Dahili araçlar için lisansa ihtiyacım var mı?",
@@ -1553,7 +1703,8 @@
     "delete_history_confirm": "Bu geçmiş öğesi silinsin mi?",
     "history_deleted": "Geçmiş öğesi silindi",
     "restored_state": "Önceki nesil durumu geri yüklendi",
-    "upgrading_preview": "{{count}} önizleme kalitesinde segment(ler) tam kaliteye yükseltiliyor…"
+    "upgrading_preview": "{{count}} önizleme kalitesinde segment(ler) tam kaliteye yükseltiliyor…",
+    "session_expired": "Bu dub oturumunun süresi doldu veya temizlendi. Yeni bir video başlatmak için videonuzu yeniden yükleyin."
   },
   "tts_errors": {
     "enter_text": "Lütfen metni girin",
@@ -1749,7 +1900,15 @@
     "hf_token_save": "Kaydet",
     "hf_token_saving": "kaydediliyor…",
     "hf_token_saved": "Hugging Face belirteci kaydedildi",
-    "hf_token_error": "Belirteç kaydedilemedi — yeniden deneyin veya sonra Ayarlar → Kimlik bilgileri bölümünden ayarlayın."
+    "hf_token_error": "Belirteç kaydedilemedi — yeniden deneyin veya sonra Ayarlar → Kimlik bilgileri bölümünden ayarlayın.",
+    "chip_recommended": "tavsiye edilir",
+    "size_left": "{{size}} kaldı",
+    "hf_token_card_title": "Daha hızlı indirmeler için ücretsiz bir Hugging Face belirteci ekleyin",
+    "hf_token_get": "Jetonunuz yok mu? Ücretsiz bir tane alın →",
+    "hf_token_saved_fast": "Hugging Face jetonu kaydedildi; indirme işlemleri artık daha hızlı",
+    "hf_token_inline_prompt": "Ücretsiz Hugging Face belirteci ile indirmeleri hızlandırın",
+    "hf_token_inline_ph": "hf_… jetonunu yapıştırın (isteğe bağlı)",
+    "hf_token_get_short": "Ücretsiz bir tane alın →"
   },
   "history": {
     "dub_title": "Dublaj geçmişi",
@@ -1761,5 +1920,163 @@
     "cleaned_loaded": "Kayıt temizlendi ve yüklendi!",
     "loaded_raw": "Kayıt yüklendi (ham — gürültü giderme kullanılamıyor)",
     "too_short": "Kayıt çok kısa"
+  },
+  "pronunciation": {
+    "title": "Telaffuz sözlüğü",
+    "help": "Motora zor kelimelerin nasıl söyleneceğini öğretin. Her giriş, sentezden önce bir kelimeyi yeniden yazımla değiştirir, böylece her motora uygulanır. Bir girdinin kapsamını tek bir dile ayarlayın veya onu Global olarak bırakın. Satır içi, [[word|respelling]] sözlüğü bir kez geçersiz kılar.",
+    "term": "Dönem",
+    "term_placeholder": "kelime veya kelime öbeği (ör. GIF)",
+    "replacement": "Değiştirme",
+    "replacement_placeholder": "yeniden yazma (örneğin jiff)",
+    "scope": "Kapsam",
+    "global": "Küresel",
+    "type": "Tür",
+    "type_respelling": "Yeniden Yazma",
+    "type_ipa": "IPA",
+    "type_cmu": "CMU",
+    "enabled": "Etkin",
+    "add": "Giriş ekle",
+    "remove": "{{term}} öğesini kaldır",
+    "empty": "Henüz giriş yok. Yanlış telaffuz edilen bir kelimeyi düzeltmek için yukarıya bir tane ekleyin.",
+    "test_label": "Bir cümleyi test edin",
+    "test_placeholder": "Değişikliğin önizlemesini görmek için bir cümle yazın…",
+    "test_result": "Şu şekilde konuşulacak:",
+    "test_nochange": "Hiçbir giriş eşleşmiyor; yazıldığı gibi konuşuluyor.",
+    "load_error": "Telaffuz sözlüğü yüklenemedi.",
+    "save_error": "Bu giriş kaydedilemedi.",
+    "lang_label": "Dil kodu (ör. en, de) veya Global için boş bırakın"
+  },
+  "audiobook": {
+    "title": "Sesli kitap",
+    "subtitle": "Bölümle ayrılmış bir komut dosyasını bölümlere ayrılmış bir m4b sesli kitaba dönüştürün.",
+    "script": "Senaryo",
+    "script_placeholder": "# Birinci Bölüm\nBir varmış bir yokmuş… [500ms durakla] son.\n\n# İkinci Bölüm\n[ses:anlatıcı] Ve böyle devam etti.",
+    "default_voice": "Varsayılan ses",
+    "engine_default": "Motor varsayılanı",
+    "preview_plan": "Önizleme planı",
+    "create": "Sesli kitap oluştur",
+    "plan_heading": "Plan — {{count}} bölüm(ler)",
+    "chapter_meta": "{{spans}} aralık(lar) · {{chars}} karakter",
+    "synthesizing": "{{total}} {{title}} bölümünün {{current}} bölümü sentezleniyor",
+    "assembling": "Sesli kitap oluşturuluyor…",
+    "ready": "Sesli kitap hazır",
+    "download": "İndir",
+    "format": "Biçim",
+    "format_m4b": "M4B (bölümler)",
+    "format_mp3": "MP3",
+    "loudness": "Ses yüksekliği",
+    "loudness_off": "Ses yüksekliği: kapalı",
+    "loudness_acx": "Normalleştir (ACX)",
+    "loudness_podcast": "Normalleştir (podcast)",
+    "details": "Kapak ve ayrıntılar",
+    "cover": "Kapak",
+    "cover_add": "Kapak ekle",
+    "cover_remove": "Kapağı çıkarın",
+    "meta_title": "Başlık",
+    "meta_author": "Yazar",
+    "meta_narrator": "Anlatıcı",
+    "meta_year": "Yıl",
+    "meta_genre": "Tür",
+    "meta_description": "Açıklama",
+    "preview_chapter": "Önizleme bölümü: {{title}}",
+    "cached_note": "Önceden oluşturulmuş {{count}} bölüm/bölümler yeniden kullanıldı.",
+    "failed_note": "{{count}} bölüm başarısız oldu — yalnızca bunları yeniden denemek için tekrar Oluştur'a tıklayın.",
+    "import": "İthalat",
+    "import_failed": "İçe aktarma başarısız oldu: {{message}}",
+    "lexicon": "Telaffuz",
+    "lex_word": "kelime",
+    "lex_say": "Şöyle söyle…",
+    "lex_add": "Kelime ekle",
+    "lex_remove": "Kaldır",
+    "markup_help": "İşaretleme referansı",
+    "markup_hint": "# Bölüm başlığı · [ses:NAME] sesi değiştir · [500 ms duraklat] / [1 saniye duraklat] · [yavaş]…[/yavaş] · [hızlı]…[/hızlı] · [vurgu]…[/vurgu] · [büyü]…[/büyü]"
+  },
+  "voicePanel": {
+    "title": "Ses",
+    "subtitle": "Cihaz üzeri modellerle yerel konuşmayı metne dönüştürme.",
+    "enable_label": "Ses Diktesini Etkinleştir",
+    "enable_sub": "Metni odaklanılan herhangi bir bölmeye dikte etmek için {{shortcut}} tuşuna basın.",
+    "mode_label": "Dikte Modu",
+    "mode_sub": "Geçiş: Başlatmak için bir kez, durdurmak için tekrar basın. Basılı tutun: tuş basılı tutulduğunda dikte edin.",
+    "mode_toggle": "Değiştir",
+    "mode_hold": "Basılı tutun",
+    "model_label": "Konuşma Modeli",
+    "model_sub": "Dikte için kullanılan cihaz üzeri modeli seçin.",
+    "badge_offline": "çevrimdışı",
+    "badge_streaming": "akış",
+    "badge_recommended": "tavsiye edilir",
+    "download_model": "Modeli indir",
+    "delete_model": "Modeli sil",
+    "downloading": "İndiriliyor…",
+    "downloading_pct": "İndiriliyor {{pct}}%",
+    "delete_confirm": "\"{{label}}\" konuşma modeli silinsin mi? Daha sonra tekrar indirebilirsiniz.",
+    "delete_confirm_title": "Konuşma modelini sil",
+    "engine_unavailable": "Canlı dikte motoru bu kurulumda mevcut değil. Dikte, standart transkripsiyon yoluna geri döner.",
+    "model_desc": {
+      "sherpa-parakeet-tdt-v3": "Tavsiye edilir. 25 Avrupa dilinde hızlı, doğru dikte.",
+      "sherpa-parakeet-tdt-v2": "Hızlı, doğru yalnızca İngilizce dikte.",
+      "sherpa-zipformer-bilingual-zh-en": "Canlı bölümlerle Çince + İngilizce akışı.",
+      "sherpa-paraformer-bilingual-zh-en": "Çince + İngilizce akışı, kompakt model.",
+      "sherpa-zipformer-en-20m": "Küçük akışlı İngilizce modeli — en düşük gecikme.",
+      "sherpa-zipformer-zh-14m": "Küçük akışlı Çin modeli — en düşük gecikme.",
+      "sherpa-whisper-tiny": "Otomatik dil algılamalı çok dilli (90'dan fazla dil)."
+    }
+  },
+  "profiles": {
+    "need_name_audio": "Bir isme ve referans sesine ihtiyacınız var",
+    "synthesizing_preview": "{{name}} için önizleme sentezleniyor...",
+    "synthesizing_segment": "Segment sentezleniyor...",
+    "preview_ready": "Önizleme hazır!",
+    "playback_failed": "Oynatma başarısız oldu",
+    "preview_failed": "Önizleme başarısız oldu: {{message}}",
+    "saved": "Ses profillere kaydedildi!",
+    "save_failed": "Ses profili kaydedilemedi",
+    "locked": "Ses kilitli! Kimlik artık tüm nesiller arasında tutarlıdır.",
+    "lock_failed": "Profil kilitlenemedi",
+    "unlocked": "Sesin kilidi açıldı. Nesiller yine değişecek.",
+    "unlock_failed": "Profilin kilidi açılamadı"
+  },
+  "transcriptionPicker": {
+    "title": "Transkripsiyondan içe aktar",
+    "search_placeholder": "Transkripsiyonları ara…",
+    "empty": "Henüz transkripsiyon yok. Transkripsiyonlar sekmesinde bir tane kaydedin.",
+    "empty_search": "Aramanızla eşleşen transkripsiyon yok."
+  },
+  "waveform": {
+    "source_missing": "Kaynak medya eksik — bu dosya taşınmış veya silinmiş olabilir. Devam etmek için videoyu yeniden yükleyin.",
+    "load_failed": "Bu dosyadan ses yüklenemedi"
+  },
+  "tts": {
+    "routingFallback": "CPU üzerinde çalışıyor - bu motorun makinenizde GPU yolu yoktur, bu nedenle üretim daha yavaş olacaktır. {{reason}}",
+    "routingCaveat": "GPU kullanılıyor ancak: {{reason}}"
+  },
+  "voiceSelector": {
+    "engineDefault": "Motor varsayılanı",
+    "clone": "Klonlanmış sesler",
+    "designed": "Tasarlanmış sesler",
+    "presets": "Ön ayarlar",
+    "fromVideo": "Videodan",
+    "missingVoice": "Ses bulunamadı (yeniden seç)",
+    "preview": "Sesi önizle",
+    "openGallery": "Ses Galerisinde aç",
+    "createVoice": "Yeni bir ses oluştur"
+  },
+  "remote_gate": {
+    "title": "Erişim PIN'ini girin",
+    "body": "Bu OmniVoice örneği ağda paylaşılıyor. Ana bilgisayarda gösterilen PIN'i girin.",
+    "label": "Erişim PIN'i",
+    "connect": "Bağlan"
+  },
+  "contact": {
+    "hero_title": "İletişime geçin",
+    "hero_desc": "Sorular, hatalar, lisanslama veya sadece merhaba demek için; bana şu şekilde ulaşabilirsiniz.",
+    "discord": "Anlaşmazlık",
+    "discord_desc": "Toplulukla sohbet edin ve hızlı bir şekilde yardım alın.",
+    "email": "E-posta",
+    "email_desc": "Lisanslama, ortaklıklar veya özel herhangi bir şey.",
+    "issues": "GitHub Sorunları",
+    "issues_desc": "Bir hatayı bildirin veya bir özellik isteyin.",
+    "website": "Web sitesi",
+    "website_desc": "Proje ve yapımcı hakkında daha fazla bilgi."
   }
 }

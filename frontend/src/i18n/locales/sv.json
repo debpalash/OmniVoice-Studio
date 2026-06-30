@@ -11,7 +11,9 @@
     "omnidrive": "OmniDrive",
     "move_rail_right": "Flytta skenan till höger",
     "move_rail_left": "Flytta skenan till vänster",
-    "flip_rail": "Flip rail sida"
+    "flip_rail": "Flip rail sida",
+    "voice": "Röst",
+    "audiobook": "Ljudbok"
   },
   "settings": {
     "general": "Allmänt",
@@ -83,7 +85,53 @@
     "hf_token_input": "HuggingFace-token",
     "hf_token_sources": "HF-tokenkällor",
     "hf_token_test_now": "Testa nu",
-    "hf_token_test_now_title": "Kör whoami igen för varje källa"
+    "hf_token_test_now_title": "Kör whoami igen för varje källa",
+    "color_theme": "Färgtema",
+    "font": "Teckensnitt",
+    "autoplay_preview": "Automatisk förhandsvisning",
+    "autoplay_preview_label": "Spela utgången så snart en rendering är klar",
+    "autoplay_preview_hint": "När den är avstängd, börjar en färdig rendering inte längre spelas av sig själv – användbart när segment genererar batch.",
+    "appearance_help": "Dessa kontroller fanns tidigare i den nedre loggfältet – flyttade hit så att sidfoten kan hålla fokus på loggar. Ändringar gäller omedelbart och kvarstår vid alla lanseringar.",
+    "advanced": "Avancerat",
+    "shortcut": "Genväg till diktat",
+    "credentials_desc": "API-nycklar och tokens, inställda för denna session.",
+    "credentials_more": "Fler leverantörer",
+    "group_general": "Allmänt",
+    "group_voice": "Röst och motorer",
+    "group_system": "System",
+    "group_app": "App",
+    "search_placeholder": "Sökinställningar...",
+    "restart_required": "Omstart krävs",
+    "applies_now": "Gäller nu",
+    "dictation": "Diktering",
+    "pronunciation": "Uttal",
+    "translation": "Översättning",
+    "network": "Nätverk",
+    "performance": "Prestanda och enhet",
+    "storage": "Förvaring",
+    "device": "Enhet och dator",
+    "device_desc": "Live hårdvara och backend-avläsningar.",
+    "network_desc": "Proxy- och FFmpeg-vägar för nedladdningar och mediabearbetning.",
+    "translation_desc": "Hur dubbning översätter dialog och vilken motor gör det.",
+    "translate_quality": "Översättningskvalitet",
+    "translate_quality_desc": "Snabb är bokstavlig och snabb; Cinematic använder LLM för naturlig frasering.",
+    "translate_fast": "Snabbt",
+    "translate_cinematic": "Filmisk",
+    "translation_providers": "Översättningsleverantörer",
+    "translation_providers_desc": "API-nycklar för onlineöversättare, inställda för denna session.",
+    "review_mode": "Granskningsläge",
+    "review_mode_desc": "Pausa mellan stegen i pipeline så att du kan granska ASR/översättningsutdata.",
+    "header_live_stats": "Visa livesystemstatistik i rubriken",
+    "header_live_stats_desc": "Lägger till en live RAM/CPU/VRAM-monitor till den övre raden (av som standard).",
+    "storage_desc": "Där OmniVoice förvarar dina data och utdata.",
+    "factory_reset": "Fabriksåterställning",
+    "factory_reset_desc": "Återställ alla inställningar i appen till standardinställningarna. Dina filer förblir orörda.",
+    "factory_reset_body": "Rensar lokalt sparade inställningar (tema, språk, dubbningsknappar, gallerifavoriter och andra användargränssnittsinställningar). Det tar INTE bort dina röster, projekt eller genererat ljud på disken.",
+    "factory_reset_confirm_title": "Återställa inställningarna?",
+    "factory_reset_confirm": "Återställ och ladda om",
+    "factory_reset_confirm_body": "Detta rensar alla sparade användargränssnittsinställningar och laddar om appen. Dina röster, projekt och utdata på disken påverkas inte. Fortsätta?",
+    "factory_reset_done": "Inställningar rensade – laddar om...",
+    "factory_reset_failed": "Återställningen misslyckades"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -123,7 +171,9 @@
     "hint_port": "Port 3900 används redan. Stäng andra OmniVoice-instanser eller appar som använder porten.",
     "hint_silent_crash": "Backenden kraschade utan felmeddelande. \"Rensa & Försök igen\" löser ofta problem med en korrupt venv.",
     "hint_github_blocked": "Ditt nätverk kan blockera GitHub. Installera Python 3.11+ från python.org (lägg till i PATH) och starta om, eller sätt UV_PYTHON_INSTALL_MIRROR — se docs/install/troubleshooting.md.",
-    "hint_default": "Prova \"Försök igen\" först. Misslyckas det igen bygger \"Rensa & Försök igen\" om miljön från grunden."
+    "hint_default": "Prova \"Försök igen\" först. Misslyckas det igen bygger \"Rensa & Försök igen\" om miljön från grunden.",
+    "hint_stuck": "Backend slutade inte starta. Från källan, kör `uv sync` först och se till att `uv` och Python är på din PATH, försök sedan igen. Kontrollera loggen nedan (eller Inställningar → Loggar → Backend) för den exakta stopppunkten.",
+    "lines": "{{count}} rader"
   },
   "stories": {
     "title": "Redaktör för berättelser",
@@ -193,7 +243,9 @@
     "minutes": "~{{count}} min",
     "chars": "{{count}} tecken",
     "exportDone": "Ljudbok nedladdad",
-    "exportFailed": "Exporten misslyckades – kontrollera att backend körs."
+    "exportFailed": "Exporten misslyckades – kontrollera att backend körs.",
+    "global_speed": "Hastighet",
+    "global_speed_hint": "Läshastighet för alla linjer utan egen hastighetsöverstyrning"
   },
   "common": {
     "open": "Öppna",
@@ -222,7 +274,9 @@
     "popular_label": "Populärt",
     "showing_of": "Visar {{shown}} av {{total}}. Skriv för att söka...",
     "yes": "Ja",
-    "no": "Nej"
+    "no": "Nej",
+    "more_info": "Mer info",
+    "learn_more": "Läs mer"
   },
   "launchpad": {
     "greeting": "hej då",
@@ -253,7 +307,9 @@
     "transcripts_desc": "Förvandla ljud eller video till redigerbar, sökbar text – på 646 språk.",
     "recent_files": "Senaste filer",
     "view_all_files": "Visa alla filer",
-    "file": "Arkiv"
+    "file": "Arkiv",
+    "audiobook_title": "Ljudbok",
+    "audiobook_desc": "Förvandla ett långt manus eller EPUB till en ljudbok med kapitel – omslag, metadata, en berättare."
   },
   "clone": {
     "prompt": "Fråga",
@@ -332,7 +388,12 @@
     "define_by_design": "Via design",
     "define_from_audio": "Från ljud",
     "define_voice": "Definiera röst",
-    "save_design_as_profile": "Spara design som profil"
+    "save_design_as_profile": "Spara design som profil",
+    "seed_label": "Frö",
+    "seed_placeholder": "slumpmässigt varje gång",
+    "seed_keep": "Behåll detta frö",
+    "seed_reroll": "Nytt frö",
+    "seed_reroll_hint": "Rulla ett nytt slumpmässigt frö och behåll det"
   },
   "about": {
     "app": "App",
@@ -456,7 +517,14 @@
     "failed": "misslyckades",
     "acceptLicense": "Acceptera licens",
     "noBackends": "Inga backends registrerade.",
-    "switch_failed": "Det gick inte att byta motor"
+    "switch_failed": "Det gick inte att byta motor",
+    "routingAccelerated": "GPU aktiv",
+    "routingCpuFallback": "CPU reserv",
+    "routingCpuOnly": "CPU",
+    "routingRemote": "Fjärrkontroll",
+    "routingUnknown": "Okänd",
+    "routingEffectiveChip": "Körs på {{device}} på den här maskinen",
+    "routingCaveatTitle": "GPU vald, men: {{reason}}"
   },
   "capture": {
     "desc": "Globala snabbtangenter fungerar bara i skrivbordsappen. Webbgränssnittet använder en genväg <1>Ctrl+Skift+Mellanslag</1> på sidan medan fönstret har fokus.",
@@ -519,7 +587,13 @@
     "log_copied": "Kopierade {{source}}-logg",
     "copy_failed": "Kopieringen misslyckades: {{message}}",
     "report_copied": "Diagnostisk rapport kopierad – klistra in den i ett GitHub-problem.",
-    "report_failed": "Rapport misslyckades: {{message}}"
+    "report_failed": "Rapport misslyckades: {{message}}",
+    "version_updates": "Sök efter uppdateringar",
+    "version_updates_aria": "Öppna uppdateringar — appversion {{v}}",
+    "update_available": "Uppdatering tillgänglig ({{version}}) — klicka för att uppdatera",
+    "update_available_aria": "Uppdatering tillgänglig ({{version}}) — öppna uppdateringar",
+    "contact": "Kontakta",
+    "contact_aria": "Öppna kontaktsidan"
   },
   "voice_profile": {
     "test_text": "Hej – det här är ett test av denna röst.",
@@ -563,7 +637,26 @@
     "projects_count_one": "{{count}} projekt",
     "projects_count_other": "{{count}} projekt",
     "dubbed_segments_one": "{{count}} dubbat segment",
-    "dubbed_segments_other": "{{count}} dubbade segment"
+    "dubbed_segments_other": "{{count}} dubbade segment",
+    "verified": "Verifierad",
+    "persona_export": "Exportera persona",
+    "persona_exporting": "Bygger persona...",
+    "persona_exported": "Persona exporteras",
+    "persona_export_no_audio": "Den här rösten har inget läsbart ljud att bygga en förhandsvisning av.",
+    "persona_export_failed": "Exporten misslyckades.",
+    "persona_include_ref": "Inkludera röstklipp",
+    "persona_include_ref_hint": "Inkludera det råa referensklippet. Av = dela endast en förhandsgranskning med vattenstämpel (rekommenderas).",
+    "consent_title": "Röstägande",
+    "consent_explain": "Spela in dig själv när du läser uttalandet nedan för att verifiera att detta är din egen röst. Verifiering kommer att krävas för agentfunktioner och gemenskapsdelning - aldrig för lokal syntes.",
+    "consent_statement": "Jag bekräftar att den här röstprofilen är min egen röst och jag samtycker till att OmniVoice Studio klonar den för mina vägnar.",
+    "consent_record": "Spela in samtyckesförklaring",
+    "consent_stop": "Sluta spela in",
+    "consent_saved": "Röstägande har verifierats",
+    "consent_failed": "Verifiering misslyckades: {{message}}",
+    "consent_verified_explain": "Du spelade in ett samtycke på {{date}}. Återkalla tar bort inspelningen och verifierad status.",
+    "consent_revoke": "Återkalla",
+    "consent_revoke_confirm": "Återkalla verifiering av röstägande? Samtyckesinspelningen kommer att raderas och agentfunktioner kommer inte längre att kunna använda denna röst.",
+    "consent_revoked": "Verifieringen återkallad"
   },
   "dub": {
     "transcribe": "Transkribera",
@@ -712,7 +805,12 @@
     "pipeline": "Dubbningspipeline",
     "preview_language": "Förhandsgranskningsspråk",
     "target_language": "Dubba till",
-    "transcript_after_extract": "Avskriften visas efter extraktionen."
+    "transcript_after_extract": "Avskriften visas efter extraktionen.",
+    "qc_btn": "Verifiera dubbningstid (second-pass check)",
+    "qc_running": "Kontrollerar dubbningstid...",
+    "qc_result": "{{flagged}} av {{total}} rader kan behöva lyssnas om",
+    "qc_clean": "Alla {{total}} rader matchar skriptet",
+    "qc_failed": "Tidskontroll misslyckades: {{message}}"
   },
   "glossary": {
     "title": "Ordlista",
@@ -797,7 +895,9 @@
     "fit_stretched_title": "Stretch Video-läge: detta segments video saktades ner till {{ratio}}× för att passa det naturliga dubbljudet.",
     "fit_compressed_title": "TTS-ljud är {{pct}}% av kortplatsen — kraftigt komprimerat.",
     "fit_audio_title": "Ljudet passar in i öppningen.",
-    "fit_ratio_title": "TTS-ljud är {{pct}}% av kortplatsen."
+    "fit_ratio_title": "TTS-ljud är {{pct}}% av kortplatsen.",
+    "qc_verify": "Verifiera",
+    "qc_verify_title": "Second-pass ASR hörde: \"{{heard}}\" — lyssna igen eller dubba om den här raden."
   },
   "timeline": {
     "track_label": "Segmenttidslinje",
@@ -872,7 +972,16 @@
     "export": "Exportera",
     "transcription": "Transkription",
     "designed_voice": "Designad röst",
-    "cloned_voice": "Klonad röst"
+    "cloned_voice": "Klonad röst",
+    "stories": "Berättelser",
+    "untitled_story": "Berättelse utan titel",
+    "story_lines": "{{count}} linje",
+    "story_lines_plural": "{{count}} rader",
+    "story_voices": "{{count}} röst",
+    "story_voices_plural": "{{count}} röster",
+    "audiobooks": "Ljudböcker",
+    "audiobook": "Ljudbok",
+    "story": "Berättelse"
   },
   "batch": {
     "title": "Batchdubbning",
@@ -975,7 +1084,12 @@
     "submit_failed": "Det gick inte att öppna inskickningsformuläret.",
     "submit_preset": "Skicka in en förinställning",
     "submit_voice": "Skicka in en röst",
-    "zone_community": "Community"
+    "zone_community": "Community",
+    "import_persona": "Importera ett .ovsvoice persona-paket",
+    "persona_imported": "Importerade \"{{name}}\"{{unverified}}.",
+    "persona_unverified_suffix": "(overifierad)",
+    "persona_too_large": "Det paketet är för stort (max 100 MB).",
+    "persona_import_failed": "Det gick inte att importera det personpaketet."
   },
   "transcriptions": {
     "title": "Transkriptioner",
@@ -1030,7 +1144,8 @@
     "try_dictation": "Prova diktering",
     "next_try_dictation": "Nästa: Prova diktering",
     "step_aria": "Steg {{num}}: {{label}}",
-    "step_completed": "klart"
+    "step_completed": "klart",
+    "cache_label": "Modellcache"
   },
   "donate": {
     "title": "Support",
@@ -1043,7 +1158,34 @@
     "platforms": "Plattformar",
     "footer": "Varje bidrag hjälper till att tänja på gränserna för lokal AI.",
     "back": "Tillbaka till Studio",
-    "commercial": "Kommersiell licens"
+    "commercial": "Kommersiell licens",
+    "pill": "Stöd OmniVoice",
+    "suggested_title": "Välj ett belopp",
+    "most_common": "vanligaste",
+    "custom": "Anpassad",
+    "choose_method": "Välj hur du ska ge",
+    "choose_method_amount": "Fortsätt med ${{amount}}",
+    "goal": {
+      "title": "Fond Claude Max",
+      "of": "av",
+      "per_month": "/ månad",
+      "aria": "{{raised}} av {{goal}} månadsmål",
+      "remaining": "{{amount}} kvar",
+      "met": "🎉 Målet uppfyllt — {{raised}} höjt. Tack!",
+      "social_proof": "Gå med i {{count}}-supportrar som finansierar lokal AI"
+    },
+    "postcard": {
+      "title": "Fond Claude Max",
+      "lead_default": "Kul att det fungerade! OmniVoice är gratis och helt lokalt. Om det sparar tid, finansierar ett litet månatligt chip-in Claude Max bakom det.",
+      "lead_first_clone": "Din första röstklon är klar – trevligt! OmniVoice körs helt och hållet på din maskin, och din support håller det så.",
+      "lead_tenth_dub": "Tio dubbar in — du sätter helt klart igång det. Ett litet månatligt chip-in finansierar Claude Max som levererar dessa funktioner.",
+      "lead_sustained": "Du har varit hos OmniVoice i en månad. Om det har fått en plats i ditt arbetsflöde, överväg att hjälpa till att finansiera vad som händer härnäst.",
+      "chip_in": "Chip in",
+      "later": "Kanske senare",
+      "star": "Stjärna på GitHub",
+      "opt_out": "Fråga inte igen",
+      "dismiss_aria": "Avvisa"
+    }
   },
   "enterprise": {
     "title": "Kommersiell licens",
@@ -1072,7 +1214,9 @@
     "benefit_source_desc": "Full insyn i stapeln. Granska, fördela och anpassa inom licensvillkoren.",
     "benefit_lang": "646 språk",
     "benefit_lang_desc": "Transkribera, översätt och dubba på 646 språk med kvalitet på mänsklig nivå.",
-    "hero_note": "Användning, självhosting och kommersiellt bruk är gratis under AGPL-3.0 — även i stor skala. AGPL är en nätverks-copyleft-licens: om du modifierar OmniVoice och erbjuder den modifierade versionen till andra över ett nätverk måste du dela din modifierade källkod på samma villkor. En kommersiell licens lyfter dessa copyleft-skyldigheter för proprietära driftsättningar med stängd källkod. Prisplaner kommer snart — hör av dig under tiden."
+    "hero_note": "Användning, självhosting och kommersiellt bruk är gratis under AGPL-3.0 — även i stor skala. AGPL är en nätverks-copyleft-licens: om du modifierar OmniVoice och erbjuder den modifierade versionen till andra över ett nätverk måste du dela din modifierade källkod på samma villkor. En kommersiell licens lyfter dessa copyleft-skyldigheter för proprietära driftsättningar med stängd källkod. Prisplaner kommer snart — hör av dig under tiden.",
+    "hero_simple": "OmniVoice Studio är gratis och öppen källkod enligt AGPL-3.0 – inklusive för kommersiellt och internt affärsbruk. Du behöver bara en kommersiell licens för att bädda in den i en produkt med sluten källkod utan AGPL:s copyleft-skyldigheter.",
+    "contact_lead": "Priset anges per implementering så att det passar ditt team och arbetsbelastning. Berätta för mig ditt användningsfall så ska jag ge dig en offert."
   },
   "exportModal": {
     "export": "Exportera",
@@ -1358,7 +1502,9 @@
     "save_label": "Spara",
     "lock_identity": "Lås röstidentitet",
     "in_folder": "i {{folder}}",
-    "search": "Sök…"
+    "search": "Sök…",
+    "rename": "Byt namn",
+    "rename_save": "Spara namn"
   },
   "trimmer": {
     "title": "Trimma referensljud",
@@ -1487,7 +1633,11 @@
     "loading_badge": "Laddar...",
     "idle_badge": "Inaktiv",
     "started_downloading_required_one": "Började ladda ner {{count}} obligatorisk modell",
-    "started_downloading_required_other": "Började ladda ner {{count}} nödvändiga modeller"
+    "started_downloading_required_other": "Började ladda ner {{count}} nödvändiga modeller",
+    "to_download": "att ladda ner",
+    "cached": "cachad",
+    "fast_download_badge": "snabb nedladdning",
+    "fast_download_title": "Snabba nedladdningar via Xet {{version}} — parallell överföring i bitar"
   },
   "enterprise_faq": {
     "q_internal_tools": "Behöver jag en licens för interna verktyg?",
@@ -1553,7 +1703,8 @@
     "delete_history_confirm": "Vill du ta bort det här historikobjektet?",
     "history_deleted": "Historikobjektet har tagits bort",
     "restored_state": "Återställd föregående generations tillstånd",
-    "upgrading_preview": "Uppgraderar {{count}} segment(er) med förhandsvisningskvalitet till full kvalitet..."
+    "upgrading_preview": "Uppgraderar {{count}} segment(er) med förhandsvisningskvalitet till full kvalitet...",
+    "session_expired": "Den här dubbsessionen löpte ut eller rensades upp – ladda upp din video igen för att starta en ny."
   },
   "tts_errors": {
     "enter_text": "Vänligen ange text",
@@ -1749,7 +1900,15 @@
     "hf_token_save": "Spara",
     "hf_token_saving": "sparar…",
     "hf_token_saved": "Hugging Face-token sparad",
-    "hf_token_error": "Kunde inte spara token — försök igen eller ange den senare i Inställningar → Uppgifter."
+    "hf_token_error": "Kunde inte spara token — försök igen eller ange den senare i Inställningar → Uppgifter.",
+    "chip_recommended": "rekommenderas",
+    "size_left": "{{size}} kvar",
+    "hf_token_card_title": "Lägg till ett gratis Hugging Face-token för snabbare nedladdningar",
+    "hf_token_get": "Har du ingen token? Få en gratis →",
+    "hf_token_saved_fast": "Hugging Face-token har sparats — nedladdningar går nu snabbare",
+    "hf_token_inline_prompt": "Snabba upp nedladdningarna med ett gratis Hugging Face-token",
+    "hf_token_inline_ph": "Klistra in hf_… token (valfritt)",
+    "hf_token_get_short": "Få en gratis →"
   },
   "history": {
     "dub_title": "Dubbhistorik",
@@ -1761,5 +1920,163 @@
     "cleaned_loaded": "Inspelningen rensad och laddad!",
     "loaded_raw": "Inspelningen laddad (rå — brusreducering otillgänglig)",
     "too_short": "Inspelningen är för kort"
+  },
+  "pronunciation": {
+    "title": "Uttalsordbok",
+    "help": "Lär motorn hur man säger kluriga ord. Varje post ersätter ett ord med en omstavning före syntes, så det gäller på alla motorer. Omfattning av en post till ett språk eller lämna den global. Inline åsidosätter [[ord|omstavning]] ordboken en gång.",
+    "term": "Termin",
+    "term_placeholder": "ord eller fras (t.ex. GIF)",
+    "replacement": "Byte",
+    "replacement_placeholder": "omstavning (t.ex. jiff)",
+    "scope": "Omfattning",
+    "global": "Global",
+    "type": "Typ",
+    "type_respelling": "Omstavning",
+    "type_ipa": "IPA",
+    "type_cmu": "CMU",
+    "enabled": "Aktiverad",
+    "add": "Lägg till post",
+    "remove": "Ta bort {{term}}",
+    "empty": "Inga inlägg ännu. Lägg till en ovan för att fixa ett felaktigt uttalat ord.",
+    "test_label": "Testa en mening",
+    "test_placeholder": "Skriv en mening för att förhandsgranska ersättningen...",
+    "test_result": "Kommer att talas som:",
+    "test_nochange": "Inga poster matchar – talat som skrivet.",
+    "load_error": "Det gick inte att läsa in uttalsordboken.",
+    "save_error": "Det gick inte att spara den posten.",
+    "lang_label": "Språkkod (t.ex. en, de) eller lämna tomt för Global"
+  },
+  "audiobook": {
+    "title": "Ljudbok",
+    "subtitle": "Förvandla ett kapitelavgränsat manus till en kapitelinställd m4b-ljudbok.",
+    "script": "Manus",
+    "script_placeholder": "# Kapitel ett\nDet var en gång... [paus 500ms] slutet.\n\n# Kapitel två\n[voice:berättare] Och så fortsatte det.",
+    "default_voice": "Standardröst",
+    "engine_default": "Standard för motor",
+    "preview_plan": "Förhandsgranska plan",
+    "create": "Skapa ljudbok",
+    "plan_heading": "Plan – {{count}} kapitel(n)",
+    "chapter_meta": "{{spans}} span(n) · {{chars}} tecken",
+    "synthesizing": "Syntetisera kapitel {{current}} av {{total}} {{title}}",
+    "assembling": "Sätter ihop ljudboken...",
+    "ready": "Ljudbok klar",
+    "download": "Ladda ner",
+    "format": "Format",
+    "format_m4b": "M4B (kapitel)",
+    "format_mp3": "MP3",
+    "loudness": "Ljudstyrka",
+    "loudness_off": "Loudness: av",
+    "loudness_acx": "Normalisera (ACX)",
+    "loudness_podcast": "Normalisera (podcast)",
+    "details": "Omslag & detaljer",
+    "cover": "Omslag",
+    "cover_add": "Lägg till lock",
+    "cover_remove": "Ta bort locket",
+    "meta_title": "Titel",
+    "meta_author": "Författare",
+    "meta_narrator": "Berättare",
+    "meta_year": "år",
+    "meta_genre": "Genre",
+    "meta_description": "Beskrivning",
+    "preview_chapter": "Förhandsgranska kapitel: {{title}}",
+    "cached_note": "Återanvänd {{count}} redan renderade kapitel.",
+    "failed_note": "{{count}} kapitel misslyckades — klicka på Skapa igen för att försöka igen.",
+    "import": "Importera",
+    "import_failed": "Import misslyckades: {{message}}",
+    "lexicon": "Uttal",
+    "lex_word": "Ord",
+    "lex_say": "Säg det som...",
+    "lex_add": "Lägg till ord",
+    "lex_remove": "Ta bort",
+    "markup_help": "Markeringsreferens",
+    "markup_hint": "# Kapiteltitel · [röst:NAMN] byt röst · [paus 500ms] / [paus 1s] · [långsam]…[/långsam] · [snabb]…[/snabb] · [betoning]...[/betoning] · [stavning]...[/stavning]"
+  },
+  "voicePanel": {
+    "title": "Röst",
+    "subtitle": "Lokal tal-till-text-diktering med modeller på enheten.",
+    "enable_label": "Aktivera röstdiktering",
+    "enable_sub": "Tryck på {{shortcut}} för att diktera text till valfri fokuserad ruta.",
+    "mode_label": "Dikteringsläge",
+    "mode_sub": "Växla: tryck en gång för att starta, igen för att stoppa. Håll: diktera medan tangenten hålls nedtryckt.",
+    "mode_toggle": "Växla",
+    "mode_hold": "Vänta",
+    "model_label": "Talmodell",
+    "model_sub": "Välj modellen på enheten som används för diktering.",
+    "badge_offline": "offline",
+    "badge_streaming": "streaming",
+    "badge_recommended": "rekommenderas",
+    "download_model": "Ladda ner modell",
+    "delete_model": "Ta bort modell",
+    "downloading": "Laddar ned...",
+    "downloading_pct": "Laddar ner {{pct}}%",
+    "delete_confirm": "Vill du ta bort \"{{label}}\"-talmodellen? Du kan ladda ner den igen senare.",
+    "delete_confirm_title": "Ta bort talmodell",
+    "engine_unavailable": "Live-dikteringsmotorn är inte tillgänglig på den här installationen. Diktering faller tillbaka till standardtranskriptionsvägen.",
+    "model_desc": {
+      "sherpa-parakeet-tdt-v3": "Rekommenderas. Snabb, exakt diktering på 25 europeiska språk.",
+      "sherpa-parakeet-tdt-v2": "Snabb, exakt diktering endast på engelska.",
+      "sherpa-zipformer-bilingual-zh-en": "Strömmande kinesiska + engelska med livepartialer.",
+      "sherpa-paraformer-bilingual-zh-en": "Streaming kinesiska + engelska, kompakt modell.",
+      "sherpa-zipformer-en-20m": "Liten strömmande engelsk modell — lägsta latens.",
+      "sherpa-zipformer-zh-14m": "Liten strömmande kinesisk modell — lägsta latens.",
+      "sherpa-whisper-tiny": "Flerspråkig (90+ språk) med automatisk språkdetektering."
+    }
+  },
+  "profiles": {
+    "need_name_audio": "Behöver ett namn och referensljud",
+    "synthesizing_preview": "Syntetiserar förhandsvisning för {{name}}...",
+    "synthesizing_segment": "Syntetiserar segment...",
+    "preview_ready": "Förhandsvisning klar!",
+    "playback_failed": "Uppspelningen misslyckades",
+    "preview_failed": "Förhandsgranskning misslyckades: {{message}}",
+    "saved": "Rösten har sparats i profiler!",
+    "save_failed": "Det gick inte att spara röstprofilen",
+    "locked": "Rösten låst! Identiteten är nu konsekvent över alla generationer.",
+    "lock_failed": "Det gick inte att låsa profilen",
+    "unlocked": "Röst upplåst. Generationerna kommer att variera igen.",
+    "unlock_failed": "Det gick inte att låsa upp profilen"
+  },
+  "transcriptionPicker": {
+    "title": "Importera från en transkription",
+    "search_placeholder": "Sök efter transkriptioner...",
+    "empty": "Inga transkriptioner än. Spela in en på fliken Transkriptioner.",
+    "empty_search": "Inga transkriptioner matchar din sökning."
+  },
+  "waveform": {
+    "source_missing": "Källmedia saknas – den här filen kan ha flyttats eller tagits bort. Ladda upp videon igen för att fortsätta.",
+    "load_failed": "Det gick inte att ladda ljud från den här filen"
+  },
+  "tts": {
+    "routingFallback": "Körs på CPU — den här motorn har ingen GPU-sökväg på din maskin, så genereringen kommer att gå långsammare. {{reason}}",
+    "routingCaveat": "Använder GPU, men: {{reason}}"
+  },
+  "voiceSelector": {
+    "engineDefault": "Standard för motor",
+    "clone": "Klonade röster",
+    "designed": "Designade röster",
+    "presets": "Förinställningar",
+    "fromVideo": "Från video",
+    "missingVoice": "Rösten hittades inte (välj om)",
+    "preview": "Förhandsgranska röst",
+    "openGallery": "Öppna i Voice Gallery",
+    "createVoice": "Skapa en ny röst"
+  },
+  "remote_gate": {
+    "title": "Ange åtkomst-PIN",
+    "body": "Denna OmniVoice-instans delas på nätverket. Ange PIN-koden som visas på värden.",
+    "label": "Åtkomst PIN",
+    "connect": "Anslut"
+  },
+  "contact": {
+    "hero_title": "Hör av dig",
+    "hero_desc": "Frågor, buggar, licensiering eller bara för att säga hej - så här når du mig.",
+    "discord": "Oenighet",
+    "discord_desc": "Chatta med communityn och få hjälp snabbt.",
+    "email": "E-post",
+    "email_desc": "Licensiering, partnerskap eller något privat.",
+    "issues": "GitHub-problem",
+    "issues_desc": "Rapportera ett fel eller begär en funktion.",
+    "website": "Webbplats",
+    "website_desc": "Mer om projektet och skaparen."
   }
 }

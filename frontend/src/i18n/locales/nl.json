@@ -11,7 +11,9 @@
     "omnidrive": "OmniDrive",
     "move_rail_right": "Verplaats de rail naar rechts",
     "move_rail_left": "Verplaats de rail naar links",
-    "flip_rail": "Draai de railzijde om"
+    "flip_rail": "Draai de railzijde om",
+    "voice": "Stem",
+    "audiobook": "Audioboek"
   },
   "settings": {
     "general": "Algemeen",
@@ -83,7 +85,53 @@
     "hf_token_input": "HuggingFace-token",
     "hf_token_sources": "HF-tokenbronnen",
     "hf_token_test_now": "Nu testen",
-    "hf_token_test_now_title": "Voer whoami opnieuw uit voor elke bron"
+    "hf_token_test_now_title": "Voer whoami opnieuw uit voor elke bron",
+    "color_theme": "Kleur thema",
+    "font": "Lettertype",
+    "autoplay_preview": "Voorbeeld van automatisch afspelen",
+    "autoplay_preview_label": "Speel de uitvoer af zodra een render is voltooid",
+    "autoplay_preview_hint": "Als deze optie is uitgeschakeld, begint een voltooide render niet langer vanzelf te spelen – handig bij het batchgenereren van segmenten.",
+    "appearance_help": "Deze besturingselementen bevonden zich voorheen in de onderste logboekbalk. Ze zijn hierheen verplaatst zodat de voettekst zich op de logboeken kan blijven richten. Wijzigingen zijn onmiddellijk van toepassing en blijven bij lanceringen behouden.",
+    "advanced": "Geavanceerd",
+    "shortcut": "Snelkoppeling voor dicteren",
+    "credentials_desc": "API-sleutels en tokens, ingesteld voor deze sessie.",
+    "credentials_more": "Meer aanbieders",
+    "group_general": "Algemeen",
+    "group_voice": "Stem en motoren",
+    "group_system": "Systeem",
+    "group_app": "App",
+    "search_placeholder": "Zoekinstellingen…",
+    "restart_required": "Opnieuw opstarten vereist",
+    "applies_now": "Nu van toepassing",
+    "dictation": "Dicteren",
+    "pronunciation": "Uitspraak",
+    "translation": "Vertaling",
+    "network": "Netwerk",
+    "performance": "Prestaties en apparaat",
+    "storage": "Opslag",
+    "device": "Apparaat en computer",
+    "device_desc": "Live hardware- en backend-uitlezingen.",
+    "network_desc": "Proxy- en FFmpeg-paden voor downloads en mediaverwerking.",
+    "translation_desc": "Hoe nasynchronisatie dialoog vertaalt, en welke engine dat doet.",
+    "translate_quality": "Vertaalkwaliteit",
+    "translate_quality_desc": "Snel is letterlijk en snel; Cinematic gebruikt de LLM voor natuurlijke frasering.",
+    "translate_fast": "Snel",
+    "translate_cinematic": "Filmisch",
+    "translation_providers": "Vertaalaanbieders",
+    "translation_providers_desc": "API-sleutels voor online vertalers, ingesteld voor deze sessie.",
+    "review_mode": "Review-modus",
+    "review_mode_desc": "Pauzeer tussen pijplijnfasen, zodat u de ASR-/vertaaluitvoer kunt bekijken.",
+    "header_live_stats": "Toon live systeemstatistieken in de koptekst",
+    "header_live_stats_desc": "Voegt een live RAM/CPU/VRAM-monitor toe aan de bovenste balk (standaard uitgeschakeld).",
+    "storage_desc": "Waar OmniVoice uw gegevens en output bewaart.",
+    "factory_reset": "Fabrieksreset",
+    "factory_reset_desc": "Zet alle in-app-voorkeuren terug naar hun standaardwaarden. Uw bestanden blijven onaangeroerd.",
+    "factory_reset_body": "Wist lokaal opgeslagen instellingen (thema, taal, kopieerknoppen, galerijfavorieten en andere UI-voorkeuren). Het verwijdert NIET uw stemmen, projecten of gegenereerde audio op schijf.",
+    "factory_reset_confirm_title": "Voorkeuren opnieuw instellen?",
+    "factory_reset_confirm": "Resetten en opnieuw laden",
+    "factory_reset_confirm_body": "Hiermee worden alle opgeslagen UI-voorkeuren gewist en wordt de app opnieuw geladen. Uw stemmen, projecten en outputs op schijf worden niet beïnvloed. Doorgaan?",
+    "factory_reset_done": "Voorkeuren gewist — herladen…",
+    "factory_reset_failed": "Resetten mislukt"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -123,7 +171,9 @@
     "hint_port": "Poort 3900 is al in gebruik. Sluit andere OmniVoice-instanties of apps die deze poort gebruiken.",
     "hint_silent_crash": "De backend is zonder foutmelding gecrasht. \"Wissen & Opnieuw proberen\" verhelpt vaak problemen met een corrupte venv.",
     "hint_github_blocked": "Je netwerk blokkeert mogelijk GitHub. Installeer Python 3.11+ van python.org (voeg toe aan PATH) en herstart, of stel UV_PYTHON_INSTALL_MIRROR in — zie docs/install/troubleshooting.md.",
-    "hint_default": "Probeer eerst \"Opnieuw proberen\". Mislukt het weer, dan bouwt \"Wissen & Opnieuw proberen\" de omgeving helemaal opnieuw op."
+    "hint_default": "Probeer eerst \"Opnieuw proberen\". Mislukt het weer, dan bouwt \"Wissen & Opnieuw proberen\" de omgeving helemaal opnieuw op.",
+    "hint_stuck": "De backend is niet voltooid. Voer vanuit de broncode eerst `uv sync` uit en zorg ervoor dat `uv` en Python zich op uw PATH bevinden, en probeer het vervolgens opnieuw. Controleer het onderstaande logboek (of Instellingen → Logboeken → Backend) voor het exacte stallpunt.",
+    "lines": "{{count}} lijnen"
   },
   "stories": {
     "title": "Verhalen-editor",
@@ -193,7 +243,9 @@
     "minutes": "~{{count}} min",
     "chars": "{{count}} tekens",
     "exportDone": "Audioboek gedownload",
-    "exportFailed": "Exporteren mislukt. Controleer of de backend actief is."
+    "exportFailed": "Exporteren mislukt. Controleer of de backend actief is.",
+    "global_speed": "Snelheid",
+    "global_speed_hint": "Leessnelheid voor alle lijnen zonder hun eigen snelheidsoverschrijving"
   },
   "common": {
     "open": "Openen",
@@ -222,7 +274,9 @@
     "popular_label": "Populair",
     "showing_of": "Toont {{shown}} van {{total}}. Typ om te zoeken…",
     "yes": "Ja",
-    "no": "Nee"
+    "no": "Nee",
+    "more_info": "Meer informatie",
+    "learn_more": "Meer informatie"
   },
   "launchpad": {
     "greeting": "Hallo daar",
@@ -253,7 +307,9 @@
     "transcripts_desc": "Zet audio of video om in bewerkbare, doorzoekbare tekst – in 646 talen.",
     "recent_files": "Recente bestanden",
     "view_all_files": "Bekijk alle bestanden",
-    "file": "Bestand"
+    "file": "Bestand",
+    "audiobook_title": "Audioboek",
+    "audiobook_desc": "Verander een lang script of EPUB in een audioboek met hoofdstukken: covers, metadata, één verteller."
   },
   "clone": {
     "prompt": "Prompt",
@@ -332,7 +388,12 @@
     "define_by_design": "Via ontwerp",
     "define_from_audio": "Vanuit audio",
     "define_voice": "Stem definiëren",
-    "save_design_as_profile": "Ontwerp opslaan als profiel"
+    "save_design_as_profile": "Ontwerp opslaan als profiel",
+    "seed_label": "Zaad",
+    "seed_placeholder": "elke keer willekeurig",
+    "seed_keep": "Bewaar dit zaad",
+    "seed_reroll": "Nieuw zaad",
+    "seed_reroll_hint": "Rol een nieuw willekeurig zaadje en bewaar het"
   },
   "about": {
     "app": "App",
@@ -456,7 +517,14 @@
     "failed": "mislukt",
     "acceptLicense": "Accepteer licentie",
     "noBackends": "Geen backends geregistreerd.",
-    "switch_failed": "Het is niet gelukt om van motor te wisselen"
+    "switch_failed": "Het is niet gelukt om van motor te wisselen",
+    "routingAccelerated": "GPU actief",
+    "routingCpuFallback": "CPU-terugval",
+    "routingCpuOnly": "CPU",
+    "routingRemote": "Op afstand",
+    "routingUnknown": "Onbekend",
+    "routingEffectiveChip": "Draait op {{device}} op deze machine",
+    "routingCaveatTitle": "GPU geselecteerd, maar: {{reason}}"
   },
   "capture": {
     "desc": "Globale sneltoetsen werken alleen in de desktop-app. De webinterface gebruikt een sneltoets <1>Ctrl+Shift+Spatie</1> op de pagina terwijl het venster focus heeft.",
@@ -519,7 +587,13 @@
     "log_copied": "Gekopieerd {{source}} log",
     "copy_failed": "Kopiëren mislukt: {{message}}",
     "report_copied": "Diagnostisch rapport gekopieerd: plak het in een GitHub-probleem.",
-    "report_failed": "Rapport mislukt: {{message}}"
+    "report_failed": "Rapport mislukt: {{message}}",
+    "version_updates": "Controleer op updates",
+    "version_updates_aria": "Updates openen — app-versie {{v}}",
+    "update_available": "Update beschikbaar ({{version}}) — klik om te updaten",
+    "update_available_aria": "Update beschikbaar ({{version}}) — updates openen",
+    "contact": "Contacteer",
+    "contact_aria": "Open de contactpagina"
   },
   "voice_profile": {
     "test_text": "Hallo – dit is een test van deze stem.",
@@ -563,7 +637,26 @@
     "projects_count_one": "{{count}}-project",
     "projects_count_other": "{{count}} projecten",
     "dubbed_segments_one": "{{count}} nagesynchroniseerd segment",
-    "dubbed_segments_other": "{{count}} nagesynchroniseerde segmenten"
+    "dubbed_segments_other": "{{count}} nagesynchroniseerde segmenten",
+    "verified": "Geverifieerd",
+    "persona_export": "Persona exporteren",
+    "persona_exporting": "Persona opbouwen…",
+    "persona_exported": "Persoon geëxporteerd",
+    "persona_export_no_audio": "Deze stem heeft geen leesbare audio om een voorbeeld van te maken.",
+    "persona_export_failed": "Exporteren is mislukt.",
+    "persona_include_ref": "Inclusief spraakclip",
+    "persona_include_ref_hint": "Voeg de onbewerkte referentieclip toe. Uit = alleen een voorbeeld met watermerk delen (aanbevolen).",
+    "consent_title": "Stemeigendom",
+    "consent_explain": "Neem jezelf op terwijl je de onderstaande verklaring leest om te verifiëren dat dit je eigen stem is. Verificatie is vereist voor agentische functies en het delen door de community – nooit voor lokale synthese.",
+    "consent_statement": "Ik bevestig dat dit stemprofiel mijn eigen stem is en geef toestemming dat OmniVoice Studio het namens mij kloont.",
+    "consent_record": "Toestemmingsverklaring vastleggen",
+    "consent_stop": "Stop met opnemen",
+    "consent_saved": "Eigendom van stem geverifieerd",
+    "consent_failed": "Verificatie mislukt: {{message}}",
+    "consent_verified_explain": "U heeft een toestemmingsverklaring opgenomen op {{date}}. Door het intrekken worden de opname en de geverifieerde status verwijderd.",
+    "consent_revoke": "Intrekken",
+    "consent_revoke_confirm": "Verificatie van stemeigendom intrekken? De toestemmingsopname wordt verwijderd en agentfuncties kunnen deze stem niet langer gebruiken.",
+    "consent_revoked": "Verificatie ingetrokken"
   },
   "dub": {
     "transcribe": "Transcriberen",
@@ -712,7 +805,12 @@
     "pipeline": "Dubbing-pipeline",
     "preview_language": "Voorbeeldtaal",
     "target_language": "Dubben naar",
-    "transcript_after_extract": "Het afschrift verschijnt na extractie."
+    "transcript_after_extract": "Het afschrift verschijnt na extractie.",
+    "qc_btn": "Controleer de dub-timing (tweede-doorgangscontrole)",
+    "qc_running": "De dubtiming controleren...",
+    "qc_result": "{{flagged}} van {{total}} regels moeten mogelijk opnieuw worden beluisterd",
+    "qc_clean": "Alle {{total}} regels komen overeen met het script",
+    "qc_failed": "Timingcontrole mislukt: {{message}}"
   },
   "glossary": {
     "title": "Woordenlijst",
@@ -797,7 +895,9 @@
     "fit_stretched_title": "Stretch Video-modus: de video van dit segment is vertraagd tot {{ratio}}× om te passen bij de natuurlijke dub-audio.",
     "fit_compressed_title": "TTS-audio is {{pct}}% van de sleuf – zwaar gecomprimeerd.",
     "fit_audio_title": "Audio past in de sleuf.",
-    "fit_ratio_title": "TTS-audio is {{pct}}% van de sleuf."
+    "fit_ratio_title": "TTS-audio is {{pct}}% van de sleuf.",
+    "qc_verify": "Verifieer",
+    "qc_verify_title": "Tweede passage ASR hoorde: \"{{heard}}\" — luister of kopieer deze regel opnieuw."
   },
   "timeline": {
     "track_label": "Segmenttijdlijn",
@@ -872,7 +972,16 @@
     "export": "Exporteren",
     "transcription": "Transcriptie",
     "designed_voice": "Ontworpen stem",
-    "cloned_voice": "Gekloonde stem"
+    "cloned_voice": "Gekloonde stem",
+    "stories": "Verhalen",
+    "untitled_story": "Naamloos verhaal",
+    "story_lines": "{{count}} lijn",
+    "story_lines_plural": "{{count}} lijnen",
+    "story_voices": "{{count}} stem",
+    "story_voices_plural": "{{count}} stemmen",
+    "audiobooks": "Audioboeken",
+    "audiobook": "Audioboek",
+    "story": "Verhaal"
   },
   "batch": {
     "title": "Batch-nasynchronisatie",
@@ -975,7 +1084,12 @@
     "submit_failed": "Het indieningsformulier kon niet worden geopend.",
     "submit_preset": "Preset indienen",
     "submit_voice": "Stem indienen",
-    "zone_community": "Community"
+    "zone_community": "Community",
+    "import_persona": "Importeer een .ovsvoice-personabundel",
+    "persona_imported": "Geïmporteerd \"{{name}}\"{{unverified}}.",
+    "persona_unverified_suffix": "(niet geverifieerd)",
+    "persona_too_large": "Die bundel is te groot (max 100 MB).",
+    "persona_import_failed": "Kan die personabundel niet importeren."
   },
   "transcriptions": {
     "title": "Transcripties",
@@ -1030,7 +1144,8 @@
     "try_dictation": "Probeer dicteren",
     "next_try_dictation": "Volgende: Probeer dicteren",
     "step_aria": "Stap {{num}}: {{label}}",
-    "step_completed": "voltooid"
+    "step_completed": "voltooid",
+    "cache_label": "Modelcache"
   },
   "donate": {
     "title": "Ondersteuning",
@@ -1043,7 +1158,34 @@
     "platforms": "Platformen",
     "footer": "Elke bijdrage helpt de grenzen van lokale AI te verleggen.",
     "back": "Terug naar Studio",
-    "commercial": "Commerciële licentie"
+    "commercial": "Commerciële licentie",
+    "pill": "Ondersteuning OmniVoice",
+    "suggested_title": "Kies een bedrag",
+    "most_common": "meest voorkomende",
+    "custom": "Aangepast",
+    "choose_method": "Kies hoe u wilt geven",
+    "choose_method_amount": "Ga verder met ${{amount}}",
+    "goal": {
+      "title": "Fonds Claude Max",
+      "of": "van",
+      "per_month": "/ maand",
+      "aria": "{{raised}} van {{goal}} maanddoel",
+      "remaining": "{{amount}} te gaan",
+      "met": "🎉 Doel behaald — {{raised}} verhoogd. Bedankt!",
+      "social_proof": "Sluit u aan bij {{count}} supporters die lokale AI financieren"
+    },
+    "postcard": {
+      "title": "Fonds Claude Max",
+      "lead_default": "Fijn dat dat werkte! OmniVoice is gratis en volledig lokaal. Als het u tijd bespaart, financiert een kleine maandelijkse chip-in de Claude Max erachter.",
+      "lead_first_clone": "Je eerste stemkloon is klaar - leuk! OmniVoice draait volledig op uw machine, en uw ondersteuning zorgt ervoor dat dit zo blijft.",
+      "lead_tenth_dub": "Tien dubs erin - je zet het duidelijk aan het werk. Een kleine maandelijkse chip-in financiert de Claude Max die deze functies levert.",
+      "lead_sustained": "Je werkt al een maand bij OmniVoice. Als het een plek in uw workflow heeft verdiend, overweeg dan om te helpen bij het financieren van de toekomst.",
+      "chip_in": "Chip erin",
+      "later": "Misschien later",
+      "star": "Ster op GitHub",
+      "opt_out": "Vraag het niet opnieuw",
+      "dismiss_aria": "Negeren"
+    }
   },
   "enterprise": {
     "title": "Commerciële licentie",
@@ -1072,7 +1214,9 @@
     "benefit_source_desc": "Volledig zicht op de stapel. Audit, fork en pas aan binnen de licentievoorwaarden.",
     "benefit_lang": "646 talen",
     "benefit_lang_desc": "Transcribeer, vertaal en kopieer in 646 talen met kwaliteit op menselijk niveau.",
-    "hero_note": "Gebruik, self-hosting en commercieel gebruik zijn allemaal gratis onder de AGPL-3.0 — ook op grote schaal. De AGPL is een netwerk-copyleft-licentie: als je OmniVoice aanpast en die aangepaste versie via een netwerk aan anderen aanbiedt, moet je je gewijzigde broncode onder dezelfde voorwaarden delen. Een commerciële licentie heft die copyleft-verplichtingen op voor propriëtaire closed-source-implementaties. Prijsplannen volgen binnenkort — neem in de tussentijd contact op."
+    "hero_note": "Gebruik, self-hosting en commercieel gebruik zijn allemaal gratis onder de AGPL-3.0 — ook op grote schaal. De AGPL is een netwerk-copyleft-licentie: als je OmniVoice aanpast en die aangepaste versie via een netwerk aan anderen aanbiedt, moet je je gewijzigde broncode onder dezelfde voorwaarden delen. Een commerciële licentie heft die copyleft-verplichtingen op voor propriëtaire closed-source-implementaties. Prijsplannen volgen binnenkort — neem in de tussentijd contact op.",
+    "hero_simple": "OmniVoice Studio is gratis en open-source onder AGPL-3.0 — ook voor commercieel en intern zakelijk gebruik. U hebt alleen een commerciële licentie nodig om het in een gesloten bronproduct in te sluiten, zonder de copyleft-verplichtingen van AGPL.",
+    "contact_lead": "De prijzen worden per implementatie vermeld, zodat deze passen bij uw team en werklast. Vertel mij uw gebruiksscenario en ik bezorg u een offerte."
   },
   "exportModal": {
     "export": "Exporteren",
@@ -1358,7 +1502,9 @@
     "save_label": "Opslaan",
     "lock_identity": "Stemidentiteit vergrendelen",
     "in_folder": "in {{folder}}",
-    "search": "Zoeken…"
+    "search": "Zoeken…",
+    "rename": "Hernoemen",
+    "rename_save": "Naam opslaan"
   },
   "trimmer": {
     "title": "Referentie-audio trimmen",
@@ -1487,7 +1633,11 @@
     "loading_badge": "Laden…",
     "idle_badge": "Inactief",
     "started_downloading_required_one": "Begonnen met het downloaden van het vereiste model {{count}}",
-    "started_downloading_required_other": "Begonnen met het downloaden van {{count}} vereiste modellen"
+    "started_downloading_required_other": "Begonnen met het downloaden van {{count}} vereiste modellen",
+    "to_download": "downloaden",
+    "cached": "in de cache opgeslagen",
+    "fast_download_badge": "snel downloaden",
+    "fast_download_title": "Snelle downloads via Xet {{version}} — parallelle gefragmenteerde overdracht"
   },
   "enterprise_faq": {
     "q_internal_tools": "Heb ik een licentie nodig voor interne tools?",
@@ -1553,7 +1703,8 @@
     "delete_history_confirm": "Dit geschiedenisitem verwijderen?",
     "history_deleted": "Geschiedenisitem verwijderd",
     "restored_state": "Herstelde staat van de vorige generatie",
-    "upgrading_preview": "{{count}} segment(en) van voorbeeldkwaliteit upgraden naar volledige kwaliteit…"
+    "upgrading_preview": "{{count}} segment(en) van voorbeeldkwaliteit upgraden naar volledige kwaliteit…",
+    "session_expired": "Deze kopieersessie is verlopen of opgeschoond. Upload je video opnieuw om een nieuwe te starten."
   },
   "tts_errors": {
     "enter_text": "Voer tekst in",
@@ -1749,7 +1900,15 @@
     "hf_token_save": "Opslaan",
     "hf_token_saving": "opslaan…",
     "hf_token_saved": "Hugging Face-token opgeslagen",
-    "hf_token_error": "Token kon niet worden opgeslagen — probeer opnieuw of stel het later in via Instellingen → Inloggegevens."
+    "hf_token_error": "Token kon niet worden opgeslagen — probeer opnieuw of stel het later in via Instellingen → Inloggegevens.",
+    "chip_recommended": "aanbevolen",
+    "size_left": "{{size}} over",
+    "hf_token_card_title": "Voeg een gratis Hugging Face-token toe voor snellere downloads",
+    "hf_token_get": "Heeft u geen token? Ontvang er één gratis →",
+    "hf_token_saved_fast": "Knuffelgezicht-token opgeslagen — downloads zijn nu sneller",
+    "hf_token_inline_prompt": "Versnel downloads met een gratis Hugging Face-token",
+    "hf_token_inline_ph": "Plak het hf_…-token (optioneel)",
+    "hf_token_get_short": "Ontvang er één gratis →"
   },
   "history": {
     "dub_title": "Dubgeschiedenis",
@@ -1761,5 +1920,163 @@
     "cleaned_loaded": "Opname opgeschoond en geladen!",
     "loaded_raw": "Opname geladen (ruw — ruisonderdrukking niet beschikbaar)",
     "too_short": "Opname te kort"
+  },
+  "pronunciation": {
+    "title": "Uitspraakwoordenboek",
+    "help": "Leer de motor hoe hij lastige woorden moet zeggen. Elke invoer vervangt een woord door een herspelling vóór de synthese, dus het is van toepassing op elke engine. Beperk een item tot één taal of laat het globaal. Inline overschrijft [[woord|respelling]] het woordenboek één keer.",
+    "term": "Termijn",
+    "term_placeholder": "woord of zin (bijvoorbeeld GIF)",
+    "replacement": "Vervanging",
+    "replacement_placeholder": "respelling (bijvoorbeeld jiff)",
+    "scope": "Reikwijdte",
+    "global": "Globaal",
+    "type": "Typ",
+    "type_respelling": "Respelling",
+    "type_ipa": "IPA",
+    "type_cmu": "CMU",
+    "enabled": "Ingeschakeld",
+    "add": "Vermelding toevoegen",
+    "remove": "Verwijder {{term}}",
+    "empty": "Nog geen vermeldingen. Voeg er hierboven één toe om een ​​verkeerd uitgesproken woord te corrigeren.",
+    "test_label": "Test een zin",
+    "test_placeholder": "Typ een zin om een voorbeeld van de vervanging te bekijken...",
+    "test_result": "Zal worden uitgesproken als:",
+    "test_nochange": "Er komen geen overeenkomende vermeldingen overeen - gesproken zoals geschreven.",
+    "load_error": "Kan het uitspraakwoordenboek niet laden.",
+    "save_error": "Kan die invoer niet opslaan.",
+    "lang_label": "Taalcode (bijvoorbeeld en, de) of laat leeg voor Globaal"
+  },
+  "audiobook": {
+    "title": "Audioboek",
+    "subtitle": "Verander een door hoofdstukken gescheiden script in een m4b-audioboek in hoofdstukken.",
+    "script": "Script",
+    "script_placeholder": "# Hoofdstuk één\nEr was eens… [pauze 500 ms] het einde.\n\n# Hoofdstuk twee\n[stem:verteller] En zo ging het verder.",
+    "default_voice": "Standaardstem",
+    "engine_default": "Standaard motor",
+    "preview_plan": "Voorbeeldplan",
+    "create": "Audioboek maken",
+    "plan_heading": "Plan — {{count}} hoofdstuk(ken)",
+    "chapter_meta": "{{spans}} bereik(en) · {{chars}} tekens",
+    "synthesizing": "Synthetiseren van hoofdstuk {{current}} van {{total}} {{title}}",
+    "assembling": "Het audioboek samenstellen…",
+    "ready": "Audioboek klaar",
+    "download": "Downloaden",
+    "format": "Formaat",
+    "format_m4b": "M4B (hoofdstukken)",
+    "format_mp3": "MP3",
+    "loudness": "Luidheid",
+    "loudness_off": "Luidheid: uit",
+    "loudness_acx": "Normaliseren (ACX)",
+    "loudness_podcast": "Normaliseren (podcast)",
+    "details": "Omslag en details",
+    "cover": "Deksel",
+    "cover_add": "Voeg dekking toe",
+    "cover_remove": "Verwijder de kap",
+    "meta_title": "Titel",
+    "meta_author": "Auteur",
+    "meta_narrator": "Verteller",
+    "meta_year": "Jaar",
+    "meta_genre": "Genre",
+    "meta_description": "Beschrijving",
+    "preview_chapter": "Voorbeeldhoofdstuk: {{title}}",
+    "cached_note": "Hergebruikt {{count}} reeds weergegeven hoofdstuk(ken).",
+    "failed_note": "{{count}} hoofdstuk(ken) mislukt — klik nogmaals op Maken om alleen die hoofdstukken opnieuw te proberen.",
+    "import": "Importeren",
+    "import_failed": "Importeren mislukt: {{message}}",
+    "lexicon": "Uitspraak",
+    "lex_word": "Woord",
+    "lex_say": "Zeg het als...",
+    "lex_add": "Woord toevoegen",
+    "lex_remove": "Verwijderen",
+    "markup_help": "Opmaakreferentie",
+    "markup_hint": "# Hoofdstuktitel · [stem:NAAM] wisselstem · [pauze 500 ms] / [pauze 1s] · [langzaam]…[/langzaam] · [snel]…[/snel] · [nadruk]…[/nadruk] · [spell]…[/spell]"
+  },
+  "voicePanel": {
+    "title": "Stem",
+    "subtitle": "Lokaal spraak-naar-tekst dicteren met modellen op het apparaat.",
+    "enable_label": "Schakel stemdictatie in",
+    "enable_sub": "Druk op {{shortcut}} om tekst in een venster met focus te dicteren.",
+    "mode_label": "Dicteermodus",
+    "mode_sub": "Schakelen: druk één keer om te starten, nogmaals om te stoppen. Vasthouden: dicteren terwijl de toets ingedrukt wordt gehouden.",
+    "mode_toggle": "Schakel",
+    "mode_hold": "Houd vast",
+    "model_label": "Spraakmodel",
+    "model_sub": "Kies het model op het apparaat dat wordt gebruikt voor dicteren.",
+    "badge_offline": "offline",
+    "badge_streaming": "streamen",
+    "badge_recommended": "aanbevolen",
+    "download_model": "Model downloaden",
+    "delete_model": "Model verwijderen",
+    "downloading": "Downloaden…",
+    "downloading_pct": "{{pct}}% downloaden",
+    "delete_confirm": "Het spraakmodel \"{{label}}\" verwijderen? Je kunt het later opnieuw downloaden.",
+    "delete_confirm_title": "Spraakmodel verwijderen",
+    "engine_unavailable": "De live-dicteerengine is niet beschikbaar bij deze installatie. Het dicteren valt terug op het standaard transcriptiepad.",
+    "model_desc": {
+      "sherpa-parakeet-tdt-v3": "Aanbevolen. Snel en nauwkeurig dicteren in 25 Europese talen.",
+      "sherpa-parakeet-tdt-v2": "Snel, nauwkeurig dicteren in het Engels.",
+      "sherpa-zipformer-bilingual-zh-en": "Streaming Chinees + Engels met live gedeeltelijke beelden.",
+      "sherpa-paraformer-bilingual-zh-en": "Streaming Chinees + Engels, compact model.",
+      "sherpa-zipformer-en-20m": "Klein streaming Engels model - laagste latentie.",
+      "sherpa-zipformer-zh-14m": "Klein Chinees streamingmodel – laagste latentie.",
+      "sherpa-whisper-tiny": "Meertalig (90+ talen) met automatische taaldetectie."
+    }
+  },
+  "profiles": {
+    "need_name_audio": "Een naam en referentieaudio nodig",
+    "synthesizing_preview": "Voorbeeld synthetiseren voor {{name}}...",
+    "synthesizing_segment": "Segment synthetiseren...",
+    "preview_ready": "Voorbeeld klaar!",
+    "playback_failed": "Afspelen mislukt",
+    "preview_failed": "Voorbeeld mislukt: {{message}}",
+    "saved": "Stem opgeslagen in profielen!",
+    "save_failed": "Kan stemprofiel niet opslaan",
+    "locked": "Stem vergrendeld! Identiteit is nu consistent voor alle generaties.",
+    "lock_failed": "Kan profiel niet vergrendelen",
+    "unlocked": "Stem ontgrendeld. Generaties zullen weer variëren.",
+    "unlock_failed": "Kan profiel niet ontgrendelen"
+  },
+  "transcriptionPicker": {
+    "title": "Importeren vanuit een transcriptie",
+    "search_placeholder": "Transcripties zoeken…",
+    "empty": "Nog geen transcripties. Neem er één op op het tabblad Transcripties.",
+    "empty_search": "Er zijn geen transcripties die overeenkomen met uw zoekopdracht."
+  },
+  "waveform": {
+    "source_missing": "Bronmedia ontbreken: dit bestand is mogelijk verplaatst of verwijderd. Upload de video opnieuw om door te gaan.",
+    "load_failed": "Kan audio uit dit bestand niet laden"
+  },
+  "tts": {
+    "routingFallback": "Draait op CPU: deze engine heeft geen GPU-pad op uw machine, dus de generatie zal langzamer zijn. {{reason}}",
+    "routingCaveat": "De GPU gebruiken, maar: {{reason}}"
+  },
+  "voiceSelector": {
+    "engineDefault": "Standaard motor",
+    "clone": "Gekloonde stemmen",
+    "designed": "Ontworpen stemmen",
+    "presets": "Voorinstellingen",
+    "fromVideo": "Van video",
+    "missingVoice": "Stem niet gevonden (opnieuw kiezen)",
+    "preview": "Voorbeeldstem",
+    "openGallery": "Openen in Voice Gallery",
+    "createVoice": "Creëer een nieuwe stem"
+  },
+  "remote_gate": {
+    "title": "Voer de toegangspincode in",
+    "body": "Dit OmniVoice-exemplaar wordt gedeeld op het netwerk. Voer de pincode in die op de host wordt weergegeven.",
+    "label": "Toegangspincode",
+    "connect": "Verbinden"
+  },
+  "contact": {
+    "hero_title": "Neem contact op",
+    "hero_desc": "Vragen, bugs, licenties, of gewoon om hallo te zeggen: zo kunt u mij bereiken.",
+    "discord": "Onenigheid",
+    "discord_desc": "Chat met de community en krijg snel hulp.",
+    "email": "E-mail",
+    "email_desc": "Licenties, partnerschappen of iets privés.",
+    "issues": "GitHub-problemen",
+    "issues_desc": "Rapporteer een bug of vraag een functie aan.",
+    "website": "Website",
+    "website_desc": "Meer over het project en de maker."
   }
 }

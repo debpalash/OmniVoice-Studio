@@ -11,7 +11,9 @@
     "omnidrive": "OmniDrive",
     "move_rail_right": "Di chuyển đường ray sang phải",
     "move_rail_left": "Di chuyển đường ray sang trái",
-    "flip_rail": "Mặt đường ray lật"
+    "flip_rail": "Mặt đường ray lật",
+    "voice": "Giọng nói",
+    "audiobook": "Sách nói"
   },
   "settings": {
     "general": "Chung",
@@ -83,7 +85,53 @@
     "hf_token_input": "Token HuggingFace",
     "hf_token_sources": "Nguồn token HF",
     "hf_token_test_now": "Kiểm tra ngay",
-    "hf_token_test_now_title": "Chạy lại whoami cho mọi nguồn"
+    "hf_token_test_now_title": "Chạy lại whoami cho mọi nguồn",
+    "color_theme": "Chủ đề màu sắc",
+    "font": "Phông chữ",
+    "autoplay_preview": "Tự động phát bản xem trước",
+    "autoplay_preview_label": "Phát đầu ra ngay khi kết xuất kết thúc",
+    "autoplay_preview_hint": "Khi tắt, kết xuất đã hoàn thành không còn tự bắt đầu phát nữa — hữu ích khi tạo các phân đoạn hàng loạt.",
+    "appearance_help": "Các điều khiển này từng nằm ở thanh nhật ký dưới cùng — được di chuyển vào đây để chân trang có thể tập trung vào nhật ký. Các thay đổi sẽ được áp dụng ngay lập tức và duy trì qua các lần ra mắt.",
+    "advanced": "Nâng cao",
+    "shortcut": "Phím tắt đọc chính tả",
+    "credentials_desc": "Khóa API và mã thông báo, được đặt cho phiên này.",
+    "credentials_more": "Thêm nhà cung cấp",
+    "group_general": "chung",
+    "group_voice": "Giọng nói & Động cơ",
+    "group_system": "Hệ thống",
+    "group_app": "ứng dụng",
+    "search_placeholder": "Cài đặt tìm kiếm…",
+    "restart_required": "Yêu cầu khởi động lại",
+    "applies_now": "Áp dụng ngay bây giờ",
+    "dictation": "chính tả",
+    "pronunciation": "phát âm",
+    "translation": "Dịch thuật",
+    "network": "Mạng",
+    "performance": "Hiệu suất & Thiết bị",
+    "storage": "Lưu trữ",
+    "device": "Thiết bị & tính toán",
+    "device_desc": "Phần cứng trực tiếp và phần đọc phụ trợ.",
+    "network_desc": "Đường dẫn proxy và FFmpeg để tải xuống và xử lý phương tiện.",
+    "translation_desc": "Cách lồng tiếng sẽ dịch đoạn hội thoại và công cụ nào thực hiện việc đó.",
+    "translate_quality": "Chất lượng dịch thuật",
+    "translate_quality_desc": "Nhanh là nghĩa đen và nhanh chóng; Cinematic sử dụng LLM để diễn đạt tự nhiên.",
+    "translate_fast": "Nhanh",
+    "translate_cinematic": "Điện ảnh",
+    "translation_providers": "Nhà cung cấp dịch thuật",
+    "translation_providers_desc": "Khóa API dành cho người dịch trực tuyến, được đặt cho phiên này.",
+    "review_mode": "Chế độ xem lại",
+    "review_mode_desc": "Tạm dừng giữa các giai đoạn quy trình để bạn có thể xem lại đầu ra ASR/bản dịch.",
+    "header_live_stats": "Hiển thị số liệu hệ thống trực tiếp trong tiêu đề",
+    "header_live_stats_desc": "Thêm màn hình RAM/CPU/VRAM trực tiếp vào thanh trên cùng (tắt theo mặc định).",
+    "storage_desc": "Nơi OmniVoice lưu giữ dữ liệu và kết quả đầu ra của bạn.",
+    "factory_reset": "Khôi phục cài đặt gốc",
+    "factory_reset_desc": "Đặt lại tất cả các tùy chọn trong ứng dụng về mặc định. Các tập tin của bạn không bị ảnh hưởng.",
+    "factory_reset_body": "Xóa cài đặt được lưu cục bộ (chủ đề, ngôn ngữ, nút lồng tiếng, mục yêu thích trong thư viện và các tùy chọn giao diện người dùng khác). Nó KHÔNG xóa giọng nói, dự án hoặc âm thanh được tạo trên đĩa của bạn.",
+    "factory_reset_confirm_title": "Đặt lại tùy chọn?",
+    "factory_reset_confirm": "Đặt lại và tải lại",
+    "factory_reset_confirm_body": "Thao tác này sẽ xóa tất cả tùy chọn giao diện người dùng đã lưu và tải lại ứng dụng. Giọng nói, dự án và đầu ra trên đĩa của bạn không bị ảnh hưởng. Tiếp tục?",
+    "factory_reset_done": "Đã xóa tùy chọn - đang tải lại…",
+    "factory_reset_failed": "Đặt lại không thành công"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -123,7 +171,9 @@
     "hint_port": "Cổng 3900 đang được sử dụng. Hãy đóng các phiên bản OmniVoice khác hoặc ứng dụng đang dùng cổng đó.",
     "hint_silent_crash": "Backend bị lỗi mà không có thông báo. \"Dọn dẹp & Thử lại\" thường khắc phục được sự cố venv bị hỏng.",
     "hint_github_blocked": "Mạng của bạn có thể đang chặn GitHub. Cài Python 3.11+ từ python.org (thêm vào PATH) rồi khởi động lại, hoặc đặt UV_PYTHON_INSTALL_MIRROR — xem docs/install/troubleshooting.md.",
-    "hint_default": "Hãy thử \"Thử lại\" trước. Nếu vẫn lỗi, \"Dọn dẹp & Thử lại\" sẽ xây dựng lại môi trường từ đầu."
+    "hint_default": "Hãy thử \"Thử lại\" trước. Nếu vẫn lỗi, \"Dọn dẹp & Thử lại\" sẽ xây dựng lại môi trường từ đầu.",
+    "hint_stuck": "Phần phụ trợ chưa hoàn thành việc bắt đầu. Từ nguồn, trước tiên hãy chạy `uv sync` và đảm bảo `uv` và Python nằm trên PATH của bạn, sau đó Thử lại. Kiểm tra nhật ký bên dưới (hoặc Cài đặt → Nhật ký → Phần cuối) để biết điểm dừng chính xác.",
+    "lines": "{{count}} dòng"
   },
   "stories": {
     "title": "Biên tập truyện",
@@ -193,7 +243,9 @@
     "minutes": "~{{count}} phút",
     "chars": "{{count}} ký tự",
     "exportDone": "Đã tải sách nói xuống",
-    "exportFailed": "Xuất không thành công - kiểm tra xem chương trình phụ trợ có đang chạy không."
+    "exportFailed": "Xuất không thành công - kiểm tra xem chương trình phụ trợ có đang chạy không.",
+    "global_speed": "Tốc độ",
+    "global_speed_hint": "Tốc độ đọc cho tất cả các dòng mà không cần ghi đè tốc độ riêng"
   },
   "common": {
     "open": "Mở",
@@ -222,7 +274,9 @@
     "popular_label": "phổ biến",
     "showing_of": "Đang hiển thị {{shown}} trong tổng số {{total}}. Nhập để tìm kiếm…",
     "yes": "Có",
-    "no": "Không"
+    "no": "Không",
+    "more_info": "Thêm thông tin",
+    "learn_more": "Tìm hiểu thêm"
   },
   "launchpad": {
     "greeting": "xin chào ở đó",
@@ -253,7 +307,9 @@
     "transcripts_desc": "Biến âm thanh hoặc video thành văn bản có thể chỉnh sửa, tìm kiếm được — trên 646 ngôn ngữ.",
     "recent_files": "Các tập tin gần đây",
     "view_all_files": "Xem tất cả các tập tin",
-    "file": "tập tin"
+    "file": "tập tin",
+    "audiobook_title": "Sách nói",
+    "audiobook_desc": "Biến một tập lệnh dài hoặc EPUB thành sách nói có nhiều chương — bìa, siêu dữ liệu, một người kể chuyện."
   },
   "clone": {
     "prompt": "Lời nhắc",
@@ -332,7 +388,12 @@
     "define_by_design": "Theo thiết kế",
     "define_from_audio": "Từ âm thanh",
     "define_voice": "Xác định giọng nói",
-    "save_design_as_profile": "Lưu thiết kế dưới dạng hồ sơ"
+    "save_design_as_profile": "Lưu thiết kế dưới dạng hồ sơ",
+    "seed_label": "Hạt giống",
+    "seed_placeholder": "ngẫu nhiên mỗi lần",
+    "seed_keep": "Giữ hạt giống này",
+    "seed_reroll": "Hạt giống mới",
+    "seed_reroll_hint": "Cuộn một hạt giống ngẫu nhiên mới và giữ nó"
   },
   "about": {
     "app": "ứng dụng",
@@ -456,7 +517,14 @@
     "failed": "thất bại",
     "acceptLicense": "Chấp nhận giấy phép",
     "noBackends": "Không có phụ trợ được đăng ký.",
-    "switch_failed": "Không thể chuyển đổi động cơ"
+    "switch_failed": "Không thể chuyển đổi động cơ",
+    "routingAccelerated": "GPU đang hoạt động",
+    "routingCpuFallback": "Dự phòng CPU",
+    "routingCpuOnly": "CPU",
+    "routingRemote": "Từ xa",
+    "routingUnknown": "Không xác định",
+    "routingEffectiveChip": "Chạy trên _V_0__ trên máy này",
+    "routingCaveatTitle": "Đã chọn GPU nhưng: {{reason}}"
   },
   "capture": {
     "desc": "Phím nóng chung chỉ hoạt động trong ứng dụng máy tính để bàn. Giao diện người dùng web sử dụng phím tắt <1>Ctrl+Shift+Space</1> trong trang trong khi cửa sổ đang có tiêu điểm.",
@@ -519,7 +587,13 @@
     "log_copied": "Đã sao chép nhật ký _V_0__",
     "copy_failed": "Sao chép không thành công: {{message}}",
     "report_copied": "Đã sao chép báo cáo chẩn đoán — dán báo cáo đó vào vấn đề GitHub.",
-    "report_failed": "Báo cáo không thành công: {{message}}"
+    "report_failed": "Báo cáo không thành công: {{message}}",
+    "version_updates": "Kiểm tra các bản cập nhật",
+    "version_updates_aria": "Mở bản cập nhật — phiên bản ứng dụng {{v}}",
+    "update_available": "Đã có bản cập nhật ({{version}}) — nhấp để cập nhật",
+    "update_available_aria": "Đã có bản cập nhật ({{version}}) — mở bản cập nhật",
+    "contact": "Liên hệ",
+    "contact_aria": "Mở trang liên hệ"
   },
   "voice_profile": {
     "test_text": "Xin chào - đây là bài kiểm tra giọng nói này.",
@@ -563,7 +637,26 @@
     "projects_count_one": "dự án {{count}}",
     "projects_count_other": "{{count}} dự án",
     "dubbed_segments_one": "{{count}} phân đoạn được lồng tiếng",
-    "dubbed_segments_other": "{{count}} phân đoạn được lồng tiếng"
+    "dubbed_segments_other": "{{count}} phân đoạn được lồng tiếng",
+    "verified": "Đã xác minh",
+    "persona_export": "Xuất khẩu nhân vật",
+    "persona_exporting": "Xây dựng nhân cách…",
+    "persona_exported": "Persona được xuất khẩu",
+    "persona_export_no_audio": "Giọng nói này không có âm thanh có thể đọc được để tạo bản xem trước.",
+    "persona_export_failed": "Xuất không thành công.",
+    "persona_include_ref": "Bao gồm clip thoại",
+    "persona_include_ref_hint": "Bao gồm clip tham khảo thô. Tắt = chỉ chia sẻ bản xem trước có hình mờ (được khuyến nghị).",
+    "consent_title": "Quyền sở hữu giọng nói",
+    "consent_explain": "Ghi lại chính mình đọc câu dưới đây để xác minh đây là giọng nói của chính bạn. Sẽ cần phải xác minh đối với các tính năng tác nhân và chia sẻ trong cộng đồng — không bao giờ đối với tổng hợp cục bộ.",
+    "consent_statement": "Tôi xác nhận rằng cấu hình giọng nói này là giọng nói của chính tôi và tôi đồng ý để OmniVoice Studio nhân danh nó thay mặt tôi.",
+    "consent_record": "Ghi lại tuyên bố đồng ý",
+    "consent_stop": "Dừng ghi",
+    "consent_saved": "Đã xác minh quyền sở hữu giọng nói",
+    "consent_failed": "Xác minh không thành công: {{message}}",
+    "consent_verified_explain": "Bạn đã ghi lại tuyên bố đồng ý vào _V_0__. Việc thu hồi sẽ xóa bản ghi và trạng thái đã xác minh.",
+    "consent_revoke": "Thu hồi",
+    "consent_revoke_confirm": "Thu hồi xác minh quyền sở hữu giọng nói? Bản ghi sự đồng ý sẽ bị xóa và các tính năng của nhân viên hỗ trợ sẽ không thể sử dụng giọng nói này nữa.",
+    "consent_revoked": "Đã thu hồi xác minh"
   },
   "dub": {
     "transcribe": "Phiên âm",
@@ -712,7 +805,12 @@
     "pipeline": "Quy trình lồng tiếng",
     "preview_language": "Ngôn ngữ xem trước",
     "target_language": "Lồng tiếng sang",
-    "transcript_after_extract": "Bản chép lời sẽ xuất hiện sau khi trích xuất."
+    "transcript_after_extract": "Bản chép lời sẽ xuất hiện sau khi trích xuất.",
+    "qc_btn": "Xác minh thời gian lồng tiếng (kiểm tra lần thứ hai)",
+    "qc_running": "Đang kiểm tra thời gian lồng tiếng…",
+    "qc_result": "{{flagged}} trong số {{total}} dòng có thể cần nghe lại",
+    "qc_clean": "Tất cả các dòng {{total}} đều khớp với tập lệnh",
+    "qc_failed": "Kiểm tra thời gian không thành công: {{message}}"
   },
   "glossary": {
     "title": "Thuật ngữ",
@@ -797,7 +895,9 @@
     "fit_stretched_title": "Chế độ Kéo dài video: video của phân đoạn này được giảm tốc độ xuống {{ratio}}× để phù hợp với âm thanh lồng tiếng tự nhiên.",
     "fit_compressed_title": "Âm thanh TTS chiếm {{pct}}% dung lượng khe — bị nén rất nhiều.",
     "fit_audio_title": "Âm thanh vừa vặn bên trong khe cắm.",
-    "fit_ratio_title": "Âm thanh TTS chiếm {{pct}}% dung lượng khe."
+    "fit_ratio_title": "Âm thanh TTS chiếm {{pct}}% dung lượng khe.",
+    "qc_verify": "Xác minh",
+    "qc_verify_title": "Đã nghe thấy ASR vượt qua lần thứ hai: \"{{heard}}\" — nghe lại hoặc lồng tiếng lại dòng này."
   },
   "timeline": {
     "track_label": "Dòng thời gian phân đoạn",
@@ -872,7 +972,16 @@
     "export": "Xuất khẩu",
     "transcription": "Phiên âm",
     "designed_voice": "Giọng nói được thiết kế",
-    "cloned_voice": "Giọng nói nhân bản"
+    "cloned_voice": "Giọng nói nhân bản",
+    "stories": "Truyện",
+    "untitled_story": "Truyện không tên",
+    "story_lines": "dòng {{count}}",
+    "story_lines_plural": "{{count}} dòng",
+    "story_voices": "_V_0__ giọng nói",
+    "story_voices_plural": "{{count}} giọng nói",
+    "audiobooks": "Sách nói",
+    "audiobook": "Sách nói",
+    "story": "Câu chuyện"
   },
   "batch": {
     "title": "Lồng tiếng hàng loạt",
@@ -975,7 +1084,12 @@
     "submit_failed": "Không thể mở biểu mẫu gửi.",
     "submit_preset": "Gửi cài đặt trước",
     "submit_voice": "Gửi giọng nói",
-    "zone_community": "Cộng đồng"
+    "zone_community": "Cộng đồng",
+    "import_persona": "Nhập gói cá nhân .ovsvoice",
+    "persona_imported": "Đã nhập \"{{name}}\"{{unverified}}.",
+    "persona_unverified_suffix": "(chưa được xác minh)",
+    "persona_too_large": "Gói đó quá lớn (tối đa 100 MB).",
+    "persona_import_failed": "Không thể nhập gói cá nhân đó."
   },
   "transcriptions": {
     "title": "Phiên âm",
@@ -1030,7 +1144,8 @@
     "try_dictation": "Thử đọc chính tả",
     "next_try_dictation": "Tiếp theo: Thử đọc chính tả",
     "step_aria": "Bước {{num}}: {{label}}",
-    "step_completed": "đã hoàn thành"
+    "step_completed": "đã hoàn thành",
+    "cache_label": "Bộ đệm mô hình"
   },
   "donate": {
     "title": "Hỗ trợ",
@@ -1043,7 +1158,34 @@
     "platforms": "Nền tảng",
     "footer": "Mọi đóng góp đều giúp mở rộng ranh giới của AI địa phương.",
     "back": "Quay lại Studio",
-    "commercial": "Giấy phép thương mại"
+    "commercial": "Giấy phép thương mại",
+    "pill": "Hỗ trợ OmniVoice",
+    "suggested_title": "Chọn một số tiền",
+    "most_common": "phổ biến nhất",
+    "custom": "tùy chỉnh",
+    "choose_method": "Chọn cách cho đi",
+    "choose_method_amount": "Tiếp tục với ${{amount}}",
+    "goal": {
+      "title": "Quỹ Claude Max",
+      "of": "của",
+      "per_month": "/ tháng",
+      "aria": "{{raised}} trong số {{goal}} mục tiêu hàng tháng",
+      "remaining": "{{amount}} đi",
+      "met": "🎉 Đã đạt mục tiêu — {{raised}} tăng lên. Cảm ơn!",
+      "social_proof": "Tham gia cùng những người ủng hộ {{count}} tài trợ cho AI địa phương"
+    },
+    "postcard": {
+      "title": "Quỹ Claude Max",
+      "lead_default": "Vui mừng vì nó đã hiệu quả! OmniVoice là miễn phí và hoàn toàn cục bộ. Nếu việc này giúp bạn tiết kiệm thời gian, một khoản chip-in nhỏ hàng tháng sẽ tài trợ cho Claude Max đằng sau nó.",
+      "lead_first_clone": "Bản sao giọng nói đầu tiên của bạn đã hoàn tất - thật tuyệt! OmniVoice chạy hoàn toàn trên máy của bạn và bộ phận hỗ trợ của bạn sẽ duy trì hoạt động đó.",
+      "lead_tenth_dub": "Mười bản lồng tiếng - rõ ràng bạn đang thực hiện nó. Một khoản chip-in nhỏ hàng tháng sẽ tài trợ cho Claude Max cung cấp các tính năng này.",
+      "lead_sustained": "Bạn đã sử dụng OmniVoice được một tháng. Nếu nó giành được một vị trí trong quy trình làm việc của bạn, hãy cân nhắc việc hỗ trợ tài trợ cho những gì tiếp theo.",
+      "chip_in": "Chip vào",
+      "later": "Có lẽ sau này",
+      "star": "Sao trên GitHub",
+      "opt_out": "Đừng hỏi lại",
+      "dismiss_aria": "Loại bỏ"
+    }
   },
   "enterprise": {
     "title": "Giấy phép thương mại",
@@ -1072,7 +1214,9 @@
     "benefit_source_desc": "Hiển thị đầy đủ vào ngăn xếp. Kiểm tra, phân nhánh và điều chỉnh theo các điều khoản cấp phép.",
     "benefit_lang": "646 ngôn ngữ",
     "benefit_lang_desc": "Phiên âm, dịch và lồng tiếng trên 646 ngôn ngữ với chất lượng ngang tầm con người.",
-    "hero_note": "Sử dụng, tự lưu trữ và dùng cho mục đích thương mại đều miễn phí theo AGPL-3.0 — kể cả ở quy mô lớn. AGPL là giấy phép copyleft qua mạng: nếu bạn chỉnh sửa OmniVoice và cung cấp phiên bản chỉnh sửa đó cho người khác qua mạng, bạn phải chia sẻ mã nguồn đã chỉnh sửa theo cùng điều khoản. Giấy phép thương mại sẽ gỡ bỏ các nghĩa vụ copyleft này cho các triển khai độc quyền, mã nguồn đóng. Các gói giá sẽ sớm ra mắt — trong lúc đó hãy liên hệ với chúng tôi."
+    "hero_note": "Sử dụng, tự lưu trữ và dùng cho mục đích thương mại đều miễn phí theo AGPL-3.0 — kể cả ở quy mô lớn. AGPL là giấy phép copyleft qua mạng: nếu bạn chỉnh sửa OmniVoice và cung cấp phiên bản chỉnh sửa đó cho người khác qua mạng, bạn phải chia sẻ mã nguồn đã chỉnh sửa theo cùng điều khoản. Giấy phép thương mại sẽ gỡ bỏ các nghĩa vụ copyleft này cho các triển khai độc quyền, mã nguồn đóng. Các gói giá sẽ sớm ra mắt — trong lúc đó hãy liên hệ với chúng tôi.",
+    "hero_simple": "OmniVoice Studio là nguồn mở và miễn phí theo AGPL-3.0 — bao gồm cả mục đích sử dụng cho mục đích thương mại và nội bộ doanh nghiệp. Bạn chỉ cần giấy phép thương mại để nhúng nó vào sản phẩm nguồn đóng mà không có nghĩa vụ về bản quyền của AGPL.",
+    "contact_lead": "Giá được báo cho mỗi lần triển khai để phù hợp với nhóm và khối lượng công việc của bạn. Hãy cho tôi biết trường hợp sử dụng của bạn và tôi sẽ nhận được báo giá cho bạn."
   },
   "exportModal": {
     "export": "Xuất khẩu",
@@ -1358,7 +1502,9 @@
     "save_label": "Lưu",
     "lock_identity": "Khóa nhận dạng giọng nói",
     "in_folder": "trong {{folder}}",
-    "search": "Tìm kiếm…"
+    "search": "Tìm kiếm…",
+    "rename": "Đổi tên",
+    "rename_save": "Lưu tên"
   },
   "trimmer": {
     "title": "Cắt âm thanh tham chiếu",
@@ -1487,7 +1633,11 @@
     "loading_badge": "Đang tải…",
     "idle_badge": "Nhàn rỗi",
     "started_downloading_required_one": "Đã bắt đầu tải xuống mô hình bắt buộc _V_0__",
-    "started_downloading_required_other": "Đã bắt đầu tải xuống _V_0__ các mẫu được yêu cầu"
+    "started_downloading_required_other": "Đã bắt đầu tải xuống _V_0__ các mẫu được yêu cầu",
+    "to_download": "để tải xuống",
+    "cached": "được lưu vào bộ nhớ đệm",
+    "fast_download_badge": "tải xuống nhanh",
+    "fast_download_title": "Tải xuống nhanh qua Xet {{version}} — truyền tải song song"
   },
   "enterprise_faq": {
     "q_internal_tools": "Tôi có cần giấy phép cho các công cụ nội bộ không?",
@@ -1553,7 +1703,8 @@
     "delete_history_confirm": "Xóa mục lịch sử này?",
     "history_deleted": "Mục lịch sử đã bị xóa",
     "restored_state": "Đã khôi phục trạng thái thế hệ trước",
-    "upgrading_preview": "Đang nâng cấp _V_0__ phân đoạn chất lượng xem trước lên chất lượng đầy đủ…"
+    "upgrading_preview": "Đang nâng cấp _V_0__ phân đoạn chất lượng xem trước lên chất lượng đầy đủ…",
+    "session_expired": "Phiên lồng tiếng này đã hết hạn hoặc đã bị xóa - hãy tải lại video của bạn lên để bắt đầu một video mới."
   },
   "tts_errors": {
     "enter_text": "Vui lòng nhập văn bản",
@@ -1749,7 +1900,15 @@
     "hf_token_save": "Lưu",
     "hf_token_saving": "đang lưu…",
     "hf_token_saved": "Đã lưu token Hugging Face",
-    "hf_token_error": "Không thể lưu token — thử lại hoặc đặt sau trong Cài đặt → Thông tin xác thực."
+    "hf_token_error": "Không thể lưu token — thử lại hoặc đặt sau trong Cài đặt → Thông tin xác thực.",
+    "chip_recommended": "đề nghị",
+    "size_left": "{{size}} còn lại",
+    "hf_token_card_title": "Thêm mã thông báo Ôm Mặt miễn phí để tải xuống nhanh hơn",
+    "hf_token_get": "Bạn không có mã thông báo? Nhận một cái miễn phí →",
+    "hf_token_saved_fast": "Đã lưu mã thông báo Ôm Mặt - tải xuống hiện nhanh hơn",
+    "hf_token_inline_prompt": "Tăng tốc độ tải xuống với mã thông báo Ôm mặt miễn phí",
+    "hf_token_inline_ph": "Dán mã thông báo hf_… (tùy chọn)",
+    "hf_token_get_short": "Nhận một cái miễn phí →"
   },
   "history": {
     "dub_title": "Lịch sử lồng tiếng",
@@ -1761,5 +1920,163 @@
     "cleaned_loaded": "Đã làm sạch và tải bản ghi âm!",
     "loaded_raw": "Đã tải bản ghi âm (thô — không có khử nhiễu)",
     "too_short": "Bản ghi âm quá ngắn"
+  },
+  "pronunciation": {
+    "title": "Từ điển phát âm",
+    "help": "Dạy động cơ cách nói những từ khó. Mỗi mục thay thế một từ bằng cách viết lại trước khi tổng hợp, vì vậy nó áp dụng trên mọi công cụ. Phạm vi một mục nhập cho một ngôn ngữ hoặc để nó Toàn cầu. Trong dòng, [[word|respelling]] ghi đè từ điển một lần.",
+    "term": "kỳ hạn",
+    "term_placeholder": "từ hoặc cụm từ (ví dụ: GIF)",
+    "replacement": "thay thế",
+    "replacement_placeholder": "đánh vần lại (ví dụ: jiff)",
+    "scope": "Phạm vi",
+    "global": "Toàn cầu",
+    "type": "Loại",
+    "type_respelling": "Đánh vần lại",
+    "type_ipa": "IPA",
+    "type_cmu": "CMU",
+    "enabled": "Đã bật",
+    "add": "Thêm mục",
+    "remove": "Xóa {{term}}",
+    "empty": "Chưa có mục nào. Thêm một từ ở trên để sửa một từ phát âm sai.",
+    "test_label": "Kiểm tra một câu",
+    "test_placeholder": "Nhập một câu để xem trước sự thay thế…",
+    "test_result": "Sẽ được nói như:",
+    "test_nochange": "Không có mục nào khớp - nói như viết.",
+    "load_error": "Không thể tải từ điển phát âm.",
+    "save_error": "Không thể lưu mục đó.",
+    "lang_label": "Mã ngôn ngữ (ví dụ: en, de) hoặc để trống cho Toàn cầu"
+  },
+  "audiobook": {
+    "title": "Sách nói",
+    "subtitle": "Biến tập lệnh được phân cách theo chương thành sách nói m4b được chia theo chương.",
+    "script": "kịch bản",
+    "script_placeholder": "# Chương Một\nNgày xửa ngày xưa… [tạm dừng 500ms] đoạn cuối.\n\n# Chương hai\n[giọng:người kể chuyện] Và cứ thế mọi chuyện tiếp tục.",
+    "default_voice": "Giọng nói mặc định",
+    "engine_default": "Mặc định công cụ",
+    "preview_plan": "Xem trước kế hoạch",
+    "create": "Tạo sách nói",
+    "plan_heading": "Kế hoạch — {{count}} chương",
+    "chapter_meta": "{{spans}} khoảng · {{chars}} ký tự",
+    "synthesizing": "Tổng hợp chương {{current}} của {{total}} {{title}}",
+    "assembling": "Đang lắp ráp sách nói…",
+    "ready": "Sách nói đã sẵn sàng",
+    "download": "Tải xuống",
+    "format": "định dạng",
+    "format_m4b": "M4B (chương)",
+    "format_mp3": "MP3",
+    "loudness": "Độ ồn",
+    "loudness_off": "Độ ồn: tắt",
+    "loudness_acx": "Chuẩn hóa (ACX)",
+    "loudness_podcast": "Bình thường hóa (podcast)",
+    "details": "Bìa & chi tiết",
+    "cover": "Bìa",
+    "cover_add": "Thêm bìa",
+    "cover_remove": "Tháo nắp",
+    "meta_title": "Tiêu đề",
+    "meta_author": "tác giả",
+    "meta_narrator": "Người kể chuyện",
+    "meta_year": "Năm",
+    "meta_genre": "Thể loại",
+    "meta_description": "Mô tả",
+    "preview_chapter": "Xem trước chương: {{title}}",
+    "cached_note": "Đã sử dụng lại {{count}} (các) chương đã được hiển thị.",
+    "failed_note": "{{count}} chương không thành công — hãy nhấp vào Tạo lại để thử lại những chương đó.",
+    "import": "Nhập khẩu",
+    "import_failed": "Nhập không thành công: {{message}}",
+    "lexicon": "phát âm",
+    "lex_word": "từ",
+    "lex_say": "Nói như…",
+    "lex_add": "Thêm từ",
+    "lex_remove": "Xóa",
+    "markup_help": "Tham chiếu đánh dấu",
+    "markup_hint": "# Tiêu đề chương · [giọng nói:TÊN] chuyển giọng nói · [tạm dừng 500ms] / [tạm dừng 1 giây] · [chậm]…[/chậm] · [nhanh]…[/nhanh] · [nhấn mạnh]…[/nhấn mạnh] · [chính tả]…[/spell]"
+  },
+  "voicePanel": {
+    "title": "Giọng nói",
+    "subtitle": "Đọc chính tả từ giọng nói thành văn bản cục bộ bằng các mẫu trên thiết bị.",
+    "enable_label": "Bật Đọc chính tả bằng giọng nói",
+    "enable_sub": "Nhấn {{shortcut}} để đọc chính tả văn bản vào bất kỳ ngăn có tiêu điểm nào.",
+    "mode_label": "Chế độ đọc chính tả",
+    "mode_sub": "Chuyển đổi: nhấn một lần để bắt đầu, một lần nữa để dừng. Giữ: ra lệnh trong khi phím được giữ.",
+    "mode_toggle": "Chuyển đổi",
+    "mode_hold": "Giữ",
+    "model_label": "Mẫu lời nói",
+    "model_sub": "Chọn kiểu máy trên thiết bị dùng để đọc chính tả.",
+    "badge_offline": "ngoại tuyến",
+    "badge_streaming": "phát trực tuyến",
+    "badge_recommended": "đề nghị",
+    "download_model": "Tải xuống mô hình",
+    "delete_model": "Xóa mô hình",
+    "downloading": "Đang tải xuống…",
+    "downloading_pct": "Đang tải xuống _V_0__%",
+    "delete_confirm": "Xóa mẫu giọng nói \"{{label}}\"? Bạn có thể tải lại nó sau.",
+    "delete_confirm_title": "Xóa mẫu giọng nói",
+    "engine_unavailable": "Công cụ đọc chính tả trực tiếp không khả dụng trên bản cài đặt này. Đọc chính tả quay trở lại đường dẫn phiên âm tiêu chuẩn.",
+    "model_desc": {
+      "sherpa-parakeet-tdt-v3": "Khuyến nghị. Đọc chính tả nhanh, chính xác trên 25 ngôn ngữ Châu Âu.",
+      "sherpa-parakeet-tdt-v2": "Đọc chính tả chỉ bằng tiếng Anh nhanh chóng, chính xác.",
+      "sherpa-zipformer-bilingual-zh-en": "Truyền phát tiếng Trung + tiếng Anh với các phần trực tiếp.",
+      "sherpa-paraformer-bilingual-zh-en": "Truyền phát tiếng Trung + tiếng Anh, model nhỏ gọn.",
+      "sherpa-zipformer-en-20m": "Mô hình phát trực tuyến nhỏ bằng tiếng Anh — độ trễ thấp nhất.",
+      "sherpa-zipformer-zh-14m": "Mô hình phát trực tuyến nhỏ của Trung Quốc — độ trễ thấp nhất.",
+      "sherpa-whisper-tiny": "Đa ngôn ngữ (hơn 90 ngôn ngữ) với tính năng tự động phát hiện ngôn ngữ."
+    }
+  },
+  "profiles": {
+    "need_name_audio": "Cần tên và âm thanh tham khảo",
+    "synthesizing_preview": "Đang tổng hợp bản xem trước cho {{name}}...",
+    "synthesizing_segment": "Tổng hợp phân đoạn...",
+    "preview_ready": "Xem trước đã sẵn sàng!",
+    "playback_failed": "Phát lại không thành công",
+    "preview_failed": "Xem trước không thành công: {{message}}",
+    "saved": "Giọng nói được lưu vào hồ sơ!",
+    "save_failed": "Không lưu được hồ sơ giọng nói",
+    "locked": "Giọng nói bị khóa! Bản sắc bây giờ nhất quán qua tất cả các thế hệ.",
+    "lock_failed": "Không khóa được hồ sơ",
+    "unlocked": "Đã mở khóa bằng giọng nói. Các thế hệ sẽ lại khác nhau.",
+    "unlock_failed": "Không thể mở khóa hồ sơ"
+  },
+  "transcriptionPicker": {
+    "title": "Nhập từ bản chép lời",
+    "search_placeholder": "Tìm kiếm bản chép lời…",
+    "empty": "Chưa có phiên âm nào. Ghi lại một bản ghi trong tab Bản ghi.",
+    "empty_search": "Không có phiên âm nào phù hợp với tìm kiếm của bạn."
+  },
+  "waveform": {
+    "source_missing": "Thiếu phương tiện nguồn — tệp này có thể đã bị di chuyển hoặc bị xóa. Tải lại video lên để tiếp tục.",
+    "load_failed": "Không thể tải âm thanh từ tệp này"
+  },
+  "tts": {
+    "routingFallback": "Chạy trên CPU - công cụ này không có đường dẫn GPU trên máy của bạn, do đó quá trình tạo sẽ chậm hơn. {{reason}}",
+    "routingCaveat": "Sử dụng GPU nhưng: {{reason}}"
+  },
+  "voiceSelector": {
+    "engineDefault": "Mặc định công cụ",
+    "clone": "Giọng nói nhân bản",
+    "designed": "Giọng nói được thiết kế",
+    "presets": "cài đặt trước",
+    "fromVideo": "Từ video",
+    "missingVoice": "Không tìm thấy giọng nói (chọn lại)",
+    "preview": "Xem trước giọng nói",
+    "openGallery": "Mở trong Thư viện giọng nói",
+    "createVoice": "Tạo một giọng nói mới"
+  },
+  "remote_gate": {
+    "title": "Nhập mã PIN truy cập",
+    "body": "Phiên bản OmniVoice này được chia sẻ trên mạng. Nhập mã PIN hiển thị trên máy chủ.",
+    "label": "Mã PIN truy cập",
+    "connect": "Kết nối"
+  },
+  "contact": {
+    "hero_title": "Hãy liên lạc",
+    "hero_desc": "Các câu hỏi, lỗi, giấy phép hoặc chỉ để chào hỏi — đây là cách liên hệ với tôi.",
+    "discord": "Bất hòa",
+    "discord_desc": "Trò chuyện với cộng đồng và nhận trợ giúp nhanh chóng.",
+    "email": "Email",
+    "email_desc": "Cấp phép, hợp tác hoặc bất cứ điều gì riêng tư.",
+    "issues": "Sự cố GitHub",
+    "issues_desc": "Báo cáo lỗi hoặc yêu cầu một tính năng.",
+    "website": "Trang web",
+    "website_desc": "Thông tin thêm về dự án và nhà sản xuất."
   }
 }

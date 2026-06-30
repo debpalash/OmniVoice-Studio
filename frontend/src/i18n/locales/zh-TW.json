@@ -11,7 +11,9 @@
     "omnidrive": "全方位驅動器",
     "move_rail_right": "將軌道移至右側",
     "move_rail_left": "將導軌移至左側",
-    "flip_rail": "翻轉導軌側"
+    "flip_rail": "翻轉導軌側",
+    "voice": "語音",
+    "audiobook": "有聲書"
   },
   "settings": {
     "general": "一般",
@@ -83,7 +85,53 @@
     "hf_token_input": "HuggingFace 代幣",
     "hf_token_sources": "HF 代幣來源",
     "hf_token_test_now": "立即測試",
-    "hf_token_test_now_title": "對每個來源重新執行 whoami"
+    "hf_token_test_now_title": "對每個來源重新執行 whoami",
+    "color_theme": "色彩主題",
+    "font": "字體",
+    "autoplay_preview": "自動播放預覽",
+    "autoplay_preview_label": "渲染完成後立即播放輸出",
+    "autoplay_preview_hint": "關閉後，完成的渲染不再自行開始播放 - 在批量生成片段時很有用。",
+    "appearance_help": "這些控制項曾經位於底部日誌欄中 - 移動到此處，以便頁腳可以集中在日誌上。變更會立即套用並在發布後持續存在。",
+    "advanced": "進階",
+    "shortcut": "聽寫快捷鍵",
+    "credentials_desc": "為此會話設定的 API 金鑰和令牌。",
+    "credentials_more": "更多提供者",
+    "group_general": "一般",
+    "group_voice": "語音和引擎",
+    "group_system": "系統",
+    "group_app": "應用程式",
+    "search_placeholder": "搜尋設定...",
+    "restart_required": "需要重新啟動",
+    "applies_now": "現在適用",
+    "dictation": "聽寫",
+    "pronunciation": "發音",
+    "translation": "翻譯",
+    "network": "網路",
+    "performance": "性能與設備",
+    "storage": "儲存",
+    "device": "設備和計算",
+    "device_desc": "即時硬體和後端讀數。",
+    "network_desc": "用於下載和媒體處理的代理程式和 FFmpeg 路徑。",
+    "translation_desc": "配音如何翻譯對話，以及由哪個引擎執行。",
+    "translate_quality": "翻譯品質",
+    "translate_quality_desc": "快，字面上的意思就是快； Cinematic 使用 LLM 來實現自然的措辭。",
+    "translate_fast": "快",
+    "translate_cinematic": "電影般的",
+    "translation_providers": "翻譯提供者",
+    "translation_providers_desc": "為此會話設定的線上翻譯器的 API 金鑰。",
+    "review_mode": "複習模式",
+    "review_mode_desc": "在管道階段之間暫停，以便您可以查看 ASR/翻譯輸出。",
+    "header_live_stats": "在標題中顯示即時系統指標",
+    "header_live_stats_desc": "在頂部欄位新增即時 RAM/CPU/VRAM 監視器（預設為關閉）。",
+    "storage_desc": "OmniVoice 保存您的資料和輸出的地方。",
+    "factory_reset": "恢復出廠設定",
+    "factory_reset_desc": "將所有應用程式內首選項重設為預設值。您的文件保持不變。",
+    "factory_reset_body": "清除本機儲存的設定（主題、語言、配音旋鈕、圖庫收藏夾和其他 UI 首選項）。它不會刪除磁碟上的聲音、項目或產生的音訊。",
+    "factory_reset_confirm_title": "重置偏好設定？",
+    "factory_reset_confirm": "重置並重新加載",
+    "factory_reset_confirm_body": "這將清除所有已儲存的 UI 首選項並重新載入應用程式。您在磁碟上的聲音、專案和輸出不受影響。繼續？",
+    "factory_reset_done": "偏好設定已清除 - 正在重新載入...",
+    "factory_reset_failed": "重置失敗"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -123,7 +171,9 @@
     "hint_port": "連接埠 3900 已被佔用。請關閉其他 OmniVoice 實例或佔用該連接埠的應用程式。",
     "hint_silent_crash": "後端在沒有錯誤訊息的情況下當機。「清理並重試」通常能解決 venv 損壞的問題。",
     "hint_github_blocked": "您的網路可能封鎖了 GitHub。請從 python.org 安裝 Python 3.11+(加入 PATH)後重新啟動,或設定 UV_PYTHON_INSTALL_MIRROR — 參見 docs/install/troubleshooting.md。",
-    "hint_default": "請先嘗試「重試」。若再次失敗,「清理並重試」會從頭重建執行環境。"
+    "hint_default": "請先嘗試「重試」。若再次失敗,「清理並重試」會從頭重建執行環境。",
+    "hint_stuck": "後端沒有啟動完成。從原始程式碼中，首先執行“uvsync”並確保“uv”和Python位於您的路徑上，然後再試一次。檢查下面的日誌（或設定 → 日誌 → 後端）以了解確切的停頓點。",
+    "lines": "{{count}} 行"
   },
   "stories": {
     "title": "故事編輯器",
@@ -193,7 +243,9 @@
     "minutes": "~{{count}} 分鐘",
     "chars": "{{count}} 字符",
     "exportDone": "有聲書已下載",
-    "exportFailed": "匯出失敗 — 檢查後端是否正在運作。"
+    "exportFailed": "匯出失敗 — 檢查後端是否正在運作。",
+    "global_speed": "速度",
+    "global_speed_hint": "所有線路的讀取速度，沒有自己的速度覆蓋"
   },
   "common": {
     "open": "打開",
@@ -222,7 +274,9 @@
     "popular_label": "熱門",
     "showing_of": "顯示 {{total}} 的 {{shown}}。輸入搜尋...",
     "yes": "是的",
-    "no": "否"
+    "no": "否",
+    "more_info": "更多資訊",
+    "learn_more": "了解更多"
   },
   "launchpad": {
     "greeting": "你好",
@@ -253,7 +307,9 @@
     "transcripts_desc": "將音訊或視訊轉換為可編輯、可搜尋的文字 - 涵蓋 646 種語言。",
     "recent_files": "最近的文件",
     "view_all_files": "查看所有文件",
-    "file": "文件"
+    "file": "文件",
+    "audiobook_title": "有聲書",
+    "audiobook_desc": "將長腳本或 EPUB 轉換為分章有聲書 — 封面、元資料、一位旁白。"
   },
   "clone": {
     "prompt": "提示",
@@ -332,7 +388,12 @@
     "define_by_design": "以設計",
     "define_from_audio": "從音訊",
     "define_voice": "定義聲音",
-    "save_design_as_profile": "將設計另存為語音設定檔"
+    "save_design_as_profile": "將設計另存為語音設定檔",
+    "seed_label": "種子",
+    "seed_placeholder": "每次都是隨機的",
+    "seed_keep": "保留這個種子",
+    "seed_reroll": "新種子",
+    "seed_reroll_hint": "滾動一個新的隨機種子並保留它"
   },
   "about": {
     "app": "應用程式",
@@ -456,7 +517,14 @@
     "failed": "失敗了",
     "acceptLicense": "接受許可",
     "noBackends": "沒有註冊後端。",
-    "switch_failed": "切換引擎失敗"
+    "switch_failed": "切換引擎失敗",
+    "routingAccelerated": "GPU 活動",
+    "routingCpuFallback": "CPU 回退",
+    "routingCpuOnly": "中央處理器",
+    "routingRemote": "遠端",
+    "routingUnknown": "未知",
+    "routingEffectiveChip": "在此機器上的 {{device}} 上執行",
+    "routingCaveatTitle": "已選擇 GPU，但是：{{reason}}"
   },
   "capture": {
     "desc": "全域熱鍵僅適用於桌面應用程式。當視窗具有焦點時，Web UI 使用頁內 <1>Ctrl+Shift+Space</1> 快速鍵。",
@@ -519,7 +587,13 @@
     "log_copied": "已複製 {{source}} 日誌",
     "copy_failed": "複製失敗：{{message}}",
     "report_copied": "已複製診斷報告 — 將其貼上到 GitHub 問題中。",
-    "report_failed": "報告失敗：{{message}}"
+    "report_failed": "報告失敗：{{message}}",
+    "version_updates": "檢查更新",
+    "version_updates_aria": "開啟更新 — 應用程式版本 {{v}}",
+    "update_available": "可用更新 ({{version}}) — 按一下以更新",
+    "update_available_aria": "可用更新 ({{version}}) — 開放更新",
+    "contact": "聯絡方式",
+    "contact_aria": "開啟聯絡頁面"
   },
   "voice_profile": {
     "test_text": "你好——這是對這個聲音的測試。",
@@ -563,7 +637,26 @@
     "projects_count_one": "{{count}} 項目",
     "projects_count_other": "{{count}} 項目",
     "dubbed_segments_one": "{{count}} 配音片段",
-    "dubbed_segments_other": "{{count}} 配音片段"
+    "dubbed_segments_other": "{{count}} 配音片段",
+    "verified": "已驗證",
+    "persona_export": "匯出角色",
+    "persona_exporting": "塑造人物形象…",
+    "persona_exported": "角色導出",
+    "persona_export_no_audio": "該聲音沒有可讀的音訊來建立預覽。",
+    "persona_export_failed": "匯出失敗。",
+    "persona_include_ref": "包括語音片段",
+    "persona_include_ref_hint": "包括原始參考剪輯。關閉 = 僅共享帶浮水印的預覽（建議）。",
+    "consent_title": "語音所有權",
+    "consent_explain": "錄製您自己閱讀下面的聲明，以驗證這是您自己的聲音。代理特徵和社區共享需要驗證－本地綜合則不需要。",
+    "consent_statement": "我確認此語音設定檔是我自己的聲音，並且我同意 OmniVoice Studio 代表我克隆它。",
+    "consent_record": "記錄同意聲明",
+    "consent_stop": "停止錄音",
+    "consent_saved": "語音所有權已驗證",
+    "consent_failed": "驗證失敗：{{message}}",
+    "consent_verified_explain": "您在 {{date}} 上記錄了同意聲明。撤銷會刪除錄音和已驗證的狀態。",
+    "consent_revoke": "撤銷",
+    "consent_revoke_confirm": "撤銷語音所有權驗證？同意錄音將被刪除，代理功能將無法再使用此語音。",
+    "consent_revoked": "驗證已撤銷"
   },
   "dub": {
     "transcribe": "轉錄",
@@ -712,7 +805,12 @@
     "pipeline": "配音流程",
     "preview_language": "預覽語言",
     "target_language": "配音成",
-    "transcript_after_extract": "擷取完成後將顯示逐字稿。"
+    "transcript_after_extract": "擷取完成後將顯示逐字稿。",
+    "qc_btn": "驗證配音時序（第二遍檢視）",
+    "qc_running": "檢查配音時間...",
+    "qc_result": "{{flagged}} 行（共 {{total}} 行）可能需要重新聆聽",
+    "qc_clean": "所有 {{total}} 行都與腳本匹配",
+    "qc_failed": "計時檢查失敗：{{message}}"
   },
   "glossary": {
     "title": "詞彙表",
@@ -797,7 +895,9 @@
     "fit_stretched_title": "拉伸視訊模式：此片段的視訊速度減慢至 {{ratio}}× 以適應自然的配音音訊。",
     "fit_compressed_title": "TTS 音訊佔插槽的 {{pct}}% — 被嚴重壓縮。",
     "fit_audio_title": "音訊適合插槽內。",
-    "fit_ratio_title": "TTS 音訊佔插槽的 {{pct}}%。"
+    "fit_ratio_title": "TTS 音訊佔插槽的 {{pct}}%。",
+    "qc_verify": "驗證",
+    "qc_verify_title": "第二遍 ASR 聽到：「{{heard}}」 — 重新聆聽或重新配音此台詞。"
   },
   "timeline": {
     "track_label": "片段時間軸",
@@ -872,7 +972,16 @@
     "export": "出口",
     "transcription": "轉錄",
     "designed_voice": "設計的聲音",
-    "cloned_voice": "複製聲音"
+    "cloned_voice": "複製聲音",
+    "stories": "故事",
+    "untitled_story": "無題故事",
+    "story_lines": "{{count}} 線",
+    "story_lines_plural": "{{count}} 行",
+    "story_voices": "{{count}} 聲音",
+    "story_voices_plural": "{{count}} 聲音",
+    "audiobooks": "有聲書",
+    "audiobook": "有聲書",
+    "story": "故事"
   },
   "batch": {
     "title": "大量配音",
@@ -975,7 +1084,12 @@
     "submit_failed": "無法開啟投稿表單。",
     "submit_preset": "投稿預設",
     "submit_voice": "投稿語音",
-    "zone_community": "社群"
+    "zone_community": "社群",
+    "import_persona": "導入 .ovsvoice 角色包",
+    "persona_imported": "導入“{{name}}”{{unverified}}。",
+    "persona_unverified_suffix": "（未經驗證）",
+    "persona_too_large": "該捆綁包太大（最大 100 MB）。",
+    "persona_import_failed": "無法匯入該角色包。"
   },
   "transcriptions": {
     "title": "轉錄",
@@ -1030,7 +1144,8 @@
     "try_dictation": "試著聽寫",
     "next_try_dictation": "下一步：嘗試聽寫",
     "step_aria": "第 {{num}} 步:{{label}}",
-    "step_completed": "已完成"
+    "step_completed": "已完成",
+    "cache_label": "模型緩存"
   },
   "donate": {
     "title": "支援",
@@ -1043,7 +1158,34 @@
     "platforms": "平台",
     "footer": "每一項貢獻都有助於突破本地人工智慧的界限。",
     "back": "返回工作室",
-    "commercial": "商業許可"
+    "commercial": "商業許可",
+    "pill": "支持OmniVoice",
+    "suggested_title": "選擇金額",
+    "most_common": "最常見的",
+    "custom": "客製化",
+    "choose_method": "選擇如何給予",
+    "choose_method_amount": "繼續 ${{amount}}",
+    "goal": {
+      "title": "克勞德馬克斯基金",
+      "of": "的",
+      "per_month": "/月",
+      "aria": "{{raised}} 每月目標 {{goal}}",
+      "remaining": "{{amount}} 去",
+      "met": "🎉 目標達成 — {{raised}} 提高。謝謝你！",
+      "social_proof": "加入資助本地人工智慧的 {{count}} 支持者"
+    },
+    "postcard": {
+      "title": "克勞德馬克斯基金",
+      "lead_default": "很高興這有效！ OmniVoice 是免費的並且完全本地化。如果可以節省您的時間，每月只需投入一小筆資金即可資助其背後的 Claude Max。",
+      "lead_first_clone": "你的第一個聲音克隆已經完成——太好了！ OmniVoice 完全在您的電腦上運行，並且您的支援使其保持這種狀態。",
+      "lead_tenth_dub": "十次配音——你顯然正在讓它發揮作用。每月一小筆資金為 Claude Max 提供這些功能的資金。",
+      "lead_sustained": "您使用 OmniVoice 已經一個月了。如果它在您的工作流程中贏得了一席之地，請考慮幫助資助下一步的工作。",
+      "chip_in": "籌碼",
+      "later": "也許稍後",
+      "star": "在 GitHub 上加星標",
+      "opt_out": "不要再問",
+      "dismiss_aria": "解僱"
+    }
   },
   "enterprise": {
     "title": "商業許可",
@@ -1072,7 +1214,9 @@
     "benefit_source_desc": "對堆疊的完全可見性。在許可條款範圍內進行審核、分叉和調整。",
     "benefit_lang": "646 種語言",
     "benefit_lang_desc": "以人類層次的品質轉錄、翻譯和配音 646 種語言。",
-    "hero_note": "使用、自行架設與商業用途在 AGPL-3.0 下皆免費——包括大規模使用。AGPL 是網路著佐權授權條款：如果您修改 OmniVoice 並透過網路向他人提供該修改版本，就必須以相同條款公開您修改後的原始碼。商業授權可為專有閉源部署免除這些著佐權義務。定價方案即將推出——在此期間歡迎與我們聯繫。"
+    "hero_note": "使用、自行架設與商業用途在 AGPL-3.0 下皆免費——包括大規模使用。AGPL 是網路著佐權授權條款：如果您修改 OmniVoice 並透過網路向他人提供該修改版本，就必須以相同條款公開您修改後的原始碼。商業授權可為專有閉源部署免除這些著佐權義務。定價方案即將推出——在此期間歡迎與我們聯繫。",
+    "hero_simple": "OmniVoice Studio 在 AGPL-3.0 下是免費且開源的 — 包括商業和內部業務用途。您只需要商業許可即可將其嵌入閉源產品中，無需 AGPL 的 Copyleft 義務。",
+    "contact_lead": "定價按部署報價，因此適合您的團隊和工作負載。告訴我您的用例，我會給您報價。"
   },
   "exportModal": {
     "export": "出口",
@@ -1358,7 +1502,9 @@
     "save_label": "儲存",
     "lock_identity": "鎖定語音身份",
     "in_folder": "在 {{folder}} 中",
-    "search": "搜尋…"
+    "search": "搜尋…",
+    "rename": "重新命名",
+    "rename_save": "保存名稱"
   },
   "trimmer": {
     "title": "修剪參考音訊",
@@ -1487,7 +1633,11 @@
     "loading_badge": "加載中...",
     "idle_badge": "空閒",
     "started_downloading_required_one": "開始下載 {{count}} 所需模型",
-    "started_downloading_required_other": "開始下載 {{count}} 所需模型"
+    "started_downloading_required_other": "開始下載 {{count}} 所需模型",
+    "to_download": "下載",
+    "cached": "快取的",
+    "fast_download_badge": "快速下載",
+    "fast_download_title": "透過 Xet {{version}} 進行快速下載 — 平行分塊傳輸"
   },
   "enterprise_faq": {
     "q_internal_tools": "我需要內部工具的授權嗎？",
@@ -1553,7 +1703,8 @@
     "delete_history_confirm": "刪除該歷史記錄嗎？",
     "history_deleted": "歷史記錄項目已刪除",
     "restored_state": "恢復了上一代狀態",
-    "upgrading_preview": "正在將 {{count}} 預覽品質片段升級為完整品質…"
+    "upgrading_preview": "正在將 {{count}} 預覽品質片段升級為完整品質…",
+    "session_expired": "此配音會話已過期或已清理 - 重新上傳您的影片以開始新的影片。"
   },
   "tts_errors": {
     "enter_text": "請輸入文字",
@@ -1749,7 +1900,15 @@
     "hf_token_save": "儲存",
     "hf_token_saving": "儲存中…",
     "hf_token_saved": "Hugging Face 權杖已儲存",
-    "hf_token_error": "權杖儲存失敗——請重試，或稍後在設定 → 憑證中設定。"
+    "hf_token_error": "權杖儲存失敗——請重試，或稍後在設定 → 憑證中設定。",
+    "chip_recommended": "推薦",
+    "size_left": "{{size}} 左",
+    "hf_token_card_title": "添加免費的 Hugging Face 令牌以加快下載速度",
+    "hf_token_get": "沒有令牌？免費獲得一份 →",
+    "hf_token_saved_fast": "擁抱臉部令牌已儲存 — 下載速度更快",
+    "hf_token_inline_prompt": "使用免費的 Hugging Face 令牌加快下載速度",
+    "hf_token_inline_ph": "貼上 hf_… 令牌（可選）",
+    "hf_token_get_short": "免費獲得一份 →"
   },
   "history": {
     "dub_title": "配音歷史",
@@ -1761,5 +1920,163 @@
     "cleaned_loaded": "錄音已清理並載入！",
     "loaded_raw": "錄音已載入（原始 — 無法降噪）",
     "too_short": "錄音太短"
+  },
+  "pronunciation": {
+    "title": "發音字典",
+    "help": "教引擎如何說出棘手的單字。每個條目在合成之前都會用重新拼寫替換一個單詞，因此它適用於每個引擎。將條目範圍限定為一種語言或將其保留為全域。內聯，[[word|respelling]] 覆蓋字典一次。",
+    "term": "期限",
+    "term_placeholder": "單字或片語（例如 GIF）",
+    "replacement": "更換",
+    "replacement_placeholder": "重新拼字（例如 jiff）",
+    "scope": "適用範圍",
+    "global": "全球",
+    "type": "類型",
+    "type_respelling": "重新拼字",
+    "type_ipa": "異丙醇",
+    "type_cmu": "卡內基梅隆大學",
+    "enabled": "啟用",
+    "add": "新增條目",
+    "remove": "刪除 {{term}}",
+    "empty": "還沒有條目。在上面添加一個以糾正發音錯誤的單字。",
+    "test_label": "測試一個句子",
+    "test_placeholder": "輸入一個句子來預覽替換...",
+    "test_result": "將被說成：",
+    "test_nochange": "沒有符合的條目 — 口頭與書面一致。",
+    "load_error": "無法載入發音字典。",
+    "save_error": "無法儲存該條目。",
+    "lang_label": "語言代碼（例如 en、de）或留空表示全球"
+  },
+  "audiobook": {
+    "title": "有聲書",
+    "subtitle": "將章節分隔的腳本轉換為章節化的 m4b 有聲書。",
+    "script": "腳本",
+    "script_placeholder": "#第一章\n從前…[停頓 500 毫秒]結束。\n\n# 第二章\n[聲音：旁白] 就這樣繼續下去。",
+    "default_voice": "預設語音",
+    "engine_default": "引擎預設",
+    "preview_plan": "預覽計劃",
+    "create": "創建有聲讀物",
+    "plan_heading": "計劃 — {{count}} 章",
+    "chapter_meta": "{{spans}} 跨距 · {{chars}} 字符",
+    "synthesizing": "綜合 {{total}} {{title}} 的第 {{current}} 章",
+    "assembling": "正在組裝有聲書...",
+    "ready": "有聲書準備就緒",
+    "download": "下載",
+    "format": "格式",
+    "format_m4b": "M4B（章節）",
+    "format_mp3": "MP3",
+    "loudness": "響度",
+    "loudness_off": "響度：關",
+    "loudness_acx": "標準化 (ACX)",
+    "loudness_podcast": "規範化（播客）",
+    "details": "封面及細節",
+    "cover": "封面",
+    "cover_add": "新增封面",
+    "cover_remove": "取下蓋子",
+    "meta_title": "標題",
+    "meta_author": "作者",
+    "meta_narrator": "旁白",
+    "meta_year": "年份",
+    "meta_genre": "流派",
+    "meta_description": "描述",
+    "preview_chapter": "預覽章節：{{title}}",
+    "cached_note": "重用了 {{count}} 已渲染的章節。",
+    "failed_note": "{{count}} 章節失敗 - 再次按一下「建立」以重試這些章節。",
+    "import": "進口",
+    "import_failed": "導入失敗：{{message}}",
+    "lexicon": "發音",
+    "lex_word": "字",
+    "lex_say": "說成...",
+    "lex_add": "添加單字",
+    "lex_remove": "刪除",
+    "markup_help": "標記參考",
+    "markup_hint": "# 章節標題 · [語音:NAME] 切換語音 · [暫停 500 毫秒] / [暫停 1 秒] · [慢]…[/慢] · [快]…[/快] · [強調]…[/強調] · [拼字]…[/拼字]"
+  },
+  "voicePanel": {
+    "title": "語音",
+    "subtitle": "使用裝置上模型進行本地語音到文字聽寫。",
+    "enable_label": "啟用語音聽寫",
+    "enable_sub": "按 {{shortcut}} 將文字聽寫到任何焦點窗格中。",
+    "mode_label": "聽寫模式",
+    "mode_sub": "切換：按一次啟動，再按一次停止。按住：按住按鍵時聽寫。",
+    "mode_toggle": "切換",
+    "mode_hold": "保持",
+    "model_label": "語音模型",
+    "model_sub": "選擇用於聽寫的設備上型號。",
+    "badge_offline": "離線",
+    "badge_streaming": "串流媒體",
+    "badge_recommended": "推薦",
+    "download_model": "下載模型",
+    "delete_model": "刪除模型",
+    "downloading": "正在下載...",
+    "downloading_pct": "正在下載 {{pct}}%",
+    "delete_confirm": "刪除“{{label}}”語音模型？您可以稍後重新下載。",
+    "delete_confirm_title": "刪除語音模型",
+    "engine_unavailable": "即時聽寫引擎在此安裝中不可用。聽寫回到標準轉錄路徑。",
+    "model_desc": {
+      "sherpa-parakeet-tdt-v3": "推薦。快速、準確地聽寫 25 種歐洲語言。",
+      "sherpa-parakeet-tdt-v2": "快速、準確的純英語聽寫。",
+      "sherpa-zipformer-bilingual-zh-en": "串流中文 + 英文，並附有現場部分內容。",
+      "sherpa-paraformer-bilingual-zh-en": "串流中文+英文，緊湊型。",
+      "sherpa-zipformer-en-20m": "小型串流英文模型 — 最低延遲。",
+      "sherpa-zipformer-zh-14m": "小型串流媒體中國模型—最低延遲。",
+      "sherpa-whisper-tiny": "具有自動語言偵測功能的多語言（90 多種語言）。"
+    }
+  },
+  "profiles": {
+    "need_name_audio": "需要名稱和參考音頻",
+    "synthesizing_preview": "正在合成 {{name}} 的預覽...",
+    "synthesizing_segment": "合成段...",
+    "preview_ready": "預覽準備好了！",
+    "playback_failed": "播放失敗",
+    "preview_failed": "預覽失敗：{{message}}",
+    "saved": "語音已儲存到個人資料中！",
+    "save_failed": "儲存語音設定檔失敗",
+    "locked": "語音鎖定！現在，各代的身份都是一致的。",
+    "lock_failed": "無法鎖定個人資料",
+    "unlocked": "語音解鎖。世代將再次改變。",
+    "unlock_failed": "無法解鎖個人資料"
+  },
+  "transcriptionPicker": {
+    "title": "從轉錄導入",
+    "search_placeholder": "搜尋轉錄...",
+    "empty": "還沒有轉錄。在“轉錄”選項卡中記錄一個。",
+    "empty_search": "沒有與您的搜尋相符的轉錄。"
+  },
+  "waveform": {
+    "source_missing": "來源媒體遺失 - 該檔案可能已移動或被刪除。重新上傳影片以繼續。",
+    "load_failed": "無法從此文件加載音頻"
+  },
+  "tts": {
+    "routingFallback": "在 CPU 上運作 — 引擎在您的電腦上沒有 GPU 路徑，因此產生速度會較慢。 {{reason}}",
+    "routingCaveat": "使用 GPU，但是：{{reason}}"
+  },
+  "voiceSelector": {
+    "engineDefault": "引擎預設",
+    "clone": "複製聲音",
+    "designed": "設計的聲音",
+    "presets": "預設",
+    "fromVideo": "來自視頻",
+    "missingVoice": "找不到語音（重新選擇）",
+    "preview": "預覽語音",
+    "openGallery": "在語音庫中打開",
+    "createVoice": "創造新聲音"
+  },
+  "remote_gate": {
+    "title": "輸入訪問 PIN 碼",
+    "body": "此 OmniVoice 實例在網路上共用。輸入主機上顯示的 PIN。",
+    "label": "訪問密碼",
+    "connect": "連接"
+  },
+  "contact": {
+    "hero_title": "聯絡我們",
+    "hero_desc": "如果有問題、錯誤、許可，或只是想打個招呼，請按以下方式與我聯絡。",
+    "discord": "不和諧",
+    "discord_desc": "與社群聊天並快速獲得幫助。",
+    "email": "電子郵件",
+    "email_desc": "許可、合作夥伴關係或任何私人的東西。",
+    "issues": "GitHub 問題",
+    "issues_desc": "報告錯誤或請求功能。",
+    "website": "網站",
+    "website_desc": "有關該項目和製造商的更多資訊。"
   }
 }

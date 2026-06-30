@@ -11,7 +11,9 @@
     "omnidrive": "OmniDrive",
     "move_rail_right": "Mover el carril hacia la derecha",
     "move_rail_left": "Mover el carril hacia la izquierda",
-    "flip_rail": "Lado del riel abatible"
+    "flip_rail": "Lado del riel abatible",
+    "voice": "Voz",
+    "audiobook": "Audiolibro"
   },
   "settings": {
     "general": "General",
@@ -83,7 +85,53 @@
     "hf_token_input": "Token de HuggingFace",
     "hf_token_sources": "Fuentes del token HF",
     "hf_token_test_now": "Probar ahora",
-    "hf_token_test_now_title": "Volver a ejecutar whoami para cada fuente"
+    "hf_token_test_now_title": "Volver a ejecutar whoami para cada fuente",
+    "color_theme": "Tema de color",
+    "font": "fuente",
+    "autoplay_preview": "Vista previa de reproducción automática",
+    "autoplay_preview_label": "Reproduzca la salida tan pronto como finalice el renderizado.",
+    "autoplay_preview_hint": "Cuando está desactivado, un renderizado terminado ya no comienza a reproducirse por sí solo, lo que resulta útil cuando se generan segmentos por lotes.",
+    "appearance_help": "Estos controles solían estar en la barra de registros inferior; se movieron aquí para que el pie de página pueda permanecer enfocado en los registros. Los cambios se aplican instantáneamente y persisten durante los lanzamientos.",
+    "advanced": "Avanzado",
+    "shortcut": "Atajo de dictado",
+    "credentials_desc": "Claves y tokens API configurados para esta sesión.",
+    "credentials_more": "Más proveedores",
+    "group_general": "generales",
+    "group_voice": "Voz y motores",
+    "group_system": "Sistema",
+    "group_app": "Aplicación",
+    "search_placeholder": "Configuración de búsqueda…",
+    "restart_required": "Reiniciar requerido",
+    "applies_now": "Aplica ahora",
+    "dictation": "Dictado",
+    "pronunciation": "Pronunciación",
+    "translation": "Traducción",
+    "network": "Red",
+    "performance": "Rendimiento y dispositivo",
+    "storage": "Almacenamiento",
+    "device": "Dispositivo y computación",
+    "device_desc": "Hardware en vivo y lecturas de backend.",
+    "network_desc": "Rutas de proxy y FFmpeg para descargas y procesamiento de medios.",
+    "translation_desc": "Cómo el doblaje traduce los diálogos y qué motor lo hace.",
+    "translate_quality": "Calidad de traducción",
+    "translate_quality_desc": "Rápido es literal y rápido; Cinematic utiliza el LLM para un fraseo natural.",
+    "translate_fast": "Rápido",
+    "translate_cinematic": "cinemático",
+    "translation_providers": "Proveedores de traducción",
+    "translation_providers_desc": "Claves API para traductores en línea, configuradas para esta sesión.",
+    "review_mode": "Modo de revisión",
+    "review_mode_desc": "Haga una pausa entre las etapas del proceso para que pueda revisar el resultado de ASR/traducción.",
+    "header_live_stats": "Mostrar métricas del sistema en vivo en el encabezado",
+    "header_live_stats_desc": "Agrega un monitor de RAM/CPU/VRAM en vivo a la barra superior (desactivado de forma predeterminada).",
+    "storage_desc": "Donde OmniVoice guarda sus datos y resultados.",
+    "factory_reset": "Restablecimiento de fábrica",
+    "factory_reset_desc": "Restablezca todas las preferencias de la aplicación a sus valores predeterminados. Tus archivos permanecen intactos.",
+    "factory_reset_body": "Borra las configuraciones guardadas localmente (tema, idioma, botones de doblaje, favoritos de la galería y otras preferencias de la interfaz de usuario). NO elimina sus voces, proyectos o audio generado en el disco.",
+    "factory_reset_confirm_title": "¿Restablecer preferencias?",
+    "factory_reset_confirm": "Reiniciar y recargar",
+    "factory_reset_confirm_body": "Esto borra todas las preferencias de UI guardadas y recarga la aplicación. Sus voces, proyectos y salidas en disco no se ven afectados. ¿Continuar?",
+    "factory_reset_done": "Preferencias borradas: recargando...",
+    "factory_reset_failed": "Error al restablecer"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -124,7 +172,8 @@
     "hint_port": "El puerto 3900 ya está en uso. Cierra otras instancias de OmniVoice o aplicaciones que usen ese puerto.",
     "hint_silent_crash": "El backend se cerró sin mensaje de error. «Limpiar y reintentar» suele arreglar problemas de venv corrupto.",
     "hint_github_blocked": "Tu red puede estar bloqueando GitHub. Instala Python 3.11+ desde python.org (añádelo al PATH) y reinicia, o define UV_PYTHON_INSTALL_MIRROR — consulta docs/install/troubleshooting.md.",
-    "hint_default": "Prueba primero «Reintentar». Si vuelve a fallar, «Limpiar y reintentar» reconstruirá el entorno desde cero."
+    "hint_default": "Prueba primero «Reintentar». Si vuelve a fallar, «Limpiar y reintentar» reconstruirá el entorno desde cero.",
+    "hint_stuck": "El backend no terminó de iniciarse. Desde la fuente, primero ejecute `uv sync` y asegúrese de que `uv` y Python estén en su RUTA, luego vuelva a intentarlo. Consulte el registro a continuación (o Configuración → Registros → Backend) para conocer el punto de parada exacto."
   },
   "stories": {
     "title": "Editor de historias",
@@ -194,7 +243,9 @@
     "minutes": "~{{count}} min",
     "chars": "{{count}} caracteres",
     "exportDone": "Audiolibro descargado",
-    "exportFailed": "Falló la exportación: verifique que el backend se esté ejecutando."
+    "exportFailed": "Falló la exportación: verifique que el backend se esté ejecutando.",
+    "global_speed": "Velocidad",
+    "global_speed_hint": "Velocidad de lectura para todas las líneas sin su propia anulación de velocidad"
   },
   "common": {
     "open": "Abierto",
@@ -223,7 +274,9 @@
     "popular_label": "populares",
     "showing_of": "Mostrando {{shown}} de {{total}}. Escribe para buscar…",
     "yes": "si",
-    "no": "No"
+    "no": "No",
+    "more_info": "Más información",
+    "learn_more": "Más información"
   },
   "launchpad": {
     "greeting": "hola",
@@ -254,7 +307,9 @@
     "transcripts_desc": "Convierta audio o vídeo en texto editable y con capacidad de búsqueda, en 646 idiomas.",
     "recent_files": "Archivos recientes",
     "view_all_files": "Ver todos los archivos",
-    "file": "Archivo"
+    "file": "Archivo",
+    "audiobook_title": "Audiolibro",
+    "audiobook_desc": "Convierta un guión extenso o un EPUB en un audiolibro con capítulos: portadas, metadatos y un narrador."
   },
   "clone": {
     "prompt": "rápido",
@@ -333,7 +388,12 @@
     "define_by_design": "Por diseño",
     "define_from_audio": "Desde audio",
     "define_voice": "Definir voz",
-    "save_design_as_profile": "Guardar diseño como perfil"
+    "save_design_as_profile": "Guardar diseño como perfil",
+    "seed_label": "semilla",
+    "seed_placeholder": "aleatorio cada vez",
+    "seed_keep": "Mantén esta semilla",
+    "seed_reroll": "Nueva semilla",
+    "seed_reroll_hint": "Enrolla una nueva semilla aleatoria y guárdala."
   },
   "about": {
     "app": "Aplicación",
@@ -457,7 +517,14 @@
     "failed": "falló",
     "acceptLicense": "Aceptar licencia",
     "noBackends": "No hay backends registrados.",
-    "switch_failed": "No se pudo cambiar de motor"
+    "switch_failed": "No se pudo cambiar de motor",
+    "routingAccelerated": "GPU activa",
+    "routingCpuFallback": "respaldo de CPU",
+    "routingCpuOnly": "CPU",
+    "routingRemote": "Remoto",
+    "routingUnknown": "Desconocido",
+    "routingEffectiveChip": "Se ejecuta en {{device}} en esta máquina",
+    "routingCaveatTitle": "GPU seleccionada, pero: {{reason}}"
   },
   "capture": {
     "desc": "Las teclas de acceso rápido globales solo funcionan en la aplicación de escritorio. La interfaz de usuario web utiliza un acceso directo <1>Ctrl+Shift+Espacio</1> en la página mientras la ventana tiene el foco.",
@@ -520,7 +587,13 @@
     "log_copied": "Registro {{source}} copiado",
     "copy_failed": "Copia fallida: {{message}}",
     "report_copied": "Informe de diagnóstico copiado: péguelo en un problema de GitHub.",
-    "report_failed": "Informe fallido: {{message}}"
+    "report_failed": "Informe fallido: {{message}}",
+    "version_updates": "Buscar actualizaciones",
+    "version_updates_aria": "Actualizaciones abiertas: versión de la aplicación {{v}}",
+    "update_available": "Actualización disponible ({{version}}): haga clic para actualizar",
+    "update_available_aria": "Actualización disponible ({{version}}): actualizaciones abiertas",
+    "contact": "Contacto",
+    "contact_aria": "Abrir la página de contacto"
   },
   "voice_profile": {
     "test_text": "Hola, esta es una prueba de esta voz.",
@@ -564,7 +637,26 @@
     "projects_count_one": "{{count}} proyecto",
     "projects_count_other": "{{count}} proyectos",
     "dubbed_segments_one": "{{count}} segmento doblado",
-    "dubbed_segments_other": "{{count}} segmentos doblados"
+    "dubbed_segments_other": "{{count}} segmentos doblados",
+    "verified": "Verificado",
+    "persona_export": "Exportar persona",
+    "persona_exporting": "Construyendo personalidad...",
+    "persona_exported": "Persona exportada",
+    "persona_export_no_audio": "Esta voz no tiene audio legible para crear una vista previa.",
+    "persona_export_failed": "La exportación falló.",
+    "persona_include_ref": "Incluir clip de voz",
+    "persona_include_ref_hint": "Incluya el clip de referencia sin formato. Desactivado = comparte solo una vista previa con marca de agua (recomendado).",
+    "consent_title": "Propiedad de voz",
+    "consent_explain": "Grábate leyendo la siguiente declaración para verificar que sea tu propia voz. Se requerirá verificación para funciones de agencia y uso compartido comunitario, nunca para síntesis local.",
+    "consent_statement": "Confirmo que este perfil de voz es mi propia voz y doy mi consentimiento para que OmniVoice Studio lo clone en mi nombre.",
+    "consent_record": "Registrar la declaración de consentimiento",
+    "consent_stop": "dejar de grabar",
+    "consent_saved": "Propiedad de voz verificada",
+    "consent_failed": "Verificación fallida: {{message}}",
+    "consent_verified_explain": "Grabó una declaración de consentimiento el {{date}}. La revocación elimina la grabación y el estado verificado.",
+    "consent_revoke": "Revocar",
+    "consent_revoke_confirm": "¿Revocar la verificación de propiedad de voz? La grabación de consentimiento se eliminará y las funciones de agente ya no podrán utilizar esta voz.",
+    "consent_revoked": "Verificación revocada"
   },
   "dub": {
     "transcribe": "Transcribir",
@@ -713,7 +805,12 @@
     "pipeline": "Flujo de doblaje",
     "preview_language": "Idioma de vista previa",
     "target_language": "Doblar a",
-    "transcript_after_extract": "La transcripción aparecerá tras la extracción."
+    "transcript_after_extract": "La transcripción aparecerá tras la extracción.",
+    "qc_btn": "Verificar el tiempo de doblaje (verificación de segundo paso)",
+    "qc_running": "Comprobando el tiempo de doblaje...",
+    "qc_result": "Es posible que sea necesario volver a escuchar {{flagged}} de {{total}} líneas",
+    "qc_clean": "Todas las líneas {{total}} coinciden con el guión.",
+    "qc_failed": "Error en la verificación de tiempo: {{message}}"
   },
   "glossary": {
     "title": "Glosario",
@@ -798,7 +895,9 @@
     "fit_stretched_title": "Modo Stretch Video: el video de este segmento se ralentizó a {{ratio}}× para adaptarse al audio doblado natural.",
     "fit_compressed_title": "El audio TTS es el {{pct}}% de la ranura: muy comprimido.",
     "fit_audio_title": "El audio encaja dentro de la ranura.",
-    "fit_ratio_title": "El audio TTS es el {{pct}}% de la ranura."
+    "fit_ratio_title": "El audio TTS es el {{pct}}% de la ranura.",
+    "qc_verify": "verificar",
+    "qc_verify_title": "Se escuchó ASR en el segundo paso: \"{{heard}}\": vuelva a escuchar o doblar esta línea."
   },
   "timeline": {
     "track_label": "Línea de tiempo de segmentos",
@@ -873,7 +972,16 @@
     "export": "Exportar",
     "transcription": "Transcripción",
     "designed_voice": "Voz diseñada",
-    "cloned_voice": "Voz clonada"
+    "cloned_voice": "Voz clonada",
+    "stories": "Historias",
+    "untitled_story": "Historia sin título",
+    "story_lines": "{{count}} línea",
+    "story_lines_plural": "{{count}} líneas",
+    "story_voices": "{{count}} voz",
+    "story_voices_plural": "{{count}} voces",
+    "audiobooks": "Audiolibros",
+    "audiobook": "Audiolibro",
+    "story": "historia"
   },
   "batch": {
     "title": "Doblaje por lotes",
@@ -976,7 +1084,12 @@
     "submit_failed": "No se pudo abrir el formulario de envío.",
     "submit_preset": "Enviar un preajuste",
     "submit_voice": "Enviar una voz",
-    "zone_community": "Comunidad"
+    "zone_community": "Comunidad",
+    "import_persona": "Importar un paquete de persona .ovsvoice",
+    "persona_imported": "Importado \"{{name}}\"{{unverified}}.",
+    "persona_unverified_suffix": "(sin verificar)",
+    "persona_too_large": "Ese paquete es demasiado grande (máximo 100 MB).",
+    "persona_import_failed": "No se pudo importar ese paquete de personas."
   },
   "transcriptions": {
     "title": "Transcripciones",
@@ -1031,7 +1144,8 @@
     "try_dictation": "Prueba el dictado",
     "next_try_dictation": "Siguiente: Prueba el dictado",
     "step_aria": "Paso {{num}}: {{label}}",
-    "step_completed": "completado"
+    "step_completed": "completado",
+    "cache_label": "Caché de modelo"
   },
   "donate": {
     "title": "Soporte",
@@ -1044,7 +1158,34 @@
     "platforms": "Plataformas",
     "footer": "Cada contribución ayuda a ampliar los límites de la IA local.",
     "back": "Volver al estudio",
-    "commercial": "Licencia Comercial"
+    "commercial": "Licencia Comercial",
+    "pill": "Soporte OmniVoice",
+    "suggested_title": "Elige una cantidad",
+    "most_common": "más común",
+    "custom": "personalizado",
+    "choose_method": "Elige cómo regalar",
+    "choose_method_amount": "Continuar con ${{amount}}",
+    "goal": {
+      "title": "Fondo Claude Max",
+      "of": "de",
+      "per_month": "/ mes",
+      "aria": "{{raised}} de {{goal}} meta mensual",
+      "remaining": "{{amount}} para ir",
+      "met": "🎉 Objetivo cumplido: {{raised}} planteado. ¡Gracias!",
+      "social_proof": "Únase a los partidarios de {{count}} que financian la IA local"
+    },
+    "postcard": {
+      "title": "Fondo Claude Max",
+      "lead_default": "¡Me alegro de que haya funcionado! OmniVoice es gratuito y totalmente local. Si le ahorra tiempo, un pequeño aporte mensual financia el Claude Max detrás de él.",
+      "lead_first_clone": "Tu primer clon de voz está listo, ¡bien! OmniVoice se ejecuta completamente en su máquina y su soporte lo mantiene así.",
+      "lead_tenth_dub": "Diez doblajes: claramente lo estás poniendo a funcionar. Un pequeño aporte mensual financia el Claude Max que incluye estas funciones.",
+      "lead_sustained": "Llevas un mes en OmniVoice. Si se ganó un lugar en su flujo de trabajo, considere ayudar a financiar lo que sigue.",
+      "chip_in": "Chip en",
+      "later": "tal vez más tarde",
+      "star": "Estrella en GitHub",
+      "opt_out": "no vuelvas a preguntar",
+      "dismiss_aria": "Descartar"
+    }
   },
   "enterprise": {
     "title": "Licencia Comercial",
@@ -1073,7 +1214,9 @@
     "benefit_source_desc": "Visibilidad total de la pila. Audite, bifurque y adapte dentro de los términos de la licencia.",
     "benefit_lang": "646 idiomas",
     "benefit_lang_desc": "Transcribe, traduce y dobla en 646 idiomas con calidad de nivel humano.",
-    "hero_note": "El uso, el autoalojamiento y el uso comercial son gratuitos bajo la AGPL-3.0, incluso a gran escala. La AGPL es una licencia copyleft de red: si modificas OmniVoice y ofreces esa versión modificada a terceros a través de una red, debes compartir tu código fuente modificado bajo los mismos términos. Una licencia comercial elimina esas obligaciones copyleft para despliegues propietarios de código cerrado. Los planes de precios llegarán pronto; mientras tanto, contáctanos."
+    "hero_note": "El uso, el autoalojamiento y el uso comercial son gratuitos bajo la AGPL-3.0, incluso a gran escala. La AGPL es una licencia copyleft de red: si modificas OmniVoice y ofreces esa versión modificada a terceros a través de una red, debes compartir tu código fuente modificado bajo los mismos términos. Una licencia comercial elimina esas obligaciones copyleft para despliegues propietarios de código cerrado. Los planes de precios llegarán pronto; mientras tanto, contáctanos.",
+    "hero_simple": "OmniVoice Studio es gratuito y de código abierto según AGPL-3.0, incluso para uso comercial y empresarial interno. Sólo necesita una licencia comercial para integrarlo en un producto de código cerrado sin las obligaciones de copyleft de AGPL.",
+    "contact_lead": "El precio se cotiza por implementación para que se ajuste a su equipo y carga de trabajo. Cuénteme su caso de uso y le conseguiré una cotización."
   },
   "exportModal": {
     "export": "Exportar",
@@ -1359,7 +1502,9 @@
     "save_label": "Guardar",
     "lock_identity": "Bloquear identidad de voz",
     "in_folder": "en {{folder}}",
-    "search": "Buscar…"
+    "search": "Buscar…",
+    "rename": "Cambiar nombre",
+    "rename_save": "Guardar nombre"
   },
   "trimmer": {
     "title": "Recortar audio de referencia",
@@ -1488,7 +1633,11 @@
     "loading_badge": "Cargando…",
     "idle_badge": "inactivo",
     "started_downloading_required_one": "Comenzó a descargar {{count}} modelo requerido",
-    "started_downloading_required_other": "Comenzó a descargar {{count}} modelos requeridos"
+    "started_downloading_required_other": "Comenzó a descargar {{count}} modelos requeridos",
+    "to_download": "para descargar",
+    "cached": "almacenado en caché",
+    "fast_download_badge": "descarga rápida",
+    "fast_download_title": "Descargas rápidas a través de Xet {{version}}: transferencia fragmentada paralela"
   },
   "enterprise_faq": {
     "q_internal_tools": "¿Necesito una licencia para herramientas internas?",
@@ -1554,7 +1703,8 @@
     "delete_history_confirm": "¿Eliminar este elemento del historial?",
     "history_deleted": "Elemento del historial eliminado",
     "restored_state": "Estado de generación anterior restaurado",
-    "upgrading_preview": "Actualizando {{count}} segmentos de calidad de vista previa a calidad completa..."
+    "upgrading_preview": "Actualizando {{count}} segmentos de calidad de vista previa a calidad completa...",
+    "session_expired": "Esta sesión de doblaje expiró o se limpió: vuelve a subir tu video para comenzar uno nuevo."
   },
   "tts_errors": {
     "enter_text": "Por favor ingresa texto",
@@ -1750,7 +1900,15 @@
     "hf_token_save": "Guardar",
     "hf_token_saving": "guardando…",
     "hf_token_saved": "Token de Hugging Face guardado",
-    "hf_token_error": "No se pudo guardar el token — reintenta o configúralo luego en Ajustes → Credenciales."
+    "hf_token_error": "No se pudo guardar el token — reintenta o configúralo luego en Ajustes → Credenciales.",
+    "chip_recommended": "recomendado",
+    "size_left": "{{size}} izquierda",
+    "hf_token_card_title": "Agregue un token de Hugging Face gratuito para descargas más rápidas",
+    "hf_token_get": "¿No tienes una ficha? Consigue uno gratis →",
+    "hf_token_saved_fast": "Token de Hugging Face guardado: las descargas ahora son más rápidas",
+    "hf_token_inline_prompt": "Acelere las descargas con un token Hugging Face gratuito",
+    "hf_token_inline_ph": "Pegue el token hf_… (opcional)",
+    "hf_token_get_short": "Consigue uno gratis →"
   },
   "history": {
     "dub_title": "Historial de doblajes",
@@ -1762,5 +1920,163 @@
     "cleaned_loaded": "¡Grabación limpiada y cargada!",
     "loaded_raw": "Grabación cargada (sin procesar — eliminación de ruido no disponible)",
     "too_short": "Grabación demasiado corta"
+  },
+  "pronunciation": {
+    "title": "Diccionario de pronunciación",
+    "help": "Enséñele al motor a decir palabras difíciles. Cada entrada reemplaza una palabra con una ortografía antes de la síntesis, por lo que se aplica en todos los motores. Limite una entrada a un idioma o déjela como Global. En línea, [[palabra|respelling]] anula el diccionario una vez.",
+    "term": "Término",
+    "term_placeholder": "palabra o frase (por ejemplo, GIF)",
+    "replacement": "Reemplazo",
+    "replacement_placeholder": "respelling (por ejemplo, jiff)",
+    "scope": "Alcance",
+    "global": "Mundial",
+    "type": "Tipo",
+    "type_respelling": "repeler",
+    "type_ipa": "API",
+    "type_cmu": "UMC",
+    "enabled": "Habilitado",
+    "add": "Agregar entrada",
+    "remove": "Eliminar {{term}}",
+    "empty": "Aún no hay entradas. Agregue uno arriba para corregir una palabra mal pronunciada.",
+    "test_label": "Probar una oración",
+    "test_placeholder": "Escriba una oración para obtener una vista previa de la sustitución...",
+    "test_result": "Se hablará como:",
+    "test_nochange": "Ninguna entrada coincide: hablada tal como está escrita.",
+    "load_error": "No se pudo cargar el diccionario de pronunciación.",
+    "save_error": "No se pudo guardar esa entrada.",
+    "lang_label": "Código de idioma (por ejemplo, en, de) o déjelo en blanco para Global"
+  },
+  "audiobook": {
+    "title": "Audiolibro",
+    "subtitle": "Convierta un guión delimitado por capítulos en un audiolibro m4b dividido en capítulos.",
+    "script": "Guión",
+    "script_placeholder": "# Capítulo uno\nÉrase una vez… [pausa 500ms] el final.\n\n# Capítulo Dos\n[voz:narrador] Y así continuó.",
+    "default_voice": "Voz predeterminada",
+    "engine_default": "Valor predeterminado del motor",
+    "preview_plan": "Vista previa del plan",
+    "create": "Crear audiolibro",
+    "plan_heading": "Plan: {{count}} capítulo(s)",
+    "chapter_meta": "{{spans}} intervalo(s) · {{chars}} caracteres",
+    "synthesizing": "Sintetizando el capítulo {{current}} de {{total}} {{title}}",
+    "assembling": "Armando el audiolibro...",
+    "ready": "Audiolibro listo",
+    "download": "Descargar",
+    "format": "Formato",
+    "format_m4b": "M4B (capítulos)",
+    "format_mp3": "MP3",
+    "loudness": "sonoridad",
+    "loudness_off": "Volumen: apagado",
+    "loudness_acx": "Normalizar (ACX)",
+    "loudness_podcast": "Normalizar (pódcast)",
+    "details": "Portada y detalles",
+    "cover": "Portada",
+    "cover_add": "Añadir portada",
+    "cover_remove": "Quitar la cubierta",
+    "meta_title": "Título",
+    "meta_author": "Autor",
+    "meta_narrator": "Narrador",
+    "meta_year": "Año",
+    "meta_genre": "Género",
+    "meta_description": "Descripción",
+    "preview_chapter": "Vista previa del capítulo: {{title}}",
+    "cached_note": "Reutilizado {{count}} capítulo(s) ya renderizados.",
+    "failed_note": "{{count}} capítulo(s) fallaron: haga clic en Crear nuevamente para volver a intentarlo solo con esos.",
+    "import": "Importar",
+    "import_failed": "Error de importación: {{message}}",
+    "lexicon": "Pronunciación",
+    "lex_word": "palabra",
+    "lex_say": "Dígalo como...",
+    "lex_add": "Agregar palabra",
+    "lex_remove": "Quitar",
+    "markup_help": "Referencia de marcado",
+    "markup_hint": "# Título del capítulo · [voz:NOMBRE] cambiar voz · [pausa 500ms] / [pausa 1s] · [lento]…[/lento] · [rápido]…[/rápido] · [énfasis]…[/énfasis] · [deletrear]…[/deletrear]"
+  },
+  "voicePanel": {
+    "title": "Voz",
+    "subtitle": "Dictado local de voz a texto con modelos en el dispositivo.",
+    "enable_label": "Habilitar dictado de voz",
+    "enable_sub": "Presione {{shortcut}} para dictar texto en cualquier panel enfocado.",
+    "mode_label": "Modo de dictado",
+    "mode_sub": "Alternar: presione una vez para comenzar y nuevamente para detener. Mantener: dictar mientras se mantiene presionada la tecla.",
+    "mode_toggle": "Alternar",
+    "mode_hold": "Espera",
+    "model_label": "Modelo de habla",
+    "model_sub": "Elija el modelo del dispositivo utilizado para el dictado.",
+    "badge_offline": "fuera de línea",
+    "badge_streaming": "transmisión",
+    "badge_recommended": "recomendado",
+    "download_model": "Descargar modelo",
+    "delete_model": "Eliminar modelo",
+    "downloading": "Descargando…",
+    "downloading_pct": "Descargando {{pct}}%",
+    "delete_confirm": "¿Eliminar el modelo de voz \"{{label}}\"? Puedes volver a descargarlo más tarde.",
+    "delete_confirm_title": "Eliminar modelo de voz",
+    "engine_unavailable": "El motor de dictado en vivo no está disponible en esta instalación. El dictado vuelve a la ruta de transcripción estándar.",
+    "model_desc": {
+      "sherpa-parakeet-tdt-v3": "Recomendado. Dictado rápido y preciso en 25 idiomas europeos.",
+      "sherpa-parakeet-tdt-v2": "Dictado rápido y preciso solo en inglés.",
+      "sherpa-zipformer-bilingual-zh-en": "Streaming chino + inglés con parciales en vivo.",
+      "sherpa-paraformer-bilingual-zh-en": "Streaming chino + inglés, modelo compacto.",
+      "sherpa-zipformer-en-20m": "Pequeño modelo de transmisión en inglés: latencia más baja.",
+      "sherpa-zipformer-zh-14m": "Pequeño modelo chino de transmisión: latencia más baja.",
+      "sherpa-whisper-tiny": "Multilingüe (más de 90 idiomas) con detección automática de idioma."
+    }
+  },
+  "profiles": {
+    "need_name_audio": "Necesito un nombre y audio de referencia.",
+    "synthesizing_preview": "Sintetizando vista previa para {{name}}...",
+    "synthesizing_segment": "Segmento sintetizador...",
+    "preview_ready": "¡Vista previa lista!",
+    "playback_failed": "Error de reproducción",
+    "preview_failed": "Error en la vista previa: {{message}}",
+    "saved": "¡Voz guardada en perfiles!",
+    "save_failed": "No se pudo guardar el perfil de voz",
+    "locked": "¡Voz bloqueada! La identidad ahora es consistente en todas las generaciones.",
+    "lock_failed": "No se pudo bloquear el perfil",
+    "unlocked": "Voz desbloqueada. Las generaciones volverán a variar.",
+    "unlock_failed": "No se pudo desbloquear el perfil"
+  },
+  "transcriptionPicker": {
+    "title": "Importar desde una transcripción",
+    "search_placeholder": "Buscar transcripciones…",
+    "empty": "Aún no hay transcripciones. Graba uno en la pestaña Transcripciones.",
+    "empty_search": "Ninguna transcripción coincide con su búsqueda."
+  },
+  "waveform": {
+    "source_missing": "Faltan medios de origen: es posible que este archivo se haya movido o se haya eliminado. Vuelve a subir el vídeo para continuar.",
+    "load_failed": "No se pudo cargar el audio de este archivo"
+  },
+  "tts": {
+    "routingFallback": "Ejecutándose en CPU: este motor no tiene una ruta de GPU en su máquina, por lo que la generación será más lenta. {{reason}}",
+    "routingCaveat": "Usando la GPU, pero: {{reason}}"
+  },
+  "voiceSelector": {
+    "engineDefault": "Valor predeterminado del motor",
+    "clone": "Voces clonadas",
+    "designed": "Voces diseñadas",
+    "presets": "Preajustes",
+    "fromVideo": "Del vídeo",
+    "missingVoice": "Voz no encontrada (volver a elegir)",
+    "preview": "Vista previa de voz",
+    "openGallery": "Abrir en la galería de voz",
+    "createVoice": "Crea una nueva voz"
+  },
+  "remote_gate": {
+    "title": "Introduce el PIN de acceso",
+    "body": "Esta instancia de OmniVoice se comparte en la red. Ingrese el PIN que se muestra en el host.",
+    "label": "PIN de acceso",
+    "connect": "Conectar"
+  },
+  "contact": {
+    "hero_title": "Ponte en contacto",
+    "hero_desc": "Preguntas, errores, licencias o simplemente para saludar: aquí le mostramos cómo comunicarse conmigo.",
+    "discord": "discordia",
+    "discord_desc": "Chatea con la comunidad y obtén ayuda rápidamente.",
+    "email": "Correo electrónico",
+    "email_desc": "Licencias, asociaciones o cualquier cosa privada.",
+    "issues": "Problemas de GitHub",
+    "issues_desc": "Informar un error o solicitar una función.",
+    "website": "Sitio web",
+    "website_desc": "Más sobre el proyecto y el creador."
   }
 }
