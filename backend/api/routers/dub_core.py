@@ -382,6 +382,11 @@ async def dub_ingest_url(req: DubIngestUrlRequest):
 
 TRANSCRIBE_CHUNK_S = float(os.environ.get("OMNIVOICE_TRANSCRIBE_CHUNK_S", "30.0"))
 TRANSCRIBE_CHUNK_TIMEOUT_S = float(os.environ.get("OMNIVOICE_TRANSCRIBE_CHUNK_TIMEOUT_S", "120.0"))
+#: How many times to attempt each transcribe chunk before giving up on it. A
+#: transient wedge (esp. the first chunk, where whisperx cold-loads its model)
+#: shouldn't silently drop that whole window — retry once on a fresh pool so the
+#: transcript doesn't come back "missing the beginning".
+_CHUNK_TRANSCRIBE_ATTEMPTS = max(1, int(os.environ.get("OMNIVOICE_TRANSCRIBE_CHUNK_ATTEMPTS", "2")))
 
 
 _sse_event = dub_pipeline.sse_event
@@ -567,36 +572,54 @@ async def dub_transcribe_stream(
                     logger.exception("chunk transcribe failed (backend=%s)", _asr_backend.id)
                     return {"chunks": [], "language": None, "error": str(e)}
 
-            try:
-                # wait_for in a loop to yield pings so the EventSource connection doesn't drop
-                fut = loop.run_in_executor(_gpu_pool, _transcribe_chunk)
-                waited = 0.0
-                part = None
-                while True:
-                    done, pending = await asyncio.wait([fut], timeout=5.0)
-                    if done:
-                        part = done.pop().result()
-                        break
-                    yield _sse_event("ping", {})
-                    waited += 5.0
-                    if waited >= TRANSCRIBE_CHUNK_TIMEOUT_S:
-                        # Re-raise TimeoutError if we exceed the overall limit
-                        raise asyncio.TimeoutError()
-            except asyncio.TimeoutError:
-                logger.error(
-                    "Transcribe chunk %d/%d timed out after %.0fs (job=%s)",
-                    i + 1, chunks_n, TRANSCRIBE_CHUNK_TIMEOUT_S, job_id,
-                )
-                # #730: the wedged chunk thread keeps holding its GPU-pool worker.
-                # Abandon the poisoned pool so the next chunk (and any TTS work)
-                # gets a fresh worker instead of queueing behind the stuck one —
-                # same recovery the whole-file paths get via run_transcribe_guarded.
-                _reset_pool_on_wedge(_gpu_pool)
-                part = {
-                    "chunks": [], "language": None,
-                    "error": f"Chunk {i+1} timed out after {TRANSCRIBE_CHUNK_TIMEOUT_S:.0f}s — "
-                             f"ASR backend may be stuck. Try restarting the server.",
-                }
+            # Retry a failed/timed-out chunk once on a fresh pool before giving
+            # up. Otherwise a transient wedge on the FIRST chunk (whisperx often
+            # cold-loads its model there, the #730 hang) drops that whole window
+            # and the transcript is "missing the beginning, only middle+end".
+            # The retry reuses the same audio window, so a recovered chunk fills
+            # the hole instead of leaving silent gaps.
+            part = None
+            for _attempt in range(1, _CHUNK_TRANSCRIBE_ATTEMPTS + 1):
+                try:
+                    # wait_for in a loop to yield pings so the EventSource connection doesn't drop
+                    fut = loop.run_in_executor(_gpu_pool, _transcribe_chunk)
+                    waited = 0.0
+                    while True:
+                        done, pending = await asyncio.wait([fut], timeout=5.0)
+                        if done:
+                            part = done.pop().result()
+                            break
+                        yield _sse_event("ping", {})
+                        waited += 5.0
+                        if waited >= TRANSCRIBE_CHUNK_TIMEOUT_S:
+                            # Re-raise TimeoutError if we exceed the overall limit
+                            raise asyncio.TimeoutError()
+                except asyncio.TimeoutError:
+                    logger.error(
+                        "Transcribe chunk %d/%d timed out after %.0fs (attempt %d/%d, job=%s)",
+                        i + 1, chunks_n, TRANSCRIBE_CHUNK_TIMEOUT_S, _attempt,
+                        _CHUNK_TRANSCRIBE_ATTEMPTS, job_id,
+                    )
+                    # #730: the wedged chunk thread keeps holding its GPU-pool
+                    # worker. Abandon the poisoned pool so the retry (and any TTS
+                    # work) gets a fresh worker instead of queueing behind it.
+                    _reset_pool_on_wedge(_gpu_pool)
+                    part = {
+                        "chunks": [], "language": None,
+                        "error": f"Chunk {i+1} timed out after {TRANSCRIBE_CHUNK_TIMEOUT_S:.0f}s — "
+                                 f"ASR backend may be stuck. Try restarting the server.",
+                    }
+                # Success → keep it. Failure/timeout → retry once on a fresh
+                # worker (the internal _transcribe_chunk except returns an
+                # error-part; the timeout path already reset the pool).
+                if part is not None and not part.get("error"):
+                    break
+                if _attempt < _CHUNK_TRANSCRIBE_ATTEMPTS:
+                    logger.warning(
+                        "Retrying transcribe chunk %d/%d after failure/timeout (next attempt %d/%d, job=%s)",
+                        i + 1, chunks_n, _attempt + 1, _CHUNK_TRANSCRIBE_ATTEMPTS, job_id,
+                    )
+                    _reset_pool_on_wedge(_gpu_pool)
             if part.get("error"):
                 chunk_errors.append(part["error"])
                 logger.warning("Chunk %d/%d error: %s", i + 1, chunks_n, part["error"])

@@ -94,18 +94,26 @@ def _looks_like_target_script(text: str, code: str, threshold: float = 0.5) -> b
 
 
 def _llm_client():
-    """Lazy-build the OpenAI-compatible client. Returns None if no key + no local base_url."""
+    """Lazy-build the OpenAI-compatible client for the ACTIVE LLM provider.
+
+    Resolves through the LLM Providers registry (Settings → LLM Providers) so a
+    provider configured there actually powers Cinematic/Autofit — previously this
+    only read ``TRANSLATE_*``/``OPENAI_*`` directly, so the registry-configured
+    provider was ignored (the "LLM not wired" bug). The registry's ``custom``
+    provider still maps ``TRANSLATE_BASE_URL``/``TRANSLATE_API_KEY``, so legacy
+    env setups keep working. Returns None if no provider is configured.
+    """
     try:
         from openai import OpenAI
     except ImportError:
         logger.warning("openai package not installed — cinematic mode unavailable.")
         return None
-    base_url = os.environ.get("TRANSLATE_BASE_URL")
-    api_key = (
-        os.environ.get("TRANSLATE_API_KEY")
-        or os.environ.get("OPENAI_API_KEY")
-        or ("local" if base_url else None)  # local providers often accept any key
-    )
+    from services import llm_providers
+    p = llm_providers.active_provider()
+    if p is None:
+        return None
+    base_url = llm_providers.resolve_base_url(p)
+    api_key = llm_providers.resolve_api_key(p)
     if not api_key:
         return None
     kw = {"api_key": api_key}
@@ -115,6 +123,10 @@ def _llm_client():
 
 
 def _llm_model() -> str:
+    from services import llm_providers
+    p = llm_providers.active_provider()
+    if p is not None:
+        return llm_providers.resolve_model(p)
     return os.environ.get("TRANSLATE_MODEL", "gpt-4o-mini")
 
 
