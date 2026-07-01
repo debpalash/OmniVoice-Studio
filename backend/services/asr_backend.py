@@ -316,6 +316,74 @@ class WhisperXBackend(ASRBackend):
             pass
         return "cpu", "int8"
 
+    # Peak VRAM (GB) to load *and transcribe* whisper large-v3 per CTranslate2
+    # compute type (weights + encoder/decoder workspace, with headroom). #723:
+    # on an 8 GB card with the TTS model resident, loading fp16 large-v3 dies
+    # as a *native* CUDA OOM abort — the process is killed, no Python
+    # exception ever fires, and the UI reports "Can't reach the local
+    # backend". The only defense is to never start that load, so the device
+    # pick is re-checked against actually-free VRAM right before loading.
+    _CUDA_VRAM_BUDGET_GB = {"float16": 5.0, "int8_float16": 3.5, "int8": 3.0}
+
+    #: Budget multiplier by model size (budgets above are for large-v3).
+    _MODEL_VRAM_SCALE = (
+        ("large", 1.0), ("turbo", 0.55), ("medium", 0.5),
+        ("small", 0.25), ("base", 0.15), ("tiny", 0.1),
+    )
+
+    @staticmethod
+    def _free_vram_gb():
+        """Device-wide free VRAM in GB (counts other processes), or None."""
+        try:
+            import torch
+            if torch.cuda.is_available():
+                free, _total = torch.cuda.mem_get_info()
+                return free / 1024**3
+        except Exception:  # noqa: BLE001 — preflight must never block ASR
+            pass
+        return None
+
+    @classmethod
+    def _model_scale(cls, model_name: str) -> float:
+        name = (model_name or "").lower()
+        for key, scale in cls._MODEL_VRAM_SCALE:
+            if key in name:
+                return scale
+        return 1.0  # unknown → assume large
+
+    def _degrade_for_vram(self, device: str, compute_type: str) -> tuple[str, str]:
+        """Downgrade the CUDA compute type (or fall to CPU) if free VRAM can't
+        hold the model — preventing the un-catchable native OOM abort (#723).
+        Opt-out: OMNIVOICE_ASR_VRAM_PREFLIGHT=0."""
+        if device != "cuda" or os.environ.get(
+            "OMNIVOICE_ASR_VRAM_PREFLIGHT", "1"
+        ).strip().lower() in ("0", "false", "no"):
+            return device, compute_type
+        free = self._free_vram_gb()
+        if free is None:
+            return device, compute_type
+        scale = self._model_scale(self._model_name)
+        candidates = list(self._CUDA_VRAM_BUDGET_GB)
+        start = candidates.index(compute_type) if compute_type in candidates else 0
+        for ct in candidates[start:]:
+            if free >= self._CUDA_VRAM_BUDGET_GB[ct] * scale:
+                if ct != compute_type:
+                    logger.warning(
+                        "whisperx VRAM preflight: %.1f GB free < %.1f GB needed "
+                        "for %s %s — degrading to %s (#723)",
+                        free, self._CUDA_VRAM_BUDGET_GB[compute_type] * scale,
+                        self._model_name, compute_type, ct,
+                    )
+                return device, ct
+        logger.warning(
+            "whisperx VRAM preflight: %.1f GB free is too little for %s on CUDA "
+            "(needs ≥%.1f GB even at int8) — using CPU int8 instead. Free VRAM "
+            "(flush the TTS model, or close other GPU apps) for GPU-speed ASR. (#723)",
+            free, self._model_name,
+            self._CUDA_VRAM_BUDGET_GB["int8"] * scale,
+        )
+        return "cpu", "int8"
+
     @classmethod
     def is_available(cls) -> tuple[bool, str]:
         try:
@@ -346,6 +414,13 @@ class WhisperXBackend(ASRBackend):
         # (#630/#611/#647). No-op on macOS/Linux and when speechbrain is absent.
         _harden_speechbrain_lazy_imports()
         import whisperx
+        # #723: re-check the CUDA pick against *currently free* VRAM — the TTS
+        # model may have claimed the card since __init__. A too-big load dies
+        # as a native abort (whole process, no exception), so it must be
+        # avoided up front rather than caught below.
+        self._device, self._compute_type = self._degrade_for_vram(
+            self._device, self._compute_type
+        )
         logger.info(
             "whisperx loading ASR %s on %s (%s)",
             self._model_name, self._device, self._compute_type,
