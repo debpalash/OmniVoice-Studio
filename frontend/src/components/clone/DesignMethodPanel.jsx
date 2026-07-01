@@ -21,12 +21,12 @@ const CHIP_FOCUS =
   'focus-visible:[outline:2px_solid_var(--chrome-accent)] focus-visible:[outline-offset:1px]';
 const PCHIP_BASE = `inline-flex items-center gap-[5px] px-[12px] py-[5px] font-[var(--font-sans)] text-[0.72rem] font-medium rounded-[var(--chrome-radius-pill)] border bg-transparent flex-none cursor-pointer transition-colors duration-[120ms] ${CHIP_FOCUS}`;
 const PCHIP_INACTIVE =
-  'border-[var(--chrome-border)] text-[var(--chrome-fg-muted)] hover:bg-[var(--chrome-hover-bg)] hover:border-[var(--chrome-border-strong)] hover:text-[var(--chrome-fg)]';
+  'border-transparent text-[var(--chrome-fg-muted)] hover:bg-[var(--chrome-hover-bg)] hover:border-transparent hover:text-[var(--chrome-fg)]';
 const PCHIP_ACTIVE =
   'bg-[var(--chrome-accent-bg)] border-[var(--chrome-accent-border)] text-[var(--chrome-accent)]';
 const CHIP_BASE = `font-[var(--font-sans)] font-medium text-[0.68rem] px-[10px] py-[3px] rounded-[var(--chrome-radius-pill)] border bg-transparent whitespace-nowrap cursor-pointer transition-colors duration-[120ms] ${CHIP_FOCUS}`;
 const CHIP_INACTIVE =
-  'border-[var(--chrome-border)] text-[var(--chrome-fg-muted)] hover:text-[var(--chrome-fg)] hover:bg-[var(--chrome-hover-bg)] hover:border-[var(--chrome-border-strong)]';
+  'border-transparent text-[var(--chrome-fg-muted)] hover:text-[var(--chrome-fg)] hover:bg-[var(--chrome-hover-bg)] hover:border-transparent';
 const CHIP_ACTIVE =
   'bg-[var(--chrome-accent-bg)] border-[var(--chrome-accent-border)] text-[var(--chrome-accent)]';
 
@@ -130,7 +130,7 @@ export default function DesignMethodPanel({
                 (first run) starts expanded. */}
       <button
         type="button"
-        className="flex items-center gap-[8px] w-full mt-[4px] mb-[8px] px-[10px] py-[6px] bg-[var(--chrome-hover-bg)] border border-[var(--chrome-border)] rounded-[8px] cursor-pointer text-left transition-[border-color] duration-[var(--dur-fast)] hover:border-[var(--chrome-border-strong)] focus-visible:[outline:2px_solid_var(--chrome-accent)] focus-visible:[outline-offset:1px]"
+        className="flex items-center gap-[8px] w-full mt-[4px] mb-[8px] px-[10px] py-[6px] bg-[var(--chrome-hover-bg)] border border-transparent rounded-[8px] cursor-pointer text-left transition-[border-color] duration-[var(--dur-fast)] hover:border-transparent focus-visible:[outline:2px_solid_var(--chrome-accent)] focus-visible:[outline-offset:1px]"
         onClick={() => setIdentityOpen((o) => !o)}
         aria-expanded={identityOpen}
       >

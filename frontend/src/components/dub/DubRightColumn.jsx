@@ -173,7 +173,7 @@ export default function DubRightColumn({
             {showTranscript ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
           </div>
           {showTranscript && (
-            <div className="bg-[var(--chrome-bg)] border border-[var(--chrome-border)] border-t-0 rounded-b-[var(--chrome-radius-pill)] p-[var(--space-3)] text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)] leading-[1.5] max-h-[80px] overflow-y-auto">
+            <div className="bg-[var(--chrome-bg)] border border-transparent border-t-0 rounded-b-[var(--chrome-radius-pill)] p-[var(--space-3)] text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)] leading-[1.5] max-h-[80px] overflow-y-auto">
               {dubTranscript}
             </div>
           )}
@@ -185,7 +185,7 @@ export default function DubRightColumn({
       {dubJobId && !glossaryVisible && (
         <button
           type="button"
-          className="inline-flex items-center px-[var(--space-3)] py-[3px] mb-[4px] font-[family-name:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] tracking-[var(--chrome-label-track)] uppercase text-[var(--chrome-fg-muted)] bg-transparent border border-[var(--chrome-border)] rounded-[var(--chrome-radius-pill)] cursor-pointer transition-colors hover:bg-[var(--chrome-hover-bg)] hover:border-[var(--chrome-border-strong)] hover:text-[var(--chrome-fg)]"
+          className="inline-flex items-center px-[var(--space-3)] py-[3px] mb-[4px] font-[family-name:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] tracking-[var(--chrome-label-track)] uppercase text-[var(--chrome-fg-muted)] bg-transparent border border-transparent rounded-[var(--chrome-radius-pill)] cursor-pointer transition-colors hover:bg-[var(--chrome-hover-bg)] hover:border-transparent hover:text-[var(--chrome-fg)]"
           onClick={() => {
             setGlossaryOpen(true);
             setGlossaryHidden(false);

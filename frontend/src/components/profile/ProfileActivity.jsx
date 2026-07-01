@@ -85,7 +85,7 @@ export default function ProfileActivity({
                     <button
                       type="button"
                       onClick={() => onOpenProject?.(p.project_id)}
-                      className="flex w-full cursor-pointer items-center gap-[var(--space-3)] rounded-[var(--radius-md)] border border-border bg-[rgba(255,255,255,0.02)] px-[var(--space-4)] py-[var(--space-3)] text-fg [font-size:var(--text-md)] transition-[background,border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-[var(--color-border-strong)] hover:bg-[rgba(255,255,255,0.06)]"
+                      className="flex w-full cursor-pointer items-center gap-[var(--space-3)] rounded-[var(--radius-md)] border border-border bg-[rgba(255,255,255,0.02)] px-[var(--space-4)] py-[var(--space-3)] text-fg [font-size:var(--text-md)] transition-[background,border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:border-transparent hover:bg-[rgba(255,255,255,0.06)]"
                     >
                       <FolderOpen size={11} />
                       <span className="flex-1 text-left">{p.project_name}</span>

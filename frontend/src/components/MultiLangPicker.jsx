@@ -76,7 +76,7 @@ export default function MultiLangPicker({
         {selected.map((s) => (
           <span
             key={s.code}
-            className="inline-flex items-center gap-[4px] px-[8px] py-[2px] bg-[var(--chrome-hover-bg)] border border-solid border-[var(--chrome-border)] rounded-full [font-family:var(--font-mono)] text-[0.68rem] font-medium text-[color:var(--chrome-fg)] uppercase"
+            className="inline-flex items-center gap-[4px] px-[8px] py-[2px] bg-[var(--chrome-hover-bg)] border border-solid border-transparent rounded-full [font-family:var(--font-mono)] text-[0.68rem] font-medium text-[color:var(--chrome-fg)] uppercase"
           >
             <Globe size={9} />
             <span>{s.code}</span>
@@ -95,7 +95,7 @@ export default function MultiLangPicker({
         {!disabled && (
           <button
             type="button"
-            className="flex items-center justify-center w-[24px] h-[24px] rounded-full border border-dashed border-[var(--chrome-border)] bg-transparent text-[color:var(--chrome-fg-muted)] cursor-pointer [transition:all_0.15s] hover:bg-[var(--chrome-hover-bg)] hover:text-[color:var(--chrome-fg)] hover:border-solid"
+            className="flex items-center justify-center w-[24px] h-[24px] rounded-full border border-dashed border-transparent bg-transparent text-[color:var(--chrome-fg-muted)] cursor-pointer [transition:all_0.15s] hover:bg-[var(--chrome-hover-bg)] hover:text-[color:var(--chrome-fg)] hover:border-solid"
             onClick={() => setDropOpen(!dropOpen)}
             title={t('dub.add_language')}
           >
@@ -112,7 +112,7 @@ export default function MultiLangPicker({
 
       {dropOpen && (
         <div className="multi-lang__drop">
-          <div className="flex items-center gap-[6px] px-[10px] py-[8px] border-b border-solid border-b-[var(--chrome-border)] text-[color:var(--chrome-fg-muted)]">
+          <div className="flex items-center gap-[6px] px-[10px] py-[8px] border-b border-solid border-b-transparent text-[color:var(--chrome-fg-muted)]">
             <Search size={10} />
             <input
               ref={inputRef}

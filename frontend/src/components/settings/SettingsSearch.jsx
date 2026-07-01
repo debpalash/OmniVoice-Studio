@@ -29,7 +29,7 @@ export default function SettingsSearch({ value, onChange, onClear }) {
         placeholder={t('settings.search_placeholder', { defaultValue: 'Search settings…' })}
         aria-label={t('settings.search_placeholder', { defaultValue: 'Search settings…' })}
         data-testid="settings-search"
-        className="w-full min-w-0 box-border rounded-[var(--chrome-radius-pill)] border border-[var(--chrome-border)] bg-[color-mix(in_srgb,var(--chrome-bg)_94%,white)] py-[var(--space-2)] pl-[calc(var(--space-3)*2+13px)] pr-[calc(var(--space-3)*2+13px)] text-[color:var(--chrome-fg)] [font-family:var(--font-sans)] text-[length:var(--text-sm)] focus:border-[var(--chrome-accent)] focus:outline-none [&::-webkit-search-cancel-button]:appearance-none"
+        className="w-full min-w-0 box-border rounded-[var(--chrome-radius-pill)] border border-transparent bg-[color-mix(in_srgb,var(--chrome-bg)_94%,white)] py-[var(--space-2)] pl-[calc(var(--space-3)*2+13px)] pr-[calc(var(--space-3)*2+13px)] text-[color:var(--chrome-fg)] [font-family:var(--font-sans)] text-[length:var(--text-sm)] focus:border-[var(--chrome-accent)] focus:outline-none [&::-webkit-search-cancel-button]:appearance-none"
       />
       {value && (
         <button

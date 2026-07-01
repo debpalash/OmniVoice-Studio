@@ -5,7 +5,7 @@ import { Dialog } from '../ui';
 
 function Kbd({ children }) {
   return (
-    <span className="inline-flex h-[22px] min-w-[28px] items-center justify-center gap-[2px] rounded-[var(--chrome-radius-pill)] border border-[var(--chrome-border-strong)] bg-[var(--chrome-hover-bg)] px-2 py-[2px] font-mono text-[0.7rem] font-medium text-[var(--chrome-fg)]">
+    <span className="inline-flex h-[22px] min-w-[28px] items-center justify-center gap-[2px] rounded-[var(--chrome-radius-pill)] border border-transparent bg-[var(--chrome-hover-bg)] px-2 py-[2px] font-mono text-[0.7rem] font-medium text-[var(--chrome-fg)]">
       {children}
     </span>
   );
@@ -78,7 +78,7 @@ export default function KeyboardCheatsheet({ open, onClose }) {
       <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-[18px]">
         {SECTIONS.map((sec) => (
           <div key={sec.title}>
-            <div className="mb-[10px] border-b border-[var(--chrome-border)] pb-[6px] font-mono text-[length:var(--chrome-label-size)] font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
+            <div className="mb-[10px] border-b border-transparent pb-[6px] font-mono text-[length:var(--chrome-label-size)] font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
               {sec.title}
             </div>
             <div className="flex flex-col gap-[6px]">

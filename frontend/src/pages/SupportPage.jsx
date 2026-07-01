@@ -41,7 +41,9 @@ const METHODS = [
   },
 ];
 
-const DONATE_HUE = '#d3869b';
+// Donate/support accent tracks the themed brand token (per-[data-theme]) so the
+// panel recolors with the app theme instead of the old fixed pink.
+const DONATE_HUE = 'var(--color-brand)';
 
 // PayPal.me carries the chosen amount straight into the checkout; Ko-fi opens
 // its tip page (no reliable preset-amount URL). A non-numeric/"custom" amount
@@ -115,10 +117,10 @@ function SupportView() {
   return (
     <div className="flex flex-col gap-6">
       <div className="text-center">
-        <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,#d3869b_12%,transparent)]">
+        <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--color-brand)_12%,transparent)]">
           <Heart
             size={24}
-            className="text-[#f3a5b6] [fill:rgba(243,165,182,0.35)] drop-shadow-[0_0_12px_rgba(243,165,182,0.5)]"
+            className="text-[var(--color-brand)] [fill:color-mix(in_srgb,var(--color-brand)_35%,transparent)] drop-shadow-[0_0_12px_color-mix(in_srgb,var(--color-brand)_50%,transparent)]"
           />
         </span>
         <h2 className="relative inline-block font-serif text-[2rem] font-normal leading-tight tracking-[-0.02em] text-[var(--chrome-fg)]">
@@ -298,7 +300,7 @@ function LicenseView() {
             key={label}
             className="gap-0 rounded-md border-border bg-transparent p-4 shadow-none transition-colors hover:border-border-strong hover:bg-[var(--chrome-hover-bg)]"
           >
-            <span className="mb-2.5 flex size-[30px] items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,#d3869b_10%,transparent)] text-[#d3869b]">
+            <span className="mb-2.5 flex size-[30px] items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--color-brand)_10%,transparent)] text-[var(--color-brand)]">
               <Icon size={16} />
             </span>
             <div className="mb-1 font-mono text-[0.75rem] font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg)]">
@@ -360,7 +362,7 @@ export default function SupportPage({ onBack, initialView = 'support' }) {
   const TAB_INACTIVE =
     'border-transparent text-[var(--chrome-fg-muted)] hover:text-[var(--chrome-fg)]';
   const TAB_SUPPORT_ACTIVE =
-    'border-transparent bg-[color-mix(in_srgb,#d3869b_18%,transparent)] text-[var(--chrome-fg)]';
+    'border-transparent bg-[color-mix(in_srgb,var(--color-brand)_18%,transparent)] text-[var(--chrome-fg)]';
   const TAB_LICENSE_ACTIVE =
     'border-transparent bg-[color-mix(in_srgb,#83a598_18%,transparent)] text-[var(--chrome-fg)]';
 

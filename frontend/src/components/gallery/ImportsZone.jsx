@@ -214,7 +214,7 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
   };
 
   const voicePlay =
-    'flex items-center justify-center w-[28px] h-[28px] rounded-full border border-[var(--chrome-border)] bg-bg-elev-1 text-[var(--text-primary)] cursor-pointer flex-shrink-0 hover:bg-[var(--accent)] hover:border-[color:var(--accent)] hover:text-white';
+    'flex items-center justify-center w-[28px] h-[28px] rounded-full border border-transparent bg-bg-elev-1 text-[var(--text-primary)] cursor-pointer flex-shrink-0 hover:bg-[var(--accent)] hover:border-[color:var(--accent)] hover:text-white';
   const actionBtn =
     'flex items-center justify-center w-[24px] h-[24px] bg-transparent text-[var(--text-secondary)] rounded-[4px] cursor-pointer hover:bg-bg-elev-2 hover:text-[var(--text-primary)]';
 
@@ -305,7 +305,7 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
             {results.map((r, i) => (
               <div
                 key={i}
-                className="flex justify-between items-center px-[10px] py-[8px] gap-[8px] border-b border-[var(--chrome-border)] last:border-0"
+                className="flex justify-between items-center px-[10px] py-[8px] gap-[8px] border-b border-transparent last:border-0"
               >
                 <div className="flex-1 min-w-0 flex flex-col gap-[2px]">
                   <span className="text-[0.75rem] truncate">{r.title}</span>

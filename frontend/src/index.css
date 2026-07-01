@@ -321,9 +321,15 @@
   --chrome-fg:            #d5c4a1;
   --chrome-fg-muted:      #a89984;
   --chrome-fg-dim:        #7c6f64;
-  --chrome-accent:        #f3a5b6;
-  --chrome-accent-bg:     rgba(243, 165, 182, 0.12);
-  --chrome-accent-border: rgba(243, 165, 182, 0.35);
+  /* Accent family aliases the THEMED brand token (--color-brand, re-declared per
+     [data-theme]) so every accent surface — donate/support/commercial CTAs,
+     active tabs, .btn-primary, status pills, GoalBar/Pip — tracks the active
+     theme instead of the old fixed pink. (--chrome-accent-border stays zeroed by
+     the app-wide border-removal block below; the visible accent cue is the fg
+     color + the -bg tint.) */
+  --chrome-accent:        var(--color-brand);
+  --chrome-accent-bg:     color-mix(in srgb, var(--color-brand) 12%, transparent);
+  --chrome-accent-border: color-mix(in srgb, var(--color-brand) 35%, transparent);
   --chrome-severity-err:  #fb4934;
   --chrome-severity-warn: #fabd2f;
   --chrome-severity-ok:   #8ec07c;

@@ -39,8 +39,8 @@ export default function Tabs({
   // The leading utilities also reset shadcn's list/trigger box-model defaults
   // (h-9, bg-muted, rounded-lg, flex-1, active shadow) back to OmniVoice's.
   const listClass = isPill
-    ? 'h-auto inline-flex shrink-0 gap-[3px] rounded-[var(--chrome-radius-pill)] border border-[var(--chrome-border)] bg-[var(--chrome-bg)] p-[3px]'
-    : 'h-auto inline-flex shrink-0 gap-[var(--space-5)] rounded-none border-0 border-b border-[var(--chrome-border)] bg-transparent p-0';
+    ? 'h-auto inline-flex shrink-0 gap-[3px] rounded-[var(--chrome-radius-pill)] border border-transparent bg-[var(--chrome-bg)] p-[3px]'
+    : 'h-auto inline-flex shrink-0 gap-[var(--space-5)] rounded-none border-0 border-b border-transparent bg-transparent p-0';
 
   return (
     <ShadcnTabs

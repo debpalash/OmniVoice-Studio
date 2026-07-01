@@ -316,7 +316,7 @@ export default function CloneDesignTab(props) {
 
         {/* ═══ VOICE — who says it ═══ */}
         <div className="flex flex-col gap-[6px] flex-none min-h-0 relative z-[1]">
-          <div className="flex flex-col min-h-0 overflow-auto bg-[var(--chrome-bg)] border border-[var(--chrome-border)] rounded-none py-[10px] px-[12px] max-[800px]:px-[10px] max-[600px]:px-[6px] max-[600px]:py-[8px]">
+          <div className="flex flex-col min-h-0 overflow-auto bg-[var(--chrome-bg)] border border-transparent rounded-none py-[10px] px-[12px] max-[800px]:px-[10px] max-[600px]:px-[6px] max-[600px]:py-[8px]">
             <div className="label-row justify-between">
               <span className="label-row mb-0">
                 <Volume2 className="label-icon" size={14} />{' '}

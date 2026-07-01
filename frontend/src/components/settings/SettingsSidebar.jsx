@@ -35,7 +35,7 @@ export default function SettingsSidebar({ visibleIds, active, onSelect }) {
           onChange={(e) => onSelect(e.target.value)}
           aria-label={t('settings.title', { defaultValue: 'Settings' })}
           data-testid="settings-nav-select"
-          className="w-full min-w-0 box-border rounded-[var(--chrome-radius-pill)] border border-[var(--chrome-border)] bg-[color-mix(in_srgb,var(--chrome-bg)_94%,white)] px-[var(--space-4)] py-[var(--space-3)] text-[color:var(--chrome-fg)] [font-family:var(--font-sans)] text-[length:var(--text-sm)] focus:border-[var(--chrome-accent)] focus:outline-none"
+          className="w-full min-w-0 box-border rounded-[var(--chrome-radius-pill)] border border-transparent bg-[color-mix(in_srgb,var(--chrome-bg)_94%,white)] px-[var(--space-4)] py-[var(--space-3)] text-[color:var(--chrome-fg)] [font-family:var(--font-sans)] text-[length:var(--text-sm)] focus:border-[var(--chrome-accent)] focus:outline-none"
         >
           {GROUPS.map((g) => {
             const items = g.items.filter((it) => isVisible(it.id));

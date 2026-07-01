@@ -11,8 +11,7 @@ const ERROR_AUTOCLEAR_MS = 12000;
 // Export-track toggle chips: flat pill outline, tinted by on/off/success state.
 const TRACK_LABEL =
   'inline-flex items-center gap-[4px] px-[8px] py-[2px] border border-transparent rounded-[var(--chrome-radius-pill)] cursor-pointer transition-colors';
-const TRACK_ON =
-  'text-[var(--chrome-fg)] border-[var(--chrome-border-strong)] bg-[var(--chrome-hover-bg)]';
+const TRACK_ON = 'text-[var(--chrome-fg)] border-transparent bg-[var(--chrome-hover-bg)]';
 const TRACK_OFF = 'text-[var(--chrome-fg-dim)]';
 const TRACK_ON_SUCCESS =
   'text-[var(--chrome-severity-ok)] border-transparent bg-[color-mix(in_srgb,var(--chrome-severity-ok)_10%,transparent)]';
@@ -43,7 +42,7 @@ export default function DubFooter({
   }, [canAutoClear, dubError, onDismissError]);
 
   return (
-    <div className="px-[var(--space-3)] py-[4px] shrink-0 bg-[var(--chrome-bg)] border border-[var(--chrome-border)]">
+    <div className="px-[var(--space-3)] py-[4px] shrink-0 bg-[var(--chrome-bg)] border border-transparent">
       {dubStep === 'done' && (
         <div className="mb-[var(--space-2)]">
           <Badge tone="success">
@@ -86,7 +85,7 @@ export default function DubFooter({
       )}
       {/* Output options + Timing moved to the top of the right (transcript) section. */}
       {dubTracks.length > 0 && (
-        <div className="flex items-center gap-[var(--space-2)] mb-[2px] px-[var(--space-3)] py-[3px] text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)] font-[family-name:var(--font-sans)] bg-[var(--chrome-bg)] rounded-[var(--chrome-radius-pill)] border border-[var(--chrome-border)] flex-wrap">
+        <div className="flex items-center gap-[var(--space-2)] mb-[2px] px-[var(--space-3)] py-[3px] text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)] font-[family-name:var(--font-sans)] bg-[var(--chrome-bg)] rounded-[var(--chrome-radius-pill)] border border-transparent flex-wrap">
           <span className="font-[family-name:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] tracking-[var(--chrome-label-track)] uppercase text-[var(--chrome-fg-muted)] font-semibold">
             {t('dub.export_tracks')}
           </span>

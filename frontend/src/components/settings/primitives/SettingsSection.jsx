@@ -25,7 +25,7 @@ import React from 'react';
 // to the primitive without re-deriving the token string. `data-slot` is the
 // stable hook Settings.css / panel CSS reach into.
 export const SETTINGS_SECTION_SURFACE =
-  'bg-[var(--chrome-bg)] border border-[var(--chrome-border)] rounded-[var(--chrome-radius-pill)] px-[var(--space-6)] py-[var(--space-5)] mb-[var(--space-5)] last:mb-0';
+  'bg-[var(--chrome-bg)] border border-transparent rounded-[var(--chrome-radius-pill)] px-[var(--space-6)] py-[var(--space-5)] mb-[var(--space-5)] last:mb-0';
 
 export default function SettingsSection({
   icon: Icon,
@@ -41,7 +41,7 @@ export default function SettingsSection({
       data-slot="settings-section"
       className={`${SETTINGS_SECTION_SURFACE} ${className}`.trim()}
     >
-      <header className="flex items-center gap-[var(--space-3)] mb-[var(--space-3)] pb-[var(--space-3)] border-b border-[var(--chrome-border)]">
+      <header className="flex items-center gap-[var(--space-3)] mb-[var(--space-3)] pb-[var(--space-3)] border-b border-transparent">
         {Icon && (
           <span
             className="shrink-0 inline-flex items-center justify-center w-[20px] h-[20px] rounded-[var(--chrome-radius-pill)] text-[color:var(--chrome-fg-muted)] bg-[color-mix(in_srgb,currentColor_12%,var(--chrome-bg))] border border-transparent"

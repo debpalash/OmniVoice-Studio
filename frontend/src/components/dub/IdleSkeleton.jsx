@@ -402,7 +402,7 @@ export default function IdleSkeleton({
                 </label>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-[5px] px-[10px] py-[5px] text-[0.7rem] text-[var(--chrome-fg-muted)] bg-transparent border border-[var(--chrome-border)] rounded-[var(--chrome-radius-pill,999px)] cursor-pointer transition-colors hover:text-[var(--chrome-fg)] hover:border-[var(--chrome-border-strong)]"
+                  className="inline-flex items-center gap-[5px] px-[10px] py-[5px] text-[0.7rem] text-[var(--chrome-fg-muted)] bg-transparent border border-transparent rounded-[var(--chrome-radius-pill,999px)] cursor-pointer transition-colors hover:text-[var(--chrome-fg)] hover:border-transparent"
                   onClick={() => setLandingAdvOpen((o) => !o)}
                   aria-expanded={landingAdvOpen}
                 >
@@ -581,7 +581,7 @@ export default function IdleSkeleton({
               <Play size={11} /> {t('dub.generate_dub')}
             </Button>
             <button
-              className="inline-flex items-center gap-[5px] bg-transparent border border-[var(--chrome-border)] text-[var(--chrome-fg-muted)] rounded-[8px] flex-[0_0_auto] px-[8px] py-[4px] text-[0.7rem] opacity-40"
+              className="inline-flex items-center gap-[5px] bg-transparent border border-transparent text-[var(--chrome-fg-muted)] rounded-[8px] flex-[0_0_auto] px-[8px] py-[4px] text-[0.7rem] opacity-40"
               disabled
             >
               <Download size={11} /> {t('dub.export_btn', { defaultValue: 'Export' })}{' '}

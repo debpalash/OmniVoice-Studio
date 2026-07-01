@@ -32,7 +32,7 @@ const buttonVariants = cva(
         destructive:
           'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20',
         outline:
-          'border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground',
+          'border border-transparent bg-background shadow-xs hover:bg-accent hover:text-accent-foreground',
         secondary: 'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
@@ -44,19 +44,19 @@ const buttonVariants = cva(
         primary:
           'border border-transparent bg-primary text-primary-foreground font-semibold shadow-xs hover:bg-primary/90 active:scale-[0.98]',
         subtle:
-          'border border-border bg-transparent text-muted-foreground hover:bg-[var(--chrome-hover-bg)] hover:text-foreground hover:border-transparent',
+          'border border-transparent bg-transparent text-muted-foreground hover:bg-[var(--chrome-hover-bg)] hover:text-foreground hover:border-transparent',
         softGhost:
           'border border-transparent bg-transparent text-muted-foreground hover:bg-[var(--chrome-hover-bg)] hover:text-foreground',
         danger:
           'text-destructive bg-destructive/10 border border-transparent hover:bg-destructive/20 hover:border-transparent',
-        chip: 'border border-border bg-transparent text-muted-foreground hover:bg-[var(--chrome-hover-bg)] hover:text-foreground hover:border-transparent',
+        chip: 'border border-transparent bg-transparent text-muted-foreground hover:bg-[var(--chrome-hover-bg)] hover:text-foreground hover:border-transparent',
         chipActive: 'text-success bg-success/10 border border-transparent',
         preset:
-          'justify-start text-left border border-border bg-transparent text-muted-foreground hover:bg-[var(--chrome-hover-bg)] hover:text-foreground hover:border-transparent',
+          'justify-start text-left border border-transparent bg-transparent text-muted-foreground hover:bg-[var(--chrome-hover-bg)] hover:text-foreground hover:border-transparent',
         presetActive:
           'justify-start text-left text-primary bg-primary/[0.12] border border-transparent',
         iconBtn:
-          'border border-border bg-transparent text-muted-foreground hover:bg-[var(--chrome-hover-bg)] hover:text-foreground hover:border-transparent',
+          'border border-transparent bg-transparent text-muted-foreground hover:bg-[var(--chrome-hover-bg)] hover:text-foreground hover:border-transparent',
         iconBtnActive: 'text-primary bg-primary/[0.12] border border-transparent',
       },
       size: {

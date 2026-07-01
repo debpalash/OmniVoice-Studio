@@ -14,9 +14,8 @@ const BASE =
   'disabled:opacity-45 disabled:cursor-not-allowed';
 
 const TONES = {
-  idle: 'text-[var(--chrome-fg-muted)] border-[var(--chrome-border)] hover:bg-[var(--chrome-hover-bg)]',
-  stopping:
-    'text-[var(--chrome-fg-muted)] border-[var(--chrome-border)] hover:bg-[var(--chrome-hover-bg)]',
+  idle: 'text-[var(--chrome-fg-muted)] border-transparent hover:bg-[var(--chrome-hover-bg)]',
+  stopping: 'text-[var(--chrome-fg-muted)] border-transparent hover:bg-[var(--chrome-hover-bg)]',
   danger:
     'text-[var(--chrome-severity-err)] border-transparent bg-[color-mix(in_srgb,var(--chrome-severity-err)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--chrome-severity-err)_18%,transparent)]',
   green:

@@ -23,7 +23,7 @@ import ReadinessChecklist from '../components/ReadinessChecklist';
 // (P4 shadcn/Tailwind pass). Defined once here so the four card instances stay
 // in lockstep; Tailwind's scanner picks the literals up from this file.
 const projCard =
-  'bg-[var(--chrome-bg)] border border-solid border-[var(--chrome-border)] rounded-[var(--chrome-radius-pill)] py-[10px] px-[14px] [transition:background_0.15s,border-color_0.15s] flex items-center gap-[12px] hover:bg-[var(--chrome-hover-bg)] hover:border-[var(--chrome-border-strong)]';
+  'bg-[var(--chrome-bg)] border border-solid border-transparent rounded-[var(--chrome-radius-pill)] py-[10px] px-[14px] [transition:background_0.15s,border-color_0.15s] flex items-center gap-[12px] hover:bg-[var(--chrome-hover-bg)] hover:border-transparent';
 const projIcon =
   'w-[32px] h-[32px] rounded-[var(--chrome-radius-pill)] flex items-center justify-center shrink-0';
 const projInfo = 'flex-1 min-w-0';
@@ -32,7 +32,7 @@ const projName =
 const projMeta =
   '[font-family:var(--chrome-font-mono)] text-[0.62rem] text-[color:var(--chrome-fg-dim)] mt-[2px] font-normal whitespace-nowrap overflow-hidden text-ellipsis';
 const projAction =
-  '[font-family:var(--font-sans)] text-[0.7rem] font-medium py-[4px] px-[12px] rounded-[var(--chrome-radius-pill)] bg-transparent border border-solid border-[var(--chrome-border-strong)] text-[color:var(--chrome-fg-muted)] cursor-pointer [transition:background_var(--dur-fast),color_var(--dur-fast),border-color_var(--dur-fast)] shrink-0 whitespace-nowrap [letter-spacing:0.02em] hover:bg-[var(--chrome-hover-bg)] hover:text-[color:var(--chrome-fg)] hover:border-[var(--chrome-fg-muted)]';
+  '[font-family:var(--font-sans)] text-[0.7rem] font-medium py-[4px] px-[12px] rounded-[var(--chrome-radius-pill)] bg-transparent border border-solid border-transparent text-[color:var(--chrome-fg-muted)] cursor-pointer [transition:background_var(--dur-fast),color_var(--dur-fast),border-color_var(--dur-fast)] shrink-0 whitespace-nowrap [letter-spacing:0.02em] hover:bg-[var(--chrome-hover-bg)] hover:text-[color:var(--chrome-fg)] hover:border-[var(--chrome-fg-muted)]';
 // Section divider label ("Cloned Voices" etc.) — the trailing dotted rule lives
 // on an ::after pseudo, expressed via the after: variant.
 const sectionTitle =

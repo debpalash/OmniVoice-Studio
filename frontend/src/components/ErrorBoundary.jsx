@@ -76,7 +76,7 @@ export default class ErrorBoundary extends React.Component {
           <p className="m-0 mb-3 text-[0.82rem] leading-[1.5] text-[var(--chrome-fg-muted)]">
             {i18next.t('errors.desc')}
           </p>
-          <pre className="m-0 mb-3.5 max-h-[140px] overflow-auto rounded-[var(--chrome-radius-pill)] border border-[var(--chrome-border)] bg-[var(--chrome-hover-bg)] px-2.5 py-2 text-left font-mono text-[0.72rem] text-[var(--chrome-severity-err)]">
+          <pre className="m-0 mb-3.5 max-h-[140px] overflow-auto rounded-[var(--chrome-radius-pill)] border border-transparent bg-[var(--chrome-hover-bg)] px-2.5 py-2 text-left font-mono text-[0.72rem] text-[var(--chrome-severity-err)]">
             {msg}
           </pre>
           <div className="flex flex-wrap justify-center gap-2">

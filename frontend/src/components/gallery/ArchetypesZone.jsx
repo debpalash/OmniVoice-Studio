@@ -117,7 +117,7 @@ export default function ArchetypesZone({
   const facetGroup =
     'flex items-center gap-[5px] flex-nowrap min-w-0 overflow-x-auto overflow-y-hidden [scrollbar-width:thin]';
   const facetToggle =
-    'inline-flex items-center gap-[5px] h-[26px] box-border px-[9px] rounded-[7px] border border-[var(--chrome-border)] bg-[var(--chrome-hover-bg)] text-[var(--chrome-fg-muted)] text-[0.68rem] whitespace-nowrap cursor-pointer hover:text-[var(--chrome-fg)] hover:border-[color:var(--chrome-border-strong)]';
+    'inline-flex items-center gap-[5px] h-[26px] box-border px-[9px] rounded-[7px] border border-transparent bg-[var(--chrome-hover-bg)] text-[var(--chrome-fg-muted)] text-[0.68rem] whitespace-nowrap cursor-pointer hover:text-[var(--chrome-fg)] hover:border-[color:var(--chrome-border-strong)]';
   const gridClass =
     viewMode === 'grid'
       ? 'grid grid-cols-[repeat(auto-fill,minmax(248px,1fr))] gap-[10px]'
@@ -125,7 +125,7 @@ export default function ArchetypesZone({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
-      <div className="flex flex-row items-center gap-[10px] flex-nowrap shrink-0 pt-[2px] pb-[10px] mb-[8px] border-b border-[var(--chrome-border)]">
+      <div className="flex flex-row items-center gap-[10px] flex-nowrap shrink-0 pt-[2px] pb-[10px] mb-[8px] border-b border-transparent">
         {/* Three filter lanes (categories · facets · toggles), each its own
             horizontally-scrollable portion; the view toggle is pinned right. */}
         <div className={`${facetGroup} flex-[2.4_1_0]`}>
@@ -150,9 +150,7 @@ export default function ArchetypesZone({
           ))}
         </div>
 
-        <div
-          className={`${facetGroup} flex-[1.6_1_0] pl-[10px] border-l border-[var(--chrome-border)]`}
-        >
+        <div className={`${facetGroup} flex-[1.6_1_0] pl-[10px] border-l border-transparent`}>
           {['gender', 'age', 'pitch', 'accent', 'lang'].map((dim) => (
             <Select
               key={dim}
@@ -172,9 +170,7 @@ export default function ArchetypesZone({
           ))}
         </div>
 
-        <div
-          className={`${facetGroup} flex-[1_1_0] pl-[10px] border-l border-[var(--chrome-border)]`}
-        >
+        <div className={`${facetGroup} flex-[1_1_0] pl-[10px] border-l border-transparent`}>
           <label className={facetToggle}>
             <input
               type="checkbox"

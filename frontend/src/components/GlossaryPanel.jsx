@@ -189,7 +189,7 @@ export default function GlossaryPanel({
           </div>
         ) : (
           <>
-            <table className="w-full border-collapse text-[length:var(--text-sm)] [&_td]:border-b [&_td]:border-b-transparent [&_td]:px-[6px] [&_td]:py-[3px] [&_td]:text-left [&_td]:align-middle [&_th]:border-b [&_th]:border-b-[var(--color-border)] [&_th]:px-[6px] [&_th]:py-[3px] [&_th]:text-left [&_th]:align-middle [&_th]:text-[length:var(--text-xs)] [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.04em] [&_th]:text-[var(--color-fg-subtle)]">
+            <table className="w-full border-collapse text-[length:var(--text-sm)] [&_td]:border-b [&_td]:border-b-transparent [&_td]:px-[6px] [&_td]:py-[3px] [&_td]:text-left [&_td]:align-middle [&_th]:border-b [&_th]:border-b-transparent [&_th]:px-[6px] [&_th]:py-[3px] [&_th]:text-left [&_th]:align-middle [&_th]:text-[length:var(--text-xs)] [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.04em] [&_th]:text-[var(--color-fg-subtle)]">
               <thead>
                 <tr>
                   <th>{t('glossary.source')}</th>
@@ -228,7 +228,7 @@ export default function GlossaryPanel({
                     onDelete={() => onDelete(term.id)}
                   />
                 ))}
-                <tr className="border-t border-dashed border-[var(--color-border)] [&>td]:py-[4px]">
+                <tr className="border-t border-dashed border-transparent [&>td]:py-[4px]">
                   <td>
                     <Input
                       size="sm"

@@ -22,7 +22,7 @@ export default function Collapsible({ title, icon: Icon, defaultOpen = false, ba
   return (
     <div
       className={cn(
-        'border border-[var(--chrome-border)] rounded-[var(--chrome-radius-pill)] mt-[var(--space-4)] overflow-hidden',
+        'border border-transparent rounded-[var(--chrome-radius-pill)] mt-[var(--space-4)] overflow-hidden',
         open && 'is-open',
       )}
     >
@@ -50,7 +50,7 @@ export default function Collapsible({ title, icon: Icon, defaultOpen = false, ba
         )}
       </button>
       {open && (
-        <div className="px-[var(--space-5)] pt-[var(--space-2)] pb-[var(--space-4)] border-t border-[var(--chrome-border)] [&>[data-slot=setting-row]:last-child]:pb-0">
+        <div className="px-[var(--space-5)] pt-[var(--space-2)] pb-[var(--space-4)] border-t border-transparent [&>[data-slot=setting-row]:last-child]:pb-0">
           {children}
         </div>
       )}

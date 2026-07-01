@@ -15,11 +15,11 @@ import { Card } from '@/components/ui/card';
 
 const VARIANT = {
   // glass: surface (gradients + backdrop-filter) + ::before stay in residual.css.
-  glass: 'border border-[var(--color-border-warm)]',
+  glass: 'border border-transparent',
   solid:
-    'border border-[var(--color-border-warm)] ' +
+    'border border-transparent ' +
     '[background-image:linear-gradient(160deg,#2a2624_0%,#201c1b_100%)] [box-shadow:var(--shadow-md)]',
-  flat: 'border border-[var(--color-border)] [background-color:rgba(0,0,0,0.08)]',
+  flat: 'border border-transparent [background-color:rgba(0,0,0,0.08)]',
 };
 
 const PAD = {
@@ -72,7 +72,7 @@ const Panel = forwardRef(function Panel(
     <Card asChild className={classes}>
       <Tag ref={ref} {...rest}>
         {hasHeader && (
-          <header className="ui-panel__header flex items-center justify-between py-[var(--space-4)] px-[var(--space-5)] gap-[var(--space-4)] [border-bottom:1px_solid_var(--color-border)]">
+          <header className="ui-panel__header flex items-center justify-between py-[var(--space-4)] px-[var(--space-5)] gap-[var(--space-4)] [border-bottom:1px_solid_transparent]">
             {title != null && (
               <div className="ui-panel__title flex items-center gap-[var(--space-3)] min-w-0 [font-size:var(--text-md)] font-bold text-fg tracking-[-0.01em]">
                 {title}

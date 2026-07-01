@@ -91,7 +91,7 @@ export default function BatchAddDialog({
           className={`flex cursor-pointer flex-col items-center justify-center gap-[6px] rounded-[10px] border-2 border-dashed px-4 py-7 text-[0.82rem] transition-all hover:border-[var(--chrome-accent)] hover:bg-white/[0.02] hover:text-[var(--chrome-fg)] ${
             dragOver
               ? 'border-[var(--chrome-accent)] bg-white/[0.02] text-[var(--chrome-fg)]'
-              : 'border-[var(--chrome-border)] text-[var(--chrome-fg-muted)]'
+              : 'border-transparent text-[var(--chrome-fg-muted)]'
           }`}
           onDragOver={(e) => {
             e.preventDefault();

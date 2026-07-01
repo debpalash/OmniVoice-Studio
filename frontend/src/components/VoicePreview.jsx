@@ -97,8 +97,8 @@ export default function VoicePreview({
   if (!open) return null;
 
   return (
-    <div className="fixed bottom-[calc(var(--logs-footer-height,28px)+16px)] right-[16px] z-[900] w-[320px] bg-[var(--chrome-bg)] border border-solid border-[var(--chrome-border-strong)] rounded-[12px] [box-shadow:0_8px_32px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden animate-[voice-preview-in_0.2s_ease-out]">
-      <div className="flex items-center justify-between py-[10px] px-[14px] border-b border-solid border-b-[var(--chrome-border)]">
+    <div className="fixed bottom-[calc(var(--logs-footer-height,28px)+16px)] right-[16px] z-[900] w-[320px] bg-[var(--chrome-bg)] border border-solid border-transparent rounded-[12px] [box-shadow:0_8px_32px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden animate-[voice-preview-in_0.2s_ease-out]">
+      <div className="flex items-center justify-between py-[10px] px-[14px] border-b border-solid border-b-transparent">
         <span className="flex items-center gap-[6px] [font-family:var(--font-mono)] text-[0.72rem] font-semibold uppercase [letter-spacing:0.04em] text-[color:var(--chrome-fg)]">
           <Volume2 size={13} /> {t('voicePreview.title')}
         </span>
@@ -171,7 +171,7 @@ export default function VoicePreview({
         )}
       </div>
 
-      <div className="flex items-center justify-between pt-[8px] px-[14px] pb-[10px] border-t border-solid border-t-[var(--chrome-border)]">
+      <div className="flex items-center justify-between pt-[8px] px-[14px] pb-[10px] border-t border-solid border-t-transparent">
         {loading ? (
           <Button variant="ghost" size="sm" onClick={handleStop} leading={<Square size={10} />}>
             {t('voicePreview.stop')}

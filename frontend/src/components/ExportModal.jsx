@@ -26,8 +26,8 @@ const trackCls = (on, kind) => {
   if (on && kind === 'dub')
     return `${TRACK_BASE} border-[var(--chrome-accent-border)] bg-[var(--chrome-accent-bg)] text-[var(--chrome-accent)]`;
   if (on)
-    return `${TRACK_BASE} border-[var(--chrome-border-strong)] bg-[var(--chrome-hover-bg)] text-[var(--chrome-fg)]`;
-  return `${TRACK_BASE} border-[var(--chrome-border)] text-[var(--chrome-fg-muted)]`;
+    return `${TRACK_BASE} border-transparent bg-[var(--chrome-hover-bg)] text-[var(--chrome-fg)]`;
+  return `${TRACK_BASE} border-transparent text-[var(--chrome-fg-muted)]`;
 };
 const TAB_BASE =
   'inline-flex items-center gap-[6px] px-[12px] py-[6px] bg-transparent border-0 border-b-2 cursor-pointer text-[length:var(--text-sm)] transition-[color,border-color] duration-[var(--dur-fast)]';
@@ -288,7 +288,7 @@ export default function ExportModal({
       aria-label={t('exportModal.export_options')}
     >
       <div
-        className="pointer-events-auto flex w-[min(880px,calc(100vw-24px))] max-h-[min(70vh,560px)] flex-col overflow-hidden rounded-t-lg border border-b-0 border-[var(--chrome-border-strong)] bg-[var(--chrome-bg)] shadow-[0_-8px_24px_rgba(0,0,0,0.45),0_-1px_0_var(--chrome-border)_inset] animate-in fade-in slide-in-from-bottom-full duration-200"
+        className="pointer-events-auto flex w-[min(880px,calc(100vw-24px))] max-h-[min(70vh,560px)] flex-col overflow-hidden rounded-t-lg border border-b-0 border-transparent bg-[var(--chrome-bg)] shadow-[0_-8px_24px_rgba(0,0,0,0.45),0_-1px_0_var(--chrome-border)_inset] animate-in fade-in slide-in-from-bottom-full duration-200"
         ref={drawerRef}
       >
         <header className="relative flex items-center gap-[var(--space-3)] p-[6px_var(--space-4)_10px] [border-bottom:1px_solid_var(--chrome-border)] [background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]">
@@ -306,7 +306,7 @@ export default function ExportModal({
           </span>
           <button
             type="button"
-            className="ml-auto inline-flex h-[var(--chrome-icon-btn,22px)] w-[var(--chrome-icon-btn,22px)] cursor-pointer items-center justify-center rounded-[var(--chrome-radius-pill)] bg-transparent text-[var(--chrome-fg-muted)] [border:1px_solid_transparent] transition-[background,color,border-color] duration-[var(--dur-fast)] hover:border-[var(--chrome-border-strong)] hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--chrome-fg)]"
+            className="ml-auto inline-flex h-[var(--chrome-icon-btn,22px)] w-[var(--chrome-icon-btn,22px)] cursor-pointer items-center justify-center rounded-[var(--chrome-radius-pill)] bg-transparent text-[var(--chrome-fg-muted)] [border:1px_solid_transparent] transition-[background,color,border-color] duration-[var(--dur-fast)] hover:border-transparent hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--chrome-fg)]"
             onClick={onClose}
             aria-label={t('exportModal.close_drawer')}
           >
@@ -323,7 +323,7 @@ export default function ExportModal({
               <button
                 key={k}
                 type="button"
-                className="inline-flex cursor-pointer items-center gap-[4px] rounded-[var(--chrome-radius-pill)] bg-transparent px-[8px] py-[3px] font-sans text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)] [border:1px_solid_var(--chrome-border)] transition-[background,color,border-color] duration-[var(--dur-fast)] hover:border-[var(--chrome-border-strong)] hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--chrome-fg)]"
+                className="inline-flex cursor-pointer items-center gap-[4px] rounded-[var(--chrome-radius-pill)] bg-transparent px-[8px] py-[3px] font-sans text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)] [border:1px_solid_var(--chrome-border)] transition-[background,color,border-color] duration-[var(--dur-fast)] hover:border-transparent hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--chrome-fg)]"
                 onClick={() => applyPreset(k)}
                 title={t('exportModal.preset_title', { tab: v.tab, label: t(v.labelKey) })}
               >

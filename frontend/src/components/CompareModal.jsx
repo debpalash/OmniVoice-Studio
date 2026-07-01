@@ -128,7 +128,7 @@ export default function CompareModal({
           </span>
           <button
             type="button"
-            className="ml-auto inline-flex h-[var(--chrome-icon-btn,22px)] w-[var(--chrome-icon-btn,22px)] cursor-pointer items-center justify-center rounded-[var(--chrome-radius-pill)] bg-transparent text-[var(--chrome-fg-muted)] [border:1px_solid_transparent] transition-[background,color,border-color] duration-[var(--dur-fast)] hover:border-[var(--chrome-border-strong)] hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--chrome-fg)]"
+            className="ml-auto inline-flex h-[var(--chrome-icon-btn,22px)] w-[var(--chrome-icon-btn,22px)] cursor-pointer items-center justify-center rounded-[var(--chrome-radius-pill)] bg-transparent text-[var(--chrome-fg-muted)] [border:1px_solid_transparent] transition-[background,color,border-color] duration-[var(--dur-fast)] hover:border-transparent hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--chrome-fg)]"
             onClick={onClose}
             aria-label={t('compare.close')}
           >

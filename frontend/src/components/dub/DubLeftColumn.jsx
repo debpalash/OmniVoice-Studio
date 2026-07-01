@@ -29,11 +29,11 @@ import toast from 'react-hot-toast';
 
 // ── Translation-settings bar utility class clusters ──────────────────────
 const SETTINGS_SUMMARY =
-  'flex items-center gap-[var(--space-2)] px-[var(--space-3)] py-[3px] mb-[3px] bg-[var(--chrome-bg)] border border-[var(--chrome-border)] rounded-[var(--chrome-radius-pill)] font-[family-name:var(--font-sans)] text-[0.66rem] text-[var(--chrome-fg-muted)]';
+  'flex items-center gap-[var(--space-2)] px-[var(--space-3)] py-[3px] mb-[3px] bg-[var(--chrome-bg)] border border-transparent rounded-[var(--chrome-radius-pill)] font-[family-name:var(--font-sans)] text-[0.66rem] text-[var(--chrome-fg-muted)]';
 const SUMMARY_TRIGGER =
   'inline-flex items-center gap-[5px] flex-1 min-w-0 bg-transparent border-none text-fg-muted cursor-pointer py-[2px] px-0 [font:inherit] text-left';
 const SETTINGS_BAR =
-  'flex flex-col gap-[3px] max-[900px]:gap-[6px] mb-[4px] px-[8px] py-[4px] bg-[var(--chrome-bg)] border border-[var(--chrome-border)] rounded-[var(--chrome-radius-pill)]';
+  'flex flex-col gap-[3px] max-[900px]:gap-[6px] mb-[4px] px-[8px] py-[4px] bg-[var(--chrome-bg)] border border-transparent rounded-[var(--chrome-radius-pill)]';
 const FIELD = 'flex flex-col gap-[1px] min-w-0';
 const FIELD_RESP = 'max-[960px]:basis-full max-[960px]:min-w-0';
 const FIELD_LABEL =
@@ -245,7 +245,7 @@ export default function DubLeftColumn({
                   dropdown. It's also pre-selected on the segments so "new
                   language = same speaker's voice" works by default. */}
       {dubSegments.some((s) => s.speaker_id) && (
-        <div className="mt-[2px] px-[var(--space-3)] py-[3px] bg-[var(--chrome-bg)] rounded-[var(--chrome-radius-pill)] border border-[var(--chrome-border)]">
+        <div className="mt-[2px] px-[var(--space-3)] py-[3px] bg-[var(--chrome-bg)] rounded-[var(--chrome-radius-pill)] border border-transparent">
           <div className="flex gap-[var(--space-2)] items-center flex-wrap">
             <span
               className="font-[family-name:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] text-[var(--chrome-fg-muted)] tracking-[var(--chrome-label-track)] uppercase font-semibold"
@@ -492,7 +492,7 @@ export default function DubLeftColumn({
                       <div
                         role="dialog"
                         aria-label={t('dub.install_popover_title')}
-                        className="absolute z-20 top-[calc(100%+6px)] left-0 w-[290px] max-w-[80vw] p-[10px] flex flex-col gap-[8px] bg-[var(--chrome-bg,#282828)] border border-[var(--chrome-border-strong,#504945)] rounded-[8px] shadow-[0_8px_24px_rgba(0,0,0,0.45)] normal-case text-left"
+                        className="absolute z-20 top-[calc(100%+6px)] left-0 w-[290px] max-w-[80vw] p-[10px] flex flex-col gap-[8px] bg-[var(--chrome-bg,#282828)] border border-transparent rounded-[8px] shadow-[0_8px_24px_rgba(0,0,0,0.45)] normal-case text-left"
                       >
                         <div className="text-[0.68rem] font-semibold text-[var(--chrome-fg,#ebdbb2)] normal-case tracking-normal">
                           {t('dub.install_popover_title')}
@@ -502,12 +502,12 @@ export default function DubLeftColumn({
                         </p>
                         {installCmd && (
                           <div className="flex items-stretch gap-[4px]">
-                            <code className="flex-1 min-w-0 px-[6px] py-[4px] text-[0.6rem] leading-[1.4] font-[family-name:var(--chrome-font-mono,monospace)] text-[var(--chrome-fg,#ebdbb2)] bg-[rgba(0,0,0,0.35)] border border-[var(--chrome-border,#3c3836)] rounded-[5px] overflow-x-auto whitespace-nowrap">
+                            <code className="flex-1 min-w-0 px-[6px] py-[4px] text-[0.6rem] leading-[1.4] font-[family-name:var(--chrome-font-mono,monospace)] text-[var(--chrome-fg,#ebdbb2)] bg-[rgba(0,0,0,0.35)] border border-transparent rounded-[5px] overflow-x-auto whitespace-nowrap">
                               {installCmd}
                             </code>
                             <button
                               type="button"
-                              className="shrink-0 inline-flex items-center justify-center px-[6px] rounded-[5px] border border-[var(--chrome-border,#3c3836)] text-[var(--chrome-fg-muted,#a89984)] hover:text-[var(--chrome-fg,#ebdbb2)] hover:border-[var(--chrome-border-strong,#504945)] cursor-pointer bg-transparent"
+                              className="shrink-0 inline-flex items-center justify-center px-[6px] rounded-[5px] border border-transparent text-[var(--chrome-fg-muted,#a89984)] hover:text-[var(--chrome-fg,#ebdbb2)] hover:border-transparent cursor-pointer bg-transparent"
                               onClick={copyInstallCmd}
                               title={t('dub.copy_command')}
                               aria-label={t('dub.copy_command')}
@@ -616,9 +616,7 @@ export default function DubLeftColumn({
                 onChange={(e) => setDubInstruct(e.target.value)}
               />
             </div>
-            <div
-              className={`${FIELD} basis-full pt-[3px] border-t border-[var(--chrome-border)] mt-[1px]`}
-            >
+            <div className={`${FIELD} basis-full pt-[3px] border-t border-transparent mt-[1px]`}>
               <label className="flex items-center gap-[6px] text-[0.65rem] text-[var(--chrome-fg-muted)] cursor-pointer mb-[2px]">
                 <input
                   type="checkbox"

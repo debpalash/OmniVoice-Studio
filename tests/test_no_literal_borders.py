@@ -15,13 +15,21 @@ reach:
      arbitrary utilities, in ``*.jsx`` / ``*.tsx``.
   3. Inline ``style={{ borderColor: … }}`` (non-transparent) in ``*.jsx`` /
      ``*.tsx``.
+  4. Token-based STRUCTURAL border utilities in ``*.jsx`` / ``*.tsx`` —
+     ``border[-trbl]-[var(--chrome-border…)]`` and ``…-[var(--color-border…)]``
+     (incl. ``-strong`` / ``-warm``). These render a hairline the moment the
+     ``--*-border`` token doesn't resolve transparent (a theme re-declare, or a
+     bare ``border`` with no color under Tailwind v4's currentColor default), so
+     the panel/aside/card/row frames were physically removed and converted to
+     ``border-transparent``. This catches their reappearance.
 
 It deliberately does NOT flag: ``:focus-visible`` / ring rules, the
 ``--color-ring`` / ``--focus-ring`` focus tokens, ``border-transparent`` /
-``border-0``, ``var(--…)``-driven borders (the ``--*-border`` tokens are zeroed
-centrally; accent/severity token borders are intentional semantic state cues),
-or colored non-neutral literal CSS borders kept as functional editor / severity
-affordances (e.g. the waveform segment editor).
+``border-0``; the intentional ``--chrome-accent-border`` accent state cue and
+severity token borders; the ``border-border`` / ``border-input`` design-system
+aliases (also zeroed) and the arbitrary ``[border:…var(--…-border)…]`` property
+form; the dashed drop-zone affordance; or borders kept in the functional
+waveform / segment editor and shadcn form-control primitives (allowlisted).
 """
 import re
 from pathlib import Path
@@ -52,6 +60,30 @@ _JSX_BORDER_UTIL = re.compile(
 
 # ── 3) Inline borderColor (non-transparent) ──────────────────────────────────
 _JSX_BORDERCOLOR = re.compile(r"borderColor\s*:")
+
+# ── 4) Token-based structural border utilities in JSX/TSX ────────────────────
+# `border[-trbl]-[var(--chrome-border…)]` / `…-[var(--color-border…)]` (any
+# direction, incl. `-strong` / `-warm`, and any variant prefix). NOT matched:
+# `--chrome-accent-border` (intentional accent state cue) — the char after
+# `--chrome-`/`--color-` must be `border`.
+_JSX_TOKEN_BORDER = re.compile(
+    r"border(?:-[trblxy])?-\[var\(--(?:chrome|color)-border",
+)
+
+# Functional-affordance files whose remaining borders are intentional and must
+# NOT be stripped: the waveform / segment editor (selection ring, drag handles,
+# segment boundaries) and the shadcn form-control primitives (the border IS the
+# control's own outline — removing it makes the field invisible).
+_BORDER_ALLOW = {
+    "components/AudioTrimmer.jsx",
+    "components/WaveformPlayer.jsx",
+    "components/SegmentTrack.jsx",
+    "components/ui/input.tsx",
+    "components/ui/textarea.tsx",
+    "components/ui/select.tsx",
+    "components/ui/slider.tsx",
+    "components/ui/table.tsx",
+}
 
 
 def _iter_frontend_files(suffixes):
@@ -98,6 +130,25 @@ def test_no_inline_border_color_in_jsx():
         "Inline `borderColor` reappeared. Convey selection/error via a "
         "background tint (see WorkspaceHistory / DubSegmentRow) instead.\n"
         + "\n".join(offenders)
+    )
+
+
+def test_no_token_border_utilities_in_jsx():
+    offenders = []
+    for p in _iter_frontend_files({".jsx", ".tsx"}):
+        if p.relative_to(_SRC).as_posix() in _BORDER_ALLOW:
+            continue
+        for i, line in enumerate(p.read_text().splitlines(), 1):
+            if _JSX_TOKEN_BORDER.search(line):
+                offenders.append(f"{p.relative_to(_REPO)}:{i}: {line.strip()[:120]}")
+    assert not offenders, (
+        "Token-based structural border utilities reappeared. A "
+        "`border-[var(--chrome-border…)]` / `border-[var(--color-border…)]` "
+        "renders a stray frame the moment the token isn't transparent. Drop the "
+        "border or use `border-transparent` (keep the width to suppress the "
+        "no-Preflight UA border); convey active/selected state with a background "
+        "tint (`--chrome-accent-bg` / `--chrome-hover-bg` / `--color-bg-elev-*`)."
+        "\n" + "\n".join(offenders)
     )
 
 

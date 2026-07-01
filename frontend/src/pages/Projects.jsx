@@ -87,7 +87,7 @@ function Card({ kind, accent, title, subtitle, trailing, onClick, IconC, view })
   return (
     <button
       type="button"
-      className={`flex cursor-pointer rounded-[var(--chrome-radius-pill)] border border-[var(--chrome-border)] [border-left:3px_solid_var(--card-accent,var(--chrome-accent))] bg-[var(--chrome-bg)] text-left [font-family:inherit] text-[var(--chrome-fg)] transition-[border-color,background,transform] duration-[0.12s] hover:border-[var(--chrome-border-strong)] hover:bg-[color-mix(in_srgb,var(--card-accent,var(--chrome-accent))_5%,var(--chrome-bg))] active:translate-y-[1px] ${
+      className={`flex cursor-pointer rounded-[var(--chrome-radius-pill)] border border-transparent [border-left:3px_solid_var(--card-accent,var(--chrome-accent))] bg-[var(--chrome-bg)] text-left [font-family:inherit] text-[var(--chrome-fg)] transition-[border-color,background,transform] duration-[0.12s] hover:border-transparent hover:bg-[color-mix(in_srgb,var(--card-accent,var(--chrome-accent))_5%,var(--chrome-bg))] active:translate-y-[1px] ${
         list
           ? 'flex-row items-center gap-[14px] px-[12px] py-[6px]'
           : 'flex-col gap-[6px] px-[12px] py-[10px]'

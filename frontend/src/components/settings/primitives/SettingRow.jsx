@@ -45,7 +45,7 @@ export default function SettingRow({
       data-slot="setting-row"
       data-mono={mono ? '' : undefined}
       className={cn(
-        'grid gap-y-[1px] py-[var(--space-4)] min-h-0 border-b border-[var(--chrome-border)] last:border-b-0 [font-family:var(--font-sans)]',
+        'grid gap-y-[1px] py-[var(--space-4)] min-h-0 border-b border-transparent last:border-b-0 [font-family:var(--font-sans)]',
         align === 'start' ? 'items-start' : 'items-center',
         stack
           ? 'grid-cols-[1fr] gap-[var(--space-3)]'
