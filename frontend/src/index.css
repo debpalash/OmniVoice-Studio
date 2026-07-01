@@ -10,19 +10,41 @@
 /* ════════════════════════════════════════════════════════════════════
    CONSOLIDATED FOUNDATION (P5 — single foundation file)
    Folded in from the former src/ui/tokens.css + src/ui/themes.css so the
-   design-token foundation lives in ONE file. The ORDER of the three groups
-   below is load-bearing — it reproduces the exact pre-consolidation
-   cross-file load order (ui/index.js imported tokens.css then themes.css,
-   and main-app.jsx imported index.css after that):
-     1. tokens.css's :root          — the extra (non-@theme) token scale
-     2. themes.css's [data-theme=…]  — per-theme semantic + chrome overrides
-     3. (further below) the @theme bridge + index.css's own :root + rules
-   The [data-theme] blocks intentionally sit AFTER the token :root but
-   BEFORE index.css's legacy/chrome :root: those chrome tokens (--chrome-*)
-   are declared in BOTH a plain :root and the [data-theme] blocks at EQUAL
-   specificity, so source order decides — index.css's :root must stay last
-   to keep chrome resolving exactly as it did before. Do NOT reorder these
-   groups (the tokenParity + visual suites guard this).
+   design-token foundation lives in ONE file.
+
+   ORDER IS LOAD-BEARING — the cascade's correctness depends on it:
+     1. The default token / bridge layer FIRST — the token-scale `:root`,
+        the `@theme` base + `@theme inline` shadcn bridge, and the default
+        legacy/chrome `:root`.
+     2. ALL `[data-theme=…]` per-theme overrides LAST — after every default
+        `:root`.
+
+   Why themes MUST come after the default `:root` blocks: in the real app
+   `data-theme` is set on <html>, and <html> IS `:root`
+   (documentElement === :root). So a plain `:root {…}` and a
+   `[data-theme="x"] {…}` BOTH match the SAME element at EQUAL specificity
+   (0,1,0) — SOURCE ORDER is the only tiebreaker, and the later block wins.
+   The `--chrome-*` (and `--color-*`) tokens are declared in BOTH, so if a
+   default `:root` sits AFTER the themes it clobbers every theme's overrides
+   and the app chrome (Settings hub, header, footer) stops recoloring. That
+   was the P5-consolidation regression: the default chrome `:root` had been
+   inlined AFTER the [data-theme] blocks, so Midnight/Catppuccin/Nord/…
+   never recolored the chrome on the real <html> app.
+
+   Keep the `@theme` + `@theme inline` blocks ADJACENT and BEFORE the
+   [data-theme] blocks: Tailwind v4 compiles them, and moving a `:root`
+   between them (or a theme block across them) changes the GENERATED CSS
+   (e.g. `@theme inline` stops inlining, so shadcn utilities lose their
+   brand color). The fix keeps that Tailwind region byte-for-byte intact and
+   instead places the [data-theme] blocks last, after the default
+   legacy/chrome `:root`.
+
+   Do NOT "fix" a recurrence by bumping specificity to
+   `:root[data-theme="x"]` — that stops matching the visual harness, which
+   sets `data-theme` on a WRAPPER div (a closer ancestor that wins by
+   proximity, not source order). Order is the correct lever; specificity is
+   not. Guarded by src/test/themeCascade.test.js (source-order cascade sim)
+   + the tokenParity + visual suites.
    ════════════════════════════════════════════════════════════════════ */
 
 /* ────────────────────────────────────────────────────────────────────
@@ -160,10 +182,165 @@
   border-radius: var(--radius-md);
 }
 
+/* ── Map design tokens → Tailwind v4 theme ──────────────────────────── */
+@theme {
+  /* Colors — semantic */
+  --color-fg:            #ebdbb2;
+  --color-fg-muted:      #a89984;
+  --color-fg-subtle:     #7c6f64;
+  --color-fg-inverse:    #1d2021;
+
+  --color-bg:            #1d2021;
+  --color-bg-elev-1:     rgba(50, 48, 47, 0.85);
+  --color-bg-elev-2:     rgba(0, 0, 0, 0.30);
+  --color-bg-elev-3:     rgba(0, 0, 0, 0.18);
+
+  --color-border:        rgba(255, 255, 255, 0.07);
+  --color-border-strong: rgba(255, 255, 255, 0.15);
+  --color-border-warm:   rgba(243, 165, 182, 0.08);
+
+  --color-brand:         #d3869b;
+  --color-brand-hover:   #b16286;
+  --color-brand-glow:    rgba(211, 134, 155, 0.4);
+
+  --color-accent:        #fabd2f;
+  --color-success:       #8ec07c;
+  --color-warn:          #fe8019;
+  --color-danger:        #fb4934;
+  --color-info:          #83a598;
+
+  --color-chrome-bg:     #0f1011;
+  --color-chrome-fg:     #d5c4a1;
+
+  /* Radius */
+  --radius-xs:  2px;
+  --radius-sm:  3px;
+  --radius-md:  4px;
+  --radius-lg:  6px;
+  --radius-xl: 10px;
+
+  /* Fonts — full font stacks. These are the single source of truth; the
+     identical declarations were removed from the former ui/tokens.css :root
+     (now consolidated above; being unlayered, that copy used to win — so
+     these literals carry the exact stacks that were computed before the
+     de-dup, preserving every resolved value). */
+  --font-sans:    'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Söhne', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
+  --font-serif:   'Source Serif 4 Variable', 'Source Serif 4', 'Söhne Breit', Georgia, serif;
+}
+
+/* ── shadcn/ui semantic token bridge ─────────────────────────────────────
+   Maps shadcn's component token vocabulary onto OmniVoice's EXISTING palette
+   so shadcn primitives (src/components/ui/*) inherit the current look instead
+   of shadcn's default grayscale.
+
+   `@theme inline` emits Tailwind utilities (bg-background, text-foreground,
+   bg-primary, bg-card, text-muted-foreground, border-input, ring-ring,
+   bg-destructive, …) whose values reference the OmniVoice `--color-*` tokens
+   *by name*. Because those tokens are re-declared per theme in the
+   [data-theme] blocks BELOW (they must stay after this bridge so they win
+   by source order on <html> — see the file header), theme switching
+   recolors every shadcn component automatically — there is no separate
+   per-theme shadcn block to keep in sync.
+
+   Notes:
+   • `bg-accent`/`text-accent` and `border-border` already exist (the base
+     @theme above declares --color-accent and --color-border), so shadcn's
+     `accent` and `border` reuse them unchanged — re-emitting them here would be
+     a self-referential no-op, so they're intentionally omitted.
+   • The --radius-* scale (xs..xl) is left untouched; only the new shadcn
+     `--radius` base is added (→ --radius-lg = 6px). shadcn's rounded-md picks
+     up OmniVoice's existing --radius-md (4px), staying on-palette.
+   • --primary-foreground / --accent-foreground / --destructive-foreground use
+     --color-fg-inverse (dark) — matches the existing Button primary, which
+     paints dark text on the bright brand/accent fill across every theme. */
+:root {
+  --radius: var(--radius-lg);
+}
+@theme inline {
+  --color-background:           var(--color-bg);
+  --color-foreground:           var(--color-fg);
+
+  --color-card:                 var(--color-bg-elev-1);
+  --color-card-foreground:      var(--color-fg);
+  --color-popover:              var(--color-bg-elev-1);
+  --color-popover-foreground:   var(--color-fg);
+
+  --color-primary:              var(--color-brand);
+  --color-primary-foreground:   var(--color-fg-inverse);
+
+  --color-secondary:            var(--color-bg-elev-2);
+  --color-secondary-foreground: var(--color-fg);
+  --color-muted:                var(--color-bg-elev-2);
+  --color-muted-foreground:     var(--color-fg-muted);
+
+  --color-accent-foreground:    var(--color-fg-inverse);
+
+  --color-destructive:          var(--color-danger);
+  --color-destructive-foreground: var(--color-fg-inverse);
+
+  --color-input:                var(--color-border);
+  --color-ring:                 var(--color-brand);
+}
+
+/* Font imports removed — the chrome token system uses only system monospace
+   (ui-monospace, SFMono-Regular, Menlo, Consolas). Fraunces / Nunito / Outfit
+   / Inter are no longer referenced by any rule. */
+
+:root {
+  --primary: #d3869b;
+  --primary-hover: #b16286;
+  --accent: #fabd2f;
+  --bg: #1d2021;
+  --glass-bg: rgba(50, 48, 47, 0.85);
+  --glass-border: rgba(235, 219, 178, 0.08);
+  --glass-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.4);
+  --blur: blur(16px) saturate(140%);
+  --text-primary: #ebdbb2;
+  --text-secondary: #a89984;
+  --radius: 6px;
+  --gap: 6px;
+  --transition-fast: 0.12s ease;
+  --transition-smooth: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Chrome tokens ──
+     Introduced with the LogsFooter status bar. Surfaces that want the
+     same tight dark-chrome look reference these (Header topbar now,
+     future: Sidebar edges, Settings tab bar, NavRail). Keeping values
+     in one place means style tweaks flow everywhere in sync. */
+  --chrome-bg:            #0f1011;
+  --chrome-border:        rgba(255, 255, 255, 0.08);
+  --chrome-border-strong: rgba(255, 255, 255, 0.12);
+  --chrome-fg:            #d5c4a1;
+  --chrome-fg-muted:      #a89984;
+  --chrome-fg-dim:        #7c6f64;
+  --chrome-accent:        #f3a5b6;
+  --chrome-accent-bg:     rgba(243, 165, 182, 0.12);
+  --chrome-accent-border: rgba(243, 165, 182, 0.35);
+  --chrome-severity-err:  #fb4934;
+  --chrome-severity-warn: #fabd2f;
+  --chrome-severity-ok:   #8ec07c;
+  --chrome-radius-pill:   3px;
+  --chrome-hover-bg:      rgba(255, 255, 255, 0.04);
+  /* Chrome-label face is IBM Plex Mono now — defined in the @theme block as
+     --font-mono. Keep this alias so existing `var(--chrome-font-mono)` rules
+     don't need to change; it just picks up the new face automatically. */
+  --chrome-font-mono:     var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  --chrome-label-size:    11px;
+  --chrome-label-track:   0.06em;
+  --chrome-bar-h:         28px;
+  --chrome-pill-h:        20px;
+  --chrome-icon-btn:      22px;
+}
+
 /* ────────────────────────────────────────────────────────────────────
    OmniVoice theme definitions.
 
-   Each theme overrides the semantic tokens defined in tokens.css.
+   Each theme overrides the semantic tokens defined in the default `:root` +
+   `@theme` blocks ABOVE. These [data-theme] blocks MUST stay LAST — after
+   every default `:root` (incl. the legacy/chrome `:root`) — so they win by
+   source order when `data-theme` is set on <html> (=== :root). See the file
+   header for the full rationale; guarded by src/test/themeCascade.test.js.
    The active theme is set via a `data-theme` attribute on <html>.
    Default (no attribute) = Gruvbox Dark.
 
@@ -172,7 +349,7 @@
 
    shadcn/ui note: the shadcn semantic tokens (--color-background, -primary,
    -card, -muted-foreground, -destructive, -ring, …) are bridged in index.css
-   to the OmniVoice --color-* tokens BELOW (e.g. --color-primary → --color-brand).
+   to the OmniVoice --color-* tokens ABOVE (e.g. --color-primary → --color-brand).
    So every [data-theme] block here recolors shadcn components automatically —
    overriding --color-brand/-bg/-danger/etc. is all that's needed; there is no
    separate shadcn token block to maintain per theme.
@@ -354,156 +531,6 @@
   [data-theme="auto"] {
     /* Future light theme tokens go here */
   }
-}
-
-/* ── Map design tokens → Tailwind v4 theme ──────────────────────────── */
-@theme {
-  /* Colors — semantic */
-  --color-fg:            #ebdbb2;
-  --color-fg-muted:      #a89984;
-  --color-fg-subtle:     #7c6f64;
-  --color-fg-inverse:    #1d2021;
-
-  --color-bg:            #1d2021;
-  --color-bg-elev-1:     rgba(50, 48, 47, 0.85);
-  --color-bg-elev-2:     rgba(0, 0, 0, 0.30);
-  --color-bg-elev-3:     rgba(0, 0, 0, 0.18);
-
-  --color-border:        rgba(255, 255, 255, 0.07);
-  --color-border-strong: rgba(255, 255, 255, 0.15);
-  --color-border-warm:   rgba(243, 165, 182, 0.08);
-
-  --color-brand:         #d3869b;
-  --color-brand-hover:   #b16286;
-  --color-brand-glow:    rgba(211, 134, 155, 0.4);
-
-  --color-accent:        #fabd2f;
-  --color-success:       #8ec07c;
-  --color-warn:          #fe8019;
-  --color-danger:        #fb4934;
-  --color-info:          #83a598;
-
-  --color-chrome-bg:     #0f1011;
-  --color-chrome-fg:     #d5c4a1;
-
-  /* Radius */
-  --radius-xs:  2px;
-  --radius-sm:  3px;
-  --radius-md:  4px;
-  --radius-lg:  6px;
-  --radius-xl: 10px;
-
-  /* Fonts — full font stacks. These are the single source of truth; the
-     identical declarations were removed from the former ui/tokens.css :root
-     (now consolidated above; being unlayered, that copy used to win — so
-     these literals carry the exact stacks that were computed before the
-     de-dup, preserving every resolved value). */
-  --font-sans:    'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Söhne', 'Helvetica Neue', Arial, sans-serif;
-  --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
-  --font-serif:   'Source Serif 4 Variable', 'Source Serif 4', 'Söhne Breit', Georgia, serif;
-}
-
-/* ── shadcn/ui semantic token bridge ─────────────────────────────────────
-   Maps shadcn's component token vocabulary onto OmniVoice's EXISTING palette
-   so shadcn primitives (src/components/ui/*) inherit the current look instead
-   of shadcn's default grayscale.
-
-   `@theme inline` emits Tailwind utilities (bg-background, text-foreground,
-   bg-primary, bg-card, text-muted-foreground, border-input, ring-ring,
-   bg-destructive, …) whose values reference the OmniVoice `--color-*` tokens
-   *by name*. Because those tokens are re-declared per theme in the
-   [data-theme] blocks above, theme switching recolors every shadcn
-   component automatically — there is no
-   separate per-theme shadcn block to keep in sync.
-
-   Notes:
-   • `bg-accent`/`text-accent` and `border-border` already exist (the base
-     @theme above declares --color-accent and --color-border), so shadcn's
-     `accent` and `border` reuse them unchanged — re-emitting them here would be
-     a self-referential no-op, so they're intentionally omitted.
-   • The --radius-* scale (xs..xl) is left untouched; only the new shadcn
-     `--radius` base is added (→ --radius-lg = 6px). shadcn's rounded-md picks
-     up OmniVoice's existing --radius-md (4px), staying on-palette.
-   • --primary-foreground / --accent-foreground / --destructive-foreground use
-     --color-fg-inverse (dark) — matches the existing Button primary, which
-     paints dark text on the bright brand/accent fill across every theme. */
-:root {
-  --radius: var(--radius-lg);
-}
-@theme inline {
-  --color-background:           var(--color-bg);
-  --color-foreground:           var(--color-fg);
-
-  --color-card:                 var(--color-bg-elev-1);
-  --color-card-foreground:      var(--color-fg);
-  --color-popover:              var(--color-bg-elev-1);
-  --color-popover-foreground:   var(--color-fg);
-
-  --color-primary:              var(--color-brand);
-  --color-primary-foreground:   var(--color-fg-inverse);
-
-  --color-secondary:            var(--color-bg-elev-2);
-  --color-secondary-foreground: var(--color-fg);
-  --color-muted:                var(--color-bg-elev-2);
-  --color-muted-foreground:     var(--color-fg-muted);
-
-  --color-accent-foreground:    var(--color-fg-inverse);
-
-  --color-destructive:          var(--color-danger);
-  --color-destructive-foreground: var(--color-fg-inverse);
-
-  --color-input:                var(--color-border);
-  --color-ring:                 var(--color-brand);
-}
-
-/* Font imports removed — the chrome token system uses only system monospace
-   (ui-monospace, SFMono-Regular, Menlo, Consolas). Fraunces / Nunito / Outfit
-   / Inter are no longer referenced by any rule. */
-
-:root {
-  --primary: #d3869b;
-  --primary-hover: #b16286;
-  --accent: #fabd2f;
-  --bg: #1d2021;
-  --glass-bg: rgba(50, 48, 47, 0.85);
-  --glass-border: rgba(235, 219, 178, 0.08);
-  --glass-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.4);
-  --blur: blur(16px) saturate(140%);
-  --text-primary: #ebdbb2;
-  --text-secondary: #a89984;
-  --radius: 6px;
-  --gap: 6px;
-  --transition-fast: 0.12s ease;
-  --transition-smooth: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* ── Chrome tokens ──
-     Introduced with the LogsFooter status bar. Surfaces that want the
-     same tight dark-chrome look reference these (Header topbar now,
-     future: Sidebar edges, Settings tab bar, NavRail). Keeping values
-     in one place means style tweaks flow everywhere in sync. */
-  --chrome-bg:            #0f1011;
-  --chrome-border:        rgba(255, 255, 255, 0.08);
-  --chrome-border-strong: rgba(255, 255, 255, 0.12);
-  --chrome-fg:            #d5c4a1;
-  --chrome-fg-muted:      #a89984;
-  --chrome-fg-dim:        #7c6f64;
-  --chrome-accent:        #f3a5b6;
-  --chrome-accent-bg:     rgba(243, 165, 182, 0.12);
-  --chrome-accent-border: rgba(243, 165, 182, 0.35);
-  --chrome-severity-err:  #fb4934;
-  --chrome-severity-warn: #fabd2f;
-  --chrome-severity-ok:   #8ec07c;
-  --chrome-radius-pill:   3px;
-  --chrome-hover-bg:      rgba(255, 255, 255, 0.04);
-  /* Chrome-label face is IBM Plex Mono now — defined in the @theme block as
-     --font-mono. Keep this alias so existing `var(--chrome-font-mono)` rules
-     don't need to change; it just picks up the new face automatically. */
-  --chrome-font-mono:     var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-  --chrome-label-size:    11px;
-  --chrome-label-track:   0.06em;
-  --chrome-bar-h:         28px;
-  --chrome-pill-h:        20px;
-  --chrome-icon-btn:      22px;
 }
 
 /* ═══ ANIMATIONS ═══ */
