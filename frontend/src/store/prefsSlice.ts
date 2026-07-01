@@ -9,7 +9,7 @@
 import type { StateCreator } from 'zustand';
 import { apiJson, apiPost } from '../api/client';
 
-type TranslateQuality = 'fast' | 'cinematic';
+type TranslateQuality = 'fast' | 'autofit' | 'cinematic';
 type ThemeId = 'gruvbox' | 'midnight' | 'nord' | 'solarized' | 'rose-pine' | 'catppuccin';
 
 /** Dictation start/stop semantics — mirror of the backend `dictation.mode`. */

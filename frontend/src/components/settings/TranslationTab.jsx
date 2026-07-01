@@ -121,6 +121,10 @@ export default function TranslationTab() {
               items={[
                 { value: 'fast', label: t('settings.translate_fast', { defaultValue: 'Fast' }) },
                 {
+                  value: 'autofit',
+                  label: t('settings.translate_autofit', { defaultValue: 'Autofit' }),
+                },
+                {
                   value: 'cinematic',
                   label: t('settings.translate_cinematic', { defaultValue: 'Cinematic' }),
                 },

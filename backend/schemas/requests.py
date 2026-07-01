@@ -129,7 +129,7 @@ class TranslateRequest(BaseModel):
     provider: Optional[str] = None
     source_lang: Optional[str] = None  # ISO 639-1; overrides job detection
     job_id: Optional[str] = None  # Dub job id, used to resolve detected source_lang
-    quality: Optional[str] = "fast"  # "fast" (one-shot) | "cinematic" (reflect → adapt)
+    quality: Optional[str] = "fast"  # "fast" (one-shot) | "cinematic" (reflect→adapt) | "autofit" (cinematic + strict fit-to-slot)
     glossary: Optional[List[dict]] = None  # [{"source": "...", "target": "...", "note": "..."}]
     # Optional regional dialect (BCP-47, e.g. "es-AR", "pt-BR") — #280 item 2.
     # Applied by LLM-backed paths (provider="openai" or quality="cinematic"):

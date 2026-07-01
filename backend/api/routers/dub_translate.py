@@ -583,11 +583,14 @@ async def _maybe_cinematic(translated, req, src_lang, loop):
     base = {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang,
             "quality_used": "fast", **_dialect_flags(req, applied=False)}
 
-    if quality != "cinematic":
+    # Autofit is Cinematic + a strict "never exceed the slot" fit pass, so both
+    # qualities take the LLM refine path below. Fast (and anything else) returns
+    # the plain translation unchanged.
+    if quality not in ("cinematic", "autofit"):
         return base
 
     if not cinematic_available():
-        logger.warning("cinematic requested but no LLM configured — returning Fast result.")
+        logger.warning("%s requested but no LLM configured — returning Fast result.", quality)
         base["cinematic_skipped"] = "no-llm-configured"
         return base
 
@@ -670,6 +673,7 @@ async def _maybe_cinematic(translated, req, src_lang, loop):
                     slot_seconds=float(slot),
                     target_lang=req.target_lang,
                     source_text=source_by_id.get(seg_id),
+                    strict=(quality == "autofit"),
                 )
                 if fit.get("text"):
                     out["text"] = fit["text"]
@@ -685,6 +689,6 @@ async def _maybe_cinematic(translated, req, src_lang, loop):
         "translated": merged,
         "target_lang": req.target_lang,
         "source_lang": src_lang,
-        "quality_used": "cinematic",
+        "quality_used": quality,
         **_dialect_flags(req, applied=bool(dialect_hint)),
     }

@@ -14,6 +14,7 @@ import {
   ArrowRightLeft,
 } from 'lucide-react';
 import { Button, Segmented, Progress } from '../../ui';
+import { useAppStore } from '../../store';
 import WaveformTimeline from '../WaveformTimeline';
 import MultiLangPicker from '../MultiLangPicker';
 import { API } from '../../api/client';
@@ -103,6 +104,10 @@ export default function DubLeftColumn({
   setMultiLangs,
   editSegments,
 }) {
+  // High-quality (Cinematic/Autofit) translation needs an LLM. When one isn't
+  // configured, we route the user straight to the LLM Providers setup instead
+  // of dead-ending on a toast (#838).
+  const openSettingsTab = useAppStore((s) => s.openSettingsTab);
   // Frozen-build (packaged/signed, read-only site-packages) escape-hatch
   // popover: pip install is impossible, so we surface the copyable command +
   // a one-click switch to the always-bundled Argos engine + a docs deeplink.
@@ -556,16 +561,32 @@ export default function DubLeftColumn({
                 size="sm"
                 value={translateQuality}
                 onChange={(v) => {
-                  // #372: picking Cinematic with no LLM configured used to
-                  // bounce the user between two warnings forever. Block the
-                  // pick at the source and point at the actual fix.
-                  if (v === 'cinematic' && llmEndpoint && !llmEndpoint.available) {
+                  // #372/#838: Cinematic AND Autofit need an LLM (Autofit rewrites
+                  // each line to fit its segment's time budget). If none is
+                  // configured, don't dead-end — offer a one-click jump to the
+                  // LLM Providers setup and point at the timing payoff.
+                  const needsLLM = v === 'cinematic' || v === 'autofit';
+                  if (needsLLM && llmEndpoint && !llmEndpoint.available) {
                     toast(
-                      t('dub.cinematic_needs_llm_hint', {
-                        defaultValue:
-                          'Cinematic needs an LLM. Configure one in Settings → Credentials → LLM endpoint (Ollama runs locally, no key needed).',
-                      }),
-                      { icon: 'ℹ️', duration: 8000 },
+                      (tt) => (
+                        <span className="flex items-center gap-[10px]">
+                          {t('dub.hq_needs_llm_hint', {
+                            defaultValue:
+                              'High-quality translation fits each line to its segment time using a local or cloud LLM. Set one up to enable it.',
+                          })}
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => {
+                              toast.dismiss(tt.id);
+                              openSettingsTab('llm-providers');
+                            }}
+                          >
+                            {t('dub.set_up_llm', { defaultValue: 'Set up' })}
+                          </Button>
+                        </span>
+                      ),
+                      { icon: 'ℹ️', duration: 10000 },
                     );
                     return;
                   }
@@ -573,6 +594,7 @@ export default function DubLeftColumn({
                 }}
                 items={[
                   { value: 'fast', label: t('dub.fast_quality') },
+                  { value: 'autofit', label: t('dub.autofit_quality', { defaultValue: 'Autofit' }) },
                   { value: 'cinematic', label: t('dub.cinematic_quality') },
                 ]}
               />
