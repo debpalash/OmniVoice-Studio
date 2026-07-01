@@ -100,7 +100,7 @@ describe('DubLeftColumn — translation-engine install affordance', () => {
 
     // Highlighted accent button (not the muted chip): brand-accent bg class.
     const btn = screen.getByRole('button', { name: /install deep_translator/i });
-    expect(btn.className).toMatch(/bg-\[#d3869b\]/);
+    expect(btn.className).toMatch(/bg-\[var\(--color-brand\)\]/);
 
     fireEvent.click(btn);
     expect(handleInstallEngine).toHaveBeenCalledWith('google');
@@ -122,7 +122,7 @@ describe('DubLeftColumn — translation-engine install affordance', () => {
 
     // The highlighted trigger opens the escape-hatch popover.
     const trigger = screen.getByRole('button', { name: /needs install/i });
-    expect(trigger.className).toMatch(/bg-\[#d3869b\]/);
+    expect(trigger.className).toMatch(/bg-\[var\(--color-brand\)\]/);
     fireEvent.click(trigger);
 
     const dialog = screen.getByRole('dialog');
