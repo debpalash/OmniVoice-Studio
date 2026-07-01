@@ -11,13 +11,13 @@ Probe order (existing power-user installs win — zero migration):
     1. ``${OMNIVOICE_CONFUCIUS4_TTS_DIR}/.venv/`` — the user's clone-level venv.
     2. ``backend/engines/confucius4/.venv/`` — this package's own venv.
     3. Bootstrap: ``uv venv`` then ``uv pip install -r <clone>/requirements.txt``
-       + ``uv pip install -e <clone>`` (the upstream stack).
+       (+ ``uv pip install -e <clone>`` only if upstream ever ships packaging).
 
-⚠️ Scaffold (#590): the install/import details mirror the documented upstream
-layout but have NOT been validated on hardware — confirm the package name
-(``confuciustts``) and requirements path against your clone before relying on
-the auto-bootstrap. The engine is opt-in (env-dir gated) and never touched
-unless ``OMNIVOICE_CONFUCIUS4_TTS_DIR`` is set, so this can't affect the default
+Validated end-to-end 2026-07-02 (Apple Silicon, CPU): upstream ships **no
+pyproject.toml/setup.py**, so ``confuciustts`` is importable only with the
+clone root on ``sys.path`` — the import probe and the sidecar both handle
+that. The engine is opt-in (env-dir gated) and never touched unless
+``OMNIVOICE_CONFUCIUS4_TTS_DIR`` is set, so this can't affect the default
 install on any platform.
 """
 from __future__ import annotations
@@ -113,11 +113,20 @@ def _probe_paths() -> list[Path]:
     return out
 
 
+def _import_probe_code() -> str:
+    """Probe snippet mirroring the sidecar's import semantics: upstream is not
+    pip-installable, so ``confuciustts`` resolves via the clone on sys.path."""
+    clone = os.environ.get(_CLONE_DIR_ENV, "")
+    if clone:
+        return f"import sys; sys.path.insert(0, {clone!r}); import {_IMPORT_PROBE}"
+    return f"import {_IMPORT_PROBE}"
+
+
 def _venv_can_import(python_path: Path) -> bool:
     """Spawn the candidate python and verify ``import confuciustts`` works."""
     try:
         proc = subprocess.run(
-            [str(python_path), "-c", f"import {_IMPORT_PROBE}"],
+            [str(python_path), "-c", _import_probe_code()],
             capture_output=True, timeout=_IMPORT_PROBE_TIMEOUT_S,
         )
     except (subprocess.TimeoutExpired, OSError) as exc:
@@ -173,10 +182,14 @@ def _bootstrap_engines_venv(clone_dir: Path) -> Path:
                  "-r", str(requirements)],
                 check=True, timeout=_UV_PIP_INSTALL_TIMEOUT_S, capture_output=True,
             )
-        subprocess.run(
-            [uv, "pip", "install", "--python", str(python_path), "-e", str(clone_dir)],
-            check=True, timeout=_UV_PIP_INSTALL_TIMEOUT_S, capture_output=True,
-        )
+        # Editable install only if upstream ever ships packaging metadata —
+        # as of 2026-07 there is none, and `uv pip install -e` on a bare clone
+        # fails outright. Import resolution is handled via sys.path instead.
+        if (clone_dir / "pyproject.toml").is_file() or (clone_dir / "setup.py").is_file():
+            subprocess.run(
+                [uv, "pip", "install", "--python", str(python_path), "-e", str(clone_dir)],
+                check=True, timeout=_UV_PIP_INSTALL_TIMEOUT_S, capture_output=True,
+            )
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(
             "uv pip install failed during Confucius4 bootstrap "

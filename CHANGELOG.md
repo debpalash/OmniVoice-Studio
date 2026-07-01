@@ -6,6 +6,21 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [Unreleased]
+
+### Fixed
+
+- **Confucius4-TTS is now validated end-to-end — and actually loads.** The
+  opt-in engine's first live run (Apple Silicon, CPU) caught three
+  scaffold-era faults: the sidecar could never import `confuciustts` (upstream
+  ships no packaging, so the documented `pip install -e` fails — the sidecar
+  and bootstrap probe now put the clone on `sys.path`, like upstream's own
+  example), the assumed 24 kHz sample rate was wrong (confirmed **22 050 Hz**,
+  now regression-tested), and the docs demanded an Amphion/MaskGCT install
+  that doesn't exist (all weights auto-download from HuggingFace). CPU is
+  ~17× realtime, so CUDA stays the recommended path; `gpu_compat` now
+  advertises `("cuda", "cpu")`. (#590)
+
 ## [0.3.8] — 2026-07-01
 
 A stability-focused release that makes first-run and Windows "just work," ships

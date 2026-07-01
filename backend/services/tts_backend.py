@@ -1160,9 +1160,9 @@ _LAZY_REGISTRY: dict[str, tuple[str, str]] = {
     "dots-tts": ("engines.dots_tts", "DotsTTSBackend"),
     # Issue #590: Confucius4-TTS (netease-youdao) — LLM-based, 14-language
     # cross-lingual zero-shot cloning, Apache-2.0. Opt-in + subprocess-isolated
-    # (own Python 3.10 + CUDA venv) like the entries above. ⚠️ scaffold: the
-    # sidecar's synthesis API is README-derived and needs hardware validation;
-    # it's gated behind OMNIVOICE_CONFUCIUS4_TTS_DIR so it's inert until enabled.
+    # (own Python 3.10 venv) like the entries above. Validated end-to-end
+    # 2026-07-02 (CPU, Apple Silicon; 22.05 kHz output). Gated behind
+    # OMNIVOICE_CONFUCIUS4_TTS_DIR so it's inert until enabled.
     "confucius4-tts": ("engines.confucius4", "Confucius4Backend"),
 }
 
@@ -1259,7 +1259,7 @@ _INSTALL_HINTS: dict[str, str] = {
     "supertonic3":   "uv sync --extra supertonic  (CPU-only ONNX, 31 langs, ~400 MB model on first use; OpenRAIL-M model license)",
     "moss-tts-v15":  "git clone OpenMOSS/MOSS-TTS + set OMNIVOICE_MOSS_TTS_V15_DIR  (own venv, transformers==5.0; 8B, ~16 GB weights; CUDA/CPU, no MPS; Apache-2.0)",
     "dots-tts":      "git clone rednote-hilab/dots.tts + set OMNIVOICE_DOTS_TTS_DIR  (own venv, transformers==4.57; 2B, ~9 GB weights; CUDA/CPU, Linux/macOS only — no Windows; Apache-2.0)",
-    "confucius4-tts":"git clone netease-youdao/Confucius4-TTS + set OMNIVOICE_CONFUCIUS4_TTS_DIR  (own Python 3.10/CUDA venv; 14-lang cross-lingual zero-shot clone; NVIDIA GPU required; Apache-2.0)",
+    "confucius4-tts":"git clone netease-youdao/Confucius4-TTS + set OMNIVOICE_CONFUCIUS4_TTS_DIR  (own Python 3.10 venv; 14-lang cross-lingual zero-shot clone; ~5 GB weights auto-download; CUDA/CPU, no MPS; Apache-2.0)",
 }
 
 

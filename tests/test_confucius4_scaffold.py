@@ -19,7 +19,7 @@ def test_registered_in_lazy_registry():
 def test_backend_class_metadata():
     from engines.confucius4 import Confucius4Backend
     assert Confucius4Backend.id == "confucius4-tts"
-    assert Confucius4Backend.gpu_compat == ("cuda",)          # CUDA-only, no MPS claim
+    assert Confucius4Backend.gpu_compat == ("cuda", "cpu")    # CPU validated E2E; no MPS claim
     assert Confucius4Backend.supports_voice_design is False
 
 

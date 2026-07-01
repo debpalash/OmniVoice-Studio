@@ -10,12 +10,13 @@ parent. It is **opt-in** — selected in the engine picker and enabled only when
 the user points ``OMNIVOICE_CONFUCIUS4_TTS_DIR`` at a clone — so it can never
 become a broken default on any platform (the strict default-parity rule).
 
-Status (#590): the synthesis API (``confuciustts.cli.inference.ConfuciusTTS`` →
-``.generate(text, lang, prompt_wav)`` → tensor, ``model.sample_rate``) is
-validated against the upstream repo, and the sidecar's pure logic is unit-tested
-(``tests/test_confucius4_sidecar.py``). A one-time end-to-end run on a CUDA 12.6
-GPU is still needed to confirm the live model call and the true output sample
-rate. Gated off by default, so this affects no one until they opt in.
+Status (#590): **validated end-to-end** (2026-07-02, Apple Silicon, CPU) — the
+synthesis API (``confuciustts.cli.inference.ConfuciusTTS`` →
+``.generate(text, lang, prompt_wav)`` → tensor, ``model.sample_rate``) produced
+audible speech at 22 050 Hz; the sidecar's pure logic is unit-tested
+(``tests/test_confucius4_sidecar.py``). CPU inference is slow (~17× realtime),
+so CUDA is the recommended path. Gated off by default, so this affects no one
+until they opt in.
 
 Three entry points: ``Confucius4Backend`` (this module), ``main.py`` (the sidecar,
 runs under the Confucius4 venv — never imported by the parent), and
@@ -35,7 +36,7 @@ logger = logging.getLogger("omnivoice.confucius4")
 
 
 class Confucius4Backend(SubprocessBackend):
-    """Confucius4-TTS (netease-youdao) — LLM-based, 14 langs, zero-shot clone, CUDA.
+    """Confucius4-TTS (netease-youdao) — LLM-based, 14 langs, zero-shot clone.
 
     Runs in a long-lived sidecar over length-prefixed JSON-over-stdio in a
     dedicated venv. First synthesize cold-loads the checkpoint; subsequent calls
@@ -45,22 +46,25 @@ class Confucius4Backend(SubprocessBackend):
 
         git clone https://github.com/netease-youdao/Confucius4-TTS.git
         cd Confucius4-TTS
-        uv venv --python 3.10 && uv pip install -r requirements.txt && uv pip install -e .
+        uv venv --python 3.10 && uv pip install -r requirements.txt
 
+    (Upstream ships no pyproject.toml/setup.py, so there is nothing to
+    ``pip install -e`` — the sidecar sys.path-inserts the clone instead.)
     Then set ``OMNIVOICE_CONFUCIUS4_TTS_DIR`` to the clone root and restart.
-    License: Apache-2.0. Requires an NVIDIA GPU (CUDA 12.6); no MPS / CPU path.
+    License: Apache-2.0. CUDA recommended; CPU validated but ~17× realtime.
     """
 
     id = "confucius4-tts"
     display_name = (
-        "Confucius4-TTS (LLM, 14 langs, cross-lingual zero-shot clone, CUDA, Apache-2.0)"
+        "Confucius4-TTS (LLM, 14 langs, cross-lingual zero-shot clone, CUDA/CPU, Apache-2.0)"
     )
     supports_voice_design = False  # timbre comes from a reference clip
-    # Upstream vocoder sample rate is not documented; re-read from the sidecar's
-    # ready/audio frames. 24 kHz is the conservative default until confirmed.
-    _DEFAULT_SAMPLE_RATE = 24000
-    # NVIDIA/CUDA only — no MPS or CPU branch documented upstream.
-    gpu_compat = ("cuda",)
+    # Upstream vocoder rate (config target_sample_rate) — confirmed 22 050 Hz by
+    # a live run (2026-07-02); still re-read from the sidecar's ready/audio frames.
+    _DEFAULT_SAMPLE_RATE = 22050
+    # CUDA fast path + CPU fallback, both exercised (CPU end-to-end validated).
+    # No MPS claim — upstream has no Metal path.
+    gpu_compat = ("cuda", "cpu")
 
     @classmethod
     def is_available(cls) -> tuple[bool, str]:
@@ -75,15 +79,15 @@ class Confucius4Backend(SubprocessBackend):
             return False, (
                 "Confucius4-TTS venv not found. Set OMNIVOICE_CONFUCIUS4_TTS_DIR "
                 "to your Confucius4-TTS clone (the directory containing "
-                "requirements.txt) and restart OmniVoice. NVIDIA GPU (CUDA) "
-                "required. See docs/engines/confucius4-tts.md."
+                "requirements.txt) and restart OmniVoice. CUDA GPU recommended "
+                "(CPU works but is slow). See docs/engines/confucius4-tts.md."
             )
         if not CONFUCIUS4_SIDECAR_SCRIPT.exists():
             return False, (
                 "Confucius4-TTS sidecar script missing at "
                 f"{CONFUCIUS4_SIDECAR_SCRIPT} — reinstall OmniVoice."
             )
-        return True, "ok (CUDA)"
+        return True, "ok"
 
     @classmethod
     def venv_python(cls):

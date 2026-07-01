@@ -2,12 +2,11 @@
 
 The upstream synthesis API (``confuciustts.cli.inference.ConfuciusTTS`` →
 ``generate(text, lang, prompt_wav)`` → tensor, ``model.sample_rate``) is
-validated against the netease-youdao/Confucius4-TTS repo. Actual audio
-generation needs a CUDA 12.6 GPU + the ~2-4 GB checkpoint (Amphion/MaskGCT
-codec + w2v-bert-2.0), so it can't run in CI — but the sidecar's *pure* logic
-(language normalization, tensor→PCM, config-path resolution, wire framing) and
-the bootstrap probe are fully testable here, with the model mocked. These pin
-that logic so a real GPU run only has to confirm the model call itself.
+**validated end-to-end** (2026-07-02, Apple Silicon, CPU): audible speech at
+22 050 Hz. Full generation needs ~5 GB of weights, so it can't run in CI — but
+the sidecar's *pure* logic (language normalization, tensor→PCM, config-path
+resolution, sys.path clone injection, wire framing) and the bootstrap probe are
+fully testable here, with the model mocked.
 
 The sidecar is stdlib-only at import time (the model/torch imports are lazy),
 so we import it directly without spawning the engine venv.
@@ -83,6 +82,42 @@ def test_pcm_accepts_numpy(sc):
     arr = np.array([0.1, -0.1, 0.0], dtype=np.float32)
     _b64, sr, n = sc._tensor_to_pcm_b64(arr, 16000)
     assert (sr, n) == (16000, 3)
+
+
+# ── Sample rate (confirmed 22 050 Hz by the 2026-07-02 live run) ──────────
+
+def test_sample_rate_constant_is_confirmed_upstream_rate(sc):
+    # Upstream config target_sample_rate — regression-pins the live-run value
+    # so the pre-validation 24 000 guess can't come back.
+    assert sc.CONFUCIUS_SAMPLE_RATE == 22050
+
+
+def test_sample_rate_lockstep_with_backend_default(sc):
+    import os as _os, sys as _sys
+    _sys.path.insert(0, _os.path.join(
+        _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "backend"))
+    from engines.confucius4 import Confucius4Backend
+    assert Confucius4Backend._DEFAULT_SAMPLE_RATE == sc.CONFUCIUS_SAMPLE_RATE
+
+
+# ── Clone sys.path injection (upstream is not pip-installable) ────────────
+
+def test_clone_dir_inserted_at_sys_path_front(sc, monkeypatch):
+    import sys as _sys
+    monkeypatch.setenv("OMNIVOICE_CONFUCIUS4_TTS_DIR", "/clone")
+    monkeypatch.setattr(_sys, "path", ["existing"])
+    sc._ensure_clone_on_sys_path()
+    assert _sys.path[0] == "/clone"
+    sc._ensure_clone_on_sys_path()                      # idempotent — no dup
+    assert _sys.path.count("/clone") == 1
+
+
+def test_no_sys_path_change_without_clone_dir(sc, monkeypatch):
+    import sys as _sys
+    monkeypatch.delenv("OMNIVOICE_CONFUCIUS4_TTS_DIR", raising=False)
+    monkeypatch.setattr(_sys, "path", ["existing"])
+    sc._ensure_clone_on_sys_path()
+    assert _sys.path == ["existing"]
 
 
 # ── Config path resolution ────────────────────────────────────────────────

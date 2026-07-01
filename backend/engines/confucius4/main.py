@@ -18,10 +18,10 @@ Op flow: ready → ping/pong → synthesize (→ progress, → audio) → shutdo
 Status (#590): the model API below
 (``confuciustts.cli.inference.ConfuciusTTS(config_path=…, device=…)`` and
 ``model.generate(text=, lang=, prompt_wav=)`` → audio tensor, ``model.sample_rate``)
-is validated against the upstream repo; this sidecar's pure logic is unit-tested
-in ``tests/test_confucius4_sidecar.py``. Still pending a one-time CUDA-12.6 GPU
-run to confirm the live model call + true sample rate. Opt-in, so it affects no
-one until enabled.
+is **validated end-to-end** (2026-07-02, Apple Silicon, CPU): live generate()
+produced audible speech at 22 050 Hz. This sidecar's pure logic is unit-tested
+in ``tests/test_confucius4_sidecar.py``. Opt-in, so it affects no one until
+enabled.
 
 Restrictions: NO imports from OmniVoice parent code. NO logging of os.environ.
 """
@@ -36,9 +36,11 @@ import traceback
 
 MAX_FRAME_BYTES = 64 * 1024 * 1024
 
-#: Conservative default until the upstream vocoder rate is confirmed; the real
-#: value is re-read from each generate() result if the model exposes it.
-CONFUCIUS_SAMPLE_RATE = 24000
+#: Upstream BigVGAN vocoder rate — ``target_sample_rate: 22050`` in
+#: ``config/inference_config.yaml``, confirmed by a live end-to-end run
+#: (2026-07-02). The real value is still re-read from ``model.sample_rate``
+#: on each generate() so a future upstream change can't corrupt audio.
+CONFUCIUS_SAMPLE_RATE = 22050
 
 
 def _send(stream, obj: dict) -> None:
@@ -87,14 +89,29 @@ def _config_path() -> str:
     return os.path.join(clone, "config", "inference_config.yaml")
 
 
+def _ensure_clone_on_sys_path() -> None:
+    """Make ``import confuciustts`` resolve from the user's clone.
+
+    Upstream Confucius4-TTS is **not pip-installable** (no pyproject.toml /
+    setup.py as of 2026-07); its own ``example.py`` sys.path-inserts the repo
+    root instead. Mirror that here so the sidecar works from a plain
+    ``uv pip install -r requirements.txt`` venv. Inserted at position 0 so the
+    clone the user pointed at always wins over any stale installed copy.
+    """
+    clone = os.environ.get("OMNIVOICE_CONFUCIUS4_TTS_DIR", "")
+    if clone and clone not in sys.path:
+        sys.path.insert(0, clone)
+
+
 def _load_model(stdout):
-    """Cold-construct the Confucius4 model (CUDA, else CPU as a last resort)."""
+    """Cold-construct the Confucius4 model (CUDA, else CPU — both validated)."""
     global _model
     if _model is not None:
         return _model
 
     _send(stdout, {"op": "progress", "stage": "loading_model", "percent": 0})
 
+    _ensure_clone_on_sys_path()
     import torch
     from confuciustts.cli.inference import ConfuciusTTS  # type: ignore[import-not-found]
 
