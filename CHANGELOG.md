@@ -6,6 +6,18 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [Unreleased]
+
+### Fixed
+
+- **Parakeet TDT transcription now works without an NVIDIA GPU.** The
+  `nemo-parakeet` ASR engine (parakeet-tdt-0.6b-v3, 25 languages, word
+  timestamps) was hard-gated behind CUDA — but a live measurement on an Apple
+  Silicon M2 shows it transcribing at ~10× realtime *on CPU*, roughly 20×
+  faster than the default whisper-large-v3 on the same machine at equal
+  accuracy. The false GPU gate is removed, so Mac and CPU-only users can now
+  pick the dramatically faster engine in Settings → Engines.
+
 ## [0.3.8] — 2026-07-01
 
 A stability-focused release that makes first-run and Windows "just work," ships

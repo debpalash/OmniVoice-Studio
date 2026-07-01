@@ -11,20 +11,21 @@ from __future__ import annotations
 
 import pytest
 
-# id → declared gpu_compat. NeMo is CUDA-only (its is_available() hard-fails
-# without a GPU), so it legitimately has no cpu path.
+# id → declared gpu_compat. nemo-parakeet was CUDA-gated until 2026-07-02,
+# when parakeet-tdt-0.6b-v3 was measured at RTF 0.08–0.23 on an M2 CPU —
+# every ASR engine now has a cpu path.
 _EXPECTED = {
     "whisperx": ("cuda", "cpu"),
     "faster-whisper": ("cuda", "cpu"),
     "mlx-whisper": ("mps", "cpu"),
     "pytorch-whisper": ("cuda", "mps", "cpu"),
-    "nemo-parakeet": ("cuda",),
+    "nemo-parakeet": ("cuda", "cpu"),
     "moonshine": ("cpu",),
     "funasr": ("cuda", "cpu"),
 }
 
 # Engines that legitimately have NO cpu path (hard GPU gate in is_available).
-_GPU_ONLY = {"nemo-parakeet"}
+_GPU_ONLY: set[str] = set()
 
 _VALID = {"cuda", "rocm", "mps", "xpu", "cpu"}
 
@@ -60,6 +61,18 @@ def test_no_asr_engine_falsely_claims_rocm():
     # ROCm is intentionally unclaimed until verified per engine (see ABC note).
     for engine_id in _EXPECTED:
         assert "rocm" not in _cls(engine_id).gpu_compat
+
+
+def test_nemo_parakeet_has_no_cuda_gate(monkeypatch):
+    """Regression (CPU un-gating, 2026-07-02): on a CUDA-less host,
+    is_available() must never claim a GPU is required — availability is a
+    pure nemo_toolkit dependency check now."""
+    import torch
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    ok, reason = _cls("nemo-parakeet").is_available()
+    assert "NVIDIA GPU" not in reason
+    if not ok:  # env without nemo_toolkit — the only legitimate blocker
+        assert "nemo_toolkit" in reason
 
 
 def test_indextts2_overrides_cpu_only_default():

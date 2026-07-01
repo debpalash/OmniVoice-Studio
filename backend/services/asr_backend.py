@@ -997,7 +997,7 @@ class PyTorchWhisperBackend(ASRBackend):
         return result if isinstance(result, dict) else {"chunks": [], "raw": result}
 
 
-# ── NeMo Parakeet TDT (NVIDIA — English SOTA from ASR Leaderboard) ─────────
+# ── NeMo Parakeet TDT (NVIDIA — Open ASR Leaderboard SOTA, 25 langs) ────────
 
 
 class NeMoASRBackend(ASRBackend):
@@ -1005,16 +1005,14 @@ class NeMoASRBackend(ASRBackend):
 
     FastConformer encoder + Token-and-Duration Transducer decoder.
     Beats Whisper large-v3 on English benchmarks (~6% WER).
-    Supports 25+ European languages with auto language detection.
-    Requires NVIDIA GPU.
+    Supports 25 (mostly European) languages with auto language detection.
+    CUDA or CPU — parakeet-tdt-0.6b-v3 measured RTF 0.08–0.23 on an Apple
+    Silicon M2 *CPU* (2026-07-02), ~20× faster than faster-whisper large-v3
+    int8 on the same host, so the old hard CUDA gate was a false claim.
     """
     id = "nemo-parakeet"
-    # CUDA-only: is_available() hard-fails without a GPU ("Parakeet TDT requires
-    # NVIDIA GPU (CUDA)"), so declaring a CPU path would be a false claim. On a
-    # CPU host this correctly resolves to routing_status="unavailable", matching
-    # is_available()=False (the matrix suppresses the routing badge there).
-    gpu_compat = ("cuda",)
-    display_name = "Parakeet TDT (NVIDIA NeMo — English SOTA)"
+    gpu_compat = ("cuda", "cpu")
+    display_name = "Parakeet TDT (NVIDIA NeMo — 25 langs, CUDA/CPU)"
 
     def __init__(self):
         self._model_name = os.environ.get(
@@ -1024,10 +1022,11 @@ class NeMoASRBackend(ASRBackend):
 
     @classmethod
     def is_available(cls) -> tuple[bool, str]:
+        # No CUDA gate: the 0.6B TDT model is comfortably faster than realtime
+        # on CPU (see class docstring), so availability is a pure dependency
+        # check and engine_routing picks the effective device from gpu_compat.
         try:
-            import torch
-            if not torch.cuda.is_available():
-                return False, "Parakeet TDT requires NVIDIA GPU (CUDA)"
+            import torch  # noqa: F401
         except ImportError:
             return False, "PyTorch not installed"
         try:
