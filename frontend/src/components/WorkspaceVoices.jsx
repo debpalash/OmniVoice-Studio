@@ -69,12 +69,12 @@ export default function WorkspaceVoices({
   return (
     <section className={`wv ${items.length === 0 ? 'wv--collapsed' : ''}`}>
       {/* ── ACTIVE VOICE ─────────────────────────────────────────────── */}
-      <div className="flex-[0_0_auto] py-[10px] px-[12px] border-b border-solid border-b-[var(--chrome-border)]">
+      <div className="flex-[0_0_auto] py-[10px] px-[12px]">
         <div className="[font-family:var(--chrome-font-mono,var(--font-mono))] text-[0.62rem] uppercase [letter-spacing:0.06em] text-[color:var(--chrome-fg-muted,#a89984)] mb-[6px]">
           {t('voices.active', { defaultValue: 'Active voice' })}
         </div>
         {active ? (
-          <div className="flex flex-col gap-[6px] py-[8px] px-[10px] border border-solid border-[var(--chrome-accent-border,rgba(211,134,155,0.35))] bg-[var(--chrome-accent-bg,rgba(211,134,155,0.08))] rounded-[10px]">
+          <div className="flex flex-col gap-[6px] py-[8px] px-[10px] bg-[var(--chrome-accent-bg,rgba(211,134,155,0.08))] rounded-[10px]">
             <div className="flex items-center gap-[8px] justify-between">
               <span className="text-[0.8rem] font-semibold text-[color:var(--chrome-fg)] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
                 {active.name}

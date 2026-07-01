@@ -92,8 +92,8 @@ export default function WorkspaceHistory({
   // ── Dub variant: a flat list of dub jobs, no clone/design filter. ──
   if (variant === 'dub') {
     return (
-      <aside className="flex-[1_1_0] flex flex-col min-h-0 overflow-hidden border-t border-solid border-t-[var(--chrome-border-strong,var(--chrome-border))]">
-        <div className="flex-[0_0_auto] flex flex-col gap-[8px] py-[10px] px-[12px] border-b border-solid border-b-[var(--chrome-border)]">
+      <aside className="flex-[1_1_0] flex flex-col min-h-0 overflow-hidden">
+        <div className="flex-[0_0_auto] flex flex-col gap-[8px] py-[10px] px-[12px]">
           <span className="inline-flex items-center gap-[6px] [font-family:var(--chrome-font-mono,var(--font-mono))] text-[0.72rem] font-semibold [letter-spacing:0.04em] uppercase text-[color:var(--chrome-fg-muted)]">
             <History size={13} /> {t('history.dub_title', { defaultValue: 'Dub history' })}
           </span>
