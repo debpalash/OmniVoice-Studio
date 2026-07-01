@@ -6,7 +6,6 @@ import { generateSpeech } from '../api/generate';
 import { Button, Panel, Field, Textarea, Select } from '../ui';
 import WaveformPlayer from './WaveformPlayer';
 import { useTranslation } from 'react-i18next';
-import './CompareModal.css';
 
 export default function CompareModal({
   open,

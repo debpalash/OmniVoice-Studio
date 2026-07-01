@@ -7,7 +7,6 @@ import WizardLibrary from '../components/WizardLibrary';
 import HfTokenCard from '../components/HfTokenCard';
 import DictationDemo from '../components/DictationDemo';
 import { Button } from '../ui';
-import '../components/firstrun.css';
 
 // macOS convention: double-click the title-bar drag region to toggle zoom.
 const doubleClickMaximize = async () => {

@@ -20,7 +20,6 @@ import { useTranslation } from 'react-i18next';
 import i18n, { LANGUAGES } from '../i18n';
 import { useAppStore } from '../store';
 import { Button, Progress, Select } from '../ui';
-import './firstrun.css';
 
 // First-run only: keep the setup screen out of the main bundle so every
 // regular launch pays nothing for it.

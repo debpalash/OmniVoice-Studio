@@ -1,7 +1,6 @@
 import React from 'react';
 import { Search, X } from 'lucide-react';
 import { Input, Button } from './index.js';
-import './Table.css';
 
 /**
  * Table.Toolbar — search + filters row above a virtualised table.

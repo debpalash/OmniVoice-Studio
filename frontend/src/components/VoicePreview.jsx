@@ -7,7 +7,6 @@ import { Button } from '../ui';
 import WaveformPlayer from './WaveformPlayer';
 import { useAppStore } from '../store';
 import { stopActivePlayback } from '../utils/playback';
-import './VoicePreview.css';
 
 /**
  * VoicePreview — floating "try a voice" card.

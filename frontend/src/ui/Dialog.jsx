@@ -7,7 +7,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import Button from './Button';
-import './Dialog.css';
 
 // Per-size max-width. The dialog surface (glass gradient + backdrop-filter) and
 // the blurred overlay live in Dialog.css, keyed off shadcn's data-slot
