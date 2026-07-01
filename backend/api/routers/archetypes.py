@@ -18,7 +18,6 @@ Design notes
 """
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import logging
 import os
@@ -137,7 +136,7 @@ async def _render_archetype_wav(a: dict, out_path: Path) -> None:
     from api.routers.generation import (  # noqa: WPS433 — intentional lazy import
         get_model,
         _run_inference,
-        _gpu_pool,
+        run_on_gpu_pool_guarded,
         _safe_torchaudio_save,
     )
 
@@ -146,8 +145,6 @@ async def _render_archetype_wav(a: dict, out_path: Path) -> None:
     if language in (None, "", "Auto"):
         language = None
     text = (a.get("sample_script") or "").strip() or _FALLBACK_SCRIPT
-
-    loop = asyncio.get_running_loop()
 
     def _infer(seed: int):
         return _run_inference(
@@ -171,14 +168,18 @@ async def _render_archetype_wav(a: dict, out_path: Path) -> None:
             "broadcast",    # effect_preset
         )
 
-    audio_tensor = await loop.run_in_executor(_gpu_pool, _infer, _PREVIEW_SEED)
+    # Bounded + pool-reset on hang so a wedged preview render can't starve the
+    # GPU pool and brick the backend (#730 class).
+    audio_tensor = await run_on_gpu_pool_guarded(
+        lambda: _infer(_PREVIEW_SEED), what="Archetype preview generate")
     if _is_unusable_audio(audio_tensor):
         # Blank OR a degenerate tonal buzz — retry once on a different seed to
         # step off the bad diffusion trajectory. Static message only: the
         # archetype id is request-derived (CodeQL log-injection); the seed is a
         # module constant, safe to log.
         logger.warning("Archetype rendered unusable at seed %d — retrying once", _PREVIEW_SEED)
-        audio_tensor = await loop.run_in_executor(_gpu_pool, _infer, _PREVIEW_SEED + 1)
+        audio_tensor = await run_on_gpu_pool_guarded(
+            lambda: _infer(_PREVIEW_SEED + 1), what="Archetype preview generate")
     if _is_unusable_audio(audio_tensor):
         raise RuntimeError("the voice engine returned no audible audio for this archetype")
 

@@ -55,10 +55,12 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   worker forever — Python can't cancel the thread — so on the 1–2 worker pools we
   ship, one stuck job starved every other request and the next action surfaced as
   the misleading "Can't reach the local backend" even though the process was
-  alive. ASR/dub/model-load already bounded and reset the pool on hang (#730); the
-  **generate** paths (Studio synthesis and the streaming path) were the last
-  unguarded GPU dispatch — and the residual reports all failed on
-  `generate:start (audio)`. Generation is now bounded by the same wall-clock guard
+  alive. ASR/dub/model-load already bounded and reset the pool on hang (#730); but
+  **every generate path** — Studio synthesis, the streaming path, batch, the dub
+  per-segment + preview render, archetype previews, and the OpenAI-compatible
+  `/v1/audio/speech` API — was still an unguarded GPU dispatch, and the residual
+  reports all failed on `generate:start (audio)`. Every one is now bounded by the
+  same wall-clock guard
   (`OMNIVOICE_GENERATE_TIMEOUT_S`, default 300s) that abandons the wedged worker
   and rebuilds the pool, so capacity is restored automatically and you get an
   actionable timeout instead of a dead backend. Closes the whole class of

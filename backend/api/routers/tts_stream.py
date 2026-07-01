@@ -184,7 +184,6 @@ async def ws_tts(websocket: WebSocket):
                 # Run generation in the GPU pool
                 import functools
                 from services.model_manager import run_on_gpu_pool_guarded
-                loop = asyncio.get_running_loop()
 
                 def _generate(sentence_text):
                     from services.audio_dsp import apply_mastering, normalize_audio

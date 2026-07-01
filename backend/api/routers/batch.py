@@ -142,7 +142,7 @@ async def _run_batch_pipeline(job_id: str, job: dict):
     _set_progress(job, "transcribe", 0)
 
     from services.asr_backend import get_active_asr_backend
-    from services.model_manager import _gpu_pool, _cpu_pool
+    from services.model_manager import _gpu_pool, _cpu_pool, run_on_gpu_pool_guarded
     from services.segmentation import (
         segment_transcript, assign_speakers_heuristic,
     )
@@ -316,7 +316,9 @@ async def _run_batch_pipeline(job_id: str, job: dict):
                     return torch.zeros(1, int(dur * sr))
 
             try:
-                audio_tensor = await loop.run_in_executor(_gpu_pool, _gen)
+                # Bounded + pool-reset on hang so a wedged batch segment can't
+                # starve the GPU pool and brick the backend (#730 class).
+                audio_tensor = await run_on_gpu_pool_guarded(_gen, what="Batch generate")
 
                 # Fit to slot
                 target_samples_seg = int(seg_duration * sr)
