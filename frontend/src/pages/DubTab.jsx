@@ -423,8 +423,14 @@ export default function DubTab(props) {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Pipeline spine — shown once a file/job is in play so the user always
-          knows which stage they're at (Upload → … → Export). */}
-      {(dubVideoFile || dubJobId || dubStep !== 'idle') && <DubPipelineStepper dubStep={dubStep} />}
+          knows which stage they're at (Upload → … → Export). In the editor view
+          it's inlined onto the DubHeader row (see below), so only render the
+          standalone spine before the editor exists. */}
+      {(dubVideoFile || dubJobId || dubStep !== 'idle') &&
+        !(
+          dubJobId &&
+          (dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done')
+        ) && <DubPipelineStepper dubStep={dubStep} />}
       {/* ── Idle: show full editor skeleton with drop zone ── */}
       {showIdleSkeleton && (
         <IdleSkeleton

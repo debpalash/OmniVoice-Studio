@@ -3402,6 +3402,19 @@ body:has(.capture-pill) {
 .dub-stepper__spin { animation: dub-stepper-spin 1s linear infinite; }
 @keyframes dub-stepper-spin { to { transform: rotate(360deg); } }
 
+/* ── Inline variant — sits on the DubHeader row alongside title + actions ── */
+.dub-stepper--inline {
+  padding: 0;
+  border-bottom: none;
+  justify-content: flex-start;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.dub-stepper--inline .dub-stepper__step:not(:first-child)::before {
+  width: 14px;
+  margin: 0 5px;
+}
+
 /* ── Idle / drop-zone ─────────────────────────────────────────────────── */
 .dub-idle-drop {
   flex: 1;

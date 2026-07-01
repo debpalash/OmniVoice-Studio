@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../ui';
 import FooterBtn from './FooterBtn';
+import DubPipelineStepper from './DubPipelineStepper';
 import { formatTime } from '../../utils/format';
 
 export default function DubHeader({
@@ -33,7 +34,9 @@ export default function DubHeader({
   setExportOpen,
 }) {
   return (
-    <div className="flex justify-between items-center px-[12px] py-[5px] shrink-0 bg-[rgba(255,255,255,0.015)] [border:1px_solid_rgba(255,255,255,0.04)] rounded-md mb-[2px]">
+    <div className="flex flex-wrap justify-between items-center gap-x-[var(--space-3)] gap-y-[4px] px-[12px] py-[5px] shrink-0 bg-[rgba(255,255,255,0.015)] [border:1px_solid_rgba(255,255,255,0.04)] rounded-md mb-[2px]">
+      {/* Pipeline spine, inlined onto the header row (Upload → … → Export). */}
+      <DubPipelineStepper dubStep={dubStep} inline />
       <div className="label-row dub-head__title">
         <FileText className="label-icon" size={11} />
         <span className="font-semibold text-[0.85rem] overflow-hidden text-ellipsis whitespace-nowrap text-fg">

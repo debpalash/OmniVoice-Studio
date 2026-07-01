@@ -31,7 +31,7 @@ const DUB_PHASE_BY_STEP = {
   done: 5,
 };
 
-function DubPipelineStepper({ dubStep }) {
+function DubPipelineStepper({ dubStep, inline = false }) {
   const { t } = useTranslation();
   const current = DUB_PHASE_BY_STEP[dubStep] ?? 0;
   const busy =
@@ -41,7 +41,7 @@ function DubPipelineStepper({ dubStep }) {
     dubStep === 'stopping';
   return (
     <div
-      className="dub-stepper"
+      className={inline ? 'dub-stepper dub-stepper--inline' : 'dub-stepper'}
       role="list"
       aria-label={t('dub.pipeline', { defaultValue: 'Dubbing pipeline' })}
     >
