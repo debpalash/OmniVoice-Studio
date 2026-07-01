@@ -108,6 +108,107 @@ def clear_hf_token() -> None:
         conn.execute("DELETE FROM settings WHERE key = ?", (_TOKEN_KEY,))
 
 
+# ── Generic encrypted secrets (LLM provider API keys, future tokens) ───────
+# The HF token got the first bespoke encrypted row; the LLM-providers feature
+# needs the *same* at-rest protection for a dozen provider keys. Rather than
+# copy the Fernet dance per provider, expose generic secret helpers. Rows are
+# namespaced with the ``secret.`` prefix so a misrouted ``get_text`` on a
+# secret key returns opaque ciphertext (defence in depth), and so plaintext
+# ``settings`` rows can never collide with a secret. Same InvalidToken →
+# None degrade as the HF path (install moved across machines → fall back to
+# env), same per-install key.
+_SECRET_PREFIX = "secret."
+
+
+def _secret_key_name(name: str) -> str:
+    if not name or not isinstance(name, str):
+        raise ValueError(f"secret name must be a non-empty string, got {name!r}")
+    if name == _TOKEN_KEY or name.startswith(_SECRET_PREFIX):
+        raise ValueError(f"invalid secret name {name!r}")
+    return f"{_SECRET_PREFIX}{name}"
+
+
+def get_secret(name: str) -> Optional[str]:
+    """Return a decrypted secret (e.g. an LLM provider API key), or None.
+
+    Mirrors :func:`get_hf_token`: on decrypt failure (install migrated across
+    machines) or any SQLite error, log and return None so callers fall back to
+    env / provider defaults instead of crashing.
+    """
+    from core.db import db_conn
+
+    key = _secret_key_name(name)
+    try:
+        with db_conn() as conn:
+            row = conn.execute(
+                "SELECT value FROM settings WHERE key = ?", (key,)
+            ).fetchone()
+        if row is None or not row[0]:
+            return None
+        try:
+            from cryptography.fernet import InvalidToken
+        except ImportError:  # pragma: no cover — dep should always be present
+            logger.error("cryptography unavailable; cannot decrypt secret %s", name)
+            return None
+        try:
+            return _fernet().decrypt(row[0].encode("ascii")).decode("utf-8")
+        except InvalidToken:
+            logger.warning(
+                "Stored secret %r failed to decrypt (install moved across "
+                "machines or salt tampered) — falling back to env/default.", name,
+            )
+            return None
+    except Exception:
+        logger.exception("settings_store.get_secret(%s): SQLite read failed", name)
+        return None
+
+
+def set_secret(name: str, value: str) -> None:
+    """Persist an encrypted secret. Empty value clears the row."""
+    if not value:
+        clear_secret(name)
+        return
+    from core.db import db_conn
+
+    key = _secret_key_name(name)
+    blob = _fernet().encrypt(value.encode("utf-8")).decode("ascii")
+    with db_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO settings(key, value, updated_at) "
+            "VALUES (?, ?, ?)",
+            (key, blob, time.time()),
+        )
+
+
+def clear_secret(name: str) -> None:
+    """Remove a secret row (salt row preserved, like clear_hf_token)."""
+    from core.db import db_conn
+
+    key = _secret_key_name(name)
+    with db_conn() as conn:
+        conn.execute("DELETE FROM settings WHERE key = ?", (key,))
+
+
+def list_secret_names() -> list[str]:
+    """Return the bare names of all stored secrets (no values, no ciphertext).
+
+    Lets the LLM-providers settings API report *which* providers have a key
+    configured without ever decrypting or returning the key material.
+    """
+    from core.db import db_conn
+
+    try:
+        with db_conn() as conn:
+            rows = conn.execute(
+                "SELECT key FROM settings WHERE key LIKE ?",
+                (f"{_SECRET_PREFIX}%",),
+            ).fetchall()
+        return [r[0][len(_SECRET_PREFIX):] for r in rows if r and r[0]]
+    except Exception:
+        logger.exception("settings_store.list_secret_names: SQLite read failed")
+        return []
+
+
 # ── Non-secret text settings ──────────────────────────────────────────────
 # Plan 01-02 Task 4 (INST-12): the Performance panel needs to persist a
 # boolean toggle (`perf.torch_compile_disabled`). It is NOT a secret — no
@@ -128,7 +229,8 @@ def get_text(key: str, default: Optional[str] = None) -> Optional[str]:
     looking like opaque bytes — callers MUST use `get_hf_token()` for
     secrets and only ever pass non-secret keys to `get_text()`.
     """
-    if key == _TOKEN_KEY:  # defence in depth — never let a misrouted call leak ciphertext
+    if key == _TOKEN_KEY or key.startswith(_SECRET_PREFIX):
+        # defence in depth — never let a misrouted call leak ciphertext
         return default
     from core.db import db_conn
 
@@ -150,10 +252,10 @@ def set_text(key: str, value: str) -> None:
 
     Use for non-secret config only. For tokens, use `set_hf_token()`.
     """
-    if key == _TOKEN_KEY:
+    if key == _TOKEN_KEY or key.startswith(_SECRET_PREFIX):
         raise ValueError(
-            "set_text refuses to write to the encrypted hf_token row; "
-            "use set_hf_token() for secrets"
+            "set_text refuses to write to an encrypted secret row; "
+            "use set_hf_token()/set_secret() for secrets"
         )
     from core.db import db_conn
 

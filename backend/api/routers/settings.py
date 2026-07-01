@@ -234,6 +234,97 @@ def set_llm_endpoint(body: _LLMEndpointBody):
     return _llm_endpoint_state()
 
 
+# ── Multi-provider LLM registry (Settings → LLM Providers) ────────────────
+# Keys persist ENCRYPTED via settings_store.set_secret (never .env, never
+# returned). base_url/model/account overrides are non-secret. Loopback-gated
+# by the router dep, so LAN peers can't read masks or write keys.
+
+class _LLMProviderBody(BaseModel):
+    api_key: str | None = Field(None, description="API key; '' clears it, None leaves unchanged")
+    base_url: str | None = None
+    model: str | None = None
+    account_id: str | None = Field(None, description="Cloudflare account id")
+    make_active: bool = False
+
+
+class _LLMActiveBody(BaseModel):
+    provider: str = Field(..., description="provider id to activate")
+
+
+@router.get("/llm-providers")
+def list_llm_providers():
+    """All providers with resolved base_url/model + whether a key is configured.
+
+    Never returns key material — only `has_key`/`key_from_env` booleans.
+    """
+    from services import llm_providers
+    return {
+        "active": llm_providers.active_provider_id(),
+        "providers": [llm_providers.describe(p) for p in llm_providers.all_providers()],
+    }
+
+
+@router.put("/llm-providers/{provider_id}")
+def save_llm_provider(provider_id: str, body: _LLMProviderBody):
+    """Save a provider's key (encrypted) + optional base_url/model/account.
+
+    A None field is left unchanged; an empty api_key clears the stored key.
+    """
+    from services import llm_providers
+    if llm_providers.get_provider(provider_id) is None:
+        raise HTTPException(status_code=404, detail=f"unknown provider {provider_id!r}")
+    if body.api_key is not None:
+        llm_providers.save_key(provider_id, body.api_key.strip())
+    llm_providers.save_overrides(
+        provider_id, base_url=body.base_url, model=body.model,
+        account_id=body.account_id,
+    )
+    if body.make_active:
+        llm_providers.set_active_provider(provider_id)
+    return list_llm_providers()
+
+
+@router.post("/llm-providers/active")
+def set_active_llm_provider(body: _LLMActiveBody):
+    from services import llm_providers
+    if llm_providers.get_provider(body.provider) is None:
+        raise HTTPException(status_code=404, detail=f"unknown provider {body.provider!r}")
+    llm_providers.set_active_provider(body.provider)
+    return list_llm_providers()
+
+
+@router.post("/llm-providers/{provider_id}/test")
+def test_llm_provider(provider_id: str):
+    """One cheap round-trip against a provider to prove the key/URL work.
+
+    Temporarily activates the provider for the probe by resolving its config
+    directly (does not change the persisted active selection).
+    """
+    from services import llm_providers
+    p = llm_providers.get_provider(provider_id)
+    if p is None:
+        raise HTTPException(status_code=404, detail=f"unknown provider {provider_id!r}")
+    base_url = llm_providers.resolve_base_url(p)
+    api_key = llm_providers.resolve_api_key(p)
+    if not base_url:
+        return {"ok": False, "detail": "No Base URL set for this provider."}
+    if not api_key:
+        return {"ok": False, "detail": "No API key configured for this provider."}
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url=base_url)
+        res = client.chat.completions.create(
+            model=llm_providers.resolve_model(p),
+            messages=[{"role": "user", "content": "Reply with the single word: ok"}],
+            timeout=20,
+        )
+        reply = (res.choices[0].message.content or "").strip()
+        return {"ok": True, "model": llm_providers.resolve_model(p), "reply": reply[:80]}
+    except Exception as e:  # noqa: BLE001 — surface a clean, scrubbed error to the UI
+        from core.scrub import scrub_text
+        return {"ok": False, "detail": scrub_text(f"{type(e).__name__}: {e}")}
+
+
 # ── License acceptance (Phase 3 Plan 03-01 / TTS-05) ──────────────────────
 # Frontend ``SupertonicLicenseDialog`` flips the engine-license bit via this
 # endpoint. The handler is loopback-gated (router-level dep) and the
