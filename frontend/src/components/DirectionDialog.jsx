@@ -4,7 +4,6 @@ import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { Dialog, Button, Textarea, Field, Badge } from '../ui';
 import { apiPost } from '../api/client';
-import './Misc.css';
 
 /**
  * DirectionDialog — Phase 4.2 per-segment direction editor.

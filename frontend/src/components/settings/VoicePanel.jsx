@@ -36,7 +36,6 @@ import { setupDownloadStreamUrl } from '../../api/setup';
 import { isTauri as _isTauri } from '../../utils/media';
 import { Badge, Progress, Segmented } from '../../ui';
 import { SettingsSection, SettingRow, SettingsToggle } from './primitives';
-import './VoicePanel.css';
 
 /** Native confirm dialog in Tauri, window.confirm in the web UI. Mirrors the
  * `askConfirm` helper in Settings.jsx (kept local to avoid coupling). */

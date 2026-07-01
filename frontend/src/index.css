@@ -1956,3 +1956,2908 @@ input[type="file"]::file-selector-button:hover {
   color: var(--chrome-fg);
   border-color: var(--chrome-border-strong);
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CONSOLIDATED COMPONENT STYLES (final CSS consolidation)
+   ─────────────────────────────────────────────────────────────────────
+   Every former per-component .css file is folded in here, VERBATIM, in
+   one place so the project ships essentially a single stylesheet. These
+   rules are ALL intentionally UNLAYERED — exactly as they were as separate
+   files — so they keep beating Tailwind's @layer utilities regardless of
+   specificity. They are appended AFTER all of index.css's own rules to
+   preserve the previous cross-file load order (index.css → residual.css →
+   component css). @keyframes are referenced by name, so relocation needs no
+   usage changes; all keyframe names are globally unique. Do NOT wrap any of
+   this in @layer. Provenance is recorded in the "from <path>" header above
+   each block.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ═══ from src/styles/residual.css ═══ */
+/* ─────────────────────────────────────────────────────────────────────────
+   residual.css — consolidated post-Tailwind-migration stub rules.
+
+   After the Tailwind v4 migration most component styling moved to utility
+   classes on the JSX. What remained were a handful of tiny per-component
+   stylesheets holding only the few rules that *can't* be expressed as layered
+   utilities — @keyframes-driven animations, focus-visible rings, glass
+   surfaces, a <select> caret, ::before/::after pseudos, and attribute-selector
+   overrides that must out-rank Tailwind's @layer utilities.
+
+   These were ~15 separate files, each imported by its own component. They are
+   ALL plain global class selectors, so the file boundary bought nothing — this
+   file collapses them into one, loaded once at app root (main-app.jsx) and once
+   in the visual harness (harness.jsx), preserving the previous load order
+   (always after index.css).
+
+   CRITICAL: every rule here is intentionally UNLAYERED. The migration relies on
+   the fact that unlayered CSS beats anything inside Tailwind's `@layer
+   utilities`, regardless of specificity. Do NOT wrap any of this in `@layer` —
+   that would drop these rules below the utilities they are meant to override
+   (focus rings, hover backgrounds, element resets, etc.) and silently change
+   the rendering. Each block is moved verbatim from its origin file; the
+   "from <Component>" header above each block records provenance.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ── ui primitives ─────────────────────────────────────────────────────── */
+
+/* from Badge (ui/Badge.css) */
+/* All static chrome (base, sizes, tones, dot) now lives as Tailwind utility
+   classes in Badge.jsx. Only the pulse modifier survives here: it is driven by
+   the externally-applied `.ui-badge--pulse` parent class (Header status badge)
+   targeting the dot via a descendant selector + the global `pulse` keyframes —
+   a relationship Tailwind utilities on the component itself can't express. */
+.ui-badge--pulse .ui-badge__dot {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* from Input (ui/Input.css) — native <select> caret only */
+/* The shared input/textarea/select shell, sizes, states, and the Field
+   wrapper are now Tailwind utilities in Input.jsx. Only the <select> caret
+   remains here: an SVG data-URI background (with its appearance reset, caret
+   placement, padding-right for the arrow, and hover border) that isn't
+   practical to express as a utility. */
+.ui-select {
+  appearance: none;
+  padding-right: 20px;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23a1a1aa%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  background-size: 0.42rem auto;
+  cursor: pointer;
+}
+.ui-select:hover {
+  border-color: var(--color-border-strong);
+}
+
+/* from Panel (ui/Panel.css) — glass surface only */
+/* Layout, border, radius, padding, header/title/actions, and the solid/flat
+   variants are now Tailwind utilities in Panel.jsx. Only the glass variant's
+   backdrop-filter + layered gradient surface and the ::before top-edge
+   highlight remain here — none of these are expressible as utilities (the app
+   ships Tailwind v4 without the filter/backdrop `--tw-*` plumbing, and ::before
+   is a pseudo-element). */
+
+/* glass — warm backdrop-filter card (replaces legacy .glass-panel) */
+.ui-panel--glass {
+  background:
+    radial-gradient(500px 240px at 15% 0%,   rgba(251, 188, 148, 0.05) 0%, transparent 70%),
+    radial-gradient(500px 280px at 100% 100%, rgba(211, 134, 155, 0.045) 0%, transparent 70%),
+    linear-gradient(160deg, rgba(47, 41, 39, 0.82) 0%, rgba(38, 33, 31, 0.82) 100%);
+  backdrop-filter: var(--glass-blur-md);
+  -webkit-backdrop-filter: var(--glass-blur-md);
+}
+.ui-panel--glass::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.08) 30%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.08) 70%,
+    rgba(255, 255, 255, 0)
+  );
+  pointer-events: none;
+}
+
+/* from Progress (ui/Progress.css) */
+/* Track, sizes, fill base, and the per-tone gradient fills are Tailwind
+   utilities in Progress.jsx now. What remains here can't be expressed by
+   utilities: the shimmer overlay (a `::after` pseudo-element + keyframes) and
+   the indeterminate sliding bar (a descendant rule + keyframes). Both hook off
+   the retained `ui-progress` / `ui-progress__fill` / `has-shimmer` /
+   `is-indeterminate` class names. */
+.ui-progress__fill.has-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  background-size: 200% 100%;
+  animation: ui-shimmer 1.5s linear infinite;
+}
+@keyframes ui-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+/* indeterminate: sliding bar ~30% wide */
+.ui-progress.is-indeterminate .ui-progress__fill {
+  width: 30%;
+  animation: ui-progress-indet 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@keyframes ui-progress-indet {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(433%); } /* (100% - 30%) / 30% * 100 + 100 */
+}
+
+/* from Segmented (ui/Segmented.css) */
+/* Segmented now renders through the shadcn/ui ToggleGroup (the `seg` variant in
+   src/components/ui/toggle.tsx); its options no longer carry the `.ui-seg__opt`
+   class. The former `.ui-seg__opt:focus-visible` override is obsolete — keyboard
+   focus falls through to the global unlayered `:focus-visible` ring in
+   index.css, which already paints the same brand ring, so no per-option rule is
+   needed. */
+
+/* ── components ────────────────────────────────────────────────────────── */
+
+/* from AudioTrimmer (components/AudioTrimmer.css) */
+/* AudioTrimmer — canvas-specific styles, uses Dialog/Button from ui/. */
+.audio-trimmer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  outline: none;
+}
+
+/* from DemoPresetGrid (components/DemoPresetGrid.css) */
+/* Demo preset grid — empty state of the Voice Design tab.
+   Layout/typography moved to Tailwind utilities on DemoPresetGrid.jsx.
+   Kept here: the active-preview state, an attribute selector
+   ([aria-pressed="true"]) that must stay unlayered so it wins over the
+   button's hover utilities. */
+.demo-preset-card__preview[aria-pressed="true"] {
+  background: rgba(243, 165, 182, 0.18);
+  border-color: rgba(243, 165, 182, 0.4);
+  color: #fff9ef;
+}
+
+/* from MultiLangPicker (components/MultiLangPicker.css) */
+/* Dropdown */
+.multi-lang__drop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: var(--z-overlay);
+  margin-top: 4px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border-strong);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  max-height: 260px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: mlp-in 0.15s ease-out;
+}
+@keyframes mlp-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* from ReadinessChecklist (components/ReadinessChecklist.css) */
+/* System readiness panel showing pass/warn/fail gates
+   for ASR model, TTS engine, LLM, ffmpeg, GPU, etc. */
+.readiness-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--color-bg-elev-1);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+}
+
+/* ── Status icons ───────────────────────────────────────────────────── */
+
+.readiness-checklist__status--pass { color: var(--color-success); }
+.readiness-checklist__status--warn { color: var(--color-accent); }
+.readiness-checklist__status--fail { color: var(--color-danger); }
+.readiness-checklist__status--loading {
+  color: var(--color-fg-subtle);
+  animation: rc-spin 1s linear infinite;
+}
+
+@keyframes rc-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* from TranscriptionPicker (components/TranscriptionPicker.css) */
+/* __search / __list / __row base / __text / __meta base / __empty layout →
+   Tailwind utilities in TranscriptionPicker.jsx. The `__search > *` and
+   `__meta span` combinators + the row :hover/:focus-visible states stay here
+   (focus-visible must stay unlayered to beat the global focus reset). */
+.txn-picker__search > * { flex: 1 1 auto; min-width: 0; }
+.txn-picker__row:hover, .txn-picker__row:focus-visible {
+  border-color: var(--chrome-accent, #fe8019);
+  background: color-mix(in srgb, var(--chrome-accent, #fe8019) 8%, transparent);
+}
+.txn-picker__meta span { display: inline-flex; align-items: center; gap: 3px; }
+
+/* from UpdatesPanel (components/UpdatesPanel.css) */
+.updates-panel { padding: 8px 0; overflow-y: auto; font-size: 12px; color: var(--chrome-fg, #d5c4a1); }
+.updates-panel__live { display: flex; align-items: center; min-height: 26px; }
+.updates-panel__cta {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(184,187,38,0.14); border: 1px solid rgba(184,187,38,0.5);
+  color: #b8bb26; border-radius: 999px; padding: 3px 10px; font: inherit; cursor: pointer;
+}
+.updates-panel__ok, .updates-panel__err, .updates-panel__progress { display: inline-flex; align-items: center; gap: 8px; }
+.updates-panel__err { color: #fb4934; }
+.updates-panel__link { background: none; border: none; color: #83a598; cursor: pointer; font: inherit; display: inline-flex; align-items: center; gap: 3px; }
+.updates-panel__icon { background: none; border: none; color: #fb4934; cursor: pointer; padding: 0 2px; }
+.updates-panel__bar { display: inline-block; width: 80px; height: 3px; background: rgba(255,255,255,0.12); border-radius: 2px; overflow: hidden; }
+.updates-panel__bar span { display: block; height: 100%; background: #b8bb26; }
+.updates-panel__channel { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.updates-panel__seg { display: inline-flex; border: 1px solid var(--chrome-border, #3a3a3a); border-radius: 6px; overflow: hidden; }
+.updates-panel__segbtn { background: none; border: none; color: var(--chrome-fg-muted); padding: 2px 10px; font: inherit; cursor: pointer; }
+.updates-panel__segbtn.is-active { background: rgba(131,165,152,0.18); color: #ebdbb2; }
+.updates-panel__rel-head { font-weight: 600; color: var(--chrome-fg-muted); margin: 6px 0 4px; }
+.updates-panel__rel-empty { color: var(--chrome-fg-muted); display: inline-flex; gap: 8px; align-items: center; padding: 6px 0; }
+.updates-panel__rel { border-top: 1px solid var(--chrome-border, #2a2a2a); padding: 6px 0; }
+.updates-panel__rel.is-current { background: rgba(184,187,38,0.06); }
+.updates-panel__rel-row { display: flex; align-items: center; gap: 8px; }
+.updates-panel__rel-ver { font-weight: 600; }
+.updates-panel__rel-tag { font-size: 10px; color: #b8bb26; border: 1px solid rgba(184,187,38,0.5); border-radius: 999px; padding: 0 6px; }
+.updates-panel__rel-pre { font-size: 10px; color: #d79921; border: 1px solid rgba(215,153,33,0.5); border-radius: 999px; padding: 0 6px; }
+.updates-panel__rel-date { margin-left: auto; color: var(--chrome-fg-muted); }
+.updates-panel__rel-notes { white-space: pre-wrap; overflow-wrap: break-word; margin: 4px 0 0; font-size: 11px; line-height: 1.4; color: #bdae93; }
+
+/* from VoiceSelector (components/VoiceSelector.css) */
+/* Shared voice picker (#22): the SearchableSelect grows to fill, adornment
+   buttons sit to its right.
+   .voice-selector / __adornments / __btn base layout → Tailwind utilities in
+   VoiceSelector.jsx. The `> .ss-wrap` child combinator, the __btn :hover/
+   :disabled states, and the spin animation stay here. */
+.voice-selector > .ss-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.voice-selector__btn:hover:not(:disabled) {
+  color: var(--chrome-fg, #eee);
+  border-color: var(--chrome-border-strong, rgba(255, 255, 255, 0.22));
+}
+.voice-selector__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.voice-selector__spin {
+  animation: voice-selector-spin 0.8s linear infinite;
+}
+@keyframes voice-selector-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* from ApiKeysPanel (components/settings/ApiKeysPanel.css) */
+/* Settings → API Keys panel — Wave 2 AUTH-03 UI. Most of this panel's chrome
+   now lives in Tailwind utilities on the JSX. The rules kept here are the
+   source/row card + the "Active" badge: ApiKeysPanel.test.jsx selects them by
+   class name (`.apikeys-row`, `.apikeys-row--active`, `.apikeys-badge--active`),
+   so they stay as a stable contract. All surfaces still route through
+   var(--chrome-*) tokens so they theme across all 6 themes. */
+.apikeys-row {
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  padding: var(--space-4) var(--space-4);
+  background: var(--chrome-bg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.apikeys-row--active {
+  border-left: 2px solid var(--chrome-accent);
+  background: color-mix(in srgb, var(--chrome-accent) 5%, var(--chrome-bg));
+}
+
+.apikeys-badge {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg-muted);
+}
+
+.apikeys-badge--active {
+  background: color-mix(in srgb, var(--chrome-accent) 25%, transparent);
+  color: var(--chrome-accent);
+}
+
+/* ── pages ─────────────────────────────────────────────────────────────── */
+
+/* from ToolsPage (pages/ToolsPage.css) */
+/* Layout/spacing/box rules now live as Tailwind utilities in ToolsPage.jsx.
+   Only the rules below remain: the `<h1>` font-family + the descendant
+   `code`/`pre` typography — both fight the unlayered global element rules in
+   index.css (h1 → font-sans, code/pre → font-variant-numeric), which would win
+   over @layer utilities, so they stay as plain CSS. */
+.tools-page__bar h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.tools-card__out code { font-family: var(--font-mono); color: var(--color-fg); }
+.tools-card__out pre  { margin: var(--space-2) 0 0; font-family: var(--font-mono); overflow-x: auto; white-space: pre-wrap; }
+
+/* ═══ from src/components/Misc.css ═══ */
+/* ═══ CheckpointBanner extracted styles ═══ */
+.ckpt-banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; margin-bottom: 6px;
+  border-radius: var(--chrome-radius-pill);
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+}
+.ckpt-icon { flex-shrink: 0; }
+.ckpt-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ckpt-head { display: flex; align-items: baseline; gap: 6px; }
+.ckpt-title {
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--chrome-fg);
+}
+.ckpt-count {
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  color: var(--chrome-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ckpt-hint { font-size: 0.64rem; color: var(--chrome-fg-muted); line-height: 1.35; }
+
+/* ═══ DirectionDialog extracted styles ═══ */
+.dir-preview-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.dir-clear-btn { margin-right: auto; }
+.dir-rate-up { color: var(--color-brand); }
+.dir-rate-down { color: var(--color-info); }
+.dir-error { color: var(--color-warn); font-size: 0.7rem; }
+
+/* ═══ App.jsx startup / wizard extracted styles ═══ */
+.app-startup {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; flex-direction: column; gap: 12px;
+  color: #a89984; font-size: 13px;
+}
+.app-startup__title { font-size: 18px; color: #ebdbb2; }
+.app-wizard-wrap {
+  /* Fill viewport above the fixed LogsFooter */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: var(--logs-footer-height, 28px);
+  overflow: hidden;
+  background: var(--color-bg, #1d2021);
+  display: flex;
+  flex-direction: column;
+}
+.app-wizard-dragstrip {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 28px; z-index: 10;
+}
+.app-lazy-fallback { padding: 12px; color: #6b6657; font-size: 0.7rem; }
+
+/* ═══ AudioTrimmer play button ═══ */
+.audio-trimmer__play-btn {
+  color: var(--color-success);
+  border-color: rgba(142,192,124,0.3);
+  background: rgba(142,192,124,0.08);
+}
+
+/* ═══ from src/components/firstrun.css ═══ */
+/* First-run journey — the only irreducible motion kept from the old bespoke
+ * "studio console" design. Everything else (layout, surfaces, spacing, colors)
+ * is now standard shadcn primitives + Tailwind utilities themed by the palette
+ * tokens. These three keyframes give the setup → install → models flow its one
+ * signature: a breathing voice waveform, a staggered rise-in, and a pulsing
+ * "active step" LED — none of which Tailwind utilities can express alone.
+ */
+
+@keyframes fr-breathe {
+  from { transform: scaleY(calc(var(--h, 0.4) * 0.55)); opacity: 0.22; }
+  to   { transform: scaleY(var(--h, 0.4)); opacity: 0.6; }
+}
+
+@keyframes fr-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fr-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+/* Breathing waveform masthead — bar height + stagger come from inline vars. */
+.fr-wave {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+}
+
+.fr-wave__bar {
+  flex: 1 0 auto;
+  width: 2px;
+  height: 100%;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--color-brand) 70%, transparent);
+  transform: scaleY(var(--h, 0.4));
+  transform-origin: center;
+  opacity: 0.45;
+  animation: fr-breathe 2.8s ease-in-out infinite alternate;
+  animation-delay: var(--d, 0ms);
+}
+
+.fr-rise {
+  animation: fr-rise 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--rise, 0) * 70ms);
+}
+
+.fr-pulse {
+  animation: fr-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fr-wave__bar,
+  .fr-rise,
+  .fr-pulse {
+    animation: none;
+  }
+}
+
+/* ═══ from src/components/Sidebar.css ═══ */
+/* Sidebar — page-specific layout + accents, base comes from ui/ primitives. */
+
+/* .sidebar base (flex column) + .sidebar__tabs layout (incl. its collapsed
+   variant) → Tailwind utilities in Sidebar.jsx. The .sidebar__tab collapsed
+   override stays here: the .sidebar__tab base is still unlayered CSS below, so
+   the collapsed combinator must also be unlayered to win the cascade over it.
+   (Collapsed icon size is handled by the JSX `size` prop, not CSS.) */
+.sidebar.is-collapsed .sidebar__tab {
+  max-width: 100%;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  flex: none;
+}
+
+.sidebar__tab {
+  position: relative;
+  flex: 1;
+  height: var(--chrome-pill-h);
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--chrome-fg-muted);
+  border-radius: var(--chrome-radius-pill);
+  transition: border-color var(--dur-base), background var(--dur-base), color var(--dur-base);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  --sidebar-tab-accent: var(--color-brand);
+  white-space: nowrap;
+  padding: 0 10px;
+}
+.sidebar__tab:hover {
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+}
+.sidebar__tab.is-active {
+  border-color: color-mix(in srgb, var(--sidebar-tab-accent) 35%, transparent);
+  background:   color-mix(in srgb, var(--sidebar-tab-accent) 12%, transparent);
+  color: var(--sidebar-tab-accent);
+}
+.sidebar__tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+/* .sidebar__tab-badge → utilities in Sidebar.jsx (positioned mono count pill). */
+
+/* ── Search ─────────────────────────────────────────────────── */
+/* .sidebar__search + .sidebar__search-icon → utilities in Sidebar.jsx. */
+.sidebar__search-input {
+  width: 100%;
+  font-size: var(--text-sm);
+  padding: 4px 26px 4px 22px;
+  /* Chrome-radius instead of 999 px pill so the input rhymes with the
+     footer / header pills. Colors come from the base Input primitive. */
+  border-radius: var(--chrome-radius-pill);
+}
+.sidebar__search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent !important;
+  border: none !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* ── Save-project button tint ───────────────────────────────── */
+.sidebar__save-btn {
+  margin-bottom: var(--space-2);
+  color: var(--chrome-fg);
+  border: 1px solid var(--chrome-border-strong);
+  background: transparent;
+  border-radius: var(--chrome-radius-pill);
+  font-family: var(--font-sans);
+  letter-spacing: 0.02em;
+}
+.sidebar__save-btn:hover { background: var(--chrome-hover-bg); }
+.sidebar__save-btn.is-active-project {
+  color: #b8bb26;
+  border-color: color-mix(in srgb, #b8bb26 45%, transparent);
+  background: color-mix(in srgb, #b8bb26 10%, transparent);
+}
+.sidebar__save-btn--full     { justify-content: center; }
+
+/* ── Clear-history row ──────────────────────────────────────── */
+.sidebar__clear { margin-top: var(--space-5); color: var(--color-fg-subtle); opacity: 0.7; }
+.sidebar__clear:hover { opacity: 1; }
+
+/* ── Empty-state placeholders ───────────────────────────────── */
+/* .sidebar__empty + __empty-icon/__empty-title/__empty-sub → utilities in
+   Sidebar.jsx (EmptyState). Collapsed-hide combinator below stays here. */
+
+/* Hide the empty-state card when collapsed to icon-only width. EmptyState is a
+   shared component with no collapsed-state prop, so the hide stays a parent-
+   state combinator here. (The subtitle + search blocks are already gated out of
+   the JSX when collapsed, so they need no CSS hide.) */
+.sidebar.is-collapsed .sidebar__empty     { display: none; }
+
+/* Section label — matches the status-bar's "LOGS" uppercase treatment.
+   Labels are displays (not buttons) but this one IS clickable (collapses
+   the section), so the chevron on the right signals interactivity while
+   the text keeps the chrome label typography. */
+/* .sidebar__section-title base → utilities in Sidebar.jsx; :hover stays here
+   (unlayered, so it wins over the layered base color utility). */
+.sidebar__section-title:hover { color: var(--chrome-fg); }
+
+/* ── Collapsed-mode icon tiles — chrome square buttons ────────── */
+/* .sidebar__icon-tile base (layout + transition) → utilities in Sidebar.jsx
+   (IconTile). Interactive :hover/.is-active states stay here. */
+.sidebar__icon-tile:hover {
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+}
+.sidebar__icon-tile.is-active {
+  background: var(--chrome-accent-bg);
+  border-color: var(--chrome-accent-border);
+  color: var(--chrome-accent);
+}
+/* .sidebar__icon-tile__lock → utilities in Sidebar.jsx. */
+
+/* .sidebar__subtitle base → utilities in Sidebar.jsx; collapsed-hide
+   combinator above stays here. */
+
+/* ── Scrollable body + collapsed-mode tweaks ─────────────────── */
+/* .sidebar__scroll base + its collapsed-mode tweaks → utilities in Sidebar.jsx. */
+
+/* Preset rows that don't need a computed accent */
+.history-item--dub       { --row-accent: #83a598; }
+
+/* ── History-item kind badge variants ────────────────────────── */
+.history-kind--audio     { color: #83a598; border-color: rgba(131, 165, 152, 0.25); }
+
+/* Locked project label + italic subtitle */
+.history-meta--locked    { color: #b8bb26; font-style: italic; }
+.history-subtitle--italic { font-style: italic; }
+
+/* Generated-history title clamp — real line-clamp with an ellipsis, not a
+   max-height guillotine that sliced the third line mid-glyph. Click toggles
+   the full text (see WorkspaceHistory). */
+.history-title--clamp {
+  white-space: normal;
+  font-weight: 500;
+  font-size: 0.74rem;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: pointer;
+}
+.history-title--expanded {
+  -webkit-line-clamp: unset;
+  max-height: none;
+}
+.history-subtitle--seed {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: var(--chrome-fg-dim);
+}
+
+/* Inline waveform player in generate history (shared WaveformPlayer) */
+.history-audio {
+  margin-top: 4px;
+  width: 100%;
+}
+
+/* Restore / re-open icon tiles on history + export rows.
+   .sidebar-tile base + per-kind color variants → utilities in Sidebar.jsx
+   (SIDEBAR_TILE const + inline text color). */
+
+/* ═══ from src/components/LogsFooter.css ═══ */
+/* VSCode-style bottom log panel. Fixed to the bottom of the viewport so the
+   main app can freely scroll underneath. Everything that can be expressed as
+   element-local styling (buttons, pills, badges, version, discord/donate,
+   log lines, notification items) now lives as Tailwind utilities in
+   LogsFooter.jsx. What stays here CANNOT be element-local Tailwind:
+
+   (a) the fixed footer shell + the ancestor-combinator inset rules
+       (`.app-container .logs-footer`, `.rail-right`, the ≤600px media query) —
+       they depend on the `logs-footer` class being matched by ancestor
+       selectors, which Tailwind utilities can't express;
+   (b) the collapsed/open height;
+   (c) the `::-webkit-scrollbar` pseudo-elements on the scrollable body;
+   (d) the @keyframes referenced via Tailwind arbitrary `[animation:…]` utilities
+       (version-dot-pulse on the update dot, heart-glow on the donate button). */
+
+/* (a) Fixed footer shell + rail insets ------------------------------------ */
+.logs-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  /* Chrome tokens defined at :root in index.css; shared with the Header topbar. */
+  background: var(--chrome-bg);
+  border-top: 1px solid var(--chrome-border);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--chrome-fg);
+  user-select: none;
+}
+
+/* The footer sits *beside* the nav rail (a 48px grid column of .app-container),
+   never under or over it. Splash/wizard footers render outside .app-container
+   and stay full-width. */
+.app-container .logs-footer {
+  left: 48px;
+  right: 0;
+}
+.app-container.rail-right .logs-footer {
+  left: 0;
+  right: 48px;
+}
+/* ≤600px the nav rail is hidden — footer reclaims the full width. */
+@media (max-width: 600px) {
+  .app-container .logs-footer,
+  .app-container.rail-right .logs-footer {
+    left: 0;
+    right: 0;
+  }
+}
+
+/* (b) Collapsed/open height ----------------------------------------------- */
+.logs-footer--collapsed {
+  height: var(--chrome-bar-h);
+}
+.logs-footer--open {
+  /* height is set inline via React state */
+  min-height: 180px;
+}
+
+/* (c) Scrollbar pseudo-elements for the log body (Tailwind can't target these) */
+.logs-footer__body::-webkit-scrollbar        { width: 8px; height: 8px; }
+.logs-footer__body::-webkit-scrollbar-thumb  { background: rgba(255, 255, 255, 0.08); border-radius: 4px; }
+.logs-footer__body::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+
+/* (d) Keyframes referenced from LogsFooter.jsx via `[animation:…]` utilities.
+   The update dot keeps pulsing under reduced motion (matches prior behavior);
+   the donate button opts out via `motion-reduce:[animation:none]` in JSX. */
+@keyframes version-dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--chrome-accent, #b8bb26) 55%, transparent); }
+  50%      { box-shadow: 0 0 0 4px color-mix(in srgb, var(--chrome-accent, #b8bb26) 0%, transparent); }
+}
+@keyframes heart-glow {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.08); }
+}
+
+/* ═══ from src/components/CaptureWidget.css ═══ */
+/* ── Capture Pill ────────────────────────────────────────────────────────
+   Floating dictation indicator.
+   Slim horizontal pill: dot | label | timer | dismiss
+   ──────────────────────────────────────────────────────────────────────── */
+
+.capture-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  min-width: 180px;
+  max-width: 280px;
+  height: 48px;
+  background: rgba(18, 18, 22, 0.88);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 100px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  font-family: "Inter Variable", "Inter", -apple-system, sans-serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  animation: pill-slide-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  user-select: none;
+  cursor: default;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* ── State-specific borders ─────────────────────────────────────────── */
+
+.capture-pill--recording {
+  border-color: rgba(239, 68, 68, 0.3);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(239, 68, 68, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.capture-pill--transcribing {
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(99, 102, 241, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.capture-pill--done {
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.capture-pill--error {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* ── Animations ─────────────────────────────────────────────────────── */
+
+@keyframes pill-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* ── Status dot ─────────────────────────────────────────────────────── */
+
+.capture-pill__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.3);
+  transition: background 0.2s ease;
+}
+
+.capture-pill--recording .capture-pill__dot {
+  background: #ef4444;
+  animation: dot-pulse 1.2s ease-in-out infinite;
+}
+
+.capture-pill--transcribing .capture-pill__dot {
+  background: #6366f1;
+  animation: dot-pulse 1.5s ease-in-out infinite;
+}
+
+.capture-pill--done .capture-pill__dot {
+  background: #22c55e;
+  animation: none;
+}
+
+.capture-pill--error .capture-pill__dot {
+  background: #ef4444;
+  animation: none;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.6); }
+}
+
+/* ── Content / timer / dismiss ──────────────────────────────────────────
+   Layout + (theme-less, hardcoded-white) colors for the pill's content,
+   label, timer, transcribing spinner, and dismiss button now live as
+   Tailwind utilities on the JSX (the spinner uses `motion-safe:animate-spin`
+   so it self-disables under reduced motion). Only the irreducible glass
+   shell, state borders, and keyframe-driven dot/enter animations remain. */
+
+/* ── Reduced motion ─────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .capture-pill { animation: none; opacity: 1; }
+  .capture-pill__dot { animation: none !important; }
+}
+
+/* ── Widget-mode body (standalone Tauri window) ─────────────────────── */
+
+body:has(.capture-pill) {
+  background: transparent !important;
+  margin: 0;
+  padding: 8px;
+  overflow: hidden;
+}
+
+/* ═══ from src/components/CompareModal.css ═══ */
+/* CompareModal — non-modal bottom drawer. Leaves the app interactive;
+   no backdrop wash. ESC or click-outside dismisses. Mirrors
+   ExportModal's drawer chrome so the two read as siblings.
+
+   Mechanical layout/typography rules now live as Tailwind utilities on the
+   JSX (including the two-column compare grid base). What stays here is the
+   irreducible non-modal drawer presentation: fixed overlay positioning + the
+   sheet chrome + slide-up keyframe. The `.ui-compare__grid` responsive
+   collapse to one column on narrow widths is owned by index.css. */
+
+.compare-drawer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--logs-footer-height, 28px);
+  z-index: 90;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.compare-drawer__sheet {
+  pointer-events: auto;
+  width: min(880px, calc(100vw - 24px));
+  max-height: min(80vh, 640px);
+  display: flex;
+  flex-direction: column;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border-strong);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  box-shadow:
+    0 -8px 24px rgba(0, 0, 0, 0.45),
+    0 -1px 0 var(--chrome-border) inset;
+  animation: compare-drawer-slide-up var(--dur-base, 180ms) var(--ease-out, cubic-bezier(.2,.8,.2,1));
+  overflow: hidden;
+}
+@keyframes compare-drawer-slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ═══ from src/components/FloatingPill.css ═══ */
+/* ── Floating Status Pill ───────────────────────────────────────────────
+   Always-on-top pill that tracks long-running operations (ASR model load,
+   dubbing progress, export).
+   ─────────────────────────────────────────────────────────────────────── */
+
+.floating-pill {
+  position: fixed;
+  /* Bottom-center (snackbar) so it never collides with the right-side
+     workspace panels (Voice / Dub), the top title bar, or the nav rail.
+     Rides above the LogsFooter at any expanded height (the footer writes
+     --logs-footer-height on :root — see LogsFooter.jsx). */
+  bottom: calc(var(--logs-footer-height, 28px) + 16px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-toast);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5) var(--space-3) var(--space-4);
+  min-width: 220px;
+  max-width: 360px;
+
+  background: var(--color-bg-elev-1);
+  backdrop-filter: var(--glass-blur-md);
+  -webkit-backdrop-filter: var(--glass-blur-md);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(0,0,0,0.15);
+
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  color: var(--color-fg);
+
+  /* Slide-in animation */
+  animation: pill-enter 0.35s var(--ease-spring) both;
+  pointer-events: auto;
+  user-select: none;
+  cursor: default;
+}
+
+.floating-pill--exiting {
+  animation: pill-exit 0.25s var(--ease-out) both;
+}
+
+@keyframes pill-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 14px) scale(0.92);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes pill-exit {
+  to {
+    opacity: 0;
+    transform: translate(-50%, 10px) scale(0.95);
+    filter: blur(2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-pill { animation: none; opacity: 1; }
+  .floating-pill--exiting { animation: none; opacity: 0; }
+  /* 10x P4 (spec §3): pulse/sweep loops die too — the dot and the
+     indeterminate bar hold a static frame. */
+  .floating-pill__dot { animation: none; }
+  .floating-pill__progress-fill--indeterminate { animation: none; transform: none; }
+}
+
+/* ── Stage indicator dot ────────────────────────────────────────────── */
+
+.floating-pill__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: pill-dot-pulse 1.5s ease-in-out infinite;
+}
+
+.floating-pill__dot--loading-model { background: var(--color-accent); }
+.floating-pill__dot--transcribing  { background: var(--color-info); }
+.floating-pill__dot--translating   { background: var(--color-brand); }
+.floating-pill__dot--generating    { background: var(--color-warn); }
+.floating-pill__dot--exporting     { background: var(--color-success); }
+.floating-pill__dot--refining      { background: var(--color-info); }
+.floating-pill__dot--recording     { background: var(--color-danger); }
+.floating-pill__dot--done          { background: var(--color-success); animation: none; }
+.floating-pill__dot--error         { background: var(--color-danger); animation: none; }
+
+@keyframes pill-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* ── Content area ───────────────────────────────────────────────────── */
+/* .floating-pill__content / __label / __meta / __timer / __error layout
+   moved to Tailwind utilities on the JSX. The base __label rule lives there
+   too; the unlayered `.floating-pill--done .floating-pill__label` override
+   below still wins (utilities are low-priority @layer). */
+
+/* ── Mini progress bar ──────────────────────────────────────────────── */
+/* .floating-pill__progress (track) moved to Tailwind utilities on the JSX.
+   The fill (base + indeterminate) stays here — it has !important + animation. */
+
+.floating-pill__progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--color-brand);
+  transition: width 0.3s var(--ease-out);
+}
+
+.floating-pill__progress-fill--indeterminate {
+  width: 40% !important;
+  animation: pill-progress-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes pill-progress-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+/* ── Dismiss button ─────────────────────────────────────────────────── */
+/* .floating-pill__dismiss + :hover moved to Tailwind utilities on the JSX. */
+
+/* ── Done stage — green tint ────────────────────────────────────────── */
+
+.floating-pill--done {
+  border-color: rgba(142, 192, 124, 0.25);
+}
+
+.floating-pill--done .floating-pill__label {
+  color: var(--color-success);
+}
+
+/* ── Error stage — red tint ─────────────────────────────────────────── */
+
+.floating-pill--error {
+  border-color: rgba(251, 73, 52, 0.25);
+}
+
+/* ═══ from src/components/DubSegmentRow.css ═══ */
+/* ═══ DubSegmentRow extracted layout styles ═══
+   Per-cell badge/label/time-span layout now lives in Tailwind utilities on
+   DubSegmentRow.jsx. Kept here: the row + its generation/selection/playhead
+   state classes (shared with DubSegmentTable.css + index.css, !important,
+   compound selectors), the text inputs (font:inherit + focus rings), and the
+   select/range/actions cells whose `input-base` / `input[type=range]` siblings
+   are unlayered and would otherwise beat utilities in the cascade. */
+
+/* Row transition — smooth bg/border changes during generation */
+.segment-row {
+  transition: background 0.2s ease, border-left 0.15s ease, opacity 0.3s ease;
+  border-left: 2px solid transparent;
+}
+.segment-active {
+  /* Background comes from index.css's .segment-row.segment-active block
+     (var(--chrome-accent-bg)) — only the border edge is owned here. */
+  border-left: 2px solid var(--chrome-accent) !important;
+}
+.segment-done {
+  opacity: 0.6;
+  border-left: 2px solid rgba(142, 192, 124, 0.35) !important;
+}
+.segment-selected {
+  background: color-mix(in srgb, var(--chrome-accent) 5%, transparent) !important;
+}
+
+/* Row containing the current media playhead — distinct from segment-active
+   (which fires during dub *generation*) so users can tell at a glance
+   where the video is playing while editing. */
+.segment-row.segment-playing {
+  background: rgba(131, 165, 152, 0.10) !important;
+  box-shadow: inset 2px 0 0 #83a598;
+}
+.segment-row.segment-playing.segment-active {
+  /* Generation wins visually when both are true. */
+  box-shadow: inset 2px 0 0 var(--chrome-accent);
+}
+
+/* Time + speaker inputs: `font: inherit` and the focus ring don't map to
+   utilities cleanly, so they stay here. */
+.seg-time-input {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.66rem;
+  color: var(--chrome-fg);
+  width: 36px;
+  text-align: right;
+  min-width: 0;
+}
+.seg-time-input:focus {
+  outline: 1px solid var(--chrome-accent);
+  outline-offset: 1px;
+  background: var(--chrome-hover-bg);
+}
+.seg-speaker-input {
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 0.66rem;
+  color: var(--chrome-fg-muted);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.seg-speaker-input:focus {
+  outline: 1px solid var(--chrome-accent);
+  outline-offset: 1px;
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+}
+/* Descendant override of the shared (unlayered) .segment-input — must stay
+   unlayered to win over index.css. */
+.seg-text-col {
+  display: flex; flex-direction: column; gap: 1px;
+  min-width: 0; overflow: hidden;
+}
+.seg-text-col .segment-input {
+  width: 100%; min-width: 0;
+}
+/* Selects carry `input-base` (unlayered) — these size/padding overrides must
+   stay unlayered too, else input-base would win over a utilities-layer class. */
+.seg-lang-select {
+  width: 100%; min-width: 0; font-size: 0.6rem; padding: 1px 2px;
+}
+.seg-profile-select {
+  width: 100%; min-width: 0; font-size: 0.6rem; padding: 1px 4px;
+  overflow: hidden; text-overflow: ellipsis;
+}
+/* Range slider — overrides the unlayered input[type=range] base. */
+.seg-gain-slider {
+  width: 100%; min-width: 0; padding: 0; margin: 0;
+  height: 3px;
+}
+.seg-actions {
+  display: flex; gap: 2px; justify-content: flex-end;
+  min-width: 0;
+}
+.seg-actions > button {
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+
+/* Row selected from the waveform timeline (#280, item 3) — distinct from
+   multi-select (checkbox) and from the playhead row. */
+.segment-row.segment-timeline-selected {
+  background: rgba(250, 189, 47, 0.08) !important;
+  box-shadow: inset 2px 0 0 #fabd2f;
+}
+
+/* ═══ from src/components/DubSegmentTable.css ═══ */
+/* Table body specific styles — chrome comes from ui/Table. */
+
+/* Single grid template shared by both header and data rows so columns
+   line up. Order: [select][time][spkr][text][lang][voice][vol][actions].
+   Both `.dub-segment-table__header` and `.segment-row` override their
+   default flex layout to use this template — eliminates the column-
+   drift bug where the time pill bled into the text column. */
+.segment-table {
+  --seg-grid-cols: 18px 64px 70px minmax(0, 1fr) 44px 60px 40px 44px;
+}
+
+/* Narrow windows: shrink the fixed rails so the text column keeps real
+   width instead of being squeezed to nothing — the table reflows with the
+   window instead of overflowing it. */
+@media (max-width: 1100px) {
+  .segment-table {
+    --seg-grid-cols: 16px 54px 56px minmax(0, 1fr) 38px 52px 34px 38px;
+  }
+}
+
+@media (max-width: 760px) {
+  .segment-table {
+    --seg-grid-cols: 14px 48px minmax(0, 1fr) 34px 48px 34px;
+  }
+  /* Speaker + gain rails collapse entirely below tablet width. */
+  .dub-segment-table__header > :nth-child(3),
+  .segment-row > :nth-child(3),
+  .dub-segment-table__header > :nth-child(7),
+  .segment-row > :nth-child(7) { display: none; }
+}
+
+.dub-segment-table__header,
+.segment-table .segment-row {
+  display: grid !important;
+  grid-template-columns: var(--seg-grid-cols);
+  align-items: center;
+  gap: 6px;
+}
+
+.dub-segment-table__header {
+  padding: 3px 6px !important;
+  /* Header cells normally carry explicit widths from Table.jsx — neutralise
+     them so the grid template wins. */
+}
+.dub-segment-table__header .ui-table-header__cell {
+  width: auto !important;
+  flex: none !important;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.segment-table .segment-row {
+  padding: 3px 6px;
+  min-height: 27px;
+}
+
+.dub-segment-table__body { flex: 1; min-height: 0; }
+
+.dub-segment-table__select-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.dub-segment-table__select-all input[type="checkbox"] {
+  accent-color: var(--color-brand);
+  cursor: pointer;
+}
+
+.dub-segment-table__spk-filter { min-width: 80px; }
+
+.dub-segment-table__sel-count { color: var(--color-brand); }
+
+/* ═══ from src/components/SegmentTrack.css ═══ */
+/* SegmentTrack — custom dub-timeline segment lane (#280, item 3).
+   Container/onset/lane/label/handle-base/actions/action-btn/playhead layout
+   now lives in Tailwind utilities on SegmentTrack.jsx. Kept here: the box and
+   its many JS-toggled state variants, the resize-handle edges (with their
+   hover/selected compounds), the self-scroll viewport modifier, the disabled
+   compound, and the visually-hidden announce region — all selectors that are
+   compound / stateful / pseudo and must stay unlayered to win the cascade. */
+
+/* WebKit fallback: the lane scrolls itself (no WaveSurfer wrapper to sync). */
+.seg-track__viewport--scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.seg-track__box {
+  position: absolute;
+  top: 3px;
+  height: 34px;
+  border: 1px solid rgba(168, 153, 132, 0.35);
+  border-radius: 4px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+}
+
+.seg-track__box.is-dragging { cursor: grabbing; }
+
+.seg-track__box:focus-visible {
+  border-color: #d3869b;
+  box-shadow: 0 0 0 1px #d3869b;
+}
+
+.seg-track__box.is-selected {
+  border-color: #d3869b;
+  box-shadow: 0 0 0 1px rgba(211, 134, 155, 0.7);
+}
+
+.seg-track__box.is-editing {
+  border-style: dashed;
+  border-color: #fabd2f;
+}
+
+/* Cache state from the incremental plan. */
+.seg-track__box.is-stale { border-bottom: 2px solid #fabd2f; }
+.seg-track__box.is-fresh { border-bottom: 2px solid rgba(142, 192, 124, 0.8); }
+
+/* Hatched warning when Alt-drag created an overlap (≤200 ms allowed). */
+.seg-track__box.is-overlap {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(251, 73, 52, 0.28) 0,
+    rgba(251, 73, 52, 0.28) 4px,
+    transparent 4px,
+    transparent 8px
+  ) !important;
+  border-color: #fb4934;
+}
+
+.seg-track__handle--l { left: 0; border-left: 2px solid rgba(235, 219, 178, 0.45); }
+.seg-track__handle--r { right: 0; border-right: 2px solid rgba(235, 219, 178, 0.45); }
+
+.seg-track__box:hover .seg-track__handle--l,
+.seg-track__box.is-selected .seg-track__handle--l { border-left-color: #d3869b; }
+.seg-track__box:hover .seg-track__handle--r,
+.seg-track__box.is-selected .seg-track__handle--r { border-right-color: #d3869b; }
+
+.seg-track.is-disabled .seg-track__box {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* Visually hidden, still announced by screen readers. */
+.seg-track__sr-announce {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* ═══ from src/components/dub/dub.css ═══ */
+/* Dub Studio — irreducible CSS that can't live as Tailwind utilities:
+   keyframe-driven motion (stepper spin, idle-drop pulse, skeleton shimmer),
+   ::before connectors, and a few rules that must override other *global*
+   design-system classes (.studio-panel / .label-row / .override-toggle /
+   .segment-del) where a utility would lose on cascade. Everything else in the
+   dub feature is plain Tailwind utilities on the components. */
+
+/* ── Title strip — coexists with the global .label-row it sits on ── */
+.dub-head__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: 0;
+  min-width: 0;
+  flex: 1;
+}
+
+/* ── Column flex that fills height — overrides .studio-panel overflow ── */
+.dub-panel-col {
+  margin-bottom: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Pipeline stepper (top spine) ─────────────────────────────────────── */
+.dub-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2px 0;
+  padding: 8px 12px;
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--chrome-border);
+}
+.dub-stepper__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--chrome-fg-dim, #665c54);
+}
+.dub-stepper__step:not(:first-child)::before {
+  content: '';
+  width: 24px;
+  height: 2px;
+  margin: 0 8px;
+  border-radius: 1px;
+  background: var(--chrome-border-strong, rgba(255, 255, 255, 0.12));
+}
+.dub-stepper__step.is-reached:not(:first-child)::before {
+  background: var(--chrome-accent, #d3869b);
+}
+.dub-stepper__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1.5px solid var(--chrome-border-strong, rgba(255, 255, 255, 0.15));
+  color: var(--chrome-fg-dim, #665c54);
+}
+.dub-stepper__step.is-done .dub-stepper__icon {
+  border-color: var(--chrome-accent, #d3869b);
+  color: var(--chrome-accent, #d3869b);
+  background: color-mix(in srgb, var(--chrome-accent, #d3869b) 16%, transparent);
+}
+.dub-stepper__step.is-active .dub-stepper__icon {
+  border-color: var(--chrome-accent, #d3869b);
+  color: var(--chrome-accent, #d3869b);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--chrome-accent, #d3869b) 14%, transparent);
+}
+.dub-stepper__step.is-done .dub-stepper__label,
+.dub-stepper__step.is-active .dub-stepper__label {
+  color: var(--chrome-fg);
+}
+.dub-stepper__spin { animation: dub-stepper-spin 1s linear infinite; }
+@keyframes dub-stepper-spin { to { transform: rotate(360deg); } }
+
+/* ── Idle / drop-zone ─────────────────────────────────────────────────── */
+.dub-idle-drop {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  border: 2px dashed rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  transition: background 0.3s, border-color 0.3s;
+  margin: 2px;
+  background: transparent;
+}
+@keyframes dub-pulse {
+  0%, 100% { border-color: rgba(211, 134, 155, 0.3); background: rgba(211, 134, 155, 0.04); }
+  50%      { border-color: rgba(211, 134, 155, 0.6); background: rgba(211, 134, 155, 0.08); }
+}
+.dub-idle-drop.is-dragging {
+  border-color: #d3869b;
+  background: rgba(211, 134, 155, 0.05);
+  animation: dub-pulse 1.2s ease-in-out infinite;
+}
+.dub-idle-drop__puck {
+  width: 60px; height: 60px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(211, 134, 155, 0.06);
+  border: 1px solid rgba(211, 134, 155, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.dub-idle-drop:hover .dub-idle-drop__puck {
+  transform: scale(1.08);
+  box-shadow: 0 0 24px rgba(211, 134, 155, 0.15);
+}
+.dub-ingest-row__cta {
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #665c54;
+  cursor: default;
+}
+.dub-ingest-row__cta.is-ready {
+  background: rgba(211, 134, 155, 0.15);
+  border-color: rgba(211, 134, 155, 0.3);
+  color: var(--color-brand);
+  cursor: pointer;
+}
+
+/* ── Landing options — descendants override global element styling ── */
+.dub-landing-opts__lang select { max-width: 220px; }
+.dub-landing-adv__field--grow { flex: 1; min-width: 200px; }
+.dub-landing-adv__field--grow input { flex: 1; }
+
+/* ── Transcript toggle — sits on the global .override-toggle ── */
+.dub-transcript-toggle__inner {
+  margin-top: 0;
+  padding: 3px var(--space-3);
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  color: var(--chrome-fg-muted);
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+}
+.dub-transcript-toggle__inner:hover { color: var(--chrome-fg); }
+.dub-skel-transcript-toggle__inner { margin-top: 0; padding: 2px 6px; font-size: 0.65rem; opacity: 0.3; cursor: default; }
+
+/* ── Prep / Transcribe overlays ───────────────────────────────────────── */
+.dub-prep-overlay--large {
+  flex: 1;
+  justify-content: center;
+  gap: var(--space-6);
+  padding: var(--space-5);
+  margin: var(--space-2);
+  border: 2px dashed rgba(211, 134, 155, 0.2);
+  border-radius: var(--radius-xl);
+  background: rgba(211, 134, 155, 0.03);
+}
+.dub-prep-bar {
+  width: min(240px, 85vw);
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.dub-prep-overlay--large .dub-prep-bar { width: 320px; height: 5px; }
+.dub-prep-bar__fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(211, 134, 155, 0.75), rgba(211, 134, 155, 1));
+  border-radius: inherit;
+  transition: width 220ms ease-out;
+}
+.dub-prep-chip {
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--color-fg-subtle);
+}
+.dub-prep-chip.is-active {
+  background: rgba(211, 134, 155, 0.20);
+  border-color: rgba(211, 134, 155, 0.30);
+  color: var(--color-brand);
+}
+.dub-prep-chip.is-active.is-cached {
+  background: rgba(142, 192, 124, 0.20);
+  border-color: rgba(142, 192, 124, 0.30);
+  color: var(--color-success);
+}
+.dub-prep-chips--lg .dub-prep-chip { padding: 2px 8px; border-radius: var(--radius-sm); font-weight: var(--weight-regular); }
+.dub-prep-chips--lg .dub-prep-chip.is-active { font-weight: var(--weight-semibold); }
+
+/* ── Cast strip — --muted overrides descend onto __label/__kicker ── */
+.dub-cast__pair         { display: flex; align-items: center; gap: 3px; padding: 1px 5px; border-radius: var(--radius-sm); transition: background 0.2s ease; }
+.dub-cast__pair:hover   { background: rgba(255, 255, 255, 0.03); }
+.dub-cast__select       { width: 95px; padding: 1px 3px; font-size: 0.60rem; }
+.dub-cast--muted        { background: transparent; border-color: var(--chrome-border); }
+.dub-cast--muted .dub-cast__label,
+.dub-cast--muted .dub-cast__kicker { color: var(--chrome-fg-dim); }
+
+/* ── Multi-language preview switcher ──────────────────────────────────── */
+.dub-lang-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0 8px;
+}
+.dub-lang-pill {
+  padding: 5px 14px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--chrome-fg-muted);
+  background: var(--chrome-hover-bg, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill, 999px);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+}
+.dub-lang-pill:hover {
+  color: var(--chrome-fg);
+  border-color: var(--chrome-border-strong);
+}
+.dub-lang-pill.is-active {
+  color: #1b1b1b;
+  background: var(--chrome-fg, #ebdbb2);
+  border-color: var(--chrome-fg, #ebdbb2);
+}
+.dub-lang-pill:focus-visible {
+  outline: 2px solid var(--chrome-accent);
+  outline-offset: 1px;
+}
+
+/* ── Skeleton segment rows (shimmer bars) ─────────────────────────────── */
+.dub-skel-table       { flex: 1; max-height: none; overflow-y: auto; min-height: 0; }
+.dub-skel-row         { gap: 6px; }
+.dub-skel-bar {
+  height: 11px;
+  border-radius: 3px;
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.09) 37%,
+    rgba(255, 255, 255, 0.04) 63%);
+  background-size: 400% 100%;
+  animation: dub-skel-shimmer 1.4s ease-in-out infinite;
+}
+.dub-skel-cell-acts__icon { opacity: 0.3; }
+@keyframes dub-skel-shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+
+/* ── Reduced motion: shimmer/pulse die; stepper spinner holds a frame ── */
+@media (prefers-reduced-motion: reduce) {
+  .dub-skel-bar,
+  .dub-idle-drop.is-dragging,
+  .dub-stepper__spin {
+    animation: none;
+  }
+}
+
+/* ═══ from src/components/VoicePreview.css ═══ */
+/* VoicePreview — all panel chrome converted to Tailwind utilities on
+   VoicePreview.jsx. Two things stay here as irreducible CSS:
+   1. the entrance @keyframes (referenced via animate-[…] on the popover); and
+   2. the select/text rules that layer on top of the *unlayered* shared
+      .input-base — Tailwind utilities live in @layer utilities and would lose
+      the cascade to .input-base, so these overrides must stay unlayered. */
+
+@keyframes voice-preview-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.voice-preview__select {
+  font-size: 0.78rem;
+  padding: 6px 8px;
+}
+.voice-preview__text {
+  font-size: 0.78rem;
+  padding: 8px;
+  resize: none;
+  line-height: 1.4;
+  min-height: 48px;
+}
+
+/* ═══ from src/components/WaveformErrorBoundary.css ═══ */
+/* ═══ WaveformTimeline extracted layout styles ═══ */
+.wfm-layout {
+  display: flex; flex-direction: column; flex: 1; min-height: 0;
+}
+/* position:relative lives on the stack (not the wave wrap) so the absolute
+   .wfm-overlay / .wfm-loading cover the WHOLE block — video + waveform — and
+   prep/transcribe progress reads as an overlay on the video instead of a
+   card squeezed below it (#10). */
+.wfm-stack { position: relative; display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 0; }
+.wfm-video-preview {
+  /* Width-driven: use the full available width and derive height from the
+     16:9 aspect ratio, capped at 60vh so a very tall parent can't push
+     the waveform off-screen. Previous `max-height: 45%` was clamping the
+     height first, which then back-pressured the width (aspect-ratio
+     preserves shape), leaving empty black space to the right of the
+     video. For portrait sources the inner <video> uses object-fit:contain
+     and letterboxes within the 16:9 box. */
+  flex: 0 0 auto;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 60vh;
+  background: #000; border-radius: 4px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.05); display: flex;
+}
+.wfm-wave-wrap {
+  overflow: hidden; flex: 1 1 auto; min-height: 80px; max-height: 160px;
+}
+.wfm-wave-inner {
+  height: 100%; min-height: 80px; border-radius: 4px; width: 100%; overflow: hidden;
+}
+.wfm-loading {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; background: rgba(0,0,0,0.45);
+  border-radius: 4px; z-index: 3; gap: 6px;
+}
+.wfm-loading__text { font-size: 0.65rem; color: #a89984; }
+.wfm-overlay {
+  position: absolute; inset: 0; border-radius: 4px; z-index: 4;
+  background: rgba(29,32,33,0.85); backdrop-filter: blur(3px);
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 6px; padding: 8px;
+}
+.wfm-controls { flex-shrink: 0; margin-top: 3px; }
+/* Keyboard shortcut hint icon */
+.wfm-kbd-hint {
+  color: rgba(168,153,132,0.4);
+  display: flex; align-items: center;
+  cursor: help; margin-left: 4px;
+}
+.wfm-kbd-hint:hover { color: rgba(168,153,132,0.7); }
+.wfm-error {
+  display: flex; align-items: center; justify-content: center;
+  padding: 8px; background: rgba(0,0,0,0.15); border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.04); color: #a89984; font-size: 0.7rem;
+}
+
+/* NOTE: the ErrorBoundary (`errbnd-*`) styles that used to live here were
+   migrated to Tailwind utilities on ErrorBoundary.jsx (shadcn fast-mode wave).
+   Only the WaveformTimeline `wfm-*` layout rules above remain — this file is
+   still imported by WaveformTimeline.jsx. */
+
+/* ═══ from src/components/WorkspaceHistory.css ═══ */
+/* WorkspaceHistory — right-side history panel. Row internals reuse the shared
+   .history-* classes (defined in Sidebar.css, bundled app-wide); this file only
+   styles the panel chrome: header, filter chips, scroll, empty state. */
+
+/* Layout wrapper: the workspace (definition column) + the history aside sit
+   side by side and each scroll independently. Drops to stacked on narrow. */
+.studio-with-history {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.studio-with-history__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* On a narrow shell the workspace + history aside stack vertically. Driven by
+   the shell-width class set in App.jsx from `app-container.clientWidth`, NOT a
+   raw `@media (max-width)`: the shell scales via `zoom`, so a viewport media
+   query fires at the wrong threshold whenever --ui-scale ≠ 1 and dropped the
+   action bar (Synthesize CTA) below the fold (#476). `.shell-narrow`/`.shell-mini`
+   track the real scaled layout width on every engine (index.css:294). */
+.shell-narrow .studio-with-history,
+.shell-mini .studio-with-history {
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* When stacked, the main column must NOT clip its own overflow — its
+   `overflow:hidden` (needed for the side-by-side scroll panes) otherwise trapped
+   the pinned action bar below the fold of the now-scrolling outer column (#476).
+   Letting it grow naturally hands scrolling to `.studio-with-history`, and the
+   action bar below stays reachable; `position:sticky` keeps the Synthesize CTA
+   pinned to the viewport bottom while the script content scrolls. */
+.shell-narrow .studio-with-history__main,
+.shell-mini .studio-with-history__main {
+  overflow: visible;
+  flex: 0 0 auto;
+}
+.shell-narrow .studio-with-history__main .studio-action-bar,
+.shell-mini .studio-with-history__main .studio-action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+}
+
+/* Right column: Saved voices (top) + History (bottom) stacked, each scrolls. */
+.studio-right {
+  flex: 0 0 340px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--chrome-border);
+  background: var(--chrome-bg);
+}
+
+/* Panel chrome (.wh / .wh__*) moved to Tailwind utilities on WorkspaceHistory.jsx. */
+
+/* On a narrow shell the right column drops below the definition column. Same
+   shell-class trigger as above (not a viewport media query) so it reflows in
+   lockstep with the stacked layout at the scaled width (#476). */
+.shell-narrow .studio-right,
+.shell-mini .studio-right {
+  flex-basis: auto;
+  border-left: none;
+  border-top: 1px solid var(--chrome-border);
+  max-height: 60vh;
+}
+
+/* ═══ from src/components/WorkspaceVoices.css ═══ */
+/* WorkspaceVoices — right-side "Saved voices" panel. Row internals reuse the
+   shared .history-* classes (bundled app-wide); this file styles the panel
+   chrome only. Lives stacked above WorkspaceHistory inside .studio-right. */
+
+.wv {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* When the list is empty, shrink to just the header + one-line empty state so
+   the panel below it (e.g. History) gets the room instead of a big void. */
+.wv--collapsed {
+  flex: 0 0 auto;
+}
+
+/* Active-voice card + empty-state CTA (.wv__active*, .wv__empty-cta) converted
+   to Tailwind utilities on WorkspaceVoices.jsx — these classes were local to
+   this component, so their rules were removed here. */
+
+.wv__head {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--chrome-border);
+}
+
+.wv__title {
+  font-family: var(--chrome-font-mono, var(--font-mono));
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--chrome-fg-muted);
+}
+
+.wv__search { position: relative; }
+
+.wv__search-icon {
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  transform: translateY(-50%);
+  color: var(--color-fg-subtle);
+  pointer-events: none;
+}
+
+.wv__search-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 28px;
+  font-size: 0.78rem;
+  padding: 4px 8px 4px 24px;
+  border-radius: var(--chrome-radius-pill, 999px);
+}
+
+.wv__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+.wv__empty {
+  color: var(--chrome-fg-dim);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  text-align: center;
+  padding: 24px 16px;
+}
+
+/* Inline project rename (WorkspaceProjects) — fills the card row like the title. */
+.wv__rename-input {
+  width: 100%;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  margin: 1px 0;
+}
+
+/* ═══ from src/components/donate/DonateGoal.css ═══ */
+/* ════════════════════════════════════════════════════════════════════════
+   "Fund Claude Max" goal bar + Pip mascot (spec 007).
+   Reuses real design tokens from index.css / tokens.css:
+   --chrome-*, --space-*, --ease-spring, --font-serif, --chrome-font-mono.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* .goal root (layout + the --goal-accent default), __head, __title, __pct, and
+   __track base → Tailwind utilities in GoalBar.jsx. The --goal-accent value is
+   declared as an arbitrary property on the root there; .goal--met / .goal--mini
+   overrides + the animated fill/pip/shimmer stay here. */
+
+/* ── Track + fill ─────────────────────────────────────────────────────── */
+.goal__fill {
+  position: absolute;
+  inset: 0;
+  width: calc(var(--goal-pct, 0) * 100%);
+  min-width: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--goal-accent) 70%, #d3869b),
+    var(--goal-accent)
+  );
+  box-shadow: 0 0 12px -2px color-mix(in srgb, var(--goal-accent) 60%, transparent);
+  overflow: hidden;
+  /* grow-in once on mount */
+  animation: goalFill 1s var(--ease-spring) both;
+}
+@keyframes goalFill {
+  0%   { width: 0; }
+  100% { width: calc(var(--goal-pct, 0) * 100%); }
+}
+
+/* ONE shimmer pass over the fill (token @keyframes shimmer in index.css). */
+.goal__shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  /* iteration-count: 1 → a single sweep, not a loop. */
+  animation: shimmer 1.4s ease-out 0.6s 1 both;
+}
+
+/* ── Pip perched on the fill ──────────────────────────────────────────── */
+.goal__pip {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--goal-pct, 0) * 100%);
+  transform: translate(-50%, -50%);
+  color: var(--goal-accent);
+  pointer-events: none;
+  z-index: 1;
+  /* slide Pip to its perch in sync with the fill grow-in */
+  animation: goalPip 1s var(--ease-spring) both;
+}
+@keyframes goalPip {
+  0%   { left: 0; }
+  100% { left: calc(var(--goal-pct, 0) * 100%); }
+}
+
+/* ── Caption ──────────────────────────────────────────────────────────── */
+/* .goal__caption / __remaining / __caption-met → utilities in GoalBar.jsx.
+   The `.goal__amounts strong` descendant rule stays (element combinator). */
+.goal__amounts strong {
+  color: var(--chrome-fg);
+  font-weight: 600;
+}
+
+/* ── Goal-met flourish ────────────────────────────────────────────────── */
+.goal--met .goal__fill {
+  background: linear-gradient(90deg, #b8bb26, #8ec07c);
+  box-shadow: 0 0 14px -1px color-mix(in srgb, #b8bb26 60%, transparent);
+}
+.goal--met .goal__pip { color: #b8bb26; }
+.goal--met .goal__pct { color: #b8bb26; }
+
+/* ── Mini variant (inside the postcard toast) ─────────────────────────── */
+.goal--mini { gap: var(--space-2, 4px); }
+.goal--mini .goal__track { height: 8px; }
+.goal--mini .goal__caption { font-size: 0.66rem; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Pip mascot idle animation
+   ════════════════════════════════════════════════════════════════════════ */
+.pip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  filter: drop-shadow(0 1px 4px color-mix(in srgb, currentColor 35%, transparent));
+}
+.pip svg { display: block; overflow: visible; }
+.pip__body { animation: pipBob 2.6s ease-in-out infinite; transform-origin: 50% 100%; }
+.pip--waving .pip__arm {
+  transform-origin: 24px 11px;
+  animation: pipWave 1.8s ease-in-out infinite;
+}
+@keyframes pipBob {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50%      { transform: translateY(-1px) scaleY(1.03); }
+}
+@keyframes pipWave {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  20%           { transform: rotate(-22deg); }
+  40%           { transform: rotate(-6deg); }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Reduced-motion: kill every animation in this stylesheet.
+   ════════════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .goal__fill,
+  .goal__pip,
+  .goal__shimmer,
+  .pip__body,
+  .pip--waving .pip__arm {
+    animation: none !important;
+  }
+  /* still honour the final fill width without the grow-in */
+  .goal__fill { width: calc(var(--goal-pct, 0) * 100%); }
+  .goal__pip { left: calc(var(--goal-pct, 0) * 100%); }
+  .goal__shimmer { display: none; }
+}
+
+/* ═══ from src/components/donate/Postcard.css ═══ */
+/* ════════════════════════════════════════════════════════════════════════
+   "Fund Claude Max" kawaii postcard toast (spec 007, Phase 2).
+   Non-blocking — lives in the toast layer, no backdrop, never covers results.
+   Uses real tokens: --chrome-*, --space-*, --ease-spring, --z-toast.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.postcard {
+  position: relative;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 14px 16px 13px;
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--chrome-accent) 7%, #16171a),
+      #131417);
+  border: 1px solid var(--chrome-border-strong);
+  box-shadow:
+    0 18px 48px -16px rgba(0, 0, 0, 0.6),
+    0 0 0 1px color-mix(in srgb, var(--chrome-accent) 12%, transparent);
+  color: var(--chrome-fg);
+  overflow: hidden;
+  isolation: isolate;
+  z-index: var(--z-toast, 1200);
+  animation: postcardIn 0.42s var(--ease-spring) both;
+}
+
+/* dashed "perforation" down the left third — the postcard tear-off look */
+.postcard::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 64px;
+  width: 1px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--chrome-fg) 28%, transparent) 0 4px,
+    transparent 4px 9px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* dot-grain paper texture */
+.postcard__grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  z-index: 0;
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--chrome-fg) 8%, transparent) 0.5px,
+    transparent 0.5px
+  );
+  background-size: 7px 7px;
+}
+
+/* ── Stamp (top-left, the "postage" with Pip) ─────────────────────────── */
+.postcard__stamp {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  width: 40px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--chrome-accent);
+  border: 1.5px dashed color-mix(in srgb, var(--chrome-accent) 50%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--chrome-accent) 10%, transparent);
+  z-index: 1;
+  transform-origin: 50% 50%;
+  animation: stampThunk 0.5s var(--ease-spring) 0.1s both;
+}
+@keyframes stampThunk {
+  0%   { transform: scale(1.7) rotate(-14deg); opacity: 0; }
+  55%  { transform: scale(0.92) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-5deg); opacity: 1; }
+}
+
+/* ── Close (×) ────────────────────────────────────────────────────────── */
+/* Layout/reset moved to utilities in Postcard.jsx; :hover stays here. */
+.postcard__close:hover { color: var(--chrome-fg); background: var(--chrome-hover-bg); }
+
+/* ── Body (right of the perforation) ──────────────────────────────────── */
+/* .postcard__body / __title / __lead → utilities in Postcard.jsx. */
+
+/* mini GoalBar wrapper — a quiet link to the full Support page.
+   Layout/reset → utilities in Postcard.jsx; :hover stays here. */
+.postcard__goal-link:hover { opacity: 0.92; }
+
+/* ── Actions ──────────────────────────────────────────────────────────── */
+/* .postcard__actions / __cta / __later base → utilities in Postcard.jsx.
+   Interactive :hover states stay here. */
+.postcard__cta:hover {
+  background: color-mix(in srgb, var(--chrome-accent) 24%, transparent);
+  border-color: var(--chrome-accent);
+  transform: translateY(-1px);
+}
+.postcard__later:hover { color: var(--chrome-fg); border-color: var(--chrome-border-strong); }
+
+/* ── Minor row (star + opt-out) ───────────────────────────────────────── */
+/* .postcard__minor + the shared __star/__optout base → utilities in
+   Postcard.jsx. Per-button color + :hover stay here. */
+.postcard__star { color: var(--chrome-fg-muted); }
+.postcard__star:hover { color: #fabd2f; }
+.postcard__optout { color: var(--chrome-fg-dim); }
+.postcard__optout:hover { color: var(--chrome-fg-muted); text-decoration: underline; }
+
+/* ── Enter / exit ─────────────────────────────────────────────────────── */
+@keyframes postcardIn {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.postcard.is-leaving {
+  animation: postcardOut 0.28s ease-in forwards;
+}
+@keyframes postcardOut {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(10px) scale(0.97); }
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .postcard,
+  .postcard.is-leaving,
+  .postcard__stamp {
+    animation: none !important;
+  }
+  .postcard__cta:hover { transform: none; }
+}
+
+/* ═══ from src/components/settings/AppearancePanel.css ═══ */
+/* Settings → Appearance panel.
+   Built on the shared Settings primitives (SettingsSection / SettingRow).
+   Mechanical layout (scale slider, scale readout, theme/font containers) now
+   lives in Tailwind utilities on the JSX; only the rules below stay here:
+   they reach into a child primitive ([data-slot=setting-row-control]), or carry stateful
+   transitions / multi-layer box-shadow rings that are not 1:1 utility-safe.
+   All still route through --chrome-* tokens so they theme across every theme. */
+
+/* The font picker spans the row's full width (SettingRow `stack` prop) so its
+   tiles lay out as a horizontal grid instead of a squeezed right-aligned column.
+   Reaches into the SettingRow primitive's control wrapper — kept as CSS. */
+.appearance-panel__row--fonts [data-slot='setting-row-control'] { display: block; }
+
+/* Color-theme swatches — stateful ring (hover scale + is-active multi-layer
+   box-shadow) with transitions; kept as CSS. */
+.appearance-panel__theme-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: var(--dot-color, var(--chrome-fg-dim));
+  cursor: pointer;
+  padding: 0;
+  /* Crisp ring drawn outside the dot — calm by default, accent-free until active. */
+  box-shadow: 0 0 0 1px var(--chrome-border), 0 0 0 3px transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.appearance-panel__theme-dot:hover {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 1px var(--chrome-border-strong);
+}
+
+.appearance-panel__theme-dot.is-active {
+  box-shadow:
+    0 0 0 2px var(--chrome-bg),
+    0 0 0 3px var(--chrome-fg);
+}
+
+/* Font picker tiles — live previews with stateful border/background/box-shadow
+   transitions and an is-active inset ring; kept as CSS. */
+.appearance-panel__font-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 44px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  background: var(--chrome-bg);
+  color: var(--chrome-fg);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.appearance-panel__font-tile:hover {
+  border-color: var(--chrome-border-strong);
+  background: var(--chrome-hover-bg);
+}
+
+.appearance-panel__font-tile.is-active {
+  border-color: var(--chrome-accent);
+  background: color-mix(in srgb, var(--chrome-accent) 6%, var(--chrome-bg));
+  box-shadow: 0 0 0 1px var(--chrome-accent) inset;
+}
+
+.appearance-panel__font-sample {
+  font-size: 21px;
+  line-height: 1;
+  flex: 0 0 auto;
+  color: var(--chrome-fg);
+}
+
+.appearance-panel__font-tile.is-active .appearance-panel__font-name {
+  color: var(--chrome-fg);
+}
+
+.appearance-panel__font-name {
+  font-size: var(--text-sm);
+  color: var(--chrome-fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* name renders in the tile's font too — keep it the same family */
+}
+
+/* ═══ from src/components/settings/PerformancePanel.css ═══ */
+/* Settings → Performance panel (Wave 2 INST-12). Matches the API Keys
+   panel palette for visual consistency in the Credentials tab. */
+
+.perfpanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.perfpanel__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--chrome-fg);
+}
+
+.perfpanel__error {
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--chrome-severity-err) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chrome-severity-err) 35%, transparent);
+  border-radius: var(--chrome-radius-pill);
+  font-size: 0.78rem;
+  color: var(--chrome-severity-err);
+}
+
+.perfpanel__row {
+  display: inline-flex;
+  /* Shared button/badge row across 6+ panels (RemoteBackend, HFMirror,
+     LLMEndpoint, Pronunciation, MCPBindings, …). Without these it ran off the
+     right edge on narrow content — wrap instead of overflow, and never exceed
+     the container; min-width:0 lets text children ellipsis rather than push out. */
+  flex-wrap: wrap;
+  max-width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.84rem;
+  color: var(--chrome-fg);
+}
+
+.perfpanel__row:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.perfpanel__checkbox {
+  width: 16px;
+  height: 16px;
+}
+
+.perfpanel__badge {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg-muted);
+  margin-left: 4px;
+}
+
+.perfpanel__help {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--chrome-fg-muted);
+}
+
+.perfpanel__help code {
+  font-family: var(--font-mono);
+  background: var(--chrome-hover-bg);
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
+.perfpanel__help a {
+  color: var(--chrome-accent, #83a598);
+  text-decoration: none;
+}
+
+.perfpanel__help a:hover {
+  text-decoration: underline;
+}
+
+/* ═══ from src/components/settings/VoicePanel.css ═══ */
+/* Settings → Capture → Voice panel. The engine-warn banner and most of the
+   speech-model dropdown chrome now live in Tailwind utilities on the JSX. The
+   rules kept here can't be expressed 1:1 as utilities: a descendant rule that
+   reaches into the SettingRow primitive, the chevron's transform transition
+   (Tailwind's `rotate-*` targets the `rotate` property, not `transform`, so it
+   wouldn't animate via this transition), a child-combinator on the progress
+   row, and the spinner keyframe animation. All tokenised. */
+
+/* The model row's control is taller than a single line — top-align it. Reaches
+   into the SettingRow primitive's control wrapper. */
+.voicepanel__row--model [data-slot='setting-row-control'] { align-self: flex-start; }
+
+.voicepanel__dd-chev {
+  flex: none;
+  transition: transform 0.15s ease;
+  color: var(--chrome-fg-muted);
+}
+
+.voicepanel__dd-chev.is-open {
+  transform: rotate(180deg);
+}
+
+.voicepanel__dd-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+.voicepanel__dd-progress > :first-child {
+  flex: 1 1 auto;
+}
+
+.voicepanel__spin {
+  animation: voicepanel-spin 0.9s linear infinite;
+  color: var(--chrome-fg-muted);
+}
+
+@keyframes voicepanel-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ═══ from src/pages/AudiobookTab.css ═══ */
+/* Only the genuinely-irreducible bit remains: the script editor's <textarea>.
+   It has to override the unlayered global `textarea.input-base` (min-height /
+   resize) — which a utilities-layer class can't win against — and it needs a
+   custom 900px breakpoint floor when the two-pane body collapses to one column.
+   Everything else (title, field labels, the body/side responsive collapse) now
+   lives as Tailwind utilities in AudiobookTab.jsx. */
+
+.audiobook-tab__script textarea {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  resize: none;
+  font-family: var(--font-mono, monospace);
+}
+
+@media (max-width: 900px) {
+  .audiobook-tab__script textarea { min-height: 240px; }
+}
+
+/* ═══ from src/pages/BatchQueue.css ═══ */
+/* Only the genuinely-irreducible bit remains: the running-job progress fill's
+   gradient + its ::after shimmer (pseudo-element + keyframes) — not expressible
+   as Tailwind utilities. Everything else (layout, the bar heading, the per-status
+   card border accents) now lives as utilities in BatchQueue.jsx. */
+
+.batch-queue__progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #d3869b 0%, #f3a5b6 50%, #b8bb26 100%);
+  transition: width 0.4s ease;
+  position: relative;
+}
+.batch-queue__progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 30px; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+  animation: batch-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes batch-shimmer {
+  0%   { opacity: 0; }
+  50%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ═══ from src/pages/Settings.css ═══ */
+/* Settings page — page-specific styles layered over the design system.
+   Chrome tokens only: every surface here should rhyme with the status bar. */
+
+/* The page chrome itself (`.settings-page` layout + centering + the ≥760px
+   [rail | content] grid, and `.settings-content`) now lives as Tailwind on the
+   token bridge directly in Settings.jsx. What remains here is the page-specific
+   styling the shared primitives can't carry: the tab-rail look (which must stay
+   unlayered to win over the shadcn Tabs primitive), the `.settings-prose strong`
+   emphasis (a descendant override still used across tabs), and the Models /
+   Engines / recommendation rules consumed by their sub-components. */
+.settings-prose strong  { color: var(--chrome-fg); font-weight: 600; }
+
+/* We're migrating to the ui/ Tabs primitive — keep a thin class so the old
+   .settings-tabs gradient-above space stays; the Tabs primitive itself
+   carries visual styling. */
+/* The .settings-content bridge owns the gap below the bar (see below). */
+.settings-tabs-ui { margin-bottom: 0; }
+
+/* ── Tab nav: single-accent, no rainbow ───────────────────────────
+   The active tab uses the one global --chrome-accent (TAB_DEFS no longer
+   carries per-tab accents). At ≥760px the nav becomes a sticky vertical
+   rail; below that it's a single no-wrap horizontal scroll strip. */
+.ui-tabs.settings-tabs-ui .ui-tabs__tab.is-active {
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-fg);
+  border-color: transparent;
+  box-shadow: inset 2px 0 0 var(--chrome-accent);
+}
+.ui-tabs.settings-tabs-ui .ui-tabs__tab.is-active .ui-tabs__icon {
+  color: var(--chrome-accent);
+}
+
+/* ── Wide (≥760px): vertical rail beside the content column ─────────
+   The page grid that creates the [rail | content] tracks lives as Tailwind on
+   Settings.jsx; this block only turns the tab strip into that left-hand rail. */
+@media (min-width: 760px) {
+  .ui-tabs.settings-tabs-ui {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-1);
+    border: none;
+    background: transparent;
+    position: sticky;
+    top: var(--space-5);
+    align-self: start;
+  }
+  .ui-tabs.settings-tabs-ui .ui-tabs__tab { justify-content: flex-start; width: 100%; }
+}
+
+/* ── Narrow (<760px): horizontal no-wrap scroll strip ───────────── */
+@media (max-width: 759.98px) {
+  .ui-tabs.settings-tabs-ui {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: var(--space-1);
+    margin-bottom: var(--space-4);
+  }
+  .ui-tabs.settings-tabs-ui::-webkit-scrollbar { display: none; }
+}
+
+/* The content panel (fills the 1fr track, caps the reading measure, and
+   establishes the `settings` container query that SettingRow's
+   `@max-[600px]/settings:` row-stacking variant depends on) is Tailwind on
+   Settings.jsx now — see the content `<div>` there. */
+
+/* ── Models tab ──────────────────────────────────────────────── */
+.models-row__tag {
+  margin-left: var(--space-2);
+  padding: 1px 6px;
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  color: #d3869b;
+  border: 1px solid color-mix(in srgb, #d3869b 40%, transparent);
+  border-radius: var(--chrome-radius-pill);
+  background: color-mix(in srgb, #d3869b 8%, transparent);
+}
+
+/* ── Models tab: table (virtualised) ─────────────────────────────
+   The toolbar / role tabs / search chrome and the recommendation
+   banner are Tailwind on their components now (ModelStoreTab.jsx,
+   EnginesTab.jsx, models/RecoBanner.jsx). What remains here is the
+   virtualised-table geometry the utilities can't carry. */
+/* Table — dense rows, fixed-width action column. */
+.models-table                { border-radius: var(--chrome-radius-pill); }
+.models-table .ui-table-header { padding: 5px var(--space-3); }
+.models-table__body          { max-height: 560px; overflow-y: auto; position: relative; }
+.models-table__header        { align-items: center; }
+.models-table__sort {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.models-table__sort:hover { color: var(--chrome-fg); }
+.models-table__sort:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--chrome-radius-pill);
+}
+.models-table__sort--off {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+  display: inline-flex;
+  align-items: center;
+}
+.models-table__sortmark {
+  color: var(--chrome-accent);
+  font-family: var(--chrome-font-mono);
+  font-size: var(--text-2xs);
+}
+.models-table__virtual {
+  position: relative;
+  width: 100%;
+}
+.models-table__empty {
+  padding: 18px var(--space-4);
+  color: var(--chrome-fg-dim);
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+}
+
+/* Inside the wizard embed the table stretches to fill — no fixed cap. */
+.setup-wizard__embed [data-slot='settings-section'] {
+  display: flex; flex-direction: column; height: 100%; min-height: 0;
+}
+.setup-wizard__embed .models-table {
+  flex: 1 1 0; display: flex; flex-direction: column; min-height: 0;
+}
+.setup-wizard__embed .models-table__body { max-height: none; flex: 1 1 0; min-height: 0; }
+
+.models-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  width: 100%;
+  padding: var(--space-5) var(--space-3);
+  border-bottom: 1px solid var(--chrome-border);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--chrome-fg);
+  border-left: 2px solid transparent;
+}
+.models-row:last-child { border-bottom: none; }
+.models-row.is-ok      { border-left-color: var(--chrome-severity-ok); }
+.models-row.is-off     { border-left-color: var(--chrome-border-strong); opacity: 0.92; }
+.models-row.is-unsupported { opacity: 0.4; pointer-events: none; }
+.models-row.is-unsupported .models-row__actions { pointer-events: auto; }
+.models-row:hover      { background: var(--chrome-hover-bg); }
+
+.models-row__cell     { min-width: 0; }
+.models-row__name     { display: flex; flex-direction: column; gap: 3px; overflow: hidden; }
+.models-row__title    { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--chrome-fg); font-weight: 500; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.models-row__avatar {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.54rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+  letter-spacing: 0.02em;
+}
+.models-row__repo     { color: var(--chrome-fg-muted); font-size: var(--text-xs); font-family: var(--chrome-font-mono); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.models-row__repo code{ color: var(--chrome-fg-muted); }
+.models-row__note     { color: var(--chrome-fg-dim); }
+.models-row__hint     { display: flex; align-items: center; gap: 4px; color: var(--chrome-fg-dim); font-size: var(--text-2xs, 0.62rem); font-family: var(--chrome-font-mono); line-height: 1.4; margin-top: 1px; cursor: help; opacity: 0.7; transition: opacity 150ms ease; }
+.models-row:hover .models-row__hint { opacity: 1; }
+.models-row__role     { color: var(--chrome-fg-muted); font-size: var(--text-xs); font-family: var(--chrome-font-mono); text-transform: uppercase; letter-spacing: 0.03em; }
+.models-row__progress { color: var(--chrome-accent); font-size: var(--text-xs); font-family: var(--chrome-font-mono); margin-top: 2px; }
+.models-row__progresstext {
+  color: var(--chrome-fg-muted); font-size: var(--text-xs);
+  font-family: var(--chrome-font-mono); font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+.models-row__size-live {
+  font-family: var(--chrome-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xs);
+  color: var(--chrome-accent, #fe8019);
+}
+.models-row__size-sep {
+  color: var(--chrome-fg-dim);
+  margin: 0 1px;
+}
+.models-row__error {
+  color: var(--chrome-severity-err); font-size: var(--text-xs);
+  margin-top: 4px;
+}
+.models-row__size     { font-family: var(--chrome-font-mono); font-size: var(--text-xs); color: var(--chrome-fg-muted); font-variant-numeric: tabular-nums; }
+
+.models-row__actions {
+  justify-content: flex-end;
+  display: inline-flex;
+  gap: 4px;
+  opacity: 0.55;
+  transition: opacity var(--dur-fast, 120ms) ease;
+}
+.models-row:hover .models-row__actions { opacity: 1; }
+
+/* ── Responsive: narrow windows stack row cells ─────────────── */
+@media (max-width: 580px) {
+  .models-row { flex-wrap: wrap; gap: var(--space-3); }
+  .models-row__name { flex: 1 1 100%; }
+  .models-row__size { width: auto !important; text-align: left !important; }
+  .models-row__actions { margin-left: auto; }
+}
+
+
+/* ═══ from src/pages/VoiceGallery.css ═══ */
+/* VoiceGallery.css — trimmed to the irreducible bits after the shadcn/Tailwind
+   migration. Everything layout/chrome moved to Tailwind utilities in the gallery
+   JSX. What remains is only what isn't cleanly expressible as utilities OR is
+   rendered by an out-of-scope file:
+
+   • .spin — app-wide spinner class. NOTE: this is NOT in index.css (only
+     `@keyframes spin` + `.spinner` are), and it's used beyond the gallery
+     (e.g. src/pages/AudiobookTab.jsx), so it must live here. Do not delete.
+   • .now-playing equalizer (+ @keyframes eq) and the .arch-avatar / flag
+     classes are all rendered by src/utils/archetypeIcons.jsx (out of scope),
+     which ships no CSS of its own — keep them here. */
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Color-coded avatar tile + flag badge (archetypeIcons.jsx → ArchetypeAvatar). */
+.arch-avatar {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 11px;
+}
+.arch-avatar-flag {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: flex;
+  line-height: 0;
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: 0 0 0 2px var(--bg-tertiary, #1d2021);
+}
+.accent-flag {
+  display: block;
+  border-radius: 2px;
+}
+.flag-globe {
+  color: var(--text-secondary);
+}
+
+/* Animated "now playing" equalizer (archetypeIcons.jsx → NowPlaying). */
+.now-playing {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 15px;
+  height: 14px;
+}
+.now-playing i {
+  width: 2.5px;
+  background: currentcolor;
+  border-radius: 1px;
+  transform-origin: bottom;
+  animation: eq 0.9s ease-in-out infinite;
+}
+.now-playing i:nth-child(1) { height: 45%; animation-delay: 0s; }
+.now-playing i:nth-child(2) { height: 80%; animation-delay: 0.15s; }
+.now-playing i:nth-child(3) { height: 60%; animation-delay: 0.3s; }
+.now-playing i:nth-child(4) { height: 95%; animation-delay: 0.45s; }
+@keyframes eq {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .now-playing i { animation: none; }
+}
+
+/* ═══ from src/ui/Dialog.css ═══ */
+/* ── Dialog primitive ───────────────────────────────────────────── */
+/* Backed by shadcn/ui Dialog (src/components/ui/dialog.tsx). shadcn's
+   DialogContent owns the fixed centering, z-index, and open/close animation
+   (Radix data-[state] + tw-animate-css animate-in/out). What remains here is
+   the GLASS look, which Tailwind utilities can't express in this build (the app
+   ships Tailwind v4 without the backdrop-filter `--tw-*` plumbing):
+
+   • the content surface (warm layered gradient + backdrop blur), applied via
+     the `.ui-dialog` class the wrapper passes to DialogContent. It is unlayered
+     so it wins over shadcn's layered `bg-background`/`border`/`shadow` defaults.
+   • the overlay backdrop blur, keyed off shadcn's `data-slot="dialog-overlay"`
+     (shadcn already paints the `bg-black/50` scrim; we only add the blur). */
+
+[data-slot='dialog-overlay'] {
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+}
+
+.ui-dialog {
+  background: linear-gradient(160deg, rgba(47, 41, 39, 0.95) 0%, rgba(32, 28, 27, 0.95) 100%);
+  backdrop-filter: var(--glass-blur-md);
+  -webkit-backdrop-filter: var(--glass-blur-md);
+  border: 1px solid var(--color-border-warm);
+  box-shadow: var(--shadow-xl);
+  max-height: calc(100vh - var(--space-7) * 2);
+}
+
+/* ═══ from src/ui/Menu.css ═══ */
+/* ── Menu primitive ─────────────────────────────────────────────── */
+/* Backed by shadcn/ui DropdownMenu (src/components/ui/dropdown-menu.tsx).
+   shadcn's DropdownMenuContent owns positioning (Radix anchored placement, set
+   via inline styles) and the enter/exit animation (data-[state]/data-[side] +
+   tw-animate-css). What remains here is the OmniVoice glass SURFACE + the item
+   rows — applied via the `.ui-menu*` classes the wrapper passes through.
+   `.ui-menu` is unlayered so it wins over shadcn's layered
+   `bg-popover`/`border`/`rounded-md`/`shadow-md` defaults. Position must NOT be
+   declared here — it would fight Radix's anchored placement. */
+
+.ui-menu {
+  z-index: var(--z-overlay);
+  min-width: 160px;
+  max-width: 320px;
+  padding: 4px;
+  background: linear-gradient(160deg, rgba(47, 41, 39, 0.98) 0%, rgba(32, 28, 27, 0.98) 100%);
+  backdrop-filter: var(--glass-blur-md);
+  -webkit-backdrop-filter: var(--glass-blur-md);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ui-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.ui-menu__item:focus {
+  outline: none;
+  background: rgba(211, 134, 155, 0.15);
+  color: var(--color-fg);
+}
+.ui-menu__item:hover:not(.is-disabled):not(.is-destructive) {
+  background: rgba(255, 255, 255, 0.06);
+}
+.ui-menu__item.is-destructive         { color: var(--color-danger); }
+.ui-menu__item.is-destructive:focus,
+.ui-menu__item.is-destructive:hover   { background: rgba(251, 73, 52, 0.15); }
+
+.ui-menu__item.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ui-menu__icon    { color: var(--color-fg-muted); flex-shrink: 0; }
+.ui-menu__label   { flex: 1; }
+.ui-menu__shortcut {
+  margin-left: var(--space-5);
+  font-size: var(--text-xs);
+  color: var(--color-fg-subtle);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+.ui-menu__separator {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--color-border);
+}
+
+/* ═══ from src/ui/Table.css ═══ */
+/* ── Table primitive (chrome only) ──────────────────────────────── */
+
+.ui-table {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  overflow: hidden;
+}
+
+/* ── Toolbar ────────────────────────────────────────────────────── */
+.ui-table-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--chrome-border);
+  flex-shrink: 0;
+}
+
+.ui-table-toolbar__search {
+  position: relative;
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+}
+.ui-table-toolbar__search-icon {
+  position: absolute;
+  left: 6px;
+  color: var(--chrome-fg-dim);
+  pointer-events: none;
+}
+.ui-table-toolbar__search-input {
+  width: 100%;
+  padding-left: 22px;
+  padding-right: 22px;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  border-radius: var(--chrome-radius-pill);
+}
+.ui-table-toolbar__search-clear {
+  position: absolute !important;
+  right: 2px;
+  background: transparent !important;
+  border: none !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.ui-table-toolbar__meta {
+  font-family: var(--chrome-font-mono);
+  font-size: var(--text-xs);
+  color: var(--chrome-fg-dim);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Sticky header row ─────────────────────────────────────────── */
+.ui-table-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 3px var(--space-3);
+  background: var(--chrome-bg);
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  font-weight: 600;
+  color: var(--chrome-fg-muted);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid var(--chrome-border);
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.ui-table-header__cell { min-width: 0; }
+.ui-table-header__cell--align-left   { text-align: left; }
+.ui-table-header__cell--align-center { text-align: center; }
+.ui-table-header__cell--align-right  { text-align: right; }
+
+/* ═══ from src/ui/Tooltip.css ═══ */
+/* ── Tooltip primitive ──────────────────────────────────────────── */
+/* Backed by shadcn/ui Tooltip (src/components/ui/tooltip.tsx). shadcn's
+   TooltipContent owns positioning (Radix Popper) and the enter/exit animation
+   (data-[state]/data-[side] + tw-animate-css). What remains here is only the
+   OmniVoice tooltip SURFACE, applied via the `.ui-tooltip` class the wrapper
+   passes to TooltipContent — unlayered, so it wins over shadcn's layered
+   `bg-primary`/`text-primary-foreground`/`rounded-md`/`px-3 py-1.5` defaults. */
+
+.ui-tooltip {
+  background: #0f0e0d;
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-md);
+  white-space: nowrap;
+  pointer-events: none;
+  max-width: 240px;
+}

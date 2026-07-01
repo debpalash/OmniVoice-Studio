@@ -19,7 +19,6 @@ import { API } from '../api/client';
 import BatchAddDialog from '../components/BatchAddDialog';
 import toast from 'react-hot-toast';
 import { toastErrorWithReport } from '../utils/errorToast';
-import './BatchQueue.css';
 
 /**
  * BatchQueue — UI for the /batch/* dubbing pipeline.

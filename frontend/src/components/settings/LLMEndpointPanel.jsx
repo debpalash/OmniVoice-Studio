@@ -16,7 +16,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Brain, CheckCircle2, XCircle } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
 import { SettingsSection, SettingRow } from './primitives';
-import './PerformancePanel.css';
 
 const PRESETS = [
   ['Ollama', 'http://localhost:11434/v1', 'llama3.1'],

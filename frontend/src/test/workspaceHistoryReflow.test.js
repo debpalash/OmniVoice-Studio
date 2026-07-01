@@ -14,9 +14,21 @@ import { resolve } from 'node:path';
  * future change reintroduces a `@media (max-width)` in this file or drops the
  * shell-class reflow / sticky action bar.
  */
+// The former per-component WorkspaceHistory.css was consolidated into
+// src/index.css (final CSS consolidation). Its rules are relocated verbatim
+// under a stable provenance header, so this guard slices that exact block out
+// of index.css by its markers — same rules, same guarantee, one stylesheet.
+const START = '═══ from src/components/WorkspaceHistory.css ═══';
+const END = '═══ from src/components/WorkspaceVoices.css ═══';
+const indexRaw = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
+const startIdx = indexRaw.indexOf(START);
+const endIdx = indexRaw.indexOf(END);
+if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
+  throw new Error('WorkspaceHistory provenance block not found in src/index.css');
+}
+const raw = indexRaw.slice(startIdx, endIdx);
 // Strip /* … */ comments so the guard checks real declarations, not the
 // warning comment that quotes the forbidden `@media (max-width)` pattern.
-const raw = readFileSync(resolve(process.cwd(), 'src/components/WorkspaceHistory.css'), 'utf8');
 const css = raw.replace(/\/\*[\s\S]*?\*\//g, '');
 
 describe('workspace narrow-shell reflow (#476 CTA-clipping guard)', () => {

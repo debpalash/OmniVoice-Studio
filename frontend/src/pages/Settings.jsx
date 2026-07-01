@@ -46,7 +46,6 @@ import {
   resolveCategoryId,
 } from '../components/settings/settingsCategories';
 import { isTauri, askConfirm } from '../components/settings/native';
-import './Settings.css';
 
 // Persist the last-opened category so re-opening Settings lands where you left.
 const LS_CATEGORY = 'omnivoice.settings.category';

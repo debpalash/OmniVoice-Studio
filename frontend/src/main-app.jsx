@@ -11,11 +11,10 @@ import '@fontsource/ibm-plex-mono/600.css';
 import '@fontsource-variable/source-serif-4';
 import './i18n'; // ← initialise i18next before any component renders
 import './ui';
+// Single stylesheet: index.css now carries the Tailwind foundation, the token
+// scale + themes, and every former per-component .css (residual + all component
+// styles) consolidated in, so this one import pulls in the whole app's CSS.
 import './index.css';
-// Consolidated post-Tailwind-migration residual rules (formerly ~15 per-component
-// stub stylesheets). Loaded right after index.css to preserve the previous
-// cascade order (these are intentionally unlayered — see styles/residual.css).
-import './styles/residual.css';
 import App from './App.jsx';
 import RemoteAuthGate from './components/RemoteAuthGate';
 import { installConsoleCapture } from './utils/consoleBuffer.js';

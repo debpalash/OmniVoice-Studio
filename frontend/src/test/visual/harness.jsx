@@ -31,14 +31,11 @@ import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import '@fontsource-variable/source-serif-4';
-// Token foundation (formerly ui/tokens.css + ui/themes.css) is consolidated
-// into index.css (P5), so this single import pulls in the full token scale +
-// every [data-theme] block — same cascade order as production (main-app.jsx).
+// index.css is now the single stylesheet: Tailwind foundation + token scale +
+// every [data-theme] block + all former residual/component CSS consolidated in.
+// This one import pulls in the full cascade — same order as production
+// (main-app.jsx) — so harness snapshots match prod.
 import '../../index.css';
-// Residual unlayered rules the migrated components rely on (pulse/focus/caret/
-// glass/etc.) now live in one shared file instead of per-component stubs the
-// component .jsx used to import — load it here so harness snapshots match prod.
-import '../../styles/residual.css';
 
 import { SPECS } from './specs.jsx';
 import { applyProviders } from './providers.jsx';

@@ -15,7 +15,6 @@ import { Server } from 'lucide-react';
 import { LS_BACKEND_URL, LS_API_KEY, API } from '../../api/client';
 import { SettingsSection, SettingRow, InfoHint, SettingsInput } from './primitives';
 import RestartBadge from './RestartBadge';
-import './PerformancePanel.css';
 
 const REMOTE_GPU_DOCS_URL =
   'https://github.com/debpalash/OmniVoice-Studio/blob/main/docs/remote-gpu.md';

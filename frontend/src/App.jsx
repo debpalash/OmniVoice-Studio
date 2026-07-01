@@ -49,7 +49,6 @@ import FloatingPill from './components/FloatingPill';
 
 import { BootstrapSplash, useBootstrapStage } from './components/BootstrapSplash';
 
-import './components/Misc.css';
 import { askConfirm } from './utils/dialog';
 import useRecording from './hooks/useRecording';
 import useSegmentEditing from './hooks/useSegmentEditing';

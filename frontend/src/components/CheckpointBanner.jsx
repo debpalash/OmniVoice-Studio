@@ -2,7 +2,6 @@ import React from 'react';
 import { CheckCircle, ArrowRight, X, Sparkles, Languages, Mic } from 'lucide-react';
 import { Button } from '../ui';
 import { useTranslation } from 'react-i18next';
-import './Misc.css';
 
 /**
  * Phase 4.3 — between-stage checkpoint banner.

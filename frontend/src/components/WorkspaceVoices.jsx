@@ -29,7 +29,6 @@ import {
 import WaveformPlayer from './WaveformPlayer';
 import { API } from '../api/client';
 import { useAppStore } from '../store';
-import './WorkspaceVoices.css';
 
 export default function WorkspaceVoices({
   defineMethod,

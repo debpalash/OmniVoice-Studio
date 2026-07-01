@@ -24,7 +24,6 @@ import { useAppStore } from '../store';
 import VoiceSelector from '../components/VoiceSelector';
 import { Button } from '../ui';
 import { buttonVariants } from '@/components/ui/button.tsx';
-import './AudiobookTab.css';
 
 // Chrome-mono uppercase form label (was the scoped `.audiobook-tab .field-label`
 // rule; `.field-label` has no global styling, so it's reproduced as utilities).

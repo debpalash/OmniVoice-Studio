@@ -26,7 +26,6 @@ import {
 } from 'lucide-react';
 import WaveformPlayer from './WaveformPlayer';
 import { API } from '../api/client';
-import './WorkspaceHistory.css';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
