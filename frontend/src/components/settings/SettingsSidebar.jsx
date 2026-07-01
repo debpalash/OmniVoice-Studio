@@ -74,7 +74,7 @@ export default function SettingsSidebar({ visibleIds, active, onSelect }) {
                     aria-current={isActive ? 'page' : undefined}
                     data-testid={`settings-nav-${it.id}`}
                     className={cn(
-                      'group relative flex w-full items-center gap-[var(--space-3)] rounded-[var(--chrome-radius-pill)] border border-transparent px-[var(--space-3)] py-[var(--space-2)] text-left [font-family:var(--font-sans)] text-[length:var(--text-sm)] transition-[background,color] duration-[120ms] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none',
+                      'group relative flex w-full appearance-none items-center gap-[var(--space-3)] rounded-[var(--chrome-radius-pill)] border border-transparent bg-transparent px-[var(--space-3)] py-[var(--space-2)] text-left [font-family:var(--font-sans)] text-[length:var(--text-sm)] transition-[background,color] duration-[120ms] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none',
                       isActive
                         ? 'bg-[var(--chrome-hover-bg)] font-semibold text-[color:var(--chrome-fg)] shadow-[inset_2px_0_0_var(--chrome-accent)]'
                         : 'font-medium text-[color:var(--chrome-fg-muted)] hover:bg-[var(--chrome-hover-bg)] hover:text-[color:var(--chrome-fg)]',
