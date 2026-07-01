@@ -26,10 +26,26 @@ across dub, generate, and design (a corrupt-binary failure no longer poses as
 
 ### Added
 
-- **A dedicated Translation pane.** Translation quality (Fast / Cinematic), the
-  OpenAI-compatible LLM endpoint, and the DeepL / Microsoft / generic translator
-  API keys now live together in one place instead of being scattered across
-  General and Credentials.
+- **"Autofit" translation quality — the dub keeps the video's timing.** A new
+  quality alongside Fast and Cinematic: the LLM rewrites each translated line so
+  its target-language reading time fits *within* the segment's slot (a strict
+  "never overrun" bound, per-language pronunciation-speed aware), so long
+  translations no longer force the audio into a stressed >1.3× time-stretch.
+  Cinematic still applies its reflect/adapt polish; Autofit adds the hard
+  fit-to-slot pass on top. Needs an LLM (below); falls back to Fast with a clear
+  notice if none is set. (#838)
+- **A new LLM Providers settings page — bring your own high-quality LLM.**
+  Settings → System → **LLM Providers** configures the LLM that powers Cinematic
+  and Autofit translation. One page for **16 providers** — OpenAI, OpenRouter,
+  Groq, Cerebras, Google AI (Gemini), Mistral, Cohere, NVIDIA, GitHub Models,
+  Cloudflare, Hugging Face, SambaNova, SiliconFlow, plus **local Ollama / LM
+  Studio** (fully offline, no key) and a **Custom** OpenAI-compatible endpoint.
+  Paste a key, pick a model, **Test** the connection in one click, and "use for
+  translation" to make it active. Keys are stored **encrypted** (the same
+  at-rest protection as the HF token) and never leave the machine unless you
+  choose a cloud provider; env vars still override for power users. The dub
+  translate menu now routes you straight here when you pick a high-quality
+  style without an LLM, instead of dead-ending on a toast. (#838)
 - **A dedicated Network pane.** The HTTP/SOCKS proxy and FFmpeg-path controls
   (previously buried in General → Advanced) are promoted to their own category.
 - **Factory reset in Storage.** A confirm-dialog-guarded action that clears the

@@ -68,16 +68,48 @@ that opens a small popover with everything you need:
 never leave your machine. Reach for the online engines only from a from-source
 install where you can add their package.
 
-## API keys (online engines)
+## Translation quality: Fast, Autofit, Cinematic
 
-Some online engines need a key, set as an environment variable before launching
-the backend (or in **Settings → Credentials**):
+The **Quality** control in the Dub tab (and Settings → Translation) picks how the
+translation is produced:
+
+- **Fast** — a direct one-shot translation from the selected engine (Argos, NLLB,
+  Google, …). No LLM, no timing awareness.
+- **Cinematic** — an LLM refines the literal translation (reflect → adapt) for
+  natural, in-context phrasing.
+- **Autofit** — Cinematic **plus** a strict fit-to-time pass: the LLM rewrites
+  each line so its target-language reading time fits **within** the segment's
+  slot (never overruns it). This keeps the video timing intact and avoids the
+  stressed audio time-stretch you get when a translation is too long for its
+  slot. Fit is per-language pronunciation-speed aware.
+
+Cinematic and Autofit **require an LLM** (below). If none is configured, they
+fall back to Fast with a notice.
+
+## LLM Providers (for Cinematic / Autofit)
+
+**Settings → System → LLM Providers** is the one place to set up the LLM. Pick a
+provider, paste its API key, choose a model, **Test** it, and "use for
+translation." Supported: OpenAI, OpenRouter, Groq, Cerebras, Google AI (Gemini),
+Mistral, Cohere, NVIDIA, GitHub Models, Cloudflare, Hugging Face, SambaNova,
+SiliconFlow, **local Ollama / LM Studio** (offline, no key), and a **Custom**
+OpenAI-compatible endpoint.
+
+Keys entered here are stored **encrypted** on your machine and never returned to
+the UI. For a fully offline setup, pick **Ollama** (`ollama pull llama3.1`) or
+**LM Studio** — nothing leaves the machine. Power users can still override any
+provider via environment variables (e.g. `GROQ_API_KEY`, or the legacy
+`TRANSLATE_BASE_URL` / `TRANSLATE_API_KEY` / `TRANSLATE_MODEL`, which map to the
+**Custom** provider).
+
+## API keys (online MT engines)
+
+The non-LLM online engines need a key, set as an environment variable before
+launching the backend (or in **Settings → Credentials**):
 
 - **DeepL:** `DEEPL_API_KEY` (optionally `DEEPL_BASE_URL` for a self-hosted /
   pro endpoint).
 - **Microsoft Translator:** `MICROSOFT_API_KEY` (optionally `MICROSOFT_BASE_URL`).
-- **LLM provider:** `TRANSLATE_BASE_URL` + `TRANSLATE_API_KEY` + `TRANSLATE_MODEL`
-  (Ollama / LM Studio run locally and need no real key).
 
 ## Troubleshooting
 
