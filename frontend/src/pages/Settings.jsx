@@ -445,13 +445,13 @@ export default function Settings() {
     // SettingsSidebar) and the layout stacks. The content column establishes the
     // `settings` container so SettingRow's `@max-[600px]/settings:` stacking
     // variant still fires on the real content width.
-    <div className="flex min-h-full w-full max-w-[calc(var(--settings-rail)_+_var(--space-5)_+_var(--settings-measure)_+_2_*_var(--space-7))] mx-auto box-border flex-1 flex-col overflow-y-auto bg-[var(--chrome-bg)] p-[var(--space-5)_var(--space-7)_var(--space-7)] font-sans min-[760px]:grid min-[760px]:[grid-template-columns:var(--settings-rail)_minmax(0,1fr)] min-[760px]:gap-[var(--space-5)] min-[760px]:[align-content:start]">
+    <div className="flex min-h-full w-full box-border flex-1 flex-col overflow-y-auto bg-[var(--chrome-bg)] p-[var(--space-5)_var(--space-7)_var(--space-7)] font-sans min-[760px]:grid min-[760px]:[grid-template-columns:var(--settings-rail)_minmax(0,1fr)] min-[760px]:gap-[var(--space-5)] min-[760px]:[align-content:start]">
       <aside className="mb-[var(--space-4)] min-[760px]:sticky min-[760px]:top-[var(--space-5)] min-[760px]:mb-0 min-[760px]:self-start">
         <SettingsSearch value={query} onChange={setQuery} />
         <SettingsSidebar visibleIds={visibleSet} active={active} onSelect={setActive} />
       </aside>
 
-      <div className="min-w-0 max-w-[var(--settings-measure)] flex-auto self-start [container-type:inline-size] [container-name:settings]">
+      <div className="min-w-0 flex-auto self-start [container-type:inline-size] [container-name:settings]">
         <header className="mb-[var(--space-4)] flex items-center gap-[var(--space-3)]">
           {CatIcon && (
             <span
