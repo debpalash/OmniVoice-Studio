@@ -555,7 +555,7 @@ export default function SegmentTrack({
                   <span className="inline-flex gap-[2px] mr-[8px] z-[3]">
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center w-[16px] h-[16px] p-0 border border-[rgba(168,153,132,0.4)] rounded-sm bg-[rgba(40,40,40,0.85)] text-[#ebdbb2] cursor-pointer hover:border-[#d3869b] hover:text-[#d3869b]"
+                      className="inline-flex items-center justify-center w-[16px] h-[16px] p-0 border border-transparent rounded-sm bg-[rgba(40,40,40,0.85)] text-[#ebdbb2] cursor-pointer hover:border-transparent hover:text-[#d3869b]"
                       aria-label={t('timeline.play_slot')}
                       title={t('timeline.play_slot')}
                       onPointerDown={(ev) => ev.stopPropagation()}
@@ -569,7 +569,7 @@ export default function SegmentTrack({
                     {onPreviewSegment && (
                       <button
                         type="button"
-                        className="inline-flex items-center justify-center w-[16px] h-[16px] p-0 border border-[rgba(168,153,132,0.4)] rounded-sm bg-[rgba(40,40,40,0.85)] text-[#ebdbb2] cursor-pointer hover:border-[#d3869b] hover:text-[#d3869b]"
+                        className="inline-flex items-center justify-center w-[16px] h-[16px] p-0 border border-transparent rounded-sm bg-[rgba(40,40,40,0.85)] text-[#ebdbb2] cursor-pointer hover:border-transparent hover:text-[#d3869b]"
                         aria-label={t('timeline.preview_dub')}
                         title={t('timeline.preview_dub')}
                         onPointerDown={(ev) => ev.stopPropagation()}

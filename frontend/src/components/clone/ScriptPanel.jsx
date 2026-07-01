@@ -117,7 +117,7 @@ export default function ScriptPanel({
                 </button>
               ))}
               <button
-                className={`${TAG_BTN} !border-[#b8bb26] !text-[#b8bb26]`}
+                className={`${TAG_BTN} !border-transparent !text-[#b8bb26]`}
                 role="menuitem"
                 onClick={() => {
                   insertTag('[B EY1 S]');

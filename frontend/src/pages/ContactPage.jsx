@@ -83,7 +83,7 @@ export default function ContactPage({ onBack }) {
       <div className="relative z-[1] mx-auto flex w-full max-w-[640px] flex-1 flex-col justify-center gap-6 px-8 pb-10">
         <div className="flex flex-col gap-6">
           <div className="text-center">
-            <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-md border border-[color-mix(in_srgb,#d3869b_30%,transparent)] bg-[color-mix(in_srgb,#d3869b_12%,transparent)]">
+            <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,#d3869b_12%,transparent)]">
               <MessageCircle
                 size={24}
                 className="text-[#f3a5b6] drop-shadow-[0_0_12px_rgba(243,165,182,0.5)]"
@@ -110,9 +110,9 @@ export default function ContactPage({ onBack }) {
                   type="button"
                   onClick={() => openExternal(c.url)}
                   style={{ '--card-hue': c.hue }}
-                  className="flex w-full items-center gap-3 overflow-hidden rounded-md border border-border bg-transparent px-3.5 py-2.5 text-left transition-colors hover:border-[color-mix(in_srgb,var(--card-hue)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--card-hue)_6%,transparent)]"
+                  className="flex w-full items-center gap-3 overflow-hidden rounded-md border border-border bg-transparent px-3.5 py-2.5 text-left transition-colors hover:border-transparent hover:bg-[color-mix(in_srgb,var(--card-hue)_6%,transparent)]"
                 >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[color-mix(in_srgb,var(--card-hue)_22%,transparent)] bg-[color-mix(in_srgb,var(--card-hue)_10%,transparent)]">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--card-hue)_10%,transparent)]">
                     <Icon size={20} />
                   </span>
                   <span className="min-w-0 flex-1">

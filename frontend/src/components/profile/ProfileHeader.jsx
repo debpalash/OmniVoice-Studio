@@ -94,8 +94,8 @@ export default function ProfileHeader({
             <div
               className={`flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[16px_20px_14px_22px/18px_14px_22px_16px] border ${
                 isDesign
-                  ? 'border-[rgba(142,192,124,0.35)] bg-[rgba(142,192,124,0.15)] text-success'
-                  : 'border-[rgba(211,134,155,0.35)] bg-[rgba(211,134,155,0.15)] text-brand'
+                  ? 'border-transparent bg-[rgba(142,192,124,0.15)] text-success'
+                  : 'border-transparent bg-[rgba(211,134,155,0.15)] text-brand'
               }`}
             >
               <TypeIcon size={22} />

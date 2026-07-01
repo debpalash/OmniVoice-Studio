@@ -39,7 +39,7 @@ export default function ArchetypeCard({
     'motion-reduce:transition-none motion-reduce:hover:translate-y-0';
   const cardState = isPlaying
     ? 'border-[color:var(--card-accent)] shadow-[0_0_0_1px_var(--card-accent),0_6px_22px_rgba(0,0,0,0.4)]'
-    : 'border-white/[0.07] hover:border-white/[0.13]';
+    : 'border-transparent hover:border-transparent';
 
   return (
     <div className={`${cardBase} ${cardState}`} style={{ '--card-accent': color }}>
@@ -84,7 +84,7 @@ export default function ArchetypeCard({
 
       <div className="flex items-center gap-[6px] mt-auto">
         <button
-          className="inline-flex items-center gap-[6px] px-[11px] py-[6px] border border-white/[0.09] bg-white/[0.03] text-[var(--text-primary)] rounded-[8px] text-[0.7rem] cursor-pointer transition-colors hover:border-[color:var(--card-accent)] hover:text-[var(--card-accent)]"
+          className="inline-flex items-center gap-[6px] px-[11px] py-[6px] border border-transparent bg-white/[0.03] text-[var(--text-primary)] rounded-[8px] text-[0.7rem] cursor-pointer transition-colors hover:border-[color:var(--card-accent)] hover:text-[var(--card-accent)]"
           onClick={() => onPreview(a)}
           title={t('gallery.preview', { defaultValue: 'Preview' })}
         >
@@ -104,7 +104,7 @@ export default function ArchetypeCard({
           <UserPlus size={14} /> {t('gallery.use_voice', { defaultValue: 'Use voice' })}
         </button>
         <button
-          className="inline-flex items-center justify-center w-[30px] h-[30px] flex-shrink-0 border border-white/[0.09] bg-white/[0.03] text-[var(--text-secondary)] rounded-[8px] cursor-pointer opacity-50 transition-[opacity,border-color,color] duration-150 group-hover:opacity-100 focus-visible:opacity-100 hover:text-[var(--card-accent)] hover:border-[color:var(--card-accent)]"
+          className="inline-flex items-center justify-center w-[30px] h-[30px] flex-shrink-0 border border-transparent bg-white/[0.03] text-[var(--text-secondary)] rounded-[8px] cursor-pointer opacity-50 transition-[opacity,border-color,color] duration-150 group-hover:opacity-100 focus-visible:opacity-100 hover:text-[var(--card-accent)] hover:border-[color:var(--card-accent)]"
           onClick={() => onDesign(a)}
           title={t('gallery.open_designer', { defaultValue: 'Open in Designer' })}
         >

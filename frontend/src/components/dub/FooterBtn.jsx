@@ -18,16 +18,15 @@ const TONES = {
   stopping:
     'text-[var(--chrome-fg-muted)] border-[var(--chrome-border)] hover:bg-[var(--chrome-hover-bg)]',
   danger:
-    'text-[var(--chrome-severity-err)] border-[color-mix(in_srgb,var(--chrome-severity-err)_45%,transparent)] bg-[color-mix(in_srgb,var(--chrome-severity-err)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--chrome-severity-err)_18%,transparent)]',
+    'text-[var(--chrome-severity-err)] border-transparent bg-[color-mix(in_srgb,var(--chrome-severity-err)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--chrome-severity-err)_18%,transparent)]',
   green:
-    'text-[var(--chrome-severity-ok)] border-[color-mix(in_srgb,var(--chrome-severity-ok)_45%,transparent)] bg-[color-mix(in_srgb,var(--chrome-severity-ok)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--chrome-severity-ok)_18%,transparent)]',
+    'text-[var(--chrome-severity-ok)] border-transparent bg-[color-mix(in_srgb,var(--chrome-severity-ok)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--chrome-severity-ok)_18%,transparent)]',
   pink: 'text-[var(--chrome-accent)] border-[var(--chrome-accent-border)] bg-[var(--chrome-accent-bg)] hover:bg-[color-mix(in_srgb,var(--chrome-accent)_20%,transparent)]',
-  blue: 'text-[#83a598] border-[color-mix(in_srgb,#83a598_45%,transparent)] bg-[color-mix(in_srgb,#83a598_10%,transparent)]',
-  lime: 'text-[#b8bb26] border-[color-mix(in_srgb,#b8bb26_45%,transparent)] bg-[color-mix(in_srgb,#b8bb26_10%,transparent)]',
+  blue: 'text-[#83a598] border-transparent bg-[color-mix(in_srgb,#83a598_10%,transparent)]',
+  lime: 'text-[#b8bb26] border-transparent bg-[color-mix(in_srgb,#b8bb26_10%,transparent)]',
   amber:
-    'text-[var(--chrome-severity-warn)] border-[color-mix(in_srgb,var(--chrome-severity-warn)_45%,transparent)] bg-[color-mix(in_srgb,var(--chrome-severity-warn)_10%,transparent)]',
-  orange:
-    'text-[#fe8019] border-[color-mix(in_srgb,#fe8019_45%,transparent)] bg-[color-mix(in_srgb,#fe8019_10%,transparent)]',
+    'text-[var(--chrome-severity-warn)] border-transparent bg-[color-mix(in_srgb,var(--chrome-severity-warn)_10%,transparent)]',
+  orange: 'text-[#fe8019] border-transparent bg-[color-mix(in_srgb,#fe8019_10%,transparent)]',
 };
 
 const FooterBtn = React.forwardRef(function FooterBtn(

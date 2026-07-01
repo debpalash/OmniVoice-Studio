@@ -41,7 +41,7 @@ const LICENSE_URLS = {
 
 const LINK_CLS =
   'text-[0.83rem] text-[color:var(--accent,#8ab4f8)] no-underline hover:underline focus-visible:underline';
-const SECTION_CLS = 'rounded-lg border border-white/10 bg-white/[0.04] px-[0.9rem] py-3';
+const SECTION_CLS = 'rounded-lg border border-transparent bg-white/[0.04] px-[0.9rem] py-3';
 const SECTION_H_CLS =
   'm-0 mb-[0.3rem] text-[0.85rem] font-semibold uppercase tracking-[0.02em] opacity-85';
 const SECTION_P_CLS = 'm-0 mb-2 text-[0.85rem] leading-[1.5] opacity-90';

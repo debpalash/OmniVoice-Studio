@@ -64,7 +64,7 @@ import { effectiveProfile, effectiveSpeed, castMember, nextCastColor } from '../
 
 // ── Shared class strings (replacing the old stories-* BEM chrome) ─────────
 const ADD_BTN =
-  'inline-flex items-center gap-[4px] bg-transparent border border-border text-fg [font-size:var(--text-xs)] px-[8px] py-[3px] rounded-sm cursor-pointer hover:border-accent hover:text-accent';
+  'inline-flex items-center gap-[4px] bg-transparent border border-border text-fg [font-size:var(--text-xs)] px-[8px] py-[3px] rounded-sm cursor-pointer hover:text-accent';
 const NAME_INPUT =
   'bg-bg-elev-2 border border-border rounded-sm text-fg [font-size:var(--text-xs)] px-[8px] py-[4px]';
 const SELECT_CHROME =
@@ -1035,9 +1035,7 @@ export default function StoriesEditor({ profiles = [] }) {
                 role="listitem"
                 className={[
                   'group grid [grid-template-columns:32px_1fr_160px_100px_44px] gap-[8px] items-center px-[10px] py-[8px] bg-bg-elev-1 border border-border rounded-lg [transition:border-color_0.15s,box-shadow_0.15s] cursor-grab flex-wrap hover:border-border-strong hover:[box-shadow:var(--shadow-sm)]',
-                  activeTrack === track.id
-                    ? 'border-brand [box-shadow:0_0_0_1px_var(--color-brand-glow)]'
-                    : '',
+                  activeTrack === track.id ? 'bg-primary/[0.12]' : '',
                   track.character === 'narrator'
                     ? '[border-left:3px_solid_var(--color-accent)]'
                     : '',
@@ -1192,7 +1190,7 @@ export default function StoriesEditor({ profiles = [] }) {
                         <button
                           key={tn.tag}
                           type="button"
-                          className="inline-flex items-center gap-[4px] bg-bg-elev-2 border border-border rounded-full text-fg [font-size:var(--text-xs)] px-[9px] py-[3px] cursor-pointer hover:border-accent hover:text-accent"
+                          className="inline-flex items-center gap-[4px] bg-bg-elev-2 border border-border rounded-full text-fg [font-size:var(--text-xs)] px-[9px] py-[3px] cursor-pointer hover:text-accent"
                           onClick={() => insertTokenInto(track.id, tn.tag)}
                           title={tn.tag}
                         >

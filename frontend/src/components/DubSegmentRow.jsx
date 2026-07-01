@@ -325,9 +325,9 @@ function DubSegmentRow({
           }
           style={
             overBudget
-              ? { borderColor: 'rgba(250,189,47,0.6)', background: 'rgba(250,189,47,0.06)' }
+              ? { background: 'rgba(250,189,47,0.10)' }
               : seg.translate_error
-                ? { borderColor: 'rgba(251,73,52,0.5)' }
+                ? { background: 'rgba(251,73,52,0.10)' }
                 : undefined
           }
         />

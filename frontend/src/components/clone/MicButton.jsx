@@ -7,11 +7,11 @@ import { Sparkles, Square, Mic } from 'lucide-react';
 const MIC_BASE =
   'flex flex-col items-center justify-center gap-[var(--space-2)] px-4 py-2 min-w-[70px] rounded-[var(--radius-xl)] text-[length:var(--text-xs)] font-semibold cursor-pointer transition-all duration-[var(--dur-base)] ease-[var(--ease-out)]';
 const MIC_IDLE =
-  'bg-white/[0.03] border border-white/10 text-[var(--color-fg-muted)] hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]';
+  'bg-white/[0.03] border border-transparent text-[var(--color-fg-muted)] hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]';
 const MIC_RECORDING =
   'bg-[rgba(251,73,52,0.15)] border-2 border-[var(--color-danger)] text-[var(--color-danger)] animate-[pulse_1s_ease-in-out_infinite]';
 const MIC_CLEANING =
-  'bg-[rgba(184,187,38,0.10)] border border-[rgba(184,187,38,0.20)] text-[#b8bb26] cursor-default';
+  'bg-[rgba(184,187,38,0.10)] border border-transparent text-[#b8bb26] cursor-default';
 
 export default function MicButton({ isCleaning, isRecording, recordingTime, onStart, onStop }) {
   const { t } = useTranslation();

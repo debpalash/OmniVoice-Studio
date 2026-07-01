@@ -59,9 +59,9 @@ function LinkCard({ icon, label, desc, value, hue, onClick }) {
       type="button"
       onClick={onClick}
       style={{ '--card-hue': hue }}
-      className="flex w-full items-center gap-3 overflow-hidden rounded-md border border-border bg-transparent px-3.5 py-2.5 text-left transition-colors hover:border-[color-mix(in_srgb,var(--card-hue)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--card-hue)_6%,transparent)]"
+      className="flex w-full items-center gap-3 overflow-hidden rounded-md border border-border bg-transparent px-3.5 py-2.5 text-left transition-colors hover:border-transparent hover:bg-[color-mix(in_srgb,var(--card-hue)_6%,transparent)]"
     >
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[color-mix(in_srgb,var(--card-hue)_22%,transparent)] bg-[color-mix(in_srgb,var(--card-hue)_10%,transparent)] text-[1.1rem]">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--card-hue)_10%,transparent)] text-[1.1rem]">
         {icon}
       </span>
       <span className="min-w-0 flex-1">
@@ -115,7 +115,7 @@ function SupportView() {
   return (
     <div className="flex flex-col gap-6">
       <div className="text-center">
-        <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-md border border-[color-mix(in_srgb,#d3869b_30%,transparent)] bg-[color-mix(in_srgb,#d3869b_12%,transparent)]">
+        <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,#d3869b_12%,transparent)]">
           <Heart
             size={24}
             className="text-[#f3a5b6] [fill:rgba(243,165,182,0.35)] drop-shadow-[0_0_12px_rgba(243,165,182,0.5)]"
@@ -167,7 +167,7 @@ function SupportView() {
                 className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-md border px-1.5 py-2 transition-colors ${
                   selected
                     ? 'border-[var(--chrome-accent)] bg-[var(--chrome-accent-bg)]'
-                    : `${a.common ? 'border-[color-mix(in_srgb,var(--chrome-accent)_35%,transparent)]' : 'border-border'} hover:border-[color-mix(in_srgb,var(--chrome-accent)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--chrome-accent)_7%,transparent)]`
+                    : `${a.common ? 'border-transparent' : 'border-border'} hover:border-transparent hover:bg-[color-mix(in_srgb,var(--chrome-accent)_7%,transparent)]`
                 }`}
               >
                 <span className="font-serif text-[1.05rem] font-medium text-[var(--chrome-fg)]">
@@ -188,7 +188,7 @@ function SupportView() {
             className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-md border px-1.5 py-2 transition-colors ${
               amount === 'custom'
                 ? 'border-[var(--chrome-accent)] bg-[var(--chrome-accent-bg)]'
-                : 'border-border hover:border-[color-mix(in_srgb,var(--chrome-accent)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--chrome-accent)_7%,transparent)]'
+                : 'border-border hover:border-transparent hover:bg-[color-mix(in_srgb,var(--chrome-accent)_7%,transparent)]'
             }`}
           >
             <span className="font-mono text-[0.78rem] uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
@@ -298,7 +298,7 @@ function LicenseView() {
             key={label}
             className="gap-0 rounded-md border-border bg-transparent p-4 shadow-none transition-colors hover:border-border-strong hover:bg-[var(--chrome-hover-bg)]"
           >
-            <span className="mb-2.5 flex size-[30px] items-center justify-center rounded-md border border-[color-mix(in_srgb,#d3869b_22%,transparent)] bg-[color-mix(in_srgb,#d3869b_10%,transparent)] text-[#d3869b]">
+            <span className="mb-2.5 flex size-[30px] items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,#d3869b_10%,transparent)] text-[#d3869b]">
               <Icon size={16} />
             </span>
             <div className="mb-1 font-mono text-[0.75rem] font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg)]">
@@ -325,7 +325,7 @@ function LicenseView() {
             variant="subtle"
             leading={<Mail size={13} />}
             onClick={() => openExternal(LICENSE_MAILTO)}
-            className="border-[color-mix(in_srgb,#fe8019_50%,transparent)] bg-[color-mix(in_srgb,#fe8019_18%,transparent)] font-semibold text-[var(--chrome-fg)] hover:border-[color-mix(in_srgb,#fe8019_70%,transparent)] hover:bg-[color-mix(in_srgb,#fe8019_28%,transparent)]"
+            className="border-transparent bg-[color-mix(in_srgb,#fe8019_18%,transparent)] font-semibold text-[var(--chrome-fg)] hover:border-transparent hover:bg-[color-mix(in_srgb,#fe8019_28%,transparent)]"
           >
             {t('enterprise.request_quote')}
           </Button>
@@ -360,9 +360,9 @@ export default function SupportPage({ onBack, initialView = 'support' }) {
   const TAB_INACTIVE =
     'border-transparent text-[var(--chrome-fg-muted)] hover:text-[var(--chrome-fg)]';
   const TAB_SUPPORT_ACTIVE =
-    'border-[color-mix(in_srgb,#d3869b_38%,transparent)] bg-[color-mix(in_srgb,#d3869b_18%,transparent)] text-[var(--chrome-fg)]';
+    'border-transparent bg-[color-mix(in_srgb,#d3869b_18%,transparent)] text-[var(--chrome-fg)]';
   const TAB_LICENSE_ACTIVE =
-    'border-[color-mix(in_srgb,#83a598_40%,transparent)] bg-[color-mix(in_srgb,#83a598_18%,transparent)] text-[var(--chrome-fg)]';
+    'border-transparent bg-[color-mix(in_srgb,#83a598_18%,transparent)] text-[var(--chrome-fg)]';
 
   return (
     <div className="relative isolate flex flex-1 flex-col overflow-y-auto bg-[var(--chrome-bg)]">

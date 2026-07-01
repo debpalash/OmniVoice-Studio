@@ -211,7 +211,9 @@ function OptionCard({ active, disabled, onSelect, name, desc, badge }) {
       className={cn(
         'flex flex-col gap-1 rounded-md border px-3 py-2.5 text-left transition-colors',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        active ? 'border-primary bg-primary/10' : 'border-border bg-bg-elev-2 hover:bg-bg-elev-1',
+        active
+          ? 'border-transparent bg-primary/10'
+          : 'border-border bg-bg-elev-2 hover:bg-bg-elev-1',
         disabled && 'cursor-not-allowed opacity-40 hover:bg-bg-elev-2',
       )}
     >

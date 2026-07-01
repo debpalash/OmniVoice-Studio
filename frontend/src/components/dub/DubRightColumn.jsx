@@ -216,7 +216,7 @@ export default function DubRightColumn({
                   thing per-speaker (and handles the multi-speaker case cleanly). */}
 
       {selectedSegIds.size > 0 && (
-        <div className="flex items-center gap-[var(--space-3)] px-[6px] py-[3px] rounded-[var(--radius-md)] mb-[var(--space-2)] text-[length:var(--text-xs)] bg-[rgba(211,134,155,0.08)] border border-[rgba(211,134,155,0.25)]">
+        <div className="flex items-center gap-[var(--space-3)] px-[6px] py-[3px] rounded-[var(--radius-md)] mb-[var(--space-2)] text-[length:var(--text-xs)] bg-[rgba(211,134,155,0.08)] border border-transparent">
           <span className="text-brand font-bold whitespace-nowrap">
             {t('dub.selected_count', { count: selectedSegIds.size })}
           </span>

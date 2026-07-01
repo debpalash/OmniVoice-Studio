@@ -83,7 +83,7 @@ export default function WorkspaceVoices({
                 className="history-kind"
                 style={{
                   color: active.instruct ? '#8ec07c' : '#d3869b',
-                  borderColor: active.instruct ? '#8ec07c40' : '#d3869b40',
+                  background: active.instruct ? '#8ec07c22' : '#d3869b22',
                 }}
               >
                 {active.instruct ? t('sidebar.design_label') : t('sidebar.clone_label')}
@@ -170,7 +170,7 @@ export default function WorkspaceVoices({
                 <div className="flex items-center justify-between gap-2 min-w-0">
                   <span
                     className="history-kind"
-                    style={{ color: accent, borderColor: `${accent}40` }}
+                    style={{ color: accent, background: `${accent}22` }}
                   >
                     <KindIcon size={9} />{' '}
                     {proj.is_locked

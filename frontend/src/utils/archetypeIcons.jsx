@@ -143,7 +143,6 @@ export function ArchetypeAvatar({ item, size = 44 }) {
         width: size,
         height: size,
         background: tint(color, 0.14),
-        borderColor: tint(color, 0.32),
       }}
     >
       <ArchetypeIcon name={item.icon} size={Math.round(size * 0.46)} color={color} />

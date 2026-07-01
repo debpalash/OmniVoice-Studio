@@ -458,7 +458,7 @@ export default function Settings() {
         <header className="mb-[var(--space-4)] flex items-center gap-[var(--space-3)]">
           {CatIcon && (
             <span
-              className="shrink-0 inline-flex items-center justify-center w-[26px] h-[26px] rounded-[var(--chrome-radius-pill)] text-[color:var(--chrome-accent)] bg-[color-mix(in_srgb,var(--chrome-accent)_12%,var(--chrome-bg))] border border-[color-mix(in_srgb,var(--chrome-accent)_26%,var(--chrome-border))]"
+              className="shrink-0 inline-flex items-center justify-center w-[26px] h-[26px] rounded-[var(--chrome-radius-pill)] text-[color:var(--chrome-accent)] bg-[color-mix(in_srgb,var(--chrome-accent)_12%,var(--chrome-bg))] border border-transparent"
               aria-hidden="true"
             >
               <CatIcon size={15} />

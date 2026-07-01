@@ -774,12 +774,9 @@ html[data-zoom-layout='off'] .app-container {
   margin-bottom: 0;
 }
 .glass-panel::before {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.08) 30%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.08) 70%, rgba(255,255,255,0));
-  pointer-events: none;
+  /* Decorative top-highlight hairline removed as part of the app-wide
+     border/divider removal. */
+  display: none;
 }
 
 /* ═══ HEADER — warm + cute ═══ */
@@ -876,8 +873,10 @@ html[data-zoom-layout='off'] .app-container {
 /* ═══ INPUTS ═══ */
 .input-base {
   width: 100%;
-  background: var(--chrome-hover-bg);
-  border: 1px solid var(--chrome-border);
+  /* Borders are removed app-wide; a recessed surface fill keeps text
+     fields / selects / textareas perceivable as inputs. */
+  background: var(--color-bg-elev-2);
+  border: 1px solid transparent;
   border-radius: var(--chrome-radius-pill);
   padding: 5px 8px;
   color: var(--chrome-fg);
@@ -888,9 +887,11 @@ html[data-zoom-layout='off'] .app-container {
 }
 .input-base:focus {
   outline: none;
-  border-color: var(--chrome-border-strong);
+  border-color: transparent;
   box-shadow: none;
-  background: var(--chrome-bg);
+  /* Subtle elevation shift on focus (keyboard focus also gets the global
+     :focus-visible ring). */
+  background: var(--color-bg-elev-1);
 }
 .input-base::placeholder { color: var(--chrome-fg-dim); }
 textarea.input-base { min-height: 60px; resize: vertical; line-height: 1.5; }
@@ -905,7 +906,7 @@ select.input-base {
   cursor: pointer;
 }
 select.input-base:hover {
-  border-color: rgba(255,255,255,0.12);
+  border-color: transparent;
 }
 
 /* ═══ CHECKBOX STYLING ═══ */
@@ -987,23 +988,25 @@ input[type="range"]::-webkit-slider-thumb:active {
   max-height: none;
   overflow-y: auto;
   box-sizing: border-box;
-  border-right: 1px solid rgba(255,255,255,0.04);
+  border-right: 1px solid transparent;
 }
 .history-item {
-  background: rgba(0,0,0,0.18); border: 1px solid rgba(255,255,255,0.04);
+  background: rgba(0,0,0,0.18); border: 1px solid transparent;
   border-radius: 5px; padding: 6px 8px; margin-bottom: 4px;
   transition: all var(--transition-smooth);
   animation: fadeIn 0.2s ease-out;
 }
 .history-item:hover {
   background: rgba(0,0,0,0.28);
-  border-color: rgba(255,255,255,0.08);
+  border-color: transparent;
 }
 /* .history-header / .history-badge / .history-time / .history-text migrated to Badge + Sidebar.css. */
 .project-active {
-  border-color: rgba(184,187,38,0.4) !important;
-  background: rgba(184,187,38,0.06) !important;
-  box-shadow: inset 0 0 0 1px rgba(184,187,38,0.12), 0 0 8px rgba(184,187,38,0.06);
+  /* Selection cue via background tint (not a border) so the active project
+     stays perceivable after the app-wide border removal. */
+  border-color: transparent !important;
+  background: rgba(184,187,38,0.14) !important;
+  box-shadow: none;
 }
 
 /* ═══ AUDIO PLAYER ═══ */
@@ -1012,7 +1015,7 @@ audio {
 }
 audio::-webkit-media-controls-enclosure {
   background-color: rgba(40,38,37,0.95);
-  border: 1px solid rgba(255,255,255,0.04);
+  border: 1px solid transparent;
   border-radius: 4px;
 }
 audio::-webkit-media-controls-play-button,
@@ -1027,12 +1030,12 @@ audio::-webkit-media-controls-time-remaining-display { color: var(--chrome-fg); 
   display: flex; align-items: center; justify-content: space-between;
   background: rgba(0,0,0,0.18); padding: 4px 8px; border-radius: 4px;
   font-size: 0.72rem; color: var(--text-primary); cursor: pointer;
-  border: 1px solid rgba(255,255,255,0.04); margin-top: 6px;
+  border: 1px solid transparent; margin-top: 6px;
   transition: all var(--transition-smooth);
 }
-.override-toggle:hover { background: rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.08); }
+.override-toggle:hover { background: rgba(0,0,0,0.3); border-color: transparent; }
 .override-content {
-  background: rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.04); border-top: none;
+  background: rgba(0,0,0,0.1); border: 1px solid transparent; border-top: none;
   padding: 6px 8px; border-radius: 0 0 4px 4px; margin-bottom: 6px;
 }
 .preset-grid {
@@ -1045,14 +1048,14 @@ audio::-webkit-media-controls-time-remaining-display { color: var(--chrome-fg); 
 .segment-table {
   /* No max-height cap — the list is virtualised via react-window and measures
      its own body container. Capping at 320 px left a huge gap below. */
-  border: 1px solid rgba(255,255,255,0.04); border-radius: 4px; margin-top: 4px;
+  border: 1px solid transparent; border-radius: 4px; margin-top: 4px;
 }
 .segment-header {
   display: flex; align-items: center; gap: 4px;
   padding: 3px 6px; background: rgba(0,0,0,0.35);
   font-size: 0.62rem; font-weight: 600; color: var(--text-secondary);
   position: sticky; top: 0; z-index: 1;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid transparent;
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
@@ -1060,7 +1063,7 @@ audio::-webkit-media-controls-time-remaining-display { color: var(--chrome-fg); 
   display: flex; align-items: center; gap: 3px;
   padding: 2px 4px;
   box-sizing: border-box;
-  border-bottom: 1px solid rgba(255,255,255,0.02);
+  border-bottom: 1px solid transparent;
   transition: background var(--transition-fast);
 }
 .segment-row:hover { background: var(--chrome-hover-bg); }
@@ -1122,13 +1125,13 @@ audio::-webkit-media-controls-time-remaining-display { color: var(--chrome-fg); 
    waveform-* family migrated to utilities on WaveformTimeline.jsx (P4). */
 .waveform-container {
   background: rgba(0,0,0,0.22);
-  border: 1px solid rgba(255,255,255,0.05);
+  border: 1px solid transparent;
   border-radius: var(--radius);
   padding: 4px;
   overflow-x: auto;
   height: 80px !important;
   position: relative;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid transparent;
 }
 
 .waveform-container [data-id^="wavesurfer-region"] {
@@ -1140,7 +1143,7 @@ audio::-webkit-media-controls-time-remaining-display { color: var(--chrome-fg); 
   top: 52px !important;
   height: 26px !important;
   border-radius: 3px !important;
-  border: 1px solid rgba(255,255,255,0.15) !important;
+  border: 1px solid transparent !important;
   display: flex !important; align-items: center !important;
   padding: 0 3px !important; color: white !important;
   font-size: 0.58rem !important;
@@ -1525,11 +1528,13 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
 
 /* Textarea — flat chrome surface for design/clone prompt box */
 textarea.input-base {
-  background: var(--chrome-bg);
+  /* Recessed fill (not --chrome-bg, which equals the panel background and
+     would be invisible once the border is gone). */
+  background: var(--color-bg-elev-2);
   font-family: var(--font-sans);
   font-size: 0.82rem; line-height: 1.55;
   color: var(--chrome-fg);
-  border: 1px solid var(--chrome-border);
+  border: 1px solid transparent;
   border-radius: var(--chrome-radius-pill);
   padding: 12px 14px;
 }
@@ -2259,7 +2264,7 @@ input[type="file"]::file-selector-button:hover {
 }
 .voice-selector__btn:hover:not(:disabled) {
   color: var(--chrome-fg, #eee);
-  border-color: var(--chrome-border-strong, rgba(255, 255, 255, 0.22));
+  border-color: var(--chrome-border-strong, transparent);
 }
 .voice-selector__btn:disabled {
   opacity: 0.5;
@@ -2596,7 +2601,7 @@ input[type="file"]::file-selector-button:hover {
 .history-item--dub       { --row-accent: #83a598; }
 
 /* ── History-item kind badge variants ────────────────────────── */
-.history-kind--audio     { color: #83a598; border-color: rgba(131, 165, 152, 0.25); }
+.history-kind--audio     { color: #83a598; background: rgba(131, 165, 152, 0.13); }
 
 /* Locked project label + italic subtitle */
 .history-meta--locked    { color: #b8bb26; font-style: italic; }
@@ -2733,7 +2738,7 @@ input[type="file"]::file-selector-button:hover {
   background: rgba(18, 18, 22, 0.88);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid transparent;
   border-radius: 100px;
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.4),
@@ -3382,7 +3387,7 @@ body:has(.capture-pill) {
   height: 22px;
   flex: 0 0 auto;
   border-radius: 50%;
-  border: 1.5px solid var(--chrome-border-strong, rgba(255, 255, 255, 0.15));
+  border: 1.5px solid var(--chrome-border-strong, transparent);
   color: var(--chrome-fg-dim, #665c54);
 }
 .dub-stepper__step.is-done .dub-stepper__icon {
@@ -3424,7 +3429,7 @@ body:has(.capture-pill) {
   justify-content: center;
   gap: 10px;
   cursor: pointer;
-  border: 2px dashed rgba(255, 255, 255, 0.06);
+  border: 2px dashed transparent;
   border-radius: 8px;
   transition: background 0.3s, border-color 0.3s;
   margin: 2px;
@@ -3455,7 +3460,7 @@ body:has(.capture-pill) {
   border-radius: 4px;
   font-size: 0.7rem;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid transparent;
   color: #665c54;
   cursor: default;
 }
@@ -3516,7 +3521,7 @@ body:has(.capture-pill) {
   padding: 1px 6px;
   border-radius: var(--radius-xs);
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
   color: var(--color-fg-subtle);
 }
 .dub-prep-chip.is-active {
@@ -3649,7 +3654,7 @@ body:has(.capture-pill) {
   aspect-ratio: 16 / 9;
   max-height: 60vh;
   background: #000; border-radius: 4px; overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.05); display: flex;
+  border: 1px solid transparent; display: flex;
 }
 .wfm-wave-wrap {
   overflow: hidden; flex: 1 1 auto; min-height: 80px; max-height: 160px;
@@ -3680,7 +3685,7 @@ body:has(.capture-pill) {
 .wfm-error {
   display: flex; align-items: center; justify-content: center;
   padding: 8px; background: rgba(0,0,0,0.15); border-radius: 4px;
-  border: 1px solid rgba(255,255,255,0.04); color: #a89984; font-size: 0.7rem;
+  border: 1px solid transparent; color: #a89984; font-size: 0.7rem;
 }
 
 /* NOTE: the ErrorBoundary (`errbnd-*`) styles that used to live here were
@@ -4900,4 +4905,17 @@ body:has(.capture-pill) {
   white-space: nowrap;
   pointer-events: none;
   max-width: 240px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   APP-WIDE BORDER / DIVIDER REMOVAL (owner-approved)
+   Zero every decorative border/hairline token. Kept LAST in source order so
+   it wins over the default `:root` and every `[data-theme]` override at equal
+   specificity. Focus indicators (--color-ring / --focus-ring) are deliberately
+   NOT zeroed — keyboard a11y focus rings stay.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root, [data-theme] {
+  --color-border: transparent; --color-border-strong: transparent; --color-border-warm: transparent;
+  --chrome-border: transparent; --chrome-border-strong: transparent; --chrome-accent-border: transparent;
+  --glass-border: transparent;
 }

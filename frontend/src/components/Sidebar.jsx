@@ -395,7 +395,7 @@ export default function Sidebar(props) {
                             <div className="flex items-center justify-between gap-2 min-w-0">
                               <span
                                 className="history-kind"
-                                style={{ color: accent, borderColor: `${accent}40` }}
+                                style={{ color: accent, background: `${accent}22` }}
                               >
                                 <KindIcon size={9} />{' '}
                                 {proj.is_locked
@@ -610,7 +610,7 @@ export default function Sidebar(props) {
                         <div className="flex items-center justify-between gap-2 min-w-0">
                           <span
                             className="history-kind"
-                            style={{ color: accent, borderColor: `${accent}40` }}
+                            style={{ color: accent, background: `${accent}22` }}
                           >
                             <KindIcon size={9} /> {item.mode || 'synth'}
                           </span>
@@ -768,7 +768,7 @@ export default function Sidebar(props) {
                         <div className="flex items-center justify-between gap-2 min-w-0">
                           <span
                             className="history-kind"
-                            style={{ color: accent, borderColor: `${accent}40` }}
+                            style={{ color: accent, background: `${accent}22` }}
                           >
                             <KindIcon size={9} /> {item.mode}
                           </span>

@@ -55,7 +55,7 @@ export default function Tabs({
           const Icon = item.icon;
           const tabClass = isPill
             ? [
-                'relative flex flex-none cursor-pointer items-center justify-center gap-[var(--space-3)] rounded-[var(--chrome-radius-pill)] border font-sans tracking-[0.01em] data-[state=active]:shadow-none',
+                'relative flex flex-none cursor-pointer items-center justify-center gap-[var(--space-3)] rounded-[var(--chrome-radius-pill)] border border-transparent font-sans tracking-[0.01em] data-[state=active]:shadow-none',
                 '[transition:background_var(--dur-fast)_var(--ease-out),color_var(--dur-fast)_var(--ease-out),border-color_var(--dur-fast)_var(--ease-out)]',
                 'focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none',
                 isSm

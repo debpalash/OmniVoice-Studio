@@ -37,8 +37,8 @@ const STATUS_TONE = {
 
 // Per-status card border accent (was .batch-queue__card--{status} in CSS).
 const CARD_BORDER = {
-  running: 'border-[rgba(211,134,155,0.4)]',
-  failed: 'border-[rgba(251,73,52,0.35)]',
+  running: 'border-transparent',
+  failed: 'border-transparent',
 };
 
 const STAGE_LABELS = {

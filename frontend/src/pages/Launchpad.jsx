@@ -369,7 +369,7 @@ export default function Launchpad({
                         <div className={`${projMeta} italic`}>{p.instruct}</div>
                       </div>
                       {p.is_locked && (
-                        <span className="[font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] [letter-spacing:var(--chrome-label-track)] py-[1px] px-[7px] rounded-[var(--chrome-radius-pill)] bg-[color-mix(in_srgb,#b8bb26_10%,transparent)] border border-solid border-[color-mix(in_srgb,#b8bb26_40%,transparent)] text-[#b8bb26] font-semibold">
+                        <span className="[font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] [letter-spacing:var(--chrome-label-track)] py-[1px] px-[7px] rounded-[var(--chrome-radius-pill)] bg-[color-mix(in_srgb,#b8bb26_10%,transparent)] border border-solid border-transparent text-[#b8bb26] font-semibold">
                           {t('launchpad.locked')}
                         </span>
                       )}

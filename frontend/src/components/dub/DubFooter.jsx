@@ -15,7 +15,7 @@ const TRACK_ON =
   'text-[var(--chrome-fg)] border-[var(--chrome-border-strong)] bg-[var(--chrome-hover-bg)]';
 const TRACK_OFF = 'text-[var(--chrome-fg-dim)]';
 const TRACK_ON_SUCCESS =
-  'text-[var(--chrome-severity-ok)] border-[color-mix(in_srgb,var(--chrome-severity-ok)_45%,transparent)] bg-[color-mix(in_srgb,var(--chrome-severity-ok)_10%,transparent)]';
+  'text-[var(--chrome-severity-ok)] border-transparent bg-[color-mix(in_srgb,var(--chrome-severity-ok)_10%,transparent)]';
 
 export default function DubFooter({
   t,
@@ -132,7 +132,7 @@ export default function DubFooter({
         const worst = hot.reduce((a, b) => (a.rate_ratio > b.rate_ratio ? a : b));
         return (
           <div
-            className="flex items-start gap-[8px] px-[10px] py-[6px] my-[4px] bg-[color-mix(in_srgb,#fabd2f_12%,transparent)] border border-[color-mix(in_srgb,#fabd2f_35%,transparent)] border-l-2 border-l-[#fabd2f] rounded-[var(--chrome-radius-pill)] text-[0.72rem] text-[var(--chrome-fg)] leading-[1.35]"
+            className="flex items-start gap-[8px] px-[10px] py-[6px] my-[4px] bg-[color-mix(in_srgb,#fabd2f_12%,transparent)] border border-transparent border-l-2 border-l-transparent rounded-[var(--chrome-radius-pill)] text-[0.72rem] text-[var(--chrome-fg)] leading-[1.35]"
             role="status"
           >
             <span className="text-[#fabd2f] text-[0.9rem] leading-none shrink-0">⚠</span>

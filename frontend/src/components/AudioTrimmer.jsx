@@ -767,14 +767,14 @@ export default function AudioTrimmer({ file, maxSeconds = 15, onConfirm, onCance
         {/* Ruler */}
         <canvas
           ref={rulerRef}
-          className="w-full h-[18px] bg-[#141414] rounded-md border-b border-solid border-b-[rgba(255,255,255,0.05)]"
+          className="w-full h-[18px] bg-[#141414] rounded-md border-b border-solid border-b-transparent"
         />
 
         {/* Waveform */}
         <canvas
           ref={waveRef}
           onMouseDown={onCanvasDown}
-          className="w-full h-[160px] bg-[#0f1112] rounded-lg border border-solid border-[rgba(255,255,255,0.05)] cursor-crosshair touch-none"
+          className="w-full h-[160px] bg-[#0f1112] rounded-lg border border-solid border-transparent cursor-crosshair touch-none"
         />
 
         {/* Numeric fields */}

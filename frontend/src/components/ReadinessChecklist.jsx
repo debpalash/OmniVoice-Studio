@@ -125,7 +125,7 @@ export default function ReadinessChecklist({ compact = false, showWhenAllPass = 
     const issues = checks.filter((c) => c.status !== 'pass');
     if (issues.length === 0) {
       return (
-        <div className="flex items-center gap-[var(--space-3)] py-[var(--space-3)] px-[var(--space-4)] bg-[rgba(142,192,124,0.08)] border border-solid border-[rgba(142,192,124,0.15)] rounded-md text-success font-medium [font-size:var(--text-sm)]">
+        <div className="flex items-center gap-[var(--space-3)] py-[var(--space-3)] px-[var(--space-4)] bg-[rgba(142,192,124,0.08)] border border-solid border-transparent rounded-md text-success font-medium [font-size:var(--text-sm)]">
           <CheckCircle size={14} />
           {t('readiness.all_ready')}
         </div>

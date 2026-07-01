@@ -87,7 +87,7 @@ export default function DemoPresetGrid({ presets, onUse }) {
         return (
           <div
             key={p.id}
-            className="flex flex-col gap-[6px] p-[12px] rounded-xl border border-border bg-[rgba(255,255,255,0.02)] [transition:border-color_120ms_ease,background_120ms_ease] hover:border-[rgba(243,165,182,0.35)] hover:bg-[rgba(255,255,255,0.04)]"
+            className="flex flex-col gap-[6px] p-[12px] rounded-xl border border-border bg-[rgba(255,255,255,0.02)] [transition:border-color_120ms_ease,background_120ms_ease] hover:border-transparent hover:bg-[rgba(255,255,255,0.04)]"
           >
             <div className="inline-flex items-center gap-[6px]">
               <span className="text-[16px] leading-none" aria-hidden>
@@ -102,7 +102,7 @@ export default function DemoPresetGrid({ presets, onUse }) {
             <div className="flex gap-[6px] mt-auto pt-[4px]">
               <button
                 type="button"
-                className="demo-preset-card__preview flex-1 inline-flex items-center justify-center gap-[4px] px-[8px] py-[5px] text-[11px] font-semibold rounded-lg border border-border bg-transparent text-fg cursor-pointer [transition:background_100ms_ease,border-color_100ms_ease] hover:bg-[rgba(255,255,255,0.05)] hover:border-[rgba(255,255,255,0.2)]"
+                className="demo-preset-card__preview flex-1 inline-flex items-center justify-center gap-[4px] px-[8px] py-[5px] text-[11px] font-semibold rounded-lg border border-border bg-transparent text-fg cursor-pointer [transition:background_100ms_ease,border-color_100ms_ease] hover:bg-[rgba(255,255,255,0.05)] hover:border-transparent"
                 onClick={() => handlePreview(p)}
                 aria-label={isPlaying ? `Pause ${p.name}` : `Preview ${p.name}`}
                 aria-pressed={isPlaying}
@@ -112,7 +112,7 @@ export default function DemoPresetGrid({ presets, onUse }) {
               </button>
               <button
                 type="button"
-                className="flex-1 inline-flex items-center justify-center gap-[4px] px-[8px] py-[5px] text-[11px] font-semibold rounded-lg border border-[rgba(243,165,182,0.3)] bg-[rgba(243,165,182,0.12)] text-fg cursor-pointer [transition:background_100ms_ease,border-color_100ms_ease] hover:border-[rgba(255,255,255,0.2)] hover:bg-[rgba(243,165,182,0.22)]"
+                className="flex-1 inline-flex items-center justify-center gap-[4px] px-[8px] py-[5px] text-[11px] font-semibold rounded-lg border border-transparent bg-[rgba(243,165,182,0.12)] text-fg cursor-pointer [transition:background_100ms_ease,border-color_100ms_ease] hover:border-transparent hover:bg-[rgba(243,165,182,0.22)]"
                 onClick={() => onUse(p)}
                 aria-label={`Use ${p.name} design`}
               >

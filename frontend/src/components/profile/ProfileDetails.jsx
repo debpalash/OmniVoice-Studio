@@ -90,7 +90,7 @@ export default function ProfileDetails({
           )}
         </Field>
         {profile.is_locked && !editing && (
-          <div className="mt-[var(--space-4)] flex flex-wrap items-center gap-[var(--space-4)] rounded-[var(--radius-md)] border border-[rgba(250,189,47,0.25)] bg-[rgba(250,189,47,0.06)] px-[var(--space-4)] py-[var(--space-3)]">
+          <div className="mt-[var(--space-4)] flex flex-wrap items-center gap-[var(--space-4)] rounded-[var(--radius-md)] border border-transparent bg-[rgba(250,189,47,0.06)] px-[var(--space-4)] py-[var(--space-3)]">
             <Badge tone="warn" dot>
               <Lock size={10} /> {t('voice_profile.locked')}
             </Badge>
@@ -115,7 +115,7 @@ export default function ProfileDetails({
         }
       >
         {profile.verified_own_voice ? (
-          <div className="mt-[var(--space-4)] flex flex-wrap items-center gap-[var(--space-4)] rounded-[var(--radius-md)] border border-[rgba(250,189,47,0.25)] bg-[rgba(250,189,47,0.06)] px-[var(--space-4)] py-[var(--space-3)]">
+          <div className="mt-[var(--space-4)] flex flex-wrap items-center gap-[var(--space-4)] rounded-[var(--radius-md)] border border-transparent bg-[rgba(250,189,47,0.06)] px-[var(--space-4)] py-[var(--space-3)]">
             <Badge tone="success" dot>
               <ShieldCheck size={10} /> {t('voice_profile.verified')}
             </Badge>

@@ -30,7 +30,7 @@ export default function CommunityZone({
   };
 
   const submitBtn =
-    'inline-flex items-center gap-[5px] px-[10px] py-[6px] border border-white/10 bg-white/[0.03] text-[var(--text-primary)] rounded-[8px] text-[0.7rem] cursor-pointer transition-colors hover:border-[color:var(--accent)] hover:text-[var(--accent)]';
+    'inline-flex items-center gap-[5px] px-[10px] py-[6px] border border-transparent bg-white/[0.03] text-[var(--text-primary)] rounded-[8px] text-[0.7rem] cursor-pointer transition-colors hover:border-[color:var(--accent)] hover:text-[var(--accent)]';
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">

@@ -80,7 +80,7 @@ export default function NetworkToggle() {
   return (
     <div className="relative inline-flex items-center flex-shrink-0">
       <button
-        className={`inline-flex items-center gap-[5px] py-[2px] px-[8px] h-[20px] rounded-sm font-medium text-[11px] [font-family:inherit] cursor-pointer [transition:all_0.1s] border border-solid disabled:opacity-50 disabled:cursor-not-allowed ${st.enabled ? 'bg-[rgba(184,187,38,0.12)] border-[rgba(184,187,38,0.4)] text-[#b8bb26] hover:bg-[rgba(184,187,38,0.18)]' : 'bg-transparent border-transparent text-[#a89984] hover:bg-[rgba(255,255,255,0.04)] hover:text-fg'}`}
+        className={`inline-flex items-center gap-[5px] py-[2px] px-[8px] h-[20px] rounded-sm font-medium text-[11px] [font-family:inherit] cursor-pointer [transition:all_0.1s] border border-solid disabled:opacity-50 disabled:cursor-not-allowed ${st.enabled ? 'bg-[rgba(184,187,38,0.12)] border-transparent text-[#b8bb26] hover:bg-[rgba(184,187,38,0.18)]' : 'bg-transparent border-transparent text-[#a89984] hover:bg-[rgba(255,255,255,0.04)] hover:text-fg'}`}
         onClick={st.enabled ? () => setOpen((o) => !o) : () => setConfirming((c) => !c)}
         disabled={busy}
         title={st.enabled ? t('network.sharing_on_title') : t('network.share_on_network')}
@@ -92,7 +92,7 @@ export default function NetworkToggle() {
       </button>
 
       {!st.enabled && confirming && (
-        <div className="absolute bottom-[calc(100%+8px)] right-0 z-[60] w-[248px] flex flex-col gap-[8px] p-[12px] bg-[var(--chrome-bg,#1d2021)] border border-solid border-[rgba(184,187,38,0.35)] rounded-[8px] shadow-[0_8px_24px_rgba(0,0,0,0.45)] text-fg">
+        <div className="absolute bottom-[calc(100%+8px)] right-0 z-[60] w-[248px] flex flex-col gap-[8px] p-[12px] bg-[var(--chrome-bg,#1d2021)] border border-solid border-transparent rounded-[8px] shadow-[0_8px_24px_rgba(0,0,0,0.45)] text-fg">
           <div className="text-[11px] font-semibold uppercase [letter-spacing:0.06em] text-[#b8bb26]">
             {t('network.share_confirm_title')}
           </div>
@@ -110,7 +110,7 @@ export default function NetworkToggle() {
             </button>
             <button
               type="button"
-              className="bg-[rgba(184,187,38,0.15)] border border-solid border-[rgba(184,187,38,0.4)] text-[#b8bb26] text-[11px] font-semibold [font-family:inherit] py-[5px] px-[12px] rounded-md cursor-pointer hover:bg-[rgba(184,187,38,0.25)] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-[rgba(184,187,38,0.15)] border border-solid border-transparent text-[#b8bb26] text-[11px] font-semibold [font-family:inherit] py-[5px] px-[12px] rounded-md cursor-pointer hover:bg-[rgba(184,187,38,0.25)] disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={enable}
               disabled={busy}
             >
@@ -121,7 +121,7 @@ export default function NetworkToggle() {
       )}
 
       {st.enabled && open && (
-        <div className="absolute bottom-[calc(100%+8px)] right-0 z-[60] w-[248px] flex flex-col gap-[8px] p-[12px] bg-[var(--chrome-bg,#1d2021)] border border-solid border-[rgba(184,187,38,0.35)] rounded-[8px] shadow-[0_8px_24px_rgba(0,0,0,0.45)] text-fg">
+        <div className="absolute bottom-[calc(100%+8px)] right-0 z-[60] w-[248px] flex flex-col gap-[8px] p-[12px] bg-[var(--chrome-bg,#1d2021)] border border-solid border-transparent rounded-[8px] shadow-[0_8px_24px_rgba(0,0,0,0.45)] text-fg">
           <div className="text-[11px] font-semibold uppercase [letter-spacing:0.06em] text-[#b8bb26]">
             {t('network.shared_title')}
           </div>
@@ -135,7 +135,7 @@ export default function NetworkToggle() {
             return (
               <div
                 key={ip}
-                className="flex flex-col items-center gap-[8px] p-[8px] rounded-lg bg-[rgba(255,255,255,0.03)] border border-solid border-[rgba(255,255,255,0.05)]"
+                className="flex flex-col items-center gap-[8px] p-[8px] rounded-lg bg-[rgba(255,255,255,0.03)] border border-solid border-transparent"
               >
                 <div className="flex items-center justify-between gap-[8px] w-full">
                   <code className="[font-family:var(--chrome-font-mono,var(--font-mono,monospace))] text-[11.5px] text-fg break-all">
@@ -182,7 +182,7 @@ export default function NetworkToggle() {
           </div>
           <button
             type="button"
-            className="bg-[rgba(251,73,52,0.12)] border border-solid border-[rgba(251,73,52,0.35)] text-danger text-[11px] font-semibold [font-family:inherit] py-[5px] px-[10px] rounded-md cursor-pointer [transition:all_0.1s] hover:bg-[rgba(251,73,52,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-[rgba(251,73,52,0.12)] border border-solid border-transparent text-danger text-[11px] font-semibold [font-family:inherit] py-[5px] px-[10px] rounded-md cursor-pointer [transition:all_0.1s] hover:bg-[rgba(251,73,52,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={disable}
             disabled={busy}
           >

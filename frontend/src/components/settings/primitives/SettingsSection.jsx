@@ -44,7 +44,7 @@ export default function SettingsSection({
       <header className="flex items-center gap-[var(--space-3)] mb-[var(--space-3)] pb-[var(--space-3)] border-b border-[var(--chrome-border)]">
         {Icon && (
           <span
-            className="shrink-0 inline-flex items-center justify-center w-[20px] h-[20px] rounded-[var(--chrome-radius-pill)] text-[color:var(--chrome-fg-muted)] bg-[color-mix(in_srgb,currentColor_12%,var(--chrome-bg))] border border-[color-mix(in_srgb,currentColor_26%,var(--chrome-border))]"
+            className="shrink-0 inline-flex items-center justify-center w-[20px] h-[20px] rounded-[var(--chrome-radius-pill)] text-[color:var(--chrome-fg-muted)] bg-[color-mix(in_srgb,currentColor_12%,var(--chrome-bg))] border border-transparent"
             style={accent ? { color: accent } : undefined}
             aria-hidden="true"
           >

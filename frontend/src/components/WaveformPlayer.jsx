@@ -276,7 +276,7 @@ export default function WaveformPlayer({
   if (missing) {
     return (
       <div
-        className={`flex items-center justify-center w-full min-w-0 box-border opacity-55 border border-solid border-[rgba(168,153,132,0.18)] bg-[rgba(168,153,132,0.08)] ${
+        className={`flex items-center justify-center w-full min-w-0 box-border opacity-55 border border-solid border-transparent bg-[rgba(168,153,132,0.08)] ${
           compact
             ? 'gap-[8px] py-[4px] px-[8px] rounded-[8px]'
             : 'gap-[10px] py-[6px] px-[10px] rounded-[10px]'
@@ -328,7 +328,7 @@ export default function WaveformPlayer({
 
   return (
     <div
-      className={`flex items-center w-full min-w-0 box-border border border-solid border-[rgba(168,153,132,0.18)] bg-[rgba(168,153,132,0.08)] ${
+      className={`flex items-center w-full min-w-0 box-border border border-solid border-transparent bg-[rgba(168,153,132,0.08)] ${
         compact
           ? 'gap-[8px] py-[4px] px-[8px] rounded-[8px]'
           : 'gap-[10px] py-[6px] px-[10px] rounded-[10px]'

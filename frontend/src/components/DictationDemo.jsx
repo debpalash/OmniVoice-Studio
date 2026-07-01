@@ -192,7 +192,7 @@ export default function DictationDemo({ embedded = false }) {
       case 'verified':
         return (
           <span
-            className={`${STATUS_BASE} border-[rgba(152,151,26,0.35)] bg-[rgba(152,151,26,0.12)] text-[#b8bb26]`}
+            className={`${STATUS_BASE} border-transparent bg-[rgba(152,151,26,0.12)] text-[#b8bb26]`}
           >
             <CheckCircle2 size={12} /> {t('demo.dictation_status_ok')}
           </span>
@@ -200,7 +200,7 @@ export default function DictationDemo({ embedded = false }) {
       case 'registered':
         return (
           <span
-            className={`${STATUS_BASE} border-[rgba(215,153,33,0.30)] bg-[rgba(215,153,33,0.10)] text-[#fabd2f]`}
+            className={`${STATUS_BASE} border-transparent bg-[rgba(215,153,33,0.10)] text-[#fabd2f]`}
           >
             <Keyboard size={12} /> {t('demo.dictation_status_pending')}{' '}
             <code className="font-mono text-[10px] px-[4px] py-[1px] bg-[rgba(0,0,0,0.3)] rounded-[3px]">
@@ -211,7 +211,7 @@ export default function DictationDemo({ embedded = false }) {
       default:
         return (
           <span
-            className={`${STATUS_BASE} border-[rgba(204,36,29,0.30)] bg-[rgba(204,36,29,0.10)] text-[#fb4934]`}
+            className={`${STATUS_BASE} border-transparent bg-[rgba(204,36,29,0.10)] text-[#fb4934]`}
           >
             <AlertTriangle size={12} /> {t('demo.dictation_status_warn')}
           </span>
@@ -270,7 +270,7 @@ export default function DictationDemo({ embedded = false }) {
                     {t(s.labelKey)}
                   </span>
                 </div>
-                <blockquote className="m-0 px-[8px] py-[6px] text-[11.5px] leading-[1.45] border-l-2 border-l-[rgba(243,165,182,0.4)] bg-[rgba(255,255,255,0.02)] text-fg italic">
+                <blockquote className="m-0 px-[8px] py-[6px] text-[11.5px] leading-[1.45] border-l-2 border-l-transparent bg-[rgba(255,255,255,0.02)] text-fg italic">
                   {s.text}
                 </blockquote>
                 <div className="flex gap-[6px] mt-[2px]">
@@ -301,12 +301,12 @@ export default function DictationDemo({ embedded = false }) {
                   </Button>
                 </div>
                 {tx.state === 'ok' && (
-                  <div className="flex items-start gap-[6px] text-[11px] px-[8px] py-[6px] rounded-lg leading-[1.4] text-[#b8bb26] bg-[rgba(152,151,26,0.08)] border border-[rgba(152,151,26,0.25)]">
+                  <div className="flex items-start gap-[6px] text-[11px] px-[8px] py-[6px] rounded-lg leading-[1.4] text-[#b8bb26] bg-[rgba(152,151,26,0.08)] border border-transparent">
                     <CheckCircle2 size={11} /> <em className="not-italic">{tx.text}</em>
                   </div>
                 )}
                 {tx.state === 'fail' && (
-                  <div className="flex items-start gap-[6px] text-[11px] px-[8px] py-[6px] rounded-lg leading-[1.4] text-[#fb4934] bg-[rgba(204,36,29,0.08)] border border-[rgba(204,36,29,0.25)]">
+                  <div className="flex items-start gap-[6px] text-[11px] px-[8px] py-[6px] rounded-lg leading-[1.4] text-[#fb4934] bg-[rgba(204,36,29,0.08)] border border-transparent">
                     <AlertTriangle size={11} /> {tx.error}
                   </div>
                 )}

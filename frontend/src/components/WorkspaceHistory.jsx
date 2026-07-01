@@ -166,7 +166,7 @@ export default function WorkspaceHistory({
               type="button"
               className={`flex-[0_0_auto] py-[2px] px-[10px] text-[0.68rem] font-medium border border-solid rounded-[var(--chrome-radius-pill,999px)] cursor-pointer [transition:background_0.15s_ease,color_0.15s_ease,border-color_0.15s_ease] ${
                 filter === f.id
-                  ? 'text-[color:var(--color-brand,#d3869b)] bg-[color-mix(in_srgb,var(--color-brand,#d3869b)_12%,transparent)] border-[color-mix(in_srgb,var(--color-brand,#d3869b)_35%,transparent)]'
+                  ? 'text-[color:var(--color-brand,#d3869b)] bg-[color-mix(in_srgb,var(--color-brand,#d3869b)_12%,transparent)] border-transparent'
                   : 'bg-transparent text-[color:var(--chrome-fg-muted)] border-[var(--chrome-border-strong)] hover:bg-[var(--chrome-hover-bg)] hover:text-[color:var(--chrome-fg)]'
               }`}
               onClick={() => setFilter(f.id)}
@@ -193,7 +193,7 @@ export default function WorkspaceHistory({
                 <div className="flex items-center justify-between gap-2 min-w-0">
                   <span
                     className="history-kind"
-                    style={{ color: accent, borderColor: `${accent}40` }}
+                    style={{ color: accent, background: `${accent}22` }}
                   >
                     <KindIcon size={9} /> {item.mode || 'synth'}
                   </span>

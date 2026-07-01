@@ -42,7 +42,7 @@ export default function HfTokenCard({ className = '' }) {
     return (
       <div
         className={cn(
-          'flex flex-wrap items-center gap-2 rounded-md border border-success/45 bg-success/[0.09] px-3 py-2 text-sm',
+          'flex flex-wrap items-center gap-2 rounded-md border border-transparent bg-success/[0.09] px-3 py-2 text-sm',
           className,
         )}
       >
@@ -57,7 +57,7 @@ export default function HfTokenCard({ className = '' }) {
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center gap-2 rounded-md border border-primary/30 bg-primary/[0.07] px-3 py-2 text-sm',
+        'flex flex-wrap items-center gap-2 rounded-md border border-transparent bg-primary/[0.07] px-3 py-2 text-sm',
         className,
       )}
     >

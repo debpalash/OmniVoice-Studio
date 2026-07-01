@@ -44,20 +44,20 @@ const buttonVariants = cva(
         primary:
           'border border-transparent bg-primary text-primary-foreground font-semibold shadow-xs hover:bg-primary/90 active:scale-[0.98]',
         subtle:
-          'border border-border bg-transparent text-muted-foreground hover:bg-white/[0.04] hover:text-foreground hover:border-white/15',
+          'border border-border bg-transparent text-muted-foreground hover:bg-white/[0.04] hover:text-foreground hover:border-transparent',
         softGhost:
           'border border-transparent bg-transparent text-muted-foreground hover:bg-white/[0.04] hover:text-foreground',
         danger:
-          'text-destructive bg-destructive/10 border border-destructive/45 hover:bg-destructive/20 hover:border-destructive',
-        chip: 'border border-border bg-transparent text-muted-foreground hover:bg-white/[0.04] hover:text-foreground hover:border-white/15',
-        chipActive: 'text-success bg-success/10 border border-success/45',
+          'text-destructive bg-destructive/10 border border-transparent hover:bg-destructive/20 hover:border-transparent',
+        chip: 'border border-border bg-transparent text-muted-foreground hover:bg-white/[0.04] hover:text-foreground hover:border-transparent',
+        chipActive: 'text-success bg-success/10 border border-transparent',
         preset:
-          'justify-start text-left border border-border bg-transparent text-muted-foreground hover:bg-white/[0.04] hover:text-foreground hover:border-white/15',
+          'justify-start text-left border border-border bg-transparent text-muted-foreground hover:bg-white/[0.04] hover:text-foreground hover:border-transparent',
         presetActive:
-          'justify-start text-left text-primary bg-primary/[0.12] border border-primary/30',
+          'justify-start text-left text-primary bg-primary/[0.12] border border-transparent',
         iconBtn:
-          'border border-border bg-transparent text-muted-foreground hover:bg-white/[0.04] hover:text-foreground hover:border-white/15',
-        iconBtnActive: 'text-primary bg-primary/[0.12] border border-primary/30',
+          'border border-border bg-transparent text-muted-foreground hover:bg-white/[0.04] hover:text-foreground hover:border-transparent',
+        iconBtnActive: 'text-primary bg-primary/[0.12] border border-transparent',
       },
       size: {
         // ── stock shadcn ──

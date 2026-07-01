@@ -186,7 +186,7 @@ export default function DubbingDemo({ onDismiss }) {
           <button
             key={d.code}
             type="button"
-            className={`text-[11px] px-[10px] py-[3px] rounded-[999px] border border-border bg-transparent text-fg-muted cursor-pointer [transition:background_100ms_ease,border-color_100ms_ease,color_100ms_ease] hover:bg-[rgba(255,255,255,0.04)] hover:text-fg ${pickedCode === d.code ? 'bg-[rgba(243,165,182,0.18)] border-[rgba(243,165,182,0.45)] text-[#fff9ef]' : ''}`}
+            className={`text-[11px] px-[10px] py-[3px] rounded-[999px] border border-border bg-transparent text-fg-muted cursor-pointer [transition:background_100ms_ease,border-color_100ms_ease,color_100ms_ease] hover:bg-[rgba(255,255,255,0.04)] hover:text-fg ${pickedCode === d.code ? 'bg-[rgba(243,165,182,0.18)] border-transparent text-[#fff9ef]' : ''}`}
             onClick={() => setPickedCode(d.code)}
           >
             {d.label}
@@ -197,7 +197,7 @@ export default function DubbingDemo({ onDismiss }) {
       {onDismiss && (
         <button
           type="button"
-          className="self-end inline-flex items-center gap-[6px] px-[12px] py-[6px] text-[11px] font-semibold rounded-lg border border-[rgba(243,165,182,0.4)] bg-[rgba(243,165,182,0.12)] text-fg cursor-pointer hover:bg-[rgba(243,165,182,0.22)]"
+          className="self-end inline-flex items-center gap-[6px] px-[12px] py-[6px] text-[11px] font-semibold rounded-lg border border-transparent bg-[rgba(243,165,182,0.12)] text-fg cursor-pointer hover:bg-[rgba(243,165,182,0.22)]"
           onClick={onDismiss}
         >
           <Play size={12} /> {t('demo.dubbing_cta')}
