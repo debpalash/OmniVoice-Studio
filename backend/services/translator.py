@@ -137,6 +137,16 @@ def _llm_timeout() -> float:
         return 45.0
 
 
+def _cinematic_budget() -> float:
+    """Overall wall-clock cap for a whole cinematic/autofit refine pass (seconds).
+    Unfinished segments degrade to their literal (Fast) translation once hit, so
+    a slow provider can't hang the translate. Default 180s; <=0 disables."""
+    try:
+        return float(os.environ.get("OMNIVOICE_CINEMATIC_BUDGET_S", "180"))
+    except ValueError:
+        return 180.0
+
+
 def _glossary_text(glossary: Iterable[dict] | None) -> str:
     """Format the project glossary as a preamble for the LLM prompts.
 
@@ -332,4 +342,35 @@ async def cinematic_refine_many(
             )
         return {"id": seg_id, **res}
 
-    return await asyncio.gather(*(_one(sid, src, lit) for sid, src, lit in pairs))
+    # Overall wall-clock budget for the whole pass. Per-call timeout + bounded
+    # concurrency already cap it, but a slow/rate-limited provider on a large dub
+    # can still stall the "Translating…" spinner for minutes. Bound it: segments
+    # that finish in time keep their cinematic refine; any still-running segment
+    # degrades to its literal (Fast) translation so the translate ALWAYS returns
+    # within the budget instead of hanging. 0/negative disables the bound.
+    budget = _cinematic_budget()
+    tasks = [asyncio.ensure_future(_one(sid, src, lit)) for sid, src, lit in pairs]
+    if budget <= 0:
+        return await asyncio.gather(*tasks)
+
+    done, pending = await asyncio.wait(tasks, timeout=budget)
+    if pending:
+        logger.warning(
+            "Cinematic pass hit its %.0fs budget with %d/%d segment(s) unfinished "
+            "— falling back to the literal translation for those (slow LLM "
+            "provider?). Raise OMNIVOICE_CINEMATIC_BUDGET_S or pick a faster "
+            "provider.", budget, len(pending), len(tasks),
+        )
+    out: list[dict] = []
+    for task, (sid, _src, lit) in zip(tasks, pairs):
+        if task in done and not task.cancelled():
+            try:
+                out.append(task.result())
+                continue
+            except Exception as e:  # noqa: BLE001 — never let one seg sink the pass
+                logger.warning("cinematic segment %s failed: %s", sid, e)
+        else:
+            task.cancel()  # stop awaiting; the executor thread is abandoned (#730 pattern)
+        out.append({"id": sid, "text": lit, "literal": lit, "critique": "",
+                    "error": "cinematic-budget"})
+    return out

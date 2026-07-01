@@ -113,3 +113,58 @@ def test_cinematic_reflect_failure_returns_literal(monkeypatch):
     assert res["text"] == "Hola"
     assert res["literal"] == "Hola"
     assert "reflect" in res.get("error", "")
+
+
+# ── Cinematic pass wall-clock budget (#stall follow-up) ────────────────────
+
+def test_cinematic_budget_degrades_slow_segments_to_literal(monkeypatch):
+    """A slow LLM must not hang the translate: the pass returns within the
+    budget and unfinished segments fall back to their literal translation."""
+    import asyncio
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+
+    monkeypatch.setenv("OMNIVOICE_CINEMATIC_BUDGET_S", "0.3")
+
+    def _slow(src, lit, **kw):
+        time.sleep(3.0)  # far over the 0.3s budget
+        return {"text": "REFINED", "literal": lit, "critique": ""}
+
+    monkeypatch.setattr(tr, "cinematic_refine_sync", _slow)
+    pairs = [("s1", "hi", "hola"), ("s2", "world", "mundo")]
+
+    async def _run():
+        ex = ThreadPoolExecutor(max_workers=4)
+        t0 = time.time()
+        out = await tr.cinematic_refine_many(
+            pairs, source_lang="en", target_lang="es", executor=ex,
+        )
+        return time.time() - t0, out
+
+    dt, out = asyncio.run(_run())
+    assert dt < 2.0, f"budget did not bound the pass (took {dt:.1f}s)"
+    assert [r["id"] for r in out] == ["s1", "s2"]      # order + length preserved
+    for r in out:
+        assert r["text"] == r["literal"]                # degraded to literal
+        assert r.get("error") == "cinematic-budget"
+
+
+def test_cinematic_budget_disabled_runs_to_completion(monkeypatch):
+    """Budget <= 0 disables the bound — every segment gets its refine."""
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+
+    monkeypatch.setenv("OMNIVOICE_CINEMATIC_BUDGET_S", "0")
+    monkeypatch.setattr(
+        tr, "cinematic_refine_sync",
+        lambda src, lit, **kw: {"text": f"R:{lit}", "literal": lit, "critique": ""},
+    )
+
+    async def _run():
+        return await tr.cinematic_refine_many(
+            [("s1", "hi", "hola")], source_lang="en", target_lang="es",
+            executor=ThreadPoolExecutor(max_workers=2),
+        )
+
+    out = asyncio.run(_run())
+    assert out[0]["text"] == "R:hola" and "error" not in out[0]
