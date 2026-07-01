@@ -6,24 +6,23 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
-## [Unreleased]
+## [0.3.8] — 2026-07-01
 
-### Changed
-
-- **Settings is now a sidebar-nav hub instead of an 11-tab strip.** The whole
-  page was rebuilt from scratch as a grouped left-rail navigator (with a
-  search/filter box) plus a scrollable content pane — the macOS System Settings /
-  VS Code layout. Settings are organized into four groups and sixteen
-  categories: **General** (Appearance · General), **Voice & Engines** (Engines ·
-  Models · Dictation · Pronunciation · Translation), **System** (Performance &
-  Device · Storage · Network · Sharing & Remote · Credentials), and **App**
-  (Updates · Privacy & Reporting · Logs · About). Every existing control keeps
-  its behavior and store/API bindings — this is a reorganization, not a rewrite.
-  Typing in the search box filters the category list and jumps to the first
-  match, and the rail collapses to a dropdown navigator below 760px so the full
-  IA stays reachable on a narrow window. Categories whose changes need a backend
-  restart (Models, Performance & Device, Sharing & Remote) carry a "restart
-  required" badge.
+A stability-focused release that makes first-run and Windows "just work," ships
+**live, faster-than-real-time local dictation** and a **user pronunciation
+dictionary**, and gives **Settings a full redesign**. It clears the wave of
+**"Can't reach the local backend"** reports at the source — the 8 GB-card OOM
+crash, the slow-load future-scheduling break, a Windows-only WhisperX load
+failure, an ASR engine that couldn't load CTranslate2 on newer Linux/WSL, and
+both transcription **and generation** stalls that *looked* like a dead backend
+(a wedged GPU job now resets the worker pool and returns an actionable timeout)
+are all fixed or now fail with a clear, actionable message. **macOS gets native file drag-and-drop back**
+(including macOS 26 Tahoe). Downloads are faster out of the box (parallel
+segmented transfer on by default) and the Hugging Face token that speeds them up
+is front-and-center on setup. Plus multi-voice story casting, faster long-form
+previews on Windows, and a friendlier, more honest batch of error messages
+across dub, generate, and design (a corrupt-binary failure no longer poses as
+"out of memory," a bad model id self-heals, and a stale dub job resets cleanly).
 
 ### Added
 
@@ -47,50 +46,6 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   escape hatch, and a docs link. The install command is single-sourced in the
   backend registry, so the button and the 400 error can never disagree. New guide:
   `docs/dubbing/translation-engines.md`.
-
-### Fixed
-
-- **A hung TTS generate can no longer brick the backend ("Can't reach the local
-  backend").** A GPU job that wedges on some Windows + CUDA setups occupies its
-  worker forever — Python can't cancel the thread — so on the 1–2 worker pools we
-  ship, one stuck job starved every other request and the next action surfaced as
-  the misleading "Can't reach the local backend" even though the process was
-  alive. ASR/dub/model-load already bounded and reset the pool on hang (#730); but
-  **every generate path** — Studio synthesis, the streaming path, batch, the dub
-  per-segment + preview render, archetype previews, and the OpenAI-compatible
-  `/v1/audio/speech` API — was still an unguarded GPU dispatch, and the residual
-  reports all failed on `generate:start (audio)`. Every one is now bounded by the
-  same wall-clock guard
-  (`OMNIVOICE_GENERATE_TIMEOUT_S`, default 300s) that abandons the wedged worker
-  and rebuilds the pool, so capacity is restored automatically and you get an
-  actionable timeout instead of a dead backend. Closes the whole class of
-  GPU-job-hang reports (#850, #802, #755, #723, #721, and the 0.3.7 cohort).
-
-- **The "TRANSLATION FAILED" banner now dismisses and clears itself.** The Dub
-  translation-error banner used to be sticky — it survived a successful re-try and
-  never went away. It now has a close (×), auto-clears on the next corrective
-  action (re-translating, changing the engine, or installing the package), and
-  self-clears after a short timeout — fixing the whole class of translate/pipeline
-  banners that outlived the state that caused them.
-
-## [0.3.8] — 2026-06-29
-
-A stability-focused release that makes first-run and Windows "just work," ships
-**live, faster-than-real-time local dictation** and a **user pronunciation
-dictionary**, and gives **Settings a full redesign**. It clears the wave of
-**"Can't reach the local backend"** reports at the source — the 8 GB-card OOM
-crash, the slow-load future-scheduling break, a Windows-only WhisperX load
-failure, an ASR engine that couldn't load CTranslate2 on newer Linux/WSL, and
-transcription stalls that *looked* like a dead backend are all fixed or now fail
-with a clear, actionable message. **macOS gets native file drag-and-drop back**
-(including macOS 26 Tahoe). Downloads are faster out of the box (parallel
-segmented transfer on by default) and the Hugging Face token that speeds them up
-is front-and-center on setup. Plus multi-voice story casting, faster long-form
-previews on Windows, and a friendlier, more honest batch of error messages
-across dub, generate, and design (a corrupt-binary failure no longer poses as
-"out of memory," a bad model id self-heals, and a stale dub job resets cleanly).
-
-### Added
 
 - **A user pronunciation dictionary that actually changes the audio.** Settings →
   General → Pronunciation lets you teach the engine how to say tricky words —
@@ -152,6 +107,21 @@ across dub, generate, and design (a corrupt-binary failure no longer poses as
 
 ### Changed
 
+- **Settings is now a sidebar-nav hub instead of an 11-tab strip.** The whole
+  page was rebuilt from scratch as a grouped left-rail navigator (with a
+  search/filter box) plus a scrollable content pane — the macOS System Settings /
+  VS Code layout. Settings are organized into four groups and sixteen
+  categories: **General** (Appearance · General), **Voice & Engines** (Engines ·
+  Models · Dictation · Pronunciation · Translation), **System** (Performance &
+  Device · Storage · Network · Sharing & Remote · Credentials), and **App**
+  (Updates · Privacy & Reporting · Logs · About). Every existing control keeps
+  its behavior and store/API bindings — this is a reorganization, not a rewrite.
+  Typing in the search box filters the category list and jumps to the first
+  match, and the rail collapses to a dropdown navigator below 760px so the full
+  IA stays reachable on a narrow window. Categories whose changes need a backend
+  restart (Models, Performance & Device, Sharing & Remote) carry a "restart
+  required" badge.
+
 - **The Settings pages got a full redesign — cleaner, denser, responsive.** A
   shared design system replaces the old patchwork: a left icon nav-rail,
   sentence-case section titles (no more debug-log uppercase), exactly one muted
@@ -190,6 +160,29 @@ across dub, generate, and design (a corrupt-binary failure no longer poses as
   more reliable downloads (higher rate limits, fewer stalls) — with a one-click
   "get a free token" link. (#657, #669)
 ### Fixed
+
+- **A hung TTS generate can no longer brick the backend ("Can't reach the local
+  backend").** A GPU job that wedges on some Windows + CUDA setups occupies its
+  worker forever — Python can't cancel the thread — so on the 1–2 worker pools we
+  ship, one stuck job starved every other request and the next action surfaced as
+  the misleading "Can't reach the local backend" even though the process was
+  alive. ASR/dub/model-load already bounded and reset the pool on hang (#730); but
+  **every generate path** — Studio synthesis, the streaming path, batch, the dub
+  per-segment + preview render, archetype previews, and the OpenAI-compatible
+  `/v1/audio/speech` API — was still an unguarded GPU dispatch, and the residual
+  reports all failed on `generate:start (audio)`. Every one is now bounded by the
+  same wall-clock guard (`OMNIVOICE_GENERATE_TIMEOUT_S`, default 300s) that
+  abandons the wedged worker and rebuilds the pool, so capacity is restored
+  automatically and you get an actionable timeout instead of a dead backend.
+  Closes the whole class of GPU-job-hang reports (#851 — #850, #802, #755, #723,
+  #721, and the 0.3.7 cohort, all tracked in #730).
+
+- **The "TRANSLATION FAILED" banner now dismisses and clears itself.** The Dub
+  translation-error banner used to be sticky — it survived a successful re-try and
+  never went away. It now has a close (×), auto-clears on the next corrective
+  action (re-translating, changing the engine, or installing the package), and
+  self-clears after a short timeout — fixing the whole class of translate/pipeline
+  banners that outlived the state that caused them.
 
 - **Dubbing a video URL no longer fails with "ffmpeg is not installed."** yt-dlp
   downloads video and audio as separate streams and muxes them with ffmpeg, but
