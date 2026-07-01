@@ -261,7 +261,22 @@ export default function IdleSkeleton({
               onAbort={handleDubAbort}
               large
             />
-          ) : (
+          ) : dubStep === 'transcribing' ? (
+            // URL-ingest / restored jobs have no local `dubVideoFile`, so the
+            // waveform-overlay branch above never runs for them. Without this
+            // case the no-file path fell straight through to the idle dropzone
+            // while the pipeline was actively transcribing: the stepper showed
+            // Transcribe (active) but the main pane still showed the "Drop
+            // video here" dropzone. Render the transcribe progress here too so
+            // the main view always reflects the pipeline stage, on every path.
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0">
+              <TranscribeOverlay
+                elapsed={transcribeElapsed}
+                duration={dubDuration}
+                onAbort={handleDubAbort}
+              />
+            </div>
+          ) : dubStep === 'idle' ? (
             <>
               {!demoDismissed && <DubbingDemo onDismiss={dismissDubDemo} />}
               <label
@@ -429,6 +444,13 @@ export default function IdleSkeleton({
                 </div>
               )}
             </>
+          ) : (
+            // Any other active pipeline step reaching the no-file path (e.g.
+            // `stopping` after a URL-ingested generation) must never fall back
+            // to the idle dropzone — keep a neutral working indicator instead.
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0">
+              <Loader className="spinner" size={24} color="#d3869b" />
+            </div>
           )}
 
           <input
