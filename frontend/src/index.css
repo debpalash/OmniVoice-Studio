@@ -288,6 +288,13 @@
    / Inter are no longer referenced by any rule. */
 
 :root {
+  /* Default theme is Gruvbox Dark (--bg #1d2021 / --chrome-bg #0f1011).
+     Declaring `color-scheme: dark` (NOT the same as the prefers-color-scheme
+     media query below) makes UA-rendered form chrome — native <select> option
+     popups, scrollbars, autofill, spin-buttons — render in the dark scheme so
+     they match the app instead of defaulting to the OS light scheme. Every
+     [data-theme] block re-asserts the scheme matching its own bg lightness. */
+  color-scheme: dark;
   --primary: #d3869b;
   --primary-hover: #b16286;
   --accent: #fabd2f;
@@ -322,6 +329,13 @@
   --chrome-severity-ok:   #8ec07c;
   --chrome-radius-pill:   3px;
   --chrome-hover-bg:      rgba(255, 255, 255, 0.04);
+  /* Native <select> caret. One token consumed by both select.input-base and
+     .ui-select so the chevron color lives in a single place and is overridden
+     per [data-theme] to track that theme's muted foreground (was a hardcoded
+     gray %23a1a1aa that ignored theme + accent). Stroke color = --chrome-fg-muted
+     baked into the data-URI (a background-image SVG can't read a CSS var, so the
+     color is inlined; each theme block re-declares this with its own fg-muted). */
+  --select-caret: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%226%22%3E%3Cpath%20d%3D%22M1%201l4%204%204-4%22%20fill%3D%22none%22%20stroke%3D%22%23a89984%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
   /* Chrome-label face is IBM Plex Mono now — defined in the @theme block as
      --font-mono. Keep this alias so existing `var(--chrome-font-mono)` rules
      don't need to change; it just picks up the new face automatically. */
@@ -387,6 +401,10 @@
   --chrome-fg-muted:     #94a3b8;
   --chrome-fg-dim:       #475569;
   --chrome-border:       #334155;
+
+  /* Midnight Blue — bg #0f172a is dark. */
+  color-scheme: dark;
+  --select-caret: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%226%22%3E%3Cpath%20d%3D%22M1%201l4%204%204-4%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
 }
 
 /* ── Nord ──────────────────────────────────────────────────────────── */
@@ -420,6 +438,10 @@
   --chrome-fg-muted:     #d8dee9;
   --chrome-fg-dim:       #4c566a;
   --chrome-border:       #434c5e;
+
+  /* Nord — bg #2e3440 is dark. */
+  color-scheme: dark;
+  --select-caret: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%226%22%3E%3Cpath%20d%3D%22M1%201l4%204%204-4%22%20fill%3D%22none%22%20stroke%3D%22%23d8dee9%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
 }
 
 /* ── Solarized Dark ────────────────────────────────────────────────── */
@@ -455,6 +477,10 @@
   --chrome-fg-muted:     #899da4;
   --chrome-fg-dim:       #586e75;
   --chrome-border:       #073642;
+
+  /* Solarized Dark — bg #002b36 is dark. */
+  color-scheme: dark;
+  --select-caret: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%226%22%3E%3Cpath%20d%3D%22M1%201l4%204%204-4%22%20fill%3D%22none%22%20stroke%3D%22%23899da4%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
 }
 
 /* ── Rose Pine ─────────────────────────────────────────────────────── */
@@ -488,6 +514,10 @@
   --chrome-fg-muted:     #908caa;
   --chrome-fg-dim:       #6e6a86;
   --chrome-border:       #26233a;
+
+  /* Rose Pine — bg #191724 is dark. */
+  color-scheme: dark;
+  --select-caret: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%226%22%3E%3Cpath%20d%3D%22M1%201l4%204%204-4%22%20fill%3D%22none%22%20stroke%3D%22%23908caa%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
 }
 
 /* ── Catppuccin Mocha ──────────────────────────────────────────────── */
@@ -521,6 +551,10 @@
   --chrome-fg-muted:     #a6adc8;
   --chrome-fg-dim:       #585b70;
   --chrome-border:       #45475a;
+
+  /* Catppuccin Mocha — bg #1e1e2e is dark. */
+  color-scheme: dark;
+  --select-caret: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%226%22%3E%3Cpath%20d%3D%22M1%201l4%204%204-4%22%20fill%3D%22none%22%20stroke%3D%22%23a6adc8%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
 }
 
 /* ── System-preference sync ────────────────────────────────────────── */
@@ -529,7 +563,12 @@
    community contributions. */
 @media (prefers-color-scheme: light) {
   [data-theme="auto"] {
-    /* Future light theme tokens go here */
+    /* Future light theme tokens go here. NOTE: no light theme ships yet, so
+       "auto" still renders the dark default tokens even on a light-mode OS —
+       which is why `color-scheme` is intentionally left at the :root `dark`
+       here (a `light` value would make native form chrome mismatch the still
+       -dark surface). When a real light theme lands, set `color-scheme: light`
+       and its own --select-caret in this block. */
   }
 }
 
@@ -898,15 +937,24 @@ textarea.input-base { min-height: 60px; resize: vertical; line-height: 1.5; }
 
 select.input-base {
   appearance: none;
-  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23a1a1aa%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  /* Caret color tracks the theme via --select-caret (see :root / [data-theme]). */
+  background-image: var(--select-caret);
   background-repeat: no-repeat;
-  background-position: right 6px top 50%;
-  background-size: 0.4rem auto;
-  padding-right: 18px;
+  background-position: right 7px top 50%;
+  background-size: 0.5rem auto;
+  padding-right: 20px;
   cursor: pointer;
 }
 select.input-base:hover {
   border-color: transparent;
+}
+/* Native option popup: paint from theme tokens so engines that honor <option>
+   styling (Chromium on Windows/Linux) match the app; on macOS WebKit the popup
+   is UA-drawn and instead follows `color-scheme` (set per theme above). */
+select.input-base option,
+select.input-base optgroup {
+  background-color: var(--color-bg-elev-1);
+  color: var(--chrome-fg);
 }
 
 /* ═══ CHECKBOX STYLING ═══ */
@@ -1183,6 +1231,16 @@ button:focus:not(:focus-visible),
 a:focus:not(:focus-visible),
 input:focus:not(:focus-visible),
 select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
+/* Selects take the themed accent ring (--color-ring → --color-brand), matching
+   the buttons/checkboxes tokenized last phase, instead of the non-theme
+   -tracking --chrome-accent the base :focus-visible rule uses. */
+select:focus-visible,
+select.input-base:focus-visible,
+.ui-select:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-ring) 70%, transparent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-ring) 16%, transparent);
+}
 
 /* 10x P4 (spec §3 a11y gate): one consistent, fully-opaque ring on the
    studio's 10x controls — shared rule, not per-component restyles. */
@@ -2055,14 +2113,21 @@ input[type="file"]::file-selector-button:hover {
 .ui-select {
   appearance: none;
   padding-right: 20px;
-  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23a1a1aa%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  /* Caret color tracks the theme via --select-caret (see :root / [data-theme]). */
+  background-image: var(--select-caret);
   background-repeat: no-repeat;
   background-position: right 7px center;
-  background-size: 0.42rem auto;
+  background-size: 0.5rem auto;
   cursor: pointer;
 }
 .ui-select:hover {
   border-color: var(--color-border-strong);
+}
+/* Native option popup: theme-token colors (see select.input-base option note). */
+.ui-select option,
+.ui-select optgroup {
+  background-color: var(--color-bg-elev-1);
+  color: var(--chrome-fg);
 }
 
 /* from Panel (ui/Panel.css) — glass surface only */
