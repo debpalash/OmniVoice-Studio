@@ -23,7 +23,7 @@ const toggleVariants = cva(
         outline:
           'border border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground',
         // ── OmniVoice segmented option ──
-        seg: 'font-extrabold border-0 cursor-pointer rounded-[var(--radius-pill)] bg-transparent text-fg-subtle transition-[background,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] data-[state=off]:hover:text-fg data-[state=off]:hover:bg-white/[0.04] data-[state=on]:bg-primary/25 data-[state=on]:text-[#fff9ef]',
+        seg: 'font-extrabold border-0 cursor-pointer rounded-[var(--radius-pill)] bg-transparent text-fg-subtle transition-[background,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] data-[state=off]:hover:text-fg data-[state=off]:hover:bg-[var(--chrome-hover-bg)] data-[state=on]:bg-primary/25 data-[state=on]:text-fg',
       },
       size: {
         default: 'h-9 px-2 min-w-9',

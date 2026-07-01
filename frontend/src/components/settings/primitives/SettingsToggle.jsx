@@ -46,10 +46,10 @@ export default function SettingsToggle({
         {...rest}
       />
       <span
-        className="absolute inset-0 rounded-[999px] bg-[var(--chrome-hover-bg)] transition-[background] duration-[160ms] ease-in-out [.is-on_&]:bg-[var(--chrome-accent)] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-[var(--chrome-accent)] peer-focus-visible:outline-offset-2"
+        className="absolute inset-0 rounded-[var(--radius-pill)] bg-[var(--chrome-hover-bg)] transition-[background] duration-[160ms] ease-in-out [.is-on_&]:bg-[var(--color-brand)] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-[var(--color-ring)] peer-focus-visible:outline-offset-2"
         aria-hidden="true"
       >
-        <span className="absolute top-[3px] left-[3px] w-[18px] h-[18px] rounded-full bg-[var(--chrome-bg)] shadow-[0_1px_2px_rgba(0,0,0,0.35)] transition-transform duration-[160ms] ease-in-out [.is-on_&]:translate-x-[18px]" />
+        <span className="absolute top-[3px] left-[3px] w-[18px] h-[18px] rounded-full bg-[var(--chrome-bg)] shadow-[var(--shadow-sm)] transition-transform duration-[160ms] ease-in-out [.is-on_&]:translate-x-[18px]" />
       </span>
     </label>
   );

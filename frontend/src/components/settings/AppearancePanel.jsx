@@ -65,7 +65,7 @@ export default function AppearancePanel() {
               onChange={(e) => setUiScale(Number(e.target.value))}
               aria-label={scaleLabel}
               aria-valuetext={`${Math.round(uiScale * 100)}%`}
-              className="min-w-0 flex-1 cursor-pointer accent-[var(--chrome-accent)]"
+              className="min-w-0 flex-1 cursor-pointer accent-[var(--color-brand)]"
             />
             <span className="min-w-[40px] text-right text-[length:var(--text-sm)] tabular-nums text-[var(--chrome-fg)]">
               {Math.round(uiScale * 100)}%

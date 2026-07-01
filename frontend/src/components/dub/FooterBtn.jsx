@@ -22,11 +22,12 @@ const TONES = {
   green:
     'text-[var(--chrome-severity-ok)] border-transparent bg-[color-mix(in_srgb,var(--chrome-severity-ok)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--chrome-severity-ok)_18%,transparent)]',
   pink: 'text-[var(--chrome-accent)] border-[var(--chrome-accent-border)] bg-[var(--chrome-accent-bg)] hover:bg-[color-mix(in_srgb,var(--chrome-accent)_20%,transparent)]',
-  blue: 'text-[#83a598] border-transparent bg-[color-mix(in_srgb,#83a598_10%,transparent)]',
+  blue: 'text-[var(--color-info)] border-transparent bg-[color-mix(in_srgb,var(--color-info)_10%,transparent)]',
   lime: 'text-[#b8bb26] border-transparent bg-[color-mix(in_srgb,#b8bb26_10%,transparent)]',
   amber:
     'text-[var(--chrome-severity-warn)] border-transparent bg-[color-mix(in_srgb,var(--chrome-severity-warn)_10%,transparent)]',
-  orange: 'text-[#fe8019] border-transparent bg-[color-mix(in_srgb,#fe8019_10%,transparent)]',
+  orange:
+    'text-[var(--color-warn)] border-transparent bg-[color-mix(in_srgb,var(--color-warn)_10%,transparent)]',
 };
 
 const FooterBtn = React.forwardRef(function FooterBtn(

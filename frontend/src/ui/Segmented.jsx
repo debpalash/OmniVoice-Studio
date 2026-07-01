@@ -3,7 +3,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group.tsx';
 import { cn } from '@/lib/utils';
 
 const ROOT =
-  'ui-seg inline-flex gap-[2px] bg-black/[0.28] p-[3px] rounded-[var(--radius-pill)] border border-[color:var(--color-border)] shrink';
+  'ui-seg inline-flex gap-[2px] bg-bg-elev-2 p-[3px] rounded-[var(--radius-pill)] border border-transparent shrink';
 
 const SIZE_MAP = { xs: 'segXs', sm: 'segSm' };
 

@@ -194,7 +194,6 @@ function DubSegmentRow({
         onChange={(e) => onSelect(seg.id, idx, e.nativeEvent.shiftKey)}
         onClick={(e) => onSelect(seg.id, idx, e.shiftKey)}
         disabled={disabled}
-        style={{ accentColor: '#d3869b' }}
         className="cursor-pointer justify-self-center"
         title={t('segment.select_title')}
       />
@@ -423,7 +422,11 @@ function DubSegmentRow({
         className="seg-gain-slider"
         style={{
           accentColor:
-            (seg.gain ?? 1.0) > 1.2 ? '#fb4934' : (seg.gain ?? 1.0) < 0.5 ? '#83a598' : '#a89984',
+            (seg.gain ?? 1.0) > 1.2
+              ? 'var(--color-danger)'
+              : (seg.gain ?? 1.0) < 0.5
+                ? 'var(--color-info)'
+                : 'var(--color-fg-muted)',
         }}
       />
 

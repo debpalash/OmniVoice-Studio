@@ -116,7 +116,7 @@ export default function DubbingDemo({ onDismiss }) {
               type="checkbox"
               checked={syncPlay}
               onChange={(e) => setSyncPlay(e.target.checked)}
-              className="accent-[#f3a5b6]"
+              className="accent-[var(--color-brand)]"
             />
             {t('demo.dubbing_sync')}
           </label>

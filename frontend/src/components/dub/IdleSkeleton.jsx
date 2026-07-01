@@ -366,7 +366,7 @@ export default function IdleSkeleton({
                 >
                   <input
                     type="checkbox"
-                    className="m-0 accent-[#d3869b]"
+                    className="m-0 accent-[var(--color-brand)]"
                     checked={fetchYtSubs}
                     onChange={(e) => setFetchYtSubs(e.target.checked)}
                     onClick={(e) => e.stopPropagation()}

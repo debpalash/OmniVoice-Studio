@@ -80,7 +80,7 @@ export default function NetworkToggle() {
   return (
     <div className="relative inline-flex items-center flex-shrink-0">
       <button
-        className={`inline-flex items-center gap-[5px] py-[2px] px-[8px] h-[20px] rounded-sm font-medium text-[11px] [font-family:inherit] cursor-pointer [transition:all_0.1s] border border-solid disabled:opacity-50 disabled:cursor-not-allowed ${st.enabled ? 'bg-[rgba(184,187,38,0.12)] border-transparent text-[#b8bb26] hover:bg-[rgba(184,187,38,0.18)]' : 'bg-transparent border-transparent text-[#a89984] hover:bg-[rgba(255,255,255,0.04)] hover:text-fg'}`}
+        className={`inline-flex items-center gap-[5px] py-[2px] px-[8px] h-[20px] rounded-sm font-medium text-[11px] [font-family:inherit] cursor-pointer [transition:all_0.1s] border border-solid disabled:opacity-50 disabled:cursor-not-allowed ${st.enabled ? 'bg-[rgba(184,187,38,0.12)] border-transparent text-[#b8bb26] hover:bg-[rgba(184,187,38,0.18)]' : 'bg-transparent border-transparent text-[var(--color-fg-muted)] hover:bg-[var(--chrome-hover-bg)] hover:text-fg'}`}
         onClick={st.enabled ? () => setOpen((o) => !o) : () => setConfirming((c) => !c)}
         disabled={busy}
         title={st.enabled ? t('network.sharing_on_title') : t('network.share_on_network')}
@@ -102,7 +102,7 @@ export default function NetworkToggle() {
           <div className="flex gap-[6px] mt-[8px]">
             <button
               type="button"
-              className="bg-transparent border border-solid border-[var(--border,#504945)] [color:inherit] text-[11px] [font-family:inherit] py-[5px] px-[12px] rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-transparent border border-solid border-transparent [color:inherit] text-[11px] [font-family:inherit] py-[5px] px-[12px] rounded-md cursor-pointer hover:bg-[var(--chrome-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={() => setConfirming(false)}
               disabled={busy}
             >

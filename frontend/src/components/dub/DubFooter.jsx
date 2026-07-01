@@ -95,7 +95,7 @@ export default function DubFooter({
           >
             <input
               type="checkbox"
-              className="accent-[var(--chrome-accent)]"
+              className="accent-[var(--color-brand)]"
               checked={exportTracks['original'] !== false}
               onChange={(e) => setExportTracks((prev) => ({ ...prev, original: e.target.checked }))}
             />
@@ -108,7 +108,7 @@ export default function DubFooter({
             >
               <input
                 type="checkbox"
-                className="accent-[var(--chrome-accent)]"
+                className="accent-[var(--color-brand)]"
                 checked={exportTracks[t] !== false}
                 onChange={(e) => setExportTracks((prev) => ({ ...prev, [t]: e.target.checked }))}
               />

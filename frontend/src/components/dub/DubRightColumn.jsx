@@ -16,7 +16,7 @@ const OUT_LABEL =
   'flex items-center gap-[var(--space-2)] cursor-pointer hover:text-[var(--chrome-fg)]';
 const OUT_TITLE =
   'font-[family-name:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] tracking-[var(--chrome-label-track)] uppercase text-[var(--chrome-fg-muted)] font-semibold';
-const CHK = 'accent-[var(--chrome-accent)]';
+const CHK = 'accent-[var(--color-brand)]';
 const BULK_SELECT = 'input-base !text-[0.62rem] !px-[4px] !py-[2px]';
 
 export default function DubRightColumn({

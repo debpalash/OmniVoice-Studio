@@ -40,12 +40,12 @@ const FIELD_LABEL =
   'label-row !text-[0.58rem] !text-fg-muted !m-0 whitespace-nowrap overflow-hidden text-ellipsis';
 const FIELD_INPUT = 'input-base !w-full !text-[0.65rem] !px-[5px] !py-[3px]';
 const ENGINE_CHIP =
-  'ml-[6px] px-[6px] py-[1px] text-[0.55rem] leading-[1.4] bg-[rgba(211,134,155,0.14)] border border-transparent text-[#d3869b] rounded-[999px] whitespace-nowrap transition-colors';
-// Highlighted accent Install affordance — brand accent (#d3869b) filled pill,
-// deliberately louder than ENGINE_CHIP so an uninstalled selected engine is an
-// obvious call to action rather than a muted footnote.
+  'ml-[6px] px-[6px] py-[1px] text-[0.55rem] leading-[1.4] bg-[color-mix(in_srgb,var(--color-brand)_14%,transparent)] border border-transparent text-[var(--color-brand)] rounded-[var(--radius-pill)] whitespace-nowrap transition-colors';
+// Highlighted accent Install affordance — brand-filled pill, deliberately louder
+// than ENGINE_CHIP so an uninstalled selected engine is an obvious call to action
+// rather than a muted footnote.
 const ENGINE_INSTALL_BTN =
-  'inline-flex items-center gap-[3px] ml-[6px] px-[7px] py-[1px] text-[0.55rem] font-semibold leading-[1.5] bg-[#d3869b] hover:bg-[#e0a0b3] text-[#1d2021] border border-transparent rounded-[999px] whitespace-nowrap cursor-pointer transition-colors shadow-[0_0_0_2px_rgba(211,134,155,0.25)] disabled:opacity-60 disabled:cursor-default';
+  'inline-flex items-center gap-[3px] ml-[6px] px-[7px] py-[1px] text-[0.55rem] font-semibold leading-[1.5] bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-[var(--color-fg-inverse)] border border-transparent rounded-[var(--radius-pill)] whitespace-nowrap cursor-pointer transition-colors shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-brand)_25%,transparent)] disabled:opacity-60 disabled:cursor-default';
 
 export default function DubLeftColumn({
   hasDubbedTrack,
@@ -518,7 +518,7 @@ export default function DubLeftColumn({
                         )}
                         <button
                           type="button"
-                          className="inline-flex items-center justify-center gap-[5px] px-[8px] py-[5px] text-[0.64rem] font-semibold bg-[#d3869b] hover:bg-[#e0a0b3] text-[#1d2021] border-none rounded-[6px] cursor-pointer transition-colors"
+                          className="inline-flex items-center justify-center gap-[5px] px-[8px] py-[5px] text-[0.64rem] font-semibold bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-[var(--color-fg-inverse)] border-none rounded-[var(--radius-lg)] cursor-pointer transition-colors"
                           onClick={() => {
                             setTranslateProvider('argos');
                             setInstallPopoverOpen(false);
@@ -622,7 +622,7 @@ export default function DubLeftColumn({
               <label className="flex items-center gap-[6px] text-[0.65rem] text-[var(--chrome-fg-muted)] cursor-pointer mb-[2px]">
                 <input
                   type="checkbox"
-                  className="accent-[var(--chrome-accent)] cursor-pointer"
+                  className="accent-[var(--color-brand)] cursor-pointer"
                   checked={multiLangMode}
                   onChange={(e) => setMultiLangMode(e.target.checked)}
                 />
