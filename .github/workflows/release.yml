@@ -770,13 +770,18 @@ jobs:
           print(f"preview manifest OK: {v} platforms={sorted(pk)}")
           PY
 
-  # ── Post-release version bump (versioning hard rule, owner-set 2026-06-11) ──
-  # main is always last-release + 1 patch. The moment a stable v* tag is
-  # released, bump the three version sources on main to the next patch so every
-  # PR and preview build identifies as the next version. Pushes directly to
-  # main with the workflow token (a metadata-only commit; CI runs on PRs).
+  # ── Post-release version bump (OWNER-GATED as of 2026-07-01) ──────────────
+  # Previously auto-ran after every stable v* tag to keep main = release + 1.
+  # The owner now controls bumps manually ("keep 0.3.8; I say when to bump"), so
+  # this job is OPT-IN: it runs ONLY when the repo variable AUTO_VERSION_BUMP is
+  # set to 'true' (Settings → Secrets and variables → Actions → Variables).
+  # Unset/anything-else → main stays at whatever it is after release. Re-enable
+  # by setting the variable; disable again by unsetting it.
   version-bump:
-    if: github.event_name == 'push' && github.ref_type == 'tag' && !contains(github.ref, '-')
+    if: >-
+      github.event_name == 'push' && github.ref_type == 'tag'
+      && !contains(github.ref, '-')
+      && vars.AUTO_VERSION_BUMP == 'true'
     runs-on: ubuntu-22.04
     permissions:
       contents: write
