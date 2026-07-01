@@ -14,10 +14,21 @@ import { resolve } from 'node:path';
  * future change reintroduces a `@media (max-width)` in this file or drops the
  * shell-class reflow / sticky action bar.
  */
+// The former per-component WorkspaceHistory.css was folded into the single
+// index.css foundation (CSS consolidation pass). Slice its provenance block
+// back out — from its `folded from …/WorkspaceHistory.css` header to the next
+// `folded from` header (or EOF) — BEFORE stripping comments, so the
+// `@media (max-width)` guard stays scoped to these rules and doesn't trip on
+// the legitimate viewport queries elsewhere in index.css.
+const index = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
+const start = index.indexOf('folded from src/components/WorkspaceHistory.css');
+if (start === -1) throw new Error('WorkspaceHistory folded block not found in index.css');
+const rest = index.slice(start + 'folded from src/components/WorkspaceHistory.css'.length);
+const end = rest.indexOf('folded from src/');
+const block = end === -1 ? rest : rest.slice(0, end);
 // Strip /* … */ comments so the guard checks real declarations, not the
 // warning comment that quotes the forbidden `@media (max-width)` pattern.
-const raw = readFileSync(resolve(process.cwd(), 'src/components/WorkspaceHistory.css'), 'utf8');
-const css = raw.replace(/\/\*[\s\S]*?\*\//g, '');
+const css = block.replace(/\/\*[\s\S]*?\*\//g, '');
 
 describe('workspace narrow-shell reflow (#476 CTA-clipping guard)', () => {
   it('does NOT use a raw viewport @media (max-width) query', () => {

@@ -1,6 +1,5 @@
 import React from 'react';
 import { Tooltip as ShadcnTooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import './Tooltip.css';
 
 /**
  * Tooltip — keyboard-accessible replacement for `title=`.

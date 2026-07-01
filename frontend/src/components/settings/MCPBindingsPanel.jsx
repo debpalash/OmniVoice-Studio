@@ -15,7 +15,6 @@ import { Bot, Trash2 } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
 import { listProfiles } from '../../api/profiles';
 import { SettingsSection, SettingRow } from './primitives';
-import './PerformancePanel.css';
 
 export default function MCPBindingsPanel() {
   const [bindings, setBindings] = useState([]);

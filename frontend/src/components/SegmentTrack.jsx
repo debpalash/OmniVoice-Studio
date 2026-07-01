@@ -11,7 +11,6 @@ import {
   detectOverlaps,
   nearestOnset,
 } from '../utils/timeline';
-import './SegmentTrack.css';
 
 const ONSET_STRIP_H = 8; // px — non-interactive onset tick strip
 const KB_STEP_S = 0.01; // ←/→ nudge

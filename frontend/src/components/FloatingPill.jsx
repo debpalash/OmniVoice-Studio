@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, CheckCircle, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
-import './FloatingPill.css';
 
 /**
  * FloatingPill — always-on-top status indicator for long-running operations.
