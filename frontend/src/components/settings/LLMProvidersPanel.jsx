@@ -45,22 +45,32 @@ export default function LLMProvidersPanel() {
     setTest(null);
   }, []);
 
-  const refresh = useCallback(async (keepEditing) => {
-    setError(null);
-    try {
-      const data = await apiJson('/api/settings/llm-providers');
-      setProviders(data.providers || []);
-      setActive(data.active || null);
-      const pick = keepEditing || data.active || (data.providers?.find((p) => p.configured)?.id) || data.providers?.[0]?.id || '';
-      setEditing(pick);
-      populate(data.providers || [], pick);
-      return data;
-    } catch (e) {
-      setError(e?.message || 'Failed to load providers');
-    }
-  }, [populate]);
+  const refresh = useCallback(
+    async (keepEditing) => {
+      setError(null);
+      try {
+        const data = await apiJson('/api/settings/llm-providers');
+        setProviders(data.providers || []);
+        setActive(data.active || null);
+        const pick =
+          keepEditing ||
+          data.active ||
+          data.providers?.find((p) => p.configured)?.id ||
+          data.providers?.[0]?.id ||
+          '';
+        setEditing(pick);
+        populate(data.providers || [], pick);
+        return data;
+      } catch (e) {
+        setError(e?.message || 'Failed to load providers');
+      }
+    },
+    [populate],
+  );
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const onSelect = (id) => {
     setEditing(id);
@@ -72,7 +82,11 @@ export default function LLMProvidersPanel() {
     setSaving(true);
     setError(null);
     try {
-      const body = { base_url: fields.base_url.trim(), model: fields.model.trim(), make_active: !!makeActive };
+      const body = {
+        base_url: fields.base_url.trim(),
+        model: fields.model.trim(),
+        make_active: !!makeActive,
+      };
       if (fields.api_key) body.api_key = fields.api_key; // only when typed
       if (current.needs_account) body.account_id = fields.account_id.trim();
       await apiFetch(`/api/settings/llm-providers/${current.id}`, {
@@ -107,9 +121,16 @@ export default function LLMProvidersPanel() {
 
   if (!providers.length) {
     return (
-      <SettingsSection icon={Brain} title="LLM Providers"
-        description="Configure a high-quality LLM for Cinematic & Autofit translation.">
-        {error && <div className="perfpanel__error" role="alert">{error}</div>}
+      <SettingsSection
+        icon={Brain}
+        title="LLM Providers"
+        description="Configure a high-quality LLM for Cinematic & Autofit translation."
+      >
+        {error && (
+          <div className="perfpanel__error" role="alert">
+            {error}
+          </div>
+        )}
       </SettingsSection>
     );
   }
@@ -126,7 +147,11 @@ export default function LLMProvidersPanel() {
         title="Provider"
         hint="Pick a provider to configure. The active one is used for Cinematic/Autofit translation. Local providers need no key but require their server to be running."
         control={
-          <Select value={editing} onChange={(e) => onSelect(e.target.value)} data-testid="llm-provider-select">
+          <Select
+            value={editing}
+            onChange={(e) => onSelect(e.target.value)}
+            data-testid="llm-provider-select"
+          >
             {providers.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.display_name}
@@ -148,8 +173,12 @@ export default function LLMProvidersPanel() {
                 <div className="flex flex-col gap-[4px] min-w-0">
                   {current.notes && <span className="text-[12px] opacity-70">{current.notes}</span>}
                   {current.signup_url && (
-                    <a href={current.signup_url} target="_blank" rel="noreferrer"
-                       className="text-[12px] inline-flex items-center gap-[4px] opacity-80 hover:opacity-100">
+                    <a
+                      href={current.signup_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[12px] inline-flex items-center gap-[4px] opacity-80 hover:opacity-100"
+                    >
                       Get an API key <ExternalLink size={12} />
                     </a>
                   )}
@@ -163,7 +192,9 @@ export default function LLMProvidersPanel() {
               title="Account ID"
               control={
                 <SettingsInput
-                  mono type="text" value={fields.account_id}
+                  mono
+                  type="text"
+                  value={fields.account_id}
                   onChange={(e) => setFields((f) => ({ ...f, account_id: e.target.value }))}
                   placeholder="Cloudflare account id"
                   data-testid="llm-account-id"
@@ -177,7 +208,9 @@ export default function LLMProvidersPanel() {
               title="API key"
               control={
                 <SettingsInput
-                  mono type="password" value={fields.api_key}
+                  mono
+                  type="password"
+                  value={fields.api_key}
                   onChange={(e) => setFields((f) => ({ ...f, api_key: e.target.value }))}
                   placeholder={
                     current.key_from_env
@@ -197,7 +230,9 @@ export default function LLMProvidersPanel() {
             title="Base URL"
             control={
               <SettingsInput
-                mono type="text" value={fields.base_url}
+                mono
+                type="text"
+                value={fields.base_url}
                 onChange={(e) => setFields((f) => ({ ...f, base_url: e.target.value }))}
                 placeholder="https://api.provider.com/v1"
                 data-testid="llm-provider-base-url"
@@ -208,7 +243,9 @@ export default function LLMProvidersPanel() {
             title="Model"
             control={
               <SettingsInput
-                mono type="text" value={fields.model}
+                mono
+                type="text"
+                value={fields.model}
                 onChange={(e) => setFields((f) => ({ ...f, model: e.target.value }))}
                 placeholder="model name"
                 data-testid="llm-provider-model"
@@ -216,25 +253,51 @@ export default function LLMProvidersPanel() {
             }
           />
 
-          {error && <div className="perfpanel__error" role="alert">{error}</div>}
+          {error && (
+            <div className="perfpanel__error" role="alert">
+              {error}
+            </div>
+          )}
 
           <SettingRow
             title="Status"
             control={
               <div className="flex flex-wrap items-center gap-[8px]">
-                <Button variant="subtle" size="sm" onClick={() => save(false)}
-                        loading={saving} disabled={saving || testing} data-testid="llm-provider-save">
+                <Button
+                  variant="subtle"
+                  size="sm"
+                  onClick={() => save(false)}
+                  loading={saving}
+                  disabled={saving || testing}
+                  data-testid="llm-provider-save"
+                >
                   Save
                 </Button>
-                <Button variant="primary" size="sm" onClick={() => save(true)}
-                        loading={saving} disabled={saving || testing} data-testid="llm-provider-activate">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => save(true)}
+                  loading={saving}
+                  disabled={saving || testing}
+                  data-testid="llm-provider-activate"
+                >
                   {isActive ? 'Save & keep active' : 'Save & use for translation'}
                 </Button>
-                <Button variant="subtle" size="sm" onClick={runTest}
-                        loading={testing} disabled={saving || testing} data-testid="llm-provider-test">
+                <Button
+                  variant="subtle"
+                  size="sm"
+                  onClick={runTest}
+                  loading={testing}
+                  disabled={saving || testing}
+                  data-testid="llm-provider-test"
+                >
                   Test
                 </Button>
-                {isActive && <Badge tone="success" dot role="status">active</Badge>}
+                {isActive && (
+                  <Badge tone="success" dot role="status">
+                    active
+                  </Badge>
+                )}
                 {test && (
                   <Badge tone={test.ok ? 'success' : 'warn'} role="status">
                     {test.ok ? `ok — ${test.model || ''}` : test.detail || 'failed'}

@@ -594,7 +594,10 @@ export default function DubLeftColumn({
                 }}
                 items={[
                   { value: 'fast', label: t('dub.fast_quality') },
-                  { value: 'autofit', label: t('dub.autofit_quality', { defaultValue: 'Autofit' }) },
+                  {
+                    value: 'autofit',
+                    label: t('dub.autofit_quality', { defaultValue: 'Autofit' }),
+                  },
                   { value: 'cinematic', label: t('dub.cinematic_quality') },
                 ]}
               />
