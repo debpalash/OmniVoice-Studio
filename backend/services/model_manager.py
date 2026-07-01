@@ -370,6 +370,19 @@ def get_best_device():
         compatible, warning = check_device_compatibility()
         if not compatible:
             logger.warning(warning)
+            # #756: the GPU's compute capability isn't in this torch build's arch
+            # list, so CUDA kernels can't launch ("no kernel image is available
+            # for execution") — every generate would 500. Too-old (Pascal sm_61)
+            # and too-new (Blackwell sm_120 on pre-cu128 wheels) both land here.
+            # Fall back to CPU so the app WORKS (slowly) instead of dead-ending;
+            # OMNIVOICE_FORCE_CUDA=1 overrides for users who installed a matching
+            # torch and know the arch_list probe is wrong for their setup.
+            if not _env_flag("OMNIVOICE_FORCE_CUDA"):
+                logger.warning(
+                    "Falling back to CPU: this GPU is unsupported by the installed "
+                    "PyTorch build (set OMNIVOICE_FORCE_CUDA=1 to force CUDA anyway)."
+                )
+                return "cpu"
         return "cuda"
 
     # ── Intel Arc / discrete GPU via IPEX ────────────────────────────

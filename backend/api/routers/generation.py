@@ -214,6 +214,18 @@ def _oom_friendly_reraise(e):
     # sys.stdout/stderr to swallow EPIPE, but a C-level write inside the native
     # engine/torch can still raise one past that guard. Flush won't help —
     # relaunching the app re-parents the backend to a live shell.
+    # #756: the GPU's compute capability isn't in this PyTorch build's arch list,
+    # so CUDA can't launch kernels ("no kernel image is available for execution").
+    # NOT OOM. get_best_device() now falls back to CPU up front, but classify the
+    # raw error too in case CUDA was forced (OMNIVOICE_FORCE_CUDA) or a sub-path
+    # still ran on the GPU — point at the real fix, not the Flush button.
+    if "no kernel image is available" in _low:
+        raise RuntimeError(
+            f"Your GPU isn't supported by the installed PyTorch build (CUDA can't "
+            f"launch kernels for its compute capability). Switch the compute device "
+            f"to CPU in Settings, or install a matching PyTorch (e.g. a cu128 build "
+            f"for newer GPUs). The Flush button won't help. Underlying error: {e}"
+        ) from e
     if isinstance(e, BrokenPipeError) or "broken pipe" in _low or "errno 32" in _low:
         raise RuntimeError(
             f"The backend lost its output pipe mid-generation — the desktop app "
