@@ -659,6 +659,14 @@
     "consent_revoked": "Verifikasi dicabut"
   },
   "dub": {
+    "install_engine_pkg": "Instal {{pkg}}",
+    "needs_install_short": "Perlu instalasi",
+    "install_popover_title": "Instal mesin ini",
+    "install_popover_frozen_body": "Build paket ini tidak dapat memasang mesin — lingkungan Python-nya bersifat hanya-baca dan bertanda tangan. Jalankan perintah di bawah pada instalasi dari sumber, atau beralih ke mesin Argos bawaan.",
+    "switch_to_argos": "Beralih ke Argos (bawaan, offline)",
+    "copy_command": "Salin perintah",
+    "install_cmd_copied": "Perintah disalin",
+    "dismiss_error": "Tutup",
     "transcribe": "Transkripsikan",
     "translate": "Terjemahkan",
     "generate": "Hasilkan",

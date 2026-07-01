@@ -659,6 +659,14 @@
     "consent_revoked": "Doğrulama iptal edildi"
   },
   "dub": {
+    "install_engine_pkg": "{{pkg}} yükle",
+    "needs_install_short": "Kurulum gerekli",
+    "install_popover_title": "Bu motoru yükle",
+    "install_popover_frozen_body": "Bu paketlenmiş sürüm motor yükleyemez — Python ortamı salt okunur ve imzalıdır. Aşağıdaki komutu kaynaktan kurulumda çalıştırın ya da yerleşik Argos motoruna geçin.",
+    "switch_to_argos": "Argos'a geç (yerleşik, çevrimdışı)",
+    "copy_command": "Komutu kopyala",
+    "install_cmd_copied": "Komut kopyalandı",
+    "dismiss_error": "Kapat",
     "transcribe": "Metne dönüştür",
     "translate": "Çevir",
     "generate": "Oluştur",

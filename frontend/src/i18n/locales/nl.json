@@ -659,6 +659,14 @@
     "consent_revoked": "Verificatie ingetrokken"
   },
   "dub": {
+    "install_engine_pkg": "{{pkg}} installeren",
+    "needs_install_short": "Installatie vereist",
+    "install_popover_title": "Deze engine installeren",
+    "install_popover_frozen_body": "Deze verpakte build kan geen engines installeren — de Python-omgeving is alleen-lezen en ondertekend. Voer de onderstaande opdracht uit in een broncode-installatie, of schakel over naar de meegeleverde Argos-engine.",
+    "switch_to_argos": "Overschakelen naar Argos (meegeleverd, offline)",
+    "copy_command": "Opdracht kopiëren",
+    "install_cmd_copied": "Opdracht gekopieerd",
+    "dismiss_error": "Sluiten",
     "transcribe": "Transcriberen",
     "translate": "Vertalen",
     "generate": "Genereer",

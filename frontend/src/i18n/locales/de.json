@@ -659,6 +659,14 @@
     "consent_revoked": "Verifizierung widerrufen"
   },
   "dub": {
+    "install_engine_pkg": "{{pkg}} installieren",
+    "needs_install_short": "Installation nötig",
+    "install_popover_title": "Diese Engine installieren",
+    "install_popover_frozen_body": "Diese paketierte Version kann keine Engines installieren – ihre Python-Umgebung ist schreibgeschützt und signiert. Führe den Befehl unten in einer Quellcode-Installation aus oder wechsle zur mitgelieferten Argos-Engine.",
+    "switch_to_argos": "Zu Argos wechseln (integriert, offline)",
+    "copy_command": "Befehl kopieren",
+    "install_cmd_copied": "Befehl kopiert",
+    "dismiss_error": "Schließen",
     "transcribe": "Transkribieren",
     "translate": "Übersetzen",
     "generate": "Generieren",

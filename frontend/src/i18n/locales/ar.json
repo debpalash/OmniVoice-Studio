@@ -659,6 +659,14 @@
     "consent_revoked": "تم إلغاء التحقق"
   },
   "dub": {
+    "install_engine_pkg": "تثبيت {{pkg}}",
+    "needs_install_short": "يتطلب التثبيت",
+    "install_popover_title": "تثبيت هذا المحرك",
+    "install_popover_frozen_body": "لا يمكن لهذه النسخة المحزومة تثبيت المحركات — فبيئة Python الخاصة بها للقراءة فقط وموقّعة. شغّل الأمر أدناه في تثبيت من المصدر، أو بدّل إلى محرك Argos المضمّن.",
+    "switch_to_argos": "التبديل إلى Argos (مضمّن، دون اتصال)",
+    "copy_command": "نسخ الأمر",
+    "install_cmd_copied": "تم نسخ الأمر",
+    "dismiss_error": "إغلاق",
     "transcribe": "نسخ",
     "translate": "ترجمة",
     "generate": "إنشاء",

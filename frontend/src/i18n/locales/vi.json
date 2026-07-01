@@ -659,6 +659,14 @@
     "consent_revoked": "Đã thu hồi xác minh"
   },
   "dub": {
+    "install_engine_pkg": "Cài đặt {{pkg}}",
+    "needs_install_short": "Cần cài đặt",
+    "install_popover_title": "Cài đặt công cụ này",
+    "install_popover_frozen_body": "Bản đóng gói này không thể cài công cụ — môi trường Python của nó chỉ đọc và đã ký. Hãy chạy lệnh bên dưới trong bản cài từ mã nguồn, hoặc chuyển sang công cụ Argos tích hợp sẵn.",
+    "switch_to_argos": "Chuyển sang Argos (tích hợp, ngoại tuyến)",
+    "copy_command": "Sao chép lệnh",
+    "install_cmd_copied": "Đã sao chép lệnh",
+    "dismiss_error": "Bỏ qua",
     "transcribe": "Phiên âm",
     "translate": "Dịch",
     "generate": "Tạo",

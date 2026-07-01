@@ -659,6 +659,14 @@
     "consent_revoked": "検証が取り消されました"
   },
   "dub": {
+    "install_engine_pkg": "{{pkg}} をインストール",
+    "needs_install_short": "インストールが必要",
+    "install_popover_title": "このエンジンをインストール",
+    "install_popover_frozen_body": "このパッケージ版はエンジンをインストールできません（Python 環境が読み取り専用で署名済みのため）。下のコマンドをソースからのインストールで実行するか、同梱の Argos エンジンに切り替えてください。",
+    "switch_to_argos": "Argos に切り替え（同梱・オフライン）",
+    "copy_command": "コマンドをコピー",
+    "install_cmd_copied": "コマンドをコピーしました",
+    "dismiss_error": "閉じる",
     "transcribe": "転写する",
     "translate": "翻訳する",
     "generate": "生成する",

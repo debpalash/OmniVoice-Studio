@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import {
   Sparkles,
   Loader,
@@ -7,6 +8,10 @@ import {
   UserSquare2,
   Languages,
   Wand2,
+  Download,
+  Copy,
+  ExternalLink,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { Button, Segmented, Progress } from '../../ui';
 import WaveformTimeline from '../WaveformTimeline';
@@ -16,6 +21,9 @@ import { LANG_CODES } from '../../utils/languages';
 import ALL_LANGUAGES from '../../languages.json';
 import { POPULAR_LANGS, PRESETS } from '../../utils/constants';
 import { dialectOptionsFor, dialectLabel, dialectMatchesLang } from '../../api/dialects';
+import { copyText } from '../../utils/copyText';
+import { openExternal } from '../../api/external';
+import { TRANSLATION_ENGINES_DOCS } from '../../utils/errorDocsMap';
 import toast from 'react-hot-toast';
 
 // ── Translation-settings bar utility class clusters ──────────────────────
@@ -32,6 +40,11 @@ const FIELD_LABEL =
 const FIELD_INPUT = 'input-base !w-full !text-[0.65rem] !px-[5px] !py-[3px]';
 const ENGINE_CHIP =
   'ml-[6px] px-[6px] py-[1px] text-[0.55rem] leading-[1.4] bg-[rgba(211,134,155,0.14)] border border-[rgba(211,134,155,0.35)] text-[#d3869b] rounded-[999px] whitespace-nowrap transition-colors';
+// Highlighted accent Install affordance — brand accent (#d3869b) filled pill,
+// deliberately louder than ENGINE_CHIP so an uninstalled selected engine is an
+// obvious call to action rather than a muted footnote.
+const ENGINE_INSTALL_BTN =
+  'inline-flex items-center gap-[3px] ml-[6px] px-[7px] py-[1px] text-[0.55rem] font-semibold leading-[1.5] bg-[#d3869b] hover:bg-[#e0a0b3] text-[#1d2021] border border-[#d3869b] rounded-[999px] whitespace-nowrap cursor-pointer transition-colors shadow-[0_0_0_2px_rgba(211,134,155,0.25)] disabled:opacity-60 disabled:cursor-default';
 
 export default function DubLeftColumn({
   hasDubbedTrack,
@@ -90,6 +103,41 @@ export default function DubLeftColumn({
   setMultiLangs,
   editSegments,
 }) {
+  // Frozen-build (packaged/signed, read-only site-packages) escape-hatch
+  // popover: pip install is impossible, so we surface the copyable command +
+  // a one-click switch to the always-bundled Argos engine + a docs deeplink.
+  const [installPopoverOpen, setInstallPopoverOpen] = useState(false);
+  const installPopoverRef = useRef(null);
+  useEffect(() => {
+    if (!installPopoverOpen) return undefined;
+    const onDown = (e) => {
+      if (installPopoverRef.current && !installPopoverRef.current.contains(e.target)) {
+        setInstallPopoverOpen(false);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setInstallPopoverOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [installPopoverOpen]);
+  // Command shown/copied in the frozen popover — single-sourced from the
+  // backend registry (activeEngineEntry.install_command), with a defensive
+  // fallback so the popover is never empty for a known-uninstalled engine.
+  const installCmd =
+    activeEngineEntry?.install_command ||
+    (activeEngineEntry?.pip_package ? `uv pip install ${activeEngineEntry.pip_package}` : '');
+  const copyInstallCmd = async () => {
+    if (!installCmd) return;
+    const ok = await copyText(installCmd);
+    if (ok) toast.success(t('dub.install_cmd_copied'));
+    else toast.error(t('dub.copy_failed'));
+  };
+
   return (
     <div className="studio-panel dub-panel-col">
       {hasDubbedTrack && (
@@ -390,27 +438,98 @@ export default function DubLeftColumn({
               </div>
             )}
             <div className={`${FIELD} flex-[1.4_1_130px] min-w-[90px] ${FIELD_RESP}`}>
-              <div className={FIELD_LABEL}>
+              <div className={`${FIELD_LABEL} !overflow-visible flex items-center`}>
                 {t('dub.engine_label')}
+                {/* FROM-SOURCE lane: pip install works (uv pip install runs
+                    in-process). Promote the muted chip to a highlighted accent
+                    Install button so an uninstalled selected engine is an
+                    obvious call to action. Keys off translateProvider, so
+                    picking any uninstalled engine surfaces it immediately. */}
                 {activeEngineUnavailable && !enginesSandboxed && (
                   <button
                     type="button"
-                    className={`${ENGINE_CHIP} cursor-pointer hover:bg-[rgba(211,134,155,0.22)] disabled:opacity-55 disabled:cursor-default disabled:italic`}
+                    className={ENGINE_INSTALL_BTN}
                     onClick={() => handleInstallEngine(translateProvider)}
                     disabled={engineInstalling === translateProvider}
                     title={t('dub.install_engine')}
                   >
-                    {engineInstalling === translateProvider
-                      ? t('dub.installing_engine')
-                      : `+ install ${activeEngineEntry?.pip_package || ''}`}
+                    {engineInstalling === translateProvider ? (
+                      <>
+                        <Loader className="spinner" size={9} /> {t('dub.installing_engine')}
+                      </>
+                    ) : (
+                      <>
+                        <Download size={9} />{' '}
+                        {t('dub.install_engine_pkg', {
+                          pkg: activeEngineEntry?.pip_package || '',
+                        })}
+                      </>
+                    )}
                   </button>
                 )}
+                {/* FROZEN lane: packaged build, site-packages is read-only +
+                    signed, so pip install is impossible. Offer a highlighted
+                    button that opens a popover with the copyable command, a
+                    one-click switch to bundled Argos, and a docs deeplink. */}
                 {activeEngineUnavailable && enginesSandboxed && (
-                  <span
-                    className={`${ENGINE_CHIP} opacity-55 cursor-default italic`}
-                    title={t('dub.install_disabled_title')}
-                  >
-                    {t('dub.needs_dev_install')}
+                  <span className="relative inline-flex" ref={installPopoverRef}>
+                    <button
+                      type="button"
+                      className={ENGINE_INSTALL_BTN}
+                      onClick={() => setInstallPopoverOpen((o) => !o)}
+                      aria-haspopup="dialog"
+                      aria-expanded={installPopoverOpen}
+                      title={t('dub.install_disabled_title')}
+                    >
+                      <Download size={9} /> {t('dub.needs_install_short')}
+                    </button>
+                    {installPopoverOpen && (
+                      <div
+                        role="dialog"
+                        aria-label={t('dub.install_popover_title')}
+                        className="absolute z-20 top-[calc(100%+6px)] left-0 w-[290px] max-w-[80vw] p-[10px] flex flex-col gap-[8px] bg-[var(--chrome-bg,#282828)] border border-[var(--chrome-border-strong,#504945)] rounded-[8px] shadow-[0_8px_24px_rgba(0,0,0,0.45)] normal-case text-left"
+                      >
+                        <div className="text-[0.68rem] font-semibold text-[var(--chrome-fg,#ebdbb2)] normal-case tracking-normal">
+                          {t('dub.install_popover_title')}
+                        </div>
+                        <p className="text-[0.62rem] leading-[1.4] text-[var(--chrome-fg-muted,#a89984)] m-0">
+                          {t('dub.install_popover_frozen_body')}
+                        </p>
+                        {installCmd && (
+                          <div className="flex items-stretch gap-[4px]">
+                            <code className="flex-1 min-w-0 px-[6px] py-[4px] text-[0.6rem] leading-[1.4] font-[family-name:var(--chrome-font-mono,monospace)] text-[var(--chrome-fg,#ebdbb2)] bg-[rgba(0,0,0,0.35)] border border-[var(--chrome-border,#3c3836)] rounded-[5px] overflow-x-auto whitespace-nowrap">
+                              {installCmd}
+                            </code>
+                            <button
+                              type="button"
+                              className="shrink-0 inline-flex items-center justify-center px-[6px] rounded-[5px] border border-[var(--chrome-border,#3c3836)] text-[var(--chrome-fg-muted,#a89984)] hover:text-[var(--chrome-fg,#ebdbb2)] hover:border-[var(--chrome-border-strong,#504945)] cursor-pointer bg-transparent"
+                              onClick={copyInstallCmd}
+                              title={t('dub.copy_command')}
+                              aria-label={t('dub.copy_command')}
+                            >
+                              <Copy size={11} />
+                            </button>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center gap-[5px] px-[8px] py-[5px] text-[0.64rem] font-semibold bg-[#d3869b] hover:bg-[#e0a0b3] text-[#1d2021] border-none rounded-[6px] cursor-pointer transition-colors"
+                          onClick={() => {
+                            setTranslateProvider('argos');
+                            setInstallPopoverOpen(false);
+                          }}
+                        >
+                          <ArrowRightLeft size={11} /> {t('dub.switch_to_argos')}
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-[5px] self-start text-[0.6rem] text-[var(--chrome-fg-muted,#a89984)] hover:text-[var(--chrome-fg,#ebdbb2)] bg-transparent border-none cursor-pointer p-0"
+                          onClick={() => openExternal(TRANSLATION_ENGINES_DOCS)}
+                        >
+                          <ExternalLink size={10} /> {t('dub.open_docs')}
+                        </button>
+                      </div>
+                    )}
                   </span>
                 )}
               </div>

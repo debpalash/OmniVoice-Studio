@@ -659,6 +659,14 @@
     "consent_revoked": "เพิกถอนการยืนยันแล้ว"
   },
   "dub": {
+    "install_engine_pkg": "ติดตั้ง {{pkg}}",
+    "needs_install_short": "ต้องติดตั้ง",
+    "install_popover_title": "ติดตั้งเอนจินนี้",
+    "install_popover_frozen_body": "บิลด์แบบแพ็กเกจนี้ติดตั้งเอนจินไม่ได้ เนื่องจากสภาพแวดล้อม Python เป็นแบบอ่านอย่างเดียวและมีลายเซ็น ให้รันคำสั่งด้านล่างในการติดตั้งแบบซอร์สโค้ด หรือสลับไปใช้เอนจิน Argos ที่มาพร้อมกับโปรแกรม",
+    "switch_to_argos": "สลับไปใช้ Argos (มาพร้อมกับโปรแกรม ออฟไลน์)",
+    "copy_command": "คัดลอกคำสั่ง",
+    "install_cmd_copied": "คัดลอกคำสั่งแล้ว",
+    "dismiss_error": "ปิด",
     "transcribe": "ถอดเสียง",
     "translate": "แปล",
     "generate": "สร้าง",

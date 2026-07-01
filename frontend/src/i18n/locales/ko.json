@@ -659,6 +659,14 @@
     "consent_revoked": "인증이 취소되었습니다."
   },
   "dub": {
+    "install_engine_pkg": "{{pkg}} 설치",
+    "needs_install_short": "설치 필요",
+    "install_popover_title": "이 엔진 설치",
+    "install_popover_frozen_body": "이 패키지 빌드는 엔진을 설치할 수 없습니다. Python 환경이 읽기 전용이며 서명되어 있기 때문입니다. 아래 명령을 소스 설치에서 실행하거나 기본 제공되는 Argos 엔진으로 전환하세요.",
+    "switch_to_argos": "Argos로 전환(기본 제공, 오프라인)",
+    "copy_command": "명령 복사",
+    "install_cmd_copied": "명령이 복사됨",
+    "dismiss_error": "닫기",
     "transcribe": "전사",
     "translate": "번역하다",
     "generate": "생성",

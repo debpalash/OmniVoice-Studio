@@ -93,6 +93,7 @@ export default function DubTab(props) {
   const setDubInstruct = useAppStore((s) => s.setDubInstruct);
   const dubTracks = useAppStore((s) => s.dubTracks);
   const dubError = useAppStore((s) => s.dubError);
+  const setDubError = useAppStore((s) => s.setDubError);
   const dubFailure = useAppStore((s) => s.dubFailure);
   const dubProgress = useAppStore((s) => s.dubProgress);
   const isTranslating = useAppStore((s) => s.isTranslating);
@@ -242,8 +243,22 @@ export default function DubTab(props) {
   }, [refreshEngines]);
   const activeEngineEntry = engines.find((e) => e.id === translateProvider);
   const activeEngineUnavailable = activeEngineEntry && !activeEngineEntry.installed;
+  // Changing the translation engine is a corrective action — clear any stale
+  // translate/pipeline error banner so it doesn't outlive the choice that
+  // caused it (same class-fix as clearing on a new translate attempt). Covers
+  // both the <select> and the popover's "Switch to Argos" path.
+  const handleSelectTranslateProvider = useCallback(
+    (id) => {
+      setDubError('');
+      setTranslateProvider(id);
+    },
+    [setDubError, setTranslateProvider],
+  );
   const handleInstallEngine = async (engineId) => {
     if (!engineId || enginesSandboxed) return;
+    // Installing the missing package is corrective too — drop the banner that
+    // told the user to install it in the first place.
+    setDubError('');
     setEngineInstalling(engineId);
     const progressToast = toast.loading(t('dub.install_progress', { engine: engineId }));
     try {
@@ -526,7 +541,7 @@ export default function DubTab(props) {
               engineInstalling={engineInstalling}
               activeEngineEntry={activeEngineEntry}
               engines={engines}
-              setTranslateProvider={setTranslateProvider}
+              setTranslateProvider={handleSelectTranslateProvider}
               setTranslateQuality={setTranslateQuality}
               llmEndpoint={llmEndpoint}
               multiLangMode={multiLangMode}
@@ -594,6 +609,7 @@ export default function DubTab(props) {
             incrementalPlan={incrementalPlan}
             dubError={dubError}
             dubFailure={dubFailure}
+            onDismissError={() => setDubError('')}
             exportTracks={exportTracks}
             setExportTracks={setExportTracks}
             dubSegments={dubSegments}

@@ -120,6 +120,23 @@ def _probe(entry: dict) -> tuple[bool, str]:
         return False, f"import {mod!r} failed: {e}"
 
 
+def install_command(engine: "str | dict | None") -> str | None:
+    """The exact shell command that makes this engine importable, or None.
+
+    Single source of truth for the install string. BOTH the proactive Install
+    affordance in the Engine selector (via list_engines' ``install_command``
+    field) AND the translate-time 400 error (dub_translate.py) read from here,
+    so the command a user is told to run can never drift between the two
+    surfaces. Returns None when the engine needs no separate install — either
+    it's unknown or its dependency is a core dep already pinned in
+    ``pyproject.toml`` (e.g. NLLB → transformers), in which case a
+    ``uv pip install`` line would be misleading.
+    """
+    entry = engine if isinstance(engine, dict) else REGISTRY.get(engine) if engine else None
+    pkg = entry.get("pip_package") if entry else None
+    return f"uv pip install {pkg}" if pkg else None
+
+
 def list_engines() -> list[dict]:
     """Return a UI-ready list with per-engine availability stamped in."""
     out = []
@@ -129,6 +146,7 @@ def list_engines() -> list[dict]:
             **e,
             "installed": installed,
             "availability_reason": reason,
+            "install_command": install_command(e),
         })
     return out
 

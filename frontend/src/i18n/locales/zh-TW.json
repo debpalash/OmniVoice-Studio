@@ -659,6 +659,14 @@
     "consent_revoked": "驗證已撤銷"
   },
   "dub": {
+    "install_engine_pkg": "安裝 {{pkg}}",
+    "needs_install_short": "需要安裝",
+    "install_popover_title": "安裝此引擎",
+    "install_popover_frozen_body": "此打包版本無法安裝引擎——其 Python 環境為唯讀且已簽章。請在原始碼安裝環境中執行下方指令，或切換至內建的 Argos 引擎。",
+    "switch_to_argos": "切換至 Argos（內建，離線）",
+    "copy_command": "複製指令",
+    "install_cmd_copied": "已複製指令",
+    "dismiss_error": "關閉",
     "transcribe": "轉錄",
     "translate": "翻譯",
     "generate": "產生",

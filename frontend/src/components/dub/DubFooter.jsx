@@ -1,6 +1,12 @@
-import { Check, AlertCircle } from 'lucide-react';
+import { useEffect } from 'react';
+import { Check, AlertCircle, X } from 'lucide-react';
 import { Badge } from '../../ui';
 import DubFailureNotice from './DubFailureNotice';
+
+// How long a translate/pipeline error banner lingers before it self-clears.
+// Long enough to read a short message; the × and corrective-action clears are
+// the primary escape hatches — this is the belt-and-suspenders timeout.
+const ERROR_AUTOCLEAR_MS = 12000;
 
 // Export-track toggle chips: flat pill outline, tinted by on/off/success state.
 const TRACK_LABEL =
@@ -18,11 +24,24 @@ export default function DubFooter({
   incrementalPlan,
   dubError,
   dubFailure,
+  onDismissError,
   exportTracks,
   setExportTracks,
   dubSegments,
   translateQuality,
 }) {
+  // Auto-clear the error banner after a grace period so it can't get stuck
+  // forever (issue: "TRANSLATION FAILED banner never goes away"). Skipped
+  // while generating/stopping, where the banner accumulates live per-segment
+  // errors the user needs to keep reading until the run ends.
+  const canAutoClear =
+    !!dubError && !!onDismissError && dubStep !== 'generating' && dubStep !== 'stopping';
+  useEffect(() => {
+    if (!canAutoClear) return undefined;
+    const id = setTimeout(() => onDismissError(), ERROR_AUTOCLEAR_MS);
+    return () => clearTimeout(id);
+  }, [canAutoClear, dubError, onDismissError]);
+
   return (
     <div className="px-[var(--space-3)] py-[4px] shrink-0 bg-[var(--chrome-bg)] border border-[var(--chrome-border)]">
       {dubStep === 'done' && (
@@ -46,9 +65,22 @@ export default function DubFooter({
       )}
       {dubError && (
         <div className="mb-[var(--space-2)]">
-          <Badge tone="danger">
-            <AlertCircle size={11} /> {dubError}
-          </Badge>
+          <span className="inline-flex items-center gap-[4px]">
+            <Badge tone="danger">
+              <AlertCircle size={11} /> {dubError}
+            </Badge>
+            {onDismissError && (
+              <button
+                type="button"
+                className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[4px] text-[var(--chrome-fg-muted,#a89984)] hover:text-[var(--chrome-fg,#ebdbb2)] hover:bg-[rgba(255,255,255,0.08)] bg-transparent border-none cursor-pointer shrink-0"
+                onClick={onDismissError}
+                title={t('dub.dismiss_error')}
+                aria-label={t('dub.dismiss_error')}
+              >
+                <X size={12} />
+              </button>
+            )}
+          </span>
           <DubFailureNotice failure={dubFailure} />
         </div>
       )}

@@ -36,6 +36,26 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - **Factory reset in Storage.** A confirm-dialog-guarded action that clears the
   locally-saved UI preferences and reloads — without touching your voices,
   projects, or generated audio on disk.
+- **Proactive, highlighted "Install" affordance for translation engines.** When
+  you pick a Dub translation engine whose optional package isn't installed yet
+  (e.g. Google / DeepL via `deep_translator`), the Engine selector now surfaces a
+  bright accent **Install** button *before* you hit Translate — no more
+  discovering the missing package only via a translate-time 400. On a from-source
+  install it one-click installs into the backend's own interpreter; on a
+  read-only **packaged build** it opens a popover with the exact `uv pip install …`
+  command (copy-to-clipboard), a one-click **Switch to Argos (bundled, offline)**
+  escape hatch, and a docs link. The install command is single-sourced in the
+  backend registry, so the button and the 400 error can never disagree. New guide:
+  `docs/dubbing/translation-engines.md`.
+
+### Fixed
+
+- **The "TRANSLATION FAILED" banner now dismisses and clears itself.** The Dub
+  translation-error banner used to be sticky — it survived a successful re-try and
+  never went away. It now has a close (×), auto-clears on the next corrective
+  action (re-translating, changing the engine, or installing the package), and
+  self-clears after a short timeout — fixing the whole class of translate/pipeline
+  banners that outlived the state that caused them.
 
 ## [0.3.8] — 2026-06-29
 

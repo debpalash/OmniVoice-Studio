@@ -659,6 +659,14 @@
     "consent_revoked": "Vérification révoquée"
   },
   "dub": {
+    "install_engine_pkg": "Installer {{pkg}}",
+    "needs_install_short": "Installation requise",
+    "install_popover_title": "Installer ce moteur",
+    "install_popover_frozen_body": "Cette version packagée ne peut pas installer de moteurs : son environnement Python est en lecture seule et signé. Exécutez la commande ci-dessous dans une installation depuis les sources, ou passez au moteur Argos intégré.",
+    "switch_to_argos": "Passer à Argos (intégré, hors ligne)",
+    "copy_command": "Copier la commande",
+    "install_cmd_copied": "Commande copiée",
+    "dismiss_error": "Ignorer",
     "transcribe": "Transcrire",
     "translate": "Traduire",
     "generate": "Générer",

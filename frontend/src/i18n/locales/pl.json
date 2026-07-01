@@ -659,6 +659,14 @@
     "consent_revoked": "Weryfikacja odwołana"
   },
   "dub": {
+    "install_engine_pkg": "Zainstaluj {{pkg}}",
+    "needs_install_short": "Wymaga instalacji",
+    "install_popover_title": "Zainstaluj ten silnik",
+    "install_popover_frozen_body": "Ta spakowana wersja nie może instalować silników — jej środowisko Python jest tylko do odczytu i podpisane. Uruchom poniższe polecenie w instalacji ze źródeł lub przełącz się na dołączony silnik Argos.",
+    "switch_to_argos": "Przełącz na Argos (wbudowany, offline)",
+    "copy_command": "Kopiuj polecenie",
+    "install_cmd_copied": "Skopiowano polecenie",
+    "dismiss_error": "Odrzuć",
     "transcribe": "Transkrypcja",
     "translate": "Przetłumacz",
     "generate": "Wygeneruj",

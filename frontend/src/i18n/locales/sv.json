@@ -659,6 +659,14 @@
     "consent_revoked": "Verifieringen återkallad"
   },
   "dub": {
+    "install_engine_pkg": "Installera {{pkg}}",
+    "needs_install_short": "Kräver installation",
+    "install_popover_title": "Installera denna motor",
+    "install_popover_frozen_body": "Den här paketerade versionen kan inte installera motorer – dess Python-miljö är skrivskyddad och signerad. Kör kommandot nedan i en källkodsinstallation, eller växla till den medföljande Argos-motorn.",
+    "switch_to_argos": "Växla till Argos (medföljer, offline)",
+    "copy_command": "Kopiera kommando",
+    "install_cmd_copied": "Kommando kopierat",
+    "dismiss_error": "Avfärda",
     "transcribe": "Transkribera",
     "translate": "Översätt",
     "generate": "Generera",

@@ -690,6 +690,11 @@ export default function useDubWorkflow({
   const handleTranslateAll = useCallback(async () => {
     if (!dubSegments.length || !dubLangCode) return;
     setIsTranslating(true);
+    // Root cause of the "sticky TRANSLATION FAILED banner": a new translate
+    // attempt never cleared the previous failure, so a stale 400 survived even
+    // a successful retry. Clear it up front — the whole class of translate/
+    // pipeline error banners should reset on the next relevant action.
+    setDubError('');
     try {
       const data = await dubTranslate({
         segments: dubSegments.map((s) => ({

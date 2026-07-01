@@ -17,6 +17,9 @@ interface TranslationEngine {
   notes?: string;
   installed: boolean;
   availability_reason: string;
+  /** `uv pip install <pkg>` (single-sourced by the backend registry), or
+   *  null when the engine needs no separate install (builtin/core dep). */
+  install_command: string | null;
 }
 export interface TranslationEnginesResponse {
   engines: TranslationEngine[];

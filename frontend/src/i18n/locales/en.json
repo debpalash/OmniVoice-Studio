@@ -638,6 +638,14 @@
     "dubbed_segments_other": "{{count}} dubbed segments"
   },
   "dub": {
+    "install_engine_pkg": "Install {{pkg}}",
+    "needs_install_short": "Needs install",
+    "install_popover_title": "Install this engine",
+    "install_popover_frozen_body": "This packaged build can't install engines — its Python environment is read-only and signed. Run the command below in a from-source install, or switch to the bundled Argos engine.",
+    "switch_to_argos": "Switch to Argos (bundled, offline)",
+    "copy_command": "Copy command",
+    "install_cmd_copied": "Command copied",
+    "dismiss_error": "Dismiss",
     "transcribe": "Transcribe",
     "translate": "Translate",
     "generate": "Generate",

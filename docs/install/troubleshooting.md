@@ -345,6 +345,27 @@ after a timeout with this exact guidance. Tune the bound with
 `OMNIVOICE_ASR_TRANSCRIBE_TIMEOUT_S` (seconds; default 300) — **raise** it for
 very long single files, **lower** it to fail faster on a small machine.
 
+## Dub: "translation engine needs the optional … package"
+
+**Symptom:** in the Dub tab, translating fails with e.g. *"The 'google'
+translation engine needs the optional `deep_translator` Python package, which
+isn't installed in this backend."*
+
+**Cause:** the online translation engines (Google / DeepL / Microsoft / MyMemory
+via `deep_translator`, and the LLM provider via `openai`) are **optional** and
+not bundled. Only **Argos** and **NLLB** work out of the box.
+
+**Fix:**
+- **From-source / Docker install:** click the highlighted **Install** button next
+  to the *Engine* label in the Dub tab (or run `uv pip install deep_translator`
+  in the backend venv) and restart the backend.
+- **Packaged installer build:** in-app install is disabled (read-only signed
+  environment). Click the highlighted button to open the popover and **Switch to
+  Argos (bundled, offline)** — or copy the command to run it in a from-source
+  checkout.
+
+Full guide: [dubbing/translation-engines.md](../dubbing/translation-engines.md#installing-optional-translation-engines-from-source-vs-packaged-build).
+
 ## First-run setup fails on a restricted network (GitHub/PyPI blocked)
 
 On networks that block or can't resolve **GitHub**, the first-run bootstrap may

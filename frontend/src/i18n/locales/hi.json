@@ -659,6 +659,14 @@
     "consent_revoked": "सत्यापन निरस्त कर दिया गया"
   },
   "dub": {
+    "install_engine_pkg": "{{pkg}} इंस्टॉल करें",
+    "needs_install_short": "इंस्टॉल आवश्यक",
+    "install_popover_title": "यह इंजन इंस्टॉल करें",
+    "install_popover_frozen_body": "यह पैकेज्ड बिल्ड इंजन इंस्टॉल नहीं कर सकता — इसका Python एनवायरनमेंट केवल-पढ़ने योग्य और साइन किया हुआ है। नीचे दिया गया कमांड सोर्स-से इंस्टॉल में चलाएँ, या साथ में आने वाले Argos इंजन पर स्विच करें।",
+    "switch_to_argos": "Argos पर स्विच करें (अंतर्निहित, ऑफ़लाइन)",
+    "copy_command": "कमांड कॉपी करें",
+    "install_cmd_copied": "कमांड कॉपी हो गया",
+    "dismiss_error": "खारिज करें",
     "transcribe": "प्रतिलेखन",
     "translate": "अनुवाद करें",
     "generate": "उत्पन्न करें",
