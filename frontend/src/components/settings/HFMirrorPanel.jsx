@@ -13,6 +13,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Globe } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
 import { SettingsSection, SettingRow, SettingsInput } from './primitives';
+import { Button } from '../../ui';
 import RestartBadge from './RestartBadge';
 
 export default function HFMirrorPanel() {
@@ -77,17 +78,17 @@ export default function HFMirrorPanel() {
         title="Mirror preset"
         hint="On a restricted network, route model downloads through a mirror. Applies after a restart. Leave empty for the official endpoint."
         control={
-          <div className="perfpanel__row" style={{ flexWrap: 'wrap', gap: 6 }}>
+          <div className="flex flex-wrap items-center gap-[6px] min-w-0 max-w-full">
             {state.presets.map((p) => (
-              <button
+              <Button
+                variant="preset"
                 key={p.label}
-                type="button"
                 onClick={() => save(p.url)}
                 disabled={saving}
                 data-testid={`hf-preset-${p.url || 'official'}`}
               >
                 {p.label}
-              </button>
+              </Button>
             ))}
           </div>
         }
@@ -107,14 +108,16 @@ export default function HFMirrorPanel() {
               placeholder="https://hf-mirror.com"
               data-testid="hf-mirror-url"
             />
-            <button
-              type="button"
+            <Button
+              variant="subtle"
+              size="sm"
               onClick={() => save(url)}
+              loading={saving}
               disabled={saving}
               data-testid="hf-mirror-save"
             >
-              {saving ? 'Saving…' : 'Save'}
-            </button>
+              Save
+            </Button>
           </>
         }
       />

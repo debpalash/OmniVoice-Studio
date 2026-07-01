@@ -13,9 +13,10 @@
  *     TRANSLATE_* env vars, restored on restart.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Brain, CheckCircle2, XCircle } from 'lucide-react';
+import { Brain } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
-import { SettingsSection, SettingRow } from './primitives';
+import { SettingsSection, SettingRow, SettingsInput } from './primitives';
+import { Button, Badge } from '../../ui';
 
 const PRESETS = [
   ['Ollama', 'http://localhost:11434/v1', 'llama3.1'],
@@ -87,16 +88,16 @@ export default function LLMEndpointPanel() {
         title="Preset"
         hint="Powers cinematic translation, glossary auto-extract, and dictation refinement. Any OpenAI-compatible server: Ollama, LM Studio, vLLM, or a hosted API. Stays opt-in — features only call it when you enable them."
         control={
-          <div className="perfpanel__row" style={{ flexWrap: 'wrap', gap: 6 }}>
+          <div className="flex flex-wrap items-center gap-[6px] min-w-0 max-w-full">
             {PRESETS.map((p) => (
-              <button
-                type="button"
+              <Button
+                variant="preset"
                 key={p[0]}
                 onClick={() => applyPreset(p)}
                 data-testid={`llm-preset-${p[0]}`}
               >
                 {p[0]}
-              </button>
+              </Button>
             ))}
           </div>
         }
@@ -105,12 +106,12 @@ export default function LLMEndpointPanel() {
       <SettingRow
         title="Base URL"
         control={
-          <input
+          <SettingsInput
+            mono
             type="text"
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
             placeholder="http://localhost:11434/v1"
-            style={{ flex: 1, minWidth: 200 }}
             data-testid="llm-base-url"
           />
         }
@@ -118,12 +119,12 @@ export default function LLMEndpointPanel() {
       <SettingRow
         title="Model"
         control={
-          <input
+          <SettingsInput
+            mono
             type="text"
             value={model}
             onChange={(e) => setModel(e.target.value)}
             placeholder="llama3.1"
-            style={{ flex: 1, minWidth: 200 }}
             data-testid="llm-model"
           />
         }
@@ -131,7 +132,8 @@ export default function LLMEndpointPanel() {
       <SettingRow
         title="API key"
         control={
-          <input
+          <SettingsInput
+            mono
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
@@ -140,7 +142,6 @@ export default function LLMEndpointPanel() {
                 ? `stored (${state.api_key_masked}) — type to replace`
                 : 'optional (Ollama needs none)'
             }
-            style={{ flex: 1, minWidth: 200 }}
             data-testid="llm-api-key"
           />
         }
@@ -156,20 +157,19 @@ export default function LLMEndpointPanel() {
         title="Connection"
         control={
           <>
-            <button type="button" onClick={onSave} disabled={saving} data-testid="llm-save">
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-            <span className="perfpanel__badge" role="status">
-              {state.available ? (
-                <>
-                  <CheckCircle2 size={11} /> reachable
-                </>
-              ) : (
-                <>
-                  <XCircle size={11} /> {state.reason || 'not configured'}
-                </>
-              )}
-            </span>
+            <Button
+              variant="subtle"
+              size="sm"
+              onClick={onSave}
+              loading={saving}
+              disabled={saving}
+              data-testid="llm-save"
+            >
+              Save
+            </Button>
+            <Badge tone={state.available ? 'success' : 'warn'} dot role="status">
+              {state.available ? 'reachable' : state.reason || 'not configured'}
+            </Badge>
           </>
         }
       />

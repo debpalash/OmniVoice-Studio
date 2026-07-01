@@ -14,6 +14,7 @@ import React, { useState } from 'react';
 import { Server } from 'lucide-react';
 import { LS_BACKEND_URL, LS_API_KEY, API } from '../../api/client';
 import { SettingsSection, SettingRow, InfoHint, SettingsInput } from './primitives';
+import { Button, Badge } from '../../ui';
 import RestartBadge from './RestartBadge';
 
 const REMOTE_GPU_DOCS_URL =
@@ -97,17 +98,24 @@ export default function RemoteBackendPanel() {
         }
       />
 
-      <div className="perfpanel__row">
-        <button type="button" onClick={onTest} disabled={testing} data-testid="remote-backend-test">
-          {testing ? 'Testing…' : 'Test connection'}
-        </button>
-        <button type="button" onClick={onSave} data-testid="remote-backend-save">
+      <div className="flex flex-wrap items-center gap-[var(--space-3)] min-w-0 max-w-full">
+        <Button
+          variant="subtle"
+          size="sm"
+          onClick={onTest}
+          loading={testing}
+          disabled={testing}
+          data-testid="remote-backend-test"
+        >
+          Test connection
+        </Button>
+        <Button variant="subtle" size="sm" onClick={onSave} data-testid="remote-backend-save">
           Save &amp; reload
-        </button>
+        </Button>
         {probe && (
-          <span className="perfpanel__badge" role="status">
+          <Badge tone={probe.ok ? 'success' : 'danger'} dot role="status">
             {probe.ok ? `OK — ${probe.detail}` : `Failed — ${probe.detail}`}
-          </span>
+          </Badge>
         )}
       </div>
     </SettingsSection>

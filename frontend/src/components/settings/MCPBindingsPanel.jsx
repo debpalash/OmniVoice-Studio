@@ -14,7 +14,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Bot, Trash2 } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
 import { listProfiles } from '../../api/profiles';
-import { SettingsSection, SettingRow } from './primitives';
+import { SettingsSection, SettingRow, SettingsInput } from './primitives';
+import { Button, Badge, Select } from '../../ui';
 
 export default function MCPBindingsPanel() {
   const [bindings, setBindings] = useState([]);
@@ -90,15 +91,16 @@ export default function MCPBindingsPanel() {
           }
           control={
             <>
-              <span className="perfpanel__badge">{profileName(b.profile_id)}</span>
-              <button
-                type="button"
+              <Badge tone="neutral">{profileName(b.profile_id)}</Badge>
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={() => onDelete(b.client_id)}
                 aria-label={`Remove ${b.client_id}`}
                 data-testid={`mcp-del-${b.client_id}`}
               >
                 <Trash2 size={12} />
-              </button>
+              </Button>
             </>
           }
         />
@@ -108,15 +110,15 @@ export default function MCPBindingsPanel() {
         title="Add binding"
         control={
           <>
-            <input
+            <SettingsInput
               type="text"
               value={clientId}
               onChange={(e) => setClientId(e.target.value)}
               placeholder="client id (e.g. claude-code)"
-              style={{ flex: 1, minWidth: 160 }}
               data-testid="mcp-client-id"
             />
-            <select
+            <Select
+              size="sm"
               value={profileId}
               onChange={(e) => setProfileId(e.target.value)}
               data-testid="mcp-profile"
@@ -127,10 +129,10 @@ export default function MCPBindingsPanel() {
                   {p.name}
                 </option>
               ))}
-            </select>
-            <button type="button" onClick={onAdd} data-testid="mcp-add">
+            </Select>
+            <Button variant="subtle" size="sm" onClick={onAdd} data-testid="mcp-add">
               Bind
-            </button>
+            </Button>
           </>
         }
       />
