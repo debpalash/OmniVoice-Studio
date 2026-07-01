@@ -4,7 +4,6 @@ import { List } from 'react-window';
 import DubSegmentRow from './DubSegmentRow';
 import { Table, Select } from '../ui';
 import { useAppStore } from '../store';
-import './DubSegmentTable.css';
 
 const BASE_ROW_HEIGHT = 26;
 const ROW_HEIGHT_WITH_ORIG = 40;

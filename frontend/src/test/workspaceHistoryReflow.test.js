@@ -14,10 +14,18 @@ import { resolve } from 'node:path';
  * future change reintroduces a `@media (max-width)` in this file or drops the
  * shell-class reflow / sticky action bar.
  */
-// Strip /* … */ comments so the guard checks real declarations, not the
-// warning comment that quotes the forbidden `@media (max-width)` pattern.
-const raw = readFileSync(resolve(process.cwd(), 'src/components/WorkspaceHistory.css'), 'utf8');
-const css = raw.replace(/\/\*[\s\S]*?\*\//g, '');
+// The former per-component WorkspaceHistory.css was folded into the single
+// index.css foundation; slice out its verbatim block (delimited by the
+// `folded from …` provenance headers) so this guard still checks only those
+// rules and not the rest of index.css (which legitimately uses max-width
+// elsewhere). Then strip /* … */ comments so the guard checks real
+// declarations, not the warning comment that quotes the forbidden pattern.
+const index = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
+const block = index.match(
+  /\/\* === folded from src\/components\/WorkspaceHistory\.css === \*\/([\s\S]*?)(?=\/\* === folded from |$)/,
+);
+if (!block) throw new Error('WorkspaceHistory block not found in index.css');
+const css = block[1].replace(/\/\*[\s\S]*?\*\//g, '');
 
 describe('workspace narrow-shell reflow (#476 CTA-clipping guard)', () => {
   it('does NOT use a raw viewport @media (max-width) query', () => {

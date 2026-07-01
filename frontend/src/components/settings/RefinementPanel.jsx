@@ -16,7 +16,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Wand2 } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
 import { SettingsSection, SettingRow, SettingsToggle } from './primitives';
-import './PerformancePanel.css';
 
 const FLAG_ROWS = [
   [

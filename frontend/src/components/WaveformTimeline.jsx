@@ -23,7 +23,6 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import { unlockAudio } from '../utils/audioUnlock';
 import SegmentTrack from './SegmentTrack';
-import './WaveformErrorBoundary.css';
 
 // Transport-control button chrome (migrated from the .waveform-btn family in
 // index.css). UA <button> padding/font are intentionally left untouched — the

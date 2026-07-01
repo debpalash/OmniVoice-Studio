@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Pip from './Pip';
 import { BUNDLED_PROGRESS, loadDonationProgress, progressPct, isGoalMet } from '../../api/donation';
-import './DonateGoal.css';
 
 /**
  * GoalBar — the "Fund Claude Max" progress meter.

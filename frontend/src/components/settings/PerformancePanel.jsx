@@ -20,7 +20,6 @@ import { Cpu } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
 import { SettingsSection, SettingRow, SettingsToggle } from './primitives';
 import RestartBadge from './RestartBadge';
-import './PerformancePanel.css';
 
 export default function PerformancePanel() {
   const [enabled, setEnabled] = useState(false);

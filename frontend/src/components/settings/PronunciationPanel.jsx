@@ -21,7 +21,6 @@ import { BookA, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { apiJson, apiFetch } from '../../api/client';
 import { SettingsSection, SettingRow } from './primitives';
-import './PerformancePanel.css';
 
 const TYPES = ['respelling', 'ipa', 'cmu'];
 

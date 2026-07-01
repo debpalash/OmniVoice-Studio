@@ -17,7 +17,6 @@ import { claimPlayback, stopActivePlayback } from '../utils/playback';
 import ArchetypesZone from '../components/gallery/ArchetypesZone';
 import CommunityZone from '../components/gallery/CommunityZone';
 import ImportsZone from '../components/gallery/ImportsZone';
-import './VoiceGallery.css';
 
 export default function VoiceGallery() {
   const { t } = useTranslation();

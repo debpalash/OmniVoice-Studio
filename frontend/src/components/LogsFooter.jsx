@@ -24,7 +24,6 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import NetworkToggle from './NetworkToggle';
 import { APP_VERSION } from '../utils/appVersion';
-import './LogsFooter.css';
 
 /**
  * VSCode-style bottom panel for logs. Always-visible 28 px collapsed bar

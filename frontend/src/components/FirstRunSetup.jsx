@@ -22,7 +22,6 @@ import { cn } from '@/lib/utils';
 import i18n, { LANGUAGES } from '../i18n';
 import { useAppStore } from '../store';
 import { Badge, Button, Input, Progress, Select } from '../ui';
-import './firstrun.css';
 
 const APP_VERSION = __APP_VERSION__ || '0.0.0';
 const GIB = 1024 * 1024 * 1024;

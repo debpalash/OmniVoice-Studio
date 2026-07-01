@@ -11,7 +11,6 @@ import { Palette } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore, FONT_OPTIONS, FONT_STACKS } from '../../store';
 import { SettingsSection, SettingRow, InfoHint, SettingsToggle } from './primitives';
-import './AppearancePanel.css';
 
 const THEMES = [
   { id: 'gruvbox', label: 'Gruvbox', dot: '#d3869b' },
