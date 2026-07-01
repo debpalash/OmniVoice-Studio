@@ -11,6 +11,8 @@ working OmniVoice Studio install on a Debian / Ubuntu / Fedora / Arch host.
   `sudo dnf install python3.11` on Fedora, or already installed on Arch.
 - **Bun** — `curl -fsSL https://bun.sh/install | bash`.
 - **FFmpeg** — `sudo apt install ffmpeg` (Debian/Ubuntu), `sudo dnf install ffmpeg-free` (Fedora), or `sudo pacman -S ffmpeg` (Arch).
+- **Rust / Cargo** (required for building from source only) — `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` or via your package manager (e.g., `sudo apt install rustc cargo`).
+  If you use rustup, reopen the shell or source `"$HOME/.cargo/env"` before running `bun run desktop-prod`.
 - **GTK/WebKit deps** for the Tauri shell:
 
   ```bash

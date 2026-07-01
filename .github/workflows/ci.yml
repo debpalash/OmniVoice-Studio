@@ -105,6 +105,19 @@ jobs:
         working-directory: frontend
         run: bun run typecheck:ci
 
+      # oxlint gate — fast Rust linter, blocks on errors so lint debt can't
+      # re-accumulate (warnings, incl. the react-compiler advisories in
+      # `lint:hooks`, are non-blocking). See frontend/.oxlintrc.json.
+      - name: Frontend lint (oxlint)
+        working-directory: frontend
+        run: bun run lint
+
+      # oxfmt format gate — JS/TS/JSX only (CSS/JSON/Tauri excluded; see
+      # frontend/.oxfmtrc.json). `bun run format` fixes locally.
+      - name: Frontend format check (oxfmt)
+        working-directory: frontend
+        run: bun run format:check
+
       - name: Run Vitest (frontend)
         working-directory: frontend
         run: bunx vitest run

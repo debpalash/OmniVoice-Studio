@@ -287,6 +287,38 @@ def test_transcribe_stream_surfaces_asr_load_failure_at_preflight(tmp_path, monk
     assert done_idx > err_idx >= 0, f"error must be followed by terminal done: {body}"
 
 
+def test_reset_pool_on_wedge_resets_resilient_pool():
+    """#730: a chunk transcribe that times out wedges its GPU-pool worker. The
+    chunked stream must abandon the pool so the next chunk / a concurrent TTS
+    generate gets a fresh worker instead of starving behind it."""
+    from api.routers import dub_core as dc
+
+    class _Pool:
+        def __init__(self):
+            self.resets = 0
+
+        def reset(self):
+            self.resets += 1
+
+    pool = _Pool()
+    dc._reset_pool_on_wedge(pool)
+    assert pool.resets == 1
+
+
+def test_reset_pool_on_wedge_is_a_noop_without_reset():
+    """A plain executor has no reset(); the helper must no-op, never raise —
+    it runs on the failure path it's recovering from."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from api.routers import dub_core as dc
+
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        dc._reset_pool_on_wedge(pool)  # must not raise
+    finally:
+        pool.shutdown(wait=False)
+
+
 @pytest.mark.xfail(
     reason="dub_core._transcribe was refactored to route through "
            "services.asr_backend.get_active_asr_backend; the MagicMock fixture "

@@ -97,13 +97,22 @@ def adjust_for_slot(
     slot_seconds: float,
     target_lang: str,
     source_text: Optional[str] = None,
+    strict: bool = False,
 ) -> dict:
     """Return `{text, rate_ratio, attempts, error?}`.
 
     Falls back to the input text if the LLM is off or the loop gives up.
+
+    ``strict`` (Autofit mode) caps the accepted upper bound at 1.0 instead of
+    ``TOL_HIGH`` — i.e. the line must fit *within* the slot, never overrun it —
+    so the target-language reading time can't exceed the segment and push the
+    video timing out. A too-short line is still accepted down to ``TOL_LOW`` (we
+    don't pad just to fill silence). Best-effort: after ``MAX_ATTEMPTS`` it
+    returns the closest candidate seen, so a stubborn line degrades gracefully.
     """
+    tol_high = 1.0 if strict else TOL_HIGH
     initial_ratio = rate_ratio(text, slot_seconds, target_lang)
-    if TOL_LOW <= initial_ratio <= TOL_HIGH:
+    if TOL_LOW <= initial_ratio <= tol_high:
         return {"text": text, "rate_ratio": initial_ratio, "attempts": 0}
 
     llm = get_active_llm_backend()
@@ -119,7 +128,7 @@ def adjust_for_slot(
     best = (current, initial_ratio)
     for attempt in range(1, MAX_ATTEMPTS + 1):
         r = rate_ratio(current, slot_seconds, target_lang)
-        if TOL_LOW <= r <= TOL_HIGH:
+        if TOL_LOW <= r <= tol_high:
             return {"text": current, "rate_ratio": r, "attempts": attempt - 1}
 
         system = _TRIM_PROMPT if r > 1.0 else _EXPAND_PROMPT

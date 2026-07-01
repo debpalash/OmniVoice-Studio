@@ -13,7 +13,14 @@ vi.mock('react-hot-toast', () => ({
 
 // Keep the data fetch deterministic + side-effect free.
 vi.mock('../api/donation', () => ({
-  loadDonationProgress: () => Promise.resolve({ raised: 100, goal: 200, currency: 'USD', sponsorCount: 9, updated: '2026-06-16' }),
+  loadDonationProgress: () =>
+    Promise.resolve({
+      raised: 100,
+      goal: 200,
+      currency: 'USD',
+      sponsorCount: 9,
+      updated: '2026-06-16',
+    }),
 }));
 
 import { evaluateDonationPrompt } from '../components/donate/evaluateDonationPrompt';

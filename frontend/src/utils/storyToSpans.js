@@ -27,10 +27,12 @@ import { parseChapterBody } from './longformParser';
 export function storyToSpans(tracks, cast, globalSpeed = null) {
   const chapters = [];
   let cur = { title: '', spans: [] };
-  const flush = () => { if (cur.spans.length) chapters.push(cur); };
+  const flush = () => {
+    if (cur.spans.length) chapters.push(cur);
+  };
   // 1.0× is the engine default → treat it as "no global override" so we don't
   // stamp an explicit speed on every span when the control is at rest.
-  const gspeed = (globalSpeed && globalSpeed !== 1) ? globalSpeed : null;
+  const gspeed = globalSpeed && globalSpeed !== 1 ? globalSpeed : null;
 
   for (const tk of tracks || []) {
     const text = tk.text || '';

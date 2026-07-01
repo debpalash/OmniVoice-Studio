@@ -25,7 +25,11 @@ describe('exportPersona', () => {
 
   it('builds the query string for license/tags/include_reference', async () => {
     apiFetch.mockResolvedValue({ ok: true, blob: () => Promise.resolve(new Blob(['z'])) });
-    await exportPersona('abc', { license_spdx: 'CC-BY-4.0', tags: 'a,b', include_reference: false });
+    await exportPersona('abc', {
+      license_spdx: 'CC-BY-4.0',
+      tags: 'a,b',
+      include_reference: false,
+    });
     const url = apiFetch.mock.calls[0][0] as string;
     expect(url).toContain('license_spdx=CC-BY-4.0');
     expect(url).toContain('tags=a%2Cb');

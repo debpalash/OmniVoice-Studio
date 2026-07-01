@@ -2,8 +2,18 @@ import type { Page } from '@playwright/test';
 
 /** Every routable view (the `mode` values in App.jsx). */
 export const MODES = [
-  'launchpad', 'clone', 'design', 'gallery', 'dub', 'stories',
-  'projects', 'queue', 'tools', 'transcriptions', 'settings', 'donate',
+  'launchpad',
+  'clone',
+  'design',
+  'gallery',
+  'dub',
+  'stories',
+  'projects',
+  'queue',
+  'tools',
+  'transcriptions',
+  'settings',
+  'donate',
 ] as const;
 
 /**

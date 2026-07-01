@@ -13,7 +13,12 @@
 import React, { useState } from 'react';
 import { Server } from 'lucide-react';
 import { LS_BACKEND_URL, LS_API_KEY, API } from '../../api/client';
-import './PerformancePanel.css';
+import { SettingsSection, SettingRow, InfoHint, SettingsInput } from './primitives';
+import { Button, Badge } from '../../ui';
+import RestartBadge from './RestartBadge';
+
+const REMOTE_GPU_DOCS_URL =
+  'https://github.com/debpalash/OmniVoice-Studio/blob/main/docs/remote-gpu.md';
 
 export default function RemoteBackendPanel() {
   const [url, setUrl] = useState(() => localStorage.getItem(LS_BACKEND_URL) || '');
@@ -51,53 +56,68 @@ export default function RemoteBackendPanel() {
   };
 
   return (
-    <section className="perfpanel" aria-labelledby="remotebackend-heading">
-      <h3 id="remotebackend-heading" className="perfpanel__title">
-        <Server size={14} /> Remote backend
-      </h3>
-      <p className="perfpanel__help">
-        Run inference on another machine: start the backend there with{' '}
-        <code>OMNIVOICE_API_KEY</code> set, reach it over your tailnet, and
-        point this app at it. Leave the URL empty to use the local backend.
-        See <code>docs/remote-gpu.md</code> for the full recipe.
-      </p>
+    <SettingsSection
+      icon={Server}
+      title="Remote backend"
+      description="Run inference on another machine; leave the URL empty for the local backend."
+      actions={
+        <>
+          <RestartBadge />
+          <InfoHint learnMoreHref={REMOTE_GPU_DOCS_URL}>
+            Start the backend on the other machine with <code>OMNIVOICE_API_KEY</code> set, reach it
+            over your tailnet, and point this app at it.
+          </InfoHint>
+        </>
+      }
+    >
+      <SettingRow
+        stack
+        title="Backend URL"
+        control={
+          <SettingsInput
+            mono
+            type="text"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="http://gpu-box.tailnet.ts.net:3900"
+            data-testid="remote-backend-url"
+          />
+        }
+      />
+      <SettingRow
+        stack
+        title="API key"
+        control={
+          <SettingsInput
+            type="password"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            placeholder="value of OMNIVOICE_API_KEY on the server"
+            data-testid="remote-backend-key"
+          />
+        }
+      />
 
-      <label className="perfpanel__row">
-        <span className="perfpanel__label">Backend URL</span>
-        <input
-          type="text"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="http://gpu-box.tailnet.ts.net:3900"
-          style={{ flex: 1 }}
-          data-testid="remote-backend-url"
-        />
-      </label>
-      <label className="perfpanel__row">
-        <span className="perfpanel__label">API key</span>
-        <input
-          type="password"
-          value={key}
-          onChange={(e) => setKey(e.target.value)}
-          placeholder="value of OMNIVOICE_API_KEY on the server"
-          style={{ flex: 1 }}
-          data-testid="remote-backend-key"
-        />
-      </label>
-
-      <div className="perfpanel__row">
-        <button type="button" onClick={onTest} disabled={testing} data-testid="remote-backend-test">
-          {testing ? 'Testing…' : 'Test connection'}
-        </button>
-        <button type="button" onClick={onSave} data-testid="remote-backend-save">
+      <div className="flex flex-wrap items-center gap-[var(--space-3)] min-w-0 max-w-full">
+        <Button
+          variant="subtle"
+          size="sm"
+          onClick={onTest}
+          loading={testing}
+          disabled={testing}
+          data-testid="remote-backend-test"
+        >
+          Test connection
+        </Button>
+        <Button variant="subtle" size="sm" onClick={onSave} data-testid="remote-backend-save">
           Save &amp; reload
-        </button>
+        </Button>
         {probe && (
-          <span className="perfpanel__badge" role="status">
+          <Badge tone={probe.ok ? 'success' : 'danger'} dot role="status">
             {probe.ok ? `OK — ${probe.detail}` : `Failed — ${probe.detail}`}
-          </span>
+          </Badge>
         )}
       </div>
-    </section>
+    </SettingsSection>
   );
 }

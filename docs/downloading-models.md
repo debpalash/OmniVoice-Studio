@@ -14,6 +14,15 @@ download UI couldn't show real bytes/speed. Until a proper Xet progress hook
 lands, the app forces the **classic LFS path**, which streams through the
 standard progress reporter and gives accurate downloaded/remaining/speed.
 
+To keep that path **fast** despite Xet being off, the app runs a built-in
+**multi-connection (segmented) downloader on by default** — it fetches each file
+over parallel byte-ranges (IDM/uGet style), so the legacy-LFS path is no longer
+single-stream. It reports real live speed/ETA and **falls back to the normal
+download on any error**, so it can never compromise a correct install. Adding a
+free Hugging Face token (first-run setup, or Settings → Credentials) makes this
+faster still — authenticated downloads get higher rate limits and fewer stalls.
+To force the old single-stream path, set `OMNIVOICE_SEGMENTED_DOWNLOAD=0`.
+
 State is reported at **Settings → About** / `GET /system/info`:
 
 - `fast_download.xet_installed` — `hf_xet` present (true)
@@ -54,12 +63,13 @@ When a download starts you'll see, in order:
 
 ## Advanced / opt-in tuning
 
-All of these default **off** and apply to every platform identically. Set them
-as environment variables (or via **Settings → API keys / environment**).
+These apply to every platform identically. Set them as environment variables (or
+via **Settings → API keys / environment**). The segmented accelerator is **on by
+default** (set its var to `0` to disable); the rest default **off**.
 
 | Setting | Env var | Effect |
 |---|---|---|
-| Segmented accelerator | `OMNIVOICE_SEGMENTED_DOWNLOAD=1` | Multi-connection downloader (parallel byte-ranges) for the legacy-LFS path — restores parallel speed **and** shows live byte speed/ETA. Falls back to the normal download on any error; files land in the standard cache. Best paired with Xet disabled (the default). |
+| Segmented accelerator | `OMNIVOICE_SEGMENTED_DOWNLOAD=0` | **On by default** (see above). Set to `0` to force the old single-stream legacy-LFS download instead of the parallel byte-range one. |
 | Max parallel files | `OMNIVOICE_DOWNLOAD_MAX_WORKERS` (default 8) | Files fetched at once. Xet already parallelises *within* a file, so raising this rarely helps and uses more memory. |
 | High-performance mode | `HF_XET_HIGH_PERFORMANCE=1` | Maximum throughput. Needs lots of RAM and bandwidth — can **hurt** low-RAM machines. Leave off unless you have headroom. |
 | Spinning-disk (HDD) | `HF_XET_RECONSTRUCT_WRITE_SEQUENTIALLY=1` | Sequential writes; avoids parallel-write thrash on HDDs. Leave off on SSD/NVMe. |

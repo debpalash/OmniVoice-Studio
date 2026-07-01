@@ -1,14 +1,14 @@
 import type { StateCreator } from 'zustand';
 import { listReleases } from '../utils/updater';
 
-export interface ReleaseInfo {
+interface ReleaseInfo {
   version: string;
   name: string;
   date: string;
   prerelease: boolean;
   notes: string;
 }
-export type ReleasesStatus = 'idle' | 'loading' | 'loaded' | 'error';
+type ReleasesStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 export interface ReleasesSlice {
   releases: ReleaseInfo[];

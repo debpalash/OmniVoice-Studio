@@ -10,9 +10,9 @@
  */
 import type { StateCreator } from 'zustand';
 
-export type GalleryZone = 'archetypes' | 'imports' | 'community';
+type GalleryZone = 'archetypes' | 'imports' | 'community';
 
-export interface ArchetypeFilterState {
+interface ArchetypeFilterState {
   use_case: string | null;
   gender: string | null;
   age: string | null;
@@ -22,7 +22,7 @@ export interface ArchetypeFilterState {
   lang: string | null;
 }
 
-export const EMPTY_ARCHETYPE_FILTERS: ArchetypeFilterState = {
+const EMPTY_ARCHETYPE_FILTERS: ArchetypeFilterState = {
   use_case: null,
   gender: null,
   age: null,
@@ -49,7 +49,11 @@ export interface GallerySlice {
   setGalleryViewMode: (mode: 'grid' | 'list') => void;
 }
 
-export const createGallerySlice: StateCreator<GallerySlice, [], [], GallerySlice> = (set, get, _store) => ({
+export const createGallerySlice: StateCreator<GallerySlice, [], [], GallerySlice> = (
+  set,
+  get,
+  _store,
+) => ({
   galleryZone: 'archetypes',
   archetypeFilters: { ...EMPTY_ARCHETYPE_FILTERS },
   favoriteArchetypeIds: [],

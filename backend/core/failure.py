@@ -65,7 +65,24 @@ def classify(reason: str) -> str:
     # failure gets its hint rather than falling through to "".
     if "compute type" in low or "efficient float16" in low:
         return "COMPUTE_TYPE_UNSUPPORTED"
-    if "could not import module" in low or "autofeatureextractor" in low:
+    if (
+        "could not import module" in low
+        or "autofeatureextractor" in low
+        # A corrupted/incomplete transformers install: a model load lazily
+        # resolves a module file that's MISSING from site-packages (an
+        # interrupted `uv sync`, antivirus removal, or a partial update), e.g.
+        # `[Errno 2] No such file or directory:
+        #  '.../site-packages/transformers/models/qwen3/modeling_qwen3.py'`.
+        # That's a FileNotFoundError, not an ImportError, so the matches above
+        # miss it and the user got a useless "try restarting". Substring-match
+        # the package + the missing-file signal (separately, so it works on both
+        # POSIX `/` and Windows `\` paths).
+        or (
+            ("no such file" in low or "errno 2" in low)
+            and "transformers" in low
+            and "site-packages" in low
+        )
+    ):
         return "TRANSFORMERS_IMPORT"
     if ("huggingface" in low or "hf_token" in low or "401" in low or "unauthorized" in low) and (
         "token" in low or "auth" in low or "401" in low or "unauthorized" in low

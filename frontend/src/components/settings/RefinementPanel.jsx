@@ -15,13 +15,29 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Wand2 } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
-import './PerformancePanel.css';
+import { SettingsSection, SettingRow, SettingsToggle } from './primitives';
 
 const FLAG_ROWS = [
-  ['auto', 'Refine dictation with the local LLM', 'Master switch — applied to final transcripts only, never live partials. The raw transcript is always kept in History.'],
-  ['smart_cleanup', 'Remove filler words & add punctuation', '"so um like the meeting is at 3pm you know" → "So the meeting is at 3pm."'],
-  ['self_correction', 'Apply spoken self-corrections', '"at seven no actually six am" → "at six am"'],
-  ['preserve_technical', 'Preserve technical terms & spoken symbols', '"index dot tsx" → "index.tsx"; identifiers stay verbatim'],
+  [
+    'auto',
+    'Refine dictation with the local LLM',
+    'Master switch — applied to final transcripts only, never live partials. The raw transcript is always kept in History.',
+  ],
+  [
+    'smart_cleanup',
+    'Remove filler words & add punctuation',
+    '"so um like the meeting is at 3pm you know" → "So the meeting is at 3pm."',
+  ],
+  [
+    'self_correction',
+    'Apply spoken self-corrections',
+    '"at seven no actually six am" → "at six am"',
+  ],
+  [
+    'preserve_technical',
+    'Preserve technical terms & spoken symbols',
+    '"index dot tsx" → "index.tsx"; identifiers stay verbatim',
+  ],
 ];
 
 export default function RefinementPanel() {
@@ -38,7 +54,9 @@ export default function RefinementPanel() {
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const onToggle = async (key, next) => {
     setSaving(true);
@@ -62,37 +80,37 @@ export default function RefinementPanel() {
   const llmReady = Boolean(cfg.llm_ready);
 
   return (
-    <section className="perfpanel" aria-labelledby="refinepanel-heading">
-      <h3 id="refinepanel-heading" className="perfpanel__title">
-        <Wand2 size={14} /> Dictation refinement
-      </h3>
-
-      {error && <div className="perfpanel__error" role="alert">{error}</div>}
-
-      {!llmReady && (
-        <p className="perfpanel__help">
-          Needs a local LLM endpoint (Ollama, LM Studio, or any
-          OpenAI-compatible server). Until one is configured, dictation
-          pastes the raw transcript unchanged.
-        </p>
+    <SettingsSection
+      icon={Wand2}
+      title="Dictation refinement"
+      description={
+        llmReady
+          ? undefined
+          : 'Needs a local LLM endpoint — until then, raw transcripts paste unchanged.'
+      }
+    >
+      {error && (
+        <div className="perfpanel__error" role="alert">
+          {error}
+        </div>
       )}
 
       {FLAG_ROWS.map(([key, label, help]) => (
-        <label className="perfpanel__row" key={key} title={help}>
-          <input
-            type="checkbox"
-            className="perfpanel__checkbox"
-            checked={Boolean(cfg[key])}
-            onChange={(e) => onToggle(key, e.target.checked)}
-            disabled={saving || (key !== 'auto' && !cfg.auto)}
-            data-testid={`refine-${key}`}
-          />
-          <span className="perfpanel__label">{label}</span>
-          {key === 'auto' && !llmReady && (
-            <span className="perfpanel__badge">no LLM configured</span>
-          )}
-        </label>
+        <SettingRow
+          key={key}
+          title={label}
+          subtitle={key === 'auto' && !llmReady ? 'no LLM configured' : undefined}
+          hint={help}
+          control={
+            <SettingsToggle
+              checked={Boolean(cfg[key])}
+              onChange={(next) => onToggle(key, next)}
+              disabled={saving || (key !== 'auto' && !cfg.auto)}
+              aria-label={label}
+            />
+          }
+        />
       ))}
-    </section>
+    </SettingsSection>
   );
 }

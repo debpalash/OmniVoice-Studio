@@ -10,8 +10,9 @@
 class AecFrameEmitter extends AudioWorkletProcessor {
   constructor(options) {
     super();
-    const frame = (options && options.processorOptions && options.processorOptions.frameSize) || 320;
-    this._frameSize = frame;     // 320 samples = 20 ms @ 16 kHz
+    const frame =
+      (options && options.processorOptions && options.processorOptions.frameSize) || 320;
+    this._frameSize = frame; // 320 samples = 20 ms @ 16 kHz
     this._buf = new Float32Array(frame);
     this._n = 0;
   }

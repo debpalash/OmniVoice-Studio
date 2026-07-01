@@ -94,7 +94,9 @@ async function run() {
     // Click play button (WaveSurfer play or native)
     // Finding the play button by its lucide icon class or explicit text is best
     // Using a broad selector for the play button in the waveform bar
-    const playBtn = page.locator('button:has(.lucide-play), .waveform-controls button').first();
+    const playBtn = page
+        .locator('button:has(.lucide-play), [aria-label="Playback controls"] button')
+        .first();
     if (await playBtn.isVisible()) {
         await playBtn.click();
     }

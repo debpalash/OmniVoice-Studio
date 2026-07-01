@@ -159,13 +159,37 @@ class MyEngineBackend(TTSBackend):
 
 - **Components**: Functional components with hooks
 - **State**: Zustand stores in `src/stores/`, organized by slice
-- **CSS**: Vanilla CSS in component-level files — no Tailwind
+- **CSS**: **Utilities-first + shadcn/ui, one stylesheet.** UI is built on the shadcn/ui primitives in `src/components/ui/` (wrapped by the `src/ui/` barrel, themed to the OmniVoice palette), composed with Tailwind v4 utility classes. **All styling now lives in a single file — `src/index.css`**: the `@theme` / `[data-theme]` token foundation plus the irreducible set utilities can't express (`@keyframes`, glassmorphism/`backdrop-filter`, pseudo-elements, `:has()`, unlayered cascade overrides, and styling hooks on library-generated DOM like virtualized rows / WaveSurfer). The per-component `.css` files were eliminated in the CSS→Tailwind/shadcn migration — **do not create new ones.** Reach for shadcn primitives + utilities; if a rule is genuinely irreducible, add it to `src/index.css` with a provenance comment. (The only other `.css` is the test-only visual harness. See `docs/shadcn-migration.md`.)
 - **Naming**: `PascalCase` for components, `camelCase` for hooks and utils
 
 ### Rust (Tauri)
 
 - **Format**: `cargo fmt` before committing
 - **Modules**: One concern per file (`bootstrap.rs`, `tools.rs`, `config.rs`, `commands.rs`)
+
+---
+
+## Frontend file structure & size limits
+
+Frontend code stays modular so an edit loads one small file, not a 1900-line
+one. The rules:
+
+- **Size caps:** **soft 300 lines**, **hard 500 lines** per `.jsx` file.
+  Anything over 500 lines must be split. (The cap does **not** apply to
+  `src/index.css` — it is the single, intentional styling foundation and the
+  only app stylesheet; see the CSS rule above.)
+- **Pages are thin orchestrators.** A file in `frontend/src/pages/` is just
+  layout + routing + state wiring that composes feature components — no inline
+  sub-component over ~50 lines.
+- **One component per file.** Co-locate `Foo.jsx` + `Foo.test.jsx` together in a
+  per-page feature folder under `frontend/src/components/` (e.g.
+  `components/settings/`, `components/dub/`). Styling is **not** co-located —
+  it's utilities + shadcn, with any irreducible rules in `src/index.css`.
+- **Shared bits go in a `primitives/` folder** inside the feature folder
+  (`components/settings/primitives/` is the existing example).
+- **Enforced by ESLint `max-lines`** (`max: 500`) — **warn-only for now** so it
+  never breaks CI, with the goal of upgrading to `error` once the backlog of
+  oversized files clears.
 
 ---
 

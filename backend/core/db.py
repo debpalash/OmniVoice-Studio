@@ -157,6 +157,22 @@ _BASE_SCHEMA = """
         last_seen_at REAL,
         created_at REAL
     );
+
+    -- Expressive-TTS Spec 01 Phase 1: user pronunciation dictionary. A
+    -- per-language word→respelling map applied as pure text substitution
+    -- before synthesis (Settings → Pronunciation). Fresh installs create it
+    -- here; existing DBs get it via alembic 0008_pronunciation_dictionary.
+    -- Both paths converge on this identical schema (dual-path discipline).
+    CREATE TABLE IF NOT EXISTS pronunciation_entries (
+        id TEXT PRIMARY KEY,
+        term TEXT NOT NULL,
+        replacement TEXT NOT NULL DEFAULT '',
+        type TEXT NOT NULL DEFAULT 'respelling',
+        language TEXT NOT NULL DEFAULT '*',
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at REAL
+    );
+    CREATE INDEX IF NOT EXISTS idx_pron_lang ON pronunciation_entries(language);
 """
 
 # Only tables/columns this module is allowed to ALTER. Prevents SQL injection via
@@ -250,6 +266,26 @@ def _reconcile_additive_columns(conn) -> None:
         conn.commit()
     finally:
         canon.close()
+
+
+def ensure_schema() -> None:
+    """Idempotently ensure the base tables + additive columns exist.
+
+    A runtime self-heal for a DB that somehow missed init — e.g. a write hitting
+    ``no such table: generation_history`` (#710) because ``init_db()``'s
+    ``executescript`` never took on that DB. Safe to call anytime: it's just
+    ``CREATE ... IF NOT EXISTS`` plus the additive-only column reconcile, so it
+    never drops or retypes anything and is backward-compatible with user data.
+    Cheaper than ``init_db()`` (skips the legacy ``_migrate`` + alembic), so a
+    write path can call it on a schema error and retry without a 500.
+    """
+    conn = get_db()
+    try:
+        conn.executescript(_BASE_SCHEMA)
+        _reconcile_additive_columns(conn)
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def init_db():

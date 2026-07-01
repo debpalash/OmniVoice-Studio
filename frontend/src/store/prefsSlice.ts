@@ -7,9 +7,18 @@
  * the storage round-trip once instead of per-field.
  */
 import type { StateCreator } from 'zustand';
+import { apiJson, apiPost } from '../api/client';
 
-export type TranslateQuality = 'fast' | 'cinematic';
-export type ThemeId = 'gruvbox' | 'midnight' | 'nord' | 'solarized' | 'rose-pine' | 'catppuccin';
+type TranslateQuality = 'fast' | 'autofit' | 'cinematic';
+type ThemeId = 'gruvbox' | 'midnight' | 'nord' | 'solarized' | 'rose-pine' | 'catppuccin';
+
+/** Dictation start/stop semantics — mirror of the backend `dictation.mode`. */
+type DictationMode = 'toggle' | 'hold';
+
+/** Default sherpa dictation model id — matches the backend
+ * `sherpa_dictation.DEFAULT_MODEL_ID`. Used only as the pre-hydration seed;
+ * the authoritative value comes from `GET /dictation/prefs`. */
+const DEFAULT_DICTATION_MODEL_ID = 'sherpa-parakeet-tdt-v3';
 
 /**
  * Global UI font. Applied app-wide by overriding the `--font-sans` CSS custom
@@ -18,23 +27,23 @@ export type ThemeId = 'gruvbox' | 'midnight' | 'nord' | 'solarized' | 'rose-pine
  * `:root` Inter stack takes over. All stacks are SYSTEM-SAFE — no web-font
  * downloads, so this works identically offline across macOS/Windows/Linux.
  */
-export type FontId = 'default' | 'system' | 'serif' | 'mono' | 'rounded' | 'readable';
+type FontId = 'default' | 'system' | 'serif' | 'mono' | 'rounded' | 'readable';
 
 export const FONT_OPTIONS: { id: FontId; label: string }[] = [
-  { id: 'default',  label: 'Inter (default)' },
-  { id: 'system',   label: 'System' },
-  { id: 'serif',    label: 'Serif' },
-  { id: 'mono',     label: 'Monospace' },
-  { id: 'rounded',  label: 'Rounded' },
+  { id: 'default', label: 'Inter (default)' },
+  { id: 'system', label: 'System' },
+  { id: 'serif', label: 'Serif' },
+  { id: 'mono', label: 'Monospace' },
+  { id: 'rounded', label: 'Rounded' },
   { id: 'readable', label: 'Readable' },
 ];
 
 export const FONT_STACKS: Record<FontId, string | null> = {
-  default:  null, // use the CSS :root --font-sans (Inter)
-  system:   '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
-  serif:    'Georgia, "Times New Roman", serif',
-  mono:     'ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace',
-  rounded:  '"SF Pro Rounded", "Nunito", "Quicksand", system-ui, sans-serif',
+  default: null, // use the CSS :root --font-sans (Inter)
+  system: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+  serif: 'Georgia, "Times New Roman", serif',
+  mono: 'ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace',
+  rounded: '"SF Pro Rounded", "Nunito", "Quicksand", system-ui, sans-serif',
   readable: '"Atkinson Hyperlegible", Verdana, system-ui, sans-serif',
 };
 
@@ -48,14 +57,14 @@ export const FONT_STACKS: Record<FontId, string | null> = {
  * without lip-sync drift. `strict_slot` is the legacy compress-to-fit
  * path, retained for back-compat.
  */
-export type TimingStrategy = 'concise' | 'smart_fit' | 'stretch_video' | 'strict_slot';
+type TimingStrategy = 'concise' | 'smart_fit' | 'stretch_video' | 'strict_slot';
 
 /**
  * Knob overrides for the `smart_fit` strategy. `null` (default) sends no
  * `fit_options` and the backend uses its canonical FitParams defaults —
  * identical behavior on every platform out of the box.
  */
-export interface FitOptions {
+interface FitOptions {
   max_audio_only_rate?: number;
   audio_rate_cap?: number;
   video_slow_cap?: number;
@@ -117,6 +126,43 @@ export interface PrefsSlice {
   aecEnabled: boolean;
   setAecEnabled: (on: boolean) => void;
 
+  /**
+   * Live-dictation prefs — MIRRORED from the backend `GET /dictation/prefs`
+   * (the backend `prefs.json` `dictation.*` namespace is the source of truth).
+   * On app init we hydrate these from the backend; every setter write-throughs
+   * to `POST /dictation/prefs` so the capture engine and the UI never diverge.
+   * They're intentionally NOT in `partialize` (store/index.ts) — the backend
+   * owns them, so persisting a stale localStorage copy would fight the server.
+   *
+   *   • dictationEnabled  — master on/off for the dictation hotkey.
+   *   • dictationMode     — 'toggle' (press to start, press to stop) | 'hold'
+   *                          (record while the key is held).
+   *   • dictationModelId  — the selected sherpa-onnx model id (e.g.
+   *                          'sherpa-parakeet-tdt-v3'); drives `?model=` on the
+   *                          live `/ws/transcribe` socket.
+   */
+  dictationEnabled: boolean;
+  dictationMode: DictationMode;
+  dictationModelId: string;
+  /** Local-only flag: true once the backend prefs have been hydrated, so the
+   * Voice panel can avoid flashing defaults before the first load. */
+  dictationLoaded: boolean;
+  /** Optimistic local set + write-through to POST /dictation/prefs. */
+  setDictationEnabled: (on: boolean) => void;
+  setDictationMode: (mode: DictationMode) => void;
+  setDictationModelId: (id: string) => void;
+  /** Hydrate from GET /dictation/prefs (called once on app init). */
+  loadDictationPrefs: () => Promise<void>;
+
+  /**
+   * Auto-play the output preview as soon as a render finishes (Voice Clone /
+   * Design / profile preview). Default ON — preserves the long-standing
+   * behavior. Users batch-generating segments (#666) can turn it off so each
+   * finished clip doesn't start playing on its own.
+   */
+  autoPlayPreview: boolean;
+  setAutoPlayPreview: (on: boolean) => void;
+
   locale: string;
   setLocale: (l: string) => void;
 
@@ -127,7 +173,20 @@ export interface PrefsSlice {
   setFont: (id: FontId) => void;
 }
 
-export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (set) => ({
+/** Map a `GET/POST /dictation/prefs` response → the store's dictation fields.
+ * Tolerant of partial/garbage payloads so a malformed response can never wedge
+ * the store. */
+function _dictationFromPrefs(p: any): Partial<PrefsSlice> {
+  const out: Partial<PrefsSlice> = {};
+  if (p && typeof p === 'object') {
+    if (typeof p.enabled === 'boolean') out.dictationEnabled = p.enabled;
+    if (p.mode === 'toggle' || p.mode === 'hold') out.dictationMode = p.mode;
+    if (typeof p.model_id === 'string' && p.model_id) out.dictationModelId = p.model_id;
+  }
+  return out;
+}
+
+export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (set, get) => ({
   translateQuality: 'fast',
   dualSubs: false,
   burnSubs: false,
@@ -137,23 +196,94 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   timingStrategy: 'concise',
   fitOptions: null,
   aecEnabled: false,
+  autoPlayPreview: true,
 
-  setTranslateQuality:    (q) => set({ translateQuality: q }),
-  setDualSubs:            (on) => set({ dualSubs: on }),
-  setBurnSubs:            (on) => set({ burnSubs: on }),
-  setGlossaryVisible:     (on) => set({ glossaryVisible: on }),
-  setReviewMode:          (mode) => set({ reviewMode: mode }),
+  // Seeds only — overwritten by loadDictationPrefs() on init. The backend
+  // default is enabled:true / mode:'toggle' / model:Parakeet TDT v3.
+  dictationEnabled: true,
+  dictationMode: 'toggle',
+  dictationModelId: DEFAULT_DICTATION_MODEL_ID,
+  dictationLoaded: false,
+
+  setTranslateQuality: (q) => set({ translateQuality: q }),
+  setDualSubs: (on) => set({ dualSubs: on }),
+  setBurnSubs: (on) => set({ burnSubs: on }),
+  setGlossaryVisible: (on) => set({ glossaryVisible: on }),
+  setReviewMode: (mode) => set({ reviewMode: mode }),
   setShowHeaderLiveStats: (on) => set({ showHeaderLiveStats: on }),
-  setTimingStrategy:      (s) => set({ timingStrategy: s }),
-  setFitOptions:          (o) => set({ fitOptions: o }),
-  setAecEnabled:          (on) => set({ aecEnabled: on }),
+  setTimingStrategy: (s) => set({ timingStrategy: s }),
+  setFitOptions: (o) => set({ fitOptions: o }),
+  setAecEnabled: (on) => set({ aecEnabled: on }),
+  setAutoPlayPreview: (on) => set({ autoPlayPreview: on }),
 
-  locale: typeof navigator !== 'undefined' ? (() => {
-    const nav = navigator.language || '';
-    if (nav.toLowerCase().includes('tw') || nav.toLowerCase().includes('hk')) return 'zh-TW';
-    const match = ['zh-CN', 'es', 'fr', 'de', 'ja', 'pt', 'it', 'ru', 'ko', 'hi', 'tr', 'pl', 'nl', 'sv', 'th', 'vi', 'id', 'uk', 'ar'].find(code => nav.startsWith(code.split('-')[0]));
-    return match || 'en';
-  })() : 'en',
+  // ── Dictation prefs (backend-backed) ──────────────────────────────────
+  // Each setter is optimistic (update the store immediately so the UI is
+  // snappy) then write-throughs to POST /dictation/prefs, which returns the
+  // full authoritative prefs — we re-sync from that so a backend rejection
+  // (400 on a bad value) or normalisation (repo_id → canonical id) can't leave
+  // the UI out of step. A failed write rolls the optimistic value back.
+  setDictationEnabled: (on) => {
+    const prev = get().dictationEnabled;
+    set({ dictationEnabled: on });
+    apiPost('/dictation/prefs', { enabled: on })
+      .then((p: any) => set(_dictationFromPrefs(p)))
+      .catch(() => set({ dictationEnabled: prev }));
+  },
+  setDictationMode: (mode) => {
+    const prev = get().dictationMode;
+    set({ dictationMode: mode });
+    apiPost('/dictation/prefs', { mode })
+      .then((p: any) => set(_dictationFromPrefs(p)))
+      .catch(() => set({ dictationMode: prev }));
+  },
+  setDictationModelId: (id) => {
+    const prev = get().dictationModelId;
+    set({ dictationModelId: id });
+    apiPost('/dictation/prefs', { model_id: id })
+      .then((p: any) => set(_dictationFromPrefs(p)))
+      .catch(() => set({ dictationModelId: prev }));
+  },
+  loadDictationPrefs: async () => {
+    try {
+      const p = await apiJson<any>('/dictation/prefs');
+      set({ ..._dictationFromPrefs(p), dictationLoaded: true });
+    } catch {
+      // Backend not ready / older build without the route — keep the seeds and
+      // mark loaded so the panel renders defaults rather than a perpetual
+      // spinner. A later manual interaction will retry the write-through.
+      set({ dictationLoaded: true });
+    }
+  },
+
+  locale:
+    typeof navigator !== 'undefined'
+      ? (() => {
+          const nav = navigator.language || '';
+          if (nav.toLowerCase().includes('tw') || nav.toLowerCase().includes('hk')) return 'zh-TW';
+          const match = [
+            'zh-CN',
+            'es',
+            'fr',
+            'de',
+            'ja',
+            'pt',
+            'it',
+            'ru',
+            'ko',
+            'hi',
+            'tr',
+            'pl',
+            'nl',
+            'sv',
+            'th',
+            'vi',
+            'id',
+            'uk',
+            'ar',
+          ].find((code) => nav.startsWith(code.split('-')[0]));
+          return match || 'en';
+        })()
+      : 'en',
   setLocale: (l) => set({ locale: l }),
 
   theme: 'gruvbox',

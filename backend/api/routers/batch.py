@@ -142,7 +142,7 @@ async def _run_batch_pipeline(job_id: str, job: dict):
     _set_progress(job, "transcribe", 0)
 
     from services.asr_backend import get_active_asr_backend
-    from services.model_manager import _gpu_pool, _cpu_pool
+    from services.model_manager import _gpu_pool, _cpu_pool, run_on_gpu_pool_guarded
     from services.segmentation import (
         segment_transcript, assign_speakers_heuristic,
     )
@@ -162,7 +162,12 @@ async def _run_batch_pipeline(job_id: str, job: dict):
             pass
         return segments, detected_lang
 
-    segments, source_lang = await loop.run_in_executor(_gpu_pool, _transcribe)
+    # Bound the batch transcribe (#730) so a wedged whisperx/CTranslate2 call
+    # can't hold its GPU-pool worker forever and starve the rest of the backend
+    # ("can't reach backend"); run_transcribe_guarded also resets the pool on
+    # timeout to restore capacity.
+    from services.asr_backend import run_transcribe_guarded
+    segments, source_lang = await run_transcribe_guarded(_gpu_pool, _transcribe, what="Batch")
     source_lang = (source_lang or "en").split("_")[0][:2].lower()
     job["segments"] = segments
     job["source_lang"] = source_lang
@@ -311,7 +316,9 @@ async def _run_batch_pipeline(job_id: str, job: dict):
                     return torch.zeros(1, int(dur * sr))
 
             try:
-                audio_tensor = await loop.run_in_executor(_gpu_pool, _gen)
+                # Bounded + pool-reset on hang so a wedged batch segment can't
+                # starve the GPU pool and brick the backend (#730 class).
+                audio_tensor = await run_on_gpu_pool_guarded(_gen, what="Batch generate")
 
                 # Fit to slot
                 target_samples_seg = int(seg_duration * sr)

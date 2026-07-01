@@ -38,7 +38,11 @@ export async function attachPlaybackTap(mediaEl, { sampleRate = 16000, frameSize
 
   const { ctx, src } = entry;
   if (ctx.state === 'suspended') {
-    try { await ctx.resume(); } catch { /* gesture may be required; harmless */ }
+    try {
+      await ctx.resume();
+    } catch {
+      /* gesture may be required; harmless */
+    }
   }
   const node = new AudioWorkletNode(ctx, 'aec-frame-emitter', {
     processorOptions: { frameSize },
@@ -47,8 +51,16 @@ export async function attachPlaybackTap(mediaEl, { sampleRate = 16000, frameSize
   src.connect(node);
 
   return async function detach() {
-    try { node.port.onmessage = null; } catch { /* ignore */ }
-    try { node.disconnect(); } catch { /* ignore */ }
+    try {
+      node.port.onmessage = null;
+    } catch {
+      /* ignore */
+    }
+    try {
+      node.disconnect();
+    } catch {
+      /* ignore */
+    }
     // Intentionally leave ctx + src→destination intact (see header note).
   };
 }

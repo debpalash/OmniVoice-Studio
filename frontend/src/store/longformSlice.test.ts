@@ -4,7 +4,9 @@ import { createStoriesSlice, DEFAULT_CAST, SLICE_DEFAULTS, genProjectId } from '
 
 function harness() {
   let state: any = {};
-  const set = (fn: any) => { state = { ...state, ...(typeof fn === 'function' ? fn(state) : fn) }; };
+  const set = (fn: any) => {
+    state = { ...state, ...(typeof fn === 'function' ? fn(state) : fn) };
+  };
   const get = () => state;
   state = createStoriesSlice(set as any, get as any, {} as any);
   return { get };
@@ -91,9 +93,9 @@ describe('longformSlice — long-form fields', () => {
     expect(get().meta).toEqual({ title: 'The Crown', author: 'A. Writer' });
     get().setLexicon({ gaol: 'jail' });
     get().setLexicon({ ye: 'yee' });
-    expect(get().lexicon).toEqual({ ye: 'yee' });   // replace, not merge
+    expect(get().lexicon).toEqual({ ye: 'yee' }); // replace, not merge
     get().setOutputPrefs({ loudness: 'acx' });
-    expect(get().outputFormat).toBe('m4b');         // untouched
+    expect(get().outputFormat).toBe('m4b'); // untouched
     expect(get().loudness).toBe('acx');
   });
 
@@ -130,7 +132,7 @@ describe('longformSlice — long-form fields', () => {
     get().loadProject('p_old');
     expect(get().projectMode).toBe('stories');
     expect(get().script).toBe(SLICE_DEFAULTS.script);
-    expect(get().meta).toEqual({});           // never undefined → no controlled-input warning
+    expect(get().meta).toEqual({}); // never undefined → no controlled-input warning
     expect(get().outputFormat).toBe('m4b');
     expect(get().storyTracks).toHaveLength(1);
   });
@@ -147,8 +149,8 @@ describe('longformSlice — long-form fields', () => {
     const b = get().currentProjectId;
     get().loadProject(a!);
     get().loadProject(b!);
-    expect(get().meta).toEqual({ author: 'Bee' });   // no 'Aaa' title bleed
-    expect(get().script).toBe('');                   // B never set a script
+    expect(get().meta).toEqual({ author: 'Bee' }); // no 'Aaa' title bleed
+    expect(get().script).toBe(''); // B never set a script
   });
 
   it('convertMode flips mode, is idempotent, and guards invalid values', () => {
@@ -156,9 +158,9 @@ describe('longformSlice — long-form fields', () => {
     expect(get().projectMode).toBe('stories');
     get().convertMode('audiobook');
     expect(get().projectMode).toBe('audiobook');
-    get().convertMode('audiobook');                  // idempotent
+    get().convertMode('audiobook'); // idempotent
     expect(get().projectMode).toBe('audiobook');
-    get().convertMode('bogus' as any);               // guarded
+    get().convertMode('bogus' as any); // guarded
     expect(get().projectMode).toBe('audiobook');
   });
 
@@ -176,7 +178,8 @@ describe('longformSlice — long-form fields', () => {
   });
 
   it('DEFAULT_CAST is not shared by reference between slices', () => {
-    const a = harness(); const b = harness();
+    const a = harness();
+    const b = harness();
     a.get().setCharacterVoice('narrator', 'x');
     expect(b.get().cast[0].profileId).toBeNull();
     expect(DEFAULT_CAST[0].profileId).toBeNull();

@@ -16,12 +16,14 @@ DELETE /models/{repo_id:path}
 DELETE /profiles/{profile_id}
 DELETE /profiles/{profile_id}/consent
 DELETE /projects/{project_id}
+DELETE /pronunciation/{entry_id}
 GET /api/mcp/bindings
 GET /api/settings/dictation-refinement
 GET /api/settings/hf-mirror
 GET /api/settings/hf-token/state
 GET /api/settings/license/{engine_id}
 GET /api/settings/llm-endpoint
+GET /api/settings/llm-providers
 GET /api/settings/perf/torch-compile-disabled
 GET /api/settings/storage/models-dir
 GET /archetypes
@@ -36,6 +38,8 @@ GET /community/items
 GET /community/manifest
 GET /community/sources
 GET /community/submit-url
+GET /dictation/models
+GET /dictation/prefs
 GET /docs
 GET /dub/audio/{job_id}
 GET /dub/download-audio/{job_id}
@@ -91,6 +95,8 @@ GET /profiles/{profile_id}/audio
 GET /profiles/{profile_id}/usage
 GET /projects
 GET /projects/{project_id}
+GET /pronunciation
+GET /pronunciation/export
 GET /setup/download-stream
 GET /setup/preflight
 GET /setup/recommendations
@@ -117,6 +123,8 @@ PATCH /gallery/voices/{voice_id}
 PATCH /projects/{project_id}
 POST /api/settings/hf-token
 POST /api/settings/license
+POST /api/settings/llm-providers/active
+POST /api/settings/llm-providers/{provider_id}/test
 POST /archetypes/{archetype_id}/use
 POST /audiobook
 POST /audiobook/cover
@@ -129,6 +137,7 @@ POST /batch/jobs/{job_id}/cancel
 POST /clean-audio
 POST /community/items/{item_id}/use
 POST /design/describe
+POST /dictation/prefs
 POST /dub/abort/{job_id}
 POST /dub/cleanup-segments/{job_id}
 POST /dub/generate/{job_id}
@@ -174,6 +183,9 @@ POST /profiles/{profile_id}/consent
 POST /profiles/{profile_id}/lock
 POST /profiles/{profile_id}/unlock
 POST /projects
+POST /pronunciation
+POST /pronunciation/import
+POST /pronunciation/test
 POST /setup/warmup
 POST /stories/encode
 POST /system/crash/ack
@@ -201,11 +213,13 @@ PUT /api/mcp/bindings
 PUT /api/settings/dictation-refinement
 PUT /api/settings/hf-mirror
 PUT /api/settings/llm-endpoint
+PUT /api/settings/llm-providers/{provider_id}
 PUT /api/settings/perf/torch-compile-disabled
 PUT /api/settings/storage/models-dir
 PUT /glossary/{project_id}/{term_id}
 PUT /profiles/{profile_id}
 PUT /projects/{project_id}
+PUT /pronunciation/{entry_id}
 WS /ws/events
 WS /ws/transcribe
 WS /ws/tts

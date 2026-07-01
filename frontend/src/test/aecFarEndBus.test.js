@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  publishFarEnd,
-  subscribeFarEnd,
-  farEndListenerCount,
-} from '../utils/aec/farEndBus';
+import { publishFarEnd, subscribeFarEnd, farEndListenerCount } from '../utils/aec/farEndBus';
 
 describe('aec/farEndBus', () => {
   beforeEach(() => {
@@ -44,7 +40,9 @@ describe('aec/farEndBus', () => {
   });
 
   it('a throwing subscriber does not break delivery to others', () => {
-    const bad = vi.fn(() => { throw new Error('boom'); });
+    const bad = vi.fn(() => {
+      throw new Error('boom');
+    });
     const good = vi.fn();
     const unsubBad = subscribeFarEnd(bad);
     const unsubGood = subscribeFarEnd(good);

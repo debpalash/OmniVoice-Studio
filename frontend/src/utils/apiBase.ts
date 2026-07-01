@@ -10,9 +10,11 @@
  *      Always wins. Set in `.env.local` or the docker-compose env.
  *
  *   2. Tauri webview (the shipped desktop app):
- *      Backend always listens on 127.0.0.1:3900 on the same machine.
- *      Even when Tauri's webview origin is `tauri://localhost`, plain
- *      `http://localhost:3900` reaches the backend.
+ *      Backend always listens on IPv4 127.0.0.1:3900 on the same machine, so we
+ *      target the numeric `http://127.0.0.1:3900` — NOT `localhost`, which on
+ *      Windows can resolve to ::1 (IPv6) first and miss the IPv4-only backend.
+ *      (api/client.ts already does this; this util is kept in lockstep.)
+ *      Tauri's webview origin (`tauri://localhost`) is unaffected.
  *
  *   3. Plain browser (Docker LAN, port-forward, dev server on a NAS):
  *      The browser was served from some host — likely a LAN IP. We must
@@ -39,10 +41,7 @@ export const BACKEND_PORT = 3900;
 
 /** True when the current execution context is a Tauri webview. */
 export function isTauriContext(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    !!(window.__TAURI_INTERNALS__ || window.__TAURI__)
-  );
+  return typeof window !== 'undefined' && !!(window.__TAURI_INTERNALS__ || window.__TAURI__);
 }
 
 /**
@@ -68,9 +67,9 @@ function _readEnvOverride(): string | undefined {
 export function getApiBase(): string {
   // 0. Runtime override injected by the backend (Docker/proxy) wins over
   //    everything — it's the only knob a prebuilt image can turn at run time.
-  if (typeof window !== "undefined") {
+  if (typeof window !== 'undefined') {
     const runtime = window.__OMNIVOICE_API_BASE__;
-    if (typeof runtime === "string" && runtime) {
+    if (typeof runtime === 'string' && runtime) {
       return stripTrailingSlash(runtime);
     }
   }
@@ -81,13 +80,22 @@ export function getApiBase(): string {
     return stripTrailingSlash(override);
   }
 
-  // 2. Tauri webview → loopback.
+  // 2. Tauri webview → loopback. Use the literal IPv4 127.0.0.1, NOT "localhost".
+  //    The backend binds IPv4 127.0.0.1 only (backend/main.py), but on Windows
+  //    "localhost" frequently resolves to ::1 (IPv6) first — so
+  //    http://localhost:3900 hits an address nothing is listening on and the
+  //    request fails with "Can't reach the local backend". The main API client
+  //    (api/client.ts) already resolves Tauri → 127.0.0.1; this util lagged on
+  //    "localhost", so its one consumer — utils/media.js's preview/blob upload
+  //    (the audiobook/video preview path, #653) — still broke on Windows. Align
+  //    the two resolvers. The numeric address skips name resolution and is
+  //    correct on macOS/Linux too (the backend is always on this machine).
   if (isTauriContext()) {
-    return `http://localhost:${BACKEND_PORT}`;
+    return `http://127.0.0.1:${BACKEND_PORT}`;
   }
 
   // 3. Plain browser → follow the page's own origin/host.
-  if (typeof window !== "undefined" && window.location) {
+  if (typeof window !== 'undefined' && window.location) {
     const { protocol, hostname } = window.location;
     if (hostname) {
       return `${protocol}//${hostname}:${BACKEND_PORT}`;
@@ -99,7 +107,7 @@ export function getApiBase(): string {
 }
 
 function stripTrailingSlash(url: string): string {
-  return url.endsWith("/") ? url.slice(0, -1) : url;
+  return url.endsWith('/') ? url.slice(0, -1) : url;
 }
 
 /** Module-level cached base URL — resolved once at import time. Most callers

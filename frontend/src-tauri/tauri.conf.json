@@ -24,7 +24,8 @@
         "fullscreen": false,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "maximized": true
+        "maximized": true,
+        "dragDropEnabled": false
       },
       {
         "label": "widget",

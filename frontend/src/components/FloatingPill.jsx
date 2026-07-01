@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, CheckCircle, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
-import './FloatingPill.css';
 
 /**
  * FloatingPill — always-on-top status indicator for long-running operations.
@@ -25,28 +24,28 @@ function formatElapsed(ms) {
 
 const STAGE_LABELS = {
   'loading-model': '🧠',
-  'recording':     '🎙️',
-  'transcribing':  '📝',
-  'translating':   '🌐',
-  'generating':    '🔊',
-  'exporting':     '📦',
-  'refining':      '✨',
-  'done':          '✅',
-  'error':         '❌',
+  recording: '🎙️',
+  transcribing: '📝',
+  translating: '🌐',
+  generating: '🔊',
+  exporting: '📦',
+  refining: '✨',
+  done: '✅',
+  error: '❌',
 };
 
 export default function FloatingPill() {
   const { t } = useTranslation();
-  const visible    = useAppStore(s => s.visible);
-  const stage      = useAppStore(s => s.stage);
-  const label      = useAppStore(s => s.label);
-  const progress   = useAppStore(s => s.progress);
-  const startedAt  = useAppStore(s => s.startedAt);
-  const error      = useAppStore(s => s.error);
-  const cancellable = useAppStore(s => s.cancellable);
-  const homeMode   = useAppStore(s => s.homeMode);
-  const mode       = useAppStore(s => s.mode);
-  const dismissPill = useAppStore(s => s.dismissPill);
+  const visible = useAppStore((s) => s.visible);
+  const stage = useAppStore((s) => s.stage);
+  const label = useAppStore((s) => s.label);
+  const progress = useAppStore((s) => s.progress);
+  const startedAt = useAppStore((s) => s.startedAt);
+  const error = useAppStore((s) => s.error);
+  const cancellable = useAppStore((s) => s.cancellable);
+  const homeMode = useAppStore((s) => s.homeMode);
+  const mode = useAppStore((s) => s.mode);
+  const dismissPill = useAppStore((s) => s.dismissPill);
 
   const [elapsed, setElapsed] = useState(0);
   const [exiting, setExiting] = useState(false);
@@ -91,7 +90,9 @@ export default function FloatingPill() {
         exiting ? 'floating-pill--exiting' : '',
         isDone ? 'floating-pill--done' : '',
         isError ? 'floating-pill--error' : '',
-      ].filter(Boolean).join(' ')}
+      ]
+        .filter(Boolean)
+        .join(' ')}
       role="status"
       aria-live="polite"
     >
@@ -99,32 +100,39 @@ export default function FloatingPill() {
       <span className={`floating-pill__dot floating-pill__dot--${stage}`} />
 
       {/* Content */}
-      <div className="floating-pill__content">
-        <span className="floating-pill__label">
+      <div className="floating-pill__content flex-1 min-w-0 flex flex-col gap-[2px]">
+        <span className="floating-pill__label font-medium whitespace-nowrap overflow-hidden text-ellipsis">
           {stageEmoji} {label}
         </span>
 
         {/* Meta row: timer + progress text */}
-        <div className="floating-pill__meta">
+        <div className="floating-pill__meta flex items-center gap-[var(--space-3)] [font-size:var(--text-xs)] text-fg-muted">
           {isActive && elapsed > 0 && (
-            <span className="floating-pill__timer">{formatElapsed(elapsed)}</span>
+            <span className="floating-pill__timer font-mono [font-size:var(--text-2xs)] text-fg-subtle [letter-spacing:0.03em]">
+              {formatElapsed(elapsed)}
+            </span>
           )}
-          {progress !== null && isActive && (
-            <span>{Math.round(progress)}%</span>
-          )}
+          {progress !== null && isActive && <span>{Math.round(progress)}%</span>}
           {isError && error && (
-            <span className="floating-pill__error" title={error}>{error}</span>
+            <span
+              className="floating-pill__error [font-size:var(--text-xs)] text-danger whitespace-nowrap overflow-hidden text-ellipsis"
+              title={error}
+            >
+              {error}
+            </span>
           )}
         </div>
 
         {/* Mini progress bar */}
         {isActive && (
-          <div className="floating-pill__progress">
+          <div className="floating-pill__progress w-full h-[3px] rounded-[2px] bg-bg-elev-2 overflow-hidden mt-[2px]">
             <div
               className={[
                 'floating-pill__progress-fill',
                 progress === null ? 'floating-pill__progress-fill--indeterminate' : '',
-              ].filter(Boolean).join(' ')}
+              ]
+                .filter(Boolean)
+                .join(' ')}
               style={progress !== null ? { width: `${progress}%` } : undefined}
             />
           </div>
@@ -133,7 +141,7 @@ export default function FloatingPill() {
 
       {/* Dismiss / cancel button */}
       <button
-        className="floating-pill__dismiss"
+        className="floating-pill__dismiss flex items-center justify-center w-[20px] h-[20px] rounded-full border-0 bg-transparent text-fg-subtle cursor-pointer flex-shrink-0 [transition:background_var(--dur-fast)_var(--ease-out),color_var(--dur-fast)_var(--ease-out)] hover:bg-[rgba(255,255,255,0.08)] hover:text-fg"
         onClick={handleDismiss}
         title={cancellable ? t('common.cancel') : t('common.dismiss')}
         aria-label={cancellable ? t('common.cancelOp') : t('common.dismissStatus')}

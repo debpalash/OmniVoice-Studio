@@ -8,7 +8,8 @@ import { parseScriptToSpans, roundHalfToEven } from '../utils/longformParser';
 // vitest runs with cwd = frontend/, so the repo-root fixture is one level up.
 // (import.meta.url isn't a file: URL under the vitest transform, so use cwd.)
 const CASES = JSON.parse(
-  readFileSync(resolve(process.cwd(), '../tests/fixtures/longform_parser_cases.json'), 'utf-8'));
+  readFileSync(resolve(process.cwd(), '../tests/fixtures/longform_parser_cases.json'), 'utf-8'),
+);
 
 describe('parseScriptToSpans — cross-impl golden corpus', () => {
   it('has the same ≥40-case corpus as Python', () => {
@@ -40,8 +41,13 @@ describe('parseScriptToSpans — guards & rounding', () => {
   });
 
   it('is linear on pathological input (ReDoS guard)', () => {
-    for (const blob of ['[slow]'.repeat(5000), '[pause'.repeat(5000),
-      '[voice:'.repeat(5000), '# \n'.repeat(5000), '[a]'.repeat(5000)]) {
+    for (const blob of [
+      '[slow]'.repeat(5000),
+      '[pause'.repeat(5000),
+      '[voice:'.repeat(5000),
+      '# \n'.repeat(5000),
+      '[a]'.repeat(5000),
+    ]) {
       const t0 = Date.now();
       parseScriptToSpans(blob, { defaultVoice: 'v' });
       expect(Date.now() - t0).toBeLessThan(1000);

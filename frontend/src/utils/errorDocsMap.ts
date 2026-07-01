@@ -27,6 +27,10 @@ export const ERROR_DOCS: Record<string, string> = {
 
 export const DEFAULT_DOCS = `${BASE}/docs/install/troubleshooting.md`;
 
+// Deep-link for the Dub tab's "needs install" translation-engine popover.
+// Reuses BASE so it can't drift from the other GitHub-blob links above.
+export const TRANSLATION_ENGINES_DOCS = `${BASE}/docs/dubbing/translation-engines.md#installing-optional-translation-engines-from-source-vs-packaged-build`;
+
 // Locked taxonomy keys — Phase 5 bug reporter consumes this exact set.
 // Adding a 6th class is a contract change; update the Python map at the
 // same time (`backend/core/error_docs_map.py`).
@@ -72,11 +76,12 @@ export function classifyError(error: unknown): ErrorClass | null {
   // (English + Chinese 已损坏 per issue #72). Lower-case test is safe;
   // '已损坏' is unaffected by lowercasing.
   if (
-    /quarantine/.test(lower)
-    || /gatekeeper/.test(lower)
-    || /\bdamaged\b/.test(lower)
-    || /已损坏/.test(message || '')
-  ) return 'GATEKEEPER_QUARANTINE';
+    /quarantine/.test(lower) ||
+    /gatekeeper/.test(lower) ||
+    /\bdamaged\b/.test(lower) ||
+    /已损坏/.test(message || '')
+  )
+    return 'GATEKEEPER_QUARANTINE';
   return null;
 }
 

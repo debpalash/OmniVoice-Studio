@@ -1,3 +1,5 @@
+> **Superseded (2026-06-25)** by [00-roadmap-elevenlabs-parity.md](00-roadmap-elevenlabs-parity.md) and specs 01–03. Retained for historical context.
+
 # Studio / Projects — v1 spec
 
 **Goal:** ElevenLabs-Studio parity for long-form narration. A user pastes (or drags in) a 10-page script, the app splits it into blocks, they assign a voice per block, preview inline, then hit Generate to get one stitched WAV.

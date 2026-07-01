@@ -3,7 +3,9 @@ import { createUpdaterSlice } from './updaterSlice';
 
 function harness() {
   let state: any = {};
-  const set = (p: any) => { state = { ...state, ...(typeof p === 'function' ? p(state) : p) }; };
+  const set = (p: any) => {
+    state = { ...state, ...(typeof p === 'function' ? p(state) : p) };
+  };
   state = createUpdaterSlice(set as any, (() => state) as any, {} as any);
   return { get: () => state };
 }
@@ -75,7 +77,7 @@ describe('updaterSlice', () => {
     expect(get().updateChannel).toBe('stable');
     get().setUpdateChannelValue('preview');
     expect(get().updateChannel).toBe('preview');
-    get().setUpdateChannelValue('bogus');     // normalized
+    get().setUpdateChannelValue('bogus'); // normalized
     expect(get().updateChannel).toBe('stable');
   });
 });

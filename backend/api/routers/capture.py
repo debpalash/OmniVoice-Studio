@@ -18,7 +18,7 @@ import os
 import tempfile
 import time
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from typing import Optional
 
 router = APIRouter()
@@ -96,9 +96,17 @@ async def transcribe_audio(
             return result, backend.id
 
         from services.model_manager import _gpu_pool
-        loop = asyncio.get_running_loop()
+        from services.asr_backend import ASRTimeoutError, run_transcribe_guarded
         t0 = time.perf_counter()
-        result, engine_id = await loop.run_in_executor(_gpu_pool, _run)
+        try:
+            result, engine_id = await run_transcribe_guarded(
+                _gpu_pool, _run, what="Dictation",
+            )
+        except ASRTimeoutError as e:
+            # Backend is alive — ASR couldn't finish. 504 with guidance, not a
+            # silent hang the UI reads as "can't reach the local backend".
+            logger.warning("Capture transcription timed out: %s", e)
+            raise HTTPException(status_code=504, detail=str(e))
         elapsed = round(time.perf_counter() - t0, 2)
 
         # Normalize result shape

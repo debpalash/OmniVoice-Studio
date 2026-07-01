@@ -8,16 +8,17 @@
     "setup:api": "uv sync && uv run python scripts/setup.py",
     "dev:api": "uv run uvicorn main:app --app-dir backend --host 0.0.0.0 --port 3900 --reload --reload-dir backend",
     "dev:frontend": "bun run --cwd frontend dev",
-    "dev:desktop": "bun run --cwd frontend desktop",
+    "dev:desktop": "TAURI_SKIP_BACKEND=1 bun run --cwd frontend desktop",
     "wait:api": "wait-on -t 300000 http-get://localhost:3900/system/info",
     "wait:frontend": "wait-on -t 120000 http://localhost:5173",
-    "predev": "kill-port 3900 3901 || true",
+    "predev": "bun install && (kill-port 3900 3901 || true)",
     "dev": "bun run setup:api && concurrently -n api,fe -c green,cyan --kill-others-on-fail \"bun run dev:api\" \"bun run dev:frontend\"",
-    "predesktop": "kill-port 3900 3901 || true",
+    "predesktop": "bun install && (kill-port 3900 3901 || true)",
     "desktop": "bun run setup:api && concurrently -n api,app -c green,magenta --kill-others-on-fail \"bun run dev:api\" \"bun run dev:desktop\"",
     "desktop-prod": "bun scripts/desktop-prod.mjs",
     "desktop-prod:run": "bun scripts/desktop-prod.mjs --skip-build",
     "desktop-prod:upgrade": "bun scripts/desktop-prod.mjs --keep-data",
+    "desktop-prod:keep-models": "bun scripts/desktop-prod.mjs --keep-models",
     "desktop-prod:pill": "bun scripts/desktop-prod.mjs --pill",
     "desktop-prod:run:pill": "bun scripts/desktop-prod.mjs --skip-build --pill",
     "build": "turbo run build",
@@ -25,7 +26,8 @@
     "test:frontend": "node --test tests/frontend/*.test.mjs",
     "smoke-test": "bash scripts/smoke-test.sh",
     "smoke-test:quick": "bash scripts/smoke-test.sh --skip-build --skip-model",
-    "smoke-test:upgrade": "bash scripts/smoke-test.sh --keep-data --skip-build"
+    "smoke-test:upgrade": "bash scripts/smoke-test.sh --keep-data --skip-build",
+    "deps:check": "taze -r --maturity-period 7"
   },
   "workspaces": [
     "frontend"
@@ -34,6 +36,7 @@
     "concurrently": "^9.2.1",
     "kill-port-process": "^4.0.2",
     "playwright": "^1.60.0",
+    "taze": "^19.14.1",
     "turbo": "^2.9.18",
     "typescript": "^6.0.3",
     "wait-on": "^9.0.10"

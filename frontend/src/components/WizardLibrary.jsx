@@ -13,29 +13,84 @@
  * progress rides the same SSE stream the Settings model store uses; the
  * full management surface (search, HF token, deletes) stays in Settings —
  * a first run needs a checklist, not a store.
+ *
+ * Built on standard shadcn primitives (Badge / Button / Progress) + Tailwind
+ * utilities themed by the palette tokens.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
+import { Check, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useModels, useInstallModel } from '../api/hooks';
 import { setupDownloadStreamUrl } from '../api/setup';
 import { listEngines, selectEngine } from '../api/engines';
+import { Badge, Button } from '../ui';
 
 const fmtGB = (gb) => (gb == null ? '' : `${gb.toFixed(gb < 10 ? 1 : 0)} GB`);
 
-/** Aggregate one repo's SSE file events: percent done + ETA from rates. */
-function aggregate(files) {
+/** Human-readable byte size, e.g. 734003200 -> "700 MB", 1610612736 -> "1.5 GB". */
+export function fmtBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '';
+  const mb = bytes / (1024 * 1024);
+  if (mb < 1024) return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
+  const gb = mb / 1024;
+  return `${gb < 10 ? gb.toFixed(1) : Math.round(gb)} GB`;
+}
+
+/** Instantaneous download rate, e.g. 5452595 -> "5.2 MB/s". Blank when idle. */
+export function fmtRate(bytesPerSec) {
+  if (!Number.isFinite(bytesPerSec) || bytesPerSec <= 0) return '';
+  const mb = bytesPerSec / (1024 * 1024);
+  if (mb >= 1) return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB/s`;
+  const kb = bytesPerSec / 1024;
+  return `${Math.max(1, Math.round(kb))} KB/s`;
+}
+
+/**
+ * A model is a "platform pick" when it explicitly targets one of THIS host's
+ * platform tags (the MLX mac-ARM speedups, CUDA-tuned variants, …) — the best
+ * optional models for this machine, surfaced by default instead of buried in
+ * the tail. Models with no `platforms` field are universal (not a pick — they
+ * ride the fold). Pure + exported so the split is unit-testable.
+ */
+export function isPlatformPick(model, platformTags) {
+  return (
+    Array.isArray(model?.platforms) &&
+    Array.isArray(platformTags) &&
+    model.platforms.some((p) => platformTags.includes(p))
+  );
+}
+
+/** Overall progress from the backend's authoritative `aggregate` SSE event.
+ * This is the TRUSTWORTHY source: under parallel/segmented fetch the per-file
+ * tqdm events are unreliable (big weight shards may report total/rate as 0),
+ * so summing them on the frontend gave wrong numbers — e.g. "8% · 1 KB/s ·
+ * 0.0 MB left". The backend computes one windowed rate + ETA + bytes_done /
+ * total_bytes (seeded by the dry-run preflight), which is what we render. Pure
+ * + exported for unit tests. Returns null until totals are known. */
+export function progressFromAgg(agg) {
+  if (!agg || !(agg.totalBytes > 0)) return null;
+  const pct = Math.min(100, Math.round((agg.bytesDone / agg.totalBytes) * 100));
+  const remaining = agg.totalBytes > agg.bytesDone ? agg.totalBytes - agg.bytesDone : null;
+  return { pct, remaining, rate: agg.rate || 0, etaSec: agg.etaSeconds ?? null };
+}
+
+/** Fallback: aggregate one repo's per-file SSE events when the authoritative
+ * `aggregate` event hasn't arrived yet. Exported (pure) for unit tests. */
+export function aggregate(files) {
   let done = 0;
   let total = 0;
   let rate = 0;
-  for (const f of Object.values(files)) {
+  for (const f of Object.values(files || {})) {
     done += f.downloaded || 0;
     total += f.total || 0;
     if ((f.total || 0) > (f.downloaded || 0)) rate += f.rate || 0;
   }
   const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : null;
-  const etaSec = rate > 0 && total > done ? (total - done) / rate : null;
-  return { pct, etaSec };
+  const remaining = total > done ? total - done : null;
+  const etaSec = rate > 0 && remaining ? remaining / rate : null;
+  return { pct, etaSec, rate, remaining };
 }
 
 function formatEta(seconds) {
@@ -44,18 +99,36 @@ function formatEta(seconds) {
   return `${Math.round(seconds / 60)}m`;
 }
 
+// LED dot tone per row state.
+const LED_TONE = {
+  ok: 'bg-success shadow-[0_0_5px_1px_color-mix(in_srgb,var(--color-success)_50%,transparent)]',
+  active: 'bg-primary shadow-[0_0_6px_1px_var(--color-brand-glow)]',
+  busy: 'bg-primary fr-pulse',
+  off: 'bg-fg-subtle/40',
+};
+
+// Chip Badge tone per chip category.
+const CHIP_TONE = { req: 'brand', rec: 'success', eng: 'neutral', opt: 'neutral' };
+
 function Row({ led, name, chip, chipTone, size, action, sub }) {
   return (
-    <div className="frs-row swiz-lib__row">
-      <span className={`swiz-lib__led swiz-lib__led--${led}`} aria-hidden="true" />
-      <div className="frs-row__text">
-        <span className="frs-row__label">
+    <div className="flex items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-bg-elev-3">
+      <span
+        className={cn('h-1.5 w-1.5 shrink-0 rounded-full', LED_TONE[led] || LED_TONE.off)}
+        aria-hidden="true"
+      />
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="flex items-center gap-2 text-sm font-semibold">
           {name}
-          {chip && <span className={`frs-opt__badge swiz-lib__chip swiz-lib__chip--${chipTone}`}>{chip}</span>}
+          {chip && (
+            <Badge tone={CHIP_TONE[chipTone] || 'neutral'} size="xs">
+              {chip}
+            </Badge>
+          )}
         </span>
-        {sub && <span className="swiz-lib__sub">{sub}</span>}
+        {sub && <span className="block min-w-0">{sub}</span>}
       </div>
-      <span className="frs-row__readout">{size}</span>
+      <span className="shrink-0 font-mono text-[0.64rem] tabular-nums text-fg-muted">{size}</span>
       {action}
     </div>
   );
@@ -69,35 +142,18 @@ export default function WizardLibrary() {
   const [progress, setProgress] = useState({}); // { repo_id: { phase, files } }
   const [showTail, setShowTail] = useState(false);
   const [switching, setSwitching] = useState(null);
-  const [hfToken, setHfToken] = useState('');
-  const [hfState, setHfState] = useState('idle'); // idle | saving | saved | error
   const esRef = useRef(null);
-
-  // Optional HF token: unlocks gated models (e.g. pyannote speaker
-  // diarization). Same persistence endpoint Settings uses — the backend
-  // writes it durably so it survives restarts.
-  const saveHfToken = async () => {
-    const value = hfToken.trim();
-    if (!value || hfState === 'saving') return;
-    setHfState('saving');
-    try {
-      const { API } = await import('../api/client');
-      const res = await fetch(`${API}/system/set-env`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'HF_TOKEN', value }),
-      });
-      if (!res.ok) throw new Error(String(res.status));
-      setHfState('saved');
-      setHfToken('');
-    } catch {
-      setHfState('error');
-    }
-  };
 
   const models = useMemo(() => {
     const list = modelsQuery.data;
     return Array.isArray(list) ? list : (list?.models ?? []);
+  }, [modelsQuery.data]);
+
+  // Host platform tags (e.g. ['darwin', 'darwin-arm64']) so we can surface the
+  // models tuned for THIS machine by default instead of burying them.
+  const platformTags = useMemo(() => {
+    const d = modelsQuery.data;
+    return Array.isArray(d) ? [] : (d?.platform_tags ?? []);
   }, [modelsQuery.data]);
 
   // Engines: TTS family only on first run — the family the studio speaks with.
@@ -107,9 +163,13 @@ export default function WizardLibrary() {
       try {
         const all = await listEngines();
         if (!cancelled) setEngines(all?.tts ?? null);
-      } catch { /* backend mid-boot — the wizard polls models anyway */ }
+      } catch {
+        /* backend mid-boot — the wizard polls models anyway */
+      }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // One SSE stream for all rows (same channel the Settings store uses).
@@ -127,18 +187,48 @@ export default function WizardLibrary() {
           // file-level 'done' must NOT clear the repo, multi-file snapshots
           // finish files long before the repo's `install_done` arrives.
           // (Full phase taxonomy: SetupProgressEvent in api/setup.ts.)
-          if (ev.phase === 'install_start') return { ...prev, [ev.repo_id]: { phase: 'active', files: {} } };
+          if (ev.phase === 'install_start')
+            return { ...prev, [ev.repo_id]: { phase: 'active', files: {} } };
           if (ev.phase === 'install_done' || ev.phase === 'install_error') {
             if (ev.phase === 'install_done') modelsQuery.refetch();
             const next = { ...prev };
             delete next[ev.repo_id];
             return next;
           }
+          // Authoritative overall progress (download_aggregator): one windowed
+          // rate + ETA + bytes_done/total_bytes for the whole repo. Preferred
+          // over summing per-file events, which is unreliable under parallel/
+          // segmented fetch (the source of the "8% · 1 KB/s · 0.0 MB left" bug).
+          if (ev.phase === 'aggregate') {
+            return {
+              ...prev,
+              [ev.repo_id]: {
+                ...cur,
+                agg: {
+                  bytesDone: ev.bytes_done || 0,
+                  totalBytes: ev.total_bytes || 0,
+                  rate: ev.rate || 0,
+                  etaSeconds: ev.eta_seconds ?? null,
+                  filesDone: ev.files_done || 0,
+                  filesTotal: ev.files_total || 0,
+                },
+              },
+            };
+          }
           if (!ev.filename) return prev;
-          const files = { ...cur.files, [ev.filename]: { downloaded: ev.downloaded || 0, total: ev.total || 0, rate: ev.rate || 0 } };
+          const files = {
+            ...cur.files,
+            [ev.filename]: {
+              downloaded: ev.downloaded || 0,
+              total: ev.total || 0,
+              rate: ev.rate || 0,
+            },
+          };
           return { ...prev, [ev.repo_id]: { ...cur, files } };
         });
-      } catch { /* keepalive */ }
+      } catch {
+        /* keepalive */
+      }
     };
     return () => es.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -149,7 +239,11 @@ export default function WizardLibrary() {
     installMutation.mutate(repoId, {
       onError: (e) => {
         toast.error(e?.message || 'install failed');
-        setProgress((p) => { const n = { ...p }; delete n[repoId]; return n; });
+        setProgress((p) => {
+          const n = { ...p };
+          delete n[repoId];
+          return n;
+        });
       },
     });
   };
@@ -168,12 +262,33 @@ export default function WizardLibrary() {
 
   const supported = models.filter((m) => m.supported !== false);
   const required = supported.filter((m) => m.required);
-  const optional = supported.filter((m) => !m.required);
+  const optionalAll = supported.filter((m) => !m.required);
+  // Platform-tuned optionals lead (shown by default); the universal long tail
+  // still folds behind a quiet count.
+  const platformPicks = optionalAll.filter((m) => isPlatformPick(m, platformTags));
+  const tail = optionalAll.filter((m) => !isPlatformPick(m, platformTags));
 
-  const modelRow = (m, chip, chipTone) => {
+  const modelRow = (m, chip, chipTone, note) => {
     const p = progress[m.repo_id];
-    const { pct, etaSec } = p ? aggregate(p.files) : { pct: null, etaSec: null };
+    // Prefer the backend's authoritative aggregate; fall back to per-file sums
+    // only until that event arrives (then to nulls when nothing's streaming).
+    const { pct, etaSec, rate, remaining } =
+      progressFromAgg(p?.agg) ||
+      (p ? aggregate(p.files) : { pct: null, etaSec: null, rate: 0, remaining: null });
     const downloading = !!p;
+    // Live telemetry line: "5.2 MB/s · 700 MB left · ~3m". Each part only shows
+    // once the SSE stream has the data, so early on it degrades to "downloading…".
+    const rateStr = fmtRate(rate);
+    const remainStr = fmtBytes(remaining);
+    const etaStr = etaSec != null ? formatEta(etaSec) : '';
+    const statParts = [
+      pct != null ? `${pct}%` : null,
+      rateStr || null,
+      remainStr
+        ? t('firstrun.size_left', { size: remainStr, defaultValue: '{{size}} left' })
+        : null,
+      etaStr ? t('firstrun.eta_left', { eta: etaStr, defaultValue: '~{{eta}} left' }) : null,
+    ].filter(Boolean);
     return (
       <Row
         key={m.repo_id}
@@ -182,28 +297,46 @@ export default function WizardLibrary() {
         chip={chip}
         chipTone={chipTone}
         size={fmtGB(m.size_gb)}
-        sub={downloading ? (
-          <span className="swiz-lib__bar"><span style={{ width: `${pct ?? 4}%` }} /></span>
-        ) : null}
-        action={m.installed ? (
-          <span className="swiz-lib__state">✓</span>
-        ) : downloading ? (
-          <span className="swiz-lib__state swiz-lib__state--busy">
-            {pct != null ? `${pct}%` : t('firstrun.lib_downloading', 'downloading…')}
-            {etaSec != null && ` · ${t('firstrun.eta_left', { eta: formatEta(etaSec), defaultValue: '~{{eta}} left' })}`}
-          </span>
-        ) : (
-          <button type="button" className="frs-btn frs-btn--quiet swiz-lib__act" onClick={() => install(m.repo_id)}>
-            {t('firstrun.lib_download', 'Download')}
-          </button>
-        )}
+        sub={
+          downloading ? (
+            <span className="block h-[3px] max-w-[280px] overflow-hidden rounded-full bg-fg/[0.08]">
+              <span
+                className="block h-full rounded-full bg-primary transition-[width] duration-300"
+                style={{ width: `${pct ?? 4}%` }}
+              />
+            </span>
+          ) : (
+            note || null
+          )
+        }
+        action={
+          m.installed ? (
+            <Check size={14} className="shrink-0 text-success" aria-hidden="true" />
+          ) : downloading ? (
+            <span className="shrink-0 font-mono text-[0.64rem] tabular-nums text-primary">
+              {statParts.length
+                ? statParts.join(' · ')
+                : t('firstrun.lib_downloading', 'downloading…')}
+            </span>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={() => install(m.repo_id)}>
+              {t('firstrun.lib_download', 'Download')}
+            </Button>
+          )
+        }
       />
     );
   };
 
   return (
-    <div className="swiz-lib">
+    <div className="flex max-h-[min(56vh,620px)] flex-col gap-1 overflow-y-auto">
       {required.map((m) => modelRow(m, t('firstrun.chip_required', 'required'), 'req'))}
+
+      {/* Optional models tuned for THIS machine — shown by default with the
+          catalog note explaining why (e.g. "5× faster on Apple Silicon"). */}
+      {platformPicks.map((m) =>
+        modelRow(m, t('firstrun.chip_recommended', 'recommended'), 'rec', m.note),
+      )}
 
       {(engines?.backends ?? []).map((b) => (
         <Row
@@ -213,73 +346,56 @@ export default function WizardLibrary() {
           chip={t('firstrun.chip_engine', 'engine')}
           chipTone="eng"
           size=""
-          action={b.id === engines.active ? (
-            <span className="swiz-lib__state swiz-lib__state--active">{t('firstrun.lib_active', 'active')}</span>
-          ) : b.available ? (
-            <button
-              type="button"
-              className="frs-btn frs-btn--quiet swiz-lib__act"
-              disabled={switching === b.id}
-              onClick={() => useEngine(b.id)}
-            >
-              {t('firstrun.lib_use', 'Use')}
-            </button>
-          ) : (
-            <span className="swiz-lib__state" title={b.reason || undefined}>
-              {t('firstrun.lib_in_settings', 'install later in Settings')}
-            </span>
-          )}
+          action={
+            b.id === engines.active ? (
+              <span className="shrink-0 font-mono text-[0.64rem] text-primary">
+                {t('firstrun.lib_active', 'active')}
+              </span>
+            ) : b.available ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={switching === b.id}
+                // eslint-disable-next-line react-hooks/rules-of-hooks -- useEngine is an action fn, not a React hook
+                onClick={() => useEngine(b.id)}
+              >
+                {t('firstrun.lib_use', 'Use')}
+              </Button>
+            ) : (
+              <span
+                className="shrink-0 font-mono text-[0.64rem] text-fg-muted"
+                title={b.reason || undefined}
+              >
+                {t('firstrun.lib_in_settings', 'install later in Settings')}
+              </span>
+            )
+          }
         />
       ))}
 
-      {optional.length > 0 && !showTail && (
-        <button type="button" className="frs-btn frs-btn--quiet swiz-lib__more" onClick={() => setShowTail(true)}>
-          ▸ {t('firstrun.lib_show_all', { count: optional.length, defaultValue: 'Show {{count}} optional models' })}
-        </button>
+      {tail.length > 0 && !showTail && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="self-start"
+          onClick={() => setShowTail(true)}
+          leading={<ChevronRight size={12} />}
+        >
+          {t('firstrun.lib_show_all', {
+            count: tail.length,
+            defaultValue: 'Show {{count}} more models',
+          })}
+        </Button>
       )}
-      {showTail && optional.map((m) => modelRow(m, t('firstrun.chip_optional', 'optional'), 'opt'))}
+      {showTail && tail.map((m) => modelRow(m, t('firstrun.chip_optional', 'optional'), 'opt'))}
       {Object.keys(progress).length > 0 && (
-        <p className="frs__trust">
-          {t('firstrun.resume_note', 'Interrupted downloads resume automatically — closing the app is safe.')}
+        <p className="m-0 text-xs text-fg-subtle">
+          {t(
+            'firstrun.resume_note',
+            'Interrupted downloads resume automatically — closing the app is safe.',
+          )}
         </p>
       )}
-      <details className="frs__advanced swiz-lib__hf">
-        <summary>
-          {hfState === 'saved'
-            ? `✓ ${t('firstrun.hf_token_saved', 'Hugging Face token saved')}`
-            : t('firstrun.hf_token_title', 'Hugging Face token (optional)')}
-        </summary>
-        <div className="swiz-lib__hf-body">
-          <p className="frs__trust">
-            {t('firstrun.hf_token_hint', 'Unlocks gated models — e.g. speaker diarization for multi-speaker dubbing (pyannote). Free account token; stays on this machine.')}
-          </p>
-          <div className="swiz-lib__hf-row">
-            <input
-              className="frs-input"
-              type="password"
-              placeholder="hf_…"
-              value={hfToken}
-              autoComplete="off"
-              onChange={(e) => { setHfToken(e.target.value); if (hfState !== 'idle') setHfState('idle'); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') saveHfToken(); }}
-              aria-label={t('firstrun.hf_token_title', 'Hugging Face token (optional)')}
-            />
-            <button
-              type="button"
-              className="frs-btn frs-btn--quiet"
-              disabled={!hfToken.trim() || hfState === 'saving'}
-              onClick={saveHfToken}
-            >
-              {hfState === 'saving'
-                ? t('firstrun.hf_token_saving', 'saving…')
-                : t('firstrun.hf_token_save', 'Save')}
-            </button>
-          </div>
-          {hfState === 'error' && (
-            <p className="frs__blocker">{t('firstrun.hf_token_error', 'Could not save the token — try again or set it later in Settings → Credentials.')}</p>
-          )}
-        </div>
-      </details>
     </div>
   );
 }

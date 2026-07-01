@@ -198,6 +198,68 @@ def __getattr__(name: str):
         return _get_gpu_pool()
     raise AttributeError(f"module 'services.model_manager' has no attribute {name!r}")
 
+
+# ── GPU-job timeout guard (#730 class; residual #850/#802/#755 …) ─────
+# A blocking GPU job that wedges on a Windows+CUDA hang keeps occupying its
+# worker forever — run_in_executor can't cancel the thread. With a 1–2 worker
+# pool that starves *every* other request, so the next user action surfaces as
+# the misleading "Can't reach the local backend" even though the process is
+# alive. ASR/dub/model-load already bound+reset on hang (run_transcribe_guarded,
+# _reset_pool_on_wedge, _load_model_with_timeout); the TTS **generate** paths
+# (generation.py, tts_stream.py) were the last unguarded dispatch — and the
+# residual on-main reports all fail on generate:start (audio). This is the same
+# guard generalised so every GPU dispatch shares one recovery path.
+GPU_JOB_TIMEOUT_S = float(os.environ.get("OMNIVOICE_GENERATE_TIMEOUT_S", "300.0"))
+
+
+class GpuJobTimeoutError(TimeoutError):
+    """A GPU-pool job exceeded its wall-clock bound and was abandoned.
+
+    The backend is alive — the job was too heavy for the available compute
+    (most often a VRAM-starved GPU). Pool capacity is restored automatically by
+    resetting the pool; the message carries the durable fix.
+    """
+
+
+async def run_on_gpu_pool_guarded(fn, *, what: str = "GPU job",
+                                  timeout: float = GPU_JOB_TIMEOUT_S,
+                                  executor=None):
+    """Run blocking ``fn`` on the GPU pool with a hard wall-clock bound.
+
+    On timeout, ``reset()`` the pool (abandon the wedged worker so the next
+    submit gets a fresh one) and raise :class:`GpuJobTimeoutError`. ``fn`` must
+    be a zero-arg callable — wrap args with ``functools.partial`` at the call
+    site. Deliberately mirrors ``asr_backend.run_transcribe_guarded`` so every
+    GPU dispatch shares one bound+recover path (#730 class). Executors without
+    ``reset`` (a plain ThreadPoolExecutor in tests) still get the bound + error.
+    """
+    loop = asyncio.get_running_loop()
+    ex = executor if executor is not None else _get_gpu_pool()
+    fut = loop.run_in_executor(ex, fn)
+    try:
+        return await asyncio.wait_for(fut, timeout=timeout)
+    except asyncio.TimeoutError:
+        _reset = getattr(ex, "reset", None)
+        if callable(_reset):
+            try:
+                _reset()
+                logger.warning(
+                    "%s exceeded %.0fs — abandoned the GPU-pool worker to "
+                    "restore capacity (#730).", what, timeout,
+                )
+            except Exception:
+                logger.exception("GPU pool reset after %s timeout failed", what)
+        raise GpuJobTimeoutError(
+            f"{what} exceeded {timeout:.0f}s and was abandoned — the backend is "
+            "running, but the job was too heavy for the available compute. Most "
+            "often the GPU is VRAM-starved (a resident model and this job contend "
+            "for memory). Capacity was restored automatically; for a durable fix "
+            "try shorter text, a lighter engine, or set the engine to CPU in "
+            "Settings → Models. (Raise OMNIVOICE_GENERATE_TIMEOUT_S for very long "
+            "single generations.)"
+        )
+
+
 model = None  # type: ignore
 _model_lock = asyncio.Lock()
 _last_used = time.time()
@@ -308,6 +370,19 @@ def get_best_device():
         compatible, warning = check_device_compatibility()
         if not compatible:
             logger.warning(warning)
+            # #756: the GPU's compute capability isn't in this torch build's arch
+            # list, so CUDA kernels can't launch ("no kernel image is available
+            # for execution") — every generate would 500. Too-old (Pascal sm_61)
+            # and too-new (Blackwell sm_120 on pre-cu128 wheels) both land here.
+            # Fall back to CPU so the app WORKS (slowly) instead of dead-ending;
+            # OMNIVOICE_FORCE_CUDA=1 overrides for users who installed a matching
+            # torch and know the arch_list probe is wrong for their setup.
+            if not _env_flag("OMNIVOICE_FORCE_CUDA"):
+                logger.warning(
+                    "Falling back to CPU: this GPU is unsupported by the installed "
+                    "PyTorch build (set OMNIVOICE_FORCE_CUDA=1 to force CUDA anyway)."
+                )
+                return "cpu"
         return "cuda"
 
     # ── Intel Arc / discrete GPU via IPEX ────────────────────────────
@@ -557,7 +632,7 @@ def _hf_offline() -> bool:
     return _env_flag("HF_HUB_OFFLINE") or _env_flag("TRANSFORMERS_OFFLINE")
 
 
-def _repair_model_cache(checkpoint: str) -> bool:
+def _repair_model_cache(checkpoint: str, *, force: bool = False) -> bool:
     """Re-fetch a checkpoint's missing files in place and report success.
 
     An interrupted download leaves the cache missing only some files;
@@ -566,7 +641,13 @@ def _repair_model_cache(checkpoint: str) -> bool:
     seconds and a complete one would no-op). Returns False — leaving the caller
     to surface the actionable delete-and-reinstall message — when repair is
     impossible (offline) or the re-fetch itself fails (no network, gated repo,
-    full disk). Never raises; repair is best-effort."""
+    full disk). Never raises; repair is best-effort.
+
+    ``force=True`` passes ``force_download`` so the re-fetch replaces files that
+    are *present but corrupt* — a truncated/garbled blob that still has the right
+    size won't be re-fetched by the default resume (#739). It re-downloads the
+    whole snapshot, so it's the last resort the load path only reaches after a
+    plain resume-repair didn't fix the cache."""
     if _hf_offline():
         logger.warning(
             "Model cache for %s is incomplete but HF offline mode is set — "
@@ -578,30 +659,91 @@ def _repair_model_cache(checkpoint: str) -> bool:
     except Exception as imp_err:  # pragma: no cover - huggingface_hub is a hard dep
         logger.warning("Cannot import snapshot_download to repair cache: %s", imp_err)
         return False
-    logger.info("Auto-repairing incomplete model cache for %s …", checkpoint)
     dl_kwargs: dict = {"repo_id": checkpoint}
     endpoint = os.environ.get("HF_ENDPOINT")
     if endpoint:
         dl_kwargs["endpoint"] = endpoint
+    if force:
+        # Replace present-but-corrupt blobs that resume would trust by size.
+        dl_kwargs["force_download"] = True
     if os.name == "nt":
         # Match the install path (download.py): avoid symlinks on Windows.
         dl_kwargs["local_dir_use_symlinks"] = False
-    try:
-        snapshot_download(**dl_kwargs)
-    except TypeError:
-        # Older/newer huggingface_hub may not accept local_dir_use_symlinks
-        # on a cache-only call — retry without the optional knob.
-        dl_kwargs.pop("local_dir_use_symlinks", None)
+
+    def _attempt() -> None:
+        """One snapshot_download, tolerating an hf_hub that rejects the optional
+        symlink knob. Lets real failures (network, gated repo, disk) propagate."""
         try:
             snapshot_download(**dl_kwargs)
+        except TypeError:
+            # Older/newer huggingface_hub may not accept local_dir_use_symlinks
+            # on a cache-only call — retry without the optional knob.
+            dl_kwargs.pop("local_dir_use_symlinks", None)
+            snapshot_download(**dl_kwargs)
+
+    # Bounded retries (#739): an incomplete cache *is* an interrupted download, so
+    # a single transient blip mid-repair shouldn't drop the user back to a manual
+    # delete-and-reinstall. snapshot_download resumes between attempts (present,
+    # correctly-sized blobs are skipped by hash), so each retry continues where
+    # the last left off — cheap and idempotent. Counts/backoff are env-tunable
+    # for restricted networks and kept fast (backoff=0) in tests.
+    try:
+        retries = max(1, int(os.environ.get("OMNIVOICE_MODEL_REPAIR_RETRIES", "3")))
+    except ValueError:
+        retries = 3
+    try:
+        backoff = max(0.0, float(os.environ.get("OMNIVOICE_MODEL_REPAIR_BACKOFF_S", "2")))
+    except ValueError:
+        backoff = 2.0
+
+    logger.info(
+        "Auto-repairing incomplete model cache for %s (up to %d attempt(s)) …",
+        checkpoint, retries,
+    )
+    for attempt in range(1, retries + 1):
+        try:
+            _attempt()
+            logger.info("Auto-repair of %s completed; retrying model load.", checkpoint)
+            return True
         except Exception as e:
-            logger.warning("Auto-repair of %s failed: %s", checkpoint, e)
-            return False
-    except Exception as e:
-        logger.warning("Auto-repair of %s failed: %s", checkpoint, e)
-        return False
-    logger.info("Auto-repair of %s completed; retrying model load.", checkpoint)
-    return True
+            logger.warning(
+                "Auto-repair of %s attempt %d/%d failed: %s",
+                checkpoint, attempt, retries, e,
+            )
+            if attempt < retries and backoff:
+                time.sleep(backoff * attempt)
+    return False
+
+
+_DEFAULT_OMNIVOICE_CHECKPOINT = "k2-fsa/OmniVoice"
+
+
+def resolve_omnivoice_checkpoint() -> str:
+    """Resolve the OmniVoice TTS checkpoint from ``OMNIVOICE_MODEL``, self-healing
+    a misconfigured value.
+
+    A valid checkpoint is either a HuggingFace repo id (``org/repo`` — contains a
+    ``/``) or an existing local directory. A bare token like ``"omnivoice"`` — a
+    TTS *engine id* that leaked into ``OMNIVOICE_MODEL`` (e.g. a stale pref/env) —
+    is neither, and would crash model load with *"omnivoice is not a local folder
+    and is not a valid model identifier listed on huggingface.co/models"* (#693).
+    Fall back to the default rather than 500 on every launch.
+    """
+    checkpoint = os.environ.get("OMNIVOICE_MODEL", _DEFAULT_OMNIVOICE_CHECKPOINT).strip()
+    if not checkpoint:
+        return _DEFAULT_OMNIVOICE_CHECKPOINT
+    # Honor a HF repo id (org/repo) or an EXPLICIT local path (absolute, or with
+    # a path separator). A bare token like "omnivoice" must NOT be treated as a
+    # local dir even if a cwd-relative folder happens to share its name — that
+    # is exactly the engine-id leak (#693), so self-heal to the default.
+    if "/" in checkpoint or "\\" in checkpoint or os.path.isabs(checkpoint):
+        return checkpoint
+    logger.warning(
+        "OMNIVOICE_MODEL=%r is not a HuggingFace repo id (org/repo) or a local "
+        "path — falling back to %s (#693).",
+        checkpoint, _DEFAULT_OMNIVOICE_CHECKPOINT,
+    )
+    return _DEFAULT_OMNIVOICE_CHECKPOINT
 
 
 def _load_model_sync():
@@ -630,7 +772,7 @@ def _load_model_sync():
         OmniVoice = _lazy_omnivoice()
         device = get_best_device()
 
-        checkpoint = os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice")
+        checkpoint = resolve_omnivoice_checkpoint()
         _set_loading("loading_weights", f"Loading TTS weights on {device}…")
         logger.info("Loading OmniVoice model on device: %s", device)
         preload_asr = should_preload_tts_asr()
@@ -667,14 +809,36 @@ def _load_model_sync():
             try:
                 _model = _load()
             except OSError as e2:
-                # Repair ran but the cache is still unusable (e.g. the repo
-                # genuinely lacks weights, or the disk is corrupt). Fall back
-                # to the actionable message rather than the raw error.
-                raise RuntimeError(
-                    f"The TTS model cache for {checkpoint} is incomplete and "
-                    "could not be auto-repaired. Open Settings → Models, delete "
-                    "the OmniVoice TTS model, and install it again."
-                ) from e2
+                # Resume-repair ran but the cache is still unusable. The usual
+                # cause beyond "repo genuinely lacks weights" is a blob that's
+                # present with the right size but corrupt — snapshot_download's
+                # resume trusts it and never re-fetches it (#739). Force a full
+                # re-download (replaces corrupt blobs) and retry once more before
+                # falling back to the manual delete-and-reinstall message.
+                if _is_incomplete_cache_error(e2):
+                    _set_loading("loading_weights", "Re-downloading model files…")
+                    if _repair_model_cache(checkpoint, force=True):
+                        try:
+                            _model = _load()
+                        except OSError as e3:
+                            raise RuntimeError(
+                                f"The TTS model cache for {checkpoint} is incomplete "
+                                "and could not be auto-repaired. Open Settings → "
+                                "Models, delete the OmniVoice TTS model, and install "
+                                "it again."
+                            ) from e3
+                    else:
+                        raise RuntimeError(
+                            f"The TTS model cache for {checkpoint} is incomplete and "
+                            "could not be auto-repaired. Open Settings → Models, "
+                            "delete the OmniVoice TTS model, and install it again."
+                        ) from e2
+                else:
+                    raise RuntimeError(
+                        f"The TTS model cache for {checkpoint} is incomplete and "
+                        "could not be auto-repaired. Open Settings → Models, delete "
+                        "the OmniVoice TTS model, and install it again."
+                    ) from e2
 
         try:
             # plan-02 (#65): gate on Triton availability (+ user setting), not
@@ -724,9 +888,19 @@ def _load_model_sync():
         logger.info("OmniVoice model loaded successfully.")
         return _model
     except Exception as exc:
-        err_msg = str(exc)
+        # Surface an ACTIONABLE, sanitized error in /model/status (it's shown in
+        # the first-run System Check). build_failure classifies the cause and
+        # attaches a fix hint — e.g. a corrupted transformers install
+        # ([Errno 2] … modeling_*.py) now says "reinstall transformers" instead
+        # of an unhelpful raw path + "try restarting" — and strips the home dir.
+        try:
+            from core.failure import build_failure
+            _f = build_failure(exc, stage="model-load", include_diagnostic=False)
+            err_msg = _f["reason"] + (f" — {_f['hint']}" if _f.get("hint") else "")
+        except Exception:  # never let failure-formatting mask the real error
+            err_msg = str(exc)
         _set_loading("error", "Model loading failed", error=err_msg)
-        logger.error("Model loading failed: %s", err_msg)
+        logger.error("Model loading failed: %s", str(exc))
         raise
     finally:
         unregister_listener(lid)
@@ -805,8 +979,11 @@ async def preload_model():
         return  # already loaded
     try:
         # Check if the required model checkpoint exists before attempting
-        # a heavy load that would fail and pollute startup logs.
-        checkpoint = os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice")
+        # a heavy load that would fail and pollute startup logs. Use the same
+        # resolver as the load path (#693) so a leaked engine id in
+        # OMNIVOICE_MODEL can't make this model_info() probe fail and silently
+        # disable warm-up (then the first /generate eats the full load).
+        checkpoint = resolve_omnivoice_checkpoint()
         try:
             from huggingface_hub import model_info
             model_info(checkpoint, timeout=5)

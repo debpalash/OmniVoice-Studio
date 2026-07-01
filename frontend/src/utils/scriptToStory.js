@@ -18,13 +18,17 @@ import { isChapterLine, chapterTitle } from './storyExport';
 import { nextCastColor } from './storyCast';
 import { DEFAULT_CAST } from '../store/longformSlice';
 
-const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'char';
+const slug = (s) =>
+  String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '') || 'char';
 
 /** Leading `[voice:ID]` via string ops. Returns {id, rest} or null. */
 function splitLeadingVoice(line) {
-  const lead = line.match(/^\s*/)[0];           // count leading ws (linear)
+  const lead = line.match(/^\s*/)[0]; // count leading ws (linear)
   const t = line.slice(lead.length);
-  if (!/^\[voice:/i.test(t)) return null;       // fixed anchored literal
+  if (!/^\[voice:/i.test(t)) return null; // fixed anchored literal
   const close = t.indexOf(']');
   if (close === -1) return null;
   const id = t.slice('[voice:'.length, close).trim();
@@ -34,22 +38,29 @@ function splitLeadingVoice(line) {
 }
 
 export function scriptToStory(text, profiles = []) {
-  const cast = DEFAULT_CAST.map((c) => ({ ...c }));   // never the shared ref
+  const cast = DEFAULT_CAST.map((c) => ({ ...c })); // never the shared ref
   const tracks = [];
   if (!text || !String(text).trim()) return { tracks, cast };
 
   const lines = String(text).replace(/\r\n/g, '\n').split('\n');
-  const usedIds = new Set(cast.map((c) => c.id));     // 'narrator' reserved
-  const byProfile = new Map();                        // profileId → castMember
+  const usedIds = new Set(cast.map((c) => c.id)); // 'narrator' reserved
+  const byProfile = new Map(); // profileId → castMember
   let n = 0;
 
   for (const line of lines) {
     if (isChapterLine(line)) {
       n += 1;
-      tracks.push({ id: n, character: 'narrator', text: `# ${chapterTitle(line)}`, profileId: null, emotion: null, speed: null });
+      tracks.push({
+        id: n,
+        character: 'narrator',
+        text: `# ${chapterTitle(line)}`,
+        profileId: null,
+        emotion: null,
+        speed: null,
+      });
       continue;
     }
-    if (!line.trim()) continue;                       // blank dropped
+    if (!line.trim()) continue; // blank dropped
 
     let profileId = null;
     let body = line;
@@ -57,7 +68,7 @@ export function scriptToStory(text, profiles = []) {
     if (lead) {
       body = lead.rest;
       // [voice:default] / empty → narrator (profileId null); else real override.
-      profileId = (lead.id === 'default' || lead.id === '') ? null : lead.id;
+      profileId = lead.id === 'default' || lead.id === '' ? null : lead.id;
     }
 
     let character = 'narrator';
@@ -65,14 +76,20 @@ export function scriptToStory(text, profiles = []) {
       let cm = byProfile.get(profileId);
       if (!cm) {
         let cid = slug(profileId);
-        if (usedIds.has(cid)) {                       // slug-collision / narrator dedupe
+        if (usedIds.has(cid)) {
+          // slug-collision / narrator dedupe
           let k = 2;
           while (usedIds.has(`${cid}-${k}`)) k += 1;
           cid = `${cid}-${k}`;
         }
         usedIds.add(cid);
         const known = (profiles || []).find((p) => p.id === profileId);
-        cm = { id: cid, name: (known && known.name) || profileId, color: nextCastColor(cast), profileId };
+        cm = {
+          id: cid,
+          name: (known && known.name) || profileId,
+          color: nextCastColor(cast),
+          profileId,
+        };
         cast.push(cm);
         byProfile.set(profileId, cm);
       }

@@ -5,13 +5,16 @@
  */
 import { API_BASE as _PREVIEW_API, isTauriContext } from './apiBase';
 import { claimPlayback } from './playback';
+import { apiFetch } from '../api/client';
 
 const isTauri = isTauriContext();
 
 // ── Tauri window maximise on double-click ─────────────────────────────
 let tauriWindow = null;
 if (isTauri) {
-  import('@tauri-apps/api/window').then(m => { tauriWindow = m; });
+  import('@tauri-apps/api/window').then((m) => {
+    tauriWindow = m;
+  });
 }
 export const doubleClickMaximize = () => {
   if (tauriWindow) tauriWindow.getCurrentWindow().toggleMaximize();
@@ -31,16 +34,16 @@ export const fileToMediaUrl = async (file, prevUrls) => {
   // Revoke previous blob URLs if they exist
   if (prevUrls?.videoUrl?.startsWith('blob:')) URL.revokeObjectURL(prevUrls.videoUrl);
   if (prevUrls?.audioUrl?.startsWith('blob:')) URL.revokeObjectURL(prevUrls.audioUrl);
-  
+
   if (isTauri) {
     try {
       const form = new FormData();
       form.append('video', file, file.name || 'media.wav');
-      const res = await fetch(`${_PREVIEW_API}/preview/upload`, { method: 'POST', body: form });
+      const res = await apiFetch(`${_PREVIEW_API}/preview/upload`, { method: 'POST', body: form });
       const data = await res.json();
       return {
         videoUrl: `${_PREVIEW_API}${data.url}`,
-        audioUrl: data.audioUrl ? `${_PREVIEW_API}${data.audioUrl}` : `${_PREVIEW_API}${data.url}`
+        audioUrl: data.audioUrl ? `${_PREVIEW_API}${data.audioUrl}` : `${_PREVIEW_API}${data.url}`,
       };
     } catch (e) {
       console.warn('Preview upload failed, falling back to blob URL:', e);
@@ -72,26 +75,59 @@ export const playBlobAudio = async (blob) => {
       src.buffer = decoded;
       src.connect(ctx.destination);
       const release = claimPlayback(() => {
-        try { src.stop(); } catch { /* already stopped */ }
+        try {
+          src.stop();
+        } catch {
+          /* already stopped */
+        }
         ctx.close();
       }, 'output');
       src.start(0);
-      src.onended = () => { ctx.close(); release(); };
+      src.onended = () => {
+        ctx.close();
+        release();
+      };
     } catch (e) {
-      console.error('playBlobAudio decode error:', e);
+      // Expected & recovered on WebView2 (Windows): decodeAudioData decodes the
+      // WHOLE file into one PCM AudioBuffer and chokes on long-form audiobook/
+      // story renders (.m4b / AAC) — a `warn`, not a red ERROR, since the
+      // streaming fallback below recovers it. (The scary "decode error" line
+      // users saw in Logs → Frontend was this expected branch, logged at error
+      // level even when playback succeeded.)
+      console.warn(
+        'playBlobAudio: Web Audio decode failed, falling back to streamed playback:',
+        e?.message || e,
+      );
       ctx.close();
-      // Fallback: try the standard Audio() path even in Tauri
+      // Fallback (#653): a blob: URL won't play in an <audio> element under
+      // Tauri's WebKit (see fileToMediaUrl above), so upload to the backend
+      // preview endpoint (ffmpeg-extracts a streamable WAV) and play the HTTP
+      // URL — the same path video previews already use. Streams; no whole-file
+      // decode. NOTE: _PREVIEW_API must be 127.0.0.1 (not localhost) or this
+      // fetch misses the IPv4 backend on Windows (see utils/apiBase.ts).
       try {
-        const url = URL.createObjectURL(blob);
+        const form = new FormData();
+        form.append('video', blob, 'preview.audio');
+        const res = await apiFetch(`${_PREVIEW_API}/preview/upload`, {
+          method: 'POST',
+          body: form,
+        });
+        const data = await res.json();
+        const url = `${_PREVIEW_API}${data.audioUrl || data.url}`;
         const a = new Audio(url);
         const release = claimPlayback(() => {
           a.pause();
-          URL.revokeObjectURL(url);
         }, 'output');
-        a.onended = () => { URL.revokeObjectURL(url); release(); };
-        await a.play().catch((err) => { release(); throw err; });
+        a.onended = () => {
+          release();
+        };
+        await a.play().catch((err) => {
+          release();
+          throw err;
+        });
       } catch (e2) {
-        console.error('playBlobAudio fallback error:', e2);
+        // Real failure — both decode AND the streamed fallback failed.
+        console.error('playBlobAudio: streamed fallback also failed:', e2?.message || e2);
       }
     }
   } else {
@@ -101,7 +137,10 @@ export const playBlobAudio = async (blob) => {
       a.pause();
       URL.revokeObjectURL(url);
     }, 'output');
-    a.onended = () => { URL.revokeObjectURL(url); release(); };
+    a.onended = () => {
+      URL.revokeObjectURL(url);
+      release();
+    };
     a.play().catch((e) => {
       release();
       console.error('playBlobAudio play error:', e);

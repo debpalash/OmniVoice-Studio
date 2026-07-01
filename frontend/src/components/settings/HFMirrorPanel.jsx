@@ -12,7 +12,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Globe } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
-import './PerformancePanel.css';
+import { SettingsSection, SettingRow, SettingsInput } from './primitives';
+import { Button } from '../../ui';
+import RestartBadge from './RestartBadge';
 
 export default function HFMirrorPanel() {
   const [state, setState] = useState(null);
@@ -32,7 +34,9 @@ export default function HFMirrorPanel() {
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const save = async (value) => {
     setSaving(true);
@@ -57,38 +61,66 @@ export default function HFMirrorPanel() {
   if (!state) return null;
 
   return (
-    <section className="perfpanel" aria-labelledby="hfmirror-heading">
-      <h3 id="hfmirror-heading" className="perfpanel__title">
-        <Globe size={14} /> Hugging Face mirror
-      </h3>
-      <p className="perfpanel__help">
-        On a restricted network, route model downloads through a mirror.
-        Applies after a restart. Leave empty for the official endpoint.
-      </p>
-
-      {error && <div className="perfpanel__error" role="alert">{error}</div>}
-
-      <div className="perfpanel__row" style={{ flexWrap: 'wrap', gap: 6 }}>
-        {state.presets.map((p) => (
-          <button key={p.label} type="button" onClick={() => save(p.url)}
-            disabled={saving} data-testid={`hf-preset-${p.url || 'official'}`}>
-            {p.label}
-          </button>
-        ))}
-      </div>
-
-      <label className="perfpanel__row">
-        <span className="perfpanel__label">HF_ENDPOINT</span>
-        <input type="text" value={url} onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://hf-mirror.com" style={{ flex: 1 }} data-testid="hf-mirror-url" />
-        <button type="button" onClick={() => save(url)} disabled={saving} data-testid="hf-mirror-save">
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-      </label>
-
-      {restart && (
-        <p className="perfpanel__help">Restart the app for the mirror change to take effect.</p>
+    <SettingsSection
+      icon={Globe}
+      title="Hugging Face mirror"
+      description="Route model downloads through a mirror on a restricted network."
+      actions={<RestartBadge />}
+    >
+      {error && (
+        <div className="perfpanel__error" role="alert">
+          {error}
+        </div>
       )}
-    </section>
+
+      <SettingRow
+        stack
+        title="Mirror preset"
+        hint="On a restricted network, route model downloads through a mirror. Applies after a restart. Leave empty for the official endpoint."
+        control={
+          <div className="flex flex-wrap items-center gap-[6px] min-w-0 max-w-full">
+            {state.presets.map((p) => (
+              <Button
+                variant="preset"
+                key={p.label}
+                onClick={() => save(p.url)}
+                disabled={saving}
+                data-testid={`hf-preset-${p.url || 'official'}`}
+              >
+                {p.label}
+              </Button>
+            ))}
+          </div>
+        }
+      />
+
+      <SettingRow
+        stack
+        title="HF_ENDPOINT"
+        subtitle={restart ? 'Restart the app for the change to take effect.' : undefined}
+        control={
+          <>
+            <SettingsInput
+              mono
+              type="text"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://hf-mirror.com"
+              data-testid="hf-mirror-url"
+            />
+            <Button
+              variant="subtle"
+              size="sm"
+              onClick={() => save(url)}
+              loading={saving}
+              disabled={saving}
+              data-testid="hf-mirror-save"
+            >
+              Save
+            </Button>
+          </>
+        }
+      />
+    </SettingsSection>
   );
 }

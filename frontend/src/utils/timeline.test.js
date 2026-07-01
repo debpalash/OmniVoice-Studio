@@ -1,8 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
-  MIN_SEG_DUR, MAX_OVERLAP,
-  visibleSegmentRange, snapTime, snapCandidates,
-  clampSegmentEdit, commitMoveResize, detectOverlaps, nearestOnset,
+  MIN_SEG_DUR,
+  MAX_OVERLAP,
+  visibleSegmentRange,
+  snapTime,
+  snapCandidates,
+  clampSegmentEdit,
+  commitMoveResize,
+  detectOverlaps,
+  nearestOnset,
 } from './timeline';
 import { segmentGenInputs } from './segments';
 
@@ -13,12 +19,12 @@ describe('visibleSegmentRange', () => {
 
   it('returns the window covering the view', () => {
     const [lo, hi] = visibleSegmentRange(segs, 4.5, 5.5, 0);
-    expect(segs.slice(lo, hi).map(s => s.id)).toEqual([3]);
+    expect(segs.slice(lo, hi).map((s) => s.id)).toEqual([3]);
   });
 
   it('includes buffer on both sides', () => {
     const [lo, hi] = visibleSegmentRange(segs, 4.5, 5.5, 2);
-    expect(segs.slice(lo, hi).map(s => s.id)).toEqual([2, 3, 4]);
+    expect(segs.slice(lo, hi).map((s) => s.id)).toEqual([2, 3, 4]);
   });
 
   it('empty list → [0,0]', () => {
@@ -44,14 +50,14 @@ describe('visibleSegmentRange', () => {
   it('walks lo back over an earlier segment that overlaps into view', () => {
     const overlapping = [seg(1, 0, 5.2), seg(2, 5, 7), seg(3, 7, 9)];
     const [lo, hi] = visibleSegmentRange(overlapping, 5.05, 6, 0);
-    expect(overlapping.slice(lo, hi).map(s => s.id)).toEqual([1, 2]);
+    expect(overlapping.slice(lo, hi).map((s) => s.id)).toEqual([1, 2]);
   });
 
   it('boundary exactly on a segment edge', () => {
     const [lo, hi] = visibleSegmentRange(segs, 2, 4, 0);
     // seg 1 ends exactly at 2 (end > t0 is false), segs 2 and 3 qualify.
-    expect(segs.slice(lo, hi).map(s => s.id)).toContain(2);
-    expect(segs.slice(lo, hi).map(s => s.id)).toContain(3);
+    expect(segs.slice(lo, hi).map((s) => s.id)).toContain(2);
+    expect(segs.slice(lo, hi).map((s) => s.id)).toContain(3);
   });
 });
 
@@ -80,7 +86,14 @@ describe('snapTime', () => {
 
 describe('snapCandidates', () => {
   it('includes onsets, neighbour edges and playhead', () => {
-    const c = snapCandidates({ onsets: [1.1, 2.2], prevEnd: 0.5, nextStart: 3.3, playhead: 2.0, pxPerSec: 100, t: 1.5 });
+    const c = snapCandidates({
+      onsets: [1.1, 2.2],
+      prevEnd: 0.5,
+      nextStart: 3.3,
+      playhead: 2.0,
+      pxPerSec: 100,
+      t: 1.5,
+    });
     expect(c).toEqual(expect.arrayContaining([1.1, 2.2, 0.5, 3.3, 2.0]));
     // High zoom → no integer grid.
     expect(c).not.toContain(1);
@@ -154,16 +167,16 @@ describe('commitMoveResize — fingerprint parity (#281 invariants)', () => {
     const after = commitMoveResize(before, { start: 2, end: 3 });
     const gi0 = segmentGenInputs(before);
     const gi1 = segmentGenInputs(after);
-    expect(gi1.speed).toBe(2);                 // 2s original / 1s slot
+    expect(gi1.speed).toBe(2); // 2s original / 1s slot
     expect({ ...gi1, speed: undefined }).toEqual({ ...gi0, speed: undefined });
     expect(after.original_duration).toBe(2);
   });
 
   it('successive resizes compound against the FIRST original_duration', () => {
     const s0 = seg(1, 0, 4);
-    const s1 = commitMoveResize(s0, { start: 0, end: 2 });   // speed 2
+    const s1 = commitMoveResize(s0, { start: 0, end: 2 }); // speed 2
     expect(s1.speed).toBe(2);
-    const s2 = commitMoveResize(s1, { start: 0, end: 8 });   // back from 4s original → 0.5
+    const s2 = commitMoveResize(s1, { start: 0, end: 8 }); // back from 4s original → 0.5
     expect(s2.speed).toBe(0.5);
     expect(s2.original_duration).toBe(4);
   });
@@ -171,7 +184,7 @@ describe('commitMoveResize — fingerprint parity (#281 invariants)', () => {
   it('resize landing at speed 1.0 DELETES the key (missing hashes as "")', () => {
     const s0 = seg(1, 0, 4);
     const s1 = commitMoveResize(s0, { start: 0, end: 2 });
-    const s2 = commitMoveResize(s1, { start: 0, end: 4 });   // back to original duration
+    const s2 = commitMoveResize(s1, { start: 0, end: 4 }); // back to original duration
     expect('speed' in s2).toBe(false);
     expect(segmentGenInputs(s2).speed).toBeUndefined();
   });

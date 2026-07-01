@@ -38,7 +38,7 @@ describe('PerformancePanel', () => {
   it('toggle click PUTs the new state', async () => {
     const fetchMock = mockFetchSequence(
       { status: 200, body: { enabled: false, platform: 'win32' } }, // initial GET
-      { status: 200, body: { enabled: true, platform: 'win32' } },  // PUT
+      { status: 200, body: { enabled: true, platform: 'win32' } }, // PUT
     );
     global.fetch = fetchMock;
 
@@ -48,9 +48,7 @@ describe('PerformancePanel', () => {
     fireEvent.click(toggle);
 
     await waitFor(() => {
-      const put = fetchMock.mock.calls.find(
-        ([_u, opts]) => opts && opts.method === 'PUT',
-      );
+      const put = fetchMock.mock.calls.find(([_u, opts]) => opts && opts.method === 'PUT');
       expect(put).toBeTruthy();
       expect(put[0]).toMatch(/\/api\/settings\/perf\/torch-compile-disabled$/);
       expect(JSON.parse(put[1].body)).toEqual({ enabled: true });

@@ -63,7 +63,7 @@ describe('SegmentTrack — rendering', () => {
 
   it('roving tabindex: exactly one tab stop', () => {
     setup();
-    const stops = screen.getAllByRole('option').filter(el => el.tabIndex === 0);
+    const stops = screen.getAllByRole('option').filter((el) => el.tabIndex === 0);
     expect(stops).toHaveLength(1);
   });
 
@@ -74,9 +74,7 @@ describe('SegmentTrack — rendering', () => {
   });
 
   it('renders nothing without pxPerSec', () => {
-    const { container } = render(
-      <SegmentTrack segments={SEGS} pxPerSec={0} duration={10} />,
-    );
+    const { container } = render(<SegmentTrack segments={SEGS} pxPerSec={0} duration={10} />);
     expect(container.firstChild).toBeNull();
   });
 });
@@ -99,7 +97,9 @@ describe('SegmentTrack — keyboard', () => {
     // Segments prop is static here (mocked transport), so the next nudge
     // computes from the unchanged start=3.
     fireEvent.keyDown(box(1), { key: 'ArrowLeft', ctrlKey: true });
-    expect(onCommit).toHaveBeenLastCalledWith('3_a', expect.objectContaining({ start: 2.9 }), { undo: false });
+    expect(onCommit).toHaveBeenLastCalledWith('3_a', expect.objectContaining({ start: 2.9 }), {
+      undo: false,
+    });
   });
 
   it('one undo per focus session — only the FIRST nudge passes undo:true', () => {
@@ -109,7 +109,7 @@ describe('SegmentTrack — keyboard', () => {
     fireEvent.keyDown(box(0), { key: 'ArrowRight' });
     fireEvent.keyDown(box(0), { key: 'ArrowRight' });
     fireEvent.keyDown(box(0), { key: 'ArrowRight' });
-    const undoFlags = onCommit.mock.calls.map(c => c[2].undo);
+    const undoFlags = onCommit.mock.calls.map((c) => c[2].undo);
     expect(undoFlags).toEqual([true, false, false]);
   });
 

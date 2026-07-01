@@ -22,7 +22,7 @@ describe('donation data module', () => {
     expect(progressPct({ raised: 0, goal: 200 })).toBe(0);
     expect(progressPct({ raised: 100, goal: 200 })).toBe(0.5);
     expect(progressPct({ raised: 500, goal: 200 })).toBe(1); // capped
-    expect(progressPct({ raised: 5, goal: 0 })).toBe(0);     // guard /0
+    expect(progressPct({ raised: 5, goal: 0 })).toBe(0); // guard /0
   });
 
   it('isGoalMet flips at raised >= goal', () => {
@@ -36,20 +36,33 @@ describe('donation data module', () => {
     expect(normalizeProgress('nope')).toBeNull();
     expect(normalizeProgress({ raised: 'x', goal: 200 })).toBeNull();
     expect(normalizeProgress({ raised: 10, goal: 0 })).toBeNull();
-    expect(normalizeProgress({ raised: 10, goal: 200 })).toMatchObject({ raised: 10, goal: 200, currency: 'USD' });
+    expect(normalizeProgress({ raised: 10, goal: 200 })).toMatchObject({
+      raised: 10,
+      goal: 200,
+      currency: 'USD',
+    });
   });
 
   it('bundled fallback is well-formed (keeps page lockstep w/ public JSON)', () => {
     expect(normalizeProgress(BUNDLED_PROGRESS)).not.toBeNull();
     expect(BUNDLED_PROGRESS.goal).toBe(200);
-    expect(BUNDLED_PROGRESS.raised).toBeGreaterThan(0);     // endowed baseline
+    expect(BUNDLED_PROGRESS.raised).toBeGreaterThan(0); // endowed baseline
     expect(BUNDLED_PROGRESS.raised).toBeLessThan(BUNDLED_PROGRESS.goal);
   });
 
   it('loadDonationProgress: returns fetched copy on success', async () => {
-    const fresh = { raised: 88, goal: 200, currency: 'USD', sponsorCount: 12, updated: '2026-06-20' };
+    const fresh = {
+      raised: 88,
+      goal: 200,
+      currency: 'USD',
+      sponsorCount: 12,
+      updated: '2026-06-20',
+    };
     const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => fresh });
-    await expect(loadDonationProgress(fetcher)).resolves.toMatchObject({ raised: 88, sponsorCount: 12 });
+    await expect(loadDonationProgress(fetcher)).resolves.toMatchObject({
+      raised: 88,
+      sponsorCount: 12,
+    });
   });
 
   it('loadDonationProgress: falls back to bundled when offline (fetch rejects)', async () => {
@@ -69,7 +82,9 @@ describe('donation data module', () => {
 });
 
 describe('<GoalBar />', () => {
-  beforeEach(() => { vi.restoreAllMocks(); });
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it('renders from injected progress (in-progress state)', () => {
     const p = { raised: 100, goal: 200, currency: 'USD', sponsorCount: 9, updated: '2026-06-16' };
@@ -98,7 +113,10 @@ describe('<GoalBar />', () => {
     await waitFor(() => {
       expect(screen.getByText(`${expectedPct}%`)).toBeInTheDocument();
     });
-    expect(container.querySelector('.goal__track')).toHaveAttribute('aria-valuenow', String(expectedPct));
+    expect(container.querySelector('.goal__track')).toHaveAttribute(
+      'aria-valuenow',
+      String(expectedPct),
+    );
   });
 
   it('mini variant omits the Pip + percent header', () => {

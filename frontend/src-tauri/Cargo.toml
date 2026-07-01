@@ -28,6 +28,10 @@ tauri-plugin-process = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-single-instance = "2"
+# Bottom-center placement of the dictation pill/widget window. Replaces the
+# hand-rolled primary-monitor geometry + LogicalPosition math. tray-icon
+# feature enabled because the app ships a system tray (TrayIconBuilder).
+tauri-plugin-positioner = { version = "2", features = ["tray-icon"] }
 
 # Cross-platform keyboard simulation for auto-paste after dictation
 enigo = { version = "0.3", features = ["serde"] }
@@ -53,7 +57,7 @@ walkdir = "2"
 # First-run setup screen: per-path free-disk-space probe (statvfs /
 # GetDiskFreeSpaceExW) for the minimum-storage install gate
 fs4 = "0.13"
-# Cross-platform home/config directories for pill autostart registration
+# Cross-platform home/config/data directories (config.rs, setup.rs)
 dirs-next = "2"
 # Native (OS-side) clipboard write for dictation auto-paste: the widget window
 # is unfocused on macOS so the simulated ⌘V reaches the target app, which makes

@@ -413,11 +413,16 @@ async def dub_translate(req: TranslateRequest):
             try:
                 import argostranslate  # noqa: F401
             except ImportError:
+                # Single-source the install command from the engine registry so
+                # this 400 and the proactive Install button in the Engine
+                # selector can never drift (see translation_engines.install_command).
+                from services.translation_engines import install_command
+                cmd = install_command("argos") or "uv pip install argostranslate"
                 friendly = (
                     f"The '{provider}' translation engine needs the optional "
                     f"`argostranslate` Python package, which isn't installed in "
-                    f"this backend. Install it with `uv pip install argostranslate` "
-                    f"(or `pip install argostranslate`) and restart the server, or "
+                    f"this backend. Install it with `{cmd}` "
+                    f"and restart the server, or "
                     f"switch the Engine dropdown to another provider."
                 )
                 return JSONResponse(status_code=400, content={"error": friendly})
@@ -470,11 +475,16 @@ async def dub_translate(req: TranslateRequest):
         try:
             import deep_translator  # noqa: F401
         except ImportError:
+            # Same single-source install command as the Engine selector's Install
+            # button (translation_engines.install_command) — google/deepl/
+            # microsoft/mymemory all share the deep_translator package.
+            from services.translation_engines import install_command
+            cmd = install_command(provider) or "uv pip install deep_translator"
             friendly = (
                 f"The '{provider}' translation engine needs the optional "
                 f"`deep_translator` Python package, which isn't installed in "
-                f"this backend. Install it with `uv pip install deep_translator` "
-                f"(or `pip install deep_translator`) and restart the server, or "
+                f"this backend. Install it with `{cmd}` "
+                f"and restart the server, or "
                 f"switch the Engine dropdown to Argos (local, bundled), NLLB "
                 f"(local, heavier), or OpenAI (LLM)."
             )
@@ -573,11 +583,14 @@ async def _maybe_cinematic(translated, req, src_lang, loop):
     base = {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang,
             "quality_used": "fast", **_dialect_flags(req, applied=False)}
 
-    if quality != "cinematic":
+    # Autofit is Cinematic + a strict "never exceed the slot" fit pass, so both
+    # qualities take the LLM refine path below. Fast (and anything else) returns
+    # the plain translation unchanged.
+    if quality not in ("cinematic", "autofit"):
         return base
 
     if not cinematic_available():
-        logger.warning("cinematic requested but no LLM configured — returning Fast result.")
+        logger.warning("%s requested but no LLM configured — returning Fast result.", quality)
         base["cinematic_skipped"] = "no-llm-configured"
         return base
 
@@ -660,6 +673,7 @@ async def _maybe_cinematic(translated, req, src_lang, loop):
                     slot_seconds=float(slot),
                     target_lang=req.target_lang,
                     source_text=source_by_id.get(seg_id),
+                    strict=(quality == "autofit"),
                 )
                 if fit.get("text"):
                     out["text"] = fit["text"]
@@ -675,6 +689,6 @@ async def _maybe_cinematic(translated, req, src_lang, loop):
         "translated": merged,
         "target_lang": req.target_lang,
         "source_lang": src_lang,
-        "quality_used": "cinematic",
+        "quality_used": quality,
         **_dialect_flags(req, applied=bool(dialect_hint)),
     }

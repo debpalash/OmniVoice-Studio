@@ -17,7 +17,7 @@
  *   POST /system/tailscale/disable  → {ok}
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { copyText } from "../../utils/copyText";
+import { copyText } from '../../utils/copyText';
 import QRCode from 'qrcode';
 import { Wifi, Globe, Copy, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -25,7 +25,7 @@ import { useTranslation } from 'react-i18next';
 import { apiJson, apiPost } from '../../api/client';
 import { openExternal } from '../../api/external';
 import NetworkToggle from '../NetworkToggle';
-import './SharingPanel.css';
+import { SettingsSection, SettingRow, InfoHint, Collapsible } from './primitives';
 
 const TAILSCALE_DOWNLOAD_URL = 'https://tailscale.com/download';
 
@@ -58,7 +58,9 @@ export default function SharingPanel() {
         if (!ctrl.aborted) setPorts(null);
       }
     })();
-    return () => { ctrl.aborted = true; };
+    return () => {
+      ctrl.aborted = true;
+    };
   }, []);
 
   const saveSharePort = async () => {
@@ -97,12 +99,17 @@ export default function SharingPanel() {
   useEffect(() => {
     const ctrl = { aborted: false };
     refresh(ctrl);
-    return () => { ctrl.aborted = true; };
+    return () => {
+      ctrl.aborted = true;
+    };
   }, [refresh]);
 
   // Render a QR for the Tailscale URL when one is available; cancel-safe.
   useEffect(() => {
-    if (!url) { setQr(''); return; }
+    if (!url) {
+      setQr('');
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -112,7 +119,9 @@ export default function SharingPanel() {
         if (!cancelled) setQr('');
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [url]);
 
   const enable = async () => {
@@ -153,176 +162,215 @@ export default function SharingPanel() {
     }
   };
 
-  const copy = (text) => { copyText(text); toast.success(t('sharing.copied')); };
+  const copy = (text) => {
+    copyText(text);
+    toast.success(t('sharing.copied'));
+  };
 
   const installed = !!status?.installed;
   const running = !!status?.running;
 
   return (
-    <section className="sharingpanel" aria-labelledby="sharingpanel-heading">
-      <h3 id="sharingpanel-heading" className="sharingpanel__title">
-        <Wifi size={14} /> {t('sharing.title')}
-      </h3>
-
-      <p className="sharingpanel__help">
-        {t('sharing.help')}
-      </p>
-
+    <SettingsSection
+      className="sharingpanel"
+      icon={Wifi}
+      title={t('sharing.title')}
+      actions={<InfoHint>{t('sharing.help')}</InfoHint>}
+    >
       {/* ── LAN sharing ──────────────────────────────────────────────── */}
-      <div className="sharingpanel__section" data-testid="sharing-lan">
-        <h4 className="sharingpanel__subtitle">
-          <Wifi size={12} /> {t('sharing.local_network')}
-        </h4>
-        <p className="sharingpanel__subhelp">
-          {t('sharing.local_help')}
-        </p>
-        <NetworkToggle />
+      <div data-testid="sharing-lan">
+        <SettingRow
+          icon={Wifi}
+          title={t('sharing.local_network')}
+          hint={t('sharing.local_help')}
+          control={<NetworkToggle />}
+        />
       </div>
 
       {/* ── Ports ────────────────────────────────────────────────────── */}
       {ports && (
-        <div className="sharingpanel__section" data-testid="sharing-ports">
-          <h4 className="sharingpanel__subtitle">
-            <Globe size={12} /> {t('sharing.ports_title')}
-          </h4>
-          <p className="sharingpanel__subhelp">
-            {t('sharing.ports_help')}
-          </p>
+        <div className="flex flex-col" data-testid="sharing-ports">
+          <SettingRow
+            icon={Globe}
+            title={t('sharing.ports_title')}
+            hint={
+              <>
+                {t('sharing.ports_help')} {t('sharing.ports_note')}
+              </>
+            }
+          />
 
-          <div className="sharingpanel__row">
-            <span>{t('sharing.backend_port')}</span>
-            <code className="sharingpanel__addr" data-testid="port-backend">{ports.backend_port}</code>
-            <code className="sharingpanel__envname">OMNIVOICE_PORT</code>
-          </div>
+          <SettingRow
+            title={t('sharing.backend_port')}
+            subtitle={
+              <code className="rounded-[4px] [border:1px_solid_var(--chrome-border)] bg-[var(--chrome-hover-bg)] px-[6px] py-[2px] font-mono text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)]">
+                OMNIVOICE_PORT
+              </code>
+            }
+            control={
+              <code
+                className="min-w-0 flex-[1_1_220px] break-all rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-border)] bg-[var(--chrome-hover-bg)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--text-sm)] text-[var(--chrome-fg)]"
+                data-testid="port-backend"
+              >
+                {ports.backend_port}
+              </code>
+            }
+          />
 
-          <div className="sharingpanel__row">
-            <span>{t('sharing.ui_port')}</span>
-            <code className="sharingpanel__addr" data-testid="port-ui">{ports.ui_port}</code>
-            <code className="sharingpanel__envname">OMNIVOICE_UI_PORT</code>
-          </div>
+          <SettingRow
+            title={t('sharing.ui_port')}
+            subtitle={
+              <code className="rounded-[4px] [border:1px_solid_var(--chrome-border)] bg-[var(--chrome-hover-bg)] px-[6px] py-[2px] font-mono text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)]">
+                OMNIVOICE_UI_PORT
+              </code>
+            }
+            control={
+              <code
+                className="min-w-0 flex-[1_1_220px] break-all rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-border)] bg-[var(--chrome-hover-bg)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--text-sm)] text-[var(--chrome-fg)]"
+                data-testid="port-ui"
+              >
+                {ports.ui_port}
+              </code>
+            }
+          />
 
-          <div className="sharingpanel__row">
-            <label htmlFor="share-port-input">{t('sharing.lan_share_port')}</label>
-            <input
-              id="share-port-input"
-              type="number"
-              min={1024}
-              max={65535}
-              value={sharePortInput}
-              onChange={(e) => setSharePortInput(e.target.value)}
-              className="sharingpanel__portinput"
-              data-testid="port-share-input"
-            />
-            <code className="sharingpanel__envname">OMNIVOICE_SHARE_PORT</code>
-            <button
-              type="button"
-              className="sharingpanel__btn"
-              onClick={saveSharePort}
-              disabled={savingPort}
-              data-testid="port-share-save"
-            >
-              {savingPort ? t('sharing.saving') : t('common.save')}
-            </button>
-          </div>
-          <p className="sharingpanel__note">
-            {t('sharing.ports_note')}
-          </p>
+          <SettingRow
+            title={<label htmlFor="share-port-input">{t('sharing.lan_share_port')}</label>}
+            subtitle={
+              <code className="rounded-[4px] [border:1px_solid_var(--chrome-border)] bg-[var(--chrome-hover-bg)] px-[6px] py-[2px] font-mono text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)]">
+                OMNIVOICE_SHARE_PORT
+              </code>
+            }
+            control={
+              <>
+                <input
+                  id="share-port-input"
+                  type="number"
+                  min={1024}
+                  max={65535}
+                  value={sharePortInput}
+                  onChange={(e) => setSharePortInput(e.target.value)}
+                  className="w-[100px] rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-border)] bg-[var(--chrome-hover-bg)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--text-sm)] text-[var(--chrome-fg)]"
+                  data-testid="port-share-input"
+                />
+                <button
+                  type="button"
+                  className="inline-flex cursor-pointer items-center gap-[var(--space-2)] self-start rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-accent)] bg-[color-mix(in_srgb,var(--chrome-accent)_25%,var(--chrome-bg))] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--text-sm)] text-[var(--chrome-fg)] disabled:cursor-default disabled:opacity-50"
+                  onClick={saveSharePort}
+                  disabled={savingPort}
+                  data-testid="port-share-save"
+                >
+                  {savingPort ? t('sharing.saving') : t('common.save')}
+                </button>
+              </>
+            }
+          />
         </div>
       )}
 
-      {/* ── Tailscale ────────────────────────────────────────────────── */}
-      <div className="sharingpanel__section" data-testid="sharing-tailscale">
-        <h4 className="sharingpanel__subtitle">
-          <Globe size={12} /> {t('sharing.tailscale_title')}
-        </h4>
+      {/* ── Tailscale (advanced / power-user) ────────────────────────── */}
+      <Collapsible icon={Globe} title={t('sharing.tailscale_title')} defaultOpen>
+        <div data-testid="sharing-tailscale">
+          {loading && !status && <SettingRow title={t('sharing.tailscale_checking')} />}
 
-        {loading && !status && (
-          <p className="sharingpanel__subhelp">{t('sharing.tailscale_checking')}</p>
-        )}
-
-        {status && !installed && (
-          <div className="sharingpanel__tailscale-absent" data-testid="tailscale-absent">
-            <p className="sharingpanel__subhelp">
-              {t('sharing.tailscale_absent')}
-            </p>
-            <button
-              type="button"
-              className="sharingpanel__btn"
-              onClick={() => openExternal(TAILSCALE_DOWNLOAD_URL)}
-              data-testid="tailscale-install"
-            >
-              <ExternalLink size={12} /> {t('sharing.tailscale_install')}
-            </button>
-          </div>
-        )}
-
-        {status && installed && (
-          <div className="sharingpanel__tailscale-present">
-            <p className="sharingpanel__subhelp">
-              {running
-                ? t('sharing.tailscale_running')
-                : t('sharing.tailscale_not_logged_in')}
-            </p>
-
-            {!url ? (
-              <button
-                type="button"
-                className="sharingpanel__btn"
-                onClick={enable}
-                disabled={busy}
-                data-testid="tailscale-enable"
-              >
-                {busy ? t('sharing.tailscale_enabling') : t('sharing.tailscale_enable_btn')}
-              </button>
-            ) : (
-              <div className="sharingpanel__tailscale-url">
-                <div className="sharingpanel__row">
-                  <code className="sharingpanel__addr">{url}</code>
+          {status && !installed && (
+            <div className="flex flex-col gap-[var(--space-3)]" data-testid="tailscale-absent">
+              <SettingRow
+                title={t('sharing.tailscale_absent')}
+                control={
                   <button
                     type="button"
-                    className="sharingpanel__iconbtn"
-                    onClick={() => copy(url)}
-                    aria-label={t('sharing.tailscale_copy')}
-                    title={t('sharing.tailscale_copy')}
-                    data-testid="tailscale-copy"
+                    className="inline-flex cursor-pointer items-center gap-[var(--space-2)] self-start rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-accent)] bg-[color-mix(in_srgb,var(--chrome-accent)_25%,var(--chrome-bg))] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--text-sm)] text-[var(--chrome-fg)] disabled:cursor-default disabled:opacity-50"
+                    onClick={() => openExternal(TAILSCALE_DOWNLOAD_URL)}
+                    data-testid="tailscale-install"
                   >
-                    <Copy size={12} />
+                    <ExternalLink size={12} /> {t('sharing.tailscale_install')}
                   </button>
+                }
+                align="start"
+              />
+            </div>
+          )}
+
+          {status && installed && (
+            <div className="flex flex-col gap-[var(--space-3)]">
+              {!url ? (
+                <SettingRow
+                  title={
+                    running ? t('sharing.tailscale_running') : t('sharing.tailscale_not_logged_in')
+                  }
+                  control={
+                    <button
+                      type="button"
+                      className="inline-flex cursor-pointer items-center gap-[var(--space-2)] self-start rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-accent)] bg-[color-mix(in_srgb,var(--chrome-accent)_25%,var(--chrome-bg))] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--text-sm)] text-[var(--chrome-fg)] disabled:cursor-default disabled:opacity-50"
+                      onClick={enable}
+                      disabled={busy}
+                      data-testid="tailscale-enable"
+                    >
+                      {busy ? t('sharing.tailscale_enabling') : t('sharing.tailscale_enable_btn')}
+                    </button>
+                  }
+                  align="start"
+                />
+              ) : (
+                <div className="flex flex-col gap-[var(--space-3)]">
+                  <div className="flex flex-wrap items-center gap-[var(--space-3)]">
+                    <code className="min-w-0 flex-[1_1_220px] break-all rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-border)] bg-[var(--chrome-hover-bg)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--text-sm)] text-[var(--chrome-fg)]">
+                      {url}
+                    </code>
+                    <button
+                      type="button"
+                      className="inline-flex cursor-pointer items-center justify-center rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-border)] bg-transparent p-[5px] text-[var(--chrome-fg)] hover:bg-[var(--chrome-hover-bg)]"
+                      onClick={() => copy(url)}
+                      aria-label={t('sharing.tailscale_copy')}
+                      title={t('sharing.tailscale_copy')}
+                      data-testid="tailscale-copy"
+                    >
+                      <Copy size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex cursor-pointer items-center justify-center rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-border)] bg-transparent p-[5px] text-[var(--chrome-fg)] hover:bg-[var(--chrome-hover-bg)]"
+                      onClick={() => openExternal(url)}
+                      aria-label={t('sharing.tailscale_open')}
+                      title={t('sharing.tailscale_open')}
+                      data-testid="tailscale-open"
+                    >
+                      <ExternalLink size={12} />
+                    </button>
+                  </div>
+                  {note && (
+                    <p
+                      className="m-0 text-[length:var(--text-xs)] leading-[1.4] text-[var(--chrome-fg-dim)]"
+                      data-testid="tailscale-note"
+                    >
+                      {note}
+                    </p>
+                  )}
+                  {qr && (
+                    <img
+                      className="self-start rounded-[var(--chrome-radius-pill)] bg-[#fff] p-[4px]"
+                      src={qr}
+                      alt={t('sharing.tailscale_qr_alt')}
+                      width={104}
+                      height={104}
+                    />
+                  )}
                   <button
                     type="button"
-                    className="sharingpanel__iconbtn"
-                    onClick={() => openExternal(url)}
-                    aria-label={t('sharing.tailscale_open')}
-                    title={t('sharing.tailscale_open')}
-                    data-testid="tailscale-open"
+                    className="inline-flex cursor-pointer items-center gap-[var(--space-2)] self-start rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-border)] bg-transparent px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--text-sm)] text-[var(--chrome-fg)] disabled:cursor-default disabled:opacity-50"
+                    onClick={disable}
+                    disabled={busy}
+                    data-testid="tailscale-disable"
                   >
-                    <ExternalLink size={12} />
+                    {busy ? t('sharing.tailscale_disabling') : t('sharing.tailscale_disable_btn')}
                   </button>
                 </div>
-                {note && <p className="sharingpanel__note" data-testid="tailscale-note">{note}</p>}
-                {qr && (
-                  <img
-                    className="sharingpanel__qr"
-                    src={qr}
-                    alt={t('sharing.tailscale_qr_alt')}
-                    width={104}
-                    height={104}
-                  />
-                )}
-                <button
-                  type="button"
-                  className="sharingpanel__btn sharingpanel__btn--ghost"
-                  onClick={disable}
-                  disabled={busy}
-                  data-testid="tailscale-disable"
-                >
-                  {busy ? t('sharing.tailscale_disabling') : t('sharing.tailscale_disable_btn')}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </section>
+              )}
+            </div>
+          )}
+        </div>
+      </Collapsible>
+    </SettingsSection>
   );
 }

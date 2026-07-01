@@ -1187,8 +1187,14 @@ async def dub_qc_pass(job_id: str, lang: str = Query(None), drift_threshold: flo
 
     try:
         from services.model_manager import _get_gpu_pool
-        loop = asyncio.get_running_loop()
-        recognized, engine_id = await loop.run_in_executor(_get_gpu_pool(), _recognize)
+        from services.asr_backend import ASRTimeoutError, run_transcribe_guarded
+        recognized, engine_id = await run_transcribe_guarded(
+            _get_gpu_pool(), _recognize, what="QC",
+        )
+    except ASRTimeoutError as e:
+        # Backend is alive; ASR just couldn't finish in time. 504, not 500/connection.
+        logger.warning("dub QC ASR pass timed out for %s: %s", job_id, e)
+        raise HTTPException(status_code=504, detail=str(e))
     except Exception as e:
         logger.exception("dub QC ASR pass failed for %s", job_id)
         raise HTTPException(status_code=500, detail=f"QC transcription failed: {e}")

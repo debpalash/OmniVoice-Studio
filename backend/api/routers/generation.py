@@ -12,9 +12,13 @@ from typing import Optional
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
 
-from core.db import db_conn
+import sqlite3
+from core.db import db_conn, ensure_schema
 from core.config import OUTPUTS_DIR, VOICES_DIR
-from services.model_manager import get_model, _gpu_pool
+import functools
+from services.model_manager import (
+    get_model, _gpu_pool, run_on_gpu_pool_guarded, GpuJobTimeoutError,
+)
 from services.audio_io import _safe_torchaudio_save
 from core import event_bus
 from omnivoice.utils.voice_design import heal_design_instruct
@@ -177,6 +181,57 @@ def _oom_friendly_reraise(e):
             f"The engine produced unreadable audio (a decode step failed) — this is "
             f"usually a transient glitch. Use the Flush button to reload the model, "
             f"then regenerate. Underlying error: {e}"
+        ) from e
+    # #664: a bad voice-design instruct (free-form prose, mixed EN/ZH, or
+    # conflicting tags) raises "Unsupported instruct items …" / "Cannot mix …
+    # in a single instruct" / "Conflicting instruct items …" from omnivoice's
+    # _resolve_instruct. That's a USER-INPUT validation error, not an OOM. Match
+    # on the message signature (NOT the type — a lower layer can wrap the original
+    # ValueError, which is why the route's `except ValueError` guard misses it)
+    # and re-raise as a clean ValueError so the route returns a 400 with the
+    # instruct guidance, instead of a 500 telling the user to Flush for memory
+    # they never ran out of. (Complements the client-side guard in #658/#612.)
+    _low = es.lower()
+    if ("unsupported instruct items" in _low
+            or "conflicting instruct items" in _low
+            or "in a single instruct" in _low):
+        raise ValueError(es) from e
+    # #705: a corrupt or wrong-architecture native component (a .dll / .pyd / .exe
+    # — torch, ffmpeg, or a bundled engine binary) fails to load/spawn on Windows
+    # with "[WinError 193] %1 is not a valid Win32 application". That is NOT OOM,
+    # and Flush won't help — reinstalling/repairing the component is the real fix.
+    if "[winerror 193]" in _low or "is not a valid win32 application" in _low:
+        raise RuntimeError(
+            f"A native component (a DLL / .pyd / .exe — e.g. torch, ffmpeg, or an "
+            f"engine binary) is corrupt or built for the wrong architecture "
+            f"([WinError 193]). Reinstall or repair that component — the Flush "
+            f"button won't help here. Underlying error: {e}"
+        ) from e
+    # #715: a "[Errno 32] Broken pipe" (BrokenPipeError) surfacing from
+    # generation is NOT out of memory — it means the backend's stdout/stderr
+    # pipe to the desktop shell that launched it closed mid-render (an orphaned
+    # backend whose parent shell exited or relaunched). main.py wraps
+    # sys.stdout/stderr to swallow EPIPE, but a C-level write inside the native
+    # engine/torch can still raise one past that guard. Flush won't help —
+    # relaunching the app re-parents the backend to a live shell.
+    # #756: the GPU's compute capability isn't in this PyTorch build's arch list,
+    # so CUDA can't launch kernels ("no kernel image is available for execution").
+    # NOT OOM. get_best_device() now falls back to CPU up front, but classify the
+    # raw error too in case CUDA was forced (OMNIVOICE_FORCE_CUDA) or a sub-path
+    # still ran on the GPU — point at the real fix, not the Flush button.
+    if "no kernel image is available" in _low:
+        raise RuntimeError(
+            f"Your GPU isn't supported by the installed PyTorch build (CUDA can't "
+            f"launch kernels for its compute capability). Switch the compute device "
+            f"to CPU in Settings, or install a matching PyTorch (e.g. a cu128 build "
+            f"for newer GPUs). The Flush button won't help. Underlying error: {e}"
+        ) from e
+    if isinstance(e, BrokenPipeError) or "broken pipe" in _low or "errno 32" in _low:
+        raise RuntimeError(
+            f"The backend lost its output pipe mid-generation — the desktop app "
+            f"that launched it closed or relaunched ([Errno 32] Broken pipe). "
+            f"Restart the app and try again; the Flush button won't help here. "
+            f"Underlying error: {e}"
         ) from e
     raise RuntimeError(
         f"TTS engine stopped mid-generation. This usually means it ran out of memory. "
@@ -369,6 +424,11 @@ async def generate_speech(
     # boundaries and crossfaded. 0 disables chunking (whole text to engine).
     max_chunk_chars: int = Form(800, ge=0),
     crossfade_ms: int = Form(50, ge=0, le=1000),
+    # Expressive-TTS Spec 01: apply the user pronunciation dictionary + inline
+    # [[…]] overrides to the text before synthesis. Default ON; the global
+    # OMNIVOICE_PRONUNCIATION pref can disable it for power users. Omitting it
+    # with an empty dictionary is byte-identical to legacy behavior.
+    pronounce: bool = Form(True),
 ):
     # #502: NFC-normalize the input text so decomposed (NFD) diacritics — common
     # in pasted Vietnamese and other Latin-with-marks text — are composed to the
@@ -520,9 +580,19 @@ async def generate_speech(
     # fallback behaves exactly as before.
     if ref_audio_path and not ref_text:
         from services.asr_backend import transcribe_reference
-        ref_text = await asyncio.get_running_loop().run_in_executor(
-            _gpu_pool, transcribe_reference, ref_audio_path
-        )
+        # Same #730 hang risk as any whisperx transcribe — bound + reset the pool
+        # so a wedged reference transcribe can't brick the backend. This path is
+        # best-effort (transcribe_reference returns None on failure → the model's
+        # built-in ASR fallback), so a timeout degrades to None rather than
+        # failing the whole generate.
+        try:
+            ref_text = await run_on_gpu_pool_guarded(
+                functools.partial(transcribe_reference, ref_audio_path),
+                what="Reference transcribe",
+            )
+        except GpuJobTimeoutError as e:
+            logger.warning("reference transcribe hung (%s); using model ASR fallback", e)
+            ref_text = None
 
     # #526: materialize a concrete seed when none was supplied (and no profile
     # pinned one) so the take is reproducible and we can hand it back via the
@@ -532,28 +602,66 @@ async def generate_speech(
     if used_seed is None:
         used_seed = random.randint(0, 2**31 - 1)
 
+    # Expressive-TTS Spec 01: apply the user pronunciation dictionary + inline
+    # [[…]] one-off overrides to the text, here — AFTER `language` is fully
+    # resolved (a profile may fill it above) so per-language entries match the
+    # real render language, and BEFORE the text reaches either inference path
+    # (native OmniVoice or a pluggable backend) and the chunk splitter. This is
+    # the single point user text → normalized text → model, so the transform
+    # covers generate for every engine. Pure text substitution → identical on
+    # mac/Win/Linux. A disabled pref or empty dictionary is a pass-through, so
+    # plain text stays byte-identical (#G5 backward-compat).
+    from core import prefs as _prefs
+    _pron_env = os.environ.get("OMNIVOICE_PRONUNCIATION")
+    if _pron_env is not None:
+        # Env wins (power-user override); "0"/"false"/"no"/"off" disable it.
+        _pron_enabled = _pron_env.strip().lower() not in ("0", "false", "no", "off", "")
+    else:
+        _pron_enabled = bool(_prefs.get("pronunciation_enabled", True))
+    if pronounce and _pron_enabled:
+        from services.pronunciation import apply_pronunciation, load_entries_from_db
+        try:
+            _pron_rows = load_entries_from_db()
+        except Exception:  # noqa: BLE001 — table missing / DB locked → no-op
+            _pron_rows = []
+        text = apply_pronunciation(text, _pron_rows, language)
+    else:
+        # Even with the dictionary off, inline [[…]] overrides are an explicit,
+        # in-text authoring choice → always honored (and never left as literal
+        # double-bracket text the model would mispronounce).
+        from services.pronunciation import apply_inline_overrides
+        text = apply_inline_overrides(text)
+
     start_time = time.time()
     try:
         loop = asyncio.get_running_loop()
         if _backend is not None:
-            audio_tensor = await loop.run_in_executor(
-                _gpu_pool, _run_backend_inference,
-                _backend, text, language, ref_audio_path, ref_text, instruct,
-                duration, num_step, guidance_scale, speed, denoise,
-                postprocess_output, used_seed, effect_preset,
-                max_chunk_chars, crossfade_ms,
+            # Bounded + pool-reset on hang so a wedged generate can't starve the
+            # GPU pool and brick the backend ("can't reach backend", #730 class).
+            audio_tensor = await run_on_gpu_pool_guarded(
+                functools.partial(
+                    _run_backend_inference,
+                    _backend, text, language, ref_audio_path, ref_text, instruct,
+                    duration, num_step, guidance_scale, speed, denoise,
+                    postprocess_output, used_seed, effect_preset,
+                    max_chunk_chars, crossfade_ms,
+                ),
+                what="TTS generate",
             )
             # Read after generation: engines with lazy model loading report
             # their real rate only once weights are up.
             sample_rate = _backend.sample_rate
         else:
-            audio_tensor = await loop.run_in_executor(
-                _gpu_pool, _run_inference,
-                _model, text, language, ref_audio_path, ref_text, instruct, duration,
-                num_step, guidance_scale, speed, t_shift, denoise,
-                postprocess_output, layer_penalty_factor, position_temperature,
-                class_temperature, used_seed, effect_preset,
-                max_chunk_chars, crossfade_ms,
+            audio_tensor = await run_on_gpu_pool_guarded(
+                functools.partial(
+                    _run_inference,
+                    _model, text, language, ref_audio_path, ref_text, instruct, duration,
+                    num_step, guidance_scale, speed, t_shift, denoise,
+                    postprocess_output, layer_penalty_factor, position_temperature,
+                    class_temperature, used_seed, effect_preset,
+                    max_chunk_chars, crossfade_ms,
+                ),
+                what="TTS generate",
             )
             sample_rate = _model.sampling_rate
         # Invisible AudioSeal provenance watermark on the final audio. Embedding
@@ -575,13 +683,29 @@ async def generate_speech(
 
         audio_dur = round(audio_tensor.shape[-1] / sample_rate, 2)
 
-        with db_conn() as conn:
-            conn.execute(
-                "INSERT INTO generation_history (id, text, mode, language, instruct, profile_id, audio_path, duration_seconds, generation_time, seed, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                (audio_id, text[:200], history_mode or ("clone" if ref_audio_path else "design"),
-                 language or "Auto", instruct or "", resolved_profile_id,
-                 audio_filename, audio_dur, gen_time, used_seed, time.time())
-            )
+        # #710: the clip is already generated and saved above. A history-write
+        # failure — e.g. "no such table: generation_history" on a DB that missed
+        # schema init — must NOT 500 the user's generation. Self-heal the schema
+        # once and retry; if it still fails, log and return the audio anyway.
+        def _write_history():
+            with db_conn() as conn:
+                conn.execute(
+                    "INSERT INTO generation_history (id, text, mode, language, instruct, profile_id, audio_path, duration_seconds, generation_time, seed, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                    (audio_id, text[:200], history_mode or ("clone" if ref_audio_path else "design"),
+                     language or "Auto", instruct or "", resolved_profile_id,
+                     audio_filename, audio_dur, gen_time, used_seed, time.time())
+                )
+        try:
+            _write_history()
+        except sqlite3.OperationalError as e:
+            logger.warning("generation history write failed (%s); healing schema + retrying", e)
+            try:
+                ensure_schema()
+                _write_history()
+            except Exception as e2:
+                logger.warning("history write still failed after schema heal; returning audio anyway: %s", e2)
+        except Exception as e:
+            logger.warning("generation history write failed; returning audio anyway: %s", e)
         event_bus.emit("generation_history", {"action": "created", "id": audio_id})
 
         buffer = io.BytesIO()
@@ -617,6 +741,12 @@ async def generate_speech(
         )
     except HTTPException:
         raise
+    except GpuJobTimeoutError as e:
+        # A wedged GPU generate — the pool was already reset to restore capacity
+        # (#730 class). Report the actionable timeout instead of the misleading
+        # "can't reach backend" the frontend shows when the pool starves.
+        logger.error("Generate timed out: %s", e)
+        raise HTTPException(status_code=503, detail=str(e)) from e
     except ValueError as e:
         logger.error("Validation failed: %s", e)
         raise HTTPException(status_code=400, detail=str(e)) from e

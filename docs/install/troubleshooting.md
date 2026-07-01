@@ -61,6 +61,29 @@ fresh install heals itself.
 **Linked issues:** [#58](https://github.com/debpalash/OmniVoice-Studio/issues/58),
 [#248](https://github.com/debpalash/OmniVoice-Studio/issues/248)
 
+### 1a. Model load fails: `[Errno 2] No such file or directory: '…/transformers/…/modeling_*.py'`
+
+**Symptom:** the System Check / model load fails with e.g.
+`[Errno 2] No such file or directory:
+'…/site-packages/transformers/models/qwen3/modeling_qwen3.py'`.
+
+**Cause:** same class as §1 — a **corrupted/incomplete `transformers` install**.
+A model load lazily resolves a module file that's **missing from `site-packages`**
+(an interrupted `uv sync`, antivirus quarantine, or a partial update). The
+package's metadata is intact, so a plain install no-ops and never restores the
+file. Restarting does **not** help (the file is still gone).
+
+**Fix:** force-reinstall transformers in the backend venv, then restart:
+
+```
+uv pip install --reinstall transformers
+```
+
+Or, as a quick workaround, switch ASR to **faster-whisper** in
+**Settings → Models**. If it recurs, add the backend **`.venv`** to your
+antivirus exclusions (see §1). Newer builds classify this error and show the
+reinstall hint directly instead of a bare path + "try restarting".
+
 ## 2. HF 401 / pyannote license not accepted
 
 **Symptom:** dubbing fails with `HfHubHTTPError: 401 Client Error: Unauthorized
@@ -231,6 +254,125 @@ If you don't have an NVIDIA GPU, you don't need the CUDA build at all — a CPU 
 Apple-Silicon install skips this index entirely.
 
 **Linked issue:** [#569](https://github.com/debpalash/OmniVoice-Studio/issues/569)
+
+## 13. Stuck on the download page / incomplete model cache ("only `refs/`")
+
+**Symptom:** the setup screen never finishes the model download and you can't
+reach the main app. Looking in the HF cache, a model folder
+(`models--k2-fsa--OmniVoice`, `models--Systran--faster-whisper-large-v3`) has
+`refs/` and maybe `config.json` but **no weight files** (`blobs/` empty or tiny).
+
+**Cause:** the download started but the large weight shards never finished —
+almost always the connection **dropping, throttling, or being blocked** mid-pull
+(corporate/school proxy, VPN, antivirus quarantining the multi-GB file, or a
+region where `huggingface.co` is slow/blocked). The app retries and verifies
+weights, but a connection that *trickles* rather than dies can stall for a long
+time.
+
+**Fix — force a clean re-download:**
+
+1. **Fully quit OmniVoice.** Check Task Manager (Windows) / Activity Monitor
+   (macOS) and end any leftover `omnivoice` / `python` process — a half-running
+   one keeps the cache locked.
+2. **Delete the incomplete model folder(s) entirely** from the HF cache (the
+   whole `models--…` folder, not just `refs/`). Leave other models alone:
+   - `models--k2-fsa--OmniVoice`
+   - `models--Systran--faster-whisper-large-v3`
+3. **Relaunch** — the download page re-pulls from scratch.
+
+**If it stalls again at the same spot**, the download is being blocked — try, in
+order:
+
+- **Antivirus/firewall** — temporarily disable it for the download (large model
+  files are a common false-positive quarantine), then re-enable.
+- **Connection** — use a stable, direct connection; pause any VPN; avoid
+  corporate/school networks.
+- **Region mirror** — if `huggingface.co` is slow/blocked where you are, set a
+  mirror **before** launching and relaunch:
+  - macOS/Linux: `export HF_ENDPOINT=https://hf-mirror.com`
+  - Windows (PowerShell): `[Environment]::SetEnvironmentVariable("HF_ENDPOINT","https://hf-mirror.com","User")`
+
+**Manual fallback** (if downloads keep failing), pull the weights yourself into
+the same cache, then relaunch:
+
+```bash
+pip install -U "huggingface_hub[cli]"
+huggingface-cli download k2-fsa/OmniVoice
+huggingface-cli download Systran/faster-whisper-large-v3
+```
+
+(If OmniVoice uses a custom models directory, set `HF_HOME` to it first so the
+files land where the app looks.)
+
+> Newer builds detect an incomplete cache and re-offer the download instead of
+> stranding you on this page — update once the fix is in your channel.
+
+**Linked issue:** [#622](https://github.com/debpalash/OmniVoice-Studio/issues/622)
+
+## 14. "Can't reach the local backend" *during* generation / transcription / dubbing
+
+**Symptom:** the app worked at startup (you reached the main menu and the model
+loaded), but the moment you **generate audio, dub a video, transcribe, or
+dictate**, it spins for a long time and then shows **"Can't reach the local
+backend."** The backend log ends right after a line like `whisperx transcribing
+…tmpXXXX.wav` (or a generate) with nothing after it — i.e. the backend is
+**alive**, the GPU *job* is what stalled.
+
+**Cause:** this is **not** a connection, download, or "network mirror" problem —
+the backend started fine. A GPU job (a **generate** on the TTS model, or an ASR
+transcribe with WhisperX/faster-whisper **large-v3**) is too heavy for the
+available compute and runs for minutes; because it wedges its GPU-pool worker,
+every *other* request — including the next generate and the health check — is
+starved, which the UI surfaces as an unreachable backend. The usual trigger is
+**VRAM starvation on NVIDIA**: models contend for memory on an 8 GB-class GPU
+(the log shows e.g. `GPU pool sized … 7.0 GB free`). CPU-only machines hit the
+same wall on long clips. This is the same root cause whether the last thing you
+did was `generate:start (audio)`, a dub, or a dictation.
+
+> There is **no "Network → Restricted/Global mirror" toggle** in Settings — that
+> control (the footer/Sharing **Network** button) is for **LAN sharing**, not
+> downloads. If someone pointed you there for this error, it was the wrong knob.
+
+**Fix — reduce ASR load (any one of these):**
+
+1. **Pick a smaller ASR model / engine** in **Settings → Models** — e.g.
+   faster-whisper **medium** or **small**, instead of large-v3. Biggest win on
+   low-VRAM GPUs.
+2. **Free VRAM**: **Flush the TTS model** before dubbing so ASR isn't competing
+   for memory, or
+3. **Run ASR on CPU** (slower but reliable) if your GPU is small.
+4. **Test with a 10-second clip** first — if that returns quickly, it confirms a
+   compute/VRAM limit rather than a true hang.
+
+Newer builds **bound** every GPU job — whole-file transcription **and** TTS
+generation: instead of hanging forever and starving the backend, a wedged job now
+fails after a timeout with this exact guidance, and the worker pool is reset so
+capacity is restored automatically (no app restart needed). Tune the bounds with
+`OMNIVOICE_ASR_TRANSCRIBE_TIMEOUT_S` (transcription) and
+`OMNIVOICE_GENERATE_TIMEOUT_S` (generation) — both in seconds, default 300.
+**Raise** them for very long single files/generations, **lower** them to fail
+faster on a small machine.
+
+## Dub: "translation engine needs the optional … package"
+
+**Symptom:** in the Dub tab, translating fails with e.g. *"The 'google'
+translation engine needs the optional `deep_translator` Python package, which
+isn't installed in this backend."*
+
+**Cause:** the online translation engines (Google / DeepL / Microsoft / MyMemory
+via `deep_translator`, and the LLM provider via `openai`) are **optional** and
+not bundled. Only **Argos** and **NLLB** work out of the box.
+
+**Fix:**
+- **From-source / Docker install:** click the highlighted **Install** button next
+  to the *Engine* label in the Dub tab (or run `uv pip install deep_translator`
+  in the backend venv) and restart the backend.
+- **Packaged installer build:** in-app install is disabled (read-only signed
+  environment). Click the highlighted button to open the popover and **Switch to
+  Argos (bundled, offline)** — or copy the command to run it in a from-source
+  checkout.
+
+Full guide: [dubbing/translation-engines.md](../dubbing/translation-engines.md#installing-optional-translation-engines-from-source-vs-packaged-build).
 
 ## First-run setup fails on a restricted network (GitHub/PyPI blocked)
 

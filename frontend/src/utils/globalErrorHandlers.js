@@ -22,7 +22,7 @@ const IGNORE_PATTERNS = [
   /ResizeObserver loop/i,
   /AbortError/i,
   /Loading chunk \d+ failed/i, // transient on dev-server restarts
-  /Script error\.?$/i,         // opaque cross-origin errors carry no info
+  /Script error\.?$/i, // opaque cross-origin errors carry no info
 ];
 
 function shouldShow(message) {

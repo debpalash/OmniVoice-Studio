@@ -8,7 +8,7 @@
  */
 import type { StateCreator } from 'zustand';
 
-export interface GlossaryTerm {
+interface GlossaryTerm {
   id: string;
   project_id: string;
   source: string;

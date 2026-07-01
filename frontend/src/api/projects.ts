@@ -5,7 +5,10 @@ export async function listProjects(): Promise<ProjectSummary[]> {
   return apiJson<ProjectSummary[]>('/projects');
 }
 
-export async function saveProject(body: Record<string, unknown>, id?: string): Promise<ProjectDetail> {
+export async function saveProject(
+  body: Record<string, unknown>,
+  id?: string,
+): Promise<ProjectDetail> {
   if (id) return apiPost<ProjectDetail>(`/projects/${id}`, body, { method: 'PUT' });
   return apiPost<ProjectDetail>('/projects', body);
 }

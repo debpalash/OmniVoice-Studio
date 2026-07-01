@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // Stub Tauri globals before import so isTauri is false
 delete globalThis.window?.__TAURI_INTERNALS__;

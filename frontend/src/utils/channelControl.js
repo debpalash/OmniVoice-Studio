@@ -19,5 +19,7 @@ export async function syncChannel(store) {
     const { invoke } = await import('@tauri-apps/api/core');
     const ch = await invoke('get_update_channel');
     store.setUpdateChannelValue(ch);
-  } catch { /* keep default */ }
+  } catch {
+    /* keep default */
+  }
 }

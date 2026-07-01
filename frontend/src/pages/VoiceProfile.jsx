@@ -2,21 +2,25 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
 import { toastErrorWithReport } from '../utils/errorToast';
+import { ArrowLeft, Fingerprint, Wand2, Sparkles } from 'lucide-react';
+import { Button } from '../ui';
 import {
-  ArrowLeft, Fingerprint, Wand2, Lock, Unlock, Trash2, Play, Save,
-  FolderOpen, Volume2, Clock, Pencil, Check, X, Sparkles, ShieldCheck, Mic, Square,
-  Download,
-} from 'lucide-react';
-import { Panel, Button, Input, Textarea, Field, Badge, Segmented, Progress } from '../ui';
-import {
-  getProfile, getProfileUsage, updateProfile, deleteProfile, unlockProfile,
-  recordConsent, revokeConsent, exportPersona,
+  getProfile,
+  getProfileUsage,
+  updateProfile,
+  deleteProfile,
+  unlockProfile,
+  recordConsent,
+  revokeConsent,
+  exportPersona,
 } from '../api/profiles';
 import useRecording from '../hooks/useRecording';
 import { generateSpeech } from '../api/generate';
 import { API } from '../api/client';
-import WaveformPlayer from '../components/WaveformPlayer';
-import './VoiceProfile.css';
+import { useAppStore } from '../store';
+import ProfileHeader from '../components/profile/ProfileHeader';
+import ProfileDetails from '../components/profile/ProfileDetails';
+import ProfileActivity from '../components/profile/ProfileActivity';
 import { askConfirm } from '../utils/dialog';
 
 /**
@@ -33,6 +37,7 @@ import { askConfirm } from '../utils/dialog';
  */
 export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted }) {
   const { t } = useTranslation();
+  const autoPlayPreview = useAppStore((s) => s.autoPlayPreview);
   const [profile, setProfile] = useState(null);
   const [usage, setUsage] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -84,24 +89,35 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
   const [includeReference, setIncludeReference] = useState(true);
   const onExportPersona = async () => {
     setExporting(true);
-    const loadingId = toast.loading(t('voice_profile.persona_exporting', { defaultValue: 'Building persona…' }));
+    const loadingId = toast.loading(
+      t('voice_profile.persona_exporting', { defaultValue: 'Building persona…' }),
+    );
     try {
       const blob = await exportPersona(voiceId, { include_reference: includeReference });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      const safe = (profile?.name || 'persona').replace(/[^a-zA-Z0-9-_ ]/g, '').trim().replace(/ /g, '_') || 'persona';
+      const safe =
+        (profile?.name || 'persona')
+          .replace(/[^a-zA-Z0-9-_ ]/g, '')
+          .trim()
+          .replace(/ /g, '_') || 'persona';
       a.href = url;
       a.download = `${safe}.ovsvoice`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toast.success(t('voice_profile.persona_exported', { defaultValue: 'Persona exported' }), { id: loadingId });
+      toast.success(t('voice_profile.persona_exported', { defaultValue: 'Persona exported' }), {
+        id: loadingId,
+      });
     } catch (e) {
       toast.dismiss(loadingId);
-      const msg = String(e?.message || e) === '503'
-        ? t('voice_profile.persona_export_no_audio', { defaultValue: 'This voice has no readable audio to build a preview from.' })
-        : t('voice_profile.persona_export_failed', { defaultValue: 'Export failed.' });
+      const msg =
+        String(e?.message || e) === '503'
+          ? t('voice_profile.persona_export_no_audio', {
+              defaultValue: 'This voice has no readable audio to build a preview from.',
+            })
+          : t('voice_profile.persona_export_failed', { defaultValue: 'Export failed.' });
       toastErrorWithReport(msg, e);
     } finally {
       setExporting(false);
@@ -129,12 +145,17 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
     }
   }, [voiceId]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
-  useEffect(() => () => {
-    // Clean up any blob URL when the page unmounts.
-    if (testAudioUrl && testAudioUrl.startsWith('blob:')) URL.revokeObjectURL(testAudioUrl);
-  }, [testAudioUrl]);
+  useEffect(
+    () => () => {
+      // Clean up any blob URL when the page unmounts.
+      if (testAudioUrl && testAudioUrl.startsWith('blob:')) URL.revokeObjectURL(testAudioUrl);
+    },
+    [testAudioUrl],
+  );
 
   const saveEdits = async () => {
     if (!draft.name.trim()) {
@@ -214,17 +235,19 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
 
   if (loading && !profile) {
     return (
-      <div className="voice-profile voice-profile--loading">
-        <Sparkles className="spinner" size={24} color="#d3869b" />
+      <div className="flex flex-1 flex-col items-center justify-center gap-[var(--space-4)] px-[var(--space-6)] py-[var(--space-5)] text-fg-muted [font-size:var(--text-md)]">
+        <Sparkles className="animate-spin text-brand" size={24} />
         <span>{t('common.loading')}</span>
       </div>
     );
   }
   if (!profile) {
     return (
-      <div className="voice-profile voice-profile--empty">
+      <div className="flex flex-1 flex-col items-center justify-center gap-[var(--space-4)] px-[var(--space-6)] py-[var(--space-5)] text-fg-muted [font-size:var(--text-md)]">
         <p>{t('voice_profile.not_found')}</p>
-        <Button variant="subtle" onClick={onBack} leading={<ArrowLeft size={12} />}>{t('common.back')}</Button>
+        <Button variant="subtle" onClick={onBack} leading={<ArrowLeft size={12} />}>
+          {t('common.back')}
+        </Button>
       </div>
     );
   }
@@ -237,277 +260,51 @@ export default function VoiceProfile({ voiceId, onBack, onOpenProject, onDeleted
   const audioUrl = `${API}/profiles/${voiceId}/audio?t=${profile.is_locked ? 'locked' : 'ref'}`;
 
   return (
-    <div className="voice-profile">
-      {/* Toolbar */}
-      <div className="voice-profile__bar">
-        <Button variant="ghost" size="sm" onClick={onBack} leading={<ArrowLeft size={12} />}>
-          {t('common.back')}
-        </Button>
-        <span className="voice-profile__crumb">
-          <TypeIcon size={12} /> {isDesign ? t('voice_profile.designed') : t('voice_profile.cloned')} voice
-        </span>
-        <div className="voice-profile__bar-spacer" />
-        {!editing && (
-          <Button variant="subtle" size="sm" onClick={() => setEditing(true)} leading={<Pencil size={12} />}>
-            {t('voice_profile.edit')}
-          </Button>
-        )}
-        {!editing && (
-          <label
-            className="voice-profile__persona-privacy"
-            title={t('voice_profile.persona_include_ref_hint', { defaultValue: 'Include the raw reference clip. Off = share only a watermarked preview (recommended).' })}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11 }}
-          >
-            <input type="checkbox" checked={includeReference} onChange={(e) => setIncludeReference(e.target.checked)} />
-            {t('voice_profile.persona_include_ref', { defaultValue: 'Include voice clip' })}
-          </label>
-        )}
-        {!editing && (
-          <Button variant="subtle" size="sm" onClick={onExportPersona} loading={exporting}
-            leading={!exporting && <Download size={12} />}>
-            {t('voice_profile.persona_export', { defaultValue: 'Export persona' })}
-          </Button>
-        )}
-        <Button variant="danger" size="sm" onClick={onDelete} leading={<Trash2 size={12} />}>
-          {t('common.delete')}
-        </Button>
-      </div>
-
-      {/* Hero */}
-      <Panel variant="glass" padding="md" className="voice-profile__hero">
-        <div className="voice-profile__hero-left">
-          <div className="voice-profile__icon-badge" data-kind={isDesign ? 'design' : 'clone'}>
-            <TypeIcon size={22} />
-          </div>
-          <div className="voice-profile__hero-title">
-            {editing ? (
-              <Input
-                size="lg"
-                value={draft.name}
-                onChange={e => setDraft({ ...draft, name: e.target.value })}
-                placeholder={t('voice_profile.name_placeholder')}
-                autoFocus
-              />
-            ) : (
-              <h1>{profile.name}</h1>
-            )}
-            <div className="voice-profile__badges">
-              {!!profile.verified_own_voice && (
-                <Badge tone="success" dot><ShieldCheck size={10} /> {t('voice_profile.verified')}</Badge>
-              )}
-              {profile.is_locked
-                ? <Badge tone="warn" dot><Lock size={10} /> {t('voice_profile.locked')}</Badge>
-                : <Badge tone="neutral">{t('voice_profile.free')}</Badge>}
-              {profile.language && profile.language !== 'Auto' && (
-                <Badge tone="info">{profile.language}</Badge>
-              )}
-              <Badge tone="neutral" size="xs">
-                <Clock size={9} /> {createdDate}
-              </Badge>
-              {profile.seed != null && (
-                <Badge tone="violet" size="xs">seed {profile.seed}</Badge>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {(profile.ref_audio_path || profile.locked_audio_path) && (
-          <div className="voice-profile__audio">
-            <div className="voice-profile__audio-label">
-              <Volume2 size={11} /> {profile.is_locked ? t('voice_profile.locked_ref') : t('voice_profile.ref_audio')}
-            </div>
-            <WaveformPlayer src={audioUrl} source="profile-ref" className="voice-profile__audio-el" />
-          </div>
-        )}
-      </Panel>
-
-      {/* Editable details */}
-      <Panel
-        variant="flat"
-        padding="md"
-        title={<>{t('voice_profile.details')}</>}
-        actions={editing ? (
-          <>
-            <Button variant="ghost"   size="sm" onClick={cancelEdits} leading={<X size={12} />}>{t('common.cancel')}</Button>
-            <Button variant="primary" size="sm" onClick={saveEdits}   loading={saving} leading={!saving && <Check size={12} />}>{t('common.save')}</Button>
-          </>
-        ) : null}
-      >
-        <div className="voice-profile__grid-2">
-          <Field label={t('voice_profile.style_instruct')}>
-            {editing ? (
-              <Textarea
-                rows={2}
-                value={draft.instruct}
-                onChange={e => setDraft({ ...draft, instruct: e.target.value })}
-                placeholder={t('voice_profile.style_placeholder')}
-              />
-            ) : (
-              <div className="voice-profile__readonly">
-                {profile.instruct || <em>— none —</em>}
-              </div>
-            )}
-          </Field>
-          <Field label={t('voice_profile.language')}>
-            {editing ? (
-              <Input
-                value={draft.language}
-                onChange={e => setDraft({ ...draft, language: e.target.value })}
-                placeholder={t('clone.auto')}
-              />
-            ) : (
-              <div className="voice-profile__readonly">{profile.language || 'Auto'}</div>
-            )}
-          </Field>
-        </div>
-        <Field label={t('voice_profile.ref_transcript')} hint={t('voice_profile.ref_help')}>
-          {editing ? (
-            <Textarea
-              rows={2}
-              value={draft.ref_text}
-              onChange={e => setDraft({ ...draft, ref_text: e.target.value })}
-              placeholder={t('clone.optional')}
-            />
-          ) : (
-            <div className="voice-profile__readonly voice-profile__readonly--transcript">
-              {profile.ref_text || <em>— none —</em>}
-            </div>
-          )}
-        </Field>
-        {profile.is_locked && !editing && (
-          <div className="voice-profile__lock-row">
-            <Badge tone="warn" dot><Lock size={10} /> {t('voice_profile.locked')}</Badge>
-            <span className="voice-profile__lock-hint">
-              {t('voice_profile.locked_explain')}
-            </span>
-            <Button variant="subtle" size="sm" onClick={onUnlock} leading={<Unlock size={12} />}>{t('voice_profile.unlock')}</Button>
-          </div>
-        )}
-      </Panel>
-
-      {/* Consent lock (Wave 0.2) — verify this is your own voice */}
-      <Panel
-        variant="flat"
-        padding="md"
-        title={<><ShieldCheck size={12} /> {t('voice_profile.consent_title')}</>}
-      >
-        {profile.verified_own_voice ? (
-          <div className="voice-profile__lock-row">
-            <Badge tone="success" dot><ShieldCheck size={10} /> {t('voice_profile.verified')}</Badge>
-            <span className="voice-profile__lock-hint">
-              {t('voice_profile.consent_verified_explain', {
-                date: profile.consent_recorded_at
-                  ? new Date(profile.consent_recorded_at * 1000).toLocaleDateString()
-                  : '',
-              })}
-            </span>
-            <Button variant="subtle" size="sm" onClick={onRevokeConsent} leading={<X size={12} />}>
-              {t('voice_profile.consent_revoke')}
-            </Button>
-          </div>
-        ) : (
-          <>
-            <p className="voice-profile__readonly">{t('voice_profile.consent_explain')}</p>
-            <blockquote className="voice-profile__readonly voice-profile__readonly--transcript">
-              “{consentStatement}”
-            </blockquote>
-            {consentRec.isRecording ? (
-              <Button variant="danger" size="sm" onClick={consentRec.stopRecording} leading={<Square size={12} />}>
-                {t('voice_profile.consent_stop')} ({consentRec.recordingTime}s)
-              </Button>
-            ) : (
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={consentRec.startRecording}
-                loading={consentSubmitting || consentRec.isCleaning}
-                leading={!(consentSubmitting || consentRec.isCleaning) && <Mic size={12} />}
-              >
-                {t('voice_profile.consent_record')}
-              </Button>
-            )}
-          </>
-        )}
-      </Panel>
-
-      {/* Try-it */}
-      <Panel
-        variant="flat"
-        padding="md"
-        title={<><Play size={13} /> {t('voice_profile.try_voice')}</>}
-      >
-        <Field
-          label={t('voice_profile.test_phrase')}
-          hint={t('voice_profile.test_help')}
-        >
-          <Textarea
-            rows={2}
-            value={testText}
-            onChange={e => setTestText(e.target.value)}
-            placeholder={t('voice_profile.test_placeholder')}
-          />
-        </Field>
-        <div className="voice-profile__tryit-actions">
-          <Button
-            variant="primary"
-            size="sm"
-            loading={testGenerating}
-            onClick={runTest}
-            disabled={!testText.trim()}
-            leading={!testGenerating && <Sparkles size={12} />}
-          >
-            {testGenerating ? t('voice_profile.generating') : t('voice_profile.gen_preview')}
-          </Button>
-          {testAudioUrl && (
-            <WaveformPlayer
-              src={testAudioUrl}
-              source="profile-test"
-              autoPlay
-              className="voice-profile__tryit-audio"
-            />
-          )}
-        </div>
-      </Panel>
-
-      {/* Usage */}
-      <Panel variant="flat" padding="md" title={<>{t('voice_profile.used_title')}</>}>
-        {!usage || (!usage.synth_total && !usage.projects?.length) ? (
-          <div className="voice-profile__usage-empty">
-            {t('voice_profile.used_empty')}
-          </div>
-        ) : (
-          <>
-            <div className="voice-profile__usage-counts">
-              <Badge tone="brand">
-                {t('voice_profile.synth_clips', { count: usage.synth_total })}
-              </Badge>
-              <Badge tone="info">
-                {t('voice_profile.projects_count', { count: usage.projects.length })}
-              </Badge>
-              <Badge tone="success">
-                {t('voice_profile.dubbed_segments', { count: usage.project_total_segments })}
-              </Badge>
-            </div>
-            {usage.projects.length > 0 && (
-              <ul className="voice-profile__usage-list">
-                {usage.projects.slice(0, 10).map(p => (
-                  <li key={p.project_id}>
-                    <button
-                      type="button"
-                      onClick={() => onOpenProject?.(p.project_id)}
-                      className="voice-profile__usage-link"
-                    >
-                      <FolderOpen size={11} />
-                      <span className="voice-profile__usage-name">{p.project_name}</span>
-                      <span className="voice-profile__usage-count">{p.segment_count} segs</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
-        )}
-      </Panel>
+    <div className="flex min-h-0 flex-1 flex-col gap-[var(--space-5)] overflow-y-auto px-[var(--space-6)] py-[var(--space-5)]">
+      <ProfileHeader
+        profile={profile}
+        isDesign={isDesign}
+        TypeIcon={TypeIcon}
+        onBack={onBack}
+        editing={editing}
+        setEditing={setEditing}
+        includeReference={includeReference}
+        setIncludeReference={setIncludeReference}
+        onExportPersona={onExportPersona}
+        exporting={exporting}
+        onDelete={onDelete}
+        draft={draft}
+        setDraft={setDraft}
+        createdDate={createdDate}
+        audioUrl={audioUrl}
+        t={t}
+      />
+      <ProfileDetails
+        profile={profile}
+        editing={editing}
+        draft={draft}
+        setDraft={setDraft}
+        saving={saving}
+        cancelEdits={cancelEdits}
+        saveEdits={saveEdits}
+        onUnlock={onUnlock}
+        onRevokeConsent={onRevokeConsent}
+        consentStatement={consentStatement}
+        consentRec={consentRec}
+        consentSubmitting={consentSubmitting}
+        t={t}
+      />
+      <ProfileActivity
+        t={t}
+        testText={testText}
+        setTestText={setTestText}
+        testGenerating={testGenerating}
+        runTest={runTest}
+        testAudioUrl={testAudioUrl}
+        autoPlayPreview={autoPlayPreview}
+        usage={usage}
+        onOpenProject={onOpenProject}
+      />
     </div>
   );
 }

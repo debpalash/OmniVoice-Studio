@@ -18,7 +18,7 @@ import shutil
 
 from core.config import OUTPUTS_DIR, DATA_DIR, CRASH_LOG_PATH, LOG_PATH, IDLE_TIMEOUT_SECONDS
 from core.version import APP_VERSION
-from services.model_manager import get_model_status, get_best_device
+from services.model_manager import get_model_status, get_best_device, resolve_omnivoice_checkpoint
 from services.ffmpeg_utils import find_ffmpeg, run_ffmpeg
 
 # Router-level loopback gate. Every route mounted on `router` (GET + POST,
@@ -208,7 +208,7 @@ def system_info():
             "outputs_dir": OUTPUTS_DIR,
             "crash_log_path": CRASH_LOG_PATH,
             "idle_timeout_seconds": IDLE_TIMEOUT_SECONDS,
-            "model_checkpoint": os.environ.get("OMNIVOICE_MODEL", "k2-fsa/OmniVoice"),
+            "model_checkpoint": resolve_omnivoice_checkpoint(),  # #693: show the effective checkpoint, not a leaked raw value
             "asr_model": os.environ.get("ASR_MODEL", "Systran/faster-whisper-large-v3"),
             "translate_provider": os.environ.get("TRANSLATE_PROVIDER", "google"),
             "has_hf_token": _has_hf_token(),

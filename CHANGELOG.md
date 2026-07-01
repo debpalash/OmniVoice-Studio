@@ -6,17 +6,98 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
-## [Unreleased]
+## [0.3.8] — 2026-07-01
+
+A stability-focused release that makes first-run and Windows "just work," ships
+**live, faster-than-real-time local dictation** and a **user pronunciation
+dictionary**, and gives **Settings a full redesign**. It clears the wave of
+**"Can't reach the local backend"** reports at the source — the 8 GB-card OOM
+crash, the slow-load future-scheduling break, a Windows-only WhisperX load
+failure, an ASR engine that couldn't load CTranslate2 on newer Linux/WSL, and
+both transcription **and generation** stalls that *looked* like a dead backend
+(a wedged GPU job now resets the worker pool and returns an actionable timeout)
+are all fixed or now fail with a clear, actionable message. **macOS gets native file drag-and-drop back**
+(including macOS 26 Tahoe). Downloads are faster out of the box (parallel
+segmented transfer on by default) and the Hugging Face token that speeds them up
+is front-and-center on setup. Plus multi-voice story casting, faster long-form
+previews on Windows, and a friendlier, more honest batch of error messages
+across dub, generate, and design (a corrupt-binary failure no longer poses as
+"out of memory," a bad model id self-heals, and a stale dub job resets cleanly).
 
 ### Added
 
-- **Confucius4-TTS engine scaffold (opt-in, #590).** Plumbing for the
-  netease-youdao LLM-based 14-language cross-lingual zero-shot cloning engine —
-  registration, dedicated Python 3.10/CUDA venv bootstrap, and the sidecar wire
-  protocol, mirroring the dots.tts/MOSS pattern. Gated behind
-  `OMNIVOICE_CONFUCIUS4_TTS_DIR` so it is completely inert until opted in. The
-  sidecar's synthesis calls are README-derived and need on-hardware validation
-  before the engine is production-ready (see docs/engines/confucius4-tts.md).
+- **"Autofit" translation quality — the dub keeps the video's timing.** A new
+  quality alongside Fast and Cinematic: the LLM rewrites each translated line so
+  its target-language reading time fits *within* the segment's slot (a strict
+  "never overrun" bound, per-language pronunciation-speed aware), so long
+  translations no longer force the audio into a stressed >1.3× time-stretch.
+  Cinematic still applies its reflect/adapt polish; Autofit adds the hard
+  fit-to-slot pass on top. Needs an LLM (below); falls back to Fast with a clear
+  notice if none is set. (#838)
+- **A new LLM Providers settings page — bring your own high-quality LLM.**
+  Settings → System → **LLM Providers** configures the LLM that powers Cinematic
+  and Autofit translation. One page for **16 providers** — OpenAI, OpenRouter,
+  Groq, Cerebras, Google AI (Gemini), Mistral, Cohere, NVIDIA, GitHub Models,
+  Cloudflare, Hugging Face, SambaNova, SiliconFlow, plus **local Ollama / LM
+  Studio** (fully offline, no key) and a **Custom** OpenAI-compatible endpoint.
+  Paste a key, pick a model, **Test** the connection in one click, and "use for
+  translation" to make it active. Keys are stored **encrypted** (the same
+  at-rest protection as the HF token) and never leave the machine unless you
+  choose a cloud provider; env vars still override for power users. The dub
+  translate menu now routes you straight here when you pick a high-quality
+  style without an LLM, instead of dead-ending on a toast. (#838)
+- **A dedicated Network pane.** The HTTP/SOCKS proxy and FFmpeg-path controls
+  (previously buried in General → Advanced) are promoted to their own category.
+- **Factory reset in Storage.** A confirm-dialog-guarded action that clears the
+  locally-saved UI preferences and reloads — without touching your voices,
+  projects, or generated audio on disk.
+- **Proactive, highlighted "Install" affordance for translation engines.** When
+  you pick a Dub translation engine whose optional package isn't installed yet
+  (e.g. Google / DeepL via `deep_translator`), the Engine selector now surfaces a
+  bright accent **Install** button *before* you hit Translate — no more
+  discovering the missing package only via a translate-time 400. On a from-source
+  install it one-click installs into the backend's own interpreter; on a
+  read-only **packaged build** it opens a popover with the exact `uv pip install …`
+  command (copy-to-clipboard), a one-click **Switch to Argos (bundled, offline)**
+  escape hatch, and a docs link. The install command is single-sourced in the
+  backend registry, so the button and the 400 error can never disagree. New guide:
+  `docs/dubbing/translation-engines.md`.
+
+- **A user pronunciation dictionary that actually changes the audio.** Settings →
+  General → Pronunciation lets you teach the engine how to say tricky words —
+  each entry replaces a term with a respelling (`GIF` → `jiff`) right before
+  synthesis, so it works on **every** engine, not just one. Scope an entry
+  Global or to a single language (a German rule never fires on an English
+  render), with longest-match-first, word-boundary-aware, case-insensitive
+  substitution. For one-offs, write `[[word|respelling]]` inline in your text —
+  it overrides the dictionary for that occurrence and never persists. A built-in
+  Test field previews the substitution with no model call. Pure text transform,
+  identical on macOS/Windows/Linux; plain text stays byte-identical, existing
+  data upgrades cleanly via an additive migration. (Expressive-TTS Spec 01)
+
+- **Live, faster-than-real-time dictation via a new sherpa-onnx ASR engine.**
+  Pick one of seven small ONNX speech-to-text models (Parakeet TDT v3/v2,
+  streaming Zipformer EN/ZH/bilingual, streaming Paraformer, multilingual
+  Whisper Tiny) for dictation, and watch text appear *as you speak*. Streaming
+  models emit partials frame-by-frame and commit a sentence on natural silence;
+  offline models surface live partials too by re-decoding a growing buffer.
+  Runs CPU-only and identically on macOS, Windows, and Linux — no GPU, no cloud,
+  no extra setup beyond a ~75–180 MB one-time model download. Parakeet TDT v3 is
+  the recommended default; existing Whisper/MLX/NeMo dictation engines are
+  untouched and still the fallback.
+
+- **New "Voice" settings panel for live dictation.** Settings → Capture now
+  leads with a Voice card: an Enable Voice Dictation toggle (showing your real
+  registered shortcut), a Toggle/Hold mode switch, and a Speech Model dropdown
+  that lists all seven models with offline/streaming + recommended badges, size,
+  one-line descriptions, the installed checkmark, and inline download/delete —
+  reusing the model-store download progress. Picking an uninstalled model starts
+  its download and switches to it once ready. **Toggle vs Hold** is wired for
+  both the desktop global hotkey and the in-app Ctrl/Cmd+Shift+Space fallback, so
+  the behaviour is identical on macOS, Windows, and Linux. While you speak, the
+  dictation pill shows the transcript building **live**, and words type straight
+  into the focused field *as you speak* — self-correcting with backspaces as the
+  streaming recognizer refines, with clipboard-paste as an automatic fallback.
 
 - **Tagged scripts auto-cast into a multi-voice podcast/audiobook.** Paste a
   `[Alice] … [Bob] …` script into Stories and hit Auto-cast: it now recognizes
@@ -28,8 +109,52 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - **A dedicated Contact page.** Discord, email, GitHub issues, and the project
   website (palash.dev) as clean one-tap rows, reachable from the footer — so
   reaching the maker is never more than a click away.
+- **Live download speed, remaining size, and ETA on first-run setup.** The
+  Models & Engines step now shows `38% · 5.2 MB/s · 1.2 GB left · ~3m` while a
+  model downloads, instead of a bare "downloading…". (#657)
+- **Turn off auto-play of the preview after a render.** New Settings →
+  Appearance toggle, "Auto-play preview" (on by default) — switch it off so a
+  finished clip doesn't start playing on its own, ideal when batch-generating
+  segments. (#666)
+- **App version in the status bar, one click from updates.** A `v<version>`
+  badge sits by the network icon in the bottom bar; clicking it opens Settings →
+  Updates, and it grows a pulsing dot the moment a new version is ready to
+  install. (#671)
 
 ### Changed
+
+- **Settings is now a sidebar-nav hub instead of an 11-tab strip.** The whole
+  page was rebuilt from scratch as a grouped left-rail navigator (with a
+  search/filter box) plus a scrollable content pane — the macOS System Settings /
+  VS Code layout. Settings are organized into four groups and sixteen
+  categories: **General** (Appearance · General), **Voice & Engines** (Engines ·
+  Models · Dictation · Pronunciation · Translation), **System** (Performance &
+  Device · Storage · Network · Sharing & Remote · Credentials), and **App**
+  (Updates · Privacy & Reporting · Logs · About). Every existing control keeps
+  its behavior and store/API bindings — this is a reorganization, not a rewrite.
+  Typing in the search box filters the category list and jumps to the first
+  match, and the rail collapses to a dropdown navigator below 760px so the full
+  IA stays reachable on a narrow window. Categories whose changes need a backend
+  restart (Models, Performance & Device, Sharing & Remote) carry a "restart
+  required" badge.
+
+- **The Settings pages got a full redesign — cleaner, denser, responsive.** A
+  shared design system replaces the old patchwork: a left icon nav-rail,
+  sentence-case section titles (no more debug-log uppercase), exactly one muted
+  description per row, unified toggles/inputs, full-width content with proper
+  padding, and horizontal font/theme pickers. Premium and compact instead of
+  sparse and cluttered, and it adapts cleanly to window width. (#686, #690, #696)
+- **Adding a Hugging Face token on first-run is now a one-line input right by
+  Continue.** Was a bulky card buried at the bottom of the model list; it's now a
+  compact "paste a token, Save" bar pinned next to the "Waiting for required
+  models…" button, so you can add it (for faster, authenticated downloads)
+  without scrolling. (#687, #688)
+- **First-run setup is calmer and surfaces the best models for your machine.**
+  Dimmed and tightened the setup descriptions (less wordy, more compact). The
+  "Models & engines" step now shows the **platform-tuned** optional models up-front
+  with a green "recommended" tag and their catalog note — e.g. MLX Whisper on
+  Apple Silicon, CUDA-tuned variants on NVIDIA — instead of burying every optional
+  model behind the fold (the universal long tail still folds).
 
 - **Donations now go through Ko-fi or PayPal (GitHub Sponsors removed).** GitHub
   Sponsors isn't available, so the Support page no longer routes there: pick an
@@ -40,7 +165,165 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   and FAQ down to the three things that actually drive the decision (you own the
   output, no per-minute cost, direct support) plus one clear "request a quote"
   contact — less wall-of-text, faster to act on.
+- **Model downloads are faster out of the box.** The built-in multi-connection
+  (segmented) downloader — parallel byte-ranges with live speed/ETA — is now on
+  by default, so the legacy-LFS path is no longer single-stream and slow. It
+  falls back to the normal download on any error, so it can never compromise a
+  correct install (`OMNIVOICE_SEGMENTED_DOWNLOAD=0` to disable). (#669)
+- **The Hugging Face token is now front-and-center on first-run.** Was a
+  collapsed "advanced" fold almost nobody opened; it's now a prominent card right
+  above Continue, framed around what it actually buys you — authenticated, faster,
+  more reliable downloads (higher rate limits, fewer stalls) — with a one-click
+  "get a free token" link. (#657, #669)
 ### Fixed
+
+- **Bug reports redact more secrets and every Windows username casing.** The
+  opt-in bug-report scrubber now catches more credential shapes (JWT/Bearer,
+  Google, Slack, AWS keys, and `?token=`/`?api_key=` URL secrets), redacts
+  Windows home paths regardless of `Users`/`users` casing, and stops a superstring
+  username (`/Users/john` vs `/Users/johnny`) from leaking a fragment. The
+  prefilled-issue URL is now bounded by its *encoded* length so a large report
+  can't silently truncate. Nothing new leaves the machine — this only makes the
+  existing local-first, user-reviewed report stricter. (#856)
+
+- **A hung TTS generate can no longer brick the backend ("Can't reach the local
+  backend").** A GPU job that wedges on some Windows + CUDA setups occupies its
+  worker forever — Python can't cancel the thread — so on the 1–2 worker pools we
+  ship, one stuck job starved every other request and the next action surfaced as
+  the misleading "Can't reach the local backend" even though the process was
+  alive. ASR/dub/model-load already bounded and reset the pool on hang (#730); but
+  **every generate path** — Studio synthesis, the streaming path, batch, the dub
+  per-segment + preview render, archetype previews, and the OpenAI-compatible
+  `/v1/audio/speech` API — was still an unguarded GPU dispatch, and the residual
+  reports all failed on `generate:start (audio)`. Every one is now bounded by the
+  same wall-clock guard (`OMNIVOICE_GENERATE_TIMEOUT_S`, default 300s) that
+  abandons the wedged worker and rebuilds the pool, so capacity is restored
+  automatically and you get an actionable timeout instead of a dead backend.
+  Closes the whole class of GPU-job-hang reports (#851 — #850, #802, #755, #723,
+  #721, and the 0.3.7 cohort, all tracked in #730).
+
+- **An unsupported GPU now falls back to CPU instead of 500-ing every generate.**
+  When the installed PyTorch build has no kernels for your GPU's compute
+  capability — a too-old card (Pascal / GTX 10-series) or a too-new one
+  (Blackwell RTX 50-series on pre-cu128 wheels) — CUDA failed at launch with the
+  cryptic `CUDA error: no kernel image is available for execution`. The backend
+  now detects that up front and runs on CPU (slower, but it works), and any raw
+  occurrence is reported as "your GPU isn't supported — switch to CPU or install a
+  matching PyTorch," not a Flush-the-memory dead end. Force the GPU anyway with
+  `OMNIVOICE_FORCE_CUDA=1`. (#756)
+
+- **The "TRANSLATION FAILED" banner now dismisses and clears itself.** The Dub
+  translation-error banner used to be sticky — it survived a successful re-try and
+  never went away. It now has a close (×), auto-clears on the next corrective
+  action (re-translating, changing the engine, or installing the package), and
+  self-clears after a short timeout — fixing the whole class of translate/pipeline
+  banners that outlived the state that caused them.
+
+- **Dubbing a video URL no longer fails with "ffmpeg is not installed."** yt-dlp
+  downloads video and audio as separate streams and muxes them with ffmpeg, but
+  it only looked on PATH — so on Windows (where OmniVoice's ffmpeg is a bundled
+  sidecar / `imageio-ffmpeg` binary off PATH) the merge aborted before the dub
+  could start. yt-dlp is now pointed at the same ffmpeg OmniVoice resolves. (#712)
+- **A synth that succeeded no longer 500s because of a history-logging hiccup.**
+  If the local database somehow missed schema init, recording the clip to
+  generation history failed with *"no such table: generation_history"* and
+  surfaced as a 500 — even though the audio had already been generated and saved.
+  The write now self-heals the schema and retries, and a history-logging failure
+  never fails the generation: you get your audio regardless. (#710)
+- **Long-video dubs no longer spike RAM during assembly.** Dub generation used
+  to hold every segment's audio in memory until the whole track was mixed, so a
+  50-video batch or a single feature-length dub could exhaust RAM and crash. Each
+  segment now streams to disk as it's rendered and the final track is assembled
+  from those files via a 30s-chunk memmap writer, keeping memory flat regardless
+  of video length. Per-segment download WAVs and the final track stay correctly
+  watermarked (marked once at synthesis, no double-mark), and zero/negative-length
+  segments no longer crash the run. (#639)
+- **A corrupt or wrong-architecture native component no longer masquerades as
+  "out of memory."** A synth failure caused by a bad `.dll`/`.pyd`/`.exe` on
+  Windows (`[WinError 193] %1 is not a valid Win32 application` — e.g. torch,
+  ffmpeg, or an engine binary) was labelled *"ran out of memory — try Flush,"*
+  sending users down the wrong path. It now says the component is corrupt or
+  built for the wrong architecture and to reinstall/repair it. (#705)
+- **A "[Errno 32] Broken pipe" mid-generation no longer poses as "out of
+  memory."** When the desktop app that launched the backend closes or relaunches,
+  the backend's output pipe breaks and a synth can fail with `[Errno 32] Broken
+  pipe`. That was labelled *"ran out of memory — try Flush,"* which never helps;
+  it now tells you the backend lost its pipe and to restart the app. (#715)
+- **Settings content no longer sprawls or spills out of view.** The content
+  column capped at 1280px, so on wide windows rows stretched edge-to-edge with a
+  big empty gap between each label and its control ("too spread out"), and a few
+  panels (API keys, the shared button rows, appearance scale) used rigid pixel
+  widths that pushed controls past the card's padding on narrow content. Now the
+  content sits at a readable measure (a single `--settings-measure` token), the
+  shared button/badge rows wrap instead of overflowing, rigid widths can shrink,
+  and rows decide whether to sit side-by-side or stack based on their **actual**
+  width (a container query) — not the viewport, which the 168px nav rail skews.
+  Everything stays inside its padding, edge to edge, on every width. (#696)
+- **File drag-and-drop works on macOS again.** The app's drop zones use HTML5
+  file drops, but Tauri intercepts OS drag-and-drop by default (`dragDropEnabled`)
+  and swallowed the files before the webview saw them — most visibly on macOS
+  WKWebView, and fully broken on macOS 26 (Tahoe), where dropping a file did
+  nothing. Disabled the interception so the webview handles native HTML5 drops
+  on every platform. (#700)
+- **A misconfigured `OMNIVOICE_MODEL` no longer bricks model load with a 500.**
+  A stale or leaked TTS *engine id* (e.g. `omnivoice`) reaching the model loader
+  used to fail every launch with *"omnivoice is not a local folder and is not a
+  valid model identifier."* It now self-heals — only a real HF repo id
+  (`org/repo`) or an explicit local path is honored; anything else falls back to
+  the default with a logged warning. Every consumer of the setting routes through
+  the same resolver, so a bad value also can't silently disable model warm-up,
+  mislabel the Settings checkpoint, or get baked into an exported persona bundle.
+  (#693)
+- **ASR no longer crashes the dub/transcribe preflight when CTranslate2's native
+  library can't load.** On hardened kernels / newer glibc (e.g. WSL2) the
+  CTranslate2 `.so` is rejected with *"cannot enable executable stack"* — an
+  OSError the WhisperX/faster-whisper checks didn't catch, so it took down the
+  whole preflight. They now report the engine as unavailable and auto-detect
+  falls back to PyTorch-Whisper instead of dead-ending. (#692)
+- **A wedged transcription can no longer take the whole backend offline ("Can't
+  reach the local backend").** On some Windows + CUDA setups a whisperx/CTranslate2
+  transcribe hangs hard and never returns. Because ASR shares a small (1–2 worker)
+  GPU pool with TTS, one stuck worker starved every other request — so the next
+  thing you did (often a TTS *generate*) failed with "can't reach backend" even
+  though the process was alive. Two fixes: every transcribe path — whole-file
+  (dub whole-file, batch, live dictation) **and** the chunked dub stream — is now
+  wall-clock **bounded** like the dub QC / dictation / OpenAI paths already were;
+  and on timeout the poisoned GPU worker is **abandoned and the pool rebuilt**, so
+  capacity is restored without restarting the app. You still get an actionable
+  message (Flush VRAM / pick a smaller ASR model) for the durable fix. (#730)
+- **The stale-dub-session recovery now also covers the first upload/ingest, not
+  just retry/import.** A dubbing job that vanished server-side during the initial
+  transcribe flow showed the scary *"Job not found … report a bug"* toast; it
+  now resets gracefully and invites a fresh upload, like the other paths. (#695)
+- **In-app preview of finished audiobooks/stories now plays on Windows.**
+  The preview decoded the entire render into one in-memory PCM buffer via Web
+  Audio `decodeAudioData`, which fails on long-form `.m4b`/AAC under WebView2
+  (`EncodingError: Unable to decode audio data`), and the blob-URL fallback can't
+  play in a Tauri `<audio>` element — so nothing played. The fallback now uploads
+  to the preview endpoint (ffmpeg-extracts a streamable WAV) and plays the HTTP
+  URL, the same path video previews use. Short TTS previews are unchanged. (#653)
+
+- **First-run setup splash no longer shows a raw `bootstrap.lines` key in English.**
+  The log-line counter string was present in 4 locales but missing from the `en`
+  reference, so English (and 16 other locales falling back to it) rendered the
+  literal key instead of "{{count}} lines". Added it to `en`. Also removed 160
+  dead `gallery.cat_*` keys (renamed to `archetypes.use_*` long ago) orphaned
+  across 20 non-English locales, clearing the i18n orphan-key advisory.
+
+- **Backend no longer hangs on startup (unreachable, no error) on Apple-Silicon Macs.**
+  The MCP session manager could hang on its anyio task group during lifespan
+  startup (observed on M1, #632); because that start was awaited before the server
+  began serving, "Application startup complete" never fired and the whole backend
+  was unreachable. The MCP start is now timeout-bounded (`OMNIVOICE_MCP_START_TIMEOUT_S`,
+  default 30s) — a hang becomes a logged warning and the backend serves normally
+  without MCP, instead of wedging. (#632)
+
+- **Dubbing a URL no longer fails with `[Errno 22] Invalid argument` on Windows.**
+  yt-dlp stamps the downloaded file's modified-time with the video's upload
+  date; an out-of-range/invalid timestamp makes the `os.utime` call raise
+  `[Errno 22]` and aborts the whole URL ingest. OmniVoice downloads to a throwaway
+  file and never uses its mtime, so it now skips the stamp entirely
+  (`updatetime=False`). (#642)
 
 - **Dubbing a YouTube link that 403s now retries with a different player
   client.** Some videos serve their formats signature-protected to the default
@@ -144,7 +427,14 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   and retries the load automatically. Offline mode (`HF_HUB_OFFLINE`) is
   respected — repair never makes a network call the user opted out of — and if
   the re-fetch still can't fix it, the actionable delete-and-reinstall message
-  is preserved as the fallback. (#581)
+  is preserved as the fallback. (#581) The repair now also **retries** the
+  re-fetch (3 attempts, resuming each time) so a single transient blip — the very
+  thing that interrupts a download in the first place — doesn't bounce you back
+  to a manual reinstall; tune with `OMNIVOICE_MODEL_REPAIR_RETRIES`. And if a
+  resume-repair still won't load — the signature of a *corrupt* file that kept
+  its size, which a resume trusts and never re-fetches — it now **force
+  re-downloads** the model files once before giving up, so even a bit-rotted
+  cache self-heals without a manual reinstall. (#739)
 - **Dubbing a YouTube URL no longer dies on a transient "Broken pipe."**
   Pasting a video link could fail outright with `download: Unable to download
   video: [Errno 32] Broken pipe` — a broken pipe raised while the write side of
@@ -175,6 +465,38 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   took the worker down). The GPU pool is now a single self-healing handle whose
   worker pool is rebuilt on demand, so a reset can never strand an in-flight or
   later request. No settings change; the recovery is automatic. (#589 #599)
+- **Transcription / dubbing works on Windows again.** WhisperX failed to load on
+  Windows because speechbrain's guard that suppresses stray optional-integration
+  imports used a POSIX-only path check, so a `k2_fsa` import error aborted the
+  whole transcription. Fixed cross-platform — covers the entire class of optional
+  integrations, not just k2. (#630 #611 #647)
+- **A slow transcription no longer looks like a dead backend.** Whole-file
+  transcribe paths (dub QC, dictation, OpenAI-compat) ran unbounded, so a
+  VRAM-starved `large-v3` could spin for minutes and hold a GPU worker — surfacing
+  as "Can't reach the local backend". They're now time-bounded and return a clear,
+  actionable 504 (free VRAM / pick a smaller ASR model / use CPU) instead of
+  hanging. New troubleshooting section documents it. (#656)
+- **Windows preview playback fixed.** The audiobook/clone preview's streaming
+  fallback fetched `localhost`, which on Windows resolves to IPv6 and missed the
+  IPv4-only backend — so previews failed with "decode error" / "no supported
+  sources". The preview API now targets `127.0.0.1` (matching the main client),
+  and the expected decode→stream fallback is logged calmly instead of as a scary
+  error. (#653 #659)
+- **A stale dub session resets cleanly instead of erroring.** Reopening the Dub
+  tab after the backend restarted tried to resume a job that no longer existed and
+  surfaced "Job not found" as a bug-report error. It now quietly clears the dead
+  session and invites a fresh upload. (#660)
+- **A bad voice-style instruct is a clear 400, not a scary 500.** Typing free-form
+  prose (or a non-English description) into the style/instruct field returned a
+  500 telling you to Flush for memory you never ran out of; it now returns a clean
+  400 that lists the valid style tags. The Voice Clone UI also drops unrecognized
+  style text locally and generates anyway. (#664 #612)
+- **The ⊕ Insert token popover stays on screen.** On Voice Clone it could grow
+  tall enough to clip off the top of the window; it's now a compact, scrollable
+  box anchored above the button. (#672)
+- **First-run no longer hangs on Apple Silicon.** The MCP session-manager startup
+  is now timeout-bounded so a slow/stuck mount can't wedge the whole backend boot
+  on M1. (#632)
 
 ### CI
 
@@ -183,6 +505,12 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   guard and a route-count floor), and a frontend feature-coverage test asserts
   every app mode is wired to a page and every feature has its i18n namespace — so
   an endpoint or page silently disappearing now fails CI on every PR.
+- **`bun desktop` no longer kills its own dev backend.** The dev launcher runs the
+  API and the Tauri app side-by-side, but the app's backend manager would "take
+  ownership" of port 3900 and kill the API the moment it booted (before it was
+  healthy), tearing the whole session down. The dev app now sets
+  `TAURI_SKIP_BACKEND` so it attaches to the running API instead of fighting it —
+  production launch is unaffected. (#745)
 
 ## [0.3.7] — 2026-06-20
 

@@ -38,7 +38,7 @@ export const BUNDLED_PROGRESS: DonationProgress = {
 };
 
 /** Where the runtime-refreshable copy lives (served from `public/`). */
-export const PROGRESS_URL = '/donation_progress.json';
+const PROGRESS_URL = '/donation_progress.json';
 
 /** Coerce an unknown parsed value into a safe DonationProgress, or null. */
 export function normalizeProgress(raw: unknown): DonationProgress | null {

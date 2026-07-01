@@ -111,6 +111,72 @@ def test_repair_failure_surfaces_actionable_message(model_manager, monkeypatch):
         model_manager._load_model_sync()
 
 
+def test_corrupt_cache_force_repairs_on_second_failure(model_manager, monkeypatch):
+    """#739: resume-repair can't fix a present-but-corrupt blob (right size, wrong
+    bytes), so the reload fails again — a force re-download then replaces it and
+    the model loads, so the user never hits the manual delete-and-reinstall."""
+    repair_calls = []
+
+    def fake_repair(checkpoint, *, force=False):
+        repair_calls.append(force)
+        return True
+
+    monkeypatch.setattr(model_manager, "_repair_model_cache", fake_repair)
+
+    class TwiceTruncatedOmniVoice:
+        attempts = 0
+
+        @classmethod
+        def from_pretrained(cls, *args, **kwargs):
+            cls.attempts += 1
+            if cls.attempts <= 2:  # initial load + post-resume reload both truncated
+                raise _TRUNCATED
+            return SimpleNamespace(llm=object())
+
+    monkeypatch.setattr(model_manager, "_lazy_omnivoice", lambda: TwiceTruncatedOmniVoice)
+
+    loaded = model_manager._load_model_sync()
+    assert loaded.llm is not None
+    assert repair_calls == [False, True]  # resume first, then force re-download
+    assert TwiceTruncatedOmniVoice.attempts == 3  # load, reload, force-reload
+
+
+def test_force_repair_failure_still_surfaces_actionable_message(model_manager, monkeypatch):
+    """If even the force re-download can't make the cache load, the user still
+    gets the actionable 'could not be auto-repaired' message, not a raw OSError."""
+    monkeypatch.setattr(
+        model_manager, "_repair_model_cache",
+        lambda checkpoint, *, force=False: True,  # repair "succeeds" but cache stays broken
+    )
+
+    class AlwaysTruncated:
+        @staticmethod
+        def from_pretrained(*args, **kwargs):
+            raise _TRUNCATED
+
+    monkeypatch.setattr(model_manager, "_lazy_omnivoice", lambda: AlwaysTruncated)
+
+    with pytest.raises(RuntimeError, match="could not be auto-repaired"):
+        model_manager._load_model_sync()
+
+
+def test_force_repair_passes_force_download(model_manager, monkeypatch):
+    """force=True must set force_download (replaces corrupt blobs); the default
+    resume path must NOT — re-downloading everything on a simple missing-file
+    repair would be wasteful."""
+    import huggingface_hub
+
+    calls = []
+    monkeypatch.setattr(huggingface_hub, "snapshot_download", lambda **k: calls.append(k))
+
+    assert model_manager._repair_model_cache("test/checkpoint", force=True) is True
+    assert calls and calls[0].get("force_download") is True
+
+    calls.clear()
+    assert model_manager._repair_model_cache("test/checkpoint") is True
+    assert "force_download" not in calls[0]
+
+
 def test_repair_skipped_in_offline_mode(model_manager, monkeypatch):
     """Offline mode must not trigger a network re-fetch the user opted out of."""
     monkeypatch.setenv("HF_HUB_OFFLINE", "1")
@@ -142,8 +208,52 @@ def test_repair_returns_false_when_download_fails(model_manager, monkeypatch):
     """A failed re-fetch (no network, gated repo) returns False, never raises."""
     import huggingface_hub
 
+    calls = []
+
     def boom(**kwargs):
+        calls.append(kwargs)
         raise OSError("network down")
 
     monkeypatch.setattr(huggingface_hub, "snapshot_download", boom)
+    monkeypatch.setenv("OMNIVOICE_MODEL_REPAIR_BACKOFF_S", "0")  # no real sleeps
+    monkeypatch.setenv("OMNIVOICE_MODEL_REPAIR_RETRIES", "3")
     assert model_manager._repair_model_cache("test/checkpoint") is False
+    # #739: a transient failure must be retried, not given up on after one try.
+    assert len(calls) == 3
+
+
+def test_repair_retries_then_succeeds(model_manager, monkeypatch):
+    """#739: a flaky connection that drops twice then completes must self-heal —
+    the repair retries snapshot_download and returns True, so the user is never
+    sent to a manual delete-and-reinstall for a transient blip."""
+    import huggingface_hub
+
+    attempts = {"n": 0}
+
+    def flaky(**kwargs):
+        attempts["n"] += 1
+        if attempts["n"] < 3:
+            raise OSError("connection reset")
+        return "/cache/test/checkpoint"
+
+    monkeypatch.setattr(huggingface_hub, "snapshot_download", flaky)
+    monkeypatch.setenv("OMNIVOICE_MODEL_REPAIR_BACKOFF_S", "0")
+    monkeypatch.setenv("OMNIVOICE_MODEL_REPAIR_RETRIES", "3")
+    assert model_manager._repair_model_cache("test/checkpoint") is True
+    assert attempts["n"] == 3
+
+
+def test_repair_retries_are_env_tunable(model_manager, monkeypatch):
+    """A restricted network can lower/raise the attempt count; a single attempt
+    must still work (no off-by-one that skips the only try)."""
+    import huggingface_hub
+
+    calls = []
+    monkeypatch.setattr(
+        huggingface_hub, "snapshot_download",
+        lambda **k: calls.append(k) or (_ for _ in ()).throw(OSError("down")),
+    )
+    monkeypatch.setenv("OMNIVOICE_MODEL_REPAIR_BACKOFF_S", "0")
+    monkeypatch.setenv("OMNIVOICE_MODEL_REPAIR_RETRIES", "1")
+    assert model_manager._repair_model_cache("test/checkpoint") is False
+    assert len(calls) == 1

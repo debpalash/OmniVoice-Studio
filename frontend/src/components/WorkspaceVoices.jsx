@@ -14,12 +14,21 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Search, Fingerprint, Wand2, Lock, Unlock, Play, Loader, Check, Volume2, Trash2, Plus,
+  Search,
+  Fingerprint,
+  Wand2,
+  Lock,
+  Unlock,
+  Play,
+  Loader,
+  Check,
+  Volume2,
+  Trash2,
+  Plus,
 } from 'lucide-react';
 import WaveformPlayer from './WaveformPlayer';
 import { API } from '../api/client';
 import { useAppStore } from '../store';
-import './WorkspaceVoices.css';
 
 export default function WorkspaceVoices({
   defineMethod,
@@ -35,20 +44,23 @@ export default function WorkspaceVoices({
   onOpenVoicePreview,
 }) {
   const { t } = useTranslation();
-  const setDefineMethod = useAppStore(s => s.setDefineMethod);
+  const setDefineMethod = useAppStore((s) => s.setDefineMethod);
   const [q, setQ] = useState('');
   const qLower = q.trim().toLowerCase();
 
   // ACTIVE VOICE card (10x §2): always answer "who speaks when I press
   // Synthesize". Recipe = instruct (designed) or "your reference clip".
-  const active = profiles.find(p => p.id === selectedProfile) || null;
+  const active = profiles.find((p) => p.id === selectedProfile) || null;
 
   const items = useMemo(() => {
-    const byMethod = profiles.filter(p => (defineMethod === 'audio' ? !p.instruct : !!p.instruct));
+    const byMethod = profiles.filter((p) =>
+      defineMethod === 'audio' ? !p.instruct : !!p.instruct,
+    );
     if (!qLower) return byMethod;
-    return byMethod.filter(p =>
-      (p.name || '').toLowerCase().includes(qLower) ||
-      (p.instruct || '').toLowerCase().includes(qLower)
+    return byMethod.filter(
+      (p) =>
+        (p.name || '').toLowerCase().includes(qLower) ||
+        (p.instruct || '').toLowerCase().includes(qLower),
     );
   }, [profiles, defineMethod, qLower]);
 
@@ -57,18 +69,31 @@ export default function WorkspaceVoices({
   return (
     <section className={`wv ${items.length === 0 ? 'wv--collapsed' : ''}`}>
       {/* ── ACTIVE VOICE ─────────────────────────────────────────────── */}
-      <div className="wv__active">
-        <div className="wv__active-kicker">{t('voices.active', { defaultValue: 'Active voice' })}</div>
+      <div className="flex-[0_0_auto] py-[10px] px-[12px]">
+        <div className="[font-family:var(--chrome-font-mono,var(--font-mono))] text-[0.62rem] uppercase [letter-spacing:0.06em] text-[color:var(--chrome-fg-muted,#a89984)] mb-[6px]">
+          {t('voices.active', { defaultValue: 'Active voice' })}
+        </div>
         {active ? (
-          <div className="wv__active-card">
-            <div className="wv__active-row">
-              <span className="wv__active-name">{active.name}</span>
-              <span className="history-kind" style={{ color: active.instruct ? '#8ec07c' : '#d3869b', borderColor: active.instruct ? '#8ec07c40' : '#d3869b40' }}>
+          <div className="flex flex-col gap-[6px] py-[8px] px-[10px] bg-[var(--chrome-accent-bg,rgba(211,134,155,0.08))] rounded-[10px]">
+            <div className="flex items-center gap-[8px] justify-between">
+              <span className="text-[0.8rem] font-semibold text-[color:var(--chrome-fg)] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                {active.name}
+              </span>
+              <span
+                className="history-kind"
+                style={{
+                  color: active.instruct ? '#8ec07c' : '#d3869b',
+                  background: active.instruct ? '#8ec07c22' : '#d3869b22',
+                }}
+              >
                 {active.instruct ? t('sidebar.design_label') : t('sidebar.clone_label')}
               </span>
             </div>
-            <div className="wv__active-recipe">
-              {active.instruct || t('voices.active_clone_recipe', { defaultValue: 'Cloned from your reference clip' })}
+            <div className="text-[0.68rem] text-[color:var(--chrome-fg-muted)] whitespace-nowrap overflow-hidden text-ellipsis">
+              {active.instruct ||
+                t('voices.active_clone_recipe', {
+                  defaultValue: 'Cloned from your reference clip',
+                })}
             </div>
             {active.ref_audio_path ? (
               <WaveformPlayer
@@ -78,15 +103,21 @@ export default function WorkspaceVoices({
                 compact
               />
             ) : null}
-            <div className="wv__active-actions">
-              <button type="button" className="history-action-btn" onClick={() => setSelectedProfile?.(null)}>
+            <div className="flex gap-[6px]">
+              <button
+                type="button"
+                className="history-action-btn"
+                onClick={() => setSelectedProfile?.(null)}
+              >
                 <Plus size={10} /> {t('voices.new', { defaultValue: 'New voice' })}
               </button>
             </div>
           </div>
         ) : (
-          <div className="wv__active-empty">
-            {t('voices.none_selected', { defaultValue: 'No voice selected — describe one, drop audio, or pick below.' })}
+          <div className="text-[0.7rem] [line-height:1.5] text-[color:var(--chrome-fg-muted)] py-[8px] px-[10px] border border-dashed border-[var(--chrome-border)] rounded-[10px]">
+            {t('voices.none_selected', {
+              defaultValue: 'No voice selected — describe one, drop audio, or pick below.',
+            })}
           </div>
         )}
       </div>
@@ -99,7 +130,7 @@ export default function WorkspaceVoices({
             className="input-base wv__search-input"
             placeholder={t('sidebar.search', { defaultValue: 'Search…' })}
             value={q}
-            onChange={e => setQ(e.target.value)}
+            onChange={(e) => setQ(e.target.value)}
           />
         </div>
       </div>
@@ -113,7 +144,7 @@ export default function WorkspaceVoices({
             {/* Empty states carry verbs (10x §2). */}
             <button
               type="button"
-              className="wv__empty-cta"
+              className="block mt-[8px] mx-auto py-[4px] px-[10px] text-[0.66rem] text-[color:var(--chrome-fg-muted)] bg-transparent border border-dashed border-[var(--chrome-border)] rounded-[var(--chrome-radius-pill,999px)] cursor-default"
               onClick={() => setDefineMethod(defineMethod === 'audio' ? 'audio' : 'design')}
             >
               {defineMethod === 'audio'
@@ -121,54 +152,119 @@ export default function WorkspaceVoices({
                 : t('voices.cta_design', { defaultValue: 'Describe one in Voice ← to design it' })}
             </button>
           </div>
-        ) : items.map(proj => {
-          const accent = proj.is_locked ? '#b8bb26' : (defineMethod === 'audio' ? '#d3869b' : '#8ec07c');
-          const KindIcon = proj.is_locked ? Lock : (defineMethod === 'audio' ? Fingerprint : Wand2);
-          return (
-            <div
-              key={proj.id}
-              className={`history-item ${selectedProfile === proj.id ? 'project-active' : ''}`}
-              style={{ '--row-accent': accent }}
-              onClick={() => handleSelectProfile(proj)}
-            >
-              <div className="history-row-head">
-                <span className="history-kind" style={{ color: accent, borderColor: `${accent}40` }}>
-                  <KindIcon size={9} /> {proj.is_locked ? t('sidebar.locked') : (defineMethod === 'audio' ? t('sidebar.clone_label') : t('sidebar.design_label'))}
-                </span>
-                {proj.is_locked ? <span className="history-meta history-meta--locked">{t('sidebar.consistent')}</span> : null}
-              </div>
-              <div className="history-title">{proj.name}</div>
-              {proj.instruct ? <div className="history-subtitle history-subtitle--italic">{proj.instruct}</div> : null}
-
-              <div className="history-actions">
-                <button className="history-action-btn history-action-icon" onClick={(e) => { e.stopPropagation(); handlePreviewVoice(proj, e); }} title="Preview">
-                  {previewLoading === proj.id ? <Loader className="spinner" size={10} /> : <Play size={10} />}
-                </button>
-                {openVoiceProfile && (
-                  <button className="history-action-btn" onClick={(e) => { e.stopPropagation(); openVoiceProfile(proj.id); }} title="Open full profile">
-                    {t('sidebar.open')}
-                  </button>
-                )}
-                <button className="history-action-btn" onClick={(e) => { e.stopPropagation(); handleSelectProfile(proj); }}>
-                  <Check size={10} /> {t('sidebar.select')}
-                </button>
-                {onOpenVoicePreview && (
-                  <button className="history-action-btn accent" onClick={(e) => { e.stopPropagation(); onOpenVoicePreview(proj.id); }} title="Open interactive voice preview">
-                    <Volume2 size={10} /> {t('sidebar.try_voice')}
-                  </button>
-                )}
-                {proj.is_locked ? (
-                  <button className="history-action-btn accent history-action-icon" onClick={(e) => { e.stopPropagation(); handleUnlockProfile(proj.id); }} title="Unlock">
-                    <Unlock size={10} />
-                  </button>
+        ) : (
+          items.map((proj) => {
+            const accent = proj.is_locked
+              ? '#b8bb26'
+              : defineMethod === 'audio'
+                ? '#d3869b'
+                : '#8ec07c';
+            const KindIcon = proj.is_locked ? Lock : defineMethod === 'audio' ? Fingerprint : Wand2;
+            return (
+              <div
+                key={proj.id}
+                className={`history-item ${selectedProfile === proj.id ? 'project-active' : ''}`}
+                style={{ '--row-accent': accent }}
+                onClick={() => handleSelectProfile(proj)}
+              >
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <span
+                    className="history-kind"
+                    style={{ color: accent, background: `${accent}22` }}
+                  >
+                    <KindIcon size={9} />{' '}
+                    {proj.is_locked
+                      ? t('sidebar.locked')
+                      : defineMethod === 'audio'
+                        ? t('sidebar.clone_label')
+                        : t('sidebar.design_label')}
+                  </span>
+                  {proj.is_locked ? (
+                    <span className="history-meta history-meta--locked">
+                      {t('sidebar.consistent')}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="history-title">{proj.name}</div>
+                {proj.instruct ? (
+                  <div className="history-subtitle history-subtitle--italic">{proj.instruct}</div>
                 ) : null}
-                <button className="history-action-btn danger history-action-icon" onClick={(e) => { e.stopPropagation(); handleDeleteProfile(proj.id); }} title="Delete">
-                  <Trash2 size={10} />
-                </button>
+
+                <div className="history-actions">
+                  <button
+                    className="history-action-btn history-action-icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePreviewVoice(proj, e);
+                    }}
+                    title="Preview"
+                  >
+                    {previewLoading === proj.id ? (
+                      <Loader className="spinner" size={10} />
+                    ) : (
+                      <Play size={10} />
+                    )}
+                  </button>
+                  {openVoiceProfile && (
+                    <button
+                      className="history-action-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openVoiceProfile(proj.id);
+                      }}
+                      title="Open full profile"
+                    >
+                      {t('sidebar.open')}
+                    </button>
+                  )}
+                  <button
+                    className="history-action-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelectProfile(proj);
+                    }}
+                  >
+                    <Check size={10} /> {t('sidebar.select')}
+                  </button>
+                  {onOpenVoicePreview && (
+                    <button
+                      className="history-action-btn accent"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenVoicePreview(proj.id);
+                      }}
+                      title="Open interactive voice preview"
+                    >
+                      <Volume2 size={10} /> {t('sidebar.try_voice')}
+                    </button>
+                  )}
+                  {proj.is_locked ? (
+                    <button
+                      className="history-action-btn accent history-action-icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleUnlockProfile(proj.id);
+                      }}
+                      title="Unlock"
+                    >
+                      <Unlock size={10} />
+                    </button>
+                  ) : null}
+                  <button
+                    className="history-action-btn danger history-action-icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteProfile(proj.id);
+                    }}
+                    title="Delete"
+                  >
+                    <Trash2 size={10} />
+                  </button>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </section>
   );

@@ -1,3 +1,5 @@
+> **Superseded (2026-06-25)** by [00-roadmap-elevenlabs-parity.md](00-roadmap-elevenlabs-parity.md) and specs 01–03. Retained for historical context.
+
 # ElevenLabs-Parity Program — Implementation Spec
 
 **Date:** 2026-06-12

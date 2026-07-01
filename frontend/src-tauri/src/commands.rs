@@ -299,6 +299,47 @@ pub fn simulate_paste(text: Option<String>) -> Result<(), String> {
     Ok(())
 }
 
+// ── Simulate live typing ──────────────────────────────────────────────────
+
+/// Type a string at the current cursor and/or emit N backspaces, for live
+/// word-by-word dictation (text appears in the focused field as you speak).
+///
+/// `backspaces` are sent FIRST (to retract characters a streaming recognizer
+/// revised), then `text` is typed. Either may be empty/zero, so a single call
+/// can correct-then-type in one round trip.
+///
+/// Cross-platform: `enigo`'s `.text()` synthesizes Unicode key events on macOS
+/// (CGEvent), Windows (`SendInput` w/ `KEYEVENTF_UNICODE`), and Linux (X11/
+/// libei). Backspace is a plain virtual-key `Click`, identical on all three.
+/// On macOS this reuses the SAME accessibility permission `simulate_paste`
+/// already requires (both go through `enigo` → CGEvent); no new grant needed.
+///
+/// Returns `Err` if the input layer is unavailable (e.g. accessibility not
+/// granted) so the JS caller can fall back to the clipboard+paste path for
+/// that segment without double-inserting.
+#[tauri::command]
+pub fn simulate_type(text: Option<String>, backspaces: Option<u32>) -> Result<(), String> {
+    let mut enigo = Enigo::new(&EnigoSettings::default())
+        .map_err(|e| format!("Failed to init keyboard sim: {e}"))?;
+
+    let n = backspaces.unwrap_or(0);
+    for _ in 0..n {
+        enigo
+            .key(Key::Backspace, Direction::Click)
+            .map_err(|e| format!("backspace failed: {e}"))?;
+    }
+
+    if let Some(t) = text {
+        if !t.is_empty() {
+            enigo
+                .text(&t)
+                .map_err(|e| format!("type failed: {e}"))?;
+        }
+    }
+
+    Ok(())
+}
+
 // ── Tray icon swap ────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -384,163 +425,6 @@ pub fn set_launch_as_widget(app: tauri::AppHandle, value: bool) -> Result<bool, 
     save_config(&app, &cfg);
     log::info!("Launch mode updated: launch_as_widget={value}");
     Ok(value)
-}
-
-// ── Pill autostart ────────────────────────────────────────────────────────
-
-/// Returns the path used for autostart registration on each platform.
-fn pill_autostart_path() -> PathBuf {
-    #[cfg(target_os = "macos")]
-    {
-        dirs_next::home_dir()
-            .unwrap_or_default()
-            .join("Library/LaunchAgents/com.debpalash.omnivoice-pill.plist")
-    }
-    #[cfg(target_os = "linux")]
-    {
-        dirs_next::config_dir()
-            .unwrap_or_else(|| PathBuf::from("~/.config"))
-            .join("autostart/omnivoice-pill.desktop")
-    }
-    #[cfg(target_os = "windows")]
-    {
-        // We use the registry, but return a sentinel path for the check.
-        PathBuf::from("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\OmniVoicePill")
-    }
-}
-
-#[tauri::command]
-pub fn enable_pill_autostart() -> Result<String, String> {
-    let exe = std::env::current_exe().map_err(|e| format!("Cannot find exe: {e}"))?;
-    let exe_str = exe.to_string_lossy().to_string();
-
-    // Escape for plist XML: &, <, >, ", '
-    fn xml_escape(s: &str) -> String {
-        s.replace('&', "&amp;")
-            .replace('<', "&lt;")
-            .replace('>', "&gt;")
-            .replace('"', "&quot;")
-            .replace('\'', "&apos;")
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        let plist_path = pill_autostart_path();
-        if let Some(parent) = plist_path.parent() {
-            let _ = fs::create_dir_all(parent);
-        }
-        let safe_exe = xml_escape(&exe_str);
-        let plist = format!(
-r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.debpalash.omnivoice-pill</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>{safe_exe}</string>
-        <string>--pill</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <false/>
-</dict>
-</plist>
-"#);
-        fs::write(&plist_path, plist).map_err(|e| format!("Write plist: {e}"))?;
-        log::info!("Pill autostart enabled: {}", plist_path.display());
-        return Ok(plist_path.to_string_lossy().to_string());
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        use std::process::Command;
-        let value = format!("\"{}\" --pill", exe_str);
-        let status = Command::new("reg")
-            .args(["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
-                   "/v", "OmniVoicePill", "/t", "REG_SZ", "/d", &value, "/f"])
-            .status()
-            .map_err(|e| format!("reg add: {e}"))?;
-        if !status.success() {
-            return Err("Failed to add registry key".into());
-        }
-        log::info!("Pill autostart enabled via registry");
-        return Ok("registry".into());
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        let desktop_path = pill_autostart_path();
-        if let Some(parent) = desktop_path.parent() {
-            let _ = fs::create_dir_all(parent);
-        }
-        let desktop = format!(
-            "[Desktop Entry]\nType=Application\nName=OmniVoice Dictation\nExec=\"{}\" --pill\nHidden=false\nNoDisplay=true\nX-GNOME-Autostart-enabled=true\n",
-            exe_str.replace('"', "\\\"")
-        );
-        fs::write(&desktop_path, desktop).map_err(|e| format!("Write desktop: {e}"))?;
-        log::info!("Pill autostart enabled: {}", desktop_path.display());
-        return Ok(desktop_path.to_string_lossy().to_string());
-    }
-}
-
-#[tauri::command]
-pub fn disable_pill_autostart() -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    {
-        let path = pill_autostart_path();
-        if path.exists() {
-            fs::remove_file(&path).map_err(|e| format!("Remove plist: {e}"))?;
-        }
-        log::info!("Pill autostart disabled");
-        return Ok(());
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        use std::process::Command;
-        let _ = Command::new("reg")
-            .args(["delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
-                   "/v", "OmniVoicePill", "/f"])
-            .status();
-        log::info!("Pill autostart disabled via registry");
-        return Ok(());
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        let path = pill_autostart_path();
-        if path.exists() {
-            fs::remove_file(&path).map_err(|e| format!("Remove desktop: {e}"))?;
-        }
-        log::info!("Pill autostart disabled");
-        return Ok(());
-    }
-}
-
-#[tauri::command]
-pub fn is_pill_autostart_enabled() -> bool {
-    #[cfg(target_os = "macos")]
-    {
-        return pill_autostart_path().exists();
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        use std::process::Command;
-        let out = Command::new("reg")
-            .args(["query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
-                   "/v", "OmniVoicePill"])
-            .output();
-        return out.map(|o| o.status.success()).unwrap_or(false);
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        return pill_autostart_path().exists();
-    }
 }
 
 #[tauri::command]

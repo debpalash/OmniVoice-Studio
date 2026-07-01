@@ -337,6 +337,7 @@ from api.routers import (
     events,
     capture,
     capture_ws,
+    dictation,
     openai_compat,
     tts_stream,
     marketplace,
@@ -344,6 +345,7 @@ from api.routers import (
     sonitranslate,
     audiobook,
     longform_jobs,
+    pronunciation,  # Expressive-TTS Spec 01: user pronunciation dictionary
     settings as settings_router,  # Phase 1 AUTH-03: HF token save/clear/state
 )
 from utils import hf_progress
@@ -383,6 +385,69 @@ def _env_flag(name: str, default: bool = False) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _mcp_start_timeout_s() -> float:
+    """Seconds to wait for the MCP session manager to start before giving up
+    and serving without it (#632). Overridable via OMNIVOICE_MCP_START_TIMEOUT_S."""
+    raw = os.environ.get("OMNIVOICE_MCP_START_TIMEOUT_S", "")
+    try:
+        v = float(raw)
+        if v > 0:
+            return v
+    except (TypeError, ValueError):
+        pass
+    return 30.0
+
+
+async def _serve_mcp(session_manager, ready: "asyncio.Event", stop: "asyncio.Event") -> None:
+    """Own the MCP session manager's full enter→exit lifecycle in ONE task.
+
+    FastMCP's ``run()`` opens an anyio task group, and anyio requires the cancel
+    scope to be exited in the *same task* that entered it. So we must NOT enter
+    it via ``wait_for`` (which runs the enter in a throwaway sub-task) or on the
+    lifespan task and exit it elsewhere — either raises "Attempted to exit cancel
+    scope in a different task". This coroutine enters and exits the context
+    itself: it signals ``ready`` once mounted, then idles until ``stop``.
+    """
+    try:
+        async with session_manager.run():
+            ready.set()
+            await stop.wait()
+    except Exception as e:
+        logger.warning("MCP session manager stopped: %s", e)
+    finally:
+        ready.set()  # never leave startup blocked on the readiness wait
+
+
+async def _start_mcp_session_manager(session_manager, *, timeout: float):
+    """Start MCP off the startup critical path; wait up to ``timeout`` for it to
+    signal ready. Returns ``(task, stop_event, mounted)``.
+
+    The MCP layer is best-effort and must never wedge backend startup. On some
+    platforms (observed: Apple-Silicon M1, #632) ``run()`` can *hang* on its
+    anyio task group; the old code awaited the enter before serving, so the hang
+    meant "Application startup complete" never fired and the whole backend was
+    unreachable with no error. Now the enter lives in its own task and we only
+    *optionally* wait on a ready signal — a hang becomes a logged warning + a
+    backend that serves normally without MCP.
+    """
+    stop = asyncio.Event()
+    if session_manager is None:
+        return None, stop, False
+    ready = asyncio.Event()
+    task = asyncio.create_task(_serve_mcp(session_manager, ready, stop))
+    try:
+        await asyncio.wait_for(ready.wait(), timeout=timeout)
+        mounted = not task.done()  # ready is also set on failure → not mounted
+    except asyncio.TimeoutError:
+        logger.warning(
+            "MCP session manager did not signal ready within %.0fs (#632); "
+            "serving without waiting. Set OMNIVOICE_MCP_START_TIMEOUT_S to adjust.",
+            timeout,
+        )
+        mounted = False
+    return task, stop, mounted
 
 
 @asynccontextmanager
@@ -488,30 +553,37 @@ async def lifespan(app: FastAPI):
         logger.info("Capture ASR preload disabled; dictation ASR will load on first use.")
 
     # ── MCP session manager (Wave 2.2) ────────────────────────────────────
-    # FastMCP's Streamable-HTTP transport needs its session manager running
-    # for the lifetime of the app. It's created lazily by streamable_http_app()
-    # (called in mount_mcp below), so we stack its `run()` context into ours
-    # via AsyncExitStack rather than replacing this lifespan. Best-effort: a
-    # missing/broken MCP layer must never stop the rest of the backend.
-    from contextlib import AsyncExitStack
-    async with AsyncExitStack() as _mcp_stack:
-        _sm = getattr(app.state, "mcp_session_manager", None)
-        if _sm is not None:
-            try:
-                await _mcp_stack.enter_async_context(_sm.run())
-                logger.info("MCP server mounted at /mcp")
-            except Exception as e:
-                logger.warning("MCP session manager failed to start: %s", e)
-        # Startup finished — disarm the hang watchdog before serving (#632).
-        if _watchdog_armed:
-            try:
-                import faulthandler
-                faulthandler.cancel_dump_traceback_later()
-            except Exception:
-                pass
-        yield
+    # FastMCP's Streamable-HTTP transport needs its session manager running for
+    # the lifetime of the app. Run it in its OWN task that owns the full
+    # enter→exit lifecycle (anyio task-affinity, see _serve_mcp) and only wait,
+    # with a timeout, for it to signal ready — so a hang on its anyio group
+    # (observed on M1, #632) can never wedge "Application startup complete".
+    _sm = getattr(app.state, "mcp_session_manager", None)
+    mcp_task, mcp_stop, mcp_mounted = await _start_mcp_session_manager(
+        _sm, timeout=_mcp_start_timeout_s()
+    )
+    if mcp_mounted:
+        logger.info("MCP server mounted at /mcp")
+    # Startup finished — disarm the hang watchdog before serving (#632).
+    if _watchdog_armed:
+        try:
+            import faulthandler
+            faulthandler.cancel_dump_traceback_later()
+        except Exception:
+            pass
+    yield
     # ── Graceful shutdown (SIGTERM from Tauri, Ctrl+C, etc.) ────────────
     logger.info("Shutdown: cleaning up…")
+    # Stop MCP first — signal its task to exit its own anyio context (correct
+    # task-affinity), then bound the wait so a wedged manager can't hang exit.
+    mcp_stop.set()
+    if mcp_task is not None:
+        try:
+            await asyncio.wait_for(mcp_task, timeout=5.0)
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            pass
+        except Exception:
+            pass
     idle_task.cancel()
     worker_task.cancel()
     # Wait for tasks to finish their current iteration
@@ -839,6 +911,7 @@ app.include_router(watermark.router)
 app.include_router(events.router)
 app.include_router(capture.router)
 app.include_router(capture_ws.router)
+app.include_router(dictation.router)
 app.include_router(openai_compat.router)
 app.include_router(tts_stream.router)
 app.include_router(marketplace.router)
@@ -846,6 +919,7 @@ app.include_router(personas.router)
 app.include_router(sonitranslate.router)
 app.include_router(audiobook.router)
 app.include_router(longform_jobs.router)
+app.include_router(pronunciation.router)  # Expressive-TTS Spec 01: pronunciation dictionary
 app.include_router(settings_router.router)  # Phase 1 AUTH-03 endpoints
 from api.routers import mcp_bindings as _mcp_bindings_router  # noqa: E402
 app.include_router(_mcp_bindings_router.router)  # Wave 2.2 per-agent voice bindings

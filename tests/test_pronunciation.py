@@ -133,3 +133,133 @@ def test_load_normalizes(tmp_path):
     p = tmp_path / "lex.json"
     p.write_text(json.dumps({"  Dr  ": "Doctor", "": "x"}), encoding="utf-8")
     assert load_lexicon(str(p)) == {"Dr": "Doctor"}
+
+
+# ── DB dictionary layer: per-language + inline overrides (Spec 01) ────────────
+
+from services.pronunciation import (  # noqa: E402
+    apply_inline_overrides,
+    apply_pronunciation,
+    entries_for_language,
+)
+
+
+def _row(term, replacement, type="respelling", language="*", enabled=1, id="x"):
+    return {
+        "id": id, "term": term, "replacement": replacement, "type": type,
+        "language": language, "enabled": enabled, "created_at": 1.0,
+    }
+
+
+_ROWS = [
+    _row("GIF", "jiff", language="*", id="1"),
+    _row("Nevada", "Nuh-VAD-uh", language="en", id="2"),
+    _row("Berlin", "Bear-LEEN", language="de", id="3"),
+    _row("parked", "NOPE", language="*", enabled=0, id="4"),
+    _row("cafe", "kaˈfeː", type="ipa", language="*", id="5"),
+]
+
+
+def test_global_row_always_applies():
+    assert apply_pronunciation("I love GIF", _ROWS, "en") == "I love jiff"
+    assert apply_pronunciation("I love GIF", _ROWS, "de") == "I love jiff"
+    assert apply_pronunciation("I love GIF", _ROWS, "Auto") == "I love jiff"
+
+
+def test_language_row_only_on_matching_language():
+    assert apply_pronunciation("Nevada", _ROWS, "en-US") == "Nuh-VAD-uh"
+    assert apply_pronunciation("Nevada", _ROWS, "de") == "Nevada"
+    assert apply_pronunciation("Berlin", _ROWS, "de") == "Bear-LEEN"
+    assert apply_pronunciation("Berlin", _ROWS, "en") == "Berlin"
+
+
+def test_auto_language_applies_only_global_rows():
+    assert apply_pronunciation("GIF Nevada", _ROWS, "Auto") == "jiff Nevada"
+    assert apply_pronunciation("GIF Nevada", _ROWS, None) == "jiff Nevada"
+
+
+def test_disabled_row_is_a_no_op():
+    assert apply_pronunciation("a parked car", _ROWS, "en") == "a parked car"
+
+
+def test_ipa_row_never_enters_the_grapheme_stream():
+    # A phoneme row with no respelling must NOT substitute raw IPA into text.
+    assert apply_pronunciation("a cafe", _ROWS, "en") == "a cafe"
+
+
+def test_language_row_overrides_global_on_same_term():
+    rows = [
+        _row("color", "kuh-ler", language="*", id="g"),
+        _row("color", "KOL-or", language="en", id="l"),
+    ]
+    assert apply_pronunciation("a color", rows, "en") == "a KOL-or"
+    assert apply_pronunciation("a color", rows, "de") == "a kuh-ler"
+
+
+def test_db_longest_term_first():
+    rows = [
+        _row("Dr", "Doctor", id="a"),
+        _row("Dr Smith", "Doctor Smith", id="b"),
+    ]
+    assert apply_pronunciation("Dr Smith here", rows, "en") == "Doctor Smith here"
+
+
+def test_db_idempotent():
+    once = apply_pronunciation("GIF", _ROWS, "en")
+    assert apply_pronunciation(once, _ROWS, "en") == once
+
+
+def test_inline_pipe_form():
+    assert apply_inline_overrides("the [[gif|jiff]] file") == "the jiff file"
+
+
+def test_inline_bare_form_strips_brackets():
+    assert apply_inline_overrides("say [[Nuh-VAD-uh]] now") == "say Nuh-VAD-uh now"
+
+
+def test_inline_empty_collapses():
+    assert apply_inline_overrides("a [[]] b") == "a  b"
+
+
+def test_inline_does_not_touch_single_bracket_tags():
+    s = "[voice:Sam] [pause 200ms] [excited]"
+    assert apply_inline_overrides(s) == s
+
+
+def test_inline_override_wins_over_dictionary():
+    assert apply_pronunciation("GIF and [[GIF|GROO]]", _ROWS, "en") == "jiff and GROO"
+
+
+def test_inline_applied_even_with_empty_dictionary():
+    assert apply_pronunciation("x [[a|b]] y", [], "en") == "x b y"
+
+
+def test_plain_text_passthrough_byte_identical():
+    s = "Hello, world. Nothing to see here."
+    assert apply_pronunciation(s, _ROWS, "en") == s
+
+
+def test_empty_text_passthrough_db():
+    assert apply_pronunciation("", _ROWS, "en") == ""
+    assert apply_pronunciation(None, _ROWS, "en") == ""
+
+
+def test_no_entries_no_inline_is_noop():
+    assert apply_pronunciation("hello world", [], "en") == "hello world"
+
+
+def test_entries_for_language_collapses_to_map():
+    assert entries_for_language(_ROWS, "en") == {"GIF": "jiff", "Nevada": "Nuh-VAD-uh"}
+
+
+def test_project_lexicon_overlays_db():
+    out = apply_pronunciation("GIF", _ROWS, "en", lexicon={"GIF": "PROJECT"})
+    assert out == "PROJECT"
+
+
+def test_inline_redos_safe():
+    import time
+    s = "[[" * 5000 + "a" + "]]" * 5000
+    t0 = time.perf_counter()
+    apply_inline_overrides(s)
+    assert time.perf_counter() - t0 < 0.5

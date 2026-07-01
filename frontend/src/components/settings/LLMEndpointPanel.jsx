@@ -13,9 +13,10 @@
  *     TRANSLATE_* env vars, restored on restart.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Brain, CheckCircle2, XCircle } from 'lucide-react';
+import { Brain } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
-import './PerformancePanel.css';
+import { SettingsSection, SettingRow, SettingsInput } from './primitives';
+import { Button, Badge } from '../../ui';
 
 const PRESETS = [
   ['Ollama', 'http://localhost:11434/v1', 'llama3.1'],
@@ -44,7 +45,9 @@ export default function LLMEndpointPanel() {
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const onSave = async () => {
     setSaving(true);
@@ -68,58 +71,108 @@ export default function LLMEndpointPanel() {
     }
   };
 
-  const applyPreset = ([, url, m]) => { setBaseUrl(url); setModel(m); };
+  const applyPreset = ([, url, m]) => {
+    setBaseUrl(url);
+    setModel(m);
+  };
 
   if (!state) return null;
 
   return (
-    <section className="perfpanel" aria-labelledby="llmendpoint-heading">
-      <h3 id="llmendpoint-heading" className="perfpanel__title">
-        <Brain size={14} /> LLM endpoint
-      </h3>
-      <p className="perfpanel__help">
-        Powers cinematic translation, glossary auto-extract, and dictation
-        refinement. Any OpenAI-compatible server: Ollama, LM Studio, vLLM, or
-        a hosted API. Stays opt-in — features only call it when you enable them.
-      </p>
+    <SettingsSection
+      icon={Brain}
+      title="LLM endpoint"
+      description="Powers cinematic translate, glossary extract, and dictation refinement."
+    >
+      <SettingRow
+        title="Preset"
+        hint="Powers cinematic translation, glossary auto-extract, and dictation refinement. Any OpenAI-compatible server: Ollama, LM Studio, vLLM, or a hosted API. Stays opt-in — features only call it when you enable them."
+        control={
+          <div className="flex flex-wrap items-center gap-[6px] min-w-0 max-w-full">
+            {PRESETS.map((p) => (
+              <Button
+                variant="preset"
+                key={p[0]}
+                onClick={() => applyPreset(p)}
+                data-testid={`llm-preset-${p[0]}`}
+              >
+                {p[0]}
+              </Button>
+            ))}
+          </div>
+        }
+      />
 
-      <div className="perfpanel__row" style={{ flexWrap: 'wrap', gap: 6 }}>
-        {PRESETS.map((p) => (
-          <button type="button" key={p[0]} onClick={() => applyPreset(p)} data-testid={`llm-preset-${p[0]}`}>
-            {p[0]}
-          </button>
-        ))}
-      </div>
+      <SettingRow
+        title="Base URL"
+        control={
+          <SettingsInput
+            mono
+            type="text"
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            placeholder="http://localhost:11434/v1"
+            data-testid="llm-base-url"
+          />
+        }
+      />
+      <SettingRow
+        title="Model"
+        control={
+          <SettingsInput
+            mono
+            type="text"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder="llama3.1"
+            data-testid="llm-model"
+          />
+        }
+      />
+      <SettingRow
+        title="API key"
+        control={
+          <SettingsInput
+            mono
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder={
+              state.api_key_masked
+                ? `stored (${state.api_key_masked}) — type to replace`
+                : 'optional (Ollama needs none)'
+            }
+            data-testid="llm-api-key"
+          />
+        }
+      />
 
-      <label className="perfpanel__row">
-        <span className="perfpanel__label">Base URL</span>
-        <input type="text" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)}
-          placeholder="http://localhost:11434/v1" style={{ flex: 1 }} data-testid="llm-base-url" />
-      </label>
-      <label className="perfpanel__row">
-        <span className="perfpanel__label">Model</span>
-        <input type="text" value={model} onChange={(e) => setModel(e.target.value)}
-          placeholder="llama3.1" style={{ flex: 1 }} data-testid="llm-model" />
-      </label>
-      <label className="perfpanel__row">
-        <span className="perfpanel__label">API key</span>
-        <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-          placeholder={state.api_key_masked ? `stored (${state.api_key_masked}) — type to replace` : 'optional (Ollama needs none)'}
-          style={{ flex: 1 }} data-testid="llm-api-key" />
-      </label>
+      {error && (
+        <div className="perfpanel__error" role="alert">
+          {error}
+        </div>
+      )}
 
-      {error && <div className="perfpanel__error" role="alert">{error}</div>}
-
-      <div className="perfpanel__row">
-        <button type="button" onClick={onSave} disabled={saving} data-testid="llm-save">
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-        <span className="perfpanel__badge" role="status">
-          {state.available
-            ? <><CheckCircle2 size={11} /> reachable</>
-            : <><XCircle size={11} /> {state.reason || 'not configured'}</>}
-        </span>
-      </div>
-    </section>
+      <SettingRow
+        title="Connection"
+        control={
+          <>
+            <Button
+              variant="subtle"
+              size="sm"
+              onClick={onSave}
+              loading={saving}
+              disabled={saving}
+              data-testid="llm-save"
+            >
+              Save
+            </Button>
+            <Badge tone={state.available ? 'success' : 'warn'} dot role="status">
+              {state.available ? 'reachable' : state.reason || 'not configured'}
+            </Badge>
+          </>
+        }
+      />
+    </SettingsSection>
   );
 }

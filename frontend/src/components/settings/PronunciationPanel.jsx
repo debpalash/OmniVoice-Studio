@@ -1,0 +1,242 @@
+/**
+ * Settings → General → Pronunciation dictionary panel (Expressive-TTS Spec 01).
+ *
+ * A table of user pronunciation entries (term → respelling), scoped Global or to
+ * a language. Entries are applied as pure text substitution before synthesis, so
+ * a saved entry changes the audio on every engine. Plus a model-free "test"
+ * field that previews the substitution via POST /pronunciation/test.
+ *
+ * Endpoints (loopback-only):
+ *   GET    /pronunciation
+ *   POST   /pronunciation              {term, replacement, type, language, enabled}
+ *   PUT    /pronunciation/{id}         (partial)
+ *   DELETE /pronunciation/{id}
+ *   POST   /pronunciation/test         {text, language} → {substituted, changed}
+ *
+ * Cross-platform: identical on macOS / Windows / Linux — it's a pure form over
+ * a text transform, no OS-specific behavior. All strings via i18n.
+ */
+import React, { useCallback, useEffect, useState } from 'react';
+import { BookA, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { apiJson, apiFetch } from '../../api/client';
+import { SettingsSection, SettingRow, SettingsInput, SettingsToggle } from './primitives';
+import { Button, Badge, Select } from '../../ui';
+
+const TYPES = ['respelling', 'ipa', 'cmu'];
+
+export default function PronunciationPanel() {
+  const { t } = useTranslation();
+  const [entries, setEntries] = useState([]);
+  const [term, setTerm] = useState('');
+  const [replacement, setReplacement] = useState('');
+  const [language, setLanguage] = useState('');
+  const [type, setType] = useState('respelling');
+  const [error, setError] = useState(null);
+  const [testText, setTestText] = useState('');
+  const [testOut, setTestOut] = useState(null);
+
+  const refresh = useCallback(async () => {
+    setError(null);
+    try {
+      setEntries(await apiJson('/pronunciation'));
+    } catch (e) {
+      setError(e?.message || t('pronunciation.load_error'));
+    }
+  }, [t]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const onAdd = async () => {
+    if (!term.trim()) return;
+    setError(null);
+    try {
+      await apiFetch('/pronunciation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          term: term.trim(),
+          replacement,
+          type,
+          language: language.trim() || '*',
+          enabled: true,
+        }),
+      });
+      setTerm('');
+      setReplacement('');
+      setLanguage('');
+      setType('respelling');
+      refresh();
+    } catch (e) {
+      setError(e?.message || t('pronunciation.save_error'));
+    }
+  };
+
+  const onToggle = async (entry) => {
+    try {
+      await apiFetch(`/pronunciation/${encodeURIComponent(entry.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !entry.enabled }),
+      });
+      refresh();
+    } catch (e) {
+      setError(e?.message || t('pronunciation.save_error'));
+    }
+  };
+
+  const onDelete = async (id) => {
+    try {
+      await apiFetch(`/pronunciation/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      refresh();
+    } catch (e) {
+      setError(e?.message || t('pronunciation.save_error'));
+    }
+  };
+
+  const onTest = async (value) => {
+    setTestText(value);
+    if (!value.trim()) {
+      setTestOut(null);
+      return;
+    }
+    try {
+      const r = await apiJson('/pronunciation/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: value }),
+      });
+      setTestOut(r);
+    } catch {
+      setTestOut(null);
+    }
+  };
+
+  const scopeLabel = (s) => (!s || s === '*' ? t('pronunciation.global') : s);
+  const typeLabel = (ty) => t(`pronunciation.type_${ty}`, ty);
+
+  return (
+    <SettingsSection icon={BookA} title={t('pronunciation.title')}>
+      <SettingRow title={t('pronunciation.title')} hint={t('pronunciation.help')} control={null} />
+
+      {error && (
+        <div className="perfpanel__error" role="alert">
+          {error}
+        </div>
+      )}
+
+      {entries.length === 0 && (
+        <SettingRow
+          title={<span data-testid="pron-empty">{t('pronunciation.empty')}</span>}
+          control={null}
+        />
+      )}
+
+      {entries.map((e) => (
+        <SettingRow
+          key={e.id}
+          title={
+            <>
+              <strong>{e.term}</strong> → {e.replacement || '—'}
+            </>
+          }
+          control={
+            <>
+              <SettingsToggle
+                checked={!!e.enabled}
+                onChange={() => onToggle(e)}
+                aria-label={t('pronunciation.enabled')}
+                data-testid={`pron-toggle-${e.id}`}
+              />
+              <Badge tone="neutral">{typeLabel(e.type)}</Badge>
+              <Badge tone="neutral">{scopeLabel(e.scope || e.language)}</Badge>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => onDelete(e.id)}
+                aria-label={t('pronunciation.remove', { term: e.term })}
+                data-testid={`pron-del-${e.id}`}
+              >
+                <Trash2 size={12} />
+              </Button>
+            </>
+          }
+        />
+      ))}
+
+      <SettingRow
+        title={t('pronunciation.add')}
+        align="start"
+        control={
+          <div className="flex flex-wrap items-center gap-[6px] min-w-0 max-w-full">
+            <SettingsInput
+              type="text"
+              value={term}
+              onChange={(ev) => setTerm(ev.target.value)}
+              placeholder={t('pronunciation.term_placeholder')}
+              className="flex-[1_1_120px]"
+              data-testid="pron-term"
+            />
+            <SettingsInput
+              type="text"
+              value={replacement}
+              onChange={(ev) => setReplacement(ev.target.value)}
+              placeholder={t('pronunciation.replacement_placeholder')}
+              className="flex-[1_1_120px]"
+              data-testid="pron-replacement"
+            />
+            <Select
+              size="sm"
+              value={type}
+              onChange={(ev) => setType(ev.target.value)}
+              data-testid="pron-type"
+            >
+              {TYPES.map((ty) => (
+                <option key={ty} value={ty}>
+                  {typeLabel(ty)}
+                </option>
+              ))}
+            </Select>
+            <SettingsInput
+              type="text"
+              value={language}
+              onChange={(ev) => setLanguage(ev.target.value)}
+              placeholder={t('pronunciation.lang_label')}
+              className="w-[90px] flex-none"
+              data-testid="pron-language"
+            />
+            <Button variant="subtle" size="sm" onClick={onAdd} data-testid="pron-add">
+              {t('pronunciation.add')}
+            </Button>
+          </div>
+        }
+      />
+
+      <SettingRow
+        title={t('pronunciation.test_placeholder')}
+        control={
+          <SettingsInput
+            type="text"
+            value={testText}
+            onChange={(ev) => onTest(ev.target.value)}
+            placeholder={t('pronunciation.test_placeholder')}
+            data-testid="pron-test-input"
+          />
+        }
+      />
+      {testOut && (
+        <p className="perfpanel__help" data-testid="pron-test-out">
+          {testOut.changed ? (
+            <>
+              {t('pronunciation.test_result')} <strong>{testOut.substituted}</strong>
+            </>
+          ) : (
+            t('pronunciation.test_nochange')
+          )}
+        </p>
+      )}
+    </SettingsSection>
+  );
+}

@@ -65,7 +65,7 @@ export function describeMicError(err, platform = detectPlatform()) {
 /** Convenience: resolve the description to a final translated string. */
 export function micErrorMessage(t, err, platform = detectPlatform()) {
   const d = describeMicError(err, platform);
-  const params = { ...(d.params || {}) };
+  const params = { ...d.params };
   if (d.hintKey) params.hint = t(d.hintKey);
   return t(d.key, params);
 }

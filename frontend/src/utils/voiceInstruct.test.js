@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildDesignInstruct, instructToFormValue } from './voiceInstruct';
+import { buildDesignInstruct, instructToFormValue, designModeProfileId } from './voiceInstruct';
 
 // plan-05 (#132): the Voice Design payload must be a validator-safe instruct —
 // one valid tag per category, no unsupported free-text — so Synthesize stops
@@ -9,26 +9,54 @@ import { buildDesignInstruct, instructToFormValue } from './voiceInstruct';
 describe('buildDesignInstruct', () => {
   it('keeps one valid tag per category from the dropdowns', () => {
     const { instruct, unsupported, duplicates } = buildDesignInstruct(
-      { Gender: 'male', Age: 'middle-aged', Pitch: 'low pitch', Style: 'Auto',
-        EnglishAccent: 'british accent', ChineseDialect: 'Auto' },
+      {
+        Gender: 'male',
+        Age: 'middle-aged',
+        Pitch: 'low pitch',
+        Style: 'Auto',
+        EnglishAccent: 'british accent',
+        ChineseDialect: 'Auto',
+      },
       '',
     );
-    expect(instruct.split(', ').sort())
-      .toEqual(['british accent', 'low pitch', 'male', 'middle-aged'].sort());
+    expect(instruct.split(', ').sort()).toEqual(
+      ['british accent', 'low pitch', 'male', 'middle-aged'].sort(),
+    );
     expect(unsupported).toEqual([]);
     expect(duplicates).toEqual([]);
   });
 
   it('buckets free-text prose as unsupported, not a duplicate (#115)', () => {
     const { instruct, unsupported, duplicates } = buildDesignInstruct(
-      { Gender: 'male' }, 'Speak as a calm documentary narrator');
+      { Gender: 'male' },
+      'Speak as a calm documentary narrator',
+    );
     expect(instruct).toBe('male');
     expect(unsupported).toContain('Speak as a calm documentary narrator');
     expect(duplicates).toEqual([]);
   });
 
+  it('clone path (#612): non-EN/ZH free-text yields no instruct, all items flagged unsupported', () => {
+    // The clone synthesize path runs free-text through buildDesignInstruct({}, …)
+    // exactly like this. A Vietnamese description must NOT reach the backend (it
+    // 400s with "Unsupported instruct items"); it drops to "" + a warn bucket so
+    // the UI shows a localized toast and synthesis still proceeds (no style).
+    const { instruct, unsupported } = buildDesignInstruct({}, 'quảng cáo, sôi nổi và thu hút');
+    expect(instruct).toBe('');
+    expect(unsupported).toEqual(['quảng cáo', 'sôi nổi và thu hút']);
+  });
+
+  it('clone path keeps valid style tags while dropping prose in the same field', () => {
+    const { instruct, unsupported } = buildDesignInstruct({}, 'whisper, sôi nổi');
+    expect(instruct).toBe('whisper');
+    expect(unsupported).toEqual(['sôi nổi']);
+  });
+
   it('buckets a valid tag outranked by a dropdown as a duplicate, not unsupported (#114)', () => {
-    const { instruct, unsupported, duplicates } = buildDesignInstruct({ Pitch: 'low pitch' }, 'high pitch');
+    const { instruct, unsupported, duplicates } = buildDesignInstruct(
+      { Pitch: 'low pitch' },
+      'high pitch',
+    );
     expect(instruct).toBe('low pitch'); // dropdown wins the category
     expect(duplicates).toContain('high pitch');
     expect(unsupported).toEqual([]);
@@ -55,6 +83,30 @@ describe('buildDesignInstruct', () => {
     const { instruct, unsupported } = buildDesignInstruct({ Gender: 'nonbinary' }, '');
     expect(instruct).toBe('');
     expect(unsupported).toEqual([]);
+  });
+});
+
+describe('designModeProfileId (#674 — clone must not hijack design attributes)', () => {
+  const profiles = [
+    { id: 'clone1', name: 'My Clone' }, // no instruct → clone
+    { id: 'clone2', name: 'Demo', instruct: '' }, // empty instruct → clone
+    { id: 'design1', name: 'Narrator', instruct: 'male, low pitch' }, // design
+  ];
+
+  it('suppresses a known clone profile (so gender/timbre comes from the attributes)', () => {
+    expect(designModeProfileId('clone1', profiles)).toBeNull();
+    expect(designModeProfileId('clone2', profiles)).toBeNull();
+  });
+
+  it('forwards a design profile (re-render a designed voice)', () => {
+    expect(designModeProfileId('design1', profiles)).toBe('design1');
+  });
+
+  it('omits when nothing is selected; passes through an unknown id (profiles not loaded)', () => {
+    expect(designModeProfileId('', profiles)).toBeNull();
+    expect(designModeProfileId(null, profiles)).toBeNull();
+    expect(designModeProfileId('not-loaded-yet', [])).toBe('not-loaded-yet');
+    expect(designModeProfileId('x', undefined)).toBe('x');
   });
 });
 

@@ -15,7 +15,7 @@ export const MAX_OVERLAP = 0.2;
 // Snap radius in *pixels* — converted to seconds via pxPerSec at call sites.
 export const SNAP_PX = 8;
 // Below this zoom the integer-second grid joins the snap candidates.
-export const GRID_SNAP_MAX_PX_PER_SEC = 40;
+const GRID_SNAP_MAX_PX_PER_SEC = 40;
 
 // Segment box palette — was WaveformTimeline's region palette; lives here so
 // both the track and any legend can share it without circular imports.
@@ -28,9 +28,6 @@ export const REGION_COLORS = [
   'rgba(254,128,25,0.45)',
   'rgba(104,157,106,0.45)',
 ];
-
-export const timeToPx = (t, pxPerSec) => t * pxPerSec;
-export const pxToTime = (px, pxPerSec) => (pxPerSec > 0 ? px / pxPerSec : 0);
 
 /**
  * visibleSegmentRange — windowing for the virtualized track.
@@ -49,19 +46,23 @@ export function visibleSegmentRange(segments, viewStart, viewEnd, bufferS = 2) {
 
   // lo: first segment whose end could reach t0 — lower_bound on start >= t0,
   // then step back over any segments that start earlier but end inside view.
-  let a = 0, b = n;
+  let a = 0,
+    b = n;
   while (a < b) {
     const mid = (a + b) >> 1;
-    if (segments[mid].start < t0) a = mid + 1; else b = mid;
+    if (segments[mid].start < t0) a = mid + 1;
+    else b = mid;
   }
   let lo = a;
   while (lo > 0 && segments[lo - 1].end > t0) lo -= 1;
 
   // hi: first segment that starts after t1 (upper_bound on start > t1).
-  a = lo; b = n;
+  a = lo;
+  b = n;
   while (a < b) {
     const mid = (a + b) >> 1;
-    if (segments[mid].start <= t1) a = mid + 1; else b = mid;
+    if (segments[mid].start <= t1) a = mid + 1;
+    else b = mid;
   }
   return [lo, a];
 }
@@ -200,7 +201,10 @@ export function nearestOnset(t, onsets) {
   let bestDist = Infinity;
   for (const o of onsets) {
     const d = Math.abs(o - t);
-    if (d < bestDist) { best = o; bestDist = d; }
+    if (d < bestDist) {
+      best = o;
+      bestDist = d;
+    }
   }
   return best;
 }
