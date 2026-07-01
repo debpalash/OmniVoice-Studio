@@ -49,7 +49,7 @@ export default function SettingRow({
         align === 'start' ? 'items-start' : 'items-center',
         stack
           ? 'grid-cols-[1fr] gap-[var(--space-3)]'
-          : 'grid-cols-[minmax(0,1fr)_auto] gap-x-[var(--space-5)] @max-[600px]/settings:grid-cols-[1fr] @max-[600px]/settings:gap-[var(--space-2)] max-[560px]:grid-cols-[1fr] max-[560px]:gap-[var(--space-2)]',
+          : 'grid-cols-[minmax(0,1fr)_auto] gap-x-[var(--space-5)] @min-[601px]/settings:has-[input:not([type=checkbox]):not([type=radio]):not([type=range])]:[grid-template-columns:minmax(0,1fr)_minmax(0,1.9fr)] @min-[601px]/settings:has-[select]:[grid-template-columns:minmax(0,1fr)_minmax(0,1.9fr)] @min-[601px]/settings:has-[textarea]:[grid-template-columns:minmax(0,1fr)_minmax(0,1.9fr)] @max-[600px]/settings:grid-cols-[1fr] @max-[600px]/settings:gap-[var(--space-2)] max-[560px]:grid-cols-[1fr] max-[560px]:gap-[var(--space-2)]',
         className,
       )}
     >
@@ -73,9 +73,9 @@ export default function SettingRow({
             '[&_input:not([type=checkbox]):not([type=radio]):not([type=range])]:min-w-0 [&_input:not([type=checkbox]):not([type=radio]):not([type=range])]:max-w-full [&_select]:min-w-0 [&_select]:max-w-full [&_textarea]:min-w-0 [&_textarea]:max-w-full',
             stack
               ? 'justify-self-stretch max-w-full text-left flex-wrap whitespace-normal [&_[data-slot=settings-input]]:max-w-full [&_[data-slot=settings-input]]:flex-[1_1_220px]'
-              : 'justify-self-end max-w-[60%] text-right whitespace-nowrap @max-[600px]/settings:justify-self-start @max-[600px]/settings:max-w-full @max-[600px]/settings:text-left @max-[600px]/settings:whitespace-normal max-[560px]:justify-self-start max-[560px]:max-w-full max-[560px]:text-left',
+              : 'justify-self-end max-w-[85%] text-right whitespace-nowrap has-[input:not([type=checkbox]):not([type=radio]):not([type=range])]:w-full has-[select]:w-full has-[textarea]:w-full @max-[600px]/settings:justify-self-start @max-[600px]/settings:w-full @max-[600px]/settings:max-w-full @max-[600px]/settings:text-left @max-[600px]/settings:whitespace-normal max-[560px]:justify-self-start max-[560px]:w-full max-[560px]:max-w-full max-[560px]:text-left',
             mono &&
-              '[font-family:var(--chrome-font-mono)] text-[length:var(--text-base)] text-[color:var(--chrome-fg-muted)] tabular-nums max-w-[75%] whitespace-normal [word-break:normal] [overflow-wrap:anywhere] leading-[1.45]',
+              '[font-family:var(--chrome-font-mono)] text-[length:var(--text-base)] text-[color:var(--chrome-fg-muted)] tabular-nums max-w-[42ch] whitespace-normal [word-break:normal] [overflow-wrap:break-word] leading-[1.45]',
           )}
         >
           {control}

@@ -451,7 +451,7 @@ export default function Settings() {
         <SettingsSidebar visibleIds={visibleSet} active={active} onSelect={setActive} />
       </aside>
 
-      <div className="min-w-0 flex-auto self-start [container-type:inline-size] [container-name:settings]">
+      <div className="min-w-0 w-full max-w-[1100px] mx-auto flex-auto self-start [container-type:inline-size] [container-name:settings]">
         <header className="mb-[var(--space-4)] flex items-center gap-[var(--space-3)]">
           {CatIcon && (
             <span
