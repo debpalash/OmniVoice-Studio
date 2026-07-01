@@ -174,14 +174,17 @@ class MyEngineBackend(TTSBackend):
 Frontend code stays modular so an edit loads one small file, not a 1900-line
 one. The rules:
 
-- **Size caps:** **soft 300 lines**, **hard 500 lines** per `.jsx`/`.css` file.
-  Anything over 500 lines must be split.
+- **Size caps:** **soft 300 lines**, **hard 500 lines** per `.jsx` file.
+  Anything over 500 lines must be split. (The cap does **not** apply to
+  `src/index.css` — it is the single, intentional styling foundation and the
+  only app stylesheet; see the CSS rule above.)
 - **Pages are thin orchestrators.** A file in `frontend/src/pages/` is just
   layout + routing + state wiring that composes feature components — no inline
   sub-component over ~50 lines.
-- **One component per file.** Co-locate `Foo.jsx` + `Foo.css` + `Foo.test.jsx`
-  together in a per-page feature folder under `frontend/src/components/` (e.g.
-  `components/settings/`, `components/dub/`).
+- **One component per file.** Co-locate `Foo.jsx` + `Foo.test.jsx` together in a
+  per-page feature folder under `frontend/src/components/` (e.g.
+  `components/settings/`, `components/dub/`). Styling is **not** co-located —
+  it's utilities + shadcn, with any irreducible rules in `src/index.css`.
 - **Shared bits go in a `primitives/` folder** inside the feature folder
   (`components/settings/primitives/` is the existing example).
 - **Enforced by ESLint `max-lines`** (`max: 500`) — **warn-only for now** so it
