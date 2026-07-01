@@ -15,7 +15,10 @@ from fastapi.responses import StreamingResponse
 import sqlite3
 from core.db import db_conn, ensure_schema
 from core.config import OUTPUTS_DIR, VOICES_DIR
-from services.model_manager import get_model, _gpu_pool
+import functools
+from services.model_manager import (
+    get_model, _gpu_pool, run_on_gpu_pool_guarded, GpuJobTimeoutError,
+)
 from services.audio_io import _safe_torchaudio_save
 from core import event_bus
 from omnivoice.utils.voice_design import heal_design_instruct
@@ -565,9 +568,19 @@ async def generate_speech(
     # fallback behaves exactly as before.
     if ref_audio_path and not ref_text:
         from services.asr_backend import transcribe_reference
-        ref_text = await asyncio.get_running_loop().run_in_executor(
-            _gpu_pool, transcribe_reference, ref_audio_path
-        )
+        # Same #730 hang risk as any whisperx transcribe — bound + reset the pool
+        # so a wedged reference transcribe can't brick the backend. This path is
+        # best-effort (transcribe_reference returns None on failure → the model's
+        # built-in ASR fallback), so a timeout degrades to None rather than
+        # failing the whole generate.
+        try:
+            ref_text = await run_on_gpu_pool_guarded(
+                functools.partial(transcribe_reference, ref_audio_path),
+                what="Reference transcribe",
+            )
+        except GpuJobTimeoutError as e:
+            logger.warning("reference transcribe hung (%s); using model ASR fallback", e)
+            ref_text = None
 
     # #526: materialize a concrete seed when none was supplied (and no profile
     # pinned one) so the take is reproducible and we can hand it back via the
@@ -611,24 +624,32 @@ async def generate_speech(
     try:
         loop = asyncio.get_running_loop()
         if _backend is not None:
-            audio_tensor = await loop.run_in_executor(
-                _gpu_pool, _run_backend_inference,
-                _backend, text, language, ref_audio_path, ref_text, instruct,
-                duration, num_step, guidance_scale, speed, denoise,
-                postprocess_output, used_seed, effect_preset,
-                max_chunk_chars, crossfade_ms,
+            # Bounded + pool-reset on hang so a wedged generate can't starve the
+            # GPU pool and brick the backend ("can't reach backend", #730 class).
+            audio_tensor = await run_on_gpu_pool_guarded(
+                functools.partial(
+                    _run_backend_inference,
+                    _backend, text, language, ref_audio_path, ref_text, instruct,
+                    duration, num_step, guidance_scale, speed, denoise,
+                    postprocess_output, used_seed, effect_preset,
+                    max_chunk_chars, crossfade_ms,
+                ),
+                what="TTS generate",
             )
             # Read after generation: engines with lazy model loading report
             # their real rate only once weights are up.
             sample_rate = _backend.sample_rate
         else:
-            audio_tensor = await loop.run_in_executor(
-                _gpu_pool, _run_inference,
-                _model, text, language, ref_audio_path, ref_text, instruct, duration,
-                num_step, guidance_scale, speed, t_shift, denoise,
-                postprocess_output, layer_penalty_factor, position_temperature,
-                class_temperature, used_seed, effect_preset,
-                max_chunk_chars, crossfade_ms,
+            audio_tensor = await run_on_gpu_pool_guarded(
+                functools.partial(
+                    _run_inference,
+                    _model, text, language, ref_audio_path, ref_text, instruct, duration,
+                    num_step, guidance_scale, speed, t_shift, denoise,
+                    postprocess_output, layer_penalty_factor, position_temperature,
+                    class_temperature, used_seed, effect_preset,
+                    max_chunk_chars, crossfade_ms,
+                ),
+                what="TTS generate",
             )
             sample_rate = _model.sampling_rate
         # Invisible AudioSeal provenance watermark on the final audio. Embedding
@@ -708,6 +729,12 @@ async def generate_speech(
         )
     except HTTPException:
         raise
+    except GpuJobTimeoutError as e:
+        # A wedged GPU generate — the pool was already reset to restore capacity
+        # (#730 class). Report the actionable timeout instead of the misleading
+        # "can't reach backend" the frontend shows when the pool starves.
+        logger.error("Generate timed out: %s", e)
+        raise HTTPException(status_code=503, detail=str(e)) from e
     except ValueError as e:
         logger.error("Validation failed: %s", e)
         raise HTTPException(status_code=400, detail=str(e)) from e
