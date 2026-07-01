@@ -29,15 +29,28 @@ const TOKEN_PATTERNS = [
   /github_pat_[A-Za-z0-9_]{20,}/g, // GitHub fine-grained PAT
   /gh[pousr]_[A-Za-z0-9]{30,}/g, // GitHub classic tokens
   /sk-[A-Za-z0-9_-]{20,}/g, // OpenAI-style API keys
+  // A backend error can carry a secret from any provider over HTTP into
+  // error.message/.stack — the webview has no env-var backstop, so these
+  // shapes are its only defense. Mirror backend/core/scrub.py.
+  /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{6,}/g, // JWT (Bearer)
+  /AIza[0-9A-Za-z_-]{35}/g, // Google API key
+  /xox[baprs]-[A-Za-z0-9-]{10,}/g, // Slack token
+  /AKIA[0-9A-Z]{16}/g, // AWS access key id
+  /bearer\s+[A-Za-z0-9._-]{16,}/gi, // opaque bearer tokens
 ];
+
+// Secrets in a URL query string — redact the value, keep the param name.
+const URL_SECRET_RE =
+  /((?:access[_-]?token|api[_-]?key|apikey|auth[_-]?token|token|secret|password|passwd|pwd)=)([^&\s"'#]{6,})/gi;
 
 const HOME_PATTERNS = [
   // Windows-with-forward-slashes must run BEFORE the bare macOS shape, or
   // `/Users/<name>` inside `C:/Users/<name>` gets eaten first, leaving `C:~`.
-  /(?:file:\/\/\/)?[A-Za-z]:\/Users\/[^/\s"']+/g, // Windows, forward slashes (webview stacks, file:/// URLs)
-  /\/Users\/[^/\s"']+/g, // macOS
-  /\/home\/[^/\s"']+/g, // Linux
-  /[A-Za-z]:\\Users\\[^\\\s"']+/g, // Windows, backslashes
+  // `i` flag: Windows is case-insensitive and tools emit lowercase `c:\users\`.
+  /(?:file:\/\/\/)?[A-Za-z]:\/Users\/[^/\s"']+/gi, // Windows, forward slashes (webview stacks, file:/// URLs)
+  /\/Users\/[^/\s"']+/gi, // macOS
+  /\/home\/[^/\s"']+/gi, // Linux
+  /[A-Za-z]:\\Users\\[^\\\s"']+/gi, // Windows, backslashes
 ];
 
 /** Redact credential-shaped substrings and home directories. */
@@ -45,6 +58,7 @@ export function scrubText(text) {
   if (text == null) return '';
   let s = String(text);
   for (const pat of TOKEN_PATTERNS) s = s.replace(pat, REDACTED);
+  s = s.replace(URL_SECRET_RE, (_m, name) => `${name}${REDACTED}`);
   for (const pat of HOME_PATTERNS) s = s.replace(pat, '~');
   return s;
 }
@@ -52,7 +66,26 @@ export function scrubText(text) {
 // GitHub truncates very long prefill URLs; keep the encoded result well
 // under the ~8k practical ceiling so the user never loses the form.
 const MAX_STACK_CHARS = 1800;
-const MAX_BODY_CHARS = 6000;
+const MAX_MSG_CHARS = 1200;
+// The real ceiling is on the URL-ENCODED body, not the raw string: markdown
+// encodes ~1.3–1.6× larger (newlines→%0A, spaces→%20, backticks/#//), so a
+// 6000-char raw body can be ~9k encoded and blow past GitHub's limit. Bound
+// the encoded length directly.
+const MAX_ENCODED_BODY = 7000;
+
+/** Trim `text` so its URL-encoded length is ≤ maxEncoded (binary search on
+ *  the raw cut point — exact, and cheap for report-sized strings). */
+function fitEncoded(text, maxEncoded) {
+  if (encodeURIComponent(text).length <= maxEncoded) return text;
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (encodeURIComponent(text.slice(0, mid)).length <= maxEncoded) lo = mid;
+    else hi = mid - 1;
+  }
+  return `${text.slice(0, lo)}\n… (truncated)`;
+}
 
 /** Bound every context fetch: a backend that accepts the socket and then
  * stalls must not pin the report button / error-toast / boundary flow on the
@@ -124,14 +157,19 @@ export async function buildBugReportUrl({ title = '[Bug] ', error } = {}) {
     // Seed the title with the failure so the issue list stays scannable;
     // the user can still edit it on github.com before submitting.
     if (title === '[Bug] ' && msg) title = `[Bug] ${msg.slice(0, 80)}`;
+    // Cap the message in the body too — a large payload (validation dump,
+    // HTML/JSON response body) would otherwise inflate the report past the
+    // encoded URL ceiling.
+    const msgForBody =
+      msg.length > MAX_MSG_CHARS ? `${msg.slice(0, MAX_MSG_CHARS)}\n… (truncated)` : msg;
     let stack = error?.stack ? scrubText(error.stack) : '';
     if (stack.length > MAX_STACK_CHARS) stack = `${stack.slice(0, MAX_STACK_CHARS)}\n… (truncated)`;
     errorSection.push(
       '## Error',
       '',
       '```',
-      msg,
-      ...(stack && stack !== msg ? [stack] : []),
+      msgForBody,
+      ...(stack && stack !== msgForBody ? [stack] : []),
       '```',
       '',
     );
@@ -162,7 +200,7 @@ export async function buildBugReportUrl({ title = '[Bug] ', error } = {}) {
     '<!-- step-by-step would help us reproduce -->',
     '',
   ].join('\n');
-  if (body.length > MAX_BODY_CHARS) body = `${body.slice(0, MAX_BODY_CHARS)}\n… (truncated)`;
+  body = fitEncoded(body, MAX_ENCODED_BODY);
 
   return `${ISSUES_URL}?title=${encodeURIComponent(title)}&labels=${encodeURIComponent('bug')}&body=${encodeURIComponent(body)}`;
 }

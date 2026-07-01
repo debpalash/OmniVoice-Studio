@@ -106,3 +106,43 @@ def test_none_and_empty():
 
 def test_non_string_coerced():
     assert scrub_text(42) == "42"
+
+
+# ── Hardening regressions (diagnostics audit) ─────────────────────────────
+
+@pytest.mark.parametrize("raw", [
+    r"c:\users\john\AppData\log.txt",   # lowercase drive + Users
+    r"C:\Users\john\AppData\log.txt",   # canonical
+    "C:/USERS/john/app/log.txt",        # upper, forward slashes
+])
+def test_windows_home_case_insensitive(raw):
+    # The username must never survive, regardless of Users/users casing.
+    assert "john" not in scrub_text(raw)
+
+
+# Built from low-entropy parts (not real-secret literals) so they match the
+# scrubber's shape without tripping GitHub push-protection secret scanning.
+@pytest.mark.parametrize("secret", [
+    "eyJ" + "a" * 20 + "." + "b" * 20 + "." + "c" * 20,  # JWT
+    "AIza" + "B" * 35,                                   # Google API key
+    "xox" + "b-" + "C" * 20,                             # Slack
+    "AKIA" + "D" * 16,                                   # AWS access key id
+])
+def test_broadened_token_shapes_redacted(secret):
+    assert secret not in scrub_text(f"request failed: {secret} (401)")
+
+
+def test_url_query_secret_value_redacted_name_kept():
+    out = scrub_text("open https://host/api?token=supersecretvalue12345&x=1")
+    assert "supersecretvalue12345" not in out
+    assert "token=" in out          # param name preserved for legibility
+    assert "x=1" in out             # non-secret params untouched
+
+
+def test_home_superstring_not_corrupted(monkeypatch):
+    # A home of /Users/john must not rewrite /Users/johnny to '~ny'.
+    monkeypatch.setenv("HOME", "/Users/john")
+    out = scrub_text("/Users/johnny/secret.wav")
+    assert "~ny" not in out
+    assert "johnny" not in out       # still redacted by the generic macOS shape
+    assert out == "~/secret.wav"

@@ -36,18 +36,39 @@ _TOKEN_PATTERNS = (
     re.compile(r"github_pat_[A-Za-z0-9_]{20,}"),   # GitHub fine-grained PAT
     re.compile(r"gh[pousr]_[A-Za-z0-9]{30,}"),     # GitHub classic tokens
     re.compile(r"sk-[A-Za-z0-9_\-]{20,}"),         # OpenAI-style API keys
+    # A backend error can carry a secret from *any* provider (the LLM-providers
+    # feature ships a dozen), so match the common credential shapes too, not
+    # just the four vendors above — a leaked key in a public issue is real harm.
+    re.compile(r"eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{6,}"),  # JWT (Bearer)
+    re.compile(r"AIza[0-9A-Za-z_\-]{35}"),         # Google API key
+    re.compile(r"xox[baprs]-[A-Za-z0-9\-]{10,}"),  # Slack token
+    re.compile(r"AKIA[0-9A-Z]{16}"),               # AWS access key id
+    re.compile(r"(?i)bearer\s+[A-Za-z0-9._\-]{16,}"),  # opaque bearer tokens
+)
+
+# Secrets carried in a URL query string (`?token=…`, `&api_key=…`). Redact the
+# VALUE while keeping the param name + separator so the URL stays legible. Bare
+# `key=` is intentionally excluded — too common in non-secret text; shaped keys
+# are already caught above and named env vars by the sweep below.
+_URL_SECRET_RE = re.compile(
+    r"((?:access[_-]?token|api[_-]?key|apikey|auth[_-]?token|token|secret|password|passwd|pwd)=)"
+    r"([^&\s\"'#]{6,})",
+    re.IGNORECASE,
 )
 
 # Home-directory shapes for all three supported platforms. Matched
 # pattern-wise (not just this machine's $HOME) so paths quoted from a
 # user's pasted log on another OS get cleaned too.
+# IGNORECASE because Windows is case-insensitive and tools routinely emit the
+# lowercase `c:\users\<name>` form, which the CLAUDE.md redaction spec still
+# requires to become `~`. `Users`/`users`, `Home`/`home` all match.
 _HOME_PATTERNS = (
     # Windows-with-forward-slashes must run BEFORE the bare macOS shape, or
     # `/Users/<name>` inside `C:/Users/<name>` gets eaten first, leaving `C:~`.
-    re.compile(r"[A-Za-z]:/Users/[^/\s\"']+"),       # Windows, forward slashes (file URLs, normalized traces)
-    re.compile(r"/Users/[^/\s\"']+"),                # macOS
-    re.compile(r"/home/[^/\s\"']+"),                 # Linux
-    re.compile(r"[A-Za-z]:\\Users\\[^\\\s\"']+"),    # Windows, backslashes
+    re.compile(r"[A-Za-z]:/Users/[^/\s\"']+", re.IGNORECASE),   # Windows, forward slashes
+    re.compile(r"/Users/[^/\s\"']+", re.IGNORECASE),           # macOS
+    re.compile(r"/home/[^/\s\"']+", re.IGNORECASE),            # Linux
+    re.compile(r"[A-Za-z]:\\Users\\[^\\\s\"']+", re.IGNORECASE),  # Windows, backslashes
 )
 
 # Values shorter than this are too entropy-poor to be real secrets and too
@@ -85,19 +106,25 @@ def scrub_text(text: str | None) -> str:
     except Exception:
         pass
 
-    # 2. Credential-shaped substrings.
+    # 2. Credential-shaped substrings + URL query secrets.
     for pat in _TOKEN_PATTERNS:
         try:
             s = pat.sub(REDACTED, s)
         except Exception:
             pass
+    try:
+        s = _URL_SECRET_RE.sub(lambda m: m.group(1) + REDACTED, s)
+    except Exception:
+        pass
 
     # 3. This process's real home dir (covers symlinked/nonstandard homes
-    #    the generic patterns miss), then the per-OS shapes.
+    #    the generic patterns miss), then the per-OS shapes. Boundary-aware so
+    #    a home of `/Users/john` doesn't rewrite `/Users/johnny` to `~ny`
+    #    (leaking the fragment + mangling the path).
     try:
         home = os.path.expanduser("~")
         if home and home not in ("/", "~"):
-            s = s.replace(home, "~")
+            s = re.sub(re.escape(home) + r"(?=[/\\\s\"']|$)", "~", s)
     except Exception:
         pass
     for pat in _HOME_PATTERNS:
