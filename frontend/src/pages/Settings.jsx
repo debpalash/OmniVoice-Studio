@@ -34,6 +34,7 @@ import HotkeyTab from '../components/settings/HotkeyTab';
 import TranslationTab from '../components/settings/TranslationTab';
 import NetworkTab from '../components/settings/NetworkTab';
 import ApiKeysPanel from '../components/settings/ApiKeysPanel';
+import LLMProvidersPanel from '../components/settings/LLMProvidersPanel';
 import AboutTab from '../components/settings/AboutTab';
 import PrivacyTab from '../components/settings/PrivacyTab';
 import LogsTab from '../components/settings/LogsTab';
@@ -396,6 +397,8 @@ export default function Settings() {
         );
       case 'credentials':
         return <ApiKeysPanel />;
+      case 'llm-providers':
+        return <LLMProvidersPanel />;
       case 'updates':
         return (
           <SettingsSection icon={ArrowDownToLine} title={t('settings.updates')}>
