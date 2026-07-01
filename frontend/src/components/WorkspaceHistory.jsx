@@ -154,8 +154,8 @@ export default function WorkspaceHistory({
   }
 
   return (
-    <aside className="flex-[1_1_0] flex flex-col min-h-0 overflow-hidden border-t border-solid border-t-[var(--chrome-border-strong,var(--chrome-border))]">
-      <div className="flex-[0_0_auto] flex flex-col gap-[8px] py-[10px] px-[12px] border-b border-solid border-b-[var(--chrome-border)]">
+    <aside className="flex-[1_1_0] flex flex-col min-h-0 overflow-hidden">
+      <div className="flex-[0_0_auto] flex flex-col gap-[8px] py-[10px] px-[12px]">
         <span className="inline-flex items-center gap-[6px] [font-family:var(--chrome-font-mono,var(--font-mono))] text-[0.72rem] font-semibold [letter-spacing:0.04em] uppercase text-[color:var(--chrome-fg-muted)]">
           <History size={13} /> {t('history.title', { defaultValue: 'History' })}
         </span>
@@ -164,10 +164,10 @@ export default function WorkspaceHistory({
             <button
               key={f.id}
               type="button"
-              className={`flex-[0_0_auto] py-[2px] px-[10px] text-[0.68rem] font-medium border border-solid rounded-[var(--chrome-radius-pill,999px)] cursor-pointer [transition:background_0.15s_ease,color_0.15s_ease,border-color_0.15s_ease] ${
+              className={`flex-[0_0_auto] py-[2px] px-[10px] text-[0.68rem] font-medium rounded-[var(--chrome-radius-pill,999px)] cursor-pointer [transition:background_0.15s_ease,color_0.15s_ease] ${
                 filter === f.id
-                  ? 'text-[color:var(--color-brand,#d3869b)] bg-[color-mix(in_srgb,var(--color-brand,#d3869b)_12%,transparent)] border-transparent'
-                  : 'bg-transparent text-[color:var(--chrome-fg-muted)] border-[var(--chrome-border-strong)] hover:bg-[var(--chrome-hover-bg)] hover:text-[color:var(--chrome-fg)]'
+                  ? 'text-[color:var(--color-brand,#d3869b)] bg-[color-mix(in_srgb,var(--color-brand,#d3869b)_12%,transparent)]'
+                  : 'bg-transparent text-[color:var(--chrome-fg-muted)] hover:bg-[var(--chrome-hover-bg)] hover:text-[color:var(--chrome-fg)]'
               }`}
               onClick={() => setFilter(f.id)}
             >
