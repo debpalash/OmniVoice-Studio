@@ -6,6 +6,20 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [Unreleased]
+
+### Fixed
+
+- **8 GB GPUs: voice-clone/dub transcription no longer kills the backend.**
+  On cards where the TTS model already held most of the VRAM (e.g. RTX
+  4060 Ti 8 GB), loading whisper `large-v3` in float16 for a reference-clip
+  or dub transcription died as a *native* CUDA out-of-memory abort — the
+  whole backend process vanished with no error logged, and the app showed
+  "Can't reach the local OmniVoice backend." A new VRAM preflight re-checks
+  free GPU memory right before the ASR load and steps down float16 →
+  int8 → CPU instead of attempting a load that can't fit (opt-out:
+  `OMNIVOICE_ASR_VRAM_PREFLIGHT=0`). (#723)
+
 ## [0.3.8] — 2026-07-01
 
 A stability-focused release that makes first-run and Windows "just work," ships
