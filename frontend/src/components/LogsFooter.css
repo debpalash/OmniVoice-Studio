@@ -68,11 +68,3 @@
 /* (d) Keyframes referenced from LogsFooter.jsx via `[animation:…]` utilities.
    The update dot keeps pulsing under reduced motion (matches prior behavior);
    the donate button opts out via `motion-reduce:[animation:none]` in JSX. */
-@keyframes version-dot-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--chrome-accent, #b8bb26) 55%, transparent); }
-  50%      { box-shadow: 0 0 0 4px color-mix(in srgb, var(--chrome-accent, #b8bb26) 0%, transparent); }
-}
-@keyframes heart-glow {
-  0%, 100% { opacity: 0.7; transform: scale(1); }
-  50%      { opacity: 1;   transform: scale(1.08); }
-}

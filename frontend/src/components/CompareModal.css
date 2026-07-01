@@ -34,7 +34,3 @@
   animation: compare-drawer-slide-up var(--dur-base, 180ms) var(--ease-out, cubic-bezier(.2,.8,.2,1));
   overflow: hidden;
 }
-@keyframes compare-drawer-slide-up {
-  from { transform: translateY(100%); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
-}

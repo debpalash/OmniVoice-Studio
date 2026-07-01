@@ -6,20 +6,8 @@
  * "active step" LED — none of which Tailwind utilities can express alone.
  */
 
-@keyframes fr-breathe {
-  from { transform: scaleY(calc(var(--h, 0.4) * 0.55)); opacity: 0.22; }
-  to   { transform: scaleY(var(--h, 0.4)); opacity: 0.6; }
-}
 
-@keyframes fr-rise {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
 
-@keyframes fr-pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.4; }
-}
 
 /* Breathing waveform masthead — bar height + stagger come from inline vars. */
 .fr-wave {

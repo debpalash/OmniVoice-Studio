@@ -75,11 +75,6 @@
   transform-origin: 50% 50%;
   animation: stampThunk 0.5s var(--ease-spring) 0.1s both;
 }
-@keyframes stampThunk {
-  0%   { transform: scale(1.7) rotate(-14deg); opacity: 0; }
-  55%  { transform: scale(0.92) rotate(3deg); opacity: 1; }
-  100% { transform: scale(1) rotate(-5deg); opacity: 1; }
-}
 
 /* ── Close (×) ────────────────────────────────────────────────────────── */
 /* Layout/reset moved to utilities in Postcard.jsx; :hover stays here. */
@@ -111,16 +106,8 @@
 .postcard__optout:hover { color: var(--chrome-fg-muted); text-decoration: underline; }
 
 /* ── Enter / exit ─────────────────────────────────────────────────────── */
-@keyframes postcardIn {
-  0%   { opacity: 0; transform: translateY(14px) scale(0.96); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
 .postcard.is-leaving {
   animation: postcardOut 0.28s ease-in forwards;
-}
-@keyframes postcardOut {
-  0%   { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(10px) scale(0.97); }
 }
 
 /* ── Reduced motion ───────────────────────────────────────────────────── */

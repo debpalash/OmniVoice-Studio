@@ -61,10 +61,6 @@
 .now-playing i:nth-child(2) { height: 80%; animation-delay: 0.15s; }
 .now-playing i:nth-child(3) { height: 60%; animation-delay: 0.3s; }
 .now-playing i:nth-child(4) { height: 95%; animation-delay: 0.45s; }
-@keyframes eq {
-  0%, 100% { transform: scaleY(0.4); }
-  50% { transform: scaleY(1); }
-}
 @media (prefers-reduced-motion: reduce) {
   .now-playing i { animation: none; }
 }

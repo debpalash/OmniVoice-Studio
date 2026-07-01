@@ -26,10 +26,6 @@
   /* grow-in once on mount */
   animation: goalFill 1s var(--ease-spring) both;
 }
-@keyframes goalFill {
-  0%   { width: 0; }
-  100% { width: calc(var(--goal-pct, 0) * 100%); }
-}
 
 /* ONE shimmer pass over the fill (token @keyframes shimmer in index.css). */
 .goal__shimmer {
@@ -57,10 +53,6 @@
   z-index: 1;
   /* slide Pip to its perch in sync with the fill grow-in */
   animation: goalPip 1s var(--ease-spring) both;
-}
-@keyframes goalPip {
-  0%   { left: 0; }
-  100% { left: calc(var(--goal-pct, 0) * 100%); }
 }
 
 /* ── Caption ──────────────────────────────────────────────────────────── */
@@ -99,15 +91,6 @@
 .pip--waving .pip__arm {
   transform-origin: 24px 11px;
   animation: pipWave 1.8s ease-in-out infinite;
-}
-@keyframes pipBob {
-  0%, 100% { transform: translateY(0) scaleY(1); }
-  50%      { transform: translateY(-1px) scaleY(1.03); }
-}
-@keyframes pipWave {
-  0%, 60%, 100% { transform: rotate(0deg); }
-  20%           { transform: rotate(-22deg); }
-  40%           { transform: rotate(-6deg); }
 }
 
 /* ════════════════════════════════════════════════════════════════════════

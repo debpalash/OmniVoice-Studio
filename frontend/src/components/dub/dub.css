@@ -80,7 +80,6 @@
   color: var(--chrome-fg);
 }
 .dub-stepper__spin { animation: dub-stepper-spin 1s linear infinite; }
-@keyframes dub-stepper-spin { to { transform: rotate(360deg); } }
 
 /* ── Idle / drop-zone ─────────────────────────────────────────────────── */
 .dub-idle-drop {
@@ -96,10 +95,6 @@
   transition: background 0.3s, border-color 0.3s;
   margin: 2px;
   background: transparent;
-}
-@keyframes dub-pulse {
-  0%, 100% { border-color: rgba(211, 134, 155, 0.3); background: rgba(211, 134, 155, 0.04); }
-  50%      { border-color: rgba(211, 134, 155, 0.6); background: rgba(211, 134, 155, 0.08); }
 }
 .dub-idle-drop.is-dragging {
   border-color: #d3869b;
@@ -254,10 +249,6 @@
   animation: dub-skel-shimmer 1.4s ease-in-out infinite;
 }
 .dub-skel-cell-acts__icon { opacity: 0.3; }
-@keyframes dub-skel-shimmer {
-  0%   { background-position: 100% 0; }
-  100% { background-position: 0 0; }
-}
 
 /* ── Reduced motion: shimmer/pulse die; stepper spinner holds a frame ── */
 @media (prefers-reduced-motion: reduce) {

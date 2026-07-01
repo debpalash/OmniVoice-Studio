@@ -36,6 +36,3 @@
   color: var(--chrome-fg-muted);
 }
 
-@keyframes voicepanel-spin {
-  to { transform: rotate(360deg); }
-}

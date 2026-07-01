@@ -132,14 +132,6 @@
 }
 
 /* ── Launch animation ─────────────────────────────────────────── */
-@keyframes ui-app-launch {
-  from { opacity: 0; transform: translateY(6px) scale(0.995); filter: blur(6px); }
-  to   { opacity: 1; transform: translateY(0)    scale(1);     filter: blur(0);   }
-}
-@keyframes ui-app-launch-reduced {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
 #root {
   animation: ui-app-launch 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -148,10 +140,6 @@
 }
 
 /* Skeleton shimmer utility for first-load placeholders */
-@keyframes ui-skel-shimmer {
-  from { background-position: -200% 0; }
-  to   { background-position:  200% 0; }
-}
 .ui-skel {
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
@@ -507,18 +495,6 @@
 }
 
 /* ═══ ANIMATIONS ═══ */
-@keyframes mesh {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(251,73,52,0.4); } 50% { opacity: 0.85; box-shadow: 0 0 12px 4px rgba(251,73,52,0.3); } }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
 
 /* ═══ FOUNDATION ═══ */
 *, *::before, *::after { box-sizing: border-box; }
@@ -778,14 +754,6 @@ html[data-zoom-layout='off'] .app-container {
   padding-right: 8px;
 }
 
-@keyframes flush-slide {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes hqPulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.15); opacity: 0.7; }
-}
 /* Responsive header — hide low-priority elements as width tightens.
    Priority (least → most important):
    reload → wave → kicker+chevron → project name → stats pill → S/M/L picker
@@ -813,10 +781,6 @@ html[data-zoom-layout='off'] .app-container {
 .header-area > div { min-width: 0; overflow: hidden; }
 .header-area > div:nth-child(2),
 .header-area > div:nth-child(3) { overflow: visible; }
-@keyframes hqBounce {
-  0%, 100% { transform: scaleY(0.6); opacity: 0.75; }
-  50% { transform: scaleY(1.25); opacity: 1; }
-}
 .header-area h1 {
   font-size: 1.05rem; font-weight: 700; line-height: 1.15;
   background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
@@ -1207,20 +1171,6 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
   bottom: -120px; right: -80px;
   animation: lpDrift3 32s ease-in-out infinite;
 }
-@keyframes lpDrift1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(120px, 60px) scale(1.15); }
-  66%      { transform: translate(-40px, 100px) scale(0.9); }
-}
-@keyframes lpDrift2 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50%      { transform: translate(-180px, -90px) scale(1.1); }
-}
-@keyframes lpDrift3 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  40%      { transform: translate(-100px, -60px) scale(1.05); }
-  75%      { transform: translate(60px,  -30px) scale(0.95); }
-}
 
 /* Hero H1 halo + sweep — eternal glow behind the (now utility-styled) <h1>
    and an animated accent line underneath. Kept here because they are pure
@@ -1239,10 +1189,6 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
   pointer-events: none;
   animation: lpHeroHalo 6s ease-in-out infinite;
 }
-@keyframes lpHeroHalo {
-  0%, 100% { opacity: 0.55; transform: scale(1); }
-  50%      { opacity: 0.95; transform: scale(1.06); }
-}
 .lp-hero__sweep {
   position: absolute;
   left: 0; right: 0;
@@ -1259,10 +1205,6 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
   animation: lpHeroSweep 5.4s ease-in-out infinite;
   pointer-events: none;
   border-radius: 2px;
-}
-@keyframes lpHeroSweep {
-  0%, 100% { transform: scaleX(0.35); opacity: 0.35; }
-  50%      { transform: scaleX(1);    opacity: 0.85; }
 }
 /* Action cards — flat chrome frame, painted with:
      • an always-on breath ring (the "eternal glow")
@@ -1345,10 +1287,6 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
 .lp-action-card:nth-child(1) .lp-glow-layer::after { animation-delay: 0s; }
 .lp-action-card:nth-child(2) .lp-glow-layer::after { animation-delay: -1.7s; }
 .lp-action-card:nth-child(3) .lp-glow-layer::after { animation-delay: -3.4s; }
-@keyframes lpBreath {
-  0%, 100% { opacity: 0.15; box-shadow: 0 0 0 0 transparent; }
-  50%      { opacity: 0.55; box-shadow: 0 0 22px 0 color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 20%, transparent); }
-}
 /* Count badge leans on card hue too instead of hardcoded rgba. */
 .lp-action-card .card-count {
   border-color: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 50%, transparent) !important;
@@ -1410,10 +1348,6 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
 }
 
 /* Staggered fade-in */
-@keyframes lpFadeUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
 .lp-animate { animation: lpFadeUp 0.4s cubic-bezier(0.4,0,0.2,1) both; }
 .lp-animate:nth-child(1) { animation-delay: 0s; }
 .lp-animate:nth-child(2) { animation-delay: 0.06s; }
@@ -1423,23 +1357,6 @@ select:focus:not(:focus-visible) { outline: none; box-shadow: none; }
    the group breathes organically instead of marching in lockstep. Colour
    shifts between chrome fg + accent through the cycle so the visualiser
    feels like it's tuning into a real signal. */
-@keyframes lpWaveBeat {
-  0%, 100% {
-    transform: scaleY(0.45);
-    background: var(--chrome-fg-muted);
-    box-shadow: none;
-  }
-  35% {
-    transform: scaleY(1.15);
-    background: var(--chrome-accent);
-    box-shadow: 0 0 6px color-mix(in srgb, var(--chrome-accent) 55%, transparent);
-  }
-  65% {
-    transform: scaleY(0.8);
-    background: color-mix(in srgb, var(--chrome-accent) 60%, var(--chrome-fg-muted));
-    box-shadow: none;
-  }
-}
 .lp-wave-bar {
   display: inline-block;
   width: 3px;
@@ -1955,4 +1872,235 @@ input[type="file"]::file-selector-button:hover {
   background: var(--chrome-hover-bg);
   color: var(--chrome-fg);
   border-color: var(--chrome-border-strong);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   === Animations ===
+   ALL @keyframes for the app, centralized here (they are global by name,
+   so position is irrelevant — a reference anywhere resolves to these).
+   Folded in from the former per-component stylesheets during the CSS
+   consolidation pass. Add new @keyframes to THIS section only.
+   ════════════════════════════════════════════════════════════════════ */
+@keyframes ui-app-launch {
+  from { opacity: 0; transform: translateY(6px) scale(0.995); filter: blur(6px); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);     filter: blur(0);   }
+}
+@keyframes ui-app-launch-reduced {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes ui-skel-shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position:  200% 0; }
+}
+@keyframes mesh {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(251,73,52,0.4); } 50% { opacity: 0.85; box-shadow: 0 0 12px 4px rgba(251,73,52,0.3); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes flush-slide {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes hqPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.7; }
+}
+@keyframes hqBounce {
+  0%, 100% { transform: scaleY(0.6); opacity: 0.75; }
+  50% { transform: scaleY(1.25); opacity: 1; }
+}
+@keyframes lpDrift1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(120px, 60px) scale(1.15); }
+  66%      { transform: translate(-40px, 100px) scale(0.9); }
+}
+@keyframes lpDrift2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-180px, -90px) scale(1.1); }
+}
+@keyframes lpDrift3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  40%      { transform: translate(-100px, -60px) scale(1.05); }
+  75%      { transform: translate(60px,  -30px) scale(0.95); }
+}
+@keyframes lpHeroHalo {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 0.95; transform: scale(1.06); }
+}
+@keyframes lpHeroSweep {
+  0%, 100% { transform: scaleX(0.35); opacity: 0.35; }
+  50%      { transform: scaleX(1);    opacity: 0.85; }
+}
+@keyframes lpBreath {
+  0%, 100% { opacity: 0.15; box-shadow: 0 0 0 0 transparent; }
+  50%      { opacity: 0.55; box-shadow: 0 0 22px 0 color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 20%, transparent); }
+}
+@keyframes lpFadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes lpWaveBeat {
+  0%, 100% {
+    transform: scaleY(0.45);
+    background: var(--chrome-fg-muted);
+    box-shadow: none;
+  }
+  35% {
+    transform: scaleY(1.15);
+    background: var(--chrome-accent);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--chrome-accent) 55%, transparent);
+  }
+  65% {
+    transform: scaleY(0.8);
+    background: color-mix(in srgb, var(--chrome-accent) 60%, var(--chrome-fg-muted));
+    box-shadow: none;
+  }
+}
+@keyframes ui-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+@keyframes ui-progress-indet {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(433%); } /* (100% - 30%) / 30% * 100 + 100 */
+}
+@keyframes mlp-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes rc-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes voice-selector-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes pill-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 14px) scale(0.92);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes pill-exit {
+  to {
+    opacity: 0;
+    transform: translate(-50%, 10px) scale(0.95);
+    filter: blur(2px);
+  }
+}
+@keyframes pill-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7); }
+}
+@keyframes pill-progress-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+@keyframes compare-drawer-slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes pill-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.6); }
+}
+@keyframes voice-preview-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes fr-breathe {
+  from { transform: scaleY(calc(var(--h, 0.4) * 0.55)); opacity: 0.22; }
+  to   { transform: scaleY(var(--h, 0.4)); opacity: 0.6; }
+}
+@keyframes fr-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fr-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+@keyframes version-dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--chrome-accent, #b8bb26) 55%, transparent); }
+  50%      { box-shadow: 0 0 0 4px color-mix(in srgb, var(--chrome-accent, #b8bb26) 0%, transparent); }
+}
+@keyframes heart-glow {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.08); }
+}
+@keyframes voicepanel-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes stampThunk {
+  0%   { transform: scale(1.7) rotate(-14deg); opacity: 0; }
+  55%  { transform: scale(0.92) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-5deg); opacity: 1; }
+}
+@keyframes postcardIn {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes postcardOut {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(10px) scale(0.97); }
+}
+@keyframes goalFill {
+  0%   { width: 0; }
+  100% { width: calc(var(--goal-pct, 0) * 100%); }
+}
+@keyframes goalPip {
+  0%   { left: 0; }
+  100% { left: calc(var(--goal-pct, 0) * 100%); }
+}
+@keyframes pipBob {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50%      { transform: translateY(-1px) scaleY(1.03); }
+}
+@keyframes pipWave {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  20%           { transform: rotate(-22deg); }
+  40%           { transform: rotate(-6deg); }
+}
+@keyframes dub-stepper-spin { to { transform: rotate(360deg); } }
+@keyframes dub-pulse {
+  0%, 100% { border-color: rgba(211, 134, 155, 0.3); background: rgba(211, 134, 155, 0.04); }
+  50%      { border-color: rgba(211, 134, 155, 0.6); background: rgba(211, 134, 155, 0.08); }
+}
+@keyframes dub-skel-shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+@keyframes eq {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
+@keyframes batch-shimmer {
+  0%   { opacity: 0; }
+  50%  { opacity: 1; }
+  100% { opacity: 0; }
 }

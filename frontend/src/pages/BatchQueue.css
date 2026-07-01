@@ -18,8 +18,3 @@
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
   animation: batch-shimmer 1.5s ease-in-out infinite;
 }
-@keyframes batch-shimmer {
-  0%   { opacity: 0; }
-  50%  { opacity: 1; }
-  100% { opacity: 0; }
-}

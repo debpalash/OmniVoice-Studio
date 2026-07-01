@@ -42,26 +42,7 @@
   animation: pill-exit 0.25s var(--ease-out) both;
 }
 
-@keyframes pill-enter {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 14px) scale(0.92);
-    filter: blur(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, 0) scale(1);
-    filter: blur(0);
-  }
-}
 
-@keyframes pill-exit {
-  to {
-    opacity: 0;
-    transform: translate(-50%, 10px) scale(0.95);
-    filter: blur(2px);
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .floating-pill { animation: none; opacity: 1; }
@@ -92,10 +73,6 @@
 .floating-pill__dot--done          { background: var(--color-success); animation: none; }
 .floating-pill__dot--error         { background: var(--color-danger); animation: none; }
 
-@keyframes pill-dot-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%      { opacity: 0.4; transform: scale(0.7); }
-}
 
 /* ── Content area ───────────────────────────────────────────────────── */
 /* .floating-pill__content / __label / __meta / __timer / __error layout
@@ -119,10 +96,6 @@
   animation: pill-progress-sweep 1.4s ease-in-out infinite;
 }
 
-@keyframes pill-progress-sweep {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(300%); }
-}
 
 /* ── Dismiss button ─────────────────────────────────────────────────── */
 /* .floating-pill__dismiss + :hover moved to Tailwind utilities on the JSX. */
