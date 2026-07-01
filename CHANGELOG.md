@@ -177,6 +177,15 @@ across dub, generate, and design (a corrupt-binary failure no longer poses as
   "get a free token" link. (#657, #669)
 ### Fixed
 
+- **Bug reports redact more secrets and every Windows username casing.** The
+  opt-in bug-report scrubber now catches more credential shapes (JWT/Bearer,
+  Google, Slack, AWS keys, and `?token=`/`?api_key=` URL secrets), redacts
+  Windows home paths regardless of `Users`/`users` casing, and stops a superstring
+  username (`/Users/john` vs `/Users/johnny`) from leaking a fragment. The
+  prefilled-issue URL is now bounded by its *encoded* length so a large report
+  can't silently truncate. Nothing new leaves the machine — this only makes the
+  existing local-first, user-reviewed report stricter. (#856)
+
 - **A hung TTS generate can no longer brick the backend ("Can't reach the local
   backend").** A GPU job that wedges on some Windows + CUDA setups occupies its
   worker forever — Python can't cancel the thread — so on the 1–2 worker pools we
