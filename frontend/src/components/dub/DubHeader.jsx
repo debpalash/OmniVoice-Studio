@@ -34,24 +34,24 @@ export default function DubHeader({
   setExportOpen,
 }) {
   return (
-    <div className="flex flex-wrap justify-between items-center gap-x-[var(--space-3)] gap-y-[4px] px-[12px] py-[5px] shrink-0 bg-[rgba(255,255,255,0.015)] [border:1px_solid_rgba(255,255,255,0.04)] rounded-md mb-[2px]">
+    <div className="flex flex-wrap justify-between items-center gap-x-[var(--space-2)] gap-y-[4px] min-w-0 px-[10px] py-[4px] shrink-0 bg-[var(--color-bg-elev-1)] rounded-md mb-[2px]">
       {/* Pipeline spine, inlined onto the header row (Upload → … → Export). */}
       <DubPipelineStepper dubStep={dubStep} inline />
-      <div className="label-row dub-head__title">
+      <div className="label-row dub-head__title !gap-[6px]">
         <FileText className="label-icon" size={11} />
-        <span className="font-semibold text-[0.85rem] overflow-hidden text-ellipsis whitespace-nowrap text-fg">
+        <span className="font-medium text-[0.78rem] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-fg normal-case">
           {dubFilename}
         </span>
-        <span className="text-fg-muted font-normal whitespace-nowrap text-[0.72rem]">
+        <span className="text-fg-muted font-normal whitespace-nowrap text-[0.68rem] normal-case shrink-0">
           · {formatTime(dubDuration)} · {dubSegments.length} {t('dub.segs')}
         </span>
         {activeProjectName && activeProjectName !== dubFilename && (
-          <span className="text-[#b8bb26] ml-[var(--space-3)] whitespace-nowrap text-[0.72rem]">
+          <span className="text-[#b8bb26] ml-[var(--space-2)] whitespace-nowrap text-[0.68rem] normal-case overflow-hidden text-ellipsis min-w-0">
             — {activeProjectName}
           </span>
         )}
       </div>
-      <div className="flex gap-[var(--space-2)] items-center shrink-0">
+      <div className="flex gap-[6px] items-center shrink-0">
         {/* Icon-only secondary actions (tooltips carry the labels);
                   Generate Dub keeps its label as the primary verb. */}
         <Button
@@ -73,7 +73,7 @@ export default function DubHeader({
           <RotateCcw size={12} />
         </Button>
         {/* Primary actions live on the header bar (compact) — moved up from the footer. */}
-        <div className="flex gap-[var(--space-2)] items-center pl-[var(--space-2)] [border-left:1px_solid_var(--color-border,#3a3a3a)]">
+        <div className="flex gap-[6px] items-center pl-[var(--space-2)] ml-[2px]">
           {dubStep === 'stopping' ? (
             <FooterBtn
               sm

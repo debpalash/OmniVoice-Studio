@@ -3489,9 +3489,19 @@ body:has(.capture-pill) {
   flex: 0 1 auto;
   min-width: 0;
 }
+/* Tighter footprint when inlined on the header row so the stages, title, and
+   actions all fit before wrapping. */
+.dub-stepper--inline .dub-stepper__step {
+  gap: 5px;
+  font-size: 0.66rem;
+}
+.dub-stepper--inline .dub-stepper__icon {
+  width: 19px;
+  height: 19px;
+}
 .dub-stepper--inline .dub-stepper__step:not(:first-child)::before {
-  width: 14px;
-  margin: 0 5px;
+  width: 10px;
+  margin: 0 4px;
 }
 
 /* ── Idle / drop-zone ─────────────────────────────────────────────────── */
