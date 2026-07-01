@@ -1,0 +1,35 @@
+import React, { useCallback } from 'react';
+import { toast } from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
+import { addBreadcrumb } from '../../utils/breadcrumbs';
+import { selectEngine } from '../../api/engines';
+import EngineCompatibilityMatrix from '../EngineCompatibilityMatrix';
+import { SETTINGS_SECTION_SURFACE } from './primitives';
+
+export default function EnginesTab() {
+  const { t } = useTranslation();
+
+  // Plan 02-04 / ENGINE-06 — engine selection is wired through the
+  // matrix component's optional onSelect callback so the matrix doubles
+  // as a picker. Keeps a single source of truth for the engine list +
+  // its install / GPU / isolation state.
+  //
+  // Review mode (the staged-checkpoint nudges) moved to Settings → General.
+  const onSelect = useCallback(async (family, backendId) => {
+    try {
+      addBreadcrumb(`engine:${family}=${backendId}`);
+      const r = await selectEngine(family, backendId);
+      toast.success(
+        t('settings.engine_switched', { family: family.toUpperCase(), engine: r.active }),
+      );
+    } catch (e) {
+      toast.error(e.message || t('engines.switch_failed'));
+    }
+  }, []);
+
+  return (
+    <section className={SETTINGS_SECTION_SURFACE} data-slot="settings-section">
+      <EngineCompatibilityMatrix family="tts" onSelect={onSelect} />
+    </section>
+  );
+}

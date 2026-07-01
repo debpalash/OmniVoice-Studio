@@ -13,7 +13,11 @@ const WORKLET_URL = '/aec-worklet.js';
  * @param {{sampleRate?: number, frameSize?: number}} opts
  * @returns {Promise<() => Promise<void>>}  async stop() that tears down the graph
  */
-export async function startMicCapture(stream, onFrame, { sampleRate = 16000, frameSize = 320 } = {}) {
+export async function startMicCapture(
+  stream,
+  onFrame,
+  { sampleRate = 16000, frameSize = 320 } = {},
+) {
   const Ctx = window.AudioContext || window.webkitAudioContext;
   const ctx = new Ctx({ sampleRate });
   await ctx.audioWorklet.addModule(WORKLET_URL);
@@ -27,9 +31,25 @@ export async function startMicCapture(stream, onFrame, { sampleRate = 16000, fra
   src.connect(node);
 
   return async function stop() {
-    try { node.port.onmessage = null; } catch { /* ignore */ }
-    try { node.disconnect(); } catch { /* ignore */ }
-    try { src.disconnect(); } catch { /* ignore */ }
-    try { await ctx.close(); } catch { /* ignore */ }
+    try {
+      node.port.onmessage = null;
+    } catch {
+      /* ignore */
+    }
+    try {
+      node.disconnect();
+    } catch {
+      /* ignore */
+    }
+    try {
+      src.disconnect();
+    } catch {
+      /* ignore */
+    }
+    try {
+      await ctx.close();
+    } catch {
+      /* ignore */
+    }
   };
 }

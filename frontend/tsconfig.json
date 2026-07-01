@@ -19,6 +19,9 @@
     "noImplicitAny": false,
     "noEmit": true,
     "baseUrl": "./src",
+    "paths": {
+      "@/*": ["./*"]
+    },
     "types": ["vite/client"],
     "ignoreDeprecations": "6.0"
   },

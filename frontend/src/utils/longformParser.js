@@ -18,7 +18,7 @@ export const PAUSE_MAX_MS = 10000;
 // body. Moved-equivalent of audiobook.py _HEADING_RE. Global+multiline.
 const HEADING_RE = /^[ \t]*#[ \t]+(\S.*)$/gm;
 // [voice:NAME] — content excludes BOTH brackets (mirrors _VOICE_RE).
-const VOICE_RE = /\[voice:([^\]\[]*)\]/g;
+const VOICE_RE = /\[voice:([^\][]*)\]/g;
 // Pause dialect mirroring omnivoice.utils.text._PAUSE_RE. JS has no atomic
 // group; the unit's own `(?:\s*(ms|s))?` is zero-width when no unit follows, so
 // the trailing `\s*` is the ONLY consumer of trailing whitespace — no two `\s*`
@@ -40,13 +40,13 @@ function _pauseMs(num, unit) {
   if (num == null) return PAUSE_DEFAULT_MS;
   const value = parseFloat(num);
   if (!Number.isFinite(value)) return PAUSE_DEFAULT_MS;
-  const ms = (unit && unit.toLowerCase() === 's') ? value * 1000 : value;
+  const ms = unit && unit.toLowerCase() === 's' ? value * 1000 : value;
   const msInt = roundHalfToEven(ms);
   return Math.max(0, Math.min(msInt, PAUSE_MAX_MS));
 }
 
 /** Mirror of text.py:parse_pause_markers → [[spanText, pauseMsAfter], …]. */
-export function parsePauseMarkers(text) {
+function parsePauseMarkers(text) {
   if (!text || text.indexOf('[') === -1) return [[text, 0]];
   const segments = [];
   let last = 0;
@@ -72,7 +72,7 @@ export function parsePauseMarkers(text) {
 }
 
 /** Mirror of the voice-split in _parse_chapter_body → [[voiceId, runText], …]. */
-export function parseVoiceRuns(body, defaultVoice) {
+function parseVoiceRuns(body, defaultVoice) {
   const runs = [];
   let curVoice = defaultVoice;
   let last = 0;
@@ -101,7 +101,7 @@ export function parseChapterBody(body, { defaultVoice = null, defaultSpeed = nul
       const t = (spanText || '').trim();
       if (!t && pauseMs === 0) continue;
       const rendered = [];
-      for (const seg of (t ? parseSsmlLite(t) : [])) {
+      for (const seg of t ? parseSsmlLite(t) : []) {
         const st = (seg.spell ? spellOut(seg.text) : seg.text).trim();
         if (st) {
           const sp = seg.speed != null ? seg.speed : defaultSpeed;
@@ -116,7 +116,8 @@ export function parseChapterBody(body, { defaultVoice = null, defaultSpeed = nul
       }
       rendered.forEach(([st, sp], j) => {
         spans.push({
-          voice_id: voice, text: st,
+          voice_id: voice,
+          text: st,
           pause_ms_after: j === rendered.length - 1 ? pauseMs : 0,
           speed: sp,
         });

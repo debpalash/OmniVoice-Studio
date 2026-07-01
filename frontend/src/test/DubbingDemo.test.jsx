@@ -8,14 +8,34 @@ import DubbingDemo from '../components/DubbingDemo';
 
 const MOCK_MANIFEST = {
   source: {
-    code: 'en', label: 'English',
-    video: 'source.mp4', srt: 'source.srt',
+    code: 'en',
+    label: 'English',
+    video: 'source.mp4',
+    srt: 'source.srt',
     script: 'OmniVoice runs entirely on your machine.',
   },
   dubbed: [
-    { code: 'es', label: 'Español', video: 'dubbed_es.mp4', dir: 'ltr', script: 'Funciona en tu máquina.' },
-    { code: 'fr', label: 'Français', video: 'dubbed_fr.mp4', dir: 'ltr', script: 'Fonctionne sur votre machine.' },
-    { code: 'ja', label: '日本語',   video: 'dubbed_ja.mp4', dir: 'ltr', script: 'マシン上で動作します。' },
+    {
+      code: 'es',
+      label: 'Español',
+      video: 'dubbed_es.mp4',
+      dir: 'ltr',
+      script: 'Funciona en tu máquina.',
+    },
+    {
+      code: 'fr',
+      label: 'Français',
+      video: 'dubbed_fr.mp4',
+      dir: 'ltr',
+      script: 'Fonctionne sur votre machine.',
+    },
+    {
+      code: 'ja',
+      label: '日本語',
+      video: 'dubbed_ja.mp4',
+      dir: 'ltr',
+      script: 'マシン上で動作します。',
+    },
   ],
 };
 
@@ -28,10 +48,12 @@ describe('DubbingDemo', () => {
 
   beforeEach(() => {
     originalFetch = global.fetch;
-    global.fetch = vi.fn(() => Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve(MOCK_MANIFEST),
-    }));
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(MOCK_MANIFEST),
+      }),
+    );
   });
 
   afterEach(() => {

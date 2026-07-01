@@ -22,8 +22,12 @@ describe('playBlobAudio fallback (#653 — long-form m4b on Tauri/WebView2)', ()
       state = 'running';
       destination = {};
       async resume() {}
-      async decodeAudioData() { throw new DOMException('Unable to decode audio data', 'EncodingError'); }
-      createBufferSource() { return { connect() {}, start() {}, stop() {} }; }
+      async decodeAudioData() {
+        throw new DOMException('Unable to decode audio data', 'EncodingError');
+      }
+      createBufferSource() {
+        return { connect() {}, start() {}, stop() {} };
+      }
       close() {}
     };
     global.fetch = vi.fn(async () => ({
@@ -31,8 +35,13 @@ describe('playBlobAudio fallback (#653 — long-form m4b on Tauri/WebView2)', ()
       json: async () => ({ url: '/preview/x.audio', audioUrl: '/preview/x.wav' }),
     }));
     global.Audio = class {
-      constructor(url) { this.src = url; audioSrcs.push(url); }
-      play() { return Promise.resolve(); }
+      constructor(url) {
+        this.src = url;
+        audioSrcs.push(url);
+      }
+      play() {
+        return Promise.resolve();
+      }
       pause() {}
     };
   });

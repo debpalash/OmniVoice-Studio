@@ -6,27 +6,41 @@ import { generateSpeech } from '../api/generate';
 import { Button, Panel, Field, Textarea, Select } from '../ui';
 import WaveformPlayer from './WaveformPlayer';
 import { useTranslation } from 'react-i18next';
-import './CompareModal.css';
 
 export default function CompareModal({
-  open, onClose,
+  open,
+  onClose,
   profiles,
-  compareText, setCompareText,
-  compareVoiceA, setCompareVoiceA,
-  compareVoiceB, setCompareVoiceB,
-  compareResultA, setCompareResultA,
-  compareResultB, setCompareResultB,
-  compareProgress, setCompareProgress,
-  isComparing, setIsComparing,
-  steps, cfg, speed, denoise, postprocess,
-  fileToMediaUrl, loadHistory,
+  compareText,
+  setCompareText,
+  compareVoiceA,
+  setCompareVoiceA,
+  compareVoiceB,
+  setCompareVoiceB,
+  compareResultA,
+  setCompareResultA,
+  compareResultB,
+  setCompareResultB,
+  compareProgress,
+  setCompareProgress,
+  isComparing,
+  setIsComparing,
+  steps,
+  cfg,
+  speed,
+  denoise,
+  postprocess,
+  fileToMediaUrl,
+  loadHistory,
 }) {
   const drawerRef = useRef(null);
   const { t } = useTranslation();
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
     const onPointer = (e) => {
       if (drawerRef.current && !drawerRef.current.contains(e.target)) onClose?.();
     };
@@ -52,14 +66,14 @@ export default function CompareModal({
       let fin_prof = voiceId;
       let fin_inst = '';
       if (fin_prof.startsWith('preset:')) {
-        const pr = PRESETS.find(p => p.id === fin_prof.replace('preset:', ''));
+        const pr = PRESETS.find((p) => p.id === fin_prof.replace('preset:', ''));
         if (pr) {
-          const parts = Object.values(pr.attrs).filter(v => v !== 'Auto');
+          const parts = Object.values(pr.attrs).filter((v) => v !== 'Auto');
           fin_inst = parts.join(', ');
         }
         fin_prof = '';
-      } else if (profiles.find(p => p.id === fin_prof)?.instruct) {
-        fin_inst = profiles.find(p => p.id === fin_prof).instruct;
+      } else if (profiles.find((p) => p.id === fin_prof)?.instruct) {
+        fin_inst = profiles.find((p) => p.id === fin_prof).instruct;
       }
       if (fin_prof) formData.append('profile_id', fin_prof);
       if (fin_inst) formData.append('instruct', fin_inst);
@@ -97,16 +111,24 @@ export default function CompareModal({
   if (!open) return null;
 
   return (
-    <div className="compare-drawer" role="dialog" aria-modal="false" aria-label={t('compare.title')}>
+    <div
+      className="compare-drawer"
+      role="dialog"
+      aria-modal="false"
+      aria-label={t('compare.title')}
+    >
       <div className="compare-drawer__sheet" ref={drawerRef}>
-        <header className="compare-drawer__head">
-          <span className="compare-drawer__handle" aria-hidden="true" />
-          <span className="compare-drawer__title">
+        <header className="relative flex items-center gap-[var(--space-3)] p-[10px_var(--space-4)] [border-bottom:1px_solid_var(--chrome-border)] [background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]">
+          <span
+            className="absolute top-[4px] left-1/2 -translate-x-1/2 w-[36px] h-[3px] rounded-[2px] bg-[var(--chrome-border-strong)]"
+            aria-hidden="true"
+          />
+          <span className="inline-flex items-center gap-[6px] [font-family:var(--font-display,inherit)] text-[length:var(--text-md)] font-semibold text-[var(--chrome-fg)]">
             <Scale size={14} /> {t('compare.title')}
           </span>
           <button
             type="button"
-            className="compare-drawer__close"
+            className="ml-auto inline-flex h-[var(--chrome-icon-btn,22px)] w-[var(--chrome-icon-btn,22px)] cursor-pointer items-center justify-center rounded-[var(--chrome-radius-pill)] bg-transparent text-[var(--chrome-fg-muted)] [border:1px_solid_transparent] transition-[background,color,border-color] duration-[var(--dur-fast)] hover:border-[var(--chrome-border-strong)] hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--chrome-fg)]"
             onClick={onClose}
             aria-label={t('compare.close')}
           >
@@ -114,21 +136,21 @@ export default function CompareModal({
           </button>
         </header>
 
-        <div className="compare-drawer__body">
-          <p className="ui-compare__desc">
+        <div className="overflow-y-auto p-[var(--space-4)]">
+          <p className="mx-0 mt-0 mb-[var(--space-5)] text-[length:var(--text-base)] text-fg-muted leading-[1.5]">
             {t('compare.desc')}
           </p>
 
           <Field label={t('compare.test_phrase')}>
             <Textarea
               value={compareText}
-              onChange={e => setCompareText(e.target.value)}
+              onChange={(e) => setCompareText(e.target.value)}
               rows={2}
-              className="compare-textarea--noresize"
+              className="resize-none"
             />
           </Field>
 
-          <div className="ui-compare__grid">
+          <div className="ui-compare__grid grid grid-cols-2 gap-[var(--space-6)] mt-[var(--space-5)]">
             <CompareSide
               accent="var(--color-brand)"
               label={t('compare.voice_a')}
@@ -148,8 +170,10 @@ export default function CompareModal({
           </div>
         </div>
 
-        <footer className="compare-drawer__foot">
-          <Button variant="ghost" onClick={onClose}>{t('compare.close_btn')}</Button>
+        <footer className="flex justify-end gap-[var(--space-2)] bg-[var(--chrome-bg)] p-[var(--space-3)_var(--space-4)] [border-top:1px_solid_var(--chrome-border)]">
+          <Button variant="ghost" onClick={onClose}>
+            {t('compare.close_btn')}
+          </Button>
           <Button
             variant="primary"
             loading={isComparing}
@@ -157,7 +181,7 @@ export default function CompareModal({
             onClick={runCompare}
             leading={!isComparing && <Play size={12} />}
           >
-            {isComparing ? (compareProgress || t('compare.comparing')) : t('compare.compare_btn')}
+            {isComparing ? compareProgress || t('compare.comparing') : t('compare.compare_btn')}
           </Button>
         </footer>
       </div>
@@ -169,20 +193,33 @@ function CompareSide({ accent, label, profiles, value, onChange, audio }) {
   const { t } = useTranslation();
   return (
     <Panel variant="flat" padding="sm">
-      <h3 className="ui-compare__head" style={{ color: accent }}>
+      <h3
+        className="mx-0 mt-0 mb-[var(--space-4)] flex items-center justify-center gap-[var(--space-3)] [font-family:var(--font-display)] text-[length:var(--text-lg)] [font-weight:var(--weight-bold)]"
+        style={{ color: accent }}
+      >
         <Fingerprint size={14} /> {label}
       </h3>
       <Field>
-        <Select value={value} onChange={e => onChange(e.target.value)}>
+        <Select value={value} onChange={(e) => onChange(e.target.value)}>
           <option value="">{t('compare.select_voice')}</option>
-          {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          {PRESETS.map(p => <option key={p.id} value={`preset:${p.id}`}>{p.name} {t('compare.preset_suffix')}</option>)}
+          {profiles.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+          {PRESETS.map((p) => (
+            <option key={p.id} value={`preset:${p.id}`}>
+              {p.name} {t('compare.preset_suffix')}
+            </option>
+          ))}
         </Select>
       </Field>
       {audio ? (
-        <WaveformPlayer src={audio} source="compare" className="ui-compare__audio" />
+        <WaveformPlayer src={audio} source="compare" className="mt-[var(--space-3)] w-full" />
       ) : (
-        <div className="ui-compare__audio-empty">{t('compare.no_audio')}</div>
+        <div className="mt-[var(--space-3)] flex h-[32px] items-center justify-center rounded-sm bg-bg-elev-2 text-[length:var(--text-sm)] italic text-fg-subtle">
+          {t('compare.no_audio')}
+        </div>
       )}
     </Panel>
   );

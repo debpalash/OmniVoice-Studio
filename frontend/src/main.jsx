@@ -38,7 +38,8 @@ window.addEventListener('mousedown', (e) => {
   const t = e.target;
   if (!t || typeof t.closest !== 'function') return;
   if (!t.closest('[data-tauri-drag-region]')) return;
-  if (t.closest('button, a, input, select, textarea, label, [role="button"], [contenteditable]')) return;
+  if (t.closest('button, a, input, select, textarea, label, [role="button"], [contenteditable]'))
+    return;
   e.preventDefault();
   doubleClickMaximize();
 });

@@ -19,11 +19,16 @@ function renderModal(extra = {}) {
       filename="video.mp4"
       dubTracks={['es', 'fr']}
       dubLangCode="es"
-      preserveBg={false} setPreserveBg={noop}
-      defaultTrack="original" setDefaultTrack={noop}
-      exportTracks={{}} setExportTracks={noop}
-      dualSubs={false} setDualSubs={noop}
-      burnSubs={false} setBurnSubs={noop}
+      preserveBg={false}
+      setPreserveBg={noop}
+      defaultTrack="original"
+      setDefaultTrack={noop}
+      exportTracks={{}}
+      setExportTracks={noop}
+      dualSubs={false}
+      setDualSubs={noop}
+      burnSubs={false}
+      setBurnSubs={noop}
       API=""
       triggerDownload={noop}
       handleDubDownload={noop}
@@ -31,7 +36,7 @@ function renderModal(extra = {}) {
       handleAudioExport={noop}
       segmentCount={3}
       {...extra}
-    />
+    />,
   );
 }
 
@@ -41,7 +46,9 @@ describe('ExportModal (regression #183)', () => {
   });
 
   it('renders nothing when closed', () => {
-    const { container } = render(<ExportModal open={false} onClose={noop} dubTracks={[]} exportTracks={{}} />);
+    const { container } = render(
+      <ExportModal open={false} onClose={noop} dubTracks={[]} exportTracks={{}} />,
+    );
     expect(container.firstChild).toBeNull();
   });
 });

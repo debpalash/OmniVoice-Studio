@@ -14,7 +14,9 @@ describe('parseFilenameFromContentDisposition', () => {
   });
 
   it('prefers and decodes the RFC 5987 UTF-8 form', () => {
-    expect(parseFilenameFromContentDisposition("attachment; filename*=UTF-8''my%20clip.wav")).toBe('my clip.wav');
+    expect(parseFilenameFromContentDisposition("attachment; filename*=UTF-8''my%20clip.wav")).toBe(
+      'my clip.wav',
+    );
   });
 });
 
@@ -51,7 +53,9 @@ describe('browserDownload', () => {
 
   it('throws when the response is not ok (so callers can surface an error toast)', async () => {
     const { deps } = makeDeps({ ok: false });
-    await expect(browserDownload('http://x/missing', 'foo.wav', deps)).rejects.toThrow('Download failed');
+    await expect(browserDownload('http://x/missing', 'foo.wav', deps)).rejects.toThrow(
+      'Download failed',
+    );
   });
 
   // Regression for #256: in the Docker/browser build there is no Tauri shell,
@@ -61,6 +65,8 @@ describe('browserDownload', () => {
   it('works with no Tauri globals defined', async () => {
     expect(typeof window === 'undefined' || window.__TAURI_INTERNALS__).toBeFalsy();
     const { deps } = makeDeps();
-    await expect(browserDownload('http://x/audio/foo.wav', 'foo.wav', deps)).resolves.toBe('foo.wav');
+    await expect(browserDownload('http://x/audio/foo.wav', 'foo.wav', deps)).resolves.toBe(
+      'foo.wav',
+    );
   });
 });

@@ -33,8 +33,26 @@ import { useAppStore } from '../store';
 
 const MODELS = {
   models: [
-    { id: 'sherpa-parakeet-tdt-v3', repo_id: 'org/parakeet-v3', label: 'Parakeet TDT v3', tag: 'offline', recommended: true, size_gb: 0.18, languages: '25 European languages', installed: true },
-    { id: 'sherpa-whisper-tiny', repo_id: 'org/whisper-tiny', label: 'Whisper Tiny', tag: 'offline', recommended: false, size_gb: 0.116, languages: '90+ languages', installed: false },
+    {
+      id: 'sherpa-parakeet-tdt-v3',
+      repo_id: 'org/parakeet-v3',
+      label: 'Parakeet TDT v3',
+      tag: 'offline',
+      recommended: true,
+      size_gb: 0.18,
+      languages: '25 European languages',
+      installed: true,
+    },
+    {
+      id: 'sherpa-whisper-tiny',
+      repo_id: 'org/whisper-tiny',
+      label: 'Whisper Tiny',
+      tag: 'offline',
+      recommended: false,
+      size_gb: 0.116,
+      languages: '90+ languages',
+      installed: false,
+    },
   ],
   engine_available: true,
   engine_reason: null,
@@ -53,19 +71,28 @@ describe('VoicePanel', () => {
     deleteMutate.mockClear();
     // Stub EventSource (jsdom lacks it).
     global.EventSource = class {
-      constructor() { this.onmessage = null; }
+      constructor() {
+        this.onmessage = null;
+      }
       close() {}
     };
     // /dictation/models and /dictation/prefs both go through apiJson.
     apiJson.mockImplementation((path) => {
       if (path === '/dictation/models') return Promise.resolve(MODELS);
-      if (path === '/dictation/prefs') return Promise.resolve({ enabled: true, mode: 'toggle', model_id: 'sherpa-parakeet-tdt-v3' });
+      if (path === '/dictation/prefs')
+        return Promise.resolve({
+          enabled: true,
+          mode: 'toggle',
+          model_id: 'sherpa-parakeet-tdt-v3',
+        });
       return Promise.resolve({});
     });
     apiPost.mockResolvedValue({ enabled: true, mode: 'toggle', model_id: 'sherpa-whisper-tiny' });
     useAppStore.setState({
-      dictationEnabled: true, dictationMode: 'toggle',
-      dictationModelId: 'sherpa-parakeet-tdt-v3', dictationLoaded: true,
+      dictationEnabled: true,
+      dictationMode: 'toggle',
+      dictationModelId: 'sherpa-parakeet-tdt-v3',
+      dictationLoaded: true,
     });
   });
   afterEach(() => vi.restoreAllMocks());
@@ -79,12 +106,16 @@ describe('VoicePanel', () => {
     // The switch reflects the enabled pref.
     expect(screen.getByRole('switch', { name: 'Enable Voice Dictation' })).toBeChecked();
     // The dropdown trigger shows the selected model once models load.
-    await waitFor(() => expect(screen.getByTestId('dictation-model-trigger')).toHaveTextContent('Parakeet TDT v3'));
+    await waitFor(() =>
+      expect(screen.getByTestId('dictation-model-trigger')).toHaveTextContent('Parakeet TDT v3'),
+    );
   });
 
   it('lists models with badges, size and install/delete affordances when expanded', async () => {
     render(withI18n(<VoicePanel />));
-    await waitFor(() => expect(screen.getByTestId('dictation-model-trigger')).toHaveTextContent('Parakeet TDT v3'));
+    await waitFor(() =>
+      expect(screen.getByTestId('dictation-model-trigger')).toHaveTextContent('Parakeet TDT v3'),
+    );
     fireEvent.click(screen.getByTestId('dictation-model-trigger'));
 
     const v3 = screen.getByTestId('dictation-model-sherpa-parakeet-tdt-v3').closest('li');
@@ -104,7 +135,9 @@ describe('VoicePanel', () => {
     fireEvent.click(screen.getByTestId('dictation-model-sherpa-whisper-tiny'));
 
     // Pref write-through (POST /dictation/prefs with the new model id).
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/dictation/prefs', { model_id: 'sherpa-whisper-tiny' }));
+    await waitFor(() =>
+      expect(apiPost).toHaveBeenCalledWith('/dictation/prefs', { model_id: 'sherpa-whisper-tiny' }),
+    );
     // Uninstalled → download started via the model-store install mutation.
     expect(installMutate).toHaveBeenCalledWith('org/whisper-tiny');
   });
@@ -112,6 +145,8 @@ describe('VoicePanel', () => {
   it('toggles the enable switch through the store write-through', async () => {
     render(withI18n(<VoicePanel />));
     fireEvent.click(screen.getByRole('switch', { name: 'Enable Voice Dictation' }));
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/dictation/prefs', { enabled: false }));
+    await waitFor(() =>
+      expect(apiPost).toHaveBeenCalledWith('/dictation/prefs', { enabled: false }),
+    );
   });
 });

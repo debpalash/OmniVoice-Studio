@@ -11,7 +11,7 @@ from core.db import db_conn
 from core.config import DUB_DIR, VOICES_DIR, dub_seg_path
 from core.tasks import task_manager
 from schemas.requests import DubRequest
-from services.model_manager import get_model, _gpu_pool
+from services.model_manager import get_model, _gpu_pool, run_on_gpu_pool_guarded
 from services.audio_dsp import apply_mastering, normalize_audio, apply_effects_chain, get_effect_chain
 from services.audio_io import atomic_save_wav, _safe_torchaudio_save
 from services.ffmpeg_utils import (
@@ -541,10 +541,14 @@ async def dub_generate(job_id: str, req: DubRequest):
                 # where dur_s is the slot hint.
                 _dur_for_tts = seg_duration if strategy == "strict_slot" else None
 
-                audio_tensor = await loop.run_in_executor(
-                    _gpu_pool, _gen,
-                    seg.text, seg_lang, seg_instruct, _dur_for_tts,
-                    _num_step, req.guidance_scale, seg_speed, seg_profile, seg_effect_preset,
+                # Bounded + pool-reset on hang so a wedged dub segment can't
+                # starve the GPU pool and brick the backend (#730 class).
+                audio_tensor = await run_on_gpu_pool_guarded(
+                    lambda: _gen(
+                        seg.text, seg_lang, seg_instruct, _dur_for_tts,
+                        _num_step, req.guidance_scale, seg_speed, seg_profile, seg_effect_preset,
+                    ),
+                    what="Dub generate",
                 )
                 _t_tts += time.perf_counter() - _t_tts_0
 
@@ -1152,8 +1156,9 @@ async def preview_segment(job_id: str, req: SegmentPreviewRequest):
         )
         return normalize_audio(mastered, target_dBFS=-2.0)
 
-    loop = asyncio.get_running_loop()
-    audio_tensor = await loop.run_in_executor(_gpu_pool, _gen)
+    # Bounded + pool-reset on hang so a wedged preview generate can't starve the
+    # GPU pool and brick the backend (#730 class).
+    audio_tensor = await run_on_gpu_pool_guarded(_gen, what="Dub preview generate")
 
     sr = getattr(_model, "sampling_rate", 24000)
     buf = io.BytesIO()

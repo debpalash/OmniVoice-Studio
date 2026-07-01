@@ -34,18 +34,29 @@ describe('_resolveApiBase', () => {
   });
 
   it('runtime window.__OMNIVOICE_API_BASE__ wins over everything (Docker prebuilt-image override)', () => {
-    const win = { __TAURI__: {}, __OMNIVOICE_API_BASE__: 'https://api.example.com/', location: { origin: 'http://x', hostname: 'x' } };
+    const win = {
+      __TAURI__: {},
+      __OMNIVOICE_API_BASE__: 'https://api.example.com/',
+      location: { origin: 'http://x', hostname: 'x' },
+    };
     // Beats Tauri loopback AND VITE_API_URL; trailing slash stripped.
-    expect(_resolveApiBase({ VITE_API_URL: 'http://10.0.0.5:9' }, win)).toBe('https://api.example.com');
+    expect(_resolveApiBase({ VITE_API_URL: 'http://10.0.0.5:9' }, win)).toBe(
+      'https://api.example.com',
+    );
   });
 
   it('honors VITE_OMNIVOICE_API (the documented Docker var) and strips trailing slash', () => {
     const win = { location: { origin: 'http://x', hostname: 'x' } };
-    expect(_resolveApiBase({ VITE_OMNIVOICE_API: 'http://10.0.0.5:9/' }, win)).toBe('http://10.0.0.5:9');
+    expect(_resolveApiBase({ VITE_OMNIVOICE_API: 'http://10.0.0.5:9/' }, win)).toBe(
+      'http://10.0.0.5:9',
+    );
   });
 
   it('Tauri via __TAURI_INTERNALS__ → loopback', () => {
-    const win = { __TAURI_INTERNALS__: {}, location: { origin: 'tauri://localhost', hostname: 'localhost' } };
+    const win = {
+      __TAURI_INTERNALS__: {},
+      location: { origin: 'tauri://localhost', hostname: 'localhost' },
+    };
     expect(_resolveApiBase({}, win)).toBe('http://127.0.0.1:3900');
   });
 });

@@ -50,19 +50,25 @@ describe('classifySherpaFinal', () => {
 describe('computeTypeDelta', () => {
   it('pure append: no backspaces, types only the new tail', () => {
     expect(computeTypeDelta('hello wor', 'hello world')).toEqual({
-      backspaces: 0, text: 'ld', noop: false,
+      backspaces: 0,
+      text: 'ld',
+      noop: false,
     });
   });
 
   it('types the whole string from empty', () => {
     expect(computeTypeDelta('', 'hello')).toEqual({
-      backspaces: 0, text: 'hello', noop: false,
+      backspaces: 0,
+      text: 'hello',
+      noop: false,
     });
   });
 
   it('no change is a noop (no keystrokes)', () => {
     expect(computeTypeDelta('hello', 'hello')).toEqual({
-      backspaces: 0, text: '', noop: true,
+      backspaces: 0,
+      text: '',
+      noop: true,
     });
   });
 
@@ -78,41 +84,53 @@ describe('computeTypeDelta', () => {
   it('recognizer self-correction: backspaces the revised tail then types the fix', () => {
     // "hello to" → "hello two": common prefix "hello t", retract "o", type "wo".
     expect(computeTypeDelta('hello to', 'hello two')).toEqual({
-      backspaces: 1, text: 'wo', noop: false,
+      backspaces: 1,
+      text: 'wo',
+      noop: false,
     });
   });
 
   it('full-word revision: "recognise" → "recognize"', () => {
     // common prefix "recogni", retract "se", type "ze".
     expect(computeTypeDelta('recognise', 'recognize')).toEqual({
-      backspaces: 2, text: 'ze', noop: false,
+      backspaces: 2,
+      text: 'ze',
+      noop: false,
     });
   });
 
   it('shorter revision retracts the extra chars and types nothing', () => {
     // "helloo" → "hello": retract one 'o', type nothing.
     expect(computeTypeDelta('helloo', 'hello')).toEqual({
-      backspaces: 1, text: '', noop: false,
+      backspaces: 1,
+      text: '',
+      noop: false,
     });
   });
 
   it('a leading separator is just another typed prefix delta', () => {
     // First delta of a new utterance is seeded as " word".
     expect(computeTypeDelta('', ' world')).toEqual({
-      backspaces: 0, text: ' world', noop: false,
+      backspaces: 0,
+      text: ' world',
+      noop: false,
     });
   });
 
   it('counts astral (emoji/CJK surrogate-pair) chars as single units', () => {
     // "ab😀" → "ab😁": the emoji is one code point — retract 1, type 1, not 2.
     expect(computeTypeDelta('ab😀', 'ab😁')).toEqual({
-      backspaces: 1, text: '😁', noop: false,
+      backspaces: 1,
+      text: '😁',
+      noop: false,
     });
   });
 
   it('appends after a multibyte char without disturbing it', () => {
     expect(computeTypeDelta('café', 'café au')).toEqual({
-      backspaces: 0, text: ' au', noop: false,
+      backspaces: 0,
+      text: ' au',
+      noop: false,
     });
   });
 });

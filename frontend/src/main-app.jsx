@@ -9,8 +9,11 @@ import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import '@fontsource-variable/source-serif-4';
-import './i18n';   // ← initialise i18next before any component renders
+import './i18n'; // ← initialise i18next before any component renders
 import './ui';
+// Single stylesheet: index.css now carries the Tailwind foundation, the token
+// scale + themes, and every former per-component .css (residual + all component
+// styles) consolidated in, so this one import pulls in the whole app's CSS.
 import './index.css';
 import App from './App.jsx';
 import RemoteAuthGate from './components/RemoteAuthGate';

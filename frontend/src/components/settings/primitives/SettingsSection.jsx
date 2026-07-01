@@ -3,11 +3,15 @@ import React from 'react';
 /**
  * SettingsSection — the standard header + body wrapper for every Settings card.
  *
- * Replaces the old `<section className="settings-section"><h2>…</h2>…</section>`
- * pattern. Renders an icon-tile + title header, an optional one-line description,
+ * FAST-mode shadcn migration: the surface, header, icon tile, titles and actions
+ * are now Tailwind utilities layered on the OmniVoice `--chrome-*` / `--space-*`
+ * token bridge (palette preserved exactly — no hardcoded colors). The old
+ * `.st-section*` rules in primitives.css are gone.
+ *
+ * Renders an icon-tile + title header, an optional one-line description,
  * optional right-aligned actions, then the children body.
  *
- * @param {LucideIcon} icon        lucide icon component (rendered at size 15)
+ * @param {LucideIcon} icon        lucide icon component (rendered at size 14)
  * @param {string}     title       section title (already translated)
  * @param {string=}    description optional ≤1-line subtitle (muted/dim)
  * @param {string=}    accent      optional CSS color for the icon tile (defaults to muted fg)
@@ -15,6 +19,14 @@ import React from 'react';
  * @param {ReactNode}  children    section body
  * @param {string=}    className   extra class on the root <section>
  */
+
+// Shared so the raw card surfaces in EnginesTab / ModelStoreTab (which carry a
+// custom toolbar + table instead of the icon/title header) stay byte-identical
+// to the primitive without re-deriving the token string. `data-slot` is the
+// stable hook Settings.css / panel CSS reach into.
+export const SETTINGS_SECTION_SURFACE =
+  'bg-[var(--chrome-bg)] border border-[var(--chrome-border)] rounded-[var(--chrome-radius-pill)] px-[var(--space-6)] py-[var(--space-5)] mb-[var(--space-5)] last:mb-0';
+
 export default function SettingsSection({
   icon: Icon,
   title,
@@ -25,24 +37,37 @@ export default function SettingsSection({
   className = '',
 }) {
   return (
-    <section className={`st-section ${className}`.trim()}>
-      <header className="st-section__head">
+    <section
+      data-slot="settings-section"
+      className={`${SETTINGS_SECTION_SURFACE} ${className}`.trim()}
+    >
+      <header className="flex items-center gap-[var(--space-3)] mb-[var(--space-3)] pb-[var(--space-3)] border-b border-[var(--chrome-border)]">
         {Icon && (
           <span
-            className="st-section__icon"
+            className="shrink-0 inline-flex items-center justify-center w-[20px] h-[20px] rounded-[var(--chrome-radius-pill)] text-[color:var(--chrome-fg-muted)] bg-[color-mix(in_srgb,currentColor_12%,var(--chrome-bg))] border border-[color-mix(in_srgb,currentColor_26%,var(--chrome-border))]"
             style={accent ? { color: accent } : undefined}
             aria-hidden="true"
           >
             <Icon size={14} />
           </span>
         )}
-        <div className="st-section__titles">
-          <h2 className="st-section__title">{title}</h2>
-          {description && <p className="st-section__desc">{description}</p>}
+        <div className="flex-auto min-w-0 flex flex-col gap-[1px]">
+          <h2 className="m-0 [font-family:var(--font-sans)] text-[length:var(--text-md)] font-semibold text-[color:var(--chrome-fg)] leading-[1.3]">
+            {title}
+          </h2>
+          {description && (
+            <p className="m-0 [font-family:var(--font-sans)] text-[length:var(--text-xs)] text-[color:var(--chrome-fg-dim)] leading-[1.5] overflow-hidden text-ellipsis whitespace-nowrap">
+              {description}
+            </p>
+          )}
         </div>
-        {actions && <div className="st-section__actions">{actions}</div>}
+        {actions && (
+          <div className="shrink-0 inline-flex items-center gap-[var(--space-3)] ml-[var(--space-4)]">
+            {actions}
+          </div>
+        )}
       </header>
-      <div className="st-section__body">{children}</div>
+      <div>{children}</div>
     </section>
   );
 }

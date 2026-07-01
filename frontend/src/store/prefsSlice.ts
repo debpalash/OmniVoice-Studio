@@ -9,16 +9,16 @@
 import type { StateCreator } from 'zustand';
 import { apiJson, apiPost } from '../api/client';
 
-export type TranslateQuality = 'fast' | 'cinematic';
-export type ThemeId = 'gruvbox' | 'midnight' | 'nord' | 'solarized' | 'rose-pine' | 'catppuccin';
+type TranslateQuality = 'fast' | 'cinematic';
+type ThemeId = 'gruvbox' | 'midnight' | 'nord' | 'solarized' | 'rose-pine' | 'catppuccin';
 
 /** Dictation start/stop semantics — mirror of the backend `dictation.mode`. */
-export type DictationMode = 'toggle' | 'hold';
+type DictationMode = 'toggle' | 'hold';
 
 /** Default sherpa dictation model id — matches the backend
  * `sherpa_dictation.DEFAULT_MODEL_ID`. Used only as the pre-hydration seed;
  * the authoritative value comes from `GET /dictation/prefs`. */
-export const DEFAULT_DICTATION_MODEL_ID = 'sherpa-parakeet-tdt-v3';
+const DEFAULT_DICTATION_MODEL_ID = 'sherpa-parakeet-tdt-v3';
 
 /**
  * Global UI font. Applied app-wide by overriding the `--font-sans` CSS custom
@@ -27,23 +27,23 @@ export const DEFAULT_DICTATION_MODEL_ID = 'sherpa-parakeet-tdt-v3';
  * `:root` Inter stack takes over. All stacks are SYSTEM-SAFE — no web-font
  * downloads, so this works identically offline across macOS/Windows/Linux.
  */
-export type FontId = 'default' | 'system' | 'serif' | 'mono' | 'rounded' | 'readable';
+type FontId = 'default' | 'system' | 'serif' | 'mono' | 'rounded' | 'readable';
 
 export const FONT_OPTIONS: { id: FontId; label: string }[] = [
-  { id: 'default',  label: 'Inter (default)' },
-  { id: 'system',   label: 'System' },
-  { id: 'serif',    label: 'Serif' },
-  { id: 'mono',     label: 'Monospace' },
-  { id: 'rounded',  label: 'Rounded' },
+  { id: 'default', label: 'Inter (default)' },
+  { id: 'system', label: 'System' },
+  { id: 'serif', label: 'Serif' },
+  { id: 'mono', label: 'Monospace' },
+  { id: 'rounded', label: 'Rounded' },
   { id: 'readable', label: 'Readable' },
 ];
 
 export const FONT_STACKS: Record<FontId, string | null> = {
-  default:  null, // use the CSS :root --font-sans (Inter)
-  system:   '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
-  serif:    'Georgia, "Times New Roman", serif',
-  mono:     'ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace',
-  rounded:  '"SF Pro Rounded", "Nunito", "Quicksand", system-ui, sans-serif',
+  default: null, // use the CSS :root --font-sans (Inter)
+  system: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+  serif: 'Georgia, "Times New Roman", serif',
+  mono: 'ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace',
+  rounded: '"SF Pro Rounded", "Nunito", "Quicksand", system-ui, sans-serif',
   readable: '"Atkinson Hyperlegible", Verdana, system-ui, sans-serif',
 };
 
@@ -57,14 +57,14 @@ export const FONT_STACKS: Record<FontId, string | null> = {
  * without lip-sync drift. `strict_slot` is the legacy compress-to-fit
  * path, retained for back-compat.
  */
-export type TimingStrategy = 'concise' | 'smart_fit' | 'stretch_video' | 'strict_slot';
+type TimingStrategy = 'concise' | 'smart_fit' | 'stretch_video' | 'strict_slot';
 
 /**
  * Knob overrides for the `smart_fit` strategy. `null` (default) sends no
  * `fit_options` and the backend uses its canonical FitParams defaults —
  * identical behavior on every platform out of the box.
  */
-export interface FitOptions {
+interface FitOptions {
   max_audio_only_rate?: number;
   audio_rate_cap?: number;
   video_slow_cap?: number;
@@ -205,16 +205,16 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   dictationModelId: DEFAULT_DICTATION_MODEL_ID,
   dictationLoaded: false,
 
-  setTranslateQuality:    (q) => set({ translateQuality: q }),
-  setDualSubs:            (on) => set({ dualSubs: on }),
-  setBurnSubs:            (on) => set({ burnSubs: on }),
-  setGlossaryVisible:     (on) => set({ glossaryVisible: on }),
-  setReviewMode:          (mode) => set({ reviewMode: mode }),
+  setTranslateQuality: (q) => set({ translateQuality: q }),
+  setDualSubs: (on) => set({ dualSubs: on }),
+  setBurnSubs: (on) => set({ burnSubs: on }),
+  setGlossaryVisible: (on) => set({ glossaryVisible: on }),
+  setReviewMode: (mode) => set({ reviewMode: mode }),
   setShowHeaderLiveStats: (on) => set({ showHeaderLiveStats: on }),
-  setTimingStrategy:      (s) => set({ timingStrategy: s }),
-  setFitOptions:          (o) => set({ fitOptions: o }),
-  setAecEnabled:          (on) => set({ aecEnabled: on }),
-  setAutoPlayPreview:     (on) => set({ autoPlayPreview: on }),
+  setTimingStrategy: (s) => set({ timingStrategy: s }),
+  setFitOptions: (o) => set({ fitOptions: o }),
+  setAecEnabled: (on) => set({ aecEnabled: on }),
+  setAutoPlayPreview: (on) => set({ autoPlayPreview: on }),
 
   // ── Dictation prefs (backend-backed) ──────────────────────────────────
   // Each setter is optimistic (update the store immediately so the UI is
@@ -255,12 +255,35 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
     }
   },
 
-  locale: typeof navigator !== 'undefined' ? (() => {
-    const nav = navigator.language || '';
-    if (nav.toLowerCase().includes('tw') || nav.toLowerCase().includes('hk')) return 'zh-TW';
-    const match = ['zh-CN', 'es', 'fr', 'de', 'ja', 'pt', 'it', 'ru', 'ko', 'hi', 'tr', 'pl', 'nl', 'sv', 'th', 'vi', 'id', 'uk', 'ar'].find(code => nav.startsWith(code.split('-')[0]));
-    return match || 'en';
-  })() : 'en',
+  locale:
+    typeof navigator !== 'undefined'
+      ? (() => {
+          const nav = navigator.language || '';
+          if (nav.toLowerCase().includes('tw') || nav.toLowerCase().includes('hk')) return 'zh-TW';
+          const match = [
+            'zh-CN',
+            'es',
+            'fr',
+            'de',
+            'ja',
+            'pt',
+            'it',
+            'ru',
+            'ko',
+            'hi',
+            'tr',
+            'pl',
+            'nl',
+            'sv',
+            'th',
+            'vi',
+            'id',
+            'uk',
+            'ar',
+          ].find((code) => nav.startsWith(code.split('-')[0]));
+          return match || 'en';
+        })()
+      : 'en',
   setLocale: (l) => set({ locale: l }),
 
   theme: 'gruvbox',

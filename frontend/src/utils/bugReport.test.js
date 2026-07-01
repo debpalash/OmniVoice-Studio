@@ -25,12 +25,9 @@ describe('scrubText — frontend twin of backend/core/scrub.py', () => {
     expect(out).toContain(REDACTED);
   });
 
-  it.each([['hf_hub'], ['sk-learn'], ['ghp_x']])(
-    'leaves short identifier %s alone',
-    (benign) => {
-      expect(scrubText(`import error in ${benign}`)).toContain(benign);
-    },
-  );
+  it.each([['hf_hub'], ['sk-learn'], ['ghp_x']])('leaves short identifier %s alone', (benign) => {
+    expect(scrubText(`import error in ${benign}`)).toContain(benign);
+  });
 
   it('handles null/undefined', () => {
     expect(scrubText(null)).toBe('');
@@ -75,11 +72,13 @@ describe('buildBugReportUrl', () => {
 describe('buildIssueSearchUrl', () => {
   it('builds a scrubbed, noise-free search query', async () => {
     const { buildIssueSearchUrl } = await import('./bugReport');
-    const url = buildIssueSearchUrl(new Error('CUDA error 700 at /home/eve/cache: illegal memory access'));
+    const url = buildIssueSearchUrl(
+      new Error('CUDA error 700 at /home/eve/cache: illegal memory access'),
+    );
     const q = decodeURIComponent(url.split('q=')[1]);
     expect(url).toContain('github.com/debpalash/OmniVoice-Studio/issues?q=');
     expect(q).toContain('CUDA error');
-    expect(q).not.toContain('700');       // machine-specific noise stripped
+    expect(q).not.toContain('700'); // machine-specific noise stripped
     expect(q).not.toContain('/home/eve'); // scrubbed + punctuation-stripped
   });
 

@@ -43,7 +43,9 @@ export default function useRealtimeEvents(handlers) {
   const mountedRef = useRef(true);
 
   // Keep handlers ref current without causing reconnects
-  useEffect(() => { handlersRef.current = handlers; });
+  useEffect(() => {
+    handlersRef.current = handlers;
+  });
 
   const scheduleReconnect = useCallback(() => {
     if (!mountedRef.current) return;
@@ -63,7 +65,7 @@ export default function useRealtimeEvents(handlers) {
     // WebSocket attempt always fails with code 1006. Polling HTTP first
     // eliminates that noise and prevents the false "reconnecting" log.
     fetch(HEALTH_CHECK_URL, { signal: AbortSignal.timeout(2000) })
-      .then(res => {
+      .then((res) => {
         if (!res.ok) throw new Error(`health check returned ${res.status}`);
         // Backend is up — proceed to Phase 2
         if (!mountedRef.current) return;

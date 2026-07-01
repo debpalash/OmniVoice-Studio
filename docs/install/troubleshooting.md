@@ -309,21 +309,25 @@ files land where the app looks.)
 
 **Linked issue:** [#622](https://github.com/debpalash/OmniVoice-Studio/issues/622)
 
-## 14. "Can't reach the local backend" *during* transcription / dubbing
+## 14. "Can't reach the local backend" *during* generation / transcription / dubbing
 
 **Symptom:** the app worked at startup (you reached the main menu and the model
-loaded), but the moment you **dub a video, transcribe, or dictate**, it spins for
-a long time and then shows **"Can't reach the local backend."** The backend log
-ends right after a line like `whisperx transcribing …tmpXXXX.wav` with nothing
-after it — i.e. the backend is **alive**, the *transcription* is what stalled.
+loaded), but the moment you **generate audio, dub a video, transcribe, or
+dictate**, it spins for a long time and then shows **"Can't reach the local
+backend."** The backend log ends right after a line like `whisperx transcribing
+…tmpXXXX.wav` (or a generate) with nothing after it — i.e. the backend is
+**alive**, the GPU *job* is what stalled.
 
 **Cause:** this is **not** a connection, download, or "network mirror" problem —
-the backend started fine. The ASR model (WhisperX/faster-whisper **large-v3**) is
-too heavy for the available compute and the transcribe call runs for minutes,
-which the UI surfaces as an unreachable backend. The usual trigger is **VRAM
-starvation on NVIDIA**: the resident TTS model and a large ASR model contend for
-memory on an 8 GB-class GPU (the log shows e.g. `GPU pool sized … 7.0 GB free`).
-CPU-only machines hit the same wall on long clips.
+the backend started fine. A GPU job (a **generate** on the TTS model, or an ASR
+transcribe with WhisperX/faster-whisper **large-v3**) is too heavy for the
+available compute and runs for minutes; because it wedges its GPU-pool worker,
+every *other* request — including the next generate and the health check — is
+starved, which the UI surfaces as an unreachable backend. The usual trigger is
+**VRAM starvation on NVIDIA**: models contend for memory on an 8 GB-class GPU
+(the log shows e.g. `GPU pool sized … 7.0 GB free`). CPU-only machines hit the
+same wall on long clips. This is the same root cause whether the last thing you
+did was `generate:start (audio)`, a dub, or a dictation.
 
 > There is **no "Network → Restricted/Global mirror" toggle** in Settings — that
 > control (the footer/Sharing **Network** button) is for **LAN sharing**, not
@@ -340,10 +344,35 @@ CPU-only machines hit the same wall on long clips.
 4. **Test with a 10-second clip** first — if that returns quickly, it confirms a
    compute/VRAM limit rather than a true hang.
 
-Newer builds **bound** whole-file transcription: instead of hanging, it now fails
-after a timeout with this exact guidance. Tune the bound with
-`OMNIVOICE_ASR_TRANSCRIBE_TIMEOUT_S` (seconds; default 300) — **raise** it for
-very long single files, **lower** it to fail faster on a small machine.
+Newer builds **bound** every GPU job — whole-file transcription **and** TTS
+generation: instead of hanging forever and starving the backend, a wedged job now
+fails after a timeout with this exact guidance, and the worker pool is reset so
+capacity is restored automatically (no app restart needed). Tune the bounds with
+`OMNIVOICE_ASR_TRANSCRIBE_TIMEOUT_S` (transcription) and
+`OMNIVOICE_GENERATE_TIMEOUT_S` (generation) — both in seconds, default 300.
+**Raise** them for very long single files/generations, **lower** them to fail
+faster on a small machine.
+
+## Dub: "translation engine needs the optional … package"
+
+**Symptom:** in the Dub tab, translating fails with e.g. *"The 'google'
+translation engine needs the optional `deep_translator` Python package, which
+isn't installed in this backend."*
+
+**Cause:** the online translation engines (Google / DeepL / Microsoft / MyMemory
+via `deep_translator`, and the LLM provider via `openai`) are **optional** and
+not bundled. Only **Argos** and **NLLB** work out of the box.
+
+**Fix:**
+- **From-source / Docker install:** click the highlighted **Install** button next
+  to the *Engine* label in the Dub tab (or run `uv pip install deep_translator`
+  in the backend venv) and restart the backend.
+- **Packaged installer build:** in-app install is disabled (read-only signed
+  environment). Click the highlighted button to open the popover and **Switch to
+  Argos (bundled, offline)** — or copy the command to run it in a from-source
+  checkout.
+
+Full guide: [dubbing/translation-engines.md](../dubbing/translation-engines.md#installing-optional-translation-engines-from-source-vs-packaged-build).
 
 ## First-run setup fails on a restricted network (GitHub/PyPI blocked)
 

@@ -16,13 +16,7 @@ export default function Pip({ size = 22, className = '', waving = true }) {
       aria-hidden="true"
       style={{ width: size, height: size }}
     >
-      <svg
-        viewBox="0 0 32 32"
-        width={size}
-        height={size}
-        fill="none"
-        role="presentation"
-      >
+      <svg viewBox="0 0 32 32" width={size} height={size} fill="none" role="presentation">
         {/* soft glow halo */}
         <ellipse cx="16" cy="17" rx="11" ry="10.5" fill="currentColor" opacity="0.16" />
         {/* body */}

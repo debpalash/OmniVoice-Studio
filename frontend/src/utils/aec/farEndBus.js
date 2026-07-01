@@ -11,14 +11,20 @@ const subscribers = new Set();
 export function publishFarEnd(frame) {
   if (subscribers.size === 0) return;
   for (const cb of subscribers) {
-    try { cb(frame); } catch { /* a bad subscriber must not break playback */ }
+    try {
+      cb(frame);
+    } catch {
+      /* a bad subscriber must not break playback */
+    }
   }
 }
 
 /** Subscribe to far-end frames. Returns an unsubscribe function. */
 export function subscribeFarEnd(cb) {
   subscribers.add(cb);
-  return () => { subscribers.delete(cb); };
+  return () => {
+    subscribers.delete(cb);
+  };
 }
 
 /** Number of active subscribers — lets the player skip tapping when nobody listens. */

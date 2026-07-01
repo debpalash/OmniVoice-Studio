@@ -95,9 +95,9 @@ describe('ApiKeysPanel', () => {
 
   it('Save button POSTs the entered token and refetches state', async () => {
     const fetchMock = mockFetchSequence(
-      { status: 200, body: STATE_THREE_UNSET },        // initial GET
-      { status: 200, body: STATE_APP_ACTIVE },         // POST returns updated state
-      { status: 200, body: STATE_APP_ACTIVE },         // GET after save
+      { status: 200, body: STATE_THREE_UNSET }, // initial GET
+      { status: 200, body: STATE_APP_ACTIVE }, // POST returns updated state
+      { status: 200, body: STATE_APP_ACTIVE }, // GET after save
     );
     global.fetch = fetchMock;
 
@@ -123,9 +123,9 @@ describe('ApiKeysPanel', () => {
 
   it('Clear button shows confirmation dialog and DELETEs on confirm', async () => {
     const fetchMock = mockFetchSequence(
-      { status: 200, body: STATE_APP_ACTIVE },         // initial GET
-      { status: 200, body: STATE_THREE_UNSET },        // DELETE response
-      { status: 200, body: STATE_THREE_UNSET },        // refetch GET
+      { status: 200, body: STATE_APP_ACTIVE }, // initial GET
+      { status: 200, body: STATE_THREE_UNSET }, // DELETE response
+      { status: 200, body: STATE_THREE_UNSET }, // refetch GET
     );
     global.fetch = fetchMock;
 

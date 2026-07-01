@@ -23,9 +23,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Play, Pause, Keyboard, Mic, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { API } from '../api/client';
+import { API, apiFetch } from '../api/client';
 import { Button } from '../ui';
-import './DictationDemo.css';
+
+// Shared status-pill base; per-state color/bg/border appended below. The gruvbox
+// status hues are intentionally preserved (palette kept) as arbitrary utilities.
+const STATUS_BASE =
+  'inline-flex items-center gap-[6px] text-[11px] px-[8px] py-[3px] rounded-[999px] border';
 
 const SCRIPTS = [
   {
@@ -72,10 +76,16 @@ export default function DictationDemo({ embedded = false }) {
   // demo if not, mirroring DubbingDemo's missing-manifest behavior.
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API}${SCRIPTS[0].wav}`, { method: 'HEAD' })
-      .then((r) => { if (!cancelled) setAssetsAvailable(r.ok); })
-      .catch(() => { if (!cancelled) setAssetsAvailable(false); });
-    return () => { cancelled = true; };
+    apiFetch(`${API}${SCRIPTS[0].wav}`, { method: 'HEAD' })
+      .then(() => {
+        if (!cancelled) setAssetsAvailable(true);
+      })
+      .catch(() => {
+        if (!cancelled) setAssetsAvailable(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Read the registered hotkey on mount.
@@ -94,7 +104,9 @@ export default function DictationDemo({ embedded = false }) {
         if (!cancelled) setHotkeyState('unknown');
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Subscribe to dictation events: the moment the user presses their
@@ -116,8 +128,16 @@ export default function DictationDemo({ embedded = false }) {
       }
     })();
     return () => {
-      try { unlistenStart && unlistenStart(); } catch { /* noop */ }
-      try { unlistenStop && unlistenStop(); } catch { /* noop */ }
+      try {
+        unlistenStart && unlistenStart();
+      } catch {
+        /* noop */
+      }
+      try {
+        unlistenStop && unlistenStop();
+      } catch {
+        /* noop */
+      }
     };
   }, []);
 
@@ -131,7 +151,8 @@ export default function DictationDemo({ embedded = false }) {
     }
     audio.src = `${API}${script.wav}`;
     audio.currentTime = 0;
-    audio.play()
+    audio
+      .play()
       .then(() => setPlayingId(script.id))
       .catch((e) => {
         console.warn('Sample playback failed:', e);
@@ -148,16 +169,11 @@ export default function DictationDemo({ embedded = false }) {
       [script.id]: { state: 'loading', text: '', error: '' },
     }));
     try {
-      const wavRes = await fetch(`${API}${script.wav}`);
-      if (!wavRes.ok) throw new Error(`Could not fetch sample: ${wavRes.status}`);
+      const wavRes = await apiFetch(`${API}${script.wav}`);
       const blob = await wavRes.blob();
       const fd = new FormData();
       fd.append('audio', blob, `${script.id}.wav`);
-      const tRes = await fetch(`${API}/transcribe`, { method: 'POST', body: fd });
-      if (!tRes.ok) {
-        const errBody = await tRes.text().catch(() => '');
-        throw new Error(`Transcribe failed (${tRes.status}): ${errBody.slice(0, 120)}`);
-      }
+      const tRes = await apiFetch(`${API}/transcribe`, { method: 'POST', body: fd });
       const json = await tRes.json();
       setTranscripts((prev) => ({
         ...prev,
@@ -175,19 +191,28 @@ export default function DictationDemo({ embedded = false }) {
     switch (hotkeyState) {
       case 'verified':
         return (
-          <span className="dictation-demo__status dictation-demo__status--ok">
+          <span
+            className={`${STATUS_BASE} border-[rgba(152,151,26,0.35)] bg-[rgba(152,151,26,0.12)] text-[#b8bb26]`}
+          >
             <CheckCircle2 size={12} /> {t('demo.dictation_status_ok')}
           </span>
         );
       case 'registered':
         return (
-          <span className="dictation-demo__status dictation-demo__status--pending">
-            <Keyboard size={12} /> {t('demo.dictation_status_pending')} <code>{shortcut}</code>
+          <span
+            className={`${STATUS_BASE} border-[rgba(215,153,33,0.30)] bg-[rgba(215,153,33,0.10)] text-[#fabd2f]`}
+          >
+            <Keyboard size={12} /> {t('demo.dictation_status_pending')}{' '}
+            <code className="font-mono text-[10px] px-[4px] py-[1px] bg-[rgba(0,0,0,0.3)] rounded-[3px]">
+              {shortcut}
+            </code>
           </span>
         );
       default:
         return (
-          <span className="dictation-demo__status dictation-demo__status--warn">
+          <span
+            className={`${STATUS_BASE} border-[rgba(204,36,29,0.30)] bg-[rgba(204,36,29,0.10)] text-[#fb4934]`}
+          >
             <AlertTriangle size={12} /> {t('demo.dictation_status_warn')}
           </span>
         );
@@ -202,70 +227,93 @@ export default function DictationDemo({ embedded = false }) {
   const showScripts = assetsAvailable !== false;
 
   return (
-    <section className={`dictation-demo ${embedded ? 'dictation-demo--embedded' : ''}`}>
-      <header className="dictation-demo__head">
-        <h3 className="dictation-demo__title">
+    <section
+      className={`dictation-demo flex flex-col gap-[10px] ${
+        embedded
+          ? 'mb-[12px]'
+          : 'p-[14px] rounded-[10px] border border-border bg-[rgba(255,255,255,0.02)] mb-[16px]'
+      }`}
+    >
+      <header className="flex items-center justify-between gap-[12px] flex-wrap">
+        <h3 className="inline-flex items-center gap-[6px] m-0 text-[13px] font-bold text-fg">
           <Mic size={14} /> {t('demo.dictation_title')}
         </h3>
         {statusBadge}
       </header>
 
-      <p className="dictation-demo__lede">
+      <p className="m-0 text-[11px] leading-[1.45] text-fg-muted">
         {showScripts
           ? t('demo.dictation_lede')
-          : t('demo.dictation_lede_hotkey_only',
-              'Hold the shortcut above anywhere on your desktop, speak, release — the text lands in whatever app has focus. Press it now to verify it works.')}
+          : t(
+              'demo.dictation_lede_hotkey_only',
+              'Hold the shortcut above anywhere on your desktop, speak, release — the text lands in whatever app has focus. Press it now to verify it works.',
+            )}
       </p>
 
       <audio ref={audioRef} onEnded={() => setPlayingId(null)} preload="none" />
 
       {showScripts && (
-      <div className="dictation-demo__scripts">
-        {SCRIPTS.map((s) => {
-          const isPlaying = playingId === s.id;
-          const tx = transcripts[s.id] || {};
-          return (
-            <div key={s.id} className="dictation-demo__card">
-              <div className="dictation-demo__card-head">
-                <span className="dictation-demo__lang">{s.language}</span>
-                <span className="dictation-demo__card-label">{t(s.labelKey)}</span>
-              </div>
-              <blockquote className="dictation-demo__script">{s.text}</blockquote>
-              <div className="dictation-demo__card-actions">
-                <Button
-                  size="sm"
-                  variant="subtle"
-                  onClick={() => togglePlay(s)}
-                  leading={isPlaying ? <Pause size={11} /> : <Play size={11} />}
-                  aria-label={isPlaying ? t('demo.aria_pause', { label: t(s.labelKey) }) : t('demo.aria_hear', { label: t(s.labelKey) })}
-                >
-                  {isPlaying ? t('demo.dictation_stop') : t('demo.dictation_hear')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="subtle"
-                  onClick={() => replay(s)}
-                  loading={tx.state === 'loading'}
-                  leading={tx.state !== 'loading' && <Mic size={11} />}
-                  aria-label={t('demo.aria_replay', { label: t(s.labelKey) })}
-                >
-                  {tx.state === 'loading' ? t('demo.dictation_transcribing') : t('demo.dictation_replay')}
-                </Button>
-              </div>
-              {tx.state === 'ok' && (
-                <div className="dictation-demo__result dictation-demo__result--ok">
-                  <CheckCircle2 size={11} /> <em>{tx.text}</em>
+        <div className="dictation-demo__scripts grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-[10px]">
+          {SCRIPTS.map((s) => {
+            const isPlaying = playingId === s.id;
+            const tx = transcripts[s.id] || {};
+            return (
+              <div
+                key={s.id}
+                className="flex flex-col gap-[6px] px-[12px] py-[10px] rounded-[8px] border border-border bg-[rgba(0,0,0,0.15)]"
+              >
+                <div className="flex items-center gap-[8px] text-[10px] text-fg-muted">
+                  <span className="font-mono text-[9px] px-[5px] py-[1px] rounded-sm bg-[rgba(255,255,255,0.06)] uppercase tracking-[0.04em]">
+                    {s.language}
+                  </span>
+                  <span className="font-semibold text-[11px] text-fg normal-case">
+                    {t(s.labelKey)}
+                  </span>
                 </div>
-              )}
-              {tx.state === 'fail' && (
-                <div className="dictation-demo__result dictation-demo__result--fail">
-                  <AlertTriangle size={11} /> {tx.error}
+                <blockquote className="m-0 px-[8px] py-[6px] text-[11.5px] leading-[1.45] border-l-2 border-l-[rgba(243,165,182,0.4)] bg-[rgba(255,255,255,0.02)] text-fg italic">
+                  {s.text}
+                </blockquote>
+                <div className="flex gap-[6px] mt-[2px]">
+                  <Button
+                    size="sm"
+                    variant="subtle"
+                    onClick={() => togglePlay(s)}
+                    leading={isPlaying ? <Pause size={11} /> : <Play size={11} />}
+                    aria-label={
+                      isPlaying
+                        ? t('demo.aria_pause', { label: t(s.labelKey) })
+                        : t('demo.aria_hear', { label: t(s.labelKey) })
+                    }
+                  >
+                    {isPlaying ? t('demo.dictation_stop') : t('demo.dictation_hear')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="subtle"
+                    onClick={() => replay(s)}
+                    loading={tx.state === 'loading'}
+                    leading={tx.state !== 'loading' && <Mic size={11} />}
+                    aria-label={t('demo.aria_replay', { label: t(s.labelKey) })}
+                  >
+                    {tx.state === 'loading'
+                      ? t('demo.dictation_transcribing')
+                      : t('demo.dictation_replay')}
+                  </Button>
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                {tx.state === 'ok' && (
+                  <div className="flex items-start gap-[6px] text-[11px] px-[8px] py-[6px] rounded-lg leading-[1.4] text-[#b8bb26] bg-[rgba(152,151,26,0.08)] border border-[rgba(152,151,26,0.25)]">
+                    <CheckCircle2 size={11} /> <em className="not-italic">{tx.text}</em>
+                  </div>
+                )}
+                {tx.state === 'fail' && (
+                  <div className="flex items-start gap-[6px] text-[11px] px-[8px] py-[6px] rounded-lg leading-[1.4] text-[#fb4934] bg-[rgba(204,36,29,0.08)] border border-[rgba(204,36,29,0.25)]">
+                    <AlertTriangle size={11} /> {tx.error}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
     </section>
   );

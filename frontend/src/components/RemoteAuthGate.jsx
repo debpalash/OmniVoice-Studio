@@ -34,7 +34,13 @@ export default function RemoteAuthGate({ children, forceGate = false }) {
         <h2>{t('remote_gate.title')}</h2>
         <p>{t('remote_gate.body')}</p>
         <label htmlFor="ov-pin">{t('remote_gate.label')}</label>
-        <input id="ov-pin" inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} autoFocus />
+        <input
+          id="ov-pin"
+          inputMode="numeric"
+          value={pin}
+          onChange={(e) => setPin(e.target.value)}
+          autoFocus
+        />
         <button type="submit">{t('remote_gate.connect')}</button>
       </form>
     </div>

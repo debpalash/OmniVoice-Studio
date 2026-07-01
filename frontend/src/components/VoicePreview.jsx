@@ -7,7 +7,6 @@ import { Button } from '../ui';
 import WaveformPlayer from './WaveformPlayer';
 import { useAppStore } from '../store';
 import { stopActivePlayback } from '../utils/playback';
-import './VoicePreview.css';
 
 /**
  * VoicePreview — floating "try a voice" card.
@@ -25,7 +24,7 @@ export default function VoicePreview({
   fileToMediaUrl,
 }) {
   const { t } = useTranslation();
-  const autoPlayPreview = useAppStore(s => s.autoPlayPreview);
+  const autoPlayPreview = useAppStore((s) => s.autoPlayPreview);
   const [text, setText] = useState(() => t('voicePreview.default_text'));
   const [voiceId, setVoiceId] = useState(initialProfileId);
   const [audioUrl, setAudioUrl] = useState(null);
@@ -48,7 +47,7 @@ export default function VoicePreview({
     try {
       const fd = new FormData();
       fd.append('text', text);
-      fd.append('num_step', '8');         // fast preview
+      fd.append('num_step', '8'); // fast preview
       fd.append('guidance_scale', '2.0');
       fd.append('speed', '1.0');
       fd.append('denoise', 'true');
@@ -58,13 +57,15 @@ export default function VoicePreview({
       let instruct = '';
 
       if (profileId.startsWith('preset:')) {
-        const pr = PRESETS.find(p => p.id === profileId.replace('preset:', ''));
+        const pr = PRESETS.find((p) => p.id === profileId.replace('preset:', ''));
         if (pr) {
-          instruct = Object.values(pr.attrs).filter(v => v !== 'Auto').join(', ');
+          instruct = Object.values(pr.attrs)
+            .filter((v) => v !== 'Auto')
+            .join(', ');
         }
         profileId = '';
       } else {
-        const match = profiles.find(p => p.id === profileId);
+        const match = profiles.find((p) => p.id === profileId);
         if (match?.instruct) instruct = match.instruct;
       }
 
@@ -96,14 +97,14 @@ export default function VoicePreview({
   if (!open) return null;
 
   return (
-    <div className="voice-preview">
-      <div className="voice-preview__head">
-        <span className="voice-preview__title">
+    <div className="fixed bottom-[calc(var(--logs-footer-height,28px)+16px)] right-[16px] z-[900] w-[320px] bg-[var(--chrome-bg)] border border-solid border-[var(--chrome-border-strong)] rounded-[12px] [box-shadow:0_8px_32px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden animate-[voice-preview-in_0.2s_ease-out]">
+      <div className="flex items-center justify-between py-[10px] px-[14px] border-b border-solid border-b-[var(--chrome-border)]">
+        <span className="flex items-center gap-[6px] [font-family:var(--font-mono)] text-[0.72rem] font-semibold uppercase [letter-spacing:0.04em] text-[color:var(--chrome-fg)]">
           <Volume2 size={13} /> {t('voicePreview.title')}
         </span>
         <button
           type="button"
-          className="voice-preview__close"
+          className="bg-transparent border-none text-[color:var(--chrome-fg-muted)] cursor-pointer p-[4px] rounded-[6px] [transition:background_0.15s] hover:bg-[var(--chrome-hover-bg)] hover:text-[color:var(--chrome-fg)]"
           onClick={onClose}
           aria-label={t('voicePreview.close')}
         >
@@ -111,31 +112,41 @@ export default function VoicePreview({
         </button>
       </div>
 
-      <div className="voice-preview__body">
+      <div className="py-[12px] px-[14px] flex flex-col gap-[8px]">
         <select
           className="input-base voice-preview__select"
           value={voiceId}
-          onChange={e => setVoiceId(e.target.value)}
+          onChange={(e) => setVoiceId(e.target.value)}
         >
           <option value="">{t('voicePreview.default_voice')}</option>
-          {profiles.filter(p => !p.instruct).length > 0 && (
+          {profiles.filter((p) => !p.instruct).length > 0 && (
             <optgroup label={t('voicePreview.clone_profiles')}>
-              {profiles.filter(p => !p.instruct).map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
+              {profiles
+                .filter((p) => !p.instruct)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
             </optgroup>
           )}
-          {profiles.filter(p => !!p.instruct).length > 0 && (
+          {profiles.filter((p) => !!p.instruct).length > 0 && (
             <optgroup label={t('voicePreview.designed_voices')}>
-              {profiles.filter(p => !!p.instruct).map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
+              {profiles
+                .filter((p) => !!p.instruct)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
             </optgroup>
           )}
           {PRESETS.length > 0 && (
             <optgroup label={t('voicePreview.presets')}>
-              {PRESETS.map(p => (
-                <option key={p.id} value={`preset:${p.id}`}>{p.name}</option>
+              {PRESETS.map((p) => (
+                <option key={p.id} value={`preset:${p.id}`}>
+                  {p.name}
+                </option>
               ))}
             </optgroup>
           )}
@@ -144,7 +155,7 @@ export default function VoicePreview({
         <textarea
           className="input-base voice-preview__text"
           value={text}
-          onChange={e => setText(e.target.value)}
+          onChange={(e) => setText(e.target.value)}
           rows={2}
           placeholder={t('voicePreview.placeholder')}
           spellCheck={false}
@@ -155,12 +166,12 @@ export default function VoicePreview({
             src={audioUrl}
             source="voice-preview"
             autoPlay={autoPlayPreview}
-            className="voice-preview__audio"
+            className="w-full"
           />
         )}
       </div>
 
-      <div className="voice-preview__foot">
+      <div className="flex items-center justify-between pt-[8px] px-[14px] pb-[10px] border-t border-solid border-t-[var(--chrome-border)]">
         {loading ? (
           <Button variant="ghost" size="sm" onClick={handleStop} leading={<Square size={10} />}>
             {t('voicePreview.stop')}
@@ -177,9 +188,10 @@ export default function VoicePreview({
             {audioUrl ? t('voicePreview.regenerate') : t('voicePreview.preview')}
           </Button>
         )}
-        <span className="voice-preview__hint">{t('voicePreview.hint')}</span>
+        <span className="[font-family:var(--font-mono)] text-[0.65rem] text-[color:var(--chrome-fg-dim)]">
+          {t('voicePreview.hint')}
+        </span>
       </div>
     </div>
   );
 }
-

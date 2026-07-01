@@ -198,6 +198,68 @@ def __getattr__(name: str):
         return _get_gpu_pool()
     raise AttributeError(f"module 'services.model_manager' has no attribute {name!r}")
 
+
+# ── GPU-job timeout guard (#730 class; residual #850/#802/#755 …) ─────
+# A blocking GPU job that wedges on a Windows+CUDA hang keeps occupying its
+# worker forever — run_in_executor can't cancel the thread. With a 1–2 worker
+# pool that starves *every* other request, so the next user action surfaces as
+# the misleading "Can't reach the local backend" even though the process is
+# alive. ASR/dub/model-load already bound+reset on hang (run_transcribe_guarded,
+# _reset_pool_on_wedge, _load_model_with_timeout); the TTS **generate** paths
+# (generation.py, tts_stream.py) were the last unguarded dispatch — and the
+# residual on-main reports all fail on generate:start (audio). This is the same
+# guard generalised so every GPU dispatch shares one recovery path.
+GPU_JOB_TIMEOUT_S = float(os.environ.get("OMNIVOICE_GENERATE_TIMEOUT_S", "300.0"))
+
+
+class GpuJobTimeoutError(TimeoutError):
+    """A GPU-pool job exceeded its wall-clock bound and was abandoned.
+
+    The backend is alive — the job was too heavy for the available compute
+    (most often a VRAM-starved GPU). Pool capacity is restored automatically by
+    resetting the pool; the message carries the durable fix.
+    """
+
+
+async def run_on_gpu_pool_guarded(fn, *, what: str = "GPU job",
+                                  timeout: float = GPU_JOB_TIMEOUT_S,
+                                  executor=None):
+    """Run blocking ``fn`` on the GPU pool with a hard wall-clock bound.
+
+    On timeout, ``reset()`` the pool (abandon the wedged worker so the next
+    submit gets a fresh one) and raise :class:`GpuJobTimeoutError`. ``fn`` must
+    be a zero-arg callable — wrap args with ``functools.partial`` at the call
+    site. Deliberately mirrors ``asr_backend.run_transcribe_guarded`` so every
+    GPU dispatch shares one bound+recover path (#730 class). Executors without
+    ``reset`` (a plain ThreadPoolExecutor in tests) still get the bound + error.
+    """
+    loop = asyncio.get_running_loop()
+    ex = executor if executor is not None else _get_gpu_pool()
+    fut = loop.run_in_executor(ex, fn)
+    try:
+        return await asyncio.wait_for(fut, timeout=timeout)
+    except asyncio.TimeoutError:
+        _reset = getattr(ex, "reset", None)
+        if callable(_reset):
+            try:
+                _reset()
+                logger.warning(
+                    "%s exceeded %.0fs — abandoned the GPU-pool worker to "
+                    "restore capacity (#730).", what, timeout,
+                )
+            except Exception:
+                logger.exception("GPU pool reset after %s timeout failed", what)
+        raise GpuJobTimeoutError(
+            f"{what} exceeded {timeout:.0f}s and was abandoned — the backend is "
+            "running, but the job was too heavy for the available compute. Most "
+            "often the GPU is VRAM-starved (a resident model and this job contend "
+            "for memory). Capacity was restored automatically; for a durable fix "
+            "try shorter text, a lighter engine, or set the engine to CPU in "
+            "Settings → Models. (Raise OMNIVOICE_GENERATE_TIMEOUT_S for very long "
+            "single generations.)"
+        )
+
+
 model = None  # type: ignore
 _model_lock = asyncio.Lock()
 _last_used = time.time()

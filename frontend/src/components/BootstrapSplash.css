@@ -1,4 +1,0 @@
-/* The bootstrap splash now renders entirely in the shared first-run design
- * system (frs-* classes in FirstRunSetup.css) so that setup → install →
- * model wizard reads as one continuous experience. This file intentionally
- * carries no rules; it remains so stale imports keep resolving. */

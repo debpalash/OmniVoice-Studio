@@ -13,13 +13,19 @@
  * progress rides the same SSE stream the Settings model store uses; the
  * full management surface (search, HF token, deletes) stays in Settings —
  * a first run needs a checklist, not a store.
+ *
+ * Built on standard shadcn primitives (Badge / Button / Progress) + Tailwind
+ * utilities themed by the palette tokens.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
+import { Check, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useModels, useInstallModel } from '../api/hooks';
 import { setupDownloadStreamUrl } from '../api/setup';
 import { listEngines, selectEngine } from '../api/engines';
+import { Badge, Button } from '../ui';
 
 const fmtGB = (gb) => (gb == null ? '' : `${gb.toFixed(gb < 10 ? 1 : 0)} GB`);
 
@@ -93,18 +99,36 @@ function formatEta(seconds) {
   return `${Math.round(seconds / 60)}m`;
 }
 
+// LED dot tone per row state.
+const LED_TONE = {
+  ok: 'bg-success shadow-[0_0_5px_1px_color-mix(in_srgb,var(--color-success)_50%,transparent)]',
+  active: 'bg-primary shadow-[0_0_6px_1px_var(--color-brand-glow)]',
+  busy: 'bg-primary fr-pulse',
+  off: 'bg-fg-subtle/40',
+};
+
+// Chip Badge tone per chip category.
+const CHIP_TONE = { req: 'brand', rec: 'success', eng: 'neutral', opt: 'neutral' };
+
 function Row({ led, name, chip, chipTone, size, action, sub }) {
   return (
-    <div className="frs-row swiz-lib__row">
-      <span className={`swiz-lib__led swiz-lib__led--${led}`} aria-hidden="true" />
-      <div className="frs-row__text">
-        <span className="frs-row__label">
+    <div className="flex items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-bg-elev-3">
+      <span
+        className={cn('h-1.5 w-1.5 shrink-0 rounded-full', LED_TONE[led] || LED_TONE.off)}
+        aria-hidden="true"
+      />
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="flex items-center gap-2 text-sm font-semibold">
           {name}
-          {chip && <span className={`frs-opt__badge swiz-lib__chip swiz-lib__chip--${chipTone}`}>{chip}</span>}
+          {chip && (
+            <Badge tone={CHIP_TONE[chipTone] || 'neutral'} size="xs">
+              {chip}
+            </Badge>
+          )}
         </span>
-        {sub && <span className="swiz-lib__sub">{sub}</span>}
+        {sub && <span className="block min-w-0">{sub}</span>}
       </div>
-      <span className="frs-row__readout">{size}</span>
+      <span className="shrink-0 font-mono text-[0.64rem] tabular-nums text-fg-muted">{size}</span>
       {action}
     </div>
   );
@@ -139,9 +163,13 @@ export default function WizardLibrary() {
       try {
         const all = await listEngines();
         if (!cancelled) setEngines(all?.tts ?? null);
-      } catch { /* backend mid-boot — the wizard polls models anyway */ }
+      } catch {
+        /* backend mid-boot — the wizard polls models anyway */
+      }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // One SSE stream for all rows (same channel the Settings store uses).
@@ -159,7 +187,8 @@ export default function WizardLibrary() {
           // file-level 'done' must NOT clear the repo, multi-file snapshots
           // finish files long before the repo's `install_done` arrives.
           // (Full phase taxonomy: SetupProgressEvent in api/setup.ts.)
-          if (ev.phase === 'install_start') return { ...prev, [ev.repo_id]: { phase: 'active', files: {} } };
+          if (ev.phase === 'install_start')
+            return { ...prev, [ev.repo_id]: { phase: 'active', files: {} } };
           if (ev.phase === 'install_done' || ev.phase === 'install_error') {
             if (ev.phase === 'install_done') modelsQuery.refetch();
             const next = { ...prev };
@@ -171,20 +200,35 @@ export default function WizardLibrary() {
           // over summing per-file events, which is unreliable under parallel/
           // segmented fetch (the source of the "8% · 1 KB/s · 0.0 MB left" bug).
           if (ev.phase === 'aggregate') {
-            return { ...prev, [ev.repo_id]: { ...cur, agg: {
-              bytesDone: ev.bytes_done || 0,
-              totalBytes: ev.total_bytes || 0,
-              rate: ev.rate || 0,
-              etaSeconds: ev.eta_seconds ?? null,
-              filesDone: ev.files_done || 0,
-              filesTotal: ev.files_total || 0,
-            } } };
+            return {
+              ...prev,
+              [ev.repo_id]: {
+                ...cur,
+                agg: {
+                  bytesDone: ev.bytes_done || 0,
+                  totalBytes: ev.total_bytes || 0,
+                  rate: ev.rate || 0,
+                  etaSeconds: ev.eta_seconds ?? null,
+                  filesDone: ev.files_done || 0,
+                  filesTotal: ev.files_total || 0,
+                },
+              },
+            };
           }
           if (!ev.filename) return prev;
-          const files = { ...cur.files, [ev.filename]: { downloaded: ev.downloaded || 0, total: ev.total || 0, rate: ev.rate || 0 } };
+          const files = {
+            ...cur.files,
+            [ev.filename]: {
+              downloaded: ev.downloaded || 0,
+              total: ev.total || 0,
+              rate: ev.rate || 0,
+            },
+          };
           return { ...prev, [ev.repo_id]: { ...cur, files } };
         });
-      } catch { /* keepalive */ }
+      } catch {
+        /* keepalive */
+      }
     };
     return () => es.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -195,7 +239,11 @@ export default function WizardLibrary() {
     installMutation.mutate(repoId, {
       onError: (e) => {
         toast.error(e?.message || 'install failed');
-        setProgress((p) => { const n = { ...p }; delete n[repoId]; return n; });
+        setProgress((p) => {
+          const n = { ...p };
+          delete n[repoId];
+          return n;
+        });
       },
     });
   };
@@ -236,7 +284,9 @@ export default function WizardLibrary() {
     const statParts = [
       pct != null ? `${pct}%` : null,
       rateStr || null,
-      remainStr ? t('firstrun.size_left', { size: remainStr, defaultValue: '{{size}} left' }) : null,
+      remainStr
+        ? t('firstrun.size_left', { size: remainStr, defaultValue: '{{size}} left' })
+        : null,
       etaStr ? t('firstrun.eta_left', { eta: etaStr, defaultValue: '~{{eta}} left' }) : null,
     ].filter(Boolean);
     return (
@@ -247,31 +297,46 @@ export default function WizardLibrary() {
         chip={chip}
         chipTone={chipTone}
         size={fmtGB(m.size_gb)}
-        sub={downloading ? (
-          <span className="swiz-lib__bar"><span style={{ width: `${pct ?? 4}%` }} /></span>
-        ) : (note || null)}
-        action={m.installed ? (
-          <span className="swiz-lib__state">✓</span>
-        ) : downloading ? (
-          <span className="swiz-lib__state swiz-lib__state--busy">
-            {statParts.length ? statParts.join(' · ') : t('firstrun.lib_downloading', 'downloading…')}
-          </span>
-        ) : (
-          <button type="button" className="frs-btn frs-btn--quiet swiz-lib__act" onClick={() => install(m.repo_id)}>
-            {t('firstrun.lib_download', 'Download')}
-          </button>
-        )}
+        sub={
+          downloading ? (
+            <span className="block h-[3px] max-w-[280px] overflow-hidden rounded-full bg-fg/[0.08]">
+              <span
+                className="block h-full rounded-full bg-primary transition-[width] duration-300"
+                style={{ width: `${pct ?? 4}%` }}
+              />
+            </span>
+          ) : (
+            note || null
+          )
+        }
+        action={
+          m.installed ? (
+            <Check size={14} className="shrink-0 text-success" aria-hidden="true" />
+          ) : downloading ? (
+            <span className="shrink-0 font-mono text-[0.64rem] tabular-nums text-primary">
+              {statParts.length
+                ? statParts.join(' · ')
+                : t('firstrun.lib_downloading', 'downloading…')}
+            </span>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={() => install(m.repo_id)}>
+              {t('firstrun.lib_download', 'Download')}
+            </Button>
+          )
+        }
       />
     );
   };
 
   return (
-    <div className="swiz-lib">
+    <div className="flex max-h-[min(56vh,620px)] flex-col gap-1 overflow-y-auto">
       {required.map((m) => modelRow(m, t('firstrun.chip_required', 'required'), 'req'))}
 
       {/* Optional models tuned for THIS machine — shown by default with the
           catalog note explaining why (e.g. "5× faster on Apple Silicon"). */}
-      {platformPicks.map((m) => modelRow(m, t('firstrun.chip_recommended', 'recommended'), 'rec', m.note))}
+      {platformPicks.map((m) =>
+        modelRow(m, t('firstrun.chip_recommended', 'recommended'), 'rec', m.note),
+      )}
 
       {(engines?.backends ?? []).map((b) => (
         <Row
@@ -281,34 +346,54 @@ export default function WizardLibrary() {
           chip={t('firstrun.chip_engine', 'engine')}
           chipTone="eng"
           size=""
-          action={b.id === engines.active ? (
-            <span className="swiz-lib__state swiz-lib__state--active">{t('firstrun.lib_active', 'active')}</span>
-          ) : b.available ? (
-            <button
-              type="button"
-              className="frs-btn frs-btn--quiet swiz-lib__act"
-              disabled={switching === b.id}
-              onClick={() => useEngine(b.id)}
-            >
-              {t('firstrun.lib_use', 'Use')}
-            </button>
-          ) : (
-            <span className="swiz-lib__state" title={b.reason || undefined}>
-              {t('firstrun.lib_in_settings', 'install later in Settings')}
-            </span>
-          )}
+          action={
+            b.id === engines.active ? (
+              <span className="shrink-0 font-mono text-[0.64rem] text-primary">
+                {t('firstrun.lib_active', 'active')}
+              </span>
+            ) : b.available ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={switching === b.id}
+                // eslint-disable-next-line react-hooks/rules-of-hooks -- useEngine is an action fn, not a React hook
+                onClick={() => useEngine(b.id)}
+              >
+                {t('firstrun.lib_use', 'Use')}
+              </Button>
+            ) : (
+              <span
+                className="shrink-0 font-mono text-[0.64rem] text-fg-muted"
+                title={b.reason || undefined}
+              >
+                {t('firstrun.lib_in_settings', 'install later in Settings')}
+              </span>
+            )
+          }
         />
       ))}
 
       {tail.length > 0 && !showTail && (
-        <button type="button" className="frs-btn frs-btn--quiet swiz-lib__more" onClick={() => setShowTail(true)}>
-          ▸ {t('firstrun.lib_show_all', { count: tail.length, defaultValue: 'Show {{count}} more models' })}
-        </button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="self-start"
+          onClick={() => setShowTail(true)}
+          leading={<ChevronRight size={12} />}
+        >
+          {t('firstrun.lib_show_all', {
+            count: tail.length,
+            defaultValue: 'Show {{count}} more models',
+          })}
+        </Button>
       )}
       {showTail && tail.map((m) => modelRow(m, t('firstrun.chip_optional', 'optional'), 'opt'))}
       {Object.keys(progress).length > 0 && (
-        <p className="frs__trust">
-          {t('firstrun.resume_note', 'Interrupted downloads resume automatically — closing the app is safe.')}
+        <p className="m-0 text-xs text-fg-subtle">
+          {t(
+            'firstrun.resume_note',
+            'Interrupted downloads resume automatically — closing the app is safe.',
+          )}
         </p>
       )}
     </div>

@@ -13,8 +13,9 @@
 import React, { useState } from 'react';
 import { Server } from 'lucide-react';
 import { LS_BACKEND_URL, LS_API_KEY, API } from '../../api/client';
-import { SettingsSection, SettingRow, InfoHint } from './primitives';
-import './PerformancePanel.css';
+import { SettingsSection, SettingRow, InfoHint, SettingsInput } from './primitives';
+import { Button, Badge } from '../../ui';
+import RestartBadge from './RestartBadge';
 
 const REMOTE_GPU_DOCS_URL =
   'https://github.com/debpalash/OmniVoice-Studio/blob/main/docs/remote-gpu.md';
@@ -60,52 +61,61 @@ export default function RemoteBackendPanel() {
       title="Remote backend"
       description="Run inference on another machine; leave the URL empty for the local backend."
       actions={
-        <InfoHint learnMoreHref={REMOTE_GPU_DOCS_URL}>
-          Start the backend on the other machine with <code>OMNIVOICE_API_KEY</code>{' '}
-          set, reach it over your tailnet, and point this app at it.
-        </InfoHint>
+        <>
+          <RestartBadge />
+          <InfoHint learnMoreHref={REMOTE_GPU_DOCS_URL}>
+            Start the backend on the other machine with <code>OMNIVOICE_API_KEY</code> set, reach it
+            over your tailnet, and point this app at it.
+          </InfoHint>
+        </>
       }
     >
       <SettingRow
-        className="st-row--stack"
+        stack
         title="Backend URL"
         control={
-          <input
+          <SettingsInput
+            mono
             type="text"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="http://gpu-box.tailnet.ts.net:3900"
-            className="st-input st-input--mono"
             data-testid="remote-backend-url"
           />
         }
       />
       <SettingRow
-        className="st-row--stack"
+        stack
         title="API key"
         control={
-          <input
+          <SettingsInput
             type="password"
             value={key}
             onChange={(e) => setKey(e.target.value)}
             placeholder="value of OMNIVOICE_API_KEY on the server"
-            className="st-input"
             data-testid="remote-backend-key"
           />
         }
       />
 
-      <div className="perfpanel__row">
-        <button type="button" onClick={onTest} disabled={testing} data-testid="remote-backend-test">
-          {testing ? 'Testing…' : 'Test connection'}
-        </button>
-        <button type="button" onClick={onSave} data-testid="remote-backend-save">
+      <div className="flex flex-wrap items-center gap-[var(--space-3)] min-w-0 max-w-full">
+        <Button
+          variant="subtle"
+          size="sm"
+          onClick={onTest}
+          loading={testing}
+          disabled={testing}
+          data-testid="remote-backend-test"
+        >
+          Test connection
+        </Button>
+        <Button variant="subtle" size="sm" onClick={onSave} data-testid="remote-backend-save">
           Save &amp; reload
-        </button>
+        </Button>
         {probe && (
-          <span className="perfpanel__badge" role="status">
+          <Badge tone={probe.ok ? 'success' : 'danger'} dot role="status">
             {probe.ok ? `OK — ${probe.detail}` : `Failed — ${probe.detail}`}
-          </span>
+          </Badge>
         )}
       </div>
     </SettingsSection>

@@ -15,21 +15,21 @@ import type { CommunityFilters } from './community';
 
 // ── Keys (prevents typos, enables targeted invalidation) ─────────────────
 export const queryKeys = {
-  sysinfo:         ['sysinfo']         as const,
-  modelStatus:     ['model-status']    as const,
-  notifications:   ['notifications']   as const,
-  systemInfo:      ['system-info']     as const,
-  systemLogs:      (tail?: number) => ['system-logs', tail ?? 300] as const,
-  tauriLogs:       (tail?: number) => ['tauri-logs',  tail ?? 300] as const,
-  models:          ['models']          as const,
+  sysinfo: ['sysinfo'] as const,
+  modelStatus: ['model-status'] as const,
+  notifications: ['notifications'] as const,
+  systemInfo: ['system-info'] as const,
+  systemLogs: (tail?: number) => ['system-logs', tail ?? 300] as const,
+  tauriLogs: (tail?: number) => ['tauri-logs', tail ?? 300] as const,
+  models: ['models'] as const,
   recommendations: ['recommendations'] as const,
-  preflight:       ['preflight']       as const,
-  setupStatus:     ['setup-status']    as const,
-  galleryVoices:   (params?: any) => ['gallery-voices', params] as const,
+  preflight: ['preflight'] as const,
+  setupStatus: ['setup-status'] as const,
+  galleryVoices: (params?: any) => ['gallery-voices', params] as const,
   galleryCategories: ['gallery-categories'] as const,
   archetypeCategories: ['archetype-categories'] as const,
-  archetypes:      (filters?: any) => ['archetypes', filters] as const,
-  communityItems:  (filters?: any) => ['community-items', filters] as const,
+  archetypes: (filters?: any) => ['archetypes', filters] as const,
+  communityItems: (filters?: any) => ['community-items', filters] as const,
   communityManifest: (refresh?: boolean) => ['community-manifest', !!refresh] as const,
 };
 
@@ -142,14 +142,6 @@ export function useSetupStatus() {
   });
 }
 
-export function useGalleryCategories() {
-  return useQuery({
-    queryKey: queryKeys.galleryCategories,
-    queryFn: galleryApi.listCategories,
-    staleTime: 60_000,
-  });
-}
-
 export function useGalleryVoices(params?: any) {
   return useQuery({
     queryKey: queryKeys.galleryVoices(params),
@@ -187,14 +179,6 @@ export function useCommunityItems(filters: CommunityFilters = {}) {
   });
 }
 
-export function useCommunityManifest(refresh = false) {
-  return useQuery({
-    queryKey: queryKeys.communityManifest(refresh),
-    queryFn: () => communityApi.communityManifest(refresh),
-    staleTime: 5 * 60_000,
-  });
-}
-
 // ── Mutations ────────────────────────────────────────────────────────────
 
 export function useInstallModel() {
@@ -217,37 +201,6 @@ export function useDeleteModel() {
       qc.invalidateQueries({ queryKey: queryKeys.models });
       qc.invalidateQueries({ queryKey: queryKeys.setupStatus });
       qc.invalidateQueries({ queryKey: queryKeys.recommendations });
-    },
-  });
-}
-
-export function useFlushMemory() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (unloadModel: boolean) => systemApi.flushMemory(unloadModel),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.sysinfo });
-      qc.invalidateQueries({ queryKey: queryKeys.modelStatus });
-    },
-  });
-}
-
-export function useClearLogs() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => systemApi.clearSystemLogs(),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.systemLogs() });
-    },
-  });
-}
-
-export function useClearTauriLogs() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => systemApi.clearTauriLogs(),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.tauriLogs() });
     },
   });
 }

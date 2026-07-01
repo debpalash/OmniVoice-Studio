@@ -35,9 +35,9 @@ export type AppMode =
  * split): 'audio' = define from reference audio (old Clone tab), 'design' =
  * define by described attributes (old Design tab).
  */
-export type DefineMethod = 'audio' | 'design';
+type DefineMethod = 'audio' | 'design';
 
-export type SidebarTab = 'projects' | 'history' | 'downloads';
+type SidebarTab = 'projects' | 'history' | 'downloads';
 
 export interface UiSlice {
   mode: AppMode;
@@ -114,9 +114,11 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) 
   setIsSidebarCollapsed: (collapsed) => set({ isSidebarCollapsed: collapsed }),
   setIsSidebarProjectsCollapsed: (collapsed) => set({ isSidebarProjectsCollapsed: collapsed }),
   setSidebarTab: (tab) => set({ sidebarTab: tab }),
-  setShowCheatsheet: (open) => set((s) => ({
-    showCheatsheet: typeof open === 'function' ? (open as (p: boolean) => boolean)(s.showCheatsheet) : open,
-  })),
+  setShowCheatsheet: (open) =>
+    set((s) => ({
+      showCheatsheet:
+        typeof open === 'function' ? (open as (p: boolean) => boolean)(s.showCheatsheet) : open,
+    })),
   setUiScale: (scale) => set({ uiScale: scale }),
 
   openVoiceProfile: (id) => {

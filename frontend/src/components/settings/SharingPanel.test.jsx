@@ -4,25 +4,41 @@ import SharingPanel from './SharingPanel';
 
 describe('SharingPanel', () => {
   let realFetch;
-  beforeEach(() => { realFetch = global.fetch; });
-  afterEach(() => { global.fetch = realFetch; });
+  beforeEach(() => {
+    realFetch = global.fetch;
+  });
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
 
   it('shows Tailscale "not detected" when CLI absent', async () => {
     global.fetch = vi.fn((url) => {
-      if (String(url).includes('tailscale/status')) return Promise.resolve({ ok: true, json: async () => ({ installed: false }) });
-      if (String(url).includes('/system/info')) return Promise.resolve({ ok: true, json: async () => ({ backend_port: 3900, share_port_base: 3901, ui_port: 3901 }) });
+      if (String(url).includes('tailscale/status'))
+        return Promise.resolve({ ok: true, json: async () => ({ installed: false }) });
+      if (String(url).includes('/system/info'))
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ backend_port: 3900, share_port_base: 3901, ui_port: 3901 }),
+        });
       return Promise.resolve({ ok: true, json: async () => ({ enabled: false }) });
     });
     render(<SharingPanel />);
     // Both the explanatory copy and the install button surface the phrase, so
     // assert at least one node renders rather than requiring a unique match.
-    await waitFor(() => expect(screen.getAllByText(/not detected|install tailscale/i).length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(screen.getAllByText(/not detected|install tailscale/i).length).toBeGreaterThan(0),
+    );
   });
 
   it('renders the ports subsection with values from /system/info', async () => {
     global.fetch = vi.fn((url) => {
-      if (String(url).includes('tailscale/status')) return Promise.resolve({ ok: true, json: async () => ({ installed: false }) });
-      if (String(url).includes('/system/info')) return Promise.resolve({ ok: true, json: async () => ({ backend_port: 4000, share_port_base: 4001, ui_port: 4100 }) });
+      if (String(url).includes('tailscale/status'))
+        return Promise.resolve({ ok: true, json: async () => ({ installed: false }) });
+      if (String(url).includes('/system/info'))
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ backend_port: 4000, share_port_base: 4001, ui_port: 4100 }),
+        });
       return Promise.resolve({ ok: true, json: async () => ({ enabled: false }) });
     });
     render(<SharingPanel />);

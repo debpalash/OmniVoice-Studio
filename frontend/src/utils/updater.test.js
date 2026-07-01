@@ -18,8 +18,12 @@ function makeStore(status) {
 }
 
 describe('checkForUpdate periodic re-check guard', () => {
-  beforeEach(() => { window.__TAURI_INTERNALS__ = {}; });
-  afterEach(() => { delete window.__TAURI_INTERNALS__; });
+  beforeEach(() => {
+    window.__TAURI_INTERNALS__ = {};
+  });
+  afterEach(() => {
+    delete window.__TAURI_INTERNALS__;
+  });
 
   // Regression for #214: a 6h re-check while one of these states is showing
   // must NOT call setUpdateChecking() — that clears updateError and hides the
@@ -43,8 +47,12 @@ describe('checkForUpdate periodic re-check guard', () => {
 });
 
 describe('listReleases / fetchAppVersion', () => {
-  beforeEach(() => { window.__TAURI_INTERNALS__ = {}; });
-  afterEach(() => { delete window.__TAURI_INTERNALS__; });
+  beforeEach(() => {
+    window.__TAURI_INTERNALS__ = {};
+  });
+  afterEach(() => {
+    delete window.__TAURI_INTERNALS__;
+  });
 
   it('listReleases returns [] when not in Tauri', async () => {
     delete window.__TAURI_INTERNALS__;

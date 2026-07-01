@@ -42,8 +42,7 @@ describe('DictationDemo', () => {
     // stay; only the replayable script cards are asset-gated.
     global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 404 }));
     const { container } = render(withI18n(<DictationDemo />));
-    await waitFor(() =>
-      expect(container.querySelector('.dictation-demo__scripts')).toBeNull());
+    await waitFor(() => expect(container.querySelector('.dictation-demo__scripts')).toBeNull());
     // The panel itself (hotkey teaching) is still there.
     expect(container.querySelector('.dictation-demo')).not.toBeNull();
     expect(screen.queryByText(/Schedule a meeting with Pat/)).not.toBeInTheDocument();
@@ -73,7 +72,7 @@ describe('DictationDemo', () => {
     await waitFor(
       () => {
         const calls = global.fetch.mock.calls;
-        const wavCall = calls.find(c => String(c[0]).endsWith('.wav'));
+        const wavCall = calls.find((c) => String(c[0]).endsWith('.wav'));
         expect(wavCall).toBeTruthy();
       },
       { timeout: 3000 },
@@ -81,17 +80,16 @@ describe('DictationDemo', () => {
     await waitFor(
       () => {
         const calls = global.fetch.mock.calls;
-        expect(calls.find(c => String(c[0]).endsWith('/transcribe'))).toBeTruthy();
+        expect(calls.find((c) => String(c[0]).endsWith('/transcribe'))).toBeTruthy();
       },
       { timeout: 3000 },
     );
-    await waitFor(
-      () => expect(screen.getByText(RECOGNIZED)).toBeInTheDocument(),
-      { timeout: 3000 },
-    );
+    await waitFor(() => expect(screen.getByText(RECOGNIZED)).toBeInTheDocument(), {
+      timeout: 3000,
+    });
 
     const calls = global.fetch.mock.calls;
-    const transcribeCall = calls.find(c => String(c[0]).endsWith('/transcribe'));
+    const transcribeCall = calls.find((c) => String(c[0]).endsWith('/transcribe'));
     expect(transcribeCall[1]?.method).toBe('POST');
   });
 });

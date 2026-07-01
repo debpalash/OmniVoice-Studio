@@ -21,7 +21,10 @@ describe('splitSSEBuffer', () => {
 
 describe('parseSSELine', () => {
   it('parses a data line (with the conventional space)', () => {
-    expect(parseSSELine('data: {"type":"chapter","index":0}')).toEqual({ type: 'chapter', index: 0 });
+    expect(parseSSELine('data: {"type":"chapter","index":0}')).toEqual({
+      type: 'chapter',
+      index: 0,
+    });
   });
 
   it('parses a data line without the space', () => {

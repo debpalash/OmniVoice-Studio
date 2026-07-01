@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { nextCastColor, effectiveProfile, effectiveSpeed, castMember, CAST_COLORS } from './storyCast';
+import {
+  nextCastColor,
+  effectiveProfile,
+  effectiveSpeed,
+  castMember,
+  CAST_COLORS,
+} from './storyCast';
 
 describe('nextCastColor', () => {
   it('returns the first unused palette color', () => {

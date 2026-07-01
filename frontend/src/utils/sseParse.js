@@ -13,7 +13,7 @@
  */
 export function splitSSEBuffer(buffer) {
   const parts = (buffer || '').split('\n');
-  const rest = parts.pop() ?? '';   // last part has no trailing newline yet
+  const rest = parts.pop() ?? ''; // last part has no trailing newline yet
   return { lines: parts, rest };
 }
 
@@ -28,7 +28,7 @@ export function splitSSEBuffer(buffer) {
  */
 export function parseSSELine(line) {
   if (typeof line !== 'string' || !line.startsWith('data:')) return null;
-  const payload = line.slice(5).trim();   // after 'data:'
+  const payload = line.slice(5).trim(); // after 'data:'
   if (!payload) return null;
   try {
     return JSON.parse(payload);

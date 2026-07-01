@@ -19,7 +19,11 @@ const TAG_VERBS =
 
 /** Normalise a raw captured name → Title Case, drop a leading "the"/punctuation. */
 export function normalizeSpeaker(raw) {
-  let s = String(raw || '').trim().replace(/^the\s+/i, '').replace(/[.,!?:;"'“”]+$/g, '').trim();
+  let s = String(raw || '')
+    .trim()
+    .replace(/^the\s+/i, '')
+    .replace(/[.,!?:;"'“”]+$/g, '')
+    .trim();
   if (!s) return 'Narrator';
   return s
     .split(/\s+/)
@@ -30,8 +34,8 @@ export function normalizeSpeaker(raw) {
 function attributionName(before, after) {
   const V = TAG_VERBS;
   const tests = [
-    new RegExp(`^[\\s,]*(?:${V})\\s+(?:the\\s+)?([A-Za-z][A-Za-z'-]*)`, 'i'),       // "," asked the fox
-    new RegExp(`^[\\s,]*(?:the\\s+)?([A-Za-z][A-Za-z'-]*)\\s+(?:${V})`, 'i'),       // "," the owl said
+    new RegExp(`^[\\s,]*(?:${V})\\s+(?:the\\s+)?([A-Za-z][A-Za-z'-]*)`, 'i'), // "," asked the fox
+    new RegExp(`^[\\s,]*(?:the\\s+)?([A-Za-z][A-Za-z'-]*)\\s+(?:${V})`, 'i'), // "," the owl said
   ].map((re) => after.match(re));
   const before2 = [
     new RegExp(`(?:the\\s+)?([A-Za-z][A-Za-z'-]*)\\s+(?:${V})\\s*[,:]?\\s*$`, 'i'), // The fox asked,
@@ -49,8 +53,18 @@ function attributionName(before, after) {
 // isn't a reserved marker keyword. Everything the parser emits keeps the same
 // { speaker, text } shape as parseScript, so autoCast works unchanged.
 const _RESERVED_MARKERS = new Set([
-  'pause', 'voice', 'fast', 'slow', 'spell', 'laughter', 'sigh', 'breath',
-  'whisper', 'emphasis', 'em', 'break',
+  'pause',
+  'voice',
+  'fast',
+  'slow',
+  'spell',
+  'laughter',
+  'sigh',
+  'breath',
+  'whisper',
+  'emphasis',
+  'em',
+  'break',
 ]);
 const _SPEAKER_TAG = /^\s*\[([^\]:]+)\]\s*(.*)$/;
 
@@ -78,7 +92,9 @@ export function hasSpeakerTags(text) {
  */
 export function parseTaggedScript(text) {
   const out = [];
-  const src = String(text || '').replace(/\r\n/g, '\n').trim();
+  const src = String(text || '')
+    .replace(/\r\n/g, '\n')
+    .trim();
   if (!src) return out;
 
   let cur = { speaker: 'Narrator', parts: [] };
@@ -104,7 +120,9 @@ export function parseTaggedScript(text) {
 
 export function parseScript(text) {
   const out = [];
-  const src = String(text || '').replace(/\r\n/g, '\n').trim();
+  const src = String(text || '')
+    .replace(/\r\n/g, '\n')
+    .trim();
   if (!src) return out;
 
   // Tagged scripts (`[Alice] …`) are unambiguous — handle them first so a

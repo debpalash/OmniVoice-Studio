@@ -41,10 +41,7 @@ export const BACKEND_PORT = 3900;
 
 /** True when the current execution context is a Tauri webview. */
 export function isTauriContext(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    !!(window.__TAURI_INTERNALS__ || window.__TAURI__)
-  );
+  return typeof window !== 'undefined' && !!(window.__TAURI_INTERNALS__ || window.__TAURI__);
 }
 
 /**
@@ -70,9 +67,9 @@ function _readEnvOverride(): string | undefined {
 export function getApiBase(): string {
   // 0. Runtime override injected by the backend (Docker/proxy) wins over
   //    everything — it's the only knob a prebuilt image can turn at run time.
-  if (typeof window !== "undefined") {
+  if (typeof window !== 'undefined') {
     const runtime = window.__OMNIVOICE_API_BASE__;
-    if (typeof runtime === "string" && runtime) {
+    if (typeof runtime === 'string' && runtime) {
       return stripTrailingSlash(runtime);
     }
   }
@@ -98,7 +95,7 @@ export function getApiBase(): string {
   }
 
   // 3. Plain browser → follow the page's own origin/host.
-  if (typeof window !== "undefined" && window.location) {
+  if (typeof window !== 'undefined' && window.location) {
     const { protocol, hostname } = window.location;
     if (hostname) {
       return `${protocol}//${hostname}:${BACKEND_PORT}`;
@@ -110,7 +107,7 @@ export function getApiBase(): string {
 }
 
 function stripTrailingSlash(url: string): string {
-  return url.endsWith("/") ? url.slice(0, -1) : url;
+  return url.endsWith('/') ? url.slice(0, -1) : url;
 }
 
 /** Module-level cached base URL — resolved once at import time. Most callers

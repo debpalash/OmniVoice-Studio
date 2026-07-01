@@ -20,8 +20,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { BookA, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { apiJson, apiFetch } from '../../api/client';
-import { SettingsSection, SettingRow } from './primitives';
-import './PerformancePanel.css';
+import { SettingsSection, SettingRow, SettingsInput, SettingsToggle } from './primitives';
+import { Button, Badge, Select } from '../../ui';
 
 const TYPES = ['respelling', 'ipa', 'cmu'];
 
@@ -45,7 +45,9 @@ export default function PronunciationPanel() {
     }
   }, [t]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const onAdd = async () => {
     if (!term.trim()) return;
@@ -62,7 +64,10 @@ export default function PronunciationPanel() {
           enabled: true,
         }),
       });
-      setTerm(''); setReplacement(''); setLanguage(''); setType('respelling');
+      setTerm('');
+      setReplacement('');
+      setLanguage('');
+      setType('respelling');
       refresh();
     } catch (e) {
       setError(e?.message || t('pronunciation.save_error'));
@@ -93,7 +98,10 @@ export default function PronunciationPanel() {
 
   const onTest = async (value) => {
     setTestText(value);
-    if (!value.trim()) { setTestOut(null); return; }
+    if (!value.trim()) {
+      setTestOut(null);
+      return;
+    }
     try {
       const r = await apiJson('/pronunciation/test', {
         method: 'POST',
@@ -110,17 +118,14 @@ export default function PronunciationPanel() {
   const typeLabel = (ty) => t(`pronunciation.type_${ty}`, ty);
 
   return (
-    <SettingsSection
-      icon={BookA}
-      title={t('pronunciation.title')}
-    >
-      <SettingRow
-        title={t('pronunciation.title')}
-        hint={t('pronunciation.help')}
-        control={null}
-      />
+    <SettingsSection icon={BookA} title={t('pronunciation.title')}>
+      <SettingRow title={t('pronunciation.title')} hint={t('pronunciation.help')} control={null} />
 
-      {error && <div className="perfpanel__error" role="alert">{error}</div>}
+      {error && (
+        <div className="perfpanel__error" role="alert">
+          {error}
+        </div>
+      )}
 
       {entries.length === 0 && (
         <SettingRow
@@ -132,26 +137,30 @@ export default function PronunciationPanel() {
       {entries.map((e) => (
         <SettingRow
           key={e.id}
-          title={<><strong>{e.term}</strong> → {e.replacement || '—'}</>}
+          title={
+            <>
+              <strong>{e.term}</strong> → {e.replacement || '—'}
+            </>
+          }
           control={
             <>
-              <input
-                type="checkbox"
+              <SettingsToggle
                 checked={!!e.enabled}
                 onChange={() => onToggle(e)}
                 aria-label={t('pronunciation.enabled')}
                 data-testid={`pron-toggle-${e.id}`}
               />
-              <span className="perfpanel__badge">{typeLabel(e.type)}</span>
-              <span className="perfpanel__badge">{scopeLabel(e.scope || e.language)}</span>
-              <button
-                type="button"
+              <Badge tone="neutral">{typeLabel(e.type)}</Badge>
+              <Badge tone="neutral">{scopeLabel(e.scope || e.language)}</Badge>
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={() => onDelete(e.id)}
                 aria-label={t('pronunciation.remove', { term: e.term })}
                 data-testid={`pron-del-${e.id}`}
               >
                 <Trash2 size={12} />
-              </button>
+              </Button>
             </>
           }
         />
@@ -161,35 +170,46 @@ export default function PronunciationPanel() {
         title={t('pronunciation.add')}
         align="start"
         control={
-          <div className="perfpanel__row" style={{ flexWrap: 'wrap', gap: 6 }}>
-            <input
+          <div className="flex flex-wrap items-center gap-[6px] min-w-0 max-w-full">
+            <SettingsInput
               type="text"
               value={term}
               onChange={(ev) => setTerm(ev.target.value)}
               placeholder={t('pronunciation.term_placeholder')}
-              style={{ flex: 1, minWidth: 120 }}
+              className="flex-[1_1_120px]"
               data-testid="pron-term"
             />
-            <input
+            <SettingsInput
               type="text"
               value={replacement}
               onChange={(ev) => setReplacement(ev.target.value)}
               placeholder={t('pronunciation.replacement_placeholder')}
-              style={{ flex: 1, minWidth: 120 }}
+              className="flex-[1_1_120px]"
               data-testid="pron-replacement"
             />
-            <select value={type} onChange={(ev) => setType(ev.target.value)} data-testid="pron-type">
-              {TYPES.map((ty) => <option key={ty} value={ty}>{typeLabel(ty)}</option>)}
-            </select>
-            <input
+            <Select
+              size="sm"
+              value={type}
+              onChange={(ev) => setType(ev.target.value)}
+              data-testid="pron-type"
+            >
+              {TYPES.map((ty) => (
+                <option key={ty} value={ty}>
+                  {typeLabel(ty)}
+                </option>
+              ))}
+            </Select>
+            <SettingsInput
               type="text"
               value={language}
               onChange={(ev) => setLanguage(ev.target.value)}
               placeholder={t('pronunciation.lang_label')}
-              style={{ width: 90 }}
+              className="w-[90px] flex-none"
               data-testid="pron-language"
             />
-            <button type="button" onClick={onAdd} data-testid="pron-add">{t('pronunciation.add')}</button>
+            <Button variant="subtle" size="sm" onClick={onAdd} data-testid="pron-add">
+              {t('pronunciation.add')}
+            </Button>
           </div>
         }
       />
@@ -197,21 +217,24 @@ export default function PronunciationPanel() {
       <SettingRow
         title={t('pronunciation.test_placeholder')}
         control={
-          <input
+          <SettingsInput
             type="text"
             value={testText}
             onChange={(ev) => onTest(ev.target.value)}
             placeholder={t('pronunciation.test_placeholder')}
-            style={{ flex: 1, minWidth: 200 }}
             data-testid="pron-test-input"
           />
         }
       />
       {testOut && (
         <p className="perfpanel__help" data-testid="pron-test-out">
-          {testOut.changed
-            ? <>{t('pronunciation.test_result')} <strong>{testOut.substituted}</strong></>
-            : t('pronunciation.test_nochange')}
+          {testOut.changed ? (
+            <>
+              {t('pronunciation.test_result')} <strong>{testOut.substituted}</strong>
+            </>
+          ) : (
+            t('pronunciation.test_nochange')
+          )}
         </p>
       )}
     </SettingsSection>

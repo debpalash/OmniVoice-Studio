@@ -36,9 +36,7 @@ export function getBreadcrumbs() {
 
 /** "12:03:05 view:dub" lines, oldest first — ready for the report body. */
 export function formatBreadcrumbs() {
-  return ring
-    .map((b) => `${new Date(b.t).toLocaleTimeString('en-GB')} ${b.action}`)
-    .join('\n');
+  return ring.map((b) => `${new Date(b.t).toLocaleTimeString('en-GB')} ${b.action}`).join('\n');
 }
 
 export function clearBreadcrumbs() {

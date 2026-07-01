@@ -182,8 +182,8 @@ async def ws_tts(websocket: WebSocket):
                     sentences = [text]
 
                 # Run generation in the GPU pool
-                from services.model_manager import _gpu_pool
-                loop = asyncio.get_running_loop()
+                import functools
+                from services.model_manager import run_on_gpu_pool_guarded
 
                 def _generate(sentence_text):
                     from services.audio_dsp import apply_mastering, normalize_audio
@@ -204,8 +204,13 @@ async def ws_tts(websocket: WebSocket):
                 started = False
 
                 for sentence in sentences:
-                    wav_tensor, sr = await loop.run_in_executor(
-                        _gpu_pool, _generate, sentence
+                    # Bounded + pool-reset on hang so a wedged generate can't
+                    # starve the GPU pool and brick the backend (#730 class). On
+                    # timeout GpuJobTimeoutError propagates to the handler below,
+                    # which sends an actionable error frame.
+                    wav_tensor, sr = await run_on_gpu_pool_guarded(
+                        functools.partial(_generate, sentence),
+                        what="TTS generate",
                     )
 
                     if not started:

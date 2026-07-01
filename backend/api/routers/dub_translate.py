@@ -413,11 +413,16 @@ async def dub_translate(req: TranslateRequest):
             try:
                 import argostranslate  # noqa: F401
             except ImportError:
+                # Single-source the install command from the engine registry so
+                # this 400 and the proactive Install button in the Engine
+                # selector can never drift (see translation_engines.install_command).
+                from services.translation_engines import install_command
+                cmd = install_command("argos") or "uv pip install argostranslate"
                 friendly = (
                     f"The '{provider}' translation engine needs the optional "
                     f"`argostranslate` Python package, which isn't installed in "
-                    f"this backend. Install it with `uv pip install argostranslate` "
-                    f"(or `pip install argostranslate`) and restart the server, or "
+                    f"this backend. Install it with `{cmd}` "
+                    f"and restart the server, or "
                     f"switch the Engine dropdown to another provider."
                 )
                 return JSONResponse(status_code=400, content={"error": friendly})
@@ -470,11 +475,16 @@ async def dub_translate(req: TranslateRequest):
         try:
             import deep_translator  # noqa: F401
         except ImportError:
+            # Same single-source install command as the Engine selector's Install
+            # button (translation_engines.install_command) — google/deepl/
+            # microsoft/mymemory all share the deep_translator package.
+            from services.translation_engines import install_command
+            cmd = install_command(provider) or "uv pip install deep_translator"
             friendly = (
                 f"The '{provider}' translation engine needs the optional "
                 f"`deep_translator` Python package, which isn't installed in "
-                f"this backend. Install it with `uv pip install deep_translator` "
-                f"(or `pip install deep_translator`) and restart the server, or "
+                f"this backend. Install it with `{cmd}` "
+                f"and restart the server, or "
                 f"switch the Engine dropdown to Argos (local, bundled), NLLB "
                 f"(local, heavier), or OpenAI (LLM)."
             )

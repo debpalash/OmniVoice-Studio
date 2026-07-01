@@ -54,8 +54,8 @@ export function unlockAudio() {
   _resumeQueue.clear();
   return Promise.all(
     pending.map((ac) =>
-      ac.state === 'suspended' ? ac.resume().catch(() => {}) : Promise.resolve()
-    )
+      ac.state === 'suspended' ? ac.resume().catch(() => {}) : Promise.resolve(),
+    ),
   ).then(() => {});
 }
 

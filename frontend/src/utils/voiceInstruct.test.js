@@ -9,19 +9,28 @@ import { buildDesignInstruct, instructToFormValue, designModeProfileId } from '.
 describe('buildDesignInstruct', () => {
   it('keeps one valid tag per category from the dropdowns', () => {
     const { instruct, unsupported, duplicates } = buildDesignInstruct(
-      { Gender: 'male', Age: 'middle-aged', Pitch: 'low pitch', Style: 'Auto',
-        EnglishAccent: 'british accent', ChineseDialect: 'Auto' },
+      {
+        Gender: 'male',
+        Age: 'middle-aged',
+        Pitch: 'low pitch',
+        Style: 'Auto',
+        EnglishAccent: 'british accent',
+        ChineseDialect: 'Auto',
+      },
       '',
     );
-    expect(instruct.split(', ').sort())
-      .toEqual(['british accent', 'low pitch', 'male', 'middle-aged'].sort());
+    expect(instruct.split(', ').sort()).toEqual(
+      ['british accent', 'low pitch', 'male', 'middle-aged'].sort(),
+    );
     expect(unsupported).toEqual([]);
     expect(duplicates).toEqual([]);
   });
 
   it('buckets free-text prose as unsupported, not a duplicate (#115)', () => {
     const { instruct, unsupported, duplicates } = buildDesignInstruct(
-      { Gender: 'male' }, 'Speak as a calm documentary narrator');
+      { Gender: 'male' },
+      'Speak as a calm documentary narrator',
+    );
     expect(instruct).toBe('male');
     expect(unsupported).toContain('Speak as a calm documentary narrator');
     expect(duplicates).toEqual([]);
@@ -44,7 +53,10 @@ describe('buildDesignInstruct', () => {
   });
 
   it('buckets a valid tag outranked by a dropdown as a duplicate, not unsupported (#114)', () => {
-    const { instruct, unsupported, duplicates } = buildDesignInstruct({ Pitch: 'low pitch' }, 'high pitch');
+    const { instruct, unsupported, duplicates } = buildDesignInstruct(
+      { Pitch: 'low pitch' },
+      'high pitch',
+    );
     expect(instruct).toBe('low pitch'); // dropdown wins the category
     expect(duplicates).toContain('high pitch');
     expect(unsupported).toEqual([]);
@@ -76,8 +88,8 @@ describe('buildDesignInstruct', () => {
 
 describe('designModeProfileId (#674 — clone must not hijack design attributes)', () => {
   const profiles = [
-    { id: 'clone1', name: 'My Clone' },                 // no instruct → clone
-    { id: 'clone2', name: 'Demo', instruct: '' },        // empty instruct → clone
+    { id: 'clone1', name: 'My Clone' }, // no instruct → clone
+    { id: 'clone2', name: 'Demo', instruct: '' }, // empty instruct → clone
     { id: 'design1', name: 'Narrator', instruct: 'male, low pitch' }, // design
   ];
 

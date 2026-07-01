@@ -29,7 +29,12 @@ describe('storyToSpans', () => {
     ];
     const chapters = storyToSpans(tracks, CAST);
     expect(chapters.map((c) => c.title)).toEqual(['Chapter One', 'Chapter Two']);
-    expect(chapters[1].spans[0]).toEqual({ voice_id: 'p_fox', text: 'More.', pause_ms_after: 0, speed: null });
+    expect(chapters[1].spans[0]).toEqual({
+      voice_id: 'p_fox',
+      text: 'More.',
+      pause_ms_after: 0,
+      speed: null,
+    });
   });
 
   it('honors a per-line voice override', () => {
@@ -44,20 +49,27 @@ describe('storyToSpans', () => {
   });
 
   it('applies inline SSML-lite prosody (overriding the line speed)', () => {
-    const tracks = [{ character: 'narrator', text: 'calm [fast]rush[/fast] [spell]USA[/spell]', speed: 0.9 }];
+    const tracks = [
+      { character: 'narrator', text: 'calm [fast]rush[/fast] [spell]USA[/spell]', speed: 0.9 },
+    ];
     const spans = storyToSpans(tracks, CAST)[0].spans;
     const calm = spans.find((s) => s.text === 'calm');
     const rush = spans.find((s) => s.text === 'rush');
     const usa = spans.find((s) => s.text === 'U S A');
-    expect(calm.speed).toBe(0.9);     // plain → falls back to the line slider
-    expect(rush.speed).toBe(1.15);    // [fast] overrides the line slider
-    expect(usa).toBeTruthy();         // [spell] spelled the letters out
+    expect(calm.speed).toBe(0.9); // plain → falls back to the line slider
+    expect(rush.speed).toBe(1.15); // [fast] overrides the line slider
+    expect(usa).toBeTruthy(); // [spell] spelled the letters out
   });
 
   it('folds [pause] into the previous span', () => {
     const tracks = [{ character: 'narrator', text: 'Wait. [pause 0.5s] Done.' }];
     const spans = storyToSpans(tracks, CAST)[0].spans;
-    expect(spans[0]).toEqual({ voice_id: 'p_narr', text: 'Wait.', pause_ms_after: 500, speed: null });
+    expect(spans[0]).toEqual({
+      voice_id: 'p_narr',
+      text: 'Wait.',
+      pause_ms_after: 500,
+      speed: null,
+    });
     expect(spans[1]).toEqual({ voice_id: 'p_narr', text: 'Done.', pause_ms_after: 0, speed: null });
   });
 
@@ -98,8 +110,8 @@ describe('storyToSpans', () => {
     const tracks = [{ character: 'narrator', text: 'A [pause] B [pause 500ms] C' }];
     const spans = storyToSpans(tracks, CAST)[0].spans;
     expect(spans.map((s) => s.text)).toEqual(['A', 'B', 'C']);
-    expect(spans[0].pause_ms_after).toBe(350);   // bare [pause]
-    expect(spans[1].pause_ms_after).toBe(500);   // [pause 500ms]
+    expect(spans[0].pause_ms_after).toBe(350); // bare [pause]
+    expect(spans[1].pause_ms_after).toBe(500); // [pause 500ms]
   });
 
   it('## inside a multi-line track text does NOT re-chapter', () => {
@@ -116,7 +128,12 @@ describe('storyToSpans', () => {
       { character: 'narrator', text: '[pause 1s] Second.' },
     ];
     const spans = storyToSpans(tracks, CAST)[0].spans;
-    expect(spans[0]).toEqual({ voice_id: 'p_narr', text: 'First.', pause_ms_after: 1000, speed: null });
+    expect(spans[0]).toEqual({
+      voice_id: 'p_narr',
+      text: 'First.',
+      pause_ms_after: 1000,
+      speed: null,
+    });
     expect(spans[1].text).toBe('Second.');
     expect(spans).toHaveLength(2); // no standalone silent span between tracks
   });
@@ -130,12 +147,12 @@ describe('storyToSpans', () => {
 
   it('applies a global speed to lines without a per-track override', () => {
     const tracks = [
-      { character: 'narrator', text: 'one' },                 // no per-track speed
-      { character: 'narrator', text: 'two', speed: 1.5 },     // per-track override
+      { character: 'narrator', text: 'one' }, // no per-track speed
+      { character: 'narrator', text: 'two', speed: 1.5 }, // per-track override
     ];
     const spans = storyToSpans(tracks, CAST, 0.8)[0].spans;
-    expect(spans.find((s) => s.text === 'one').speed).toBe(0.8);   // inherits global
-    expect(spans.find((s) => s.text === 'two').speed).toBe(1.5);   // override wins
+    expect(spans.find((s) => s.text === 'one').speed).toBe(0.8); // inherits global
+    expect(spans.find((s) => s.text === 'two').speed).toBe(1.5); // override wins
   });
 
   it('treats global speed 1.0× (and null) as no override', () => {
@@ -151,7 +168,7 @@ describe('storyToSpans', () => {
     expect(spans.map((s) => [s.voice_id, s.text])).toEqual([
       ['p_fox', 'hi'],
       ['p_bob', 'there'],
-      ['p_fox', 'back'],   // reverts to the cast voice (p_fox), NOT null
+      ['p_fox', 'back'], // reverts to the cast voice (p_fox), NOT null
     ]);
   });
 });

@@ -5,11 +5,17 @@ import NetworkToggle from './NetworkToggle';
 
 describe('NetworkToggle', () => {
   let realFetch;
-  beforeEach(() => { realFetch = global.fetch; });
-  afterEach(() => { global.fetch = realFetch; });
+  beforeEach(() => {
+    realFetch = global.fetch;
+  });
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
 
   it('defaults to Local when state reports disabled', async () => {
-    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: async () => ({ enabled: false }) }));
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: async () => ({ enabled: false }) }),
+    );
     render(<NetworkToggle />);
     await waitFor(() => expect(screen.getByText(/local/i)).toBeInTheDocument());
   });
@@ -30,12 +36,10 @@ describe('NetworkToggle', () => {
 
     render(<NetworkToggle />);
     const pill = await screen.findByRole('button', { name: /local/i });
-    fireEvent.click(pill);  // opens the in-app confirm — must NOT depend on window.confirm
+    fireEvent.click(pill); // opens the in-app confirm — must NOT depend on window.confirm
     const enableBtn = await screen.findByRole('button', { name: /^enable$/i });
     fireEvent.click(enableBtn);
 
-    await waitFor(() =>
-      expect(posts.some((u) => u.endsWith('/system/network/enable'))).toBe(true),
-    );
+    await waitFor(() => expect(posts.some((u) => u.endsWith('/system/network/enable'))).toBe(true));
   });
 });

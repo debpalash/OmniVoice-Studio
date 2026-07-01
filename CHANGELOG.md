@@ -6,6 +6,73 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [Unreleased]
+
+### Changed
+
+- **Settings is now a sidebar-nav hub instead of an 11-tab strip.** The whole
+  page was rebuilt from scratch as a grouped left-rail navigator (with a
+  search/filter box) plus a scrollable content pane — the macOS System Settings /
+  VS Code layout. Settings are organized into four groups and sixteen
+  categories: **General** (Appearance · General), **Voice & Engines** (Engines ·
+  Models · Dictation · Pronunciation · Translation), **System** (Performance &
+  Device · Storage · Network · Sharing & Remote · Credentials), and **App**
+  (Updates · Privacy & Reporting · Logs · About). Every existing control keeps
+  its behavior and store/API bindings — this is a reorganization, not a rewrite.
+  Typing in the search box filters the category list and jumps to the first
+  match, and the rail collapses to a dropdown navigator below 760px so the full
+  IA stays reachable on a narrow window. Categories whose changes need a backend
+  restart (Models, Performance & Device, Sharing & Remote) carry a "restart
+  required" badge.
+
+### Added
+
+- **A dedicated Translation pane.** Translation quality (Fast / Cinematic), the
+  OpenAI-compatible LLM endpoint, and the DeepL / Microsoft / generic translator
+  API keys now live together in one place instead of being scattered across
+  General and Credentials.
+- **A dedicated Network pane.** The HTTP/SOCKS proxy and FFmpeg-path controls
+  (previously buried in General → Advanced) are promoted to their own category.
+- **Factory reset in Storage.** A confirm-dialog-guarded action that clears the
+  locally-saved UI preferences and reloads — without touching your voices,
+  projects, or generated audio on disk.
+- **Proactive, highlighted "Install" affordance for translation engines.** When
+  you pick a Dub translation engine whose optional package isn't installed yet
+  (e.g. Google / DeepL via `deep_translator`), the Engine selector now surfaces a
+  bright accent **Install** button *before* you hit Translate — no more
+  discovering the missing package only via a translate-time 400. On a from-source
+  install it one-click installs into the backend's own interpreter; on a
+  read-only **packaged build** it opens a popover with the exact `uv pip install …`
+  command (copy-to-clipboard), a one-click **Switch to Argos (bundled, offline)**
+  escape hatch, and a docs link. The install command is single-sourced in the
+  backend registry, so the button and the 400 error can never disagree. New guide:
+  `docs/dubbing/translation-engines.md`.
+
+### Fixed
+
+- **A hung TTS generate can no longer brick the backend ("Can't reach the local
+  backend").** A GPU job that wedges on some Windows + CUDA setups occupies its
+  worker forever — Python can't cancel the thread — so on the 1–2 worker pools we
+  ship, one stuck job starved every other request and the next action surfaced as
+  the misleading "Can't reach the local backend" even though the process was
+  alive. ASR/dub/model-load already bounded and reset the pool on hang (#730); but
+  **every generate path** — Studio synthesis, the streaming path, batch, the dub
+  per-segment + preview render, archetype previews, and the OpenAI-compatible
+  `/v1/audio/speech` API — was still an unguarded GPU dispatch, and the residual
+  reports all failed on `generate:start (audio)`. Every one is now bounded by the
+  same wall-clock guard
+  (`OMNIVOICE_GENERATE_TIMEOUT_S`, default 300s) that abandons the wedged worker
+  and rebuilds the pool, so capacity is restored automatically and you get an
+  actionable timeout instead of a dead backend. Closes the whole class of
+  GPU-job-hang reports (#850, #802, #755, #723, #721, and the 0.3.7 cohort).
+
+- **The "TRANSLATION FAILED" banner now dismisses and clears itself.** The Dub
+  translation-error banner used to be sticky — it survived a successful re-try and
+  never went away. It now has a close (×), auto-clears on the next corrective
+  action (re-translating, changing the engine, or installing the package), and
+  self-clears after a short timeout — fixing the whole class of translate/pipeline
+  banners that outlived the state that caused them.
+
 ## [0.3.8] — 2026-06-29
 
 A stability-focused release that makes first-run and Windows "just work," ships
