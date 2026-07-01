@@ -4,7 +4,6 @@ import { X, Loader } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAppStore } from '../store';
 import { useTranslation } from 'react-i18next';
-import './CaptureWidget.css';
 
 import { wsUrl as buildWsUrl, apiFetch } from '../api/client';
 import { addTranscription } from '../pages/Transcriptions';

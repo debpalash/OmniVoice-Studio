@@ -14,7 +14,6 @@ import { Globe } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
 import { SettingsSection, SettingRow, SettingsInput } from './primitives';
 import RestartBadge from './RestartBadge';
-import './PerformancePanel.css';
 
 export default function HFMirrorPanel() {
   const [state, setState] = useState(null);

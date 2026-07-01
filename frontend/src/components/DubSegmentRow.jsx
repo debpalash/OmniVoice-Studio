@@ -16,7 +16,6 @@ import { formatTime } from '../utils/format';
 import { LANG_CODES } from '../utils/languages';
 import { PRESETS } from '../utils/constants';
 import { Menu, Button, Badge } from '../ui';
-import './DubSegmentRow.css';
 
 const CHAR_BUDGET_RATIO = 1.3;
 const SENTENCE_END = /[.!?。！？]/;

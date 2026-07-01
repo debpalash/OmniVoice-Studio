@@ -14,7 +14,6 @@ import DubHeader from '../components/dub/DubHeader';
 import DubLeftColumn from '../components/dub/DubLeftColumn';
 import DubRightColumn from '../components/dub/DubRightColumn';
 import DubFooter from '../components/dub/DubFooter';
-import '../components/dub/dub.css';
 
 export default function DubTab(props) {
   const { t, i18n } = useTranslation();

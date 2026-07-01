@@ -5,7 +5,6 @@ import { useAppStore } from '../../store';
 import { openExternal } from '../../api/external';
 import GoalBar from './GoalBar';
 import Pip from './Pip';
-import './Postcard.css';
 
 const SPONSOR_URL = 'https://github.com/sponsors/debpalash';
 const STAR_URL = 'https://github.com/debpalash/OmniVoice-Studio';

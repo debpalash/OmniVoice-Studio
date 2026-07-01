@@ -6,7 +6,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import './Menu.css';
 
 /**
  * Menu — floating action menu triggered by a child element.

@@ -29,7 +29,6 @@ import { Button } from '../ui';
 import WaveformPlayer from './WaveformPlayer';
 import { useAppStore } from '../store';
 import { useTranslation } from 'react-i18next';
-import './Sidebar.css';
 import { askConfirm } from '../utils/dialog';
 
 const SIDEBAR_TABS = [

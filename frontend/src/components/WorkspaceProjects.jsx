@@ -10,7 +10,6 @@ import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Film, FolderOpen, Trash2, Save, Pencil, Check, X } from 'lucide-react';
 import { Button } from '../ui';
-import './WorkspaceVoices.css';
 
 // Local copy of the sidebar's relative-time formatter (small, self-contained).
 function timeAgo(ms) {

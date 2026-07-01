@@ -14,10 +14,18 @@ import { resolve } from 'node:path';
  * future change reintroduces a `@media (max-width)` in this file or drops the
  * shell-class reflow / sticky action bar.
  */
+// The former per-component WorkspaceHistory.css was consolidated into the single
+// unlayered bucket styles/residual.css (each origin file kept a `from <path>`
+// provenance header). Slice just the WorkspaceHistory block so this guard checks
+// only its rules — sibling components in the same bucket legitimately use
+// viewport media queries. Slice BEFORE stripping comments (the header is one).
+const residual = readFileSync(resolve(process.cwd(), 'src/styles/residual.css'), 'utf8');
+const start = residual.indexOf('from components/WorkspaceHistory.css');
+const next = residual.indexOf('from components/', start + 'from components/'.length);
+const block = residual.slice(start, next === -1 ? undefined : next);
 // Strip /* … */ comments so the guard checks real declarations, not the
 // warning comment that quotes the forbidden `@media (max-width)` pattern.
-const raw = readFileSync(resolve(process.cwd(), 'src/components/WorkspaceHistory.css'), 'utf8');
-const css = raw.replace(/\/\*[\s\S]*?\*\//g, '');
+const css = block.replace(/\/\*[\s\S]*?\*\//g, '');
 
 describe('workspace narrow-shell reflow (#476 CTA-clipping guard)', () => {
   it('does NOT use a raw viewport @media (max-width) query', () => {

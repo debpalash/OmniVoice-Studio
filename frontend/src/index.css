@@ -1956,3 +1956,176 @@ input[type="file"]::file-selector-button:hover {
   color: var(--chrome-fg);
   border-color: var(--chrome-border-strong);
 }
+
+
+/* ═══ CONSOLIDATED ANIMATIONS ═══
+   Keyframes gathered from the former per-component stylesheets. @keyframes
+   are global regardless of source file, so they live here alongside the rest
+   of the app's animations. Referenced by rules in styles/residual.css and by
+   Tailwind arbitrary [animation:…] / animate-[…] utilities on the JSX. */
+
+/* components/FloatingPill.css */
+@keyframes pill-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 14px) scale(0.92);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes pill-exit {
+  to {
+    opacity: 0;
+    transform: translate(-50%, 10px) scale(0.95);
+    filter: blur(2px);
+  }
+}
+@keyframes pill-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7); }
+}
+@keyframes pill-progress-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+/* components/CaptureWidget.css */
+@keyframes pill-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.6); }
+}
+
+/* components/CompareModal.css */
+@keyframes compare-drawer-slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* components/VoicePreview.css */
+@keyframes voice-preview-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* components/firstrun.css */
+@keyframes fr-breathe {
+  from { transform: scaleY(calc(var(--h, 0.4) * 0.55)); opacity: 0.22; }
+  to   { transform: scaleY(var(--h, 0.4)); opacity: 0.6; }
+}
+@keyframes fr-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fr-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+/* components/LogsFooter.css */
+@keyframes version-dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--chrome-accent, #b8bb26) 55%, transparent); }
+  50%      { box-shadow: 0 0 0 4px color-mix(in srgb, var(--chrome-accent, #b8bb26) 0%, transparent); }
+}
+@keyframes heart-glow {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.08); }
+}
+
+/* components/donate/DonateGoal.css */
+@keyframes goalFill {
+  0%   { width: 0; }
+  100% { width: calc(var(--goal-pct, 0) * 100%); }
+}
+@keyframes goalPip {
+  0%   { left: 0; }
+  100% { left: calc(var(--goal-pct, 0) * 100%); }
+}
+@keyframes pipBob {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50%      { transform: translateY(-1px) scaleY(1.03); }
+}
+@keyframes pipWave {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  20%           { transform: rotate(-22deg); }
+  40%           { transform: rotate(-6deg); }
+}
+
+/* components/donate/Postcard.css */
+@keyframes stampThunk {
+  0%   { transform: scale(1.7) rotate(-14deg); opacity: 0; }
+  55%  { transform: scale(0.92) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-5deg); opacity: 1; }
+}
+@keyframes postcardIn {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes postcardOut {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(10px) scale(0.97); }
+}
+
+/* components/settings/VoicePanel.css */
+@keyframes voicepanel-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* pages/BatchQueue.css */
+@keyframes batch-shimmer {
+  0%   { opacity: 0; }
+  50%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* pages/VoiceGallery.css */
+@keyframes eq {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
+
+/* components/dub/dub.css */
+@keyframes dub-stepper-spin { to { transform: rotate(360deg); } }
+@keyframes dub-pulse {
+  0%, 100% { border-color: rgba(211, 134, 155, 0.3); background: rgba(211, 134, 155, 0.04); }
+  50%      { border-color: rgba(211, 134, 155, 0.6); background: rgba(211, 134, 155, 0.08); }
+}
+@keyframes dub-skel-shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+
+/* styles/residual.css */
+@keyframes ui-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+@keyframes ui-progress-indet {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(433%); } /* (100% - 30%) / 30% * 100 + 100 */
+}
+@keyframes mlp-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes rc-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes voice-selector-spin {
+  to { transform: rotate(360deg); }
+}
