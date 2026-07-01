@@ -10,12 +10,12 @@ parent. It is **opt-in** — selected in the engine picker and enabled only when
 the user points ``OMNIVOICE_CONFUCIUS4_TTS_DIR`` at a clone — so it can never
 become a broken default on any platform (the strict default-parity rule).
 
-⚠️ **Scaffold (#590) — needs hardware validation.** The synthesis API used by
-the sidecar (``confuciustts.cli.inference.ConfuciusTTS`` → ``.generate(text,
-lang, prompt_wav)``) is taken from the upstream README, not yet run on a CUDA
-box. Confirm the import path, constructor, and generate signature against the
-clone before shipping. Everything here is gated off by default, so an inaccurate
-API can't affect anyone who hasn't opted in.
+Status (#590): the synthesis API (``confuciustts.cli.inference.ConfuciusTTS`` →
+``.generate(text, lang, prompt_wav)`` → tensor, ``model.sample_rate``) is
+validated against the upstream repo, and the sidecar's pure logic is unit-tested
+(``tests/test_confucius4_sidecar.py``). A one-time end-to-end run on a CUDA 12.6
+GPU is still needed to confirm the live model call and the true output sample
+rate. Gated off by default, so this affects no one until they opt in.
 
 Three entry points: ``Confucius4Backend`` (this module), ``main.py`` (the sidecar,
 runs under the Confucius4 venv — never imported by the parent), and

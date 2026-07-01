@@ -15,12 +15,13 @@ Wire protocol — length-prefixed JSON over stdin/stdout, byte-identical to
 
 Op flow: ready → ping/pong → synthesize (→ progress, → audio) → shutdown.
 
-⚠️ Scaffold (#590): the model API below
+Status (#590): the model API below
 (``confuciustts.cli.inference.ConfuciusTTS(config_path=…, device=…)`` and
 ``model.generate(text=, lang=, prompt_wav=)`` → audio tensor, ``model.sample_rate``)
-is taken from the upstream README and has NOT been run on hardware. Validate the
-import path, constructor, and generate signature against a real clone, then
-remove this note. The engine is opt-in, so until validated it affects no one.
+is validated against the upstream repo; this sidecar's pure logic is unit-tested
+in ``tests/test_confucius4_sidecar.py``. Still pending a one-time CUDA-12.6 GPU
+run to confirm the live model call + true sample rate. Opt-in, so it affects no
+one until enabled.
 
 Restrictions: NO imports from OmniVoice parent code. NO logging of os.environ.
 """
