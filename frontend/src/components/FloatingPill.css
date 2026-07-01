@@ -21,8 +21,7 @@
   max-width: 360px;
 
   background: var(--color-bg-elev-1);
-  backdrop-filter: var(--glass-blur-md);
-  -webkit-backdrop-filter: var(--glass-blur-md);
+  /* glass blur → Tailwind arbitrary utilities on the JSX (no competing rule). */
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-pill);
   box-shadow: var(--shadow-lg), 0 0 0 1px rgba(0,0,0,0.15);

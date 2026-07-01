@@ -820,7 +820,11 @@ export default function CaptureWidget({ onDismiss }) {
   }
 
   return (
-    <div className={`capture-pill capture-pill--${state}`} role="status" aria-live="polite">
+    <div
+      className={`capture-pill [backdrop-filter:blur(24px)_saturate(180%)] [-webkit-backdrop-filter:blur(24px)_saturate(180%)] capture-pill--${state}`}
+      role="status"
+      aria-live="polite"
+    >
       {/* Pulsing status dot */}
       <span className="capture-pill__dot" />
 

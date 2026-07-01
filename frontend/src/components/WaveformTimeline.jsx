@@ -751,7 +751,11 @@ function WaveformTimeline(
           )}
 
           {/* Overlay slot — transcription / dubbing progress */}
-          {overlayContent && <div className="wfm-overlay">{overlayContent}</div>}
+          {overlayContent && (
+            <div className="wfm-overlay [backdrop-filter:blur(3px)] [-webkit-backdrop-filter:blur(3px)]">
+              {overlayContent}
+            </div>
+          )}
         </div>
 
         {/* Segment editing lane — pixel-aligned with the waveform via the

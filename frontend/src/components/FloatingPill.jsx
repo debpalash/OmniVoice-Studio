@@ -88,6 +88,7 @@ export default function FloatingPill() {
     <div
       className={[
         'floating-pill',
+        '[backdrop-filter:var(--glass-blur-md)] [-webkit-backdrop-filter:var(--glass-blur-md)]',
         exiting ? 'floating-pill--exiting' : '',
         isDone ? 'floating-pill--done' : '',
         isError ? 'floating-pill--error' : '',

@@ -12,8 +12,7 @@
   max-width: 280px;
   height: 48px;
   background: rgba(18, 18, 22, 0.88);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  /* glass blur → Tailwind arbitrary utilities on the JSX (no competing rule). */
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 100px;
   box-shadow:

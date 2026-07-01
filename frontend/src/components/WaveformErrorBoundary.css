@@ -36,7 +36,7 @@
 .wfm-loading__text { font-size: 0.65rem; color: #a89984; }
 .wfm-overlay {
   position: absolute; inset: 0; border-radius: 4px; z-index: 4;
-  background: rgba(29,32,33,0.85); backdrop-filter: blur(3px);
+  background: rgba(29,32,33,0.85); /* glass blur → utility on JSX */
   display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 6px; padding: 8px;
 }
