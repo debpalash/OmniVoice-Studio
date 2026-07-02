@@ -26,6 +26,10 @@ from services.llm_backend import get_active_llm_backend, OffBackend
 
 logger = logging.getLogger("omnivoice.director")
 
+# LLM Skills registry id — Settings → LLM Skills can disable the LLM parse
+# or route it to a specific provider. Disabled == the heuristic parser.
+_SKILL_ID = "direction_parse"
+
 
 # ── Taxonomy (stable contract) ──────────────────────────────────────────────
 # Additive per dimension — multiple values allowed. Unknown tokens are ignored
@@ -147,7 +151,10 @@ def parse(text: str) -> Direction:
     if not text or not text.strip():
         return Direction(source=text or "")
 
-    llm = get_active_llm_backend()
+    from services import llm_skills
+    # `active=` forwards this module's (monkeypatch-able) name so the
+    # no-override path is byte-identical to the pre-skills behavior.
+    llm = llm_skills.skill_backend(_SKILL_ID, active=lambda: get_active_llm_backend())
     if isinstance(llm, OffBackend):
         return _heuristic_parse(text)
 

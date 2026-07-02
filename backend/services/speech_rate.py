@@ -21,6 +21,10 @@ from services.llm_backend import get_active_llm_backend, OffBackend
 
 logger = logging.getLogger("omnivoice.speech_rate")
 
+# LLM Skills registry id — Settings → LLM Skills can disable the slot-fit
+# LLM pass or route it to a specific provider. Disabled == the no-llm path.
+_SKILL_ID = "slot_fitting"
+
 # Per-language read-speed estimates (chars/sec at natural pace, counting
 # Python `len()` codepoints — not phonemes or graphemes). These are
 # rough; real speakers vary wildly. Numbers below come from a mix of
@@ -115,7 +119,10 @@ def adjust_for_slot(
     if TOL_LOW <= initial_ratio <= tol_high:
         return {"text": text, "rate_ratio": initial_ratio, "attempts": 0}
 
-    llm = get_active_llm_backend()
+    from services import llm_skills
+    # `active=` forwards this module's (monkeypatch-able) name so the
+    # no-override path is byte-identical to the pre-skills behavior.
+    llm = llm_skills.skill_backend(_SKILL_ID, active=lambda: get_active_llm_backend())
     if isinstance(llm, OffBackend):
         return {
             "text": text,

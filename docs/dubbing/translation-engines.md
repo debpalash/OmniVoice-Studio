@@ -102,6 +102,19 @@ provider via environment variables (e.g. `GROQ_API_KEY`, or the legacy
 `TRANSLATE_BASE_URL` / `TRANSLATE_API_KEY` / `TRANSLATE_MODEL`, which map to the
 **Custom** provider).
 
+## LLM Skills (per-feature routing)
+
+**Settings → System → LLM Skills** lists every LLM-powered feature — Cinematic &
+Autofit translation, speech-rate slot fitting, glossary auto-extract, direction
+parsing, and dictation cleanup — and lets you toggle each one or route it to a
+specific provider instead of the global active one. That way sensitive work
+(e.g. dictation cleanup) can stay on a local Ollama/LM Studio model while
+heavier jobs use a remote provider. A disabled skill degrades exactly like
+having no LLM configured: Cinematic/Autofit falls back to Fast, dictation
+cleanup passes the raw transcript through, direction parsing uses the keyword
+heuristic. Everything defaults to enabled + "use active provider", so existing
+setups behave unchanged.
+
 ## API keys (online MT engines)
 
 The non-LLM online engines need a key, set as an environment variable before

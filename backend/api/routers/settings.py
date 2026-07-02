@@ -134,12 +134,13 @@ class _RefinementBody(BaseModel):
 
 
 def _refinement_state():
-    from services.refinement import get_refinement_config
-    from services.llm_backend import get_active_llm_backend
+    from services.refinement import _skill_llm, get_refinement_config
 
     cfg = get_refinement_config()
-    # The UI shows whether refinement can actually run (needs an LLM).
-    cfg["llm_ready"] = get_active_llm_backend().id != "off"
+    # The UI shows whether refinement can actually run (needs an LLM). Resolved
+    # through the LLM Skills registry so a disabled skill / per-skill provider
+    # override reads the same here as on the actual refine path.
+    cfg["llm_ready"] = _skill_llm().id != "off"
     return cfg
 
 
@@ -408,6 +409,54 @@ def list_llm_provider_models(provider_id: str):
             "detail": _scrub_llm_detail(e, api_key),
             "models": [],
         }
+
+
+# ── LLM Skills (Settings → LLM Skills) ─────────────────────────────────────
+# Per-feature enable/route control for every LLM consumption point. Each
+# skill can be toggled off (degrades exactly like "no LLM configured") or
+# routed to a specific provider (local Ollama/LM Studio vs a remote key)
+# instead of the one global active provider. Loopback-gated (router dep).
+
+
+class _LLMSkillBody(BaseModel):
+    enabled: bool | None = Field(None, description="None leaves the toggle unchanged")
+    provider_override: str | None = Field(
+        None,
+        description="provider id to route this skill to; '' or null clears "
+                    "it (skill follows the active provider). Omit to leave "
+                    "unchanged.",
+    )
+
+
+@router.get("/llm-skills")
+def list_llm_skills():
+    """Every LLM skill with its toggle, routing, and resolved ready status."""
+    from services import llm_skills
+    return {"skills": [llm_skills.describe(s.id) for s in llm_skills.all_skills()]}
+
+
+@router.put("/llm-skills/{skill_id}")
+def set_llm_skill(skill_id: str, body: _LLMSkillBody):
+    """Toggle a skill and/or set its provider routing.
+
+    Field semantics match the providers PUT: an omitted field is left
+    unchanged; ``provider_override: ""``/``null`` clears the override.
+    404 for an unknown skill or an unknown provider id.
+    """
+    from services import llm_skills
+    if llm_skills.get_skill(skill_id) is None:
+        raise HTTPException(status_code=404, detail=f"unknown LLM skill {skill_id!r}")
+    kwargs = {}
+    if body.enabled is not None:
+        kwargs["enabled"] = body.enabled
+    if "provider_override" in body.model_fields_set:
+        kwargs["provider_override"] = body.provider_override
+    try:
+        if kwargs:
+            llm_skills.configure_skill(skill_id, **kwargs)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return list_llm_skills()
 
 
 # ── License acceptance (Phase 3 Plan 03-01 / TTS-05) ──────────────────────

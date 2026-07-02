@@ -93,38 +93,29 @@ def _looks_like_target_script(text: str, code: str, threshold: float = 0.5) -> b
     return (inside / len(letters)) >= threshold
 
 
-def _llm_client():
-    """Lazy-build the OpenAI-compatible client for the ACTIVE LLM provider.
+# The LLM Skills registry entry this pipeline resolves through — lets the
+# user disable Cinematic/Autofit's LLM use or route it to a specific provider
+# (Settings → LLM Skills) independently of the other LLM features.
+_SKILL_ID = "cinematic_translation"
 
-    Resolves through the LLM Providers registry (Settings → LLM Providers) so a
-    provider configured there actually powers Cinematic/Autofit — previously this
-    only read ``TRANSLATE_*``/``OPENAI_*`` directly, so the registry-configured
-    provider was ignored (the "LLM not wired" bug). The registry's ``custom``
-    provider still maps ``TRANSLATE_BASE_URL``/``TRANSLATE_API_KEY``, so legacy
-    env setups keep working. Returns None if no provider is configured.
+
+def _llm_client():
+    """Lazy-build the OpenAI-compatible client for the Cinematic skill.
+
+    Resolves through the LLM Skills registry: per-skill provider override →
+    global active provider (Settings → LLM Providers). The registry's
+    ``custom`` provider still maps ``TRANSLATE_BASE_URL``/``TRANSLATE_API_KEY``,
+    so legacy env setups keep working. Returns None if the skill is disabled
+    or no provider is configured — the callers' Fast-fallback path.
     """
-    try:
-        from openai import OpenAI
-    except ImportError:
-        logger.warning("openai package not installed — cinematic mode unavailable.")
-        return None
-    from services import llm_providers
-    p = llm_providers.active_provider()
-    if p is None:
-        return None
-    base_url = llm_providers.resolve_base_url(p)
-    api_key = llm_providers.resolve_api_key(p)
-    if not api_key:
-        return None
-    kw = {"api_key": api_key}
-    if base_url:
-        kw["base_url"] = base_url
-    return OpenAI(**kw)
+    from services import llm_skills
+    handle = llm_skills.resolve_skill_client(_SKILL_ID)
+    return handle.client if handle is not None else None
 
 
 def _llm_model() -> str:
-    from services import llm_providers
-    p = llm_providers.active_provider()
+    from services import llm_providers, llm_skills
+    p = llm_skills.effective_provider(_SKILL_ID)
     if p is not None:
         return llm_providers.resolve_model(p)
     return os.environ.get("TRANSLATE_MODEL", "gpt-4o-mini")

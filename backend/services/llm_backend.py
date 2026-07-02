@@ -67,8 +67,18 @@ class OpenAICompatBackend(LLMBackend):
     id = "openai-compat"
     display_name = "OpenAI-compatible (real OpenAI, Ollama, LM Studio, …)"
 
-    def __init__(self):
+    def __init__(self, provider=None):
+        """``provider``: optional ``llm_providers.Provider`` to bind this
+        instance to (LLM Skills per-skill routing). None keeps the historical
+        behavior — resolve the ACTIVE provider at call time."""
         self._client = None
+        self._provider = provider
+
+    def _resolve_provider(self):
+        if self._provider is not None:
+            return self._provider
+        from services import llm_providers
+        return llm_providers.active_provider()
 
     @classmethod
     def is_available(cls) -> tuple[bool, str]:
@@ -97,7 +107,7 @@ class OpenAICompatBackend(LLMBackend):
     @property
     def model_name(self) -> str:
         from services import llm_providers
-        p = llm_providers.active_provider()
+        p = self._resolve_provider()
         if p is not None:
             return llm_providers.resolve_model(p)
         return os.environ.get("TRANSLATE_MODEL", "gpt-4o-mini")
@@ -107,7 +117,7 @@ class OpenAICompatBackend(LLMBackend):
             return self._client
         from openai import OpenAI
         from services import llm_providers
-        p = llm_providers.active_provider()
+        p = self._resolve_provider()
         if p is None:
             raise RuntimeError("LLM not configured. See `is_available()` for the hint.")
         base_url = llm_providers.resolve_base_url(p)
