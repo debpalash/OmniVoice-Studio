@@ -18,6 +18,15 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- **Buttons can no longer hide under the logs footer on small windows.** The
+  bottom status/logs bar was a fixed overlay that pages had to compensate for
+  with padding — any view that missed it (voice-card grids in Gallery and
+  Community, bottom action rows) clipped under the bar at small window sizes,
+  a class previously patched one page at a time (#476, #504). The footer is
+  now a real row of the app shell, so content physically ends at its top edge
+  at every window size, collapsed or expanded — guarded by a new layout test
+  plus a 900×600 Playwright check at the app's minimum window size.
+
 - **Confucius4-TTS is now validated end-to-end — and actually loads.** The
   opt-in engine's first live run (Apple Silicon, CPU) caught three
   scaffold-era faults: the sidecar could never import `confuciustts` (upstream

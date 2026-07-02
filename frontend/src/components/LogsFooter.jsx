@@ -226,10 +226,11 @@ export default function LogsFooter() {
   useEffect(() => localStorage.setItem(LS_HEIGHT, String(height)), [height]);
   useEffect(() => localStorage.setItem(LS_ACTIVE, active), [active]);
 
-  // Expose the current footer height as a CSS variable on :root so the
-  // studio's .app-container grid + the setup-wizard wrapper both shrink
-  // by exactly the right amount. Keeps sidebar + main content out from
-  // under the expanded panel without any JS-driven layout math.
+  // Expose the current footer height as a CSS variable on :root. Inside the
+  // studio shell the footer is a grid ROW (index.css .app-container), so
+  // content clearance needs no variable — but the fixed toasts/previews that
+  // anchor above the footer (VoicePreview, ExportModal, …) and the
+  // setup-wizard wrapper still position off --logs-footer-height.
   useEffect(() => {
     const h = collapsed ? 28 : height;
     document.documentElement.style.setProperty('--logs-footer-height', `${h}px`);
