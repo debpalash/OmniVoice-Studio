@@ -204,6 +204,7 @@
     "hint_port": "Port 3900 jest już zajęty. Zamknij inne instancje OmniVoice lub aplikacje korzystające z tego portu.",
     "hint_silent_crash": "Backend zakończył działanie bez komunikatu o błędzie. „Wyczyść i ponów” często naprawia problemy z uszkodzonym venv.",
     "hint_github_blocked": "Twoja sieć może blokować GitHub. Zainstaluj Pythona 3.11+ z python.org (dodaj do PATH) i uruchom ponownie albo ustaw UV_PYTHON_INSTALL_MIRROR — zobacz docs/install/troubleshooting.md.",
+    "hint_intel_mac": "Ten Mac ma procesor Intel, a PyTorch nie publikuje już kompilacji dla Maców z Intelem — lokalnego backendu AI nie da się zainstalować i ponawianie prób tego nie zmieni. Możesz jednak połączyć aplikację ze zdalnym backendem na innej maszynie (Ustawienia → Udostępnianie → Zdalny backend) albo używać OmniVoice na Macu z Apple Silicon, Windows lub Linuksie. Szczegóły: docs/install/macos.md.",
     "hint_default": "Najpierw spróbuj „Ponów”. Jeśli znowu się nie powiedzie, „Wyczyść i ponów” odbuduje środowisko od zera.",
     "hint_stuck": "Backend nie dokończył uruchamiania. Ze źródła uruchom najpierw „uv sync” i upewnij się, że „uv” i Python znajdują się na Twojej ścieżce, a następnie spróbuj ponownie. Sprawdź dziennik poniżej (lub Ustawienia → Dzienniki → Zaplecze), aby uzyskać dokładny punkt przeciągnięcia.",
     "lines": "{{count}} linii"

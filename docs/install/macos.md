@@ -1,16 +1,24 @@
 # OmniVoice Studio — Install on macOS
 
 This page is self-contained: follow it top to bottom and you'll end up with a
-working OmniVoice Studio install on macOS (Apple Silicon or Intel).
+working OmniVoice Studio install on macOS (Apple Silicon).
 
-> **Intel Macs:** the pre-built `.app`/DMG currently ships **Apple Silicon
-> only** — on Intel, install **from source** (works fully; ASR falls back to
-> CTranslate2). A pre-built Intel bundle is tracked in
-> [#279](https://github.com/debpalash/OmniVoice-Studio/issues/279).
+> [!IMPORTANT]
+> **Intel Macs are not supported.** The app UI installs and launches, but the
+> local Python backend **cannot run**: PyTorch stopped shipping Intel-Mac
+> (macOS x86_64) wheels after 2.2.x, and OmniVoice's dependencies require a
+> newer torch — so the first-run dependency install can never succeed, from
+> the DMG *or* from source
+> ([#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)). The app
+> detects this at first launch and tells you directly instead of failing with
+> a raw installer error. Your options on an Intel Mac: point the UI at a
+> remote backend running on another machine (**Settings → Sharing → Remote
+> backend**), or run OmniVoice on an Apple Silicon Mac, Windows, or Linux.
 
 ## Prerequisites
 
-- **macOS 12 (Monterey) or newer** — Apple Silicon or Intel.
+- **macOS 12 (Monterey) or newer** — Apple Silicon (Intel: UI only, see the
+  note above).
 - **Python 3.11+** — `brew install python@3.11` (or use `pyenv` / the system Python if you already have ≥3.11).
 - **Bun** — `curl -fsSL https://bun.sh/install | bash`.
 - **Xcode Command Line Tools** — `xcode-select --install`.
@@ -47,13 +55,15 @@ Pick the DMG that matches your Mac (check **Apple menu → About This Mac → Ch
 | Mac | DMG to download |
 |-----|-----------------|
 | Apple Silicon (M1/M2/M3/M4…) | `OmniVoice.Studio_<version>_aarch64.dmg` |
-| Intel | `OmniVoice.Studio_<version>_x64.dmg` |
+| Intel | `OmniVoice.Studio_<version>_x64.dmg` — **UI only**: the local backend cannot run on Intel ([#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)) |
 
 The architectures are **not** interchangeable: an Intel Mac cannot run the
 `aarch64` build (Rosetta 2 only translates the other direction — it lets Apple
-Silicon run Intel apps, never the reverse). If a release predates the Intel
-build target and has no `x64` DMG, use the
-[install-from-source path](#install-from-source) above instead.
+Silicon run Intel apps, never the reverse). And note the Intel caveat above:
+the `x64` DMG installs and launches, but is only useful together with a
+remote backend — the local Python backend cannot install on Intel because
+PyTorch no longer ships Intel-Mac wheels. Installing from source does not
+help; the dependency resolution fails the same way.
 
 If the first launch is blocked by macOS Gatekeeper ("OmniVoice Studio cannot be
 opened because the developer cannot be verified"), see the next section — it
@@ -123,8 +133,11 @@ without the quarantine step.
 - **Apple Silicon (M-series):** OmniVoice automatically picks the `mlx-whisper`
   and `mlx-audio` backends where available — these use the Apple Neural Engine
   and Metal Performance Shaders for ~2× the throughput of the CPU path.
-- **Intel macs:** falls back to `faster-whisper` (CTranslate2) on CPU. Still
-  fast; just no ANE acceleration.
+- **Intel Macs:** the local backend is **unsupported** — PyTorch no longer
+  ships Intel-Mac wheels, so the Python environment can never install
+  ([#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)). The UI
+  works only when pointed at a remote backend (**Settings → Sharing → Remote
+  backend**).
 
 The picker in **Settings → Engines** shows which backend is active.
 

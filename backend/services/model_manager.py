@@ -632,6 +632,29 @@ def _hf_offline() -> bool:
     return _env_flag("HF_HUB_OFFLINE") or _env_flag("TRANSFORMERS_OFFLINE")
 
 
+# Why the LAST _repair_model_cache run failed ("" when it succeeded / hasn't
+# run). #886: the "could not be auto-repaired" message used to drop the cause
+# entirely, so a mirror outage, offline mode, or a full disk all read the same.
+_last_repair_error: str = ""
+
+
+def _repair_failure_detail() -> str:
+    """One sanitized clause naming why auto-repair failed, or "" (#886).
+
+    Feeds user-facing messages (the generate 500 detail / model status), so it
+    goes through core.failure.sanitize — and because the cause text is now part
+    of the surfaced error, the shared HF-mirror hint (#874) fires on it when
+    the repair failed against an unreachable configured mirror."""
+    if not _last_repair_error:
+        return ""
+    try:
+        from core.failure import sanitize
+        cause = sanitize(_last_repair_error)
+    except Exception:
+        cause = _last_repair_error
+    return f" Auto-repair failed with: {cause}."
+
+
 def _repair_model_cache(checkpoint: str, *, force: bool = False) -> bool:
     """Re-fetch a checkpoint's missing files in place and report success.
 
@@ -648,16 +671,22 @@ def _repair_model_cache(checkpoint: str, *, force: bool = False) -> bool:
     size won't be re-fetched by the default resume (#739). It re-downloads the
     whole snapshot, so it's the last resort the load path only reaches after a
     plain resume-repair didn't fix the cache."""
+    global _last_repair_error
+    _last_repair_error = ""
     if _hf_offline():
         logger.warning(
             "Model cache for %s is incomplete but HF offline mode is set — "
             "cannot auto-repair.", checkpoint,
+        )
+        _last_repair_error = (
+            "Hugging Face offline mode is enabled (HF_HUB_OFFLINE/TRANSFORMERS_OFFLINE)"
         )
         return False
     try:
         from huggingface_hub import snapshot_download
     except Exception as imp_err:  # pragma: no cover - huggingface_hub is a hard dep
         logger.warning("Cannot import snapshot_download to repair cache: %s", imp_err)
+        _last_repair_error = f"{type(imp_err).__name__}: {imp_err}"
         return False
     dl_kwargs: dict = {"repo_id": checkpoint}
     endpoint = os.environ.get("HF_ENDPOINT")
@@ -710,6 +739,7 @@ def _repair_model_cache(checkpoint: str, *, force: bool = False) -> bool:
                 "Auto-repair of %s attempt %d/%d failed: %s",
                 checkpoint, attempt, retries, e,
             )
+            _last_repair_error = f"{type(e).__name__}: {e}"
             if attempt < retries and backoff:
                 time.sleep(backoff * attempt)
     return False
@@ -801,7 +831,8 @@ def _load_model_sync():
             if not _repair_model_cache(checkpoint):
                 raise RuntimeError(
                     f"The TTS model cache for {checkpoint} is incomplete "
-                    "(weights missing — usually an interrupted download). "
+                    "(weights missing — usually an interrupted download)."
+                    f"{_repair_failure_detail()} "
                     "Open Settings → Models, delete the OmniVoice TTS model, "
                     "and install it again."
                 ) from e
@@ -830,8 +861,9 @@ def _load_model_sync():
                     else:
                         raise RuntimeError(
                             f"The TTS model cache for {checkpoint} is incomplete and "
-                            "could not be auto-repaired. Open Settings → Models, "
-                            "delete the OmniVoice TTS model, and install it again."
+                            f"could not be auto-repaired.{_repair_failure_detail()} "
+                            "Open Settings → Models, delete the OmniVoice TTS model, "
+                            "and install it again."
                         ) from e2
                 else:
                     raise RuntimeError(

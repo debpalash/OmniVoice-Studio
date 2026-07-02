@@ -190,6 +190,14 @@ jobs:
           # backlog that motivated the original drop is contained by
           # fail-fast:false — a slow Intel leg can delay the release run but
           # can't fail the other targets.
+          #
+          # #889 (2026-07): Intel macOS is now UNSUPPORTED for the local
+          # backend — torch ≥2.3 ships no macOS x86_64 wheels, so the venv
+          # bootstrap can never succeed on Intel. The shipped x64 artifact is
+          # effectively UI-only (usable with a remote backend); the app now
+          # pre-fails first-run bootstrap with an honest message on Intel.
+          # Whether to keep shipping this x64 leg (UI-only) or drop it is an
+          # OWNER CALL — deliberately not changed in the #889 PR.
           - os: macos-15-intel
             arch: x86_64-apple-darwin
             label: "macOS Intel"

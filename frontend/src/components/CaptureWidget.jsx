@@ -8,19 +8,74 @@ import { useTranslation } from 'react-i18next';
 import { wsUrl as buildWsUrl, apiFetch } from '../api/client';
 import { addTranscription } from '../pages/Transcriptions';
 import { micErrorMessage } from '../utils/micError';
+import { createWaveform } from './captureWaveform';
 
-// Flip the system tray icon between default and red-dot. No-op when not
-// running inside the Tauri shell (e.g. browser webui, Docker).
+// True inside the Tauri shell (desktop app / widget window); false in the
+// browser webui / Docker, where the native commands don't exist. Gating on
+// this keeps "not in Tauri" out of the error paths entirely — a failure that
+// happens INSIDE Tauri is real and must surface, never be swallowed.
+function inTauri() {
+  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+}
+
+// Flip the system tray icon between default and red-dot.
 async function setTrayRecording(recording) {
+  if (!inTauri()) return; // browser webui / Docker — no tray
   try {
     const { invoke } = await import('@tauri-apps/api/core');
     await invoke('set_tray_recording', { recording });
-  } catch {
-    /* not in Tauri */
+  } catch (err) {
+    // Cosmetic only (the tray dot) — a pill error would outrank the failure.
+    console.warn('set_tray_recording failed:', err);
+  }
+}
+
+// Hide the standalone widget window (no-op in the browser webui).
+async function hideWidgetWindow() {
+  if (!inTauri()) return;
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    await getCurrentWindow().hide();
+  } catch (err) {
+    console.warn('widget hide failed:', err);
+  }
+}
+
+// macOS Accessibility probe (AXIsProcessTrusted via the shell). Resolves true
+// on Windows/Linux and outside Tauri — there is nothing to grant there.
+async function checkAccessibility() {
+  if (!inTauri()) return true;
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return (await invoke('check_accessibility')) !== false;
+  } catch (err) {
+    // Older shell without the command — don't block dictation on the probe.
+    console.warn('check_accessibility failed:', err);
+    return true;
+  }
+}
+
+// Open the OS pane where the user grants Accessibility (macOS
+// Privacy_Accessibility; no-op elsewhere — the shell command handles the OS
+// switch).
+async function openA11ySettings() {
+  if (!inTauri()) return;
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('open_accessibility_settings');
+  } catch (err) {
+    console.warn('open_accessibility_settings failed:', err);
   }
 }
 
 const LS_CAPTURE_MODE = 'omni_capture_mode';
+// Live retract-retype (word-by-word typing with visible backspace corrections
+// in the target app) is OPT-IN: default dictation only inserts committed
+// finals. Set '1' to re-enable the live mode.
+const LS_LIVE_TYPING = 'omni_capture_live_typing';
+
+// How many waveform bars the pill draws while recording.
+const WAVE_BARS = 12;
 
 // A dictation model id is a sherpa-onnx live model when it carries the
 // `sherpa-` prefix the backend assigns (see services/sherpa_dictation.py). Only
@@ -80,24 +135,63 @@ export function computeTypeDelta(prevTyped, nextText) {
   return { backspaces, text, noop: backspaces === 0 && text === '' };
 }
 
-// Best-effort live paste of a committed utterance into whatever app has focus.
-// Reuses the same native clipboard+⌘V/Ctrl+V path as the session final, so each
-// silence-endpoint utterance lands in the target field as the user pauses —
-// that's what makes streaming dictation feel live (text appears as you speak,
-// committing on pauses) rather than only at the very end.
-async function pasteSegment(text) {
-  if (!text) return;
+/**
+ * Map a failed `simulate_paste`/`simulate_type` invoke into an actionable
+ * `{ kind, message }`. The Rust command prefixes its Err strings with the
+ * failing layer — "a11y:" (macOS Accessibility not granted; the pill offers
+ * open_accessibility_settings), "clipboard:" (couldn't write/restore the user
+ * clipboard) or "paste:" (the synthetic ⌘V/Ctrl+V itself failed). Pure +
+ * exported for unit testing.
+ */
+export function parsePasteError(err) {
+  const raw = typeof err === 'string' ? err : (err && err.message) || String(err ?? '');
+  for (const kind of ['a11y', 'clipboard', 'paste']) {
+    if (raw.startsWith(`${kind}:`)) return { kind, message: raw.slice(kind.length + 1).trim() };
+  }
+  return { kind: 'paste', message: raw };
+}
+
+// Deliver a transcript to the user: best-effort WebView clipboard copy (works
+// in browser mode; in Tauri the unfocused widget window can't always reach the
+// WebView clipboard — #287) then, inside Tauri, the native simulate_paste
+// (which saves the user clipboard, writes + sends ⌘V/Ctrl+V, then restores).
+// Returns { ok: true, kind: 'pasted' | 'copied' } or { ok: false, error }.
+// The caller renders the TRUE outcome — "Pasted" is never shown unless the
+// invoke actually resolved Ok.
+async function deliverText(text) {
+  let copyErr = null;
   try {
     await copyText(text);
-    try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('simulate_paste', { text });
-    } catch {
-      /* not in Tauri — WebView clipboard copy above already ran */
-    }
-  } catch {
-    /* clipboard unavailable */
+  } catch (err) {
+    // Only fatal when there is no native path below to write it instead.
+    copyErr = err;
   }
+  if (!inTauri()) {
+    if (copyErr) {
+      return {
+        ok: false,
+        error: { kind: 'clipboard', message: String(copyErr?.message || copyErr) },
+      };
+    }
+    return { ok: true, kind: 'copied' };
+  }
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('simulate_paste', { text });
+    return { ok: true, kind: 'pasted' };
+  } catch (err) {
+    return { ok: false, error: parsePasteError(err) };
+  }
+}
+
+// Live paste of a committed utterance into whatever app has focus. Same
+// clipboard+⌘V/Ctrl+V path as the session final, so each silence-endpoint
+// utterance lands in the target field as the user pauses — that's what makes
+// streaming dictation feel live. Returns the deliverText outcome so the
+// session can surface a failed segment instead of pretending it landed.
+async function pasteSegment(text) {
+  if (!text) return { ok: true, kind: 'noop' };
+  return deliverText(text);
 }
 
 // Live, word-by-word typing of the in-flight utterance into whatever app has
@@ -109,12 +203,16 @@ async function pasteSegment(text) {
 // fall back to the paste path for that segment without double-inserting.
 async function typeDelta({ backspaces, text }) {
   if (!backspaces && !text) return true;
+  if (!inTauri()) return false;
   try {
     const { invoke } = await import('@tauri-apps/api/core');
     await invoke('simulate_type', { text, backspaces });
     return true;
-  } catch {
-    return false; // not in Tauri, or simulate_type errored (e.g. no a11y grant)
+  } catch (err) {
+    // Caller latches live typing off and pastes instead — the failure is not
+    // silent (a failing paste then raises the pill's error state).
+    console.warn('simulate_type failed:', err);
+    return false;
   }
 }
 
@@ -126,22 +224,55 @@ function formatElapsed(ms) {
   return `${s}s`;
 }
 
+// Localized headline for the pill's error state.
+function errorLabel(t, info) {
+  switch (info?.kind) {
+    case 'a11y':
+      return t('capture.a11y_error');
+    case 'clipboard':
+      return t('capture.clipboard_error');
+    case 'paste':
+      return t('capture.paste_error');
+    case 'mic':
+      return t('capture.mic_denied');
+    default:
+      return t('capture.transcription_failed', { message: info?.message || '' });
+  }
+}
+
 /**
  * CaptureWidget — floating pill for dictation.
  *
- * Minimal status-only UI: pulsing dot + label + timer.
- * All interaction via global hotkey (hold-to-talk).
- * Records → transcribes → auto-pastes → auto-dismisses.
+ * Minimal status-only UI: live waveform (or status dot) + label + timer.
+ * All interaction via global hotkey (hold-to-talk); Esc cancels anywhere.
+ * Records → transcribes → auto-pastes → auto-dismisses — and every state the
+ * pill shows is TRUE: "Pasted" only after simulate_paste resolved Ok, model
+ * download/load progress straight from the backend's status frames, and an
+ * actionable setup state when macOS Accessibility hasn't been granted yet.
  */
 export default function CaptureWidget({ onDismiss }) {
   const { t } = useTranslation();
-  const [state, setState] = useState('idle'); // idle | recording | transcribing | done | error
+  const [state, setState] = useState('idle'); // idle | setup | recording | transcribing | done | error
   const [transcript, setTranscript] = useState('');
   const [duration, setDuration] = useState(0);
   const [captureMode] = useState(() => localStorage.getItem(LS_CAPTURE_MODE) || 'fast');
   const [, setLastEngine] = useState('');
   const [, setLastTime] = useState(0);
   const [partialText, setPartialText] = useState('');
+  // How the finished transcript actually reached the user: 'pasted' (native
+  // simulate_paste Ok) or 'copied' (clipboard only — browser mode). Drives the
+  // done label so the pill never claims a paste that didn't happen.
+  const [doneKind, setDoneKind] = useState(null);
+  // { kind, message } for the error state (mic / a11y / clipboard / paste /
+  // transcription / server). The a11y kind renders the Open-Settings action.
+  const [errorInfo, setErrorInfo] = useState(null);
+  // Backend model lifecycle ({type:"status"} WS frames): null when ready, else
+  // { stage: 'downloading' | 'loading', progress: 0..1 | null }.
+  const [modelStatus, setModelStatus] = useState(null);
+  // Live waveform bars (0..1 heights). Only fed on the raw-PCM paths where the
+  // micCapture AudioWorklet already emits frames — no second audio pipeline.
+  const [bars, setBars] = useState(() => Array.from({ length: WAVE_BARS }, () => 0));
+  const [waveOn, setWaveOn] = useState(false);
 
   // Live-dictation prefs (mirrored from the backend dictation.* namespace).
   // `mode` switches the hotkey start/stop semantics; `modelId` selects the
@@ -169,11 +300,13 @@ export default function CaptureWidget({ onDismiss }) {
   // Live-typing state. `typedRef` is the exact text we have typed into the
   // focused field for the CURRENT in-flight utterance (committed utterances are
   // left alone — we never backspace across an utterance boundary). It resets to
-  // '' each time an utterance is committed. `liveTypingRef` latches off if a
-  // simulate_type call fails so the rest of the session uses the paste fallback
-  // instead of typing-then-also-pasting (which would double-insert).
+  // '' each time an utterance is committed. `liveTypingRef` is seeded from the
+  // LS_LIVE_TYPING pref at session start (default OFF — commit-only insert, no
+  // visible backspace storms) and latches off if a simulate_type call fails so
+  // the rest of the session uses the paste fallback instead of typing-then-
+  // also-pasting (which would double-insert).
   const typedRef = useRef('');
-  const liveTypingRef = useRef(true);
+  const liveTypingRef = useRef(false);
   // Set after an utterance commits: the next utterance's first typed delta is
   // prefixed with a single separating space (so we don't trail a space after the
   // final utterance, and words across utterances don't run together).
@@ -182,6 +315,13 @@ export default function CaptureWidget({ onDismiss }) {
   // queue drains; chaining on this promise keeps backspaces/types strictly
   // ordered so a late delta can't interleave and corrupt the field.
   const typeChainRef = useRef(Promise.resolve());
+  // Serialise per-utterance paste deliveries the same way, so finalise can
+  // AWAIT them — the offline-model socket close races the last paste, and the
+  // pill must not claim "Pasted" while an invoke is still in flight.
+  const pasteChainRef = useRef(Promise.resolve());
+  // First delivery failure of a live session (per-utterance paste). Checked at
+  // finalise so the pill reports the truth instead of a green "Pasted".
+  const segmentErrorRef = useRef(null);
 
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -191,7 +331,13 @@ export default function CaptureWidget({ onDismiss }) {
   const wsPendingRef = useRef([]);
   const wsHadFinalRef = useRef(false);
   const fallbackTimerRef = useRef(null);
+  const dismissTimerRef = useRef(null);
   const startTimeRef = useRef(0);
+  // Waveform ring buffer (pure module) — fed by the worklet frame callbacks.
+  const waveRef = useRef(null);
+  if (!waveRef.current) waveRef.current = createWaveform();
+  // The Accessibility setup pill is shown at most once per widget lifetime.
+  const a11ySetupSeenRef = useRef(false);
   // Opt-in dictate-over-playback AEC (parity Action 8). When on, we capture
   // raw PCM via an AudioWorklet and tag mic/far-end frames instead of using
   // MediaRecorder. All AEC state lives in refs so the default path is inert.
@@ -202,16 +348,16 @@ export default function CaptureWidget({ onDismiss }) {
   const teardownAec = useCallback(async () => {
     try {
       farEndUnsubRef.current?.();
-    } catch {
-      /* ignore */
+    } catch (err) {
+      console.warn('far-end unsubscribe failed:', err);
     }
     farEndUnsubRef.current = null;
     const stop = aecStopRef.current;
     aecStopRef.current = null;
     try {
       await stop?.();
-    } catch {
-      /* ignore */
+    } catch (err) {
+      console.warn('mic worklet teardown failed:', err);
     }
     aecModeRef.current = false;
   }, []);
@@ -224,6 +370,24 @@ export default function CaptureWidget({ onDismiss }) {
     loadDictationPrefs();
   }, [loadDictationPrefs]);
 
+  // First-run truthfulness: without the macOS Accessibility grant neither
+  // simulate_paste nor simulate_type can deliver a single character — so probe
+  // up front and show a one-time setup pill instead of pretending to work.
+  // (Resolves true on Windows/Linux and outside Tauri.)
+  useEffect(() => {
+    let stale = false;
+    (async () => {
+      const ok = await checkAccessibility();
+      if (!stale && !ok && !a11ySetupSeenRef.current) {
+        a11ySetupSeenRef.current = true;
+        setState((s) => (s === 'idle' ? 'setup' : s));
+      }
+    })();
+    return () => {
+      stale = true;
+    };
+  }, []);
+
   // ── Tray hotkey: tray-dictate (start) + tray-dictate-stop (release) ──
   // Toggle mode: tray-dictate flips start↔stop, tray-dictate-stop is ignored
   //   (Tauri only emits tray-dictate-stop on key *release* in hold registration;
@@ -232,12 +396,21 @@ export default function CaptureWidget({ onDismiss }) {
   // Both branches are gated on `enabled` so a disabled toggle makes the hotkey
   // inert. Behaviour is identical on macOS / Windows / Linux.
   useEffect(() => {
+    if (!inTauri()) return; // browser webui — the keyboard fallback below runs
     let unlistenStart, unlistenStop;
     (async () => {
       try {
         const { listen } = await import('@tauri-apps/api/event');
         unlistenStart = await listen('tray-dictate', () => {
           if (!enabledRef.current) return;
+          if (state === 'setup') {
+            // Re-probe on each press — the user may have just granted access
+            // in System Settings; if so, flow straight into recording.
+            checkAccessibility().then((ok) => {
+              if (ok) startRecording();
+            });
+            return;
+          }
           const idle = state === 'idle' || state === 'done' || state === 'error';
           if (modeRef.current === 'toggle') {
             // Press once to start, again to stop.
@@ -254,8 +427,10 @@ export default function CaptureWidget({ onDismiss }) {
             stopRecording();
           }
         });
-      } catch {
-        /* not in Tauri */
+      } catch (err) {
+        // Hotkey wiring failed inside Tauri — dictation still works via the
+        // in-page shortcut, but say so in the console for bug reports.
+        console.warn('tray-dictate listen failed:', err);
       }
     })();
     return () => {
@@ -275,6 +450,12 @@ export default function CaptureWidget({ onDismiss }) {
       if (!isCombo(e)) return;
       e.preventDefault();
       if (!enabledRef.current) return;
+      if (state === 'setup') {
+        checkAccessibility().then((ok) => {
+          if (ok) startRecording();
+        });
+        return;
+      }
       const idle = state === 'idle' || state === 'done' || state === 'error';
       if (modeRef.current === 'toggle') {
         if (idle) startRecording();
@@ -310,7 +491,98 @@ export default function CaptureWidget({ onDismiss }) {
     clearInterval(timerRef.current);
   }, [state]);
 
-  // Apply transcription result → auto-paste → auto-dismiss
+  // Waveform poll: 50 ms ≈ 2–3 worklet frames, so bars visibly move well
+  // within ~100 ms of mic start. Only runs while the worklet is feeding us.
+  useEffect(() => {
+    if (state !== 'recording' || !waveOn) return;
+    const id = setInterval(() => setBars(waveRef.current.getBars(WAVE_BARS)), 50);
+    return () => clearInterval(id);
+  }, [state, waveOn]);
+
+  // Reset the pill to hidden-idle and hide the widget window. Every dismissal
+  // (X button, Esc, auto-dismiss) funnels through here.
+  const dismiss = useCallback(async () => {
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = null;
+    }
+    if (aecModeRef.current || sherpaModeRef.current) teardownAec();
+    setState('idle');
+    setTranscript('');
+    setPartialText('');
+    setDuration(0);
+    setModelStatus(null);
+    setErrorInfo(null);
+    setDoneKind(null);
+    await hideWidgetWindow();
+    if (onDismiss) onDismiss();
+  }, [teardownAec, onDismiss]);
+
+  // Auto-dismiss after a beat, tracked in a ref so Esc or a fresh session can
+  // cancel it (a stale timer must never hide a newly-started recording).
+  const scheduleDismiss = useCallback(
+    (delay) => {
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = setTimeout(() => {
+        dismissTimerRef.current = null;
+        dismiss();
+      }, delay);
+    },
+    [dismiss],
+  );
+
+  // Stop every capture input (recorder / worklet / tracks) without touching
+  // the pill state — shared by stop, cancel and the WS error path.
+  const stopCaptureGraph = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    if (aecModeRef.current || sherpaModeRef.current) {
+      teardownAec();
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+  }, [teardownAec]);
+
+  // Esc = abort. Stops capture, discards the audio and any in-flight result
+  // (nothing is pasted), closes the socket and hides the pill.
+  const cancelSession = useCallback(() => {
+    wsHadFinalRef.current = true; // any late final/fallback result is discarded
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
+    const ws = wsRef.current;
+    wsRef.current = null;
+    if (ws) ws.close();
+    stopCaptureGraph();
+    committedRef.current = [];
+    typeChainRef.current = Promise.resolve();
+    pasteChainRef.current = Promise.resolve();
+    setTrayRecording(false);
+    dismiss();
+  }, [stopCaptureGraph, dismiss]);
+
+  // Esc cancels in EVERY state (window-level, so it works wherever focus sits
+  // inside the widget): recording/transcribing → abort + discard; done/error/
+  // setup → dismiss.
+  useEffect(() => {
+    if (state === 'idle') return;
+    const onEsc = (e) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      if (state === 'recording' || state === 'transcribing') cancelSession();
+      else dismiss();
+    };
+    window.addEventListener('keydown', onEsc);
+    return () => window.removeEventListener('keydown', onEsc);
+  }, [state, cancelSession, dismiss]);
+
+  // Apply transcription result → deliver (paste/copy) → show the TRUE outcome
+  // → auto-dismiss on success. A failed delivery is an error state (with the
+  // Accessibility action when that's the fix), never a fake "Pasted".
   const applyResult = useCallback(
     async (data) => {
       // Wave 2.1: the backend may attach an LLM-refined version of the final
@@ -320,93 +592,68 @@ export default function CaptureWidget({ onDismiss }) {
       setTranscript(finalText);
       setLastEngine(data.engine || '');
       setLastTime(data.transcription_time_s || 0);
-      setState('done');
+      setModelStatus(null);
 
       if (data.text) {
         addTranscription(data);
       }
 
-      if (finalText) {
-        try {
-          // Best-effort WebView copy (works in browser mode). In Tauri the
-          // widget window is unfocused on macOS, where WebView clipboard APIs
-          // fail silently — so pass the transcript to simulate_paste, which
-          // writes the clipboard natively (OS-side) before sending ⌘V (#287).
-          await copyText(finalText);
-          try {
-            const { invoke } = await import('@tauri-apps/api/core');
-            await invoke('simulate_paste', { text: finalText });
-          } catch {
-            /* not in Tauri */
-          }
-        } catch {
-          /* clipboard API may fail */
-        }
+      if (!finalText) {
+        // No speech — brief notice, then auto-dismiss.
+        setDoneKind(null);
+        setState('done');
+        scheduleDismiss(2500);
+        return;
+      }
 
-        // Auto-dismiss after 1.5s
-        setTimeout(async () => {
-          setState('idle');
-          setTranscript('');
-          setDuration(0);
-          try {
-            const { getCurrentWindow } = await import('@tauri-apps/api/window');
-            await getCurrentWindow().hide();
-          } catch {
-            /* not in Tauri */
-          }
-          if (onDismiss) onDismiss();
-        }, 1500);
+      const res = await deliverText(finalText);
+      if (res.ok) {
+        setDoneKind(res.kind);
+        setState('done');
+        scheduleDismiss(1500);
       } else {
-        // No speech — auto-dismiss after 2.5s
-        setTimeout(async () => {
-          setState('idle');
-          setTranscript('');
-          setDuration(0);
-          try {
-            const { getCurrentWindow } = await import('@tauri-apps/api/window');
-            await getCurrentWindow().hide();
-          } catch {
-            /* not in Tauri */
-          }
-          if (onDismiss) onDismiss();
-        }, 2500);
+        // The transcript did NOT land. deliverText copied it to the clipboard
+        // first when it could, but the pill must say what failed — and stay
+        // up until the user acts (no auto-dismiss on errors).
+        setErrorInfo(res.error);
+        setState('error');
       }
     },
-    [onDismiss],
+    [scheduleDismiss],
   );
 
   // Finalise a sherpa LIVE-streaming session. The per-utterance finals were
-  // already pasted into the focused field as the user paused, so this does NOT
-  // re-paste — it shows the authoritative full transcript in the pill, records
-  // it in history, and auto-dismisses. The EOF-summary `final` (or an early
-  // socket close) drives this.
+  // already delivered into the focused field as the user paused, so this does
+  // NOT re-paste — it shows the authoritative full transcript in the pill,
+  // reports any segment that failed to land, and auto-dismisses on success.
+  // The EOF-summary `final` (or an early socket close) drives this.
   const finalizeSession = useCallback(
     async (data) => {
+      // Wait for in-flight per-utterance deliveries first — the outcome the
+      // pill reports must be the settled one, not a hopeful guess.
+      await Promise.all([pasteChainRef.current, typeChainRef.current]);
       const fullText = data.refined_text || data.text || '';
       setTranscript(fullText);
       setLastEngine(data.engine || 'sherpa-onnx-asr');
       setLastTime(data.transcription_time_s || 0);
-      setState('done');
-      // NB: history was already recorded per-utterance as each `final` was pasted
-      // live (see the message handler), so finalisation does NOT re-record — that
-      // would duplicate the session. It only resolves the pill + auto-dismisses.
+      setModelStatus(null);
+      // NB: history was already recorded per-utterance as each `final` was
+      // delivered live (see the message handler), so finalisation does NOT
+      // re-record — that would duplicate the session.
       setPartialText('');
       committedRef.current = [];
-      const delay = fullText ? 1500 : 2500;
-      setTimeout(async () => {
-        setState('idle');
-        setTranscript('');
-        setDuration(0);
-        try {
-          const { getCurrentWindow } = await import('@tauri-apps/api/window');
-          await getCurrentWindow().hide();
-        } catch {
-          /* not in Tauri */
-        }
-        if (onDismiss) onDismiss();
-      }, delay);
+      if (segmentErrorRef.current && fullText) {
+        // At least one utterance never reached the target app — the truthful
+        // outcome is an error (with the a11y action when relevant).
+        setErrorInfo(segmentErrorRef.current);
+        setState('error');
+        return;
+      }
+      setDoneKind(fullText ? (inTauri() ? 'pasted' : 'copied') : null);
+      setState('done');
+      scheduleDismiss(fullText ? 1500 : 2500);
     },
-    [onDismiss],
+    [scheduleDismiss],
   );
 
   // Type the recognizer's latest revision of the in-flight utterance into the
@@ -450,13 +697,23 @@ export default function CaptureWidget({ onDismiss }) {
       wsPendingRef.current = [];
       wsHadFinalRef.current = false;
       committedRef.current = [];
+      segmentErrorRef.current = null;
       typedRef.current = '';
-      liveTypingRef.current = true;
+      // Live retract-retype is OPT-IN (visible backspace storms in the target
+      // app unnerved users): default sessions insert only committed finals via
+      // the paste path; the pref re-enables word-by-word typing.
+      liveTypingRef.current = localStorage.getItem(LS_LIVE_TYPING) === '1';
       pendingSepRef.current = false;
       typeChainRef.current = Promise.resolve();
+      pasteChainRef.current = Promise.resolve();
+      waveRef.current.reset();
       if (fallbackTimerRef.current) {
         clearTimeout(fallbackTimerRef.current);
         fallbackTimerRef.current = null;
+      }
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+        dismissTimerRef.current = null;
       }
 
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
@@ -494,103 +751,145 @@ export default function CaptureWidget({ onDismiss }) {
           for (const buf of wsPendingRef.current) {
             try {
               ws.send(buf);
-            } catch {}
+            } catch (err) {
+              // Socket died mid-flush — onclose/onerror handles recovery.
+              console.warn('ws flush failed:', err);
+              break;
+            }
           }
           wsPendingRef.current = [];
         };
         ws.onmessage = (evt) => {
+          let msg;
           try {
-            const msg = JSON.parse(evt.data);
-            if (msg.type === 'partial') {
-              // Live interim text — show the running transcript so far plus the
-              // in-flight partial, so the pill reads as continuous speech.
-              const committed = committedRef.current.join(' ');
-              const live = [committed, msg.text || ''].filter(Boolean).join(' ');
-              setPartialText(live);
-              // …and type the revised in-flight utterance into the focused field
-              // word-by-word (the native-dictation experience). The diff handles
-              // recognizer self-corrections via backspaces; committed utterances
-              // are untouched. Only sherpa live partials drive typing — the
-              // legacy WebM path has no partials.
-              if (sherpaModeRef.current) liveType(msg.text || '');
-            } else if (msg.type === 'final') {
-              if (sherpaModeRef.current) {
-                // Two sherpa `final` shapes:
-                //   • STREAMING models emit a `final` per spoken utterance (on
-                //     each silence endpoint) THEN a session-summary `final` on
-                //     EOF whose text is the join of every utterance.
-                //   • OFFLINE models (incl. the default Parakeet v3) emit live
-                //     partials then exactly ONE `final` (the whole transcript)
-                //     on EOF.
-                // Rule: a `final` whose text equals what we've already committed
-                // is the authoritative EOF SUMMARY → finalise without re-pasting
-                // (its pieces already landed live). Any other `final` is a NEW
-                // utterance → paste it live and append. The single offline final
-                // is "new" (nothing committed yet) so it pastes once; the socket
-                // close then finalises from the committed text.
-                const segText = msg.refined_text || msg.text || '';
-                const cls = classifySherpaFinal(segText, committedRef.current);
-                if (cls === 'summary' || cls === 'terminator') {
-                  // Authoritative EOF (summary text already pasted live, or an
-                  // empty no-speech terminator) → finalise so the pill resolves.
-                  wsHadFinalRef.current = true;
-                  if (fallbackTimerRef.current) {
-                    clearTimeout(fallbackTimerRef.current);
-                    fallbackTimerRef.current = null;
-                  }
-                  finalizeSession(msg);
-                  try {
-                    ws.close();
-                  } catch {}
-                } else if (cls === 'utterance') {
-                  // A per-utterance commit. Reconcile the focused field to the
-                  // recognizer's AUTHORITATIVE final for this utterance (it can
-                  // differ from the last partial — e.g. final punctuation / a
-                  // late self-correction), then FREEZE it: reset typedRef so the
-                  // next utterance's partials diff from empty. We never backspace
-                  // across this boundary. If live typing is unavailable, fall
-                  // back to pasting the segment — never do both (no double-insert).
-                  committedRef.current.push(segText);
-                  setPartialText(committedRef.current.join(' '));
-                  if (msg.text) addTranscription(msg);
-                  if (liveTypingRef.current) {
-                    liveType(segText);
-                    typeChainRef.current = typeChainRef.current.then(() => {
-                      typedRef.current = '';
-                      // Seed the next utterance's typed-state with a separating
-                      // space (matching the ' '.join used by the pill/history) so
-                      // its first delta types " word" — words never run together,
-                      // and there is no trailing space after the LAST utterance.
-                      pendingSepRef.current = true;
-                    });
-                  } else {
-                    pasteSegment(segText);
-                  }
-                }
-              } else {
-                // Legacy single-final path (Whisper/WebM) — unchanged.
+            msg = JSON.parse(evt.data);
+          } catch (err) {
+            console.warn('unparseable /ws/transcribe frame:', err);
+            return;
+          }
+          if (msg.type === 'status') {
+            // Model lifecycle truthfulness: while the backend fetches/loads
+            // the ASR model it streams {stage:"downloading",progress} /
+            // {stage:"loading"} / {stage:"ready"} so the pill can say what is
+            // actually happening instead of a generic "Listening…".
+            setModelStatus(
+              msg.stage === 'ready'
+                ? null
+                : {
+                    stage: msg.stage,
+                    progress: typeof msg.progress === 'number' ? msg.progress : null,
+                  },
+            );
+          } else if (msg.type === 'partial') {
+            // Live interim text — show the running transcript so far plus the
+            // in-flight partial, so the pill reads as continuous speech.
+            const committed = committedRef.current.join(' ');
+            const live = [committed, msg.text || ''].filter(Boolean).join(' ');
+            setPartialText(live);
+            // …and (opt-in) type the revised in-flight utterance into the
+            // focused field word-by-word. The diff handles recognizer
+            // self-corrections via backspaces; committed utterances are
+            // untouched. Only sherpa live partials drive typing — the legacy
+            // WebM path has no partials — and liveType no-ops unless the
+            // LS_LIVE_TYPING pref opted in.
+            if (sherpaModeRef.current) liveType(msg.text || '');
+          } else if (msg.type === 'final') {
+            if (sherpaModeRef.current) {
+              // Two sherpa `final` shapes:
+              //   • STREAMING models emit a `final` per spoken utterance (on
+              //     each silence endpoint) THEN a session-summary `final` on
+              //     EOF whose text is the join of every utterance.
+              //   • OFFLINE models (incl. the default Parakeet v3) emit live
+              //     partials then exactly ONE `final` (the whole transcript)
+              //     on EOF.
+              // Rule: a `final` whose text equals what we've already committed
+              // is the authoritative EOF SUMMARY → finalise without re-pasting
+              // (its pieces already landed live). Any other `final` is a NEW
+              // utterance → paste it live and append. The single offline final
+              // is "new" (nothing committed yet) so it pastes once; the socket
+              // close then finalises from the committed text.
+              // Classify on the RAW text: the EOF summary's `text` is exactly
+              // the join of the committed utterances, but its optional LLM
+              // `refined_text` is not — classifying on the refined string
+              // would misread the summary as a new utterance and re-paste the
+              // whole transcript (double insert). Delivery still prefers the
+              // refined text where one applies (the single offline final).
+              const segText = msg.refined_text || msg.text || '';
+              const cls = classifySherpaFinal(msg.text || '', committedRef.current);
+              if (cls === 'summary' || cls === 'terminator') {
+                // Authoritative EOF (summary text already pasted live, or an
+                // empty no-speech terminator) → finalise so the pill resolves.
                 wsHadFinalRef.current = true;
                 if (fallbackTimerRef.current) {
                   clearTimeout(fallbackTimerRef.current);
                   fallbackTimerRef.current = null;
                 }
-                applyResult(msg);
-                try {
-                  ws.close();
-                } catch {}
+                finalizeSession(msg);
+                ws.close();
+              } else if (cls === 'utterance') {
+                // A per-utterance commit. Reconcile the focused field to the
+                // recognizer's AUTHORITATIVE final for this utterance (it can
+                // differ from the last partial — e.g. final punctuation / a
+                // late self-correction), then FREEZE it: reset typedRef so the
+                // next utterance's partials diff from empty. We never backspace
+                // across this boundary. In the default (live typing off) the
+                // committed final is pasted instead — never both (no
+                // double-insert) — and a failed paste is recorded so the
+                // session resolves truthfully.
+                committedRef.current.push(segText);
+                setPartialText(committedRef.current.join(' '));
+                if (msg.text) addTranscription(msg);
+                if (liveTypingRef.current) {
+                  liveType(segText);
+                  typeChainRef.current = typeChainRef.current.then(() => {
+                    typedRef.current = '';
+                    // Seed the next utterance's typed-state with a separating
+                    // space (matching the ' '.join used by the pill/history) so
+                    // its first delta types " word" — words never run together,
+                    // and there is no trailing space after the LAST utterance.
+                    pendingSepRef.current = true;
+                  });
+                } else {
+                  pasteChainRef.current = pasteChainRef.current
+                    .then(() => pasteSegment(segText))
+                    .then((res) => {
+                      if (!res.ok && !segmentErrorRef.current) {
+                        segmentErrorRef.current = res.error;
+                      }
+                    });
+                }
               }
-            } else if (msg.type === 'error') {
+            } else {
+              // Legacy single-final path (Whisper/WebM) — unchanged.
+              wsHadFinalRef.current = true;
               if (fallbackTimerRef.current) {
                 clearTimeout(fallbackTimerRef.current);
                 fallbackTimerRef.current = null;
               }
-              try {
-                ws.close();
-              } catch {}
-              wsRef.current = null;
-              if (!wsHadFinalRef.current) sendForTranscription();
+              applyResult(msg);
+              ws.close();
             }
-          } catch {}
+          } else if (msg.type === 'error') {
+            if (fallbackTimerRef.current) {
+              clearTimeout(fallbackTimerRef.current);
+              fallbackTimerRef.current = null;
+            }
+            ws.close();
+            wsRef.current = null;
+            if (sherpaModeRef.current || aecModeRef.current) {
+              // Raw-PCM paths have no WebM blob to re-POST — surface the
+              // backend's error instead of leaving the pill wedged in
+              // "Transcribing…" forever.
+              wsHadFinalRef.current = true;
+              stopCaptureGraph();
+              setTrayRecording(false);
+              setModelStatus(null);
+              setErrorInfo({ kind: msg.kind || 'server', message: msg.message || '' });
+              setState('error');
+            } else if (!wsHadFinalRef.current) {
+              sendForTranscription();
+            }
+          }
         };
         ws.onerror = () => {
           wsRef.current = null;
@@ -620,8 +919,21 @@ export default function CaptureWidget({ onDismiss }) {
           }
         };
         wsRef.current = ws;
-      } catch {
+      } catch (err) {
         wsRef.current = null;
+        if (pcmMode) {
+          // Raw-PCM has no POST fallback — a socket that can't even be
+          // constructed is fatal to the session, so say so instead of
+          // recording into the void.
+          stream.getTracks().forEach((tr) => tr.stop());
+          streamRef.current = null;
+          setErrorInfo({ kind: 'server', message: String(err?.message || err) });
+          setState('error');
+          return;
+        }
+        // Legacy path continues below: the recorder still buffers chunks and
+        // the POST /transcribe fallback delivers the result on stop.
+        console.warn('ws open failed — will fall back to POST /transcribe:', err);
       }
 
       if (pcmMode) {
@@ -631,6 +943,9 @@ export default function CaptureWidget({ onDismiss }) {
         //     handler reads plain PCM); the far-end bus is NOT subscribed.
         //   • AEC on → frames are 1-byte tagged (0x00 mic / 0x01 far-end) and the
         //     audio player's output is subscribed as the echo reference.
+        // Every mic frame also feeds the waveform ring buffer — the pill's
+        // bars are computed client-side from the SAME worklet frames (no
+        // second audio pipeline).
         const [{ startMicCapture }, { frameFromFloat, floatToInt16, AEC_NEAR, AEC_FAR }] =
           await Promise.all([import('../utils/aec/micCapture'), import('../utils/aec/pcm')]);
         const sendBuf = (buf) => {
@@ -638,8 +953,9 @@ export default function CaptureWidget({ onDismiss }) {
           if (ws && ws.readyState === WebSocket.OPEN) {
             try {
               ws.send(buf);
-            } catch {
-              /* ignore */
+            } catch (err) {
+              // Socket is going down — onclose finalises/recovers the session.
+              console.warn('ws send failed:', err);
             }
           } else {
             wsPendingRef.current.push(buf);
@@ -651,9 +967,14 @@ export default function CaptureWidget({ onDismiss }) {
           // sherpa handler sees the cleaned near-end PCM.
           const { subscribeFarEnd } = await import('../utils/aec/farEndBus');
           const sendTagged = (float32, kind) => sendBuf(frameFromFloat(float32, kind));
-          aecStopRef.current = await startMicCapture(stream, (f) => sendTagged(f, AEC_NEAR), {
-            sampleRate: 16000,
-          });
+          aecStopRef.current = await startMicCapture(
+            stream,
+            (f) => {
+              waveRef.current.push(f);
+              sendTagged(f, AEC_NEAR);
+            },
+            { sampleRate: 16000 },
+          );
           farEndUnsubRef.current = subscribeFarEnd((f) => sendTagged(f, AEC_FAR));
         } else {
           // Untagged int16 frames for the plain sherpa live path. Send the
@@ -662,6 +983,7 @@ export default function CaptureWidget({ onDismiss }) {
           aecStopRef.current = await startMicCapture(
             stream,
             (f) => {
+              waveRef.current.push(f);
               const i16 = floatToInt16(f);
               sendBuf(i16.buffer.slice(i16.byteOffset, i16.byteOffset + i16.byteLength));
             },
@@ -690,40 +1012,37 @@ export default function CaptureWidget({ onDismiss }) {
       }
       startTimeRef.current = Date.now();
       setTrayRecording(true);
+      setWaveOn(pcmMode);
+      setBars(Array.from({ length: WAVE_BARS }, () => 0));
       setState('recording');
       setTranscript('');
       setPartialText('');
+      setModelStatus(null);
+      setErrorInfo(null);
+      setDoneKind(null);
       setDuration(0);
     } catch (err) {
       // Distinguish "permission denied" (→ per-OS settings hint) from
       // "no device" / "device busy" / anything else (#323).
       toast.error(micErrorMessage(t, err), { duration: 6000 });
       setTrayRecording(false);
+      setErrorInfo({ kind: 'mic', message: String(err?.message || err) });
       setState('error');
     }
-  }, [applyResult, finalizeSession, t]);
+  }, [applyResult, finalizeSession, liveType, stopCaptureGraph, t]);
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-    }
-    // Any raw-PCM mode (AEC and/or sherpa live): stop the mic worklet + far-end
-    // subscription before EOF so no stray frames arrive after the end-of-stream
-    // signal. teardownAec no-ops the far-end unsub when there isn't one.
-    if (aecModeRef.current || sherpaModeRef.current) {
-      teardownAec();
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
+    stopCaptureGraph();
     // Signal EOF to WebSocket
     const ws = wsRef.current;
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
       const sendEof = () => {
         try {
           ws.send('EOF');
-        } catch {}
+        } catch (err) {
+          // Socket died before EOF — the fallback timer / onclose recovers.
+          console.warn('ws EOF send failed:', err);
+        }
       };
       if (ws.readyState === WebSocket.OPEN) {
         sendEof();
@@ -737,9 +1056,7 @@ export default function CaptureWidget({ onDismiss }) {
       fallbackTimerRef.current = setTimeout(() => {
         fallbackTimerRef.current = null;
         if (!wsHadFinalRef.current) {
-          try {
-            wsRef.current?.close();
-          } catch {}
+          wsRef.current?.close();
           wsRef.current = null;
           sendForTranscription();
         }
@@ -747,7 +1064,7 @@ export default function CaptureWidget({ onDismiss }) {
     }
     setTrayRecording(false);
     setState('transcribing');
-  }, [teardownAec]);
+  }, [stopCaptureGraph]);
 
   const sendForTranscription = useCallback(async () => {
     if (wsHadFinalRef.current) return;
@@ -773,24 +1090,11 @@ export default function CaptureWidget({ onDismiss }) {
     } catch (err) {
       if (wsHadFinalRef.current) return;
       toast.error(t('capture.transcription_failed', { message: err.message }));
+      setErrorInfo({ kind: 'transcription', message: err.message });
       setState('error');
       setTranscript('');
     }
-  }, [captureMode, applyResult]);
-
-  const dismiss = async () => {
-    if (aecModeRef.current || sherpaModeRef.current) teardownAec();
-    setState('idle');
-    setTranscript('');
-    setDuration(0);
-    try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      await getCurrentWindow().hide();
-    } catch {
-      /* not in Tauri */
-    }
-    if (onDismiss) onDismiss();
-  };
+  }, [captureMode, applyResult, t]);
 
   // Idle: render nothing — pill is hold-to-talk only (Whisper-Flow / Ghost-Pepper
   // style). The tray-dictate listener above stays mounted, so the shortcut still
@@ -801,7 +1105,22 @@ export default function CaptureWidget({ onDismiss }) {
   // ── Pill label ──
   let label = '';
   let emoji = '';
-  if (state === 'recording') {
+  if (state === 'setup') {
+    // One-time Accessibility setup — shown instead of pretending to work.
+    emoji = '🔒';
+    label = t('capture.a11y_setup');
+  } else if (modelStatus && (state === 'recording' || state === 'transcribing')) {
+    // Backend model lifecycle beats the generic listening/transcribing labels.
+    emoji = modelStatus.stage === 'downloading' ? '⏬' : '⏳';
+    label =
+      modelStatus.stage === 'downloading'
+        ? modelStatus.progress != null
+          ? t('capture.model_downloading_pct', {
+              percent: Math.round(modelStatus.progress * 100),
+            })
+          : t('capture.model_downloading')
+        : t('capture.model_loading');
+  } else if (state === 'recording') {
     emoji = '🎙️';
     label = partialText || t('capture.listening_label');
   } else if (state === 'transcribing') {
@@ -809,41 +1128,68 @@ export default function CaptureWidget({ onDismiss }) {
     label = partialText || t('capture.transcribing_label');
   } else if (state === 'done' && transcript) {
     emoji = '✅';
-    label = t('capture.pasted');
+    label = doneKind === 'copied' ? t('capture.copied') : t('capture.pasted');
   } else if (state === 'done' && !transcript) {
     emoji = '⚠️';
     label = t('capture.no_speech');
   } else if (state === 'error') {
     emoji = '❌';
-    label = t('capture.mic_denied');
+    label = errorLabel(t, errorInfo);
   }
+
+  const showA11yAction = state === 'setup' || (state === 'error' && errorInfo?.kind === 'a11y');
 
   return (
     <div className={`capture-pill capture-pill--${state}`} role="status" aria-live="polite">
-      {/* Pulsing status dot */}
-      <span className="capture-pill__dot" />
+      {/* Live waveform while the worklet feeds us; pulsing dot otherwise */}
+      {state === 'recording' && waveOn && !modelStatus ? (
+        <div className="capture-pill__wave" aria-hidden="true">
+          {bars.map((v, i) => (
+            <span
+              key={i}
+              className="capture-pill__wave-bar"
+              style={{ height: `${Math.round(12 + v * 88)}%` }}
+            />
+          ))}
+        </div>
+      ) : (
+        <span className="capture-pill__dot" />
+      )}
 
       {/* Content */}
       <div className="min-w-0 flex-1 overflow-hidden">
-        <span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[12.5px] font-medium tracking-[0.01em]">
+        <span
+          className="block overflow-hidden text-ellipsis whitespace-nowrap text-[12.5px] font-medium tracking-[0.01em]"
+          title={state === 'error' ? errorInfo?.message || undefined : undefined}
+        >
           {emoji} {label}
         </span>
       </div>
 
       {/* Timer */}
-      {(state === 'recording' || state === 'transcribing') && (
+      {(state === 'recording' || state === 'transcribing') && !modelStatus && (
         <span className="shrink-0 font-mono text-[11px] font-medium tracking-[0.03em] text-white/50">
           {formatElapsed(duration)}
         </span>
       )}
 
-      {/* Transcribing spinner */}
-      {state === 'transcribing' && (
+      {/* Spinner while transcribing or while the model downloads/loads */}
+      {(state === 'transcribing' || (state === 'recording' && modelStatus)) && (
         <Loader size={14} className="shrink-0 text-white/40 motion-safe:animate-spin" />
       )}
 
-      {/* Dismiss — only on done/error */}
-      {(state === 'done' || state === 'error') && (
+      {/* Accessibility action — setup state and a11y-kind paste errors */}
+      {showA11yAction && (
+        <button
+          className="shrink-0 cursor-pointer whitespace-nowrap rounded-full border-0 bg-white/[0.1] px-2.5 py-1 text-[11px] font-medium text-white/90 transition-[background] duration-[0.15s] hover:bg-white/[0.18]"
+          onClick={openA11ySettings}
+        >
+          {t('capture.open_a11y_settings')}
+        </button>
+      )}
+
+      {/* Dismiss — done/error/setup */}
+      {(state === 'done' || state === 'error' || state === 'setup') && (
         <button
           className="flex h-[20px] w-[20px] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-white/[0.06] p-0 text-white/40 transition-[background,color] duration-[0.15s] hover:bg-white/[0.12] hover:text-white/80"
           onClick={dismiss}

@@ -21,6 +21,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import urlsplit
 
 from core import error_docs_map
 from core.logging_filter import REDACTED, _HF_TOKEN_RE
@@ -42,7 +43,128 @@ _HINTS: dict[str, str] = {
     "UNSUPPORTED_VIDEO_URL": "This link isn't a directly downloadable video. Paste a direct video page (e.g. a youtube.com/watch?v=… or douyin.com/video/<id> link), not a share/profile/feed link — or download the file and drop it in directly.",
     "VIDEO_DOWNLOAD_NETWORK": "The connection to the video server dropped mid-download (often a transient CDN/network blip or a regional rate-limit). Just retry — OmniVoice already cleaned up the partial download. If it keeps failing, check your network/VPN.",
     "BROKEN_VENV": "The Python backend environment was moved or damaged. OmniVoice rebuilds it automatically on the next launch; if it keeps failing, use Clean & Retry on the setup screen.",
+    # HF_MIRROR_UNREACHABLE has a DYNAMIC hint (it names the configured mirror)
+    # — see hf_mirror_hint(); build_failure special-cases it.
 }
+
+
+# ── HF mirror connectivity (#874) ────────────────────────────────────────────
+# When a non-default HF_ENDPOINT (a mirror, e.g. hf-mirror.com — set via
+# Settings → Models → Hugging Face mirror) is configured and a model
+# download/load fails with a connectivity error, the raw transformers/hf_hub
+# message ("We couldn't connect to 'https://hf-mirror.com' to load the files…")
+# gives the user no next step. This is the single classifier for that class,
+# shared by every surface: build_failure() (model status, dub/task events),
+# the global 500 handler (main.py — covers /generate and every other route
+# that can leak a model-load error), and the model-install SSE
+# (setup/download.py).
+
+_OFFICIAL_HF_ENDPOINTS = {"https://huggingface.co", "https://hf.co"}
+
+# Connectivity signatures across the layers an HF download failure surfaces
+# from: transformers' wording, huggingface_hub errors, requests/urllib3, and
+# raw socket/DNS failures (Linux/macOS/Windows variants).
+_HF_CONNECTIVITY_SIGNATURES = (
+    "couldn't connect to",             # transformers: "We couldn't connect to '<endpoint>' …"
+    "could not connect to",
+    "connection error",                # huggingface_hub / requests
+    "connection refused",
+    "connection reset",
+    "connection aborted",
+    "max retries exceeded",            # urllib3 via requests
+    "failed to establish a new connection",
+    "name or service not known",       # Linux DNS
+    "temporary failure in name resolution",
+    "nodename nor servname provided",  # macOS DNS
+    "getaddrinfo failed",              # Windows DNS
+    "timed out",
+    "an error happened while trying to locate the file on the hub",  # LocalEntryNotFoundError
+    "we cannot find the requested files",                            # LocalEntryNotFoundError
+)
+
+# The failure must also be Hugging-Face-shaped — the configured endpoint/host
+# named in the message, or HF-download wording — so a random socket error
+# (e.g. a local LLM provider being down) doesn't get the mirror hint just
+# because a mirror happens to be configured.
+_HF_CONTEXT_MARKERS = (
+    "huggingface",
+    "hf_hub",
+    "hf-hub",
+    "load the files",          # transformers
+    "cached files",            # transformers
+    "the requested files",     # LocalEntryNotFoundError
+    "locate the file on the hub",
+    "snapshot_download",
+)
+
+
+def configured_hf_mirror() -> str:
+    """The non-default Hugging Face endpoint (mirror) in effect, or "".
+
+    Same resolution the download paths use: ``HF_ENDPOINT`` env (what
+    Settings → Models → Hugging Face mirror persists via user_env, and what
+    the HF libraries read) with the ``hf_endpoint`` pref as fallback
+    (mirrors setup/download.py's ``prefs.resolve``). Never raises.
+    """
+    ep = (os.environ.get("HF_ENDPOINT") or "").strip()
+    if not ep:
+        try:
+            from core import prefs
+
+            ep = str(prefs.get("hf_endpoint", "") or "").strip()
+        except Exception:
+            ep = ""
+    ep = ep.rstrip("/")
+    if not ep or ep.lower() in _OFFICIAL_HF_ENDPOINTS:
+        return ""
+    return ep
+
+
+def hf_mirror_hint(reason: Optional[str]) -> str:
+    """Actionable hint when ``reason`` is an HF-download connectivity failure
+    and a non-default mirror endpoint is configured; "" otherwise.
+
+    The hint names the configured mirror, says it may be down, points at the
+    setting (Settings → Models → Hugging Face mirror), suggests the official
+    endpoint when the model isn't cached yet, and notes the restart
+    requirement (HF reads HF_ENDPOINT at import time — see the hf-mirror
+    endpoints in api/routers/settings.py). Never raises.
+    """
+    mirror = configured_hf_mirror()
+    if not mirror:
+        return ""
+    low = (reason or "").lower()
+    if not any(sig in low for sig in _HF_CONNECTIVITY_SIGNATURES):
+        return ""
+    try:
+        host = (urlsplit(mirror).netloc or "").lower()
+    except Exception:
+        host = ""
+    if not (
+        mirror.lower() in low
+        or (host and host in low)
+        or any(m in low for m in _HF_CONTEXT_MARKERS)
+    ):
+        return ""
+    return (
+        f"Your Hugging Face mirror is set to {mirror}, which couldn't be "
+        "reached — the mirror may be down or blocked on your network. If the "
+        'model isn\'t in your local cache yet, switch to "Hugging Face '
+        '(official)" in Settings → Models → Hugging Face mirror (or wait for '
+        "the mirror to recover), then restart OmniVoice — the mirror setting "
+        "is applied when the app starts."
+    )
+
+
+def append_hf_mirror_hint(text: str) -> str:
+    """``"{text} — {hint}"`` when the mirror-connectivity class applies;
+    ``text`` unchanged otherwise. For surfaces that hand a raw error string to
+    the UI (the global 500 handler, the model-install SSE). Never raises."""
+    try:
+        hint = hf_mirror_hint(text)
+    except Exception:
+        return text
+    return f"{text} — {hint}" if hint else text
 
 
 def classify(reason: str) -> str:
@@ -88,6 +210,13 @@ def classify(reason: str) -> str:
         "token" in low or "auth" in low or "401" in low or "unauthorized" in low
     ):
         return "HF_AUTH_FAILED"
+    # #874: a model download that failed because the CONFIGURED HF mirror is
+    # unreachable. Env-aware by design — the class only exists when a
+    # non-default HF_ENDPOINT is configured. Checked BEFORE the video-download
+    # network class so a model download's "timed out"/"connection reset"
+    # names the mirror instead of the "video server".
+    if hf_mirror_hint(reason):
+        return "HF_MIRROR_UNREACHABLE"
     # Video download (#554/#536): a non-downloadable URL shape vs a transient
     # network drop — both previously surfaced as a bare yt-dlp string with no
     # next step. UNSUPPORTED first (more specific) so "Unable to download video:
@@ -207,12 +336,15 @@ def build_failure(
 
     reason = sanitize(raw) or error_class
     docs_topic = classify(raw)
+    # HF_MIRROR_UNREACHABLE's hint is dynamic (it names the configured mirror)
+    # so it can't live in the static _HINTS table.
+    hint = hf_mirror_hint(raw) if docs_topic == "HF_MIRROR_UNREACHABLE" else _HINTS.get(docs_topic, "")
     fields: dict[str, Any] = {
         "reason": reason,
         "error": reason,  # backward-compat mirror for older frontends
         "error_class": error_class,
         "stage": stage,
-        "hint": _HINTS.get(docs_topic, ""),
+        "hint": hint,
         "docs_topic": docs_topic,
         "docs_url": error_docs_map.ERROR_DOCS.get(docs_topic, ""),
         "detail": sanitize(raw),

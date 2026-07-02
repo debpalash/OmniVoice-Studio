@@ -387,6 +387,32 @@ def _env_flag(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _capture_preload_delay_s() -> float:
+    """Seconds after boot before the dictation (capture ASR) model warms.
+
+    Late enough that it never competes with startup I/O or the TTS preload;
+    overridable via OMNIVOICE_CAPTURE_PRELOAD_DELAY (mostly for tests)."""
+    raw = os.environ.get("OMNIVOICE_CAPTURE_PRELOAD_DELAY", "")
+    try:
+        v = float(raw)
+        if v >= 0:
+            return v
+    except (TypeError, ValueError):
+        pass
+    return 30.0
+
+
+def _capture_preload_ram_ok(min_free_bytes: int = 4 * 1024**3) -> bool:
+    """RAM guard for the dictation warm-up: skip below 4 GB free so the
+    background load never pushes a small machine into swap. If free memory
+    can't be measured, warm anyway (the load path has its own error handling)."""
+    try:
+        import psutil
+        return psutil.virtual_memory().available >= min_free_bytes
+    except Exception:
+        return True
+
+
 def _mcp_start_timeout_s() -> float:
     """Seconds to wait for the MCP session manager to start before giving up
     and serving without it (#632). Overridable via OMNIVOICE_MCP_START_TIMEOUT_S."""
@@ -519,11 +545,19 @@ async def lifespan(app: FastAPI):
     worker_task = asyncio.create_task(task_manager.worker())
     # Warm the TTS model in the background so first /generate is instant.
     preload_task = asyncio.create_task(preload_model())
-    # Capture ASR is useful to keep warm, but it is another large model in
-    # unified memory on Apple Silicon. Keep launch lean by default; users who
-    # prefer instant dictation can opt in with OMNIVOICE_PRELOAD_CAPTURE_ASR=1.
-    if _env_flag("OMNIVOICE_PRELOAD_CAPTURE_ASR"):
+    # Dictation v2: the capture ASR warms in the background BY DEFAULT — a
+    # deferred (~30s post-boot) load off the event loop, so startup stays
+    # lean and the first dictation is instant instead of a cold model load.
+    # OMNIVOICE_PRELOAD_CAPTURE_ASR=0 opts out; the warm-up is also skipped
+    # under 4 GB free RAM (checked at warm time, not boot time).
+    if _env_flag("OMNIVOICE_PRELOAD_CAPTURE_ASR", default=True):
         async def _preload_capture_asr():
+            await asyncio.sleep(_capture_preload_delay_s())
+            if not _capture_preload_ram_ok():
+                logger.info(
+                    "Capture ASR preload skipped: <4GB free RAM; "
+                    "dictation ASR will load on first use.")
+                return
             loading_detail = None
             prev_loading_detail = None
             try:
@@ -681,8 +715,16 @@ async def global_exception_handler(request: Request, exc: Exception):
         headers["Access-Control-Allow-Origin"] = origin
         headers["Access-Control-Allow-Credentials"] = "true"
         headers["Vary"] = "Origin"
+    # #874: a model download that failed because the CONFIGURED Hugging Face
+    # mirror (HF_ENDPOINT) is unreachable used to leak the raw transformers
+    # message ("We couldn't connect to 'https://hf-mirror.com' …") as the 500
+    # detail with no next step. Appending the shared mirror hint HERE covers
+    # every route that can leak a model-load/download error (generate, dub,
+    # archetypes, …), not just TTS generate. append_hf_mirror_hint is a no-op
+    # for every other error and never raises.
+    from core.failure import append_hf_mirror_hint
     return JSONResponse(
-        {"detail": str(exc), "error_class": _entry.get("error_class")},
+        {"detail": append_hf_mirror_hint(str(exc)), "error_class": _entry.get("error_class")},
         status_code=500,
         headers=headers,
     )

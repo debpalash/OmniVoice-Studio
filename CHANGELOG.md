@@ -10,6 +10,17 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Added
 
+- **Dictation, rebuilt.** The dictation pill now shows a live waveform the
+  moment the mic opens, streams words as you speak with real download/loading
+  progress on first use, and finishes what you say in about half a second of
+  silence instead of two-and-a-half. Transcripts come out properly
+  capitalized and punctuated. Text insertion is now honest and safe: your
+  clipboard is preserved and restored, failures show what to do (including a
+  one-click jump to macOS Accessibility settings when permission is missing)
+  instead of a false "Pasted", and Esc cancels cleanly at any point. The
+  dictation model also pre-warms in the background after launch, so the first
+  press of the hotkey no longer sits on a cold model load.
+
 - **LLM Providers: one-click connection testing with real diagnostics.** The
   Test button in Settings → LLM Providers now measures round-trip latency and
   turns failures into plain-language guidance — bad key (401/403), wrong

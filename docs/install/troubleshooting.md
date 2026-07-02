@@ -179,9 +179,11 @@ falling back to faster-whisper`.
 
 **Cause:** `mlx-whisper` and `mlx-audio` only build for arm64 (Apple Silicon).
 
-**Fix:** none needed — `faster-whisper` (CTranslate2) is the supported Intel
-path and is still fast. If you want the latest CT2 wheels, run `uv sync`
-from a fresh source checkout.
+**Fix:** none needed on Apple Silicon setups that log this transiently. Note
+that Intel Macs can no longer run the local backend at all — PyTorch dropped
+Intel-Mac wheels, so this entry only applies to historical installs (see
+[macos.md](macos.md) and
+[#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)).
 
 ## 10. Windows: `Could not locate cudnn_ops_infer64_8.dll` during transcription
 
@@ -352,6 +354,39 @@ capacity is restored automatically (no app restart needed). Tune the bounds with
 `OMNIVOICE_GENERATE_TIMEOUT_S` (generation) — both in seconds, default 300.
 **Raise** them for very long single files/generations, **lower** them to fail
 faster on a small machine.
+
+## 15. Stuck at "preparing" forever after a crash / BSOD (Windows)
+
+**Symptom:** after an unclean shutdown (Windows BSOD, forced power-off), every
+launch sits on the "preparing" splash indefinitely — even though the backend is
+actually healthy (its log shows models loaded, and
+`http://127.0.0.1:3900/health` answers `{"status":"ok"}` in a browser). The
+WebView log contains:
+
+```
+IPC custom protocol failed, Tauri will now use the postMessage interface instead
+TypeError: Failed to fetch
+```
+
+**Cause:** the crash corrupted the WebView2 profile cache at
+`%LOCALAPPDATA%\com.debpalash.omnivoice-studio\EBWebView`. Both the IPC custom
+protocol *and* its postMessage fallback break, so the splash never hears the
+"ready" signal from the app shell (issue #879).
+
+**Fix:** current builds handle this automatically — if the splash gets no IPC
+signal within ~10 s it checks the backend over plain HTTP and proceeds on its
+own; if the backend isn't up either, after ~45 s a recovery panel appears with
+**Repair and restart** (Windows), which clears the WebView cache and relaunches.
+Your voices, projects, and settings are not touched — only browser display data
+is cleared.
+
+On older builds (≤ 0.3.8), or if the automatic repair fails, do it manually:
+quit OmniVoice Studio, delete the folder below, then start the app again.
+
+<!-- validate: skip -->
+```powershell
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\com.debpalash.omnivoice-studio\EBWebView"
+```
 
 ## Dub: "translation engine needs the optional … package"
 

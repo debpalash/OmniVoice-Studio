@@ -72,7 +72,9 @@ def test_eof_text_frame_triggers_final_without_disconnect(client):
                 final = msg
                 break
         assert final is not None, "server never delivered final after EOF"
-        assert final["text"] == "hello world"
+        # Finals are polished (dictation v2): leading capital + terminal
+        # punctuation. The stub returns "hello world" raw.
+        assert final["text"] == "Hello world."
         assert final["engine"] == "stub"
 
 
@@ -100,3 +102,49 @@ def test_empty_binary_frame_acts_as_eof(client):
                 break
         assert final is not None
         assert final["engine"] == "stub"
+
+
+# ── Capture-ASR background warm-up gating (dictation v2) ─────────────────────
+#
+# The dictation model warms in the background BY DEFAULT (~30s post-boot);
+# OMNIVOICE_PRELOAD_CAPTURE_ASR=0 opts out, and the warm-up is skipped when
+# the machine is under 4 GB of free RAM.
+
+
+def test_capture_preload_defaults_on(monkeypatch):
+    import main
+    monkeypatch.delenv("OMNIVOICE_PRELOAD_CAPTURE_ASR", raising=False)
+    assert main._env_flag("OMNIVOICE_PRELOAD_CAPTURE_ASR", default=True)
+    monkeypatch.setenv("OMNIVOICE_PRELOAD_CAPTURE_ASR", "0")
+    assert not main._env_flag("OMNIVOICE_PRELOAD_CAPTURE_ASR", default=True)
+    monkeypatch.setenv("OMNIVOICE_PRELOAD_CAPTURE_ASR", "1")
+    assert main._env_flag("OMNIVOICE_PRELOAD_CAPTURE_ASR", default=True)
+
+
+def test_capture_preload_delay_default_and_override(monkeypatch):
+    import main
+    monkeypatch.delenv("OMNIVOICE_CAPTURE_PRELOAD_DELAY", raising=False)
+    assert main._capture_preload_delay_s() == 30.0
+    monkeypatch.setenv("OMNIVOICE_CAPTURE_PRELOAD_DELAY", "0")
+    assert main._capture_preload_delay_s() == 0.0
+    monkeypatch.setenv("OMNIVOICE_CAPTURE_PRELOAD_DELAY", "junk")
+    assert main._capture_preload_delay_s() == 30.0
+
+
+def test_capture_preload_ram_guard(monkeypatch):
+    import types
+    import main
+    import psutil
+
+    monkeypatch.setattr(psutil, "virtual_memory",
+                        lambda: types.SimpleNamespace(available=2 * 1024**3))
+    assert not main._capture_preload_ram_ok()
+    monkeypatch.setattr(psutil, "virtual_memory",
+                        lambda: types.SimpleNamespace(available=8 * 1024**3))
+    assert main._capture_preload_ram_ok()
+
+    # Unmeasurable → warm anyway (the load path has its own error handling).
+    def _boom():
+        raise RuntimeError("no vm info")
+    monkeypatch.setattr(psutil, "virtual_memory", _boom)
+    assert main._capture_preload_ram_ok()
