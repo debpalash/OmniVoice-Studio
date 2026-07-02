@@ -132,6 +132,10 @@ class IsolatedFasterWhisperBackend(SubprocessASRBackend):
 
     id = "faster-whisper-isolated"
     display_name = "Faster-Whisper (crash-isolated subprocess)"
+    # Same engine as FasterWhisperBackend, so the same device support — the
+    # sidecar picks cuda/cpu itself via `_device()`. Without this the registry
+    # default ("cpu",) would dishonestly report cpu_only routing on CUDA hosts.
+    gpu_compat = ("cuda", "cpu")
 
     @classmethod
     def is_available(cls) -> tuple[bool, str]:

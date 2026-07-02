@@ -346,14 +346,25 @@ did was `generate:start (audio)`, a dub, or a dictation.
 4. **Test with a 10-second clip** first — if that returns quickly, it confirms a
    compute/VRAM limit rather than a true hang.
 
-Newer builds **bound** every GPU job — whole-file transcription **and** TTS
-generation: instead of hanging forever and starving the backend, a wedged job now
-fails after a timeout with this exact guidance, and the worker pool is reset so
-capacity is restored automatically (no app restart needed). Tune the bounds with
-`OMNIVOICE_ASR_TRANSCRIBE_TIMEOUT_S` (transcription) and
-`OMNIVOICE_GENERATE_TIMEOUT_S` (generation) — both in seconds, default 300.
-**Raise** them for very long single files/generations, **lower** them to fail
-faster on a small machine.
+Newer builds **bound** every GPU job — whole-file transcription, **chunked dub
+transcription**, **and** TTS generation: instead of hanging forever and starving
+the backend, a wedged job now fails after a timeout with this exact guidance,
+and the worker pool is reset so capacity is restored automatically (no app
+restart needed). Tune the bounds with `OMNIVOICE_ASR_TRANSCRIBE_TIMEOUT_S`
+(whole-file transcription) and `OMNIVOICE_GENERATE_TIMEOUT_S` (generation) —
+both in seconds, default 300 — and `OMNIVOICE_TRANSCRIBE_CHUNK_TIMEOUT_S`
+(per-chunk dub transcription, default 120). **Raise** them for very long single
+files/generations, **lower** them to fail faster on a small machine.
+
+**If transcribe timeouts keep repeating back-to-back**, pool resets aren't
+recovering the underlying hang — the wedged thread keeps its VRAM until the app
+exits. The error message will then recommend switching the ASR engine to
+**Faster-Whisper (crash-isolated subprocess)** (`faster-whisper-isolated`) in
+**Settings → Engines**: it runs transcription in a separate process that can be
+force-killed to reclaim a hung transcribe *and* its VRAM, at a small per-call
+overhead. It reuses your existing faster-whisper install (nothing extra to
+download). OmniVoice never switches engines automatically — this stays your
+call.
 
 ## 15. Stuck at "preparing" forever after a crash / BSOD (Windows)
 

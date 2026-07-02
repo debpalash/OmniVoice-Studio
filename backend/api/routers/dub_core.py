@@ -16,6 +16,7 @@ from core.tasks import task_manager
 from core import event_bus
 from schemas.requests import DubIngestUrlRequest
 from services.model_manager import get_model, _gpu_pool, _cpu_pool, get_diarization_pipeline, offload_tts_for_asr, restore_tts_after_asr
+from services.asr_backend import ASRTimeoutError, reset_pool_after_wedge, run_transcribe_guarded
 from services.audio_io import _safe_soundfile_write
 from services.ffmpeg_utils import find_ffmpeg
 from services.segmentation import (
@@ -33,24 +34,6 @@ from services import dub_pipeline
 
 router = APIRouter()
 logger = logging.getLogger("omnivoice.api")
-
-
-def _reset_pool_on_wedge(pool) -> None:
-    """Abandon a GPU pool whose worker is wedged on a timed-out transcribe (#730).
-
-    Python can't kill the stuck thread, but dropping the poisoned pool means the
-    next submit (the next chunk, or a concurrent TTS generate) gets a fresh
-    worker instead of queueing behind the wedged one — the same recovery the
-    whole-file paths get inside ``run_transcribe_guarded``. Best-effort and a
-    no-op for a pool without ``reset`` (a plain executor), so it never raises on
-    the failure path it's trying to recover from.
-    """
-    _reset = getattr(pool, "reset", None)
-    if callable(_reset):
-        try:
-            _reset()
-        except Exception:
-            logger.exception("GPU pool reset after transcribe timeout failed")
 
 
 # ── Legacy-name aliases to services/dub_pipeline.py ────────────────────────
@@ -580,35 +563,38 @@ async def dub_transcribe_stream(
             # the hole instead of leaving silent gaps.
             part = None
             for _attempt in range(1, _CHUNK_TRANSCRIBE_ATTEMPTS + 1):
+                # A wedged chunk gets the SAME guarded-timeout + pool-reset
+                # semantics as the whole-file paths (#730/#851):
+                # run_transcribe_guarded bounds the call, abandons the poisoned
+                # pool so the retry (and any concurrent TTS work) gets a fresh
+                # worker, and raises the actionable ASRTimeoutError. Run it as
+                # a task and poll so we can keep yielding pings — the
+                # EventSource connection drops without them.
+                pool_reset_by_guard = False
+                task = asyncio.ensure_future(run_transcribe_guarded(
+                    _gpu_pool, _transcribe_chunk,
+                    what=f"Dub chunk {i + 1}/{chunks_n}",
+                    timeout=TRANSCRIBE_CHUNK_TIMEOUT_S,
+                    timeout_env="OMNIVOICE_TRANSCRIBE_CHUNK_TIMEOUT_S",
+                ))
+                while True:
+                    done, _pending = await asyncio.wait({task}, timeout=5.0)
+                    if done:
+                        break
+                    yield _sse_event("ping", {})
                 try:
-                    # wait_for in a loop to yield pings so the EventSource connection doesn't drop
-                    fut = loop.run_in_executor(_gpu_pool, _transcribe_chunk)
-                    waited = 0.0
-                    while True:
-                        done, pending = await asyncio.wait([fut], timeout=5.0)
-                        if done:
-                            part = done.pop().result()
-                            break
-                        yield _sse_event("ping", {})
-                        waited += 5.0
-                        if waited >= TRANSCRIBE_CHUNK_TIMEOUT_S:
-                            # Re-raise TimeoutError if we exceed the overall limit
-                            raise asyncio.TimeoutError()
-                except asyncio.TimeoutError:
+                    part = task.result()
+                except ASRTimeoutError as e:
+                    # The guard already reset the pool; keep the actionable
+                    # message (it names the durable fixes, and — after repeated
+                    # timeouts — the crash-isolated engine escape hatch).
+                    pool_reset_by_guard = True
                     logger.error(
                         "Transcribe chunk %d/%d timed out after %.0fs (attempt %d/%d, job=%s)",
                         i + 1, chunks_n, TRANSCRIBE_CHUNK_TIMEOUT_S, _attempt,
                         _CHUNK_TRANSCRIBE_ATTEMPTS, job_id,
                     )
-                    # #730: the wedged chunk thread keeps holding its GPU-pool
-                    # worker. Abandon the poisoned pool so the retry (and any TTS
-                    # work) gets a fresh worker instead of queueing behind it.
-                    _reset_pool_on_wedge(_gpu_pool)
-                    part = {
-                        "chunks": [], "language": None,
-                        "error": f"Chunk {i+1} timed out after {TRANSCRIBE_CHUNK_TIMEOUT_S:.0f}s — "
-                                 f"ASR backend may be stuck. Try restarting the server.",
-                    }
+                    part = {"chunks": [], "language": None, "error": str(e)}
                 # Success → keep it. Failure/timeout → retry once on a fresh
                 # worker (the internal _transcribe_chunk except returns an
                 # error-part; the timeout path already reset the pool).
@@ -619,7 +605,9 @@ async def dub_transcribe_stream(
                         "Retrying transcribe chunk %d/%d after failure/timeout (next attempt %d/%d, job=%s)",
                         i + 1, chunks_n, _attempt + 1, _CHUNK_TRANSCRIBE_ATTEMPTS, job_id,
                     )
-                    _reset_pool_on_wedge(_gpu_pool)
+                    if not pool_reset_by_guard:
+                        reset_pool_after_wedge(
+                            _gpu_pool, what=f"Dub chunk {i + 1}/{chunks_n}")
             if part.get("error"):
                 chunk_errors.append(part["error"])
                 logger.warning("Chunk %d/%d error: %s", i + 1, chunks_n, part["error"])
@@ -1068,7 +1056,6 @@ async def dub_transcribe(job_id: str):
             # call would otherwise hold its GPU-pool worker forever and starve
             # every other request into a "can't reach backend". run_transcribe_guarded
             # also resets the pool on timeout so capacity is restored.
-            from services.asr_backend import run_transcribe_guarded
             segments_result = await run_transcribe_guarded(_gpu_pool, _transcribe, what="Dub")
         except asyncio.CancelledError:
             job["aborted"] = True

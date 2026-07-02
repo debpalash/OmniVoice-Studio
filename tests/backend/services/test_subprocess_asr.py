@@ -91,6 +91,49 @@ def test_registry_exposes_isolated_backend():
     assert cls.id == "faster-whisper-isolated"
     ok, msg = cls.is_available()
     assert isinstance(ok, bool)  # available iff faster-whisper installed + script present
+    assert isinstance(msg, str) and msg  # honest reason either way
+
+
+def test_isolated_backend_listed_in_settings_with_explanatory_hint():
+    """#730 residual B: the escape-hatch engine must be a first-class row in the
+    Settings engine list — subprocess isolation flagged, an install_hint that
+    explains WHAT it's for (reclaiming hung transcribes + their VRAM), and an
+    honest availability verdict."""
+    from services import asr_backend
+
+    entries = {b["id"]: b for b in asr_backend.list_backends()}
+    entry = entries.get("faster-whisper-isolated")
+    assert entry is not None, "isolated backend missing from list_backends()"
+    assert entry["display_name"] == "Faster-Whisper (crash-isolated subprocess)"
+    assert entry["isolation_mode"] == "subprocess"
+    hint = entry["install_hint"] or ""
+    assert "separate process" in hint and "VRAM" in hint, hint
+    assert isinstance(entry["available"], bool)
+    if not entry["available"]:
+        assert entry["reason"]  # unavailable must always say why
+    # Wraps the same CTranslate2 engine as faster-whisper → same device support
+    # (the registry default ("cpu",) would dishonestly hide CUDA routing).
+    assert entry["gpu_compat"] == ["cuda", "cpu"]
+
+
+def test_get_active_asr_backend_caches_isolated_singleton(monkeypatch):
+    """Selecting the isolated engine must not spawn a fresh sidecar (and leak an
+    atexit hook) per request: SubprocessBackend instances own a child process,
+    so get_active_asr_backend must hand back one process-wide instance."""
+    from services import asr_backend
+
+    monkeypatch.setenv("OMNIVOICE_ASR_BACKEND", "faster-whisper-isolated")
+    monkeypatch.setattr(asr_backend, "_ISOLATED_INSTANCES", {})
+    a = asr_backend.get_active_asr_backend()
+    b = asr_backend.get_active_asr_backend()
+    try:
+        assert a is b, "isolated backend must be a process-wide singleton"
+        assert a.id == "faster-whisper-isolated"
+    finally:
+        try:
+            a.shutdown()
+        except Exception:
+            pass
 
 
 def test_generate_is_not_supported(asr):
