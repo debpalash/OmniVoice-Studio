@@ -1,0 +1,471 @@
+"""Storage usage report for Settings → Storage.
+
+Computes, for everything the app owns on disk:
+
+  * per-volume totals (total / used / free, grouped by ``st_dev`` so two
+    roots on the same disk are reported once),
+  * per-category directory sizes — the HF model cache (with the largest
+    model dirs), the app data dir (broken into voices / outputs / dub_jobs /
+    batch / preview / database / logs / other subtotals), the per-engine
+    venvs under ``backend/engines/*/.venv`` (+ the app venv), and any
+    ``omnivoice*`` entries in the OS temp dir,
+  * server-side ``warnings`` (low disk, volume pressure, unreadable paths)
+    so every client renders the same guidance.
+
+Directory walks are **bounded**: each top-level category gets a deadline
+(default 10 s) and returns a partial total (``complete: false`` + an
+``unreadable`` warning with ``reason: "timeout"``) when it expires. Results
+are cached in-process for 5 minutes; ``refresh`` bypasses the cache. The API
+layer runs the whole build in a worker thread so the event loop never blocks.
+"""
+from __future__ import annotations
+
+import glob
+import os
+import shutil
+import sys
+import tempfile
+import threading
+import time
+from pathlib import Path
+
+CACHE_TTL_SECONDS = 300.0
+CATEGORY_TIMEOUT_SECONDS = 10.0
+TOP_MODEL_COUNT = 10
+VOLUME_PRESSURE_PERCENT = 90.0
+DEFAULT_MIN_FREE_GB = 10  # callers pass setup.wizard.MIN_FREE_GB — this is the standalone fallback
+
+# DATA_DIR children we know by name (core.config constants + routers that
+# write there). Anything else lands in the "other" subtotal so the numbers
+# always add up to the real on-disk footprint.
+_DATA_CHILD_DIRS = ("voices", "outputs", "dub_jobs", "batch", "preview")
+_DB_PREFIX = "omnivoice.db"          # omnivoice.db + -wal / -shm / -journal
+_LOG_FILES = ("crash_log.txt", "error_journal.jsonl")
+_LOG_PREFIX = "omnivoice.log"        # rolling log + rotations
+
+_GB = 1024 ** 3
+
+
+def default_engines_dir() -> str:
+    """``backend/engines`` — where per-engine venvs live (`<id>/.venv`)."""
+    return str(Path(__file__).resolve().parents[1] / "engines")
+
+
+def default_app_venv() -> str | None:
+    """The venv this backend runs from, when it is one (None for system python)."""
+    if sys.prefix != getattr(sys, "base_prefix", sys.prefix):
+        return sys.prefix
+    return None
+
+
+def _existing_ancestor(path: str) -> str:
+    """Deepest existing ancestor of ``path`` (for disk_usage on missing dirs)."""
+    p = os.path.abspath(path)
+    while p and not os.path.exists(p):
+        parent = os.path.dirname(p)
+        if parent == p:
+            break
+        p = parent
+    return p
+
+
+def _mount_point(path: str) -> str:
+    """Mount point of the volume holding ``path`` (best-effort, cheap)."""
+    p = _existing_ancestor(path)
+    try:
+        while p and not os.path.ismount(p):
+            parent = os.path.dirname(p)
+            if parent == p:
+                break
+            p = parent
+    except OSError:
+        pass
+    return p or os.path.abspath(os.sep)
+
+
+def _dir_size(path: str, deadline: float) -> tuple[int, bool, str | None]:
+    """du-style size of ``path``: ``(bytes, complete, first_unreadable_path)``.
+
+    Never follows symlinks (lstat + walk default), never raises. Stops early
+    and reports ``complete=False`` once ``deadline`` (time.monotonic) passes.
+    """
+    err_path: str | None = None
+
+    def _onerror(e: OSError) -> None:
+        nonlocal err_path
+        if err_path is None:
+            err_path = getattr(e, "filename", None) or path
+
+    try:
+        if not os.path.exists(path):
+            return 0, True, None
+        if not os.path.isdir(path):
+            return os.lstat(path).st_size, True, None
+    except OSError:
+        return 0, True, path
+
+    total = 0
+    complete = True
+    for root, _dirs, files in os.walk(path, onerror=_onerror):
+        if time.monotonic() > deadline:
+            complete = False
+            break
+        for name in files:
+            fp = os.path.join(root, name)
+            try:
+                total += os.lstat(fp).st_size
+            except OSError:
+                if err_path is None:
+                    err_path = fp
+    return total, complete, err_path
+
+
+def _sum_files(paths: list[str]) -> int:
+    total = 0
+    for p in paths:
+        try:
+            total += os.lstat(p).st_size
+        except OSError:
+            pass
+    return total
+
+
+def _hf_model_dirs(cache_dir: str) -> list[str]:
+    """`models--org--name` dirs in the cache root and its `hub/` child.
+
+    HF_HUB_CACHE points straight at the hub dir; HF_HOME needs `/hub`
+    appended — scanning both covers either env resolution.
+    """
+    out: list[str] = []
+    for base in (cache_dir, os.path.join(cache_dir, "hub")):
+        try:
+            with os.scandir(base) as it:
+                out.extend(
+                    e.path for e in it
+                    if e.name.startswith("models--") and e.is_dir(follow_symlinks=False)
+                )
+        except OSError:
+            continue
+    return out
+
+
+def _model_display_name(dir_name: str) -> str:
+    return dir_name.removeprefix("models--").replace("--", "/")
+
+
+def build_report(
+    *,
+    data_dir: str,
+    hf_cache_dir: str,
+    engines_dir: str | None = None,
+    app_venv: str | None = None,
+    temp_root: str | None = None,
+    min_free_gb: float = DEFAULT_MIN_FREE_GB,
+    category_timeout: float = CATEGORY_TIMEOUT_SECONDS,
+) -> dict:
+    """Build the full storage report (synchronous; call from a worker thread)."""
+    engines_dir = engines_dir if engines_dir is not None else default_engines_dir()
+    temp_root = temp_root if temp_root is not None else tempfile.gettempdir()
+    warnings: list[dict] = []
+    categories: list[dict] = []
+
+    def _warn_unreadable(category_id: str, path: str, reason: str) -> None:
+        warnings.append({
+            "kind": "unreadable",
+            "severity": "warning",
+            "category_id": category_id,
+            "path": path,
+            "reason": reason,
+        })
+
+    def _finish(category_id: str, cat: dict, complete: bool, err_path: str | None) -> None:
+        cat["complete"] = complete
+        if not complete:
+            _warn_unreadable(category_id, cat["path"], "timeout")
+        if err_path is not None:
+            _warn_unreadable(category_id, err_path, "permission")
+
+    # ── 1. HF model cache (+ top model dirs) ───────────────────────────────
+    deadline = time.monotonic() + category_timeout
+    hf_total = 0
+    hf_complete = True
+    hf_err: str | None = None
+    models: list[dict] = []
+    model_dirs = set(_hf_model_dirs(hf_cache_dir))
+    seen: set[str] = set()
+    for mdir in sorted(model_dirs):
+        size, ok, err = _dir_size(mdir, deadline)
+        hf_total += size
+        hf_complete = hf_complete and ok
+        hf_err = hf_err or err
+        models.append({"name": _model_display_name(os.path.basename(mdir)), "bytes": size})
+        seen.add(os.path.realpath(mdir))
+    # Non-model remainder of the cache (datasets, xet chunks, token file, …):
+    # walk the top-level entries that aren't model dirs so the category total
+    # reflects the whole cache, not just models.
+    try:
+        with os.scandir(hf_cache_dir) as it:
+            entries = list(it)
+    except OSError:
+        entries = []
+        if os.path.exists(hf_cache_dir):
+            hf_err = hf_err or hf_cache_dir
+    for e in entries:
+        if os.path.realpath(e.path) in seen:
+            continue
+        if e.name == "hub":
+            # hub/ holds the model dirs (already counted) + misc; count the rest.
+            try:
+                with os.scandir(e.path) as hub_it:
+                    for h in hub_it:
+                        if os.path.realpath(h.path) in seen:
+                            continue
+                        size, ok, err = _dir_size(h.path, deadline)
+                        hf_total += size
+                        hf_complete = hf_complete and ok
+                        hf_err = hf_err or err
+            except OSError:
+                hf_err = hf_err or e.path
+            continue
+        size, ok, err = _dir_size(e.path, deadline)
+        hf_total += size
+        hf_complete = hf_complete and ok
+        hf_err = hf_err or err
+    models.sort(key=lambda m: m["bytes"], reverse=True)
+    hf_cat = {
+        "id": "hf_cache",
+        "path": hf_cache_dir,
+        "exists": os.path.isdir(hf_cache_dir),
+        "bytes": hf_total,
+        "items": models[:TOP_MODEL_COUNT],
+    }
+    _finish("hf_cache", hf_cat, hf_complete, hf_err)
+    categories.append(hf_cat)
+
+    # ── 2. App data dir, broken into subtotals ─────────────────────────────
+    deadline = time.monotonic() + category_timeout
+    data_complete = True
+    data_err: str | None = None
+    children: list[dict] = []
+    claimed: set[str] = set()
+
+    for name in _DATA_CHILD_DIRS:
+        p = os.path.join(data_dir, name)
+        size, ok, err = _dir_size(p, deadline)
+        data_complete = data_complete and ok
+        data_err = data_err or err
+        claimed.add(name)
+        children.append({"id": name, "path": p, "bytes": size, "complete": ok})
+
+    db_files = sorted(glob.glob(os.path.join(glob.escape(data_dir), _DB_PREFIX + "*")))
+    claimed.update(os.path.basename(p) for p in db_files)
+    children.append({
+        "id": "database",
+        "path": os.path.join(data_dir, _DB_PREFIX),
+        "bytes": _sum_files(db_files),
+        "complete": True,
+    })
+
+    log_files = sorted(glob.glob(os.path.join(glob.escape(data_dir), _LOG_PREFIX + "*")))
+    log_files += [os.path.join(data_dir, n) for n in _LOG_FILES]
+    claimed.update(os.path.basename(p) for p in log_files)
+    children.append({
+        "id": "logs",
+        "path": data_dir,
+        "bytes": _sum_files(log_files),
+        "complete": True,
+    })
+
+    other_bytes = 0
+    try:
+        with os.scandir(data_dir) as it:
+            for e in it:
+                if e.name in claimed:
+                    continue
+                if e.is_dir(follow_symlinks=False):
+                    size, ok, err = _dir_size(e.path, deadline)
+                    other_bytes += size
+                    data_complete = data_complete and ok
+                    data_err = data_err or err
+                else:
+                    try:
+                        other_bytes += e.stat(follow_symlinks=False).st_size
+                    except OSError:
+                        data_err = data_err or e.path
+    except OSError:
+        if os.path.exists(data_dir):
+            data_err = data_err or data_dir
+    children.append({"id": "other", "path": data_dir, "bytes": other_bytes, "complete": True})
+
+    data_cat = {
+        "id": "data",
+        "path": data_dir,
+        "exists": os.path.isdir(data_dir),
+        "bytes": sum(c["bytes"] for c in children),
+        "children": children,
+    }
+    _finish("data", data_cat, data_complete, data_err)
+    categories.append(data_cat)
+
+    # ── 3. Engine venvs (+ the app venv) ───────────────────────────────────
+    deadline = time.monotonic() + category_timeout
+    venv_total = 0
+    venv_complete = True
+    venv_err: str | None = None
+    venv_items: list[dict] = []
+    try:
+        with os.scandir(engines_dir) as it:
+            engine_dirs = sorted(e.path for e in it if e.is_dir(follow_symlinks=False))
+    except OSError:
+        engine_dirs = []
+    for edir in engine_dirs:
+        venv_dir = os.path.join(edir, ".venv")
+        if not os.path.isdir(venv_dir):
+            continue
+        size, ok, err = _dir_size(venv_dir, deadline)
+        venv_total += size
+        venv_complete = venv_complete and ok
+        venv_err = venv_err or err
+        venv_items.append({"name": os.path.basename(edir), "bytes": size})
+    if app_venv:
+        size, ok, err = _dir_size(app_venv, deadline)
+        venv_total += size
+        venv_complete = venv_complete and ok
+        venv_err = venv_err or err
+        venv_items.append({"name": "app", "bytes": size})
+    venv_items.sort(key=lambda m: m["bytes"], reverse=True)
+    venv_cat = {
+        "id": "engine_venvs",
+        "path": engines_dir,
+        "exists": os.path.isdir(engines_dir),
+        "bytes": venv_total,
+        "items": venv_items,
+    }
+    _finish("engine_venvs", venv_cat, venv_complete, venv_err)
+    categories.append(venv_cat)
+
+    # ── 4. Temp/working files the app owns (omnivoice* in the OS temp dir) ─
+    deadline = time.monotonic() + category_timeout
+    tmp_total = 0
+    tmp_complete = True
+    tmp_err: str | None = None
+    for p in sorted(glob.glob(os.path.join(glob.escape(temp_root), "omnivoice*"))):
+        size, ok, err = _dir_size(p, deadline)
+        tmp_total += size
+        tmp_complete = tmp_complete and ok
+        tmp_err = tmp_err or err
+    tmp_cat = {
+        "id": "temp",
+        "path": temp_root,
+        "exists": os.path.isdir(temp_root),
+        "bytes": tmp_total,
+        "items": [],
+    }
+    _finish("temp", tmp_cat, tmp_complete, tmp_err)
+    categories.append(tmp_cat)
+
+    # ── Volumes: group category roots by device, disk_usage once each ──────
+    roots = {"hf_cache": hf_cache_dir, "data": data_dir, "engine_venvs": engines_dir, "temp": temp_root}
+    by_dev: dict[object, dict] = {}
+    for cid, root in roots.items():
+        anchor = _existing_ancestor(root)
+        try:
+            dev: object = os.stat(anchor).st_dev
+        except OSError:
+            dev = anchor
+        if dev not in by_dev:
+            try:
+                usage = shutil.disk_usage(anchor)
+            except OSError:
+                continue
+            by_dev[dev] = {
+                "path": _mount_point(anchor),
+                "total_bytes": usage.total,
+                "used_bytes": usage.used,
+                "free_bytes": usage.free,
+                "used_percent": round(usage.used / usage.total * 100.0, 1) if usage.total else 0.0,
+                "roots": [],
+            }
+        by_dev[dev]["roots"].append(cid)
+    volumes = list(by_dev.values())
+
+    # ── Server-side warnings ────────────────────────────────────────────────
+    for v in volumes:
+        free_gb = v["free_bytes"] / _GB
+        base = {
+            "path": v["path"],
+            "free_gb": round(free_gb, 1),
+            "min_free_gb": min_free_gb,
+            "roots": v["roots"],
+        }
+        if free_gb < min_free_gb:
+            warnings.append({"kind": "low_disk", "severity": "critical", **base})
+        elif free_gb < 2 * min_free_gb:
+            warnings.append({"kind": "low_disk", "severity": "low", **base})
+        if v["used_percent"] > VOLUME_PRESSURE_PERCENT and ({"hf_cache", "data"} & set(v["roots"])):
+            warnings.append({
+                "kind": "volume_pressure",
+                "severity": "warning",
+                "path": v["path"],
+                "used_percent": v["used_percent"],
+                "roots": v["roots"],
+            })
+
+    # Order: critical first, then the rest in computed order (stable sort).
+    warnings.sort(key=lambda w: 0 if w["severity"] == "critical" else 1)
+
+    return {
+        "generated_at": time.time(),
+        "min_free_gb": min_free_gb,
+        "volumes": volumes,
+        "categories": categories,
+        "warnings": warnings,
+    }
+
+
+# ── In-process cache (5-minute TTL, refresh bypasses) ──────────────────────
+_cache_lock = threading.Lock()
+_cache: dict = {"key": None, "ts": 0.0, "report": None}
+
+
+def get_report(
+    *,
+    data_dir: str,
+    hf_cache_dir: str,
+    engines_dir: str | None = None,
+    app_venv: str | None = None,
+    temp_root: str | None = None,
+    min_free_gb: float = DEFAULT_MIN_FREE_GB,
+    category_timeout: float = CATEGORY_TIMEOUT_SECONDS,
+    refresh: bool = False,
+    ttl: float = CACHE_TTL_SECONDS,
+) -> dict:
+    """Cached ``build_report``. ``refresh=True`` forces a rescan."""
+    key = (data_dir, hf_cache_dir, engines_dir, app_venv, temp_root, min_free_gb)
+    if not refresh:
+        with _cache_lock:
+            fresh = (
+                _cache["report"] is not None
+                and _cache["key"] == key
+                and (time.monotonic() - _cache["ts"]) < ttl
+            )
+            if fresh:
+                return {**_cache["report"], "cached": True}
+    report = build_report(
+        data_dir=data_dir,
+        hf_cache_dir=hf_cache_dir,
+        engines_dir=engines_dir,
+        app_venv=app_venv,
+        temp_root=temp_root,
+        min_free_gb=min_free_gb,
+        category_timeout=category_timeout,
+    )
+    with _cache_lock:
+        _cache.update(key=key, ts=time.monotonic(), report=report)
+    return {**report, "cached": False}
+
+
+def clear_cache() -> None:
+    """Testing hook — drop the in-process cache."""
+    with _cache_lock:
+        _cache.update(key=None, ts=0.0, report=None)

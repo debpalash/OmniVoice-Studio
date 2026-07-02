@@ -20,6 +20,7 @@ import VoicePanel from '../components/settings/VoicePanel';
 import AppearancePanel from '../components/settings/AppearancePanel';
 import StoragePanel from '../components/settings/StoragePanel';
 import StorageTab from '../components/settings/StorageTab';
+import StorageUsagePanel from '../components/settings/StorageUsagePanel';
 import HFMirrorPanel from '../components/settings/HFMirrorPanel';
 import SharingPanel from '../components/settings/SharingPanel';
 import RemoteBackendPanel from '../components/settings/RemoteBackendPanel';
@@ -384,7 +385,12 @@ export default function Settings() {
       case 'performance':
         return <PerformanceDeviceTab />;
       case 'storage':
-        return <StorageTab />;
+        return (
+          <>
+            <StorageUsagePanel />
+            <StorageTab />
+          </>
+        );
       case 'network':
         return <NetworkTab />;
       case 'sharing':

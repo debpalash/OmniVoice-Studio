@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import {
   Scale,
@@ -17,6 +17,8 @@ import {
 import { API } from '../api/client';
 import { useAppStore } from '../store';
 import ReadinessChecklist from '../components/ReadinessChecklist';
+import LaunchpadDeck from '../components/LaunchpadDeck';
+import useShellNarrow from '../hooks/useShellNarrow';
 
 // Shared utility-class strings for the Launchpad project/section rows. Migrated
 // from the former `.lp-project-card`/`.lp-section-title`/`.proj-*` global rules
@@ -56,7 +58,8 @@ function DubThumb({ jobId, fallback }) {
 // accent line under the H1. Less static, no SVG dependency.
 
 /**
- * ActionCard — the three big Launchpad tiles. Reads its accent from a
+ * ActionCard — the flat Launchpad tiles (narrow-shell fallback for the deck).
+ * Reads its accent from a
  * single `--card-hue` var so the CSS derives background / border / glow /
  * spotlight from one hex color. Cursor-tracking spotlight: pointer events
  * set --mx/--my so `.lp-glow-layer` can paint a radial gradient at the
@@ -112,8 +115,76 @@ export default function Launchpad({
   // off" strip. exportHistory arrives newest-first from /export/history.
   const recentFiles = exportHistory.slice(0, 4);
 
+  // The seven feature cards — single source for BOTH renderings (deck fan on
+  // wide shells, flat ActionCard grid on narrow ones) so hues, i18n keys,
+  // counts and navigation targets can never drift between the two branches.
+  const features = [
+    {
+      key: 'clone',
+      hue: '#d3869b',
+      Icon: Fingerprint,
+      title: t('launchpad.clone_title'),
+      desc: t('launchpad.clone_desc'),
+      count: cloneProfiles.length,
+      go: () => openStudio('audio'),
+    },
+    {
+      key: 'design',
+      hue: '#8ec07c',
+      Icon: Wand2,
+      title: t('launchpad.design_title'),
+      desc: t('launchpad.design_desc'),
+      count: designProfiles.length,
+      go: () => openStudio('design'),
+    },
+    {
+      key: 'dub',
+      hue: '#fe8019',
+      Icon: Film,
+      title: t('launchpad.dub_title'),
+      desc: t('launchpad.dub_desc'),
+      count: studioProjects.length,
+      go: () => setMode('dub'),
+    },
+    {
+      key: 'stories',
+      hue: '#83a598',
+      Icon: BookOpen,
+      title: t('launchpad.stories_title'),
+      desc: t('launchpad.stories_desc'),
+      go: () => setMode('stories'),
+    },
+    {
+      key: 'audiobook',
+      hue: '#458588',
+      Icon: BookMarked,
+      title: t('launchpad.audiobook_title'),
+      desc: t('launchpad.audiobook_desc'),
+      go: () => setMode('audiobook'),
+    },
+    {
+      key: 'gallery',
+      hue: '#fabd2f',
+      Icon: LibraryBig,
+      title: t('launchpad.gallery_title'),
+      desc: t('launchpad.gallery_desc'),
+      go: () => setMode('gallery'),
+    },
+    {
+      key: 'transcripts',
+      hue: '#b8bb26',
+      Icon: FileText,
+      title: t('launchpad.transcripts_title'),
+      desc: t('launchpad.transcripts_desc'),
+      go: () => setMode('transcriptions'),
+    },
+  ];
+
+  const rootRef = useRef(null);
+  const shellNarrow = useShellNarrow(rootRef);
+
   return (
-    <div className="launchpad">
+    <div className="launchpad" ref={rootRef}>
       {/* Ambient backdrop — chrome-accent aurora that drifts forever. Lives
           behind everything at z=0, contributes the "eternal glow" the user
           asked for without painting any one surface. */}
@@ -188,68 +259,29 @@ export default function Launchpad({
         </div>
       </div>
 
-      {/* Action Cards */}
-      <div className="grid grid-cols-3 gap-[12px] py-[4px] px-[44px] relative z-[1] max-[900px]:pt-0 max-[900px]:px-[20px] max-[900px]:pb-[16px] max-[900px]:[grid-template-columns:repeat(auto-fit,minmax(180px,1fr))] max-[640px]:grid-cols-1 max-[640px]:pt-0 max-[640px]:px-[12px] max-[640px]:pb-[12px]">
-        <ActionCard
-          hue="#d3869b"
-          Icon={Fingerprint}
-          title={t('launchpad.clone_title')}
-          count={cloneProfiles.length}
-          onClick={() => openStudio('audio')}
-        >
-          {t('launchpad.clone_desc')}
-        </ActionCard>
-        <ActionCard
-          hue="#8ec07c"
-          Icon={Wand2}
-          title={t('launchpad.design_title')}
-          count={designProfiles.length}
-          onClick={() => openStudio('design')}
-        >
-          {t('launchpad.design_desc')}
-        </ActionCard>
-        <ActionCard
-          hue="#fe8019"
-          Icon={Film}
-          title={t('launchpad.dub_title')}
-          count={studioProjects.length}
-          onClick={() => setMode('dub')}
-        >
-          {t('launchpad.dub_desc')}
-        </ActionCard>
-        <ActionCard
-          hue="#83a598"
-          Icon={BookOpen}
-          title={t('launchpad.stories_title')}
-          onClick={() => setMode('stories')}
-        >
-          {t('launchpad.stories_desc')}
-        </ActionCard>
-        <ActionCard
-          hue="#458588"
-          Icon={BookMarked}
-          title={t('launchpad.audiobook_title')}
-          onClick={() => setMode('audiobook')}
-        >
-          {t('launchpad.audiobook_desc')}
-        </ActionCard>
-        <ActionCard
-          hue="#fabd2f"
-          Icon={LibraryBig}
-          title={t('launchpad.gallery_title')}
-          onClick={() => setMode('gallery')}
-        >
-          {t('launchpad.gallery_desc')}
-        </ActionCard>
-        <ActionCard
-          hue="#b8bb26"
-          Icon={FileText}
-          title={t('launchpad.transcripts_title')}
-          onClick={() => setMode('transcriptions')}
-        >
-          {t('launchpad.transcripts_desc')}
-        </ActionCard>
-      </div>
+      {/* Feature cards — deck-of-cards fan on wide shells; the flat grid
+          below is the narrow/mini fallback (same features, same order, same
+          navigation — only the presentation degrades). */}
+      {!shellNarrow ? (
+        <div className="relative z-[1] py-[4px] px-[44px]">
+          <LaunchpadDeck features={features} />
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-[12px] py-[4px] px-[44px] relative z-[1] max-[900px]:pt-0 max-[900px]:px-[20px] max-[900px]:pb-[16px] max-[900px]:[grid-template-columns:repeat(auto-fit,minmax(180px,1fr))] max-[640px]:grid-cols-1 max-[640px]:pt-0 max-[640px]:px-[12px] max-[640px]:pb-[12px]">
+          {features.map((f) => (
+            <ActionCard
+              key={f.key}
+              hue={f.hue}
+              Icon={f.Icon}
+              title={f.title}
+              count={f.count}
+              onClick={f.go}
+            >
+              {f.desc}
+            </ActionCard>
+          ))}
+        </div>
+      )}
 
       {/* Recent files from OmniDrive — last few exports, with a jump to the
           full file browser (the Projects/OmniDrive page). */}

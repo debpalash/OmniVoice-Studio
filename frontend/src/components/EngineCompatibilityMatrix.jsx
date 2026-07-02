@@ -152,7 +152,7 @@ export default function EngineCompatibilityMatrix({
   const [activeFamily, setActiveFamily] = useState(family);
   // Phase 3 Plan 03-01 / TTS-05: which engine has its license dialog
   // currently open, or null. Only one dialog is ever open at a time.
-  const [, setLicenseDialogFor] = useState(null);
+  const [licenseDialogFor, setLicenseDialogFor] = useState(null);
 
   // health state keyed by engine id:
   //   { [id]: { inflight: boolean, ok?: boolean, message?: string,
@@ -266,6 +266,9 @@ export default function EngineCompatibilityMatrix({
   if (!familyData) return null;
 
   const activeBackendId = activeId ?? familyData.active;
+  // TTS-05: the license dialog registered for the engine awaiting acceptance
+  // (or null). Capitalized so JSX renders it as a component below.
+  const LicenseDialog = licenseDialogFor ? LICENSE_DIALOGS[licenseDialogFor] : null;
 
   return (
     <section className="engine-matrix flex flex-col gap-[var(--space-3,8px)]">
@@ -415,7 +418,7 @@ export default function EngineCompatibilityMatrix({
                     shows a single "Remote" badge instead of device chips. */}
                 <div
                   role="cell"
-                  className="engine-matrix__cell engine-matrix__cell--gpu flex items-center shrink-0"
+                  className="engine-matrix__cell engine-matrix__cell--gpu flex flex-col items-start justify-center shrink-0 gap-[3px]"
                   style={{ width: 170 }}
                 >
                   <div className="engine-matrix__chips inline-flex flex-wrap gap-[4px]">
@@ -467,6 +470,22 @@ export default function EngineCompatibilityMatrix({
                       </>
                     )}
                   </div>
+                  {/* Make the routing reason reachable without a hover: the
+                      badge `title` is invisible to keyboard + touch users, so
+                      surface the same string as small visible text. Shown for
+                      available, non-remote, non-unavailable rows that carry a
+                      reason (cpu_fallback always; accelerated w/ a caveat). */}
+                  {b.routing_reason &&
+                    b.available &&
+                    b.routing_status !== 'n/a' &&
+                    b.routing_status !== 'unavailable' && (
+                      <span
+                        className="engine-matrix__routing-reason text-[10px] leading-[1.25] text-[color:var(--chrome-fg-muted,#888)]"
+                        data-testid={`routing-reason-${b.id}`}
+                      >
+                        {b.routing_reason}
+                      </span>
+                    )}
                 </div>
 
                 {/* Isolation mode */}
@@ -528,7 +547,14 @@ export default function EngineCompatibilityMatrix({
                       title={health.message}
                     >
                       {health.ok
-                        ? t('engines.latencyMs', { ms: health.latency_ms })
+                        ? // A subprocess row spawns + pings its sidecar → the
+                          // latency is a real round-trip. An in-process row only
+                          // imports + `is_available()`-checks (a ~0 ms liveness
+                          // probe, not a synthesis test), so label it as such
+                          // rather than a misleading "0 ms" latency.
+                          b.isolation_mode === 'subprocess'
+                          ? t('engines.latencyMs', { ms: health.latency_ms })
+                          : t('engines.depsOk')
                         : t('engines.failed')}
                     </span>
                   )}
@@ -536,7 +562,13 @@ export default function EngineCompatibilityMatrix({
                     <Button
                       size="sm"
                       variant="subtle"
-                      onClick={() => onSelect(activeFamily, b.id)}
+                      onClick={async () => {
+                        // Await the pick, then re-fetch so the active badge,
+                        // Use buttons, and family-tab captions reflect the new
+                        // engine immediately — no manual Refresh needed (#…).
+                        await onSelect(activeFamily, b.id);
+                        reload();
+                      }}
                       aria-label={`Use ${b.display_name}`}
                     >
                       {t('engines.use')}
@@ -570,6 +602,21 @@ export default function EngineCompatibilityMatrix({
           )}
         </div>
       </Table>
+
+      {/* TTS-05: license-acceptance dialog for the selected engine. Mounted
+          only while `licenseDialogFor` is set (one at a time). On Accept the
+          dialog POSTs the acceptance then `onAccepted` reloads the matrix so
+          the row flips from unavailable → available without a manual refresh. */}
+      {LicenseDialog && (
+        <LicenseDialog
+          open
+          onClose={() => setLicenseDialogFor(null)}
+          onAccepted={() => {
+            setLicenseDialogFor(null);
+            reload();
+          }}
+        />
+      )}
     </section>
   );
 }

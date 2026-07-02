@@ -123,6 +123,66 @@ def hf_cache_dir() -> str:
     )
 
 
+# ── Disk-space guard (shared, single-sourced) ──────────────────────────────
+# MIN_FREE_GB is the headroom we insist on keeping free on the model-cache
+# volume — the wizard's absolute pre-install floor AND the extra buffer the
+# per-install check demands on top of the download itself, so an "Install all"
+# can't fill the disk to the brim (setup/download.py). Lives here — the lowest
+# module in the setup import graph — so the wizard, the /models header, and the
+# install endpoint can't drift apart (mirrors the weight-floor single-sourcing).
+_GIB = 1024 ** 3
+MIN_FREE_GB = 10
+
+
+def disk_free_bytes(path: "str | None" = None) -> int:
+    """Free bytes on the volume backing *path* (defaults to the HF cache).
+
+    Walks up to the nearest existing ancestor so a not-yet-created cache dir
+    still probes the correct mount point. ``shutil.disk_usage`` is cross-platform
+    (macOS/Windows/Linux) so this behaves identically everywhere. Never raises.
+    """
+    import shutil
+    try:
+        p = Path(path or hf_cache_dir()).resolve()
+        while not p.exists():
+            parent = p.parent
+            if parent == p:  # reached the volume root
+                break
+            p = parent
+        return int(shutil.disk_usage(str(p)).free)
+    except Exception:
+        return 0
+
+
+def disk_space_error(to_download_bytes: "int | None", *, cache_dir: "str | None" = None) -> "str | None":
+    """Actionable message when *to_download_bytes* (+ MIN_FREE_GB headroom) won't
+    fit on the cache volume; ``None`` when it fits, the size is unknown, or the
+    volume can't be probed (never block on missing information).
+
+    Names the three numbers a user needs to act — needs X, headroom Y, have Z —
+    so "Install all" can't silently overrun the disk (issue: no pre-install disk
+    check). Platform-agnostic; applied identically on macOS/Windows/Linux.
+    """
+    if not to_download_bytes or to_download_bytes <= 0:
+        return None  # unknown plan (older/gated repo, mirror without dry-run) → don't block
+    cache = cache_dir or hf_cache_dir()
+    free = disk_free_bytes(cache)
+    if free <= 0:
+        return None  # couldn't probe the volume → don't block on missing info
+    required = int(to_download_bytes) + MIN_FREE_GB * _GIB
+    if free >= required:
+        return None
+
+    def _gb(n: int) -> str:
+        return f"{n / _GIB:.1f} GB"
+
+    return (
+        f"Not enough disk space to install: this download needs {_gb(int(to_download_bytes))} "
+        f"plus {MIN_FREE_GB} GB free headroom ({_gb(required)} total), but only {_gb(free)} "
+        f"is free at {cache}. Free up space (or move the model cache to a bigger volume) and retry."
+    )
+
+
 def _repo_dir_name(repo_id: str) -> str:
     """HF cache dir name for a repo: 'k2-fsa/OmniVoice' → 'models--k2-fsa--OmniVoice'."""
     return "models--" + repo_id.replace("/", "--")
@@ -391,6 +451,10 @@ def list_models():
         "models": out,
         "total_installed_bytes": sum(m["size_on_disk_bytes"] for m in out),
         "hf_cache_dir": hf_cache_dir(),
+        # Free space on the cache volume, so the Model Store header can warn
+        # BEFORE an "Install all" overruns the disk (pairs with the per-install
+        # disk_space_error guard in setup/download.py).
+        "disk_free_gb": round(disk_free_bytes() / _GIB, 1),
         "platform_tags": _current_platform_tags(),
     }
     _set_cache("models", response)

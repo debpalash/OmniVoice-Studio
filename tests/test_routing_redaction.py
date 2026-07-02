@@ -41,6 +41,8 @@ def test_none_reason_must_not_become_empty_string():
 
 
 def test_fallback_reason_scrubs_clean_and_nonempty():
-    r = resolve_routing(("cpu",), _caps("cuda"))
+    # A genuine fallback: multi-target engine lacking the host accel. (A
+    # cpu-native ("cpu",) engine is neutral cpu_only with a None reason now.)
+    r = resolve_routing(("mps", "cpu"), _caps("cuda"))
     clean = scrub_text(r["routing_reason"])
     assert clean and "***REDACTED***" not in clean  # no secret to redact here

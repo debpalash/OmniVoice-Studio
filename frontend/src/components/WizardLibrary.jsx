@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { useModels, useInstallModel } from '../api/hooks';
 import { setupDownloadStreamUrl } from '../api/setup';
 import { listEngines, selectEngine } from '../api/engines';
+import { notifyEngineSelected } from '../utils/engineSelectToast';
 import { Badge, Button } from '../ui';
 
 const fmtGB = (gb) => (gb == null ? '' : `${gb.toFixed(gb < 10 ? 1 : 0)} GB`);
@@ -97,6 +98,63 @@ function formatEta(seconds) {
   if (!Number.isFinite(seconds) || seconds <= 0) return '';
   if (seconds < 60) return '<1m';
   return `${Math.round(seconds / 60)}m`;
+}
+
+/**
+ * Fold one download-stream SSE event into the wizard's per-repo progress map.
+ * Pure + exported for unit tests. Mirrors the Settings store's transitions, but
+ * with the wizard's leaner shape ({ phase, files, agg }).
+ *
+ * Key fix (P1-A): an `install_error` event is STORED with its `ev.error` text
+ * (the mirror-aware failure hint) and the row PERSISTS — previously the wizard
+ * deleted the row on error exactly like a success, so the user saw the download
+ * vanish with no reason. `install_done` still drops the row (it reverts to the
+ * authoritative `installed` flag); the caller does the list refetch.
+ */
+export function reduceWizardDownloadEvent(prev, ev) {
+  if (!ev || !ev.repo_id) return prev;
+  const cur = prev[ev.repo_id] || { phase: 'active', files: {} };
+  // Lifecycle markers gate reset; a file-level 'done' must NOT clear the repo.
+  if (ev.phase === 'install_start') {
+    return { ...prev, [ev.repo_id]: { phase: 'active', files: {} } };
+  }
+  // Success terminal → drop the transient row.
+  if (ev.phase === 'install_done') {
+    const next = { ...prev };
+    delete next[ev.repo_id];
+    return next;
+  }
+  // Error terminal → KEEP the row + its message so it renders with a Retry.
+  if (ev.phase === 'install_error') {
+    return { ...prev, [ev.repo_id]: { ...cur, phase: 'install_error', error: ev.error } };
+  }
+  // Authoritative overall progress (download_aggregator).
+  if (ev.phase === 'aggregate') {
+    return {
+      ...prev,
+      [ev.repo_id]: {
+        ...cur,
+        agg: {
+          bytesDone: ev.bytes_done || 0,
+          totalBytes: ev.total_bytes || 0,
+          rate: ev.rate || 0,
+          etaSeconds: ev.eta_seconds ?? null,
+          filesDone: ev.files_done || 0,
+          filesTotal: ev.files_total || 0,
+        },
+      },
+    };
+  }
+  if (!ev.filename) return prev;
+  const files = {
+    ...cur.files,
+    [ev.filename]: {
+      downloaded: ev.downloaded || 0,
+      total: ev.total || 0,
+      rate: ev.rate || 0,
+    },
+  };
+  return { ...prev, [ev.repo_id]: { ...cur, files } };
 }
 
 // LED dot tone per row state.
@@ -180,52 +238,13 @@ export default function WizardLibrary() {
       try {
         const ev = JSON.parse(evt.data);
         if (!ev?.repo_id) return;
-        setProgress((prev) => {
-          const cur = prev[ev.repo_id] || { phase: 'active', files: {} };
-          // Lifecycle markers (`install_*`) gate reset/refetch; per-file tqdm
-          // phases ('start'|'progress'|'done') only update byte counts — a
-          // file-level 'done' must NOT clear the repo, multi-file snapshots
-          // finish files long before the repo's `install_done` arrives.
-          // (Full phase taxonomy: SetupProgressEvent in api/setup.ts.)
-          if (ev.phase === 'install_start')
-            return { ...prev, [ev.repo_id]: { phase: 'active', files: {} } };
-          if (ev.phase === 'install_done' || ev.phase === 'install_error') {
-            if (ev.phase === 'install_done') modelsQuery.refetch();
-            const next = { ...prev };
-            delete next[ev.repo_id];
-            return next;
-          }
-          // Authoritative overall progress (download_aggregator): one windowed
-          // rate + ETA + bytes_done/total_bytes for the whole repo. Preferred
-          // over summing per-file events, which is unreliable under parallel/
-          // segmented fetch (the source of the "8% · 1 KB/s · 0.0 MB left" bug).
-          if (ev.phase === 'aggregate') {
-            return {
-              ...prev,
-              [ev.repo_id]: {
-                ...cur,
-                agg: {
-                  bytesDone: ev.bytes_done || 0,
-                  totalBytes: ev.total_bytes || 0,
-                  rate: ev.rate || 0,
-                  etaSeconds: ev.eta_seconds ?? null,
-                  filesDone: ev.files_done || 0,
-                  filesTotal: ev.files_total || 0,
-                },
-              },
-            };
-          }
-          if (!ev.filename) return prev;
-          const files = {
-            ...cur.files,
-            [ev.filename]: {
-              downloaded: ev.downloaded || 0,
-              total: ev.total || 0,
-              rate: ev.rate || 0,
-            },
-          };
-          return { ...prev, [ev.repo_id]: { ...cur, files } };
-        });
+        // Refetch the list once the repo finishes so the row flips to installed.
+        // (The reducer is pure — the side-effect stays here.)
+        if (ev.phase === 'install_done') modelsQuery.refetch();
+        // Pure reducer (exported for tests). Full phase taxonomy:
+        // SetupProgressEvent in api/setup.ts. install_error now PERSISTS with
+        // its message instead of the row silently vanishing (P1-A).
+        setProgress((prev) => reduceWizardDownloadEvent(prev, ev));
       } catch {
         /* keepalive */
       }
@@ -253,6 +272,9 @@ export default function WizardLibrary() {
     try {
       const r = await selectEngine('tts', id);
       setEngines((e) => (e ? { ...e, active: r.active } : e));
+      // Consume the routing echo: warn when the pick lands on a CPU fallback
+      // on this host, otherwise confirm the switch. See notifyEngineSelected.
+      notifyEngineSelected(r, t, 'tts');
     } catch (e) {
       toast.error(e?.message || 'switch failed');
     } finally {
@@ -270,12 +292,15 @@ export default function WizardLibrary() {
 
   const modelRow = (m, chip, chipTone, note) => {
     const p = progress[m.repo_id];
+    // A failed install PERSISTS (P1-A): show the mirror-aware reason + a Retry
+    // instead of the row silently vanishing.
+    const errored = p?.phase === 'install_error';
     // Prefer the backend's authoritative aggregate; fall back to per-file sums
     // only until that event arrives (then to nulls when nothing's streaming).
     const { pct, etaSec, rate, remaining } =
       progressFromAgg(p?.agg) ||
       (p ? aggregate(p.files) : { pct: null, etaSec: null, rate: 0, remaining: null });
-    const downloading = !!p;
+    const downloading = !!p && !errored;
     // Live telemetry line: "5.2 MB/s · 700 MB left · ~3m". Each part only shows
     // once the SSE stream has the data, so early on it degrades to "downloading…".
     const rateStr = fmtRate(rate);
@@ -298,7 +323,14 @@ export default function WizardLibrary() {
         chipTone={chipTone}
         size={fmtGB(m.size_gb)}
         sub={
-          downloading ? (
+          errored ? (
+            <span className="block max-w-[280px] font-mono text-[0.64rem] leading-snug text-danger">
+              {t('firstrun.lib_install_failed', {
+                error: p.error,
+                defaultValue: 'Install failed: {{error}}',
+              })}
+            </span>
+          ) : downloading ? (
             <span className="block h-[3px] max-w-[280px] overflow-hidden rounded-full bg-fg/[0.08]">
               <span
                 className="block h-full rounded-full bg-primary transition-[width] duration-300"
@@ -312,6 +344,10 @@ export default function WizardLibrary() {
         action={
           m.installed ? (
             <Check size={14} className="shrink-0 text-success" aria-hidden="true" />
+          ) : errored ? (
+            <Button variant="ghost" size="sm" onClick={() => install(m.repo_id)}>
+              {t('firstrun.lib_retry', 'Retry')}
+            </Button>
           ) : downloading ? (
             <span className="shrink-0 font-mono text-[0.64rem] tabular-nums text-primary">
               {statParts.length

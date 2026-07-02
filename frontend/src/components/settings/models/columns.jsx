@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Trash2, ExternalLink, Download } from 'lucide-react';
+import { RefreshCw, Trash2, ExternalLink, Download, X } from 'lucide-react';
 import { openExternal } from '../../../api/external';
 import { Button, Badge, Progress } from '../../../ui';
 import { fmtBytes, orgColor } from './format';
@@ -19,6 +19,8 @@ export function makeModelColumns({
   onInstall,
   onDelete,
   onReinstall,
+  onCancel,
+  onDismissError,
 }) {
   return [
     {
@@ -154,9 +156,24 @@ export function makeModelColumns({
               </div>
             )}
             {rt.phase === 'install_error' && rt.rs?.error && (
-              <span className="models-row__error">
-                {t('models.install_error', { error: rt.rs.error })}
-              </span>
+              <div className="models-row__error flex flex-wrap items-start gap-[6px] mt-[6px]">
+                <span className="models-row__error-text min-w-0 flex-1">
+                  {t('models.install_error', { error: rt.rs.error })}
+                </span>
+                <span className="models-row__error-actions inline-flex shrink-0 items-center gap-[4px]">
+                  <Button
+                    size="sm"
+                    variant="subtle"
+                    onClick={() => onInstall?.(m.repo_id)}
+                    leading={<RefreshCw size={10} />}
+                  >
+                    {t('models.retry_btn')}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => onDismissError?.(m.repo_id)}>
+                    {t('common.dismiss')}
+                  </Button>
+                </span>
+              </div>
             )}
           </>
         );
@@ -261,6 +278,19 @@ export function makeModelColumns({
                 leading={<Download size={11} />}
               >
                 {t('models.install_btn')}
+              </Button>
+            )}
+            {/* Cancel an in-flight install (P2-A / FDL-11) — shown for any
+                in-progress phase (resolving / retry / downloading) but not
+                while deleting. */}
+            {rt.showBar && !rt.isDeleting && onCancel && (
+              <Button
+                variant="subtle"
+                size="sm"
+                onClick={() => onCancel(m.repo_id)}
+                leading={<X size={11} />}
+              >
+                {t('models.cancel_btn')}
               </Button>
             )}
             {m.installed && !rt.rowBusy && !rt.isDeleting && (
