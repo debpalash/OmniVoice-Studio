@@ -615,6 +615,11 @@ def set_hf_mirror(body: _HFMirrorBody):
     url = (body.url or "").strip().rstrip("/")
     if url and not url.startswith(("http://", "https://")):
         raise HTTPException(status_code=400, detail="Mirror URL must start with http(s)://")
+    # Compare against the currently-persisted value (normalised the same way) so
+    # a no-op save doesn't nag the user to restart. Only a real change to the
+    # persisted endpoint can require a restart.
+    previous = (user_env.get_user_env(_HF_ENDPOINT_ENV) or "").strip().rstrip("/")
+    changed = url != previous
     try:
         if url:
             user_env.set_user_env(_HF_ENDPOINT_ENV, url)
@@ -625,6 +630,9 @@ def set_hf_mirror(body: _HFMirrorBody):
     except Exception:
         logger.exception("set_hf_mirror failed")
         raise HTTPException(status_code=500, detail="Failed to persist mirror setting")
-    # HF endpoint is read at import time by huggingface_hub, so the override
-    # is only guaranteed once the backend restarts.
-    return {"configured": url, "restart_required": True, "presets": _HF_MIRROR_PRESETS}
+    # Model Store downloads pick up the new mirror immediately — the download
+    # path resolves the endpoint per-call and we updated os.environ above. Only
+    # transformers-side model *loads* (which read HF_ENDPOINT at import time)
+    # need a restart, so restart_required is True ONLY when the value actually
+    # changed — a no-op re-save never asks for a restart.
+    return {"configured": url, "restart_required": changed, "presets": _HF_MIRROR_PRESETS}

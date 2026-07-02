@@ -17,20 +17,12 @@ import { SettingsSection, SettingsInput, SETTINGS_SECTION_SURFACE } from './prim
 import { askConfirm } from './native';
 import { fmtBytes } from './models/format';
 import { computeRowRuntime } from './models/runtime';
+import { reduceModelDownloadEvent, isAutoPurgeTerminal } from './models/downloadReducer';
 import { makeModelColumns } from './models/columns';
 import RecoBanner from './models/RecoBanner';
 import ModelsTable from './models/ModelsTable';
 
 const MODEL_ROLE_ORDER = ['tts', 'asr', 'diarisation', 'diarization', 'llm'];
-const MODEL_ROLE_LABEL = {
-  all: 'All',
-  tts: 'TTS',
-  asr: 'ASR',
-  diarisation: 'Diarisation',
-  diarization: 'Diarisation',
-  llm: 'LLM',
-  other: 'Other',
-};
 
 /**
  * Model store — list every known HF model, show install state, let the
@@ -39,6 +31,20 @@ const MODEL_ROLE_LABEL = {
  */
 export default function ModelStoreTab({ info, modelBadge }) {
   const { t } = useTranslation();
+  // Role labels — localized (diarization is an on-disk spelling alias for
+  // diarisation; both map to the same label).
+  const MODEL_ROLE_LABEL = useMemo(
+    () => ({
+      all: t('models.role_all'),
+      tts: t('models.role_tts'),
+      asr: t('models.role_asr'),
+      diarisation: t('models.role_diarisation'),
+      diarization: t('models.role_diarisation'),
+      llm: t('models.role_llm'),
+      other: t('models.role_other'),
+    }),
+    [t],
+  );
   const modelsQuery = useModels();
   const recoQuery = useRecommendations();
   const data = modelsQuery.data;
@@ -116,94 +122,9 @@ export default function ModelStoreTab({ info, modelBadge }) {
       try {
         const ev = JSON.parse(evt.data);
         if (!ev?.repo_id) return;
-        setRowState((prev) => {
-          const cur = prev[ev.repo_id] || { phase: 'active', files: {} };
-          // Lifecycle events (install_start/install_done/install_error,
-          // delete_start/delete_done) flip the row's phase without
-          // touching per-file accounting.
-          if (ev.phase === 'install_start' || ev.phase === 'delete_start') {
-            return { ...prev, [ev.repo_id]: { phase: ev.phase, files: {}, error: null } };
-          }
-          // Heartbeat from backend while resolving repo metadata
-          if (ev.phase === 'resolving') {
-            return {
-              ...prev,
-              [ev.repo_id]: { ...cur, phase: 'resolving', resolvingStep: ev.step || 0 },
-            };
-          }
-          if (ev.phase === 'install_retry') {
-            return {
-              ...prev,
-              [ev.repo_id]: {
-                ...cur,
-                phase: 'install_retry',
-                retryAttempt: ev.attempt,
-                error: ev.error,
-              },
-            };
-          }
-          if (ev.phase === 'install_done') {
-            return { ...prev, [ev.repo_id]: { ...cur, phase: 'install_done' } };
-          }
-          if (ev.phase === 'delete_done') {
-            return { ...prev, [ev.repo_id]: { ...cur, phase: 'delete_done' } };
-          }
-          if (ev.phase === 'install_error') {
-            return { ...prev, [ev.repo_id]: { ...cur, phase: 'install_error', error: ev.error } };
-          }
-          if (ev.phase === 'install_cancelled') {
-            return { ...prev, [ev.repo_id]: { ...cur, phase: 'install_cancelled' } };
-          }
-          // Pre-flight plan (FDL-05): accurate total/cached/remaining BEFORE
-          // bytes flow. Keep the current phase (usually resolving) — the plan
-          // is metadata, not a state change.
-          if (ev.phase === 'install_plan') {
-            return {
-              ...prev,
-              [ev.repo_id]: {
-                ...cur,
-                plan: {
-                  total_bytes: ev.total_bytes ?? null,
-                  cached_bytes: ev.cached_bytes ?? null,
-                  to_download_bytes: ev.to_download_bytes ?? null,
-                  n_files: ev.n_files ?? null,
-                  n_cached: ev.n_cached ?? null,
-                },
-              },
-            };
-          }
-          // Overall aggregate (FDL-06): one rolling event that is the source of
-          // truth for the overall bar / speed / remaining / ETA.
-          if (ev.phase === 'aggregate') {
-            return {
-              ...prev,
-              [ev.repo_id]: {
-                ...cur,
-                phase: 'active',
-                agg: {
-                  bytes_done: ev.bytes_done ?? 0,
-                  total_bytes: ev.total_bytes ?? null,
-                  rate: ev.rate ?? 0,
-                  eta_seconds: ev.eta_seconds ?? null,
-                  files_done: ev.files_done ?? 0,
-                  files_total: ev.files_total ?? null,
-                },
-              },
-            };
-          }
-          // Per-file tqdm events — aggregate across files.
-          const files = {
-            ...cur.files,
-            [ev.filename]: {
-              downloaded: ev.downloaded || 0,
-              total: ev.total || 0,
-              pct: ev.pct || 0,
-              phase: ev.phase,
-              rate: ev.rate || 0,
-            },
-          };
-          return { ...prev, [ev.repo_id]: { ...cur, phase: 'active', files } };
-        });
+        // Pure reducer (see downloadReducer.js) — keeps every SSE transition,
+        // including the "install_error persists" fix, unit-testable.
+        setRowState((prev) => reduceModelDownloadEvent(prev, ev));
       } catch {
         /* keepalive / ignore */
       }
@@ -211,20 +132,21 @@ export default function ModelStoreTab({ info, modelBadge }) {
     return () => es.close();
   }, []);
 
-  // When a lifecycle terminator fires, refresh the list so "installed"
-  // flips server-side info into the row.
+  // When a SUCCESS terminator fires (install_done / delete_done /
+  // install_cancelled), refresh the list so "installed" flips server-side info
+  // into the row, then purge the transient entry so the row reverts to the
+  // authoritative `installed` flag. `install_error` is deliberately excluded
+  // (isAutoPurgeTerminal) — an error row must persist with a Retry/Dismiss
+  // affordance until the user acts on it (P1-A), instead of vanishing ~800ms
+  // later and hiding the mirror-aware failure text.
   useEffect(() => {
-    const term = Object.entries(rowState).find(([, s]) =>
-      ['install_done', 'delete_done', 'install_error', 'install_cancelled'].includes(s.phase),
-    );
+    const term = Object.entries(rowState).find(([, s]) => isAutoPurgeTerminal(s.phase));
     if (!term) return;
     const t = setTimeout(() => {
       modelsQuery.refetch();
       recoQuery.refetch();
       // Clear stale speed data for this repo.
       delete speedRef.current[term[0]];
-      // Clear the terminal entry so the row reverts to the authoritative
-      // `installed` flag from /models without keeping stale progress.
       setRowState((prev) => {
         const next = { ...prev };
         delete next[term[0]];
@@ -297,6 +219,37 @@ export default function ModelStoreTab({ info, modelBadge }) {
     },
     [deleteMutation, installMutation, withBusy],
   );
+  // Cancel an in-flight install (P2-A / FDL-11). Optimistically flip the row to
+  // `install_cancelled` (an auto-purge terminal) for instant feedback; the
+  // backend also emits `install_cancelled` when the retry loop unwinds.
+  const onCancel = useCallback(async (repoId) => {
+    try {
+      const { cancelInstallModel } = await import('../../api/setup');
+      await cancelInstallModel(repoId);
+      setRowState((prev) => ({
+        ...prev,
+        [repoId]: { ...(prev[repoId] || { files: {} }), phase: 'install_cancelled' },
+      }));
+    } catch (e) {
+      toast.error(e.message || String(e));
+    }
+  }, []);
+  // Dismiss a persisted install_error row (P1-A): drop the transient entry so
+  // the row reverts to its authoritative /models state, and refresh in case a
+  // partial download changed on-disk state.
+  const onDismissError = useCallback(
+    (repoId) => {
+      setRowState((prev) => {
+        const next = { ...prev };
+        delete next[repoId];
+        return next;
+      });
+      delete speedRef.current[repoId];
+      modelsQuery.refetch();
+      recoQuery.refetch();
+    },
+    [modelsQuery, recoQuery],
+  );
 
   const onInstallRecommended = async () => {
     if (!reco) return;
@@ -354,8 +307,19 @@ export default function ModelStoreTab({ info, modelBadge }) {
         onInstall,
         onDelete,
         onReinstall,
+        onCancel,
+        onDismissError,
       }),
-    [getRowRuntime, onDelete, onInstall, onReinstall, t],
+    [
+      getRowRuntime,
+      onDelete,
+      onInstall,
+      onReinstall,
+      onCancel,
+      onDismissError,
+      MODEL_ROLE_LABEL,
+      t,
+    ],
   );
 
   const table = useReactTable({
@@ -413,6 +377,14 @@ export default function ModelStoreTab({ info, modelBadge }) {
               {fmtBytes(data.total_installed_bytes)}
             </strong>
           </span>
+          {data.disk_free_gb != null && (
+            <>
+              <span className="text-[var(--chrome-fg-dim)]">·</span>
+              <span title={t('models.disk_free_title')}>
+                {t('models.disk_free', { size: `${data.disk_free_gb} GB` })}
+              </span>
+            </>
+          )}
           <span className="text-[var(--chrome-fg-dim)]">·</span>
           <span title={data.hf_cache_dir}>
             <code className="font-[family-name:var(--chrome-font-mono)] text-[length:var(--text-xs)] text-[var(--chrome-fg)]">
