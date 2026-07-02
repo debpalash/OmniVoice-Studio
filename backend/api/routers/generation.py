@@ -142,6 +142,97 @@ def _apply_effect_chain(audio_out, sample_rate, effect_preset, *, skip_mastering
     return normalize_audio(audio_out, target_dBFS=-2.0)
 
 
+def _exception_chain(e):
+    """Yield ``e`` plus every ``__cause__``/``__context__`` beneath it
+    (cycle-safe). Engines and hub libraries routinely wrap the original
+    transport/allocator error, so classification must look at the whole
+    chain, not just the outermost message."""
+    seen = set()
+    stack = [e]
+    while stack:
+        exc = stack.pop()
+        if exc is None or id(exc) in seen:
+            continue
+        seen.add(id(exc))
+        yield exc
+        stack.append(exc.__cause__)
+        stack.append(exc.__context__)
+
+
+# #880: transport-level exception type names from httpx (huggingface_hub ≥1.x
+# downloads over it) and requests/urllib3 (older engine deps). Any of these
+# anywhere in the exception chain means the network — not memory — killed the
+# generation.
+_NETWORK_EXC_NAMES = frozenset({
+    # httpx
+    "ConnectError", "ConnectTimeout", "ReadTimeout", "ReadError",
+    "WriteError", "WriteTimeout", "PoolTimeout", "NetworkError",
+    "TransportError", "RemoteProtocolError", "ProxyError", "CloseError",
+    # requests / urllib3
+    "ConnectionError", "ChunkedEncodingError", "MaxRetryError",
+    "NewConnectionError", "ProtocolError",
+    # stdlib socket-level drops mid-download
+    "ConnectionResetError", "ConnectionAbortedError", "ConnectionRefusedError",
+    # huggingface_hub: failed first-use download with nothing in the disk cache
+    "LocalEntryNotFoundError",
+})
+
+# Same class, but the transport error was stringified into a wrapper message
+# (so the type name is gone). All lowercase; matched against .lower().
+_NETWORK_MSG_SIGNATURES = (
+    "client has been closed",    # httpx closed-client lifecycle error (#880)
+    "cannot send a request",     # httpx: same error, message head
+    "connection error",          # requests / huggingface_hub wording
+    "connection reset",          # ECONNRESET mid-download
+    "read timed out",            # requests/urllib3 timeout wording
+    "max retries exceeded",      # urllib3 retry exhaustion
+    "temporary failure in name resolution",  # DNS down (glibc)
+    "name or service not known",             # DNS down (glibc)
+    "getaddrinfo failed",                    # DNS down (Windows)
+)
+
+
+def _is_network_failure(e) -> bool:
+    """True iff the failure (anywhere in its chain) is an HTTP-client
+    lifecycle / network-transport error — e.g. a first-use model download
+    from the HF Hub dying mid-generation (#880)."""
+    for exc in _exception_chain(e):
+        if type(exc).__name__ in _NETWORK_EXC_NAMES:
+            return True
+        low = str(exc).lower()
+        if any(sig in low for sig in _NETWORK_MSG_SIGNATURES):
+            return True
+    return False
+
+
+# Signatures of an *actual* out-of-memory condition. All lowercase.
+_OOM_MSG_SIGNATURES = (
+    "out of memory",               # CUDA / MPS / generic torch wording
+    "not enough memory",           # torch CPU DefaultCPUAllocator
+    "cannot allocate memory",      # OS-level ENOMEM
+    "std::bad_alloc",              # C++ allocator failure
+    "cublas_status_alloc_failed",  # cuBLAS workspace allocation
+    "cuda_error_out_of_memory",    # raw CUDA driver error name
+    "paging file is too small",    # Windows [WinError 1455] mapping DLLs
+)
+
+
+def _is_oom_failure(e) -> bool:
+    """True iff the failure (anywhere in its chain) actually looks like an
+    out-of-memory condition — the only case where the Flush hint is honest."""
+    for exc in _exception_chain(e):
+        if isinstance(exc, MemoryError):
+            return True
+        # torch.cuda.OutOfMemoryError subclasses RuntimeError; match by name
+        # so this needs no torch import (and covers other frameworks' twins).
+        if type(exc).__name__ == "OutOfMemoryError":
+            return True
+        low = str(exc).lower()
+        if any(sig in low for sig in _OOM_MSG_SIGNATURES):
+            return True
+    return False
+
+
 def _oom_friendly_reraise(e):
     """Best-effort cache flush + the user-facing OOM hint shared by both
     inference paths."""
@@ -233,10 +324,38 @@ def _oom_friendly_reraise(e):
             f"Restart the app and try again; the Flush button won't help here. "
             f"Underlying error: {e}"
         ) from e
+    # #880: an httpx/requests transport failure surfacing from generation —
+    # most commonly a first-use model download from the HF Hub dying with
+    # httpx's "Cannot send a request, as the client has been closed" (the
+    # shared client got closed mid-lifecycle), a connect/read timeout, or a
+    # dropped connection — is NOT out of memory. The model never finished
+    # loading, so Flush is the wrong remedy; retrying is. Matched over the
+    # whole exception chain (type names + stringified signatures) because
+    # engines wrap the original transport error.
+    if _is_network_failure(e):
+        raise RuntimeError(
+            f"A model download or network call failed mid-generation (usually "
+            f"the engine fetching its model files on first use). This is a "
+            f"network problem, not a memory problem — flushing VRAM won't "
+            f"help. Retry the generation; if it keeps failing, check your "
+            f"internet connection and any HF_ENDPOINT/mirror setting. "
+            f"Underlying error: {e}"
+        ) from e
+    # #880 (the class bug): the OOM hint used to be the catch-all fallback,
+    # so ANY unrecognized error told the user to press Flush for memory they
+    # never ran out of. Only claim OOM when something in the chain actually
+    # looks like one; everything else surfaces as what it is — unrecognized —
+    # with the real error front and center.
+    if _is_oom_failure(e):
+        raise RuntimeError(
+            f"TTS engine stopped mid-generation. This usually means it ran out of memory. "
+            f"Try the Flush button to reload the model, then regenerate. Underlying error: {e}"
+        ) from e
     raise RuntimeError(
-        f"TTS engine stopped mid-generation. This usually means it ran out of memory. "
-        f"Try the Flush button to reload the model, then regenerate. Underlying error: {e}"
-    )
+        f"TTS engine stopped mid-generation with an error OmniVoice doesn't "
+        f"recognize. Retry once; if it keeps failing, please report it with "
+        f"the full trace. Underlying error: {e}"
+    ) from e
 
 
 def _run_inference(

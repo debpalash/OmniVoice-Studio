@@ -507,12 +507,16 @@ async def install_model(req: InstallModelRequest):
             logger.info("model install failed for %s: %s", req.repo_id, e)
             import time as _time_fail
             _install_cooldowns[req.repo_id] = _time_fail.time()
+            # #874: when the install failed because the configured HF mirror is
+            # unreachable, name the mirror + the setting instead of leaking the
+            # raw connectivity error. No-op for every other failure.
+            from core.failure import append_hf_mirror_hint
             hf_progress.emit({
                 "repo_id": req.repo_id,
                 "filename": req.repo_id,
                 "downloaded": 0, "total": 0, "pct": 0.0,
                 "phase": "install_error",
-                "error": str(e),
+                "error": append_hf_mirror_hint(str(e)),
             })
         finally:
             _cancelled.discard(req.repo_id)

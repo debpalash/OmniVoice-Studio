@@ -2808,7 +2808,9 @@ input[type="file"]::file-selector-button:hover {
   gap: 10px;
   padding: 10px 16px;
   min-width: 180px;
-  max-width: 280px;
+  /* Wide enough for the waveform + status labels ("Downloading voice
+     model… 42%") and the Accessibility action button. */
+  max-width: 340px;
   height: 48px;
   background: rgba(18, 18, 22, 0.88);
   backdrop-filter: blur(24px) saturate(180%);
@@ -2853,6 +2855,10 @@ input[type="file"]::file-selector-button:hover {
 
 .capture-pill--error {
   border-color: rgba(239, 68, 68, 0.3);
+}
+
+.capture-pill--setup {
+  border-color: rgba(245, 158, 11, 0.35);
 }
 
 /* ── Animations ─────────────────────────────────────────────────────── */
@@ -2901,9 +2907,36 @@ input[type="file"]::file-selector-button:hover {
   animation: none;
 }
 
+.capture-pill--setup .capture-pill__dot {
+  background: #f59e0b;
+  animation: none;
+}
+
 @keyframes dot-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%      { opacity: 0.4; transform: scale(0.6); }
+}
+
+/* ── Live waveform (recording) ──────────────────────────────────────────
+   Data-driven bars — heights come from the captureWaveform ring buffer
+   (client-side RMS of the mic worklet frames), not a CSS animation, so the
+   movement is the actual signal. */
+
+.capture-pill__wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 44px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.capture-pill__wave-bar {
+  flex: 1 1 0;
+  min-height: 2px;
+  border-radius: 1px;
+  background: #ef4444;
+  transition: height 60ms linear;
 }
 
 /* ── Content / timer / dismiss ──────────────────────────────────────────
@@ -2918,6 +2951,7 @@ input[type="file"]::file-selector-button:hover {
 @media (prefers-reduced-motion: reduce) {
   .capture-pill { animation: none; opacity: 1; }
   .capture-pill__dot { animation: none !important; }
+  .capture-pill__wave-bar { transition: none; }
 }
 
 /* ── Widget-mode body (standalone Tauri window) ─────────────────────── */

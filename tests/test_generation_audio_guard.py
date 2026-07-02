@@ -55,6 +55,79 @@ def test_generic_failure_still_uses_oom_hint():
     assert "ran out of memory" in str(ei.value)
 
 
+def test_httpx_closed_client_is_a_download_failure_not_oom():
+    # #880: kittentts's first-use HF download died with httpx's closed-client
+    # lifecycle error, and the OOM catch-all told a user running a CPU-only
+    # ~80 MB ONNX engine on a 12 GB-VRAM box to press Flush. It's a network
+    # failure — say so, and don't send them to the Flush button.
+    err = RuntimeError("Cannot send a request, as the client has been closed.")
+    with pytest.raises(RuntimeError) as ei:
+        _oom_friendly_reraise(err)
+    msg = str(ei.value)
+    assert "network" in msg
+    assert "download" in msg
+    assert "Retry" in msg
+    assert "client has been closed" in msg  # underlying detail preserved
+    assert "ran out of memory" not in msg
+    assert "Try the Flush button" not in msg
+
+
+@pytest.mark.parametrize("exc_name", ["ConnectError", "ReadTimeout"])
+def test_httpx_transport_error_in_chain_is_a_download_failure(exc_name):
+    # #880: engines wrap the original httpx error, so classification must
+    # look at exception TYPE NAMES anywhere in the chain, not just the
+    # outermost message (which here carries no network signature at all).
+    fake_httpx_exc = type(exc_name, (Exception,), {})
+    try:
+        try:
+            raise fake_httpx_exc("")
+        except Exception as inner:
+            raise RuntimeError("model load failed") from inner
+    except RuntimeError as wrapped:
+        err = wrapped
+    with pytest.raises(RuntimeError) as ei:
+        _oom_friendly_reraise(err)
+    msg = str(ei.value)
+    assert "network" in msg
+    assert "ran out of memory" not in msg
+    assert "Try the Flush button" not in msg
+
+
+def test_unknown_error_is_not_labelled_oom():
+    # #880 (the class bug): the OOM hint was the catch-all fallback, so ANY
+    # unrecognized error claimed "ran out of memory" + Flush. A genuinely
+    # unknown error must surface as unknown, detail intact.
+    with pytest.raises(RuntimeError) as ei:
+        _oom_friendly_reraise(RuntimeError("segfault in frobnicator: code 7"))
+    msg = str(ei.value)
+    assert "segfault in frobnicator: code 7" in msg
+    assert "ran out of memory" not in msg
+    assert "Try the Flush button" not in msg
+
+
+@pytest.mark.parametrize("reason", [
+    "CUDA out of memory. Tried to allocate 20.00 MiB",
+    "MPS backend out of memory (MPS allocated: 8.00 GB)",
+    "DefaultCPUAllocator: not enough memory: you tried to allocate 1073741824 bytes",
+    "[enforce fail at alloc_cpu.cpp] posix_memalign. Cannot allocate memory",
+    "[WinError 1455] The paging file is too small for this operation to complete",
+])
+def test_real_oom_signatures_still_classify_as_oom(reason):
+    with pytest.raises(RuntimeError) as ei:
+        _oom_friendly_reraise(RuntimeError(reason))
+    assert "ran out of memory" in str(ei.value)
+    assert "Try the Flush button" in str(ei.value)
+
+
+def test_typed_oom_without_oom_message_still_classifies_as_oom():
+    # torch.cuda.OutOfMemoryError can carry an opaque allocator message; the
+    # tightened OOM branch must also match the exception type name.
+    fake_torch_oom = type("OutOfMemoryError", (RuntimeError,), {})
+    with pytest.raises(RuntimeError) as ei:
+        _oom_friendly_reraise(fake_torch_oom("CUBLAS workspace reservation failed"))
+    assert "ran out of memory" in str(ei.value)
+
+
 def test_unsupported_instruct_is_a_validation_error_not_oom():
     # #664: free-form prose in the instruct field must surface as a 400-mapped
     # ValueError with the instruct guidance — NOT a 500 "ran out of memory".

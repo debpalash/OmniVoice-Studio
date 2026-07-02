@@ -204,6 +204,7 @@
     "hint_port": "A porta 3900 já está em uso. Feche outras instâncias do OmniVoice ou apps que usem essa porta.",
     "hint_silent_crash": "O backend encerrou sem mensagem de erro. \"Limpar e Repetir\" costuma resolver problemas de venv corrompido.",
     "hint_github_blocked": "Sua rede pode estar bloqueando o GitHub. Instale o Python 3.11+ de python.org (adicione ao PATH) e reinicie, ou defina UV_PYTHON_INSTALL_MIRROR — veja docs/install/troubleshooting.md.",
+    "hint_intel_mac": "Este Mac tem um processador Intel e o PyTorch não publica mais builds para Mac Intel — o backend de IA local não pode ser instalado, e tentar novamente não mudará isso. Você ainda pode apontar o app para um backend remoto em outra máquina (Configurações → Compartilhamento → Backend remoto) ou usar o OmniVoice em um Mac com Apple Silicon, Windows ou Linux. Detalhes: docs/install/macos.md.",
     "hint_default": "Tente \"Repetir\" primeiro. Se falhar de novo, \"Limpar e Repetir\" reconstruirá o ambiente do zero.",
     "hint_stuck": "O back-end não terminou de iniciar. A partir do código-fonte, execute `uv sync` primeiro e certifique-se de que `uv` e Python estejam em seu PATH e, em seguida, tente novamente. Verifique o log abaixo (ou Configurações → Logs → Backend) para o ponto exato de travamento.",
     "lines": "{{count}} linhas"

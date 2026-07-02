@@ -204,6 +204,7 @@
     "hint_port": "3900 numaralı bağlantı noktası zaten kullanımda. Diğer OmniVoice kopyalarını veya bu portu kullanan uygulamaları kapatın.",
     "hint_silent_crash": "Arka uç hata mesajı vermeden çöktü. \"Temizle ve Yeniden Dene\" bozuk venv sorunlarını genellikle çözer.",
     "hint_github_blocked": "Ağınız GitHub'ı engelliyor olabilir. python.org'dan Python 3.11+ kurun (PATH'e ekleyin) ve yeniden başlatın veya UV_PYTHON_INSTALL_MIRROR ayarlayın — bkz. docs/install/troubleshooting.md.",
+    "hint_intel_mac": "Bu Mac'te Intel işlemci var ve PyTorch artık Intel-Mac derlemeleri yayınlamıyor — yerel yapay zekâ arka ucu kurulamaz ve yeniden denemek bunu değiştirmez. Uygulamayı yine de başka bir makinede çalışan uzak arka uca bağlayabilir (Ayarlar → Paylaşım → Uzak arka uç) veya OmniVoice'u Apple Silicon Mac, Windows ya da Linux'ta kullanabilirsiniz. Ayrıntılar: docs/install/macos.md.",
     "hint_default": "Önce \"Yeniden Dene\"yi deneyin. Yine başarısız olursa \"Temizle ve Yeniden Dene\" ortamı sıfırdan kurar.",
     "hint_stuck": "Arka ucun başlatılması tamamlanmadı. Kaynaktan, önce \"uv senkronizasyonunu\" çalıştırın ve \"uv\" ile Python'un PATH'inizde olduğundan emin olun, ardından Yeniden Dene. Tam durma noktası için aşağıdaki günlüğü (veya Ayarlar → Günlükler → Arka uç) kontrol edin.",
     "lines": "{{count}} satır"

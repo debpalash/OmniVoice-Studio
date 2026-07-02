@@ -113,7 +113,8 @@ def test_partials_before_final(client):
                 msgs.append(ws.receive_json())
             except Exception:
                 break
-            if msgs[-1].get("type") == "final" and msgs[-1].get("text") in ("a b c", ""):
+            # Finals are polished (dictation v2) — "a b c" ships as "A b c."
+            if msgs[-1].get("type") == "final" and msgs[-1].get("text") in ("A b c.", ""):
                 # got the endpoint-final; keep draining for the EOF final too
                 if len([m for m in msgs if m["type"] == "final"]) >= 1:
                     # try one more receive for trailing final, then stop
@@ -123,6 +124,8 @@ def test_partials_before_final(client):
                         pass
                     break
 
+    # Cold-start status frames don't count as results.
+    msgs = [m for m in msgs if m.get("type") != "status"]
     types_seen = [m["type"] for m in msgs]
     partials = [m for m in msgs if m["type"] == "partial"]
     finals = [m for m in msgs if m["type"] == "final"]
@@ -179,5 +182,167 @@ def test_non_streaming_model_uses_offline_handler(monkeypatch):
                 final = m
                 break
     assert final is not None
-    assert final["text"] == "offline text"
+    # Polished final (dictation v2): leading capital + terminal punctuation.
+    assert final["text"] == "Offline text."
     assert final["engine"] == "sherpa-onnx-asr"
+
+
+# ── Utterance-windowed offline decoding (dictation v2) ───────────────────────
+
+
+def test_offline_silence_gate_commits_mid_session(monkeypatch):
+    """~0.6s of trailing silence must COMMIT the current utterance: a `final`
+    flushes mid-session (not just at EOF) and the committed samples are
+    dropped from the live buffer, so no decode ever spans more than one
+    utterance (the O(n²) full-buffer re-decode fix)."""
+    import time as _time
+
+    import numpy as np
+    from fastapi.testclient import TestClient
+    from api.routers import capture_ws as cw
+    from services import sherpa_dictation as sd
+    from services import asr_backend as ab
+
+    spec = sd.get_spec("sherpa-whisper-tiny")  # offline kind
+    monkeypatch.setattr(cw, "_select_sherpa_spec", lambda ws: spec)
+    monkeypatch.setattr(ab.SherpaDictationBackend, "is_available",
+                        classmethod(lambda cls: (True, "ready")))
+    monkeypatch.setattr(ab.SherpaDictationBackend, "ensure_loaded",
+                        lambda self: setattr(self, "_rec", object()))
+
+    decoded_lens = []
+
+    def fake_decode(self, samples, sr):
+        decoded_lens.append(len(samples))
+        return "utterance one"
+
+    monkeypatch.setattr(ab.SherpaDictationBackend, "_decode_offline", fake_decode)
+    monkeypatch.setitem(sys.modules, "services.refinement",
+                        types.SimpleNamespace(maybe_refine=lambda t: None,
+                                              collapse_repetitive_artifacts=lambda t: t))
+    cw.SHERPA_OFFLINE_PARTIAL_S = 0.05  # fast ticks for the test
+
+    speech = np.full(4000, 3000, dtype=np.int16).tobytes()   # 0.25s speech
+    silence = b"\x00" * 22400                                # 0.7s silence
+    utt1_samples = (len(speech) + len(silence)) // 2         # 15200
+
+    from main import app
+    client = TestClient(app, client=("127.0.0.1", 50000))
+    with client.websocket_connect("/ws/transcribe?model=sherpa-whisper-tiny&sr=16000") as ws:
+        ws.send_bytes(speech)
+        ws.send_bytes(silence)
+        # Give the gate a few ticks to commit utterance 1, then speak again.
+        _time.sleep(0.4)
+        ws.send_bytes(speech)
+        ws.send_text("EOF")
+        msgs = []
+        for _ in range(40):
+            try:
+                m = ws.receive_json()
+            except Exception:
+                break
+            msgs.append(m)
+
+    finals = [m for m in msgs if m.get("type") == "final"]
+    # Two finals: the gate-committed utterance mid-session + the EOF trailing
+    # final. The old behavior produced exactly one (everything at EOF).
+    assert len(finals) >= 2, f"silence gate never committed mid-session: {msgs}"
+    assert finals[0]["text"] == "Utterance one."
+    # EOF final = committed pieces + the drained live tail (utterance 2).
+    assert finals[-1]["text"] == "Utterance one. Utterance one."
+    # O(n²) fix: every decode was bounded by ONE utterance window — never a
+    # re-decode of already-committed audio (which would be >utt1_samples).
+    assert decoded_lens, "decoder never ran"
+    assert max(decoded_lens) <= utt1_samples
+
+
+def test_status_frames_precede_results(monkeypatch):
+    """A WS session whose model isn't cached yet narrates the cold start:
+    status 'downloading' (or 'loading' when cached) then 'ready', before any
+    partial/final."""
+    from fastapi.testclient import TestClient
+    from api.routers import capture_ws as cw
+    from services import sherpa_dictation as sd
+    from services import asr_backend as ab
+
+    spec = sd.get_spec("sherpa-whisper-tiny")
+    monkeypatch.setattr(cw, "_select_sherpa_spec", lambda ws: spec)
+    monkeypatch.setattr(ab.SherpaDictationBackend, "is_available",
+                        classmethod(lambda cls: (True, "ready")))
+    monkeypatch.setattr(ab.SherpaDictationBackend, "ensure_loaded",
+                        lambda self: setattr(self, "_rec", object()))
+    monkeypatch.setattr(ab.SherpaDictationBackend, "_decode_offline",
+                        lambda self, samples, sr: "hi")
+    monkeypatch.setattr(sd, "is_installed", lambda spec: False)  # cold cache
+    monkeypatch.setitem(sys.modules, "services.refinement",
+                        types.SimpleNamespace(maybe_refine=lambda t: None,
+                                              collapse_repetitive_artifacts=lambda t: t))
+
+    from main import app
+    client = TestClient(app, client=("127.0.0.1", 50000))
+    with client.websocket_connect("/ws/transcribe?model=sherpa-whisper-tiny&sr=16000") as ws:
+        msgs = [ws.receive_json(), ws.receive_json()]  # the two status frames
+        ws.send_bytes(b"\x00" * 4000)
+        ws.send_text("EOF")
+        for _ in range(20):
+            try:
+                m = ws.receive_json()
+            except Exception:
+                break
+            msgs.append(m)
+            if m.get("type") == "final":
+                break
+
+    assert msgs[0] == {"type": "status", "stage": "downloading"}
+    assert msgs[1] == {"type": "status", "stage": "ready"}
+    types_seen = [m["type"] for m in msgs]
+    assert types_seen.index("status") < types_seen.index("final")
+
+
+# ── Endpoint-rule tuning (dictation v2) ──────────────────────────────────────
+
+
+class _KwargsOnlineRecognizer:
+    last_kwargs = None
+
+    @classmethod
+    def from_transducer(cls, **kw):
+        cls.last_kwargs = kw
+        return cls()
+
+    @classmethod
+    def from_paraformer(cls, **kw):
+        cls.last_kwargs = kw
+        return cls()
+
+
+def test_endpoint_rules_fast_defaults_and_env_override(monkeypatch):
+    """Streaming endpoint rules commit at 1.0s/0.6s by default (was 2.4/1.2 —
+    laggy) and honor OMNIVOICE_DICTATION_ENDPOINT_R1/R2."""
+    from services import sherpa_dictation as sd
+
+    fake = types.ModuleType("sherpa_onnx")
+    fake.OnlineRecognizer = _KwargsOnlineRecognizer
+    monkeypatch.setitem(sys.modules, "sherpa_onnx", fake)
+    monkeypatch.setattr(sd, "_resolve_model_dir",
+                        lambda spec, download=True: "/fake/dir")
+    monkeypatch.delenv("OMNIVOICE_DICTATION_ENDPOINT_R1", raising=False)
+    monkeypatch.delenv("OMNIVOICE_DICTATION_ENDPOINT_R2", raising=False)
+
+    sd.build_online_recognizer(sd.get_spec("sherpa-zipformer-en-20m"))
+    kw = _KwargsOnlineRecognizer.last_kwargs
+    assert kw["rule1_min_trailing_silence"] == 1.0
+    assert kw["rule2_min_trailing_silence"] == 0.6
+    assert kw["rule3_min_utterance_length"] == 20  # unchanged
+
+    monkeypatch.setenv("OMNIVOICE_DICTATION_ENDPOINT_R1", "2.4")
+    monkeypatch.setenv("OMNIVOICE_DICTATION_ENDPOINT_R2", "1.2")
+    sd.build_online_recognizer(sd.get_spec("sherpa-paraformer-bilingual-zh-en"))
+    kw = _KwargsOnlineRecognizer.last_kwargs
+    assert kw["rule1_min_trailing_silence"] == 2.4
+    assert kw["rule2_min_trailing_silence"] == 1.2
+
+    # Garbage env falls back to the defaults rather than crashing dictation.
+    monkeypatch.setenv("OMNIVOICE_DICTATION_ENDPOINT_R1", "fast")
+    monkeypatch.setenv("OMNIVOICE_DICTATION_ENDPOINT_R2", "")
+    assert sd._endpoint_rules() == (1.0, 0.6)

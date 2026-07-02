@@ -34,6 +34,23 @@ _PROVIDER = os.environ.get("OMNIVOICE_SHERPA_ASR_PROVIDER", "cpu")
 _NUM_THREADS = int(os.environ.get("OMNIVOICE_SHERPA_ASR_THREADS", "2"))
 
 
+def _endpoint_rules() -> tuple[float, float]:
+    """Trailing-silence endpoint rules (seconds) for streaming recognizers.
+
+    Wispr-Flow-speed defaults (dictation v2): rule2 commits ~0.6s after speech
+    stops, rule1 flushes after 1.0s of trailing non-speech — down from the
+    upstream 2.4/1.2, which made every committed sentence feel laggy. Read at
+    call time so the env overrides apply without a restart.
+    """
+    def _f(env: str, default: float) -> float:
+        try:
+            return float(os.environ.get(env, "") or default)
+        except (TypeError, ValueError):
+            return default
+    return (_f("OMNIVOICE_DICTATION_ENDPOINT_R1", 1.0),
+            _f("OMNIVOICE_DICTATION_ENDPOINT_R2", 0.6))
+
+
 @dataclass(frozen=True)
 class SherpaModelSpec:
     """One downloadable sherpa-onnx dictation model.
@@ -282,6 +299,7 @@ def build_online_recognizer(spec: SherpaModelSpec, *, download: bool = True):
     import sherpa_onnx
 
     d = _resolve_model_dir(spec, download=download)
+    rule1, rule2 = _endpoint_rules()
 
     def p(role: str) -> str:
         return os.path.join(d, spec.files[role])
@@ -296,8 +314,8 @@ def build_online_recognizer(spec: SherpaModelSpec, *, download: bool = True):
             provider=_PROVIDER,
             decoding_method="greedy_search",
             enable_endpoint_detection=True,
-            rule1_min_trailing_silence=2.4,
-            rule2_min_trailing_silence=1.2,
+            rule1_min_trailing_silence=rule1,
+            rule2_min_trailing_silence=rule2,
             rule3_min_utterance_length=20,
         )
     if spec.kind == "online-paraformer":
@@ -309,8 +327,8 @@ def build_online_recognizer(spec: SherpaModelSpec, *, download: bool = True):
             provider=_PROVIDER,
             decoding_method="greedy_search",
             enable_endpoint_detection=True,
-            rule1_min_trailing_silence=2.4,
-            rule2_min_trailing_silence=1.2,
+            rule1_min_trailing_silence=rule1,
+            rule2_min_trailing_silence=rule2,
             rule3_min_utterance_length=20,
         )
     raise ValueError(f"{spec.id} is not a streaming model (kind={spec.kind})")

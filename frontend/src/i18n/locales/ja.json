@@ -205,6 +205,7 @@
     "hint_port": "ポート 3900 は既に使用中です。他の OmniVoice インスタンスや、そのポートを使うアプリを終了してください。",
     "hint_silent_crash": "バックエンドがエラーメッセージなしでクラッシュしました。「クリーンアップして再試行」で venv の破損が直ることがよくあります。",
     "hint_github_blocked": "ネットワークが GitHub をブロックしている可能性があります。python.org から Python 3.11+ をインストール(PATH に追加)して再起動するか、UV_PYTHON_INSTALL_MIRROR を設定してください — docs/install/troubleshooting.md を参照。",
+    "hint_intel_mac": "この Mac は Intel プロセッサ搭載ですが、PyTorch は Intel Mac 向けビルドの提供を終了したため、ローカル AI バックエンドをインストールできません。再試行しても解決しません。別のマシンで動くリモートバックエンドにアプリを接続する(設定 → 共有 → リモートバックエンド)か、Apple Silicon Mac / Windows / Linux で OmniVoice をご利用ください。詳細: docs/install/macos.md。",
     "hint_default": "まず「再試行」を試してください。再び失敗する場合、「クリーンアップして再試行」が環境をゼロから再構築します。",
     "hint_stuck": "バックエンドの起動が完了していません。ソースから、最初に「uv sync」を実行し、「uv」と Python が PATH 上にあることを確認してから、再試行します。正確なストール ポイントについては、以下のログ (または [設定] → [ログ] → [バックエンド]) を確認してください。"
   },

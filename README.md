@@ -152,6 +152,8 @@
   <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/Debian-.deb-A81D33?style=for-the-badge&logo=debian&logoColor=white" alt="Download Debian .deb" /></a>
   <br/>
   <sub><b>macOS:</b> first launch needs a one-time approval — right-click → <b>Open</b> (or System Settings → Privacy &amp; Security → <b>"Open Anyway"</b> on macOS 15). No Terminal needed. <a href="docs/install/macos.md#gatekeeper-quarantine">Why?</a></sub>
+  <br/>
+  <sub><b>Intel Macs are not supported for the local backend:</b> the app UI installs, but the Python backend cannot run because PyTorch no longer ships Intel-Mac (x86_64) wheels (<a href="https://github.com/debpalash/OmniVoice-Studio/issues/889">#889</a>) — see <a href="docs/install/macos.md">docs/install/macos.md</a>.</sub>
 </div>
 
 Per-OS install guides — pick yours and follow it end-to-end:
@@ -263,7 +265,7 @@ OmniVoice Studio gives you professional-grade AI tools without the subscription 
 
 | | **Minimum** | **Recommended** |
 |---|---|---|
-| **OS** | Windows 10, macOS 12+, Ubuntu 20.04+ | Any modern 64-bit OS |
+| **OS** | Windows 10, macOS 12+ (Apple Silicon), Ubuntu 20.04+ | Any modern 64-bit OS |
 | **RAM** | 8 GB | 16 GB+ |
 | **VRAM (GPU)** | 4 GB (auto-offloads TTS to CPU) | 8 GB+ (NVIDIA RTX 3060+) |
 | **Disk** | 10 GB free (models + cache) | 20 GB+ SSD |
@@ -272,6 +274,9 @@ OmniVoice Studio gives you professional-grade AI tools without the subscription 
 
 > [!TIP]
 > On GPUs with **≤8 GB VRAM**, OmniVoice automatically offloads TTS to CPU during transcription — no config needed. A dedicated GPU is not required; the entire pipeline runs on CPU (just slower).
+
+> [!IMPORTANT]
+> **macOS Intel (x86_64) is unsupported for the local backend:** the app UI installs, but the Python backend cannot run because PyTorch no longer ships Intel-Mac wheels ([#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)). Intel-Mac users can still point the UI at a remote backend on another machine — see [docs/install/macos.md](docs/install/macos.md).
 
 ### TTS Engines
 
@@ -359,7 +364,7 @@ OmniVoice ships a multi-engine ASR (speech-to-text) backend that powers dictatio
 | **UX** | Undo/redo, keyboard shortcuts, drag-and-drop, session persistence, glassmorphism design system, UI scale fix for Linux/WebKitGTK |
 | **Real-time Events** | WebSocket event bus — instant sidebar refresh on data mutations, exponential backoff reconnect |
 | **State Management** | Zustand store migration — `uiSlice`, `pillSlice`, `dubSlice`, `generateSlice`, `prefsSlice`, `glossarySlice` |
-| **Desktop** | Cross-platform Tauri installers (macOS DMG/Intel, Windows MSI, Linux deb/AppImage), auto-update infrastructure, single-instance enforcement, close-to-tray, macOS Gatekeeper fix |
+| **Desktop** | Cross-platform Tauri installers (macOS DMG — Apple Silicon; Intel unsupported for the local backend, #889 — Windows MSI, Linux deb/AppImage), auto-update infrastructure, single-instance enforcement, close-to-tray, macOS Gatekeeper fix |
 | **Dictation** | Global system-wide hotkey (`⌘+⇧+Space`), frameless floating widget, streaming ASR via WebSocket, auto-paste, customizable hotkey, local-LLM transcript refinement |
 | **Batch Pipeline** | Full batch TTS: extract → transcribe → translate → generate → mix → export, with live progress tracking |
 | **MCP Server** | OmniVoice as a local TTS/STT provider for Claude, Cursor, and any MCP client |
@@ -439,7 +444,7 @@ For voice cloning and dubbing, yes — OmniVoice uses a state-of-the-art diffusi
 <details>
 <summary><b>Does it work on Apple Silicon (M1/M2/M3/M4)?</b></summary>
 <br/>
-Yes. MPS acceleration is auto-detected. MLX-optimized Whisper models are available for faster transcription on Apple hardware.
+Yes. MPS acceleration is auto-detected. MLX-optimized Whisper models are available for faster transcription on Apple hardware. <b>Intel Macs are not supported</b>: the app UI installs, but the local Python backend cannot run because PyTorch no longer ships Intel-Mac wheels (<a href="https://github.com/debpalash/OmniVoice-Studio/issues/889">#889</a>) — an Intel Mac can only be used with a remote backend.
 </details>
 
 <details>

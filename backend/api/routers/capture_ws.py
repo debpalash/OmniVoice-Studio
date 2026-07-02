@@ -19,7 +19,15 @@ Protocol:
          "segments": [...], "language": "en",
          "duration_s": 4.2, "transcription_time_s": 0.8,
          "engine": "mlx-whisper"}
-        {"type": "error",   "detail": "..."}              — error
+        {"type": "status",  "stage": "downloading"|"loading"|"ready"}
+                                                          — model cold-start
+        {"type": "error",   "message": "...", "kind": "...",
+         "detail": "..."}                                  — error ("detail"
+                                                          kept for legacy)
+
+    Every ``final`` text is normalised by services.text_polish (leading
+    capital for Latin scripts, terminal punctuation, single-spaced) so the
+    pasted result reads like typed text. Partials are raw.
 """
 from __future__ import annotations
 
@@ -32,6 +40,7 @@ import time
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from api.dependencies import _LOOPBACK_HOSTS, ws_remote_authorized
+from services.text_polish import polish_text
 
 router = APIRouter()
 logger = logging.getLogger("omnivoice.capture_ws")
@@ -302,6 +311,9 @@ async def ws_transcribe(websocket: WebSocket):
     if total_bytes > MIN_FINAL_BUFFER_BYTES:
         try:
             result = await _transcribe_buffer_full(audio_chunks, pcm_sr=pcm_sr)
+            # Dictation v2: deterministic polish so the pasted final reads
+            # like typed text (leading capital, terminal punctuation).
+            result["text"] = polish_text(result.get("text", ""))
             # Wave 2.1: optional local-LLM refinement of the final text.
             # Off-thread (network call, not GPU); pass-through on any
             # failure or when no LLM backend is configured. The raw text
@@ -315,7 +327,8 @@ async def ws_transcribe(websocket: WebSocket):
                 logger.debug("Skipped final send — client already disconnected")
         except Exception as e:
             logger.error("Final transcription failed: %s", e)
-            await _safe_send({"type": "error", "detail": str(e)})
+            await _safe_send({"type": "error", "message": str(e),
+                              "kind": "transcribe", "detail": str(e)})
     else:
         await _safe_send({
             "type": "final",
@@ -340,9 +353,18 @@ async def ws_transcribe(websocket: WebSocket):
 # opt-in 1-byte type prefix when ?aec=1, else bare PCM) at ?sr= (default 16000).
 # This is the low-latency transport — no WebM/ffmpeg in the hot path.
 
-# How often the offline-kind handler re-decodes the growing buffer for a live
-# partial (streaming-kind decodes every frame, no cadence needed).
+# How often the offline-kind handler re-decodes the live window for a partial
+# (streaming-kind decodes every frame, no cadence needed).
 SHERPA_OFFLINE_PARTIAL_S = float(os.environ.get("OMNIVOICE_SHERPA_OFFLINE_PARTIAL", "0.8"))
+
+# Utterance gate for the offline-kind handler: once the trailing this-many
+# seconds of the live buffer fall below the RMS floor, the utterance is
+# COMMITTED — decoded, flushed as a `final`, and dropped from the buffer. Each
+# decode is thereby bounded by one utterance instead of the whole session
+# (the old full-buffer re-decode was O(n²)), and a sentence commits ~0.6s
+# after the user stops speaking instead of only at EOF.
+SHERPA_OFFLINE_SILENCE_S = float(os.environ.get("OMNIVOICE_SHERPA_OFFLINE_SILENCE", "0.6"))
+SHERPA_OFFLINE_RMS_FLOOR = float(os.environ.get("OMNIVOICE_SHERPA_OFFLINE_RMS", "0.01"))
 
 
 def _pcm16_to_f32(pcm: bytes):
@@ -411,6 +433,43 @@ async def _recv_pcm_frame(websocket: WebSocket, aec):
     return "skip", b""
 
 
+async def _sherpa_load_with_status(websocket: WebSocket, backend, spec) -> bool:
+    """Build the recognizer off the event loop, narrating cold-start progress.
+
+    Sends ``{"type":"status","stage":"downloading"|"loading"}`` before the
+    load ("downloading" when the pinned assets aren't in the HF cache yet;
+    stage-only — HF's per-file progress isn't worth a callback plumb-through)
+    and ``{"type":"status","stage":"ready"}`` after, so the widget can show
+    *why* the first dictation takes a moment. Returns False when the load
+    failed (the error frame is sent and the socket closed here).
+    """
+    try:
+        from services import sherpa_dictation as _sd
+        stage = "loading" if _sd.is_installed(spec) else "downloading"
+    except Exception:
+        stage = "loading"
+    try:
+        await websocket.send_json({"type": "status", "stage": stage})
+    except Exception:
+        pass
+    try:
+        await asyncio.to_thread(backend.ensure_loaded)
+    except Exception as e:
+        logger.error("sherpa dictation load failed (%s): %s", spec.id, e)
+        try:
+            await websocket.send_json({"type": "error", "message": str(e),
+                                       "kind": "load", "detail": str(e)})
+            await websocket.close()
+        except Exception:
+            pass
+        return False
+    try:
+        await websocket.send_json({"type": "status", "stage": "ready"})
+    except Exception:
+        pass
+    return True
+
+
 async def _run_sherpa_streaming(websocket: WebSocket, spec):
     """True streaming: feed the OnlineRecognizer frame-by-frame, emit `partial`
     every time the decoded text grows, and `final` on sherpa's endpoint (silence)
@@ -425,16 +484,8 @@ async def _run_sherpa_streaming(websocket: WebSocket, spec):
 
     backend = SherpaDictationBackend(model_id=spec.id)
     # Build the recognizer off the event loop (download-on-first-use + ONNX
-    # session init can take a moment); keep the socket responsive.
-    try:
-        await asyncio.to_thread(backend.ensure_loaded)
-    except Exception as e:
-        logger.error("sherpa streaming load failed: %s", e)
-        try:
-            await websocket.send_json({"type": "error", "detail": str(e)})
-            await websocket.close()
-        except Exception:
-            pass
+    # session init can take a moment); status frames keep the widget honest.
+    if not await _sherpa_load_with_status(websocket, backend, spec):
         return
     rec = backend._rec
     stream = rec.create_stream()
@@ -484,7 +535,9 @@ async def _run_sherpa_streaming(websocket: WebSocket, spec):
                 continue
             text, endpoint = await asyncio.to_thread(_decode_after_feed, pcm)
             if endpoint:
-                # Commit this utterance; reset for the next one.
+                # Commit this utterance (polished — it gets pasted); reset
+                # for the next one.
+                text = polish_text(text)
                 if text:
                     committed.append(text)
                     await _send({"type": "final", "text": text,
@@ -507,9 +560,11 @@ async def _run_sherpa_streaming(websocket: WebSocket, spec):
     except Exception as e:
         logger.debug("sherpa streaming flush failed: %s", e)
         tail_text = ""
+    tail_text = polish_text(tail_text)
     if tail_text and tail_text != (committed[-1] if committed else None):
         committed.append(tail_text)
 
+    # Pieces are already polished; the join is too (polish is idempotent).
     full = " ".join(t for t in committed if t).strip()
     segments = [{"start": 0.0, "end": None, "text": t} for t in committed if t]
     if not client_disconnected:
@@ -534,9 +589,15 @@ async def _run_sherpa_streaming(websocket: WebSocket, spec):
 
 
 async def _run_sherpa_offline(websocket: WebSocket, spec):
-    """Offline-kind sherpa model with live partials: buffer raw PCM and
-    re-decode the growing buffer every ~800ms so the user still sees text
-    appear while speaking; finalize on EOF/silence."""
+    """Offline-kind sherpa model with live partials, utterance-windowed.
+
+    Raw PCM accumulates in a *live* buffer holding only the current
+    (uncommitted) utterance. Every ~800ms the live window is re-decoded for a
+    ``partial``; when the trailing ~0.6s of it fall below the RMS floor the
+    utterance is committed — decoded once more, flushed as a ``final``, and
+    its samples dropped — so per-partial cost is bounded by one utterance
+    (not the whole session) and sentences commit as the user pauses instead
+    of only at EOF."""
     from services.asr_backend import SherpaDictationBackend
 
     pcm_sr, aec = await _sherpa_session(websocket)
@@ -544,22 +605,17 @@ async def _run_sherpa_offline(websocket: WebSocket, spec):
                 spec.id, pcm_sr, bool(aec))
 
     backend = SherpaDictationBackend(model_id=spec.id)
-    try:
-        await asyncio.to_thread(backend.ensure_loaded)
-    except Exception as e:
-        logger.error("sherpa offline load failed: %s", e)
-        try:
-            await websocket.send_json({"type": "error", "detail": str(e)})
-            await websocket.close()
-        except Exception:
-            pass
+    if not await _sherpa_load_with_status(websocket, backend, spec):
         return
 
-    buf = bytearray()
+    buf = bytearray()             # live (uncommitted) PCM only
+    committed: list[str] = []     # polished utterances already flushed
     last_partial = ""
     running = True
     client_disconnected = False
     last_audio = time.monotonic()
+    # Trailing-silence gate window, in bytes of int16 mono PCM.
+    sil_bytes = max(2, int(SHERPA_OFFLINE_SILENCE_S * pcm_sr) * 2)
 
     async def _send(payload) -> bool:
         nonlocal client_disconnected
@@ -572,8 +628,14 @@ async def _run_sherpa_offline(websocket: WebSocket, spec):
             client_disconnected = True
             return False
 
-    def _decode_buffer() -> str:
-        samples = _pcm16_to_f32(bytes(buf))
+    def _rms(pcm: bytes) -> float:
+        samples = _pcm16_to_f32(pcm)
+        if not len(samples):
+            return 0.0
+        return float((samples * samples).mean() ** 0.5)
+
+    def _decode_window(pcm: bytes) -> str:
+        samples = _pcm16_to_f32(pcm)
         if not len(samples):
             return ""
         return backend._decode_offline(samples, pcm_sr)
@@ -597,14 +659,43 @@ async def _run_sherpa_offline(websocket: WebSocket, spec):
             logger.debug("sherpa offline receive ended: %s", e)
             running = False
 
+    async def _commit(snapshot: bytes):
+        """Finalize one utterance: decode it off-thread, flush a polished
+        `final`, drop its samples from the live buffer. `receive()` may
+        append while we decode — only the snapshot's prefix is dropped."""
+        nonlocal last_partial
+        try:
+            text = await asyncio.to_thread(_decode_window, snapshot)
+        except Exception as e:
+            logger.debug("sherpa offline commit decode failed: %s", e)
+            return
+        del buf[:len(snapshot)]
+        last_partial = ""
+        text = polish_text(text)
+        if text:
+            committed.append(text)
+            await _send({"type": "final", "text": text,
+                         "segments": [{"start": 0.0, "end": None, "text": text}],
+                         "language": "auto", "engine": backend.id})
+
     async def partials():
         nonlocal last_partial, running
         while running:
             await asyncio.sleep(SHERPA_OFFLINE_PARTIAL_S)
             if not running or len(buf) < 2000:
                 continue
+            snapshot = bytes(buf)
+            if len(snapshot) > sil_bytes and \
+                    _rms(snapshot[-sil_bytes:]) < SHERPA_OFFLINE_RMS_FLOOR:
+                if _rms(snapshot[:-sil_bytes]) >= SHERPA_OFFLINE_RMS_FLOOR:
+                    await _commit(snapshot)
+                else:
+                    # Pure silence — drop it (keep the gate window for
+                    # continuity) so a long pause can't grow the buffer.
+                    del buf[:len(snapshot) - sil_bytes]
+                continue
             try:
-                text = await asyncio.to_thread(_decode_buffer)
+                text = await asyncio.to_thread(_decode_window, snapshot)
             except Exception as e:
                 logger.debug("sherpa offline partial failed: %s", e)
                 continue
@@ -624,13 +715,18 @@ async def _run_sherpa_offline(websocket: WebSocket, spec):
             except (asyncio.CancelledError, Exception):
                 pass
 
+    # Drain the trailing (un-committed) utterance on EOF.
     try:
-        full = await asyncio.to_thread(_decode_buffer)
+        tail = await asyncio.to_thread(_decode_window, bytes(buf))
     except Exception as e:
         logger.error("sherpa offline final failed: %s", e)
-        full = ""
-    full = (full or "").strip()
-    segments = [{"start": 0.0, "end": None, "text": full}] if full else []
+        tail = ""
+    tail = polish_text(tail)
+    if tail:
+        committed.append(tail)
+    # Pieces are already polished; the join is too (polish is idempotent).
+    full = " ".join(committed).strip()
+    segments = [{"start": 0.0, "end": None, "text": t} for t in committed]
     if not client_disconnected:
         payload = {"type": "final", "text": full, "segments": segments,
                    "language": "auto", "engine": backend.id}
