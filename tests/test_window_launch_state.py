@@ -31,6 +31,16 @@ def test_main_window_opens_maximized_not_fullscreen():
     assert win.get("fullscreen") is False
 
 
+def test_startup_enforces_maximize_in_rust():
+    """The conf flag alone isn't reliable: macOS can ignore `maximized: true`
+    at window creation with the Overlay title-bar style. lib.rs must enforce
+    maximize() on the main window during setup (studio mode)."""
+    src = _LIB.read_text()
+    assert re.search(
+        r'get_webview_window\("main"\)[\s\S]{0,600}\.maximize\(\)', src
+    ), "lib.rs must call .maximize() on the main window during setup"
+
+
 def test_window_state_plugin_denylists_main_and_widget():
     src = _LIB.read_text()
     m = re.search(r"with_denylist\(&\[(?P<labels>[^\]]*)\]\)", src)

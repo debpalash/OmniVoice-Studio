@@ -694,16 +694,16 @@ samp,
   display: grid;
   /* [rail 48px] [sidebar 180–220] [main 1fr] */
   grid-template-columns: 48px minmax(180px, 220px) minmax(0, 4fr);
-  grid-template-rows: auto 1fr;
+  /* Rows: [header] [content 1fr] [LogsFooter]. The footer is a REAL grid row
+     (not a fixed overlay): content in row 2 physically ends at the footer's
+     top edge, so bottom buttons can never render underneath it — at any
+     window height, collapsed or expanded. This retires the whole
+     padding-bottom/--logs-footer-height reservation class of clipping bugs
+     (#476, #504, and the small-window "buttons hidden under footer" report).
+     The nav rail spans rows 2/-1 so it still runs top-to-bottom beside the
+     footer, exactly like the old fixed-inset look. */
+  grid-template-rows: auto 1fr auto;
   gap: 0px;
-  /* Shrink the studio grid by the LogsFooter's current height so its
-     sidebar + main column always stop exactly at the footer's top edge.
-     The footer itself (position:fixed) writes `--logs-footer-height` on
-     :root whenever it toggles collapsed/expanded or the user resizes. */
-  /* Full window height: the nav rail must run top-to-bottom regardless of the
-     footer's state. Content columns (not the grid) yield to the fixed footer
-     via padding-bottom below, so expanding the logs panel never compresses
-     the side menubar. */
   overflow: hidden;
   transition: grid-template-columns var(--transition-smooth);
 }
@@ -717,14 +717,11 @@ html[data-zoom-layout='off'] .app-container {
   height: 100vh;
   zoom: 1;
 }
-/* Keep scrollable content clear of the fixed footer. The footer writes its
-   current height (pre-zoom px — same coordinate space as these children) to
-   --logs-footer-height whenever it collapses/expands/resizes. */
-.app-container > .main-content,
-.app-container > .history-panel {
-  padding-bottom: var(--logs-footer-height, 28px);
-  box-sizing: border-box;
-}
+/* No padding-bottom footer reservation here anymore: the LogsFooter occupies
+   grid row 3 (see grid-template-rows above), so row-2 content stops at its
+   top edge by construction. The footer still writes --logs-footer-height for
+   the fixed toasts/previews that anchor above it (VoicePreview, ExportModal,
+   etc.). */
 .app-container.sidebar-collapsed {
   grid-template-columns: 48px 46px minmax(0, 4fr);
 }
@@ -759,7 +756,9 @@ html[data-zoom-layout='off'] .app-container {
 .app-container.rail-right.sidebar-collapsed > .history-panel { grid-column: 1; }
 .app-container > .nav-rail {
   grid-column: 1;
-  grid-row: 2;
+  /* Span the footer row too: the rail runs top-to-bottom beside the footer
+     (same look as the old fixed-footer 48px inset). */
+  grid-row: 2 / -1;
 }
 .app-container > .history-panel {
   grid-column: 2;
@@ -2749,24 +2748,26 @@ input[type="file"]::file-selector-button:hover {
   user-select: none;
 }
 
-/* The footer sits *beside* the nav rail (a 48px grid column of .app-container),
-   never under or over it. Splash/wizard footers render outside .app-container
-   and stay full-width. */
+/* Inside the shell the footer is a GRID ITEM (row 3), not a fixed overlay —
+   content in row 2 physically cannot render underneath it (the fix for
+   "buttons hidden under the footer on small windows"; class previously
+   band-aided per-page in #476/#504). The base `position: fixed` above still
+   applies to the splash/wizard footers, which render outside .app-container
+   and stay full-width. It sits *beside* the nav rail (rail spans rows 2/-1). */
 .app-container .logs-footer {
-  left: 48px;
-  right: 0;
+  position: static;
+  grid-row: 3;
+  grid-column: 2 / -1;
 }
 .app-container.rail-right .logs-footer {
-  left: 0;
-  right: 48px;
+  grid-column: 1 / -2;
 }
-/* ≤600px the nav rail is hidden — footer reclaims the full width. */
-@media (max-width: 600px) {
-  .app-container .logs-footer,
-  .app-container.rail-right .logs-footer {
-    left: 0;
-    right: 0;
-  }
+/* shell-mini: the nav rail is hidden — footer reclaims the full width.
+   (Class-driven like the other shell-* rules, so it tracks the EFFECTIVE
+   scaled width rather than a raw @media viewport width.) */
+.app-container.shell-mini .logs-footer,
+.app-container.shell-mini.rail-right .logs-footer {
+  grid-column: 1 / -1;
 }
 
 /* (b) Collapsed/open height ----------------------------------------------- */

@@ -8,6 +8,17 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+### Added
+
+- **LLM Providers: one-click connection testing with real diagnostics.** The
+  Test button in Settings → LLM Providers now measures round-trip latency and
+  turns failures into plain-language guidance — bad key (401/403), wrong
+  model or URL (404), rate-limited (429), or unreachable server — instead of
+  a raw exception dump. A new "Fetch models" button lists every model your
+  key can access so you pick from real names instead of guessing. The whole
+  panel is now translated into all 21 languages, provider error messages
+  never echo your API key, and the settings API gained full test coverage.
+
 ### Changed
 
 - **The app now always opens maximized (not fullscreen).** Window size and
@@ -17,6 +28,15 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   (zoomed window, not a fullscreen Space), Windows, and Linux.
 
 ### Fixed
+
+- **Buttons can no longer hide under the logs footer on small windows.** The
+  bottom status/logs bar was a fixed overlay that pages had to compensate for
+  with padding — any view that missed it (voice-card grids in Gallery and
+  Community, bottom action rows) clipped under the bar at small window sizes,
+  a class previously patched one page at a time (#476, #504). The footer is
+  now a real row of the app shell, so content physically ends at its top edge
+  at every window size, collapsed or expanded — guarded by a new layout test
+  plus a 900×600 Playwright check at the app's minimum window size.
 
 - **Confucius4-TTS is now validated end-to-end — and actually loads.** The
   opt-in engine's first live run (Apple Silicon, CPU) caught three
