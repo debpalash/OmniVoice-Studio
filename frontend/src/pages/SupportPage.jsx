@@ -19,10 +19,9 @@ import { openExternal } from '../api/external';
 import GoalBar from '../components/donate/GoalBar';
 import { loadDonationProgress, BUNDLED_PROGRESS } from '../api/donation';
 
-// GitHub Sponsors isn't available, so donations go through Ko-fi or PayPal and
-// the supporter picks which — no default-charge nudge, none pre-selected.
-const KOFI_URL = 'https://ko-fi.com/debpalash';
-const PAYPAL_URL = 'https://paypal.me/palashCoder';
+// Ko-fi / PayPal destinations are shared with the footer's donation-moment
+// popover — single source of truth in utils/donateLinks.js.
+import { KOFI_URL, PAYPAL_URL } from '../utils/donateLinks';
 // Suggested amounts — ladder starts at $10; middle ($20) is "most common".
 const SUGGESTED_AMOUNTS = [
   { value: 10, label: '$10' },

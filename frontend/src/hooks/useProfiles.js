@@ -14,7 +14,7 @@ import { PRESETS } from '../utils/constants';
 import { instructToFormValue } from '../utils/voiceInstruct';
 import { askConfirm } from '../utils/dialog';
 import { toast } from 'react-hot-toast';
-import { evaluateDonationPrompt } from '../components/donate/evaluateDonationPrompt';
+import { recordValueMoment } from '../utils/donationMoments';
 
 /**
  * Encapsulates voice-profile CRUD, lock/unlock, preview, and save-from-history.
@@ -62,9 +62,9 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
         setShowSaveProfile(false);
         setProfileName('');
         await loadProfiles();
-        // Success-only donation prompt (#007). A saved voice clone is a real
-        // deliverable — and the *first* one triggers the 'first-clone' milestone.
-        evaluateDonationPrompt('clone');
+        // Success-only donation moment — a saved voice clone is a real
+        // deliverable. Never fires on the error branch below.
+        recordValueMoment('clone');
       } catch (e) {
         toast.error(e.message);
       }

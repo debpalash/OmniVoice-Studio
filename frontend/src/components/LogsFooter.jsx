@@ -24,6 +24,8 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import NetworkToggle from './NetworkToggle';
 import { APP_VERSION } from '../utils/appVersion';
+import DonateMomentPopover, { DONATE_POPOVER_AUTO_DISMISS_MS } from './DonateMomentPopover';
+import { DONATION_MOMENT_EVENT, optOutOfDonationMoments } from '../utils/donationMoments';
 
 /**
  * VSCode-style bottom panel for logs. Always-visible 28 px collapsed bar
@@ -130,11 +132,16 @@ const DISCORD_BTN =
 
 const DONATE_BTN =
   'flex items-center justify-center w-[var(--chrome-icon-btn)] h-[var(--chrome-icon-btn)] shrink-0 ' +
-  'rounded-[4px] bg-transparent border-0 cursor-pointer [color:#d3869b] ml-[4px] ' +
-  'transition-[color,transform] duration-150 hover:[color:var(--chrome-accent)] hover:scale-[1.15] ' +
+  'rounded-[4px] bg-transparent border-0 cursor-pointer [color:#d3869b] ' +
+  'transition-[color,transform] duration-150 hover:[color:var(--chrome-accent)] hover:scale-[1.15]';
+// Idle glow vs. the gentle attention pulse while the donation-moment popover
+// is open. Split from DONATE_BTN so exactly one animation applies at a time.
+const HEART_GLOW =
   '[animation:heart-glow_2.5s_ease-in-out_infinite] motion-reduce:[animation:none]';
+const HEART_PULSE =
+  '[animation:donate-heart-pulse_1.1s_ease-in-out_infinite] motion-reduce:[animation:none]';
 
-function SourcePill({ source, counts, active, onClick }) {
+function SourcePill({ source, counts, active, onClick, icon: Icon }) {
   const hasErrors = counts.error > 0;
   const hasWarns = counts.warn > 0;
   // Severity color wins over active wins over muted (matches old cascade).
@@ -155,6 +162,7 @@ function SourcePill({ source, counts, active, onClick }) {
       onClick={onClick}
       aria-label={`${source.label} logs${hasErrors ? `, ${counts.error} errors` : hasWarns ? `, ${counts.warn} warnings` : ''}`}
     >
+      {Icon && <Icon size={12} className="shrink-0" aria-hidden="true" />}
       <span className="font-medium">{source.label}</span>
       {hasErrors && <span className={BADGE_ERROR}>{counts.error}</span>}
       {!hasErrors && hasWarns && <span className={BADGE_WARN}>{counts.warn}</span>}
@@ -292,6 +300,22 @@ export default function LogsFooter() {
   // ── Notifications (shared TanStack Query cache with the header bell) ────
   const notifQuery = useNotifications();
   const notifications = notifQuery.data?.notifications || [];
+
+  // ── Donation moment popover (see utils/donationMoments.js) ─────────────
+  // The eligibility engine dispatches DONATION_MOMENT_EVENT after a rare,
+  // gated value-creation success; the footer just renders the speech bubble
+  // above the heart and auto-dismisses it. null = closed.
+  const [donateMoment, setDonateMoment] = useState(null);
+  useEffect(() => {
+    const onMoment = (e) => setDonateMoment({ line: e?.detail?.line ?? 0 });
+    window.addEventListener(DONATION_MOMENT_EVENT, onMoment);
+    return () => window.removeEventListener(DONATION_MOMENT_EVENT, onMoment);
+  }, []);
+  useEffect(() => {
+    if (!donateMoment) return undefined;
+    const timer = setTimeout(() => setDonateMoment(null), DONATE_POPOVER_AUTO_DISMISS_MS);
+    return () => clearTimeout(timer);
+  }, [donateMoment]);
 
   // Allow header bell to open notifications tab
   useEffect(() => {
@@ -452,6 +476,7 @@ export default function LogsFooter() {
                Expanding reveals the per-source filter tabs below. */
             <SourcePill
               source={{ id: 'logs', label: t('logs.title') }}
+              icon={FileText}
               counts={mergedCounts}
               active={false}
               onClick={() => openTo(SOURCES.some((s) => s.id === active) ? active : 'backend')}
@@ -583,15 +608,35 @@ export default function LogsFooter() {
           >
             <Mail size={14} />
           </button>
-          <button
-            type="button"
-            className={DONATE_BTN}
-            onClick={() => useAppStore.getState().setMode?.('donate')}
-            title={t('logs.support_project')}
-            aria-label={t('logs.support_project_aria')}
-          >
-            <DonateHeart />
-          </button>
+          <div className="relative inline-flex shrink-0 ml-[4px]">
+            <button
+              type="button"
+              className={`${DONATE_BTN} ${donateMoment ? HEART_PULSE : HEART_GLOW}`}
+              onClick={() => {
+                // Manual entry is unchanged: the heart always opens the full
+                // donate view (and quietly retires an open popover).
+                setDonateMoment(null);
+                useAppStore.getState().setMode?.('donate');
+              }}
+              title={t('logs.support_project')}
+              aria-label={t('logs.support_project_aria')}
+            >
+              <DonateHeart />
+            </button>
+            {donateMoment && (
+              <DonateMomentPopover
+                line={donateMoment.line}
+                onLater={() => setDonateMoment(null)}
+                onOptOut={() => {
+                  optOutOfDonationMoments();
+                  // Mirror into the legacy postcard flag so both engines stay
+                  // permanently silenced no matter which one is wired.
+                  useAppStore.getState().optOutOfDonation?.();
+                  setDonateMoment(null);
+                }}
+              />
+            )}
+          </div>
         </div>
       </div>
 

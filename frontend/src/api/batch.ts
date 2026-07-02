@@ -36,6 +36,11 @@ export async function listBatchJobs(status?: string, limit = 50): Promise<BatchJ
   return apiJson<BatchJob[]>(`/batch/jobs?${qs.toString()}`);
 }
 
+/** Get a single batch job (used to resolve why a job left the active list). */
+export async function getBatchJob(id: string): Promise<BatchJob> {
+  return apiJson<BatchJob>(`/batch/jobs/${id}`);
+}
+
 /** Enqueue a video for batch dubbing. */
 export async function enqueueBatchJob(
   file: File,

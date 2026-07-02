@@ -20,7 +20,7 @@ import { playPing } from '../utils/media';
 import { toast } from 'react-hot-toast';
 import { toastErrorWithReport } from '../utils/errorToast';
 import { addBreadcrumb } from '../utils/breadcrumbs';
-import { evaluateDonationPrompt } from '../components/donate/evaluateDonationPrompt';
+import { recordValueMoment } from '../utils/donationMoments';
 import i18next from 'i18next';
 const t = i18next.t.bind(i18next);
 
@@ -926,9 +926,9 @@ export default function useDubWorkflow({
           loadProjects();
           playPing();
           useAppStore.getState().completePill(t('dub_workflow.dub_complete'));
-          // Success-only donation prompt (#007) — a finished dub is a real
+          // Success-only donation moment — a finished dub is a real
           // deliverable. Never fires on the error / cancel branches below.
-          evaluateDonationPrompt('dub');
+          recordValueMoment('dub');
         } else {
           useAppStore.getState().dismissPill();
         }

@@ -2795,6 +2795,23 @@ input[type="file"]::file-selector-button:hover {
   0%, 100% { opacity: 0.7; transform: scale(1); }
   50%      { opacity: 1;   transform: scale(1.08); }
 }
+/* Donation-moment popover (DonateMomentPopover.jsx): Clippy-esque bounce-in,
+   collapsing to a plain fade under prefers-reduced-motion (the JSX swaps the
+   animation via motion-reduce:). donate-heart-pulse is the gentle attention
+   pulse the heart runs only while the popover is open. */
+@keyframes donate-pop-in {
+  0%   { opacity: 0; transform: translateY(10px) scale(0.9); }
+  60%  { opacity: 1; transform: translateY(-3px) scale(1.03); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes donate-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes donate-heart-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.22); }
+}
 
 /* ═══ from src/components/CaptureWidget.css ═══ */
 /* ── Capture Pill ────────────────────────────────────────────────────────

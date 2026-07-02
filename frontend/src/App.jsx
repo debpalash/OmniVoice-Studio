@@ -62,6 +62,7 @@ const LazyFallback = () => <div className="app-lazy-fallback">{i18n.t('app.loadi
 import { Toaster, toast } from 'react-hot-toast';
 import { toastErrorWithReport } from './utils/errorToast';
 import { addBreadcrumb } from './utils/breadcrumbs';
+import { recordValueMoment } from './utils/donationMoments';
 import {
   POPULAR_LANGS,
   POPULAR_ISO,
@@ -718,6 +719,7 @@ function App() {
       try {
         const finalName = await browserDownload(`${API}/audio/${sourceIdentifier}`, niceName);
         toast.success(i18n.t('app.toast_downloaded', { name: finalName }));
+        recordValueMoment('export'); // success-only donation moment
         try {
           await exportRecord({
             filename: finalName,
@@ -748,6 +750,7 @@ function App() {
 
       await exportAction({ source_filename: sourceIdentifier, destination_path: destPath, mode });
       toast.success(i18n.t('app.toast_exported', { name: fallbackName }));
+      recordValueMoment('export'); // success-only donation moment
       loadExportHistory();
     } catch (err) {
       console.error(err);
@@ -796,6 +799,7 @@ function App() {
           const { invoke } = await import('@tauri-apps/api/core');
           await invoke('save_text_file', { path: destPath, contents: text });
           toast.success(i18n.t('app.toast_saved', { path: destPath }), { id: fallbackName });
+          recordValueMoment('export'); // success-only donation moment
           try {
             await exportRecord({
               filename: fallbackName,
@@ -822,6 +826,7 @@ function App() {
         }
         const data = await res.json();
         toast.success(i18n.t('app.toast_saved', { path: data.path }), { id: fallbackName });
+        recordValueMoment('export'); // success-only donation moment
         try {
           await exportRecord({
             filename: data.display_name || fallbackName,
@@ -844,6 +849,7 @@ function App() {
       toast.loading(i18n.t('app.toast_processing', { name: fallbackName }), { id: fallbackName });
       const finalName = await browserDownload(url, fallbackName);
       toast.success(i18n.t('app.toast_downloaded', { name: finalName }), { id: fallbackName });
+      recordValueMoment('export'); // success-only donation moment
       try {
         await exportRecord({
           filename: finalName,

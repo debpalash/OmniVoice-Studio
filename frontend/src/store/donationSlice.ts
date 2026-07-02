@@ -2,6 +2,14 @@
  * Donation prompt slice — the "Fund Claude Max" kawaii postcard state machine
  * (spec 007, Phase 2/3).
  *
+ * NOTE (footer donation moments): the postcard UI and its call sites were
+ * superseded by `utils/donationMoments.js` + the LogsFooter popover — the
+ * single donation-prompt surface now. This slice stays because its persisted
+ * `optedOut` flag is a promise made to existing users ("Don't ask again" is
+ * terminal): donationMoments honors it via the persisted `omnivoice.app`
+ * blob, and the popover's opt-out mirrors into it. Do not re-wire prompts
+ * through `recordDonationSuccess` without consolidating with donationMoments.
+ *
  * Design goals (anti-dark-pattern):
  *   - NEVER on error / in-progress / setup / first-run.
  *   - Success-only: only ever evaluated right after a *successful* completion.

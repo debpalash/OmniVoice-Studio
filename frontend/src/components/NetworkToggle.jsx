@@ -85,7 +85,9 @@ export default function NetworkToggle() {
         disabled={busy}
         title={st.enabled ? t('network.sharing_on_title') : t('network.share_on_network')}
       >
-        {st.enabled ? <Wifi size={12} /> : <WifiOff size={12} />}
+        {/* 14px matches the footer's other right-side icons (Discord, Mail,
+            donate heart) — keep them optically uniform. */}
+        {st.enabled ? <Wifi size={14} /> : <WifiOff size={14} />}
         <span>
           {busy ? t('network.switching') : st.enabled ? t('network.network') : t('network.local')}
         </span>

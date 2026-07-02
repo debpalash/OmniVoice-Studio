@@ -2038,6 +2038,19 @@
     "star_github": "Star on GitHub",
     "join_discord": "Join Discord"
   },
+  "footer_donate": {
+    "aria": "A friendly note from OmniVoice",
+    "line_1": "That export was 100% local — no cloud, no fees. If OmniVoice saves you time, a coffee keeps it alive.",
+    "line_2": "Another one finished, entirely on your machine. OmniVoice is one developer plus supporters like you — a small tip goes a long way.",
+    "line_3": "You just made that with zero API keys and zero subscriptions. If it was worth a coffee, that keeps the updates coming.",
+    "line_4": "Glad that worked! OmniVoice stays free and open source — and supporters are what keep it that way.",
+    "kofi": "Ko-fi",
+    "kofi_aria": "Support OmniVoice on Ko-fi",
+    "paypal": "PayPal",
+    "paypal_aria": "Support OmniVoice via PayPal",
+    "later": "Later",
+    "dont_ask": "Don't ask again"
+  },
   "contact": {
     "hero_title": "Get in touch",
     "hero_desc": "Questions, bugs, licensing, or just to say hi — here’s how to reach me.",

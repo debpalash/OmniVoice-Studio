@@ -44,7 +44,7 @@ import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { Button, Menu } from '../ui';
 import { useAppStore } from '../store';
-import { evaluateDonationPrompt } from './donate/evaluateDonationPrompt';
+import { recordValueMoment } from '../utils/donationMoments';
 import {
   parseStoryText,
   hasStoryMarkers,
@@ -570,9 +570,9 @@ export default function StoriesEditor({ profiles = [] }) {
       if (!output) throw new Error('no output produced');
       downloadUrl(audioUrl(output), output.split('/').pop());
       toast.success(t('stories.exportDone'));
-      // Success-only donation prompt (#007) — a finished longform export is a
-      // real deliverable. Stays out of the catch/error branch below.
-      evaluateDonationPrompt('longform');
+      // Success-only donation moment — a finished audiobook export is a real
+      // deliverable. Stays out of the catch/error branch below.
+      recordValueMoment('audiobook');
     } catch (err) {
       console.warn('Story render failed:', err);
       toast.error(t('stories.exportFailed'));

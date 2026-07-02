@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Activity,
@@ -14,11 +14,18 @@ import {
   Globe,
 } from 'lucide-react';
 import { Panel, Button, Badge, Tabs } from '../ui';
-import { listBatchJobs, cancelBatchJob, deleteBatchJob, enqueueBatchJob } from '../api/batch';
+import {
+  listBatchJobs,
+  getBatchJob,
+  cancelBatchJob,
+  deleteBatchJob,
+  enqueueBatchJob,
+} from '../api/batch';
 import { API } from '../api/client';
 import BatchAddDialog from '../components/BatchAddDialog';
 import toast from 'react-hot-toast';
 import { toastErrorWithReport } from '../utils/errorToast';
+import { recordValueMoment } from '../utils/donationMoments';
 
 /**
  * BatchQueue — UI for the /batch/* dubbing pipeline.
@@ -65,17 +72,41 @@ export default function BatchQueue({ onBack }) {
   const [loading, setLoading] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
 
+  // Ids last seen queued/running. The 'active' filter excludes finished jobs
+  // server-side, so a job VANISHING from the active list is the completion
+  // signal — resolve its final status to tell done apart from failed/cancelled.
+  const activeIdsRef = useRef(new Set());
+
+  const resolveFinishedJob = useCallback(async (id) => {
+    try {
+      const job = await getBatchJob(id);
+      // Success-only donation moment — a whole batch dub job finishing is a
+      // real deliverable. Failed/cancelled jobs never count.
+      if (job?.status === 'done') recordValueMoment('batch');
+    } catch {
+      /* job deleted or backend unreachable — not a completion */
+    }
+  }, []);
+
   const reload = useCallback(async () => {
     setLoading(true);
     try {
       const statusParam = tab === 'active' ? 'active' : tab;
-      setJobs(await listBatchJobs(statusParam, 100));
+      const next = await listBatchJobs(statusParam, 100);
+      setJobs(next);
+      if (statusParam === 'active') {
+        const nextIds = new Set(next.map((j) => j.id));
+        for (const id of activeIdsRef.current) {
+          if (!nextIds.has(id)) resolveFinishedJob(id);
+        }
+        activeIdsRef.current = nextIds;
+      }
     } catch (e) {
       console.warn('batch queue load failed', e);
     } finally {
       setLoading(false);
     }
-  }, [tab]);
+  }, [tab, resolveFinishedJob]);
 
   useEffect(() => {
     reload();
