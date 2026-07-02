@@ -274,10 +274,14 @@ pub fn run() {
             // launch if the user happened to be dictating when they quit,
             // overriding the WebviewWindowBuilder `.visible(false)` below.
             // Symptom: pill appears on app load with no shortcut press.
-            // The main window is fine to persist (size/position are useful).
+            // "main" is denylisted too (owner decision, 2026-07-02): the app
+            // must ALWAYS open maximized — not fullscreen — per
+            // tauri.conf.json (`maximized: true`, `fullscreen: false`).
+            // Persisting geometry meant one manual resize made every later
+            // launch reopen at that smaller size, overriding the config.
             app.handle().plugin(
                 tauri_plugin_window_state::Builder::default()
-                    .with_denylist(&["widget"])
+                    .with_denylist(&["widget", "main"])
                     .build(),
             )?;
             app.handle().plugin(

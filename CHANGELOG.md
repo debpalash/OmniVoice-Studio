@@ -8,6 +8,14 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+### Changed
+
+- **The app now always opens maximized (not fullscreen).** Window size and
+  position are no longer carried over from the previous session — one manual
+  resize used to make every later launch reopen at that smaller size,
+  overriding the intended maximized default. Same behavior on macOS
+  (zoomed window, not a fullscreen Space), Windows, and Linux.
+
 ### Fixed
 
 - **Confucius4-TTS is now validated end-to-end — and actually loads.** The
