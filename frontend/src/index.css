@@ -1547,6 +1547,187 @@ select.input-base:focus-visible,
   animation-delay: var(--bar-delay, 0s);
 }
 
+/* ── Launchpad deck-of-cards (wide shells only) ────────────────────
+   The seven feature cards fanned left→right like a hand of cards: each
+   card is absolutely positioned in its fan slot (`--deck-i`), tilted a
+   few degrees (`--deck-r`) and lifted a few px (`--deck-y`) — values come
+   inline from Launchpad.jsx's DECK_TILT/DECK_LIFT so the spread is
+   deterministic. Geometry: 260px cards across a 780px fan → every card
+   peeks ~87px (~33%) out from under its right neighbor; z stacks
+   left→right so the right neighbor always covers. Raise/tuck classes are
+   set from React state (hover + keyboard focus share them):
+     --front   raised card: straighten, scale up, top of the stack
+     --tuck-r  cards left of the raised one slide right toward it
+     --tuck-l  cards right of it slide left — everything hides under it.
+   Fixed .lp-deck height = zero layout jump while cards move. Narrow/mini
+   shells never render the deck (JSX falls back to the flat grid). */
+.lp-deck {
+  position: relative;
+  height: 252px;
+  max-width: 780px;
+  --deck-card-w: 260px;
+  --deck-card-h: 200px;
+}
+@keyframes lpDeckDeal {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.lp-deck-card {
+  position: absolute;
+  top: 14px;
+  left: calc(var(--deck-i, 0) * (100% - var(--deck-card-w)) / (var(--deck-n, 7) - 1));
+  width: var(--deck-card-w);
+  height: var(--deck-card-h);
+  z-index: calc(var(--deck-i, 0) + 1);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 12px 14px 12px 12px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 26%, var(--chrome-border));
+  border-radius: var(--chrome-radius-pill);
+  /* Opaque face — lower cards must actually disappear underneath. */
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 10%, var(--chrome-bg)) 0%,
+    var(--chrome-bg) 55%
+  );
+  box-shadow: -12px 10px 26px -18px rgba(0, 0, 0, 0.55);
+  transform: translateY(var(--deck-y, 0px)) rotate(var(--deck-r, 0deg));
+  transform-origin: 20% 90%;
+  transition:
+    transform 240ms var(--ease-out),
+    opacity 240ms ease-out,
+    border-color 240ms ease-out,
+    box-shadow 240ms ease-out;
+  animation: lpDeckDeal 0.5s ease-out both;
+  animation-delay: calc(var(--deck-i, 0) * 60ms);
+}
+/* Raised card (hover or keyboard focus, class-driven from React state):
+   straighten, lift, scale up, and take the top of the stack. */
+.lp-deck-card--front {
+  z-index: 40;
+  transform: translateY(-8px) rotate(0deg) scale(1.04);
+  border-color: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 55%, transparent);
+  box-shadow: 0 22px 44px -20px color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 55%, transparent);
+}
+/* Everyone else tucks under it: slide toward the raised card (increasing
+   the overlap), settle slightly lower, scale down and fade a touch. */
+.lp-deck--active .lp-deck-card:not(.lp-deck-card--front) {
+  opacity: 0.55;
+  transform: translate(var(--deck-slide, 0px), calc(var(--deck-y, 0px) + 6px))
+    rotate(var(--deck-r, 0deg)) scale(0.96);
+}
+.lp-deck-card--tuck-r { --deck-slide: 30px; }
+.lp-deck-card--tuck-l { --deck-slide: -30px; }
+.lp-deck-card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 70%, transparent);
+  outline-offset: 2px;
+}
+/* Icon + name cluster, width-capped to the ~87px strip each card keeps
+   visible under its right neighbor — the "peeking edge" stays labeled. */
+.lp-deck-card__peek {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 74px;
+  flex: none;
+}
+.lp-deck-card .card-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--chrome-radius-pill);
+  background: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 28%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.lp-deck-card__name {
+  font-family: var(--chrome-font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  /* Tighter than --chrome-label-track so 11-char names ("TRANSCRIPTS")
+     still fit the peek column without a mid-word break. */
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1.35;
+  color: var(--chrome-fg);
+  overflow-wrap: anywhere;
+}
+.lp-deck-card__desc {
+  margin-top: 10px;
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--chrome-fg-muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+/* Count badge sits inside the peek strip (right of the icon) so it stays
+   visible even while the card is tucked under its right neighbor. */
+.lp-deck-card .card-count {
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  font-weight: 600;
+  letter-spacing: var(--chrome-label-track);
+  padding: 1px 7px;
+  border-radius: var(--chrome-radius-pill);
+  position: absolute;
+  top: 16px;
+  left: 48px;
+  z-index: 2;
+  border: 1px solid color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 50%, transparent);
+  color: var(--card-hue, var(--chrome-accent));
+  background: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 10%, var(--chrome-bg));
+}
+/* Decorative waveform strip — 7 bars breathing on stagger-delayed scaleY
+   keyframes in the card's accent. `--deck-i` shifts each card's phase so
+   the deck never pulses in lockstep. aria-hidden in the JSX. */
+@keyframes lpDeckWave {
+  0%, 100% { transform: scaleY(0.35); opacity: 0.55; }
+  50%      { transform: scaleY(1);    opacity: 1; }
+}
+.lp-deck-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  margin-top: auto;
+}
+.lp-deck-wave__bar {
+  width: 3px;
+  height: var(--wave-h, 12px);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 75%, var(--chrome-fg-muted));
+  transform-origin: center;
+  animation: lpDeckWave 1.6s ease-in-out infinite;
+  animation-delay: calc((var(--wave-i, 0) + var(--deck-i, 0)) * -0.19s);
+}
+/* Reduced motion: no dealing/pulsing, and the raise/tuck effect becomes a
+   plain z-index + opacity swap — cards keep their static fan transform. */
+@media (prefers-reduced-motion: reduce) {
+  .lp-deck-card {
+    animation: none;
+    transition: opacity 160ms linear, border-color 160ms linear, box-shadow 160ms linear;
+  }
+  .lp-deck-card--front {
+    transform: translateY(var(--deck-y, 0px)) rotate(var(--deck-r, 0deg));
+  }
+  .lp-deck--active .lp-deck-card:not(.lp-deck-card--front) {
+    transform: translateY(var(--deck-y, 0px)) rotate(var(--deck-r, 0deg));
+    opacity: 0.45;
+  }
+  .lp-deck-wave__bar { animation: none; }
+}
+
 /* ── Searchable combobox ─────────────────────────────────── */
 /* .ss-* (wrap/trigger/label/chev/sm/md/pop/search/list/group-label/option/
    hl/sel/kind-icon/check/empty/more) → Tailwind utilities inline in
