@@ -681,8 +681,16 @@ async def global_exception_handler(request: Request, exc: Exception):
         headers["Access-Control-Allow-Origin"] = origin
         headers["Access-Control-Allow-Credentials"] = "true"
         headers["Vary"] = "Origin"
+    # #874: a model download that failed because the CONFIGURED Hugging Face
+    # mirror (HF_ENDPOINT) is unreachable used to leak the raw transformers
+    # message ("We couldn't connect to 'https://hf-mirror.com' …") as the 500
+    # detail with no next step. Appending the shared mirror hint HERE covers
+    # every route that can leak a model-load/download error (generate, dub,
+    # archetypes, …), not just TTS generate. append_hf_mirror_hint is a no-op
+    # for every other error and never raises.
+    from core.failure import append_hf_mirror_hint
     return JSONResponse(
-        {"detail": str(exc), "error_class": _entry.get("error_class")},
+        {"detail": append_hf_mirror_hint(str(exc)), "error_class": _entry.get("error_class")},
         status_code=500,
         headers=headers,
     )

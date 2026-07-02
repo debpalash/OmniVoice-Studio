@@ -76,6 +76,12 @@ _CLASS_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
         "connection refused",
         "connection reset",
         "connection aborted",
+        # transformers' download-failure wording ("We couldn't connect to
+        # '<endpoint>' to load the files") — the #874 mirror-down class was
+        # journaled as UNKNOWN without these.
+        "couldn't connect to",
+        "could not connect to",
+        "max retries exceeded",
         "timed out",
         "timeout",
         "name or service not known",
