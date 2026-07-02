@@ -63,7 +63,21 @@ def resolve_routing(gpu_compat: tuple[str, ...], caps: HostCaps) -> RoutingResul
             "routing_reason": _caveat(caps),
         }
 
-    # 3. Host has an accelerator the engine lacks, but engine supports cpu
+    # 3. CPU-native engine (declares ONLY cpu) has nothing to fall back FROM,
+    #    so on ANY accelerator host it is benign cpu_only (neutral), never a
+    #    warn-tone "CPU fallback". This must precede the fallback rule below —
+    #    a ("cpu",) engine matches `"cpu" in targets` too, and would otherwise
+    #    be mis-classed cpu_fallback on a GPU/MPS host. (A cpu host reaches
+    #    rule 5 unchanged, keeping its DirectML note.) Engines that *could*
+    #    accelerate elsewhere (e.g. ("cuda", "cpu")) are untouched.
+    if fam != "cpu" and targets == ("cpu",):
+        return {
+            "effective_device": "cpu",
+            "routing_status": "cpu_only",
+            "routing_reason": None,
+        }
+
+    # 4. Host has an accelerator the engine lacks, but engine supports cpu
     #    → the no-silent-fallback signal.
     if fam != "cpu" and "cpu" in targets:
         if fam == "rocm" and "cuda" in targets and "rocm" not in targets:
@@ -76,7 +90,7 @@ def resolve_routing(gpu_compat: tuple[str, ...], caps: HostCaps) -> RoutingResul
             "routing_reason": reason,
         }
 
-    # 4. Genuine CPU-only host (or DirectML, which the probe reports as cpu)
+    # 5. Genuine CPU-only host (or DirectML, which the probe reports as cpu)
     #    and engine supports cpu → benign; must not warn or block.
     if fam == "cpu" and "cpu" in targets:
         reason = None
@@ -93,7 +107,7 @@ def resolve_routing(gpu_compat: tuple[str, ...], caps: HostCaps) -> RoutingResul
             "routing_reason": reason,
         }
 
-    # 5. Engine needs an accelerator this host lacks and has no cpu path.
+    # 6. Engine needs an accelerator this host lacks and has no cpu path.
     first = targets[0]
     return {
         "effective_device": first,

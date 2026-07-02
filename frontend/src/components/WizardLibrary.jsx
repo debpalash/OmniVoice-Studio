@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { useModels, useInstallModel } from '../api/hooks';
 import { setupDownloadStreamUrl } from '../api/setup';
 import { listEngines, selectEngine } from '../api/engines';
+import { notifyEngineSelected } from '../utils/engineSelectToast';
 import { Badge, Button } from '../ui';
 
 const fmtGB = (gb) => (gb == null ? '' : `${gb.toFixed(gb < 10 ? 1 : 0)} GB`);
@@ -253,6 +254,9 @@ export default function WizardLibrary() {
     try {
       const r = await selectEngine('tts', id);
       setEngines((e) => (e ? { ...e, active: r.active } : e));
+      // Consume the routing echo: warn when the pick lands on a CPU fallback
+      // on this host, otherwise confirm the switch. See notifyEngineSelected.
+      notifyEngineSelected(r, t, 'tts');
     } catch (e) {
       toast.error(e?.message || 'switch failed');
     } finally {

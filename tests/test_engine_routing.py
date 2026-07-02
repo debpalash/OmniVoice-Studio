@@ -50,9 +50,34 @@ def test_accelerated_ignores_advisory_notes():
     assert r["routing_reason"] is None
 
 
-# ── Rule 3: cpu_fallback (the no-silent-fallback signal) ──────────────────
-def test_cuda_host_cpu_only_engine_falls_back():
+# ── Rule 3: cpu-native engine (gpu_compat == ("cpu",)) is neutral anywhere ──
+# A cpu-native engine (kittentts / moonshine / sherpa) has nothing to fall back
+# FROM, so an accelerator host must NOT warn-tone it as a "CPU fallback" — it's
+# benign cpu_only on ANY host. Regression for the badge-tone bug (#…).
+def test_cpu_native_engine_neutral_on_mps_host():
+    r = resolve_routing(("cpu",), _caps("mps"))
+    assert r == {"effective_device": "cpu", "routing_status": "cpu_only",
+                 "routing_reason": None}
+
+
+def test_cpu_native_engine_neutral_on_cuda_host():
+    # Was mis-classed cpu_fallback (warn) before the fix; now cpu_only (neutral).
     r = resolve_routing(("cpu",), _caps("cuda"))
+    assert r["routing_status"] == "cpu_only"
+    assert r["routing_reason"] is None
+
+
+def test_cpu_native_engine_neutral_on_cpu_host():
+    # A cpu host already routed cpu-native → cpu_only; unchanged by the new rule.
+    r = resolve_routing(("cpu",), _caps("cpu"))
+    assert r["routing_status"] == "cpu_only"
+
+
+# ── Rule 4: cpu_fallback (the no-silent-fallback signal) ──────────────────
+# Only a MULTI-target engine that genuinely could accelerate elsewhere but
+# lacks THIS host's accelerator falls back (and warns).
+def test_cuda_host_engine_without_cuda_path_falls_back():
+    r = resolve_routing(("mps", "cpu"), _caps("cuda"))
     assert r["routing_status"] == "cpu_fallback"
     assert r["effective_device"] == "cpu"
     assert "no CUDA path" in r["routing_reason"]
@@ -70,7 +95,7 @@ def test_xpu_host_cpu_engine_falls_back():
     assert "no XPU path" in r["routing_reason"]
 
 
-# ── Rule 4: cpu_only (benign) ─────────────────────────────────────────────
+# ── Rule 5: cpu_only (benign) ─────────────────────────────────────────────
 def test_cpu_host_cpu_engine_is_neutral():
     r = resolve_routing(("cuda", "cpu"), _caps("cpu"))
     assert r == {"effective_device": "cpu", "routing_status": "cpu_only",
@@ -84,7 +109,7 @@ def test_directml_host_gets_explanatory_reason_but_stays_neutral():
     assert "DirectML" in r["routing_reason"]
 
 
-# ── Rule 5: unavailable ───────────────────────────────────────────────────
+# ── Rule 6: unavailable ───────────────────────────────────────────────────
 def test_cpu_host_gpu_only_engine_unavailable():
     r = resolve_routing(("cuda",), _caps("cpu"))
     assert r["routing_status"] == "unavailable"
@@ -118,14 +143,16 @@ def test_deterministic_across_calls():
 
 
 def test_reason_str_for_fallback_and_unavailable_none_for_clean():
-    assert resolve_routing(("cpu",), _caps("cuda"))["routing_reason"] is not None
+    # A genuine fallback (multi-target engine lacking the host accel) carries a
+    # reason; a cpu-native ("cpu",) engine is neutral (covered above).
+    assert resolve_routing(("mps", "cpu"), _caps("cuda"))["routing_reason"] is not None
     assert resolve_routing(("cuda",), _caps("cpu"))["routing_reason"] is not None
     assert resolve_routing(("cuda", "cpu"), _caps("cuda"))["routing_reason"] is None
 
 
 # ── routing_notice (synth-time surfacing decision) ──────────────────────────
 def test_notice_emitted_for_cpu_fallback():
-    r = resolve_routing(("cpu",), _caps("cuda"))
+    r = resolve_routing(("mps", "cpu"), _caps("cuda"))
     n = routing_notice(r)
     assert n is not None and n[0] == "cpu_fallback" and n[1]
 

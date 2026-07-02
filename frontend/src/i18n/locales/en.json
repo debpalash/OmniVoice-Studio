@@ -1477,6 +1477,7 @@
     "recheck": "Re-check",
     "rechecking": "Re-checking…",
     "latencyMs": "{{ms}} ms",
+    "depsOk": "deps OK",
     "failed": "failed",
     "acceptLicense": "Accept license",
     "noBackends": "No backends registered.",
@@ -1487,7 +1488,8 @@
     "routingRemote": "Remote",
     "routingUnknown": "Unknown",
     "routingEffectiveChip": "Runs on {{device}} on this machine",
-    "routingCaveatTitle": "GPU selected, but: {{reason}}"
+    "routingCaveatTitle": "GPU selected, but: {{reason}}",
+    "selectCpuFallback": "{{engine}}: running on CPU — {{reason}}"
   },
   "errors": {
     "title": "This tab hit a snag.",

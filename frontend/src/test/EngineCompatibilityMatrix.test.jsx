@@ -392,4 +392,149 @@ describe('EngineCompatibilityMatrix', () => {
       expect(within(indexRow).getByText(/failed/i)).toBeInTheDocument();
     });
   });
+
+  // ── P3-A: routing reason is reachable without a hover ──────────────────
+  it('surfaces the routing reason as visible text, not only a hover title', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(routingResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('Fallback TTS'));
+    const row = screen.getByText('Fallback TTS').closest('[role="row"]');
+    // Visible text (keyboard/touch reachable) — was previously only a badge title.
+    expect(within(row).getByTestId('routing-reason-fallback')).toHaveTextContent(
+      'engine has no CUDA path; running on CPU',
+    );
+    // A clean accelerated row (no caveat reason) shows no reason line.
+    const accelRow = screen.getByText('Accel TTS').closest('[role="row"]');
+    expect(within(accelRow).queryByTestId('routing-reason-accel')).not.toBeInTheDocument();
+  });
+
+  // ── P3-B: in-process health check reads as a liveness/deps check ────────
+  it('labels an in-process health check "deps OK" while subprocess shows real ms', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
+    const apiGetEngineHealth = vi
+      .fn()
+      .mockResolvedValue({ id: 'omnivoice', ok: true, message: 'import ok', latency_ms: 0 });
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={apiGetEngineHealth}
+      />,
+    );
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    const omniRow = screen.getByText('OmniVoice (test)').closest('[role="row"]');
+    fireEvent.click(within(omniRow).getByRole('button', { name: /test omnivoice/i }));
+    await waitFor(() => {
+      expect(within(omniRow).getByTestId('health-result-omnivoice')).toHaveTextContent('deps OK');
+    });
+    // The misleading "0 ms" latency is NOT shown for an in-process liveness probe.
+    expect(within(omniRow).queryByText(/0 ms/)).not.toBeInTheDocument();
+  });
+
+  // ── P1-B: matrix refreshes after a successful select (no manual Refresh) ─
+  it('reflects the new active engine after select resolves, without a manual Refresh', async () => {
+    let active = 'omnivoice';
+    const resp = () => ({
+      tts: {
+        active,
+        backends: [
+          {
+            id: 'omnivoice',
+            display_name: 'OmniVoice (test)',
+            available: true,
+            reason: null,
+            install_hint: null,
+            last_error: null,
+            isolation_mode: 'in-process',
+            gpu_compat: ['cpu'],
+          },
+          {
+            id: 'indextts2',
+            display_name: 'IndexTTS2 (test)',
+            available: true,
+            reason: null,
+            install_hint: null,
+            last_error: null,
+            isolation_mode: 'subprocess',
+            gpu_compat: ['cuda', 'cpu'],
+          },
+        ],
+      },
+      asr: { active: '', backends: [] },
+      llm: { active: 'off', backends: [] },
+    });
+    const apiListEngines = vi.fn(async () => resp());
+    const onSelect = vi.fn(async (_family, id) => {
+      active = id; // backend now reports the new active engine
+    });
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        onSelect={onSelect}
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('IndexTTS2 (test)'));
+    const indexRow = () => screen.getByText('IndexTTS2 (test)').closest('[role="row"]');
+    // Not active yet.
+    expect(within(indexRow()).queryByText('active')).not.toBeInTheDocument();
+
+    fireEvent.click(within(indexRow()).getByRole('button', { name: /use indextts2/i }));
+    await waitFor(() => expect(onSelect).toHaveBeenCalledWith('tts', 'indextts2'));
+
+    // Active badge moves to IndexTTS2 after the post-select reload — no manual Refresh.
+    await waitFor(() => {
+      expect(within(indexRow()).getByText('active')).toBeInTheDocument();
+    });
+    // The reload re-fetched the engine list (initial mount + post-select).
+    expect(apiListEngines.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  // ── P1-A: the license dialog actually mounts on "Accept license" ────────
+  it('mounts the Supertonic license dialog when "Accept license" is clicked', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue({
+      tts: {
+        active: 'omnivoice',
+        backends: [
+          {
+            id: 'supertonic3',
+            display_name: 'Supertonic-3',
+            available: false,
+            reason: 'Supertonic-3 license not accepted — review and accept to enable it.',
+            install_hint: null,
+            last_error: null,
+            isolation_mode: 'in-process',
+            gpu_compat: ['cpu'],
+          },
+        ],
+      },
+      asr: { active: '', backends: [] },
+      llm: { active: 'off', backends: [] },
+    });
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('Supertonic-3'));
+    // Dialog is not mounted until the button is clicked (state was previously
+    // discarded, so this click did nothing — the regression this guards).
+    expect(screen.queryByText('Supertonic-3 — License Acceptance')).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /review and accept supertonic-3 license/i }),
+    );
+    await waitFor(() => {
+      expect(screen.getByText('Supertonic-3 — License Acceptance')).toBeInTheDocument();
+    });
+  });
 });
