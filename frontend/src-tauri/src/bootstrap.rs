@@ -700,6 +700,211 @@ pub fn backend_exit_indicates_broken_venv(exit_info: &str, err_tail: &str) -> bo
         || exit_info.trim_end().ends_with(": 106")
 }
 
+// ── Linux/Windows: cuDNN 8 compat side-load ────────────────────────────────
+//
+// This used to live ONLY in scripts/setup.py, run via `bun run setup:api`
+// (dev loop only). Neither `scripts/` nor `setup.py` is bundled as a Tauri
+// resource (see tauri.conf.json's `bundle.resources`), and the real
+// packaged-install bootstrap path below never called that script — so every
+// actual installed user with an NVIDIA GPU got a venv with no cuDNN 8 compat
+// libs (#827). Ported here so the real app-data venv gets them, matching what
+// backend/main.py's cuDNN preload (#255) expects to find.
+//
+// (An earlier draft of #869 also ported setup.py's VC++ Redistributable
+// check. Dropped as dead code per review: the Tauri exe itself dynamically
+// links the MSVC CRT, so `LoadLibraryA("vcruntime140.dll")` from a *running*
+// app is a tautology — and torch's real failure mode is msvcp140.dll inside
+// the venv python process, not this one.)
+
+/// Cross-platform pin, matches the wheel scripts/setup.py has always used —
+/// keep both in sync if this ever needs to move.
+const CUDNN8_COMPAT_PIN: &str = "nvidia-cudnn-cu12==8.9.7.29";
+
+/// The `cudnn8_compat/` install target inside a venv's site-packages,
+/// mirroring `_find_compat_dir()` in scripts/setup.py exactly (and what
+/// backend/main.py's ctypes preload looks for). Linux's path is versioned by
+/// the venv's own Python (`lib/pythonX.Y/site-packages`), so this queries the
+/// live interpreter rather than assuming the version `uv venv` was asked for
+/// — the system-Python fallback path can hand back a different one.
+fn cudnn8_compat_dir(venv_dir: &Path, venv_py: &Path) -> Option<PathBuf> {
+    if cfg!(windows) {
+        return Some(venv_dir.join("Lib").join("site-packages").join("cudnn8_compat"));
+    }
+    let out = Command::new(venv_py)
+        .args(["-c", "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let pyver = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    Some(
+        venv_dir
+            .join("lib")
+            .join(format!("python{}", pyver))
+            .join("site-packages")
+            .join("cudnn8_compat"),
+    )
+}
+
+/// The subdirectory (within `cudnn8_compat/`) actually holding the shared
+/// libraries, and the filename pattern that counts as "installed" — same
+/// glob scripts/setup.py's `_count_cudnn8_libs()` uses.
+fn cudnn8_lib_dir_and_pattern(compat_dir: &Path) -> (PathBuf, &'static str, &'static str) {
+    if cfg!(windows) {
+        (compat_dir.join("nvidia").join("cudnn").join("bin"), "cudnn", "64_8.dll")
+    } else {
+        (compat_dir.join("nvidia").join("cudnn").join("lib"), "libcudnn", ".so.8")
+    }
+}
+
+fn count_cudnn8_libs(lib_dir: &Path, prefix: &str, suffix: &str) -> usize {
+    fs::read_dir(lib_dir)
+        .map(|entries| {
+            entries
+                .filter_map(|e| e.ok())
+                .filter(|e| {
+                    let name = e.file_name();
+                    let name = name.to_string_lossy();
+                    name.starts_with(prefix) && name.ends_with(suffix)
+                })
+                .count()
+        })
+        .unwrap_or(0)
+}
+
+/// Verdict from probing the venv's torch (see `CUDNN8_CUDA_PROBE_PY`).
+#[derive(Debug, PartialEq, Eq)]
+enum CudnnProbe {
+    /// CUDA torch build with a live CUDA device: side-load cuDNN 8.
+    Install,
+    /// Definitive no — CPU-only box, no NVIDIA device, or a ROCm torch build
+    /// (HIP reports `torch.cuda.is_available() == True`, but the ~700 MB CUDA
+    /// `nvidia-cudnn-cu12` wheel is pure waste on an AMD box, #124). Cache it
+    /// so the synchronous `import torch` never taxes this venv's launches
+    /// again.
+    CacheNegative,
+    /// The probe didn't run cleanly (torch missing / broken venv / unexpected
+    /// output) — skip this launch but do NOT cache, so a transient failure
+    /// can't permanently disable the side-load on a real CUDA machine.
+    SkipNoCache,
+}
+
+/// Prints exactly one verdict: `hip` (ROCm build — checked BEFORE
+/// `cuda.is_available()`, which HIP spoofs), `cuda` (CUDA build with a live
+/// device), or `none`.
+const CUDNN8_CUDA_PROBE_PY: &str = "import torch; print('hip' if getattr(torch.version, 'hip', None) else 'cuda' if torch.cuda.is_available() else 'none')";
+
+fn classify_cuda_probe(stdout: &str) -> CudnnProbe {
+    match stdout.trim() {
+        "cuda" => CudnnProbe::Install,
+        "hip" | "none" => CudnnProbe::CacheNegative,
+        _ => CudnnProbe::SkipNoCache,
+    }
+}
+
+/// Marker recording a cached negative CUDA probe for this venv. Lives inside
+/// `.venv/` so a full venv rebuild ("Clean & Retry") clears it implicitly;
+/// anything that re-syncs the venv in place must call
+/// `invalidate_cudnn8_probe_cache` (the torch build may have changed).
+fn cudnn8_probe_marker(venv_dir: &Path) -> PathBuf {
+    venv_dir.join(".cudnn8_probe_negative")
+}
+
+/// Call after ANY operation that can change the venv's torch build (drift /
+/// repair / first-run `uv sync`, ROCm reinstall) so the next launch re-probes
+/// exactly once per venv lifetime.
+fn invalidate_cudnn8_probe_cache(venv_dir: &Path) {
+    let _ = fs::remove_file(cudnn8_probe_marker(venv_dir));
+}
+
+/// CTranslate2 (faster-whisper / WhisperX) needs cuDNN 8, but PyTorch 2.8+
+/// pulls in cuDNN 9. Side-loads cuDNN 8 into `cudnn8_compat/` next to the
+/// venv's other packages — backend/main.py preloads it via ctypes at import
+/// time (#255). Skipped entirely on macOS (no CUDA), on any machine without
+/// a CUDA device, and on ROCm torch builds (#124) — and a negative probe is
+/// cached per venv so CPU/AMD installs never pay the synchronous
+/// `import torch` more than once (#869 review).
+fn ensure_cudnn8_compat<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    uv_path: &Path,
+    venv_py: &Path,
+    venv_dir: &Path,
+    project_dir: &Path,
+) {
+    if cfg!(target_os = "macos") {
+        return;
+    }
+    // Cached negative from a previous launch (CPU/Intel/AMD — the majority of
+    // installs): return before spending any subprocess. Cleared whenever the
+    // venv is rebuilt or re-synced.
+    let marker = cudnn8_probe_marker(venv_dir);
+    if marker.is_file() {
+        return;
+    }
+    let Some(compat_dir) = cudnn8_compat_dir(venv_dir, venv_py) else {
+        log::warn!("cuDNN 8 compat: could not resolve venv site-packages layout — skipping");
+        return;
+    };
+    let (lib_dir, prefix, suffix) = cudnn8_lib_dir_and_pattern(&compat_dir);
+    if count_cudnn8_libs(&lib_dir, prefix, suffix) >= 5 {
+        return;
+    }
+
+    let mut cuda_check = Command::new(venv_py);
+    scrub_python_env(&mut cuda_check);
+    let verdict = cuda_check
+        .args(["-c", CUDNN8_CUDA_PROBE_PY])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+    match classify_cuda_probe(&verdict) {
+        CudnnProbe::Install => {}
+        CudnnProbe::CacheNegative => {
+            log::info!(
+                "cuDNN 8 compat: torch probe says '{}' — caching the negative result for this venv",
+                verdict
+            );
+            let _ = fs::write(&marker, format!("{}\n", verdict));
+            return;
+        }
+        CudnnProbe::SkipNoCache => {
+            log::warn!("cuDNN 8 compat: torch probe failed — skipping this launch (not cached)");
+            return;
+        }
+    }
+
+    log::info!("Installing cuDNN 8 compatibility libraries for CTranslate2 (#255)");
+    emit_log(app, "installing_deps", "Installing cuDNN 8 compatibility libraries for CUDA transcription…");
+    let mut cmd = Command::new(uv_path);
+    scrub_python_env(&mut cmd);
+    apply_uv_http_env(&mut cmd);
+    cmd.arg("pip")
+        .arg("install")
+        .arg("--no-deps")
+        .arg("--target")
+        .arg(&compat_dir)
+        .arg("--python")
+        .arg(venv_py)
+        .arg(CUDNN8_COMPAT_PIN)
+        .current_dir(project_dir);
+    match run_streaming(app, "installing_deps", &mut cmd) {
+        Ok(ref s) if s.success() => {
+            log::info!("cuDNN 8 compat installed: {} libraries", count_cudnn8_libs(&lib_dir, prefix, suffix));
+        }
+        other => {
+            log::warn!("cuDNN 8 compat install failed ({:?}) — CUDA transcription may not work", other);
+            emit_log(
+                app, "installing_deps",
+                "cuDNN 8 compat install failed — CUDA-based transcription may not work. \
+Retry from Settings, or see docs/install/troubleshooting.md.",
+            );
+        }
+    }
+}
+
 /// Prepare (and on first run, create) the Python venv that will host the
 /// backend process. Returns (venv_python, backend_source_dir).
 pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<&Arc<Mutex<BootstrapStage>>>) -> Option<(PathBuf, PathBuf)> {
@@ -871,6 +1076,9 @@ manually, then relaunch.",
                             match run_streaming(app, "installing_deps", &mut drift_cmd) {
                                 Ok(ref s) if s.success() => {
                                     log::info!("Dependency drift sync complete (#307)");
+                                    // The torch build may have changed — let
+                                    // ensure_cudnn8_compat() re-probe once.
+                                    invalidate_cudnn8_probe_cache(&venv_dir);
                                 }
                                 other => {
                                     // Don't brick a previously-working install
@@ -889,6 +1097,10 @@ the existing venv; newly added dependencies may be missing (#307)",
                         }
                     }
                 }
+            }
+            match resolve_uv(app, &app_data, None) {
+                Ok(uv_path) => ensure_cudnn8_compat(app, &uv_path, &venv_py, &venv_dir, &project_dir),
+                Err(e) => log::warn!("cuDNN 8 compat: could not resolve uv: {}", e),
             }
             return Some((venv_py, backend_dir));
         }
@@ -941,6 +1153,10 @@ the existing venv; newly added dependencies may be missing (#307)",
         repair_cmd.current_dir(&project_dir);
         let repair_status = run_streaming(app, "installing_deps", &mut repair_cmd);
         if matches!(repair_status, Ok(ref s) if s.success()) {
+            // The repair sync may have changed the torch build — clear any
+            // cached negative CUDA probe so ensure_cudnn8_compat() below
+            // re-checks once.
+            invalidate_cudnn8_probe_cache(&venv_dir);
             // #248: after the repair sync, ensure pkg_resources landed. The repair
             // path is also triggered when pkg_resources is missing (see above), so
             // we must verify here rather than trusting that uv sync alone fixed it
@@ -1006,6 +1222,7 @@ the existing venv; newly added dependencies may be missing (#307)",
                     return None;
                 }
             }
+            ensure_cudnn8_compat(app, &uv_path, &venv_py, &venv_dir, &project_dir);
             return Some((venv_py, backend_dir));
         }
         fail(progress, &format!("Repair uv sync failed: {:?}", repair_status));
@@ -1266,6 +1483,11 @@ mirror in Settings → region/mirrors (see docs/install/troubleshooting.md).".to
         }
     }
 
+    // Fresh venv, fresh sync: a stale negative-probe marker (e.g. a venv
+    // recreated in place over a previous one) must not suppress the probe.
+    invalidate_cudnn8_probe_cache(&venv_dir);
+    ensure_cudnn8_compat(app, &uv_path, &venv_py, &venv_dir, &project_dir);
+
     // Opt-in AMD ROCm (#124): the default install ships the CUDA torch build,
     // so AMD-only machines fall back to CPU. If the user set
     // OMNIVOICE_TORCH_VARIANT=rocm, reinstall torch/torchaudio from the ROCm
@@ -1278,7 +1500,12 @@ mirror in Settings → region/mirrors (see docs/install/troubleshooting.md).".to
         apply_uv_http_env(&mut rocm_cmd);
         rocm_cmd.args(rocm_torch_reinstall_args(&rocm_url)).current_dir(&project_dir);
         let rocm_status = run_streaming(app, "installing_deps", &mut rocm_cmd);
-        if !matches!(rocm_status, Ok(ref s) if s.success()) {
+        if matches!(rocm_status, Ok(ref s) if s.success()) {
+            // The torch build just switched to ROCm: re-probe on the next
+            // launch (it reports 'hip' and re-caches the negative, so the
+            // CUDA cuDNN wheel is never fetched on an AMD box, #124).
+            invalidate_cudnn8_probe_cache(&venv_dir);
+        } else {
             log::warn!("ROCm torch reinstall failed ({:?}); keeping default torch build", rocm_status);
             emit_log(
                 app, "installing_deps",
@@ -1595,5 +1822,102 @@ mod tests {
         // Verify 82.x (what was installed before #224 fix) does NOT satisfy
         let v82: (u32, u32) = (82, 0);
         assert!(!(v82.0 >= 75 && v82.0 < 80), "82.x (pre-fix version) must NOT satisfy <80");
+    }
+
+    // -- cuDNN 8 compat side-load (real prod bootstrap, not just dev) --------
+
+    #[cfg(windows)]
+    #[test]
+    fn cudnn8_compat_dir_matches_backend_main_py_layout() {
+        // backend/main.py hardcodes `.venv/Lib/site-packages/cudnn8_compat` on
+        // Windows (no pyver in the path) -- this must match exactly or the
+        // ctypes preload never finds what we just installed.
+        let venv_dir = PathBuf::from(r"C:\fake\project\.venv");
+        let venv_py = venv_python_path(&venv_dir);
+        let dir = cudnn8_compat_dir(&venv_dir, &venv_py).expect("windows path is pure, no subprocess needed");
+        assert_eq!(dir, venv_dir.join("Lib").join("site-packages").join("cudnn8_compat"));
+    }
+
+    #[test]
+    fn cudnn8_lib_dir_and_pattern_matches_platform_glob() {
+        // Mirrors scripts/setup.py's _cudnn8_lib_dir()/_count_cudnn8_libs() and
+        // backend/main.py's _cudnn8_glob exactly -- a divergence here means the
+        // Rust installer and the Python ctypes preload disagree on what counts
+        // as "installed".
+        let compat_dir = PathBuf::from("compat");
+        let (lib_dir, prefix, suffix) = cudnn8_lib_dir_and_pattern(&compat_dir);
+        if cfg!(windows) {
+            assert_eq!(lib_dir, compat_dir.join("nvidia").join("cudnn").join("bin"));
+            assert_eq!((prefix, suffix), ("cudnn", "64_8.dll"));
+            assert!("cudnn_ops64_8.dll".starts_with(prefix) && "cudnn_ops64_8.dll".ends_with(suffix));
+        } else {
+            assert_eq!(lib_dir, compat_dir.join("nvidia").join("cudnn").join("lib"));
+            assert_eq!((prefix, suffix), ("libcudnn", ".so.8"));
+            assert!("libcudnn_ops.so.8".starts_with(prefix) && "libcudnn_ops.so.8".ends_with(suffix));
+        }
+    }
+
+    #[test]
+    fn count_cudnn8_libs_counts_only_matching_files() {
+        let dir = temp_venv_dir("cudnn-count");
+        let (_, prefix, suffix) = cudnn8_lib_dir_and_pattern(Path::new(""));
+        // Two real matches...
+        fs::write(dir.join(format!("{prefix}_a{suffix}")), b"").unwrap();
+        fs::write(dir.join(format!("{prefix}_b{suffix}")), b"").unwrap();
+        // ...one file that only matches the prefix, one that only matches the
+        // suffix, and one totally unrelated file -- none of these should count.
+        fs::write(dir.join(format!("{prefix}_only_prefix.txt")), b"").unwrap();
+        fs::write(dir.join(format!("unrelated{suffix}")), b"").unwrap();
+        fs::write(dir.join("readme.md"), b"").unwrap();
+        assert_eq!(count_cudnn8_libs(&dir, prefix, suffix), 2);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn count_cudnn8_libs_zero_when_dir_missing() {
+        // First-run case: the compat dir doesn't exist yet -- must report 0,
+        // not error, so the caller's ">= 5" threshold cleanly triggers install.
+        let missing = std::env::temp_dir().join("omnivoice-test-cudnn8-does-not-exist");
+        let _ = fs::remove_dir_all(&missing);
+        assert_eq!(count_cudnn8_libs(&missing, "cudnn", "64_8.dll"), 0);
+    }
+
+    #[test]
+    fn classify_cuda_probe_gates_install_on_cuda_only() {
+        // 'cuda' (CUDA build + live device) is the ONLY verdict that triggers
+        // the ~700 MB nvidia-cudnn-cu12 download.
+        assert_eq!(classify_cuda_probe("cuda"), CudnnProbe::Install);
+        assert_eq!(classify_cuda_probe("cuda\n"), CudnnProbe::Install); // print() newline
+        // ROCm torch spoofs torch.cuda.is_available(); the probe reports
+        // 'hip' first so opt-in AMD installs (#124) never fetch the CUDA
+        // wheel -- and the negative is cacheable.
+        assert_eq!(classify_cuda_probe("hip\n"), CudnnProbe::CacheNegative);
+        // Plain no-CUDA box: cache so `import torch` never re-runs at launch.
+        assert_eq!(classify_cuda_probe("none"), CudnnProbe::CacheNegative);
+        // Broken venv / import error / garbage: skip this launch but never
+        // cache -- a transient failure must not wedge a real CUDA machine.
+        assert_eq!(classify_cuda_probe(""), CudnnProbe::SkipNoCache);
+        assert_eq!(
+            classify_cuda_probe("Traceback (most recent call last):"),
+            CudnnProbe::SkipNoCache
+        );
+    }
+
+    #[test]
+    fn cudnn8_probe_cache_marker_roundtrip() {
+        let venv_dir = temp_venv_dir("cudnn-probe-cache");
+        let marker = cudnn8_probe_marker(&venv_dir);
+        // Must live INSIDE the venv so a full rebuild clears it implicitly.
+        assert!(marker.starts_with(&venv_dir));
+        assert!(!marker.is_file());
+        fs::write(&marker, "none\n").unwrap();
+        assert!(marker.is_file());
+        // Re-sync invalidation: marker gone, next launch re-probes.
+        invalidate_cudnn8_probe_cache(&venv_dir);
+        assert!(!marker.is_file());
+        // Idempotent when the marker is already absent.
+        invalidate_cudnn8_probe_cache(&venv_dir);
+        assert!(!marker.is_file());
+        let _ = fs::remove_dir_all(&venv_dir);
     }
 }

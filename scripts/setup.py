@@ -165,10 +165,14 @@ def main():
 
     print("⚙ Installing cuDNN 8 compatibility libraries for CTranslate2...")
     try:
+        # `uv venv` doesn't seed pip into the venv, so `sys.executable -m pip`
+        # fails with "No module named pip". `uv pip install --python` talks to
+        # the interpreter directly without needing pip installed inside it.
         subprocess.run(
             [
-                sys.executable, "-m", "pip", "install",
+                "uv", "pip", "install",
                 "--no-deps", "--target", compat_dir,
+                "--python", sys.executable,
                 "nvidia-cudnn-cu12==8.9.7.29",
             ],
             check=True,

@@ -193,14 +193,30 @@ WhisperX or faster-whisper selected.
 
 **Cause:** WhisperX and faster-whisper run on **CTranslate2**, which needs
 **cuDNN 8**, but PyTorch 2.8 ships cuDNN 9. OmniVoice side-loads a cuDNN-8 copy
-from `.venv\Lib\site-packages\cudnn8_compat\`; if that folder is missing
-(some upgrade paths don't install it), CTranslate2 can't find the DLL.
+from `.venv\Lib\site-packages\cudnn8_compat\` — but the step that installs that
+folder only ever lived in the dev-loop setup script, which isn't bundled into
+the packaged app. **Packaged installs never had these libraries at all**, so
+reinstalling never fixed it ([#827](https://github.com/debpalash/OmniVoice-Studio/issues/827)).
 
-**Fix:** switch the ASR backend to **PyTorch Whisper** in **Settings → Models**.
-It runs on PyTorch's own stack (cuDNN 9, bundled with torch) and needs no
-cuDNN-8 DLL — it loads its Whisper pipeline on demand (no extra env var). To
-keep using faster-whisper/WhisperX instead, reinstall to restore the bundled
-`cudnn8_compat` libraries.
+**Fix:** update to the latest build and relaunch — the app's bootstrap now
+detects a CUDA machine and installs the cuDNN-8 libraries into the backend venv
+automatically at launch ([#869](https://github.com/debpalash/OmniVoice-Studio/pull/869)).
+(The check is skipped — and its negative result cached — on CPU/AMD/Apple
+machines, so non-NVIDIA launches stay instant.)
+
+If the automatic install can't run (offline / restricted network), install
+manually into the backend venv, then restart:
+
+```
+uv pip install --no-deps --python .venv\Scripts\python.exe --target .venv\Lib\site-packages\cudnn8_compat nvidia-cudnn-cu12==8.9.7.29
+```
+
+(On Linux the target is `.venv/lib/pythonX.Y/site-packages/cudnn8_compat`.)
+
+Or sidestep cuDNN 8 entirely: switch the ASR backend to **PyTorch Whisper** in
+**Settings → Models**. It runs on PyTorch's own stack (cuDNN 9, bundled with
+torch) and needs no cuDNN-8 DLL — it loads its Whisper pipeline on demand (no
+extra env var).
 
 ## 11. IndexTTS / CosyVoice / ChatterboxTTS clash
 
