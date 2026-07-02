@@ -596,6 +596,17 @@ pub fn run() {
                 if let Some(win) = app.get_webview_window("widget") {
                     let _ = win.hide();
                 }
+                // Enforce the always-open-maximized contract (#881) at
+                // runtime: macOS can ignore `maximized: true` from
+                // tauri.conf.json at window creation when combined with the
+                // Overlay title-bar style, so the config flag alone isn't
+                // reliable. maximize() zooms the window — it never enters a
+                // fullscreen Space. Guarded by tests/test_window_launch_state.py.
+                if let Some(main_win) = app.get_webview_window("main") {
+                    if !main_win.is_maximized().unwrap_or(false) {
+                        let _ = main_win.maximize();
+                    }
+                }
             }
 
             // ── WebView media-capture permissions (mic for dictation) ────
