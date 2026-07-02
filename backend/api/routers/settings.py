@@ -134,12 +134,17 @@ class _RefinementBody(BaseModel):
 
 
 def _refinement_state():
-    from services.refinement import get_refinement_config
+    from services.refinement import get_refinement_config, get_last_refine_status
     from services.llm_backend import get_active_llm_backend
 
     cfg = get_refinement_config()
-    # The UI shows whether refinement can actually run (needs an LLM).
+    # `llm_ready` only means "an endpoint is CONFIGURED" — a placeholder/dead
+    # endpoint still reads ready. The honesty layer is `last_refine_status`:
+    # {ok, reason, at} from the most recent final, so the panel can flag a
+    # configured-but-failing LLM (the real safety is the hard refine timeout,
+    # which keeps a dead endpoint from ever stalling the dictation final).
     cfg["llm_ready"] = get_active_llm_backend().id != "off"
+    cfg["last_refine_status"] = get_last_refine_status()
     return cfg
 
 

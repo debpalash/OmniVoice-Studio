@@ -19,12 +19,68 @@ Two tiers, both applied only to FINAL transcripts (never partials):
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import os
 import re
+import time
 from dataclasses import dataclass
 
 logger = logging.getLogger("omnivoice.refinement")
+
+# Hard wall-clock budget (seconds) for a single dictation refinement LLM call.
+# The dictation FINAL must never be delayed longer than this by a slow or dead
+# LLM endpoint — refinement is best-effort and falls back to the unrefined
+# (but polished) text on timeout. 4s keeps a healthy local model (Ollama /
+# LM Studio, sub-second on the tiny cleanup prompt) fully usable while turning
+# the old worst case — a placeholder/dead endpoint blocking the send ~51s until
+# the widget's 15s fallback fired — into a bounded ~4s at most. Env-tunable so
+# power users on a slow local LLM can raise it. Guarded by the regression tests
+# in tests/backend/services/test_refinement_llm.py and tests/test_capture_ws.py.
+_DEFAULT_REFINE_TIMEOUT_S = 4.0
+
+
+def _refine_timeout_s() -> float:
+    """The refinement LLM budget in seconds (OMNIVOICE_REFINE_TIMEOUT_S).
+
+    Falls back to :data:`_DEFAULT_REFINE_TIMEOUT_S` on an unset/invalid/non-
+    positive value so a bad env var can never disable the bound."""
+    raw = os.environ.get("OMNIVOICE_REFINE_TIMEOUT_S", "")
+    try:
+        v = float(raw)
+        if v > 0:
+            return v
+    except (TypeError, ValueError):
+        pass
+    return _DEFAULT_REFINE_TIMEOUT_S
+
+
+# Most-recent refinement outcome, so the Settings panel can tell the user when a
+# configured LLM is actually failing/timing out (the honesty layer behind the
+# `llm_ready` flag, which only means "an endpoint is configured"). Best-effort,
+# process-local, cleared on success.
+_last_refine_status: dict | None = None
+
+
+def _note_refine_status(*, ok: bool, reason: str | None = None) -> None:
+    global _last_refine_status
+    _last_refine_status = {"ok": bool(ok), "reason": reason, "at": time.time()}
+
+
+def get_last_refine_status() -> dict | None:
+    """The last refinement outcome as ``{ok, reason, at}`` or None if refinement
+    hasn't run this session. ``ok=False`` with ``reason`` ("timeout" or a short
+    error string) means a configured LLM failed the most recent final."""
+    return dict(_last_refine_status) if _last_refine_status else None
+
+
+def _short_reason(exc: Exception) -> str:
+    """A compact, non-leaky label for a refinement failure (for the UI hint)."""
+    name = type(exc).__name__
+    if "Timeout" in name or "timeout" in str(exc).lower():
+        return "timeout"
+    return name
 
 # A token (or unit) must repeat at least this many times consecutively to be
 # treated as an STT artifact. Rhetorical repetition ("no, no, no, no, no" —
@@ -274,9 +330,18 @@ def set_refinement_config(cfg: dict) -> dict:
     return merged
 
 
-def refine_transcript(transcript: str, flags: RefinementFlags | None = None) -> str:
+def refine_transcript(
+    transcript: str,
+    flags: RefinementFlags | None = None,
+    *,
+    timeout_s: float | None = None,
+) -> str:
     """Run the transcript through the configured LLM. Raises on failure —
-    callers decide the fallback (maybe_refine swallows into pass-through)."""
+    callers decide the fallback (maybe_refine swallows into pass-through).
+
+    The LLM HTTP call is bounded by ``timeout_s`` (default: the refinement
+    budget) so a dead/slow endpoint can't tie the call up for the client's full
+    45s LLM timeout — the class of stall this whole module guards against."""
     from services.llm_backend import get_active_llm_backend
 
     flags = flags or RefinementFlags()
@@ -286,31 +351,78 @@ def refine_transcript(transcript: str, flags: RefinementFlags | None = None) -> 
         messages.append({"role": "user", "content": user_turn})
         messages.append({"role": "assistant", "content": assistant_turn})
     messages.append({"role": "user", "content": transcript})
-    return backend.chat_messages(messages=messages).strip()
+    budget = timeout_s if timeout_s is not None else _refine_timeout_s()
+    return backend.chat_messages(messages=messages, timeout=budget).strip()
 
 
-def maybe_refine(transcript: str) -> str | None:
+def maybe_refine(transcript: str, *, timeout_s: float | None = None) -> str | None:
     """Best-effort refinement for the dictation final path.
 
     Returns the refined text, or None when refinement is off, no LLM
     backend is configured, the result is empty, or anything fails — the
-    raw transcript always stands. Never raises.
+    raw transcript always stands. Never raises. Records the outcome via
+    :func:`get_last_refine_status` so the UI can flag a failing LLM.
+
+    Blocking (network I/O); the WS/REST callers run it off-thread. Prefer
+    :func:`maybe_refine_async` on the live-dictation path — it adds the hard
+    wall-clock bound so a slow endpoint can never delay the ``final`` send.
     """
     if not transcript or not transcript.strip():
         return None
-    try:
-        cfg = get_refinement_config()
-        if not cfg.get("auto", True):
-            return None
-        from services.llm_backend import get_active_llm_backend
+    cfg = get_refinement_config()
+    if not cfg.get("auto", True):
+        return None
+    from services.llm_backend import get_active_llm_backend
 
-        backend = get_active_llm_backend()
-        if backend.id == "off":
-            return None
-        refined = refine_transcript(transcript, RefinementFlags.from_dict(cfg))
+    backend = get_active_llm_backend()
+    if backend.id == "off":
+        # No LLM configured is not a failure — leave the last status untouched.
+        return None
+    try:
+        refined = refine_transcript(
+            transcript, RefinementFlags.from_dict(cfg), timeout_s=timeout_s
+        )
         if not refined:
             return None
+        _note_refine_status(ok=True)
         return refined
     except Exception as e:  # noqa: BLE001 — pass-through is the contract
         logger.warning("Dictation refinement skipped: %s", e)
+        _note_refine_status(ok=False, reason=_short_reason(e))
+        return None
+
+
+async def maybe_refine_async(
+    transcript: str, *, timeout_s: float | None = None
+) -> str | None:
+    """Async, hard-time-bounded refinement for the live-dictation final path.
+
+    Runs :func:`maybe_refine` off-thread under a hard ``OMNIVOICE_REFINE_TIMEOUT_S``
+    (~4s) budget so a slow or dead LLM endpoint can NEVER block the caller — and
+    therefore the dictation ``final`` send — longer than the budget. On timeout
+    (or any failure) it returns None and the raw, already-polished transcript
+    stands. Never raises.
+
+    ``asyncio.wait_for`` can't cancel the worker thread, but the LLM call it runs
+    is itself bounded to the same budget (see :func:`refine_transcript`), so an
+    orphaned thread unwinds shortly after rather than lingering the full 45s.
+    """
+    if not transcript or not transcript.strip():
+        return None
+    budget = timeout_s if timeout_s is not None else _refine_timeout_s()
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(maybe_refine, transcript, timeout_s=budget),
+            timeout=budget,
+        )
+    except asyncio.TimeoutError:
+        logger.warning(
+            "Dictation refinement exceeded its %.1fs budget — sending the "
+            "unrefined final (set OMNIVOICE_REFINE_TIMEOUT_S to adjust).", budget,
+        )
+        _note_refine_status(ok=False, reason="timeout")
+        return None
+    except Exception as e:  # noqa: BLE001 — best-effort; the raw final stands
+        logger.warning("Dictation refinement failed: %s", e)
+        _note_refine_status(ok=False, reason=_short_reason(e))
         return None

@@ -15,6 +15,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Wand2 } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
+import { useAppStore } from '../../store';
+import { refineFailureNote } from './refineStatus';
 import { SettingsSection, SettingRow, SettingsToggle } from './primitives';
 
 const FLAG_ROWS = [
@@ -78,6 +80,7 @@ export default function RefinementPanel() {
 
   if (!cfg) return null;
   const llmReady = Boolean(cfg.llm_ready);
+  const failureNote = refineFailureNote(cfg.last_refine_status);
 
   return (
     <SettingsSection
@@ -92,6 +95,19 @@ export default function RefinementPanel() {
       {error && (
         <div className="perfpanel__error" role="alert">
           {error}
+        </div>
+      )}
+
+      {failureNote && (
+        <div className="perfpanel__error" role="status">
+          {failureNote}{' '}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => useAppStore.getState().openSettingsTab('llm-providers')}
+          >
+            Open LLM Providers
+          </button>
         </div>
       )}
 

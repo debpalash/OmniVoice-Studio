@@ -11,6 +11,8 @@ The ASR backends are mocked — we're testing protocol, not transcription
 quality.
 """
 import os
+import time
+
 import pytest
 
 os.environ.setdefault("OMNIVOICE_MODEL", "test")
@@ -102,6 +104,45 @@ def test_empty_binary_frame_acts_as_eof(client):
                 break
         assert final is not None
         assert final["engine"] == "stub"
+
+
+def test_slow_llm_never_blocks_final_beyond_budget(client, monkeypatch):
+    """P0 regression (the measured ~51s stall): with refinement armed and a
+    slow/dead LLM, the `final` must arrive within the hard
+    OMNIVOICE_REFINE_TIMEOUT_S budget, NOT after the LLM's full latency.
+
+    Fail-before: the handler awaited ``maybe_refine`` unbounded, so a 3s (in
+    prod, ~51s) LLM held the `final` — the pill hung "Transcribing…". Pass-
+    after: the final ships the unrefined (but polished) text within the budget.
+    """
+    monkeypatch.setenv("OMNIVOICE_REFINE_TIMEOUT_S", "0.3")
+
+    def _slow(_t, **_kw):
+        time.sleep(3.0)  # a dead endpoint would never answer in the test window
+        return "REFINED (must never arrive)"
+
+    # Patch at the source module — the handler runs maybe_refine off-thread and
+    # maybe_refine_async resolves the name from services.refinement at call time.
+    monkeypatch.setattr("services.refinement.maybe_refine", _slow)
+
+    with client.websocket_connect("/ws/transcribe") as ws:
+        ws.send_bytes(_audio_chunk())
+        ws.send_text("EOF")
+        t0 = time.perf_counter()
+        final = None
+        for _ in range(10):
+            msg = ws.receive_json()
+            if msg.get("type") == "final":
+                final = msg
+                break
+        elapsed = time.perf_counter() - t0
+
+    assert final is not None, "server never delivered final"
+    # The unrefined, polished text — refinement timed out and fell back.
+    assert final["text"] == "Hello world."
+    assert "refined_text" not in final
+    # Well under the 3s LLM sleep; the 0.3s budget + overhead is the ceiling.
+    assert elapsed < 2.0, f"final blocked {elapsed:.1f}s on the slow LLM"
 
 
 # ── Capture-ASR background warm-up gating (dictation v2) ─────────────────────

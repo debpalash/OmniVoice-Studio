@@ -120,6 +120,15 @@ async def transcribe_audio(
         from services.refinement import collapse_repetitive_artifacts
         full_text = collapse_repetitive_artifacts(full_text)
 
+        # Cross-transport parity: deterministically polish the final text
+        # (leading capital + terminal punctuation) exactly like the live
+        # dictation socket (capture_ws) does, so the widget's POST fallback and
+        # MCP/CLI callers get the same typed-looking result the WS returns —
+        # not the raw "...test" the REST path used to leak. Segments stay raw
+        # (their timings/verbatim recognition are the contract).
+        from services.text_polish import polish_text
+        full_text = polish_text(full_text)
+
         # Calculate audio duration from segments if available
         duration = 0.0
         if segments:
@@ -135,8 +144,12 @@ async def transcribe_audio(
         if _truthy(refine) and full_text:
             from services.refinement import maybe_refine
             refined = await asyncio.to_thread(maybe_refine, full_text)
-            if refined and refined != full_text:
-                refined_text = refined
+            if refined:
+                # Polish the refined text too, so both surfaced strings read as
+                # typed text (mirrors the raw-vs-refined contract of the WS).
+                refined = polish_text(refined)
+                if refined != full_text:
+                    refined_text = refined
 
         logger.info(
             "Capture transcription done: engine=%s, elapsed=%.2fs, duration=%.1fs, mode=%s, refined=%s",

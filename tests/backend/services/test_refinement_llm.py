@@ -6,6 +6,9 @@ No real LLM: the active backend is monkeypatched. The pass-through contract
 
 from __future__ import annotations
 
+import asyncio
+import time
+
 import pytest
 
 from services import refinement
@@ -135,6 +138,79 @@ def test_maybe_refine_respects_flag_config(monkeypatch, stored_config):
     monkeypatch.setattr("services.llm_backend.get_active_llm_backend", lambda: fake)
     refinement.maybe_refine("hello world out there")
     assert "Preserve technical terms" not in fake.seen_messages[0]["content"]
+
+
+# ── maybe_refine_async: hard timeout budget (P0 — 51s stall) ─────────────────
+
+
+class _SlowBackend:
+    """A live-but-unresponsive LLM: accepts the call, never answers in time —
+    the class of endpoint (placeholder key, dead Ollama) that stalled dictation."""
+
+    id = "openai-compat"
+
+    def __init__(self, sleep_s=5.0):
+        self.sleep_s = sleep_s
+
+    def chat_messages(self, *, messages, timeout=None):
+        time.sleep(self.sleep_s)
+        return "too late"
+
+
+def test_refine_timeout_env_default_and_override(monkeypatch):
+    monkeypatch.delenv("OMNIVOICE_REFINE_TIMEOUT_S", raising=False)
+    assert refinement._refine_timeout_s() == 4.0
+    monkeypatch.setenv("OMNIVOICE_REFINE_TIMEOUT_S", "1.5")
+    assert refinement._refine_timeout_s() == 1.5
+    # Invalid / non-positive values can never disable the bound.
+    monkeypatch.setenv("OMNIVOICE_REFINE_TIMEOUT_S", "junk")
+    assert refinement._refine_timeout_s() == 4.0
+    monkeypatch.setenv("OMNIVOICE_REFINE_TIMEOUT_S", "-3")
+    assert refinement._refine_timeout_s() == 4.0
+
+
+def test_maybe_refine_async_hard_timeout_returns_none_fast(monkeypatch, stored_config):
+    """A slow LLM (5s) must NOT block past the 0.3s budget — the raw text stands
+    and the outcome is recorded as a timeout. Fail-before: the WS handler used
+    to `await asyncio.to_thread(maybe_refine, ...)` unbounded (the ~51s stall)."""
+    monkeypatch.setattr(
+        "services.llm_backend.get_active_llm_backend", lambda: _SlowBackend(3.0))
+
+    async def _timed():
+        # Measure the AWAIT inside the loop — the caller (the WS handler) is
+        # unblocked here, and the status is read at the instant dictation
+        # completes (before the orphaned to_thread finishes at loop shutdown;
+        # the long-lived app loop never waits on it).
+        t0 = time.perf_counter()
+        out = await refinement.maybe_refine_async("um hello there", timeout_s=0.3)
+        return out, time.perf_counter() - t0, refinement.get_last_refine_status()
+
+    out, dt, status = asyncio.run(_timed())
+    assert out is None
+    assert dt < 2.0, f"refinement blocked the caller {dt:.1f}s — the budget was 0.3s"
+    assert status and status["ok"] is False and status["reason"] == "timeout"
+
+
+def test_maybe_refine_async_success_records_ok(monkeypatch, stored_config):
+    fake = _FakeBackend("So the meeting is at 3pm.")
+    monkeypatch.setattr("services.llm_backend.get_active_llm_backend", lambda: fake)
+
+    out = asyncio.run(refinement.maybe_refine_async("so um the meeting is at 3pm"))
+    assert out == "So the meeting is at 3pm."
+    status = refinement.get_last_refine_status()
+    assert status and status["ok"] is True
+
+
+def test_maybe_refine_async_off_backend_is_noop(monkeypatch, stored_config):
+    class _Off:
+        id = "off"
+    monkeypatch.setattr("services.llm_backend.get_active_llm_backend", lambda: _Off())
+    assert asyncio.run(refinement.maybe_refine_async("some words here")) is None
+
+
+def test_maybe_refine_async_empty_transcript(stored_config):
+    assert asyncio.run(refinement.maybe_refine_async("")) is None
+    assert asyncio.run(refinement.maybe_refine_async("   ")) is None
 
 
 # ── Config round-trip ───────────────────────────────────────────────────────
