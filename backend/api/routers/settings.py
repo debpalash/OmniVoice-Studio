@@ -12,6 +12,7 @@ The state endpoint duplicates `/system/hf-token/state` (which lives on
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from dataclasses import asdict
@@ -571,6 +572,41 @@ def set_models_dir(body: _ModelsDirBody):
 
     user_env.set_user_env(_MODELS_DIR_ENV, path)
     return {"configured": path, "effective": _effective_models_dir(), "restart_required": True}
+
+
+# ── Storage report (Settings → Storage) ────────────────────────────────────
+# Per-volume disk totals + du-style sizes for everything the app owns (HF
+# model cache, app data subtotals, engine venvs, temp files) with server-side
+# warnings. Heavy directory walks run in a worker thread with per-category
+# deadlines and a 5-minute in-process cache (services.storage_report), so the
+# endpoint stays cheap on repeat Settings visits. Loopback-gated via the
+# router-level dep like every sibling.
+
+
+@router.get("/storage")
+async def get_storage_report(refresh: bool = Query(False)):
+    """Disk + per-category storage usage for the Settings → Storage panel.
+
+    `refresh=1` bypasses the 5-minute cache and rescans. `min_free_gb`
+    reuses the setup wizard's constant so both surfaces warn at the same
+    threshold.
+    """
+    from api.routers.setup.wizard import MIN_FREE_GB
+    from core.config import DATA_DIR
+    from services import storage_report
+
+    try:
+        return await asyncio.to_thread(
+            storage_report.get_report,
+            data_dir=DATA_DIR,
+            hf_cache_dir=_effective_models_dir(),
+            app_venv=storage_report.default_app_venv(),
+            min_free_gb=MIN_FREE_GB,
+            refresh=refresh,
+        )
+    except Exception:
+        logger.exception("storage report failed")
+        raise HTTPException(status_code=500, detail="Failed to compute storage report")
 
 
 # ── HF mirror endpoint (parity program Wave 4.3 / §R4 c) ──────────────────
