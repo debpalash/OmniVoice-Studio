@@ -1406,6 +1406,15 @@
     "hint_github_blocked": "Your network may block GitHub. Install Python 3.11+ from python.org (Add to PATH) and relaunch, or set UV_PYTHON_INSTALL_MIRROR — see docs/install/troubleshooting.md.",
     "hint_stuck": "The backend didn't finish starting. From source, run `uv sync` first and make sure `uv` and Python are on your PATH, then Retry. Check the log below (or Settings → Logs → Backend) for the exact stall point.",
     "hint_default": "Try \"Retry\" first. If it fails again, \"Clean & Retry\" will rebuild the environment from scratch.",
+    "ipc_lost": "Startup issue detected",
+    "ipc_lost_title": "The app can't finish starting",
+    "ipc_lost_body": "The window lost its connection to the app's core (Tauri IPC isn't responding) and the local backend hasn't answered yet. This usually happens when the WebView cache was corrupted by a crash or forced shutdown. The app keeps checking in the background and will continue automatically if the backend comes up.",
+    "ipc_lost_open_logs": "Open logs",
+    "ipc_lost_log_hint": "Couldn't open the folder automatically. Logs are at: {{path}}",
+    "ipc_lost_repair": "Repair and restart",
+    "ipc_lost_repairing": "Repairing…",
+    "ipc_lost_repair_confirm": "This clears the app's WebView cache (display data only — your voices, projects, and settings are untouched) and restarts OmniVoice Studio. Continue?",
+    "ipc_lost_repair_failed": "Automatic repair didn't work. Quit OmniVoice Studio, delete this folder, then start the app again: {{path}}",
     "lines": "{{count}} lines"
   },
   "direction": {

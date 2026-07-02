@@ -353,6 +353,39 @@ capacity is restored automatically (no app restart needed). Tune the bounds with
 **Raise** them for very long single files/generations, **lower** them to fail
 faster on a small machine.
 
+## 15. Stuck at "preparing" forever after a crash / BSOD (Windows)
+
+**Symptom:** after an unclean shutdown (Windows BSOD, forced power-off), every
+launch sits on the "preparing" splash indefinitely — even though the backend is
+actually healthy (its log shows models loaded, and
+`http://127.0.0.1:3900/health` answers `{"status":"ok"}` in a browser). The
+WebView log contains:
+
+```
+IPC custom protocol failed, Tauri will now use the postMessage interface instead
+TypeError: Failed to fetch
+```
+
+**Cause:** the crash corrupted the WebView2 profile cache at
+`%LOCALAPPDATA%\com.debpalash.omnivoice-studio\EBWebView`. Both the IPC custom
+protocol *and* its postMessage fallback break, so the splash never hears the
+"ready" signal from the app shell (issue #879).
+
+**Fix:** current builds handle this automatically — if the splash gets no IPC
+signal within ~10 s it checks the backend over plain HTTP and proceeds on its
+own; if the backend isn't up either, after ~45 s a recovery panel appears with
+**Repair and restart** (Windows), which clears the WebView cache and relaunches.
+Your voices, projects, and settings are not touched — only browser display data
+is cleared.
+
+On older builds (≤ 0.3.8), or if the automatic repair fails, do it manually:
+quit OmniVoice Studio, delete the folder below, then start the app again.
+
+<!-- validate: skip -->
+```powershell
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\com.debpalash.omnivoice-studio\EBWebView"
+```
+
 ## Dub: "translation engine needs the optional … package"
 
 **Symptom:** in the Dub tab, translating fails with e.g. *"The 'google'

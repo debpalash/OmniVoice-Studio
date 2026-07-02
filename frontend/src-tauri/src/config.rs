@@ -154,7 +154,9 @@ pub fn load_config_pre_app() -> AppConfig {
         .unwrap_or_default()
 }
 
-const BUNDLE_IDENTIFIER: &str = "com.debpalash.omnivoice-studio";
+/// Also used by `commands::webview_cache_paths` (#879) to locate the WebView2
+/// profile cache before an `AppHandle` exists.
+pub const BUNDLE_IDENTIFIER: &str = "com.debpalash.omnivoice-studio";
 
 fn config_path_pre_app() -> Option<PathBuf> {
     portable_config_file()

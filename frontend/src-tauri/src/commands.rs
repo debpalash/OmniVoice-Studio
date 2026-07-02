@@ -441,3 +441,103 @@ pub fn save_text_file(path: String, contents: String) -> Result<(), String> {
     }
     std::fs::write(p, contents).map_err(|e| format!("write: {e}"))
 }
+
+// ── WebView cache repair (issue #879) ─────────────────────────────────────
+//
+// After an unclean shutdown (e.g. a Windows BSOD), WebView2's profile cache
+// (%LOCALAPPDATA%\<identifier>\EBWebView) can corrupt. Tauri's IPC custom
+// protocol then fails ("IPC custom protocol failed, Tauri will now use the
+// postMessage interface instead") and the postMessage fallback can break too,
+// so the splash never hears bootstrap events even with a healthy backend.
+// The splash's recovery panel (Windows-only affordance, error-state only)
+// calls `clear_webview_cache_and_relaunch` to fix it in one click.
+//
+// Deleting EBWebView from inside a running app fails — the WebView2 browser
+// processes hold locks on the profile — so this is a two-step dance:
+//   1. the command writes a marker file next to the cache and relaunches;
+//   2. the fresh process calls `clear_webview_cache_if_marked()` at the very
+//      top of `run()`, before any webview exists, and deletes the cache
+//      there — retrying briefly while the old instance's WebView2 children
+//      finish exiting.
+//
+// Everything below compiles on every platform (runtime `cfg!` guards, not
+// `#[cfg]`) so a macOS/Linux `cargo check` validates the whole path; the
+// behavior itself is Windows-only and the frontend never renders the button
+// elsewhere.
+
+const CLEAR_WEBVIEW_MARKER: &str = ".clear-webview-cache";
+const WEBVIEW_CACHE_DIR: &str = "EBWebView";
+
+/// (marker file, cache dir) under the pre-app local data dir. Mirrors
+/// `config::config_path_pre_app()` — `%LOCALAPPDATA%\<identifier>` on
+/// Windows — because step 2 runs before an `AppHandle` exists.
+fn webview_cache_paths() -> Option<(PathBuf, PathBuf)> {
+    let base = dirs_next::data_local_dir()?.join(crate::config::BUNDLE_IDENTIFIER);
+    Some((base.join(CLEAR_WEBVIEW_MARKER), base.join(WEBVIEW_CACHE_DIR)))
+}
+
+#[tauri::command]
+pub fn clear_webview_cache_and_relaunch(app: tauri::AppHandle) -> Result<(), String> {
+    if !cfg!(target_os = "windows") {
+        return Err("WebView cache repair is only available on Windows (WebView2)".into());
+    }
+    let (marker, cache) = webview_cache_paths()
+        .ok_or_else(|| "could not resolve the local app data directory".to_string())?;
+    if let Some(parent) = marker.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    fs::write(&marker, b"requested by the splash recovery panel (issue #879)\n")
+        .map_err(|e| format!("write {}: {e}", marker.display()))?;
+    log::warn!(
+        "WebView cache repair requested (#879) — relaunching to clear {}",
+        cache.display()
+    );
+    app.restart()
+}
+
+/// Startup half of the repair: if the previous run left the marker, delete
+/// the WebView2 profile cache before any webview is created. Called at the
+/// top of `run()`. One-shot by design — the marker is removed first so a
+/// failing repair can never loop across launches.
+pub fn clear_webview_cache_if_marked() {
+    if !cfg!(target_os = "windows") {
+        return;
+    }
+    let Some((marker, cache)) = webview_cache_paths() else {
+        return;
+    };
+    if !marker.exists() {
+        return;
+    }
+    let _ = fs::remove_file(&marker);
+    if !cache.exists() {
+        return;
+    }
+    // `app.restart()` spawns the new process before the old one has fully
+    // exited, so its WebView2 children may still hold locks — retry briefly.
+    const ATTEMPTS: u32 = 20;
+    for attempt in 1..=ATTEMPTS {
+        match fs::remove_dir_all(&cache) {
+            Ok(()) => {
+                log::warn!(
+                    "cleared WebView2 profile cache at {} (attempt {attempt}) — issue #879 repair",
+                    cache.display()
+                );
+                return;
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return,
+            Err(e) if attempt < ATTEMPTS => {
+                log::debug!("WebView2 cache still locked ({e}) — retrying");
+                std::thread::sleep(Duration::from_millis(500));
+            }
+            Err(e) => {
+                // Never brick startup over a failed repair: WebView2 rebuilds
+                // whatever subset survived, and the user can retry.
+                log::error!(
+                    "could not fully clear WebView2 cache at {}: {e} — continuing startup",
+                    cache.display()
+                );
+            }
+        }
+    }
+}

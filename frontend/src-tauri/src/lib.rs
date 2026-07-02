@@ -205,6 +205,11 @@ mod media_permission_tests {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // #879: if the previous run requested a WebView cache repair (splash
+    // recovery panel → clear_webview_cache_and_relaunch), perform it now —
+    // before any webview exists, so WebView2 holds no locks on the profile.
+    commands::clear_webview_cache_if_marked();
+
     // ── Detect pill mode from CLI args OR persisted config ────────────────
     // CLI flag takes precedence. If not passed, fall back to the
     // `launch_as_widget` config field (set via tray "Switch to Pill Mode" or
@@ -263,6 +268,7 @@ pub fn run() {
             commands::set_dictation_shortcut,
             commands::get_launch_as_widget,
             commands::set_launch_as_widget,
+            commands::clear_webview_cache_and_relaunch,
         ])
         .setup(move |app| {
             app.handle().plugin(tauri_plugin_dialog::init())?;
