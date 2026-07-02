@@ -111,3 +111,43 @@ def test_guard_without_reset_still_bounds(model_manager):
     finally:
         release.set()
         ex.shutdown(wait=False)
+
+
+# ── Device-aware timeout guidance (#896) ────────────────────────────────────
+# A CPU-only host was told "the GPU is VRAM-starved … set the engine to CPU
+# in Settings" — nonsense when the resolved device already IS cpu.
+
+def _guidance_for(monkeypatch, family):
+    import types
+    from services import model_manager as mm
+    import core.device_caps as caps
+    monkeypatch.setattr(
+        caps, "detect_host_caps", lambda: types.SimpleNamespace(family=family)
+    )
+    return mm._timeout_guidance("TTS generate", 300.0)
+
+
+def test_cpu_host_gets_compute_bound_guidance(monkeypatch):
+    msg = _guidance_for(monkeypatch, "cpu")
+    assert "VRAM" not in msg
+    assert "set the engine to CPU" not in msg
+    assert "compute-bound" in msg
+    assert "OMNIVOICE_GENERATE_TIMEOUT_S" in msg
+
+
+def test_gpu_host_keeps_vram_guidance(monkeypatch):
+    msg = _guidance_for(monkeypatch, "cuda")
+    assert "VRAM-starved" in msg
+    assert "set the engine to CPU" in msg
+
+
+def test_probe_failure_defaults_to_gpu_wording(monkeypatch):
+    import core.device_caps as caps
+    from services import model_manager as mm
+
+    def _boom():
+        raise RuntimeError("probe failed")
+
+    monkeypatch.setattr(caps, "detect_host_caps", _boom)
+    msg = mm._timeout_guidance("TTS generate", 300.0)
+    assert "VRAM-starved" in msg  # conservative default, never crashes

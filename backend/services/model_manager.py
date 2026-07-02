@@ -249,15 +249,38 @@ async def run_on_gpu_pool_guarded(fn, *, what: str = "GPU job",
                 )
             except Exception:
                 logger.exception("GPU pool reset after %s timeout failed", what)
-        raise GpuJobTimeoutError(
-            f"{what} exceeded {timeout:.0f}s and was abandoned — the backend is "
-            "running, but the job was too heavy for the available compute. Most "
-            "often the GPU is VRAM-starved (a resident model and this job contend "
-            "for memory). Capacity was restored automatically; for a durable fix "
-            "try shorter text, a lighter engine, or set the engine to CPU in "
-            "Settings → Models. (Raise OMNIVOICE_GENERATE_TIMEOUT_S for very long "
-            "single generations.)"
+        raise GpuJobTimeoutError(_timeout_guidance(what, timeout))
+
+
+def _timeout_guidance(what: str, timeout: float) -> str:
+    """Device-aware timeout message (#896): a CPU-only host must never be told
+    to "set the engine to CPU" or blamed on VRAM — on CPU the job is simply
+    compute-bound. GPU hosts keep the VRAM-contention guidance."""
+    family = "cuda"  # conservative default: GPU wording if the probe fails
+    try:
+        from core.device_caps import detect_host_caps
+        family = detect_host_caps().family
+    except Exception:  # noqa: BLE001 — guidance must never mask the timeout
+        pass
+    common = (
+        f"{what} exceeded {timeout:.0f}s and was abandoned — the backend is "
+        "running, but the job was too heavy for the available compute. "
+        "Capacity was restored automatically; "
+    )
+    if family == "cpu":
+        return common + (
+            "this machine renders on CPU, where long generations are "
+            "compute-bound. For a durable fix try shorter text or a lighter "
+            "engine (OmniVoice GGUF and Supertonic-3 are CPU-tuned). If you "
+            "expect very long single generations, raise "
+            "OMNIVOICE_GENERATE_TIMEOUT_S."
         )
+    return common + (
+        "most often the GPU is VRAM-starved (a resident model and this job "
+        "contend for memory). For a durable fix try shorter text, a lighter "
+        "engine, or set the engine to CPU in Settings → Models. (Raise "
+        "OMNIVOICE_GENERATE_TIMEOUT_S for very long single generations.)"
+    )
 
 
 model = None  # type: ignore
