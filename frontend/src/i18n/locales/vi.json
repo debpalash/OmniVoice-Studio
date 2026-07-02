@@ -204,6 +204,7 @@
     "hint_port": "Cổng 3900 đang được sử dụng. Hãy đóng các phiên bản OmniVoice khác hoặc ứng dụng đang dùng cổng đó.",
     "hint_silent_crash": "Backend bị lỗi mà không có thông báo. \"Dọn dẹp & Thử lại\" thường khắc phục được sự cố venv bị hỏng.",
     "hint_github_blocked": "Mạng của bạn có thể đang chặn GitHub. Cài Python 3.11+ từ python.org (thêm vào PATH) rồi khởi động lại, hoặc đặt UV_PYTHON_INSTALL_MIRROR — xem docs/install/troubleshooting.md.",
+    "hint_intel_mac": "Máy Mac này dùng vi xử lý Intel và PyTorch không còn phát hành bản dựng cho Mac Intel — không thể cài backend AI cục bộ, và thử lại cũng không thay đổi được. Bạn vẫn có thể trỏ ứng dụng tới backend từ xa chạy trên máy khác (Cài đặt → Chia sẻ → Backend từ xa), hoặc dùng OmniVoice trên Mac Apple Silicon, Windows hoặc Linux. Chi tiết: docs/install/macos.md.",
     "hint_default": "Hãy thử \"Thử lại\" trước. Nếu vẫn lỗi, \"Dọn dẹp & Thử lại\" sẽ xây dựng lại môi trường từ đầu.",
     "hint_stuck": "Phần phụ trợ chưa hoàn thành việc bắt đầu. Từ nguồn, trước tiên hãy chạy `uv sync` và đảm bảo `uv` và Python nằm trên PATH của bạn, sau đó Thử lại. Kiểm tra nhật ký bên dưới (hoặc Cài đặt → Nhật ký → Phần cuối) để biết điểm dừng chính xác.",
     "lines": "{{count}} dòng"

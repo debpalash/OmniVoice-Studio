@@ -204,6 +204,7 @@
     "hint_port": "Poort 3900 is al in gebruik. Sluit andere OmniVoice-instanties of apps die deze poort gebruiken.",
     "hint_silent_crash": "De backend is zonder foutmelding gecrasht. \"Wissen & Opnieuw proberen\" verhelpt vaak problemen met een corrupte venv.",
     "hint_github_blocked": "Je netwerk blokkeert mogelijk GitHub. Installeer Python 3.11+ van python.org (voeg toe aan PATH) en herstart, of stel UV_PYTHON_INSTALL_MIRROR in — zie docs/install/troubleshooting.md.",
+    "hint_intel_mac": "Deze Mac heeft een Intel-processor en PyTorch levert geen Intel-Mac-builds meer — de lokale AI-backend kan niet worden geïnstalleerd, en opnieuw proberen verandert daar niets aan. Je kunt de app wel verbinden met een remote backend op een andere machine (Instellingen → Delen → Remote backend), of OmniVoice gebruiken op een Apple Silicon Mac, Windows of Linux. Details: docs/install/macos.md.",
     "hint_default": "Probeer eerst \"Opnieuw proberen\". Mislukt het weer, dan bouwt \"Wissen & Opnieuw proberen\" de omgeving helemaal opnieuw op.",
     "hint_stuck": "De backend is niet voltooid. Voer vanuit de broncode eerst `uv sync` uit en zorg ervoor dat `uv` en Python zich op uw PATH bevinden, en probeer het vervolgens opnieuw. Controleer het onderstaande logboek (of Instellingen → Logboeken → Backend) voor het exacte stallpunt.",
     "lines": "{{count}} lijnen"

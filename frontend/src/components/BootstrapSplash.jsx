@@ -99,6 +99,11 @@ function detectHints(message, logs) {
   if (/seems stuck at|never reported ready/i.test(all)) hints.push('bootstrap.hint_stuck');
   if (/blocking GitHub|couldn't download Python|python-build-standalone|dns error/i.test(all))
     hints.push('bootstrap.hint_github_blocked');
+  // Intel-Mac backend unsupported (#889): PyTorch ships no macOS x86_64
+  // wheels, so bootstrap.rs pre-fails with this message before any sync.
+  if (/Intel Macs can't run the local AI backend/i.test(all)) {
+    return ['bootstrap.hint_intel_mac']; // retrying can never help — show only this
+  }
   if (hints.length === 0) hints.push('bootstrap.hint_default');
   return hints;
 }

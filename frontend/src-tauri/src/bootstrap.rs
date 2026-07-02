@@ -503,6 +503,26 @@ Fix: install Python 3.11+ from https://www.python.org/downloads/ (tick \"Add to 
 then relaunch — OmniVoice will use your system Python. Advanced: set \
 UV_PYTHON_INSTALL_MIRROR to a reachable mirror (see docs/install/troubleshooting.md).";
 
+/// #889: PyTorch stopped shipping macOS x86_64 wheels after 2.2.x, and the
+/// locked dependency set needs a far newer torch (transformers 5.x requires
+/// ≥2.6) — so `uv sync` can never resolve on an Intel Mac and the local
+/// backend is unsupported there. Surfaced *before* any venv create/sync so
+/// Intel-Mac users see this immediately instead of a raw resolver error after
+/// minutes of downloads. Deliberately NOT checked when a healthy venv already
+/// exists, so any pre-torch-bump install that still works keeps working.
+const INTEL_MAC_UNSUPPORTED_MSG: &str =
+    "Intel Macs can't run the local AI backend — PyTorch no longer ships Intel-Mac (macOS x86_64) \
+builds, so the Python environment can't be installed on this machine. The app UI works, but local \
+voice generation is unavailable here. Options: point the app at a remote backend running on \
+another machine (Settings → Sharing → Remote backend), or use an Apple Silicon Mac / Windows / \
+Linux. See docs/install/macos.md (#889).";
+
+/// True on macOS x86_64 builds (#889). `cfg!` (not `#[cfg]`) keeps the guard
+/// compiled — and the message testable — on every platform.
+fn intel_mac_backend_unsupported() -> bool {
+    cfg!(all(target_os = "macos", target_arch = "x86_64"))
+}
+
 /// Strip the bundled-runtime Python env vars before spawning any `uv`/venv/pip
 /// or venv-python subprocess (#144). On the Linux AppImage, the bundled runtime
 /// exports PYTHONHOME / PYTHONPATH (and sometimes LD_LIBRARY_PATH) pointing at
@@ -891,6 +911,12 @@ the existing venv; newly added dependencies may be missing (#307)",
                 venv_dir.display()
             );
         }
+        // #889: a repair sync on an Intel Mac would just re-fail on the torch
+        // resolution — surface the real reason instead of the raw uv error.
+        if intel_mac_backend_unsupported() {
+            fail(progress, INTEL_MAC_UNSUPPORTED_MSG);
+            return None;
+        }
         if let Some(p) = progress {
             set_stage(p, BootstrapStage::InstallingDeps);
         }
@@ -983,6 +1009,15 @@ the existing venv; newly added dependencies may be missing (#307)",
             return Some((venv_py, backend_dir));
         }
         fail(progress, &format!("Repair uv sync failed: {:?}", repair_status));
+        return None;
+    }
+
+    // #889: pre-check before creating a venv or attempting any `uv sync`. A
+    // first-run install on an Intel Mac can only ever end in an unresolvable
+    // torch dependency, so fail fast with the honest message — before any
+    // download starts.
+    if intel_mac_backend_unsupported() {
+        fail(progress, INTEL_MAC_UNSUPPORTED_MSG);
         return None;
     }
 
@@ -1276,6 +1311,18 @@ mod tests {
         assert!(removed.contains("PYTHONHOME"), "PYTHONHOME must be scrubbed");
         assert!(removed.contains("PYTHONPATH"), "PYTHONPATH must be scrubbed");
         assert!(removed.contains("LD_LIBRARY_PATH"), "LD_LIBRARY_PATH must be scrubbed");
+    }
+
+    #[test]
+    fn intel_mac_message_keeps_its_contract_phrases() {
+        // #889: BootstrapSplash.jsx routes this failure to the localized
+        // `bootstrap.hint_intel_mac` hint by matching the lead phrase, and the
+        // message must keep pointing users at the docs + the remote-backend
+        // escape hatch. Guard those load-bearing fragments against rewording.
+        assert!(INTEL_MAC_UNSUPPORTED_MSG.contains("Intel Macs can't run the local AI backend"));
+        assert!(INTEL_MAC_UNSUPPORTED_MSG.contains("docs/install/macos.md"));
+        assert!(INTEL_MAC_UNSUPPORTED_MSG.contains("Sharing → Remote backend"));
+        assert!(INTEL_MAC_UNSUPPORTED_MSG.contains("#889"));
     }
 
     #[test]

@@ -179,9 +179,11 @@ falling back to faster-whisper`.
 
 **Cause:** `mlx-whisper` and `mlx-audio` only build for arm64 (Apple Silicon).
 
-**Fix:** none needed — `faster-whisper` (CTranslate2) is the supported Intel
-path and is still fast. If you want the latest CT2 wheels, run `uv sync`
-from a fresh source checkout.
+**Fix:** none needed on Apple Silicon setups that log this transiently. Note
+that Intel Macs can no longer run the local backend at all — PyTorch dropped
+Intel-Mac wheels, so this entry only applies to historical installs (see
+[macos.md](macos.md) and
+[#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)).
 
 ## 10. Windows: `Could not locate cudnn_ops_infer64_8.dll` during transcription
 

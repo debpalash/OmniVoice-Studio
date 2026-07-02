@@ -49,6 +49,47 @@ Download the latest MSI from the
 run it, follow the wizard. The shortcut lands in the Start menu as
 **OmniVoice Studio**.
 
+## Portable install (Windows)
+
+<a id="portable-install"></a>
+
+OmniVoice Studio has a **Portable** mode: instead of scattering data across
+`%APPDATA%` and `%LOCALAPPDATA%`, the whole install — Python env, model
+weights, voices, projects, settings — lives in a single
+`OmniVoiceStudio-Data` folder created **next to the executable**. Moving or
+copying the app folder (exe + that data folder together) relocates the entire
+install, USB-stick style.
+
+The first-run setup screen offers Portable whenever the folder next to
+`OmniVoice Studio.exe` is writable. A default MSI install goes to
+`C:\Program Files`, which is *not* user-writable — that's why Portable shows
+as greyed out after a default install
+([#766](https://github.com/debpalash/OmniVoice-Studio/issues/766)). To enable
+it, install to a user-writable folder instead:
+
+- Re-run the MSI and choose a custom destination folder in the setup wizard
+  (e.g. `D:\Apps\OmniVoice`), or
+- From a terminal:
+  `msiexec /i OmniVoice.Studio_<version>_x64_en-US.msi INSTALLDIR="D:\Apps\OmniVoice"`
+
+On the next launch, pick **Portable** on the first-run setup screen. What
+lives next to the exe afterwards:
+
+<!-- validate: skip -->
+```
+D:\Apps\OmniVoice\
+├── OmniVoice Studio.exe        ← the app
+└── OmniVoiceStudio-Data\       ← the whole install, self-contained
+    ├── config.json             ← install-mode + app settings
+    ├── env\                    ← Python venv + backend code
+    └── data\                   ← voices, projects, settings DB
+        └── models\             ← model weights (HF cache)
+```
+
+Prefer the default Program Files install? **Installed** mode is the same app —
+data just lives in `%APPDATA%\OmniVoice` and the model cache in
+`%LOCALAPPDATA%\OmniVoice\hf_cache`.
+
 ## HF_TOKEN persistence
 
 The **recommended path** is the in-app **Settings → API Keys** panel: it
