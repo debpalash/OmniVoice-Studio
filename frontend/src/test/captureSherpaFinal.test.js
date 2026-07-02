@@ -196,7 +196,7 @@ describe('captureWaveform', () => {
 
   describe('createWaveform', () => {
     it('returns all-zero bars before any audio arrives', () => {
-      expect(createWaveform().getBars(8)).toEqual(new Array(8).fill(0));
+      expect(createWaveform().getBars(8)).toEqual(Array.from({ length: 8 }, () => 0));
     });
 
     it('reacts within the ~100 ms liveness budget (bars move after ≤2 frames)', () => {

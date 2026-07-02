@@ -271,7 +271,7 @@ export default function CaptureWidget({ onDismiss }) {
   const [modelStatus, setModelStatus] = useState(null);
   // Live waveform bars (0..1 heights). Only fed on the raw-PCM paths where the
   // micCapture AudioWorklet already emits frames — no second audio pipeline.
-  const [bars, setBars] = useState(() => new Array(WAVE_BARS).fill(0));
+  const [bars, setBars] = useState(() => Array.from({ length: WAVE_BARS }, () => 0));
   const [waveOn, setWaveOn] = useState(false);
 
   // Live-dictation prefs (mirrored from the backend dictation.* namespace).
@@ -1013,7 +1013,7 @@ export default function CaptureWidget({ onDismiss }) {
       startTimeRef.current = Date.now();
       setTrayRecording(true);
       setWaveOn(pcmMode);
-      setBars(new Array(WAVE_BARS).fill(0));
+      setBars(Array.from({ length: WAVE_BARS }, () => 0));
       setState('recording');
       setTranscript('');
       setPartialText('');

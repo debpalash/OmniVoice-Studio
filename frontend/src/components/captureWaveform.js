@@ -63,7 +63,7 @@ export function createWaveform({ capacity = 48, attack = 0.6, release = 0.25 } =
      * (RMS ≈ 0.05) still reads as movement.
      */
     getBars(n) {
-      const bars = new Array(n).fill(0);
+      const bars = Array.from({ length: n }, () => 0);
       const take = Math.min(n, count);
       for (let i = 0; i < take; i++) {
         const idx = (head - 1 - i + capacity * 2) % capacity;
