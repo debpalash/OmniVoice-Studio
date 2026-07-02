@@ -24,6 +24,7 @@ The dictation release — and a deep reliability pass driven by live-testing the
 
 ### Changed
 
+- **Launchpad feature cards now fill the window.** The seven cards (Voice Clone, Voice Design, Video Dubbing, Stories, Audiobook, Voice Gallery, Transcripts) span the full content width on a maximized display instead of a fixed ~780px fan, and reflow responsively (7→3→1 columns) down to the 900×600 minimum — driven by the shell's own width, keeping the animated card faces, hover/keyboard-focus raise, and reduced-motion fallback. (#915)
 - **LLM Providers settings, de-confused.** The old inline "LLM endpoint" box in Translation is gone — LLM Providers is now the one place that owns it. Fields pinned by an environment variable are shown disabled with an explainer instead of silently reverting, the make-active button explains when a provider is env-pinned, and the Cloudflare Account ID is remembered and editable. (#907)
 - **Intel Macs: honestly unsupported for the local backend.** PyTorch no longer ships Intel-Mac builds, so the backend cannot run there; instead of a cryptic dependency error, Intel users now get a clear explanation up front (with the remote-backend option), and the README/docs say so plainly. (#889, #891)
 
@@ -54,6 +55,7 @@ The dictation release — and a deep reliability pass driven by live-testing the
 
 ### CI
 
+- **A migration can no longer silence the app's logs.** Alembic's startup config was disabling every existing logger process-wide (a latent bug the new pre-migration backup logging exposed); fixed, and the migration-safety tests are now immune to full-suite ordering. (#909, #917)
 - **Deterministically green tests + real install proof.** Tests can no longer read the developer's real `.env` or app data (the order-dependent flake class, #878, #894), and a new cross-platform install-test workflow builds all four installers and proves a real first run — model download plus verified synthesis — on macOS, Windows, and Linux runners.
 
 ## [0.3.8] — 2026-07-01
