@@ -56,40 +56,8 @@ function DubThumb({ jobId, fallback }) {
 
 // Squiggle was replaced by the .lp-hero__sweep span — a pure-CSS animated
 // accent line under the H1. Less static, no SVG dependency.
-
-/**
- * ActionCard — the flat Launchpad tiles (narrow-shell fallback for the deck).
- * Reads its accent from a
- * single `--card-hue` var so the CSS derives background / border / glow /
- * spotlight from one hex color. Cursor-tracking spotlight: pointer events
- * set --mx/--my so `.lp-glow-layer` can paint a radial gradient at the
- * cursor position. Eternal breath ring lives on `.lp-glow-layer::after`
- * and pulses forever whether the card is hovered or not.
- */
-function ActionCard({ hue, Icon, title, count, onClick, children }) {
-  const handleMouseMove = (e) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`);
-    e.currentTarget.style.setProperty('--my', `${e.clientY - r.top}px`);
-  };
-  return (
-    <button
-      type="button"
-      className="lp-action-card lp-animate lp-glow-card"
-      onClick={onClick}
-      onMouseMove={handleMouseMove}
-      style={{ '--card-hue': hue }}
-    >
-      <span className="lp-glow-layer" aria-hidden="true" />
-      {count > 0 && <span className="card-count">{count}</span>}
-      <div className="card-icon">
-        <Icon size={18} color={hue} />
-      </div>
-      <h3>{title}</h3>
-      <p className="card-desc">{children}</p>
-    </button>
-  );
-}
+// The feature-card tile (.lp-action-card + waveform + hover-forward) lives in
+// components/LaunchpadDeck.jsx — one card, one rendering, at every shell width.
 
 export default function Launchpad({
   profiles,
@@ -115,9 +83,9 @@ export default function Launchpad({
   // off" strip. exportHistory arrives newest-first from /export/history.
   const recentFiles = exportHistory.slice(0, 4);
 
-  // The seven feature cards — single source for BOTH renderings (deck fan on
-  // wide shells, flat ActionCard grid on narrow ones) so hues, i18n keys,
-  // counts and navigation targets can never drift between the two branches.
+  // The seven feature cards — single source of truth for the full-width
+  // responsive grid (LaunchpadDeck) so hues, i18n keys, counts and navigation
+  // targets stay in one place.
   const features = [
     {
       key: 'clone',
@@ -259,29 +227,15 @@ export default function Launchpad({
         </div>
       </div>
 
-      {/* Feature cards — deck-of-cards fan on wide shells; the flat grid
-          below is the narrow/mini fallback (same features, same order, same
-          navigation — only the presentation degrades). */}
-      {!shellNarrow ? (
-        <div className="relative z-[1] py-[4px] px-[44px]">
-          <LaunchpadDeck features={features} />
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-[12px] py-[4px] px-[44px] relative z-[1] max-[900px]:pt-0 max-[900px]:px-[20px] max-[900px]:pb-[16px] max-[900px]:[grid-template-columns:repeat(auto-fit,minmax(180px,1fr))] max-[640px]:grid-cols-1 max-[640px]:pt-0 max-[640px]:px-[12px] max-[640px]:pb-[12px]">
-          {features.map((f) => (
-            <ActionCard
-              key={f.key}
-              hue={f.hue}
-              Icon={f.Icon}
-              title={f.title}
-              count={f.count}
-              onClick={f.go}
-            >
-              {f.desc}
-            </ActionCard>
-          ))}
-        </div>
-      )}
+      {/* Feature cards — one full-width, responsive grid at every shell width.
+          It reflows its column count from the shell's OWN width (see
+          LaunchpadDeck), filling a maximized display edge-to-edge and packing
+          down to the 900×600 minimum without a viewport @media. `shellNarrow`
+          (the app-container's own width class) only tunes how comfortably the
+          columns pack. */}
+      <div className="py-[4px] px-[44px] relative z-[1] max-[900px]:px-[20px] max-[640px]:px-[12px]">
+        <LaunchpadDeck features={features} narrow={shellNarrow} />
+      </div>
 
       {/* Recent files from OmniDrive — last few exports, with a jump to the
           full file browser (the Projects/OmniDrive page). */}

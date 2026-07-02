@@ -1,13 +1,16 @@
-// Launchpad deck-of-cards regression suite (feat/launchpad-deck).
+// Launchpad feature-card regression suite (feat/launchpad-fullwidth).
 //
-// The launchpad's seven feature cards render as an overlapping left→right
-// fan on wide shells; hovering or keyboard-focusing any card raises it
-// (`--front`) while every other card tucks toward/under it (`--tuck-r` /
-// `--tuck-l`). On `shell-narrow`/`shell-mini` shells (the app-container's
-// own width classes — NOT viewport @media) the deck degrades to the
-// pre-existing flat ActionCard grid. Both branches share one feature list,
-// so these tests pin: card count + order, navigation targets, the
-// raise/tuck interaction for pointer AND focus, and the narrow fallback.
+// PR #904 fanned the seven feature cards into a fixed ~780px deck; this reworks
+// them into a full-width, responsive grid (`.lp-cards`) that reflows its column
+// count from the shell's OWN width — `repeat(auto-fit, minmax(--lp-card-min,
+// 1fr))`, never a viewport @media. The grid renders at EVERY shell width (no
+// deck-vs-fallback split); `useShellNarrow` only widens the card floor
+// (`--lp-card-min`) so narrow shells pack fewer, comfier columns. Each card
+// keeps #904's character: hue accent, count badge, animated waveform, and a
+// hover/focus-forward raise (class-driven from React state so pointer and
+// keyboard share one path). These tests pin: card count + order, that the cards
+// fill width via the grid (not a fixed deck), the narrow-vs-wide responsive
+// floor, navigation targets, and the raise interaction for pointer AND focus.
 import React from 'react';
 import { act, fireEvent, render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -20,7 +23,7 @@ import Launchpad from '../pages/Launchpad';
 // under test here.
 vi.mock('../components/ReadinessChecklist', () => ({ default: () => null }));
 
-// Feature order is part of the contract: deck slot i = grid slot i.
+// Feature order is part of the contract: grid slot i = feature i.
 const FEATURE_NAMES = [
   'Voice Clone',
   'Voice Design',
@@ -57,24 +60,49 @@ function renderShell(props, shellClass = 'app-container') {
   );
 }
 
-const deckCards = (container) => [...container.querySelectorAll('.lp-deck-card')];
+const cardEls = (container) => [...container.querySelectorAll('.lp-action-card')];
+const cardTitles = (container) => cardEls(container).map((c) => c.querySelector('h3').textContent);
+const cardMin = (container) =>
+  container.querySelector('.lp-cards').style.getPropertyValue('--lp-card-min').trim();
 
-describe('Launchpad deck (wide shell)', () => {
-  it('renders all 7 features as deck cards, in the canonical order', () => {
+describe('Launchpad feature cards (full-width grid)', () => {
+  it('renders all 7 features as grid cards, in the canonical order', () => {
     const { container } = renderShell(makeProps());
-    const cards = deckCards(container);
+    const cards = cardEls(container);
     expect(cards).toHaveLength(7);
-    expect(cards.map((c) => c.querySelector('.lp-deck-card__name').textContent)).toEqual(
-      FEATURE_NAMES,
-    );
-    // Deck replaces the grid on wide shells — never both.
-    expect(container.querySelectorAll('.lp-action-card')).toHaveLength(0);
+    expect(cardTitles(container)).toEqual(FEATURE_NAMES);
+  });
+
+  it('lays the cards out in the full-width grid, not a fixed-width deck', () => {
+    const { container } = renderShell(makeProps());
+    const grid = container.querySelector('.lp-cards');
+    expect(grid).not.toBeNull();
+    // Every card is a direct child of the one grid — no leftover deck fan.
+    expect(container.querySelectorAll('.lp-deck, .lp-deck-card')).toHaveLength(0);
+    expect(grid.querySelectorAll(':scope > .lp-action-card')).toHaveLength(7);
+    // The grid's responsive column floor is wired (auto-fit minmax reads it).
+    expect(cardMin(container)).toBe('200px');
+  });
+
+  it('uses a wider card floor on narrow shells — responsive columns, same 7 cards', () => {
+    const wide = renderShell(makeProps());
+    const narrow = renderShell(makeProps(), 'app-container shell-narrow');
+    const mini = renderShell(makeProps(), 'app-container shell-mini');
+
+    // The only responsive knob differs by the shell's OWN width class…
+    expect(cardMin(wide.container)).toBe('200px');
+    expect(cardMin(narrow.container)).toBe('240px');
+    expect(cardMin(mini.container)).toBe('240px');
+    // …but every shell renders the same seven cards (nothing is dropped).
+    for (const r of [wide, narrow, mini]) {
+      expect(cardTitles(r.container)).toEqual(FEATURE_NAMES);
+    }
   });
 
   it('every card keeps its navigation target', () => {
     const setMode = vi.fn();
     const { container } = renderShell(makeProps({ setMode }));
-    const cards = deckCards(container);
+    const cards = cardEls(container);
     const modeTargets = [
       [2, 'dub'],
       [3, 'stories'],
@@ -91,7 +119,7 @@ describe('Launchpad deck (wide shell)', () => {
   it('clone/design cards open the studio preset to the matching method', () => {
     const setMode = vi.fn();
     const { container } = renderShell(makeProps({ setMode }));
-    const cards = deckCards(container);
+    const cards = cardEls(container);
 
     act(() => useAppStore.getState().setDefineMethod('design'));
     fireEvent.click(cards[0]); // Voice Clone
@@ -103,90 +131,70 @@ describe('Launchpad deck (wide shell)', () => {
     expect(useAppStore.getState().defineMethod).toBe('design');
   });
 
-  it('hovering a card raises it and tucks every other card toward it', () => {
+  it('hovering a card raises it forward; the others stay put', () => {
     const { container } = renderShell(makeProps());
-    const deck = container.querySelector('.lp-deck');
-    const cards = deckCards(container);
+    const grid = container.querySelector('.lp-cards');
+    const cards = cardEls(container);
 
     fireEvent.mouseOver(cards[3]);
-    expect(deck.className).toContain('lp-deck--active');
-    expect(cards[3].className).toContain('lp-deck-card--front');
-    // Cards left of the raised one slide right toward it…
-    for (const i of [0, 1, 2]) expect(cards[i].className).toContain('lp-deck-card--tuck-r');
-    // …cards right of it slide left — everything hides under the raised card.
-    for (const i of [4, 5, 6]) expect(cards[i].className).toContain('lp-deck-card--tuck-l');
-
-    // Symmetric: raising a different card re-partitions the tuck sides.
-    fireEvent.mouseOver(cards[6]);
-    expect(cards[6].className).toContain('lp-deck-card--front');
-    for (const i of [0, 1, 2, 3, 4, 5]) {
-      expect(cards[i].className).toContain('lp-deck-card--tuck-r');
+    expect(cards[3].className).toContain('lp-action-card--raised');
+    // No overlap/tuck — every other card is unaffected.
+    for (const i of [0, 1, 2, 4, 5, 6]) {
+      expect(cards[i].className).not.toContain('lp-action-card--raised');
     }
 
-    // Leaving the deck settles the fan back to rest.
-    fireEvent.mouseOut(deck);
-    expect(deck.className).not.toContain('lp-deck--active');
-    expect(container.querySelector('.lp-deck-card--front')).toBeNull();
+    // Raising a different card moves the raise, never stacking two.
+    fireEvent.mouseOver(cards[6]);
+    expect(cards[6].className).toContain('lp-action-card--raised');
+    expect(cards[3].className).not.toContain('lp-action-card--raised');
+
+    // Leaving the grid settles every card back to rest.
+    fireEvent.mouseOut(grid);
+    expect(container.querySelector('.lp-action-card--raised')).toBeNull();
   });
 
   it('keyboard focus raises a card exactly like hover (a11y parity)', () => {
     const { container } = renderShell(makeProps());
-    const deck = container.querySelector('.lp-deck');
-    const cards = deckCards(container);
+    const cards = cardEls(container);
 
     act(() => cards[5].focus());
-    expect(deck.className).toContain('lp-deck--active');
-    expect(cards[5].className).toContain('lp-deck-card--front');
-    expect(cards[6].className).toContain('lp-deck-card--tuck-l');
+    expect(cards[5].className).toContain('lp-action-card--raised');
+    for (const i of [0, 1, 2, 3, 4, 6]) {
+      expect(cards[i].className).not.toContain('lp-action-card--raised');
+    }
 
     act(() => cards[5].blur());
-    expect(deck.className).not.toContain('lp-deck--active');
-    expect(container.querySelector('.lp-deck-card--front')).toBeNull();
+    expect(container.querySelector('.lp-action-card--raised')).toBeNull();
   });
 
   it('waveform strips are decorative only (aria-hidden, 7 bars each)', () => {
     const { container } = renderShell(makeProps());
-    for (const card of deckCards(container)) {
-      const wave = card.querySelector('.lp-deck-wave');
+    for (const card of cardEls(container)) {
+      const wave = card.querySelector('.lp-card-wave');
       expect(wave).not.toBeNull();
       expect(wave.getAttribute('aria-hidden')).toBe('true');
-      expect(wave.querySelectorAll('.lp-deck-wave__bar')).toHaveLength(7);
+      expect(wave.querySelectorAll('.lp-card-wave__bar')).toHaveLength(7);
     }
   });
-});
-
-describe('Launchpad deck (narrow fallback)', () => {
-  it.each(['shell-narrow', 'shell-mini'])(
-    'degrades to the flat ActionCard grid under %s',
-    (cls) => {
-      const setMode = vi.fn();
-      const { container } = renderShell(makeProps({ setMode }), `app-container ${cls}`);
-      expect(container.querySelectorAll('.lp-deck-card')).toHaveLength(0);
-      const gridCards = [...container.querySelectorAll('.lp-action-card')];
-      expect(gridCards).toHaveLength(7);
-      expect(gridCards.map((c) => c.querySelector('h3').textContent)).toEqual(FEATURE_NAMES);
-      // Fallback cards keep the same navigation wiring.
-      fireEvent.click(gridCards[2]);
-      expect(setMode).toHaveBeenLastCalledWith('dub');
-    },
-  );
 
   it('reacts to the shell class flipping at runtime (resize past breakpoint)', async () => {
     const { container } = renderShell(makeProps());
-    expect(container.querySelectorAll('.lp-deck-card')).toHaveLength(7);
+    expect(cardEls(container)).toHaveLength(7);
+    expect(cardMin(container)).toBe('200px');
 
     const shell = container.querySelector('.app-container');
     await act(async () => {
       shell.classList.add('shell-narrow');
       await Promise.resolve(); // flush the MutationObserver microtask
     });
-    expect(container.querySelectorAll('.lp-deck-card')).toHaveLength(0);
-    expect(container.querySelectorAll('.lp-action-card')).toHaveLength(7);
+    // Same seven cards, just a wider column floor — no card dropped on resize.
+    expect(cardEls(container)).toHaveLength(7);
+    expect(cardMin(container)).toBe('240px');
 
     await act(async () => {
       shell.classList.remove('shell-narrow');
       await Promise.resolve();
     });
-    expect(container.querySelectorAll('.lp-deck-card')).toHaveLength(7);
+    expect(cardMin(container)).toBe('200px');
   });
 });

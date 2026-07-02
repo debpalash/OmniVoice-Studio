@@ -1382,11 +1382,16 @@ select.input-base:focus-visible,
   /* Native <button> reset */
   font: inherit; color: inherit; text-align: left; width: 100%;
 }
-.lp-action-card:hover {
-  transform: translateY(-1px);
-  background: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 6%, transparent);
-  border-color: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 40%, transparent);
-  box-shadow: 0 12px 28px -14px color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 40%, transparent);
+/* Hover OR keyboard focus raises the card forward — the `--raised` class is
+   set from React state so pointer and keyboard share one path (`:hover` is
+   kept as a no-JS fallback). */
+.lp-action-card:hover,
+.lp-action-card--raised {
+  transform: translateY(-4px);
+  background: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 7%, transparent);
+  border-color: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 45%, transparent);
+  box-shadow: 0 18px 36px -18px color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 45%, transparent);
+  z-index: 2;
 }
 .lp-action-card .card-icon {
   width: 34px; height: 34px; position: relative; z-index: 1;
@@ -1397,7 +1402,8 @@ select.input-base:focus-visible,
   margin-bottom: 10px;
   transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
 }
-.lp-action-card:hover .card-icon {
+.lp-action-card:hover .card-icon,
+.lp-action-card--raised .card-icon {
   transform: scale(1.05);
   box-shadow: 0 0 18px -2px color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 45%, transparent);
 }
@@ -1424,10 +1430,10 @@ select.input-base:focus-visible,
   opacity: 0;
   transition: opacity 260ms ease;
 }
-.lp-action-card:hover .lp-glow-layer::before { opacity: 1; }
-/* Eternal breath ring — pulses forever, tied to the card's hue. Subtle
-   enough that three of them running at staggered offsets read as "alive,"
-   not "strobing." */
+.lp-action-card:hover .lp-glow-layer::before,
+.lp-action-card--raised .lp-glow-layer::before { opacity: 1; }
+/* Eternal breath ring — pulses forever, tied to the card's hue. `--lp-i`
+   offsets each card's phase so the row reads "alive," not "strobing." */
 .lp-glow-layer::after {
   content: "";
   position: absolute;
@@ -1436,11 +1442,9 @@ select.input-base:focus-visible,
   border: 1px solid color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 30%, transparent);
   opacity: 0.2;
   animation: lpBreath 5.2s ease-in-out infinite;
+  animation-delay: calc(var(--lp-i, 0) * -0.74s);
   box-shadow: 0 0 0 0 color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 50%, transparent);
 }
-.lp-action-card:nth-child(1) .lp-glow-layer::after { animation-delay: 0s; }
-.lp-action-card:nth-child(2) .lp-glow-layer::after { animation-delay: -1.7s; }
-.lp-action-card:nth-child(3) .lp-glow-layer::after { animation-delay: -3.4s; }
 @keyframes lpBreath {
   0%, 100% { opacity: 0.15; box-shadow: 0 0 0 0 transparent; }
   50%      { opacity: 0.55; box-shadow: 0 0 22px 0 color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 20%, transparent); }
@@ -1475,6 +1479,11 @@ select.input-base:focus-visible,
   font-weight: 400;
   position: relative; z-index: 1;
   min-height: 3em;
+  /* Clamp to two lines so every card in a grid row is the same height. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 .lp-action-card .card-count {
   font-family: var(--chrome-font-mono);
@@ -1510,10 +1519,12 @@ select.input-base:focus-visible,
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.lp-animate { animation: lpFadeUp 0.4s cubic-bezier(0.4,0,0.2,1) both; }
-.lp-animate:nth-child(1) { animation-delay: 0s; }
-.lp-animate:nth-child(2) { animation-delay: 0.06s; }
-.lp-animate:nth-child(3) { animation-delay: 0.12s; }
+.lp-animate {
+  animation: lpFadeUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+  /* Stagger the deal across all cards via each card's own --lp-i (set inline
+     in LaunchpadDeck) — degrades to 0s where --lp-i is absent. */
+  animation-delay: calc(var(--lp-i, 0) * 0.05s);
+}
 
 /* Wave bars — each one reads its own --bar-h / --bar-dur / --bar-delay so
    the group breathes organically instead of marching in lockstep. Colour
@@ -1547,185 +1558,52 @@ select.input-base:focus-visible,
   animation-delay: var(--bar-delay, 0s);
 }
 
-/* ── Launchpad deck-of-cards (wide shells only) ────────────────────
-   The seven feature cards fanned left→right like a hand of cards: each
-   card is absolutely positioned in its fan slot (`--deck-i`), tilted a
-   few degrees (`--deck-r`) and lifted a few px (`--deck-y`) — values come
-   inline from Launchpad.jsx's DECK_TILT/DECK_LIFT so the spread is
-   deterministic. Geometry: 260px cards across a 780px fan → every card
-   peeks ~87px (~33%) out from under its right neighbor; z stacks
-   left→right so the right neighbor always covers. Raise/tuck classes are
-   set from React state (hover + keyboard focus share them):
-     --front   raised card: straighten, scale up, top of the stack
-     --tuck-r  cards left of the raised one slide right toward it
-     --tuck-l  cards right of it slide left — everything hides under it.
-   Fixed .lp-deck height = zero layout jump while cards move. Narrow/mini
-   shells never render the deck (JSX falls back to the flat grid). */
-.lp-deck {
-  position: relative;
-  height: 252px;
-  max-width: 780px;
-  --deck-card-w: 260px;
-  --deck-card-h: 200px;
+/* ── Launchpad feature cards — full-width responsive grid ──────────
+   PR #904 fanned these seven cards into a fixed ~780px deck, which left dead
+   margins in a maximized window. This fills the content width instead:
+   `repeat(auto-fit, minmax(--lp-card-min, 1fr))` lets the browser derive the
+   column count from the GRID'S OWN width — which, under the shell's
+   `zoom: --ui-scale` model, equals the shell's own width (the same
+   container-driven mechanism as the recent-files grid, never a viewport @media
+   that would fire at the wrong width when --ui-scale ≠ 1). Columns reflow
+   7→…→1 from a maximized ~2560px display down to the 900×600 minimum, every
+   column stretching (1fr) so there are no dead margins and no horizontal
+   scroll. `--lp-card-min` is set inline from useShellNarrow (a wider floor on
+   narrow shells → fewer, comfier columns). The cards are the .lp-action-card
+   tiles above, each carrying a decorative waveform strip. */
+.lp-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--lp-card-min, 200px), 1fr));
+  gap: 12px;
+  width: 100%;
 }
-@keyframes lpDeckDeal {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+/* Decorative waveform strip on each card — 7 accent bars breathing on
+   stagger-delayed scaleY; `--lp-i` shifts each card's phase so the row never
+   pulses in lockstep. aria-hidden in the JSX. Frozen under reduced motion. */
+@keyframes lpCardWave {
+  0%, 100% { transform: scaleY(0.35); opacity: 0.5; }
+  50%      { transform: scaleY(1);    opacity: 0.95; }
 }
-.lp-deck-card {
-  position: absolute;
-  top: 14px;
-  left: calc(var(--deck-i, 0) * (100% - var(--deck-card-w)) / (var(--deck-n, 7) - 1));
-  width: var(--deck-card-w);
-  height: var(--deck-card-h);
-  z-index: calc(var(--deck-i, 0) + 1);
+.lp-card-wave {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  padding: 12px 14px 12px 12px;
-  text-align: left;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  border: 1px solid color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 26%, var(--chrome-border));
-  border-radius: var(--chrome-radius-pill);
-  /* Opaque face — lower cards must actually disappear underneath. */
-  background: linear-gradient(
-    160deg,
-    color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 10%, var(--chrome-bg)) 0%,
-    var(--chrome-bg) 55%
-  );
-  box-shadow: -12px 10px 26px -18px rgba(0, 0, 0, 0.55);
-  transform: translateY(var(--deck-y, 0px)) rotate(var(--deck-r, 0deg));
-  transform-origin: 20% 90%;
-  transition:
-    transform 240ms var(--ease-out),
-    opacity 240ms ease-out,
-    border-color 240ms ease-out,
-    box-shadow 240ms ease-out;
-  animation: lpDeckDeal 0.5s ease-out both;
-  animation-delay: calc(var(--deck-i, 0) * 60ms);
-}
-/* Raised card (hover or keyboard focus, class-driven from React state):
-   straighten, lift, scale up, and take the top of the stack. */
-.lp-deck-card--front {
-  z-index: 40;
-  transform: translateY(-8px) rotate(0deg) scale(1.04);
-  border-color: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 55%, transparent);
-  box-shadow: 0 22px 44px -20px color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 55%, transparent);
-}
-/* Everyone else tucks under it: slide toward the raised card (increasing
-   the overlap), settle slightly lower, scale down and fade a touch. */
-.lp-deck--active .lp-deck-card:not(.lp-deck-card--front) {
-  opacity: 0.55;
-  transform: translate(var(--deck-slide, 0px), calc(var(--deck-y, 0px) + 6px))
-    rotate(var(--deck-r, 0deg)) scale(0.96);
-}
-.lp-deck-card--tuck-r { --deck-slide: 30px; }
-.lp-deck-card--tuck-l { --deck-slide: -30px; }
-.lp-deck-card:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 70%, transparent);
-  outline-offset: 2px;
-}
-/* Icon + name cluster, width-capped to the ~87px strip each card keeps
-   visible under its right neighbor — the "peeking edge" stays labeled. */
-.lp-deck-card__peek {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 74px;
-  flex: none;
-}
-.lp-deck-card .card-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: var(--chrome-radius-pill);
-  background: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 28%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-}
-.lp-deck-card__name {
-  font-family: var(--chrome-font-mono);
-  font-size: 0.66rem;
-  font-weight: 600;
-  /* Tighter than --chrome-label-track so 11-char names ("TRANSCRIPTS")
-     still fit the peek column without a mid-word break. */
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  line-height: 1.35;
-  color: var(--chrome-fg);
-  overflow-wrap: anywhere;
-}
-.lp-deck-card__desc {
-  margin-top: 10px;
-  font-family: var(--font-sans);
-  font-size: 0.7rem;
-  line-height: 1.5;
-  font-weight: 400;
-  color: var(--chrome-fg-muted);
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  overflow: hidden;
-}
-/* Count badge sits inside the peek strip (right of the icon) so it stays
-   visible even while the card is tucked under its right neighbor. */
-.lp-deck-card .card-count {
-  font-family: var(--chrome-font-mono);
-  font-size: var(--chrome-label-size);
-  font-weight: 600;
-  letter-spacing: var(--chrome-label-track);
-  padding: 1px 7px;
-  border-radius: var(--chrome-radius-pill);
-  position: absolute;
-  top: 16px;
-  left: 48px;
-  z-index: 2;
-  border: 1px solid color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 50%, transparent);
-  color: var(--card-hue, var(--chrome-accent));
-  background: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 10%, var(--chrome-bg));
-}
-/* Decorative waveform strip — 7 bars breathing on stagger-delayed scaleY
-   keyframes in the card's accent. `--deck-i` shifts each card's phase so
-   the deck never pulses in lockstep. aria-hidden in the JSX. */
-@keyframes lpDeckWave {
-  0%, 100% { transform: scaleY(0.35); opacity: 0.55; }
-  50%      { transform: scaleY(1);    opacity: 1; }
-}
-.lp-deck-wave {
-  display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 3px;
-  height: 20px;
-  margin-top: auto;
+  height: 18px;
+  margin-top: 12px;
+  position: relative;
+  z-index: 1;
 }
-.lp-deck-wave__bar {
+.lp-card-wave__bar {
   width: 3px;
   height: var(--wave-h, 12px);
   border-radius: 2px;
-  background: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 75%, var(--chrome-fg-muted));
-  transform-origin: center;
-  animation: lpDeckWave 1.6s ease-in-out infinite;
-  animation-delay: calc((var(--wave-i, 0) + var(--deck-i, 0)) * -0.19s);
+  background: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 72%, var(--chrome-fg-muted));
+  transform-origin: bottom center;
+  animation: lpCardWave 1.6s ease-in-out infinite;
+  animation-delay: calc((var(--wave-i, 0) + var(--lp-i, 0)) * -0.19s);
 }
-/* Reduced motion: no dealing/pulsing, and the raise/tuck effect becomes a
-   plain z-index + opacity swap — cards keep their static fan transform. */
 @media (prefers-reduced-motion: reduce) {
-  .lp-deck-card {
-    animation: none;
-    transition: opacity 160ms linear, border-color 160ms linear, box-shadow 160ms linear;
-  }
-  .lp-deck-card--front {
-    transform: translateY(var(--deck-y, 0px)) rotate(var(--deck-r, 0deg));
-  }
-  .lp-deck--active .lp-deck-card:not(.lp-deck-card--front) {
-    transform: translateY(var(--deck-y, 0px)) rotate(var(--deck-r, 0deg));
-    opacity: 0.45;
-  }
-  .lp-deck-wave__bar { animation: none; }
+  .lp-card-wave__bar { animation: none; }
 }
 
 /* ── Searchable combobox ─────────────────────────────────── */
@@ -2104,18 +1982,10 @@ div[role="dialog"].audio-trimmer {
    rule, no usages) and is dropped with them. */
 
 /* ── Launchpad ── */
-@media (max-width: 900px) {
-  .lp-action-card { min-width: 0; padding: 14px 12px; }
-  .lp-action-card:nth-child(1),
-  .lp-action-card:nth-child(2),
-  .lp-action-card:nth-child(3) { transform: none; }
-}
-@media (max-width: 640px) {
-  .lp-action-card { min-height: auto; padding: 12px 10px; }
-  .lp-action-card h3 { font-size: 0.88rem; }
-  .lp-action-card .card-desc { font-size: 0.68rem; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-  .lp-action-card .card-icon { width: 28px; height: 28px; }
-}
+/* The feature cards now reflow via `.lp-cards` (auto-fit minmax, driven by the
+   grid's OWN width) with the card floor tuned by useShellNarrow — so there are
+   no viewport @media overrides here (they fire at the wrong width whenever
+   --ui-scale ≠ 1). See the ".lp-cards / .lp-action-card" rules above. */
 
 /* ── Studio panels — tighter on small screens ── */
 @media (max-width: 800px) {

@@ -1,66 +1,58 @@
 import React, { useState } from 'react';
 
-// ── Deck-of-cards geometry ──────────────────────────────────────────
-// Per-card tilt (deg) and lift (px) for the fanned spread. Hand-picked so
-// the fan reads "artistically shuffled" but stays subtle (±4° / ≤14px) and
-// deterministic — same layout every launch, no randomness. Index-aligned
-// with the launchpad feature order.
-const DECK_TILT = [-3.5, 2, -1, 3, -2, 3.5, -1.5];
-const DECK_LIFT = [10, 2, 14, 0, 12, 4, 8];
+// ── Feature-card geometry ───────────────────────────────────────────
 // Decorative waveform bar heights (px) on each card face — 7 CSS-only bars
-// pulse via stagger-delayed scaleY keyframes (see .lp-deck-wave in
+// pulse via stagger-delayed scaleY keyframes (see .lp-card-wave in
 // index.css). Static under prefers-reduced-motion.
-const DECK_WAVE = [8, 15, 10, 19, 12, 16, 9];
+const CARD_WAVE = [8, 15, 10, 19, 12, 16, 9];
+// Card min-track (px) handed to the grid's `repeat(auto-fit, minmax(min, 1fr))`.
+// This floor is the ONLY responsive knob: the browser derives the column count
+// from the grid's OWN rendered width (= the shell's own width under the
+// `zoom: --ui-scale` model), so columns reflow 7→…→1 with zero viewport @media.
+// A wider floor on narrow shells yields fewer, comfier columns.
+const CARD_MIN_WIDE = '200px';
+const CARD_MIN_NARROW = '240px';
 
 /**
- * DeckCard — one card in the fanned deck. Absolutely positioned by CSS from
- * `--deck-i` (fan slot), `--deck-r` (tilt) and `--deck-y` (lift); `--card-hue`
- * drives the accent exactly like ActionCard. Hover OR keyboard focus raises
- * the card (`--front`: straighten + scale up + top z) while every sibling
- * tucks toward it underneath (`--tuck-r` for cards left of it slides them
- * right, `--tuck-l` slides the right-side ones left) — the raise/tuck classes
- * are state-driven so pointer and focus share one code path. The icon + name
- * cluster is width-capped to the peeking strip so it stays readable while the
- * card sits under its right neighbor; the waveform strip is pure decoration
- * (aria-hidden), the button's accessible name stays name + description.
+ * FeatureCard — one launchpad feature tile in the full-width grid. `--card-hue`
+ * (inline) drives the accent: icon, border, waveform, badge, glow. Hover OR
+ * keyboard focus raises the card forward (`lp-action-card--raised`: lift + glow
+ * + top z) — the raise is class-driven from React state so pointer and keyboard
+ * share one code path and tests can assert it. The waveform strip is pure
+ * decoration (aria-hidden); the button's accessible name stays title + desc.
  */
-function DeckCard({ hue, Icon, title, desc, count, onClick, index, raised, onRaise, onSettle }) {
-  const state =
-    raised == null
-      ? ''
-      : raised === index
-        ? 'lp-deck-card--front'
-        : index < raised
-          ? 'lp-deck-card--tuck-r'
-          : 'lp-deck-card--tuck-l';
+function FeatureCard({ hue, Icon, title, desc, count, onClick, index, raised, onRaise, onSettle }) {
+  // Cursor-tracked spotlight: pointer position feeds --mx/--my so the
+  // .lp-glow-layer radial gradient follows the cursor (it centres itself on
+  // keyboard focus, which has no pointer).
+  const handleMouseMove = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`);
+    e.currentTarget.style.setProperty('--my', `${e.clientY - r.top}px`);
+  };
   return (
     <button
       type="button"
-      className={`lp-deck-card ${state}`}
-      style={{
-        '--card-hue': hue,
-        '--deck-i': index,
-        '--deck-r': `${DECK_TILT[index]}deg`,
-        '--deck-y': `${DECK_LIFT[index]}px`,
-      }}
+      className={`lp-action-card lp-animate lp-glow-card${raised === index ? ' lp-action-card--raised' : ''}`}
+      style={{ '--card-hue': hue, '--lp-i': index }}
       onClick={onClick}
+      onMouseMove={handleMouseMove}
       onMouseEnter={() => onRaise(index)}
       onFocus={() => onRaise(index)}
       onBlur={onSettle}
     >
+      <span className="lp-glow-layer" aria-hidden="true" />
       {count > 0 && <span className="card-count">{count}</span>}
-      <span className="lp-deck-card__peek">
-        <span className="card-icon">
-          <Icon size={16} color={hue} />
-        </span>
-        <span className="lp-deck-card__name">{title}</span>
-      </span>
-      <span className="lp-deck-card__desc">{desc}</span>
-      <span className="lp-deck-wave" aria-hidden="true">
-        {DECK_WAVE.map((h, i) => (
+      <div className="card-icon">
+        <Icon size={18} color={hue} />
+      </div>
+      <h3>{title}</h3>
+      <p className="card-desc">{desc}</p>
+      <span className="lp-card-wave" aria-hidden="true">
+        {CARD_WAVE.map((h, i) => (
           <span
             key={i}
-            className="lp-deck-wave__bar"
+            className="lp-card-wave__bar"
             style={{ '--wave-h': `${h}px`, '--wave-i': i }}
           />
         ))}
@@ -70,23 +62,28 @@ function DeckCard({ hue, Icon, title, desc, count, onClick, index, raised, onRai
 }
 
 /**
- * LaunchpadDeck — the launchpad's feature cards as an overlapping
- * left→right fan (wide shells only; Launchpad.jsx renders the flat
- * ActionCard grid on shell-narrow/shell-mini instead). Interaction state —
- * which card is raised by hover/focus, or none — lives here in React (not
- * pure CSS :hover) so keyboard focus shares the exact same raise/tuck
- * behavior and tests can assert it.
+ * LaunchpadDeck — the launchpad's seven feature cards as a full-width,
+ * responsive grid. PR #904 fanned them into a fixed ~780px deck that left dead
+ * margins in a maximized window; this fills the content width instead and
+ * reflows its column count (7→…→1 from a maximized ~2560px display down to the
+ * 900×600 minimum) via `repeat(auto-fit, minmax(--lp-card-min, 1fr))` — the
+ * same container-driven mechanism the rest of the launchpad uses, never a
+ * viewport @media (which fires at the wrong width whenever --ui-scale ≠ 1).
+ * `narrow` (the app-container's own width class, via useShellNarrow) only
+ * widens the card floor so narrow shells get fewer, comfier columns. Which card
+ * is raised by hover/focus lives here in React so keyboard focus shares the
+ * exact same forward-lift as the pointer and tests can assert it.
  */
-export default function LaunchpadDeck({ features }) {
+export default function LaunchpadDeck({ features, narrow = false }) {
   const [raised, setRaised] = useState(null);
   return (
     <div
-      className={`lp-deck${raised != null ? ' lp-deck--active' : ''}`}
-      style={{ '--deck-n': features.length }}
+      className="lp-cards"
+      style={{ '--lp-card-min': narrow ? CARD_MIN_NARROW : CARD_MIN_WIDE }}
       onMouseLeave={() => setRaised(null)}
     >
       {features.map((f, i) => (
-        <DeckCard
+        <FeatureCard
           key={f.key}
           index={i}
           hue={f.hue}
