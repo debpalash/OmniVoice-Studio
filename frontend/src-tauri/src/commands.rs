@@ -257,43 +257,121 @@ fn hf_hub_cache_dir() -> PathBuf {
 
 use enigo::{Direction, Enigo, Key, Keyboard, Settings as EnigoSettings};
 
+/// Error-kind builder the dictation widget switches on. Kinds are a plain
+/// string prefix ("a11y:" | "clipboard:" | "paste:") so the JS side can do
+/// `err.split(':')[0]` without a serde enum crossing the IPC boundary.
+fn kind_err(kind: &str, detail: impl std::fmt::Display) -> String {
+    format!("{kind}:{detail}")
+}
+
+/// How long the transcript must sit on the clipboard before the user's
+/// previous clipboard is restored: ~300ms covers slow paste consumers
+/// (Electron apps, remote desktops) without being user-noticeable.
+const CLIPBOARD_RESTORE_DELAY: Duration = Duration::from_millis(300);
+
+/// macOS Accessibility grant check — CGEvent key synthesis silently no-ops
+/// without it. Direct FFI against ApplicationServices: one symbol, not worth
+/// a crate.
+#[cfg(target_os = "macos")]
+fn accessibility_trusted() -> bool {
+    #[link(name = "ApplicationServices", kind = "framework")]
+    extern "C" {
+        fn AXIsProcessTrusted() -> bool;
+    }
+    unsafe { AXIsProcessTrusted() }
+}
+
+/// True when the app may synthesize keyboard input. On macOS this is the
+/// Accessibility grant (System Settings → Privacy & Security → Accessibility);
+/// other OSes don't gate synthetic input behind a permission, so always true.
+#[tauri::command]
+pub fn check_accessibility() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        accessibility_trusted()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        true
+    }
+}
+
+/// Deep-link into the macOS Privacy → Accessibility pane so the widget can
+/// walk the user straight to the toggle an "a11y:" error asked for. No-op on
+/// other OSes (nothing to grant there).
+#[tauri::command]
+pub fn open_accessibility_settings() {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open")
+            .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            .spawn();
+    }
+}
+
 #[tauri::command]
 pub fn simulate_paste(text: Option<String>) -> Result<(), String> {
+    // macOS: fail loud BEFORE touching the clipboard if Accessibility isn't
+    // granted — otherwise the ⌘V below silently goes nowhere and the caller
+    // can't tell (the old fire-and-forget behavior).
+    #[cfg(target_os = "macos")]
+    if !accessibility_trusted() {
+        return Err(kind_err("a11y", "accessibility permission not granted"));
+    }
+
     // Write the transcript to the clipboard natively first: the widget window
     // is intentionally unfocused on macOS (so the simulated ⌘V reaches the
     // target app), which makes the WebView clipboard APIs (navigator.clipboard
     // / execCommand('copy')) fail silently there (#287). `text` is optional so
     // call sites that already populated the clipboard keep working.
+    //
+    // Save what the user had there first (text only — restoring images/files
+    // isn't worth the platform-specific surface) so dictation doesn't clobber
+    // their clipboard.
+    let mut saved: Option<String> = None;
     if let Some(t) = text {
         let mut cb = arboard::Clipboard::new()
-            .map_err(|e| format!("clipboard init failed: {e}"))?;
+            .map_err(|e| kind_err("clipboard", format!("init failed: {e}")))?;
+        saved = cb.get_text().ok();
         cb.set_text(t)
-            .map_err(|e| format!("clipboard write failed: {e}"))?;
+            .map_err(|e| kind_err("clipboard", format!("write failed: {e}")))?;
     }
 
     std::thread::sleep(Duration::from_millis(80));
 
     let mut enigo = Enigo::new(&EnigoSettings::default())
-        .map_err(|e| format!("Failed to init keyboard sim: {e}"))?;
+        .map_err(|e| kind_err("paste", format!("failed to init keyboard sim: {e}")))?;
 
     #[cfg(target_os = "macos")]
     {
         enigo.key(Key::Meta, Direction::Press)
-            .map_err(|e| format!("key press failed: {e}"))?;
+            .map_err(|e| kind_err("paste", format!("key press failed: {e}")))?;
         enigo.key(Key::Unicode('v'), Direction::Click)
-            .map_err(|e| format!("key click failed: {e}"))?;
+            .map_err(|e| kind_err("paste", format!("key click failed: {e}")))?;
         enigo.key(Key::Meta, Direction::Release)
-            .map_err(|e| format!("key release failed: {e}"))?;
+            .map_err(|e| kind_err("paste", format!("key release failed: {e}")))?;
     }
 
     #[cfg(not(target_os = "macos"))]
     {
         enigo.key(Key::Control, Direction::Press)
-            .map_err(|e| format!("key press failed: {e}"))?;
+            .map_err(|e| kind_err("paste", format!("key press failed: {e}")))?;
         enigo.key(Key::Unicode('v'), Direction::Click)
-            .map_err(|e| format!("key click failed: {e}"))?;
+            .map_err(|e| kind_err("paste", format!("key click failed: {e}")))?;
         enigo.key(Key::Control, Direction::Release)
-            .map_err(|e| format!("key release failed: {e}"))?;
+            .map_err(|e| kind_err("paste", format!("key release failed: {e}")))?;
+    }
+
+    // Best-effort restore of the user's clipboard once the target app has
+    // consumed the paste. Only on success — on a paste error the transcript
+    // stays on the clipboard so the user can ⌘V it manually as a fallback.
+    if let Some(prev) = saved {
+        std::thread::spawn(move || {
+            std::thread::sleep(CLIPBOARD_RESTORE_DELAY);
+            if let Ok(mut cb) = arboard::Clipboard::new() {
+                let _ = cb.set_text(prev);
+            }
+        });
     }
 
     Ok(())
@@ -316,24 +394,32 @@ pub fn simulate_paste(text: Option<String>) -> Result<(), String> {
 ///
 /// Returns `Err` if the input layer is unavailable (e.g. accessibility not
 /// granted) so the JS caller can fall back to the clipboard+paste path for
-/// that segment without double-inserting.
+/// that segment without double-inserting. Errors carry the same kind
+/// prefixes as `simulate_paste` ("a11y:" | "paste:").
 #[tauri::command]
 pub fn simulate_type(text: Option<String>, backspaces: Option<u32>) -> Result<(), String> {
+    // Same a11y gate as simulate_paste — `.text()`/`.key()` go through the
+    // identical CGEvent path on macOS and would silently no-op without it.
+    #[cfg(target_os = "macos")]
+    if !accessibility_trusted() {
+        return Err(kind_err("a11y", "accessibility permission not granted"));
+    }
+
     let mut enigo = Enigo::new(&EnigoSettings::default())
-        .map_err(|e| format!("Failed to init keyboard sim: {e}"))?;
+        .map_err(|e| kind_err("paste", format!("failed to init keyboard sim: {e}")))?;
 
     let n = backspaces.unwrap_or(0);
     for _ in 0..n {
         enigo
             .key(Key::Backspace, Direction::Click)
-            .map_err(|e| format!("backspace failed: {e}"))?;
+            .map_err(|e| kind_err("paste", format!("backspace failed: {e}")))?;
     }
 
     if let Some(t) = text {
         if !t.is_empty() {
             enigo
                 .text(&t)
-                .map_err(|e| format!("type failed: {e}"))?;
+                .map_err(|e| kind_err("paste", format!("type failed: {e}")))?;
         }
     }
 
@@ -440,4 +526,37 @@ pub fn save_text_file(path: String, contents: String) -> Result<(), String> {
         std::fs::create_dir_all(dir).map_err(|e| format!("create dir: {e}"))?;
     }
     std::fs::write(p, contents).map_err(|e| format!("write: {e}"))
+}
+
+#[cfg(test)]
+mod paste_error_tests {
+    use super::{kind_err, CLIPBOARD_RESTORE_DELAY};
+
+    #[test]
+    fn kind_err_prefixes_with_kind() {
+        assert_eq!(kind_err("a11y", "not granted"), "a11y:not granted");
+        assert_eq!(
+            kind_err("clipboard", "write failed: busy"),
+            "clipboard:write failed: busy"
+        );
+        assert_eq!(
+            kind_err("paste", "key press failed"),
+            "paste:key press failed"
+        );
+    }
+
+    #[test]
+    fn kind_survives_colons_in_detail() {
+        // The widget does `err.split(':')[0]` — details containing ':' (OS
+        // error strings usually do) must not corrupt the kind.
+        let e = kind_err("clipboard", "init failed: os error 5");
+        assert_eq!(e.split_once(':').map(|(k, _)| k), Some("clipboard"));
+    }
+
+    #[test]
+    fn restore_delay_is_about_300ms() {
+        // Contract with the widget layer: previous clipboard comes back
+        // ~300ms after the paste, long enough for slow paste consumers.
+        assert_eq!(CLIPBOARD_RESTORE_DELAY.as_millis(), 300);
+    }
 }
