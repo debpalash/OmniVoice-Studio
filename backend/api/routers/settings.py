@@ -12,6 +12,7 @@ The state endpoint duplicates `/system/hf-token/state` (which lives on
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from dataclasses import asdict
@@ -134,13 +135,22 @@ class _RefinementBody(BaseModel):
 
 
 def _refinement_state():
-    from services.refinement import _skill_llm, get_refinement_config
+    from services.refinement import (
+        _skill_llm,
+        get_last_refine_status,
+        get_refinement_config,
+    )
 
     cfg = get_refinement_config()
-    # The UI shows whether refinement can actually run (needs an LLM). Resolved
-    # through the LLM Skills registry so a disabled skill / per-skill provider
-    # override reads the same here as on the actual refine path.
+    # `llm_ready` only means "an endpoint is CONFIGURED" — a placeholder/dead
+    # endpoint still reads ready. It's resolved through the LLM Skills registry
+    # so a disabled dictation_refinement skill / per-skill provider override
+    # reads the same here as on the actual refine path. The honesty layer is
+    # `last_refine_status`: {ok, reason, at} from the most recent final, so the
+    # panel can flag a configured-but-failing LLM (the real safety is the hard
+    # refine timeout, which keeps a dead endpoint from ever stalling the final).
     cfg["llm_ready"] = _skill_llm().id != "off"
+    cfg["last_refine_status"] = get_last_refine_status()
     return cfg
 
 
@@ -359,7 +369,10 @@ def test_llm_provider(provider_id: str):
     t0 = _time.monotonic()
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=api_key, base_url=base_url)
+        # max_retries=0: this is an interactive probe with a live spinner — the
+        # SDK's default 2 automatic retries turn a 429/timeout into a ~34s hang.
+        # Surface the first failure immediately instead.
+        client = OpenAI(api_key=api_key, base_url=base_url, max_retries=0)
         res = client.chat.completions.create(
             model=llm_providers.resolve_model(p),
             messages=[{"role": "user", "content": "Reply with the single word: ok"}],
@@ -399,9 +412,13 @@ def list_llm_provider_models(provider_id: str):
         return {"ok": False, "kind": "config", "models": []}
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=api_key, base_url=base_url)
+        # max_retries=0: interactive probe — fail fast, don't burn ~34s on the
+        # SDK's default retry ladder when the key/URL is wrong (matches /test).
+        client = OpenAI(api_key=api_key, base_url=base_url, max_retries=0)
         ids = sorted(m.id for m in client.models.list(timeout=10))
-        return {"ok": True, "models": ids[:200]}
+        # Cap so a huge catalog can't bloat the datalist; flag the cap so the UI
+        # can say "first 200 shown" rather than implying it's the full list.
+        return {"ok": True, "models": ids[:200], "truncated": len(ids) > 200}
     except Exception as e:  # noqa: BLE001
         return {
             "ok": False,
@@ -622,6 +639,41 @@ def set_models_dir(body: _ModelsDirBody):
     return {"configured": path, "effective": _effective_models_dir(), "restart_required": True}
 
 
+# ── Storage report (Settings → Storage) ────────────────────────────────────
+# Per-volume disk totals + du-style sizes for everything the app owns (HF
+# model cache, app data subtotals, engine venvs, temp files) with server-side
+# warnings. Heavy directory walks run in a worker thread with per-category
+# deadlines and a 5-minute in-process cache (services.storage_report), so the
+# endpoint stays cheap on repeat Settings visits. Loopback-gated via the
+# router-level dep like every sibling.
+
+
+@router.get("/storage")
+async def get_storage_report(refresh: bool = Query(False)):
+    """Disk + per-category storage usage for the Settings → Storage panel.
+
+    `refresh=1` bypasses the 5-minute cache and rescans. `min_free_gb`
+    reuses the setup wizard's constant so both surfaces warn at the same
+    threshold.
+    """
+    from api.routers.setup.wizard import MIN_FREE_GB
+    from core.config import DATA_DIR
+    from services import storage_report
+
+    try:
+        return await asyncio.to_thread(
+            storage_report.get_report,
+            data_dir=DATA_DIR,
+            hf_cache_dir=_effective_models_dir(),
+            app_venv=storage_report.default_app_venv(),
+            min_free_gb=MIN_FREE_GB,
+            refresh=refresh,
+        )
+    except Exception:
+        logger.exception("storage report failed")
+        raise HTTPException(status_code=500, detail="Failed to compute storage report")
+
+
 # ── HF mirror endpoint (parity program Wave 4.3 / §R4 c) ──────────────────
 # Restricted-network users (e.g. behind the Great Firewall) need to point
 # huggingface_hub at a mirror. HF reads HF_ENDPOINT at import time, so a
@@ -664,6 +716,11 @@ def set_hf_mirror(body: _HFMirrorBody):
     url = (body.url or "").strip().rstrip("/")
     if url and not url.startswith(("http://", "https://")):
         raise HTTPException(status_code=400, detail="Mirror URL must start with http(s)://")
+    # Compare against the currently-persisted value (normalised the same way) so
+    # a no-op save doesn't nag the user to restart. Only a real change to the
+    # persisted endpoint can require a restart.
+    previous = (user_env.get_user_env(_HF_ENDPOINT_ENV) or "").strip().rstrip("/")
+    changed = url != previous
     try:
         if url:
             user_env.set_user_env(_HF_ENDPOINT_ENV, url)
@@ -674,6 +731,53 @@ def set_hf_mirror(body: _HFMirrorBody):
     except Exception:
         logger.exception("set_hf_mirror failed")
         raise HTTPException(status_code=500, detail="Failed to persist mirror setting")
-    # HF endpoint is read at import time by huggingface_hub, so the override
-    # is only guaranteed once the backend restarts.
-    return {"configured": url, "restart_required": True, "presets": _HF_MIRROR_PRESETS}
+    # Model Store downloads pick up the new mirror immediately — the download
+    # path resolves the endpoint per-call and we updated os.environ above. Only
+    # transformers-side model *loads* (which read HF_ENDPOINT at import time)
+    # need a restart, so restart_required is True ONLY when the value actually
+    # changed — a no-op re-save never asks for a restart.
+    return {"configured": url, "restart_required": changed, "presets": _HF_MIRROR_PRESETS}
+
+
+# ── Updates panel: shipped changelog + pre-migration DB backup state ────────
+# (feat/safe-updates). Both are read-only, local-first surfaces for
+# Settings → Updates: the "What's new" viewer reads the CHANGELOG.md that
+# ships with the app, and the backup line shows the newest pre-migration
+# snapshot written by core.db_backup before `alembic upgrade head` runs.
+
+
+@router.get("/changelog")
+def get_changelog(limit_versions: int = Query(5, ge=1, le=50)):
+    """Structured release notes from the shipped CHANGELOG.md (newest first).
+
+    Bullets are raw markdown-lite (bold leads, `code`, (#NNN) refs) — the
+    frontend renders them safely without HTML. `available: false` when this
+    install has no changelog (never an error: the viewer just hides)."""
+    from core import changelog
+
+    path = changelog.changelog_path()
+    if not path:
+        return {"available": False, "releases": []}
+    try:
+        with open(path, encoding="utf-8") as fh:
+            releases = changelog.parse_changelog(fh.read(), limit_versions)
+    except Exception:
+        logger.exception("changelog parse failed")
+        return {"available": False, "releases": []}
+    return {"available": bool(releases), "releases": releases}
+
+
+@router.get("/db-backup")
+def get_db_backup_state():
+    """Newest pre-migration database backup (or none yet). Feeds the
+    "your data is backed up before every update" line in Settings → Updates."""
+    from core import db_backup
+    from core.config import DB_PATH
+
+    latest = db_backup.latest_backup(DB_PATH)
+    return {
+        "available": latest is not None,
+        "latest": latest,
+        "count": len(db_backup.list_backups(DB_PATH)),
+        "keep": db_backup.KEEP_BACKUPS,
+    }

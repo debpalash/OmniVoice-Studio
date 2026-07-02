@@ -315,14 +315,19 @@ async def ws_transcribe(websocket: WebSocket):
             # like typed text (leading capital, terminal punctuation).
             result["text"] = polish_text(result.get("text", ""))
             # Wave 2.1: optional local-LLM refinement of the final text.
-            # Off-thread (network call, not GPU); pass-through on any
-            # failure or when no LLM backend is configured. The raw text
-            # always ships too — clients paste refined_text ?? text.
+            # HARD-BOUNDED (maybe_refine_async, ~4s OMNIVOICE_REFINE_TIMEOUT_S):
+            # a slow/dead LLM can never delay this `final` beyond the budget —
+            # it falls back to the unrefined (but polished) text. Best-effort:
+            # never let refinement turn a good final into an error. The raw
+            # text always ships too — clients paste refined_text ?? text.
             if result.get("text"):
-                from services.refinement import maybe_refine
-                refined = await asyncio.to_thread(maybe_refine, result["text"])
-                if refined and refined != result["text"]:
-                    result["refined_text"] = refined
+                try:
+                    from services.refinement import maybe_refine_async
+                    refined = await maybe_refine_async(result["text"])
+                    if refined and refined != result["text"]:
+                        result["refined_text"] = refined
+                except Exception as e:  # noqa: BLE001
+                    logger.debug("Dictation refinement skipped: %s", e)
             if not await _safe_send({"type": "final", **result}):
                 logger.debug("Skipped final send — client already disconnected")
         except Exception as e:
@@ -476,15 +481,20 @@ async def _run_sherpa_streaming(websocket: WebSocket, spec):
     detection and on EOF. <300ms perceived latency on CPU for the tiny models.
     """
     import numpy as np
-    from services.asr_backend import SherpaDictationBackend
+    from services.asr_backend import get_sherpa_dictation_backend
 
     pcm_sr, aec = await _sherpa_session(websocket)
     logger.info("sherpa streaming dictation: model=%s sr=%d aec=%s",
                 spec.id, pcm_sr, bool(aec))
 
-    backend = SherpaDictationBackend(model_id=spec.id)
-    # Build the recognizer off the event loop (download-on-first-use + ONNX
-    # session init can take a moment); status frames keep the widget honest.
+    # Reuse the shared, per-model warm backend (#888): the recognizer is built
+    # once and shared across sessions instead of rebuilt (1.3–2.5s) per connect,
+    # so the first dictation is instant when the preload warmed it. Each session
+    # still gets its own decode stream below.
+    backend = get_sherpa_dictation_backend(spec.id)
+    # Build the recognizer off the event loop if it isn't warm yet
+    # (download-on-first-use + ONNX session init can take a moment); status
+    # frames keep the widget honest.
     if not await _sherpa_load_with_status(websocket, backend, spec):
         return
     rec = backend._rec
@@ -569,9 +579,11 @@ async def _run_sherpa_streaming(websocket: WebSocket, spec):
     segments = [{"start": 0.0, "end": None, "text": t} for t in committed if t]
     if not client_disconnected:
         if full:
+            # Hard-bounded refinement (~4s): never delays this summary `final`
+            # beyond OMNIVOICE_REFINE_TIMEOUT_S even with a dead LLM endpoint.
             try:
-                from services.refinement import maybe_refine
-                refined = await asyncio.to_thread(maybe_refine, full)
+                from services.refinement import maybe_refine_async
+                refined = await maybe_refine_async(full)
             except Exception:
                 refined = None
             payload = {"type": "final", "text": full, "segments": segments,
@@ -598,13 +610,14 @@ async def _run_sherpa_offline(websocket: WebSocket, spec):
     its samples dropped — so per-partial cost is bounded by one utterance
     (not the whole session) and sentences commit as the user pauses instead
     of only at EOF."""
-    from services.asr_backend import SherpaDictationBackend
+    from services.asr_backend import get_sherpa_dictation_backend
 
     pcm_sr, aec = await _sherpa_session(websocket)
     logger.info("sherpa offline dictation: model=%s sr=%d aec=%s",
                 spec.id, pcm_sr, bool(aec))
 
-    backend = SherpaDictationBackend(model_id=spec.id)
+    # Shared, per-model warm backend (#888) — built once, reused per session.
+    backend = get_sherpa_dictation_backend(spec.id)
     if not await _sherpa_load_with_status(websocket, backend, spec):
         return
 
@@ -731,9 +744,10 @@ async def _run_sherpa_offline(websocket: WebSocket, spec):
         payload = {"type": "final", "text": full, "segments": segments,
                    "language": "auto", "engine": backend.id}
         if full:
+            # Hard-bounded refinement (~4s) — never delays the `final`.
             try:
-                from services.refinement import maybe_refine
-                refined = await asyncio.to_thread(maybe_refine, full)
+                from services.refinement import maybe_refine_async
+                refined = await maybe_refine_async(full)
                 if refined and refined != full:
                     payload["refined_text"] = refined
             except Exception:

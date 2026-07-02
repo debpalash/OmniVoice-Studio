@@ -25,18 +25,6 @@ import { CheckCircle2, KeyRound, RefreshCw, Save, Trash2, XCircle } from 'lucide
 import { apiJson, apiPost, apiFetch, API } from '../../api/client';
 import { SettingsSection, InfoHint } from './primitives';
 
-const SOURCE_LABELS = {
-  app: 'OmniVoice (encrypted, recommended)',
-  env: 'Environment variable',
-  'hf-cli': 'HuggingFace CLI',
-};
-
-const SOURCE_HELP = {
-  app: "Stored encrypted in OmniVoice's local SQLite store. Set or clear here.",
-  env: 'Set via HF_TOKEN in your shell. Read-only from the UI.',
-  'hf-cli': 'Written by `huggingface-cli login`. Read-only from the UI.',
-};
-
 const EMPTY_STATE = {
   sources: [
     { source: 'app', set: false, masked: null, whoami_user: null, whoami_ok: false },
@@ -48,6 +36,22 @@ const EMPTY_STATE = {
 
 export default function ApiKeysPanel() {
   const { t } = useTranslation();
+  const SOURCE_LABELS = {
+    app: t('settings.hf_source_app_label', { defaultValue: 'OmniVoice (encrypted, recommended)' }),
+    env: t('settings.hf_source_env_label', { defaultValue: 'Environment variable' }),
+    'hf-cli': t('settings.hf_source_cli_label', { defaultValue: 'HuggingFace CLI' }),
+  };
+  const SOURCE_HELP = {
+    app: t('settings.hf_source_app_help', {
+      defaultValue: "Stored encrypted in OmniVoice's local SQLite store. Set or clear here.",
+    }),
+    env: t('settings.hf_source_env_help', {
+      defaultValue: 'Set via HF_TOKEN in your shell. Read-only from the UI.',
+    }),
+    'hf-cli': t('settings.hf_source_cli_help', {
+      defaultValue: 'Written by `huggingface-cli login`. Read-only from the UI.',
+    }),
+  };
   const [state, setState] = useState(EMPTY_STATE);
   const [loading, setLoading] = useState(false);
   const [tokenInput, setTokenInput] = useState('');
@@ -63,11 +67,14 @@ export default function ApiKeysPanel() {
       const data = await apiJson('/api/settings/hf-token/state');
       setState(data);
     } catch (e) {
-      setError(e?.message || 'Failed to load token state');
+      setError(
+        e?.message ||
+          t('settings.hf_token_load_error', { defaultValue: 'Failed to load token state' }),
+      );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     refresh();
@@ -83,7 +90,9 @@ export default function ApiKeysPanel() {
       setTokenInput('');
       await refresh();
     } catch (e) {
-      setError(e?.message || 'Failed to save token');
+      setError(
+        e?.message || t('settings.hf_token_save_error', { defaultValue: 'Failed to save token' }),
+      );
     } finally {
       setSaving(false);
     }
@@ -100,7 +109,9 @@ export default function ApiKeysPanel() {
       setAlsoClearCli(false);
       await refresh();
     } catch (e) {
-      setError(e?.message || 'Failed to clear token');
+      setError(
+        e?.message || t('settings.hf_token_clear_error', { defaultValue: 'Failed to clear token' }),
+      );
     } finally {
       setSaving(false);
     }
@@ -112,8 +123,10 @@ export default function ApiKeysPanel() {
     <SettingsSection
       className="apikeys-panel"
       icon={KeyRound}
-      title="HuggingFace token"
-      description="Resolved across three sources in priority order — App, Env, HF CLI."
+      title={t('settings.hf_token_title', { defaultValue: 'HuggingFace token' })}
+      description={t('settings.hf_token_desc', {
+        defaultValue: 'Resolved across three sources in priority order — App, Env, HF CLI.',
+      })}
       actions={
         <button
           type="button"
@@ -157,16 +170,21 @@ export default function ApiKeysPanel() {
                   {SOURCE_LABELS[row.source]}
                   <InfoHint>{SOURCE_HELP[row.source]}</InfoHint>
                 </span>
-                {isActive && <span className="apikeys-badge apikeys-badge--active">Active</span>}
+                {isActive && (
+                  <span className="apikeys-badge apikeys-badge--active">
+                    {t('settings.hf_token_active', { defaultValue: 'Active' })}
+                  </span>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-[var(--space-3)] text-[length:var(--text-sm)] text-[var(--chrome-fg-muted)]">
                 {row.set ? (
                   <>
                     <span
                       className="inline-flex items-center gap-[4px] text-[var(--chrome-severity-ok)]"
-                      aria-label="set"
+                      aria-label={t('settings.hf_token_set', { defaultValue: 'set' })}
                     >
-                      <CheckCircle2 size={12} /> set
+                      <CheckCircle2 size={12} />{' '}
+                      {t('settings.hf_token_set', { defaultValue: 'set' })}
                     </span>
                     {row.masked && (
                       <code className="rounded-[4px] bg-[var(--chrome-hover-bg)] px-[6px] py-[1px] font-mono text-[length:var(--text-xs)]">
@@ -175,17 +193,21 @@ export default function ApiKeysPanel() {
                     )}
                     {row.whoami_ok ? (
                       <span className="inline-flex items-center gap-[4px] text-[var(--chrome-severity-ok)]">
-                        <CheckCircle2 size={12} /> {row.whoami_user || 'verified'}
+                        <CheckCircle2 size={12} />{' '}
+                        {row.whoami_user ||
+                          t('settings.hf_token_verified', { defaultValue: 'verified' })}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-[4px] text-[var(--chrome-severity-err)]">
-                        <XCircle size={12} /> whoami failed
+                        <XCircle size={12} />{' '}
+                        {t('settings.hf_token_whoami_failed', { defaultValue: 'whoami failed' })}
                       </span>
                     )}
                   </>
                 ) : (
                   <span className="inline-flex items-center gap-[4px] text-[var(--chrome-severity-warn)]">
-                    <XCircle size={12} /> not set
+                    <XCircle size={12} />{' '}
+                    {t('settings.hf_token_not_set', { defaultValue: 'not set' })}
                   </span>
                 )}
               </div>
@@ -210,7 +232,7 @@ export default function ApiKeysPanel() {
                     onClick={onSave}
                     disabled={!tokenInput.trim() || saving}
                   >
-                    <Save size={12} /> Save
+                    <Save size={12} /> {t('common.save')}
                   </button>
                   {row.set && (
                     <button
@@ -219,7 +241,8 @@ export default function ApiKeysPanel() {
                       onClick={() => setClearOpen(true)}
                       disabled={saving}
                     >
-                      <Trash2 size={12} /> Clear
+                      <Trash2 size={12} />{' '}
+                      {t('settings.hf_token_clear_short', { defaultValue: 'Clear' })}
                     </button>
                   )}
                 </div>

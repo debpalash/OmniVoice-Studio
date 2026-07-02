@@ -29,6 +29,7 @@ from .models import (  # noqa: F401
     KNOWN_MODELS,
     invalidate_cache,
     snapshot_has_weights,
+    disk_space_error,
     _MIN_WEIGHT_BYTES,
     _WEIGHT_FLOORS,
 )
@@ -404,6 +405,26 @@ async def install_model(req: InstallModelRequest):
             try:
                 _plan = snapshot_download(**_preflight_kwargs)
                 _summary = compute_plan(_plan)
+                # Disk-space guard (before a single byte flows): the preflight
+                # gives an exact "to download" size, so reject an install that
+                # would overrun the cache volume — with the numbers named —
+                # instead of failing mid-download with a cryptic OSError. No-op
+                # when it fits or the size is unknown. Same on every platform.
+                _disk_err = disk_space_error(_summary["to_download_bytes"])
+                if _disk_err:
+                    logger.info("model install %s: rejected — %s", req.repo_id, _disk_err)
+                    _resolving.set()  # stop the heartbeat thread before we bail
+                    hf_progress.emit({
+                        "repo_id": req.repo_id,
+                        "filename": req.repo_id,
+                        "downloaded": 0, "total": 0, "pct": 0.0,
+                        "phase": "install_error",
+                        "error": _disk_err,
+                    })
+                    # A disk-full is not a transient network failure — don't set
+                    # a cooldown (freeing space, not waiting, is the fix). The
+                    # outer finally still cleans up the aggregator + context.
+                    return
                 download_aggregator.start(
                     req.repo_id,
                     total_bytes=_summary["to_download_bytes"],

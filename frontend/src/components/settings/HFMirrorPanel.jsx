@@ -11,12 +11,14 @@
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { Globe } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { apiJson, apiFetch } from '../../api/client';
 import { SettingsSection, SettingRow, SettingsInput } from './primitives';
 import { Button } from '../../ui';
 import RestartBadge from './RestartBadge';
 
 export default function HFMirrorPanel() {
+  const { t } = useTranslation();
   const [state, setState] = useState(null);
   const [url, setUrl] = useState('');
   const [saving, setSaving] = useState(false);
@@ -30,9 +32,9 @@ export default function HFMirrorPanel() {
       setState(d);
       setUrl(d?.configured || '');
     } catch (e) {
-      setError(e?.message || 'Failed to load mirror setting');
+      setError(e?.message || t('models.mirror_load_error'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     refresh();
@@ -52,7 +54,7 @@ export default function HFMirrorPanel() {
       setRestart(Boolean(d.restart_required));
       refresh();
     } catch (e) {
-      setError(e?.message || 'Failed to save');
+      setError(e?.message || t('models.mirror_save_error'));
     } finally {
       setSaving(false);
     }
@@ -63,8 +65,8 @@ export default function HFMirrorPanel() {
   return (
     <SettingsSection
       icon={Globe}
-      title="Hugging Face mirror"
-      description="Route model downloads through a mirror on a restricted network."
+      title={t('models.mirror_title')}
+      description={t('models.mirror_description')}
       actions={<RestartBadge />}
     >
       {error && (
@@ -75,8 +77,8 @@ export default function HFMirrorPanel() {
 
       <SettingRow
         stack
-        title="Mirror preset"
-        hint="On a restricted network, route model downloads through a mirror. Applies after a restart. Leave empty for the official endpoint."
+        title={t('models.mirror_preset_title')}
+        hint={t('models.mirror_preset_hint')}
         control={
           <div className="flex flex-wrap items-center gap-[6px] min-w-0 max-w-full">
             {state.presets.map((p) => (
@@ -97,7 +99,7 @@ export default function HFMirrorPanel() {
       <SettingRow
         stack
         title="HF_ENDPOINT"
-        subtitle={restart ? 'Restart the app for the change to take effect.' : undefined}
+        subtitle={restart ? t('models.mirror_restart_note') : undefined}
         control={
           <>
             <SettingsInput
@@ -116,7 +118,7 @@ export default function HFMirrorPanel() {
               disabled={saving}
               data-testid="hf-mirror-save"
             >
-              Save
+              {t('common.save')}
             </Button>
           </>
         }

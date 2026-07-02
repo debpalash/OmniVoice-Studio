@@ -46,13 +46,21 @@ def settings_mod(monkeypatch, clean_llm_env):
 
 
 def _fake_openai(monkeypatch, *, reply="ok", models=None, raise_exc=None):
-    """Fake `openai.OpenAI` with canned chat/models behavior."""
+    """Fake `openai.OpenAI` with canned chat/models behavior.
+
+    Returns a list that captures each client's construction kwargs so a test can
+    assert the interactive probes disable the SDK's automatic retries
+    (max_retries=0) — the default 2 retries turned a 429 into a ~34s hang.
+    """
+    captured_kwargs: list[dict] = []
+
     class _Msg:
         def __init__(self, content):
             self.message = types.SimpleNamespace(content=content)
 
     class _FakeClient:
-        def __init__(self, api_key=None, base_url=None):
+        def __init__(self, **kwargs):
+            captured_kwargs.append(kwargs)
             self.chat = types.SimpleNamespace(
                 completions=types.SimpleNamespace(create=self._create))
             self.models = types.SimpleNamespace(list=self._models)
@@ -69,6 +77,7 @@ def _fake_openai(monkeypatch, *, reply="ok", models=None, raise_exc=None):
 
     import openai
     monkeypatch.setattr(openai, "OpenAI", _FakeClient)
+    return captured_kwargs
 
 
 def _configure_groq(settings_mod, key="gsk-test-123"):
@@ -161,3 +170,34 @@ def test_models_failure_is_classified(settings_mod, monkeypatch):
     _fake_openai(monkeypatch, raise_exc=exc)
     body = settings_mod.list_llm_provider_models("groq")
     assert body["ok"] is False and body["kind"] == "auth" and body["models"] == []
+
+
+def test_models_not_truncated_under_cap(settings_mod, monkeypatch):
+    _configure_groq(settings_mod)
+    _fake_openai(monkeypatch, models=[f"m{i}" for i in range(5)])
+    body = settings_mod.list_llm_provider_models("groq")
+    assert body["ok"] is True and body["truncated"] is False and len(body["models"]) == 5
+
+
+def test_models_truncated_over_cap(settings_mod, monkeypatch):
+    # >200 model ids → capped + flagged so the UI can say "first 200 shown".
+    _configure_groq(settings_mod)
+    _fake_openai(monkeypatch, models=[f"m{i:03d}" for i in range(250)])
+    body = settings_mod.list_llm_provider_models("groq")
+    assert body["ok"] is True and body["truncated"] is True and len(body["models"]) == 200
+
+
+# ── probes fail fast (no 34s hang on the SDK's default retry ladder) ─────────
+
+def test_probe_disables_sdk_retries(settings_mod, monkeypatch):
+    _configure_groq(settings_mod)
+    captured = _fake_openai(monkeypatch, reply="ok")
+    settings_mod.test_llm_provider("groq")
+    assert captured and captured[-1].get("max_retries") == 0
+
+
+def test_models_disables_sdk_retries(settings_mod, monkeypatch):
+    _configure_groq(settings_mod)
+    captured = _fake_openai(monkeypatch, models=["a"])
+    settings_mod.list_llm_provider_models("groq")
+    assert captured and captured[-1].get("max_retries") == 0

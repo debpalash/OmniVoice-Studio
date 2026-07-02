@@ -107,6 +107,17 @@ export interface PrefsSlice {
    */
   fitOptions: FitOptions | null;
 
+  /**
+   * Last app version whose release notes the user has seen (feat/safe-updates).
+   * `null` = never recorded (fresh install / pre-feature profile): the first
+   * launch baselines it silently so brand-new users don't get a "What's new"
+   * nudge for a version they just installed. After an update,
+   * `whatsNewPending()` flags the mismatch and the footer shows a small
+   * non-blocking "What's new" affordance until the notes are opened.
+   */
+  whatsNewSeenVersion: string | null;
+  setWhatsNewSeenVersion: (v: string | null) => void;
+
   setTranslateQuality: (q: TranslateQuality) => void;
   setDualSubs: (on: boolean) => void;
   setBurnSubs: (on: boolean) => void;
@@ -195,6 +206,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   showHeaderLiveStats: false,
   timingStrategy: 'concise',
   fitOptions: null,
+  whatsNewSeenVersion: null,
   aecEnabled: false,
   autoPlayPreview: true,
 
@@ -213,6 +225,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   setShowHeaderLiveStats: (on) => set({ showHeaderLiveStats: on }),
   setTimingStrategy: (s) => set({ timingStrategy: s }),
   setFitOptions: (o) => set({ fitOptions: o }),
+  setWhatsNewSeenVersion: (v) => set({ whatsNewSeenVersion: v }),
   setAecEnabled: (on) => set({ aecEnabled: on }),
   setAutoPlayPreview: (on) => set({ autoPlayPreview: on }),
 

@@ -234,8 +234,13 @@ def resolve_skill_client(skill_id: str) -> Optional[SkillClient]:
     base_url = llm_providers.resolve_base_url(res.provider)
     if base_url:
         kw["base_url"] = base_url
+    # max_retries=0: a rate-limited provider returning 429 + a long Retry-After
+    # would otherwise let the SDK sleep+retry inside a single call, blowing the
+    # skill's wall-clock budget (the cinematic pass budget, the glossary call
+    # timeout) from inside one request. Fail fast — the per-call timeout and the
+    # pass-level budget are the only bounds we want. Mirrors OpenAICompatBackend.
     return SkillClient(
-        client=OpenAI(**kw),
+        client=OpenAI(max_retries=0, **kw),
         model=llm_providers.resolve_model(res.provider),
         provider_id=res.provider.id,
         timeout=_default_timeout(),

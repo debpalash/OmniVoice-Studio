@@ -125,3 +125,63 @@ def test_describe_never_leaks_key(lp, monkeypatch):
     assert "gsk_super_secret" not in repr(d)
     assert "api_key" not in d and "key" not in d  # only boolean flags
     assert set(["has_key", "key_from_env"]).issubset(d)
+
+
+# ── env-override surfacing (silent-revert / dead make-active traps) ──────────
+
+def test_describe_reports_env_override_flags(lp, monkeypatch):
+    p = lp.get_provider("groq")
+    d = lp.describe(p)
+    assert d["base_url_from_env"] is False
+    assert d["model_from_env"] is False
+    assert d["active_from_env"] is False
+    monkeypatch.setenv("GROQ_BASE_URL", "http://env/v1")
+    monkeypatch.setenv("GROQ_MODEL", "env-model")
+    monkeypatch.setenv("LLM_DEFAULT_PROVIDER", "groq")
+    d = lp.describe(p)
+    assert d["base_url_from_env"] is True
+    assert d["model_from_env"] is True
+    assert d["active_from_env"] is True
+    # active_from_env is a GLOBAL pin (LLM_DEFAULT_PROVIDER) — true for every
+    # provider while set, so the UI disables make-active everywhere.
+    assert lp.describe(lp.get_provider("openai"))["active_from_env"] is True
+
+
+def test_active_from_env_ignores_unknown_provider(lp, monkeypatch):
+    monkeypatch.setenv("LLM_DEFAULT_PROVIDER", "not-a-provider")
+    assert lp.describe(lp.get_provider("groq"))["active_from_env"] is False
+
+
+# ── Cloudflare account-id round-trip + no frozen base_url override ───────────
+
+def test_describe_returns_account_id_and_raw_template(lp):
+    p = lp.get_provider("cloudflare")
+    lp.save_overrides("cloudflare", account_id="acct-9")
+    d = lp.describe(p)
+    # (a) the stored account id round-trips so the field isn't reset to empty
+    assert d["account_id"] == "acct-9"
+    assert d["account_from_env"] is False
+    # describe shows the RAW template, not the {account_id}-baked value, so
+    # saving it back can't freeze the URL.
+    assert "{account_id}" in d["base_url"]
+
+
+def test_account_change_takes_effect_not_frozen(lp):
+    """Regression: the UI posts the shown base_url back on every save. Saving a
+    value equal to the default template must NOT persist a frozen override, so
+    later account-id changes keep taking effect (the P2 bug)."""
+    p = lp.get_provider("cloudflare")
+    template = lp.describe(p)["base_url"]  # what the field shows
+    lp.save_overrides("cloudflare", base_url=template, account_id="acct-1")
+    assert lp._text.get("llm.base_url.cloudflare", "") == ""  # not frozen
+    assert "accounts/acct-1/ai/v1" in lp.resolve_base_url(p)
+    # Change ONLY the account later — must be reflected, not stuck on acct-1.
+    lp.save_overrides("cloudflare", base_url=template, account_id="acct-2")
+    assert "accounts/acct-2/ai/v1" in lp.resolve_base_url(p)
+
+
+def test_real_base_url_override_still_persists(lp):
+    # A genuinely custom URL (≠ default) is still stored as an override.
+    lp.save_overrides("groq", base_url="http://my-proxy/v1")
+    assert lp._text["llm.base_url.groq"] == "http://my-proxy/v1"
+    assert lp.resolve_base_url(lp.get_provider("groq")) == "http://my-proxy/v1"

@@ -268,6 +268,56 @@ def test_capture_backend_honors_dictation_model_id(fake_sherpa, no_download, mon
     assert b2.spec.id == "sherpa-parakeet-tdt-v3"
 
 
+# ── #888: warmup builds the recognizer; WS sessions reuse it ────────────────
+
+
+def test_sherpa_warmup_builds_recognizer(fake_sherpa, no_download):
+    """warmup() eagerly builds the recognizer so the first live session doesn't
+    pay the ONNX-session load. Before the fix SherpaDictationBackend had no
+    warmup(), so the #888 preload's `if hasattr(backend, 'warmup')` was a no-op
+    and the recognizer stayed cold until the first dictation."""
+    from services import asr_backend as ab
+
+    b = ab.SherpaDictationBackend(model_id="sherpa-whisper-tiny")
+    assert hasattr(b, "warmup")
+    assert b._rec is None
+    b.warmup()
+    assert b._rec is not None  # recognizer built eagerly
+    # Idempotent — a second warmup keeps the SAME recognizer (no rebuild).
+    rec = b._rec
+    b.warmup()
+    assert b._rec is rec
+
+
+def test_get_sherpa_dictation_backend_reuses_warm_singleton(fake_sherpa, no_download, monkeypatch):
+    """A second WS session for the same model reuses the warm backend instead
+    of rebuilding the recognizer (1.3–2.5s) per connect — the reuse that makes
+    the #888 preload actually pay off. A model switch rebuilds (same
+    invalidation as the get_capture_asr_backend singleton)."""
+    from services import asr_backend as ab
+
+    ab._capture_backend = None
+    ab._capture_backend_key = None
+    monkeypatch.setattr(ab.SherpaDictationBackend, "is_available",
+                        classmethod(lambda cls: (True, "ready")))
+
+    b1 = ab.get_sherpa_dictation_backend("sherpa-whisper-tiny")
+    b1.warmup()
+    rec = b1._rec
+
+    b2 = ab.get_sherpa_dictation_backend("sherpa-whisper-tiny")
+    assert b2 is b1, "same-model session rebuilt the backend instead of reusing"
+    assert b2._rec is rec, "recognizer was rebuilt on reuse"
+
+    # Switching the model rebuilds and rebinds the shared singleton.
+    b3 = ab.get_sherpa_dictation_backend("sherpa-parakeet-tdt-v3")
+    assert b3 is not b1
+    assert b3.spec.id == "sherpa-parakeet-tdt-v3"
+
+    ab._capture_backend = None
+    ab._capture_backend_key = None
+
+
 def test_capture_backend_falls_back_when_dictation_disabled(monkeypatch):
     from services import asr_backend as ab
     ab._capture_backend = None

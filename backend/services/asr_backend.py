@@ -1424,6 +1424,11 @@ class SherpaDictationBackend(ASRBackend):
             )
         self._spec = spec
         self._rec = None  # lazy OfflineRecognizer / OnlineRecognizer
+        # One backend is shared across live-dictation WS sessions (see
+        # get_sherpa_dictation_backend), so guard the one-time recognizer build
+        # against two sessions racing to construct it concurrently. Each session
+        # still owns its own decode stream — only the recognizer is shared.
+        self._rec_lock = threading.Lock()
 
     @property
     def spec(self):
@@ -1441,14 +1446,25 @@ class SherpaDictationBackend(ASRBackend):
     def ensure_loaded(self) -> None:
         self._ensure_rec()
 
+    def warmup(self) -> None:
+        """Eagerly build the recognizer so the FIRST live-dictation session
+        doesn't pay the 1.3–2.5s ONNX-session load (#888 'instant first
+        dictation'). Called by the background capture-ASR preload; idempotent,
+        and the built recognizer is reused across sessions via
+        get_sherpa_dictation_backend (the same singleton the preload warms)."""
+        self._ensure_rec()
+
     def _ensure_rec(self):
         if self._rec is not None:
             return
-        from services import sherpa_dictation as _sd
-        if self._spec.streaming:
-            self._rec = _sd.build_online_recognizer(self._spec)
-        else:
-            self._rec = _sd.build_offline_recognizer(self._spec)
+        with self._rec_lock:
+            if self._rec is not None:
+                return
+            from services import sherpa_dictation as _sd
+            if self._spec.streaming:
+                self._rec = _sd.build_online_recognizer(self._spec)
+            else:
+                self._rec = _sd.build_offline_recognizer(self._spec)
 
     def transcribe(self, audio_path: str, *, word_timestamps: bool = True) -> dict:
         self._ensure_rec()
@@ -1873,6 +1889,34 @@ _capture_backend: ASRBackend | None = None
 # The sherpa model id the cached capture backend was built for, so a model
 # switch in Settings rebuilds the singleton instead of serving the old model.
 _capture_backend_key: str | None = None
+# Guards the read-modify-write of the two globals above. Both the background
+# capture-ASR preload (runs in the GPU-pool thread) and the live-dictation WS
+# handlers (run on the event loop) resolve/replace the singleton, so the
+# check-then-build must be atomic to avoid two threads each building a model.
+_capture_backend_lock = threading.Lock()
+
+
+def get_sherpa_dictation_backend(model_id: str) -> "SherpaDictationBackend":
+    """Return a shared, warm-cached :class:`SherpaDictationBackend` for
+    ``model_id``, building it at most once and reusing the recognizer across
+    live-dictation WS sessions.
+
+    Live sessions previously constructed a FRESH backend per WebSocket connect,
+    so every session reloaded the ONNX recognizer (1.3–2.5s "loading…") and the
+    #888 background preload was a no-op. This reuses the SAME module-level
+    ``_capture_backend`` singleton the preload warms (when the ids match), and
+    rebuilds on a model switch — identical invalidation to
+    :func:`get_capture_asr_backend`. Thread-safe: the recognizer is shared;
+    each session creates its own decode stream (see capture_ws)."""
+    global _capture_backend, _capture_backend_key
+    with _capture_backend_lock:
+        if (isinstance(_capture_backend, SherpaDictationBackend)
+                and _capture_backend_key == model_id):
+            return _capture_backend
+        backend = SherpaDictationBackend(model_id=model_id)
+        _capture_backend = backend
+        _capture_backend_key = model_id
+        return backend
 
 
 def dictation_model_id() -> str | None:
@@ -1912,49 +1956,52 @@ def get_capture_asr_backend() -> ASRBackend:
     """
     global _capture_backend, _capture_backend_key
 
-    # 0. Honor an explicit sherpa dictation model selection.
-    sherpa_id = dictation_model_id()
-    if sherpa_id:
-        ok, _ = SherpaDictationBackend.is_available()
+    # Atomic resolve+build so the preload thread and a WS session (which may
+    # call get_sherpa_dictation_backend concurrently) can't both build a model.
+    with _capture_backend_lock:
+        # 0. Honor an explicit sherpa dictation model selection.
+        sherpa_id = dictation_model_id()
+        if sherpa_id:
+            ok, _ = SherpaDictationBackend.is_available()
+            if ok:
+                if not (isinstance(_capture_backend, SherpaDictationBackend)
+                        and _capture_backend_key == sherpa_id):
+                    try:
+                        _capture_backend = SherpaDictationBackend(model_id=sherpa_id)
+                        _capture_backend_key = sherpa_id
+                    except Exception as e:  # noqa: BLE001 — fall through to Whisper
+                        logger.warning(
+                            "sherpa dictation model %r unavailable (%s) — falling "
+                            "back to Whisper capture engine", sherpa_id, e,
+                        )
+                        _capture_backend = None
+                        _capture_backend_key = None
+                if _capture_backend is not None:
+                    return _capture_backend
+            else:
+                logger.info(
+                    "dictation.model_id=%r selected but sherpa-onnx not installed — "
+                    "falling back to Whisper capture engine", sherpa_id,
+                )
+
+        if _capture_backend is not None and _capture_backend_key is None:
+            return _capture_backend
+
+        # Prefer MLX Turbo on Apple Silicon
+        ok, _ = MLXWhisperBackend.is_available()
         if ok:
-            if not (isinstance(_capture_backend, SherpaDictationBackend)
-                    and _capture_backend_key == sherpa_id):
-                try:
-                    _capture_backend = SherpaDictationBackend(model_id=sherpa_id)
-                    _capture_backend_key = sherpa_id
-                except Exception as e:  # noqa: BLE001 — fall through to Whisper
-                    logger.warning(
-                        "sherpa dictation model %r unavailable (%s) — falling "
-                        "back to Whisper capture engine", sherpa_id, e,
-                    )
-                    _capture_backend = None
-                    _capture_backend_key = None
-            if _capture_backend is not None:
-                return _capture_backend
-        else:
-            logger.info(
-                "dictation.model_id=%r selected but sherpa-onnx not installed — "
-                "falling back to Whisper capture engine", sherpa_id,
-            )
+            _capture_backend = MLXWhisperBackend(model_name=_MLX_MODEL_TURBO)
+            _capture_backend_key = None
+            return _capture_backend
 
-    if _capture_backend is not None and _capture_backend_key is None:
-        return _capture_backend
+        # Fall back to faster-whisper (CPU int8 on non-Apple)
+        ok, _ = FasterWhisperBackend.is_available()
+        if ok:
+            _capture_backend = FasterWhisperBackend()
+            _capture_backend_key = None
+            return _capture_backend
 
-    # Prefer MLX Turbo on Apple Silicon
-    ok, _ = MLXWhisperBackend.is_available()
-    if ok:
-        _capture_backend = MLXWhisperBackend(model_name=_MLX_MODEL_TURBO)
+        # Last resort
+        _capture_backend = PyTorchWhisperBackend()
         _capture_backend_key = None
         return _capture_backend
-
-    # Fall back to faster-whisper (CPU int8 on non-Apple)
-    ok, _ = FasterWhisperBackend.is_available()
-    if ok:
-        _capture_backend = FasterWhisperBackend()
-        _capture_backend_key = None
-        return _capture_backend
-
-    # Last resort
-    _capture_backend = PyTorchWhisperBackend()
-    _capture_backend_key = None
-    return _capture_backend

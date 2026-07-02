@@ -18,33 +18,20 @@ import sys
 from fastapi import APIRouter
 
 from api.schemas import SetupStatusResponse, PreflightResponse
-from .models import REQUIRED_MODELS, hf_cache_dir, is_cached
+# MIN_FREE_GB + disk_free_bytes are single-sourced in ``.models`` (the lowest
+# module in the setup import graph) so the wizard gate, the /models header, and
+# the per-install disk guard can't drift apart.
+from .models import REQUIRED_MODELS, hf_cache_dir, is_cached, MIN_FREE_GB, disk_free_bytes
 
 logger = logging.getLogger("omnivoice.setup.wizard")
 router = APIRouter()
 
-MIN_FREE_GB = 10
-
 
 def _disk_free_gb(path: str) -> float:
-    """Return free GB on the volume containing *path*.
-
-    If *path* doesn't exist yet (e.g. after a fresh wipe), walk up to the
-    nearest existing ancestor so ``shutil.disk_usage`` can still probe the
-    correct mount point.
-    """
-    try:
-        from pathlib import Path
-        p = Path(path).resolve()
-        # Walk up until we find a directory that exists
-        while not p.exists():
-            parent = p.parent
-            if parent == p:  # root
-                break
-            p = parent
-        return _shutil.disk_usage(str(p)).free / (1024 ** 3)
-    except Exception:
-        return 0.0
+    """Free GB on the volume containing *path* (thin GB wrapper over the shared
+    ``models.disk_free_bytes``, which walks up to the nearest existing ancestor
+    for a not-yet-created path)."""
+    return disk_free_bytes(path) / (1024 ** 3)
 
 
 # ── Setup Status ───────────────────────────────────────────────────────────

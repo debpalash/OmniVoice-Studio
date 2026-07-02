@@ -134,3 +134,24 @@ def scrub_text(text: str | None) -> str:
             pass
 
     return s
+
+
+def scrub_provider_error(detail: object, api_key: str | None = None) -> str:
+    """UI-safe text for an LLM/translation provider failure.
+
+    Some OpenAI-compatible providers echo the caller's key or a stable
+    ``user_id`` back inside their error bodies, and a raw ``str(exc)`` on the
+    translate / glossary paths would surface that verbatim. This redacts the
+    exact resolved ``api_key`` first (in the provider-registry case it isn't a
+    shaped/known-env secret, so ``scrub_text`` alone can miss it) then runs the
+    generic secret + home-path scrub. Never raises — scrubbing must not mask a
+    failure with a new one. Mirrors ``settings._scrub_llm_detail`` so every
+    surface redacts identically.
+    """
+    s = str(detail if detail is not None else "")
+    try:
+        if api_key and api_key != "local" and len(api_key) >= _MIN_SECRET_LEN:
+            s = s.replace(api_key, REDACTED)
+    except Exception:
+        pass
+    return scrub_text(s)

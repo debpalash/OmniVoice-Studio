@@ -74,6 +74,7 @@
       "../../pyproject.toml",
       "../../uv.lock",
       "../../README.md",
+      "../../CHANGELOG.md",
       "../../omnivoice",
       "../../backend"
     ],

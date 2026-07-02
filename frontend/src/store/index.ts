@@ -90,6 +90,9 @@ export const useAppStore = create<AppStore>()(
         showHeaderLiveStats: s.showHeaderLiveStats,
         timingStrategy: s.timingStrategy,
         fitOptions: s.fitOptions,
+        // "What's new" affordance (feat/safe-updates) — remembering which
+        // version's notes were seen only works if it survives restarts.
+        whatsNewSeenVersion: s.whatsNewSeenVersion,
         autoPlayPreview: s.autoPlayPreview,
         mode: s.mode,
         defineMethod: s.defineMethod,

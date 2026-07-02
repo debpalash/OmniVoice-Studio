@@ -107,6 +107,12 @@ def _llm_client():
     ``custom`` provider still maps ``TRANSLATE_BASE_URL``/``TRANSLATE_API_KEY``,
     so legacy env setups keep working. Returns None if the skill is disabled
     or no provider is configured — the callers' Fast-fallback path.
+
+    The registry builds the client with ``max_retries=0`` (see
+    ``llm_skills.resolve_skill_client``) so a 429 + long Retry-After can't make
+    one call sleep+retry past the cinematic wall-clock budget from inside a
+    single request. The pass-level budget (``cinematic_refine_many``) and the
+    per-call timeout stay the only bounds.
     """
     from services import llm_skills
     handle = llm_skills.resolve_skill_client(_SKILL_ID)

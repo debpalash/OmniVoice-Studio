@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveAboutVersion, APP_VERSION } from './appVersion';
+import { resolveAboutVersion, whatsNewPending, APP_VERSION } from './appVersion';
 
 describe('resolveAboutVersion (About → Version blank-in-web-build fix)', () => {
   it('prefers Tauri appVersion, then backend app_version, then the build constant', () => {
@@ -17,5 +17,24 @@ describe('resolveAboutVersion (About → Version blank-in-web-build fix)', () =>
     expect(resolveAboutVersion(null, {})).toBe(APP_VERSION);
     expect(resolveAboutVersion(null, undefined)).not.toBe('');
     expect(resolveAboutVersion(null, undefined)).not.toBe('—');
+  });
+});
+
+describe('whatsNewPending (one-time "What\'s new" affordance, feat/safe-updates)', () => {
+  it('fires only when a recorded version differs from the running one', () => {
+    expect(whatsNewPending('0.3.8', '0.3.9')).toBe(true);
+    expect(whatsNewPending('0.3.9', '0.3.9')).toBe(false);
+  });
+
+  it('never fires on a fresh profile (null/undefined seen) — baseline silently', () => {
+    expect(whatsNewPending(null, '0.3.9')).toBe(false);
+    expect(whatsNewPending(undefined, '0.3.9')).toBe(false);
+    expect(whatsNewPending('', '0.3.9')).toBe(false);
+  });
+
+  it('never fires without a usable current version', () => {
+    expect(whatsNewPending('0.3.8', null)).toBe(false);
+    expect(whatsNewPending('0.3.8', '')).toBe(false);
+    expect(whatsNewPending('0.3.8', 'unknown')).toBe(false);
   });
 });

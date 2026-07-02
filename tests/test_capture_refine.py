@@ -59,6 +59,30 @@ def _post(client, **data):
     )
 
 
+def test_rest_polishes_text_like_ws_socket(client):
+    """P1 parity regression: the REST /transcribe `text` is polished (leading
+    capital + terminal punctuation) exactly like the WS `final`. Before the fix
+    REST leaked the raw recognizer string (e.g. "um … you know") while the WS
+    returned "Um … you know." — the widget's POST fallback and MCP/CLI callers
+    saw different text than live dictation."""
+    body = _post(client).json()
+    assert body["text"][0].isupper()
+    assert body["text"].endswith(".")
+    # Segments stay raw (their verbatim recognition / timing is the contract).
+    assert body["segments"][0]["text"] == "um so like the meeting is at 3pm you know"
+
+
+def test_refined_text_is_also_polished(client, monkeypatch):
+    """`refined_text` is polished too, so both surfaced strings read as typed
+    text (an LLM that forgets the trailing period still yields a clean final)."""
+    monkeypatch.setattr(
+        "services.refinement.maybe_refine",
+        lambda _t: "so the meeting is at 3pm")  # lowercase, no period
+
+    body = _post(client, refine="true").json()
+    assert body["refined_text"] == "So the meeting is at 3pm."
+
+
 def test_no_refine_flag_returns_raw_only(client, monkeypatch):
     # maybe_refine must never even be called when the flag is absent.
     called = {"n": 0}
@@ -72,7 +96,10 @@ def test_no_refine_flag_returns_raw_only(client, monkeypatch):
     r = _post(client)
     assert r.status_code == 200
     body = r.json()
-    assert body["text"].startswith("um so like")
+    # REST now polishes the final exactly like the WS socket (leading capital +
+    # terminal punctuation) — no more raw "um so like…" leaking to the widget
+    # fallback / MCP / CLI.
+    assert body["text"] == "Um so like the meeting is at 3pm you know."
     assert "refined_text" not in body
     assert called["n"] == 0
 
@@ -85,9 +112,10 @@ def test_refine_flag_adds_refined_text_when_changed(client, monkeypatch):
     r = _post(client, refine="true")
     assert r.status_code == 200
     body = r.json()
-    # Raw text is preserved verbatim …
-    assert body["text"].startswith("um so like")
-    # … and the cleaned text rides alongside it.
+    # The (polished) raw text is preserved …
+    assert body["text"] == "Um so like the meeting is at 3pm you know."
+    # … and the cleaned text rides alongside it (already terminal-punctuated,
+    # so polish is idempotent here).
     assert body["refined_text"] == "So the meeting is at 3pm."
 
 

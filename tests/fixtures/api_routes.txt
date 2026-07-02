@@ -18,6 +18,8 @@ DELETE /profiles/{profile_id}/consent
 DELETE /projects/{project_id}
 DELETE /pronunciation/{entry_id}
 GET /api/mcp/bindings
+GET /api/settings/changelog
+GET /api/settings/db-backup
 GET /api/settings/dictation-refinement
 GET /api/settings/hf-mirror
 GET /api/settings/hf-token/state
@@ -27,6 +29,7 @@ GET /api/settings/llm-providers
 GET /api/settings/llm-providers/{provider_id}/models
 GET /api/settings/llm-skills
 GET /api/settings/perf/torch-compile-disabled
+GET /api/settings/storage
 GET /api/settings/storage/models-dir
 GET /archetypes
 GET /archetypes/categories

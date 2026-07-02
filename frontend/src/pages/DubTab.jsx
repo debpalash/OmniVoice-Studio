@@ -111,17 +111,29 @@ export default function DubTab(props) {
   const [llmEndpoint, setLlmEndpoint] = useState(null);
   useEffect(() => {
     let cancelled = false;
-    import('../api/client').then(({ apiJson }) =>
-      apiJson('/api/settings/llm-endpoint')
-        .then((d) => {
-          if (!cancelled) setLlmEndpoint(d);
-        })
-        .catch(() => {
-          /* backend mid-boot — guard simply stays permissive */
-        }),
-    );
+    const refresh = () =>
+      import('../api/client').then(({ apiJson }) =>
+        apiJson('/api/settings/llm-endpoint')
+          .then((d) => {
+            if (!cancelled) setLlmEndpoint(d);
+          })
+          .catch(() => {
+            /* backend mid-boot — guard simply stays permissive */
+          }),
+      );
+    refresh();
+    // Re-poll when the window regains focus / becomes visible — configuring a
+    // provider in Settings → LLM Providers otherwise wouldn't lift the Cinematic
+    // gate until this tab remounted (the fetch used to be mount-only, `[]`).
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       cancelled = true;
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, []);
   const dualSubs = useAppStore((s) => s.dualSubs);

@@ -36,6 +36,31 @@ const PROVIDERS = {
   ],
 };
 
+// A provider whose base_url / model / active selection are all pinned by env
+// vars — the UI must disable those fields + the make-active button and explain
+// why (the silent-revert / dead-make-active traps).
+const ENV_LOCKED = {
+  active: 'openai',
+  providers: [
+    {
+      id: 'openai',
+      display_name: 'OpenAI',
+      local: false,
+      needs_account: false,
+      signup_url: 'https://platform.openai.com',
+      notes: 'env-pinned',
+      base_url: 'https://env.example/v1',
+      model: 'env-model',
+      has_key: true,
+      key_from_env: true,
+      base_url_from_env: true,
+      model_from_env: true,
+      active_from_env: true,
+      configured: true,
+    },
+  ],
+};
+
 function mockFetchSequence(...responses) {
   const fn = vi.fn();
   for (const r of responses) {
@@ -62,6 +87,21 @@ describe('LLMProvidersPanel', () => {
     expect(screen.getByTestId('llm-provider-base-url').value).toBe(
       'https://api.groq.com/openai/v1',
     );
+    // Nothing env-pinned here → the fields stay editable and activate is live.
+    expect(screen.getByTestId('llm-provider-base-url')).not.toBeDisabled();
+    expect(screen.queryByTestId('llm-active-env-banner')).toBeNull();
+  });
+
+  it('env-pinned base_url / model / active are disabled and explained', async () => {
+    global.fetch = mockFetchSequence({ body: ENV_LOCKED });
+    render(<LLMProvidersPanel />);
+    await screen.findByTestId('llm-provider-select');
+    expect(screen.getByTestId('llm-provider-base-url')).toBeDisabled();
+    expect(screen.getByTestId('llm-provider-model')).toBeDisabled();
+    expect(screen.getByTestId('llm-provider-key')).toBeDisabled();
+    // Make-active is dead while LLM_DEFAULT_PROVIDER pins the choice.
+    expect(screen.getByTestId('llm-provider-activate')).toBeDisabled();
+    expect(screen.getByTestId('llm-active-env-banner')).toBeInTheDocument();
   });
 
   it('successful test shows model + latency badge', async () => {
@@ -119,6 +159,19 @@ describe('LLMProvidersPanel', () => {
     fireEvent.click(await screen.findByTestId('llm-provider-models'));
     await waitFor(() => expect(screen.getByTestId('llm-provider-model')).toHaveAttribute('list'));
     expect(document.querySelectorAll('datalist option')).toHaveLength(2);
+  });
+
+  it('a truncated model list still fills the datalist', async () => {
+    global.fetch = mockFetchSequence(
+      { body: PROVIDERS },
+      { body: {} },
+      { body: PROVIDERS },
+      { body: { ok: true, models: ['a', 'b', 'c'], truncated: true } },
+    );
+    render(<LLMProvidersPanel />);
+    fireEvent.click(await screen.findByTestId('llm-provider-models'));
+    await waitFor(() => expect(screen.getByTestId('llm-provider-model')).toHaveAttribute('list'));
+    expect(document.querySelectorAll('datalist option')).toHaveLength(3);
   });
 
   it('local provider hides the API key row', async () => {

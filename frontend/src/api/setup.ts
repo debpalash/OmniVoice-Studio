@@ -40,6 +40,9 @@ export interface ModelList {
   models: KnownModel[];
   total_installed_bytes: number;
   hf_cache_dir: string;
+  /** Free space on the cache volume — surfaced in the Model Store header so an
+   *  "Install all" can't silently overrun the disk. */
+  disk_free_gb?: number;
 }
 
 export async function listModels(): Promise<ModelList> {
@@ -48,6 +51,12 @@ export async function listModels(): Promise<ModelList> {
 
 export async function installModel(repo_id: string): Promise<{ status: string; repo_id: string }> {
   return apiPost('/models/install', { repo_id });
+}
+
+/** Request cancellation of an in-flight install (FDL-11). Best-effort: the
+ *  backend stops further retries and emits an `install_cancelled` SSE event. */
+export async function cancelInstallModel(repo_id: string): Promise<{ cancelling: string }> {
+  return apiPost('/models/install/cancel', { repo_id });
 }
 
 // ── Device-aware model recommendation ─────────────────────────────────────
