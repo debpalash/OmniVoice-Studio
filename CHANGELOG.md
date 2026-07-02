@@ -6,9 +6,30 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
-## [Unreleased]
+## [0.3.9] — 2026-07-02
+
+The dictation release — and a deep reliability pass driven by live-testing the
+entire app. **Dictation is rebuilt end-to-end**: instant feedback with a live
+waveform, words that commit about half a second after you stop speaking, clean
+punctuation, and text insertion that never lies about success. **LLM providers
+get one-click connection testing** with real diagnostics and model discovery,
+in all 21 languages. The app now **always opens maximized**, bottom buttons
+**can't hide under the footer** at small window sizes, and a wave of "out of
+memory / can't reach the backend / stuck at preparing" reports were traced to
+their real causes and fixed — including the silent VRAM crash on 8 GB cards,
+dead-IPC startup hangs after a Windows BSOD, and misleading error labels.
+Intel-Mac support status is now stated honestly, Confucius4-TTS is validated
+end-to-end, and Parakeet — roughly 20× faster than the default transcriber on
+CPU — is unlocked for every machine.
 
 ### Added
+
+- **A small thank-you moment, done right.** After a successful export, dub,
+  audiobook, or batch run, OmniVoice may — rarely — show a friendly,
+  dismissible note by the footer heart about supporting development: never
+  more than once a session, at most every 7 days, never for brand-new users,
+  with a permanent "don't ask again". The logs bar also gained an icon and
+  the footer icons now share one size. (#898)
 
 - **Dictation, rebuilt.** The dictation pill now shows a live waveform the
   moment the mic opens, streams words as you speak with real download/loading
@@ -32,6 +53,12 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Changed
 
+- **Intel Macs: honestly unsupported for the local backend.** PyTorch no
+  longer ships Intel-Mac builds, so the backend cannot run there; instead of
+  a cryptic dependency error, Intel users now get a clear explanation up
+  front (with the remote-backend option), and the README/docs say so plainly.
+  (#889, #891)
+
 - **The app now always opens maximized (not fullscreen).** Window size and
   position are no longer carried over from the previous session — one manual
   resize used to make every later launch reopen at that smaller size,
@@ -39,6 +66,25 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   (zoomed window, not a fullscreen Space), Windows, and Linux.
 
 ### Fixed
+
+- **Model-download failures now name the mirror that failed.** When a
+  Hugging Face mirror is configured and unreachable, every affected surface
+  (generate, dub, Model Store installs) names the mirror and points at the
+  exact setting instead of leaking a raw network error; auto-repair failures
+  now say *why* the repair failed. (#874, #890)
+- **No more infinite "preparing" after an unclean shutdown.** If Windows
+  corrupts the WebView cache (e.g. after a BSOD), the splash detects the dead
+  IPC channel, proceeds via a direct backend health check, and — if truly
+  stuck — offers a one-click "Repair and restart". (#879, #892)
+- **"Out of memory" is no longer the default excuse.** A failed model
+  download mid-generation was mislabeled as OOM with useless "flush VRAM"
+  advice; network failures are now classified honestly, only real OOM
+  signatures get the OOM treatment, and first-use engine downloads retry once
+  with a fresh connection. (#880, #893)
+- **Hung transcriptions recover the same way everywhere.** Chunked dub
+  transcription now shares the same guarded-timeout + GPU-pool reset as the
+  rest of the app, and repeated timeouts recommend the crash-isolated ASR
+  engine — now properly selectable in Settings. (#730, #895)
 
 - **Buttons can no longer hide under the logs footer on small windows.** The
   bottom status/logs bar was a fixed overlay that pages had to compensate for
@@ -77,6 +123,14 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
   free GPU memory right before the ASR load and steps down float16 →
   int8 → CPU instead of attempting a load that can't fit (opt-out:
   `OMNIVOICE_ASR_VRAM_PREFLIGHT=0`). (#723)
+
+### CI
+
+- **Deterministically green tests + real install proof.** Tests can no longer
+  read the developer's real `.env` or app data (the order-dependent flake
+  class, #878, #894), and a new cross-platform install-test workflow builds
+  all four installers and proves a real first run — model download plus
+  verified synthesis — on macOS, Windows, and Linux runners.
 
 ## [0.3.8] — 2026-07-01
 

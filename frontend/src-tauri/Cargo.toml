@@ -1,6 +1,6 @@
 [package]
 name = "omnivoice-studio"
-version = "0.3.8"
+version = "0.3.9"
 description = "OmniVoice Studio – AI voice cloning & dubbing desktop app"
 authors = ["Debpalash"]
 license = "AGPL-3.0-only"
