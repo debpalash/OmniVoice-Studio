@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from schemas.requests import TranslateRequest
 from services.model_manager import _cpu_pool, _gpu_pool
-from services.translator import cinematic_available, cinematic_refine_many
+from services.translator import cinematic_available, cinematic_refine_many, _cinematic_budget
 from api.routers.dub_core import _get_job
 
 router = APIRouter()
@@ -302,15 +302,20 @@ async def dub_translate(req: TranslateRequest):
             translated = await loop.run_in_executor(_gpu_pool, _translate_nllb)
             if os.environ.get("OMNIVOICE_UNLOAD_NLLB", "1") == "1":
                 _unload_nllb()
-            return {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang,
-                    **_dialect_flags(req, applied=False)}
+            # Cinematic/Autofit refine + rate-ratio badges must run for NLLB too
+            # (previously this returned before _maybe_cinematic, so a Cinematic
+            # pick on NLLB silently produced plain Fast output). Unloading NLLB
+            # first is fine — the refine LLM is a separate network provider.
+            return await _maybe_cinematic(translated, req, src_lang, loop)
 
         # OpenAI / Ollama Local LLM Translation
         if provider == "openai":
             base_url = os.environ.get("TRANSLATE_BASE_URL")
             model_name = os.environ.get("TRANSLATE_MODEL", "gpt-3.5-turbo")
             from openai import OpenAI
-            client = OpenAI(base_url=base_url, api_key=api_key or "local")
+            # max_retries=0: a 429 + long Retry-After must not let one segment's
+            # SDK call sleep+retry and blow the overall translate wall time.
+            client = OpenAI(base_url=base_url, api_key=api_key or "local", max_retries=0)
 
             def _build_prompt(src_code: str, tgt_code: str) -> str:
                 """Build a system prompt that resists hallucinations on small
@@ -399,14 +404,22 @@ async def dub_translate(req: TranslateRequest):
                             seg.id, attempt + 1, e,
                         )
                 # Both attempts failed — keep source text + flag error so the
-                # frontend can surface "fallback to literal" warning.
-                return {"id": seg.id, "text": seg.text, "error": last_err or "llm-failed"}
+                # frontend can surface "fallback to literal" warning. Scrub the
+                # provider error: some OpenAI-compatible providers echo the key
+                # or a user_id in the body, which must not reach the UI verbatim.
+                from core.scrub import scrub_provider_error
+                return {"id": seg.id, "text": seg.text,
+                        "error": scrub_provider_error(last_err, api_key) or "llm-failed"}
 
             tasks = [loop.run_in_executor(_cpu_pool, _translate_llm, seg) for seg in req.segments]
             translated = await asyncio.gather(*tasks)
             translated.sort(key=lambda x: str(x["id"]))
-            return {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang,
-                    **_dialect_flags(req, applied=True)}
+            # provider="openai" is already an LLM translation — _maybe_cinematic
+            # skips the reflect/adapt re-refine (already_llm) but still stamps
+            # rate-ratio badges and runs the bounded Autofit fit pass. Before
+            # this it returned here, so Cinematic/Autofit on the LLM engine did
+            # nothing.
+            return await _maybe_cinematic(translated, req, src_lang, loop, already_llm=True)
 
         # Offline Argos Translate
         if provider == "argos" or provider == "libretranslate":
@@ -465,8 +478,11 @@ async def dub_translate(req: TranslateRequest):
                 return results
 
             translated = await loop.run_in_executor(_cpu_pool, _translate_argos)
-            return {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang,
-                    **_dialect_flags(req, applied=False)}
+            # Argos is the DEFAULT engine — routing it through _maybe_cinematic is
+            # the headline fix: a user who picks Cinematic/Autofit on Argos now
+            # gets the LLM refine + fit pass (and rate-ratio badges in Fast mode)
+            # instead of silent plain-Fast output.
+            return await _maybe_cinematic(translated, req, src_lang, loop)
 
         # Legacy / API Deep_Translator logic.
         # Preflight the optional `deep_translator` dep once so we fail with a
@@ -540,7 +556,11 @@ async def dub_translate(req: TranslateRequest):
                     )
                     time.sleep(0.25 * (attempt + 1))
             logger.error("translate %s -> %s gave up (provider=%s): %s", src_arg, seg_lc, provider, last_err)
-            return {"id": seg.id, "text": seg.text, "error": last_err or "unknown"}
+            # Scrub before it reaches the UI — DeepL/Microsoft errors can echo
+            # the API key (same class as the OpenAI user_id leak).
+            from core.scrub import scrub_provider_error
+            return {"id": seg.id, "text": seg.text,
+                    "error": scrub_provider_error(last_err, _deepl_key or _msft_key or api_key) or "unknown"}
 
         tasks = [loop.run_in_executor(_cpu_pool, _translate_single, seg) for seg in req.segments]
         translated = await asyncio.gather(*tasks)
@@ -554,24 +574,19 @@ async def dub_translate(req: TranslateRequest):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
-async def _maybe_cinematic(translated, req, src_lang, loop):
-    """If quality=cinematic and a usable LLM is configured, run REFLECT+ADAPT.
-    Otherwise return Fast-mode shape unchanged.
+def _stamp_predicted_rate_ratio(translated, req) -> None:
+    """Stamp a predicted ``rate_ratio`` on every row that has a known slot.
+
+    No LLM needed — just the per-language CPS table from ``services/speech_rate``.
+    The UI's ``seg-rate-badge`` reads it (Fast mode included) to show which
+    segments will compress hard at generation time, so users can edit text or
+    pick a heavier quality. Mutates ``translated`` in place; never raises.
     """
-    quality = (getattr(req, "quality", None) or "fast").lower()
-    # Stamp the predicted rate_ratio on every translated row that has a
-    # known slot. Works for Fast mode too — no LLM needed; just the CPS
-    # table from services/speech_rate. The UI's `seg-rate-badge` reads
-    # this value and shows users which segments will compress hard at
-    # generation time, so they can edit text or pick Cinematic quality.
     try:
         from services.speech_rate import rate_ratio as _predict_rate_ratio
+        slots = {str(s.id): getattr(s, "slot_seconds", None) for s in req.segments}
         for row in translated:
-            seg_ref = next(
-                (s for s in req.segments if str(s.id) == str(row["id"])),
-                None,
-            )
-            slot = getattr(seg_ref, "slot_seconds", None) if seg_ref else None
+            slot = slots.get(str(row["id"]))
             text = (row.get("text") or "").strip()
             if slot and text and not row.get("error"):
                 row["rate_ratio"] = round(
@@ -580,22 +595,119 @@ async def _maybe_cinematic(translated, req, src_lang, loop):
     except Exception as e:
         logger.debug("non-LLM rate_ratio prediction skipped: %s", e)
 
-    base = {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang,
-            "quality_used": "fast", **_dialect_flags(req, applied=False)}
 
-    # Autofit is Cinematic + a strict "never exceed the slot" fit pass, so both
-    # qualities take the LLM refine path below. Fast (and anything else) returns
-    # the plain translation unchanged.
+async def _apply_fit_pass(rows, req, slots_by_id, source_by_id, quality, loop, deadline) -> None:
+    """Run the Autofit slot-fit pass over ``rows`` concurrently, in place.
+
+    Bounded by ``deadline`` (shared with the cinematic refine) so a slow /
+    rate-limited LLM can't spin the fit pass per-segment unbounded — the old
+    behavior, which ran one blocking ``adjust_for_slot`` per segment in the
+    merge loop, outside any budget. Segments still running at the deadline keep
+    their current text and get ``rate_error='fit-budget'``. Only rows with a
+    slot + text + no prior error participate.
+    """
+    strict = (quality == "autofit")
+    items = []
+    for row in rows:
+        seg_id = str(row["id"])
+        slot = slots_by_id.get(seg_id)
+        text = row.get("text") or ""
+        if slot and text and not row.get("error"):
+            items.append((seg_id, text, float(slot), req.target_lang,
+                          source_by_id.get(seg_id), strict))
+    if not items:
+        return
+    try:
+        from services.speech_rate import adjust_for_slot_many
+        fits = await adjust_for_slot_many(
+            items, executor=_cpu_pool, deadline=deadline, loop=loop,
+        )
+    except Exception as e:
+        logger.warning("rate-fit pass skipped: %s", e)
+        return
+    for row in rows:
+        f = fits.get(str(row["id"]))
+        if not f:
+            continue
+        if f.get("text"):
+            row["text"] = f["text"]
+        if f.get("rate_ratio") is not None:
+            row["rate_ratio"] = f["rate_ratio"]
+        if f.get("error"):
+            row["rate_error"] = f["error"]
+
+
+async def _maybe_cinematic(translated, req, src_lang, loop, *, already_llm=False):
+    """Post-process a literal translation into Cinematic/Autofit output.
+
+    Runs for EVERY provider now (Argos/NLLB/Google/…/OpenAI). The three
+    LLM-independent branches (nllb/argos) and the openai branch used to return
+    *before* reaching this, so a Cinematic/Autofit pick on them — including the
+    DEFAULT Argos engine — silently produced plain Fast output with a success
+    toast. Fast mode still returns the plain translation (plus rate-ratio badges).
+
+    ``already_llm`` (provider="openai"): the translation was itself produced by
+    an LLM, so the REFLECT+ADAPT *re*-refine is skipped, but the bounded Autofit
+    fit pass + rate-ratio stamping still run, and the dialect the translate
+    prompt already baked in is reported as applied.
+    """
+    quality = (getattr(req, "quality", None) or "fast").lower()
+
+    _stamp_predicted_rate_ratio(translated, req)
+
+    # #280 item 2 — regional dialect hint, guarded against a stale dialect from
+    # another language. For already_llm the initial translate prompt already
+    # applied it, so it's reported applied in the Fast-shape base too.
+    dialect_hint = ""
+    _dialect = getattr(req, "dialect", None)
+    if _dialect and str(_dialect).lower().startswith(str(req.target_lang).lower()[:2]):
+        dialect_hint = dialect_clause(_dialect)
+
+    base = {"translated": translated, "target_lang": req.target_lang, "source_lang": src_lang,
+            "quality_used": "fast",
+            **_dialect_flags(req, applied=(already_llm and bool(dialect_hint)))}
+
+    # Fast (and anything unrecognised) returns the plain translation unchanged.
     if quality not in ("cinematic", "autofit"):
         return base
 
+    source_by_id: dict[str, str] = {str(s.id): s.text for s in req.segments}
+    slots_by_id = {
+        str(s.id): getattr(s, "slot_seconds", None)
+        for s in req.segments
+        if getattr(s, "slot_seconds", None)
+    }
+
+    # One wall-clock deadline shared by the whole LLM phase (refine + fit), so a
+    # slow/rate-limited provider can't run either pass unbounded. <=0 disables.
+    budget = _cinematic_budget()
+    deadline = (loop.time() + budget) if budget and budget > 0 else None
+
+    # provider="openai": already an LLM translation → skip REFLECT+ADAPT, keep
+    # the rate-ratio badges, still run the bounded fit pass.
+    if already_llm:
+        merged = []
+        for row in translated:
+            out = {"id": row["id"],
+                   "text": row.get("text", "") or "",
+                   "literal": row.get("text", "") or ""}
+            if row.get("error"):
+                out["error"] = row["error"]
+            if "rate_ratio" in row:
+                out["rate_ratio"] = row["rate_ratio"]
+            merged.append(out)
+        await _apply_fit_pass(merged, req, slots_by_id, source_by_id, quality, loop, deadline)
+        return {"translated": merged, "target_lang": req.target_lang,
+                "source_lang": src_lang, "quality_used": quality,
+                **_dialect_flags(req, applied=bool(dialect_hint))}
+
+    # Non-LLM provider → the reflect/adapt refine needs a separately-configured
+    # LLM (Settings → LLM Providers). Without one, degrade to Fast with a flag.
     if not cinematic_available():
         logger.warning("%s requested but no LLM configured — returning Fast result.", quality)
         base["cinematic_skipped"] = "no-llm-configured"
         return base
 
-    # Build a map from id → original segment (to fetch source text + direction).
-    source_by_id: dict[str, str] = {str(s.id): s.text for s in req.segments}
     directions: dict[str, str] = {
         str(s.id): s.direction
         for s in req.segments
@@ -603,7 +715,7 @@ async def _maybe_cinematic(translated, req, src_lang, loop):
     }
     pairs = []
     passthrough_index = {}
-    for i, row in enumerate(translated):
+    for row in translated:
         seg_id = str(row["id"])
         literal = row.get("text", "") or ""
         if row.get("error") or not literal.strip():
@@ -613,12 +725,6 @@ async def _maybe_cinematic(translated, req, src_lang, loop):
 
     if not pairs:
         return base
-
-    # #280 item 2: thread the regional-dialect hint into the reflect/adapt
-    # prompts. Guard against a stale dialect from another language.
-    dialect_hint = ""
-    if req.dialect and str(req.dialect).lower().startswith(str(req.target_lang).lower()[:2]):
-        dialect_hint = dialect_clause(req.dialect)
 
     refined = await cinematic_refine_many(
         pairs,
@@ -630,16 +736,6 @@ async def _maybe_cinematic(translated, req, src_lang, loop):
         executor=_cpu_pool,
     )
     refined_by_id = {r["id"]: r for r in refined}
-
-    # Phase 4.4 — speech-rate fit pass. Segment boundaries aren't in the
-    # translate request (by design — translator is boundary-agnostic), so we
-    # only run it when the caller supplied `slot_seconds` on each segment.
-    # The frontend populates this for Cinematic calls from the edit view.
-    slots_by_id = {
-        str(s.id): getattr(s, "slot_seconds", None)
-        for s in req.segments
-        if getattr(s, "slot_seconds", None)
-    }
 
     merged = []
     for row in translated:
@@ -659,31 +755,10 @@ async def _maybe_cinematic(translated, req, src_lang, loop):
         }
         if r.get("error"):
             out["error"] = r["error"]
-
-        # Optional slot-fit pass — only when the caller asked for cinematic
-        # *and* provided a slot. Runs best-effort; no-LLM or mid-loop failure
-        # just leaves the cinematic text untouched.
-        slot = slots_by_id.get(seg_id)
-        if slot and out["text"]:
-            try:
-                from services.speech_rate import adjust_for_slot
-                fit = await asyncio.to_thread(
-                    adjust_for_slot,
-                    out["text"],
-                    slot_seconds=float(slot),
-                    target_lang=req.target_lang,
-                    source_text=source_by_id.get(seg_id),
-                    strict=(quality == "autofit"),
-                )
-                if fit.get("text"):
-                    out["text"] = fit["text"]
-                out["rate_ratio"] = fit.get("rate_ratio")
-                if fit.get("error"):
-                    out["rate_error"] = fit["error"]
-            except Exception as e:
-                logger.warning("rate-fit skipped for %s: %s", seg_id, e)
-
         merged.append(out)
+
+    # Phase 4.4 speech-rate fit pass — now concurrent + bounded (see helper).
+    await _apply_fit_pass(merged, req, slots_by_id, source_by_id, quality, loop, deadline)
 
     return {
         "translated": merged,

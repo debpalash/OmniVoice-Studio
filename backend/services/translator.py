@@ -119,7 +119,11 @@ def _llm_client():
     kw = {"api_key": api_key}
     if base_url:
         kw["base_url"] = base_url
-    return OpenAI(**kw)
+    # max_retries=0: a rate-limited provider returning 429 + a long Retry-After
+    # would otherwise let the SDK sleep+retry per call and blow the cinematic
+    # wall-clock budget from inside a single request. The pass-level budget
+    # (cinematic_refine_many) and per-call timeout are the only bounds we want.
+    return OpenAI(max_retries=0, **kw)
 
 
 def _llm_model() -> str:

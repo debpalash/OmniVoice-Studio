@@ -171,3 +171,78 @@ def adjust_many(pairs: Iterable[tuple[str, float, str, Optional[str]]]) -> list[
         adjust_for_slot(t, slot_seconds=s, target_lang=tl, source_text=src)
         for (t, s, tl, src) in pairs
     ]
+
+
+async def adjust_for_slot_many(
+    items: Iterable[tuple],
+    *,
+    executor=None,
+    concurrency: Optional[int] = None,
+    deadline: Optional[float] = None,
+    loop=None,
+) -> dict:
+    """Fan `adjust_for_slot` out across many segments concurrently, bounded by a
+    shared wall-clock ``deadline``.
+
+    ``items``: iterable of ``(key, text, slot_seconds, target_lang,
+    source_text_or_None, strict)``. Returns ``{key: adjust_for_slot_result}``.
+
+    Why this exists: the Autofit fit pass used to run one `adjust_for_slot` per
+    segment *sequentially* and *outside* any budget, so a 50-segment dub against
+    a slow/rate-limited LLM spun ~50×(per-call timeout) unbounded. Here every
+    segment runs on the executor under a bounded ``asyncio.Semaphore``, and any
+    segment still running when the shared ``deadline`` passes degrades to a
+    no-fit result (input text kept, predicted ``rate_ratio``, ``error`` =
+    ``"fit-budget"``) instead of hanging the translate. ``deadline`` is an
+    absolute ``loop.time()``; ``None`` disables the bound (run to completion).
+    """
+    import asyncio
+    import os
+
+    loop = loop or asyncio.get_running_loop()
+    items = list(items)
+    if not items:
+        return {}
+    sem = asyncio.Semaphore(concurrency or int(os.environ.get("OMNIVOICE_LLM_CONCURRENCY", "6")))
+
+    async def _one(key, text, slot, tgt, src, strict):
+        async with sem:
+            res = await loop.run_in_executor(
+                executor,
+                lambda: adjust_for_slot(
+                    text, slot_seconds=slot, target_lang=tgt,
+                    source_text=src, strict=strict,
+                ),
+            )
+        return key, res
+
+    def _degraded(text, slot, tgt) -> dict:
+        return {
+            "text": text,
+            "rate_ratio": rate_ratio(text, slot, tgt),
+            "attempts": 0,
+            "error": "fit-budget",
+        }
+
+    tasks = [asyncio.ensure_future(_one(*it)) for it in items]
+
+    if deadline is None:
+        pairs_out = await asyncio.gather(*tasks)
+        return dict(pairs_out)
+
+    timeout = max(0.0, deadline - loop.time())
+    done, _pending = await asyncio.wait(tasks, timeout=timeout)
+    out: dict = {}
+    for task, it in zip(tasks, items):
+        key, text, slot, tgt = it[0], it[1], it[2], it[3]
+        if task in done and not task.cancelled():
+            try:
+                k, res = task.result()
+                out[k] = res
+                continue
+            except Exception as e:  # noqa: BLE001 — one slow seg must not sink the pass
+                logger.warning("fit segment %s failed: %s", key, e)
+        else:
+            task.cancel()  # stop awaiting; the executor thread is abandoned (#730 pattern)
+        out[key] = _degraded(text, slot, tgt)
+    return out

@@ -102,6 +102,25 @@ provider via environment variables (e.g. `GROQ_API_KEY`, or the legacy
 `TRANSLATE_BASE_URL` / `TRANSLATE_API_KEY` / `TRANSLATE_MODEL`, which map to the
 **Custom** provider).
 
+### Pinning the active provider with `LLM_DEFAULT_PROVIDER`
+
+By default the LLM used for Cinematic/Autofit is the one you mark "use for
+translation" in **Settings → LLM Providers**. To force a specific provider
+regardless of that stored selection — handy for headless/CI/Docker runs or a
+shared machine — set the `LLM_DEFAULT_PROVIDER` environment variable to a
+provider id before launching the backend:
+
+```
+LLM_DEFAULT_PROVIDER=groq        # or openai, openrouter, cerebras, ollama, custom, …
+```
+
+Resolution order for the active provider is: `LLM_DEFAULT_PROVIDER` (env) →
+your saved selection → the first provider that has a key → none. The id must be
+one OmniVoice knows (the ids shown in **Settings → LLM Providers**); an unknown
+value is ignored and resolution falls through to your saved selection. While
+this env var is set it wins over the in-app picker, so if the UI selection
+appears to have "no effect," check whether `LLM_DEFAULT_PROVIDER` is exported.
+
 ## API keys (online MT engines)
 
 The non-LLM online engines need a key, set as an environment variable before

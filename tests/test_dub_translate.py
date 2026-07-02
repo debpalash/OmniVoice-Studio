@@ -226,3 +226,191 @@ async def test_empty_translation_preserves_original(monkeypatch):
     seg = resp['translated'][0]
     assert seg['text'] == 'hi'
     assert 'error' in seg
+
+
+# ── P0: Cinematic/Autofit must run on the non-deep_translator engines ────────
+# Before this fix the argos/nllb/openai branches returned BEFORE
+# _maybe_cinematic, so picking Cinematic/Autofit on the DEFAULT Argos engine
+# silently produced plain Fast output (no quality_used/refine/rate badges).
+
+
+def _install_fake_argos(monkeypatch):
+    """Register a fake `argostranslate` package that translates en→es to
+    `[es]<text>` with a pre-installed package, so the argos branch runs offline."""
+    import sys
+    import types
+
+    class _Pkg:
+        from_code = "en"
+        to_code = "es"
+
+    pkg = types.ModuleType("argostranslate.package")
+    pkg.get_installed_packages = lambda: [_Pkg()]
+    pkg.update_package_index = lambda: None
+    pkg.get_available_packages = lambda: []
+    pkg.install_from_path = lambda p: None
+    tr = types.ModuleType("argostranslate.translate")
+    tr.translate = lambda text, frm, to: f"[{to}]{text}"
+    root = types.ModuleType("argostranslate")
+    root.package = pkg
+    root.translate = tr
+    monkeypatch.setitem(sys.modules, "argostranslate", root)
+    monkeypatch.setitem(sys.modules, "argostranslate.package", pkg)
+    monkeypatch.setitem(sys.modules, "argostranslate.translate", tr)
+
+
+@pytest.mark.asyncio
+async def test_argos_cinematic_refines_with_llm(monkeypatch):
+    """DEFAULT engine + Cinematic + a usable LLM → refine actually runs and the
+    response carries quality_used=='cinematic' plus the literal/critique fields."""
+    from api.routers import dub_translate
+    from schemas.requests import TranslateRequest, TranslateSegment
+    _install_fake_argos(monkeypatch)
+
+    async def fake_refine_many(pairs, **kw):
+        return [
+            {"id": sid, "text": f"CINE:{lit}", "literal": lit, "critique": "crit"}
+            for sid, _src, lit in pairs
+        ]
+
+    monkeypatch.setattr(dub_translate, "cinematic_available", lambda: True)
+    monkeypatch.setattr(dub_translate, "cinematic_refine_many", fake_refine_many)
+
+    req = TranslateRequest(
+        segments=[TranslateSegment(id="s1", text="Hello")],
+        target_lang="es", provider="argos", source_lang="en", quality="cinematic",
+    )
+    resp = await dub_translate.dub_translate(req)
+    assert resp["quality_used"] == "cinematic"
+    row = resp["translated"][0]
+    assert row["literal"] == "[es]Hello"      # the argos literal is preserved
+    assert row["text"] == "CINE:[es]Hello"    # and it was actually refined
+    assert row["critique"] == "crit"
+
+
+@pytest.mark.asyncio
+async def test_argos_cinematic_skipped_without_llm(monkeypatch):
+    """DEFAULT engine + Cinematic + NO LLM → degrades to Fast with an explicit
+    cinematic_skipped flag (not a silent success)."""
+    from api.routers import dub_translate
+    from schemas.requests import TranslateRequest, TranslateSegment
+    _install_fake_argos(monkeypatch)
+    monkeypatch.setattr(dub_translate, "cinematic_available", lambda: False)
+
+    req = TranslateRequest(
+        segments=[TranslateSegment(id="s1", text="Hello")],
+        target_lang="es", provider="argos", source_lang="en", quality="cinematic",
+    )
+    resp = await dub_translate.dub_translate(req)
+    assert resp["cinematic_skipped"] == "no-llm-configured"
+    assert resp["quality_used"] == "fast"
+    assert resp["translated"][0]["text"] == "[es]Hello"  # literal kept
+
+
+@pytest.mark.asyncio
+async def test_argos_fast_stamps_rate_ratio(monkeypatch):
+    """Fast on the DEFAULT engine still reaches the rate-ratio stamping so the
+    UI's seg-rate-badge has data (it used to return before _maybe_cinematic)."""
+    from api.routers import dub_translate
+    from schemas.requests import TranslateRequest, TranslateSegment
+    _install_fake_argos(monkeypatch)
+
+    req = TranslateRequest(
+        segments=[TranslateSegment(id="s1", text="Hello", slot_seconds=2.0)],
+        target_lang="es", provider="argos", source_lang="en", quality="fast",
+    )
+    resp = await dub_translate.dub_translate(req)
+    assert resp["quality_used"] == "fast"
+    assert "rate_ratio" in resp["translated"][0]
+
+
+def _install_fake_openai(monkeypatch, *, content="hola mundo", raises=None):
+    """Register a fake `openai.OpenAI` whose chat.completions.create returns
+    `content` (or raises `raises`). Accepts the max_retries kwarg the code adds."""
+    import sys
+    import types
+
+    class _Completions:
+        def create(self, **kw):
+            if raises is not None:
+                raise raises
+            msg = type("M", (), {"content": content})
+            choice = type("C", (), {"message": msg})
+            return type("R", (), {"choices": [choice]})
+
+    class _Chat:
+        completions = _Completions()
+
+    class _FakeClient:
+        def __init__(self, **kw):
+            pass
+        chat = _Chat()
+
+    mod = types.ModuleType("openai")
+    mod.OpenAI = _FakeClient
+    monkeypatch.setitem(sys.modules, "openai", mod)
+
+
+# ── P1: the Autofit fit pass must be bounded by the cinematic wall-clock ─────
+
+
+@pytest.mark.asyncio
+async def test_openai_autofit_fit_pass_is_budget_bounded(monkeypatch):
+    """A slow fit LLM must not spin one adjust_for_slot per segment unbounded:
+    the whole translate returns within the budget and unfinished segments
+    degrade to their literal (fit-budget) instead of hanging."""
+    import time
+    from api.routers import dub_translate
+    from schemas.requests import TranslateRequest, TranslateSegment
+    from services import speech_rate
+    _install_fake_openai(monkeypatch, content="hola mundo")
+
+    monkeypatch.setenv("OMNIVOICE_CINEMATIC_BUDGET_S", "0.3")
+
+    def _slow_fit(text, *, slot_seconds, target_lang, source_text=None, strict=False):
+        time.sleep(3.0)  # far over the 0.3s budget
+        return {"text": "FIT-SHOULD-NOT-WIN", "rate_ratio": 1.0}
+
+    monkeypatch.setattr(speech_rate, "adjust_for_slot", _slow_fit)
+
+    req = TranslateRequest(
+        segments=[
+            TranslateSegment(id="s1", text="Hello", slot_seconds=1.0),
+            TranslateSegment(id="s2", text="World", slot_seconds=1.0),
+        ],
+        target_lang="es", provider="openai", source_lang="en", quality="autofit",
+    )
+    t0 = time.time()
+    resp = await dub_translate.dub_translate(req)
+    dt = time.time() - t0
+    assert dt < 2.0, f"fit pass not budget-bounded (took {dt:.1f}s)"
+    assert resp["quality_used"] == "autofit"
+    for row in resp["translated"]:
+        assert row["text"] == "hola mundo"          # degraded to literal, not the slow fit
+        assert row.get("rate_error") == "fit-budget"
+
+
+# ── P2: provider errors on the translate path must be scrubbed ──────────────
+
+
+@pytest.mark.asyncio
+async def test_openai_segment_error_is_scrubbed(monkeypatch):
+    """An OpenAI-compatible provider that echoes a key / home path in its error
+    body must not leak it into the per-segment error response."""
+    from api.routers import dub_translate
+    from schemas.requests import TranslateRequest, TranslateSegment
+    boom = RuntimeError(
+        "401 invalid key sk-LEAKLEAKLEAKLEAKLEAK12345 for user at /Users/bob/proj"
+    )
+    _install_fake_openai(monkeypatch, raises=boom)
+
+    req = TranslateRequest(
+        segments=[TranslateSegment(id="s1", text="Hello")],
+        target_lang="es", provider="openai", source_lang="en",
+    )
+    resp = await dub_translate.dub_translate(req)
+    seg = resp["translated"][0]
+    assert seg["text"] == "Hello"                 # fell back to source text
+    assert "sk-LEAKLEAKLEAKLEAKLEAK12345" not in seg["error"]
+    assert "/Users/bob" not in seg["error"]
+    assert "***REDACTED***" in seg["error"]

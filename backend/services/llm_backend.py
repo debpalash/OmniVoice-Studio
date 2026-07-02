@@ -117,7 +117,9 @@ class OpenAICompatBackend(LLMBackend):
         kw = {"api_key": api_key}
         if base_url:
             kw["base_url"] = base_url
-        self._client = OpenAI(**kw)
+        # max_retries=0 so a 429 + Retry-After can't make one chat() sleep
+        # through the Autofit fit-pass wall-clock budget (speech_rate).
+        self._client = OpenAI(max_retries=0, **kw)
         return self._client
 
     def chat(self, *, system: str, user: str, timeout: Optional[float] = None) -> str:
