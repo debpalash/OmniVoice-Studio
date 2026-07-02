@@ -46,7 +46,12 @@
     "loading": "Loading releases…",
     "none": "No releases found",
     "load_error": "Couldn't load releases (offline?)",
-    "retry_load": "Retry"
+    "retry_load": "Retry",
+    "notes_for": "Release notes — v{{version}}",
+    "backup_line": "Your data is backed up before every update.",
+    "backup_latest": "Latest backup: {{when}}",
+    "backup_none": "The first backup is created automatically before the next database upgrade.",
+    "whats_new_in": "What's new in v{{version}}"
   },
   "stories": {
     "title": "Stories Editor",

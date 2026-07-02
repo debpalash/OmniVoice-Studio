@@ -18,6 +18,8 @@ DELETE /profiles/{profile_id}/consent
 DELETE /projects/{project_id}
 DELETE /pronunciation/{entry_id}
 GET /api/mcp/bindings
+GET /api/settings/changelog
+GET /api/settings/db-backup
 GET /api/settings/dictation-refinement
 GET /api/settings/hf-mirror
 GET /api/settings/hf-token/state

@@ -1,19 +1,34 @@
 // frontend/src/components/UpdatesPanel.jsx
 // Update management panel — lives under Settings → Updates. Shows live update
-// status, channel switcher, and GitHub releases (changelog/history) list.
-import { useEffect } from 'react';
+// status (with the available build's actual release notes), channel switcher,
+// the data-safety line (pre-update DB backups), the app's own "What's new"
+// changelog viewer, and the GitHub releases (changelog/history) list.
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Download, RotateCw, AlertTriangle, RefreshCw, X } from 'lucide-react';
+import {
+  Download,
+  RotateCw,
+  AlertTriangle,
+  RefreshCw,
+  X,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../store';
 import { installUpdate, checkForUpdate } from '../utils/updater';
 import { prepareReleases } from '../utils/updatePresentation';
 import { setChannel } from '../utils/channelControl';
+import { fetchChangelog, fetchBackupState } from '../utils/updatesApi';
+import { APP_VERSION } from '../utils/appVersion';
+import MarkdownLite from './MarkdownLite';
+import ChangelogViewer from './ChangelogViewer';
 
 export default function UpdatesPanel() {
   const { t } = useTranslation();
   const status = useAppStore((s) => s.updateStatus);
   const version = useAppStore((s) => s.updateVersion);
+  const notes = useAppStore((s) => s.updateNotes);
   const error = useAppStore((s) => s.updateError);
   const progress = useAppStore((s) => s.updateProgress);
   const appVersion = useAppStore((s) => s.appVersion);
@@ -24,9 +39,32 @@ export default function UpdatesPanel() {
   const dismissUpdate = useAppStore((s) => s.dismissUpdate);
   const dubStep = useAppStore((s) => s.dubStep);
 
+  const [changelog, setChangelog] = useState([]);
+  const [backup, setBackup] = useState(null);
+
   useEffect(() => {
     loadReleases(channel);
   }, [channel, loadReleases]);
+
+  // Local-first data: the shipped changelog + the newest pre-migration DB
+  // backup. Both degrade to empty on failure (the sections just hide).
+  useEffect(() => {
+    let alive = true;
+    fetchChangelog(5).then((rel) => alive && setChangelog(rel));
+    fetchBackupState().then((b) => alive && setBackup(b));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Opening the panel counts as reading the notes — retire the one-time
+  // footer "What's new" pill for this version (feat/safe-updates). The pill
+  // compares against the build constant, so fall back to it when the Tauri
+  // version isn't available (web/dev builds).
+  useEffect(() => {
+    const v = appVersion || (APP_VERSION !== 'unknown' ? APP_VERSION : null);
+    if (v) useAppStore.getState().setWhatsNewSeenVersion?.(v);
+  }, [appVersion]);
 
   const busy = dubStep === 'generating';
   const onInstall = () => {
@@ -37,6 +75,7 @@ export default function UpdatesPanel() {
     installUpdate(useAppStore.getState());
   };
   const rows = prepareReleases(releases, channel, appVersion);
+  const latestBackup = backup?.available ? backup.latest : null;
 
   return (
     <div className="updates-panel">
@@ -88,6 +127,17 @@ export default function UpdatesPanel() {
         )}
       </div>
 
+      {/* The available build's actual release notes — the updater manifest
+          carries them (UpdateMeta.notes); render markdown-lite safely. */}
+      {status === 'available' && notes && (
+        <div className="updates-panel__notes" data-testid="update-notes">
+          <div className="updates-panel__notes-head">
+            {t('updates.notes_for', { version: version || '' })}
+          </div>
+          <MarkdownLite text={notes} className="updates-panel__notes-body" />
+        </div>
+      )}
+
       <div className="updates-panel__channel">
         <span>{t('about.update_channel')}</span>
         <div
@@ -115,6 +165,30 @@ export default function UpdatesPanel() {
           ))}
         </div>
       </div>
+
+      {/* Data-safety line: the backend snapshots omnivoice.db before every
+          schema migration (i.e. before the first run of an updated build). */}
+      <div className="updates-panel__backup" data-testid="backup-line">
+        <ShieldCheck size={12} aria-hidden="true" />
+        <span>
+          {t('updates.backup_line')}{' '}
+          {latestBackup?.created_at
+            ? t('updates.backup_latest', {
+                when: new Date(latestBackup.created_at * 1000).toLocaleString(),
+              })
+            : t('updates.backup_none')}
+        </span>
+      </div>
+
+      {/* "What's new" — the app's own CHANGELOG.md, newest expanded. */}
+      {changelog.length > 0 && (
+        <div className="updates-panel__whatsnew">
+          <div className="updates-panel__rel-head">
+            <Sparkles size={12} aria-hidden="true" /> {t('update.whats_new')}
+          </div>
+          <ChangelogViewer releases={changelog} />
+        </div>
+      )}
 
       <div className="updates-panel__releases">
         <div className="updates-panel__rel-head">{t('updates.releases')}</div>
@@ -145,7 +219,7 @@ export default function UpdatesPanel() {
               )}
               <span className="updates-panel__rel-date">{r.date}</span>
             </div>
-            {r.notes && <pre className="updates-panel__rel-notes">{r.notes}</pre>}
+            {r.notes && <MarkdownLite text={r.notes} className="updates-panel__rel-notes" />}
           </div>
         ))}
       </div>

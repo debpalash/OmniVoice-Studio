@@ -2323,7 +2323,35 @@ input[type="file"]::file-selector-button:hover {
 .updates-panel__rel-tag { font-size: 10px; color: #b8bb26; border: 1px solid rgba(184,187,38,0.5); border-radius: 999px; padding: 0 6px; }
 .updates-panel__rel-pre { font-size: 10px; color: #d79921; border: 1px solid rgba(215,153,33,0.5); border-radius: 999px; padding: 0 6px; }
 .updates-panel__rel-date { margin-left: auto; color: var(--chrome-fg-muted); }
-.updates-panel__rel-notes { white-space: pre-wrap; overflow-wrap: break-word; margin: 4px 0 0; font-size: 11px; line-height: 1.4; color: #bdae93; }
+.updates-panel__rel-notes { overflow-wrap: break-word; margin: 4px 0 0; font-size: 11px; line-height: 1.4; color: #bdae93; }
+
+/* Safe markdown-lite renderer (release notes / changelog bullets) */
+.md-lite__heading { font-weight: 600; color: var(--chrome-fg, #d5c4a1); margin: 6px 0 2px; }
+.md-lite__para { margin: 4px 0; }
+.md-lite__list { margin: 4px 0; padding-left: 16px; list-style: disc; }
+.md-lite__list li { margin: 2px 0; }
+.md-lite code { font-size: 10px; padding: 0 3px; border-radius: 3px; background: rgba(255,255,255,0.08); }
+
+/* Updates panel: available-update notes, data-safety line, "What's new" */
+.updates-panel__notes { border: 1px solid var(--chrome-border, #3a3a3a); border-radius: 6px; padding: 6px 10px; margin: 8px 0; font-size: 11px; line-height: 1.45; color: #bdae93; }
+.updates-panel__notes-head { font-weight: 600; color: var(--chrome-fg-muted); margin-bottom: 2px; }
+.updates-panel__backup { display: flex; align-items: center; gap: 6px; margin: 8px 0; color: var(--chrome-fg-muted); font-size: 11px; }
+.updates-panel__backup svg { color: #b8bb26; flex: none; }
+.updates-panel__whatsnew { margin: 8px 0; }
+.updates-panel__whatsnew .updates-panel__rel-head { display: inline-flex; align-items: center; gap: 5px; }
+
+/* Changelog reader (accordion over the shipped CHANGELOG.md) */
+.changelog-viewer { border: 1px solid var(--chrome-border, #2a2a2a); border-radius: 6px; overflow: hidden; }
+.changelog-viewer__rel + .changelog-viewer__rel { border-top: 1px solid var(--chrome-border, #2a2a2a); }
+.changelog-viewer__head { display: flex; align-items: center; gap: 6px; width: 100%; padding: 5px 8px; background: none; border: none; color: var(--chrome-fg, #d5c4a1); font: inherit; cursor: pointer; text-align: left; }
+.changelog-viewer__rel.is-open .changelog-viewer__head { background: rgba(131,165,152,0.08); }
+.changelog-viewer__ver { font-weight: 600; }
+.changelog-viewer__date { margin-left: auto; color: var(--chrome-fg-muted); font-size: 10px; }
+.changelog-viewer__body { padding: 4px 10px 8px; font-size: 11px; line-height: 1.45; color: #bdae93; }
+.changelog-viewer__intro { margin: 4px 0 6px; }
+.changelog-viewer__sec-title { font-weight: 600; color: var(--chrome-fg-muted); margin: 6px 0 2px; }
+.changelog-viewer__bullets { margin: 2px 0; padding-left: 16px; list-style: disc; }
+.changelog-viewer__bullets li { margin: 2px 0; }
 
 /* from VoiceSelector (components/VoiceSelector.css) */
 /* Shared voice picker (#22): the SearchableSelect grows to fill, adornment

@@ -216,24 +216,40 @@ pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<B
                 {
                     venv_heal_attempted = true;
                     let venv_dir = crate::setup::env_root(app).join("project").join(".venv");
-                    log::warn!(
-                        "Backend exited with a broken-venv signature ({}) — removing {} and rebuilding (#314)",
-                        exit_info,
-                        venv_dir.display()
-                    );
-                    emit_log(
-                        app,
-                        "checking",
-                        "Backend failed because the Python environment is broken — rebuilding it automatically",
-                    );
-                    if quarantine_broken_venv(&venv_dir) {
-                        set_stage(stage_handle, BootstrapStage::Checking);
-                        continue 'bootstrap;
+                    // Data-safe guard (feat/safe-updates): the signature above
+                    // is text matching — confirm the venv is actually broken
+                    // (structural check + direct interpreter probe) before
+                    // destroying it. A healthy venv is never deleted.
+                    let structural = venv_structural_problem(&venv_dir);
+                    let probe = venv_interpreter_probe(&venv_python_path(&venv_dir));
+                    if venv_rebuild_justified(structural.as_deref(), probe) {
+                        log::warn!(
+                            "Backend exited with a broken-venv signature ({}; structural={:?}, probe={:?}) — removing {} and rebuilding (#314)",
+                            exit_info,
+                            structural,
+                            probe,
+                            venv_dir.display()
+                        );
+                        emit_log(
+                            app,
+                            "checking",
+                            "Backend failed because the Python environment is broken — rebuilding it automatically",
+                        );
+                        if quarantine_broken_venv(&venv_dir) {
+                            set_stage(stage_handle, BootstrapStage::Checking);
+                            continue 'bootstrap;
+                        }
+                        log::error!(
+                            "Could not remove broken venv at {} — surfacing the failure",
+                            venv_dir.display()
+                        );
+                    } else {
+                        log::warn!(
+                            "Backend exit matched a broken-venv signature ({}) but the venv at {} probes healthy — keeping it (data-safe guard) and surfacing the real error",
+                            exit_info,
+                            venv_dir.display()
+                        );
                     }
-                    log::error!(
-                        "Could not remove broken venv at {} — surfacing the failure",
-                        venv_dir.display()
-                    );
                 }
                 let msg = if err_tail.is_empty() {
                     format!("Backend process exited ({}) — no error output captured", exit_info)
@@ -449,6 +465,16 @@ fn refresh_project_manifests(resource_dir: &Path, project_dir: &Path) -> bool {
     if res_pyproject.is_file() {
         if let Err(e) = fs::copy(&res_pyproject, project_dir.join("pyproject.toml")) {
             log::warn!("Could not refresh pyproject.toml from bundle: {}", e);
+        }
+    }
+    // Keep the shipped CHANGELOG.md current too — the backend's
+    // GET /api/settings/changelog (Settings → Updates "What's new" viewer)
+    // reads it from the project root, so an upgraded app must not show the
+    // notes from whenever the install was first created. Best-effort.
+    let res_changelog = res_root.join("CHANGELOG.md");
+    if res_changelog.is_file() {
+        if let Err(e) = fs::copy(&res_changelog, project_dir.join("CHANGELOG.md")) {
+            log::warn!("Could not refresh CHANGELOG.md from bundle: {}", e);
         }
     }
     if !res_uvlock.is_file() {
@@ -698,6 +724,47 @@ pub fn backend_exit_indicates_broken_venv(exit_info: &str, err_tail: &str) -> bo
     err_tail.contains("No pyvenv.cfg file")
         || err_tail.contains("No module named 'encodings'")
         || exit_info.trim_end().ends_with(": 106")
+}
+
+/// Data-safe guard for the destructive half of the #314 self-heal
+/// (feat/safe-updates): an exit-*signature* match alone is text matching on a
+/// stderr tail — before it is allowed to delete a multi-GB venv, the venv must
+/// be *confirmed* broken by direct evidence:
+///
+/// - a structural problem found by [`venv_structural_problem`] (missing
+///   pyvenv.cfg / missing or dangling python) is definitive → rebuild;
+/// - otherwise the venv's own interpreter is probed
+///   ([`venv_interpreter_probe`]): if it provably starts and imports its
+///   stdlib (`Some(true)`), the venv is NOT the problem — deleting it would
+///   destroy a working ~6 GB install to "fix" an unrelated crash, so the
+///   rebuild is refused and the real error is surfaced instead;
+/// - a failed probe (`Some(false)`) or one that couldn't even spawn (`None`)
+///   confirms the interpreter is unrunnable → rebuild.
+pub fn venv_rebuild_justified(
+    structural_problem: Option<&str>,
+    interpreter_probe: Option<bool>,
+) -> bool {
+    if structural_problem.is_some() {
+        return true;
+    }
+    !matches!(interpreter_probe, Some(true))
+}
+
+/// Run the venv's python directly to check the interpreter can bootstrap its
+/// stdlib. `Some(true)` = healthy, `Some(false)` = starts but fails (e.g. the
+/// venv launcher's exit 106, or the 'encodings' bootstrap abort), `None` = the
+/// binary couldn't be spawned at all. Env is scrubbed (#144) so an AppImage's
+/// bundled-Python vars can't fake a failure on a healthy venv.
+fn venv_interpreter_probe(venv_py: &Path) -> Option<bool> {
+    let mut cmd = Command::new(venv_py);
+    scrub_python_env(&mut cmd);
+    cmd.args(["-c", "import encodings"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    match cmd.status() {
+        Ok(status) => Some(status.success()),
+        Err(_) => None,
+    }
 }
 
 // ── Linux/Windows: cuDNN 8 compat side-load ────────────────────────────────
@@ -1054,6 +1121,15 @@ manually, then relaunch.",
                 // #307: the source dirs above track the bundle, so the
                 // dependency manifests must too — otherwise an upgrade runs
                 // new code against a venv that predates newly added deps.
+                //
+                // Data-safety note (feat/safe-updates): this drift path — and
+                // the repair path below — reconcile the venv IN PLACE via
+                // `uv sync` (add/remove packages inside `.venv`); neither ever
+                // deletes the venv, and a failed sync keeps the old venv (see
+                // the error arm). The only venv-destroying paths are the #314
+                // broken-venv heal (guarded by venv_rebuild_justified: a venv
+                // whose interpreter probes healthy is never deleted) and the
+                // explicit user-initiated "Clean & Retry".
                 if refresh_project_manifests(res, &project_dir) {
                     log::info!("uv.lock changed since the venv was synced — running uv sync (#307)");
                     if let Some(p) = progress {
@@ -1242,10 +1318,10 @@ the existing venv; newly added dependencies may be missing (#307)",
     let flat = resource_dir.clone();
     let up2  = resource_dir.join("_up_").join("_up_");
 
-    let (resource_pyproject, resource_uvlock, resource_readme, resource_omnivoice, resource_backend) = if flat.join("pyproject.toml").is_file() {
-        (flat.join("pyproject.toml"), flat.join("uv.lock"), flat.join("README.md"), flat.join("omnivoice"), flat.join("backend"))
+    let (resource_pyproject, resource_uvlock, resource_readme, resource_changelog, resource_omnivoice, resource_backend) = if flat.join("pyproject.toml").is_file() {
+        (flat.join("pyproject.toml"), flat.join("uv.lock"), flat.join("README.md"), flat.join("CHANGELOG.md"), flat.join("omnivoice"), flat.join("backend"))
     } else if up2.join("pyproject.toml").is_file() {
-        (up2.join("pyproject.toml"), up2.join("uv.lock"), up2.join("README.md"), up2.join("omnivoice"), up2.join("backend"))
+        (up2.join("pyproject.toml"), up2.join("uv.lock"), up2.join("README.md"), up2.join("CHANGELOG.md"), up2.join("omnivoice"), up2.join("backend"))
     } else {
         fail(progress, &format!(
             "Missing bootstrap resources — checked flat={} and _up_={}",
@@ -1281,6 +1357,12 @@ the existing venv; newly added dependencies may be missing (#307)",
     } else if !project_dir.join("README.md").exists() {
         let _ = fs::write(project_dir.join("README.md"), "# OmniVoice\n");
         log::warn!("No README.md in bundle — created stub");
+    }
+    // Shipped release notes for the Settings → Updates "What's new" viewer
+    // (GET /api/settings/changelog). Optional: the endpoint degrades to
+    // `available: false` when absent.
+    if resource_changelog.is_file() {
+        let _ = fs::copy(&resource_changelog, project_dir.join("CHANGELOG.md"));
     }
     let omnivoice_dir = project_dir.join("omnivoice");
     if resource_omnivoice.is_dir() {
@@ -1785,6 +1867,42 @@ mod tests {
             "exit status: 1",
             "ModuleNotFoundError: No module named 'encodings_helper'"
         ));
+    }
+
+    #[test]
+    fn venv_rebuild_requires_confirmed_breakage() {
+        // feat/safe-updates: an exit-signature match alone must not destroy a
+        // venv. A structural problem is definitive evidence → rebuild.
+        assert!(venv_rebuild_justified(Some("pyvenv.cfg is missing"), Some(true)));
+        assert!(venv_rebuild_justified(Some("python executable is missing"), None));
+        // No structural problem + interpreter provably healthy → NEVER delete
+        // (the data-safety property this guard exists for).
+        assert!(!venv_rebuild_justified(None, Some(true)));
+        // Interpreter starts but can't bootstrap (exit 106 / encodings abort)
+        // → confirmed broken → rebuild.
+        assert!(venv_rebuild_justified(None, Some(false)));
+        // Interpreter can't even be spawned → confirmed unrunnable → rebuild.
+        assert!(venv_rebuild_justified(None, None));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn venv_interpreter_probe_maps_exit_status_and_spawn_failure() {
+        use std::os::unix::fs::PermissionsExt;
+        // A nonexistent binary can't spawn → None (still justifies a rebuild).
+        let missing = std::env::temp_dir().join("omnivoice-test-probe-missing-python");
+        assert_eq!(venv_interpreter_probe(&missing), None);
+        // Fake interpreters (exit 0 = healthy, exit 106 = the venv launcher's
+        // "No pyvenv.cfg" code) exercise the status mapping without needing a
+        // real python on the test runner.
+        let dir = temp_venv_dir("probe");
+        for (name, code, expected) in [("py-ok", 0, Some(true)), ("py-106", 106, Some(false))] {
+            let script = dir.join(name);
+            fs::write(&script, format!("#!/bin/sh\nexit {}\n", code)).unwrap();
+            fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+            assert_eq!(venv_interpreter_probe(&script), expected, "{}", name);
+        }
+        let _ = fs::remove_dir_all(&dir);
     }
 
     /// #248: verify that the setuptools repair install uses the correct specifier.

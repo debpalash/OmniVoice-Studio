@@ -14,6 +14,7 @@ import {
   FileText,
   Heart,
   Mail,
+  Sparkles,
 } from 'lucide-react';
 
 import toast from 'react-hot-toast';
@@ -23,7 +24,7 @@ import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import NetworkToggle from './NetworkToggle';
-import { APP_VERSION } from '../utils/appVersion';
+import { APP_VERSION, whatsNewPending } from '../utils/appVersion';
 import DonateMomentPopover, { DONATE_POPOVER_AUTO_DISMISS_MS } from './DonateMomentPopover';
 import { DONATION_MOMENT_EVENT, optOutOfDonationMoments } from '../utils/donationMoments';
 
@@ -216,6 +217,21 @@ export default function LogsFooter() {
   const updateStatus = useAppStore((s) => s.updateStatus);
   const updateVersion = useAppStore((s) => s.updateVersion);
   const updateReady = updateStatus === 'available' || updateStatus === 'ready';
+  // One-time "What's new" affordance after an update (feat/safe-updates):
+  // non-blocking footer pill, never a startup modal. First run with no
+  // recorded version baselines silently; after an update the pill shows
+  // until the user opens the notes (or clicks it away).
+  const whatsNewSeen = useAppStore((s) => s.whatsNewSeenVersion);
+  useEffect(() => {
+    if (whatsNewSeen == null && APP_VERSION !== 'unknown') {
+      useAppStore.getState().setWhatsNewSeenVersion(APP_VERSION);
+    }
+  }, [whatsNewSeen]);
+  const showWhatsNew = whatsNewPending(whatsNewSeen, APP_VERSION);
+  const openWhatsNew = useCallback(() => {
+    useAppStore.getState().setWhatsNewSeenVersion(APP_VERSION);
+    useAppStore.getState().openSettingsTab?.('updates');
+  }, []);
   const [height, setHeight] = useState(() => {
     const v = Number(localStorage.getItem(LS_HEIGHT));
     return Number.isFinite(v) && v >= MIN_H && v <= MAX_H ? v : 300;
@@ -543,6 +559,29 @@ export default function LogsFooter() {
                 <X size={12} />
               </button>
             </div>
+          )}
+          {showWhatsNew && (
+            <button
+              type="button"
+              data-testid="whats-new-pill"
+              className={
+                'shrink-0 inline-flex items-center gap-[4px] px-[7px] h-[var(--chrome-icon-btn)] rounded-[999px] cursor-pointer ' +
+                'text-[10px] tracking-[0.02em] border border-[color:var(--chrome-accent)] bg-transparent ' +
+                '[color:var(--chrome-accent)] hover:opacity-80 transition-opacity duration-150'
+              }
+              onClick={openWhatsNew}
+              title={t('updates.whats_new_in', {
+                version: APP_VERSION,
+                defaultValue: "What's new in v{{version}}",
+              })}
+              aria-label={t('updates.whats_new_in', {
+                version: APP_VERSION,
+                defaultValue: "What's new in v{{version}}",
+              })}
+            >
+              <Sparkles size={11} aria-hidden="true" />
+              {t('update.whats_new', { defaultValue: "What's new" })}
+            </button>
           )}
           <button
             type="button"

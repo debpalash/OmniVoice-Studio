@@ -628,3 +628,47 @@ def set_hf_mirror(body: _HFMirrorBody):
     # HF endpoint is read at import time by huggingface_hub, so the override
     # is only guaranteed once the backend restarts.
     return {"configured": url, "restart_required": True, "presets": _HF_MIRROR_PRESETS}
+
+
+# ── Updates panel: shipped changelog + pre-migration DB backup state ────────
+# (feat/safe-updates). Both are read-only, local-first surfaces for
+# Settings → Updates: the "What's new" viewer reads the CHANGELOG.md that
+# ships with the app, and the backup line shows the newest pre-migration
+# snapshot written by core.db_backup before `alembic upgrade head` runs.
+
+
+@router.get("/changelog")
+def get_changelog(limit_versions: int = Query(5, ge=1, le=50)):
+    """Structured release notes from the shipped CHANGELOG.md (newest first).
+
+    Bullets are raw markdown-lite (bold leads, `code`, (#NNN) refs) — the
+    frontend renders them safely without HTML. `available: false` when this
+    install has no changelog (never an error: the viewer just hides)."""
+    from core import changelog
+
+    path = changelog.changelog_path()
+    if not path:
+        return {"available": False, "releases": []}
+    try:
+        with open(path, encoding="utf-8") as fh:
+            releases = changelog.parse_changelog(fh.read(), limit_versions)
+    except Exception:
+        logger.exception("changelog parse failed")
+        return {"available": False, "releases": []}
+    return {"available": bool(releases), "releases": releases}
+
+
+@router.get("/db-backup")
+def get_db_backup_state():
+    """Newest pre-migration database backup (or none yet). Feeds the
+    "your data is backed up before every update" line in Settings → Updates."""
+    from core import db_backup
+    from core.config import DB_PATH
+
+    latest = db_backup.latest_backup(DB_PATH)
+    return {
+        "available": latest is not None,
+        "latest": latest,
+        "count": len(db_backup.list_backups(DB_PATH)),
+        "keep": db_backup.KEEP_BACKUPS,
+    }
