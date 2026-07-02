@@ -24,6 +24,7 @@ GET /api/settings/hf-token/state
 GET /api/settings/license/{engine_id}
 GET /api/settings/llm-endpoint
 GET /api/settings/llm-providers
+GET /api/settings/llm-providers/{provider_id}/models
 GET /api/settings/perf/torch-compile-disabled
 GET /api/settings/storage/models-dir
 GET /archetypes

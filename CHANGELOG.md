@@ -8,6 +8,17 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+### Added
+
+- **LLM Providers: one-click connection testing with real diagnostics.** The
+  Test button in Settings → LLM Providers now measures round-trip latency and
+  turns failures into plain-language guidance — bad key (401/403), wrong
+  model or URL (404), rate-limited (429), or unreachable server — instead of
+  a raw exception dump. A new "Fetch models" button lists every model your
+  key can access so you pick from real names instead of guessing. The whole
+  panel is now translated into all 21 languages, provider error messages
+  never echo your API key, and the settings API gained full test coverage.
+
 ### Changed
 
 - **The app now always opens maximized (not fullscreen).** Window size and

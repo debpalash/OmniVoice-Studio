@@ -293,13 +293,58 @@ def set_active_llm_provider(body: _LLMActiveBody):
     return list_llm_providers()
 
 
+def _scrub_llm_detail(e: Exception, api_key: str | None) -> str:
+    """Scrubbed, UI-safe failure text. scrub_text() covers env secrets and
+    home paths — but a STORE-persisted key isn't in the env, and some
+    providers echo the key in error bodies, so redact the exact resolved key
+    explicitly before the generic pass."""
+    from core.scrub import scrub_text
+    detail = f"{type(e).__name__}: {e}"
+    if api_key and api_key != "local" and len(api_key) >= 8:
+        detail = detail.replace(api_key, "•••")
+    return scrub_text(detail)
+
+
+def _classify_llm_error(e: Exception) -> str:
+    """Map a provider-call failure to an actionable kind the UI can localize.
+
+    Kinds: auth (bad/missing key), not_found (model or endpoint path),
+    rate_limit, network (DNS/conn/timeout), error (everything else).
+    Status codes win when the OpenAI SDK provides one; exception-family
+    names catch the non-HTTP failures (DNS, refused, TLS, timeout).
+    """
+    status = getattr(e, "status_code", None)
+    if status in (401, 403):
+        return "auth"
+    if status == 404:
+        return "not_found"
+    if status == 429:
+        return "rate_limit"
+    name = type(e).__name__
+    if name in ("APIConnectionError", "APITimeoutError", "ConnectError",
+                "ConnectTimeout", "TimeoutError"):
+        return "network"
+    if name == "AuthenticationError":
+        return "auth"
+    if name == "NotFoundError":
+        return "not_found"
+    if name == "RateLimitError":
+        return "rate_limit"
+    return "error"
+
+
 @router.post("/llm-providers/{provider_id}/test")
 def test_llm_provider(provider_id: str):
     """One cheap round-trip against a provider to prove the key/URL work.
 
     Temporarily activates the provider for the probe by resolving its config
-    directly (does not change the persisted active selection).
+    directly (does not change the persisted active selection). Returns
+    latency_ms plus, on failure, a classified ``kind`` (config / auth /
+    not_found / rate_limit / network / error) so the UI shows an actionable,
+    localizable message instead of a raw exception string.
     """
+    import time as _time
+
     from services import llm_providers
     p = llm_providers.get_provider(provider_id)
     if p is None:
@@ -307,9 +352,10 @@ def test_llm_provider(provider_id: str):
     base_url = llm_providers.resolve_base_url(p)
     api_key = llm_providers.resolve_api_key(p)
     if not base_url:
-        return {"ok": False, "detail": "No Base URL set for this provider."}
+        return {"ok": False, "kind": "config", "detail": "No Base URL set for this provider."}
     if not api_key:
-        return {"ok": False, "detail": "No API key configured for this provider."}
+        return {"ok": False, "kind": "config", "detail": "No API key configured for this provider."}
+    t0 = _time.monotonic()
     try:
         from openai import OpenAI
         client = OpenAI(api_key=api_key, base_url=base_url)
@@ -319,10 +365,49 @@ def test_llm_provider(provider_id: str):
             timeout=20,
         )
         reply = (res.choices[0].message.content or "").strip()
-        return {"ok": True, "model": llm_providers.resolve_model(p), "reply": reply[:80]}
+        return {
+            "ok": True,
+            "model": llm_providers.resolve_model(p),
+            "reply": reply[:80],
+            "latency_ms": int((_time.monotonic() - t0) * 1000),
+        }
     except Exception as e:  # noqa: BLE001 — surface a clean, scrubbed error to the UI
-        from core.scrub import scrub_text
-        return {"ok": False, "detail": scrub_text(f"{type(e).__name__}: {e}")}
+        return {
+            "ok": False,
+            "kind": _classify_llm_error(e),
+            "detail": _scrub_llm_detail(e, api_key),
+            "latency_ms": int((_time.monotonic() - t0) * 1000),
+        }
+
+
+@router.get("/llm-providers/{provider_id}/models")
+def list_llm_provider_models(provider_id: str):
+    """List model ids the provider's key can access (OpenAI-compat /models).
+
+    Powers the model-picker datalist in Settings → LLM Providers so users
+    don't have to guess model names. Read-only; failures return the same
+    classified shape as /test; capped so a huge catalog can't bloat the UI.
+    """
+    from services import llm_providers
+    p = llm_providers.get_provider(provider_id)
+    if p is None:
+        raise HTTPException(status_code=404, detail=f"unknown provider {provider_id!r}")
+    base_url = llm_providers.resolve_base_url(p)
+    api_key = llm_providers.resolve_api_key(p)
+    if not base_url or not api_key:
+        return {"ok": False, "kind": "config", "models": []}
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url=base_url)
+        ids = sorted(m.id for m in client.models.list(timeout=10))
+        return {"ok": True, "models": ids[:200]}
+    except Exception as e:  # noqa: BLE001
+        return {
+            "ok": False,
+            "kind": _classify_llm_error(e),
+            "detail": _scrub_llm_detail(e, api_key),
+            "models": [],
+        }
 
 
 # ── License acceptance (Phase 3 Plan 03-01 / TTS-05) ──────────────────────
