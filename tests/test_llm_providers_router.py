@@ -26,8 +26,12 @@ pytestmark = pytest.mark.skipif(not _HAS_OPENAI, reason="openai package not inst
 
 
 @pytest.fixture
-def settings_mod(monkeypatch):
-    """Router module with settings_store in-memory (no SQLite, no prefs I/O)."""
+def settings_mod(monkeypatch, clean_llm_env):
+    """Router module with settings_store in-memory (no SQLite, no prefs I/O).
+
+    clean_llm_env (conftest) clears the FULL provider env surface so probes
+    resolve only the seeded in-memory state, not ambient/.env keys (#878).
+    """
     from services import settings_store as ss
 
     text: dict[str, str] = {}
@@ -37,9 +41,6 @@ def settings_mod(monkeypatch):
     monkeypatch.setattr(ss, "get_secret", lambda n: secrets.get(n))
     monkeypatch.setattr(ss, "set_secret", lambda n, v: secrets.__setitem__(n, v) if v else secrets.pop(n, None))
     monkeypatch.setattr(ss, "list_secret_names", lambda: list(secrets))
-    for var in ("LLM_DEFAULT_PROVIDER", "TRANSLATE_BASE_URL", "TRANSLATE_API_KEY",
-                "TRANSLATE_MODEL", "OPENAI_API_KEY", "GROQ_API_KEY", "GROQ_MODEL"):
-        monkeypatch.delenv(var, raising=False)
     import importlib
     return importlib.import_module("api.routers.settings")
 

@@ -113,10 +113,11 @@ def test_llm_off_chat_raises_actionable(monkeypatch):
     assert "TRANSLATE_BASE_URL" in str(ei.value)
 
 
-def test_llm_auto_selects_off_when_nothing_configured(monkeypatch):
-    for var in ("OMNIVOICE_LLM_BACKEND", "TRANSLATE_BASE_URL",
-                "TRANSLATE_API_KEY", "OPENAI_API_KEY"):
-        monkeypatch.delenv(var, raising=False)
+def test_llm_auto_selects_off_when_nothing_configured(clean_llm_env):
+    # clean_llm_env (conftest) clears the FULL provider env surface — a
+    # hand-picked 4-var list left e.g. LLM_DEFAULT_PROVIDER / GROQ_API_KEY
+    # standing when an earlier test imported `main` (which dotenv-loads the
+    # developer's .env into os.environ), reading as 'configured' (#878).
     assert llm_backend.active_backend_id() == "off"
 
 

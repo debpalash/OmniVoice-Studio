@@ -12,8 +12,13 @@ import pytest
 
 
 @pytest.fixture
-def lp(monkeypatch):
-    """llm_providers with settings_store backed by in-memory dicts (no SQLite)."""
+def lp(monkeypatch, clean_llm_env):
+    """llm_providers with settings_store backed by in-memory dicts (no SQLite).
+
+    clean_llm_env (conftest) clears the FULL provider env surface — a partial
+    list left other providers' keys standing when an earlier `main` import
+    dotenv-loaded them into os.environ, breaking precedence asserts (#878).
+    """
     from services import settings_store as ss
     from services import llm_providers as _lp
 
@@ -25,10 +30,6 @@ def lp(monkeypatch):
     monkeypatch.setattr(ss, "get_secret", lambda n: secrets.get(n))
     monkeypatch.setattr(ss, "set_secret", lambda n, v: secrets.__setitem__(n, v) if v else secrets.pop(n, None))
     monkeypatch.setattr(ss, "list_secret_names", lambda: list(secrets))
-    # Clean env of anything that would leak in as an override.
-    for var in ("LLM_DEFAULT_PROVIDER", "TRANSLATE_BASE_URL", "TRANSLATE_API_KEY",
-                "TRANSLATE_MODEL", "OPENAI_API_KEY", "GROQ_API_KEY", "GROQ_MODEL"):
-        monkeypatch.delenv(var, raising=False)
     _lp._text, _lp._secrets = text, secrets  # handles for the test to seed
     return _lp
 

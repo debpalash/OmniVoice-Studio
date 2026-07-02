@@ -19,13 +19,14 @@ _HAS_OPENAI = importlib.util.find_spec("openai") is not None
 
 
 @pytest.fixture
-def settings_mod(monkeypatch):
+def settings_mod(monkeypatch, clean_llm_env):
     # Stub prefs persistence so PUT doesn't write the developer's prefs.json.
+    # clean_llm_env clears the full LLM-provider env surface (not just the
+    # TRANSLATE_* quartet) so 'empty state' really is empty even when an
+    # earlier `main` import dotenv-loaded provider keys into os.environ (#878).
     import core.prefs as prefs
     monkeypatch.setattr(prefs, "set_", lambda *a, **k: None)
     monkeypatch.setattr(prefs, "delete", lambda *a, **k: None)
-    for k in ("TRANSLATE_BASE_URL", "TRANSLATE_MODEL", "TRANSLATE_API_KEY", "OPENAI_API_KEY"):
-        monkeypatch.delenv(k, raising=False)
     return importlib.import_module("api.routers.settings")
 
 
