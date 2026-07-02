@@ -37,6 +37,7 @@ export default function LLMProvidersPanel() {
   const [testing, setTesting] = useState(false);
   const [test, setTest] = useState(null);
   const [models, setModels] = useState(null); // null = not fetched; [] = fetched, none
+  const [modelsTruncated, setModelsTruncated] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
   const [error, setError] = useState(null);
 
@@ -63,11 +64,18 @@ export default function LLMProvidersPanel() {
   const populate = useCallback((list, id) => {
     const p = list.find((x) => x.id === id);
     if (!p) return;
-    // base_url/model prefill with the resolved value so the user edits from a
-    // sane default; api_key is never echoed (only the has_key flag comes back).
-    setFields({ base_url: p.base_url || '', model: p.model || '', api_key: '', account_id: '' });
+    // base_url/model/account prefill with the resolved value so the user edits
+    // from a sane default; api_key is never echoed (only the has_key flag
+    // comes back). account_id round-trips so a saved Cloudflare id is visible.
+    setFields({
+      base_url: p.base_url || '',
+      model: p.model || '',
+      api_key: '',
+      account_id: p.account_id || '',
+    });
     setTest(null);
     setModels(null);
+    setModelsTruncated(false);
   }, []);
 
   const refresh = useCallback(
@@ -154,8 +162,10 @@ export default function LLMProvidersPanel() {
       const res = await apiJson(`/api/settings/llm-providers/${current.id}/models`);
       if (res.ok) {
         setModels(res.models || []);
+        setModelsTruncated(!!res.truncated);
       } else {
         setModels([]);
+        setModelsTruncated(false);
         setTest({ ok: false, kind: res.kind, detail: res.detail });
       }
     } catch (e) {
@@ -237,6 +247,7 @@ export default function LLMProvidersPanel() {
           {current.needs_account && (
             <SettingRow
               title={t('settings.llmp_account_id')}
+              note={current.account_from_env ? t('settings.llmp_env_override') : undefined}
               control={
                 <SettingsInput
                   mono
@@ -244,6 +255,7 @@ export default function LLMProvidersPanel() {
                   value={fields.account_id}
                   onChange={(e) => setFields((f) => ({ ...f, account_id: e.target.value }))}
                   placeholder={t('settings.llmp_account_placeholder')}
+                  disabled={current.account_from_env}
                   data-testid="llm-account-id"
                 />
               }
@@ -275,6 +287,7 @@ export default function LLMProvidersPanel() {
 
           <SettingRow
             title={t('settings.llmp_base_url')}
+            note={current.base_url_from_env ? t('settings.llmp_env_override') : undefined}
             control={
               <SettingsInput
                 mono
@@ -282,15 +295,19 @@ export default function LLMProvidersPanel() {
                 value={fields.base_url}
                 onChange={(e) => setFields((f) => ({ ...f, base_url: e.target.value }))}
                 placeholder="https://api.provider.com/v1"
+                disabled={current.base_url_from_env}
                 data-testid="llm-provider-base-url"
               />
             }
           />
           <SettingRow
             title={t('settings.llmp_model')}
+            note={current.model_from_env ? t('settings.llmp_env_override') : undefined}
             hint={
               models?.length
-                ? t('settings.llmp_models_loaded', { count: models.length })
+                ? modelsTruncated
+                  ? t('settings.llmp_models_truncated', { count: models.length })
+                  : t('settings.llmp_models_loaded', { count: models.length })
                 : undefined
             }
             control={
@@ -302,6 +319,7 @@ export default function LLMProvidersPanel() {
                   onChange={(e) => setFields((f) => ({ ...f, model: e.target.value }))}
                   placeholder={t('settings.llmp_model_placeholder')}
                   list={models?.length ? MODELS_DATALIST_ID : undefined}
+                  disabled={current.model_from_env}
                   data-testid="llm-provider-model"
                 />
                 <Button
@@ -331,6 +349,16 @@ export default function LLMProvidersPanel() {
             </div>
           )}
 
+          {current.active_from_env && (
+            <div
+              role="status"
+              data-testid="llm-active-env-banner"
+              className="text-[length:var(--text-xs)] text-[color:var(--chrome-fg-dim)] leading-[1.5] py-[var(--space-2)]"
+            >
+              {t('settings.llmp_active_env_pin')}
+            </div>
+          )}
+
           <SettingRow
             title={t('settings.llmp_status')}
             control={
@@ -350,7 +378,7 @@ export default function LLMProvidersPanel() {
                   size="sm"
                   onClick={() => save(true)}
                   loading={saving}
-                  disabled={saving || testing}
+                  disabled={saving || testing || current.active_from_env}
                   data-testid="llm-provider-activate"
                 >
                   {isActive ? t('settings.llmp_save_keep') : t('settings.llmp_save_active')}

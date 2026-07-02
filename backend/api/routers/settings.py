@@ -358,7 +358,10 @@ def test_llm_provider(provider_id: str):
     t0 = _time.monotonic()
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=api_key, base_url=base_url)
+        # max_retries=0: this is an interactive probe with a live spinner — the
+        # SDK's default 2 automatic retries turn a 429/timeout into a ~34s hang.
+        # Surface the first failure immediately instead.
+        client = OpenAI(api_key=api_key, base_url=base_url, max_retries=0)
         res = client.chat.completions.create(
             model=llm_providers.resolve_model(p),
             messages=[{"role": "user", "content": "Reply with the single word: ok"}],
@@ -398,9 +401,13 @@ def list_llm_provider_models(provider_id: str):
         return {"ok": False, "kind": "config", "models": []}
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=api_key, base_url=base_url)
+        # max_retries=0: interactive probe — fail fast, don't burn ~34s on the
+        # SDK's default retry ladder when the key/URL is wrong (matches /test).
+        client = OpenAI(api_key=api_key, base_url=base_url, max_retries=0)
         ids = sorted(m.id for m in client.models.list(timeout=10))
-        return {"ok": True, "models": ids[:200]}
+        # Cap so a huge catalog can't bloat the datalist; flag the cap so the UI
+        # can say "first 200 shown" rather than implying it's the full list.
+        return {"ok": True, "models": ids[:200], "truncated": len(ids) > 200}
     except Exception as e:  # noqa: BLE001
         return {
             "ok": False,

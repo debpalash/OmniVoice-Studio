@@ -172,17 +172,33 @@ def _env_first(names: tuple[str, ...]) -> Optional[str]:
     return None
 
 
-def resolve_base_url(p: Provider) -> str:
+def resolve_account_id(p: Provider) -> str:
+    """The Cloudflare-style account id: env override → stored → empty."""
+    from services import settings_store
+    return (
+        (p.account_env and os.environ.get(p.account_env))
+        or settings_store.get_text(f"llm.account.{p.id}")
+        or ""
+    )
+
+
+def resolve_base_url(p: Provider, *, substitute: bool = True) -> str:
+    """Resolve a provider's base URL (env → stored override → default).
+
+    ``substitute`` interpolates ``{account_id}`` for account-scoped providers
+    (Cloudflare) so the *client* gets a working URL. The UI passes
+    ``substitute=False`` so the field shows/saves the raw template — baking the
+    substituted value back into a stored override would freeze the URL and make
+    later account-id changes silently no-op (the bug this guards against).
+    """
     from services import settings_store
     val = (
         (p.base_url_env and os.environ.get(p.base_url_env))
         or settings_store.get_text(_BASE_URL_KEY + p.id)
         or p.default_base_url
     )
-    if p.needs_account and val and "{account_id}" in val:
-        acct = (p.account_env and os.environ.get(p.account_env)) or \
-            settings_store.get_text(f"llm.account.{p.id}") or ""
-        val = val.replace("{account_id}", acct)
+    if substitute and p.needs_account and val and "{account_id}" in val:
+        val = val.replace("{account_id}", resolve_account_id(p))
     return val or ""
 
 
@@ -286,26 +302,55 @@ def save_overrides(pid: str, *, base_url: Optional[str] = None,
     from services import settings_store
     if pid not in _BY_ID:
         raise ValueError(f"unknown provider {pid!r}")
+    p = _BY_ID[pid]
     if base_url is not None:
-        settings_store.set_text(_BASE_URL_KEY + pid, base_url.strip())
+        bu = base_url.strip()
+        # Never freeze an override that equals the built-in default. Critical
+        # for account-templated URLs (Cloudflare): persisting the shown value
+        # would pin the base_url and stop later account-id edits from taking
+        # effect. Clearing (→ empty) falls the resolver back to the default
+        # template so substitution stays live. Also self-heals a stale override
+        # if a provider's default URL changes in a future release.
+        settings_store.set_text(_BASE_URL_KEY + pid, "" if bu == p.default_base_url else bu)
     if model is not None:
         settings_store.set_text(_MODEL_KEY + pid, model.strip())
     if account_id is not None:
         settings_store.set_text(f"llm.account.{pid}", account_id.strip())
 
 
+def _active_env_pin() -> Optional[str]:
+    """The provider id pinned by ``LLM_DEFAULT_PROVIDER`` (if set + valid)."""
+    pick = os.environ.get("LLM_DEFAULT_PROVIDER")
+    return pick if pick and pick in _BY_ID else None
+
+
 def describe(p: Provider) -> dict:
-    """Client-safe provider descriptor — NEVER includes the key material."""
-    return {
+    """Client-safe provider descriptor — NEVER includes the key material.
+
+    The ``*_from_env`` booleans mirror ``key_from_env`` so the UI can disable an
+    env-pinned field (and the make-active button) with an explainer instead of
+    letting the user edit a value the resolver will silently override. ``base_url``
+    is the RAW template (``substitute=False``) so an account-scoped default shows
+    ``{account_id}`` rather than a baked-in value; ``account_id`` is returned
+    separately for account-scoped providers so the field can round-trip.
+    """
+    d = {
         "id": p.id,
         "display_name": p.display_name,
         "local": p.local,
         "needs_account": p.needs_account,
         "signup_url": p.signup_url,
         "notes": p.notes,
-        "base_url": resolve_base_url(p),
+        "base_url": resolve_base_url(p, substitute=False),
         "model": resolve_model(p),
         "has_key": has_key(p),
         "key_from_env": bool(_env_first(p.key_envs)),
+        "base_url_from_env": bool(p.base_url_env and os.environ.get(p.base_url_env)),
+        "model_from_env": bool(p.model_env and os.environ.get(p.model_env)),
+        "active_from_env": _active_env_pin() is not None,
         "configured": is_configured(p),
     }
+    if p.needs_account:
+        d["account_id"] = resolve_account_id(p)
+        d["account_from_env"] = bool(p.account_env and os.environ.get(p.account_env))
+    return d
