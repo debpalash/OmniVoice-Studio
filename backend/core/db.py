@@ -3,6 +3,8 @@ import sqlite3
 import logging
 from contextlib import contextmanager
 from core.config import DB_PATH
+from core import db_backup
+from core.version import APP_VERSION
 
 logger = logging.getLogger("omnivoice.db")
 
@@ -429,11 +431,14 @@ def _run_alembic_upgrade() -> None:
     # Migrations may actually execute: snapshot the DB first so a failed or
     # interrupted migration can never cost user data. A backup problem alone
     # must not brick startup (the >500 MB skip is by design), so log and go on.
+    # ``db_backup``/``APP_VERSION`` are module-level imports (top of file), not
+    # re-imported here: a test that patches ``core.db_backup.MAX_BACKUP_DB_BYTES``
+    # on the object it imported at collection must see the same object this
+    # function uses. A lazy ``from core import db_backup`` would re-resolve
+    # through the (possibly re-imported) ``core`` package and silently miss the
+    # patch after another suite purged ``core.*`` from ``sys.modules``.
     backup_path = None
     try:
-        from core import db_backup
-        from core.version import APP_VERSION
-
         backup_path = db_backup.snapshot_before_migration(DB_PATH, APP_VERSION)
     except Exception:  # noqa: BLE001
         logger.exception("Pre-migration DB backup failed — continuing without one")

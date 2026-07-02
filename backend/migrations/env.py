@@ -17,7 +17,13 @@ from core.config import DB_PATH  # noqa: E402 — backend/ is on sys.path via al
 
 config = context.config
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # `disable_existing_loggers=False` is deliberate: this env runs *inside* the
+    # live app (startup `alembic upgrade head`), so the default (True) would
+    # disable every already-created application logger — e.g. silence
+    # `omnivoice.db.backup`'s "Skipping pre-migration DB backup" line and the
+    # rest of the app's logging for the remainder of the process. A migration
+    # must never mute the app (or leak that mute across a test session).
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # SQLite file URL. Honour an externally-set URL (tests pass one via
 # `cfg.set_main_option("sqlalchemy.url", ...)` to point at a fixture DB),

@@ -15,8 +15,17 @@ import sqlite3
 
 import pytest
 
+import core.db as db_module
 from core import db_backup
 from core.db import _BASE_SCHEMA, MigrationError, _run_alembic_upgrade, init_db
+
+# Patch DB_PATH on the SAME module object these symbols were imported from
+# (``db_module``), not via the dotted string "core.db.DB_PATH". An earlier
+# suite (tests/backend/**) purges ``core.*`` from ``sys.modules`` and never
+# restores it, so the string re-resolves to a *re-imported* ``core.db`` while
+# ``_run_alembic_upgrade``/``init_db`` — bound here at collection — keep
+# reading the ORIGINAL module's globals. Patching the imported object is the
+# correct, self-contained seam and is immune to that leak (#909 full-suite).
 
 
 def _seed_user_db(path, stamp=None):
@@ -49,7 +58,7 @@ def test_pending_migrations_snapshot_first_then_upgrade(tmp_path, monkeypatch):
     """A DB behind head (here: never stamped) gets a backup, then migrates."""
     db = tmp_path / "omnivoice.db"
     _seed_user_db(db)
-    monkeypatch.setattr("core.db.DB_PATH", str(db))
+    monkeypatch.setattr(db_module, "DB_PATH", str(db))
 
     _run_alembic_upgrade()
 
@@ -71,7 +80,7 @@ def test_up_to_date_db_is_not_resnapshotted(tmp_path, monkeypatch):
     """Once at head, later launches must not churn new backups."""
     db = tmp_path / "omnivoice.db"
     _seed_user_db(db)
-    monkeypatch.setattr("core.db.DB_PATH", str(db))
+    monkeypatch.setattr(db_module, "DB_PATH", str(db))
 
     _run_alembic_upgrade()
     first = db_backup.list_backups(str(db))
@@ -87,7 +96,7 @@ def test_unknown_revision_stays_nonfatal_and_makes_no_backup(tmp_path, monkeypat
     behavior, and don't churn a pointless backup every launch."""
     db = tmp_path / "omnivoice.db"
     _seed_user_db(db, stamp="9999_from_a_newer_build")
-    monkeypatch.setattr("core.db.DB_PATH", str(db))
+    monkeypatch.setattr(db_module, "DB_PATH", str(db))
 
     init_db()  # must NOT raise (same contract as test_db_schema_reconcile)
 
@@ -101,7 +110,7 @@ def test_midflight_failure_stops_startup_and_names_backup(tmp_path, monkeypatch)
     data reachable, and point the user at the pre-migration backup."""
     db = tmp_path / "omnivoice.db"
     _seed_user_db(db)
-    monkeypatch.setattr("core.db.DB_PATH", str(db))
+    monkeypatch.setattr(db_module, "DB_PATH", str(db))
 
     import alembic.command
 
@@ -132,7 +141,7 @@ def test_midflight_failure_without_backup_says_so(tmp_path, monkeypatch):
     say a backup wasn't written instead of naming a phantom path."""
     db = tmp_path / "omnivoice.db"
     _seed_user_db(db)
-    monkeypatch.setattr("core.db.DB_PATH", str(db))
+    monkeypatch.setattr(db_module, "DB_PATH", str(db))
     monkeypatch.setattr(db_backup, "MAX_BACKUP_DB_BYTES", 1)
 
     import alembic.command
