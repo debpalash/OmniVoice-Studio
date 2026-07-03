@@ -2112,12 +2112,8 @@
   "contact": {
     "hero_title": "İletişime geçin",
     "hero_desc": "Sorular, hatalar, lisanslama veya sadece merhaba demek için; bana şu şekilde ulaşabilirsiniz.",
-    "discord": "Anlaşmazlık",
-    "discord_desc": "Toplulukla sohbet edin ve hızlı bir şekilde yardım alın.",
     "email": "E-posta",
     "email_desc": "Lisanslama, ortaklıklar veya özel herhangi bir şey.",
-    "issues": "GitHub Sorunları",
-    "issues_desc": "Bir hatayı bildirin veya bir özellik isteyin.",
     "website": "Web sitesi",
     "website_desc": "Proje ve yapımcı hakkında daha fazla bilgi."
   }

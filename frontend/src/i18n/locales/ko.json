@@ -2112,12 +2112,8 @@
   "contact": {
     "hero_title": "연락하세요",
     "hero_desc": "질문, 버그, 라이센싱 또는 간단한 인사말 등 제게 연락하는 방법은 다음과 같습니다.",
-    "discord": "불화",
-    "discord_desc": "커뮤니티와 채팅하고 빠르게 도움을 받으세요.",
     "email": "이메일",
     "email_desc": "라이센스, 파트너십 또는 개인적인 모든 것.",
-    "issues": "GitHub 문제",
-    "issues_desc": "버그를 신고하거나 기능을 요청하세요.",
     "website": "웹사이트",
     "website_desc": "프로젝트와 제작자에 대해 자세히 알아보세요."
   }
