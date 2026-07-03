@@ -2,6 +2,9 @@
 import os
 os.environ.setdefault("OMNIVOICE_DISABLE_FILE_LOG", "1")
 
+import sys
+import types
+
 import pytest
 from services import tts_backend, asr_backend, llm_backend
 
@@ -48,6 +51,44 @@ def test_tts_active_backend_env_override(monkeypatch):
     from core import prefs as _prefs
     _prefs.set_("tts_backend", "omnivoice")
     assert tts_backend.active_backend_id() == "omnivoice"
+
+
+# ── #919: sherpa-onnx gates on OMNIVOICE_SHERPA_MODEL ────────────────────────
+# sherpa-onnx ships no bundled model, so with the package installed but no model
+# dir configured it must report unavailable-with-a-reason — not "ready" and then
+# a generate-time config error the OOM catch-all mislabeled. A fake module makes
+# these deterministic whether or not sherpa-onnx is installed on CI.
+
+
+def test_tts_sherpa_unavailable_without_model_env(monkeypatch):
+    monkeypatch.setitem(sys.modules, "sherpa_onnx", types.ModuleType("sherpa_onnx"))
+    monkeypatch.delenv("OMNIVOICE_SHERPA_MODEL", raising=False)
+    ok, msg = tts_backend.SherpaOnnxBackend.is_available()
+    assert ok is False
+    assert "OMNIVOICE_SHERPA_MODEL" in msg   # names the exact env var
+    assert "model.onnx" in msg               # says what to point it at
+
+
+def test_tts_sherpa_unavailable_when_model_dir_lacks_onnx(monkeypatch, tmp_path):
+    monkeypatch.setitem(sys.modules, "sherpa_onnx", types.ModuleType("sherpa_onnx"))
+    monkeypatch.setenv("OMNIVOICE_SHERPA_MODEL", str(tmp_path))  # empty dir
+    ok, msg = tts_backend.SherpaOnnxBackend.is_available()
+    assert ok is False
+    assert "model.onnx" in msg
+
+
+def test_tts_sherpa_available_when_model_env_points_at_model(monkeypatch, tmp_path):
+    monkeypatch.setitem(sys.modules, "sherpa_onnx", types.ModuleType("sherpa_onnx"))
+    (tmp_path / "model.onnx").write_bytes(b"")
+    monkeypatch.setenv("OMNIVOICE_SHERPA_MODEL", str(tmp_path))
+    ok, _msg = tts_backend.SherpaOnnxBackend.is_available()
+    assert ok is True
+
+
+def test_tts_sherpa_setup_snippet_registered():
+    # The Compat Matrix's copy-paste setup line must exist for the now
+    # path-gated engine (parity with Confucius4/dots/MOSS).
+    assert "OMNIVOICE_SHERPA_MODEL" in tts_backend._SETUP_SNIPPETS["sherpa-onnx"]
 
 
 def test_tts_active_backend_prefs_fallback(monkeypatch, tmp_path):

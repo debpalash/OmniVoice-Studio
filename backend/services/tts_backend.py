@@ -1120,13 +1120,34 @@ class SherpaOnnxBackend(TTSBackend):
     def is_available(cls) -> tuple[bool, str]:
         try:
             import sherpa_onnx  # noqa: F401
-            return True, "ready"
         except ImportError as e:
             return False, (
                 f"sherpa-onnx not installed: {e}. "
                 "Install with: pip install sherpa-onnx. "
                 "Download models from https://github.com/k2-fsa/sherpa-onnx/releases"
             )
+        # #919: sherpa-onnx ships no bundled default model — it can only
+        # synthesize once OMNIVOICE_SHERPA_MODEL points at a downloaded model
+        # directory. Gate on it here (like the other path-configured opt-in
+        # engines: Confucius4/dots/MOSS) so the picker marks it unavailable-
+        # with-a-reason instead of letting a user select it, generate, and hit
+        # a config error that used to be mislabeled as out-of-memory.
+        model_dir = os.environ.get("OMNIVOICE_SHERPA_MODEL", "").strip()
+        if not model_dir:
+            return False, (
+                "OMNIVOICE_SHERPA_MODEL not set. Point it to a sherpa-onnx TTS "
+                "model directory (containing model.onnx + tokens.txt), then "
+                "restart OmniVoice. Download models from "
+                "https://github.com/k2-fsa/sherpa-onnx/releases"
+            )
+        if not os.path.isfile(os.path.join(model_dir, "model.onnx")):
+            return False, (
+                f"No model.onnx in OMNIVOICE_SHERPA_MODEL ({model_dir}). Point "
+                "it at a sherpa-onnx TTS model directory containing model.onnx "
+                "+ tokens.txt. Download models from "
+                "https://github.com/k2-fsa/sherpa-onnx/releases"
+            )
+        return True, "ready"
 
     @property
     def sample_rate(self) -> int:
@@ -1334,6 +1355,8 @@ _SETUP_SNIPPETS: dict[str, str] = {
     "moss-tts-v15":   "export OMNIVOICE_MOSS_TTS_V15_DIR=/path/to/MOSS-TTS",
     "dots-tts":       "export OMNIVOICE_DOTS_TTS_DIR=/path/to/dots.tts",
     "confucius4-tts": "export OMNIVOICE_CONFUCIUS4_TTS_DIR=/path/to/Confucius4-TTS",
+    # #919: sherpa-onnx gates on a downloaded model dir (model.onnx + tokens.txt).
+    "sherpa-onnx":    "export OMNIVOICE_SHERPA_MODEL=/path/to/sherpa-onnx-model",
 }
 
 

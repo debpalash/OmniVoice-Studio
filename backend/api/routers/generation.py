@@ -1,5 +1,6 @@
 import os
 import io
+import re
 import uuid
 import time
 import random
@@ -233,6 +234,45 @@ def _is_oom_failure(e) -> bool:
     return False
 
 
+# #919: an engine that requires a model path / env var which isn't set (or is
+# set to a directory missing its model files) fails with a *configuration*
+# error, not a runtime one. The reporting user selected sherpa-onnx and hit
+# "OMNIVOICE_SHERPA_MODEL not set. Point it to a sherpa-onnx TTS model
+# directory …" — a pure setup problem — yet the OOM catch-all told them (on a
+# 63 GB-RAM box) to press Flush for memory they never ran out of. Classify the
+# whole CLASS of "engine not configured / required env var not set" errors so
+# any current or future opt-in engine (sherpa/Confucius4/dots/MOSS …) surfaces
+# actionable setup guidance instead of the memory hint. All lowercase; matched
+# over the whole exception chain (engines wrap the original error).
+_CONFIG_MSG_SIGNATURES = (
+    "not set. point it to",      # sherpa: OMNIVOICE_SHERPA_MODEL not set
+    "no model.onnx found in",    # sherpa: dir set but the model file is missing
+    "not configured",            # generic "engine not configured" wording
+    "venv not found. set",       # confucius4/dots/MOSS dedicated-venv opt-ins
+    "unavailable: omnivoice_",   # is_available() reason wrapped by _ensure_loaded
+)
+
+# An OMNIVOICE_* engine env var named alongside "not set" / "point it to" /
+# "set omnivoice_…" is the strongest config-missing signal and generalizes to
+# any engine gated on such a var (issue #919 class).
+_CONFIG_ENV_RE = re.compile(r"omnivoice_[a-z0-9_]+")
+
+
+def _is_config_failure(e) -> bool:
+    """True iff the failure is a *configuration* problem — a required engine
+    model path / env var that isn't set (or points nowhere) — rather than a
+    runtime fault. The remedy is to set the value, never to Flush VRAM."""
+    for exc in _exception_chain(e):
+        low = str(exc).lower()
+        if any(sig in low for sig in _CONFIG_MSG_SIGNATURES):
+            return True
+        if _CONFIG_ENV_RE.search(low) and (
+            "not set" in low or "point it to" in low or "set omnivoice_" in low
+        ):
+            return True
+    return False
+
+
 def _oom_friendly_reraise(e):
     """Best-effort cache flush + the user-facing OOM hint shared by both
     inference paths."""
@@ -340,6 +380,24 @@ def _oom_friendly_reraise(e):
             f"help. Retry the generation; if it keeps failing, check your "
             f"internet connection and any HF_ENDPOINT/mirror setting. "
             f"Underlying error: {e}"
+        ) from e
+    # #919: a required engine model path / env var that isn't set is a pure
+    # CONFIGURATION problem, not a runtime one. sherpa-onnx's
+    # "OMNIVOICE_SHERPA_MODEL not set. Point it to …" used to fall through to
+    # the OOM catch-all, telling a user with 63 GB of RAM to press Flush. Point
+    # at the real fix — set the variable — and never mention memory or Flush.
+    # The underlying error already names the exact variable + what to point it
+    # at (and Settings → Engines shows a copy-paste setup line), so keep it
+    # front-and-center. Checked before the OOM branch so a config error can
+    # never be mislabeled as memory.
+    if _is_config_failure(e):
+        raise RuntimeError(
+            f"This TTS engine isn't set up yet — it needs a model path or "
+            f"environment variable that isn't configured, so nothing was "
+            f"generated. Set it as the underlying error describes (it names the "
+            f"exact variable and what to point it at), then restart OmniVoice — "
+            f"or pick a ready engine in Settings → Engines. This is a setup "
+            f"problem, not a memory one. Underlying error: {e}"
         ) from e
     # #880 (the class bug): the OOM hint used to be the catch-all fallback,
     # so ANY unrecognized error told the user to press Flush for memory they

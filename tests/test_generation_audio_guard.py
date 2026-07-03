@@ -205,3 +205,55 @@ def test_winerror_193_is_a_corrupt_binary_not_oom():
     assert "WinError 193" in msg
     assert "corrupt" in msg or "wrong architecture" in msg
     assert "ran out of memory" not in msg
+
+
+def test_sherpa_model_not_set_is_a_config_error_not_oom():
+    # #919: the reporter selected sherpa-onnx and hit "OMNIVOICE_SHERPA_MODEL
+    # not set. Point it to a sherpa-onnx TTS model directory …" — a pure setup
+    # problem — but the OOM catch-all told them (63 GB RAM) to press Flush for
+    # memory they never ran out of. It must classify as a CONFIGURATION error:
+    # name the env var, point at Settings → Engines, and never mention memory
+    # or the Flush button.
+    err = RuntimeError(
+        "OMNIVOICE_SHERPA_MODEL not set. Point it to a sherpa-onnx TTS model "
+        "directory (containing model.onnx + tokens.txt)."
+    )
+    with pytest.raises(RuntimeError) as ei:
+        _oom_friendly_reraise(err)
+    msg = str(ei.value)
+    assert "OMNIVOICE_SHERPA_MODEL" in msg      # names the exact env var
+    assert "Settings" in msg                     # tells the user where to fix it
+    assert "out of memory" not in msg
+    assert "ran out of memory" not in msg
+    assert "Flush" not in msg
+
+
+def test_engine_not_configured_class_is_not_oom():
+    # #919 (the class, not just the one string): any opt-in engine failing
+    # because its required model path / env var isn't set is configuration, not
+    # OOM — including when a lower layer wraps the original message. Covers
+    # sherpa's is_available() wrapper, sherpa's "no model.onnx" variant, and a
+    # Confucius4/dots/MOSS-style "venv not found. Set OMNIVOICE_…_DIR".
+    for raw in (
+        "Sherpa-ONNX unavailable: OMNIVOICE_SHERPA_MODEL not set. Point it to a "
+        "sherpa-onnx TTS model directory (containing model.onnx + tokens.txt).",
+        "No model.onnx found in /tts/models. Download a model from "
+        "https://github.com/k2-fsa/sherpa-onnx/releases",
+        "Confucius4-TTS venv not found. Set OMNIVOICE_CONFUCIUS4_TTS_DIR to your "
+        "clone and restart OmniVoice.",
+    ):
+        with pytest.raises(RuntimeError) as ei:
+            _oom_friendly_reraise(RuntimeError(raw))
+        msg = str(ei.value)
+        assert "isn't set up yet" in msg
+        assert "ran out of memory" not in msg
+        assert "out of memory" not in msg
+        assert "Flush" not in msg
+
+
+def test_config_failure_does_not_swallow_real_oom():
+    # Guard the ordering: a genuine OOM must still be OOM even though the config
+    # branch now runs first.
+    with pytest.raises(RuntimeError) as ei:
+        _oom_friendly_reraise(RuntimeError("CUDA error: out of memory"))
+    assert "ran out of memory" in str(ei.value)
