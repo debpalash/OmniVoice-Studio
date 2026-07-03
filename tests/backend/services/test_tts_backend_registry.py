@@ -151,6 +151,8 @@ def test_list_backends_shape(registry_sandbox):
         "id", "display_name", "available", "reason",
         "install_hint", "last_error", "isolation_mode", "gpu_compat",
         "effective_device", "routing_status", "routing_reason",
+        # Copy-paste env-var line for path-gated opt-in engines (None otherwise).
+        "setup_snippet",
     }
     for entry in out:
         assert set(entry.keys()) == required, (
