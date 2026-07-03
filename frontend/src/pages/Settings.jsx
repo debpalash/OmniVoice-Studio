@@ -25,6 +25,7 @@ import HFMirrorPanel from '../components/settings/HFMirrorPanel';
 import SharingPanel from '../components/settings/SharingPanel';
 import RemoteBackendPanel from '../components/settings/RemoteBackendPanel';
 import MCPBindingsPanel from '../components/settings/MCPBindingsPanel';
+import OpenApiPanel from '../components/settings/OpenApiPanel';
 import PronunciationPanel from '../components/settings/PronunciationPanel';
 import DictationDemo from '../components/DictationDemo';
 import UpdatesPanel from '../components/UpdatesPanel';
@@ -402,6 +403,8 @@ export default function Settings() {
             <MCPBindingsPanel />
           </>
         );
+      case 'openapi':
+        return <OpenApiPanel />;
       case 'credentials':
         return <ApiKeysPanel />;
       case 'llm-providers':

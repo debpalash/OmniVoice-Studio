@@ -30,6 +30,7 @@ import {
   ShieldCheck,
   FileText,
   Info,
+  Braces,
 } from 'lucide-react';
 
 /** Sidebar groups, in display order. `labelKey` resolves via i18n. */
@@ -187,6 +188,13 @@ export const GROUPS = [
         icon: Share2,
         restart: true,
         keywords: ['sharing', 'remote backend', 'mcp', 'tailscale', 'gpu box', 'bindings'],
+      },
+      {
+        id: 'openapi',
+        labelKey: 'settings.openapi',
+        defaultLabel: 'OpenAPI',
+        icon: Braces,
+        keywords: ['api', 'openapi', 'scalar', 'rest', 'swagger', 'docs', 'reference', 'endpoints'],
       },
       {
         id: 'credentials',

@@ -323,6 +323,7 @@
     "engines": "Engines",
     "capture": "Capture",
     "sharing": "Sharing",
+    "openapi": "OpenAPI",
     "appearance": "Appearance",
     "credentials": "Credentials",
     "llm_providers": "LLM Providers",
@@ -1803,6 +1804,8 @@
     "support_project_aria": "Support this project",
     "contact": "Contact",
     "contact_aria": "Open the contact page",
+    "open_api": "API reference",
+    "open_api_aria": "Open the OpenAPI reference",
     "empty_frontend_short": "No frontend console output yet.",
     "empty_lines": "No lines.",
     "all_clear": "✅ All clear — no issues detected",
@@ -2135,6 +2138,19 @@
     "other_ways": "Other ways to help",
     "star_github": "Star on GitHub",
     "join_discord": "Join Discord"
+  },
+  "openapi": {
+    "title": "OpenAPI Reference",
+    "description": "Interactive reference for OmniVoice's local backend API.",
+    "loading": "Loading API spec…",
+    "unreachable_title": "Backend spec unavailable",
+    "unreachable_body": "Couldn't reach the local backend's OpenAPI spec at {{url}}. Make sure the backend is running, then retry.",
+    "retry": "Retry",
+    "copy_url": "Copy spec URL",
+    "copy_url_aria": "Copy the /openapi.json URL",
+    "copied": "Spec URL copied",
+    "open_raw": "Open raw spec",
+    "open_raw_aria": "Open the raw OpenAPI JSON in your browser"
   },
   "footer_donate": {
     "aria": "A friendly note from OmniVoice",
