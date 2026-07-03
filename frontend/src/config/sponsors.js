@@ -36,34 +36,16 @@ export const SPONSORS = [];
  */
 export const SPONSOR_TIERS = ['platinum', 'gold', 'silver', 'bronze'];
 
-// Prefilled "become a sponsor" issue — labelled `sponsor`, with the title +
-// body seeded so the maintainer gets a structured request and the user only
-// has to click Submit. Mirrors the bug-report prefilled-URL flow so we never
-// hold a token (CLAUDE.md Capability 2).
-const SPONSOR_ISSUE_TITLE = 'Sponsorship: <your name / organization>';
-const SPONSOR_ISSUE_BODY = [
-  "I'd like to sponsor OmniVoice Studio. ❤️",
-  '',
-  '- **Name / organization:**',
-  '- **Logo URL (SVG or wide PNG):**',
-  '- **Link the logo should point to:**',
-  '- **Tier (platinum / gold / silver / bronze):**',
-  '- **Best way to reach me:**',
-  '',
-  '<!-- Sponsors get their logo in-app, in the README, and a slot on the project site. Thank you for keeping local AI alive! -->',
-].join('\n');
-
 /**
  * Where "Become a sponsor" and the tier docs point. Single source of truth for
  * both the Support page and the footer link.
  */
 export const SPONSOR_CONTACT = {
-  /** Prefilled, zero-auth GitHub issue (user reviews + submits in-browser). */
-  githubIssue: `${REPO}/issues/new?labels=${encodeURIComponent(
-    'sponsor',
-  )}&title=${encodeURIComponent(SPONSOR_ISSUE_TITLE)}&body=${encodeURIComponent(
-    SPONSOR_ISSUE_BODY,
-  )}`,
+  /** The "Sponsorship inquiry" issue form (.github/ISSUE_TEMPLATE/sponsor.yml).
+   *  A bare prefilled ?title/&body link can't be used: the repo has
+   *  blank_issues_enabled=false, so those redirect to the template chooser and
+   *  drop the body — the template route carries the structured fields instead. */
+  githubIssue: `${REPO}/issues/new?template=sponsor.yml`,
   /** One-tap alternative for individuals who'd rather tip than sign a deal. */
   kofi: KOFI_URL,
   /** SPONSORS.md on GitHub — what sponsors get + the current roster. */

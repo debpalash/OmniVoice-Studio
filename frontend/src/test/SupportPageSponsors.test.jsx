@@ -55,7 +55,7 @@ describe('SupportPage — Sponsors', () => {
     expect(openExternal).toHaveBeenCalledWith(SPONSOR_CONTACT.githubIssue);
     // The contact target really is the labelled, prefilled sponsor issue.
     expect(SPONSOR_CONTACT.githubIssue).toContain('/issues/new');
-    expect(SPONSOR_CONTACT.githubIssue).toContain('labels=sponsor');
+    expect(SPONSOR_CONTACT.githubIssue).toContain('template=sponsor.yml');
   });
 
   it('renders each sponsor as an external logo link when the roster is populated', async () => {
