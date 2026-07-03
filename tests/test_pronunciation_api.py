@@ -189,8 +189,14 @@ def client(tmp_path, monkeypatch):
     finally:
         monkeypatch.undo()
         importlib.reload(importlib.import_module("core.config"))
-        importlib.reload(importlib.import_module("core.db"))
+        _restored_db = importlib.reload(importlib.import_module("core.db"))
         importlib.reload(_main)
+        # Re-create the schema on the RESTORED data dir. The reload rebinds
+        # DB_PATH back but never re-runs init_db(), so without this the module
+        # is left pointing at a schema-less DB — which corrupts any later test
+        # that reuses the reloaded core.db / main.app (the #932 router-smoke
+        # leak; this closes the class at its source). init_db() is idempotent.
+        _restored_db.init_db()
 
 
 def test_crud_roundtrip(client):

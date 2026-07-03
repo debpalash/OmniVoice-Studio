@@ -17,7 +17,7 @@ import pytest
 
 import core.db as db_module
 from core import db_backup
-from core.db import _BASE_SCHEMA, MigrationError, _run_alembic_upgrade, init_db
+from core.db import _BASE_SCHEMA, _run_alembic_upgrade, init_db
 
 # Patch DB_PATH on the SAME module object these symbols were imported from
 # (``db_module``), not via the dotted string "core.db.DB_PATH". An earlier
@@ -121,7 +121,7 @@ def test_midflight_failure_stops_startup_and_names_backup(tmp_path, monkeypatch)
     # module attribute is what its `command.upgrade(...)` call resolves.
     monkeypatch.setattr(alembic.command, "upgrade", _boom)
 
-    with pytest.raises(MigrationError) as excinfo:
+    with pytest.raises(db_module.MigrationError) as excinfo:
         _run_alembic_upgrade()
 
     msg = str(excinfo.value)
@@ -151,7 +151,7 @@ def test_midflight_failure_without_backup_says_so(tmp_path, monkeypatch):
         lambda cfg, rev: (_ for _ in ()).throw(RuntimeError("boom")),
     )
 
-    with pytest.raises(MigrationError) as excinfo:
+    with pytest.raises(db_module.MigrationError) as excinfo:
         _run_alembic_upgrade()
 
     assert "No pre-migration backup was written" in str(excinfo.value)
