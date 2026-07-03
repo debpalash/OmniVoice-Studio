@@ -10,6 +10,7 @@
     <a href="#why-ovs">Why OVS</a> ·
     <a href="#tts-engines">TTS Engines</a> ·
     <a href="#asr-engines">ASR Engines</a> ·
+    <a href="#sponsors">Sponsors</a> ·
     <a href="#sponsor--donate">Donate</a> ·
     <a href="#contributing">Contributing</a> ·
     <a href="https://discord.gg/bzQavDfVV9">Discord</a> ·
@@ -400,6 +401,22 @@ OmniVoice Studio is built by one developer using Claude Code and AI agents — a
 <sub>Every dollar goes directly to agent bills — keeping OmniVoice development continuous.</sub>
 
 </div>
+
+### Sponsors
+
+OmniVoice is **free** and **AGPL-3.0** — no paid tier, no SaaS revenue. Sponsors keep development going, and in return get a logo slot here, in the app, and (for top tiers) on the project website. It's a thank-you, never a paywall. **[See tiers & become a sponsor →](SPONSORS.md)**
+
+<div align="center">
+
+<!-- SPONSORS:START — logo slots are filled here as sponsors come aboard; see SPONSORS.md -->
+
+**Your logo here** — [become a sponsor](SPONSORS.md)
+
+<!-- SPONSORS:END -->
+
+</div>
+
+<sub>💡 GitHub also shows a **Sponsor** button at the top of this repo, wired to the same links via <a href=".github/FUNDING.yml"><code>.github/FUNDING.yml</code></a>.</sub>
 
 ---
 
