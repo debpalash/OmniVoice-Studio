@@ -12,6 +12,7 @@ import {
   Mail,
   Star,
   MessageCircle,
+  Gem,
 } from 'lucide-react';
 import { Button, Badge } from '../ui';
 import { Card } from '@/components/ui/card';
@@ -22,6 +23,9 @@ import { loadDonationProgress, BUNDLED_PROGRESS } from '../api/donation';
 // Ko-fi / PayPal destinations are shared with the footer's donation-moment
 // popover — single source of truth in utils/donateLinks.js.
 import { KOFI_URL, PAYPAL_URL } from '../utils/donateLinks';
+// Sponsor roster + "become a sponsor" links — single source of truth in
+// config/sponsors.js (kept in lockstep with SPONSORS.md).
+import { SPONSORS, SPONSOR_TIERS, SPONSOR_CONTACT } from '../config/sponsors';
 // Suggested amounts — ladder starts at $10; middle ($20) is "most common".
 const SUGGESTED_AMOUNTS = [
   { value: 10, label: '$10' },
@@ -94,6 +98,130 @@ function SectionTitle({ children }) {
       </span>
       <span className="h-px flex-1 bg-border" />
     </div>
+  );
+}
+
+/* ── Sponsors ─────────────────────────────────────────────────────────────
+   Logo grid grouped by tier when SPONSORS has entries; a tasteful "be the
+   first" outlined slot when it's empty. Logos link out via the app's
+   openExternal (Tauri-safe) while keeping a real href for accessibility. */
+
+// A single clickable sponsor logo. Real <a href> (right-click / a11y) but the
+// click is intercepted so it opens in the system browser, not the webview.
+function SponsorLogo({ sponsor }) {
+  const { t } = useTranslation();
+  return (
+    <a
+      href={sponsor.url}
+      target="_blank"
+      rel="noreferrer"
+      onClick={(e) => {
+        e.preventDefault();
+        openExternal(sponsor.url);
+      }}
+      title={sponsor.name}
+      aria-label={t('support.sponsors_logo_aria', {
+        defaultValue: 'Visit {{name}}, an OmniVoice sponsor',
+        name: sponsor.name,
+      })}
+      className="flex min-h-[64px] items-center justify-center rounded-md border border-border bg-transparent px-4 py-3 transition-colors hover:border-transparent hover:bg-[var(--chrome-hover-bg)]"
+    >
+      <img
+        src={sponsor.logoUrl}
+        alt={sponsor.name}
+        loading="lazy"
+        className="max-h-10 w-auto max-w-full object-contain"
+      />
+    </a>
+  );
+}
+
+function SponsorsSection() {
+  const { t } = useTranslation();
+
+  // Group by tier in the configured order; anything with an unrecognized (or
+  // missing) tier is collected into a trailing untiered group.
+  const groups = SPONSOR_TIERS.map((tier) => [
+    tier,
+    SPONSORS.filter((s) => s.tier === tier),
+  ]).filter(([, list]) => list.length > 0);
+  const untiered = SPONSORS.filter((s) => !SPONSOR_TIERS.includes(s.tier));
+  if (untiered.length) groups.push(['', untiered]);
+
+  return (
+    <section>
+      <SectionTitle>{t('support.sponsors_title', { defaultValue: 'Sponsors' })}</SectionTitle>
+      <p className="mb-3.5 font-sans text-[0.75rem] leading-[1.6] text-[var(--chrome-fg-muted)]">
+        {t('support.sponsors_lead', {
+          defaultValue: 'The companies and people keeping OmniVoice free, local, and open source.',
+        })}
+      </p>
+
+      {SPONSORS.length === 0 ? (
+        // Empty state — an outlined "your logo here" slot, not a bare message.
+        <div
+          data-testid="sponsors-empty"
+          className="flex flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border-strong bg-[color-mix(in_srgb,var(--color-brand)_4%,transparent)] px-6 py-8 text-center"
+        >
+          <span className="flex size-9 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--color-brand)_12%,transparent)] text-[var(--color-brand)]">
+            <Gem size={18} />
+          </span>
+          <span className="font-serif text-[1.05rem] text-[var(--chrome-fg)]">
+            {t('support.sponsors_empty_title', {
+              defaultValue: 'Be the first to sponsor OmniVoice',
+            })}
+          </span>
+          <span className="font-mono text-[0.68rem] uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-dim)]">
+            {t('support.sponsors_empty_desc', { defaultValue: 'Your logo here' })}
+          </span>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {groups.map(([tier, list]) => (
+            <div key={tier || 'untiered'}>
+              {tier && (
+                <div className="mb-2 font-mono text-[0.62rem] font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-dim)]">
+                  {t(`support.sponsors_tier_${tier}`, { defaultValue: tier })}
+                </div>
+              )}
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2.5">
+                {list.map((s) => (
+                  <SponsorLogo key={s.name} sponsor={s} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Become a sponsor — opens the prefilled GitHub issue (zero-token,
+          user-reviewed), then a one-line explainer linking to SPONSORS.md. */}
+      <div className="mt-4 flex flex-col items-center gap-2.5 text-center">
+        <Button
+          variant="primary"
+          leading={<Gem size={14} />}
+          onClick={() => openExternal(SPONSOR_CONTACT.githubIssue)}
+          aria-label={t('support.sponsors_become_aria', {
+            defaultValue: 'Become a sponsor — opens a prefilled GitHub issue in your browser',
+          })}
+        >
+          {t('support.sponsors_become', { defaultValue: 'Become a sponsor' })}
+        </Button>
+        <p className="max-w-[440px] font-sans text-[0.7rem] leading-[1.55] text-[var(--chrome-fg-muted)]">
+          {t('support.sponsors_perk', {
+            defaultValue:
+              'Sponsors get their logo in the app, in the README, and a slot on the project site.',
+          })}{' '}
+          <button
+            type="button"
+            onClick={() => openExternal(SPONSOR_CONTACT.docsUrl)}
+            className="font-semibold text-[var(--chrome-accent)] hover:underline"
+          >
+            {t('support.sponsors_learn_more', { defaultValue: 'What sponsors get' })}
+          </button>
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -247,6 +375,10 @@ function SupportView() {
           </Button>
         </div>
       </section>
+
+      {/* Sponsors — org-level support with an in-app logo slot. Distinct from
+          the individual donate ladder above. */}
+      <SponsorsSection />
 
       <div className="pb-5 text-center font-mono text-[0.72rem] tracking-[0.02em] text-[var(--chrome-fg-dim)]">
         {t('donate.footer')}
