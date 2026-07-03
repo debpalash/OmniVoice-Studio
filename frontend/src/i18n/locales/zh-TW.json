@@ -2112,12 +2112,8 @@
   "contact": {
     "hero_title": "聯絡我們",
     "hero_desc": "如果有問題、錯誤、許可，或只是想打個招呼，請按以下方式與我聯絡。",
-    "discord": "不和諧",
-    "discord_desc": "與社群聊天並快速獲得幫助。",
     "email": "電子郵件",
     "email_desc": "許可、合作夥伴關係或任何私人的東西。",
-    "issues": "GitHub 問題",
-    "issues_desc": "報告錯誤或請求功能。",
     "website": "網站",
     "website_desc": "有關該項目和製造商的更多資訊。"
   }

@@ -2112,12 +2112,8 @@
   "contact": {
     "hero_title": "Skontaktuj się",
     "hero_desc": "Pytania, błędy, licencje lub po prostu przywitanie się — oto jak się ze mną skontaktować.",
-    "discord": "Niezgoda",
-    "discord_desc": "Porozmawiaj ze społecznością i szybko uzyskaj pomoc.",
     "email": "E-mail",
     "email_desc": "Licencje, partnerstwa lub cokolwiek prywatnego.",
-    "issues": "Problemy z GitHubem",
-    "issues_desc": "Zgłoś błąd lub poproś o funkcję.",
     "website": "Strona internetowa",
     "website_desc": "Więcej o projekcie i twórcy."
   }

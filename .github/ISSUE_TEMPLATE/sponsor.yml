@@ -1,0 +1,78 @@
+name: 🤝 Sponsorship inquiry
+description: Support OmniVoice and (optionally) claim a logo slot. Not for bugs or feature requests.
+title: "Sponsorship inquiry: "
+labels: ["sponsor"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for considering sponsoring **OmniVoice Studio** 💛
+
+        OmniVoice is free, local-first, and AGPL-3.0 — sponsorship keeps development going.
+        See **[SPONSORS.md](https://github.com/debpalash/OmniVoice-Studio/blob/main/SPONSORS.md)** for tiers, placements, and logo guidelines.
+        Prefer to just donate? [Ko-fi](https://ko-fi.com/debpalash) (recurring) or [PayPal](https://paypal.me/palashCoder) (one-time) — you don't need this form for that.
+  - type: input
+    id: name
+    attributes:
+      label: Name or organization
+      description: How you'd like to be credited (person or company).
+    validations:
+      required: true
+  - type: input
+    id: website
+    attributes:
+      label: Website / link
+      description: The URL your name or logo should link to (homepage, product page, profile…).
+      placeholder: https://example.com
+  - type: input
+    id: logo
+    attributes:
+      label: Logo URL (optional)
+      description: Link to your logo (SVG preferred, else 2× PNG, transparent background). You can also attach it in the description below.
+      placeholder: https://example.com/logo.svg
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Tier you're interested in
+      description: See SPONSORS.md for what each tier includes. Not sure? Pick "Not sure yet".
+      options:
+        - Backer
+        - Bronze
+        - Silver
+        - Gold
+        - Not sure yet — let's talk
+        - Custom / annual arrangement
+    validations:
+      required: true
+  - type: dropdown
+    id: method
+    attributes:
+      label: How you'd like to support
+      options:
+        - Ko-fi (recurring)
+        - Ko-fi (one-time)
+        - PayPal (one-time)
+        - Not sure yet — let's discuss
+    validations:
+      required: true
+  - type: input
+    id: contact
+    attributes:
+      label: How should we reach you?
+      description: Email or another contact. (GitHub will also notify you on this issue.)
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else?
+      description: Questions, constraints, timeline, or context. Attach your logo here if you didn't link it above.
+  - type: checkboxes
+    id: ack
+    attributes:
+      label: Acknowledgements
+      options:
+        - label: I understand sponsorship is a thank-you, not a paywall — OmniVoice stays fully free and AGPL-3.0, and sponsors don't get gated features.
+          required: true
+        - label: If I provide a logo, I have the right to use it and grant OmniVoice permission to display it in the README, the app, and the project website.
+          required: false

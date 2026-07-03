@@ -2112,12 +2112,8 @@
   "contact": {
     "hero_title": "Hãy liên lạc",
     "hero_desc": "Các câu hỏi, lỗi, giấy phép hoặc chỉ để chào hỏi — đây là cách liên hệ với tôi.",
-    "discord": "Bất hòa",
-    "discord_desc": "Trò chuyện với cộng đồng và nhận trợ giúp nhanh chóng.",
     "email": "Email",
     "email_desc": "Cấp phép, hợp tác hoặc bất cứ điều gì riêng tư.",
-    "issues": "Sự cố GitHub",
-    "issues_desc": "Báo cáo lỗi hoặc yêu cầu một tính năng.",
     "website": "Trang web",
     "website_desc": "Thông tin thêm về dự án và nhà sản xuất."
   }

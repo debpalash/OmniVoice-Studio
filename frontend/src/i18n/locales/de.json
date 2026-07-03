@@ -2112,12 +2112,8 @@
   "contact": {
     "hero_title": "Nehmen Sie Kontakt auf",
     "hero_desc": "Fragen, Bugs, Lizenzen oder einfach nur, um Hallo zu sagen – hier erfahren Sie, wie Sie mich erreichen.",
-    "discord": "Zwietracht",
-    "discord_desc": "Chatten Sie mit der Community und erhalten Sie schnell Hilfe.",
     "email": "E-Mail",
     "email_desc": "Lizenzen, Partnerschaften oder irgendetwas Privates.",
-    "issues": "GitHub-Probleme",
-    "issues_desc": "Melden Sie einen Fehler oder fordern Sie eine Funktion an.",
     "website": "Website",
     "website_desc": "Mehr über das Projekt und den Macher."
   }

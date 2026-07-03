@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Trash2, ExternalLink, Download, X } from 'lucide-react';
+import { RefreshCw, Trash2, ExternalLink, Download, X, Wrench } from 'lucide-react';
 import { openExternal } from '../../../api/external';
 import { Button, Badge, Progress } from '../../../ui';
 import { fmtBytes, orgColor } from './format';
@@ -239,6 +239,17 @@ export function makeModelColumns({
           <Badge tone="success" size="xs">
             {t('models.installed')}
           </Badge>
+        ) : m.incomplete ? (
+          // A truncated download (backend `incomplete`): config/tokenizer landed
+          // but the weight shard didn't, so it still occupies disk yet can't be
+          // used. Surface it as its own state — with the partial size — instead
+          // of reading as a plain "not installed", so the user knows to repair it
+          // rather than wonder why bytes are used (#622 UX follow-up).
+          <Badge tone="warn" size="xs" title={t('models.incomplete_title')}>
+            {m.size_on_disk_bytes > 0
+              ? `${t('models.incomplete')} · ${fmtBytes(m.size_on_disk_bytes)}`
+              : t('models.incomplete')}
+          </Badge>
         ) : rt.unsupported ? (
           <Badge tone="neutral" size="xs">
             {(m.platforms || []).join(', ')}
@@ -270,14 +281,34 @@ export function makeModelColumns({
             >
               <ExternalLink size={11} />
             </Button>
-            {!m.installed && !rt.rowBusy && !rt.isInstalling && !rt.unsupported && (
+            {!m.installed &&
+              !rt.rowBusy &&
+              !rt.isInstalling &&
+              !rt.unsupported && (
+                // For an `incomplete` (truncated) cache this is a repair, not a
+                // fresh install: re-running snapshot_download completes the missing
+                // weight shard without re-fetching the already-cached config files.
+                <Button
+                  variant="subtle"
+                  size="sm"
+                  onClick={() => onInstall(m.repo_id)}
+                  leading={m.incomplete ? <Wrench size={11} /> : <Download size={11} />}
+                  title={m.incomplete ? t('models.repair_title') : undefined}
+                >
+                  {m.incomplete ? t('models.repair_btn') : t('models.install_btn')}
+                </Button>
+              )}
+            {/* Let the user clear a truncated download's partial bytes (it's not
+                `installed`, so the delete control below never shows for it). */}
+            {m.incomplete && !rt.rowBusy && !rt.isInstalling && !rt.isDeleting && (
               <Button
-                variant="subtle"
-                size="sm"
-                onClick={() => onInstall(m.repo_id)}
-                leading={<Download size={11} />}
+                variant="icon"
+                iconSize="sm"
+                onClick={() => onDelete(m.repo_id)}
+                title={t('models.delete_btn')}
+                aria-label={t('models.delete_btn')}
               >
-                {t('models.install_btn')}
+                <Trash2 size={11} />
               </Button>
             )}
             {/* Cancel an in-flight install (P2-A / FDL-11) — shown for any

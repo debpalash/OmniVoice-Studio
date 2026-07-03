@@ -2112,12 +2112,8 @@
   "contact": {
     "hero_title": "Hubungi kami",
     "hero_desc": "Pertanyaan, bug, perizinan, atau sekadar menyapa — inilah cara menghubungi saya.",
-    "discord": "Perselisihan",
-    "discord_desc": "Ngobrol dengan komunitas dan dapatkan bantuan dengan cepat.",
     "email": "Surel",
     "email_desc": "Perizinan, kemitraan, atau apa pun yang bersifat pribadi.",
-    "issues": "Masalah GitHub",
-    "issues_desc": "Laporkan bug atau minta fitur.",
     "website": "Situs web",
     "website_desc": "Lebih lanjut tentang proyek dan pembuatnya."
   }

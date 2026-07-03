@@ -2112,12 +2112,8 @@
   "contact": {
     "hero_title": "Neem contact op",
     "hero_desc": "Vragen, bugs, licenties, of gewoon om hallo te zeggen: zo kunt u mij bereiken.",
-    "discord": "Onenigheid",
-    "discord_desc": "Chat met de community en krijg snel hulp.",
     "email": "E-mail",
     "email_desc": "Licenties, partnerschappen of iets privés.",
-    "issues": "GitHub-problemen",
-    "issues_desc": "Rapporteer een bug of vraag een functie aan.",
     "website": "Website",
     "website_desc": "Meer over het project en de maker."
   }

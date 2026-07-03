@@ -15,6 +15,7 @@ import {
   Heart,
   Mail,
   Sparkles,
+  Gem,
 } from 'lucide-react';
 
 import toast from 'react-hot-toast';
@@ -646,6 +647,26 @@ export default function LogsFooter() {
             aria-label={t('logs.contact_aria', { defaultValue: 'Open the contact page' })}
           >
             <Mail size={14} />
+          </button>
+          {/* Sponsors — a compact link (never a logo strip in the 28px bar).
+              Opens the Support page, whose Sponsors section holds the logo
+              grid + "Become a sponsor" affordance. */}
+          <button
+            type="button"
+            className={
+              'shrink-0 inline-flex items-center gap-[4px] px-[7px] h-[var(--chrome-icon-btn)] rounded-[4px] ' +
+              'bg-transparent border-0 cursor-pointer text-[11px] tracking-[0.02em] ' +
+              '[color:var(--chrome-fg-muted)] transition-[color,opacity] duration-150 ' +
+              'hover:[color:var(--chrome-accent)]'
+            }
+            onClick={() => useAppStore.getState().setMode?.('donate')}
+            title={t('logs.sponsors', { defaultValue: 'Sponsors' })}
+            aria-label={t('logs.sponsors_aria', {
+              defaultValue: 'View sponsors and support the project',
+            })}
+          >
+            <Gem size={12} aria-hidden="true" />
+            {t('logs.sponsors', { defaultValue: 'Sponsors' })}
           </button>
           <div className="relative inline-flex shrink-0 ml-[4px]">
             <button

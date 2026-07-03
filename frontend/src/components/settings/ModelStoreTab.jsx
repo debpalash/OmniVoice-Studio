@@ -96,12 +96,14 @@ export default function ModelStoreTab({ info, modelBadge }) {
     if (!value) return;
     setHfSaving(true);
     try {
-      const { apiFetch } = await import('../../api/client');
-      await apiFetch('/system/set-env', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'HF_TOKEN', value }),
-      });
+      // One canonical token path: persist to the encrypted app store — the SAME
+      // store Settings → Credentials writes AND clears (/api/settings/hf-token).
+      // This toolbar used to POST /system/set-env (env var + HF-CLI file), a
+      // *second* store the Credentials "Clear" button couldn't reach, so a
+      // toolbar-set token silently outlived a Clear (a support-ticket generator).
+      // Now both entry points share one store with one clear path.
+      const { apiPost } = await import('../../api/client');
+      await apiPost('/api/settings/hf-token', { token: value });
       toast.success(t('models.hf_token_set_toast'));
       setHfSaved(true);
       setHfToken('');
