@@ -2112,12 +2112,8 @@
   "contact": {
     "hero_title": "Hör av dig",
     "hero_desc": "Frågor, buggar, licensiering eller bara för att säga hej - så här når du mig.",
-    "discord": "Oenighet",
-    "discord_desc": "Chatta med communityn och få hjälp snabbt.",
     "email": "E-post",
     "email_desc": "Licensiering, partnerskap eller något privat.",
-    "issues": "GitHub-problem",
-    "issues_desc": "Rapportera ett fel eller begär en funktion.",
     "website": "Webbplats",
     "website_desc": "Mer om projektet och skaparen."
   }

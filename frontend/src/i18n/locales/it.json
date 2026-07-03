@@ -2112,12 +2112,8 @@
   "contact": {
     "hero_title": "Mettiti in contatto",
     "hero_desc": "Domande, bug, licenze o semplicemente per salutarmi: ecco come contattarmi.",
-    "discord": "Discordia",
-    "discord_desc": "Chatta con la community e ricevi aiuto rapidamente.",
     "email": "E-mail",
     "email_desc": "Licenze, partnership o qualsiasi cosa privata.",
-    "issues": "Problemi di GitHub",
-    "issues_desc": "Segnala un bug o richiedi una funzionalità.",
     "website": "Sito web",
     "website_desc": "Maggiori informazioni sul progetto e sul produttore."
   }

@@ -329,6 +329,201 @@ def test_engine_health_caches_instance_across_calls(fresh_app, monkeypatch):
     )
 
 
+# ── /engines/{id}/selftest — real tiny synthesis (in-process TTS) ──────────
+
+
+def _register_fake_tts(tts_mod, engine_id, *, available=True, samples=100,
+                       raises=None, subprocess=False):
+    """Register a fresh in-process (or subprocess-marked) TTS stub whose
+    generate() returns a `samples`-long list — torch-free so the shape test
+    stays light. Returns (cls, restore_fn)."""
+    _samples, _avail, _raises = samples, available, raises
+
+    class _Fake(tts_mod.TTSBackend):
+        id = engine_id
+        display_name = f"Fake {engine_id}"
+        _is_subprocess_isolated = subprocess
+
+        @property
+        def sample_rate(self) -> int:
+            return 24000
+
+        @property
+        def supported_languages(self):
+            return ["en"]
+
+        @classmethod
+        def is_available(cls):
+            return (True, "ready") if _avail else (False, "deps missing (test)")
+
+        def generate(self, text, **kw):
+            if _raises is not None:
+                raise _raises
+            return [0.0] * _samples
+
+    saved = dict(tts_mod._REGISTRY)
+    tts_mod._REGISTRY[engine_id] = _Fake
+
+    def restore():
+        tts_mod._REGISTRY.clear()
+        tts_mod._REGISTRY.update(saved)
+
+    return _Fake, restore
+
+
+def test_selftest_in_process_success(fresh_app):
+    from services import tts_backend as tts_mod
+
+    _, restore = _register_fake_tts(tts_mod, "fake-inproc", samples=1200)
+    try:
+        r = _client(fresh_app).post("/engines/fake-inproc/selftest")
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["id"] == "fake-inproc"
+        assert body["ok"] is True
+        assert body["num_samples"] == 1200
+        assert body["sample_rate"] == 24000
+        # 1200 / 24000 = 0.05 s of audio.
+        assert body["audio_seconds"] == 0.05
+        assert isinstance(body["duration_ms"], (int, float))
+        assert body["timed_out"] is False
+    finally:
+        restore()
+
+
+def test_selftest_rejects_subprocess_engine(fresh_app):
+    from services import tts_backend as tts_mod
+
+    _, restore = _register_fake_tts(tts_mod, "fake-sub", subprocess=True)
+    try:
+        r = _client(fresh_app).post("/engines/fake-sub/selftest")
+        assert r.status_code == 400
+        assert "subprocess-isolated" in r.json()["detail"]
+    finally:
+        restore()
+
+
+def test_selftest_unavailable_engine_is_400(fresh_app):
+    from services import tts_backend as tts_mod
+
+    _, restore = _register_fake_tts(tts_mod, "fake-down", available=False)
+    try:
+        r = _client(fresh_app).post("/engines/fake-down/selftest")
+        assert r.status_code == 400
+        assert "not available" in r.json()["detail"]
+    finally:
+        restore()
+
+
+def test_selftest_unknown_id_is_404(fresh_app):
+    r = _client(fresh_app).post("/engines/nope-not-real/selftest")
+    assert r.status_code == 404
+    assert "unknown TTS engine id" in r.json()["detail"]
+
+
+def test_selftest_loopback_only(fresh_app):
+    r = _client(fresh_app, host="10.0.0.9").post("/engines/omnivoice/selftest")
+    assert r.status_code == 403
+    assert r.json()["detail"] == "loopback origin required"
+
+
+def test_selftest_captures_synth_exception_without_500(fresh_app):
+    from services import tts_backend as tts_mod
+
+    _, restore = _register_fake_tts(
+        tts_mod, "fake-boom", raises=RuntimeError("model exploded"))
+    try:
+        r = _client(fresh_app).post("/engines/fake-boom/selftest")
+        assert r.status_code == 200, r.text  # never 500s on a synth failure
+        body = r.json()
+        assert body["ok"] is False
+        assert "model exploded" in body["message"]
+        assert body["num_samples"] is None
+    finally:
+        restore()
+
+
+def test_no_hf_token_leak_in_selftest_response(fresh_app):
+    """A synth exception carrying an HF token must be redacted in the body."""
+    from services import tts_backend as tts_mod
+
+    _, restore = _register_fake_tts(
+        tts_mod, "fake-tainted",
+        raises=RuntimeError(f"401 for {SAMPLE_HF_TOKEN}"))
+    try:
+        r = _client(fresh_app).post("/engines/fake-tainted/selftest")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["ok"] is False
+        assert not HF_TOKEN_RE.search(body["message"])
+        assert "hf_***REDACTED***" in body["message"]
+    finally:
+        restore()
+
+
+def test_selftest_timeout_returns_timed_out(fresh_app, monkeypatch):
+    """A synth that outruns the bounded timeout returns ok=False/timed_out —
+    the panel never hangs. Pin the timeout tiny and block generate briefly."""
+    import threading as _threading
+
+    from api.routers import engines as engines_router
+    from services import tts_backend as tts_mod
+
+    monkeypatch.setattr(engines_router, "_selftest_timeout_s", lambda: 0.05)
+    gate = _threading.Event()
+
+    class _Slow(tts_mod.TTSBackend):
+        id = "fake-slow"
+        display_name = "Fake slow"
+
+        @property
+        def sample_rate(self):
+            return 24000
+
+        @property
+        def supported_languages(self):
+            return ["en"]
+
+        @classmethod
+        def is_available(cls):
+            return True, "ready"
+
+        def generate(self, text, **kw):
+            gate.wait(2.0)  # outruns the 50 ms timeout; released in finally
+            return [0.0] * 10
+
+    saved = dict(tts_mod._REGISTRY)
+    tts_mod._REGISTRY["fake-slow"] = _Slow
+    try:
+        r = _client(fresh_app).post("/engines/fake-slow/selftest")
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["ok"] is False
+        assert body["timed_out"] is True
+        assert "timed out" in body["message"]
+    finally:
+        gate.set()  # let the orphaned worker finish and exit
+        tts_mod._REGISTRY.clear()
+        tts_mod._REGISTRY.update(saved)
+
+
+# ── setup_snippet — copy-paste-ready env-var line for opt-in engines ────────
+
+
+def test_setup_snippet_present_for_path_gated_engines(fresh_app):
+    client = _client(fresh_app)
+    by_id = {b["id"]: b for b in client.get("/engines").json()["tts"]["backends"]}
+    # Every entry carries the key (None for engines with no path gate).
+    for entry in by_id.values():
+        assert "setup_snippet" in entry
+    # IndexTTS-2 is path-gated → exact export line, single-sourced in the backend.
+    assert by_id["indextts2"]["setup_snippet"] == (
+        "export OMNIVOICE_INDEXTTS_DIR=/path/to/index-tts"
+    )
+    # A bundled engine has no path gate → null.
+    assert by_id["omnivoice"]["setup_snippet"] is None
+
+
 # ── HF-token leak prevention (T-02-12) ─────────────────────────────────────
 
 

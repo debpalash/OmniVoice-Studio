@@ -159,6 +159,7 @@ POST /engines/sonitranslate/install
 POST /engines/sonitranslate/start
 POST /engines/sonitranslate/stop
 POST /engines/translation/{engine_id}/install
+POST /engines/{engine_id}/selftest
 POST /export
 POST /export/record
 POST /export/reveal
