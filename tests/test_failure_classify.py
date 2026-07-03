@@ -56,6 +56,27 @@ def test_classify_corrupted_transformers_file():
     assert failure.classify("[Errno 2] No such file or directory: '/x/site-packages/numpy/core/foo.py'") == ""
 
 
+def test_classify_os_invalid_argument_einval():
+    # #763: a per-chunk temp-WAV write failing with EINVAL surfaced as the
+    # dead-end "produced no segments. [Errno 22] Invalid argument" toast. It must
+    # now classify so build_failure attaches a temp-dir/disk/AV hint. This is the
+    # exact string the streaming dub path aggregates and feeds build_failure.
+    reason = "[Errno 22] Invalid argument"
+    assert failure.classify(reason) == "OS_INVALID_ARGUMENT"
+    evt = failure.build_failure(reason, stage="transcribe", include_diagnostic=False)
+    assert evt["docs_topic"] == "OS_INVALID_ARGUMENT"
+    assert evt["hint"], "an EINVAL transcribe failure must carry an actionable hint"
+    assert "temp" in evt["hint"].lower()
+    # The errno-22 rule must NOT swallow the errno-2 transformers class (its
+    # markers still win) or fire on an unrelated errno.
+    tf = (
+        "[Errno 2] No such file or directory: "
+        "'/x/site-packages/transformers/models/qwen3/modeling_qwen3.py'"
+    )
+    assert failure.classify(tf) == "TRANSFORMERS_IMPORT"
+    assert failure.classify("[Errno 13] Permission denied") == ""
+
+
 def test_classify_video_download_classes():
     # #554: a non-downloadable link shape → actionable "paste a direct video URL".
     assert failure.classify("Unsupported URL: https://www.douyin.com/discover") == (

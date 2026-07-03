@@ -40,6 +40,7 @@ _HINTS: dict[str, str] = {
     "PYANNOTE_LICENSE_REQUIRED": "Accept the pyannote model licenses on Hugging Face, then retry.",
     "COMPUTE_TYPE_UNSUPPORTED": "Your GPU doesn't support float16 — OmniVoice retried on int8. If transcription still fails, set OMNIVOICE/ASR_COMPUTE_TYPE=int8 or use CPU.",
     "TRANSFORMERS_IMPORT": "Your transformers install is incomplete. Reinstall it (`uv pip install --reinstall transformers`) or switch ASR to faster-whisper (Settings → Models).",
+    "OS_INVALID_ARGUMENT": "The OS rejected a file operation (Errno 22 / invalid argument) — in the transcribe path this is the temporary WAV write before ASR. It's almost always the temp directory: missing, read-only, on a full or removed drive, or blocked by antivirus. Check that your system TEMP/TMP folder exists and is writable and the drive has free space (add an OmniVoice antivirus exclusion if you use one), then retry.",
     "UNSUPPORTED_VIDEO_URL": "This link isn't a directly downloadable video. Paste a direct video page (e.g. a youtube.com/watch?v=… or douyin.com/video/<id> link), not a share/profile/feed link — or download the file and drop it in directly.",
     "VIDEO_DOWNLOAD_NETWORK": "The connection to the video server dropped mid-download (often a transient CDN/network blip or a regional rate-limit). Just retry — OmniVoice already cleaned up the partial download. If it keeps failing, check your network/VPN.",
     "BROKEN_VENV": "The Python backend environment was moved or damaged. OmniVoice rebuilds it automatically on the next launch; if it keeps failing, use Clean & Retry on the setup screen.",
@@ -187,6 +188,19 @@ def classify(reason: str) -> str:
     # failure gets its hint rather than falling through to "".
     if "compute type" in low or "efficient float16" in low:
         return "COMPUTE_TYPE_UNSUPPORTED"
+    # #763: a bare OS-level EINVAL ("[Errno 22] Invalid argument") while writing
+    # the per-chunk temp WAV for transcription (tempfile.NamedTemporaryFile /
+    # soundfile.write on the system temp dir) used to collapse into a dead-end
+    # "produced no segments. [Errno 22] Invalid argument" toast with no next
+    # step. errno 22 is EINVAL on every platform; in this path it's almost always
+    # a temp dir that's missing, read-only, on a full/removed drive, or blocked
+    # by antivirus. Name the class so build_failure attaches an actionable hint
+    # instead of a raw errno. Matching the errno (not the generic "invalid
+    # argument" wording) keeps this from mislabelling unrelated failures; the
+    # transformers "errno 2" rule below is unaffected — it also requires the
+    # transformers + site-packages markers, which this signature lacks.
+    if "errno 22" in low:
+        return "OS_INVALID_ARGUMENT"
     if (
         "could not import module" in low
         or "autofeatureextractor" in low

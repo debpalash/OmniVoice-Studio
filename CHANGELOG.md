@@ -6,7 +6,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
-## [0.3.9] — 2026-07-02
+## [0.3.9] — 2026-07-04
 
 The dictation release — and a deep reliability pass driven by live-testing the entire app. **Dictation is rebuilt end-to-end**: instant feedback with a live waveform, words that commit about half a second after you stop speaking, clean punctuation, and text insertion that never lies about success. **LLM providers get one-click connection testing** with real diagnostics and model discovery, in all 21 languages. The app now **always opens maximized**, bottom buttons **can't hide under the footer** at small window sizes, and a wave of "out of memory / can't reach the backend / stuck at preparing" reports were traced to their real causes and fixed — including the silent VRAM crash on 8 GB cards, dead-IPC startup hangs after a Windows BSOD, and misleading error labels. Intel-Mac support status is now stated honestly, Confucius4-TTS is validated end-to-end, and Parakeet — roughly 20× faster than the default transcriber on CPU — is unlocked for every machine.
 
@@ -51,6 +51,7 @@ The dictation release — and a deep reliability pass driven by live-testing the
 - **No more infinite "preparing" after an unclean shutdown.** If Windows corrupts the WebView cache (e.g. after a BSOD), the splash detects the dead IPC channel, proceeds via a direct backend health check, and — if truly stuck — offers a one-click "Repair and restart". (#879, #892)
 - **"Out of memory" is no longer the default excuse.** A failed model download mid-generation was mislabeled as OOM with useless "flush VRAM" advice; network failures are now classified honestly, only real OOM signatures get the OOM treatment, and first-use engine downloads retry once with a fresh connection. (#880, #893)
 - **Hung transcriptions recover the same way everywhere.** Chunked dub transcription now shares the same guarded-timeout + GPU-pool reset as the rest of the app, and repeated timeouts recommend the crash-isolated ASR engine — now properly selectable in Settings. (#730, #895)
+- **A raw `[Errno 22]` transcribe error now tells you what to fix.** When the OS rejects the temporary WAV write during dub transcription (a missing, read-only, or full temp directory, or antivirus interference), the stream used to dead-end as *"Transcription produced no segments. [Errno 22] Invalid argument"* with no next step; it now classifies the EINVAL and appends an actionable temp-dir/disk/AV hint — the same treatment the ffmpeg and compute-type failure classes already get. (#763)
 
 - **Buttons can no longer hide under the logs footer on small windows.** The bottom status/logs bar was a fixed overlay that pages had to compensate for with padding — any view that missed it (voice-card grids in Gallery and Community, bottom action rows) clipped under the bar at small window sizes, a class previously patched one page at a time (#476, #504). The footer is now a real row of the app shell, so content physically ends at its top edge at every window size, collapsed or expanded — guarded by a new layout test plus a 900×600 Playwright check at the app's minimum window size.
 
