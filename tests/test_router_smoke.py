@@ -17,12 +17,31 @@ os.environ.setdefault("OMNIVOICE_DISABLE_FILE_LOG", "1")
 def client():
     # Lazy import so test_api.py's session fixtures can mock the model first
     # if both suites run together.
-    # `client=("127.0.0.1", 50000)` so `request.client.host` resolves to a
-    # loopback address — the system router is now gated by a router-level
-    # `require_loopback` dependency. Smoke tests are happy-path tests and
-    # should pass the gate.
     from fastapi.testclient import TestClient
     from main import app
+
+    # Create the DB schema explicitly against whatever DB is active *now*.
+    # A bare `TestClient(app)` (no `with` block) never enters the app
+    # lifespan, so the lifespan's `init_db()` — the only place the schema is
+    # laid down (main.py) — never runs. These smoke tests therefore used to
+    # free-ride on the schema some *earlier* module happened to create on the
+    # shared data dir. That made them order-dependent: run first / alone, or
+    # after a module that reloads `core.config`/`core.db` and leaves
+    # `core.db.DB_PATH` pointed at a fresh, schema-less DB (e.g.
+    # test_pronunciation_api's `importlib.reload` teardown), and every
+    # DB-backed route 500s with `no such table: jobs` / `voice_profiles`.
+    # Seeding the schema here — the same `init_db()` call test_api.py /
+    # test_personas_api.py use — makes the suite self-sufficient and
+    # leak-proof against full-suite ordering (same class as #878 / #917).
+    # Uses the live `core.db` from sys.modules so it targets the exact
+    # DB_PATH the app's routers resolve to.
+    import core.db
+    core.db.init_db()
+
+    # `client=("127.0.0.1", 50000)` so `request.client.host` resolves to a
+    # loopback address — the system router is gated by a router-level
+    # `require_loopback` dependency. Smoke tests are happy-path tests and
+    # should pass the gate.
     return TestClient(app, client=("127.0.0.1", 50000))
 
 
