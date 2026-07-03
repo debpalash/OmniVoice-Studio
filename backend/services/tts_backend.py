@@ -1322,6 +1322,21 @@ _INSTALL_HINTS: dict[str, str] = {
 }
 
 
+# Copy-paste-ready setup line for opt-in engines gated behind a filesystem-path
+# env var (issue #498 / #590). The install_hint tells users a var exists; this
+# is the *exact* `export VAR=...` line to run, so they don't have to reconstruct
+# it from the docs. Surfaced verbatim in the Compat Matrix's "Why unavailable?"
+# disclosure with a Copy button. Single-sourced here so it can't drift from the
+# var each engine's is_available() actually reads. bash/zsh form (the dominant
+# clone-and-run workflow for these engines; dots.tts is *nix-only anyway).
+_SETUP_SNIPPETS: dict[str, str] = {
+    "indextts2":      "export OMNIVOICE_INDEXTTS_DIR=/path/to/index-tts",
+    "moss-tts-v15":   "export OMNIVOICE_MOSS_TTS_V15_DIR=/path/to/MOSS-TTS",
+    "dots-tts":       "export OMNIVOICE_DOTS_TTS_DIR=/path/to/dots.tts",
+    "confucius4-tts": "export OMNIVOICE_CONFUCIUS4_TTS_DIR=/path/to/Confucius4-TTS",
+}
+
+
 def list_backends() -> list[dict]:
     """Enumerate every registered backend with its availability state.
 
@@ -1333,6 +1348,7 @@ def list_backends() -> list[dict]:
           "available":      bool,
           "reason":         Optional[str],          # message when not available
           "install_hint":   Optional[str],
+          "setup_snippet":  Optional[str],          # exact `export VAR=...` for path-gated opt-in engines
           "last_error":     Optional[str],          # cached most-recent failure
           "isolation_mode": "in-process" | "subprocess",
           "gpu_compat":     list[str],              # subset of {cuda, rocm, mps, xpu, cpu}
@@ -1396,6 +1412,8 @@ def list_backends() -> list[dict]:
             "available": ok,
             "reason": None if ok else _mask_hf_tokens(msg),
             "install_hint": _INSTALL_HINTS.get(bid),
+            # Exact `export VAR=...` line for path-gated opt-in engines, or None.
+            "setup_snippet": _SETUP_SNIPPETS.get(bid),
             "last_error": _LAST_ERRORS.get(bid),
             "isolation_mode": isolation,
             "gpu_compat": list(gpu_compat),

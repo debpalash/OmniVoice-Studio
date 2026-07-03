@@ -429,7 +429,9 @@ describe('EngineCompatibilityMatrix', () => {
     );
     await waitFor(() => screen.getByText('OmniVoice (test)'));
     const omniRow = screen.getByText('OmniVoice (test)').closest('[role="row"]');
-    fireEvent.click(within(omniRow).getByRole('button', { name: /test omnivoice/i }));
+    // Exact match: the row now also has a "Self-test OmniVoice" button, which a
+    // loose /test omnivoice/i would ambiguously also match.
+    fireEvent.click(within(omniRow).getByRole('button', { name: 'Test OmniVoice (test)' }));
     await waitFor(() => {
       expect(within(omniRow).getByTestId('health-result-omnivoice')).toHaveTextContent('deps OK');
     });
@@ -536,5 +538,168 @@ describe('EngineCompatibilityMatrix', () => {
     await waitFor(() => {
       expect(screen.getByText('Supertonic-3 — License Acceptance')).toBeInTheDocument();
     });
+  });
+
+  // ── Real-synthesis self-test (in-process TTS engines) ──────────────────
+  it('clicking Self-test runs a real synthesis and renders audio seconds + sample rate', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
+    const apiSelfTestEngine = vi.fn().mockResolvedValue({
+      id: 'omnivoice',
+      ok: true,
+      message: 'synthesized',
+      duration_ms: 820,
+      sample_rate: 24000,
+      num_samples: 19680,
+      audio_seconds: 0.82,
+      timed_out: false,
+    });
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiSelfTestEngine={apiSelfTestEngine}
+      />,
+    );
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    const omniRow = screen.getByText('OmniVoice (test)').closest('[role="row"]');
+    fireEvent.click(within(omniRow).getByRole('button', { name: /self-test omnivoice/i }));
+
+    await waitFor(() => expect(apiSelfTestEngine).toHaveBeenCalledWith('omnivoice'));
+    await waitFor(() => {
+      expect(within(omniRow).getByTestId('selftest-result-omnivoice')).toHaveTextContent(
+        '0.82s @ 24 kHz in 820 ms',
+      );
+    });
+  });
+
+  it('renders a timed-out marker when the self-test outruns the timeout', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
+    const apiSelfTestEngine = vi.fn().mockResolvedValue({
+      id: 'omnivoice',
+      ok: false,
+      message: 'timed out after 90s (model still loading?)',
+      duration_ms: 90000,
+      timed_out: true,
+    });
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiSelfTestEngine={apiSelfTestEngine}
+      />,
+    );
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    const omniRow = screen.getByText('OmniVoice (test)').closest('[role="row"]');
+    fireEvent.click(within(omniRow).getByRole('button', { name: /self-test omnivoice/i }));
+    await waitFor(() => {
+      expect(within(omniRow).getByTestId('selftest-result-omnivoice')).toHaveTextContent(
+        'Self-test timed out',
+      );
+    });
+  });
+
+  it('does not offer Self-test for a subprocess engine (spawn-and-ping only)', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiSelfTestEngine={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('IndexTTS2 (test)'));
+    const indexRow = screen.getByText('IndexTTS2 (test)').closest('[role="row"]');
+    // "Test engine" (liveness) is present; the real-synth "Self-test" is not.
+    expect(within(indexRow).getByRole('button', { name: /test indextts2/i })).toBeInTheDocument();
+    expect(within(indexRow).queryByRole('button', { name: /self-test/i })).not.toBeInTheDocument();
+  });
+
+  it('does not offer Self-test on a non-TTS family (ASR)', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue({
+      tts: { active: '', backends: [] },
+      asr: {
+        active: 'wx',
+        backends: [
+          {
+            id: 'wx',
+            display_name: 'WhisperX (test)',
+            available: true,
+            reason: null,
+            install_hint: null,
+            last_error: null,
+            isolation_mode: 'in-process',
+            gpu_compat: ['cpu'],
+          },
+        ],
+      },
+      llm: { active: 'off', backends: [] },
+    });
+    render(
+      <EngineCompatibilityMatrix
+        family="asr"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiSelfTestEngine={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('WhisperX (test)'));
+    const row = screen.getByText('WhisperX (test)').closest('[role="row"]');
+    expect(within(row).queryByRole('button', { name: /self-test/i })).not.toBeInTheDocument();
+  });
+
+  // ── Setup snippet for path-gated opt-in engines ────────────────────────
+  it('renders the copy-paste setup snippet for a path-gated opt-in engine', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue({
+      tts: {
+        active: 'omnivoice',
+        backends: [
+          {
+            id: 'indextts2',
+            display_name: 'IndexTTS-2',
+            available: false,
+            reason: 'IndexTTS-2 venv not found. Set OMNIVOICE_INDEXTTS_DIR.',
+            install_hint: 'git clone index-tts/index-tts',
+            setup_snippet: 'export OMNIVOICE_INDEXTTS_DIR=/path/to/index-tts',
+            last_error: null,
+            isolation_mode: 'subprocess',
+            gpu_compat: ['cuda', 'cpu'],
+          },
+        ],
+      },
+      asr: { active: '', backends: [] },
+      llm: { active: 'off', backends: [] },
+    });
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiSelfTestEngine={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('IndexTTS-2'));
+    const snippet = screen.getByTestId('setup-snippet-indextts2');
+    expect(snippet).toHaveTextContent('export OMNIVOICE_INDEXTTS_DIR=/path/to/index-tts');
+    expect(
+      within(snippet).getByRole('button', { name: /copy setup command/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows no setup snippet for a bundled engine', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiSelfTestEngine={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('KittenTTS (test)'));
+    // KittenTTS in the fixture carries no setup_snippet → no snippet block.
+    expect(screen.queryByTestId('setup-snippet-kittentts')).not.toBeInTheDocument();
   });
 });

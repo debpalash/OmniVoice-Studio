@@ -8,10 +8,14 @@ import {
   CheckCircle2,
   RefreshCw,
   Layers,
+  Volume2,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { toastErrorWithReport } from '../utils/errorToast';
 import { useTranslation } from 'react-i18next';
-import { listEngines, getEngineHealth } from '../api/engines';
+import { listEngines, getEngineHealth, selfTestEngine } from '../api/engines';
+import { copyText } from '../utils/copyText';
 import { ChevronRight } from 'lucide-react';
 import { Badge, Button, Segmented, Table } from '../ui';
 import { cn } from '@/lib/utils';
@@ -128,12 +132,21 @@ function normalizeEntry(entry) {
     isolation_mode: entry.isolation_mode || 'in-process',
     gpu_compat:
       Array.isArray(entry.gpu_compat) && entry.gpu_compat.length > 0 ? entry.gpu_compat : ['cpu'],
+    // Copy-paste `export VAR=...` line for a path-gated opt-in engine, or null.
+    setup_snippet: entry.setup_snippet || null,
     // Routing (#21) — may be absent on a legacy/older backend payload, in
     // which case the matrix renders exactly as before (no routing badge).
     effective_device: entry.effective_device || null,
     routing_status: entry.routing_status || null,
     routing_reason: entry.routing_reason || null,
   };
+}
+
+/** Human duration: "0.4s" for ≥1 s, "820 ms" below — keeps the self-test
+ *  result compact whether a cold model load or a warm sub-second synth. */
+function fmtDuration(ms) {
+  const n = Number(ms) || 0;
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}s` : `${Math.round(n)} ms`;
 }
 
 export default function EngineCompatibilityMatrix({
@@ -144,6 +157,7 @@ export default function EngineCompatibilityMatrix({
   // without resorting to module-level vi.mock incantations.
   apiListEngines = listEngines,
   apiGetEngineHealth = getEngineHealth,
+  apiSelfTestEngine = selfTestEngine,
 }) {
   const { t } = useTranslation();
   const [data, setData] = useState(null);
@@ -158,6 +172,11 @@ export default function EngineCompatibilityMatrix({
   //   { [id]: { inflight: boolean, ok?: boolean, message?: string,
   //              latency_ms?: number, lastClickAt?: number } }
   const [healthByEngine, setHealthByEngine] = useState({});
+  // Self-test (real tiny synthesis) state keyed by engine id, same shape as
+  // health plus { duration_ms, sample_rate, audio_seconds, timed_out }.
+  const [selfTestByEngine, setSelfTestByEngine] = useState({});
+  // Which engine's setup snippet was just copied (transient ✓ affordance).
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
     setActiveFamily(family);
@@ -229,6 +248,48 @@ export default function EngineCompatibilityMatrix({
     },
     [apiGetEngineHealth, healthByEngine],
   );
+
+  const runSelfTest = useCallback(
+    async (id) => {
+      const now = Date.now();
+      const cur = selfTestByEngine[id];
+      if (cur?.inflight) return;
+      if (cur?.lastClickAt && now - cur.lastClickAt < TEST_COOLDOWN_MS) {
+        // Click-storm cooldown — silently ignore. The backend also serialises
+        // self-tests, so this is belt-and-braces against stacked model loads.
+        return;
+      }
+      setSelfTestByEngine((prev) => ({
+        ...prev,
+        [id]: { inflight: true, lastClickAt: now },
+      }));
+      try {
+        const result = await apiSelfTestEngine(id);
+        setSelfTestByEngine((prev) => ({
+          ...prev,
+          [id]: { inflight: false, lastClickAt: now, ...result },
+        }));
+      } catch (e) {
+        setSelfTestByEngine((prev) => ({
+          ...prev,
+          [id]: {
+            inflight: false,
+            ok: false,
+            message: e?.message || String(e),
+            lastClickAt: now,
+          },
+        }));
+      }
+    },
+    [apiSelfTestEngine, selfTestByEngine],
+  );
+
+  const copySetup = useCallback(async (id, snippet) => {
+    const ok = await copyText(snippet);
+    if (!ok) return;
+    setCopiedId(id);
+    setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
+  }, []);
 
   const COLUMNS = [
     { key: 'name', label: t('engines.matrixTitle').split(' ')[0] || 'Engine', flex: 3 },
@@ -322,6 +383,12 @@ export default function EngineCompatibilityMatrix({
           {backends.map((b) => {
             const isActive = b.id === activeBackendId;
             const health = healthByEngine[b.id];
+            const selfTest = selfTestByEngine[b.id];
+            // Real-synthesis self-test is TTS-only and meaningful only for an
+            // available, in-process engine (subprocess engines keep spawn-and-
+            // ping via "Test engine"; a real synth there is a sidecar cold-start).
+            const canSelfTest =
+              activeFamily === 'tts' && b.available && b.isolation_mode !== 'subprocess';
             return (
               <div
                 key={b.id}
@@ -385,6 +452,35 @@ export default function EngineCompatibilityMatrix({
                           >
                             {t('engines.lastError', { error: b.last_error })}
                           </span>
+                        )}
+                        {/* Copy-paste-ready setup line for a path-gated opt-in
+                            engine (IndexTTS/MOSS-v1.5/dots/Confucius4) — the
+                            exact `export VAR=…` so users don't hunt the docs. */}
+                        {b.setup_snippet && (
+                          <div
+                            className="engine-matrix__setup flex flex-col gap-[3px] mt-[2px]"
+                            data-testid={`setup-snippet-${b.id}`}
+                          >
+                            <span className="text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
+                              {t('engines.setupSnippetLabel')}
+                            </span>
+                            <div className="flex items-center gap-[6px] flex-wrap">
+                              <code className="engine-matrix__setup-code font-mono text-[11px] px-[6px] py-[2px] rounded [background:var(--chrome-bg-inset,rgba(255,255,255,0.05))] text-[color:var(--chrome-fg,currentColor)] break-all">
+                                {b.setup_snippet}
+                              </code>
+                              <Button
+                                size="sm"
+                                variant="subtle"
+                                onClick={() => copySetup(b.id, b.setup_snippet)}
+                                leading={
+                                  copiedId === b.id ? <Check size={11} /> : <Copy size={11} />
+                                }
+                                aria-label={t('engines.copySetup', { engine: b.display_name })}
+                              >
+                                {copiedId === b.id ? t('engines.copied') : t('engines.copy')}
+                              </Button>
+                            </div>
+                          </div>
                         )}
                       </div>
                     </details>
@@ -556,6 +652,42 @@ export default function EngineCompatibilityMatrix({
                           ? t('engines.latencyMs', { ms: health.latency_ms })
                           : t('engines.depsOk')
                         : t('engines.failed')}
+                    </span>
+                  )}
+                  {/* Self-test: a real tiny synthesis proving the in-process TTS
+                      engine emits audio (not just imports). Guarded — TTS only,
+                      available + in-process only, user click only, cooldown +
+                      backend timeout bound it. */}
+                  {canSelfTest && (
+                    <Button
+                      size="sm"
+                      variant="subtle"
+                      onClick={() => runSelfTest(b.id)}
+                      disabled={!!selfTest?.inflight}
+                      loading={!!selfTest?.inflight}
+                      leading={!selfTest?.inflight && <Volume2 size={11} />}
+                      aria-label={`Self-test ${b.display_name}`}
+                    >
+                      {selfTest?.inflight ? t('engines.selfTesting') : t('engines.selfTest')}
+                    </Button>
+                  )}
+                  {canSelfTest && selfTest && !selfTest.inflight && (
+                    <span
+                      className={`engine-matrix__selftest-result text-[11px] font-mono ${selfTest.ok ? 'text-[color:var(--chrome-severity-ok,#98971a)]' : 'text-[color:var(--chrome-severity-err,#cc241d)]'}`}
+                      data-testid={`selftest-result-${b.id}`}
+                      title={selfTest.message}
+                    >
+                      {selfTest.ok
+                        ? t('engines.selfTestOk', {
+                            seconds: Number(selfTest.audio_seconds ?? 0).toFixed(2),
+                            khz: selfTest.sample_rate
+                              ? Math.round(selfTest.sample_rate / 1000)
+                              : '?',
+                            took: fmtDuration(selfTest.duration_ms),
+                          })
+                        : selfTest.timed_out
+                          ? t('engines.selfTestTimedOut')
+                          : t('engines.selfTestFailed')}
                     </span>
                   )}
                   {onSelect && b.available && !isActive && (

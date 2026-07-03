@@ -30,6 +30,9 @@ interface EngineBackend {
   available: boolean;
   reason: string | null;
   install_hint?: string | null;
+  // Copy-paste-ready `export VAR=...` line for a path-gated opt-in engine
+  // (IndexTTS / MOSS-v1.5 / dots.tts / Confucius4), else null/absent.
+  setup_snippet?: string | null;
   last_error?: string | null;
   isolation_mode?: 'in-process' | 'subprocess';
   gpu_compat?: GPUTarget[];
@@ -54,6 +57,12 @@ export interface SelectEngineResponse {
   family: EngineFamily;
   active: string;
   env_override: boolean;
+  // Routing verdict for the picked engine on THIS host (#21) — the select echo
+  // the post-select toast reads to warn on a cpu_fallback pick. Optional so a
+  // legacy payload without them still types cleanly.
+  routing_status?: RoutingStatus;
+  effective_device?: EffectiveDevice;
+  routing_reason?: string | null;
 }
 
 export interface EngineHealthResponse {
@@ -61,6 +70,20 @@ export interface EngineHealthResponse {
   ok: boolean;
   message: string;
   latency_ms: number;
+}
+
+// Real-synthesis self-test result for an available in-process TTS engine
+// (POST /engines/{id}/selftest). `ok` proves the engine emitted audio; the
+// rest quantify it. `timed_out` marks a synth that outran the bounded timeout.
+export interface EngineSelfTestResponse {
+  id: string;
+  ok: boolean;
+  message: string;
+  duration_ms: number;
+  sample_rate?: number | null;
+  num_samples?: number | null;
+  audio_seconds?: number | null;
+  timed_out?: boolean;
 }
 
 // ── System / diagnostics ─────────────────────────────────────────────────

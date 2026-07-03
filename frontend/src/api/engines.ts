@@ -3,6 +3,7 @@ import type {
   AllEnginesResponse,
   EngineFamily,
   EngineHealthResponse,
+  EngineSelfTestResponse,
   SelectEngineResponse,
 } from './types';
 
@@ -62,6 +63,18 @@ export async function selectEngine(
  */
 export async function getEngineHealth(engineId: string): Promise<EngineHealthResponse> {
   return apiJson<EngineHealthResponse>(`/engines/${encodeURIComponent(engineId)}/health`);
+}
+
+/**
+ * Run a bounded, real tiny-synthesis on an AVAILABLE, IN-PROCESS TTS engine —
+ * proves the engine actually emits audio (duration + sample-rate + samples),
+ * not just that its package imports (`is_available()` liveness). The Compat
+ * Matrix's "Self-test" button calls this; only ever on user click, never on
+ * Settings mount. 400 for a subprocess-isolated or not-available engine, 404
+ * for a non-TTS id. Never 500s on a synth failure — it lands in `ok:false`.
+ */
+export async function selfTestEngine(engineId: string): Promise<EngineSelfTestResponse> {
+  return apiPost<EngineSelfTestResponse>(`/engines/${encodeURIComponent(engineId)}/selftest`, {});
 }
 
 export async function listTranslationEngines(): Promise<TranslationEnginesResponse> {
