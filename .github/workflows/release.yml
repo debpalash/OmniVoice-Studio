@@ -524,7 +524,9 @@ jobs:
           # Every other invocation — crucially the `v*` tag-push stable release
           # — evaluates these expressions to exactly their prior values.
           tagName: ${{ (needs.preview-gate.outputs.is_preview == 'true') && 'preview' || github.ref_name }}
-          releaseName: ${{ (needs.preview-gate.outputs.is_preview == 'true') && 'OmniVoice Studio (Preview)' || format('OmniVoice Studio {0}', github.ref_name) }}
+          # Version-first so the tag is readable in GitHub's truncated
+          # release-list sidebar (which clips the title mid-string).
+          releaseName: ${{ (needs.preview-gate.outputs.is_preview == 'true') && 'Preview — OmniVoice Studio' || format('{0} — OmniVoice Studio', github.ref_name) }}
           releaseBody: ${{ steps.changelog.outputs.body }}
           releaseDraft: ${{ (needs.preview-gate.outputs.is_preview == 'true') && 'false' || (inputs.draft || 'true') }}
           prerelease: ${{ needs.preview-gate.outputs.is_preview == 'true' }}
