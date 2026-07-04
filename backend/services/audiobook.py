@@ -104,9 +104,10 @@ def synthesize_chapter(
 ):
     """Render a chapter's spans to one waveform via an injected ``synth``.
 
-    ``synth(text, voice_id, speed)`` returns a 1-D float32 audio tensor for a
-    span of text in the given voice (``speed`` may be ``None`` for the engine
-    default). Long spans are split with the ``chunked_tts`` splitter and
+    ``synth(text, voice_id, speed)`` returns a float32 audio tensor — 1-D
+    ``(samples,)`` or ``(channels, samples)``; real engines emit ``(1, samples)``
+    per the ``TTSBackend`` contract (#897) — for a span of text in the given
+    voice (``speed`` may be ``None`` for the engine default). Long spans are split with the ``chunked_tts`` splitter and
     crossfaded; inter-span ``pause_ms_after`` becomes silence. ``lexicon`` (when
     given) respells each span's text before chunking so the engine pronounces
     tricky words correctly; a ``None``/empty lexicon is a no-op pass-through.
@@ -118,23 +119,35 @@ def synthesize_chapter(
     from services.chunked_tts import concatenate_audio_chunks, split_text_into_chunks
     from services.pronunciation import apply_lexicon
 
-    parts: list = []
+    items: list = []  # ("a", tensor) for audio, ("s", n_samples) for silence
     for span in spans:
         if span.text:
             chunks = split_text_into_chunks(apply_lexicon(span.text, lexicon))
             rendered = [synth(c, span.voice_id, span.speed) for c in chunks]
             rendered = [r for r in rendered if r is not None and getattr(r, "numel", lambda: 0)()]
             if len(rendered) == 1:
-                parts.append(rendered[0])
+                items.append(("a", rendered[0]))
             elif rendered:
-                parts.append(concatenate_audio_chunks(rendered, sample_rate, crossfade_ms=crossfade_ms))
+                items.append(("a", concatenate_audio_chunks(rendered, sample_rate, crossfade_ms=crossfade_ms)))
         if span.pause_ms_after > 0:
             n = int(sample_rate * span.pause_ms_after / 1000.0)
             if n > 0:
-                parts.append(torch.zeros(n, dtype=torch.float32))
+                items.append(("s", n))
 
-    if not parts:
+    if not items:
         return torch.zeros(0, dtype=torch.float32), 0.0
+    # Engines return (1, samples) per the TTSBackend contract while a bare
+    # zeros(n) is 1-D — mixing the two crashed the final concat (#897). So
+    # materialize inter-span silence AFTER the loop, matching the rendered
+    # audio's channel dims / dtype / device (same pattern as generation.py's
+    # _render_with_pauses). A silence-only chapter stays 1-D float32 as before.
+    ref = next((t for kind, t in items if kind == "a"), None)
+    parts: list = [
+        val if kind == "a"
+        else (torch.zeros(val, dtype=torch.float32) if ref is None
+              else torch.zeros(*ref.shape[:-1], val, dtype=ref.dtype, device=ref.device))
+        for kind, val in items
+    ]
     # Hard-concat spans + silences (crossfading silence would bleed the gap).
     audio = parts[0] if len(parts) == 1 else concatenate_audio_chunks(parts, sample_rate, crossfade_ms=0)
     return audio, audio.shape[-1] / float(sample_rate)

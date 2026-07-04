@@ -133,6 +133,52 @@ def test_single_and_empty_chunk_lists():
     assert concatenate_audio_chunks([], sr).shape[-1] == 1  # silent guard
 
 
+# ── Mixed-rank chunks (#897) ─────────────────────────────────────────────────
+# Engines emit (1, samples) per the TTSBackend contract while silence buffers
+# were bare (samples,) — torch.cat crashed longform chapter renders with
+# "RuntimeError: Tensors must have same number of dimensions: got 1 and 2".
+
+def test_mixed_rank_chunks_hard_cut():
+    out = concatenate_audio_chunks([torch.ones(1, 300), torch.zeros(200)],
+                                   24000, crossfade_ms=0)
+    assert out.shape == (1, 500)
+
+
+def test_mixed_rank_chunks_hard_cut_1d_first():
+    out = concatenate_audio_chunks([torch.zeros(200), torch.ones(1, 300)],
+                                   24000, crossfade_ms=0)
+    assert out.shape == (1, 500)
+
+
+def test_mixed_rank_chunks_crossfade():
+    sr = 1000
+    out = concatenate_audio_chunks([torch.ones(1, 500), torch.zeros(500)],
+                                   sr, crossfade_ms=100)  # 100-sample overlap
+    assert out.shape == (1, 900)
+
+
+def test_mono_chunk_broadcasts_to_stereo():
+    # Honest channel handling: a mono chunk follows the widest channel count.
+    out = concatenate_audio_chunks([torch.ones(2, 100), torch.zeros(1, 50)],
+                                   24000, crossfade_ms=0)
+    assert out.shape == (2, 150)
+    out = concatenate_audio_chunks([torch.ones(2, 100), torch.zeros(60)],
+                                   24000, crossfade_ms=0)  # 1-D mono, too
+    assert out.shape == (2, 160)
+
+
+def test_all_1d_output_stays_1d():
+    out = concatenate_audio_chunks([torch.ones(100), torch.ones(100)],
+                                   24000, crossfade_ms=0)
+    assert out.dim() == 1 and out.shape[-1] == 200
+
+
+def test_all_2d_output_stays_2d():
+    out = concatenate_audio_chunks([torch.ones(1, 100), torch.ones(1, 100)],
+                                   24000, crossfade_ms=0)
+    assert out.shape == (1, 200)
+
+
 # ── Endpoint integration (stubbed engine, pattern from test_generate_engine) ─
 
 def _tts_mod():

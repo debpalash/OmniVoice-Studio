@@ -183,14 +183,43 @@ def _safe_hard_cut(segment: str, max_chars: int) -> int:
     return cut
 
 
+def _normalize_chunk_shapes(chunks: list) -> list:
+    """Coerce mixed-rank / mixed-channel chunks to one concat-compatible shape.
+
+    Engines return ``(1, samples)`` per the ``TTSBackend.generate`` contract,
+    but silence buffers and some model paths hand over bare ``(samples,)``
+    tensors — ``torch.cat`` then dies with "Tensors must have same number of
+    dimensions" (#897). Promote lower-rank chunks with leading singleton dims
+    to the highest rank present, then broadcast singleton channel dims up to
+    the widest channel count (mono follows stereo). Rank-homogeneous,
+    channel-homogeneous input is returned untouched, so all-1-D / all-2-D
+    callers keep their exact output shape; a genuine channel conflict
+    (e.g. 2 vs 3 channels) still raises, which is the honest outcome.
+    """
+    target = max(c.dim() for c in chunks)
+    if any(c.dim() != target for c in chunks):
+        promoted = []
+        for c in chunks:
+            while c.dim() < target:
+                c = c.unsqueeze(0)
+            promoted.append(c)
+        chunks = promoted
+    if target > 1:
+        lead = tuple(max(c.shape[i] for c in chunks) for i in range(target - 1))
+        chunks = [c if tuple(c.shape[:-1]) == lead else c.expand(*lead, -1)
+                  for c in chunks]
+    return chunks
+
+
 def concatenate_audio_chunks(chunks: list, sample_rate: int,
                              crossfade_ms: int = DEFAULT_CROSSFADE_MS):
     """Join per-chunk waveforms with a linear crossfade on the sample axis.
 
     ``chunks`` are torch tensors as returned by the engine (1-D, or N-D with
     samples on the last axis — matching what ``_render_with_pauses`` handles).
-    Crossfade overlap is clamped to the shorter neighbor; ``crossfade_ms=0``
-    is a hard concat.
+    Mixed ranks / mono-vs-multichannel chunks are normalized to one shape
+    first (#897), so no producer can crash the concat. Crossfade overlap is
+    clamped to the shorter neighbor; ``crossfade_ms=0`` is a hard concat.
     """
     import torch
 
@@ -199,6 +228,7 @@ def concatenate_audio_chunks(chunks: list, sample_rate: int,
         return torch.zeros(1, dtype=torch.float32)
     if len(chunks) == 1:
         return chunks[0]
+    chunks = _normalize_chunk_shapes(chunks)
 
     crossfade_samples = int(sample_rate * crossfade_ms / 1000)
     result = chunks[0]

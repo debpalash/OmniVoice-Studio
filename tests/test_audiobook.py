@@ -152,6 +152,45 @@ def test_synthesize_empty_spans_is_silent():
     assert dur == 0.0
 
 
+def test_synthesize_chapter_2d_engine_output_with_pause():
+    # #897 regression: real engines return (1, samples) (TTSBackend contract)
+    # while inter-span pause silence was built as 1-D zeros — the final hard
+    # concat crashed a longform chapter render with
+    # "RuntimeError: Tensors must have same number of dimensions: got 1 and 2".
+    torch = pytest.importorskip("torch")
+    sr = 16000
+
+    def synth(text, voice_id, speed=None):
+        return torch.ones(1, 1000, dtype=torch.float32)
+
+    plan = parse_audiobook_script("First. [pause 1s] Second.", default_voice="v")
+    audio, dur = synthesize_chapter(plan.chapters[0].spans, synth, sr)
+    assert audio.shape == (1, 1000 + sr + 1000)
+    assert dur == pytest.approx((2000 + sr) / sr)
+
+
+def test_synthesize_chapter_silence_rank_matches_engine_output(monkeypatch):
+    # The producer half of the #897 fix: pause silence is materialized with
+    # the rendered audio's rank, so the parts reaching the final concat are
+    # rank-homogeneous even without concatenate_audio_chunks' normalization.
+    torch = pytest.importorskip("torch")
+    import services.chunked_tts as ct
+
+    seen: list[list[int]] = []
+    real = ct.concatenate_audio_chunks
+
+    def spy(chunks, sr, crossfade_ms=50):
+        seen.append([c.dim() for c in chunks])
+        return real(chunks, sr, crossfade_ms=crossfade_ms)
+
+    monkeypatch.setattr(ct, "concatenate_audio_chunks", spy)
+    plan = parse_audiobook_script("First. [pause 500ms] Second.", default_voice="v")
+    synthesize_chapter(plan.chapters[0].spans,
+                       lambda t, v, s=None: torch.ones(1, 100), 16000)
+    assert seen, "the stitcher never reached the concat"
+    assert all(d == 2 for dims in seen for d in dims)
+
+
 def test_parse_applies_ssml_lite_prosody():
     plan = parse_audiobook_script("[slow]hush[/slow] normal [spell]USA[/spell]")
     spans = plan.chapters[0].spans
