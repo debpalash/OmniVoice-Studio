@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Mic, Search, Clock, Languages } from 'lucide-react';
 import { Dialog, Input } from '../ui';
+import { toMillis } from '../utils/relativeTime';
 import { loadTranscriptions, TRANSCRIPTION_EVENT } from '../utils/transcriptionsStore';
 
 /**
@@ -27,10 +28,12 @@ export default function TranscriptionPicker({ open, onClose, onPick }) {
   }, [open]);
 
   // Relative time, host-locale absolute fallback; null on unparseable timestamp.
+  // toMillis keeps this unit-safe (ISO strings today; seconds/ms tolerated).
   const formatTime = (iso) => {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return null;
-    const diff = Date.now() - d.getTime();
+    const ms = toMillis(iso);
+    if (ms == null) return null;
+    const d = new Date(ms);
+    const diff = Date.now() - ms;
     if (diff < 60000) return t('transcriptions.just_now');
     if (diff < 3600000) return t('transcriptions.m_ago', { count: Math.floor(diff / 60000) });
     if (diff < 86400000) return t('transcriptions.h_ago', { count: Math.floor(diff / 3600000) });

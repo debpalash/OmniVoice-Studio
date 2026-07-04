@@ -10,21 +10,7 @@ import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Film, FolderOpen, Trash2, Save, Pencil, Check, X } from 'lucide-react';
 import { Button } from '../ui';
-
-// Local copy of the sidebar's relative-time formatter (small, self-contained).
-function timeAgo(ms) {
-  const diff = Date.now() - ms;
-  if (!isFinite(diff) || diff < 0) return '';
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d ago`;
-  return new Date(ms).toLocaleDateString([], { month: 'short', day: 'numeric' });
-}
+import { absoluteTime, timeAgo } from '../utils/relativeTime';
 
 export default function WorkspaceProjects({
   projects = [],
@@ -105,11 +91,8 @@ export default function WorkspaceProjects({
                 <span className="history-kind history-kind--audio">
                   <Film size={9} /> {t('sidebar.dub_label')}
                 </span>
-                <span
-                  className="history-meta"
-                  title={new Date(proj.updated_at * 1000).toLocaleString()}
-                >
-                  {timeAgo(proj.updated_at * 1000)}
+                <span className="history-meta" title={absoluteTime(proj.updated_at)}>
+                  {timeAgo(proj.updated_at)}
                 </span>
               </div>
               {editingId === proj.id ? (

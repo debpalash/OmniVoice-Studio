@@ -18,6 +18,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { apiFetch } from '../api/client';
+import { timeAgo, toMillis } from '../utils/relativeTime';
 import { loadTranscriptions, TRANSCRIPTION_EVENT } from '../utils/transcriptionsStore';
 import { audioUrl } from '../api/generate';
 import { playBlobAudio } from '../utils/media';
@@ -40,18 +41,6 @@ import { playBlobAudio } from '../utils/media';
  * Props reuse what App.jsx already loads — no new fetchers are added so
  * this page stays in sync with the Sidebar and Launchpad automatically.
  */
-
-function fmtTime(ts) {
-  if (!ts) return '';
-  const d = typeof ts === 'number' ? ts : Date.parse(ts);
-  if (!Number.isFinite(d)) return '';
-  const diff = Date.now() - d;
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-}
 
 function fmtDuration(sec) {
   if (!sec) return '';
@@ -177,7 +166,10 @@ export default function Projects({
   }, []);
 
   // Normalise every source into a common shape so the filter + search +
-  // sort pipeline is identical regardless of origin.
+  // sort pipeline is identical regardless of origin. Timestamps arrive in
+  // mixed units (backend rows: Unix seconds; story projects: Date.now() ms;
+  // transcriptions: ISO strings) — toMillis() normalizes them all to epoch
+  // ms (or 0 when missing) so both the sort and timeAgo() stay unit-safe.
   const items = useMemo(() => {
     const list = [];
     for (const p of studioProjects) {
@@ -186,7 +178,7 @@ export default function Projects({
         id: p.id,
         title: p.name || p.video_path?.split('/').pop() || p.id,
         subtitle: fmtDuration(p.duration),
-        ts: (p.updated_at || p.created_at || 0) * 1000,
+        ts: toMillis(p.updated_at || p.created_at) ?? 0,
         accent: '#fe8019',
         Icon: Film,
         onClick: () => onOpenDub?.(p.id),
@@ -205,7 +197,7 @@ export default function Projects({
         ]
           .filter(Boolean)
           .join(' · '),
-        ts: sp.updatedAt || 0,
+        ts: toMillis(sp.updatedAt) ?? 0,
         accent: '#83a598',
         Icon: BookOpen,
         onClick: () => onOpenStory?.(sp.id),
@@ -218,7 +210,7 @@ export default function Projects({
         id: pr.id,
         title: pr.name || pr.id,
         subtitle: kind === 'design' ? t('projects.designed_voice') : t('projects.cloned_voice'),
-        ts: (pr.updated_at || pr.created_at || 0) * 1000,
+        ts: toMillis(pr.updated_at || pr.created_at) ?? 0,
         accent: kind === 'design' ? '#8ec07c' : '#d3869b',
         Icon: kind === 'design' ? Wand2 : Fingerprint,
         onClick: () => onOpenProfile?.(pr.id),
@@ -230,7 +222,10 @@ export default function Projects({
         id: h.filename || h.id || String(Math.random()),
         title: (h.text || h.prompt || h.filename || t('projects.generated_audio')).slice(0, 80),
         subtitle: h.language || h.voice || '',
-        ts: h.timestamp || h.created_at || 0,
+        // #epoch-bug regression site: generation_history rows carry created_at
+        // in Unix SECONDS — feeding them to a ms-based diff rendered every
+        // history card as "20617d ago" (1970) and sorted them last.
+        ts: toMillis(h.timestamp || h.created_at) ?? 0,
         accent: '#f3a5b6',
         Icon: Music,
         onClick: undefined,
@@ -242,7 +237,7 @@ export default function Projects({
         id: e.path || e.id,
         title: e.path?.split('/').pop() || e.filename || t('projects.export'),
         subtitle: e.mode || '',
-        ts: (e.created_at || 0) * 1000,
+        ts: toMillis(e.created_at) ?? 0,
         accent: '#fabd2f',
         Icon: Download,
         onClick: () => e.path && onRevealExport?.(e.path),
@@ -261,7 +256,7 @@ export default function Projects({
         ]
           .filter(Boolean)
           .join(' · '),
-        ts: (j.created_at || 0) * 1000,
+        ts: toMillis(j.created_at) ?? 0,
         accent: '#d3869b',
         Icon: BookMarked,
         onClick: () => j.output && playRenderInApp(audioUrl(j.output)),
@@ -275,7 +270,7 @@ export default function Projects({
         subtitle: [tr.language, tr.duration_s ? `${Math.round(tr.duration_s)}s` : '']
           .filter(Boolean)
           .join(' · '),
-        ts: tr.timestamp ? Date.parse(tr.timestamp) : 0,
+        ts: toMillis(tr.timestamp) ?? 0,
         accent: '#83a598',
         Icon: FileText,
         onClick: () => {
@@ -410,7 +405,7 @@ export default function Projects({
               trailing={
                 <span className="inline-flex items-center gap-[3px] [font-family:var(--chrome-font-mono)]">
                   <Clock size={10} />
-                  {fmtTime(it.ts)}
+                  {timeAgo(it.ts)}
                 </span>
               }
               onClick={it.onClick}

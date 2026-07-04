@@ -26,6 +26,7 @@ import BatchAddDialog from '../components/BatchAddDialog';
 import toast from 'react-hot-toast';
 import { toastErrorWithReport } from '../utils/errorToast';
 import { recordValueMoment } from '../utils/donationMoments';
+import { absoluteTime, timeAgo } from '../utils/relativeTime';
 
 /**
  * BatchQueue — UI for the /batch/* dubbing pipeline.
@@ -261,7 +262,7 @@ function JobCard({ job, onCancel, onDelete, t }) {
   const st = STATUS_TONE[job.status] || STATUS_TONE.queued;
   const StIcon = st.icon;
 
-  const ageLabel = formatAge((Date.now() / 1000 - (job.created_at || 0)) * 1000);
+  const ageLabel = timeAgo(job.created_at);
 
   const duration =
     job.finished_at && job.started_at ? Math.max(0, job.finished_at - job.started_at) : null;
@@ -287,7 +288,7 @@ function JobCard({ job, onCancel, onDelete, t }) {
         <span className="batch-queue__card-spacer flex-1" />
         <span
           className="batch-queue__card-age text-[var(--text-xs)] text-fg-subtle [font-variant-numeric:tabular-nums]"
-          title={new Date((job.created_at || 0) * 1000).toLocaleString()}
+          title={absoluteTime(job.created_at)}
         >
           {ageLabel}
         </span>
@@ -392,17 +393,6 @@ function JobCard({ job, onCancel, onDelete, t }) {
       </div>
     </Panel>
   );
-}
-
-function formatAge(ms) {
-  if (!isFinite(ms) || ms < 0) return '—';
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return new Date(Date.now() - ms).toLocaleDateString();
 }
 
 function formatDuration(secs) {

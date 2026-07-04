@@ -30,6 +30,7 @@ import WaveformPlayer from './WaveformPlayer';
 import { useAppStore } from '../store';
 import { useTranslation } from 'react-i18next';
 import { askConfirm } from '../utils/dialog';
+import { absoluteTime, timeAgo } from '../utils/relativeTime';
 
 const SIDEBAR_TABS = [
   { id: 'projects', icon: FolderOpen, accent: '#b8bb26' },
@@ -69,20 +70,6 @@ function LazyWaveformPlayer({ height = 36, className = '', ...rest }) {
   }, [visible]);
   if (visible) return <WaveformPlayer height={height} className={className} {...rest} />;
   return <div ref={holderRef} className={className} style={{ height }} aria-hidden="true" />;
-}
-
-function timeAgo(ms) {
-  const diff = Date.now() - ms;
-  if (!isFinite(diff) || diff < 0) return '';
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d ago`;
-  return new Date(ms).toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
 export default function Sidebar(props) {
@@ -311,11 +298,8 @@ export default function Sidebar(props) {
                             <span className="history-kind history-kind--audio">
                               <Film size={9} /> {t('sidebar.dub_label')}
                             </span>
-                            <span
-                              className="history-meta"
-                              title={new Date(proj.updated_at * 1000).toLocaleString()}
-                            >
-                              {timeAgo(proj.updated_at * 1000)}
+                            <span className="history-meta" title={absoluteTime(proj.updated_at)}>
+                              {timeAgo(proj.updated_at)}
                             </span>
                           </div>
                           <div className="history-title">{proj.name}</div>
@@ -772,7 +756,7 @@ export default function Sidebar(props) {
                           >
                             <KindIcon size={9} /> {item.mode}
                           </span>
-                          <span className="history-meta">{timeAgo(item.created_at * 1000)}</span>
+                          <span className="history-meta">{timeAgo(item.created_at)}</span>
                         </div>
                         <div className="history-title">{item.filename}</div>
                         <div className="history-subtitle">

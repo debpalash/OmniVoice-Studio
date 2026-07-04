@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { Mic, Copy, Trash2, Search, Clock, Languages, FileText, Download } from 'lucide-react';
 import { Button } from '../ui';
 import { toast } from 'react-hot-toast';
+import { toMillis } from '../utils/relativeTime';
 import {
   loadTranscriptions,
   TRANSCRIPTIONS_KEY,
@@ -108,10 +109,13 @@ export default function TranscriptionsPage() {
     toast.success(t('transcriptions.exported'));
   }, [transcriptions]);
 
+  // toMillis keeps this unit-safe (ISO strings today; seconds/ms tolerated)
+  // and guards unparseable stamps, which used to render "Invalid Date".
   const formatTime = (iso) => {
-    const d = new Date(iso);
-    const now = new Date();
-    const diff = now - d;
+    const ms = toMillis(iso);
+    if (ms == null) return null;
+    const d = new Date(ms);
+    const diff = Date.now() - ms;
     if (diff < 60000) return t('transcriptions.just_now');
     if (diff < 3600000) return t('transcriptions.m_ago', { count: Math.floor(diff / 60000) });
     if (diff < 86400000) return t('transcriptions.h_ago', { count: Math.floor(diff / 3600000) });
