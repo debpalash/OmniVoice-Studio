@@ -31,7 +31,7 @@
 <br/>
 
 <div align="center">
-  <img src=".github/assets/social-preview.png" alt="OmniVoice Studio — The open-source ElevenLabs alternative" width="100%"/>
+  <img src="docs/screenshot-launchpad.png" alt="OmniVoice Studio — Launchpad" width="100%"/>
 </div>
 
 > [!WARNING]
@@ -188,13 +188,6 @@ options, see [docs/downloading-models.md](docs/downloading-models.md).
 ## 📸 See it in action
 
 <table>
-  <tr>
-    <td align="center" colspan="2">
-      <img src="docs/screenshot-launchpad.png" alt="Launchpad" width="100%"/>
-      <br/><b>🚀 Launchpad</b><br/>
-      <sub>Your creative home — jump straight into cloning, design, dubbing, stories, or dictation.</sub>
-    </td>
-  </tr>
   <tr>
     <td align="center" width="50%">
       <img src="docs/screenshot-studio.png" alt="Studio" width="100%"/>
