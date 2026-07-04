@@ -87,10 +87,13 @@ def test_cinematic_refine_sync_injects_dialect_into_prompts(monkeypatch):
     from services import translator
 
     captured_systems = []
+    # Distinct reflect/adapt replies — an adapt identical to the critique is
+    # (correctly) rejected by the divergence guard as a critique echo.
+    replies = iter(["usa voseo rioplatense", "vos sos muy listo"])
 
     def fake_chat(client, *, system, user):
         captured_systems.append(system)
-        return "vos sos muy listo"
+        return next(replies)
 
     monkeypatch.setattr(translator, "_llm_client", lambda: object())
     monkeypatch.setattr(translator, "_chat", fake_chat)

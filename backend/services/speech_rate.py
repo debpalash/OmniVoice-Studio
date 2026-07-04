@@ -18,6 +18,10 @@ import logging
 from typing import Iterable, Optional
 
 from services.llm_backend import get_active_llm_backend, OffBackend
+# Shared LLM-output divergence guard (length window + target-script +
+# critique-echo). Lives in translator; translator never imports this module,
+# so there is no import cycle.
+from services.translator import refine_output_ok
 
 logger = logging.getLogger("omnivoice.speech_rate")
 
@@ -91,8 +95,14 @@ _EXPAND_PROMPT = """\
 You are a dubbing writer. The user will give you a translated line + the exact
 time slot it must fit. The current line is TOO SHORT — add natural filler or
 gently flesh out the thought while keeping the meaning the same. Aim for a
-reading duration that matches the slot.
+reading duration that matches the slot. Never invent new information, names,
+or dialogue that is not already in the line; do not more than double the line.
 Reply with ONLY the new line. No quotes, no commentary."""
+
+# Below this predicted rate ratio a line can never honestly fill its slot —
+# any LLM "expansion" that far would be fabricated dialogue. Skip the expand
+# pass entirely and keep the short line (slot-aware TTS absorbs the silence).
+_MIN_EXPANDABLE_RATIO = 0.15
 
 
 def adjust_for_slot(
@@ -107,17 +117,36 @@ def adjust_for_slot(
 
     Falls back to the input text if the LLM is off or the loop gives up.
 
-    ``strict`` (Autofit mode) caps the accepted upper bound at 1.0 instead of
-    ``TOL_HIGH`` — i.e. the line must fit *within* the slot, never overrun it —
-    so the target-language reading time can't exceed the segment and push the
-    video timing out. A too-short line is still accepted down to ``TOL_LOW`` (we
-    don't pad just to fill silence). Best-effort: after ``MAX_ATTEMPTS`` it
-    returns the closest candidate seen, so a stubborn line degrades gracefully.
+    ``strict`` (Autofit mode) changes exactly one thing: the accepted upper
+    bound is 1.0 instead of ``TOL_HIGH`` — the line must fit *within* the
+    slot, never overrun it — so the target-language reading time can't exceed
+    the segment and push the video timing out. Lines under ``TOL_LOW`` still
+    go through the LLM expand pass in strict mode too (same as loose mode);
+    padding is bounded by the divergence guard below, and a line under
+    ``_MIN_EXPANDABLE_RATIO`` is never expanded at all — it could only "fill"
+    the slot with fabricated dialogue, so it stays short. Best-effort: after
+    ``MAX_ATTEMPTS`` it returns the closest candidate seen, so a stubborn line
+    degrades gracefully.
+
+    Every LLM reply is validated with ``translator.refine_output_ok`` against
+    the ORIGINAL input ``text`` (not the previous candidate — divergence
+    compounds across attempts otherwise). A reply that fails the guard is
+    discarded: the attempt is burned, ``current``/``best`` stay put, and if
+    nothing valid ever came back the input text is returned with
+    ``error="fit-diverged"`` — a hallucinating model can no longer invent the
+    dub line (v0.3.9 field report).
     """
     tol_high = 1.0 if strict else TOL_HIGH
     initial_ratio = rate_ratio(text, slot_seconds, target_lang)
     if TOL_LOW <= initial_ratio <= tol_high:
         return {"text": text, "rate_ratio": initial_ratio, "attempts": 0}
+    if initial_ratio < _MIN_EXPANDABLE_RATIO:
+        return {
+            "text": text,
+            "rate_ratio": initial_ratio,
+            "attempts": 0,
+            "error": "fit-skip-short",
+        }
 
     from services import llm_skills
     # `active=` forwards this module's (monkeypatch-able) name so the
@@ -133,6 +162,7 @@ def adjust_for_slot(
 
     current = text
     best = (current, initial_ratio)
+    diverged = False
     for attempt in range(1, MAX_ATTEMPTS + 1):
         r = rate_ratio(current, slot_seconds, target_lang)
         if TOL_LOW <= r <= tol_high:
@@ -150,23 +180,43 @@ def adjust_for_slot(
             user_lines.append(f"Source line (for meaning): {source_text}")
 
         try:
-            next_text = llm.chat(system=system, user="\n".join(user_lines))
+            next_text = llm.chat(
+                system=system, user="\n".join(user_lines),
+                temperature=0.2,  # pinned like the Fast path — default 1.0 drifts/invents
+            )
         except Exception as e:
             logger.warning("speech-rate attempt %d failed: %s", attempt, e)
             return {"text": best[0], "rate_ratio": best[1], "attempts": attempt - 1, "error": str(e)}
 
         if next_text and next_text.strip():
-            current = next_text.strip()
+            candidate = next_text.strip()
+            # Divergence guard — validate against the ORIGINAL text, not
+            # `current`: each accepted reply becomes the next prompt's input,
+            # so per-step checks would let drift compound across attempts.
+            ok, reason = refine_output_ok(text, candidate, target_lang)
+            if not ok:
+                diverged = True
+                logger.warning(
+                    "speech-rate attempt %d rejected (%s) — discarding candidate",
+                    attempt, reason,
+                )
+                continue  # attempt burned; current/best untouched
+            current = candidate
             new_r = rate_ratio(current, slot_seconds, target_lang)
             # Keep the best candidate seen so far in case we exhaust retries.
             if abs(new_r - 1.0) < abs(best[1] - 1.0):
                 best = (current, new_r)
 
-    return {
+    out = {
         "text": best[0],
         "rate_ratio": best[1],
         "attempts": MAX_ATTEMPTS,
     }
+    # Every usable reply diverged and the input text survived unchanged —
+    # surface it on the row (rate_error in dub_translate, like fit-budget).
+    if diverged and best[0] == text:
+        out["error"] = "fit-diverged"
+    return out
 
 
 def adjust_many(pairs: Iterable[tuple[str, float, str, Optional[str]]]) -> list[dict]:

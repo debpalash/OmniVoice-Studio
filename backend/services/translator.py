@@ -59,8 +59,9 @@ _ADAPT_PROMPT = """\
 You are a cinematic dubbing writer. Rewrite the literal translation using the
 editor's critique so it sounds natural, in-character, and fits the speaker's
 time slot. Keep meaning faithful but prefer native idiom over word-for-word
-accuracy. The output MUST be written in the same target language and script
-as the literal translation — never switch language or transliterate.
+accuracy. Never introduce facts, names, or dialogue that are not present in
+the source line. The output MUST be written in the same target language and
+script as the literal translation — never switch language or transliterate.
 Reply ONLY with the adapted translation — no quotes, no headers, no code
 fences, no commentary."""
 
@@ -91,6 +92,107 @@ def _looks_like_target_script(text: str, code: str, threshold: float = 0.5) -> b
         return True
     inside = sum(1 for c in letters if lo <= ord(c) <= hi)
     return (inside / len(letters)) >= threshold
+
+
+# ── Divergence guard (shared with speech_rate's Autofit fit pass) ────────────
+# For every Latin-script target `_looks_like_target_script` passes ANY text
+# unconditionally (no `_SCRIPT_RANGES` entry), so it was the only — and for
+# es/de/fr/… a no-op — gate on the ADAPT/fit LLM output. These checks close
+# that gap for the whole class: runaway length (hallucinated dialogue,
+# refusals, commentary) and the REFLECT critique echoed back as the "line".
+
+_SHORT_REF_CHARS = 20        # below this, a length *ratio* is meaningless
+_SHORT_REF_ABS_SLACK = 120   # …use an absolute cap instead: ref + this many chars
+
+
+def _refine_ratio_bounds() -> tuple[float, float]:
+    """Accepted ``len(candidate)/len(reference)`` window for LLM refine output.
+    Anything outside is treated as divergence and the caller degrades to its
+    input text. Defaults [0.4, 2.5]; env-tunable like the cinematic budget."""
+    try:
+        lo = float(os.environ.get("OMNIVOICE_REFINE_RATIO_MIN", "0.4"))
+    except ValueError:
+        lo = 0.4
+    try:
+        hi = float(os.environ.get("OMNIVOICE_REFINE_RATIO_MAX", "2.5"))
+    except ValueError:
+        hi = 2.5
+    return lo, hi
+
+
+def _norm_overlap_text(s: str) -> str:
+    return " ".join(s.lower().split())
+
+
+def _echoes_critique(candidate: str, critique: str) -> bool:
+    """True when the "adaptation" is really the REFLECT critique leaking through.
+
+    Deterministic on purpose (no fuzzy matching): exact match after
+    case/whitespace normalization; containment — the full critique inside the
+    candidate always counts, the candidate inside the critique only when it
+    covers most of it (critiques legitimately quote short phrases from the
+    line); or >0.8 token-set overlap.
+    """
+    c = _norm_overlap_text(candidate)
+    k = _norm_overlap_text(critique)
+    if not c or not k:
+        return False
+    if c == k:
+        return True
+    if k in c:                                  # critique embedded in the output
+        return True
+    if c in k and len(c) >= 0.6 * len(k):       # output ≈ a big chunk of the critique
+        return True
+    ct, kt = set(c.split()), set(k.split())
+    union = ct | kt
+    return bool(union) and len(ct & kt) / len(union) > 0.8
+
+
+def refine_output_ok(
+    reference: str,
+    candidate: str,
+    target_lang: str,
+    *,
+    critique: str | None = None,
+    max_ratio: float | None = None,
+) -> tuple[bool, str | None]:
+    """Sanity-check one LLM refine output against the text it was rewriting.
+
+    Shared by the Cinematic ADAPT step here and by ``speech_rate``'s Autofit
+    fit pass (speech_rate imports this; translator never imports speech_rate,
+    so there is no cycle). Returns ``(ok, reason)`` — ``reason`` is ``None``
+    when ok, otherwise a short machine-readable tag for logs/error mapping.
+
+    Checks, in order:
+      • script — candidate must look like the target language's script
+        (``_looks_like_target_script``; Latin-script targets pass, as before);
+      • length — ``len(candidate)/len(reference)`` must sit inside
+        [``OMNIVOICE_REFINE_RATIO_MIN``, ``OMNIVOICE_REFINE_RATIO_MAX``]
+        (default 0.4–2.5; ``max_ratio`` overrides the upper bound). References
+        shorter than ~20 chars use an absolute cap (reference + 120 chars)
+        instead — a two-word line legitimately doubles or halves;
+      • critique echo — the candidate must not be the critique itself.
+    """
+    cand = (candidate or "").strip()
+    ref = (reference or "").strip()
+    if not cand:
+        return False, "empty"
+    if not _looks_like_target_script(cand, target_lang):
+        return False, f"wrong-script:{target_lang}"
+    lo, hi = _refine_ratio_bounds()
+    if max_ratio is not None:
+        hi = max_ratio
+    if ref:
+        if len(ref) < _SHORT_REF_CHARS:
+            if len(cand) > len(ref) + _SHORT_REF_ABS_SLACK:
+                return False, f"length-abs:{len(cand)}>{len(ref)}+{_SHORT_REF_ABS_SLACK}"
+        else:
+            ratio = len(cand) / len(ref)
+            if not (lo <= ratio <= hi):
+                return False, f"length-ratio:{ratio:.2f}"
+    if critique and _echoes_critique(cand, critique):
+        return False, "critique-echo"
+    return True, None
 
 
 # The LLM Skills registry entry this pipeline resolves through — lets the
@@ -173,6 +275,7 @@ def _chat(client, *, system: str, user: str) -> str:
     res = client.chat.completions.create(
         model=_llm_model(),
         timeout=_llm_timeout(),
+        temperature=0.2,  # pinned like the Fast path — default 1.0 drifts/invents
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user},
@@ -274,21 +377,28 @@ def cinematic_refine_sync(
         }
 
     final = (adapted or "").strip() or literal_text
-    # Refuse adaptations that drifted off the target script (e.g. local LLM
-    # rewrote a Devanagari line in Latin/German). Caller still gets the
-    # critique so the UI can show what happened, but the live text falls
-    # back to the literal translation rather than corrupting the dub.
-    if final is not literal_text and not _looks_like_target_script(final, target_lang):
-        logger.warning(
-            "cinematic adapt produced wrong-script output for %s — falling back to literal",
-            target_lang,
-        )
-        return {
-            "text": literal_text,
-            "literal": literal_text,
-            "critique": critique,
-            "error": f"adapt-wrong-script:{target_lang}",
-        }
+    # Refuse adaptations that diverged from the line they were rewriting:
+    # wrong script (e.g. a local LLM rewrote a Devanagari line in
+    # Latin/German), runaway length (hallucinated dialogue, refusals,
+    # commentary — the script check alone passes ANY text for Latin-script
+    # targets), or the critique echoed back as the "adaptation". Caller still
+    # gets the critique so the UI can show what happened, but the live text
+    # falls back to the literal translation rather than corrupting the dub.
+    if final is not literal_text:
+        ok, reason = refine_output_ok(literal_text, final, target_lang, critique=critique)
+        if not ok:
+            logger.warning(
+                "cinematic adapt diverged for %s (%s) — falling back to literal",
+                target_lang, reason,
+            )
+            wrong_script = (reason or "").startswith("wrong-script")
+            return {
+                "text": literal_text,
+                "literal": literal_text,
+                "critique": critique,
+                "error": (f"adapt-wrong-script:{target_lang}" if wrong_script
+                          else "adapt-diverged"),
+            }
     return {
         "text": final,
         "literal": literal_text,

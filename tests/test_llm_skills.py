@@ -255,9 +255,11 @@ def test_disabled_slot_fitting_returns_no_llm_marker(skills, store, monkeypatch)
     class _Fake:
         id = "openai-compat"
         def chat(self, **kw):
-            return "short"
+            # A plausible trim (0.93 ratio, within the divergence guard's
+            # length window vs the 30-char input) so the enabled path converges.
+            return "x" * 14
     monkeypatch.setattr(speech_rate, "get_active_llm_backend", lambda: _Fake())
-    long_text = "x" * 400  # far over any slot → forces the LLM branch
+    long_text = "x" * 30  # 2× over the slot → forces the LLM branch
     assert "error" not in speech_rate.adjust_for_slot(
         long_text, slot_seconds=1.0, target_lang="en")
     skills.configure_skill("slot_fitting", enabled=False)

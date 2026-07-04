@@ -54,9 +54,12 @@ class LLMBackend(ABC):
     def model_name(self) -> str: ...
 
     @abstractmethod
-    def chat(self, *, system: str, user: str, timeout: Optional[float] = None) -> str:
+    def chat(self, *, system: str, user: str, timeout: Optional[float] = None,
+             temperature: Optional[float] = None) -> str:
         """One-shot chat completion. Returns the assistant content string.
         Raises on failure — callers decide whether to fallback gracefully.
+        ``temperature`` is only sent to the provider when set — callers that
+        leave it None keep the provider default (existing behavior).
         """
 
 
@@ -132,32 +135,43 @@ class OpenAICompatBackend(LLMBackend):
         self._client = OpenAI(max_retries=0, **kw)
         return self._client
 
-    def chat(self, *, system: str, user: str, timeout: Optional[float] = None) -> str:
+    def chat(self, *, system: str, user: str, timeout: Optional[float] = None,
+             temperature: Optional[float] = None) -> str:
         return self.chat_messages(
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
             timeout=timeout,
+            temperature=temperature,
         )
 
-    def chat_messages(self, *, messages: list[dict], timeout: Optional[float] = None) -> str:
+    def chat_messages(self, *, messages: list[dict], timeout: Optional[float] = None,
+                      temperature: Optional[float] = None) -> str:
         """One-shot completion over a full message list.
 
         Additive surface for callers that need structured few-shot turns
         (dictation refinement, Wave 2.1) — small local models pattern-match
         and echo inline examples, so examples must arrive as prior chat
         turns, not inside the system prompt.
+
+        ``temperature`` is only forwarded when set (Cinematic/Autofit pin 0.2
+        — the provider default of 1.0 makes local models drift and invent);
+        every other caller leaves it None and keeps the provider default.
         """
         if timeout is None:
             try:
                 timeout = float(os.environ.get("OMNIVOICE_LLM_TIMEOUT", "45"))
             except ValueError:
                 timeout = 45.0
+        kw = {}
+        if temperature is not None:
+            kw["temperature"] = temperature
         res = self._get_client().chat.completions.create(
             model=self.model_name,
             timeout=timeout,
             messages=messages,
+            **kw,
         )
         return (res.choices[0].message.content or "").strip()
 

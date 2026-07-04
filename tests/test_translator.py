@@ -115,6 +115,101 @@ def test_cinematic_reflect_failure_returns_literal(monkeypatch):
     assert "reflect" in res.get("error", "")
 
 
+# ── Divergence guard (v0.3.9 field report: hallucinated dub lines) ─────────
+
+
+def _mock_chain(monkeypatch, reflect: str, adapt: str):
+    """Wire cinematic_refine_sync to a mocked 2-step REFLECT→ADAPT chain."""
+    responses = iter([reflect, adapt])
+    monkeypatch.setattr(tr, "_llm_client", lambda: MagicMock())
+    monkeypatch.setattr(tr, "_chat", lambda client, *, system, user: next(responses))
+
+
+def test_cinematic_adapt_runaway_length_falls_back_to_literal(monkeypatch):
+    """The reported bug: for a Latin-script target the script check passes ANY
+    text, so a hallucinated wall of dialogue used to ship as the dub line."""
+    literal = "¿Cómo estás hoy, amigo mío?"
+    _mock_chain(monkeypatch, "fine but a bit stiff", "Hola amigo. " * 30)  # ~13× the literal
+    res = tr.cinematic_refine_sync(
+        "How are you doing today, my friend?", literal,
+        source_lang="en", target_lang="es",
+    )
+    assert res["text"] == literal
+    assert res.get("error") == "adapt-diverged"
+    assert res["critique"] == "fine but a bit stiff"  # UI still sees what happened
+
+
+def test_cinematic_adapt_critique_echo_rejected(monkeypatch):
+    """ADAPT returning the critique itself must not become the dub line."""
+    literal = "¿Cómo estás hoy, amigo mío? Hace mucho que no te veo por aquí."
+    critique = (
+        "The literal translation reads stiff and does not fit the slot; "
+        "prefer a shorter, more idiomatic phrasing with warmer tone."
+    )
+    _mock_chain(monkeypatch, critique, critique)  # adapt echoes the critique verbatim
+    res = tr.cinematic_refine_sync(
+        "How are you doing today, my friend? Long time no see.", literal,
+        source_lang="en", target_lang="es",
+    )
+    assert res["text"] == literal
+    assert res.get("error") == "adapt-diverged"
+
+
+def test_cinematic_sane_adaptation_accepted(monkeypatch):
+    """A faithful, idiomatic rewrite passes every guard untouched."""
+    literal = "¿Cómo estás hoy, amigo mío? Hace mucho que no te veo."
+    adapted = "¿Qué tal, amigo? ¡Cuánto tiempo sin verte!"
+    _mock_chain(monkeypatch, "a bit formal; contract it", adapted)
+    res = tr.cinematic_refine_sync(
+        "How are you doing today, my friend? Long time no see.", literal,
+        source_lang="en", target_lang="es",
+    )
+    assert res["text"] == adapted
+    assert "error" not in res
+
+
+def test_cinematic_adapt_wrong_script_falls_back_to_literal(monkeypatch):
+    """ADAPT output off the target script degrades to the literal with the
+    script-specific marker (the pre-existing fallback, previously untested)."""
+    literal = "नमस्ते मेरे दोस्त, आप कैसे हैं?"
+    _mock_chain(monkeypatch, "solid but wordy", "This is English, not Hindi, sorry.")
+    res = tr.cinematic_refine_sync(
+        "Hello my friend, how are you?", literal,
+        source_lang="en", target_lang="hi",
+    )
+    assert res["text"] == literal
+    assert res.get("error") == "adapt-wrong-script:hi"
+
+
+def test_chat_pins_low_temperature(monkeypatch):
+    """Cinematic reflect/adapt must pin temperature like the Fast path does —
+    the provider default of 1.0 is what let local models drift into invention."""
+    client = MagicMock()
+    client.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content="ok"))])
+    monkeypatch.setattr(tr, "_llm_model", lambda: "test-model")
+    assert tr._chat(client, system="s", user="u") == "ok"
+    assert client.chat.completions.create.call_args.kwargs["temperature"] == 0.2
+
+
+def test_refine_guard_short_reference_uses_absolute_cap():
+    # A 2-word line legitimately triples — the ratio window must not apply.
+    ok, _ = tr.refine_output_ok("¡No!", "¡Claro que no, jamás!", "es")
+    assert ok
+    # …but a wall of text after a 2-word line is still divergence.
+    ok, reason = tr.refine_output_ok("¡No!", "x" * 200, "es")
+    assert not ok and reason.startswith("length-abs")
+
+
+def test_refine_guard_ratio_env_override(monkeypatch):
+    literal = "¿Cómo estás hoy, amigo mío?"
+    ok, reason = tr.refine_output_ok(literal, literal * 4, "es")
+    assert not ok and reason.startswith("length-ratio")
+    monkeypatch.setenv("OMNIVOICE_REFINE_RATIO_MAX", "5.0")
+    ok, _ = tr.refine_output_ok(literal, literal * 4, "es")
+    assert ok  # ceiling raised via env, mirroring the _cinematic_budget pattern
+
+
 # ── Cinematic pass wall-clock budget (#stall follow-up) ────────────────────
 
 def test_cinematic_budget_degrades_slow_segments_to_literal(monkeypatch):
