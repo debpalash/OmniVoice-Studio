@@ -1280,7 +1280,13 @@ class _LazyRegistry(dict):
         # effect on every list_backends() call — we keep iteration light
         # and let the caller's __getitem__ trigger the import.
         seen: set[str] = set()
-        for k in dict.__iter__(self):
+        # Snapshot the live keys before yielding. A concurrent thread's lazy
+        # __getitem__ inserts into self (self[key] = cls), and list_backends()
+        # runs in a FastAPI threadpool — so holding a *live* dict iterator open
+        # across the per-engine is_available() probes would raise
+        # "dictionary changed size during iteration". list() consumes the
+        # iterator atomically under the GIL, closing that window.
+        for k in list(dict.__iter__(self)):
             seen.add(k)
             yield k
         for k in _LAZY_REGISTRY:

@@ -1662,7 +1662,13 @@ class _LazyASRRegistry(dict):
 
     def __iter__(self):
         seen = set()
-        for k in dict.__iter__(self):
+        # Snapshot the live keys before yielding — see _LazyRegistry.__iter__ in
+        # tts_backend.py. A concurrent lazy __getitem__ inserts into self, and
+        # list_backends() runs in a FastAPI threadpool, so a *live* dict iterator
+        # held open across the per-engine is_available() probes would raise
+        # "dictionary changed size during iteration". list() consumes it
+        # atomically under the GIL, closing the window.
+        for k in list(dict.__iter__(self)):
             seen.add(k)
             yield k
         for k in self._LAZY:
