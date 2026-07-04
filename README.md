@@ -546,6 +546,17 @@ OmniVoice Studio is built on the shoulders of exceptional open-source work:
 
 ---
 
+## 🧰 More local open-source from the maker
+
+Like the local-first philosophy? It runs in the family:
+
+| Project | What it is |
+|---------|------------|
+| [**Opal**](https://github.com/debpalash/Opal) 💠 | **Play everything.** The evolved media player for the next decades of entertainment — video, anime, comics, torrents, Jellyfin/Plex, with local AI built in. |
+| [**memxt**](https://github.com/debpalash/memxt) 🧠 | **The fastest benchmarked open-source AI memory system.** 100% local memory for AI agents, with MCP support. |
+
+---
+
 <div align="center">
 
 <br/>
