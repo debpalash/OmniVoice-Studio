@@ -187,6 +187,14 @@ def put_job(job_id: str, job: dict) -> None:
 def save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0, content_hash: str = "") -> None:
     """Persist dub job state to SQLite so it survives restarts. Uses UPSERT
     on `id` so repeated saves in a session keep the latest snapshot.
+
+    language / language_code / content_hash only update when the incoming
+    value is non-empty: the ingest-time insert runs before the target
+    language is known (both columns ""), generation sets them on the job
+    dict, and a later save from a job that lost them (e.g. hydrated from an
+    old row) must not clobber the healed columns back to "". The frontend
+    keys history restore off language_code, so a frozen "" hid finished
+    tracks until the user re-picked a language.
     """
     try:
         segments = job.get("segments") or []
@@ -200,6 +208,8 @@ def save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0, 
                      filename=excluded.filename,
                      duration=excluded.duration,
                      segments_count=excluded.segments_count,
+                     language=CASE WHEN excluded.language != '' THEN excluded.language ELSE dub_history.language END,
+                     language_code=CASE WHEN excluded.language_code != '' THEN excluded.language_code ELSE dub_history.language_code END,
                      tracks=excluded.tracks,
                      job_data=excluded.job_data,
                      content_hash=CASE WHEN excluded.content_hash != '' THEN excluded.content_hash ELSE dub_history.content_hash END""",

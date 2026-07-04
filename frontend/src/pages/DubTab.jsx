@@ -349,11 +349,12 @@ export default function DubTab(props) {
     });
     setIngestUrl('');
   };
-  const hasDubbedTrack =
-    dubStep === 'done' &&
-    dubLangCode &&
-    dubLangCode !== 'und' &&
-    (dubTracks?.length > 0 || !!dubTracks);
+  // Track-switcher visibility is keyed to the persisted tracks ONLY — not the
+  // language dropdown. Restored projects can carry finished tracks while
+  // dubLangCode reads 'und' (older dub_history rows froze language_code at
+  // ""), and the old `dubLangCode !== 'und'` guard hid their tabs until the
+  // user re-picked a language.
+  const hasDubbedTrack = dubStep === 'done' && dubTracks.length > 0;
   // Cache-busting nonce, bumped every time a generation completes (see
   // useDubWorkflow's done handler). The preview URL is otherwise identical
   // across re-dubs, so the WebView could keep serving the previously
@@ -367,9 +368,14 @@ export default function DubTab(props) {
     : `${API}/dub/media/${dubJobId}`;
   // When a dub finishes, jump the preview to the freshly-dubbed language so the
   // result plays immediately — the user can tap back to Original any time.
+  // Membership guard: only jump to a language that actually has a track,
+  // otherwise fall back to the first track. Restored projects can have
+  // dubLangCode out of sync with the tracks (e.g. 'en'/'und' with tracks
+  // ['bn']) and an unguarded jump would point the player at
+  // /dub/preview-video?lang=en — a guaranteed 404.
   useEffect(() => {
-    if (hasDubbedTrack && previewMode === 'original' && dubLangCode && dubLangCode !== 'und') {
-      setPreviewMode(dubLangCode);
+    if (hasDubbedTrack && previewMode === 'original') {
+      setPreviewMode(dubTracks.includes(dubLangCode) ? dubLangCode : dubTracks[0]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasDubbedTrack, dubLangCode]);

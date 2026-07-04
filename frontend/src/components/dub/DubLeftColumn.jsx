@@ -18,6 +18,7 @@ import { useAppStore } from '../../store';
 import WaveformTimeline from '../WaveformTimeline';
 import MultiLangPicker from '../MultiLangPicker';
 import { API } from '../../api/client';
+import { dubListTracks } from '../../api/dub';
 import { LANG_CODES } from '../../utils/languages';
 import ALL_LANGUAGES from '../../languages.json';
 import { POPULAR_LANGS, PRESETS } from '../../utils/constants';
@@ -143,6 +144,49 @@ export default function DubLeftColumn({
     else toast.error(t('dub.copy_failed'));
   };
 
+  // Per-track metadata (duration + timing strategy) for the pill tooltips.
+  // The store only carries the track codes, so hydrate lazily from the
+  // existing GET /dub/tracks/{job_id} once the editor shows tracks (re-runs
+  // when a new language finishes and dubTracks changes). Failure-silent:
+  // the pills render fine without tooltips.
+  const [trackInfo, setTrackInfo] = useState({});
+  useEffect(() => {
+    if (!hasDubbedTrack || !dubJobId) return undefined;
+    let cancelled = false;
+    dubListTracks(dubJobId)
+      .then((tracks) => {
+        if (!cancelled) setTrackInfo(tracks || {});
+      })
+      .catch(() => {
+        /* tooltip enrichment only — never block or toast */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasDubbedTrack, dubJobId, dubTracks]);
+  const trackTooltip = (code) => {
+    const info = trackInfo[code];
+    if (!info) return undefined;
+    const parts = [];
+    if (Number.isFinite(info.duration) && info.duration > 0) {
+      parts.push(
+        t('dub.track_tip_duration', {
+          duration: fmtDur(Math.round(info.duration)),
+          defaultValue: 'Duration {{duration}}',
+        }),
+      );
+    }
+    if (info.timing_strategy) {
+      // Reuse the timing-strategy display names where they exist
+      // (dub.timing_<id>); unknown/future strategies fall back to the raw id.
+      const strategy = t(`dub.timing_${info.timing_strategy}`, {
+        defaultValue: info.timing_strategy,
+      });
+      parts.push(t('dub.track_tip_timing', { strategy, defaultValue: 'Timing {{strategy}}' }));
+    }
+    return parts.length ? parts.join(' · ') : undefined;
+  };
+
   return (
     <div className="studio-panel dub-panel-col">
       {hasDubbedTrack && (
@@ -170,6 +214,7 @@ export default function DubLeftColumn({
                 aria-checked={previewMode === code}
                 className={`dub-lang-pill ${previewMode === code ? 'is-active' : ''}`}
                 onClick={() => setPreviewMode(code)}
+                title={trackTooltip(code)}
               >
                 {label}
               </button>

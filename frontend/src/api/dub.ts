@@ -111,6 +111,23 @@ export async function clearDubHistory(): Promise<Response> {
   return apiFetch('/dub/history', { method: 'DELETE' });
 }
 
+export interface DubTrackInfo {
+  path?: string;
+  language?: string;
+  language_code?: string;
+  duration?: number;
+  timing_strategy?: string;
+}
+
+/** Per-track metadata (duration, timing strategy, …) keyed by language code.
+ *  Backs the track-pill tooltips; the store only carries the track codes. */
+export async function dubListTracks(jobId: string): Promise<Record<string, DubTrackInfo>> {
+  const res = await apiJson<{ tracks?: Record<string, DubTrackInfo> }>(
+    `/dub/tracks/${encodeURIComponent(jobId)}`,
+  );
+  return res?.tracks || {};
+}
+
 export interface DubQCResponse {
   engine: string;
   total: number;

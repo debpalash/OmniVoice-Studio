@@ -1045,8 +1045,12 @@ function App() {
         })),
       );
       setDubTranscript(job.full_transcript || '');
-      setDubLang(item.language || 'Auto');
-      setDubLangCode(item.language_code || 'und');
+      // Older DBs froze the language/language_code COLUMNS at the ingest-time
+      // "" (the UPSERT didn't update them until #P0 fixed it), but the job_data
+      // JSON always carried the value generation set. Falling back to job_data
+      // restores existing rows correctly without a migration.
+      setDubLang(item.language || job.language || 'Auto');
+      setDubLangCode(item.language_code || job.language_code || 'und');
       setDubTracks(Object.keys(job.dubbed_tracks || {}));
       setDubStep(Object.keys(job.dubbed_tracks || {}).length > 0 ? 'done' : 'editing');
       // Phase 4.5 — seg_hashes are written per successful segment by

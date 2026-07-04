@@ -8,7 +8,7 @@ os.environ.setdefault("OMNIVOICE_DISABLE_FILE_LOG", "1")
 
 import uuid
 import pytest
-from core.db import init_db
+from core.db import db_conn, init_db
 from services import dub_pipeline as dp
 
 
@@ -112,3 +112,49 @@ def test_save_job_persists_to_dub_history():
     assert rehydrated is not None
     assert rehydrated["filename"] == "disk.mp4"
     assert rehydrated["duration"] == 9.0
+
+
+def _lang_row(jid):
+    with db_conn() as conn:
+        return conn.execute(
+            "SELECT language, language_code FROM dub_history WHERE id=?", (jid,)
+        ).fetchone()
+
+
+def test_save_job_upsert_heals_language_columns():
+    """Completed-tracks-hidden P0: the ingest-time insert writes language /
+    language_code as "" (target language not chosen yet). Generation sets them
+    on the job dict, so the next save_job UPSERT must update the columns —
+    before the fix the update list skipped them and the row stayed "" forever,
+    which made history restore hand the frontend 'und' and hide the finished
+    tracks' tabs."""
+    jid = _jid()
+    job = {"filename": "v.mp4", "duration": 3.0, "segments": [], "dubbed_tracks": {}}
+    dp.save_job(jid, job)  # ingest-time insert: both columns ""
+    row = _lang_row(jid)
+    assert row["language"] == "" and row["language_code"] == ""
+
+    job["language"] = "Bengali"
+    job["language_code"] = "bn"
+    dp.save_job(jid, job)  # post-generation re-save heals the columns
+    row = _lang_row(jid)
+    assert row["language"] == "Bengali"
+    assert row["language_code"] == "bn"
+
+
+def test_save_job_upsert_does_not_clobber_language_with_empty():
+    """A later save without language info (e.g. a segment edit on a job dict
+    that predates the fields) must NOT reset the healed columns — same
+    non-empty guard the UPSERT already applies to content_hash."""
+    jid = _jid()
+    job = {
+        "filename": "v.mp4", "duration": 3.0, "segments": [], "dubbed_tracks": {},
+        "language": "Bengali", "language_code": "bn",
+    }
+    dp.save_job(jid, job)
+    job.pop("language")
+    job.pop("language_code")
+    dp.save_job(jid, job)  # empty values must lose to the stored ones
+    row = _lang_row(jid)
+    assert row["language"] == "Bengali"
+    assert row["language_code"] == "bn"
