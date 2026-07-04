@@ -72,6 +72,7 @@ import {
   CLONE_MAX_SECONDS,
 } from './utils/constants';
 import { LANG_CODES } from './utils/languages';
+import { restoreProjectExtras } from './utils/projectState';
 import { API, apiFetch } from './api/client';
 import { flushMemory as apiFlushMemory } from './api/system';
 import {
@@ -416,9 +417,15 @@ function App() {
   const defaultTrack = useAppStore((s) => s.defaultTrack);
   const setDefaultTrack = useAppStore((s) => s.setDefaultTrack);
   const exportTracks = useAppStore((s) => s.exportTracks);
+  const setExportTracks = useAppStore((s) => s.setExportTracks);
   const previewSegIds = useAppStore((s) => s.previewSegIds);
   const speakerClones = useAppStore((s) => s.speakerClones);
   const setSpeakerClones = useAppStore((s) => s.setSpeakerClones);
+  // Multi-language batch picks (P1.4) — saved with the project payload.
+  const multiLangMode = useAppStore((s) => s.multiLangMode);
+  const setMultiLangMode = useAppStore((s) => s.setMultiLangMode);
+  const multiLangs = useAppStore((s) => s.multiLangs);
+  const setMultiLangs = useAppStore((s) => s.setMultiLangs);
 
   const setGlossaryTerms = useAppStore((s) => s.setGlossaryTerms);
   const dualSubs = useAppStore((s) => s.dualSubs);
@@ -952,6 +959,12 @@ function App() {
         preserveBg,
         defaultTrack,
         speakerClones,
+        // P1.4 — multi-language batch setup + export-track prefs travel with
+        // the project. Additive: loaders default them when absent (see
+        // utils/projectState.js).
+        multiLangMode,
+        multiLangs,
+        exportTracks,
       },
     };
     try {
@@ -996,6 +1009,12 @@ function App() {
       // the last generate.
       setLastGenFingerprints(s.segHashes || {});
       setSpeakerClones(s.speakerClones || {});
+      // P1.4 — restore multi-lang picks; legacy payloads default to off/empty
+      // and leave the in-session exportTracks untouched (null sentinel).
+      const extras = restoreProjectExtras(s);
+      setMultiLangMode(extras.multiLangMode);
+      setMultiLangs(extras.multiLangs);
+      if (extras.exportTracks) setExportTracks(extras.exportTracks);
       toast.success(i18n.t('app.toast_opened', { name: data.name }));
     } catch (err) {
       toast.error(err.message);

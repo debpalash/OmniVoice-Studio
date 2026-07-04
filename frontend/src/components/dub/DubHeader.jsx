@@ -25,6 +25,7 @@ export default function DubHeader({
   handleDubStop,
   dubProgress,
   onGenerateClick,
+  isTranslating,
   multiLangMode,
   multiLangs,
   incrementalPlan,
@@ -99,9 +100,12 @@ export default function DubHeader({
               <>
                 <FooterBtn
                   sm
-                  tone={dubSegments.length ? 'pink' : 'idle'}
+                  tone={dubSegments.length && !isTranslating ? 'pink' : 'idle'}
                   onClick={onGenerateClick}
-                  disabled={!dubSegments.length}
+                  // The multi-language batch translates between generates while
+                  // dubStep briefly sits back at 'editing' — keep the CTA inert
+                  // during that phase so a re-click can't start a second batch.
+                  disabled={!dubSegments.length || isTranslating}
                   icon={<Play size={11} />}
                   label={
                     multiLangMode && multiLangs.length > 1

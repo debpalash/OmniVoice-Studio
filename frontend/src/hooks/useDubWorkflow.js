@@ -687,109 +687,131 @@ export default function useDubWorkflow({
     }
   }, [dubJobId, dubSegments, setDubSegments]);
 
-  const handleTranslateAll = useCallback(async () => {
-    if (!dubSegments.length || !dubLangCode) return;
-    setIsTranslating(true);
-    // Root cause of the "sticky TRANSLATION FAILED banner": a new translate
-    // attempt never cleared the previous failure, so a stale 400 survived even
-    // a successful retry. Clear it up front — the whole class of translate/
-    // pipeline error banners should reset on the next relevant action.
-    setDubError('');
-    try {
-      const data = await dubTranslate({
-        segments: dubSegments.map((s) => ({
-          id: String(s.id),
-          text: s.text_original && s.text_original.trim() ? s.text_original : s.text,
-          target_lang: s.target_lang,
-          direction: s.direction || undefined,
-          slot_seconds: s.end != null && s.start != null ? s.end - s.start : undefined,
-        })),
-        target_lang: dubLangCode,
-        provider: translateProvider,
-        quality: translateQuality,
-        // #280: regional dialect — only sent when it matches the target
-        // language so a stale "es-AR" never rides on a French translate.
-        dialect: dialectMatchesLang(dubDialect, dubLangCode) ? dubDialect : undefined,
-        glossary: glossaryTerms.length
-          ? glossaryTerms.map((t) => ({ source: t.source, target: t.target, note: t.note || '' }))
-          : undefined,
-      });
-      const translatedMap = {};
-      const errors = [];
-      (data.translated || []).forEach((t) => {
-        translatedMap[t.id] = t;
-        if (t.error) errors.push({ id: t.id, error: t.error });
-      });
-      setDubSegments(
-        dubSegments.map((s) => {
-          const hit = translatedMap[s.id];
-          if (!hit) return s;
-          return {
-            ...s,
-            text: hit.text && hit.text.trim() ? hit.text : s.text,
-            translate_error: hit.error || undefined,
-            translate_literal: hit.literal || undefined,
-            translate_critique: hit.critique || undefined,
-            // Carry over the predicted compression ratio so the per-row
-            // badge + job-level compression warning can light up before
-            // the user clicks Generate Dub.
-            rate_ratio: hit.rate_ratio != null ? hit.rate_ratio : s.rate_ratio,
-            rate_error: hit.rate_error || s.rate_error,
-          };
-        }),
-      );
-      if (data.cinematic_skipped === 'no-llm-configured') {
-        toast(t('dub_workflow.cinematic_no_llm'), { icon: 'ℹ️', duration: 8000 });
-        // #372: the backend fell back to Fast — reflect that in the toggle so
-        // the UI doesn't claim Cinematic while delivering Fast.
-        useAppStore.getState().setTranslateQuality?.('fast');
-      }
-      // #280: the user picked a dialect but the chosen engine can't honor it
-      // (Argos/NLLB/Google in Fast mode). Tell them how to make it count.
-      // #372: skip when the cinematic toast above already fired — both at once
-      // sent users in a circle ("pick Cinematic" ↔ "Cinematic needs an LLM").
-      if (
-        data.dialect &&
-        data.dialect_applied === false &&
-        data.cinematic_skipped !== 'no-llm-configured'
-      ) {
-        toast(t('dub_workflow.dialect_not_applied'), { icon: 'ℹ️', duration: 8000 });
-      }
-      if (errors.length) {
-        const unique = [...new Set(errors.map((e) => e.error))];
-        toast.error(
-          t('dub_workflow.translate_errors', {
-            errorCount: errors.length,
-            totalCount: data.translated.length,
-            firstError: unique[0].slice(0, 120),
+  // `langOverride` (optional ISO code string) is the multi-language batch path:
+  // the generate loop translates INTO each pick before dubbing it. No-arg calls
+  // (the Translate All button, the review checkpoint) behave exactly as before
+  // — the guard also shields the direct `onClick={handleTranslateAll}` usages,
+  // where the first argument is a click event, not a language.
+  // Resolves `true` when a translation landed in the segments, `false` when the
+  // request failed or nothing got translated — the batch loop skips generating
+  // that language rather than rendering a wrong-language track.
+  const handleTranslateAll = useCallback(
+    async (langOverride) => {
+      const targetLang =
+        typeof langOverride === 'string' && langOverride ? langOverride : dubLangCode;
+      // Snapshot segments at call time: inside the multi-language loop the
+      // click-time closure is stale after the previous pick's translate pass.
+      const segs = useAppStore.getState().dubSegments;
+      if (!segs.length || !targetLang) return false;
+      setIsTranslating(true);
+      // Root cause of the "sticky TRANSLATION FAILED banner": a new translate
+      // attempt never cleared the previous failure, so a stale 400 survived even
+      // a successful retry. Clear it up front — the whole class of translate/
+      // pipeline error banners should reset on the next relevant action.
+      setDubError('');
+      let ok = false;
+      try {
+        const data = await dubTranslate({
+          segments: segs.map((s) => ({
+            id: String(s.id),
+            text: s.text_original && s.text_original.trim() ? s.text_original : s.text,
+            target_lang: s.target_lang,
+            direction: s.direction || undefined,
+            slot_seconds: s.end != null && s.start != null ? s.end - s.start : undefined,
+          })),
+          target_lang: targetLang,
+          provider: translateProvider,
+          quality: translateQuality,
+          // #280: regional dialect — only sent when it matches the target
+          // language so a stale "es-AR" never rides on a French translate.
+          dialect: dialectMatchesLang(dubDialect, targetLang) ? dubDialect : undefined,
+          glossary: glossaryTerms.length
+            ? glossaryTerms.map((t) => ({ source: t.source, target: t.target, note: t.note || '' }))
+            : undefined,
+        });
+        const translatedMap = {};
+        const errors = [];
+        (data.translated || []).forEach((t) => {
+          translatedMap[t.id] = t;
+          if (t.error) errors.push({ id: t.id, error: t.error });
+        });
+        setDubSegments((prev) =>
+          prev.map((s) => {
+            const hit = translatedMap[s.id];
+            if (!hit) return s;
+            return {
+              ...s,
+              text: hit.text && hit.text.trim() ? hit.text : s.text,
+              translate_error: hit.error || undefined,
+              translate_literal: hit.literal || undefined,
+              translate_critique: hit.critique || undefined,
+              // Carry over the predicted compression ratio so the per-row
+              // badge + job-level compression warning can light up before
+              // the user clicks Generate Dub.
+              rate_ratio: hit.rate_ratio != null ? hit.rate_ratio : s.rate_ratio,
+              rate_error: hit.rate_error || s.rate_error,
+            };
           }),
-          { duration: 6000 },
         );
-      } else {
-        const qLabel =
-          data.quality_used === 'cinematic' ? t('dub_workflow.translated_cinematic_suffix') : '';
-        toast.success(
-          t('dub_workflow.translated_segments', {
-            count: data.translated.length,
-            lang: data.target_lang,
-          }) + qLabel,
-        );
+        // "Translated" for the batch loop means at least one segment actually
+        // got new text — an empty result or an all-errors result would make
+        // the follow-up generate render the source language verbatim.
+        const total = (data.translated || []).length;
+        ok = total > 0 && errors.length < total;
+        if (data.cinematic_skipped === 'no-llm-configured') {
+          toast(t('dub_workflow.cinematic_no_llm'), { icon: 'ℹ️', duration: 8000 });
+          // #372: the backend fell back to Fast — reflect that in the toggle so
+          // the UI doesn't claim Cinematic while delivering Fast.
+          useAppStore.getState().setTranslateQuality?.('fast');
+        }
+        // #280: the user picked a dialect but the chosen engine can't honor it
+        // (Argos/NLLB/Google in Fast mode). Tell them how to make it count.
+        // #372: skip when the cinematic toast above already fired — both at once
+        // sent users in a circle ("pick Cinematic" ↔ "Cinematic needs an LLM").
+        if (
+          data.dialect &&
+          data.dialect_applied === false &&
+          data.cinematic_skipped !== 'no-llm-configured'
+        ) {
+          toast(t('dub_workflow.dialect_not_applied'), { icon: 'ℹ️', duration: 8000 });
+        }
+        if (errors.length) {
+          const unique = [...new Set(errors.map((e) => e.error))];
+          toast.error(
+            t('dub_workflow.translate_errors', {
+              errorCount: errors.length,
+              totalCount: data.translated.length,
+              firstError: unique[0].slice(0, 120),
+            }),
+            { duration: 6000 },
+          );
+        } else {
+          const qLabel =
+            data.quality_used === 'cinematic' ? t('dub_workflow.translated_cinematic_suffix') : '';
+          toast.success(
+            t('dub_workflow.translated_segments', {
+              count: data.translated.length,
+              lang: data.target_lang,
+            }) + qLabel,
+          );
+        }
+      } catch (err) {
+        setDubError(t('dub_workflow.translation_failed', { message: err.message }));
       }
-    } catch (err) {
-      setDubError(t('dub_workflow.translation_failed', { message: err.message }));
-    }
-    setIsTranslating(false);
-  }, [
-    dubSegments,
-    dubLangCode,
-    dubDialect,
-    translateProvider,
-    translateQuality,
-    glossaryTerms,
-    setIsTranslating,
-    setDubSegments,
-    setDubError,
-  ]);
+      setIsTranslating(false);
+      return ok;
+    },
+    [
+      dubLangCode,
+      dubDialect,
+      translateProvider,
+      translateQuality,
+      glossaryTerms,
+      setIsTranslating,
+      setDubSegments,
+      setDubError,
+    ],
+  );
 
   const handleDubGenerate = useCallback(
     async (opts = {}) => {
@@ -801,8 +823,12 @@ export default function useDubWorkflow({
       // here, overriding the store's single selection (which is stale inside the
       // loop). Each run appends its track to the job's dubbed_tracks.
       const langOv = opts.langOverride || null;
+      // Snapshot segments at call time, not click time: the multi-language
+      // loop awaits a translate pass right before each generate, and the
+      // click-time closure would still hold the pre-translation text.
+      const segs = useAppStore.getState().dubSegments;
       setDubStep('generating');
-      setDubProgress({ current: 0, total: dubSegments.length, text: '' });
+      setDubProgress({ current: 0, total: segs.length, text: '' });
       setDubError('');
       const genLabel = regenOnly
         ? t('dub_workflow.regenerating', { count: regenOnly.length })
@@ -812,12 +838,12 @@ export default function useDubWorkflow({
         .showPill('generating', genLabel, { cancellable: true, homeMode: 'dub' });
       try {
         const body = {
-          segment_ids: dubSegments.map((s) => String(s.id)),
+          segment_ids: segs.map((s) => String(s.id)),
           regen_only: regenOnly,
           // Generation inputs come from the shared helper so the stored
           // fingerprints (seg_hashes) match what /tools/incremental recomputes
           // later — see utils/segments.js (#281).
-          segments: dubSegments.map((s) => ({
+          segments: segs.map((s) => ({
             start: s.start,
             end: s.end,
             gain: s.gain !== undefined && s.gain !== 1.0 ? s.gain : undefined,
@@ -895,7 +921,7 @@ export default function useDubWorkflow({
                   } else {
                     try {
                       const plan = await apiPost('/tools/incremental', {
-                        segments: dubSegments.map((s) => ({
+                        segments: segs.map((s) => ({
                           id: String(s.id),
                           ...segmentGenInputs(s),
                         })),
@@ -941,7 +967,6 @@ export default function useDubWorkflow({
     },
     [
       dubJobId,
-      dubSegments,
       dubLang,
       dubLangCode,
       dubInstruct,

@@ -927,6 +927,8 @@
     "hq_needs_llm_hint": "High-quality translation fits each line to its segment time using a local or cloud LLM. Set one up to enable it.",
     "set_up_llm": "Set up",
     "generate_dub_multi": "Generate {{count}} dubs",
+    "multi_translating": "Translating → {{lang}} ({{current}}/{{total}})…",
+    "multi_lang_skipped": "Translation failed for {{langs}} — those dubs were skipped so you never get a wrong-language track.",
     "pipeline": "Dubbing pipeline",
     "preview_language": "Preview language",
     "target_language": "Dub into",

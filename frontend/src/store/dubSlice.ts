@@ -45,6 +45,12 @@ interface DubPrepProgress {
 /** Segments are a loose shape — many optional fields added over time. */
 type DubSegment = Record<string, unknown> & { id: string; text: string };
 
+/** One multi-language batch pick — display name + ISO code (MultiLangPicker). */
+export interface MultiLangPick {
+  lang: string;
+  code: string;
+}
+
 type Updater<T> = T | ((prev: T) => T);
 
 function resolve<T>(updater: Updater<T>, prev: T): T {
@@ -103,6 +109,13 @@ export interface DubSlice {
   // paths (OpenAI/Ollama provider or Cinematic quality).
   dubDialect: string;
 
+  // Multi-language batch mode (P1.4) — the checkbox + language picks used by
+  // the "Generate N dubs" loop. Lived in DubTab component state before, so a
+  // tab switch or project reload silently dropped the picks; now they ride
+  // the store and the project save/load payload.
+  multiLangMode: boolean;
+  multiLangs: MultiLangPick[];
+
   // ── Generation options ────────────────────────────────────────────────
   dubInstruct: string;
   preserveBg: boolean;
@@ -158,6 +171,8 @@ export interface DubSlice {
   setDubLangCode: (v: Updater<string>) => void;
   setDubNumSpeakers: (v: Updater<number | null>) => void;
   setDubDialect: (v: Updater<string>) => void;
+  setMultiLangMode: (v: Updater<boolean>) => void;
+  setMultiLangs: (v: Updater<MultiLangPick[]>) => void;
   setDubInstruct: (v: Updater<string>) => void;
   setPreserveBg: (v: Updater<boolean>) => void;
   setDefaultTrack: (v: Updater<string>) => void;
@@ -192,6 +207,8 @@ const INITIAL: Omit<
   | 'setDubLangCode'
   | 'setDubNumSpeakers'
   | 'setDubDialect'
+  | 'setMultiLangMode'
+  | 'setMultiLangs'
   | 'setDubInstruct'
   | 'setPreserveBg'
   | 'setDefaultTrack'
@@ -223,6 +240,8 @@ const INITIAL: Omit<
   dubLangCode: 'en',
   dubNumSpeakers: null,
   dubDialect: '',
+  multiLangMode: false,
+  multiLangs: [],
   dubInstruct: '',
   preserveBg: true,
   defaultTrack: 'original',
@@ -257,6 +276,8 @@ export const createDubSlice: StateCreator<DubSlice, [], [], DubSlice> = (set, ge
   setDubLangCode: (v) => set((s) => ({ dubLangCode: resolve(v, s.dubLangCode) })),
   setDubNumSpeakers: (v) => set((s) => ({ dubNumSpeakers: resolve(v, s.dubNumSpeakers) })),
   setDubDialect: (v) => set((s) => ({ dubDialect: resolve(v, s.dubDialect) })),
+  setMultiLangMode: (v) => set((s) => ({ multiLangMode: resolve(v, s.multiLangMode) })),
+  setMultiLangs: (v) => set((s) => ({ multiLangs: resolve(v, s.multiLangs) })),
   setDubInstruct: (v) => set((s) => ({ dubInstruct: resolve(v, s.dubInstruct) })),
   setPreserveBg: (v) => set((s) => ({ preserveBg: resolve(v, s.preserveBg) })),
   setDefaultTrack: (v) => set((s) => ({ defaultTrack: resolve(v, s.defaultTrack) })),
