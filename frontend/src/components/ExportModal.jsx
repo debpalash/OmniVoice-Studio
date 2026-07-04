@@ -259,7 +259,11 @@ export default function ExportModal({
     onClose?.();
   };
   const runClips = () => {
-    handleAudioExport?.(`${API}/dub/export-segments/${jobId}`, 'segments.zip');
+    // Ask for the ACTIVE track's per-segment clips (P1.3 — the cache is
+    // language-keyed now); omitted lang falls back to the last-generated
+    // track server-side, which is all a legacy single-track job has.
+    const langQ = dubLangCode ? `?lang=${encodeURIComponent(dubLangCode)}` : '';
+    handleAudioExport?.(`${API}/dub/export-segments/${jobId}${langQ}`, 'segments.zip');
     onClose?.();
   };
 

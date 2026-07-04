@@ -457,6 +457,8 @@ function App() {
     closeDirection,
     saveDirection,
     setLastGenFingerprints,
+    fingerprintsByLang,
+    setFingerprintsByLang,
     incrementalPlan,
     recomputeIncremental,
   } = useSegmentEditing();
@@ -965,6 +967,11 @@ function App() {
         multiLangMode,
         multiLangs,
         exportTracks,
+        // P1.3 — per-language segment fingerprints, so reopening a project
+        // keeps every track's "Regen N changed" plan. Additive: legacy
+        // loaders ignore the key; segments' `translations` maps ride along
+        // inside dubSegments above.
+        segHashesByLang: fingerprintsByLang,
       },
     };
     try {
@@ -1006,8 +1013,17 @@ function App() {
       setDubStep(s.dubStep === 'done' ? 'done' : s.dubSegments?.length ? 'editing' : 'idle');
       // Phase 4.5 — rehydrate per-segment fingerprints. The incremental plan
       // immediately shows "N segments changed" for any segments edited after
-      // the last generate.
-      setLastGenFingerprints(s.segHashes || {});
+      // the last generate. P1.3: prefer the per-language map; a legacy flat
+      // `segHashes` can only describe the project's saved target language.
+      if (
+        s.segHashesByLang &&
+        typeof s.segHashesByLang === 'object' &&
+        !Array.isArray(s.segHashesByLang)
+      ) {
+        setFingerprintsByLang(s.segHashesByLang);
+      } else {
+        setLastGenFingerprints(s.segHashes || {}, s.dubLangCode || 'en');
+      }
       setSpeakerClones(s.speakerClones || {});
       // P1.4 — restore multi-lang picks; legacy payloads default to off/empty
       // and leave the in-session exportTracks untouched (null sentinel).
@@ -1074,8 +1090,21 @@ function App() {
       setDubStep(Object.keys(job.dubbed_tracks || {}).length > 0 ? 'done' : 'editing');
       // Phase 4.5 — seg_hashes are written per successful segment by
       // dub_generate.py. Reloading a half-generated dub lets the "Regen N
-      // changed" button resume right where the crash happened.
-      setLastGenFingerprints(job.seg_hashes || {});
+      // changed" button resume right where the crash happened. P1.3: prefer
+      // the per-language map (multi-track jobs); a legacy flat map belongs to
+      // the job's last-generated language — the code restored just above.
+      if (
+        job.seg_hashes_by_lang &&
+        typeof job.seg_hashes_by_lang === 'object' &&
+        !Array.isArray(job.seg_hashes_by_lang)
+      ) {
+        setFingerprintsByLang(job.seg_hashes_by_lang);
+      } else {
+        setLastGenFingerprints(
+          job.seg_hashes || {},
+          item.language_code || job.language_code || 'und',
+        );
+      }
       // Rehydrate the auto-extracted speaker clones so the CAST dropdown's
       // "🎤 From video" option reappears after a reload. Projects that
       // predate the speaker-clone feature have an empty map; the Extract

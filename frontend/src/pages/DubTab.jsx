@@ -84,7 +84,12 @@ export default function DubTab(props) {
   const dubLang = useAppStore((s) => s.dubLang);
   const setDubLang = useAppStore((s) => s.setDubLang);
   const dubLangCode = useAppStore((s) => s.dubLangCode);
-  const setDubLangCode = useAppStore((s) => s.setDubLangCode);
+  // User-driven language switches go through switchDubLangCode (P1.2): it
+  // swaps segment text through the per-language `translations` map instead
+  // of leaving the previous language's text on screen (and previously,
+  // letting the next translate destroy it). Non-user rehydration paths
+  // (project load, history restore) keep the plain setter.
+  const switchDubLangCode = useAppStore((s) => s.switchDubLangCode);
   const dubNumSpeakers = useAppStore((s) => s.dubNumSpeakers);
   const setDubNumSpeakers = useAppStore((s) => s.setDubNumSpeakers);
   const dubDialect = useAppStore((s) => s.dubDialect);
@@ -225,7 +230,10 @@ export default function DubTab(props) {
         for (let i = 0; i < multiLangs.length; i++) {
           const l = multiLangs[i];
           setDubLang(l.lang);
-          setDubLangCode(l.code); // keep UI/exports in sync
+          // Keep UI/exports in sync AND snapshot the previous pick's
+          // translations before this pick's translate pass overwrites the
+          // visible text (P1.2).
+          switchDubLangCode(l.code);
           const skipTranslate = i === 0 && l.code === dubLangCode && editorAlreadyTranslated;
           if (!skipTranslate) {
             // Honest phase label: this pill slot otherwise only says
@@ -272,7 +280,7 @@ export default function DubTab(props) {
     handleTranslateAll,
     handleDubGenerate,
     setDubLang,
-    setDubLangCode,
+    switchDubLangCode,
     t,
   ]);
 
@@ -546,7 +554,7 @@ export default function DubTab(props) {
           fetchYtSubs={fetchYtSubs}
           setFetchYtSubs={setFetchYtSubs}
           dubLangCode={dubLangCode}
-          setDubLangCode={setDubLangCode}
+          setDubLangCode={switchDubLangCode}
           setDubLang={setDubLang}
           landingAdvOpen={landingAdvOpen}
           setLandingAdvOpen={setLandingAdvOpen}
@@ -619,7 +627,7 @@ export default function DubTab(props) {
               hasAnyTranslation={hasAnyTranslation}
               handleCleanupSegments={handleCleanupSegments}
               setDubLang={setDubLang}
-              setDubLangCode={setDubLangCode}
+              setDubLangCode={switchDubLangCode}
               dubDialect={dubDialect}
               setDubDialect={setDubDialect}
               i18n={i18n}

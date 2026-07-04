@@ -739,9 +739,15 @@ export default function useDubWorkflow({
           prev.map((s) => {
             const hit = translatedMap[s.id];
             if (!hit) return s;
+            const gotText = !!(hit.text && hit.text.trim());
             return {
               ...s,
-              text: hit.text && hit.text.trim() ? hit.text : s.text,
+              text: gotText ? hit.text : s.text,
+              // P1.2 — keep every language's translation, keyed by target.
+              // `text` stays the currently-shown language (legacy single-slot
+              // contract); switching the target language swaps from this map
+              // instead of destroying the previous language's work.
+              ...(gotText ? { translations: { ...s.translations, [targetLang]: hit.text } } : {}),
               translate_error: hit.error || undefined,
               translate_literal: hit.literal || undefined,
               translate_critique: hit.critique || undefined,
@@ -916,8 +922,12 @@ export default function useDubWorkflow({
                       .map(([id]) => id);
                     setPreviewSegIds(previewIds);
                   }
+                  // P1.3 — hashes belong to the track that just generated
+                  // (the event carries its language), not to whatever the
+                  // store's selection is when the stream drains.
+                  const genLang = evt.language_code || body.language_code;
                   if (evt.seg_hashes && Object.keys(evt.seg_hashes).length > 0) {
-                    setLastGenFingerprints(evt.seg_hashes);
+                    setLastGenFingerprints(evt.seg_hashes, genLang);
                   } else {
                     try {
                       const plan = await apiPost('/tools/incremental', {
@@ -925,8 +935,9 @@ export default function useDubWorkflow({
                           id: String(s.id),
                           ...segmentGenInputs(s),
                         })),
+                        lang: genLang,
                       });
-                      setLastGenFingerprints(plan.fingerprints || {});
+                      setLastGenFingerprints(plan.fingerprints || {}, genLang);
                     } catch (err) {
                       console.warn('Incremental plan fallback failed:', err);
                     }

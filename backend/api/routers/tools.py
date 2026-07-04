@@ -77,6 +77,10 @@ async def probe(req: ProbeReq):
 class IncrementalReq(BaseModel):
     segments: list[dict]
     stored_hashes: Optional[dict[str, str]] = None
+    # P1.3 — the ACTIVE track's language code. When set, fingerprints are
+    # scoped to that language (pass that language's stored hashes alongside);
+    # omitted → legacy language-agnostic hashing, kept for old callers.
+    lang: Optional[str] = None
 
 
 @router.post("/tools/incremental")
@@ -84,6 +88,7 @@ def plan_incremental(req: IncrementalReq):
     return incremental.plan_incremental(
         req.segments,
         stored_hashes=req.stored_hashes or {},
+        track_lang=req.lang,
     )
 
 

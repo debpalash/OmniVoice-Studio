@@ -152,7 +152,7 @@ def test_final_dub_track_and_seg_wav_are_watermarked(patched_generate, monkeypat
     Fresh TTS output is watermarked exactly ONCE, right before its
     per-segment WAV is written. That seg WAV is BOTH the downloadable file
     and the assembly input, so:
-      - the downloadable seg_<id>.wav carries the mark, and
+      - the downloadable seg_{lang}_{id}.wav carries the mark, and
       - the final assembled track inherits it (the streaming memmap writer
         does NOT re-watermark, so there's no double-mark).
 
@@ -206,7 +206,7 @@ def test_final_dub_track_and_seg_wav_are_watermarked(patched_generate, monkeypat
     assert watermark.detect_watermark(final_wav, sr)["is_watermarked"] is True
 
     # Downloadable per-segment WAV is watermarked too.
-    seg_wav, seg_sr = torchaudio.load(str(job_dir / "seg_0.wav"))
+    seg_wav, seg_sr = torchaudio.load(str(job_dir / "seg_es_0.wav"))
     assert watermark.detect_watermark(seg_wav, seg_sr)["is_watermarked"] is True
 
     # Marked exactly once, on the FRESH seg (33s natural length) — NOT on the
@@ -225,7 +225,7 @@ def test_zero_and_negative_duration_segments_dont_crash(patched_generate):
 
     job["duration"] = 5.0
     segs = [
-        {"start": 0.0, "end": 1.0, "text": "0.5:hola"},  # normal → seg_0.wav
+        {"start": 0.0, "end": 1.0, "text": "0.5:hola"},  # normal → seg_es_0.wav
         {"start": 1.0, "end": 1.0, "text": ""},          # zero duration
         {"start": 2.0, "end": 2.8, "text": "   "},       # positive silence → mix temp
         {"start": 4.0, "end": 3.5, "text": "boom"},      # negative duration
@@ -279,7 +279,7 @@ def test_smart_fit_audio_only_stretch_keeps_original_duration(patched_generate):
     assert job["seg_wav_kind"] == "natural"
     # The on-disk per-segment WAV stays natural-rate (2.2s, not slot-squeezed).
     import torchaudio
-    wav, sr2 = torchaudio.load(str(job_dir / "seg_1.wav"))
+    wav, sr2 = torchaudio.load(str(job_dir / "seg_es_1.wav"))
     assert wav.shape[-1] == int(2.2 * SR)
 
 
@@ -356,7 +356,7 @@ def test_strict_slot_to_smart_fit_forces_one_full_regen(patched_generate):
     run(_body(segs, timing_strategy="strict_slot"))
     assert job["seg_wav_kind"] == "slotted"
     import torchaudio
-    wav, _ = torchaudio.load(str(job_dir / "seg_0.wav"))
+    wav, _ = torchaudio.load(str(job_dir / "seg_es_0.wav"))
     assert wav.shape[-1] == int(1.0 * SR)  # squeezed to the 1s slot
 
     # smart_fit "re-mix only" request — but the disk WAVs are slotted, so
@@ -365,7 +365,7 @@ def test_strict_slot_to_smart_fit_forces_one_full_regen(patched_generate):
     run(_body(segs, timing_strategy="smart_fit", regen_only=[]))
     assert model.calls == ["1.5:uno", "1.5:dos"]
     assert job["seg_wav_kind"] == "natural"
-    wav, _ = torchaudio.load(str(job_dir / "seg_0.wav"))
+    wav, _ = torchaudio.load(str(job_dir / "seg_es_0.wav"))
     assert wav.shape[-1] == int(1.5 * SR)  # natural-rate now
 
     # Now a fit-only change (re-mix): natural WAVs are reusable — zero TTS.

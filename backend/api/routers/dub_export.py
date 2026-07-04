@@ -170,8 +170,42 @@ async def dub_list_tracks(job_id: str):
     return {"tracks": job.get("dubbed_tracks", {})}
 
 
+def _segments_for_lang(job: dict, lang: "str | None") -> list:
+    """Job segments with `text` overlaid from ``job["segments_i18n"][lang]``.
+
+    P1.2 — ``job["segments"]`` is single-slot: it holds whichever language was
+    generated LAST, so exporting subtitles for track A after generating track B
+    emitted B's text under A's language label (the "N identical subtitle
+    files" class). ``segments_i18n`` ({lang: {segKey: text}}, written by
+    ``dub_generate._sync_job_segments``) preserves each generated track's text;
+    this overlays it non-destructively when present.
+
+    Back-compat: no lang requested, no ``segments_i18n`` on the job (predates
+    the field), no entry for this lang, or no text for a given segment — each
+    falls back to the segment as-is, i.e. exactly today's behaviour.
+    Segment keys are the stable id (str) with the list index (str) as the
+    legacy fallback, mirroring how the map is written.
+    """
+    segments = job.get("segments", [])
+    if not lang:
+        return segments
+    i18n = job.get("segments_i18n")
+    lang_texts = i18n.get(lang) if isinstance(i18n, dict) else None
+    if not isinstance(lang_texts, dict) or not lang_texts:
+        return segments
+    out = []
+    for i, seg in enumerate(segments):
+        key = str(seg.get("id")) if seg.get("id") is not None else str(i)
+        txt = lang_texts.get(key)
+        if txt is None:
+            txt = lang_texts.get(str(i))
+        out.append(dict(seg, text=txt) if isinstance(txt, str) and txt.strip() else seg)
+    return out
+
+
 def _write_burn_srt(job: dict, exports_dir: str, stamp: str, dual: bool,
-                    fitted_segments: "list[dict] | None" = None) -> str | None:
+                    fitted_segments: "list[dict] | None" = None,
+                    lang: "str | None" = None) -> str | None:
     """Build a temp SRT from job segments for use with ffmpeg's subtitles filter.
 
     Returned path is already ffmpeg-filter-safe (plain ASCII basename under exports_dir).
@@ -181,8 +215,11 @@ def _write_burn_srt(job: dict, exports_dir: str, stamp: str, dual: bool,
     fitted timeline — when provided, cue times come from there instead of
     the original ``job["segments"]`` timings, so burned subs track the
     retimed video / fitted audio rather than the source timeline.
+
+    ``lang`` (P1.2): burn the named track's text (see ``_segments_for_lang``)
+    instead of whatever language generated last.
     """
-    segments = job.get("segments", [])
+    segments = _segments_for_lang(job, lang)
     if not segments:
         return None
     if fitted_segments:
@@ -486,7 +523,9 @@ async def dub_download(
     # Smart Fit: cue times come from the fitted timeline — that's where the
     # dubbed audio actually sits, whether or not the video retime succeeds.
     fitted_segments = _fitted_segments_for(job, default_track) if default_track and default_track != "original" else None
-    sub_path = _write_burn_srt(job, exports_dir, stamp, dual, fitted_segments=fitted_segments) if burn_subs else None
+    # Burn the DEFAULT track's text (P1.2) — it's the audio the viewer hears.
+    _burn_lang = default_track if default_track and default_track != "original" else None
+    sub_path = _write_burn_srt(job, exports_dir, stamp, dual, fitted_segments=fitted_segments, lang=_burn_lang) if burn_subs else None
 
     # ── Smart Fit video retime (two-tier) ─────────────────────────────────
     # Tier 1 (≤48 chunks): single filter_complex graph inlined into the mux
@@ -1125,20 +1164,40 @@ async def dub_get_audio(job_id: str):
         raise HTTPException(status_code=404, detail="Audio file not found")
     return FileResponse(audio, media_type="audio/wav")
 
+def _seg_wav_candidates(job: dict, lang: "str | None", seg_keys: tuple) -> list:
+    """Per-segment WAV name candidates, language-keyed first (P1.3).
+
+    Generation writes ``seg_{lang}_{id}.wav`` now; ``lang`` defaults to the
+    job's last-generated track. Legacy un-keyed names (``seg_{id}.wav`` /
+    ``seg_{index}.wav``) stay as fallbacks so jobs rendered by previous
+    builds keep serving their audio — these read-only endpoints keep the
+    permissive fallback that matches their historic behaviour (the strict
+    single-track gate lives on the generate splice path, where a wrong-
+    language read would be baked into a track).
+    """
+    lang = lang or job.get("language_code")
+    keys = []
+    if lang:
+        keys.extend(f"{lang}_{k}" for k in seg_keys)
+    keys.extend(seg_keys)
+    return keys
+
+
 @router.get("/dub/preview/{job_id}/{segment_index}")
-async def dub_preview_segment(job_id: str, segment_index: int):
+async def dub_preview_segment(job_id: str, segment_index: int, lang: str = Query(None)):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    # Resolve the stable-id-named WAV via the render manifest; fall back to the
-    # legacy index name for jobs rendered before id-based naming (#185). Each
-    # candidate is realpath-normalised and containment-checked BEFORE any
-    # filesystem access, so the guard dominates every path sink.
+    # Resolve the stable-id-named WAV via the render manifest — language-keyed
+    # name first (P1.3), then the legacy id/index names for jobs rendered
+    # before per-language (and before id-based, #185) naming. Each candidate
+    # is realpath-normalised and containment-checked BEFORE any filesystem
+    # access, so the guard dominates every path sink.
     order = job.get("seg_order") or []
     seg_id = order[segment_index] if 0 <= segment_index < len(order) else segment_index
     base = os.path.realpath(DUB_DIR)
     seg_path = None
-    for _sid in (seg_id, segment_index):
+    for _sid in _seg_wav_candidates(job, lang, (seg_id, segment_index)):
         cand = os.path.realpath(dub_seg_path(job_id, _sid))
         if cand.startswith(base + os.sep) and os.path.exists(cand):
             seg_path = cand
@@ -1342,13 +1401,16 @@ def _fitted_cue_times(job: dict, lang: str | None) -> list | None:
 async def dub_export_srt(
     job_id: str,
     dual: bool = False,
-    lang: str = Query(None, description="Track language code. When that track was generated under Smart Fit or stretch_video, cue times come from the fitted timeline."),
+    lang: str = Query(None, description="Track language code. Emits that track's text (segments_i18n) when the job carries it; when that track was generated under Smart Fit or stretch_video, cue times come from the fitted timeline."),
 ):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    segments = job.get("segments", [])
+    # P1.2 — text follows the REQUESTED track, not whichever language was
+    # generated last (job["segments"] is single-slot). Legacy jobs without
+    # segments_i18n fall back to today's behaviour.
+    segments = _segments_for_lang(job, lang)
     if not segments:
         raise HTTPException(status_code=400, detail="No transcript segments available")
 
@@ -1391,13 +1453,14 @@ def _format_vtt_time(seconds):
 async def dub_export_vtt(
     job_id: str,
     dual: bool = False,
-    lang: str = Query(None, description="Track language code. When that track was generated under Smart Fit or stretch_video, cue times come from the fitted timeline."),
+    lang: str = Query(None, description="Track language code. Emits that track's text (segments_i18n) when the job carries it; when that track was generated under Smart Fit or stretch_video, cue times come from the fitted timeline."),
 ):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    segments = job.get("segments", [])
+    # Same per-track text resolution as /dub/srt (see comment there, P1.2).
+    segments = _segments_for_lang(job, lang)
     if not segments:
         raise HTTPException(status_code=400, detail="No transcript segments available")
 
@@ -1427,7 +1490,7 @@ async def dub_export_vtt(
 
 
 @router.get("/dub/export-segments/{job_id}")
-async def dub_export_segments_zip(job_id: str):
+async def dub_export_segments_zip(job_id: str, lang: str = Query(None)):
     import zipfile
     job = _get_job(job_id)
     if not job:
@@ -1445,7 +1508,7 @@ async def dub_export_segments_zip(job_id: str):
             seg_id = order[i] if i < len(order) else i
             # realpath + containment guard before any filesystem access.
             seg_path = None
-            for _sid in (seg_id, i):
+            for _sid in _seg_wav_candidates(job, lang, (seg_id, i)):
                 cand = os.path.realpath(dub_seg_path(job_id, _sid))
                 if cand.startswith(base + os.sep) and os.path.exists(cand):
                     seg_path = cand

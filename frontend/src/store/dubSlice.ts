@@ -169,6 +169,17 @@ export interface DubSlice {
   bumpDubGenNonce: () => void;
   setDubLang: (v: Updater<string>) => void;
   setDubLangCode: (v: Updater<string>) => void;
+  /**
+   * User-driven target-language switch (P1.2). Unlike the plain setter it
+   * also remaps segment text through the per-language `translations` store:
+   * the outgoing language's text is snapshotted into `translations[prev]`
+   * (only when it's an actual translation — differs from `text_original`),
+   * and the incoming language's saved text is swapped into `text` when one
+   * exists. Non-destructive: with no saved entry, `text` is left untouched —
+   * exactly the legacy behaviour. Restore/rehydrate paths (project load, dub
+   * history) must keep using `setDubLangCode`, which never touches segments.
+   */
+  switchDubLangCode: (code: string) => void;
   setDubNumSpeakers: (v: Updater<number | null>) => void;
   setDubDialect: (v: Updater<string>) => void;
   setMultiLangMode: (v: Updater<boolean>) => void;
@@ -205,6 +216,7 @@ const INITIAL: Omit<
   | 'bumpDubGenNonce'
   | 'setDubLang'
   | 'setDubLangCode'
+  | 'switchDubLangCode'
   | 'setDubNumSpeakers'
   | 'setDubDialect'
   | 'setMultiLangMode'
@@ -274,6 +286,29 @@ export const createDubSlice: StateCreator<DubSlice, [], [], DubSlice> = (set, ge
   bumpDubGenNonce: () => set(() => ({ dubGenNonce: Date.now() })),
   setDubLang: (v) => set((s) => ({ dubLang: resolve(v, s.dubLang) })),
   setDubLangCode: (v) => set((s) => ({ dubLangCode: resolve(v, s.dubLangCode) })),
+  switchDubLangCode: (code) =>
+    set((s) => {
+      const prev = s.dubLangCode;
+      if (!code || code === prev) return {};
+      const dubSegments = s.dubSegments.map((seg) => {
+        const translations: Record<string, string> = {
+          ...(seg.translations as Record<string, string> | undefined),
+        };
+        // Snapshot the outgoing language's text — but only real translations
+        // (differs from the source), so a never-translated row can't stamp
+        // source-language text as the previous language's translation.
+        // Legacy projects (no `translations` yet) get theirs seeded here.
+        const text = typeof seg.text === 'string' ? seg.text : '';
+        if (prev && text.trim() && text !== seg.text_original) translations[prev] = text;
+        const incoming = translations[code];
+        return {
+          ...seg,
+          translations,
+          ...(typeof incoming === 'string' && incoming.trim() ? { text: incoming } : {}),
+        };
+      });
+      return { dubLangCode: code, dubSegments };
+    }),
   setDubNumSpeakers: (v) => set((s) => ({ dubNumSpeakers: resolve(v, s.dubNumSpeakers) })),
   setDubDialect: (v) => set((s) => ({ dubDialect: resolve(v, s.dubDialect) })),
   setMultiLangMode: (v) => set((s) => ({ multiLangMode: resolve(v, s.multiLangMode) })),

@@ -87,6 +87,62 @@ def _sync_job_segments(job: dict, req: DubRequest) -> None:
         merged.append(row)
     job["segments"] = merged
 
+    # P1.2 — per-language text, additively. `job["segments"]` stays the flat
+    # single-slot map every existing consumer reads (last generated language);
+    # `job["segments_i18n"]` preserves EACH generated track's text so
+    # /dub/srt|vtt?lang= can emit that language instead of N identical files.
+    # Shape: { langCode: { segKey: text } } where segKey is the segment's
+    # stable id (str) or, for id-less legacy segments, its list index (str).
+    # The whole per-language map is rebuilt on every generate of that language
+    # (the request always carries the full segment list), so deleted segments
+    # never linger. Jobs predating this field simply lack it — every reader
+    # falls back to `job["segments"]`.
+    lang = (req.language_code or "und").strip() or "und"
+    i18n = job.setdefault("segments_i18n", {})
+    i18n[lang] = {
+        (str(row["id"]) if row.get("id") is not None else str(i)): row["text"]
+        for i, row in enumerate(merged)
+    }
+
+
+def _seg_hashes_by_lang(job: dict) -> dict:
+    """Per-language segment fingerprints: { langCode: { segId: hash } }.
+
+    Additive migration (P1.3): jobs written by previous builds carry ONE flat
+    `seg_hashes` map that was overwritten by whichever language generated
+    last. That flat map can only describe the job's last-generated track, so
+    it is attributed to `job["language_code"]` (which generate has always
+    kept in lock-step with the last run). When even that is unknown the
+    legacy hashes are dropped — segments then read as stale and regenerate
+    cleanly, which is safer than guessing a language and splicing wrong-track
+    audio. Note the legacy hashes also predate language-scoped fingerprints
+    (see services.incremental.segment_fingerprint), so they compare stale
+    once regardless — carrying them over just preserves the job shape.
+    """
+    by_lang = job.get("seg_hashes_by_lang")
+    if not isinstance(by_lang, dict):
+        by_lang = {}
+        legacy = job.get("seg_hashes")
+        prev_lang = job.get("language_code")
+        if isinstance(legacy, dict) and legacy and prev_lang:
+            by_lang[prev_lang] = dict(legacy)
+        job["seg_hashes_by_lang"] = by_lang
+    return by_lang
+
+
+def _legacy_seg_cache_ok(job: dict, lang_code: str) -> bool:
+    """May this run reuse legacy un-keyed ``seg_<id>.wav`` files?
+
+    Only when no OTHER language's audio could be sitting in them: the job has
+    no dubbed track in a different language. Single-language jobs rendered by
+    previous builds therefore keep their whole on-disk cache; the moment a
+    job carries a second language the un-keyed files are ambiguous (they hold
+    whichever language wrote them last) and must never be spliced into a
+    track again — the P1.3 cross-contamination class.
+    """
+    tracks = job.get("dubbed_tracks") or {}
+    return not any(lc != lang_code for lc in tracks)
+
 
 router = APIRouter()
 
@@ -106,6 +162,18 @@ async def dub_generate(job_id: str, req: DubRequest):
         total = len(req.segments)
         all_segment_wavs = []
         sync_scores = []
+
+        # Track language for this run. Everything per-track — the per-segment
+        # WAV cache, fingerprints, seg_wav_kind — is keyed by it (P1.3) so a
+        # multi-language job's tracks can't cross-contaminate.
+        lang_code = req.language_code or "und"
+
+        def _seg_lang_path(seg_key) -> str:
+            # Per-language per-segment WAV: seg_{lang}_{id}.wav. Built through
+            # dub_seg_path so the sanitisation + DUB_DIR containment guard
+            # apply to the combined key. Legacy un-keyed seg_{id}.wav files
+            # remain readable via the gated fallback (_legacy_seg_cache_ok).
+            return dub_seg_path(job_id, f"{lang_code}_{seg_key}")
 
         # Throttle the device cache flush. empty_cache() is a synchronous
         # device stall, so calling it every segment (as the old code did)
@@ -236,7 +304,16 @@ async def dub_generate(job_id: str, req: DubRequest):
         # double-compress. Force one full regen; afterwards seg_wav_kind is
         # "natural" and partial regen / fit-only re-mix (regen_only=[]) work.
         # Jobs predating this field have unknown kind → also regen once.
-        if strategy == "smart_fit" and regen_only is not None and job.get("seg_wav_kind") != "natural":
+        # P1.3: the kind is per-track now (each language renders under its own
+        # strategy); the flat job["seg_wav_kind"] is only consulted for jobs
+        # written before the per-language map existed — once the map is
+        # present, a language without an entry has unknown-kind WAVs (or none
+        # at all) and must regen once, exactly like the pre-field case.
+        _kind_map = job.get("seg_wav_kind_by_lang")
+        _wav_kind = (
+            _kind_map.get(lang_code) if isinstance(_kind_map, dict) else job.get("seg_wav_kind")
+        )
+        if strategy == "smart_fit" and regen_only is not None and _wav_kind != "natural":
             regen_only = None
         # Manifest: stable segment id per current index. Per-segment WAVs are
         # named by stable id (dub_seg_path) so regen reuses the right audio after
@@ -283,12 +360,19 @@ async def dub_generate(job_id: str, req: DubRequest):
             # Partial regen: if this segment isn't in the allow-list, reuse its
             # previously-rendered WAV so the final mix still covers the timeline.
             if regen_only is not None and seg_id not in regen_only:
-                seg_wav_path = dub_seg_path(job_id, seg_id)
-                if not os.path.exists(seg_wav_path):
-                    # Back-compat: jobs rendered before id-named files used seg_{index}.wav.
-                    _legacy = dub_seg_path(job_id, i)
-                    if os.path.exists(_legacy):
-                        seg_wav_path = _legacy
+                # This track's own cache first (seg_{lang}_{id}.wav). Legacy
+                # un-keyed files (seg_{id}.wav / seg_{index}.wav) are reused
+                # ONLY when no other-language track exists on the job — a
+                # multi-track job's un-keyed files hold whichever language
+                # rendered last, and splicing them here was exactly how
+                # "Regen N changed" mixed language B into track A (P1.3).
+                seg_wav_path = _seg_lang_path(seg_id)
+                if not os.path.exists(seg_wav_path) and _legacy_seg_cache_ok(job, lang_code):
+                    for _legacy_key in (seg_id, i):
+                        _legacy = dub_seg_path(job_id, _legacy_key)
+                        if os.path.exists(_legacy):
+                            seg_wav_path = _legacy
+                            break
                 if os.path.exists(seg_wav_path):
                     try:
                         _t_cache_0 = time.perf_counter()
@@ -584,6 +668,9 @@ async def dub_generate(job_id: str, req: DubRequest):
                 # and job flush to the batch-write phase after the GPU loop.
                 _seg_fp = None
                 try:
+                    # track_lang scopes the hash to THIS track (P1.3); the
+                    # client-side recompute (/tools/incremental) sends the
+                    # same code, so parity (#281 class) holds per language.
                     _seg_fp = segment_fingerprint({
                         "text": seg.text,
                         "target_lang": getattr(seg, "target_lang", None),
@@ -592,7 +679,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                         "speed": getattr(seg, "speed", None),
                         "direction": getattr(seg, "direction", None),
                         "effect_preset": getattr(seg, "effect_preset", None),
-                    })
+                    }, track_lang=lang_code)
                 except Exception as e:
                     logger.debug("seg fingerprint skipped for %s: %s", seg_id, e)
 
@@ -601,7 +688,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                 # RVC needs the WAV on disk, so write it immediately only
                 # when RVC is active (uncommon path).
                 if rvc_is_enabled():
-                    seg_wav_path = dub_seg_path(job_id, seg_id)
+                    seg_wav_path = _seg_lang_path(seg_id)
                     atomic_save_wav(seg_wav_path, audio_tensor, _model.sampling_rate)
                     try:
                         await loop.run_in_executor(_gpu_pool, apply_rvc, seg_wav_path)
@@ -619,15 +706,16 @@ async def dub_generate(job_id: str, req: DubRequest):
                         yield f"data: {json.dumps({'type': 'warning', 'segment': i, 'message': f'RVC skipped: {str(e)[:120]}'})}\n\n"
 
                 # Watermark this FRESH TTS output exactly once, right before it
-                # is persisted. The same seg_<id>.wav is BOTH the downloadable
-                # per-segment file AND the assembly input for the final track,
-                # so marking it here (and nowhere else) gives the downloadable
-                # WAV its mark back and the final mix inherits it — no double-
-                # mark. Cached-reuse audio is already marked; silence/zero slots
-                # carry no speech to mark, so neither is re-watermarked.
+                # is persisted. The same seg_{lang}_{id}.wav is BOTH the
+                # downloadable per-segment file AND the assembly input for the
+                # final track, so marking it here (and nowhere else) gives the
+                # downloadable WAV its mark back and the final mix inherits it —
+                # no double-mark. Cached-reuse audio is already marked;
+                # silence/zero slots carry no speech to mark, so neither is
+                # re-watermarked.
                 audio_tensor = embed_watermark(audio_tensor, _model.sampling_rate)
 
-                seg_wav_path = dub_seg_path(job_id, seg_id)
+                seg_wav_path = _seg_lang_path(seg_id)
                 try:
                     # Keep the existing per-segment WAV contract for previews
                     # and partial regeneration, but do not keep the tensor in RAM.
@@ -663,12 +751,19 @@ async def dub_generate(job_id: str, req: DubRequest):
         # Per-segment WAVs were written during the loop to keep RAM bounded.
         # Flush only lightweight fingerprints/quality metadata here.
         _t_diskw_0 = time.perf_counter()
-        hashes = job.setdefault("seg_hashes", {})
+        # P1.3 — fingerprints live per language so each track's staleness is
+        # judged against ITS OWN last generate. The flat job["seg_hashes"] is
+        # kept as a mirror of the CURRENT track's map: every existing consumer
+        # (the `done` event, dub-history restore, older frontends) already
+        # treats it as "the hashes of the language generated last", which is
+        # exactly what it now provably contains.
+        hashes = _seg_hashes_by_lang(job).setdefault(lang_code, {})
         quality_map = job.setdefault("seg_num_step", {})
         for (_si, _sr, _sid, _fp, _nstep) in _pending_seg_writes:
             if _fp is not None:
                 hashes[_sid] = _fp
             quality_map[_sid] = _nstep
+        job["seg_hashes"] = dict(hashes)
         # Single job flush instead of one per 8 segments.
         _save_job(job_id, job)
         _t_diskw = time.perf_counter() - _t_diskw_0
@@ -759,7 +854,6 @@ async def dub_generate(job_id: str, req: DubRequest):
         # not from the plan — so subtitles land exactly on the audio.
         fitted_cues: list[dict] = []
 
-        lang_code = req.language_code or "und"
         track_path = os.path.join(DUB_DIR, job_id, f"dubbed_{lang_code}.wav")
         os.makedirs(os.path.dirname(track_path), exist_ok=True)
 
@@ -1049,8 +1143,12 @@ async def dub_generate(job_id: str, req: DubRequest):
             job["dubbed_tracks"][lang_code]["fit_fp"] = fit_fp
         # Record what kind of per-segment WAVs are on disk so a later
         # smart_fit run knows whether partial regen / fit-only re-mix can
-        # reuse them ("natural") or must regen once ("slotted").
-        job["seg_wav_kind"] = "slotted" if strategy == "strict_slot" else "natural"
+        # reuse them ("natural") or must regen once ("slotted"). Per-track
+        # (P1.3) — each language renders under its own strategy; the flat
+        # field stays in lock-step for older readers.
+        _kind = "slotted" if strategy == "strict_slot" else "natural"
+        job.setdefault("seg_wav_kind_by_lang", {})[lang_code] = _kind
+        job["seg_wav_kind"] = _kind
         _save_job(job_id, job)
 
         _t_total = time.perf_counter() - _t_start

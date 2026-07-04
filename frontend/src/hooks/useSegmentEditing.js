@@ -11,6 +11,10 @@ import { apiPost } from '../api/client';
 import { segmentGenInputs } from '../utils/segments';
 import { commitMoveResize } from '../utils/timeline';
 
+// Stable empty map so `lastGenFingerprints` keeps a constant identity for a
+// language with no stored hashes (avoids effect/callback churn).
+const EMPTY_FINGERPRINTS = {};
+
 export default function useSegmentEditing() {
   const dubSegments = useAppStore((s) => s.dubSegments);
   const setDubSegments = useAppStore((s) => s.setDubSegments);
@@ -50,7 +54,20 @@ export default function useSegmentEditing() {
   const segmentEditField = useCallback(
     (id, field, value) => {
       pushUndo(dubSegments);
-      setDubSegments((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
+      // P1.2 — a manual text edit is a translation edit for the CURRENT
+      // target language: keep `translations[lang]` in lock-step with `text`
+      // so switching languages and back never loses the edit.
+      const lang = useAppStore.getState().dubLangCode;
+      setDubSegments((prev) =>
+        prev.map((s) => {
+          if (s.id !== id) return s;
+          const next = { ...s, [field]: value };
+          if (field === 'text' && lang) {
+            next.translations = { ...s.translations, [lang]: value };
+          }
+          return next;
+        }),
+      );
     },
     [dubSegments],
   );
@@ -87,10 +104,22 @@ export default function useSegmentEditing() {
   const segmentRestoreOriginal = useCallback(
     (id) => {
       pushUndo(dubSegments);
+      // "Use the original text for this row" is a per-language decision like
+      // any other text edit — record it under the current language so a
+      // round-trip through another language doesn't resurrect the discarded
+      // translation (P1.2).
+      const lang = useAppStore.getState().dubLangCode;
       setDubSegments((prev) =>
-        prev.map((s) =>
-          s.id === id ? { ...s, text: s.text_original || s.text, translate_error: undefined } : s,
-        ),
+        prev.map((s) => {
+          if (s.id !== id) return s;
+          const restored = s.text_original || s.text;
+          return {
+            ...s,
+            text: restored,
+            ...(lang ? { translations: { ...s.translations, [lang]: restored } } : {}),
+            translate_error: undefined,
+          };
+        }),
       );
     },
     [dubSegments],
@@ -164,12 +193,16 @@ export default function useSegmentEditing() {
         const pos = Math.max(1, Math.min(cursorPos, text.length - 1));
         const ratio = text.length > 0 ? pos / text.length : 0.5;
         const midT = seg.start + (seg.end - seg.start) * ratio;
+        // Other languages' saved texts (P1.2) can't be split at a sensible
+        // position for the halves — drop them; the halves are new segment ids
+        // that need fresh TTS per language anyway.
         const left = {
           ...seg,
           id: `${seg.id}_a`,
           text: text.slice(0, pos).trim(),
           end: midT,
           text_original: text.slice(0, pos).trim(),
+          translations: undefined,
         };
         const right = {
           ...seg,
@@ -177,6 +210,7 @@ export default function useSegmentEditing() {
           text: text.slice(pos).trim(),
           start: midT,
           text_original: text.slice(pos).trim(),
+          translations: undefined,
         };
         return [...prev.slice(0, idx), left, right, ...prev.slice(idx + 1)];
       });
@@ -193,12 +227,24 @@ export default function useSegmentEditing() {
         if (idx < 0 || idx >= prev.length - 1) return prev;
         const a = prev[idx];
         const b = prev[idx + 1];
+        // Merge per-language texts (P1.2) only where BOTH sides carry the
+        // language — a half-known language would otherwise mix two languages
+        // in one entry. Missing entries just mean "translate again".
+        const ta = a.translations || {};
+        const tb = b.translations || {};
+        const mergedTranslations = {};
+        for (const lang of Object.keys(ta)) {
+          if (typeof ta[lang] === 'string' && typeof tb[lang] === 'string') {
+            mergedTranslations[lang] = `${ta[lang]} ${tb[lang]}`.trim();
+          }
+        }
         const merged = {
           ...a,
           text: `${a.text || ''} ${b.text || ''}`.trim(),
           text_original:
             `${a.text_original || a.text || ''} ${b.text_original || b.text || ''}`.trim(),
           end: b.end,
+          translations: Object.keys(mergedTranslations).length ? mergedTranslations : undefined,
         };
         return [...prev.slice(0, idx), merged, ...prev.slice(idx + 2)];
       });
@@ -221,8 +267,25 @@ export default function useSegmentEditing() {
     [directionSegId, dubSegments],
   );
 
-  // Incremental plan — tracks which segments changed since last generate
-  const [lastGenFingerprints, setLastGenFingerprints] = useState({});
+  // Incremental plan — tracks which segments changed since last generate.
+  // P1.3: fingerprints are stored PER LANGUAGE ({ lang: { segId: hash } }),
+  // and `lastGenFingerprints` is the ACTIVE language's map — so "Regen N
+  // changed" is judged against the track you're looking at, never against
+  // whichever language happened to generate last. Switching to a language
+  // that was never generated yields an empty map → no plan (no false
+  // "all fresh" / "all stale" claims).
+  const dubLangCode = useAppStore((s) => s.dubLangCode);
+  const [fingerprintsByLang, setFingerprintsByLang] = useState({});
+  const lastGenFingerprints = fingerprintsByLang[dubLangCode] || EMPTY_FINGERPRINTS;
+  // Same call signature as before for existing single-track callers; the
+  // optional `lang` pins the map to the track that produced the hashes
+  // (e.g. each pick of the multi-language batch loop) instead of whatever
+  // the store's selection is by the time the response lands.
+  const setLastGenFingerprints = useCallback((map, lang) => {
+    const key = lang || useAppStore.getState().dubLangCode;
+    if (!key) return;
+    setFingerprintsByLang((prev) => ({ ...prev, [key]: map || {} }));
+  }, []);
   const [incrementalPlan, setIncrementalPlan] = useState(null);
 
   const recomputeIncremental = useCallback(async () => {
@@ -232,16 +295,19 @@ export default function useSegmentEditing() {
     }
     try {
       // Same payload shape as the generate request (utils/segments.js) so
-      // stored fingerprints actually match unchanged segments (#281).
+      // stored fingerprints actually match unchanged segments (#281). `lang`
+      // must match the language the generate run hashed with — it's part of
+      // the fingerprint now (P1.3).
       const res = await apiPost('/tools/incremental', {
         segments: dubSegments.map((s) => ({ id: String(s.id), ...segmentGenInputs(s) })),
         stored_hashes: lastGenFingerprints,
+        lang: dubLangCode,
       });
       setIncrementalPlan({ stale: res.stale, fresh: res.fresh });
     } catch (e) {
       console.warn('incremental plan failed', e);
     }
-  }, [dubSegments, lastGenFingerprints]);
+  }, [dubSegments, lastGenFingerprints, dubLangCode]);
 
   return {
     // Undo/Redo
@@ -275,6 +341,10 @@ export default function useSegmentEditing() {
     // Incremental plan
     lastGenFingerprints,
     setLastGenFingerprints,
+    // Per-language fingerprint store (P1.3) — for project save/load and dub
+    // history restore, which persist/rehydrate ALL tracks' hashes at once.
+    fingerprintsByLang,
+    setFingerprintsByLang,
     incrementalPlan,
     setIncrementalPlan,
     recomputeIncremental,

@@ -49,7 +49,7 @@ def _canon_value(field: str, value):
     return value
 
 
-def segment_fingerprint(seg: dict) -> str:
+def segment_fingerprint(seg: dict, track_lang: str | None = None) -> str:
     """Deterministic hash of the inputs that actually affect TTS output.
 
     Any change to `_GEN_INPUT_FIELDS` flips the hash and the segment becomes
@@ -61,8 +61,20 @@ def segment_fingerprint(seg: dict) -> str:
     so a fingerprint computed from the generate request (server defaults
     filled in) matches one recomputed later from the client's raw segment
     state — the root cause of #281's "1 edit re-dubs all N lines".
+
+    ``track_lang`` (P1.3) is the TRACK's language code (`req.language_code`,
+    e.g. "es"). It is part of the fingerprint because the same segment text
+    renders different audio per language — without it, a bn hash could
+    vouch for an es WAV on a multi-track job. It is only mixed in when
+    provided, so hashes computed by legacy callers (and hashes stored by
+    previous builds, which never carried a language) keep their old values;
+    a legacy hash therefore never matches a lang-scoped fingerprint and the
+    segment reads as stale — the safe direction (one clean regen, never a
+    wrong-language splice).
     """
     payload = {k: _canon_value(k, seg.get(k)) for k in _GEN_INPUT_FIELDS}
+    if track_lang:
+        payload["track_lang"] = str(track_lang)
     blob = json.dumps(payload, sort_keys=True, ensure_ascii=False)
     return hashlib.sha1(blob.encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
 
@@ -120,6 +132,7 @@ def plan_incremental(
     segments: list[dict],
     *,
     stored_hashes: dict[str, str] | None = None,
+    track_lang: str | None = None,
 ) -> dict:
     """Return `{stale, fresh, total, fingerprints}` where:
 
@@ -133,6 +146,13 @@ def plan_incremental(
     `stored_hashes` may come from the caller's own bookkeeping (e.g. the
     `dub_history.job_data["seg_hashes"]` we'll start writing in Phase 4.5).
     When missing, every segment is considered stale (first run).
+
+    `track_lang` (P1.3) scopes the plan to ONE dub track: pass the track's
+    language code together with THAT language's stored hashes
+    (`job_data["seg_hashes_by_lang"][lang]`) so staleness is judged against
+    the active track, never against whatever language was generated last.
+    Must match the language the generate run hashed with, or every segment
+    reads stale (#281 parity class).
     """
     stored = stored_hashes or {}
     stale: list[str] = []
@@ -142,7 +162,7 @@ def plan_incremental(
         sid = str(seg.get("id", ""))
         if not sid:
             continue
-        fp = segment_fingerprint(seg)
+        fp = segment_fingerprint(seg, track_lang=track_lang)
         fingerprints[sid] = fp
         prev = stored.get(sid)
         if prev == fp:
