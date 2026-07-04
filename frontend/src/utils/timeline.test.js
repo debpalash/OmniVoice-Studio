@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   MIN_SEG_DUR,
   MAX_OVERLAP,
+  REGION_COLORS,
   visibleSegmentRange,
   snapTime,
   snapCandidates,
@@ -223,5 +224,31 @@ describe('nearestOnset', () => {
   });
   it('empty → null', () => {
     expect(nearestOnset(1, [])).toBeNull();
+  });
+});
+
+describe('REGION_COLORS — opaque paint guard (#373)', () => {
+  // Semi-transparent box fills flash on some Windows GPU/WebView2 drivers
+  // when the lane gets composited. Every palette entry must be fully opaque:
+  // no alpha-carrying color syntax anywhere in the value.
+  it('no entry carries an alpha channel', () => {
+    expect(REGION_COLORS.length).toBeGreaterThan(0);
+    for (const color of REGION_COLORS) {
+      expect(color).not.toMatch(/rgba\(|hsla\(|transparent/i); // legacy alpha fns
+      expect(color).not.toMatch(/\/\s*(?:0?\.\d+|\d+%)/); // modern `… / alpha` syntax
+      for (const hex of color.match(/#[0-9a-fA-F]+/g) ?? []) {
+        expect([4, 7]).toContain(hex.length); // #rgb / #rrggbb only — no alpha digits
+      }
+    }
+  });
+
+  it('color-mix mixes only opaque inputs and preserves the original 45% tint ratio', () => {
+    for (const color of REGION_COLORS) {
+      const m = color.match(
+        /^color-mix\(in srgb, rgb\(\d+ \d+ \d+\) (\d+)%, var\(--chrome-bg, (#[0-9a-fA-F]{6})\)\)$/,
+      );
+      expect(m, `unexpected palette entry shape: ${color}`).not.toBeNull();
+      expect(m[1]).toBe('45'); // same visual weight the 0.45-alpha fills had
+    }
   });
 });

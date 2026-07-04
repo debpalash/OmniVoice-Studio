@@ -19,14 +19,26 @@ const GRID_SNAP_MAX_PX_PER_SEC = 40;
 
 // Segment box palette — was WaveformTimeline's region palette; lives here so
 // both the track and any legend can share it without circular imports.
+//
+// FULLY OPAQUE by design (#373): these used to be `rgba(…, 0.45)` and relied
+// on alpha compositing over the panel behind the track — and on some Windows
+// GPU/WebView2 drivers, semi-transparent paints on the (formerly
+// transform-animated) lane flashed invisible during playback. Each entry now
+// pre-blends the same 45% tint against the surface behind the lane
+// (`--chrome-bg`, the .studio-panel background) via color-mix, which computes
+// the identical pixels (0.45·tint + 0.55·bg) with zero alpha — and stays
+// theme-aware because the variable resolves per [data-theme]. Do NOT
+// reintroduce alpha here; guarded by timeline.test.js.
+const opaqueTint = (r, g, b) =>
+  `color-mix(in srgb, rgb(${r} ${g} ${b}) 45%, var(--chrome-bg, #0f1011))`;
 export const REGION_COLORS = [
-  'rgba(211,134,155,0.45)',
-  'rgba(131,165,152,0.45)',
-  'rgba(184,187,38,0.45)',
-  'rgba(250,189,47,0.45)',
-  'rgba(142,192,124,0.45)',
-  'rgba(254,128,25,0.45)',
-  'rgba(104,157,106,0.45)',
+  opaqueTint(211, 134, 155),
+  opaqueTint(131, 165, 152),
+  opaqueTint(184, 187, 38),
+  opaqueTint(250, 189, 47),
+  opaqueTint(142, 192, 124),
+  opaqueTint(254, 128, 25),
+  opaqueTint(104, 157, 106),
 ];
 
 /**

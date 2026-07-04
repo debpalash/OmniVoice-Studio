@@ -171,6 +171,46 @@ describe('SegmentTrack — keyboard', () => {
   });
 });
 
+describe('SegmentTrack — compositor-safe positioning (#373)', () => {
+  const baseProps = {
+    segments: SEGS,
+    pxPerSec: 100,
+    duration: 10,
+    currentTime: 0,
+    onsets: [],
+  };
+
+  it('the lane never carries a transform — at rest and after a scroll update', () => {
+    // Regression guard for #373: an animated `translateX` on the lane gets
+    // composited by Chromium during playback and its boxes flash on some
+    // Windows GPU/WebView2 drivers. Any reintroduction must fail here.
+    const { rerender } = render(<SegmentTrack {...baseProps} scrollLeft={0} />);
+    expect(screen.getByRole('listbox').style.transform).toBe('');
+    // Simulate a WaveSurfer autoscroll tick during playback.
+    rerender(<SegmentTrack {...baseProps} scrollLeft={250} />);
+    expect(screen.getByRole('listbox').style.transform).toBe('');
+  });
+
+  it('boxes are laid out in viewport coordinates: left = start·pxPerSec − scrollLeft', () => {
+    setup({ scrollLeft: 250 });
+    expect(box(0).style.left).toBe('-250px'); // start 0
+    expect(box(1).style.left).toBe('50px'); // start 3 → 300 − 250
+    expect(box(2).style.left).toBe('250px'); // start 5 → 500 − 250
+  });
+
+  it('selfScroll fallback keeps lane coordinates — viewport scroll must not double-shift boxes', () => {
+    setup({ selfScroll: true });
+    const lane = screen.getByRole('listbox');
+    const viewport = lane.parentElement;
+    // jsdom has no layout: stub the scroll position, then fire the event the
+    // component listens to.
+    Object.defineProperty(viewport, 'scrollLeft', { value: 120, configurable: true });
+    fireEvent.scroll(viewport);
+    expect(lane.style.transform).toBe('');
+    expect(box(1).style.left).toBe('300px'); // lane coords: 3s · 100px/s
+  });
+});
+
 describe('SegmentTrack — pointer + selection', () => {
   it('pointerdown selects the segment (table sync)', () => {
     const { onSelectSeg } = setup();
