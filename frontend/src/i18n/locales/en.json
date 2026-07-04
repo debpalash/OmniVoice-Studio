@@ -370,6 +370,8 @@
     "llmskills_open_providers": "Configure providers",
     "llmskills_load_failed": "Failed to load LLM skills",
     "llmskills_save_failed": "Failed to save",
+    "llmskills_dub_translation_name": "Dub translation",
+    "llmskills_dub_translation_desc": "Translates dub lines directly with your configured LLM provider (the Dub tab's 'LLM' engine). Off: the LLM engine is unavailable — pick another engine.",
     "llmskills_cinematic_translation_name": "Cinematic & Autofit translation",
     "llmskills_cinematic_translation_desc": "Rewrites each translated line for natural, in-character delivery (and Autofit's time budget). Off: dubs use the Fast translation result.",
     "llmskills_slot_fitting_name": "Speech-rate slot fitting",

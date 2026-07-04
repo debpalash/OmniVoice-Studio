@@ -308,14 +308,63 @@ async def dub_translate(req: TranslateRequest):
             # first is fine — the refine LLM is a separate network provider.
             return await _maybe_cinematic(translated, req, src_lang, loop)
 
-        # OpenAI / Ollama Local LLM Translation
+        # LLM translation — resolves through the LLM Skills registry: per-skill
+        # "Dub translation" override → global active provider (Settings → LLM
+        # Providers). The keys users configure + test in the app now actually
+        # power this engine; the raw TRANSLATE_* env vars stay working as a
+        # power-user override so pre-skills setups see zero behavior change.
         if provider == "openai":
-            base_url = os.environ.get("TRANSLATE_BASE_URL")
-            model_name = os.environ.get("TRANSLATE_MODEL", "gpt-3.5-turbo")
-            from openai import OpenAI
-            # max_retries=0: a 429 + long Retry-After must not let one segment's
-            # SDK call sleep+retry and blow the overall translate wall time.
-            client = OpenAI(base_url=base_url, api_key=api_key or "local", max_retries=0)
+            from services import llm_skills
+
+            llm_timeout = llm_skills._default_timeout()
+            handle = None
+            try:
+                handle = llm_skills.resolve_skill_client("dub_translation")
+            except Exception:  # noqa: BLE001 — resolution must never 500 a translate
+                logger.exception("dub_translation skill resolution failed; trying env fallback")
+            if handle is not None:
+                client = handle.client
+                model_name = handle.model
+                llm_timeout = handle.timeout
+                # The provider-store key never touches env; resolve it so the
+                # error scrubber below can redact it if a provider echoes it.
+                try:
+                    from services import llm_providers
+                    api_key = llm_providers.resolve_api_key(
+                        llm_skills.effective_provider("dub_translation")) or api_key
+                except Exception:  # noqa: BLE001 — scrub-key resolution is best-effort
+                    pass
+            elif os.environ.get("TRANSLATE_BASE_URL") or api_key:
+                # Legacy env-only setup (no provider configured in-app).
+                from openai import OpenAI
+                # max_retries=0: a 429 + long Retry-After must not let one segment's
+                # SDK call sleep+retry and blow the overall translate wall time.
+                client = OpenAI(base_url=os.environ.get("TRANSLATE_BASE_URL"),
+                                api_key=api_key or "local", max_retries=0)
+                model_name = os.environ.get("TRANSLATE_MODEL", "gpt-4o-mini")
+            else:
+                # Nothing configured anywhere — name the exact next step instead
+                # of letting an empty key surface as a raw 401 per segment.
+                try:
+                    reason = llm_skills.resolve_skill("dub_translation").reason
+                except Exception:  # noqa: BLE001
+                    reason = None
+                if reason == "disabled":
+                    friendly = (
+                        "The LLM translation engine is turned off — enable the "
+                        "'Dub translation' skill in Settings → LLM Skills, or "
+                        "pick another engine in the Engine dropdown."
+                    )
+                else:
+                    friendly = (
+                        "The LLM translation engine has no provider configured. "
+                        "Add and test one in Settings → LLM Providers (it powers "
+                        "this engine; route it per-skill in Settings → LLM "
+                        "Skills), or set TRANSLATE_BASE_URL + TRANSLATE_API_KEY "
+                        "+ TRANSLATE_MODEL. Or pick another engine in the "
+                        "Engine dropdown."
+                    )
+                return JSONResponse(status_code=400, content={"error": friendly})
 
             def _build_prompt(src_code: str, tgt_code: str) -> str:
                 """Build a system prompt that resists hallucinations on small
@@ -377,6 +426,7 @@ async def dub_translate(req: TranslateRequest):
                         res = client.chat.completions.create(
                             model=model_name,
                             temperature=0.2,  # less drift than default 1.0
+                            timeout=llm_timeout,  # bound per call (OMNIVOICE_LLM_TIMEOUT, 45s default)
                             messages=[
                                 {"role": "system", "content": sys_for_attempt},
                                 {"role": "user", "content": seg.text},

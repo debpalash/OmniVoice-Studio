@@ -5,8 +5,10 @@ the Settings → LLM Skills panel can (a) toggle it and (b) route it to a
 specific provider (a local Ollama/LM Studio vs a remote key) instead of
 everything riding the one global active provider.
 
-The five consumption points today:
+The six consumption points today:
 
+    dub_translation       — api/routers/dub_translate.py (the Dub tab's direct
+                            "LLM" translation engine; provider=openai branch)
     cinematic_translation — services/translator.py (Cinematic + Autofit
                             REFLECT/ADAPT rewrite; dub_translate quality gate)
     slot_fitting          — services/speech_rate.py (trim/expand a line to its
@@ -68,8 +70,9 @@ def _skill(sid: str) -> LLMSkill:
 
 
 # Display order in the settings panel: the dub pipeline first (translation →
-# fit → glossary → direction), then dictation.
+# refine → fit → glossary → direction), then dictation.
 _SKILLS: tuple[LLMSkill, ...] = (
+    _skill("dub_translation"),
     _skill("cinematic_translation"),
     _skill("slot_fitting"),
     _skill("glossary_extract"),

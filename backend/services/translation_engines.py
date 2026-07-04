@@ -92,9 +92,11 @@ REGISTRY: dict[str, dict] = {
         "category": "llm",
         "needs_key": True,
         "notes": (
-            "Any OpenAI-compatible endpoint: GPT-4/5 (OpenAI), Claude (via OpenRouter), "
-            "Gemini (OpenAI-compat mode), DeepSeek, Qwen, Ollama, LM Studio. "
-            "Set TRANSLATE_BASE_URL + TRANSLATE_API_KEY + TRANSLATE_MODEL."
+            "Uses the LLM provider you configure in Settings → LLM Providers "
+            "(route it via the 'Dub translation' skill in Settings → LLM Skills): "
+            "GPT (OpenAI), Claude (via OpenRouter), Gemini, DeepSeek, Qwen, "
+            "Ollama, LM Studio. Power-user env override: TRANSLATE_BASE_URL + "
+            "TRANSLATE_API_KEY + TRANSLATE_MODEL."
         ),
     },
 }
@@ -137,17 +139,45 @@ def install_command(engine: "str | dict | None") -> str | None:
     return f"uv pip install {pkg}" if pkg else None
 
 
+def _llm_configured() -> tuple[bool, "str | None"]:
+    """Whether the LLM translation engine has something to call, and via what.
+
+    Resolution mirrors the translate-time path in dub_translate.py: the
+    "dub_translation" LLM skill (per-skill override → active provider from
+    Settings → LLM Providers) first, then the TRANSLATE_* env override. Lets
+    the Engine dropdown say "ready via <provider>" / "needs setup" up front
+    instead of a per-segment failure after the user clicks Translate.
+    """
+    try:
+        from services import llm_skills
+        res = llm_skills.resolve_skill("dub_translation")
+        if res.ready and res.provider is not None:
+            return True, res.provider.display_name
+    except Exception:  # noqa: BLE001 — a probe must never break list_engines()
+        logger.debug("dub_translation skill probe failed", exc_info=True)
+    if os.environ.get("TRANSLATE_BASE_URL") or os.environ.get("TRANSLATE_API_KEY"):
+        return True, "env"
+    return False, None
+
+
 def list_engines() -> list[dict]:
     """Return a UI-ready list with per-engine availability stamped in."""
     out = []
     for e in REGISTRY.values():
         installed, reason = _probe(e)
-        out.append({
+        entry = {
             **e,
             "installed": installed,
             "availability_reason": reason,
             "install_command": install_command(e),
-        })
+        }
+        # LLM engines additionally need a provider/key — surface configured-ness
+        # so the UI can distinguish "importable" from "actually ready to call".
+        if e.get("category") == "llm":
+            configured, via = _llm_configured()
+            entry["configured"] = configured
+            entry["configured_via"] = via
+        out.append(entry)
     return out
 
 

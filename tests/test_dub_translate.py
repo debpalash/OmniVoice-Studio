@@ -326,12 +326,21 @@ async def test_argos_fast_stamps_rate_ratio(monkeypatch):
 
 def _install_fake_openai(monkeypatch, *, content="hola mundo", raises=None):
     """Register a fake `openai.OpenAI` whose chat.completions.create returns
-    `content` (or raises `raises`). Accepts the max_retries kwarg the code adds."""
+    `content` (or raises `raises`). Accepts the max_retries kwarg the code adds.
+
+    Also sets TRANSLATE_API_KEY so provider="openai" requests deterministically
+    take the legacy env-fallback branch — since the provider-wiring fix, a fully
+    unconfigured LLM engine 400s up front instead of reaching a client (the
+    skills-resolved path has its own tests below). Returns the recorded
+    chat.completions.create kwargs for call-shape assertions."""
     import sys
     import types
 
+    calls = []
+
     class _Completions:
         def create(self, **kw):
+            calls.append(kw)
             if raises is not None:
                 raise raises
             msg = type("M", (), {"content": content})
@@ -349,6 +358,8 @@ def _install_fake_openai(monkeypatch, *, content="hola mundo", raises=None):
     mod = types.ModuleType("openai")
     mod.OpenAI = _FakeClient
     monkeypatch.setitem(sys.modules, "openai", mod)
+    monkeypatch.setenv("TRANSLATE_API_KEY", "sk-test-env")
+    return calls
 
 
 # ── P1: the Autofit fit pass must be bounded by the cinematic wall-clock ─────
@@ -414,3 +425,123 @@ async def test_openai_segment_error_is_scrubbed(monkeypatch):
     assert "sk-LEAKLEAKLEAKLEAKLEAK12345" not in seg["error"]
     assert "/Users/bob" not in seg["error"]
     assert "***REDACTED***" in seg["error"]
+
+
+# ── provider="openai" resolves through the LLM Providers/Skills system ───────
+# The engine used to read only the TRANSLATE_* env vars, so a provider the user
+# configured + tested in Settings → LLM Providers silently didn't power it.
+
+
+class _RecordingLLMClient:
+    """Minimal OpenAI-compatible fake that records create() kwargs."""
+
+    def __init__(self, content):
+        self.calls = []
+        outer = self
+
+        class _Completions:
+            def create(self, **kw):
+                outer.calls.append(kw)
+                msg = type("M", (), {"content": content})
+                choice = type("C", (), {"message": msg})
+                return type("R", (), {"choices": [choice]})
+
+        self.chat = type("Chat", (), {"completions": _Completions()})()
+
+
+@pytest.mark.asyncio
+async def test_openai_uses_provider_configured_in_settings(monkeypatch):
+    """A ready dub_translation skill (Settings → LLM Providers) powers the
+    engine — its client, its model, its timeout — with no env vars set."""
+    import types
+    from api.routers import dub_translate
+    from schemas.requests import TranslateRequest, TranslateSegment
+    from services import llm_skills
+
+    for var in ("TRANSLATE_API_KEY", "TRANSLATE_BASE_URL", "TRANSLATE_MODEL"):
+        monkeypatch.delenv(var, raising=False)
+
+    fake = _RecordingLLMClient("hallo welt")
+    handle = types.SimpleNamespace(
+        client=fake, model="provider-model", provider_id="groq", timeout=7.0)
+    monkeypatch.setattr(llm_skills, "resolve_skill_client", lambda sid: handle)
+
+    req = TranslateRequest(
+        segments=[TranslateSegment(id="s1", text="Hello")],
+        target_lang="de", provider="openai", source_lang="en",
+    )
+    resp = await dub_translate.dub_translate(req)
+    assert resp["translated"][0]["text"] == "hallo welt"
+    assert fake.calls, "the skills-resolved client was not used"
+    assert fake.calls[0]["model"] == "provider-model"
+    assert fake.calls[0]["timeout"] == 7.0
+
+
+@pytest.mark.asyncio
+async def test_openai_unconfigured_400_names_llm_providers(monkeypatch):
+    """Nothing configured anywhere → an up-front actionable 400 pointing at
+    Settings → LLM Providers, not a raw per-segment 401."""
+    import types
+    from api.routers import dub_translate
+    from schemas.requests import TranslateRequest, TranslateSegment
+    from services import llm_skills
+
+    for var in ("TRANSLATE_API_KEY", "TRANSLATE_BASE_URL", "TRANSLATE_MODEL"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setattr(llm_skills, "resolve_skill_client", lambda sid: None)
+    monkeypatch.setattr(
+        llm_skills, "resolve_skill",
+        lambda sid: types.SimpleNamespace(reason="no_provider"))
+
+    req = TranslateRequest(
+        segments=[TranslateSegment(id="s1", text="Hello")],
+        target_lang="es", provider="openai", source_lang="en",
+    )
+    resp = await dub_translate.dub_translate(req)
+    assert resp.status_code == 400
+    assert b"LLM Providers" in resp.body
+
+
+@pytest.mark.asyncio
+async def test_openai_disabled_skill_400_names_llm_skills(monkeypatch):
+    """A deliberately disabled dub_translation skill names the Skills page."""
+    import types
+    from api.routers import dub_translate
+    from schemas.requests import TranslateRequest, TranslateSegment
+    from services import llm_skills
+
+    for var in ("TRANSLATE_API_KEY", "TRANSLATE_BASE_URL", "TRANSLATE_MODEL"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setattr(llm_skills, "resolve_skill_client", lambda sid: None)
+    monkeypatch.setattr(
+        llm_skills, "resolve_skill",
+        lambda sid: types.SimpleNamespace(reason="disabled"))
+
+    req = TranslateRequest(
+        segments=[TranslateSegment(id="s1", text="Hello")],
+        target_lang="es", provider="openai", source_lang="en",
+    )
+    resp = await dub_translate.dub_translate(req)
+    assert resp.status_code == 400
+    assert b"LLM Skills" in resp.body
+
+
+@pytest.mark.asyncio
+async def test_openai_env_fallback_still_works(monkeypatch):
+    """Legacy env-only setups (no provider in the app) keep working unchanged,
+    including TRANSLATE_MODEL selection."""
+    from api.routers import dub_translate
+    from schemas.requests import TranslateRequest, TranslateSegment
+    from services import llm_skills
+
+    calls = _install_fake_openai(monkeypatch, content="hola mundo")
+    monkeypatch.setenv("TRANSLATE_MODEL", "env-model")
+    monkeypatch.setattr(llm_skills, "resolve_skill_client", lambda sid: None)
+
+    req = TranslateRequest(
+        segments=[TranslateSegment(id="s1", text="Hello")],
+        target_lang="es", provider="openai", source_lang="en",
+    )
+    resp = await dub_translate.dub_translate(req)
+    assert resp["translated"][0]["text"] == "hola mundo"
+    assert calls and calls[0]["model"] == "env-model"
