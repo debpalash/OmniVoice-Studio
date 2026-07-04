@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [Unreleased]
+
+### Fixed
+
+- **Completed dub tracks always show their video tabs.** Opening a project with a finished dubbed track hid the Original/track switcher until you re-selected the language — visibility was keyed to the language dropdown instead of the project's tracks, and restored projects couldn't set the language because the history database froze it at empty forever. Tabs now render from the tracks themselves, history keeps its language (existing projects heal without migration), restoring a project can no longer 404 the video preview, and track pills gained duration/timing tooltips plus an accurate now-playing indicator. (#956)
+
 ## [0.3.10] — 2026-07-05
 
 The listening release — nine fixes in twenty-four hours, almost all driven by your v0.3.9 field reports (several with same-day turnaround). The dubbing pipeline stops lying: **Cinematic and Autofit can no longer invent dialogue**, the **speaker count you set is honored on every path** (and auto-cloning stops fabricating voices from guessed labels), and the timeline stops flashing invisible on Windows. Audiobook chapters with pauses render again. And one fix everyone should want: **updating can no longer leave you secretly running the old version** — a leftover backend from a previous install holding the port is now detected and replaced at launch. Plus: the Dub tab's LLM engine finally runs on the provider you configured in Settings, history timestamps stop reading "20617d ago", and the Engines page can't crash under concurrent load.
