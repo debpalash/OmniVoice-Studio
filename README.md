@@ -84,7 +84,7 @@
     <td align="center">
       <img src="docs/screenshot-dub.png" alt="Video Dubbing" width="100%"/>
       <br/><b>Video Dubbing</b><br/>
-      <sub>Upload a file or paste a YouTube URL → transcribe, translate, re-voice, export MP4.</sub>
+      <sub>A real dub, end to end: 37 segments transcribed, translated to Bengali, re-voiced, and timed — ready to export as MP4.</sub>
     </td>
   </tr>
   <tr>
