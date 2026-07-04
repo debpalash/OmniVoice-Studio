@@ -11,6 +11,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 ### Fixed
 
 - **Settings → Engines can no longer 500 under concurrent loads.** The lazy TTS/ASR engine registries held a *live* dictionary iterator open across each engine's `is_available()` probe while `list_backends()` ran in a FastAPI threadpool — so a second concurrent `/engines` request materializing a lazy engine entry (`self[key] = cls`) mutated the dict mid-iteration and crashed the request with `RuntimeError: dictionary changed size during iteration`. Both registries now snapshot their keys before iterating (atomic under the GIL), immune to a concurrent insert; regression-tested for TTS and ASR. (#940)
+- **The Dub tab's LLM translation engine now runs on your configured LLM provider.** Picking "LLM (OpenAI-compatible)" silently required three hand-set environment variables even when a provider was already configured and tested in Settings → LLM Providers; it now resolves through a new "Dub translation" LLM skill (route it to any provider — remote or local — in Settings → LLM Skills, independently of Cinematic refinement), keeps the `TRANSLATE_*` env vars as a power-user override, bounds every call with the LLM timeout instead of the SDK's 600-second default, tells the Engine dropdown whether the engine is actually ready (and via which provider), and — when nothing is configured — returns a clear pointer to Settings → LLM Providers instead of a raw 401 per segment. (#944)
 
 ## [0.3.9] — 2026-07-04
 
