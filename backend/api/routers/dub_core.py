@@ -375,6 +375,31 @@ _CHUNK_TRANSCRIBE_ATTEMPTS = max(1, int(os.environ.get("OMNIVOICE_TRANSCRIBE_CHU
 _sse_event = dub_pipeline.sse_event
 _prep_event_helper = dub_pipeline.prep_event  # alias; we keep the module-local _prep_event below for the inline one-liner shape
 
+#: User-facing warning emitted when auto voice cloning is skipped because the
+#: speaker labels came from the silence-gap heuristic (see _diarize /
+#: extract_speaker_clones — gap-based labels routinely mix two people's audio
+#: into one reference, which is how "made up" clone voices happen).
+CLONE_SKIP_HEURISTIC_MSG = (
+    "auto voice cloning skipped: speaker labels are gap-based estimates — "
+    "set up diarization (Settings → Models → pyannote) for per-speaker clones"
+)
+
+
+def _clamp_num_speakers(value) -> Optional[int]:
+    """Clamp the user's speaker-count hint to a sane 1–20 range.
+
+    Shared by the SSE and legacy transcribe endpoints so the two can't drift.
+    None / non-int / out-of-range → None (auto-detect), so a bad query string
+    can never break a diarization call.
+    """
+    if value is None:
+        return None
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return None
+    return value if 1 <= value <= 20 else None
+
 
 @router.get("/dub/transcribe-stream/{job_id}")
 async def dub_transcribe_stream(
@@ -393,15 +418,14 @@ async def dub_transcribe_stream(
     pyannote auto-detects the count — but its auto-detect can collapse a
     multi-speaker clip to a single speaker (issue #274). When the user knows
     the exact count, supplying it forces pyannote to return that many speakers.
+    On paths that can't honor the hint exactly (inline ASR turns, the
+    silence-gap heuristic) it is never silently dropped: the heuristic cycles
+    the requested count and a `warning` SSE event tells the user how far the
+    labels can be trusted.
     """
     # Clamp to a sane range; ignore anything non-positive / absurd so a bad
     # query string can never break the diarization call. None → auto-detect.
-    if num_speakers is not None:
-        try:
-            num_speakers = int(num_speakers)
-            num_speakers = num_speakers if 1 <= num_speakers <= 20 else None
-        except (TypeError, ValueError):
-            num_speakers = None
+    num_speakers = _clamp_num_speakers(num_speakers)
 
     job = _get_job(job_id)
 
@@ -630,7 +654,11 @@ async def dub_transcribe_stream(
                 snap_segment_starts(chunk_segs, audio_np, sr)
             except Exception as e:
                 logger.warning("onset alignment skipped for chunk %d: %s", i, e)
-            chunk_segs = assign_speakers_heuristic(chunk_segs)
+            # Provisional per-chunk labels for the streaming UI only — the
+            # final diarization pass below overwrites them. Honor the user's
+            # speaker-count hint here too so the interim view doesn't flip
+            # between 2 and N speakers.
+            chunk_segs = assign_speakers_heuristic(chunk_segs, num_speakers)
             for s in chunk_segs:
                 s["id"] = f"s{next_seg_id:05x}"
                 s["text_original"] = s.get("text", "")
@@ -684,33 +712,110 @@ async def dub_transcribe_stream(
             return
 
         def _diarize():
-            """Returns (segments, warning_payload_or_None).
+            """Returns (segments, warning_payload_or_None, labels_source).
+
+            `labels_source` records where the speaker labels came from —
+            `"pyannote"` | `"turns"` | `"heuristic"` — so downstream
+            auto-clone extraction can refuse to cut reference audio from
+            gap-based estimates (a mixed-speaker reference is how "made up"
+            clone voices happen).
 
             `warning_payload` is a structured dict
             `{detail, error_class, docs_url}` whenever we silently fell back
             to the silence-gap heuristic (no HF_TOKEN, model unavailable,
-            license not accepted, or pyannote raised). The heuristic only
-            detects speaker turns from >1.2s silences, so a rapid-fire
-            man↔woman exchange will read as one speaker. Issue #78 — we
-            attach an `error_class` so the front-end's errorDocsMap can
-            render a "See docs" deeplink instead of a dead-end toast.
+            license not accepted, or pyannote raised) — or whenever the
+            user's `num_speakers` hint could not be honored exactly. The
+            heuristic only detects speaker turns from >1.2s silences, so a
+            rapid-fire man↔woman exchange will read as one speaker. Issue
+            #78 — we attach an `error_class` so the front-end's errorDocsMap
+            can render a "See docs" deeplink instead of a dead-end toast.
             """
-            # The active ASR backend already diarized inline (FunASR cam++):
-            # use its speaker turns directly and skip pyannote entirely (#182).
-            if asr_speaker_turns:
-                logger.info("Using inline ASR diarization (%d turns); skipping pyannote.", len(asr_speaker_turns))
-                assigned = assign_speakers_from_turns(all_segments, asr_speaker_turns)
-                # #486: split any segment that spans two speakers' turns at the
-                # word boundary (single-speaker segments pass through unchanged).
-                return resplit_segments_by_turns(assigned, all_words, asr_speaker_turns), None
-
             from services.model_manager import (
                 DIARIZATION_ERR_LICENSE,
                 DIARIZATION_ERR_NO_TOKEN,
             )
             from core import error_docs_map
 
-            diar_pipe, err_sentinel = get_diarization_pipeline(return_error=True)
+            def _hint_suffix() -> str:
+                """Honest caveat appended to heuristic-fallback warnings when a
+                multi-speaker hint is set: the count is now honored, but the
+                heuristic can't attribute voices. (A hint of 1 IS fully
+                honored — one label — so it needs no caveat.)"""
+                if not num_speakers or num_speakers < 2:
+                    return ""
+                return (
+                    f" Your speaker-count setting ({num_speakers}) is only "
+                    f"approximately honored: the heuristic cycles "
+                    f"{num_speakers} speaker labels on silence gaps instead "
+                    f"of recognizing voices, so lines may be attributed to "
+                    f"the wrong speaker."
+                )
+
+            def _use_turns(crash: Exception | None = None, err_sentinel=None):
+                """Label from the ASR backend's inline speaker turns; warn when
+                that means the user's explicit count can't be enforced."""
+                logger.info(
+                    "Using inline ASR diarization (%d turns)%s.",
+                    len(asr_speaker_turns),
+                    "" if crash else "; skipping pyannote",
+                )
+                assigned = assign_speakers_from_turns(all_segments, asr_speaker_turns)
+                # #486: split any segment that spans two speakers' turns at the
+                # word boundary (single-speaker segments pass through unchanged).
+                resplit = resplit_segments_by_turns(assigned, all_words, asr_speaker_turns)
+                if not num_speakers:
+                    return resplit, None, "turns"
+                error_class = (
+                    "HF_AUTH_FAILED"
+                    if err_sentinel == DIARIZATION_ERR_NO_TOKEN
+                    else "PYANNOTE_LICENSE_REQUIRED"
+                )
+                if crash:
+                    detail = (
+                        f"Speaker diarization crashed mid-run "
+                        f"({type(crash).__name__}); falling back to the ASR "
+                        f"engine's built-in speaker turns. Speaker-count hint "
+                        f"ignored: the detected count may differ from the "
+                        f"{num_speakers} you set."
+                    )
+                else:
+                    detail = (
+                        f"Speaker-count hint ignored: pyannote diarization is "
+                        f"unavailable, so the ASR engine's built-in speaker "
+                        f"turns were used and the detected count may differ "
+                        f"from the {num_speakers} you set. Set up diarization "
+                        f"(Settings → Models → pyannote) to enforce an exact "
+                        f"speaker count."
+                    )
+                return resplit, {
+                    "detail": detail,
+                    "error_class": error_class,
+                    "docs_url": error_docs_map.lookup(error_class),
+                    "speaker_hint": {"requested": num_speakers, "status": "ignored"},
+                }, "turns"
+
+            # The active ASR backend already diarized inline (FunASR cam++):
+            # its turns are the fast path and skip pyannote entirely (#182) —
+            # but ONLY when the user didn't set an explicit speaker count.
+            # Inline turns are labeled per-30s-chunk and can't be forced to N
+            # speakers, so a set num_speakers prefers pyannote — the one
+            # engine that honors an exact count. When pyannote can't load,
+            # the turns are still the best labels available; use them and say
+            # so instead of silently eating the hint.
+            diar_pipe = None
+            err_sentinel = None
+            if asr_speaker_turns:
+                if num_speakers:
+                    diar_pipe, err_sentinel = get_diarization_pipeline(return_error=True)
+                if not diar_pipe:
+                    return _use_turns(err_sentinel=err_sentinel)
+                logger.info(
+                    "num_speakers=%d set: preferring pyannote over %d inline "
+                    "ASR turns (only pyannote honors an exact count).",
+                    num_speakers, len(asr_speaker_turns),
+                )
+            else:
+                diar_pipe, err_sentinel = get_diarization_pipeline(return_error=True)
             if not diar_pipe:
                 # Phase 1 AUTH-01: ask the resolver (App → Env → HF-CLI),
                 # not just the env var. This is the #35 fix — users who
@@ -761,13 +866,20 @@ async def dub_transcribe_stream(
                         f"heuristic; rapid speaker turns may be merged."
                     )
                     error_class = "PYANNOTE_LICENSE_REQUIRED"
+                warning = {
+                    "detail": detail + _hint_suffix(),
+                    "error_class": error_class,
+                    "docs_url": error_docs_map.lookup(error_class),
+                }
+                if num_speakers:
+                    warning["speaker_hint"] = {
+                        "requested": num_speakers,
+                        "status": "approximate" if num_speakers > 1 else "honored",
+                    }
                 return (
-                    assign_speakers_heuristic(all_segments),
-                    {
-                        "detail": detail,
-                        "error_class": error_class,
-                        "docs_url": error_docs_map.lookup(error_class),
-                    },
+                    assign_speakers_heuristic(all_segments, num_speakers),
+                    warning,
+                    "heuristic",
                 )
             try:
                 # Pass the user's speaker-count hint through to pyannote when
@@ -782,9 +894,14 @@ async def dub_transcribe_stream(
                 assigned = assign_speakers_from_diarization(all_segments, diar)
                 # #486: split any segment that spans two speakers' turns at the
                 # word boundary (single-speaker segments pass through unchanged).
-                return resplit_segments_by_diarization(assigned, all_words, diar), None
+                return resplit_segments_by_diarization(assigned, all_words, diar), None, "pyannote"
             except Exception as e:
                 logger.error(f"Diarization failed: {e}")
+                # Inline ASR turns beat the silence-gap heuristic as a crash
+                # fallback (this path is reachable with turns present since a
+                # set num_speakers routes turns-jobs through pyannote).
+                if asr_speaker_turns:
+                    return _use_turns(crash=e)
                 # Mid-run failure — classify against the same sentinels so a
                 # post-load 401 (rare but possible after a token rotation)
                 # still gets the right docs deeplink.
@@ -795,36 +912,50 @@ async def dub_transcribe_stream(
                     if err_class_post == DIARIZATION_ERR_LICENSE
                     else "PYANNOTE_LICENSE_REQUIRED"  # LOAD failures land here too
                 )
+                warning = {
+                    "detail": (
+                        f"Speaker diarization crashed mid-run "
+                        f"({type(e).__name__}); falling back to a silence-gap "
+                        f"heuristic. Rapid speaker turns may be merged."
+                        + _hint_suffix()
+                    ),
+                    "error_class": error_class,
+                    "docs_url": error_docs_map.lookup(error_class),
+                }
+                if num_speakers:
+                    warning["speaker_hint"] = {
+                        "requested": num_speakers,
+                        "status": "approximate" if num_speakers > 1 else "honored",
+                    }
                 return (
-                    assign_speakers_heuristic(all_segments),
-                    {
-                        "detail": (
-                            f"Speaker diarization crashed mid-run "
-                            f"({type(e).__name__}); falling back to a silence-gap "
-                            f"heuristic. Rapid speaker turns may be merged."
-                        ),
-                        "error_class": error_class,
-                        "docs_url": error_docs_map.lookup(error_class),
-                    },
+                    assign_speakers_heuristic(all_segments, num_speakers),
+                    warning,
+                    "heuristic",
                 )
 
         fut_diar = loop.run_in_executor(_gpu_pool, _diarize)
         final_segs = None
         diar_warning = None
+        labels_source = "heuristic"
         while True:
             done, pending = await asyncio.wait([fut_diar], timeout=5.0)
             if done:
-                final_segs, diar_warning = done.pop().result()
+                final_segs, diar_warning, labels_source = done.pop().result()
                 break
             yield _sse_event("ping", {})
         if diar_warning:
             logger.warning("diarization fallback: %s", diar_warning.get("detail"))
-            yield _sse_event("warning", {
+            payload = {
                 "detail": diar_warning.get("detail"),
                 "source": "diarization",
                 "error_class": diar_warning.get("error_class"),
                 "docs_url": diar_warning.get("docs_url"),
-            })
+            }
+            # Machine-readable trail of what happened to the user's
+            # speaker-count hint (the `detail` text carries the human story).
+            if diar_warning.get("speaker_hint"):
+                payload["speaker_hint"] = diar_warning["speaker_hint"]
+            yield _sse_event("warning", payload)
 
         job["segments"] = final_segs
 
@@ -836,17 +967,37 @@ async def dub_transcribe_stream(
         try:
             from services.speaker_clone import extract_speaker_clones, auto_profile_id
             vocals_for_clone = job.get("vocals_path") or asr_audio_target
-            fut_clones = loop.run_in_executor(
-                _cpu_pool, extract_speaker_clones,
-                vocals_for_clone, final_segs, os.path.dirname(vocals_for_clone),
-            )
-            clones = None
-            while True:
-                done, pending = await asyncio.wait([fut_clones], timeout=5.0)
-                if done:
-                    clones = done.pop().result()
-                    break
-                yield _sse_event("ping", {})
+            clones = {}
+            if labels_source == "heuristic":
+                # Clone-purity guard: heuristic labels are silence-gap
+                # estimates, not voice identity — a per-speaker reference cut
+                # from them routinely concatenates two people's audio and the
+                # clone sounds "made up". Skip auto-clones and say so instead
+                # of shipping bad ones. (extract_speaker_clones enforces the
+                # same guard internally; this branch exists to surface the
+                # warning to the user.)
+                logger.info(
+                    "auto speaker clones skipped (labels_source=heuristic, job=%s)",
+                    job_id,
+                )
+                yield _sse_event("warning", {
+                    "detail": CLONE_SKIP_HEURISTIC_MSG,
+                    "source": "speaker_clone",
+                })
+            else:
+                fut_clones = loop.run_in_executor(
+                    _cpu_pool, lambda: extract_speaker_clones(
+                        vocals_for_clone, final_segs,
+                        os.path.dirname(vocals_for_clone),
+                        labels_source=labels_source,
+                    ),
+                )
+                while True:
+                    done, pending = await asyncio.wait([fut_clones], timeout=5.0)
+                    if done:
+                        clones = done.pop().result()
+                        break
+                    yield _sse_event("ping", {})
             # Wave 3.2: per-segment clone refs. Cut each long-enough segment's
             # own reference from the vocals so the dub of each line matches the
             # prosody of its source line. Short lines fall back to the
@@ -960,7 +1111,14 @@ async def dub_transcribe_stream(
 
 
 @router.post("/dub/transcribe/{job_id}")
-async def dub_transcribe(job_id: str):
+async def dub_transcribe(job_id: str, num_speakers: Optional[int] = None):
+    """Legacy synchronous transcribe (kept for the headless CLI).
+
+    `num_speakers` mirrors the SSE endpoint's query param (same 1–20 clamp):
+    an exact speaker count forwarded to pyannote, or cycled by the silence-gap
+    heuristic when pyannote is unavailable. None → auto-detect.
+    """
+    num_speakers = _clamp_num_speakers(num_speakers)
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -1026,13 +1184,20 @@ async def dub_transcribe(job_id: str):
         if diar_pipe:
             try:
                 diar_target = job.get("vocals_path") or job.get("audio_path")
-                diarization = diar_pipe(diar_target)
+                # Same hint pass-through as the SSE endpoint (#274): omit the
+                # kwarg entirely when unset so we don't depend on it existing
+                # in every pyannote build.
+                if num_speakers:
+                    logger.info("Diarizing with num_speakers=%d (user hint)", num_speakers)
+                    diarization = diar_pipe(diar_target, num_speakers=num_speakers)
+                else:
+                    diarization = diar_pipe(diar_target)
                 segments = assign_speakers_from_diarization(segments, diarization)
             except Exception as e:
                 logger.error(f"Pyannote diarization failed during inference: {e}. Falling back to heuristic.")
-                segments = assign_speakers_heuristic(segments)
+                segments = assign_speakers_heuristic(segments, num_speakers)
         else:
-            segments = assign_speakers_heuristic(segments)
+            segments = assign_speakers_heuristic(segments, num_speakers)
 
         # Previously ran `segment_for_subtitles(segments)` here. Removed 2026-04-21 —
         # that splitter enforces Netflix's 17 CPS reading-speed ceiling which

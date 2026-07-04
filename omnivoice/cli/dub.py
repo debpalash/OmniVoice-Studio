@@ -115,6 +115,11 @@ def main(argv=None):
     ap.add_argument("--target", required=True, help="Target language ISO code (e.g. de, ja, es).")
     ap.add_argument("--voice", help="Voice profile ID to apply to every segment.")
     ap.add_argument("--quality", choices=("fast", "cinematic"), default="fast")
+    ap.add_argument(
+        "--speakers", type=int, default=None, metavar="N",
+        help="Exact number of speakers in the source (1-20). Forwarded to "
+             "diarization so distinct voices don't blend; omit to auto-detect.",
+    )
     ap.add_argument("--glossary", help="Path to a JSON glossary: [{source,target,note}]")
     ap.add_argument("--api", default=os.environ.get("OMNIVOICE_API", "http://localhost:8000"))
     args = ap.parse_args(argv)
@@ -155,7 +160,8 @@ def main(argv=None):
 
     # 3. Transcribe (sync).
     _log("→ transcribing…")
-    tx = _post(api, f"/dub/transcribe/{job_id}", {})
+    speakers_q = f"?num_speakers={args.speakers}" if args.speakers else ""
+    tx = _post(api, f"/dub/transcribe/{job_id}{speakers_q}", {})
     segs = tx.get("segments", [])
     _log(f"  ✓ {len(segs)} segment(s), source={tx.get('source_lang')}")
 

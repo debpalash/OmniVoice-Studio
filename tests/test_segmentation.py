@@ -295,6 +295,54 @@ class TestSpeakerAssignment:
         assert out[0]["speaker_id"] == out[1]["speaker_id"]
         assert out[2]["speaker_id"] != out[1]["speaker_id"]
 
+    @staticmethod
+    def _gapped_segs(n, dur=2.0, gap=2.0):
+        """n segments, each separated by a > SPEAKER_GAP silence."""
+        segs = []
+        t = 0.0
+        for i in range(n):
+            segs.append({"start": t, "end": t + dur, "text": f"s{i}", "id": str(i)})
+            t += dur + gap
+        return segs
+
+    def test_heuristic_hint_three_speakers_cycles_three_labels(self):
+        # Speaker-hint fix: num_speakers=3 must yield 3 distinct labels on
+        # alternating-gap audio. Pre-fix the heuristic hardcoded 2 speakers
+        # and silently ignored the hint.
+        out = assign_speakers_heuristic(self._gapped_segs(6), num_speakers=3)
+        labels = [s["speaker_id"] for s in out]
+        assert labels == [
+            "Speaker 1", "Speaker 2", "Speaker 3",
+            "Speaker 1", "Speaker 2", "Speaker 3",
+        ]
+        assert len(set(labels)) == 3
+
+    def test_heuristic_hint_one_speaker_single_label(self):
+        out = assign_speakers_heuristic(self._gapped_segs(4), num_speakers=1)
+        assert {s["speaker_id"] for s in out} == {"Speaker 1"}
+
+    def test_heuristic_none_hint_preserves_legacy_two_speaker_alternation(self):
+        out = assign_speakers_heuristic(self._gapped_segs(4), num_speakers=None)
+        labels = [s["speaker_id"] for s in out]
+        assert labels == ["Speaker 1", "Speaker 2", "Speaker 1", "Speaker 2"]
+
+    @pytest.mark.parametrize("bad", [0, -3, "not-a-number"])
+    def test_heuristic_invalid_hint_falls_back_to_legacy(self, bad):
+        out = assign_speakers_heuristic(self._gapped_segs(4), num_speakers=bad)
+        labels = [s["speaker_id"] for s in out]
+        assert labels == ["Speaker 1", "Speaker 2", "Speaker 1", "Speaker 2"]
+
+    def test_heuristic_hint_no_gaps_keeps_one_speaker(self):
+        # N is an upper bound, not a quota: back-to-back speech with no
+        # > SPEAKER_GAP pause stays one speaker even with a hint of 3.
+        segs = [
+            {"start": 0.0, "end": 2.0, "text": "a", "id": "1"},
+            {"start": 2.1, "end": 4.0, "text": "b", "id": "2"},
+            {"start": 4.2, "end": 6.0, "text": "c", "id": "3"},
+        ]
+        out = assign_speakers_heuristic(segs, num_speakers=3)
+        assert {s["speaker_id"] for s in out} == {"Speaker 1"}
+
     def test_diarization_uses_overlap_weighted_assignment(self):
         # Build a fake diarization with two overlapping turns for the same seg;
         # the one with more overlap should win, not the one at midpoint.

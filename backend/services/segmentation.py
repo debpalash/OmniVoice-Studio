@@ -532,14 +532,41 @@ def assign_speakers_from_turns(
     return segments
 
 
-def assign_speakers_heuristic(segments: List[dict]) -> List[dict]:
-    """Two-speaker alternation based on silence gaps."""
-    current = 1
+def assign_speakers_heuristic(
+    segments: List[dict], num_speakers: Optional[int] = None
+) -> List[dict]:
+    """Silence-gap speaker assignment (used when no diarization model runs).
+
+    Base signal: a gap > SPEAKER_GAP seconds between consecutive segments is
+    treated as a speaker change. Without a ``num_speakers`` hint this keeps
+    the legacy behavior — alternate between exactly two labels. With a hint:
+
+    * ``num_speakers=1`` → every segment gets ``"Speaker 1"``.
+    * ``num_speakers>=2`` → labels round-robin across N speakers at each
+      gap boundary, so the user's requested count is represented instead of
+      being silently capped at 2.
+
+    Limits (be honest with callers): this honors the *count*, not voice
+    identity. The rotation order is arbitrary (a returning speaker gets the
+    next label in the cycle, not their own), rapid exchanges with no
+    > SPEAKER_GAP pause still collapse into one label, and N is an upper
+    bound — audio with fewer gap boundaries than N yields fewer labels.
+    Real per-speaker attribution needs pyannote (or an inline-diarizing ASR
+    backend); callers should warn the user accordingly (see dub_core).
+    Invalid hints (non-int, < 1) fall back to the legacy two-speaker cycle.
+    """
+    try:
+        n = int(num_speakers) if num_speakers is not None else 2
+    except (TypeError, ValueError):
+        n = 2
+    if n < 1:
+        n = 2
+    current = 0  # zero-based rotation index; rendered one-based below
     last_end = 0.0
     for i, s in enumerate(segments):
-        if i > 0 and (s["start"] - last_end) > SPEAKER_GAP:
-            current = 2 if current == 1 else 1
-        s["speaker_id"] = f"Speaker {current}"
+        if i > 0 and n > 1 and (s["start"] - last_end) > SPEAKER_GAP:
+            current = (current + 1) % n
+        s["speaker_id"] = f"Speaker {current + 1}"
         last_end = s["end"]
     return segments
 
