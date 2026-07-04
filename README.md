@@ -492,11 +492,12 @@ OmniVoice is **free** and **AGPL-3.0** — no paid tier, no SaaS revenue. Sponso
 
 | Channel | What happens there |
 |---------|--------------------|
-| `#showcase` | Members share their dubs, clones, and voice designs |
-| `#help` | Setup issues, GPU troubleshooting, model questions |
-| `#feature-requests` | Vote on what gets built next |
-| `#dev` | Architecture discussions, PR reviews, engine integrations |
-| `#announcements` | Release notes, breaking changes, early access |
+| `#announcements` | Release news and the big moments — new versions land here first |
+| `#releases` + `#changelog` | Every build and exactly what's inside it |
+| `#issues` | Bug reports as forum posts — triaged straight into GitHub issues |
+| `#ideas` | Feature requests, discussed and voted on |
+| `#discuss-ideas` | Design talk before things get built |
+| `#general` | Setup help, GPU troubleshooting, and showing off your dubs |
 
 </details>
 
