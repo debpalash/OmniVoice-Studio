@@ -657,13 +657,30 @@ pub fn run() {
                     set_stage(&stage_handle, BootstrapStage::AwaitingSetup);
                     return;
                 }
-                if backend::backend_healthy(backend_port()) {
-                    log::info!(
-                        "Port {} already serving OmniVoice backend — attaching",
-                        backend_port()
-                    );
-                    set_stage(&stage_handle, BootstrapStage::Ready);
-                    return;
+                match backend::running_backend_version(backend_port()) {
+                    Some(v) if backend::same_app_version(&v) => {
+                        log::info!(
+                            "Port {} already serving OmniVoice backend v{} — attaching",
+                            backend_port(), v
+                        );
+                        set_stage(&stage_handle, BootstrapStage::Ready);
+                        return;
+                    }
+                    Some(v) => {
+                        // Healthy-but-stale backend from a previous version —
+                        // the post-update orphan that made new installs run
+                        // old backend code. Replace it (see backend.rs
+                        // same_app_version for the full story).
+                        log::warn!(
+                            "Port {} serves a stale OmniVoice backend (v{} != app v{}) — replacing it",
+                            backend_port(),
+                            if v.is_empty() { "<unknown>" } else { v.as_str() },
+                            env!("CARGO_PKG_VERSION"),
+                        );
+                        backend::kill_orphan_on_port(backend_port());
+                        std::thread::sleep(Duration::from_millis(500));
+                    }
+                    None => {}
                 }
                 if backend::port_in_use(backend_port()) {
                     log::warn!(

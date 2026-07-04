@@ -34,9 +34,53 @@ pub fn port_in_use(port: u16) -> bool {
 pub fn backend_healthy(port: u16) -> bool {
     let url = format!("http://127.0.0.1:{}/system/info", port);
     match ureq_get_with_timeout(&url, Duration::from_millis(500)) {
-        Ok(body) => body.contains("\"model_checkpoint\"") || body.contains("\"data_dir\""),
+        Ok(body) => is_omnivoice_body(&body),
         Err(_) => false,
     }
+}
+
+fn is_omnivoice_body(body: &str) -> bool {
+    body.contains("\"model_checkpoint\"") || body.contains("\"data_dir\"")
+}
+
+/// The `app_version` reported by the OmniVoice backend at :port.
+/// `None` when nothing OmniVoice answers there (port free, or a foreign
+/// process). `Some("")` when it IS our backend but predates the
+/// `app_version` field — callers treat that as stale.
+pub fn running_backend_version(port: u16) -> Option<String> {
+    let url = format!("http://127.0.0.1:{}/system/info", port);
+    let body = ureq_get_with_timeout(&url, Duration::from_millis(500)).ok()?;
+    if !is_omnivoice_body(&body) {
+        return None;
+    }
+    Some(parse_app_version(&body).unwrap_or_default())
+}
+
+/// Extract `"app_version": "X"` from a /system/info body. String-sniff on one
+/// field (consistent with `backend_healthy`) — no JSON dependency needed.
+fn parse_app_version(body: &str) -> Option<String> {
+    let key = "\"app_version\"";
+    let rest = &body[body.find(key)? + key.len()..];
+    let rest = rest[rest.find(':')? + 1..].trim_start();
+    let rest = rest.strip_prefix('"')?;
+    Some(rest[..rest.find('"')?].to_string())
+}
+
+/// Whether a running backend's version matches THIS app build, comparing
+/// **base** versions (any `-N` pre-release suffix stripped from both sides) so
+/// a preview build `0.3.10-4` still attaches to its `0.3.10` backend.
+///
+/// Why this exists (the "bound port blocked the newer version" report): an
+/// orphaned backend from a *previous* version keeps answering health checks
+/// after an update, so "healthy" alone made the new UI silently attach to old
+/// backend code — every fix in the update appeared to change nothing. A
+/// version-mismatched (or unversioned) OmniVoice responder is stale by
+/// definition; callers kill it and spawn the bundled backend instead.
+pub fn same_app_version(running: &str) -> bool {
+    fn base(v: &str) -> &str {
+        v.split('-').next().unwrap_or(v).trim()
+    }
+    !running.is_empty() && base(running) == base(env!("CARGO_PKG_VERSION"))
 }
 
 fn ureq_get_with_timeout(url: &str, timeout: Duration) -> Result<String, String> {
@@ -364,5 +408,35 @@ mod tests {
         assert!(diag.contains("No such file or directory"), "must include the OS error");
         assert!(diag.contains("Interpreter present on disk: false"));
         assert!(diag.contains("Clean & Retry"), "must give an actionable hint");
+    }
+
+    // ── stale-backend detection (the "bound port blocked the newer version"
+    //    report: a healthy orphan from a previous version must NOT be
+    //    attached to) ─────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_app_version_reads_system_info_shape() {
+        let body = r#"{"app_version":"0.3.9","data_dir":"/x","model_checkpoint":"k2"}"#;
+        assert_eq!(parse_app_version(body).as_deref(), Some("0.3.9"));
+        // whitespace after the colon is fine
+        assert_eq!(
+            parse_app_version(r#"{ "app_version" :  "1.2.3" }"#).as_deref(),
+            Some("1.2.3")
+        );
+        // pre-app_version backends and foreign bodies yield None
+        assert_eq!(parse_app_version(r#"{"data_dir":"/x"}"#), None);
+        assert_eq!(parse_app_version("<html>not json</html>"), None);
+    }
+
+    #[test]
+    fn same_app_version_matches_current_build_and_rejects_stale() {
+        let ours = env!("CARGO_PKG_VERSION");
+        assert!(same_app_version(ours), "own version must attach");
+        // preview stamp of the same base still attaches
+        assert!(same_app_version(&format!("{}-7", ours)));
+        // a different (older) release is stale
+        assert!(!same_app_version("0.0.1"));
+        // unversioned (pre-app_version backend) is stale by definition
+        assert!(!same_app_version(""));
     }
 }
