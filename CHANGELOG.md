@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [Unreleased]
+
+### Fixed
+
+- **Settings → Engines can no longer 500 under concurrent loads.** The lazy TTS/ASR engine registries held a *live* dictionary iterator open across each engine's `is_available()` probe while `list_backends()` ran in a FastAPI threadpool — so a second concurrent `/engines` request materializing a lazy engine entry (`self[key] = cls`) mutated the dict mid-iteration and crashed the request with `RuntimeError: dictionary changed size during iteration`. Both registries now snapshot their keys before iterating (atomic under the GIL), immune to a concurrent insert; regression-tested for TTS and ASR. (#940)
+
 ## [0.3.9] — 2026-07-04
 
 The dictation release — and a deep reliability pass driven by live-testing the entire app. **Dictation is rebuilt end-to-end**: instant feedback with a live waveform, words that commit about half a second after you stop speaking, clean punctuation, and text insertion that never lies about success. **LLM providers get one-click connection testing** with real diagnostics and model discovery, in all 21 languages. The app now **always opens maximized**, bottom buttons **can't hide under the footer** at small window sizes, and a wave of "out of memory / can't reach the backend / stuck at preparing" reports were traced to their real causes and fixed — including the silent VRAM crash on 8 GB cards, dead-IPC startup hangs after a Windows BSOD, and misleading error labels. Intel-Mac support status is now stated honestly, Confucius4-TTS is validated end-to-end, and Parakeet — roughly 20× faster than the default transcriber on CPU — is unlocked for every machine.
