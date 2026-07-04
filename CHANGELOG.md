@@ -8,6 +8,10 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+### Added
+
+- **"Generate N dubs" now actually translates each language first.** Multi-language generation used to synthesize every track from whatever text was in the editor — so at most one of your N dubs was really in its language. The batch now runs translate → generate per language with a visible "Translating → Bengali (2/3)…" phase, skips (and reports) any language whose translation fails instead of rendering a wrong-language track, and your multi-language picks and export-track selection are saved with the project instead of vanishing on tab switch. (#957)
+
 ### Fixed
 
 - **Completed dub tracks always show their video tabs.** Opening a project with a finished dubbed track hid the Original/track switcher until you re-selected the language — visibility was keyed to the language dropdown instead of the project's tracks, and restored projects couldn't set the language because the history database froze it at empty forever. Tabs now render from the tracks themselves, history keeps its language (existing projects heal without migration), restoring a project can no longer 404 the video preview, and track pills gained duration/timing tooltips plus an accurate now-playing indicator. (#956)
