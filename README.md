@@ -10,6 +10,7 @@
     <a href="#why-ovs">Why OVS</a> ·
     <a href="#tts-engines">TTS Engines</a> ·
     <a href="#asr-engines">ASR Engines</a> ·
+    <a href="#openai-api">API</a> ·
     <a href="#sponsors">Sponsors</a> ·
     <a href="#sponsor--donate">Donate</a> ·
     <a href="#contributing">Contributing</a> ·
@@ -34,8 +35,18 @@
   <img src="docs/screenshot-launchpad.png" alt="OmniVoice Studio — Launchpad" width="100%"/>
 </div>
 
+> **Your voice is the most personal data you have. So why rent it back from a cloud?** Every mainstream voice tool ships your audio to someone else's server and bills you monthly for the privilege. OmniVoice Studio flips that: clone, design, dub, and dictate on your own hardware — 646 languages, no meter running, nothing leaving your machine.
+
+<div align="center">
+
+| 🔑 No API keys | 🙅 No accounts | ☁️ No cloud | 💳 No subscription |
+|:---:|:---:|:---:|:---:|
+| nothing to paste in | nothing to sign up for | your audio stays home | it's your computer |
+
+</div>
+
 > [!WARNING]
-> **OmniVoice Studio is in active beta.** Things may break between releases. For the latest features and fixes, clone the repo and run from source rather than using pre-built installers. Bug reports and PRs are very welcome — [open an issue](https://github.com/debpalash/OmniVoice-Studio/issues) or [join Discord](https://discord.gg/bzQavDfVV9).
+> **OmniVoice Studio is in active beta.** Things may break between releases — for the latest features and fixes, clone the repo and run from source rather than the pre-built installers. Bug reports and PRs are very welcome: [open an issue](https://github.com/debpalash/OmniVoice-Studio/issues) or [join Discord](https://discord.gg/bzQavDfVV9).
 
 <div align="center">
   <br/>
@@ -46,142 +57,6 @@
 </div>
 
 <br/>
-
-<a id="features"></a>
-
-## ✨ Features
-
-<table>
-<tr>
-  <td align="center" width="25%">
-    <h3>🎙️ Voice Cloning</h3>
-    <p>3-second clip → mirror any voice.<br/><b>646 languages</b>, zero-shot.</p>
-  </td>
-  <td align="center" width="25%">
-    <h3>🎨 Voice Design</h3>
-    <p>Gender, age, accent, pitch, speed,<br/>emotion, dialect — <b>dial it in</b>.</p>
-  </td>
-  <td align="center" width="25%">
-    <h3>🎬 Video Dubbing</h3>
-    <p>YouTube URL or file → transcribe →<br/>translate → re-voice → <b>MP4</b>.</p>
-  </td>
-  <td align="center" width="25%">
-    <h3>📖 Audiobook Editor</h3>
-    <p>Import text, EPUB, or PDF. Auto-chapter,<br/>loudnorm, metadata. Export <b>.m4b</b>.</p>
-  </td>
-</tr>
-<tr>
-  <td align="center" valign="top">
-    <h3>🎭 Stories</h3>
-    <p>Multi-voice editor. Assign voices<br/>per-line, preview, <b>export full cast</b>.</p>
-  </td>
-  <td align="center" valign="top">
-    <h3>⌨️ Dictation Widget</h3>
-    <p><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>Space</kbd> from <b>any app</b>.<br/>Transcribes, auto-pastes, disappears.</p>
-  </td>
-  <td align="center" valign="top">
-    <h3>🔊 Vocal Isolation</h3>
-    <p>Demucs-powered. Splits speech<br/>from music, <b>keeps the background</b>.</p>
-  </td>
-  <td align="center" valign="top">
-    <h3>👥 Speaker Diarization</h3>
-    <p>Pyannote + WhisperX.<br/><b>Auto-identifies</b> who said what.</p>
-  </td>
-</tr>
-<tr>
-  <td align="center" valign="top">
-    <h3>📦 Batch Queue</h3>
-    <p>Drop <b>50 videos</b>, walk away.<br/>Progress bars per job.</p>
-  </td>
-  <td align="center" valign="top">
-    <h3>🤖 MCP Server</h3>
-    <p>Use OmniVoice from <b>Claude</b>,<br/>Cursor, or any MCP client.</p>
-  </td>
-  <td align="center" valign="top">
-    <h3>🛡️ AI Watermark</h3>
-    <p>AudioSeal (Meta). <b>Invisible</b>,<br/>survives compression.</p>
-  </td>
-  <td align="center" valign="top">
-    <h3>🔬 Diagnostics</h3>
-    <p>Self-check, error journal,<br/>scrubbed <b>diagnostic bundle</b>.</p>
-  </td>
-</tr>
-<tr>
-  <td align="center" valign="top">
-    <h3>🔐 100% Local</h3>
-    <p>No keys, no cloud, no accounts.<br/><b>Your machine only</b>.</p>
-  </td>
-  <td align="center" valign="top">
-    <h3>⚡ GPU Auto-Detect</h3>
-    <p>CUDA · MPS · ROCm · CPU.<br/>≤8 GB? <b>Auto-offloads</b>.</p>
-  </td>
-  <td align="center" valign="top">
-    <h3>🧩 Extensible</h3>
-    <p>Subclass <code>TTSbackend</code>,<br/>add any engine in <b>~50 lines</b>.</p>
-  </td>
-  <td align="center" valign="top">
-    <h3>🧭 Engine Routing</h3>
-    <p>Preflight GPU check per engine.<br/><b>No silent CPU fallback</b>.</p>
-  </td>
-</tr>
-<tr>
-  <td align="center" valign="top">
-    <h3>🎒 Portable Personas</h3>
-    <p>Export voices as <code>.ovsvoice</code><br/>bundles — identity + <b>watermark</b>.</p>
-  </td>
-  <td align="center" valign="top">
-    <h3>♾️ Unlimited TTS</h3>
-    <p>Sentence-chunked generation.<br/><b>No length cap</b>. Streaming via WS.</p>
-  </td>
-  <td align="center" valign="top">
-    <h3>🌐 Remote Backend</h3>
-    <p>Point UI at a remote server.<br/>Tailscale-friendly. <b>Bearer auth</b>.</p>
-  </td>
-  <td align="center" valign="top">
-    <h3>🧠 Dictation + LLM</h3>
-    <p>Local LLM cleanup of transcripts.<br/>Optional echo <b>cancellation</b>.</p>
-  </td>
-</tr>
-</table>
-
----
-
-<a id="quickstart"></a>
-
-## ⚡ Quickstart
-
-<div align="center">
-  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/macOS-DMG_(Apple_Silicon)-000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS DMG" /></a>
-  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/Windows-MSI_(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows MSI" /></a>
-  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/Linux-AppImage_(x64)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Download Linux AppImage" /></a>
-  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/Debian-.deb-A81D33?style=for-the-badge&logo=debian&logoColor=white" alt="Download Debian .deb" /></a>
-  <br/>
-  <sub><b>macOS:</b> first launch needs a one-time approval — right-click → <b>Open</b> (or System Settings → Privacy &amp; Security → <b>"Open Anyway"</b> on macOS 15). No Terminal needed. <a href="docs/install/macos.md#gatekeeper-quarantine">Why?</a></sub>
-  <br/>
-  <sub><b>Intel Macs are not supported for the local backend:</b> the app UI installs, but the Python backend cannot run because PyTorch no longer ships Intel-Mac (x86_64) wheels (<a href="https://github.com/debpalash/OmniVoice-Studio/issues/889">#889</a>) — see <a href="docs/install/macos.md">docs/install/macos.md</a>.</sub>
-</div>
-
-Per-OS install guides — pick yours and follow it end-to-end:
-
-- **macOS** — [docs/install/macos.md](docs/install/macos.md)
-- **Windows** — [docs/install/windows.md](docs/install/windows.md)
-- **Linux** — [docs/install/linux.md](docs/install/linux.md)
-- **Docker** — [docs/install/docker.md](docs/install/docker.md) · [Docker Hub: `palashdeb/omnivoice-studio`](https://hub.docker.com/r/palashdeb/omnivoice-studio)
-
-Stuck? Run the built-in self-check first — **Settings → About → "Run
-self-check"** in the app, or `uv run python backend/main.py --diagnose` from
-a checkout (`--deep` also test-loads the active engine). Then see
-[docs/install/troubleshooting.md](docs/install/troubleshooting.md) for the
-top 10 install errors. The in-app error UI deeplinks to those entries when
-something breaks at runtime, and **Settings → About → "Save diagnostic
-bundle"** packages scrubbed logs + the self-check report for bug reports.
-
-For Hugging Face token setup, see
-[docs/setup/huggingface-token.md](docs/setup/huggingface-token.md). For
-diarization-specific gating, see
-[docs/features/diarization.md](docs/features/diarization.md). For download
-speed, the ⚡ fast-download (Xet) status, and restricted-network / mirror
-options, see [docs/downloading-models.md](docs/downloading-models.md).
 
 <a id="screenshots"></a>
 
@@ -240,6 +115,119 @@ options, see [docs/downloading-models.md](docs/downloading-models.md).
 
 ---
 
+<a id="features"></a>
+
+## ✨ Features
+
+The eight headliners — and twelve more waiting under the fold.
+
+<table>
+<tr>
+  <td align="center" width="25%">
+    <h3>🎙️ Voice Cloning</h3>
+    <p>3-second clip → mirror any voice.<br/><b>646 languages</b>, zero-shot.</p>
+  </td>
+  <td align="center" width="25%">
+    <h3>🎨 Voice Design</h3>
+    <p>Gender, age, accent, pitch, speed,<br/>emotion, dialect — <b>dial it in</b>.</p>
+  </td>
+  <td align="center" width="25%">
+    <h3>🎬 Video Dubbing</h3>
+    <p>YouTube URL or file → transcribe →<br/>translate → re-voice → <b>MP4</b>.</p>
+  </td>
+  <td align="center" width="25%">
+    <h3>📖 Audiobook Editor</h3>
+    <p>Import text, EPUB, or PDF. Auto-chapter,<br/>loudnorm, metadata. Export <b>.m4b</b>.</p>
+  </td>
+</tr>
+<tr>
+  <td align="center" valign="top">
+    <h3>🎭 Stories</h3>
+    <p>Multi-voice editor. Assign voices<br/>per-line, preview, <b>export full cast</b>.</p>
+  </td>
+  <td align="center" valign="top">
+    <h3>⌨️ Dictation Widget</h3>
+    <p><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>Space</kbd> from <b>any app</b>.<br/>Transcribes, auto-pastes, disappears.</p>
+  </td>
+  <td align="center" valign="top">
+    <h3>🔐 100% Local</h3>
+    <p>No keys, no cloud, no accounts.<br/><b>Your machine only</b>.</p>
+  </td>
+  <td align="center" valign="top">
+    <h3>🤖 MCP Server</h3>
+    <p>Use OmniVoice from <b>Claude</b>,<br/>Cursor, or any MCP client.</p>
+  </td>
+</tr>
+</table>
+
+<details>
+<summary><b>…and 12 more</b> — isolation, diarization, batch, watermarking, diagnostics, and friends</summary>
+
+<br/>
+
+- 🔊 **Vocal isolation** — Demucs-powered: splits speech from music and keeps the background bed.
+- 👥 **Speaker diarization** — Pyannote + WhisperX auto-identify who said what.
+- 📦 **Batch queue** — drop 50 videos, walk away; per-job progress bars.
+- 🛡️ **AI watermark** — AudioSeal (Meta): invisible, survives compression.
+- 🔬 **Diagnostics** — self-check suite, error journal, scrubbed diagnostic bundles.
+- ⚡ **GPU auto-detect** — CUDA · MPS · ROCm · CPU; ≤8 GB VRAM auto-offloads.
+- 🧭 **Engine routing** — preflight GPU check per engine; no silent CPU fallback.
+- 🧩 **Extensible** — subclass `TTSBackend`, add any engine in ~50 lines.
+- 🎒 **Portable personas** — export voices as `.ovsvoice` bundles: identity + watermark.
+- ♾️ **Unlimited TTS** — sentence-chunked generation, no length cap, streaming via WebSocket.
+- 🌐 **Remote backend** — point the UI at a remote server; Tailscale-friendly, bearer auth.
+- 🧠 **Dictation + LLM** — local-LLM cleanup of transcripts, optional echo cancellation.
+
+</details>
+
+---
+
+<a id="quickstart"></a>
+
+## ⚡ Quickstart
+
+<div align="center">
+  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/macOS-DMG_(Apple_Silicon)-000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS DMG" /></a>
+  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/Windows-MSI_(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows MSI" /></a>
+  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/Linux-AppImage_(x64)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Download Linux AppImage" /></a>
+  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/Debian-.deb-A81D33?style=for-the-badge&logo=debian&logoColor=white" alt="Download Debian .deb" /></a>
+  <br/>
+  <sub><b>macOS:</b> first launch needs a one-time approval — right-click → <b>Open</b> (or System Settings → Privacy &amp; Security → <b>"Open Anyway"</b> on macOS 15). No Terminal needed. <a href="docs/install/macos.md#gatekeeper-quarantine">Why?</a></sub>
+  <br/>
+  <sub><b>Intel Macs are not supported for the local backend:</b> the app UI installs, but the Python backend cannot run because PyTorch no longer ships Intel-Mac (x86_64) wheels (<a href="https://github.com/debpalash/OmniVoice-Studio/issues/889">#889</a>) — see <a href="docs/install/macos.md">docs/install/macos.md</a>.</sub>
+</div>
+
+Pick your OS and follow the guide end-to-end:
+
+- 🍎 **macOS** — [docs/install/macos.md](docs/install/macos.md)
+- 🪟 **Windows** — [docs/install/windows.md](docs/install/windows.md)
+- 🐧 **Linux** — [docs/install/linux.md](docs/install/linux.md)
+- 🐳 **Docker** — [docs/install/docker.md](docs/install/docker.md) · [Docker Hub: `palashdeb/omnivoice-studio`](https://hub.docker.com/r/palashdeb/omnivoice-studio)
+
+<details>
+<summary><b>🧰 Stuck? Self-checks, tokens &amp; restricted networks</b></summary>
+
+<br/>
+
+Run the built-in self-check first — **Settings → About → "Run
+self-check"** in the app, or `uv run python backend/main.py --diagnose` from
+a checkout (`--deep` also test-loads the active engine). Then see
+[docs/install/troubleshooting.md](docs/install/troubleshooting.md) for the
+top 10 install errors. The in-app error UI deeplinks to those entries when
+something breaks at runtime, and **Settings → About → "Save diagnostic
+bundle"** packages scrubbed logs + the self-check report for bug reports.
+
+For Hugging Face token setup, see
+[docs/setup/huggingface-token.md](docs/setup/huggingface-token.md). For
+diarization-specific gating, see
+[docs/features/diarization.md](docs/features/diarization.md). For download
+speed, the ⚡ fast-download (Xet) status, and restricted-network / mirror
+options, see [docs/downloading-models.md](docs/downloading-models.md).
+
+</details>
+
+---
+
 <a id="why-ovs"></a>
 
 ## 💡 Why OmniVoice?
@@ -264,7 +252,7 @@ ElevenLabs charges **$5–$330/mo** and processes your audio on their servers. O
 | **Self-check** | ❌ | ✅ Diagnostics suite, error journal, scrubbed debug bundles |
 | **Customizable** | ❌ Closed | ✅ Fork it, extend it, ship it |
 
-OmniVoice Studio gives you professional-grade AI tools without the subscription or the cloud.
+Professional-grade voice AI, minus the subscription and the cloud.
 
 <div align="center">
   <br/>
@@ -296,7 +284,12 @@ OmniVoice Studio gives you professional-grade AI tools without the subscription 
 
 ### 🗣️ TTS Engines
 
-OmniVoice ships a multi-engine TTS backend. The default engine (OmniVoice) is always available; additional engines are opt-in and auto-detected. Switch engines in **Settings → TTS Engine** or via the `OMNIVOICE_TTS_BACKEND` env var.
+**14 engines, one picker.** OmniVoice (default, 600+ languages) is always available; CosyVoice 3, GPT-SoVITS, VoxCPM2, MOSS-TTS-Nano, KittenTTS, MLX-Audio, and Sherpa-ONNX are opt-in and auto-detected — plus six lazy-installed heavyweights (IndexTTS 2, OmniVoice GGUF, Supertonic 3, MOSS-TTS-v1.5, dots.tts, Confucius4-TTS). Switch in **Settings → TTS Engine** or via the `OMNIVOICE_TTS_BACKEND` env var.
+
+<details>
+<summary><b>📊 The full matrix</b> — 14 engines × platform × clone/instruct × license</summary>
+
+<br/>
 
 | Engine | Languages | Clone | Instruct | Linux | macOS ARM | Windows | License |
 |--------|:---------:|:-----:|:--------:|:-----:|:---------:|:-------:|:-------:|
@@ -319,11 +312,18 @@ OmniVoice ships a multi-engine TTS backend. The default engine (OmniVoice) is al
 >
 > **MOSS-TTS-v1.5** (8B, ~16 GB weights) and **dots.tts** (2B, ~9 GB weights) are heavyweight opt-in engines that run in their own isolated venv from a local clone — see [MOSS-TTS-v1.5](docs/engines/moss-tts-v15.md) and [dots.tts](docs/engines/dots-tts.md). Neither claims Apple-Silicon **MPS** (upstream is CUDA/CPU only; on a Mac they run on CPU). dots.tts upstream is Linux/macOS only — no Windows path. **Confucius4-TTS** (14-language cross-lingual zero-shot cloning) is similar — its own Python 3.10 venv from a clone; CUDA recommended, CPU validated end-to-end (slow, ~17× realtime; no MPS — tested slower than CPU); see [Confucius4-TTS](docs/engines/confucius4-tts.md).
 
+</details>
+
 <a id="asr-engines"></a>
 
 ### 🎧 ASR Engines
 
-OmniVoice ships a multi-engine ASR (speech-to-text) backend that powers dictation, video dubbing, and subtitle generation — all fully local. **WhisperX** is the cross-platform default; the rest are opt-in and auto-detected. Switch in **Settings → ASR Engine** or via the `OMNIVOICE_ASR_BACKEND` env var.
+**9 engines, all fully local** — they power dictation, video dubbing, and subtitles. **WhisperX** is the cross-platform default (~100 languages, word-level timing); the rest are opt-in and auto-detected. Switch in **Settings → ASR Engine** or via the `OMNIVOICE_ASR_BACKEND` env var.
+
+<details>
+<summary><b>📊 The full lineup</b> — 9 engines, what each is best at, and compute-type notes</summary>
+
+<br/>
 
 | Engine | `OMNIVOICE_ASR_BACKEND` | Languages | Best for |
 |--------|-------------------------|:---------:|----------|
@@ -340,6 +340,8 @@ OmniVoice ships a multi-engine ASR (speech-to-text) backend that powers dictatio
 > Whisper-family engines cover ~100 languages; **FunASR / SenseVoice** adds an all-in-one multilingual path with built-in voice-activity detection and inline speaker diarization. **sherpa-onnx** powers the live dictation model picker — you talk and text appears as you speak. Every engine runs on-device — no API keys, no cloud.
 
 > **GPU without efficient float16?** On older NVIDIA GPUs (Maxwell/Pascal, GTX 16xx) or after a CTranslate2/cuDNN mismatch, the CTranslate2 ASR engines (WhisperX, Faster-Whisper) can't run `float16` and OmniVoice automatically retries on `int8` — no config needed. If transcription still fails, pin the compute type with the `ASR_COMPUTE_TYPE` env var (escape hatch): `ASR_COMPUTE_TYPE=int8` (or `float32` for CPU). Set it to `int8` and restart the backend.
+
+</details>
 
 ---
 
@@ -361,11 +363,50 @@ OmniVoice ships a multi-engine ASR (speech-to-text) backend that powers dictatio
          CUDA / MPS / ROCm / CPU (auto-detected + routed)
 ```
 
+<a id="openai-api"></a>
+
+## 🔌 OpenAI-compatible API
+
+Already have a script, agent, or tool that speaks OpenAI's audio API? Point it at `http://localhost:3900/v1` — no key needed, no code changes. The backend ships a drop-in surface for the audio endpoints, wired to whichever TTS/ASR engine you have active (and yes, `voice` accepts your cloned voice-profile IDs).
+
+| Endpoint | What it does |
+|---|---|
+| `POST /v1/audio/speech` | TTS — text in; `mp3` / `wav` / `flac` / `opus` / `pcm` out. `tts-1` / `tts-1-hd` map to your active engine; OpenAI voice names (`alloy`, …) are accepted. |
+| `POST /v1/audio/transcriptions` | STT — audio file in; `json`, `text`, `verbose_json`, `srt`, or `vtt` out. `whisper-1` maps to your active ASR engine. |
+| `GET /v1/audio/voices` | OmniVoice extension — lists every voice profile and engine, so clients can discover your clones. |
+
+```sh
+curl http://localhost:3900/v1/audio/speech \
+  -H "Content-Type: application/json" \
+  -d '{"model": "tts-1", "voice": "alloy", "input": "Generated on my own hardware.", "response_format": "wav"}' \
+  --output speech.wav
+```
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url="http://localhost:3900/v1", api_key="none")  # any string works — nothing checks it
+
+result = client.audio.transcriptions.create(model="whisper-1", file=open("clip.wav", "rb"))
+print(result.text)
+```
+
+Want the whole surface (100+ endpoints)? The full REST API reference is embedded in the app — **Settings → OpenAPI Reference** (Scalar-powered), or the `{}` button in the footer.
+
 ---
 
 ## 🗺️ Roadmap
 
-### ✅ Shipped
+### 🔜 Up Next
+
+- 🎬 **Lip-sync v2** — visual speech timing with wav2lip
+- 🌐 **Hosted Demo** — try OmniVoice without installing anything
+- 🔌 **Plugin Marketplace** — community-contributed TTS engines and effects
+- 🎵 **Real-time Voice Changer** — live microphone transformation during calls
+
+<details>
+<summary><b>✅ Everything shipped so far</b> — the receipts, by category</summary>
+
+<br/>
 
 | Category | Features |
 |----------|----------|
@@ -389,12 +430,7 @@ OmniVoice ships a multi-engine ASR (speech-to-text) backend that powers dictatio
 | **Remote Backend** | Point the desktop UI at a remote backend URL with bearer auth (Tailscale-documented) |
 | **Reliability** | Stall watchdog on bootstrap splash, per-engine GPU compatibility matrix, actionable errors for non-executable engine binaries, setuptools auto-repair |
 
-### 🔜 Up Next
-
-- 🎬 **Lip-sync v2** — visual speech timing with wav2lip
-- 🌐 **Hosted Demo** — try OmniVoice without installing anything
-- 🔌 **Plugin Marketplace** — community-contributed TTS engines and effects
-- 🎵 **Real-time Voice Changer** — live microphone transformation during calls
+</details>
 
 ---
 
@@ -445,7 +481,12 @@ OmniVoice is **free** and **AGPL-3.0** — no paid tier, no SaaS revenue. Sponso
 
 <div align="center">
   <a href="https://discord.gg/bzQavDfVV9"><img src="https://img.shields.io/badge/💬_Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord" /></a>
+  <br/>
+  <sub>We respond to setup questions within hours, not days.</sub>
 </div>
+
+<details>
+<summary><b>What happens in there</b></summary>
 
 <br/>
 
@@ -457,7 +498,7 @@ OmniVoice is **free** and **AGPL-3.0** — no paid tier, no SaaS revenue. Sponso
 | `#dev` | Architecture discussions, PR reviews, engine integrations |
 | `#announcements` | Release notes, breaking changes, early access |
 
-**[→ Join the Discord](https://discord.gg/bzQavDfVV9)** — we respond to setup questions within hours, not days.
+</details>
 
 ---
 
@@ -465,7 +506,7 @@ OmniVoice is **free** and **AGPL-3.0** — no paid tier, no SaaS revenue. Sponso
 
 ## 🤝 Contributing
 
-We welcome contributions of all kinds — bug fixes, new TTS engine adapters, UI improvements, docs, and translations.
+Yes please — bug fixes, new TTS engine adapters, UI improvements, docs, translations. All of it.
 
 - 📖 Read the **[Contributing Guide](CONTRIBUTING.md)** for setup, code style, and PR workflow
 - 🐛 Browse [good first issues](https://github.com/debpalash/OmniVoice-Studio/labels/good%20first%20issue)
