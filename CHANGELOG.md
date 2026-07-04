@@ -6,7 +6,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
-## [Unreleased]
+## [0.3.10] — 2026-07-05
+
+The listening release — nine fixes in twenty-four hours, almost all driven by your v0.3.9 field reports (several with same-day turnaround). The dubbing pipeline stops lying: **Cinematic and Autofit can no longer invent dialogue**, the **speaker count you set is honored on every path** (and auto-cloning stops fabricating voices from guessed labels), and the timeline stops flashing invisible on Windows. Audiobook chapters with pauses render again. And one fix everyone should want: **updating can no longer leave you secretly running the old version** — a leftover backend from a previous install holding the port is now detected and replaced at launch. Plus: the Dub tab's LLM engine finally runs on the provider you configured in Settings, history timestamps stop reading "20617d ago", and the Engines page can't crash under concurrent load.
 
 ### Fixed
 
