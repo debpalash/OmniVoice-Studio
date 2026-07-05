@@ -8,6 +8,16 @@
 //     and the API, so a remote device on http://<host>:<share-port> must hit
 //     that same origin — NOT a hardcoded :3900, which is cross-origin (CORS)
 //     and loopback-only/unreachable from another machine.
+// Explicit .ts extension: tests/frontend/apiClient.test.mjs loads this module
+// under `node --experimental-strip-types`, whose ESM resolver requires real
+// file extensions (tsconfig has allowImportingTsExtensions for tsc).
+import {
+  getUnacknowledgedBackendCrash,
+  describeCrashExit,
+  crashAge,
+  type BackendCrashMarker,
+} from '../utils/backendCrash.ts';
+
 const viteEnv = import.meta.env ?? {};
 // Remote-backend settings (Wave 2.3): user-configured in Settings → Sharing.
 // localStorage so the choice survives restarts; read once at module load —
@@ -142,6 +152,28 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
       if (attempt < TRANSPORT_RETRY_BACKOFF_MS.length) {
         await new Promise((r) => setTimeout(r, TRANSPORT_RETRY_BACKOFF_MS[attempt]));
         continue;
+      }
+      // #941: if the desktop shell recorded an unacknowledged backend crash,
+      // tell the honest story instead of the vague "can't reach" — and let
+      // BackendCrashNotice raise its "View crash details" affordance.
+      let crash: BackendCrashMarker | null = null;
+      try {
+        crash = await getUnacknowledgedBackendCrash();
+      } catch {
+        /* forensics unavailable — fall through to the generic message */
+      }
+      if (crash) {
+        try {
+          window.dispatchEvent(new CustomEvent('ov:backend-crashed', { detail: crash }));
+        } catch {
+          /* no window (tests) — the ApiError below still tells the story */
+        }
+        throw new ApiError(
+          `The local OmniVoice backend crashed (${describeCrashExit(crash)}) ${crashAge(crash)} ago ` +
+            'and is being restarted — this request could not reach it. ' +
+            'Open the crash notice for the error output, or check Settings → Logs → Backend.',
+          { status: 0, detail: lastDetail },
+        );
       }
       throw new ApiError(
         "Can't reach the local OmniVoice backend — it may still be starting up, or it stopped. " +

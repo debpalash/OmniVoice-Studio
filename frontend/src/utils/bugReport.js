@@ -15,6 +15,7 @@
 /* global __APP_VERSION__ -- injected by Vite at build time (vite.config define) */
 import { API } from '../api/client';
 import { formatBreadcrumbs } from './breadcrumbs';
+import { crashAge, describeCrashExit, getLastBackendCrash } from './backendCrash';
 
 export const ISSUES_URL = 'https://github.com/debpalash/OmniVoice-Studio/issues/new';
 
@@ -67,6 +68,9 @@ export function scrubText(text) {
 // under the ~8k practical ceiling so the user never loses the form.
 const MAX_STACK_CHARS = 1800;
 const MAX_MSG_CHARS = 1200;
+// Crash-marker stderr tail budget (#941) — keep the newest end (the actual
+// traceback/abort), the head is uvicorn boot noise.
+const MAX_CRASH_TAIL_CHARS = 1200;
 // The real ceiling is on the URL-ENCODED body, not the raw string: markdown
 // encodes ~1.3–1.6× larger (newlines→%0A, spaces→%20, backticks/#//), so a
 // 6000-char raw body can be ~9k encoded and blow past GitHub's limit. Bound
@@ -139,6 +143,39 @@ async function captureContext() {
   return lines.join('\n');
 }
 
+/** "## Last backend crash" section from the desktop shell's crash marker
+ * (#941): exit code/signal + scrubbed stderr tail, so a "backend became
+ * unreachable" report arrives WITH the evidence instead of needing a
+ * logs-please round-trip. Empty outside Tauri or when nothing ever crashed.
+ * The marker's age is stated so a stale (possibly unrelated) crash can't
+ * masquerade as fresh evidence. */
+async function captureCrashSection() {
+  let marker = null;
+  try {
+    marker = await getLastBackendCrash();
+  } catch {
+    /* shell forensics unavailable */
+  }
+  if (!marker) return [];
+  let tail = scrubText(marker.last_stderr || '').trim();
+  if (tail.length > MAX_CRASH_TAIL_CHARS) {
+    tail = `… (truncated)\n${tail.slice(-MAX_CRASH_TAIL_CHARS)}`;
+  }
+  return [
+    '## Last backend crash (auto-captured — may predate this bug)',
+    '',
+    `**When:** ${new Date(marker.ts * 1000).toISOString()} (${crashAge(marker)} ago)`,
+    `**Exit:** \`${describeCrashExit(marker)}\``,
+    `**Uptime before crash:** ${marker.uptime_s} s`,
+    `**Backend version:** \`${marker.backend_version}\``,
+    '',
+    '```',
+    tail || '(no stderr captured)',
+    '```',
+    '',
+  ];
+}
+
 /**
  * Build the prefilled GitHub Issues URL.
  *
@@ -150,6 +187,7 @@ async function captureContext() {
  */
 export async function buildBugReportUrl({ title = '[Bug] ', error } = {}) {
   const ctx = await captureContext();
+  const crashSection = await captureCrashSection();
 
   const errorSection = [];
   if (error) {
@@ -194,6 +232,7 @@ export async function buildBugReportUrl({ title = '[Bug] ', error } = {}) {
     '',
     ctx,
     '',
+    ...crashSection,
     ...crumbSection,
     '## What I was doing',
     '',

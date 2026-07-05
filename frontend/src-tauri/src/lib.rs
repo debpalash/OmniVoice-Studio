@@ -13,6 +13,7 @@ pub mod bootstrap;
 pub mod tools;
 pub mod backend;
 pub mod commands;
+pub mod crash;
 pub mod updater_channel;
 
 use std::process::Child;
@@ -41,6 +42,9 @@ pub fn backend_port() -> u16 {
 
 pub struct BackendState {
     pub process: Mutex<Option<Child>>,
+    /// When the tracked child was spawned — feeds the crash marker's
+    /// `uptime_s` (#941). Set alongside `process` in bootstrap.rs.
+    pub spawned_at: Mutex<Option<std::time::Instant>>,
 }
 
 pub struct AppFlags {
@@ -271,6 +275,8 @@ pub fn run() {
             commands::get_launch_as_widget,
             commands::set_launch_as_widget,
             commands::clear_webview_cache_and_relaunch,
+            crash::get_last_backend_crash,
+            crash::acknowledge_backend_crash,
         ])
         .setup(move |app| {
             app.handle().plugin(tauri_plugin_dialog::init())?;
@@ -639,6 +645,7 @@ pub fn run() {
             app.manage(bootstrap_state);
             app.manage(BackendState {
                 process: Mutex::new(None),
+                spawned_at: Mutex::new(None),
             });
 
             let app_handle = app.handle().clone();
@@ -737,6 +744,14 @@ pub fn run() {
 
     app.run(|app_handle, event| {
         if let tauri::RunEvent::ExitRequested { .. } = event {
+            // Raise the quitting flag FIRST: exits that don't pass through the
+            // tray Quit item (macOS ⌘Q, OS session end) would otherwise let a
+            // death watcher observe our own SIGTERM below and record a false
+            // "backend crashed" marker (#941).
+            app_handle
+                .state::<AppFlags>()
+                .quitting
+                .store(true, Ordering::SeqCst);
             if let Ok(mut lock) = app_handle.state::<BackendState>().process.lock() {
                 if let Some(ref mut child) = *lock {
                     let pid = child.id();

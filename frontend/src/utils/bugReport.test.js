@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { scrubText, buildBugReportUrl, ISSUES_URL, REDACTED } from './bugReport';
+import { getLastBackendCrash } from './backendCrash';
+
+// #941: keep the real crashAge/describeCrashExit helpers; only the shell
+// bridge is mocked (it resolves null by default, like a non-Tauri context —
+// every pre-existing test keeps its no-crash behavior).
+vi.mock('./backendCrash', async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, getLastBackendCrash: vi.fn().mockResolvedValue(null) };
+});
 
 describe('scrubText — frontend twin of backend/core/scrub.py', () => {
   it.each([
@@ -102,6 +111,56 @@ describe('buildBugReportUrl', () => {
     const err = new Error('boom');
     err.stack = 'at frame\n'.repeat(5000);
     const url = await buildBugReportUrl({ error: err });
+    expect(url.length).toBeLessThan(8000);
+  });
+});
+
+describe('buildBugReportUrl — crash-marker enrichment (#941)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('ECONNREFUSED')));
+    getLastBackendCrash.mockResolvedValue(null);
+  });
+
+  it('attaches the crash evidence (exit code + scrubbed stderr tail)', async () => {
+    getLastBackendCrash.mockResolvedValue({
+      ts: Math.floor(Date.now() / 1000) - 30,
+      exit_code: 3221226505,
+      signal: null,
+      exit_desc: 'exit code: 3221226505',
+      backend_version: '0.3.10',
+      uptime_s: 42,
+      last_stderr:
+        'File "/Users/alice/omnivoice/backend/main.py", line 1\nOSError: paging file too small',
+      acknowledged: true, // acked markers still ride along — ack ≠ delete
+    });
+    const body = decodeURIComponent(await buildBugReportUrl());
+    expect(body).toContain('## Last backend crash');
+    expect(body).toContain('exit code 3221226505');
+    expect(body).toContain('**Uptime before crash:** 42 s');
+    // Home paths in the stderr tail are scrubbed like every other section.
+    expect(body).toContain('~/omnivoice/backend/main.py');
+    expect(body).not.toContain('/Users/alice');
+  });
+
+  it('omits the section entirely when no crash was ever recorded', async () => {
+    const body = decodeURIComponent(await buildBugReportUrl());
+    expect(body).not.toContain('## Last backend crash');
+  });
+
+  it('keeps the newest end of an oversized stderr tail and stays under the URL ceiling', async () => {
+    getLastBackendCrash.mockResolvedValue({
+      ts: Math.floor(Date.now() / 1000),
+      exit_code: 1,
+      signal: null,
+      exit_desc: 'exit status: 1',
+      backend_version: '0.3.10',
+      uptime_s: 1,
+      last_stderr: `${'boot noise line\n'.repeat(400)}THE REAL TRACEBACK LINE`,
+      acknowledged: false,
+    });
+    const url = await buildBugReportUrl();
+    const body = decodeURIComponent(url);
+    expect(body).toContain('THE REAL TRACEBACK LINE'); // tail kept, head dropped
     expect(url.length).toBeLessThan(8000);
   });
 });

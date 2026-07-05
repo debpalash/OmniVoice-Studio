@@ -12,6 +12,7 @@ use serde::Serialize;
 use tauri::{Emitter, Manager};
 
 use crate::config::get_effective_region;
+use crate::crash::BackendExit;
 use crate::tools::resolve_uv;
 use crate::{AppFlags, BackendState, backend_port};
 
@@ -164,6 +165,7 @@ pub fn retry_bootstrap(app: tauri::AppHandle, state: tauri::State<'_, BootstrapS
                     if v.is_empty() { "<unknown>" } else { v.as_str() },
                     env!("CARGO_PKG_VERSION"),
                 );
+                set_backend_kill_intended(true); // deliberate kill, not a crash (#941)
                 crate::backend::kill_orphan_on_port(backend_port());
                 std::thread::sleep(Duration::from_millis(500));
             }
@@ -171,6 +173,7 @@ pub fn retry_bootstrap(app: tauri::AppHandle, state: tauri::State<'_, BootstrapS
         }
         if crate::backend::port_in_use(backend_port()) {
             log::warn!("Port {} in use — taking ownership", backend_port());
+            set_backend_kill_intended(true); // deliberate kill, not a crash (#941)
             crate::backend::kill_orphan_on_port(backend_port());
             std::thread::sleep(Duration::from_millis(500));
         }
@@ -192,9 +195,7 @@ pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<B
     let mut venv_heal_attempted = false;
     'bootstrap: loop {
         let child = crate::backend::spawn_backend(app, Some(stage_handle));
-        if let Ok(mut guard) = app.state::<BackendState>().process.lock() {
-            *guard = child;
-        }
+        track_backend_child(app, child);
         let start = std::time::Instant::now();
         while start.elapsed() < Duration::from_secs(300) {
             if crate::backend::backend_healthy(backend_port()) {
@@ -213,20 +214,41 @@ pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<B
                 }
                 return;
             }
-            let process_dead = if let Ok(mut guard) = app.state::<BackendState>().process.lock() {
-                match guard.as_mut() {
-                    Some(child) => match child.try_wait() {
-                        Ok(Some(status)) => Some(status.to_string()),
-                        Ok(None) => None,
-                        Err(_) => Some("unknown".to_string()),
-                    },
-                    None => Some("never started".to_string()),
-                }
-            } else {
-                None
-            };
-            if let Some(exit_info) = process_dead {
+            let process_dead: Option<(String, Option<BackendExit>)> =
+                if let Ok(mut guard) = app.state::<BackendState>().process.lock() {
+                    match guard.as_mut() {
+                        Some(child) => match child.try_wait() {
+                            Ok(Some(status)) => {
+                                let exit = BackendExit::from_status(status);
+                                Some((exit.description.clone(), Some(exit)))
+                            }
+                            Ok(None) => None,
+                            // try_wait errored — the death is real but its
+                            // shape is unknown; no exit code for the marker.
+                            Err(_) => Some(("unknown".to_string(), None)),
+                        },
+                        // Spawn itself failed — no process ever ran, so this
+                        // is a spawn failure (spawn_failure_diagnostic owns
+                        // it), NOT a crash: no marker.
+                        None => Some(("never started".to_string(), None)),
+                    }
+                } else {
+                    None
+                };
+            if let Some((exit_info, real_exit)) = process_dead {
                 let err_tail = crate::backend::read_error_log_tail(30);
+                // #941: persist the forensics for every true process death —
+                // startup crashes included — unless the app is shutting down
+                // or a retry flow deliberately killed the child.
+                if let Some(ref exit) = real_exit {
+                    if !app_is_quitting(app) && !backend_kill_intended() {
+                        crate::crash::record_crash(crate::crash::marker_now(
+                            exit,
+                            backend_uptime_s(app),
+                            crate::backend::read_error_log_tail(CRASH_STDERR_TAIL_LINES),
+                        ));
+                    }
+                }
                 // #314: a backend that dies because the venv itself is broken
                 // can only be healed by rebuilding the venv — do that once
                 // instead of failing into an unwinnable retry loop.
@@ -308,12 +330,34 @@ pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<B
 /// first to reach Ready claims this and the rest fall through.
 static SUPERVISOR_ACTIVE: AtomicBool = AtomicBool::new(false);
 
-/// Give up (surface Failed) if the backend dies this many times within
-/// `RESTART_WINDOW` — a deterministic startup crash must not become a
-/// fork-bomb. The #314 broken-venv self-heal stays the venv-failure path; the
+/// #941: set while a retry/clean-retry flow deliberately kills the backend to
+/// replace it, so the death watchers (startup poll + supervisor) never write a
+/// crash marker for — or respawn against — an *intentional* kill. Cleared the
+/// moment a fresh child is spawned and tracked (`track_backend_child`).
+static BACKEND_KILL_INTENDED: AtomicBool = AtomicBool::new(false);
+
+pub fn set_backend_kill_intended(value: bool) {
+    BACKEND_KILL_INTENDED.store(value, Ordering::SeqCst);
+}
+
+fn backend_kill_intended() -> bool {
+    BACKEND_KILL_INTENDED.load(Ordering::SeqCst)
+}
+
+/// How much of backend_err.log rides inside a crash marker (#941). ~40 lines
+/// is enough for a Python traceback or a native abort banner without bloating
+/// the marker file or the bug-report URL (the frontend truncates further).
+const CRASH_STDERR_TAIL_LINES: usize = 40;
+
+/// Crash-loop escalation guard (#941, supersedes the #567 5-in-60s budget):
+/// give up (surface Failed with the crash details) once the backend has died
+/// `MAX_RESTARTS` times inside `RESTART_WINDOW`. The longer 10-minute window
+/// catches *slow* crash loops (e.g. an engine that OOMs a couple of minutes
+/// into every generation) that the old 60-second window let spin silently
+/// forever. The #314 broken-venv self-heal stays the venv-failure path; the
 /// supervisor only handles post-Ready deaths.
-const MAX_RESTARTS: usize = 5;
-const RESTART_WINDOW: Duration = Duration::from_secs(60);
+const MAX_RESTARTS: usize = 3;
+const RESTART_WINDOW: Duration = Duration::from_secs(600);
 
 fn app_is_quitting(app: &tauri::AppHandle) -> bool {
     app.try_state::<AppFlags>()
@@ -321,17 +365,39 @@ fn app_is_quitting(app: &tauri::AppHandle) -> bool {
         .unwrap_or(false)
 }
 
-/// Returns `Some(exit description)` if the tracked backend child has exited,
+/// Store the freshly spawned backend child (and its spawn time, for the crash
+/// marker's `uptime_s`), and re-arm the death watchers: any deliberate-kill
+/// window ends the moment a new child is tracked.
+fn track_backend_child(app: &tauri::AppHandle, child: Option<std::process::Child>) {
+    let state = app.state::<BackendState>();
+    if let Ok(mut guard) = state.process.lock() {
+        *guard = child;
+    }
+    if let Ok(mut spawned) = state.spawned_at.lock() {
+        *spawned = Some(Instant::now());
+    }
+    set_backend_kill_intended(false);
+}
+
+/// Seconds since the tracked backend child was spawned (0 when unknown).
+fn backend_uptime_s(app: &tauri::AppHandle) -> u64 {
+    app.try_state::<BackendState>()
+        .and_then(|s| s.spawned_at.lock().ok().and_then(|g| *g))
+        .map(|t| t.elapsed().as_secs())
+        .unwrap_or(0)
+}
+
+/// Returns `Some(BackendExit)` if the tracked backend child has exited,
 /// `None` if it is still running (or none is tracked — which we never treat as
 /// a death to respawn, to avoid fighting a deliberate teardown).
-fn backend_child_exit(app: &tauri::AppHandle) -> Option<String> {
+fn backend_child_exit(app: &tauri::AppHandle) -> Option<BackendExit> {
     let state = app.try_state::<BackendState>()?;
     let mut guard = state.process.lock().ok()?;
     match guard.as_mut() {
         Some(child) => match child.try_wait() {
-            Ok(Some(status)) => Some(status.to_string()),
+            Ok(Some(status)) => Some(BackendExit::from_status(status)),
             Ok(None) => None,
-            Err(e) => Some(format!("try_wait error: {e}")),
+            Err(e) => Some(BackendExit::unknown(&format!("try_wait error: {e}"))),
         },
         None => None,
     }
@@ -358,21 +424,39 @@ fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapS
         if app_is_quitting(app) {
             return;
         }
-        let exit_info = match backend_child_exit(app) {
-            Some(info) => info,
+        let exit = match backend_child_exit(app) {
+            Some(exit) => exit,
             None => continue, // still running
         };
         // The exit may have raced with a shutdown that killed the child.
         if app_is_quitting(app) {
             return;
         }
+        // A retry/clean-retry flow killed the child on purpose and owns the
+        // respawn — no crash marker, and step aside so the retry's own
+        // spawn_backend_and_wait claims the supervisor slot at Ready (#941).
+        if backend_kill_intended() {
+            log::info!("Backend exit was a deliberate replace — supervisor yielding to the retry flow");
+            return;
+        }
+        let exit_info = exit.description.clone();
+        // #941: make the death self-documenting BEFORE any restart attempt —
+        // the marker (exit code/signal + stderr tail + uptime) is what turns
+        // the next "Can't reach the backend" report into a diagnosable one.
+        let uptime_s = backend_uptime_s(app);
+        crate::crash::record_crash(crate::crash::marker_now(
+            &exit,
+            uptime_s,
+            crate::backend::read_error_log_tail(CRASH_STDERR_TAIL_LINES),
+        ));
         if restart_budget_exhausted(&mut restart_times, Instant::now()) {
             let tail = crate::backend::read_error_log_tail(30);
             let msg = format!(
-                "The backend kept crashing ({} times in {}s) and couldn't be kept running. \
-                 Use Clean & Retry, or check Settings → Logs → Backend.{}",
+                "The backend kept crashing ({} times in {} min; last death: {}) and couldn't \
+                 be kept running. Use Clean & Retry, or check Settings → Logs → Backend.{}",
                 MAX_RESTARTS,
-                RESTART_WINDOW.as_secs(),
+                RESTART_WINDOW.as_secs() / 60,
+                exit.label(),
                 if tail.is_empty() { String::new() } else { format!("\n\nLast output:\n{tail}") },
             );
             log::error!("Backend supervisor giving up: {msg}");
@@ -393,9 +477,7 @@ fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapS
             std::thread::sleep(Duration::from_millis(300));
         }
         let child = crate::backend::spawn_backend(app, Some(stage_handle));
-        if let Ok(mut guard) = app.state::<BackendState>().process.lock() {
-            *guard = child;
-        }
+        track_backend_child(app, child);
         // Wait (bounded) for the respawn to become healthy. If it dies again
         // immediately, bail early so the next loop counts it toward the cap.
         let start = Instant::now();
@@ -430,6 +512,7 @@ pub fn clean_and_retry_bootstrap(app: tauri::AppHandle, state: tauri::State<'_, 
     // project dir, otherwise bootstrap will "attach" to the stale process.
     if crate::backend::port_in_use(backend_port()) {
         log::warn!("Clean retry: killing stale backend on port {}", backend_port());
+        set_backend_kill_intended(true); // deliberate kill, not a crash (#941)
         crate::backend::kill_orphan_on_port(backend_port());
         std::thread::sleep(Duration::from_millis(500));
     }
@@ -1666,6 +1749,15 @@ mod tests {
         assert_eq!(envs.get("UV_HTTP_TIMEOUT").map(String::as_str), Some("120"));
         assert_eq!(envs.get("UV_HTTP_CONNECT_TIMEOUT").map(String::as_str), Some("30"));
         assert_eq!(envs.get("UV_HTTP_RETRIES").map(String::as_str), Some("5"));
+    }
+
+    #[test]
+    fn crash_loop_policy_is_three_deaths_in_ten_minutes() {
+        // #941 escalation guard: ≥3 crashes inside 10 min must stop the
+        // respawn loop and land on the Failed screen with the crash details —
+        // the old 5-in-60s budget let slow crash loops spin silently forever.
+        assert_eq!(MAX_RESTARTS, 3);
+        assert_eq!(RESTART_WINDOW, Duration::from_secs(600));
     }
 
     #[test]

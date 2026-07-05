@@ -391,6 +391,16 @@ overhead. It reuses your existing faster-whisper install (nothing extra to
 download). OmniVoice never switches engines automatically — this stays your
 call.
 
+> **Seeing "The backend crashed (exit code …)" instead?** That's the other
+> failure mode: the backend **process died** (native CUDA abort, out-of-memory
+> kill, DLL crash) rather than hanging. Newer desktop builds detect the death,
+> restart the backend automatically (giving up after 3 crashes in 10 minutes),
+> and show a crash notice with a **View crash details** button (exit code +
+> the last error output). Use **Report this bug** from that notice — the crash
+> evidence is attached to the prefilled GitHub issue automatically, with home
+> paths scrubbed. The raw markers live next to the backend logs in
+> `backend_crash_markers.json`.
+
 ## 15. Stuck at "preparing" forever after a crash / BSOD (Windows)
 
 **Symptom:** after an unclean shutdown (Windows BSOD, forced power-off), every

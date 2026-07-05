@@ -1599,6 +1599,20 @@
     "searchIssues": "Search similar issues",
     "unexpected": "Unexpected error: {{message}}"
   },
+  "crash": {
+    "notice": "The voice backend crashed ({{exit}}) {{ago}} ago and is being restarted automatically.",
+    "view": "View crash details",
+    "dismiss": "Dismiss",
+    "details_title": "Backend crash details",
+    "details_intro": "The backend process died unexpectedly ({{exit}}) {{ago}} ago. The error output it left behind is below — reporting it helps us fix the crash.",
+    "field_exit": "Exit",
+    "field_when": "When",
+    "field_uptime": "Uptime before crash",
+    "field_version": "Backend version",
+    "uptime_value": "{{count}} s",
+    "stderr_title": "Last error output (stderr)",
+    "no_stderr": "No error output was captured."
+  },
   "common": {
     "open": "Open",
     "cancel": "Cancel",

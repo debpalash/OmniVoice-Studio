@@ -42,6 +42,7 @@ import WorkspaceVoices from './components/WorkspaceVoices';
 import WorkspaceProjects from './components/WorkspaceProjects';
 import ErrorBoundary from './components/ErrorBoundary';
 import FloatingPill from './components/FloatingPill';
+import BackendCrashNotice from './components/BackendCrashNotice';
 // RemoteAuthGate is mounted at the true outermost provider in main-app.jsx so
 // it covers all app states (setup check / wizard / bootstrap), not just the
 // main studio return below. Do not re-wrap here — double-gating renders two
@@ -1268,6 +1269,10 @@ function App() {
       />
 
       <FloatingPill />
+
+      {/* #941: honest surfacing of backend process crashes (exit code +
+          stderr tail from the shell's crash marker), with ack-on-view. */}
+      <BackendCrashNotice />
 
       <Header
         mode={mode}
