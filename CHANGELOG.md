@@ -6,7 +6,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
-## [Unreleased]
+## [0.3.11] — 2026-07-05
+
+The multi-language release — dubbing into several languages at once is finally a mature, honest workflow: **"Generate N dubs" now translates each language before rendering it** (with visible per-language progress), **switching languages never destroys your work** (every track keeps its own text, subtitles, and audio cache), completed tracks always show their tabs, and dialogue stops starting seconds early because of footsteps — a community reporter's theory, confirmed exactly. Around it, a reliability sweep driven by same-day field reports: your LLM provider finally survives a restart, SOCKS-proxy users can synthesize again (installed models now load without touching the network at all), timeline boxes are visible on every WebView2 runtime, running from source works again — and when the backend crashes, **it now tells you the exit code and attaches the evidence to your bug report automatically**.
 
 ### Added
 
