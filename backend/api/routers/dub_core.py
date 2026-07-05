@@ -452,6 +452,11 @@ async def dub_transcribe_stream(
             asr_audio_target = job.get("vocals_path")
             if not asr_audio_target or not os.path.exists(asr_audio_target):
                 asr_audio_target = job.get("audio_path")
+            # #963: onset snapping is only trustworthy on the Demucs vocals
+            # track. When separation failed/was skipped, dub_pipeline sets
+            # vocals_path to the mixed audio_path — so compare paths instead
+            # of trusting the key's presence.
+            asr_on_vocals = bool(asr_audio_target) and asr_audio_target != job.get("audio_path")
             if not asr_audio_target or not os.path.exists(asr_audio_target):
                 preflight_error = "No audio available for transcription."
             else:
@@ -649,9 +654,12 @@ async def dub_transcribe_stream(
             # leading music/silence (classic case: speech begins at 0:03,
             # transcript says 0.0 → the dub plays 3 s early). Snap starts
             # forward to the actual speech onset. `audio_np` is the same
-            # track ASR ran on — vocals.wav when Demucs succeeded.
+            # track ASR ran on — vocals.wav when Demucs succeeded. #963:
+            # when it didn't (mixed audio), snapping is disabled — every
+            # footstep/sigh/score cue is a false onset candidate there.
             try:
-                snap_segment_starts(chunk_segs, audio_np, sr)
+                snap_segment_starts(chunk_segs, audio_np, sr,
+                                    separated_vocals=asr_on_vocals)
             except Exception as e:
                 logger.warning("onset alignment skipped for chunk %d: %s", i, e)
             # Provisional per-chunk labels for the streaming UI only — the
@@ -1125,11 +1133,14 @@ async def dub_transcribe(job_id: str, num_speakers: Optional[int] = None):
     _model = await get_model()
 
     def _transcribe():
-        
+
         asr_audio_target = job.get("vocals_path")
         if not asr_audio_target or not os.path.exists(asr_audio_target):
             asr_audio_target = job.get("audio_path")
-            
+        # #963: same source-awareness as the SSE endpoint — vocals_path
+        # falls back to the mixed audio_path when Demucs failed/skipped.
+        asr_on_vocals = bool(asr_audio_target) and asr_audio_target != job.get("audio_path")
+
         import torch
 
         detected_lang = None
@@ -1173,10 +1184,13 @@ async def dub_transcribe(job_id: str, num_speakers: Optional[int] = None):
         segments = segment_transcript(result, duration=job.get("duration", 0.0), scene_cuts=scene_cuts)
 
         # #280: snap segment starts forward to the actual speech onset so the
-        # dub doesn't begin seconds before the original speaker does.
+        # dub doesn't begin seconds before the original speaker does. #963:
+        # only on the separated vocals track — on mixed audio every ambient
+        # sound is a false onset candidate, so snapping is disabled.
         try:
             audio_for_onset, onset_sr = sf.read(asr_audio_target, dtype="float32")
-            snap_segment_starts(segments, audio_for_onset, onset_sr)
+            snap_segment_starts(segments, audio_for_onset, onset_sr,
+                                separated_vocals=asr_on_vocals)
         except Exception as e:
             logger.warning("onset alignment skipped: %s", e)
 

@@ -37,6 +37,12 @@ def _speech_after_silence(lead_s: float, speech_s: float = 2.0) -> np.ndarray:
     return np.concatenate([_silence(lead_s), _tone(speech_s)])
 
 
+def _noise_burst(duration_s: float, sr: int = SR, amp: float = 0.35, seed: int = 0) -> np.ndarray:
+    """Short broadband burst — the energy shape of a footstep / door thud."""
+    rng = np.random.default_rng(seed)
+    return (amp * rng.standard_normal(int(duration_s * sr))).astype(np.float32)
+
+
 # ── detect_speech_onset ─────────────────────────────────────────────────────
 
 
@@ -56,6 +62,22 @@ def test_detect_onset_empty_or_invalid_window():
     assert detect_speech_onset(audio, SR, 2.0, 1.0) is None   # end < start
     assert detect_speech_onset(audio, SR, 5.0, 6.0) is None   # past audio end
     assert detect_speech_onset(audio, 0, 0.0, 1.0) is None    # bad sr
+
+
+def test_detect_onset_rejects_transient_burst():
+    # #963: a 100 ms footstep-like burst at 1.0 s must not read as the
+    # onset — the sustained speech at 3.0 s is the real one.
+    audio = np.concatenate([
+        _silence(1.0), _noise_burst(0.1), _silence(1.9), _tone(2.0),
+    ])
+    onset = detect_speech_onset(audio, SR, 0.0, 5.0)
+    assert onset == pytest.approx(3.0, abs=0.06)
+
+
+def test_detect_onset_transient_only_window_returns_none():
+    # #963: a window containing nothing but a transient has no speech onset.
+    audio = np.concatenate([_silence(1.0), _noise_burst(0.1), _silence(2.0)])
+    assert detect_speech_onset(audio, SR, 0.0, 3.1) is None
 
 
 # ── snap_segment_starts ─────────────────────────────────────────────────────
@@ -143,6 +165,63 @@ def test_snap_no_audio_is_noop():
     segs = [{"start": 0.0, "end": 4.0, "text": "x"}]
     assert snap_segment_starts(segs, np.zeros(0, dtype=np.float32), SR) == 0
     assert snap_segment_starts(segs, None, SR) == 0
+    assert segs[0]["start"] == 0.0
+
+
+def test_snap_ignores_footstep_before_speech():
+    """#963: a footstep/sigh-like transient before the dialogue must not be
+    'interpreted as the start of the conversation' (reporter's theory) —
+    the start snaps to the sustained speech onset instead. The burst also
+    must not block the long silence-trim (it is <10% of the skipped span)."""
+    audio = np.concatenate([
+        _silence(1.0), _noise_burst(0.1), _silence(1.9), _tone(3.0),
+    ])
+    segs = [{"start": 0.0, "end": 6.0, "text": "x"}]
+    n = snap_segment_starts(segs, audio, SR)
+    assert n == 1
+    assert segs[0]["start"] == pytest.approx(3.0 - PRE_ROLL_S, abs=0.08)
+
+
+def test_snap_refuses_long_jump_over_audible_content():
+    # #963 snap-distance cap: quiet-but-audible speech (below the relative
+    # onset threshold) fills the first 3 s, loud speech follows. Jumping
+    # >MAX_SNAP_S forward would skip the quiet speech wholesale and play
+    # the dub seconds LATE — long jumps are only trusted over true silence.
+    audio = np.concatenate([_tone(3.0, amp=0.04), _tone(3.0, amp=0.5)])
+    segs = [{"start": 0.0, "end": 6.0, "text": "x"}]
+    assert snap_segment_starts(segs, audio, SR) == 0
+    assert segs[0]["start"] == 0.0
+
+
+def test_snap_small_shift_over_audible_content_still_allowed():
+    # Same quiet-then-loud shape, but the loud onset is within MAX_SNAP_S:
+    # bounded corrections stay enabled even when the lead isn't silent.
+    audio = np.concatenate([_tone(1.2, amp=0.04), _tone(3.0, amp=0.5)])
+    segs = [{"start": 0.0, "end": 4.2, "text": "x"}]
+    n = snap_segment_starts(segs, audio, SR)
+    assert n == 1
+    assert segs[0]["start"] == pytest.approx(1.2 - PRE_ROLL_S, abs=0.08)
+
+
+def test_snap_long_jump_over_true_silence_still_snaps():
+    # The #280 regression case restated against the cap: a >MAX_SNAP_S jump
+    # over genuine silence (Demucs stripped the leading music from the
+    # vocals track) must still be trimmed in full.
+    audio = _speech_after_silence(4.0, speech_s=3.0)
+    segs = [{"start": 0.0, "end": 7.0, "text": "x"}]
+    n = snap_segment_starts(segs, audio, SR)
+    assert n == 1
+    assert segs[0]["start"] == pytest.approx(4.0 - PRE_ROLL_S, abs=0.08)
+
+
+def test_snap_skipped_on_mixed_audio():
+    # #963 source-awareness: when Demucs was skipped/failed the track still
+    # contains music and ambience — sustained energy there is as likely the
+    # score as the speaker, so snapping is disabled outright and whisper's
+    # own timestamps stand (even for the classic #280-shaped signal).
+    audio = _speech_after_silence(3.0, speech_s=3.0)
+    segs = [{"start": 0.0, "end": 6.0, "text": "x"}]
+    assert snap_segment_starts(segs, audio, SR, separated_vocals=False) == 0
     assert segs[0]["start"] == 0.0
 
 
