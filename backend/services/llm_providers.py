@@ -24,9 +24,12 @@ users.
 """
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from typing import Optional
+
+logger = logging.getLogger("omnivoice.llm_providers")
 
 # Settings-store row names (non-secret overrides live in the plaintext table;
 # keys live in the encrypted secret table under ``llm_key.<id>``).
@@ -248,6 +251,19 @@ def is_configured(p: Provider) -> bool:
 
 # ── Active provider selection ─────────────────────────────────────────────
 
+def stored_active_provider_id() -> Optional[str]:
+    """The user's explicitly-persisted selection ONLY — no env pin, no legacy
+    TRANSLATE_* fallback, no auto-detect.
+
+    ``None`` means the user has never chosen a provider. This is what gates
+    save-activates in the settings router (#963): an explicit save may claim
+    the *empty* slot, but must never steal it from a made choice.
+    """
+    from services import settings_store
+    stored = settings_store.get_text(_ACTIVE_PROVIDER_KEY)
+    return stored if stored and stored in _BY_ID else None
+
+
 def active_provider_id() -> Optional[str]:
     """The provider Cinematic/Autofit should use.
 
@@ -255,12 +271,11 @@ def active_provider_id() -> Optional[str]:
     configured provider → None. Legacy ``TRANSLATE_BASE_URL`` users with no
     explicit selection resolve to ``custom`` (its envs are TRANSLATE_*).
     """
-    from services import settings_store
     env_pick = os.environ.get("LLM_DEFAULT_PROVIDER")
     if env_pick and env_pick in _BY_ID:
         return env_pick
-    stored = settings_store.get_text(_ACTIVE_PROVIDER_KEY)
-    if stored and stored in _BY_ID:
+    stored = stored_active_provider_id()
+    if stored:
         return stored
     # Legacy: a lone TRANSLATE_BASE_URL means the old single-endpoint setup.
     if os.environ.get("TRANSLATE_BASE_URL"):
@@ -354,3 +369,69 @@ def describe(p: Provider) -> dict:
         d["account_id"] = resolve_account_id(p)
         d["account_from_env"] = bool(p.account_env and os.environ.get(p.account_env))
     return d
+
+
+# ── Legacy TRANSLATE_* prefs migration (#963) ──────────────────────────────
+
+# prefs.json row → the custom-provider field it becomes.
+_LEGACY_TRANSLATE_PREFS: tuple[tuple[str, str], ...] = (
+    ("env.TRANSLATE_BASE_URL", "base_url"),
+    ("env.TRANSLATE_MODEL", "model"),
+    ("env.TRANSLATE_API_KEY", "api_key"),
+)
+
+
+def migrate_legacy_translate_prefs() -> bool:
+    """Move the retired (≤v0.3.7) Translation-LLM panel's prefs rows into the
+    ``custom`` provider's own settings-store rows, then delete them.
+
+    Those ``env.TRANSLATE_*`` rows in prefs.json are re-imported into
+    ``os.environ`` on every launch (main.py), and a live ``TRANSLATE_BASE_URL``
+    makes :func:`active_provider_id` resolve to ``custom`` ahead of the stored
+    selection fallbacks — silently hijacking the active slot on every restart
+    (issue #963, "Ollama works until I restart"). Must run BEFORE main.py's
+    prefs→env import so the rows never reach the environment.
+
+    Semantics:
+      * Each value is copied only where the store has no value yet — a user's
+        later edit of the custom provider always wins over legacy leftovers.
+      * The prefs row is deleted afterwards either way, so it can never be
+        re-imported as env again (the migration is one-shot per row).
+      * Real process env vars are NEVER touched — a shell/.env
+        ``TRANSLATE_BASE_URL`` keeps its documented override behavior.
+      * A row whose store write fails is kept in prefs (it still works via the
+        env import this launch and the migration retries next launch).
+
+    Returns True if any prefs row was migrated/removed.
+    """
+    from core import prefs
+    from services import settings_store
+
+    changed = False
+    for prefs_key, field in _LEGACY_TRANSLATE_PREFS:
+        try:
+            raw = prefs.get(prefs_key)
+        except Exception:
+            logger.exception("legacy TRANSLATE prefs read failed (%s)", prefs_key)
+            return changed
+        if raw is None:
+            continue
+        val = str(raw).strip()
+        try:
+            if val:
+                if field == "base_url":
+                    if not settings_store.get_text(_BASE_URL_KEY + "custom"):
+                        save_overrides("custom", base_url=val)
+                elif field == "model":
+                    if not settings_store.get_text(_MODEL_KEY + "custom"):
+                        save_overrides("custom", model=val)
+                else:  # api_key — encrypted store, never overwrite an existing one
+                    if not _key_in_store("custom"):
+                        save_key("custom", val)
+            prefs.delete(prefs_key)
+            changed = True
+        except Exception:
+            # Store not ready (e.g. settings table missing) — keep the prefs
+            # row so the legacy env import still works and we retry next boot.
+            logger.exception("legacy TRANSLATE prefs migration failed (%s)", prefs_key)
+    return changed

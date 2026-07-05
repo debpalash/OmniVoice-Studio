@@ -282,7 +282,8 @@ def save_llm_provider(provider_id: str, body: _LLMProviderBody):
     A None field is left unchanged; an empty api_key clears the stored key.
     """
     from services import llm_providers
-    if llm_providers.get_provider(provider_id) is None:
+    p = llm_providers.get_provider(provider_id)
+    if p is None:
         raise HTTPException(status_code=404, detail=f"unknown provider {provider_id!r}")
     if body.api_key is not None:
         llm_providers.save_key(provider_id, body.api_key.strip())
@@ -290,7 +291,17 @@ def save_llm_provider(provider_id: str, body: _LLMProviderBody):
         provider_id, base_url=body.base_url, model=body.model,
         account_id=body.account_id,
     )
-    if body.make_active:
+    # An explicit save also claims the active slot when the user has never
+    # chosen a provider (#963). Without this, a saved-and-tested local
+    # provider (Ollama/LM Studio) evaporates on restart: active_provider_id()
+    # deliberately excludes local providers from auto-select, so the plain
+    # "Save" left nothing persisted to resolve. Gated on the STORED selection
+    # only — an explicit prior choice is never stolen by a plain save, and an
+    # unconfigured provider can't claim the slot.
+    if body.make_active or (
+        llm_providers.stored_active_provider_id() is None
+        and llm_providers.is_configured(p)
+    ):
         llm_providers.set_active_provider(provider_id)
     return list_llm_providers()
 

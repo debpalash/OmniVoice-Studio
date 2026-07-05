@@ -348,6 +348,7 @@
     "llmp_save": "Save",
     "llmp_save_active": "Save & use for translation",
     "llmp_save_keep": "Save & keep active",
+    "llmp_saved_not_active": "Saved — not yet used for translation. Click “Save & use for translation” to switch.",
     "llmp_test": "Test",
     "llmp_active_badge": "active",
     "llmp_test_ok": "ok — {{model}} · {{ms}} ms",

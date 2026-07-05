@@ -104,6 +104,40 @@ def test_unknown_provider_404s(settings_mod):
         settings_mod.list_llm_provider_models("nope")
 
 
+# ── #963: explicit save claims the empty active slot (survives restart) ─────
+
+def test_plain_save_activates_when_nothing_chosen(settings_mod):
+    # Fresh store: the user saves Ollama WITHOUT clicking "use for
+    # translation". Local providers are excluded from auto-select, so unless
+    # the explicit save claims the empty slot the choice evaporates on
+    # restart — the "Ollama works until I restart" bug.
+    settings_mod.save_llm_provider(
+        "ollama", settings_mod._LLMProviderBody(make_active=False))
+    assert settings_mod.list_llm_providers()["active"] == "ollama"
+
+
+def test_plain_save_never_steals_active(settings_mod):
+    _configure_groq(settings_mod)  # explicit prior choice: groq
+    settings_mod.save_llm_provider(
+        "ollama", settings_mod._LLMProviderBody(make_active=False))
+    assert settings_mod.list_llm_providers()["active"] == "groq"
+
+
+def test_make_active_still_flips(settings_mod):
+    _configure_groq(settings_mod)
+    settings_mod.save_llm_provider(
+        "ollama", settings_mod._LLMProviderBody(make_active=True))
+    assert settings_mod.list_llm_providers()["active"] == "ollama"
+
+
+def test_unconfigured_save_does_not_claim_active(settings_mod):
+    # openai with no key isn't usable — a plain save of it must not make it
+    # the (broken) active provider.
+    settings_mod.save_llm_provider(
+        "openai", settings_mod._LLMProviderBody(model="gpt-4o-mini", make_active=False))
+    assert settings_mod.list_llm_providers()["active"] is None
+
+
 # ── /test probe ─────────────────────────────────────────────────────────────
 
 def test_probe_ok_includes_latency(settings_mod, monkeypatch):

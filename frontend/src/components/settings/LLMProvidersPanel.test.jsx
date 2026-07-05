@@ -181,4 +181,35 @@ describe('LLMProvidersPanel', () => {
     fireEvent.change(select, { target: { value: 'ollama' } });
     await waitFor(() => expect(screen.queryByTestId('llm-provider-key')).toBeNull());
   });
+
+  // #963 honesty: a green Test on a provider that is NOT the active one must
+  // say the provider isn't used for translation yet — pre-fix the panel read
+  // as "done" while translation kept using another provider.
+  it('test-only flow on a non-active provider surfaces the not-yet-active notice', async () => {
+    global.fetch = mockFetchSequence(
+      { body: PROVIDERS }, // mount GET (active: groq)
+      { body: {} }, // save PUT (ollama, make_active:false)
+      { body: PROVIDERS }, // refresh GET — active is still groq
+      { body: { ok: true, model: 'llama3', reply: 'ok', latency_ms: 9 } }, // test POST
+    );
+    render(<LLMProvidersPanel />);
+    const select = await screen.findByTestId('llm-provider-select');
+    fireEvent.change(select, { target: { value: 'ollama' } });
+    fireEvent.click(screen.getByTestId('llm-provider-test'));
+    await waitFor(() => expect(screen.getByTestId('llm-not-active-notice')).toBeInTheDocument());
+    expect(screen.getByText(/not yet used for translation/)).toBeInTheDocument();
+  });
+
+  it('no notice when the saved provider IS the active one', async () => {
+    global.fetch = mockFetchSequence(
+      { body: PROVIDERS }, // mount GET (active: groq)
+      { body: {} }, // save PUT (groq)
+      { body: PROVIDERS }, // refresh GET — groq active
+      { body: { ok: true, model: 'llama-3.3-70b', reply: 'ok', latency_ms: 412 } }, // test POST
+    );
+    render(<LLMProvidersPanel />);
+    fireEvent.click(await screen.findByTestId('llm-provider-test'));
+    await waitFor(() => expect(screen.getByText(/llama-3\.3-70b · 412 ms/)).toBeInTheDocument());
+    expect(screen.queryByTestId('llm-not-active-notice')).toBeNull();
+  });
 });

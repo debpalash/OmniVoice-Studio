@@ -40,6 +40,10 @@ export default function LLMProvidersPanel() {
   const [modelsTruncated, setModelsTruncated] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
   const [error, setError] = useState(null);
+  // True after a save/Test whose provider is still NOT the active one — the
+  // save persisted fine but translation keeps using another provider, so be
+  // honest about it instead of letting a green Test read as "done" (#963).
+  const [savedInactive, setSavedInactive] = useState(false);
 
   const current = useMemo(
     () => providers.find((p) => p.id === editing) || null,
@@ -76,6 +80,7 @@ export default function LLMProvidersPanel() {
     setTest(null);
     setModels(null);
     setModelsTruncated(false);
+    setSavedInactive(false);
   }, []);
 
   const refresh = useCallback(
@@ -127,7 +132,12 @@ export default function LLMProvidersPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      await refresh(current.id);
+      const data = await refresh(current.id);
+      // Saved but another provider stays active → say so (populate() above
+      // cleared the previous notice). Suppress while LLM_DEFAULT_PROVIDER
+      // pins the choice — the env banner already explains and the suggested
+      // button is disabled.
+      setSavedInactive(Boolean(data) && data.active !== current.id && !current.active_from_env);
     } catch (e) {
       setError(e?.message || t('settings.llmp_save_failed'));
     } finally {
@@ -411,6 +421,16 @@ export default function LLMProvidersPanel() {
               </div>
             }
           />
+
+          {savedInactive && (
+            <div
+              role="status"
+              data-testid="llm-not-active-notice"
+              className="text-[length:var(--text-xs)] text-[color:var(--chrome-fg-dim)] leading-[1.5] py-[var(--space-2)]"
+            >
+              {t('settings.llmp_saved_not_active')}
+            </div>
+          )}
         </>
       )}
     </SettingsSection>

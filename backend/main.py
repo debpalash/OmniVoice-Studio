@@ -155,6 +155,16 @@ from logging.handlers import RotatingFileHandler
 # written to prefs.json so they survive backend restarts. Read them back
 # here — before any user code reads os.environ — so the values are available
 # from startup.
+#
+# Legacy (≤v0.3.7) Translation-LLM rows (env.TRANSLATE_*) must migrate into
+# the custom LLM provider's settings store BEFORE the re-import below — once
+# TRANSLATE_BASE_URL lands in os.environ it hijacks the LLM provider
+# selection for the whole session (#963). Real env vars are untouched.
+try:
+    from services.llm_providers import migrate_legacy_translate_prefs
+    migrate_legacy_translate_prefs()
+except Exception:
+    pass  # never block startup on the migration; it retries next launch
 _PERSISTED_ENV_PREFIX = "env."
 try:
     from core.prefs import _load as _load_all_prefs

@@ -8,6 +8,9 @@ descriptor that must never carry key material. The encrypted round-trip itself
 """
 from __future__ import annotations
 
+import json
+import os
+
 import pytest
 
 
@@ -185,3 +188,100 @@ def test_real_base_url_override_still_persists(lp):
     lp.save_overrides("groq", base_url="http://my-proxy/v1")
     assert lp._text["llm.base_url.groq"] == "http://my-proxy/v1"
     assert lp.resolve_base_url(lp.get_provider("groq")) == "http://my-proxy/v1"
+
+
+# ── #963: stale TRANSLATE_* prefs migration + explicit-save activation ──────
+# The retired (≤v0.3.7) Translation-LLM panel persisted env.TRANSLATE_* rows
+# in prefs.json; main.py re-imported them into os.environ every launch, which
+# made active_provider_id() resolve to "custom" ahead of auto-select on every
+# restart — hijacking the slot from whatever the user saved.
+
+
+@pytest.fixture
+def legacy_prefs(monkeypatch, tmp_path):
+    """core.prefs redirected to a temp prefs.json seeded with the retired
+    Translation-LLM panel's persisted rows (plus non-LLM rows that must
+    survive the migration untouched)."""
+    from core import prefs
+
+    path = tmp_path / "prefs.json"
+    path.write_text(json.dumps({
+        "env.TRANSLATE_BASE_URL": "http://legacy:11434/v1",
+        "env.TRANSLATE_MODEL": "legacy-model",
+        "env.TRANSLATE_API_KEY": "sk-legacy",
+        "env.HTTP_PROXY": "http://proxy:1",
+        "tts_backend": "omnivoice",
+    }), encoding="utf-8")
+    monkeypatch.setattr(prefs, "_PREFS_PATH", str(path))
+    return prefs
+
+
+def test_migration_moves_prefs_into_custom_store_and_deletes_rows(lp, legacy_prefs):
+    assert lp.migrate_legacy_translate_prefs() is True
+    # values live in the custom provider's own store rows now…
+    assert lp._text["llm.base_url.custom"] == "http://legacy:11434/v1"
+    assert lp._text["llm.model.custom"] == "legacy-model"
+    assert lp._secrets["llm_key.custom"] == "sk-legacy"
+    # …the prefs rows are gone (nothing left to re-import as env)…
+    data = legacy_prefs._load()
+    assert not any(k.startswith("env.TRANSLATE") for k in data)
+    # …and rows the migration doesn't own keep persisting.
+    assert data["env.HTTP_PROXY"] == "http://proxy:1"
+    assert data["tts_backend"] == "omnivoice"
+    # The legacy endpoint keeps working, now via the store.
+    p = lp.get_provider("custom")
+    assert lp.resolve_base_url(p) == "http://legacy:11434/v1"
+    assert lp.is_configured(p) is True
+
+
+def test_migration_runs_exactly_once_and_never_overwrites(lp, legacy_prefs):
+    assert lp.migrate_legacy_translate_prefs() is True
+    # The user later edits the custom provider…
+    lp.save_overrides("custom", base_url="http://mine/v1", model="my-model")
+    lp.save_key("custom", "sk-mine")
+    # …a second startup's migration is a no-op and can't resurrect leftovers.
+    assert lp.migrate_legacy_translate_prefs() is False
+    assert lp._text["llm.base_url.custom"] == "http://mine/v1"
+    assert lp._text["llm.model.custom"] == "my-model"
+    assert lp._secrets["llm_key.custom"] == "sk-mine"
+
+
+def test_migration_respects_existing_store_values(lp, legacy_prefs):
+    lp._text["llm.base_url.custom"] = "http://already/v1"
+    lp._secrets["llm_key.custom"] = "sk-already"
+    lp.migrate_legacy_translate_prefs()
+    # rows the user already owns are never overwritten…
+    assert lp._text["llm.base_url.custom"] == "http://already/v1"
+    assert lp._secrets["llm_key.custom"] == "sk-already"
+    # …the empty one is filled, and the prefs rows are deleted regardless.
+    assert lp._text["llm.model.custom"] == "legacy-model"
+    assert not any(k.startswith("env.TRANSLATE") for k in legacy_prefs._load())
+
+
+def test_migration_never_touches_real_env(lp, legacy_prefs, monkeypatch):
+    monkeypatch.setenv("TRANSLATE_BASE_URL", "http://real-env/v1")
+    lp.migrate_legacy_translate_prefs()
+    assert os.environ["TRANSLATE_BASE_URL"] == "http://real-env/v1"
+
+
+def test_saving_ollama_wins_over_legacy_env_after_migration(lp, legacy_prefs, monkeypatch):
+    """#963 end to end: legacy TRANSLATE_BASE_URL in the environment (as a
+    pre-migration launch would have imported it) + no stored selection. A
+    plain save of Ollama must yield active == 'ollama' — pre-fix it stayed
+    'custom' on every restart because nothing persisted the choice."""
+    monkeypatch.setenv("TRANSLATE_BASE_URL", "http://legacy:11434/v1")
+    lp.migrate_legacy_translate_prefs()
+    from api.routers import settings as settings_router
+    settings_router.save_llm_provider(
+        "ollama", settings_router._LLMProviderBody(make_active=False))
+    assert lp.active_provider_id() == "ollama"
+
+
+def test_stored_active_provider_id_ignores_env_and_auto(lp, monkeypatch):
+    # Only the persisted row counts — env pin / legacy env / auto-detect don't.
+    monkeypatch.setenv("LLM_DEFAULT_PROVIDER", "openrouter")
+    monkeypatch.setenv("TRANSLATE_BASE_URL", "http://legacy/v1")
+    lp._secrets["llm_key.groq"] = "k"  # would auto-select
+    assert lp.stored_active_provider_id() is None
+    lp.set_active_provider("mistral")
+    assert lp.stored_active_provider_id() == "mistral"
