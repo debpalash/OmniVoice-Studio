@@ -166,6 +166,26 @@ def test_client_uses_active_when_no_override(skills, store):
     assert handle is not None and handle.provider_id == "groq"
 
 
+@pytest.mark.skipif(not _HAS_OPENAI, reason="openai package not installed")
+def test_client_none_when_construction_fails(skills, store, monkeypatch):
+    # #959: OpenAI() eagerly builds its httpx client — under
+    # ALL_PROXY/HTTPS_PROXY=socks5:// without socksio it raises ImportError
+    # AT CONSTRUCTION. Contract: None == "LLM unavailable, degrade" — an
+    # environment-shaped construction failure must degrade the skill, never
+    # 500 the calling feature.
+    _activate_groq(store)
+    import openai
+
+    def boom(*args, **kwargs):
+        raise ImportError(
+            "Using SOCKS proxy, but the 'socksio' package is not installed. "
+            "Make sure to install httpx using `pip install httpx[socks]`."
+        )
+
+    monkeypatch.setattr(openai, "OpenAI", boom)
+    assert skills.resolve_skill_client("cinematic_translation") is None
+
+
 def test_backend_off_when_disabled(skills, store):
     from services.llm_backend import OffBackend
     _activate_groq(store)

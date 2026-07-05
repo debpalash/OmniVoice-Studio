@@ -33,6 +33,14 @@ hiddenimports = [
     'uvicorn.lifespan', 'uvicorn.lifespan.on',
     'fastapi', 'fastapi.responses', 'starlette',
     'multipart',
+    # SOCKS proxy support (#959). httpx imports socksio lazily inside a
+    # try/except (only when a socks5:// proxy env var is set), so
+    # PyInstaller's static tracer never sees it — without this entry the
+    # frozen installers keep raising "Using SOCKS proxy, but the 'socksio'
+    # package is not installed" on every model load under a SOCKS proxy,
+    # even though pyproject.toml ships the package. Guarded by
+    # tests/test_socks_proxy.py.
+    'socksio',
 
     # Core
     'uuid', 'asyncio',

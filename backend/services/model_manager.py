@@ -1022,6 +1022,22 @@ async def get_model():
     return model
 
 
+def _checkpoint_in_local_cache(checkpoint: str) -> bool:
+    """True when ``checkpoint`` is loadable with NO network: an existing local
+    directory, or a COMPLETE HF cache snapshot. ``snapshot_download(...,
+    local_files_only=True)`` never constructs an HTTP session, so a broken
+    proxy env (#959: ``ALL_PROXY``/``HTTPS_PROXY=socks5://`` without socksio)
+    can't false-negative this probe. Never raises."""
+    if os.path.isdir(checkpoint):
+        return True
+    try:
+        from huggingface_hub import snapshot_download
+        snapshot_download(checkpoint, local_files_only=True)
+        return True
+    except Exception:
+        return False
+
+
 async def preload_model():
     """Background model warm-up — call from lifespan startup.
 
@@ -1042,10 +1058,27 @@ async def preload_model():
         try:
             from huggingface_hub import model_info
             model_info(checkpoint, timeout=5)
-        except Exception:
-            # Model not downloaded yet — skip preload
-            logger.info("Preload skipped: %s not available locally.", checkpoint)
-            return
+        except Exception as probe_err:
+            # The probe failing does NOT mean the model isn't installed — it
+            # means the Hub API wasn't reachable from this process. The #959
+            # class: under ALL_PROXY/HTTPS_PROXY=socks5:// without socksio,
+            # hf_hub's get_session() raises ImportError AT CLIENT CONSTRUCTION;
+            # same story for offline mode, DNS, or firewall failures. Fall back
+            # to a cache-only probe (no HTTP session involved) and warm up
+            # anyway when the model is locally present, instead of silently
+            # skipping and letting the first /generate eat the full load.
+            if not _checkpoint_in_local_cache(checkpoint):
+                logger.info(
+                    "Preload skipped: %s not available locally (network probe "
+                    "failed: %s: %s).",
+                    checkpoint, type(probe_err).__name__, probe_err,
+                )
+                return
+            logger.warning(
+                "Network probe for %s failed (%s: %s) — model found in the "
+                "local cache; warming up from cache.",
+                checkpoint, type(probe_err).__name__, probe_err,
+            )
 
         logger.info("Preloading TTS model in background…")
         _last_used = time.time()

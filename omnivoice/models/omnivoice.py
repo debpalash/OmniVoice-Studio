@@ -182,6 +182,29 @@ class OmniVoiceConfig(PretrainedConfig):
         self.audio_codebook_weights = audio_codebook_weights
 
 
+def _resolve_snapshot_dir(checkpoint) -> str:
+    """Local snapshot directory for ``checkpoint`` (a local dir or a HF repo id).
+
+    Cache-first (#959): a COMPLETE local cache is resolved with
+    ``snapshot_download(..., local_files_only=True)``, which never constructs
+    an HTTP session — so no session-construction failure (e.g. httpx's
+    ImportError under ``ALL_PROXY``/``HTTPS_PROXY=socks5://`` without socksio,
+    a malformed proxy URL, a broken cert bundle) can break synthesis of an
+    already-installed model. Only a cache miss / incomplete cache falls
+    through to the original network ``snapshot_download``, whose errors
+    (auth, connectivity, proxy) surface exactly as before.
+    """
+    if os.path.isdir(checkpoint):
+        return checkpoint
+    from huggingface_hub import snapshot_download
+
+    try:
+        return snapshot_download(checkpoint, local_files_only=True)
+    except Exception:
+        # Miss/incomplete (LocalEntryNotFoundError et al.) → network path.
+        return snapshot_download(checkpoint)
+
+
 class OmniVoice(PreTrainedModel):
     _supports_flex_attn = True
     _supports_flash_attn_2 = True
@@ -264,13 +287,10 @@ class OmniVoice(PreTrainedModel):
             )
 
             if not train_mode:
-                # Resolve local path for audio tokenizer subdirectory
-                if os.path.isdir(pretrained_model_name_or_path):
-                    resolved_path = pretrained_model_name_or_path
-                else:
-                    from huggingface_hub import snapshot_download
-
-                    resolved_path = snapshot_download(pretrained_model_name_or_path)
+                # Resolve local path for audio tokenizer subdirectory —
+                # cache-first so a proxy-broken HTTP session can't fail an
+                # installed model (#959; see _resolve_snapshot_dir).
+                resolved_path = _resolve_snapshot_dir(pretrained_model_name_or_path)
 
                 model.text_tokenizer = AutoTokenizer.from_pretrained(
                     pretrained_model_name_or_path

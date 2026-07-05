@@ -144,6 +144,16 @@ dependencies = [
     # frozen `uv sync` installs a working engine on every platform.
     "sherpa-onnx>=1.13.3",
     "sherpa-onnx-core>=1.13.3",
+    # SOCKS proxy support for httpx (#959). huggingface_hub's get_session()
+    # builds an httpx.Client, which raises ImportError AT CONSTRUCTION when
+    # ALL_PROXY/HTTPS_PROXY is socks5:// and socksio isn't importable — every
+    # model load/download 500'd for SOCKS-proxy users ("Using SOCKS proxy, but
+    # the 'socksio' package is not installed"). Same failure shape for the
+    # OpenAI SDK's client. Pure-Python, MIT, zero transitive deps, ~13 KB —
+    # identical on macOS/Windows/Linux. Also in backend.spec hiddenimports:
+    # httpx imports it lazily inside try/except, so PyInstaller's tracer
+    # misses it and frozen installers would stay broken without the entry.
+    "socksio>=1.0",
 ]
 
 [project.optional-dependencies]

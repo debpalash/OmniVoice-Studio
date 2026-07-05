@@ -41,6 +41,7 @@ _HINTS: dict[str, str] = {
     "COMPUTE_TYPE_UNSUPPORTED": "Your GPU doesn't support float16 — OmniVoice retried on int8. If transcription still fails, set OMNIVOICE/ASR_COMPUTE_TYPE=int8 or use CPU.",
     "TRANSFORMERS_IMPORT": "Your transformers install is incomplete. Reinstall it (`uv pip install --reinstall transformers`) or switch ASR to faster-whisper (Settings → Models).",
     "OS_INVALID_ARGUMENT": "The OS rejected a file operation (Errno 22 / invalid argument) — in the transcribe path this is the temporary WAV write before ASR. It's almost always the temp directory: missing, read-only, on a full or removed drive, or blocked by antivirus. Check that your system TEMP/TMP folder exists and is writable and the drive has free space (add an OmniVoice antivirus exclusion if you use one), then retry.",
+    "SOCKS_PROXY_SUPPORT_MISSING": "A SOCKS proxy is configured in your environment (ALL_PROXY/HTTPS_PROXY=socks5://…) and the backend's HTTP client is missing SOCKS support. Newer OmniVoice builds ship SOCKS support (the socksio package) — update the app. If you still see this, unset ALL_PROXY/HTTPS_PROXY for OmniVoice, or run `uv pip install 'httpx[socks]'` in the backend venv, then restart.",
     "UNSUPPORTED_VIDEO_URL": "This link isn't a directly downloadable video. Paste a direct video page (e.g. a youtube.com/watch?v=… or douyin.com/video/<id> link), not a share/profile/feed link — or download the file and drop it in directly.",
     "VIDEO_DOWNLOAD_NETWORK": "The connection to the video server dropped mid-download (often a transient CDN/network blip or a regional rate-limit). Just retry — OmniVoice already cleaned up the partial download. If it keeps failing, check your network/VPN.",
     "BROKEN_VENV": "The Python backend environment was moved or damaged. OmniVoice rebuilds it automatically on the next launch; if it keeps failing, use Clean & Retry on the setup screen.",
@@ -168,6 +169,33 @@ def append_hf_mirror_hint(text: str) -> str:
     return f"{text} — {hint}" if hint else text
 
 
+# Classes whose hint is safe to attach on the CONTEXT-FREE surfaces (the
+# global 500 handler in main.py, the model-install SSE in setup/download.py),
+# where all we have is a raw error string with no stage. Only classes whose
+# classify() trigger is unmistakable belong here — e.g. VIDEO_DOWNLOAD_NETWORK
+# must NOT be added: its bare "timed out" trigger would stamp a "video server"
+# hint on a model-load timeout that leaks through the 500 handler.
+_CONTEXT_FREE_HINT_CLASSES = frozenset({
+    "SOCKS_PROXY_SUPPORT_MISSING",
+})
+
+
+def append_hint(text: str) -> str:
+    """``"{text} — {hint}"`` for raw-string surfaces (the global 500 handler,
+    the model-install SSE): the dynamic mirror hint (#874) when that class
+    applies, else a context-free static class hint (#959). ``text`` unchanged
+    otherwise — a no-op for every other error. Never raises."""
+    try:
+        hint = hf_mirror_hint(text)
+        if not hint:
+            topic = classify(text)
+            if topic in _CONTEXT_FREE_HINT_CLASSES:
+                hint = _HINTS.get(topic, "")
+    except Exception:
+        return text
+    return f"{text} — {hint}" if hint else text
+
+
 def classify(reason: str) -> str:
     """Map a failure reason to a docs-taxonomy key, or "" when unknown.
 
@@ -220,6 +248,15 @@ def classify(reason: str) -> str:
         )
     ):
         return "TRANSFORMERS_IMPORT"
+    # #959: httpx raises ImportError AT CLIENT CONSTRUCTION ("Using SOCKS
+    # proxy, but the 'socksio' package is not installed. Make sure to install
+    # httpx using `pip install httpx[socks]`.") when ALL_PROXY/HTTPS_PROXY is
+    # socks5:// and socksio isn't importable. It surfaced from
+    # huggingface_hub's get_session() inside model load — a bare 500 on
+    # /generate with no next step. Checked BEFORE the HF-auth/mirror rules so
+    # a message that also carries HF wording still names this class.
+    if "socks proxy" in low or "socksio" in low:
+        return "SOCKS_PROXY_SUPPORT_MISSING"
     if ("huggingface" in low or "hf_token" in low or "401" in low or "unauthorized" in low) and (
         "token" in low or "auth" in low or "401" in low or "unauthorized" in low
     ):

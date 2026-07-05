@@ -242,8 +242,24 @@ def resolve_skill_client(skill_id: str) -> Optional[SkillClient]:
     # skill's wall-clock budget (the cinematic pass budget, the glossary call
     # timeout) from inside one request. Fail fast — the per-call timeout and the
     # pass-level budget are the only bounds we want. Mirrors OpenAICompatBackend.
+    #
+    # #959 class guard: OpenAI() eagerly builds its httpx client, which can
+    # raise AT CONSTRUCTION for environment-shaped reasons — the reported one
+    # is httpx's ImportError under ALL_PROXY/HTTPS_PROXY=socks5:// without
+    # socksio; a malformed proxy URL or broken cert bundle fails the same way.
+    # The contract here is already "None == LLM unavailable, degrade" — a bad
+    # proxy env must degrade the skill, never 500 the calling feature.
+    try:
+        client = OpenAI(max_retries=0, **kw)
+    except Exception as exc:
+        logger.warning(
+            "LLM client construction failed for skill %s (provider %s): %s — "
+            "treating the skill as unavailable.",
+            skill_id, res.provider.id, exc,
+        )
+        return None
     return SkillClient(
-        client=OpenAI(max_retries=0, **kw),
+        client=client,
         model=llm_providers.resolve_model(res.provider),
         provider_id=res.provider.id,
         timeout=_default_timeout(),

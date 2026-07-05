@@ -118,6 +118,31 @@ def test_classify_broken_venv_missing_own_package():
     assert failure.classify("No module named 'omnivoice_helper'") == ""
 
 
+def test_classify_socks_proxy_support_missing():
+    # #959: the exact httpx message at client CONSTRUCTION under a socks5://
+    # proxy env without socksio — it surfaced as a bare 500 from /generate
+    # (huggingface_hub's get_session() builds the client inside model load).
+    reason = (
+        "Using SOCKS proxy, but the 'socksio' package is not installed. "
+        "Make sure to install httpx using `pip install httpx[socks]`."
+    )
+    assert failure.classify(reason) == "SOCKS_PROXY_SUPPORT_MISSING"
+    evt = failure.build_failure(
+        ImportError(reason), stage="model-load", include_diagnostic=False
+    )
+    assert evt["docs_topic"] == "SOCKS_PROXY_SUPPORT_MISSING"
+    assert evt["hint"], "the SOCKS-proxy class must carry an actionable hint"
+    assert "ALL_PROXY" in evt["hint"]
+    # append_hint is the raw-string surface (main.py's global 500 handler,
+    # the model-install SSE) — the detail keeps the real error AND gains the
+    # hint, and stays a pass-through for unknown reasons.
+    out = failure.append_hint(reason)
+    assert out.startswith(reason) and "ALL_PROXY" in out
+    assert failure.append_hint("some unrelated failure") == "some unrelated failure"
+    # A generic proxy connectivity error must NOT be mislabelled.
+    assert failure.classify("ProxyError: connection refused by 10.0.0.1:8080") == ""
+
+
 def test_classify_generic_still_empty():
     # A genuinely unknown reason must still classify to "" (no false hint).
     assert failure.classify("some totally unrelated failure") == ""
