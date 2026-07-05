@@ -5,7 +5,24 @@ working OmniVoice Studio install on Windows 10 / 11 (x64).
 
 ## Prerequisites
 
+### Using the MSI installer
+
 - **Windows 10 (21H2 or newer) or Windows 11**, x64.
+- **~10 GB free disk** for the app, its Python environment, and model weights.
+- Optional: an **NVIDIA GPU + driver** for CUDA acceleration — see
+  [GPU support on Windows](#gpu-support). AMD GPUs run CPU-only on Windows.
+
+That's it — Python, FFmpeg, and the model weights are bundled or bootstrapped
+by the app itself on first launch. No toolchain needed.
+
+### Building from source
+
+Everything above, plus the toolchain:
+
+- **Git for Windows** — `winget install --id Git.Git -e`. Needed for
+  `git clone`, and it includes **Git Bash**, which `bun run desktop-prod`
+  uses to run its build-and-launch script. Without it, `desktop-prod` stops
+  with an error telling you to install it.
 - **Python 3.11+** — `winget install Python.Python.3.11` (or download from
   [python.org](https://www.python.org/downloads/windows/)).
 - **Microsoft C++ Build Tools** — required by some PyPI source distributions
@@ -14,12 +31,23 @@ working OmniVoice Studio install on Windows 10 / 11 (x64).
   with the **"Desktop development with C++"** workload checked.
 - **Bun** — `powershell -c "irm bun.sh/install.ps1 | iex"`.
 - **FFmpeg** — `winget install Gyan.FFmpeg`.
-- **Git for Windows** (from-source installs only) — `winget install --id Git.Git -e`.
-  You need it for `git clone` anyway, and it includes **Git Bash**, which
-  `bun run desktop-prod` uses to run its build-and-launch script. Without it,
-  `desktop-prod` stops with an error telling you to install it.
-- **Rust / Cargo** (required for building from source only) — `winget install Rust.Rustup` or download `rustup-init.exe` from [rustup.rs](https://rustup.rs/).
+- **Rust / Cargo** — `winget install Rust.Rustup` or download `rustup-init.exe` from [rustup.rs](https://rustup.rs/).
   After installing Rustup, close and reopen PowerShell before running `bun run desktop-prod`.
+
+## GPU support on Windows
+
+<a id="gpu-support"></a>
+
+**GPU acceleration on Windows is NVIDIA/CUDA-only.** The Windows install
+ships the CUDA build of PyTorch; with an NVIDIA GPU and a regular NVIDIA
+driver it's picked up automatically (no CUDA Toolkit install needed).
+
+**AMD GPUs — including Ryzen / Ryzen AI integrated Radeon graphics — run
+CPU-only on Windows.** ROCm is not supported on Windows: PyTorch publishes no
+Windows ROCm wheels, and OmniVoice's ROCm option is Linux-only. (The Ryzen AI
+NPU is likewise not used.) Everything still works on CPU, just slower. If you
+have an AMD GPU and want GPU acceleration, run OmniVoice on Linux instead —
+see [linux.md — AMD GPU (ROCm)](linux.md#amd-gpu-rocm).
 
 ## Install (from source)
 

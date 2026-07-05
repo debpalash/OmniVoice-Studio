@@ -115,13 +115,22 @@ quarantines every download.
 
 **Fix:** see [macos.md#gatekeeper-quarantine](macos.md#gatekeeper-quarantine).
 
-## 4. AppImage white screen on Fedora 44 / Ubuntu 24.04
+## 4. AppImage white screen / EGL errors (Fedora 44, Ubuntu 24.04+, 26.04)
 
-**Symptom:** the AppImage window opens fully white. No UI ever appears.
+**Symptom:** the AppImage window opens fully white. No UI ever appears. On
+newer distros (Ubuntu 24.04 and later, incl. 26.04) the terminal often shows
+`Could not create default EGL display: EGL_BAD_PARAMETER`.
 
-**Cause:** WebKitGTK 2.44 / 2.46 compositing-mode regression.
+**Cause:** WebKitGTK rendering regressions — the DMA-BUF renderer on modern
+WebKitGTK (2.48+), or the 2.44 / 2.46 compositing mode.
 
-**Fix:** see [linux.md#appimage-white-screen-on-fedora-44--ubuntu-2404](linux.md#appimage-white-screen-on-fedora-44--ubuntu-2404).
+**Fix:** try `WEBKIT_DISABLE_DMABUF_RENDERER=1` first (modern WebKitGTK / the
+EGL error), then `WEBKIT_DISABLE_COMPOSITING_MODE=1` — full walkthrough incl.
+the software-rendering last resort:
+[linux.md#appimage-white-screen-on-fedora-44--ubuntu-2404](linux.md#appimage-white-screen-on-fedora-44--ubuntu-2404).
+
+**Linked issues:** [#62](https://github.com/debpalash/OmniVoice-Studio/issues/62),
+[#961](https://github.com/debpalash/OmniVoice-Studio/issues/961)
 
 ## 5. Windows Triton / torch.compile OOM
 

@@ -15,6 +15,11 @@
 # ──────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
+# Always run from the repo root — every path below (frontend/, ${TAURI_DIR},
+# …) is repo-root-relative, so invoking the script from any other directory
+# used to mis-resolve them (#962 hardening).
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
 APP_ID="com.debpalash.omnivoice-studio"
 TAURI_DIR="frontend/src-tauri"
 APP_NAME="OmniVoice Studio"
@@ -175,13 +180,18 @@ if [ "$SKIP_BUILD" = false ]; then
   # The build creates the bundle successfully, but then may fail trying
   # to sign the updater artifact (no TAURI_SIGNING_PRIVATE_KEY) or to
   # run linuxdeploy. The binary itself is fine — tolerate known errors.
+  # #962: invoke the Tauri CLI via the frontend workspace's `tauri` script,
+  # NOT `bunx tauri`. In the bun workspace monorepo `@tauri-apps/cli` is a
+  # frontend/package.json dependency, and `bunx` resolves by npm package
+  # name — when the locally installed bin isn't exactly where bunx looks it
+  # falls back to fetching the unrelated `tauri` (v1) package from npm and
+  # dies with "could not determine executable to run for package tauri".
+  # `bun run --cwd frontend tauri` always resolves the workspace-local CLI.
   BUILD_LOG=$(mktemp)
-  cd frontend
   set +e
-  bunx tauri build --debug 2>&1 | tee "$BUILD_LOG"
+  bun run --cwd frontend tauri build --debug 2>&1 | tee "$BUILD_LOG"
   BUILD_EXIT=$?
   set -e
-  cd ..
   if [ $BUILD_EXIT -ne 0 ]; then
     # Known-harmless failures:
     #   - Missing TAURI_SIGNING_PRIVATE_KEY (updater signing)

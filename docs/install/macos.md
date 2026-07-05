@@ -17,13 +17,26 @@ working OmniVoice Studio install on macOS (Apple Silicon).
 
 ## Prerequisites
 
+### Using the DMG
+
 - **macOS 12 (Monterey) or newer** — Apple Silicon (Intel: UI only, see the
   note above).
+- **~10 GB free disk** for the app, its Python environment, and model weights.
+
+That's it — GPU acceleration (Apple MPS) is automatic on Apple Silicon, and
+Python, FFmpeg, and the model weights are bundled or bootstrapped by the app
+itself on first launch. No toolchain needed.
+
+### Building from source
+
+Everything above, plus the toolchain:
+
+- **Xcode Command Line Tools** — `xcode-select --install` (includes **git**
+  and the C toolchain; `curl` ships with macOS).
 - **Python 3.11+** — `brew install python@3.11` (or use `pyenv` / the system Python if you already have ≥3.11).
 - **Bun** — `curl -fsSL https://bun.sh/install | bash`.
-- **Xcode Command Line Tools** — `xcode-select --install`.
 - **FFmpeg** (used by the dubbing + capture pipelines) — `brew install ffmpeg`.
-- **Rust / Cargo** (required for building from source only) — `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` or `brew install rust`.
+- **Rust / Cargo** — `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` or `brew install rust`.
   If you use rustup, reopen the terminal or source `"$HOME/.cargo/env"` before running `bun run desktop-prod`.
 
 Optional but recommended:

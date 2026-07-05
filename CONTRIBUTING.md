@@ -18,6 +18,7 @@ Thanks for your interest in improving OmniVoice Studio! This guide covers everyt
 ### Prerequisites
 
 - [Git](https://git-scm.com/)
+- `curl` (used by the Bun / uv / rustup install one-liners on macOS and Linux)
 - [Bun](https://bun.sh/) (frontend package manager)
 - [uv](https://docs.astral.sh/uv/) (Python environment manager)
 - [ffmpeg](https://ffmpeg.org/) (audio/video processing)

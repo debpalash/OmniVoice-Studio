@@ -170,7 +170,7 @@ The eight headliners — and twelve more waiting under the fold.
 - 📦 **Batch Queue** — drop 50 videos, walk away; per-job progress bars.
 - 🛡️ **AI Watermark** — AudioSeal (Meta): invisible, survives compression.
 - 🔬 **Diagnostics** — self-check suite, error journal, scrubbed diagnostic bundles.
-- ⚡ **GPU Auto-Detect** — CUDA · MPS · ROCm · CPU; ≤8 GB VRAM auto-offloads.
+- ⚡ **GPU Auto-Detect** — CUDA · MPS · ROCm (Linux, opt-in) · CPU; ≤8 GB VRAM auto-offloads.
 - 🧭 **Engine routing** — preflight GPU check per engine; no silent CPU fallback.
 - 🧩 **Extensible** — subclass `TTSBackend`, add any engine in ~50 lines.
 - 🎒 **Portable personas** — export voices as `.ovsvoice` bundles: identity + watermark.
@@ -244,7 +244,7 @@ ElevenLabs charges **$5–$330/mo** and processes your audio on their servers. O
 | **Video Dubbing** | ✅ Cloud-only | ✅ Fully local |
 | **Data Privacy** | Audio sent to cloud | **Nothing leaves your machine** |
 | **API Keys** | Required | Not needed |
-| **GPU Support** | N/A (cloud) | CUDA · Apple Silicon · ROCm · CPU |
+| **GPU Support** | N/A (cloud) | CUDA · Apple Silicon · ROCm (Linux) · CPU |
 | **Desktop App** | ❌ | ✅ macOS · Windows · Linux |
 | **TTS Engines** | 1 | **14** (OmniVoice, CosyVoice 3, GPT-SoVITS, VoxCPM2, MOSS-TTS-Nano, KittenTTS, MLX-Audio, Sherpa-ONNX, IndexTTS 2, OmniVoice GGUF, Supertonic 3, MOSS-TTS-v1.5, dots.tts, Confucius4-TTS) |
 | **ASR Engines** | 1 | **9** (WhisperX, Faster-Whisper, MLX Whisper, PyTorch Whisper, Parakeet, Moonshine, FunASR, isolated Faster-Whisper, sherpa-onnx live dictation) |
@@ -272,10 +272,13 @@ Professional-grade voice AI, minus the subscription and the cloud.
 | **VRAM (GPU)** | 4 GB (auto-offloads TTS to CPU) | 8 GB+ (NVIDIA RTX 3060+) |
 | **Disk** | 10 GB free (models + cache) | 20 GB+ SSD |
 | **Python** | 3.10+ (managed by `uv`) | 3.11–3.12 |
-| **GPU** | Optional — CPU works | NVIDIA CUDA · Apple Silicon MPS · AMD ROCm |
+| **GPU** | Optional — CPU works | NVIDIA CUDA · Apple Silicon MPS · AMD ROCm (Linux only) |
 
 > [!TIP]
 > On GPUs with **≤8 GB VRAM**, OmniVoice automatically offloads TTS to CPU during transcription — no config needed. A dedicated GPU is not required; the entire pipeline runs on CPU (just slower).
+
+> [!NOTE]
+> **AMD GPUs:** ROCm acceleration is **Linux-only and opt-in** — pick **"AMD GPU (ROCm)"** on the first-run setup screen or set `OMNIVOICE_TORCH_VARIANT=rocm` ([docs/install/linux.md](docs/install/linux.md#amd-gpu-rocm)). **On Windows, AMD GPUs (incl. Ryzen AI iGPUs) run CPU-only**: PyTorch has no Windows ROCm wheels, so Windows GPU acceleration is NVIDIA/CUDA-only ([docs/install/windows.md](docs/install/windows.md#gpu-support)).
 
 > [!IMPORTANT]
 > **macOS Intel (x86_64) is unsupported for the local backend:** the app UI installs, but the Python backend cannot run because PyTorch no longer ships Intel-Mac wheels ([#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)). Intel-Mac users can still point the UI at a remote backend on another machine — see [docs/install/macos.md](docs/install/macos.md).
