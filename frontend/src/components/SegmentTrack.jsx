@@ -1,8 +1,17 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play, Headphones } from 'lucide-react';
 import {
-  REGION_COLORS,
+  getRegionColors,
+  subscribeRegionColors,
   SNAP_PX,
   visibleSegmentRange,
   snapTime,
@@ -135,13 +144,14 @@ export default function SegmentTrack({
     [effSegments, viewStart, viewEnd],
   );
 
+  // Palette snapshot re-blends against the new --chrome-bg on theme change
+  // (#963) — new array identity per re-blend, so the memo below recolors.
+  const regionColors = useSyncExternalStore(subscribeRegionColors, getRegionColors);
   const speakerColor = useMemo(() => {
     const speakers = [...new Set(segments.map((s) => s.speaker_id).filter(Boolean))];
-    const bySpeaker = new Map(
-      speakers.map((sp, i) => [sp, REGION_COLORS[i % REGION_COLORS.length]]),
-    );
-    return (seg, idx) => bySpeaker.get(seg.speaker_id) || REGION_COLORS[idx % REGION_COLORS.length];
-  }, [segments]);
+    const bySpeaker = new Map(speakers.map((sp, i) => [sp, regionColors[i % regionColors.length]]));
+    return (seg, idx) => bySpeaker.get(seg.speaker_id) || regionColors[idx % regionColors.length];
+  }, [segments, regionColors]);
 
   // ── Onset tick strip (one viewport-sized canvas, non-interactive) ───────
   useEffect(() => {

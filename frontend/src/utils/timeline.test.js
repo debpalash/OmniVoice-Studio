@@ -1,8 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   MIN_SEG_DUR,
   MAX_OVERLAP,
   REGION_COLORS,
+  blendRegionColor,
+  getRegionColors,
+  subscribeRegionColors,
   visibleSegmentRange,
   snapTime,
   snapCandidates,
@@ -227,28 +230,91 @@ describe('nearestOnset', () => {
   });
 });
 
-describe('REGION_COLORS — opaque paint guard (#373)', () => {
-  // Semi-transparent box fills flash on some Windows GPU/WebView2 drivers
-  // when the lane gets composited. Every palette entry must be fully opaque:
-  // no alpha-carrying color syntax anywhere in the value.
-  it('no entry carries an alpha channel', () => {
+describe('REGION_COLORS — opaque JS-pre-blended paint guard (#373, #963)', () => {
+  // Two invariants, one per historical regression:
+  //  #373 — semi-transparent box fills flash on some Windows GPU/WebView2
+  //         drivers when the lane gets composited → every entry must be
+  //         fully opaque (no alpha channel anywhere).
+  //  #963 — engine-dependent CSS (color-mix, var()) in an inline style is
+  //         REJECTED wholesale by the CSSOM on WebView2/Chromium < 111, and
+  //         .seg-track__box has no background of its own → boxes invisible.
+  //         Every entry must therefore be a literal rgb() any engine parses,
+  //         with the 45%-tint-over---chrome-bg blend done in JS.
+  const root = document.documentElement;
+  const flushThemeObserver = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  afterEach(async () => {
+    root.style.removeProperty('--chrome-bg');
+    root.removeAttribute('data-theme');
+    await flushThemeObserver(); // let the palette settle back to the default
+  });
+
+  it('every entry is a literal fully-opaque rgb() — no engine-dependent CSS, no alpha', () => {
     expect(REGION_COLORS.length).toBeGreaterThan(0);
     for (const color of REGION_COLORS) {
-      expect(color).not.toMatch(/rgba\(|hsla\(|transparent/i); // legacy alpha fns
-      expect(color).not.toMatch(/\/\s*(?:0?\.\d+|\d+%)/); // modern `… / alpha` syntax
-      for (const hex of color.match(/#[0-9a-fA-F]+/g) ?? []) {
-        expect([4, 7]).toContain(hex.length); // #rgb / #rrggbb only — no alpha digits
-      }
+      expect(color).toMatch(/^rgb\(\d{1,3}, \d{1,3}, \d{1,3}\)$/);
+      // The class of the #963 bug: anything the target engines' CSSOM may
+      // reject as an inline-style value.
+      expect(color).not.toMatch(/color-mix|var\(|calc\(/i);
+      expect(color).not.toMatch(/rgba\(|hsla\(|transparent|\/|%/i); // #373: no alpha syntax
     }
   });
 
-  it('color-mix mixes only opaque inputs and preserves the original 45% tint ratio', () => {
-    for (const color of REGION_COLORS) {
-      const m = color.match(
-        /^color-mix\(in srgb, rgb\(\d+ \d+ \d+\) (\d+)%, var\(--chrome-bg, (#[0-9a-fA-F]{6})\)\)$/,
-      );
-      expect(m, `unexpected palette entry shape: ${color}`).not.toBeNull();
-      expect(m[1]).toBe('45'); // same visual weight the 0.45-alpha fills had
+  it('default theme: blends exactly 45% tint over Gruvbox --chrome-bg #0f1011', () => {
+    // Literal expected values (independently computed: round(0.45·tint + 0.55·bg)),
+    // pixel-identical to what `color-mix(in srgb, tint 45%, #0f1011)` painted.
+    expect([...REGION_COLORS]).toEqual([
+      'rgb(103, 69, 79)',
+      'rgb(67, 83, 78)',
+      'rgb(91, 93, 26)',
+      'rgb(121, 94, 31)',
+      'rgb(72, 95, 65)',
+      'rgb(123, 66, 21)',
+      'rgb(55, 79, 57)',
+    ]);
+  });
+
+  it('re-blends against the new --chrome-bg when [data-theme] changes, and notifies', async () => {
+    const before = getRegionColors();
+    let notified = 0;
+    const unsubscribe = subscribeRegionColors(() => {
+      notified += 1;
+    });
+    try {
+      root.style.setProperty('--chrome-bg', '#1e293b'); // Slate theme surface
+      root.setAttribute('data-theme', 'slate');
+      await flushThemeObserver();
+      expect(notified).toBe(1);
+      expect(getRegionColors()).not.toBe(before); // fresh snapshot identity
+      // round(0.45·[211,134,155] + 0.55·[30,41,59])
+      expect(REGION_COLORS[0]).toBe('rgb(111, 83, 102)');
+
+      // Back to the default theme (attribute removed, like App.jsx does).
+      root.style.removeProperty('--chrome-bg');
+      root.removeAttribute('data-theme');
+      await flushThemeObserver();
+      expect(notified).toBe(2);
+      expect(REGION_COLORS[0]).toBe('rgb(103, 69, 79)');
+    } finally {
+      unsubscribe();
     }
+  });
+
+  it('parses rgb()-form --chrome-bg too, and falls back to #0f1011 on garbage', async () => {
+    root.style.setProperty('--chrome-bg', 'rgb(30, 41, 59)');
+    root.setAttribute('data-theme', 'rgb-form');
+    await flushThemeObserver();
+    expect(REGION_COLORS[0]).toBe('rgb(111, 83, 102)'); // same blend as #1e293b
+
+    root.style.setProperty('--chrome-bg', 'oklch(0.2 0.1 250)'); // unsupported form
+    root.setAttribute('data-theme', 'garbage-form');
+    await flushThemeObserver();
+    expect(REGION_COLORS[0]).toBe('rgb(103, 69, 79)'); // fallback = default blend
+  });
+
+  it('blendRegionColor math: 0.45·tint + 0.55·bg, rounded per channel', () => {
+    expect(blendRegionColor([211, 134, 155], [15, 16, 17])).toBe('rgb(103, 69, 79)');
+    expect(blendRegionColor([0, 0, 0], [255, 255, 255])).toBe('rgb(140, 140, 140)'); // 0.55·255 = 140.25
+    expect(blendRegionColor([255, 255, 255], [0, 0, 0])).toBe('rgb(115, 115, 115)'); // 0.45·255 = 114.75
   });
 });

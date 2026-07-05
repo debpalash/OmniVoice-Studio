@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import SegmentTrack from './SegmentTrack';
 
 // Mocked transport: fixed pxPerSec/scrollLeft, no WaveSurfer. jsdom has no
@@ -208,6 +208,46 @@ describe('SegmentTrack — compositor-safe positioning (#373)', () => {
     fireEvent.scroll(viewport);
     expect(lane.style.transform).toBe('');
     expect(box(1).style.left).toBe('300px'); // lane coords: 3s · 100px/s
+  });
+});
+
+describe('SegmentTrack — engine-independent box paint (#963)', () => {
+  const root = document.documentElement;
+
+  afterEach(async () => {
+    // Restore the default theme and let the palette observer settle so the
+    // module-level cache can't leak into other tests in this file.
+    await act(async () => {
+      root.style.removeProperty('--chrome-bg');
+      root.removeAttribute('data-theme');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  });
+
+  it('inline background is a literal opaque rgb() — no color-mix/var() the CSSOM could reject', () => {
+    // WebView2/Chromium < 111 rejects a color-mix() inline-style assignment
+    // wholesale, and .seg-track__box declares no fallback background → the
+    // boxes rendered fully transparent (#963). The inline value must be
+    // plain rgb() so every engine parses it.
+    setup();
+    for (const el of screen.getAllByRole('option')) {
+      expect(el.style.background).toMatch(/^rgb\(\d{1,3}, \d{1,3}, \d{1,3}\)$/);
+    }
+    // Default theme, first palette slot: 0.45·rgb(211,134,155) over #0f1011.
+    expect(box(0).style.background).toBe('rgb(103, 69, 79)');
+  });
+
+  it('boxes re-blend live when the theme changes ([data-theme] on <html>)', async () => {
+    setup();
+    expect(box(0).style.background).toBe('rgb(103, 69, 79)');
+    await act(async () => {
+      // Same seam App.jsx uses: swap --chrome-bg and flag the theme.
+      root.style.setProperty('--chrome-bg', '#1e293b');
+      root.setAttribute('data-theme', 'slate');
+      await new Promise((resolve) => setTimeout(resolve, 0)); // flush MutationObserver
+    });
+    // round(0.45·[211,134,155] + 0.55·[30,41,59])
+    expect(box(0).style.background).toBe('rgb(111, 83, 102)');
   });
 });
 
