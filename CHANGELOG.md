@@ -16,6 +16,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 ### Fixed
 
 - **Completed dub tracks always show their video tabs.** Opening a project with a finished dubbed track hid the Original/track switcher until you re-selected the language — visibility was keyed to the language dropdown instead of the project's tracks, and restored projects couldn't set the language because the history database froze it at empty forever. Tabs now render from the tracks themselves, history keeps its language (existing projects heal without migration), restoring a project can no longer 404 the video preview, and track pills gained duration/timing tooltips plus an accurate now-playing indicator. (#956)
+- **Running from source works again, and the install docs stop lying.** `bun run desktop-prod` broke when the frontend became a workspace (`bunx` could fetch the wrong "tauri" package from npm — fixed everywhere including CI); the Linux white-screen guidance now leads with the variable that actually fixes modern Ubuntu (`WEBKIT_DISABLE_DMABUF_RENDERER=1`, with the exact `EGL_BAD_PARAMETER` error quoted); Windows docs now state plainly that GPU acceleration is NVIDIA-only there; the Linux docs document the ROCm support that already shipped (the "planned follow-up" note was stale); and prerequisites are split installer-vs-source with git and curl included. (#964)
 
 ## [0.3.10] — 2026-07-05
 
