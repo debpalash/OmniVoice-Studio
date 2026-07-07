@@ -515,7 +515,9 @@
     "routingRemote": "远程",
     "routingUnknown": "未知",
     "routingEffectiveChip": "在此机器上的 {{device}} 上运行",
-    "routingCaveatTitle": "已选择 GPU，但是：{{reason}}"
+    "routingCaveatTitle": "已选择 GPU，但是：{{reason}}",
+    "curatedModelLabel": "模型",
+    "curatedModelAria": "{{engine}} 的模型"
   },
   "capture": {
     "desc": "全局热键仅在桌面应用中有效。网页界面使用页面内快捷键 <1>Ctrl+Shift+Space</1>（窗口聚焦时可用）。",

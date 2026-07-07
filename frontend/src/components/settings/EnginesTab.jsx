@@ -17,10 +17,12 @@ export default function EnginesTab() {
   //
   // Review mode (the staged-checkpoint nudges) moved to Settings → General.
   const onSelect = useCallback(
-    async (family, backendId) => {
+    // modelId is only ever set by mlx-audio's curated-model picker (#981) —
+    // every other call site (the "Use" button) omits it.
+    async (family, backendId, modelId) => {
       try {
         addBreadcrumb(`engine:${family}=${backendId}`);
-        const r = await selectEngine(family, backendId);
+        const r = await selectEngine(family, backendId, modelId);
         // Consume the routing echo: warn (not a bare success) when the pick
         // lands on a CPU fallback on this host. See notifyEngineSelected.
         notifyEngineSelected(r, t, family);

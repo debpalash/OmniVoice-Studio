@@ -729,7 +729,16 @@ class MLXAudioBackend(TTSBackend):
     def __init__(self):
         self._model = None
         self._sr = 24000  # most mlx-audio engines emit 24 kHz mono
-        key = os.environ.get("OMNIVOICE_MLX_AUDIO_MODEL", self.DEFAULT_MODEL_KEY)
+        # Env var > persisted UI choice (#981 — Settings → Engines curated-
+        # model picker) > default. Mirrors active_backend_id()'s resolution
+        # order exactly so power-users can still pin a model without the UI
+        # silently undoing it.
+        from core import prefs
+        key = prefs.resolve(
+            "mlx_audio_model_id",
+            env="OMNIVOICE_MLX_AUDIO_MODEL",
+            default=self.DEFAULT_MODEL_KEY,
+        )
         # Accept either a curated key ("kokoro") or a full HF repo id
         # ("mlx-community/Kokoro-82M-bf16") — flexibility for power users.
         self._model_id = self.CURATED_MODELS.get(key, key)
@@ -1387,6 +1396,21 @@ _SETUP_SNIPPETS: dict[str, str] = {
 }
 
 
+# Short, readable labels for mlx-audio's curated models (#981) — surfaced in
+# the Settings → Engines model picker so users see more than a bare key.
+# Single-sourced here rather than on MLXAudioBackend.CURATED_MODELS itself so
+# the class dict stays a plain key → repo-id map (what __init__ needs).
+_MLX_AUDIO_MODEL_LABELS: dict[str, str] = {
+    "kokoro":     "Kokoro (default, fast)",
+    "csm":        "CSM (voice cloning)",
+    "qwen3-tts":  "Qwen3-TTS (voice design)",
+    "dia":        "Dia",
+    "chatterbox": "Chatterbox",
+    "melotts":    "MeloTTS (lightweight)",
+    "outetts":    "OuteTTS",
+}
+
+
 def list_backends() -> list[dict]:
     """Enumerate every registered backend with its availability state.
 
@@ -1470,6 +1494,22 @@ def list_backends() -> list[dict]:
             # effective_device / routing_status / routing_reason (scrubbed):
             **routing_fields(gpu_compat, caps),
         })
+        # #981: mlx-audio multiplexes 7+ curated models behind one backend id
+        # — surface the roster + the currently-active pick so Settings can
+        # render a model picker instead of always defaulting to Kokoro.
+        # mlx-audio ONLY; every other backend loads a single fixed model.
+        if bid == "mlx-audio":
+            from core import prefs
+            active_model = prefs.resolve(
+                "mlx_audio_model_id",
+                env="OMNIVOICE_MLX_AUDIO_MODEL",
+                default=cls.DEFAULT_MODEL_KEY,
+            )
+            out[-1]["curated_models"] = [
+                {"key": key, "label": _MLX_AUDIO_MODEL_LABELS.get(key, key), "repo_id": repo_id}
+                for key, repo_id in cls.CURATED_MODELS.items()
+            ]
+            out[-1]["active_model_id"] = active_model
     return out
 
 
@@ -1570,15 +1610,21 @@ def active_backend_id() -> str:
 # call the outgoing engine's unload() before switching.
 _active_instance: "TTSBackend | None" = None
 _active_instance_id: "str | None" = None
+# mlx-audio multiplexes 7+ curated models behind one backend id — a model-only
+# switch (same "mlx-audio" id, different curated model) must also invalidate
+# the cache, or picking a different model in Settings has no effect until the
+# app restarts (#981). Only meaningful when _active_instance_id == "mlx-audio".
+_active_mlx_model_key: "str | None" = None
 
 
 def reset_active_backend() -> None:
     """Unload + clear the cached active backend. For app shutdown and tests.
     Idempotent and best-effort — a raising unload() never propagates."""
-    global _active_instance, _active_instance_id
+    global _active_instance, _active_instance_id, _active_mlx_model_key
     inst = _active_instance
     _active_instance = None
     _active_instance_id = None
+    _active_mlx_model_key = None
     if inst is not None:
         try:
             inst.unload()
@@ -1596,13 +1642,32 @@ def get_active_tts_backend(*, model=None) -> TTSBackend:
     ``model=`` (caller already holds a loaded model), we return a fresh view
     over the shared singleton rather than caching it — but a switch *away from*
     a different engine still triggers that engine's unload().
+
+    For mlx-audio specifically, the backend id alone doesn't capture *which*
+    curated model is loaded (#981) — so we also track the resolved model key
+    and treat a model-only change as a switch, reusing the exact same
+    unload-and-reconstruct path as an id switch.
     """
-    global _active_instance, _active_instance_id
+    global _active_instance, _active_instance_id, _active_mlx_model_key
     bid = active_backend_id()
 
-    # Switching engines: release the outgoing one first. Best-effort so a bad
-    # unload() can never block the switch.
-    if _active_instance is not None and _active_instance_id != bid:
+    mlx_model_key = None
+    if bid == "mlx-audio":
+        from core import prefs
+        mlx_model_key = prefs.resolve(
+            "mlx_audio_model_id",
+            env="OMNIVOICE_MLX_AUDIO_MODEL",
+            default=MLXAudioBackend.DEFAULT_MODEL_KEY,
+        )
+
+    # Switching engines (or, for mlx-audio, switching curated models): release
+    # the outgoing one first. Best-effort so a bad unload() can never block
+    # the switch.
+    switching = _active_instance is not None and (
+        _active_instance_id != bid
+        or (bid == "mlx-audio" and mlx_model_key != _active_mlx_model_key)
+    )
+    if switching:
         try:
             _active_instance.unload()
         except Exception as exc:  # noqa: BLE001
@@ -1610,6 +1675,7 @@ def get_active_tts_backend(*, model=None) -> TTSBackend:
                            type(_active_instance).__name__, exc)
         _active_instance = None
         _active_instance_id = None
+        _active_mlx_model_key = None
 
     cls = get_backend_class(bid)
     if cls is OmniVoiceBackend and model is not None:
@@ -1621,6 +1687,7 @@ def get_active_tts_backend(*, model=None) -> TTSBackend:
     if _active_instance is None or _active_instance_id != bid:
         _active_instance = OmniVoiceBackend(model=model) if cls is OmniVoiceBackend else cls()
         _active_instance_id = bid
+        _active_mlx_model_key = mlx_model_key
     return _active_instance
 
 

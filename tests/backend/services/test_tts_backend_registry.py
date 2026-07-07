@@ -141,7 +141,10 @@ def test_list_backends_resilient(registry_sandbox):
 
 
 def test_list_backends_shape(registry_sandbox):
-    """Every entry must contain exactly the documented keys — no more, no less."""
+    """Every entry must contain exactly the documented keys — no more, no
+    less — EXCEPT mlx-audio, which also carries `curated_models` +
+    `active_model_id` (#981): it multiplexes 7+ curated models behind one
+    backend id, so the Settings picker needs the roster + current pick."""
     out = list_backends()
     # `gpu_compat` joined the documented shape in Plan 02-04 alongside the
     # Engine Compatibility Matrix UI (ENGINE-06). The three routing keys
@@ -154,12 +157,49 @@ def test_list_backends_shape(registry_sandbox):
         # Copy-paste env-var line for path-gated opt-in engines (None otherwise).
         "setup_snippet",
     }
+    mlx_audio_extra = {"curated_models", "active_model_id"}
     for entry in out:
-        assert set(entry.keys()) == required, (
+        expected = required | mlx_audio_extra if entry["id"] == "mlx-audio" else required
+        assert set(entry.keys()) == expected, (
             f"entry {entry.get('id')} has wrong keys: "
-            f"missing {required - entry.keys()}, "
-            f"extra {entry.keys() - required}"
+            f"missing {expected - entry.keys()}, "
+            f"extra {entry.keys() - expected}"
         )
+
+
+def test_mlx_audio_curated_models_roster(registry_sandbox):
+    """#981 — mlx-audio's entry carries the curated-model roster + the
+    currently-active pick, so Settings can render a model picker instead of
+    always silently defaulting to Kokoro."""
+    out = {entry["id"]: entry for entry in list_backends()}
+    entry = out["mlx-audio"]
+    assert entry["active_model_id"] == "kokoro"  # DEFAULT_MODEL_KEY, no prefs set
+    keys = {m["key"] for m in entry["curated_models"]}
+    assert keys == set(tts_backend.MLXAudioBackend.CURATED_MODELS)
+    for m in entry["curated_models"]:
+        assert set(m.keys()) == {"key", "label", "repo_id"}
+        assert m["repo_id"] == tts_backend.MLXAudioBackend.CURATED_MODELS[m["key"]]
+        assert m["label"]  # non-empty, readable
+
+
+def test_mlx_audio_active_model_id_reflects_prefs(registry_sandbox, monkeypatch, tmp_path):
+    from core import prefs as _prefs
+    monkeypatch.setattr(_prefs, "_PREFS_PATH", str(tmp_path / "prefs.json"))
+    monkeypatch.delenv("OMNIVOICE_MLX_AUDIO_MODEL", raising=False)
+    _prefs.set_("mlx_audio_model_id", "outetts")
+    out = {entry["id"]: entry for entry in list_backends()}
+    assert out["mlx-audio"]["active_model_id"] == "outetts"
+
+
+def test_curated_models_not_present_on_other_backends(registry_sandbox):
+    """Only mlx-audio multiplexes multiple models behind one backend id — no
+    other entry should carry curated_models/active_model_id."""
+    out = list_backends()
+    for entry in out:
+        if entry["id"] == "mlx-audio":
+            continue
+        assert "curated_models" not in entry
+        assert "active_model_id" not in entry
 
 
 def test_isolation_mode_in_process_vs_subprocess(registry_sandbox):

@@ -247,6 +247,98 @@ def test_select_llm_never_routing_gated(fresh_app, monkeypatch):
     assert r.status_code == 200, r.text
 
 
+# ── #981 — mlx-audio curated-model selection via /engines/select ───────────
+#
+# mlx-audio multiplexes 7+ curated models behind one backend id. Before this
+# fix there was NO way anywhere in the UI/API to pick which curated model
+# actually loads — it always defaulted to Kokoro even if the user had
+# downloaded e.g. Llama-OuteTTS via Settings → Models.
+
+
+def _make_mlx_audio_available(monkeypatch):
+    """mlx-audio is Apple-Silicon-gated; force is_available()=True + a
+    CPU-friendly host so the routing gate doesn't block these tests on
+    non-mac CI runners."""
+    from services import tts_backend as tts_mod
+    monkeypatch.setattr(
+        tts_mod.MLXAudioBackend, "is_available",
+        classmethod(lambda cls: (True, "ready")),
+    )
+    _force_cpu_host(monkeypatch)
+
+
+def test_select_mlx_audio_unknown_model_id_is_400(fresh_app, monkeypatch):
+    _make_mlx_audio_available(monkeypatch)
+    r = _client(fresh_app).post(
+        "/engines/select",
+        json={"family": "tts", "backend_id": "mlx-audio", "model_id": "not-a-real-model"},
+    )
+    assert r.status_code == 400
+    assert "Unknown mlx-audio model" in r.json()["detail"]
+
+
+def test_select_mlx_audio_curated_key_persists(fresh_app, monkeypatch):
+    from core import prefs as _prefs
+    _make_mlx_audio_available(monkeypatch)
+    r = _client(fresh_app).post(
+        "/engines/select",
+        json={"family": "tts", "backend_id": "mlx-audio", "model_id": "outetts"},
+    )
+    assert r.status_code == 200, r.text
+    assert _prefs.get("mlx_audio_model_id") == "outetts"
+    assert _prefs.get("tts_backend") == "mlx-audio"
+
+
+def test_select_mlx_audio_raw_repo_id_accepted(fresh_app, monkeypatch):
+    """MLXAudioBackend already tolerates a raw HF repo id, not just a
+    curated key (tts_backend.py ~733) — the API must too."""
+    from core import prefs as _prefs
+    _make_mlx_audio_available(monkeypatch)
+    r = _client(fresh_app).post(
+        "/engines/select",
+        json={
+            "family": "tts", "backend_id": "mlx-audio",
+            "model_id": "mlx-community/Some-Other-Model-4bit",
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert _prefs.get("mlx_audio_model_id") == "mlx-community/Some-Other-Model-4bit"
+
+
+def test_select_mlx_audio_without_model_id_does_not_touch_pref(fresh_app, monkeypatch):
+    """Selecting mlx-audio without a model_id (e.g. an older frontend) must
+    leave any existing mlx_audio_model_id pref untouched."""
+    from core import prefs as _prefs
+    _prefs.set_("mlx_audio_model_id", "csm")
+    _make_mlx_audio_available(monkeypatch)
+    r = _client(fresh_app).post(
+        "/engines/select", json={"family": "tts", "backend_id": "mlx-audio"})
+    assert r.status_code == 200, r.text
+    assert _prefs.get("mlx_audio_model_id") == "csm"
+
+
+def test_select_model_id_ignored_for_non_mlx_audio_backend(fresh_app):
+    """model_id is only meaningful for mlx-audio; picking a different TTS
+    backend with a model_id set must not persist a stray pref."""
+    from core import prefs as _prefs
+    r = _client(fresh_app).post(
+        "/engines/select",
+        json={"family": "tts", "backend_id": "omnivoice", "model_id": "kokoro"},
+    )
+    assert r.status_code == 200, r.text
+    assert _prefs.get("mlx_audio_model_id") is None
+
+
+def test_engines_response_curated_models_only_on_mlx_audio(fresh_app):
+    client = _client(fresh_app)
+    body = client.get("/engines").json()
+    by_id = {b["id"]: b for b in body["tts"]["backends"]}
+    assert "curated_models" in by_id["mlx-audio"]
+    assert "active_model_id" in by_id["mlx-audio"]
+    assert "curated_models" not in by_id["omnivoice"]
+    assert "active_model_id" not in by_id["omnivoice"]
+
+
 # ── /engines/{id}/health round-trip ────────────────────────────────────────
 
 

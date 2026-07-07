@@ -46,8 +46,15 @@ export async function listEngines(): Promise<AllEnginesResponse> {
 export async function selectEngine(
   family: EngineFamily,
   backendId: string,
+  modelId?: string,
 ): Promise<SelectEngineResponse> {
-  return apiPost<SelectEngineResponse>('/engines/select', { family, backend_id: backendId });
+  return apiPost<SelectEngineResponse>('/engines/select', {
+    family,
+    backend_id: backendId,
+    // Only mlx-audio's curated-model picker (#981) sets this — omit
+    // entirely rather than send `undefined`/null for every other call site.
+    ...(modelId ? { model_id: modelId } : {}),
+  });
 }
 
 /**

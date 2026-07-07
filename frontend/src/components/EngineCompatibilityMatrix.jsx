@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { listEngines, getEngineHealth, selfTestEngine } from '../api/engines';
 import { copyText } from '../utils/copyText';
 import { ChevronRight } from 'lucide-react';
-import { Badge, Button, Segmented, Table } from '../ui';
+import { Badge, Button, Segmented, Select, Table } from '../ui';
 import { cn } from '@/lib/utils';
 import SupertonicLicenseDialog from './SupertonicLicenseDialog';
 
@@ -63,10 +63,11 @@ function reasonMentionsLicense(reason) {
  *
  * Props:
  *   - family: 'tts' | 'asr' | 'llm'  default 'tts'
- *   - onSelect?: (family, backendId) => Promise<void>  optional — when
- *     provided, a "Use" button appears next to "Test engine" for
+ *   - onSelect?: (family, backendId, modelId?) => Promise<void>  optional —
+ *     when provided, a "Use" button appears next to "Test engine" for
  *     available, non-active rows. Lets the matrix double as an engine
- *     picker so Settings doesn't need a parallel table.
+ *     picker so Settings doesn't need a parallel table. The optional third
+ *     arg is set only by mlx-audio's curated-model picker (#981).
  *   - activeId?: string  the currently-active backend id for this
  *     family. Used to render the "active" badge.
  */
@@ -139,6 +140,10 @@ function normalizeEntry(entry) {
     effective_device: entry.effective_device || null,
     routing_status: entry.routing_status || null,
     routing_reason: entry.routing_reason || null,
+    // #981 — mlx-audio ONLY: the curated-model roster + current pick.
+    // null/absent on every other backend, which never renders a picker.
+    curated_models: Array.isArray(entry.curated_models) ? entry.curated_models : null,
+    active_model_id: entry.active_model_id || null,
   };
 }
 
@@ -291,6 +296,18 @@ export default function EngineCompatibilityMatrix({
     setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
   }, []);
 
+  // #981 — mlx-audio's curated-model picker. Reuses the same onSelect the
+  // "Use" button calls, with the curated model key as the optional third
+  // arg, then reloads so active_model_id reflects the new pick immediately.
+  const changeModel = useCallback(
+    async (id, modelId) => {
+      if (!onSelect || !modelId) return;
+      await onSelect(activeFamily, id, modelId);
+      reload();
+    },
+    [onSelect, activeFamily, reload],
+  );
+
   const COLUMNS = [
     { key: 'name', label: t('engines.matrixTitle').split(' ')[0] || 'Engine', flex: 3 },
     { key: 'status', label: t('engines.status'), width: 130, align: 'center' },
@@ -413,6 +430,35 @@ export default function EngineCompatibilityMatrix({
                   <code className="engine-matrix__id font-mono text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
                     {b.id}
                   </code>
+                  {/* #981 — mlx-audio multiplexes 7+ curated models behind this
+                      one backend id (Kokoro, CSM, OuteTTS, …); without this
+                      picker there's no way to load anything but the default
+                      (Kokoro) even after downloading a different model's
+                      weights in Settings → Models. Disabled while the row
+                      itself isn't available/selectable, matching the "Use"
+                      button's gating. */}
+                  {b.curated_models && b.curated_models.length > 0 && (
+                    <div className="engine-matrix__model-picker flex items-center gap-[6px] mt-[2px]">
+                      <span className="text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
+                        {t('engines.curatedModelLabel')}
+                      </span>
+                      <Select
+                        size="sm"
+                        className="w-auto min-w-[150px]"
+                        value={b.active_model_id || ''}
+                        disabled={!onSelect || !b.available}
+                        onChange={(e) => changeModel(b.id, e.target.value)}
+                        aria-label={t('engines.curatedModelAria', { engine: b.display_name })}
+                        data-testid={`curated-model-select-${b.id}`}
+                      >
+                        {b.curated_models.map((m) => (
+                          <option key={m.key} value={m.key}>
+                            {m.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                  )}
                   {/* For available rows, show install_hint inline (one line — usually
                       a parenthetical like "(bundled — no extra install needed)").
                       For unavailable rows, collapse reason + install_hint + last_error

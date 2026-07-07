@@ -1592,7 +1592,9 @@
     "routingUnknown": "Unknown",
     "routingEffectiveChip": "Runs on {{device}} on this machine",
     "routingCaveatTitle": "GPU selected, but: {{reason}}",
-    "selectCpuFallback": "{{engine}}: running on CPU — {{reason}}"
+    "selectCpuFallback": "{{engine}}: running on CPU — {{reason}}",
+    "curatedModelLabel": "Model",
+    "curatedModelAria": "Model for {{engine}}"
   },
   "errors": {
     "title": "This tab hit a snag.",

@@ -702,4 +702,119 @@ describe('EngineCompatibilityMatrix', () => {
     // KittenTTS in the fixture carries no setup_snippet → no snippet block.
     expect(screen.queryByTestId('setup-snippet-kittentts')).not.toBeInTheDocument();
   });
+
+  // ── #981 — mlx-audio curated-model picker ───────────────────────────────
+  function mlxAudioResponse({ activeModelId = 'kokoro' } = {}) {
+    return {
+      tts: {
+        active: 'mlx-audio',
+        backends: [
+          {
+            id: 'mlx-audio',
+            display_name: 'MLX-Audio (test)',
+            available: true,
+            reason: null,
+            install_hint: null,
+            last_error: null,
+            isolation_mode: 'in-process',
+            gpu_compat: ['mps', 'cpu'],
+            curated_models: [
+              {
+                key: 'kokoro',
+                label: 'Kokoro (default, fast)',
+                repo_id: 'mlx-community/Kokoro-82M-bf16',
+              },
+              { key: 'csm', label: 'CSM (voice cloning)', repo_id: 'mlx-community/csm-1b-8bit' },
+              {
+                key: 'outetts',
+                label: 'OuteTTS',
+                repo_id: 'mlx-community/Llama-OuteTTS-1.0-1B-4bit',
+              },
+            ],
+            active_model_id: activeModelId,
+          },
+        ],
+      },
+      asr: { active: '', backends: [] },
+      llm: { active: 'off', backends: [] },
+    };
+  }
+
+  it('renders the curated-model picker for mlx-audio, pre-selected to the active model', async () => {
+    const apiListEngines = vi
+      .fn()
+      .mockResolvedValue(mlxAudioResponse({ activeModelId: 'outetts' }));
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        onSelect={vi.fn()}
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('MLX-Audio (test)'));
+    const select = screen.getByTestId('curated-model-select-mlx-audio');
+    expect(select).toHaveValue('outetts');
+    // All curated models are offered as options.
+    expect(
+      within(select).getByRole('option', { name: 'Kokoro (default, fast)' }),
+    ).toBeInTheDocument();
+    expect(within(select).getByRole('option', { name: 'CSM (voice cloning)' })).toBeInTheDocument();
+    expect(within(select).getByRole('option', { name: 'OuteTTS' })).toBeInTheDocument();
+  });
+
+  it('picking a different curated model calls onSelect with the model key and refreshes', async () => {
+    let activeModelId = 'kokoro';
+    const apiListEngines = vi.fn(async () => mlxAudioResponse({ activeModelId }));
+    const onSelect = vi.fn(async (_family, _id, modelId) => {
+      activeModelId = modelId;
+    });
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        onSelect={onSelect}
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('MLX-Audio (test)'));
+    const select = screen.getByTestId('curated-model-select-mlx-audio');
+    fireEvent.change(select, { target: { value: 'csm' } });
+
+    await waitFor(() => {
+      expect(onSelect).toHaveBeenCalledWith('tts', 'mlx-audio', 'csm');
+    });
+    // Reloaded after the pick — matrix reflects the new active_model_id.
+    await waitFor(() => {
+      expect(screen.getByTestId('curated-model-select-mlx-audio')).toHaveValue('csm');
+    });
+    expect(apiListEngines.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('does not render a curated-model picker for engines without curated_models', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        onSelect={vi.fn()}
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    expect(screen.queryByTestId(/curated-model-select-/)).not.toBeInTheDocument();
+  });
+
+  it('disables the curated-model picker when no onSelect is provided', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(mlxAudioResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('MLX-Audio (test)'));
+    expect(screen.getByTestId('curated-model-select-mlx-audio')).toBeDisabled();
+  });
 });

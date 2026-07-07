@@ -113,6 +113,66 @@ def test_tts_unknown_backend_raises():
         tts_backend.get_backend_class("not-a-real-one")
 
 
+# ── #981 — MLX-Audio curated-model selection ─────────────────────────────
+#
+# MLXAudioBackend.__init__ used to resolve its active model ONLY from
+# OMNIVOICE_MLX_AUDIO_MODEL, invisible to Settings and unchangeable without
+# restarting the process with an env var set. It must now mirror
+# active_backend_id()'s env > prefs > default resolution.
+
+
+def test_mlx_audio_model_id_resolves_via_prefs(monkeypatch, tmp_path):
+    from core import prefs as _prefs
+    monkeypatch.setattr(_prefs, "_PREFS_PATH", str(tmp_path / "prefs.json"))
+    monkeypatch.delenv("OMNIVOICE_MLX_AUDIO_MODEL", raising=False)
+    _prefs.set_("mlx_audio_model_id", "outetts")
+    be = tts_backend.MLXAudioBackend()
+    assert be._model_id == tts_backend.MLXAudioBackend.CURATED_MODELS["outetts"]
+
+
+def test_mlx_audio_model_id_env_overrides_prefs(monkeypatch, tmp_path):
+    from core import prefs as _prefs
+    monkeypatch.setattr(_prefs, "_PREFS_PATH", str(tmp_path / "prefs.json"))
+    _prefs.set_("mlx_audio_model_id", "outetts")
+    monkeypatch.setenv("OMNIVOICE_MLX_AUDIO_MODEL", "csm")
+    be = tts_backend.MLXAudioBackend()
+    assert be._model_id == tts_backend.MLXAudioBackend.CURATED_MODELS["csm"]
+
+
+def test_mlx_audio_model_id_defaults_to_kokoro(monkeypatch, tmp_path):
+    from core import prefs as _prefs
+    monkeypatch.setattr(_prefs, "_PREFS_PATH", str(tmp_path / "prefs.json"))
+    monkeypatch.delenv("OMNIVOICE_MLX_AUDIO_MODEL", raising=False)
+    be = tts_backend.MLXAudioBackend()
+    assert be._model_id == tts_backend.MLXAudioBackend.CURATED_MODELS["kokoro"]
+
+
+def test_get_active_tts_backend_reconstructs_on_mlx_model_switch(monkeypatch, tmp_path):
+    """A curated-model-only change (same backend id 'mlx-audio') must
+    invalidate the cached instance too — otherwise picking a different
+    curated model in Settings has no effect until an app restart."""
+    from core import prefs as _prefs
+    monkeypatch.setattr(_prefs, "_PREFS_PATH", str(tmp_path / "prefs.json"))
+    monkeypatch.delenv("OMNIVOICE_MLX_AUDIO_MODEL", raising=False)
+    monkeypatch.delenv("OMNIVOICE_TTS_BACKEND", raising=False)
+    _prefs.set_("tts_backend", "mlx-audio")
+    _prefs.set_("mlx_audio_model_id", "kokoro")
+    tts_backend.reset_active_backend()
+    try:
+        be1 = tts_backend.get_active_tts_backend()
+        assert be1._model_id == tts_backend.MLXAudioBackend.CURATED_MODELS["kokoro"]
+        # Same instance on a repeat call with nothing changed (still cached).
+        assert tts_backend.get_active_tts_backend() is be1
+
+        _prefs.set_("mlx_audio_model_id", "outetts")
+        be2 = tts_backend.get_active_tts_backend()
+        assert be2 is not be1
+        assert be2._model_id == tts_backend.MLXAudioBackend.CURATED_MODELS["outetts"]
+    finally:
+        tts_backend.reset_active_backend()
+        _prefs.set_("tts_backend", "omnivoice")
+
+
 # ── ASR ─────────────────────────────────────────────────────────────────────
 
 

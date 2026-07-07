@@ -40,6 +40,19 @@ interface EngineBackend {
   effective_device?: EffectiveDevice;
   routing_status?: RoutingStatus;
   routing_reason?: string | null;
+  // #981 — mlx-audio ONLY: it multiplexes 7+ curated models behind one
+  // backend id, so its entry also carries the roster + current pick so
+  // Settings can render a model picker. Absent on every other backend.
+  curated_models?: CuratedModel[];
+  active_model_id?: string;
+}
+
+// #981 — one of mlx-audio's curated models (see backend
+// MLXAudioBackend.CURATED_MODELS / _MLX_AUDIO_MODEL_LABELS).
+export interface CuratedModel {
+  key: string;
+  label: string;
+  repo_id: string;
 }
 
 interface EngineFamilyResponse {

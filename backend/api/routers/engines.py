@@ -16,6 +16,7 @@ Environment variables (`OMNIVOICE_TTS_BACKEND`, `OMNIVOICE_ASR_BACKEND`,
 a backend without Settings silently undoing it.
 """
 import os
+import re
 import threading
 from time import perf_counter
 
@@ -429,6 +430,11 @@ def engine_selftest(engine_id: str):
 class SelectEngineRequest(BaseModel):
     family: str   # "tts" | "asr" | "llm"
     backend_id: str
+    # Only meaningful for family="tts", backend_id="mlx-audio" (#981) — picks
+    # which of mlx-audio's curated models is actually loaded. A curated key
+    # ("kokoro") or a raw HF repo id ("mlx-community/Kokoro-82M-bf16") — the
+    # same tolerance MLXAudioBackend.__init__ already has. Ignored otherwise.
+    model_id: str | None = None
 
 
 class SelectEngineResponse(BaseModel):
@@ -471,6 +477,24 @@ def select_engine(req: SelectEngineRequest):
             f"Backend {req.backend_id} can't run on this machine: {why}. "
             f"Pick an engine with a CPU path, or one that supports this host's GPU.",
         )
+    # #981: mlx-audio multiplexes 7+ curated models behind one backend id —
+    # persist the model pick alongside the backend id so the UI can actually
+    # select which curated model gets loaded (previously it always defaulted
+    # to Kokoro no matter what the user downloaded in Settings → Models).
+    if req.family == "tts" and req.backend_id == "mlx-audio" and req.model_id is not None:
+        known_keys = tts_backend.MLXAudioBackend.CURATED_MODELS
+        # Accept a curated key OR a raw HF repo id ("owner/name") — the same
+        # tolerance MLXAudioBackend.__init__ already has for power users.
+        # Anything else (typo'd key, malformed id) is rejected outright
+        # rather than silently persisted as a "custom repo" that then fails
+        # to resolve at load time.
+        if req.model_id not in known_keys and not re.fullmatch(r"[\w.-]+/[\w.-]+", req.model_id):
+            raise HTTPException(
+                400,
+                f"Unknown mlx-audio model: {req.model_id!r}. Expected one of "
+                f"{sorted(known_keys)} or a HF repo id like 'owner/name'.",
+            )
+        prefs.set_("mlx_audio_model_id", req.model_id)
     prefs.set_(pref_key, req.backend_id)
     return {
         "family": req.family,
