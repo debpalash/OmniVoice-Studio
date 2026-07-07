@@ -143,6 +143,28 @@ def _apply_effect_chain(audio_out, sample_rate, effect_preset, *, skip_mastering
     return normalize_audio(audio_out, target_dBFS=-2.0)
 
 
+def _safe_exc_text(e: BaseException) -> str:
+    """``f"{type(e).__name__}: {e}"`` — the house style used for
+    unrecognized-error formatting throughout the backend (grep
+    ``type(e).__name__`` in settings.py / asr_backend.py / model_manager.py
+    / engines.py) — with a guard against leaking a raw container repr.
+
+    #977: an AssertionError raised deep inside a vendored dependency
+    (mlx-audio's Kokoro pipeline) had ``.args`` shaped like
+    ``('du', {'a': 'American English', ...})`` — a tuple containing a dict.
+    ``str(e)`` on that renders the WHOLE table straight into the user-facing
+    message. Any engine's ``generate()`` can raise something shaped like
+    this (not just Kokoro), so guard generically: if any element of
+    ``e.args`` is a container rather than a plain string, don't interpolate
+    ``str(e)`` at all — name the exception type and point at the log
+    instead.
+    """
+    args = getattr(e, "args", ())
+    if any(isinstance(a, (dict, list, tuple, set, frozenset)) for a in args):
+        return f"{type(e).__name__} — see Settings → Logs → Backend for details"
+    return f"{type(e).__name__}: {e}"
+
+
 def _exception_chain(e):
     """Yield ``e`` plus every ``__cause__``/``__context__`` beneath it
     (cycle-safe). Engines and hub libraries routinely wrap the original
@@ -412,7 +434,7 @@ def _oom_friendly_reraise(e):
     raise RuntimeError(
         f"TTS engine stopped mid-generation with an error OmniVoice doesn't "
         f"recognize. Retry once; if it keeps failing, please report it with "
-        f"the full trace. Underlying error: {e}"
+        f"the full trace. Underlying error: {_safe_exc_text(e)}"
     ) from e
 
 
@@ -934,7 +956,7 @@ async def generate_speech(
             status_code=500,
             detail=(
                 f"Couldn't synthesize audio. See Settings → Logs → Backend for the full trace. "
-                f"Underlying error: {e}"
+                f"Underlying error: {_safe_exc_text(e)}"
             ),
         )
     finally:

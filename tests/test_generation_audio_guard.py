@@ -14,7 +14,11 @@ import torch
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "backend"))
 
-from api.routers.generation import _sanitize_audio, _oom_friendly_reraise  # noqa: E402
+from api.routers.generation import (  # noqa: E402
+    _oom_friendly_reraise,
+    _safe_exc_text,
+    _sanitize_audio,
+)
 
 
 def test_sanitize_replaces_non_finite_with_silence():
@@ -257,3 +261,41 @@ def test_config_failure_does_not_swallow_real_oom():
     with pytest.raises(RuntimeError) as ei:
         _oom_friendly_reraise(RuntimeError("CUDA error: out of memory"))
     assert "ran out of memory" in str(ei.value)
+
+
+# ── #977: generic exception formatters never leak a raw container repr ─────
+# mlx-audio's vendored Kokoro pipeline raises
+# `assert lang_code in LANG_CODES, (lang_code, LANG_CODES)` — an
+# AssertionError whose .args is a (str, dict) tuple. str(e) on that
+# interpolates the ENTIRE table straight into the user-facing 500 message
+# ("Underlying error: ('du', {'a': 'American English', ...})"). Any engine's
+# generate() can raise something shaped like this, not just Kokoro, so the
+# guard is class-level: _safe_exc_text() backs both of generation.py's
+# generic (catch-all) exception formatters.
+
+
+def test_safe_exc_text_plain_message_uses_house_style():
+    err = RuntimeError("plain readable message")
+    assert _safe_exc_text(err) == "RuntimeError: plain readable message"
+
+
+def test_safe_exc_text_container_args_do_not_leak_raw_repr():
+    # Mirrors the exact #977 AssertionError shape.
+    err = AssertionError(("du", {"a": "American English", "b": "British English"}))
+    text = _safe_exc_text(err)
+    assert text.startswith("AssertionError")
+    assert "American English" not in text
+    assert "{" not in text and "}" not in text
+    assert "(" not in text and ")" not in text
+
+
+def test_unrecognized_error_catchall_does_not_leak_container_repr():
+    # End-to-end through _oom_friendly_reraise's catch-all fallback (none of
+    # the specific classifiers above it match an AssertionError like this).
+    err = AssertionError(("du", {"a": "American English", "b": "British English"}))
+    with pytest.raises(RuntimeError) as ei:
+        _oom_friendly_reraise(err)
+    msg = str(ei.value)
+    assert "AssertionError" in msg
+    assert "American English" not in msg
+    assert "{" not in msg and "}" not in msg

@@ -238,3 +238,96 @@ def test_hf_retry_is_single_shot():
     with pytest.raises(RuntimeError):
         tts_backend._retry_once_with_fresh_hf_client(loader, what="test")
     assert len(calls) == 2
+
+
+# ── #977: MLX-Audio Kokoro language-code resolution ─────────────────────────
+# Kokoro's own vendored pipeline (mlx_audio.tts.models.kokoro.pipeline)
+# hard-asserts `lang_code` against a fixed single-letter table. The old code
+# blindly truncated a full language name — "Dutch"[:2].lower() == "du" — into
+# that assert, crashing with an unreadable `(lang_code, LANG_CODES)` repr
+# instead of a clean error. The resolution tests need the real mlx-audio
+# package (Apple-Silicon-only) since they validate against ITS installed
+# table, never a hardcoded guess; they skip cleanly where mlx-audio isn't
+# installed (every non-macOS-ARM CI runner).
+
+
+def test_mlx_audio_kokoro_resolves_supported_language_names():
+    pytest.importorskip("mlx_audio", reason="mlx-audio is Apple-Silicon-only")
+    resolve = tts_backend.resolve_kokoro_lang_code
+    assert resolve("English") == "a"
+    assert resolve("Spanish") == "e"
+    assert resolve("French") == "f"
+    assert resolve("Hindi") == "h"
+    assert resolve("Italian") == "i"
+    assert resolve("Portuguese") == "p"
+    assert resolve("Japanese") == "j"
+    assert resolve("Chinese") == "z"
+    # Some callers may already pass an ISO code — those resolve unchanged
+    # through Kokoro's own ALIASES table, not just our full-name map.
+    assert resolve("es") == "e"
+    assert resolve("en-gb") == "b"
+
+
+@pytest.mark.parametrize("language", ["Dutch", "German"])
+def test_mlx_audio_kokoro_rejects_unsupported_language_cleanly(language):
+    # The literal #977 report case ("Dutch") plus one more Kokoro doesn't
+    # support ("German") — neither's first two letters happen to alias to a
+    # valid Kokoro code, so both used to crash.
+    pytest.importorskip("mlx_audio", reason="mlx-audio is Apple-Silicon-only")
+    with pytest.raises(ValueError) as ei:
+        tts_backend.resolve_kokoro_lang_code(language)
+    msg = str(ei.value)
+    assert language in msg
+    assert "Kokoro" in msg
+    assert "English" in msg  # names what Kokoro DOES support
+
+
+def test_mlx_audio_generate_rejects_unsupported_kokoro_language_before_calling_model():
+    pytest.importorskip("mlx_audio", reason="mlx-audio is Apple-Silicon-only")
+    backend = tts_backend.MLXAudioBackend()
+    backend._model_id = backend.CURATED_MODELS["kokoro"]
+    backend._ensure_loaded = lambda: None  # never actually load the model
+
+    def _boom_generate(**kw):
+        raise AssertionError("model.generate() must not run for a rejected language")
+
+    backend._model = types.SimpleNamespace(generate=_boom_generate)
+
+    with pytest.raises(ValueError, match="Dutch"):
+        backend.generate("hello", language="Dutch")
+
+
+def test_mlx_audio_generate_auto_language_skips_lang_code_entirely():
+    # Matches the "Auto" convention other engines in this file use
+    # (OmniVoiceBackend.generate(), _run_backend_inference) — never resolved,
+    # never forwarded as lang_code.
+    backend = tts_backend.MLXAudioBackend()
+    backend._model_id = backend.CURATED_MODELS["kokoro"]
+    backend._ensure_loaded = lambda: None
+    seen_kwargs = {}
+
+    def _fake_generate(**kw):
+        seen_kwargs.update(kw)
+        return iter([types.SimpleNamespace(audio=[0.0, 0.0, 0.0, 0.0])])
+
+    backend._model = types.SimpleNamespace(generate=_fake_generate)
+    backend.generate("hello", language="Auto")
+    assert "lang_code" not in seen_kwargs
+
+
+def test_mlx_audio_generate_non_kokoro_model_ignores_kokoro_validation():
+    # Qwen3-TTS (and CSM/Dia/Chatterbox/MeloTTS/OuteTTS) don't use Kokoro's
+    # lang_code convention — a language Kokoro would reject must NOT be
+    # rejected when a different curated model is active (#977 nuance).
+    backend = tts_backend.MLXAudioBackend()
+    backend._model_id = backend.CURATED_MODELS["qwen3-tts"]
+    backend._ensure_loaded = lambda: None
+    seen_kwargs = {}
+
+    def _fake_generate(**kw):
+        seen_kwargs.update(kw)
+        return iter([types.SimpleNamespace(audio=[0.0, 0.0, 0.0, 0.0])])
+
+    backend._model = types.SimpleNamespace(generate=_fake_generate)
+    backend.generate("hello", language="Dutch")  # must not raise
+    assert seen_kwargs.get("lang_code") == "du"

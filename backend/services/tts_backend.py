@@ -691,6 +691,54 @@ class KittenTTSBackend(TTSBackend):
 # ── MLX-Audio (mac-ARM engine multiplexer) ──────────────────────────────────
 
 
+# #977: Kokoro's own ALIASES table (mlx_audio.tts.models.kokoro.pipeline) only
+# recognizes ISO-ish tokens ("en", "es", "fr-fr", "pt-br", …) — it has no idea
+# what a full language name is. OmniVoice's `language` kwarg is normally a
+# full display name from frontend/src/languages.json (e.g. "Dutch",
+# "Spanish"), forwarded verbatim by the frontend and by
+# `OmniVoiceBackend.generate()`. Translate the subset Kokoro actually
+# supports to the ISO token its own ALIASES expects; a caller that already
+# passes an ISO code (or one of Kokoro's own single-letter codes) is
+# resolved unchanged by `resolve_kokoro_lang_code()` below.
+_KOKORO_ISO_BY_FULL_NAME = {
+    "english": "en",
+    "spanish": "es",
+    "french": "fr",
+    "hindi": "hi",
+    "italian": "it",
+    "portuguese": "pt",
+    "japanese": "ja",
+    "chinese": "zh",
+}
+
+
+def resolve_kokoro_lang_code(language: str) -> str:
+    """Map a full language name / ISO code to Kokoro's single-letter
+    `lang_code`, against the AUTHORITATIVE table read from the installed
+    mlx-audio package (never a hardcoded guess — the vendored table is the
+    only source of truth and can change across mlx-audio versions).
+
+    Raises ``ValueError`` for anything Kokoro doesn't support, naming what
+    it *does* support — instead of forwarding a bogus code into Kokoro's
+    `assert lang_code in LANG_CODES`, which crashes with an unreadable
+    ``(lang_code, LANG_CODES)`` tuple/dict repr (#977).
+    """
+    from mlx_audio.tts.models.kokoro.pipeline import ALIASES, LANG_CODES
+
+    key = language.strip().lower()
+    iso = _KOKORO_ISO_BY_FULL_NAME.get(key, key)
+    code = ALIASES.get(iso, iso)
+    if code not in LANG_CODES:
+        supported = ", ".join(sorted(name.title() for name in _KOKORO_ISO_BY_FULL_NAME))
+        raise ValueError(
+            f"mlx-audio's Kokoro model (mlx-community/Kokoro-82M-bf16) doesn't "
+            f"support language={language!r}. Kokoro supports: {supported}. "
+            f"Pick one of those, leave language as 'Auto', or switch to a "
+            f"multilingual engine (e.g. OmniVoice) for other languages."
+        )
+    return code
+
+
 class MLXAudioBackend(TTSBackend):
     """Blaizzy/mlx-audio — Apple-Silicon-only wrapper over 14+ TTS engines
     (Kokoro, CSM, Dia, Qwen3-TTS, Chatterbox, MeloTTS, OuteTTS, Spark,
@@ -802,7 +850,25 @@ class MLXAudioBackend(TTSBackend):
         kwargs = {"text": text, "speed": speed}
         if voice:     kwargs["voice"] = voice
         if ref_audio: kwargs["ref_audio"] = ref_audio
-        if language:  kwargs["lang_code"] = language[:2].lower()
+        if language and language != "Auto":
+            if self._model_id == self.CURATED_MODELS.get("kokoro"):
+                # Kokoro's vendored pipeline hard-asserts `lang_code` against
+                # its own single-letter table — a bogus code crashes with an
+                # unreadable AssertionError instead of failing cleanly
+                # (#977). Resolve against the authoritative installed table
+                # instead of guessing via `language[:2]`.
+                kwargs["lang_code"] = resolve_kokoro_lang_code(language)
+            else:
+                # `lang_code`-as-2-letter-truncation is Kokoro's own
+                # convention, not mlx-audio's in general — other curated
+                # models either ignore unrecognized kwargs (CSM/Dia/OuteTTS
+                # accept **kwargs and drop it) or expect something else
+                # entirely (Qwen3-TTS's own docstring: "lang_code: Language
+                # code (auto, chinese, english, etc.)" — a full name, not a
+                # 2-letter code). Kokoro's strict validation doesn't apply to
+                # them, so don't reject a language that's valid for whatever
+                # model is actually active.
+                kwargs["lang_code"] = language[:2].lower()
 
         pieces = []
         try:
