@@ -277,9 +277,11 @@ def _timeout_guidance(what: str, timeout: float) -> str:
         )
     return common + (
         "most often the GPU is VRAM-starved (a resident model and this job "
-        "contend for memory). For a durable fix try shorter text, a lighter "
-        "engine, or set the engine to CPU in Settings → Models. (Raise "
-        "OMNIVOICE_GENERATE_TIMEOUT_S for very long single generations.)"
+        "contend for memory). For a durable fix, Flush caches / Unload the "
+        "resident model (top toolbar or Settings → Models) before retrying, "
+        "try shorter text, a lighter engine, or set the engine to CPU in "
+        "Settings → Models. (Raise OMNIVOICE_GENERATE_TIMEOUT_S for very "
+        "long single generations.)"
     )
 
 

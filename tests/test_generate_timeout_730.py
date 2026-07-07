@@ -139,6 +139,10 @@ def test_gpu_host_keeps_vram_guidance(monkeypatch):
     msg = _guidance_for(monkeypatch, "cuda")
     assert "VRAM-starved" in msg
     assert "set the engine to CPU" in msg
+    # #939: the sibling ASR timeout guard already recommends Flush/Unload —
+    # this message was missing it, forcing the maintainer to explain it
+    # manually in every report instead of the error saying so upfront.
+    assert "Flush" in msg
 
 
 def test_probe_failure_defaults_to_gpu_wording(monkeypatch):
