@@ -109,14 +109,17 @@ def test_list_loaded_attributes_resident_tts_to_its_engine(monkeypatch):
     monkeypatch.setattr(mm, "model", _Model())
     monkeypatch.setattr(mm, "_diar_pipeline", None)
 
-    monkeypatch.setattr(tb, "active_backend_id", lambda: "voxcpm2")
+    # String-target setattr: other suites pop+reimport services.* modules
+    # mid-run (see module docstring), so the collection-time `tb` alias can go
+    # stale — patch the module object _active_tts_id late-imports at call time.
+    monkeypatch.setattr("services.tts_backend.active_backend_id", lambda: "voxcpm2")
     rows = {m["id"]: m for m in ml.list_loaded()["models"]}
     assert rows["tts"]["engine_id"] == "omnivoice"
     assert rows["tts"]["is_active_engine"] is False
     # ASR isn't competing with the TTS selection — must not be mislabeled.
     assert "is_active_engine" not in rows["asr"]
 
-    monkeypatch.setattr(tb, "active_backend_id", lambda: "omnivoice")
+    monkeypatch.setattr("services.tts_backend.active_backend_id", lambda: "omnivoice")
     rows = {m["id"]: m for m in ml.list_loaded()["models"]}
     assert rows["tts"]["is_active_engine"] is True
 
@@ -131,7 +134,7 @@ def test_list_loaded_attribution_failure_degrades(monkeypatch):
     monkeypatch.setattr(mm, "_diar_pipeline", None)
     def _boom():
         raise RuntimeError("prefs unavailable")
-    monkeypatch.setattr(tb, "active_backend_id", _boom)
+    monkeypatch.setattr("services.tts_backend.active_backend_id", _boom)
     rows = {m["id"]: m for m in ml.list_loaded()["models"]}
     assert rows["tts"]["is_active_engine"] is None
 
