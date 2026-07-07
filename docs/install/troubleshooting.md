@@ -242,6 +242,15 @@ for the dedicated CosyVoice path.
 
 **Linked issue:** [#55](https://github.com/debpalash/OmniVoice-Studio/issues/55)
 
+**Same class, ASR side:** the `nemo-parakeet` ASR engine has the identical
+problem and currently has **no safe install path** at all — `nemo_toolkit[asr]`
+hard-pins `transformers>=4.57,<4.58`, which is unsatisfiable alongside
+OmniVoice's own `transformers>=5.3` requirement. Installing it into the
+shared venv breaks the backend outright. Do not `pip install nemo_toolkit`
+into OmniVoice's environment; if you want to try it, use a separate Python
+environment. Isolated-venv support for this engine (matching CosyVoice/
+dots-tts) is tracked in [#974](https://github.com/debpalash/OmniVoice-Studio/issues/974).
+
 ## 12. CUDA PyTorch wheel download fails on first run
 
 **Symptom:** first-run setup stops at **Installing dependencies** with a failure

@@ -1700,7 +1700,16 @@ _INSTALL_HINTS: dict[str, str] = {
     "faster-whisper":  "pip install faster-whisper  (CTranslate2; cross-platform, CUDA or CPU)",
     "mlx-whisper":     "pip install mlx-whisper  (Apple Silicon only)",
     "pytorch-whisper": "Bundled with transformers — no extra install (CUDA/MPS/CPU)",
-    "nemo-parakeet":   "pip install nemo_toolkit[asr]  (NVIDIA Parakeet; CUDA or CPU)",
+    "nemo-parakeet":   (
+        "No safe install path in this app yet — nemo_toolkit's ASR extras pin "
+        "transformers>=4.57,<4.58, which conflicts with OmniVoice's own "
+        "transformers>=5.3 requirement and WILL break the backend "
+        "(ImportError on startup) if installed into this shared venv. Do NOT "
+        "install nemo_toolkit here. If you want to try Parakeet TDT, set it "
+        "up in a separate/dedicated Python environment — not the one "
+        "OmniVoice manages; in-app isolation for this engine is tracked "
+        "separately."
+    ),
     "moonshine":       "pip install useful-moonshine  (edge/CPU-optimized ASR)",
     "funasr":          "pip install funasr  (SenseVoiceSmall + FSMN-VAD; CUDA or CPU)",
     "sherpa-onnx-asr": "uv add sherpa-onnx  (ONNX live dictation; CPU, cross-platform)",
