@@ -5,7 +5,20 @@
 const MAX = 500;
 const buf = [];
 
+// Tauri's own internal IPC fallback (#975): on some Windows configurations
+// the custom-protocol IPC probe fails once at startup and Tauri logs this
+// exact console.warn before silently — and successfully — falling back to
+// postMessage + WebSocket. It's benign and fires at most once per launch,
+// but as a captured console.warn it spuriously flips the Logs footer's
+// Frontend pill to "1 warning" on every affected launch. Filtered at the
+// capture source (not the display layer) so it never enters the ring
+// buffer or a copied diagnostic dump either.
+const BENIGN_WARNING_PREFIXES = ['IPC custom protocol failed'];
+
 function push(level, args) {
+  if (level === 'warn' && typeof args[0] === 'string') {
+    if (BENIGN_WARNING_PREFIXES.some((p) => args[0].startsWith(p))) return;
+  }
   const msg = Array.from(args)
     .map((a) => {
       if (a instanceof Error) return `${a.name}: ${a.message}${a.stack ? '\n' + a.stack : ''}`;
