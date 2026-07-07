@@ -61,3 +61,19 @@ test('empty / missing attrs yields all-Auto', () => {
     for (const cat of ALL_CATS) assert.equal(out[cat], 'Auto');
   }
 });
+
+test('#983 — a partial vdStates shape (as restored from a saved profile or '
+  + 'localStorage) is completed to all 6 CATEGORIES keys', () => {
+  // Mirrors the exact partial shape from issue #983: only Gender survives
+  // (e.g. a design profile saved by an older client, or a hand-edited
+  // payload), the other 5 category keys are simply absent from the object.
+  // useProfiles.js/useAppData.js now run any restored vd_states through this
+  // helper before calling setVdStates, so DesignMethodPanel's render never
+  // sees an undefined category value.
+  const out = mergeDescribedAttrs({ Gender: 'male' });
+  assert.deepEqual(Object.keys(out).sort(), [...ALL_CATS].sort());
+  assert.equal(out.Gender, 'male');
+  for (const cat of ALL_CATS) {
+    if (cat !== 'Gender') assert.equal(out[cat], 'Auto');
+  }
+});

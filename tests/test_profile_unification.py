@@ -170,10 +170,39 @@ def test_design_create_renders_sample_and_stores_params(app_client, fake_render)
     assert body["kind"] == "design"
     profile = client.get(f"/profiles/{body['id']}").json()
     assert profile["kind"] == "design"
-    assert json.loads(profile["vd_states"]) == _VD
+    # #983: the server now completes vd_states to all 6 known categories
+    # (missing ones default to 'Auto') before persisting — _VD only sets 3,
+    # so the stored value is a superset of it, not an exact match.
+    stored = json.loads(profile["vd_states"])
+    assert stored == {**_VD, "Style": "Auto", "EnglishAccent": "Auto", "ChineseDialect": "Auto"}
     assert profile["seed"] == 42  # deterministic identity sample
     wav = os.path.join(cfg.VOICES_DIR, profile["ref_audio_path"])
     assert os.path.exists(wav) and os.path.getsize(wav) > 0
+
+
+def test_design_normalizes_partial_vd_states_to_all_categories(app_client, fake_render):
+    """#983: a design profile must never persist with a partial vd_states shape.
+
+    A client (older frontend build, hand-edited payload, third-party API
+    caller) that only sends a subset of the 6 known category keys used to be
+    saved as-is — selecting that profile later handed the frontend an
+    incomplete vdStates object, crashing DesignMethodPanel's render
+    ("Cannot read properties of undefined (reading 'replace')"). The server
+    now fills every missing category with 'Auto' before persisting, so the
+    stored vd_states is always complete regardless of which client wrote it.
+    """
+    client, _ = app_client
+    r = client.post(
+        "/profiles",
+        data={"name": "Partial", "kind": "design", "vd_states": json.dumps({"Gender": "male"})},
+    )
+    assert r.status_code == 200, r.text
+    profile = client.get(f"/profiles/{r.json()['id']}").json()
+    stored = json.loads(profile["vd_states"])
+    assert set(stored) == {"Gender", "Age", "Pitch", "Style", "EnglishAccent", "ChineseDialect"}
+    assert stored["Gender"] == "male"
+    for cat in ("Age", "Pitch", "Style", "EnglishAccent", "ChineseDialect"):
+        assert stored[cat] == "Auto"
 
 
 # ── Migration 0005 ───────────────────────────────────────────────────────────

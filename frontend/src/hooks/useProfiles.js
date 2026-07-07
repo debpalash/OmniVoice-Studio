@@ -11,7 +11,7 @@ import { generateSpeech, audioUrlWithCacheBust } from '../api/generate';
 import { apiFetch } from '../api/client';
 import { playBlobAudio } from '../utils/media';
 import { PRESETS } from '../utils/constants';
-import { instructToFormValue } from '../utils/voiceInstruct';
+import { instructToFormValue, mergeDescribedAttrs } from '../utils/voiceInstruct';
 import { askConfirm } from '../utils/dialog';
 import { toast } from 'react-hot-toast';
 import { recordValueMoment } from '../utils/donationMoments';
@@ -96,7 +96,12 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
       if (profile.kind === 'design' && profile.vd_states) {
         try {
           const parsed = JSON.parse(profile.vd_states);
-          if (parsed && typeof parsed === 'object') setVdStates(parsed);
+          // #983: a profile saved by an older/foreign client (or hand-edited)
+          // can carry a partial shape — mergeDescribedAttrs (already used for
+          // the "describe your voice" restore path) guarantees every
+          // CATEGORIES key is present, defaulting missing/unknown ones to
+          // 'Auto', so DesignMethodPanel never sees an undefined category.
+          if (parsed && typeof parsed === 'object') setVdStates(mergeDescribedAttrs(parsed));
         } catch {
           /* malformed stored state — sliders keep their current values */
         }

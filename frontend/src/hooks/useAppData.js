@@ -8,6 +8,7 @@ import { listExportHistory } from '../api/exports';
 import { modelStatus as apiModelStatus } from '../api/system';
 import { useModelStatus } from '../api/hooks';
 import useRealtimeEvents from './useRealtimeEvents';
+import { mergeDescribedAttrs } from '../utils/voiceInstruct';
 
 /**
  * Encapsulates all data-loading effects, localStorage persistence,
@@ -174,7 +175,12 @@ export default function useAppData() {
         setDefineMethod('design');
       } else if (saved.mode) setMode(saved.mode);
       if (saved.defineMethod) setDefineMethod(saved.defineMethod);
-      if (saved.vdStates) setVdStates(saved.vdStates);
+      // #983: legacy localStorage state had no shape validation at all — a
+      // partial/corrupt saved.vdStates crashed DesignMethodPanel on restore.
+      // Mirror useProfiles.js's guard: require a plain object, then complete
+      // it to the full CATEGORIES shape (missing/unknown keys → 'Auto').
+      if (saved.vdStates && typeof saved.vdStates === 'object')
+        setVdStates(mergeDescribedAttrs(saved.vdStates));
       if (saved.language) setLanguage(saved.language);
       if (saved.isSidebarCollapsed !== undefined) setIsSidebarCollapsed(saved.isSidebarCollapsed);
       if (saved.sidebarTab) setSidebarTab(saved.sidebarTab);

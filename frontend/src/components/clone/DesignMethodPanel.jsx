@@ -147,6 +147,13 @@ export default function DesignMethodPanel({
           {Object.entries(CATEGORIES).map(([key, options]) => {
             const many = options.length > 6;
             const optLabel = (val) => {
+              // #983: a profile/localStorage-restored vdStates can carry a
+              // partial shape (missing category keys) — val is then undefined
+              // here even though the 'Auto' check above only catches the
+              // literal sentinel. Guard before .replace() rather than crash;
+              // 'Auto' matches how the rest of the component (the ternary
+              // above, the chip/select fallbacks) treats an unset category.
+              if (typeof val !== 'string' || !val) return 'Auto';
               const tKey = `clone.opt_${val.replace(/[ -]/g, '_')}`;
               const tl = t(tKey);
               return tl !== tKey ? tl : val;
@@ -180,9 +187,13 @@ export default function DesignMethodPanel({
                     aria-label={t(`clone.cat_${key}`)}
                   >
                     {options.map((opt, i) => {
-                      const optTKey = `clone.opt_${opt.replace(/[ -]/g, '_')}`;
+                      // `opt` is always a hardcoded CATEGORIES string today,
+                      // never undefined — guarded anyway for consistency with
+                      // the identical pattern above (#983).
+                      const safeOpt = typeof opt === 'string' && opt ? opt : 'Auto';
+                      const optTKey = `clone.opt_${safeOpt.replace(/[ -]/g, '_')}`;
                       const optTl = t(optTKey);
-                      const optLabel = optTl !== optTKey ? optTl : opt;
+                      const optLabel = optTl !== optTKey ? optTl : safeOpt;
                       const checked = vdStates[key] === opt;
                       // Roving tabindex: the checked chip is the group's
                       // single tab stop (first chip if nothing matches).

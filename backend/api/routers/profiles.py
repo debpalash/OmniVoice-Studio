@@ -73,6 +73,17 @@ async def create_profile(
                 raise ValueError("not an object")
         except ValueError:
             raise HTTPException(status_code=422, detail="vd_states must be a JSON object")
+        # Root-cause close for #983: a design profile must never be PERSISTED
+        # with a partial vd_states shape, regardless of which client (older
+        # frontend build, hand-edited payload, third-party API caller) created
+        # it — a missing category key crashes DesignMethodPanel's render on
+        # every future client that selects this profile. CATEGORY_ORDER is the
+        # same single source of truth the frontend's CATEGORIES keys mirror
+        # (core/describe_voice.py), so this can't drift from the picker.
+        from core.describe_voice import CATEGORY_ORDER
+        for _cat in CATEGORY_ORDER:
+            parsed.setdefault(_cat, "Auto")
+        vd_states = _json.dumps(parsed)
         # An all-Auto design (every category left on "Auto") yields an empty
         # instruct — that's still a valid, saveable voice: synthesis falls back
         # to neutral instruct-only conditioning (see generation.py design path).

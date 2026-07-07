@@ -81,7 +81,11 @@ def test_design_save_creates_row_when_model_unavailable(iso, monkeypatch):
     assert row["kind"] == "design"
     # Sample is pending — no rendered identity wav was forced at save time.
     assert not row["ref_audio_path"]
-    assert json.loads(row["vd_states"]) == _VD
+    # #983: vd_states is completed to all 6 known categories before persisting
+    # (missing ones default to 'Auto') — _VD only sets 3, so the stored value
+    # is a superset of it, not an exact match.
+    stored = json.loads(row["vd_states"])
+    assert stored == {**_VD, "Style": "Auto", "EnglishAccent": "Auto", "ChineseDialect": "Auto"}
 
 
 def test_all_auto_design_is_saveable(iso, monkeypatch):
