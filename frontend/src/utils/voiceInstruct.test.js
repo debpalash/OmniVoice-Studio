@@ -52,6 +52,22 @@ describe('buildDesignInstruct', () => {
     expect(unsupported).toEqual(['sôi nổi']);
   });
 
+  it('clone path (#980): RTL/non-Latin script (Hebrew) is dropped like any other unsupported free-text, not a crash', () => {
+    // #612 covered Latin-script-with-diacritics (Vietnamese); #980 was the same
+    // failure mode with a right-to-left script — a name typed into the Style
+    // field must degrade the same way (dropped client-side + unsupported bucket),
+    // never round-trip to the backend's 400.
+    const { instruct, unsupported } = buildDesignInstruct({}, 'שמואל');
+    expect(instruct).toBe('');
+    expect(unsupported).toEqual(['שמואל']);
+  });
+
+  it('clone path (#980): RTL script mixed with a valid tag keeps the tag, drops the rest', () => {
+    const { instruct, unsupported } = buildDesignInstruct({}, 'whisper, שמואל');
+    expect(instruct).toBe('whisper');
+    expect(unsupported).toEqual(['שמואל']);
+  });
+
   it('buckets a valid tag outranked by a dropdown as a duplicate, not unsupported (#114)', () => {
     const { instruct, unsupported, duplicates } = buildDesignInstruct(
       { Pitch: 'low pitch' },
