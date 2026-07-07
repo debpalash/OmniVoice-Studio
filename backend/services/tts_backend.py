@@ -143,9 +143,9 @@ class TTSBackend(ABC):
     supports_voice_design: bool = False
 
     #: Whether this engine already emits mastered, studio-grade audio and should
-    #: therefore skip the shared apply_mastering() chain (Compressor + Reverb,
+    #: therefore skip the shared apply_mastering() chain (highpass + Compressor,
     #: tuned for OmniVoice's 24 kHz output). Studio engines like VoxCPM2 (native
-    #: 48 kHz) set this True so their clean output isn't pumped/reverbed. Loudness
+    #: 48 kHz) set this True so their clean output isn't pumped. Loudness
     #: normalisation is applied regardless — it's a benign peak scale.
     applies_own_mastering: bool = False
 

@@ -237,10 +237,10 @@ def _run_tts(backend, text: str, kw: dict):
     sr = backend.sample_rate
     # Engines that already emit mastered, studio-grade audio (e.g. VoxCPM2's
     # native 48 kHz) opt out of apply_mastering via `applies_own_mastering`.
-    # That chain's Compressor + 8% Reverb is tuned for OmniVoice's 24 kHz clone
-    # output; applied to a studio engine it adds an audible level pump and a
-    # reverb tail that degrade the very output we want clean. Loudness
-    # normalisation still runs — it's a benign peak scale, not dynamics.
+    # That chain's highpass + Compressor is tuned for OmniVoice's 24 kHz clone
+    # output; applied to a studio engine it adds an audible level pump that
+    # degrades the very output we want clean. Loudness normalisation still
+    # runs — it's a benign peak scale, not dynamics.
     if not getattr(backend, "applies_own_mastering", False):
         wav = apply_mastering(wav, sample_rate=sr)
     wav = normalize_audio(wav, target_dBFS=-2.0)
