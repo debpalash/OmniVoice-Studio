@@ -124,14 +124,32 @@ class _RefCapturingModel:
         return [torch.full((1, int(0.5 * SR)), 0.1)]
 
 
+class _FakeBackend:
+    """Adapts the list-returning fake model above to the TTSBackend.generate()
+    contract (a single tensor, not a list) that resolve_generation_backend()
+    now hands dub_generate.py (issue #312 class)."""
+
+    applies_own_mastering = False
+
+    def __init__(self, model):
+        self._model = model
+
+    @property
+    def sample_rate(self):
+        return self._model.sampling_rate
+
+    def generate(self, *a, **kw):
+        return self._model.generate(*a, **kw)[0]
+
+
 @pytest.fixture
 def patched_generate(monkeypatch, tmp_path):
     import api.routers.dub_generate as dg
 
     model = _RefCapturingModel()
 
-    async def _fake_get_model():
-        return model
+    async def _fake_resolve_generation_backend(**kwargs):
+        return _FakeBackend(model)
 
     job = {
         "duration": 6.0,
@@ -148,7 +166,7 @@ def patched_generate(monkeypatch, tmp_path):
     job_dir = tmp_path / "jobX"
     job_dir.mkdir()
 
-    monkeypatch.setattr(dg, "get_model", _fake_get_model)
+    monkeypatch.setattr(dg, "resolve_generation_backend", _fake_resolve_generation_backend)
     monkeypatch.setattr(dg, "_get_job", lambda job_id: job)
     monkeypatch.setattr(dg, "_save_job", lambda job_id, j: None)
     monkeypatch.setattr(dg, "DUB_DIR", str(tmp_path))

@@ -149,6 +149,13 @@ class TTSBackend(ABC):
     #: normalisation is applied regardless — it's a benign peak scale.
     applies_own_mastering: bool = False
 
+    #: Whether this engine can clone an arbitrary voice from reference audio
+    #: (`ref_audio=`), as opposed to only offering a fixed set of preset
+    #: voices. Default True — most engines clone. Dub/batch gate on this
+    #: (issue #312 class) before committing to a job that needs it, instead
+    #: of silently falling back to OmniVoice or mis-cloning per segment.
+    supports_cloning: bool = True
+
     #: GPU/accelerator targets the engine can run on. Surfaced via the
     #: Engine Compatibility Matrix (Plan 02-04 / ENGINE-06) so users can
     #: tell at a glance which engines will use their hardware. Defaults to
@@ -603,6 +610,7 @@ class KittenTTSBackend(TTSBackend):
     display_name = "KittenTTS (English, 8 preset voices, CPU realtime)"
     # KittenTTS ships as an ONNX CPU graph; no CUDA/MPS path today.
     gpu_compat = ("cpu",)
+    supports_cloning = False  # fixed preset voices only; ref_audio is ignored
 
     PRESET_VOICES = [
         "expr-voice-2-m", "expr-voice-2-f",
@@ -758,6 +766,18 @@ class MLXAudioBackend(TTSBackend):
         # so the language picker doesn't gate by engine — each engine
         # silently ignores languages it doesn't know.
         return ["multi"]
+
+    @property
+    def supports_cloning(self) -> bool:
+        """Model-dependent — this adapter multiplexes 7+ curated models and
+        only some take a reference-audio speaker prompt. `generate()` passes
+        `ref_audio` through when present (~kwargs below) but silently retries
+        without it on a TypeError, so an engine picked for cloning that's
+        actually running Kokoro/Qwen3-TTS/etc. would clone nothing. Of the
+        curated set, only CSM (`mlx-community/csm-1b-8bit`) is confirmed to
+        accept a reference prompt — default False for every other model,
+        curated or user-supplied, until positively confirmed."""
+        return self._model_id == self.CURATED_MODELS.get("csm")
 
     def _ensure_loaded(self):
         if self._model is not None:
@@ -1111,6 +1131,7 @@ class SherpaOnnxBackend(TTSBackend):
     # Sherpa-ONNX uses the onnxruntime providers — CPU is the universal
     # baseline; CUDA provider is available on Linux/Windows installs.
     gpu_compat = ("cuda", "cpu")
+    supports_cloning = False  # VITS speaker-id only; no ref_audio support
 
     def __init__(self):
         self._tts = None
@@ -1458,6 +1479,18 @@ def get_backend_class(backend_id: str) -> type[TTSBackend]:
     return _REGISTRY[backend_id]
 
 
+def cloning_capable_engine_ids() -> list[str]:
+    """Engine ids that support reference-audio voice cloning — used to build
+    an actionable error when the active engine can't (dub/batch gating).
+
+    Iterates the same registry ``list_backends()`` uses, via ``.items()`` so
+    lazy entries resolve through ``_LazyRegistry``'s snapshot-safe iteration
+    (see ``_LazyRegistry.__iter__``) exactly like every other registry scan
+    in this module.
+    """
+    return [bid for bid, cls in _REGISTRY.items() if getattr(cls, "supports_cloning", True)]
+
+
 def active_routing() -> dict | None:
     """Routing verdict for the currently-active TTS engine, or ``None`` if it
     can't be determined (no engine / probe failure).
@@ -1578,6 +1611,78 @@ def get_active_tts_backend(*, model=None) -> TTSBackend:
         _active_instance = OmniVoiceBackend(model=model) if cls is OmniVoiceBackend else cls()
         _active_instance_id = bid
     return _active_instance
+
+
+# ── Shared generation-time engine resolution (issue #312 class) ───────────
+#
+# dub_generate.py and batch.py used to call services.model_manager.get_model()
+# directly, hardcoding OmniVoice regardless of the engine selected in
+# Settings → Engines — a SILENT fallback: pick VoxCPM2, dub anyway with
+# OmniVoice, no error. This is the single resolution path both routers now
+# call instead, mirroring generation.py's /generate resolution (engine id →
+# is_available() → routing gate) plus a voice-cloning capability gate that
+# /generate doesn't need (OmniVoice's native path always clones).
+
+
+async def resolve_generation_backend(
+    *, require_cloning: bool = False, cloning_purpose: str = "dubbing",
+) -> TTSBackend:
+    """Resolve + validate the active TTS engine for a generation call.
+
+    Returns the live backend instance (:func:`get_active_tts_backend`) —
+    cached, and properly unload()ed on an engine switch. Raises ``ValueError``
+    with an actionable message (never silently falls back to OmniVoice) when:
+
+      * the configured engine id is unknown (bad env var / stale pref),
+      * the engine reports itself unavailable (``is_available()``),
+      * the engine needs an accelerator this host lacks and has no CPU path
+        (``routing_status == "unavailable"``),
+      * ``require_cloning`` is True and the resolved backend can't clone
+        from reference audio (``supports_cloning`` False) — checked on the
+        live *instance*, not the class, so a model-dependent adapter like
+        MLX-Audio (Kokoro vs. CSM) is judged by what's actually loaded.
+    """
+    engine_id = active_backend_id()
+    try:
+        backend_cls = get_backend_class(engine_id)
+    except ValueError as e:
+        raise ValueError(
+            f"Active TTS engine '{engine_id}' is not a recognized backend ({e}). "
+            "Check Settings → Engines or the OMNIVOICE_TTS_BACKEND env var."
+        ) from e
+
+    try:
+        ok, msg = backend_cls.is_available()
+    except Exception as exc:  # noqa: BLE001 — surface as an actionable ValueError
+        ok, msg = False, f"{type(exc).__name__}: {exc}"
+    if not ok:
+        raise ValueError(f"TTS engine '{engine_id}' is not available: {_mask_hf_tokens(msg)}")
+
+    from core.device_caps import detect_host_caps
+    from services.engine_routing import resolve_routing
+    routing = resolve_routing(getattr(backend_cls, "gpu_compat", ("cpu",)), detect_host_caps())
+    if routing["routing_status"] == "unavailable":
+        raise ValueError(routing["routing_reason"])
+
+    _model = None
+    if backend_cls is OmniVoiceBackend:
+        # OmniVoice needs its model pre-loaded before construction: called
+        # from an async context, OmniVoiceBackend._ensure_loaded() refuses to
+        # bootstrap its own event loop (see its docstring) — same reason
+        # generation.py's /generate special-cases this backend.
+        from services.model_manager import get_model
+        _model = await get_model()
+    backend = get_active_tts_backend(model=_model)
+
+    if require_cloning and not getattr(backend, "supports_cloning", True):
+        raise ValueError(
+            f"The active TTS engine '{engine_id}' doesn't support voice cloning, "
+            f"so {cloning_purpose} can't preserve speaker voices. Switch to one "
+            f"of: {', '.join(cloning_capable_engine_ids())} in Settings → "
+            "Engines, or use OmniVoice for this job."
+        )
+
+    return backend
 
 
 # ── PEP 562 lazy attribute re-export ───────────────────────────────────────

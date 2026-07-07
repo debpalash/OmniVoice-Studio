@@ -179,6 +179,21 @@ async def _run_batch_pipeline(job_id: str, job: dict):
             job["status"] = "failed"
         return
 
+    # ── Engine resolution (issue #312 class) ────────────────────────────
+    # Batch used to hardcode OmniVoice via get_model() regardless of the
+    # engine selected in Settings → Engines. require_cloning only when a
+    # specific voice is pinned (job["voice_id"]) — an unpinned job is fine on
+    # any active engine. Resolved ONCE for the whole job (every language
+    # below shares the same active engine); an uncaught ValueError here
+    # propagates to _worker()'s existing except-Exception handling, which
+    # already records a structured job failure via core.failure.build_failure.
+    from services.tts_backend import resolve_generation_backend
+    backend = await resolve_generation_backend(
+        require_cloning=bool(job.get("voice_id")),
+        cloning_purpose="this batch job's pinned voice",
+    )
+    sr = backend.sample_rate
+
     # ── 3. Translate + Generate per language ───────────────────────────
     total_langs = len(langs)
     outputs = {}
@@ -243,13 +258,10 @@ async def _run_batch_pipeline(job_id: str, job: dict):
             total_segments=len(translated_segments),
         )
 
-        from services.model_manager import get_model
         from services.audio_dsp import apply_mastering, normalize_audio
         from services.audio_io import atomic_save_wav
         import torch
 
-        _model = await get_model()
-        sr = _model.sampling_rate
         total_samples = int(duration * sr)
         full_audio = torch.zeros(1, total_samples)
         total_segs = len(translated_segments)
@@ -295,22 +307,16 @@ async def _run_batch_pipeline(job_id: str, job: dict):
                         ref_text = row.get("ref_text")
 
                 try:
-                    audios = _model.generate(
+                    audio_out = backend.generate(
                         text=text, language=lang,
                         ref_audio=ref_audio, ref_text=ref_text,
                         duration=dur, num_step=16,
                         guidance_scale=2.0, speed=1.0,
                         denoise=True, postprocess_output=True,
                     )
-                    audio_out = audios[0]
-                    # TODO(#312): this route runs the OmniVoice model directly (not the active
-                    # backend), so VoxCPM2 never reaches it. When these routes become
-                    # engine-aware, guard with `if not getattr(backend, "applies_own_mastering", False)`.
-                    mastered = apply_mastering(
-                        audio_out,
-                        sample_rate=sr,
-                    )
-                    return normalize_audio(mastered, target_dBFS=-2.0)
+                    if not getattr(backend, "applies_own_mastering", False):
+                        audio_out = apply_mastering(audio_out, sample_rate=sr)
+                    return normalize_audio(audio_out, target_dBFS=-2.0)
                 except Exception as e:
                     logger.warning("TTS failed for seg %d (lang=%s): %s", i, lang, e)
                     return torch.zeros(1, int(dur * sr))

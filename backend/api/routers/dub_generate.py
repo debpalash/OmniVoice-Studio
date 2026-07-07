@@ -11,7 +11,8 @@ from core.db import db_conn
 from core.config import DUB_DIR, VOICES_DIR, dub_seg_path
 from core.tasks import task_manager
 from schemas.requests import DubRequest
-from services.model_manager import get_model, _gpu_pool, run_on_gpu_pool_guarded
+from services.model_manager import _gpu_pool, run_on_gpu_pool_guarded
+from services.tts_backend import resolve_generation_backend
 from services.audio_dsp import apply_mastering, normalize_audio, apply_effects_chain, get_effect_chain
 from services.audio_io import atomic_save_wav, _safe_torchaudio_save
 from services.ffmpeg_utils import (
@@ -156,7 +157,19 @@ async def dub_generate(job_id: str, req: DubRequest):
             detail="This dub session has expired or was never created. Re-upload the video to start a new one.",
         )
 
-    _model = await get_model()
+    # ── Engine resolution (issue #312 class) ────────────────────────────────
+    # Dub used to hardcode OmniVoice via get_model() regardless of the engine
+    # selected in Settings → Engines — a SILENT fallback. Every real dub
+    # segment's ref_audio resolves to either an auto:<speaker>/auto-seg:<id>
+    # clone cut from the source video or a saved voice-profile row (see
+    # `_gen` below), so require_cloning=True: an engine that can't clone
+    # would either mis-clone per segment or fail deep into the job. Checked
+    # ONCE here, before the streaming task starts, so a doomed job fails fast
+    # with one clear message instead of N per-segment ones.
+    try:
+        backend = await resolve_generation_backend(require_cloning=True)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     async def _stream(task_id):
         total = len(req.segments)
@@ -343,7 +356,7 @@ async def dub_generate(job_id: str, req: DubRequest):
 
             seg_duration = seg.end - seg.start
             if seg_duration <= 0.05 or not seg.text.strip():
-                sr = _model.sampling_rate
+                sr = backend.sample_rate
                 # max(0, …): a zero/negative-duration slot must not feed a
                 # negative length to torch.zeros (raises) — _store_mix_wav
                 # turns the empty buffer into a harmless in-memory entry.
@@ -377,21 +390,21 @@ async def dub_generate(job_id: str, req: DubRequest):
                     try:
                         _t_cache_0 = time.perf_counter()
                         cached_wav, cached_sr = torchaudio.load(seg_wav_path)
-                        if cached_sr != _model.sampling_rate:
+                        if cached_sr != backend.sample_rate:
                             import torchaudio.functional as AF
-                            cached_wav = AF.resample(cached_wav, cached_sr, _model.sampling_rate)
+                            cached_wav = AF.resample(cached_wav, cached_sr, backend.sample_rate)
                         # Pad/trim to slot — except smart_fit, whose mix
                         # loop needs the natural-rate length to compute the
                         # audio/video split (the seg_wav_kind guard above
                         # guarantees these cached WAVs are natural-rate).
                         if strategy != "smart_fit":
-                            target_samples = int(seg_duration * _model.sampling_rate)
+                            target_samples = int(seg_duration * backend.sample_rate)
                             current_samples = cached_wav.shape[-1]
                             if target_samples > current_samples:
                                 cached_wav = torch.nn.functional.pad(cached_wav, (0, target_samples - current_samples))
                             elif current_samples > target_samples:
                                 cached_wav = cached_wav[..., :target_samples]
-                        all_segment_wavs.append(_store_mix_wav(seg.start, seg.end, cached_wav, _model.sampling_rate, f"mix_{seg_id}"))
+                        all_segment_wavs.append(_store_mix_wav(seg.start, seg.end, cached_wav, backend.sample_rate, f"mix_{seg_id}"))
                         try:
                             del cached_wav
                         except Exception:
@@ -404,7 +417,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                         # Fall through to a silent placeholder if the cached WAV
                         # is broken — cleaner than aborting the whole mix.
                         yield f"data: {json.dumps({'type': 'warning', 'segment': i, 'message': f'cached seg lost, padding silence: {str(e)[:120]}'})}\n\n"
-                sr = _model.sampling_rate
+                sr = backend.sample_rate
                 silence = torch.zeros(1, max(0, int(seg_duration * sr)))
                 all_segment_wavs.append(_store_mix_wav(seg.start, seg.end, silence, sr, f"mix_{seg_id}"))
                 try:
@@ -488,25 +501,23 @@ async def dub_generate(job_id: str, req: DubRequest):
                     torch.manual_seed(used_seed)
 
                 try:
-                    audios = _model.generate(
+                    audio_out = backend.generate(
                         text=text, language=lang if lang != "Auto" else None,
                         ref_audio=ref_audio, ref_text=ref_text,
                         instruct=instruct_str if instruct_str else None,
                         duration=dur_s, num_step=nstep, guidance_scale=cfg,
                         speed=spd, denoise=True, postprocess_output=True,
                     )
-                    audio_out = audios[0]
-                    sr = _model.sampling_rate if hasattr(_model, 'sampling_rate') else 24000
+                    sr = backend.sample_rate
 
                     # Apply per-segment DSP effect preset (default: broadcast)
                     seg_effect_preset = effect_preset or "broadcast"
                     if seg_effect_preset == "raw":
                         return audio_out
 
-                    # TODO(#312): this route runs the OmniVoice model directly (not the active
-                    # backend), so VoxCPM2 never reaches it. When these routes become
-                    # engine-aware, guard with `if not getattr(backend, "applies_own_mastering", False)`.
-                    mastered_audio = apply_mastering(audio_out, sample_rate=sr)
+                    mastered_audio = audio_out
+                    if not getattr(backend, "applies_own_mastering", False):
+                        mastered_audio = apply_mastering(audio_out, sample_rate=sr)
                     effect_chain = get_effect_chain(seg_effect_preset)
                     if effect_chain:
                         mastered_audio = apply_effects_chain(
@@ -537,24 +548,22 @@ async def dub_generate(job_id: str, req: DubRequest):
                         nstep, retry_steps,
                     )
                     try:
-                        audios = _model.generate(
+                        audio_out = backend.generate(
                             text=text, language=lang if lang != "Auto" else None,
                             ref_audio=ref_audio, ref_text=ref_text,
                             instruct=instruct_str if instruct_str else None,
                             duration=dur_s, num_step=retry_steps, guidance_scale=cfg,
                             speed=spd, denoise=True, postprocess_output=True,
                         )
-                        audio_out = audios[0]
-                        sr = _model.sampling_rate if hasattr(_model, 'sampling_rate') else 24000
+                        sr = backend.sample_rate
 
                         seg_effect_preset = effect_preset or "broadcast"
                         if seg_effect_preset == "raw":
                             return audio_out
 
-                        # TODO(#312): this route runs the OmniVoice model directly (not the active
-                        # backend), so VoxCPM2 never reaches it. When these routes become
-                        # engine-aware, guard with `if not getattr(backend, "applies_own_mastering", False)`.
-                        mastered_audio = apply_mastering(audio_out, sample_rate=sr)
+                        mastered_audio = audio_out
+                        if not getattr(backend, "applies_own_mastering", False):
+                            mastered_audio = apply_mastering(audio_out, sample_rate=sr)
                         effect_chain = get_effect_chain(seg_effect_preset)
                         if effect_chain:
                             mastered_audio = apply_effects_chain(
@@ -641,7 +650,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                     yield f"data: {json.dumps({'type': 'cancelled', 'segments_processed': i + 1})}\n\n"
                     return
 
-                target_samples = int(seg_duration * _model.sampling_rate)
+                target_samples = int(seg_duration * backend.sample_rate)
                 current_samples = audio_tensor.shape[-1]
 
                 if strategy == "strict_slot":
@@ -659,7 +668,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                 # trim, slip, stretch the video, or split audio/video
                 # retiming (smart_fit) to accommodate it.
 
-                generated_dur = audio_tensor.shape[-1] / _model.sampling_rate
+                generated_dur = audio_tensor.shape[-1] / backend.sample_rate
                 sync_ratio = round(generated_dur / max(seg_duration, 0.01), 3)
 
                 sync_scores.append(sync_ratio)
@@ -683,20 +692,20 @@ async def dub_generate(job_id: str, req: DubRequest):
                 except Exception as e:
                     logger.debug("seg fingerprint skipped for %s: %s", seg_id, e)
 
-                _pending_seg_writes.append((i, _model.sampling_rate, seg_id, _seg_fp, _num_step))
+                _pending_seg_writes.append((i, backend.sample_rate, seg_id, _seg_fp, _num_step))
 
                 # RVC needs the WAV on disk, so write it immediately only
                 # when RVC is active (uncommon path).
                 if rvc_is_enabled():
                     seg_wav_path = _seg_lang_path(seg_id)
-                    atomic_save_wav(seg_wav_path, audio_tensor, _model.sampling_rate)
+                    atomic_save_wav(seg_wav_path, audio_tensor, backend.sample_rate)
                     try:
                         await loop.run_in_executor(_gpu_pool, apply_rvc, seg_wav_path)
                         rvc_wav, rvc_sr = torchaudio.load(seg_wav_path)
-                        if rvc_sr == _model.sampling_rate:
+                        if rvc_sr == backend.sample_rate:
                             audio_tensor = rvc_wav
 
-                            target_samples = int(seg_duration * _model.sampling_rate)
+                            target_samples = int(seg_duration * backend.sample_rate)
                             current_samples = audio_tensor.shape[-1]
                             if target_samples > current_samples:
                                 audio_tensor = torch.nn.functional.pad(audio_tensor, (0, target_samples - current_samples))
@@ -713,25 +722,25 @@ async def dub_generate(job_id: str, req: DubRequest):
                 # no double-mark. Cached-reuse audio is already marked;
                 # silence/zero slots carry no speech to mark, so neither is
                 # re-watermarked.
-                audio_tensor = embed_watermark(audio_tensor, _model.sampling_rate)
+                audio_tensor = embed_watermark(audio_tensor, backend.sample_rate)
 
                 seg_wav_path = _seg_lang_path(seg_id)
                 try:
                     # Keep the existing per-segment WAV contract for previews
                     # and partial regeneration, but do not keep the tensor in RAM.
-                    atomic_save_wav(seg_wav_path, audio_tensor, _model.sampling_rate)
+                    atomic_save_wav(seg_wav_path, audio_tensor, backend.sample_rate)
                 except Exception as e:
                     logger.warning("seg write failed for %s: %s", seg_id, e)
                     # If the durable segment write fails, still preserve a mix
                     # copy so this generation can finish.
-                    all_segment_wavs.append(_store_mix_wav(seg.start, seg.end, audio_tensor, _model.sampling_rate, f"mix_{seg_id}"))
+                    all_segment_wavs.append(_store_mix_wav(seg.start, seg.end, audio_tensor, backend.sample_rate, f"mix_{seg_id}"))
                     try:
                         del audio_tensor
                     except Exception:
                         pass
                     _release_audio_tensors()
                 else:
-                    all_segment_wavs.append((seg.start, seg.end, seg_wav_path, _model.sampling_rate))
+                    all_segment_wavs.append((seg.start, seg.end, seg_wav_path, backend.sample_rate))
                     try:
                         del audio_tensor
                     except Exception:
@@ -739,7 +748,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                     _release_audio_tensors()
             except Exception as e:
                 yield f"data: {json.dumps({'type': 'error', 'segment': i, 'error': str(e)})}\n\n"
-                sr = _model.sampling_rate
+                sr = backend.sample_rate
                 all_segment_wavs.append(_store_mix_wav(seg.start, seg.end, torch.zeros(1, max(0, int(seg_duration * sr))), sr, f"mix_{seg_id}"))
                 sync_scores.append(1.0)
 
@@ -768,7 +777,7 @@ async def dub_generate(job_id: str, req: DubRequest):
         _save_job(job_id, job)
         _t_diskw = time.perf_counter() - _t_diskw_0
 
-        sr = _model.sampling_rate
+        sr = backend.sample_rate
         slot_fit = (req.slot_fit or "time_stretch").lower()
         overflow_budget_s = max(0.0, float(req.overflow_budget_s or 0.0))
 
@@ -1196,7 +1205,13 @@ async def preview_segment(job_id: str, req: SegmentPreviewRequest):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    _model = await get_model()
+    # See the /dub/generate/{job_id} resolution above (issue #312 class) —
+    # a segment preview resolves ref_audio from the same auto-clone /
+    # voice-profile sources, so it needs the same cloning-capable gate.
+    try:
+        backend = await resolve_generation_backend(require_cloning=True)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     def _gen():
         ref_audio = None
@@ -1231,7 +1246,7 @@ async def preview_segment(job_id: str, req: SegmentPreviewRequest):
                     instruct_str = row["instruct"]
 
         lang = req.language if req.language != "Auto" else None
-        audios = _model.generate(
+        audio_out = backend.generate(
             text=req.text,
             language=lang,
             ref_audio=ref_audio,
@@ -1244,21 +1259,15 @@ async def preview_segment(job_id: str, req: SegmentPreviewRequest):
             denoise=True,
             postprocess_output=True,
         )
-        audio_out = audios[0]
-        # TODO(#312): this route runs the OmniVoice model directly (not the active
-        # backend), so VoxCPM2 never reaches it. When these routes become
-        # engine-aware, guard with `if not getattr(backend, "applies_own_mastering", False)`.
-        mastered = apply_mastering(
-            audio_out,
-            sample_rate=getattr(_model, "sampling_rate", 24000),
-        )
-        return normalize_audio(mastered, target_dBFS=-2.0)
+        if not getattr(backend, "applies_own_mastering", False):
+            audio_out = apply_mastering(audio_out, sample_rate=backend.sample_rate)
+        return normalize_audio(audio_out, target_dBFS=-2.0)
 
     # Bounded + pool-reset on hang so a wedged preview generate can't starve the
     # GPU pool and brick the backend (#730 class).
     audio_tensor = await run_on_gpu_pool_guarded(_gen, what="Dub preview generate")
 
-    sr = getattr(_model, "sampling_rate", 24000)
+    sr = backend.sample_rate
     buf = io.BytesIO()
     _safe_torchaudio_save(buf, audio_tensor, sr, format="wav")
     buf.seek(0)
