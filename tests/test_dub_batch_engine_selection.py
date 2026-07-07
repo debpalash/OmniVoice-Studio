@@ -124,6 +124,20 @@ def test_cloning_capable_engine_ids_excludes_fixed_voice_engines():
     assert {"omnivoice", "voxcpm2", "cosyvoice", "gpt-sovits"}.issubset(ids)
 
 
+def test_cloning_capable_engine_ids_excludes_model_dependent_adapters():
+    # MLXAudioBackend.supports_cloning is an instance @property (only some of
+    # its curated models can clone) — a class-level getattr() returns the
+    # property descriptor itself, which is truthy, so a naive check would
+    # always recommend "mlx-audio" even when the configured model is Kokoro
+    # (can't clone). Must be excluded from the suggestion list rather than
+    # falsely recommended.
+    tb = _tts_mod()
+    assert isinstance(
+        vars(tb.MLXAudioBackend).get("supports_cloning"), property
+    ), "this test assumes MLXAudioBackend.supports_cloning is a property"
+    assert "mlx-audio" not in set(tb.cloning_capable_engine_ids())
+
+
 # ── /dub/generate/{job_id} ──────────────────────────────────────────────────
 
 

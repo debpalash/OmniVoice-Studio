@@ -1487,8 +1487,19 @@ def cloning_capable_engine_ids() -> list[str]:
     lazy entries resolve through ``_LazyRegistry``'s snapshot-safe iteration
     (see ``_LazyRegistry.__iter__``) exactly like every other registry scan
     in this module.
+
+    A class-level ``getattr`` on a *property* returns the descriptor object
+    itself (always truthy) rather than its computed value — so a
+    model-dependent adapter like ``MLXAudioBackend`` (only some of its 7+
+    curated models can clone) would always show up here regardless of which
+    model is actually configured. Excluded rather than falsely recommended:
+    ``isinstance(..., bool)`` is False for a descriptor, True for a plain
+    class attribute.
     """
-    return [bid for bid, cls in _REGISTRY.items() if getattr(cls, "supports_cloning", True)]
+    return [
+        bid for bid, cls in _REGISTRY.items()
+        if isinstance((v := getattr(cls, "supports_cloning", True)), bool) and v
+    ]
 
 
 def active_routing() -> dict | None:
