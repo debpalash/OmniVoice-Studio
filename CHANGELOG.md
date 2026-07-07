@@ -11,6 +11,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 ### Fixed
 
 - **First-run no longer dead-ends behind restricted networks (e.g. China).** The system check probed hardcoded huggingface.co, and any failure locked the Continue button — users behind the Great Firewall were stuck on the very first screen, even when they had already configured a working mirror. The check now probes the Hugging Face endpoint actually in effect, an unreachable endpoint is a warning instead of a blocker (models already on disk keep working offline), and when huggingface.co is blocked but the hf-mirror.com community mirror answers, the wizard says so and offers a one-click mirror switch right on the check screen — no restart needed. (#984)
+- **The loaded-models panel now says when a resident model is not your active engine.** Switching TTS engines keeps the previous model in VRAM (so switching back is instant) — but the panel showed it with no context, so "OmniVoice TTS — 1.9 GB" after selecting VoxCPM2 looked like the selection was ignored. A field report confirmed the confusion. Resident-but-inactive models are now tagged "not active — safe to unload", and the API self-describes each entry's engine. (#985)
 
 ## [0.3.11] — 2026-07-05
 
