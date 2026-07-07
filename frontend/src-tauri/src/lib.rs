@@ -205,6 +205,120 @@ mod media_permission_tests {
     }
 }
 
+// ── Windows: dictation pill must never take foreground focus (#982) ────────
+//
+// Windows counterpart of #287 (macOS auto-paste — don't steal focus). The
+// pill is `.always_on_top(true).skip_taskbar(true)` and is documented above
+// (see `grant_webview_media_permissions`) as "deliberately unfocused so the
+// auto-paste lands in the target app" — true on macOS, but on Windows,
+// showing an always-on-top top-level window gives it Win32 foreground
+// activation by default (ordinary Windows window-manager behavior; macOS
+// doesn't force-activate a shown window the same way). Nothing marked the
+// pill non-activating, so on Windows it stole foreground on every show —
+// the synthesized Ctrl+V from `simulate_paste` landed back in the pill
+// instead of the app the user was dictating into, and because the pill
+// wrongly held focus for the whole session the target app never got it back
+// until the pill's auto-dismiss timer eventually hid it.
+//
+// Two pieces, both required (verified by reading how `.show()` is used at
+// the call sites below — several are followed by an explicit `set_focus()`
+// that would fight the style bit on its own):
+//   1. WS_EX_NOACTIVATE on the HWND, applied once right after creation, so
+//      the OS never grants this window foreground activation implicitly.
+//   2. `ShowWindow(SW_SHOWNOACTIVATE)` in place of `WebviewWindow::show()` at
+//      the pill's dictation-trigger call sites, and the explicit
+//      `set_focus()` calls at those same sites are skipped on Windows (the
+//      same way they already are on macOS below).
+//
+// The flag math (`with_noactivate_style`) is a plain function so it's
+// unit-testable on every platform — the actual Win32 syscalls that use it
+// are Windows-only and can't run under `cargo test` on a non-Windows runner.
+
+/// `WS_EX_NOACTIVATE` (winuser.h: `#define WS_EX_NOACTIVATE 0x08000000L`).
+/// Hardcoded rather than imported from the `windows` crate so `with_noactivate_style`
+/// below stays free of the Windows-only dependency and is testable everywhere.
+/// Only consumed by Windows-only code (or the platform-agnostic test module
+/// below) — `#[allow(dead_code)]` elsewhere, same as `is_app_origin` above.
+#[cfg_attr(not(windows), allow(dead_code))]
+const WS_EX_NOACTIVATE_BIT: isize = 0x0800_0000;
+
+/// OR `WS_EX_NOACTIVATE` into an existing extended window style, preserving
+/// every other bit already set (topmost, layered, etc. — the pill's
+/// `always_on_top(true)` sets one of these). Pure so it's unit-testable
+/// without a real HWND. See module comment above for why this exists.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn with_noactivate_style(current_ex_style: isize) -> isize {
+    current_ex_style | WS_EX_NOACTIVATE_BIT
+}
+
+/// Mark the pill's HWND `WS_EX_NOACTIVATE`, once, right after creation — this
+/// holds for every later `.show()` regardless of call site (belt-and-braces
+/// alongside `show_pill_noactivate` below, which some call sites also need
+/// because they pair `.show()` with an explicit `set_focus()`).
+#[cfg(target_os = "windows")]
+fn mark_pill_noactivate(win: &tauri::WebviewWindow) {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE,
+    };
+    let Ok(hwnd) = win.hwnd() else {
+        log::warn!("pill: could not resolve HWND to apply WS_EX_NOACTIVATE (#982)");
+        return;
+    };
+    unsafe {
+        let current = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, with_noactivate_style(current));
+    }
+}
+
+/// Show the pill without granting it foreground activation. Used instead of
+/// `WebviewWindow::show()` at the pill's dictation-trigger call sites on
+/// Windows — `.show()` maps to plain `ShowWindow(SW_SHOW)`, which relies on
+/// the NOACTIVATE style alone to suppress activation; `SW_SHOWNOACTIVATE` is
+/// the explicit, documented way to show a window without activating it and
+/// costs nothing extra now that the style bit is also set (#982).
+#[cfg(target_os = "windows")]
+fn show_pill_noactivate(win: &tauri::WebviewWindow) {
+    use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_SHOWNOACTIVATE};
+    let Ok(hwnd) = win.hwnd() else {
+        log::warn!("pill: could not resolve HWND for non-activating show (#982)");
+        return;
+    };
+    unsafe {
+        let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+    }
+}
+
+#[cfg(test)]
+mod pill_noactivate_tests {
+    use super::{with_noactivate_style, WS_EX_NOACTIVATE_BIT};
+
+    #[test]
+    fn adds_noactivate_bit_without_clobbering_existing_style() {
+        // Stand-in for whatever bits the pill's always_on_top/skip_taskbar
+        // window already carries (e.g. WS_EX_TOPMOST = 0x00000008) —
+        // NOACTIVATE must be added on top, never replace them.
+        let topmost = 0x0000_0008isize;
+        let updated = with_noactivate_style(topmost);
+        assert_eq!(
+            updated & WS_EX_NOACTIVATE_BIT,
+            WS_EX_NOACTIVATE_BIT,
+            "NOACTIVATE bit must be set"
+        );
+        assert_eq!(updated & topmost, topmost, "pre-existing style bits must survive");
+    }
+
+    #[test]
+    fn idempotent_if_already_noactivate() {
+        assert_eq!(with_noactivate_style(WS_EX_NOACTIVATE_BIT), WS_EX_NOACTIVATE_BIT);
+    }
+
+    #[test]
+    fn matches_documented_win32_value() {
+        // winuser.h: #define WS_EX_NOACTIVATE 0x08000000L
+        assert_eq!(WS_EX_NOACTIVATE_BIT, 0x0800_0000);
+    }
+}
+
 // ── Tauri entry ───────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -334,8 +448,14 @@ pub fn run() {
                 .skip_taskbar(true)
                 .center()
                 .build();
-                if let Err(e) = result {
+                if let Err(e) = &result {
                     log::error!("Failed to create widget window: {e:?}");
+                }
+                // Windows: mark the pill non-activating right away so it holds
+                // for every later `.show()` regardless of call site (#982).
+                #[cfg(target_os = "windows")]
+                if let Ok(win) = &result {
+                    mark_pill_noactivate(win);
                 }
             }
 
@@ -370,12 +490,17 @@ pub fn run() {
                                         if win.move_window(Position::BottomCenter).is_err() {
                                             let _ = win.center();
                                         }
+                                        // Windows: show without granting foreground activation
+                                        // (#982) — `.show()` on other platforms is unaffected.
+                                        #[cfg(target_os = "windows")]
+                                        show_pill_noactivate(&win);
+                                        #[cfg(not(target_os = "windows"))]
                                         let _ = win.show();
-                                        // Don't steal focus on macOS: the simulated ⌘V from
-                                        // simulate_paste() must land in the app the user is
-                                        // dictating into — focusing the widget would swallow
-                                        // it (#287).
-                                        #[cfg(not(target_os = "macos"))]
+                                        // Don't steal focus on macOS or Windows: the simulated
+                                        // ⌘V/Ctrl+V from simulate_paste() must land in the app
+                                        // the user is dictating into — focusing the widget would
+                                        // swallow it (#287 macOS, #982 Windows).
+                                        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
                                         let _ = win.set_focus();
                                     }
                                     let _ = app_handle.emit("tray-dictate", ());
@@ -526,7 +651,9 @@ pub fn run() {
                             // + focus the widget BEFORE emitting tray-dictate so
                             // the user sees the pill instead of silent recording.
                             // Positioning mirrors the global-shortcut handler:
-                            // bottom-center (WhisperFlow style).
+                            // bottom-center (WhisperFlow style). Windows skips the
+                            // focus (and uses a non-activating show) for the same
+                            // reason the global-shortcut handler does — see #982.
                             if let Some(win) = app.get_webview_window("widget") {
                                 if win.is_visible().unwrap_or(false) {
                                     let _ = app.emit("tray-dictate-stop", ());
@@ -534,8 +661,13 @@ pub fn run() {
                                     if win.move_window(Position::BottomCenter).is_err() {
                                         let _ = win.center();
                                     }
-                                    let _ = win.show();
-                                    let _ = win.set_focus();
+                                    #[cfg(target_os = "windows")]
+                                    show_pill_noactivate(&win);
+                                    #[cfg(not(target_os = "windows"))]
+                                    {
+                                        let _ = win.show();
+                                        let _ = win.set_focus();
+                                    }
                                     let _ = app.emit("tray-dictate", ());
                                 }
                             } else {

@@ -71,6 +71,13 @@ zip = { version = "2", default-features = false, features = ["deflate"] }
 # Versions match what wry already locks — no new native code is pulled in.
 webview2-com = "0.38"
 windows-core = "0.61"
+# Raw HWND access (GetWindowLongPtrW/SetWindowLongPtrW/ShowWindow) to mark the
+# dictation pill WS_EX_NOACTIVATE so showing it doesn't steal Win32 foreground
+# activation (#982 — Windows counterpart of #287's macOS focus-steal fix).
+# Version pinned to match what `tauri` itself already resolves to (0.61.x) so
+# `WebviewWindow::hwnd()`'s return type and our syscalls share the exact same
+# `HWND` type — no second copy of the crate enters the dependency graph.
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
