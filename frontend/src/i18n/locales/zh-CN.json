@@ -1144,7 +1144,11 @@
     "next_try_dictation": "下一步：试用听写",
     "step_aria": "第 {{num}} 步:{{label}}",
     "step_completed": "已完成",
-    "cache_label": "模型缓存"
+    "cache_label": "模型缓存",
+    "mirror_rescue_title": "无法连接 Hugging Face？使用镜像",
+    "mirror_rescue_hint": "模型下载会立即切换到镜像地址，安装过程无需重启。hf-mirror.com 是国内常用的社区镜像。",
+    "mirror_apply": "应用并重新检查",
+    "mirror_apply_error": "镜像设置保存失败。"
   },
   "donate": {
     "title": "支持项目",

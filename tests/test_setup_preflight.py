@@ -269,6 +269,63 @@ def test_preflight_network_handles_offline():
     assert _probe_network(host="10.255.255.1", timeout=0.3) is False
 
 
+def test_preflight_network_unreachable_is_warn_not_blocker():
+    """A dead network must NOT hard-block the wizard (restricted-network
+    first-run, e.g. China where huggingface.co is blocked): the check is a
+    warning and the aggregate `ok` is unaffected by it."""
+    from api.routers.setup import wizard as setup_mod
+
+    with patch.object(setup_mod, "_probe_network", return_value=False):
+        body = client_factory().get("/setup/preflight").json()
+
+    net = next(c for c in body["checks"] if c["id"] == "network")
+    assert net["status"] == "warn", net
+    assert "continue" in (net["fix"] or "").lower()
+    # ok must still equal "no fail among checks" — network can't be the fail.
+    any_fail = any(c["status"] == "fail" for c in body["checks"])
+    assert body["ok"] is (not any_fail)
+
+
+def test_preflight_network_probes_configured_mirror():
+    """With HF_ENDPOINT set, the probe targets the mirror host — not the
+    hardcoded official host that may be blocked on the user's network."""
+    import os
+    from api.routers.setup import wizard as setup_mod
+
+    seen_hosts: list[str] = []
+
+    def fake_probe(host="huggingface.co", port=443, timeout=2.0):
+        seen_hosts.append(host)
+        return True
+
+    with patch.dict(os.environ, {"HF_ENDPOINT": "https://mirror.example.test"}), \
+         patch.object(setup_mod, "_probe_network", side_effect=fake_probe):
+        body = client_factory().get("/setup/preflight").json()
+
+    net = next(c for c in body["checks"] if c["id"] == "network")
+    assert "mirror.example.test" in net["label"]
+    assert net["status"] == "pass"
+    assert "mirror.example.test" in seen_hosts
+
+
+def test_preflight_network_suggests_reachable_mirror():
+    """Official endpoint blocked but hf-mirror.com reachable → the fix names
+    the mirror and the check carries mirror_reachable=True for the wizard's
+    quick-pick affordance."""
+    from api.routers.setup import wizard as setup_mod
+
+    def fake_probe(host="huggingface.co", port=443, timeout=2.0):
+        return host == "hf-mirror.com"
+
+    with patch.object(setup_mod, "_probe_network", side_effect=fake_probe):
+        body = client_factory().get("/setup/preflight").json()
+
+    net = next(c for c in body["checks"] if c["id"] == "network")
+    assert net["status"] == "warn"
+    assert net.get("mirror_reachable") is True
+    assert "hf-mirror.com" in (net["fix"] or "")
+
+
 # ── RAM thresholds ───────────────────────────────────────────────────────
 
 def test_preflight_ram_fail_threshold():

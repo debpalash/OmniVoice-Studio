@@ -1291,7 +1291,11 @@
     "try_dictation": "Try dictation",
     "next_try_dictation": "Next: Try dictation",
     "step_aria": "Step {{num}}: {{label}}",
-    "step_completed": "completed"
+    "step_completed": "completed",
+    "mirror_rescue_title": "Can't reach Hugging Face? Use a mirror",
+    "mirror_rescue_hint": "Model downloads switch to the mirror immediately — no restart needed during setup. hf-mirror.com is the community mirror commonly used in China.",
+    "mirror_apply": "Apply & re-check",
+    "mirror_apply_error": "Could not save the mirror setting."
   },
   "donate": {
     "title": "Support",

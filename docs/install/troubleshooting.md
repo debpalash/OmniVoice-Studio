@@ -314,8 +314,10 @@ order:
   files are a common false-positive quarantine), then re-enable.
 - **Connection** — use a stable, direct connection; pause any VPN; avoid
   corporate/school networks.
-- **Region mirror** — if `huggingface.co` is slow/blocked where you are, set a
-  mirror **before** launching and relaunch:
+- **Region mirror** — if `huggingface.co` is slow/blocked where you are, pick a
+  mirror in-app (**Settings → Models → Hugging Face mirror**, or the quick-pick
+  the first-run system check offers when the endpoint is unreachable), or set
+  it as an env var before launching and relaunch:
   - macOS/Linux: `export HF_ENDPOINT=https://hf-mirror.com`
   - Windows (PowerShell): `[Environment]::SetEnvironmentVariable("HF_ENDPOINT","https://hf-mirror.com","User")`
 
