@@ -82,8 +82,12 @@ If `huggingface.co` is slow or blocked, point the client at a mirror:
 HF_ENDPOINT=https://hf-mirror.com
 ```
 
-Set it as an environment variable (or in **Settings → environment**) before
-downloading. Caveats:
+Set it in **Settings → Models → Hugging Face mirror** (quick-pick presets
+included), or as an environment variable before launching. On first run, the
+setup wizard offers the same mirror quick-pick right on the system-check
+screen when the endpoint is unreachable — the network check is a warning, not
+a blocker, so an offline or firewalled machine can still finish setup once
+models are available (mirror, or manual download below). Caveats:
 
 - A mirror serves the **classic** download path, **not Xet** — you lose
   chunk-dedup and Xet's parallel fetch, but you gain reachability. On the

@@ -168,14 +168,38 @@ def _detect_gpu() -> dict:
     return info
 
 
-def _probe_network(host: str = "huggingface.co", timeout: float = 2.0) -> bool:
+def _probe_network(host: str = "huggingface.co", port: int = 443, timeout: float = 2.0) -> bool:
     """Tiny TCP connect test."""
     import socket
     try:
-        with socket.create_connection((host, 443), timeout=timeout):
+        with socket.create_connection((host, port), timeout=timeout):
             return True
     except Exception:
         return False
+
+
+def _hf_endpoint_host() -> tuple[str, int]:
+    """Host/port of the Hugging Face endpoint actually in effect.
+
+    Mirror-aware: restricted-network users (e.g. behind the Great Firewall)
+    point HF_ENDPOINT at a mirror via Settings → Models → Hugging Face
+    mirror. Probing hardcoded huggingface.co would fail them even when their
+    configured mirror works fine.
+    """
+    try:
+        from core.failure import configured_hf_mirror
+        mirror = configured_hf_mirror()
+    except Exception:
+        mirror = ""
+    if mirror:
+        try:
+            from urllib.parse import urlsplit
+            u = urlsplit(mirror)
+            if u.hostname:
+                return u.hostname, u.port or (80 if u.scheme == "http" else 443)
+        except Exception:
+            pass
+    return "huggingface.co", 443
 
 
 def _ram_gb() -> float:
@@ -400,15 +424,49 @@ def preflight():
             "status": r_status, "detail": r_detail, "fix": r_fix,
         })
 
-    # ── Network
-    net_ok = _probe_network()
+    # ── Network — probes the HF endpoint actually in effect (mirror-aware),
+    # and a dead network is a WARNING, not a blocker. The app is local-first:
+    # already-downloaded models work offline, and a hard fail here dead-ends
+    # restricted-network users (e.g. China, where huggingface.co is blocked)
+    # on the very first screen — before they can reach the mirror setting
+    # that fixes it. Model downloads surface their own actionable errors.
+    net_host, net_port = _hf_endpoint_host()
+    net_ok = _probe_network(net_host, net_port)
+    mirror_reachable = False
+    if not net_ok and net_host == "huggingface.co":
+        # Official endpoint blocked — if the community mirror is reachable,
+        # tell the user exactly which switch unblocks them.
+        mirror_reachable = _probe_network("hf-mirror.com")
+    if net_ok:
+        net_fix = None
+    elif mirror_reachable:
+        net_fix = (
+            "huggingface.co is blocked on this network, but the hf-mirror.com "
+            "community mirror is reachable — apply it below and re-check. "
+            "Model downloads will use the mirror immediately."
+        )
+    elif net_host != "huggingface.co":
+        net_fix = (
+            f"Your configured Hugging Face mirror ({net_host}) is unreachable "
+            "— it may be down or blocked. Pick another mirror or the official "
+            "endpoint below, or continue offline: models already downloaded "
+            "keep working."
+        )
+    else:
+        net_fix = (
+            "Check internet connection, VPN, or corporate firewall whitelist "
+            "for huggingface.co. You can continue — models already downloaded "
+            "keep working offline; new downloads need a connection or a "
+            "mirror (configurable below)."
+        )
     checks.append({
-        "id": "network", "label": "Network (huggingface.co)",
-        "status": "pass" if net_ok else "fail",
-        "detail": "Reachable" if net_ok else "Unreachable on port 443",
-        "fix": None if net_ok else
-            "Check internet connection, VPN, or corporate firewall "
-            "whitelist for huggingface.co.",
+        "id": "network", "label": f"Network ({net_host})",
+        "status": "pass" if net_ok else "warn",
+        "detail": "Reachable" if net_ok else f"Unreachable on port {net_port}",
+        "fix": net_fix,
+        # Frontend affordance hint: the wizard offers the mirror quick-pick
+        # when the endpoint is unreachable (PreflightCheck allows extras).
+        "mirror_reachable": mirror_reachable,
     })
 
     # Aggregate
