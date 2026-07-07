@@ -105,8 +105,8 @@ def _apply_effect_chain(audio_out, sample_rate, effect_preset, *, skip_mastering
 
     ``skip_mastering`` honors a backend's ``applies_own_mastering`` flag
     (issue #312): studio engines (e.g. VoxCPM2's native 48 kHz output)
-    opt out of the broadcast Compressor + Reverb chain that's tuned for
-    OmniVoice's 24 kHz clone output. Loudness normalization still runs —
+    opt out of the broadcast highpass + Compressor pre-stage that's tuned
+    for OmniVoice's 24 kHz clone output. Loudness normalization still runs —
     it's a benign peak scale. Mirrors ``_run_tts`` in openai_compat.py.
     """
     from services.audio_dsp import (

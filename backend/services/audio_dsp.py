@@ -1,9 +1,12 @@
 """
 Audio DSP pipeline — broadcast-grade mastering + configurable effects chain.
 
-The default `apply_mastering()` is the same chain shipped since v0.1.0
-(highpass + compressor + light reverb). The new `apply_effects_chain()`
-lets callers build custom pipelines from a list of named effects.
+`apply_mastering()` is the shared pre-stage that runs before the user's
+effect preset: highpass + gentle compression only (see `MASTERING_CHAIN`).
+Reverb is deliberately NOT part of it — it is preset-declared only (e.g.
+cinematic, warm); a hidden reverb here used to bake echo into every non-raw
+synthesis, which field reports flagged. `apply_effects_chain()` lets callers
+build custom pipelines from a list of named effects.
 
 All effects use Spotify's `pedalboard` library. When pedalboard isn't
 installed, every function degrades gracefully (returns audio unmodified).
@@ -97,24 +100,26 @@ def get_effect_chain(preset_id: str) -> list[dict]:
 
 # ── Core DSP functions ──────────────────────────────────────────────────
 
+#: Shared pre-preset mastering stage: highpass + gentle compression ONLY.
+#: Reverb must never live here — a hidden Reverb in this chain baked echo
+#: into every non-raw synthesis regardless of the chosen preset (field
+#: reports of echoey voices; the podcast preset even promises "no reverb").
+#: Reverb is preset-declared only (see EFFECT_PRESETS: cinematic, warm).
+MASTERING_CHAIN = [
+    {"type": "highpass", "cutoff_hz": 60},
+    {"type": "compressor", "threshold_db": -15, "ratio": 1.5, "attack_ms": 2.0, "release_ms": 100},
+]
+
 
 def apply_mastering(audio_tensor, sample_rate=24000):
-    """Applies professional Broadcast-grade DSP (EQ, Compressor, light Reverb) to the clone voice."""
+    """Applies the broadcast pre-stage (highpass + gentle compression) to the clone voice.
+
+    Reverb is intentionally absent — only user-chosen effect presets declare
+    it. Degrades gracefully: pedalboard missing or any DSP error returns the
+    input unmodified.
+    """
     try:
-        from pedalboard import Pedalboard, Compressor, Reverb, HighpassFilter
-        import numpy as np
-        board = Pedalboard([
-            HighpassFilter(cutoff_frequency_hz=60),
-            Compressor(threshold_db=-15, ratio=1.5, attack_ms=2.0, release_ms=100),
-            Reverb(room_size=0.10, wet_level=0.08, dry_level=0.95)
-        ])
-        audio_np = audio_tensor.cpu().numpy()
-        if audio_np.ndim == 1:
-            audio_np = audio_np[np.newaxis, :]
-        effected = board(audio_np, sample_rate, reset=False)
-        return torch.from_numpy(effected).to(audio_tensor.device)
-    except ImportError:
-        return audio_tensor # Fail gracefully if pedalboard isn't installed
+        return apply_effects_chain(audio_tensor, sample_rate, MASTERING_CHAIN)
     except Exception as e:
         logger.warning("Mastering DSP Error: %s", e)
         return audio_tensor
