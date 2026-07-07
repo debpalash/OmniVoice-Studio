@@ -143,6 +143,37 @@ def test_classify_socks_proxy_support_missing():
     assert failure.classify("ProxyError: connection refused by 10.0.0.1:8080") == ""
 
 
+def test_classify_ssl_handshake_failure():
+    # #976: the exact error a Windows user behind a corporate/antivirus
+    # TLS-inspecting proxy sees on every model install — the TCP connection
+    # succeeds, but the handshake fails because the OS trusts the proxy's
+    # re-signed CA and Python's bundled certifi list doesn't. A different
+    # failure mode from #984's TCP-level "host unreachable" fix.
+    reason = (
+        "Install failed: Got: ConnectError: [SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] "
+        "ssl/tls alert handshake failure (_ssl.c:1016)"
+    )
+    assert failure.classify(reason) == "SSL_HANDSHAKE_FAILURE"
+    evt = failure.build_failure(reason, stage="install", include_diagnostic=False)
+    assert evt["docs_topic"] == "SSL_HANDSHAKE_FAILURE"
+    assert evt["hint"], "the SSL-handshake class must carry an actionable hint"
+    # A CERTIFICATE_VERIFY_FAILED-style message (the other common corporate-MITM
+    # shape) must classify the same way.
+    cert_reason = (
+        "requests.exceptions.SSLError: HTTPSConnectionPool(host='huggingface.co', "
+        "port=443): Max retries exceeded with url: / (Caused by SSLError("
+        "SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate "
+        "verify failed: unable to get local issuer certificate')))"
+    )
+    assert failure.classify(cert_reason) == "SSL_HANDSHAKE_FAILURE"
+    # append_hint is the raw-string surface (setup/download.py's install SSE) —
+    # the detail keeps the real error AND gains the hint.
+    out = failure.append_hint(reason)
+    assert out.startswith(reason) and "truststore" in out
+    # A plain, unrelated connection error must NOT be mislabelled as SSL.
+    assert failure.classify("ConnectionError: connection refused") == ""
+
+
 def test_classify_generic_still_empty():
     # A genuinely unknown reason must still classify to "" (no false hint).
     assert failure.classify("some totally unrelated failure") == ""

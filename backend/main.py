@@ -139,6 +139,24 @@ os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
 os.environ.setdefault("HF_HUB_ETAG_TIMEOUT", "15")
 os.environ.setdefault("HF_HUB_DOWNLOAD_TIMEOUT", "30")
 
+# ── OS trust store for TLS (#976) ───────────────────────────────────────────
+# Users behind a corporate/antivirus proxy that TLS-inspects HTTPS traffic get
+# a raw "[SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] ssl/tls alert handshake failure"
+# on every model install — the TCP connection succeeds (a different failure
+# mode from #984's TCP-level blocked-host case), but the proxy re-signs the
+# certificate with its own root CA, which the OS trusts (Windows CryptoAPI/
+# SChannel) and Python's bundled `certifi` CA list does not. `inject_into_ssl`
+# patches `ssl.SSLContext` process-wide to verify against the OS trust store
+# instead, which is the actual fix (not just a nicer error message). Must run
+# here — at MODULE level, before huggingface_hub/requests/httpx do any network
+# I/O — not inside lifespan(), which runs too late. Not platform-gated: it's a
+# correctness improvement everywhere. Best-effort: never block startup.
+try:
+    import truststore
+
+    truststore.inject_into_ssl()
+except Exception:
+    pass
 
 # Prevent torchaudio from lazy-importing torchcodec (broken on some installs).
 # Proper fix = exclude torchcodec in pyproject.toml; this is a belt-and-braces guard.

@@ -154,6 +154,15 @@ dependencies = [
     # httpx imports it lazily inside try/except, so PyInstaller's tracer
     # misses it and frozen installers would stay broken without the entry.
     "socksio>=1.0",
+    # OS trust store for TLS (#976). Users behind a corporate/antivirus proxy
+    # that TLS-inspects traffic get a raw "[SSL: SSLV3_ALERT_HANDSHAKE_FAILURE]"
+    # on every model install — the TCP connection succeeds, but the proxy's
+    # re-signed certificate is trusted by the OS (Windows CryptoAPI/SChannel)
+    # and not by Python's bundled `certifi` CA list. `truststore` patches
+    # `ssl.SSLContext` to verify against the OS trust store instead. Pure-
+    # Python, MIT, PyPA-maintained, zero transitive deps — same class of fix
+    # as socksio above, identical on macOS/Windows/Linux.
+    "truststore>=0.9",
 ]
 
 [project.optional-dependencies]

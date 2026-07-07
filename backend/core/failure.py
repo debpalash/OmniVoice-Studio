@@ -42,6 +42,7 @@ _HINTS: dict[str, str] = {
     "TRANSFORMERS_IMPORT": "Your transformers install is incomplete. Reinstall it (`uv pip install --reinstall transformers`) or switch ASR to faster-whisper (Settings → Models).",
     "OS_INVALID_ARGUMENT": "The OS rejected a file operation (Errno 22 / invalid argument) — in the transcribe path this is the temporary WAV write before ASR. It's almost always the temp directory: missing, read-only, on a full or removed drive, or blocked by antivirus. Check that your system TEMP/TMP folder exists and is writable and the drive has free space (add an OmniVoice antivirus exclusion if you use one), then retry.",
     "SOCKS_PROXY_SUPPORT_MISSING": "A SOCKS proxy is configured in your environment (ALL_PROXY/HTTPS_PROXY=socks5://…) and the backend's HTTP client is missing SOCKS support. Newer OmniVoice builds ship SOCKS support (the socksio package) — update the app. If you still see this, unset ALL_PROXY/HTTPS_PROXY for OmniVoice, or run `uv pip install 'httpx[socks]'` in the backend venv, then restart.",
+    "SSL_HANDSHAKE_FAILURE": "A corporate or antivirus proxy is intercepting HTTPS traffic and re-signing certificates with its own CA — your OS trusts that CA, but Python's bundled certifi CA list doesn't, so the TLS handshake fails even though the connection reached the server. Newer OmniVoice builds trust the OS certificate store at startup (the truststore package), which should already fix this — update the app and retry. If you still see this, add an HTTPS-scanning exclusion for OmniVoice/Python in your antivirus, or ask IT for the proxy's CA bundle and set SSL_CERT_FILE to it, then restart.",
     "UNSUPPORTED_VIDEO_URL": "This link isn't a directly downloadable video. Paste a direct video page (e.g. a youtube.com/watch?v=… or douyin.com/video/<id> link), not a share/profile/feed link — or download the file and drop it in directly.",
     "VIDEO_DOWNLOAD_NETWORK": "The connection to the video server dropped mid-download (often a transient CDN/network blip or a regional rate-limit). Just retry — OmniVoice already cleaned up the partial download. If it keeps failing, check your network/VPN.",
     "BROKEN_VENV": "The Python backend environment was moved or damaged. OmniVoice rebuilds it automatically on the next launch; if it keeps failing, use Clean & Retry on the setup screen.",
@@ -177,6 +178,7 @@ def append_hf_mirror_hint(text: str) -> str:
 # hint on a model-load timeout that leaks through the 500 handler.
 _CONTEXT_FREE_HINT_CLASSES = frozenset({
     "SOCKS_PROXY_SUPPORT_MISSING",
+    "SSL_HANDSHAKE_FAILURE",
 })
 
 
@@ -257,6 +259,19 @@ def classify(reason: str) -> str:
     # a message that also carries HF wording still names this class.
     if "socks proxy" in low or "socksio" in low:
         return "SOCKS_PROXY_SUPPORT_MISSING"
+    # #976: a TLS handshake failing AFTER the TCP connection succeeds — the
+    # signature of a corporate/antivirus proxy that TLS-inspects traffic and
+    # re-signs certificates with a CA the OS trusts but Python's bundled
+    # certifi list doesn't (a different failure mode from #984's TCP-level
+    # "can't reach the host at all"). Requires "ssl" plus a handshake/cert-
+    # verify marker so a generic connection error isn't mislabelled.
+    if "ssl" in low and (
+        "handshake" in low
+        or "certificate verify failed" in low
+        or "sslv3_alert" in low
+        or "sslcertverificationerror" in low
+    ):
+        return "SSL_HANDSHAKE_FAILURE"
     if ("huggingface" in low or "hf_token" in low or "401" in low or "unauthorized" in low) and (
         "token" in low or "auth" in low or "401" in low or "unauthorized" in low
     ):
