@@ -5,7 +5,7 @@ working OmniVoice Studio install on a Debian / Ubuntu / Fedora / Arch host.
 
 ## Prerequisites
 
-### Using the AppImage or .deb
+### Using the AppImage
 
 - **Linux x86_64** with a desktop session (X11 or Wayland) capable of running
   a Tauri / WebKitGTK app.
@@ -73,12 +73,15 @@ No FUSE? Use `--appimage-extract-and-run`:
 ./OmniVoice.Studio_*.AppImage --appimage-extract-and-run
 ```
 
-## Install (.deb)
+## .deb package
 
-```bash
-sudo apt install ./OmniVoice.Studio_*.amd64.deb
-omnivoice-studio
-```
+Not currently published: `.deb` bundling is disabled in the release pipeline
+because of a `tauri-cli` bug (`Failed to create control scripts`) — see the
+comment in `.github/workflows/release.yml` for the tracking note. The
+AppImage above is the supported Linux install path until a `tauri-cli`
+version resolves it. `apt install`-able `.deb`s shipped before v0.3 (see
+[.deb ffprobe conflict](#deb-ffprobe-conflict) below) if you're upgrading
+from one of those.
 
 The desktop app uses these canonical paths (kept in sync with
 `scripts/desktop-prod.sh` by the docs-drift CI gate):
