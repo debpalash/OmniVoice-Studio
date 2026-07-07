@@ -704,9 +704,14 @@ fn sync_failure_is_torch_download(tail: &str) -> bool {
         || (low.contains("torch") && (low.contains("failed to download") || low.contains("failed to fetch")))
 }
 
-/// Default PyTorch ROCm wheel index for the opt-in AMD path (#124). ROCm 6.2 is
-/// the current stable wheel set; overridable via OMNIVOICE_TORCH_INDEX.
-const ROCM_TORCH_INDEX: &str = "https://download.pytorch.org/whl/rocm6.2";
+/// Default PyTorch ROCm wheel index for the opt-in AMD path (#124).
+/// ROCm 6.4, not 6.2: the app's pinned `torch==2.8.0` (pyproject.toml) has no
+/// build on the rocm6.2 index (it tops out at 2.5.1), so that index silently
+/// failed the reinstall and left the default CUDA build in place — which runs
+/// on CPU on an AMD GPU (#972). rocm6.4 carries a matching 2.8.0 build.
+/// Overridable via OMNIVOICE_TORCH_INDEX (e.g. a `--find-links` URL for
+/// distro-matched ROCm builds torch's own index doesn't carry).
+const ROCM_TORCH_INDEX: &str = "https://download.pytorch.org/whl/rocm6.4";
 
 /// `uv pip install` args that replace the default CUDA torch build with the AMD
 /// ROCm wheel (#124). Opt-in (gated on OMNIVOICE_TORCH_VARIANT=rocm by the
@@ -1817,7 +1822,10 @@ mod tests {
         assert!(args.iter().any(|a| a == "torch"));
         assert!(args.iter().any(|a| a == "torchaudio"));
         let i = args.iter().position(|a| a == "--index-url").expect("has --index-url");
-        assert!(args[i + 1].contains("rocm6.2"), "default index is the rocm6.2 wheel set");
+        // rocm6.4, not rocm6.2: rocm6.2's index tops out at torch 2.5.1 and
+        // can't satisfy the app's torch==2.8.0 pin (#972) — a regression to
+        // rocm6.2 here would silently resurrect the CPU-fallback bug.
+        assert!(args[i + 1].contains("rocm6.4"), "default index is the rocm6.4 wheel set (matches torch==2.8.0)");
     }
 
     #[test]
