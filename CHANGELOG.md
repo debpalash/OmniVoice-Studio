@@ -11,6 +11,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 ### Fixed
 
 - **First-run no longer dead-ends behind restricted networks (e.g. China).** The system check probed hardcoded huggingface.co, and any failure locked the Continue button — users behind the Great Firewall were stuck on the very first screen, even when they had already configured a working mirror. The check now probes the Hugging Face endpoint actually in effect, an unreachable endpoint is a warning instead of a blocker (models already on disk keep working offline), and when huggingface.co is blocked but the hf-mirror.com community mirror answers, the wizard says so and offers a one-click mirror switch right on the check screen — no restart needed. (#984)
+- **Voices no longer ship with a hidden echo.** Every non-raw synthesis was getting a small room reverb baked in by the mastering pre-stage — on top of whatever effect preset you chose, so even "Podcast" (which promises *no reverb*) had some, and Cinematic/Warm got it twice. A field report ("a lot of echo/reverb on some of the voices") led straight to it. The mastering stage is now highpass + compressor only; reverb happens only when a preset explicitly declares it. Also documented: cloned voices reproduce the reference clip's room acoustics — dry, close-mic references clone cleanest. (#986)
 
 ## [0.3.11] — 2026-07-05
 
