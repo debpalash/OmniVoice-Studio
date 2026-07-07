@@ -12,6 +12,10 @@ working OmniVoice Studio install on a Debian / Ubuntu / Fedora / Arch host.
 - **~10 GB free disk** for the app, its Python environment, and model weights.
 - Optional: an **NVIDIA driver** for CUDA GPU acceleration — the app runs
   CPU-only without one. For AMD GPUs see [AMD GPU (ROCm)](#amd-gpu-rocm).
+- Optional: **yt-dlp** for downloading YouTube/video clips directly in the
+  Voice Gallery and Dub tabs — `sudo apt install yt-dlp` (Debian/Ubuntu),
+  `sudo dnf install yt-dlp` (Fedora), or `sudo pacman -S yt-dlp` (Arch).
+  Without it those downloads fail; everything else works fine.
 
 That's it — Python, FFmpeg, and the model weights are bundled or bootstrapped
 by the app itself on first launch. No toolchain needed.
