@@ -100,6 +100,42 @@ def test_list_loaded_asr_row_is_honest(monkeypatch):
     assert asr.get("note")  # explains the disabled unload button
 
 
+def test_list_loaded_attributes_resident_tts_to_its_engine(monkeypatch):
+    # Field report: OmniVoice stays resident in VRAM after switching to
+    # voxcpm2, and the panel offered no hint it wasn't the routed engine.
+    class _Model:
+        _asr_pipe = object()
+        def parameters(self): raise StopIteration
+    monkeypatch.setattr(mm, "model", _Model())
+    monkeypatch.setattr(mm, "_diar_pipeline", None)
+
+    monkeypatch.setattr(tb, "active_backend_id", lambda: "voxcpm2")
+    rows = {m["id"]: m for m in ml.list_loaded()["models"]}
+    assert rows["tts"]["engine_id"] == "omnivoice"
+    assert rows["tts"]["is_active_engine"] is False
+    # ASR isn't competing with the TTS selection — must not be mislabeled.
+    assert "is_active_engine" not in rows["asr"]
+
+    monkeypatch.setattr(tb, "active_backend_id", lambda: "omnivoice")
+    rows = {m["id"]: m for m in ml.list_loaded()["models"]}
+    assert rows["tts"]["is_active_engine"] is True
+
+
+def test_list_loaded_attribution_failure_degrades(monkeypatch):
+    # Attribution is advisory: a raising prefs layer must not break the
+    # panel, just leave the active flag unknown.
+    class _Model:
+        _asr_pipe = None
+        def parameters(self): raise StopIteration
+    monkeypatch.setattr(mm, "model", _Model())
+    monkeypatch.setattr(mm, "_diar_pipeline", None)
+    def _boom():
+        raise RuntimeError("prefs unavailable")
+    monkeypatch.setattr(tb, "active_backend_id", _boom)
+    rows = {m["id"]: m for m in ml.list_loaded()["models"]}
+    assert rows["tts"]["is_active_engine"] is None
+
+
 def test_facade_unload_unknown_raises():
     with pytest.raises(ValueError):
         _run(ml.unload("bogus"))

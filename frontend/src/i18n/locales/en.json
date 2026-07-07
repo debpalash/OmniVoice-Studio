@@ -1759,6 +1759,7 @@
     "flush": "Flush",
     "loaded_models": "Loaded Models",
     "no_models": "No models loaded",
+    "model_not_active": "not active — safe to unload",
     "unload": "Unload",
     "flush_caches": "Flush caches",
     "unload_all_flush": "Unload all + flush"

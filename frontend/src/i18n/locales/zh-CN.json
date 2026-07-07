@@ -1504,6 +1504,7 @@
     "flush": "冲洗",
     "loaded_models": "加载模型",
     "no_models": "没有加载模型",
+    "model_not_active": "非当前引擎 — 可安全卸载",
     "unload": "卸载",
     "flush_caches": "刷新缓存",
     "unload_all_flush": "全部卸载+冲洗"

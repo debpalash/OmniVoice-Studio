@@ -45,11 +45,33 @@ def _asr_device() -> str:
     return "cpu"
 
 
+def _active_tts_id() -> Optional[str]:
+    """Configured TTS engine id, or None if it can't be resolved. Attribution
+    is advisory — a prefs/import hiccup must never break /model/loaded."""
+    try:
+        from services.tts_backend import active_backend_id
+        return active_backend_id()
+    except Exception:
+        return None
+
+
+def _tts_attribution(engine_id: str, active: Optional[str]) -> dict:
+    """Per-entry engine attribution for TTS-family models. A model can stay
+    resident in VRAM after the user switches engines (freed only by unload/
+    idle-evict), so the panel needs to know which entry synthesis actually
+    routes to. ``is_active_engine`` is None when the active id is unknown."""
+    return {
+        "engine_id": engine_id,
+        "is_active_engine": (engine_id == active) if active is not None else None,
+    }
+
+
 def list_loaded() -> dict:
     """Enumerate every currently-loaded model. Shape: ``{"models": [...],
     "count": n}`` with per-model id/name/checkpoint/device/vram_mb/unloadable
     (+ optional ``note``)."""
     models: list[dict] = []
+    active_tts = _active_tts_id()
 
     # 1. In-process TTS model (OmniVoice)
     if mm.model is not None:
@@ -64,6 +86,7 @@ def list_loaded() -> dict:
             "device": device,
             "vram_mb": round(_tts_vram_mb(), 1),
             "unloadable": True,
+            **_tts_attribution("omnivoice", active_tts),
         })
 
     # 2. ASR (WhisperX) — co-loaded with and released alongside the TTS model.
@@ -105,6 +128,7 @@ def list_loaded() -> dict:
                 "device": get_best_device(),
                 "vram_mb": round(float(s.get("vram_mb") or 0), 1),
                 "unloadable": True,
+                **_tts_attribution(s["id"], active_tts),
             })
     except Exception:
         pass
