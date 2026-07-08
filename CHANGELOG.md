@@ -21,10 +21,16 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - **Voice cloning on mlx-audio's CSM model no longer crashes with an opaque "list index out of range".** `MLXAudioBackend.generate()` read `voice`/`ref_audio`/`language`/`speed` from its kwargs but silently dropped `ref_text` — CSM only builds its cloning context when both `ref_audio` and `ref_text` are present, so cloning on this engine could never have worked as shipped. Reported with the exact root cause and a working fix. (#1012, #1013)
 - **A dub segment's free-text style tags no longer 400 the segment preview.** A validator-safe instruct builder already keeps Studio and Clone generation from round-tripping a 400 on unsupported free-text (a preset's raw attrs, an old profile's stray descriptive phrase) — but the Dub tab's segment preview, and saving a profile from a clone or from history, built their instruct strings directly and skipped it. Same guard now applies everywhere an instruct string is sent. (#1010)
 - **The dub editor's play button no longer sticks permanently disabled after an audio-decode hiccup.** When the initial WaveSurfer decode fails, the timeline falls back to loading pre-computed peaks — the waveform draws fine, but the button's enabled state only relied on the `ready` event firing again for that recovery load, which it didn't reliably do. Each fallback path now confirms readiness explicitly once it settles.
+- **macOS: live recording finally works — the microphone permission prompt now actually appears.** The app never showed up in System Settings → Privacy & Security → Microphone because macOS never saw a legitimate request: Tauri enables Hardened Runtime by default, which blocks microphone hardware access unless the matching entitlement is in the signed bundle — and it wasn't. Diagnosed to the exact mechanism and fixed by a community contributor (@MahdiHedhli), who also corrected our initial mis-read of this as an upstream WebKit limitation. (#1013, #1016)
+- **Quitting during a slow model load waits longer before giving up.** A post-merge code review of the shutdown-race fix flagged that its 3-second wait could still be outrun by a cold model import on a slow disk, reproducing the original confusing-crash-on-quit in rare cases. The wait is now 20 seconds — imperceptible on a normal quit (tasks finish or cancel in milliseconds), only felt in the exact case it protects. (#1020)
 
 ### Changed
 
 - **Removed the donate heart from the nav rail.** Support OmniVoice is still one click away from Settings and the Contact page.
+
+### CI
+
+- **The "flaky trio" is root-caused and neutralized.** Three tests failed intermittently on CI — never locally — across unrelated PRs, costing a re-run each time. Cause: a leaked half-precision torch default from some earlier test in CI's ordering (the giveaway: a failing assertion's observed value was exactly float16(0.1)). An autouse test-suite guard now resets the leak between tests and names the offending test in CI output when it fires. (#1021)
 
 ## [0.3.12] — 2026-07-08
 

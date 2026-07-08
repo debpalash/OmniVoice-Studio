@@ -455,22 +455,28 @@ resetting the permission (`tccutil reset Microphone
 com.debpalash.omnivoice-studio`) followed by a relaunch changes nothing — no
 system prompt ever appears.
 
-**Cause:** an upstream Tauri/WebKit limitation, not an OmniVoice bug. On
-macOS, WKWebView (the engine behind Tauri's desktop window) only forwards a
-page's `getUserMedia()` call to the OS permission system (TCC) if the native
-app implements a `WKUIDelegate` media-capture-permission handler — without
-one, WebKit denies the request internally before macOS's TCC layer ever sees
-it, which is also why the app never appears in the System Settings list (TCC
-only lists apps that have actually made a request). This is tracked upstream:
-[wry#1195](https://github.com/tauri-apps/wry/issues/1195),
-[tauri#11951](https://github.com/tauri-apps/tauri/issues/11951) — the fix
-([wry#1196](https://github.com/tauri-apps/wry/pull/1196)) is still open and
-unmerged as of this writing, so there's no released Tauri/wry version to
-bump to yet.
+**Cause:** the app bundle was missing the Hardened Runtime *entitlement* for
+microphone access. An earlier revision of this section blamed an upstream
+Tauri/WebKit limitation — that was wrong (a community contributor,
+[@MahdiHedhli](https://github.com/MahdiHedhli), read the sources more
+carefully and found the real gap). wry's `WKUIDelegate` already grants the
+WebKit-layer media-capture request; but Tauri's macOS bundler enables
+Hardened Runtime by default, and Hardened Runtime blocks microphone hardware
+access unless `com.apple.security.device.audio-input` is present in the
+signed binary's entitlements — regardless of `Info.plist`'s
+`NSMicrophoneUsageDescription` (that only supplies the prompt *text*).
+Without the entitlement, macOS's TCC layer never registers a request, which
+is exactly why the app never appears in the System Settings list.
 
-**Workaround:** record your voice sample in any other app (Voice Memos,
-QuickTime, etc.) and upload the resulting file in OmniVoice instead of using
-live recording — upload-based cloning is unaffected and works normally.
+**Fix:** ships in the release after v0.3.12 (the bundle now carries
+`src-tauri/entitlements.plist` — [#1016](https://github.com/debpalash/OmniVoice-Studio/pull/1016),
+contributed by the same person who diagnosed it). Update and live recording
+works, with a normal macOS permission prompt on first use.
+
+**Workaround on older builds (≤ v0.3.12):** record your voice sample in any
+other app (Voice Memos, QuickTime, etc.) and upload the resulting file in
+OmniVoice instead of using live recording — upload-based cloning is
+unaffected and works normally.
 
 **Linked issue:** [#1013](https://github.com/debpalash/OmniVoice-Studio/issues/1013)
 
