@@ -8,6 +8,15 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+### Added
+
+- **A path to Qwen3-ASR today: generic OpenAI-compatible transcription.** The direct integration is still blocked on `transformers>=5.13` stabilizing upstream, but a community member proposed splitting the work — add a backend that talks to any OpenAI-compatible transcription server right now. Point OmniVoice at a self-hosted Qwen3-ASR/FunASR/SenseVoice server, or OpenAI's own API, configured in Settings → Models. No install; audio does leave your machine to whichever server you configure, unlike every other ASR engine. (#877)
+
+### Fixed
+
+- **The Linux AppImage no longer white-screens on current distros with a healthy system WebKitGTK.** The release build ran on an older CI base image, and the resulting AppImage bundles whatever `libwebkit2gtk` that image's apt repos resolve — which the AppImage's own `LD_LIBRARY_PATH` then prioritizes over your system's newer, healthy copy at runtime. A from-source build (which links straight against your system library) worked fine on the exact same machine where the shipped AppImage didn't — that split was the tell. Bumped the release build to a current Ubuntu LTS. Raises the AppImage's minimum host to glibc 2.39 (Ubuntu 24.04+); no reports from anyone on an older distro. (#961)
+- **Backend shutdown no longer races a still-loading model, surfacing a confusing crash on restart.** Quitting the app while a model was still loading in the background let shutdown report itself "done" while a background thread was still mid-import; tearing the process down under that thread produced a misleading error (a generic transformers import-failure message, unrelated to the real cause) that looked like a real crash rather than a timing issue. All background tasks are now properly cancelled and awaited before shutdown proceeds. (#1000, likely the same class behind #941 and #979)
+
 ## [0.3.12] — 2026-07-08
 
 A community-issue sweep — nineteen open reports triaged in one pass, most fixed same-day. The through-line: **your active engine selection is now honored everywhere** (dubbing, batch, and — new in this release — MLX-Audio's own curated models are finally selectable instead of always silently defaulting to Kokoro), **first-run stops dead-ending users on restricted networks or behind corporate TLS proxies**, and a run of sharp community diagnoses (a one-line ROCm index fix, a Windows-only focus-stealing bug, a genuine crash regression) got fixed largely because reporters did the hard diagnostic work themselves. Thank you.

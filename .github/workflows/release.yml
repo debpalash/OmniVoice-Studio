@@ -213,13 +213,24 @@ jobs:
             bundles: "msi,updater"
 
           # Linux: ship .AppImage only. AppImage is universal (no distro
-          # package-manager dep), runs on any glibc-2.31+ host, and is the
+          # package-manager dep), runs on any glibc-2.39+ host, and is the
           # Linux auto-update target. The .deb target was dropped: tauri-bundler
           # fails it with "Failed to create control scripts: No such file or
           # directory" (no custom deb config of ours is at fault) — revisit on a
           # tauri-cli bump. FUSE unavailability on GH runners is handled via
           # APPIMAGE_EXTRACT_AND_RUN=1.
-          - os: ubuntu-22.04
+          #
+          # Bumped from ubuntu-22.04 → ubuntu-24.04 (#961): the AppImage
+          # bundles whatever `libwebkit2gtk-4.1-dev` the build runner's apt
+          # repos resolve (see the "Linux system deps" step below) — 22.04's
+          # was meaningfully stale relative to what current Ubuntu/Fedora
+          # ship, and AppRun's LD_LIBRARY_PATH makes that bundled, stale copy
+          # take priority over a healthy system WebKitGTK at runtime. Raises
+          # the AppImage's glibc floor from 2.35 to 2.39 — pre-2022 distros
+          # (Ubuntu <22.04, Debian <12) lose support; no report of anyone on
+          # something that old has come in, and the project's own install
+          # docs already assume Debian 12 / Ubuntu 22.04+.
+          - os: ubuntu-24.04
             arch: x86_64-unknown-linux-gnu
             label: "Linux x64"
             rust_target: x86_64-unknown-linux-gnu

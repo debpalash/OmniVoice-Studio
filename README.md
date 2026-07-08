@@ -266,7 +266,7 @@ Professional-grade voice AI, minus the subscription and the cloud.
 
 | | **Minimum** | **Recommended** |
 |---|---|---|
-| **OS** | Windows 10, macOS 12+ (Apple Silicon), Ubuntu 20.04+ | Any modern 64-bit OS |
+| **OS** | Windows 10, macOS 12+ (Apple Silicon), Ubuntu 24.04+ (glibc 2.39+) | Any modern 64-bit OS |
 | **RAM** | 8 GB | 16 GB+ |
 | **VRAM (GPU)** | 4 GB (auto-offloads TTS to CPU) | 8 GB+ (NVIDIA RTX 3060+) |
 | **Disk** | 10 GB free (models + cache) | 20 GB+ SSD |
