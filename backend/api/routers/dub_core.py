@@ -977,6 +977,9 @@ async def dub_transcribe_stream(
             from services.speaker_clone import extract_speaker_clones, auto_profile_id
             vocals_for_clone = job.get("vocals_path") or asr_audio_target
             clones = {}
+            # One-way latch: set when a reference re-transcription wedges past
+            # its timeout, so later references skip ASR entirely (see below).
+            _ref_tx_wedged = {"flag": False}
 
             def _ref_transcriber(path: str) -> str:
                 # Re-transcribe the exact written reference clip so its
@@ -991,8 +994,14 @@ async def dub_transcribe_stream(
                 # with a joined side thread instead. On timeout we return ""
                 # (caller falls back to the segment text) rather than letting
                 # a wedged transcribe (#730) keep the SSE ping loop alive
-                # forever. The abandoned daemon thread mirrors the guarded
-                # path's known tradeoff.
+                # forever. Once one call wedges, all later calls short-circuit:
+                # the abandoned thread may still hold the backend, and a second
+                # concurrent transcribe on a GPU backend risks corrupting its
+                # CUDA context.
+                from core.failure import sanitize
+
+                if _ref_tx_wedged["flag"]:
+                    return ""
                 done: list[str] = []
 
                 def _run():
@@ -1005,15 +1014,21 @@ async def dub_transcribe_stream(
                             ).strip()
                         done.append(text)
                     except Exception as e:
-                        logger.warning("ref re-transcription failed for %s: %s", path, e)
+                        logger.warning(
+                            "ref re-transcription failed for %s: %s", sanitize(path), e,
+                        )
+                        done.append("")
 
                 from services.asr_backend import ASR_TRANSCRIBE_TIMEOUT_S
                 t = threading.Thread(target=_run, daemon=True)
                 t.start()
                 t.join(ASR_TRANSCRIBE_TIMEOUT_S)
                 if not done:
+                    _ref_tx_wedged["flag"] = True
                     logger.warning(
-                        "ref re-transcription timed out for %s; keeping segment text", path,
+                        "ref re-transcription timed out for %s; falling back to "
+                        "segment text for this and all remaining references",
+                        sanitize(path),
                     )
                     return ""
                 return done[0]
