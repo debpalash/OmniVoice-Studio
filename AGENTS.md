@@ -24,7 +24,7 @@ request succeeds in ~1s (reproduced 5x: 1.574s / 1.034s / 1.065s / 0.995s / 0.91
 **Workaround (no code change needed, both already exist):**
 - For headless/API-only setups, pre-fetch the checkpoint before your first real TTS request:
   ```bash
-  curl -X POST http://localhost:8000/models/install \
+  curl -X POST http://localhost:3900/models/install \
     -H "Content-Type: application/json" \
     -d '{"repo_id": "k2-fsa/OmniVoice"}'
   ```
