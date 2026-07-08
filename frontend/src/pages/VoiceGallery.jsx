@@ -138,7 +138,8 @@ export default function VoiceGallery() {
       stopPlayback();
       flash(
         t('gallery.preview_failed', {
-          defaultValue: 'Preview unavailable — the voice engine may still be loading.',
+          message: e?.message || String(e),
+          defaultValue: 'Preview unavailable: {{message}}',
         }),
       );
     } finally {
@@ -222,7 +223,8 @@ export default function VoiceGallery() {
             } catch (e) {
               flash(
                 t('gallery.use_failed', {
-                  defaultValue: 'Could not create that voice — the engine may be loading.',
+                  message: e?.message || String(e),
+                  defaultValue: 'Could not create that voice: {{message}}',
                 }),
               );
             }

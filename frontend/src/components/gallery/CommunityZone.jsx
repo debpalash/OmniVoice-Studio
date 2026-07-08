@@ -91,8 +91,13 @@ export default function CommunityZone({
                       name: r.name,
                     }),
                   );
-                } catch {
-                  flash(t('gallery.use_failed', { defaultValue: 'Could not add that voice.' }));
+                } catch (e) {
+                  flash(
+                    t('gallery.use_failed', {
+                      message: e?.message || String(e),
+                      defaultValue: 'Could not create that voice: {{message}}',
+                    }),
+                  );
                 }
               }}
               onDesign={(item) =>

@@ -110,7 +110,12 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
       const r = await searchYoutube(q, 'import', 10);
       setResults(r.results || []);
     } catch (e) {
-      flash(t('gallery.search_failed', { defaultValue: 'Search failed.' }));
+      flash(
+        t('gallery.search_failed', {
+          message: e?.message || String(e),
+          defaultValue: 'Search failed: {{message}}',
+        }),
+      );
     } finally {
       setIsSearching(false);
     }
@@ -149,7 +154,12 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
       await uploadVoiceClip(fd);
       reload();
     } catch (err) {
-      flash(t('gallery.upload_failed', { defaultValue: 'Upload failed.' }));
+      flash(
+        t('gallery.upload_failed', {
+          message: err?.message || String(err),
+          defaultValue: 'Upload failed: {{message}}',
+        }),
+      );
     } finally {
       if (fileRef.current) fileRef.current.value = '';
     }
@@ -165,7 +175,12 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
         }),
       );
     } catch (e) {
-      flash(t('gallery.save_failed', { defaultValue: 'Could not save profile.' }));
+      flash(
+        t('gallery.save_failed', {
+          message: e?.message || String(e),
+          defaultValue: 'Could not save profile: {{message}}',
+        }),
+      );
     }
   };
 
@@ -179,8 +194,13 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
     try {
       await deleteGalleryVoice(v.id);
       reload();
-    } catch {
-      /* noop */
+    } catch (e) {
+      flash(
+        t('gallery.delete_failed', {
+          message: e?.message || String(e),
+          defaultValue: 'Could not delete: {{message}}',
+        }),
+      );
     }
   };
 
@@ -191,7 +211,12 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
       const file = new File([blob], `${v.name}.wav`, { type: 'audio/wav' });
       setTrimming({ voice: v, file });
     } catch (e) {
-      flash(t('gallery.trim_load_failed', { defaultValue: 'Could not load audio for trimming.' }));
+      flash(
+        t('gallery.trim_load_failed', {
+          message: e?.message || String(e),
+          defaultValue: 'Could not load audio for trimming: {{message}}',
+        }),
+      );
     }
   };
 
@@ -209,7 +234,12 @@ export default function ImportsZone({ t, playingId, loadingPreviewId, onPlayGall
       reload();
       setTrimming(null);
     } catch (e) {
-      flash(t('gallery.upload_failed', { defaultValue: 'Upload failed.' }));
+      flash(
+        t('gallery.upload_failed', {
+          message: e?.message || String(e),
+          defaultValue: 'Upload failed: {{message}}',
+        }),
+      );
     }
   };
 
