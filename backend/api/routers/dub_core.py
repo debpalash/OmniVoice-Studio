@@ -4,6 +4,7 @@ import asyncio
 import logging
 import shutil
 import subprocess
+import threading
 import soundfile as sf
 import torch
 from typing import Optional
@@ -984,13 +985,38 @@ async def dub_transcribe_stream(
                 # sliced window, and a mismatched pair makes cross-language
                 # dubs speak the reference text verbatim (#1004). The ASR
                 # backend is still warm from the transcription pass above.
-                r = _asr_backend.transcribe(path, word_timestamps=False)
-                text = (r.get("text") or "").strip()
-                if not text:
-                    text = " ".join(
-                        (c.get("text") or "").strip() for c in (r.get("chunks") or [])
-                    ).strip()
-                return text
+                #
+                # Runs inside the clone-extraction executor thread, so the
+                # async run_transcribe_guarded can't wrap it — bound the call
+                # with a joined side thread instead. On timeout we return ""
+                # (caller falls back to the segment text) rather than letting
+                # a wedged transcribe (#730) keep the SSE ping loop alive
+                # forever. The abandoned daemon thread mirrors the guarded
+                # path's known tradeoff.
+                done: list[str] = []
+
+                def _run():
+                    try:
+                        r = _asr_backend.transcribe(path, word_timestamps=False)
+                        text = (r.get("text") or "").strip()
+                        if not text:
+                            text = " ".join(
+                                (c.get("text") or "").strip() for c in (r.get("chunks") or [])
+                            ).strip()
+                        done.append(text)
+                    except Exception as e:
+                        logger.warning("ref re-transcription failed for %s: %s", path, e)
+
+                from services.asr_backend import ASR_TRANSCRIBE_TIMEOUT_S
+                t = threading.Thread(target=_run, daemon=True)
+                t.start()
+                t.join(ASR_TRANSCRIBE_TIMEOUT_S)
+                if not done:
+                    logger.warning(
+                        "ref re-transcription timed out for %s; keeping segment text", path,
+                    )
+                    return ""
+                return done[0]
 
             if labels_source == "heuristic":
                 # Clone-purity guard: heuristic labels are silence-gap
