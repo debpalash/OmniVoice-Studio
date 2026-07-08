@@ -849,6 +849,7 @@ class MLXAudioBackend(TTSBackend):
 
         voice     = kw.get("voice")
         ref_audio = kw.get("ref_audio")
+        ref_text  = kw.get("ref_text")
         language  = kw.get("language")
         speed     = float(kw.get("speed", 1.0))
 
@@ -858,6 +859,12 @@ class MLXAudioBackend(TTSBackend):
         # — we pass them all and let the engine ignore what it doesn't use.
         kwargs = {"text": text, "speed": speed}
         if voice:     kwargs["voice"] = voice
+        # CSM (sesame) only builds its voice-clone context when BOTH ref_audio
+        # and ref_text are present — with ref_text missing it silently builds
+        # an empty context and later crashes with an unrelated-looking
+        # `IndexError: list index out of range`. Forward it whenever we have
+        # both, same as every other ref_text-accepting backend in this file.
+        if ref_audio and ref_text: kwargs["ref_text"] = ref_text
         if ref_audio: kwargs["ref_audio"] = ref_audio
         if language and language != "Auto":
             if self._model_id == self.CURATED_MODELS.get("kokoro"):
