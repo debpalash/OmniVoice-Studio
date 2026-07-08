@@ -70,6 +70,11 @@ function reasonMentionsLicense(reason) {
  *     arg is set only by mlx-audio's curated-model picker (#981).
  *   - activeId?: string  the currently-active backend id for this
  *     family. Used to render the "active" badge.
+ *   - showFamilyTabs?: boolean  default true. When false, the matrix is
+ *     pinned to `family` — no TTS/ASR/LLM switcher, and the header names
+ *     the family ("ASR Engines") instead of the generic matrix title.
+ *     Settings → Engines stacks one pinned matrix per family so the ASR
+ *     and LLM pickers are visible instead of tucked behind a tab.
  */
 const FAMILY_META = {
   tts: { label: 'TTS', icon: Cpu },
@@ -158,8 +163,10 @@ export default function EngineCompatibilityMatrix({
   family = 'tts',
   onSelect = null,
   activeId = null,
-  // Test-friendly overrides — let the RTL suite mock the API layer
-  // without resorting to module-level vi.mock incantations.
+  showFamilyTabs = true,
+  // Injectable API layer — lets the RTL suite mock it without module-level
+  // vi.mock incantations, and lets EnginesTab share one in-flight
+  // GET /engines across its stacked per-family matrices.
   apiListEngines = listEngines,
   apiGetEngineHealth = getEngineHealth,
   apiSelfTestEngine = selfTestEngine,
@@ -347,12 +354,19 @@ export default function EngineCompatibilityMatrix({
   // TTS-05: the license dialog registered for the engine awaiting acceptance
   // (or null). Capitalized so JSX renders it as a component below.
   const LicenseDialog = licenseDialogFor ? LICENSE_DIALOGS[licenseDialogFor] : null;
+  // Pinned mode: the header names the family (with its icon) since there is
+  // no switcher to say which family this table is.
+  const familyMeta = FAMILY_META[activeFamily] || FAMILY_META.tts;
+  const TitleIcon = showFamilyTabs ? Layers : familyMeta.icon;
 
   return (
     <section className="engine-matrix flex flex-col gap-[var(--space-3,8px)]">
       <header className="engine-matrix__head flex items-center justify-between gap-[12px]">
         <h3 className="engine-matrix__title inline-flex items-center gap-[6px] m-0 text-[13px] font-semibold text-[color:var(--chrome-fg,currentColor)]">
-          <Layers size={14} /> {t('engines.matrixTitle')}
+          <TitleIcon size={14} />{' '}
+          {showFamilyTabs
+            ? t('engines.matrixTitle')
+            : t('engines.familyMatrixTitle', { family: familyMeta.label })}
         </h3>
         <Button
           size="sm"
@@ -365,7 +379,7 @@ export default function EngineCompatibilityMatrix({
         </Button>
       </header>
 
-      {families.length > 1 && (
+      {showFamilyTabs && families.length > 1 && (
         <Segmented
           size="sm"
           value={activeFamily}

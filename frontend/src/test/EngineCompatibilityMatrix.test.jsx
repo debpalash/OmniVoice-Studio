@@ -817,4 +817,74 @@ describe('EngineCompatibilityMatrix', () => {
     await waitFor(() => screen.getByText('MLX-Audio (test)'));
     expect(screen.getByTestId('curated-model-select-mlx-audio')).toBeDisabled();
   });
+
+  // ── showFamilyTabs={false} — pinned per-family mount (Settings → Engines) ─
+  function multiFamilyResponse() {
+    return {
+      tts: {
+        active: 'omnivoice',
+        backends: [
+          {
+            id: 'omnivoice',
+            display_name: 'OmniVoice (test)',
+            available: true,
+            reason: null,
+            install_hint: null,
+            last_error: null,
+            isolation_mode: 'in-process',
+            gpu_compat: ['cpu'],
+          },
+        ],
+      },
+      asr: {
+        active: 'whisperx',
+        backends: [
+          {
+            id: 'whisperx',
+            display_name: 'WhisperX (test)',
+            available: true,
+            reason: null,
+            install_hint: null,
+            last_error: null,
+            isolation_mode: 'in-process',
+            gpu_compat: ['cpu'],
+          },
+        ],
+      },
+      llm: { active: 'off', backends: [] },
+    };
+  }
+
+  it('pins to the given family and hides the TTS/ASR/LLM switcher when showFamilyTabs is false', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(multiFamilyResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="asr"
+        showFamilyTabs={false}
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('WhisperX (test)'));
+    // Pinned header names the family instead of the generic matrix title…
+    expect(screen.getByText('ASR Engines')).toBeInTheDocument();
+    // …the TTS family never leaks into the pinned table…
+    expect(screen.queryByText('OmniVoice (test)')).not.toBeInTheDocument();
+    // …and there is no family switcher to wander off to.
+    expect(document.querySelector('.engine-matrix__tab-family')).toBeNull();
+  });
+
+  it('keeps the family switcher by default (standalone mounts unchanged)', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(multiFamilyResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    expect(screen.getByText('Engine Compatibility Matrix')).toBeInTheDocument();
+    expect(document.querySelectorAll('.engine-matrix__tab-family').length).toBe(3);
+  });
 });

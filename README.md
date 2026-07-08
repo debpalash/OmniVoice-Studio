@@ -322,7 +322,7 @@ Professional-grade voice AI, minus the subscription and the cloud.
 
 ### 🎧 ASR Engines
 
-**10 engines** — they power dictation, video dubbing, and subtitles. **WhisperX** is the cross-platform default (~100 languages, word-level timing); the rest are opt-in and auto-detected. Switch in **Settings → ASR Engine** or via the `OMNIVOICE_ASR_BACKEND` env var. Nine run fully on-device; one (OpenAI-compatible) is an optional remote client for pointing at Qwen3-ASR or another compatible server — see below.
+**10 engines** — they power dictation, video dubbing, and subtitles. **WhisperX** is the cross-platform default (~100 languages, word-level timing); the rest are opt-in and auto-detected. Switch in **Settings → Engines** (the ASR Engines table — same picker TTS has), or pin one with the `OMNIVOICE_ASR_BACKEND` env var (the env var wins over the Settings pick). Nine run fully on-device; one (OpenAI-compatible) is an optional remote client for pointing at Qwen3-ASR or another compatible server — see below.
 
 <details>
 <summary><b>📊 The full lineup</b> — 10 engines, what each is best at, and compute-type notes</summary>

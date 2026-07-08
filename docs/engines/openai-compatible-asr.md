@@ -21,9 +21,11 @@ No install step — configure it directly:
 4. **API key** is optional — many self-hosted servers accept requests
    without one. Set it if your server requires auth, or if you're using
    OpenAI's own API.
-5. Activate the engine by setting `OMNIVOICE_ASR_BACKEND=openai-compat-asr`
-   before launching. There's no in-app ASR engine picker yet (only TTS
-   engines have one today) — this is the one manual step until that ships.
+5. Activate the engine in **Settings → Engines** — click **Use** on
+   **OpenAI-compatible ASR** in the ASR Engines table (the same picker TTS
+   engines have). Power users can pin it instead by setting
+   `OMNIVOICE_ASR_BACKEND=openai-compat-asr` before launching — the env var
+   always wins over the Settings pick.
 
 ## Response format
 

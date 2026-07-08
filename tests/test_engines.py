@@ -194,6 +194,53 @@ def test_asr_env_override(monkeypatch):
     assert asr_backend.active_backend_id() == "pytorch-whisper"
 
 
+# ── ASR selection resolution (Settings → Engines ASR picker) ────────────────
+# Same env > prefs > auto-detect contract as TTS. The env var MUST keep
+# winning so existing `OMNIVOICE_ASR_BACKEND` pins don't change behavior now
+# that the Settings picker writes the prefs key.
+
+
+def test_asr_active_backend_prefs_fallback(monkeypatch, tmp_path):
+    from core import prefs as _prefs
+    monkeypatch.setattr(_prefs, "_PREFS_PATH", str(tmp_path / "prefs.json"))
+    monkeypatch.delenv("OMNIVOICE_ASR_BACKEND", raising=False)
+    _prefs.set_("asr_backend", "moonshine")
+    assert asr_backend.active_backend_id() == "moonshine"
+    # Env var must beat prefs.
+    monkeypatch.setenv("OMNIVOICE_ASR_BACKEND", "pytorch-whisper")
+    assert asr_backend.active_backend_id() == "pytorch-whisper"
+
+
+def test_asr_auto_detects_when_no_env_no_prefs(monkeypatch, tmp_path):
+    from core import prefs as _prefs
+    monkeypatch.setattr(_prefs, "_PREFS_PATH", str(tmp_path / "prefs.json"))
+    monkeypatch.delenv("OMNIVOICE_ASR_BACKEND", raising=False)
+    assert asr_backend.active_backend_id() in {
+        "whisperx", "faster-whisper", "mlx-whisper", "pytorch-whisper",
+    }
+
+
+def test_get_active_asr_backend_follows_prefs_switch_without_restart(monkeypatch, tmp_path):
+    """#981 class (fixed on the TTS side): a Settings pick must take effect on
+    the next transcribe, not after an app restart. get_active_asr_backend()
+    re-resolves the id per call, so a prefs write switches immediately."""
+    from core import prefs as _prefs
+    monkeypatch.setattr(_prefs, "_PREFS_PATH", str(tmp_path / "prefs.json"))
+    monkeypatch.delenv("OMNIVOICE_ASR_BACKEND", raising=False)
+    _prefs.set_("asr_backend", "pytorch-whisper")
+    assert isinstance(
+        asr_backend.get_active_asr_backend(), asr_backend.PyTorchWhisperBackend)
+    _prefs.set_("asr_backend", "moonshine")
+    assert isinstance(
+        asr_backend.get_active_asr_backend(), asr_backend.MoonshineASRBackend)
+
+
+def test_asr_unknown_backend_raises(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_ASR_BACKEND", "not-a-real-asr")
+    with pytest.raises(ValueError):
+        asr_backend.get_active_asr_backend()
+
+
 # ── LLM ─────────────────────────────────────────────────────────────────────
 
 

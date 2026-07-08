@@ -247,6 +247,121 @@ def test_select_llm_never_routing_gated(fresh_app, monkeypatch):
     assert r.status_code == 200, r.text
 
 
+# ── ASR selection via /engines/select (Settings → Engines ASR picker) ──────
+#
+# The ASR family was always wired in _FAMILIES on paper, but no UI called it
+# and nothing exercised it — the Settings picker now does. Lock the contract:
+# a pick persists to prefs["asr_backend"], `OMNIVOICE_ASR_BACKEND` still wins
+# over the pick, and unknown / not-ready ids are 400s.
+
+
+def _register_fake_asr(asr_mod, engine_id, *, available=True):
+    """Register a light in-process ASR stub (CPU-only so a forced-CPU host
+    routes it `cpu_only`, never `unavailable`). Returns (cls, restore_fn)."""
+    _avail = available
+
+    class _FakeASR(asr_mod.ASRBackend):
+        id = engine_id
+        display_name = f"Fake {engine_id}"
+        gpu_compat = ("cpu",)
+
+        @classmethod
+        def is_available(cls):
+            return (True, "ready") if _avail else (False, "deps missing (test)")
+
+        def transcribe(self, audio_path, *, word_timestamps=True):
+            raise NotImplementedError
+
+    saved = dict(asr_mod._REGISTRY)
+    asr_mod._REGISTRY[engine_id] = _FakeASR
+
+    def restore():
+        asr_mod._REGISTRY.clear()
+        asr_mod._REGISTRY.update(saved)
+
+    return _FakeASR, restore
+
+
+def test_select_asr_persists_pref_and_echoes_active(fresh_app, monkeypatch):
+    from core import prefs as _prefs
+    from services import asr_backend as asr_mod
+
+    _force_cpu_host(monkeypatch)
+    monkeypatch.delenv("OMNIVOICE_ASR_BACKEND", raising=False)
+    _, restore = _register_fake_asr(asr_mod, "fake-asr")
+    try:
+        r = _client(fresh_app).post(
+            "/engines/select", json={"family": "asr", "backend_id": "fake-asr"})
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["family"] == "asr"
+        assert body["active"] == "fake-asr"
+        assert body["env_override"] is False
+        assert _prefs.get("asr_backend") == "fake-asr"
+    finally:
+        restore()
+
+
+def test_select_asr_env_var_still_wins(fresh_app, monkeypatch):
+    """CRITICAL backward-compat: an existing `OMNIVOICE_ASR_BACKEND` pin keeps
+    winning over a Settings pick — the pick persists to prefs (for when the
+    pin is lifted) but the active id stays the env value, and the response
+    says so via env_override."""
+    from core import prefs as _prefs
+    from services import asr_backend as asr_mod
+
+    _force_cpu_host(monkeypatch)
+    monkeypatch.setenv("OMNIVOICE_ASR_BACKEND", "pytorch-whisper")
+    _, restore = _register_fake_asr(asr_mod, "fake-asr-pinned")
+    try:
+        r = _client(fresh_app).post(
+            "/engines/select", json={"family": "asr", "backend_id": "fake-asr-pinned"})
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["env_override"] is True
+        assert body["active"] == "pytorch-whisper"          # env wins
+        assert _prefs.get("asr_backend") == "fake-asr-pinned"
+    finally:
+        restore()
+
+
+def test_select_asr_unknown_backend_is_400(fresh_app):
+    r = _client(fresh_app).post(
+        "/engines/select", json={"family": "asr", "backend_id": "nope-not-real"})
+    assert r.status_code == 400
+    assert "Unknown asr backend" in r.json()["detail"]
+
+
+def test_select_asr_unavailable_backend_is_400(fresh_app, monkeypatch):
+    from services import asr_backend as asr_mod
+
+    _force_cpu_host(monkeypatch)
+    _, restore = _register_fake_asr(asr_mod, "fake-asr-down", available=False)
+    try:
+        r = _client(fresh_app).post(
+            "/engines/select", json={"family": "asr", "backend_id": "fake-asr-down"})
+        assert r.status_code == 400
+        assert "not ready" in r.json()["detail"]
+    finally:
+        restore()
+
+
+def test_get_engines_asr_family_shape(fresh_app):
+    """GET /engines/asr — the ASR picker's data source: active id + one row
+    per registered backend with availability, reasons and install hints."""
+    r = _client(fresh_app).get("/engines/asr")
+    assert r.status_code == 200
+    body = r.json()
+    assert isinstance(body["active"], str) and body["active"]
+    by_id = {b["id"]: b for b in body["backends"]}
+    assert {"whisperx", "faster-whisper", "openai-compat-asr"}.issubset(by_id)
+    # Install hints power the picker's tooltips (parity with TTS).
+    assert by_id["openai-compat-asr"]["install_hint"]
+    for entry in by_id.values():
+        missing = _REQUIRED_KEYS - entry.keys()
+        assert not missing, f"asr entry {entry['id']!r} missing: {missing}"
+
+
 # ── #981 — mlx-audio curated-model selection via /engines/select ───────────
 #
 # mlx-audio multiplexes 7+ curated models behind one backend id. Before this

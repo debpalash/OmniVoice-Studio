@@ -1,11 +1,18 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { addBreadcrumb } from '../../utils/breadcrumbs';
-import { selectEngine } from '../../api/engines';
+import { listEngines, selectEngine } from '../../api/engines';
 import { notifyEngineSelected } from '../../utils/engineSelectToast';
 import EngineCompatibilityMatrix from '../EngineCompatibilityMatrix';
 import { SETTINGS_SECTION_SURFACE } from './primitives';
+
+/** One pinned matrix per family, stacked in this order. ASR used to be
+ *  reachable only through the matrix's family tabs, which read as a
+ *  TTS-only table — README even promised a Settings ASR picker that
+ *  didn't exist (UX gap found during #877). Every family now gets a
+ *  visible picker; `OMNIVOICE_*_BACKEND` env vars still win over any pick. */
+const FAMILIES = ['tts', 'asr', 'llm'];
 
 export default function EnginesTab() {
   const { t } = useTranslation();
@@ -33,9 +40,32 @@ export default function EnginesTab() {
     [t],
   );
 
+  // The stacked matrices all consume the same GET /engines payload — share
+  // one in-flight request so opening the tab probes every engine once, not
+  // once per family. A per-matrix Refresh after the shared promise settles
+  // still triggers a fresh fetch.
+  const inflightList = useRef(null);
+  const listEnginesShared = useCallback(() => {
+    if (!inflightList.current) {
+      inflightList.current = listEngines().finally(() => {
+        inflightList.current = null;
+      });
+    }
+    return inflightList.current;
+  }, []);
+
   return (
-    <section className={SETTINGS_SECTION_SURFACE} data-slot="settings-section">
-      <EngineCompatibilityMatrix family="tts" onSelect={onSelect} />
-    </section>
+    <>
+      {FAMILIES.map((family) => (
+        <section key={family} className={SETTINGS_SECTION_SURFACE} data-slot="settings-section">
+          <EngineCompatibilityMatrix
+            family={family}
+            showFamilyTabs={false}
+            onSelect={onSelect}
+            apiListEngines={listEnginesShared}
+          />
+        </section>
+      ))}
+    </>
   );
 }

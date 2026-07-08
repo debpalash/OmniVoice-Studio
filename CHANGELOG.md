@@ -8,6 +8,10 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+### Added
+
+- **ASR engines get the same Settings picker TTS has.** Settings → Engines now shows a visible picker table per family — TTS, ASR, and LLM — instead of a single TTS-titled table with the other families tucked behind a tab (README even promised a Settings ASR picker that didn't exist). The OpenAI-compatible backend and the 9 local ASR engines become selectable with one click, no env vars needed; an explicit `OMNIVOICE_ASR_BACKEND` still wins over the Settings pick, so pinned setups behave exactly as before. (no issue — UX gap found during #877)
+
 ### Fixed
 
 - **The Linux AppImage's white-screen auto-workaround now checks the right WebKitGTK.** The launcher decided whether to apply the compositing workaround by asking the *system's* `pkg-config` — but the version that actually runs is the *bundled* one, which the AppImage prioritizes. On any machine where the two diverge (e.g. building from source with newer dev packages installed), the detection read the wrong number and could skip a workaround the running library needed. The build now stamps the bundled version into the AppImage at package time, and the launcher reads that stamp — correct by construction. The launcher's shell tests also now run in CI, which they previously never did. (#961 follow-up)

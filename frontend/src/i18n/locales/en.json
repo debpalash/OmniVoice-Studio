@@ -1554,6 +1554,7 @@
     "loading": "Loading engines…",
     "refresh": "Refresh",
     "matrixTitle": "Engine Compatibility Matrix",
+    "familyMatrixTitle": "{{family}} Engines",
     "loadFailed": "Failed to load engines: {{message}}",
     "couldNotLoad": "Could not load engines: {{message}}",
     "retry": "Retry",
