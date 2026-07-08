@@ -849,6 +849,7 @@ class MLXAudioBackend(TTSBackend):
 
         voice     = kw.get("voice")
         ref_audio = kw.get("ref_audio")
+        ref_text  = kw.get("ref_text")
         language  = kw.get("language")
         speed     = float(kw.get("speed", 1.0))
 
@@ -859,6 +860,12 @@ class MLXAudioBackend(TTSBackend):
         kwargs = {"text": text, "speed": speed}
         if voice:     kwargs["voice"] = voice
         if ref_audio: kwargs["ref_audio"] = ref_audio
+        # CSM (sesame.py) only builds its cloning context when BOTH ref_audio
+        # AND ref_text are present — with ref_text missing, its context list
+        # stays empty and indexing into it raises an opaque
+        # "IndexError: list index out of range" deep inside mlx-audio,
+        # instead of ever attempting the clone. Community-diagnosed (#1012).
+        if ref_audio and ref_text: kwargs["ref_text"] = ref_text
         if language and language != "Auto":
             if self._model_id == self.CURATED_MODELS.get("kokoro"):
                 # Kokoro's vendored pipeline hard-asserts `lang_code` against

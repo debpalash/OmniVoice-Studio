@@ -357,6 +357,49 @@ def test_mlx_audio_generate_rejects_unsupported_kokoro_language_before_calling_m
         backend.generate("hello", language="Dutch")
 
 
+def test_mlx_audio_generate_passes_ref_text_through_for_cloning():
+    # #1012/#1013: MLXAudioBackend.generate() read voice/ref_audio/language/
+    # speed from kwargs but silently dropped ref_text — CSM (sesame.py) only
+    # builds its cloning context when BOTH ref_audio and ref_text are
+    # present, so cloning on CSM always raised an opaque
+    # "IndexError: list index out of range" deep inside mlx-audio instead of
+    # ever attempting the clone. Community-diagnosed with the exact fix.
+    pytest.importorskip("mlx_audio", reason="mlx-audio is Apple-Silicon-only")
+    backend = tts_backend.MLXAudioBackend()
+    backend._ensure_loaded = lambda: None
+
+    captured = {}
+
+    def _fake_generate(**kw):
+        captured.update(kw)
+        return iter([types.SimpleNamespace(audio=__import__("numpy").zeros(4))])
+
+    backend._model = types.SimpleNamespace(generate=_fake_generate)
+    backend.generate("hello", ref_audio="/tmp/ref.wav", ref_text="the reference line")
+
+    assert captured.get("ref_text") == "the reference line"
+    assert captured.get("ref_audio") == "/tmp/ref.wav"
+
+
+def test_mlx_audio_generate_omits_ref_text_without_ref_audio():
+    # ref_text alone (no ref_audio) means nothing to CSM's context builder —
+    # don't pass a stray kwarg an engine that isn't cloning doesn't expect.
+    pytest.importorskip("mlx_audio", reason="mlx-audio is Apple-Silicon-only")
+    backend = tts_backend.MLXAudioBackend()
+    backend._ensure_loaded = lambda: None
+
+    captured = {}
+
+    def _fake_generate(**kw):
+        captured.update(kw)
+        return iter([types.SimpleNamespace(audio=__import__("numpy").zeros(4))])
+
+    backend._model = types.SimpleNamespace(generate=_fake_generate)
+    backend.generate("hello", ref_text="orphaned text, no audio")
+
+    assert "ref_text" not in captured
+
+
 def test_mlx_audio_generate_auto_language_skips_lang_code_entirely():
     # Matches the "Auto" convention other engines in this file use
     # (OmniVoiceBackend.generate(), _run_backend_inference) — never resolved,
