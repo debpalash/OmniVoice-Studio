@@ -1006,6 +1006,11 @@ async def dub_transcribe_stream(
                         clones = done.pop().result()
                         break
                     yield _sse_event("ping", {})
+                if clones:
+                    from services.speaker_clone import refine_ref_texts
+                    clones = await loop.run_in_executor(
+                        _gpu_pool, lambda: refine_ref_texts(clones, _asr_backend),
+                    )
             # Wave 3.2: per-segment clone refs. Cut each long-enough segment's
             # own reference from the vocals so the dub of each line matches the
             # prosody of its source line. Short lines fall back to the
@@ -1025,6 +1030,10 @@ async def dub_transcribe_stream(
                         ),
                     )
                     if seg_clones:
+                        from services.speaker_clone import refine_ref_texts
+                        seg_clones = await loop.run_in_executor(
+                            _gpu_pool, lambda: refine_ref_texts(seg_clones, _asr_backend),
+                        )
                         job["segment_clones"] = seg_clones
                 except Exception as e:
                     logger.warning("per-segment clone refs skipped: %s", e)

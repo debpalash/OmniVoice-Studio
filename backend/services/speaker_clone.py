@@ -223,6 +223,60 @@ def extract_segment_refs(
     return out
 
 
+def refine_ref_text(ref_audio_path: str, asr_backend, fallback_text: str) -> str:
+    """Re-transcribe a written reference clip and return that transcript.
+
+    `extract_speaker_clones`/`extract_segment_refs` pair each audio slice with
+    the ASR segment's OWN text field, on the assumption that the segment's
+    timestamps and its transcribed text agree. They routinely don't — Whisper
+    (and friends) frequently drift on segment boundaries: a trailing word
+    audible in `[start, end]` but missing from `text`, or vice versa. When the
+    (ref_audio, ref_text) pair disagrees, zero-shot TTS prompt-priming breaks
+    down and the clone can speak the mismatched reference text itself instead
+    of the target-language text it was given to synthesize (issue #1004).
+
+    Re-transcribing the *actual written clip* guarantees the pair matches by
+    construction — the model doesn't care whether the original ASR text was
+    right, only that ref_text is what's really in ref_audio. `asr_backend` is
+    the caller's already-loaded active backend (duck-typed:
+    `.transcribe(path, word_timestamps=...) -> dict` with a `chunks` list of
+    `{"text": ...}`); the model is already warm, so this costs one more short
+    transcribe call, not a fresh load. Falls back to `fallback_text` — never
+    raises — so a re-transcribe failure is a strict no-op, never a regression
+    from the original (matching) behavior.
+    """
+    if asr_backend is None:
+        return fallback_text
+    try:
+        result = asr_backend.transcribe(ref_audio_path, word_timestamps=False)
+        text = " ".join(
+            (c.get("text") or "").strip() for c in (result.get("chunks") or [])
+        ).strip()
+        return text or fallback_text
+    except Exception as e:
+        logger.warning(
+            "speaker_clone: re-transcribe of %s failed, keeping original ref_text: %s",
+            ref_audio_path, e,
+        )
+        return fallback_text
+
+
+def refine_ref_texts(clones: dict[str, dict], asr_backend) -> dict[str, dict]:
+    """Apply `refine_ref_text` to every entry's `ref_text` in place.
+
+    Batches the whole dict (per-speaker `clones` from `extract_speaker_clones`
+    or per-segment `seg_clones` from `extract_segment_refs`) into the single
+    executor round-trip the caller submits to the GPU pool, rather than one
+    dispatch per reference. Mutates and returns `clones` for a convenient
+    call-and-reassign at the call site.
+    """
+    for entry in clones.values():
+        entry["ref_text"] = refine_ref_text(
+            entry["ref_audio"], asr_backend, entry.get("ref_text", "")
+        )
+    return clones
+
+
 # ── Internals ───────────────────────────────────────────────────────────────
 
 

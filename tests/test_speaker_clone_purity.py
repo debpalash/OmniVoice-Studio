@@ -21,6 +21,8 @@ from services.speaker_clone import (
     MIN_SLICE_DURATION_S,
     _pick_reference_slices,
     extract_speaker_clones,
+    refine_ref_text,
+    refine_ref_texts,
 )
 
 SR = 16000
@@ -124,3 +126,83 @@ class TestExtractSpeakerClones:
         # or every real turn boundary would be flagged.
         from services.segmentation import SPEAKER_GAP
         assert 0 < ADJACENT_TURN_GUARD_S < SPEAKER_GAP
+
+
+class _FakeASR:
+    """Stands in for the active ASR backend's .transcribe() — no model, no
+    network. `chunks_by_path` maps a ref_audio path to the canned chunk list
+    that path's re-transcription should return."""
+    def __init__(self, chunks_by_path=None, raises_for=()):
+        self.chunks_by_path = chunks_by_path or {}
+        self.raises_for = set(raises_for)
+        self.calls = []
+
+    def transcribe(self, path, *, word_timestamps=True):
+        self.calls.append(path)
+        if path in self.raises_for:
+            raise RuntimeError("simulated ASR failure")
+        return {"chunks": self.chunks_by_path.get(path, []), "language": "es"}
+
+
+class TestRefineRefText:
+    # Issue #1004: the ASR segment's `text` field and its `[start, end]`
+    # timestamps routinely drift (a trailing word audible in the slice but
+    # missing from the text, or vice versa) — pairing a mismatched (ref_audio,
+    # ref_text) breaks zero-shot TTS prompt priming badly enough that the
+    # clone can speak the reference text verbatim instead of the target text.
+    # Re-transcribing the actual written clip guarantees the pair matches.
+
+    def test_replaces_mismatched_text_with_the_actual_clip_transcript(self):
+        asr = _FakeASR(chunks_by_path={
+            "/tmp/ref.wav": [{"text": "hola"}, {"text": "que tal"}],
+        })
+        out = refine_ref_text("/tmp/ref.wav", asr, fallback_text="mismatched source text")
+        assert out == "hola que tal"
+        assert asr.calls == ["/tmp/ref.wav"]
+
+    def test_falls_back_to_original_text_on_asr_failure(self):
+        asr = _FakeASR(raises_for={"/tmp/ref.wav"})
+        out = refine_ref_text("/tmp/ref.wav", asr, fallback_text="original text")
+        assert out == "original text"
+
+    def test_falls_back_to_original_text_on_empty_transcript(self):
+        # A clip ASR can't get any text out of (e.g. near-silent) shouldn't
+        # wipe out a usable original — empty is worse than stale.
+        asr = _FakeASR(chunks_by_path={"/tmp/ref.wav": []})
+        out = refine_ref_text("/tmp/ref.wav", asr, fallback_text="original text")
+        assert out == "original text"
+
+    def test_no_asr_backend_is_a_strict_no_op(self):
+        # Preflight ASR load failure, or any other reason the caller has no
+        # backend to hand in — never a crash, never blocks the original path.
+        out = refine_ref_text("/tmp/ref.wav", None, fallback_text="original text")
+        assert out == "original text"
+
+
+class TestRefineRefTexts:
+    def test_refines_every_entry_in_place_and_returns_the_dict(self):
+        asr = _FakeASR(chunks_by_path={
+            "/tmp/spk1.wav": [{"text": "hola amigo"}],
+            "/tmp/spk2.wav": [{"text": "buenos dias"}],
+        })
+        clones = {
+            "Speaker 1": {"ref_audio": "/tmp/spk1.wav", "ref_text": "stale 1"},
+            "Speaker 2": {"ref_audio": "/tmp/spk2.wav", "ref_text": "stale 2"},
+        }
+        out = refine_ref_texts(clones, asr)
+        assert out is clones  # mutated in place, returned for call-and-reassign
+        assert clones["Speaker 1"]["ref_text"] == "hola amigo"
+        assert clones["Speaker 2"]["ref_text"] == "buenos dias"
+
+    def test_a_failing_entry_does_not_affect_the_others(self):
+        asr = _FakeASR(
+            chunks_by_path={"/tmp/spk2.wav": [{"text": "buenos dias"}]},
+            raises_for={"/tmp/spk1.wav"},
+        )
+        clones = {
+            "Speaker 1": {"ref_audio": "/tmp/spk1.wav", "ref_text": "kept on failure"},
+            "Speaker 2": {"ref_audio": "/tmp/spk2.wav", "ref_text": "stale 2"},
+        }
+        refine_ref_texts(clones, asr)
+        assert clones["Speaker 1"]["ref_text"] == "kept on failure"
+        assert clones["Speaker 2"]["ref_text"] == "buenos dias"
