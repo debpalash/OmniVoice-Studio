@@ -750,6 +750,51 @@ def set_hf_mirror(body: _HFMirrorBody):
     return {"configured": url, "restart_required": changed, "presets": _HF_MIRROR_PRESETS}
 
 
+# ── OpenAI-compatible remote ASR (#877) ─────────────────────────────────────
+# A path to Qwen3-ASR/FunASR/SenseVoice — or OpenAI's own Whisper API — today,
+# without waiting on transformers to ship a direct Qwen3-ASR integration.
+# base_url/model are plain settings_store text rows; the key is encrypted via
+# settings_store.set_secret — same convention as /llm-providers, never
+# returned to the client, '' clears it, omitted/None leaves it unchanged.
+
+
+class _ASROpenAICompatBody(BaseModel):
+    base_url: str | None = None
+    model: str | None = None
+    api_key: str | None = Field(None, description="'' clears it, None leaves unchanged")
+
+
+@router.get("/asr-openai-compat")
+def get_asr_openai_compat():
+    from services import asr_backend
+
+    return {
+        "base_url": asr_backend.resolve_openai_compat_asr_base_url(),
+        "model": asr_backend.resolve_openai_compat_asr_model(),
+        "has_key": asr_backend.openai_compat_asr_has_key(),
+    }
+
+
+@router.put("/asr-openai-compat")
+def set_asr_openai_compat(body: _ASROpenAICompatBody):
+    from services import asr_backend, settings_store
+
+    if body.base_url is not None:
+        url = body.base_url.strip().rstrip("/")
+        if url and not url.startswith(("http://", "https://")):
+            raise HTTPException(status_code=400, detail="Base URL must start with http(s)://")
+        settings_store.set_text(asr_backend._ASR_OPENAI_COMPAT_BASE_URL_KEY, url)
+    if body.model is not None:
+        settings_store.set_text(
+            asr_backend._ASR_OPENAI_COMPAT_MODEL_KEY, body.model.strip() or "whisper-1"
+        )
+    if body.api_key is not None:
+        settings_store.set_secret(
+            asr_backend._ASR_OPENAI_COMPAT_SECRET_NAME, body.api_key.strip()
+        )
+    return get_asr_openai_compat()
+
+
 # ── Updates panel: shipped changelog + pre-migration DB backup state ────────
 # (feat/safe-updates). Both are read-only, local-first surfaces for
 # Settings → Updates: the "What's new" viewer reads the CHANGELOG.md that

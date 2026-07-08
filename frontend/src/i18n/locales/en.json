@@ -2014,7 +2014,18 @@
     "mirror_preset_hint": "On a restricted network, route model downloads through a mirror. Leave empty for the official endpoint.",
     "mirror_restart_note": "Model Store downloads use the new mirror immediately. Only model loads (transformers) pick it up after a restart.",
     "mirror_load_error": "Failed to load mirror setting",
-    "mirror_save_error": "Failed to save"
+    "mirror_save_error": "Failed to save",
+    "asrOpenAICompatTitle": "OpenAI-compatible ASR (remote server)",
+    "asrOpenAICompatDescription": "Point transcription at Qwen3-ASR, a self-hosted FunASR/SenseVoice server, or OpenAI's own API.",
+    "asrOpenAICompatBaseUrlTitle": "Server URL",
+    "asrOpenAICompatBaseUrlHint": "The base URL of an OpenAI-compatible transcription server. To use this engine, also set OMNIVOICE_ASR_BACKEND=openai-compat-asr — there's no in-app engine picker for ASR yet.",
+    "asrOpenAICompatModelTitle": "Model",
+    "asrOpenAICompatApiKeyTitle": "API key",
+    "asrOpenAICompatApiKeyHint": "Optional — many self-hosted servers don't require one.",
+    "asrOpenAICompatApiKeyOptional": "optional",
+    "asrOpenAICompatKeyConfigured": "A key is saved. Leave blank to keep it, or type a new one to replace it.",
+    "asrOpenAICompatLoadError": "Failed to load ASR server setting",
+    "asrOpenAICompatSaveError": "Failed to save"
   },
   "enterprise_faq": {
     "q_internal_tools": "Do I need a license for internal tools?",

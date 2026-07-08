@@ -18,6 +18,7 @@ DELETE /profiles/{profile_id}/consent
 DELETE /projects/{project_id}
 DELETE /pronunciation/{entry_id}
 GET /api/mcp/bindings
+GET /api/settings/asr-openai-compat
 GET /api/settings/changelog
 GET /api/settings/db-backup
 GET /api/settings/dictation-refinement
@@ -216,6 +217,7 @@ POST /v1/audio/transcriptions
 POST /watermark/detect
 POST /watermark/settings
 PUT /api/mcp/bindings
+PUT /api/settings/asr-openai-compat
 PUT /api/settings/dictation-refinement
 PUT /api/settings/hf-mirror
 PUT /api/settings/llm-endpoint

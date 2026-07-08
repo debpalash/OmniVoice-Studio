@@ -74,6 +74,8 @@ asr_engines:
     readme: FunASR
   - id: sherpa-onnx-asr
     readme: "**sherpa-onnx** (live dictation)"
+  - id: openai-compat-asr
+    readme: "**OpenAI-compatible** ⚠️ remote"
 
 # Doc files that must exist (the install path users are sent to).
 docs:

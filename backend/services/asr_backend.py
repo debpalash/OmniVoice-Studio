@@ -29,6 +29,7 @@ import os
 import re
 import threading
 from abc import ABC, abstractmethod
+from typing import Optional
 
 logger = logging.getLogger("omnivoice.asr")
 
@@ -1634,6 +1635,161 @@ class FunASRBackend(ASRBackend):
             pass
 
 
+# ── OpenAI-compatible remote transcription (#877 — Qwen3-ASR / FunASR / any
+#    compatible server, today, without waiting on transformers to catch up) ──
+#
+# transformers doesn't yet ship a stable Qwen3-ASR integration (issue #877),
+# but a self-hosted Qwen3-ASR/FunASR/SenseVoice server exposing an
+# OpenAI-compatible `POST /v1/audio/transcriptions` endpoint — or OpenAI's own
+# Whisper API — is usable right now. This backend is a pure network client:
+# no model runs locally, so it needs no install and claims no GPU.
+#
+# Settings mirror the LLM-providers convention exactly (services/
+# llm_providers.py): base_url/model are plain settings_store text rows; the
+# API key is Fernet-encrypted via settings_store.set_secret/get_secret — never
+# a .env row, never echoed back to the client. Optional: some self-hosted
+# servers (vLLM, LM Studio-style) don't check the key at all.
+
+_ASR_OPENAI_COMPAT_BASE_URL_KEY = "asr.openai_compat.base_url"
+_ASR_OPENAI_COMPAT_MODEL_KEY = "asr.openai_compat.model"
+_ASR_OPENAI_COMPAT_SECRET_NAME = "asr_openai_compat_key"
+
+
+def resolve_openai_compat_asr_base_url() -> str:
+    from services import settings_store
+    return (
+        os.environ.get("ASR_OPENAI_COMPAT_BASE_URL")
+        or settings_store.get_text(_ASR_OPENAI_COMPAT_BASE_URL_KEY)
+        or ""
+    )
+
+
+def resolve_openai_compat_asr_model() -> str:
+    from services import settings_store
+    return (
+        os.environ.get("ASR_OPENAI_COMPAT_MODEL")
+        or settings_store.get_text(_ASR_OPENAI_COMPAT_MODEL_KEY)
+        or "whisper-1"
+    )
+
+
+def resolve_openai_compat_asr_api_key() -> Optional[str]:
+    """Env → encrypted stored key → None. Unlike LLM providers, no 'local'
+    sentinel: many self-hosted transcription servers accept an empty/omitted
+    Authorization header outright, so the OpenAI SDK is constructed with
+    ``api_key="not-needed"`` (a non-empty placeholder the SDK requires) when
+    this returns None, rather than treating a keyless server as unconfigured.
+    """
+    from services import settings_store
+    return os.environ.get("ASR_OPENAI_COMPAT_API_KEY") or settings_store.get_secret(
+        _ASR_OPENAI_COMPAT_SECRET_NAME
+    )
+
+
+def openai_compat_asr_has_key() -> bool:
+    """Whether a key is configured, without ever decrypting it — mirrors
+    llm_providers.has_key()'s no-plaintext-round-trip contract."""
+    from services import settings_store
+    if os.environ.get("ASR_OPENAI_COMPAT_API_KEY"):
+        return True
+    return _ASR_OPENAI_COMPAT_SECRET_NAME in settings_store.list_secret_names()
+
+
+class OpenAICompatASRBackend(ASRBackend):
+    """Remote transcription via any OpenAI-compatible server.
+
+    Adapts whatever the server returns into this module's expected shape.
+    Prefers `response_format="verbose_json"` for real per-segment timestamps
+    (OpenAI's own API and most compatible servers support it); falls back to
+    plain text with rough single-segment bounds — mirroring
+    MoonshineASRBackend's degraded shape — for minimal servers that reject it.
+    """
+    id = "openai-compat-asr"
+    display_name = "OpenAI-compatible (remote server)"
+    gpu_compat = ("cpu",)  # network client only — no local compute
+
+    def __init__(self):
+        self._base_url = resolve_openai_compat_asr_base_url()
+        self._model = resolve_openai_compat_asr_model()
+
+    @classmethod
+    def is_available(cls) -> tuple[bool, str]:
+        if not resolve_openai_compat_asr_base_url():
+            return False, "Configure a server endpoint in Settings → Engines"
+        try:
+            import openai  # noqa: F401
+        except ImportError:
+            return False, "openai package not installed. Install with: uv pip install openai"
+        return True, "ready"
+
+    def _client(self):
+        from openai import OpenAI
+        api_key = resolve_openai_compat_asr_api_key() or "not-needed"
+        # max_retries=0: mirrors llm_skills.resolve_skill_client — a
+        # rate-limited/slow server retrying inside the SDK would blow past
+        # whatever bounded timeout the caller (dub transcribe, dictation)
+        # expects from a single call.
+        return OpenAI(base_url=self._base_url, api_key=api_key, max_retries=0)
+
+    def transcribe(self, audio_path: str, *, word_timestamps: bool = True) -> dict:
+        logger.info(
+            "OpenAI-compat ASR transcribing %s (base_url=%s, model=%s)",
+            audio_path, self._base_url, self._model,
+        )
+        client = self._client()
+        try:
+            with open(audio_path, "rb") as f:
+                try:
+                    resp = client.audio.transcriptions.create(
+                        file=f, model=self._model, response_format="verbose_json",
+                    )
+                except Exception:
+                    # Minimal/older compatible servers reject verbose_json
+                    # outright — retry plain before treating it as a real
+                    # failure. Re-open: the SDK may have partially consumed
+                    # the file handle on the first attempt.
+                    f.seek(0)
+                    resp = client.audio.transcriptions.create(
+                        file=f, model=self._model, response_format="json",
+                    )
+        except Exception as exc:
+            # Never leak a raw SDK/httpx exception object (auth headers,
+            # connection internals) straight into a user-facing message —
+            # same convention as generation.py's _safe_exc_text (#977 class).
+            raise RuntimeError(
+                f"OpenAI-compatible ASR server at {self._base_url!r} failed: "
+                f"{type(exc).__name__}: {exc}"
+            ) from exc
+        return self._adapt_response(resp)
+
+    @staticmethod
+    def _adapt_response(resp) -> dict:
+        segments_out = []
+        # verbose_json: resp.segments is a list of objects with start/end/text.
+        raw_segments = getattr(resp, "segments", None)
+        if raw_segments:
+            for seg in raw_segments:
+                seg_dict = seg if isinstance(seg, dict) else seg.model_dump()
+                segments_out.append({
+                    "text": (seg_dict.get("text") or "").strip(),
+                    "start": seg_dict.get("start", 0.0),
+                    "end": seg_dict.get("end", 0.0),
+                    "words": [],  # word-level timing isn't part of this API
+                })
+        else:
+            # Plain text response (json/text format) — single-segment shape,
+            # matching MoonshineASRBackend's degraded fallback exactly.
+            text = (getattr(resp, "text", None) or "").strip()
+            if text:
+                segments_out.append({"text": text, "start": 0.0, "end": None, "words": []})
+        chunks = [
+            {"text": seg["text"], "timestamp": (seg["start"], seg["end"])}
+            for seg in segments_out
+        ]
+        language = getattr(resp, "language", None) or "en"
+        return {"chunks": chunks, "segments": segments_out, "language": language}
+
+
 def _isolated_faster_whisper():
     """Lazy import so the subprocess_asr → subprocess_backend chain isn't
     pulled in at registry definition time."""
@@ -1689,6 +1845,7 @@ _REGISTRY: dict[str, type[ASRBackend]] = _LazyASRRegistry({
     "moonshine":       MoonshineASRBackend,
     "funasr":          FunASRBackend,
     "sherpa-onnx-asr": SherpaDictationBackend,
+    "openai-compat-asr": OpenAICompatASRBackend,
     # "faster-whisper-isolated": resolved lazily (crash-isolated subprocess).
 })
 
@@ -1713,6 +1870,13 @@ _INSTALL_HINTS: dict[str, str] = {
     "moonshine":       "pip install useful-moonshine  (edge/CPU-optimized ASR)",
     "funasr":          "pip install funasr  (SenseVoiceSmall + FSMN-VAD; CUDA or CPU)",
     "sherpa-onnx-asr": "uv add sherpa-onnx  (ONNX live dictation; CPU, cross-platform)",
+    "openai-compat-asr": (
+        "No install needed — configure a server endpoint in Settings → "
+        "Engines. Points OmniVoice at any OpenAI-compatible transcription "
+        "server (a self-hosted Qwen3-ASR/FunASR/SenseVoice server, OpenAI's "
+        "own Whisper API, or similar) — a path to Qwen3-ASR today, without "
+        "waiting on a direct transformers integration."
+    ),
     "faster-whisper-isolated": (
         "No extra install (reuses faster-whisper). Escape hatch for hanging "
         "transcribes: runs ASR in a separate process that can be force-killed "

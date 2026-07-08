@@ -322,10 +322,10 @@ Professional-grade voice AI, minus the subscription and the cloud.
 
 ### 🎧 ASR Engines
 
-**9 engines, all fully local** — they power dictation, video dubbing, and subtitles. **WhisperX** is the cross-platform default (~100 languages, word-level timing); the rest are opt-in and auto-detected. Switch in **Settings → ASR Engine** or via the `OMNIVOICE_ASR_BACKEND` env var.
+**10 engines** — they power dictation, video dubbing, and subtitles. **WhisperX** is the cross-platform default (~100 languages, word-level timing); the rest are opt-in and auto-detected. Switch in **Settings → ASR Engine** or via the `OMNIVOICE_ASR_BACKEND` env var. Nine run fully on-device; one (OpenAI-compatible) is an optional remote client for pointing at Qwen3-ASR or another compatible server — see below.
 
 <details>
-<summary><b>📊 The full lineup</b> — 9 engines, what each is best at, and compute-type notes</summary>
+<summary><b>📊 The full lineup</b> — 10 engines, what each is best at, and compute-type notes</summary>
 
 <br/>
 
@@ -340,6 +340,7 @@ Professional-grade voice AI, minus the subscription and the cloud.
 | **Moonshine** | `moonshine` | English | Edge / low-latency, ONNX |
 | **FunASR** | `funasr` | 50+ | All-in-one multilingual — built-in VAD + inline speaker diarization (SenseVoice) |
 | **sherpa-onnx** (live dictation) | `sherpa-onnx-asr` | 25 EU + 90+ | Live, faster-than-real-time dictation — small streaming/offline ONNX models (Parakeet TDT v3/v2, streaming Zipformer & Paraformer, Whisper Tiny), CPU, identical on macOS / Windows / Linux. Picked per-model in **Settings → Voice**. |
+| **OpenAI-compatible** ⚠️ remote | `openai-compat-asr` | Server-dependent | A path to **Qwen3-ASR** today (self-hosted server, no transformers wait), any OpenAI-compatible transcription endpoint, or OpenAI's own API — no install, configure in **Settings → Models**. Audio leaves your machine to whatever server you point it at; see [docs/engines/openai-compatible-asr.md](docs/engines/openai-compatible-asr.md). |
 
 > Whisper-family engines cover ~100 languages; **FunASR / SenseVoice** adds an all-in-one multilingual path with built-in voice-activity detection and inline speaker diarization. **sherpa-onnx** powers the live dictation model picker — you talk and text appears as you speak. Every engine runs on-device — no API keys, no cloud.
 
