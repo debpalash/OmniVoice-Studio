@@ -72,6 +72,56 @@ run_case "2.46 (broken)"          "2.46.1" "1"
 run_case "2.48 (healthy)"         "2.48.0" "unset"
 run_case "pkg-config absent"      "0.0"    "1"     "no"
 
+# ── Bundled-version marker cases (#961 follow-up) ───────────────────────────
+# inject-apprun.sh stamps the bundle's actual WebKitGTK version into
+# .bundled-webkitgtk-version at build time; AppRun must prefer that marker
+# over the host's pkg-config (which reports the SYSTEM version — wrong
+# whenever it diverges from the bundled copy, e.g. on a machine with newer
+# dev packages installed).
+
+run_marker_case() {
+  local label="$1" marker_content="$2" pkg_output="$3" expected="$4"
+  local marker_file
+  marker_file="$(mktemp)"
+  printf '%s\n' "$marker_content" > "$marker_file"
+
+  local actual
+  actual=$(
+    bash -c '
+      set +e
+      pkg_output="'"$pkg_output"'"
+      export OMNIVOICE_APPRUN_WK_MARKER="'"$marker_file"'"
+
+      pkg-config() { echo "$pkg_output"; }
+      export -f pkg-config
+
+      exec() { :; }
+      export -f exec
+
+      # shellcheck disable=SC1090
+      source "'"$THIS_DIR"'/AppRun" >/dev/null 2>&1 || true
+      echo "${WEBKIT_DISABLE_COMPOSITING_MODE:-unset}"
+    '
+  )
+  rm -f "$marker_file"
+
+  if [[ "$actual" == "$expected" ]]; then
+    echo "PASS [$label]"
+    PASS_COUNT=$((PASS_COUNT + 1))
+  else
+    echo "FAIL [$label]: expected '$expected' got '$actual'" >&2
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+  fi
+}
+
+# Marker says broken → workaround applies, even though host pkg-config says healthy.
+run_marker_case "marker 2.46 beats host 2.48"  "2.46.1" "2.48.0" "1"
+# Marker says healthy → no workaround, even though host pkg-config says broken
+# (the exact #961 inversion: from-source user with old system lib, new bundle).
+run_marker_case "marker 2.48 beats host 2.44"  "2.48.0" "2.44.3" "unset"
+# Empty marker → treated as unknown → fail-safe workaround.
+run_marker_case "empty marker fails safe"      ""       "2.48.0" "1"
+
 echo
 echo "─── AppRun test summary: $PASS_COUNT pass / $FAIL_COUNT fail ───"
 if [[ $FAIL_COUNT -ne 0 ]]; then

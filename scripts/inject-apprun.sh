@@ -42,6 +42,23 @@ for stage_base in "$STAGE_BASE_RELEASE" "$STAGE_BASE_DEBUG"; do
       echo "inject-apprun: replacing AppRun in $appdir"
       cp -f "$APPRUN_SRC" "$appdir/AppRun"
       chmod 755 "$appdir/AppRun"
+      # Stamp the bundled WebKitGTK version (#961 follow-up). The AppImage
+      # bundles THIS build host's libwebkit2gtk, so the host's pkg-config
+      # answer here is the version the shipped bundle will actually run —
+      # knowable by construction at bundle time, unknowable reliably at
+      # runtime (a user's pkg-config reports their SYSTEM's version, which
+      # LD_LIBRARY_PATH overrides with the bundled copy). AppRun's workaround
+      # auto-detection reads this marker first and only falls back to host
+      # pkg-config when the marker is absent (bundles predating the stamp).
+      wk_bundled="$(pkg-config --modversion webkit2gtk-4.1 2>/dev/null \
+                 || pkg-config --modversion webkit2gtk-4.0 2>/dev/null \
+                 || echo "")"
+      if [ -n "$wk_bundled" ]; then
+        printf '%s\n' "$wk_bundled" > "$appdir/.bundled-webkitgtk-version"
+        echo "inject-apprun: stamped bundled WebKitGTK version: $wk_bundled"
+      else
+        echo "inject-apprun: WARNING — could not read the bundled WebKitGTK version (pkg-config missing?); AppRun will use its runtime fallback" >&2
+      fi
       found=1
     fi
   done

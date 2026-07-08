@@ -77,6 +77,28 @@ Download the latest MSI from the
 run it, follow the wizard. The shortcut lands in the Start menu as
 **OmniVoice Studio**.
 
+### Installing to a different drive
+
+<a id="install-other-drive"></a>
+
+The wizard's **directory picker** lets you install the app to any **local**
+drive (D:, E:, …). Two caveats:
+
+- **Mapped network drives (Z: → a share) are not supported** — this is a
+  Windows Installer limitation, not an OmniVoice bug: MSI custom actions run
+  as a service account that doesn't see per-user drive mappings, so the
+  install fails or rolls back. Install to a local drive instead.
+- The install location only moves the ~200 MB app itself. The big data
+  (models, voices, projects — tens of GB) lives in the **data directory**,
+  which you move independently: **Settings → Storage → Models directory**
+  in-app, or `OMNIVOICE_DATA_DIR` / [Portable mode](#portable-install) for
+  the whole data tree.
+
+If an install to a local non-C: drive fails anyway, capture a log with
+`msiexec /i OmniVoice*.msi /L*V install.log` and
+[open an issue](https://github.com/debpalash/OmniVoice-Studio/issues) with it
+— that log shows exactly which step rolled back.
+
 ## Portable install (Windows)
 
 <a id="portable-install"></a>

@@ -8,6 +8,14 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Linux AppImage's white-screen auto-workaround now checks the right WebKitGTK.** The launcher decided whether to apply the compositing workaround by asking the *system's* `pkg-config` — but the version that actually runs is the *bundled* one, which the AppImage prioritizes. On any machine where the two diverge (e.g. building from source with newer dev packages installed), the detection read the wrong number and could skip a workaround the running library needed. The build now stamps the bundled version into the AppImage at package time, and the launcher reads that stamp — correct by construction. The launcher's shell tests also now run in CI, which they previously never did. (#961 follow-up)
+
+### Docs
+
+- **Windows: installing to a different drive is documented** — the wizard's directory picker works for any local drive; mapped network drives are a Windows Installer limitation (not installable-to by design); and the big data (models/voices) moves independently via Settings → Storage or Portable mode. (#938)
+
 ## [0.3.13] — 2026-07-09
 
 The community-fixes release. Two contributors didn't just report bugs — they diagnosed them to the exact line and submitted the fixes that shipped: **voice cloning on mlx-audio's CSM model works for the first time**, and **macOS live recording finally gets its microphone permission prompt** (both @MahdiHedhli). A third reporter's A/B analysis fixed **cross-language dubs speaking the wrong language**. On top of that: a backend shutdown race that produced confusing crash-on-quit reports is fixed, the Linux AppImage stops shipping a stale WebKitGTK that white-screened current distros, and a new OpenAI-compatible transcription backend opens a path to Qwen3-ASR today. Thank you to everyone who filed, diagnosed, and contributed — this release is mostly yours.
