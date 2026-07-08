@@ -8,6 +8,10 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+## [0.3.13] — 2026-07-09
+
+The community-fixes release. Two contributors didn't just report bugs — they diagnosed them to the exact line and submitted the fixes that shipped: **voice cloning on mlx-audio's CSM model works for the first time**, and **macOS live recording finally gets its microphone permission prompt** (both @MahdiHedhli). A third reporter's A/B analysis fixed **cross-language dubs speaking the wrong language**. On top of that: a backend shutdown race that produced confusing crash-on-quit reports is fixed, the Linux AppImage stops shipping a stale WebKitGTK that white-screened current distros, and a new OpenAI-compatible transcription backend opens a path to Qwen3-ASR today. Thank you to everyone who filed, diagnosed, and contributed — this release is mostly yours.
+
 ### Added
 
 - **A path to Qwen3-ASR today: generic OpenAI-compatible transcription.** The direct integration is still blocked on `transformers>=5.13` stabilizing upstream, but a community member proposed splitting the work — add a backend that talks to any OpenAI-compatible transcription server right now. Point OmniVoice at a self-hosted Qwen3-ASR/FunASR/SenseVoice server, or OpenAI's own API, configured in Settings → Models. No install; audio does leave your machine to whichever server you configure, unlike every other ASR engine. (#877)
