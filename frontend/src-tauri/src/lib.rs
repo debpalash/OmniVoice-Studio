@@ -79,9 +79,18 @@ pub const TRAY_ICON_RECORDING: &[u8] = include_bytes!("../icons/tray-recording.p
 //   applies on top.
 // - Linux (WebKitGTK): media-stream must be enabled per-WebView and the
 //   permission request answered programmatically.
-// - macOS (WKWebView): nothing to do here — wry grants media-capture to the
-//   app origin and the user-visible consent is the system TCC prompt driven
-//   by NSMicrophoneUsageDescription in src-tauri/Info.plist.
+// - macOS (WKWebView): nothing to do here in code — wry's own WKUIDelegate
+//   (WryWebViewUIDelegate::request_media_capture_permission) already grants
+//   every media-capture request unconditionally at the WebKit/JS layer. But
+//   that alone isn't sufficient (#1013): Tauri's macOS bundle defaults
+//   `hardenedRuntime` to true, and Hardened Runtime blocks camera/microphone
+//   hardware access unless the matching entitlement is present — without it,
+//   TCC never even registers a request, so the app never appears in System
+//   Settings → Privacy & Security → Microphone for the user to enable. See
+//   src-tauri/entitlements.plist (wired in via tauri.conf.json's
+//   bundle.macOS.entitlements) for the actual grant; NSMicrophoneUsageDescription
+//   in Info.plist only supplies the *prompt text* TCC shows, it doesn't
+//   substitute for the entitlement.
 
 /// True for origins the app itself serves: the Tauri custom-protocol origin
 /// in production and the Vite dev server / loopback in `tauri dev`.
