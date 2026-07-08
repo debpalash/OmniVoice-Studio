@@ -73,9 +73,6 @@ export default function NavRail({ mode, setMode, side = 'left', onFlipSide }) {
     [t],
   );
 
-  const donateLabel = t('donate.pill', { defaultValue: 'Support OmniVoice' });
-  const donateActive = mode === 'donate';
-
   // `nav-rail` is retained purely as the layout hook the (out-of-scope)
   // `.app-container > .nav-rail` grid rules position by; all visual styling now
   // lives in the utilities below. Border flips to the inner edge when on the right.
@@ -83,17 +80,6 @@ export default function NavRail({ mode, setMode, side = 'left', onFlipSide }) {
     side === 'right'
       ? '[border-left:1px_solid_var(--chrome-border)]'
       : '[border-right:1px_solid_var(--chrome-border)]';
-
-  // Quiet "Support" pill (was `.rail-btn.donate-pill`): neutral at rest, warms to
-  // the accent on hover/active.
-  const donateState = donateActive
-    ? 'text-[var(--chrome-accent)] bg-[var(--chrome-accent-bg)] [border:1px_solid_var(--chrome-accent-border)]'
-    : 'bg-transparent text-[var(--chrome-fg-dim)] [border:1px_solid_transparent] hover:bg-[color-mix(in_srgb,var(--chrome-accent)_10%,transparent)] hover:text-[var(--chrome-accent)]';
-  const heartBase =
-    'text-[16px] leading-none [transition:filter_0.16s,opacity_0.16s,transform_0.16s] group-hover:[transform:scale(1.1)] motion-reduce:[transition:none] motion-reduce:group-hover:[transform:none]';
-  const heartState = donateActive
-    ? 'opacity-100 [filter:grayscale(0)]'
-    : 'opacity-75 [filter:grayscale(0.55)] group-hover:opacity-100 group-hover:[filter:grayscale(0)]';
 
   return (
     <aside
@@ -111,19 +97,6 @@ export default function NavRail({ mode, setMode, side = 'left', onFlipSide }) {
         ))}
       </div>
       <div className="flex flex-col items-center gap-[4px]">
-        {/* Quiet "Support" pill — warms to the accent on hover, opens the
-            donate page. Sits with the footer nav (Settings / flip). (#007) */}
-        <button
-          onClick={() => setMode('donate')}
-          title={donateLabel}
-          aria-label={donateLabel}
-          className={`${RAIL_BTN_BASE} ${donateState}`}
-        >
-          <span className={`${heartBase} ${heartState}`} aria-hidden="true">
-            🩷
-          </span>
-          <span className={railLabelCls(side)}>{donateLabel}</span>
-        </button>
         {footerItems.map((it) => (
           <RailBtn
             key={it.id}

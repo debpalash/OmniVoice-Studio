@@ -351,7 +351,14 @@ function WaveformTimeline(
         console.warn('WebKit audio decode not supported, using media element directly');
         try {
           const emptyPeaks = new Float32Array(1000).fill(0);
-          ws.load(undefined, [emptyPeaks], mediaEl.duration || 60);
+          // Don't rely solely on the 'ready' event firing again for this
+          // recovery load — the play button stayed permanently disabled
+          // when it didn't (the waveform still rendered from the peaks, so
+          // there was no visible sign anything was wrong). Confirm
+          // readiness explicitly once this load settles either way.
+          Promise.resolve(ws.load(undefined, [emptyPeaks], mediaEl.duration || 60))
+            .then(() => setReady(true))
+            .catch(() => setReady(true));
         } catch (_) {
           setReady(true);
         }
@@ -372,7 +379,12 @@ function WaveformTimeline(
           })
           .then((audioBuffer) => {
             const channelData = audioBuffer.getChannelData(0);
-            ws.load(undefined, [channelData], audioBuffer.duration);
+            // Same explicit-readiness guard as the NotSupportedError branch
+            // above — don't depend on the 'ready' event re-firing for this
+            // manually-decoded recovery load.
+            Promise.resolve(ws.load(undefined, [channelData], audioBuffer.duration))
+              .then(() => setReady(true))
+              .catch(() => setReady(true));
           })
           .catch((decodeErr) => {
             // HTTP 404 on the companion audio means the source file is
@@ -391,7 +403,9 @@ function WaveformTimeline(
             console.warn('Audio decode fallback failed, loading with empty peaks:', decodeErr);
             try {
               const emptyPeaks = new Float32Array(1000).fill(0);
-              ws.load(undefined, [emptyPeaks], mediaEl.duration || 60);
+              Promise.resolve(ws.load(undefined, [emptyPeaks], mediaEl.duration || 60))
+                .then(() => setReady(true))
+                .catch(() => setReady(true));
             } catch (_) {
               setLoadError(true);
             }
