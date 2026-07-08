@@ -24,7 +24,7 @@ from pathlib import Path
 # tests/test_app_version.py::test_all_version_files_in_lockstep and bumped by
 # release.yml's version-bump job, so it stays equal to
 # pyproject/tauri.conf/Cargo/package.json.
-_FALLBACK_VERSION = "0.3.11"
+_FALLBACK_VERSION = "0.3.12"
 
 
 def _fallback_version() -> str:
