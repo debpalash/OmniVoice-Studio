@@ -11,7 +11,11 @@ import { generateSpeech, audioUrlWithCacheBust } from '../api/generate';
 import { apiFetch } from '../api/client';
 import { playBlobAudio } from '../utils/media';
 import { PRESETS } from '../utils/constants';
-import { instructToFormValue, mergeDescribedAttrs } from '../utils/voiceInstruct';
+import {
+  instructToFormValue,
+  mergeDescribedAttrs,
+  buildDesignInstruct,
+} from '../utils/voiceInstruct';
 import { askConfirm } from '../utils/dialog';
 import { toast } from 'react-hot-toast';
 import { recordValueMoment } from '../utils/donationMoments';
@@ -55,7 +59,12 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
       const safeBlob = new Blob([arrBuf], { type: refAudio.type });
       formData.append('ref_audio', safeBlob, refAudio.name || 'profile.wav');
       formData.append('ref_text', refText);
-      formData.append('instruct', instruct);
+      // #1010: the backend only sanitizes instruct on save for kind='design'
+      // profiles — a clone profile (this call always creates kind='clone')
+      // would silently persist an unsupported free-text instruct and then
+      // 400 every single time it's used to generate. Filter here too.
+      const { instruct: safeInst } = buildDesignInstruct({}, instruct);
+      formData.append('instruct', safeInst);
       formData.append('language', language);
       try {
         await createProfile(formData);
@@ -204,6 +213,25 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
           fin_prof = '';
         }
 
+        // #1010: this instruct string comes straight from segment/preset data,
+        // never through the validator-safe builder — a preset's raw attrs or a
+        // free-text style field can carry phrases outside the active engine's
+        // supported instruct vocabulary, 400ing instead of previewing. Same
+        // client-side guard useTTS.js already applies to the clone path.
+        if (fin_inst) {
+          const { instruct: safeInst, unsupported, duplicates } = buildDesignInstruct({}, fin_inst);
+          if (unsupported.length) {
+            toast(t('tts_errors.ignored_unsupported', { items: unsupported.join(', ') }), {
+              icon: '⚠️',
+            });
+          }
+          if (duplicates.length) {
+            toast(t('tts_errors.ignored_duplicate', { items: duplicates.join(', ') }), {
+              icon: '⚠️',
+            });
+          }
+          fin_inst = safeInst;
+        }
         if (fin_prof) formData.append('profile_id', fin_prof);
         if (fin_inst) formData.append('instruct', fin_inst);
         const fin_lang = seg.target_lang || dubLang;
@@ -245,7 +273,10 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
             : item.text
           : '';
         formData.append('ref_text', extractedText);
-        formData.append('instruct', item.instruct || '');
+        // #1010: same guard as handleSaveProfile — this always creates a
+        // kind='clone' profile, which the backend never sanitizes on save.
+        const { instruct: safeHistInst } = buildDesignInstruct({}, item.instruct || '');
+        formData.append('instruct', safeHistInst);
         formData.append('language', item.language || 'Auto');
         if (item.seed !== undefined && item.seed !== null) {
           formData.append('seed', item.seed);
