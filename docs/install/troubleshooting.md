@@ -445,6 +445,35 @@ quit OmniVoice Studio, delete the folder below, then start the app again.
 Remove-Item -Recurse -Force "$env:LOCALAPPDATA\com.debpalash.omnivoice-studio\EBWebView"
 ```
 
+## 16. macOS: microphone permission never prompts, OmniVoice never appears in System Settings
+
+**Symptom:** clicking record shows "Microphone access denied. macOS: open
+System Settings → Privacy & Security → Microphone and enable OmniVoice" —
+but OmniVoice never appears in that list, so there's nothing to enable.
+`NSMicrophoneUsageDescription` is present in the app's `Info.plist`, and
+resetting the permission (`tccutil reset Microphone
+com.debpalash.omnivoice-studio`) followed by a relaunch changes nothing — no
+system prompt ever appears.
+
+**Cause:** an upstream Tauri/WebKit limitation, not an OmniVoice bug. On
+macOS, WKWebView (the engine behind Tauri's desktop window) only forwards a
+page's `getUserMedia()` call to the OS permission system (TCC) if the native
+app implements a `WKUIDelegate` media-capture-permission handler — without
+one, WebKit denies the request internally before macOS's TCC layer ever sees
+it, which is also why the app never appears in the System Settings list (TCC
+only lists apps that have actually made a request). This is tracked upstream:
+[wry#1195](https://github.com/tauri-apps/wry/issues/1195),
+[tauri#11951](https://github.com/tauri-apps/tauri/issues/11951) — the fix
+([wry#1196](https://github.com/tauri-apps/wry/pull/1196)) is still open and
+unmerged as of this writing, so there's no released Tauri/wry version to
+bump to yet.
+
+**Workaround:** record your voice sample in any other app (Voice Memos,
+QuickTime, etc.) and upload the resulting file in OmniVoice instead of using
+live recording — upload-based cloning is unaffected and works normally.
+
+**Linked issue:** [#1013](https://github.com/debpalash/OmniVoice-Studio/issues/1013)
+
 ## Dub: "translation engine needs the optional … package"
 
 **Symptom:** in the Dub tab, translating fails with e.g. *"The 'google'
