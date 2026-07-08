@@ -504,6 +504,35 @@ async def _start_mcp_session_manager(session_manager, *, timeout: float):
     return task, stop, mounted
 
 
+async def _cancel_and_await_tasks(*tasks, timeout: float = 3.0) -> None:
+    """Cancel each background task and give it a bounded chance to actually
+    finish before shutdown proceeds — ``None`` entries are skipped (a task
+    that's conditionally created, e.g. ``capture_preload_task``, may not
+    exist).
+
+    ``task.cancel()`` alone is not enough for a task awaiting
+    ``run_in_executor()``: once the underlying OS thread is inside blocking
+    native/import work, cancellation can't stop it, so cancel-and-move-on lets
+    shutdown finish while that thread is still running — invisible to
+    asyncio, but very much alive when the interpreter starts tearing down
+    module state under it (#1000 class). Awaiting with a bound (instead of
+    just cancelling) gives an early-stage task a real chance to exit cleanly
+    first; a task that's genuinely still deep in blocking work times out here
+    same as before, and the caller's own GPU-pool reset handles that case.
+    """
+    for t in tasks:
+        if t is None:
+            continue
+        t.cancel()
+    for t in tasks:
+        if t is None:
+            continue
+        try:
+            await asyncio.wait_for(t, timeout=timeout)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            pass
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup watchdog (#632): a silent hang during startup (e.g. a model-load /
@@ -578,6 +607,7 @@ async def lifespan(app: FastAPI):
     # lean and the first dictation is instant instead of a cold model load.
     # OMNIVOICE_PRELOAD_CAPTURE_ASR=0 opts out; the warm-up is also skipped
     # under 4 GB free RAM (checked at warm time, not boot time).
+    capture_preload_task = None  # only assigned when the preload actually runs (#1000 class)
     if _env_flag("OMNIVOICE_PRELOAD_CAPTURE_ASR", default=True):
         async def _preload_capture_asr():
             await asyncio.sleep(_capture_preload_delay_s())
@@ -646,14 +676,21 @@ async def lifespan(app: FastAPI):
             pass
         except Exception:
             pass
-    idle_task.cancel()
-    worker_task.cancel()
-    # Wait for tasks to finish their current iteration
-    for t in (idle_task, worker_task):
-        try:
-            await asyncio.wait_for(t, timeout=3.0)
-        except (asyncio.CancelledError, asyncio.TimeoutError):
-            pass
+    # preload_task/capture_preload_task matter most here (#1000 class): a quit
+    # mid-preload used to fall straight through to "Shutdown: done." while the
+    # model load was still running on a GPU-pool thread — cancel() can't stop
+    # a thread already inside blocking import/load work, so the process
+    # reported a clean exit while that background thread was still mid-
+    # `import transformers`, and got torn down by interpreter finalization
+    # instead. That surfaced as a misleading "Could not import module
+    # 'AutoFeatureExtractor'" — transformers' own generic lazy-import wrapper,
+    # not a real dependency problem. Awaiting here lets an early-stage load
+    # (still importing, not yet mid weight-download) finish cleanly before we
+    # report done; a load that's genuinely deep into a multi-GB download still
+    # times out — _reset_gpu_pool() below abandons it either way.
+    await _cancel_and_await_tasks(
+        idle_task, worker_task, preload_task, capture_preload_task, timeout=3.0,
+    )
     # Unload the model and free GPU memory
     try:
         import services.model_manager as mm
@@ -661,6 +698,10 @@ async def lifespan(app: FastAPI):
             mm.model = None
             logger.info("Shutdown: model unloaded.")
         mm.free_vram()
+        # Abandon a still-running preload's GPU-pool thread (Python can't kill
+        # a thread mid blocking call) so it can't outlive this shutdown block
+        # holding a reference into module state that's about to be torn down.
+        mm._reset_gpu_pool()
     except Exception:
         pass
     # Run GC to release any remaining references

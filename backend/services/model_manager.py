@@ -957,7 +957,13 @@ def _load_model_sync():
         except Exception:  # never let failure-formatting mask the real error
             err_msg = str(exc)
         _set_loading("error", "Model loading failed", error=err_msg)
-        logger.error("Model loading failed: %s", str(exc))
+        # #1000 class: transformers' lazy-import machinery wraps ANY disruption
+        # to an inner import (including one interrupted by process teardown)
+        # in a generic "Could not import module X. Are this object's
+        # requirements defined correctly?" — logging only str(exc) discarded
+        # the real cause in __cause__/__context__ and made a shutdown race
+        # look like a broken install. exc_info surfaces the full chain.
+        logger.error("Model loading failed: %s", str(exc), exc_info=exc)
         raise
     finally:
         unregister_listener(lid)
@@ -1089,7 +1095,11 @@ async def preload_model():
                 model = await _load_model_with_timeout()
         logger.info("Preload complete — model ready.")
     except Exception as e:
-        logger.warning("Model preload failed (non-fatal): %s", e)
+        # See the matching exc_info note on the _load_model_sync handler above
+        # (#1000 class) — the full chain, not just str(e), is what actually
+        # distinguishes a real dependency problem from a shutdown-interrupted
+        # import.
+        logger.warning("Model preload failed (non-fatal): %s", e, exc_info=e)
 
 def get_model_status():
     is_loaded = model is not None
