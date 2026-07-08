@@ -22,9 +22,16 @@ consistent with waiting on a download, not compute. Once the checkpoint is cache
 request succeeds in ~1s (reproduced 5x: 1.574s / 1.034s / 1.065s / 0.995s / 0.911s).
 
 **Workaround (no code change needed, both already exist):**
-- For headless/API-only setups, call `POST /models/install` to pre-fetch the checkpoint before
-  your first real TTS request, or
-- Raise `OMNIVOICE_GENERATE_TIMEOUT_S` for the first request.
+- For headless/API-only setups, pre-fetch the checkpoint before your first real TTS request:
+  ```bash
+  curl -X POST http://localhost:8000/models/install \
+    -H "Content-Type: application/json" \
+    -d '{"repo_id": "k2-fsa/OmniVoice"}'
+  ```
+  (`repo_id` is required — `InstallModelRequest` in `backend/api/schemas.py` rejects a bare/empty
+  body — and must match one of the entries in `KNOWN_MODELS`, e.g. the default engine's
+  `k2-fsa/OmniVoice`.) Progress streams over the existing `/setup/download-stream` SSE feed.
+- Or raise `OMNIVOICE_GENERATE_TIMEOUT_S` for the first request.
 
 ## OpenAI-compatible endpoint doesn't expose `num_step` / `guidance_scale`
 
