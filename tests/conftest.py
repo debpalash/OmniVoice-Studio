@@ -37,6 +37,38 @@ if not os.environ.get("OMNIVOICE_ENV_FILE"):
 
 
 import pytest
+import warnings as _warnings
+
+
+# ── torch default-dtype isolation (CI flaky trio) ───────────────────────────
+# Three tests (test_effects_chain / test_generation_audio_guard /
+# test_persona_bundle) fail intermittently on CI — never locally — with
+# signatures that all trace to one cause: a leaked
+# `torch.set_default_dtype(torch.float16)` from some earlier test. The
+# smoking gun is test_generation_audio_guard's observed value
+# 0.0999755859375, which is exactly float16(0.1): `torch.tensor([0.1, …])`
+# built under a leaked fp16 default. The same leak collapses
+# test_effects_chain's preset differences into identical quantized outputs,
+# and hands test_persona_bundle's soundfile writer fp16 data libsndfile
+# can't encode. The polluter only executes on CI-Linux (it never reproduces
+# on macOS), so rather than chase it blind, this guard makes the whole leak
+# class impossible — same philosophy as the LLM-state guard below — and
+# names the offender in CI output when it fires, so it CAN be chased.
+@pytest.fixture(autouse=True)
+def _torch_default_dtype_guard(request):
+    yield
+    torch = sys.modules.get("torch")
+    if torch is None:
+        return
+    if torch.get_default_dtype() is not torch.float32:
+        _warnings.warn(
+            f"{request.node.nodeid} leaked torch default dtype "
+            f"{torch.get_default_dtype()} — resetting to float32. This is "
+            f"the polluter behind the CI flaky trio; fix it at the source.",
+            stacklevel=1,
+        )
+        torch.set_default_dtype(torch.float32)
+
 
 # ── LLM-provider state isolation (issue #878) ──────────────────────────────
 # LLM provider selection is process-global three ways: env vars (the
