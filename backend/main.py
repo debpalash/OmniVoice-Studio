@@ -688,8 +688,20 @@ async def lifespan(app: FastAPI):
     # (still importing, not yet mid weight-download) finish cleanly before we
     # report done; a load that's genuinely deep into a multi-GB download still
     # times out — _reset_gpu_pool() below abandons it either way.
+    #
+    # 20s, not the original 3s (code-review finding post-merge): a cold
+    # transformers import alone can take longer than 3s on a slow disk or a
+    # first-ever launch, so the original bound left a real residual window —
+    # cancellation detaches the asyncio task, but the underlying OS thread
+    # keeps running past it, and shutdown could still report "done" while
+    # that thread was alive. Python cannot forcibly kill a running thread, so
+    # no finite bound eliminates this outright — 20s just shrinks the window
+    # from "any preload" to "an unusually slow cold-import," which is the
+    # practical ceiling before a longer shutdown itself becomes the
+    # complaint. A thread that's still running past 20s was never going to
+    # finish in a shutdown-appropriate timeframe regardless.
     await _cancel_and_await_tasks(
-        idle_task, worker_task, preload_task, capture_preload_task, timeout=3.0,
+        idle_task, worker_task, preload_task, capture_preload_task, timeout=20.0,
     )
     # Unload the model and free GPU memory
     try:

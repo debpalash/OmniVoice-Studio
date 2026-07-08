@@ -110,3 +110,34 @@ def test_multiple_tasks_are_all_cancelled_before_any_await():
 
     _run(_scenario())
     assert set(cancelled_order) == {"slow", "fast"}
+
+
+def test_production_shutdown_wait_is_generous_enough_for_a_cold_import():
+    """Post-merge code-review finding (Greptile, PR #1002): the original 3s
+    bound left a real residual window — cancelling the asyncio task doesn't
+    stop the underlying OS thread, so a cold transformers import taking
+    longer than the bound could still let shutdown report "done" while that
+    thread was alive, the exact #1000 class again just with lower odds.
+    Python can't forcibly kill a running thread, so no finite bound
+    eliminates this outright — this pins the production call site to a
+    materially more generous wait (20s, not 3s) rather than letting a future
+    edit quietly shrink it back down without deliberate consideration.
+
+    Source-level guard, not a live-timing test: driving an actual >3s cold
+    import through this suite would make it slow and environment-dependent
+    for no real benefit.
+    """
+    import re
+
+    src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                             "backend", "main.py")).read()
+    call = re.search(
+        r"await _cancel_and_await_tasks\(\s*idle_task,\s*worker_task,\s*preload_task,"
+        r"\s*capture_preload_task,\s*timeout=([\d.]+),?\s*\)",
+        src,
+    )
+    assert call, "production shutdown call site not found in main.py"
+    assert float(call.group(1)) >= 15.0, (
+        f"shutdown wait bound regressed to {call.group(1)}s — see PR #1002 review history "
+        "before shrinking this"
+    )

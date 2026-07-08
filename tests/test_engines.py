@@ -400,6 +400,27 @@ def test_mlx_audio_generate_omits_ref_text_without_ref_audio():
     assert "ref_text" not in captured
 
 
+def test_mlx_audio_generate_design_path_unaffected_without_any_ref():
+    # Absorbed from community PR #1015 (MahdiHedhli) — the design/instruct
+    # path (no ref_audio, no ref_text at all) must stay untouched by the
+    # ref_text forwarding fix; neither kwarg may leak into the model call.
+    pytest.importorskip("mlx_audio", reason="mlx-audio is Apple-Silicon-only")
+    backend = tts_backend.MLXAudioBackend()
+    backend._ensure_loaded = lambda: None
+
+    captured = {}
+
+    def _fake_generate(**kw):
+        captured.update(kw)
+        return iter([types.SimpleNamespace(audio=__import__("numpy").zeros(4))])
+
+    backend._model = types.SimpleNamespace(generate=_fake_generate)
+    backend.generate("hello")
+
+    assert "ref_text" not in captured
+    assert "ref_audio" not in captured
+
+
 def test_mlx_audio_generate_auto_language_skips_lang_code_entirely():
     # Matches the "Auto" convention other engines in this file use
     # (OmniVoiceBackend.generate(), _run_backend_inference) — never resolved,
