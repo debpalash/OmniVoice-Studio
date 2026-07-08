@@ -976,6 +976,22 @@ async def dub_transcribe_stream(
             from services.speaker_clone import extract_speaker_clones, auto_profile_id
             vocals_for_clone = job.get("vocals_path") or asr_audio_target
             clones = {}
+
+            def _ref_transcriber(path: str) -> str:
+                # Re-transcribe the exact written reference clip so its
+                # (ref_audio, ref_text) pair matches by construction — the
+                # ASR segment text can drift from what is audible inside the
+                # sliced window, and a mismatched pair makes cross-language
+                # dubs speak the reference text verbatim (#1004). The ASR
+                # backend is still warm from the transcription pass above.
+                r = _asr_backend.transcribe(path, word_timestamps=False)
+                text = (r.get("text") or "").strip()
+                if not text:
+                    text = " ".join(
+                        (c.get("text") or "").strip() for c in (r.get("chunks") or [])
+                    ).strip()
+                return text
+
             if labels_source == "heuristic":
                 # Clone-purity guard: heuristic labels are silence-gap
                 # estimates, not voice identity — a per-speaker reference cut
@@ -998,6 +1014,7 @@ async def dub_transcribe_stream(
                         vocals_for_clone, final_segs,
                         os.path.dirname(vocals_for_clone),
                         labels_source=labels_source,
+                        transcriber=_ref_transcriber,
                     ),
                 )
                 while True:
@@ -1022,6 +1039,7 @@ async def dub_transcribe_stream(
                             vocals_for_clone, final_segs,
                             os.path.dirname(vocals_for_clone),
                             seg_ids=seg_ids_for_clone,
+                            transcriber=_ref_transcriber,
                         ),
                     )
                     if seg_clones:

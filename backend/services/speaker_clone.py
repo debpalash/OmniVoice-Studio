@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Callable
 
 import numpy as np
 import soundfile as sf
@@ -55,12 +56,43 @@ MIN_SLICE_DURATION_S = 1.5
 ADJACENT_TURN_GUARD_S = 0.3
 
 
+def _retranscribe_ref(
+    transcriber: Callable[[str], str] | None,
+    ref_path: str,
+    fallback: str,
+    label: str,
+) -> str:
+    """Return a transcript that matches the written reference clip.
+
+    ASR segment text routinely drifts from what is actually audible inside
+    the sliced ``[start, end]`` window (boundary jitter, dropped trailing
+    words). A mismatched ``(ref_audio, ref_text)`` pair breaks the TTS
+    prompt priming and can make cross-language dubs speak the reference
+    text verbatim in the source language (#1004). Re-transcribing the exact
+    written clip makes the pair match by construction. Falls back to the
+    segment text when no transcriber is given, ASR fails, or ASR returns
+    nothing.
+    """
+    if transcriber is None:
+        return fallback
+    try:
+        text = (transcriber(ref_path) or "").strip()
+    except Exception as e:
+        logger.warning(
+            "%s: reference re-transcription failed (%s); keeping segment text",
+            label, e,
+        )
+        return fallback
+    return text or fallback
+
+
 def extract_speaker_clones(
     vocals_path: str,
     segments: list[dict],
     out_dir: str,
     *,
     labels_source: str | None = None,
+    transcriber: Callable[[str], str] | None = None,
 ) -> dict[str, dict]:
     """Build a per-speaker reference sample from `vocals_path` + `segments`.
 
@@ -141,6 +173,7 @@ def extract_speaker_clones(
             continue
 
         ref_text = " ".join((seg.get("text") or "").strip() for _, seg in chosen).strip()
+        ref_text = _retranscribe_ref(transcriber, ref_path, ref_text, "speaker_clone")
         out[speaker_id] = {
             "ref_audio": ref_path,
             "ref_text": ref_text,
@@ -161,6 +194,7 @@ def extract_segment_refs(
     out_dir: str,
     *,
     seg_ids: list | None = None,
+    transcriber: Callable[[str], str] | None = None,
 ) -> dict[str, dict]:
     """Per-segment clone references (Wave 3.2 / Spec 4).
 
@@ -213,6 +247,7 @@ def extract_segment_refs(
         # reference transcript is the SOURCE text (text_original), not the
         # translated `text`. Falls back to text only if no original is kept.
         ref_text = (seg.get("text_original") or seg.get("text") or "").strip()
+        ref_text = _retranscribe_ref(transcriber, ref_path, ref_text, "segment_refs")
         out[seg_id] = {
             "ref_audio": ref_path,
             "ref_text": ref_text,
