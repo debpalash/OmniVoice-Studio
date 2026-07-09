@@ -14,6 +14,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- **The OpenAI-compatible speech endpoint stops silently discarding quality settings.** `POST /v1/audio/speech` accepted `num_step` and `guidance_scale` in the request body with a 200 OK — and dropped them without a word, so API callers couldn't reach the model's documented quality preset (`num_step: 32`). Both are now declared, validated, and passed through to the engine, matching the native `/generate` endpoint. Caught by a contributor's measured Tesla T4 verification pass. (#1014)
 - **Updating no longer uninstalls engines you added yourself.** Optional engines installed with pip into the app's environment (VoxCPM2, KittenTTS — exactly what Settings → Engines' own install hints say to do) were silently deleted by every app update, because the update's dependency sync removed anything not in the app's lockfile. Routine updates now leave your additions alone; the repair path ("Clean & Retry") still restores the exact known-good state, since a broken environment is sometimes *caused* by an extra package. (#1029)
 
 ## [0.3.14] — 2026-07-09

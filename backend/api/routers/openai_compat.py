@@ -108,6 +108,23 @@ class SpeechRequest(BaseModel):
         ge=0,
         description="OmniVoice GGUF extension: long-form internal chunk threshold.",
     )
+    # #1014: these two were silently DISCARDED before (pydantic ignores
+    # undeclared fields) — a 200 OK that quietly dropped the caller's quality
+    # knobs. Declared now and passed through, matching the native /generate
+    # form fields (defaults there: num_step=16, guidance_scale=2.0; the
+    # model's documented "quality" preset is num_step=32).
+    num_step: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=128,
+        description="OmniVoice extension: iterative unmasking steps (app default 16; 32 = the model's documented quality preset).",
+    )
+    guidance_scale: Optional[float] = Field(
+        default=None,
+        gt=0,
+        le=20,
+        description="OmniVoice extension: classifier-free guidance scale (app default 2.0).",
+    )
 
 
 class TranscriptionResponse(BaseModel):
@@ -274,6 +291,10 @@ async def create_speech(req: SpeechRequest):
         kw["chunk_duration"] = req.chunk_duration
     if req.chunk_threshold is not None:
         kw["chunk_threshold"] = req.chunk_threshold
+    if req.num_step is not None:
+        kw["num_step"] = req.num_step
+    if req.guidance_scale is not None:
+        kw["guidance_scale"] = req.guidance_scale
     if req.language:
         kw["language"] = req.language
     if req.instruct:

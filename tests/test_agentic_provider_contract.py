@@ -117,3 +117,33 @@ def test_speed_passthrough(client, monkeypatch):
     })
     assert res.status_code == 200, res.text
     assert fake.calls[0][1].get("speed") == pytest.approx(1.25)
+
+
+def test_num_step_and_guidance_scale_passthrough(client, monkeypatch):
+    """#1014: these were silently DISCARDED (200 OK, fields dropped) — a T4
+    hardware report caught it by comparing against the native /generate.
+    They must now reach the engine's generate() kwargs."""
+    fake = _make_fake_engine("fake-agent-quality")
+    monkeypatch.setitem(_tts_mod()._REGISTRY, "fake-agent-quality", fake)
+    res = client.post("/v1/audio/speech", json={
+        "model": "fake-agent-quality", "input": "Quality preset.",
+        "num_step": 32, "guidance_scale": 3.0,
+    })
+    assert res.status_code == 200, res.text
+    kw = fake.calls[0][1]
+    assert kw.get("num_step") == 32
+    assert kw.get("guidance_scale") == pytest.approx(3.0)
+
+
+def test_num_step_and_guidance_scale_omitted_stay_absent(client, monkeypatch):
+    """Engines that don't accept these kwargs must not suddenly receive
+    None values — omitted means absent, exactly like duration/seed."""
+    fake = _make_fake_engine("fake-agent-defaults")
+    monkeypatch.setitem(_tts_mod()._REGISTRY, "fake-agent-defaults", fake)
+    res = client.post("/v1/audio/speech", json={
+        "model": "fake-agent-defaults", "input": "Defaults.",
+    })
+    assert res.status_code == 200, res.text
+    kw = fake.calls[0][1]
+    assert "num_step" not in kw
+    assert "guidance_scale" not in kw
