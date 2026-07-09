@@ -332,6 +332,33 @@ async def create_speech(req: SpeechRequest):
             # Not a profile ID — might be a KittenTTS preset or similar
             kw["voice"] = voice
 
+    # ── #1033/#1037/#1014: warm the engine under the LOAD budget before the
+    # generate clock starts. The T4 verification (#1014) measured a fresh
+    # install's first /v1/audio/speech burning its whole 300s generate budget
+    # on the multi-GB checkpoint download (0% GPU util throughout) and dying
+    # with a misleading "too heavy for the available compute" error. Model
+    # loading gets OMNIVOICE_MODEL_LOAD_TIMEOUT (default 1200s); once warm
+    # this is a per-request no-op.
+    from services.model_manager import GpuJobTimeoutError, _model_load_timeout
+    try:
+        await run_on_gpu_pool_guarded(
+            backend.ensure_ready,
+            what=f"TTS engine '{backend.id}' model load",
+            timeout=_model_load_timeout(),
+        )
+    except GpuJobTimeoutError as e:
+        logger.warning("engine load exceeded the model-load budget: %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                f"TTS engine '{backend.id}' did not finish loading within its "
+                f"model-load budget — on a first run this usually means the weight "
+                f"download is slow or stalled (check Settings → Models for "
+                f"progress), not that generation failed. Retry once the model "
+                f"shows as installed."
+            ),
+        ) from e
+
     try:
         # Bounded + pool-reset on hang so a wedged TTS request can't starve the
         # GPU pool and brick the backend (#730 class).

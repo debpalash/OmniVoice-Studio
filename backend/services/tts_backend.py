@@ -142,6 +142,26 @@ class TTSBackend(ABC):
     #: (e.g. "young female, warm tone, British accent") without reference audio.
     supports_voice_design: bool = False
 
+    def ensure_ready(self) -> None:
+        """Load model weights now (blocking), so callers can separate the
+        LOAD budget from the GENERATE budget (#1033/#1037 class).
+
+        Every adapter lazily loads inside ``generate()`` via a private
+        ``_ensure_loaded()`` — which meant a cold first call spent its whole
+        ``OMNIVOICE_GENERATE_TIMEOUT_S`` window (default 300s) downloading /
+        loading weights and got killed with a misleading "too heavy for the
+        available compute" error (measured in the wild on a fresh install:
+        multi-GB checkpoint download, 0% GPU util, #1014). Routes call this
+        first under the model-load budget (``OMNIVOICE_MODEL_LOAD_TIMEOUT``,
+        default 1200s), then start the generate clock on an already-warm
+        engine. Default implementation dispatches to the adapter's own
+        ``_ensure_loaded`` when present; engines without lazy state no-op.
+        Must be called on the GPU pool (it's blocking), same as generate.
+        """
+        loader = getattr(self, "_ensure_loaded", None)
+        if callable(loader):
+            loader()
+
     #: Whether this engine already emits mastered, studio-grade audio and should
     #: therefore skip the shared apply_mastering() chain (highpass + Compressor,
     #: tuned for OmniVoice's 24 kHz output). Studio engines like VoxCPM2 (native

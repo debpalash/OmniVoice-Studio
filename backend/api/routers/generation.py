@@ -719,6 +719,36 @@ async def generate_speech(
         raise HTTPException(status_code=400, detail=_routing["routing_reason"])
     _routing_notice = routing_notice(_routing)  # (status, reason) or None
 
+    # ── #1033/#1037: warm the engine under the LOAD budget, not the generate
+    # budget. A cold adapter lazily loads (and possibly downloads multi-GB
+    # weights) inside generate(), so a fresh install's first request burned
+    # its whole OMNIVOICE_GENERATE_TIMEOUT_S window on the download and died
+    # with a misleading "too heavy for the available compute" 503 (#1014
+    # measured it: 0% GPU util for the full 300s). Model loading gets its own,
+    # larger budget (OMNIVOICE_MODEL_LOAD_TIMEOUT, default 1200s) — the same
+    # split get_model() already has for the native engine. Once warm, this is
+    # a no-op per request.
+    if _backend is not None:
+        from services.model_manager import _model_load_timeout
+        try:
+            await run_on_gpu_pool_guarded(
+                _backend.ensure_ready,
+                what=f"TTS engine '{engine_id}' model load",
+                timeout=_model_load_timeout(),
+            )
+        except GpuJobTimeoutError as exc:
+            logger.warning("engine load exceeded the model-load budget: %s", exc)
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    f"TTS engine '{engine_id}' did not finish loading within its "
+                    f"model-load budget — on a first run this usually means the "
+                    f"weight download is slow or stalled (check Settings → Models "
+                    f"for progress), not that generation failed. Retry once the "
+                    f"model shows as installed."
+                ),
+            ) from exc
+
     ref_audio_path = None
     cleanup_ref = False
     used_seed = seed
