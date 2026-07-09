@@ -2941,7 +2941,7 @@ dependencies = [
 
 [[package]]
 name = "omnivoice-studio"
-version = "0.3.13"
+version = "0.3.14"
 dependencies = [
  "arboard",
  "dirs-next",

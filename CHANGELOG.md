@@ -8,6 +8,10 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+## [0.3.14] — 2026-07-09
+
+A fast follow to v0.3.13: **every engine family now has a visible picker.** Settings → Engines showed only a TTS table, with the ASR and LLM pickers hidden behind a low-discoverability tab — so the 10 transcription engines (including the new OpenAI-compatible backend) looked unswitchable without env vars. Now all three families get their own table. Also in: the Linux AppImage's white-screen auto-workaround now checks the WebKitGTK it actually ships (not whatever your system reports), and installing to a different drive on Windows is properly documented.
+
 ### Added
 
 - **ASR engines get the same Settings picker TTS has.** Settings → Engines now shows a visible picker table per family — TTS, ASR, and LLM — instead of a single TTS-titled table with the other families tucked behind a tab (README even promised a Settings ASR picker that didn't exist). The OpenAI-compatible backend and the 9 local ASR engines become selectable with one click, no env vars needed; an explicit `OMNIVOICE_ASR_BACKEND` still wins over the Settings pick, so pinned setups behave exactly as before. (no issue — UX gap found during #877)
