@@ -397,6 +397,10 @@ print(result.text)
 
 Want the whole surface (100+ endpoints)? The full REST API reference is embedded in the app — **Settings → OpenAPI Reference** (Scalar-powered), or the `{}` button in the footer.
 
+### 📓 Run on Google Colab (community)
+
+No local GPU? A community member ([@shakib30](https://github.com/shakib30)) maintains a working Colab notebook: [shakib30/OmniVoice-Studio-google-colab](https://github.com/shakib30/OmniVoice-Studio-google-colab). Community-maintained — issues with the notebook go there; issues with OmniVoice itself come here.
+
 ### 🤝 Agent Skills
 
 Teach your AI agent (Claude Code, Cursor, Codex, …) to use OmniVoice with one command:
