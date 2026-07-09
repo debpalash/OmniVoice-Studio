@@ -525,7 +525,15 @@ Yes please — bug fixes, new TTS engine adapters, UI improvements, docs, transl
 <details>
 <summary><b>Is this really as good as ElevenLabs?</b></summary>
 <br/>
-For voice cloning and dubbing, yes — OmniVoice uses a state-of-the-art diffusion TTS model with 646 languages (ElevenLabs supports 32). Quality is comparable for most use cases. Where ElevenLabs wins is in their polished cloud API and pre-made voice library. OmniVoice wins on privacy, cost, language coverage, and customizability.
+Honest answer: <b>it depends on what you're doing.</b>
+
+<b>Where OmniVoice is genuinely competitive:</b> voice cloning from a clean reference clip (state-of-the-art open diffusion TTS), language coverage (646 languages vs. their 32), and everything structural — no per-character billing, no usage caps, no audio leaving your machine, full pipeline customizability (10 TTS engines, 10 ASR engines, your choice of translation).
+
+<b>Where ElevenLabs still wins:</b> out-of-the-box consistency and polish, especially for English TTS. Their one model is heavily tuned; our quality depends on which engine you pick, your hardware, and — for cloning — the reference audio (a dry, close-mic clip clones dramatically better than a noisy or echoey one).
+
+<b>For dubbing specifically:</b> a dub is a chain — transcription → translation → cloning → synthesis — and the output is only as good as its weakest link on <i>your</i> source material. Noisy or accented source audio degrades transcription, which degrades everything downstream; some language pairs translate better than others. If parts of a dub come out incoherent, check the segment table's <i>original</i> text first: if the transcription is already wrong there, switch the ASR engine (Settings → Engines) or use cleaner source audio — that's usually the fix, not the voice.
+
+Try it on your real material — it's free and takes one download. Many users find it replaces ElevenLabs outright; some keep both for different jobs. Both outcomes are fine with us.
 </details>
 
 <details>
