@@ -242,9 +242,16 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
       }
 
       const blob = new Blob(chunks, { type: 'audio/wav' });
-      try {
-        await playBlobAudio(blob);
-      } catch (e) {}
+      // #1032: honor the Settings → Appearance "Auto-play preview" pref here
+      // too. #667 added the toggle ("play the output as soon as a render
+      // finishes") but only wired the WaveformPlayer preview sites — the main
+      // generate path kept auto-playing unconditionally. getState() (not a
+      // subscription) so the freshest value is read at completion time.
+      if (useAppStore.getState().autoPlayPreview) {
+        try {
+          await playBlobAudio(blob);
+        } catch (e) {}
+      }
 
       await loadHistory();
       setSidebarTab('history');

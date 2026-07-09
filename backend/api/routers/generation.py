@@ -598,6 +598,32 @@ def _run_backend_inference(
         _oom_friendly_reraise(e)
 
 
+def _persist_profile_ref_text(profile_id: str, ref_text: str) -> None:
+    """Cache an auto-transcribed reference transcript onto its profile row.
+
+    #1032 perf regression: profiles saved without a transcript re-ran a FULL
+    ASR model load + transcribe on every /generate (the #308 auto-transcribe
+    path). Persisting the first transcript makes subsequent generates read it
+    from the row like a user-entered one. The guarded UPDATE only ever fills
+    an empty column — it can never overwrite a transcript the user typed or a
+    lock wrote — and a failure is logged, never raised (best-effort, same
+    contract as the transcribe itself)."""
+    try:
+        with db_conn() as conn:
+            updated = conn.execute(
+                "UPDATE voice_profiles SET ref_text=? "
+                "WHERE id=? AND (ref_text IS NULL OR ref_text='')",
+                (ref_text, profile_id),
+            ).rowcount
+        if updated:
+            event_bus.emit("profiles", {"action": "updated", "id": profile_id})
+    except Exception as e:  # noqa: BLE001 — cache write must not break generate
+        logger.warning(
+            "could not persist auto-transcribed ref_text onto profile %s: %s",
+            profile_id, e,
+        )
+
+
 @router.post("/generate")
 async def generate_speech(
     text: str = Form(...),
@@ -698,6 +724,14 @@ async def generate_speech(
     used_seed = seed
     resolved_profile_id = None
     history_mode = None  # profile.kind when a profile drives; else inferred at insert
+    # #1032: profile id to persist an auto-transcribed reference transcript to.
+    # Set only for a plain (unlocked) clone profile whose stored ref_text is
+    # empty — the case where every /generate re-ran a full ASR model load +
+    # transcribe of the same clip. Locked profiles are excluded (their ref
+    # audio is the locked take, and unlocking would leave a mismatched
+    # transcript paired with the original reference); design profiles are
+    # excluded (a re-render replaces the sample, stranding a stale transcript).
+    persist_ref_text_profile_id = None
 
     if profile_id:
         with db_conn() as conn:
@@ -743,6 +777,11 @@ async def generate_speech(
                 ref_audio_path = os.path.join(VOICES_DIR, row["ref_audio_path"]) if row["ref_audio_path"] else None
                 if not ref_text and row["ref_text"]:
                     ref_text = row["ref_text"]
+                elif ref_audio_path and not ref_text:
+                    # Empty stored transcript → the auto-transcribe below will
+                    # run; cache its result onto the profile so it runs ONCE,
+                    # not on every generate (#1032 perf regression).
+                    persist_ref_text_profile_id = profile_id
                 if not instruct and row["instruct"]:
                     instruct = row["instruct"]
                 if used_seed is None and row["seed"] is not None:
@@ -792,6 +831,11 @@ async def generate_speech(
         except GpuJobTimeoutError as e:
             logger.warning("reference transcribe hung (%s); using model ASR fallback", e)
             ref_text = None
+        # #1032: cache the transcript onto its clone profile so the ASR model
+        # load + transcribe above happens once per profile, not per generate.
+        # Only fills an empty column — a user-entered transcript always wins.
+        if ref_text and persist_ref_text_profile_id:
+            _persist_profile_ref_text(persist_ref_text_profile_id, ref_text)
 
     # #526: materialize a concrete seed when none was supplied (and no profile
     # pinned one) so the take is reproducible and we can hand it back via the

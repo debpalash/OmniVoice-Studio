@@ -78,10 +78,26 @@ export default function WorkspaceHistory({
   handleNativeExport,
   restoreHistory,
   deleteHistory,
+  clearHistory, // clear-all for this workspace's history (#1032)
 }) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState('all');
   const [expanded, setExpanded] = useState(null); // row id with un-clamped title
+
+  // Clear-all affordance (#1032): the old left Sidebar had one; the workspace
+  // UX overhaul (#374) moved history here and dropped it. Confirm + endpoint
+  // live in App.jsx (clearWorkspaceHistory) — this only renders the button.
+  const clearAllButton = (count) =>
+    clearHistory && count > 0 ? (
+      <button
+        type="button"
+        className="history-action-btn danger flex-[0_0_auto]"
+        onClick={clearHistory}
+        title={t('sidebar.clear_history')}
+      >
+        <Trash2 size={10} /> {t('sidebar.clear_history')}
+      </button>
+    ) : null;
 
   // Voice workspace = clone + design generations (dub lives in its own workspace).
   const items = useMemo(() => {
@@ -94,9 +110,12 @@ export default function WorkspaceHistory({
     return (
       <aside className="flex-[1_1_0] flex flex-col min-h-0 overflow-hidden">
         <div className="flex-[0_0_auto] flex flex-col gap-[8px] py-[10px] px-[12px]">
-          <span className="inline-flex items-center gap-[6px] [font-family:var(--chrome-font-mono,var(--font-mono))] text-[0.72rem] font-semibold [letter-spacing:0.04em] uppercase text-[color:var(--chrome-fg-muted)]">
-            <History size={13} /> {t('history.dub_title', { defaultValue: 'Dub history' })}
-          </span>
+          <div className="flex items-center justify-between gap-[6px]">
+            <span className="inline-flex items-center gap-[6px] [font-family:var(--chrome-font-mono,var(--font-mono))] text-[0.72rem] font-semibold [letter-spacing:0.04em] uppercase text-[color:var(--chrome-fg-muted)]">
+              <History size={13} /> {t('history.dub_title', { defaultValue: 'Dub history' })}
+            </span>
+            {clearAllButton(dubHistory.length)}
+          </div>
         </div>
         <div className="flex-[1_1_auto] min-h-0 overflow-y-auto flex flex-col gap-[8px] p-[8px]">
           {dubHistory.length === 0 ? (
@@ -156,9 +175,12 @@ export default function WorkspaceHistory({
   return (
     <aside className="flex-[1_1_0] flex flex-col min-h-0 overflow-hidden">
       <div className="flex-[0_0_auto] flex flex-col gap-[8px] py-[10px] px-[12px]">
-        <span className="inline-flex items-center gap-[6px] [font-family:var(--chrome-font-mono,var(--font-mono))] text-[0.72rem] font-semibold [letter-spacing:0.04em] uppercase text-[color:var(--chrome-fg-muted)]">
-          <History size={13} /> {t('history.title', { defaultValue: 'History' })}
-        </span>
+        <div className="flex items-center justify-between gap-[6px]">
+          <span className="inline-flex items-center gap-[6px] [font-family:var(--chrome-font-mono,var(--font-mono))] text-[0.72rem] font-semibold [letter-spacing:0.04em] uppercase text-[color:var(--chrome-fg-muted)]">
+            <History size={13} /> {t('history.title', { defaultValue: 'History' })}
+          </span>
+          {clearAllButton(history.length)}
+        </div>
         <div className="flex flex-wrap gap-[4px]">
           {FILTERS.map((f) => (
             <button

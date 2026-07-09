@@ -42,6 +42,7 @@ import WorkspaceVoices from './components/WorkspaceVoices';
 import WorkspaceProjects from './components/WorkspaceProjects';
 import ErrorBoundary from './components/ErrorBoundary';
 import FloatingPill from './components/FloatingPill';
+import PlaybackStopPill from './components/PlaybackStopPill';
 import BackendCrashNotice from './components/BackendCrashNotice';
 // RemoteAuthGate is mounted at the true outermost provider in main-app.jsx so
 // it covers all app states (setup check / wizard / bootstrap), not just the
@@ -83,6 +84,8 @@ import {
   renameProject as apiRenameProject,
 } from './api/projects';
 import { exportAction, exportReveal, exportRecord } from './api/exports';
+import { clearHistory as apiClearHistory } from './api/generate';
+import { clearDubHistory as apiClearDubHistory } from './api/dub';
 
 import { isTauri, doubleClickMaximize, fileToMediaUrl, playBlobAudio } from './utils/media';
 import { browserDownload } from './utils/download';
@@ -1151,6 +1154,27 @@ function App() {
     }
   };
 
+  // Clear-all for the workspace history panels (#1032). The control lived in
+  // the old left Sidebar; the workspace UX overhaul (#374) moved history into
+  // the right-side WorkspaceHistory panels and the button was dropped in the
+  // move — restore it, scoped per workspace (voice = synth rows, dub = dubs).
+  const clearWorkspaceHistory = async (type) => {
+    const count = type === 'dub' ? dubHistory.length : history.length;
+    if (!(await askConfirm(i18n.t('sidebar.clear_confirm', { count })))) return;
+    try {
+      if (type === 'dub') {
+        await apiClearDubHistory();
+        loadDubHistory();
+      } else {
+        await apiClearHistory();
+        loadHistory();
+      }
+      toast.success(i18n.t('sidebar.history_cleared'));
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   // Install-plan screen outranks everything — both on a true first run and
   // when explicitly requested via `--setup`. Without this, a live backend
   // answering /setup/status would route straight to the model wizard and the
@@ -1269,6 +1293,10 @@ function App() {
       />
 
       <FloatingPill />
+
+      {/* #1032: global stop for playback that has no on-screen player (the
+          generate auto-play / profile & segment previews via playBlobAudio). */}
+      <PlaybackStopPill />
 
       {/* #941: honest surfacing of backend process crashes (exit code +
           stderr tail from the shell's crash marker), with ack-on-view. */}
@@ -1498,6 +1526,7 @@ function App() {
                   dubHistory={dubHistory}
                   restoreDubHistory={restoreDubHistory}
                   deleteHistory={deleteHistory}
+                  clearHistory={() => clearWorkspaceHistory('dub')}
                 />
               </div>
             )}
@@ -1594,6 +1623,7 @@ function App() {
                 handleNativeExport={handleNativeExport}
                 restoreHistory={restoreHistory}
                 deleteHistory={deleteHistory}
+                clearHistory={() => clearWorkspaceHistory('synth')}
               />
             </div>
           </div>

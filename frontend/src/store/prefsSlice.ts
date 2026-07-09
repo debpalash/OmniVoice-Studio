@@ -167,9 +167,11 @@ export interface PrefsSlice {
 
   /**
    * Auto-play the output preview as soon as a render finishes (Voice Clone /
-   * Design / profile preview). Default ON — preserves the long-standing
-   * behavior. Users batch-generating segments (#666) can turn it off so each
-   * finished clip doesn't start playing on its own.
+   * Design / profile preview, AND the studio generate path in useTTS —
+   * #1032 wired the latter; #666's toggle only covered the WaveformPlayer
+   * sites). Default ON — preserves the long-standing behavior. Users
+   * batch-generating segments (#666) can turn it off so each finished clip
+   * doesn't start playing on its own.
    */
   autoPlayPreview: boolean;
   setAutoPlayPreview: (on: boolean) => void;

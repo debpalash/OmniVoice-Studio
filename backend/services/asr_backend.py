@@ -29,6 +29,7 @@ import os
 import re
 import threading
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 from typing import Optional
 
 logger = logging.getLogger("omnivoice.asr")
@@ -2026,6 +2027,38 @@ def get_active_asr_backend(*, asr_pipe=None) -> ASRBackend:
     return cls()
 
 
+# ── Reference-transcript cache (#1032) ──────────────────────────────────────
+# `get_active_asr_backend()` returns a FRESH backend instance per call for the
+# whisper family, so every `transcribe_reference` used to reload whisper
+# weights from scratch — a multi-second (CPU: tens of seconds) hit on EVERY
+# /generate whose reference clip has no stored transcript (#308 introduced the
+# call; profiles saved without a transcript hit it per request). The reference
+# audio is identical across those requests, so cache the *transcript* keyed by
+# the file's content hash: no model or VRAM is held, repeated generates with
+# the same clip skip ASR entirely. Bounded LRU; failures (None) are never
+# cached so a transient ASR problem still retries next request.
+_REF_TRANSCRIPT_CACHE_MAX = 64
+_ref_transcript_cache: "OrderedDict[str, str]" = OrderedDict()
+_ref_transcript_lock = threading.Lock()
+
+
+def _ref_audio_fingerprint(audio_path: str) -> str | None:
+    """sha256 of the clip's bytes, or None when unreadable (→ no caching).
+
+    Content-keyed (not path-keyed) because ad-hoc clone uploads land in a new
+    NamedTemporaryFile per request — the path changes, the bytes don't.
+    Reference clips are seconds long, so hashing is negligible next to ASR."""
+    import hashlib
+    try:
+        h = hashlib.sha256()
+        with open(audio_path, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+        return h.hexdigest()
+    except OSError:
+        return None
+
+
 def transcribe_reference(audio_path: str) -> str | None:
     """Transcribe a voice-clone reference clip with the active ASR backend.
 
@@ -2037,7 +2070,16 @@ def transcribe_reference(audio_path: str) -> str | None:
     the model-attached pipeline is only reached when it is genuinely the last
     resort. Returns ``None`` on any failure — callers pass ``ref_text=None``
     through and the model's built-in fallback still gets its chance.
+
+    Results are cached by audio content (#1032) — see the cache notes above.
     """
+    fingerprint = _ref_audio_fingerprint(audio_path)
+    if fingerprint is not None:
+        with _ref_transcript_lock:
+            cached = _ref_transcript_cache.get(fingerprint)
+            if cached is not None:
+                _ref_transcript_cache.move_to_end(fingerprint)
+                return cached
     try:
         backend = get_active_asr_backend()
     except Exception as e:  # noqa: BLE001 — never let ASR break generation
@@ -2061,6 +2103,12 @@ def transcribe_reference(audio_path: str) -> str | None:
         (seg.get("text") or "").strip() for seg in result.get("segments", [])
     )
     text = (text or "").strip()
+    if text and fingerprint is not None:
+        with _ref_transcript_lock:
+            _ref_transcript_cache[fingerprint] = text
+            _ref_transcript_cache.move_to_end(fingerprint)
+            while len(_ref_transcript_cache) > _REF_TRANSCRIPT_CACHE_MAX:
+                _ref_transcript_cache.popitem(last=False)
     return text or None
 
 
