@@ -713,6 +713,27 @@ fn sync_failure_is_torch_download(tail: &str) -> bool {
 /// distro-matched ROCm builds torch's own index doesn't carry).
 const ROCM_TORCH_INDEX: &str = "https://download.pytorch.org/whl/rocm6.4";
 
+/// Args for the routine update-drift sync (#307 path) — the one that runs on
+/// every app update when `uv.lock` changed. `--inexact` is the fix for #1029:
+/// plain `uv sync` UNINSTALLS every package not in the lockfile, which
+/// silently deleted user-pip-installed optional engines (voxcpm, kittentts —
+/// packages the app's own Settings → Engines hints tell users to install
+/// into this venv) on every single update. `--inexact` still installs/
+/// upgrades everything the lockfile demands — locked deps stay exactly
+/// correct — it just stops removing extras the user added on purpose.
+///
+/// Deliberately NOT applied to the repair sync (`repair_sync_args`): repair
+/// runs when the venv is *broken*, and a user-installed extra is a plausible
+/// cause — healing must restore the known-good locked state, extras
+/// included-out. An engine lost to a repair is re-installable; a venv that
+/// repair can't actually repair is a support thread.
+const DRIFT_SYNC_ARGS: [&str; 5] = ["sync", "--frozen", "--inexact", "--no-dev", "--verbose"];
+
+/// Exact-sync args for the venv-repair path — see `DRIFT_SYNC_ARGS` for why
+/// repair stays exact while the update-drift sync preserves user extras.
+const REPAIR_SYNC_ARGS_LOCKED: [&str; 4] = ["sync", "--frozen", "--no-dev", "--verbose"];
+const REPAIR_SYNC_ARGS_UNLOCKED: [&str; 3] = ["sync", "--no-dev", "--verbose"];
+
 /// `uv pip install` args that replace the default CUDA torch build with the AMD
 /// ROCm wheel (#124). Opt-in (gated on OMNIVOICE_TORCH_VARIANT=rocm by the
 /// caller); the detection side (`get_best_device`) already routes ROCm through
@@ -1254,7 +1275,7 @@ manually, then relaunch.",
                                 drift_cmd.env("UV_INDEX_URL", "https://mirrors.aliyun.com/pypi/simple/");
                             }
                             drift_cmd
-                                .args(["sync", "--frozen", "--no-dev", "--verbose"])
+                                .args(DRIFT_SYNC_ARGS)
                                 .current_dir(&project_dir);
                             match run_streaming(app, "installing_deps", &mut drift_cmd) {
                                 Ok(ref s) if s.success() => {
@@ -1329,9 +1350,9 @@ the existing venv; newly added dependencies may be missing (#307)",
         apply_uv_http_env(&mut repair_cmd);
         let has_lockfile = project_dir.join("uv.lock").is_file();
         if has_lockfile {
-            repair_cmd.args(["sync", "--frozen", "--no-dev", "--verbose"]);
+            repair_cmd.args(REPAIR_SYNC_ARGS_LOCKED);
         } else {
-            repair_cmd.args(["sync", "--no-dev", "--verbose"]);
+            repair_cmd.args(REPAIR_SYNC_ARGS_UNLOCKED);
         }
         repair_cmd.current_dir(&project_dir);
         let repair_status = run_streaming(app, "installing_deps", &mut repair_cmd);
@@ -1711,6 +1732,29 @@ See docs/install/linux.md (AMD GPU) to install the ROCm wheel manually.",
 mod tests {
     use super::*;
     use std::collections::HashMap;
+
+    #[test]
+    fn update_drift_sync_preserves_user_installed_engines() {
+        // #1029: the routine update sync must carry --inexact so a
+        // user-pip-installed optional engine (voxcpm, kittentts — packages
+        // the app's own Settings → Engines hints tell users to install into
+        // this venv) survives every update instead of being silently
+        // uninstalled. --frozen must stay (lockfile is the resolution truth).
+        assert!(DRIFT_SYNC_ARGS.contains(&"--inexact"),
+            "update-drift sync lost --inexact — user-installed engines get wiped on every update (#1029)");
+        assert!(DRIFT_SYNC_ARGS.contains(&"--frozen"));
+    }
+
+    #[test]
+    fn repair_sync_stays_exact() {
+        // Deliberate asymmetry with the drift sync: repair runs when the venv
+        // is BROKEN and a user-installed extra is a plausible cause — healing
+        // must restore the known-good locked state, extras included-out.
+        assert!(!REPAIR_SYNC_ARGS_LOCKED.contains(&"--inexact"),
+            "repair sync must stay exact — it's the recovery path when an extra broke the venv");
+        assert!(!REPAIR_SYNC_ARGS_UNLOCKED.contains(&"--inexact"));
+        assert!(REPAIR_SYNC_ARGS_LOCKED.contains(&"--frozen"));
+    }
 
     #[test]
     fn scrub_python_env_removes_bundled_runtime_vars() {

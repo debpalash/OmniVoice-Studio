@@ -8,6 +8,10 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Updating no longer uninstalls engines you added yourself.** Optional engines installed with pip into the app's environment (VoxCPM2, KittenTTS — exactly what Settings → Engines' own install hints say to do) were silently deleted by every app update, because the update's dependency sync removed anything not in the app's lockfile. Routine updates now leave your additions alone; the repair path ("Clean & Retry") still restores the exact known-good state, since a broken environment is sometimes *caused* by an extra package. (#1029)
+
 ## [0.3.14] — 2026-07-09
 
 A fast follow to v0.3.13: **every engine family now has a visible picker.** Settings → Engines showed only a TTS table, with the ASR and LLM pickers hidden behind a low-discoverability tab — so the 10 transcription engines (including the new OpenAI-compatible backend) looked unswitchable without env vars. Now all three families get their own table. Also in: the Linux AppImage's white-screen auto-workaround now checks the WebKitGTK it actually ships (not whatever your system reports), and installing to a different drive on Windows is properly documented.
