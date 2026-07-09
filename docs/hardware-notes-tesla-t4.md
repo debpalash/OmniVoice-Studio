@@ -1,4 +1,4 @@
-# AGENTS.md — verified Tesla T4 (16GB) inference notes
+# Verified Tesla T4 (16GB) inference notes
 
 Measured on a real NVIDIA Tesla T4 (16GB, Turing/sm_75), driver 550.163.01 (CUDA 12.8), torch
 2.8.0+cu128, transformers 5.3.0, Python 3.11.15 (uv-managed). Engine under test: the default
