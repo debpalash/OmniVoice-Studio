@@ -8,6 +8,11 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+## [0.3.15] — 2026-07-10
+
+The cold-start release. Three "why is this broken on my machine" mysteries got solved at their roots: **first generations stop dying at 300 seconds** (the timeout was counting the model download as generation time — @moduvoice measured it on a Tesla T4: 0% GPU for the full window), **updates stop deleting engines you installed yourself** (the updater's dependency sync removed anything not in the app's lockfile — including things our own UI told you to install), and **the "slower than v0.3.5" regression is found and fixed** (clone profiles without a transcript were silently re-running a full Whisper transcription on every single generate). Also: Clear History is back, auto-played audio is finally stoppable, @stronghamjji hardened the dub pipeline against wedged transcribes, and @shakib30's community Colab notebook is now the linked no-GPU path. Thank you all.
+
+
 ### Added
 
 - **Agent Skills: `npx skills add debpalash/omnivoice-studio`.** Two installable [skills](https://skills.sh) now ship in the repo — `omnivoice` teaches any AI agent (Claude Code, Cursor, Codex, …) to speak and transcribe through your local install via the OpenAI-compatible API, including your cloned voices; `oss-maintainer` packages the maintainer methodology this project is run with.
