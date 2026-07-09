@@ -736,7 +736,9 @@ async def generate_speech(
                 what=f"TTS engine '{engine_id}' model load",
                 timeout=_model_load_timeout(),
             )
-        except GpuJobTimeoutError as exc:
+        # Builtin TimeoutError base, not GpuJobTimeoutError — reload-proof
+        # class identity (see the twin catch in openai_compat.py).
+        except TimeoutError as exc:
             logger.warning("engine load exceeded the model-load budget: %s", exc)
             raise HTTPException(
                 status_code=503,

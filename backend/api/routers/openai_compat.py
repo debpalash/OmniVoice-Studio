@@ -339,14 +339,20 @@ async def create_speech(req: SpeechRequest):
     # with a misleading "too heavy for the available compute" error. Model
     # loading gets OMNIVOICE_MODEL_LOAD_TIMEOUT (default 1200s); once warm
     # this is a per-request no-op.
-    from services.model_manager import GpuJobTimeoutError, _model_load_timeout
+    from services.model_manager import _model_load_timeout
     try:
         await run_on_gpu_pool_guarded(
             backend.ensure_ready,
             what=f"TTS engine '{backend.id}' model load",
             timeout=_model_load_timeout(),
         )
-    except GpuJobTimeoutError as e:
+    # Catch the BUILTIN TimeoutError base, not GpuJobTimeoutError by name:
+    # several tests reload services.model_manager mid-suite, so a class
+    # imported at call time can differ in identity from the one the guard
+    # (bound at this module's import) actually raises — the except would
+    # silently miss. The builtin base has one identity forever. (Caught by
+    # this exact test failing CI-only, in full-suite order.)
+    except TimeoutError as e:
         logger.warning("engine load exceeded the model-load budget: %s", e)
         raise HTTPException(
             status_code=503,
