@@ -397,6 +397,16 @@ print(result.text)
 
 Want the whole surface (100+ endpoints)? The full REST API reference is embedded in the app — **Settings → OpenAPI Reference** (Scalar-powered), or the `{}` button in the footer.
 
+### 🤝 Agent Skills
+
+Teach your AI agent (Claude Code, Cursor, Codex, …) to use OmniVoice with one command:
+
+```sh
+npx skills add debpalash/omnivoice-studio
+```
+
+Ships two [skills](https://skills.sh): **`omnivoice`** — speak and transcribe through your local install (including your cloned voices) from any agent, free and offline; and **`oss-maintainer`** — the maintainer methodology this project is run with, for anyone running their own OSS project with an agent.
+
 ---
 
 ## 🗺️ Roadmap

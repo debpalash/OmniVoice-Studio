@@ -8,6 +8,10 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+### Added
+
+- **Agent Skills: `npx skills add debpalash/omnivoice-studio`.** Two installable [skills](https://skills.sh) now ship in the repo — `omnivoice` teaches any AI agent (Claude Code, Cursor, Codex, …) to speak and transcribe through your local install via the OpenAI-compatible API, including your cloned voices; `oss-maintainer` packages the maintainer methodology this project is run with.
+
 ### Fixed
 
 - **Updating no longer uninstalls engines you added yourself.** Optional engines installed with pip into the app's environment (VoxCPM2, KittenTTS — exactly what Settings → Engines' own install hints say to do) were silently deleted by every app update, because the update's dependency sync removed anything not in the app's lockfile. Routine updates now leave your additions alone; the repair path ("Clean & Retry") still restores the exact known-good state, since a broken environment is sometimes *caused* by an extra package. (#1029)
