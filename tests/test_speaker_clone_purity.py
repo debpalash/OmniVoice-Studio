@@ -11,10 +11,16 @@ These tests pin the three guards:
 
 Pure tests over a synthetic vocals wav — no model, no main import.
 """
+import asyncio
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeout
+
 import numpy as np
 import pytest
 import soundfile as sf
 
+from services.asr_backend import ASRTimeoutError, run_transcribe_guarded
 from services.speaker_clone import (
     ADJACENT_TURN_GUARD_S,
     MIN_REF_DURATION_S,
@@ -206,3 +212,59 @@ class TestRefineRefTexts:
         refine_ref_texts(clones, asr)
         assert clones["Speaker 1"]["ref_text"] == "kept on failure"
         assert clones["Speaker 2"]["ref_text"] == "buenos dias"
+
+
+class _HangingASR:
+    """An ASR backend whose .transcribe() *wedges* (blocks) instead of raising
+    — the #730 whisperx/CTranslate2 hang. `refine_ref_text`'s try/except only
+    catches a raised Exception, so on its own this dispatch has no wall-clock
+    bound; it must go through the same `run_transcribe_guarded` every other
+    transcribe in dub_core.py uses."""
+    def __init__(self):
+        self.started = threading.Event()
+        self.release = threading.Event()
+
+    def transcribe(self, path, *, word_timestamps=True):
+        self.started.set()
+        self.release.wait()  # blocks until the test releases it
+        return {"chunks": [{"text": "arrived too late"}]}
+
+
+class TestRefineWedgeIsGuarded:
+    # Issue #730 class: a re-transcribe can hang rather than raise. The other
+    # transcribe dispatches in dub_core.py bound this via run_transcribe_guarded
+    # (chunk loop + whole-file "Dub"); the clone/segment refine dispatches must
+    # too, or a wedge holds the 1-worker GPU pool forever ("can't reach backend").
+
+    def test_refine_ref_texts_alone_has_no_wall_clock_bound(self):
+        # Proves the gap: dispatched raw (as #1008 did), a wedged transcribe
+        # never returns — refine_ref_text's except can't catch a hang.
+        asr = _HangingASR()
+        clones = {"S1": {"ref_audio": "/tmp/a.wav", "ref_text": "orig"}}
+        pool = ThreadPoolExecutor(max_workers=1)
+        fut = pool.submit(refine_ref_texts, clones, asr)
+        assert asr.started.wait(timeout=2.0)
+        with pytest.raises(FuturesTimeout):
+            fut.result(timeout=0.3)  # still blocked — no internal bound
+        asr.release.set()            # let the worker unwind before teardown
+        pool.shutdown(wait=False)
+
+    def test_run_transcribe_guarded_bounds_the_wedge_and_falls_back(self):
+        # Proves the fix: routing the same call through the guard bounds the
+        # hang, raises ASRTimeoutError, and the original ref_text is preserved
+        # (matching refine_ref_text's "failure is a strict no-op" fallback).
+        asr = _HangingASR()
+        clones = {"S1": {"ref_audio": "/tmp/a.wav", "ref_text": "orig"}}
+        pool = ThreadPoolExecutor(max_workers=1)
+
+        async def _go():
+            with pytest.raises(ASRTimeoutError):
+                await run_transcribe_guarded(
+                    pool, lambda: refine_ref_texts(clones, asr),
+                    what="Dub clone ref-text refine", timeout=0.3,
+                )
+
+        asyncio.run(_go())
+        assert clones["S1"]["ref_text"] == "orig"  # fallback kept the original
+        asr.release.set()
+        pool.shutdown(wait=False)
