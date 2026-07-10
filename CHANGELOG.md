@@ -6,6 +6,16 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [Unreleased]
+
+### Added
+
+- **The Engines and Models pages got a full readability-and-features pass.** Every engine row now carries a small identity mark and honest capability badges (voice cloning, device routing with the reason on hover, sidecar isolation), and engines that are ready-but-have-advice finally say so — upgrade hints used to be dropped before reaching the UI. The model store gains a filter, disk-space context next to downloads, "in memory — safe to unload" indicators, copyable setup snippets for opt-in engines, and empty states that tell you what to do next. (#1058)
+
+### Fixed
+
+- **A 58-finding audit of every Settings panel, fixed end to end.** Highlights: the About page linked to the wrong project's GitHub; Arabic rendered left-to-right (RTL wiring was missing); a saved proxy could never be cleared after a reload; the HF-mirror and refinement panels vanished entirely when the backend was down; "Test now" on the HF token served five-minute-old cached results; factory reset only cleared part of what it promised; pronunciation previews ignored language-scoped entries; the hotkey recorder swallowed invalid presses in silence; Settings search could strand you with an empty sidebar — plus first component tests for previously untested panels, full i18n for five all-English panels, accessible names across inputs, confirmed destructive actions, deep links instead of dead-end advice, temp-file reclaim, and log-sharing workflows. (#1059, #1060, #1061, #1063, #1064)
+
 ## [0.3.16] — 2026-07-11
 
 The quality release. Three long-standing frictions got structural fixes: **regenerating no longer destroys good takes** (a takes rail with starring and restore), **audiobooks stop redoing finished work** (per-sentence caching — edit one line, re-render one line; crashes resume where they stopped), and **dub translations stay consistent and fit their timeline** (auto-glossary + a naturalness pass, plus fit prediction before any GPU time is spent). Under the hood, every text path now speaks numbers, times, and abbreviations correctly, the VoxCPM2 engine gained upstream-alignment guards, and a Windows first-run breaker — model downloads completing but the cache ending up with broken file links — now self-heals automatically. Thank you @dmnobunaga for the razor-sharp diagnosis on that last one.
