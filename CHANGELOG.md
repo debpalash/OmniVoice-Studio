@@ -8,6 +8,10 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The ⊕ Insert token list no longer climbs out of the viewport.** In the voice-clone script panel, the insert popover (expression tags, CMU phoneme chips) always opened *upward* from the textarea — and since that input sits at the very top of the panel, the list disappeared past the top of the window with no way to see or scroll it. It now opens below the input, where there's always room. (owner-reported)
+
 ### Added
 
 - **A persistent mini-player for all the audio that used to play "invisibly".** Generated output, voice-profile and dub-segment previews, story lines, Gallery voices, and Projects renders all played through a bare audio pipe — no waveform, no seek, no time, and (until v0.3.15's stop pill) no way to stop them. A slim player bar now docks above the Logs footer whenever such audio plays, on every page: live waveform (decoded once from the audio already in memory — nothing is re-fetched), click/drag/keyboard seek, play/pause, elapsed/total time, what's-playing label, and a stop button. It replaces the stop-only pill, and because it's part of the app's layout rather than a floating overlay, the pill's "covers the Production Overrides row at 1440×900" overlap class can't come back. Stories line previews also route through it — which makes them stoppable *and* fixes them being silent on the macOS/Linux desktop builds (their old playback path used blob: URLs, which WebKit refuses to play). (no issue — owner request following #1032's stop-pill band-aid)
