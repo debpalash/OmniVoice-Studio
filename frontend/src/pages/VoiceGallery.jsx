@@ -4,7 +4,7 @@
 //     facet filters to explore hundreds. (core.archetypes / /archetypes API)
 //   • My Imports — a neutral importer: paste any URL you have the rights to, or
 //     upload a file, trim it, save it. The project ships no celebrity catalog.
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Sparkles, Store, Upload } from 'lucide-react';
 import { Segmented } from '../ui';
@@ -12,8 +12,8 @@ import { archetypePreviewUrl, useArchetypeAsProfile } from '../api/archetypes';
 import { previewVoiceUrl } from '../api/gallery';
 import { useAppStore } from '../store';
 import { apiUrl } from '../api/client';
-import { isTauri } from '../utils/media';
-import { claimPlayback, stopActivePlayback } from '../utils/playback';
+import { playBlobAudio } from '../utils/media';
+import { stopActivePlayback } from '../utils/playback';
 import ArchetypesZone from '../components/gallery/ArchetypesZone';
 import CommunityZone from '../components/gallery/CommunityZone';
 import ImportsZone from '../components/gallery/ImportsZone';
@@ -39,7 +39,6 @@ export default function VoiceGallery() {
 
   const [playingId, setPlayingId] = useState(null);
   const [loadingPreviewId, setLoadingPreviewId] = useState(null);
-  const audioRef = useRef(null);
   const [notice, setNotice] = useState(null);
   const noticeTimer = useRef(null);
 
@@ -49,34 +48,16 @@ export default function VoiceGallery() {
     noticeTimer.current = window.setTimeout(() => setNotice(null), 3500);
   };
 
-  const releaseRef = useRef(null);
-
-  const stopPlayback = () => {
-    if (audioRef.current) {
-      try {
-        audioRef.current.pause();
-      } catch {
-        /* noop */
-      }
-      audioRef.current = null;
-    }
-    setPlayingId(null);
-    releaseRef.current?.();
-    releaseRef.current = null;
-  };
-
-  useEffect(() => () => stopPlayback(), []);
-
-  // Fetch a preview clip and play it (Tauri blocks blob: URLs → Web Audio).
-  const playUrl = async (fullUrl, id) => {
+  // Fetch a preview clip and play it through the shared playback path
+  // (playBlobAudio handles the Tauri "blob: URLs are dead in media elements"
+  // detour — this page used to carry its own copy of that logic). The claim
+  // routes to the global mini-player with the voice name as its label, and
+  // starting any other playback stops this one (#316).
+  const playUrl = async (fullUrl, id, label) => {
     if (playingId === id) {
-      stopPlayback();
+      stopActivePlayback(); // onDone('stopped') below resets playingId
       return;
     }
-    stopPlayback();
-    // Also stop any playback owned by other components (#316) so the new
-    // preview never overlaps a Design-tab preview or a synthesized output.
-    stopActivePlayback();
     setLoadingPreviewId(id);
     try {
       // no-store: preview audio is re-rendered server-side when an archetype is
@@ -86,56 +67,13 @@ export default function VoiceGallery() {
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const blob = await resp.blob();
       setPlayingId(id);
-      if (isTauri) {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        if (ctx.state === 'suspended') await ctx.resume();
-        const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
-        const src = ctx.createBufferSource();
-        src.buffer = decoded;
-        src.connect(ctx.destination);
-        src.onended = () => {
-          setPlayingId((cur) => (cur === id ? null : cur));
-          releaseRef.current?.();
-          releaseRef.current = null;
-        };
-        src.start();
-        audioRef.current = {
-          pause: () => {
-            try {
-              src.stop();
-            } catch {
-              /* noop */
-            }
-            ctx.close();
-          },
-        };
-      } else {
-        const url = URL.createObjectURL(blob);
-        const el = new Audio(url);
-        el.onended = () => {
-          setPlayingId((cur) => (cur === id ? null : cur));
-          URL.revokeObjectURL(url);
-          releaseRef.current?.();
-          releaseRef.current = null;
-        };
-        await el.play();
-        audioRef.current = el;
-      }
-      // Register with the global single-playback manager (#316) so any other
-      // component starting audio stops this preview first.
-      releaseRef.current = claimPlayback(() => {
-        if (audioRef.current) {
-          try {
-            audioRef.current.pause();
-          } catch {
-            /* noop */
-          }
-          audioRef.current = null;
-        }
-        setPlayingId(null);
-      }, 'gallery-preview');
+      await playBlobAudio(blob, {
+        label,
+        // ended / stopped / error all mean "this card is no longer playing".
+        onDone: () => setPlayingId((cur) => (cur === id ? null : cur)),
+      });
     } catch (e) {
-      stopPlayback();
+      setPlayingId((cur) => (cur === id ? null : cur));
       flash(
         t('gallery.preview_failed', {
           message: e?.message || String(e),
@@ -210,7 +148,7 @@ export default function VoiceGallery() {
           setViewMode={setViewMode}
           playingId={playingId}
           loadingPreviewId={loadingPreviewId}
-          onPreview={(a) => playUrl(archetypePreviewUrl(a.id), a.id)}
+          onPreview={(a) => playUrl(archetypePreviewUrl(a.id), a.id, a.name)}
           onUse={async (a) => {
             try {
               // eslint-disable-next-line react-hooks/rules-of-hooks -- useArchetypeAsProfile is an API call, not a React hook
@@ -243,7 +181,7 @@ export default function VoiceGallery() {
           loadingPreviewId={loadingPreviewId}
           favorites={favorites}
           toggleFavorite={toggleFavorite}
-          onPlayAudio={(url, id) => playUrl(url, id)}
+          onPlayAudio={(url, id, name) => playUrl(url, id, name)}
           flash={flash}
           onDesign={(instruct) => {
             setVdStates({ ...vdStates });
@@ -257,7 +195,7 @@ export default function VoiceGallery() {
           t={t}
           playingId={playingId}
           loadingPreviewId={loadingPreviewId}
-          onPlayGallery={(v) => playUrl(apiUrl(previewVoiceUrl(v.id)), v.id)}
+          onPlayGallery={(v) => playUrl(apiUrl(previewVoiceUrl(v.id)), v.id, v.name)}
           flash={flash}
         />
       )}

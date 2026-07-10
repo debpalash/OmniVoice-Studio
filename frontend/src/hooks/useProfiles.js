@@ -176,7 +176,7 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
         const res = await generateSpeech(formData);
         const blob = await res.blob();
         toast.success(t('profiles.preview_ready'), { id: toastId });
-        playBlobAudio(blob).catch(() =>
+        playBlobAudio(blob, { label: proj.name }).catch(() =>
           toast.error(t('profiles.playback_failed'), { id: toastId }),
         );
         await loadHistory();
@@ -244,7 +244,9 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
         const res = await generateSpeech(formData);
         const blob = await res.blob();
         toast.success(t('profiles.preview_ready'), { id: toastId });
-        playBlobAudio(blob).catch(() =>
+        // The dub segment has no display name — its (translated) line text is
+        // the most recognisable label for the global player.
+        playBlobAudio(blob, { label: seg.text }).catch(() =>
           toast.error(t('profiles.playback_failed'), { id: toastId }),
         );
       } catch (err) {

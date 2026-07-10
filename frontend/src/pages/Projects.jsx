@@ -62,10 +62,10 @@ function fmtDuration(sec) {
  * it through the shared single-playback manager instead — identical, in-app
  * behavior on macOS/Windows/Linux, and starting another preview stops this one.
  */
-async function playRenderInApp(url) {
+async function playRenderInApp(url, label) {
   try {
     const resp = await apiFetch(url, { cache: 'no-store' });
-    await playBlobAudio(await resp.blob());
+    await playBlobAudio(await resp.blob(), { label });
   } catch (e) {
     console.error('[Projects] render playback failed:', e);
   }
@@ -259,7 +259,7 @@ export default function Projects({
         ts: toMillis(j.created_at) ?? 0,
         accent: '#d3869b',
         Icon: BookMarked,
-        onClick: () => j.output && playRenderInApp(audioUrl(j.output)),
+        onClick: () => j.output && playRenderInApp(audioUrl(j.output), j.title || j.output),
       });
     }
     for (const tr of transcriptions) {

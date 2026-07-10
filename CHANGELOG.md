@@ -8,6 +8,10 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+### Added
+
+- **A persistent mini-player for all the audio that used to play "invisibly".** Generated output, voice-profile and dub-segment previews, story lines, Gallery voices, and Projects renders all played through a bare audio pipe — no waveform, no seek, no time, and (until v0.3.15's stop pill) no way to stop them. A slim player bar now docks above the Logs footer whenever such audio plays, on every page: live waveform (decoded once from the audio already in memory — nothing is re-fetched), click/drag/keyboard seek, play/pause, elapsed/total time, what's-playing label, and a stop button. It replaces the stop-only pill, and because it's part of the app's layout rather than a floating overlay, the pill's "covers the Production Overrides row at 1440×900" overlap class can't come back. Stories line previews also route through it — which makes them stoppable *and* fixes them being silent on the macOS/Linux desktop builds (their old playback path used blob: URLs, which WebKit refuses to play). (no issue — owner request following #1032's stop-pill band-aid)
+
 ## [0.3.15] — 2026-07-10
 
 The cold-start release. Three "why is this broken on my machine" mysteries got solved at their roots: **first generations stop dying at 300 seconds** (the timeout was counting the model download as generation time — @moduvoice measured it on a Tesla T4: 0% GPU for the full window), **updates stop deleting engines you installed yourself** (the updater's dependency sync removed anything not in the app's lockfile — including things our own UI told you to install), and **the "slower than v0.3.5" regression is found and fixed** (clone profiles without a transcript were silently re-running a full Whisper transcription on every single generate). Also: Clear History is back, auto-played audio is finally stoppable, @stronghamjji hardened the dub pipeline against wedged transcribes, and @shakib30's community Colab notebook is now the linked no-GPU path. Thank you all.

@@ -7,7 +7,9 @@ vi.mock('../utils/apiBase', () => ({
   API_BASE: 'http://127.0.0.1:3900',
   isTauriContext: () => true,
 }));
-vi.mock('../utils/playback', () => ({ claimPlayback: () => () => {} }));
+vi.mock('../utils/playback', () => ({
+  claimTrackedPlayback: () => ({ release: () => {}, update: () => {} }),
+}));
 
 // Imported after the mocks so media.js picks up isTauri = true at module load.
 const { playBlobAudio } = await import('../utils/media');

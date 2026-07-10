@@ -286,7 +286,7 @@ export default function ExportModal({
 
   return createPortal(
     <div
-      className="pointer-events-none fixed inset-x-0 bottom-[var(--logs-footer-height,28px)] z-[90] flex justify-center"
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--logs-footer-height,28px)+var(--audio-dock-height,0px))] z-[90] flex justify-center"
       role="dialog"
       aria-modal="false"
       aria-label={t('exportModal.export_options')}

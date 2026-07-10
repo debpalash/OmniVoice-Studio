@@ -249,7 +249,7 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
       // subscription) so the freshest value is read at completion time.
       if (useAppStore.getState().autoPlayPreview) {
         try {
-          await playBlobAudio(blob);
+          await playBlobAudio(blob, { label: t('player.generated_audio') });
         } catch (e) {}
       }
 

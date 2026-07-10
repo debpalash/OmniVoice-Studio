@@ -694,15 +694,18 @@ samp,
   display: grid;
   /* [rail 48px] [sidebar 180–220] [main 1fr] */
   grid-template-columns: 48px minmax(180px, 220px) minmax(0, 4fr);
-  /* Rows: [header] [content 1fr] [LogsFooter]. The footer is a REAL grid row
-     (not a fixed overlay): content in row 2 physically ends at the footer's
-     top edge, so bottom buttons can never render underneath it — at any
-     window height, collapsed or expanded. This retires the whole
+  /* Rows: [header] [content 1fr] [GlobalAudioPlayer] [LogsFooter]. The footer
+     is a REAL grid row (not a fixed overlay): content in row 2 physically ends
+     at the footer's top edge, so bottom buttons can never render underneath it
+     — at any window height, collapsed or expanded. This retires the whole
      padding-bottom/--logs-footer-height reservation class of clipping bugs
      (#476, #504, and the small-window "buttons hidden under footer" report).
-     The nav rail spans rows 2/-1 so it still runs top-to-bottom beside the
-     footer, exactly like the old fixed-inset look. */
-  grid-template-rows: auto 1fr auto;
+     Row 3 is the global audio mini-player's dock (auto → collapses to 0 while
+     idle); it gets the same in-flow guarantee, so the fixed-overlay overlap
+     the #1032 stop pill had at 1440×900 cannot recur. The nav rail spans rows
+     2/-1 so it still runs top-to-bottom beside both bars, exactly like the
+     old fixed-inset look. */
+  grid-template-rows: auto 1fr auto auto;
   gap: 0px;
   overflow: hidden;
   transition: grid-template-columns var(--transition-smooth);
@@ -2835,7 +2838,7 @@ input[type="file"]::file-selector-button:hover {
    and stay full-width. It sits *beside* the nav rail (rail spans rows 2/-1). */
 .app-container .logs-footer {
   position: static;
-  grid-row: 3;
+  grid-row: 4;
   grid-column: 2 / -1;
 }
 .app-container.rail-right .logs-footer {
@@ -2846,6 +2849,22 @@ input[type="file"]::file-selector-button:hover {
    scaled width rather than a raw @media viewport width.) */
 .app-container.shell-mini .logs-footer,
 .app-container.shell-mini.rail-right .logs-footer {
+  grid-column: 1 / -1;
+}
+
+/* Global audio mini-player dock — grid row 3, directly above the footer,
+   same column recipe as .logs-footer (beside the nav rail; full width when
+   the rail hides). It renders nothing while idle, so the `auto` row
+   collapses to 0 and the layout is byte-identical to pre-player builds. */
+.app-container .global-audio-dock {
+  grid-row: 3;
+  grid-column: 2 / -1;
+}
+.app-container.rail-right .global-audio-dock {
+  grid-column: 1 / -2;
+}
+.app-container.shell-mini .global-audio-dock,
+.app-container.shell-mini.rail-right .global-audio-dock {
   grid-column: 1 / -1;
 }
 
@@ -3074,7 +3093,9 @@ body:has(.capture-pill) {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: var(--logs-footer-height, 28px);
+  /* Above the footer AND the global audio dock (0px while the player is idle
+     — GlobalAudioPlayer publishes --audio-dock-height like the footer does). */
+  bottom: calc(var(--logs-footer-height, 28px) + var(--audio-dock-height, 0px));
   z-index: 90;
   display: flex;
   justify-content: center;
@@ -3112,8 +3133,9 @@ body:has(.capture-pill) {
   /* Bottom-center (snackbar) so it never collides with the right-side
      workspace panels (Voice / Dub), the top title bar, or the nav rail.
      Rides above the LogsFooter at any expanded height (the footer writes
-     --logs-footer-height on :root — see LogsFooter.jsx). */
-  bottom: calc(var(--logs-footer-height, 28px) + 16px);
+     --logs-footer-height on :root — see LogsFooter.jsx) and above the global
+     audio dock (GlobalAudioPlayer writes --audio-dock-height the same way). */
+  bottom: calc(var(--logs-footer-height, 28px) + var(--audio-dock-height, 0px) + 16px);
   left: 50%;
   transform: translateX(-50%);
   z-index: var(--z-toast);

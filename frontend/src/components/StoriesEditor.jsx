@@ -54,6 +54,7 @@ import {
 import { parseScript } from '../utils/parseScript';
 import { importToText } from '../utils/importStory';
 import { generateSpeech, audioUrl } from '../api/generate';
+import { playBlobAudio } from '../utils/media';
 import { encodeAudio } from '../api/stories';
 import { longformRender } from '../api/audiobook';
 import { exportStems } from '../utils/storyExport';
@@ -423,14 +424,6 @@ export default function StoriesEditor({ profiles = [] }) {
     return res.blob();
   }, []);
 
-  const fetchChunkAudio = useCallback(
-    async (text, profileId, speed = 1.0) => {
-      const blob = await fetchChunkBlob(text, profileId, speed);
-      return URL.createObjectURL(blob);
-    },
-    [fetchChunkBlob],
-  );
-
   const previewTrack = useCallback(
     async (track) => {
       const raw = (track.text || '').trim();
@@ -443,14 +436,18 @@ export default function StoriesEditor({ profiles = [] }) {
 
       if (!hasStoryMarkers(raw)) {
         try {
-          const url = await fetchChunkAudio(raw, pid, spd);
+          const blob = await fetchChunkBlob(raw, pid, spd);
+          const url = URL.createObjectURL(blob);
           setTracks((prev) =>
             prev.map((tk) =>
               tk.id === track.id ? { ...tk, audioUrl: url, generating: false } : tk,
             ),
           );
-          const audio = new Audio(url);
-          audio.play().catch(() => {});
+          // Shared playback path (labelled with the line text): registers with
+          // the single-playback manager + global mini-player, and — unlike the
+          // old bare `new Audio(blobUrl)` — actually plays under Tauri's
+          // WebKit, where blob: URLs are dead in media elements.
+          playBlobAudio(blob, { label: raw }).catch(() => {});
         } catch (err) {
           console.warn('Stories preview failed:', err);
           setTracks((prev) =>
@@ -462,17 +459,15 @@ export default function StoriesEditor({ profiles = [] }) {
 
       const parsed = parseStoryText(raw, pid);
       try {
-        const audioUrls = await Promise.all(
+        const chunkBlobs = await Promise.all(
           parsed.map((seg) =>
             seg.type === 'chunk'
-              ? fetchChunkAudio(seg.text, seg.profileId, spd)
+              ? fetchChunkBlob(seg.text, seg.profileId, spd)
               : Promise.resolve(null),
           ),
         );
         let cursor = 0;
         const finish = () => {
-          for (let i = cursor; i < audioUrls.length; i++)
-            if (audioUrls[i]) URL.revokeObjectURL(audioUrls[i]);
           setTracks((prev) =>
             prev.map((tk) =>
               tk.id === track.id ? { ...tk, generating: false, audioUrl: null } : tk,
@@ -482,26 +477,21 @@ export default function StoriesEditor({ profiles = [] }) {
         const step = () => {
           while (cursor < parsed.length) {
             const seg = parsed[cursor];
-            const url = audioUrls[cursor];
+            const blob = chunkBlobs[cursor];
             cursor++;
             if (seg.type === 'pause') {
               setTimeout(step, seg.seconds * 1000);
               return;
             }
-            if (seg.type === 'chunk' && url) {
-              const audio = new Audio(url);
-              audio.onended = () => {
-                URL.revokeObjectURL(url);
-                step();
-              };
-              audio.onerror = () => {
-                URL.revokeObjectURL(url);
-                step();
-              };
-              audio.play().catch(() => {
-                URL.revokeObjectURL(url);
-                step();
-              });
+            if (seg.type === 'chunk' && blob) {
+              // Chained through the shared playback path: each chunk claims
+              // the global manager (mini-player shows the line), a natural
+              // end (or a broken chunk) advances the chain, and stopping from
+              // the player/another claim cancels the rest of the chain.
+              playBlobAudio(blob, {
+                label: raw,
+                onDone: (reason) => (reason === 'stopped' ? finish() : step()),
+              }).catch(() => step());
               return;
             }
           }
@@ -515,7 +505,7 @@ export default function StoriesEditor({ profiles = [] }) {
         );
       }
     },
-    [fetchChunkAudio, cast, globalSpeed, setTracks],
+    [fetchChunkBlob, cast, globalSpeed, setTracks],
   );
 
   // Deliver a stitched WAV in the chosen format. MP3 routes through the backend

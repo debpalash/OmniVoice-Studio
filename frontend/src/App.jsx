@@ -42,7 +42,7 @@ import WorkspaceVoices from './components/WorkspaceVoices';
 import WorkspaceProjects from './components/WorkspaceProjects';
 import ErrorBoundary from './components/ErrorBoundary';
 import FloatingPill from './components/FloatingPill';
-import PlaybackStopPill from './components/PlaybackStopPill';
+import GlobalAudioPlayer from './components/GlobalAudioPlayer';
 import BackendCrashNotice from './components/BackendCrashNotice';
 // RemoteAuthGate is mounted at the true outermost provider in main-app.jsx so
 // it covers all app states (setup check / wizard / bootstrap), not just the
@@ -592,7 +592,7 @@ function App() {
         fd.append('num_step', '16');
         const res = await apiFetch(`${API}/generate`, { method: 'POST', body: fd });
         const blob = await res.blob();
-        await playBlobAudio(blob);
+        await playBlobAudio(blob, { label: i18n.t('player.generated_audio') });
         toast.success(i18n.t('firstrun.first_sound_done'), { duration: 7000 });
       } catch {
         /* silent — see above */
@@ -1294,10 +1294,6 @@ function App() {
 
       <FloatingPill />
 
-      {/* #1032: global stop for playback that has no on-screen player (the
-          generate auto-play / profile & segment previews via playBlobAudio). */}
-      <PlaybackStopPill />
-
       {/* #941: honest surfacing of backend process crashes (exit code +
           stderr tail from the shell's crash marker), with ack-on-view. */}
       <BackendCrashNotice />
@@ -1729,6 +1725,12 @@ function App() {
           />
         </Suspense>
       )}
+
+      {/* ═══ GLOBAL AUDIO MINI-PLAYER (grid row 3, above the footer) ═══
+          Subsumes the #1032 PlaybackStopPill: waveform + seek + time + stop
+          for every playBlobAudio playback that has no on-screen player. As a
+          real grid row it can never overlap row-2 content or the footer. */}
+      <GlobalAudioPlayer />
 
       {/* ═══ BOTTOM LOGS PANEL (VSCode-style) ═══ */}
       <Suspense fallback={null}>

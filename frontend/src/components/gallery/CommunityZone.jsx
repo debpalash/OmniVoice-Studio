@@ -75,7 +75,7 @@ export default function CommunityZone({
               onToggleFavorite={toggleFavorite}
               onPreview={(item) =>
                 item.audio?.url
-                  ? onPlayAudio(item.audio.url, item.id)
+                  ? onPlayAudio(item.audio.url, item.id, item.name)
                   : flash(
                       t('gallery.no_preview', {
                         defaultValue: 'No preview — add it with "Use voice" to hear it.',

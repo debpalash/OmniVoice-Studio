@@ -1893,6 +1893,15 @@
     "source_missing": "Source media missing — this file may have moved or been deleted. Re-upload the video to continue.",
     "load_failed": "Could not load audio from this file"
   },
+  "player": {
+    "now_playing": "Now playing",
+    "generated_audio": "Generated audio",
+    "untitled": "Audio",
+    "play": "Play",
+    "pause": "Pause",
+    "seek": "Seek",
+    "stop": "Stop playback"
+  },
   "casting": {
     "title": "Speaker Casting",
     "auto_assign_title": "Auto-assign voices from extracted speaker clones",

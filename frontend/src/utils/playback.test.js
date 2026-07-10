@@ -1,9 +1,15 @@
-// Unit tests for the global single-playback manager (issue #316).
+// Unit tests for the global single-playback manager (issue #316) and its
+// tracked-playback extension (global mini-player).
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   claimPlayback,
+  claimTrackedPlayback,
   stopActivePlayback,
   activePlaybackSource,
+  getPlaybackTrack,
+  seekActivePlayback,
+  pauseActivePlayback,
+  resumeActivePlayback,
   subscribePlayback,
 } from './playback';
 
@@ -89,5 +95,92 @@ describe('playback manager', () => {
     unsubscribe();
     claimPlayback(vi.fn(), 'c');
     expect(listener).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe('tracked playback (global mini-player)', () => {
+  it('exposes label + transport capabilities in the track snapshot', () => {
+    claimTrackedPlayback({
+      stop: vi.fn(),
+      source: 'output',
+      label: 'Generated audio',
+      seek: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
+    });
+    const track = getPlaybackTrack();
+    expect(track).toMatchObject({
+      source: 'output',
+      label: 'Generated audio',
+      canSeek: true,
+      canPause: true,
+      paused: false,
+      currentTime: 0,
+      duration: 0,
+      peaks: null,
+    });
+  });
+
+  it('update() patches track state and notifies subscribers', () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribePlayback(listener);
+    const session = claimTrackedPlayback({ stop: vi.fn(), source: 'output' });
+    listener.mockClear();
+    session.update({ currentTime: 3.2, duration: 10, peaks: [0.1, 1] });
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(getPlaybackTrack()).toMatchObject({
+      currentTime: 3.2,
+      duration: 10,
+      peaks: [0.1, 1],
+    });
+    unsubscribe();
+  });
+
+  it('a stale update() after another claim must not clobber the new owner', () => {
+    const stale = claimTrackedPlayback({ stop: vi.fn(), source: 'output', label: 'old' });
+    claimTrackedPlayback({ stop: vi.fn(), source: 'output', label: 'new' });
+    stale.update({ currentTime: 99 });
+    expect(getPlaybackTrack()).toMatchObject({ label: 'new', currentTime: 0 });
+    stale.release();
+    expect(getPlaybackTrack()).toMatchObject({ label: 'new' });
+  });
+
+  it('seek/pause/resume route to the active claim and no-op when idle', () => {
+    const seek = vi.fn();
+    const pause = vi.fn();
+    const resume = vi.fn();
+    claimTrackedPlayback({ stop: vi.fn(), source: 'output', seek, pause, resume });
+    seekActivePlayback(4.5);
+    pauseActivePlayback();
+    resumeActivePlayback();
+    expect(seek).toHaveBeenCalledWith(4.5);
+    expect(pause).toHaveBeenCalledTimes(1);
+    expect(resume).toHaveBeenCalledTimes(1);
+    stopActivePlayback();
+    expect(() => {
+      seekActivePlayback(1);
+      pauseActivePlayback();
+      resumeActivePlayback();
+    }).not.toThrow();
+    expect(seek).toHaveBeenCalledTimes(1);
+  });
+
+  it('legacy claimPlayback claims are visible as capability-less tracks', () => {
+    claimPlayback(vi.fn(), 'output');
+    expect(getPlaybackTrack()).toMatchObject({
+      source: 'output',
+      label: null,
+      canSeek: false,
+      canPause: false,
+    });
+  });
+
+  it('snapshot goes null on stop and on release', () => {
+    const session = claimTrackedPlayback({ stop: vi.fn(), source: 'output' });
+    session.release();
+    expect(getPlaybackTrack()).toBeNull();
+    claimTrackedPlayback({ stop: vi.fn(), source: 'output' });
+    stopActivePlayback();
+    expect(getPlaybackTrack()).toBeNull();
   });
 });
