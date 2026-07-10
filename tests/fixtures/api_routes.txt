@@ -24,6 +24,7 @@ GET /api/settings/db-backup
 GET /api/settings/dictation-refinement
 GET /api/settings/hf-mirror
 GET /api/settings/hf-token/state
+GET /api/settings/history-retention
 GET /api/settings/license/{engine_id}
 GET /api/settings/llm-endpoint
 GET /api/settings/llm-providers
@@ -220,12 +221,14 @@ PUT /api/mcp/bindings
 PUT /api/settings/asr-openai-compat
 PUT /api/settings/dictation-refinement
 PUT /api/settings/hf-mirror
+PUT /api/settings/history-retention
 PUT /api/settings/llm-endpoint
 PUT /api/settings/llm-providers/{provider_id}
 PUT /api/settings/llm-skills/{skill_id}
 PUT /api/settings/perf/torch-compile-disabled
 PUT /api/settings/storage/models-dir
 PUT /glossary/{project_id}/{term_id}
+PUT /history/{history_id}/starred
 PUT /profiles/{profile_id}
 PUT /projects/{project_id}
 PUT /pronunciation/{entry_id}

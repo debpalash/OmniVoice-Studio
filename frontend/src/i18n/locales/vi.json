@@ -164,7 +164,15 @@
     "factory_reset_confirm": "Đặt lại và tải lại",
     "factory_reset_confirm_body": "Thao tác này sẽ xóa tất cả tùy chọn giao diện người dùng đã lưu và tải lại ứng dụng. Giọng nói, dự án và đầu ra trên đĩa của bạn không bị ảnh hưởng. Tiếp tục?",
     "factory_reset_done": "Đã xóa tùy chọn - đang tải lại…",
-    "factory_reset_failed": "Đặt lại không thành công"
+    "factory_reset_failed": "Đặt lại không thành công",
+    "history_retention": "Lịch sử tạo",
+    "history_retention_desc": "Số bản thu được giữ trước khi dọn các bản cũ nhất.",
+    "history_retention_help": "Sau mỗi lần tạo, các bản thu cũ nhất chưa gắn sao vượt quá giới hạn này sẽ bị xóa cùng tệp âm thanh. Bản thu đã gắn sao luôn được giữ lại. 0 = giữ tất cả.",
+    "history_retention_cap": "Số bản thu cần giữ",
+    "history_retention_cap_hint": "Bản thu gắn sao không bao giờ bị dọn · 0 = không giới hạn",
+    "history_retention_saved": "Đã lưu giới hạn lưu trữ",
+    "history_retention_save_failed": "Không thể lưu",
+    "history_retention_invalid": "Nhập 0 trở lên"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -310,7 +318,8 @@
     "yes": "Có",
     "no": "Không",
     "more_info": "Thêm thông tin",
-    "learn_more": "Tìm hiểu thêm"
+    "learn_more": "Tìm hiểu thêm",
+    "saving": "Đang lưu…"
   },
   "launchpad": {
     "greeting": "xin chào ở đó",
@@ -1960,7 +1969,12 @@
     "dub_title": "Lịch sử lồng tiếng",
     "empty": "Chưa có gì ở đây — các bản tạo của bạn sẽ xuất hiện ở bên phải.",
     "empty_dub": "Các bản lồng tiếng của bạn sẽ xuất hiện tại đây.",
-    "title": "Lịch sử"
+    "title": "Lịch sử",
+    "star_take": "Gắn sao — giữ bản thu này",
+    "unstar_take": "Bỏ sao — cho phép dọn dẹp",
+    "play_take": "Tải làm đầu ra hiện tại",
+    "filter_starred": "Đã gắn sao",
+    "load_take_failed": "Không thể tải bản thu đó: {{message}}"
   },
   "recording": {
     "cleaned_loaded": "Đã làm sạch và tải bản ghi âm!",

@@ -164,7 +164,15 @@
     "factory_reset_confirm": "Redefinir e recarregar",
     "factory_reset_confirm_body": "Isso limpa todas as preferências de UI salvas e recarrega o aplicativo. Suas vozes, projetos e saídas em disco não são afetados. Continuar?",
     "factory_reset_done": "Preferências limpas — recarregando…",
-    "factory_reset_failed": "Falha na redefinição"
+    "factory_reset_failed": "Falha na redefinição",
+    "history_retention": "Histórico de geração",
+    "history_retention_desc": "Quantas takes manter antes de limpar as mais antigas.",
+    "history_retention_help": "Após cada geração, as takes mais antigas sem estrela acima deste limite são removidas junto com seus arquivos de áudio. Takes com estrela são sempre mantidas. 0 = manter tudo.",
+    "history_retention_cap": "Takes a manter",
+    "history_retention_cap_hint": "Takes com estrela nunca contam para a limpeza · 0 = ilimitado",
+    "history_retention_saved": "Limite de retenção salvo",
+    "history_retention_save_failed": "Não foi possível salvar",
+    "history_retention_invalid": "Digite 0 ou mais"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -310,7 +318,8 @@
     "yes": "Sim",
     "no": "Não",
     "more_info": "Mais informações",
-    "learn_more": "Saiba mais"
+    "learn_more": "Saiba mais",
+    "saving": "Salvando…"
   },
   "launchpad": {
     "greeting": "Olá",
@@ -1960,7 +1969,12 @@
     "dub_title": "Histórico de dublagens",
     "empty": "Nada por aqui ainda — suas gerações aparecerão à direita.",
     "empty_dub": "Suas dublagens aparecerão aqui.",
-    "title": "Histórico"
+    "title": "Histórico",
+    "star_take": "Marcar — manter esta take",
+    "unstar_take": "Desmarcar — permitir limpeza",
+    "play_take": "Carregar como saída ativa",
+    "filter_starred": "Marcadas",
+    "load_take_failed": "Não foi possível carregar essa take: {{message}}"
   },
   "recording": {
     "cleaned_loaded": "Gravação limpa e carregada!",

@@ -164,7 +164,15 @@
     "factory_reset_confirm": "Sıfırla ve yeniden yükle",
     "factory_reset_confirm_body": "Bu, kayıtlı tüm kullanıcı arayüzü tercihlerini temizler ve uygulamayı yeniden yükler. Diskteki sesleriniz, projeleriniz ve çıktılarınız etkilenmez. Devam etmek?",
     "factory_reset_done": "Tercihler temizlendi — yeniden yükleniyor…",
-    "factory_reset_failed": "Sıfırlama başarısız oldu"
+    "factory_reset_failed": "Sıfırlama başarısız oldu",
+    "history_retention": "Üretim geçmişi",
+    "history_retention_desc": "En eskiler temizlenmeden önce kaç kaydın saklanacağı.",
+    "history_retention_help": "Her üretimden sonra bu sınırı aşan en eski yıldızsız kayıtlar ses dosyalarıyla birlikte silinir. Yıldızlı kayıtlar her zaman saklanır. 0 = tümünü sakla.",
+    "history_retention_cap": "Saklanacak kayıt sayısı",
+    "history_retention_cap_hint": "Yıldızlı kayıtlar temizlikte sayılmaz · 0 = sınırsız",
+    "history_retention_saved": "Saklama sınırı kaydedildi",
+    "history_retention_save_failed": "Kaydedilemedi",
+    "history_retention_invalid": "0 veya daha büyük bir değer girin"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -310,7 +318,8 @@
     "yes": "Evet",
     "no": "Hayır",
     "more_info": "Daha fazla bilgi",
-    "learn_more": "Daha fazla bilgi edinin"
+    "learn_more": "Daha fazla bilgi edinin",
+    "saving": "Kaydediliyor…"
   },
   "launchpad": {
     "greeting": "merhaba orada",
@@ -1960,7 +1969,12 @@
     "dub_title": "Dublaj geçmişi",
     "empty": "Burada henüz bir şey yok — oluşturduklarınız sağda görünecek.",
     "empty_dub": "Dublajlarınız burada görünecek.",
-    "title": "Geçmiş"
+    "title": "Geçmiş",
+    "star_take": "Yıldızla — bu kaydı sakla",
+    "unstar_take": "Yıldızı kaldır — temizliğe izin ver",
+    "play_take": "Etkin çıktı olarak yükle",
+    "filter_starred": "Yıldızlı",
+    "load_take_failed": "Kayıt yüklenemedi: {{message}}"
   },
   "recording": {
     "cleaned_loaded": "Kayıt temizlendi ve yüklendi!",

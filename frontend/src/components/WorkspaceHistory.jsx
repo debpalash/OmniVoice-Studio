@@ -22,6 +22,8 @@ import {
   Lock,
   Download as DownloadIcon,
   FolderOpen,
+  Play,
+  Star,
   Trash2,
 } from 'lucide-react';
 import WaveformPlayer from './WaveformPlayer';
@@ -31,6 +33,7 @@ const FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'clone', label: 'Clone' },
   { id: 'design', label: 'Design' },
+  { id: 'starred', label: 'Starred' },
 ];
 
 /**
@@ -79,6 +82,8 @@ export default function WorkspaceHistory({
   restoreHistory,
   deleteHistory,
   clearHistory, // clear-all for this workspace's history (#1032)
+  toggleStarHistory, // generation takes: keep this take past the retention cap
+  playTakeAsOutput, // generation takes: replay a take as the active output
 }) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState('all');
@@ -102,7 +107,9 @@ export default function WorkspaceHistory({
   // Voice workspace = clone + design generations (dub lives in its own workspace).
   const items = useMemo(() => {
     const synth = history.filter((h) => h.mode === 'clone' || h.mode === 'design');
-    return filter === 'all' ? synth : synth.filter((h) => h.mode === filter);
+    if (filter === 'all') return synth;
+    if (filter === 'starred') return synth.filter((h) => !!h.starred);
+    return synth.filter((h) => h.mode === filter);
   }, [history, filter]);
 
   // ── Dub variant: a flat list of dub jobs, no clone/design filter. ──
@@ -245,6 +252,39 @@ export default function WorkspaceHistory({
                 ) : null}
                 {item.audio_path ? (
                   <div className="history-actions">
+                    {toggleStarHistory ? (
+                      <button
+                        className={`history-action-btn history-action-icon ${item.starred ? 'accent' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleStarHistory(item);
+                        }}
+                        aria-pressed={!!item.starred}
+                        data-testid={`take-star-${item.id}`}
+                        title={
+                          item.starred
+                            ? t('history.unstar_take', { defaultValue: 'Unstar — allow cleanup' })
+                            : t('history.star_take', { defaultValue: 'Star — keep this take' })
+                        }
+                      >
+                        <Star size={10} fill={item.starred ? 'currentColor' : 'none'} />
+                      </button>
+                    ) : null}
+                    {playTakeAsOutput ? (
+                      <button
+                        className="history-action-btn accent history-action-icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          playTakeAsOutput(item);
+                        }}
+                        data-testid={`take-play-${item.id}`}
+                        title={t('history.play_take', {
+                          defaultValue: 'Load as active output',
+                        })}
+                      >
+                        <Play size={10} />
+                      </button>
+                    ) : null}
                     <button
                       className="history-action-btn accent"
                       onClick={(e) => {

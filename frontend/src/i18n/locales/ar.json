@@ -164,7 +164,15 @@
     "factory_reset_confirm": "إعادة تعيين وإعادة تحميل",
     "factory_reset_confirm_body": "يؤدي هذا إلى مسح جميع تفضيلات واجهة المستخدم المحفوظة وإعادة تحميل التطبيق. لن تتأثر أصواتك ومشاريعك ومخرجاتك الموجودة على القرص. يكمل؟",
     "factory_reset_done": "تم مسح التفضيلات — جارٍ إعادة التحميل...",
-    "factory_reset_failed": "فشلت إعادة التعيين"
+    "factory_reset_failed": "فشلت إعادة التعيين",
+    "history_retention": "سجل التوليد",
+    "history_retention_desc": "عدد اللقطات المحتفظ بها قبل تنظيف الأقدم.",
+    "history_retention_help": "بعد كل عملية توليد، تُحذف أقدم اللقطات غير المميزة بنجمة التي تتجاوز هذا الحد مع ملفاتها الصوتية. اللقطات المميزة بنجمة تبقى دائمًا. 0 = الاحتفاظ بالكل.",
+    "history_retention_cap": "اللقطات المحتفظ بها",
+    "history_retention_cap_hint": "اللقطات المميزة بنجمة لا تُحتسب في التنظيف · 0 = بلا حد",
+    "history_retention_saved": "تم حفظ حد الاحتفاظ",
+    "history_retention_save_failed": "تعذر الحفظ",
+    "history_retention_invalid": "أدخل 0 أو أكثر"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -310,7 +318,8 @@
     "yes": "نعم",
     "no": "لا",
     "more_info": "مزيد من المعلومات",
-    "learn_more": "تعلم المزيد"
+    "learn_more": "تعلم المزيد",
+    "saving": "جارٍ الحفظ…"
   },
   "launchpad": {
     "greeting": "مرحبا هناك",
@@ -1960,7 +1969,12 @@
     "dub_title": "سجل الدبلجة",
     "empty": "لا شيء هنا بعد — ستظهر مخرجاتك على اليمين.",
     "empty_dub": "ستظهر دبلجاتك هنا.",
-    "title": "السجل"
+    "title": "السجل",
+    "star_take": "تمييز بنجمة — الاحتفاظ بهذه اللقطة",
+    "unstar_take": "إزالة النجمة — السماح بالتنظيف",
+    "play_take": "تحميل كإخراج نشط",
+    "filter_starred": "المميزة بنجمة",
+    "load_take_failed": "تعذر تحميل تلك اللقطة: {{message}}"
   },
   "recording": {
     "cleaned_loaded": "تم تنظيف التسجيل وتحميله!",

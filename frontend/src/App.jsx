@@ -84,7 +84,11 @@ import {
   renameProject as apiRenameProject,
 } from './api/projects';
 import { exportAction, exportReveal, exportRecord } from './api/exports';
-import { clearHistory as apiClearHistory } from './api/generate';
+import {
+  clearHistory as apiClearHistory,
+  setHistoryStarred as apiSetHistoryStarred,
+  audioUrlWithCacheBust,
+} from './api/generate';
 import { clearDubHistory as apiClearDubHistory } from './api/dub';
 
 import { isTauri, doubleClickMaximize, fileToMediaUrl, playBlobAudio } from './utils/media';
@@ -1138,6 +1142,33 @@ function App() {
     toast.success(i18n.t('app.toast_restored_state'));
   };
 
+  // Generation takes: star/unstar a take so it survives the retention cap and
+  // never ages off the rail. Optimistic errors only — the WS
+  // generation_history event refreshes the list on success.
+  const toggleStarHistory = async (item) => {
+    try {
+      await apiSetHistoryStarred(item.id, !item.starred);
+      loadHistory();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  // Load a past take back as the active output: fetch its WAV and hand it to
+  // the same global mini-player a fresh generation plays through.
+  const playTakeAsOutput = async (item) => {
+    try {
+      const res = await apiFetch(audioUrlWithCacheBust(item.audio_path));
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      await playBlobAudio(blob, {
+        label: item.text || i18n.t('player.generated_audio'),
+      });
+    } catch (err) {
+      toast.error(i18n.t('history.load_take_failed', { message: err.message || '' }));
+    }
+  };
+
   const deleteHistory = async (id, type) => {
     if (!(await askConfirm('Delete this history item?'))) return;
     try {
@@ -1620,6 +1651,8 @@ function App() {
                 restoreHistory={restoreHistory}
                 deleteHistory={deleteHistory}
                 clearHistory={() => clearWorkspaceHistory('synth')}
+                toggleStarHistory={toggleStarHistory}
+                playTakeAsOutput={playTakeAsOutput}
               />
             </div>
           </div>

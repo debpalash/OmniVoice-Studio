@@ -16,6 +16,14 @@ export async function clearHistory(): Promise<Response> {
   return apiFetch('/history', { method: 'DELETE' });
 }
 
+export async function setHistoryStarred(id: string, starred: boolean): Promise<unknown> {
+  return apiJson(`/history/${id}/starred`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ starred }),
+  });
+}
+
 export function audioUrl(filename: string): string {
   return `${API}/audio/${filename}`;
 }

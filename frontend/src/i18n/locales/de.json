@@ -164,7 +164,15 @@
     "factory_reset_confirm": "Zurücksetzen und neu laden",
     "factory_reset_confirm_body": "Dadurch werden alle gespeicherten Benutzeroberflächeneinstellungen gelöscht und die App neu geladen. Ihre Stimmen, Projekte und Ausgaben auf der Festplatte sind nicht betroffen. Weitermachen?",
     "factory_reset_done": "Einstellungen gelöscht – wird neu geladen…",
-    "factory_reset_failed": "Zurücksetzen fehlgeschlagen"
+    "factory_reset_failed": "Zurücksetzen fehlgeschlagen",
+    "history_retention": "Generierungsverlauf",
+    "history_retention_desc": "Wie viele Takes behalten werden, bevor die ältesten aufgeräumt werden.",
+    "history_retention_help": "Nach jeder Generierung werden die ältesten nicht markierten Takes über diesem Limit samt Audiodateien entfernt. Markierte Takes bleiben immer erhalten. 0 = alles behalten.",
+    "history_retention_cap": "Zu behaltende Takes",
+    "history_retention_cap_hint": "Markierte Takes zählen nie zum Aufräumen · 0 = unbegrenzt",
+    "history_retention_saved": "Aufbewahrungslimit gespeichert",
+    "history_retention_save_failed": "Speichern fehlgeschlagen",
+    "history_retention_invalid": "0 oder mehr eingeben"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -310,7 +318,8 @@
     "yes": "Ja",
     "no": "Nein",
     "more_info": "Weitere Informationen",
-    "learn_more": "Erfahren Sie mehr"
+    "learn_more": "Erfahren Sie mehr",
+    "saving": "Speichern…"
   },
   "launchpad": {
     "greeting": "Hallo",
@@ -1960,7 +1969,12 @@
     "dub_title": "Dub-Verlauf",
     "empty": "Hier ist noch nichts — Ihre Generierungen erscheinen rechts.",
     "empty_dub": "Ihre Dubs erscheinen hier.",
-    "title": "Verlauf"
+    "title": "Verlauf",
+    "star_take": "Markieren — diesen Take behalten",
+    "unstar_take": "Markierung entfernen — Aufräumen erlauben",
+    "play_take": "Als aktive Ausgabe laden",
+    "filter_starred": "Markiert",
+    "load_take_failed": "Take konnte nicht geladen werden: {{message}}"
   },
   "recording": {
     "cleaned_loaded": "Aufnahme bereinigt & geladen!",

@@ -164,7 +164,15 @@
     "factory_reset_confirm": "Reimposta e ricarica",
     "factory_reset_confirm_body": "Ciò cancella tutte le preferenze dell'interfaccia utente salvate e ricarica l'app. Le tue voci, progetti e output su disco non sono interessati. Continuare?",
     "factory_reset_done": "Preferenze cancellate: ricaricamento in corso...",
-    "factory_reset_failed": "Reimpostazione non riuscita"
+    "factory_reset_failed": "Reimpostazione non riuscita",
+    "history_retention": "Cronologia generazioni",
+    "history_retention_desc": "Quanti take conservare prima di ripulire i più vecchi.",
+    "history_retention_help": "Dopo ogni generazione, i take più vecchi senza stella oltre questo limite vengono rimossi insieme ai file audio. I take con stella vengono sempre conservati. 0 = conserva tutto.",
+    "history_retention_cap": "Take da conservare",
+    "history_retention_cap_hint": "I take con stella non contano mai per la pulizia · 0 = illimitato",
+    "history_retention_saved": "Limite di conservazione salvato",
+    "history_retention_save_failed": "Salvataggio non riuscito",
+    "history_retention_invalid": "Inserisci 0 o più"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -310,7 +318,8 @@
     "yes": "Sì",
     "no": "No",
     "more_info": "Maggiori informazioni",
-    "learn_more": "Scopri di più"
+    "learn_more": "Scopri di più",
+    "saving": "Salvataggio…"
   },
   "launchpad": {
     "greeting": "ciao a tutti",
@@ -1960,7 +1969,12 @@
     "dub_title": "Cronologia doppiaggi",
     "empty": "Ancora niente qui — le tue generazioni appariranno sulla destra.",
     "empty_dub": "I tuoi doppiaggi appariranno qui.",
-    "title": "Cronologia"
+    "title": "Cronologia",
+    "star_take": "Stella — conserva questo take",
+    "unstar_take": "Rimuovi stella — consenti la pulizia",
+    "play_take": "Carica come output attivo",
+    "filter_starred": "Con stella",
+    "load_take_failed": "Impossibile caricare il take: {{message}}"
   },
   "recording": {
     "cleaned_loaded": "Registrazione pulita e caricata!",

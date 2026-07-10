@@ -164,7 +164,15 @@
     "factory_reset_confirm": "Resetten en opnieuw laden",
     "factory_reset_confirm_body": "Hiermee worden alle opgeslagen UI-voorkeuren gewist en wordt de app opnieuw geladen. Uw stemmen, projecten en outputs op schijf worden niet beïnvloed. Doorgaan?",
     "factory_reset_done": "Voorkeuren gewist — herladen…",
-    "factory_reset_failed": "Resetten mislukt"
+    "factory_reset_failed": "Resetten mislukt",
+    "history_retention": "Generatiegeschiedenis",
+    "history_retention_desc": "Hoeveel takes bewaard blijven voordat de oudste worden opgeruimd.",
+    "history_retention_help": "Na elke generatie worden de oudste takes zonder ster boven deze limiet verwijderd, samen met hun audiobestanden. Takes met ster blijven altijd bewaard. 0 = alles bewaren.",
+    "history_retention_cap": "Te bewaren takes",
+    "history_retention_cap_hint": "Takes met ster tellen nooit mee voor opruimen · 0 = onbeperkt",
+    "history_retention_saved": "Bewaarlimiet opgeslagen",
+    "history_retention_save_failed": "Opslaan mislukt",
+    "history_retention_invalid": "Voer 0 of meer in"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -310,7 +318,8 @@
     "yes": "Ja",
     "no": "Nee",
     "more_info": "Meer informatie",
-    "learn_more": "Meer informatie"
+    "learn_more": "Meer informatie",
+    "saving": "Opslaan…"
   },
   "launchpad": {
     "greeting": "Hallo daar",
@@ -1960,7 +1969,12 @@
     "dub_title": "Dubgeschiedenis",
     "empty": "Hier is nog niets — je generaties verschijnen rechts.",
     "empty_dub": "Je dubs verschijnen hier.",
-    "title": "Geschiedenis"
+    "title": "Geschiedenis",
+    "star_take": "Ster — deze take bewaren",
+    "unstar_take": "Ster verwijderen — opruimen toestaan",
+    "play_take": "Laden als actieve uitvoer",
+    "filter_starred": "Met ster",
+    "load_take_failed": "Kon die take niet laden: {{message}}"
   },
   "recording": {
     "cleaned_loaded": "Opname opgeschoond en geladen!",

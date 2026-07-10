@@ -70,6 +70,7 @@ _BASE_SCHEMA = """
         duration_seconds REAL,
         generation_time REAL,
         seed INTEGER DEFAULT NULL,
+        starred INTEGER DEFAULT 0,
         created_at REAL,
         FOREIGN KEY (profile_id) REFERENCES voice_profiles(id)
     );

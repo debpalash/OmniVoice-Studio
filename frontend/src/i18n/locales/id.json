@@ -164,7 +164,15 @@
     "factory_reset_confirm": "Setel ulang dan muat ulang",
     "factory_reset_confirm_body": "Ini menghapus semua preferensi UI yang tersimpan dan memuat ulang aplikasi. Suara, proyek, dan keluaran Anda pada disk tidak terpengaruh. Melanjutkan?",
     "factory_reset_done": "Preferensi dihapus — memuat ulang…",
-    "factory_reset_failed": "Penyetelan ulang gagal"
+    "factory_reset_failed": "Penyetelan ulang gagal",
+    "history_retention": "Riwayat pembuatan",
+    "history_retention_desc": "Berapa banyak take yang disimpan sebelum yang tertua dibersihkan.",
+    "history_retention_help": "Setelah setiap pembuatan, take tertua tanpa bintang yang melebihi batas ini dihapus beserta berkas audionya. Take berbintang selalu disimpan. 0 = simpan semua.",
+    "history_retention_cap": "Take yang disimpan",
+    "history_retention_cap_hint": "Take berbintang tidak pernah dihitung dalam pembersihan · 0 = tanpa batas",
+    "history_retention_saved": "Batas penyimpanan disimpan",
+    "history_retention_save_failed": "Tidak dapat menyimpan",
+    "history_retention_invalid": "Masukkan 0 atau lebih"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -310,7 +318,8 @@
     "yes": "Ya",
     "no": "Tidak",
     "more_info": "Informasi lebih lanjut",
-    "learn_more": "Pelajari lebih lanjut"
+    "learn_more": "Pelajari lebih lanjut",
+    "saving": "Menyimpan…"
   },
   "launchpad": {
     "greeting": "halo",
@@ -1960,7 +1969,12 @@
     "dub_title": "Riwayat sulih suara",
     "empty": "Belum ada apa pun di sini — hasil generasi Anda akan muncul di sebelah kanan.",
     "empty_dub": "Sulih suara Anda akan muncul di sini.",
-    "title": "Riwayat"
+    "title": "Riwayat",
+    "star_take": "Bintangi — simpan take ini",
+    "unstar_take": "Hapus bintang — izinkan pembersihan",
+    "play_take": "Muat sebagai keluaran aktif",
+    "filter_starred": "Berbintang",
+    "load_take_failed": "Tidak dapat memuat take itu: {{message}}"
   },
   "recording": {
     "cleaned_loaded": "Rekaman dibersihkan & dimuat!",

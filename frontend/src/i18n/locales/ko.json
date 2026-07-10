@@ -164,7 +164,15 @@
     "factory_reset_confirm": "재설정 및 새로고침",
     "factory_reset_confirm_body": "This clears all saved UI preferences and reloads the app. Your voices, projects, and outputs on disk are not affected. 계속하다?",
     "factory_reset_done": "환경설정이 삭제되었습니다 — 새로고침 중…",
-    "factory_reset_failed": "재설정 실패"
+    "factory_reset_failed": "재설정 실패",
+    "history_retention": "생성 기록",
+    "history_retention_desc": "오래된 테이크를 정리하기 전에 유지할 테이크 수입니다.",
+    "history_retention_help": "생성할 때마다 이 한도를 초과한 오래된 별표 없는 테이크가 오디오 파일과 함께 삭제됩니다. 별표된 테이크는 항상 유지됩니다. 0 = 모두 유지.",
+    "history_retention_cap": "유지할 테이크 수",
+    "history_retention_cap_hint": "별표된 테이크는 정리 대상에서 제외 · 0 = 무제한",
+    "history_retention_saved": "보존 한도가 저장되었습니다",
+    "history_retention_save_failed": "저장하지 못했습니다",
+    "history_retention_invalid": "0 이상을 입력하세요"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -310,7 +318,8 @@
     "yes": "예",
     "no": "아니요",
     "more_info": "추가 정보",
-    "learn_more": "자세히 알아보기"
+    "learn_more": "자세히 알아보기",
+    "saving": "저장 중…"
   },
   "launchpad": {
     "greeting": "안녕하세요",
@@ -1960,7 +1969,12 @@
     "dub_title": "더빙 기록",
     "empty": "아직 아무것도 없습니다 — 생성 결과가 오른쪽에 표시됩니다.",
     "empty_dub": "더빙 결과가 여기에 표시됩니다.",
-    "title": "기록"
+    "title": "기록",
+    "star_take": "별표 — 이 테이크 유지",
+    "unstar_take": "별표 해제 — 정리 허용",
+    "play_take": "활성 출력으로 불러오기",
+    "filter_starred": "별표됨",
+    "load_take_failed": "테이크를 불러오지 못했습니다: {{message}}"
   },
   "recording": {
     "cleaned_loaded": "녹음이 정리되어 로드되었습니다!",

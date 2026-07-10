@@ -530,7 +530,15 @@
     "storage_warn_critical": "Critically low disk space: {{free}} GB free on {{path}} — OmniVoice needs at least {{min}} GB. Generation and model downloads may fail.",
     "storage_warn_low": "Low disk space: {{free}} GB free on {{path}} — getting close to the {{min}} GB minimum.",
     "storage_warn_pressure": "The disk holding {{path}} is {{percent}}% full.",
-    "storage_warn_unreadable": "Could not fully scan {{path}} — the size shown may be incomplete."
+    "storage_warn_unreadable": "Could not fully scan {{path}} — the size shown may be incomplete.",
+    "history_retention": "Generation history",
+    "history_retention_desc": "How many takes to keep before the oldest are cleaned up.",
+    "history_retention_help": "After each generation, the oldest unstarred takes over this limit are removed along with their audio files. Starred takes are always kept. Set 0 to keep everything.",
+    "history_retention_cap": "Takes to keep",
+    "history_retention_cap_hint": "Starred takes never count against cleanup · 0 = unlimited",
+    "history_retention_saved": "Retention limit saved",
+    "history_retention_save_failed": "Could not save",
+    "history_retention_invalid": "Enter 0 or more"
   },
   "about": {
     "app": "App",
@@ -1662,7 +1670,8 @@
     "yes": "Yes",
     "no": "No",
     "more_info": "More info",
-    "learn_more": "Learn more"
+    "learn_more": "Learn more",
+    "saving": "Saving…"
   },
   "keyboard": {
     "title": "Keyboard shortcuts",
@@ -2371,7 +2380,12 @@
     "dub_title": "Dub history",
     "empty": "Nothing here yet — your generations will appear on the right.",
     "empty_dub": "Your dubs will appear here.",
-    "title": "History"
+    "title": "History",
+    "star_take": "Star — keep this take",
+    "unstar_take": "Unstar — allow cleanup",
+    "play_take": "Load as active output",
+    "filter_starred": "Starred",
+    "load_take_failed": "Couldn't load that take: {{message}}"
   },
   "recording": {
     "cleaned_loaded": "Recording cleaned & loaded!",

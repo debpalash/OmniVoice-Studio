@@ -164,7 +164,15 @@
     "factory_reset_confirm": "Zresetuj i załaduj ponownie",
     "factory_reset_confirm_body": "Spowoduje to usunięcie wszystkich zapisanych preferencji interfejsu użytkownika i ponowne załadowanie aplikacji. Nie ma to wpływu na Twoje głosy, projekty i wyjścia na dysku. Kontynuować?",
     "factory_reset_done": "Preferencje wyczyszczone — ładuję ponownie…",
-    "factory_reset_failed": "Resetowanie nie powiodło się"
+    "factory_reset_failed": "Resetowanie nie powiodło się",
+    "history_retention": "Historia generowania",
+    "history_retention_desc": "Ile nagrań zachować, zanim najstarsze zostaną wyczyszczone.",
+    "history_retention_help": "Po każdym generowaniu najstarsze nagrania bez gwiazdki powyżej tego limitu są usuwane wraz z plikami audio. Nagrania z gwiazdką są zawsze zachowywane. 0 = zachowaj wszystko.",
+    "history_retention_cap": "Nagrania do zachowania",
+    "history_retention_cap_hint": "Nagrania z gwiazdką nigdy nie liczą się do czyszczenia · 0 = bez limitu",
+    "history_retention_saved": "Limit przechowywania zapisany",
+    "history_retention_save_failed": "Nie udało się zapisać",
+    "history_retention_invalid": "Wpisz 0 lub więcej"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -310,7 +318,8 @@
     "yes": "Tak",
     "no": "Nie",
     "more_info": "Więcej informacji",
-    "learn_more": "Dowiedz się więcej"
+    "learn_more": "Dowiedz się więcej",
+    "saving": "Zapisywanie…"
   },
   "launchpad": {
     "greeting": "cześć",
@@ -1960,7 +1969,12 @@
     "dub_title": "Historia dubbingu",
     "empty": "Nic tu jeszcze nie ma — Twoje generacje pojawią się po prawej stronie.",
     "empty_dub": "Tutaj pojawią się Twoje dubbingi.",
-    "title": "Historia"
+    "title": "Historia",
+    "star_take": "Oznacz gwiazdką — zachowaj to nagranie",
+    "unstar_take": "Usuń gwiazdkę — pozwól na czyszczenie",
+    "play_take": "Wczytaj jako aktywne wyjście",
+    "filter_starred": "Z gwiazdką",
+    "load_take_failed": "Nie udało się wczytać nagrania: {{message}}"
   },
   "recording": {
     "cleaned_loaded": "Nagranie oczyszczone i załadowane!",

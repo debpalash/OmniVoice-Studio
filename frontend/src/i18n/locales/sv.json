@@ -164,7 +164,15 @@
     "factory_reset_confirm": "Återställ och ladda om",
     "factory_reset_confirm_body": "Detta rensar alla sparade användargränssnittsinställningar och laddar om appen. Dina röster, projekt och utdata på disken påverkas inte. Fortsätta?",
     "factory_reset_done": "Inställningar rensade – laddar om...",
-    "factory_reset_failed": "Återställningen misslyckades"
+    "factory_reset_failed": "Återställningen misslyckades",
+    "history_retention": "Genereringshistorik",
+    "history_retention_desc": "Hur många tagningar som behålls innan de äldsta rensas.",
+    "history_retention_help": "Efter varje generering tas de äldsta ostjärnmärkta tagningarna över gränsen bort tillsammans med sina ljudfiler. Stjärnmärkta tagningar behålls alltid. 0 = behåll allt.",
+    "history_retention_cap": "Tagningar att behålla",
+    "history_retention_cap_hint": "Stjärnmärkta tagningar räknas aldrig vid rensning · 0 = obegränsat",
+    "history_retention_saved": "Lagringsgräns sparad",
+    "history_retention_save_failed": "Kunde inte spara",
+    "history_retention_invalid": "Ange 0 eller mer"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -310,7 +318,8 @@
     "yes": "Ja",
     "no": "Nej",
     "more_info": "Mer info",
-    "learn_more": "Läs mer"
+    "learn_more": "Läs mer",
+    "saving": "Sparar…"
   },
   "launchpad": {
     "greeting": "hej då",
@@ -1960,7 +1969,12 @@
     "dub_title": "Dubbhistorik",
     "empty": "Inget här ännu — dina generationer visas till höger.",
     "empty_dub": "Dina dubbar visas här.",
-    "title": "Historik"
+    "title": "Historik",
+    "star_take": "Stjärnmärk — behåll den här tagningen",
+    "unstar_take": "Ta bort stjärna — tillåt rensning",
+    "play_take": "Läs in som aktiv utmatning",
+    "filter_starred": "Stjärnmärkta",
+    "load_take_failed": "Kunde inte läsa in tagningen: {{message}}"
   },
   "recording": {
     "cleaned_loaded": "Inspelningen rensad och laddad!",

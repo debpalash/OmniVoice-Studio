@@ -164,7 +164,15 @@
     "factory_reset_confirm": "重置並重新加載",
     "factory_reset_confirm_body": "這將清除所有已儲存的 UI 首選項並重新載入應用程式。您在磁碟上的聲音、專案和輸出不受影響。繼續？",
     "factory_reset_done": "偏好設定已清除 - 正在重新載入...",
-    "factory_reset_failed": "重置失敗"
+    "factory_reset_failed": "重置失敗",
+    "history_retention": "生成歷史",
+    "history_retention_desc": "在清理最舊項目之前保留的生成數量。",
+    "history_retention_help": "每次生成後,超過此上限的最舊未加星項目將連同音訊檔案一併刪除。已加星的項目永遠保留。0 = 全部保留。",
+    "history_retention_cap": "保留數量",
+    "history_retention_cap_hint": "已加星項目不計入清理 · 0 = 不限",
+    "history_retention_saved": "保留上限已儲存",
+    "history_retention_save_failed": "儲存失敗",
+    "history_retention_invalid": "請輸入 0 或更大的數字"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -310,7 +318,8 @@
     "yes": "是的",
     "no": "否",
     "more_info": "更多資訊",
-    "learn_more": "了解更多"
+    "learn_more": "了解更多",
+    "saving": "儲存中…"
   },
   "launchpad": {
     "greeting": "你好",
@@ -1960,7 +1969,12 @@
     "dub_title": "配音歷史",
     "empty": "這裡還沒有任何內容 — 你的生成結果將顯示在右側。",
     "empty_dub": "你的配音將顯示在這裡。",
-    "title": "歷史"
+    "title": "歷史",
+    "star_take": "加星 — 保留此次生成",
+    "unstar_take": "取消加星 — 允許清理",
+    "play_take": "載入為目前輸出",
+    "filter_starred": "已加星",
+    "load_take_failed": "無法載入該次生成:{{message}}"
   },
   "recording": {
     "cleaned_loaded": "錄音已清理並載入！",

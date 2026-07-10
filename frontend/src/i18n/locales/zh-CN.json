@@ -100,7 +100,8 @@
     "yes": "是的",
     "no": "否",
     "more_info": "更多信息",
-    "learn_more": "了解更多"
+    "learn_more": "了解更多",
+    "saving": "保存中…"
   },
   "nav": {
     "launchpad": "工作台",
@@ -384,7 +385,15 @@
     "factory_reset_confirm": "重置并重新加载",
     "factory_reset_confirm_body": "这将清除所有保存的 UI 首选项并重新加载应用程序。您在磁盘上的声音、项目和输出不受影响。继续？",
     "factory_reset_done": "偏好设置已清除 - 正在重新加载...",
-    "factory_reset_failed": "重置失败"
+    "factory_reset_failed": "重置失败",
+    "history_retention": "生成历史",
+    "history_retention_desc": "在清理最旧条目之前保留的生成数量。",
+    "history_retention_help": "每次生成后,超过此上限的最旧未加星条目将连同音频文件一起删除。已加星的条目始终保留。0 = 全部保留。",
+    "history_retention_cap": "保留条数",
+    "history_retention_cap_hint": "已加星条目不计入清理 · 0 = 不限",
+    "history_retention_saved": "保留上限已保存",
+    "history_retention_save_failed": "保存失败",
+    "history_retention_invalid": "请输入 0 或更大的数"
   },
   "about": {
     "app": "应用",
@@ -1967,7 +1976,12 @@
     "dub_title": "配音历史",
     "empty": "这里还没有内容——你的生成结果将显示在右侧。",
     "empty_dub": "你的配音将显示在这里。",
-    "title": "历史"
+    "title": "历史",
+    "star_take": "加星 — 保留此条生成",
+    "unstar_take": "取消加星 — 允许清理",
+    "play_take": "载入为当前输出",
+    "filter_starred": "已加星",
+    "load_take_failed": "无法加载该条生成:{{message}}"
   },
   "recording": {
     "cleaned_loaded": "录音已清理并加载！",

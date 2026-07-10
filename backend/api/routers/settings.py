@@ -124,6 +124,46 @@ def set_torch_compile_disabled(body: _TorchCompileBody):
     return _torch_compile_state()
 
 
+# ── Generation-history retention (Studio takes rail) ──────────────────────
+
+
+class _HistoryRetentionBody(BaseModel):
+    cap: int = Field(
+        ...,
+        ge=0,
+        le=100000,
+        description="Max takes kept before the oldest UNstarred ones (rows + WAVs) are pruned; 0 = unlimited",
+    )
+
+
+def _history_retention_state() -> dict:
+    from api.routers.generation import DEFAULT_HISTORY_CAP, _history_cap
+
+    return {"cap": _history_cap(), "default": DEFAULT_HISTORY_CAP}
+
+
+@router.get("/history-retention")
+def get_history_retention():
+    """Current generation-history retention cap (Settings → Storage)."""
+    return _history_retention_state()
+
+
+@router.put("/history-retention")
+def set_history_retention(body: _HistoryRetentionBody):
+    """Persist the retention cap. Enforced after every generation: the oldest
+    unstarred takes over the cap are pruned (rows + their audio files);
+    starred takes are never pruned. 0 disables pruning entirely."""
+    from core import prefs
+    from api.routers.generation import HISTORY_CAP_PREF_KEY
+
+    try:
+        prefs.set_(HISTORY_CAP_PREF_KEY, int(body.cap))
+    except Exception:
+        logger.exception("set_history_retention failed")
+        raise HTTPException(status_code=500, detail="Failed to persist setting")
+    return _history_retention_state()
+
+
 # ── Dictation refinement (parity program Wave 2.1 / Spec 3 phase 2) ───────
 
 

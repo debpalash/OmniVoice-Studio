@@ -19,6 +19,7 @@ import { useSystemInfo } from '../../api/hooks';
 import { Button, Dialog } from '../../ui';
 import { SettingsSection } from './primitives';
 import Row from './Row';
+import HistoryRetentionPanel from './HistoryRetentionPanel';
 
 // The zustand persist key (see store/index.ts `name`). Clearing it resets every
 // persisted UI preference to its slice default on the next load.
@@ -62,6 +63,8 @@ export default function StorageTab() {
         <Row label={t('privacy.outputs_at')} value={info?.outputs_dir || '—'} mono />
         <Row label={t('about.crash_log')} value={info?.crash_log_path || '—'} mono />
       </SettingsSection>
+
+      <HistoryRetentionPanel />
 
       <SettingsSection
         icon={RotateCcw}

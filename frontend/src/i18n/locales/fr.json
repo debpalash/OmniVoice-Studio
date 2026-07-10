@@ -164,7 +164,15 @@
     "factory_reset_confirm": "Réinitialiser et recharger",
     "factory_reset_confirm_body": "Cela efface toutes les préférences d'interface utilisateur enregistrées et recharge l'application. Vos voix, projets et sorties sur disque ne sont pas affectés. Continuer?",
     "factory_reset_done": "Préférences effacées — rechargement…",
-    "factory_reset_failed": "Échec de la réinitialisation"
+    "factory_reset_failed": "Échec de la réinitialisation",
+    "history_retention": "Historique de génération",
+    "history_retention_desc": "Nombre de prises à conserver avant de nettoyer les plus anciennes.",
+    "history_retention_help": "Après chaque génération, les prises les plus anciennes sans étoile au-delà de cette limite sont supprimées avec leurs fichiers audio. Les prises étoilées sont toujours conservées. 0 = tout conserver.",
+    "history_retention_cap": "Prises à conserver",
+    "history_retention_cap_hint": "Les prises étoilées ne comptent jamais pour le nettoyage · 0 = illimité",
+    "history_retention_saved": "Limite de rétention enregistrée",
+    "history_retention_save_failed": "Enregistrement impossible",
+    "history_retention_invalid": "Saisissez 0 ou plus"
   },
   "bootstrap": {
     "title": "OmniVoice Studio",
@@ -310,7 +318,8 @@
     "yes": "Oui",
     "no": "Non",
     "more_info": "Plus d'informations",
-    "learn_more": "En savoir plus"
+    "learn_more": "En savoir plus",
+    "saving": "Enregistrement…"
   },
   "launchpad": {
     "greeting": "bonjour",
@@ -1960,7 +1969,12 @@
     "dub_title": "Historique des doublages",
     "empty": "Rien ici pour l'instant — vos générations apparaîtront à droite.",
     "empty_dub": "Vos doublages apparaîtront ici.",
-    "title": "Historique"
+    "title": "Historique",
+    "star_take": "Étoiler — conserver cette prise",
+    "unstar_take": "Retirer l'étoile — autoriser le nettoyage",
+    "play_take": "Charger comme sortie active",
+    "filter_starred": "Étoilées",
+    "load_take_failed": "Impossible de charger cette prise : {{message}}"
   },
   "recording": {
     "cleaned_loaded": "Enregistrement nettoyé et chargé !",
