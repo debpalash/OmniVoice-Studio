@@ -150,7 +150,7 @@ describe('ApiKeysPanel', () => {
     });
   });
 
-  it('"Test now" button refetches state', async () => {
+  it('"Test now" busts the whoami cache (?fresh=1); plain mounts stay cached', async () => {
     const fetchMock = mockFetchSequence(
       { status: 200, body: STATE_THREE_UNSET },
       { status: 200, body: STATE_THREE_UNSET },
@@ -159,11 +159,88 @@ describe('ApiKeysPanel', () => {
 
     render(<ApiKeysPanel />);
     await waitFor(() => screen.getByPlaceholderText(/hf_/));
+    // Mount GET keeps the backend cache — no fresh param.
+    expect(fetchMock.mock.calls[0][0]).not.toMatch(/fresh=1/);
+
     const testBtn = screen.getByRole('button', { name: /test now/i });
     fireEvent.click(testBtn);
 
+    // The button claims to re-run whoami, so it must actually bypass the
+    // backend's 300s validation cache.
     await waitFor(() => {
       expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(fetchMock.mock.calls[1][0]).toMatch(/\/api\/settings\/hf-token\/state\?fresh=1$/);
+    });
+  });
+
+  it('initial load shows a checking placeholder, never a false "not set" verdict', async () => {
+    let resolveFetch;
+    global.fetch = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
+    const { container } = render(<ApiKeysPanel />);
+
+    // While the GET is in flight: placeholder, no source rows, no verdicts.
+    expect(screen.getByTestId('hf-token-loading')).toBeInTheDocument();
+    expect(screen.queryByText(/not set/i)).toBeNull();
+    expect(container.querySelectorAll('.apikeys-row').length).toBe(0);
+
+    resolveFetch({
+      ok: true,
+      status: 200,
+      json: async () => STATE_APP_ACTIVE,
+      text: async () => JSON.stringify(STATE_APP_ACTIVE),
+    });
+    await waitFor(() => {
+      expect(container.querySelectorAll('.apikeys-row').length).toBe(3);
+      expect(screen.queryByTestId('hf-token-loading')).toBeNull();
+    });
+  });
+
+  it('renders the sources as a valid ARIA list (no cell-less table)', async () => {
+    global.fetch = mockFetchOnce(STATE_THREE_UNSET);
+    render(<ApiKeysPanel />);
+    const list = await screen.findByRole('list', { name: /HF token sources/i });
+    expect(list.querySelectorAll('[role="listitem"]').length).toBe(3);
+  });
+
+  it('Enter while a save is in flight does not fire a duplicate POST', async () => {
+    let resolvePost;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => STATE_THREE_UNSET,
+        text: async () => JSON.stringify(STATE_THREE_UNSET),
+      })
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolvePost = resolve;
+          }),
+      );
+    global.fetch = fetchMock;
+
+    render(<ApiKeysPanel />);
+    const input = await screen.findByPlaceholderText(/hf_/);
+    fireEvent.change(input, { target: { value: 'hf_newtoken123' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    fireEvent.keyDown(input, { key: 'Enter' }); // Save button is disabled; Enter must be too.
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      const posts = fetchMock.mock.calls.filter(([, opts]) => opts?.method === 'POST');
+      expect(posts.length).toBe(1);
+    });
+    resolvePost({
+      ok: true,
+      status: 200,
+      json: async () => STATE_APP_ACTIVE,
+      text: async () => JSON.stringify(STATE_APP_ACTIVE),
     });
   });
 });

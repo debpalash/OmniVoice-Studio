@@ -77,8 +77,17 @@ def clear_hf_token(also_clear_hf_cli: bool = Query(False)):
 
 
 @router.get("/hf-token/state")
-def get_hf_token_state():
-    """3-source HF token cascade state for the Settings UI."""
+def get_hf_token_state(fresh: bool = Query(False)):
+    """3-source HF token cascade state for the Settings UI.
+
+    ``fresh=1`` drops the resolver's whoami validation cache first so the
+    response re-runs whoami for every source — this is what the panel's
+    "Test now" button sends. Plain GETs (panel mounts) keep the 300s cache
+    so repeat Settings visits don't hammer the HF API.
+    """
+    from services import token_resolver
+    if fresh:
+        token_resolver.invalidate_cache()
     return _state_response()
 
 

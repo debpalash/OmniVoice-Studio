@@ -136,6 +136,10 @@ export default function LLMSkillsPanel() {
                 value={skill.provider_override || ''}
                 onChange={(e) => update(skill.id, { provider_override: e.target.value })}
                 disabled={!skill.enabled || busy === skill.id}
+                aria-label={t('settings.llmskills_route_for', {
+                  defaultValue: 'Provider for {{skill}}',
+                  skill: t(skill.name_key),
+                })}
                 data-testid={`llm-skill-provider-${skill.id}`}
               >
                 <option value="">{t('settings.llmskills_use_active')}</option>

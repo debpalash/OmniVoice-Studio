@@ -130,6 +130,50 @@ def test_get_hf_token_state_returns_three_rows(fresh_app, monkeypatch):
     assert [s["source"] for s in body["sources"]] == ["app", "env", "hf-cli"]
 
 
+def test_get_hf_token_state_fresh_busts_whoami_cache(fresh_app, monkeypatch):
+    """`?fresh=1` (the panel's "Test now") re-runs whoami instead of serving
+    the resolver's 300s validation cache. Fail-before/pass-after for the bug
+    where "Test now" showed a stale 'whoami failed' (or a stale success on a
+    revoked token) for up to 5 minutes: the cached NEGATIVE result below kept
+    being served by plain GETs even after whoami started succeeding."""
+    import huggingface_hub
+    monkeypatch.setenv("HF_TOKEN", SAMPLE_TOKEN)
+    monkeypatch.setattr(huggingface_hub, "get_token", lambda: None)
+
+    calls = {"n": 0}
+    verdict = {"ok": False}
+
+    def fake_whoami(token=None, **kw):
+        calls["n"] += 1
+        if not verdict["ok"]:
+            raise RuntimeError("simulated network failure")
+        return {"name": "alice"}
+
+    monkeypatch.setattr(huggingface_hub, "whoami", fake_whoami)
+
+    c = _client(fresh_app)
+
+    # First load: whoami fails → env row set but not verified; failure cached.
+    r = c.get("/api/settings/hf-token/state")
+    env_row = next(s for s in r.json()["sources"] if s["source"] == "env")
+    assert env_row["set"] and not env_row["whoami_ok"]
+    first_calls = calls["n"]
+
+    # Network recovers, but a plain GET still serves the cached failure.
+    verdict["ok"] = True
+    r = c.get("/api/settings/hf-token/state")
+    env_row = next(s for s in r.json()["sources"] if s["source"] == "env")
+    assert not env_row["whoami_ok"], "plain GET must keep the cache (no re-run)"
+    assert calls["n"] == first_calls
+
+    # "Test now" (fresh=1) drops the cache and re-runs whoami → verified.
+    r = c.get("/api/settings/hf-token/state?fresh=1")
+    assert r.status_code == 200
+    env_row = next(s for s in r.json()["sources"] if s["source"] == "env")
+    assert env_row["whoami_ok"] and env_row["whoami_user"] == "alice"
+    assert calls["n"] > first_calls
+
+
 def test_get_hf_token_state_loopback_only(fresh_app):
     """GET state is on the same loopback-only router; non-loopback → 403."""
     from fastapi.testclient import TestClient

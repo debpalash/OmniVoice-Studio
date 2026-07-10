@@ -200,6 +200,53 @@ describe('LLMProvidersPanel', () => {
     expect(screen.getByText(/not yet used for translation/)).toBeInTheDocument();
   });
 
+  it('a failed implicit save aborts Test — no probe against the stale stored config', async () => {
+    const fetchMock = mockFetchSequence(
+      { body: PROVIDERS }, // mount GET
+      { status: 500, body: { detail: 'disk full' } }, // save PUT fails
+      // nothing else queued: the /test POST must never fire
+    );
+    global.fetch = fetchMock;
+    render(<LLMProvidersPanel />);
+    fireEvent.click(await screen.findByTestId('llm-provider-test'));
+
+    // The save error is the single message…
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/disk full/));
+    // …with no contradictory green "Test ok" badge and no /test round-trip.
+    expect(screen.queryByText(/ok —/)).toBeNull();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/test'))).toBe(false);
+  });
+
+  it('a failed implicit save aborts Fetch models', async () => {
+    const fetchMock = mockFetchSequence(
+      { body: PROVIDERS }, // mount GET
+      { status: 500, body: { detail: 'disk full' } }, // save PUT fails
+    );
+    global.fetch = fetchMock;
+    render(<LLMProvidersPanel />);
+    fireEvent.click(await screen.findByTestId('llm-provider-models'));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/disk full/));
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/models'))).toBe(false);
+  });
+
+  it('initial-load failure offers a Retry that refetches (no remount needed)', async () => {
+    const fetchMock = mockFetchSequence(
+      { status: 500, body: { detail: 'backend hiccup' } }, // mount GET fails
+      { body: PROVIDERS }, // retry GET succeeds
+    );
+    global.fetch = fetchMock;
+    render(<LLMProvidersPanel />);
+
+    const retry = await screen.findByTestId('llm-provider-retry');
+    expect(screen.getByRole('alert')).toHaveTextContent(/backend hiccup/);
+    fireEvent.click(retry);
+
+    const select = await screen.findByTestId('llm-provider-select');
+    await waitFor(() => expect(select.value).toBe('groq'));
+    expect(screen.queryByTestId('llm-provider-retry')).toBeNull();
+  });
+
   it('no notice when the saved provider IS the active one', async () => {
     global.fetch = mockFetchSequence(
       { body: PROVIDERS }, // mount GET (active: groq)

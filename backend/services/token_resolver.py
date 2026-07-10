@@ -30,7 +30,7 @@ logger = logging.getLogger("omnivoice.token_resolver")
 Source = Literal["app", "env", "hf-cli"]
 _PRIORITY: tuple[Source, ...] = ("app", "env", "hf-cli")
 
-_CACHE_TTL_SECONDS = 300.0  # See Open Question #4 — UI "Test now" calls invalidate.
+_CACHE_TTL_SECONDS = 300.0  # UI "Test now" busts it via GET /hf-token/state?fresh=1.
 
 
 @dataclass(frozen=True)
@@ -57,7 +57,8 @@ _CACHE_LOCK = threading.Lock()
 
 def invalidate_cache() -> None:
     """Drop the whoami validation cache. Called by the Settings UI "Test now"
-    button (Plan 01-02) and by save/clear API endpoints (Task 3)."""
+    button (GET /api/settings/hf-token/state?fresh=1), by save/clear API
+    endpoints, and by on_401()."""
     with _CACHE_LOCK:
         _VALIDATION_CACHE.clear()
 

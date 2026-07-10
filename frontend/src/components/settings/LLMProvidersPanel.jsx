@@ -115,8 +115,11 @@ export default function LLMProvidersPanel() {
     populate(providers, id);
   };
 
+  // Returns true when the PUT (and refresh) succeeded — Test / Fetch models
+  // gate on it so they never probe the previously-stored config after a
+  // failed save (which could show a green "Test ok" beside a save error).
   const save = async (makeActive) => {
-    if (!current) return;
+    if (!current) return false;
     setSaving(true);
     setError(null);
     try {
@@ -138,8 +141,10 @@ export default function LLMProvidersPanel() {
       // pins the choice — the env banner already explains and the suggested
       // button is disabled.
       setSavedInactive(Boolean(data) && data.active !== current.id && !current.active_from_env);
+      return true;
     } catch (e) {
       setError(e?.message || t('settings.llmp_save_failed'));
+      return false;
     } finally {
       setSaving(false);
     }
@@ -151,8 +156,10 @@ export default function LLMProvidersPanel() {
     setTest(null);
     setError(null);
     try {
-      // Save first so the probe sees the just-typed key/URL.
-      await save(false);
+      // Save first so the probe sees the just-typed key/URL. If the save
+      // failed, stop: probing the stale stored config would contradict the
+      // save error with a misleading green badge.
+      if (!(await save(false))) return;
       const res = await apiPost(`/api/settings/llm-providers/${current.id}/test`);
       setTest(res);
     } catch (e) {
@@ -167,8 +174,9 @@ export default function LLMProvidersPanel() {
     setLoadingModels(true);
     setError(null);
     try {
-      // Save non-key fields first so the probe uses the just-typed base URL.
-      await save(false);
+      // Save non-key fields first so the probe uses the just-typed base URL;
+      // abort on a failed save (same stale-config trap as runTest).
+      if (!(await save(false))) return;
       const res = await apiJson(`/api/settings/llm-providers/${current.id}/models`);
       if (res.ok) {
         setModels(res.models || []);
@@ -187,6 +195,8 @@ export default function LLMProvidersPanel() {
   };
 
   if (!providers.length) {
+    // A failed initial GET used to dead-end here (nothing re-runs refresh
+    // without a remount) — the Retry button is the way back in.
     return (
       <SettingsSection
         icon={Brain}
@@ -195,7 +205,15 @@ export default function LLMProvidersPanel() {
       >
         {error && (
           <div className="perfpanel__error" role="alert">
-            {error}
+            <span className="mr-[8px]">{error}</span>
+            <Button
+              variant="subtle"
+              size="sm"
+              onClick={() => refresh()}
+              data-testid="llm-provider-retry"
+            >
+              {t('settings.retry', { defaultValue: 'Retry' })}
+            </Button>
           </div>
         )}
       </SettingsSection>
