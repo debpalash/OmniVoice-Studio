@@ -86,6 +86,28 @@ translation is produced:
 Cinematic and Autofit **require an LLM** (below). If none is configured, they
 fall back to Fast with a notice.
 
+## Two-stage quality on the LLM engine (auto-glossary + reflect pass)
+
+When the **LLM (OpenAI-compatible)** engine is the active translator, two extra
+quality stages run by default. Both have checkboxes next to the Quality control
+in the Dub tab's translation settings (they only appear for the LLM engine —
+MT engines can't run either stage):
+
+- **Auto glossary** — before the per-segment translation, ONE extra LLM pass
+  reads the whole transcript and extracts a short theme summary plus a
+  source → target terminology map. That brief rides every segment's translation
+  prompt, so character names, places, and recurring domain terms come out the
+  same in segment 3 and segment 300. It's merged with your manual glossary —
+  **your entries always win** on a clashing term. The result is cached with the
+  dub project per target language, so re-translating an unchanged transcript
+  costs zero extra calls; editing segments re-extracts.
+- **Reflect pass** — after each segment's direct translation, the LLM critiques
+  the draft for wordiness and stiff/unnatural register, then rewrites it as
+  natural spoken dialogue. **This uses 3 LLM calls per segment instead of 1** —
+  turn it off for long videos on slow or metered providers. If any refinement
+  step fails or times out, the direct translation is kept silently; refinement
+  can never fail a segment.
+
 ## LLM Providers (for Cinematic / Autofit)
 
 **Settings → System → LLM Providers** is the one place to set up the LLM. Pick a

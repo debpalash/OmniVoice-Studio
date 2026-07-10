@@ -109,6 +109,12 @@ export default function DubLeftColumn({
   // configured, we route the user straight to the LLM Providers setup instead
   // of dead-ending on a toast (#838).
   const openSettingsTab = useAppStore((s) => s.openSettingsTab);
+  // Two-stage LLM translation quality — only meaningful (and only rendered)
+  // when the LLM engine is the active translator. Persisted prefs.
+  const autoGlossary = useAppStore((s) => s.autoGlossary);
+  const setAutoGlossary = useAppStore((s) => s.setAutoGlossary);
+  const reflectPass = useAppStore((s) => s.reflectPass);
+  const setReflectPass = useAppStore((s) => s.setReflectPass);
   // Frozen-build (packaged/signed, read-only site-packages) escape-hatch
   // popover: pip install is impossible, so we surface the copyable command +
   // a one-click switch to the always-bundled Argos engine + a docs deeplink.
@@ -647,6 +653,38 @@ export default function DubLeftColumn({
                 ]}
               />
             </div>
+            {/* LLM engine only: auto-glossary + reflect pass. Both default ON;
+                the reflect tooltip is explicit that it multiplies LLM calls. */}
+            {translateProvider === 'openai' && (
+              <div
+                className={`${FIELD} flex-[0_0_auto] ${FIELD_RESP} justify-end gap-[2px] pb-[2px]`}
+              >
+                <label
+                  className="flex items-center gap-[4px] text-[0.6rem] text-[var(--chrome-fg-muted)] cursor-pointer whitespace-nowrap"
+                  title={t('dub.auto_glossary_title')}
+                >
+                  <input
+                    type="checkbox"
+                    className="accent-[var(--color-brand)] cursor-pointer"
+                    checked={autoGlossary}
+                    onChange={(e) => setAutoGlossary(e.target.checked)}
+                  />
+                  <span>{t('dub.auto_glossary_label')}</span>
+                </label>
+                <label
+                  className="flex items-center gap-[4px] text-[0.6rem] text-[var(--chrome-fg-muted)] cursor-pointer whitespace-nowrap"
+                  title={t('dub.reflect_title')}
+                >
+                  <input
+                    type="checkbox"
+                    className="accent-[var(--color-brand)] cursor-pointer"
+                    checked={reflectPass}
+                    onChange={(e) => setReflectPass(e.target.checked)}
+                  />
+                  <span>{t('dub.reflect_label')}</span>
+                </label>
+              </div>
+            )}
             <div className={`${FIELD} flex-[1_1_90px] min-w-[64px] ${FIELD_RESP}`}>
               <div className={FIELD_LABEL}>
                 <UserSquare2 className="label-icon" size={9} /> {t('dub.style')}{' '}

@@ -118,6 +118,25 @@ export interface PrefsSlice {
   whatsNewSeenVersion: string | null;
   setWhatsNewSeenVersion: (v: string | null) => void;
 
+  /**
+   * LLM dub engine — auto-glossary. One up-front LLM pass over the whole
+   * transcript extracts a theme summary + terminology map, merged with the
+   * manual glossary (manual entries always win) and injected into every
+   * segment's translation prompt so names/terms stay consistent. Only applies
+   * when the translation engine is the LLM one. Default ON.
+   */
+  autoGlossary: boolean;
+  setAutoGlossary: (on: boolean) => void;
+
+  /**
+   * LLM dub engine — reflect pass. After each segment's direct translation,
+   * a critique-then-rewrite step polishes wordy/stiff lines into natural
+   * spoken dialogue. Costs 3 LLM calls per segment instead of 1; any failure
+   * silently keeps the direct translation. Default ON.
+   */
+  reflectPass: boolean;
+  setReflectPass: (on: boolean) => void;
+
   setTranslateQuality: (q: TranslateQuality) => void;
   setDualSubs: (on: boolean) => void;
   setBurnSubs: (on: boolean) => void;
@@ -201,6 +220,8 @@ function _dictationFromPrefs(p: any): Partial<PrefsSlice> {
 
 export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (set, get) => ({
   translateQuality: 'fast',
+  autoGlossary: true,
+  reflectPass: true,
   dualSubs: false,
   burnSubs: false,
   glossaryVisible: true,
@@ -220,6 +241,8 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   dictationLoaded: false,
 
   setTranslateQuality: (q) => set({ translateQuality: q }),
+  setAutoGlossary: (on) => set({ autoGlossary: on }),
+  setReflectPass: (on) => set({ reflectPass: on }),
   setDualSubs: (on) => set({ dualSubs: on }),
   setBurnSubs: (on) => set({ burnSubs: on }),
   setGlossaryVisible: (on) => set({ glossaryVisible: on }),

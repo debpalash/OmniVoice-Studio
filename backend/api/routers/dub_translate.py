@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from schemas.requests import TranslateRequest
 from services.model_manager import _cpu_pool, _gpu_pool
 from services.translator import cinematic_available, cinematic_refine_many, _cinematic_budget
-from api.routers.dub_core import _get_job
+from api.routers.dub_core import _get_job, _save_job
 
 router = APIRouter()
 logger = logging.getLogger("omnivoice.api")
@@ -202,6 +202,46 @@ def _resolve_source_lang(req: TranslateRequest) -> str:
     return _guess_lang_from_text(getattr(req, "segments", None)) or "en"
 
 
+def _resolve_translation_context(req, client, model_name: str, timeout: float,
+                                 src_lang: str) -> Optional[dict]:
+    """Cached auto-glossary context (theme + terms) for this job/target.
+
+    Cache lives on the dub job dict (``job["translation_context"][target]``)
+    and persists through the existing ``job_data`` JSON blob via ``_save_job``
+    — no schema change. A transcript fingerprint keys the cache so an edited
+    transcript re-extracts; an unchanged transcript costs zero LLM calls on
+    re-translate. Any failure returns None — translation proceeds without
+    context, never fails because of it. Blocking; run in an executor.
+    """
+    from services import translation_quality as tq
+
+    texts = [(s.text or "") for s in req.segments]
+    fp = tq.transcript_fingerprint(texts)
+    job = _get_job(req.job_id) if getattr(req, "job_id", None) else None
+    if job is not None:
+        cached = (job.get("translation_context") or {}).get(req.target_lang)
+        if isinstance(cached, dict) and cached.get("fingerprint") == fp:
+            return cached
+    ctx = tq.extract_context_sync(
+        client, model_name, timeout,
+        segment_texts=texts,
+        source_lang=src_lang,
+        target_lang=req.target_lang,
+        source_name=LANG_NAMES.get(src_lang, src_lang),
+        target_name=LANG_NAMES.get(req.target_lang, req.target_lang),
+    )
+    if ctx is None:
+        return None
+    ctx = {**ctx, "fingerprint": fp}
+    if job is not None:
+        try:
+            job.setdefault("translation_context", {})[req.target_lang] = ctx
+            _save_job(req.job_id, job)
+        except Exception:  # noqa: BLE001 — persistence is best-effort
+            logger.debug("translation context persist skipped", exc_info=True)
+    return ctx
+
+
 def _unload_nllb():
     """Release NLLB VRAM so TTS model can reload."""
     global _nllb_model, _nllb_tokenizer
@@ -366,6 +406,27 @@ async def dub_translate(req: TranslateRequest):
                     )
                 return JSONResponse(status_code=400, content={"error": friendly})
 
+            from services import translation_quality as tq
+
+            # Two-stage quality toggles. None (old clients) = ON — an LLM
+            # translator is active on this branch by definition.
+            auto_glossary_on = req.auto_glossary if req.auto_glossary is not None else True
+            reflect_on = req.reflect if req.reflect is not None else True
+
+            # Stage 1 — auto-glossary: ONE pass over the full transcript for a
+            # theme summary + terminology map (cached per job/target/transcript),
+            # merged with the user's manual glossary (user entries win) and
+            # injected into every per-segment prompt below. With the toggle off
+            # the manual glossary still rides along — that costs no extra call.
+            auto_ctx = None
+            if auto_glossary_on:
+                auto_ctx = await loop.run_in_executor(
+                    _cpu_pool, _resolve_translation_context,
+                    req, client, model_name, llm_timeout, src_lang,
+                )
+            merged_terms = tq.merge_glossary(req.glossary, (auto_ctx or {}).get("terms"))
+            context_extra = tq.context_clause((auto_ctx or {}).get("theme", ""), merged_terms)
+
             def _build_prompt(src_code: str, tgt_code: str) -> str:
                 """Build a system prompt that resists hallucinations on small
                 local LLMs. Three things matter:
@@ -396,13 +457,19 @@ async def dub_translate(req: TranslateRequest):
                 dia_clause = ""
                 if req.dialect and str(req.dialect).lower().startswith(str(tgt_code).lower()[:2]):
                     dia_clause = dialect_clause(req.dialect)
-                return (
+                base = (
                     f"You are a professional dubbing translator. "
                     f"Translate the user's text from {src_name} into "
                     f"{tgt_name}.{script_clause}{dia_clause} "
                     f"Reply ONLY with the translated {tgt_name} text, do not "
                     f"add quotes, notes, headers, explanations, or commentary."
                 )
+                # Auto-glossary theme + merged terminology (user terms win) —
+                # every segment prompt carries the same brief, so recurring
+                # names/terms come out consistent across the whole dub.
+                if context_extra:
+                    base = base + "\n\n" + context_extra
+                return base
 
             def _translate_llm(seg):
                 if not seg.text or not seg.text.strip():
@@ -446,6 +513,33 @@ async def dub_translate(req: TranslateRequest):
                                 seg.id, attempt + 1, last_err,
                             )
                             continue
+                        # Stage 2 — reflect pass: critique→rewrite the direct
+                        # translation into natural spoken dialogue. Returns None
+                        # on ANY failure/timeout/divergence, in which case the
+                        # direct translation stands — refinement can never fail
+                        # a segment that already translated fine. The belt-and-
+                        # braces except keeps that guarantee even if the helper
+                        # itself ever raised: without it, the enclosing attempt
+                        # handler would burn a retry on a segment that already
+                        # translated successfully.
+                        if reflect_on:
+                            polished = None
+                            try:
+                                polished = tq.reflect_translation_sync(
+                                    client, model_name, llm_timeout,
+                                    source_text=seg.text,
+                                    direct_text=out_text,
+                                    source_lang=src_lang,
+                                    target_lang=tgt_code,
+                                    target_name=LANG_NAMES.get(tgt_code, tgt_code),
+                                    extra_clause=context_extra,
+                                )
+                            except Exception as e:  # noqa: BLE001
+                                logger.warning("reflect pass skipped for %s: %s",
+                                               seg.id, e)
+                            if polished:
+                                return {"id": seg.id, "text": polished,
+                                        "literal": out_text}
                         return {"id": seg.id, "text": out_text}
                     except Exception as e:
                         last_err = f"{type(e).__name__}: {e}"
@@ -738,9 +832,11 @@ async def _maybe_cinematic(translated, req, src_lang, loop, *, already_llm=False
     if already_llm:
         merged = []
         for row in translated:
+            # A reflect-pass row already carries its pre-polish direct
+            # translation as `literal` — keep it instead of clobbering.
             out = {"id": row["id"],
                    "text": row.get("text", "") or "",
-                   "literal": row.get("text", "") or ""}
+                   "literal": row.get("literal") or row.get("text", "") or ""}
             if row.get("error"):
                 out["error"] = row["error"]
             if "rate_ratio" in row:

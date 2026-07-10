@@ -722,6 +722,15 @@ export default function useDubWorkflow({
           target_lang: targetLang,
           provider: translateProvider,
           quality: translateQuality,
+          // Lets the backend resolve the ASR-detected source language AND
+          // cache the auto-glossary context on the job (survives restarts).
+          job_id: dubJobId || undefined,
+          // Two-stage LLM translation quality (LLM engine only; MT engines
+          // ignore both): full-transcript auto-glossary + per-segment
+          // reflect/rewrite polish. Read at call time — the multi-language
+          // loop reuses this callback long after the click-time closure.
+          auto_glossary: useAppStore.getState().autoGlossary,
+          reflect: useAppStore.getState().reflectPass,
           // #280: regional dialect — only sent when it matches the target
           // language so a stale "es-AR" never rides on a French translate.
           dialect: dialectMatchesLang(dubDialect, targetLang) ? dubDialect : undefined,
@@ -810,6 +819,7 @@ export default function useDubWorkflow({
     [
       dubLangCode,
       dubDialect,
+      dubJobId,
       translateProvider,
       translateQuality,
       glossaryTerms,

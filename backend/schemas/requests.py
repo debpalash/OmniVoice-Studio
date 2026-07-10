@@ -137,6 +137,16 @@ class TranslateRequest(BaseModel):
     # voseo: "vos sos" instead of "tú eres"). Non-LLM providers (Argos, NLLB,
     # Google) can't honor it; the response then carries dialect_applied=false.
     dialect: Optional[str] = None
+    # Two-stage LLM translation quality (provider="openai" only; MT engines
+    # ignore both). None = default ON for the LLM engine.
+    #   auto_glossary — one up-front LLM pass over the full transcript extracts
+    #     a theme summary + terminology map, merged with `glossary` (user
+    #     entries win) and injected into every per-segment prompt.
+    #   reflect — per-segment critique→rewrite polish after the direct
+    #     translation (2 extra LLM calls per segment; failures silently keep
+    #     the direct translation).
+    auto_glossary: Optional[bool] = None
+    reflect: Optional[bool] = None
 
 class DubIngestUrlRequest(BaseModel):
     url: str
