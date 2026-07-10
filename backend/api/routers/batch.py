@@ -287,6 +287,13 @@ async def _run_batch_pipeline(job_id: str, job: dict):
                 continue
 
             def _gen(text=seg_text, lang=target_lang, dur=seg_duration):
+                # Normalize once at the segment's text→engine choke point —
+                # the same pre-pass as /generate and dub_generate's _gen.
+                # `lang` is the job's target language code. Pref-gated,
+                # idempotent, never raises.
+                from services.text_normalization import normalize_for_tts
+                text = normalize_for_tts(text, lang)
+
                 ref_audio = None
                 ref_text = None
 

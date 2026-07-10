@@ -136,7 +136,10 @@ async def ws_tts(websocket: WebSocket):
                     kw["emo_text"] = data["emo_text"]
                 if data.get("emo_audio"):
                     kw["emo_audio"] = data["emo_audio"]
-                if data.get("emo_alpha") != 1.0:
+                # Default 1.0 when absent: a missing key must not trip the
+                # `!= 1.0` branch into a KeyError (any minimal request that
+                # omitted emo_alpha got an error frame instead of audio).
+                if data.get("emo_alpha", 1.0) != 1.0:
                     kw["emo_alpha"] = data["emo_alpha"]
 
                 # Resolve voice profile
@@ -167,6 +170,18 @@ async def ws_tts(websocket: WebSocket):
                             kw["voice"] = voice
                     except Exception:
                         kw["voice"] = voice
+
+                # Engine-agnostic text normalization (junk strip,
+                # numbers→words, abbreviations) — the same pre-pass as
+                # /generate, applied exactly ONCE per request, on the whole
+                # text BEFORE the sentence chunker fans it out (so per-sentence
+                # generates never re-normalize, and expanded abbreviations
+                # can't confuse the sentence splitter). The request's
+                # `language` is all this route knows (None → universal safety
+                # filters only). Pref-gated (default ON), idempotent, never
+                # raises.
+                from services.text_normalization import normalize_for_tts
+                text = normalize_for_tts(text, data.get("language"))
 
                 # Wave 1.4: split the request into sentences so the first
                 # sentence's audio streams while later sentences are still

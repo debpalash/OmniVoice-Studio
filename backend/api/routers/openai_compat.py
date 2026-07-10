@@ -332,6 +332,14 @@ async def create_speech(req: SpeechRequest):
             # Not a profile ID — might be a KittenTTS preset or similar
             kw["voice"] = voice
 
+    # Engine-agnostic text normalization (junk strip, numbers→words,
+    # abbreviations) at this route's text→engine choke point — the same
+    # pre-pass as /generate, applied exactly once per request. `req.language`
+    # is everything this route knows about the language (None → universal
+    # safety filters only). Pref-gated (default ON), idempotent, never raises.
+    from services.text_normalization import normalize_for_tts
+    text = normalize_for_tts(req.input, req.language)
+
     # ── #1033/#1037/#1014: warm the engine under the LOAD budget before the
     # generate clock starts. The T4 verification (#1014) measured a fresh
     # install's first /v1/audio/speech burning its whole 300s generate budget
@@ -369,7 +377,7 @@ async def create_speech(req: SpeechRequest):
         # Bounded + pool-reset on hang so a wedged TTS request can't starve the
         # GPU pool and brick the backend (#730 class).
         wav, sr = await run_on_gpu_pool_guarded(
-            lambda: _run_tts(backend, req.input, kw), what="OpenAI TTS generate")
+            lambda: _run_tts(backend, text, kw), what="OpenAI TTS generate")
     except Exception as e:
         logger.exception("OpenAI TTS failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
