@@ -46,6 +46,7 @@ _HINTS: dict[str, str] = {
     "UNSUPPORTED_VIDEO_URL": "This link isn't a directly downloadable video. Paste a direct video page (e.g. a youtube.com/watch?v=… or douyin.com/video/<id> link), not a share/profile/feed link — or download the file and drop it in directly.",
     "VIDEO_DOWNLOAD_NETWORK": "The connection to the video server dropped mid-download (often a transient CDN/network blip or a regional rate-limit). Just retry — OmniVoice already cleaned up the partial download. If it keeps failing, check your network/VPN.",
     "BROKEN_VENV": "The Python backend environment was moved or damaged. OmniVoice rebuilds it automatically on the next launch; if it keeps failing, use Clean & Retry on the setup screen.",
+    "MODEL_CACHE_CORRUPT": "The model cache had broken file links — snapshot entries that no longer point at their downloaded data (interrupted renames or antivirus interference can cause this). OmniVoice repairs this automatically and retries the load once. If the error persists, quit OmniVoice, delete the model's models--<org>--<name> folder inside the Hugging Face cache, and restart — the model re-downloads automatically.",
     # HF_MIRROR_UNREACHABLE has a DYNAMIC hint (it names the configured mirror)
     # — see hf_mirror_hint(); build_failure special-cases it.
 }
@@ -231,6 +232,17 @@ def classify(reason: str) -> str:
     # transformers + site-packages markers, which this signature lacks.
     if "errno 22" in low:
         return "OS_INVALID_ARGUMENT"
+    # An HF cache whose snapshot entries don't resolve (dangling symlinks /
+    # zero-byte stand-ins): transformers reports the weights missing ("does
+    # not appear to have a file named pytorch_model.bin or model.safetensors")
+    # even though the blobs are fully on disk. model_manager self-heals this
+    # (delete broken entries → snapshot_download → retry once); the class here
+    # covers both the raw transformers wording (any load surface can leak it)
+    # and OmniVoice's own repair messages, so the user-facing error and the
+    # auto bug report name the class and its automatic repair.
+    if ("does not appear to have a file named" in low
+            or "broken file link" in low):
+        return "MODEL_CACHE_CORRUPT"
     if (
         "could not import module" in low
         or "autofeatureextractor" in low
