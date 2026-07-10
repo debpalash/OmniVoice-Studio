@@ -314,31 +314,46 @@ async def _prepare_synth(default_voice: str | None, language: str | None = None)
 def _render_chapter_cached(chapter, synth, sr, engine_id, resolve, cache_dir, lexicon=None):
     """Render one chapter, content-addressed so a re-run reuses it (resume).
 
-    Returns ``(wav_path, duration_s, was_cached)``. The WAV lives at
-    ``cache_dir/<key>.wav`` where ``key`` is :func:`chapter_cache_key` over the
-    chapter's spans + sample rate + engine + each voice's resolved signature
-    (+ the lexicon, so a lexicon edit re-renders), so an unchanged chapter is
-    never re-synthesized. Runs in the GPU-pool executor.
+    Returns ``(wav_path, duration_s, was_cached, seg_stats)``. Two cache
+    layers:
+
+    * Outer — the WAV at ``cache_dir/<key>.wav`` where ``key`` is
+      :func:`chapter_cache_key` over the chapter's spans + sample rate +
+      engine + each voice's resolved signature (+ the lexicon, so a lexicon
+      edit re-renders). A fully-unchanged chapter hits here and never touches
+      segment files; the key derivation is unchanged, so chapter caches
+      written by released versions keep hitting. ``seg_stats`` is ``None``.
+    * Inner — on a chapter miss, each spoken span goes through the
+      :class:`services.longform_render.SegmentCache` under
+      ``cache_dir/segments``: cached segments load from disk, only the
+      edited/missing ones synthesize, and each fresh segment persists the
+      moment it renders (an interrupted chapter resumes from them).
+      ``seg_stats`` is ``{"total": spoken_spans, "cached": reused}``.
+
+    Runs in the GPU-pool executor.
     """
     import json
     import wave
 
     from services.audio_io import atomic_save_wav
-    from services.longform_render import chapter_cache_key
+    from services.longform_render import SegmentCache, chapter_cache_key
     from services.pronunciation import normalize_lexicon
 
     spans_tuples = [(s.voice_id, s.text, s.pause_ms_after, getattr(s, "speed", None))
                     for s in chapter.spans]
-    sig: dict = {}
+    voice_sigs: dict = {}
     for s in chapter.spans:
         k = s.voice_id or ""
-        if k not in sig:
+        if k not in voice_sigs:
             v = resolve(s.voice_id)
-            sig[k] = f"{v.get('ref_audio')}|{v.get('ref_text')}|{v.get('instruct')}|{v.get('seed')}"
+            voice_sigs[k] = f"{v.get('ref_audio')}|{v.get('ref_text')}|{v.get('instruct')}|{v.get('seed')}"
+    sig: dict = dict(voice_sigs)
+    lex_sig = ""
     if lexicon:
         # Fold the lexicon into the cache key so editing pronunciations
         # invalidates cached chapters (reserved key can't collide with a voice id).
-        sig["\x00lexicon"] = json.dumps(normalize_lexicon(lexicon), sort_keys=True)
+        lex_sig = json.dumps(normalize_lexicon(lexicon), sort_keys=True)
+        sig["\x00lexicon"] = lex_sig
     key = chapter_cache_key(spans_tuples, sample_rate=sr, engine_id=engine_id, voice_sig=sig)
     wav_path = os.path.join(cache_dir, f"{key}.wav")
 
@@ -346,13 +361,17 @@ def _render_chapter_cached(chapter, synth, sr, engine_id, resolve, cache_dir, le
         try:
             with wave.open(wav_path, "rb") as w:
                 dur = w.getnframes() / float(w.getframerate() or sr)
-            return wav_path, dur, True
+            return wav_path, dur, True, None
         except Exception:
             pass  # corrupt cache entry — fall through and re-render
 
-    audio, dur = synthesize_chapter(chapter.spans, synth, sr, lexicon=lexicon)
+    seg_cache = SegmentCache(cache_dir, sample_rate=sr, engine_id=engine_id,
+                             voice_sig=voice_sigs, extra_sig=lex_sig)
+    audio, dur = synthesize_chapter(chapter.spans, synth, sr, lexicon=lexicon,
+                                    segment_cache=seg_cache)
     atomic_save_wav(wav_path, audio, sr)
-    return wav_path, dur, False
+    return wav_path, dur, False, {"total": seg_cache.hits + seg_cache.misses,
+                                  "cached": seg_cache.hits}
 
 
 class AudiobookPreviewRequest(BaseModel):
@@ -388,7 +407,7 @@ async def audiobook_preview(req: AudiobookPreviewRequest) -> dict:
         language=_resolve_default_language(req.language, req.default_voice),
     )
     loop = asyncio.get_running_loop()
-    wav_path, dur, was_cached = await loop.run_in_executor(
+    wav_path, dur, was_cached, _seg_stats = await loop.run_in_executor(
         _gpu_pool, _render_chapter_cached, chapter, synth, sr, engine_id, resolve, cache_dir,
         req.lexicon,
     )
@@ -508,7 +527,7 @@ async def _render_longform_sse(
 
         for i, chapter in enumerate(plan.chapters):
             try:
-                wav_path, dur, was_cached = await loop.run_in_executor(
+                wav_path, dur, was_cached, seg_stats = await loop.run_in_executor(
                     _gpu_pool, _render_chapter_cached,
                     chapter, synth, sr, engine_id, resolve, cache_dir, lexicon,
                 )
@@ -522,9 +541,15 @@ async def _render_longform_sse(
             chapter_files.append(wav_path)
             chapters_meta.append((chapter.title, int(round(dur * 1000))))
             cached_n += 1 if was_cached else 0
-            yield _emit({"type": "chapter", "index": i, "total": total,
-                         "title": chapter.title, "duration_s": round(dur, 2),
-                         "cached": was_cached})
+            ev = {"type": "chapter", "index": i, "total": total,
+                  "title": chapter.title, "duration_s": round(dur, 2),
+                  "cached": was_cached}
+            if seg_stats is not None:
+                # Additive fields (old clients ignore them): segment-level
+                # reuse inside a re-rendered chapter.
+                ev["segments"] = seg_stats["total"]
+                ev["cached_segments"] = seg_stats["cached"]
+            yield _emit(ev)
 
         if not chapter_files:
             yield _emit({"type": "error", "error": "all chapters failed to render"})

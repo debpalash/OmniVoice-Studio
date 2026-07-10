@@ -55,7 +55,8 @@ def test_render_chapter_cache_hit_skips_synth(tmp_path):
     def boom(*_a, **_k):
         raise AssertionError("synth must not be called on a cache hit")
 
-    wav_path, dur, cached = _render_chapter_cached(chapter, boom, sr, "eng", resolve, str(tmp_path))
+    wav_path, dur, cached, seg_stats = _render_chapter_cached(chapter, boom, sr, "eng", resolve, str(tmp_path))
     assert cached is True
+    assert seg_stats is None  # chapter-level hit — the segment layer untouched
     assert wav_path.endswith(f"{key}.wav")
     assert abs(dur - 0.5) < 0.01

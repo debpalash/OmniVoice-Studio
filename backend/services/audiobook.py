@@ -101,6 +101,7 @@ def synthesize_chapter(
     *,
     crossfade_ms: int = 50,
     lexicon: Optional[dict] = None,
+    segment_cache: Optional["object"] = None,
 ):
     """Render a chapter's spans to one waveform via an injected ``synth``.
 
@@ -111,6 +112,12 @@ def synthesize_chapter(
     crossfaded; inter-span ``pause_ms_after`` becomes silence. ``lexicon`` (when
     given) respells each span's text before chunking so the engine pronounces
     tricky words correctly; a ``None``/empty lexicon is a no-op pass-through.
+    ``segment_cache`` (when given — a :class:`services.longform_render.
+    SegmentCache`) is consulted per spoken span: a cached segment WAV is reused
+    instead of synthesizing, and every freshly rendered span is stored the
+    moment it finishes — so a one-sentence edit re-renders one segment and an
+    interrupted chapter resumes from its finished segments. Pauses are
+    synthesized silence and never touch the cache.
 
     Returns ``(audio_tensor, duration_seconds)``. torch + chunked_tts are
     imported lazily so this module stays import-light for the pure parser path.
@@ -122,13 +129,19 @@ def synthesize_chapter(
     items: list = []  # ("a", tensor) for audio, ("s", n_samples) for silence
     for span in spans:
         if span.text:
-            chunks = split_text_into_chunks(apply_lexicon(span.text, lexicon))
-            rendered = [synth(c, span.voice_id, span.speed) for c in chunks]
-            rendered = [r for r in rendered if r is not None and getattr(r, "numel", lambda: 0)()]
-            if len(rendered) == 1:
-                items.append(("a", rendered[0]))
-            elif rendered:
-                items.append(("a", concatenate_audio_chunks(rendered, sample_rate, crossfade_ms=crossfade_ms)))
+            audio = segment_cache.load(span) if segment_cache is not None else None
+            if audio is None:
+                chunks = split_text_into_chunks(apply_lexicon(span.text, lexicon))
+                rendered = [synth(c, span.voice_id, span.speed) for c in chunks]
+                rendered = [r for r in rendered if r is not None and getattr(r, "numel", lambda: 0)()]
+                if len(rendered) == 1:
+                    audio = rendered[0]
+                elif rendered:
+                    audio = concatenate_audio_chunks(rendered, sample_rate, crossfade_ms=crossfade_ms)
+                if audio is not None and segment_cache is not None:
+                    segment_cache.store(span, audio)
+            if audio is not None:
+                items.append(("a", audio))
         if span.pause_ms_after > 0:
             n = int(sample_rate * span.pause_ms_after / 1000.0)
             if n > 0:

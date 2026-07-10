@@ -18,10 +18,16 @@ reimplement it:
     (+ optional cover art, loudness filter), output as ``m4b`` or ``mp3``.
   * ``chapter_cache_key`` — deterministic content hash so a re-run reuses
     already-rendered chapters (resume) and re-renders only what changed.
+  * ``segment_cache_key`` / ``SegmentCache`` — the inner cache layer: each
+    spoken span's WAV is content-addressed under ``<cache_dir>/segments`` so
+    editing one sentence re-renders one segment (not the chapter) and an
+    interrupted chapter render resumes from its finished segments.
 
-Every function here is pure (string/argv in, string/argv out) so it's unit
-tested without ffmpeg, torch, or a GPU. The impure ffmpeg run lives in the
-caller (the audiobook router today; the stories job tomorrow).
+The builders are pure (string/argv in, string/argv out) so they're unit tested
+without ffmpeg, torch, or a GPU; the cache helpers (``prune_cache_dir``,
+``SegmentCache``) touch only local files and import torch lazily. The impure
+ffmpeg run lives in the caller (the audiobook router today; the stories job
+tomorrow).
 """
 
 from __future__ import annotations
@@ -65,30 +71,29 @@ def _escape_meta(value: str) -> str:
 
 def prune_cache_dir(cache_dir: str, max_bytes: int = _CACHE_MAX_BYTES) -> tuple[int, int]:
     """Evict the oldest files in ``cache_dir`` until the total size is within
-    ``max_bytes`` (LRU by mtime). The content-addressed chapter cache otherwise
+    ``max_bytes`` (LRU by mtime). The content-addressed render cache otherwise
     grows without bound — uncompressed WAVs accumulate across every render.
 
-    Best-effort: returns ``(remaining_bytes, removed_count)`` and never raises
-    (a missing dir / unstattable file is just skipped). Call it *before* writing
-    a job's chapters so the fresh ones are never the eviction target.
+    Walks the whole tree, so chapter WAVs at the root and segment WAVs under
+    ``segments/`` share ONE byte budget — the cap holds no matter which layer
+    grew. Best-effort: returns ``(remaining_bytes, removed_count)`` and never
+    raises (a missing dir / unstattable file is just skipped). Call it *before*
+    writing a job's files so the fresh ones are never the eviction target.
     """
-    try:
-        names = os.listdir(cache_dir)
-    except OSError:
-        return (0, 0)
     entries: list[tuple[float, int, str]] = []
     total = 0
-    for name in names:
-        p = os.path.join(cache_dir, name)
-        try:
-            if not os.path.isfile(p):
+    for root, _dirs, names in os.walk(cache_dir):
+        for name in names:
+            p = os.path.join(root, name)
+            try:
+                if not os.path.isfile(p):
+                    continue
+                size = os.path.getsize(p)
+                mtime = os.path.getmtime(p)
+            except OSError:
                 continue
-            size = os.path.getsize(p)
-            mtime = os.path.getmtime(p)
-        except OSError:
-            continue
-        entries.append((mtime, size, p))
-        total += size
+            entries.append((mtime, size, p))
+            total += size
     if total <= max_bytes:
         return (total, 0)
     entries.sort()  # oldest first
@@ -134,6 +139,126 @@ def chapter_cache_key(
     # Content-addressing only — not a security digest. usedforsecurity=False
     # keeps bandit's B324 (weak-hash) check quiet.
     return hashlib.sha1(raw.encode("utf-8"), usedforsecurity=False).hexdigest()[:20]
+
+
+# ── Segment cache (sub-chapter granularity) ─────────────────────────────────
+
+#: Segment WAVs live in a subdirectory of the chapter cache dir so both layers
+#: share one root — and one byte cap (``prune_cache_dir`` walks the tree).
+SEGMENT_SUBDIR = "segments"
+
+
+def segment_cache_key(
+    text: str,
+    *,
+    sample_rate: int,
+    engine_id: str,
+    voice_id: Optional[str] = None,
+    voice_sig: str = "",
+    speed: Optional[float] = None,
+    extra_sig: str = "",
+) -> str:
+    """Deterministic content hash for ONE rendered segment (a single spoken
+    span). Same dimensions as :func:`chapter_cache_key` minus span order and
+    pauses (pauses are synthesized silence — never cached): text, voice
+    identity (id + resolved signature), speed, sample rate, engine, plus
+    ``extra_sig`` for anything else that changes the rendered audio (the
+    pronunciation lexicon today). Any change → new key → re-synthesize just
+    this segment.
+    """
+    payload = {
+        "sr": int(sample_rate),
+        "engine": engine_id or "",
+        "voice": voice_id or "",
+        "text": text or "",
+        "speed": speed,
+        "voice_sig": voice_sig or "",
+        "extra": extra_sig or "",
+    }
+    raw = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+    # Content-addressing only — not a security digest (see chapter_cache_key).
+    return hashlib.sha1(raw.encode("utf-8"), usedforsecurity=False).hexdigest()[:20]
+
+
+class SegmentCache:
+    """Content-addressed per-segment WAV store under ``cache_dir/segments``.
+
+    The chapter cache stays the fast outer layer — a fully-unchanged chapter
+    hits at the chapter key and never touches segment files. This inner layer
+    makes a *changed* chapter cheap: only the edited/new segments synthesize
+    (the rest load from disk), and an interrupted chapter render resumes from
+    the segments that already finished, because each segment is persisted the
+    moment it renders.
+
+    ``voice_sig`` maps ``voice_id or ""`` → resolved-profile signature (same
+    strings the chapter key uses) so a profile edit invalidates segments too.
+    Load/store are best-effort: a missing/corrupt/foreign-rate file is a clean
+    cache miss (re-render), and a failed store never fails the render — so
+    caches written by any app version degrade safely. torch/torchaudio import
+    lazily to keep this module import-light for the pure-builder callers.
+    """
+
+    def __init__(
+        self,
+        cache_dir: str,
+        *,
+        sample_rate: int,
+        engine_id: str,
+        voice_sig: Optional[dict] = None,
+        extra_sig: str = "",
+    ) -> None:
+        self.dir = os.path.join(cache_dir, SEGMENT_SUBDIR)
+        self.sample_rate = int(sample_rate)
+        self.engine_id = engine_id or ""
+        self.voice_sig = dict(voice_sig or {})
+        self.extra_sig = extra_sig or ""
+        self.hits = 0
+        self.misses = 0
+
+    def _path(self, span) -> str:
+        key = segment_cache_key(
+            span.text,
+            sample_rate=self.sample_rate,
+            engine_id=self.engine_id,
+            voice_id=span.voice_id,
+            voice_sig=self.voice_sig.get(span.voice_id or "", ""),
+            speed=getattr(span, "speed", None),
+            extra_sig=self.extra_sig,
+        )
+        return os.path.join(self.dir, f"{key}.wav")
+
+    def load(self, span):
+        """Cached audio tensor for ``span``, or ``None`` (miss). A hit bumps
+        the file's mtime so LRU eviction sees the segment as recently used."""
+        path = self._path(span)
+        if not os.path.isfile(path):
+            self.misses += 1
+            return None
+        try:
+            import torchaudio
+            audio, sr = torchaudio.load(path)
+        except Exception:
+            self.misses += 1
+            return None  # unreadable/corrupt entry — clean miss, re-render
+        if int(sr) != self.sample_rate or audio.numel() == 0:
+            self.misses += 1
+            return None  # foreign-rate/empty entry — clean miss, re-render
+        try:
+            os.utime(path, None)
+        except OSError:
+            pass
+        self.hits += 1
+        return audio
+
+    def store(self, span, audio) -> None:
+        """Persist a freshly rendered segment. Best-effort — a full disk or
+        unwritable cache dir must never fail the chapter render."""
+        try:
+            from services.audio_io import atomic_save_wav
+            os.makedirs(self.dir, exist_ok=True)
+            atomic_save_wav(self._path(span), audio, self.sample_rate)
+        except Exception:
+            pass
 
 
 # ── Loudness normalization ──────────────────────────────────────────────────
