@@ -15,8 +15,17 @@ vi.mock('../../api/client', () => ({
   apiFetch: vi.fn(),
 }));
 
+// Clipboard helper + toast — controlled so the copy affordance's success AND
+// failure feedback can both be asserted.
+vi.mock('../../utils/copyText', () => ({ copyText: vi.fn() }));
+vi.mock('react-hot-toast', () => ({
+  default: { error: vi.fn(), success: vi.fn() },
+}));
+
 import OpenApiPanel from './OpenApiPanel';
 import { apiFetch } from '../../api/client';
+import { copyText } from '../../utils/copyText';
+import toast from 'react-hot-toast';
 
 const MINIMAL_SPEC = {
   openapi: '3.1.0',
@@ -72,5 +81,29 @@ describe('OpenApiPanel', () => {
 
     expect(await screen.findByTestId('scalar-mock')).toBeInTheDocument();
     expect(screen.queryByTestId('openapi-unreachable')).not.toBeInTheDocument();
+  });
+
+  it('toasts success when the spec URL copies', async () => {
+    apiFetch.mockResolvedValue({ json: async () => MINIMAL_SPEC });
+    copyText.mockResolvedValue(true);
+
+    render(<OpenApiPanel />);
+    fireEvent.click(screen.getByTestId('openapi-copy-url'));
+
+    await vi.waitFor(() => expect(toast.success).toHaveBeenCalled());
+    expect(copyText).toHaveBeenCalledWith('http://127.0.0.1:3900/openapi.json');
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('toasts an error when the clipboard copy fails (non-secure context)', async () => {
+    apiFetch.mockResolvedValue({ json: async () => MINIMAL_SPEC });
+    copyText.mockResolvedValue(false);
+
+    render(<OpenApiPanel />);
+    fireEvent.click(screen.getByTestId('openapi-copy-url'));
+
+    // A failed copy must never be silent.
+    await vi.waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(toast.success).not.toHaveBeenCalled();
   });
 });

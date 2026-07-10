@@ -68,7 +68,17 @@ export default function OpenApiPanel() {
 
   const copyUrl = useCallback(async () => {
     const ok = await copyText(specUrl);
-    if (ok) toast.success(t('openapi.copied', { defaultValue: 'Spec URL copied' }));
+    if (ok) {
+      toast.success(t('openapi.copied', { defaultValue: 'Spec URL copied' }));
+    } else {
+      // copyText returns false when both clipboard paths fail (e.g. a
+      // non-secure LAN-share context) — never leave the click unanswered.
+      toast.error(
+        t('openapi.copy_failed', {
+          defaultValue: 'Copy failed — select and copy the URL above manually.',
+        }),
+      );
+    }
   }, [specUrl, t]);
 
   const openRaw = useCallback(() => {

@@ -19,18 +19,28 @@ import { Button, Badge } from '../../ui';
 import { SettingsSection, SettingRow, SettingsInput } from './primitives';
 import RestartBadge from './RestartBadge';
 
+/** Platform-appropriate FFmpeg example path (sysInfo.platform = Python's sys.platform). */
+export function ffmpegPlaceholder(platform) {
+  if (typeof platform === 'string' && platform.startsWith('win')) {
+    return 'C:\\ffmpeg\\bin\\ffmpeg.exe';
+  }
+  if (platform === 'darwin') return '/opt/homebrew/bin/ffmpeg';
+  return '/usr/bin/ffmpeg';
+}
+
 export default function NetworkTab() {
   const { t } = useTranslation();
   const { data: sysInfo } = useSystemInfo();
   const [proxyUrl, setProxyUrl] = useState('');
   const [proxySaved, setProxySaved] = useState(false);
+  const [proxyCleared, setProxyCleared] = useState(false);
   const [proxySaving, setProxySaving] = useState(false);
   const [ffmpegPath, setFfmpegPath] = useState('');
   const [ffmpegSaving, setFfmpegSaving] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!proxyUrl && !proxySaved) setProxyUrl(sysInfo?.proxy_url || '');
+    if (!proxyUrl && !proxySaved && !proxyCleared) setProxyUrl(sysInfo?.proxy_url || '');
   }, [sysInfo?.proxy_url]);
 
   useEffect(() => {
@@ -39,6 +49,11 @@ export default function NetworkTab() {
 
   const ffmpegOk = sysInfo?.ffmpeg_ok;
   const ffmpegCurrent = sysInfo?.ffmpeg_path;
+  // "A proxy is configured" must survive an app reload: derive it from the
+  // backend-persisted value, not only from a save in this session — otherwise
+  // the Clear button (and the "Set" badge) vanish on reload with the proxy
+  // still active and no way to remove it.
+  const proxyConfigured = !proxyCleared && (proxySaved || Boolean(sysInfo?.proxy_url));
 
   const saveFfmpeg = async () => {
     const value = ffmpegPath.trim();
@@ -81,6 +96,7 @@ export default function NetworkTab() {
       ]);
       toast.success(t('settings.proxy_saved'));
       setProxySaved(true);
+      setProxyCleared(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.systemInfo });
     } catch (e) {
       toast.error(t('settings.save_failed', { message: e.message }));
@@ -109,6 +125,7 @@ export default function NetworkTab() {
       ]);
       setProxyUrl('');
       setProxySaved(false);
+      setProxyCleared(true);
       toast.success(t('settings.proxy_cleared'));
       queryClient.invalidateQueries({ queryKey: queryKeys.systemInfo });
     } catch (e) {
@@ -133,7 +150,8 @@ export default function NetworkTab() {
         title={
           <>
             {t('settings.proxy')}
-            {proxySaved && (
+            <RestartBadge applies />
+            {proxyConfigured && (
               <Badge tone="success" size="xs">
                 {t('credentials.saved')}
               </Badge>
@@ -148,6 +166,7 @@ export default function NetworkTab() {
               value={proxyUrl}
               onChange={(e) => setProxyUrl(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && saveProxy()}
+              aria-label={t('settings.proxy_input_aria', { defaultValue: 'Proxy URL' })}
             />
             <Button
               size="sm"
@@ -158,8 +177,14 @@ export default function NetworkTab() {
             >
               {t('credentials.save')}
             </Button>
-            {proxySaved && (
-              <Button size="sm" variant="ghost" onClick={clearProxy} loading={proxySaving}>
+            {proxyConfigured && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={clearProxy}
+                loading={proxySaving}
+                data-testid="proxy-clear"
+              >
                 {t('settings.proxy_clear')}
               </Button>
             )}
@@ -188,10 +213,11 @@ export default function NetworkTab() {
         control={
           <>
             <SettingsInput
-              placeholder="D:\ffmpeg\bin\ffmpeg.exe"
+              placeholder={ffmpegPlaceholder(sysInfo?.platform)}
               value={ffmpegPath}
               onChange={(e) => setFfmpegPath(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && saveFfmpeg()}
+              aria-label={t('settings.ffmpeg_input_aria', { defaultValue: 'FFmpeg path' })}
             />
             <Button
               size="sm"

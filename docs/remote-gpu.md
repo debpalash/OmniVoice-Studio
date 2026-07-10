@@ -76,7 +76,10 @@ Settings → Sharing → **Remote backend**:
 - **Test connection** hits `{url}/health` and shows the remote's version and
   device.
 - **Save & reload** stores both in this browser/app and restarts the UI
-  against the remote.
+  against the remote. The URL must be a full `http://` or `https://` URL
+  (`gpu-box:3900` alone is rejected), and saving a URL that hasn't passed
+  **Test connection** asks for confirmation first — a wrong base would leave
+  the app unable to reach any backend until you change it back here.
 
 Leave the URL empty to go back to the local backend.
 
