@@ -147,6 +147,45 @@ def normalize_audio(audio_tensor, target_dBFS=-2.0):
     return audio_tensor
 
 
+def trim_trailing_silence(
+    audio_tensor: torch.Tensor,
+    sample_rate: int,
+    keep_tail_s: float = 0.3,
+) -> torch.Tensor:
+    """Trim trailing near-silence from a generated clip, keeping a short
+    natural tail of ``keep_tail_s`` seconds after the last voiced sample.
+
+    Amplitude-based SILENCE trim only — no content analysis of any kind.
+    Uses the same -50 dBFS silence floor as :func:`normalize_audio`: the last
+    sample above that floor marks the end of speech, and everything more than
+    ``keep_tail_s`` past it is dropped.
+
+    Guaranteed no-op cases (input returned as-is, same object):
+      • the trailing quiet span is already ≤ ``keep_tail_s`` (clean output);
+      • the entire clip sits below the floor (dead render — downstream
+        dead-render guards own that case, we must not shrink their evidence);
+      • empty input.
+
+    Accepts ``(n,)`` or ``(channels, n)`` tensors; the returned tensor keeps
+    the input's shape convention.
+    """
+    if audio_tensor.numel() == 0:
+        return audio_tensor
+    # -50 dBFS ≈ 0.00316 linear — matches normalize_audio's silence floor.
+    floor = 10 ** (-50.0 / 20.0)
+    envelope = torch.abs(audio_tensor)
+    if envelope.ndim > 1:
+        envelope = envelope.amax(dim=tuple(range(envelope.ndim - 1)))
+    voiced = torch.nonzero(envelope > floor)
+    if voiced.numel() == 0:
+        return audio_tensor
+    last_voiced = int(voiced[-1].item())
+    end = last_voiced + 1 + int(keep_tail_s * sample_rate)
+    if end >= audio_tensor.shape[-1]:
+        return audio_tensor
+    return audio_tensor[..., :end]
+
+
 def apply_effects_chain(audio_tensor, sample_rate: int, chain: list[dict]) -> torch.Tensor:
     """Apply a chain of named effects to an audio tensor.
 

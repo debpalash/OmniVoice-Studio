@@ -6,7 +6,7 @@ A uniform protocol for every TTS engine. Today we ship:
     • OmniVoiceBackend — wraps the current k2-fsa/OmniVoice model. Zero
       behaviour change for existing callers.
     • VoxCPM2Backend   — thin stub that raises with a clear install hint
-      until `pip install voxcpm` is present and enabled.
+      until `pip install "voxcpm>=2.0.3"` is present and enabled.
 
 Callers should use `get_active_tts_backend()` to pick the configured engine
 instead of importing a specific class. The selection is controlled by the
@@ -407,9 +407,155 @@ class OmniVoiceBackend(TTSBackend):
 
 # ── VoxCPM2 adapter (optional, scaffolded) ──────────────────────────────────
 
+#: Minimum recommended `voxcpm` package version. 2.0.3 fixed an audio-quality
+#: bug on Apple Silicon (low-precision dtypes on the MPS device produced
+#: degraded output). A floor, NOT a pin: newer versions are fine, and an
+#: already-installed older version keeps working — we only surface an upgrade
+#: hint (is_available reason + load-time warning), never force a reinstall.
+_VOXCPM_MIN_VERSION = "2.0.3"
+
+#: Reference-clip cap for VoxCPM2 cloning (seconds). The `voxcpm` package no
+#: longer trims reference audio internally, so an unbounded user clip would
+#: condition the model on minutes of audio (slow, and past a point it stops
+#: helping voice similarity). 30 s is a conservative upper bound.
+_VOXCPM_REF_MAX_S = 30.0
+
+#: Silence pad kept around the voiced region when trimming a reference clip —
+#: a hard cut exactly at the first/last voiced sample clips consonant onsets.
+_VOXCPM_REF_EDGE_PAD_S = 0.05
+
+
+def _version_tuple(v: str) -> Optional[tuple[int, ...]]:
+    """Parse the leading numeric components of a version string ("2.0.3" →
+    (2, 0, 3), "2.1rc1" → (2, 1)). Returns None when nothing numeric parses —
+    callers treat that as 'unknown, assume fine' rather than failing."""
+    parts: list[int] = []
+    for piece in v.split("."):
+        digits = ""
+        for ch in piece:
+            if not ch.isdigit():
+                break
+            digits += ch
+        if not digits:
+            break
+        parts.append(int(digits))
+    return tuple(parts) if parts else None
+
+
+def _voxcpm_installed_version() -> Optional[str]:
+    """Installed `voxcpm` dist version, or None when undeterminable
+    (not installed, or importable without package metadata)."""
+    try:
+        from importlib.metadata import version
+        return version("voxcpm")
+    except Exception:
+        return None
+
+
+def _voxcpm_upgrade_hint() -> Optional[str]:
+    """Actionable upgrade hint when the installed `voxcpm` is older than
+    :data:`_VOXCPM_MIN_VERSION`, else None. Never raises; an unparseable or
+    unknown version yields None (don't nag users we can't be sure about)."""
+    installed = _voxcpm_installed_version()
+    if installed is None:
+        return None
+    have = _version_tuple(installed)
+    want = _version_tuple(_VOXCPM_MIN_VERSION)
+    if have is None or want is None or have >= want:
+        return None
+    return (
+        f"installed voxcpm {installed} is older than {_VOXCPM_MIN_VERSION}, "
+        "which fixed an audio-quality bug on Apple Silicon (low-precision "
+        "dtypes on MPS). The engine still works, but upgrading is "
+        'recommended: pip install --upgrade "voxcpm>=2.0.3"'
+    )
+
+
+# Prepared-reference cache: (abspath, mtime_ns, size) → prepared path (which
+# may be the original path itself when no trim/cap applied). Keeps repeat
+# generations from re-reading + re-writing the same clip, and keeps the temp
+# dir from filling with one copy per generate() call.
+_VOXCPM_REF_PREP_CACHE: dict[tuple, str] = {}
+
+
+def _prepare_voxcpm_ref(path: str) -> str:
+    """Prepare a cloning reference clip for VoxCPM2.
+
+    The `voxcpm` package used to trim reference audio itself but no longer
+    does — raw user clips reach the model unconditioned. This applies the
+    minimal, conservative preparation the model expects:
+
+      • trim leading/trailing near-silence (amplitude threshold at the same
+        -50 dBFS floor `audio_dsp.normalize_audio` uses, with a small
+        :data:`_VOXCPM_REF_EDGE_PAD_S` pad kept on each side), and
+      • cap the reference at :data:`_VOXCPM_REF_MAX_S` seconds from the
+        trimmed start.
+
+    Returns a path to the prepared WAV. Deliberately non-destructive and
+    fail-open: the ORIGINAL path is returned unchanged when the clip needs no
+    meaningful trim/cap (short clean clips pass through untouched), when the
+    whole clip sits below the silence floor (nothing to anchor a trim on), or
+    when anything at all goes wrong — reference prep must never be the reason
+    a generation fails.
+    """
+    try:
+        import numpy as np
+        import soundfile as sf
+
+        abspath = os.path.abspath(path)
+        st = os.stat(abspath)
+        cache_key = (abspath, st.st_mtime_ns, st.st_size)
+        cached = _VOXCPM_REF_PREP_CACHE.get(cache_key)
+        if cached is not None and (cached == abspath or os.path.exists(cached)):
+            return cached
+
+        audio, sr = sf.read(abspath, dtype="float32", always_2d=True)  # (n, ch)
+        n = audio.shape[0]
+        if n == 0 or sr <= 0:
+            return path
+
+        # Silence floor: -50 dBFS, matching audio_dsp.normalize_audio. A clip
+        # that never rises above it is left alone (fail-open, see docstring).
+        floor = 10 ** (-50.0 / 20.0)
+        envelope = np.abs(audio).max(axis=1)
+        voiced = np.flatnonzero(envelope > floor)
+        if voiced.size == 0:
+            _VOXCPM_REF_PREP_CACHE[cache_key] = abspath
+            return path
+
+        pad = int(_VOXCPM_REF_EDGE_PAD_S * sr)
+        start = max(0, int(voiced[0]) - pad)
+        end = min(n, int(voiced[-1]) + 1 + pad)
+        cap = int(_VOXCPM_REF_MAX_S * sr)
+        end = min(end, start + cap)
+
+        # No-op path: nothing meaningful to cut (>0.1 s total) — hand the
+        # original file to the model byte-identical.
+        if (start + (n - end)) <= int(0.1 * sr):
+            _VOXCPM_REF_PREP_CACHE[cache_key] = abspath
+            return path
+
+        import tempfile
+        fd, prepared = tempfile.mkstemp(prefix="voxcpm_ref_", suffix=".wav")
+        os.close(fd)
+        sf.write(prepared, audio[start:end], sr)
+        _VOXCPM_REF_PREP_CACHE[cache_key] = prepared
+        logger.info(
+            "VoxCPM2: prepared reference clip %s → %s (%.2fs → %.2fs; "
+            "silence trimmed, cap %.0fs)",
+            path, prepared, n / sr, (end - start) / sr, _VOXCPM_REF_MAX_S,
+        )
+        return prepared
+    except Exception as e:  # noqa: BLE001 — prep is best-effort by contract
+        logger.warning(
+            "VoxCPM2: reference-clip preparation failed for %s — using the "
+            "raw clip: %s", path, e,
+        )
+        return path
+
 
 class VoxCPM2Backend(TTSBackend):
-    """OpenBMB VoxCPM2 wrapper — `pip install voxcpm` required.
+    """OpenBMB VoxCPM2 wrapper — `pip install "voxcpm>=2.0.3"` required.
 
     Ships as a scaffold: the class loads and reports unavailability cleanly
     when the dep isn't installed, so Settings UI can gate the engine selector
@@ -437,10 +583,17 @@ class VoxCPM2Backend(TTSBackend):
             import voxcpm  # noqa: F401
         except ImportError:
             return False, (
-                "voxcpm package not installed. Install with `pip install voxcpm` "
+                "voxcpm package not installed. Install with "
+                '`pip install "voxcpm>=2.0.3"` '
                 "(requires Python ≥3.10, PyTorch ≥2.5). CUDA ≥12 recommended "
                 "for full speed; MPS (Apple Silicon) and CPU also supported."
             )
+        # Version FLOOR, not pin: an older install still reports available
+        # (no forced reinstall), but the reason carries the upgrade hint and
+        # _ensure_loaded() logs it at load time.
+        hint = _voxcpm_upgrade_hint()
+        if hint:
+            return True, f"ready — {hint}"
         return True, "ready"
 
     @property
@@ -462,6 +615,9 @@ class VoxCPM2Backend(TTSBackend):
         ok, msg = self.is_available()
         if not ok:
             raise RuntimeError(f"VoxCPM2 unavailable: {msg}")
+        hint = _voxcpm_upgrade_hint()
+        if hint:
+            logger.warning("VoxCPM2: %s", hint)
         from voxcpm import VoxCPM  # type: ignore[import-not-found]
         checkpoint = os.environ.get("OMNIVOICE_VOXCPM_MODEL", "openbmb/VoxCPM2")
         logger.info("Loading VoxCPM2 from %s", checkpoint)
@@ -491,14 +647,16 @@ class VoxCPM2Backend(TTSBackend):
                 cfg_value=kw.get("guidance_scale", 2.0),
                 inference_timesteps=kw.get("num_step", 10),
             )
-            if isinstance(wav, np.ndarray):
-                wav = torch.from_numpy(wav).float()
-            if wav.ndim == 1:
-                wav = wav.unsqueeze(0)
-            return wav
+            return self._finalize(wav)
 
         # ── Standard clone / instruct mode ──────────────────────────────
         # Map our instruct prop onto VoxCPM2's inline "(instruct)prompt" prefix.
+        # The reference clip is prepared first (edge-silence trim + length
+        # cap) — the model no longer trims it internally, so a raw user clip
+        # would condition generation on dead air. Fail-open: on any prep
+        # problem the raw path is used, exactly as before.
+        if ref_audio:
+            ref_audio = _prepare_voxcpm_ref(ref_audio)
         prompt = text
         if instruct:
             prompt = f"({instruct}){text}"
@@ -510,11 +668,26 @@ class VoxCPM2Backend(TTSBackend):
             prompt_wav_path=ref_audio if ref_text else None,
             prompt_text=ref_text,
         )
+        return self._finalize(wav)
+
+    def _finalize(self, wav) -> torch.Tensor:
+        """Normalize model output to a (1, n) float tensor and apply the
+        trailing-silence guard.
+
+        The guard is a SILENCE trim only: generations often end with a long
+        near-silent tail, which this cuts (keeping a short ~0.3 s natural
+        tail). It deliberately does NOT attempt to detect or judge trailing
+        *content* — an output that ends in audible audio, wanted or not,
+        passes through unchanged, as does any output without a silent tail.
+        """
+        import numpy as np
+        from services.audio_dsp import trim_trailing_silence
+
         if isinstance(wav, np.ndarray):
             wav = torch.from_numpy(wav).float()
         if wav.ndim == 1:
             wav = wav.unsqueeze(0)
-        return wav
+        return trim_trailing_silence(wav, self.sample_rate)
 
 
 # ── MOSS-TTS-Nano adapter (tiny, CPU-friendly, 20 langs) ────────────────────
@@ -1459,7 +1632,7 @@ _INSTALL_HINTS: dict[str, str] = {
     "cosyvoice":     "git clone --recursive FunAudioLLM/CosyVoice + pip install -r requirements.txt + SoX",
     "kittentts":     "pip install kittentts  (ONNX, CPU-only, ~80 MB)",
     "mlx-audio":     "pip install mlx-audio  (Apple Silicon only)",
-    "voxcpm2":       "pip install voxcpm     (CPU/MPS supported; CUDA recommended for speed)",
+    "voxcpm2":       'pip install "voxcpm>=2.0.3"  (floor: 2.0.3 fixed Apple-Silicon audio quality; CPU/MPS supported, CUDA recommended for speed)',
     "moss-tts-nano": "git clone OpenMOSS/MOSS-TTS-Nano && pip install -e .  (not on PyPI)",
     "indextts2":     "git clone index-tts/index-tts && uv pip install -e .  (NOT uv sync --all-extras)",
     "gpt-sovits":    "External API server — start api_v2.py on port 9880",

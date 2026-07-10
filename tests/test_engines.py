@@ -24,9 +24,10 @@ def test_tts_registry_lists_all_backends():
 
 def test_tts_voxcpm2_unavailable_message_is_actionable():
     ok, msg = tts_backend.VoxCPM2Backend.is_available()
-    # On most CI boxes voxcpm isn't installed; message must tell the user how.
+    # On most CI boxes voxcpm isn't installed; message must tell the user how
+    # — including the >=2.0.3 version floor (Apple-Silicon audio quality).
     if not ok:
-        assert "pip install voxcpm" in msg or "CUDA" in msg
+        assert 'pip install "voxcpm>=2.0.3"' in msg
 
 
 def test_tts_moss_nano_unavailable_message_points_to_install():

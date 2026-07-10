@@ -211,16 +211,19 @@ def test_indextts_install_hint_warns_about_sync():
 
 
 def test_voxcpm_install_hint_uses_correct_package_name():
-    """VoxCPM2 backend's hint must reference pip package 'voxcpm', not 'voxcpm2'."""
+    """VoxCPM2 backend's hint must reference pip package 'voxcpm', not
+    'voxcpm2' — and carry the >=2.0.3 version FLOOR (2.0.3 fixed an
+    Apple-Silicon audio-quality bug; floor only, never an exact pin)."""
     rows = tts_backend.list_backends()
     vox_row = next((r for r in rows if r["id"] == "voxcpm2"), None)
     assert vox_row is not None, "voxcpm2 not in registry"
     hint = vox_row["install_hint"]
-    # The pip package is 'voxcpm', NOT 'voxcpm2'
-    assert "pip install voxcpm" in hint
+    # The pip package is 'voxcpm' (with the version floor), NOT 'voxcpm2'
+    assert 'pip install "voxcpm>=2.0.3"' in hint
     assert "voxcpm2" not in hint.split("pip install ")[1].split()[0], (
-        f"Hint should say 'pip install voxcpm' not 'pip install voxcpm2': {hint}"
+        f"Hint should say 'pip install voxcpm...' not 'pip install voxcpm2': {hint}"
     )
+    assert "voxcpm==" not in hint, f"Floor only — never pin exact: {hint}"
 
 
 def test_list_backends_shape_unchanged():
