@@ -164,6 +164,65 @@ describe('StorageUsagePanel', () => {
     });
   });
 
+  it('Clear logs is confirm-gated: declining leaves the logs untouched', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const fetchMock = mockFetchWith(REPORT);
+    render(<StorageUsagePanel />);
+    await waitFor(() => expect(screen.getByTestId('storage-clear-logs')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId('storage-clear-logs'));
+
+    await waitFor(() => expect(confirmSpy).toHaveBeenCalled());
+    expect(confirmSpy.mock.calls[0][0]).toMatch(/cannot be undone/i);
+    expect(fetchMock.mock.calls.filter(([u]) => /\/system\/logs\/clear/.test(u))).toHaveLength(0);
+  });
+
+  it('Clear logs POSTs after the user confirms', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const fetchMock = mockFetchWith(REPORT);
+    render(<StorageUsagePanel />);
+    await waitFor(() => expect(screen.getByTestId('storage-clear-logs')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId('storage-clear-logs'));
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(([u]) => /\/system\/logs\/clear/.test(u));
+      expect(call).toBeTruthy();
+      expect(call[1]?.method).toBe('POST');
+    });
+  });
+
+  it('Clear temp files is confirm-gated and hits the temp-clear endpoint', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const report = {
+      ...REPORT,
+      categories: REPORT.categories.map((c) =>
+        c.id === 'temp' ? { ...c, bytes: 512 * 1024 ** 2 } : c,
+      ),
+    };
+    const fetchMock = mockFetchWith(report);
+    render(<StorageUsagePanel />);
+    await waitFor(() => expect(screen.getByTestId('storage-clear-temp')).toBeInTheDocument());
+    expect(screen.getByTestId('storage-clear-temp')).not.toBeDisabled();
+
+    fireEvent.click(screen.getByTestId('storage-clear-temp'));
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(([u]) =>
+        u.endsWith('/api/settings/storage/temp/clear'),
+      );
+      expect(call).toBeTruthy();
+      expect(call[1]?.method).toBe('POST');
+    });
+  });
+
+  it('Clear temp files is disabled when there is nothing to reclaim', async () => {
+    mockFetchWith(REPORT); // REPORT's temp category is 0 bytes
+    render(<StorageUsagePanel />);
+    await waitFor(() => expect(screen.getByTestId('storage-clear-temp')).toBeInTheDocument());
+    expect(screen.getByTestId('storage-clear-temp')).toBeDisabled();
+  });
+
   it('shows the load error state when the endpoint fails', async () => {
     // An HTTP error (not a transport failure) — apiFetch surfaces it without retrying.
     global.fetch = vi.fn().mockResolvedValue({

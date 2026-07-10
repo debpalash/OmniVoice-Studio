@@ -516,7 +516,7 @@
     "factory_reset_confirm": "Reset and reload",
     "factory_reset_confirm_body": "This clears all saved UI preferences and reloads the app. Your voices, projects, and outputs on disk are not affected. Continue?",
     "factory_reset_done": "Preferences cleared — reloading…",
-    "factory_reset_failed": "Reset failed",
+    "factory_reset_failed": "Reset failed: {{message}}",
     "storage_usage": "Disk usage",
     "storage_usage_desc": "What OmniVoice stores on this machine, and how much space is left.",
     "storage_refresh": "Refresh",
@@ -554,7 +554,23 @@
     "history_retention_cap_hint": "Starred takes never count against cleanup · 0 = unlimited",
     "history_retention_saved": "Retention limit saved",
     "history_retention_save_failed": "Could not save",
-    "history_retention_invalid": "Enter 0 or more"
+    "history_retention_invalid": "Enter 0 or more",
+    "perf_title": "Performance",
+    "perf_torch_compile": "Disable torch.compile (Windows)",
+    "perf_torch_compile_na": "Windows only — not needed on this platform",
+    "perf_torch_compile_note": "Falls back to eager mode — fixes Triton OOM on <16 GB GPUs.",
+    "perf_torch_compile_hint": "Workaround for <issueLink>#65</issueLink> — Windows users may hit Triton / <code>torch.compile</code> OOM during model load on GPUs with less than 16 GB VRAM. Enabling this sets <code>TORCH_COMPILE_DISABLE=1</code> on engine subprocesses, which falls back to eager mode. macOS and Linux are unaffected.",
+    "perf_load_failed": "Failed to load performance settings",
+    "perf_save_failed": "Failed to save setting",
+    "storage_load_failed": "Failed to load storage info",
+    "open_folder_failed": "Could not open folder",
+    "storage_clear_temp": "Clear temp files",
+    "storage_clear_temp_hint": "Delete OmniVoice's own files in the temp directory",
+    "storage_clear_temp_confirm": "Delete OmniVoice's temporary working files? Don't do this while a dub or batch job is running.",
+    "storage_clear_temp_failed": "Could not clear temporary files",
+    "storage_temp_cleared": "Temporary files cleared — {{freed}} freed",
+    "data_dir_at": "App data stored at",
+    "history_retention_load_failed": "Could not load the current retention limit"
   },
   "about": {
     "app": "App",
@@ -1696,7 +1712,8 @@
     "no": "No",
     "more_info": "More info",
     "learn_more": "Learn more",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "unknown": "unknown"
   },
   "keyboard": {
     "title": "Keyboard shortcuts",
@@ -1904,7 +1921,10 @@
     "log_copied": "Copied {{source}} log",
     "copy_failed": "Copy failed: {{message}}",
     "report_copied": "Diagnostic report copied — paste it into a GitHub issue.",
-    "report_failed": "Report failed: {{message}}"
+    "report_failed": "Report failed: {{message}}",
+    "source": "Log source",
+    "frontend_buffer": "in-memory (last 500)",
+    "copy_failed_short": "Could not copy the log"
   },
   "trimmer": {
     "title": "Trim reference audio",

@@ -70,7 +70,13 @@ export default function PerformanceDeviceTab() {
                     : 'neutral'
               }
             >
-              {status?.status || 'unknown'}
+              {status?.status === 'ready'
+                ? t('models.ready_badge')
+                : status?.status === 'loading'
+                  ? t('models.loading_badge')
+                  : status?.status === 'idle'
+                    ? t('models.idle_badge')
+                    : status?.status || t('common.unknown', { defaultValue: 'unknown' })}
             </Badge>
           }
         />

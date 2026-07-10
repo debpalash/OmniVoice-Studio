@@ -65,7 +65,30 @@ describe('PerformancePanel', () => {
       const toggle = screen.getByTestId('torch-compile-toggle');
       expect(toggle).toBeDisabled();
     });
-    expect(screen.getByText(/not applicable/i)).toBeInTheDocument();
+    expect(screen.getByText(/not needed on this platform/i)).toBeInTheDocument();
+  });
+
+  it('renders every user-facing string through i18n (en fallback)', async () => {
+    global.fetch = mockFetchSequence({
+      status: 200,
+      body: { enabled: false, platform: 'win32' },
+    });
+    render(<PerformancePanel />);
+    await waitFor(() => screen.getByTestId('torch-compile-toggle'));
+    // Section title + row label resolve from settings.perf_* keys.
+    expect(screen.getByText('Performance')).toBeInTheDocument();
+    expect(screen.getByText(/Disable torch\.compile \(Windows\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Falls back to eager mode/)).toBeInTheDocument();
+    expect(screen.getByTestId('torch-compile-toggle')).toHaveAccessibleName(
+      /Disable torch\.compile \(Windows\)/,
+    );
+  });
+
+  it('surfaces a translated load error when the GET fails', async () => {
+    global.fetch = mockFetchSequence({ status: 500, body: { detail: 'boom' } });
+    render(<PerformancePanel />);
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByRole('alert')).toHaveTextContent(/boom|Failed to load/i);
   });
 
   it('renders disabled on linux platform', async () => {

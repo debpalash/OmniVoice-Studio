@@ -269,3 +269,65 @@ def test_endpoint_returns_report_shape(roots, monkeypatch):
     from api.routers.setup.wizard import MIN_FREE_GB
     assert res["min_free_gb"] == MIN_FREE_GB
     assert res["volumes"] and {"total_bytes", "free_bytes", "used_percent", "roots"} <= set(res["volumes"][0])
+
+
+# ── Temp-files cleanup (Settings → Storage → "Clear temp files") ────────────
+
+def test_clear_temp_removes_only_app_owned_entries(tmp_path):
+    tmp = tmp_path / "tmp"
+    _write(str(tmp / "omnivoice_frames_abc" / "f.png"), 25)
+    _write(str(tmp / "omnivoice.chunk"), 10)
+    _write(str(tmp / "unrelated" / "keep.bin"), 999)
+    _write(str(tmp / "keep.txt"), 7)
+
+    res = storage_report.clear_temp(str(tmp))
+
+    assert sorted(res["removed"]) == ["omnivoice.chunk", "omnivoice_frames_abc"]
+    assert res["freed_bytes"] == 35
+    assert res["errors"] == []
+    assert not (tmp / "omnivoice_frames_abc").exists()
+    assert not (tmp / "omnivoice.chunk").exists()
+    # Anything not app-owned is never touched.
+    assert (tmp / "unrelated" / "keep.bin").exists()
+    assert (tmp / "keep.txt").exists()
+
+
+def test_clear_temp_unlinks_symlinks_without_following(tmp_path):
+    tmp = tmp_path / "tmp"
+    target = tmp_path / "precious"
+    _write(str(target / "data.bin"), 50)
+    os.makedirs(tmp, exist_ok=True)
+    os.symlink(str(target), str(tmp / "omnivoice_link"))
+
+    res = storage_report.clear_temp(str(tmp))
+
+    assert res["removed"] == ["omnivoice_link"]
+    assert not os.path.lexists(tmp / "omnivoice_link")
+    # The symlink target's contents must survive.
+    assert (target / "data.bin").exists()
+
+
+def test_clear_temp_empty_dir_is_a_noop(tmp_path):
+    tmp = tmp_path / "tmp"
+    os.makedirs(tmp, exist_ok=True)
+    res = storage_report.clear_temp(str(tmp))
+    assert res == {"removed": [], "freed_bytes": 0, "errors": []}
+
+
+def test_clear_temp_endpoint_clears_and_invalidates_cache(roots, monkeypatch, tmp_path):
+    from api.routers import settings as s
+
+    tmp = tmp_path / "endpoint_tmp"
+    _write(str(tmp / "omnivoice_job" / "seg.wav"), 40)
+    monkeypatch.setattr("tempfile.gettempdir", lambda: str(tmp))
+
+    # Prime the report cache, then clear — the endpoint must invalidate it.
+    monkeypatch.setattr(s, "_effective_models_dir", lambda: roots["hf_cache_dir"])
+    monkeypatch.setattr("core.config.DATA_DIR", roots["data_dir"])
+    asyncio.run(s.get_storage_report(refresh=True))
+
+    res = asyncio.run(s.clear_temp_files())
+    assert res["removed"] == ["omnivoice_job"]
+    assert res["freed_bytes"] == 40
+    assert not (tmp / "omnivoice_job").exists()
+    assert storage_report._cache["report"] is None  # cache invalidated

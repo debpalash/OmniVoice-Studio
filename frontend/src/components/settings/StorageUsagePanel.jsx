@@ -21,6 +21,7 @@ import { exportReveal } from '../../api/exports';
 import { clearSystemLogs } from '../../api/system';
 import { useAppStore } from '../../store';
 import { fmtBytes } from './models/format';
+import { askConfirm } from './native';
 import { SettingsSection } from './primitives';
 
 // Once-per-session guard for the out-of-Settings critical toast.
@@ -137,7 +138,10 @@ export default function StorageUsagePanel() {
           toast.error(warningText(t, critical), { id: 'storage-critical', duration: 8000 });
         }
       } catch (e) {
-        setError(e?.message || 'Failed to load storage info');
+        setError(
+          e?.message ||
+            t('settings.storage_load_failed', { defaultValue: 'Failed to load storage info' }),
+        );
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -154,17 +158,58 @@ export default function StorageUsagePanel() {
     try {
       await exportReveal({ path });
     } catch (e) {
-      toast.error(e?.message || 'Could not open folder');
+      toast.error(
+        e?.message || t('settings.open_folder_failed', { defaultValue: 'Could not open folder' }),
+      );
     }
   };
 
+  // Same confirm gate as Settings → Logs → Clear: this truncates the crash log
+  // too (the primary bug-report artifact), so it must never be one stray click.
   const clearLogs = async () => {
+    const ok = await askConfirm(
+      t('settings.clear_backend_confirm', {
+        defaultValue: 'Clear the backend runtime + crash logs? This cannot be undone.',
+      }),
+      t('settings.clear_backend_title', { defaultValue: 'Clear logs' }),
+    );
+    if (!ok) return;
     try {
       await clearSystemLogs();
       toast.success(t('settings.storage_logs_cleared', { defaultValue: 'Logs cleared' }));
       load(true);
     } catch (e) {
-      toast.error(e?.message || 'Could not clear logs');
+      toast.error(
+        e?.message || t('settings.clear_backend_failed', { defaultValue: 'Failed to clear logs' }),
+      );
+    }
+  };
+
+  const clearTemp = async () => {
+    const ok = await askConfirm(
+      t('settings.storage_clear_temp_confirm', {
+        defaultValue:
+          "Delete OmniVoice's temporary working files? Don't do this while a dub or batch job is running.",
+      }),
+      t('settings.storage_clear_temp', { defaultValue: 'Clear temp files' }),
+    );
+    if (!ok) return;
+    try {
+      const r = await apiJson('/api/settings/storage/temp/clear', { method: 'POST' });
+      toast.success(
+        t('settings.storage_temp_cleared', {
+          defaultValue: 'Temporary files cleared — {{freed}} freed',
+          freed: fmtBytes(r?.freed_bytes || 0),
+        }),
+      );
+      load(true);
+    } catch (e) {
+      toast.error(
+        e?.message ||
+          t('settings.storage_clear_temp_failed', {
+            defaultValue: 'Could not clear temporary files',
+          }),
+      );
     }
   };
 
@@ -311,6 +356,19 @@ export default function StorageUsagePanel() {
                   >
                     <Package size={12} />
                     {t('settings.storage_manage_models', { defaultValue: 'Manage models' })}
+                  </SmallButton>
+                )}
+                {cat.id === 'temp' && (
+                  <SmallButton
+                    onClick={clearTemp}
+                    title={t('settings.storage_clear_temp_hint', {
+                      defaultValue: "Delete OmniVoice's own files in the temp directory",
+                    })}
+                    testId="storage-clear-temp"
+                    disabled={(cat.bytes || 0) === 0}
+                  >
+                    <Trash2 size={12} />
+                    {t('settings.storage_clear_temp', { defaultValue: 'Clear temp files' })}
                   </SmallButton>
                 )}
                 {cat.exists && (

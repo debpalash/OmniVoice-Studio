@@ -289,7 +289,10 @@ export default function Settings() {
           return `[${ts}] [${e.level}] ${e.msg}\n`;
         });
         setLogs(lines);
-        setLogMeta({ path: 'in-memory (last 500)', exists: true });
+        setLogMeta({
+          path: t('logs.frontend_buffer', { defaultValue: 'in-memory (last 500)' }),
+          exists: true,
+        });
       }
     } catch (e) {
       toast.error(t('settings.logs_load_failed', { message: e.message }));

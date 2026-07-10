@@ -469,3 +469,39 @@ def clear_cache() -> None:
     """Testing hook — drop the in-process cache."""
     with _cache_lock:
         _cache.update(key=None, ts=0.0, report=None)
+
+
+def clear_temp(temp_root: str | None = None) -> dict:
+    """Delete the app-owned ``omnivoice*`` entries in the OS temp dir.
+
+    Removes exactly the population ``build_report`` counts as the "temp"
+    category — direct children of ``temp_root`` whose basename starts with
+    ``omnivoice`` — so nothing outside OmniVoice's own working files can ever
+    be swept up. Symlinked entries are unlinked, never followed, so a stray
+    ``omnivoice*`` link cannot make this delete its target's contents.
+
+    Returns ``{"removed": [basenames], "freed_bytes": int, "errors":
+    [{"path", "error"}]}`` — partial failures (e.g. a file held open by a
+    running job on Windows) are reported per entry instead of aborting.
+    """
+    temp_root = temp_root if temp_root is not None else tempfile.gettempdir()
+    removed: list[str] = []
+    errors: list[dict] = []
+    freed = 0
+    deadline = time.monotonic() + CATEGORY_TIMEOUT_SECONDS
+    for p in sorted(glob.glob(os.path.join(glob.escape(temp_root), "omnivoice*"))):
+        try:
+            if os.path.islink(p):
+                size = 0
+                os.unlink(p)
+            elif os.path.isfile(p):
+                size = os.path.getsize(p)
+                os.unlink(p)
+            else:
+                size, _complete, _err = _dir_size(p, deadline)
+                shutil.rmtree(p)
+            removed.append(os.path.basename(p))
+            freed += size
+        except OSError as e:
+            errors.append({"path": p, "error": str(e)})
+    return {"removed": removed, "freed_bytes": freed, "errors": errors}

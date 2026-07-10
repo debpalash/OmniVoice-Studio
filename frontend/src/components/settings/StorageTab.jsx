@@ -1,29 +1,29 @@
 /**
  * Settings → Storage (System group).
  *
- * Shows where OmniVoice keeps its data and outputs (read-only, from systemInfo)
- * and provides a NEW "Factory reset" action that clears the locally-persisted
- * UI preferences (the zustand `omnivoice.app` localStorage blob) behind a
+ * Shows where OmniVoice keeps its data and outputs (read-only, from systemInfo,
+ * each with an Open-folder affordance via the /export/reveal endpoint) and a
+ * "Factory reset" action that clears every locally-persisted UI preference —
+ * the full registry in utils/prefKeys.js, not just the zustand blob — behind a
  * confirm Dialog, then reloads.
  *
  * NOTE: the models *cache* directory lives in the Models category (StoragePanel)
  * — this category is about the app's own data/outputs paths and a clean-slate
  * reset of UI prefs. Factory reset only touches localStorage prefs; it never
- * deletes the user's voices, projects, or outputs on disk.
+ * deletes the user's voices, projects, or outputs on disk, and never wipes the
+ * remote-backend connection or dictation history (see prefKeys.PRESERVED_KEYS).
  */
 import React, { useState } from 'react';
-import { HardDrive, RotateCcw } from 'lucide-react';
+import { FolderOpen, HardDrive, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useSystemInfo } from '../../api/hooks';
+import { exportReveal } from '../../api/exports';
+import { clearLocalPreferences } from '../../utils/prefKeys';
 import { Button, Dialog } from '../../ui';
 import { SettingsSection } from './primitives';
 import Row from './Row';
 import HistoryRetentionPanel from './HistoryRetentionPanel';
-
-// The zustand persist key (see store/index.ts `name`). Clearing it resets every
-// persisted UI preference to its slice default on the next load.
-const PREFS_LS_KEY = 'omnivoice.app';
 
 export default function StorageTab() {
   const { t } = useTranslation();
@@ -32,7 +32,7 @@ export default function StorageTab() {
 
   const factoryReset = () => {
     try {
-      localStorage.removeItem(PREFS_LS_KEY);
+      clearLocalPreferences();
       toast.success(
         t('settings.factory_reset_done', { defaultValue: 'Preferences cleared — reloading…' }),
       );
@@ -41,10 +41,47 @@ export default function StorageTab() {
       setTimeout(() => window.location.reload(), 350);
     } catch (e) {
       toast.error(
-        t('settings.factory_reset_failed', { defaultValue: 'Reset failed', message: e?.message }),
+        t('settings.factory_reset_failed', {
+          defaultValue: 'Reset failed: {{message}}',
+          message: e?.message || e,
+        }),
       );
     }
   };
+
+  const openFolder = async (path) => {
+    try {
+      await exportReveal({ path });
+    } catch (e) {
+      toast.error(
+        e?.message || t('settings.open_folder_failed', { defaultValue: 'Could not open folder' }),
+      );
+    }
+  };
+
+  const pathRow = (label, path, testId) => (
+    <Row
+      label={label}
+      value={
+        <>
+          <span>{path || '—'}</span>
+          {path && (
+            <Button
+              variant="ghost"
+              size="sm"
+              leading={<FolderOpen size={12} />}
+              onClick={() => openFolder(path)}
+              title={path}
+              data-testid={testId}
+            >
+              {t('settings.storage_open_folder', { defaultValue: 'Open folder' })}
+            </Button>
+          )}
+        </>
+      }
+      mono
+    />
+  );
 
   return (
     <>
@@ -55,13 +92,13 @@ export default function StorageTab() {
           defaultValue: 'Where OmniVoice keeps your data and outputs.',
         })}
       >
-        <Row
-          label={t('privacy.uploads_at')}
-          value={info?.data_dir ? `${info.data_dir}/` : '—'}
-          mono
-        />
-        <Row label={t('privacy.outputs_at')} value={info?.outputs_dir || '—'} mono />
-        <Row label={t('about.crash_log')} value={info?.crash_log_path || '—'} mono />
+        {pathRow(
+          t('settings.data_dir_at', { defaultValue: 'App data stored at' }),
+          info?.data_dir ? `${info.data_dir}/` : '',
+          'storage-open-data-dir',
+        )}
+        {pathRow(t('privacy.outputs_at'), info?.outputs_dir || '', 'storage-open-outputs-dir')}
+        {pathRow(t('about.crash_log'), info?.crash_log_path || '', 'storage-open-crash-log')}
       </SettingsSection>
 
       <HistoryRetentionPanel />

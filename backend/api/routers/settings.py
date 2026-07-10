@@ -725,6 +725,26 @@ async def get_storage_report(refresh: bool = Query(False)):
         raise HTTPException(status_code=500, detail="Failed to compute storage report")
 
 
+@router.post("/storage/temp/clear")
+async def clear_temp_files():
+    """Delete OmniVoice-owned temp files (Settings → Storage → Temporary files).
+
+    Removes only the ``omnivoice*`` entries in the OS temp dir — the exact
+    population the storage report's "temp" category counts — and invalidates
+    the cached report so the next scan reflects the reclaimed space. Partial
+    failures (files held open by a running job) are returned per entry.
+    """
+    from services import storage_report
+
+    try:
+        result = await asyncio.to_thread(storage_report.clear_temp)
+        storage_report.clear_cache()
+        return result
+    except Exception:
+        logger.exception("clear temp files failed")
+        raise HTTPException(status_code=500, detail="Failed to clear temporary files")
+
+
 # ── HF mirror endpoint (parity program Wave 4.3 / §R4 c) ──────────────────
 # Restricted-network users (e.g. behind the Great Firewall) need to point
 # huggingface_hub at a mirror. HF reads HF_ENDPOINT at import time, so a

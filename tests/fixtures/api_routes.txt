@@ -132,6 +132,7 @@ POST /api/settings/hf-token
 POST /api/settings/license
 POST /api/settings/llm-providers/active
 POST /api/settings/llm-providers/{provider_id}/test
+POST /api/settings/storage/temp/clear
 POST /archetypes/{archetype_id}/use
 POST /audiobook
 POST /audiobook/cover
